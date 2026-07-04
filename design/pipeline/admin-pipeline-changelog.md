@@ -4,6 +4,99 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 6 — LIN-20 B1: Phase 4 — variant B(다크 크롬) + 사이징 스케일 적용
+
+계약 문서: [design-process.md](design-process.md)(프로세스)·
+[admin-pipeline-design-system.md](admin-pipeline-design-system.md)(치수·표면·금지 목록).
+오너 결정: Phase 0 캐릭터 = n8n(구조)+Linear(표면), Phase 3 variant = **B 선택**.
+
+**사이징 정렬** (design-system §1 — 실측 결함 7건 해소, 26치환+수정 2건 전부 제자리 편집)
+- 컨트롤 높이 3단 고정: `.input`/`select`/`.btn` **32** · `.btn.sm`/`.seg button`/`.pill.lg` **28** ·
+  `.pill`/`.kindchip` **20** (kindchip `flex:none` — tnode flex 안 수축 방지)
+- 고정 리듬: 아이콘 sm 13→**14**, 테이블 th **34**/td **44**, Task 노드 **높이 164 고정**
+  (flex column, nm·meta 2줄 클램프 — 전문은 사이드 패널 몫)
+- 나란한 카드 등고: `.detail-grid` sticky→**stretch**(+`min-height:300px`),
+  `.two-col` 카드 `margin-top:0`(그리드 안 `.card+.card` 마진 누출 수정) —
+  detail-ia.md·components.md의 sticky 계약 동시 개정
+
+**variant B — 다크 크롬 + 라이트 캔버스** (design-system §2)
+- 탑네비·사이드바 **#101828 다크** (brand/nav/active/hover 색 재정의, active 인디케이터 유지)
+- FAILED 상태 바: inset 좌측 바 → **붉은 틴트 표면**(gradient)+보더, pill.lg 1px 링
+- 헤더 주석을 design-system.md 참조로 갱신
+
+**검증** (Phase 4 게이트)
+- 게이트 A(기계): 치수 audit 스크립트 4페이지 — 초회 위반 2건(two-col 12px 차·kindchip 19px)
+  수정 후 **전 페이지 PASS**. §4.5 스팟체크(FAILED 자동선택·취소 매트릭스·N/M) OK, JS 에러 0
+- 게이트 B(비평): fresh-eyes 비전 에이전트가 렌더 4페이지 직접 관찰·채점 —
+  R1: P0 0 / **P1 5** → 전건 수정 후 R2 재검증:
+  ① FAILED/CANCELLED 진행 바가 RUNNING과 같은 파랑("진행 중" 오독) → progressBar에
+  status 인자, `.pbar.s-FAILED .fill` err 색 (바 색=상태색 문법 완성)
+  ② 실패 stat 값이 성공과 같은 무채색 → failed>0일 때만 err-text 조건부 틴트
+  ③ CONDITION_CHECK kindchip이 primary 파랑(상태 IN_PROGRESS와 등가로 오독,
+  anti-slop §3-7) → 무채 + dashed 보더(tnode.cond 문법 공유)
+  ④ 사이드 패널 카드 전체 가로 스크롤(kv·제목까지 밀림) → Attempts 표만
+  `.tblwrap` 내부 스크롤
+  ⑤ `.pbar .lbl` 11.5px/500 = 9롤 밖 → 12px/600 (t-key)
+  (+P2: stat 레이블 "Running"→"실행 중 (RUNNING)" 언어 통일)
+  **R2: 5건 해소 + 회귀 없음 확인 → PASS.** 잔여 P2 백로그(비차단):
+  Attempts 시각 열 기본 절단(error_code ellipsis로 해결 가능) ·
+  count-bound 주석 중간 개행 · 노드 상태 아이콘 형태 통일(원형)
+- 게이트 C(오너): before/after 승인 후 커밋
+
+## Round 5 — LIN-20 B1: 파이프라인 상세 IA v2 + 타이포그래피 스펙 적용
+
+계약 문서: [admin-pipeline-detail-ia.md](admin-pipeline-detail-ia.md)(레이아웃)·
+[admin-pipeline-typography.md](admin-pipeline-typography.md)(타이포) — codex 6라운드 크로스 리뷰 MERGE-READY.
+
+**타이포그래피** (typography.md §0 적용)
+- 폰트 스택에 Geist/Geist Mono 복원(App next/font 정렬 — 미설치 시 시스템 고딕 폴백, 외부 의존성 0)
+- base 13px + 전역 자간 -0.014em(13px 보정 tier), line-height 1.55
+- 롤 정렬: h1 20→18(t-title), kv key weight 500→600(t-key), pill/kindchip 10.5(t-micro),
+  formula 12.5(t-mono), stat 값 -0.02em(t-display)
+
+**파이프라인 상세 v2** (components.md §4.4 계약)
+- h1·"파이프라인 정보"/"실행 메타" 2카드 해체 → **PipelineStatusBar**(대형 pill + ProgressBar +
+  현재 task + 취소 CTA 상주, meta 행에 타입/#id/Provider 칩/서비스/시각/파생 task)
+- FAILED: 상태 바 좌측 err 액센트 + error_code 칩 + **실패 노드 자동 선택**(selectedTaskId 초기 파생)
+- Task 상세 → **우측 340px sticky 사이드 패널**(grid minmax(0,1fr)+340px, 노드 200→172px 컴팩트,
+  scrollIntoView 제거)
+- 하단 접힘 각주 2개: **대상 상세 metadata**(CSP별 kv — mock에 App CloudTargetSource 필드명 그대로
+  awsAccountId/tenantId/subscriptionId/gcpProjectId 추가, idc는 계정+안내 문구) · ADR-021 미제공 4필드
+
+검증: #128(RUNNING)·#124(FAILED 자동선택)·대시보드/검색/target 타이포 영향 브라우저 확인, 콘솔 에러 0.
+
+## Round 4 — LIN-20 B1: 모던 어드민 리디자인
+
+방향 전환: Toss-소프트 → **모던 어드민(밀도형)**. 로직·라우팅·mock·§4.5 파생 규칙은 무변경,
+비주얼/UX 레이어만 교체. (Round 1–3은 Toss 토큰 기준의 정제 이력)
+
+**파운데이션**
+- 토큰 전면 교체: Toss surface → 중립 gray 스케일 + 시맨틱 변수(`--bg-*`/`--text-*`/`--border*`).
+  다크모드는 `:root` 오버라이드만 추가하면 되는 구조(이번 범위 밖)
+- primary `#0064FF`→`#2563EB`, 상태색을 ok/err/info/warn/off 5종 bg·text 페어로 정리(산발 hex 회수)
+- radius 20/16→10/8, 카드 그림자 → **1px border + shadow-xs**
+- 폰트: 미로딩 Geist/Pretendard 선언 정리 → 시스템 스택 확정, letter-spacing 튜닝 제거
+- **이모지·유니코드 글리프 전면 제거 → 인라인 SVG 스프라이트 16종** (외부 의존성 0 유지)
+
+**컴포넌트**
+- 탑네비: active `●` → 2px 하단 보더, 브랜드 마크 추가. 사이드바 active: inset 보더
+- StatCard: `.formula` 노출 → 카드 `title` 툴팁으로 격하. 미제공 카드 점선 제거(조용한 카드로)
+- 테이블: 헤더 11px 캡션, 마지막 행 border 제거, chevron SVG
+- StatusPill: radius 999 + RUNNING/IN_PROGRESS dot **pulse 애니메이션**
+- ProviderTag: 컬러 텍스트 → **중립 텍스트 + 브랜드 dot**(목록 무지개 소음 제거)
+- ProgressBar: N==M이면 success 색(`.pbar.done`)
+- TaskNode: 상태 아이콘 → 원형 칩 + SVG, 선택 시 primary ring, 메타 선행 `·` 구분자 버그 수정
+- 버튼: variant별 disabled 스타일(opacity 흐림 → 회색 배경/보더로 명확화)
+- 검색 입력: placeholder 이모지 → `.searchbox` SVG 아이콘
+- 모달 480px/r12/shadow-lg + recipe step 구분선, 토스트 체크 아이콘
+
+**UX**
+- `파생`/`process_status` 등 내부 용어 배지 → info 아이콘 `title` 툴팁으로 격하
+- Task 노드 선택 시 하단 상세 `scrollIntoView`(클릭 무반응감 해소)
+- 서비스 페이지 two-col stretch + min-height(하단 빈 화면 해소), 파이프라인 메타 그리드 align-start
+
+검증: 4페이지 + preview/cancel 모달 + 생성(A10)·취소(A6) 플로우 브라우저 전수 확인, 콘솔 에러 0.
+
 ## Round 3 — 전체 육안 점검 pass (최종)
 
 4개 페이지 + 모달을 브라우저에서 전수 재점검하여 발견한 2건 수정.

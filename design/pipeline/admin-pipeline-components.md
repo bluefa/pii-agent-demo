@@ -50,7 +50,7 @@
 | Provider | aws/azure/gcp/idc/sdu | `#FF9900` / `#0078D4` / `#4285F4` / `#374151` / `#9333EA` |
 | 그림자 sm | `--toss-shadow-sm` | `0 1px 2px rgba(17,24,39,0.04), 0 4px 16px -8px rgba(17,24,39,0.06)` |
 | 그림자 md | `--toss-shadow-md` | `0 2px 4px rgba(17,24,39,0.04), 0 12px 32px -12px rgba(17,24,39,0.10)` |
-| 폰트 | 본문 Geist, mono Geist Mono, base 15px, `letter-spacing -0.018em`(전역) | |
+| 폰트 | 본문 Geist(한글은 Apple SD Gothic Neo/Pretendard 폴백), mono Geist Mono. base·자간·타입 롤은 **[admin-pipeline-typography.md](admin-pipeline-typography.md) SSOT** (프로토타입 base 13px, 전역 -0.014em) | |
 
 ### enum → 상태색 매핑 (고정 — HTML 결정론화, 리뷰 반영)
 
@@ -196,42 +196,40 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 `Task: BLOCKED ─▶ READY ─▶ IN_PROGRESS ─▶ DONE|FAILED|CANCELLED` 가 유일 근거 → **Toss 토큰으로 신규 제작**)
 
 ```
-┌ Breadcrumb: (컨텍스트 있으면) … › ts-aws-001 › 파이프라인 #128 ─────┐
-│ ┌ PipelineMetaPanel ──────────────┐ ┌ UnavailableMetaGroup(P16) ─┐ │
-│ │ #128 INSTALL · ts-aws-001        │ │ next_due_at     미제공 ❌   │ │
-│ │ 상태 RUNNING                     │ │ lease(claimed)  미제공 ❌   │ │
-│ │ 생성 06-30 14:02 · 활동 14:25    │ │ cancel_requested 미제공 ❌  │ │
-│ │ 현재 task ③ / 최종 ④ ⚙️          │ │ lag             미제공 ❌   │ │
-│ │ 실패 0 / 1 ⚙️          [취소]     │ │ (ADR-021 실행필드, 데이터無)│ │
-│ └──────────────────────────────────┘ └────────────────────────────┘ │
-│ Task 흐름 (읽기전용, 노드 클릭→하단 상세)                             │
-│ ┌ TaskFlowChain ──────────────────────────────────────────────────┐ │
-│ │ [✔①TF권한]─▶[✔②SVC TF]─▶[▶③BDC Common]─▶[○④BDC SvcLv]           │ │
-│ │  DONE        DONE         IN_PROGRESS      BLOCKED                │ │
-│ │  (각 노드 = P15 TaskNode: seq/kind/operation/status/failCount)    │ │
+┌ Breadcrumb: (컨텍스트 있으면) … › ts-aws-001 › #128 ────────────────┐
+│ ┌ PipelineStatusBar (슬림, 카드 해체) ─────────────────────────────┐ │
+│ │ ● RUNNING  ▓▓▓░░ 2/4 · 현재 ③ BDC Common TF 실행        [취소]  │ │ L1+CTA
+│ │ INSTALL #128 · ●AWS ts-aws-001 외부 · svc-alpha · 06-30 14:02~  │ │ L3칩+L4
+│ │ (FAILED면 error_code 요약을 이 행에 추가 노출)                    │ │
 │ └──────────────────────────────────────────────────────────────────┘ │
-│ 노드 클릭 시 ▼ TaskDetailPanel (인패널, 미선택 시 숨김/안내)          │
-│ ┌── (예시 A) TERRAFORM_JOB 노드 클릭 → Attempts만 (§4.5g) ─────────┐ │
-│ │ Task ③ BDC Common · TERRAFORM_JOB · IN_PROGRESS                   │ │
-│ │ 설정(읽기전용): executionTimeout/maxFail (resolve* ⚙️)             │ │
-│ │ Attempts  ┌ DataTable: no / status / error_code / 시각 / response ┐│ │
-│ │           │ 1  IN_PROGRESS  -   14:21  「원시 text…」(✅)          ││ │
-│ │           └ job_ids·dispatch_response_* = ❌ 제거필드(컬럼 없음)   ┘│ │
-│ ├── (예시 B) CONDITION_CHECK 노드(① TF권한) 클릭 → Check만 ─────────┤ │
-│ │ Task ① TF 권한 확인 · CONDITION_CHECK · DONE                      │ │
-│ │ 설정(읽기전용): pollingInterval/ttl→maxFailCount (count-bound ⚙️)  │ │
-│ │ Check 요약: call 2 / not_met 1 / api_err 0 / timeout 0            │ │
-│ │            last_external OK · last_response_code null ⚠️          │ │
-│ └──────────────────────────────────────────────────────────────────┘ │
+│ ┌ TaskFlowChain (본문, 노드 172px) ────────┐ ┌ TaskDetailPanel ───┐ │
+│ │ [✔①TF권한]─▶[✔②SVC TF]─▶[▶③BDC Common]  │ │ (우측 340px,       │ │
+│ │                                          │ │  흐름 카드와 등고)   │ │
+│ │  DONE        DONE         IN_PROGRESS    │ │ 미선택: 안내문       │ │
+│ │ ─▶[○④BDC SvcLv] BLOCKED  (4+노드: 가로   │ │ FAILED: currentTask │ │
+│ │  스크롤, 각 노드 = P15 TaskNode)          │ │  자동 선택           │ │
+│ └──────────────────────────────────────────┘ │ (예시 A/B는 아래)    │ │
+│                                              └────────────────────┘ │
+│ ▸ 대상 상세 metadata (CSP별 kv, Collapsible 접힘) · [대상 상세 →]    │ L3상세
+│ ▸ UnavailableMetaGroup(P16): ADR-021 실행필드 4개 미제공 ❌ (접힘)   │ L5각주
 └──────────────────────────────────────────────────────────────────────┘
+
+TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
+  (예시 A) TERRAFORM_JOB: 설정(읽기전용 executionTimeout/maxFail resolve* ⚙️)
+           + Attempts DataTable(no/status/error_code/시각/response 원시 text ✅,
+             job_ids·dispatch_response_* = ❌ 제거필드 — 컬럼 없음)
+  (예시 B) CONDITION_CHECK: 설정(pollingInterval/ttl→maxFailCount count-bound ⚙️)
+           + Check 요약(call/not_met/api_err/timeout · last_external ·
+             last_response_code null ⚠️)
 ```
 
-**메타 패널** — A4 `GET /pipelines/{pipelineId}` → `PipelineDetail`
+**상태 바** — A4 `GET /pipelines/{pipelineId}` → `PipelineDetail` (LIN-20 Round 5: 카드 → 슬림 바)
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `PipelineMetaPanel` = `KeyValueGrid` + `Button(danger)`(취소, 파이프라인 스코프 — **여기 1곳만**) | ID/타입/target/status(P2) ✅, created/lastActivity ✅, 현재·최종 task ⚙️, 실패횟수/한계 ⚙️ | ✅/⚙️ |
-| `UnavailableMetaGroup` = `Collapsible(P16)` | next_due_at / lease(claimed_until) / cancel_requested / lag ❌ | **`FieldTag(미제공)` 4행** |
+| `PipelineStatusBar` = 대형 StatusPill + ProgressBar(P5) + `Button(danger)`(취소, 파이프라인 스코프 — **여기 1곳만**) | status(P2)·진행 N/M·현재 task ✅(1행), 타입/ID/target 칩(Provider+외부)/서비스/created~lastActivity ✅(2행 meta), FAILED면 error_code 요약 ✅ | ✅/⚙️ |
+| `TargetContextChip` (상태 바 2행 내) | provider·targetSourceId·serviceName — 전체 CSP metadata는 하단 Collapsible + target 페이지 링크 | ✅ |
+| `UnavailableMetaGroup` = `Collapsible(P16)` (페이지 하단 각주) | next_due_at / lease(claimed_until) / cancel_requested / lag ❌ | **`FieldTag(미제공)` 4행** |
 
 **Task 흐름** — `PipelineDetail.tasks[]`
 
@@ -239,7 +237,11 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 |---|---|---|
 | `TaskFlowChain`(선형, 읽기 전용) = `TaskNode(P15)`×N + 커넥터 | seq/kind(=taskName)/operation/status(P3)/failCount/errorCode(FAILED만)/started·finished | ✅ |
 
-**Task 상세 패널** — 노드 클릭 → A5 `GET /pipelines/{id}/tasks/{taskId}` → `TaskDetail`. **미선택이 기본**(패널 숨김·안내문).
+**Task 상세 패널** — 노드 클릭 → A5 `GET /pipelines/{id}/tasks/{taskId}` → `TaskDetail`.
+**우측 사이드 패널**(340px 고정, 흐름 카드와 `stretch` 등고 — 정렬 규칙은
+[admin-pipeline-design-system.md](admin-pipeline-design-system.md) §1-3, LIN-20 Round 5→Phase 4 개정 —
+[admin-pipeline-detail-ia.md](admin-pipeline-detail-ia.md) §3 v2).
+초기 선택: 파이프라인이 `FAILED`면 `currentTask()`(§4.5(b))의 seq를 자동 선택, 그 외 **미선택이 기본**(패널에 안내문).
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
@@ -247,11 +249,11 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 | `AttemptList` = `DataTable` | attempt_no/status/error_code/시각 ✅, **response**(원시 text) ✅. `job_ids`/`dispatch_response_*` = ❌ 제거필드 → **컬럼 없음**(원본 명시) | ✅ |
 | `CheckSummary` = `KeyValueGrid` | call/not_met/api_error/call_timeout/last_external_status/last_checked_at ✅ · last_response_code·summary ⚠️(미채움→null `FieldTag`) | ✅/⚠️ |
 
-> **취소는 파이프라인 상세에서 메타 패널 1곳**으로 단일화(파이프라인 스코프). 원본 부록은 task 패널에도 "취소"를 나열하나 동일 파이프라인 취소이므로 이 페이지 내 중복 렌더하지 않는다. (§4.3 타깃 페이지의 취소는 별개 — target-scope 최신 RUNNING run 대상)
+> **취소는 파이프라인 상세에서 상태 바(PipelineStatusBar) 1곳**으로 단일화(파이프라인 스코프). 원본 부록은 task 패널에도 "취소"를 나열하나 동일 파이프라인 취소이므로 이 페이지 내 중복 렌더하지 않는다. (§4.3 타깃 페이지의 취소는 별개 — target-scope 최신 RUNNING run 대상)
 > **retry(재시도)는 원본 10-API(A1–A10)에 없음** → 이 화면 범위 밖(deferred). FAILED여도 [취소]만 노출.
 
-- **상태**: `selectedTaskId`(기본 null → 패널 숨김).
-- **이동**: Task 노드 클릭 → 하단 `TaskDetailPanel`(같은 페이지 인패널) · Breadcrumb/사이드바로 상위 복귀
+- **상태**: `selectedTaskId`(기본 null → 패널 안내문. 단 파이프라인 `FAILED`면 뷰 진입 시 `currentTask().seq`로 초기화 — LIN-20 Round 5).
+- **이동**: Task 노드 클릭 → 우측 `TaskDetailPanel`(같은 페이지, 사이드 패널) · Breadcrumb/사이드바로 상위 복귀
 
 ## 4.5 렌더링·인터랙션 확정 규칙 (리뷰 라운드2 — 구현 결정론화)
 
@@ -261,7 +263,7 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 렌더는 **고정폭 트랙 + 비율 fill**(`width: N/M*100%`), 우측에 `N/M` 라벨. per-task 셀 방식 아님(5+ task 대응).
 CANCELLED task는 분자 제외·분모 포함(진행이 아님).
 
-**(b) PipelineMetaPanel 파생식** —
+**(b) PipelineStatusBar 파생식** —
 - `현재 task` = **status가 READY/IN_PROGRESS/FAILED 중 최저 seq**(없고 전부 DONE이면 "완료", 전부 처리 후 CANCELLED면 "취소됨").
 - `최종 task` = **max(seq)** (= 총 task 수).
 - `실패 N/M` = `현재 task.failCount / TaskSettings.resolveMaxFailCount(현재 task)`. **CONDITION_CHECK도 count-bound**(ADR-016: ttl→유한 maxFailCount, not-met=failed poll)이므로 `∞` 아님 — 유한값 렌더(예 `0 / 6`).
@@ -306,7 +308,7 @@ CANCELLED task는 분자 제외·분모 포함(진행이 아님).
 #/dashboard ──(목록 상세: pipelineId)──▶ #/pipeline/:id
 #/services  ──(target 행: targetSourceId)──▶ #/target/:id
 #/target/:id ─(이력/최근 행: pipelineId)──▶ #/pipeline/:id
-#/pipeline/:id ─(task 노드)──▶ 인패널 TaskDetailPanel
+#/pipeline/:id ─(task 노드)──▶ 우측 사이드 패널 TaskDetailPanel
 Breadcrumb / Sidebar ──▶ 임의 상위 뷰로 복귀
 ```
 
@@ -322,7 +324,7 @@ Breadcrumb / Sidebar ──▶ 임의 상위 뷰로 복귀
 | A1 | GET | `/install/v1/pipelines/stats/live` | LiveStatsRow |
 | A2 | GET | `/install/v1/pipelines/stats?period=` | PeriodStatsRow |
 | A3 | GET | `/install/v1/pipelines?status=&provider=&q=&page=&size=` | PipelineListTable (period 토글과 무관 — §4.5i) |
-| A4 | GET | `/install/v1/pipelines/{id}` | PipelineMetaPanel + TaskFlowChain |
+| A4 | GET | `/install/v1/pipelines/{id}` | PipelineStatusBar + TaskFlowChain |
 | A5 | GET | `/install/v1/pipelines/{id}/tasks/{taskId}` | TaskDetailPanel |
 | A6 | POST | `/install/v1/pipelines/{id}/cancel` | CancelModal |
 | A7 | GET | `/install/v1/target-sources/{id}/pipelines` | PipelineHistoryTable |
@@ -336,6 +338,6 @@ Breadcrumb / Sidebar ──▶ 임의 상위 뷰로 복귀
 ## 7. HTML 구현 범위 (이 산출물의 경계)
 
 - 단일 `admin-pipeline.html`, 외부 의존 없음(순수 HTML/CSS/JS), 인라인 mock 데이터.
-- 4개 뷰 + 인패널 Task 상세 + **모달 2종(preview/cancel)** + toast + 404 fallback.
+- 4개 뷰 + 우측 사이드 패널 Task 상세 + **모달 2종(preview/cancel)** + toast + 404 fallback.
 - ❌/⚠️ 필드는 placeholder·배지로 **정직하게** 노출(숨기지 않음). retry·task편집·reject는 범위 밖(주석).
 - 실 API 연동·zod·라우팅 라이브러리 없음(디자인/흐름 검증용 프로토타입). — `ponytail: 프로토타입 범위, 실 연동은 별도`
