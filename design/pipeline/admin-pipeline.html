@@ -607,15 +607,13 @@ const PAGE_SIZE=5;
 function viewDashboard(){
   const root=el(`<div>
     <div class="page-head"><h1>대시보드</h1></div>
-    <div class="section-title">실시간 현황 <span class="meta">순간값</span></div>
-    <div class="stat-row" id="live"></div>
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-      <span>기간 통계 <span class="meta">created_at 기준</span></span>
+      <span>현황 <span class="meta">실패·성공은 created_at 기준 기간 집계</span></span>
       <span class="seg" id="periodseg">
         <button data-p="1h">1시간</button><button data-p="1d">1일</button><button data-p="7d">7일</button>
       </span>
     </div>
-    <div class="stat-row" id="period"></div>
+    <div class="stat-row" id="stats"></div>
     <div class="section-title">파이프라인 목록</div>
     <div class="card">
       <div class="filterbar" style="margin-bottom:16px">
@@ -631,14 +629,7 @@ function viewDashboard(){
       <div id="listwrap"></div>
     </div>
   </div>`);
-  // live (순간값 — 매 render마다 재계산)
-  const LIVE=liveStats();
-  root.querySelector('#live').append(
-    el(`<div class="stat" title="count(status=RUNNING)"><div class="lbl">동작 중 파이프라인 <span class="muted">(사용 slot)</span></div><div class="val">${LIVE.runningCount}</div></div>`),
-    el(`<div class="stat unavailable" title="분모(총 slot 리밋)=ADR-021 러너 용량 — 이 시스템 범위 밖이라 제공되지 않음"><div class="lbl">사용 / 총 slot 리밋 ${naTag}</div><div class="val">${LIVE.runningCount} <span class="den">/ —</span></div></div>`),
-    el(`<div class="stat" title="count(kind=TERRAFORM_JOB, IN_PROGRESS)"><div class="lbl">동작 중 Terraform task <span class="ftag approx" title="count는 정확하나 worker 부하의 근사 지표">근사</span></div><div class="val">${LIVE.tfInProgress}</div></div>`),
-  );
-  renderPeriod(root);
+  renderStats(root);
   root.querySelector('#periodseg').querySelectorAll('button').forEach(b=>{
     b.classList.toggle('on', b.dataset.p===dashPeriod);
     b.onclick=()=>{dashPeriod=b.dataset.p; render();};
@@ -651,11 +642,12 @@ function viewDashboard(){
   root.querySelector('#refresh').onclick=()=>{toast('목록을 새로고침했어요');renderList(root);};
   return root;
 }
-function renderPeriod(root){
+// 현황 3장: RUNNING(순간값·A1) + 실패/성공(기간·A2). 카드 6→3 축소 근거: info-hierarchy.md §1
+function renderStats(root){
   const s=PERIOD_STATS[dashPeriod];
-  const p=root.querySelector('#period'); p.innerHTML='';
-  p.append(
-    el(`<div class="stat range"><div class="lbl">실행 중 (RUNNING)</div><div class="val">${s.running}</div></div>`),
+  const wrap=root.querySelector('#stats'); wrap.innerHTML='';
+  wrap.append(
+    el(`<div class="stat" title="count(status=RUNNING)"><div class="lbl">동작 중 파이프라인 <span class="muted">순간값</span></div><div class="val">${liveStats().runningCount}</div></div>`),
     el(`<div class="stat range${s.failed>0?' failed':''}"><div class="lbl">실패 (FAILED)</div><div class="val">${s.failed}</div></div>`),
     el(`<div class="stat range"><div class="lbl">성공 (DONE)</div><div class="val">${s.done}</div></div>`),
   );
@@ -665,19 +657,23 @@ function renderList(root){
   if(dashFilter.status) rows=rows.filter(p=>p.status===dashFilter.status);
   if(dashFilter.provider) rows=rows.filter(p=>p.provider===dashFilter.provider);
   if(dashFilter.q) rows=rows.filter(p=>p.target.includes(dashFilter.q.trim()));
-  rows.sort((a,b)=>b.id-a.id);
+  // FAILED > RUNNING > 나머지, 그룹 내 최신순 — 실패가 페이지네이션 뒤로 밀리지 않게 (info-hierarchy.md §1)
+  const rank={FAILED:0,RUNNING:1};
+  rows.sort((a,b)=>((rank[a.status]??2)-(rank[b.status]??2))||b.id-a.id);
   const total=rows.length, pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
   dashPage=Math.min(dashPage,pages);
   const slice=rows.slice((dashPage-1)*PAGE_SIZE, dashPage*PAGE_SIZE);
   const wrap=root.querySelector('#listwrap');
   if(!slice.length){ wrap.innerHTML=`<div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>조건에 맞는 파이프라인이 없어요</div>`; return; }
   wrap.innerHTML=`<table class="tbl"><thead><tr>
-    <th>target</th><th>Provider</th><th>상태</th><th>진행</th><th></th></tr></thead><tbody>${
+    <th>target</th><th>유형</th><th>Provider</th><th>상태</th><th>진행</th><th>생성일</th><th></th></tr></thead><tbody>${
     slice.map(p=>`<tr class="click" data-pid="${p.id}">
       <td class="mono">${esc(p.target)}</td>
+      <td>${esc(p.type)}</td>
       <td>${provTag(p.provider,true)}</td>
       <td>${pill(p.status)}</td>
       <td>${progressBar(progressN(p),progressM(p),p.status)}</td>
+      <td class="muted">${esc(p.createdAt)}</td>
       <td class="chev">${ic('i-chev-r','ic sm')}</td></tr>`).join('')}</tbody></table>${
     pages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
       <button class="btn ghost sm" ${dashPage<=1?'disabled':''} id="prev">${ic('i-chev-l','ic sm')} 이전</button>

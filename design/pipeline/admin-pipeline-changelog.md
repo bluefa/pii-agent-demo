@@ -4,6 +4,21 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 7 — 정보 계층 정리: 대시보드 반영 (2026-07-04)
+
+계약 문서: [admin-pipeline-info-hierarchy.md](admin-pipeline-info-hierarchy.md) §1 (4페이지 정보
+전수 인벤토리 + T1~T4/X 판정). 오너 승인 범위 = 대시보드만; §2~§4는 피드백 대기.
+
+- **stat 카드 6→3장**: `동작 중(RUNNING·순간값)` + `실패(기간)` + `성공(기간)` 단일 현황 행.
+  제거 — slot 리밋 카드(미제공 분모), 동작 중 TF task 카드(근사), 기간 "실행 중" 카드(중복).
+  기간 seg는 현황 섹션 타이틀 우측으로 이동. `renderPeriod` → `renderStats` 통합.
+- **목록 열 보강**: `유형(INSTALL/DELETE)` + `생성일` 추가 (5→7열) — target 이력 테이블과 정합.
+- **FAILED 우선 정렬**: `FAILED > RUNNING > 나머지, 그룹 내 id desc` (기존 id desc 대체) —
+  실패가 페이지네이션 뒤로 밀리지 않게.
+- 권위 문서 동시 개정: components.md §4.1 (스케치·블록 표·정렬/제외 이력).
+- 검증: 3카드/7열/FAILED 최상단/1h 토글 시 failed 강조 해제/기간 토글·페이지 순회 JS 확인,
+  fresh load 후 4페이지 순회 콘솔 에러 0.
+
 ## Round 6 — LIN-20 B1: Phase 4 — variant B(다크 크롬) + 사이징 스케일 적용
 
 계약 문서: [design-process.md](design-process.md)(프로세스)·

@@ -103,19 +103,17 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 ```
 ┌ Sidebar ┬─ 대시보드 ─────────────────────────────────────────────┐
-│●대시보드 │  실시간 현황(순간값)                                     │
-│ 서비스   │  ┌ StatCard ┐ ┌ StatCard ┐ ┌ StatCard ┐               │
-│ 검색     │  │동작중 P   │ │사용 slot  │ │동작중 TF │               │
-│          │  │  3   ✅   │ │ 3 / — ❌ │ │ 5  ⚙️근사│               │
-│          │  └──────────┘ └──────────┘ └──────────┘               │
-│          │  기간 통계                            [기간: 1h|1d|7d]   │
-│          │  ┌ Running 8 ┐ ┌ Failed 2 ┐ ┌ 성공(DONE) 41 ┐         │
+│●대시보드 │  현황                                 [기간: 1h|1d|7d]   │
+│ 서비스   │  ┌ StatCard ──┐ ┌ StatCard ─┐ ┌ StatCard ──┐          │
+│ 검색     │  │동작중 P     │ │실패(기간)  │ │성공(기간)   │          │
+│          │  │ 3  순간값 ✅│ │  2  ✅    │ │  41  ✅    │          │
+│          │  └────────────┘ └───────────┘ └────────────┘          │
 │          │  ─────────────────────────────────────────────────────│
 │          │  파이프라인 목록   🔍 target  [상태▾][Provider▾]   ⟳    │
 │          │  ┌ DataTable ───────────────────────────────────────┐ │
-│          │  │ target        Provider   상태     진행    상세    │ │
-│          │  │ ts-aws-001    AWS ⚠️외부 RUNNING ▓▓░░2/4 [상세]  │ │
-│          │  │ ts-gcp-002    GCP ⚠️외부 DONE    ▓▓▓▓4/4 [상세]  │ │
+│          │  │ target     유형    Provider 상태    진행   생성일  │ │
+│          │  │ ts-az-004  INSTALL AZURE ⚠️ FAILED ▓░░1/3 06-29  │ │
+│          │  │ ts-aws-001 INSTALL AWS ⚠️  RUNNING ▓▓░░2/4 06-30 │ │
 │          │  └──────────────────────────────────────────────────┘ │
 │          │                                    ‹ 1 2 3 › Pagination│
 └──────────┴────────────────────────────────────────────────────────┘
@@ -123,11 +121,14 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 | 블록 | 컴포넌트 | 데이터 / 원천 | 표시 |
 |---|---|---|---|
-| 실시간 현황 | `LiveStatsRow` = 3×`StatCard` | ① 동작중 파이프라인 = 사용중 slot `count(RUNNING)` ✅ / ② **총 slot 리밋**(구 Worker): 분자=RUNNING count ✅, **분모=❌**(ADR-021) → `3 / —` + `FieldTag(미제공)` / ③ 동작중 TF task `count(kind=TERRAFORM_JOB, IN_PROGRESS)` ⚙️ `근사` 배지 | A1 |
-| 기간 통계 | `PeriodStatsRow` = 3×`StatCard` + `FilterBar(period)` | Running/Failed/**DONE(성공)** 집계(`created_at` 기준, 원본 Q2) ✅. **기간 토글은 이 블록에 귀속** | A2 |
-| 파이프라인 목록 | `PipelineListTable` = `DataTable`+`Pagination`+`FilterBar(search target + status + provider)` | target(id ✅) / **CSP(⚠️→`ProviderTag.external`)** / status(P2) / 진행 N/M(P5 ⚙️) / 상세 | A3 |
+| 현황 | `StatsRow` = 3×`StatCard` + `FilterBar(period)` | ① 동작중 파이프라인 `count(RUNNING)` ✅ 순간값 / ② **실패** ✅ / ③ **성공(DONE)** ✅ — 실패·성공은 `created_at` 기준 기간 집계(A2), 기간 토글 귀속. 실패>0이면 `.failed` 강조(페이지 유일한 강조색) | A1+A2 |
+| 파이프라인 목록 | `PipelineListTable` = `DataTable`+`Pagination`+`FilterBar(search target + status + provider)` | target(id ✅) / **유형(INSTALL/DELETE)** / **CSP(⚠️→`ProviderTag.external`)** / status(P2) / 진행 N/M(P5 ⚙️) / **생성일** / 상세 | A3 |
 
 - **⚠️ 근거 명시**: 목록의 CSP는 pipeline repo에 없어 `external`. §4.3 헤더의 CSP는 `getTargetSourceDetail`(=다른 repo 직접 호출)이라 🔵✅ — 상충 아님.
+- **정렬**: `FAILED > RUNNING > 나머지`, 각 그룹 내 최신(id desc) —
+  실패가 페이지네이션 뒤로 밀리지 않게 (근거: [admin-pipeline-info-hierarchy.md](admin-pipeline-info-hierarchy.md) §1).
+- **제외 이력**: 구 실시간 카드 ②(slot 리밋 `3 / —` 미제공 분모) ③(동작중 TF task ⚙️근사),
+  기간 카드 Running(순간값 RUNNING과 의미 중복) — info-hierarchy §1 판정으로 제거 (2026-07-04, 오너 승인).
 - **이동**: 목록 행 `상세` → `#/pipeline/:pipelineId` (navState에 target id만 전달, service는 없음 → breadcrumb 생략)
 
 ### 4.2 서비스·대상 검색 `#/services` — `admin/pipeline/services`
