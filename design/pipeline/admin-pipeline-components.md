@@ -187,9 +187,9 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 |---|---|---|---|
 | 페이지 헤더 | app `PageHeader` 문법: **h1 = 서비스명 (회색 코드)** — 헤더는 제목만(조용) | `getTargetSourceDetail` 🔵 | ✅ |
 | 파이프라인 상태 그룹 | **상태 바 + 액션 행 = 한 그룹**(4차 확정 2026-07-05: "상태와 행동은 한 사고 단위" — 버튼 활성이 상태에서 파생, 취소는 그 run 조작): 섹션 제목 "파이프라인 상태" + desc + `PipelineStatusBar` + 12px 아래 [설치 primary/삭제/취소] + 우측 잠금 사유 캡션(+tooltip) | 게이팅 = targetButtons(process_status·활성 run **내부** 판정 — **설치 상태 화면 표시는 제거**, 오너 2026-07-05) | ✅ |
-| IdentityBar | app `IdentityBar` 이식: CSP 액센트 스트라이프+아이콘 박스 · CSP명/"Cloud Provider"(IDC는 sub 생략) · 필드 **TargetSourceId만**(계정은 CSP 식별자 중복이라 제거 — 오너 4차) · 우측 새로고침 · **CSP metadata는 같은 카드 하단 상시 노출**(`idbar-meta`, 접힘 폐지 — 오너 2차. 필드 없는 IDC는 구간 생략) | 〃 | ✅ |
-| 최근 1건 | `PipelineStatusBar` **재사용**(2026-07-05: 미니 카드 폐지) — pill lg·진행·현재 task·error·[파이프라인 상세→] + meta(유형#id·레시피·생성·활동). FAILED면 tint | A8 latest (`findFirstByTarget...`) | ✅ |
-| 이력 목록 | `PipelineHistoryTable` = `DataTable`+`Pagination`(빈 `EmptyState`) | A7 | ✅ (표시명/CSP는 ⚠️) |
+| IdentityBar | app `IdentityBar` 이식: CSP 액센트 스트라이프+아이콘 박스 · CSP명/"Cloud Provider"(IDC는 sub 생략) · 필드 **TargetSourceId만**(계정은 CSP 식별자 중복이라 제거 — 오너 4차, 새로고침도 삭제) · **CSP metadata는 하단 상시 + 논리 그룹 캡션**(`mg-label`, 오너 5차 "논리적 그룹과 API Response 반영"): **CSP 연결 정보**(CloudTargetSource 식별자) / **실행 권한**(TF 플래그, 있을 때만). 필드 없는 IDC는 "이 CSP 유형은 연결 metadata가 없습니다" | 〃 | ✅ |
+| 최근 1건 | `PipelineStatusBar` **재사용**(2026-07-05: 미니 카드 폐지) — pill lg·진행·현재 task·error·[↗] + meta(유형#id·**레시피 display_name**(코드는 tooltip)·생성·활동). FAILED면 tint | A8 latest (`findFirstByTarget...`) | ✅ |
+| 이력 목록 | `PipelineHistoryTable` = `DataTable`+`Pagination`(빈 `EmptyState`) — 열: #·유형·**레시피 display_name**·상태·진행도·생성시간·↗, section-desc에 전체 건수·최신순 | A7 | ✅ (표시명/CSP는 ⚠️) |
 | 액션 바 | `TargetActionBar` = 3×`Button` | 설치/삭제/취소 | ✅ |
 | ↳ INSTALL/DELETE | `Button(primary)` → `PreviewModal` | A9 preview(recipe, `?type=`) → 확인 후 A10 `POST .../pipelines`(멱등·기존 run 반환) | ✅ |
 | ↳ 취소 | `Button(danger)` → `CancelModal` | A6 cancel — **항상 동기·즉시**(원본 Q7; ADR-021의 idle/cooperative 2케이스를 이 저장소는 채택 안 함) | ✅ |
@@ -207,22 +207,27 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 `Task: BLOCKED ─▶ READY ─▶ IN_PROGRESS ─▶ DONE|FAILED|CANCELLED` 가 유일 근거 → **Toss 토큰으로 신규 제작**)
 
 ```
-┌ Breadcrumb: (컨텍스트 있으면) … › ts-aws-001 › #128 ────────────────┐
-│ ┌ PipelineStatusBar (슬림, 카드 해체) ─────────────────────────────┐ │
-│ │ ● RUNNING  ▓▓▓░░ 2/4 · 현재 ③ BDC Common TF 실행        [취소]  │ │ L1+CTA
-│ │ INSTALL #128 · ●AWS ts-aws-001 외부 · svc-alpha · 06-30 14:02~  │ │ L3칩+L4
-│ │ (FAILED면 error_code 요약을 이 행에 추가 노출)                    │ │
+┌ Breadcrumb: (컨텍스트 있으면) … › 101 › 파이프라인 #128 ─────────────┐
+│ h1 파이프라인 #128                                                    │
+│ ┌ 파이프라인 메타데이터 카드 (Round 14) ───────────────────────────┐ │
+│ │ ⛓ AWS 인프라 설치   유형 INSTALL · 생성 · 마지막 활동   대상 101  │ │ L3
+│ │   AWS_INSTALL_V1                                    · AWS  [↗]  │ │
+│ │ ── 레시피 설명 문장 (RecipePreview.description) ──────────────── │ │
 │ └──────────────────────────────────────────────────────────────────┘ │
-│ ┌ TaskFlowChain (본문, 노드 172px) ────────┐ ┌ TaskDetailPanel ───┐ │
+│ Task 흐름  ← 섹션(상태 포함 — "상태는 Task 흐름의 일부분")            │
+│ ┌ PipelineStatusBar (그룹 첫 블록) ────────────────────────────────┐ │
+│ │ ● RUNNING  ▓▓▓░░ 2/4 · 현재 ③ BDC Common TF 실행        [취소]  │ │ L1+CTA
+│ │ leased 예 — 워커 실행 중 · 스케줄 지연 300 ms   (비종단만)        │ │ L4
+│ │ (FAILED면 error_code 요약을 1행에 추가 노출)                      │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│ ┌ TaskFlowChain (본문, 노드 172px) ────────┐ ┌ TaskDetailPanel [✕]┐ │
 │ │ [✔①TF권한]─▶[✔②SVC TF]─▶[▶③BDC Common]  │ │ (우측 340px,       │ │
 │ │                                          │ │  흐름 카드와 등고)   │ │
 │ │  DONE        DONE         IN_PROGRESS    │ │ 미선택: 안내문       │ │
 │ │ ─▶[○④BDC SvcLv] BLOCKED  (4+노드: 가로   │ │ FAILED: currentTask │ │
-│ │  스크롤, 각 노드 = P15 TaskNode)          │ │  자동 선택           │ │
+│ │  스크롤, 각 노드 = P15 TaskNode)          │ │  자동 선택, ✕로 닫기 │ │
 │ └──────────────────────────────────────────┘ │ (예시 A/B는 아래)    │ │
 │                                              └────────────────────┘ │
-│ ▸ 대상 상세 metadata (CSP별 kv, Collapsible 접힘) · [대상 상세 →]    │ L3상세
-│ ▸ UnavailableMetaGroup(P16): ADR-021 실행필드 4개 미제공 ❌ (접힘)   │ L5각주
 └──────────────────────────────────────────────────────────────────────┘
 
 TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
@@ -238,8 +243,8 @@ TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| 페이지 헤더 + **파이프라인 정보 카드**(IdentityBar 재사용 — Round 13, 접힘 2개 폐지) | h1 "파이프라인 #id" / 카드 1행: CSP 액센트·**TargetSourceId(↗ 대상 상세)**·파이프라인 유형·**레시피 display_name** / meta 구간: 레시피 설명(RecipePreview.description)·레시피 코드(`*_V1`)·서비스·생성·마지막 활동·**leased·스케줄 지연**(비종단만) ✅ | ✅ |
-| `PipelineStatusBar` — **"지금" 1행만**(sb-meta 폐지, 정보 카드로 이관) + `Button(danger)`(취소 — **여기 1곳만**) | status(P2, PENDING 포함)·취소 요청됨 배지(cancel_requested)·진행 N/M·현재 task(재시도 fail/max 병기, PENDING이면 "시작 대기 · next_due_at 시작 예정")·FAILED면 error_code·우측 "다음 실행 next_due_at"(RUNNING) ✅ | ✅ |
+| 페이지 헤더 + **파이프라인 메타데이터 카드**(Round 14 — 오너: "파이프라인 메타데이터 강조, Target Source는 일부만") | h1 "파이프라인 #id" / 카드 hero: 아이콘 `i-flow`+**레시피 display_name**(pname)+**레시피 코드**(psub, mono) / 필드: 파이프라인 유형·생성·마지막 활동 / 우측 끝 **대상 참조 한 칸**("id · CSP명") + ↗(대상 상세) / meta 구간: 레시피 설명(RecipePreview.description) 문장만. CSP 액센트 스트라이프는 유지(약한 대상 힌트) | ✅ |
+| `PipelineStatusBar` — **Task 흐름 섹션 내 첫 블록**(Round 14 — 오너: "상태는 Task 흐름의 일부분", 별도 상태 섹션 폐지) + `Button(danger)`(취소 — **여기 1곳만**) | status(P2, PENDING 포함)·취소 요청됨 배지(cancel_requested)·진행 N/M·현재 task(재시도 fail/max 병기, PENDING이면 "시작 대기 · next_due_at 시작 예정")·FAILED면 error_code·우측 "다음 실행 next_due_at"(RUNNING) / **sb-meta 줄(비종단만): leased·스케줄 지연** — "지금" 값이라 카드가 아닌 상태 바 소속 ✅ | ✅ |
 
 **Task 흐름** — `PipelineDetail.tasks[]`
 
@@ -255,7 +260,7 @@ TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `TaskDetailPanel` — **3그룹**(Round 13: "Task를 논리적으로 설명") | 제목(seq·이름)+칩+설명(description) → ① **정의**: task_definition·operation 코드·실행 방식 ② **실행 계약**: effective 폴링·타임아웃·재시도 예산·TF 슬롯 + **판정 방식 문단**(success_policy 요약 — kind별 공통 텍스트라는 API 사실) ③ **진행 기록**: 시각·실패 누적+error_code·attempts/폴 관찰 | ✅ |
+| `TaskDetailPanel` — **3그룹**(Round 13: "Task를 논리적으로 설명") + **X 닫기**(Round 14) | 제목(seq·이름) 우측 X(ghost round — 닫으면 선택 해제·안내문 복귀·노드 하이라이트 해제)+칩+설명(description) → ① **정의**: task_definition·operation 코드·실행 방식 ② **실행 계약**: effective 폴링·타임아웃·재시도 예산·TF 슬롯 + **판정 방식 문단**(success_policy 요약 — kind별 공통 텍스트라는 API 사실) ③ **진행 기록**: 시각·실패 누적+error_code·attempts/폴 관찰 | ✅ |
 | `AttemptList` = `DataTable` | attempt_no/status/error_code/시각 ✅, **response**(원시 text) ✅. `job_ids`/`dispatch_response_*` = ❌ 제거필드 → **컬럼 없음**(원본 명시) | ✅ |
 | `CheckSummary` = `KeyValueGrid` | call/not_met/api_error/call_timeout/last_external_status/last_checked_at ✅ · last_response_code·summary ⚠️(미채움→null `FieldTag`) | ✅/⚠️ |
 
@@ -278,7 +283,7 @@ CANCELLED task는 분자 제외·분모 포함(진행이 아님).
 - `최종 task` = **max(seq)** (= 총 task 수).
 - `실패 N/M` = `현재 task.failCount / TaskSettings.resolveMaxFailCount(현재 task)`. **CONDITION_CHECK도 count-bound**(ADR-016: ttl→유한 maxFailCount, not-met=failed poll)이므로 `∞` 아님 — 유한값 렌더(예 `0 / 6`).
 
-**(c) Cancel 활성화** — `[취소]`는 **파이프라인 status === RUNNING 일 때만 enabled**. DONE/FAILED/CANCELLED면 disabled(툴팁 "진행 중인 파이프라인만 취소 가능"). 타깃 페이지 취소도 동일(최신 run이 RUNNING일 때만).
+**(c) Cancel 활성화** — `[취소]`는 **파이프라인 status ∈ {RUNNING, PENDING} && !cancel_requested 일 때만 enabled**(PENDING 포함은 LIN-30 2026-07-05, cancel_requested 중복 방지 포함). 종단 상태면 disabled(캡션 "진행·대기 중만 취소 가능"). 타깃 페이지 취소도 동일(최신 run 기준).
 
 **(d) 설치/삭제 버튼 활성화 매트릭스** (`process_status` 기준, 원본 §4.4.4 중복방지) —
 - 진행 중(RUNNING) 파이프라인 존재 → **설치·삭제 모두 disabled**(중복 방지), 취소만 enabled.

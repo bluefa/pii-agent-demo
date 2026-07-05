@@ -4,6 +4,33 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 14 — R13 방향 교정: 논리 그룹의 본진은 target 페이지, 파이프라인은 원복+강조 (2026-07-05)
+
+오너 피드백(5차): "논리 그룹 요청은 **#/target/204** 이야기였다 / 기존에 잘 되던 파이프라인
+페이지를 왜 망쳤나 — 파이프라인 **메타데이터를 상단에**, Target Source 상세는 안 보여줘도
+됨(일부만) / **상태는 Task 흐름의 일부분** / Task 상세는 **X로 닫기**".
+
+**Target 상세 (#/target/:id)** — 논리 그룹 + API Response 반영:
+- IdentityBar meta의 평면 kv → **논리 그룹 캡션**(`mg-label`): **CSP 연결 정보**
+  (CloudTargetSource 식별자 — Tenant/Subscription, AWS Account/Linked/Region, GCP Project) /
+  **실행 권한**(TF 플래그, 있을 때만). 그룹 사이 세로 divider. IDC는 "이 CSP 유형은 연결
+  metadata가 없습니다" 문구.
+- 최근 파이프라인 상태 바 meta·이력 테이블에 **레시피 display_name** 반영(코드는 tooltip),
+  이력 열 #·유형·레시피·상태·진행도·생성시간·↗ + section-desc(전체 건수·최신순).
+
+**파이프라인 상세 (#/pipeline/:id)** — R13 그룹 3개 → **2개로 교정**:
+- ① **파이프라인 메타데이터 카드**: hero = `i-flow` 아이콘 + **레시피 display_name**(pname)
+  + 코드(psub·mono). 필드 유형·생성·마지막 활동. **대상 참조는 한 칸**("204 · Azure"+↗) —
+  R13의 CSP-hero(TargetSourceId 앞세움)·서비스 필드 폐기(대상 정체성 문법은 target 페이지 것).
+  meta 구간 = 레시피 설명 문장만.
+- ② **Task 흐름**(상태 포함): 별도 '상태' 섹션 폐지 — 상태 바가 섹션 첫 블록(그리드와 12px
+  소속 간격). **leased·스케줄 지연은 상태 바 sb-meta 줄로 이동**(비종단만 — "지금" 값은 카드가
+  아니라 상태 소속).
+- **Task 상세 패널 X 닫기**: 제목 우측 ghost round ✕ — 선택 해제·안내문 복귀·노드 하이라이트
+  해제. FAILED 자동 선택은 유지(X로 닫기 가능).
+- 검증: 124(FAILED)/128(RUNNING sb-meta)/129(PENDING·취소 가능), target 204(azure 1그룹)/
+  101(aws 2그룹)/103(idc 빈 문구), X 닫기 동작, 콘솔 에러 0.
+
 ## Round 13 — 파이프라인 상세를 논리 그룹으로 재구성 + API 실사 반영 (2026-07-05)
 
 오너 피드백: "API Response가 상세 페이지에 안 녹아 있다 / 하단 접힘 2개('대상 상세

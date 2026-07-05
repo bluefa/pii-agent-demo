@@ -129,6 +129,8 @@ svg.ic.lg{width:22px;height:22px}
 .idbar .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
 .idbar .fld .k{font-size:12px;font-weight:600;color:var(--text-faint)}
 .idbar .fld .v{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text-strong)}
+.idbar .mgroup{min-width:0}
+.idbar .mg-label{font-size:12px;font-weight:600;color:var(--text-faint);margin-bottom:8px} /* meta 논리 그룹 캡션 — API 응답 구조 라벨 */
 
 /* ── FieldTag ── */
 .ftag{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;
@@ -343,6 +345,7 @@ details.collap>.body{padding:0 14px 14px}
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l2.8 1.8"/></symbol>
 <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.62-1.46A4.5 4.5 0 0 1 17.5 18H7Z"/></symbol>
 <symbol id="i-arrow-ur" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></symbol>
+<symbol id="i-flow" viewBox="0 0 24 24"><circle cx="4.5" cy="12" r="2.3"/><circle cx="12" cy="12" r="2.3"/><circle cx="19.5" cy="12" r="2.3"/><path d="M6.8 12h2.9m4.6 0h2.9"/></symbol>
 </defs></svg>
 <div class="topnav">
   <span class="brand">PII Admin</span>
@@ -574,22 +577,22 @@ function targetButtons(ts){                                                // (d
   const installed = ['CONNECTED','COMPLETED','INSTALLED'].includes(ts.processStatus);
   return {install:!installed, delete:installed, cancel:false, runId:null};
 }
-// IA v2: CSP별 metadata rows — App CloudTargetSource 필드명 그대로(D1 매핑 최소화).
-// metadata 없는 CSP(idc 등)는 계정 필드만 + target 페이지 안내(결정 로그).
-function cspMetaRows(ts){
-  if(!ts) return [['대상','정보 없음']];
-  // 설치 상태·계정 표시는 오너 지시로 제거(2026-07-05) — 계정(account)은 CSP 식별자의 중복 사본
-  const rows=[['서비스',`${ts.serviceName} (${ts.serviceCode})`]];
-  const byProv={
-    aws:[['AWS Account',ts.awsAccountId],['Linked Account',ts.awsLinkedAccountId],['Region Type',ts.awsRegionType],
-         ['TF 실행 권한',ts.isTerraformExecutionGranted==null?null:(ts.isTerraformExecutionGranted?'허용':'미허용')]],
+// IA v3: 대상 metadata를 API 응답 구조대로 논리 그룹화(오너 2026-07-05 4차 — "논리적 그룹과
+// API Response 반영"). CSP 연결 정보 = CloudTargetSource 식별자, 실행 권한 = 권한 플래그.
+// 서비스 소속은 h1(서비스명·코드)이 담당하므로 중복 수납하지 않는다.
+// 설치 상태·계정 표시는 오너 지시로 제거(2026-07-05) — 계정(account)은 CSP 식별자의 중복 사본
+function cspMetaGroups(ts){
+  if(!ts) return [];
+  const conn={
+    aws:[['AWS Account',ts.awsAccountId],['Linked Account',ts.awsLinkedAccountId],['Region Type',ts.awsRegionType]],
     azure:[['Tenant ID',ts.tenantId],['Subscription ID',ts.subscriptionId]],
     gcp:[['GCP Project',ts.gcpProjectId]],
   };
-  const csp=(byProv[ts.provider]||[]).filter(r=>r[1]!=null);
-  if(csp.length) rows.push(...csp);
-  else rows.push(['CSP metadata','target 페이지에서 확인']);
-  return rows;
+  const rows=(conn[ts.provider]||[]).filter(r=>r[1]!=null);
+  const groups=[{label:'CSP 연결 정보', rows, empty:'이 CSP 유형은 연결 metadata가 없습니다'}];
+  if(ts.isTerraformExecutionGranted!=null)
+    groups.push({label:'실행 권한', rows:[['TF 실행 권한',ts.isTerraformExecutionGranted?'허용':'미허용']], empty:null});
+  return groups;
 }
 
 /* =========================================================================
@@ -852,7 +855,11 @@ function viewTarget(id){
         <span class="div"></span>
         <div class="fld"><span class="k">TargetSourceId</span><span class="v">${esc(ts.id)}</span></div>
       </div>
-      ${(rows=>rows.length?`<div class="idbar-meta"><div class="kv wide">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div></div>`:'')(cspMetaRows(ts).slice(1).filter(r=>r[0]!=='CSP metadata'))}
+      ${(gs=>gs.length?`<div class="idbar-meta"><div class="idbar-row" style="gap:24px;align-items:flex-start">${
+        gs.map(g=>`<div class="mgroup"><div class="mg-label">${esc(g.label)}</div>${
+          g.rows.length?`<div class="kv wide">${g.rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div>`
+          :`<div class="meta">${esc(g.empty)}</div>`}</div>`).join('<span class="div"></span>')
+      }</div></div>`:'')(cspMetaGroups(ts))}
     </div>
     <div class="section-title">파이프라인 상태</div>
     <div class="section-desc">이 대상의 현재 상태 — 할 수 있는 액션은 상태에서 결정됩니다</div>
@@ -863,6 +870,7 @@ function viewTarget(id){
       <span class="meta" style="margin-left:auto">${lockMsg}</span>
     </div>
     <div class="section-title">파이프라인 이력</div>
+    <div class="section-desc">이 대상에서 실행된 파이프라인 전체 ${ids.length}건 · 최신순</div>
     <div class="card" id="hist"></div>
   </div>`);
   // 최근 파이프라인 = 파이프라인 상세와 같은 상태 바 문법 — "이 대상, 지금 어떤가"를 한 줄로
@@ -885,7 +893,7 @@ function viewTarget(id){
       </div>
       <div class="sb-meta">
         <span>${esc(latest.type)} <span class="mono">#${latest.id}</span></span><span class="sep">·</span>
-        <span>레시피 <span class="mono">${esc(latest.recipe||'-')}</span></span><span class="sep">·</span>
+        <span title="${esc(latest.recipe||'')}">레시피 ${esc((RECIPES[latest.recipe]||{}).displayName||latest.recipe||'-')}</span><span class="sep">·</span>
         <span>생성 ${esc(latest.createdAt)}</span><span class="sep">·</span>
         <span>마지막 활동 ${esc(latest.lastActivityAt)}</span>
       </div>
@@ -900,8 +908,8 @@ function viewTarget(id){
   histState.page=Math.min(histState.page,hpages);
   const hslice=ids.slice((histState.page-1)*PAGE_SIZE, histState.page*PAGE_SIZE);
   if(ids.length){
-    hist.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>파이프라인 유형</th><th>상태</th><th>진행도</th><th>생성시간</th><th></th></tr></thead><tbody>${
-      hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p),p.status)}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev"><button class="btn secondary sm round" tabindex="-1" title="파이프라인 상세로 이동">${ic('i-arrow-ur','ic sm')}</button></td></tr>`).join('')}</tbody></table>${
+    hist.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>파이프라인 유형</th><th>레시피</th><th>상태</th><th>진행도</th><th>생성시간</th><th></th></tr></thead><tbody>${
+      hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td title="${esc(p.recipe||'')}">${esc((RECIPES[p.recipe]||{}).displayName||p.recipe||'-')}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p),p.status)}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev"><button class="btn secondary sm round" tabindex="-1" title="파이프라인 상세로 이동">${ic('i-arrow-ur','ic sm')}</button></td></tr>`).join('')}</tbody></table>${
       hpages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
         <button class="btn ghost sm" ${histState.page<=1?'disabled':''} id="hprev">${ic('i-chev-l','ic sm')} 이전</button>
         <span class="pager-count">${histState.page} / ${hpages}</span>
@@ -950,8 +958,9 @@ function viewPipeline(id){
   const curLabel=p.status==='PENDING'?`시작 대기 · ${esc(p.nextDueAt||'-')} 시작 예정`
     :cur?`현재 seq ${cur.seq} · ${esc(cur.operation)}${cur.failCount>0?` (재시도 ${cur.failCount}/${cur.maxFail})`:''}`
     :currentTaskLabel(p);
-  // 논리 그룹 3개(오너 2026-07-05: "metadata 상단 노출·접힘 폐지"): ① 파이프라인 정보(IdentityBar 카드
-  // — 무시간 식별·레시피·실행 기록) ② 상태(지금) ③ Task 흐름(본문). CSP 세부는 target 페이지 몫(↗).
+  // 논리 그룹 2개(오너 2026-07-05 5차): ① 파이프라인 메타데이터(정의·기록 — 레시피가 주인공,
+  // 대상은 참조 한 칸+↗, CSP 세부는 target 페이지 몫) ② Task 흐름(상태 포함 — 상태는 task 진행의
+  // 요약이므로 같은 그룹). leased·스케줄 지연은 "지금" 값이라 상태 바 하단 줄로.
   const rec=RECIPES[p.recipe]||{displayName:p.recipe||'-',desc:''};
   const root=el(`<div>
     ${breadcrumb(crumbs)}
@@ -959,31 +968,23 @@ function viewPipeline(id){
     <div class="idbar" style="--ib-accent:var(--pv-${p.provider})">
       <div class="idbar-row">
         <div class="prov">
-          <span class="picon">${ic('i-cloud','ic lg')}</span>
-          <div><div class="pname">${PROVIDERS[p.provider]||esc(p.provider)}</div>${p.provider==='idc'?'':'<div class="psub">Cloud Provider</div>'}</div>
+          <span class="picon">${ic('i-flow','ic lg')}</span>
+          <div><div class="pname">${esc(rec.displayName)}</div><div class="psub" style="font-family:var(--font-mono)">${esc(p.recipe||'-')}</div></div>
         </div>
-        <span class="div"></span>
-        <div class="fld"><span class="k">TargetSourceId</span><span class="v">${esc(p.target)}</span></div>
         <span class="div"></span>
         <div class="fld"><span class="k">파이프라인 유형</span><span class="v">${esc(p.type)}</span></div>
         <span class="div"></span>
-        <div class="fld"><span class="k">레시피</span><span class="v" style="font-family:var(--font-sans)" title="${esc(p.recipe||'')}">${esc(rec.displayName)}</span></div>
+        <div class="fld"><span class="k">생성</span><span class="v">${esc(p.createdAt)}</span></div>
+        <span class="div"></span>
+        <div class="fld"><span class="k">마지막 활동</span><span class="v">${esc(p.lastActivityAt)}</span></div>
         <span style="flex:1"></span>
+        <div class="fld"><span class="k">대상</span><span class="v">${esc(p.target)} · ${PROVIDERS[p.provider]||esc(p.provider)}</span></div>
         <button class="btn secondary sm round" data-nav="#/target/${encodeURIComponent(p.target)}" title="대상 상세로 이동" aria-label="대상 상세로 이동">${ic('i-arrow-ur','ic sm')}</button>
       </div>
-      <div class="idbar-meta">
-        ${rec.desc?`<div class="meta" style="margin-bottom:12px">${esc(rec.desc)}</div>`:''}
-        <div class="idbar-row" style="gap:24px">
-          <div class="fld"><span class="k">서비스</span><span class="v" style="font-family:var(--font-sans)">${esc(svcName||(ts&&ts.serviceName)||'-')}</span></div>
-          <div class="fld"><span class="k">레시피 코드</span><span class="v">${esc(p.recipe||'-')}</span></div>
-          <div class="fld"><span class="k">생성</span><span class="v">${esc(p.createdAt)}</span></div>
-          <div class="fld"><span class="k">마지막 활동</span><span class="v">${esc(p.lastActivityAt)}</span></div>
-          ${nonTerminal?`<div class="fld"><span class="k">leased</span><span class="v" style="font-family:var(--font-sans)">${p.leased?'예 — 워커 실행 중':'아니오'}</span></div>
-          <div class="fld"><span class="k">스케줄 지연</span><span class="v">${p.dueLagMs??0} ms${(p.dueLagMs||0)>1000?' ⚠️':''}</span></div>`:''}
-        </div>
-      </div>
+      ${rec.desc?`<div class="idbar-meta"><div class="note">${esc(rec.desc)}</div></div>`:''}
     </div>
-    <div class="section-title">상태</div>
+    <div class="section-title">Task 흐름</div>
+    <div class="section-desc">파이프라인의 현재 상태와 task 실행 순서 — 노드를 클릭하면 우측에 상세가 열립니다</div>
     <div class="statusbar${p.status==='FAILED'?' failed':''}">
       <div class="sb-main">
         <span class="pill lg s-${p.status}"><span class="dot"></span>${p.status}</span>
@@ -997,10 +998,12 @@ function viewPipeline(id){
           <button class="btn danger sm" id="pcancel" ${canCancel(p)?'':'disabled'}>파이프라인 취소</button>
         </span>
       </div>
+      ${nonTerminal?`<div class="sb-meta">
+        <span title="leased — 워커가 이 run을 점유하고 실행 중인지">leased ${p.leased?'예 — 워커 실행 중':'아니오'}</span><span class="sep">·</span>
+        <span title="due_lag — next_due_at 대비 실제 실행 지연">스케줄 지연 ${p.dueLagMs??0} ms${(p.dueLagMs||0)>1000?' ⚠️':''}</span>
+      </div>`:''}
     </div>
-    <div class="section-title">Task 흐름</div>
-    <div class="section-desc">레시피의 실행 순서 — 노드를 클릭하면 우측에 상세가 표시됩니다</div>
-    <div class="detail-grid" style="margin-top:0">
+    <div class="detail-grid" style="margin-top:12px">
       <div class="card">
         <div class="flow" id="flow"></div>
       </div>
@@ -1053,8 +1056,11 @@ function renderTaskDetail(root,p){
       :`<div class="empty">아직 시도 없음 (BLOCKED)</div>`;
   }
   box.innerHTML=`<div class="card">
-    <div class="section-title">seq ${t.seq} · ${esc(t.operation)}</div>
-    <div class="vrow" style="gap:8px;margin-bottom:12px">
+    <div style="display:flex;align-items:flex-start;gap:8px">
+      <div class="section-title" style="margin:0">seq ${t.seq} · ${esc(t.operation)}</div>
+      <button class="btn ghost sm round" id="panel-x" style="margin-left:auto;flex-shrink:0" title="Task 상세 닫기" aria-label="Task 상세 닫기">${ic('i-x','ic sm')}</button>
+    </div>
+    <div class="vrow" style="gap:8px;margin:8px 0 12px">
       <span class="kindchip ${cond?'cond':''}">${t.kind}</span>${pill(t.status)}
     </div>
     ${t.desc?`<div class="note" style="margin-bottom:16px">${esc(t.desc)}</div>`:''}
@@ -1080,6 +1086,10 @@ function renderTaskDetail(root,p){
     </div>
     ${record}
   </div>`;
+  // X 닫기(오너 2026-07-05 5차) — 선택 해제 후 빈 패널(클릭 안내)로 복귀, 노드 하이라이트도 해제
+  const px=box.querySelector('#panel-x');
+  if(px) px.onclick=()=>{app.selectedTaskId=null;renderTaskDetail(root,p);
+    root.querySelectorAll('.tnode').forEach(n=>n.classList.remove('sel'));};
 }
 
 /* =========================================================================
