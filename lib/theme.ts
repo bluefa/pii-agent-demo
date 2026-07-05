@@ -819,6 +819,313 @@ export const motion = {
 } as const;
 
 // =============================================================================
+// LIN-25 Admin Pipeline design system (pipelineStyles)
+// =============================================================================
+
+/**
+ * The pipeline admin design system. ALL color + typography classes for the
+ * LIN-25 pipeline components live here — feature code (app/integration/admin/
+ * pipelines/**) must carry no raw color classes (repo hard gate). Every color
+ * references a `--pl-*` custom property declared in app/globals.css via Tailwind
+ * v4 arbitrary-var syntax `…-[var(--pl-*)]` (the form this setup compiles — see
+ * existing `mgmtGroupStyles`/`identityBarStyles`). Sizes/letter-spacing/line-
+ * heights are copied VERBATIM from design-inventory §4/§5 (do NOT snap to the
+ * spacing ladder). SSOT: design/pipeline/admin-pipeline.html.
+ *
+ * Raw hexes here are limited to two sidebar-chrome-only greys (#B9C0CC) that are
+ * not part of the token palette; everything else is a `--pl-*` var.
+ */
+
+/** Text roles — design-inventory §4 typography table (exact size/weight/lh/ls). */
+const pipelineText = {
+  /** page h1 — 24 / 700 / 1.2 / -.02em / strong. */
+  pageTitle: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
+  /** section-title — 20 / 600 / 1.2 / strong. */
+  sectionTitle: 'text-[20px] font-semibold leading-[1.2] text-[var(--pl-text-strong)]',
+  /** section-desc — 12 / 400 / 1.4 / weak. */
+  sectionDesc: 'text-[12px] font-normal leading-[1.4] text-[var(--pl-text-weak)]',
+  /** subsection-title — 14 / 600 / medium. */
+  subsectionTitle: 'text-[14px] font-semibold text-[var(--pl-text-medium)]',
+  /** modal h3 — 16 / 700 / 1.2 / strong. */
+  modalTitle: 'text-[16px] font-bold leading-[1.2] text-[var(--pl-text-strong)]',
+  /** idbar pname — 16 / 700 / 1.2 / -.02em / strong. */
+  identityName: 'text-[16px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
+  /** body / td / note — 14 / medium. */
+  body: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)]',
+  /** note — 14 / medium (recipe desc, modal note). */
+  note: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)]',
+  /** meta / caption — 12 / 400 / weak. */
+  meta: 'text-[12px] font-normal leading-[1.4] text-[var(--pl-text-weak)]',
+  /** mono caption — 12 / strong / mono. */
+  mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+  /** faint mono formula — 12 / faint / mono. */
+  formula: 'text-[12px] leading-[1.4] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]',
+  /** link — primary / 600 / underline on hover. */
+  link: 'text-[var(--pl-primary)] font-semibold cursor-pointer hover:underline',
+  /** muted inline text — weak. */
+  muted: 'text-[var(--pl-text-weak)]',
+  /** kv key — 12 / 600 / weak. */
+  kvKey: 'text-[12px] font-semibold leading-[1.4] text-[var(--pl-text-weak)]',
+  /** kv value — 14 / 500 / strong. */
+  kvValue: 'text-[14px] font-medium leading-[1.4] text-[var(--pl-text-strong)]',
+  /** kv value (mono variant) — 12 / mono / strong. */
+  kvValueMono: 'text-[12px] font-medium leading-[1.4] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+  /** idbar field key — 12 / 600 / faint. */
+  fieldKey: 'text-[12px] font-semibold text-[var(--pl-text-faint)]',
+  /** idbar field value — 14 / 600 / MONO / strong. */
+  fieldValue: 'text-[14px] font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+  /** meta-group label — 12 / 600 / faint. */
+  metaGroupLabel: 'text-[12px] font-semibold text-[var(--pl-text-faint)]',
+  /** stat tile label — 12 / 400 / weak. */
+  statLabel: 'text-[12px] font-normal text-[var(--pl-text-weak)]',
+  /** stat tile value — 32 / 600 / 1.2 / -.02em / tabular / strong. */
+  statValue: 'text-[32px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums text-[var(--pl-text-strong)]',
+  /** stat value error tint (failed count > 0). */
+  statValueError: 'text-[var(--pl-err-text)]',
+  /** stat value denominator — 20 / 500 / faint. */
+  statDen: 'text-[20px] font-medium text-[var(--pl-text-faint)]',
+  /** status-bar current label — 14 / 600 / medium. */
+  statusCurrent: 'text-[14px] font-semibold text-[var(--pl-text-medium)]',
+  /** sidebar caption — 12 / 600 / +.06em / uppercase. */
+  sidebarTitle: 'text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--pl-gray-500)]',
+} as const;
+
+/** Semantic status → the four status tokens (bg tint, text, solid dot, border). */
+type PipelineStatusToneKey =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'IN_PROGRESS'
+  | 'READY'
+  | 'DONE'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'BLOCKED';
+
+/** Pill background+text per wire status (verbatim prototype `.pill.s-*`). */
+const PIPELINE_PILL_TONE: Record<PipelineStatusToneKey, string> = {
+  PENDING: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
+  RUNNING: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]',
+  IN_PROGRESS: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]',
+  // NOTE: prototype `.pill.s-READY` is PRIMARY (blue), not warn — HTML wins over
+  // the inventory's "READY=warn" parenthetical (see report).
+  READY: 'bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
+  DONE: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
+  FAILED: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+  CANCELLED: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
+  BLOCKED: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
+};
+
+/** Solid dot color per status (BLOCKED uses gray-300; RUNNING/IN_PROGRESS pulse). */
+const PIPELINE_DOT_TONE: Record<PipelineStatusToneKey, string> = {
+  PENDING: 'bg-[var(--pl-warn)]',
+  RUNNING: 'bg-[var(--pl-info)]',
+  IN_PROGRESS: 'bg-[var(--pl-info)]',
+  READY: 'bg-[var(--pl-primary)]',
+  DONE: 'bg-[var(--pl-ok)]',
+  FAILED: 'bg-[var(--pl-err)]',
+  CANCELLED: 'bg-[var(--pl-off)]',
+  BLOCKED: 'bg-[var(--pl-gray-300)]',
+};
+
+/** Provider dot fill per lowercased provider key. */
+const PIPELINE_PROVIDER_DOT: Record<string, string> = {
+  aws: 'bg-[var(--pl-pv-aws)]',
+  azure: 'bg-[var(--pl-pv-azure)]',
+  gcp: 'bg-[var(--pl-pv-gcp)]',
+  idc: 'bg-[var(--pl-pv-idc)]',
+  sdu: 'bg-[var(--pl-pv-sdu)]',
+};
+
+/** Shared input/select chrome WITHOUT horizontal padding (callers add px so the
+ *  search variant's pl-30 never collides with a base px in the join). */
+const pipelineInputBase =
+  'h-8 rounded-lg border border-[var(--pl-border-strong)] text-[14px] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-faint)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]';
+
+export const pipelineStyles = {
+  text: pipelineText,
+
+  /** Section layout chrome (dark sidebar + light content). */
+  layout: {
+    // Base typography (prototype `html,body`: ls -.014em, lh 1.4, Geist+Korean
+    // stack) on the section root so all descendants inherit it — overrides the
+    // app body's -.018em and wires --pl-font-sans (the Korean fallback chain).
+    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_56px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
+    sidebar: 'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4',
+    sidebarTitle: cn(pipelineText.sidebarTitle, 'block px-2.5 pt-2 pb-2.5'),
+    // Item base carries no text color/weight — idle/active own it (plain `cn` join
+    // has no tailwind-merge, so overlapping utilities must never co-occur).
+    sidebarItem: 'block px-2.5 py-[7px] mb-0.5 rounded-md text-[14px] cursor-pointer',
+    sidebarItemIdle: 'font-medium text-[#B9C0CC] hover:bg-[var(--pl-gray-800)]',
+    sidebarItemActive:
+      'bg-[var(--pl-gray-800)] text-white font-semibold shadow-[inset_2px_0_0_var(--pl-primary)]',
+    content: 'flex-1 min-w-0 max-w-[1280px] px-8 pt-6 pb-12',
+  },
+
+  /** Card surfaces (§5). */
+  card: {
+    base: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[10px] shadow-[var(--pl-shadow-xs)] px-6 pt-5 pb-6',
+    /** Stacked below another card in the same section (mt 16). */
+    stack: 'mt-4',
+    /** Read-only grey stat tile — no shadow, max-w 260. */
+    stat: 'bg-[var(--pl-gray-100)] border border-[var(--pl-border)] rounded-[10px] px-6 pt-5 pb-6 max-w-[260px]',
+    /** Horizontal-overflow wrapper for a table inside a card (§ .tblwrap). */
+    tableWrap: 'overflow-x-auto',
+  },
+
+  /** Section header (title 64/0/12 margins; desc -8/0/12). */
+  section: {
+    title: cn(pipelineText.sectionTitle, 'mt-16 mb-3'),
+    titleFirst: cn(pipelineText.sectionTitle, 'mt-0 mb-3'),
+    desc: cn(pipelineText.sectionDesc, '-mt-2 mb-3'),
+  },
+
+  /** StatusPill — h20 pad 0 9 0 8 dot 6 (lg h28 pad 0 12 0 10 dot 8). Size lives
+   *  entirely in md/lg (never in base) so the two never collide in a join. */
+  pill: {
+    base: 'inline-flex items-center gap-1.5 rounded-full font-semibold tracking-[0.02em]',
+    md: 'h-5 pr-[9px] pl-2 text-[12px]',
+    lg: 'h-7 pr-3 pl-2.5 text-[14px]',
+    dot: 'rounded-full',
+    dotMd: 'w-1.5 h-1.5',
+    dotLg: 'w-2 h-2',
+    /** Pulsing dot (RUNNING / IN_PROGRESS) — opacity 1→.35 @ 1.6s. */
+    dotPulse: '[animation:pl-pulse_1.6s_ease-in-out_infinite]',
+    tone: PIPELINE_PILL_TONE,
+    dotTone: PIPELINE_DOT_TONE,
+  },
+
+  /** ProvTag — neutral text + 8×8 r2.5 brand dot; 12/500 medium. */
+  provTag: {
+    base: 'inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--pl-text-medium)]',
+    dot: 'w-2 h-2 rounded-[2.5px]',
+    dotTone: PIPELINE_PROVIDER_DOT,
+  },
+
+  /** PipelineProgressBar — track 110 (160 wide), h6; fill by state; N/M 12/600 tabular.
+   *  Track width lives in trackNarrow/trackWide (never in the base). */
+  progress: {
+    wrap: 'inline-flex items-center gap-2',
+    track: 'block h-1.5 rounded-full bg-[var(--pl-gray-200)] overflow-hidden',
+    trackNarrow: 'w-[110px]',
+    trackWide: 'w-[160px]',
+    fill: 'block h-full rounded-full',
+    fillPrimary: 'bg-[var(--pl-primary)]',
+    fillOk: 'bg-[var(--pl-ok)]',
+    fillErr: 'bg-[var(--pl-err)]',
+    fillOff: 'bg-[var(--pl-off)]',
+    label: 'text-[12px] font-semibold text-[var(--pl-text-weak)] tabular-nums',
+  },
+
+  /** KindChip — mono 12/600 h20 pad 0 6, NO base border; cond = dashed gray-300.
+   *  Text color lives in plain/cond (never in base) to avoid a join collision. */
+  kindChip: {
+    base: 'inline-flex flex-none items-center h-5 px-1.5 rounded-[4px] text-[12px] font-semibold bg-[var(--pl-off-bg)] [font-family:var(--pl-font-mono)]',
+    plain: 'text-[var(--pl-text-weak)]',
+    cond: 'text-[var(--pl-text-medium)] border border-dashed border-[var(--pl-gray-300)]',
+  },
+
+  /** PlEmptyState — icon 40 box + message; centered variant min-h 240. */
+  empty: {
+    base: 'text-center p-8 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
+    center: 'flex flex-col justify-center items-center min-h-[240px]',
+    icon: 'inline-flex items-center justify-center w-10 h-10 mb-2.5 rounded-full bg-[var(--pl-gray-100)] text-[var(--pl-text-faint)]',
+    meta: cn(pipelineText.meta),
+  },
+
+  /** PlBreadcrumb — 12/weak, sep ›, clickable vs inert vs cur. */
+  breadcrumb: {
+    base: 'text-[12px] text-[var(--pl-text-weak)] mb-3',
+    crumb: 'cursor-pointer hover:text-[var(--pl-text-medium)] hover:underline',
+    sep: 'mx-1.5 text-[var(--pl-text-faint)]',
+    cur: 'text-[var(--pl-text-medium)] font-semibold',
+  },
+
+  /** SegControl — container pad 2; buttons h28 pad 0 12 12/600; on = card+shadow.
+   *  bg/text color live in idle/active (never in the button base). */
+  seg: {
+    container: 'inline-flex p-0.5 rounded-lg bg-[var(--pl-gray-100)]',
+    button: 'inline-flex items-center h-7 px-3 rounded-md border-0 text-[12px] font-semibold cursor-pointer',
+    buttonIdle: 'bg-transparent text-[var(--pl-text-weak)]',
+    buttonActive: 'bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] shadow-[var(--pl-shadow-xs)]',
+  },
+
+  /** PlToast — bottom-center gray-900 white 14/500 i-check, shadow-lg. */
+  toast: {
+    base: 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-2.5 rounded-lg text-[14px] font-medium text-white bg-[var(--pl-gray-900)] shadow-[var(--pl-shadow-lg)]',
+    icon: 'text-[var(--pl-ok)]',
+  },
+
+  /** ModalShell — overlay + centered dialog (task variant 600 / max-h). Width
+   *  lives in dialogDefault/dialogTask (never in the shared dialog base). */
+  modal: {
+    overlay: 'fixed inset-0 z-50 flex items-center justify-center bg-[rgba(16,24,40,0.5)]',
+    dialog: 'max-w-[90vw] px-6 py-[22px] rounded-[12px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
+    dialogDefault: 'w-[480px]',
+    dialogTask: 'w-[600px] flex flex-col max-h-[min(720px,86vh)]',
+    title: cn(pipelineText.modalTitle, 'mb-1.5'),
+    desc: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)] mb-3.5',
+    body: 'overflow-y-auto min-h-0 mt-1',
+    foot: 'flex justify-end gap-2 mt-[18px]',
+  },
+
+  /** FilterBar. */
+  filterBar: 'flex items-center gap-2 flex-wrap',
+
+  /** SearchBox — relative wrapper + inset icon + full input (pl-30 for the icon). */
+  searchBox: {
+    wrap: 'relative inline-block',
+    icon: 'absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--pl-text-faint)] pointer-events-none',
+    input: cn(pipelineInputBase, 'w-full pr-2.5 pl-[30px]'),
+  },
+
+  /** Text input / select — h32, border-strong, focus ring. */
+  input: cn(pipelineInputBase, 'px-2.5'),
+  select: cn(pipelineInputBase, 'px-2.5'),
+
+  /** PlButton — h32 pad 0 14 14/600 (sm h28 pad 0 10 12/600; round 28×28).
+   *  Base = interaction only; one geometry (md/sm/round) + one variant compose so
+   *  every property is set at most once. Each variant owns its 1px border. */
+  button: {
+    base: 'inline-flex items-center justify-center gap-1.5 font-semibold cursor-pointer transition-colors disabled:cursor-not-allowed',
+    md: 'h-8 px-3.5 rounded-lg text-[14px]',
+    sm: 'h-7 px-2.5 rounded-lg text-[12px]',
+    round: 'h-7 w-7 p-0 rounded-full',
+    primary:
+      'border border-transparent bg-[var(--pl-primary)] text-white shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-primary-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
+    secondary:
+      'border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-medium)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-gray-50)] disabled:text-[var(--pl-text-faint)] disabled:border-[var(--pl-border)] disabled:shadow-none',
+    ghost:
+      'border border-transparent bg-transparent text-[var(--pl-text-weak)] enabled:hover:bg-[var(--pl-gray-100)] enabled:hover:text-[var(--pl-text-medium)] disabled:text-[var(--pl-gray-300)]',
+    danger:
+      'border border-[var(--pl-err-border)] bg-[var(--pl-bg-card)] text-[var(--pl-err-text)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-err-bg)] disabled:text-[var(--pl-text-faint)] disabled:border-[var(--pl-border)] disabled:shadow-none',
+  },
+
+  /** PlTable — th h34 12/600/.03em; td h44 14 tabular; row hover; chev cell. */
+  table: {
+    root: 'w-full border-collapse text-[14px]',
+    th: 'text-left h-[34px] px-3 text-[12px] font-semibold tracking-[0.03em] text-[var(--pl-text-weak)] border-b border-[var(--pl-border)]',
+    // td base has NO text color — PlTd picks exactly one of tdColor / mono / muted.
+    td: 'h-[44px] px-3 py-2 align-middle tabular-nums border-b border-[var(--pl-gray-100)]',
+    tdColor: 'text-[var(--pl-text-medium)]',
+    /** tbody — drops the trailing row's bottom border. */
+    body: '[&>tr:last-child>td]:border-b-0',
+    /** Clickable row (role=button). Hover tints the row + primary-izes its .round chev. */
+    rowClickable: 'group cursor-pointer hover:bg-[var(--pl-gray-50)]',
+    mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+    muted: 'text-[var(--pl-text-weak)]',
+    chevCell: 'text-right w-12 whitespace-nowrap',
+    /** Round chev button inside a clickable row — turns primary on row hover. */
+    chevButton: 'group-hover:border-[var(--pl-primary)] group-hover:text-[var(--pl-primary)]',
+  },
+
+  /** PlPagination — ghost sm bounds + pager-count 12 weak tabular. */
+  pager: {
+    bar: 'flex items-center justify-end gap-2 mt-4',
+    count: 'text-[12px] text-[var(--pl-text-weak)] tabular-nums',
+  },
+} as const;
+
+// =============================================================================
 // 타입 내보내기 (Type Exports)
 // =============================================================================
 

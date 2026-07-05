@@ -55,6 +55,19 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    label: '파이프라인',
+    href: integrationRoutes.pipelines.dashboard,
+    isActive: (pathname) => pathname.startsWith('/integration/admin/pipelines'),
+    icon: (
+      <svg {...iconProps} aria-hidden="true">
+        <circle cx="4.5" cy="12" r="2.3" />
+        <circle cx="12" cy="12" r="2.3" />
+        <circle cx="19.5" cy="12" r="2.3" />
+        <path d="M6.8 12h2.9m4.6 0h2.9" />
+      </svg>
+    ),
+  },
+  {
     label: 'Credentials',
     href: integrationRoutes.credentials,
     disabled: true,
