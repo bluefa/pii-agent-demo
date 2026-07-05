@@ -1,0 +1,212 @@
+<div class="sheet-h">1. 색상 토큰</div>
+<div class="sheet-cap">design-tokens.json과 동일 — Figma Variables는 Tokens Studio로 임포트</div>
+<div class="swatch-row">
+  <div class="swatch"><div class="chip" style="background:#F9FAFB"></div><div class="nm">gray-50 / bg-page</div></div>
+  <div class="swatch"><div class="chip" style="background:#F2F4F7"></div><div class="nm">gray-100 / stat 타일</div></div>
+  <div class="swatch"><div class="chip" style="background:#E4E7EC"></div><div class="nm">gray-200 / border</div></div>
+  <div class="swatch"><div class="chip" style="background:#D0D5DD"></div><div class="nm">gray-300</div></div>
+  <div class="swatch"><div class="chip" style="background:#98A2B3"></div><div class="nm">gray-400 / faint</div></div>
+  <div class="swatch"><div class="chip" style="background:#667085"></div><div class="nm">gray-500 / weak</div></div>
+  <div class="swatch"><div class="chip" style="background:#344054"></div><div class="nm">gray-700 / medium</div></div>
+  <div class="swatch"><div class="chip" style="background:#101828"></div><div class="nm">gray-900 / strong·크롬</div></div>
+  <div class="swatch"><div class="chip" style="background:#2563EB"></div><div class="nm">primary</div></div>
+  <div class="swatch"><div class="chip" style="background:#12B76A"></div><div class="nm">ok</div></div>
+  <div class="swatch"><div class="chip" style="background:#F04438"></div><div class="nm">err</div></div>
+  <div class="swatch"><div class="chip" style="background:#2E90FA"></div><div class="nm">info</div></div>
+  <div class="swatch"><div class="chip" style="background:#F79009"></div><div class="nm">warn / PENDING</div></div>
+</div>
+
+<div class="sheet-h">2. 타이포 6롤</div>
+<div class="sheet-cap">style-guide §1 — 크기는 {12,14,16,20,24,32}에서만</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+  <div style="font-size:24px;font-weight:700;line-height:1.2;letter-spacing:-.02em">페이지 제목 24 / 700 / 120%</div>
+  <div style="font-size:20px;font-weight:600;line-height:1.2">섹션 제목 20 / 600 / 120%</div>
+  <div style="font-size:16px;font-weight:700;line-height:1.2">서브 제목(다이얼로그) 16 / 700 / 120%</div>
+  <div style="font-size:14px;line-height:1.4">본문·데이터 14 / 400~600 / 140% — 테이블 셀·버튼·입력·kv 값</div>
+  <div class="meta">캡션·메타 12 / 400~600 — 라벨·시각·배지·th</div>
+  <div style="font-size:32px;font-weight:600;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums">32</div>
+</div>
+
+<div class="sheet-h">3. 버튼 · 컨트롤</div>
+<div class="sheet-cap">높이 3단: ctl 32 / ctl-sm 28 / chip 20 — 같은 행 = 같은 단</div>
+<div class="filterbar" style="margin-bottom:16px">
+  <button class="btn primary">설치 시작</button>
+  <button class="btn secondary">삭제 시작</button>
+  <button class="btn ghost">새로고침</button>
+  <button class="btn danger">취소</button>
+  <button class="btn primary" disabled>비활성</button>
+  <button class="btn sm secondary">상세 보기</button>
+  <button class="btn secondary sm round" title="상세로 이동"><svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></button>
+</div>
+<div class="filterbar">
+  <span class="searchbox" style="width:240px"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input class="input" placeholder="TargetSourceId 검색"></span>
+  <select class="sel"><option>상태 전체</option></select>
+  <span class="seg"><button class="on">1시간</button><button>1일</button><button>7일</button></span>
+</div>
+
+<div class="sheet-h">4. 상태 배지</div>
+<div class="sheet-cap">파이프라인 상태 pill(PENDING 포함) · task kind 칩 · CSP 태그 · FieldTag</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+  <div class="vrow" style="gap:8px;flex-wrap:wrap">
+    <span class="pill s-PENDING"><span class="dot"></span>PENDING</span>
+    <span class="pill s-RUNNING"><span class="dot"></span>RUNNING</span>
+    <span class="pill s-READY"><span class="dot"></span>READY</span>
+    <span class="pill s-IN_PROGRESS"><span class="dot"></span>IN_PROGRESS</span>
+    <span class="pill s-DONE"><span class="dot"></span>DONE</span>
+    <span class="pill s-FAILED"><span class="dot"></span>FAILED</span>
+    <span class="pill s-CANCELLED"><span class="dot"></span>CANCELLED</span>
+    <span class="pill s-BLOCKED"><span class="dot"></span>BLOCKED</span>
+  </div>
+  <div class="vrow" style="gap:8px"><span class="pill lg s-RUNNING"><span class="dot"></span>RUNNING</span><span class="meta">pill.lg — 상태 바 전용 28px</span></div>
+  <div class="vrow" style="gap:8px;flex-wrap:wrap">
+    <span class="kindchip">TERRAFORM_JOB</span>
+    <span class="kindchip cond">CONDITION_CHECK</span>
+    <span class="ftag ext">취소 요청됨</span>
+    <span class="ftag approx">근사</span>
+    <span class="ftag na">미제공</span>
+  </div>
+  <div class="vrow" style="gap:16px;flex-wrap:wrap">
+    <span class="ptag pv-aws"><span class="pdot"></span>AWS</span>
+    <span class="ptag pv-azure"><span class="pdot"></span>Azure</span>
+    <span class="ptag pv-gcp"><span class="pdot"></span>GCP</span>
+    <span class="ptag pv-idc"><span class="pdot"></span>IDC</span>
+    <span class="ptag pv-sdu"><span class="pdot"></span>SDU</span>
+  </div>
+</div>
+
+<div class="sheet-h">5. 진행 바</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+  <span class="pbar"><span class="track"><span class="fill" style="width:50%"></span></span><span class="lbl">2/4</span></span>
+  <span class="pbar done"><span class="track"><span class="fill" style="width:100%"></span></span><span class="lbl">4/4</span></span>
+  <span class="pbar s-FAILED"><span class="track"><span class="fill" style="width:33%"></span></span><span class="lbl">1/3</span></span>
+  <span class="pbar s-CANCELLED"><span class="track"><span class="fill" style="width:25%"></span></span><span class="lbl">1/4</span></span>
+</div>
+
+<div class="sheet-h">6. StatCard (현황 — 회색 타일 = 읽기 전용 요약)</div>
+<div class="stat-row">
+  <div class="stat"><div class="lbl">동작 중 파이프라인 · 현재</div><div class="val">2</div></div>
+  <div class="stat failed"><div class="lbl">실패 · 최근 24시간</div><div class="val">1</div></div>
+  <div class="stat"><div class="lbl">성공 · 최근 24시간</div><div class="val">0</div></div>
+</div>
+
+<div class="sheet-h">7. 섹션 구조 + 테이블</div>
+<div class="section-title" style="margin-top:0">파이프라인 목록</div>
+<div class="section-desc">최근 24시간 생성 3건 · 정렬: 실패 → 진행 중 → 최신순</div>
+<div class="card">
+  <table class="tbl"><thead><tr>
+    <th>TargetSourceId</th><th>CSP</th><th>파이프라인 유형</th><th>상태</th><th>진행도</th><th>생성시간</th><th></th></tr></thead><tbody>
+    <tr class="click"><td class="mono">204</td><td><span class="ptag pv-azure"><span class="pdot"></span>Azure</span></td><td>INSTALL</td><td><span class="pill s-FAILED"><span class="dot"></span>FAILED</span></td><td><span class="pbar s-FAILED"><span class="track"><span class="fill" style="width:33%"></span></span><span class="lbl">1/3</span></span></td><td class="muted">2026-06-29 16:10</td><td class="chev"><button class="btn secondary sm round" title="상세로 이동"><svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></button></td></tr>
+    <tr class="click"><td class="mono">101</td><td><span class="ptag pv-aws"><span class="pdot"></span>AWS</span></td><td>INSTALL</td><td><span class="pill s-RUNNING"><span class="dot"></span>RUNNING</span></td><td><span class="pbar"><span class="track"><span class="fill" style="width:50%"></span></span><span class="lbl">2/4</span></span></td><td class="muted">2026-06-30 14:02</td><td class="chev"><button class="btn secondary sm round" title="상세로 이동"><svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></button></td></tr>
+  </tbody></table>
+</div>
+
+<div class="sheet-h">8. 파이프라인 상태 바 (RUNNING / FAILED)</div>
+<div class="statusbar">
+  <div class="sb-main">
+    <span class="pill lg s-RUNNING"><span class="dot"></span>RUNNING</span>
+    <span class="pbar"><span class="track"><span class="fill" style="width:50%"></span></span><span class="lbl">2/4</span></span>
+    <span class="sb-cur">현재 seq 3 · BDC Common 테라폼 Apply</span>
+    <span class="vrow" style="margin-left:auto;gap:8px">
+      <span class="meta">다음 실행 2026-06-30 15:05</span>
+      <button class="btn danger sm">파이프라인 취소</button>
+    </span>
+  </div>
+  <div class="sb-meta">
+    <span>INSTALL <span class="mono">#128</span></span><span class="sep">·</span>
+    <span>레시피 <span class="mono">AWS_INSTALL</span></span><span class="sep">·</span>
+    <span class="vrow" style="gap:6px"><span class="ptag pv-aws"><span class="pdot"></span>AWS</span> <span class="mono">101</span></span><span class="sep">·</span>
+    <span>생성 2026-06-30 14:02</span><span class="sep">·</span>
+    <span>마지막 활동 2026-06-30 14:25</span>
+  </div>
+</div>
+<div class="statusbar failed" style="margin-top:16px">
+  <div class="sb-main">
+    <span class="pill lg s-FAILED"><span class="dot"></span>FAILED</span>
+    <span class="pbar s-FAILED"><span class="track"><span class="fill" style="width:33%"></span></span><span class="lbl">1/3</span></span>
+    <span class="sb-cur">현재 seq 2 · PE 승인 요청 (재시도 1/1)</span>
+    <span class="sb-err">JOB_FAILED</span>
+    <span class="vrow" style="margin-left:auto;gap:8px">
+      <span class="meta">진행·대기 중만 취소 가능</span>
+      <button class="btn danger sm" disabled>파이프라인 취소</button>
+    </span>
+  </div>
+</div>
+
+<div class="sheet-h">8.5 IdentityBar (target 상세 — app 문법 이식)</div>
+<div class="idbar" style="--ib-accent:var(--pv-azure)">
+  <div class="idbar-row">
+    <div class="prov">
+      <span class="picon"><svg class="ic lg" aria-hidden="true"><use href="#i-cloud"/></svg></span>
+      <div><div class="pname">Azure</div><div class="psub">Cloud Provider</div></div>
+    </div>
+    <span class="div"></span>
+    <div class="fld"><span class="k">TargetSourceId</span><span class="v">204</span></div>
+  </div>
+  <div class="idbar-meta"><div class="kv wide">
+    <div class="k">Tenant ID</div><div class="v mono">a1b2c3d4-1111-4222-8333-d4e5f6a7b8c9</div>
+    <div class="k">Subscription ID</div><div class="v mono">az-sub-01</div>
+  </div></div>
+</div>
+
+<div class="sheet-h">9. Task 노드 + 커넥터</div>
+<div class="flow">
+  <div class="tnode">
+    <div class="seq"><span class="ticon s-DONE"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></span> seq 1</div>
+    <div class="nm">TF 권한 확인</div>
+    <span class="kindchip cond">CONDITION_CHECK</span>
+    <div style="margin-top:8px"><span class="pill s-DONE"><span class="dot"></span>DONE</span></div>
+    <div class="meta">fail 1 · 14:02~14:08</div>
+  </div>
+  <div class="connector"><svg class="ic" aria-hidden="true"><use href="#i-arrow-r"/></svg></div>
+  <div class="tnode sel">
+    <div class="seq"><span class="ticon s-FAILED"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></span> seq 2</div>
+    <div class="nm">PE 승인 요청</div>
+    <span class="kindchip">TERRAFORM_JOB</span>
+    <div style="margin-top:8px"><span class="pill s-FAILED"><span class="dot"></span>FAILED</span></div>
+    <div class="meta">fail 1 · JOB_FAILED · 16:19~16:40</div>
+  </div>
+</div>
+
+<div class="sheet-h">10. 기타 표면</div>
+<div class="sheet-cap">collapsible · notice · empty · toast · breadcrumb · kv</div>
+<div class="breadcrumb"><span class="crumb">서비스 검색</span><span class="sep">›</span><span class="crumb">102</span><span class="sep">›</span><span class="cur">파이프라인 #129</span></div>
+<details class="collap" open><summary>실행 스케줄 메타 — next_due · lease · cancel</summary><div class="body">
+  <div class="kv">
+    <div class="k">next_due_at</div><div class="v mono">2026-06-30 15:30</div>
+    <div class="k">leased</div><div class="v">아니오</div>
+  </div>
+</div></details>
+<div class="notice mt-12">진행·대기 중 파이프라인이 있어 설치·삭제는 잠금(중복 방지). 취소만 가능.</div>
+<div class="card mt-16"><div class="empty"><span class="ico"><svg class="ic lg" aria-hidden="true"><use href="#i-inbox"/></svg></span>선택한 기간·조건에 맞는 파이프라인이 없어요</div></div>
+<div class="mt-16"><div class="toast"><svg class="ic sm" aria-hidden="true"><use href="#i-check"/></svg>목록을 새로고침했어요</div></div>
+
+<div class="sheet-h">11. 모달 (레시피 미리보기)</div>
+<div class="modal" style="box-shadow:var(--shadow-lg)">
+  <h3>설치 실행 미리보기</h3>
+  <div class="desc">102 · GCP · 레시피 <span class="mono">GCP_INSTALL</span> — 아래 순서로 파이프라인이 생성됩니다.</div>
+  <div class="recipe">
+    <div class="step"><span class="sq">1</span>TF 권한 확인 <span class="kindchip cond" style="margin-left:auto">CONDITION_CHECK</span></div>
+    <div class="step"><span class="sq">2</span>SVC 테라폼 Apply <span class="kindchip" style="margin-left:auto">TERRAFORM_JOB</span></div>
+  </div>
+  <div class="foot"><button class="btn ghost">취소</button><button class="btn primary">설치 실행</button></div>
+</div>
+
+<div class="sheet-h">12. 아이콘 세트 (16px, stroke 2)</div>
+<div class="icon-strip">
+  <span><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>search</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>refresh</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg>chev-r</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg>chev-l</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-arrow-r"/></svg>arrow-r</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>check</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>x</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>play</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-circle"/></svg>circle</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-circle-dot"/></svg>circle-dot</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-ban"/></svg>ban</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-inbox"/></svg>inbox</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>info</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-compass"/></svg>compass</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-cursor"/></svg>cursor</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>clock</span>
+</div>

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Admin Pipeline — Component Sheet (Figma capture용)</title>
+<style>
+/* ══ LIN-20 Modern Admin 리디자인 ══
+   치수·표면 규칙: admin-pipeline-design-system.md (variant B: 다크 크롬 + 라이트 캔버스).
+   토큰은 전부 CSS 변수 — 콘텐츠 다크모드는 :root 오버라이드만 추가하면 되는 구조. */
+:root{
+  /* neutral */
+  --gray-50:#F9FAFB; --gray-100:#F2F4F7; --gray-200:#E4E7EC; --gray-300:#D0D5DD;
+  --gray-400:#98A2B3; --gray-500:#667085; --gray-600:#475467; --gray-700:#344054;
+  --gray-800:#1D2939; --gray-900:#101828;
+  /* surfaces & text */
+  --bg-page:#F9FAFB; --bg-card:#FFFFFF; --bg-inner:#F9FAFB;
+  --border:#E4E7EC; --border-strong:#D0D5DD;
+  --text-strong:var(--gray-900); --text-medium:var(--gray-700);
+  --text-weak:var(--gray-500); --text-faint:var(--gray-400);
+  /* primary */
+  --primary:#2563EB; --primary-hover:#1D4ED8; --primary-bg:#EFF4FF; --primary-ring:#D1E0FF;
+  /* status */
+  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3; --ok-border:#A6F4C5;
+  --err:#F04438; --err-text:#B42318; --err-bg:#FEF3F2; --err-border:#FDA29B;
+  --info:#2E90FA; --info-text:#175CD3; --info-bg:#EFF8FF; --info-border:#B2DDFF;
+  --warn:#F79009; --warn-text:#B54708; --warn-bg:#FFFAEB; --warn-border:#FEDF89;
+  --off:#98A2B3; --off-text:#475467; --off-bg:#F2F4F7;
+  /* provider */
+  --pv-aws:#EC7211; --pv-azure:#0078D4; --pv-gcp:#4285F4; --pv-idc:#344054; --pv-sdu:#7F56D9;
+  /* shape */
+  --r-card:10px; --r-inner:8px; --r-ctl:8px;
+  --shadow-xs:0 1px 2px rgba(16,24,40,.05);
+  --shadow-lg:0 12px 32px -8px rgba(16,24,40,.16),0 4px 10px -4px rgba(16,24,40,.08);
+  --font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Pretendard','Malgun Gothic',system-ui,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+/* base = t-body (admin-pipeline-typography.md §0) */
+html,body{margin:0;padding:0;background:var(--bg-page);color:var(--text-strong);
+  font-family:var(--font-sans);font-size:14px;letter-spacing:-0.014em;line-height:1.4;
+  -webkit-font-smoothing:antialiased;min-width:1080px}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+
+/* ── Icons (inline SVG sprite) ── */
+svg.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+svg.ic.sm{width:14px;height:14px;vertical-align:-2px}
+svg.ic.lg{width:22px;height:22px}
+.hint{display:inline-flex;color:var(--text-faint);cursor:help;vertical-align:-2px}
+.hint svg.ic{width:14px;height:14px}
+.hint:hover{color:var(--text-weak)}
+
+/* ── Type roles ── */
+.formula{font-family:var(--font-mono);font-size:12px;color:var(--text-faint);line-height:1.4} /* role: t-mono(캡션 변형) */
+.meta{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4}
+.note{font-size:14px;color:var(--text-medium);line-height:1.4}
+.pager-count{font-size:12px;color:var(--text-weak);font-variant-numeric:tabular-nums}
+.mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
+.link{color:var(--primary);font-weight:600;cursor:pointer}
+.link:hover{text-decoration:underline}
+.mt-16{margin-top:16px}.mt-12{margin-top:12px}
+.vrow{display:inline-flex;align-items:center;gap:6px}
+.muted{color:var(--text-weak)}
+
+/* ── App shell ── */
+.topnav{height:52px;background:#101828;border-bottom:1px solid #101828;
+  display:flex;align-items:stretch;gap:4px;padding:0 24px;position:sticky;top:0;z-index:20}
+.topnav .brand{color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;margin-right:20px}
+.topnav .brand::before{content:"";width:20px;height:20px;border-radius:6px;flex:none;
+  background:linear-gradient(135deg,var(--primary),#7F56D9)}
+.topnav .nav-item{color:#98A2B3;font-size:14px;font-weight:500;display:flex;align-items:center;
+  padding:0 12px;border-bottom:2px solid transparent;cursor:default}
+.topnav .nav-item.active{color:#fff;font-weight:600;border-bottom-color:var(--primary)}
+.layout{display:flex;min-height:calc(100vh - 52px)}
+.sidebar{width:216px;flex:none;background:#101828;border-right:1px solid #101828;padding:16px 12px}
+.sidebar .sb-title{font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--text-faint);
+  text-transform:uppercase;padding:8px 10px 10px;color:#667085}
+.sidebar .sb-item{display:block;padding:7px 10px;border-radius:6px;color:#B9C0CC;
+  font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px}
+.sidebar .sb-item:hover{background:#1D2939}
+.sidebar .sb-item.active{background:#1D2939;color:#fff;font-weight:600;
+  box-shadow:inset 2px 0 0 var(--primary)}
+.content{flex:1;padding:24px 32px 48px;min-width:0;max-width:1280px}
+.breadcrumb{font-size:12px;color:var(--text-weak);margin-bottom:12px}
+.breadcrumb .crumb{cursor:pointer}
+.breadcrumb .crumb:hover{color:var(--text-medium);text-decoration:underline}
+.breadcrumb .sep{margin:0 6px;color:var(--text-faint)}
+.breadcrumb .cur{color:var(--text-medium);font-weight:600}
+.page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.page-head+.section-title{margin-top:0}
+.page-head h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.02em} /* role: t-title */
+.section-title{font-size:20px;font-weight:600;color:var(--text-strong);margin:64px 0 12px;line-height:1.2} /* 섹션 덩어리 간 64 (2026-07-05 오너: 40으론 부족) */
+.section-title:first-child{margin-top:0}
+.section-title .meta{font-weight:400}
+.section-desc{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4;margin:-8px 0 12px} /* 섹션 제목 아래 스코프 설명 — 제목과 4px, 내용과 12px */
+.subsection-title{font-size:14px;font-weight:600;color:var(--text-medium);margin:16px 0 10px}
+
+/* ── Card ── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);padding:20px 24px 24px}
+.card+.card{margin-top:16px} /* 같은 섹션 안 위아래 블록 간 16 통일 — 나란한 카드 gap 12와 구분 */
+
+/* ── StatCard ── */
+.stat-row{display:grid;grid-template-columns:repeat(3,minmax(0,260px));gap:12px}
+.stat{background:var(--gray-100);border:1px solid var(--border);border-radius:var(--r-card);
+  padding:20px 24px 24px} /* 회색 타일 = 읽기 전용 요약 표면(흰 카드 = 콘텐츠·상호작용) */
+.stat .lbl{font-size:12px;font-weight:400;color:var(--text-weak);display:flex;align-items:center;gap:6px}
+.stat .val{font-size:32px;font-weight:600;margin-top:12px;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums} /* role: t-display */
+.stat .val .den{color:var(--text-faint);font-weight:500;font-size:20px}
+.stat .sub{margin-top:6px}
+.stat.unavailable .val{color:var(--text-faint)}
+.stat.failed .val{color:var(--err-text)} /* 실패 카운트>0일 때만 부여 — 비대칭 강조 */
+
+/* ── IdentityBar — app ProjectPageMeta/IdentityBar 문법 이식 (2026-07-05 오너: "app 방식으로") ──
+   접힘 없음: CSP metadata까지 카드 하나에 상시 노출(오너: "접었다 폈다 불필요") */
+.idbar{position:relative;overflow:hidden;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-card);box-shadow:var(--shadow-xs);padding:16px 24px 16px 28px}
+.idbar::before{content:"";position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--ib-accent)}
+.idbar .idbar-row{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.idbar .idbar-meta{margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100)}
+.idbar .prov{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.idbar .picon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;flex-shrink:0;
+  background:color-mix(in srgb,var(--ib-accent) 12%,transparent);color:var(--ib-accent)}
+.idbar .pname{font-size:16px;font-weight:700;line-height:1.2;letter-spacing:-.02em;color:var(--text-strong)}
+.idbar .psub{margin-top:3px;font-size:12px;font-weight:600;color:var(--text-faint)}
+.idbar .div{align-self:stretch;width:1px;background:var(--gray-100);margin:2px 0;flex-shrink:0}
+.idbar .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.idbar .fld .k{font-size:12px;font-weight:600;color:var(--text-faint)}
+.idbar .fld .v{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text-strong)}
+.idbar .mgroup{min-width:0}
+.idbar .mg-label{font-size:12px;font-weight:600;color:var(--text-faint);margin-bottom:8px} /* meta 논리 그룹 캡션 — API 응답 구조 라벨 */
+
+/* ── FieldTag ── */
+.ftag{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;
+  padding:1px 6px;border-radius:4px;vertical-align:middle}
+.ftag.ext{background:var(--warn-bg);color:var(--warn-text)}
+.ftag.approx{background:var(--info-bg);color:var(--info-text)}
+.ftag.na{background:var(--off-bg);color:var(--text-weak)}
+.ftag.null{background:var(--off-bg);color:var(--text-faint)}
+
+/* ── Pills ── */
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600; /* role: t-caption */
+  height:20px;padding:0 9px 0 8px;border-radius:999px;letter-spacing:.02em}
+.pill .dot{width:6px;height:6px;border-radius:50%}
+.pill.s-RUNNING,.pill.s-IN_PROGRESS{background:var(--info-bg);color:var(--info-text)}
+.pill.s-RUNNING .dot,.pill.s-IN_PROGRESS .dot{background:var(--info);animation:pulse 1.6s ease-in-out infinite}
+.pill.s-READY{background:var(--primary-bg);color:var(--primary)} .pill.s-READY .dot{background:var(--primary)}
+.pill.s-DONE{background:var(--ok-bg);color:var(--ok-text)} .pill.s-DONE .dot{background:var(--ok)}
+.pill.s-FAILED{background:var(--err-bg);color:var(--err-text)} .pill.s-FAILED .dot{background:var(--err)}
+.pill.s-CANCELLED{background:var(--off-bg);color:var(--off-text)} .pill.s-CANCELLED .dot{background:var(--off)}
+.pill.s-BLOCKED{background:var(--off-bg);color:var(--off-text)} .pill.s-BLOCKED .dot{background:var(--gray-300)}
+.pill.s-PENDING{background:var(--warn-bg);color:var(--warn-text)} .pill.s-PENDING .dot{background:var(--warn)} /* 시작 지연 대기(LIN-30) — 진행(파랑)·차단(회색)과 구분 */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ── ProviderTag: 중립 텍스트 + 브랜드 컬러 dot ── */
+.ptag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text-medium)}
+.ptag .pdot{width:8px;height:8px;border-radius:2.5px}
+.pv-aws .pdot{background:var(--pv-aws)}
+.pv-azure .pdot{background:var(--pv-azure)}
+.pv-gcp .pdot{background:var(--pv-gcp)}
+.pv-idc .pdot{background:var(--pv-idc)}
+.pv-sdu .pdot{background:var(--pv-sdu)}
+
+/* ── ProgressBar ── */
+.pbar{display:inline-flex;align-items:center;gap:8px}
+.pbar .track{display:block;width:110px;height:6px;border-radius:999px;background:var(--gray-200);overflow:hidden}
+.pbar .fill{display:block;height:100%;background:var(--primary);border-radius:999px}
+.pbar.done .fill{background:var(--ok)}
+/* 바 색 = 상태색 문법 (게이트 B P1-1: FAILED가 RUNNING과 같은 파랑이면 "진행 중"으로 오독) */
+.pbar.s-FAILED .fill{background:var(--err)}
+.pbar.s-CANCELLED .fill{background:var(--off)}
+.pbar .lbl{font-size:12px;font-weight:600;color:var(--text-weak);font-variant-numeric:tabular-nums} /* role: t-key */
+
+/* ── Table ── */
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-size:12px;font-weight:600;color:var(--text-weak);letter-spacing:.03em;
+  height:34px;padding:0 12px;border-bottom:1px solid var(--border)}
+.tbl td{height:44px;padding:8px 12px;border-bottom:1px solid var(--gray-100);color:var(--text-medium);
+  vertical-align:middle;font-variant-numeric:tabular-nums}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover td{background:var(--gray-50)}
+.tbl .mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
+.tbl td.chev{text-align:right;width:48px;white-space:nowrap}
+.chev{color:var(--text-faint)}
+tr.click:hover .btn.round{border-color:var(--primary);color:var(--primary)} /* 행 이동 어포던스 — hover 시 primary */
+
+/* ── FilterBar ── */
+.filterbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.searchbox{position:relative;display:inline-block}
+.searchbox svg.ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;
+  color:var(--text-faint);pointer-events:none}
+.searchbox .input{padding-left:30px;width:100%}
+.input,select.sel{height:32px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);padding:0 10px;
+  font-size:14px;background:var(--bg-card);color:var(--text-strong);font-family:inherit}
+.input::placeholder{color:var(--text-faint)}
+.input:focus,select.sel:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.seg{display:inline-flex;background:var(--gray-100);border-radius:var(--r-ctl);padding:2px}
+.seg button{border:0;background:transparent;height:28px;padding:0 12px;border-radius:6px;font-size:12px;
+  font-weight:600;color:var(--text-weak);cursor:pointer}
+.seg button.on{background:var(--bg-card);color:var(--text-strong);box-shadow:var(--shadow-xs)}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;
+  border-radius:var(--r-ctl);font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;
+  transition:background .12s,border-color .12s,color .12s}
+.btn:disabled{cursor:not-allowed}
+.btn.primary{background:var(--primary);color:#fff;box-shadow:var(--shadow-xs)}
+.btn.primary:not(:disabled):hover{background:var(--primary-hover)}
+.btn.primary:disabled{background:var(--gray-100);color:var(--text-faint);box-shadow:none}
+.btn.secondary{background:var(--bg-card);color:var(--text-medium);border-color:var(--border-strong);box-shadow:var(--shadow-xs)}
+.btn.secondary:not(:disabled):hover{background:var(--gray-50)}
+.btn.secondary:disabled{color:var(--text-faint);border-color:var(--border);box-shadow:none}
+.btn.ghost{background:transparent;color:var(--text-weak)}
+.btn.ghost:not(:disabled):hover{background:var(--gray-100);color:var(--text-medium)}
+.btn.ghost:disabled{color:var(--gray-300)}
+.btn.danger{background:var(--bg-card);color:var(--err-text);border-color:var(--err-border);box-shadow:var(--shadow-xs)}
+.btn.danger:not(:disabled):hover{background:var(--err-bg)}
+.btn.danger:disabled{color:var(--text-faint);border-color:var(--border);box-shadow:none}
+.btn.sm{height:28px;padding:0 10px;font-size:12px}
+.btn.round{width:28px;padding:0;border-radius:999px} /* 원형 아이콘 버튼 — 이동(↗) 전용, sm과 조합 */
+
+/* ── KeyValueGrid ── */
+.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 16px;font-size:14px}
+.kv .k{font-size:12px;font-weight:600;color:var(--text-weak);line-height:1.4} /* role: t-key */
+.kv .v{color:var(--text-strong);font-weight:500;line-height:1.4}
+.kv .v.mono{font-family:var(--font-mono);font-size:12px}
+.kv.wide{grid-template-columns:150px 1fr}
+
+/* ── Collapsible ── */
+details.collap{border:1px solid var(--border);border-radius:var(--r-inner);margin-top:16px;background:var(--bg-card)}
+details.collap>summary{cursor:pointer;padding:10px 14px;font-size:14px;font-weight:600;color:var(--text-medium);
+  list-style:none;display:flex;align-items:center;gap:8px}
+details.collap>summary::-webkit-details-marker{display:none}
+details.collap>summary::before{content:"";width:12px;height:12px;flex:none;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center/contain no-repeat;
+  transition:transform .15s}
+details.collap[open]>summary::before{transform:rotate(90deg)}
+details.collap>.body{padding:0 14px 14px}
+
+/* ── Task flow (v16 Athena 노드 문법 차용 — 오너 2026-07-05 6차) ──
+   캔버스: 점 격자 배경 + 가로 스크롤(task 다수 대비). 노드: 상태 tint 아이콘 박스 28px +
+   이름 한 행, kind 칩, 상태별 "가장 유용한 한 줄"(nd-meta). 상태는 테두리·아이콘·meta로만
+   표현 — kind 칩은 분류 정보라 중립 유지(기존 결정). BLOCKED만 dashed(대기 문법). */
+.flow{display:flex;align-items:center;overflow-x:auto;padding:24px 16px;
+  background-color:var(--bg-inner);
+  background-image:radial-gradient(circle,var(--gray-200) 1px,transparent 1px);background-size:16px 16px;
+  border:1px solid var(--border);border-radius:var(--r-card)}
+.tnode{flex:none;width:178px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  padding:12px 12px 10px;position:relative;cursor:pointer;box-shadow:var(--shadow-xs);
+  transition:border-color .15s,box-shadow .15s}
+.tnode:hover{border-color:var(--border-strong)}
+.tnode:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.tnode .nd-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tnode .nd-ico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none;
+  font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--off-bg);color:var(--text-faint)}
+.tnode .nd-ico svg.ic{width:14px;height:14px;stroke-width:2.5;vertical-align:0}
+.tnode .nd-name{font-size:14px;font-weight:600;line-height:1.3;color:var(--text-strong);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tnode .nd-meta{font-size:12px;color:var(--text-weak);line-height:1.4;min-height:17px;margin-top:6px;
+  word-break:keep-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tnode.s-done{border-color:var(--ok-border)}
+.tnode.s-done .nd-ico{background:var(--ok-bg);color:var(--ok-text)}
+.tnode.s-running{border-color:var(--info)}
+.tnode.s-running .nd-ico{background:var(--info-bg);color:var(--info-text)}
+.tnode.s-ready{border-color:var(--warn-border)}
+.tnode.s-ready .nd-ico{background:var(--warn-bg);color:var(--warn-text)}
+.tnode.s-failed{border-color:var(--err-border);box-shadow:0 0 0 4px rgba(240,68,56,.10)}
+.tnode.s-failed .nd-ico{background:var(--err-bg);color:var(--err-text)}
+.tnode.s-failed .nd-meta{color:var(--err-text);font-weight:600}
+.tnode.s-queued{border-style:dashed;background:rgba(255,255,255,.7)}
+.tnode.s-queued .nd-name{color:var(--text-weak)}
+.tnode.s-cancelled{background:rgba(255,255,255,.7)}
+.tnode.s-cancelled .nd-ico{background:var(--off-bg);color:var(--off-text)}
+.tnode.s-cancelled .nd-name{color:var(--text-weak)}
+.spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--info-border);border-top-color:var(--info);display:inline-block}
+.kindchip{display:inline-flex;flex:none;align-items:center;font-size:12px;font-weight:600; /* role: t-caption */height:20px;padding:0 6px;
+  border-radius:4px;background:var(--off-bg);color:var(--text-weak);font-family:var(--font-mono)}
+.kindchip.cond{background:var(--off-bg);color:var(--text-medium);border:1px dashed var(--gray-300)} /* kind=분류 정보 — 파랑(상태·액션)과 분리 */
+.connector{flex:none;width:48px;height:14px;position:relative}
+.connector::before{content:"";position:absolute;left:2px;right:9px;top:50%;margin-top:-1px;height:2px;background:var(--gray-300);border-radius:1px}
+.connector::after{content:"";position:absolute;right:2px;top:50%;transform:translateY(-50%);border:5px solid transparent;border-left:6px solid var(--gray-300);border-right:0}
+.connector.done::before{background:var(--ok)}
+.connector.done::after{border-left-color:var(--ok)}
+.connector.active::before{background:repeating-linear-gradient(90deg,var(--info) 0 6px,rgba(46,144,250,.15) 6px 12px)}
+.connector.active::after{border-left-color:var(--info)}
+.connector.toFail::before{background:repeating-linear-gradient(90deg,var(--err) 0 6px,rgba(240,68,56,.15) 6px 12px)}
+.connector.toFail::after{border-left-color:var(--err)}
+@keyframes nodePulse{0%,100%{box-shadow:0 0 0 3px rgba(46,144,250,.16)}50%{box-shadow:0 0 0 8px rgba(46,144,250,.04)}}
+@keyframes nodePulseAmber{0%,100%{box-shadow:0 0 0 3px rgba(247,144,9,.14)}50%{box-shadow:0 0 0 8px rgba(247,144,9,.03)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes flowDash{to{background-position:12px 0}}
+@media (prefers-reduced-motion:no-preference){
+  .tnode.s-running{animation:nodePulse 1.8s ease-in-out infinite}
+  .tnode.s-ready{animation:nodePulseAmber 2.2s ease-in-out infinite}
+  .spin{animation:spin .8s linear infinite}
+  .connector.active::before{animation:flowDash .5s linear infinite}
+}
+
+/* ── Pipeline status bar + side panel (IA v2, admin-pipeline-detail-ia.md §3) ── */
+.statusbar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);padding:14px 18px;display:flex;flex-direction:column;gap:8px}
+.statusbar.failed{background:linear-gradient(135deg,#FFF1F0,#FFFFFF 55%);border-color:#F4B3AD;box-shadow:var(--shadow-xs)}
+.statusbar.failed .pill.lg{box-shadow:0 0 0 1px var(--err-border)}
+.sb-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sb-cur{font-size:14px;font-weight:600;color:var(--text-medium)}
+.sb-err{font-family:var(--font-mono);font-size:12px;color:var(--err-text);background:var(--err-bg);
+  padding:2px 8px;border-radius:6px}
+.sb-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text-weak)}
+.sb-meta .sep{color:var(--gray-300)}
+.statusbar .pbar .track{width:160px}
+.pill.lg{height:28px;font-size:14px;padding:0 12px 0 10px}
+.pill.lg .dot{width:8px;height:8px}
+.tblwrap{overflow-x:auto} /* 넘치는 건 표만 — 카드 전체가 밀리지 않게 */
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(16,24,40,.5);display:flex;align-items:center;
+  justify-content:center;z-index:50}
+.modal{background:var(--bg-card);border-radius:12px;box-shadow:var(--shadow-lg);
+  width:480px;max-width:90vw;padding:22px 24px}
+.modal h3{margin:0 0 6px;font-size:16px;font-weight:700}
+.modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:14px;line-height:1.4}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+/* Task 상세 모달(오너 6차: 사이드 패널 → 모달, 길면 본문만 스크롤) */
+.modal.task{width:600px;display:flex;flex-direction:column;max-height:min(720px,86vh)}
+.modal.task .mhead{display:flex;align-items:flex-start;gap:8px}
+.modal.task .mbody{overflow-y:auto;min-height:0;margin-top:4px}
+.modal.task .kv.wide{grid-template-columns:170px 1fr}
+.modal.task .tbl th{padding:4px 8px 6px}
+.modal.task .tbl td{padding:8px}
+.dgroup{border-top:1px solid var(--gray-100);padding-top:16px;margin-top:16px} /* 그룹 경계 = 상단 헤어라인 */
+.dgroup .subsection-title{margin:0 0 10px}
+.recipe{background:var(--bg-inner);border:1px solid var(--border);border-radius:var(--r-inner);padding:8px 12px}
+.recipe .step{display:flex;align-items:center;gap:10px;font-size:14px;padding:7px 0}
+.recipe .step+.step{border-top:1px solid var(--border)}
+.recipe .step .sq{width:20px;height:20px;border-radius:50%;background:var(--primary-bg);
+  color:var(--primary);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--gray-900);
+  color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;font-weight:500;box-shadow:var(--shadow-lg);
+  z-index:60;display:flex;align-items:center;gap:8px}
+.toast svg.ic{color:var(--ok)}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:32px;color:var(--text-weak);font-size:14px;line-height:1.4}
+.empty.center{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:240px}
+.empty .ico{display:inline-flex;width:40px;height:40px;border-radius:50%;background:var(--gray-100);
+  color:var(--text-faint);align-items:center;justify-content:center;margin-bottom:10px}
+#svclist .sb-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;
+  border-radius:6px;color:var(--text-medium);font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px}
+#svclist .sb-item:hover{background:var(--gray-100)}
+#svclist .sb-item.active{background:var(--primary-bg);color:var(--primary);font-weight:600}
+.two-col{display:grid;grid-template-columns:300px 1fr;gap:12px;align-items:stretch}
+.two-col>.card{min-height:420px;margin-top:0}
+.meta-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.meta-2>.card{margin-top:0}
+.notice{background:var(--bg-inner);border:1px solid var(--border);color:var(--text-weak);font-size:12px;
+  padding:8px 10px;border-radius:var(--r-inner);display:inline-block;line-height:1.4}
+
+/* ── sheet 전용 오버라이드: 고정 배치 요소를 문서 흐름으로 ── */
+.toast{position:static;transform:none;display:inline-flex}
+.topnav{position:static}
+.sheet{max-width:1080px;margin:0 auto;padding:40px 32px 80px}
+.sheet-h{font-size:24px;font-weight:700;margin:64px 0 12px;line-height:1.2}
+.sheet-h:first-child{margin-top:0}
+.sheet-cap{font-size:12px;color:var(--text-weak);margin:-8px 0 16px}
+.swatch-row{display:flex;flex-wrap:wrap;gap:12px}
+.swatch{width:120px}
+.swatch .chip{height:48px;border-radius:8px;border:1px solid var(--border)}
+.swatch .nm{font-size:12px;color:var(--text-weak);margin-top:4px;font-family:var(--font-mono)}
+.icon-strip{display:flex;gap:16px;flex-wrap:wrap;color:var(--text-medium)}
+.icon-strip span{display:inline-flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--text-weak)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4.2-4.2"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+<symbol id="i-chev-l" viewBox="0 0 24 24"><path d="M15 18.5 8.5 12 15 5.5"/></symbol>
+<symbol id="i-arrow-r" viewBox="0 0 24 24"><path d="M4 12h15m-6.5-6.5L19 12l-6.5 6.5"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m4.5 12.5 5 5L19.5 7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></symbol>
+<symbol id="i-circle-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m6.5 6.5 11 11"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.4 5h13.2L22 12v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5z"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5h.01"/></symbol>
+<symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.3 5.2-5.2 2.3 2.3-5.2z"/></symbol>
+<symbol id="i-cursor" viewBox="0 0 24 24"><path d="m5 3 7.5 17 2-7.5L22 10.5z"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l2.8 1.8"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.62-1.46A4.5 4.5 0 0 1 17.5 18H7Z"/></symbol>
+<symbol id="i-arrow-ur" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></symbol>
+<symbol id="i-flow" viewBox="0 0 24 24"><circle cx="4.5" cy="12" r="2.3"/><circle cx="12" cy="12" r="2.3"/><circle cx="19.5" cy="12" r="2.3"/><path d="M6.8 12h2.9m4.6 0h2.9"/></symbol>
+</defs></svg>
+<div class="sheet">
+<div class="sheet-h">1. 색상 토큰</div>
+<div class="sheet-cap">design-tokens.json과 동일 — Figma Variables는 Tokens Studio로 임포트</div>
+<div class="swatch-row">
+  <div class="swatch"><div class="chip" style="background:#F9FAFB"></div><div class="nm">gray-50 / bg-page</div></div>
+  <div class="swatch"><div class="chip" style="background:#F2F4F7"></div><div class="nm">gray-100 / stat 타일</div></div>
+  <div class="swatch"><div class="chip" style="background:#E4E7EC"></div><div class="nm">gray-200 / border</div></div>
+  <div class="swatch"><div class="chip" style="background:#D0D5DD"></div><div class="nm">gray-300</div></div>
+  <div class="swatch"><div class="chip" style="background:#98A2B3"></div><div class="nm">gray-400 / faint</div></div>
+  <div class="swatch"><div class="chip" style="background:#667085"></div><div class="nm">gray-500 / weak</div></div>
+  <div class="swatch"><div class="chip" style="background:#344054"></div><div class="nm">gray-700 / medium</div></div>
+  <div class="swatch"><div class="chip" style="background:#101828"></div><div class="nm">gray-900 / strong·크롬</div></div>
+  <div class="swatch"><div class="chip" style="background:#2563EB"></div><div class="nm">primary</div></div>
+  <div class="swatch"><div class="chip" style="background:#12B76A"></div><div class="nm">ok</div></div>
+  <div class="swatch"><div class="chip" style="background:#F04438"></div><div class="nm">err</div></div>
+  <div class="swatch"><div class="chip" style="background:#2E90FA"></div><div class="nm">info</div></div>
+  <div class="swatch"><div class="chip" style="background:#F79009"></div><div class="nm">warn / PENDING</div></div>
+</div>
+
+<div class="sheet-h">2. 타이포 6롤</div>
+<div class="sheet-cap">style-guide §1 — 크기는 {12,14,16,20,24,32}에서만</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+  <div style="font-size:24px;font-weight:700;line-height:1.2;letter-spacing:-.02em">페이지 제목 24 / 700 / 120%</div>
+  <div style="font-size:20px;font-weight:600;line-height:1.2">섹션 제목 20 / 600 / 120%</div>
+  <div style="font-size:16px;font-weight:700;line-height:1.2">서브 제목(다이얼로그) 16 / 700 / 120%</div>
+  <div style="font-size:14px;line-height:1.4">본문·데이터 14 / 400~600 / 140% — 테이블 셀·버튼·입력·kv 값</div>
+  <div class="meta">캡션·메타 12 / 400~600 — 라벨·시각·배지·th</div>
+  <div style="font-size:32px;font-weight:600;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums">32</div>
+</div>
+
+<div class="sheet-h">3. 버튼 · 컨트롤</div>
+<div class="sheet-cap">높이 3단: ctl 32 / ctl-sm 28 / chip 20 — 같은 행 = 같은 단</div>
+<div class="filterbar" style="margin-bottom:16px">
+  <button class="btn primary">설치 시작</button>
+  <button class="btn secondary">삭제 시작</button>
+  <button class="btn ghost">새로고침</button>
+  <button class="btn danger">취소</button>
+  <button class="btn primary" disabled>비활성</button>
+  <button class="btn sm secondary">상세 보기</button>
+  <button class="btn secondary sm round" title="상세로 이동"><svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></button>
+</div>
+<div class="filterbar">
+  <span class="searchbox" style="width:240px"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input class="input" placeholder="TargetSourceId 검색"></span>
+  <select class="sel"><option>상태 전체</option></select>
+  <span class="seg"><button class="on">1시간</button><button>1일</button><button>7일</button></span>
+</div>
+
+<div class="sheet-h">4. 상태 배지</div>
+<div class="sheet-cap">파이프라인 상태 pill(PENDING 포함) · task kind 칩 · CSP 태그 · FieldTag</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+  <div class="vrow" style="gap:8px;flex-wrap:wrap">
+    <span class="pill s-PENDING"><span class="dot"></span>PENDING</span>
+    <span class="pill s-RUNNING"><span class="dot"></span>RUNNING</span>
+    <span class="pill s-READY"><span class="dot"></span>READY</span>
+    <span class="pill s-IN_PROGRESS"><span class="dot"></span>IN_PROGRESS</span>
+    <span class="pill s-DONE"><span class="dot"></span>DONE</span>
+    <span class="pill s-FAILED"><span class="dot"></span>FAILED</span>
+    <span class="pill s-CANCELLED"><span class="dot"></span>CANCELLED</span>
+    <span class="pill s-BLOCKED"><span class="dot"></span>BLOCKED</span>
+  </div>
+  <div class="vrow" style="gap:8px"><span class="pill lg s-RUNNING"><span class="dot"></span>RUNNING</span><span class="meta">pill.lg — 상태 바 전용 28px</span></div>
+  <div class="vrow" style="gap:8px;flex-wrap:wrap">
+    <span class="kindchip">TERRAFORM_JOB</span>
+    <span class="kindchip cond">CONDITION_CHECK</span>
+    <span class="ftag ext">취소 요청됨</span>
+    <span class="ftag approx">근사</span>
+    <span class="ftag na">미제공</span>
+  </div>
+  <div class="vrow" style="gap:16px;flex-wrap:wrap">
+    <span class="ptag pv-aws"><span class="pdot"></span>AWS</span>
+    <span class="ptag pv-azure"><span class="pdot"></span>Azure</span>
+    <span class="ptag pv-gcp"><span class="pdot"></span>GCP</span>
+    <span class="ptag pv-idc"><span class="pdot"></span>IDC</span>
+    <span class="ptag pv-sdu"><span class="pdot"></span>SDU</span>
+  </div>
+</div>
+
+<div class="sheet-h">5. 진행 바</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+  <span class="pbar"><span class="track"><span class="fill" style="width:50%"></span></span><span class="lbl">2/4</span></span>
+  <span class="pbar done"><span class="track"><span class="fill" style="width:100%"></span></span><span class="lbl">4/4</span></span>
+  <span class="pbar s-FAILED"><span class="track"><span class="fill" style="width:33%"></span></span><span class="lbl">1/3</span></span>
+  <span class="pbar s-CANCELLED"><span class="track"><span class="fill" style="width:25%"></span></span><span class="lbl">1/4</span></span>
+</div>
+
+<div class="sheet-h">6. StatCard (현황 — 회색 타일 = 읽기 전용 요약)</div>
+<div class="stat-row">
+  <div class="stat"><div class="lbl">동작 중 파이프라인 · 현재</div><div class="val">2</div></div>
+  <div class="stat failed"><div class="lbl">실패 · 최근 24시간</div><div class="val">1</div></div>
+  <div class="stat"><div class="lbl">성공 · 최근 24시간</div><div class="val">0</div></div>
+</div>
+
+<div class="sheet-h">7. 섹션 구조 + 테이블</div>
+<div class="section-title" style="margin-top:0">파이프라인 목록</div>
+<div class="section-desc">최근 24시간 생성 3건 · 정렬: 실패 → 진행 중 → 최신순</div>
+<div class="card">
+  <table class="tbl"><thead><tr>
+    <th>TargetSourceId</th><th>CSP</th><th>파이프라인 유형</th><th>상태</th><th>진행도</th><th>생성시간</th><th></th></tr></thead><tbody>
+    <tr class="click"><td class="mono">204</td><td><span class="ptag pv-azure"><span class="pdot"></span>Azure</span></td><td>INSTALL</td><td><span class="pill s-FAILED"><span class="dot"></span>FAILED</span></td><td><span class="pbar s-FAILED"><span class="track"><span class="fill" style="width:33%"></span></span><span class="lbl">1/3</span></span></td><td class="muted">2026-06-29 16:10</td><td class="chev"><button class="btn secondary sm round" title="상세로 이동"><svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></button></td></tr>
+    <tr class="click"><td class="mono">101</td><td><span class="ptag pv-aws"><span class="pdot"></span>AWS</span></td><td>INSTALL</td><td><span class="pill s-RUNNING"><span class="dot"></span>RUNNING</span></td><td><span class="pbar"><span class="track"><span class="fill" style="width:50%"></span></span><span class="lbl">2/4</span></span></td><td class="muted">2026-06-30 14:02</td><td class="chev"><button class="btn secondary sm round" title="상세로 이동"><svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></button></td></tr>
+  </tbody></table>
+</div>
+
+<div class="sheet-h">8. 파이프라인 상태 바 (RUNNING / FAILED)</div>
+<div class="statusbar">
+  <div class="sb-main">
+    <span class="pill lg s-RUNNING"><span class="dot"></span>RUNNING</span>
+    <span class="pbar"><span class="track"><span class="fill" style="width:50%"></span></span><span class="lbl">2/4</span></span>
+    <span class="sb-cur">현재 seq 3 · BDC Common 테라폼 Apply</span>
+    <span class="vrow" style="margin-left:auto;gap:8px">
+      <span class="meta">다음 실행 2026-06-30 15:05</span>
+      <button class="btn danger sm">파이프라인 취소</button>
+    </span>
+  </div>
+  <div class="sb-meta">
+    <span>INSTALL <span class="mono">#128</span></span><span class="sep">·</span>
+    <span>레시피 <span class="mono">AWS_INSTALL</span></span><span class="sep">·</span>
+    <span class="vrow" style="gap:6px"><span class="ptag pv-aws"><span class="pdot"></span>AWS</span> <span class="mono">101</span></span><span class="sep">·</span>
+    <span>생성 2026-06-30 14:02</span><span class="sep">·</span>
+    <span>마지막 활동 2026-06-30 14:25</span>
+  </div>
+</div>
+<div class="statusbar failed" style="margin-top:16px">
+  <div class="sb-main">
+    <span class="pill lg s-FAILED"><span class="dot"></span>FAILED</span>
+    <span class="pbar s-FAILED"><span class="track"><span class="fill" style="width:33%"></span></span><span class="lbl">1/3</span></span>
+    <span class="sb-cur">현재 seq 2 · PE 승인 요청 (재시도 1/1)</span>
+    <span class="sb-err">JOB_FAILED</span>
+    <span class="vrow" style="margin-left:auto;gap:8px">
+      <span class="meta">진행·대기 중만 취소 가능</span>
+      <button class="btn danger sm" disabled>파이프라인 취소</button>
+    </span>
+  </div>
+</div>
+
+<div class="sheet-h">8.5 IdentityBar (target 상세 — app 문법 이식)</div>
+<div class="idbar" style="--ib-accent:var(--pv-azure)">
+  <div class="idbar-row">
+    <div class="prov">
+      <span class="picon"><svg class="ic lg" aria-hidden="true"><use href="#i-cloud"/></svg></span>
+      <div><div class="pname">Azure</div><div class="psub">Cloud Provider</div></div>
+    </div>
+    <span class="div"></span>
+    <div class="fld"><span class="k">TargetSourceId</span><span class="v">204</span></div>
+  </div>
+  <div class="idbar-meta"><div class="kv wide">
+    <div class="k">Tenant ID</div><div class="v mono">a1b2c3d4-1111-4222-8333-d4e5f6a7b8c9</div>
+    <div class="k">Subscription ID</div><div class="v mono">az-sub-01</div>
+  </div></div>
+</div>
+
+<div class="sheet-h">9. Task 노드 + 커넥터</div>
+<div class="flow">
+  <div class="tnode">
+    <div class="seq"><span class="ticon s-DONE"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></span> seq 1</div>
+    <div class="nm">TF 권한 확인</div>
+    <span class="kindchip cond">CONDITION_CHECK</span>
+    <div style="margin-top:8px"><span class="pill s-DONE"><span class="dot"></span>DONE</span></div>
+    <div class="meta">fail 1 · 14:02~14:08</div>
+  </div>
+  <div class="connector"><svg class="ic" aria-hidden="true"><use href="#i-arrow-r"/></svg></div>
+  <div class="tnode sel">
+    <div class="seq"><span class="ticon s-FAILED"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></span> seq 2</div>
+    <div class="nm">PE 승인 요청</div>
+    <span class="kindchip">TERRAFORM_JOB</span>
+    <div style="margin-top:8px"><span class="pill s-FAILED"><span class="dot"></span>FAILED</span></div>
+    <div class="meta">fail 1 · JOB_FAILED · 16:19~16:40</div>
+  </div>
+</div>
+
+<div class="sheet-h">10. 기타 표면</div>
+<div class="sheet-cap">collapsible · notice · empty · toast · breadcrumb · kv</div>
+<div class="breadcrumb"><span class="crumb">서비스 검색</span><span class="sep">›</span><span class="crumb">102</span><span class="sep">›</span><span class="cur">파이프라인 #129</span></div>
+<details class="collap" open><summary>실행 스케줄 메타 — next_due · lease · cancel</summary><div class="body">
+  <div class="kv">
+    <div class="k">next_due_at</div><div class="v mono">2026-06-30 15:30</div>
+    <div class="k">leased</div><div class="v">아니오</div>
+  </div>
+</div></details>
+<div class="notice mt-12">진행·대기 중 파이프라인이 있어 설치·삭제는 잠금(중복 방지). 취소만 가능.</div>
+<div class="card mt-16"><div class="empty"><span class="ico"><svg class="ic lg" aria-hidden="true"><use href="#i-inbox"/></svg></span>선택한 기간·조건에 맞는 파이프라인이 없어요</div></div>
+<div class="mt-16"><div class="toast"><svg class="ic sm" aria-hidden="true"><use href="#i-check"/></svg>목록을 새로고침했어요</div></div>
+
+<div class="sheet-h">11. 모달 (레시피 미리보기)</div>
+<div class="modal" style="box-shadow:var(--shadow-lg)">
+  <h3>설치 실행 미리보기</h3>
+  <div class="desc">102 · GCP · 레시피 <span class="mono">GCP_INSTALL</span> — 아래 순서로 파이프라인이 생성됩니다.</div>
+  <div class="recipe">
+    <div class="step"><span class="sq">1</span>TF 권한 확인 <span class="kindchip cond" style="margin-left:auto">CONDITION_CHECK</span></div>
+    <div class="step"><span class="sq">2</span>SVC 테라폼 Apply <span class="kindchip" style="margin-left:auto">TERRAFORM_JOB</span></div>
+  </div>
+  <div class="foot"><button class="btn ghost">취소</button><button class="btn primary">설치 실행</button></div>
+</div>
+
+<div class="sheet-h">12. 아이콘 세트 (16px, stroke 2)</div>
+<div class="icon-strip">
+  <span><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>search</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>refresh</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-chev-r"/></svg>chev-r</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-chev-l"/></svg>chev-l</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-arrow-r"/></svg>arrow-r</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>check</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>x</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>play</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-circle"/></svg>circle</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-circle-dot"/></svg>circle-dot</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-ban"/></svg>ban</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-inbox"/></svg>inbox</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>info</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-compass"/></svg>compass</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-cursor"/></svg>cursor</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>clock</span>
+</div>
+
+</div>
+</body>
+</html>

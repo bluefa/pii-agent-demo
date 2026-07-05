@@ -1,7 +1,8 @@
 # Admin Pipeline — 디자인 시스템 (Phase 1)
 
-> [design-process.md](design-process.md) Phase 1 산출물. 타이포그래피는
-> [admin-pipeline-typography.md](admin-pipeline-typography.md)가 SSOT — 이 문서는
+> [design-process.md](design-process.md) Phase 1 산출물. 타이포그래피(크기·행간·간격)는
+> [admin-pipeline-style-guide.md](admin-pipeline-style-guide.md)가 SSOT(2026-07-04 교체,
+> 구 typography.md는 폰트 스택·자간 근거로 존치) — 이 문서는
 > **표면·사이징·정렬·금지 목록**을 다룬다. `admin-pipeline.html`의 모든 치수는
 > 이 문서의 표에서만 나와야 한다 (게이트 A에서 기계 검증).
 
@@ -32,7 +33,7 @@ input 34 vs seg 23(11px 차), 상태 바에서 pill.lg 29 vs 취소 버튼 28(1p
 |---|---|
 | 아이콘 | 16(기본) / **14(sm·hint·검색)** / 12(20px 원형 칩 내부 글리프·collapsible chevron 전용) — 13px 금지 |
 | 테이블 | th 34, td 44 고정 (43/44.5/45 혼재 금지) |
-| Task 노드 | **높이 164 고정** — 콘텐츠 의존 금지. nm 2줄·meta 2줄 클램프, 전문은 사이드 패널이 담당 |
+| Task 노드 | **높이 184 고정**(2026-07-04, 스케일 14px 재산정 — 구 164) — 콘텐츠 의존 금지. nm 2줄·meta 2줄 클램프, 전문은 사이드 패널이 담당 |
 | radius | card 10 / inner·ctl 8 / 배지 4 / pill 999 (variant C는 8/6/6) |
 
 ### 1-3. 나란한 카드 정렬 규칙
@@ -71,6 +72,6 @@ input 34 vs seg 23(11px 차), 상태 바에서 pill.lg 29 vs 취소 버튼 28(1p
 - [ ] 렌더된 전 페이지에서 §1-1 표 밖의 컨트롤 높이 0건
 - [ ] 같은 flex/grid 행에서 컨트롤 높이 불일치 0건
 - [ ] 나란한 카드 높이 차 0px (`.detail-grid` `.two-col` `.meta-2`)
-- [ ] `.tnode` 높이 전 노드 동일(164)
+- [ ] `.tnode` 높이 전 노드 동일(184)
 - [ ] svg 아이콘 16/14 외 0건, 테이블 행 리듬 34/44 고정
 - [ ] 콘솔 에러 0, §4.5 파생 규칙(ProgressBar N/M·kind 게이팅·버튼 매트릭스) 동작

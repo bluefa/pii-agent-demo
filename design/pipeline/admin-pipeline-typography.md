@@ -1,5 +1,9 @@
 # Admin Pipeline — 타이포그래피 스펙 (LIN-20 Round 5)
 
+> **⚠️ 크기·행간은 대체됨 (2026-07-04)**: 텍스트 크기(9롤 스케일)와 행간 값은
+> [admin-pipeline-style-guide.md](admin-pipeline-style-guide.md) §1의 5단 스케일(12/14/16/20/32,
+> 행간 120/140 2단)이 권위다. 이 문서는 폰트 스택·자간·tabular-nums 근거 자료로 유지.
+>
 > 폰트·정보 층위별 텍스트 크기·층위 간 거리·자간의 단일 기준.
 > `admin-pipeline.html`의 CSS 선언은 이 문서를 따른다.
 > 근거: App 실측(`app/globals.css`, `app/layout.tsx`, `design/v15-extract/00-tokens.md`) + 한글 UI 관행.

@@ -4,6 +4,219 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 15 — Task 흐름 v16 문법 차용 + Task 상세 모달 전환 (2026-07-05)
+
+오너 피드백(6차): "SIT Prototype Athena v16의 task 노드 디자인 차용 / Task 상세 텍스트 경계·
+그룹화 개선 / 상세가 너무 길다 — Modal로, 스크롤 가능하게 / task가 많을 수 있으니 좌우로
+움직이는 흐름도".
+
+**Task 흐름 (v16 `adm-node`/`adm-flow`/`adm-link` → 우리 토큰으로 번역)**:
+- 캔버스: 점 격자 배경(`radial-gradient` 16px) + **가로 스크롤** 전폭 surface —
+  사이드 패널이 빠져 흐름도가 화면 전체 폭을 쓴다.
+- 노드(178px): 상태 tint 아이콘 박스 28px(✓/spinner/✕/⊘/seq 숫자) + 이름 한 행 + kind 칩
+  (중립 유지 — v16은 상태색 칩이지만 우리 문법상 kind는 분류 정보) + **상태별 "가장 유용한
+  한 줄"** `taskMetaLine`: 종단="16:10~16:18 · 폴 2회", 실패="실패 1/1 — JOB_FAILED"(빨강 굵게),
+  진행="14:21 시작", 대기="주기 10분 · TTL 7일 · 한도 6회"(v16의 "실패한도 ∞" 자리 — 우리는
+  count-bound 유한값).
+- 상태 테두리: DONE 초록 / RUNNING 파랑+pulse / READY 호박+pulse / FAILED red halo /
+  BLOCKED dashed(대기 문법 — kind별 dashed 테두리 구판 폐기) / CANCELLED 연회색.
+- 커넥터: 선+화살촉 48px, **상태를 안다** — done 초록 / active 파란 대시(흐름 애니) /
+  toFail 빨간 대시. 애니메이션 전부 `prefers-reduced-motion` 존중.
+- 토큰 추가: `--ok-border`/`--info-border`/`--warn-border`(기존 `--err-border` 계열 정합).
+
+**Task 상세: 사이드 패널(340px) → 모달(600px)**:
+- 헤더(seq·이름 + kind 칩·상태 pill + **X**)·설명 문장은 고정, **본문만 스크롤**
+  (max-height 86vh) — "너무 길게 과하게" 해소.
+- 그룹 경계 = 헤어라인 `dgroup`(border-top): **정의**(task_definition·operation) →
+  **실행 계약**(실행 방식·effective 값·판정 문단) → **진행 기록**(시각·실패 누적·attempts/폴
+  관찰). '실행 방식' 행은 정의→실행 계약으로 이동(판정 문단과 한 그룹).
+- 닫기 = X·ESC·바깥 클릭. FAILED 자동 선택 폐기 — 진입 즉시 모달을 여는 건 침습적,
+  red halo + 상태 바 error_code로 유도. `selectedTaskId` 전역 상태 삭제.
+- 보완(오너 7차): 모달 제목 "seq 2 · Subnet 생성 확인" → **"Subnet 생성 확인"** —
+  seq는 제목이 아니라 metadata. 정의 그룹 첫 행 "순서 (seq)"로 이동.
+- 검증: 124(done→toFail 커넥터·red halo·모달 3그룹·X 닫기), 128(spinner·active 대시 커넥터·
+  pulse), 129(READY 호박·queued dashed), 콘솔 에러 0.
+
+## Round 14 — R13 방향 교정: 논리 그룹의 본진은 target 페이지, 파이프라인은 원복+강조 (2026-07-05)
+
+오너 피드백(5차): "논리 그룹 요청은 **#/target/204** 이야기였다 / 기존에 잘 되던 파이프라인
+페이지를 왜 망쳤나 — 파이프라인 **메타데이터를 상단에**, Target Source 상세는 안 보여줘도
+됨(일부만) / **상태는 Task 흐름의 일부분** / Task 상세는 **X로 닫기**".
+
+**Target 상세 (#/target/:id)** — 논리 그룹 + API Response 반영:
+- IdentityBar meta의 평면 kv → **논리 그룹 캡션**(`mg-label`): **CSP 연결 정보**
+  (CloudTargetSource 식별자 — Tenant/Subscription, AWS Account/Linked/Region, GCP Project) /
+  **실행 권한**(TF 플래그, 있을 때만). 그룹 사이 세로 divider. IDC는 "이 CSP 유형은 연결
+  metadata가 없습니다" 문구.
+- 최근 파이프라인 상태 바 meta·이력 테이블에 **레시피 display_name** 반영(코드는 tooltip),
+  이력 열 #·유형·레시피·상태·진행도·생성시간·↗ + section-desc(전체 건수·최신순).
+
+**파이프라인 상세 (#/pipeline/:id)** — R13 그룹 3개 → **2개로 교정**:
+- ① **파이프라인 메타데이터 카드**: hero = `i-flow` 아이콘 + **레시피 display_name**(pname)
+  + 코드(psub·mono). 필드 유형·생성·마지막 활동. **대상 참조는 한 칸**("204 · Azure"+↗) —
+  R13의 CSP-hero(TargetSourceId 앞세움)·서비스 필드 폐기(대상 정체성 문법은 target 페이지 것).
+  meta 구간 = 레시피 설명 문장만.
+- ② **Task 흐름**(상태 포함): 별도 '상태' 섹션 폐지 — 상태 바가 섹션 첫 블록(그리드와 12px
+  소속 간격). **leased·스케줄 지연은 상태 바 sb-meta 줄로 이동**(비종단만 — "지금" 값은 카드가
+  아니라 상태 소속).
+- **Task 상세 패널 X 닫기**: 제목 우측 ghost round ✕ — 선택 해제·안내문 복귀·노드 하이라이트
+  해제. FAILED 자동 선택은 유지(X로 닫기 가능).
+- 검증: 124(FAILED)/128(RUNNING sb-meta)/129(PENDING·취소 가능), target 204(azure 1그룹)/
+  101(aws 2그룹)/103(idc 빈 문구), X 닫기 동작, 콘솔 에러 0.
+
+## Round 13 — 파이프라인 상세를 논리 그룹으로 재구성 + API 실사 반영 (2026-07-05)
+
+오너 피드백: "API Response가 상세 페이지에 안 녹아 있다 / 하단 접힘 2개('대상 상세
+metadata'·'실행 스케줄 메타')는 왜 필요하냐 / metadata 상단 노출 + 논리 그룹 / Task도
+논리적으로 설명 / 새로고침 버튼 삭제 / 파이프라인 목록에도 아이콘 버튼".
+RecipePreview·TaskDetail 실응답 계약(스네이크케이스, _V1 레시피 코드) 실사 기반.
+
+- **그룹 3개로 재편**: ① **파이프라인 정보**(IdentityBar 카드, 상단 — CSP 액센트·
+  TargetSourceId(↗ 대상 상세)·유형·레시피 display_name / meta: 레시피 설명·코드·서비스·
+  생성·마지막 활동·leased·스케줄 지연) ② **상태**(슬림 상태 바 — "지금" 1행만, sb-meta 폐지)
+  ③ **Task 흐름**(섹션 승격 + desc). **하단 접힘 2개 폐지** — CSP 세부는 target 페이지 몫(↗).
+- h1 "파이프라인 #id" 신설(페이지 제목 규칙 정합).
+- **Task 패널 3그룹**: **정의**(task_definition·operation 코드·실행 방식·설명) /
+  **실행 계약**(effective 폴링·타임아웃·재시도 예산·TF 슬롯 + kind별 **판정 방식** 문단 —
+  success_policy 요약, 전 terraform step 동일 텍스트라는 API 사실 반영) /
+  **진행 기록**(시각·실패 누적+error_code·attempts 테이블/폴 관찰(task_check)).
+- API 정합: recipe 코드 `*_V1`, RECIPES 카탈로그(display_name·description),
+  #128·#124 task에 task_definition·operation·description 채움.
+- **새로고침 버튼 전면 삭제**(대시보드·target — 오너 지시). "상세 ›" 텍스트 링크 →
+  **↗ 원형 버튼**으로 전 테이블(대시보드 목록·이력·대상 목록) 통일.
+
+## Round 12 — target 상세를 app 문법으로 재구성 (2026-07-05)
+
+오너 피드백: "#/target/204 마음에 안 듦 — 기존 app의 타겟소스 상세 표현 방식으로 /
+installation status 우선 삭제 / 최근 파이프라인·CTA 표현 이상함 / 정보 계층 잘".
+app `ProjectPageMeta`·`IdentityBar`(`app/integration/target-sources/[id]/`) 실사 후 이식.
+
+- **페이지 헤더**: h1 = **서비스명 (회색 코드)** — app PageHeader 문법. **CTA 3버튼을 헤더
+  우측으로 승격**(액션 카드·notice 폐지 — 잠금 사유는 disabled tooltip).
+- **IdentityBar 신설**(`.idbar`): CSP 액센트 스트라이프(4px)+아이콘 박스(38, 12% tint) ·
+  CSP명/"Cloud Provider" · 세로 구분선 필드(TargetSourceId·계정 — 라벨 12 위/값 mono 14 아래) ·
+  우측 새로고침. IDC는 sub 라벨 생략(app v16 규칙).
+- **설치 상태(process_status) 표시 전면 제거**(오너: "우선은 삭제") — target 페이지 procChip,
+  서비스 검색 열, CSP metadata kv 행 모두. targetButtons 내부 게이팅 판정에만 사용.
+- **최근 파이프라인 = 상태 바 문법 재사용**: pill lg + 진행 + 현재 task + error_code +
+  [파이프라인 상세→], meta(유형#id·레시피·생성·활동). FAILED면 tint — 미니 카드 폐지.
+- 이력 테이블 열 이름 컨벤션 정합(파이프라인 유형·진행도·생성시간). 컴포넌트 시트에
+  IdentityBar 섹션(8.5) 추가.
+- **보완(오너 2차)**: CSP metadata 접힘 폐지 — IdentityBar **카드 하나**에 구분선으로 상시
+  노출(`idbar-meta`). CSP 필드 없는 IDC는 메타 구간 자체를 생략.
+- **보완(오너 3차)**: CTA를 헤더에서 내려 **Action Group — metadata 카드 바로 아래**로.
+  배치 논리: 태스크 흐름 "① 대상 확인(identity·metadata) → ② 상태 판단 → ③ 행동" —
+  행동은 판단 재료 다음. 대시보드 필터바와 같은 "도구는 카드 밖 독립 행" 문법.
+  잠금 사유를 그룹 우측 상시 캡션으로(설명 없는 disabled는 버그로 읽힘 — tooltip 병행).
+  최종 계층: 제목 → IdentityBar(카드) → 액션 그룹(16px 소속) → [64px] 최근 파이프라인 → 이력.
+- **보완(오너 4차)**: **계정(account) 필드 표시 제거** — CSP 식별자의 중복 사본
+  (Azure에선 Subscription ID와 같은 값이 두 번 노출). IdentityBar 필드·metadata kv 전부.
+- **보완(오너 6차)**: **취소 버튼을 상태 바 안으로** — 취소는 최신 run에 귀속되는 조작
+  (파이프라인 상세 상태 바와 동일 문법). 종단 상태면 미노출, 취소 요청 중이면 잠금.
+  액션 행은 설치/삭제만. "파이프라인 상세 ›" 텍스트 버튼 → **원형 사선 화살표(↗) 버튼**
+  (`btn.round` + `i-arrow-ur` — app CollabChannelChip의 사선 화살표 문법).
+- **보완(오너 5차 — 그룹핑 재정의)**: 독립 Action Group 폐기 → **"파이프라인 상태" 그룹**
+  = 상태 바 + 액션 행(12px). 근거: 버튼 활성/잠금은 전부 최근 파이프라인에서 파생,
+  취소는 그 run에 대한 조작 — 상태와 행동은 한 사고 단위. 잠금 캡션이 다른 그룹을
+  가리켜 설명하던 냄새 해소. 최종 그룹: **대상 → 파이프라인 상태(+액션) → 이력**
+  (무시간 → 현재 → 과거).
+
+## Round 11 — 3페이지 일관 적용 + 파이프라인 메타데이터 활용 (2026-07-05)
+
+오너 지시: 서비스/target/파이프라인 상세 UX 시나리오 + "최신 main의 풍부한 파이프라인
+메타데이터를 전혀 안 쓴다" + 덩어리 간 여백 일관화. 최신 main DTO(PipelineDetail·TaskDetail·
+LivePipelineStatistics) 실사 후 반영.
+
+- **간격 3계층 확정**: 섹션 덩어리 간 40→**64**, 같은 섹션 위아래 블록 16 통일(나란한 카드 12와
+  구분) — style-guide §2 개정.
+- **메타데이터 편성(파이프라인 상세)**: 레시피(recipe_definition)·단계 n/총 m — meta 행,
+  **다음 실행(next_due_at)**·**취소 요청됨(cancel_requested) 배지**·재시도 예산(fail/max) —
+  상태 바 1행 조건부, leased·due_lag — "실행 스케줄 메타" 접힘(구 ADR-021 미제공 섹션을
+  실필드로 재편성, 미결 #3 해소). 사이드 패널: effective_* 라벨·TF 슬롯·설명 행.
+- **PENDING(LIN-30) 전면 지원**: 호박색 pill 신설, mock #129(GCP 시작 지연 15:30), 상태 바
+  "시작 대기 · 시작 예정", 정렬 FAILED>RUNNING>PENDING, 상태 필터 옵션, 취소 가능(비종단),
+  target 잠금 판정 RUNNING∪PENDING.
+- **서비스 검색(IA §2 적용)**: 권한 사용자 목록·API 제거, 대상 목록에 설치 상태 procChip +
+  활성 파이프라인 pill(#id) 열 추가.
+- **target 상세(IA §3 적용)**: kv 5행 해체 — 식별 칩 행(id 16px mono + CSP + 서비스 캡션),
+  설치 상태 procChip T1 승격, 계정·CSP metadata 접힘(T4).
+- **X 판정 청소(IA §4 #7~9)**: 상설 null 2행(last_response_code/summary)·구현 해명문 2개 제거.
+- **mock 정합**: task 표시명을 오너 컨벤션("실행 단위+테라폼+Plan/Apply/Destroy")으로 통일,
+  가짜 에러코드 PE_REQUEST_REJECTED → 실제 enum JOB_FAILED.
+- usecases §3.5 대표 UX 시나리오 3개(S1 실패 대응 / S2 설치·삭제 / S3 진행·대기 확인) 추가.
+
+## Round 10 — 전역 기간 대시보드 확정 + 목록 정보 재구성 (2026-07-05)
+
+오너 결정(벤치마크 리서치 첨부): "전체 기간에 대한 dashboard라는 느낌" — Round 9의
+분리형(현황 고정 24h)을 폐기하고 **전역 기간 조회형**으로 최종 확정.
+
+- **기간 seg → 페이지 헤더 우측**(시계 아이콘 + "기간 · 대시보드 전체 적용" 스코프 라벨).
+  현황 실패·성공 카드가 기간과 동기화(라벨도 동적: "실패 · 최근 7일"), 동작 중 카드만
+  "· 현재"로 순간값임을 스스로 밝힘.
+- **`.section-desc` 신설**: 섹션 제목 아래 12px 캡션 — 현황("최근 24시간(생성시간 기준)
+  실패·성공 집계 — 기간 필터와 동기화…"), 목록("최근 24시간 생성 3건 · 상태 FAILED ·
+  정렬: 실패 → 진행 중 → 최신순" — 필터 상태 상시 가시화).
+- **목록 열 재구성(오너 지정)**: TargetSourceId | CSP | 파이프라인 유형 | 상태 | 진행도 |
+  생성시간. "외부" provenance 배지 제거(오너: "AWS면 그냥 AWS지"), Provider 표기 → CSP.
+- **TargetSourceId = 숫자**(오너: "target은 그냥 숫자야"): mock id ts-aws-001 등 5종 →
+  101/102/103/204/305. 라우트 `#/target/101`. 검색도 숫자 문자열 매칭.
+- **행 이동 어포던스**: 목록·이력·대상 테이블 마지막 열에 "상세 ›" rowlink(hover 시 primary)
+  — "상세로 이동한다는 느낌이 없다" 해소.
+
+## Round 9 — 오너 피드백: 제목 승격·stat 타일·기간 재배치 + 프로세스 v2 (2026-07-05)
+
+오너 피드백: 제목 더 크게 / stat 카드 연한 회색·라벨↔숫자 간격 / "실패 (FAILED)" 문구 정리 /
+필터는 필터대로·기간은 목록에 / **디자인 프로세스 부재 — 유즈케이스·태스크부터**.
+
+- **제목 24/20 승격**: h1 20→24, 섹션 제목 16→20 (본문 14와의 대비 확대).
+  16은 다이얼로그 제목 전용으로 강등 — 타입 스케일 5단→6롤 (style-guide §1 개정).
+- **stat 회색 타일**: 배경 `--gray-100`·그림자 제거 — "회색 타일=읽기 전용 요약,
+  흰 카드=콘텐츠·상호작용" 표면 문법 신설(style-guide §3). 라벨↔숫자 간격 8→12.
+- **라벨 한글 단일화**: "실패 (FAILED)"→"실패 · 최근 24시간", "성공 (DONE)"→"성공 · 최근 24시간",
+  "순간값" 인라인 캡션 제거(툴팁으로). 병기 금지 규칙 명문화(style-guide §1).
+- **기간 seg 재배치(2차)**: 전역 승격안 폐기 → 태스크 분리. **현황=모니터링**(고정 24h 창,
+  조작 없음) / **목록=조회**(검색·상태·Provider·기간이 한 필터바). 필터바는 카드 밖
+  독립 도구 행으로 분리("필터는 필터대로").
+- **프로세스 v2**: design-process.md 개편 — 유즈케이스·태스크 정의를 1단계로 신설(오너 지적:
+  기능 정의 없이 형태를 다듬고 있었음), 턴 선언 규칙. `admin-pipeline-usecases.md` 초안 신설.
+  오너 제공 가이드 3종(여백 7원칙·수치 시스템·UI 기술 기준) → `.claude/skills/design-guide` 신설.
+
+## Round 8 — 스타일 가이드 수립 + 타입 스케일 5단화 + 기간 전역 승격 (2026-07-04)
+
+계약 문서: **[admin-pipeline-style-guide.md](admin-pipeline-style-guide.md) 신설** (크기·행간·간격
+SSOT — typography.md 크기 표 대체). 오너 지시: "폰트/사이즈 근거부터 설계, 섹션 구분 논리,
+현황 가로 늘어짐, 기간 필터 위치" → 논리 4개 합의 후 적용 (A안+B안 병합).
+
+- **타입 스케일 11종→5단** {12/14/16/20/32}: 페이지 제목 20/700, 섹션 16/600, 본문 14,
+  캡션·배지 12(10.5·11 폐지 — 12 미만 금지), 디스플레이 숫자 32. 행간 120/140 2단.
+  44치환(전건 1회 매칭 assert).
+- **간격 논리**: 섹션 간 40(>내부×2), 섹션 제목↔내용 12, 카드 패딩 20/24/24,
+  페이지 제목 아래 24. 섹션 제목 옆 설명문 폐지(툴팁 강등).
+- **stat 카드 폭 260 상한** — `repeat(3,1fr)` 폐기, "박스 폭은 내용이 정한다".
+  실측 400×89(4.5:1) → 260×109(2.4:1).
+- **기간 seg 전역 승격**(A+B 병합): 페이지 헤더 우측으로 이동, 실패·성공 카드 **및 목록**이
+  같은 기간(created_at)을 필터 — 컨트롤 위치=지배 범위. PERIOD_STATS 하드코딩 표 폐기
+  → PIPELINES 파생 집계(카드 숫자=목록 행 수 일치). MOCK_NOW(2026-06-30 15:00) 기준.
+- 파생 개정: tnode 높이 164→**184**(14px 2줄 클램프 재산정, 실측 -1px 수납) — design-system §1,
+  typography.md에 대체 선언 헤더.
+- 검증: 4페이지 폰트 크기 집합 ⊆ {12,14,16,20,32} 실측, 섹션 마진 40/12, 카드 260×109,
+  1d 기간 카드 실패 1 = 목록 FAILED 1행 일치, 콘솔 에러 0.
+
+## Round 7 — 정보 계층 정리: 대시보드 반영 (2026-07-04)
+
+계약 문서: [admin-pipeline-info-hierarchy.md](admin-pipeline-info-hierarchy.md) §1 (4페이지 정보
+전수 인벤토리 + T1~T4/X 판정). 오너 승인 범위 = 대시보드만; §2~§4는 피드백 대기.
+
+- **stat 카드 6→3장**: `동작 중(RUNNING·순간값)` + `실패(기간)` + `성공(기간)` 단일 현황 행.
+  제거 — slot 리밋 카드(미제공 분모), 동작 중 TF task 카드(근사), 기간 "실행 중" 카드(중복).
+  기간 seg는 현황 섹션 타이틀 우측으로 이동. `renderPeriod` → `renderStats` 통합.
+- **목록 열 보강**: `유형(INSTALL/DELETE)` + `생성일` 추가 (5→7열) — target 이력 테이블과 정합.
+- **FAILED 우선 정렬**: `FAILED > RUNNING > 나머지, 그룹 내 id desc` (기존 id desc 대체) —
+  실패가 페이지네이션 뒤로 밀리지 않게.
+- 권위 문서 동시 개정: components.md §4.1 (스케치·블록 표·정렬/제외 이력).
+- 검증: 3카드/7열/FAILED 최상단/1h 토글 시 failed 강조 해제/기간 토글·페이지 순회 JS 확인,
+  fresh load 후 4페이지 순회 콘솔 에러 0.
+
 ## Round 6 — LIN-20 B1: Phase 4 — variant B(다크 크롬) + 사이징 스케일 적용
 
 계약 문서: [design-process.md](design-process.md)(프로세스)·

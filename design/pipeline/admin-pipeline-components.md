@@ -103,19 +103,21 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 ```
 ┌ Sidebar ┬─ 대시보드 ─────────────────────────────────────────────┐
-│●대시보드 │  실시간 현황(순간값)                                     │
-│ 서비스   │  ┌ StatCard ┐ ┌ StatCard ┐ ┌ StatCard ┐               │
-│ 검색     │  │동작중 P   │ │사용 slot  │ │동작중 TF │               │
-│          │  │  3   ✅   │ │ 3 / — ❌ │ │ 5  ⚙️근사│               │
-│          │  └──────────┘ └──────────┘ └──────────┘               │
-│          │  기간 통계                            [기간: 1h|1d|7d]   │
-│          │  ┌ Running 8 ┐ ┌ Failed 2 ┐ ┌ 성공(DONE) 41 ┐         │
+│●대시보드 │  대시보드(h1 24px)     🕐 기간·대시보드 전체 적용 [1h|1d|7d]│ ← 전역 기간(헤더)
+│ 서비스   │  현황(20px)                                              │
+│ 검색     │  최근 24시간(생성시간 기준) 실패·성공 집계 — … (section-desc)│
+│          │  ┌ StatCard ──┐ ┌ StatCard ───┐ ┌ StatCard ───┐        │
+│          │  │동작중·현재  │ │실패·최근24h │ │성공·최근24h  │        │ ← 회색 타일(읽기 전용)
+│          │  │ 2  ✅      │ │  1  ✅     │ │  0  ✅      │        │   실패/성공 = 기간 동기화
+│          │  └────────────┘ └────────────┘ └─────────────┘ (260px 상한)│
 │          │  ─────────────────────────────────────────────────────│
-│          │  파이프라인 목록   🔍 target  [상태▾][Provider▾]   ⟳    │
-│          │  ┌ DataTable ───────────────────────────────────────┐ │
-│          │  │ target        Provider   상태     진행    상세    │ │
-│          │  │ ts-aws-001    AWS ⚠️외부 RUNNING ▓▓░░2/4 [상세]  │ │
-│          │  │ ts-gcp-002    GCP ⚠️외부 DONE    ▓▓▓▓4/4 [상세]  │ │
+│          │  파이프라인 목록(20px)                                   │
+│          │  최근 24시간 생성 3건 · 정렬: 실패→진행 중→최신순 (section-desc)│
+│          │  🔍 TargetSourceId  [상태▾][CSP▾]                   ⟳   │ ← 로컬 필터바(비시간 차원)
+│          │  ┌ DataTable(카드) ─────────────────────────────────┐ │
+│          │  │ TargetSourceId CSP   파이프라인 유형 상태 진행도 생성시간│ │
+│          │  │ 204   Azure  INSTALL  FAILED  ▓░░1/3  06-29  상세›│ │
+│          │  │ 101   AWS    INSTALL  RUNNING ▓▓░░2/4 06-30  상세›│ │
 │          │  └──────────────────────────────────────────────────┘ │
 │          │                                    ‹ 1 2 3 › Pagination│
 └──────────┴────────────────────────────────────────────────────────┘
@@ -123,33 +125,37 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 | 블록 | 컴포넌트 | 데이터 / 원천 | 표시 |
 |---|---|---|---|
-| 실시간 현황 | `LiveStatsRow` = 3×`StatCard` | ① 동작중 파이프라인 = 사용중 slot `count(RUNNING)` ✅ / ② **총 slot 리밋**(구 Worker): 분자=RUNNING count ✅, **분모=❌**(ADR-021) → `3 / —` + `FieldTag(미제공)` / ③ 동작중 TF task `count(kind=TERRAFORM_JOB, IN_PROGRESS)` ⚙️ `근사` 배지 | A1 |
-| 기간 통계 | `PeriodStatsRow` = 3×`StatCard` + `FilterBar(period)` | Running/Failed/**DONE(성공)** 집계(`created_at` 기준, 원본 Q2) ✅. **기간 토글은 이 블록에 귀속** | A2 |
-| 파이프라인 목록 | `PipelineListTable` = `DataTable`+`Pagination`+`FilterBar(search target + status + provider)` | target(id ✅) / **CSP(⚠️→`ProviderTag.external`)** / status(P2) / 진행 N/M(P5 ⚙️) / 상세 | A3 |
+| 기간(전역) | 헤더 우측 `seg(1h/1d/7d)` + 시계 아이콘 + 스코프 라벨 "기간 · 대시보드 전체 적용" | **전 대시보드 동기화**(오너 확정 2026-07-05, GA4·Grafana형): 현황 실패·성공 + 목록이 같은 기간(`created_at`). 동작 중 카드만 순간값 — 라벨 "· 현재"로 자기 선언 | A2+A3 |
+| 현황 | `StatsRow` = 3×`StatCard`(폭 260 상한, **회색 타일** — 읽기 전용 요약 표면) + `section-desc` 스코프 문구 | ① 동작중 파이프라인 · 현재 `count(RUNNING)` ✅ / ② **실패 · {기간}** ✅ / ③ **성공 · {기간}** ✅ — 파생 집계, 라벨이 기간 따라 동적. 실패>0이면 `.failed` 강조(페이지 유일한 강조색). 라벨 한글 단일(병기 금지 — style-guide §1) | A1+A2 |
+| 필터바(로컬) | `FilterBar(search TargetSourceId + status + CSP)` — 카드 밖 독립 도구 행 | 비시간 차원 필터만 — 전역 시간과 분리. 적용 상태는 목록 `section-desc`에 텍스트로 상시 표기("… 생성 3건 · 상태 FAILED · 정렬 …") | A3 |
+| 파이프라인 목록 | `PipelineListTable` = `DataTable`+`Pagination` | 열(오너 지정 2026-07-05): **TargetSourceId(숫자!)** / CSP(명칭만 — "외부" 배지 금지) / 파이프라인 유형 / 상태(P2) / 진행도 N/M(P5 ⚙️) / 생성시간 / **상세›**(rowlink 어포던스) | A3 |
 
 - **⚠️ 근거 명시**: 목록의 CSP는 pipeline repo에 없어 `external`. §4.3 헤더의 CSP는 `getTargetSourceDetail`(=다른 repo 직접 호출)이라 🔵✅ — 상충 아님.
+- **정렬**: `FAILED > RUNNING > 나머지`, 각 그룹 내 최신(id desc) —
+  실패가 페이지네이션 뒤로 밀리지 않게 (근거: [admin-pipeline-info-hierarchy.md](admin-pipeline-info-hierarchy.md) §1).
+- **제외 이력**: 구 실시간 카드 ②(slot 리밋 `3 / —` 미제공 분모) ③(동작중 TF task ⚙️근사),
+  기간 카드 Running(순간값 RUNNING과 의미 중복) — info-hierarchy §1 판정으로 제거 (2026-07-04, 오너 승인).
 - **이동**: 목록 행 `상세` → `#/pipeline/:pipelineId` (navState에 target id만 전달, service는 없음 → breadcrumb 생략)
 
 ### 4.2 서비스·대상 검색 `#/services` — `admin/pipeline/services`
 
 ```
 ┌ Sidebar ┬─ 서비스·대상 검색 ──────────────────────────────────────┐
-│ 대시보드 │  ┌ ServiceSearchPanel ┐  ┌ TargetSourceList ──────────┐ │
-│●서비스   │  │ 🔍 서비스 코드 검색 │  │ Provider   TargetSourceId   │ │
-│ 검색     │  │ ● svc-alpha  ←P17  │  │ AWS        ts-aws-001    ›  │ │
-│          │  │   svc-beta         │  │ GCP        ts-gcp-002    ›  │ │
-│          │  │   svc-gamma        │  │ IDC        ts-idc-003    ›  │ │
-│          │  │ (PageServiceItem)  │  │ (미선택 시 P13 EmptyState)   │ │
-│          │  └────────────────────┘  └─────────────────────────────┘ │
-│          │  ▸ (참고) 서비스 권한 사용자  ← P16 Collapsible            │
+│ 대시보드 │  ┌ ServiceSearchPanel ┐  ┌ TargetSourceList ────────────────────┐ │
+│●서비스   │  │ 🔍 서비스 코드 검색 │  │ TargetSourceId CSP 설치상태 파이프라인 │ │
+│ 검색     │  │ ● svc-alpha  ←P17  │  │ 101  AWS  CONNECTED  RUNNING #128 상세›│ │
+│          │  │   svc-beta         │  │ 102  GCP  COMPLETED  PENDING #129 상세›│ │
+│          │  │   svc-gamma        │  │ 103  IDC  INSTALLED  —            상세›│ │
+│          │  │ (PageServiceItem)  │  │ (미선택 시 P13 EmptyState)             │ │
+│          │  └────────────────────┘  └───────────────────────────────────────┘ │
 └──────────┴────────────────────────────────────────────────────────┘
 ```
 
 | 블록 | 컴포넌트 | 데이터 / 원천 | 표시 |
 |---|---|---|---|
 | 좌: 서비스 검색 | `ServiceSearchPanel` = 단순 `<input>`(P8 FilterBar 아님) + `SelectableList(P17)` | `getUserServices`→`PageServiceItem` 🔵 | ✅ |
-| 우: target source 목록 | `TargetSourceList` = `DataTable`(미선택 시 `EmptyState`) | `getTargetSourcesByServiceCode`→`TargetSourceDetail[]` 🔵 (컬럼: Provider / TargetSourceId) | ✅ |
-| (참고) 권한 사용자 | `AuthorizedUsers` = `Collapsible(P16)` | `getServiceAuthorizedUsers` 🔵 (원본 page2에 명시) | ✅ |
+| 우: target source 목록 | `TargetSourceList` = `DataTable`(미선택 시 `EmptyState`) | `getTargetSourcesByServiceCode` 🔵 — 컬럼: **TargetSourceId(숫자)** / CSP / **설치 상태(procChip — process_status)** / **활성 파이프라인(RUNNING·PENDING pill + #id, 없으면 —)** / 상세› | ✅ |
+| ~~(참고) 권한 사용자~~ | **제거** (2026-07-05) | info-hierarchy §2 X 판정 — 지원 태스크 없음, API 호출도 폐지 | ❌ |
 
 - **상태**: `selectedServiceCode` 보유(선택 시 우측 목록 로드 + breadcrumb navState 갱신).
 - **이동**: target 행 클릭 → `#/target/:targetSourceId` (navState: `{serviceCode, provider, targetId}`)
@@ -179,12 +185,17 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 | 블록 | 컴포넌트 | 데이터 / 원천 | 표시 |
 |---|---|---|---|
-| 헤더 | `TargetSourceHeader` = `KeyValueGrid`+`ProviderTag` | CSP/계정/서비스명·코드 = `getTargetSourceDetail` 🔵 · **설치상태 = `getProcessStatus` 🔵**(원본 Q4: process_status를 "설치 상태"로 채택) | ✅🔵 |
-| 최근 1건 | `LatestPipelineCard` | A8 latest (`findFirstByTarget...`) | ✅ |
-| 이력 목록 | `PipelineHistoryTable` = `DataTable`+`Pagination`(빈 `EmptyState`) | A7 | ✅ (표시명/CSP는 ⚠️) |
+| 페이지 헤더 | app `PageHeader` 문법: **h1 = 서비스명 (회색 코드)** — 헤더는 제목만(조용) | `getTargetSourceDetail` 🔵 | ✅ |
+| 파이프라인 상태 그룹 | **상태 바 + 액션 행 = 한 그룹**(4차 확정 2026-07-05: "상태와 행동은 한 사고 단위" — 버튼 활성이 상태에서 파생, 취소는 그 run 조작): 섹션 제목 "파이프라인 상태" + desc + `PipelineStatusBar` + 12px 아래 [설치 primary/삭제/취소] + 우측 잠금 사유 캡션(+tooltip) | 게이팅 = targetButtons(process_status·활성 run **내부** 판정 — **설치 상태 화면 표시는 제거**, 오너 2026-07-05) | ✅ |
+| IdentityBar | app `IdentityBar` 이식: CSP 액센트 스트라이프+아이콘 박스 · CSP명/"Cloud Provider"(IDC는 sub 생략) · 필드 **TargetSourceId만**(계정은 CSP 식별자 중복이라 제거 — 오너 4차, 새로고침도 삭제) · **CSP metadata는 하단 상시 + 논리 그룹 캡션**(`mg-label`, 오너 5차 "논리적 그룹과 API Response 반영"): **CSP 연결 정보**(CloudTargetSource 식별자) / **실행 권한**(TF 플래그, 있을 때만). 필드 없는 IDC는 "이 CSP 유형은 연결 metadata가 없습니다" | 〃 | ✅ |
+| 최근 1건 | `PipelineStatusBar` **재사용**(2026-07-05: 미니 카드 폐지) — pill lg·진행·현재 task·error·[↗] + meta(유형#id·**레시피 display_name**(코드는 tooltip)·생성·활동). FAILED면 tint | A8 latest (`findFirstByTarget...`) | ✅ |
+| 이력 목록 | `PipelineHistoryTable` = `DataTable`+`Pagination`(빈 `EmptyState`) — 열: #·유형·**레시피 display_name**·상태·진행도·생성시간·↗, section-desc에 전체 건수·최신순 | A7 | ✅ (표시명/CSP는 ⚠️) |
 | 액션 바 | `TargetActionBar` = 3×`Button` | 설치/삭제/취소 | ✅ |
 | ↳ INSTALL/DELETE | `Button(primary)` → `PreviewModal` | A9 preview(recipe, `?type=`) → 확인 후 A10 `POST .../pipelines`(멱등·기존 run 반환) | ✅ |
 | ↳ 취소 | `Button(danger)` → `CancelModal` | A6 cancel — **항상 동기·즉시**(원본 Q7; ADR-021의 idle/cooperative 2케이스를 이 저장소는 채택 안 함) | ✅ |
+
+- **PENDING 잠금(2026-07-05)**: 활성 run 판정은 `RUNNING ∪ PENDING` — 시작 지연 대기 중에도
+  설치·삭제는 잠기고 취소만 가능.
 
 - **모달 상태**: 전역 `modal:{kind:preview|cancel, type?:INSTALL|DELETE, id}` 사용(§5). 여기서 `id`는 preview/설치·삭제 시 `targetId`, cancel 시 `pipelineId`.
 - **타깃 페이지 취소 범위**: `TargetActionBar`의 취소는 **이 대상의 최신 RUNNING 파이프라인**(=`LatestPipelineCard`의 run id)을 A6로 취소한다. (파이프라인 상세 페이지의 취소는 그 페이지의 pipelineId 대상 — 둘 다 CancelModal/A6 경유, 스코프만 다름)
@@ -196,25 +207,28 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 `Task: BLOCKED ─▶ READY ─▶ IN_PROGRESS ─▶ DONE|FAILED|CANCELLED` 가 유일 근거 → **Toss 토큰으로 신규 제작**)
 
 ```
-┌ Breadcrumb: (컨텍스트 있으면) … › ts-aws-001 › #128 ────────────────┐
-│ ┌ PipelineStatusBar (슬림, 카드 해체) ─────────────────────────────┐ │
-│ │ ● RUNNING  ▓▓▓░░ 2/4 · 현재 ③ BDC Common TF 실행        [취소]  │ │ L1+CTA
-│ │ INSTALL #128 · ●AWS ts-aws-001 외부 · svc-alpha · 06-30 14:02~  │ │ L3칩+L4
-│ │ (FAILED면 error_code 요약을 이 행에 추가 노출)                    │ │
+┌ Breadcrumb: (컨텍스트 있으면) … › 101 › 파이프라인 #128 ─────────────┐
+│ h1 파이프라인 #128                                                    │
+│ ┌ 파이프라인 메타데이터 카드 (Round 14) ───────────────────────────┐ │
+│ │ ⛓ AWS 인프라 설치   유형 INSTALL · 생성 · 마지막 활동   대상 101  │ │ L3
+│ │   AWS_INSTALL_V1                                    · AWS  [↗]  │ │
+│ │ ── 레시피 설명 문장 (RecipePreview.description) ──────────────── │ │
 │ └──────────────────────────────────────────────────────────────────┘ │
-│ ┌ TaskFlowChain (본문, 노드 172px) ────────┐ ┌ TaskDetailPanel ───┐ │
-│ │ [✔①TF권한]─▶[✔②SVC TF]─▶[▶③BDC Common]  │ │ (우측 340px,       │ │
-│ │                                          │ │  흐름 카드와 등고)   │ │
-│ │  DONE        DONE         IN_PROGRESS    │ │ 미선택: 안내문       │ │
-│ │ ─▶[○④BDC SvcLv] BLOCKED  (4+노드: 가로   │ │ FAILED: currentTask │ │
-│ │  스크롤, 각 노드 = P15 TaskNode)          │ │  자동 선택           │ │
-│ └──────────────────────────────────────────┘ │ (예시 A/B는 아래)    │ │
-│                                              └────────────────────┘ │
-│ ▸ 대상 상세 metadata (CSP별 kv, Collapsible 접힘) · [대상 상세 →]    │ L3상세
-│ ▸ UnavailableMetaGroup(P16): ADR-021 실행필드 4개 미제공 ❌ (접힘)   │ L5각주
+│ Task 흐름  ← 섹션(상태 포함 — "상태는 Task 흐름의 일부분")            │
+│ ┌ PipelineStatusBar (그룹 첫 블록) ────────────────────────────────┐ │
+│ │ ● RUNNING  ▓▓▓░░ 2/4 · 현재 ③ BDC Common TF 실행        [취소]  │ │ L1+CTA
+│ │ leased 예 — 워커 실행 중 · 스케줄 지연 300 ms   (비종단만)        │ │ L4
+│ │ (FAILED면 error_code 요약을 1행에 추가 노출)                      │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│ ┌ TaskFlowChain (전폭 캔버스: 점 격자 + 가로 스크롤, Round 15) ────┐ │
+│ │ [✓ TF권한   ]──▶[✓ SVC TF  ]╌╌▶[◌ BDC Common]  [4 BDC SvcLv]    │ │
+│ │  16:0x · 폴2회   시도 1회    ↑active  14:21 시작  타임아웃·한도   │ │
+│ │  (커넥터: done 초록 / active 파란 대시 / toFail 빨간 대시)        │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│   노드 클릭 ──▶ TaskDetailModal (600px, 본문 스크롤, ✕/ESC/바깥 닫기) │
 └──────────────────────────────────────────────────────────────────────┘
 
-TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
+TaskDetailModal 내용 (kind 게이팅 §4.5g 동일):
   (예시 A) TERRAFORM_JOB: 설정(읽기전용 executionTimeout/maxFail resolve* ⚙️)
            + Attempts DataTable(no/status/error_code/시각/response 원시 text ✅,
              job_ids·dispatch_response_* = ❌ 제거필드 — 컬럼 없음)
@@ -227,33 +241,31 @@ TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `PipelineStatusBar` = 대형 StatusPill + ProgressBar(P5) + `Button(danger)`(취소, 파이프라인 스코프 — **여기 1곳만**) | status(P2)·진행 N/M·현재 task ✅(1행), 타입/ID/target 칩(Provider+외부)/서비스/created~lastActivity ✅(2행 meta), FAILED면 error_code 요약 ✅ | ✅/⚙️ |
-| `TargetContextChip` (상태 바 2행 내) | provider·targetSourceId·serviceName — 전체 CSP metadata는 하단 Collapsible + target 페이지 링크 | ✅ |
-| `UnavailableMetaGroup` = `Collapsible(P16)` (페이지 하단 각주) | next_due_at / lease(claimed_until) / cancel_requested / lag ❌ | **`FieldTag(미제공)` 4행** |
+| 페이지 헤더 + **파이프라인 메타데이터 카드**(Round 14 — 오너: "파이프라인 메타데이터 강조, Target Source는 일부만") | h1 "파이프라인 #id" / 카드 hero: 아이콘 `i-flow`+**레시피 display_name**(pname)+**레시피 코드**(psub, mono) / 필드: 파이프라인 유형·생성·마지막 활동 / 우측 끝 **대상 참조 한 칸**("id · CSP명") + ↗(대상 상세) / meta 구간: 레시피 설명(RecipePreview.description) 문장만. CSP 액센트 스트라이프는 유지(약한 대상 힌트) | ✅ |
+| `PipelineStatusBar` — **Task 흐름 섹션 내 첫 블록**(Round 14 — 오너: "상태는 Task 흐름의 일부분", 별도 상태 섹션 폐지) + `Button(danger)`(취소 — **여기 1곳만**) | status(P2, PENDING 포함)·취소 요청됨 배지(cancel_requested)·진행 N/M·현재 task(재시도 fail/max 병기, PENDING이면 "시작 대기 · next_due_at 시작 예정")·FAILED면 error_code·우측 "다음 실행 next_due_at"(RUNNING) / **sb-meta 줄(비종단만): leased·스케줄 지연** — "지금" 값이라 카드가 아닌 상태 바 소속 ✅ | ✅ |
 
 **Task 흐름** — `PipelineDetail.tasks[]`
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `TaskFlowChain`(선형, 읽기 전용) = `TaskNode(P15)`×N + 커넥터 | seq/kind(=taskName)/operation/status(P3)/failCount/errorCode(FAILED만)/started·finished | ✅ |
+| `TaskFlowChain`(선형, 읽기 전용) = `TaskNode(P15)`×N + 커넥터 — **v16 Athena 문법 차용**(Round 15): 점 격자 캔버스 + **가로 스크롤**(task 다수 대비), 노드 = 상태 tint 아이콘 박스 28px(✓ done/spinner running/✕ failed/⊘ cancelled/seq 숫자 대기) + 이름 + kind 칩(중립) + 상태별 한 줄 meta(`taskMetaLine` — 종단:결과·기간, 진행:시작·재시도, 대기:주기·TTL·한도), 상태별 테두리(FAILED red halo, BLOCKED dashed), 커넥터 상태색(done/active 대시/toFail). 애니메이션은 `prefers-reduced-motion` 존중 | seq/kind/operation/status/failCount/errorCode/started·finished/계약 필드 | ✅ |
 
-**Task 상세 패널** — 노드 클릭 → A5 `GET /pipelines/{id}/tasks/{taskId}` → `TaskDetail`.
-**우측 사이드 패널**(340px 고정, 흐름 카드와 `stretch` 등고 — 정렬 규칙은
-[admin-pipeline-design-system.md](admin-pipeline-design-system.md) §1-3, LIN-20 Round 5→Phase 4 개정 —
-[admin-pipeline-detail-ia.md](admin-pipeline-detail-ia.md) §3 v2).
-초기 선택: 파이프라인이 `FAILED`면 `currentTask()`(§4.5(b))의 seq를 자동 선택, 그 외 **미선택이 기본**(패널에 안내문).
+**Task 상세 모달** — 노드 클릭 → A5 `GET /pipelines/{id}/tasks/{taskId}` → `TaskDetail`.
+Round 15(오너 6차)에서 우측 사이드 패널(340px)을 폐지하고 **모달**로 전환 — 흐름도가 전폭을
+쓰고, 상세는 요청 시에만 넓게 열린다. FAILED 자동 선택은 폐기(진입 즉시 모달을 여는 건 침습적) —
+실패 노드의 red halo + 상태 바 error_code가 시선을 유도하고, 클릭으로 연다.
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `TaskDetailPanel` 헤더 = `KeyValueGrid` | task 전체 컬럼(유효설정 `TaskSettings.resolve*` **읽기전용** ⚙️. 원본 10-API에 PATCH 없음 → 편집 미제공) | ✅ |
+| `TaskDetailModal` — **사이드 패널 → 모달**(Round 15 오너: "너무 길게 과하게 → Modal") · **3그룹 유지**(Round 13: "Task를 논리적으로 설명") | 600px 모달, max-height 86vh — 헤더(**이름만** + kind 칩·상태 pill + **X** — seq는 제목에서 빼고 정의 그룹의 "순서 (seq)" 행으로, 오너 7차)·설명은 고정, **본문(mbody)만 스크롤**. 그룹 경계 = 헤어라인(`dgroup`): ① **정의**: 순서(seq)·task_definition·operation 코드 ② **실행 계약**: 실행 방식·effective 폴링·타임아웃·재시도 예산·TF 슬롯 + **판정 방식 문단**(success_policy 요약) ③ **진행 기록**: 시각·실패 누적+error_code·attempts/폴 관찰. 닫기 = X·ESC·바깥 클릭 | ✅ |
 | `AttemptList` = `DataTable` | attempt_no/status/error_code/시각 ✅, **response**(원시 text) ✅. `job_ids`/`dispatch_response_*` = ❌ 제거필드 → **컬럼 없음**(원본 명시) | ✅ |
 | `CheckSummary` = `KeyValueGrid` | call/not_met/api_error/call_timeout/last_external_status/last_checked_at ✅ · last_response_code·summary ⚠️(미채움→null `FieldTag`) | ✅/⚠️ |
 
 > **취소는 파이프라인 상세에서 상태 바(PipelineStatusBar) 1곳**으로 단일화(파이프라인 스코프). 원본 부록은 task 패널에도 "취소"를 나열하나 동일 파이프라인 취소이므로 이 페이지 내 중복 렌더하지 않는다. (§4.3 타깃 페이지의 취소는 별개 — target-scope 최신 RUNNING run 대상)
 > **retry(재시도)는 원본 10-API(A1–A10)에 없음** → 이 화면 범위 밖(deferred). FAILED여도 [취소]만 노출.
 
-- **상태**: `selectedTaskId`(기본 null → 패널 안내문. 단 파이프라인 `FAILED`면 뷰 진입 시 `currentTask().seq`로 초기화 — LIN-20 Round 5).
-- **이동**: Task 노드 클릭 → 우측 `TaskDetailPanel`(같은 페이지, 사이드 패널) · Breadcrumb/사이드바로 상위 복귀
+- **상태**: 별도 선택 상태 없음(Round 15 — `selectedTaskId` 폐기). 모달은 전역 `modal:{kind:'task',id:seq}`, 해시 변경 시 자동 닫힘.
+- **이동**: Task 노드 클릭 → `TaskDetailModal` · Breadcrumb/사이드바로 상위 복귀
 
 ## 4.5 렌더링·인터랙션 확정 규칙 (리뷰 라운드2 — 구현 결정론화)
 
@@ -268,7 +280,7 @@ CANCELLED task는 분자 제외·분모 포함(진행이 아님).
 - `최종 task` = **max(seq)** (= 총 task 수).
 - `실패 N/M` = `현재 task.failCount / TaskSettings.resolveMaxFailCount(현재 task)`. **CONDITION_CHECK도 count-bound**(ADR-016: ttl→유한 maxFailCount, not-met=failed poll)이므로 `∞` 아님 — 유한값 렌더(예 `0 / 6`).
 
-**(c) Cancel 활성화** — `[취소]`는 **파이프라인 status === RUNNING 일 때만 enabled**. DONE/FAILED/CANCELLED면 disabled(툴팁 "진행 중인 파이프라인만 취소 가능"). 타깃 페이지 취소도 동일(최신 run이 RUNNING일 때만).
+**(c) Cancel 활성화** — `[취소]`는 **파이프라인 status ∈ {RUNNING, PENDING} && !cancel_requested 일 때만 enabled**(PENDING 포함은 LIN-30 2026-07-05, cancel_requested 중복 방지 포함). 종단 상태면 disabled(캡션 "진행·대기 중만 취소 가능"). 타깃 페이지 취소도 동일(최신 run 기준).
 
 **(d) 설치/삭제 버튼 활성화 매트릭스** (`process_status` 기준, 원본 §4.4.4 중복방지) —
 - 진행 중(RUNNING) 파이프라인 존재 → **설치·삭제 모두 disabled**(중복 방지), 취소만 enabled.
@@ -284,15 +296,15 @@ CANCELLED task는 분자 제외·분모 포함(진행이 아님).
 - [실행] → A10 POST → 성공 시 **`#/pipeline/{반환 run id}` 로 이동 + Toast("파이프라인 실행됨")**.
 - **멱등 분기**: 반환 run이 기존 진행 run이면 Toast("이미 진행 중인 파이프라인으로 이동") 후 동일 이동.
 
-**(g) TaskDetailPanel kind 게이팅** —
+**(g) TaskDetailModal kind 게이팅** —
 - `TERRAFORM_JOB` → **AttemptList(P6)만** 렌더(폴링 요약 없음).
 - `CONDITION_CHECK` → **CheckSummary(P14)만** 렌더(attempt별 1건 폴링 카운터). attempt 개념 대신 check.
 - 공통 헤더(task 설정)는 항상. (스케치의 ③ BDC Common = TERRAFORM_JOB → Attempts만; Check 요약 예시는 CONDITION_CHECK 노드에서만.)
 
-**(h) TaskNode(P15) kind 구분 + 오버플로우** —
-- `TERRAFORM_JOB` = 실선 테두리 노드. `CONDITION_CHECK` = **점선 테두리 + "외부확인" chip**(외부 대기 성격 시각화).
-- status 아이콘: DONE ✔(success) · IN_PROGRESS ▶(info, 진행 애니 optional) · BLOCKED ○(faint) · READY ◔(info-light) · FAILED ✕(error) · CANCELLED ⊘(pending).
-- 노드 5+개 → **가로 스크롤**(데스크톱). 커넥터는 노드 사이 `─▶`. wrap 안 함.
+**(h) TaskNode(P15) 상태·kind 표현 (Round 15, v16 차용으로 개정)** —
+- 상태는 **테두리 + 아이콘 박스 tint + meta 한 줄**로: DONE ✓(초록 테두리) · IN_PROGRESS spinner(파란 테두리+pulse) · READY seq 숫자(호박 테두리+pulse) · BLOCKED seq 숫자(**dashed** — 대기 문법) · FAILED ✕(red halo, meta 빨강 굵게) · CANCELLED ⊘(연회색).
+- kind는 **칩만**(중립 — CONDITION_CHECK는 dashed 칩). 노드 테두리 dashed는 이제 BLOCKED 뜻 — kind별 테두리 구분(구판)은 폐기(충돌).
+- 노드 5+개 → 캔버스 **가로 스크롤**(데스크톱). 커넥터 = 선+화살촉, 상태색(§스케치). wrap 안 함. 애니메이션은 `prefers-reduced-motion:no-preference`에서만.
 
 **(i) 데이터 정직성 세부** —
 - 대시보드 "동작중 TF" 배지: count 자체는 정확하나 **worker 부하의 근사 지표**라는 의미의 `⚙️근사`(원본 권장). 툴팁으로 명시.
@@ -308,11 +320,11 @@ CANCELLED task는 분자 제외·분모 포함(진행이 아님).
 #/dashboard ──(목록 상세: pipelineId)──▶ #/pipeline/:id
 #/services  ──(target 행: targetSourceId)──▶ #/target/:id
 #/target/:id ─(이력/최근 행: pipelineId)──▶ #/pipeline/:id
-#/pipeline/:id ─(task 노드)──▶ 우측 사이드 패널 TaskDetailPanel
+#/pipeline/:id ─(task 노드)──▶ TaskDetailModal (같은 페이지, 모달)
 Breadcrumb / Sidebar ──▶ 임의 상위 뷰로 복귀
 ```
 
-**앱 상태(전역)**: `{ route, param, navState(선택 service/target 라벨), selectedServiceCode, selectedTaskId, modal:{kind,type,id}|null, toast|null }`.
+**앱 상태(전역)**: `{ route, param, navState(선택 service/target 라벨), selectedServiceCode, modal:{kind,type,id}|null, toast|null }` (`selectedTaskId`는 Round 15에서 폐기 — task 상세는 modal kind `task`).
 라우터: `location.hash` 파싱 → `{route, param}` → 뷰 render + 사이드바 active + breadcrumb(navState 기반, 없으면 조각 생략).
 
 ## 6. API 매핑
@@ -325,7 +337,7 @@ Breadcrumb / Sidebar ──▶ 임의 상위 뷰로 복귀
 | A2 | GET | `/install/v1/pipelines/stats?period=` | PeriodStatsRow |
 | A3 | GET | `/install/v1/pipelines?status=&provider=&q=&page=&size=` | PipelineListTable (period 토글과 무관 — §4.5i) |
 | A4 | GET | `/install/v1/pipelines/{id}` | PipelineStatusBar + TaskFlowChain |
-| A5 | GET | `/install/v1/pipelines/{id}/tasks/{taskId}` | TaskDetailPanel |
+| A5 | GET | `/install/v1/pipelines/{id}/tasks/{taskId}` | TaskDetailModal |
 | A6 | POST | `/install/v1/pipelines/{id}/cancel` | CancelModal |
 | A7 | GET | `/install/v1/target-sources/{id}/pipelines` | PipelineHistoryTable |
 | A8 | GET | `/install/v1/target-sources/{id}/pipelines/latest` | LatestPipelineCard |
