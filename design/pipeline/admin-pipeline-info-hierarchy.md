@@ -142,7 +142,7 @@
 
 | 정보 | 계층 | 근거 |
 |---|---|---|
-| **CSP별 metadata** (awsAccountId·linkedAccount·regionType·TF권한 / tenantId·subscriptionId / gcpProjectId) | **T4** (접힘 kv) | detail-ia.md에서 "본진은 target 페이지"로 결정해 놓고 정작 target 페이지에 없음. 접힘 kv 한 곳으로 — #4(계정)도 여기로 흡수 |
+| **CSP별 metadata** (awsAccountId·linkedAccount·regionType·TF권한 / tenantId·subscriptionId / gcpProjectId) | **T3 — IdentityBar 카드 내 상시 노출** (2026-07-05 오너: "접었다 폈다 불필요, 카드 하나에") | detail-ia.md "본진은 target 페이지" 이행. 접힘(T4)안 폐기 — 행 수가 최대 4개라 접을 만큼 무겁지 않음. 필드 없는 IDC는 구간 생략 |
 
 ### 로딩
 

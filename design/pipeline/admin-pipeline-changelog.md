@@ -21,6 +21,8 @@ app `ProjectPageMeta`·`IdentityBar`(`app/integration/target-sources/[id]/`) 실
   [파이프라인 상세→], meta(유형#id·레시피·생성·활동). FAILED면 tint — 미니 카드 폐지.
 - 이력 테이블 열 이름 컨벤션 정합(파이프라인 유형·진행도·생성시간). 컴포넌트 시트에
   IdentityBar 섹션(8.5) 추가.
+- **보완(오너 2차)**: CSP metadata 접힘 폐지 — IdentityBar **카드 하나**에 구분선으로 상시
+  노출(`idbar-meta`). CSP 필드 없는 IDC는 메타 구간 자체를 생략.
 
 ## Round 11 — 3페이지 일관 적용 + 파이프라인 메타데이터 활용 (2026-07-05)
 

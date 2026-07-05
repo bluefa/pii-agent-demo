@@ -113,11 +113,13 @@ svg.ic.lg{width:22px;height:22px}
 .stat.unavailable .val{color:var(--text-faint)}
 .stat.failed .val{color:var(--err-text)} /* 실패 카운트>0일 때만 부여 — 비대칭 강조 */
 
-/* ── IdentityBar — app ProjectPageMeta/IdentityBar 문법 이식 (2026-07-05 오너: "app 방식으로") ── */
-.idbar{position:relative;display:flex;align-items:center;gap:24px;flex-wrap:wrap;overflow:hidden;
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
-  box-shadow:var(--shadow-xs);padding:16px 24px 16px 28px}
+/* ── IdentityBar — app ProjectPageMeta/IdentityBar 문법 이식 (2026-07-05 오너: "app 방식으로") ──
+   접힘 없음: CSP metadata까지 카드 하나에 상시 노출(오너: "접었다 폈다 불필요") */
+.idbar{position:relative;overflow:hidden;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-card);box-shadow:var(--shadow-xs);padding:16px 24px 16px 28px}
 .idbar::before{content:"";position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--ib-accent)}
+.idbar .idbar-row{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.idbar .idbar-meta{margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100)}
 .idbar .prov{display:flex;align-items:center;gap:12px;flex-shrink:0}
 .idbar .picon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;flex-shrink:0;
   background:color-mix(in srgb,var(--ib-accent) 12%,transparent);color:var(--ib-accent)}
@@ -827,20 +829,20 @@ function viewTarget(id){
       </span>
     </div>
     <div class="idbar" style="--ib-accent:var(--pv-${ts.provider})">
-      <div class="prov">
-        <span class="picon">${ic('i-cloud','ic lg')}</span>
-        <div><div class="pname">${PROVIDERS[ts.provider]||esc(ts.provider)}</div>${ts.provider==='idc'?'':'<div class="psub">Cloud Provider</div>'}</div>
+      <div class="idbar-row">
+        <div class="prov">
+          <span class="picon">${ic('i-cloud','ic lg')}</span>
+          <div><div class="pname">${PROVIDERS[ts.provider]||esc(ts.provider)}</div>${ts.provider==='idc'?'':'<div class="psub">Cloud Provider</div>'}</div>
+        </div>
+        <span class="div"></span>
+        <div class="fld"><span class="k">TargetSourceId</span><span class="v">${esc(ts.id)}</span></div>
+        <span class="div"></span>
+        <div class="fld"><span class="k">계정</span><span class="v">${esc(ts.account)}</span></div>
+        <span style="flex:1"></span>
+        <button class="btn ghost sm" id="refresh">${ic('i-refresh','ic sm')} 새로고침</button>
       </div>
-      <span class="div"></span>
-      <div class="fld"><span class="k">TargetSourceId</span><span class="v">${esc(ts.id)}</span></div>
-      <span class="div"></span>
-      <div class="fld"><span class="k">계정</span><span class="v">${esc(ts.account)}</span></div>
-      <span style="flex:1"></span>
-      <button class="btn ghost sm" id="refresh">${ic('i-refresh','ic sm')} 새로고침</button>
+      ${(rows=>rows.length?`<div class="idbar-meta"><div class="kv wide">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div></div>`:'')(cspMetaRows(ts).slice(2).filter(r=>r[0]!=='CSP metadata'))}
     </div>
-    <details class="collap"><summary>CSP metadata</summary><div class="body">
-      <div class="kv wide">${cspMetaRows(ts).slice(2).map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')||'<span class="muted">추가 metadata 없음</span>'}</div>
-    </div></details>
     <div class="section-title">최근 파이프라인</div>
     <div id="latest"></div>
     <div class="section-title">파이프라인 이력</div>

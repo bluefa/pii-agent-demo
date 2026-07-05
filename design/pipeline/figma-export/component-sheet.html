@@ -112,11 +112,13 @@ svg.ic.lg{width:22px;height:22px}
 .stat.unavailable .val{color:var(--text-faint)}
 .stat.failed .val{color:var(--err-text)} /* 실패 카운트>0일 때만 부여 — 비대칭 강조 */
 
-/* ── IdentityBar — app ProjectPageMeta/IdentityBar 문법 이식 (2026-07-05 오너: "app 방식으로") ── */
-.idbar{position:relative;display:flex;align-items:center;gap:24px;flex-wrap:wrap;overflow:hidden;
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
-  box-shadow:var(--shadow-xs);padding:16px 24px 16px 28px}
+/* ── IdentityBar — app ProjectPageMeta/IdentityBar 문법 이식 (2026-07-05 오너: "app 방식으로") ──
+   접힘 없음: CSP metadata까지 카드 하나에 상시 노출(오너: "접었다 폈다 불필요") */
+.idbar{position:relative;overflow:hidden;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-card);box-shadow:var(--shadow-xs);padding:16px 24px 16px 28px}
 .idbar::before{content:"";position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--ib-accent)}
+.idbar .idbar-row{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.idbar .idbar-meta{margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100)}
 .idbar .prov{display:flex;align-items:center;gap:12px;flex-shrink:0}
 .idbar .picon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;flex-shrink:0;
   background:color-mix(in srgb,var(--ib-accent) 12%,transparent);color:var(--ib-accent)}
@@ -490,16 +492,22 @@ details.collap>.body{padding:0 14px 14px}
 
 <div class="sheet-h">8.5 IdentityBar (target 상세 — app 문법 이식)</div>
 <div class="idbar" style="--ib-accent:var(--pv-azure)">
-  <div class="prov">
-    <span class="picon"><svg class="ic lg" aria-hidden="true"><use href="#i-cloud"/></svg></span>
-    <div><div class="pname">Azure</div><div class="psub">Cloud Provider</div></div>
+  <div class="idbar-row">
+    <div class="prov">
+      <span class="picon"><svg class="ic lg" aria-hidden="true"><use href="#i-cloud"/></svg></span>
+      <div><div class="pname">Azure</div><div class="psub">Cloud Provider</div></div>
+    </div>
+    <span class="div"></span>
+    <div class="fld"><span class="k">TargetSourceId</span><span class="v">204</span></div>
+    <span class="div"></span>
+    <div class="fld"><span class="k">계정</span><span class="v">az-sub-01</span></div>
+    <span style="flex:1"></span>
+    <button class="btn ghost sm"><svg class="ic sm" aria-hidden="true"><use href="#i-refresh"/></svg> 새로고침</button>
   </div>
-  <span class="div"></span>
-  <div class="fld"><span class="k">TargetSourceId</span><span class="v">204</span></div>
-  <span class="div"></span>
-  <div class="fld"><span class="k">계정</span><span class="v">az-sub-01</span></div>
-  <span style="flex:1"></span>
-  <button class="btn ghost sm"><svg class="ic sm" aria-hidden="true"><use href="#i-refresh"/></svg> 새로고침</button>
+  <div class="idbar-meta"><div class="kv wide">
+    <div class="k">Tenant ID</div><div class="v mono">a1b2c3d4-1111-4222-8333-d4e5f6a7b8c9</div>
+    <div class="k">Subscription ID</div><div class="v mono">az-sub-01</div>
+  </div></div>
 </div>
 
 <div class="sheet-h">9. Task 노드 + 커넥터</div>
