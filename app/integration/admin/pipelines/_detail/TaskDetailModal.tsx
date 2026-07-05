@@ -18,12 +18,6 @@ import { StatusPill } from '@/app/integration/admin/pipelines/_components/Status
 import { KindChip } from '@/app/integration/admin/pipelines/_components/KindChip';
 import { PlButton } from '@/app/integration/admin/pipelines/_components/PlButton';
 import { Icon } from '@/app/integration/admin/pipelines/_components/icons';
-import {
-  PlTable,
-  PlTh,
-  PlRow,
-  PlTd,
-} from '@/app/integration/admin/pipelines/_components/PlTable';
 import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailStyles';
 import { fmtDateTime, fmtDuration, KIND_POLICY } from '@/lib/pipeline/format';
 import type { TaskDetail, TaskSummary } from '@/lib/pipeline/types';
@@ -83,34 +77,40 @@ function RecordTail({ detail }: { detail: TaskDetail }): ReactElement {
   if (detail.attempts.length === 0) {
     return <div className={s.dgroup.captionAlone}>아직 시도 없음 (BLOCKED)</div>;
   }
+  // Local table, NOT PlTable/PlTh/PlTd — the shared primitives hard-code the
+  // page-table row heights (th h34 / td h44). Inside this 600px dialog the
+  // design overrides padding only (`.modal.task .tbl th/td`), so the modal
+  // geometry lives in `detailStyles.attemptsTable` instead (see its doc comment).
+  const at = s.attemptsTable;
   return (
     <>
       <div className={s.dgroup.caption}>attempts — 시도별 기록 (response는 외부 응답 원문)</div>
-      <PlTable
-        head={
-          <>
-            <PlTh>#</PlTh>
-            <PlTh>상태</PlTh>
-            <PlTh>error_code</PlTh>
-            <PlTh>시각</PlTh>
-            <PlTh>response</PlTh>
-          </>
-        }
-      >
-        {detail.attempts.map((a) => (
-          <PlRow key={a.attempt_number}>
-            <PlTd>{a.attempt_number}</PlTd>
-            <PlTd>
-              <StatusPill status={a.status} />
-            </PlTd>
-            <PlTd>{a.error_code ? a.error_code : '-'}</PlTd>
-            <PlTd muted>{fmtDateTime(a.started_at)}</PlTd>
-            <td className={cn(pipelineStyles.table.td, s.taskModal.respCell)} title={a.response ?? ''}>
-              {a.response ?? ''}
-            </td>
-          </PlRow>
-        ))}
-      </PlTable>
+      <table className={at.root}>
+        <thead>
+          <tr>
+            <th className={at.th}>#</th>
+            <th className={at.th}>상태</th>
+            <th className={at.th}>error_code</th>
+            <th className={at.th}>시각</th>
+            <th className={at.th}>response</th>
+          </tr>
+        </thead>
+        <tbody className={at.body}>
+          {detail.attempts.map((a) => (
+            <tr key={a.attempt_number}>
+              <td className={cn(at.td, at.tdColor)}>{a.attempt_number}</td>
+              <td className={cn(at.td, at.tdColor)}>
+                <StatusPill status={a.status} />
+              </td>
+              <td className={cn(at.td, at.tdColor)}>{a.error_code ? a.error_code : '-'}</td>
+              <td className={cn(at.td, at.muted)}>{fmtDateTime(a.started_at)}</td>
+              <td className={cn(at.td, s.taskModal.respCell)} title={a.response ?? ''}>
+                {a.response ?? ''}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </>
   );
 }

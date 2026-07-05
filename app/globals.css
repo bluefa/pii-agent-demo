@@ -78,6 +78,9 @@
   --pl-gray-700: #344054;
   --pl-gray-800: #1D2939;
   --pl-gray-900: #101828;
+  /* sidebar-chrome-only idle item text — dark-sidebar grey outside the shared
+     neutral scale (design/pipeline/admin-pipeline.html .sb-item). */
+  --pl-chrome-item: #B9C0CC;
   /* surfaces & text */
   --pl-bg-page: #F9FAFB;
   --pl-bg-card: #FFFFFF;
@@ -88,6 +91,8 @@
   --pl-text-medium: #344054;
   --pl-text-weak: #667085;
   --pl-text-faint: #98A2B3;
+  /* white — sidebar active item text / toast text / primary button text */
+  --pl-white: #FFFFFF;
   /* primary */
   --pl-primary: #2563EB;
   --pl-primary-hover: #1D4ED8;
@@ -129,6 +134,21 @@
   --pl-r-pill: 999px;
   --pl-shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
   --pl-shadow-lg: 0 12px 32px -8px rgba(16, 24, 40, 0.16), 0 4px 10px -4px rgba(16, 24, 40, 0.08);
+  /* PipelineStatusBar FAILED tint — `.statusbar.failed` border + 135° gradient
+     start (gradient end reuses --pl-bg-card, the same #FFFFFF). */
+  --pl-err-statusbar-border: #F4B3AD;
+  --pl-err-statusbar-grad-from: #FFF1F0;
+  /* TaskFlow (.pl-flow) node/connector alpha layers — verbatim prototype rgba()
+     values (design/pipeline/admin-pipeline.html .tnode/.connector/@keyframes),
+     named by role since they aren't derivable from a solid token via color-mix. */
+  --pl-flow-idle-bg: rgba(255, 255, 255, 0.7); /* s-queued / s-cancelled tint over the dotted canvas */
+  --pl-flow-connector-info: rgba(46, 144, 250, 0.15); /* .connector.active dash gap */
+  --pl-flow-connector-err: rgba(240, 68, 56, 0.15); /* .connector.toFail dash gap */
+  --pl-flow-pulse-info-a: rgba(46, 144, 250, 0.16); /* nodePulse (s-running) start */
+  --pl-flow-pulse-info-b: rgba(46, 144, 250, 0.04); /* nodePulse (s-running) end */
+  --pl-flow-pulse-warn-a: rgba(247, 144, 9, 0.14); /* nodePulseAmber (s-ready) start */
+  --pl-flow-pulse-warn-b: rgba(247, 144, 9, 0.03); /* nodePulseAmber (s-ready) end */
+  --pl-flow-failed-halo: rgba(240, 68, 56, 0.10); /* s-failed static halo ring */
   /* fonts — Geist stack (loaded by app/layout.tsx) + Korean fallback chain */
   --pl-font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Pretendard', 'Malgun Gothic', system-ui, sans-serif;
   --pl-font-mono: var(--font-geist-mono), ui-monospace, 'SF Mono', Menlo, Consolas, monospace;

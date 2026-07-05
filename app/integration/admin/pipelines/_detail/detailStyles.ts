@@ -59,7 +59,8 @@ export const detailStyles = {
   statusbar: {
     bar: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[10px] shadow-[var(--pl-shadow-xs)] px-[18px] py-3.5 flex flex-col gap-2',
     /** FAILED tint — 135° red→white gradient + red border + halo on the lg pill. */
-    barFailed: 'border-[#F4B3AD] [background:linear-gradient(135deg,#FFF1F0,#FFFFFF_55%)]',
+    barFailed:
+      'border-[var(--pl-err-statusbar-border)] [background:linear-gradient(135deg,var(--pl-err-statusbar-grad-from),var(--pl-bg-card)_55%)]',
     /** Halo ring on the lg pill when the bar is FAILED (design .statusbar.failed .pill.lg). */
     pillFailedRing: 'shadow-[0_0_0_1px_var(--pl-err-border)]',
     main: 'flex items-center gap-3 flex-wrap',
@@ -111,6 +112,23 @@ export const detailStyles = {
     respCell: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap',
     /** degraded-load notice + retry. */
     degraded: cn(text.meta, 'mt-3'),
+  },
+
+  /**
+   * TaskDetailModal attempts table — same `.tbl` grammar as `pipelineStyles.table`
+   * BUT with the modal-scoped padding override (design `.modal.task .tbl th/td`):
+   * no fixed row height (th h34 / td h44 must NOT apply inside the 600px dialog),
+   * just th pad 4/8/6 and td pad 8 all round. Built locally (not via PlTable/PlTh/
+   * PlTd) because those primitives hard-code the page-table row heights and carry
+   * no density prop — this is the one place the modal geometry diverges.
+   */
+  attemptsTable: {
+    root: pipelineStyles.table.root,
+    body: pipelineStyles.table.body,
+    th: 'text-left pt-1 px-2 pb-1.5 text-[12px] font-semibold tracking-[0.03em] text-[var(--pl-text-weak)] border-b border-[var(--pl-border)]',
+    td: 'p-2 align-middle tabular-nums border-b border-[var(--pl-gray-100)]',
+    tdColor: pipelineStyles.table.tdColor,
+    muted: pipelineStyles.table.muted,
   },
 
   /** Loading / layout-stable skeleton block. */

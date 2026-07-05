@@ -8,9 +8,11 @@
  *
  * The node/connector grammar needs pseudo-elements (connector line + arrowhead)
  * and keyframes (node pulse, spinner, flow-dash) that Tailwind utility classes
- * can't express and that `globals.css` (shared, not owned) must not gain. So the
- * flow CSS is scoped here in a single <style> block keyed under `.pl-flow`; every
- * color is a `--pl-*` token (the literal rgba halos match the prototype verbatim).
+ * can't express, so the structural CSS is scoped here in a single <style> block
+ * keyed under `.pl-flow` rather than added to `globals.css`. Every color —
+ * including the rgba alpha layers (idle-tint, connector dash gap, pulse halo) —
+ * is still a `--pl-*` token declared in app/globals.css (verbatim prototype
+ * rgba values, just named instead of inlined); only the rule grammar lives here.
  */
 import { Fragment, useCallback, type KeyboardEvent, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
@@ -39,12 +41,12 @@ const FLOW_CSS = `
 .pl-flow .pl-tnode.s-running .nd-ico{background:var(--pl-info-bg);color:var(--pl-info-text)}
 .pl-flow .pl-tnode.s-ready{border-color:var(--pl-warn-border)}
 .pl-flow .pl-tnode.s-ready .nd-ico{background:var(--pl-warn-bg);color:var(--pl-warn-text)}
-.pl-flow .pl-tnode.s-failed{border-color:var(--pl-err-border);box-shadow:0 0 0 4px rgba(240,68,56,.10)}
+.pl-flow .pl-tnode.s-failed{border-color:var(--pl-err-border);box-shadow:0 0 0 4px var(--pl-flow-failed-halo)}
 .pl-flow .pl-tnode.s-failed .nd-ico{background:var(--pl-err-bg);color:var(--pl-err-text)}
 .pl-flow .pl-tnode.s-failed .nd-meta{color:var(--pl-err-text);font-weight:600}
-.pl-flow .pl-tnode.s-queued{border-style:dashed;background:rgba(255,255,255,.7)}
+.pl-flow .pl-tnode.s-queued{border-style:dashed;background:var(--pl-flow-idle-bg)}
 .pl-flow .pl-tnode.s-queued .nd-name{color:var(--pl-text-weak)}
-.pl-flow .pl-tnode.s-cancelled{background:rgba(255,255,255,.7)}
+.pl-flow .pl-tnode.s-cancelled{background:var(--pl-flow-idle-bg)}
 .pl-flow .pl-tnode.s-cancelled .nd-ico{background:var(--pl-off-bg);color:var(--pl-off-text)}
 .pl-flow .pl-tnode.s-cancelled .nd-name{color:var(--pl-text-weak)}
 .pl-flow .pl-spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--pl-info-border);border-top-color:var(--pl-info);display:inline-block}
@@ -53,12 +55,12 @@ const FLOW_CSS = `
 .pl-flow .pl-connector::after{content:"";position:absolute;right:2px;top:50%;transform:translateY(-50%);border:5px solid transparent;border-left:6px solid var(--pl-gray-300);border-right:0}
 .pl-flow .pl-connector.done::before{background:var(--pl-ok)}
 .pl-flow .pl-connector.done::after{border-left-color:var(--pl-ok)}
-.pl-flow .pl-connector.active::before{background:repeating-linear-gradient(90deg,var(--pl-info) 0 6px,rgba(46,144,250,.15) 6px 12px)}
+.pl-flow .pl-connector.active::before{background:repeating-linear-gradient(90deg,var(--pl-info) 0 6px,var(--pl-flow-connector-info) 6px 12px)}
 .pl-flow .pl-connector.active::after{border-left-color:var(--pl-info)}
-.pl-flow .pl-connector.toFail::before{background:repeating-linear-gradient(90deg,var(--pl-err) 0 6px,rgba(240,68,56,.15) 6px 12px)}
+.pl-flow .pl-connector.toFail::before{background:repeating-linear-gradient(90deg,var(--pl-err) 0 6px,var(--pl-flow-connector-err) 6px 12px)}
 .pl-flow .pl-connector.toFail::after{border-left-color:var(--pl-err)}
-@keyframes pl-nodePulse{0%,100%{box-shadow:0 0 0 3px rgba(46,144,250,.16)}50%{box-shadow:0 0 0 8px rgba(46,144,250,.04)}}
-@keyframes pl-nodePulseAmber{0%,100%{box-shadow:0 0 0 3px rgba(247,144,9,.14)}50%{box-shadow:0 0 0 8px rgba(247,144,9,.03)}}
+@keyframes pl-nodePulse{0%,100%{box-shadow:0 0 0 3px var(--pl-flow-pulse-info-a)}50%{box-shadow:0 0 0 8px var(--pl-flow-pulse-info-b)}}
+@keyframes pl-nodePulseAmber{0%,100%{box-shadow:0 0 0 3px var(--pl-flow-pulse-warn-a)}50%{box-shadow:0 0 0 8px var(--pl-flow-pulse-warn-b)}}
 @keyframes pl-spin{to{transform:rotate(360deg)}}
 @keyframes pl-flowDash{to{background-position:12px 0}}
 @media (prefers-reduced-motion:no-preference){

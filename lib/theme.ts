@@ -832,8 +832,9 @@ export const motion = {
  * heights are copied VERBATIM from design-inventory §4/§5 (do NOT snap to the
  * spacing ladder). SSOT: design/pipeline/admin-pipeline.html.
  *
- * Raw hexes here are limited to two sidebar-chrome-only greys (#B9C0CC) that are
- * not part of the token palette; everything else is a `--pl-*` var.
+ * No raw hexes live here — even the sidebar-chrome-only grey (#B9C0CC) and white
+ * (#FFFFFF) route through `--pl-chrome-item` / `--pl-white` (app/globals.css)
+ * so a grep for `#[0-9a-fA-F]{6}` over this section stays clean.
  */
 
 /** Text roles — design-inventory §4 typography table (exact size/weight/lh/ls). */
@@ -950,15 +951,20 @@ export const pipelineStyles = {
     // Base typography (prototype `html,body`: ls -.014em, lh 1.4, Geist+Korean
     // stack) on the section root so all descendants inherit it — overrides the
     // app body's -.018em and wires --pl-font-sans (the Korean fallback chain).
+    // Shell height: the prototype's own `.topnav` is 52px (calc(100vh - 52px)),
+    // but this app doesn't use that prototype topnav — it renders inside the
+    // REAL app chrome, TopNav (app/components/layout/TopNav.tsx, `h-14` = 56px).
+    // 56 here is a deliberate deviation from the prototype's 52 so the shell's
+    // min-height matches the actual viewport remainder under the app's TopNav.
     shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_56px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
     sidebar: 'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4',
     sidebarTitle: cn(pipelineText.sidebarTitle, 'block px-2.5 pt-2 pb-2.5'),
     // Item base carries no text color/weight — idle/active own it (plain `cn` join
     // has no tailwind-merge, so overlapping utilities must never co-occur).
     sidebarItem: 'block px-2.5 py-[7px] mb-0.5 rounded-md text-[14px] cursor-pointer',
-    sidebarItemIdle: 'font-medium text-[#B9C0CC] hover:bg-[var(--pl-gray-800)]',
+    sidebarItemIdle: 'font-medium text-[var(--pl-chrome-item)] hover:bg-[var(--pl-gray-800)]',
     sidebarItemActive:
-      'bg-[var(--pl-gray-800)] text-white font-semibold shadow-[inset_2px_0_0_var(--pl-primary)]',
+      'bg-[var(--pl-gray-800)] text-[var(--pl-white)] font-semibold shadow-[inset_2px_0_0_var(--pl-primary)]',
     content: 'flex-1 min-w-0 max-w-[1280px] px-8 pt-6 pb-12',
   },
 
@@ -1052,7 +1058,7 @@ export const pipelineStyles = {
 
   /** PlToast — bottom-center gray-900 white 14/500 i-check, shadow-lg. */
   toast: {
-    base: 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-2.5 rounded-lg text-[14px] font-medium text-white bg-[var(--pl-gray-900)] shadow-[var(--pl-shadow-lg)]',
+    base: 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-2.5 rounded-lg text-[14px] font-medium text-[var(--pl-white)] bg-[var(--pl-gray-900)] shadow-[var(--pl-shadow-lg)]',
     icon: 'text-[var(--pl-ok)]',
   },
 
@@ -1092,7 +1098,7 @@ export const pipelineStyles = {
     sm: 'h-7 px-2.5 rounded-lg text-[12px]',
     round: 'h-7 w-7 p-0 rounded-full',
     primary:
-      'border border-transparent bg-[var(--pl-primary)] text-white shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-primary-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
+      'border border-transparent bg-[var(--pl-primary)] text-[var(--pl-white)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-primary-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
     secondary:
       'border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-medium)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-gray-50)] disabled:text-[var(--pl-text-faint)] disabled:border-[var(--pl-border)] disabled:shadow-none',
     ghost:

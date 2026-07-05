@@ -136,6 +136,10 @@ GNB: `lib/routes.ts`에 경로 상수 추가 + `TopNav.tsx` `NAV_ITEMS`에 "파�
    창 크기가 다르면 목록 하단에 "최신 200건 기준" 안내를 붙인다.
 7. **Identity 필드 축소**: 디자인의 `Linked Account`·`Region Type(문자열)`은 실스키마에 없음 —
    §2.3의 매핑대로 존재 필드만 렌더(디자인의 null-필터 규칙이 이를 자연 흡수).
+8. **레시피 표시 문구는 백엔드 원문**: 프로토타입의 RECIPES 설명은 mock 문구였고, 실제 시스템의
+   레시피 displayName/description은 업스트림 `RecipeDefinition` 카탈로그(P9 preview에도 동일
+   문구 노출)가 원천이다. → `RECIPE_LABELS`는 프로토타입 문구가 아닌 **백엔드 원문**을 사용
+   (의도적 편차 — 화면 문구와 API preview 문구의 일치가 우선).
 
 ## 4. 업스트림 계약 요약 (구현 참조용)
 
