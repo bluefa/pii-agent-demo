@@ -82,7 +82,7 @@ function StatTile({
   return (
     <div className={card.stat} title={title}>
       <div className={text.statLabel}>{label}</div>
-      <div className={cn(text.statValue, error && text.statValueError, 'mt-3')}>{value}</div>
+      <div className={cn(text.statValue, error ? text.statValueError : text.statValueDefault, 'mt-3')}>{value}</div>
     </div>
   );
 }

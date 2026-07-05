@@ -46,8 +46,10 @@ import {
 import {
   getLatestPipelineByTarget,
   getPipeline,
+  getTaskDefinitions,
   listPipelinesByTarget,
 } from '@/app/lib/api/pipeline';
+import { taskDisplayName } from '@/app/integration/admin/pipelines/_detail/statusModel';
 import {
   getRawTargetSourceDetail,
   type RawTargetSourceDetail,
@@ -116,6 +118,23 @@ export function TargetDetailView(): ReactElement {
   const [reloadKey, setReloadKey] = useState(0);
   const [previewType, setPreviewType] = useState<PipelineType | null>(null);
   const [cancelId, setCancelId] = useState<number | null>(null);
+  const [catalog, setCatalog] = useState<ReadonlyMap<string, string> | null>(null);
+
+  // Task-definition catalog — display names for the status bar's sb-cur label.
+  useEffect(() => {
+    let cancelled = false;
+    getTaskDefinitions()
+      .then((res) => {
+        if (cancelled) return;
+        setCatalog(new Map(res.task_definitions.map((d) => [d.name, d.display_name])));
+      })
+      .catch(() => {
+        /* enum fallback via taskDisplayName */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Raw detail + latest run (+ its full detail).
   useEffect(() => {
@@ -192,7 +211,7 @@ export function TargetDetailView(): ReactElement {
       : null;
   const btns = targetButtons(raw.process_status, activeRunId);
 
-  const resolveTargetTaskName = (t: TaskSummary): string => t.operation ?? t.task_definition;
+  const resolveTargetTaskName = (t: TaskSummary): string => taskDisplayName(t, null, catalog);
 
   const metaNode: ReactNode = (
     <div className={idbarStyles.metaRow}>

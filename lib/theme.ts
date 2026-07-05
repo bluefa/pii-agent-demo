@@ -879,7 +879,8 @@ const pipelineText = {
   /** stat tile label — 12 / 400 / weak. */
   statLabel: 'text-[12px] font-normal text-[var(--pl-text-weak)]',
   /** stat tile value — 32 / 600 / 1.2 / -.02em / tabular / strong. */
-  statValue: 'text-[32px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums text-[var(--pl-text-strong)]',
+  statValue: 'text-[32px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums',
+  statValueDefault: 'text-[var(--pl-text-strong)]',
   /** stat value error tint (failed count > 0). */
   statValueError: 'text-[var(--pl-err-text)]',
   /** stat value denominator — 20 / 500 / faint. */
