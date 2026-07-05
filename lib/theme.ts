@@ -316,7 +316,7 @@ export const chipStyles = {
 export const segmentedControlStyles = {
   container: 'inline-flex bg-gray-50 border border-gray-200 rounded-lg p-0.5 gap-0.5',
   item:
-    'inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-gray-500 rounded-md transition-colors hover:text-gray-700',
+    'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-500 rounded-md transition-colors hover:text-gray-700',
   itemActive: 'bg-white text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
 } as const;
 
@@ -325,9 +325,9 @@ export const segmentedControlStyles = {
  * Values track DESIGN.md page-title / page-breadcrumb / page-subtitle (ADR-014).
  */
 export const pageChromeStyles = {
-  breadcrumb: 'text-[13px] text-gray-500 px-6 pt-5 font-medium',
-  title: 'text-[30px] font-extrabold tracking-[-0.03em] text-gray-900 px-6 mt-1 leading-[1.2]',
-  subtitle: 'text-[13.5px] text-gray-500 px-6 mt-1 mb-5',
+  breadcrumb: 'text-xs text-gray-500 px-6 pt-5 font-medium',
+  title: 'text-[24px] font-extrabold tracking-[-0.03em] text-gray-900 px-6 mt-1 leading-[1.2]',
+  subtitle: 'text-sm text-gray-500 px-6 mt-1 mb-6',
 } as const;
 
 /**

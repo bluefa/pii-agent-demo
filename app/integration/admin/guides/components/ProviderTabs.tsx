@@ -177,7 +177,7 @@ export const ProviderTabs = ({ value, onChange }: ProviderTabsProps) => {
             }}
             onKeyDown={(e) => handleKeyDown(e, provider)}
             className={cn(
-              'inline-flex items-center gap-2 px-5 pt-3 pb-3.5 text-[13.5px] font-medium border-b-2 -mb-px transition-colors duration-[120ms] focus-visible:outline-2 focus-visible:outline-offset-2',
+              'inline-flex items-center gap-2 px-5 pt-3 pb-3.5 text-sm font-medium border-b-2 -mb-px transition-colors duration-[120ms] focus-visible:outline-2 focus-visible:outline-offset-2',
               primaryColors.focusRing,
               'focus-visible:outline',
               isSelected

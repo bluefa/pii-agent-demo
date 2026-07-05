@@ -203,7 +203,7 @@ export const StepListPanel = ({ provider, selectedKey, onSelect }: StepListPanel
             <span
               aria-hidden="true"
               className={cn(
-                'flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-semibold shrink-0 transition-colors',
+                'flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold shrink-0 transition-colors',
                 numericFeatures.tabular,
                 isSelected
                   ? cn(primaryColors.bg, primaryColors.border, 'text-white')
@@ -215,7 +215,7 @@ export const StepListPanel = ({ provider, selectedKey, onSelect }: StepListPanel
             <div className="flex-1 min-w-0 flex items-center gap-1.5">
               <span
                 className={cn(
-                  'text-[13px] truncate font-medium',
+                  'text-sm truncate font-medium',
                   isSelected ? cn(primaryColors.text, 'font-semibold') : textColors.primary,
                 )}
               >
@@ -237,7 +237,7 @@ export const StepListPanel = ({ provider, selectedKey, onSelect }: StepListPanel
             {row.isShared && (
               <span
                 className={cn(
-                  'inline-flex items-center gap-1 text-[10.5px]',
+                  'inline-flex items-center gap-1 text-xs',
                   textColors.tertiary,
                 )}
               >

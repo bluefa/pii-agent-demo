@@ -118,7 +118,7 @@ export const TopNav = () => {
       >
         <div
           className={cn(
-            'flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-[15px] whitespace-nowrap',
+            'flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-sm whitespace-nowrap',
             navStyles.brandGradient,
           )}
         >
@@ -133,7 +133,7 @@ export const TopNav = () => {
           {NAV_ITEMS.map((item) => {
             const active = item.isActive(pathname);
             const baseClass = cn(
-              'inline-flex items-center gap-2 px-4 py-2 rounded-md text-[13.5px] font-medium whitespace-nowrap transition-colors',
+              'inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
               active ? navStyles.link.active : navStyles.link.inactive,
               item.disabled && 'opacity-50 cursor-not-allowed',
             );

@@ -98,7 +98,7 @@ export const GuidePreviewPanel = ({
           borderColors.light,
         )}
       >
-        <h2 className={cn('text-[13.5px] font-semibold', textColors.primary)}>미리보기</h2>
+        <h2 className={cn('text-sm font-semibold', textColors.primary)}>미리보기</h2>
         <PreviewLanguageToggle value={activeLang} onChange={onChangeLang} />
       </header>
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">

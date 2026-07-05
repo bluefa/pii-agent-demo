@@ -444,7 +444,7 @@ export const GuideEditorPanel = ({
           <div className="flex flex-col gap-1 min-w-0">
             <div
               className={cn(
-                'flex items-center gap-1.5 text-[11px] font-medium tracking-[0.02em]',
+                'flex items-center gap-1.5 text-xs font-medium tracking-[0.02em]',
                 textColors.tertiary,
               )}
             >
@@ -468,13 +468,13 @@ export const GuideEditorPanel = ({
                 </>
               )}
             </div>
-            <h2 className={cn('text-[14px] font-semibold leading-snug', textColors.primary)}>
+            <h2 className={cn('text-[14px] font-semibold leading-[1.2]', textColors.primary)}>
               {headerMeta.stepLabel}
             </h2>
           </div>
           <span
             className={cn(
-              'inline-flex items-center gap-1 px-2 py-1 rounded-md border font-mono text-[10.5px] font-semibold shrink-0',
+              'inline-flex items-center gap-1 px-2 py-1 rounded-md border font-mono text-xs font-semibold shrink-0',
               bgColors.surface,
               borderColors.default,
               textColors.secondary,
@@ -504,7 +504,7 @@ export const GuideEditorPanel = ({
           <div
             role="status"
             className={cn(
-              'flex flex-col gap-1.5 px-3.5 py-3 rounded-lg border text-[12.5px]',
+              'flex flex-col gap-1.5 px-3.5 py-3 rounded-lg border text-xs',
               primaryColors.bg50,
               primaryColors.border100,
               primaryColors.textDark,
@@ -560,7 +560,7 @@ export const GuideEditorPanel = ({
             <EditorContent
               editor={editor}
               aria-label={`${activeLang === 'ko' ? '한국어' : 'English'} 가이드 본문`}
-              className={cn('prose-guide text-[13px]')}
+              className={cn('prose-guide text-sm')}
             />
           </div>
         </div>
@@ -574,7 +574,7 @@ export const GuideEditorPanel = ({
         )}
       >
         <span
-          className={cn('text-[11.5px] leading-snug', saveStateTextColor(saveStateMessage))}
+          className={cn('text-xs leading-[1.2]', saveStateTextColor(saveStateMessage))}
           aria-live="polite"
         >
           {saveStateMessage?.text ?? ''}
