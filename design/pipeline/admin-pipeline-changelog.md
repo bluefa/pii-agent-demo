@@ -30,6 +30,11 @@ app `ProjectPageMeta`·`IdentityBar`(`app/integration/target-sources/[id]/`) 실
   최종 계층: 제목 → IdentityBar(카드) → 액션 그룹(16px 소속) → [64px] 최근 파이프라인 → 이력.
 - **보완(오너 4차)**: **계정(account) 필드 표시 제거** — CSP 식별자의 중복 사본
   (Azure에선 Subscription ID와 같은 값이 두 번 노출). IdentityBar 필드·metadata kv 전부.
+- **보완(오너 5차 — 그룹핑 재정의)**: 독립 Action Group 폐기 → **"파이프라인 상태" 그룹**
+  = 상태 바 + 액션 행(12px). 근거: 버튼 활성/잠금은 전부 최근 파이프라인에서 파생,
+  취소는 그 run에 대한 조작 — 상태와 행동은 한 사고 단위. 잠금 캡션이 다른 그룹을
+  가리켜 설명하던 냄새 해소. 최종 그룹: **대상 → 파이프라인 상태(+액션) → 이력**
+  (무시간 → 현재 → 과거).
 
 ## Round 11 — 3페이지 일관 적용 + 파이프라인 메타데이터 활용 (2026-07-05)
 
