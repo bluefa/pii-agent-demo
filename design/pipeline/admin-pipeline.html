@@ -558,8 +558,8 @@ function targetButtons(ts){                                                // (d
 // metadata 없는 CSP(idc 등)는 계정 필드만 + target 페이지 안내(결정 로그).
 function cspMetaRows(ts){
   if(!ts) return [['대상','정보 없음']];
-  // 설치 상태(process_status) 표시는 오너 지시로 제거(2026-07-05) — 버튼 게이팅 내부 판정에만 사용
-  const rows=[['서비스',`${ts.serviceName} (${ts.serviceCode})`],['계정',ts.account]];
+  // 설치 상태·계정 표시는 오너 지시로 제거(2026-07-05) — 계정(account)은 CSP 식별자의 중복 사본
+  const rows=[['서비스',`${ts.serviceName} (${ts.serviceCode})`]];
   const byProv={
     aws:[['AWS Account',ts.awsAccountId],['Linked Account',ts.awsLinkedAccountId],['Region Type',ts.awsRegionType],
          ['TF 실행 권한',ts.isTerraformExecutionGranted==null?null:(ts.isTerraformExecutionGranted?'허용':'미허용')]],
@@ -834,12 +834,10 @@ function viewTarget(id){
         </div>
         <span class="div"></span>
         <div class="fld"><span class="k">TargetSourceId</span><span class="v">${esc(ts.id)}</span></div>
-        <span class="div"></span>
-        <div class="fld"><span class="k">계정</span><span class="v">${esc(ts.account)}</span></div>
         <span style="flex:1"></span>
         <button class="btn ghost sm" id="refresh">${ic('i-refresh','ic sm')} 새로고침</button>
       </div>
-      ${(rows=>rows.length?`<div class="idbar-meta"><div class="kv wide">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div></div>`:'')(cspMetaRows(ts).slice(2).filter(r=>r[0]!=='CSP metadata'))}
+      ${(rows=>rows.length?`<div class="idbar-meta"><div class="kv wide">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div></div>`:'')(cspMetaRows(ts).slice(1).filter(r=>r[0]!=='CSP metadata'))}
     </div>
     <div class="filterbar" style="margin-top:16px">
       <button class="btn primary" id="btn-install" ${btns.install?'':'disabled'} title="${btns.install?'설치 파이프라인을 시작합니다':btns.cancel?'진행·대기 중 파이프라인이 있어 잠금(중복 방지)':'이미 설치된 대상'}">설치 시작</button>

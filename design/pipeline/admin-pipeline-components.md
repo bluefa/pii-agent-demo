@@ -187,7 +187,7 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 |---|---|---|---|
 | 페이지 헤더 | app `PageHeader` 문법: **h1 = 서비스명 (회색 코드)** — 헤더는 제목만(조용) | `getTargetSourceDetail` 🔵 | ✅ |
 | Action Group | **metadata 카드 바로 아래 독립 행**(3차 확정 2026-07-05): 설치 primary/삭제 secondary/취소 danger + **우측 잠금 사유 상시 캡션**(+tooltip). "판단 재료 → 행동" 순서, 도구는 카드 밖 문법 | 게이팅 = targetButtons(process_status·활성 run **내부** 판정 — **설치 상태 화면 표시는 제거**, 오너 2026-07-05) | ✅ |
-| IdentityBar | app `IdentityBar` 이식: CSP 액센트 스트라이프+아이콘 박스 · CSP명/"Cloud Provider"(IDC는 sub 생략) · 필드(TargetSourceId·계정, 라벨 12/값 mono 14) · 우측 새로고침 | 〃 · CSP 세부는 `CSP metadata` Collapsible(T4) | ✅ |
+| IdentityBar | app `IdentityBar` 이식: CSP 액센트 스트라이프+아이콘 박스 · CSP명/"Cloud Provider"(IDC는 sub 생략) · 필드 **TargetSourceId만**(계정은 CSP 식별자 중복이라 제거 — 오너 4차) · 우측 새로고침 · **CSP metadata는 같은 카드 하단 상시 노출**(`idbar-meta`, 접힘 폐지 — 오너 2차. 필드 없는 IDC는 구간 생략) | 〃 | ✅ |
 | 최근 1건 | `PipelineStatusBar` **재사용**(2026-07-05: 미니 카드 폐지) — pill lg·진행·현재 task·error·[파이프라인 상세→] + meta(유형#id·레시피·생성·활동). FAILED면 tint | A8 latest (`findFirstByTarget...`) | ✅ |
 | 이력 목록 | `PipelineHistoryTable` = `DataTable`+`Pagination`(빈 `EmptyState`) | A7 | ✅ (표시명/CSP는 ⚠️) |
 | 액션 바 | `TargetActionBar` = 3×`Button` | 설치/삭제/취소 | ✅ |
