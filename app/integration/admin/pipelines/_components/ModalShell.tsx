@@ -42,10 +42,35 @@ export function ModalShell({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  // Focus the first button when opened.
+  // Focus the first button on open, trap Tab inside, restore focus on close.
   useEffect(() => {
     if (!open) return;
+    const restoreTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.querySelector<HTMLElement>('button')?.focus();
+    const onTab = (event: KeyboardEvent): void => {
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusables = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute('disabled'));
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const current = document.activeElement;
+      if (event.shiftKey && (current === first || !dialogRef.current.contains(current))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && current === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onTab);
+    return () => {
+      document.removeEventListener('keydown', onTab);
+      restoreTo?.focus();
+    };
   }, [open]);
 
   // Route change closes (drill-down navigation dismisses the modal).

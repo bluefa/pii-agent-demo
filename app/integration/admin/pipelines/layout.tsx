@@ -12,6 +12,7 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { integrationRoutes } from '@/lib/routes';
+import { PlToastProvider } from '@/app/integration/admin/pipelines/_components/PlToastProvider';
 
 const SIDEBAR_ITEMS = [
   { label: '대시보드', href: integrationRoutes.pipelines.dashboard, exact: true },
@@ -42,7 +43,9 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
-      <main className={layout.content}>{children}</main>
+      <main className={layout.content}>
+        <PlToastProvider>{children}</PlToastProvider>
+      </main>
     </div>
   );
 }

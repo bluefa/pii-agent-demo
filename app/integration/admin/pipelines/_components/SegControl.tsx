@@ -29,15 +29,14 @@ export function SegControl<T extends string>({
 }: SegControlProps<T>) {
   const { seg } = pipelineStyles;
   return (
-    <div className={cn(seg.container, className)} role="tablist" aria-label={ariaLabel}>
+    <div className={cn(seg.container, className)} role="group" aria-label={ariaLabel}>
       {options.map((option) => {
         const active = option.value === value;
         return (
           <button
             key={option.value}
             type="button"
-            role="tab"
-            aria-selected={active}
+            aria-pressed={active}
             className={cn(seg.button, active ? seg.buttonActive : seg.buttonIdle)}
             onClick={() => onChange(option.value)}
           >

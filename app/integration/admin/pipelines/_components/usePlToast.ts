@@ -6,7 +6,8 @@
  * mandates a specific gray-900 / i-check / 2600ms toast, so this is bespoke.
  * Pair with <PlToast message={toast.message} />.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { PlToastContext } from '@/app/integration/admin/pipelines/_components/PlToastProvider';
 
 export interface PlToastController {
   message: string | null;
@@ -21,6 +22,7 @@ interface ToastState {
 }
 
 export function usePlToast(durationMs = 2600): PlToastController {
+  const ctx = useContext(PlToastContext);
   const [state, setState] = useState<ToastState | null>(null);
 
   const show = useCallback((message: string) => {
@@ -30,10 +32,13 @@ export function usePlToast(durationMs = 2600): PlToastController {
   const dismiss = useCallback(() => setState(null), []);
 
   useEffect(() => {
-    if (!state) return;
+    if (!state || ctx) return;
     const timer = window.setTimeout(() => setState(null), durationMs);
     return () => window.clearTimeout(timer);
-  }, [state, durationMs]);
+  }, [state, durationMs, ctx]);
 
+  // Section layout mounts PlToastProvider; the context toast survives
+  // router.push, so it wins over the local fallback (kept for isolated tests).
+  if (ctx) return ctx;
   return { message: state?.message ?? null, show, dismiss };
 }

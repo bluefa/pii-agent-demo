@@ -69,7 +69,8 @@ export function fmtDuration(iso: string | null | undefined): string {
   if (hours) segments.push(`${hours}시간`);
   if (minutes) segments.push(`${minutes}분`);
   if (seconds && !hours && !minutes) segments.push(`${seconds}초`);
-  return segments.length ? segments.join(' ') : '-';
+  if (!segments.length) return iso === 'P' ? '-' : '0분';
+  return segments.join(' ');
 }
 
 // ---------------------------------------------------------------------------
