@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
+import { useModal } from '@/app/hooks/useModal';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { integrationRoutes } from '@/lib/routes';
 import { SectionHeader } from '@/app/integration/admin/pipelines/_components/SectionHeader';
@@ -27,6 +28,7 @@ import { CancelModal } from '@/app/integration/admin/pipelines/_detail/CancelMod
 import { RoundNavLink } from '@/app/integration/admin/pipelines/_detail/RoundNavLink';
 import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailStyles';
 import { pipelineCrumbs } from '@/app/integration/admin/pipelines/_detail/pipelineBreadcrumb';
+import { mapPool } from '@/app/integration/admin/pipelines/_detail/mapPool';
 import { taskDisplayName, retrySuffix } from '@/app/integration/admin/pipelines/_detail/statusModel';
 import {
   buildTargetHref,
@@ -47,20 +49,6 @@ import type { PipelineDetail, TaskDetail, TaskSummary } from '@/lib/pipeline/typ
 
 const DETAIL_CONCURRENCY = 6;
 
-/** Run `fn` over `items` with at most `limit` in flight; preserves order. */
-async function mapPool<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let cursor = 0;
-  const worker = async (): Promise<void> => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      results[index] = await fn(items[index]);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-  return results;
-}
-
 type LoadStatus = 'loading' | 'ready' | 'notfound' | 'error';
 
 export function PipelineDetailView(): ReactElement {
@@ -76,20 +64,34 @@ export function PipelineDetailView(): ReactElement {
   const [catalog, setCatalog] = useState<ReadonlyMap<string, string>>(new Map());
   const [detailMap, setDetailMap] = useState<ReadonlyMap<number, TaskDetail | null>>(new Map());
   const [detailsLoaded, setDetailsLoaded] = useState(false);
-  const [selected, setSelected] = useState<TaskSummary | null>(null);
-  const [cancelOpen, setCancelOpen] = useState(false);
+  // Repo rule: modal open/close flows go through useModal (payload rides `data`).
+  const taskModal = useModal<TaskSummary>();
+  const cancelModal = useModal();
   const [reloadKey, setReloadKey] = useState(0);
+  const selected = taskModal.isOpen ? taskModal.data ?? null : null;
 
-  const loadTaskDetails = useCallback(async (d: PipelineDetail): Promise<Map<number, TaskDetail | null>> => {
-    const entries = await mapPool(d.tasks, DETAIL_CONCURRENCY, async (t) => {
-      try {
-        return [t.task_id, await getTaskDetail(d.pipeline_id, t.task_id)] as const;
-      } catch {
-        return [t.task_id, null] as const;
-      }
-    });
-    return new Map(entries);
-  }, []);
+  const loadTaskDetails = useCallback(
+    async (
+      d: PipelineDetail,
+      shouldContinue: () => boolean = () => true,
+    ): Promise<Map<number, TaskDetail | null>> => {
+      const entries = await mapPool(
+        d.tasks,
+        DETAIL_CONCURRENCY,
+        async (t) => {
+          try {
+            return [t.task_id, await getTaskDetail(d.pipeline_id, t.task_id)] as const;
+          } catch {
+            return [t.task_id, null] as const;
+          }
+        },
+        shouldContinue,
+      );
+      // Aborted pools leave holes — .filter compacts them (skips sparse slots).
+      return new Map(entries.filter((entry) => entry !== undefined));
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -106,7 +108,9 @@ export function PipelineDetailView(): ReactElement {
         getTaskDefinitions(d.cloud_provider)
           .then((res) => !cancelled && setCatalog(new Map(res.task_definitions.map((c) => [c.name, c.display_name]))))
           .catch(() => {});
-        const map = await loadTaskDetails(d);
+        // Stop LAUNCHING task-detail fetches once unmounted / route changed
+        // (in-flight ones may finish; their map is discarded below).
+        const map = await loadTaskDetails(d, () => !cancelled);
         if (!cancelled) {
           setDetailMap(map);
           setDetailsLoaded(true);
@@ -230,14 +234,19 @@ export function PipelineDetailView(): ReactElement {
         variant="pipeline"
         resolveName={resolveName}
         retryFor={retryFor}
-        onCancel={() => setCancelOpen(true)}
+        onCancel={() => cancelModal.open()}
       />
-      <TaskFlow tasks={detail.tasks} detailMap={detailMap} resolveName={resolveName} onOpen={setSelected} />
+      <TaskFlow
+        tasks={detail.tasks}
+        detailMap={detailMap}
+        resolveName={resolveName}
+        onOpen={(t) => taskModal.open(t)}
+      />
 
       {selected && (
         <TaskDetailModal
           open
-          onClose={() => setSelected(null)}
+          onClose={taskModal.close}
           task={selected}
           detail={selectedDetail}
           detailLoaded={detailsLoaded}
@@ -246,8 +255,8 @@ export function PipelineDetailView(): ReactElement {
         />
       )}
       <CancelModal
-        open={cancelOpen}
-        onClose={() => setCancelOpen(false)}
+        open={cancelModal.isOpen}
+        onClose={cancelModal.close}
         pipelineId={detail.pipeline_id}
         onCancelled={(d) => {
           setDetail(d);

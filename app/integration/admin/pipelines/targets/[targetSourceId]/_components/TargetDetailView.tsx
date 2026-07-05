@@ -9,6 +9,7 @@
  */
 import { Fragment, useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useModal } from '@/app/hooks/useModal';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { SectionHeader } from '@/app/integration/admin/pipelines/_components/SectionHeader';
 import { Card } from '@/app/integration/admin/pipelines/_components/Card';
@@ -116,8 +117,9 @@ export function TargetDetailView(): ReactElement {
   const [history, setHistory] = useState<SpringPage<PipelineSummary> | null>(null);
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
-  const [previewType, setPreviewType] = useState<PipelineType | null>(null);
-  const [cancelId, setCancelId] = useState<number | null>(null);
+  // Repo rule: modal open/close flows go through useModal (payload rides `data`).
+  const previewModal = useModal<PipelineType>();
+  const cancelModal = useModal<number>();
   const [catalog, setCatalog] = useState<ReadonlyMap<string, string> | null>(null);
 
   // Task-definition catalog — display names for the status bar's sb-cur label.
@@ -269,7 +271,7 @@ export function TargetDetailView(): ReactElement {
           detail={latestDetail}
           variant="target"
           resolveName={resolveTargetTaskName}
-          onCancel={() => setCancelId(latestDetail.pipeline_id)}
+          onCancel={() => cancelModal.open(latestDetail.pipeline_id)}
           openHref={buildPipelineHref(latestDetail.pipeline_id, ctx)}
         />
       ) : latestChecked ? (
@@ -289,7 +291,7 @@ export function TargetDetailView(): ReactElement {
           variant="primary"
           disabled={!btns.install}
           title={btns.installTitle}
-          onClick={() => setPreviewType('INSTALL')}
+          onClick={() => previewModal.open('INSTALL')}
         >
           설치 시작
         </PlButton>
@@ -297,7 +299,7 @@ export function TargetDetailView(): ReactElement {
           variant="secondary"
           disabled={!btns.delete}
           title={btns.deleteTitle}
-          onClick={() => setPreviewType('DELETE')}
+          onClick={() => previewModal.open('DELETE')}
         >
           삭제 시작
         </PlButton>
@@ -357,18 +359,18 @@ export function TargetDetailView(): ReactElement {
       </Card>
 
       <PreviewModal
-        open={previewType !== null}
-        onClose={() => setPreviewType(null)}
+        open={previewModal.isOpen}
+        onClose={previewModal.close}
         targetSourceId={targetSourceId}
-        type={previewType ?? 'INSTALL'}
+        type={previewModal.data ?? 'INSTALL'}
         providerLabel={providerLabel(provider)}
         ctx={ctx}
         showToast={toast.show}
       />
       <CancelModal
-        open={cancelId !== null}
-        onClose={() => setCancelId(null)}
-        pipelineId={cancelId ?? 0}
+        open={cancelModal.isOpen}
+        onClose={cancelModal.close}
+        pipelineId={cancelModal.data ?? 0}
         onCancelled={(detail) => {
           setLatestDetail(detail);
           setReloadKey((k) => k + 1);

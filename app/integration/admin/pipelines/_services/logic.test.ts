@@ -103,4 +103,37 @@ describe('runWithConcurrency', () => {
   it('resolves immediately for an empty list', async () => {
     await expect(runWithConcurrency([], 6, async () => {})).resolves.toBeUndefined();
   });
+
+  it('stops launching new tasks once shouldContinue returns false', async () => {
+    const items = Array.from({ length: 10 }, (_, i) => i);
+    const started: number[] = [];
+    let cancelled = false;
+    await runWithConcurrency(
+      items,
+      2,
+      async (item) => {
+        started.push(item);
+        await Promise.resolve();
+        // Simulate the effect cleanup firing mid-batch.
+        if (item === 3) cancelled = true;
+      },
+      () => !cancelled,
+    );
+    // Items after the cancellation point were never started (in-flight ones finish).
+    expect(started.length).toBeLessThan(items.length);
+    expect(started).not.toContain(9);
+  });
+
+  it('launches nothing when shouldContinue is false from the start', async () => {
+    const started: number[] = [];
+    await runWithConcurrency(
+      [1, 2, 3],
+      6,
+      async (item) => {
+        started.push(item);
+      },
+      () => false,
+    );
+    expect(started).toEqual([]);
+  });
 });

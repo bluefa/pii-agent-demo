@@ -62,16 +62,23 @@ export function serviceItemsFrom(page: ServicesPageLike | null | undefined): Ser
  * Run `task` over `items` with at most `limit` in flight at once (concurrency
  * cap for the per-target latest lookups — BFF §2.2 caps at ≤6). Resolves when
  * every task settles; individual rejections are the caller's responsibility.
+ *
+ * `shouldContinue` is checked before STARTING each item: when it returns false
+ * (e.g. the owning effect was cleaned up), no further requests are launched —
+ * otherwise a stale batch would keep scheduling and the cap could be exceeded
+ * across overlapping old+new batches. In-flight tasks are not interrupted.
  */
 export async function runWithConcurrency<T>(
   items: readonly T[],
   limit: number,
   task: (item: T, index: number) => Promise<void>,
+  shouldContinue: () => boolean = () => true,
 ): Promise<void> {
   const queue = items.map((item, index) => ({ item, index }));
   let cursor = 0;
   const worker = async (): Promise<void> => {
     while (cursor < queue.length) {
+      if (!shouldContinue()) return;
       const next = queue[cursor];
       cursor += 1;
       await task(next.item, next.index);

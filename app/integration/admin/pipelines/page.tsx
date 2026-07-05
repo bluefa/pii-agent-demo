@@ -184,6 +184,10 @@ export default function DashboardPage(): ReactElement {
             options={PERIOD_OPTIONS}
             value={period}
             onChange={(value) => {
+              // Same-value guard: SegControl fires on every click. Without it,
+              // listLoading would flip true while the fetch effect (keyed on
+              // `period`) never reruns — a permanent loading state.
+              if (value === period) return;
               setPeriod(value);
               resetPage();
               setListLoading(true); // period/status/provider refetch — show loading now
@@ -232,7 +236,9 @@ export default function DashboardPage(): ReactElement {
           value={status}
           aria-label="상태 필터"
           onChange={(event) => {
-            setStatus(event.target.value as '' | PipelineStatus);
+            const next = event.target.value as '' | PipelineStatus;
+            if (next === status) return; // same-value guard (see period seg)
+            setStatus(next);
             resetPage();
             setListLoading(true);
           }}
@@ -247,7 +253,9 @@ export default function DashboardPage(): ReactElement {
           value={provider}
           aria-label="CSP 필터"
           onChange={(event) => {
-            setProvider(event.target.value);
+            const next = event.target.value;
+            if (next === provider) return; // same-value guard (see period seg)
+            setProvider(next);
             resetPage();
             setListLoading(true);
           }}

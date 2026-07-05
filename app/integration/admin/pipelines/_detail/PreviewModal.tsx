@@ -89,13 +89,24 @@ export function PreviewModal({
     },
     onError: (err) => {
       if (err instanceof OrchestratorApiError && err.code === ALREADY_ACTIVE) {
-        void getLatestPipelineByTarget(targetSourceId).then((latest) => {
-          onClose();
-          if (latest) {
-            showToast('이미 진행 중인 파이프라인으로 이동합니다');
-            router.push(buildPipelineHref(latest.pipeline_id, ctx));
+        // 409 = a run is already active (contract gap ③): refetch the latest run
+        // and navigate to it. The refetch itself can fail (or 204 → null when the
+        // active run terminated in between) — never hang silently on that path.
+        void (async () => {
+          try {
+            const latest = await getLatestPipelineByTarget(targetSourceId);
+            if (latest) {
+              onClose();
+              showToast('이미 진행 중인 파이프라인으로 이동합니다');
+              router.push(buildPipelineHref(latest.pipeline_id, ctx));
+              return;
+            }
+          } catch {
+            /* fall through to the failure toast */
           }
-        });
+          onClose();
+          showToast('진행 중인 파이프라인 확인에 실패했습니다 — 새로고침 후 다시 시도하세요');
+        })();
         return;
       }
       setRunError(err.message);

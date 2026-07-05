@@ -46,6 +46,7 @@ import {
   runWithConcurrency,
   serviceItemsFrom,
 } from '@/app/integration/admin/pipelines/_services/logic';
+import { serviceListStyles } from '@/app/integration/admin/pipelines/_services/styles';
 
 const SERVICE_FETCH_SIZE = 200;
 const LATEST_CONCURRENCY = 6;
@@ -107,13 +108,20 @@ export default function ServicesPage(): ReactElement {
           if (signal.aborted) return;
           setTargets(list);
           setTargetsLoading(false);
-          return runWithConcurrency(list, LATEST_CONCURRENCY, async (target) => {
-            const summary = await getLatestPipelineByTarget(target.targetSourceId).catch(
-              () => null,
-            );
-            if (signal.aborted) return;
-            setLatest((prev) => ({ ...prev, [target.targetSourceId]: summary }));
-          });
+          return runWithConcurrency(
+            list,
+            LATEST_CONCURRENCY,
+            async (target) => {
+              const summary = await getLatestPipelineByTarget(target.targetSourceId).catch(
+                () => null,
+              );
+              if (signal.aborted) return;
+              setLatest((prev) => ({ ...prev, [target.targetSourceId]: summary }));
+            },
+            // Stop LAUNCHING new latest lookups once this effect is cleaned up
+            // (service switch/unmount) — a stale batch must not keep scheduling.
+            () => !signal.aborted,
+          );
         })
         .catch((err) => {
           if (signal.aborted) return;
@@ -183,10 +191,8 @@ export default function ServicesPage(): ReactElement {
                       setLatest({});
                     }}
                     className={cn(
-                      'flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-[14px]',
-                      active
-                        ? 'bg-[var(--pl-primary-bg)] font-semibold text-[var(--pl-primary)]'
-                        : 'text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-100)]',
+                      serviceListStyles.item,
+                      active ? serviceListStyles.itemActive : serviceListStyles.itemIdle,
                     )}
                   >
                     <span>{service.service_name ?? code}</span>
