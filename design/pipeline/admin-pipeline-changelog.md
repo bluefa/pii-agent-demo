@@ -23,6 +23,11 @@ app `ProjectPageMeta`·`IdentityBar`(`app/integration/target-sources/[id]/`) 실
   IdentityBar 섹션(8.5) 추가.
 - **보완(오너 2차)**: CSP metadata 접힘 폐지 — IdentityBar **카드 하나**에 구분선으로 상시
   노출(`idbar-meta`). CSP 필드 없는 IDC는 메타 구간 자체를 생략.
+- **보완(오너 3차)**: CTA를 헤더에서 내려 **Action Group — metadata 카드 바로 아래**로.
+  배치 논리: 태스크 흐름 "① 대상 확인(identity·metadata) → ② 상태 판단 → ③ 행동" —
+  행동은 판단 재료 다음. 대시보드 필터바와 같은 "도구는 카드 밖 독립 행" 문법.
+  잠금 사유를 그룹 우측 상시 캡션으로(설명 없는 disabled는 버그로 읽힘 — tooltip 병행).
+  최종 계층: 제목 → IdentityBar(카드) → 액션 그룹(16px 소속) → [64px] 최근 파이프라인 → 이력.
 
 ## Round 11 — 3페이지 일관 적용 + 파이프라인 메타데이터 활용 (2026-07-05)
 

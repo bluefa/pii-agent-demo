@@ -818,16 +818,14 @@ function viewTarget(id){
   const ids=(BY_TARGET[id]||[]).map(pid=>PIPELINES[pid]);
   const latest=ids[0]||null;
   const btns=targetButtons(ts);
-  // app ProjectPageMeta 문법: 제목=서비스명(코드), CTA=페이지 헤더 우측, 식별자=IdentityBar (2026-07-05 오너)
+  // app ProjectPageMeta 문법: 제목=서비스명(코드), 식별자=IdentityBar.
+  // 액션 그룹은 metadata 아래(오너 2026-07-05 3차) — 판단 재료(identity·metadata) 다음에 행동.
+  // 잠금 사유는 그룹 우측 상시 캡션(설명 없는 disabled는 버그로 읽힘).
+  const lockMsg=btns.cancel?'진행·대기 중 파이프라인이 있어 설치·삭제는 잠깁니다 — 취소만 가능'
+    :btns.delete?'설치된 대상 — 삭제만 가능합니다':'미설치 대상 — 설치만 가능합니다';
   const root=el(`<div>
     ${breadcrumb([{label:'서비스 검색',hash:'#/services'},{label:svcName},{label:ts.id}])}
-    <div class="page-head"><h1>${esc(svcName)} <span class="muted" style="font-weight:500">(${esc(ts.serviceCode)})</span></h1>
-      <span class="vrow" style="gap:8px">
-        <button class="btn primary" id="btn-install" ${btns.install?'':'disabled'} title="${btns.install?'설치 파이프라인을 시작합니다':btns.cancel?'진행·대기 중 파이프라인이 있어 잠금(중복 방지)':'이미 설치된 대상'}">설치 시작</button>
-        <button class="btn secondary" id="btn-delete" ${btns.delete?'':'disabled'} title="${btns.delete?'삭제 파이프라인을 시작합니다':btns.cancel?'진행·대기 중 파이프라인이 있어 잠금(중복 방지)':'설치되지 않은 대상'}">삭제 시작</button>
-        <button class="btn danger" id="btn-cancel" ${btns.cancel?'':'disabled'} title="${btns.cancel?'진행 중 파이프라인을 취소합니다':'취소할 진행·대기 중 파이프라인 없음'}">취소</button>
-      </span>
-    </div>
+    <div class="page-head"><h1>${esc(svcName)} <span class="muted" style="font-weight:500">(${esc(ts.serviceCode)})</span></h1></div>
     <div class="idbar" style="--ib-accent:var(--pv-${ts.provider})">
       <div class="idbar-row">
         <div class="prov">
@@ -842,6 +840,12 @@ function viewTarget(id){
         <button class="btn ghost sm" id="refresh">${ic('i-refresh','ic sm')} 새로고침</button>
       </div>
       ${(rows=>rows.length?`<div class="idbar-meta"><div class="kv wide">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div></div>`:'')(cspMetaRows(ts).slice(2).filter(r=>r[0]!=='CSP metadata'))}
+    </div>
+    <div class="filterbar" style="margin-top:16px">
+      <button class="btn primary" id="btn-install" ${btns.install?'':'disabled'} title="${btns.install?'설치 파이프라인을 시작합니다':btns.cancel?'진행·대기 중 파이프라인이 있어 잠금(중복 방지)':'이미 설치된 대상'}">설치 시작</button>
+      <button class="btn secondary" id="btn-delete" ${btns.delete?'':'disabled'} title="${btns.delete?'삭제 파이프라인을 시작합니다':btns.cancel?'진행·대기 중 파이프라인이 있어 잠금(중복 방지)':'설치되지 않은 대상'}">삭제 시작</button>
+      <button class="btn danger" id="btn-cancel" ${btns.cancel?'':'disabled'} title="${btns.cancel?'진행 중 파이프라인을 취소합니다':'취소할 진행·대기 중 파이프라인 없음'}">취소</button>
+      <span class="meta" style="margin-left:auto">${lockMsg}</span>
     </div>
     <div class="section-title">최근 파이프라인</div>
     <div id="latest"></div>
