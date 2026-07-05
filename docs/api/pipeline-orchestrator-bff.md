@@ -9,8 +9,10 @@ admin 파이프라인 4페이지가 사용하는 **신규 BFF API 경로 전체 
   status 그대로 전파한다.
 - CORS: 업스트림에 CORS 설정이 없으나, 브라우저는 same-origin인 BFF만 호출하므로 문제 없음
   (LIN-19의 CORS 갭은 이 구조로 우회 해소).
-- mock: `USE_MOCK_DATA=true`(현재 dev 기본)일 때 `lib/bff/mock/pipeline*.ts`가 응답한다.
-  mock 픽스처는 `design/pipeline/admin-pipeline.html`의 mock 데이터(#123~#129)를 와이어 포맷
+- mock: `USE_MOCK_DATA=true`일 때 `lib/bff/mock/pipeline*.ts`가 응답한다(코드 기본값은 real
+  HTTP — 이 저장소의 로컬 `.env.local`(gitignore 대상)이 관례적으로 true를 설정할 뿐, 클린
+  체크아웃은 env 미설정 시 `PIPELINE_API_URL`로 프록시한다). mock 픽스처는
+  `design/pipeline/admin-pipeline.html`의 mock 데이터(#123~#129)를 와이어 포맷
   (snake_case, ISO-8601)으로 이식한 것이다.
 
 ## 1. 신규 BFF 경로 (12개)
@@ -80,7 +82,10 @@ GNB: `lib/routes.ts`에 경로 상수 추가 + `TopNav.tsx` `NAV_ITEMS`에 "파�
   + 행별 "파이프라인" 셀은 #8 latest를 **동시성 캡(≤6)** 으로 병렬 호출해
   `status ∈ {RUNNING, PENDING}`이면 pill+`#id`, 아니면 `—`. 타겟 수가 많으면 화면에 보이는
   행(현재 목록) 기준으로만 조회.
-- 행 클릭 → 타겟 상세로 navState{serviceCode, serviceName, targetId, provider} 전달
+- 행 클릭 → 타겟 상세로 서비스 컨텍스트를 **쿼리 파라미터 `?svc={code}&svcName={name}`** 로만
+  전달한다(프로토타입의 in-memory navState{serviceCode, serviceName, targetId, provider}를
+  URL로 축약 — targetId·provider는 경로/응답에서 복원 가능해 생략. 이에 따라 파이프라인
+  breadcrumb의 targetId 일치 가드는 드롭됨: `pipelineBreadcrumb.ts` 주석 참조, 의도적 편차)
 
 ### 2.3 타겟 상세
 - IdentityBar CSP 메타(논리 그룹: CSP 연결 정보/실행 권한) ← 기존 앱 BFF target-sources **raw 상세**
