@@ -44,6 +44,17 @@ describe('toIdcApprovalRequestInput', () => {
     expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
   });
 
+  it('round-trips a DB type outside the known enum via the raw label (databaseTypeWire undefined)', () => {
+    // A loaded previous-request row with a server-side DB type the frontend enum does
+    // not know: toIdcResourceView leaves databaseTypeWire undefined and keeps the raw
+    // wire value in databaseTypeLabel. It must still be resubmitted.
+    const input = toIdcApprovalRequestInput([
+      row({ databaseTypeWire: undefined, databaseTypeLabel: 'COCKROACHDB' }),
+    ]);
+    const meta = (input.resources ?? [])[0].metadata;
+    expect(meta?.database_type).toBe('COCKROACHDB');
+  });
+
   it('DOMAIN-mode row uses idc_host (not idc_ips)', () => {
     const input = toIdcApprovalRequestInput([row({ kind: 'DOMAIN', hosts: ['db.example.com'] })]);
     const meta = (input.resources ?? [])[0].metadata;

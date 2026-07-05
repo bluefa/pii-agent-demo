@@ -55,10 +55,16 @@ type IdcMetadata = z.infer<typeof schemas.TargetSourceResourceMetadataDto>;
  */
 const idcSelectedMetadata = (r: IdcStep1Row): IdcMetadata => {
   const isDomain = r.kind === 'DOMAIN';
+  // `database_type` is a plain-string contract field. Prefer the narrowed wire enum,
+  // but fall back to the raw label so a loaded previous-request row whose DB type is
+  // outside the known enum still round-trips (databaseTypeWire is undefined for those;
+  // toIdcResourceView keeps the raw wire value in databaseTypeLabel). New rows always
+  // have databaseTypeWire set, so the label is never a pretty/display-only value here.
+  const databaseType = r.databaseTypeWire ?? r.databaseTypeLabel;
   return {
     provider: 'IDC',
     idc_host_format: isDomain ? 'HOST' : 'IP',
-    ...(r.databaseTypeWire ? { database_type: r.databaseTypeWire } : {}),
+    ...(databaseType ? { database_type: databaseType } : {}),
     ...(isDomain
       ? (r.hosts[0] ? { idc_host: r.hosts[0] } : {})
       : (r.hosts.length > 0 ? { idc_ips: r.hosts } : {})),
