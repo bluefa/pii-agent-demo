@@ -113,6 +113,21 @@ svg.ic.lg{width:22px;height:22px}
 .stat.unavailable .val{color:var(--text-faint)}
 .stat.failed .val{color:var(--err-text)} /* 실패 카운트>0일 때만 부여 — 비대칭 강조 */
 
+/* ── IdentityBar — app ProjectPageMeta/IdentityBar 문법 이식 (2026-07-05 오너: "app 방식으로") ── */
+.idbar{position:relative;display:flex;align-items:center;gap:24px;flex-wrap:wrap;overflow:hidden;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);padding:16px 24px 16px 28px}
+.idbar::before{content:"";position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--ib-accent)}
+.idbar .prov{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.idbar .picon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;flex-shrink:0;
+  background:color-mix(in srgb,var(--ib-accent) 12%,transparent);color:var(--ib-accent)}
+.idbar .pname{font-size:16px;font-weight:700;line-height:1.2;letter-spacing:-.02em;color:var(--text-strong)}
+.idbar .psub{margin-top:3px;font-size:12px;font-weight:600;color:var(--text-faint)}
+.idbar .div{align-self:stretch;width:1px;background:var(--gray-100);margin:2px 0;flex-shrink:0}
+.idbar .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.idbar .fld .k{font-size:12px;font-weight:600;color:var(--text-faint)}
+.idbar .fld .v{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text-strong)}
+
 /* ── FieldTag ── */
 .ftag{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;
   padding:1px 6px;border-radius:4px;vertical-align:middle}
@@ -324,6 +339,7 @@ details.collap>.body{padding:0 14px 14px}
 <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.3 5.2-5.2 2.3 2.3-5.2z"/></symbol>
 <symbol id="i-cursor" viewBox="0 0 24 24"><path d="m5 3 7.5 17 2-7.5L22 10.5z"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l2.8 1.8"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.62-1.46A4.5 4.5 0 0 1 17.5 18H7Z"/></symbol>
 </defs></svg>
 <div class="topnav">
   <span class="brand">PII Admin</span>
@@ -540,7 +556,8 @@ function targetButtons(ts){                                                // (d
 // metadata 없는 CSP(idc 등)는 계정 필드만 + target 페이지 안내(결정 로그).
 function cspMetaRows(ts){
   if(!ts) return [['대상','정보 없음']];
-  const rows=[['서비스',`${ts.serviceName} (${ts.serviceCode})`],['설치 상태',ts.processStatus],['계정',ts.account]];
+  // 설치 상태(process_status) 표시는 오너 지시로 제거(2026-07-05) — 버튼 게이팅 내부 판정에만 사용
+  const rows=[['서비스',`${ts.serviceName} (${ts.serviceCode})`],['계정',ts.account]];
   const byProv={
     aws:[['AWS Account',ts.awsAccountId],['Linked Account',ts.awsLinkedAccountId],['Region Type',ts.awsRegionType],
          ['TF 실행 권한',ts.isTerraformExecutionGranted==null?null:(ts.isTerraformExecutionGranted?'허용':'미허용')]],
@@ -561,9 +578,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const ic = (name,cls='ic')=>`<svg class="${cls}" aria-hidden="true"><use href="#${name}"/></svg>`;
 const provTag = (prov,external)=>`<span class="ptag pv-${prov} ${external?'external':''}"><span class="pdot"></span>${PROVIDERS[prov]||prov}${external?' <span class="ftag ext">외부</span>':''}</span>`;
 const pill = (status)=>`<span class="pill s-${status}"><span class="dot"></span>${status}</span>`;
-// 설치 상태(process_status) 칩 — 파이프라인 상태색 문법 재사용: 초록=설치됨, 호박=대기, 회색=끊김
-const PROC_TO_PILL={CONNECTED:'DONE',COMPLETED:'DONE',INSTALLED:'DONE',PENDING:'PENDING',DISCONNECTED:'CANCELLED'};
-const procChip=(st)=>`<span class="pill s-${PROC_TO_PILL[st]||'BLOCKED'}"><span class="dot"></span>${esc(st)}</span>`;
+// 설치 상태(process_status) 칩은 오너 지시로 표시 제거(2026-07-05) — targetButtons 내부 판정에만 사용
 const activeRun=tsId=>(BY_TARGET[tsId]||[]).map(i=>PIPELINES[i]).find(p=>p.status==='RUNNING'||p.status==='PENDING')||null;
 const progressBar = (n,m,status)=>`<span class="pbar${m&&n===m?' done':''}${status?` s-${status}`:''}"><span class="track"><span class="fill" style="width:${m?Math.round(n/m*100):0}%"></span></span><span class="lbl">${n}/${m}</span></span>`;
 const naTag = '<span class="ftag na">미제공</span>';
@@ -777,10 +792,10 @@ function renderTsPanel(root){
   const list=TARGET_SOURCES[svc]||[];
   const name=SERVICES.find(s=>s.code===svc).name;
   panel.innerHTML=`<div class="section-title" style="margin-top:0">${esc(name)} 의 Target Source</div>
-    <div class="section-desc">대상을 선택하면 상세에서 설치·삭제를 시작할 수 있어요 · 설치 상태는 process_status 기준</div>`+
-    (list.length?`<table class="tbl"><thead><tr><th>TargetSourceId</th><th>CSP</th><th>설치 상태</th><th>파이프라인</th><th></th></tr></thead><tbody>${
+    <div class="section-desc">대상을 선택하면 상세에서 설치·삭제를 시작할 수 있어요</div>`+
+    (list.length?`<table class="tbl"><thead><tr><th>TargetSourceId</th><th>CSP</th><th>파이프라인</th><th></th></tr></thead><tbody>${
       list.map(t=>{const run=activeRun(t.id);
-        return `<tr class="click" data-ts="${esc(t.id)}"><td class="mono">${esc(t.id)}</td><td>${provTag(t.provider)}</td><td>${procChip(t.processStatus)}</td><td>${run?`${pill(run.status)} <span class="meta mono">#${run.id}</span>`:'<span class="muted">—</span>'}</td><td class="chev"><span class="rowlink">상세 ${ic('i-chev-r','ic sm')}</span></td></tr>`;}).join('')}</tbody></table>`
+        return `<tr class="click" data-ts="${esc(t.id)}"><td class="mono">${esc(t.id)}</td><td>${provTag(t.provider)}</td><td>${run?`${pill(run.status)} <span class="meta mono">#${run.id}</span>`:'<span class="muted">—</span>'}</td><td class="chev"><span class="rowlink">상세 ${ic('i-chev-r','ic sm')}</span></td></tr>`;}).join('')}</tbody></table>`
     :`<div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>target source 없음</div>`);
   panel.querySelectorAll('tr[data-ts]').forEach(tr=>{
     tr.setAttribute('role','button'); tr.setAttribute('tabindex','0');
@@ -801,52 +816,60 @@ function viewTarget(id){
   const ids=(BY_TARGET[id]||[]).map(pid=>PIPELINES[pid]);
   const latest=ids[0]||null;
   const btns=targetButtons(ts);
+  // app ProjectPageMeta 문법: 제목=서비스명(코드), CTA=페이지 헤더 우측, 식별자=IdentityBar (2026-07-05 오너)
   const root=el(`<div>
     ${breadcrumb([{label:'서비스 검색',hash:'#/services'},{label:svcName},{label:ts.id}])}
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
-        <div>
-          <div class="vrow" style="gap:10px;flex-wrap:wrap;margin-bottom:12px">
-            <span class="mono" style="font-size:16px;font-weight:600">${esc(ts.id)}</span>
-            ${provTag(ts.provider)}
-            <span class="meta">${esc(svcName)} (${esc(ts.serviceCode)})</span>
-          </div>
-          <div class="vrow" style="gap:8px">${procChip(ts.processStatus)} <span class="meta" title="원본 필드: process_status">설치 상태</span></div>
-        </div>
-        <button class="btn secondary sm" id="refresh">${ic('i-refresh','ic sm')} 상태 새로고침</button>
-      </div>
-      <details class="collap"><summary>계정 · CSP metadata</summary><div class="body">
-        <div class="kv wide">${cspMetaRows(ts).slice(2).map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div>
-      </div></details>
+    <div class="page-head"><h1>${esc(svcName)} <span class="muted" style="font-weight:500">(${esc(ts.serviceCode)})</span></h1>
+      <span class="vrow" style="gap:8px">
+        <button class="btn primary" id="btn-install" ${btns.install?'':'disabled'} title="${btns.install?'설치 파이프라인을 시작합니다':btns.cancel?'진행·대기 중 파이프라인이 있어 잠금(중복 방지)':'이미 설치된 대상'}">설치 시작</button>
+        <button class="btn secondary" id="btn-delete" ${btns.delete?'':'disabled'} title="${btns.delete?'삭제 파이프라인을 시작합니다':btns.cancel?'진행·대기 중 파이프라인이 있어 잠금(중복 방지)':'설치되지 않은 대상'}">삭제 시작</button>
+        <button class="btn danger" id="btn-cancel" ${btns.cancel?'':'disabled'} title="${btns.cancel?'진행 중 파이프라인을 취소합니다':'취소할 진행·대기 중 파이프라인 없음'}">취소</button>
+      </span>
     </div>
-    <div class="meta-2" style="margin-top:16px">
-      <div class="card" id="latest"></div>
-      <div class="card">
-        <div class="section-title" style="margin-top:0">액션</div>
-        <div class="filterbar">
-          <button class="btn primary" id="btn-install" ${btns.install?'':'disabled'}>설치 시작</button>
-          <button class="btn secondary" id="btn-delete" ${btns.delete?'':'disabled'}>삭제 시작</button>
-          <button class="btn danger" id="btn-cancel" ${btns.cancel?'':'disabled'} style="margin-left:auto">취소</button>
-        </div>
-        <div class="notice mt-12">${btns.cancel?'진행·대기 중 파이프라인이 있어 설치·삭제는 잠금(중복 방지). 취소만 가능.':'설치/삭제는 process_status에 따라 하나만 활성화됩니다.'}</div>
+    <div class="idbar" style="--ib-accent:var(--pv-${ts.provider})">
+      <div class="prov">
+        <span class="picon">${ic('i-cloud','ic lg')}</span>
+        <div><div class="pname">${PROVIDERS[ts.provider]||esc(ts.provider)}</div>${ts.provider==='idc'?'':'<div class="psub">Cloud Provider</div>'}</div>
       </div>
+      <span class="div"></span>
+      <div class="fld"><span class="k">TargetSourceId</span><span class="v">${esc(ts.id)}</span></div>
+      <span class="div"></span>
+      <div class="fld"><span class="k">계정</span><span class="v">${esc(ts.account)}</span></div>
+      <span style="flex:1"></span>
+      <button class="btn ghost sm" id="refresh">${ic('i-refresh','ic sm')} 새로고침</button>
     </div>
+    <details class="collap"><summary>CSP metadata</summary><div class="body">
+      <div class="kv wide">${cspMetaRows(ts).slice(2).map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')||'<span class="muted">추가 metadata 없음</span>'}</div>
+    </div></details>
+    <div class="section-title">최근 파이프라인</div>
+    <div id="latest"></div>
     <div class="section-title">파이프라인 이력</div>
     <div class="card" id="hist"></div>
   </div>`);
-  // latest card
+  // 최근 파이프라인 = 파이프라인 상세와 같은 상태 바 문법 — "이 대상, 지금 어떤가"를 한 줄로
   const lc=root.querySelector('#latest');
   if(latest){
-    lc.innerHTML=`<div class="section-title">최근 파이프라인</div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="mono" style="font-weight:600;font-size:14px">#${latest.id}</span>
-        <span class="meta">${esc(latest.type)}</span>${pill(latest.status)}
+    const lcur=currentTask(latest);
+    const lLabel=latest.status==='PENDING'?`시작 대기 · ${esc(latest.nextDueAt||'-')} 시작 예정`
+      :lcur?`현재 seq ${lcur.seq} · ${esc(lcur.operation)}`:currentTaskLabel(latest);
+    const lerr=latest.tasks.find(t=>t.status==='FAILED');
+    lc.innerHTML=`<div class="statusbar${latest.status==='FAILED'?' failed':''}">
+      <div class="sb-main">
+        <span class="pill lg s-${latest.status}"><span class="dot"></span>${latest.status}</span>
+        ${progressBar(progressN(latest),progressM(latest),latest.status)}
+        <span class="sb-cur">${lLabel}</span>
+        ${lerr&&lerr.errorCode?`<span class="sb-err" title="seq ${lerr.seq} · ${esc(lerr.operation)}">${esc(lerr.errorCode)}</span>`:''}
+        <span class="vrow" style="margin-left:auto"><button class="btn secondary sm" data-nav="#/pipeline/${latest.id}">파이프라인 상세 ${ic('i-chev-r','ic sm')}</button></span>
       </div>
-      <div class="mt-16 vrow" style="gap:8px">${progressBar(progressN(latest),progressM(latest),latest.status)}
-        <span class="meta">생성 ${esc(latest.createdAt)}</span></div>
-      <button class="btn ghost sm mt-16" data-nav="#/pipeline/${latest.id}">상세 보기 ${ic('i-chev-r','ic sm')}</button>`;
+      <div class="sb-meta">
+        <span>${esc(latest.type)} <span class="mono">#${latest.id}</span></span><span class="sep">·</span>
+        <span>레시피 <span class="mono">${esc(latest.recipe||'-')}</span></span><span class="sep">·</span>
+        <span>생성 ${esc(latest.createdAt)}</span><span class="sep">·</span>
+        <span>마지막 활동 ${esc(latest.lastActivityAt)}</span>
+      </div>
+    </div>`;
   }else{
-    lc.innerHTML=`<div class="empty center"><span class="ico">${ic('i-inbox','ic lg')}</span>실행 이력 없음<br><span class="meta">[설치 시작]으로 첫 파이프라인을 만드세요</span></div>`;
+    lc.innerHTML=`<div class="card"><div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>실행 이력 없음<br><span class="meta">[설치 시작]으로 첫 파이프라인을 만드세요</span></div></div>`;
   }
   // history (P7 pagination — PAGE_SIZE 초과 시에만 컨트롤 노출)
   const hist=root.querySelector('#hist');
@@ -855,7 +878,7 @@ function viewTarget(id){
   histState.page=Math.min(histState.page,hpages);
   const hslice=ids.slice((histState.page-1)*PAGE_SIZE, histState.page*PAGE_SIZE);
   if(ids.length){
-    hist.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>유형</th><th>상태</th><th>진행</th><th>생성일</th><th></th></tr></thead><tbody>${
+    hist.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>파이프라인 유형</th><th>상태</th><th>진행도</th><th>생성시간</th><th></th></tr></thead><tbody>${
       hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p),p.status)}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev"><span class="rowlink">상세 ${ic('i-chev-r','ic sm')}</span></td></tr>`).join('')}</tbody></table>${
       hpages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
         <button class="btn ghost sm" ${histState.page<=1?'disabled':''} id="hprev">${ic('i-chev-l','ic sm')} 이전</button>

@@ -4,6 +4,24 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 12 — target 상세를 app 문법으로 재구성 (2026-07-05)
+
+오너 피드백: "#/target/204 마음에 안 듦 — 기존 app의 타겟소스 상세 표현 방식으로 /
+installation status 우선 삭제 / 최근 파이프라인·CTA 표현 이상함 / 정보 계층 잘".
+app `ProjectPageMeta`·`IdentityBar`(`app/integration/target-sources/[id]/`) 실사 후 이식.
+
+- **페이지 헤더**: h1 = **서비스명 (회색 코드)** — app PageHeader 문법. **CTA 3버튼을 헤더
+  우측으로 승격**(액션 카드·notice 폐지 — 잠금 사유는 disabled tooltip).
+- **IdentityBar 신설**(`.idbar`): CSP 액센트 스트라이프(4px)+아이콘 박스(38, 12% tint) ·
+  CSP명/"Cloud Provider" · 세로 구분선 필드(TargetSourceId·계정 — 라벨 12 위/값 mono 14 아래) ·
+  우측 새로고침. IDC는 sub 라벨 생략(app v16 규칙).
+- **설치 상태(process_status) 표시 전면 제거**(오너: "우선은 삭제") — target 페이지 procChip,
+  서비스 검색 열, CSP metadata kv 행 모두. targetButtons 내부 게이팅 판정에만 사용.
+- **최근 파이프라인 = 상태 바 문법 재사용**: pill lg + 진행 + 현재 task + error_code +
+  [파이프라인 상세→], meta(유형#id·레시피·생성·활동). FAILED면 tint — 미니 카드 폐지.
+- 이력 테이블 열 이름 컨벤션 정합(파이프라인 유형·진행도·생성시간). 컴포넌트 시트에
+  IdentityBar 섹션(8.5) 추가.
+
 ## Round 11 — 3페이지 일관 적용 + 파이프라인 메타데이터 활용 (2026-07-05)
 
 오너 지시: 서비스/target/파이프라인 상세 UX 시나리오 + "최신 main의 풍부한 파이프라인
