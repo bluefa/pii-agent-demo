@@ -170,15 +170,15 @@ v2 재배치가 이미 반영된 페이지라 대체로 정합 — 잔여 과밀
 |---|---|---|---|---|
 | 1 | 상태 pill(대형) + 진행 바 + 현재 task + [취소] | 상태 바 1행 | **T1** (유지) | 질문 ①⑤ — v2 목적 그대로 |
 | 2 | error_code 요약 (FAILED일 때만) | 상태 바 1행 | **T1** (유지) | 질문 ② — 조건부 노출 규칙이 모범 |
-| 3 | 상태 바 meta: type·#id·**레시피**·provider·target·서비스·생성·마지막활동·단계 | 상태 바 2행 | **T3** (2026-07-05 개정) | 다이어트(→5개) 판정을 오너 지시("메타데이터가 풍부한데 안 쓴다")로 갱신 — recipe_definition·단계를 편성. 운영 신호(next_due·재시도 예산·취소 요청)는 meta가 아니라 **1행(T1)**에 조건부 노출 |
+| 3 | ~~상태 바 meta 행~~ → **파이프라인 정보 카드**(IdentityBar, 최상단) | 카드 | **T3** (3차 2026-07-05: "metadata 상단 노출·논리 그룹") | 무시간 식별·계약은 상태 바가 아니라 전용 카드로: CSP·TargetSourceId(↗)·유형·레시피(display_name+설명+코드)·서비스·생성·활동·leased·스케줄 지연. 상태 바는 "지금" 1행만 |
 | 4 | Task 흐름 (노드: seq·kind칩·operation·상태·fail·시각) | 본문 좌 | **T2** (유지) | 질문 ①② 본문 |
 | 5 | Task 상세 사이드 패널 — 공통 kv (operation·타이밍 설정·fail/maxFail·started/finished) | 본문 우 | **T4** (유지) | 노드 클릭 뒤에만 — 현 구조 적절 |
 | 6 | 〃 attempts 테이블 (#·상태·error_code·시각·raw response) | 사이드 패널 | **T4** (유지) | 〃. raw response ellipsis+title 유지 |
 | 7 | 〃 check kv 중 `last_response_code`/`last_response_summary` — 항상 null + "미채움" 배지 | 사이드 패널 | **X 제외** | 원칙 3 — null 필드의 상설 나열. 값이 채워지는 날 행 추가 |
 | 8 | 〃 "설정은 읽기 전용 — PATCH 없음" 안내문 | 사이드 패널 | **X 제외** | 구현 계약 설명 — 운영자 질문 아님. components.md에 이미 있음 |
 | 9 | 〃 "job_ids·dispatch_response_* 는 제거된 필드…" 안내문 | attempts 하단 | **X 제외** | 〃 (없어진 필드 이야기를 화면이 할 이유 없음) |
-| 10 | 대상 상세 metadata 접힘 (CSP kv + target 링크) | 하단 collapsible | **T4** (유지) | 질문 ③ — 접힘 수위 적절 |
-| 11 | ~~"실행 메타 (ADR-021) — 미제공"~~ → **실행 스케줄 메타(실필드)** | 하단 collapsible | **T4 재편성** (2026-07-05) | 최신 main이 next_due_at·leased·cancel_requested·due_lag를 **실제 제공** — "필드가 제공되는 날 재편성" 조건 성립. next_due_at·cancel_requested는 T1(상태 바)에도 조건부 승격 |
+| 10 | ~~대상 상세 metadata 접힘~~ | — | **X 제외** (3차 2026-07-05 오너: "왜 필요하냐") | CSP 세부는 target 페이지 본진 — 이 페이지에선 정보 카드의 ↗ 버튼으로 이동만 |
+| 11 | ~~실행 스케줄 메타 접힘~~ → **정보 카드 meta 구간 통합** | 정보 카드 | **T3** (3차 2026-07-05) | 접힘 폐지 — leased·스케줄 지연은 정보 카드에 상시(비종단만), next_due_at·cancel_requested는 상태 바(T1) 조건부 |
 | 12 | status=**PENDING**(시작 지연, LIN-30) + next_due_at 시작 예정 | 상태 바 1행 | **T1 신규** (2026-07-05) | "지금 어떤 상태야?"의 새 답 — 대기 중이면 "언제 시작하나"가 즉답이어야 함 |
 
 ### 로딩

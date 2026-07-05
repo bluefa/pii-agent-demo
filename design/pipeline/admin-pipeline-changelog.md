@@ -4,6 +4,27 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 13 — 파이프라인 상세를 논리 그룹으로 재구성 + API 실사 반영 (2026-07-05)
+
+오너 피드백: "API Response가 상세 페이지에 안 녹아 있다 / 하단 접힘 2개('대상 상세
+metadata'·'실행 스케줄 메타')는 왜 필요하냐 / metadata 상단 노출 + 논리 그룹 / Task도
+논리적으로 설명 / 새로고침 버튼 삭제 / 파이프라인 목록에도 아이콘 버튼".
+RecipePreview·TaskDetail 실응답 계약(스네이크케이스, _V1 레시피 코드) 실사 기반.
+
+- **그룹 3개로 재편**: ① **파이프라인 정보**(IdentityBar 카드, 상단 — CSP 액센트·
+  TargetSourceId(↗ 대상 상세)·유형·레시피 display_name / meta: 레시피 설명·코드·서비스·
+  생성·마지막 활동·leased·스케줄 지연) ② **상태**(슬림 상태 바 — "지금" 1행만, sb-meta 폐지)
+  ③ **Task 흐름**(섹션 승격 + desc). **하단 접힘 2개 폐지** — CSP 세부는 target 페이지 몫(↗).
+- h1 "파이프라인 #id" 신설(페이지 제목 규칙 정합).
+- **Task 패널 3그룹**: **정의**(task_definition·operation 코드·실행 방식·설명) /
+  **실행 계약**(effective 폴링·타임아웃·재시도 예산·TF 슬롯 + kind별 **판정 방식** 문단 —
+  success_policy 요약, 전 terraform step 동일 텍스트라는 API 사실 반영) /
+  **진행 기록**(시각·실패 누적+error_code·attempts 테이블/폴 관찰(task_check)).
+- API 정합: recipe 코드 `*_V1`, RECIPES 카탈로그(display_name·description),
+  #128·#124 task에 task_definition·operation·description 채움.
+- **새로고침 버튼 전면 삭제**(대시보드·target — 오너 지시). "상세 ›" 텍스트 링크 →
+  **↗ 원형 버튼**으로 전 테이블(대시보드 목록·이력·대상 목록) 통일.
+
 ## Round 12 — target 상세를 app 문법으로 재구성 (2026-07-05)
 
 오너 피드백: "#/target/204 마음에 안 듦 — 기존 app의 타겟소스 상세 표현 방식으로 /

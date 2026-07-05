@@ -181,10 +181,9 @@ svg.ic.lg{width:22px;height:22px}
 .tbl tr.click{cursor:pointer}
 .tbl tr.click:hover td{background:var(--gray-50)}
 .tbl .mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
-.tbl td.chev{text-align:right;width:64px;white-space:nowrap}
+.tbl td.chev{text-align:right;width:48px;white-space:nowrap}
 .chev{color:var(--text-faint)}
-.rowlink{display:inline-flex;align-items:center;gap:2px;font-size:12px;font-weight:600;color:var(--text-weak)} /* 행 이동 어포던스 — hover 시 primary */
-tr.click:hover .rowlink{color:var(--primary)}
+tr.click:hover .btn.round{border-color:var(--primary);color:var(--primary)} /* 행 이동 어포던스 — hover 시 primary */
 
 /* ── FilterBar ── */
 .filterbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -401,7 +400,7 @@ const chk = (call,notMet,apiErr,timeout,ext,at)=>({callCount:call,notMetCount:no
 // leased·cancel_requested·due_lag는 최신 main이 실제 제공(2026-07-05 확인). tasks 안에 attempts/check.
 const PIPELINES = {
   129:{id:129, type:'INSTALL', target:102, provider:'gcp', status:'PENDING',
-    recipe:'GCP_INSTALL', nextDueAt:'2026-06-30 15:30', leased:false, cancelRequested:false, dueLagMs:0,
+    recipe:'GCP_INSTALL_V1', nextDueAt:'2026-06-30 15:30', leased:false, cancelRequested:false, dueLagMs:0,
     createdAt:'2026-06-30 14:55', lastActivityAt:'2026-06-30 14:55',
     tasks:[
       {seq:1, kind:'CONDITION_CHECK', operation:'TF 권한 확인', status:'READY', failCount:0, maxFail:6, errorCode:null, startedAt:null, finishedAt:null, pollingInterval:'10분', ttl:'7일', check:null},
@@ -410,23 +409,27 @@ const PIPELINES = {
       {seq:4, kind:'TERRAFORM_JOB', operation:'BDC 테라폼 Apply', status:'BLOCKED', failCount:0, maxFail:1, errorCode:null, startedAt:null, finishedAt:null, executionTimeout:'30분', attempts:[]},
     ]},
   128:{id:128, type:'INSTALL', target:101, provider:'aws', status:'RUNNING',
-    recipe:'AWS_INSTALL', nextDueAt:'2026-06-30 15:05', leased:true, cancelRequested:false, dueLagMs:300,
+    recipe:'AWS_INSTALL_V1', nextDueAt:'2026-06-30 15:05', leased:true, cancelRequested:false, dueLagMs:300,
     createdAt:'2026-06-30 14:02', lastActivityAt:'2026-06-30 14:25',
     tasks:[
       {seq:1, kind:'CONDITION_CHECK', operation:'TF 권한 확인', status:'DONE', failCount:1, maxFail:6,
+        def:'TF_PERMISSION_READY_V1', op:'TF_PERMISSION_READY', desc:'테라폼 실행 권한이 부여될 때까지 조건을 확인한다.',
         errorCode:null, startedAt:'14:02', finishedAt:'14:08', pollingInterval:'10분', ttl:'7일',
         check:chk(2,1,0,0,'OK','14:08')},
       {seq:2, kind:'TERRAFORM_JOB', operation:'SVC 테라폼 Apply', status:'DONE', failCount:0, maxFail:1,
+        def:'AWS_SERVICE_APPLY_V1', op:'AWS_SERVICE_TF_APPLY', desc:'대상의 AWS service level 인프라를 Terraform apply로 구성한다.',
         errorCode:null, startedAt:'14:09', finishedAt:'14:12', executionTimeout:'30분',
         attempts:[att(1,'DONE',null,'14:09','{"job_id":"tf-a91","result":"applied"}')]},
       {seq:3, kind:'TERRAFORM_JOB', operation:'BDC Common 테라폼 Apply', status:'IN_PROGRESS', failCount:0, maxFail:1,
+        def:'AWS_BDC_COMMON_APPLY_V1', op:'AWS_BDC_COMMON_TF_APPLY', desc:'BDC common 인프라를 Terraform apply로 구성한다.',
         errorCode:null, startedAt:'14:21', finishedAt:null, executionTimeout:'30분',
         attempts:[att(1,'IN_PROGRESS',null,'14:21','{"job_id":"tf-b22","result":"running"}')]},
       {seq:4, kind:'TERRAFORM_JOB', operation:'BDC Service Level 테라폼 Apply', status:'BLOCKED', failCount:0, maxFail:1,
+        def:'AWS_BDC_SERVICE_LEVEL_APPLY_V1', op:'AWS_BDC_SERVICE_LEVEL_TF_APPLY', desc:'BDC service level 인프라를 Terraform apply로 구성한다.',
         errorCode:null, startedAt:null, finishedAt:null, executionTimeout:'30분', attempts:[]},
     ]},
   127:{id:127, type:'DELETE', target:101, provider:'aws', status:'DONE',
-    recipe:'AWS_DELETE', nextDueAt:null, leased:false, cancelRequested:false, dueLagMs:0,
+    recipe:'AWS_DELETE_V1', nextDueAt:null, leased:false, cancelRequested:false, dueLagMs:0,
     createdAt:'2026-06-28 09:11', lastActivityAt:'2026-06-28 09:33',
     tasks:[
       {seq:1, kind:'TERRAFORM_JOB', operation:'BDC Service Level 테라폼 Destroy', status:'DONE', failCount:0, maxFail:1,
@@ -437,7 +440,7 @@ const PIPELINES = {
         attempts:[att(1,'DONE',null,'09:21','{"job_id":"tf-d11","result":"destroyed"}')]},
     ]},
   126:{id:126, type:'INSTALL', target:102, provider:'gcp', status:'DONE',
-    recipe:'GCP_INSTALL', nextDueAt:null, leased:false, cancelRequested:false, dueLagMs:0,
+    recipe:'GCP_INSTALL_V1', nextDueAt:null, leased:false, cancelRequested:false, dueLagMs:0,
     createdAt:'2026-06-25 11:00', lastActivityAt:'2026-06-25 11:40',
     tasks:[
       {seq:1, kind:'CONDITION_CHECK', operation:'TF 권한 확인', status:'DONE', failCount:0, maxFail:6, errorCode:null, startedAt:'11:00', finishedAt:'11:05', pollingInterval:'10분', ttl:'7일', check:chk(1,0,0,0,'OK','11:05')},
@@ -446,22 +449,22 @@ const PIPELINES = {
       {seq:4, kind:'TERRAFORM_JOB', operation:'BDC 테라폼 Apply', status:'DONE', failCount:0, maxFail:1, errorCode:null, startedAt:'11:31', finishedAt:'11:40', executionTimeout:'30분', attempts:[att(1,'DONE',null,'11:31','{"job_id":"tf-g02"}')]},
     ]},
   125:{id:125, type:'DELETE', target:103, provider:'idc', status:'RUNNING',
-    recipe:'IDC_DELETE', nextDueAt:'2026-06-30 15:02', leased:false, cancelRequested:true, dueLagMs:2400,
+    recipe:'IDC_DELETE_V1', nextDueAt:'2026-06-30 15:02', leased:false, cancelRequested:true, dueLagMs:2400,
     createdAt:'2026-06-30 13:50', lastActivityAt:'2026-06-30 13:56',
     tasks:[
       {seq:1, kind:'TERRAFORM_JOB', operation:'BDP 테라폼 Destroy', status:'IN_PROGRESS', failCount:0, maxFail:1, errorCode:null, startedAt:'13:50', finishedAt:null, executionTimeout:'30분', attempts:[att(1,'IN_PROGRESS',null,'13:50','{"job_id":"tf-i01","result":"running"}')]},
       {seq:2, kind:'TERRAFORM_JOB', operation:'BDC CX 테라폼 Destroy', status:'BLOCKED', failCount:0, maxFail:1, errorCode:null, startedAt:null, finishedAt:null, executionTimeout:'30분', attempts:[]},
     ]},
   124:{id:124, type:'INSTALL', target:204, provider:'azure', status:'FAILED',
-    recipe:'AZURE_INSTALL', nextDueAt:null, leased:false, cancelRequested:false, dueLagMs:0,
+    recipe:'AZURE_INSTALL_V1', nextDueAt:null, leased:false, cancelRequested:false, dueLagMs:0,
     createdAt:'2026-06-29 16:10', lastActivityAt:'2026-06-29 16:40',
     tasks:[
-      {seq:1, kind:'CONDITION_CHECK', operation:'AzureVM 설치 확인', status:'DONE', failCount:1, maxFail:6, errorCode:null, startedAt:'16:10', finishedAt:'16:18', pollingInterval:'10분', ttl:'7일', check:chk(2,1,0,0,'OK','16:18')},
-      {seq:2, kind:'TERRAFORM_JOB', operation:'PE 승인 요청', status:'FAILED', failCount:1, maxFail:1, errorCode:'JOB_FAILED', startedAt:'16:19', finishedAt:'16:40', executionTimeout:'30분', desc:'Azure Private Endpoint 승인을 요청하는 테라폼 잡', attempts:[att(1,'FAILED','JOB_FAILED','16:19','{"job_id":"tf-z01","error":"quota exceeded"}')]},
-      {seq:3, kind:'CONDITION_CHECK', operation:'PE 승인 확인', status:'BLOCKED', failCount:0, maxFail:12, errorCode:null, startedAt:null, finishedAt:null, pollingInterval:'10분', ttl:'7일', check:null},
+      {seq:1, kind:'CONDITION_CHECK', operation:'AzureVM 설치 확인', status:'DONE', failCount:1, maxFail:6, def:'AZURE_VM_READY_V1', op:'AZURE_VM_READY', desc:'AzureVM이 설치 완료 상태가 될 때까지 조건을 확인한다.', errorCode:null, startedAt:'16:10', finishedAt:'16:18', pollingInterval:'10분', ttl:'7일', check:chk(2,1,0,0,'OK','16:18')},
+      {seq:2, kind:'TERRAFORM_JOB', operation:'PE 승인 요청', status:'FAILED', failCount:1, maxFail:1, def:'AZURE_PE_REQUEST_V1', op:'AZURE_PE_TF_REQUEST', desc:'Azure Private Endpoint 승인을 요청하는 테라폼 잡을 실행한다.', errorCode:'JOB_FAILED', startedAt:'16:19', finishedAt:'16:40', executionTimeout:'30분', attempts:[att(1,'FAILED','JOB_FAILED','16:19','{"job_id":"tf-z01","error":"quota exceeded"}')]},
+      {seq:3, kind:'CONDITION_CHECK', operation:'PE 승인 확인', status:'BLOCKED', failCount:0, maxFail:12, def:'AZURE_PE_APPROVED_V1', op:'AZURE_PE_APPROVED', desc:'요청한 Private Endpoint가 승인될 때까지 조건을 확인한다.', errorCode:null, startedAt:null, finishedAt:null, pollingInterval:'10분', ttl:'7일', check:null},
     ]},
   123:{id:123, type:'INSTALL', target:305, provider:'aws', status:'CANCELLED',
-    recipe:'AWS_INSTALL', nextDueAt:null, leased:false, cancelRequested:false, dueLagMs:0,
+    recipe:'AWS_INSTALL_V1', nextDueAt:null, leased:false, cancelRequested:false, dueLagMs:0,
     createdAt:'2026-06-27 10:00', lastActivityAt:'2026-06-27 10:05',
     tasks:[
       {seq:1, kind:'CONDITION_CHECK', operation:'TF 권한 확인', status:'CANCELLED', failCount:0, maxFail:6, errorCode:null, startedAt:'10:00', finishedAt:'10:05', pollingInterval:'10분', ttl:'7일', check:chk(1,0,0,0,'-','10:05')},
@@ -494,6 +497,21 @@ const periodStats = period => {
           done:   rows.filter(p=>p.status==='DONE').length};
 };
 
+// 레시피 카탈로그 — RecipePreview 응답의 display_name/description (오너 API 실사 2026-07-05)
+const RECIPES={
+  AWS_INSTALL_V1:{displayName:'AWS 인프라 설치',desc:'AWS 서비스, BDC common, BDC service level 인프라를 단위별 Terraform으로 구성한다.'},
+  AWS_DELETE_V1:{displayName:'AWS 인프라 삭제',desc:'구성된 AWS 인프라를 역순으로 Terraform destroy 한다.'},
+  GCP_INSTALL_V1:{displayName:'GCP 인프라 설치',desc:'GCP 서비스·BDC 인프라를 Terraform으로 구성한다. Subnet 준비 확인 후 진행한다.'},
+  GCP_DELETE_V1:{displayName:'GCP 인프라 삭제',desc:'구성된 GCP 인프라를 역순으로 Terraform destroy 한다.'},
+  AZURE_INSTALL_V1:{displayName:'Azure 인프라 설치',desc:'AzureVM 설치를 확인하고 Private Endpoint 승인을 요청·확인한다.'},
+  IDC_DELETE_V1:{displayName:'IDC 인프라 삭제',desc:'IDC의 BDP·BDC CX 인프라를 Terraform destroy 한다.'},
+};
+// kind별 판정 방식 — TaskDefinitionView.success_policy 요약 (전 terraform step 동일 텍스트라는 API 사실 반영)
+const KIND_POLICY={
+  TERRAFORM_JOB:'디스패치한 모든 job을 polling 간격으로 폴링 — 전부 COMPLETED면 성공, 하나라도 FAILED면 JOB_FAILED, 타임아웃 도달 시 EXECUTION_TIMEOUT. 실패·호출 오류는 fail_count로 누적되고 max까지 멱등 재디스패치로 재시도한다.',
+  CONDITION_CHECK:'디스패치 없이 조건 확인 API를 polling 간격으로 호출 — 충족이 관측되면 성공. 미충족·호출 오류는 fail_count로 누적돼 max에 도달하면 실패한다(타임아웃 대신 재시도 예산으로 경계).',
+};
+
 // 🆕 A9 preview recipe (provider+type별 DAG)
 function previewRecipe(provider, type){
   const install = {
@@ -518,7 +536,7 @@ function createPipeline(ts, type){
   const newId=Math.max(0,...Object.keys(PIPELINES).map(Number))+1;
   const now=new Date().toISOString().slice(0,16).replace('T',' ');
   PIPELINES[newId]={id:newId, type, target:ts.id, provider:ts.provider, status:'RUNNING',
-    recipe:`${ts.provider.toUpperCase()}_${type}`, nextDueAt:null, leased:false, cancelRequested:false, dueLagMs:0,
+    recipe:`${ts.provider.toUpperCase()}_${type}_V1`, nextDueAt:null, leased:false, cancelRequested:false, dueLagMs:0,
     createdAt:now, lastActivityAt:now,
     tasks:steps.map((s,i)=>({seq:s.seq, kind:s.kind, operation:s.operation,
       status:i===0?'READY':'BLOCKED', failCount:0, maxFail:s.kind==='CONDITION_CHECK'?6:1,
@@ -585,7 +603,6 @@ const pill = (status)=>`<span class="pill s-${status}"><span class="dot"></span>
 // 설치 상태(process_status) 칩은 오너 지시로 표시 제거(2026-07-05) — targetButtons 내부 판정에만 사용
 const activeRun=tsId=>(BY_TARGET[tsId]||[]).map(i=>PIPELINES[i]).find(p=>p.status==='RUNNING'||p.status==='PENDING')||null;
 const progressBar = (n,m,status)=>`<span class="pbar${m&&n===m?' done':''}${status?` s-${status}`:''}"><span class="track"><span class="fill" style="width:${m?Math.round(n/m*100):0}%"></span></span><span class="lbl">${n}/${m}</span></span>`;
-const naTag = '<span class="ftag na">미제공</span>';
 
 /* =========================================================================
  * Router
@@ -681,7 +698,6 @@ function viewDashboard(){
       <select class="sel" id="fprov">
         <option value="">CSP 전체</option><option value="aws">AWS</option><option value="azure">Azure</option><option value="gcp">GCP</option><option value="idc">IDC</option>
       </select>
-      <button class="btn ghost" id="refresh" style="margin-left:auto">${ic('i-refresh','ic sm')} 새로고침</button>
     </div>
     <div class="card">
       <div id="listwrap"></div>
@@ -697,7 +713,6 @@ function viewDashboard(){
   const q=root.querySelector('#q'); q.value=dashFilter.q; q.oninput=()=>{dashFilter.q=q.value; bindFilter();};
   const fs=root.querySelector('#fstatus'); fs.value=dashFilter.status; fs.onchange=()=>{dashFilter.status=fs.value; bindFilter();};
   const fp=root.querySelector('#fprov'); fp.value=dashFilter.provider; fp.onchange=()=>{dashFilter.provider=fp.value; bindFilter();};
-  root.querySelector('#refresh').onclick=()=>{toast('목록을 새로고침했어요');renderList(root);};
   return root;
 }
 // 현황 3장 = 전역 기간 요약: 실패/성공은 헤더 기간 seg와 동기화(전 대시보드 같은 기간, 오너 확정 2026-07-05).
@@ -741,7 +756,7 @@ function renderList(root){
       <td>${pill(p.status)}</td>
       <td>${progressBar(progressN(p),progressM(p),p.status)}</td>
       <td class="muted">${esc(p.createdAt)}</td>
-      <td class="chev"><span class="rowlink">상세 ${ic('i-chev-r','ic sm')}</span></td></tr>`).join('')}</tbody></table>${
+      <td class="chev"><button class="btn secondary sm round" tabindex="-1" title="파이프라인 상세로 이동">${ic('i-arrow-ur','ic sm')}</button></td></tr>`).join('')}</tbody></table>${
     pages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
       <button class="btn ghost sm" ${dashPage<=1?'disabled':''} id="prev">${ic('i-chev-l','ic sm')} 이전</button>
       <span class="pager-count">${dashPage} / ${pages}</span>
@@ -799,7 +814,7 @@ function renderTsPanel(root){
     <div class="section-desc">대상을 선택하면 상세에서 설치·삭제를 시작할 수 있어요</div>`+
     (list.length?`<table class="tbl"><thead><tr><th>TargetSourceId</th><th>CSP</th><th>파이프라인</th><th></th></tr></thead><tbody>${
       list.map(t=>{const run=activeRun(t.id);
-        return `<tr class="click" data-ts="${esc(t.id)}"><td class="mono">${esc(t.id)}</td><td>${provTag(t.provider)}</td><td>${run?`${pill(run.status)} <span class="meta mono">#${run.id}</span>`:'<span class="muted">—</span>'}</td><td class="chev"><span class="rowlink">상세 ${ic('i-chev-r','ic sm')}</span></td></tr>`;}).join('')}</tbody></table>`
+        return `<tr class="click" data-ts="${esc(t.id)}"><td class="mono">${esc(t.id)}</td><td>${provTag(t.provider)}</td><td>${run?`${pill(run.status)} <span class="meta mono">#${run.id}</span>`:'<span class="muted">—</span>'}</td><td class="chev"><button class="btn secondary sm round" tabindex="-1" title="대상 상세로 이동">${ic('i-arrow-ur','ic sm')}</button></td></tr>`;}).join('')}</tbody></table>`
     :`<div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>target source 없음</div>`);
   panel.querySelectorAll('tr[data-ts]').forEach(tr=>{
     tr.setAttribute('role','button'); tr.setAttribute('tabindex','0');
@@ -836,8 +851,6 @@ function viewTarget(id){
         </div>
         <span class="div"></span>
         <div class="fld"><span class="k">TargetSourceId</span><span class="v">${esc(ts.id)}</span></div>
-        <span style="flex:1"></span>
-        <button class="btn ghost sm" id="refresh">${ic('i-refresh','ic sm')} 새로고침</button>
       </div>
       ${(rows=>rows.length?`<div class="idbar-meta"><div class="kv wide">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div></div>`:'')(cspMetaRows(ts).slice(1).filter(r=>r[0]!=='CSP metadata'))}
     </div>
@@ -888,7 +901,7 @@ function viewTarget(id){
   const hslice=ids.slice((histState.page-1)*PAGE_SIZE, histState.page*PAGE_SIZE);
   if(ids.length){
     hist.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>파이프라인 유형</th><th>상태</th><th>진행도</th><th>생성시간</th><th></th></tr></thead><tbody>${
-      hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p),p.status)}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev"><span class="rowlink">상세 ${ic('i-chev-r','ic sm')}</span></td></tr>`).join('')}</tbody></table>${
+      hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p),p.status)}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev"><button class="btn secondary sm round" tabindex="-1" title="파이프라인 상세로 이동">${ic('i-arrow-ur','ic sm')}</button></td></tr>`).join('')}</tbody></table>${
       hpages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
         <button class="btn ghost sm" ${histState.page<=1?'disabled':''} id="hprev">${ic('i-chev-l','ic sm')} 이전</button>
         <span class="pager-count">${histState.page} / ${hpages}</span>
@@ -904,7 +917,6 @@ function viewTarget(id){
   }else{
     hist.innerHTML=`<div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>파이프라인 이력이 없어요</div>`;
   }
-  root.querySelector('#refresh').onclick=()=>toast('상태를 새로고침했어요');
   const bi=root.querySelector('#btn-install'), bd=root.querySelector('#btn-delete'), bc=root.querySelector('#btn-cancel');
   if(btns.install) bi.onclick=()=>openPreview(ts,'INSTALL');
   if(btns.delete) bd.onclick=()=>openPreview(ts,'DELETE');
@@ -938,8 +950,40 @@ function viewPipeline(id){
   const curLabel=p.status==='PENDING'?`시작 대기 · ${esc(p.nextDueAt||'-')} 시작 예정`
     :cur?`현재 seq ${cur.seq} · ${esc(cur.operation)}${cur.failCount>0?` (재시도 ${cur.failCount}/${cur.maxFail})`:''}`
     :currentTaskLabel(p);
+  // 논리 그룹 3개(오너 2026-07-05: "metadata 상단 노출·접힘 폐지"): ① 파이프라인 정보(IdentityBar 카드
+  // — 무시간 식별·레시피·실행 기록) ② 상태(지금) ③ Task 흐름(본문). CSP 세부는 target 페이지 몫(↗).
+  const rec=RECIPES[p.recipe]||{displayName:p.recipe||'-',desc:''};
   const root=el(`<div>
     ${breadcrumb(crumbs)}
+    <div class="page-head"><h1>파이프라인 <span style="font-variant-numeric:tabular-nums">#${p.id}</span></h1></div>
+    <div class="idbar" style="--ib-accent:var(--pv-${p.provider})">
+      <div class="idbar-row">
+        <div class="prov">
+          <span class="picon">${ic('i-cloud','ic lg')}</span>
+          <div><div class="pname">${PROVIDERS[p.provider]||esc(p.provider)}</div>${p.provider==='idc'?'':'<div class="psub">Cloud Provider</div>'}</div>
+        </div>
+        <span class="div"></span>
+        <div class="fld"><span class="k">TargetSourceId</span><span class="v">${esc(p.target)}</span></div>
+        <span class="div"></span>
+        <div class="fld"><span class="k">파이프라인 유형</span><span class="v">${esc(p.type)}</span></div>
+        <span class="div"></span>
+        <div class="fld"><span class="k">레시피</span><span class="v" style="font-family:var(--font-sans)" title="${esc(p.recipe||'')}">${esc(rec.displayName)}</span></div>
+        <span style="flex:1"></span>
+        <button class="btn secondary sm round" data-nav="#/target/${encodeURIComponent(p.target)}" title="대상 상세로 이동" aria-label="대상 상세로 이동">${ic('i-arrow-ur','ic sm')}</button>
+      </div>
+      <div class="idbar-meta">
+        ${rec.desc?`<div class="meta" style="margin-bottom:12px">${esc(rec.desc)}</div>`:''}
+        <div class="idbar-row" style="gap:24px">
+          <div class="fld"><span class="k">서비스</span><span class="v" style="font-family:var(--font-sans)">${esc(svcName||(ts&&ts.serviceName)||'-')}</span></div>
+          <div class="fld"><span class="k">레시피 코드</span><span class="v">${esc(p.recipe||'-')}</span></div>
+          <div class="fld"><span class="k">생성</span><span class="v">${esc(p.createdAt)}</span></div>
+          <div class="fld"><span class="k">마지막 활동</span><span class="v">${esc(p.lastActivityAt)}</span></div>
+          ${nonTerminal?`<div class="fld"><span class="k">leased</span><span class="v" style="font-family:var(--font-sans)">${p.leased?'예 — 워커 실행 중':'아니오'}</span></div>
+          <div class="fld"><span class="k">스케줄 지연</span><span class="v">${p.dueLagMs??0} ms${(p.dueLagMs||0)>1000?' ⚠️':''}</span></div>`:''}
+        </div>
+      </div>
+    </div>
+    <div class="section-title">상태</div>
     <div class="statusbar${p.status==='FAILED'?' failed':''}">
       <div class="sb-main">
         <span class="pill lg s-${p.status}"><span class="dot"></span>${p.status}</span>
@@ -953,36 +997,15 @@ function viewPipeline(id){
           <button class="btn danger sm" id="pcancel" ${canCancel(p)?'':'disabled'}>파이프라인 취소</button>
         </span>
       </div>
-      <div class="sb-meta">
-        <span>${esc(p.type)} <span class="mono">#${p.id}</span></span><span class="sep">·</span>
-        <span title="recipe_definition — 이 파이프라인을 만든 레시피">레시피 <span class="mono">${esc(p.recipe||'-')}</span></span><span class="sep">·</span>
-        <span class="vrow" style="gap:6px">${provTag(p.provider)} <span class="mono">${esc(p.target)}</span></span><span class="sep">·</span>
-        <span>${esc(svcName||(ts&&ts.serviceName)||'')}</span><span class="sep">·</span>
-        <span>생성 ${esc(p.createdAt)}</span><span class="sep">·</span>
-        <span>마지막 활동 ${esc(p.lastActivityAt)}</span><span class="sep">·</span>
-        <span>단계 ${currentTaskLabel(p)} / 총 ${finalSeq(p)}</span>
-      </div>
     </div>
-    <div class="detail-grid">
+    <div class="section-title">Task 흐름</div>
+    <div class="section-desc">레시피의 실행 순서 — 노드를 클릭하면 우측에 상세가 표시됩니다</div>
+    <div class="detail-grid" style="margin-top:0">
       <div class="card">
-        <div class="section-title" style="margin-bottom:12px">Task 흐름 <span class="meta">읽기 전용 · 노드 클릭 → 우측 상세</span></div>
         <div class="flow" id="flow"></div>
       </div>
       <aside class="sidepanel" id="taskdetail"></aside>
     </div>
-    <details class="collap"><summary>대상 상세 metadata — ${PROVIDERS[p.provider]||p.provider} · ${esc(p.target)}</summary><div class="body">
-      <div class="kv wide">${cspMetaRows(ts).map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div>
-      <button class="btn ghost sm mt-12" data-nav="#/target/${encodeURIComponent(p.target)}">대상 상세 ${ic('i-chev-r','ic sm')}</button>
-    </div></details>
-    <details class="collap"><summary>실행 스케줄 메타 — next_due · lease · cancel</summary><div class="body">
-      <div class="note" style="margin-bottom:12px">스케줄러 관점의 실행 상태(PipelineDetail 응답 제공, 2026-07-05부터 실필드) — 문제 추적용 보조 정보.</div>
-      <div class="kv">
-        <div class="k">next_due_at</div><div class="v mono">${p.nextDueAt?esc(p.nextDueAt):'-'}</div>
-        <div class="k">leased</div><div class="v">${p.leased?'예 — 워커가 실행 중':'아니오'}</div>
-        <div class="k">cancel_requested</div><div class="v">${p.cancelRequested?'예 — 다음 사이클에 취소 반영':'아니오'}</div>
-        <div class="k">due lag</div><div class="v">${nonTerminal?`${p.dueLagMs??0} ms${(p.dueLagMs||0)>1000?' — 스케줄 지연 주의':''}`:'-'}</div>
-      </div>
-    </div></details>
   </div>`);
   // flow
   const flow=root.querySelector('#flow');
@@ -1011,40 +1034,51 @@ function renderTaskDetail(root,p){
   const t=p.tasks.find(x=>x.seq==app.selectedTaskId);
   if(!t){ box.innerHTML=`<div class="card empty"><span class="ico">${ic('i-cursor','ic lg')}</span>Task 노드를 클릭하면 상세가 여기에 표시됩니다</div>`; return; }
   const cond=t.kind==='CONDITION_CHECK';
-  let detail;
+  const eff='<span class="formula" title="effective_* — task 오버라이드 + 전역 설정이 반영된 실효값">effective</span>';
+  // 진행 기록 꼬리: TERRAFORM_JOB=attempts(시도별 기록), CONDITION_CHECK=폴 관찰(task_check)
+  let record;
   if(cond){
     const c=t.check;
-    detail=`<div class="subsection-title">Check 요약 <span class="meta">CONDITION_CHECK</span></div>`+
-      (c?`<div class="kv wide">
+    record=c?`<div class="meta" style="margin:12px 0 6px">폴 관찰 (task_check)</div>
+      <div class="kv wide">
         <div class="k">call / not_met</div><div class="v">${c.callCount} / ${c.notMetCount}</div>
         <div class="k">api_error / timeout</div><div class="v">${c.apiErrorCount} / ${c.callTimeoutCount}</div>
         <div class="k">last_external_status</div><div class="v">${esc(c.lastExternalStatus)}</div>
         <div class="k">last_checked_at</div><div class="v">${esc(c.lastCheckedAt)}</div>
-      </div>`:`<div class="empty">아직 폴링 기록 없음</div>`);
-      /* last_response_code/summary 상설 null 행 제거 — info-hierarchy §4 #7 (값이 채워지는 날 행 추가) */
+      </div>`:`<div class="empty">아직 폴링 기록 없음</div>`;
   }else{
-    detail=`<div class="subsection-title">Attempts <span class="meta">TERRAFORM_JOB</span></div>`+
-      (t.attempts&&t.attempts.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>상태</th><th>error_code</th><th>시각</th><th>response (원시 text)</th></tr></thead><tbody>${
+    record=t.attempts&&t.attempts.length?`<div class="meta" style="margin:12px 0 6px">attempts — 시도별 기록 (response는 외부 응답 원문)</div>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>상태</th><th>error_code</th><th>시각</th><th>response</th></tr></thead><tbody>${
         t.attempts.map(a=>`<tr><td>${a.attemptNo}</td><td>${pill(a.status)}</td><td>${a.errorCode?esc(a.errorCode):'-'}</td><td class="muted">${a.at}</td><td class="mono" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(a.response)}">${esc(a.response)}</td></tr>`).join('')}</tbody></table></div>`
-      :`<div class="empty">아직 시도 없음 (BLOCKED)</div>`);
+      :`<div class="empty">아직 시도 없음 (BLOCKED)</div>`;
   }
   box.innerHTML=`<div class="card">
-    <div class="section-title">Task seq ${t.seq} · ${esc(t.operation)}</div>
-    <div class="vrow" style="gap:8px;margin-bottom:16px">
+    <div class="section-title">seq ${t.seq} · ${esc(t.operation)}</div>
+    <div class="vrow" style="gap:8px;margin-bottom:12px">
       <span class="kindchip ${cond?'cond':''}">${t.kind}</span>${pill(t.status)}
     </div>
+    ${t.desc?`<div class="note" style="margin-bottom:16px">${esc(t.desc)}</div>`:''}
+    <div class="subsection-title">정의</div>
     <div class="kv wide" style="margin-bottom:16px">
-      <div class="k">operation</div><div class="v">${esc(t.operation)}</div>
-      ${t.desc?`<div class="k">설명</div><div class="v" style="font-weight:400">${esc(t.desc)}</div>`:''}
-      ${cond?`<div class="k">polling / ttl <span class="formula">effective</span></div><div class="v">${esc(t.pollingInterval)} / ${esc(t.ttl)}</div>
-        <div class="k">maxFailCount <span class="formula">effective</span></div><div class="v vrow">${t.maxFail} <span class="formula">count-bound(ttl→finite)</span></div>`
-        :`<div class="k">실행 타임아웃 <span class="formula">effective</span></div><div class="v">${esc(t.executionTimeout)}</div>
-        <div class="k">fail / maxFail</div><div class="v">${t.failCount} / ${t.maxFail}</div>
-        <div class="k">TF 슬롯</div><div class="v" title="consumes_terraform_slot — 동시 실행 상한(slot cap)을 차감하는 task">사용</div>`}
-      <div class="k">started / finished</div><div class="v">${t.startedAt||'-'} / ${t.finishedAt||'-'}</div>
+      ${t.def?`<div class="k">task_definition</div><div class="v mono">${esc(t.def)}</div>`:''}
+      ${t.op?`<div class="k">operation</div><div class="v mono">${esc(t.op)}</div>`:''}
+      <div class="k">실행 방식</div><div class="v">${cond?'조건 확인 — 디스패치 없이 폴링':'테라폼 잡 — 디스패치 후 폴링'}</div>
     </div>
-    <div class="meta" style="margin-bottom:16px">effective_* = custom 오버라이드가 반영된 실효값</div>
-    ${detail}
+    <div class="subsection-title">실행 계약</div>
+    <div class="kv wide">
+      ${cond?`<div class="k">polling / ttl ${eff}</div><div class="v">${esc(t.pollingInterval)} / ${esc(t.ttl)}</div>
+        <div class="k">재시도 예산 ${eff}</div><div class="v vrow">${t.maxFail}회 <span class="formula">count-bound(ttl→finite)</span></div>`
+        :`<div class="k">실행 타임아웃 ${eff}</div><div class="v">${esc(t.executionTimeout)}</div>
+        <div class="k">재시도 예산 ${eff}</div><div class="v">${t.maxFail}회</div>
+        <div class="k">TF 슬롯</div><div class="v" title="consumes_terraform_slot — 동시 실행 상한(slot cap)을 차감하는 task">사용</div>`}
+    </div>
+    <div class="formula" style="margin:8px 0 16px">판정: ${KIND_POLICY[t.kind]}</div>
+    <div class="subsection-title">진행 기록</div>
+    <div class="kv wide">
+      <div class="k">started / finished</div><div class="v">${t.startedAt||'-'} / ${t.finishedAt||'-'}</div>
+      <div class="k">실패 누적</div><div class="v">${t.failCount} / ${t.maxFail}${t.errorCode?` · <span class="mono" style="color:var(--err-text)">${esc(t.errorCode)}</span>`:''}</div>
+    </div>
+    ${record}
   </div>`;
 }
 
@@ -1067,7 +1101,7 @@ function openPreview(ts,type){
   const steps=previewRecipe(ts.provider,type);
   const m=mountModal(`<div class="modal">
     <h3>${type==='INSTALL'?'설치':'삭제'} 실행 미리보기</h3>
-    <div class="desc">${esc(ts.id)} · ${PROVIDERS[ts.provider]} · 레시피 <span class="mono">${ts.provider.toUpperCase()}_${type}</span> — 아래 순서로 파이프라인이 생성됩니다. <span class="muted">유일성: 진행 중 run이 있으면 기존 run을 반환합니다.</span></div>
+    <div class="desc">${esc(ts.id)} · ${PROVIDERS[ts.provider]} · 레시피 <span class="mono">${ts.provider.toUpperCase()}_${type}_V1</span> — 아래 순서로 파이프라인이 생성됩니다. <span class="muted">유일성: 진행 중 run이 있으면 기존 run을 반환합니다.</span></div>
     <div class="recipe">${steps.map(s=>`<div class="step"><span class="sq">${s.seq}</span>${esc(s.operation)} <span class="kindchip ${s.kind==='CONDITION_CHECK'?'cond':''}" style="margin-left:auto">${s.kind}</span></div>`).join('')||'<span class="muted">recipe 없음</span>'}</div>
     <div class="foot"><button class="btn ghost" id="mcancel">취소</button><button class="btn primary" id="mrun">${type==='INSTALL'?'설치':'삭제'} 실행</button></div>
   </div>`);

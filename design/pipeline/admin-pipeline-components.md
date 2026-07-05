@@ -238,9 +238,8 @@ TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `PipelineStatusBar` = 대형 StatusPill + ProgressBar(P5) + `Button(danger)`(취소, 파이프라인 스코프 — **여기 1곳만**) | 1행: status(P2, **PENDING 포함**)·**취소 요청됨 배지(cancel_requested)**·진행 N/M·현재 task(재시도 예산 fail/max 병기, PENDING이면 "시작 대기 · next_due_at 시작 예정")·FAILED면 error_code 요약·우측 "다음 실행 next_due_at"(RUNNING) ✅ / 2행 meta: 타입#ID·**레시피(recipe_definition)**·CSP+target·서비스·생성·마지막 활동·단계 n/총 m ✅ | ✅ |
-| `TargetContextChip` (상태 바 2행 내) | provider·targetSourceId·serviceName — 전체 CSP metadata는 하단 Collapsible + target 페이지 링크 | ✅ |
-| `ExecScheduleMeta` = `Collapsible(P16)` (페이지 하단, 구 UnavailableMetaGroup 대체 — **2026-07-05부터 실필드**) | next_due_at / leased / cancel_requested / due lag(>1s면 지연 주의 문구) ✅ | ✅ kv 4행 |
+| 페이지 헤더 + **파이프라인 정보 카드**(IdentityBar 재사용 — Round 13, 접힘 2개 폐지) | h1 "파이프라인 #id" / 카드 1행: CSP 액센트·**TargetSourceId(↗ 대상 상세)**·파이프라인 유형·**레시피 display_name** / meta 구간: 레시피 설명(RecipePreview.description)·레시피 코드(`*_V1`)·서비스·생성·마지막 활동·**leased·스케줄 지연**(비종단만) ✅ | ✅ |
+| `PipelineStatusBar` — **"지금" 1행만**(sb-meta 폐지, 정보 카드로 이관) + `Button(danger)`(취소 — **여기 1곳만**) | status(P2, PENDING 포함)·취소 요청됨 배지(cancel_requested)·진행 N/M·현재 task(재시도 fail/max 병기, PENDING이면 "시작 대기 · next_due_at 시작 예정")·FAILED면 error_code·우측 "다음 실행 next_due_at"(RUNNING) ✅ | ✅ |
 
 **Task 흐름** — `PipelineDetail.tasks[]`
 
@@ -256,7 +255,7 @@ TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `TaskDetailPanel` 헤더 = `KeyValueGrid` | task 전체 컬럼 — **effective_\*(custom 오버라이드 반영 실효값) 라벨 명시**, TERRAFORM_JOB엔 **TF 슬롯(consumes_terraform_slot)** 행, `description` 있으면 설명 행 (읽기전용 — PATCH 없음) | ✅ |
+| `TaskDetailPanel` — **3그룹**(Round 13: "Task를 논리적으로 설명") | 제목(seq·이름)+칩+설명(description) → ① **정의**: task_definition·operation 코드·실행 방식 ② **실행 계약**: effective 폴링·타임아웃·재시도 예산·TF 슬롯 + **판정 방식 문단**(success_policy 요약 — kind별 공통 텍스트라는 API 사실) ③ **진행 기록**: 시각·실패 누적+error_code·attempts/폴 관찰 | ✅ |
 | `AttemptList` = `DataTable` | attempt_no/status/error_code/시각 ✅, **response**(원시 text) ✅. `job_ids`/`dispatch_response_*` = ❌ 제거필드 → **컬럼 없음**(원본 명시) | ✅ |
 | `CheckSummary` = `KeyValueGrid` | call/not_met/api_error/call_timeout/last_external_status/last_checked_at ✅ · last_response_code·summary ⚠️(미채움→null `FieldTag`) | ✅/⚠️ |
 

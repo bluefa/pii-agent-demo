@@ -180,10 +180,9 @@ svg.ic.lg{width:22px;height:22px}
 .tbl tr.click{cursor:pointer}
 .tbl tr.click:hover td{background:var(--gray-50)}
 .tbl .mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
-.tbl td.chev{text-align:right;width:64px;white-space:nowrap}
+.tbl td.chev{text-align:right;width:48px;white-space:nowrap}
 .chev{color:var(--text-faint)}
-.rowlink{display:inline-flex;align-items:center;gap:2px;font-size:12px;font-weight:600;color:var(--text-weak)} /* 행 이동 어포던스 — hover 시 primary */
-tr.click:hover .rowlink{color:var(--primary)}
+tr.click:hover .btn.round{border-color:var(--primary);color:var(--primary)} /* 행 이동 어포던스 — hover 시 primary */
 
 /* ── FilterBar ── */
 .filterbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -456,8 +455,8 @@ details.collap>.body{padding:0 14px 14px}
 <div class="card">
   <table class="tbl"><thead><tr>
     <th>TargetSourceId</th><th>CSP</th><th>파이프라인 유형</th><th>상태</th><th>진행도</th><th>생성시간</th><th></th></tr></thead><tbody>
-    <tr class="click"><td class="mono">204</td><td><span class="ptag pv-azure"><span class="pdot"></span>Azure</span></td><td>INSTALL</td><td><span class="pill s-FAILED"><span class="dot"></span>FAILED</span></td><td><span class="pbar s-FAILED"><span class="track"><span class="fill" style="width:33%"></span></span><span class="lbl">1/3</span></span></td><td class="muted">2026-06-29 16:10</td><td class="chev"><span class="rowlink">상세 <svg class="ic sm" aria-hidden="true"><use href="#i-chev-r"/></svg></span></td></tr>
-    <tr class="click"><td class="mono">101</td><td><span class="ptag pv-aws"><span class="pdot"></span>AWS</span></td><td>INSTALL</td><td><span class="pill s-RUNNING"><span class="dot"></span>RUNNING</span></td><td><span class="pbar"><span class="track"><span class="fill" style="width:50%"></span></span><span class="lbl">2/4</span></span></td><td class="muted">2026-06-30 14:02</td><td class="chev"><span class="rowlink">상세 <svg class="ic sm" aria-hidden="true"><use href="#i-chev-r"/></svg></span></td></tr>
+    <tr class="click"><td class="mono">204</td><td><span class="ptag pv-azure"><span class="pdot"></span>Azure</span></td><td>INSTALL</td><td><span class="pill s-FAILED"><span class="dot"></span>FAILED</span></td><td><span class="pbar s-FAILED"><span class="track"><span class="fill" style="width:33%"></span></span><span class="lbl">1/3</span></span></td><td class="muted">2026-06-29 16:10</td><td class="chev"><button class="btn secondary sm round" title="상세로 이동"><svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></button></td></tr>
+    <tr class="click"><td class="mono">101</td><td><span class="ptag pv-aws"><span class="pdot"></span>AWS</span></td><td>INSTALL</td><td><span class="pill s-RUNNING"><span class="dot"></span>RUNNING</span></td><td><span class="pbar"><span class="track"><span class="fill" style="width:50%"></span></span><span class="lbl">2/4</span></span></td><td class="muted">2026-06-30 14:02</td><td class="chev"><button class="btn secondary sm round" title="상세로 이동"><svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></button></td></tr>
   </tbody></table>
 </div>
 
@@ -502,8 +501,6 @@ details.collap>.body{padding:0 14px 14px}
     </div>
     <span class="div"></span>
     <div class="fld"><span class="k">TargetSourceId</span><span class="v">204</span></div>
-    <span style="flex:1"></span>
-    <button class="btn ghost sm"><svg class="ic sm" aria-hidden="true"><use href="#i-refresh"/></svg> 새로고침</button>
   </div>
   <div class="idbar-meta"><div class="kv wide">
     <div class="k">Tenant ID</div><div class="v mono">a1b2c3d4-1111-4222-8333-d4e5f6a7b8c9</div>
