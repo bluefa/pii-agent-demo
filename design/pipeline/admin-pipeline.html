@@ -21,10 +21,10 @@
   /* primary */
   --primary:#2563EB; --primary-hover:#1D4ED8; --primary-bg:#EFF4FF; --primary-ring:#D1E0FF;
   /* status */
-  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3;
+  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3; --ok-border:#A6F4C5;
   --err:#F04438; --err-text:#B42318; --err-bg:#FEF3F2; --err-border:#FDA29B;
-  --info:#2E90FA; --info-text:#175CD3; --info-bg:#EFF8FF;
-  --warn:#F79009; --warn-text:#B54708; --warn-bg:#FFFAEB;
+  --info:#2E90FA; --info-text:#175CD3; --info-bg:#EFF8FF; --info-border:#B2DDFF;
+  --warn:#F79009; --warn-text:#B54708; --warn-bg:#FFFAEB; --warn-border:#FEDF89;
   --off:#98A2B3; --off-text:#475467; --off-bg:#F2F4F7;
   /* provider */
   --pv-aws:#EC7211; --pv-azure:#0078D4; --pv-gcp:#4285F4; --pv-idc:#344054; --pv-sdu:#7F56D9;
@@ -241,30 +241,64 @@ details.collap>summary::before{content:"";width:12px;height:12px;flex:none;backg
 details.collap[open]>summary::before{transform:rotate(90deg)}
 details.collap>.body{padding:0 14px 14px}
 
-/* ── Task flow ── */
-.flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:2px}
-.tnode{flex:none;width:172px;height:184px;display:flex;flex-direction:column;align-items:flex-start;border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;
-  background:var(--bg-card);cursor:pointer;position:relative;transition:border-color .12s,box-shadow .12s}
-.tnode:hover{border-color:var(--border-strong);box-shadow:var(--shadow-xs)}
-.tnode.sel{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
-.tnode.cond{border-style:dashed}
-.tnode.cond.sel{border-style:solid}
-.tnode .seq{font-size:12px;color:var(--text-weak);font-weight:600;display:flex;align-items:center;gap:6px}
-.tnode .ticon{display:inline-flex;width:20px;height:20px;border-radius:50%;align-items:center;justify-content:center;
-  background:var(--off-bg);color:var(--text-faint);flex:none}
-.tnode .ticon svg.ic{width:12px;height:12px;stroke-width:2.5;vertical-align:0}
-.tnode .ticon.s-DONE{background:var(--ok-bg);color:var(--ok-text)}
-.tnode .ticon.s-IN_PROGRESS,.tnode .ticon.s-READY{background:var(--info-bg);color:var(--info-text)}
-.tnode .ticon.s-FAILED{background:var(--err-bg);color:var(--err-text)}
-.tnode .ticon.s-BLOCKED{background:var(--off-bg);color:var(--text-faint)}
-.tnode .ticon.s-CANCELLED{background:var(--off-bg);color:var(--off-text)}
-.tnode .nm{font-size:14px;font-weight:600;margin:8px 0;color:var(--text-strong);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.tnode .meta{font-size:12px;color:var(--text-weak);margin-top:auto;padding-top:8px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* ── Task flow (v16 Athena 노드 문법 차용 — 오너 2026-07-05 6차) ──
+   캔버스: 점 격자 배경 + 가로 스크롤(task 다수 대비). 노드: 상태 tint 아이콘 박스 28px +
+   이름 한 행, kind 칩, 상태별 "가장 유용한 한 줄"(nd-meta). 상태는 테두리·아이콘·meta로만
+   표현 — kind 칩은 분류 정보라 중립 유지(기존 결정). BLOCKED만 dashed(대기 문법). */
+.flow{display:flex;align-items:center;overflow-x:auto;padding:24px 16px;
+  background-color:var(--bg-inner);
+  background-image:radial-gradient(circle,var(--gray-200) 1px,transparent 1px);background-size:16px 16px;
+  border:1px solid var(--border);border-radius:var(--r-card)}
+.tnode{flex:none;width:178px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  padding:12px 12px 10px;position:relative;cursor:pointer;box-shadow:var(--shadow-xs);
+  transition:border-color .15s,box-shadow .15s}
+.tnode:hover{border-color:var(--border-strong)}
+.tnode:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.tnode .nd-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tnode .nd-ico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none;
+  font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--off-bg);color:var(--text-faint)}
+.tnode .nd-ico svg.ic{width:14px;height:14px;stroke-width:2.5;vertical-align:0}
+.tnode .nd-name{font-size:14px;font-weight:600;line-height:1.3;color:var(--text-strong);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tnode .nd-meta{font-size:12px;color:var(--text-weak);line-height:1.4;min-height:17px;margin-top:6px;
+  word-break:keep-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tnode.s-done{border-color:var(--ok-border)}
+.tnode.s-done .nd-ico{background:var(--ok-bg);color:var(--ok-text)}
+.tnode.s-running{border-color:var(--info)}
+.tnode.s-running .nd-ico{background:var(--info-bg);color:var(--info-text)}
+.tnode.s-ready{border-color:var(--warn-border)}
+.tnode.s-ready .nd-ico{background:var(--warn-bg);color:var(--warn-text)}
+.tnode.s-failed{border-color:var(--err-border);box-shadow:0 0 0 4px rgba(240,68,56,.10)}
+.tnode.s-failed .nd-ico{background:var(--err-bg);color:var(--err-text)}
+.tnode.s-failed .nd-meta{color:var(--err-text);font-weight:600}
+.tnode.s-queued{border-style:dashed;background:rgba(255,255,255,.7)}
+.tnode.s-queued .nd-name{color:var(--text-weak)}
+.tnode.s-cancelled{background:rgba(255,255,255,.7)}
+.tnode.s-cancelled .nd-ico{background:var(--off-bg);color:var(--off-text)}
+.tnode.s-cancelled .nd-name{color:var(--text-weak)}
+.spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--info-border);border-top-color:var(--info);display:inline-block}
 .kindchip{display:inline-flex;flex:none;align-items:center;font-size:12px;font-weight:600; /* role: t-caption */height:20px;padding:0 6px;
   border-radius:4px;background:var(--off-bg);color:var(--text-weak);font-family:var(--font-mono)}
-.kindchip.cond{background:var(--off-bg);color:var(--text-medium);border:1px dashed var(--gray-300)} /* kind=분류 정보 — 파랑(상태·액션)과 분리, tnode.cond의 dashed 문법 공유 */
-.connector{flex:none;width:28px;display:flex;align-items:center;justify-content:center;color:var(--gray-300)}
-#taskdetail>.card{margin-top:0}
+.kindchip.cond{background:var(--off-bg);color:var(--text-medium);border:1px dashed var(--gray-300)} /* kind=분류 정보 — 파랑(상태·액션)과 분리 */
+.connector{flex:none;width:48px;height:14px;position:relative}
+.connector::before{content:"";position:absolute;left:2px;right:9px;top:50%;margin-top:-1px;height:2px;background:var(--gray-300);border-radius:1px}
+.connector::after{content:"";position:absolute;right:2px;top:50%;transform:translateY(-50%);border:5px solid transparent;border-left:6px solid var(--gray-300);border-right:0}
+.connector.done::before{background:var(--ok)}
+.connector.done::after{border-left-color:var(--ok)}
+.connector.active::before{background:repeating-linear-gradient(90deg,var(--info) 0 6px,rgba(46,144,250,.15) 6px 12px)}
+.connector.active::after{border-left-color:var(--info)}
+.connector.toFail::before{background:repeating-linear-gradient(90deg,var(--err) 0 6px,rgba(240,68,56,.15) 6px 12px)}
+.connector.toFail::after{border-left-color:var(--err)}
+@keyframes nodePulse{0%,100%{box-shadow:0 0 0 3px rgba(46,144,250,.16)}50%{box-shadow:0 0 0 8px rgba(46,144,250,.04)}}
+@keyframes nodePulseAmber{0%,100%{box-shadow:0 0 0 3px rgba(247,144,9,.14)}50%{box-shadow:0 0 0 8px rgba(247,144,9,.03)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes flowDash{to{background-position:12px 0}}
+@media (prefers-reduced-motion:no-preference){
+  .tnode.s-running{animation:nodePulse 1.8s ease-in-out infinite}
+  .tnode.s-ready{animation:nodePulseAmber 2.2s ease-in-out infinite}
+  .spin{animation:spin .8s linear infinite}
+  .connector.active::before{animation:flowDash .5s linear infinite}
+}
 
 /* ── Pipeline status bar + side panel (IA v2, admin-pipeline-detail-ia.md §3) ── */
 .statusbar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
@@ -280,13 +314,7 @@ details.collap>.body{padding:0 14px 14px}
 .statusbar .pbar .track{width:160px}
 .pill.lg{height:28px;font-size:14px;padding:0 12px 0 10px}
 .pill.lg .dot{width:8px;height:8px}
-.detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:stretch;margin-top:16px}
-.detail-grid>.card{min-height:300px}
-.sidepanel{min-width:0}
-.sidepanel>.card{margin-top:0;padding:16px;height:100%;min-height:300px}
 .tblwrap{overflow-x:auto} /* 넘치는 건 표만 — 카드 전체가 밀리지 않게 */
-.sidepanel .tbl th{padding:4px 8px 6px}
-.sidepanel .tbl td{padding:8px}
 
 /* ── Modal ── */
 .overlay{position:fixed;inset:0;background:rgba(16,24,40,.5);display:flex;align-items:center;
@@ -296,6 +324,15 @@ details.collap>.body{padding:0 14px 14px}
 .modal h3{margin:0 0 6px;font-size:16px;font-weight:700}
 .modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:14px;line-height:1.4}
 .modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+/* Task 상세 모달(오너 6차: 사이드 패널 → 모달, 길면 본문만 스크롤) */
+.modal.task{width:600px;display:flex;flex-direction:column;max-height:min(720px,86vh)}
+.modal.task .mhead{display:flex;align-items:flex-start;gap:8px}
+.modal.task .mbody{overflow-y:auto;min-height:0;margin-top:4px}
+.modal.task .kv.wide{grid-template-columns:170px 1fr}
+.modal.task .tbl th{padding:4px 8px 6px}
+.modal.task .tbl td{padding:8px}
+.dgroup{border-top:1px solid var(--gray-100);padding-top:16px;margin-top:16px} /* 그룹 경계 = 상단 헤어라인 */
+.dgroup .subsection-title{margin:0 0 10px}
 .recipe{background:var(--bg-inner);border:1px solid var(--border);border-radius:var(--r-inner);padding:8px 12px}
 .recipe .step{display:flex;align-items:center;gap:10px;font-size:14px;padding:7px 0}
 .recipe .step+.step{border-top:1px solid var(--border)}
@@ -610,7 +647,7 @@ const progressBar = (n,m,status)=>`<span class="pbar${m&&n===m?' done':''}${stat
 /* =========================================================================
  * Router
  * ========================================================================= */
-const app = {navState:{}, selectedServiceCode:null, selectedTaskId:null, modal:null};
+const app = {navState:{}, selectedServiceCode:null, modal:null};
 function nav(hash, navState){ if(navState) app.navState={...app.navState,...navState}; location.hash=hash; }
 function parseHash(){
   let h = location.hash;
@@ -662,7 +699,7 @@ document.querySelectorAll('.sidebar [data-nav]').forEach(n=>{
   n.addEventListener('click',goSb);
   n.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goSb();}});
 });
-window.addEventListener('hashchange',()=>{closeModal();app.selectedTaskId=null;render();});
+window.addEventListener('hashchange',()=>{closeModal();render();});
 
 /* =========================================================================
  * View: 404
@@ -950,8 +987,6 @@ function viewPipeline(id){
   }
   crumbs.push({label:`파이프라인 #${p.id}`});
   const cur=currentTask(p);
-  // IA v2: FAILED 파이프라인은 진입 시 실패 task 자동 선택 (§4.5(b) currentTask가 FAILED를 짚음)
-  if(app.selectedTaskId===null && p.status==='FAILED' && cur) app.selectedTaskId=cur.seq;
   const failedTask=p.tasks.find(t=>t.status==='FAILED');
   const nonTerminal=!['DONE','FAILED','CANCELLED'].includes(p.status);
   // 현재 위치: PENDING은 시작 예정 시각(next_due_at)이 답, RUNNING은 현재 task + 재시도 예산
@@ -984,7 +1019,7 @@ function viewPipeline(id){
       ${rec.desc?`<div class="idbar-meta"><div class="note">${esc(rec.desc)}</div></div>`:''}
     </div>
     <div class="section-title">Task 흐름</div>
-    <div class="section-desc">파이프라인의 현재 상태와 task 실행 순서 — 노드를 클릭하면 우측에 상세가 열립니다</div>
+    <div class="section-desc">파이프라인의 현재 상태와 task 실행 순서 — 노드를 클릭하면 상세가 열리고, task가 많으면 좌우로 스크롤됩니다</div>
     <div class="statusbar${p.status==='FAILED'?' failed':''}">
       <div class="sb-main">
         <span class="pill lg s-${p.status}"><span class="dot"></span>${p.status}</span>
@@ -1003,39 +1038,51 @@ function viewPipeline(id){
         <span title="due_lag — next_due_at 대비 실제 실행 지연">스케줄 지연 ${p.dueLagMs??0} ms${(p.dueLagMs||0)>1000?' ⚠️':''}</span>
       </div>`:''}
     </div>
-    <div class="detail-grid" style="margin-top:12px">
-      <div class="card">
-        <div class="flow" id="flow"></div>
-      </div>
-      <aside class="sidepanel" id="taskdetail"></aside>
-    </div>
+    <div class="flow" id="flow" style="margin-top:12px"></div>
   </div>`);
-  // flow
+  // flow — v16 문법(오너 6차): 상태별 노드 tint + 상태를 아는 커넥터, 캔버스는 가로 스크롤.
+  // 클릭 시 상세 모달. FAILED 자동 선택은 폐기 — 모달을 불쑥 여는 대신 red halo + 상태 바 error로 유도.
   const flow=root.querySelector('#flow');
+  const stateCls={DONE:'s-done',IN_PROGRESS:'s-running',READY:'s-ready',BLOCKED:'s-queued',FAILED:'s-failed',CANCELLED:'s-cancelled'};
   p.tasks.forEach((t,i)=>{
-    if(i>0) flow.appendChild(el(`<div class="connector">${ic('i-arrow-r')}</div>`));
+    if(i>0){
+      const prev=p.tasks[i-1];
+      const lcls=prev.status!=='DONE'?'':t.status==='DONE'?' done':t.status==='FAILED'?' toFail':' active';
+      flow.appendChild(el(`<div class="connector${lcls}"></div>`));
+    }
     const cond=t.kind==='CONDITION_CHECK';
-    const icon={DONE:'i-check',IN_PROGRESS:'i-play',BLOCKED:'i-circle',READY:'i-circle-dot',FAILED:'i-x',CANCELLED:'i-ban'}[t.status];
-    const node=el(`<div class="tnode ${cond?'cond':''} ${app.selectedTaskId==t.seq?'sel':''}" data-seq="${t.seq}" role="button" tabindex="0">
-      <div class="seq"><span class="ticon s-${t.status}">${ic(icon)}</span> seq ${t.seq}</div>
-      <div class="nm">${esc(t.operation)}</div>
-      <span class="kindchip ${cond?'cond':''}">${cond?'CONDITION_CHECK':'TERRAFORM_JOB'}</span>
-      <div style="margin-top:8px">${pill(t.status)}</div>
-      <div class="meta">${[t.failCount?`fail ${t.failCount}`:'',t.errorCode?esc(t.errorCode):'',t.startedAt?`${t.startedAt}${t.finishedAt?'~'+t.finishedAt:''}`:''].filter(Boolean).join(' · ')}</div>
+    const ico=t.status==='DONE'?ic('i-check'):t.status==='IN_PROGRESS'?'<span class="spin"></span>'
+      :t.status==='FAILED'?ic('i-x'):t.status==='CANCELLED'?ic('i-ban'):String(t.seq);
+    const node=el(`<div class="tnode ${stateCls[t.status]||'s-queued'}" data-seq="${t.seq}" role="button" tabindex="0" aria-label="seq ${t.seq} ${esc(t.operation)} 상세 열기">
+      <div class="nd-top"><span class="nd-ico">${ico}</span><span class="nd-name">${esc(t.operation)}</span></div>
+      <span class="kindchip ${cond?'cond':''}">${t.kind}</span>
+      <div class="nd-meta">${taskMetaLine(t)}</div>
     </div>`);
-    const sel=()=>{app.selectedTaskId=t.seq; renderTaskDetail(root,p);
-      flow.querySelectorAll('.tnode').forEach(n=>n.classList.toggle('sel',n.dataset.seq==t.seq));};
-    node.onclick=sel; node.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();sel();}};
+    const open=()=>openTaskModal(t);
+    node.onclick=open; node.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};
     flow.appendChild(node);
   });
-  renderTaskDetail(root,p);
   const pc=root.querySelector('#pcancel'); if(canCancel(p)) pc.onclick=()=>openCancel(p.id);
   return root;
 }
-function renderTaskDetail(root,p){
-  const box=root.querySelector('#taskdetail');
-  const t=p.tasks.find(x=>x.seq==app.selectedTaskId);
-  if(!t){ box.innerHTML=`<div class="card empty"><span class="ico">${ic('i-cursor','ic lg')}</span>Task 노드를 클릭하면 상세가 여기에 표시됩니다</div>`; return; }
+// v16 nd-meta 문법: 상태별 "가장 유용한 한 줄" — 종단은 결과, 진행은 현재, 대기는 실행 계약 요약
+function taskMetaLine(t){
+  const cond=t.kind==='CONDITION_CHECK';
+  if(t.status==='FAILED') return `실패 ${t.failCount}/${t.maxFail} — ${esc(t.errorCode||'원인 미기록')}`;
+  if(t.status==='DONE'){
+    const span=t.startedAt?`${t.startedAt}~${t.finishedAt||''}`:'';
+    const n=cond?(t.check?`폴 ${t.check.callCount}회`:''):(t.attempts&&t.attempts.length?`시도 ${t.attempts.length}회`:'');
+    return [span,n].filter(Boolean).join(' · ')||'완료';
+  }
+  if(t.status==='IN_PROGRESS') return `${t.startedAt||''} 시작${t.failCount?` · 재시도 ${t.failCount}/${t.maxFail}`:''}`.trim();
+  if(t.status==='CANCELLED') return t.startedAt?`취소됨 · ${t.startedAt}~${t.finishedAt||''}`:'취소됨';
+  return cond?`주기 ${esc(t.pollingInterval)} · TTL ${esc(t.ttl)} · 한도 ${t.maxFail}회`
+             :`타임아웃 ${esc(t.executionTimeout)} · 한도 ${t.maxFail}회`;
+}
+// Task 상세 모달(오너 6차: 사이드 패널 폐지 — "너무 길게 과하게" → 넓은 모달 + 본문 스크롤).
+// 그룹 경계는 헤어라인(dgroup): 정의(무엇) → 실행 계약(어떻게 판정) → 진행 기록(무슨 일).
+function openTaskModal(t){
+  app.modal={kind:'task',id:t.seq};
   const cond=t.kind==='CONDITION_CHECK';
   const eff='<span class="formula" title="effective_* — task 오버라이드 + 전역 설정이 반영된 실효값">effective</span>';
   // 진행 기록 꼬리: TERRAFORM_JOB=attempts(시도별 기록), CONDITION_CHECK=폴 관찰(task_check)
@@ -1048,48 +1095,54 @@ function renderTaskDetail(root,p){
         <div class="k">api_error / timeout</div><div class="v">${c.apiErrorCount} / ${c.callTimeoutCount}</div>
         <div class="k">last_external_status</div><div class="v">${esc(c.lastExternalStatus)}</div>
         <div class="k">last_checked_at</div><div class="v">${esc(c.lastCheckedAt)}</div>
-      </div>`:`<div class="empty">아직 폴링 기록 없음</div>`;
+      </div>`:`<div class="meta" style="margin-top:12px">아직 폴링 기록 없음</div>`;
   }else{
     record=t.attempts&&t.attempts.length?`<div class="meta" style="margin:12px 0 6px">attempts — 시도별 기록 (response는 외부 응답 원문)</div>
       <div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>상태</th><th>error_code</th><th>시각</th><th>response</th></tr></thead><tbody>${
         t.attempts.map(a=>`<tr><td>${a.attemptNo}</td><td>${pill(a.status)}</td><td>${a.errorCode?esc(a.errorCode):'-'}</td><td class="muted">${a.at}</td><td class="mono" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(a.response)}">${esc(a.response)}</td></tr>`).join('')}</tbody></table></div>`
-      :`<div class="empty">아직 시도 없음 (BLOCKED)</div>`;
+      :`<div class="meta" style="margin-top:12px">아직 시도 없음 (BLOCKED)</div>`;
   }
-  box.innerHTML=`<div class="card">
-    <div style="display:flex;align-items:flex-start;gap:8px">
-      <div class="section-title" style="margin:0">seq ${t.seq} · ${esc(t.operation)}</div>
-      <button class="btn ghost sm round" id="panel-x" style="margin-left:auto;flex-shrink:0" title="Task 상세 닫기" aria-label="Task 상세 닫기">${ic('i-x','ic sm')}</button>
+  const m=mountModal(`<div class="modal task">
+    <div class="mhead">
+      <div style="min-width:0">
+        <h3 style="margin:0">seq ${t.seq} · ${esc(t.operation)}</h3>
+        <div class="vrow" style="gap:8px;margin-top:8px"><span class="kindchip ${cond?'cond':''}">${t.kind}</span>${pill(t.status)}</div>
+      </div>
+      <button class="btn ghost sm round" id="task-x" style="margin-left:auto;flex-shrink:0" title="닫기" aria-label="Task 상세 닫기">${ic('i-x','ic sm')}</button>
     </div>
-    <div class="vrow" style="gap:8px;margin:8px 0 12px">
-      <span class="kindchip ${cond?'cond':''}">${t.kind}</span>${pill(t.status)}
+    ${t.desc?`<div class="note" style="margin-top:12px">${esc(t.desc)}</div>`:''}
+    <div class="mbody">
+      <div class="dgroup">
+        <div class="subsection-title">정의</div>
+        <div class="kv wide">
+          ${t.def?`<div class="k">task_definition</div><div class="v mono">${esc(t.def)}</div>`:''}
+          ${t.op?`<div class="k">operation</div><div class="v mono">${esc(t.op)}</div>`
+                :`<div class="k">operation</div><div class="v">${esc(t.operation)}</div>`}
+        </div>
+      </div>
+      <div class="dgroup">
+        <div class="subsection-title">실행 계약</div>
+        <div class="kv wide">
+          <div class="k">실행 방식</div><div class="v">${cond?'조건 확인 — 디스패치 없이 폴링':'테라폼 잡 — 디스패치 후 폴링'}</div>
+          ${cond?`<div class="k">polling / ttl ${eff}</div><div class="v">${esc(t.pollingInterval)} / ${esc(t.ttl)}</div>
+            <div class="k">재시도 예산 ${eff}</div><div class="v vrow">${t.maxFail}회 <span class="formula">count-bound(ttl→finite)</span></div>`
+            :`<div class="k">실행 타임아웃 ${eff}</div><div class="v">${esc(t.executionTimeout)}</div>
+            <div class="k">재시도 예산 ${eff}</div><div class="v">${t.maxFail}회</div>
+            <div class="k">TF 슬롯</div><div class="v" title="consumes_terraform_slot — 동시 실행 상한(slot cap)을 차감하는 task">사용</div>`}
+        </div>
+        <div class="formula" style="margin-top:10px">판정: ${KIND_POLICY[t.kind]}</div>
+      </div>
+      <div class="dgroup">
+        <div class="subsection-title">진행 기록</div>
+        <div class="kv wide">
+          <div class="k">started / finished</div><div class="v">${t.startedAt||'-'} / ${t.finishedAt||'-'}</div>
+          <div class="k">실패 누적</div><div class="v">${t.failCount} / ${t.maxFail}${t.errorCode?` · <span class="mono" style="color:var(--err-text)">${esc(t.errorCode)}</span>`:''}</div>
+        </div>
+        ${record}
+      </div>
     </div>
-    ${t.desc?`<div class="note" style="margin-bottom:16px">${esc(t.desc)}</div>`:''}
-    <div class="subsection-title">정의</div>
-    <div class="kv wide" style="margin-bottom:16px">
-      ${t.def?`<div class="k">task_definition</div><div class="v mono">${esc(t.def)}</div>`:''}
-      ${t.op?`<div class="k">operation</div><div class="v mono">${esc(t.op)}</div>`:''}
-      <div class="k">실행 방식</div><div class="v">${cond?'조건 확인 — 디스패치 없이 폴링':'테라폼 잡 — 디스패치 후 폴링'}</div>
-    </div>
-    <div class="subsection-title">실행 계약</div>
-    <div class="kv wide">
-      ${cond?`<div class="k">polling / ttl ${eff}</div><div class="v">${esc(t.pollingInterval)} / ${esc(t.ttl)}</div>
-        <div class="k">재시도 예산 ${eff}</div><div class="v vrow">${t.maxFail}회 <span class="formula">count-bound(ttl→finite)</span></div>`
-        :`<div class="k">실행 타임아웃 ${eff}</div><div class="v">${esc(t.executionTimeout)}</div>
-        <div class="k">재시도 예산 ${eff}</div><div class="v">${t.maxFail}회</div>
-        <div class="k">TF 슬롯</div><div class="v" title="consumes_terraform_slot — 동시 실행 상한(slot cap)을 차감하는 task">사용</div>`}
-    </div>
-    <div class="formula" style="margin:8px 0 16px">판정: ${KIND_POLICY[t.kind]}</div>
-    <div class="subsection-title">진행 기록</div>
-    <div class="kv wide">
-      <div class="k">started / finished</div><div class="v">${t.startedAt||'-'} / ${t.finishedAt||'-'}</div>
-      <div class="k">실패 누적</div><div class="v">${t.failCount} / ${t.maxFail}${t.errorCode?` · <span class="mono" style="color:var(--err-text)">${esc(t.errorCode)}</span>`:''}</div>
-    </div>
-    ${record}
-  </div>`;
-  // X 닫기(오너 2026-07-05 5차) — 선택 해제 후 빈 패널(클릭 안내)로 복귀, 노드 하이라이트도 해제
-  const px=box.querySelector('#panel-x');
-  if(px) px.onclick=()=>{app.selectedTaskId=null;renderTaskDetail(root,p);
-    root.querySelectorAll('.tnode').forEach(n=>n.classList.remove('sel'));};
+  </div>`);
+  m.querySelector('#task-x').onclick=closeModal;
 }
 
 /* =========================================================================

@@ -20,10 +20,10 @@
   /* primary */
   --primary:#2563EB; --primary-hover:#1D4ED8; --primary-bg:#EFF4FF; --primary-ring:#D1E0FF;
   /* status */
-  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3;
+  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3; --ok-border:#A6F4C5;
   --err:#F04438; --err-text:#B42318; --err-bg:#FEF3F2; --err-border:#FDA29B;
-  --info:#2E90FA; --info-text:#175CD3; --info-bg:#EFF8FF;
-  --warn:#F79009; --warn-text:#B54708; --warn-bg:#FFFAEB;
+  --info:#2E90FA; --info-text:#175CD3; --info-bg:#EFF8FF; --info-border:#B2DDFF;
+  --warn:#F79009; --warn-text:#B54708; --warn-bg:#FFFAEB; --warn-border:#FEDF89;
   --off:#98A2B3; --off-text:#475467; --off-bg:#F2F4F7;
   /* provider */
   --pv-aws:#EC7211; --pv-azure:#0078D4; --pv-gcp:#4285F4; --pv-idc:#344054; --pv-sdu:#7F56D9;
@@ -240,30 +240,64 @@ details.collap>summary::before{content:"";width:12px;height:12px;flex:none;backg
 details.collap[open]>summary::before{transform:rotate(90deg)}
 details.collap>.body{padding:0 14px 14px}
 
-/* ── Task flow ── */
-.flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:2px}
-.tnode{flex:none;width:172px;height:184px;display:flex;flex-direction:column;align-items:flex-start;border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;
-  background:var(--bg-card);cursor:pointer;position:relative;transition:border-color .12s,box-shadow .12s}
-.tnode:hover{border-color:var(--border-strong);box-shadow:var(--shadow-xs)}
-.tnode.sel{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
-.tnode.cond{border-style:dashed}
-.tnode.cond.sel{border-style:solid}
-.tnode .seq{font-size:12px;color:var(--text-weak);font-weight:600;display:flex;align-items:center;gap:6px}
-.tnode .ticon{display:inline-flex;width:20px;height:20px;border-radius:50%;align-items:center;justify-content:center;
-  background:var(--off-bg);color:var(--text-faint);flex:none}
-.tnode .ticon svg.ic{width:12px;height:12px;stroke-width:2.5;vertical-align:0}
-.tnode .ticon.s-DONE{background:var(--ok-bg);color:var(--ok-text)}
-.tnode .ticon.s-IN_PROGRESS,.tnode .ticon.s-READY{background:var(--info-bg);color:var(--info-text)}
-.tnode .ticon.s-FAILED{background:var(--err-bg);color:var(--err-text)}
-.tnode .ticon.s-BLOCKED{background:var(--off-bg);color:var(--text-faint)}
-.tnode .ticon.s-CANCELLED{background:var(--off-bg);color:var(--off-text)}
-.tnode .nm{font-size:14px;font-weight:600;margin:8px 0;color:var(--text-strong);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.tnode .meta{font-size:12px;color:var(--text-weak);margin-top:auto;padding-top:8px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* ── Task flow (v16 Athena 노드 문법 차용 — 오너 2026-07-05 6차) ──
+   캔버스: 점 격자 배경 + 가로 스크롤(task 다수 대비). 노드: 상태 tint 아이콘 박스 28px +
+   이름 한 행, kind 칩, 상태별 "가장 유용한 한 줄"(nd-meta). 상태는 테두리·아이콘·meta로만
+   표현 — kind 칩은 분류 정보라 중립 유지(기존 결정). BLOCKED만 dashed(대기 문법). */
+.flow{display:flex;align-items:center;overflow-x:auto;padding:24px 16px;
+  background-color:var(--bg-inner);
+  background-image:radial-gradient(circle,var(--gray-200) 1px,transparent 1px);background-size:16px 16px;
+  border:1px solid var(--border);border-radius:var(--r-card)}
+.tnode{flex:none;width:178px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  padding:12px 12px 10px;position:relative;cursor:pointer;box-shadow:var(--shadow-xs);
+  transition:border-color .15s,box-shadow .15s}
+.tnode:hover{border-color:var(--border-strong)}
+.tnode:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.tnode .nd-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tnode .nd-ico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none;
+  font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--off-bg);color:var(--text-faint)}
+.tnode .nd-ico svg.ic{width:14px;height:14px;stroke-width:2.5;vertical-align:0}
+.tnode .nd-name{font-size:14px;font-weight:600;line-height:1.3;color:var(--text-strong);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tnode .nd-meta{font-size:12px;color:var(--text-weak);line-height:1.4;min-height:17px;margin-top:6px;
+  word-break:keep-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tnode.s-done{border-color:var(--ok-border)}
+.tnode.s-done .nd-ico{background:var(--ok-bg);color:var(--ok-text)}
+.tnode.s-running{border-color:var(--info)}
+.tnode.s-running .nd-ico{background:var(--info-bg);color:var(--info-text)}
+.tnode.s-ready{border-color:var(--warn-border)}
+.tnode.s-ready .nd-ico{background:var(--warn-bg);color:var(--warn-text)}
+.tnode.s-failed{border-color:var(--err-border);box-shadow:0 0 0 4px rgba(240,68,56,.10)}
+.tnode.s-failed .nd-ico{background:var(--err-bg);color:var(--err-text)}
+.tnode.s-failed .nd-meta{color:var(--err-text);font-weight:600}
+.tnode.s-queued{border-style:dashed;background:rgba(255,255,255,.7)}
+.tnode.s-queued .nd-name{color:var(--text-weak)}
+.tnode.s-cancelled{background:rgba(255,255,255,.7)}
+.tnode.s-cancelled .nd-ico{background:var(--off-bg);color:var(--off-text)}
+.tnode.s-cancelled .nd-name{color:var(--text-weak)}
+.spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--info-border);border-top-color:var(--info);display:inline-block}
 .kindchip{display:inline-flex;flex:none;align-items:center;font-size:12px;font-weight:600; /* role: t-caption */height:20px;padding:0 6px;
   border-radius:4px;background:var(--off-bg);color:var(--text-weak);font-family:var(--font-mono)}
-.kindchip.cond{background:var(--off-bg);color:var(--text-medium);border:1px dashed var(--gray-300)} /* kind=분류 정보 — 파랑(상태·액션)과 분리, tnode.cond의 dashed 문법 공유 */
-.connector{flex:none;width:28px;display:flex;align-items:center;justify-content:center;color:var(--gray-300)}
-#taskdetail>.card{margin-top:0}
+.kindchip.cond{background:var(--off-bg);color:var(--text-medium);border:1px dashed var(--gray-300)} /* kind=분류 정보 — 파랑(상태·액션)과 분리 */
+.connector{flex:none;width:48px;height:14px;position:relative}
+.connector::before{content:"";position:absolute;left:2px;right:9px;top:50%;margin-top:-1px;height:2px;background:var(--gray-300);border-radius:1px}
+.connector::after{content:"";position:absolute;right:2px;top:50%;transform:translateY(-50%);border:5px solid transparent;border-left:6px solid var(--gray-300);border-right:0}
+.connector.done::before{background:var(--ok)}
+.connector.done::after{border-left-color:var(--ok)}
+.connector.active::before{background:repeating-linear-gradient(90deg,var(--info) 0 6px,rgba(46,144,250,.15) 6px 12px)}
+.connector.active::after{border-left-color:var(--info)}
+.connector.toFail::before{background:repeating-linear-gradient(90deg,var(--err) 0 6px,rgba(240,68,56,.15) 6px 12px)}
+.connector.toFail::after{border-left-color:var(--err)}
+@keyframes nodePulse{0%,100%{box-shadow:0 0 0 3px rgba(46,144,250,.16)}50%{box-shadow:0 0 0 8px rgba(46,144,250,.04)}}
+@keyframes nodePulseAmber{0%,100%{box-shadow:0 0 0 3px rgba(247,144,9,.14)}50%{box-shadow:0 0 0 8px rgba(247,144,9,.03)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes flowDash{to{background-position:12px 0}}
+@media (prefers-reduced-motion:no-preference){
+  .tnode.s-running{animation:nodePulse 1.8s ease-in-out infinite}
+  .tnode.s-ready{animation:nodePulseAmber 2.2s ease-in-out infinite}
+  .spin{animation:spin .8s linear infinite}
+  .connector.active::before{animation:flowDash .5s linear infinite}
+}
 
 /* ── Pipeline status bar + side panel (IA v2, admin-pipeline-detail-ia.md §3) ── */
 .statusbar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
@@ -279,13 +313,7 @@ details.collap>.body{padding:0 14px 14px}
 .statusbar .pbar .track{width:160px}
 .pill.lg{height:28px;font-size:14px;padding:0 12px 0 10px}
 .pill.lg .dot{width:8px;height:8px}
-.detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:stretch;margin-top:16px}
-.detail-grid>.card{min-height:300px}
-.sidepanel{min-width:0}
-.sidepanel>.card{margin-top:0;padding:16px;height:100%;min-height:300px}
 .tblwrap{overflow-x:auto} /* 넘치는 건 표만 — 카드 전체가 밀리지 않게 */
-.sidepanel .tbl th{padding:4px 8px 6px}
-.sidepanel .tbl td{padding:8px}
 
 /* ── Modal ── */
 .overlay{position:fixed;inset:0;background:rgba(16,24,40,.5);display:flex;align-items:center;
@@ -295,6 +323,15 @@ details.collap>.body{padding:0 14px 14px}
 .modal h3{margin:0 0 6px;font-size:16px;font-weight:700}
 .modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:14px;line-height:1.4}
 .modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+/* Task 상세 모달(오너 6차: 사이드 패널 → 모달, 길면 본문만 스크롤) */
+.modal.task{width:600px;display:flex;flex-direction:column;max-height:min(720px,86vh)}
+.modal.task .mhead{display:flex;align-items:flex-start;gap:8px}
+.modal.task .mbody{overflow-y:auto;min-height:0;margin-top:4px}
+.modal.task .kv.wide{grid-template-columns:170px 1fr}
+.modal.task .tbl th{padding:4px 8px 6px}
+.modal.task .tbl td{padding:8px}
+.dgroup{border-top:1px solid var(--gray-100);padding-top:16px;margin-top:16px} /* 그룹 경계 = 상단 헤어라인 */
+.dgroup .subsection-title{margin:0 0 10px}
 .recipe{background:var(--bg-inner);border:1px solid var(--border);border-radius:var(--r-inner);padding:8px 12px}
 .recipe .step{display:flex;align-items:center;gap:10px;font-size:14px;padding:7px 0}
 .recipe .step+.step{border-top:1px solid var(--border)}

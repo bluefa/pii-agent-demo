@@ -220,17 +220,15 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 │ │ leased 예 — 워커 실행 중 · 스케줄 지연 300 ms   (비종단만)        │ │ L4
 │ │ (FAILED면 error_code 요약을 1행에 추가 노출)                      │ │
 │ └──────────────────────────────────────────────────────────────────┘ │
-│ ┌ TaskFlowChain (본문, 노드 172px) ────────┐ ┌ TaskDetailPanel [✕]┐ │
-│ │ [✔①TF권한]─▶[✔②SVC TF]─▶[▶③BDC Common]  │ │ (우측 340px,       │ │
-│ │                                          │ │  흐름 카드와 등고)   │ │
-│ │  DONE        DONE         IN_PROGRESS    │ │ 미선택: 안내문       │ │
-│ │ ─▶[○④BDC SvcLv] BLOCKED  (4+노드: 가로   │ │ FAILED: currentTask │ │
-│ │  스크롤, 각 노드 = P15 TaskNode)          │ │  자동 선택, ✕로 닫기 │ │
-│ └──────────────────────────────────────────┘ │ (예시 A/B는 아래)    │ │
-│                                              └────────────────────┘ │
+│ ┌ TaskFlowChain (전폭 캔버스: 점 격자 + 가로 스크롤, Round 15) ────┐ │
+│ │ [✓ TF권한   ]──▶[✓ SVC TF  ]╌╌▶[◌ BDC Common]  [4 BDC SvcLv]    │ │
+│ │  16:0x · 폴2회   시도 1회    ↑active  14:21 시작  타임아웃·한도   │ │
+│ │  (커넥터: done 초록 / active 파란 대시 / toFail 빨간 대시)        │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│   노드 클릭 ──▶ TaskDetailModal (600px, 본문 스크롤, ✕/ESC/바깥 닫기) │
 └──────────────────────────────────────────────────────────────────────┘
 
-TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
+TaskDetailModal 내용 (kind 게이팅 §4.5g 동일):
   (예시 A) TERRAFORM_JOB: 설정(읽기전용 executionTimeout/maxFail resolve* ⚙️)
            + Attempts DataTable(no/status/error_code/시각/response 원시 text ✅,
              job_ids·dispatch_response_* = ❌ 제거필드 — 컬럼 없음)
@@ -250,25 +248,24 @@ TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `TaskFlowChain`(선형, 읽기 전용) = `TaskNode(P15)`×N + 커넥터 | seq/kind(=taskName)/operation/status(P3)/failCount/errorCode(FAILED만)/started·finished | ✅ |
+| `TaskFlowChain`(선형, 읽기 전용) = `TaskNode(P15)`×N + 커넥터 — **v16 Athena 문법 차용**(Round 15): 점 격자 캔버스 + **가로 스크롤**(task 다수 대비), 노드 = 상태 tint 아이콘 박스 28px(✓ done/spinner running/✕ failed/⊘ cancelled/seq 숫자 대기) + 이름 + kind 칩(중립) + 상태별 한 줄 meta(`taskMetaLine` — 종단:결과·기간, 진행:시작·재시도, 대기:주기·TTL·한도), 상태별 테두리(FAILED red halo, BLOCKED dashed), 커넥터 상태색(done/active 대시/toFail). 애니메이션은 `prefers-reduced-motion` 존중 | seq/kind/operation/status/failCount/errorCode/started·finished/계약 필드 | ✅ |
 
-**Task 상세 패널** — 노드 클릭 → A5 `GET /pipelines/{id}/tasks/{taskId}` → `TaskDetail`.
-**우측 사이드 패널**(340px 고정, 흐름 카드와 `stretch` 등고 — 정렬 규칙은
-[admin-pipeline-design-system.md](admin-pipeline-design-system.md) §1-3, LIN-20 Round 5→Phase 4 개정 —
-[admin-pipeline-detail-ia.md](admin-pipeline-detail-ia.md) §3 v2).
-초기 선택: 파이프라인이 `FAILED`면 `currentTask()`(§4.5(b))의 seq를 자동 선택, 그 외 **미선택이 기본**(패널에 안내문).
+**Task 상세 모달** — 노드 클릭 → A5 `GET /pipelines/{id}/tasks/{taskId}` → `TaskDetail`.
+Round 15(오너 6차)에서 우측 사이드 패널(340px)을 폐지하고 **모달**로 전환 — 흐름도가 전폭을
+쓰고, 상세는 요청 시에만 넓게 열린다. FAILED 자동 선택은 폐기(진입 즉시 모달을 여는 건 침습적) —
+실패 노드의 red halo + 상태 바 error_code가 시선을 유도하고, 클릭으로 연다.
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `TaskDetailPanel` — **3그룹**(Round 13: "Task를 논리적으로 설명") + **X 닫기**(Round 14) | 제목(seq·이름) 우측 X(ghost round — 닫으면 선택 해제·안내문 복귀·노드 하이라이트 해제)+칩+설명(description) → ① **정의**: task_definition·operation 코드·실행 방식 ② **실행 계약**: effective 폴링·타임아웃·재시도 예산·TF 슬롯 + **판정 방식 문단**(success_policy 요약 — kind별 공통 텍스트라는 API 사실) ③ **진행 기록**: 시각·실패 누적+error_code·attempts/폴 관찰 | ✅ |
+| `TaskDetailModal` — **사이드 패널 → 모달**(Round 15 오너: "너무 길게 과하게 → Modal") · **3그룹 유지**(Round 13: "Task를 논리적으로 설명") | 600px 모달, max-height 86vh — 헤더(seq·이름 + kind 칩·상태 pill + **X**)·설명은 고정, **본문(mbody)만 스크롤**. 그룹 경계 = 헤어라인(`dgroup`): ① **정의**: task_definition·operation 코드 ② **실행 계약**: 실행 방식·effective 폴링·타임아웃·재시도 예산·TF 슬롯 + **판정 방식 문단**(success_policy 요약) ③ **진행 기록**: 시각·실패 누적+error_code·attempts/폴 관찰. 닫기 = X·ESC·바깥 클릭 | ✅ |
 | `AttemptList` = `DataTable` | attempt_no/status/error_code/시각 ✅, **response**(원시 text) ✅. `job_ids`/`dispatch_response_*` = ❌ 제거필드 → **컬럼 없음**(원본 명시) | ✅ |
 | `CheckSummary` = `KeyValueGrid` | call/not_met/api_error/call_timeout/last_external_status/last_checked_at ✅ · last_response_code·summary ⚠️(미채움→null `FieldTag`) | ✅/⚠️ |
 
 > **취소는 파이프라인 상세에서 상태 바(PipelineStatusBar) 1곳**으로 단일화(파이프라인 스코프). 원본 부록은 task 패널에도 "취소"를 나열하나 동일 파이프라인 취소이므로 이 페이지 내 중복 렌더하지 않는다. (§4.3 타깃 페이지의 취소는 별개 — target-scope 최신 RUNNING run 대상)
 > **retry(재시도)는 원본 10-API(A1–A10)에 없음** → 이 화면 범위 밖(deferred). FAILED여도 [취소]만 노출.
 
-- **상태**: `selectedTaskId`(기본 null → 패널 안내문. 단 파이프라인 `FAILED`면 뷰 진입 시 `currentTask().seq`로 초기화 — LIN-20 Round 5).
-- **이동**: Task 노드 클릭 → 우측 `TaskDetailPanel`(같은 페이지, 사이드 패널) · Breadcrumb/사이드바로 상위 복귀
+- **상태**: 별도 선택 상태 없음(Round 15 — `selectedTaskId` 폐기). 모달은 전역 `modal:{kind:'task',id:seq}`, 해시 변경 시 자동 닫힘.
+- **이동**: Task 노드 클릭 → `TaskDetailModal` · Breadcrumb/사이드바로 상위 복귀
 
 ## 4.5 렌더링·인터랙션 확정 규칙 (리뷰 라운드2 — 구현 결정론화)
 
@@ -299,15 +296,15 @@ CANCELLED task는 분자 제외·분모 포함(진행이 아님).
 - [실행] → A10 POST → 성공 시 **`#/pipeline/{반환 run id}` 로 이동 + Toast("파이프라인 실행됨")**.
 - **멱등 분기**: 반환 run이 기존 진행 run이면 Toast("이미 진행 중인 파이프라인으로 이동") 후 동일 이동.
 
-**(g) TaskDetailPanel kind 게이팅** —
+**(g) TaskDetailModal kind 게이팅** —
 - `TERRAFORM_JOB` → **AttemptList(P6)만** 렌더(폴링 요약 없음).
 - `CONDITION_CHECK` → **CheckSummary(P14)만** 렌더(attempt별 1건 폴링 카운터). attempt 개념 대신 check.
 - 공통 헤더(task 설정)는 항상. (스케치의 ③ BDC Common = TERRAFORM_JOB → Attempts만; Check 요약 예시는 CONDITION_CHECK 노드에서만.)
 
-**(h) TaskNode(P15) kind 구분 + 오버플로우** —
-- `TERRAFORM_JOB` = 실선 테두리 노드. `CONDITION_CHECK` = **점선 테두리 + "외부확인" chip**(외부 대기 성격 시각화).
-- status 아이콘: DONE ✔(success) · IN_PROGRESS ▶(info, 진행 애니 optional) · BLOCKED ○(faint) · READY ◔(info-light) · FAILED ✕(error) · CANCELLED ⊘(pending).
-- 노드 5+개 → **가로 스크롤**(데스크톱). 커넥터는 노드 사이 `─▶`. wrap 안 함.
+**(h) TaskNode(P15) 상태·kind 표현 (Round 15, v16 차용으로 개정)** —
+- 상태는 **테두리 + 아이콘 박스 tint + meta 한 줄**로: DONE ✓(초록 테두리) · IN_PROGRESS spinner(파란 테두리+pulse) · READY seq 숫자(호박 테두리+pulse) · BLOCKED seq 숫자(**dashed** — 대기 문법) · FAILED ✕(red halo, meta 빨강 굵게) · CANCELLED ⊘(연회색).
+- kind는 **칩만**(중립 — CONDITION_CHECK는 dashed 칩). 노드 테두리 dashed는 이제 BLOCKED 뜻 — kind별 테두리 구분(구판)은 폐기(충돌).
+- 노드 5+개 → 캔버스 **가로 스크롤**(데스크톱). 커넥터 = 선+화살촉, 상태색(§스케치). wrap 안 함. 애니메이션은 `prefers-reduced-motion:no-preference`에서만.
 
 **(i) 데이터 정직성 세부** —
 - 대시보드 "동작중 TF" 배지: count 자체는 정확하나 **worker 부하의 근사 지표**라는 의미의 `⚙️근사`(원본 권장). 툴팁으로 명시.
@@ -323,11 +320,11 @@ CANCELLED task는 분자 제외·분모 포함(진행이 아님).
 #/dashboard ──(목록 상세: pipelineId)──▶ #/pipeline/:id
 #/services  ──(target 행: targetSourceId)──▶ #/target/:id
 #/target/:id ─(이력/최근 행: pipelineId)──▶ #/pipeline/:id
-#/pipeline/:id ─(task 노드)──▶ 우측 사이드 패널 TaskDetailPanel
+#/pipeline/:id ─(task 노드)──▶ TaskDetailModal (같은 페이지, 모달)
 Breadcrumb / Sidebar ──▶ 임의 상위 뷰로 복귀
 ```
 
-**앱 상태(전역)**: `{ route, param, navState(선택 service/target 라벨), selectedServiceCode, selectedTaskId, modal:{kind,type,id}|null, toast|null }`.
+**앱 상태(전역)**: `{ route, param, navState(선택 service/target 라벨), selectedServiceCode, modal:{kind,type,id}|null, toast|null }` (`selectedTaskId`는 Round 15에서 폐기 — task 상세는 modal kind `task`).
 라우터: `location.hash` 파싱 → `{route, param}` → 뷰 render + 사이드바 active + breadcrumb(navState 기반, 없으면 조각 생략).
 
 ## 6. API 매핑
@@ -340,7 +337,7 @@ Breadcrumb / Sidebar ──▶ 임의 상위 뷰로 복귀
 | A2 | GET | `/install/v1/pipelines/stats?period=` | PeriodStatsRow |
 | A3 | GET | `/install/v1/pipelines?status=&provider=&q=&page=&size=` | PipelineListTable (period 토글과 무관 — §4.5i) |
 | A4 | GET | `/install/v1/pipelines/{id}` | PipelineStatusBar + TaskFlowChain |
-| A5 | GET | `/install/v1/pipelines/{id}/tasks/{taskId}` | TaskDetailPanel |
+| A5 | GET | `/install/v1/pipelines/{id}/tasks/{taskId}` | TaskDetailModal |
 | A6 | POST | `/install/v1/pipelines/{id}/cancel` | CancelModal |
 | A7 | GET | `/install/v1/target-sources/{id}/pipelines` | PipelineHistoryTable |
 | A8 | GET | `/install/v1/target-sources/{id}/pipelines/latest` | LatestPipelineCard |

@@ -4,6 +4,37 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 15 — Task 흐름 v16 문법 차용 + Task 상세 모달 전환 (2026-07-05)
+
+오너 피드백(6차): "SIT Prototype Athena v16의 task 노드 디자인 차용 / Task 상세 텍스트 경계·
+그룹화 개선 / 상세가 너무 길다 — Modal로, 스크롤 가능하게 / task가 많을 수 있으니 좌우로
+움직이는 흐름도".
+
+**Task 흐름 (v16 `adm-node`/`adm-flow`/`adm-link` → 우리 토큰으로 번역)**:
+- 캔버스: 점 격자 배경(`radial-gradient` 16px) + **가로 스크롤** 전폭 surface —
+  사이드 패널이 빠져 흐름도가 화면 전체 폭을 쓴다.
+- 노드(178px): 상태 tint 아이콘 박스 28px(✓/spinner/✕/⊘/seq 숫자) + 이름 한 행 + kind 칩
+  (중립 유지 — v16은 상태색 칩이지만 우리 문법상 kind는 분류 정보) + **상태별 "가장 유용한
+  한 줄"** `taskMetaLine`: 종단="16:10~16:18 · 폴 2회", 실패="실패 1/1 — JOB_FAILED"(빨강 굵게),
+  진행="14:21 시작", 대기="주기 10분 · TTL 7일 · 한도 6회"(v16의 "실패한도 ∞" 자리 — 우리는
+  count-bound 유한값).
+- 상태 테두리: DONE 초록 / RUNNING 파랑+pulse / READY 호박+pulse / FAILED red halo /
+  BLOCKED dashed(대기 문법 — kind별 dashed 테두리 구판 폐기) / CANCELLED 연회색.
+- 커넥터: 선+화살촉 48px, **상태를 안다** — done 초록 / active 파란 대시(흐름 애니) /
+  toFail 빨간 대시. 애니메이션 전부 `prefers-reduced-motion` 존중.
+- 토큰 추가: `--ok-border`/`--info-border`/`--warn-border`(기존 `--err-border` 계열 정합).
+
+**Task 상세: 사이드 패널(340px) → 모달(600px)**:
+- 헤더(seq·이름 + kind 칩·상태 pill + **X**)·설명 문장은 고정, **본문만 스크롤**
+  (max-height 86vh) — "너무 길게 과하게" 해소.
+- 그룹 경계 = 헤어라인 `dgroup`(border-top): **정의**(task_definition·operation) →
+  **실행 계약**(실행 방식·effective 값·판정 문단) → **진행 기록**(시각·실패 누적·attempts/폴
+  관찰). '실행 방식' 행은 정의→실행 계약으로 이동(판정 문단과 한 그룹).
+- 닫기 = X·ESC·바깥 클릭. FAILED 자동 선택 폐기 — 진입 즉시 모달을 여는 건 침습적,
+  red halo + 상태 바 error_code로 유도. `selectedTaskId` 전역 상태 삭제.
+- 검증: 124(done→toFail 커넥터·red halo·모달 3그룹·X 닫기), 128(spinner·active 대시 커넥터·
+  pulse), 129(READY 호박·queued dashed), 콘솔 에러 0.
+
 ## Round 14 — R13 방향 교정: 논리 그룹의 본진은 target 페이지, 파이프라인은 원복+강조 (2026-07-05)
 
 오너 피드백(5차): "논리 그룹 요청은 **#/target/204** 이야기였다 / 기존에 잘 되던 파이프라인

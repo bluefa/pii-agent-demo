@@ -171,9 +171,9 @@ v2 재배치가 이미 반영된 페이지라 대체로 정합 — 잔여 과밀
 | 1 | 상태 pill(대형) + 진행 바 + 현재 task + [취소] | **Task 흐름 그룹 내 상태 바** | **T1** (유지, 위치 5차 개정) | 질문 ①⑤. 5차 2026-07-05 오너: "상태는 Task 흐름의 일부분" — 별도 '상태' 섹션 폐지, 상태 바는 Task 흐름 섹션 제목 아래 첫 블록(12px 위 소속) |
 | 2 | error_code 요약 (FAILED일 때만) | 상태 바 1행 | **T1** (유지) | 질문 ② — 조건부 노출 규칙이 모범 |
 | 3 | ~~상태 바 meta 행~~ → **파이프라인 메타데이터 카드**(IdentityBar 문법, 최상단) | 카드 | **T3** (5차 2026-07-05: "파이프라인의 메타데이터를 강조, Target Source는 일부만") | 카드의 주인공 = **레시피 display_name**(hero) + 코드(psub, mono) + 아이콘 i-flow. 필드: 유형·생성·마지막 활동. **대상 참조는 한 칸**("204 · Azure" + ↗) — CSP 세부·서비스 필드 없음(target 페이지·breadcrumb 몫). meta 구간 = 레시피 설명 문장만. 4차의 CSP-hero(TargetSourceId 앞세움)안 폐기 — 대상 정체성 문법은 target 페이지 것 |
-| 4 | Task 흐름 (노드: seq·kind칩·operation·상태·fail·시각) | 본문 좌 | **T2** (유지) | 질문 ①② 본문 |
-| 5 | Task 상세 사이드 패널 — 공통 kv (operation·타이밍 설정·fail/maxFail·started/finished) | 본문 우 | **T4** (유지) | 노드 클릭 뒤에만 — 현 구조 적절. **X 닫기 버튼**(5차 2026-07-05): 닫으면 선택 해제 + 안내문 복귀, 노드 하이라이트 해제 |
-| 6 | 〃 attempts 테이블 (#·상태·error_code·시각·raw response) | 사이드 패널 | **T4** (유지) | 〃. raw response ellipsis+title 유지 |
+| 4 | Task 흐름 — **v16 Athena 노드 문법 차용**(6차 2026-07-05) | 본문 전폭 | **T2** (유지, 표현 개정) | 질문 ①② 본문. 노드 = 상태 tint 아이콘 박스(✓/spinner/✕/⊘/seq 숫자) + 이름 + kind 칩(중립 유지) + **상태별 "가장 유용한 한 줄"**(종단=결과·기간, 진행=시작·재시도, 대기=실행 계약 요약 "주기·TTL·한도"). 커넥터도 상태를 안다(done 초록/active 파란 대시/toFail 빨간 대시). 캔버스 = 점 격자 + **가로 스크롤**(task 다수 대비) |
+| 5 | Task 상세 — **사이드 패널 → 모달**(6차 2026-07-05 오너: "너무 길게 과하게 → Modal") | 모달 | **T4** (위치 개정) | 노드 클릭 시 600px 모달, 헤더(제목·칩·X) 고정 + **본문만 스크롤**(max-height 86vh). 그룹 경계 = 헤어라인(정의/실행 계약/진행 기록). FAILED 자동 선택 폐기 — 진입하자마자 모달을 불쑥 열지 않고 red halo + 상태 바 error로 유도 |
+| 6 | 〃 attempts 테이블 (#·상태·error_code·시각·raw response) | 모달 진행 기록 그룹 | **T4** (유지) | 〃. raw response ellipsis+title 유지 |
 | 7 | 〃 check kv 중 `last_response_code`/`last_response_summary` — 항상 null + "미채움" 배지 | 사이드 패널 | **X 제외** | 원칙 3 — null 필드의 상설 나열. 값이 채워지는 날 행 추가 |
 | 8 | 〃 "설정은 읽기 전용 — PATCH 없음" 안내문 | 사이드 패널 | **X 제외** | 구현 계약 설명 — 운영자 질문 아님. components.md에 이미 있음 |
 | 9 | 〃 "job_ids·dispatch_response_* 는 제거된 필드…" 안내문 | attempts 하단 | **X 제외** | 〃 (없어진 필드 이야기를 화면이 할 이유 없음) |
