@@ -141,22 +141,21 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 ```
 ┌ Sidebar ┬─ 서비스·대상 검색 ──────────────────────────────────────┐
-│ 대시보드 │  ┌ ServiceSearchPanel ┐  ┌ TargetSourceList ──────────┐ │
-│●서비스   │  │ 🔍 서비스 코드 검색 │  │ Provider   TargetSourceId   │ │
-│ 검색     │  │ ● svc-alpha  ←P17  │  │ AWS        ts-aws-001    ›  │ │
-│          │  │   svc-beta         │  │ GCP        ts-gcp-002    ›  │ │
-│          │  │   svc-gamma        │  │ IDC        ts-idc-003    ›  │ │
-│          │  │ (PageServiceItem)  │  │ (미선택 시 P13 EmptyState)   │ │
-│          │  └────────────────────┘  └─────────────────────────────┘ │
-│          │  ▸ (참고) 서비스 권한 사용자  ← P16 Collapsible            │
+│ 대시보드 │  ┌ ServiceSearchPanel ┐  ┌ TargetSourceList ────────────────────┐ │
+│●서비스   │  │ 🔍 서비스 코드 검색 │  │ TargetSourceId CSP 설치상태 파이프라인 │ │
+│ 검색     │  │ ● svc-alpha  ←P17  │  │ 101  AWS  CONNECTED  RUNNING #128 상세›│ │
+│          │  │   svc-beta         │  │ 102  GCP  COMPLETED  PENDING #129 상세›│ │
+│          │  │   svc-gamma        │  │ 103  IDC  INSTALLED  —            상세›│ │
+│          │  │ (PageServiceItem)  │  │ (미선택 시 P13 EmptyState)             │ │
+│          │  └────────────────────┘  └───────────────────────────────────────┘ │
 └──────────┴────────────────────────────────────────────────────────┘
 ```
 
 | 블록 | 컴포넌트 | 데이터 / 원천 | 표시 |
 |---|---|---|---|
 | 좌: 서비스 검색 | `ServiceSearchPanel` = 단순 `<input>`(P8 FilterBar 아님) + `SelectableList(P17)` | `getUserServices`→`PageServiceItem` 🔵 | ✅ |
-| 우: target source 목록 | `TargetSourceList` = `DataTable`(미선택 시 `EmptyState`) | `getTargetSourcesByServiceCode`→`TargetSourceDetail[]` 🔵 (컬럼: Provider / TargetSourceId) | ✅ |
-| (참고) 권한 사용자 | `AuthorizedUsers` = `Collapsible(P16)` | `getServiceAuthorizedUsers` 🔵 (원본 page2에 명시) | ✅ |
+| 우: target source 목록 | `TargetSourceList` = `DataTable`(미선택 시 `EmptyState`) | `getTargetSourcesByServiceCode` 🔵 — 컬럼: **TargetSourceId(숫자)** / CSP / **설치 상태(procChip — process_status)** / **활성 파이프라인(RUNNING·PENDING pill + #id, 없으면 —)** / 상세› | ✅ |
+| ~~(참고) 권한 사용자~~ | **제거** (2026-07-05) | info-hierarchy §2 X 판정 — 지원 태스크 없음, API 호출도 폐지 | ❌ |
 
 - **상태**: `selectedServiceCode` 보유(선택 시 우측 목록 로드 + breadcrumb navState 갱신).
 - **이동**: target 행 클릭 → `#/target/:targetSourceId` (navState: `{serviceCode, provider, targetId}`)
@@ -186,12 +185,15 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 | 블록 | 컴포넌트 | 데이터 / 원천 | 표시 |
 |---|---|---|---|
-| 헤더 | `TargetSourceHeader` = `KeyValueGrid`+`ProviderTag` | CSP/계정/서비스명·코드 = `getTargetSourceDetail` 🔵 · **설치상태 = `getProcessStatus` 🔵**(원본 Q4: process_status를 "설치 상태"로 채택) | ✅🔵 |
+| 헤더 | `TargetSourceHeader` — **kv 해체(info-hierarchy §3, 2026-07-05)**: 식별 칩 행(id mono 16 + `ProviderTag` + 서비스명·코드 캡션) + **설치 상태 procChip(T1 승격)** + `계정·CSP metadata`는 `Collapsible(T4)` | 식별 = `getTargetSourceDetail` 🔵 · **설치상태 = `getProcessStatus` 🔵**(원본 Q4) | ✅🔵 |
 | 최근 1건 | `LatestPipelineCard` | A8 latest (`findFirstByTarget...`) | ✅ |
 | 이력 목록 | `PipelineHistoryTable` = `DataTable`+`Pagination`(빈 `EmptyState`) | A7 | ✅ (표시명/CSP는 ⚠️) |
 | 액션 바 | `TargetActionBar` = 3×`Button` | 설치/삭제/취소 | ✅ |
 | ↳ INSTALL/DELETE | `Button(primary)` → `PreviewModal` | A9 preview(recipe, `?type=`) → 확인 후 A10 `POST .../pipelines`(멱등·기존 run 반환) | ✅ |
 | ↳ 취소 | `Button(danger)` → `CancelModal` | A6 cancel — **항상 동기·즉시**(원본 Q7; ADR-021의 idle/cooperative 2케이스를 이 저장소는 채택 안 함) | ✅ |
+
+- **PENDING 잠금(2026-07-05)**: 활성 run 판정은 `RUNNING ∪ PENDING` — 시작 지연 대기 중에도
+  설치·삭제는 잠기고 취소만 가능.
 
 - **모달 상태**: 전역 `modal:{kind:preview|cancel, type?:INSTALL|DELETE, id}` 사용(§5). 여기서 `id`는 preview/설치·삭제 시 `targetId`, cancel 시 `pipelineId`.
 - **타깃 페이지 취소 범위**: `TargetActionBar`의 취소는 **이 대상의 최신 RUNNING 파이프라인**(=`LatestPipelineCard`의 run id)을 A6로 취소한다. (파이프라인 상세 페이지의 취소는 그 페이지의 pipelineId 대상 — 둘 다 CancelModal/A6 경유, 스코프만 다름)
@@ -234,9 +236,9 @@ TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `PipelineStatusBar` = 대형 StatusPill + ProgressBar(P5) + `Button(danger)`(취소, 파이프라인 스코프 — **여기 1곳만**) | status(P2)·진행 N/M·현재 task ✅(1행), 타입/ID/target 칩(Provider+외부)/서비스/created~lastActivity ✅(2행 meta), FAILED면 error_code 요약 ✅ | ✅/⚙️ |
+| `PipelineStatusBar` = 대형 StatusPill + ProgressBar(P5) + `Button(danger)`(취소, 파이프라인 스코프 — **여기 1곳만**) | 1행: status(P2, **PENDING 포함**)·**취소 요청됨 배지(cancel_requested)**·진행 N/M·현재 task(재시도 예산 fail/max 병기, PENDING이면 "시작 대기 · next_due_at 시작 예정")·FAILED면 error_code 요약·우측 "다음 실행 next_due_at"(RUNNING) ✅ / 2행 meta: 타입#ID·**레시피(recipe_definition)**·CSP+target·서비스·생성·마지막 활동·단계 n/총 m ✅ | ✅ |
 | `TargetContextChip` (상태 바 2행 내) | provider·targetSourceId·serviceName — 전체 CSP metadata는 하단 Collapsible + target 페이지 링크 | ✅ |
-| `UnavailableMetaGroup` = `Collapsible(P16)` (페이지 하단 각주) | next_due_at / lease(claimed_until) / cancel_requested / lag ❌ | **`FieldTag(미제공)` 4행** |
+| `ExecScheduleMeta` = `Collapsible(P16)` (페이지 하단, 구 UnavailableMetaGroup 대체 — **2026-07-05부터 실필드**) | next_due_at / leased / cancel_requested / due lag(>1s면 지연 주의 문구) ✅ | ✅ kv 4행 |
 
 **Task 흐름** — `PipelineDetail.tasks[]`
 
@@ -252,7 +254,7 @@ TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `TaskDetailPanel` 헤더 = `KeyValueGrid` | task 전체 컬럼(유효설정 `TaskSettings.resolve*` **읽기전용** ⚙️. 원본 10-API에 PATCH 없음 → 편집 미제공) | ✅ |
+| `TaskDetailPanel` 헤더 = `KeyValueGrid` | task 전체 컬럼 — **effective_\*(custom 오버라이드 반영 실효값) 라벨 명시**, TERRAFORM_JOB엔 **TF 슬롯(consumes_terraform_slot)** 행, `description` 있으면 설명 행 (읽기전용 — PATCH 없음) | ✅ |
 | `AttemptList` = `DataTable` | attempt_no/status/error_code/시각 ✅, **response**(원시 text) ✅. `job_ids`/`dispatch_response_*` = ❌ 제거필드 → **컬럼 없음**(원본 명시) | ✅ |
 | `CheckSummary` = `KeyValueGrid` | call/not_met/api_error/call_timeout/last_external_status/last_checked_at ✅ · last_response_code·summary ⚠️(미채움→null `FieldTag`) | ✅/⚠️ |
 

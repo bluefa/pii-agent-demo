@@ -70,6 +70,26 @@
 | 진행 상황 추적 | T3 | 현재 task·N/M·최근 활동 시각 | ✅ 상태 바 |
 | 잘못 건 작업 취소 | T2 | RUNNING일 때만 취소 | ✅ canCancel 게이팅 |
 
+### 3.5 대표 UX 시나리오 (태스크 → 화면 흐름, 2026-07-05)
+
+**S1 — 실패 원인 파악 (T1, 가장 급함)**
+대시보드 진입 → 실패 카드(강조색)·목록 최상단 FAILED 행 → `상세 ›` → 상세 진입과 동시에
+실패 task 자동 선택 → 상태 바에서 `error_code`(예: JOB_FAILED), 사이드 패널에서 attempt raw
+response(`quota exceeded`)로 원인 특정 → 재시도 API는 없으므로(ADR-016) target 페이지로 이동해
+새 파이프라인 시작. *메타 활용: error_code, attempts.response, 재시도 예산(fail/max).*
+
+**S2 — 설치/삭제 수행 (T2)**
+서비스 검색 → 대상 목록에서 **설치 상태(procChip)와 활성 파이프라인 pill**로 실행 가능 여부를
+목록 단계에서 예측 → target 상세 → [설치 시작] → 레시피 미리보기(레시피명 + 단계) → 실행 →
+상세 추적. 활성 run이 있으면 버튼 잠금 + 취소만. *메타 활용: process_status, recipe_definition,
+활성 run(RUNNING∪PENDING).*
+
+**S3 — 진행·대기 확인 (T3)**
+걸어둔 작업 재방문 → RUNNING이면 진행 N/M·현재 task·**다음 실행(next_due_at)**으로 "언제 또
+움직이나"까지 답함 → PENDING(시작 지연, LIN-30)이면 상태 바가 "시작 대기 · HH:MM 시작 예정"
+→ 잘못 걸었으면 그 자리에서 취소(취소 요청 중이면 `취소 요청됨` 배지 + 버튼 잠금).
+*메타 활용: next_due_at, cancel_requested, leased, due_lag(지연 경보).*
+
 ## 4. 태스크가 아직 답 못 받는 것 (gap — 우선순위 결정 필요)
 
 1. **알림→상세 딥링크**: T1의 시작이 알림이라면 알림에 `#/pipeline/:id` 링크가 있어야

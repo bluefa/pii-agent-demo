@@ -4,6 +4,30 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 11 — 3페이지 일관 적용 + 파이프라인 메타데이터 활용 (2026-07-05)
+
+오너 지시: 서비스/target/파이프라인 상세 UX 시나리오 + "최신 main의 풍부한 파이프라인
+메타데이터를 전혀 안 쓴다" + 덩어리 간 여백 일관화. 최신 main DTO(PipelineDetail·TaskDetail·
+LivePipelineStatistics) 실사 후 반영.
+
+- **간격 3계층 확정**: 섹션 덩어리 간 40→**64**, 같은 섹션 위아래 블록 16 통일(나란한 카드 12와
+  구분) — style-guide §2 개정.
+- **메타데이터 편성(파이프라인 상세)**: 레시피(recipe_definition)·단계 n/총 m — meta 행,
+  **다음 실행(next_due_at)**·**취소 요청됨(cancel_requested) 배지**·재시도 예산(fail/max) —
+  상태 바 1행 조건부, leased·due_lag — "실행 스케줄 메타" 접힘(구 ADR-021 미제공 섹션을
+  실필드로 재편성, 미결 #3 해소). 사이드 패널: effective_* 라벨·TF 슬롯·설명 행.
+- **PENDING(LIN-30) 전면 지원**: 호박색 pill 신설, mock #129(GCP 시작 지연 15:30), 상태 바
+  "시작 대기 · 시작 예정", 정렬 FAILED>RUNNING>PENDING, 상태 필터 옵션, 취소 가능(비종단),
+  target 잠금 판정 RUNNING∪PENDING.
+- **서비스 검색(IA §2 적용)**: 권한 사용자 목록·API 제거, 대상 목록에 설치 상태 procChip +
+  활성 파이프라인 pill(#id) 열 추가.
+- **target 상세(IA §3 적용)**: kv 5행 해체 — 식별 칩 행(id 16px mono + CSP + 서비스 캡션),
+  설치 상태 procChip T1 승격, 계정·CSP metadata 접힘(T4).
+- **X 판정 청소(IA §4 #7~9)**: 상설 null 2행(last_response_code/summary)·구현 해명문 2개 제거.
+- **mock 정합**: task 표시명을 오너 컨벤션("실행 단위+테라폼+Plan/Apply/Destroy")으로 통일,
+  가짜 에러코드 PE_REQUEST_REJECTED → 실제 enum JOB_FAILED.
+- usecases §3.5 대표 UX 시나리오 3개(S1 실패 대응 / S2 설치·삭제 / S3 진행·대기 확인) 추가.
+
 ## Round 10 — 전역 기간 대시보드 확정 + 목록 정보 재구성 (2026-07-05)
 
 오너 결정(벤치마크 리서치 첨부): "전체 기간에 대한 dashboard라는 느낌" — Round 9의
