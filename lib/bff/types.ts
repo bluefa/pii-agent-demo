@@ -19,8 +19,50 @@
  */
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
+import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
+
+/**
+ * pipeline-orchestrator proxy domain (LIN-25).
+ *
+ * CONTRACT DEVIATION FROM THE REST OF BffClient: these methods DO NOT throw on
+ * non-2xx. They return the upstream `{ status, body }` VERBATIM (204 →
+ * `{ status: 204, body: null }`) so the route wrapper (`withOrchestratorProxy`)
+ * can pass the upstream status + snake_case body straight to the browser. Only
+ * an unreachable upstream throws (`OrchestratorUnreachableError`). See
+ * docs/api/pipeline-orchestrator-bff.md.
+ *
+ * Query strings pass through raw (repeatable `sort` order/duplicates preserved).
+ */
+export interface PipelineBffClient {
+  /** #1 GET /api/v1/pipelines/statistics/live */
+  liveStatistics: () => Promise<OrchestratorRawResponse>;
+  /** #2 GET /api/v1/pipelines/statistics?period= */
+  statistics: (period: string | undefined) => Promise<OrchestratorRawResponse>;
+  /** #3 GET /api/v1/pipelines?<query> — pass the raw search string. */
+  list: (query: string) => Promise<OrchestratorRawResponse>;
+  /** #4 GET /api/v1/pipelines/{pipelineId} */
+  detail: (pipelineId: string) => Promise<OrchestratorRawResponse>;
+  /** #5 GET /api/v1/pipelines/{pipelineId}/tasks/{taskId} */
+  taskDetail: (pipelineId: string, taskId: string) => Promise<OrchestratorRawResponse>;
+  /** #6 POST /api/v1/pipelines/{pipelineId}/cancel */
+  cancel: (pipelineId: string) => Promise<OrchestratorRawResponse>;
+  /** #7 GET /api/v1/target-sources/{targetSourceId}/pipelines?<query> */
+  listByTarget: (targetSourceId: string, query: string) => Promise<OrchestratorRawResponse>;
+  /** #8 GET /api/v1/target-sources/{targetSourceId}/pipelines/latest (204 when empty) */
+  latestByTarget: (targetSourceId: string) => Promise<OrchestratorRawResponse>;
+  /** #9 GET /api/v1/target-sources/{targetSourceId}/pipelines/preview?type= */
+  preview: (targetSourceId: string, type: string | undefined) => Promise<OrchestratorRawResponse>;
+  /** #10 POST /api/v1/target-sources/{targetSourceId}/pipelines */
+  create: (targetSourceId: string, body: unknown) => Promise<OrchestratorRawResponse>;
+  /** #11 POST /api/v1/target-sources/{targetSourceId}/pipelines/custom */
+  createCustom: (targetSourceId: string, body: unknown) => Promise<OrchestratorRawResponse>;
+  /** #12 GET /api/v1/task-definitions?provider= */
+  taskDefinitions: (provider: string | undefined) => Promise<OrchestratorRawResponse>;
+}
 
 export interface BffClient {
+  pipeline: PipelineBffClient;
+
   targetSources: {
     get: (id: number) => Promise<z.infer<typeof schemas.TargetSourceDetail>>;
     // Wire snake (37) — the route handler owns the casing boundary.
