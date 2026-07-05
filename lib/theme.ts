@@ -330,6 +330,10 @@ export const pageChromeStyles = {
   subtitle: 'text-sm text-gray-500 px-6 mt-1 mb-6',
 } as const;
 
+/** PageHeader h1 — v15 page-title geometry (24/800/-0.03em/1.2), toss strong text color. */
+export const pageHeaderTitleStyle =
+  'text-[24px] font-extrabold leading-[1.2] tracking-[-0.03em] text-[#191F28]';
+
 /**
  * Page-meta horizontal kv strip (Toss display variant).
  * See ADR-014 D1; consumer rollout starts in Wave 1.
