@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import { ProcessStatus } from '@/lib/types';
+import { ProcessStatus, toWireDatabaseType } from '@/lib/types';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
 import {
   idcDbTypeWireFromLabel,
@@ -60,7 +60,7 @@ const idcSelectedMetadata = (r: IdcStep1Row): IdcMetadata => {
   // outside the known enum still round-trips (databaseTypeWire is undefined for those;
   // toIdcResourceView keeps the raw wire value in databaseTypeLabel). New rows always
   // have databaseTypeWire set, so the label is never a pretty/display-only value here.
-  const databaseType = r.databaseTypeWire ?? r.databaseTypeLabel;
+  const databaseType = toWireDatabaseType(r.databaseTypeWire ?? r.databaseTypeLabel);
   return {
     provider: 'IDC',
     idc_host_format: isDomain ? 'HOST' : 'IP',

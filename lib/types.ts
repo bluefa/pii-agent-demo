@@ -48,6 +48,11 @@ export type DatabaseType = string;
 // VM 전용 데이터베이스 타입
 export type VmDatabaseType = string;
 
+// Requests send database_type in lowercase-canonical form (per the directive above).
+// Internal representations differ — the IDC input catalog is UPPERCASE (IDC_DB_TYPES),
+// cloud scan values are raw case — so normalize at every request/metadata boundary.
+export const toWireDatabaseType = (value: string): string => value.toLowerCase();
+
 // VM 데이터베이스 설정
 export interface VmDatabaseConfig {
   host?: string;               // EC2 전용: Private DNS Name
