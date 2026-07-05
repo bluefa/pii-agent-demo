@@ -90,8 +90,8 @@ svg.ic.lg{width:22px;height:22px}
 .breadcrumb .cur{color:var(--text-medium);font-weight:600}
 .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
 .page-head+.section-title{margin-top:0}
-.page-head h1{font-size:20px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.02em} /* role: t-title */
-.section-title{font-size:16px;font-weight:600;color:var(--text-strong);margin:40px 0 12px;line-height:1.2}
+.page-head h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.02em} /* role: t-title */
+.section-title{font-size:20px;font-weight:600;color:var(--text-strong);margin:40px 0 12px;line-height:1.2}
 .section-title:first-child{margin-top:0}
 .section-title .meta{font-weight:400}
 .subsection-title{font-size:14px;font-weight:600;color:var(--text-medium);margin:16px 0 10px}
@@ -103,10 +103,10 @@ svg.ic.lg{width:22px;height:22px}
 
 /* ── StatCard ── */
 .stat-row{display:grid;grid-template-columns:repeat(3,minmax(0,260px));gap:12px}
-.stat{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
-  box-shadow:var(--shadow-xs);padding:20px 24px 24px}
+.stat{background:var(--gray-100);border:1px solid var(--border);border-radius:var(--r-card);
+  padding:20px 24px 24px} /* 회색 타일 = 읽기 전용 요약 표면(흰 카드 = 콘텐츠·상호작용) */
 .stat .lbl{font-size:12px;font-weight:400;color:var(--text-weak);display:flex;align-items:center;gap:6px}
-.stat .val{font-size:32px;font-weight:600;margin-top:8px;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums} /* role: t-display */
+.stat .val{font-size:32px;font-weight:600;margin-top:12px;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums} /* role: t-display */
 .stat .val .den{color:var(--text-faint);font-weight:500;font-size:20px}
 .stat .sub{margin-top:6px}
 .stat.unavailable .val{color:var(--text-faint)}
@@ -443,8 +443,8 @@ const liveStats = () => ({
   tfInProgress: Object.values(PIPELINES).flatMap(p=>p.tasks).filter(t=>t.kind==='TERRAFORM_JOB'&&t.status==='IN_PROGRESS').length,
   slotLimit: null,
 });
-// 🆕 A2 period stats — 기간은 페이지 전역 컨텍스트(카드+목록이 같은 기간을 봄, style-guide §4).
-// 파생 집계로 교체: 하드코딩 표는 목록과 숫자가 어긋나 계약("같은 기간")을 스스로 깼음.
+// 🆕 A2 period stats — 현황 카드는 고정 24시간 창(모니터링), 목록은 기간 필터 1h/1d/7d(조회 도구).
+// 파생 집계 유지: 하드코딩 표는 목록과 숫자가 어긋났음.
 // MOCK_NOW: mock createdAt이 과거 고정값이라 기간 필터 데모용 기준 시각(실 API에선 서버 now).
 const MOCK_NOW = new Date('2026-06-30T15:00');
 const PERIOD_MS = {'1h':36e5, '1d':864e5, '7d':6048e5};
@@ -616,25 +616,24 @@ let histState={id:null,page:1};
 const PAGE_SIZE=5;
 function viewDashboard(){
   const root=el(`<div>
-    <div class="page-head"><h1>대시보드</h1>
-      <span class="seg" id="periodseg" title="페이지 전역 기간 — 현황(실패·성공)과 목록이 같은 기간(created_at 기준)을 봅니다">
-        <button data-p="1h">1시간</button><button data-p="1d">1일</button><button data-p="7d">7일</button>
-      </span>
-    </div>
+    <div class="page-head"><h1>대시보드</h1></div>
     <div class="section-title">현황</div>
     <div class="stat-row" id="stats"></div>
     <div class="section-title">파이프라인 목록</div>
+    <div class="filterbar" style="margin-bottom:12px">
+      <span class="searchbox" style="width:240px">${ic('i-search')}<input class="input" id="q" placeholder="target 검색"></span>
+      <select class="sel" id="fstatus">
+        <option value="">상태 전체</option><option>RUNNING</option><option>DONE</option><option>FAILED</option><option>CANCELLED</option>
+      </select>
+      <select class="sel" id="fprov">
+        <option value="">Provider 전체</option><option value="aws">AWS</option><option value="azure">Azure</option><option value="gcp">GCP</option><option value="idc">IDC</option>
+      </select>
+      <span class="seg" id="periodseg" title="목록 기간 필터 — created_at 기준">
+        <button data-p="1h">1시간</button><button data-p="1d">1일</button><button data-p="7d">7일</button>
+      </span>
+      <button class="btn ghost" id="refresh" style="margin-left:auto">${ic('i-refresh','ic sm')} 새로고침</button>
+    </div>
     <div class="card">
-      <div class="filterbar" style="margin-bottom:16px">
-        <span class="searchbox" style="width:240px">${ic('i-search')}<input class="input" id="q" placeholder="target 검색"></span>
-        <select class="sel" id="fstatus">
-          <option value="">상태 전체</option><option>RUNNING</option><option>DONE</option><option>FAILED</option><option>CANCELLED</option>
-        </select>
-        <select class="sel" id="fprov">
-          <option value="">Provider 전체</option><option value="aws">AWS</option><option value="azure">Azure</option><option value="gcp">GCP</option><option value="idc">IDC</option>
-        </select>
-        <button class="btn ghost" id="refresh" style="margin-left:auto">${ic('i-refresh','ic sm')} 새로고침</button>
-      </div>
       <div id="listwrap"></div>
     </div>
   </div>`);
@@ -651,18 +650,19 @@ function viewDashboard(){
   root.querySelector('#refresh').onclick=()=>{toast('목록을 새로고침했어요');renderList(root);};
   return root;
 }
-// 현황 3장: RUNNING(순간값·A1) + 실패/성공(전역 기간·A2). 카드 6→3 축소 근거: info-hierarchy.md §1
+// 현황 3장 = 모니터링 요약: RUNNING(순간값·A1) + 실패/성공(최근 24시간 고정 창·A2).
+// 기간 seg는 목록의 조회 필터로 이동 — 현황은 조작 없이 읽는 고정 요약. 카드 6→3 축소 근거: info-hierarchy.md §1
 function renderStats(root){
-  const s=periodStats(dashPeriod);
+  const s=periodStats('1d');
   const wrap=root.querySelector('#stats'); wrap.innerHTML='';
   wrap.append(
-    el(`<div class="stat" title="count(status=RUNNING) — 기간 무관 순간값"><div class="lbl">동작 중 파이프라인 <span class="muted">순간값</span></div><div class="val">${liveStats().runningCount}</div></div>`),
-    el(`<div class="stat range${s.failed>0?' failed':''}" title="선택 기간 내 created_at 기준"><div class="lbl">실패 (FAILED)</div><div class="val">${s.failed}</div></div>`),
-    el(`<div class="stat range" title="선택 기간 내 created_at 기준"><div class="lbl">성공 (DONE)</div><div class="val">${s.done}</div></div>`),
+    el(`<div class="stat" title="현재 RUNNING 상태인 파이프라인 수 — 순간값"><div class="lbl">동작 중 파이프라인</div><div class="val">${liveStats().runningCount}</div></div>`),
+    el(`<div class="stat range${s.failed>0?' failed':''}" title="최근 24시간 created_at 기준"><div class="lbl">실패 · 최근 24시간</div><div class="val">${s.failed}</div></div>`),
+    el(`<div class="stat range" title="최근 24시간 created_at 기준"><div class="lbl">성공 · 최근 24시간</div><div class="val">${s.done}</div></div>`),
   );
 }
 function renderList(root){
-  let rows=Object.values(PIPELINES).filter(p=>inPeriod(p,dashPeriod)); // 전역 기간 컨텍스트 — 카드와 동일
+  let rows=Object.values(PIPELINES).filter(p=>inPeriod(p,dashPeriod)); // 목록 기간 필터(1h/1d/7d)
   if(dashFilter.status) rows=rows.filter(p=>p.status===dashFilter.status);
   if(dashFilter.provider) rows=rows.filter(p=>p.provider===dashFilter.provider);
   if(dashFilter.q) rows=rows.filter(p=>p.target.includes(dashFilter.q.trim()));
