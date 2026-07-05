@@ -29,7 +29,8 @@ describe('approval-payload', () => {
 
     expect(item.metadata?.provider).toBe('AWS');
     expect(item.metadata?.region).toBe('ap-northeast-1');
-    expect(item.metadata?.database_type).toBe('MYSQL');
+    // Requests send database_type lowercase-canonical (candidate.databaseType is 'MYSQL').
+    expect(item.metadata?.database_type).toBe('mysql');
     expect(item.resource_name).toBe('mydb');
     // Still a valid contract item (no off-contract fields).
     expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();

@@ -33,7 +33,8 @@ describe('toIdcApprovalRequestInput', () => {
       idc_host_format: 'IP',
       idc_ips: ['10.0.0.5'],
       port: 3306,
-      database_type: 'MYSQL',
+      // Requests send database_type lowercase (IDC wire enum is 'MYSQL').
+      database_type: 'mysql',
       oracle_service_id: 'ORCL',
       credential_id: 'cred-1',
     });
@@ -52,7 +53,8 @@ describe('toIdcApprovalRequestInput', () => {
       row({ databaseTypeWire: undefined, databaseTypeLabel: 'COCKROACHDB' }),
     ]);
     const meta = (input.resources ?? [])[0].metadata;
-    expect(meta?.database_type).toBe('COCKROACHDB');
+    // Preserved AND lowercased on the request.
+    expect(meta?.database_type).toBe('cockroachdb');
   });
 
   it('DOMAIN-mode row uses idc_host (not idc_ips)', () => {

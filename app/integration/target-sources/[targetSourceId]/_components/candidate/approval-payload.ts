@@ -5,7 +5,7 @@ import type {
   CandidateDraftState,
   CandidateResource,
 } from '@/lib/types/resources';
-import { cloudProviderToWireProvider } from '@/lib/types';
+import { cloudProviderToWireProvider, toWireDatabaseType } from '@/lib/types';
 import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 
 type ResourceItem = z.infer<typeof schemas.TargetSourceResourceItemDto>;
@@ -71,7 +71,7 @@ const buildResourceInputs = (
           ? { provider: cloudProviderToWireProvider(candidate.metadata.provider) }
           : {}),
         ...(candidate.metadata.region ? { region: candidate.metadata.region } : {}),
-        ...(candidate.databaseType ? { database_type: candidate.databaseType } : {}),
+        ...(candidate.databaseType ? { database_type: toWireDatabaseType(candidate.databaseType) } : {}),
         ...behavior.buildMetadataFields(candidate, drafts),
       };
       return {

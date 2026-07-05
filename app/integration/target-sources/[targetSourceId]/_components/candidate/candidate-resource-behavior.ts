@@ -7,6 +7,7 @@ import type {
   CandidateResourceBehavior,
   EndpointConfigDraft,
 } from '@/lib/types/resources';
+import { toWireDatabaseType } from '@/lib/types';
 
 type MetadataFields = z.infer<typeof schemas.TargetSourceResourceMetadataDto>;
 
@@ -17,7 +18,7 @@ const resolveEndpoint = (
   draft.endpointDrafts[resource.id] ?? resource.endpointConfig;
 
 const endpointMetadataFields = (endpoint: EndpointConfigDraft): MetadataFields => ({
-  database_type: endpoint.databaseType.toLowerCase(),
+  database_type: toWireDatabaseType(endpoint.databaseType),
   port: endpoint.port,
   ...(endpoint.host ? { host: endpoint.host } : {}),
   ...(endpoint.oracleServiceId ? { oracle_service_id: endpoint.oracleServiceId } : {}),
