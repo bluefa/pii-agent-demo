@@ -1,0 +1,1174 @@
+openapi: 3.0.1
+info:
+  title: Pipeline Orchestrator BFF Proxy API (LIN-25)
+  version: v1
+  description: |
+    `pipeline-orchestrator`(Spring Boot, 기본 포트 8080, 별도 서버) 앞단의 BFF 프록시 계약이다.
+    이 문서가 다루는 12개 경로는 모두 `withOrchestratorProxy` 래퍼(app/api/_lib/orchestrator.ts)를
+    거쳐 업스트림 응답을 **verbatim**으로 브라우저에 전달한다.
+
+    - **응답 passthrough가 원칙이다.** 업스트림의 HTTP status와 body(snake_case)를 그대로 전달한다.
+      camelCase 변환이나 필드 가공은 하지 않는다. 204(latest 미실행 이력)도 그대로 전달한다.
+    - **에러 body도 그대로 전파한다.** 업스트림 에러는 `OrchestratorErrorBody`
+      (`{timestamp,status,code,message,path}`, code는 `ORCHESTRATION_*`) 형태이며, 이 BFF는 status·body를
+      재작성하지 않는다.
+    - **유일한 BFF 합성 응답은 502**다(`{code:"ORCHESTRATOR_UNREACHABLE", message}`) — 업스트림 연결
+      실패/타임아웃일 때만 발생하며, 모든 경로에 공통이다(`components/responses/OrchestratorUnreachable`).
+    - **원계약(필드/enum/에러코드)의 최종 소스는 `pipeline-orchestrator` 저장소**
+      (`com.bff.pipeline.controller` / `dto` / `enums` / `exception`)다. 이 문서는 그 계약을 브라우저
+      기준 경로(`/integration/api/v1/orchestrator/**`)로 미러링한 것이며, enum 값은 소스와 1:1 대조 후
+      기록했다.
+    - Instant는 ISO-8601 문자열("2026-07-02T00:05:00Z"), Duration은 ISO-8601 문자열("PT10M")로 직렬화된다.
+      둘 다 표기 편의상 `type: string`으로 모델링했고 실제 포맷은 각 필드 설명에 명시했다.
+    - 페이지네이션은 Spring `Page<T>` 직접 envelope이다. `sort` 쿼리 파라미터는 자바 프로퍼티명
+      (`createdAt`)을 쓰며 응답 필드명(`created_at`)과 다르다.
+
+    참고: 원본 wire 계약 추출본은 사설 스크래치패드 리포트(backend-api-spec.md)이고, 페이지 매핑은
+    `docs/api/pipeline-orchestrator-bff.md`(LIN-25 D1)에 있다.
+servers:
+  - url: http://localhost:3001
+    description: Next.js BFF (same-origin) — 로컬 개발 서버
+tags:
+  - name: Pipeline Statistics
+    description: 대시보드 통계 (#1 live, #2 기간별)
+  - name: Pipelines
+    description: 파이프라인 목록/상세/취소 (#3, #4, #6)
+  - name: Pipeline Tasks
+    description: Task 상세 (#5)
+  - name: Target Source Pipelines
+    description: 타겟별 파이프라인 이력/최신 실행/미리보기/실행 (#7–#11)
+  - name: Task Definitions
+    description: Task 카탈로그 (#12)
+paths:
+  /integration/api/v1/orchestrator/pipelines/statistics/live:
+    get:
+      tags: [Pipeline Statistics]
+      summary: "#1 실시간 파이프라인 통계"
+      description: 업스트림 `GET /api/v1/pipelines/statistics/live` 프록시. 모든 필드는 숫자이며 null이 아니다.
+      operationId: getLivePipelineStatistics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivePipelineStatistics"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/pipelines/statistics:
+    get:
+      tags: [Pipeline Statistics]
+      summary: "#2 기간별 파이프라인 통계"
+      description: 업스트림 `GET /api/v1/pipelines/statistics?period=` 프록시. `period`는 필수 쿼리 파라미터다.
+      operationId: getPipelineStatistics
+      parameters:
+        - name: period
+          in: query
+          required: true
+          description: 통계 집계 기간 토큰. 누락 시 400 INVALID_PARAMETER, 미지원 토큰이면 400 INVALID_STATISTICS_PERIOD.
+          schema:
+            $ref: "#/components/schemas/StatisticsPeriod"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineStatistics"
+        "400":
+          description: >-
+            period 누락(ORCHESTRATION_INVALID_PARAMETER) 또는 미지원 토큰(ORCHESTRATION_INVALID_STATISTICS_PERIOD)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/pipelines:
+    get:
+      tags: [Pipelines]
+      summary: "#3 파이프라인 목록"
+      description: >-
+        업스트림 `GET /api/v1/pipelines?status&provider&period&page&size&sort` 프록시. 쿼리 문자열은
+        원문 그대로 전달되어 반복되는 `sort` 파라미터의 순서/중복이 보존된다.
+      operationId: listPipelines
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/PipelineStatus"
+        - name: provider
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CloudProvider"
+        - name: period
+          in: query
+          required: false
+          description: since 필터 창(예대시보드 기간 seg와 동기화). 생략 시 필터 없음.
+          schema:
+            $ref: "#/components/schemas/StatisticsPeriod"
+        - name: page
+          in: query
+          required: false
+          description: 0-base 페이지 번호. 기본값 0.
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          description: 페이지 크기. 기본값 20.
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          description: >-
+            자바 프로퍼티명 기준 정렬(예: `createdAt,desc`). 반복 가능(`sort=createdAt,desc&sort=id,desc`).
+            기본값은 `createdAt DESC, id DESC`.
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageOfPipelineSummary"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/pipelines/{pipelineId}:
+    get:
+      tags: [Pipelines]
+      summary: "#4 파이프라인 상세"
+      description: 업스트림 `GET /api/v1/pipelines/{pipelineId}` 프록시.
+      operationId: getPipelineDetail
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineDetail"
+        "404":
+          description: 파이프라인 없음 (ORCHESTRATION_PIPELINE_NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/pipelines/{pipelineId}/tasks/{taskId}:
+    get:
+      tags: [Pipeline Tasks]
+      summary: "#5 Task 상세"
+      description: >-
+        업스트림 `GET /api/v1/pipelines/{pipelineId}/tasks/{taskId}` 프록시. taskId가 존재해도 다른
+        pipelineId 소속이면 404 TASK_NOT_FOUND.
+      operationId: getTaskDetail
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+        "404":
+          description: Task 없음 또는 다른 pipeline 소속 (ORCHESTRATION_TASK_NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/pipelines/{pipelineId}/cancel:
+    post:
+      tags: [Pipelines]
+      summary: "#6 파이프라인 취소"
+      description: >-
+        업스트림 `POST /api/v1/pipelines/{pipelineId}/cancel` 프록시(body 없음). 2단계 취소: idle·lease
+        만료·PENDING이면 즉시 CANCELLED + 비종단 task cascade. 라이브 lease 중이면
+        `cancel_requested=true`만 기록하고 워커가 다음 안전 지점에 반영(응답이 RUNNING +
+        cancel_requested:true일 수 있음). 이미 종단 상태면 no-op 200(멱등).
+      operationId: cancelPipeline
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+      responses:
+        "200":
+          description: 취소 반영 후(또는 이미 종단 상태의 no-op) PipelineDetail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineDetail"
+        "404":
+          description: 파이프라인 없음 (ORCHESTRATION_PIPELINE_NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines:
+    get:
+      tags: [Target Source Pipelines]
+      summary: "#7 타겟소스별 파이프라인 이력"
+      description: 업스트림 `GET /api/v1/target-sources/{targetSourceId}/pipelines?page&size&sort` 프록시.
+      operationId: listPipelinesByTargetSource
+      parameters:
+        - $ref: "#/components/parameters/TargetSourceId"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          description: 타겟 상세 이력 테이블은 size=5로 호출한다.
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          description: 자바 프로퍼티명 기준(예 `createdAt,desc`). 반복 가능. 기본값 `createdAt DESC, id DESC`.
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageOfPipelineSummary"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+    post:
+      tags: [Target Source Pipelines]
+      summary: "#10 카탈로그 레시피로 파이프라인 실행(설치/삭제)"
+      description: >-
+        업스트림 `POST /api/v1/target-sources/{targetSourceId}/pipelines` 프록시. 신규 파이프라인은
+        PENDING으로 생성된다. 이미 활성 run(PENDING/RUNNING)이 있으면 기존 run을 반환하지 않고 409를
+        반환한다.
+      operationId: createPipeline
+      parameters:
+        - $ref: "#/components/parameters/TargetSourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePipelineRequest"
+      responses:
+        "200":
+          description: 신규 생성된 PipelineDetail(PENDING)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineDetail"
+        "400":
+          description: >-
+            type 누락(ORCHESTRATION_PIPELINE_TYPE_REQUIRED) 또는 type=CUSTOM
+            (ORCHESTRATION_UNSUPPORTED_RECIPE — 이 경로는 CUSTOM을 지원하지 않는다. #11 사용)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "409":
+          description: >-
+            해당 타겟소스에 이미 활성 run(PENDING/RUNNING)이 있음 (ORCHESTRATION_PIPELINE_ALREADY_ACTIVE).
+            기존 run은 응답에 포함되지 않는다 — 호출자가 #8 latest로 재조회해야 한다.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "503":
+          description: cloud provider 조회 실패 (ORCHESTRATION_PROVIDER_LOOKUP_FAILED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/latest:
+    get:
+      tags: [Target Source Pipelines]
+      summary: "#8 타겟소스 최신 실행"
+      description: >-
+        업스트림 `GET /api/v1/target-sources/{targetSourceId}/pipelines/latest` 프록시. 실행 이력이
+        없으면 204(빈 body) — BFF도 204를 그대로 전달한다.
+      operationId: getLatestPipelineByTargetSource
+      parameters:
+        - $ref: "#/components/parameters/TargetSourceId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineSummary"
+        "204":
+          description: 해당 타겟소스에 실행 이력 없음(body 없음)
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/preview:
+    get:
+      tags: [Target Source Pipelines]
+      summary: "#9 실행 미리보기"
+      description: >-
+        업스트림 `GET /api/v1/target-sources/{targetSourceId}/pipelines/preview?type=` 프록시.
+        `type`은 필수이며 INSTALL|DELETE만 지원한다(CUSTOM은 미리보기 대상 레시피가 없어 400).
+      operationId: previewPipeline
+      parameters:
+        - $ref: "#/components/parameters/TargetSourceId"
+        - name: type
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/PipelineType"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipePreview"
+        "400":
+          description: >-
+            type=CUSTOM이거나 해당 (provider, type) 조합의 카탈로그 레시피가 없음
+            (ORCHESTRATION_UNSUPPORTED_RECIPE)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "503":
+          description: cloud provider 조회 실패 (ORCHESTRATION_PROVIDER_LOOKUP_FAILED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/custom:
+    post:
+      tags: [Target Source Pipelines]
+      summary: "#11 커스텀 레시피로 파이프라인 실행"
+      description: >-
+        업스트림 `POST /api/v1/target-sources/{targetSourceId}/pipelines/custom` 프록시. 생성된
+        파이프라인의 type은 CUSTOM이다. 검증 순서: tasks 비어있음 → unknown task name → description
+        100자 초과 → provider 조회 실패 → provider 불일치 → 활성 run 존재.
+      operationId: createCustomPipeline
+      parameters:
+        - $ref: "#/components/parameters/TargetSourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomPipelineRequest"
+      responses:
+        "200":
+          description: 신규 생성된 PipelineDetail(type=CUSTOM, PENDING)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineDetail"
+        "400":
+          description: >-
+            tasks 비어있음(ORCHESTRATION_CUSTOM_TASKS_REQUIRED) · 미등록 task
+            name(ORCHESTRATION_UNKNOWN_TASK) · description 100자
+            초과(ORCHESTRATION_TASK_DESCRIPTION_TOO_LONG) · task가 타겟소스 provider와 불일치
+            (ORCHESTRATION_TASK_PROVIDER_MISMATCH)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "409":
+          description: 해당 타겟소스에 이미 활성 run이 있음 (ORCHESTRATION_PIPELINE_ALREADY_ACTIVE)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "503":
+          description: cloud provider 조회 실패 (ORCHESTRATION_PROVIDER_LOOKUP_FAILED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/task-definitions:
+    get:
+      tags: [Task Definitions]
+      summary: "#12 Task 카탈로그"
+      description: 업스트림 `GET /api/v1/task-definitions?provider=` 프록시. provider는 선택적 필터.
+      operationId: listTaskDefinitions
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CloudProvider"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCatalogResponse"
+        "400":
+          description: 지원하지 않는 provider 값 (ORCHESTRATION_INVALID_PARAMETER)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+components:
+  parameters:
+    PipelineId:
+      name: pipelineId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    TargetSourceId:
+      name: targetSourceId
+      in: path
+      required: true
+      description: >-
+        pipeline-orchestrator는 이 값을 opaque 식별자(string)로 취급한다(응답 필드
+        `target_source_id`도 string).
+      schema:
+        type: string
+
+  responses:
+    OrchestratorUnreachable:
+      description: >-
+        BFF가 업스트림(pipeline-orchestrator)에 연결하지 못했을 때(연결 실패/타임아웃) 합성한 응답이다.
+        업스트림 에러 body(OrchestratorErrorBody)가 아니라 BFF 고유의 최소 형태다.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BffProxyErrorBody"
+
+  schemas:
+    # -----------------------------------------------------------------------
+    # Enums — 1:1 대조: com.bff.pipeline.enums.* / exception.OrchestrationErrorCode
+    # -----------------------------------------------------------------------
+    PipelineStatus:
+      type: string
+      description: PENDING/RUNNING은 비종단 상태다.
+      enum: [PENDING, RUNNING, DONE, FAILED, CANCELLED]
+    PipelineType:
+      type: string
+      enum: [INSTALL, DELETE, CUSTOM]
+    TaskStatus:
+      type: string
+      enum: [BLOCKED, READY, IN_PROGRESS, DONE, FAILED, CANCELLED]
+    TaskKind:
+      type: string
+      description: Task 실행 mechanism.
+      enum: [TERRAFORM_JOB, CONDITION_CHECK]
+    CloudProvider:
+      type: string
+      enum: [AWS, GCP, AZURE, IDC]
+    ErrorCode:
+      type: string
+      description: Task 실패 원인 코드(TaskSummary/TaskDetail/TaskAttemptView의 error_code 필드용).
+      enum:
+        - JOB_FAILED
+        - EXECUTION_TIMEOUT
+        - CONDITION_NOT_MET
+        - CHECK_ERROR
+        - CALL_TIMEOUT
+        - UNKNOWN_TASK
+    StatisticsPeriod:
+      type: string
+      description: 통계 집계 기간 토큰(@JsonValue 와이어 값 — 상수명이 아니다).
+      enum: ["1h", "1d", "7d"]
+    TaskOperation:
+      type: string
+      description: >-
+        Task가 수행하는 도메인 액션(25) — 실행 단위 8개 × {PLAN,APPLY,DESTROY} = 24 +
+        NETWORK_READY(CONDITION_CHECK).
+      enum:
+        - AWS_SERVICE_TF_PLAN
+        - AWS_SERVICE_TF_APPLY
+        - AWS_SERVICE_TF_DESTROY
+        - AWS_BDC_COMMON_TF_PLAN
+        - AWS_BDC_COMMON_TF_APPLY
+        - AWS_BDC_COMMON_TF_DESTROY
+        - AWS_BDC_SERVICE_LEVEL_TF_PLAN
+        - AWS_BDC_SERVICE_LEVEL_TF_APPLY
+        - AWS_BDC_SERVICE_LEVEL_TF_DESTROY
+        - GCP_SERVICE_TF_PLAN
+        - GCP_SERVICE_TF_APPLY
+        - GCP_SERVICE_TF_DESTROY
+        - GCP_BDC_TF_PLAN
+        - GCP_BDC_TF_APPLY
+        - GCP_BDC_TF_DESTROY
+        - AZURE_BDC_TF_PLAN
+        - AZURE_BDC_TF_APPLY
+        - AZURE_BDC_TF_DESTROY
+        - IDC_CX_TF_PLAN
+        - IDC_CX_TF_APPLY
+        - IDC_CX_TF_DESTROY
+        - IDC_BDP_TF_PLAN
+        - IDC_BDP_TF_APPLY
+        - IDC_BDP_TF_DESTROY
+        - NETWORK_READY
+    TaskDefinition:
+      type: string
+      description: >-
+        Task의 명명된 카탈로그 항목(25) — TaskOperation 각 값에 대응하며 이름에 버전(_V1)을 박는다.
+        예: display_name "AWS Service Level 테라폼 Apply".
+      enum:
+        - AWS_SERVICE_PLAN_V1
+        - AWS_SERVICE_APPLY_V1
+        - AWS_SERVICE_DESTROY_V1
+        - AWS_BDC_COMMON_PLAN_V1
+        - AWS_BDC_COMMON_APPLY_V1
+        - AWS_BDC_COMMON_DESTROY_V1
+        - AWS_BDC_SERVICE_LEVEL_PLAN_V1
+        - AWS_BDC_SERVICE_LEVEL_APPLY_V1
+        - AWS_BDC_SERVICE_LEVEL_DESTROY_V1
+        - GCP_SERVICE_PLAN_V1
+        - GCP_SERVICE_APPLY_V1
+        - GCP_SERVICE_DESTROY_V1
+        - GCP_BDC_PLAN_V1
+        - GCP_BDC_APPLY_V1
+        - GCP_BDC_DESTROY_V1
+        - AZURE_BDC_PLAN_V1
+        - AZURE_BDC_APPLY_V1
+        - AZURE_BDC_DESTROY_V1
+        - IDC_CX_PLAN_V1
+        - IDC_CX_APPLY_V1
+        - IDC_CX_DESTROY_V1
+        - IDC_BDP_PLAN_V1
+        - IDC_BDP_APPLY_V1
+        - IDC_BDP_DESTROY_V1
+        - NETWORK_READY_V1
+    RecipeDefinition:
+      type: string
+      description: (cloud provider, pipeline type)별 파이프라인 카탈로그(8) — 예 display_name "AWS 인프라 설치".
+      enum:
+        - AWS_INSTALL_V1
+        - AWS_DELETE_V1
+        - GCP_INSTALL_V1
+        - GCP_DELETE_V1
+        - AZURE_INSTALL_V1
+        - AZURE_DELETE_V1
+        - IDC_INSTALL_V1
+        - IDC_DELETE_V1
+    OrchestratorErrorCode:
+      type: string
+      description: >-
+        에러 응답 body의 `code` 필드 값 전체 집합(`ORCHESTRATION_` + 상수명). HTTP status 매핑:
+        400(PIPELINE_ID_REQUIRED, PIPELINE_TYPE_REQUIRED, TARGET_REQUIRED, UNSUPPORTED_RECIPE,
+        CUSTOM_TASKS_REQUIRED, UNKNOWN_TASK, TASK_PROVIDER_MISMATCH, TASK_DESCRIPTION_TOO_LONG,
+        INVALID_STATISTICS_PERIOD, INVALID_PARAMETER) · 404(PIPELINE_NOT_FOUND, TASK_NOT_FOUND) ·
+        409(PIPELINE_ALREADY_ACTIVE) · 503(PROVIDER_LOOKUP_FAILED) · 500(PIPELINE_PERSISTENCE_ERROR,
+        INTERNAL_ERROR — 후자는 405 등 미매핑 프레임워크 에러의 fallback).
+      enum:
+        - ORCHESTRATION_PIPELINE_ID_REQUIRED
+        - ORCHESTRATION_PIPELINE_TYPE_REQUIRED
+        - ORCHESTRATION_TARGET_REQUIRED
+        - ORCHESTRATION_PIPELINE_NOT_FOUND
+        - ORCHESTRATION_TASK_NOT_FOUND
+        - ORCHESTRATION_PIPELINE_ALREADY_ACTIVE
+        - ORCHESTRATION_PIPELINE_PERSISTENCE_ERROR
+        - ORCHESTRATION_UNSUPPORTED_RECIPE
+        - ORCHESTRATION_CUSTOM_TASKS_REQUIRED
+        - ORCHESTRATION_UNKNOWN_TASK
+        - ORCHESTRATION_TASK_PROVIDER_MISMATCH
+        - ORCHESTRATION_TASK_DESCRIPTION_TOO_LONG
+        - ORCHESTRATION_PROVIDER_LOOKUP_FAILED
+        - ORCHESTRATION_INVALID_STATISTICS_PERIOD
+        - ORCHESTRATION_INVALID_PARAMETER
+        - ORCHESTRATION_INTERNAL_ERROR
+
+    # -----------------------------------------------------------------------
+    # Pipeline / task views
+    # -----------------------------------------------------------------------
+    PipelineSummary:
+      type: object
+      description: 파이프라인 목록/이력/최신 실행 행(#3, #7, #8).
+      required:
+        [pipeline_id, type, target_source_id, cloud_provider, status,
+         done_task_count, total_task_count, created_at, last_activity_at]
+      properties:
+        pipeline_id:
+          type: integer
+          format: int64
+        type:
+          $ref: "#/components/schemas/PipelineType"
+        target_source_id:
+          type: string
+        cloud_provider:
+          $ref: "#/components/schemas/CloudProvider"
+        recipe_definition:
+          description: CUSTOM 파이프라인은 카탈로그 레시피가 없어 null.
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/RecipeDefinition"
+        status:
+          $ref: "#/components/schemas/PipelineStatus"
+        done_task_count:
+          type: integer
+        total_task_count:
+          type: integer
+        created_at:
+          type: string
+          description: ISO-8601 Instant (UTC, 예 "2026-07-02T00:05:00Z").
+        last_activity_at:
+          type: string
+          description: ISO-8601 Instant.
+
+    PipelineDetail:
+      type: object
+      description: 파이프라인 상세(#4 조회, #6 취소 후 응답, #10/#11 생성 응답).
+      required:
+        [pipeline_id, type, target_source_id, cloud_provider, status, created_at,
+         last_activity_at, leased, cancel_requested, due_lag_millis,
+         done_task_count, total_task_count, tasks]
+      properties:
+        pipeline_id:
+          type: integer
+          format: int64
+        type:
+          $ref: "#/components/schemas/PipelineType"
+        target_source_id:
+          type: string
+        cloud_provider:
+          $ref: "#/components/schemas/CloudProvider"
+        recipe_definition:
+          description: CUSTOM 파이프라인은 카탈로그 레시피가 없어 null.
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/RecipeDefinition"
+        status:
+          $ref: "#/components/schemas/PipelineStatus"
+        created_at:
+          type: string
+          description: ISO-8601 Instant.
+        last_activity_at:
+          type: string
+          description: ISO-8601 Instant.
+        next_due_at:
+          type: string
+          nullable: true
+          description: ISO-8601 Instant. 다음 실행 예정 시각.
+        leased:
+          type: boolean
+        cancel_requested:
+          type: boolean
+        due_lag_millis:
+          type: integer
+          format: int64
+        current_task_sequence:
+          type: integer
+          nullable: true
+          description: 현재 task가 없으면 null(final_task_sequence/current_fail_count/current_max_fail_count도 함께 null).
+        final_task_sequence:
+          type: integer
+          nullable: true
+        current_fail_count:
+          type: integer
+          nullable: true
+        current_max_fail_count:
+          type: integer
+          nullable: true
+        done_task_count:
+          type: integer
+        total_task_count:
+          type: integer
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskSummary"
+
+    TaskSummary:
+      type: object
+      description: PipelineDetail.tasks[] 항목(task-flow 노드).
+      required: [task_id, sequence, kind, task_definition, status, fail_count]
+      properties:
+        task_id:
+          type: integer
+          format: int64
+        sequence:
+          type: integer
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        task_definition:
+          $ref: "#/components/schemas/TaskDefinition"
+        operation:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/TaskOperation"
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        fail_count:
+          type: integer
+        error_code:
+          description: status가 FAILED일 때만 채워진다.
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ErrorCode"
+        consumes_terraform_slot:
+          type: boolean
+          nullable: true
+        started_at:
+          type: string
+          nullable: true
+          description: ISO-8601 Instant.
+        finished_at:
+          type: string
+          nullable: true
+          description: ISO-8601 Instant.
+        description:
+          type: string
+          nullable: true
+          description: 커스텀 레시피 task의 운영자 설명. 카탈로그 task는 null.
+
+    TaskDetail:
+      type: object
+      description: Task 상세(#5) — TaskSummary 필드 + effective 설정 + 시도 이력.
+      required:
+        [task_id, pipeline_id, sequence, kind, task_definition, status, fail_count,
+         effective_polling_interval, effective_max_fail_count, attempts]
+      properties:
+        task_id:
+          type: integer
+          format: int64
+        pipeline_id:
+          type: integer
+          format: int64
+        sequence:
+          type: integer
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        task_definition:
+          $ref: "#/components/schemas/TaskDefinition"
+        definition:
+          description: 정의 이름을 해석할 수 없으면(삭제/rename) null.
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/TaskDefinitionView"
+        operation:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/TaskOperation"
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        fail_count:
+          type: integer
+        error_code:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ErrorCode"
+        consumes_terraform_slot:
+          type: boolean
+          nullable: true
+        started_at:
+          type: string
+          nullable: true
+          description: ISO-8601 Instant.
+        ready_at:
+          type: string
+          nullable: true
+          description: ISO-8601 Instant.
+        finished_at:
+          type: string
+          nullable: true
+          description: ISO-8601 Instant.
+        next_check_at:
+          type: string
+          nullable: true
+          description: ISO-8601 Instant.
+        effective_polling_interval:
+          type: string
+          description: ISO-8601 Duration (예 "PT10M").
+        effective_execution_timeout:
+          type: string
+          nullable: true
+          description: ISO-8601 Duration (예 "PT50M"). CONDITION_CHECK는 재시도 예산으로만 경계하므로 null.
+        effective_max_fail_count:
+          type: integer
+        attempts:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskAttemptView"
+        description:
+          type: string
+          nullable: true
+
+    TaskDefinitionView:
+      type: object
+      description: >-
+        Task 실행 계약 metadata. `@JsonInclude(NON_NULL)`이라 CONDITION_CHECK 항목은 dispatch_api/result_api
+        키 자체가 응답에서 생략된다(아래 optional 표기).
+      required: [name, display_name, description, status_api, success_policy, result_storage]
+      properties:
+        name:
+          type: string
+        display_name:
+          type: string
+        description:
+          type: string
+        dispatch_api:
+          type: string
+          description: CONDITION_CHECK 항목은 키 자체가 생략된다(TERRAFORM_JOB만 존재).
+        status_api:
+          type: string
+        result_api:
+          type: string
+          description: CONDITION_CHECK 항목은 키 자체가 생략된다(TERRAFORM_JOB만 존재).
+        success_policy:
+          type: string
+        result_storage:
+          type: string
+
+    TaskAttemptView:
+      type: object
+      description: 단일 재시도 시도 + 폴 요약.
+      required: [attempt_number, status]
+      properties:
+        attempt_number:
+          type: integer
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        error_code:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ErrorCode"
+        response:
+          type: string
+          nullable: true
+          description: 외부 응답 원문(raw text) — 이 API가 파싱하지 않는다.
+        started_at:
+          type: string
+          nullable: true
+          description: ISO-8601 Instant.
+        finished_at:
+          type: string
+          nullable: true
+          description: ISO-8601 Instant.
+        check:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/TaskCheckView"
+
+    TaskCheckView:
+      type: object
+      description: CONDITION_CHECK 시도의 폴 단계 요약.
+      required: [call_count, not_met_count, api_error_count, call_timeout_count]
+      properties:
+        call_count:
+          type: integer
+        not_met_count:
+          type: integer
+        api_error_count:
+          type: integer
+        call_timeout_count:
+          type: integer
+        last_external_status:
+          type: string
+          nullable: true
+        last_checked_at:
+          type: string
+          nullable: true
+          description: ISO-8601 Instant.
+
+    # -----------------------------------------------------------------------
+    # Statistics
+    # -----------------------------------------------------------------------
+    LivePipelineStatistics:
+      type: object
+      description: 실시간 통계(#1). 모든 필드는 숫자이며 null이 아니다.
+      required:
+        [running_pipeline_count, pending_pipeline_count, in_progress_terraform_task_count,
+         terraform_slot_cap, running_pipeline_cap, active_claim_count]
+      properties:
+        running_pipeline_count:
+          type: integer
+        pending_pipeline_count:
+          type: integer
+        in_progress_terraform_task_count:
+          type: integer
+        terraform_slot_cap:
+          type: integer
+        running_pipeline_cap:
+          type: integer
+        active_claim_count:
+          type: integer
+
+    PipelineStatistics:
+      type: object
+      description: 기간별 통계(#2).
+      required:
+        [period, since, pending_count, running_count, failed_count, done_count,
+         cancelled_count, total_count]
+      properties:
+        period:
+          $ref: "#/components/schemas/StatisticsPeriod"
+        since:
+          type: string
+          description: ISO-8601 Instant. 이 시각 이후를 집계했다.
+        pending_count:
+          type: integer
+        running_count:
+          type: integer
+        failed_count:
+          type: integer
+        done_count:
+          type: integer
+        cancelled_count:
+          type: integer
+        total_count:
+          type: integer
+
+    # -----------------------------------------------------------------------
+    # Recipe preview / task catalog
+    # -----------------------------------------------------------------------
+    RecipePreviewStep:
+      type: object
+      description: RecipePreview.steps[] 항목. TaskSummary/TaskDetail과 달리 operation·definition은 null이 아니다.
+      required:
+        [sequence, task_definition, kind, operation, display_name, consumes_terraform_slot, definition]
+      properties:
+        sequence:
+          type: integer
+        task_definition:
+          $ref: "#/components/schemas/TaskDefinition"
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        operation:
+          $ref: "#/components/schemas/TaskOperation"
+        display_name:
+          type: string
+        consumes_terraform_slot:
+          type: boolean
+        definition:
+          $ref: "#/components/schemas/TaskDefinitionView"
+
+    RecipePreview:
+      type: object
+      description: 실행 미리보기 응답(#9).
+      required: [type, provider, recipe_definition, display_name, description, steps]
+      properties:
+        type:
+          $ref: "#/components/schemas/PipelineType"
+        provider:
+          $ref: "#/components/schemas/CloudProvider"
+        recipe_definition:
+          $ref: "#/components/schemas/RecipeDefinition"
+        display_name:
+          type: string
+        description:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipePreviewStep"
+
+    TaskCatalogItem:
+      type: object
+      description: TaskCatalogResponse.task_definitions[] 항목(#12).
+      required: [name, display_name, description, provider, kind, consumes_terraform_slot]
+      properties:
+        name:
+          $ref: "#/components/schemas/TaskDefinition"
+        display_name:
+          type: string
+        description:
+          type: string
+        provider:
+          $ref: "#/components/schemas/CloudProvider"
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        consumes_terraform_slot:
+          type: boolean
+
+    TaskCatalogResponse:
+      type: object
+      description: Task 카탈로그 응답(#12).
+      required: [task_definitions]
+      properties:
+        task_definitions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskCatalogItem"
+
+    # -----------------------------------------------------------------------
+    # Request bodies
+    # -----------------------------------------------------------------------
+    CreatePipelineRequest:
+      type: object
+      description: >-
+        #10 body. type은 PipelineType 전체를 공유하지만 이 경로는 CUSTOM을 지원하지 않는다(400
+        ORCHESTRATION_UNSUPPORTED_RECIPE — CUSTOM은 #11을 사용).
+      required: [type]
+      properties:
+        type:
+          $ref: "#/components/schemas/PipelineType"
+
+    CustomTaskRequest:
+      type: object
+      description: CustomPipelineRequest.tasks[] 항목.
+      required: [name]
+      properties:
+        name:
+          description: task-definitions 카탈로그(#12)의 name과 일치해야 한다. 미등록 시 400 ORCHESTRATION_UNKNOWN_TASK.
+          $ref: "#/components/schemas/TaskDefinition"
+        description:
+          type: string
+          maxLength: 100
+          description: 선택적 운영자 설명. 100자 초과 시 400 ORCHESTRATION_TASK_DESCRIPTION_TOO_LONG.
+
+    CustomPipelineRequest:
+      type: object
+      description: "#11 body."
+      required: [tasks]
+      properties:
+        tasks:
+          type: array
+          minItems: 1
+          description: 비어있으면 400 ORCHESTRATION_CUSTOM_TASKS_REQUIRED.
+          items:
+            $ref: "#/components/schemas/CustomTaskRequest"
+
+    # -----------------------------------------------------------------------
+    # Spring Page envelope
+    # -----------------------------------------------------------------------
+    SpringSort:
+      type: object
+      required: [empty, sorted, unsorted]
+      properties:
+        empty:
+          type: boolean
+        sorted:
+          type: boolean
+        unsorted:
+          type: boolean
+
+    SpringPageable:
+      type: object
+      required: [pageNumber, pageSize, sort, offset, paged, unpaged]
+      properties:
+        pageNumber:
+          type: integer
+        pageSize:
+          type: integer
+        sort:
+          $ref: "#/components/schemas/SpringSort"
+        offset:
+          type: integer
+          format: int64
+        paged:
+          type: boolean
+        unpaged:
+          type: boolean
+
+    PageOfPipelineSummary:
+      type: object
+      description: >-
+        Spring `Page<PipelineSummary>` 직접 envelope(#3, #7). 이 프록시 도메인의 유일한 페이지 응답 타입이라
+        제네릭 대신 구체 스키마로 모델링했다.
+      required:
+        [content, pageable, last, totalPages, totalElements, size, number, sort,
+         first, numberOfElements, empty]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineSummary"
+        pageable:
+          $ref: "#/components/schemas/SpringPageable"
+        last:
+          type: boolean
+        totalPages:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        size:
+          type: integer
+        number:
+          type: integer
+        sort:
+          $ref: "#/components/schemas/SpringSort"
+        first:
+          type: boolean
+        numberOfElements:
+          type: integer
+        empty:
+          type: boolean
+
+    # -----------------------------------------------------------------------
+    # Error bodies
+    # -----------------------------------------------------------------------
+    OrchestratorErrorBody:
+      type: object
+      description: 업스트림 에러 body(모든 엔드포인트 공통). BFF는 status·body를 그대로 전파한다.
+      required: [timestamp, status, code, message, path]
+      properties:
+        timestamp:
+          type: string
+          description: ISO-8601 Instant.
+        status:
+          type: string
+          description: 'Spring HttpStatus 문자열 표기, 예 "404 NOT_FOUND".'
+        code:
+          $ref: "#/components/schemas/OrchestratorErrorCode"
+        message:
+          type: string
+        path:
+          type: string
+
+    BffProxyErrorBody:
+      type: object
+      description: >-
+        업스트림이 아니라 BFF가 직접 합성하는 유일한 에러 body(연결 실패/타임아웃). OrchestratorErrorBody와
+        달리 timestamp/status/path가 없다.
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [ORCHESTRATOR_UNREACHABLE]
+        message:
+          type: string
