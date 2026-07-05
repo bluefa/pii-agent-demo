@@ -32,6 +32,8 @@
   관찰). '실행 방식' 행은 정의→실행 계약으로 이동(판정 문단과 한 그룹).
 - 닫기 = X·ESC·바깥 클릭. FAILED 자동 선택 폐기 — 진입 즉시 모달을 여는 건 침습적,
   red halo + 상태 바 error_code로 유도. `selectedTaskId` 전역 상태 삭제.
+- 보완(오너 7차): 모달 제목 "seq 2 · Subnet 생성 확인" → **"Subnet 생성 확인"** —
+  seq는 제목이 아니라 metadata. 정의 그룹 첫 행 "순서 (seq)"로 이동.
 - 검증: 124(done→toFail 커넥터·red halo·모달 3그룹·X 닫기), 128(spinner·active 대시 커넥터·
   pulse), 129(READY 호박·queued dashed), 콘솔 에러 0.
 

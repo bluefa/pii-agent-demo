@@ -257,7 +257,7 @@ Round 15(오너 6차)에서 우측 사이드 패널(340px)을 폐지하고 **모
 
 | 컴포넌트 | 필드 | 표시 |
 |---|---|---|
-| `TaskDetailModal` — **사이드 패널 → 모달**(Round 15 오너: "너무 길게 과하게 → Modal") · **3그룹 유지**(Round 13: "Task를 논리적으로 설명") | 600px 모달, max-height 86vh — 헤더(seq·이름 + kind 칩·상태 pill + **X**)·설명은 고정, **본문(mbody)만 스크롤**. 그룹 경계 = 헤어라인(`dgroup`): ① **정의**: task_definition·operation 코드 ② **실행 계약**: 실행 방식·effective 폴링·타임아웃·재시도 예산·TF 슬롯 + **판정 방식 문단**(success_policy 요약) ③ **진행 기록**: 시각·실패 누적+error_code·attempts/폴 관찰. 닫기 = X·ESC·바깥 클릭 | ✅ |
+| `TaskDetailModal` — **사이드 패널 → 모달**(Round 15 오너: "너무 길게 과하게 → Modal") · **3그룹 유지**(Round 13: "Task를 논리적으로 설명") | 600px 모달, max-height 86vh — 헤더(**이름만** + kind 칩·상태 pill + **X** — seq는 제목에서 빼고 정의 그룹의 "순서 (seq)" 행으로, 오너 7차)·설명은 고정, **본문(mbody)만 스크롤**. 그룹 경계 = 헤어라인(`dgroup`): ① **정의**: 순서(seq)·task_definition·operation 코드 ② **실행 계약**: 실행 방식·effective 폴링·타임아웃·재시도 예산·TF 슬롯 + **판정 방식 문단**(success_policy 요약) ③ **진행 기록**: 시각·실패 누적+error_code·attempts/폴 관찰. 닫기 = X·ESC·바깥 클릭 | ✅ |
 | `AttemptList` = `DataTable` | attempt_no/status/error_code/시각 ✅, **response**(원시 text) ✅. `job_ids`/`dispatch_response_*` = ❌ 제거필드 → **컬럼 없음**(원본 명시) | ✅ |
 | `CheckSummary` = `KeyValueGrid` | call/not_met/api_error/call_timeout/last_external_status/last_checked_at ✅ · last_response_code·summary ⚠️(미채움→null `FieldTag`) | ✅/⚠️ |
 
