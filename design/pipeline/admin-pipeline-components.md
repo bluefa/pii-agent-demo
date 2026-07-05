@@ -103,19 +103,21 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 ```
 ┌ Sidebar ┬─ 대시보드 ─────────────────────────────────────────────┐
-│●대시보드 │  대시보드(h1 24px)                                       │
+│●대시보드 │  대시보드(h1 24px)     🕐 기간·대시보드 전체 적용 [1h|1d|7d]│ ← 전역 기간(헤더)
 │ 서비스   │  현황(20px)                                              │
-│ 검색     │  ┌ StatCard ──┐ ┌ StatCard ───┐ ┌ StatCard ───┐        │
-│          │  │동작중 P     │ │실패·최근24h │ │성공·최근24h  │        │ ← 회색 타일(읽기 전용)
-│          │  │ 2  ✅      │ │  1  ✅     │ │  0  ✅      │        │
+│ 검색     │  최근 24시간(생성시간 기준) 실패·성공 집계 — … (section-desc)│
+│          │  ┌ StatCard ──┐ ┌ StatCard ───┐ ┌ StatCard ───┐        │
+│          │  │동작중·현재  │ │실패·최근24h │ │성공·최근24h  │        │ ← 회색 타일(읽기 전용)
+│          │  │ 2  ✅      │ │  1  ✅     │ │  0  ✅      │        │   실패/성공 = 기간 동기화
 │          │  └────────────┘ └────────────┘ └─────────────┘ (260px 상한)│
 │          │  ─────────────────────────────────────────────────────│
 │          │  파이프라인 목록(20px)                                   │
-│          │  🔍 target  [상태▾][Provider▾] [기간 1h|1d|7d]      ⟳   │ ← 필터바(카드 밖 도구 행)
+│          │  최근 24시간 생성 3건 · 정렬: 실패→진행 중→최신순 (section-desc)│
+│          │  🔍 TargetSourceId  [상태▾][CSP▾]                   ⟳   │ ← 로컬 필터바(비시간 차원)
 │          │  ┌ DataTable(카드) ─────────────────────────────────┐ │
-│          │  │ target     유형    Provider 상태    진행   생성일  │ │
-│          │  │ ts-az-004  INSTALL AZURE ⚠️ FAILED ▓░░1/3 06-29  │ │
-│          │  │ ts-aws-001 INSTALL AWS ⚠️  RUNNING ▓▓░░2/4 06-30 │ │
+│          │  │ TargetSourceId CSP   파이프라인 유형 상태 진행도 생성시간│ │
+│          │  │ 204   Azure  INSTALL  FAILED  ▓░░1/3  06-29  상세›│ │
+│          │  │ 101   AWS    INSTALL  RUNNING ▓▓░░2/4 06-30  상세›│ │
 │          │  └──────────────────────────────────────────────────┘ │
 │          │                                    ‹ 1 2 3 › Pagination│
 └──────────┴────────────────────────────────────────────────────────┘
@@ -123,9 +125,10 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 | 블록 | 컴포넌트 | 데이터 / 원천 | 표시 |
 |---|---|---|---|
-| 현황 | `StatsRow` = 3×`StatCard`(폭 260 상한, **회색 타일** — 읽기 전용 요약 표면) | **모니터링 고정 창(조작 없음)**: ① 동작중 파이프라인 `count(RUNNING)` ✅ 순간값 / ② **실패 · 최근 24시간** ✅ / ③ **성공 · 최근 24시간** ✅ — 파생 집계. 실패>0이면 `.failed` 강조(페이지 유일한 강조색). 라벨은 한글 단일("실패 (FAILED)" 병기 금지 — style-guide §1) | A1+A2 |
-| 필터바 | `FilterBar(search target + status + provider + **period 1h/1d/7d**)` — **카드 밖 독립 도구 행** | 목록만 지배(컨트롤 위치=지배 범위, [style-guide](admin-pipeline-style-guide.md) §4). 기간은 `created_at` 기준 | A3 |
-| 파이프라인 목록 | `PipelineListTable` = `DataTable`+`Pagination` | 필터 적용 후: target(id ✅) / **유형(INSTALL/DELETE)** / **CSP(⚠️→`ProviderTag.external`)** / status(P2) / 진행 N/M(P5 ⚙️) / **생성일** / 상세 | A3 |
+| 기간(전역) | 헤더 우측 `seg(1h/1d/7d)` + 시계 아이콘 + 스코프 라벨 "기간 · 대시보드 전체 적용" | **전 대시보드 동기화**(오너 확정 2026-07-05, GA4·Grafana형): 현황 실패·성공 + 목록이 같은 기간(`created_at`). 동작 중 카드만 순간값 — 라벨 "· 현재"로 자기 선언 | A2+A3 |
+| 현황 | `StatsRow` = 3×`StatCard`(폭 260 상한, **회색 타일** — 읽기 전용 요약 표면) + `section-desc` 스코프 문구 | ① 동작중 파이프라인 · 현재 `count(RUNNING)` ✅ / ② **실패 · {기간}** ✅ / ③ **성공 · {기간}** ✅ — 파생 집계, 라벨이 기간 따라 동적. 실패>0이면 `.failed` 강조(페이지 유일한 강조색). 라벨 한글 단일(병기 금지 — style-guide §1) | A1+A2 |
+| 필터바(로컬) | `FilterBar(search TargetSourceId + status + CSP)` — 카드 밖 독립 도구 행 | 비시간 차원 필터만 — 전역 시간과 분리. 적용 상태는 목록 `section-desc`에 텍스트로 상시 표기("… 생성 3건 · 상태 FAILED · 정렬 …") | A3 |
+| 파이프라인 목록 | `PipelineListTable` = `DataTable`+`Pagination` | 열(오너 지정 2026-07-05): **TargetSourceId(숫자!)** / CSP(명칭만 — "외부" 배지 금지) / 파이프라인 유형 / 상태(P2) / 진행도 N/M(P5 ⚙️) / 생성시간 / **상세›**(rowlink 어포던스) | A3 |
 
 - **⚠️ 근거 명시**: 목록의 CSP는 pipeline repo에 없어 `external`. §4.3 헤더의 CSP는 `getTargetSourceDetail`(=다른 repo 직접 호출)이라 🔵✅ — 상충 아님.
 - **정렬**: `FAILED > RUNNING > 나머지`, 각 그룹 내 최신(id desc) —

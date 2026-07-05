@@ -94,6 +94,7 @@ svg.ic.lg{width:22px;height:22px}
 .section-title{font-size:20px;font-weight:600;color:var(--text-strong);margin:40px 0 12px;line-height:1.2}
 .section-title:first-child{margin-top:0}
 .section-title .meta{font-weight:400}
+.section-desc{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4;margin:-8px 0 12px} /* 섹션 제목 아래 스코프 설명 — 제목과 4px, 내용과 12px */
 .subsection-title{font-size:14px;font-weight:600;color:var(--text-medium);margin:16px 0 10px}
 
 /* ── Card ── */
@@ -162,8 +163,10 @@ svg.ic.lg{width:22px;height:22px}
 .tbl tr.click{cursor:pointer}
 .tbl tr.click:hover td{background:var(--gray-50)}
 .tbl .mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
-.tbl td.chev{color:var(--text-faint);text-align:right;width:28px}
+.tbl td.chev{text-align:right;width:64px;white-space:nowrap}
 .chev{color:var(--text-faint)}
+.rowlink{display:inline-flex;align-items:center;gap:2px;font-size:12px;font-weight:600;color:var(--text-weak)} /* 행 이동 어포던스 — hover 시 primary */
+tr.click:hover .rowlink{color:var(--primary)}
 
 /* ── FilterBar ── */
 .filterbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -319,6 +322,7 @@ details.collap>.body{padding:0 14px 14px}
 <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5h.01"/></symbol>
 <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.3 5.2-5.2 2.3 2.3-5.2z"/></symbol>
 <symbol id="i-cursor" viewBox="0 0 24 24"><path d="m5 3 7.5 17 2-7.5L22 10.5z"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l2.8 1.8"/></symbol>
 </defs></svg>
 <div class="topnav">
   <span class="brand">PII Admin</span>
@@ -355,17 +359,17 @@ const AUTH_USERS = {
 };
 const TARGET_SOURCES = {
   SVC001:[
-    {id:'ts-aws-001', provider:'aws', account:'1234-5678-9012', processStatus:'CONNECTED',
+    {id:101, provider:'aws', account:'1234-5678-9012', processStatus:'CONNECTED',
      awsAccountId:'1234-5678-9012', awsLinkedAccountId:'9012-3456-7890', awsRegionType:'global', isTerraformExecutionGranted:true},
-    {id:'ts-gcp-002', provider:'gcp', account:'gcp-proj-77', processStatus:'COMPLETED', gcpProjectId:'gcp-proj-77'},
-    {id:'ts-idc-003', provider:'idc', account:'idc-zone-a', processStatus:'INSTALLED'},
+    {id:102, provider:'gcp', account:'gcp-proj-77', processStatus:'COMPLETED', gcpProjectId:'gcp-proj-77'},
+    {id:103, provider:'idc', account:'idc-zone-a', processStatus:'INSTALLED'},
   ],
   SVC002:[
-    {id:'ts-az-004', provider:'azure', account:'az-sub-01', processStatus:'DISCONNECTED',
+    {id:204, provider:'azure', account:'az-sub-01', processStatus:'DISCONNECTED',
      tenantId:'a1b2c3d4-1111-4222-8333-d4e5f6a7b8c9', subscriptionId:'az-sub-01'},
   ],
   SVC003:[
-    {id:'ts-aws-005', provider:'aws', account:'2345-6789-0123', processStatus:'PENDING',
+    {id:305, provider:'aws', account:'2345-6789-0123', processStatus:'PENDING',
      awsAccountId:'2345-6789-0123', awsRegionType:'global', isTerraformExecutionGranted:false},
   ],
 };
@@ -378,7 +382,7 @@ const chk = (call,notMet,apiErr,timeout,ext,at)=>({callCount:call,notMetCount:no
 
 // 🆕 pipelines (A3/A4/A7/A8). tasks 안에 attempts(TERRAFORM_JOB)/check(CONDITION_CHECK)
 const PIPELINES = {
-  128:{id:128, type:'INSTALL', target:'ts-aws-001', provider:'aws', status:'RUNNING',
+  128:{id:128, type:'INSTALL', target:101, provider:'aws', status:'RUNNING',
     createdAt:'2026-06-30 14:02', lastActivityAt:'2026-06-30 14:25',
     tasks:[
       {seq:1, kind:'CONDITION_CHECK', operation:'TF 권한 확인', status:'DONE', failCount:1, maxFail:6,
@@ -393,7 +397,7 @@ const PIPELINES = {
       {seq:4, kind:'TERRAFORM_JOB', operation:'BDC Service Level TF', status:'BLOCKED', failCount:0, maxFail:1,
         errorCode:null, startedAt:null, finishedAt:null, executionTimeout:'30분', attempts:[]},
     ]},
-  127:{id:127, type:'DELETE', target:'ts-aws-001', provider:'aws', status:'DONE',
+  127:{id:127, type:'DELETE', target:101, provider:'aws', status:'DONE',
     createdAt:'2026-06-28 09:11', lastActivityAt:'2026-06-28 09:33',
     tasks:[
       {seq:1, kind:'TERRAFORM_JOB', operation:'BDC Service Level TF 삭제', status:'DONE', failCount:0, maxFail:1,
@@ -403,7 +407,7 @@ const PIPELINES = {
         errorCode:null, startedAt:'09:21', finishedAt:'09:33', executionTimeout:'30분',
         attempts:[att(1,'DONE',null,'09:21','{"job_id":"tf-d11","result":"destroyed"}')]},
     ]},
-  126:{id:126, type:'INSTALL', target:'ts-gcp-002', provider:'gcp', status:'DONE',
+  126:{id:126, type:'INSTALL', target:102, provider:'gcp', status:'DONE',
     createdAt:'2026-06-25 11:00', lastActivityAt:'2026-06-25 11:40',
     tasks:[
       {seq:1, kind:'CONDITION_CHECK', operation:'TF 권한 확인', status:'DONE', failCount:0, maxFail:6, errorCode:null, startedAt:'11:00', finishedAt:'11:05', pollingInterval:'10분', ttl:'7일', check:chk(1,0,0,0,'OK','11:05')},
@@ -411,20 +415,20 @@ const PIPELINES = {
       {seq:3, kind:'TERRAFORM_JOB', operation:'SVC TF 동작', status:'DONE', failCount:0, maxFail:1, errorCode:null, startedAt:'11:21', finishedAt:'11:30', executionTimeout:'30분', attempts:[att(1,'DONE',null,'11:21','{"job_id":"tf-g01"}')]},
       {seq:4, kind:'TERRAFORM_JOB', operation:'BDC TF 동작', status:'DONE', failCount:0, maxFail:1, errorCode:null, startedAt:'11:31', finishedAt:'11:40', executionTimeout:'30분', attempts:[att(1,'DONE',null,'11:31','{"job_id":"tf-g02"}')]},
     ]},
-  125:{id:125, type:'DELETE', target:'ts-idc-003', provider:'idc', status:'RUNNING',
+  125:{id:125, type:'DELETE', target:103, provider:'idc', status:'RUNNING',
     createdAt:'2026-06-30 13:50', lastActivityAt:'2026-06-30 13:56',
     tasks:[
       {seq:1, kind:'TERRAFORM_JOB', operation:'BDP TF 삭제', status:'IN_PROGRESS', failCount:0, maxFail:1, errorCode:null, startedAt:'13:50', finishedAt:null, executionTimeout:'30분', attempts:[att(1,'IN_PROGRESS',null,'13:50','{"job_id":"tf-i01","result":"running"}')]},
       {seq:2, kind:'TERRAFORM_JOB', operation:'BDC CX TF 삭제', status:'BLOCKED', failCount:0, maxFail:1, errorCode:null, startedAt:null, finishedAt:null, executionTimeout:'30분', attempts:[]},
     ]},
-  124:{id:124, type:'INSTALL', target:'ts-az-004', provider:'azure', status:'FAILED',
+  124:{id:124, type:'INSTALL', target:204, provider:'azure', status:'FAILED',
     createdAt:'2026-06-29 16:10', lastActivityAt:'2026-06-29 16:40',
     tasks:[
       {seq:1, kind:'CONDITION_CHECK', operation:'AzureVM 설치 확인', status:'DONE', failCount:1, maxFail:6, errorCode:null, startedAt:'16:10', finishedAt:'16:18', pollingInterval:'10분', ttl:'7일', check:chk(2,1,0,0,'OK','16:18')},
       {seq:2, kind:'TERRAFORM_JOB', operation:'PE 승인 요청', status:'FAILED', failCount:1, maxFail:1, errorCode:'PE_REQUEST_REJECTED', startedAt:'16:19', finishedAt:'16:40', executionTimeout:'30분', attempts:[att(1,'FAILED','PE_REQUEST_REJECTED','16:19','{"job_id":"tf-z01","error":"quota exceeded"}')]},
       {seq:3, kind:'CONDITION_CHECK', operation:'PE 승인 확인', status:'BLOCKED', failCount:0, maxFail:12, errorCode:null, startedAt:null, finishedAt:null, pollingInterval:'10분', ttl:'7일', check:null},
     ]},
-  123:{id:123, type:'INSTALL', target:'ts-aws-005', provider:'aws', status:'CANCELLED',
+  123:{id:123, type:'INSTALL', target:305, provider:'aws', status:'CANCELLED',
     createdAt:'2026-06-27 10:00', lastActivityAt:'2026-06-27 10:05',
     tasks:[
       {seq:1, kind:'CONDITION_CHECK', operation:'TF 권한 확인', status:'CANCELLED', failCount:0, maxFail:6, errorCode:null, startedAt:'10:00', finishedAt:'10:05', pollingInterval:'10분', ttl:'7일', check:chk(1,0,0,0,'-','10:05')},
@@ -443,11 +447,13 @@ const liveStats = () => ({
   tfInProgress: Object.values(PIPELINES).flatMap(p=>p.tasks).filter(t=>t.kind==='TERRAFORM_JOB'&&t.status==='IN_PROGRESS').length,
   slotLimit: null,
 });
-// 🆕 A2 period stats — 현황 카드는 고정 24시간 창(모니터링), 목록은 기간 필터 1h/1d/7d(조회 도구).
+// 🆕 A2 period stats — 기간은 헤더 전역 컨트롤(오너 확정 2026-07-05, GA4/Grafana형 벤치마크):
+// 현황(실패·성공)과 목록이 같은 기간을 본다. 동작 중 카드만 순간값 — 스코프를 문구로 명시.
 // 파생 집계 유지: 하드코딩 표는 목록과 숫자가 어긋났음.
 // MOCK_NOW: mock createdAt이 과거 고정값이라 기간 필터 데모용 기준 시각(실 API에선 서버 now).
 const MOCK_NOW = new Date('2026-06-30T15:00');
 const PERIOD_MS = {'1h':36e5, '1d':864e5, '7d':6048e5};
+const PERIOD_LABEL = {'1h':'최근 1시간', '1d':'최근 24시간', '7d':'최근 7일'};
 const inPeriod = (p, period) => (MOCK_NOW - new Date(p.createdAt.replace(' ','T'))) <= PERIOD_MS[period]; // 미래(신규 생성)도 통과
 const periodStats = period => {
   const rows = Object.values(PIPELINES).filter(p=>inPeriod(p,period));
@@ -616,21 +622,27 @@ let histState={id:null,page:1};
 const PAGE_SIZE=5;
 function viewDashboard(){
   const root=el(`<div>
-    <div class="page-head"><h1>대시보드</h1></div>
+    <div class="page-head"><h1>대시보드</h1>
+      <span class="vrow" style="gap:10px">
+        <span class="meta vrow" style="gap:5px" title="선택한 기간이 현황(실패·성공)과 파이프라인 목록에 함께 적용됩니다 — 생성시간 기준. 동작 중 카드만 현재 순간값">${ic('i-clock','ic sm')} 기간 · 대시보드 전체 적용</span>
+        <span class="seg" id="periodseg">
+          <button data-p="1h">1시간</button><button data-p="1d">1일</button><button data-p="7d">7일</button>
+        </span>
+      </span>
+    </div>
     <div class="section-title">현황</div>
+    <div class="section-desc" id="statsdesc"></div>
     <div class="stat-row" id="stats"></div>
     <div class="section-title">파이프라인 목록</div>
+    <div class="section-desc" id="listdesc"></div>
     <div class="filterbar" style="margin-bottom:12px">
-      <span class="searchbox" style="width:240px">${ic('i-search')}<input class="input" id="q" placeholder="target 검색"></span>
+      <span class="searchbox" style="width:240px">${ic('i-search')}<input class="input" id="q" placeholder="TargetSourceId 검색"></span>
       <select class="sel" id="fstatus">
         <option value="">상태 전체</option><option>RUNNING</option><option>DONE</option><option>FAILED</option><option>CANCELLED</option>
       </select>
       <select class="sel" id="fprov">
-        <option value="">Provider 전체</option><option value="aws">AWS</option><option value="azure">Azure</option><option value="gcp">GCP</option><option value="idc">IDC</option>
+        <option value="">CSP 전체</option><option value="aws">AWS</option><option value="azure">Azure</option><option value="gcp">GCP</option><option value="idc">IDC</option>
       </select>
-      <span class="seg" id="periodseg" title="목록 기간 필터 — created_at 기준">
-        <button data-p="1h">1시간</button><button data-p="1d">1일</button><button data-p="7d">7일</button>
-      </span>
       <button class="btn ghost" id="refresh" style="margin-left:auto">${ic('i-refresh','ic sm')} 새로고침</button>
     </div>
     <div class="card">
@@ -650,40 +662,48 @@ function viewDashboard(){
   root.querySelector('#refresh').onclick=()=>{toast('목록을 새로고침했어요');renderList(root);};
   return root;
 }
-// 현황 3장 = 모니터링 요약: RUNNING(순간값·A1) + 실패/성공(최근 24시간 고정 창·A2).
-// 기간 seg는 목록의 조회 필터로 이동 — 현황은 조작 없이 읽는 고정 요약. 카드 6→3 축소 근거: info-hierarchy.md §1
+// 현황 3장 = 전역 기간 요약: 실패/성공은 헤더 기간 seg와 동기화(전 대시보드 같은 기간, 오너 확정 2026-07-05).
+// 동기화되지 않는 유일한 카드(동작 중=순간값)는 라벨 "현재"로 스스로 밝힌다. 카드 6→3 축소 근거: info-hierarchy.md §1
 function renderStats(root){
-  const s=periodStats('1d');
+  const s=periodStats(dashPeriod), plabel=PERIOD_LABEL[dashPeriod];
+  root.querySelector('#statsdesc').textContent=`${plabel}(생성시간 기준) 실패·성공 집계 — 기간 필터와 동기화 · 동작 중은 현재 순간값`;
   const wrap=root.querySelector('#stats'); wrap.innerHTML='';
   wrap.append(
-    el(`<div class="stat" title="현재 RUNNING 상태인 파이프라인 수 — 순간값"><div class="lbl">동작 중 파이프라인</div><div class="val">${liveStats().runningCount}</div></div>`),
-    el(`<div class="stat range${s.failed>0?' failed':''}" title="최근 24시간 created_at 기준"><div class="lbl">실패 · 최근 24시간</div><div class="val">${s.failed}</div></div>`),
-    el(`<div class="stat range" title="최근 24시간 created_at 기준"><div class="lbl">성공 · 최근 24시간</div><div class="val">${s.done}</div></div>`),
+    el(`<div class="stat" title="현재 RUNNING 상태인 파이프라인 수 — 기간과 무관한 순간값"><div class="lbl">동작 중 파이프라인 · 현재</div><div class="val">${liveStats().runningCount}</div></div>`),
+    el(`<div class="stat range${s.failed>0?' failed':''}" title="${plabel} 내 생성 기준"><div class="lbl">실패 · ${plabel}</div><div class="val">${s.failed}</div></div>`),
+    el(`<div class="stat range" title="${plabel} 내 생성 기준"><div class="lbl">성공 · ${plabel}</div><div class="val">${s.done}</div></div>`),
   );
 }
 function renderList(root){
-  let rows=Object.values(PIPELINES).filter(p=>inPeriod(p,dashPeriod)); // 목록 기간 필터(1h/1d/7d)
+  let rows=Object.values(PIPELINES).filter(p=>inPeriod(p,dashPeriod)); // 전역 기간 — 헤더 seg와 동기화(현황과 동일)
   if(dashFilter.status) rows=rows.filter(p=>p.status===dashFilter.status);
   if(dashFilter.provider) rows=rows.filter(p=>p.provider===dashFilter.provider);
-  if(dashFilter.q) rows=rows.filter(p=>p.target.includes(dashFilter.q.trim()));
+  if(dashFilter.q) rows=rows.filter(p=>String(p.target).includes(dashFilter.q.trim()));
   // FAILED > RUNNING > 나머지, 그룹 내 최신순 — 실패가 페이지네이션 뒤로 밀리지 않게 (info-hierarchy.md §1)
   const rank={FAILED:0,RUNNING:1};
   rows.sort((a,b)=>((rank[a.status]??2)-(rank[b.status]??2))||b.id-a.id);
   const total=rows.length, pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  // 목록 스코프 요약 — 현재 무엇을 보고 있는지 텍스트로 상시 표기 (필터 상태 가시성)
+  const parts=[`${PERIOD_LABEL[dashPeriod]} 생성 ${total}건`];
+  if(dashFilter.status) parts.push(`상태 ${dashFilter.status}`);
+  if(dashFilter.provider) parts.push(`CSP ${PROVIDERS[dashFilter.provider]}`);
+  if(dashFilter.q) parts.push(`검색 "${dashFilter.q.trim()}"`);
+  parts.push('정렬: 실패 → 진행 중 → 최신순');
+  root.querySelector('#listdesc').textContent=parts.join(' · ');
   dashPage=Math.min(dashPage,pages);
   const slice=rows.slice((dashPage-1)*PAGE_SIZE, dashPage*PAGE_SIZE);
   const wrap=root.querySelector('#listwrap');
   if(!slice.length){ wrap.innerHTML=`<div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>선택한 기간·조건에 맞는 파이프라인이 없어요</div>`; return; }
   wrap.innerHTML=`<table class="tbl"><thead><tr>
-    <th>target</th><th>유형</th><th>Provider</th><th>상태</th><th>진행</th><th>생성일</th><th></th></tr></thead><tbody>${
+    <th>TargetSourceId</th><th>CSP</th><th>파이프라인 유형</th><th>상태</th><th>진행도</th><th>생성시간</th><th></th></tr></thead><tbody>${
     slice.map(p=>`<tr class="click" data-pid="${p.id}">
       <td class="mono">${esc(p.target)}</td>
+      <td>${provTag(p.provider)}</td>
       <td>${esc(p.type)}</td>
-      <td>${provTag(p.provider,true)}</td>
       <td>${pill(p.status)}</td>
       <td>${progressBar(progressN(p),progressM(p),p.status)}</td>
       <td class="muted">${esc(p.createdAt)}</td>
-      <td class="chev">${ic('i-chev-r','ic sm')}</td></tr>`).join('')}</tbody></table>${
+      <td class="chev"><span class="rowlink">상세 ${ic('i-chev-r','ic sm')}</span></td></tr>`).join('')}</tbody></table>${
     pages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
       <button class="btn ghost sm" ${dashPage<=1?'disabled':''} id="prev">${ic('i-chev-l','ic sm')} 이전</button>
       <span class="pager-count">${dashPage} / ${pages}</span>
@@ -738,8 +758,8 @@ function renderTsPanel(root){
   const list=TARGET_SOURCES[svc]||[];
   const name=SERVICES.find(s=>s.code===svc).name;
   panel.innerHTML=`<div class="section-title" style="margin-top:0">${esc(name)} 의 Target Source</div>`+
-    (list.length?`<table class="tbl"><thead><tr><th>Provider</th><th>TargetSourceId</th><th></th></tr></thead><tbody>${
-      list.map(t=>`<tr class="click" data-ts="${esc(t.id)}"><td>${provTag(t.provider)}</td><td class="mono">${esc(t.id)}</td><td class="chev">${ic('i-chev-r','ic sm')}</td></tr>`).join('')}</tbody></table>`
+    (list.length?`<table class="tbl"><thead><tr><th>TargetSourceId</th><th>CSP</th><th></th></tr></thead><tbody>${
+      list.map(t=>`<tr class="click" data-ts="${esc(t.id)}"><td class="mono">${esc(t.id)}</td><td>${provTag(t.provider)}</td><td class="chev"><span class="rowlink">상세 ${ic('i-chev-r','ic sm')}</span></td></tr>`).join('')}</tbody></table>`
     :`<div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>target source 없음</div>`);
   panel.querySelectorAll('tr[data-ts]').forEach(tr=>{
     tr.setAttribute('role','button'); tr.setAttribute('tabindex','0');
@@ -811,7 +831,7 @@ function viewTarget(id){
   const hslice=ids.slice((histState.page-1)*PAGE_SIZE, histState.page*PAGE_SIZE);
   if(ids.length){
     hist.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>유형</th><th>상태</th><th>진행</th><th>생성일</th><th></th></tr></thead><tbody>${
-      hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p),p.status)}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev">${ic('i-chev-r','ic sm')}</td></tr>`).join('')}</tbody></table>${
+      hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p),p.status)}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev"><span class="rowlink">상세 ${ic('i-chev-r','ic sm')}</span></td></tr>`).join('')}</tbody></table>${
       hpages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
         <button class="btn ghost sm" ${histState.page<=1?'disabled':''} id="hprev">${ic('i-chev-l','ic sm')} 이전</button>
         <span class="pager-count">${histState.page} / ${hpages}</span>
@@ -872,7 +892,7 @@ function viewPipeline(id){
       </div>
       <div class="sb-meta">
         <span>${esc(p.type)} <span class="mono">#${p.id}</span></span><span class="sep">·</span>
-        <span class="vrow" style="gap:6px">${provTag(p.provider,true)} <span class="mono">${esc(p.target)}</span></span><span class="sep">·</span>
+        <span class="vrow" style="gap:6px">${provTag(p.provider)} <span class="mono">${esc(p.target)}</span></span><span class="sep">·</span>
         <span>${esc(svcName||(ts&&ts.serviceName)||'')}</span><span class="sep">·</span>
         <span>생성 ${esc(p.createdAt)}</span><span class="sep">·</span>
         <span>마지막 활동 ${esc(p.lastActivityAt)}</span><span class="sep">·</span>
