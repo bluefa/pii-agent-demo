@@ -219,6 +219,7 @@ tr.click:hover .rowlink{color:var(--primary)}
 .btn.danger:not(:disabled):hover{background:var(--err-bg)}
 .btn.danger:disabled{color:var(--text-faint);border-color:var(--border);box-shadow:none}
 .btn.sm{height:28px;padding:0 10px;font-size:12px}
+.btn.round{width:28px;padding:0;border-radius:999px} /* 원형 아이콘 버튼 — 이동(↗) 전용, sm과 조합 */
 
 /* ── KeyValueGrid ── */
 .kv{display:grid;grid-template-columns:130px 1fr;gap:10px 16px;font-size:14px}
@@ -342,6 +343,7 @@ details.collap>.body{padding:0 14px 14px}
 <symbol id="i-cursor" viewBox="0 0 24 24"><path d="m5 3 7.5 17 2-7.5L22 10.5z"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l2.8 1.8"/></symbol>
 <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.62-1.46A4.5 4.5 0 0 1 17.5 18H7Z"/></symbol>
+<symbol id="i-arrow-ur" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></symbol>
 </defs></svg>
 <div class="topnav">
   <span class="brand">PII Admin</span>
@@ -821,7 +823,7 @@ function viewTarget(id){
   // app ProjectPageMeta 문법: 제목=서비스명(코드), 식별자=IdentityBar.
   // 액션 그룹은 metadata 아래(오너 2026-07-05 3차) — 판단 재료(identity·metadata) 다음에 행동.
   // 잠금 사유는 그룹 우측 상시 캡션(설명 없는 disabled는 버그로 읽힘).
-  const lockMsg=btns.cancel?'진행·대기 중 파이프라인이 있어 설치·삭제는 잠깁니다 — 취소만 가능'
+  const lockMsg=btns.cancel?'진행·대기 중 파이프라인이 있어 설치·삭제는 잠깁니다'
     :btns.delete?'설치된 대상 — 삭제만 가능합니다':'미설치 대상 — 설치만 가능합니다';
   const root=el(`<div>
     ${breadcrumb([{label:'서비스 검색',hash:'#/services'},{label:svcName},{label:ts.id}])}
@@ -845,7 +847,6 @@ function viewTarget(id){
     <div class="filterbar" style="margin-top:12px">
       <button class="btn primary" id="btn-install" ${btns.install?'':'disabled'} title="${btns.install?'설치 파이프라인을 시작합니다':btns.cancel?'진행·대기 중 파이프라인이 있어 잠금(중복 방지)':'이미 설치된 대상'}">설치 시작</button>
       <button class="btn secondary" id="btn-delete" ${btns.delete?'':'disabled'} title="${btns.delete?'삭제 파이프라인을 시작합니다':btns.cancel?'진행·대기 중 파이프라인이 있어 잠금(중복 방지)':'설치되지 않은 대상'}">삭제 시작</button>
-      <button class="btn danger" id="btn-cancel" ${btns.cancel?'':'disabled'} title="${btns.cancel?'진행 중 파이프라인을 취소합니다':'취소할 진행·대기 중 파이프라인 없음'}">취소</button>
       <span class="meta" style="margin-left:auto">${lockMsg}</span>
     </div>
     <div class="section-title">파이프라인 이력</div>
@@ -864,7 +865,10 @@ function viewTarget(id){
         ${progressBar(progressN(latest),progressM(latest),latest.status)}
         <span class="sb-cur">${lLabel}</span>
         ${lerr&&lerr.errorCode?`<span class="sb-err" title="seq ${lerr.seq} · ${esc(lerr.operation)}">${esc(lerr.errorCode)}</span>`:''}
-        <span class="vrow" style="margin-left:auto"><button class="btn secondary sm" data-nav="#/pipeline/${latest.id}">파이프라인 상세 ${ic('i-chev-r','ic sm')}</button></span>
+        <span class="vrow" style="margin-left:auto;gap:8px">
+          ${['RUNNING','PENDING'].includes(latest.status)?`<button class="btn danger sm" id="btn-cancel" ${canCancel(latest)?'':'disabled'} title="${canCancel(latest)?'이 파이프라인을 취소합니다':'취소 처리 대기 중'}">취소</button>`:''}
+          <button class="btn secondary sm round" data-nav="#/pipeline/${latest.id}" title="파이프라인 상세로 이동" aria-label="파이프라인 상세로 이동">${ic('i-arrow-ur','ic sm')}</button>
+        </span>
       </div>
       <div class="sb-meta">
         <span>${esc(latest.type)} <span class="mono">#${latest.id}</span></span><span class="sep">·</span>
@@ -904,7 +908,7 @@ function viewTarget(id){
   const bi=root.querySelector('#btn-install'), bd=root.querySelector('#btn-delete'), bc=root.querySelector('#btn-cancel');
   if(btns.install) bi.onclick=()=>openPreview(ts,'INSTALL');
   if(btns.delete) bd.onclick=()=>openPreview(ts,'DELETE');
-  if(btns.cancel) bc.onclick=()=>openCancel(btns.runId);
+  if(btns.cancel && bc) bc.onclick=()=>openCancel(btns.runId); // 취소는 상태 바 내부(최신 run에 귀속) — disabled면 클릭 자체가 막힘
   return root;
 }
 

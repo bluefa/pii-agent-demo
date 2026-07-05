@@ -30,6 +30,10 @@ app `ProjectPageMeta`·`IdentityBar`(`app/integration/target-sources/[id]/`) 실
   최종 계층: 제목 → IdentityBar(카드) → 액션 그룹(16px 소속) → [64px] 최근 파이프라인 → 이력.
 - **보완(오너 4차)**: **계정(account) 필드 표시 제거** — CSP 식별자의 중복 사본
   (Azure에선 Subscription ID와 같은 값이 두 번 노출). IdentityBar 필드·metadata kv 전부.
+- **보완(오너 6차)**: **취소 버튼을 상태 바 안으로** — 취소는 최신 run에 귀속되는 조작
+  (파이프라인 상세 상태 바와 동일 문법). 종단 상태면 미노출, 취소 요청 중이면 잠금.
+  액션 행은 설치/삭제만. "파이프라인 상세 ›" 텍스트 버튼 → **원형 사선 화살표(↗) 버튼**
+  (`btn.round` + `i-arrow-ur` — app CollabChannelChip의 사선 화살표 문법).
 - **보완(오너 5차 — 그룹핑 재정의)**: 독립 Action Group 폐기 → **"파이프라인 상태" 그룹**
   = 상태 바 + 액션 행(12px). 근거: 버튼 활성/잠금은 전부 최근 파이프라인에서 파생,
   취소는 그 run에 대한 조작 — 상태와 행동은 한 사고 단위. 잠금 캡션이 다른 그룹을

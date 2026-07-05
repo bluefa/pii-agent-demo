@@ -218,6 +218,7 @@ tr.click:hover .rowlink{color:var(--primary)}
 .btn.danger:not(:disabled):hover{background:var(--err-bg)}
 .btn.danger:disabled{color:var(--text-faint);border-color:var(--border);box-shadow:none}
 .btn.sm{height:28px;padding:0 10px;font-size:12px}
+.btn.round{width:28px;padding:0;border-radius:999px} /* 원형 아이콘 버튼 — 이동(↗) 전용, sm과 조합 */
 
 /* ── KeyValueGrid ── */
 .kv{display:grid;grid-template-columns:130px 1fr;gap:10px 16px;font-size:14px}
@@ -355,6 +356,7 @@ details.collap>.body{padding:0 14px 14px}
 <symbol id="i-cursor" viewBox="0 0 24 24"><path d="m5 3 7.5 17 2-7.5L22 10.5z"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l2.8 1.8"/></symbol>
 <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.62-1.46A4.5 4.5 0 0 1 17.5 18H7Z"/></symbol>
+<symbol id="i-arrow-ur" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></symbol>
 </defs></svg>
 <div class="sheet">
 <div class="sheet-h">1. 색상 토큰</div>
@@ -395,6 +397,7 @@ details.collap>.body{padding:0 14px 14px}
   <button class="btn danger">취소</button>
   <button class="btn primary" disabled>비활성</button>
   <button class="btn sm secondary">상세 보기</button>
+  <button class="btn secondary sm round" title="상세로 이동"><svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></button>
 </div>
 <div class="filterbar">
   <span class="searchbox" style="width:240px"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input class="input" placeholder="TargetSourceId 검색"></span>
