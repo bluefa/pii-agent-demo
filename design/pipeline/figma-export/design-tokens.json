@@ -1,0 +1,99 @@
+{
+  "color": {
+    "gray": {
+      "50": { "$type": "color", "$value": "#F9FAFB" },
+      "100": { "$type": "color", "$value": "#F2F4F7" },
+      "200": { "$type": "color", "$value": "#E4E7EC" },
+      "300": { "$type": "color", "$value": "#D0D5DD" },
+      "400": { "$type": "color", "$value": "#98A2B3" },
+      "500": { "$type": "color", "$value": "#667085" },
+      "600": { "$type": "color", "$value": "#475467" },
+      "700": { "$type": "color", "$value": "#344054" },
+      "800": { "$type": "color", "$value": "#1D2939" },
+      "900": { "$type": "color", "$value": "#101828" }
+    },
+    "surface": {
+      "page": { "$type": "color", "$value": "{color.gray.50}" },
+      "card": { "$type": "color", "$value": "#FFFFFF" },
+      "stat-tile": { "$type": "color", "$value": "{color.gray.100}", "$description": "회색 타일 = 읽기 전용 요약 표면" },
+      "chrome": { "$type": "color", "$value": "{color.gray.900}", "$description": "topnav·sidebar (variant B 다크 크롬)" }
+    },
+    "text": {
+      "strong": { "$type": "color", "$value": "{color.gray.900}" },
+      "medium": { "$type": "color", "$value": "{color.gray.700}" },
+      "weak": { "$type": "color", "$value": "{color.gray.500}" },
+      "faint": { "$type": "color", "$value": "{color.gray.400}" }
+    },
+    "border": {
+      "default": { "$type": "color", "$value": "#E4E7EC" },
+      "strong": { "$type": "color", "$value": "#D0D5DD" }
+    },
+    "primary": {
+      "default": { "$type": "color", "$value": "#2563EB" },
+      "hover": { "$type": "color", "$value": "#1D4ED8" },
+      "bg": { "$type": "color", "$value": "#EFF4FF" },
+      "ring": { "$type": "color", "$value": "#D1E0FF" }
+    },
+    "status": {
+      "ok": { "$type": "color", "$value": "#12B76A" },
+      "ok-text": { "$type": "color", "$value": "#027A48" },
+      "ok-bg": { "$type": "color", "$value": "#ECFDF3" },
+      "err": { "$type": "color", "$value": "#F04438" },
+      "err-text": { "$type": "color", "$value": "#B42318" },
+      "err-bg": { "$type": "color", "$value": "#FEF3F2" },
+      "info": { "$type": "color", "$value": "#2E90FA" },
+      "info-text": { "$type": "color", "$value": "#175CD3" },
+      "info-bg": { "$type": "color", "$value": "#EFF8FF" },
+      "warn": { "$type": "color", "$value": "#F79009", "$description": "PENDING(시작 지연 대기) 포함" },
+      "warn-text": { "$type": "color", "$value": "#B54708" },
+      "warn-bg": { "$type": "color", "$value": "#FFFAEB" },
+      "off": { "$type": "color", "$value": "#98A2B3" },
+      "off-text": { "$type": "color", "$value": "#475467" },
+      "off-bg": { "$type": "color", "$value": "#F2F4F7" }
+    },
+    "csp": {
+      "aws": { "$type": "color", "$value": "#EC7211" },
+      "azure": { "$type": "color", "$value": "#0078D4" },
+      "gcp": { "$type": "color", "$value": "#4285F4" },
+      "idc": { "$type": "color", "$value": "#344054" },
+      "sdu": { "$type": "color", "$value": "#7F56D9" }
+    }
+  },
+  "typography": {
+    "page-title": { "$type": "typography", "$value": { "fontFamily": "Geist", "fontWeight": 700, "fontSize": "24px", "lineHeight": "120%", "letterSpacing": "-2%" } },
+    "section-title": { "$type": "typography", "$value": { "fontFamily": "Geist", "fontWeight": 600, "fontSize": "20px", "lineHeight": "120%" } },
+    "sub-title": { "$type": "typography", "$value": { "fontFamily": "Geist", "fontWeight": 700, "fontSize": "16px", "lineHeight": "120%" }, "$description": "다이얼로그 제목 전용" },
+    "body": { "$type": "typography", "$value": { "fontFamily": "Geist", "fontWeight": 400, "fontSize": "14px", "lineHeight": "140%", "letterSpacing": "-1.4%" } },
+    "caption": { "$type": "typography", "$value": { "fontFamily": "Geist", "fontWeight": 400, "fontSize": "12px", "lineHeight": "140%" } },
+    "display-number": { "$type": "typography", "$value": { "fontFamily": "Geist", "fontWeight": 600, "fontSize": "32px", "lineHeight": "120%", "letterSpacing": "-2%" }, "$description": "stat 값 — tabular-nums" },
+    "mono": { "$type": "typography", "$value": { "fontFamily": "Geist Mono", "fontWeight": 400, "fontSize": "12px", "lineHeight": "140%" } }
+  },
+  "spacing": {
+    "1": { "$type": "dimension", "$value": "4px" },
+    "2": { "$type": "dimension", "$value": "8px" },
+    "3": { "$type": "dimension", "$value": "12px", "$description": "나란한 카드 gap · 제목↔내용" },
+    "4": { "$type": "dimension", "$value": "16px", "$description": "같은 섹션 위아래 블록 간" },
+    "5": { "$type": "dimension", "$value": "24px", "$description": "페이지 제목 아래" },
+    "6": { "$type": "dimension", "$value": "64px", "$description": "섹션 덩어리 간 — 계층 분리의 주 레버" }
+  },
+  "size": {
+    "control": { "$type": "dimension", "$value": "32px", "$description": "input·select·btn" },
+    "control-sm": { "$type": "dimension", "$value": "28px", "$description": "btn.sm·seg·pill.lg" },
+    "chip": { "$type": "dimension", "$value": "20px", "$description": "pill·kindchip" },
+    "task-node": { "$type": "dimension", "$value": "184px", "$description": "tnode 고정 높이" },
+    "stat-card-max": { "$type": "dimension", "$value": "260px", "$description": "stat 카드 폭 상한 — 박스 폭은 내용이 정한다" }
+  },
+  "radius": {
+    "card": { "$type": "dimension", "$value": "10px" },
+    "inner": { "$type": "dimension", "$value": "8px" },
+    "badge": { "$type": "dimension", "$value": "4px" },
+    "pill": { "$type": "dimension", "$value": "999px" }
+  },
+  "shadow": {
+    "xs": { "$type": "shadow", "$value": { "color": "#1018280D", "offsetX": "0px", "offsetY": "1px", "blur": "2px", "spread": "0px" } },
+    "lg": { "$type": "shadow", "$value": [
+      { "color": "#10182829", "offsetX": "0px", "offsetY": "12px", "blur": "32px", "spread": "-8px" },
+      { "color": "#10182814", "offsetX": "0px", "offsetY": "4px", "blur": "10px", "spread": "-4px" }
+    ] }
+  }
+}
