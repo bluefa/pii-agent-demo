@@ -79,3 +79,21 @@ export function retrySuffix(failCount: number, maxFail: number | null | undefine
   if (!failCount || failCount <= 0) return '';
   return ` (재시도 ${failCount}/${maxFail ?? '?'})`;
 }
+
+/**
+ * R23 (폴링 C안) — tasks whose summary moved enough to invalidate the loaded
+ * detail (status or fail_count changed, or the task is new), by task_id.
+ * Drives the "refetch only what changed" rule of the 10s poll.
+ */
+export function changedTaskIds(
+  prev: readonly TaskSummary[],
+  next: readonly TaskSummary[],
+): number[] {
+  const prevById = new Map(prev.map((t) => [t.task_id, t]));
+  return next
+    .filter((t) => {
+      const p = prevById.get(t.task_id);
+      return !p || p.status !== t.status || p.fail_count !== t.fail_count;
+    })
+    .map((t) => t.task_id);
+}

@@ -33,6 +33,7 @@ import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailSt
 import { pipelineCrumbs } from '@/app/integration/admin/pipelines/_detail/pipelineBreadcrumb';
 import { mapPool } from '@/app/integration/admin/pipelines/_detail/mapPool';
 import {
+  changedTaskIds,
   currentTaskInfo,
   findFailedTask,
   taskDisplayName,
@@ -41,6 +42,7 @@ import {
 import {
   canCancel,
   fmtDateTime,
+  isLivePipeline,
   progressCount,
   providerAccentVar,
   providerLabel,
@@ -56,6 +58,8 @@ import {
 import type { PipelineDetail, TaskDetail, TaskSummary } from '@/lib/pipeline/types';
 
 const DETAIL_CONCURRENCY = 6;
+/** R23 (C안) — live-run poll cadence. */
+const POLL_INTERVAL_MS = 10_000;
 
 type LoadStatus = 'loading' | 'ready' | 'notfound' | 'error';
 
@@ -131,6 +135,53 @@ export function PipelineDetailView(): ReactElement {
       cancelled = true;
     };
   }, [pipelineId, reloadKey, loadTaskDetails]);
+
+  // R23 (C안) — 10s poll while the run is live (PENDING/RUNNING): refetch the
+  // pipeline (#4) and ONLY the details whose summary moved (+ the open panel's
+  // task — its 폴 관찰/attempts advance without a summary change). Background
+  // tabs skip the tick; a failed tick stays silent and the next one retries.
+  // Once the run terminalizes the effect re-runs and drops the interval.
+  useEffect(() => {
+    if (status !== 'ready' || !detail || !isLivePipeline(detail.status)) return;
+    let cancelled = false;
+    const tick = async (): Promise<void> => {
+      if (document.hidden) return;
+      try {
+        const next = await getPipeline(pipelineId);
+        const ids = new Set(changedTaskIds(detail.tasks, next.tasks));
+        if (selected) ids.add(selected.task_id);
+        const entries = await Promise.all(
+          [...ids].map(async (taskId) => {
+            try {
+              return [taskId, await getTaskDetail(next.pipeline_id, taskId)] as const;
+            } catch {
+              return null; // keep the stale detail — next tick retries
+            }
+          }),
+        );
+        if (cancelled) return;
+        setDetail(next);
+        setDetailMap((prev) => {
+          const merged = new Map(prev);
+          for (const entry of entries) if (entry) merged.set(entry[0], entry[1]);
+          return merged;
+        });
+        // Re-point the open panel at the fresh summary (status pill stays live).
+        setSelected((prev) =>
+          prev ? next.tasks.find((t) => t.task_id === prev.task_id) ?? null : prev,
+        );
+      } catch {
+        /* transient poll failure — silent, the next tick retries */
+      }
+    };
+    const id = window.setInterval(() => {
+      void tick();
+    }, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [status, detail, selected, pipelineId]);
 
   const resolveName = useCallback(
     (t: TaskSummary): string => taskDisplayName(t, detailMap.get(t.task_id), catalog),
@@ -235,7 +286,7 @@ export function PipelineDetailView(): ReactElement {
       <Card>
         <div className={mc.grid}>
           <div>
-            <div className={detailStyles.dgroup.title}>파이프라인</div>
+            <div className={mc.title}>파이프라인</div>
             <div className={detailStyles.kv.base}>
               <div className={detailStyles.kv.k}>유형</div>
               <div className={detailStyles.kv.v}>
@@ -258,7 +309,7 @@ export function PipelineDetailView(): ReactElement {
             {recipeDesc && <div className={mc.desc}>{recipeDesc}</div>}
           </div>
           <div className={mc.aside}>
-            <div className={detailStyles.dgroup.title}>Target Source</div>
+            <div className={mc.title}>Target Source</div>
             <div className={detailStyles.kv.base}>
               <div className={detailStyles.kv.k}>CSP</div>
               <div className={detailStyles.kv.vRow}>

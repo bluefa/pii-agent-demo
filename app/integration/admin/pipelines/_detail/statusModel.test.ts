@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  changedTaskIds,
   currentTaskInfo,
   findFailedTask,
   retrySuffix,
@@ -95,5 +96,27 @@ describe('currentTaskInfo', () => {
     const info = currentTaskInfo('DONE', null, tasks, opName);
     expect(info.label).toBe('결과');
     expect(info.retry).toBeNull();
+  });
+});
+
+describe('changedTaskIds — R23 polling diff', () => {
+  it('returns tasks whose status or fail_count moved, and new tasks', () => {
+    const prev = [
+      mkTask({ sequence: 0, status: 'DONE' }),
+      mkTask({ sequence: 1, status: 'IN_PROGRESS', fail_count: 0 }),
+      mkTask({ sequence: 2, status: 'BLOCKED' }),
+    ];
+    const next = [
+      mkTask({ sequence: 0, status: 'DONE' }), // unchanged
+      mkTask({ sequence: 1, status: 'IN_PROGRESS', fail_count: 1 }), // fail_count moved
+      mkTask({ sequence: 2, status: 'READY' }), // status moved
+      mkTask({ sequence: 3, status: 'BLOCKED' }), // new task
+    ];
+    expect(changedTaskIds(prev, next)).toEqual([1, 2, 3]);
+  });
+
+  it('returns [] when nothing moved', () => {
+    const tasks = [mkTask({ sequence: 0, status: 'DONE' }), mkTask({ sequence: 1, status: 'READY' })];
+    expect(changedTaskIds(tasks, tasks)).toEqual([]);
   });
 });

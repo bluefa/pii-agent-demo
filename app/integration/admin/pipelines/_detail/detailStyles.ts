@@ -21,6 +21,8 @@ export const detailStyles = {
    */
   metaCard: {
     grid: 'grid grid-cols-[1.2fr_1fr] gap-x-7',
+    /** Ownership-column header — R23: 16px + 16px below (오너: 14/10은 작고 좁다). */
+    title: 'text-[16px] font-semibold leading-[1.2] text-[var(--pl-text-strong)] mb-4',
     /** Right column — hairline between the two ownerships. */
     aside: 'border-l border-[var(--pl-gray-100)] pl-7',
     /** Recipe description line under the 파이프라인 kv. */

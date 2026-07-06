@@ -4,6 +4,17 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 23 — 상세 라이브 폴링(C안) + 메타 카드 소속 헤더 승격 (2026-07-07)
+
+- **10초 CSR 폴링 (App 전용)**: 상세 페이지가 라이브 run(PENDING/RUNNING)일 때만
+  10초마다 파이프라인(#4)을 재조회 — task 상세(#5)는 **summary(status/fail_count)가
+  변한 task + 열려 있는 패널의 task만** 재조회(폴 관찰·attempts는 summary 변화 없이
+  자란다). 백그라운드 탭은 스킵(document.hidden), 실패 틱은 조용히 다음 틱 재시도,
+  종결(DONE/FAILED/CANCELLED) 시 자동 중단. SSR/ISR 방식은 검토 후 기각 — 떠 있는
+  화면은 서버 재검증만으로 갱신되지 않고, 어차피 클라이언트 타이머가 필요.
+- **메타 카드 소속 헤더 승격**: "파이프라인"/"Target Source" 14px/10px 아래 간격 →
+  **16px(strong)/16px** (`metaCard.title`, 프로토타입 `.metagrid .subsection-title`).
+
 ## Round 22.5 — 제목-보조 간격 확대·시작 모달 높이·기간 칩 연한 파랑 (2026-07-07)
 
 오너 피드백 3건.

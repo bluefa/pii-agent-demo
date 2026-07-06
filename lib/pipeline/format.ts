@@ -234,6 +234,12 @@ export function canCancel(status: PipelineStatus, cancelRequested: boolean): boo
   return (status === 'RUNNING' || status === 'PENDING') && !cancelRequested;
 }
 
+/** Live = still moving on the server (R23 — the detail page polls only these).
+ *  cancel_requested stays live: the cancellation itself lands via a later poll. */
+export function isLivePipeline(status: PipelineStatus): boolean {
+  return status === 'RUNNING' || status === 'PENDING';
+}
+
 const CURRENT_TASK_STATUSES: readonly TaskStatus[] = ['READY', 'IN_PROGRESS', 'FAILED'];
 
 /** Lowest-sequence task in {READY, IN_PROGRESS, FAILED}, else null. */
