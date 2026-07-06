@@ -2,9 +2,8 @@
 
 admin 파이프라인 4페이지가 사용하는 **신규 BFF API 경로 전체 명세**와 페이지↔API 매핑.
 
-- 업스트림: `pipeline-orchestrator` (Spring Boot, 경로 prefix `/infra-install/v1`). 별도 서버로 띄울
-  때는 env **`PIPELINE_API_URL`** 로 지정하고, 미설정 시 BFF 서버(`BFF_API_URL`)로 폴백한다
-  (orchestrator가 BFF 뒤에서 서빙되는 구성).
+- 업스트림: `pipeline-orchestrator` (Spring Boot). BFF 서버 뒤에서 서빙되므로 별도 env 없이
+  **`BFF_API_URL` + `/infra-install/v1`** 로 호출한다.
 - 원칙: **응답 passthrough** — 업스트림의 응답 body(snake_case)·HTTP status를 그대로 브라우저에
   전달한다. camelCase 변환·필드 가공 금지. 에러 body(`{timestamp,status,code,message,path}`)도
   status 그대로 전파한다.
@@ -12,7 +11,7 @@ admin 파이프라인 4페이지가 사용하는 **신규 BFF API 경로 전체 
   (LIN-19의 CORS 갭은 이 구조로 우회 해소).
 - mock: `USE_MOCK_DATA=true`일 때 `lib/bff/mock/pipeline*.ts`가 응답한다(코드 기본값은 real
   HTTP — 이 저장소의 로컬 `.env.local`(gitignore 대상)이 관례적으로 true를 설정할 뿐, 클린
-  체크아웃은 env 미설정 시 `PIPELINE_API_URL`(→ 미설정 시 `BFF_API_URL`)로 프록시한다). mock 픽스처는
+  체크아웃은 env 미설정 시 `BFF_API_URL`로 프록시한다). mock 픽스처는
   `design/pipeline/admin-pipeline.html`의 mock 데이터(#123~#129)를 와이어 포맷
   (snake_case, ISO-8601)으로 이식한 것이다.
 
@@ -39,7 +38,7 @@ ESLint 경계에 따라 `@/lib/bff/client` 경유.
 >    구조화 필드가 유실된다. 409의 `ORCHESTRATION_PIPELINE_ALREADY_ACTIVE` 분기가 이 경로로
 >    식별 가능해야 한다.
 
-| # | BFF 경로 (브라우저 기준) | 업스트림 경로 (`PIPELINE_API_URL` 기준) | 용도 |
+| # | BFF 경로 (브라우저 기준) | 업스트림 경로 (`BFF_API_URL` 기준) | 용도 |
 |---|---|---|---|
 | 1 | `GET /integration/api/v1/orchestrator/pipelines/statistics/live` | `GET /infra-install/v1/pipelines/statistics/live` | 대시보드 "동작 중 · 현재" |
 | 2 | `GET /integration/api/v1/orchestrator/pipelines/statistics?period={1h\|1d\|7d}` | `GET /infra-install/v1/pipelines/statistics?period=` | 대시보드 기간 실패/성공 |

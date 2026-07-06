@@ -3,8 +3,8 @@ info:
   title: Pipeline Orchestrator BFF Proxy API (LIN-25)
   version: v1
   description: |
-    `pipeline-orchestrator`(Spring Boot, 경로 prefix `/infra-install/v1`; `PIPELINE_API_URL`,
-    미설정 시 BFF 서버 `BFF_API_URL`로 폴백) 앞단의 BFF 프록시 계약이다.
+    `pipeline-orchestrator`(Spring Boot; BFF 서버 뒤에서 서빙 — `BFF_API_URL` +
+    경로 prefix `/infra-install/v1`) 앞단의 BFF 프록시 계약이다.
     이 문서가 다루는 12개 경로는 모두 `withOrchestratorProxy` 래퍼(app/api/_lib/orchestrator.ts)를
     거쳐 업스트림 응답을 **verbatim**으로 브라우저에 전달한다.
 
