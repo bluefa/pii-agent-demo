@@ -124,10 +124,10 @@ divergences and traces the full adapter chain (CSR client → Next route → bff
 | 검색 / 필터(`전체`·`대상`·`비대상`) / DB-type·region 드롭다운 / pagination | **API 호출 없음** | fetched 데이터 위 client-side |
 | `연동 대상 승인 요청 취소` → `요청 취소` | `POST /target-sources/{id}/approval-requests/cancel` | `cancelApprovalRequest` |
 | 취소 직후 | `GET /target-sources/{id}` | `refreshProject` → step 1로 복귀 |
-| (백그라운드) ProcessStatusCard | `GET /target-sources/{id}/process-status` (10s poll) → 변경 시 `GET /target-sources/{id}` | 승인되면 step 3 자동 전이 |
+| (백그라운드) 폴링 없음 | — | 승인 후 사용자가 새로고침하면 step 3 전이 |
 
-**Transition (advance):** ProcessStatusCard 폴링(`getProcessStatus`)이 상태 변화를 감지 → `getProject` →
-`onProjectUpdate`. (버튼이 아니라 폴링으로 advance.)
+**Transition (advance):** 폴링 없음 — 승인 상태 변화(step 2→3)는 사용자가 새로고침(`getProject` 재조회)할
+때 반영된다. (`ProcessStatusCard`는 순수 표시 컴포넌트.)
 
 ### 3. UI 컴포넌트
 `WaitingApprovalStep.tsx`

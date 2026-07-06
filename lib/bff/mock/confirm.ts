@@ -6,6 +6,7 @@ import * as mockInstallation from '@/lib/mock-installation';
 import { getStore } from '@/lib/mock-store';
 import { ProcessStatus, cloudProviderToWireProvider } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
+import { toBffApprovalProcessStatus } from '@/lib/bff/mock/target-sources';
 import { schemas } from '@/lib/generated/install-v1';
 import type {
   MockResource,
@@ -1061,7 +1062,7 @@ export const mockConfirm = {
 
         return NextResponse.json({
           target_source_id: updated.targetSourceId,
-          process_status: computeProcessStatus(updated),
+          process_status: toBffApprovalProcessStatus(updated.processStatus),
           // ADR-019 E2/D-1: swagger ProcessStatusResponseDto carries `healthy`.
           healthy: 'HEALTHY',
           status_inputs: {
@@ -1077,7 +1078,7 @@ export const mockConfirm = {
 
       return NextResponse.json({
         target_source_id: project.targetSourceId,
-        process_status: computeProcessStatus(project),
+        process_status: toBffApprovalProcessStatus(project.processStatus),
         // ADR-019 E2/D-1: swagger ProcessStatusResponseDto carries `healthy`.
         healthy: 'HEALTHY',
         status_inputs: {
@@ -1093,7 +1094,7 @@ export const mockConfirm = {
 
     return NextResponse.json({
       target_source_id: project.targetSourceId,
-      process_status: computeProcessStatus(project),
+      process_status: toBffApprovalProcessStatus(project.processStatus),
       // ADR-019 E2/D-1: swagger ProcessStatusResponseDto carries `healthy`.
       healthy: 'HEALTHY',
       status_inputs: {

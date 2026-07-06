@@ -32,7 +32,7 @@ on Azure and traces the **full adapter chain** at every hop.
   `withV1` (`app/api/_lib/handler.ts`) + `parseTargetSourceId` + `problemResponse`.
 - **Advance / transition semantics.**
   - **Step 1** advances by an *action*: submit `"승인 요청"` → `createApprovalRequest` → `refreshProject` (`getProject` refetch) flips `processStatus` 1→2.
-  - **Steps 2 & 3** advance by *polling*: `ProcessStatusCard` polls `getProcessStatus` every `TIMINGS.PROCESS_STATUS_POLL_MS`; when `process_status` diverges from the expected BFF status (`'PENDING'` for step 2, `'CONFIRMING'` for step 3) it calls `getProject` and pushes the new project up via `onProjectUpdate`. No buttons advance these.
+  - **Steps 2 & 3** advance on *refresh*: there is no polling. `ProcessStatusCard` is a pure display component; the status transition (admin approval 2→3, applying-complete 3→4) surfaces on the user's next `getProject` re-fetch (page refresh / re-navigation). No buttons advance these.
   - **Step 4** advances when the Azure install reports all resources complete: `AzureInstallationInline` fires `onInstallComplete` → `refreshProject`.
   - **Step 5** advances on a successful connection test: when the poll observes the job flip to `SUCCESS`, `ConnectionTestPanel` calls `onResourceUpdate` (= `WaitingConnectionTestStep.refreshProject` → `getProject`), and the mock has already flipped `processStatus` to `CONNECTION_VERIFIED` — so the refetch re-renders the layout into step 6. Steps **6/7** are terminal/read-only; their buttons are `준비중` toast stubs.
 - **Sampled IDs** (from `step-actions-and-apis.md`, live-verified): step1=1005, step2=2002, step3=2003,

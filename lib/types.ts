@@ -343,7 +343,6 @@ export interface ProjectSummary {
   id: string;
   targetSourceId: number;
   projectCode: string;
-  processStatus: ProcessStatus;
   cloudProvider: CloudProvider;
   resourceCount: number;
   hasDisconnected: boolean;
@@ -351,7 +350,6 @@ export interface ProjectSummary {
   description?: string;
   isRejected: boolean;
   rejectionReason?: string;
-  connectionTestComplete: boolean; // 연결 테스트 완료 여부 (선택된 리소스 모두 CONNECTED)
 }
 
 export interface ErrorResponse {

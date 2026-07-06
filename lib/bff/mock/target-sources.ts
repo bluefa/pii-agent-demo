@@ -75,7 +75,7 @@ const toCanonicalProvider = (cloudProvider?: string): CanonicalProvider | null =
   }
 };
 
-const toBffApprovalProcessStatus = (processStatus: ProcessStatus): BffApprovalProcessStatus => {
+export const toBffApprovalProcessStatus = (processStatus: ProcessStatus): BffApprovalProcessStatus => {
   switch (processStatus) {
     case ProcessStatus.WAITING_APPROVAL:
       return 'PENDING';

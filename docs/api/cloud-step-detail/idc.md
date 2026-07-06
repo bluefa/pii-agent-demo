@@ -129,7 +129,7 @@ list (including excluded rows) + a cancel button. Status pill `승인 대기`.
 | Action | API call | Transition |
 |--------|----------|------------|
 | mount (snapshot) | `GET /idc/target-sources/{id}/resources` | none |
-| `ProcessStatusCard` poll | `GET /target-sources/{id}/process-status` (every `PROCESS_STATUS_POLL_MS`; expects `PENDING`) | **2→3** when polled status ≠ `PENDING` → `getProject`→`onProjectUpdate` |
+| (폴링 없음) | — | **2→3**은 승인 후 사용자가 새로고침(`getProject` 재조회)할 때 반영 |
 | `연동 대상 승인 요청 취소` → `ConfirmStepModal` `요청 취소` | `POST /target-sources/{id}/approval-requests/cancel` then `GET /target-sources/{id}` | **2→1** via `getProject`→`onProjectUpdate` |
 
 ### 3. UI 컴포넌트

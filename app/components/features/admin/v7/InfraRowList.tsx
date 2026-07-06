@@ -10,12 +10,9 @@ import { InfraRow } from '@/app/components/features/admin/v7/InfraRow';
 interface InfraRowListProps {
   projects: ProjectSummary[];
   loading: boolean;
-  actionLoading: string | null;
   onAddInfra: () => void;
   onOpenDetail: (targetSourceId: number) => void;
   onManageAction: (action: 'view' | 'delete', targetSourceId: number) => void;
-  onViewApproval?: (project: ProjectSummary, e: React.MouseEvent) => void;
-  onConfirmCompletion: (targetSourceId: number, e: React.MouseEvent) => void;
 }
 
 const matchesQuery = (project: ProjectSummary, query: string): boolean => {
@@ -34,12 +31,9 @@ const matchesQuery = (project: ProjectSummary, query: string): boolean => {
 export const InfraRowList = ({
   projects,
   loading,
-  actionLoading,
   onAddInfra,
   onOpenDetail,
   onManageAction,
-  onViewApproval,
-  onConfirmCompletion,
 }: InfraRowListProps) => {
   const [query, setQuery] = useState('');
   const filtered = useMemo(
@@ -81,9 +75,6 @@ export const InfraRowList = ({
           <InfraRow
             key={project.id}
             project={project}
-            actionLoading={actionLoading}
-            onConfirmCompletion={onConfirmCompletion}
-            onViewApproval={onViewApproval}
             onManageAction={onManageAction}
             onOpenDetail={onOpenDetail}
           />

@@ -62,7 +62,6 @@ export const IdcStep4Installing = ({
   identity,
   providerLabel,
   action,
-  onProjectUpdate,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
   const slotKey = resolveStepSlot('IDC', ProcessStatus.INSTALLING);
@@ -132,7 +131,7 @@ export const IdcStep4Installing = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
+      <ProcessStatusCard project={project} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <section className={cn(cardStyles.base, 'overflow-hidden')}>

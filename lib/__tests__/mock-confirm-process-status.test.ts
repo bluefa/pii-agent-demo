@@ -120,7 +120,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       addTestProject();
       const result = await getProcessStatus();
 
-      expect(result.process_status).toBe('REQUEST_REQUIRED');
+      expect(result.process_status).toBe('IDLE');
       expect(result.status_inputs.has_pending_approval_request).toBe(false);
       expect(result.status_inputs.has_approved_integration).toBe(false);
       expect(result.status_inputs.has_confirmed_integration).toBe(false);
@@ -139,7 +139,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const result = await getProcessStatus();
-      expect(result.process_status).toBe('WAITING_APPROVAL');
+      expect(result.process_status).toBe('PENDING');
       expect(result.status_inputs.has_pending_approval_request).toBe(true);
     });
 
@@ -159,7 +159,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const result = await getProcessStatus();
-      expect(result.process_status).toBe('WAITING_APPROVAL');
+      expect(result.process_status).toBe('PENDING');
       expect(result.status_inputs.last_approval_result).toBe('REJECTED');
       expect(result.status_inputs.last_rejection_reason).toBe('리소스 재확인 필요');
     });
@@ -179,7 +179,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const result = await getProcessStatus();
-      expect(result.process_status).toBe('TARGET_CONFIRMED');
+      expect(result.process_status).toBe('COMPLETED');
       expect(result.status_inputs.has_confirmed_integration).toBe(true);
     });
   });
@@ -200,7 +200,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // Step 1: 초기 상태 확인
       let status = await getProcessStatus();
-      expect(status.process_status).toBe('REQUEST_REQUIRED');
+      expect(status.process_status).toBe('IDLE');
 
       // Step 2: 연동 요청 (2개 선택, 1개 제외 → 수동 승인)
       const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
@@ -208,14 +208,14 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(reqRes.status).toBe(200);
 
       status = await getProcessStatus();
-      expect(status.process_status).toBe('WAITING_APPROVAL');
+      expect(status.process_status).toBe('PENDING');
 
       // Step 3: 승인
       const approveRes = await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
       expect(approveRes.status).toBe(200);
 
       status = await getProcessStatus();
-      expect(status.process_status).toBe('APPLYING_APPROVED');
+      expect(status.process_status).toBe('CONFIRMING');
       expect(status.status_inputs.has_approved_integration).toBe(true);
 
       // Step 4: ApprovedIntegration 스냅샷 확인 (ADR-019: flat snake wire)
@@ -253,7 +253,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // BFF process_status = WAITING_APPROVAL
       const status = await getProcessStatus();
-      expect(status.process_status).toBe('WAITING_APPROVAL');
+      expect(status.process_status).toBe('PENDING');
       expect(status.status_inputs.has_pending_approval_request).toBe(true);
     });
 
@@ -278,7 +278,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // BFF process_status = WAITING_APPROVAL
       const status = await getProcessStatus();
-      expect(status.process_status).toBe('WAITING_APPROVAL');
+      expect(status.process_status).toBe('PENDING');
       expect(status.status_inputs.has_pending_approval_request).toBe(true);
     });
 
@@ -302,7 +302,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(getProjectInstallationStatus()).toBe('PENDING');
 
       const status = await getProcessStatus();
-      expect(status.process_status).toBe('WAITING_APPROVAL');
+      expect(status.process_status).toBe('PENDING');
     });
 
     it('NO_INSTALL_NEEDED 리소스 미선택 → 수동 승인 대기 (항상 승인 대기)', async () => {
@@ -511,7 +511,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 상태 확인 — 반려 직후엔 Step 2 (WAITING_APPROVAL) 머무름, isRejected 플래그로 표지
       const processStatus = await getProcessStatus();
-      expect(processStatus.process_status).toBe('WAITING_APPROVAL');
+      expect(processStatus.process_status).toBe('PENDING');
       expect(processStatus.status_inputs.last_approval_result).toBe('REJECTED');
       expect(processStatus.status_inputs.last_rejection_reason).toBe('리소스 구성 재검토 필요');
 
@@ -564,7 +564,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(reqRes.status).toBe(200);
 
       const processStatus = await getProcessStatus();
-      expect(processStatus.process_status).toBe('WAITING_APPROVAL');
+      expect(processStatus.process_status).toBe('PENDING');
     });
 
     it('반려 → 재요청 → 승인 → APPLYING_APPROVED', async () => {
@@ -594,7 +594,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(approveRes.status).toBe(200);
 
       const processStatus = await getProcessStatus();
-      expect(processStatus.process_status).toBe('APPLYING_APPROVED');
+      expect(processStatus.process_status).toBe('CONFIRMING');
       expect(processStatus.status_inputs.has_approved_integration).toBe(true);
     });
   });
@@ -703,7 +703,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 확정 후 상태 확인
       const processStatus = await getProcessStatus();
-      expect(processStatus.process_status).toBe('TARGET_CONFIRMED');
+      expect(processStatus.process_status).toBe('COMPLETED');
       expect(processStatus.status_inputs.has_confirmed_integration).toBe(true);
       expect(processStatus.status_inputs.has_approved_integration).toBe(false);
 
@@ -841,7 +841,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 초기 상태: TARGET_CONFIRMED
       let processStatus = await getProcessStatus();
-      expect(processStatus.process_status).toBe('TARGET_CONFIRMED');
+      expect(processStatus.process_status).toBe('COMPLETED');
 
       // 재요청 (리소스 변경: res-1, res-3 선택, res-2 제외)
       const reqBody = createApprovalRequestBody(['res-1', 'res-3'], ['res-2']);
@@ -849,7 +849,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(reqRes.status).toBe(200);
 
       processStatus = await getProcessStatus();
-      expect(processStatus.process_status).toBe('WAITING_APPROVAL');
+      expect(processStatus.process_status).toBe('PENDING');
     });
   });
 
@@ -1007,7 +1007,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
       await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       let status = await getProcessStatus();
-      expect(status.process_status).toBe('WAITING_APPROVAL');
+      expect(status.process_status).toBe('PENDING');
 
       // 취소
       const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
@@ -1018,7 +1018,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 상태 확인
       status = await getProcessStatus();
-      expect(status.process_status).toBe('REQUEST_REQUIRED');
+      expect(status.process_status).toBe('IDLE');
       expect(status.status_inputs.last_approval_result).toBe('CANCELLED');
       expect(status.status_inputs.has_pending_approval_request).toBe(false);
     });
@@ -1035,19 +1035,19 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
       await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       let status = await getProcessStatus();
-      expect(status.process_status).toBe('WAITING_APPROVAL');
+      expect(status.process_status).toBe('PENDING');
 
       // 승인 대기 상태이므로 취소 가능
       await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       status = await getProcessStatus();
-      expect(status.process_status).toBe('REQUEST_REQUIRED');
+      expect(status.process_status).toBe('IDLE');
 
       // 재요청 성공 확인
       const reqRes2 = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes2.status).toBe(200);
 
       status = await getProcessStatus();
-      expect(status.process_status).toBe('WAITING_APPROVAL');
+      expect(status.process_status).toBe('PENDING');
     });
 
     it('REQUEST_REQUIRED 상태에서 취소 시도 → 400 (승인 요청 내역 없음)', async () => {
@@ -1074,7 +1074,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 승인되어 반영 중 상태 확인
       const status = await getProcessStatus();
-      expect(status.process_status).toBe('APPLYING_APPROVED');
+      expect(status.process_status).toBe('CONFIRMING');
 
       // 취소 시도 → 409
       const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
@@ -1100,7 +1100,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       // 승인
       await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
       let status = await getProcessStatus();
-      expect(status.process_status).toBe('APPLYING_APPROVED');
+      expect(status.process_status).toBe('CONFIRMING');
 
       // 취소 시도 → 409 (반영 중이므로 불가)
       const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
@@ -1128,7 +1128,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(confirmRes.status).toBe(200);
 
       status = await getProcessStatus();
-      expect(status.process_status).toBe('TARGET_CONFIRMED');
+      expect(status.process_status).toBe('COMPLETED');
     });
 
     it('TARGET_CONFIRMED 상태에서 취소 시도 → 400 (취소할 요청 없음)', async () => {
@@ -1175,7 +1175,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(cancelledEntry.result.status).toBe('CANCELLED');
     });
 
-    it('O/O/X(기존 연동 + 변경 요청) → 취소 → O/X/X(TARGET_CONFIRMED) 복원', async () => {
+    it('O/O/X(기존 연동 + 변경 요청) → 취소 → O/X/X(이전 확정 상태) 복원', async () => {
       // 기존 연동 완료 상태로 셋업
       const status: ProjectStatus = {
         ...createInitialProjectStatus(),
@@ -1199,7 +1199,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // TARGET_CONFIRMED 확인
       let processStatus = await getProcessStatus();
-      expect(processStatus.process_status).toBe('TARGET_CONFIRMED');
+      expect(processStatus.process_status).toBe('COMPLETED');
 
       // 변경 요청 (res-1, res-3 선택, res-2 제외)
       const reqBody = createApprovalRequestBody(['res-1', 'res-3'], ['res-2']);
@@ -1207,14 +1207,15 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(reqRes.status).toBe(200);
 
       processStatus = await getProcessStatus();
-      expect(processStatus.process_status).toBe('WAITING_APPROVAL');
+      expect(processStatus.process_status).toBe('PENDING');
 
-      // 취소 → TARGET_CONFIRMED로 복원되어야 함
+      // 취소 → 이전 확정 상태(설치 완료, 연결 테스트 대기 = INSTALLED)로 복원.
+      // 확정 스냅샷은 installation 을 되살리지만 connectionTest 는 재실행 대기로 남는다.
       const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       expect(cancelRes.status).toBe(200);
 
       processStatus = await getProcessStatus();
-      expect(processStatus.process_status).toBe('TARGET_CONFIRMED');
+      expect(processStatus.process_status).toBe('INSTALLED');
       expect(processStatus.status_inputs.has_confirmed_integration).toBe(true);
       expect(processStatus.status_inputs.last_approval_result).toBe('CANCELLED');
     });

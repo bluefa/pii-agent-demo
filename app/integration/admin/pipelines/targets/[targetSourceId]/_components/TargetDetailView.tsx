@@ -4,8 +4,8 @@
  * Target detail (C2-a) — design-inventory §2.3. Identity (provider + CSP metadata),
  * latest-run status bar, install/delete action row (gated), and the paged pipeline
  * history. Install/delete open the preview modal; the status-bar 취소 opens the
- * cancel modal. Raw target-source detail (process_status + CSP metadata) comes from
- * the reused BFF route via getRawTargetSourceDetail (getProject drops those fields).
+ * cancel modal. Raw target-source detail (CSP metadata) comes from the reused BFF
+ * route via getRawTargetSourceDetail (getProject drops the china/permission/sdu flags).
  */
 import { Fragment, useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -33,7 +33,6 @@ import { PipelineStatusBar } from '@/app/integration/admin/pipelines/_detail/Pip
 import { PreviewModal } from '@/app/integration/admin/pipelines/_detail/PreviewModal';
 import { CancelModal } from '@/app/integration/admin/pipelines/_detail/CancelModal';
 import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailStyles';
-import { targetButtons } from '@/app/integration/admin/pipelines/_detail/targetButtons';
 import { targetCrumbs } from '@/app/integration/admin/pipelines/_detail/pipelineBreadcrumb';
 import {
   buildPipelineHref,
@@ -211,7 +210,11 @@ export function TargetDetailView(): ReactElement {
     latestDetail && (latestDetail.status === 'RUNNING' || latestDetail.status === 'PENDING')
       ? latestDetail.pipeline_id
       : null;
-  const btns = targetButtons(raw.process_status, activeRunId);
+  // A run in flight (RUNNING/PENDING) locks install & delete for uniqueness;
+  // otherwise both are available. Install-state is no longer gated on
+  // process_status (the target-source payload no longer carries it).
+  const locked = activeRunId != null;
+  const lockMsg = locked ? '진행·대기 중 파이프라인이 있어 설치·삭제는 잠깁니다' : '';
 
   const resolveTargetTaskName = (t: TaskSummary): string => taskDisplayName(t, null, catalog);
 
@@ -264,7 +267,7 @@ export function TargetDetailView(): ReactElement {
 
       <SectionHeader
         title="파이프라인 상태"
-        desc="이 대상의 현재 상태 — 할 수 있는 액션은 상태에서 결정됩니다"
+        desc="이 대상의 현재 상태 — 진행 중 파이프라인이 있으면 설치·삭제가 잠깁니다"
       />
       {latestDetail ? (
         <PipelineStatusBar
@@ -289,21 +292,21 @@ export function TargetDetailView(): ReactElement {
       <FilterBar className="mt-3">
         <PlButton
           variant="primary"
-          disabled={!btns.install}
-          title={btns.installTitle}
+          disabled={locked}
+          title={locked ? '진행·대기 중 파이프라인이 있어 잠금(중복 방지)' : '설치 파이프라인을 시작합니다'}
           onClick={() => previewModal.open('INSTALL')}
         >
           설치 시작
         </PlButton>
         <PlButton
           variant="secondary"
-          disabled={!btns.delete}
-          title={btns.deleteTitle}
+          disabled={locked}
+          title={locked ? '진행·대기 중 파이프라인이 있어 잠금(중복 방지)' : '삭제 파이프라인을 시작합니다'}
           onClick={() => previewModal.open('DELETE')}
         >
           삭제 시작
         </PlButton>
-        <span className={cn(text.meta, 'ml-auto')}>{btns.lockMsg}</span>
+        <span className={cn(text.meta, 'ml-auto')}>{lockMsg}</span>
       </FilterBar>
 
       <SectionHeader

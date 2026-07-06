@@ -47,7 +47,7 @@ export const CloudInstallingStep = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
+      <ProcessStatusCard project={project} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <InstallationStatusSlot project={project} refreshProject={refreshProject} />
       <RejectionAlert project={project} />

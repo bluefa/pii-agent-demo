@@ -66,7 +66,7 @@ const EMPTY_VIEW: ApplyingView = { resources: [], approvedAt: null, approver: nu
 /**
  * Step 3 (applying) — the step-2 rich approval table re-skinned for the applying
  * state: approved-at/approver subtitle, green success banner, an integration-history
- * column, and no cancel action (advance to step 4 is driven by ProcessStatusCard polling).
+ * column, and no cancel action (advance to step 4 surfaces on the user's next refresh).
  */
 export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardProps) => {
   const [state, setState] = useState<AsyncState<ApplyingView>>({ status: 'loading' });
