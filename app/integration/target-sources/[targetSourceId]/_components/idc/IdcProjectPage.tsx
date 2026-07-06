@@ -17,7 +17,8 @@ export const IdcProjectPage = ({ project, onProjectUpdate }: IdcProjectPageProps
   // no Datacenter ID / cloud-account identifiers.
   const identity: ProjectIdentity = {
     cloudProvider: 'IDC',
-    monitoringMethod: 'IDC Agent',
+    // detail metadata.is_sdu_type — SDU accounts surface as "SDU", not an Agent.
+    monitoringMethod: project.isSduType ? 'SDU' : 'IDC Agent',
     jiraLink: null,
     identifiers: [],
   };

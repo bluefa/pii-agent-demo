@@ -75,9 +75,10 @@ const idcSelectedMetadata = (r: IdcStep1Row): IdcMetadata => {
 };
 
 /**
- * Input adapter: IDC manual rows → contract `ApprovalRequestInputDto`. Selected rows
- * carry the manually-entered connection info under `metadata` (see idcSelectedMetadata)
- * so the backend and Step2/Step3 keep it. Excluded rows carry only selection/exclusion.
+ * Input adapter: IDC manual rows → contract `ApprovalRequestInputDto`. Every row
+ * carries the manually-entered connection info under `metadata` (see
+ * idcSelectedMetadata) so the backend and Step2/Step3 keep it — excluded rows too,
+ * so they are identifiable beyond the bare resource_id.
  */
 export const toIdcApprovalRequestInput = (
   rows: readonly IdcStep1Row[],
@@ -88,7 +89,7 @@ export const toIdcApprovalRequestInput = (
           resource_id: r.resourceId,
           selected: false as const,
           ...(r.exclusionReason ? { exclusion_reason: r.exclusionReason } : {}),
-          metadata: {},
+          metadata: idcSelectedMetadata(r),
         }
       : {
           resource_id: r.resourceId,

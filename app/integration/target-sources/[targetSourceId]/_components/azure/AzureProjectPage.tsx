@@ -18,7 +18,8 @@ export const AzureProjectPage = ({
 }: AzureProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'Azure',
-    monitoringMethod: 'Azure Agent',
+    // detail metadata.is_sdu_type — SDU accounts surface as "SDU", not an Agent.
+    monitoringMethod: project.isSduType ? 'SDU' : 'Azure Agent',
     jiraLink: null,
     identifiers: [
       // v16 identity bar carries only Subscription ID (HTML 5778-5786 / setProvider meta

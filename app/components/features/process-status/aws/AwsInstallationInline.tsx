@@ -9,12 +9,17 @@ import { InstallResourceTable } from '@/app/components/features/process-status/i
 import { joinAwsResources } from '@/app/components/features/process-status/aws/join-aws-install-resources';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
-import { buildAwsAutoItems } from '@/lib/constants/aws-install';
+import { buildAwsAutoItems, buildAwsManualItems } from '@/lib/constants/aws-install';
 import { borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
 import type { AwsInstallationStatus } from '@/lib/types';
 
 interface AwsInstallationInlineProps {
   targetSourceId: number;
+  /**
+   * metadata.grant_service_terraform_execution_permission — explicit false ⇒
+   * manual install (2 cards, no permission check); true/undefined ⇒ auto.
+   */
+  terraformExecutionGranted?: boolean;
   onInstallComplete?: () => void;
 }
 
@@ -36,8 +41,10 @@ const isFullyCompleted = (status: AwsInstallationStatus): boolean => {
 
 export const AwsInstallationInline = ({
   targetSourceId,
+  terraformExecutionGranted,
   onInstallComplete,
 }: AwsInstallationInlineProps) => {
+  const isManualInstall = terraformExecutionGranted === false;
   const completionNotifiedRef = useRef(false);
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
 
@@ -84,7 +91,16 @@ export const AwsInstallationInline = ({
         </span>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>
-        <InstallTaskPipeline columns={3} items={buildAwsAutoItems(status)} />
+        {status.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
+          <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
+            상태 확인 실패: {status.lastCheck.failReason}
+          </div>
+        )}
+        {isManualInstall ? (
+          <InstallTaskPipeline columns={2} items={buildAwsManualItems(status)} />
+        ) : (
+          <InstallTaskPipeline columns={3} items={buildAwsAutoItems(status)} />
+        )}
 
         {confirmedState.status === 'loading' && (
           <div

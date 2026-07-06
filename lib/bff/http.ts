@@ -23,8 +23,8 @@ import { camelCaseKeys } from '@/lib/object-case';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
 
-// ── pipeline-orchestrator upstream (LIN-25) — its own env, distinct from BFF_API_URL ──
-const PIPELINE_URL = process.env.PIPELINE_API_URL ?? 'http://localhost:8080';
+// ── pipeline-orchestrator upstream (LIN-25) — served behind the BFF server,
+// no separate env: BFF_API_URL + /infra-install/v1 ──
 const PIPELINE_TIMEOUT_MS = 30_000;
 
 /**
@@ -40,7 +40,7 @@ async function pipelineRequest(
   path: string,
   body?: unknown,
 ): Promise<OrchestratorRawResponse> {
-  const url = `${PIPELINE_URL}/api/v1${path}`;
+  const url = `${BFF_URL}/infra-install/v1${path}`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort('TIMEOUT'), PIPELINE_TIMEOUT_MS);
   const init: RequestInit = { method, headers: { Accept: 'application/json' }, signal: controller.signal };

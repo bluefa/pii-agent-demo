@@ -65,12 +65,20 @@ describe('toIdcApprovalRequestInput', () => {
     expect(meta).not.toHaveProperty('idc_ips');
   });
 
-  it('excluded row carries only selection + exclusion reason (metadata empty)', () => {
+  it('excluded row carries exclusion reason AND its connection metadata (not just resource_id)', () => {
     const input = toIdcApprovalRequestInput([row({ excluded: true, exclusionReason: '미사용 인스턴스' })]);
     const item = (input.resources ?? [])[0];
 
     expect(item.selected).toBe(false);
     expect(item.exclusion_reason).toBe('미사용 인스턴스');
-    expect(item.metadata).toEqual({});
+    // Excluded rows stay identifiable: the entered connection info is kept.
+    expect(item.metadata).toMatchObject({
+      provider: 'IDC',
+      idc_host_format: 'IP',
+      idc_ips: ['10.0.0.5'],
+      port: 3306,
+      database_type: 'mysql',
+    });
+    expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
   });
 });
