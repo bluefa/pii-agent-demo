@@ -35,8 +35,8 @@ export function taskDisplayName(
 /**
  * sb-cur text:
  *  - PENDING → "시작 대기 · {next_due_at|'-'} 시작 예정"
- *  - current task (lowest READY/IN_PROGRESS/FAILED) → "현재 seq {n} · {name}"
- *    (+ optional retry suffix on the pipeline page)
+ *  - current task (lowest READY/IN_PROGRESS/FAILED) → "현재 · {name}"
+ *    (+ optional retry suffix; R19.6 — no seq wording)
  *  - else → currentTaskLabel (완료 / 취소됨 / 실패 / 시작 대기)
  */
 export function statusCurrentText(
@@ -52,15 +52,16 @@ export function statusCurrentText(
   const cur = currentTask(tasks);
   if (cur) {
     const retry = retryFor?.(cur) ?? '';
-    return `현재 seq ${cur.sequence} · ${resolveName(cur)}${retry}`;
+    return `현재 · ${resolveName(cur)}${retry}`;
   }
   return currentTaskLabel(status, tasks);
 }
 
 /**
  * R18 §7-2 — structured zone2 model for the merged flow-card header. Splits the
- * flat sb-cur string into label(12/faint) / name(14/strong) / retry(12/weak)
+ * flat sb-cur string into label(12/faint) / name(16/bold) / retry(12/weak)
  * tiers so the run level and the task level read as separate hierarchy.
+ * (R19.6: no seq wording anywhere — the flow canvas carries the order.)
  */
 export interface CurrentTaskInfo {
   /** Leading tier label — '현재 태스크' | '실패 태스크' | '시작 대기' | '결과'. */
@@ -69,8 +70,6 @@ export interface CurrentTaskInfo {
   name: string;
   /** '재시도 f/m' (no parens) when the current task has failures, else null. */
   retry: string | null;
-  /** Current task sequence (0-base wire value), null when not task-scoped. */
-  seq: number | null;
 }
 
 export function currentTaskInfo(
@@ -81,7 +80,7 @@ export function currentTaskInfo(
   retryFor?: (task: TaskSummary) => string | null,
 ): CurrentTaskInfo {
   if (status === 'PENDING') {
-    return { label: '시작 대기', name: `${fmtDateTime(nextDueAt)} 시작 예정`, retry: null, seq: null };
+    return { label: '시작 대기', name: `${fmtDateTime(nextDueAt)} 시작 예정`, retry: null };
   }
   const cur = currentTask(tasks);
   if (cur) {
@@ -90,10 +89,9 @@ export function currentTaskInfo(
       label: cur.status === 'FAILED' ? '실패 태스크' : '현재 태스크',
       name: resolveName(cur),
       retry: retry ? retry.replace(/^\s*\(|\)\s*$/g, '') : null,
-      seq: cur.sequence,
     };
   }
-  return { label: '결과', name: currentTaskLabel(status, tasks), retry: null, seq: null };
+  return { label: '결과', name: currentTaskLabel(status, tasks), retry: null };
 }
 
 /** First FAILED task (drives the sb-err chip); null when none. */

@@ -206,7 +206,6 @@ export function PipelineDetailView(): ReactElement {
   const selectedDetail = selected ? detailMap.get(selected.task_id) ?? null : null;
   const fc = detailStyles.flowCard;
   const failed = detail.status === 'FAILED';
-  const nonTerminal = detail.status === 'RUNNING' || detail.status === 'PENDING';
   const cancellable = canCancel(detail.status, detail.cancel_requested);
   const { done, total } = progressCount(detail.tasks);
   const cur = currentTaskInfo(detail.status, detail.next_due_at, detail.tasks, resolveName, retryFor);
@@ -301,33 +300,15 @@ export function PipelineDetailView(): ReactElement {
           </div>
 
           <div className={fc.taskRow}>
-            <span className={fc.taskLabel}>
-              {cur.label}
-              {cur.seq != null && ` · seq ${cur.seq}`}
-            </span>
+            <span className={fc.taskLabel}>{cur.label}</span>
             <span className={fc.taskName}>{cur.name}</span>
             {cur.retry && <span className={fc.taskRetry}>{cur.retry}</span>}
             {failedTask?.error_code && (
-              <span
-                className={detailStyles.statusbar.err}
-                title={`seq ${failedTask.sequence} · ${resolveName(failedTask)}`}
-              >
+              <span className={detailStyles.statusbar.err} title={resolveName(failedTask)}>
                 {failedTask.error_code}
               </span>
             )}
           </div>
-
-          {nonTerminal && (
-            <div className={detailStyles.statusbar.meta}>
-              <span title="leased — 워커가 이 run을 점유하고 실행 중인지">
-                leased {detail.leased ? '예 — 워커 실행 중' : '아니오'}
-              </span>
-              <span className={detailStyles.statusbar.sep}>·</span>
-              <span title="due_lag — next_due_at 대비 실제 실행 지연">
-                스케줄 지연 {detail.due_lag_millis ?? 0} ms{(detail.due_lag_millis || 0) > 1000 ? ' ⚠️' : ''}
-              </span>
-            </div>
-          )}
         </div>
 
         <div className={fc.body}>

@@ -179,8 +179,6 @@ export function TaskDetailBody({
             <div className={s.dgroup.group}>
               <div className={s.dgroup.title}>정의</div>
               <Kv>
-                <KvKey>순서 (seq)</KvKey>
-                <KvVal>{detail.sequence}</KvVal>
                 <KvKey>task_definition</KvKey>
                 <KvVal mono>{detail.task_definition}</KvVal>
                 <KvKey>operation</KvKey>
@@ -260,8 +258,6 @@ export function TaskDetailBody({
           <div className={s.dgroup.group}>
             <div className={s.dgroup.title}>정의</div>
             <Kv>
-              <KvKey>순서 (seq)</KvKey>
-              <KvVal>{task.sequence}</KvVal>
               <KvKey>operation</KvKey>
               <KvVal mono>{task.operation ?? task.task_definition}</KvVal>
             </Kv>

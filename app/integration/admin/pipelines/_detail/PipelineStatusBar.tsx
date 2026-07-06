@@ -59,7 +59,7 @@ export function PipelineStatusBar({
         <PipelineProgressBar n={done} m={total} status={detail.status} wide />
         <span className={s.cur}>{curText}</span>
         {failedTask?.error_code && (
-          <span className={s.err} title={`seq ${failedTask.sequence} · ${resolveName(failedTask)}`}>
+          <span className={s.err} title={resolveName(failedTask)}>
             {failedTask.error_code}
           </span>
         )}

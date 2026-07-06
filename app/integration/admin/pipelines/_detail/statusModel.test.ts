@@ -32,13 +32,13 @@ describe('statusCurrentText', () => {
     expect(statusCurrentText('PENDING', null, [], opName)).toBe('시작 대기 · - 시작 예정');
   });
 
-  it('current task → 현재 seq {n} · {name}', () => {
+  it('current task → 현재 · {name} (R19.6: seq 문구 없음)', () => {
     const tasks = [
       mkTask({ sequence: 0, status: 'DONE' }),
       mkTask({ sequence: 1, status: 'IN_PROGRESS', operation: 'AWS_SERVICE_TF_APPLY' }),
       mkTask({ sequence: 2, status: 'BLOCKED' }),
     ];
-    expect(statusCurrentText('RUNNING', null, tasks, opName)).toBe('현재 seq 1 · AWS_SERVICE_TF_APPLY');
+    expect(statusCurrentText('RUNNING', null, tasks, opName)).toBe('현재 · AWS_SERVICE_TF_APPLY');
   });
 
   it('appends the retry suffix on the current task when provided', () => {
@@ -46,7 +46,7 @@ describe('statusCurrentText', () => {
     const text = statusCurrentText('RUNNING', null, tasks, opName, (t) =>
       retrySuffix(t.fail_count, 3),
     );
-    expect(text).toBe('현재 seq 0 · NETWORK_READY (재시도 2/3)');
+    expect(text).toBe('현재 · NETWORK_READY (재시도 2/3)');
   });
 
   it('falls back to the terminal label when there is no current task', () => {
@@ -100,10 +100,10 @@ describe('findFailedTask', () => {
 describe('currentTaskInfo', () => {
   it('PENDING → 시작 대기 label + schedule name, no task scope', () => {
     const info = currentTaskInfo('PENDING', null, [], opName);
-    expect(info).toEqual({ label: '시작 대기', name: '- 시작 예정', retry: null, seq: null });
+    expect(info).toEqual({ label: '시작 대기', name: '- 시작 예정', retry: null });
   });
 
-  it('current task → 현재 태스크 label + name + seq (retry stripped of parens)', () => {
+  it('current task → 현재 태스크 label + name (retry stripped of parens)', () => {
     const tasks = [
       mkTask({ sequence: 0, status: 'DONE' }),
       mkTask({ sequence: 1, status: 'IN_PROGRESS', operation: 'AWS_SERVICE_TF_APPLY', fail_count: 1 }),
@@ -112,7 +112,6 @@ describe('currentTaskInfo', () => {
     expect(info.label).toBe('현재 태스크');
     expect(info.name).toBe('AWS_SERVICE_TF_APPLY');
     expect(info.retry).toBe('재시도 1/3');
-    expect(info.seq).toBe(1);
   });
 
   it('FAILED current task → 실패 태스크 label', () => {
@@ -127,6 +126,5 @@ describe('currentTaskInfo', () => {
     const info = currentTaskInfo('DONE', null, tasks, opName);
     expect(info.label).toBe('결과');
     expect(info.retry).toBeNull();
-    expect(info.seq).toBeNull();
   });
 });

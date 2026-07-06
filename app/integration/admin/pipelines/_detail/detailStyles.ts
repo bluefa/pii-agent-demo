@@ -145,10 +145,12 @@ export const detailStyles = {
     /** zone1 — run level: pill lg · ftag · progress · (right) schedule meta. */
     runRow: 'flex items-center gap-3 flex-wrap',
     runMeta: 'ml-auto flex items-center gap-2 text-[12px] text-[var(--pl-text-weak)]',
-    /** zone2 — task level (kv grammar): label 12/faint · name 14/strong · retry 12/weak · err chip. */
+    /** zone2 — task level (kv grammar): label 12/faint · name 16/700 strong
+     *  (R19.6 — the current task name is the hero of this row) · retry 12/weak
+     *  · err chip. No seq wording. */
     taskRow: 'flex items-baseline gap-2 flex-wrap',
     taskLabel: 'text-[12px] font-semibold text-[var(--pl-text-faint)] whitespace-nowrap',
-    taskName: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
+    taskName: 'text-[16px] font-bold leading-[1.2] text-[var(--pl-text-strong)]',
     taskRetry: 'text-[12px] text-[var(--pl-text-weak)]',
     /** §7-3, R19.5 — right-DOCKED panel flush at the canvas edge (owner: 딱
      *  붙게). It sits OUTSIDE the horizontal scroll region (TaskFlow renders it

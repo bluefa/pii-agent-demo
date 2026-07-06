@@ -374,7 +374,7 @@ details.collap>.body{padding:0 14px 14px}
 .fc-runmeta{margin-left:auto;font-size:12px;color:var(--text-weak)}
 .fc-task{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap} /* zone2: task 수준(kv 문법) */
 .fc-tlabel{font-size:12px;font-weight:600;color:var(--text-faint);white-space:nowrap}
-.fc-tname{font-size:14px;font-weight:600;color:var(--text-strong)}
+.fc-tname{font-size:16px;font-weight:700;line-height:1.2;color:var(--text-strong)} /* R19.6: 현재 task명이 이 행의 주인공 */
 .fc-tretry{font-size:12px;color:var(--text-weak)}
 .fc-body{display:flex;align-items:flex-start;gap:24px;min-width:0} /* 캔버스 | 패널 */
 .fc-body>.flow{flex:1;min-width:0}
@@ -671,11 +671,11 @@ function currentTask(p){                                                   // (b
   return cand || null;
 }
 const finalSeq = p => p.tasks.length ? Math.max(...p.tasks.map(t=>t.seq)) : 0;
-// (b) 현재 task 레이블: PENDING=시작 전, RUNNING이면 진행 중 task seq, 종단 상태면 상태 반영
+// (b) 현재 task 레이블: PENDING=시작 전, RUNNING이면 진행 중 task명, 종단 상태면 상태 반영 (R19.6: seq 문구 금지)
 function currentTaskLabel(p){
   if(p.status==='PENDING') return '시작 대기';
   const cur=currentTask(p);
-  if(cur) return `seq ${cur.seq}`;
+  if(cur) return cur.operation;
   if(p.status==='CANCELLED') return '취소됨';
   if(p.status==='FAILED') return '실패';
   return '완료';
@@ -999,14 +999,14 @@ function viewTarget(id){
   if(latest){
     const lcur=currentTask(latest);
     const lLabel=latest.status==='PENDING'?`시작 대기 · ${esc(latest.nextDueAt||'-')} 시작 예정`
-      :lcur?`현재 seq ${lcur.seq} · ${esc(lcur.operation)}`:currentTaskLabel(latest);
+      :lcur?`현재 · ${esc(lcur.operation)}`:currentTaskLabel(latest);
     const lerr=latest.tasks.find(t=>t.status==='FAILED');
     lc.innerHTML=`<div class="statusbar${latest.status==='FAILED'?' failed':''}">
       <div class="sb-main">
         <span class="pill lg s-${latest.status}"><span class="dot"></span>${latest.status}</span>
         ${progressBar(progressN(latest),progressM(latest),latest.status)}
         <span class="sb-cur">${lLabel}</span>
-        ${lerr&&lerr.errorCode?`<span class="sb-err" title="seq ${lerr.seq} · ${esc(lerr.operation)}">${esc(lerr.errorCode)}</span>`:''}
+        ${lerr&&lerr.errorCode?`<span class="sb-err" title="${esc(lerr.operation)}">${esc(lerr.errorCode)}</span>`:''}
         <span class="vrow" style="margin-left:auto;gap:8px">
           ${['RUNNING','PENDING'].includes(latest.status)?`<button class="btn danger sm" id="btn-cancel" ${canCancel(latest)?'':'disabled'} title="${canCancel(latest)?'이 파이프라인을 취소합니다':'취소 처리 대기 중'}">취소</button>`:''}
           <button class="btn secondary sm round" data-nav="#/pipeline/${latest.id}" title="파이프라인 상세로 이동" aria-label="파이프라인 상세로 이동">${ic('i-arrow-ur','ic sm')}</button>
@@ -1074,9 +1074,9 @@ function viewPipeline(id){
   const failedTask=p.tasks.find(t=>t.status==='FAILED');
   const nonTerminal=!['DONE','FAILED','CANCELLED'].includes(p.status);
   // R18 §7-2 zone2: run/task 2단 계층 — flat sb-cur를 {label,name,retry,seq} 구조로 분리(App currentTaskInfo 미러).
-  let z2label, z2name, z2seq=null, z2retry=null;
+  let z2label, z2name, z2retry=null;
   if(p.status==='PENDING'){ z2label='시작 대기'; z2name=`${p.nextDueAt||'-'} 시작 예정`; }
-  else if(cur){ z2label=cur.status==='FAILED'?'실패 태스크':'현재 태스크'; z2name=cur.operation; z2seq=cur.seq; z2retry=cur.failCount>0?`재시도 ${cur.failCount}/${cur.maxFail}`:null; }
+  else if(cur){ z2label=cur.status==='FAILED'?'실패 태스크':'현재 태스크'; z2name=cur.operation; z2retry=cur.failCount>0?`재시도 ${cur.failCount}/${cur.maxFail}`:null; }
   else { z2label='결과'; z2name=currentTaskLabel(p); }
   // 논리 그룹 2개(오너 2026-07-05 5차): ① 파이프라인 메타데이터(정의·기록 — 레시피가 주인공,
   // 대상은 참조 한 칸+↗, CSP 세부는 target 페이지 몫) ② Task 흐름(상태 포함 — 상태는 task 진행의
@@ -1117,15 +1117,12 @@ function viewPipeline(id){
           ${p.status==='RUNNING'&&p.nextDueAt?`<span class="fc-runmeta" title="next_due_at — 다음 폴링/실행 예정 시각">다음 실행 ${esc(p.nextDueAt)}</span>`:''}
         </div>
         <div class="fc-task">
-          <span class="fc-tlabel">${esc(z2label)}${z2seq!=null?` · seq ${z2seq}`:''}</span>
+          <span class="fc-tlabel">${esc(z2label)}</span>
           <span class="fc-tname">${esc(z2name)}</span>
           ${z2retry?`<span class="fc-tretry">${esc(z2retry)}</span>`:''}
-          ${failedTask&&failedTask.errorCode?`<span class="sb-err" title="seq ${failedTask.seq} · ${esc(failedTask.operation)}">${esc(failedTask.errorCode)}</span>`:''}
+          ${failedTask&&failedTask.errorCode?`<span class="sb-err" title="${esc(failedTask.operation)}">${esc(failedTask.errorCode)}</span>`:''}
         </div>
-        ${nonTerminal?`<div class="sb-meta">
-          <span title="leased — 워커가 이 run을 점유하고 실행 중인지">leased ${p.leased?'예 — 워커 실행 중':'아니오'}</span><span class="sep">·</span>
-          <span title="due_lag — next_due_at 대비 실제 실행 지연">스케줄 지연 ${p.dueLagMs??0} ms${(p.dueLagMs||0)>1000?' ⚠️':''}</span>
-        </div>`:''}
+        
       </div>
       <div class="fc-body">
         <div class="flow" id="flow"><div class="flow-scroll"><div class="flow-track"></div></div></div>
@@ -1164,7 +1161,7 @@ function viewPipeline(id){
       track.appendChild(el(`<div class="connector${lcls}"><span class="cdot"></span></div>`));
     }
     // R19: 노드 = 아이콘 쌍(kind·provider) + 우상단 상태 배지. kindchip은 노드에서 제거(패널/모달에는 유지).
-    const node=el(`<div class="tnode ${stateCls[t.status]||'s-queued'}" data-seq="${t.seq}" role="button" tabindex="0" aria-label="seq ${t.seq} ${esc(t.operation)} 상세 열기">
+    const node=el(`<div class="tnode ${stateCls[t.status]||'s-queued'}" data-seq="${t.seq}" role="button" tabindex="0" aria-label="${esc(t.operation)} 상세 열기">
       <div class="nd-icons">${kindMark(t)}${providerMark(p.provider)}</div>
       ${nodeBadge(t)}
       <span class="nd-name">${esc(t.operation)}</span>
@@ -1252,7 +1249,6 @@ function taskPanelHTML(t){
     <div class="dgroup">
       <div class="subsection-title">정의</div>
       <div class="kv wide">
-        <div class="k">순서 (seq)</div><div class="v">${t.seq}</div>
         ${t.def?`<div class="k">task_definition</div><div class="v mono">${esc(t.def)}</div>`:''}
         ${t.op?`<div class="k">operation</div><div class="v mono">${esc(t.op)}</div>`
               :`<div class="k">operation</div><div class="v">${esc(t.operation)}</div>`}

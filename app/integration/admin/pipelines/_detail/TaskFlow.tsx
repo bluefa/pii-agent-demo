@@ -260,7 +260,7 @@ export function TaskFlow({
                 className={cn('pl-tnode', nodeStateClass(task.status), selectedId === task.task_id && 's-selected')}
                 role="button"
                 tabIndex={0}
-                aria-label={`seq ${task.sequence} ${name} 상세 열기`}
+                aria-label={`${name} 상세 열기`}
                 aria-pressed={selectedId === task.task_id}
                 onClick={(event) => {
                   onOpen(task);
