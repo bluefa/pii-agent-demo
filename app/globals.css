@@ -138,6 +138,15 @@
      start (gradient end reuses --pl-bg-card, the same #FFFFFF). */
   --pl-err-statusbar-border: #F4B3AD;
   --pl-err-statusbar-grad-from: #FFF1F0;
+  /* R18 pipeline-type tag icon tints (admin-pipeline-improvement-r18.md §1) —
+     INSTALL=primary family, DELETE=err-text (terraform destroy convention),
+     CUSTOM=Untitled purple-700 (outside the status hues on purpose). */
+  --pl-type-install: #2563EB;
+  --pl-type-delete: #B42318;
+  --pl-type-custom: #6941C6;
+  /* R18 solid danger CTA (상세 페이지 [중단]) — Untitled red-600/700. */
+  --pl-err-solid: #D92D20;
+  --pl-err-solid-hover: #B42318;
   /* TaskFlow (.pl-flow) node/connector alpha layers — verbatim prototype rgba()
      values (design/pipeline/admin-pipeline.html .tnode/.connector/@keyframes),
      named by role since they aren't derivable from a solid token via color-mix. */
@@ -149,6 +158,15 @@
   --pl-flow-pulse-warn-a: rgba(247, 144, 9, 0.14); /* nodePulseAmber (s-ready) start */
   --pl-flow-pulse-warn-b: rgba(247, 144, 9, 0.03); /* nodePulseAmber (s-ready) end */
   --pl-flow-failed-halo: rgba(240, 68, 56, 0.10); /* s-failed static halo ring */
+  /* R19 n8n-style canvas grid — fine 20px lines + stronger 100px accent lines */
+  --pl-flow-grid: rgba(208, 213, 221, 0.35);
+  --pl-flow-grid-strong: rgba(208, 213, 221, 0.7);
+  /* R19 node brand marks — Terraform purple + AWS lockup colors (Azure/GCP
+     reuse --pl-pv-*); logomark artwork colors, not UI text roles. All provider
+     marks sit on the same white tile (owner: 일관성). */
+  --pl-brand-tf: #7B42BC;
+  --pl-brand-aws-ink: #232F3E;
+  --pl-brand-aws-smile: #FF9900;
   /* --pl-font-sans / --pl-font-mono are declared on `body` below, NOT here:
      their var(--font-geist-*) references only exist on <body> (next/font
      className in app/layout.tsx), so a :root declaration computes to
@@ -187,6 +205,13 @@
 @keyframes pl-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
+}
+
+/* R18 §7-3 — inline task-detail panel slide-in (motion-safe only via the
+   consuming class in detailStyles.flowCard.panel). */
+@keyframes pl-panel-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: none; }
 }
 
 /* =============================================================================

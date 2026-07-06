@@ -97,7 +97,7 @@ GNB: `lib/routes.ts`에 경로 상수 추가 + `TopNav.tsx` `NAV_ITEMS`에 "파�
   것만 렌더 — 없으면 "이 CSP 유형은 연결 metadata가 없습니다" 폴백.
 - 최신 실행 상태 바 ← #8 (200이면 이어서 #4로 상세 재조회 — 현재 task·error·cancel_requested·
   next_due_at은 summary에 없음; 204면 "실행 이력 없음" empty state)
-- 설치/삭제 버튼 게이팅 ← 활성 run(#8)만 (RUNNING∪PENDING이면 잠금). process_status 기반 설치상태 게이팅은 제거됨 — target-source 페이로드가 더 이상 process_status를 싣지 않음
+- 시작 CTA는 게이팅 없이 상시 활성(R21 단일 CTA — 유형 선택은 모달 몫). 유일성은 #10의 409 `ORCHESTRATION_PIPELINE_ALREADY_ACTIVE`가 전담. process_status 게이팅은 제거됨(#542 — 페이로드가 더 이상 싣지 않음)
 - 미리보기 모달 ← #9 `steps[]`(sequence/display_name/kind)
 - 실행 ← #10. **409 `ORCHESTRATION_PIPELINE_ALREADY_ACTIVE`** 수신 시 #8 재조회 후 기존 run으로
   이동 + 토스트 "이미 진행 중인 파이프라인으로 이동합니다" (§3-③)

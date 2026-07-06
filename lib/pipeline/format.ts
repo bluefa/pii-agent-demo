@@ -12,7 +12,6 @@
  *    upstream has no TTL field; retry budget bounds it).
  *  - RECIPE_LABELS mirror pipeline-orchestrator RecipeDefinition.java verbatim.
  */
-import { integrationRoutes } from '@/lib/routes';
 import type {
   CloudProvider,
   PipelineStatus,
@@ -235,6 +234,12 @@ export function canCancel(status: PipelineStatus, cancelRequested: boolean): boo
   return (status === 'RUNNING' || status === 'PENDING') && !cancelRequested;
 }
 
+/** Live = still moving on the server (R23 — the detail page polls only these).
+ *  cancel_requested stays live: the cancellation itself lands via a later poll. */
+export function isLivePipeline(status: PipelineStatus): boolean {
+  return status === 'RUNNING' || status === 'PENDING';
+}
+
 const CURRENT_TASK_STATUSES: readonly TaskStatus[] = ['READY', 'IN_PROGRESS', 'FAILED'];
 
 /** Lowest-sequence task in {READY, IN_PROGRESS, FAILED}, else null. */
@@ -245,11 +250,11 @@ export function currentTask(tasks: readonly TaskSummary[]): TaskSummary | null {
   return candidates[0] ?? null;
 }
 
-/** Short "where are we" label: PENDING→시작 대기; current→seq N; terminal→상태. */
+/** Short "where are we" label: PENDING→시작 대기; current→진행 중; terminal→상태. */
 export function currentTaskLabel(status: PipelineStatus, tasks: readonly TaskSummary[]): string {
   if (status === 'PENDING') return '시작 대기';
   const cur = currentTask(tasks);
-  if (cur) return `seq ${cur.sequence}`;
+  if (cur) return '진행 중';
   if (status === 'CANCELLED') return '취소됨';
   if (status === 'FAILED') return '실패';
   return '완료';
@@ -261,48 +266,4 @@ export function progressCount(tasks: readonly TaskSummary[]): { done: number; to
     done: tasks.filter((t) => t.status === 'DONE').length,
     total: tasks.length,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Nav-context href convention (App Router replaces the prototype's in-memory
-// navState with query params: svc = serviceCode, svcName = serviceName)
-// ---------------------------------------------------------------------------
-
-export interface PipelineNavContext {
-  /** serviceCode — drives the pipeline breadcrumb's svcName crumb visibility. */
-  svc?: string | null;
-  /** serviceName — display label for the svcName crumb. */
-  svcName?: string | null;
-}
-
-function withNavContext(base: string, ctx?: PipelineNavContext): string {
-  if (!ctx) return base;
-  const query = new URLSearchParams();
-  if (ctx.svc != null && ctx.svc !== '') query.set('svc', ctx.svc);
-  if (ctx.svcName != null && ctx.svcName !== '') query.set('svcName', ctx.svcName);
-  const qs = query.toString();
-  return qs ? `${base}?${qs}` : base;
-}
-
-/** Target-detail href with optional service nav-context appended as query params. */
-export function buildTargetHref(id: string | number, ctx?: PipelineNavContext): string {
-  return withNavContext(integrationRoutes.pipelines.target(id), ctx);
-}
-
-/** Pipeline-detail href with optional service nav-context appended as query params. */
-export function buildPipelineHref(id: string | number, ctx?: PipelineNavContext): string {
-  return withNavContext(integrationRoutes.pipelines.pipeline(id), ctx);
-}
-
-/** Read nav-context back off a URLSearchParams (or a plain query record). */
-export function parsePipelineNavContext(
-  params: URLSearchParams | Record<string, string | string[] | undefined>,
-): PipelineNavContext {
-  const read = (key: string): string | null => {
-    if (params instanceof URLSearchParams) return params.get(key);
-    const value = params[key];
-    if (Array.isArray(value)) return value[0] ?? null;
-    return value ?? null;
-  };
-  return { svc: read('svc'), svcName: read('svcName') };
 }

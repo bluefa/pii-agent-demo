@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { TaskDetailBody } from '@/app/integration/admin/pipelines/_detail/TaskDetailModal';
+import { TaskDetailBody } from '@/app/integration/admin/pipelines/_detail/TaskDetailPanel';
 import type {
   TaskAttemptView,
   TaskCheckView,
@@ -142,6 +142,25 @@ describe('TaskDetailBody — TERRAFORM_JOB', () => {
     });
     expect(html).toContain('아직 시도 없음 (BLOCKED)');
     expect(html).not.toContain('TF 슬롯');
+  });
+});
+
+describe('TaskDetailBody — R22 (F2) hierarchy', () => {
+  it('puts 진행 기록 first and demotes 정의·실행 계약 into a collapsed reference <details>', () => {
+    const html = render({
+      task: summary({ kind: 'TERRAFORM_JOB', status: 'DONE' }),
+      detail: detail({ kind: 'TERRAFORM_JOB', status: 'DONE', effective_execution_timeout: 'PT1H' }),
+      displayName: 'tf',
+      onClose: noop,
+    });
+    expect(html.indexOf('진행 기록')).toBeLessThan(html.indexOf('task_definition'));
+    expect(html).toContain('<details');
+    expect(html).toContain('<summary');
+    expect(html).toContain('참조 정보');
+    // The reference section still carries both groups (progressive disclosure,
+    // not removal).
+    expect(html).toContain('정의');
+    expect(html).toContain('실행 계약');
   });
 });
 

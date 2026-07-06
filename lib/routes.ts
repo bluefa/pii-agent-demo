@@ -9,9 +9,9 @@ export const integrationRoutes = {
   piiMap: '/integration/pii-map',
   /**
    * LIN-25 Admin Pipeline routes (app/integration/admin/pipelines/**). Page
-   * mapping per docs/api/pipeline-orchestrator-bff.md §2. Nav-context query
-   * params (svc / svcName) are appended by lib/pipeline/format buildTargetHref /
-   * buildPipelineHref — keep the bare path builders here as the SSOT.
+   * mapping per docs/api/pipeline-orchestrator-bff.md §2. Detail URLs carry the
+   * path id ONLY (R20 — no query-param nav-context; pages derive service names
+   * from the API).
    */
   pipelines: {
     dashboard: '/integration/admin/pipelines',

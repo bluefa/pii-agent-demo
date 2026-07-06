@@ -1,19 +1,21 @@
 'use client';
 
 /**
- * TaskDetailModal — the 600px task-detail dialog (design-inventory §TaskDetailModal).
- * Header (display name + KindChip + StatusPill + close) then three hairline-topped
- * dgroups: 정의 / 실행 계약 / 진행 기록, with a kind-gated record tail
- * (CONDITION_CHECK → 폴 관찰; TERRAFORM_JOB → attempts table). Reuses the TaskDetail
- * loaded by the page (no refetch). When the detail failed to load, a degraded view
- * from the TaskSummary + a 재시도 button is shown instead.
+ * TaskDetailPanel — the task-detail surface, R18 §7-3: an inline 400px panel
+ * that expands on the right INSIDE the flow card (was: 600px modal). Header
+ * (display name + KindChip + StatusPill + close) then — R22 (F2, 오너 선택) —
+ * 진행 기록 first (the operator's question is "무슨 일이 있었나"), with a
+ * kind-gated record tail (CONDITION_CHECK → 폴 관찰; TERRAFORM_JOB → attempts
+ * table); 정의·실행 계약 are demoted to a collapsed reference <details>
+ * at the panel tail. Reuses the
+ * TaskDetail loaded by the page (no refetch). When the detail failed to load, a
+ * degraded view from the TaskSummary + a 재시도 button is shown instead.
  *
- * `TaskDetailBody` is exported separately (no router hooks) so the dgroup rendering
- * is unit-testable via renderToStaticMarkup.
+ * `TaskDetailBody` is exported separately (no router hooks) so the dgroup
+ * rendering is unit-testable via renderToStaticMarkup.
  */
-import type { ReactElement, ReactNode } from 'react';
+import { useEffect, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { ModalShell } from '@/app/integration/admin/pipelines/_components/ModalShell';
 import { StatusPill } from '@/app/integration/admin/pipelines/_components/StatusPill';
 import { KindChip } from '@/app/integration/admin/pipelines/_components/KindChip';
 import { PlButton } from '@/app/integration/admin/pipelines/_components/PlButton';
@@ -34,8 +36,10 @@ function EffTag(): ReactElement {
   );
 }
 
-function Kv({ children, task }: { children: ReactNode; task?: boolean }): ReactElement {
-  return <div className={task ? detailStyles.kv.task : detailStyles.kv.wide}>{children}</div>;
+// Panel is 400px (R18) — the 170px task-modal key column no longer fits, so
+// every kv here uses the 150px `wide` grid (long values wrap at lh 1.4).
+function Kv({ children }: { children: ReactNode }): ReactElement {
+  return <div className={detailStyles.kv.wide}>{children}</div>;
 }
 
 function KvKey({ children }: { children: ReactNode }): ReactElement {
@@ -56,7 +60,7 @@ function RecordTail({ detail }: { detail: TaskDetail }): ReactElement {
     return (
       <>
         <div className={s.dgroup.caption}>폴 관찰 (task_check)</div>
-        <Kv task>
+        <Kv>
           <KvKey>call / not_met</KvKey>
           <KvVal>
             {check.call_count} / {check.not_met_count}
@@ -78,13 +82,14 @@ function RecordTail({ detail }: { detail: TaskDetail }): ReactElement {
     return <div className={s.dgroup.captionAlone}>아직 시도 없음 (BLOCKED)</div>;
   }
   // Local table, NOT PlTable/PlTh/PlTd — the shared primitives hard-code the
-  // page-table row heights (th h34 / td h44). Inside this 600px dialog the
-  // design overrides padding only (`.modal.task .tbl th/td`), so the modal
-  // geometry lives in `detailStyles.attemptsTable` instead (see its doc comment).
+  // page-table row heights (th h34 / td h44). Inside the 400px panel the design
+  // overrides padding only, so the compact geometry lives in
+  // `detailStyles.attemptsTable`; the wrapper scrolls horizontally (panel < table).
   const at = s.attemptsTable;
   return (
     <>
       <div className={s.dgroup.caption}>attempts — 시도별 기록 (response는 외부 응답 원문)</div>
+      <div className={pipelineStyles.card.tableWrap}>
       <table className={at.root}>
         <thead>
           <tr>
@@ -111,6 +116,7 @@ function RecordTail({ detail }: { detail: TaskDetail }): ReactElement {
           ))}
         </tbody>
       </table>
+      </div>
     </>
   );
 }
@@ -172,61 +178,10 @@ export function TaskDetailBody({
       <div className={modal.body}>
         {detail ? (
           <>
-            <div className={s.dgroup.group}>
-              <div className={s.dgroup.title}>정의</div>
-              <Kv task>
-                <KvKey>순서 (seq)</KvKey>
-                <KvVal>{detail.sequence}</KvVal>
-                <KvKey>task_definition</KvKey>
-                <KvVal mono>{detail.task_definition}</KvVal>
-                <KvKey>operation</KvKey>
-                {detail.operation ? <KvVal mono>{detail.operation}</KvVal> : <KvVal>{displayName}</KvVal>}
-              </Kv>
-            </div>
-
-            <div className={s.dgroup.group}>
-              <div className={s.dgroup.title}>실행 계약</div>
-              <Kv task>
-                <KvKey>실행 방식</KvKey>
-                <KvVal>{cond ? '조건 확인 — 디스패치 없이 폴링' : '테라폼 잡 — 디스패치 후 폴링'}</KvVal>
-                {cond ? (
-                  <>
-                    <KvKey>
-                      polling<EffTag />
-                    </KvKey>
-                    <KvVal>{fmtDuration(detail.effective_polling_interval)}</KvVal>
-                    <KvKey>
-                      재시도 예산<EffTag />
-                    </KvKey>
-                    <KvVal>{detail.effective_max_fail_count}회</KvVal>
-                  </>
-                ) : (
-                  <>
-                    <KvKey>
-                      실행 타임아웃<EffTag />
-                    </KvKey>
-                    <KvVal>{fmtDuration(detail.effective_execution_timeout)}</KvVal>
-                    <KvKey>
-                      재시도 예산<EffTag />
-                    </KvKey>
-                    <KvVal>{detail.effective_max_fail_count}회</KvVal>
-                    {detail.consumes_terraform_slot && (
-                      <>
-                        <KvKey>TF 슬롯</KvKey>
-                        <KvVal className="cursor-help">
-                          <span title="consumes_terraform_slot — 동시 실행 상한(slot cap)을 차감하는 task">사용</span>
-                        </KvVal>
-                      </>
-                    )}
-                  </>
-                )}
-              </Kv>
-              <div className={s.dgroup.formula}>판정: {KIND_POLICY[task.kind]}</div>
-            </div>
-
+            {/* R22 (F2, 오너 선택) — 진행 기록이 패널 본문의 주인공. */}
             <div className={s.dgroup.group}>
               <div className={s.dgroup.title}>진행 기록</div>
-              <Kv task>
+              <Kv>
                 <KvKey>started / finished</KvKey>
                 <KvVal>
                   {fmtDateTime(detail.started_at)} / {fmtDateTime(detail.finished_at)}
@@ -244,20 +199,76 @@ export function TaskDetailBody({
               </Kv>
               <RecordTail detail={detail} />
             </div>
+
+            {/* 정의·실행 계약 = 접힌 참조 섹션 (ui-ux-pro-max §8 progressive
+                disclosure). native <details> — 열림 상태는 브라우저 몫. */}
+            <details className={s.dgroup.refDetails}>
+              <summary className={s.dgroup.refSummary}>
+                <Icon name="chev-r" size="sm" className={s.dgroup.refChevron} />
+                정의 · 실행 계약
+                <span className={s.dgroup.refSummaryNote}>— 참조 정보</span>
+              </summary>
+              <div className={s.dgroup.refBody}>
+                <div className={s.dgroup.title}>정의</div>
+                <Kv>
+                  <KvKey>task_definition</KvKey>
+                  <KvVal mono>{detail.task_definition}</KvVal>
+                  <KvKey>operation</KvKey>
+                  {detail.operation ? <KvVal mono>{detail.operation}</KvVal> : <KvVal>{displayName}</KvVal>}
+                </Kv>
+              </div>
+              <div className={s.dgroup.refBodyNext}>
+                <div className={s.dgroup.title}>실행 계약</div>
+                <Kv>
+                  <KvKey>실행 방식</KvKey>
+                  <KvVal>{cond ? '조건 확인 — 디스패치 없이 폴링' : '테라폼 잡 — 디스패치 후 폴링'}</KvVal>
+                  {cond ? (
+                    <>
+                      <KvKey>
+                        polling<EffTag />
+                      </KvKey>
+                      <KvVal>{fmtDuration(detail.effective_polling_interval)}</KvVal>
+                      <KvKey>
+                        재시도 예산<EffTag />
+                      </KvKey>
+                      <KvVal>{detail.effective_max_fail_count}회</KvVal>
+                    </>
+                  ) : (
+                    <>
+                      <KvKey>
+                        실행 타임아웃<EffTag />
+                      </KvKey>
+                      <KvVal>{fmtDuration(detail.effective_execution_timeout)}</KvVal>
+                      <KvKey>
+                        재시도 예산<EffTag />
+                      </KvKey>
+                      <KvVal>{detail.effective_max_fail_count}회</KvVal>
+                      {detail.consumes_terraform_slot && (
+                        <>
+                          <KvKey>TF 슬롯</KvKey>
+                          <KvVal className="cursor-help">
+                            <span title="consumes_terraform_slot — 동시 실행 상한(slot cap)을 차감하는 task">사용</span>
+                          </KvVal>
+                        </>
+                      )}
+                    </>
+                  )}
+                </Kv>
+                <div className={s.dgroup.formula}>판정: {KIND_POLICY[task.kind]}</div>
+              </div>
+            </details>
           </>
         ) : !detailLoaded ? (
           // Detail fetch still in flight — layout-stable placeholder, NOT an error.
           <div className={s.dgroup.group}>
-            <div className={s.dgroup.title}>정의</div>
+            <div className={s.dgroup.title}>진행 기록</div>
             <div className={cn(detailStyles.skeleton, 'h-24')} aria-hidden="true" />
           </div>
         ) : (
           // Detail settled but null — genuinely failed to load.
           <div className={s.dgroup.group}>
             <div className={s.dgroup.title}>정의</div>
-            <Kv task>
-              <KvKey>순서 (seq)</KvKey>
-              <KvVal>{task.sequence}</KvVal>
+            <Kv>
               <KvKey>operation</KvKey>
               <KvVal mono>{task.operation ?? task.task_definition}</KvVal>
             </Kv>
@@ -274,14 +285,26 @@ export function TaskDetailBody({
   );
 }
 
-export interface TaskDetailModalProps extends TaskDetailBodyProps {
-  open: boolean;
-}
+/**
+ * Inline right-hand panel inside the flow card (R18 §7-3). Not a modal — no
+ * overlay/focus trap; Esc closes, the flow stays interactive alongside.
+ */
+export function TaskDetailPanel({ onClose, ...body }: TaskDetailBodyProps): ReactElement {
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
-export function TaskDetailModal({ open, onClose, ...body }: TaskDetailModalProps): ReactElement | null {
   return (
-    <ModalShell open={open} onClose={onClose} variant="task" labelledBy={TITLE_ID}>
+    <aside
+      role="complementary"
+      aria-labelledby={TITLE_ID}
+      className={detailStyles.flowCard.panel}
+    >
       <TaskDetailBody onClose={onClose} {...body} />
-    </ModalShell>
+    </aside>
   );
 }

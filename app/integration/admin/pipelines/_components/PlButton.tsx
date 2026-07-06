@@ -1,11 +1,12 @@
 /**
  * PlButton — design-inventory §5 `.btn` (h32 pad 0 14 14/600; sm h28 pad 0 10
- * 12/600; round 28×28). Variants primary / secondary / danger / ghost.
+ * 12/600; round 28×28). Variants primary / secondary / danger / dangerSolid /
+ * ghost (dangerSolid = R18 destructive CTA, improvement-r18.md §7-1).
  */
 import type { ButtonHTMLAttributes, ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 
-export type PlButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
+export type PlButtonVariant = 'primary' | 'secondary' | 'danger' | 'dangerSolid' | 'ghost';
 
 export interface PlButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: PlButtonVariant;

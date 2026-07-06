@@ -1,6 +1,6 @@
 /**
- * Bespoke class tokens for the C2 detail composites (IdentityBar, PipelineStatusBar,
- * TaskDetailModal, Preview/Cancel modals). Phase B `pipelineStyles` covers the
+ * Bespoke class tokens for the C2 detail composites (IdentityBar, flow card,
+ * TaskDetailPanel, Preview/Cancel modals). Phase B `pipelineStyles` covers the
  * primitives but NOT these composites and is READ-ONLY, so the composite chrome
  * lives here — every color still resolves to a `--pl-*` custom property (the same
  * design tokens the primitives use; no raw Tailwind palette classes). Sizes /
@@ -14,36 +14,28 @@ import { cn, pipelineStyles } from '@/lib/theme';
 const { text } = pipelineStyles;
 
 export const detailStyles = {
-  /** IdentityBar — pad 16/24/16/28, r10, border, shadow-xs, 4px left accent stripe. */
-  idbar: {
-    bar: 'relative overflow-hidden bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[10px] shadow-[var(--pl-shadow-xs)] pt-4 pr-6 pb-4 pl-7',
-    /** Accent stripe — width 4px, full height; color via inline --ib-accent. */
-    stripe: 'absolute inset-y-0 left-0 w-1 bg-[var(--ib-accent)]',
-    row: 'flex items-center gap-6 flex-wrap',
-    rowTop: 'flex items-start gap-6 flex-wrap',
-    prov: 'flex items-center gap-3 flex-none',
-    /** picon — 38×38 r10, accent-tinted fill + accent icon. */
-    picon: 'grid place-items-center w-[38px] h-[38px] rounded-[10px] flex-none bg-[color-mix(in_srgb,var(--ib-accent)_12%,transparent)] text-[var(--ib-accent)]',
-    pname: text.identityName,
-    psub: text.fieldKey,
-    psubMono: cn(text.fieldKey, '[font-family:var(--pl-font-mono)]'),
-    /** Vertical hairline divider between row groups. */
-    div: 'self-stretch w-px my-0.5 flex-none bg-[var(--pl-gray-100)]',
-    fld: 'flex flex-col gap-1 min-w-0',
-    fldKey: text.fieldKey,
-    fldValue: text.fieldValue,
-    spacer: 'flex-1',
-    /** idbar-meta — mt/pt 16 + top hairline. */
-    meta: 'mt-4 pt-4 border-t border-[var(--pl-gray-100)]',
-    metaRow: 'flex items-start gap-6 flex-wrap',
-    mgroup: 'min-w-0',
-    mgLabel: cn(text.metaGroupLabel, 'mb-2'),
-    mgEmpty: text.meta,
-    note: text.note,
+  /**
+   * R22 (D2, owner-picked) — the pipeline meta card: the one-line identity
+   * strip is replaced by two ownership columns (파이프라인 kv / Target Source
+   * kv + explicit blue drill-down link). Rendered inside a plain Card.
+   */
+  metaCard: {
+    grid: 'grid grid-cols-[1.2fr_1fr] gap-x-7',
+    /** Ownership-column header — R23: 16px + 16px below (오너: 14/10은 작고 좁다). */
+    title: 'text-[16px] font-semibold leading-[1.2] text-[var(--pl-text-strong)] mb-4',
+    /** Right column — hairline between the two ownerships. */
+    aside: 'border-l border-[var(--pl-gray-100)] pl-7',
+    /** Recipe description line under the 파이프라인 kv. */
+    desc: cn(text.meta, 'mt-3'),
+    /** Recipe wire name next to the display name in the 레시피 row. */
+    recipeDef: 'ml-2 text-[12px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
+    /** Explicit drill-down (오너: CTA가 아니라 파란 텍스트 링크로). */
+    link: cn(text.link, 'mt-3.5 inline-flex items-center gap-1 text-[12px]'),
   },
 
-  /** kv grid — row/col gap 10/16; wide cols 150px, task-modal cols 170px. */
+  /** kv grid — row/col gap 10/16; base cols 130px, wide 150px, task-modal 170px. */
   kv: {
+    base: 'grid grid-cols-[130px_1fr] gap-x-4 gap-y-2.5',
     wide: 'grid grid-cols-[150px_1fr] gap-x-4 gap-y-2.5',
     task: 'grid grid-cols-[170px_1fr] gap-x-4 gap-y-2.5',
     k: text.kvKey,
@@ -55,37 +47,13 @@ export const detailStyles = {
     errCode: 'text-[12px] text-[var(--pl-err-text)] [font-family:var(--pl-font-mono)]',
   },
 
-  /** PipelineStatusBar — pad 14/18, r10, border, shadow-xs; column gap 8. */
-  statusbar: {
-    bar: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[10px] shadow-[var(--pl-shadow-xs)] px-[18px] py-3.5 flex flex-col gap-2',
-    /** FAILED tint — 135° red→white gradient + red border + halo on the lg pill. */
-    barFailed:
-      'border-[var(--pl-err-statusbar-border)] [background:linear-gradient(135deg,var(--pl-err-statusbar-grad-from),var(--pl-bg-card)_55%)]',
-    /** Halo ring on the lg pill when the bar is FAILED (design .statusbar.failed .pill.lg). */
-    pillFailedRing: 'shadow-[0_0_0_1px_var(--pl-err-border)]',
-    main: 'flex items-center gap-3 flex-wrap',
-    cur: text.statusCurrent,
-    /** sb-err chip — mono 12, err bg/text, pad 2/8 r6. */
-    err: 'text-[12px] text-[var(--pl-err-text)] bg-[var(--pl-err-bg)] px-2 py-0.5 rounded-md [font-family:var(--pl-font-mono)]',
-    /** Right-aligned action cluster. */
-    actions: 'ml-auto flex items-center gap-2',
-    meta: 'flex items-center gap-2 flex-wrap text-[12px] text-[var(--pl-text-weak)]',
-    metaItem: 'text-[12px] text-[var(--pl-text-weak)]',
-    sep: 'text-[var(--pl-gray-300)]',
-    /** #id mono span inside sb-meta. */
-    mono: text.mono,
-  },
-
   /** ftag — inline flag chip (12/600, pad 1/6 r4). `ext` = warn bg/text. */
   ftag: {
     ext: 'inline-flex items-center gap-[3px] text-[12px] font-semibold px-1.5 py-px rounded-[4px] align-middle bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
   },
 
-  /** Recipe step list (preview modal) — box pad 8/12 r8; step gap 10 pad 7/0; sq 20. */
+  /** Preview-modal empty/error note (R21: the step list became the mini flow). */
   recipe: {
-    box: 'bg-[var(--pl-bg-inner)] border border-[var(--pl-border)] rounded-[8px] px-3 py-2',
-    step: 'flex items-center gap-2.5 text-[14px] py-[7px] text-[var(--pl-text-medium)] [&+&]:border-t [&+&]:border-[var(--pl-border)]',
-    sq: 'flex items-center justify-center flex-none w-5 h-5 rounded-full bg-[var(--pl-primary-bg)] text-[var(--pl-primary)] text-[12px] font-bold tabular-nums',
     empty: text.muted,
   },
 
@@ -101,6 +69,17 @@ export const detailStyles = {
     formula: cn(text.formula, 'mt-2.5'),
     /** effective tag — small mono faint with a tooltip. */
     effTag: text.formula,
+    /** R22 (F2, owner-picked) — 정의·실행 계약 demoted to a collapsed
+     *  reference <details> at the panel tail (진행 기록 owns the body). */
+    refDetails: 'group border-t border-[var(--pl-gray-100)] pt-4 mt-4',
+    refSummary: cn(
+      text.subsectionTitle,
+      'flex items-center gap-1.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden',
+    ),
+    refSummaryNote: text.meta,
+    refChevron: 'flex-none text-[var(--pl-text-faint)] transition-transform duration-150 group-open:rotate-90',
+    refBody: 'mt-3',
+    refBodyNext: 'mt-4',
   },
 
   /** TaskDetailModal header. */
@@ -129,6 +108,86 @@ export const detailStyles = {
     td: 'p-2 align-middle tabular-nums border-b border-[var(--pl-gray-100)]',
     tdColor: pipelineStyles.table.tdColor,
     muted: pipelineStyles.table.muted,
+  },
+
+  /**
+   * R18 §7 — merged flow card (status header zones + canvas + inline panel).
+   * The header bleeds to the card edge (negative margins) so the FAILED tint
+   * covers the full header band; border-b color lives ONLY in headIdle /
+   * headFailed (plain cn join — same-property classes must never co-occur).
+   */
+  flowCard: {
+    head: '-mx-6 -mt-5 px-6 pt-5 pb-4 mb-4 rounded-t-[10px] border-b flex flex-col gap-2',
+    headIdle: 'border-[var(--pl-gray-100)]',
+    headFailed:
+      'border-[var(--pl-err-statusbar-border)] [background:linear-gradient(135deg,var(--pl-err-statusbar-grad-from),var(--pl-bg-card)_55%)]',
+    /** Halo ring on the lg pill when the header is FAILED. */
+    pillFailedRing: 'shadow-[0_0_0_1px_var(--pl-err-border)]',
+    /** err chip — mono 12, err bg/text, pad 2/8 r6. */
+    err: 'text-[12px] text-[var(--pl-err-text)] bg-[var(--pl-err-bg)] px-2 py-0.5 rounded-md [font-family:var(--pl-font-mono)]',
+    /** R20 — one fact per line: {label → value} rows sharing a 72px label
+     *  column ({현재 태스크·상태·진행 상태}); the task name (16/700) stays the
+     *  hero of row 1. No seq wording. */
+    row: 'flex items-center gap-3 min-w-0 flex-wrap',
+    rowLabel: 'w-[72px] flex-none text-[12px] font-semibold text-[var(--pl-text-faint)] whitespace-nowrap',
+    rowMeta: 'ml-auto flex items-center gap-2 text-[12px] text-[var(--pl-text-weak)]',
+    taskName: 'text-[16px] font-bold leading-[1.2] text-[var(--pl-text-strong)]',
+    taskRetry: 'text-[12px] text-[var(--pl-text-weak)]',
+    /** §7-3, R19.5 — right-DOCKED panel flush at the canvas edge (owner: 딱
+     *  붙게). It sits OUTSIDE the horizontal scroll region (TaskFlow renders it
+     *  as a flex sibling of .pl-scroll), so it can never cover the scrollbar or
+     *  block left/right movement; long content scrolls vertically inside. */
+    body: 'min-w-0',
+    canvas: 'w-full',
+    panel:
+      'w-[400px] flex-none min-w-0 max-h-[440px] bg-[var(--pl-bg-card)] border-l border-[var(--pl-border)] overflow-y-auto overscroll-contain px-5 pt-4 pb-5 motion-safe:[animation:pl-panel-in_.2s_ease-out]',
+  },
+
+  /**
+   * R21 §A1 — pipeline-type tiles (modal step 1). Base is structural only;
+   * tone variants own the icon tile's bg/color (TypeTag vocabulary extended).
+   */
+  typeTile: {
+    row: 'flex gap-2.5 flex-wrap',
+    tile: 'flex-1 min-w-[130px] flex flex-col items-start gap-1 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-3.5 text-left cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-[var(--pl-gray-300)] hover:shadow-[var(--pl-shadow-sm)] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-[var(--pl-border)] disabled:hover:shadow-none',
+    ico: 'grid place-items-center w-[30px] h-[30px] rounded-[8px] mb-0.5',
+    icoTone: {
+      INSTALL: 'bg-[color-mix(in_srgb,var(--pl-type-install)_10%,transparent)] text-[var(--pl-type-install)]',
+      DELETE: 'bg-[color-mix(in_srgb,var(--pl-type-delete)_10%,transparent)] text-[var(--pl-type-delete)]',
+      CUSTOM: 'bg-[color-mix(in_srgb,var(--pl-type-custom)_10%,transparent)] text-[var(--pl-type-custom)]',
+    },
+    title: 'text-[14px] font-bold text-[var(--pl-text-strong)]',
+    desc: 'text-[12px] text-[var(--pl-text-weak)] leading-[1.4]',
+  },
+
+  /**
+   * R21 §B1 — preview modal mini flow: same node vocabulary as the detail
+   * canvas (TF/CSP marks, clock for CONDITION_CHECK, line-grid background) so
+   * the preview reads as "the Task 흐름, seen small".
+   */
+  preview: {
+    ident: 'text-[13px] text-[var(--pl-text-medium)]',
+    identNum: 'font-semibold tabular-nums',
+    flow: 'mt-3.5 flex items-center overflow-x-auto rounded-[10px] border border-[var(--pl-border)] px-3 py-3.5 [background-image:linear-gradient(var(--pl-flow-grid)_1px,transparent_1px),linear-gradient(90deg,var(--pl-flow-grid)_1px,transparent_1px)] [background-size:20px_20px]',
+    node: 'flex-none flex flex-col gap-1.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 py-2.5 min-w-[118px]',
+    nodeIcons: 'flex items-center gap-1.5',
+    mark: 'grid place-items-center w-[26px] h-[26px] rounded-[7px] flex-none bg-[var(--pl-bg-card)] border border-[var(--pl-border)]',
+    markCond: 'grid place-items-center w-[26px] h-[26px] rounded-[7px] flex-none bg-[var(--pl-gray-100)] border border-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
+    markTxt: 'grid place-items-center h-[26px] min-w-[26px] px-1.5 rounded-[7px] flex-none bg-[var(--pl-gray-100)] border border-[var(--pl-gray-100)] text-[12px] font-bold tracking-[.02em] text-[var(--pl-gray-600)]',
+    nodeName: 'text-[12px] font-semibold leading-[1.3] text-[var(--pl-text-strong)]',
+    conn: 'flex-none w-7 h-0.5 bg-[var(--pl-gray-300)]',
+  },
+
+  /**
+   * R21 §C1 — target-page front-matter strip: the CSP metadata demoted to one
+   * 12px reference line under the h1 (head-nav feel), hairline below.
+   */
+  frontMeta: {
+    strip: 'mt-2.5 mb-4 flex items-center gap-2.5 flex-wrap border-b border-[var(--pl-gray-100)] pb-3 text-[12px] text-[var(--pl-text-medium)]',
+    item: 'inline-flex items-center gap-1.5',
+    k: 'font-semibold text-[var(--pl-text-faint)]',
+    strong: 'font-semibold text-[var(--pl-text-strong)]',
+    sep: 'w-px h-3 bg-[var(--pl-gray-100)]',
   },
 
   /** Loading / layout-stable skeleton block. */

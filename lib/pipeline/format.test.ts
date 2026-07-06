@@ -1,14 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildPipelineHref,
-  buildTargetHref,
   canCancel,
   currentTask,
   currentTaskLabel,
   fmtDateTime,
   fmtDuration,
   KIND_POLICY,
-  parsePipelineNavContext,
   progressCount,
   providerAccentVar,
   providerKey,
@@ -285,33 +282,12 @@ describe('currentTask / currentTaskLabel / progressCount', () => {
   });
   it('currentTaskLabel reflects PENDING / current / terminal', () => {
     expect(currentTaskLabel('PENDING', tasks)).toBe('시작 대기');
-    expect(currentTaskLabel('RUNNING', tasks)).toBe('seq 2');
+    expect(currentTaskLabel('RUNNING', tasks)).toBe('진행 중');
     expect(currentTaskLabel('DONE', [summary({ status: 'DONE' })])).toBe('완료');
     expect(currentTaskLabel('CANCELLED', [summary({ status: 'CANCELLED' })])).toBe('취소됨');
     expect(currentTaskLabel('FAILED', [summary({ status: 'DONE' })])).toBe('실패');
   });
   it('progressCount counts DONE over total', () => {
     expect(progressCount(tasks)).toEqual({ done: 1, total: 3 });
-  });
-});
-
-describe('nav-context hrefs', () => {
-  it('builds bare paths', () => {
-    expect(buildTargetHref('1006')).toBe('/integration/admin/pipelines/targets/1006');
-    expect(buildPipelineHref(128)).toBe('/integration/admin/pipelines/128');
-  });
-  it('appends svc / svcName; skips null / empty', () => {
-    expect(buildTargetHref('1006', { svc: 'SVC001', svcName: 'svc-alpha' })).toBe(
-      '/integration/admin/pipelines/targets/1006?svc=SVC001&svcName=svc-alpha',
-    );
-    expect(buildPipelineHref(128, { svc: null, svcName: '' })).toBe('/integration/admin/pipelines/128');
-  });
-  it('round-trips through parsePipelineNavContext', () => {
-    expect(parsePipelineNavContext(new URLSearchParams('svc=SVC001&svcName=svc-alpha'))).toEqual({
-      svc: 'SVC001',
-      svcName: 'svc-alpha',
-    });
-    expect(parsePipelineNavContext(new URLSearchParams())).toEqual({ svc: null, svcName: null });
-    expect(parsePipelineNavContext({ svc: 'SVC002' })).toEqual({ svc: 'SVC002', svcName: null });
   });
 });

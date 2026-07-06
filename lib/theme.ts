@@ -883,6 +883,10 @@ const pipelineText = {
   metaGroupLabel: 'text-[12px] font-semibold text-[var(--pl-text-faint)]',
   /** stat tile label — 12 / 400 / weak. */
   statLabel: 'text-[12px] font-normal text-[var(--pl-text-weak)]',
+  /** stat tile label, R18 two-tier: main 14/600 medium + period 12/400 faint
+   *  (owner: 기간 부가는 색·크기를 주 라벨과 다르게 — improvement-r18.md §5). */
+  statLabelMain: 'text-[14px] font-semibold text-[var(--pl-text-medium)]',
+  statLabelPeriod: 'text-[12px] font-normal text-[var(--pl-text-faint)]',
   /** stat tile value — 32 / 600 / 1.2 / -.02em / tabular / strong. */
   statValue: 'text-[32px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums',
   statValueDefault: 'text-[var(--pl-text-strong)]',
@@ -969,7 +973,9 @@ export const pipelineStyles = {
     sidebarItemIdle: 'font-medium text-[var(--pl-chrome-item)] hover:bg-[var(--pl-gray-800)]',
     sidebarItemActive:
       'bg-[var(--pl-gray-800)] text-[var(--pl-white)] font-semibold shadow-[inset_2px_0_0_var(--pl-primary)]',
-    content: 'flex-1 min-w-0 max-w-[1280px] px-8 pt-6 pb-12',
+    // R18: 1280 → 1440 — the detail page's flow card needs the width (owner:
+    // "margin이 오른쪽으로 너무 크게"); tables are row-scan content and may stretch.
+    content: 'flex-1 min-w-0 max-w-[1440px] px-8 pt-6 pb-12',
   },
 
   /** Card surfaces (§5). */
@@ -983,11 +989,13 @@ export const pipelineStyles = {
     tableWrap: 'overflow-x-auto',
   },
 
-  /** Section header (title 64/0/12 margins; desc -4/0/12 — 8px under the title). */
+  /** Section header (title 64/0/12 margins; desc R22.5: 16 below title — the
+   *  R18 8px read cramped to the owner — 16 above content). mt-4 vs the
+   *  title's mb-3 collapses to 16px (block siblings). */
   section: {
     title: cn(pipelineText.sectionTitle, 'mt-16 mb-3'),
     titleFirst: cn(pipelineText.sectionTitle, 'mt-0 mb-3'),
-    desc: cn(pipelineText.sectionDesc, '-mt-1 mb-3'),
+    desc: cn(pipelineText.sectionDesc, 'mt-4 mb-4'),
   },
 
   /** StatusPill — h20 pad 0 9 0 8 dot 6 (lg h28 pad 0 12 0 10 dot 8). Size lives
@@ -1003,6 +1011,38 @@ export const pipelineStyles = {
     dotPulse: '[animation:pl-pulse_1.6s_ease-in-out_infinite]',
     tone: PIPELINE_PILL_TONE,
     dotTone: PIPELINE_DOT_TONE,
+  },
+
+  /** PipelineTypeTag (R18 §1) — icon+color+enum triple encoding; bg-less inline
+   *  tag so it never competes with the filled status pills. Icon carries the
+   *  hue (tone), text stays medium mono. */
+  typeTag: {
+    base: 'inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-semibold text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
+    tone: {
+      INSTALL: 'text-[var(--pl-type-install)]',
+      DELETE: 'text-[var(--pl-type-delete)]',
+      CUSTOM: 'text-[var(--pl-type-custom)]',
+    } as Record<'INSTALL' | 'DELETE' | 'CUSTOM', string>,
+  },
+
+  /** Filter chips (R18 §4, Komiser reference) — scope chips (no ×) + removable
+   *  active-filter chips on a 28px pill. Key weak · value strong; the remove
+   *  button keeps a ≥20×28 hit area. */
+  filterChip: {
+    row: 'flex items-center gap-2 flex-wrap mt-2 mb-4',
+    base: 'inline-flex items-center h-7 gap-1.5 rounded-full border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] px-3 text-[12px]',
+    removable: 'pr-1.5',
+    key: 'text-[var(--pl-text-weak)]',
+    value: 'font-semibold text-[var(--pl-text-strong)]',
+    remove:
+      'inline-flex items-center justify-center w-5 h-7 -my-px rounded-full text-[var(--pl-text-faint)] hover:text-[var(--pl-text-medium)] cursor-pointer',
+    reset:
+      'inline-flex items-center h-7 px-2 rounded-md text-[12px] font-semibold text-[var(--pl-text-weak)] hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)] cursor-pointer',
+    count: 'ml-auto text-[12px] text-[var(--pl-text-weak)] tabular-nums',
+    /** R22.5 — the always-on period scope chip: value only (no 기간 key),
+     *  light-blue tint to read as scope, not a removable filter. */
+    scope:
+      'inline-flex items-center h-7 rounded-full border border-[var(--pl-primary-ring)] bg-[var(--pl-primary-bg)] px-3 text-[12px] font-semibold text-[var(--pl-primary)]',
   },
 
   /** ProvTag — neutral text + 8×8 r2.5 brand dot; 12/500 medium. */
@@ -1073,7 +1113,11 @@ export const pipelineStyles = {
     dialog: 'max-w-[90vw] px-6 py-[22px] rounded-[12px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
     dialogDefault: 'w-[480px]',
     dialogTask: 'w-[600px] flex flex-col max-h-[min(720px,86vh)]',
-    title: cn(pipelineText.modalTitle, 'mb-1.5'),
+    /** R21.5/R22.5 — the start-pipeline modal (type tiles + mini flow need
+     *  room). flex-col + a flex-1 spacer before the foot (PreviewModal) keeps
+     *  the actions pinned to the bottom of the taller dialog. */
+    dialogWide: 'w-[720px] min-h-[420px] flex flex-col',
+    title: cn(pipelineText.modalTitle, 'mb-3'),
     desc: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)] mb-3.5',
     body: 'overflow-y-auto min-h-0 mt-1',
     foot: 'flex justify-end gap-2 mt-[18px]',
@@ -1109,6 +1153,10 @@ export const pipelineStyles = {
       'border border-transparent bg-transparent text-[var(--pl-text-weak)] enabled:hover:bg-[var(--pl-gray-100)] enabled:hover:text-[var(--pl-text-medium)] disabled:text-[var(--pl-gray-300)]',
     danger:
       'border border-[var(--pl-err-border)] bg-[var(--pl-bg-card)] text-[var(--pl-err-text)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-err-bg)] disabled:text-[var(--pl-text-faint)] disabled:border-[var(--pl-border)] disabled:shadow-none',
+    /** R18 §7-1 — solid destructive CTA (상세 [중단]); outline danger stays for
+     *  in-context secondary destructive actions. */
+    dangerSolid:
+      'border border-transparent bg-[var(--pl-err-solid)] text-[var(--pl-white)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-err-solid-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
   },
 
   /** PlTable — th h34 12/600/.03em; td h44 14 tabular; row hover; chev cell. */

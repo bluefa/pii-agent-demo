@@ -22,7 +22,12 @@ export type IconName =
   | 'clock'
   | 'cloud'
   | 'arrow-ur'
-  | 'flow';
+  | 'flow'
+  | 'install'
+  | 'trash'
+  | 'sliders'
+  | 'stop'
+  | 'play';
 
 export type IconSize = 'sm' | 'md' | 'lg';
 
@@ -80,6 +85,32 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
       <path d="M6.8 12h2.9m4.6 0h2.9" />
     </>
   ),
+  // R18 pipeline-type + CTA glyphs (improvement-r18.md §1/§7-1)
+  install: (
+    <>
+      <path d="M12 3.5V13m0 0 4-4m-4 4-4-4" />
+      <path d="M4 16.5V18a2.5 2.5 0 0 0 2.5 2.5h11A2.5 2.5 0 0 0 20 18v-1.5" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4.5 7h15" />
+      <path d="M9.5 7V5.4A1.4 1.4 0 0 1 10.9 4h2.2a1.4 1.4 0 0 1 1.4 1.4V7" />
+      <path d="M6.8 7 7.5 19a1.9 1.9 0 0 0 1.9 1.8h5.2a1.9 1.9 0 0 0 1.9-1.8L17.2 7" />
+      <path d="M10.2 11v5.5m3.6-5.5v5.5" />
+    </>
+  ),
+  sliders: (
+    <>
+      <path d="M4 7.5h3.2m4.6 0H20" />
+      <circle cx="9.7" cy="7.5" r="2.2" />
+      <path d="M4 16.5h8.2m4.6 0H20" />
+      <circle cx="14.7" cy="16.5" r="2.2" />
+    </>
+  ),
+  stop: <rect x="7" y="7" width="10" height="10" rx="1.6" />,
+  // R21 §A1 — the single start-CTA glyph (solid triangle, prototype i-play).
+  play: <path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none" />,
 };
 
 export interface IconProps {

@@ -4,6 +4,146 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 23 — 상세 라이브 폴링(C안) + 메타 카드 소속 헤더 승격 (2026-07-07)
+
+- **10초 CSR 폴링 (App 전용)**: 상세 페이지가 라이브 run(PENDING/RUNNING)일 때만
+  10초마다 파이프라인(#4)을 재조회 — task 상세(#5)는 **summary(status/fail_count)가
+  변한 task + 열려 있는 패널의 task만** 재조회(폴 관찰·attempts는 summary 변화 없이
+  자란다). 백그라운드 탭은 스킵(document.hidden), 실패 틱은 조용히 다음 틱 재시도,
+  종결(DONE/FAILED/CANCELLED) 시 자동 중단. SSR/ISR 방식은 검토 후 기각 — 떠 있는
+  화면은 서버 재검증만으로 갱신되지 않고, 어차피 클라이언트 타이머가 필요.
+- **메타 카드 소속 헤더 승격**: "파이프라인"/"Target Source" 14px/10px 아래 간격 →
+  **16px(strong)/16px** (`metaCard.title`, 프로토타입 `.metagrid .subsection-title`).
+
+## Round 22.5 — 제목-보조 간격 확대·시작 모달 높이·기간 칩 연한 파랑 (2026-07-07)
+
+오너 피드백 3건.
+
+- **제목-보조 텍스트 간격 +8px (전 페이지)**: section-title ↔ section-desc 8px → **16px**
+  (`.section-desc` margin-top 16, 마진 겹침 max(12,16); App `section.desc` `-mt-1`→`mt-4`).
+  내용과의 16px은 유지.
+- **시작 모달 높이 확대 + 제목 간격**: `.modal.wide` **min-height 420px** + flex column —
+  foot은 바닥 고정(App은 flex-1 스페이서, 프로토타입은 `.modal.wide .foot{margin-top:auto}`).
+  모달 제목-보조 간격 6px → **12px**(`.modal h3` mb / App `modal.title` mb-3, 전 모달 공통).
+- **기간 스코프 칩**: "기간 · 최근 24시간" → 값만 **"최근 24시간"** + 연한 파랑
+  (primary-bg 바탕·primary-ring 테두리·primary 텍스트, `filterChip.scope`/`.chip.scope`) —
+  제거형 필터 칩(흰 바탕·키·×)과 상시 스코프의 시각 어휘 분리.
+
+## Round 22 — 상세 메타 2계층 카드 + Task 패널 진행 기록 우선 (2026-07-07)
+
+오너 피드백(LIN-20): ① 상세 헤더 한 줄 카드("1003 · Azure / 유형 / 생성 / 마지막 활동 /
+실행 ID / 레시피")가 사람 눈에 어색 — Target Source 정보와 파이프라인 정보의 계층 정리
+필요, 대상 이동은 아이콘 버튼 대신 명시적 파란 텍스트 링크로 ② Task 패널은 정의·실행
+계약보다 **진행 기록**이 훨씬 중요. 시안 랩 `r22-detail-lab.html`(D1~D3 × F1~F3 실물
+비교)에서 오너가 **D2+F2** 선택. 근거: ui-ux-pro-max §8 progressive disclosure
+("Overwhelm upfront" 안티패턴) · §9 명시적 내비 어포던스.
+
+- **D2 — 메타 2계층 카드**: idbar(한 줄 아이덴티티 스트립) 폐지 → 카드 안 소속별 2열.
+  왼쪽 "파이프라인" kv(유형·레시피(+wire명 mono)·실행 ID·생성/마지막 활동, 아래 레시피
+  설명), 오른쪽 "Target Source" kv(CSP 색 아이콘·TargetSourceId) + 파란 텍스트 링크
+  "Target Source {id} 상세 정보 확인 ↗". App은 IdentityBar·RoundNavLink 컴포넌트 삭제.
+- **F2 — Task 패널 진행 기록 우선**: 진행 기록(started/finished·실패 누적·attempts/폴
+  관찰)이 첫 그룹, 정의·실행 계약은 패널 꼬리의 접힌 `<details>` "정의 · 실행 계약 —
+  참조 정보"로 강등(펼치면 두 그룹 그대로, ▸ 회전 어포던스). 로딩 스켈레톤 캡션도
+  진행 기록으로 통일.
+
+## Round 21.5 — 시작 모달 wide·안내 문구 삭제·기간 칩 최우측·pager 상시 (2026-07-06)
+
+오너 피드백 4건 반영.
+
+- **시작 모달 wide(720px)**: `ModalShell variant="wide"` 신설(`theme.modal.dialogWide`) —
+  미니 플로우가 4스텝에서도 줄바꿈 없이 읽히도록 폭 확대.
+- **409 안내 문구 삭제**: "이미 진행 중인 run이 있으면 …" notice 박스 제거
+  (`preview.notice` 토큰 삭제). 409 시 최신 run 재조회·이동 동작 자체는 유지.
+- **기간 칩 최우측**: 대시보드 칩 행에서 `기간 · {label}` scope 칩을 count(N건) 뒤
+  가장 우측으로 이동 — 제거 가능한 필터 칩과 상시 scope 칩의 시각 분리.
+- **목록 pager 상시**: 파이프라인 목록 PlPagination `pages > 1` 가드 제거 — 1페이지도
+  `1 / 1` 노출(서비스 레일과 동일 문법). 5건/페이지 클라이언트 페이징은 기존과 동일.
+
+## Round 21 — 단일 시작 CTA·모달 미니 플로우·FrontMeta 스트립 (2026-07-06)
+
+오너 피드백: "설치/삭제 CTA 너무 아쉬움 — ui-ux-pro-max로 다양한 해결책 제시 /
+미리보기 모달도 기존 컴포넌트가 낭비되는 느낌 / 메타데이터를 head-nav(FrontMeta)처럼".
+시안 랩 `r21-cta-lab.html`(A1~A3·B1~B2·C1~C2 실물 비교)에서 오너가 **A1+B1+C1** 선택.
+근거: ui-ux-pro-max §4 `primary-action`(화면당 primary 1개)·`color-not-only`·파괴 액션 확인.
+
+- **A1 단일 CTA**: target 액션 행 [설치 시작][삭제 시작] → **[▶ 파이프라인 시작]** 하나.
+  유형 선택은 모달 1단계 타일(설치/삭제 활성 · Custom 준비 중, TypeTag 색·아이콘 어휘)로.
+- **B1 미리보기 = 작게 본 Task 흐름**: 모달 2단계 — TypeTag+아이덴티티 헤더(대상 ·
+  CSP · 레시피 mono) 아래 레시피 스텝을 **미니 플로우**(격자 캔버스 + TF/CSP 마크,
+  CONDITION_CHECK 시계, IDC/SDU 텍스트칩)로. 409 유일성 안내는 notice 박스.
+  브랜드 마크는 `brandMarks`로 추출해 캔버스와 공유(App).
+- **C1 FrontMeta 스트립**: target의 IdentityBar 카드 삭제 — h1 바로 아래 12px 한 줄
+  (☁CSP · TargetSourceId · Account/Region/TF권한, hairline)로 강등. 본문(시작·이력)이 주인공.
+
+## Round 20.5 — 서비스·대상 검색: 플러시 레일 + 서버 검색·pagination (2026-07-06)
+
+오너 피드백: "/integration/services 디자인 참고 — (코드) 서비스 이름 표현 /
+pagination 필요할 것, 확인해 / 왼쪽에 딱 달라붙어서 별도 카드 객체로 안 보이게".
+
+- **레일**: 좌측 서비스 목록을 떠 있는 카드 → **컨텐츠 왼쪽 밀착 풀하이트 레일**
+  (280px, border-right, 카드 chrome 없음 — content 패딩을 음수 마진으로 탈출).
+  페이지 h1은 레일 상단 타이틀(16/700)로 이동.
+- **항목 2단**: `service_code`(14/600, 선택 시 primary) 위 + `service_name`(12/weak)
+  아래 — 레퍼런스 Service List 문법.
+- **서버 검색·pagination**: App은 `getServicesPage`의 `query`/`page`/`size`를 그대로
+  사용(디바운스 300ms, 페이지당 10) — 기존 size=200 클라이언트 필터 창 폐기.
+  레일 하단 pager 상시 노출. 선택 서비스명은 선택 시점에 저장(페이지 이동에도 유지).
+
+## Round 20 — 헤더 행 분해·URL 정리·target 상태바 삭제 (2026-07-06)
+
+오너 피드백: "헤더는 각 한 줄로 — task명/상태/진행 상태 / 상세 URL은 pipelineId만
+있어도 충분 / target의 최신 파이프라인 바는 그냥 없애자 / 이력은 pagination으로 /
+'정렬 실패 우선' 칩 삭제".
+
+- **흐름 카드 헤더**: run/task 2존 → **한 줄에 한 사실** 3행(`fc-row`, 라벨 72px 컬럼):
+  ① {현재·실패 태스크} task명(16/700)+재시도+에러칩 ② 상태 pill(+취소 요청됨)
+  ③ 진행 상태 bar+N/M(+우측 다음 실행). leased류 없음.
+- **URL**: `svc`/`svcName` query-param nav-context **전면 삭제** — 상세 URL은 path id만.
+  서비스명은 API(`service_name`)에서 유도, 파이프라인 breadcrumb은
+  `서비스 검색 › {target} › #{id}` 고정.
+- **target 페이지**: 최신 파이프라인 상태 바 + "파이프라인 상태" 섹션 삭제 — 이력 표
+  첫 행이 곧 최신 run, run 액션(중단)은 상세 페이지 몫. 액션 버튼은 idbar 직후.
+- **이력 pagination 상시 노출**(1페이지여도 이전 · 1/1 · 다음).
+- **대시보드**: `정렬 · 실패 우선` 스코프 칩 삭제(정렬은 필터가 아니라 동작).
+
+## Round 19 — Task 흐름 n8n 스타일: 격자 캔버스·브랜드 마크·우측 도킹 패널 (2026-07-06)
+
+오너 피드백: "N8N처럼 격자 무늬 스타일로 멋있게 / Job 카드 가운데 정렬 /
+Terraform + 각 클라우드 아이콘(IDC·SDU는 글자만) / 패널은 맨 오른쪽에 딱 붙게,
+좌우 이동을 절대 가리지 말 것 / 아이콘은 전부 흰 바탕으로 일관성".
+
+- **캔버스**: 점무늬 → **선 격자**(fine 20px + accent 100px), `min-height:440px`,
+  트랙(`margin-inline:auto`) 가로·세로 중앙 — 넘치면 좌우 스크롤.
+- **노드**: 상태 타일(nd-ico) → **정체성 아이콘 쌍**(Terraform 퍼플 로고마크 +
+  provider 로고마크 — aws 잉크 로크업/azure 삼각/gcp 클라우드, 전부 흰 타일;
+  IDC·SDU는 12/700 텍스트 칩; CONDITION_CHECK는 시계 타일) + **우상단 상태
+  배지**(20px 원: ✓/✕/스피너/⊘/seq). kindchip은 노드에서 제거(패널·모달 유지).
+- **커넥터**: 56px + 시작점 도트(cdot, 상태색 연동) + 기존 화살촉.
+- **패널 도킹**(R19.5): 캔버스 flex row — `.flow-scroll`(가로 스크롤 영역)과
+  **형제**로 우측 400px 풀하이트 도킹(내비게이션식, border-left). 스크롤바를
+  구조적으로 가릴 수 없음. 내부 세로 스크롤(max-h 440), 노드 클릭 시
+  `scrollIntoView(inline:center)` reveal.
+- 신규 토큰: `--flow-grid(-strong)`, `--brand-tf`, `--brand-aws-ink`, `--brand-aws-smile`.
+
+## Round 18 — 오너 피드백: 유형 구분·필터 칩·상세 통합 카드·인라인 패널 (2026-07-06)
+
+> App(LIN-25 D1)에 먼저 반영 후 HTML로 역포팅한 첫 라운드(오너 지시 순서).
+> 전체 스펙·근거: [admin-pipeline-improvement-r18.md](admin-pipeline-improvement-r18.md).
+> (16–17은 결번 — 캐시버스터 v=r16/r17과 라운드 번호 정합을 위해 18로 점프.)
+
+- **TypeTag**: INSTALL(↓ 파랑)/DELETE(🗑 빨강)/CUSTOM(슬라이더 보라) 아이콘+색+enum —
+  대시보드 목록·target 이력·target 상태바 meta의 유형 표기 교체.
+- **게이팅 제거**: target 설치/삭제 버튼 상시 활성(`targetButtons` 삭제) — 충돌은 409 플로우.
+- **필터 칩**(Komiser 레퍼런스): 목록 산문 캡션 → 스코프 칩(기간·정렬) + 활성 필터 ×칩 +
+  [필터 초기화] + 우측 N건.
+- **stat 라벨 2단**: 주 14/600 medium + 기간 12/400 faint. 현황 산문 캡션 제거.
+- **캡션 간격**: 제목↔desc 4→8, desc↔내용 12→16.
+- **상세 재구성**: h1 "파이프라인 현황"(+실행 ID 강등), [중단] solid danger CTA 헤더 승격,
+  target 우선 idbar(1006 · AWS 선행), 상태바+Task 흐름 **단일 카드**(run/task/meta 3존 계층),
+  Task 상세 모달 → **카드 내 우측 400px 인라인 패널**(Esc·선택 링·motion-safe slide-in).
+- **콘텐츠 폭**: 1280 → 1440.
+
 ## Round 15 — Task 흐름 v16 문법 차용 + Task 상세 모달 전환 (2026-07-05)
 
 오너 피드백(6차): "SIT Prototype Athena v16의 task 노드 디자인 차용 / Task 상세 텍스트 경계·

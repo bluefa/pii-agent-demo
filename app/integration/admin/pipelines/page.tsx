@@ -15,7 +15,8 @@ import type { ReactElement, ReactNode } from 'react';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { buildPipelineHref, fmtDateTime } from '@/lib/pipeline/format';
+import { integrationRoutes } from '@/lib/routes';
+import { fmtDateTime } from '@/lib/pipeline/format';
 import {
   OrchestratorApiError,
   getLiveStatistics,
@@ -52,6 +53,7 @@ import { PipelineProgressBar } from '@/app/integration/admin/pipelines/_componen
 import { PlPagination } from '@/app/integration/admin/pipelines/_components/PlPagination';
 import { PlEmptyState } from '@/app/integration/admin/pipelines/_components/PlEmptyState';
 import { PlButton } from '@/app/integration/admin/pipelines/_components/PlButton';
+import { PipelineTypeTag } from '@/app/integration/admin/pipelines/_components/PipelineTypeTag';
 
 import {
   DASH_FETCH_SIZE,
@@ -59,21 +61,24 @@ import {
   PERIOD_OPTIONS,
   PROVIDER_OPTIONS,
   STATUS_OPTIONS,
-  buildListDesc,
-  buildStatsDesc,
   paginate,
   projectRows,
 } from '@/app/integration/admin/pipelines/_dashboard/logic';
+import { FilterChips } from '@/app/integration/admin/pipelines/_dashboard/FilterChips';
 
 /** Grey read-only stat tile (design `.stat`) — Card can't carry the `title`
  *  tooltip the design puts on the tile, so it composes the `card.stat` token. */
 function StatTile({
-  label,
+  labelMain,
+  labelPeriod,
   value,
   title,
   error,
 }: {
-  label: string;
+  /** Primary label — 14/600 medium (e.g. "실패"). */
+  labelMain: string;
+  /** Period addendum — 12/400 faint (e.g. "최근 24시간" / "현재"). */
+  labelPeriod: string;
   value: ReactNode;
   title: string;
   error?: boolean;
@@ -81,7 +86,10 @@ function StatTile({
   const { card, text } = pipelineStyles;
   return (
     <div className={card.stat} title={title}>
-      <div className={text.statLabel}>{label}</div>
+      <div className="flex items-baseline gap-1.5">
+        <div className={text.statLabelMain}>{labelMain}</div>
+        <div className={text.statLabelPeriod}>{labelPeriod}</div>
+      </div>
       <div className={cn(text.statValue, error ? text.statValueError : text.statValueDefault, 'mt-3')}>{value}</div>
     </div>
   );
@@ -159,10 +167,35 @@ export default function DashboardPage(): ReactElement {
   const { total, pages, current, slice } = useMemo(() => paginate(projected, page), [projected, page]);
   const truncated = (pageData?.totalElements ?? 0) > DASH_FETCH_SIZE;
 
-  const listDesc = buildListDesc({ period, total, status, provider, q, truncated });
-
   // Any filter change resets to page 1 (design: filter change → page 1).
   const resetPage = () => setPage(1);
+
+  // Chip × handlers. status/provider are list-effect deps → the effect reruns
+  // and clears listLoading, so setting it true here matches the seg/select
+  // pattern. q is a pure client derivation (NOT a dep) → never touch listLoading
+  // for it, or the loading state would stick with no refetch to clear it.
+  const clearStatus = () => {
+    setStatus('');
+    resetPage();
+    setListLoading(true);
+  };
+  const clearProvider = () => {
+    setProvider('');
+    resetPage();
+    setListLoading(true);
+  };
+  const clearSearch = () => {
+    setQ('');
+    resetPage();
+  };
+  const resetFilters = () => {
+    const serverFilterActive = Boolean(status) || Boolean(provider);
+    setStatus('');
+    setProvider('');
+    setQ('');
+    resetPage();
+    if (serverFilterActive) setListLoading(true); // only refetch-triggering changes show loading
+  };
 
   const runningValue = live ? live.running_pipeline_count : '—';
   const failedCount = periodStats?.failed_count;
@@ -197,30 +230,30 @@ export default function DashboardPage(): ReactElement {
         </span>
       </div>
 
-      <SectionHeader first title="현황" desc={buildStatsDesc(period)} />
+      <SectionHeader first title="현황" />
       <div className="grid grid-cols-[repeat(3,minmax(0,260px))] gap-3">
         <StatTile
-          label="동작 중 파이프라인 · 현재"
+          labelMain="동작 중 파이프라인"
+          labelPeriod="현재"
           value={runningValue}
           title="현재 RUNNING 상태인 파이프라인 수 — 기간과 무관한 순간값"
         />
         <StatTile
-          label={`실패 · ${plabel}`}
+          labelMain="실패"
+          labelPeriod={plabel}
           value={failedCount ?? '—'}
           error={(failedCount ?? 0) > 0}
           title={`${plabel} 내 생성 기준`}
         />
         <StatTile
-          label={`성공 · ${plabel}`}
+          labelMain="성공"
+          labelPeriod={plabel}
           value={doneValue}
           title={`${plabel} 내 생성 기준`}
         />
       </div>
 
-      <SectionHeader
-        title="파이프라인 목록"
-        desc={listLoading ? '불러오는 중…' : listDesc}
-      />
+      <SectionHeader title="파이프라인 목록" />
       <FilterBar className="mb-3">
         <SearchBox
           wrapClassName="w-[240px]"
@@ -268,6 +301,19 @@ export default function DashboardPage(): ReactElement {
         </PlSelect>
       </FilterBar>
 
+      <FilterChips
+        periodLabel={plabel}
+        status={status}
+        provider={provider}
+        q={q}
+        total={total}
+        truncated={truncated}
+        onClearStatus={clearStatus}
+        onClearProvider={clearProvider}
+        onClearSearch={clearSearch}
+        onResetFilters={resetFilters}
+      />
+
       <Card>
         {listLoading ? (
           <div className="min-h-[240px]" aria-busy="true" />
@@ -301,13 +347,15 @@ export default function DashboardPage(): ReactElement {
               {slice.map((row) => (
                 <PlRow
                   key={row.pipeline_id}
-                  onActivate={() => router.push(buildPipelineHref(row.pipeline_id))}
+                  onActivate={() => router.push(integrationRoutes.pipelines.pipeline(row.pipeline_id))}
                 >
                   <PlTd mono>{row.target_source_id}</PlTd>
                   <PlTd>
                     <ProvTag provider={row.cloud_provider} />
                   </PlTd>
-                  <PlTd>{row.type}</PlTd>
+                  <PlTd>
+                    <PipelineTypeTag type={row.type} />
+                  </PlTd>
                   <PlTd>
                     <StatusPill status={row.status} />
                   </PlTd>
@@ -323,14 +371,13 @@ export default function DashboardPage(): ReactElement {
                 </PlRow>
               ))}
             </PlTable>
-            {pages > 1 && (
-              <PlPagination
-                page={current}
-                pages={pages}
-                onPrev={() => setPage(current - 1)}
-                onNext={() => setPage(current + 1)}
-              />
-            )}
+            {/* R20 grammar — always visible so the list reads as a paged list. */}
+            <PlPagination
+              page={current}
+              pages={pages}
+              onPrev={() => setPage(current - 1)}
+              onNext={() => setPage(current + 1)}
+            />
           </>
         )}
       </Card>

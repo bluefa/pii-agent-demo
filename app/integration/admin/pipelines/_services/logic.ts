@@ -1,11 +1,12 @@
 /**
  * Services·targets pure logic (LIN-25 Phase C1-b).
  *
- * The service-list filter mirrors the prototype's in-place client filter
- * (renderSvcList, admin-pipeline.html line 839). The latest-cell state machine
- * models the per-target `GET .../pipelines/latest` (#8) result: undefined while
- * the capped-concurrency fetch is in flight, null on 204 (no runs / not active),
- * and an object only when the latest run is RUNNING|PENDING (design `activeRun`).
+ * (R20.5: the service search/pagination moved SERVER-side — getServicesPage
+ * `query`/`page` params — so the old client-side filter is gone.) The
+ * latest-cell state machine models the per-target `GET .../pipelines/latest`
+ * (#8) result: undefined while the capped-concurrency fetch is in flight, null
+ * on 204 (no runs / not active), and an object only when the latest run is
+ * RUNNING|PENDING (design `activeRun`).
  */
 import type { PipelineSummary } from '@/lib/pipeline/types';
 
@@ -18,18 +19,6 @@ export interface ServiceItem {
 /** Structural shape of a `getServicesPage` response (content is nullable). */
 export interface ServicesPageLike {
   content?: readonly ServiceItem[] | null;
-}
-
-/**
- * Case-insensitive substring filter over `code+name` (prototype grammar). An
- * empty/whitespace query passes everything through.
- */
-export function filterServices(items: readonly ServiceItem[], q: string): ServiceItem[] {
-  const term = q.trim().toLowerCase();
-  if (!term) return [...items];
-  return items.filter((s) =>
-    `${s.service_code ?? ''}${s.service_name ?? ''}`.toLowerCase().includes(term),
-  );
 }
 
 /**
