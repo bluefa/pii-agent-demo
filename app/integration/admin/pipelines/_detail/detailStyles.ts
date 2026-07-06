@@ -14,36 +14,26 @@ import { cn, pipelineStyles } from '@/lib/theme';
 const { text } = pipelineStyles;
 
 export const detailStyles = {
-  /** IdentityBar — pad 16/24/16/28, r10, border, shadow-xs, 4px left accent stripe. */
-  idbar: {
-    bar: 'relative overflow-hidden bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[10px] shadow-[var(--pl-shadow-xs)] pt-4 pr-6 pb-4 pl-7',
-    /** Accent stripe — width 4px, full height; color via inline --ib-accent. */
-    stripe: 'absolute inset-y-0 left-0 w-1 bg-[var(--ib-accent)]',
-    row: 'flex items-center gap-6 flex-wrap',
-    rowTop: 'flex items-start gap-6 flex-wrap',
-    prov: 'flex items-center gap-3 flex-none',
-    /** picon — 38×38 r10, accent-tinted fill + accent icon. */
-    picon: 'grid place-items-center w-[38px] h-[38px] rounded-[10px] flex-none bg-[color-mix(in_srgb,var(--ib-accent)_12%,transparent)] text-[var(--ib-accent)]',
-    pname: text.identityName,
-    psub: text.fieldKey,
-    psubMono: cn(text.fieldKey, '[font-family:var(--pl-font-mono)]'),
-    /** Vertical hairline divider between row groups. */
-    div: 'self-stretch w-px my-0.5 flex-none bg-[var(--pl-gray-100)]',
-    fld: 'flex flex-col gap-1 min-w-0',
-    fldKey: text.fieldKey,
-    fldValue: text.fieldValue,
-    spacer: 'flex-1',
-    /** idbar-meta — mt/pt 16 + top hairline. */
-    meta: 'mt-4 pt-4 border-t border-[var(--pl-gray-100)]',
-    metaRow: 'flex items-start gap-6 flex-wrap',
-    mgroup: 'min-w-0',
-    mgLabel: cn(text.metaGroupLabel, 'mb-2'),
-    mgEmpty: text.meta,
-    note: text.note,
+  /**
+   * R22 (D2, owner-picked) — the pipeline meta card: the one-line identity
+   * strip is replaced by two ownership columns (파이프라인 kv / Target Source
+   * kv + explicit blue drill-down link). Rendered inside a plain Card.
+   */
+  metaCard: {
+    grid: 'grid grid-cols-[1.2fr_1fr] gap-x-7',
+    /** Right column — hairline between the two ownerships. */
+    aside: 'border-l border-[var(--pl-gray-100)] pl-7',
+    /** Recipe description line under the 파이프라인 kv. */
+    desc: cn(text.meta, 'mt-3'),
+    /** Recipe wire name next to the display name in the 레시피 row. */
+    recipeDef: 'ml-2 text-[12px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
+    /** Explicit drill-down (오너: CTA가 아니라 파란 텍스트 링크로). */
+    link: cn(text.link, 'mt-3.5 inline-flex items-center gap-1 text-[12px]'),
   },
 
-  /** kv grid — row/col gap 10/16; wide cols 150px, task-modal cols 170px. */
+  /** kv grid — row/col gap 10/16; base cols 130px, wide 150px, task-modal 170px. */
   kv: {
+    base: 'grid grid-cols-[130px_1fr] gap-x-4 gap-y-2.5',
     wide: 'grid grid-cols-[150px_1fr] gap-x-4 gap-y-2.5',
     task: 'grid grid-cols-[170px_1fr] gap-x-4 gap-y-2.5',
     k: text.kvKey,
@@ -77,6 +67,17 @@ export const detailStyles = {
     formula: cn(text.formula, 'mt-2.5'),
     /** effective tag — small mono faint with a tooltip. */
     effTag: text.formula,
+    /** R22 (F2, owner-picked) — 정의·실행 계약 demoted to a collapsed
+     *  reference <details> at the panel tail (진행 기록 owns the body). */
+    refDetails: 'group border-t border-[var(--pl-gray-100)] pt-4 mt-4',
+    refSummary: cn(
+      text.subsectionTitle,
+      'flex items-center gap-1.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden',
+    ),
+    refSummaryNote: text.meta,
+    refChevron: 'flex-none text-[var(--pl-text-faint)] transition-transform duration-150 group-open:rotate-90',
+    refBody: 'mt-3',
+    refBodyNext: 'mt-4',
   },
 
   /** TaskDetailModal header. */

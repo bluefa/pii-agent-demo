@@ -121,24 +121,17 @@ svg.ic.lg{width:22px;height:22px}
 .stat.unavailable .val{color:var(--text-faint)}
 .stat.failed .val{color:var(--err-text)} /* 실패 카운트>0일 때만 부여 — 비대칭 강조 */
 
-/* ── IdentityBar — app ProjectPageMeta/IdentityBar 문법 이식 (2026-07-05 오너: "app 방식으로") ──
-   접힘 없음: CSP metadata까지 카드 하나에 상시 노출(오너: "접었다 폈다 불필요") */
-.idbar{position:relative;overflow:hidden;background:var(--bg-card);border:1px solid var(--border);
-  border-radius:var(--r-card);box-shadow:var(--shadow-xs);padding:16px 24px 16px 28px}
-.idbar::before{content:"";position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--ib-accent)}
-.idbar .idbar-row{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
-.idbar .idbar-meta{margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100)}
-.idbar .prov{display:flex;align-items:center;gap:12px;flex-shrink:0}
-.idbar .picon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;flex-shrink:0;
-  background:color-mix(in srgb,var(--ib-accent) 12%,transparent);color:var(--ib-accent)}
-.idbar .pname{font-size:16px;font-weight:700;line-height:1.2;letter-spacing:-.02em;color:var(--text-strong)}
-.idbar .psub{margin-top:3px;font-size:12px;font-weight:600;color:var(--text-faint)}
-.idbar .div{align-self:stretch;width:1px;background:var(--gray-100);margin:2px 0;flex-shrink:0}
-.idbar .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
-.idbar .fld .k{font-size:12px;font-weight:600;color:var(--text-faint)}
-.idbar .fld .v{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text-strong)}
-.idbar .mgroup{min-width:0}
-.idbar .mg-label{font-size:12px;font-weight:600;color:var(--text-faint);margin-bottom:8px} /* meta 논리 그룹 캡션 — API 응답 구조 라벨 */
+/* ── R22 (D2, 오너 선택): 파이프라인/Target Source 2계층 메타 카드 ──
+   한 줄 idbar 폐지 — 소속별 kv 2열 + 명시적 파란 텍스트 드릴다운 링크 */
+.metagrid{display:grid;grid-template-columns:1.2fr 1fr;gap:0 28px}
+.metaside{border-left:1px solid var(--gray-100);padding-left:28px}
+.recipedef{margin-left:8px;font-family:var(--font-mono);font-size:12px;color:var(--text-weak)}
+.tslink{margin-top:14px;display:inline-flex;align-items:center;gap:4px;font-size:12px}
+/* ── R22 (F2, 오너 선택): Task 패널 — 정의·실행 계약 접힌 참조 섹션 ── */
+.refdetails summary.subsection-title{margin:0;list-style:none;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
+.refdetails summary::-webkit-details-marker{display:none}
+.refdetails summary .ic{color:var(--text-faint);transition:transform .15s}
+.refdetails[open] summary .ic{transform:rotate(90deg)}
 
 /* ── FieldTag ── */
 .ftag{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;
@@ -736,7 +729,7 @@ const pill = (status)=>`<span class="pill s-${status}"><span class="dot"></span>
 // 설치 상태(process_status) 칩은 오너 지시로 표시 제거(2026-07-05) — 액션 게이팅도 제거되어 미사용(R18 §2)
 const activeRun=tsId=>(BY_TARGET[tsId]||[]).map(i=>PIPELINES[i]).find(p=>p.status==='RUNNING'||p.status==='PENDING')||null;
 const progressBar = (n,m,status)=>`<span class="pbar${m&&n===m?' done':''}${status?` s-${status}`:''}"><span class="track"><span class="fill" style="width:${m?Math.round(n/m*100):0}%"></span></span><span class="lbl">${n}/${m}</span></span>`;
-// PipelineTypeTag(R18 §1): 아이콘(유형색)+enum 텍스트. 대시보드·이력·상태바 meta·상세 idbar 유형 표기.
+// PipelineTypeTag(R18 §1): 아이콘(유형색)+enum 텍스트. 대시보드·이력·상태바 meta·상세 메타 카드 유형 표기.
 const TYPE_ICON={INSTALL:'i-install', DELETE:'i-trash', CUSTOM:'i-sliders'};
 const typetag = type =>`<span class="typetag t-${String(type).toLowerCase()}">${ic(TYPE_ICON[type]||'i-flow','ic sm')}${esc(type)}</span>`;
 
@@ -1070,9 +1063,9 @@ function viewPipeline(id){
   if(p.status==='PENDING'){ z2label='시작 대기'; z2name=`${p.nextDueAt||'-'} 시작 예정`; }
   else if(cur){ z2label=cur.status==='FAILED'?'실패 태스크':'현재 태스크'; z2name=cur.operation; z2retry=cur.failCount>0?`재시도 ${cur.failCount}/${cur.maxFail}`:null; }
   else { z2label='결과'; z2name=currentTaskLabel(p); }
-  // 논리 그룹 2개(오너 2026-07-05 5차): ① 파이프라인 메타데이터(정의·기록 — 레시피가 주인공,
-  // 대상은 참조 한 칸+↗, CSP 세부는 target 페이지 몫) ② Task 흐름(상태 포함 — 상태는 task 진행의
-  // 요약이므로 같은 그룹). leased·스케줄 지연은 "지금" 값이라 상태 바 하단 줄로.
+  // R22 (D2, 오너 선택): 한 줄 idbar 폐지 — 메타 카드를 소속별 2계층(왼쪽 "파이프라인" kv:
+  // 유형·레시피·실행 ID·생성/마지막 활동, 오른쪽 "Target Source" kv: CSP·ID)으로 나누고
+  // 대상 이동은 아이콘 원형 버튼 대신 명시적 파란 텍스트 링크(.tslink)로.
   const rec=RECIPES[p.recipe]||{displayName:p.recipe||'-',desc:''};
   const root=el(`<div>
     ${breadcrumb(crumbs)}
@@ -1080,23 +1073,27 @@ function viewPipeline(id){
       <h1>파이프라인 현황</h1>
       <button class="btn dangersolid" id="pcancel" ${canCancel(p)?'':'disabled'} title="${canCancel(p)?'이 파이프라인을 중단합니다':p.cancelRequested?'취소 처리 대기 중':'진행·대기 중만 중단 가능'}">${ic('i-stop','ic sm')}중단</button>
     </div>
-    <div class="idbar" style="--ib-accent:var(--pv-${p.provider})">
-      <div class="idbar-row">
-        <div class="prov">
-          <span class="picon">${ic('i-cloud','ic lg')}</span>
-          <div><div class="pname" style="font-variant-numeric:tabular-nums">${esc(p.target)} · ${PROVIDERS[p.provider]||esc(p.provider)}</div><div class="psub">${esc(rec.displayName)}</div></div>
+    <div class="card">
+      <div class="metagrid">
+        <div>
+          <div class="subsection-title">파이프라인</div>
+          <div class="kv">
+            <div class="k">유형</div><div class="v">${typetag(p.type)}</div>
+            <div class="k">레시피</div><div class="v">${esc(rec.displayName)}${p.recipe?`<span class="recipedef">${esc(p.recipe)}</span>`:''}</div>
+            <div class="k">실행 ID</div><div class="v" style="font-variant-numeric:tabular-nums">#${esc(p.id)}</div>
+            <div class="k">생성 / 마지막 활동</div><div class="v" style="font-variant-numeric:tabular-nums">${esc(p.createdAt)} / ${esc(p.lastActivityAt)}</div>
+          </div>
+          ${rec.desc?`<div class="meta" style="margin-top:12px">${esc(rec.desc)}</div>`:''}
         </div>
-        <span class="div"></span>
-        <div class="fld"><span class="k">유형</span><span class="v">${typetag(p.type)}</span></div>
-        <span class="div"></span>
-        <div class="fld"><span class="k">생성</span><span class="v">${esc(p.createdAt)}</span></div>
-        <span class="div"></span>
-        <div class="fld"><span class="k">마지막 활동</span><span class="v">${esc(p.lastActivityAt)}</span></div>
-        <span style="flex:1"></span>
-        <div class="fld"><span class="k">실행 ID</span><span class="v" style="color:var(--text-faint)">#${esc(p.id)}</span></div>
-        <button class="btn secondary sm round" data-nav="#/target/${encodeURIComponent(p.target)}" title="대상 상세로 이동" aria-label="대상 상세로 이동">${ic('i-arrow-ur','ic sm')}</button>
+        <div class="metaside">
+          <div class="subsection-title">Target Source</div>
+          <div class="kv">
+            <div class="k">CSP</div><div class="v vrow" style="gap:6px"><span style="color:var(--pv-${p.provider});display:inline-flex">${ic('i-cloud','ic sm')}</span>${PROVIDERS[p.provider]||esc(p.provider)}</div>
+            <div class="k">TargetSourceId</div><div class="v" style="font-variant-numeric:tabular-nums">${esc(p.target)}</div>
+          </div>
+          <a class="link tslink" data-nav="#/target/${encodeURIComponent(p.target)}">Target Source ${esc(p.target)} 상세 정보 확인 ${ic('i-arrow-ur','ic sm')}</a>
+        </div>
       </div>
-      ${(rec.desc||p.recipe)?`<div class="idbar-meta"><div class="note">${p.recipe?`<span class="mono">${esc(p.recipe)}</span>`:''}${p.recipe&&rec.desc?' — ':''}${rec.desc?esc(rec.desc):''}</div></div>`:''}
     </div>
     <div class="section-title">Task 흐름</div>
     <div class="section-desc">노드를 클릭하면 상세가 우측 패널로 열립니다 · task가 많으면 캔버스가 좌우로 스크롤됩니다</div>
@@ -1211,7 +1208,7 @@ function nodeBadge(t){
   }
 }
 // Task 상세: R18 §7-3 카드 내 우측 인라인 패널(모달 폐지 — 사이드 패널로 복귀, 폭 400px).
-// 그룹 경계는 헤어라인(dgroup): 정의(무엇) → 실행 계약(어떻게 판정) → 진행 기록(무슨 일).
+// R22 (F2, 오너 선택): 진행 기록(무슨 일)이 최상단 — 정의·실행 계약은 접힌 참조 <details>로 강등.
 function taskPanelHTML(t){
   const cond=t.kind==='CONDITION_CHECK';
   const eff='<span class="formula" title="effective_* — task 오버라이드 + 전역 설정이 반영된 실효값">effective</span>';
@@ -1242,26 +1239,6 @@ function taskPanelHTML(t){
     </div>
     ${t.desc?`<div class="note" style="margin-top:12px">${esc(t.desc)}</div>`:''}
     <div class="dgroup">
-      <div class="subsection-title">정의</div>
-      <div class="kv wide">
-        ${t.def?`<div class="k">task_definition</div><div class="v mono">${esc(t.def)}</div>`:''}
-        ${t.op?`<div class="k">operation</div><div class="v mono">${esc(t.op)}</div>`
-              :`<div class="k">operation</div><div class="v">${esc(t.operation)}</div>`}
-      </div>
-    </div>
-    <div class="dgroup">
-      <div class="subsection-title">실행 계약</div>
-      <div class="kv wide">
-        <div class="k">실행 방식</div><div class="v">${cond?'조건 확인 — 디스패치 없이 폴링':'테라폼 잡 — 디스패치 후 폴링'}</div>
-        ${cond?`<div class="k">polling / ttl ${eff}</div><div class="v">${esc(t.pollingInterval)} / ${esc(t.ttl)}</div>
-          <div class="k">재시도 예산 ${eff}</div><div class="v vrow">${t.maxFail}회 <span class="formula">count-bound(ttl→finite)</span></div>`
-          :`<div class="k">실행 타임아웃 ${eff}</div><div class="v">${esc(t.executionTimeout)}</div>
-          <div class="k">재시도 예산 ${eff}</div><div class="v">${t.maxFail}회</div>
-          <div class="k">TF 슬롯</div><div class="v" title="consumes_terraform_slot — 동시 실행 상한(slot cap)을 차감하는 task">사용</div>`}
-      </div>
-      <div class="formula" style="margin-top:10px">판정: ${KIND_POLICY[t.kind]}</div>
-    </div>
-    <div class="dgroup">
       <div class="subsection-title">진행 기록</div>
       <div class="kv wide">
         <div class="k">started / finished</div><div class="v">${t.startedAt||'-'} / ${t.finishedAt||'-'}</div>
@@ -1269,6 +1246,29 @@ function taskPanelHTML(t){
       </div>
       ${record}
     </div>
+    <details class="dgroup refdetails">
+      <summary class="subsection-title">${ic('i-chev-r','ic sm')}정의 · 실행 계약 <span class="meta" style="font-weight:400">— 참조 정보</span></summary>
+      <div style="margin-top:12px">
+        <div class="subsection-title">정의</div>
+        <div class="kv wide">
+          ${t.def?`<div class="k">task_definition</div><div class="v mono">${esc(t.def)}</div>`:''}
+          ${t.op?`<div class="k">operation</div><div class="v mono">${esc(t.op)}</div>`
+                :`<div class="k">operation</div><div class="v">${esc(t.operation)}</div>`}
+        </div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="subsection-title">실행 계약</div>
+        <div class="kv wide">
+          <div class="k">실행 방식</div><div class="v">${cond?'조건 확인 — 디스패치 없이 폴링':'테라폼 잡 — 디스패치 후 폴링'}</div>
+          ${cond?`<div class="k">polling / ttl ${eff}</div><div class="v">${esc(t.pollingInterval)} / ${esc(t.ttl)}</div>
+            <div class="k">재시도 예산 ${eff}</div><div class="v vrow">${t.maxFail}회 <span class="formula">count-bound(ttl→finite)</span></div>`
+            :`<div class="k">실행 타임아웃 ${eff}</div><div class="v">${esc(t.executionTimeout)}</div>
+            <div class="k">재시도 예산 ${eff}</div><div class="v">${t.maxFail}회</div>
+            <div class="k">TF 슬롯</div><div class="v" title="consumes_terraform_slot — 동시 실행 상한(slot cap)을 차감하는 task">사용</div>`}
+        </div>
+        <div class="formula" style="margin-top:10px">판정: ${KIND_POLICY[t.kind]}</div>
+      </div>
+    </details>
   </aside>`;
 }
 

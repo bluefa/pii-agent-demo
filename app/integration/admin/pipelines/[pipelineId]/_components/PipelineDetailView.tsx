@@ -3,7 +3,8 @@
 /**
  * Pipeline detail (C2-b) — design-inventory §2.4, restructured per R18
  * (admin-pipeline-improvement-r18.md §6·§7): h1 "파이프라인 현황" + [중단]
- * dangerSolid CTA, target-first identity strip, and ONE merged flow card
+ * dangerSolid CTA, the R22 meta card (D2 — 파이프라인/Target Source ownership
+ * columns + explicit blue drill-down link), and ONE merged flow card
  * (run-level / task-level header zones + canvas + inline right panel). On load
  * it fetches the pipeline (#4), the task catalog once (#12), and EVERY task's
  * detail (#5) with a concurrency cap — the meta lines + panel need effective
@@ -25,11 +26,9 @@ import { PipelineProgressBar } from '@/app/integration/admin/pipelines/_componen
 import { PipelineTypeTag } from '@/app/integration/admin/pipelines/_components/PipelineTypeTag';
 import { Icon } from '@/app/integration/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/integration/admin/pipelines/_components/usePlToast';
-import { IdentityBar, IdentityFieldBlock } from '@/app/integration/admin/pipelines/_detail/IdentityBar';
 import { TaskFlow } from '@/app/integration/admin/pipelines/_detail/TaskFlow';
 import { TaskDetailPanel } from '@/app/integration/admin/pipelines/_detail/TaskDetailPanel';
 import { CancelModal } from '@/app/integration/admin/pipelines/_detail/CancelModal';
-import { RoundNavLink } from '@/app/integration/admin/pipelines/_detail/RoundNavLink';
 import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailStyles';
 import { pipelineCrumbs } from '@/app/integration/admin/pipelines/_detail/pipelineBreadcrumb';
 import { mapPool } from '@/app/integration/admin/pipelines/_detail/mapPool';
@@ -201,6 +200,7 @@ export function PipelineDetailView(): ReactElement {
   const recipeDesc = recipeLabel(detail.recipe_definition)?.desc;
   const selectedDetail = selected ? detailMap.get(selected.task_id) ?? null : null;
   const fc = detailStyles.flowCard;
+  const mc = detailStyles.metaCard;
   const failed = detail.status === 'FAILED';
   const cancellable = canCancel(detail.status, detail.cancel_requested);
   const { done, total } = progressCount(detail.tasks);
@@ -230,43 +230,59 @@ export function PipelineDetailView(): ReactElement {
         </PlButton>
       </div>
 
-      {/* R18 §6 — target-first identity: 어떤 Target Source인지가 먼저다. */}
-      <IdentityBar
-        accentVar={providerAccentVar(provider)}
-        icon="cloud"
-        pname={
-          <span className="tabular-nums">
-            {detail.target_source_id} · {providerLabel(provider)}
-          </span>
-        }
-        psub={recipeDisplayName(detail.recipe_definition)}
-        fields={[
-          { key: '유형', value: <PipelineTypeTag type={detail.type} /> },
-          { key: '생성', value: fmtDateTime(detail.created_at) },
-          { key: '마지막 활동', value: fmtDateTime(detail.last_activity_at) },
-        ]}
-        trailing={
-          <>
-            <IdentityFieldBlock
-              label="실행 ID"
-              value={<span className="text-[var(--pl-text-faint)]">#{detail.pipeline_id}</span>}
-            />
-            <RoundNavLink
-              href={integrationRoutes.pipelines.target(detail.target_source_id)}
-              title="대상 상세로 이동"
-            />
-          </>
-        }
-        meta={
-          recipeDesc || detail.recipe_definition ? (
-            <div className={detailStyles.idbar.note}>
-              {detail.recipe_definition && <span className={text.mono}>{detail.recipe_definition}</span>}
-              {detail.recipe_definition && recipeDesc ? ' — ' : null}
-              {recipeDesc}
+      {/* R22 (D2, 오너 선택) — 소속별 2계층: 이 run의 값(파이프라인)과 대상의
+          값(Target Source)을 나눠 담고, 대상 이동은 명시적 파란 텍스트 링크로. */}
+      <Card>
+        <div className={mc.grid}>
+          <div>
+            <div className={detailStyles.dgroup.title}>파이프라인</div>
+            <div className={detailStyles.kv.base}>
+              <div className={detailStyles.kv.k}>유형</div>
+              <div className={detailStyles.kv.v}>
+                <PipelineTypeTag type={detail.type} />
+              </div>
+              <div className={detailStyles.kv.k}>레시피</div>
+              <div className={detailStyles.kv.v}>
+                {recipeDisplayName(detail.recipe_definition)}
+                {detail.recipe_definition && (
+                  <span className={mc.recipeDef}>{detail.recipe_definition}</span>
+                )}
+              </div>
+              <div className={detailStyles.kv.k}>실행 ID</div>
+              <div className={cn(detailStyles.kv.v, 'tabular-nums')}>#{detail.pipeline_id}</div>
+              <div className={detailStyles.kv.k}>생성 / 마지막 활동</div>
+              <div className={cn(detailStyles.kv.v, 'tabular-nums')}>
+                {fmtDateTime(detail.created_at)} / {fmtDateTime(detail.last_activity_at)}
+              </div>
             </div>
-          ) : undefined
-        }
-      />
+            {recipeDesc && <div className={mc.desc}>{recipeDesc}</div>}
+          </div>
+          <div className={mc.aside}>
+            <div className={detailStyles.dgroup.title}>Target Source</div>
+            <div className={detailStyles.kv.base}>
+              <div className={detailStyles.kv.k}>CSP</div>
+              <div className={detailStyles.kv.vRow}>
+                <span
+                  style={{ color: `var(${providerAccentVar(provider)})` }}
+                  className="inline-flex"
+                >
+                  <Icon name="cloud" size="sm" />
+                </span>
+                {providerLabel(provider)}
+              </div>
+              <div className={detailStyles.kv.k}>TargetSourceId</div>
+              <div className={cn(detailStyles.kv.v, 'tabular-nums')}>{detail.target_source_id}</div>
+            </div>
+            <Link
+              href={integrationRoutes.pipelines.target(detail.target_source_id)}
+              className={mc.link}
+            >
+              Target Source {detail.target_source_id} 상세 정보 확인
+              <Icon name="arrow-ur" size="sm" />
+            </Link>
+          </div>
+        </div>
+      </Card>
 
       <SectionHeader
         title="Task 흐름"

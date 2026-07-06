@@ -145,6 +145,25 @@ describe('TaskDetailBody — TERRAFORM_JOB', () => {
   });
 });
 
+describe('TaskDetailBody — R22 (F2) hierarchy', () => {
+  it('puts 진행 기록 first and demotes 정의·실행 계약 into a collapsed reference <details>', () => {
+    const html = render({
+      task: summary({ kind: 'TERRAFORM_JOB', status: 'DONE' }),
+      detail: detail({ kind: 'TERRAFORM_JOB', status: 'DONE', effective_execution_timeout: 'PT1H' }),
+      displayName: 'tf',
+      onClose: noop,
+    });
+    expect(html.indexOf('진행 기록')).toBeLessThan(html.indexOf('task_definition'));
+    expect(html).toContain('<details');
+    expect(html).toContain('<summary');
+    expect(html).toContain('참조 정보');
+    // The reference section still carries both groups (progressive disclosure,
+    // not removal).
+    expect(html).toContain('정의');
+    expect(html).toContain('실행 계약');
+  });
+});
+
 describe('TaskDetailBody — degraded (detail failed to load)', () => {
   it('renders a summary-only view + notice + 재시도', () => {
     const html = render({

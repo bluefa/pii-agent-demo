@@ -4,6 +4,24 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 22 — 상세 메타 2계층 카드 + Task 패널 진행 기록 우선 (2026-07-07)
+
+오너 피드백(LIN-20): ① 상세 헤더 한 줄 카드("1003 · Azure / 유형 / 생성 / 마지막 활동 /
+실행 ID / 레시피")가 사람 눈에 어색 — Target Source 정보와 파이프라인 정보의 계층 정리
+필요, 대상 이동은 아이콘 버튼 대신 명시적 파란 텍스트 링크로 ② Task 패널은 정의·실행
+계약보다 **진행 기록**이 훨씬 중요. 시안 랩 `r22-detail-lab.html`(D1~D3 × F1~F3 실물
+비교)에서 오너가 **D2+F2** 선택. 근거: ui-ux-pro-max §8 progressive disclosure
+("Overwhelm upfront" 안티패턴) · §9 명시적 내비 어포던스.
+
+- **D2 — 메타 2계층 카드**: idbar(한 줄 아이덴티티 스트립) 폐지 → 카드 안 소속별 2열.
+  왼쪽 "파이프라인" kv(유형·레시피(+wire명 mono)·실행 ID·생성/마지막 활동, 아래 레시피
+  설명), 오른쪽 "Target Source" kv(CSP 색 아이콘·TargetSourceId) + 파란 텍스트 링크
+  "Target Source {id} 상세 정보 확인 ↗". App은 IdentityBar·RoundNavLink 컴포넌트 삭제.
+- **F2 — Task 패널 진행 기록 우선**: 진행 기록(started/finished·실패 누적·attempts/폴
+  관찰)이 첫 그룹, 정의·실행 계약은 패널 꼬리의 접힌 `<details>` "정의 · 실행 계약 —
+  참조 정보"로 강등(펼치면 두 그룹 그대로, ▸ 회전 어포던스). 로딩 스켈레톤 캡션도
+  진행 기록으로 통일.
+
 ## Round 21.5 — 시작 모달 wide·안내 문구 삭제·기간 칩 최우측·pager 상시 (2026-07-06)
 
 오너 피드백 4건 반영.

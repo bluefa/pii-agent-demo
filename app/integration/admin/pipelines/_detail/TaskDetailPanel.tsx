@@ -3,9 +3,11 @@
 /**
  * TaskDetailPanel — the task-detail surface, R18 §7-3: an inline 400px panel
  * that expands on the right INSIDE the flow card (was: 600px modal). Header
- * (display name + KindChip + StatusPill + close) then three hairline-topped
- * dgroups: 정의 / 실행 계약 / 진행 기록, with a kind-gated record tail
- * (CONDITION_CHECK → 폴 관찰; TERRAFORM_JOB → attempts table). Reuses the
+ * (display name + KindChip + StatusPill + close) then — R22 (F2, 오너 선택) —
+ * 진행 기록 first (the operator's question is "무슨 일이 있었나"), with a
+ * kind-gated record tail (CONDITION_CHECK → 폴 관찰; TERRAFORM_JOB → attempts
+ * table); 정의·실행 계약 are demoted to a collapsed reference <details>
+ * at the panel tail. Reuses the
  * TaskDetail loaded by the page (no refetch). When the detail failed to load, a
  * degraded view from the TaskSummary + a 재시도 button is shown instead.
  *
@@ -176,56 +178,7 @@ export function TaskDetailBody({
       <div className={modal.body}>
         {detail ? (
           <>
-            <div className={s.dgroup.group}>
-              <div className={s.dgroup.title}>정의</div>
-              <Kv>
-                <KvKey>task_definition</KvKey>
-                <KvVal mono>{detail.task_definition}</KvVal>
-                <KvKey>operation</KvKey>
-                {detail.operation ? <KvVal mono>{detail.operation}</KvVal> : <KvVal>{displayName}</KvVal>}
-              </Kv>
-            </div>
-
-            <div className={s.dgroup.group}>
-              <div className={s.dgroup.title}>실행 계약</div>
-              <Kv>
-                <KvKey>실행 방식</KvKey>
-                <KvVal>{cond ? '조건 확인 — 디스패치 없이 폴링' : '테라폼 잡 — 디스패치 후 폴링'}</KvVal>
-                {cond ? (
-                  <>
-                    <KvKey>
-                      polling<EffTag />
-                    </KvKey>
-                    <KvVal>{fmtDuration(detail.effective_polling_interval)}</KvVal>
-                    <KvKey>
-                      재시도 예산<EffTag />
-                    </KvKey>
-                    <KvVal>{detail.effective_max_fail_count}회</KvVal>
-                  </>
-                ) : (
-                  <>
-                    <KvKey>
-                      실행 타임아웃<EffTag />
-                    </KvKey>
-                    <KvVal>{fmtDuration(detail.effective_execution_timeout)}</KvVal>
-                    <KvKey>
-                      재시도 예산<EffTag />
-                    </KvKey>
-                    <KvVal>{detail.effective_max_fail_count}회</KvVal>
-                    {detail.consumes_terraform_slot && (
-                      <>
-                        <KvKey>TF 슬롯</KvKey>
-                        <KvVal className="cursor-help">
-                          <span title="consumes_terraform_slot — 동시 실행 상한(slot cap)을 차감하는 task">사용</span>
-                        </KvVal>
-                      </>
-                    )}
-                  </>
-                )}
-              </Kv>
-              <div className={s.dgroup.formula}>판정: {KIND_POLICY[task.kind]}</div>
-            </div>
-
+            {/* R22 (F2, 오너 선택) — 진행 기록이 패널 본문의 주인공. */}
             <div className={s.dgroup.group}>
               <div className={s.dgroup.title}>진행 기록</div>
               <Kv>
@@ -246,11 +199,69 @@ export function TaskDetailBody({
               </Kv>
               <RecordTail detail={detail} />
             </div>
+
+            {/* 정의·실행 계약 = 접힌 참조 섹션 (ui-ux-pro-max §8 progressive
+                disclosure). native <details> — 열림 상태는 브라우저 몫. */}
+            <details className={s.dgroup.refDetails}>
+              <summary className={s.dgroup.refSummary}>
+                <Icon name="chev-r" size="sm" className={s.dgroup.refChevron} />
+                정의 · 실행 계약
+                <span className={s.dgroup.refSummaryNote}>— 참조 정보</span>
+              </summary>
+              <div className={s.dgroup.refBody}>
+                <div className={s.dgroup.title}>정의</div>
+                <Kv>
+                  <KvKey>task_definition</KvKey>
+                  <KvVal mono>{detail.task_definition}</KvVal>
+                  <KvKey>operation</KvKey>
+                  {detail.operation ? <KvVal mono>{detail.operation}</KvVal> : <KvVal>{displayName}</KvVal>}
+                </Kv>
+              </div>
+              <div className={s.dgroup.refBodyNext}>
+                <div className={s.dgroup.title}>실행 계약</div>
+                <Kv>
+                  <KvKey>실행 방식</KvKey>
+                  <KvVal>{cond ? '조건 확인 — 디스패치 없이 폴링' : '테라폼 잡 — 디스패치 후 폴링'}</KvVal>
+                  {cond ? (
+                    <>
+                      <KvKey>
+                        polling<EffTag />
+                      </KvKey>
+                      <KvVal>{fmtDuration(detail.effective_polling_interval)}</KvVal>
+                      <KvKey>
+                        재시도 예산<EffTag />
+                      </KvKey>
+                      <KvVal>{detail.effective_max_fail_count}회</KvVal>
+                    </>
+                  ) : (
+                    <>
+                      <KvKey>
+                        실행 타임아웃<EffTag />
+                      </KvKey>
+                      <KvVal>{fmtDuration(detail.effective_execution_timeout)}</KvVal>
+                      <KvKey>
+                        재시도 예산<EffTag />
+                      </KvKey>
+                      <KvVal>{detail.effective_max_fail_count}회</KvVal>
+                      {detail.consumes_terraform_slot && (
+                        <>
+                          <KvKey>TF 슬롯</KvKey>
+                          <KvVal className="cursor-help">
+                            <span title="consumes_terraform_slot — 동시 실행 상한(slot cap)을 차감하는 task">사용</span>
+                          </KvVal>
+                        </>
+                      )}
+                    </>
+                  )}
+                </Kv>
+                <div className={s.dgroup.formula}>판정: {KIND_POLICY[task.kind]}</div>
+              </div>
+            </details>
           </>
         ) : !detailLoaded ? (
           // Detail fetch still in flight — layout-stable placeholder, NOT an error.
           <div className={s.dgroup.group}>
-            <div className={s.dgroup.title}>정의</div>
+            <div className={s.dgroup.title}>진행 기록</div>
             <div className={cn(detailStyles.skeleton, 'h-24')} aria-hidden="true" />
           </div>
         ) : (

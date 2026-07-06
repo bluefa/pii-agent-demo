@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R22 시안 랩 — 상세 헤더 메타 · Task 패널 계층</title>
+<style>
+/* ══ LIN-20 Modern Admin 리디자인 ══
+   치수·표면 규칙: admin-pipeline-design-system.md (variant B: 다크 크롬 + 라이트 캔버스).
+   토큰은 전부 CSS 변수 — 콘텐츠 다크모드는 :root 오버라이드만 추가하면 되는 구조. */
+:root{
+  /* neutral */
+  --gray-50:#F9FAFB; --gray-100:#F2F4F7; --gray-200:#E4E7EC; --gray-300:#D0D5DD;
+  --gray-400:#98A2B3; --gray-500:#667085; --gray-600:#475467; --gray-700:#344054;
+  --gray-800:#1D2939; --gray-900:#101828;
+  /* surfaces & text */
+  --bg-page:#F9FAFB; --bg-card:#FFFFFF; --bg-inner:#F9FAFB;
+  --border:#E4E7EC; --border-strong:#D0D5DD;
+  --text-strong:var(--gray-900); --text-medium:var(--gray-700);
+  --text-weak:var(--gray-500); --text-faint:var(--gray-400);
+  /* primary */
+  --primary:#2563EB; --primary-hover:#1D4ED8; --primary-bg:#EFF4FF; --primary-ring:#D1E0FF;
+  /* status */
+  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3; --ok-border:#A6F4C5;
+  --err:#F04438; --err-text:#B42318; --err-bg:#FEF3F2; --err-border:#FDA29B;
+  --info:#2E90FA; --info-text:#175CD3; --info-bg:#EFF8FF; --info-border:#B2DDFF;
+  --warn:#F79009; --warn-text:#B54708; --warn-bg:#FFFAEB; --warn-border:#FEDF89;
+  --off:#98A2B3; --off-text:#475467; --off-bg:#F2F4F7;
+  /* pipeline type (R18 §1 — 아이콘+색+enum 3중 인코딩) + solid danger CTA (R18 §7-1) */
+  --type-install:#2563EB; --type-delete:#B42318; --type-custom:#6941C6;
+  --err-solid:#D92D20; --err-solid-hover:#B42318;
+  /* provider */
+  --pv-aws:#EC7211; --pv-azure:#0078D4; --pv-gcp:#4285F4; --pv-idc:#344054; --pv-sdu:#7F56D9;
+  /* flow canvas (R19 선 격자) + brand logomarks — 색은 :root로만, SVG 로고 내부만 아트워크 예외 */
+  --flow-grid:rgba(208,213,221,.35); --flow-grid-strong:rgba(208,213,221,.7);
+  --brand-tf:#7B42BC; --brand-aws-ink:#232F3E; --brand-aws-smile:#FF9900;
+  --white:#FFFFFF;
+  /* shape */
+  --r-card:10px; --r-inner:8px; --r-ctl:8px;
+  --shadow-xs:0 1px 2px rgba(16,24,40,.05);
+  --shadow-lg:0 12px 32px -8px rgba(16,24,40,.16),0 4px 10px -4px rgba(16,24,40,.08);
+  --font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Pretendard','Malgun Gothic',system-ui,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+/* base = t-body (admin-pipeline-typography.md §0) */
+html,body{margin:0;padding:0;background:var(--bg-page);color:var(--text-strong);
+  font-family:var(--font-sans);font-size:14px;letter-spacing:-0.014em;line-height:1.4;
+  -webkit-font-smoothing:antialiased;min-width:1080px}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+
+/* ── Icons (inline SVG sprite) ── */
+svg.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+svg.ic.sm{width:14px;height:14px;vertical-align:-2px}
+svg.ic.lg{width:22px;height:22px}
+.hint{display:inline-flex;color:var(--text-faint);cursor:help;vertical-align:-2px}
+.hint svg.ic{width:14px;height:14px}
+.hint:hover{color:var(--text-weak)}
+
+/* ── Type roles ── */
+.formula{font-family:var(--font-mono);font-size:12px;color:var(--text-faint);line-height:1.4} /* role: t-mono(캡션 변형) */
+.meta{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4}
+.note{font-size:14px;color:var(--text-medium);line-height:1.4}
+.pager-count{font-size:12px;color:var(--text-weak);font-variant-numeric:tabular-nums}
+.mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
+.link{color:var(--primary);font-weight:600;cursor:pointer}
+.link:hover{text-decoration:underline}
+.mt-16{margin-top:16px}.mt-12{margin-top:12px}
+.vrow{display:inline-flex;align-items:center;gap:6px}
+.muted{color:var(--text-weak)}
+
+/* ── App shell ── */
+.topnav{height:52px;background:#101828;border-bottom:1px solid #101828;
+  display:flex;align-items:stretch;gap:4px;padding:0 24px;position:sticky;top:0;z-index:20}
+.topnav .brand{color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;margin-right:20px}
+.topnav .brand::before{content:"";width:20px;height:20px;border-radius:6px;flex:none;
+  background:linear-gradient(135deg,var(--primary),#7F56D9)}
+.topnav .nav-item{color:#98A2B3;font-size:14px;font-weight:500;display:flex;align-items:center;
+  padding:0 12px;border-bottom:2px solid transparent;cursor:default}
+.topnav .nav-item.active{color:#fff;font-weight:600;border-bottom-color:var(--primary)}
+.layout{display:flex;min-height:calc(100vh - 52px)}
+.sidebar{width:216px;flex:none;background:#101828;border-right:1px solid #101828;padding:16px 12px}
+.sidebar .sb-title{font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--text-faint);
+  text-transform:uppercase;padding:8px 10px 10px;color:#667085}
+.sidebar .sb-item{display:block;padding:7px 10px;border-radius:6px;color:#B9C0CC;
+  font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px}
+.sidebar .sb-item:hover{background:#1D2939}
+.sidebar .sb-item.active{background:#1D2939;color:#fff;font-weight:600;
+  box-shadow:inset 2px 0 0 var(--primary)}
+.content{flex:1;padding:24px 32px 48px;min-width:0;max-width:1440px} /* R18 §7-4: 1280→1440 (오너: 오른쪽 여백 과대) */
+.breadcrumb{font-size:12px;color:var(--text-weak);margin-bottom:12px}
+.breadcrumb .crumb{cursor:pointer}
+.breadcrumb .crumb:hover{color:var(--text-medium);text-decoration:underline}
+.breadcrumb .sep{margin:0 6px;color:var(--text-faint)}
+.breadcrumb .cur{color:var(--text-medium);font-weight:600}
+.page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.page-head+.section-title{margin-top:0}
+.page-head h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.02em} /* role: t-title */
+.section-title{font-size:20px;font-weight:600;color:var(--text-strong);margin:64px 0 12px;line-height:1.2} /* 섹션 덩어리 간 64 (2026-07-05 오너: 40으론 부족) */
+.section-title:first-child{margin-top:0}
+.section-title .meta{font-weight:400}
+.section-desc{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4;margin:-4px 0 16px} /* R18 §3: 제목과 8px, 내용과 16px (오너: 4/12는 답답) */
+.subsection-title{font-size:14px;font-weight:600;color:var(--text-medium);margin:16px 0 10px}
+
+/* ── Card ── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);padding:20px 24px 24px}
+.card+.card{margin-top:16px} /* 같은 섹션 안 위아래 블록 간 16 통일 — 나란한 카드 gap 12와 구분 */
+
+/* ── StatCard ── */
+.stat-row{display:grid;grid-template-columns:repeat(3,minmax(0,260px));gap:12px}
+.stat{background:var(--gray-100);border:1px solid var(--border);border-radius:var(--r-card);
+  padding:20px 24px 24px} /* 회색 타일 = 읽기 전용 요약 표면(흰 카드 = 콘텐츠·상호작용) */
+.stat .lbl{font-size:14px;font-weight:600;color:var(--text-medium);display:flex;align-items:baseline;gap:6px} /* R18 §5: 주 라벨 2단 — 14/600 medium */
+.stat .lbl .lbl-period{font-size:12px;font-weight:400;color:var(--text-faint)} /* 기간 부가 — 12/400 faint */
+.stat .val{font-size:32px;font-weight:600;margin-top:12px;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums} /* role: t-display */
+.stat .val .den{color:var(--text-faint);font-weight:500;font-size:20px}
+.stat .sub{margin-top:6px}
+.stat.unavailable .val{color:var(--text-faint)}
+.stat.failed .val{color:var(--err-text)} /* 실패 카운트>0일 때만 부여 — 비대칭 강조 */
+
+/* ── IdentityBar — app ProjectPageMeta/IdentityBar 문법 이식 (2026-07-05 오너: "app 방식으로") ──
+   접힘 없음: CSP metadata까지 카드 하나에 상시 노출(오너: "접었다 폈다 불필요") */
+.idbar{position:relative;overflow:hidden;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-card);box-shadow:var(--shadow-xs);padding:16px 24px 16px 28px}
+.idbar::before{content:"";position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--ib-accent)}
+.idbar .idbar-row{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.idbar .idbar-meta{margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100)}
+.idbar .prov{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.idbar .picon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;flex-shrink:0;
+  background:color-mix(in srgb,var(--ib-accent) 12%,transparent);color:var(--ib-accent)}
+.idbar .pname{font-size:16px;font-weight:700;line-height:1.2;letter-spacing:-.02em;color:var(--text-strong)}
+.idbar .psub{margin-top:3px;font-size:12px;font-weight:600;color:var(--text-faint)}
+.idbar .div{align-self:stretch;width:1px;background:var(--gray-100);margin:2px 0;flex-shrink:0}
+.idbar .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.idbar .fld .k{font-size:12px;font-weight:600;color:var(--text-faint)}
+.idbar .fld .v{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text-strong)}
+.idbar .mgroup{min-width:0}
+.idbar .mg-label{font-size:12px;font-weight:600;color:var(--text-faint);margin-bottom:8px} /* meta 논리 그룹 캡션 — API 응답 구조 라벨 */
+
+/* ── FieldTag ── */
+.ftag{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;
+  padding:1px 6px;border-radius:4px;vertical-align:middle}
+.ftag.ext{background:var(--warn-bg);color:var(--warn-text)}
+.ftag.approx{background:var(--info-bg);color:var(--info-text)}
+.ftag.na{background:var(--off-bg);color:var(--text-weak)}
+.ftag.null{background:var(--off-bg);color:var(--text-faint)}
+
+/* ── Pills ── */
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600; /* role: t-caption */
+  height:20px;padding:0 9px 0 8px;border-radius:999px;letter-spacing:.02em}
+.pill .dot{width:6px;height:6px;border-radius:50%}
+.pill.s-RUNNING,.pill.s-IN_PROGRESS{background:var(--info-bg);color:var(--info-text)}
+.pill.s-RUNNING .dot,.pill.s-IN_PROGRESS .dot{background:var(--info);animation:pulse 1.6s ease-in-out infinite}
+.pill.s-READY{background:var(--primary-bg);color:var(--primary)} .pill.s-READY .dot{background:var(--primary)}
+.pill.s-DONE{background:var(--ok-bg);color:var(--ok-text)} .pill.s-DONE .dot{background:var(--ok)}
+.pill.s-FAILED{background:var(--err-bg);color:var(--err-text)} .pill.s-FAILED .dot{background:var(--err)}
+.pill.s-CANCELLED{background:var(--off-bg);color:var(--off-text)} .pill.s-CANCELLED .dot{background:var(--off)}
+.pill.s-BLOCKED{background:var(--off-bg);color:var(--off-text)} .pill.s-BLOCKED .dot{background:var(--gray-300)}
+.pill.s-PENDING{background:var(--warn-bg);color:var(--warn-text)} .pill.s-PENDING .dot{background:var(--warn)} /* 시작 지연 대기(LIN-30) — 진행(파랑)·차단(회색)과 구분 */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ── ProviderTag: 중립 텍스트 + 브랜드 컬러 dot ── */
+.ptag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text-medium)}
+.ptag .pdot{width:8px;height:8px;border-radius:2.5px}
+.pv-aws .pdot{background:var(--pv-aws)}
+.pv-azure .pdot{background:var(--pv-azure)}
+.pv-gcp .pdot{background:var(--pv-gcp)}
+.pv-idc .pdot{background:var(--pv-idc)}
+.pv-sdu .pdot{background:var(--pv-sdu)}
+
+/* ── PipelineTypeTag (R18 §1): 아이콘(유형색)+enum 텍스트(medium) — 채운 pill과 문법 분리 ── */
+.typetag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-medium);font-family:var(--font-mono);white-space:nowrap}
+.typetag svg.ic{width:14px;height:14px;vertical-align:-2px}
+.typetag.t-install svg.ic{color:var(--type-install)}
+.typetag.t-delete svg.ic{color:var(--type-delete)}
+.typetag.t-custom svg.ic{color:var(--type-custom)}
+
+/* ── ProgressBar ── */
+.pbar{display:inline-flex;align-items:center;gap:8px}
+.pbar .track{display:block;width:110px;height:6px;border-radius:999px;background:var(--gray-200);overflow:hidden}
+.pbar .fill{display:block;height:100%;background:var(--primary);border-radius:999px}
+.pbar.done .fill{background:var(--ok)}
+/* 바 색 = 상태색 문법 (게이트 B P1-1: FAILED가 RUNNING과 같은 파랑이면 "진행 중"으로 오독) */
+.pbar.s-FAILED .fill{background:var(--err)}
+.pbar.s-CANCELLED .fill{background:var(--off)}
+.pbar .lbl{font-size:12px;font-weight:600;color:var(--text-weak);font-variant-numeric:tabular-nums} /* role: t-key */
+
+/* ── Table ── */
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-size:12px;font-weight:600;color:var(--text-weak);letter-spacing:.03em;
+  height:34px;padding:0 12px;border-bottom:1px solid var(--border)}
+.tbl td{height:44px;padding:8px 12px;border-bottom:1px solid var(--gray-100);color:var(--text-medium);
+  vertical-align:middle;font-variant-numeric:tabular-nums}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover td{background:var(--gray-50)}
+.tbl .mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
+.tbl td.chev{text-align:right;width:48px;white-space:nowrap}
+.chev{color:var(--text-faint)}
+tr.click:hover .btn.round{border-color:var(--primary);color:var(--primary)} /* 행 이동 어포던스 — hover 시 primary */
+
+/* ── FilterBar ── */
+.filterbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.searchbox{position:relative;display:inline-block}
+.searchbox svg.ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;
+  color:var(--text-faint);pointer-events:none}
+.searchbox .input{padding-left:30px;width:100%}
+.input,select.sel{height:32px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);padding:0 10px;
+  font-size:14px;background:var(--bg-card);color:var(--text-strong);font-family:inherit}
+.input::placeholder{color:var(--text-faint)}
+.input:focus,select.sel:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.seg{display:inline-flex;background:var(--gray-100);border-radius:var(--r-ctl);padding:2px}
+.seg button{border:0;background:transparent;height:28px;padding:0 12px;border-radius:6px;font-size:12px;
+  font-weight:600;color:var(--text-weak);cursor:pointer}
+.seg button.on{background:var(--bg-card);color:var(--text-strong);box-shadow:var(--shadow-xs)}
+
+/* ── Filter chips (R18 §4, Komiser 레퍼런스): 스코프 칩 + 활성 필터 ×칩 + 초기화 + N건 ── */
+.chiprow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 16px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;
+  border:1px solid var(--border-strong);background:var(--bg-card);font-size:12px}
+.chip.rm{padding-right:6px} /* × 히트영역 확보 */
+.chip .k{color:var(--text-weak)}
+.chip .v{font-weight:600;color:var(--text-strong)}
+.chip .x{display:inline-flex;align-items:center;justify-content:center;width:20px;height:28px;padding:0;margin:0;
+  border:0;background:transparent;color:var(--text-faint);cursor:pointer;border-radius:999px} /* 히트 20×28 */
+.chip .x:hover{color:var(--text-medium)}
+.chip-reset{display:inline-flex;align-items:center;height:28px;padding:0 8px;border:0;background:transparent;
+  border-radius:6px;font-size:12px;font-weight:600;color:var(--text-weak);cursor:pointer}
+.chip-reset:hover{background:var(--gray-100);color:var(--text-medium)}
+.chip-count{margin-left:auto;font-size:12px;color:var(--text-weak);font-variant-numeric:tabular-nums}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;
+  border-radius:var(--r-ctl);font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;
+  transition:background .12s,border-color .12s,color .12s}
+.btn:disabled{cursor:not-allowed}
+.btn.primary{background:var(--primary);color:#fff;box-shadow:var(--shadow-xs)}
+.btn.primary:not(:disabled):hover{background:var(--primary-hover)}
+.btn.primary:disabled{background:var(--gray-100);color:var(--text-faint);box-shadow:none}
+.btn.secondary{background:var(--bg-card);color:var(--text-medium);border-color:var(--border-strong);box-shadow:var(--shadow-xs)}
+.btn.secondary:not(:disabled):hover{background:var(--gray-50)}
+.btn.secondary:disabled{color:var(--text-faint);border-color:var(--border);box-shadow:none}
+.btn.ghost{background:transparent;color:var(--text-weak)}
+.btn.ghost:not(:disabled):hover{background:var(--gray-100);color:var(--text-medium)}
+.btn.ghost:disabled{color:var(--gray-300)}
+.btn.danger{background:var(--bg-card);color:var(--err-text);border-color:var(--err-border);box-shadow:var(--shadow-xs)}
+.btn.danger:not(:disabled):hover{background:var(--err-bg)}
+.btn.danger:disabled{color:var(--text-faint);border-color:var(--border);box-shadow:none}
+.btn.dangersolid{background:var(--err-solid);color:#fff;box-shadow:var(--shadow-xs)} /* R18 §7-1: solid danger CTA(중단) */
+.btn.dangersolid:not(:disabled):hover{background:var(--err-solid-hover)}
+.btn.dangersolid:disabled{background:var(--gray-100);color:var(--text-faint);box-shadow:none}
+.btn.sm{height:28px;padding:0 10px;font-size:12px}
+.btn.round{width:28px;padding:0;border-radius:999px} /* 원형 아이콘 버튼 — 이동(↗) 전용, sm과 조합 */
+
+/* ── KeyValueGrid ── */
+.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 16px;font-size:14px}
+.kv .k{font-size:12px;font-weight:600;color:var(--text-weak);line-height:1.4} /* role: t-key */
+.kv .v{color:var(--text-strong);font-weight:500;line-height:1.4}
+.kv .v.mono{font-family:var(--font-mono);font-size:12px}
+.kv.wide{grid-template-columns:150px 1fr}
+
+/* ── Collapsible ── */
+details.collap{border:1px solid var(--border);border-radius:var(--r-inner);margin-top:16px;background:var(--bg-card)}
+details.collap>summary{cursor:pointer;padding:10px 14px;font-size:14px;font-weight:600;color:var(--text-medium);
+  list-style:none;display:flex;align-items:center;gap:8px}
+details.collap>summary::-webkit-details-marker{display:none}
+details.collap>summary::before{content:"";width:12px;height:12px;flex:none;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center/contain no-repeat;
+  transition:transform .15s}
+details.collap[open]>summary::before{transform:rotate(90deg)}
+details.collap>.body{padding:0 14px 14px}
+
+/* ── Task flow (v16 Athena 노드 문법 차용 — 오너 2026-07-05 6차) ──
+   캔버스: 점 격자 배경 + 가로 스크롤(task 다수 대비). 노드: 상태 tint 아이콘 박스 28px +
+   이름 한 행, kind 칩, 상태별 "가장 유용한 한 줄"(nd-meta). 상태는 테두리·아이콘·meta로만
+   표현 — kind 칩은 분류 정보라 중립 유지(기존 결정). BLOCKED만 dashed(대기 문법). */
+/* R19.5: .flow = flex row (스크롤 영역 | 도킹 패널). 격자는 선(fine 20px + strong 100px), 세로 중앙,
+   패딩은 .flow-scroll에. 패널은 .flow-scroll 밖 형제라 가로 스크롤바를 절대 가리지 않는다(오너). */
+.flow{display:flex;align-items:stretch;min-height:440px;overflow:hidden;
+  background-color:var(--bg-inner);
+  background-image:linear-gradient(var(--flow-grid) 1px,transparent 1px),linear-gradient(90deg,var(--flow-grid) 1px,transparent 1px),linear-gradient(var(--flow-grid-strong) 1px,transparent 1px),linear-gradient(90deg,var(--flow-grid-strong) 1px,transparent 1px);
+  background-size:20px 20px,20px 20px,100px 100px,100px 100px;
+  border:1px solid var(--border);border-radius:12px}
+.flow .flow-scroll{flex:1;min-width:0;overflow-x:auto;padding:28px 20px;display:flex;flex-direction:column;justify-content:center}
+.flow .flow-track{display:flex;align-items:center;width:max-content;margin-inline:auto}
+.tnode{flex:none;width:184px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  padding:12px 12px 10px;position:relative;cursor:pointer;box-shadow:var(--shadow-xs);
+  transition:border-color .15s,box-shadow .15s}
+.tnode:hover{border-color:var(--border-strong)}
+.tnode:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+/* 아이콘 쌍(kind 마크 + provider 마크) — 구 상태 타일 대체 */
+.tnode .nd-icons{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.tnode .nd-mark{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;background:var(--bg-card);border:1px solid var(--border)}
+.tnode .nd-mark.m-cond{color:var(--text-weak);background:var(--gray-100);border-color:var(--gray-100)}
+.tnode .nd-mark-txt{width:auto;min-width:26px;padding:0 6px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;background:var(--gray-100);border:1px solid var(--gray-100);font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--gray-600)}
+/* n8n 코너 상태 배지(우상단) — 숫자는 12/700 tabular */
+.tnode .nd-badge{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;box-shadow:0 0 0 2px var(--bg-inner)}
+.tnode .nd-badge svg{width:12px;height:12px;stroke-width:3}
+.tnode .nd-badge.b-done{background:var(--ok);color:var(--white)}
+.tnode .nd-badge.b-failed{background:var(--err);color:var(--white)}
+.tnode .nd-badge.b-cancelled{background:var(--gray-400);color:var(--white)}
+.tnode .nd-badge.b-running{background:var(--bg-card);border:1px solid var(--info-border)}
+.tnode .nd-badge.b-ready{background:var(--warn);color:var(--white)}
+.tnode .nd-badge.b-queued{background:var(--gray-200);color:var(--text-weak)}
+.tnode .nd-name{font-size:14px;font-weight:600;line-height:1.3;color:var(--text-strong);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tnode .nd-meta{font-size:12px;color:var(--text-weak);line-height:1.4;min-height:17px;margin-top:6px;
+  word-break:keep-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tnode.s-done{border-color:var(--ok-border)}
+.tnode.s-running{border-color:var(--info)}
+.tnode.s-ready{border-color:var(--warn-border)}
+.tnode.s-failed{border-color:var(--err-border);box-shadow:0 0 0 4px rgba(240,68,56,.10)}
+.tnode.s-failed .nd-meta{color:var(--err-text);font-weight:600}
+.tnode.s-queued{border-style:dashed;background:rgba(255,255,255,.7)}
+.tnode.s-queued .nd-name{color:var(--text-weak)}
+.tnode.s-cancelled{background:rgba(255,255,255,.7)}
+.tnode.s-cancelled .nd-name{color:var(--text-weak)}
+.spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--info-border);border-top-color:var(--info);display:inline-block}
+.kindchip{display:inline-flex;flex:none;align-items:center;font-size:12px;font-weight:600; /* role: t-caption */height:20px;padding:0 6px;
+  border-radius:4px;background:var(--off-bg);color:var(--text-weak);font-family:var(--font-mono)}
+.kindchip.cond{background:var(--off-bg);color:var(--text-medium);border:1px dashed var(--gray-300)} /* kind=분류 정보 — 파랑(상태·액션)과 분리 */
+.connector{flex:none;width:56px;height:14px;position:relative}
+.connector .cdot{position:absolute;left:1px;top:50%;transform:translateY(-50%);width:6px;height:6px;border-radius:50%;background:var(--gray-300)}
+.connector::before{content:"";position:absolute;left:6px;right:9px;top:50%;margin-top:-1px;height:2px;background:var(--gray-300);border-radius:1px}
+.connector::after{content:"";position:absolute;right:2px;top:50%;transform:translateY(-50%);border:5px solid transparent;border-left:6px solid var(--gray-300);border-right:0}
+.connector.done .cdot{background:var(--ok)}
+.connector.done::before{background:var(--ok)}
+.connector.done::after{border-left-color:var(--ok)}
+.connector.active .cdot{background:var(--info)}
+.connector.active::before{background:repeating-linear-gradient(90deg,var(--info) 0 6px,rgba(46,144,250,.15) 6px 12px)}
+.connector.active::after{border-left-color:var(--info)}
+.connector.toFail .cdot{background:var(--err)}
+.connector.toFail::before{background:repeating-linear-gradient(90deg,var(--err) 0 6px,rgba(240,68,56,.15) 6px 12px)}
+.connector.toFail::after{border-left-color:var(--err)}
+@keyframes nodePulse{0%,100%{box-shadow:0 0 0 3px rgba(46,144,250,.16)}50%{box-shadow:0 0 0 8px rgba(46,144,250,.04)}}
+@keyframes nodePulseAmber{0%,100%{box-shadow:0 0 0 3px rgba(247,144,9,.14)}50%{box-shadow:0 0 0 8px rgba(247,144,9,.03)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes flowDash{to{background-position:12px 0}}
+@media (prefers-reduced-motion:no-preference){
+  .tnode.s-running{animation:nodePulse 1.8s ease-in-out infinite}
+  .tnode.s-ready{animation:nodePulseAmber 2.2s ease-in-out infinite}
+  .spin{animation:spin .8s linear infinite}
+  .connector.active::before{animation:flowDash .5s linear infinite}
+}
+
+/* ── err chip + lg pill (flow-card header; R20 — target 상태바는 삭제됨) ── */
+.sb-err{font-family:var(--font-mono);font-size:12px;color:var(--err-text);background:var(--err-bg);
+  padding:2px 8px;border-radius:6px}
+.pill.lg{height:28px;font-size:14px;padding:0 12px 0 10px}
+.pill.lg .dot{width:8px;height:8px}
+.tblwrap{overflow-x:auto} /* 넘치는 건 표만 — 카드 전체가 밀리지 않게 */
+
+/* ── Merged flow card (R20): 헤더 = 한 줄에 한 사실 — {현재 태스크·상태·진행 상태}
+   라벨 72px 컬럼 공유. 헤더는 음수 마진으로 카드 가장자리까지(FAILED 그라디언트). */
+.fc-head{margin:-20px -24px 16px;padding:20px 24px 16px;border-top-left-radius:var(--r-card);
+  border-top-right-radius:var(--r-card);border-bottom:1px solid var(--gray-100);
+  display:flex;flex-direction:column;gap:8px} /* 행 간 8px, 헤더↔캔버스 16px */
+.fc-head.failed{border-bottom-color:#F4B3AD;background:linear-gradient(135deg,#FFF1F0,#FFFFFF 55%)}
+.fc-head.failed .pill.lg{box-shadow:0 0 0 1px var(--err-border)}
+.fc-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+.fc-rlabel{width:72px;flex:none;font-size:12px;font-weight:600;color:var(--text-faint);white-space:nowrap}
+.fc-runmeta{margin-left:auto;font-size:12px;color:var(--text-weak)}
+.fc-tname{font-size:16px;font-weight:700;line-height:1.2;color:var(--text-strong)} /* task명이 1행의 주인공 */
+.fc-tretry{font-size:12px;color:var(--text-weak)}
+.fc-body{display:flex;align-items:flex-start;gap:24px;min-width:0} /* 캔버스 | 패널 */
+.fc-body>.flow{flex:1;min-width:0}
+.tnode.s-selected{outline:2px solid var(--primary);outline-offset:2px} /* 선택 노드 링 */
+/* Task 상세: 모달 → 카드 내 우측 인라인 패널(R18 §7-3) */
+/* R19.5: 캔버스 맨 오른쪽에 풀하이트로 도킹되는 드로어(.flow-scroll의 형제) — 내부에서 세로 스크롤 */
+.taskpanel{width:400px;flex:none;min-width:0;max-height:440px;background:var(--bg-card);border-left:1px solid var(--border);
+  overflow-y:auto;overscroll-behavior:contain;padding:16px 20px 20px}
+@keyframes panelIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:no-preference){.taskpanel{animation:panelIn .2s ease-out}}
+.taskpanel .mhead{display:flex;align-items:flex-start;gap:8px}
+.taskpanel h3{margin:0;font-size:16px;font-weight:700}
+.taskpanel .tbl th{height:auto;padding:4px 8px 6px} /* 패널 폭에 맞춘 compact attempts */
+.taskpanel .tbl td{height:auto;padding:8px}
+@keyframes panelIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:no-preference){.taskpanel{animation:panelIn .2s ease-out}}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(16,24,40,.5);display:flex;align-items:center;
+  justify-content:center;z-index:50}
+.modal{background:var(--bg-card);border-radius:12px;box-shadow:var(--shadow-lg);
+  width:480px;max-width:90vw;padding:22px 24px}
+.modal.wide{width:720px} /* R21.5 — 시작 모달(타일+미니 플로우) */
+.modal h3{margin:0 0 6px;font-size:16px;font-weight:700}
+.modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:14px;line-height:1.4}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.dgroup{border-top:1px solid var(--gray-100);padding-top:16px;margin-top:16px} /* 그룹 경계 = 상단 헤어라인 */
+.dgroup .subsection-title{margin:0 0 10px}
+/* ── R21 (A1+B1+C1): 유형 타일 · 미니 플로우 · front-matter 스트립 ── */
+.ttile-row{display:flex;gap:10px;flex-wrap:wrap}
+.ttile{flex:1;min-width:130px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:var(--bg-card);
+  border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;text-align:left;font-family:inherit;
+  transition:border-color .15s,box-shadow .15s}
+.ttile:hover:not(:disabled){border-color:var(--gray-300);box-shadow:var(--shadow-sm)}
+.ttile:disabled{cursor:not-allowed;opacity:.55}
+.ttile .tico{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;margin-bottom:2px}
+.ttile.t-install .tico{background:color-mix(in srgb,var(--type-install) 10%,transparent);color:var(--type-install)}
+.ttile.t-delete .tico{background:color-mix(in srgb,var(--type-delete) 10%,transparent);color:var(--type-delete)}
+.ttile.t-custom .tico{background:color-mix(in srgb,var(--type-custom) 10%,transparent);color:var(--type-custom)}
+.ttile .ttl{font-size:14px;font-weight:700;color:var(--text-strong)}
+.ttile .tdesc{font-size:12px;color:var(--text-weak);line-height:1.4}
+.pv-ident{font-size:13px;color:var(--text-medium)}
+.pvflow{display:flex;align-items:center;margin-top:14px;padding:14px 12px;border:1px solid var(--border);border-radius:10px;overflow-x:auto;
+  background-image:linear-gradient(var(--flow-grid) 1px,transparent 1px),linear-gradient(90deg,var(--flow-grid) 1px,transparent 1px);background-size:20px 20px}
+.pvnode{flex:none;display:flex;flex-direction:column;gap:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;min-width:118px}
+.pvnode .nd-icons{display:flex;gap:6px}
+.pvflow .nd-mark{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;background:var(--bg-card);border:1px solid var(--border)}
+.pvflow .nd-mark.m-cond{color:var(--text-weak);background:var(--gray-100);border-color:var(--gray-100)}
+.pvflow .nd-mark-txt{width:auto;min-width:26px;padding:0 6px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;background:var(--gray-100);border:1px solid var(--gray-100);font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--gray-600)}
+.pvnode .pvname{font-size:12px;font-weight:600;color:var(--text-strong);line-height:1.3}
+.pvconn{flex:none;width:28px;height:2px;background:var(--gray-300)}
+.frontmeta{margin:10px 0 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--gray-100);
+  padding-bottom:12px;font-size:12px;color:var(--text-medium)}
+.frontmeta .fm{display:inline-flex;align-items:center;gap:5px}
+.frontmeta .fmk{color:var(--text-faint);font-weight:600}
+.frontmeta .fmsep{width:1px;height:12px;background:var(--gray-100)}
+.frontmeta b{color:var(--text-strong)}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--gray-900);
+  color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;font-weight:500;box-shadow:var(--shadow-lg);
+  z-index:60;display:flex;align-items:center;gap:8px}
+.toast svg.ic{color:var(--ok)}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:32px;color:var(--text-weak);font-size:14px;line-height:1.4}
+.empty.center{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:240px}
+.empty .ico{display:inline-flex;width:40px;height:40px;border-radius:50%;background:var(--gray-100);
+  color:var(--text-faint);align-items:center;justify-content:center;margin-bottom:10px}
+/* ── 서비스 레일 (R20.5, /integration/services 레퍼런스): 컨텐츠 왼쪽에 딱 붙는
+   풀하이트 패널 — 카드 아님. .content 패딩(24 32 48)을 음수 마진으로 벗어난다. */
+.svc-split{display:flex;align-items:stretch;margin:-24px 0 -48px -32px;min-height:calc(100vh - 52px)}
+.svcrail{width:280px;flex:none;display:flex;flex-direction:column;background:var(--bg-card);
+  border-right:1px solid var(--border);padding:24px 16px 16px}
+.svcrail .rail-title{margin:0 4px 16px;font-size:16px;font-weight:700;color:var(--text-strong)}
+.svc-main{flex:1;min-width:0;padding:24px 0 48px 32px}
+#svclist{flex:1;min-height:0;overflow-y:auto}
+#svclist .sb-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;
+  border-radius:6px;cursor:pointer;margin-bottom:2px}
+#svclist .sb-item:hover{background:var(--gray-100)}
+#svclist .sb-item.active{background:var(--primary-bg)}
+#svclist .sb-item .code{font-size:14px;font-weight:600;color:var(--text-strong)}
+#svclist .sb-item.active .code{color:var(--primary)}
+#svclist .sb-item .name{font-size:12px;color:var(--text-weak)}
+.svcrail .railfoot{padding-top:12px}
+.meta-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.meta-2>.card{margin-top:0}
+.notice{background:var(--bg-inner);border:1px solid var(--border);color:var(--text-weak);font-size:12px;
+  padding:8px 10px;border-radius:var(--r-inner);display:inline-block;line-height:1.4}
+
+/* ── lab-only chrome ── */
+body{padding:32px 40px 80px;min-width:0}
+.labwrap{max-width:1360px;margin:0 auto}
+.labhead h1{font-size:24px;font-weight:700;letter-spacing:-.02em;margin:0 0 8px}
+.labnote{font-size:13px;color:var(--text-weak);line-height:1.5;margin:0 0 8px;max-width:960px}
+.labnote code{font-family:var(--font-mono);font-size:12px;background:var(--gray-100);padding:1px 5px;border-radius:4px}
+.lab-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
+.lab-grid3>.card{min-width:0}
+.lab-variant{margin-top:16px}
+.lab-tag{font-size:12px;font-weight:700;color:var(--text-weak);margin-bottom:12px;letter-spacing:.02em}
+.lab-tag.rec{color:var(--primary)}
+.lab-why{font-size:12px;color:var(--text-weak);line-height:1.5;border-top:1px solid var(--gray-100);padding-top:10px;margin-top:14px}
+.lab-pagecanvas{background:var(--bg-page);border:1px solid var(--gray-100);border-radius:10px;padding:24px}
+.crumbs{font-size:12px;color:var(--text-weak);display:flex;gap:6px;align-items:center}
+.crumbs .sep{color:var(--gray-300)}
+.tabnum{font-variant-numeric:tabular-nums}
+.lab-panel{width:auto;max-height:none;border-left:0;border:1px solid var(--border);border-radius:10px;padding:20px;animation:none}
+.lab-details summary::-webkit-details-marker{display:none}
+.lab-details summary{list-style:none;display:flex;align-items:center;gap:6px}
+.lab-details summary::before{content:"▸";font-size:11px;color:var(--text-faint);transition:transform .15s}
+.lab-details[open] summary::before{transform:rotate(90deg)}
+.section-title:first-of-type{margin-top:28px}
+</style></head>
+<body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4.2-4.2"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+<symbol id="i-chev-l" viewBox="0 0 24 24"><path d="M15 18.5 8.5 12 15 5.5"/></symbol>
+<symbol id="i-arrow-r" viewBox="0 0 24 24"><path d="M4 12h15m-6.5-6.5L19 12l-6.5 6.5"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m4.5 12.5 5 5L19.5 7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></symbol>
+<symbol id="i-circle-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m6.5 6.5 11 11"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.4 5h13.2L22 12v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5z"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5h.01"/></symbol>
+<symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.3 5.2-5.2 2.3 2.3-5.2z"/></symbol>
+<symbol id="i-cursor" viewBox="0 0 24 24"><path d="m5 3 7.5 17 2-7.5L22 10.5z"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l2.8 1.8"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.62-1.46A4.5 4.5 0 0 1 17.5 18H7Z"/></symbol>
+<symbol id="i-arrow-ur" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></symbol>
+<symbol id="i-flow" viewBox="0 0 24 24"><circle cx="4.5" cy="12" r="2.3"/><circle cx="12" cy="12" r="2.3"/><circle cx="19.5" cy="12" r="2.3"/><path d="M6.8 12h2.9m4.6 0h2.9"/></symbol>
+<symbol id="i-install" viewBox="0 0 24 24"><path d="M12 3.5V13m0 0 4-4m-4 4-4-4"/><path d="M4 16.5V18a2.5 2.5 0 0 0 2.5 2.5h11A2.5 2.5 0 0 0 20 18v-1.5"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15"/><path d="M9.5 7V5.4A1.4 1.4 0 0 1 10.9 4h2.2a1.4 1.4 0 0 1 1.4 1.4V7"/><path d="M6.8 7 7.5 19a1.9 1.9 0 0 0 1.9 1.8h5.2a1.9 1.9 0 0 0 1.9-1.8L17.2 7"/><path d="M10.2 11v5.5m3.6-5.5v5.5"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7.5h3.2m4.6 0H20"/><circle cx="9.7" cy="7.5" r="2.2"/><path d="M4 16.5h8.2m4.6 0H20"/><circle cx="14.7" cy="16.5" r="2.2"/></symbol>
+<symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.6"/></symbol>
+</defs></svg>
+<div class="labwrap">
+  <div class="labhead"><h1>R22 시안 랩 — 파이프라인 상세 헤더 · Task 패널 정보 계층</h1></div>
+  <p class="labnote">오너 피드백: ① 상세 헤더의 "1003 · Azure / 유형 / 생성 / 마지막 활동 / 실행 ID / 레시피" 한 줄 카드가 어색함
+  — Target Source 정보와 파이프라인 정보의 계층 정리 필요, 대상 이동은 아이콘 버튼 대신 <b>명시적 파란 텍스트 링크</b>.
+  ② Task 상세 패널은 정의·실행 계약보다 <b>진행 기록</b>이 훨씬 중요. 모든 안은 실제 앱 토큰·컴포넌트 문법으로 렌더.</p>
+  <p class="labnote">근거(ui-ux-pro-max): §8 Forms — <code>progressive disclosure</code>(참조 정보를 앞세워 압도하지 말 것) ·
+  §9 Navigation — 이동 어포던스는 명시적으로 · Analytics 패턴 — Drill-Down은 최신 기록이 첫 화면.</p>
+
+  <div class="section-title">① 상세 헤더 — Target Source / 파이프라인 메타 구성 (D)</div>
+  <div class="section-desc">공통: 아이콘 원형 버튼 삭제 → 우측 파란 텍스트 링크 "Target Source 1003 상세 정보 확인 ↗"</div>
+  <div class="card lab-variant">
+  <div class="lab-tag">D1 — FrontMeta 스트립 — 계층 없이 평탄 나열</div>
+  <div class="lab-pagecanvas"><div class="crumbs" style="margin-bottom:16px">서비스 검색 <span class="sep">›</span> <a class="link" style="font-weight:500">1003</a> <span class="sep">›</span> 파이프라인 #124</div>
+<div class="page-head"><h1>파이프라인 현황</h1><button class="btn dangersolid"><svg class="ic sm" aria-hidden="true"><use href="#i-stop"/></svg>중단</button></div>
+<div class="frontmeta">
+  <span class="fm"><span style="color:var(--pv-azure);display:inline-flex"><svg class="ic sm" aria-hidden="true"><use href="#i-cloud"/></svg></span><b>Azure</b></span><span class="fmsep"></span>
+  <span class="fm"><span class="fmk">TargetSource</span><b class="tabnum">1003</b></span><span class="fmsep"></span>
+  <span class="fm"><span class="typetag t-install"><svg class="ic sm" aria-hidden="true"><use href="#i-install"/></svg>INSTALL</span></span><span class="fmsep"></span>
+  <span class="fm"><span class="fmk">실행 ID</span><b class="tabnum">#124</b></span><span class="fmsep"></span>
+  <span class="fm"><span class="fmk">생성</span>2026-07-06 18:26</span><span class="fmsep"></span>
+  <span class="fm"><span class="fmk">마지막 활동</span>2026-07-06 18:56</span>
+  <span style="flex:1"></span>
+  <a class="link" style="display:inline-flex;align-items:center;gap:4px;font-size:12px" href="#">Target Source 1003 상세 정보 확인<svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></a>
+</div>
+<div class="note" style="margin-top:12px"><span class="mono">AZURE_INSTALL_V1</span> — Azure 인프라 설치 · Azure BDC 인프라를 Terraform plan·apply로 구성한다</div>
+<div style="margin-top:24px;border:1px dashed var(--gray-300);border-radius:10px;padding:22px;text-align:center;color:var(--text-faint);font-size:12px">… Task 흐름 카드 (동일) …</div></div>
+  <div class="lab-why">target 페이지(R21 C1)와 같은 문법 — h1 아래 12px 한 줄에 CSP·TargetSource·유형·실행 ID·생성·마지막 활동을 나열하고, Target Source 이동은 우측 파란 텍스트 링크. 카드(idbar) 자체가 사라져 본문(Task 흐름)이 주인공. 레시피는 스트립 아래 note 한 줄. 근거: 두 상세 페이지가 같은 front-matter 문법 공유(일관성).</div>
+</div><div class="card lab-variant">
+  <div class="lab-tag">D2 — 2계층 카드 — 파이프라인 / Target Source 그룹 분리</div>
+  <div class="lab-pagecanvas"><div class="crumbs" style="margin-bottom:16px">서비스 검색 <span class="sep">›</span> <a class="link" style="font-weight:500">1003</a> <span class="sep">›</span> 파이프라인 #124</div>
+<div class="page-head"><h1>파이프라인 현황</h1><button class="btn dangersolid"><svg class="ic sm" aria-hidden="true"><use href="#i-stop"/></svg>중단</button></div>
+<div class="card">
+  <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:0 28px">
+    <div>
+      <div class="subsection-title">파이프라인</div>
+      <div class="kv">
+        <div class="k">유형</div><div class="v"><span class="typetag t-install"><svg class="ic sm" aria-hidden="true"><use href="#i-install"/></svg>INSTALL</span></div>
+        <div class="k">레시피</div><div class="v">Azure 인프라 설치 <span class="mono" style="color:var(--text-weak)">AZURE_INSTALL_V1</span></div>
+        <div class="k">실행 ID</div><div class="v tabnum" style="color:var(--text-faint)">#124</div>
+        <div class="k">생성 / 마지막 활동</div><div class="v">2026-07-06 18:26 / 18:56</div>
+      </div>
+      <div class="meta" style="margin-top:12px">Azure BDC 인프라를 Terraform plan·apply로 구성한다</div>
+    </div>
+    <div style="border-left:1px solid var(--gray-100);padding-left:28px">
+      <div class="subsection-title">Target Source</div>
+      <div class="kv">
+        <div class="k">CSP</div><div class="v"><span style="color:var(--pv-azure);display:inline-flex"><svg class="ic sm" aria-hidden="true"><use href="#i-cloud"/></svg></span> Azure</div>
+        <div class="k">TargetSourceId</div><div class="v tabnum">1003</div>
+      </div>
+      <div style="margin-top:14px"><a class="link" style="display:inline-flex;align-items:center;gap:4px;font-size:12px" href="#">Target Source 1003 상세 정보 확인<svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></a></div>
+    </div>
+  </div>
+</div>
+<div style="margin-top:24px;border:1px dashed var(--gray-300);border-radius:10px;padding:22px;text-align:center;color:var(--text-faint);font-size:12px">… Task 흐름 카드 (동일) …</div></div>
+  <div class="lab-why">오너 제안 ①: 정보를 소속별로 나눠 아래로 배치. 왼쪽 "파이프라인"(유형·레시피·실행 ID·생성/마지막 활동), 오른쪽 "Target Source"(CSP·ID + 파란 링크). 어떤 값이 run의 것이고 어떤 값이 대상의 것인지 소속이 명확 — 대신 카드 한 장 높이만큼 Task 흐름이 아래로 밀림.</div>
+</div><div class="card lab-variant">
+  <div class="lab-tag rec">D3 — 제목 승격 — 런이 주인공, 메타는 FrontMeta (추천)</div>
+  <div class="lab-pagecanvas"><div class="crumbs" style="margin-bottom:16px">서비스 검색 <span class="sep">›</span> <a class="link" style="font-weight:500">1003</a> <span class="sep">›</span> 파이프라인 #124</div>
+<div class="page-head"><h1>Azure 인프라 설치 <span class="muted" style="font-weight:500">#124</span></h1><button class="btn dangersolid"><svg class="ic sm" aria-hidden="true"><use href="#i-stop"/></svg>중단</button></div>
+<div class="frontmeta">
+  <span class="fm"><span class="typetag t-install"><svg class="ic sm" aria-hidden="true"><use href="#i-install"/></svg>INSTALL</span></span><span class="fmsep"></span>
+  <span class="fm"><span style="color:var(--pv-azure);display:inline-flex"><svg class="ic sm" aria-hidden="true"><use href="#i-cloud"/></svg></span><b>Azure</b></span><span class="fmsep"></span>
+  <span class="fm"><span class="fmk">TargetSource</span><b class="tabnum">1003</b></span><span class="fmsep"></span>
+  <span class="fm"><span class="fmk">생성</span>2026-07-06 18:26</span><span class="fmsep"></span>
+  <span class="fm"><span class="fmk">마지막 활동</span>2026-07-06 18:56</span>
+  <span style="flex:1"></span>
+  <a class="link" style="display:inline-flex;align-items:center;gap:4px;font-size:12px" href="#">Target Source 1003 상세 정보 확인<svg class="ic sm" aria-hidden="true"><use href="#i-arrow-ur"/></svg></a>
+</div>
+<div class="note" style="margin-top:12px"><span class="mono">AZURE_INSTALL_V1</span> — Azure BDC 인프라를 Terraform plan·apply로 구성한다</div>
+<div style="margin-top:24px;border:1px dashed var(--gray-300);border-radius:10px;padding:22px;text-align:center;color:var(--text-faint);font-size:12px">… Task 흐름 카드 (동일) …</div></div>
+  <div class="lab-why">h1을 "파이프라인 현황" 대신 <b>Azure 인프라 설치 #124</b>로 — 이 페이지가 무엇인지 제목이 답한다. 나머지는 D1과 같은 평탄 스트립(유형·CSP·TargetSource·생성·마지막 활동 + 파란 링크). "1003 · Azure"가 제목이던 어색함(대상 페이지도 아닌데 대상이 주인공)이 해소되고 카드 없이 가장 얇다. 근거: heading-hierarchy — 제목은 페이지의 주어.</div>
+</div>
+
+  <div class="section-title">② Task 상세 패널 — 정보 계층 (F)</div>
+  <div class="section-desc">공통: 헤더(작업명 + kind/상태) 유지 · 진행 기록 = started/finished · 실패 누적 · attempts 표</div>
+  <div class="lab-grid3"><div class="card lab-variant">
+  <div class="lab-tag">F1 — 순서 교체 — 진행 기록 최상단, 전부 펼침</div>
+  <div class="lab-pagecanvas"><aside class="taskpanel lab-panel">
+<div class="mhead">
+  <div style="min-width:0"><h3>Azure BDC 테라폼 Plan</h3>
+    <div class="vrow" style="gap:8px;margin-top:8px"><span class="kindchip">TERRAFORM_JOB</span><span class="pill s-DONE"><span class="dot"></span>DONE</span></div></div>
+  <button class="btn ghost sm round" style="margin-left:auto;flex-shrink:0" title="닫기"><svg class="ic sm" aria-hidden="true"><use href="#i-x"/></svg></button>
+</div>
+<div class="note" style="margin-top:12px">Azure BDC 리소스 그룹·네트워크 변경 계획을 Terraform plan으로 산출한다</div>
+<div class="dgroup"><div class="subsection-title">진행 기록</div><div class="kv wide">
+  <div class="k">started / finished</div><div class="v">2026-07-06 18:27 / 18:41</div>
+  <div class="k">실패 누적</div><div class="v">1 / 3 · <span class="mono" style="color:var(--err-text)">TF_TIMEOUT</span></div>
+</div>
+<div class="meta" style="margin:12px 0 6px">attempts — 시도별 기록 (response는 외부 응답 원문)</div>
+<div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>상태</th><th>error_code</th><th>시각</th><th>response</th></tr></thead><tbody>
+  <tr><td>1</td><td><span class="pill s-FAILED"><span class="dot"></span>FAILED</span></td><td>TF_TIMEOUT</td><td class="muted">18:27</td><td class="mono" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">job dispatch timeout after 600s</td></tr>
+  <tr><td>2</td><td><span class="pill s-DONE"><span class="dot"></span>DONE</span></td><td>-</td><td class="muted">18:33</td><td class="mono" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plan: 12 to add, 0 to change, 0 to destroy.</td></tr>
+</tbody></table></div></div>
+<div class="dgroup"><div class="subsection-title">정의</div><div class="kv wide">
+  <div class="k">task_definition</div><div class="v mono">AZURE_TF_PLAN</div>
+  <div class="k">operation</div><div class="v mono">azure-bdc-tf-plan</div>
+</div></div>
+<div class="dgroup"><div class="subsection-title">실행 계약</div><div class="kv wide">
+  <div class="k">실행 방식</div><div class="v">테라폼 잡 — 디스패치 후 폴링</div>
+  <div class="k">실행 타임아웃 <span class="formula" title="effective_*">effective</span></div><div class="v">30m</div>
+  <div class="k">재시도 예산 <span class="formula" title="effective_*">effective</span></div><div class="v">3회</div>
+  <div class="k">TF 슬롯</div><div class="v">사용</div>
+</div>
+<div class="formula" style="margin-top:10px">판정: 외부 job 최종 상태 DONE/FAILED를 폴링으로 관찰</div></div>
+</aside></div>
+  <div class="lab-why">그룹 3개는 유지하고 순서만 진행 기록 → 정의 → 실행 계약. 가장 보수적 — 스크롤 없이 모든 정보가 그대로 보이지만, 참조 정보(정의·계약)가 여전히 패널 공간을 차지한다.</div>
+</div><div class="card lab-variant">
+  <div class="lab-tag rec">F2 — 진행 기록 주인공 + 정의·계약 접힘 (추천)</div>
+  <div class="lab-pagecanvas"><aside class="taskpanel lab-panel">
+<div class="mhead">
+  <div style="min-width:0"><h3>Azure BDC 테라폼 Plan</h3>
+    <div class="vrow" style="gap:8px;margin-top:8px"><span class="kindchip">TERRAFORM_JOB</span><span class="pill s-DONE"><span class="dot"></span>DONE</span></div></div>
+  <button class="btn ghost sm round" style="margin-left:auto;flex-shrink:0" title="닫기"><svg class="ic sm" aria-hidden="true"><use href="#i-x"/></svg></button>
+</div>
+<div class="note" style="margin-top:12px">Azure BDC 리소스 그룹·네트워크 변경 계획을 Terraform plan으로 산출한다</div>
+<div class="dgroup"><div class="subsection-title">진행 기록</div><div class="kv wide">
+  <div class="k">started / finished</div><div class="v">2026-07-06 18:27 / 18:41</div>
+  <div class="k">실패 누적</div><div class="v">1 / 3 · <span class="mono" style="color:var(--err-text)">TF_TIMEOUT</span></div>
+</div>
+<div class="meta" style="margin:12px 0 6px">attempts — 시도별 기록 (response는 외부 응답 원문)</div>
+<div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>상태</th><th>error_code</th><th>시각</th><th>response</th></tr></thead><tbody>
+  <tr><td>1</td><td><span class="pill s-FAILED"><span class="dot"></span>FAILED</span></td><td>TF_TIMEOUT</td><td class="muted">18:27</td><td class="mono" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">job dispatch timeout after 600s</td></tr>
+  <tr><td>2</td><td><span class="pill s-DONE"><span class="dot"></span>DONE</span></td><td>-</td><td class="muted">18:33</td><td class="mono" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plan: 12 to add, 0 to change, 0 to destroy.</td></tr>
+</tbody></table></div></div>
+<details class="dgroup lab-details">
+  <summary class="subsection-title" style="cursor:pointer">정의 · 실행 계약 <span class="meta" style="font-weight:400">— 참조 정보</span></summary>
+  <div style="margin-top:12px"><div class="kv wide">
+  <div class="k">task_definition</div><div class="v mono">AZURE_TF_PLAN</div>
+  <div class="k">operation</div><div class="v mono">azure-bdc-tf-plan</div>
+</div></div>
+  <div style="margin-top:16px"><div class="kv wide">
+  <div class="k">실행 방식</div><div class="v">테라폼 잡 — 디스패치 후 폴링</div>
+  <div class="k">실행 타임아웃 <span class="formula" title="effective_*">effective</span></div><div class="v">30m</div>
+  <div class="k">재시도 예산 <span class="formula" title="effective_*">effective</span></div><div class="v">3회</div>
+  <div class="k">TF 슬롯</div><div class="v">사용</div>
+</div>
+<div class="formula" style="margin-top:10px">판정: 외부 job 최종 상태 DONE/FAILED를 폴링으로 관찰</div></div>
+</details>
+</aside></div>
+  <div class="lab-why">진행 기록이 패널 본문 전체를 갖고, 정의·실행 계약은 하단 <b>접힌 참조 섹션</b>(클릭해 펼침 — 실제로 눌러보세요). 근거: ui-ux-pro-max §8 progressive disclosure — "Overwhelm upfront"가 안티패턴, 자주 쓰는 정보 먼저. 운영자의 질문("무슨 일이 있었나")에 첫 화면이 바로 답한다.</div>
+</div><div class="card lab-variant">
+  <div class="lab-tag">F3 — 탭 전환 — [진행 기록] [정의 · 계약]</div>
+  <div class="lab-pagecanvas"><aside class="taskpanel lab-panel" id="f3">
+<div class="mhead">
+  <div style="min-width:0"><h3>Azure BDC 테라폼 Plan</h3>
+    <div class="vrow" style="gap:8px;margin-top:8px"><span class="kindchip">TERRAFORM_JOB</span><span class="pill s-DONE"><span class="dot"></span>DONE</span></div></div>
+  <button class="btn ghost sm round" style="margin-left:auto;flex-shrink:0" title="닫기"><svg class="ic sm" aria-hidden="true"><use href="#i-x"/></svg></button>
+</div>
+<div class="note" style="margin-top:12px">Azure BDC 리소스 그룹·네트워크 변경 계획을 Terraform plan으로 산출한다</div>
+<div class="seg" style="margin-top:14px">
+  <button class="on" data-tab="rec">진행 기록</button>
+  <button data-tab="def">정의 · 계약</button>
+</div>
+<div data-pane="rec" style="margin-top:14px"><div class="kv wide">
+  <div class="k">started / finished</div><div class="v">2026-07-06 18:27 / 18:41</div>
+  <div class="k">실패 누적</div><div class="v">1 / 3 · <span class="mono" style="color:var(--err-text)">TF_TIMEOUT</span></div>
+</div>
+<div class="meta" style="margin:12px 0 6px">attempts — 시도별 기록 (response는 외부 응답 원문)</div>
+<div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>상태</th><th>error_code</th><th>시각</th><th>response</th></tr></thead><tbody>
+  <tr><td>1</td><td><span class="pill s-FAILED"><span class="dot"></span>FAILED</span></td><td>TF_TIMEOUT</td><td class="muted">18:27</td><td class="mono" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">job dispatch timeout after 600s</td></tr>
+  <tr><td>2</td><td><span class="pill s-DONE"><span class="dot"></span>DONE</span></td><td>-</td><td class="muted">18:33</td><td class="mono" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plan: 12 to add, 0 to change, 0 to destroy.</td></tr>
+</tbody></table></div></div>
+<div data-pane="def" hidden style="margin-top:14px">
+  <div class="subsection-title">정의</div><div class="kv wide">
+  <div class="k">task_definition</div><div class="v mono">AZURE_TF_PLAN</div>
+  <div class="k">operation</div><div class="v mono">azure-bdc-tf-plan</div>
+</div>
+  <div class="dgroup"><div class="subsection-title">실행 계약</div><div class="kv wide">
+  <div class="k">실행 방식</div><div class="v">테라폼 잡 — 디스패치 후 폴링</div>
+  <div class="k">실행 타임아웃 <span class="formula" title="effective_*">effective</span></div><div class="v">30m</div>
+  <div class="k">재시도 예산 <span class="formula" title="effective_*">effective</span></div><div class="v">3회</div>
+  <div class="k">TF 슬롯</div><div class="v">사용</div>
+</div>
+<div class="formula" style="margin-top:10px">판정: 외부 job 최종 상태 DONE/FAILED를 폴링으로 관찰</div></div>
+</div>
+</aside></div>
+  <div class="lab-why">패널 상단 seg 탭으로 두 관심사를 완전히 분리(탭 전환 동작함). 진행 기록의 공간이 가장 넓지만, 정의·계약의 존재가 탭 라벨 뒤에 숨어 발견성이 떨어지고 클릭 비용이 생긴다.</div>
+</div></div>
+</div>
+<script>
+// F3 탭 전환(실물 확인용)
+document.querySelectorAll('#f3 .seg button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#f3 .seg button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('#f3 [data-pane]').forEach(p=>p.hidden=p.dataset.pane!==b.dataset.tab);
+  };
+});
+</script>
+</body></html>
