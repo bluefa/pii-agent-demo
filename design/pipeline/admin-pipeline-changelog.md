@@ -4,6 +4,25 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 19 — Task 흐름 n8n 스타일: 격자 캔버스·브랜드 마크·우측 도킹 패널 (2026-07-06)
+
+오너 피드백: "N8N처럼 격자 무늬 스타일로 멋있게 / Job 카드 가운데 정렬 /
+Terraform + 각 클라우드 아이콘(IDC·SDU는 글자만) / 패널은 맨 오른쪽에 딱 붙게,
+좌우 이동을 절대 가리지 말 것 / 아이콘은 전부 흰 바탕으로 일관성".
+
+- **캔버스**: 점무늬 → **선 격자**(fine 20px + accent 100px), `min-height:440px`,
+  트랙(`margin-inline:auto`) 가로·세로 중앙 — 넘치면 좌우 스크롤.
+- **노드**: 상태 타일(nd-ico) → **정체성 아이콘 쌍**(Terraform 퍼플 로고마크 +
+  provider 로고마크 — aws 잉크 로크업/azure 삼각/gcp 클라우드, 전부 흰 타일;
+  IDC·SDU는 12/700 텍스트 칩; CONDITION_CHECK는 시계 타일) + **우상단 상태
+  배지**(20px 원: ✓/✕/스피너/⊘/seq). kindchip은 노드에서 제거(패널·모달 유지).
+- **커넥터**: 56px + 시작점 도트(cdot, 상태색 연동) + 기존 화살촉.
+- **패널 도킹**(R19.5): 캔버스 flex row — `.flow-scroll`(가로 스크롤 영역)과
+  **형제**로 우측 400px 풀하이트 도킹(내비게이션식, border-left). 스크롤바를
+  구조적으로 가릴 수 없음. 내부 세로 스크롤(max-h 440), 노드 클릭 시
+  `scrollIntoView(inline:center)` reveal.
+- 신규 토큰: `--flow-grid(-strong)`, `--brand-tf`, `--brand-aws-ink`, `--brand-aws-smile`.
+
 ## Round 18 — 오너 피드백: 유형 구분·필터 칩·상세 통합 카드·인라인 패널 (2026-07-06)
 
 > App(LIN-25 D1)에 먼저 반영 후 HTML로 역포팅한 첫 라운드(오너 지시 순서).

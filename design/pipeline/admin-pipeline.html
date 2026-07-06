@@ -31,6 +31,10 @@
   --err-solid:#D92D20; --err-solid-hover:#B42318;
   /* provider */
   --pv-aws:#EC7211; --pv-azure:#0078D4; --pv-gcp:#4285F4; --pv-idc:#344054; --pv-sdu:#7F56D9;
+  /* flow canvas (R19 선 격자) + brand logomarks — 색은 :root로만, SVG 로고 내부만 아트워크 예외 */
+  --flow-grid:rgba(208,213,221,.35); --flow-grid-strong:rgba(208,213,221,.7);
+  --brand-tf:#7B42BC; --brand-aws-ink:#232F3E; --brand-aws-smile:#FF9900;
+  --white:#FFFFFF;
   /* shape */
   --r-card:10px; --r-inner:8px; --r-ctl:8px;
   --shadow-xs:0 1px 2px rgba(16,24,40,.05);
@@ -274,48 +278,62 @@ details.collap>.body{padding:0 14px 14px}
    캔버스: 점 격자 배경 + 가로 스크롤(task 다수 대비). 노드: 상태 tint 아이콘 박스 28px +
    이름 한 행, kind 칩, 상태별 "가장 유용한 한 줄"(nd-meta). 상태는 테두리·아이콘·meta로만
    표현 — kind 칩은 분류 정보라 중립 유지(기존 결정). BLOCKED만 dashed(대기 문법). */
-.flow{display:flex;align-items:center;overflow-x:auto;padding:24px 16px;
+/* R19.5: .flow = flex row (스크롤 영역 | 도킹 패널). 격자는 선(fine 20px + strong 100px), 세로 중앙,
+   패딩은 .flow-scroll에. 패널은 .flow-scroll 밖 형제라 가로 스크롤바를 절대 가리지 않는다(오너). */
+.flow{display:flex;align-items:stretch;min-height:440px;overflow:hidden;
   background-color:var(--bg-inner);
-  background-image:radial-gradient(circle,var(--gray-200) 1px,transparent 1px);background-size:16px 16px;
-  border:1px solid var(--border);border-radius:var(--r-card)}
-.tnode{flex:none;width:178px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  background-image:linear-gradient(var(--flow-grid) 1px,transparent 1px),linear-gradient(90deg,var(--flow-grid) 1px,transparent 1px),linear-gradient(var(--flow-grid-strong) 1px,transparent 1px),linear-gradient(90deg,var(--flow-grid-strong) 1px,transparent 1px);
+  background-size:20px 20px,20px 20px,100px 100px,100px 100px;
+  border:1px solid var(--border);border-radius:12px}
+.flow .flow-scroll{flex:1;min-width:0;overflow-x:auto;padding:28px 20px;display:flex;flex-direction:column;justify-content:center}
+.flow .flow-track{display:flex;align-items:center;width:max-content;margin-inline:auto}
+.tnode{flex:none;width:184px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
   padding:12px 12px 10px;position:relative;cursor:pointer;box-shadow:var(--shadow-xs);
   transition:border-color .15s,box-shadow .15s}
 .tnode:hover{border-color:var(--border-strong)}
 .tnode:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-.tnode .nd-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.tnode .nd-ico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none;
-  font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--off-bg);color:var(--text-faint)}
-.tnode .nd-ico svg.ic{width:14px;height:14px;stroke-width:2.5;vertical-align:0}
+/* 아이콘 쌍(kind 마크 + provider 마크) — 구 상태 타일 대체 */
+.tnode .nd-icons{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.tnode .nd-mark{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;background:var(--bg-card);border:1px solid var(--border)}
+.tnode .nd-mark.m-cond{color:var(--text-weak);background:var(--gray-100);border-color:var(--gray-100)}
+.tnode .nd-mark-txt{width:auto;min-width:26px;padding:0 6px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;background:var(--gray-100);border:1px solid var(--gray-100);font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--gray-600)}
+/* n8n 코너 상태 배지(우상단) — 숫자는 12/700 tabular */
+.tnode .nd-badge{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;box-shadow:0 0 0 2px var(--bg-inner)}
+.tnode .nd-badge svg{width:12px;height:12px;stroke-width:3}
+.tnode .nd-badge.b-done{background:var(--ok);color:var(--white)}
+.tnode .nd-badge.b-failed{background:var(--err);color:var(--white)}
+.tnode .nd-badge.b-cancelled{background:var(--gray-400);color:var(--white)}
+.tnode .nd-badge.b-running{background:var(--bg-card);border:1px solid var(--info-border)}
+.tnode .nd-badge.b-ready{background:var(--warn);color:var(--white)}
+.tnode .nd-badge.b-queued{background:var(--gray-200);color:var(--text-weak)}
 .tnode .nd-name{font-size:14px;font-weight:600;line-height:1.3;color:var(--text-strong);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tnode .nd-meta{font-size:12px;color:var(--text-weak);line-height:1.4;min-height:17px;margin-top:6px;
   word-break:keep-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tnode.s-done{border-color:var(--ok-border)}
-.tnode.s-done .nd-ico{background:var(--ok-bg);color:var(--ok-text)}
 .tnode.s-running{border-color:var(--info)}
-.tnode.s-running .nd-ico{background:var(--info-bg);color:var(--info-text)}
 .tnode.s-ready{border-color:var(--warn-border)}
-.tnode.s-ready .nd-ico{background:var(--warn-bg);color:var(--warn-text)}
 .tnode.s-failed{border-color:var(--err-border);box-shadow:0 0 0 4px rgba(240,68,56,.10)}
-.tnode.s-failed .nd-ico{background:var(--err-bg);color:var(--err-text)}
 .tnode.s-failed .nd-meta{color:var(--err-text);font-weight:600}
 .tnode.s-queued{border-style:dashed;background:rgba(255,255,255,.7)}
 .tnode.s-queued .nd-name{color:var(--text-weak)}
 .tnode.s-cancelled{background:rgba(255,255,255,.7)}
-.tnode.s-cancelled .nd-ico{background:var(--off-bg);color:var(--off-text)}
 .tnode.s-cancelled .nd-name{color:var(--text-weak)}
 .spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--info-border);border-top-color:var(--info);display:inline-block}
 .kindchip{display:inline-flex;flex:none;align-items:center;font-size:12px;font-weight:600; /* role: t-caption */height:20px;padding:0 6px;
   border-radius:4px;background:var(--off-bg);color:var(--text-weak);font-family:var(--font-mono)}
 .kindchip.cond{background:var(--off-bg);color:var(--text-medium);border:1px dashed var(--gray-300)} /* kind=분류 정보 — 파랑(상태·액션)과 분리 */
-.connector{flex:none;width:48px;height:14px;position:relative}
-.connector::before{content:"";position:absolute;left:2px;right:9px;top:50%;margin-top:-1px;height:2px;background:var(--gray-300);border-radius:1px}
+.connector{flex:none;width:56px;height:14px;position:relative}
+.connector .cdot{position:absolute;left:1px;top:50%;transform:translateY(-50%);width:6px;height:6px;border-radius:50%;background:var(--gray-300)}
+.connector::before{content:"";position:absolute;left:6px;right:9px;top:50%;margin-top:-1px;height:2px;background:var(--gray-300);border-radius:1px}
 .connector::after{content:"";position:absolute;right:2px;top:50%;transform:translateY(-50%);border:5px solid transparent;border-left:6px solid var(--gray-300);border-right:0}
+.connector.done .cdot{background:var(--ok)}
 .connector.done::before{background:var(--ok)}
 .connector.done::after{border-left-color:var(--ok)}
+.connector.active .cdot{background:var(--info)}
 .connector.active::before{background:repeating-linear-gradient(90deg,var(--info) 0 6px,rgba(46,144,250,.15) 6px 12px)}
 .connector.active::after{border-left-color:var(--info)}
+.connector.toFail .cdot{background:var(--err)}
 .connector.toFail::before{background:repeating-linear-gradient(90deg,var(--err) 0 6px,rgba(240,68,56,.15) 6px 12px)}
 .connector.toFail::after{border-left-color:var(--err)}
 @keyframes nodePulse{0%,100%{box-shadow:0 0 0 3px rgba(46,144,250,.16)}50%{box-shadow:0 0 0 8px rgba(46,144,250,.04)}}
@@ -362,7 +380,11 @@ details.collap>.body{padding:0 14px 14px}
 .fc-body>.flow{flex:1;min-width:0}
 .tnode.s-selected{outline:2px solid var(--primary);outline-offset:2px} /* 선택 노드 링 */
 /* Task 상세: 모달 → 카드 내 우측 인라인 패널(R18 §7-3) */
-.taskpanel{width:400px;flex:none;min-width:0;border-left:1px solid var(--gray-100);padding-left:24px}
+/* R19.5: 캔버스 맨 오른쪽에 풀하이트로 도킹되는 드로어(.flow-scroll의 형제) — 내부에서 세로 스크롤 */
+.taskpanel{width:400px;flex:none;min-width:0;max-height:440px;background:var(--bg-card);border-left:1px solid var(--border);
+  overflow-y:auto;overscroll-behavior:contain;padding:16px 20px 20px}
+@keyframes panelIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:no-preference){.taskpanel{animation:panelIn .2s ease-out}}
 .taskpanel .mhead{display:flex;align-items:flex-start;gap:8px}
 .taskpanel h3{margin:0;font-size:16px;font-weight:700}
 .taskpanel .tbl th{height:auto;padding:4px 8px 6px} /* 패널 폭에 맞춘 compact attempts */
@@ -1106,26 +1128,30 @@ function viewPipeline(id){
         </div>`:''}
       </div>
       <div class="fc-body">
-        <div class="flow" id="flow"></div>
+        <div class="flow" id="flow"><div class="flow-scroll"><div class="flow-track"></div></div></div>
       </div>
     </div>
   </div>`);
   // flow — v16 문법(오너 6차): 상태별 노드 tint + 상태를 아는 커넥터, 캔버스는 가로 스크롤.
   // R18 §7-3: 클릭 시 카드 내 우측 인라인 패널(모달 아님). 노드 재클릭/×/Esc로 닫기, 선택 노드 outline 링.
   const flow=root.querySelector('#flow');
-  const fcBody=root.querySelector('.fc-body');
+  const track=flow.querySelector('.flow-track');
   const stateCls={DONE:'s-done',IN_PROGRESS:'s-running',READY:'s-ready',BLOCKED:'s-queued',FAILED:'s-failed',CANCELLED:'s-cancelled'};
+  const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // R19.5: 클릭한 노드를 가로 스크롤포트(.flow-scroll) 중앙으로 — 패널은 스크롤 영역 밖이라 가려지지 않음
+  const revealNode=n=>n.scrollIntoView({inline:'center',block:'nearest',behavior:reduceMotion?'auto':'smooth'});
   let selSeq=null;
   function closePanel(){
     selSeq=null;
-    const ex=fcBody.querySelector('.taskpanel'); if(ex) ex.remove();
+    const ex=flow.querySelector('.taskpanel'); if(ex) ex.remove();
     flow.querySelectorAll('.tnode.s-selected').forEach(n=>n.classList.remove('s-selected'));
   }
   function selectTask(t){
     if(selSeq===t.seq){ closePanel(); return; } // 같은 노드 재클릭 → 닫기
     closePanel(); selSeq=t.seq;
     flow.querySelectorAll('.tnode').forEach(n=>n.classList.toggle('s-selected', n.dataset.seq===String(t.seq)));
-    const panel=el(taskPanelHTML(t)); fcBody.appendChild(panel);
+    // R19.5: 패널은 .flow-scroll의 형제로 캔버스 맨 오른쪽에 도킹(가로 스크롤바를 가리지 않음)
+    const panel=el(taskPanelHTML(t)); flow.appendChild(panel);
     panel.querySelector('#task-x').onclick=closePanel;
   }
   // Esc로 패널 닫기 — root가 교체(내비게이션)되면 리스너가 자기 자신을 제거(누수 방지)
@@ -1135,19 +1161,18 @@ function viewPipeline(id){
     if(i>0){
       const prev=p.tasks[i-1];
       const lcls=prev.status!=='DONE'?'':t.status==='DONE'?' done':t.status==='FAILED'?' toFail':' active';
-      flow.appendChild(el(`<div class="connector${lcls}"></div>`));
+      track.appendChild(el(`<div class="connector${lcls}"><span class="cdot"></span></div>`));
     }
-    const cond=t.kind==='CONDITION_CHECK';
-    const ico=t.status==='DONE'?ic('i-check'):t.status==='IN_PROGRESS'?'<span class="spin"></span>'
-      :t.status==='FAILED'?ic('i-x'):t.status==='CANCELLED'?ic('i-ban'):String(t.seq);
+    // R19: 노드 = 아이콘 쌍(kind·provider) + 우상단 상태 배지. kindchip은 노드에서 제거(패널/모달에는 유지).
     const node=el(`<div class="tnode ${stateCls[t.status]||'s-queued'}" data-seq="${t.seq}" role="button" tabindex="0" aria-label="seq ${t.seq} ${esc(t.operation)} 상세 열기">
-      <div class="nd-top"><span class="nd-ico">${ico}</span><span class="nd-name">${esc(t.operation)}</span></div>
-      <span class="kindchip ${cond?'cond':''}">${t.kind}</span>
+      <div class="nd-icons">${kindMark(t)}${providerMark(p.provider)}</div>
+      ${nodeBadge(t)}
+      <span class="nd-name">${esc(t.operation)}</span>
       <div class="nd-meta">${taskMetaLine(t)}</div>
     </div>`);
-    const open=()=>selectTask(t);
+    const open=()=>{selectTask(t);revealNode(node);};
     node.onclick=open; node.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};
-    flow.appendChild(node);
+    track.appendChild(node);
   });
   const pc=root.querySelector('#pcancel'); if(canCancel(p)) pc.onclick=()=>openCancel(p.id);
   return root;
@@ -1165,6 +1190,33 @@ function taskMetaLine(t){
   if(t.status==='CANCELLED') return t.startedAt?`취소됨 · ${t.startedAt}~${t.finishedAt||''}`:'취소됨';
   return cond?`주기 ${esc(t.pollingInterval)} · TTL ${esc(t.ttl)} · 한도 ${t.maxFail}회`
              :`타임아웃 ${esc(t.executionTimeout)} · 한도 ${t.maxFail}회`;
+}
+// R19 로고마크(SVG는 아트워크 — 내부 좌표·8.5px 텍스트는 예외). kind: TERRAFORM_JOB→퍼플 4블록,
+// CONDITION_CHECK→시계. provider: AWS(흰 타일·잉크 aws·오렌지 스마일)/Azure/GCP, IDC·SDU는 텍스트 칩.
+function terraformMark(){
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="var(--brand-tf)" aria-hidden="true"><path d="M8.7 4.3 15 7.9v7.2L8.7 11.5Z"/><path d="M15.8 8.4 22 4.8v7.2l-6.2 3.6Z" opacity=".75"/><path d="M2 8.2l6 3.4v7L2 15.2Z" opacity=".55"/><path d="M8.7 12.6 15 16.2v7.2l-6.3-3.6Z"/></svg>`;
+}
+function kindMark(t){
+  return t.kind==='CONDITION_CHECK'
+    ? `<span class="nd-mark m-cond" title="조건 확인 — 폴링">${ic('i-clock','ic sm')}</span>`
+    : `<span class="nd-mark" title="Terraform">${terraformMark()}</span>`;
+}
+function providerMark(prov){
+  if(prov==='aws') return `<span class="nd-mark" title="AWS"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><text x="12" y="12.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="var(--brand-aws-ink)" font-family="var(--font-sans)">aws</text><path d="M5.5 15.5c4 2.6 9.2 2.6 13-.2" stroke="var(--brand-aws-smile)" stroke-width="1.6" stroke-linecap="round" fill="none"/><path d="m18.5 13.6.3 2-2 .3" stroke="var(--brand-aws-smile)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></span>`;
+  if(prov==='azure') return `<span class="nd-mark" title="Azure"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.2 4 6.3 18.6a.8.8 0 0 0 .7 1.1h4l6.9-15.7Z" fill="var(--pv-azure)" opacity=".65"/><path d="m14.6 8.6-4 9.3 3.3 1.8h4.9a.8.8 0 0 0 .7-1.1Z" fill="var(--pv-azure)"/></svg></span>`;
+  if(prov==='gcp') return `<span class="nd-mark" title="Google Cloud"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.62-1.46A4.5 4.5 0 0 1 17.5 18H7Z" fill="var(--pv-gcp)"/></svg></span>`;
+  return `<span class="nd-mark-txt">${esc(PROVIDERS[prov]||prov)}</span>`;
+}
+// n8n 코너 상태 배지: DONE ✓ / FAILED ✕ / 스피너 / CANCELLED ⊘ / READY·대기는 seq 숫자.
+function nodeBadge(t){
+  switch(t.status){
+    case 'DONE': return `<span class="nd-badge b-done" aria-hidden="true">${ic('i-check')}</span>`;
+    case 'FAILED': return `<span class="nd-badge b-failed" aria-hidden="true">${ic('i-x')}</span>`;
+    case 'IN_PROGRESS': return `<span class="nd-badge b-running" aria-hidden="true"><span class="spin"></span></span>`;
+    case 'CANCELLED': return `<span class="nd-badge b-cancelled" aria-hidden="true">${ic('i-ban')}</span>`;
+    case 'READY': return `<span class="nd-badge b-ready" aria-hidden="true">${t.seq}</span>`;
+    default: return `<span class="nd-badge b-queued" aria-hidden="true">${t.seq}</span>`;
+  }
 }
 // Task 상세: R18 §7-3 카드 내 우측 인라인 패널(모달 폐지 — 사이드 패널로 복귀, 폭 400px).
 // 그룹 경계는 헤어라인(dgroup): 정의(무엇) → 실행 계약(어떻게 판정) → 진행 기록(무슨 일).
