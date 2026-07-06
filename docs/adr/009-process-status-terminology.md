@@ -101,7 +101,7 @@ interface ProcessStatusResponse {
 }
 ```
 
-현재 Next route는 `bff.confirm.getProcessStatus()` 응답을 정규화한 뒤, 가능한 경우 `bff.targetSources.get()`의 `processStatus`를 보조 조회해 화면 단계와 동일한 lifecycle status로 보정한다. target source 조회가 실패하면 `process-status` 원 응답을 그대로 사용한다.
+현재 Next route는 `bff.confirm.getProcessStatus()` 응답을 그대로 반환한다. (이전에는 `bff.targetSources.get()`의 `processStatus`로 보정했으나, target-source 페이로드가 더 이상 `process_status`를 싣지 않으므로 process-status 엔드포인트가 단독 권위 소스다.)
 
 ### D-006: "반영 중 신규 요청 차단" 정책의 API 계약
 

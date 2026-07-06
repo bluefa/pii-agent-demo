@@ -4,8 +4,8 @@
  * Target detail (C2-a) — design-inventory §2.3. Identity (provider + CSP metadata),
  * latest-run status bar, install/delete action row (gated), and the paged pipeline
  * history. Install/delete open the preview modal; the status-bar 취소 opens the
- * cancel modal. Raw target-source detail (process_status + CSP metadata) comes from
- * the reused BFF route via getRawTargetSourceDetail (getProject drops those fields).
+ * cancel modal. Raw target-source detail (CSP metadata) comes from the reused BFF
+ * route via getRawTargetSourceDetail (getProject drops the china/permission/sdu flags).
  */
 import { Fragment, useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
