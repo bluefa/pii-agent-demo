@@ -989,12 +989,13 @@ export const pipelineStyles = {
     tableWrap: 'overflow-x-auto',
   },
 
-  /** Section header (title 64/0/12 margins; desc R18: 8 below title, 16 above
-   *  content — the 4/12 spec read cramped to the owner, improvement-r18.md §3). */
+  /** Section header (title 64/0/12 margins; desc R22.5: 16 below title — the
+   *  R18 8px read cramped to the owner — 16 above content). mt-4 vs the
+   *  title's mb-3 collapses to 16px (block siblings). */
   section: {
     title: cn(pipelineText.sectionTitle, 'mt-16 mb-3'),
     titleFirst: cn(pipelineText.sectionTitle, 'mt-0 mb-3'),
-    desc: cn(pipelineText.sectionDesc, '-mt-1 mb-4'),
+    desc: cn(pipelineText.sectionDesc, 'mt-4 mb-4'),
   },
 
   /** StatusPill — h20 pad 0 9 0 8 dot 6 (lg h28 pad 0 12 0 10 dot 8). Size lives
@@ -1038,6 +1039,10 @@ export const pipelineStyles = {
     reset:
       'inline-flex items-center h-7 px-2 rounded-md text-[12px] font-semibold text-[var(--pl-text-weak)] hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)] cursor-pointer',
     count: 'ml-auto text-[12px] text-[var(--pl-text-weak)] tabular-nums',
+    /** R22.5 — the always-on period scope chip: value only (no 기간 key),
+     *  light-blue tint to read as scope, not a removable filter. */
+    scope:
+      'inline-flex items-center h-7 rounded-full border border-[var(--pl-primary-ring)] bg-[var(--pl-primary-bg)] px-3 text-[12px] font-semibold text-[var(--pl-primary)]',
   },
 
   /** ProvTag — neutral text + 8×8 r2.5 brand dot; 12/500 medium. */
@@ -1108,9 +1113,11 @@ export const pipelineStyles = {
     dialog: 'max-w-[90vw] px-6 py-[22px] rounded-[12px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
     dialogDefault: 'w-[480px]',
     dialogTask: 'w-[600px] flex flex-col max-h-[min(720px,86vh)]',
-    /** R21.5 — the start-pipeline modal (type tiles + mini flow need room). */
-    dialogWide: 'w-[720px]',
-    title: cn(pipelineText.modalTitle, 'mb-1.5'),
+    /** R21.5/R22.5 — the start-pipeline modal (type tiles + mini flow need
+     *  room). flex-col + a flex-1 spacer before the foot (PreviewModal) keeps
+     *  the actions pinned to the bottom of the taller dialog. */
+    dialogWide: 'w-[720px] min-h-[420px] flex flex-col',
+    title: cn(pipelineText.modalTitle, 'mb-3'),
     desc: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)] mb-3.5',
     body: 'overflow-y-auto min-h-0 mt-1',
     foot: 'flex justify-end gap-2 mt-[18px]',

@@ -4,6 +4,20 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 22.5 — 제목-보조 간격 확대·시작 모달 높이·기간 칩 연한 파랑 (2026-07-07)
+
+오너 피드백 3건.
+
+- **제목-보조 텍스트 간격 +8px (전 페이지)**: section-title ↔ section-desc 8px → **16px**
+  (`.section-desc` margin-top 16, 마진 겹침 max(12,16); App `section.desc` `-mt-1`→`mt-4`).
+  내용과의 16px은 유지.
+- **시작 모달 높이 확대 + 제목 간격**: `.modal.wide` **min-height 420px** + flex column —
+  foot은 바닥 고정(App은 flex-1 스페이서, 프로토타입은 `.modal.wide .foot{margin-top:auto}`).
+  모달 제목-보조 간격 6px → **12px**(`.modal h3` mb / App `modal.title` mb-3, 전 모달 공통).
+- **기간 스코프 칩**: "기간 · 최근 24시간" → 값만 **"최근 24시간"** + 연한 파랑
+  (primary-bg 바탕·primary-ring 테두리·primary 텍스트, `filterChip.scope`/`.chip.scope`) —
+  제거형 필터 칩(흰 바탕·키·×)과 상시 스코프의 시각 어휘 분리.
+
 ## Round 22 — 상세 메타 2계층 카드 + Task 패널 진행 기록 우선 (2026-07-07)
 
 오너 피드백(LIN-20): ① 상세 헤더 한 줄 카드("1003 · Azure / 유형 / 생성 / 마지막 활동 /

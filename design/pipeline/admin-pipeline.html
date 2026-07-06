@@ -101,7 +101,7 @@ svg.ic.lg{width:22px;height:22px}
 .section-title{font-size:20px;font-weight:600;color:var(--text-strong);margin:64px 0 12px;line-height:1.2} /* 섹션 덩어리 간 64 (2026-07-05 오너: 40으론 부족) */
 .section-title:first-child{margin-top:0}
 .section-title .meta{font-weight:400}
-.section-desc{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4;margin:-4px 0 16px} /* R18 §3: 제목과 8px, 내용과 16px (오너: 4/12는 답답) */
+.section-desc{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4;margin:16px 0 16px} /* R22.5: 제목과 16px(마진 겹침 max(12,16)), 내용과 16px (오너: 8px도 좁다) */
 .subsection-title{font-size:14px;font-weight:600;color:var(--text-medium);margin:16px 0 10px}
 
 /* ── Card ── */
@@ -215,6 +215,7 @@ tr.click:hover .btn.round{border-color:var(--primary);color:var(--primary)} /* �
 .chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;
   border:1px solid var(--border-strong);background:var(--bg-card);font-size:12px}
 .chip.rm{padding-right:6px} /* × 히트영역 확보 */
+.chip.scope{border-color:var(--primary-ring);background:var(--primary-bg);color:var(--primary);font-weight:600} /* R22.5 기간 스코프 */
 .chip .k{color:var(--text-weak)}
 .chip .v{font-weight:600;color:var(--text-strong)}
 .chip .x{display:inline-flex;align-items:center;justify-content:center;width:20px;height:28px;padding:0;margin:0;
@@ -380,8 +381,11 @@ details.collap>.body{padding:0 14px 14px}
   justify-content:center;z-index:50}
 .modal{background:var(--bg-card);border-radius:12px;box-shadow:var(--shadow-lg);
   width:480px;max-width:90vw;padding:22px 24px}
-.modal.wide{width:720px} /* R21.5 — 시작 모달(타일+미니 플로우) */
-.modal h3{margin:0 0 6px;font-size:16px;font-weight:700}
+.modal.wide{width:720px;min-height:420px;display:flex;flex-direction:column} /* R21.5 폭 / R22.5 높이 */
+.modal.wide>div{display:flex;flex-direction:column;flex:1}
+.modal.wide>div[hidden]{display:none} /* display:flex가 [hidden]을 이기지 않게 */
+.modal.wide .foot{margin-top:auto;padding-top:18px} /* 커진 다이얼로그 바닥에 고정 */
+.modal h3{margin:0 0 12px;font-size:16px;font-weight:700} /* R22.5: 제목-보조 12px */
 .modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:14px;line-height:1.4}
 .modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
 .dgroup{border-top:1px solid var(--gray-100);padding-top:16px;margin-top:16px} /* 그룹 경계 = 상단 헤어라인 */
@@ -910,7 +914,8 @@ function renderChips(root,total){
   if(q) html+=chipHTML('검색',`"${q}"`,{rmId:'chip-rm-q'});
   if(active) html+=`<button class="chip-reset" id="chip-reset">필터 초기화</button>`;
   // R21.5(오너): 기간 스코프 칩은 행 가장 우측 — N건 옆.
-  html+=`<span class="chip-count">${total}건</span>`+chipHTML('기간',PERIOD_LABEL[dashPeriod]);
+  // R22.5(오너): "기간" 키 삭제, 값만 + 연한 파랑(스코프 ≠ 제거형 필터).
+  html+=`<span class="chip-count">${total}건</span><span class="chip scope" title="기간 — 선택한 기간이 현황·목록에 함께 적용됩니다">${PERIOD_LABEL[dashPeriod]}</span>`;
   cr.innerHTML=html;
   // × / 초기화 → 해당 필터 리셋 후 재렌더(render로 filterbar 입력값까지 동기화)
   const bind=(id,fn)=>{const b=cr.querySelector(id); if(b) b.onclick=()=>{fn();dashPage=1;render();};};

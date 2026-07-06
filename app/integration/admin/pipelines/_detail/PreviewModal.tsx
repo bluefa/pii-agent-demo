@@ -193,6 +193,9 @@ export function PreviewModal({
               <span className={tt.desc}>설치된 인프라를 destroy 합니다</span>
             </button>
           </div>
+          {/* R22.5 — dialogWide is flex-col with a min height; the spacer pins
+              the foot to the bottom of the taller dialog. */}
+          <div className="flex-1" aria-hidden="true" />
           <div className={modal.foot}>
             <PlButton variant="ghost" onClick={onClose}>
               취소
@@ -248,6 +251,7 @@ export function PreviewModal({
 
           {runError && <div className={detailStyles.taskModal.degraded}>{runError}</div>}
 
+          <div className="flex-1" aria-hidden="true" />
           <div className={modal.foot}>
             <PlButton
               variant="ghost"
