@@ -392,11 +392,35 @@ details.collap>.body{padding:0 14px 14px}
 .modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
 .dgroup{border-top:1px solid var(--gray-100);padding-top:16px;margin-top:16px} /* 그룹 경계 = 상단 헤어라인 */
 .dgroup .subsection-title{margin:0 0 10px}
-.recipe{background:var(--bg-inner);border:1px solid var(--border);border-radius:var(--r-inner);padding:8px 12px}
-.recipe .step{display:flex;align-items:center;gap:10px;font-size:14px;padding:7px 0}
-.recipe .step+.step{border-top:1px solid var(--border)}
-.recipe .step .sq{width:20px;height:20px;border-radius:50%;background:var(--primary-bg);
-  color:var(--primary);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+/* ── R21 (A1+B1+C1): 유형 타일 · 미니 플로우 · front-matter 스트립 ── */
+.ttile-row{display:flex;gap:10px;flex-wrap:wrap}
+.ttile{flex:1;min-width:130px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:var(--bg-card);
+  border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;text-align:left;font-family:inherit;
+  transition:border-color .15s,box-shadow .15s}
+.ttile:hover:not(:disabled){border-color:var(--gray-300);box-shadow:var(--shadow-sm)}
+.ttile:disabled{cursor:not-allowed;opacity:.55}
+.ttile .tico{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;margin-bottom:2px}
+.ttile.t-install .tico{background:color-mix(in srgb,var(--type-install) 10%,transparent);color:var(--type-install)}
+.ttile.t-delete .tico{background:color-mix(in srgb,var(--type-delete) 10%,transparent);color:var(--type-delete)}
+.ttile.t-custom .tico{background:color-mix(in srgb,var(--type-custom) 10%,transparent);color:var(--type-custom)}
+.ttile .ttl{font-size:14px;font-weight:700;color:var(--text-strong)}
+.ttile .tdesc{font-size:12px;color:var(--text-weak);line-height:1.4}
+.pv-ident{font-size:13px;color:var(--text-medium)}
+.pvflow{display:flex;align-items:center;margin-top:14px;padding:14px 12px;border:1px solid var(--border);border-radius:10px;overflow-x:auto;
+  background-image:linear-gradient(var(--flow-grid) 1px,transparent 1px),linear-gradient(90deg,var(--flow-grid) 1px,transparent 1px);background-size:20px 20px}
+.pvnode{flex:none;display:flex;flex-direction:column;gap:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;min-width:118px}
+.pvnode .nd-icons{display:flex;gap:6px}
+.pvflow .nd-mark{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;background:var(--bg-card);border:1px solid var(--border)}
+.pvflow .nd-mark.m-cond{color:var(--text-weak);background:var(--gray-100);border-color:var(--gray-100)}
+.pvflow .nd-mark-txt{width:auto;min-width:26px;padding:0 6px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;background:var(--gray-100);border:1px solid var(--gray-100);font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--gray-600)}
+.pvnode .pvname{font-size:12px;font-weight:600;color:var(--text-strong);line-height:1.3}
+.pvconn{flex:none;width:28px;height:2px;background:var(--gray-300)}
+.frontmeta{margin:10px 0 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--gray-100);
+  padding-bottom:12px;font-size:12px;color:var(--text-medium)}
+.frontmeta .fm{display:inline-flex;align-items:center;gap:5px}
+.frontmeta .fmk{color:var(--text-faint);font-weight:600}
+.frontmeta .fmsep{width:1px;height:12px;background:var(--gray-100)}
+.frontmeta b{color:var(--text-strong)}
 
 /* ── Toast ── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--gray-900);
@@ -686,18 +710,18 @@ const canCancel = p => (p.status==='RUNNING'||p.status==='PENDING') && !p.cancel
 // API Response 반영"). CSP 연결 정보 = CloudTargetSource 식별자, 실행 권한 = 권한 플래그.
 // 서비스 소속은 h1(서비스명·코드)이 담당하므로 중복 수납하지 않는다.
 // 설치 상태·계정 표시는 오너 지시로 제거(2026-07-05) — 계정(account)은 CSP 식별자의 중복 사본
-function cspMetaGroups(ts){
+/* R21 §C1 — CSP metadata를 front-matter 스트립용 평탄 rows로 (null 필터). */
+function cspMetaRows(ts){
   if(!ts) return [];
   const conn={
-    aws:[['AWS Account',ts.awsAccountId],['Linked Account',ts.awsLinkedAccountId],['Region Type',ts.awsRegionType]],
-    azure:[['Tenant ID',ts.tenantId],['Subscription ID',ts.subscriptionId]],
-    gcp:[['GCP Project',ts.gcpProjectId]],
+    aws:[['Account',ts.awsAccountId],['Linked',ts.awsLinkedAccountId],['Region',ts.awsRegionType]],
+    azure:[['Tenant',ts.tenantId],['Subscription',ts.subscriptionId]],
+    gcp:[['Project',ts.gcpProjectId]],
   };
   const rows=(conn[ts.provider]||[]).filter(r=>r[1]!=null);
-  const groups=[{label:'CSP 연결 정보', rows, empty:'이 CSP 유형은 연결 metadata가 없습니다'}];
   if(ts.isTerraformExecutionGranted!=null)
-    groups.push({label:'실행 권한', rows:[['TF 실행 권한',ts.isTerraformExecutionGranted?'허용':'미허용']], empty:null});
-  return groups;
+    rows.push(['TF 실행 권한',ts.isTerraformExecutionGranted?'허용':'미허용']);
+  return rows;
 }
 
 /* =========================================================================
@@ -979,30 +1003,18 @@ function viewTarget(id){
   if(!ts) return view404();
   const svcName=app.navState.serviceName || ts.serviceName;
   const ids=(BY_TARGET[id]||[]).map(pid=>PIPELINES[pid]);
-  // app ProjectPageMeta 문법: 제목=서비스명(코드), 식별자=IdentityBar. 액션 그룹은 metadata 아래(오너 3차).
-  // R18 §2: 게이팅 제거 — [설치 시작][삭제 시작] 상시 활성, 잠금 캡션 없음(충돌은 서버 409 플로우).
+  // R21 (A1+C1): 메타데이터는 h1 아래 front-matter 스트립(참조 정보로 강등),
+  // 액션은 단일 primary CTA — 유형 선택(설치/삭제/Custom)은 모달 1단계 몫.
   const root=el(`<div>
     ${breadcrumb([{label:'서비스 검색',hash:'#/services'},{label:svcName},{label:ts.id}])}
     <div class="page-head"><h1>${esc(svcName)} <span class="muted" style="font-weight:500">(${esc(ts.serviceCode)})</span></h1></div>
-    <div class="idbar" style="--ib-accent:var(--pv-${ts.provider})">
-      <div class="idbar-row">
-        <div class="prov">
-          <span class="picon">${ic('i-cloud','ic lg')}</span>
-          <div><div class="pname">${PROVIDERS[ts.provider]||esc(ts.provider)}</div>${ts.provider==='idc'?'':'<div class="psub">Cloud Provider</div>'}</div>
-        </div>
-        <span class="div"></span>
-        <div class="fld"><span class="k">TargetSourceId</span><span class="v">${esc(ts.id)}</span></div>
-      </div>
-      ${(gs=>gs.length?`<div class="idbar-meta"><div class="idbar-row" style="gap:24px;align-items:flex-start">${
-        gs.map(g=>`<div class="mgroup"><div class="mg-label">${esc(g.label)}</div>${
-          g.rows.length?`<div class="kv wide">${g.rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div>`
-          :`<div class="meta">${esc(g.empty)}</div>`}</div>`).join('<span class="div"></span>')
-      }</div></div>`:'')(cspMetaGroups(ts))}
+    <div class="frontmeta">
+      <span class="fm"><span style="color:var(--pv-${ts.provider});display:inline-flex">${ic('i-cloud','ic sm')}</span><b>${PROVIDERS[ts.provider]||esc(ts.provider)}</b></span>
+      <span class="fmsep"></span>
+      <span class="fm"><span class="fmk">TargetSourceId</span><b style="font-variant-numeric:tabular-nums">${esc(ts.id)}</b></span>
+      ${cspMetaRows(ts).map(r=>`<span class="fmsep"></span><span class="fm"><span class="fmk">${esc(r[0])}</span>${esc(r[1])}</span>`).join('')}
     </div>
-    <div class="filterbar" style="margin-top:24px">
-      <button class="btn primary" id="btn-install" title="설치 파이프라인을 시작합니다">설치 시작</button>
-      <button class="btn secondary" id="btn-delete" title="삭제 파이프라인을 시작합니다">삭제 시작</button>
-    </div>
+    <button class="btn primary" id="btn-start" title="파이프라인 유형을 선택해 시작합니다">${ic('i-play','ic sm')}파이프라인 시작</button>
     <div class="section-title">파이프라인 이력</div>
     <div class="section-desc">이 대상에서 실행된 파이프라인 전체 ${ids.length}건 · 최신순</div>
     <div class="card" id="hist"></div>
@@ -1033,9 +1045,7 @@ function viewTarget(id){
   }else{
     hist.innerHTML=`<div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>파이프라인 이력이 없어요</div>`;
   }
-  const bi=root.querySelector('#btn-install'), bd=root.querySelector('#btn-delete');
-  bi.onclick=()=>openPreview(ts,'INSTALL'); // R18 §2: 상시 활성
-  bd.onclick=()=>openPreview(ts,'DELETE');
+  root.querySelector('#btn-start').onclick=()=>openPreview(ts); // R21 §A1: 단일 CTA
   return root;
 }
 
@@ -1274,24 +1284,50 @@ function mountModal(html){
   const focusable=modal.querySelector('.btn.primary,.btn.danger,button'); if(focusable) focusable.focus();
   return modal;
 }
-function openPreview(ts,type){
-  app.modal={kind:'preview',type,id:ts.id};
-  const steps=previewRecipe(ts.provider,type);
+/* R21 (A1+B1): 단일 CTA의 2단계 모달 — ① 유형 타일(설치/삭제 활성, Custom 준비 중)
+   ② 아이덴티티 헤더 + 레시피 스텝 미니 플로우(상세 캔버스와 같은 노드 어휘). */
+function openPreview(ts){
+  app.modal={kind:'preview',id:ts.id};
   const m=mountModal(`<div class="modal">
-    <h3>${type==='INSTALL'?'설치':'삭제'} 실행 미리보기</h3>
-    <div class="desc">${esc(ts.id)} · ${PROVIDERS[ts.provider]} · 레시피 <span class="mono">${ts.provider.toUpperCase()}_${type}_V1</span> — 아래 순서로 파이프라인이 생성됩니다. <span class="muted">유일성: 진행 중 run이 있으면 기존 run을 반환합니다.</span></div>
-    <div class="recipe">${steps.map(s=>`<div class="step"><span class="sq">${s.seq}</span>${esc(s.operation)} <span class="kindchip ${s.kind==='CONDITION_CHECK'?'cond':''}" style="margin-left:auto">${s.kind}</span></div>`).join('')||'<span class="muted">recipe 없음</span>'}</div>
-    <div class="foot"><button class="btn ghost" id="mcancel">취소</button><button class="btn primary" id="mrun">${type==='INSTALL'?'설치':'삭제'} 실행</button></div>
+    <div id="pv-choose">
+      <h3>파이프라인 시작</h3>
+      <div class="desc"><b style="font-variant-numeric:tabular-nums">${esc(ts.id)}</b> · ${PROVIDERS[ts.provider]} — 실행할 파이프라인 유형을 선택하세요</div>
+      <div class="ttile-row">
+        <button class="ttile t-install" data-type="INSTALL"><span class="tico">${ic('i-install')}</span><span class="ttl">설치</span><span class="tdesc">이 대상에 인프라를 설치합니다</span></button>
+        <button class="ttile t-custom" disabled title="곧 제공됩니다"><span class="tico">${ic('i-sliders')}</span><span class="ttl">Custom</span><span class="tdesc">직접 구성한 레시피 실행 — 준비 중</span></button>
+        <button class="ttile t-delete" data-type="DELETE"><span class="tico">${ic('i-trash')}</span><span class="ttl">삭제</span><span class="tdesc">설치된 인프라를 destroy 합니다</span></button>
+      </div>
+      <div class="foot"><button class="btn ghost" id="mcancel">취소</button></div>
+    </div>
+    <div id="pv-preview" hidden></div>
   </div>`);
+  const choose=m.querySelector('#pv-choose'), pv=m.querySelector('#pv-preview');
   m.querySelector('#mcancel').onclick=closeModal;
-  m.querySelector('#mrun').onclick=()=>{
-    // A10 POST(멱등): 진행 중 run 있으면 그 run으로 이동(기존 run 반환). 없으면 recipe로 새 run 생성 후 이동.
-    const running=(BY_TARGET[ts.id]||[]).map(id=>PIPELINES[id]).find(p=>p.status==='RUNNING');
-    closeModal();
-    const navTo=id=>nav(`#/pipeline/${id}`,{serviceCode:ts.serviceCode,serviceName:ts.serviceName,targetId:ts.id,provider:ts.provider});
-    if(running){ toast('이미 진행 중인 파이프라인으로 이동합니다'); navTo(running.id); }
-    else { const id=createPipeline(ts,type); toast(`${type==='INSTALL'?'설치':'삭제'} 파이프라인이 실행됐어요`); navTo(id); }
-  };
+  function showPreview(type){
+    const steps=previewRecipe(ts.provider,type);
+    const label=type==='INSTALL'?'설치':'삭제';
+    pv.innerHTML=`${typetag(type)}
+      <h3 style="margin:6px 0 2px">${label} 파이프라인 시작</h3>
+      <div class="pv-ident"><b style="font-variant-numeric:tabular-nums">${esc(ts.id)}</b> · ${PROVIDERS[ts.provider]} · <span class="mono">${ts.provider.toUpperCase()}_${type}_V1</span></div>
+      <div class="pvflow">${steps.map((s,i)=>`${i?'<span class="pvconn"></span>':''}<span class="pvnode"><span class="nd-icons">${
+        s.kind==='CONDITION_CHECK'
+          ? `<span class="nd-mark m-cond" title="조건 확인 — 폴링">${ic('i-clock','ic sm')}</span>`
+          : `<span class="nd-mark" title="Terraform">${terraformMark()}</span>${providerMark(ts.provider)}`
+      }</span><span class="pvname">${esc(s.operation)}</span></span>`).join('')||'<span class="muted">recipe 없음</span>'}</div>
+      <div class="notice" style="display:block;margin-top:12px">이미 진행 중인 run이 있으면 새로 만들지 않고 그 run으로 이동합니다</div>
+      <div class="foot"><button class="btn ghost" id="mback">이전</button><button class="btn primary" id="mrun">${ic('i-play','ic sm')}${label} 시작</button></div>`;
+    choose.hidden=true; pv.hidden=false;
+    pv.querySelector('#mback').onclick=()=>{pv.hidden=true;choose.hidden=false;};
+    pv.querySelector('#mrun').onclick=()=>{
+      // A10 POST(멱등): 진행 중 run 있으면 그 run으로 이동(기존 run 반환). 없으면 recipe로 새 run 생성 후 이동.
+      const running=(BY_TARGET[ts.id]||[]).map(id=>PIPELINES[id]).find(p=>p.status==='RUNNING');
+      closeModal();
+      const navTo=id=>nav(`#/pipeline/${id}`,{serviceCode:ts.serviceCode,serviceName:ts.serviceName,targetId:ts.id,provider:ts.provider});
+      if(running){ toast('이미 진행 중인 파이프라인으로 이동합니다'); navTo(running.id); }
+      else { const id=createPipeline(ts,type); toast(`${label} 파이프라인이 실행됐어요`); navTo(id); }
+    };
+  }
+  m.querySelectorAll('[data-type]').forEach(b=>{ b.onclick=()=>showPreview(b.dataset.type); });
 }
 function openCancel(pipelineId){
   app.modal={kind:'cancel',id:pipelineId};

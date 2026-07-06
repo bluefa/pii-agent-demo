@@ -17,6 +17,7 @@
 import { Fragment, useCallback, type KeyboardEvent, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/integration/admin/pipelines/_components/icons';
+import { TerraformLogo, providerLogo } from '@/app/integration/admin/pipelines/_components/brandMarks';
 import {
   connectorClass,
   nodeStateClass,
@@ -81,70 +82,15 @@ const FLOW_CSS = `
 }
 `;
 
-/** Terraform logomark — three isometric blocks, brand purple (artwork, not UI text). */
-function TerraformMark(): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--pl-brand-tf)" aria-hidden="true" focusable="false">
-      <path d="M8.7 4.3 15 7.9v7.2L8.7 11.5Z" />
-      <path d="M15.8 8.4 22 4.8v7.2l-6.2 3.6Z" opacity=".75" />
-      <path d="M2 8.2l6 3.4v7L2 15.2Z" opacity=".55" />
-      <path d="M8.7 12.6 15 16.2v7.2l-6.3-3.6Z" />
-    </svg>
-  );
-}
-
-/** Simplified provider logomarks; IDC/SDU render as text chips (owner: 글자만). */
+/** Provider mark tile — logo when known, text chip for IDC/SDU (owner: 글자만). */
 function ProviderMark({ provider }: { provider: CloudProvider }): ReactElement {
-  switch (provider) {
-    case 'AWS':
-      return (
-        <span className="nd-mark" title="AWS">
-          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <text
-              x="12"
-              y="12.5"
-              textAnchor="middle"
-              fontSize="8.5"
-              fontWeight="700"
-              fill="var(--pl-brand-aws-ink)"
-              fontFamily="var(--pl-font-sans)"
-            >
-              aws
-            </text>
-            <path
-              d="M5.5 15.5c4 2.6 9.2 2.6 13-.2"
-              stroke="var(--pl-brand-aws-smile)"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              fill="none"
-            />
-            <path d="m18.5 13.6.3 2-2 .3" stroke="var(--pl-brand-aws-smile)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-          </svg>
-        </span>
-      );
-    case 'AZURE':
-      return (
-        <span className="nd-mark" title="Azure">
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M13.2 4 6.3 18.6a.8.8 0 0 0 .7 1.1h4l6.9-15.7Z" fill="var(--pl-pv-azure)" opacity=".65" />
-            <path d="m14.6 8.6-4 9.3 3.3 1.8h4.9a.8.8 0 0 0 .7-1.1Z" fill="var(--pl-pv-azure)" />
-          </svg>
-        </span>
-      );
-    case 'GCP':
-      return (
-        <span className="nd-mark" title="Google Cloud">
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path
-              d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.62-1.46A4.5 4.5 0 0 1 17.5 18H7Z"
-              fill="var(--pl-pv-gcp)"
-            />
-          </svg>
-        </span>
-      );
-    default:
-      return <span className="nd-mark-txt">{provider}</span>;
-  }
+  const logo = providerLogo(provider);
+  if (!logo) return <span className="nd-mark-txt">{provider}</span>;
+  return (
+    <span className="nd-mark" title={logo.title}>
+      {logo.svg}
+    </span>
+  );
 }
 
 /** n8n-style corner status badge: DONE ✓ / FAILED ✕ / spinner / CANCELLED ⊘ / seq. */
@@ -271,7 +217,7 @@ export function TaskFlow({
                 <div className="nd-icons">
                   {task.kind === 'TERRAFORM_JOB' ? (
                     <span className="nd-mark" title="Terraform">
-                      <TerraformMark />
+                      <TerraformLogo />
                     </span>
                   ) : (
                     <span className="nd-mark m-cond" title="조건 확인 — 폴링">

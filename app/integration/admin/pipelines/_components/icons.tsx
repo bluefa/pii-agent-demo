@@ -26,7 +26,8 @@ export type IconName =
   | 'install'
   | 'trash'
   | 'sliders'
-  | 'stop';
+  | 'stop'
+  | 'play';
 
 export type IconSize = 'sm' | 'md' | 'lg';
 
@@ -108,6 +109,8 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
     </>
   ),
   stop: <rect x="7" y="7" width="10" height="10" rx="1.6" />,
+  // R21 §A1 — the single start-CTA glyph (solid triangle, prototype i-play).
+  play: <path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none" />,
 };
 
 export interface IconProps {

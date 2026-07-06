@@ -1,23 +1,23 @@
 'use client';
 
 /**
- * Target detail (C2-a) — design-inventory §2.3. Identity (provider + CSP metadata),
- * install/delete action row (R18 §2: always active — no gating; duplicate-run
- * conflicts are handled by the server 409 + PreviewModal's latest-refetch flow),
- * and the paged pipeline history (R20: the latest-run status bar is gone — the
- * history table's top row IS the latest run, and run-level actions live on the
- * pipeline page). Raw target-source detail (process_status + CSP metadata) comes
- * from the reused BFF route via getRawTargetSourceDetail (getProject drops those
- * fields).
+ * Target detail (C2-a) — R21 (r21-cta-lab A1+C1, owner-picked): the CSP
+ * metadata is a front-matter STRIP under the h1 (12px reference line, not the
+ * old IdentityBar card), and the action row is ONE primary CTA [파이프라인
+ * 시작] — the type choice (설치/삭제/Custom) lives inside PreviewModal step 1.
+ * Below: the paged pipeline history (R20: the history table's top row IS the
+ * latest run; run-level actions live on the pipeline page). Raw target-source
+ * detail (process_status + CSP metadata) comes from the reused BFF route via
+ * getRawTargetSourceDetail (getProject drops those fields).
  */
-import { Fragment, useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useState, type ReactElement } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { SectionHeader } from '@/app/integration/admin/pipelines/_components/SectionHeader';
 import { Card } from '@/app/integration/admin/pipelines/_components/Card';
-import { FilterBar } from '@/app/integration/admin/pipelines/_components/FilterBar';
 import { PlButton } from '@/app/integration/admin/pipelines/_components/PlButton';
+import { Icon } from '@/app/integration/admin/pipelines/_components/icons';
 import { PlBreadcrumb } from '@/app/integration/admin/pipelines/_components/PlBreadcrumb';
 import { PlEmptyState } from '@/app/integration/admin/pipelines/_components/PlEmptyState';
 import { PlPagination } from '@/app/integration/admin/pipelines/_components/PlPagination';
@@ -31,7 +31,6 @@ import {
   PlTd,
   PlChevCell,
 } from '@/app/integration/admin/pipelines/_components/PlTable';
-import { IdentityBar } from '@/app/integration/admin/pipelines/_detail/IdentityBar';
 import { PreviewModal } from '@/app/integration/admin/pipelines/_detail/PreviewModal';
 import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailStyles';
 import { targetCrumbs } from '@/app/integration/admin/pipelines/_detail/pipelineBreadcrumb';
@@ -49,7 +48,7 @@ import {
   getRawTargetSourceDetail,
   type RawTargetSourceDetail,
 } from '@/app/lib/api/pipeline-target';
-import type { PipelineType, SpringPage, PipelineSummary } from '@/lib/pipeline/types';
+import type { SpringPage, PipelineSummary } from '@/lib/pipeline/types';
 
 const HISTORY_SIZE = 5;
 
@@ -57,41 +56,29 @@ interface MetaRow {
   k: string;
   v: string;
 }
-interface MetaGroup {
-  label: string;
-  rows: MetaRow[];
-  empty: string | null;
-}
 
-/** CSP metadata → logical groups (design cspMetaGroups; null rows filtered). */
-function cspMetaGroups(provider: string, raw: RawTargetSourceDetail | null): MetaGroup[] {
+/** CSP metadata → flat front-matter rows (null values filtered; R21 §C1). */
+function cspMetaRows(provider: string, raw: RawTargetSourceDetail | null): MetaRow[] {
   const m = raw?.metadata ?? {};
   const region = m.is_china_region != null ? (m.is_china_region ? 'China' : 'Global') : null;
   const byProvider: Record<string, Array<[string, string | null | undefined]>> = {
     aws: [
-      ['AWS Account', m.aws_account_id],
-      ['Region Type', region],
+      ['Account', m.aws_account_id],
+      ['Region', region],
     ],
     azure: [
-      ['Tenant ID', m.tenant_id],
-      ['Subscription ID', m.subscription_id],
+      ['Tenant', m.tenant_id],
+      ['Subscription', m.subscription_id],
     ],
-    gcp: [['GCP Project', m.gcp_project_id]],
+    gcp: [['Project', m.gcp_project_id]],
   };
   const rows = (byProvider[provider] ?? [])
     .filter(([, v]) => v != null && v !== '')
     .map(([k, v]) => ({ k, v: String(v) }));
-  const groups: MetaGroup[] = [
-    { label: 'CSP 연결 정보', rows, empty: '이 CSP 유형은 연결 metadata가 없습니다' },
-  ];
   if (m.grant_service_terraform_execution_permission != null) {
-    groups.push({
-      label: '실행 권한',
-      rows: [{ k: 'TF 실행 권한', v: m.grant_service_terraform_execution_permission ? '허용' : '미허용' }],
-      empty: null,
-    });
+    rows.push({ k: 'TF 실행 권한', v: m.grant_service_terraform_execution_permission ? '허용' : '미허용' });
   }
-  return groups;
+  return rows;
 }
 
 export function TargetDetailView(): ReactElement {
@@ -100,15 +87,16 @@ export function TargetDetailView(): ReactElement {
   const targetSourceId = String(params.targetSourceId);
   const toast = usePlToast();
   const { text } = pipelineStyles;
-  const idbarStyles = detailStyles.idbar;
+  const fm = detailStyles.frontMeta;
 
   const [raw, setRaw] = useState<RawTargetSourceDetail | null>(null);
   const [rawError, setRawError] = useState<string | null>(null);
   const [history, setHistory] = useState<SpringPage<PipelineSummary> | null>(null);
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
-  // Repo rule: modal open/close flows go through useModal (payload rides `data`).
-  const previewModal = useModal<PipelineType>();
+  // Repo rule: modal open/close flows go through useModal. R21 §A1 — the type
+  // choice happens INSIDE the modal, so there is no payload to ride.
+  const previewModal = useModal();
 
   // Raw detail (identity strip + CSP metadata).
   useEffect(() => {
@@ -164,32 +152,7 @@ export function TargetDetailView(): ReactElement {
   const provider = providerKey(raw.cloud_provider);
   const serviceCode = raw.service_code ?? '';
   const svcName = raw.service_name || serviceCode || targetSourceId;
-  const groups = cspMetaGroups(provider, raw);
-
-  const metaNode: ReactNode = (
-    <div className={idbarStyles.metaRow}>
-      {groups.map((g, i) => (
-        <Fragment key={g.label}>
-          {i > 0 && <span className={idbarStyles.div} aria-hidden="true" />}
-          <div className={idbarStyles.mgroup}>
-            <div className={idbarStyles.mgLabel}>{g.label}</div>
-            {g.rows.length ? (
-              <div className={detailStyles.kv.wide}>
-                {g.rows.map((r) => (
-                  <Fragment key={r.k}>
-                    <div className={detailStyles.kv.k}>{r.k}</div>
-                    <div className={detailStyles.kv.vMono}>{r.v}</div>
-                  </Fragment>
-                ))}
-              </div>
-            ) : (
-              <div className={idbarStyles.mgEmpty}>{g.empty}</div>
-            )}
-          </div>
-        </Fragment>
-      ))}
-    </div>
-  );
+  const metaRows = cspMetaRows(provider, raw);
 
   const totalElements = history?.totalElements ?? 0;
   const totalPages = history?.totalPages ?? 1;
@@ -198,37 +161,43 @@ export function TargetDetailView(): ReactElement {
   return (
     <div>
       <PlBreadcrumb crumbs={targetCrumbs(svcName, targetSourceId)} />
-      <div className="mb-6">
-        <h1 className={text.pageTitle}>
-          {svcName} <span className={cn(text.muted, 'font-normal')}>({serviceCode})</span>
-        </h1>
+      <h1 className={text.pageTitle}>
+        {svcName} <span className={cn(text.muted, 'font-normal')}>({serviceCode})</span>
+      </h1>
+
+      {/* R21 §C1 — metadata as a front-matter strip: reference info, not the hero. */}
+      <div className={fm.strip}>
+        <span className={fm.item}>
+          <span style={{ color: `var(${providerAccentVar(provider)})` }} className="inline-flex">
+            <Icon name="cloud" size="sm" />
+          </span>
+          <span className={fm.strong}>{providerLabel(provider)}</span>
+        </span>
+        <span className={fm.sep} aria-hidden="true" />
+        <span className={fm.item}>
+          <span className={fm.k}>TargetSourceId</span>
+          <span className={cn(fm.strong, 'tabular-nums')}>{targetSourceId}</span>
+        </span>
+        {metaRows.map((r) => (
+          <Fragment key={r.k}>
+            <span className={fm.sep} aria-hidden="true" />
+            <span className={fm.item}>
+              <span className={fm.k}>{r.k}</span>
+              {r.v}
+            </span>
+          </Fragment>
+        ))}
       </div>
 
-      <IdentityBar
-        accentVar={providerAccentVar(provider)}
-        icon="cloud"
-        pname={providerLabel(provider)}
-        psub={provider === 'idc' ? undefined : 'Cloud Provider'}
-        fields={[{ key: 'TargetSourceId', value: targetSourceId }]}
-        meta={metaNode}
-      />
-
-      <FilterBar className="mt-6">
-        <PlButton
-          variant="primary"
-          title="설치 파이프라인을 시작합니다"
-          onClick={() => previewModal.open('INSTALL')}
-        >
-          설치 시작
-        </PlButton>
-        <PlButton
-          variant="secondary"
-          title="삭제 파이프라인을 시작합니다"
-          onClick={() => previewModal.open('DELETE')}
-        >
-          삭제 시작
-        </PlButton>
-      </FilterBar>
+      {/* R21 §A1 — ONE primary CTA; the type choice lives in the modal. */}
+      <PlButton
+        variant="primary"
+        title="파이프라인 유형을 선택해 시작합니다"
+        onClick={() => previewModal.open()}
+      >
+        <Icon name="play" size="sm" />
+        파이프라인 시작
+      </PlButton>
 
       <SectionHeader
         title="파이프라인 이력"
@@ -287,7 +256,6 @@ export function TargetDetailView(): ReactElement {
         open={previewModal.isOpen}
         onClose={previewModal.close}
         targetSourceId={targetSourceId}
-        type={previewModal.data ?? 'INSTALL'}
         providerLabel={providerLabel(provider)}
         showToast={toast.show}
       />

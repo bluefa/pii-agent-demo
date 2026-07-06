@@ -4,6 +4,22 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 21 — 단일 시작 CTA·모달 미니 플로우·FrontMeta 스트립 (2026-07-06)
+
+오너 피드백: "설치/삭제 CTA 너무 아쉬움 — ui-ux-pro-max로 다양한 해결책 제시 /
+미리보기 모달도 기존 컴포넌트가 낭비되는 느낌 / 메타데이터를 head-nav(FrontMeta)처럼".
+시안 랩 `r21-cta-lab.html`(A1~A3·B1~B2·C1~C2 실물 비교)에서 오너가 **A1+B1+C1** 선택.
+근거: ui-ux-pro-max §4 `primary-action`(화면당 primary 1개)·`color-not-only`·파괴 액션 확인.
+
+- **A1 단일 CTA**: target 액션 행 [설치 시작][삭제 시작] → **[▶ 파이프라인 시작]** 하나.
+  유형 선택은 모달 1단계 타일(설치/삭제 활성 · Custom 준비 중, TypeTag 색·아이콘 어휘)로.
+- **B1 미리보기 = 작게 본 Task 흐름**: 모달 2단계 — TypeTag+아이덴티티 헤더(대상 ·
+  CSP · 레시피 mono) 아래 레시피 스텝을 **미니 플로우**(격자 캔버스 + TF/CSP 마크,
+  CONDITION_CHECK 시계, IDC/SDU 텍스트칩)로. 409 유일성 안내는 notice 박스.
+  브랜드 마크는 `brandMarks`로 추출해 캔버스와 공유(App).
+- **C1 FrontMeta 스트립**: target의 IdentityBar 카드 삭제 — h1 바로 아래 12px 한 줄
+  (☁CSP · TargetSourceId · Account/Region/TF권한, hairline)로 강등. 본문(시작·이력)이 주인공.
+
 ## Round 20.5 — 서비스·대상 검색: 플러시 레일 + 서버 검색·pagination (2026-07-06)
 
 오너 피드백: "/integration/services 디자인 참고 — (코드) 서비스 이름 표현 /

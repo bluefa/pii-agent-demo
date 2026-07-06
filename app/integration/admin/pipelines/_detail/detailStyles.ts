@@ -60,11 +60,8 @@ export const detailStyles = {
     ext: 'inline-flex items-center gap-[3px] text-[12px] font-semibold px-1.5 py-px rounded-[4px] align-middle bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
   },
 
-  /** Recipe step list (preview modal) — box pad 8/12 r8; step gap 10 pad 7/0; sq 20. */
+  /** Preview-modal empty/error note (R21: the step list became the mini flow). */
   recipe: {
-    box: 'bg-[var(--pl-bg-inner)] border border-[var(--pl-border)] rounded-[8px] px-3 py-2',
-    step: 'flex items-center gap-2.5 text-[14px] py-[7px] text-[var(--pl-text-medium)] [&+&]:border-t [&+&]:border-[var(--pl-border)]',
-    sq: 'flex items-center justify-center flex-none w-5 h-5 rounded-full bg-[var(--pl-primary-bg)] text-[var(--pl-primary)] text-[12px] font-bold tabular-nums',
     empty: text.muted,
   },
 
@@ -141,6 +138,54 @@ export const detailStyles = {
     canvas: 'w-full',
     panel:
       'w-[400px] flex-none min-w-0 max-h-[440px] bg-[var(--pl-bg-card)] border-l border-[var(--pl-border)] overflow-y-auto overscroll-contain px-5 pt-4 pb-5 motion-safe:[animation:pl-panel-in_.2s_ease-out]',
+  },
+
+  /**
+   * R21 §A1 — pipeline-type tiles (modal step 1). Base is structural only;
+   * tone variants own the icon tile's bg/color (TypeTag vocabulary extended).
+   */
+  typeTile: {
+    row: 'flex gap-2.5 flex-wrap',
+    tile: 'flex-1 min-w-[130px] flex flex-col items-start gap-1 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-3.5 text-left cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-[var(--pl-gray-300)] hover:shadow-[var(--pl-shadow-sm)] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-[var(--pl-border)] disabled:hover:shadow-none',
+    ico: 'grid place-items-center w-[30px] h-[30px] rounded-[8px] mb-0.5',
+    icoTone: {
+      INSTALL: 'bg-[color-mix(in_srgb,var(--pl-type-install)_10%,transparent)] text-[var(--pl-type-install)]',
+      DELETE: 'bg-[color-mix(in_srgb,var(--pl-type-delete)_10%,transparent)] text-[var(--pl-type-delete)]',
+      CUSTOM: 'bg-[color-mix(in_srgb,var(--pl-type-custom)_10%,transparent)] text-[var(--pl-type-custom)]',
+    },
+    title: 'text-[14px] font-bold text-[var(--pl-text-strong)]',
+    desc: 'text-[12px] text-[var(--pl-text-weak)] leading-[1.4]',
+  },
+
+  /**
+   * R21 §B1 — preview modal mini flow: same node vocabulary as the detail
+   * canvas (TF/CSP marks, clock for CONDITION_CHECK, line-grid background) so
+   * the preview reads as "the Task 흐름, seen small".
+   */
+  preview: {
+    ident: 'text-[13px] text-[var(--pl-text-medium)]',
+    identNum: 'font-semibold tabular-nums',
+    flow: 'mt-3.5 flex items-center overflow-x-auto rounded-[10px] border border-[var(--pl-border)] px-3 py-3.5 [background-image:linear-gradient(var(--pl-flow-grid)_1px,transparent_1px),linear-gradient(90deg,var(--pl-flow-grid)_1px,transparent_1px)] [background-size:20px_20px]',
+    node: 'flex-none flex flex-col gap-1.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 py-2.5 min-w-[118px]',
+    nodeIcons: 'flex items-center gap-1.5',
+    mark: 'grid place-items-center w-[26px] h-[26px] rounded-[7px] flex-none bg-[var(--pl-bg-card)] border border-[var(--pl-border)]',
+    markCond: 'grid place-items-center w-[26px] h-[26px] rounded-[7px] flex-none bg-[var(--pl-gray-100)] border border-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
+    markTxt: 'grid place-items-center h-[26px] min-w-[26px] px-1.5 rounded-[7px] flex-none bg-[var(--pl-gray-100)] border border-[var(--pl-gray-100)] text-[12px] font-bold tracking-[.02em] text-[var(--pl-gray-600)]',
+    nodeName: 'text-[12px] font-semibold leading-[1.3] text-[var(--pl-text-strong)]',
+    conn: 'flex-none w-7 h-0.5 bg-[var(--pl-gray-300)]',
+    notice: 'mt-3 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)] px-2.5 py-2 text-[12px] text-[var(--pl-text-weak)] leading-[1.4]',
+  },
+
+  /**
+   * R21 §C1 — target-page front-matter strip: the CSP metadata demoted to one
+   * 12px reference line under the h1 (head-nav feel), hairline below.
+   */
+  frontMeta: {
+    strip: 'mt-2.5 mb-4 flex items-center gap-2.5 flex-wrap border-b border-[var(--pl-gray-100)] pb-3 text-[12px] text-[var(--pl-text-medium)]',
+    item: 'inline-flex items-center gap-1.5',
+    k: 'font-semibold text-[var(--pl-text-faint)]',
+    strong: 'font-semibold text-[var(--pl-text-strong)]',
+    sep: 'w-px h-3 bg-[var(--pl-gray-100)]',
   },
 
   /** Loading / layout-stable skeleton block. */
