@@ -41,8 +41,10 @@ export const toModalResources = (
 /**
  * Input adapter: UI selection (candidates + selected set + endpoint drafts + form)
  * → contract `ApprovalRequestInputDto` ({ resources: TargetSourceResourceItemDto[] }).
- * Selected items carry their metadata; excluded items carry only the exclusion reason
- * ("select와 같이 선택/미선택 여부"). This is the ONLY shape sent on the wire.
+ * Every item carries its identity (resource_name, integration_category) and the
+ * candidate's intrinsic metadata (provider/region/database_type); selected items
+ * additionally carry the behavior's endpoint fields (VM db_type/host/port) from
+ * user drafts. This is the ONLY shape sent on the wire.
  */
 export const toApprovalRequestInput = (
   candidates: readonly CandidateResource[],
@@ -60,34 +62,39 @@ const buildResourceInputs = (
   formData: ApprovalRequestFormData,
 ): ResourceItem[] =>
   candidates.map((candidate): ResourceItem => {
+    // Contract: provider/region/database_type live under metadata
+    // (TargetSourceResourceMetadataDto). Carry them from the candidate so a
+    // backend echoing the payload keeps them through Step2/Step3.
+    const intrinsicMetadata: ResourceItem['metadata'] = {
+      ...(candidate.metadata.provider
+        ? { provider: cloudProviderToWireProvider(candidate.metadata.provider) }
+        : {}),
+      ...(candidate.metadata.region ? { region: candidate.metadata.region } : {}),
+      ...(candidate.databaseType ? { database_type: toWireDatabaseType(candidate.databaseType) } : {}),
+    };
+
     if (selectedIds.has(candidate.id)) {
       const behavior = getCandidateBehavior(candidate);
-      // Contract: provider/region/database_type live under metadata
-      // (TargetSourceResourceMetadataDto). Carry them from the candidate so a
-      // backend echoing the payload keeps them through Step2/Step3; the behavior's
-      // endpoint fields (VM db_type/host/port) override on top.
-      const metadata: ResourceItem['metadata'] = {
-        ...(candidate.metadata.provider
-          ? { provider: cloudProviderToWireProvider(candidate.metadata.provider) }
-          : {}),
-        ...(candidate.metadata.region ? { region: candidate.metadata.region } : {}),
-        ...(candidate.databaseType ? { database_type: toWireDatabaseType(candidate.databaseType) } : {}),
-        ...behavior.buildMetadataFields(candidate, drafts),
-      };
       return {
         resource_id: candidate.id,
         resource_name: candidate.resourceName,
         selected: true,
         integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
-        metadata,
+        // The behavior's endpoint fields (VM db_type/host/port) override on top.
+        metadata: {
+          ...intrinsicMetadata,
+          ...behavior.buildMetadataFields(candidate, drafts),
+        },
       };
     }
     return {
       resource_id: candidate.id,
+      resource_name: candidate.resourceName,
       selected: false,
+      integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
       ...(formData.exclusion_reason_default
         ? { exclusion_reason: formData.exclusion_reason_default }
         : {}),
-      metadata: {},
+      metadata: intrinsicMetadata,
     };
   });
