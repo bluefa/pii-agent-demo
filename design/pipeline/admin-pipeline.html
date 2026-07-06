@@ -387,6 +387,7 @@ details.collap>.body{padding:0 14px 14px}
   justify-content:center;z-index:50}
 .modal{background:var(--bg-card);border-radius:12px;box-shadow:var(--shadow-lg);
   width:480px;max-width:90vw;padding:22px 24px}
+.modal.wide{width:720px} /* R21.5 — 시작 모달(타일+미니 플로우) */
 .modal h3{margin:0 0 6px;font-size:16px;font-weight:700}
 .modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:14px;line-height:1.4}
 .modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
@@ -884,11 +885,11 @@ function renderList(root){
       <td>${progressBar(progressN(p),progressM(p),p.status)}</td>
       <td class="muted">${esc(p.createdAt)}</td>
       <td class="chev"><button class="btn secondary sm round" tabindex="-1" title="파이프라인 상세로 이동">${ic('i-arrow-ur','ic sm')}</button></td></tr>`).join('')}</tbody></table>${
-    pages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
+    `<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
       <button class="btn ghost sm" ${dashPage<=1?'disabled':''} id="prev">${ic('i-chev-l','ic sm')} 이전</button>
       <span class="pager-count">${dashPage} / ${pages}</span>
       <button class="btn ghost sm" ${dashPage>=pages?'disabled':''} id="next">다음 ${ic('i-chev-r','ic sm')}</button>
-    </div>`:''}`;
+    </div>`}`;
   wrap.querySelectorAll('tr[data-pid]').forEach(tr=>{
     tr.setAttribute('role','button'); tr.setAttribute('tabindex','0');
     const go=()=>{const p=PIPELINES[tr.dataset.pid]; nav(`#/pipeline/${p.id}`,{targetId:p.target, serviceCode:null, serviceName:null}); };
@@ -910,12 +911,13 @@ function chipHTML(k,v,opt){
 function renderChips(root,total){
   const cr=root.querySelector('#chiprow'); if(!cr) return;
   const q=dashFilter.q.trim(), active=dashFilter.status||dashFilter.provider||q;
-  let html=chipHTML('기간',PERIOD_LABEL[dashPeriod]);
+  let html='';
   if(dashFilter.status) html+=chipHTML('상태',dashFilter.status,{rmId:'chip-rm-status'});
   if(dashFilter.provider) html+=chipHTML('CSP',PROVIDERS[dashFilter.provider],{rmId:'chip-rm-prov'});
   if(q) html+=chipHTML('검색',`"${q}"`,{rmId:'chip-rm-q'});
   if(active) html+=`<button class="chip-reset" id="chip-reset">필터 초기화</button>`;
-  html+=`<span class="chip-count">${total}건</span>`;
+  // R21.5(오너): 기간 스코프 칩은 행 가장 우측 — N건 옆.
+  html+=`<span class="chip-count">${total}건</span>`+chipHTML('기간',PERIOD_LABEL[dashPeriod]);
   cr.innerHTML=html;
   // × / 초기화 → 해당 필터 리셋 후 재렌더(render로 filterbar 입력값까지 동기화)
   const bind=(id,fn)=>{const b=cr.querySelector(id); if(b) b.onclick=()=>{fn();dashPage=1;render();};};
@@ -1288,7 +1290,7 @@ function mountModal(html){
    ② 아이덴티티 헤더 + 레시피 스텝 미니 플로우(상세 캔버스와 같은 노드 어휘). */
 function openPreview(ts){
   app.modal={kind:'preview',id:ts.id};
-  const m=mountModal(`<div class="modal">
+  const m=mountModal(`<div class="modal wide">
     <div id="pv-choose">
       <h3>파이프라인 시작</h3>
       <div class="desc"><b style="font-variant-numeric:tabular-nums">${esc(ts.id)}</b> · ${PROVIDERS[ts.provider]} — 실행할 파이프라인 유형을 선택하세요</div>
@@ -1314,7 +1316,6 @@ function openPreview(ts){
           ? `<span class="nd-mark m-cond" title="조건 확인 — 폴링">${ic('i-clock','ic sm')}</span>`
           : `<span class="nd-mark" title="Terraform">${terraformMark()}</span>${providerMark(ts.provider)}`
       }</span><span class="pvname">${esc(s.operation)}</span></span>`).join('')||'<span class="muted">recipe 없음</span>'}</div>
-      <div class="notice" style="display:block;margin-top:12px">이미 진행 중인 run이 있으면 새로 만들지 않고 그 run으로 이동합니다</div>
       <div class="foot"><button class="btn ghost" id="mback">이전</button><button class="btn primary" id="mrun">${ic('i-play','ic sm')}${label} 시작</button></div>`;
     choose.hidden=true; pv.hidden=false;
     pv.querySelector('#mback').onclick=()=>{pv.hidden=true;choose.hidden=false;};

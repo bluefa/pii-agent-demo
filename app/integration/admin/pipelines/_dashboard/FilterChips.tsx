@@ -1,7 +1,8 @@
 /**
  * FilterChips (R18 §4, Komiser reference) — the chip row under the FilterBar.
  *
- * Scope chip (always, no ×): 기간 · {label}. (R20 — the 정렬 chip is gone;
+ * Scope chip (always, no ×): 기간 · {label} — RIGHTMOST in the row, next to the
+ * count (R21.5, owner: 목록 가장 우측). (R20 — the 정렬 chip is gone;
  * failed-first ordering is behavior, not a filter the operator toggles.)
  * Active-filter chips (only when the filter is off its default, × removes just
  * that filter): 상태 · FAILED, CSP · AWS, 검색 · "q". When any active chip is
@@ -81,7 +82,6 @@ export function FilterChips({
 
   return (
     <div className={filterChip.row}>
-      <Chip keyLabel="기간" value={periodLabel} />
       {status && (
         <Chip keyLabel="상태" value={status} onRemove={onClearStatus} removeAria="상태 필터 제거" />
       )}
@@ -112,6 +112,7 @@ export function FilterChips({
       >
         {total}건
       </span>
+      <Chip keyLabel="기간" value={periodLabel} />
     </div>
   );
 }

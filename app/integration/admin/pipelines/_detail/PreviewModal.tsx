@@ -160,7 +160,7 @@ export function PreviewModal({
   };
 
   return (
-    <ModalShell open={open} onClose={onClose} labelledBy={TITLE_ID}>
+    <ModalShell open={open} onClose={onClose} labelledBy={TITLE_ID} variant="wide">
       {step === 'choose' || !type ? (
         <>
           <h3 id={TITLE_ID} className={modal.title}>
@@ -246,9 +246,6 @@ export function PreviewModal({
             </div>
           )}
 
-          <div className={pv.notice}>
-            이미 진행 중인 run이 있으면 새로 만들지 않고 그 run으로 이동합니다
-          </div>
           {runError && <div className={detailStyles.taskModal.degraded}>{runError}</div>}
 
           <div className={modal.foot}>

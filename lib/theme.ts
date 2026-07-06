@@ -1108,6 +1108,8 @@ export const pipelineStyles = {
     dialog: 'max-w-[90vw] px-6 py-[22px] rounded-[12px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
     dialogDefault: 'w-[480px]',
     dialogTask: 'w-[600px] flex flex-col max-h-[min(720px,86vh)]',
+    /** R21.5 — the start-pipeline modal (type tiles + mini flow need room). */
+    dialogWide: 'w-[720px]',
     title: cn(pipelineText.modalTitle, 'mb-1.5'),
     desc: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)] mb-3.5',
     body: 'overflow-y-auto min-h-0 mt-1',

@@ -173,7 +173,6 @@ export const detailStyles = {
     markTxt: 'grid place-items-center h-[26px] min-w-[26px] px-1.5 rounded-[7px] flex-none bg-[var(--pl-gray-100)] border border-[var(--pl-gray-100)] text-[12px] font-bold tracking-[.02em] text-[var(--pl-gray-600)]',
     nodeName: 'text-[12px] font-semibold leading-[1.3] text-[var(--pl-text-strong)]',
     conn: 'flex-none w-7 h-0.5 bg-[var(--pl-gray-300)]',
-    notice: 'mt-3 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)] px-2.5 py-2 text-[12px] text-[var(--pl-text-weak)] leading-[1.4]',
   },
 
   /**

@@ -371,14 +371,13 @@ export default function DashboardPage(): ReactElement {
                 </PlRow>
               ))}
             </PlTable>
-            {pages > 1 && (
-              <PlPagination
-                page={current}
-                pages={pages}
-                onPrev={() => setPage(current - 1)}
-                onNext={() => setPage(current + 1)}
-              />
-            )}
+            {/* R20 grammar — always visible so the list reads as a paged list. */}
+            <PlPagination
+              page={current}
+              pages={pages}
+              onPrev={() => setPage(current - 1)}
+              onNext={() => setPage(current + 1)}
+            />
           </>
         )}
       </Card>

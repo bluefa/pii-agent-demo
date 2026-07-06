@@ -4,6 +4,19 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 21.5 — 시작 모달 wide·안내 문구 삭제·기간 칩 최우측·pager 상시 (2026-07-06)
+
+오너 피드백 4건 반영.
+
+- **시작 모달 wide(720px)**: `ModalShell variant="wide"` 신설(`theme.modal.dialogWide`) —
+  미니 플로우가 4스텝에서도 줄바꿈 없이 읽히도록 폭 확대.
+- **409 안내 문구 삭제**: "이미 진행 중인 run이 있으면 …" notice 박스 제거
+  (`preview.notice` 토큰 삭제). 409 시 최신 run 재조회·이동 동작 자체는 유지.
+- **기간 칩 최우측**: 대시보드 칩 행에서 `기간 · {label}` scope 칩을 count(N건) 뒤
+  가장 우측으로 이동 — 제거 가능한 필터 칩과 상시 scope 칩의 시각 분리.
+- **목록 pager 상시**: 파이프라인 목록 PlPagination `pages > 1` 가드 제거 — 1페이지도
+  `1 / 1` 노출(서비스 레일과 동일 문법). 5건/페이지 클라이언트 페이징은 기존과 동일.
+
 ## Round 21 — 단일 시작 CTA·모달 미니 플로우·FrontMeta 스트립 (2026-07-06)
 
 오너 피드백: "설치/삭제 CTA 너무 아쉬움 — ui-ux-pro-max로 다양한 해결책 제시 /
