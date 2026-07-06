@@ -103,7 +103,7 @@ export const ConnectionVerifiedStep = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
+      <ProcessStatusCard project={project} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>

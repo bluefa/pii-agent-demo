@@ -241,7 +241,7 @@ export const IdcStep1TargetInput = ({
   return (
     <>
       <ProjectPageMeta project={project} providerLabel={providerLabel} identity={identity} action={action} />
-      <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
+      <ProcessStatusCard project={project} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <div className={cn('rounded-xl shadow-sm', bgColors.surface)}>

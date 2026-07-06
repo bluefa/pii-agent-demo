@@ -48,7 +48,7 @@ export const WaitingApprovalStep = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
+      <ProcessStatusCard project={project} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <WaitingApprovalCard
         targetSourceId={project.targetSourceId}

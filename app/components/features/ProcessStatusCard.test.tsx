@@ -9,11 +9,6 @@ vi.mock('@/app/components/features/process-status/ApprovalApplyingBanner', () =>
   },
 }));
 
-vi.mock('@/app/lib/api', () => ({
-  getProcessStatus: vi.fn().mockResolvedValue({ process_status: 'PENDING' }),
-  getProject: vi.fn().mockResolvedValue(undefined),
-}));
-
 vi.mock('@/app/components/features/process-status', () => ({
   InstallationProcessProgressBar: () => null,
 }));

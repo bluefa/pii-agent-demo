@@ -78,7 +78,7 @@ export const WaitingConnectionTestStep = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
+      <ProcessStatusCard project={project} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <ConnectionTestSection providerLabel={providerLabel} refreshProject={refreshProject} />
       <RejectionAlert project={project} />
