@@ -18,7 +18,8 @@ export const GcpProjectPage = ({
 }: GcpProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'GCP',
-    monitoringMethod: 'GCP Agent',
+    // detail metadata.is_sdu_type — SDU accounts surface as "SDU", not an Agent.
+    monitoringMethod: project.isSduType ? 'SDU' : 'GCP Agent',
     jiraLink: null,
     identifiers: [
       // v16 id label is the bare 'Project ID' (gcp.idLabel, HTML 9427) — no provider prefix.

@@ -302,6 +302,9 @@ export interface CloudTargetSource extends BaseTargetSource {
   awsRegionType?: 'global' | 'china';
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;
+  // swagger TargetSourceDetail.metadata.is_sdu_type — SDU accounts render "SDU"
+  // instead of "{Provider} Agent" in the identity bar.
+  isSduType?: boolean;
 
   tenantId?: string;
   subscriptionId?: string;
@@ -327,6 +330,7 @@ export type Project = BaseTargetSource & {
   awsRegionType?: 'global' | 'china';
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;
+  isSduType?: boolean;
   tenantId?: string;
   subscriptionId?: string;
   gcpProjectId?: string;

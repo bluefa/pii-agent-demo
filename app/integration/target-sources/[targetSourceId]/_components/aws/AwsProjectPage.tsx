@@ -19,10 +19,22 @@ export const AwsProjectPage = ({
 }: AwsProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'AWS',
-    monitoringMethod: 'AWS Agent',
+    // detail metadata.is_sdu_type — SDU accounts surface as "SDU", not an Agent.
+    monitoringMethod: project.isSduType ? 'SDU' : 'AWS Agent',
     jiraLink: null,
     identifiers: [
       { label: 'Account ID', value: project.awsAccountId ?? null, mono: true },
+      // metadata.grant_service_terraform_execution_permission — stays visible so the
+      // auto(허용)/manual(미허용) install mode is always readable from the metadata bar.
+      {
+        label: 'TF 실행 권한',
+        value:
+          project.isTerraformExecutionGranted === undefined
+            ? null
+            : project.isTerraformExecutionGranted
+              ? '허용 · 자동 설치'
+              : '미허용 · 수동 설치',
+      },
     ],
   };
 

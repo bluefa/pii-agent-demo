@@ -98,6 +98,10 @@ const toBffApprovalProcessStatus = (processStatus: ProcessStatus): BffApprovalPr
 const getBffMetadata = (project: Project) => ({
   ...(project.tenantId ? { tenant_id: project.tenantId } : {}),
   ...(project.subscriptionId ? { subscription_id: project.subscriptionId } : {}),
+  ...(project.isSduType !== undefined ? { is_sdu_type: project.isSduType } : {}),
+  ...(project.isTerraformExecutionGranted !== undefined
+    ? { grant_service_terraform_execution_permission: project.isTerraformExecutionGranted }
+    : {}),
 });
 
 // swagger `TargetSourceDetail` (snake wire) — flat, used by 37 (`list`) and the
@@ -421,7 +425,11 @@ export const mockTargetSources = {
     const gcpProjectId = trim(metadata.project_id ?? undefined) || undefined;
     const description = trim(metadata.description ?? undefined);
     const isChinaRegion = candidate.is_china_region === true;
-    const grantTf = candidate.grant_service_terraform_execution_permission === true;
+    // Tri-state: explicit false means manual install, so keep it (don't collapse to absent).
+    const grantTf = typeof candidate.grant_service_terraform_execution_permission === 'boolean'
+      ? candidate.grant_service_terraform_execution_permission
+      : undefined;
+    const isSduType = candidate.is_sdu_type === true;
 
     if (awsAccountId && !/^\d{12}$/.test(awsAccountId)) {
       return NextResponse.json(
@@ -453,7 +461,8 @@ export const mockTargetSources = {
       ...(awsAccountId ? { awsAccountId } : {}),
       ...(normalizedProvider === 'AWS' ? { awsRegionType: isChinaRegion ? 'china' : 'global' } : {}),
       ...(normalizedProvider === 'AWS' ? { isChinaRegion } : {}),
-      ...(grantTf ? { isTerraformExecutionGranted: true } : {}),
+      ...(grantTf !== undefined ? { isTerraformExecutionGranted: grantTf } : {}),
+      ...(isSduType ? { isSduType } : {}),
       ...(tenantId ? { tenantId } : {}),
       ...(subscriptionId ? { subscriptionId } : {}),
       ...(gcpProjectId ? { gcpProjectId } : {}),

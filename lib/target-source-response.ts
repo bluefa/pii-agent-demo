@@ -40,6 +40,7 @@ export const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatu
 export const extractTargetSourceFromSnake = (raw: TargetSourceDetailWire): TargetSource => {
   const item = raw as Record<string, unknown>;
   const asStr = (v: unknown): string | undefined => typeof v === 'string' ? v : undefined;
+  const asBool = (v: unknown): boolean | undefined => typeof v === 'boolean' ? v : undefined;
 
   const id = typeof item.target_source_id === 'number' ? item.target_source_id : 0;
   const fallbackCode = `TS-${id}`;
@@ -53,6 +54,8 @@ export const extractTargetSourceFromSnake = (raw: TargetSourceDetailWire): Targe
   const subscriptionId = asStr(metadata?.subscription_id);
   const awsAccountId = asStr(metadata?.aws_account_id);
   const gcpProjectId = asStr(metadata?.gcp_project_id);
+  const isSduType = asBool(metadata?.is_sdu_type);
+  const isTerraformExecutionGranted = asBool(metadata?.grant_service_terraform_execution_permission);
   const createdAt = asStr(item.created_at) ?? new Date().toISOString();
 
   return {
@@ -72,5 +75,7 @@ export const extractTargetSourceFromSnake = (raw: TargetSourceDetailWire): Targe
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
+    ...(isSduType !== undefined ? { isSduType } : {}),
+    ...(isTerraformExecutionGranted !== undefined ? { isTerraformExecutionGranted } : {}),
   };
 };
