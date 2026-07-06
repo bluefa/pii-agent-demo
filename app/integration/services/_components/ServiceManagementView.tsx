@@ -7,25 +7,19 @@ import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
 import { ProjectCreateModal } from '@/app/components/features/ProjectCreateModal';
 import { useToast } from '@/app/components/ui/toast';
 import {
-  approveApprovalRequestV1,
-  confirmInstallation,
-  getApprovalRequestLatest,
   getProjects,
   getServicesPage,
-  rejectApprovalRequestV1,
 } from '@/app/lib/api';
 import { AppError } from '@/lib/errors';
 import type { ProjectSummary } from '@/lib/types';
 import { integrationRoutes } from '@/lib/routes';
 import { bgColors, cn, textColors } from '@/lib/theme';
 import { ServiceSidebar } from '@/app/components/features/admin/ServiceSidebar';
-import { ApprovalDetailModal } from '@/app/components/features/admin/ApprovalDetailModal';
 import { InfraRowList, ServiceHeaderV7 } from '@/app/components/features/admin/v7';
 import {
   buildInitialServiceListState,
   serviceListReducer,
 } from '@/app/components/features/admin-dashboard/serviceListReducer';
-import type { ApprovalModalState } from '@/app/components/features/admin-dashboard/approvalModalState';
 
 const SERVICE_PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -49,8 +43,7 @@ export const ServiceManagementView = () => {
 
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [approvalModal, setApprovalModal] = useState<ApprovalModalState>({ status: 'closed' });
+  const [createOpen, setCreateOpen] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -171,84 +164,6 @@ export const ServiceManagementView = () => {
     [fetchServicesPage, serviceQuery],
   );
 
-  const handleViewApproval = async (project: ProjectSummary, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const latest = await getApprovalRequestLatest(project.targetSourceId);
-      const req = latest.request;
-      if (!req) {
-        toast.info('승인 요청 이력이 없습니다.');
-        return;
-      }
-      setApprovalModal({
-        status: 'view',
-        detail: {
-          project,
-          approvalRequest: {
-            id: String(req.id ?? ''),
-            requested_at: req.requested_at ?? '',
-            requested_by: req.requested_by?.user_id ?? '',
-            status: req.status ?? undefined,
-            resource_total_count: req.resource_total_count ?? undefined,
-            resource_selected_count: req.resource_selected_count ?? undefined,
-            resources: latest.resources ?? [],
-          },
-        },
-      });
-    } catch (err) {
-      if (err instanceof AppError && err.code === 'NOT_FOUND') {
-        toast.info('승인 요청 이력이 없습니다.');
-        return;
-      }
-      toast.error(err instanceof Error ? err.message : '승인 요청 조회 실패');
-    }
-  };
-
-  const handleApprove = async () => {
-    if (approvalModal.status !== 'view') return;
-    const currentDetail = approvalModal.detail;
-    try {
-      setApprovalModal({ status: 'submitting', detail: currentDetail });
-      await approveApprovalRequestV1(currentDetail.project.targetSourceId);
-      setApprovalModal((prev) => (prev.status === 'submitting' ? { status: 'closed' } : prev));
-      await refreshProjects();
-    } catch (err) {
-      setApprovalModal((prev) =>
-        prev.status === 'submitting' ? { status: 'view', detail: currentDetail } : prev,
-      );
-      toast.error(err instanceof Error ? err.message : '승인 처리 실패');
-    }
-  };
-
-  const handleReject = async (reason: string) => {
-    if (approvalModal.status !== 'view') return;
-    const currentDetail = approvalModal.detail;
-    try {
-      setApprovalModal({ status: 'submitting', detail: currentDetail });
-      await rejectApprovalRequestV1(currentDetail.project.targetSourceId, reason);
-      setApprovalModal((prev) => (prev.status === 'submitting' ? { status: 'closed' } : prev));
-      await refreshProjects();
-    } catch (err) {
-      setApprovalModal((prev) =>
-        prev.status === 'submitting' ? { status: 'view', detail: currentDetail } : prev,
-      );
-      toast.error(err instanceof Error ? err.message : '반려 처리 실패');
-    }
-  };
-
-  const handleConfirmCompletion = async (targetSourceId: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      setActionLoading(String(targetSourceId));
-      await confirmInstallation(targetSourceId);
-      await refreshProjects();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : '설치 완료 확정 실패');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const handleOpenDetail = useCallback(
     (targetSourceId: number) => {
       router.push(integrationRoutes.targetSource(targetSourceId));
@@ -268,18 +183,14 @@ export const ServiceManagementView = () => {
   );
 
   const openCreateModal = useCallback(() => {
-    setApprovalModal({ status: 'create' });
+    setCreateOpen(true);
   }, []);
 
-  const closeAnyModal = useCallback(() => {
-    setApprovalModal({ status: 'closed' });
+  const closeCreateModal = useCallback(() => {
+    setCreateOpen(false);
   }, []);
 
   const selectedName = selectedServiceObj?.service_name ?? '';
-  const approvalDetail =
-    approvalModal.status === 'view' || approvalModal.status === 'submitting'
-      ? approvalModal.detail
-      : null;
 
   return (
     <div className={cn('min-h-screen', bgColors.muted)}>
@@ -341,34 +252,19 @@ export const ServiceManagementView = () => {
               <InfraRowList
                 projects={projects}
                 loading={loading}
-                actionLoading={actionLoading}
                 onAddInfra={openCreateModal}
                 onOpenDetail={handleOpenDetail}
                 onManageAction={handleManageAction}
-                onConfirmCompletion={handleConfirmCompletion}
-                onViewApproval={handleViewApproval}
               />
             </div>
           )}
         </main>
       </div>
 
-      {approvalDetail && (
-        <ApprovalDetailModal
-          isOpen
-          onClose={closeAnyModal}
-          project={approvalDetail.project}
-          approvalRequest={approvalDetail.approvalRequest}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          loading={approvalModal.status === 'submitting'}
-        />
-      )}
-
-      {approvalModal.status === 'create' && selectedService && (
+      {createOpen && selectedService && (
         <ProjectCreateModal
           selectedServiceCode={selectedService}
-          onClose={closeAnyModal}
+          onClose={closeCreateModal}
           onCreated={refreshProjects}
         />
       )}
