@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  currentTaskInfo,
   findFailedTask,
   retrySuffix,
   statusCurrentText,
@@ -92,5 +93,40 @@ describe('findFailedTask', () => {
     ];
     expect(findFailedTask(tasks)?.sequence).toBe(1);
     expect(findFailedTask([mkTask({ sequence: 0, status: 'DONE' })])).toBeNull();
+  });
+});
+
+// R18 §7-2 — structured zone2 model for the merged flow-card header.
+describe('currentTaskInfo', () => {
+  it('PENDING → 시작 대기 label + schedule name, no task scope', () => {
+    const info = currentTaskInfo('PENDING', null, [], opName);
+    expect(info).toEqual({ label: '시작 대기', name: '- 시작 예정', retry: null, seq: null });
+  });
+
+  it('current task → 현재 태스크 label + name + seq (retry stripped of parens)', () => {
+    const tasks = [
+      mkTask({ sequence: 0, status: 'DONE' }),
+      mkTask({ sequence: 1, status: 'IN_PROGRESS', operation: 'AWS_SERVICE_TF_APPLY', fail_count: 1 }),
+    ];
+    const info = currentTaskInfo('RUNNING', null, tasks, opName, (t) => retrySuffix(t.fail_count, 3));
+    expect(info.label).toBe('현재 태스크');
+    expect(info.name).toBe('AWS_SERVICE_TF_APPLY');
+    expect(info.retry).toBe('재시도 1/3');
+    expect(info.seq).toBe(1);
+  });
+
+  it('FAILED current task → 실패 태스크 label', () => {
+    const tasks = [mkTask({ sequence: 0, status: 'FAILED', operation: 'AZURE_BDC_TF_APPLY' })];
+    const info = currentTaskInfo('FAILED', null, tasks, opName);
+    expect(info.label).toBe('실패 태스크');
+    expect(info.name).toBe('AZURE_BDC_TF_APPLY');
+  });
+
+  it('terminal without a current task → 결과 label + summary text', () => {
+    const tasks = [mkTask({ sequence: 0, status: 'DONE' })];
+    const info = currentTaskInfo('DONE', null, tasks, opName);
+    expect(info.label).toBe('결과');
+    expect(info.retry).toBeNull();
+    expect(info.seq).toBeNull();
   });
 });

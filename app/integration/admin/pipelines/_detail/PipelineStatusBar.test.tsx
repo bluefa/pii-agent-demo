@@ -43,57 +43,22 @@ function pipeline(partial: Partial<PipelineDetail> & Pick<PipelineDetail, 'statu
 
 const opName = (t: TaskSummary): string => t.operation ?? t.task_definition;
 
-const renderPipeline = (d: PipelineDetail): string =>
-  renderToStaticMarkup(
-    <PipelineStatusBar detail={d} variant="pipeline" resolveName={opName} onCancel={() => {}} />,
-  );
-
-describe('PipelineStatusBar — pipeline variant sb-meta gating', () => {
-  it('shows leased + 스케줄 지연 only for non-terminal (RUNNING/PENDING)', () => {
-    const running = renderPipeline(pipeline({ status: 'RUNNING', leased: true }));
-    expect(running).toContain('leased 예 — 워커 실행 중');
-    expect(running).toContain('스케줄 지연');
-
-    const done = renderPipeline(pipeline({ status: 'DONE' }));
-    expect(done).not.toContain('leased');
-    expect(done).not.toContain('스케줄 지연');
-  });
-
-  it('flags a > 1000ms schedule lag with ⚠️', () => {
-    expect(renderPipeline(pipeline({ status: 'RUNNING', due_lag_millis: 2500 }))).toContain('2500 ms ⚠️');
-    expect(renderPipeline(pipeline({ status: 'RUNNING', due_lag_millis: 200 }))).not.toContain('⚠️');
-  });
-
-  it('renders the 취소 요청됨 ftag + 취소 처리 대기 중 when cancel_requested', () => {
-    const html = renderPipeline(pipeline({ status: 'RUNNING', cancel_requested: true }));
-    expect(html).toContain('취소 요청됨');
-    expect(html).toContain('취소 처리 대기 중');
-    expect(html).toContain('disabled'); // cancel button disabled (canCancel false)
-  });
-
-  it('shows the 다음 실행 meta when RUNNING with a next_due_at', () => {
-    expect(renderPipeline(pipeline({ status: 'RUNNING', next_due_at: '2026-06-30T06:00:00Z' }))).toContain('다음 실행');
-  });
-
-  it('shows 진행·대기 중만 취소 가능 when terminal (not cancellable, not requested)', () => {
-    expect(renderPipeline(pipeline({ status: 'FAILED' }))).toContain('진행·대기 중만 취소 가능');
-  });
-});
-
-describe('PipelineStatusBar — target variant', () => {
-  const renderTarget = (status: PipelineStatus): string =>
+// R18 §7: the bar is target-page-only now — the pipeline page's run/task status
+// moved into the merged flow-card header (its logic is tested via statusModel).
+describe('PipelineStatusBar (target page strip)', () => {
+  const renderBar = (status: PipelineStatus, extra?: Partial<PipelineDetail>): string =>
     renderToStaticMarkup(
       <PipelineStatusBar
-        detail={pipeline({ status })}
-        variant="target"
+        detail={pipeline({ status, ...extra })}
         resolveName={opName}
         onCancel={() => {}}
         openHref="/integration/admin/pipelines/128"
       />,
     );
 
-  it('renders the {type} #{id} · 레시피 · 생성 · 마지막 활동 sb-meta always', () => {
-    const html = renderTarget('DONE');
+  it('renders the TypeTag + #{id} · 레시피 · 생성 · 마지막 활동 sb-meta always', () => {
+    const html = renderBar('DONE');
+    expect(html).toContain('INSTALL'); // PipelineTypeTag enum text
     expect(html).toContain('#128');
     expect(html).toContain('레시피');
     expect(html).toContain('AWS 인프라 설치'); // recipe display name
@@ -103,7 +68,13 @@ describe('PipelineStatusBar — target variant', () => {
   });
 
   it('shows the 취소 button only when RUNNING/PENDING', () => {
-    expect(renderTarget('RUNNING')).toContain('이 파이프라인을 취소합니다');
-    expect(renderTarget('DONE')).not.toContain('이 파이프라인을 취소합니다');
+    expect(renderBar('RUNNING')).toContain('이 파이프라인을 취소합니다');
+    expect(renderBar('DONE')).not.toContain('이 파이프라인을 취소합니다');
+  });
+
+  it('disables 취소 when cancel_requested (two-phase cancel)', () => {
+    const html = renderBar('RUNNING', { cancel_requested: true });
+    expect(html).toContain('취소 처리 대기 중');
+    expect(html).toContain('disabled');
   });
 });

@@ -30,6 +30,7 @@ const FLOW_CSS = `
 .pl-flow .pl-tnode{flex:none;width:178px;background:var(--pl-bg-card);border:1px solid var(--pl-border);border-radius:10px;padding:12px 12px 10px;position:relative;cursor:pointer;box-shadow:var(--pl-shadow-xs);transition:border-color .15s,box-shadow .15s}
 .pl-flow .pl-tnode:hover{border-color:var(--pl-border-strong)}
 .pl-flow .pl-tnode:focus-visible{outline:2px solid var(--pl-primary);outline-offset:2px}
+.pl-flow .pl-tnode.s-selected{outline:2px solid var(--pl-primary);outline-offset:2px}
 .pl-flow .nd-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .pl-flow .nd-ico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--pl-off-bg);color:var(--pl-text-faint)}
 .pl-flow .nd-ico svg{width:14px;height:14px;stroke-width:2.5}
@@ -93,10 +94,12 @@ export interface TaskFlowProps {
   detailMap: ReadonlyMap<number, TaskDetail | null>;
   resolveName: (task: TaskSummary) => string;
   onOpen: (task: TaskSummary) => void;
+  /** R18 §7-3 — task_id whose inline panel is open (primary ring highlight). */
+  selectedId?: number | null;
   className?: string;
 }
 
-export function TaskFlow({ tasks, detailMap, resolveName, onOpen, className }: TaskFlowProps): ReactElement {
+export function TaskFlow({ tasks, detailMap, resolveName, onOpen, selectedId, className }: TaskFlowProps): ReactElement {
   const onKey = useCallback(
     (task: TaskSummary) => (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -108,7 +111,7 @@ export function TaskFlow({ tasks, detailMap, resolveName, onOpen, className }: T
   );
 
   return (
-    <div className={cn('pl-flow mt-3', className)}>
+    <div className={cn('pl-flow', className)}>
       <style>{FLOW_CSS}</style>
       {tasks.map((task, index) => {
         const name = resolveName(task);
@@ -121,10 +124,11 @@ export function TaskFlow({ tasks, detailMap, resolveName, onOpen, className }: T
               />
             )}
             <div
-              className={cn('pl-tnode', nodeStateClass(task.status))}
+              className={cn('pl-tnode', nodeStateClass(task.status), selectedId === task.task_id && 's-selected')}
               role="button"
               tabIndex={0}
               aria-label={`seq ${task.sequence} ${name} 상세 열기`}
+              aria-pressed={selectedId === task.task_id}
               onClick={() => onOpen(task)}
               onKeyDown={onKey(task)}
             >

@@ -2,10 +2,12 @@
 
 /**
  * Target detail (C2-a) — design-inventory §2.3. Identity (provider + CSP metadata),
- * latest-run status bar, install/delete action row (gated), and the paged pipeline
- * history. Install/delete open the preview modal; the status-bar 취소 opens the
- * cancel modal. Raw target-source detail (process_status + CSP metadata) comes from
- * the reused BFF route via getRawTargetSourceDetail (getProject drops those fields).
+ * latest-run status bar, install/delete action row (R18 §2: always active — no
+ * gating; duplicate-run conflicts are handled by the server 409 + PreviewModal's
+ * existing latest-refetch flow), and the paged pipeline history. Install/delete
+ * open the preview modal; the status-bar 취소 opens the cancel modal. Raw
+ * target-source detail (process_status + CSP metadata) comes from the reused BFF
+ * route via getRawTargetSourceDetail (getProject drops those fields).
  */
 import { Fragment, useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -33,8 +35,8 @@ import { PipelineStatusBar } from '@/app/integration/admin/pipelines/_detail/Pip
 import { PreviewModal } from '@/app/integration/admin/pipelines/_detail/PreviewModal';
 import { CancelModal } from '@/app/integration/admin/pipelines/_detail/CancelModal';
 import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailStyles';
-import { targetButtons } from '@/app/integration/admin/pipelines/_detail/targetButtons';
 import { targetCrumbs } from '@/app/integration/admin/pipelines/_detail/pipelineBreadcrumb';
+import { PipelineTypeTag } from '@/app/integration/admin/pipelines/_components/PipelineTypeTag';
 import {
   buildPipelineHref,
   fmtDateTime,
@@ -207,12 +209,6 @@ export function TargetDetailView(): ReactElement {
   const svcName = ctx.svcName || raw.service_name || serviceCode || targetSourceId;
   const groups = cspMetaGroups(provider, raw);
 
-  const activeRunId =
-    latestDetail && (latestDetail.status === 'RUNNING' || latestDetail.status === 'PENDING')
-      ? latestDetail.pipeline_id
-      : null;
-  const btns = targetButtons(raw.process_status, activeRunId);
-
   const resolveTargetTaskName = (t: TaskSummary): string => taskDisplayName(t, null, catalog);
 
   const metaNode: ReactNode = (
@@ -269,7 +265,6 @@ export function TargetDetailView(): ReactElement {
       {latestDetail ? (
         <PipelineStatusBar
           detail={latestDetail}
-          variant="target"
           resolveName={resolveTargetTaskName}
           onCancel={() => cancelModal.open(latestDetail.pipeline_id)}
           openHref={buildPipelineHref(latestDetail.pipeline_id, ctx)}
@@ -289,21 +284,18 @@ export function TargetDetailView(): ReactElement {
       <FilterBar className="mt-3">
         <PlButton
           variant="primary"
-          disabled={!btns.install}
-          title={btns.installTitle}
+          title="설치 파이프라인을 시작합니다"
           onClick={() => previewModal.open('INSTALL')}
         >
           설치 시작
         </PlButton>
         <PlButton
           variant="secondary"
-          disabled={!btns.delete}
-          title={btns.deleteTitle}
+          title="삭제 파이프라인을 시작합니다"
           onClick={() => previewModal.open('DELETE')}
         >
           삭제 시작
         </PlButton>
-        <span className={cn(text.meta, 'ml-auto')}>{btns.lockMsg}</span>
       </FilterBar>
 
       <SectionHeader
@@ -329,7 +321,9 @@ export function TargetDetailView(): ReactElement {
               {rows.map((p) => (
                 <PlRow key={p.pipeline_id} onActivate={() => goPipeline(p.pipeline_id)}>
                   <PlTd mono>#{p.pipeline_id}</PlTd>
-                  <PlTd>{p.type}</PlTd>
+                  <PlTd>
+                    <PipelineTypeTag type={p.type} />
+                  </PlTd>
                   <PlTd>
                     <span title={p.recipe_definition ?? ''}>{recipeDisplayName(p.recipe_definition)}</span>
                   </PlTd>

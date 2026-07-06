@@ -1,12 +1,13 @@
 'use client';
 
 /**
- * Pipeline detail (C2-b) — design-inventory §2.4. Identity (recipe + target),
- * status bar, and the Task 흐름 canvas. On load it fetches the pipeline (#4), the
- * task catalog once (#12, for display names), and EVERY task's detail (#5) in
- * parallel with a concurrency cap — the meta lines + modal need effective settings
- * / attempts / poll history that TaskSummary lacks (docs §2.4, deliberate). The
- * modal reuses the loaded detail (no refetch). 404 → a not-found state.
+ * Pipeline detail (C2-b) — design-inventory §2.4, restructured per R18
+ * (admin-pipeline-improvement-r18.md §6·§7): h1 "파이프라인 현황" + [중단]
+ * dangerSolid CTA, target-first identity strip, and ONE merged flow card
+ * (run-level / task-level header zones + canvas + inline right panel). On load
+ * it fetches the pipeline (#4), the task catalog once (#12), and EVERY task's
+ * detail (#5) with a concurrency cap — the meta lines + panel need effective
+ * settings / attempts that TaskSummary lacks. 404 → a not-found state.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import Link from 'next/link';
@@ -19,21 +20,31 @@ import { Card } from '@/app/integration/admin/pipelines/_components/Card';
 import { PlButton } from '@/app/integration/admin/pipelines/_components/PlButton';
 import { PlBreadcrumb } from '@/app/integration/admin/pipelines/_components/PlBreadcrumb';
 import { PlEmptyState } from '@/app/integration/admin/pipelines/_components/PlEmptyState';
+import { StatusPill } from '@/app/integration/admin/pipelines/_components/StatusPill';
+import { PipelineProgressBar } from '@/app/integration/admin/pipelines/_components/PipelineProgressBar';
+import { PipelineTypeTag } from '@/app/integration/admin/pipelines/_components/PipelineTypeTag';
+import { Icon } from '@/app/integration/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/integration/admin/pipelines/_components/usePlToast';
 import { IdentityBar, IdentityFieldBlock } from '@/app/integration/admin/pipelines/_detail/IdentityBar';
-import { PipelineStatusBar } from '@/app/integration/admin/pipelines/_detail/PipelineStatusBar';
 import { TaskFlow } from '@/app/integration/admin/pipelines/_detail/TaskFlow';
-import { TaskDetailModal } from '@/app/integration/admin/pipelines/_detail/TaskDetailModal';
+import { TaskDetailPanel } from '@/app/integration/admin/pipelines/_detail/TaskDetailPanel';
 import { CancelModal } from '@/app/integration/admin/pipelines/_detail/CancelModal';
 import { RoundNavLink } from '@/app/integration/admin/pipelines/_detail/RoundNavLink';
 import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailStyles';
 import { pipelineCrumbs } from '@/app/integration/admin/pipelines/_detail/pipelineBreadcrumb';
 import { mapPool } from '@/app/integration/admin/pipelines/_detail/mapPool';
-import { taskDisplayName, retrySuffix } from '@/app/integration/admin/pipelines/_detail/statusModel';
+import {
+  currentTaskInfo,
+  findFailedTask,
+  taskDisplayName,
+  retrySuffix,
+} from '@/app/integration/admin/pipelines/_detail/statusModel';
 import {
   buildTargetHref,
+  canCancel,
   fmtDateTime,
   parsePipelineNavContext,
+  progressCount,
   providerAccentVar,
   providerLabel,
   recipeDisplayName,
@@ -64,11 +75,11 @@ export function PipelineDetailView(): ReactElement {
   const [catalog, setCatalog] = useState<ReadonlyMap<string, string>>(new Map());
   const [detailMap, setDetailMap] = useState<ReadonlyMap<number, TaskDetail | null>>(new Map());
   const [detailsLoaded, setDetailsLoaded] = useState(false);
-  // Repo rule: modal open/close flows go through useModal (payload rides `data`).
-  const taskModal = useModal<TaskSummary>();
+  // R18 §7-3: task detail is an INLINE panel (not a modal), so plain state —
+  // the useModal rule applies to dialog flows only. CancelModal stays a modal.
+  const [selected, setSelected] = useState<TaskSummary | null>(null);
   const cancelModal = useModal();
   const [reloadKey, setReloadKey] = useState(0);
-  const selected = taskModal.isOpen ? taskModal.data ?? null : null;
 
   const loadTaskDetails = useCallback(
     async (
@@ -100,6 +111,7 @@ export function PipelineDetailView(): ReactElement {
       setDetail(null);
       setDetailMap(new Map());
       setDetailsLoaded(false);
+      setSelected(null);
       try {
         const d = await getPipeline(pipelineId);
         if (cancelled) return;
@@ -192,74 +204,161 @@ export function PipelineDetailView(): ReactElement {
   const provider = detail.cloud_provider;
   const recipeDesc = recipeLabel(detail.recipe_definition)?.desc;
   const selectedDetail = selected ? detailMap.get(selected.task_id) ?? null : null;
+  const fc = detailStyles.flowCard;
+  const failed = detail.status === 'FAILED';
+  const nonTerminal = detail.status === 'RUNNING' || detail.status === 'PENDING';
+  const cancellable = canCancel(detail.status, detail.cancel_requested);
+  const { done, total } = progressCount(detail.tasks);
+  const cur = currentTaskInfo(detail.status, detail.next_due_at, detail.tasks, resolveName, retryFor);
+  const failedTask = findFailedTask(detail.tasks);
 
   return (
     <div>
       <PlBreadcrumb crumbs={pipelineCrumbs(ctx, pipelineId, detail.target_source_id)} />
-      <div className="mb-6">
-        <h1 className={text.pageTitle}>
-          파이프라인 <span className="[font-variant-numeric:tabular-nums]">#{detail.pipeline_id}</span>
-        </h1>
+      {/* R18 §6·§7-1 — id demoted out of the h1; [중단] is the page's danger CTA. */}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className={text.pageTitle}>파이프라인 현황</h1>
+        <PlButton
+          variant="dangerSolid"
+          disabled={!cancellable}
+          onClick={() => cancelModal.open()}
+          title={
+            cancellable
+              ? '이 파이프라인을 중단합니다'
+              : detail.cancel_requested
+                ? '취소 처리 대기 중'
+                : '진행·대기 중만 중단 가능'
+          }
+        >
+          <Icon name="stop" size="sm" />
+          중단
+        </PlButton>
       </div>
 
+      {/* R18 §6 — target-first identity: 어떤 Target Source인지가 먼저다. */}
       <IdentityBar
         accentVar={providerAccentVar(provider)}
-        icon="flow"
-        pname={recipeDisplayName(detail.recipe_definition)}
-        psub={detail.recipe_definition || '-'}
-        psubMono
+        icon="cloud"
+        pname={
+          <span className="tabular-nums">
+            {detail.target_source_id} · {providerLabel(provider)}
+          </span>
+        }
+        psub={recipeDisplayName(detail.recipe_definition)}
         fields={[
-          { key: '파이프라인 유형', value: detail.type },
+          { key: '유형', value: <PipelineTypeTag type={detail.type} /> },
           { key: '생성', value: fmtDateTime(detail.created_at) },
           { key: '마지막 활동', value: fmtDateTime(detail.last_activity_at) },
         ]}
         trailing={
           <>
             <IdentityFieldBlock
-              label="대상"
-              value={`${detail.target_source_id} · ${providerLabel(provider)}`}
+              label="실행 ID"
+              value={<span className="text-[var(--pl-text-faint)]">#{detail.pipeline_id}</span>}
             />
             <RoundNavLink href={buildTargetHref(detail.target_source_id, ctx)} title="대상 상세로 이동" />
           </>
         }
-        meta={recipeDesc ? <div className={detailStyles.idbar.note}>{recipeDesc}</div> : undefined}
+        meta={
+          recipeDesc || detail.recipe_definition ? (
+            <div className={detailStyles.idbar.note}>
+              {detail.recipe_definition && <span className={text.mono}>{detail.recipe_definition}</span>}
+              {detail.recipe_definition && recipeDesc ? ' — ' : null}
+              {recipeDesc}
+            </div>
+          ) : undefined
+        }
       />
 
       <SectionHeader
         title="Task 흐름"
-        desc="파이프라인의 현재 상태와 task 실행 순서 — 노드를 클릭하면 상세가 열리고, task가 많으면 좌우로 스크롤됩니다"
-      />
-      <PipelineStatusBar
-        detail={detail}
-        variant="pipeline"
-        resolveName={resolveName}
-        retryFor={retryFor}
-        onCancel={() => cancelModal.open()}
-      />
-      <TaskFlow
-        tasks={detail.tasks}
-        detailMap={detailMap}
-        resolveName={resolveName}
-        onOpen={(t) => taskModal.open(t)}
+        desc="노드를 클릭하면 상세가 우측 패널로 열립니다 · task가 많으면 캔버스가 좌우로 스크롤됩니다"
       />
 
-      {selected && (
-        <TaskDetailModal
-          open
-          onClose={taskModal.close}
-          task={selected}
-          detail={selectedDetail}
-          detailLoaded={detailsLoaded}
-          displayName={resolveName(selected)}
-          onRetry={retrySelectedDetail}
-        />
-      )}
+      {/* R18 §7-2 — ONE card: run-level zone / task-level zone / meta, then canvas. */}
+      <Card>
+        <div className={cn(fc.head, failed ? fc.headFailed : fc.headIdle)}>
+          <div className={fc.runRow}>
+            <StatusPill
+              status={detail.status}
+              size="lg"
+              className={failed ? detailStyles.statusbar.pillFailedRing : undefined}
+            />
+            {detail.cancel_requested && (
+              <span
+                className={detailStyles.ftag.ext}
+                title="cancel_requested=true — 다음 실행 사이클에 취소가 반영됩니다"
+              >
+                취소 요청됨
+              </span>
+            )}
+            <PipelineProgressBar n={done} m={total} status={detail.status} wide />
+            {detail.status === 'RUNNING' && detail.next_due_at && (
+              <span className={fc.runMeta} title="next_due_at — 다음 폴링/실행 예정 시각">
+                다음 실행 {fmtDateTime(detail.next_due_at)}
+              </span>
+            )}
+          </div>
+
+          <div className={fc.taskRow}>
+            <span className={fc.taskLabel}>
+              {cur.label}
+              {cur.seq != null && ` · seq ${cur.seq}`}
+            </span>
+            <span className={fc.taskName}>{cur.name}</span>
+            {cur.retry && <span className={fc.taskRetry}>{cur.retry}</span>}
+            {failedTask?.error_code && (
+              <span
+                className={detailStyles.statusbar.err}
+                title={`seq ${failedTask.sequence} · ${resolveName(failedTask)}`}
+              >
+                {failedTask.error_code}
+              </span>
+            )}
+          </div>
+
+          {nonTerminal && (
+            <div className={detailStyles.statusbar.meta}>
+              <span title="leased — 워커가 이 run을 점유하고 실행 중인지">
+                leased {detail.leased ? '예 — 워커 실행 중' : '아니오'}
+              </span>
+              <span className={detailStyles.statusbar.sep}>·</span>
+              <span title="due_lag — next_due_at 대비 실제 실행 지연">
+                스케줄 지연 {detail.due_lag_millis ?? 0} ms{(detail.due_lag_millis || 0) > 1000 ? ' ⚠️' : ''}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className={fc.body}>
+          <TaskFlow
+            className={fc.canvas}
+            tasks={detail.tasks}
+            detailMap={detailMap}
+            resolveName={resolveName}
+            selectedId={selected?.task_id ?? null}
+            onOpen={(t) => setSelected((prev) => (prev?.task_id === t.task_id ? null : t))}
+          />
+          {selected && (
+            <TaskDetailPanel
+              onClose={() => setSelected(null)}
+              task={selected}
+              detail={selectedDetail}
+              detailLoaded={detailsLoaded}
+              displayName={resolveName(selected)}
+              onRetry={retrySelectedDetail}
+            />
+          )}
+        </div>
+      </Card>
+
       <CancelModal
         open={cancelModal.isOpen}
         onClose={cancelModal.close}
         pipelineId={detail.pipeline_id}
         onCancelled={(d) => {
           setDetail(d);
+          setSelected(null);
           void loadTaskDetails(d).then(setDetailMap);
         }}
         showToast={toast.show}

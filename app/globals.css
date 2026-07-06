@@ -138,6 +138,15 @@
      start (gradient end reuses --pl-bg-card, the same #FFFFFF). */
   --pl-err-statusbar-border: #F4B3AD;
   --pl-err-statusbar-grad-from: #FFF1F0;
+  /* R18 pipeline-type tag icon tints (admin-pipeline-improvement-r18.md §1) —
+     INSTALL=primary family, DELETE=err-text (terraform destroy convention),
+     CUSTOM=Untitled purple-700 (outside the status hues on purpose). */
+  --pl-type-install: #2563EB;
+  --pl-type-delete: #B42318;
+  --pl-type-custom: #6941C6;
+  /* R18 solid danger CTA (상세 페이지 [중단]) — Untitled red-600/700. */
+  --pl-err-solid: #D92D20;
+  --pl-err-solid-hover: #B42318;
   /* TaskFlow (.pl-flow) node/connector alpha layers — verbatim prototype rgba()
      values (design/pipeline/admin-pipeline.html .tnode/.connector/@keyframes),
      named by role since they aren't derivable from a solid token via color-mix. */
@@ -187,6 +196,13 @@
 @keyframes pl-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
+}
+
+/* R18 §7-3 — inline task-detail panel slide-in (motion-safe only via the
+   consuming class in detailStyles.flowCard.panel). */
+@keyframes pl-panel-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: none; }
 }
 
 /* =============================================================================

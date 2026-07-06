@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { TaskDetailBody } from '@/app/integration/admin/pipelines/_detail/TaskDetailModal';
+import { TaskDetailBody } from '@/app/integration/admin/pipelines/_detail/TaskDetailPanel';
 import type {
   TaskAttemptView,
   TaskCheckView,

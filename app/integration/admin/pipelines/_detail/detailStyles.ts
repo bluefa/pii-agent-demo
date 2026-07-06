@@ -131,6 +131,34 @@ export const detailStyles = {
     muted: pipelineStyles.table.muted,
   },
 
+  /**
+   * R18 §7 — merged flow card (status header zones + canvas + inline panel).
+   * The header bleeds to the card edge (negative margins) so the FAILED tint
+   * covers the full header band; border-b color lives ONLY in headIdle /
+   * headFailed (plain cn join — same-property classes must never co-occur).
+   */
+  flowCard: {
+    head: '-mx-6 -mt-5 px-6 pt-5 pb-4 mb-4 rounded-t-[10px] border-b flex flex-col gap-2',
+    headIdle: 'border-[var(--pl-gray-100)]',
+    headFailed:
+      'border-[var(--pl-err-statusbar-border)] [background:linear-gradient(135deg,var(--pl-err-statusbar-grad-from),var(--pl-bg-card)_55%)]',
+    /** zone1 — run level: pill lg · ftag · progress · (right) schedule meta. */
+    runRow: 'flex items-center gap-3 flex-wrap',
+    runMeta: 'ml-auto flex items-center gap-2 text-[12px] text-[var(--pl-text-weak)]',
+    /** zone2 — task level (kv grammar): label 12/faint · name 14/strong · retry 12/weak · err chip. */
+    taskRow: 'flex items-baseline gap-2 flex-wrap',
+    taskLabel: 'text-[12px] font-semibold text-[var(--pl-text-faint)] whitespace-nowrap',
+    taskName: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
+    taskRetry: 'text-[12px] text-[var(--pl-text-weak)]',
+    /** canvas | panel split (§7-3) — canvas keeps its own horizontal scroll.
+     *  items-start: the canvas keeps its natural height (master-detail), the
+     *  panel may run longer below it. */
+    body: 'flex items-start gap-6 min-w-0',
+    canvas: 'flex-1 min-w-0',
+    panel:
+      'w-[400px] flex-none min-w-0 border-l border-[var(--pl-gray-100)] pl-6 motion-safe:[animation:pl-panel-in_.2s_ease-out]',
+  },
+
   /** Loading / layout-stable skeleton block. */
   skeleton: 'animate-pulse rounded-[10px] bg-[var(--pl-gray-100)]',
 } as const;
