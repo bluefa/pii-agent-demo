@@ -15,7 +15,8 @@ import type { ReactElement, ReactNode } from 'react';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { buildPipelineHref, fmtDateTime } from '@/lib/pipeline/format';
+import { integrationRoutes } from '@/lib/routes';
+import { fmtDateTime } from '@/lib/pipeline/format';
 import {
   OrchestratorApiError,
   getLiveStatistics,
@@ -346,7 +347,7 @@ export default function DashboardPage(): ReactElement {
               {slice.map((row) => (
                 <PlRow
                   key={row.pipeline_id}
-                  onActivate={() => router.push(buildPipelineHref(row.pipeline_id))}
+                  onActivate={() => router.push(integrationRoutes.pipelines.pipeline(row.pipeline_id))}
                 >
                   <PlTd mono>{row.target_source_id}</PlTd>
                   <PlTd>

@@ -9,7 +9,6 @@
  *
  * Verbatim from design/pipeline/admin-pipeline.html renderList()/renderStats().
  */
-import { providerLabel } from '@/lib/pipeline/format';
 import type { PipelineStatus, PipelineSummary, StatisticsPeriodToken } from '@/lib/pipeline/types';
 
 /** Design PAGE_SIZE — 5 rows per client page. */
@@ -106,31 +105,3 @@ export function buildStatsDesc(period: StatisticsPeriodToken): string {
   return `${PERIOD_LABELS[period]}(생성시간 기준) 실패·성공 집계 — 기간 필터와 동기화 · 동작 중은 현재 순간값`;
 }
 
-export interface ListDescInput {
-  period: StatisticsPeriodToken;
-  /** Client-filtered row count (after the substring filter). */
-  total: number;
-  /** Wire PipelineStatus or '' (no filter). */
-  status?: string;
-  /** Wire CloudProvider (UPPERCASE) or '' (no filter). */
-  provider?: string;
-  q?: string;
-  /** The upstream window was truncated (totalElements > DASH_FETCH_SIZE). */
-  truncated?: boolean;
-}
-
-/**
- * 파이프라인 목록 scope description, parts joined by " · " (prototype 780–785):
- *   "{PERIOD_LABEL} 생성 {total}건" [· 상태 {s}] [· CSP {label}] [· 검색 "{q}"]
- *   · 정렬: 실패 → 진행 중 → 최신순 [· 최신 200건 기준]
- */
-export function buildListDesc(input: ListDescInput): string {
-  const parts = [`${PERIOD_LABELS[input.period]} 생성 ${input.total}건`];
-  if (input.status) parts.push(`상태 ${input.status}`);
-  if (input.provider) parts.push(`CSP ${providerLabel(input.provider)}`);
-  const q = input.q?.trim();
-  if (q) parts.push(`검색 "${q}"`);
-  parts.push('정렬: 실패 → 진행 중 → 최신순');
-  if (input.truncated) parts.push(`최신 ${DASH_FETCH_SIZE}건 기준`);
-  return parts.join(' · ');
-}

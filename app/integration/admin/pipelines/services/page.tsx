@@ -17,7 +17,7 @@ import type { ReactElement } from 'react';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { buildTargetHref } from '@/lib/pipeline/format';
+import { integrationRoutes } from '@/lib/routes';
 import { getProjects, getServicesPage } from '@/app/lib/api';
 import {
   OrchestratorApiError,
@@ -246,12 +246,7 @@ export default function ServicesPage(): ReactElement {
                     <PlRow
                       key={target.targetSourceId}
                       onActivate={() =>
-                        router.push(
-                          buildTargetHref(target.targetSourceId, {
-                            svc: selectedCode,
-                            svcName: selectedName,
-                          }),
-                        )
+                        router.push(integrationRoutes.pipelines.target(target.targetSourceId))
                       }
                     >
                       <PlTd mono>{target.targetSourceId}</PlTd>

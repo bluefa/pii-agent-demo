@@ -347,34 +347,24 @@ details.collap>.body{padding:0 14px 14px}
   .connector.active::before{animation:flowDash .5s linear infinite}
 }
 
-/* ── Pipeline status bar + side panel (IA v2, admin-pipeline-detail-ia.md §3) ── */
-.statusbar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
-  box-shadow:var(--shadow-xs);padding:14px 18px;display:flex;flex-direction:column;gap:8px}
-.statusbar.failed{background:linear-gradient(135deg,#FFF1F0,#FFFFFF 55%);border-color:#F4B3AD;box-shadow:var(--shadow-xs)}
-.statusbar.failed .pill.lg{box-shadow:0 0 0 1px var(--err-border)}
-.sb-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.sb-cur{font-size:14px;font-weight:600;color:var(--text-medium)}
+/* ── err chip + lg pill (flow-card header; R20 — target 상태바는 삭제됨) ── */
 .sb-err{font-family:var(--font-mono);font-size:12px;color:var(--err-text);background:var(--err-bg);
   padding:2px 8px;border-radius:6px}
-.sb-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text-weak)}
-.sb-meta .sep{color:var(--gray-300)}
-.statusbar .pbar .track{width:160px}
 .pill.lg{height:28px;font-size:14px;padding:0 12px 0 10px}
 .pill.lg .dot{width:8px;height:8px}
 .tblwrap{overflow-x:auto} /* 넘치는 건 표만 — 카드 전체가 밀리지 않게 */
 
-/* ── Merged flow card (R18 §7-2): 상태바+흐름 단일 카드 — 헤더 3존 + 캔버스 + 인라인 패널 ──
-   헤더는 음수 마진으로 카드 가장자리까지(FAILED 그라디언트를 헤더 밴드에만 입힌다). */
+/* ── Merged flow card (R20): 헤더 = 한 줄에 한 사실 — {현재 태스크·상태·진행 상태}
+   라벨 72px 컬럼 공유. 헤더는 음수 마진으로 카드 가장자리까지(FAILED 그라디언트). */
 .fc-head{margin:-20px -24px 16px;padding:20px 24px 16px;border-top-left-radius:var(--r-card);
   border-top-right-radius:var(--r-card);border-bottom:1px solid var(--gray-100);
-  display:flex;flex-direction:column;gap:8px} /* 존 간 8px, 헤더↔캔버스 16px */
-.fc-head.failed{border-bottom-color:#F4B3AD;background:linear-gradient(135deg,#FFF1F0,#FFFFFF 55%)} /* statusbar.failed 이식 */
+  display:flex;flex-direction:column;gap:8px} /* 행 간 8px, 헤더↔캔버스 16px */
+.fc-head.failed{border-bottom-color:#F4B3AD;background:linear-gradient(135deg,#FFF1F0,#FFFFFF 55%)}
 .fc-head.failed .pill.lg{box-shadow:0 0 0 1px var(--err-border)}
-.fc-run{display:flex;align-items:center;gap:12px;flex-wrap:wrap} /* zone1: run 수준 */
+.fc-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+.fc-rlabel{width:72px;flex:none;font-size:12px;font-weight:600;color:var(--text-faint);white-space:nowrap}
 .fc-runmeta{margin-left:auto;font-size:12px;color:var(--text-weak)}
-.fc-task{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap} /* zone2: task 수준(kv 문법) */
-.fc-tlabel{font-size:12px;font-weight:600;color:var(--text-faint);white-space:nowrap}
-.fc-tname{font-size:16px;font-weight:700;line-height:1.2;color:var(--text-strong)} /* R19.6: 현재 task명이 이 행의 주인공 */
+.fc-tname{font-size:16px;font-weight:700;line-height:1.2;color:var(--text-strong)} /* task명이 1행의 주인공 */
 .fc-tretry{font-size:12px;color:var(--text-weak)}
 .fc-body{display:flex;align-items:flex-start;gap:24px;min-width:0} /* 캔버스 | 패널 */
 .fc-body>.flow{flex:1;min-width:0}
@@ -874,7 +864,8 @@ function renderList(root){
   if(prev) prev.onclick=()=>{dashPage--;renderList(root);};
   if(next) next.onclick=()=>{dashPage++;renderList(root);};
 }
-// R18 §4 필터 칩: 스코프 칩(기간·정렬, × 없음) + 활성 필터 ×칩(상태/CSP/검색) + [필터 초기화] + 우측 N건.
+// R18 §4 필터 칩: 스코프 칩(기간, × 없음) + 활성 필터 ×칩(상태/CSP/검색) + [필터 초기화] + 우측 N건.
+// R20: 정렬 칩 삭제 — 실패 우선은 필터가 아니라 동작.
 function chipHTML(k,v,opt){
   opt=opt||{};
   return `<span class="chip${opt.rmId?' rm':''}"${opt.title?` title="${esc(opt.title)}"`:''}>`
@@ -885,8 +876,7 @@ function chipHTML(k,v,opt){
 function renderChips(root,total){
   const cr=root.querySelector('#chiprow'); if(!cr) return;
   const q=dashFilter.q.trim(), active=dashFilter.status||dashFilter.provider||q;
-  let html=chipHTML('기간',PERIOD_LABEL[dashPeriod])
-    +chipHTML('정렬','실패 우선',{title:'실패 → 진행 중 → 최신순'});
+  let html=chipHTML('기간',PERIOD_LABEL[dashPeriod]);
   if(dashFilter.status) html+=chipHTML('상태',dashFilter.status,{rmId:'chip-rm-status'});
   if(dashFilter.provider) html+=chipHTML('CSP',PROVIDERS[dashFilter.provider],{rmId:'chip-rm-prov'});
   if(q) html+=chipHTML('검색',`"${q}"`,{rmId:'chip-rm-q'});
@@ -962,7 +952,6 @@ function viewTarget(id){
   if(!ts) return view404();
   const svcName=app.navState.serviceName || ts.serviceName;
   const ids=(BY_TARGET[id]||[]).map(pid=>PIPELINES[pid]);
-  const latest=ids[0]||null;
   // app ProjectPageMeta 문법: 제목=서비스명(코드), 식별자=IdentityBar. 액션 그룹은 metadata 아래(오너 3차).
   // R18 §2: 게이팅 제거 — [설치 시작][삭제 시작] 상시 활성, 잠금 캡션 없음(충돌은 서버 409 플로우).
   const root=el(`<div>
@@ -983,10 +972,7 @@ function viewTarget(id){
           :`<div class="meta">${esc(g.empty)}</div>`}</div>`).join('<span class="div"></span>')
       }</div></div>`:'')(cspMetaGroups(ts))}
     </div>
-    <div class="section-title">파이프라인 상태</div>
-    <div class="section-desc">이 대상의 현재 상태 — 할 수 있는 액션은 상태에서 결정됩니다</div>
-    <div id="latest"></div>
-    <div class="filterbar" style="margin-top:12px">
+    <div class="filterbar" style="margin-top:24px">
       <button class="btn primary" id="btn-install" title="설치 파이프라인을 시작합니다">설치 시작</button>
       <button class="btn secondary" id="btn-delete" title="삭제 파이프라인을 시작합니다">삭제 시작</button>
     </div>
@@ -994,35 +980,9 @@ function viewTarget(id){
     <div class="section-desc">이 대상에서 실행된 파이프라인 전체 ${ids.length}건 · 최신순</div>
     <div class="card" id="hist"></div>
   </div>`);
-  // 최근 파이프라인 = 파이프라인 상세와 같은 상태 바 문법 — "이 대상, 지금 어떤가"를 한 줄로
-  const lc=root.querySelector('#latest');
-  if(latest){
-    const lcur=currentTask(latest);
-    const lLabel=latest.status==='PENDING'?`시작 대기 · ${esc(latest.nextDueAt||'-')} 시작 예정`
-      :lcur?`현재 · ${esc(lcur.operation)}`:currentTaskLabel(latest);
-    const lerr=latest.tasks.find(t=>t.status==='FAILED');
-    lc.innerHTML=`<div class="statusbar${latest.status==='FAILED'?' failed':''}">
-      <div class="sb-main">
-        <span class="pill lg s-${latest.status}"><span class="dot"></span>${latest.status}</span>
-        ${progressBar(progressN(latest),progressM(latest),latest.status)}
-        <span class="sb-cur">${lLabel}</span>
-        ${lerr&&lerr.errorCode?`<span class="sb-err" title="${esc(lerr.operation)}">${esc(lerr.errorCode)}</span>`:''}
-        <span class="vrow" style="margin-left:auto;gap:8px">
-          ${['RUNNING','PENDING'].includes(latest.status)?`<button class="btn danger sm" id="btn-cancel" ${canCancel(latest)?'':'disabled'} title="${canCancel(latest)?'이 파이프라인을 취소합니다':'취소 처리 대기 중'}">취소</button>`:''}
-          <button class="btn secondary sm round" data-nav="#/pipeline/${latest.id}" title="파이프라인 상세로 이동" aria-label="파이프라인 상세로 이동">${ic('i-arrow-ur','ic sm')}</button>
-        </span>
-      </div>
-      <div class="sb-meta">
-        <span>${typetag(latest.type)} <span class="mono">#${latest.id}</span></span><span class="sep">·</span>
-        <span title="${esc(latest.recipe||'')}">레시피 ${esc((RECIPES[latest.recipe]||{}).displayName||latest.recipe||'-')}</span><span class="sep">·</span>
-        <span>생성 ${esc(latest.createdAt)}</span><span class="sep">·</span>
-        <span>마지막 활동 ${esc(latest.lastActivityAt)}</span>
-      </div>
-    </div>`;
-  }else{
-    lc.innerHTML=`<div class="card"><div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>실행 이력 없음<br><span class="meta">[설치 시작]으로 첫 파이프라인을 만드세요</span></div></div>`;
-  }
-  // history (P7 pagination — PAGE_SIZE 초과 시에만 컨트롤 노출)
+  // R20: 최신 파이프라인 상태 바 삭제 — 이력 표의 첫 행이 곧 최신 run이고,
+  // run 수준 액션(중단)은 파이프라인 상세 페이지 몫.
+  // history (R20: pagination 상시 노출 — 이력은 페이지 리스트로 읽힌다)
   const hist=root.querySelector('#hist');
   if(histState.id!==id){histState.id=id;histState.page=1;}
   const hpages=Math.max(1,Math.ceil(ids.length/PAGE_SIZE));
@@ -1031,10 +991,10 @@ function viewTarget(id){
   if(ids.length){
     hist.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>파이프라인 유형</th><th>레시피</th><th>상태</th><th>진행도</th><th>생성시간</th><th></th></tr></thead><tbody>${
       hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${typetag(p.type)}</td><td title="${esc(p.recipe||'')}">${esc((RECIPES[p.recipe]||{}).displayName||p.recipe||'-')}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p),p.status)}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev"><button class="btn secondary sm round" tabindex="-1" title="파이프라인 상세로 이동">${ic('i-arrow-ur','ic sm')}</button></td></tr>`).join('')}</tbody></table>${
-      hpages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
+      `<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
         <button class="btn ghost sm" ${histState.page<=1?'disabled':''} id="hprev">${ic('i-chev-l','ic sm')} 이전</button>
         <span class="pager-count">${histState.page} / ${hpages}</span>
-        <button class="btn ghost sm" ${histState.page>=hpages?'disabled':''} id="hnext">다음 ${ic('i-chev-r','ic sm')}</button></div>`:''}`;
+        <button class="btn ghost sm" ${histState.page>=hpages?'disabled':''} id="hnext">다음 ${ic('i-chev-r','ic sm')}</button></div>`}`;
     hist.querySelectorAll('tr[data-pid]').forEach(tr=>{
       tr.setAttribute('role','button');tr.setAttribute('tabindex','0');
       const go=()=>nav(`#/pipeline/${tr.dataset.pid}`,{serviceCode:ts.serviceCode, serviceName:svcName, targetId:ts.id, provider:ts.provider});
@@ -1046,10 +1006,9 @@ function viewTarget(id){
   }else{
     hist.innerHTML=`<div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>파이프라인 이력이 없어요</div>`;
   }
-  const bi=root.querySelector('#btn-install'), bd=root.querySelector('#btn-delete'), bc=root.querySelector('#btn-cancel');
+  const bi=root.querySelector('#btn-install'), bd=root.querySelector('#btn-delete');
   bi.onclick=()=>openPreview(ts,'INSTALL'); // R18 §2: 상시 활성
   bd.onclick=()=>openPreview(ts,'DELETE');
-  if(bc && latest) bc.onclick=()=>openCancel(latest.id); // 취소는 상태 바 내부(최신 run에 귀속) — disabled면 클릭 자체가 막힘
   return root;
 }
 
@@ -1059,21 +1018,15 @@ function viewTarget(id){
 function viewPipeline(id){
   const p=PIPELINES[id];
   if(!p) return view404();
-  const ts=TS_INDEX[p.target];
-  const crumbs=[{label:'서비스 검색',hash:'#/services'}];
-  const svcName=app.navState.serviceName || (ts&&ts.serviceName);
-  if(svcName && app.navState.serviceCode!==null && (app.navState.targetId===p.target)) {
-    crumbs.push({label:svcName});
-    crumbs.push({label:p.target, hash:`#/target/${encodeURIComponent(p.target)}`});
-  } else {
-    // dashboard 직행: service 컨텍스트 없음 → target 조각만
-    crumbs.push({label:p.target, hash:`#/target/${encodeURIComponent(p.target)}`});
-  }
-  crumbs.push({label:`파이프라인 #${p.id}`});
+  // R20: nav 컨텍스트와 무관하게 항상 서비스 검색 › {target} › #{id} (App 미러).
+  const crumbs=[
+    {label:'서비스 검색',hash:'#/services'},
+    {label:p.target, hash:`#/target/${encodeURIComponent(p.target)}`},
+    {label:`파이프라인 #${p.id}`},
+  ];
   const cur=currentTask(p);
   const failedTask=p.tasks.find(t=>t.status==='FAILED');
-  const nonTerminal=!['DONE','FAILED','CANCELLED'].includes(p.status);
-  // R18 §7-2 zone2: run/task 2단 계층 — flat sb-cur를 {label,name,retry,seq} 구조로 분리(App currentTaskInfo 미러).
+  // 헤더 1행 {label,name,retry} — App currentTaskInfo 미러.
   let z2label, z2name, z2retry=null;
   if(p.status==='PENDING'){ z2label='시작 대기'; z2name=`${p.nextDueAt||'-'} 시작 예정`; }
   else if(cur){ z2label=cur.status==='FAILED'?'실패 태스크':'현재 태스크'; z2name=cur.operation; z2retry=cur.failCount>0?`재시도 ${cur.failCount}/${cur.maxFail}`:null; }
@@ -1110,19 +1063,22 @@ function viewPipeline(id){
     <div class="section-desc">노드를 클릭하면 상세가 우측 패널로 열립니다 · task가 많으면 캔버스가 좌우로 스크롤됩니다</div>
     <div class="card">
       <div class="fc-head${p.status==='FAILED'?' failed':''}">
-        <div class="fc-run">
-          <span class="pill lg s-${p.status}"><span class="dot"></span>${p.status}</span>
-          ${p.cancelRequested?'<span class="ftag ext" title="cancel_requested=true — 다음 실행 사이클에 취소가 반영됩니다">취소 요청됨</span>':''}
-          ${progressBar(progressN(p),progressM(p),p.status)}
-          ${p.status==='RUNNING'&&p.nextDueAt?`<span class="fc-runmeta" title="next_due_at — 다음 폴링/실행 예정 시각">다음 실행 ${esc(p.nextDueAt)}</span>`:''}
-        </div>
-        <div class="fc-task">
-          <span class="fc-tlabel">${esc(z2label)}</span>
+        <div class="fc-row">
+          <span class="fc-rlabel">${esc(z2label)}</span>
           <span class="fc-tname">${esc(z2name)}</span>
           ${z2retry?`<span class="fc-tretry">${esc(z2retry)}</span>`:''}
           ${failedTask&&failedTask.errorCode?`<span class="sb-err" title="${esc(failedTask.operation)}">${esc(failedTask.errorCode)}</span>`:''}
         </div>
-        
+        <div class="fc-row">
+          <span class="fc-rlabel">상태</span>
+          <span class="pill lg s-${p.status}"><span class="dot"></span>${p.status}</span>
+          ${p.cancelRequested?'<span class="ftag ext" title="cancel_requested=true — 다음 실행 사이클에 취소가 반영됩니다">취소 요청됨</span>':''}
+        </div>
+        <div class="fc-row">
+          <span class="fc-rlabel">진행 상태</span>
+          ${progressBar(progressN(p),progressM(p),p.status)}
+          ${p.status==='RUNNING'&&p.nextDueAt?`<span class="fc-runmeta" title="next_due_at — 다음 폴링/실행 예정 시각">다음 실행 ${esc(p.nextDueAt)}</span>`:''}
+        </div>
       </div>
       <div class="fc-body">
         <div class="flow" id="flow"><div class="flow-scroll"><div class="flow-track"></div></div></div>

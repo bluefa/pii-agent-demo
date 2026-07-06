@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { PipelineStatus, PipelineSummary } from '@/lib/pipeline/types';
 import {
   DASH_PAGE_SIZE,
-  buildListDesc,
   buildStatsDesc,
   filterByTarget,
   paginate,
@@ -114,26 +113,6 @@ describe('buildStatsDesc', () => {
   it('uses the period label', () => {
     expect(buildStatsDesc('1d')).toBe(
       '최근 24시간(생성시간 기준) 실패·성공 집계 — 기간 필터와 동기화 · 동작 중은 현재 순간값',
-    );
-  });
-});
-
-describe('buildListDesc', () => {
-  it('emits only the base + sort parts with no filters', () => {
-    expect(buildListDesc({ period: '1d', total: 7 })).toBe(
-      '최근 24시간 생성 7건 · 정렬: 실패 → 진행 중 → 최신순',
-    );
-  });
-
-  it('appends status / CSP(label) / search parts in order', () => {
-    expect(
-      buildListDesc({ period: '7d', total: 3, status: 'FAILED', provider: 'AZURE', q: ' t9 ' }),
-    ).toBe('최근 7일 생성 3건 · 상태 FAILED · CSP Azure · 검색 "t9" · 정렬: 실패 → 진행 중 → 최신순');
-  });
-
-  it('appends the truncation note when the window was capped', () => {
-    expect(buildListDesc({ period: '1h', total: 200, truncated: true })).toBe(
-      '최근 1시간 생성 200건 · 정렬: 실패 → 진행 중 → 최신순 · 최신 200건 기준',
     );
   });
 });

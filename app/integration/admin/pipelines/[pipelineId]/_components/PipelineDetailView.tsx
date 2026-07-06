@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { integrationRoutes } from '@/lib/routes';
@@ -40,10 +40,8 @@ import {
   retrySuffix,
 } from '@/app/integration/admin/pipelines/_detail/statusModel';
 import {
-  buildTargetHref,
   canCancel,
   fmtDateTime,
-  parsePipelineNavContext,
   progressCount,
   providerAccentVar,
   providerLabel,
@@ -64,9 +62,7 @@ type LoadStatus = 'loading' | 'ready' | 'notfound' | 'error';
 
 export function PipelineDetailView(): ReactElement {
   const params = useParams<{ pipelineId: string }>();
-  const searchParams = useSearchParams();
   const pipelineId = String(params.pipelineId);
-  const ctx = parsePipelineNavContext(searchParams);
   const toast = usePlToast();
   const { text } = pipelineStyles;
 
@@ -213,7 +209,7 @@ export function PipelineDetailView(): ReactElement {
 
   return (
     <div>
-      <PlBreadcrumb crumbs={pipelineCrumbs(ctx, pipelineId, detail.target_source_id)} />
+      <PlBreadcrumb crumbs={pipelineCrumbs(pipelineId, detail.target_source_id)} />
       {/* R18 §6·§7-1 — id demoted out of the h1; [중단] is the page's danger CTA. */}
       <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className={text.pageTitle}>파이프라인 현황</h1>
@@ -255,7 +251,10 @@ export function PipelineDetailView(): ReactElement {
               label="실행 ID"
               value={<span className="text-[var(--pl-text-faint)]">#{detail.pipeline_id}</span>}
             />
-            <RoundNavLink href={buildTargetHref(detail.target_source_id, ctx)} title="대상 상세로 이동" />
+            <RoundNavLink
+              href={integrationRoutes.pipelines.target(detail.target_source_id)}
+              title="대상 상세로 이동"
+            />
           </>
         }
         meta={
@@ -274,14 +273,26 @@ export function PipelineDetailView(): ReactElement {
         desc="노드를 클릭하면 상세가 우측 패널로 열립니다 · task가 많으면 캔버스가 좌우로 스크롤됩니다"
       />
 
-      {/* R18 §7-2 — ONE card: run-level zone / task-level zone / meta, then canvas. */}
+      {/* R20 — ONE card, one fact per header row: 태스크 / 상태 / 진행 상태. */}
       <Card>
         <div className={cn(fc.head, failed ? fc.headFailed : fc.headIdle)}>
-          <div className={fc.runRow}>
+          <div className={fc.row}>
+            <span className={fc.rowLabel}>{cur.label}</span>
+            <span className={fc.taskName}>{cur.name}</span>
+            {cur.retry && <span className={fc.taskRetry}>{cur.retry}</span>}
+            {failedTask?.error_code && (
+              <span className={fc.err} title={resolveName(failedTask)}>
+                {failedTask.error_code}
+              </span>
+            )}
+          </div>
+
+          <div className={fc.row}>
+            <span className={fc.rowLabel}>상태</span>
             <StatusPill
               status={detail.status}
               size="lg"
-              className={failed ? detailStyles.statusbar.pillFailedRing : undefined}
+              className={failed ? fc.pillFailedRing : undefined}
             />
             {detail.cancel_requested && (
               <span
@@ -291,21 +302,14 @@ export function PipelineDetailView(): ReactElement {
                 취소 요청됨
               </span>
             )}
-            <PipelineProgressBar n={done} m={total} status={detail.status} wide />
-            {detail.status === 'RUNNING' && detail.next_due_at && (
-              <span className={fc.runMeta} title="next_due_at — 다음 폴링/실행 예정 시각">
-                다음 실행 {fmtDateTime(detail.next_due_at)}
-              </span>
-            )}
           </div>
 
-          <div className={fc.taskRow}>
-            <span className={fc.taskLabel}>{cur.label}</span>
-            <span className={fc.taskName}>{cur.name}</span>
-            {cur.retry && <span className={fc.taskRetry}>{cur.retry}</span>}
-            {failedTask?.error_code && (
-              <span className={detailStyles.statusbar.err} title={resolveName(failedTask)}>
-                {failedTask.error_code}
+          <div className={fc.row}>
+            <span className={fc.rowLabel}>진행 상태</span>
+            <PipelineProgressBar n={done} m={total} status={detail.status} wide />
+            {detail.status === 'RUNNING' && detail.next_due_at && (
+              <span className={fc.rowMeta} title="next_due_at — 다음 폴링/실행 예정 시각">
+                다음 실행 {fmtDateTime(detail.next_due_at)}
               </span>
             )}
           </div>

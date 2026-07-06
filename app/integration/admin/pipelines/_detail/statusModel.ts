@@ -1,8 +1,8 @@
 /**
- * Status-bar label model + task display-name resolution (pure, testable).
- * Shared by the target page (summary + fetched detail) and the pipeline page
- * (full detail + task catalog). Wraps the derivations in lib/pipeline/format so
- * the exact sb-cur branch grammar lives in one tested place.
+ * Flow-header label model + task display-name resolution (pure, testable).
+ * Wraps the derivations in lib/pipeline/format so the exact header grammar
+ * lives in one tested place. (R20: the target-page status bar is gone —
+ * currentTaskInfo drives the pipeline page's flow-card header rows.)
  */
 import { currentTask, currentTaskLabel, fmtDateTime } from '@/lib/pipeline/format';
 import type { PipelineStatus, TaskDetail, TaskSummary } from '@/lib/pipeline/types';
@@ -30,31 +30,6 @@ export function taskDisplayName(
     task.operation ||
     task.task_definition
   );
-}
-
-/**
- * sb-cur text:
- *  - PENDING → "시작 대기 · {next_due_at|'-'} 시작 예정"
- *  - current task (lowest READY/IN_PROGRESS/FAILED) → "현재 · {name}"
- *    (+ optional retry suffix; R19.6 — no seq wording)
- *  - else → currentTaskLabel (완료 / 취소됨 / 실패 / 시작 대기)
- */
-export function statusCurrentText(
-  status: PipelineStatus,
-  nextDueAt: string | null,
-  tasks: readonly TaskSummary[],
-  resolveName: (task: TaskSummary) => string,
-  retryFor?: (task: TaskSummary) => string | null,
-): string {
-  if (status === 'PENDING') {
-    return `시작 대기 · ${fmtDateTime(nextDueAt)} 시작 예정`;
-  }
-  const cur = currentTask(tasks);
-  if (cur) {
-    const retry = retryFor?.(cur) ?? '';
-    return `현재 · ${resolveName(cur)}${retry}`;
-  }
-  return currentTaskLabel(status, tasks);
 }
 
 /**

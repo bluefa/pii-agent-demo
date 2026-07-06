@@ -4,6 +4,23 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 20 — 헤더 행 분해·URL 정리·target 상태바 삭제 (2026-07-06)
+
+오너 피드백: "헤더는 각 한 줄로 — task명/상태/진행 상태 / 상세 URL은 pipelineId만
+있어도 충분 / target의 최신 파이프라인 바는 그냥 없애자 / 이력은 pagination으로 /
+'정렬 실패 우선' 칩 삭제".
+
+- **흐름 카드 헤더**: run/task 2존 → **한 줄에 한 사실** 3행(`fc-row`, 라벨 72px 컬럼):
+  ① {현재·실패 태스크} task명(16/700)+재시도+에러칩 ② 상태 pill(+취소 요청됨)
+  ③ 진행 상태 bar+N/M(+우측 다음 실행). leased류 없음.
+- **URL**: `svc`/`svcName` query-param nav-context **전면 삭제** — 상세 URL은 path id만.
+  서비스명은 API(`service_name`)에서 유도, 파이프라인 breadcrumb은
+  `서비스 검색 › {target} › #{id}` 고정.
+- **target 페이지**: 최신 파이프라인 상태 바 + "파이프라인 상태" 섹션 삭제 — 이력 표
+  첫 행이 곧 최신 run, run 액션(중단)은 상세 페이지 몫. 액션 버튼은 idbar 직후.
+- **이력 pagination 상시 노출**(1페이지여도 이전 · 1/1 · 다음).
+- **대시보드**: `정렬 · 실패 우선` 스코프 칩 삭제(정렬은 필터가 아니라 동작).
+
 ## Round 19 — Task 흐름 n8n 스타일: 격자 캔버스·브랜드 마크·우측 도킹 패널 (2026-07-06)
 
 오너 피드백: "N8N처럼 격자 무늬 스타일로 멋있게 / Job 카드 가운데 정렬 /

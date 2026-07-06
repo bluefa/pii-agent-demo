@@ -18,7 +18,7 @@ import { PlButton } from '@/app/integration/admin/pipelines/_components/PlButton
 import { KindChip } from '@/app/integration/admin/pipelines/_components/KindChip';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailStyles';
-import { buildPipelineHref, type PipelineNavContext } from '@/lib/pipeline/format';
+import { integrationRoutes } from '@/lib/routes';
 import {
   createPipeline,
   getLatestPipelineByTarget,
@@ -36,7 +36,6 @@ export interface PreviewModalProps {
   targetSourceId: string;
   type: PipelineType;
   providerLabel: string;
-  ctx: PipelineNavContext;
   showToast: (message: string) => void;
 }
 
@@ -46,7 +45,6 @@ export function PreviewModal({
   targetSourceId,
   type,
   providerLabel,
-  ctx,
   showToast,
 }: PreviewModalProps): ReactElement | null {
   const router = useRouter();
@@ -85,7 +83,7 @@ export function PreviewModal({
     onSuccess: (detail) => {
       onClose();
       showToast(`${label} 파이프라인이 실행됐어요`);
-      router.push(buildPipelineHref(detail.pipeline_id, ctx));
+      router.push(integrationRoutes.pipelines.pipeline(detail.pipeline_id));
     },
     onError: (err) => {
       if (err instanceof OrchestratorApiError && err.code === ALREADY_ACTIVE) {
@@ -98,7 +96,7 @@ export function PreviewModal({
             if (latest) {
               onClose();
               showToast('이미 진행 중인 파이프라인으로 이동합니다');
-              router.push(buildPipelineHref(latest.pipeline_id, ctx));
+              router.push(integrationRoutes.pipelines.pipeline(latest.pipeline_id));
               return;
             }
           } catch {

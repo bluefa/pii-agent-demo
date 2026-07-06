@@ -3,7 +3,6 @@ import {
   currentTaskInfo,
   findFailedTask,
   retrySuffix,
-  statusCurrentText,
   taskDisplayName,
 } from '@/app/integration/admin/pipelines/_detail/statusModel';
 import type { TaskDetail, TaskSummary } from '@/lib/pipeline/types';
@@ -26,36 +25,6 @@ function mkTask(partial: Partial<TaskSummary> & Pick<TaskSummary, 'sequence' | '
 }
 
 const opName = (t: TaskSummary): string => t.operation ?? t.task_definition;
-
-describe('statusCurrentText', () => {
-  it('PENDING → 시작 대기 with the next_due_at (null renders "-")', () => {
-    expect(statusCurrentText('PENDING', null, [], opName)).toBe('시작 대기 · - 시작 예정');
-  });
-
-  it('current task → 현재 · {name} (R19.6: seq 문구 없음)', () => {
-    const tasks = [
-      mkTask({ sequence: 0, status: 'DONE' }),
-      mkTask({ sequence: 1, status: 'IN_PROGRESS', operation: 'AWS_SERVICE_TF_APPLY' }),
-      mkTask({ sequence: 2, status: 'BLOCKED' }),
-    ];
-    expect(statusCurrentText('RUNNING', null, tasks, opName)).toBe('현재 · AWS_SERVICE_TF_APPLY');
-  });
-
-  it('appends the retry suffix on the current task when provided', () => {
-    const tasks = [mkTask({ sequence: 0, status: 'IN_PROGRESS', operation: 'NETWORK_READY', fail_count: 2 })];
-    const text = statusCurrentText('RUNNING', null, tasks, opName, (t) =>
-      retrySuffix(t.fail_count, 3),
-    );
-    expect(text).toBe('현재 · NETWORK_READY (재시도 2/3)');
-  });
-
-  it('falls back to the terminal label when there is no current task', () => {
-    const done = [mkTask({ sequence: 0, status: 'DONE' })];
-    expect(statusCurrentText('DONE', null, done, opName)).toBe('완료');
-    const cancelled = [mkTask({ sequence: 0, status: 'CANCELLED' })];
-    expect(statusCurrentText('CANCELLED', null, cancelled, opName)).toBe('취소됨');
-  });
-});
 
 describe('taskDisplayName — precedence', () => {
   const task = mkTask({ sequence: 0, status: 'READY', task_definition: 'aws_service_apply', operation: 'AWS_SERVICE_TF_APPLY' });

@@ -1,6 +1,6 @@
 /**
- * Bespoke class tokens for the C2 detail composites (IdentityBar, PipelineStatusBar,
- * TaskDetailModal, Preview/Cancel modals). Phase B `pipelineStyles` covers the
+ * Bespoke class tokens for the C2 detail composites (IdentityBar, flow card,
+ * TaskDetailPanel, Preview/Cancel modals). Phase B `pipelineStyles` covers the
  * primitives but NOT these composites and is READ-ONLY, so the composite chrome
  * lives here — every color still resolves to a `--pl-*` custom property (the same
  * design tokens the primitives use; no raw Tailwind palette classes). Sizes /
@@ -53,27 +53,6 @@ export const detailStyles = {
     vRow: cn(text.kvValue, 'flex items-center gap-2'),
     /** inline error-code mono in the 실패 누적 row. */
     errCode: 'text-[12px] text-[var(--pl-err-text)] [font-family:var(--pl-font-mono)]',
-  },
-
-  /** PipelineStatusBar — pad 14/18, r10, border, shadow-xs; column gap 8. */
-  statusbar: {
-    bar: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[10px] shadow-[var(--pl-shadow-xs)] px-[18px] py-3.5 flex flex-col gap-2',
-    /** FAILED tint — 135° red→white gradient + red border + halo on the lg pill. */
-    barFailed:
-      'border-[var(--pl-err-statusbar-border)] [background:linear-gradient(135deg,var(--pl-err-statusbar-grad-from),var(--pl-bg-card)_55%)]',
-    /** Halo ring on the lg pill when the bar is FAILED (design .statusbar.failed .pill.lg). */
-    pillFailedRing: 'shadow-[0_0_0_1px_var(--pl-err-border)]',
-    main: 'flex items-center gap-3 flex-wrap',
-    cur: text.statusCurrent,
-    /** sb-err chip — mono 12, err bg/text, pad 2/8 r6. */
-    err: 'text-[12px] text-[var(--pl-err-text)] bg-[var(--pl-err-bg)] px-2 py-0.5 rounded-md [font-family:var(--pl-font-mono)]',
-    /** Right-aligned action cluster. */
-    actions: 'ml-auto flex items-center gap-2',
-    meta: 'flex items-center gap-2 flex-wrap text-[12px] text-[var(--pl-text-weak)]',
-    metaItem: 'text-[12px] text-[var(--pl-text-weak)]',
-    sep: 'text-[var(--pl-gray-300)]',
-    /** #id mono span inside sb-meta. */
-    mono: text.mono,
   },
 
   /** ftag — inline flag chip (12/600, pad 1/6 r4). `ext` = warn bg/text. */
@@ -142,14 +121,16 @@ export const detailStyles = {
     headIdle: 'border-[var(--pl-gray-100)]',
     headFailed:
       'border-[var(--pl-err-statusbar-border)] [background:linear-gradient(135deg,var(--pl-err-statusbar-grad-from),var(--pl-bg-card)_55%)]',
-    /** zone1 — run level: pill lg · ftag · progress · (right) schedule meta. */
-    runRow: 'flex items-center gap-3 flex-wrap',
-    runMeta: 'ml-auto flex items-center gap-2 text-[12px] text-[var(--pl-text-weak)]',
-    /** zone2 — task level (kv grammar): label 12/faint · name 16/700 strong
-     *  (R19.6 — the current task name is the hero of this row) · retry 12/weak
-     *  · err chip. No seq wording. */
-    taskRow: 'flex items-baseline gap-2 flex-wrap',
-    taskLabel: 'text-[12px] font-semibold text-[var(--pl-text-faint)] whitespace-nowrap',
+    /** Halo ring on the lg pill when the header is FAILED. */
+    pillFailedRing: 'shadow-[0_0_0_1px_var(--pl-err-border)]',
+    /** err chip — mono 12, err bg/text, pad 2/8 r6. */
+    err: 'text-[12px] text-[var(--pl-err-text)] bg-[var(--pl-err-bg)] px-2 py-0.5 rounded-md [font-family:var(--pl-font-mono)]',
+    /** R20 — one fact per line: {label → value} rows sharing a 72px label
+     *  column ({현재 태스크·상태·진행 상태}); the task name (16/700) stays the
+     *  hero of row 1. No seq wording. */
+    row: 'flex items-center gap-3 min-w-0 flex-wrap',
+    rowLabel: 'w-[72px] flex-none text-[12px] font-semibold text-[var(--pl-text-faint)] whitespace-nowrap',
+    rowMeta: 'ml-auto flex items-center gap-2 text-[12px] text-[var(--pl-text-weak)]',
     taskName: 'text-[16px] font-bold leading-[1.2] text-[var(--pl-text-strong)]',
     taskRetry: 'text-[12px] text-[var(--pl-text-weak)]',
     /** §7-3, R19.5 — right-DOCKED panel flush at the canvas edge (owner: 딱
