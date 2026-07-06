@@ -336,19 +336,22 @@ export function PipelineDetailView(): ReactElement {
             tasks={detail.tasks}
             detailMap={detailMap}
             resolveName={resolveName}
+            provider={provider}
             selectedId={selected?.task_id ?? null}
             onOpen={(t) => setSelected((prev) => (prev?.task_id === t.task_id ? null : t))}
+            panel={
+              selected ? (
+                <TaskDetailPanel
+                  onClose={() => setSelected(null)}
+                  task={selected}
+                  detail={selectedDetail}
+                  detailLoaded={detailsLoaded}
+                  displayName={resolveName(selected)}
+                  onRetry={retrySelectedDetail}
+                />
+              ) : undefined
+            }
           />
-          {selected && (
-            <TaskDetailPanel
-              onClose={() => setSelected(null)}
-              task={selected}
-              detail={selectedDetail}
-              detailLoaded={detailsLoaded}
-              displayName={resolveName(selected)}
-              onRetry={retrySelectedDetail}
-            />
-          )}
         </div>
       </Card>
 

@@ -150,13 +150,14 @@ export const detailStyles = {
     taskLabel: 'text-[12px] font-semibold text-[var(--pl-text-faint)] whitespace-nowrap',
     taskName: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
     taskRetry: 'text-[12px] text-[var(--pl-text-weak)]',
-    /** canvas | panel split (§7-3) — canvas keeps its own horizontal scroll.
-     *  items-start: the canvas keeps its natural height (master-detail), the
-     *  panel may run longer below it. */
-    body: 'flex items-start gap-6 min-w-0',
-    canvas: 'flex-1 min-w-0',
+    /** §7-3, R19.5 — right-DOCKED panel flush at the canvas edge (owner: 딱
+     *  붙게). It sits OUTSIDE the horizontal scroll region (TaskFlow renders it
+     *  as a flex sibling of .pl-scroll), so it can never cover the scrollbar or
+     *  block left/right movement; long content scrolls vertically inside. */
+    body: 'min-w-0',
+    canvas: 'w-full',
     panel:
-      'w-[400px] flex-none min-w-0 border-l border-[var(--pl-gray-100)] pl-6 motion-safe:[animation:pl-panel-in_.2s_ease-out]',
+      'w-[400px] flex-none min-w-0 max-h-[440px] bg-[var(--pl-bg-card)] border-l border-[var(--pl-border)] overflow-y-auto overscroll-contain px-5 pt-4 pb-5 motion-safe:[animation:pl-panel-in_.2s_ease-out]',
   },
 
   /** Loading / layout-stable skeleton block. */
