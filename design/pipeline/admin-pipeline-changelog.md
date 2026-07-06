@@ -4,6 +4,24 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 18 — 오너 피드백: 유형 구분·필터 칩·상세 통합 카드·인라인 패널 (2026-07-06)
+
+> App(LIN-25 D1)에 먼저 반영 후 HTML로 역포팅한 첫 라운드(오너 지시 순서).
+> 전체 스펙·근거: [admin-pipeline-improvement-r18.md](admin-pipeline-improvement-r18.md).
+> (16–17은 결번 — 캐시버스터 v=r16/r17과 라운드 번호 정합을 위해 18로 점프.)
+
+- **TypeTag**: INSTALL(↓ 파랑)/DELETE(🗑 빨강)/CUSTOM(슬라이더 보라) 아이콘+색+enum —
+  대시보드 목록·target 이력·target 상태바 meta의 유형 표기 교체.
+- **게이팅 제거**: target 설치/삭제 버튼 상시 활성(`targetButtons` 삭제) — 충돌은 409 플로우.
+- **필터 칩**(Komiser 레퍼런스): 목록 산문 캡션 → 스코프 칩(기간·정렬) + 활성 필터 ×칩 +
+  [필터 초기화] + 우측 N건.
+- **stat 라벨 2단**: 주 14/600 medium + 기간 12/400 faint. 현황 산문 캡션 제거.
+- **캡션 간격**: 제목↔desc 4→8, desc↔내용 12→16.
+- **상세 재구성**: h1 "파이프라인 현황"(+실행 ID 강등), [중단] solid danger CTA 헤더 승격,
+  target 우선 idbar(1006 · AWS 선행), 상태바+Task 흐름 **단일 카드**(run/task/meta 3존 계층),
+  Task 상세 모달 → **카드 내 우측 400px 인라인 패널**(Esc·선택 링·motion-safe slide-in).
+- **콘텐츠 폭**: 1280 → 1440.
+
 ## Round 15 — Task 흐름 v16 문법 차용 + Task 상세 모달 전환 (2026-07-05)
 
 오너 피드백(6차): "SIT Prototype Athena v16의 task 노드 디자인 차용 / Task 상세 텍스트 경계·
