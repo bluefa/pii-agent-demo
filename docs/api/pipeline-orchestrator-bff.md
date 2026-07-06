@@ -2,8 +2,9 @@
 
 admin 파이프라인 4페이지가 사용하는 **신규 BFF API 경로 전체 명세**와 페이지↔API 매핑.
 
-- 업스트림: `pipeline-orchestrator` (Spring Boot, 기본 `http://localhost:8080`). 별도 서버이므로
-  기존 `BFF_API_URL`(install-v1 업스트림)과 독립된 env **`PIPELINE_API_URL`** 로 설정한다.
+- 업스트림: `pipeline-orchestrator` (Spring Boot, 경로 prefix `/infra-install/v1`). 별도 서버로 띄울
+  때는 env **`PIPELINE_API_URL`** 로 지정하고, 미설정 시 BFF 서버(`BFF_API_URL`)로 폴백한다
+  (orchestrator가 BFF 뒤에서 서빙되는 구성).
 - 원칙: **응답 passthrough** — 업스트림의 응답 body(snake_case)·HTTP status를 그대로 브라우저에
   전달한다. camelCase 변환·필드 가공 금지. 에러 body(`{timestamp,status,code,message,path}`)도
   status 그대로 전파한다.
@@ -11,7 +12,7 @@ admin 파이프라인 4페이지가 사용하는 **신규 BFF API 경로 전체 
   (LIN-19의 CORS 갭은 이 구조로 우회 해소).
 - mock: `USE_MOCK_DATA=true`일 때 `lib/bff/mock/pipeline*.ts`가 응답한다(코드 기본값은 real
   HTTP — 이 저장소의 로컬 `.env.local`(gitignore 대상)이 관례적으로 true를 설정할 뿐, 클린
-  체크아웃은 env 미설정 시 `PIPELINE_API_URL`로 프록시한다). mock 픽스처는
+  체크아웃은 env 미설정 시 `PIPELINE_API_URL`(→ 미설정 시 `BFF_API_URL`)로 프록시한다). mock 픽스처는
   `design/pipeline/admin-pipeline.html`의 mock 데이터(#123~#129)를 와이어 포맷
   (snake_case, ISO-8601)으로 이식한 것이다.
 
@@ -40,18 +41,18 @@ ESLint 경계에 따라 `@/lib/bff/client` 경유.
 
 | # | BFF 경로 (브라우저 기준) | 업스트림 경로 (`PIPELINE_API_URL` 기준) | 용도 |
 |---|---|---|---|
-| 1 | `GET /integration/api/v1/orchestrator/pipelines/statistics/live` | `GET /api/v1/pipelines/statistics/live` | 대시보드 "동작 중 · 현재" |
-| 2 | `GET /integration/api/v1/orchestrator/pipelines/statistics?period={1h\|1d\|7d}` | `GET /api/v1/pipelines/statistics?period=` | 대시보드 기간 실패/성공 |
-| 3 | `GET /integration/api/v1/orchestrator/pipelines?status&provider&period&page&size&sort` | `GET /api/v1/pipelines?…` | 대시보드 목록 |
-| 4 | `GET /integration/api/v1/orchestrator/pipelines/{pipelineId}` | `GET /api/v1/pipelines/{pipelineId}` | 파이프라인 상세 |
-| 5 | `GET /integration/api/v1/orchestrator/pipelines/{pipelineId}/tasks/{taskId}` | `GET /api/v1/pipelines/{pipelineId}/tasks/{taskId}` | Task 상세 모달·노드 meta |
-| 6 | `POST /integration/api/v1/orchestrator/pipelines/{pipelineId}/cancel` | `POST /api/v1/pipelines/{pipelineId}/cancel` | 파이프라인 취소 |
-| 7 | `GET /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines?page&size&sort` | `GET /api/v1/target-sources/{id}/pipelines?…` | 타겟 이력 (5건/페이지) |
-| 8 | `GET /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/latest` | `GET /api/v1/target-sources/{id}/pipelines/latest` | 타겟 최신 실행 (없으면 204) |
-| 9 | `GET /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/preview?type={INSTALL\|DELETE}` | `GET /api/v1/target-sources/{id}/pipelines/preview?type=` | 실행 미리보기 모달 |
-| 10 | `POST /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines` body `{"type":"INSTALL"\|"DELETE"}` | `POST /api/v1/target-sources/{id}/pipelines` | 설치/삭제 시작 |
-| 11 | `POST /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/custom` body `{"tasks":[{"name","description?"}]}` | `POST /api/v1/target-sources/{id}/pipelines/custom` | custom recipe 실행 (빌더는 후속 이슈, 경로는 선제 제공) |
-| 12 | `GET /integration/api/v1/orchestrator/task-definitions?provider` | `GET /api/v1/task-definitions?provider` | task 카탈로그 — operation 표시명 매핑 |
+| 1 | `GET /integration/api/v1/orchestrator/pipelines/statistics/live` | `GET /infra-install/v1/pipelines/statistics/live` | 대시보드 "동작 중 · 현재" |
+| 2 | `GET /integration/api/v1/orchestrator/pipelines/statistics?period={1h\|1d\|7d}` | `GET /infra-install/v1/pipelines/statistics?period=` | 대시보드 기간 실패/성공 |
+| 3 | `GET /integration/api/v1/orchestrator/pipelines?status&provider&period&page&size&sort` | `GET /infra-install/v1/pipelines?…` | 대시보드 목록 |
+| 4 | `GET /integration/api/v1/orchestrator/pipelines/{pipelineId}` | `GET /infra-install/v1/pipelines/{pipelineId}` | 파이프라인 상세 |
+| 5 | `GET /integration/api/v1/orchestrator/pipelines/{pipelineId}/tasks/{taskId}` | `GET /infra-install/v1/pipelines/{pipelineId}/tasks/{taskId}` | Task 상세 모달·노드 meta |
+| 6 | `POST /integration/api/v1/orchestrator/pipelines/{pipelineId}/cancel` | `POST /infra-install/v1/pipelines/{pipelineId}/cancel` | 파이프라인 취소 |
+| 7 | `GET /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines?page&size&sort` | `GET /infra-install/v1/target-sources/{id}/pipelines?…` | 타겟 이력 (5건/페이지) |
+| 8 | `GET /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/latest` | `GET /infra-install/v1/target-sources/{id}/pipelines/latest` | 타겟 최신 실행 (없으면 204) |
+| 9 | `GET /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/preview?type={INSTALL\|DELETE}` | `GET /infra-install/v1/target-sources/{id}/pipelines/preview?type=` | 실행 미리보기 모달 |
+| 10 | `POST /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines` body `{"type":"INSTALL"\|"DELETE"}` | `POST /infra-install/v1/target-sources/{id}/pipelines` | 설치/삭제 시작 |
+| 11 | `POST /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/custom` body `{"tasks":[{"name","description?"}]}` | `POST /infra-install/v1/target-sources/{id}/pipelines/custom` | custom recipe 실행 (빌더는 후속 이슈, 경로는 선제 제공) |
+| 12 | `GET /integration/api/v1/orchestrator/task-definitions?provider` | `GET /infra-install/v1/task-definitions?provider` | task 카탈로그 — operation 표시명 매핑 |
 
 응답 shape·enum·에러 코드 전체는 업스트림 계약을 그대로 따른다(이 문서 §4 요약,
 원계약은 pipeline-orchestrator 저장소 controller/dto).
