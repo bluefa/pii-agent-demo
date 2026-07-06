@@ -72,6 +72,7 @@ export const aggregateServiceScripts = (
 
 const permissionCardStatus = (status: AwsInstallationStatus): InstallTaskStatus => {
   if (status.hasExecutionPermission) return 'done';
+  if (status.lastCheck.status === 'FAILED') return 'failed';
   return status.lastCheck.status === 'IN_PROGRESS' ? 'running' : 'pending';
 };
 

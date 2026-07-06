@@ -13,8 +13,3 @@ export {
   type ProgressRowStatus,
 } from '@/app/components/features/admin/v7/RegistrationProgressList';
 export { ServiceHeaderV7 } from '@/app/components/features/admin/v7/ServiceHeaderV7';
-export {
-  StatusPillV2,
-  deriveHealthFromProcessStatus,
-  type HealthStatus,
-} from '@/app/components/features/admin/v7/StatusPillV2';

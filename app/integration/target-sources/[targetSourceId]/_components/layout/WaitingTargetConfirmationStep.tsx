@@ -47,7 +47,7 @@ export const WaitingTargetConfirmationStep = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
+      <ProcessStatusCard project={project} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <CandidateResourceSection
         targetSourceId={project.targetSourceId}

@@ -3,7 +3,8 @@ info:
   title: Pipeline Orchestrator BFF Proxy API (LIN-25)
   version: v1
   description: |
-    `pipeline-orchestrator`(Spring Boot, 기본 포트 8080, 별도 서버) 앞단의 BFF 프록시 계약이다.
+    `pipeline-orchestrator`(Spring Boot; BFF 서버 뒤에서 서빙 — `BFF_API_URL` +
+    경로 prefix `/infra-install/v1`) 앞단의 BFF 프록시 계약이다.
     이 문서가 다루는 12개 경로는 모두 `withOrchestratorProxy` 래퍼(app/api/_lib/orchestrator.ts)를
     거쳐 업스트림 응답을 **verbatim**으로 브라우저에 전달한다.
 
@@ -44,7 +45,7 @@ paths:
     get:
       tags: [Pipeline Statistics]
       summary: "#1 실시간 파이프라인 통계"
-      description: 업스트림 `GET /api/v1/pipelines/statistics/live` 프록시. 모든 필드는 숫자이며 null이 아니다.
+      description: 업스트림 `GET /infra-install/v1/pipelines/statistics/live` 프록시. 모든 필드는 숫자이며 null이 아니다.
       operationId: getLivePipelineStatistics
       responses:
         "200":
@@ -60,7 +61,7 @@ paths:
     get:
       tags: [Pipeline Statistics]
       summary: "#2 기간별 파이프라인 통계"
-      description: 업스트림 `GET /api/v1/pipelines/statistics?period=` 프록시. `period`는 필수 쿼리 파라미터다.
+      description: 업스트림 `GET /infra-install/v1/pipelines/statistics?period=` 프록시. `period`는 필수 쿼리 파라미터다.
       operationId: getPipelineStatistics
       parameters:
         - name: period
@@ -91,7 +92,7 @@ paths:
       tags: [Pipelines]
       summary: "#3 파이프라인 목록"
       description: >-
-        업스트림 `GET /api/v1/pipelines?status&provider&period&page&size&sort` 프록시. 쿼리 문자열은
+        업스트림 `GET /infra-install/v1/pipelines?status&provider&period&page&size&sort` 프록시. 쿼리 문자열은
         원문 그대로 전달되어 반복되는 `sort` 파라미터의 순서/중복이 보존된다.
       operationId: listPipelines
       parameters:
@@ -151,7 +152,7 @@ paths:
     get:
       tags: [Pipelines]
       summary: "#4 파이프라인 상세"
-      description: 업스트림 `GET /api/v1/pipelines/{pipelineId}` 프록시.
+      description: 업스트림 `GET /infra-install/v1/pipelines/{pipelineId}` 프록시.
       operationId: getPipelineDetail
       parameters:
         - $ref: "#/components/parameters/PipelineId"
@@ -176,7 +177,7 @@ paths:
       tags: [Pipeline Tasks]
       summary: "#5 Task 상세"
       description: >-
-        업스트림 `GET /api/v1/pipelines/{pipelineId}/tasks/{taskId}` 프록시. taskId가 존재해도 다른
+        업스트림 `GET /infra-install/v1/pipelines/{pipelineId}/tasks/{taskId}` 프록시. taskId가 존재해도 다른
         pipelineId 소속이면 404 TASK_NOT_FOUND.
       operationId: getTaskDetail
       parameters:
@@ -208,7 +209,7 @@ paths:
       tags: [Pipelines]
       summary: "#6 파이프라인 취소"
       description: >-
-        업스트림 `POST /api/v1/pipelines/{pipelineId}/cancel` 프록시(body 없음). 2단계 취소: idle·lease
+        업스트림 `POST /infra-install/v1/pipelines/{pipelineId}/cancel` 프록시(body 없음). 2단계 취소: idle·lease
         만료·PENDING이면 즉시 CANCELLED + 비종단 task cascade. 라이브 lease 중이면
         `cancel_requested=true`만 기록하고 워커가 다음 안전 지점에 반영(응답이 RUNNING +
         cancel_requested:true일 수 있음). 이미 종단 상태면 no-op 200(멱등).
@@ -235,7 +236,7 @@ paths:
     get:
       tags: [Target Source Pipelines]
       summary: "#7 타겟소스별 파이프라인 이력"
-      description: 업스트림 `GET /api/v1/target-sources/{targetSourceId}/pipelines?page&size&sort` 프록시.
+      description: 업스트림 `GET /infra-install/v1/target-sources/{targetSourceId}/pipelines?page&size&sort` 프록시.
       operationId: listPipelinesByTargetSource
       parameters:
         - $ref: "#/components/parameters/TargetSourceId"
@@ -275,7 +276,7 @@ paths:
       tags: [Target Source Pipelines]
       summary: "#10 카탈로그 레시피로 파이프라인 실행(설치/삭제)"
       description: >-
-        업스트림 `POST /api/v1/target-sources/{targetSourceId}/pipelines` 프록시. 신규 파이프라인은
+        업스트림 `POST /infra-install/v1/target-sources/{targetSourceId}/pipelines` 프록시. 신규 파이프라인은
         PENDING으로 생성된다. 이미 활성 run(PENDING/RUNNING)이 있으면 기존 run을 반환하지 않고 409를
         반환한다.
       operationId: createPipeline
@@ -324,7 +325,7 @@ paths:
       tags: [Target Source Pipelines]
       summary: "#8 타겟소스 최신 실행"
       description: >-
-        업스트림 `GET /api/v1/target-sources/{targetSourceId}/pipelines/latest` 프록시. 실행 이력이
+        업스트림 `GET /infra-install/v1/target-sources/{targetSourceId}/pipelines/latest` 프록시. 실행 이력이
         없으면 204(빈 body) — BFF도 204를 그대로 전달한다.
       operationId: getLatestPipelineByTargetSource
       parameters:
@@ -346,7 +347,7 @@ paths:
       tags: [Target Source Pipelines]
       summary: "#9 실행 미리보기"
       description: >-
-        업스트림 `GET /api/v1/target-sources/{targetSourceId}/pipelines/preview?type=` 프록시.
+        업스트림 `GET /infra-install/v1/target-sources/{targetSourceId}/pipelines/preview?type=` 프록시.
         `type`은 필수이며 INSTALL|DELETE만 지원한다(CUSTOM은 미리보기 대상 레시피가 없어 400).
       operationId: previewPipeline
       parameters:
@@ -385,7 +386,7 @@ paths:
       tags: [Target Source Pipelines]
       summary: "#11 커스텀 레시피로 파이프라인 실행"
       description: >-
-        업스트림 `POST /api/v1/target-sources/{targetSourceId}/pipelines/custom` 프록시. 생성된
+        업스트림 `POST /infra-install/v1/target-sources/{targetSourceId}/pipelines/custom` 프록시. 생성된
         파이프라인의 type은 CUSTOM이다. 검증 순서: tasks 비어있음 → unknown task name → description
         100자 초과 → provider 조회 실패 → provider 불일치 → 활성 run 존재.
       operationId: createCustomPipeline
@@ -433,7 +434,7 @@ paths:
     get:
       tags: [Task Definitions]
       summary: "#12 Task 카탈로그"
-      description: 업스트림 `GET /api/v1/task-definitions?provider=` 프록시. provider는 선택적 필터.
+      description: 업스트림 `GET /infra-install/v1/task-definitions?provider=` 프록시. provider는 선택적 필터.
       operationId: listTaskDefinitions
       parameters:
         - name: provider

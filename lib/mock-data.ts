@@ -391,6 +391,8 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
+    // 데모: TF 실행 권한 미허용 → 수동 설치 모드
+    isTerraformExecutionGranted: false,
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
     resources: [
@@ -637,6 +639,8 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
+    // 데모: TF 실행 권한 허용 → 자동 설치 모드 (설치중 화면)
+    isTerraformExecutionGranted: true,
     processStatus: ProcessStatus.INSTALLING,
     status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 1, excludedCount: 1 }),
     resources: [
@@ -685,6 +689,8 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
+    // 데모: SDU 계정 — identity bar가 "SDU"로 노출
+    isSduType: true,
     processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_CONNECTION_TEST, { selectedCount: 2, excludedCount: 1 }),
     resources: [

@@ -25,7 +25,6 @@ export const ApplyingApprovedStep = ({
   identity,
   providerLabel,
   action,
-  onProjectUpdate,
 }: ApplyingApprovedStepProps) => {
   const slotKey = resolveStepSlot(
     project.cloudProvider,
@@ -40,7 +39,7 @@ export const ApplyingApprovedStep = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
+      <ProcessStatusCard project={project} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <ApplyingApprovedCard targetSourceId={project.targetSourceId} />
       <RejectionAlert project={project} />

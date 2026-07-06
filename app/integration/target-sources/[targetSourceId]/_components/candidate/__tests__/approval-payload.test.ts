@@ -40,4 +40,25 @@ describe('approval-payload', () => {
     const [row] = toModalResources([cloudCandidate], new Set(['res-1']), drafts);
     expect(row.databaseType).toBe('MYSQL');
   });
+
+  it('non-selected item still carries name/category and intrinsic metadata (not just resource_id)', () => {
+    const input = toApprovalRequestInput(
+      [cloudCandidate],
+      new Set<string>(),
+      drafts,
+      { exclusion_reason_default: '미사용 인스턴스' },
+    );
+    const item = (input.resources ?? [])[0];
+
+    expect(item.selected).toBe(false);
+    expect(item.exclusion_reason).toBe('미사용 인스턴스');
+    expect(item.resource_name).toBe('mydb');
+    expect(item.integration_category).toBe('TARGET');
+    expect(item.metadata).toMatchObject({
+      provider: 'AWS',
+      region: 'ap-northeast-1',
+      database_type: 'mysql',
+    });
+    expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
+  });
 });

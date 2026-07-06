@@ -72,6 +72,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Design reference / prototypes — not part of app build.
     "design/**",
+    // Harness/plugin assets (skill helper scripts etc.) — not part of app build.
+    ".claude/**",
   ]),
 ]);
 

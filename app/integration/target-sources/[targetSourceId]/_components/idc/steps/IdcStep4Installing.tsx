@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
-import { cardStyles, cn } from '@/lib/theme';
+import { cardStyles, cn, statusColors } from '@/lib/theme';
 import {
   getIdcConfirmedResources,
   IDC_INSTALL_TASK_STATUS,
@@ -62,7 +62,6 @@ export const IdcStep4Installing = ({
   identity,
   providerLabel,
   action,
-  onProjectUpdate,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
   const slotKey = resolveStepSlot('IDC', ProcessStatus.INSTALLING);
@@ -132,7 +131,7 @@ export const IdcStep4Installing = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
+      <ProcessStatusCard project={project} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
@@ -149,6 +148,11 @@ export const IdcStep4Installing = ({
           </span>
         </header>
         <div className={cardStyles.body}>
+          {status?.lastCheck?.status === 'FAIL' && status.lastCheck.failReason && (
+            <div className={cn('mb-3 px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
+              상태 확인 실패: {status.lastCheck.failReason}
+            </div>
+          )}
           <InstallTaskPipeline items={tasks} columns={2} />
 
           <div className="mt-6">

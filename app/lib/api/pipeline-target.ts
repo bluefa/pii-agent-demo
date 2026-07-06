@@ -2,10 +2,9 @@
  * CSR helper for the RAW (snake_case) target-source detail (LIN-25 Phase C2).
  *
  * The admin pipeline target page needs the un-transformed target-source detail:
- * the raw `process_status` string (button gating vocabulary), plus the CSP
- * connection metadata (`aws_account_id`, `is_china_region`,
+ * for its CSP connection metadata (`aws_account_id`, `is_china_region`,
  * `grant_service_terraform_execution_permission`, `tenant_id`, `subscription_id`,
- * `gcp_project_id`). `getProject` (index.ts) collapses `process_status` into the
+ * `gcp_project_id`). `getProject` (index.ts) drops the
  * numeric ProcessStatus enum and drops the china/permission/sdu flags, so it is
  * unusable here (docs/api/pipeline-orchestrator-bff.md §2.3).
  *
@@ -35,8 +34,6 @@ export interface RawTargetSourceDetail {
   target_source_id?: number;
   service_code?: string;
   service_name?: string;
-  /** IDLE | PENDING | CONFIRMING | CONFIRMED | INSTALLED | CONNECTED | COMPLETED. */
-  process_status?: string;
   cloud_provider?: string;
   created_at?: string;
   metadata?: RawTargetSourceMetadata;

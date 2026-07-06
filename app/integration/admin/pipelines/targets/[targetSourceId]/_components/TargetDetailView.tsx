@@ -7,7 +7,7 @@
  * 시작] — the type choice (설치/삭제/Custom) lives inside PreviewModal step 1.
  * Below: the paged pipeline history (R20: the history table's top row IS the
  * latest run; run-level actions live on the pipeline page). Raw target-source
- * detail (process_status + CSP metadata) comes from the reused BFF route via
+ * detail (CSP metadata) comes from the reused BFF route via
  * getRawTargetSourceDetail (getProject drops those fields).
  */
 import { Fragment, useCallback, useEffect, useState, type ReactElement } from 'react';

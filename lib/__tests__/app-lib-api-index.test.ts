@@ -218,26 +218,33 @@ describe('app/lib/api/index', () => {
     );
   });
 
-  it('getProject는 Issue #222 상세 응답을 Project read model로 복원한다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          description: 'Azure read model',
+  it('getProject는 상세 + process-status 응답을 Project read model로 합친다', async () => {
+    // process_status is sourced from the process-status endpoint, not the payload.
+    const json = (body: unknown) =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input).endsWith('/process-status')) {
+        return json({
           target_source_id: 1013,
           process_status: 'CONNECTED',
-          cloud_provider: 'AZURE',
-          created_at: '2026-03-29T00:00:00Z',
-          metadata: {
-            tenant_id: 'tenant-1',
-            subscription_id: 'subscription-1',
-          },
-        }),
-        {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
+          healthy: 'HEALTHY',
+          evaluated_at: '2026-03-29T00:00:00Z',
+        });
+      }
+      return json({
+        description: 'Azure read model',
+        target_source_id: 1013,
+        cloud_provider: 'AZURE',
+        created_at: '2026-03-29T00:00:00Z',
+        metadata: {
+          tenant_id: 'tenant-1',
+          subscription_id: 'subscription-1',
         },
-      ),
-    );
+      });
+    });
 
     const project = await getProject(1013);
 
@@ -405,21 +412,19 @@ describe('app/lib/api/index', () => {
     });
   });
 
-  it('getProjects는 Issue #222 process_status를 기존 UI 상태로 보존해 매핑한다', async () => {
+  it('getProjects는 target-source 목록을 ProjectSummary로 매핑한다 (process_status 미노출)', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify([
           {
             description: '승인 반영 중',
             target_source_id: 1011,
-            process_status: 'CONFIRMING',
             cloud_provider: 'AZURE',
             created_at: '2026-03-29T00:00:00Z',
           },
           {
             description: '설치 진행 중',
             target_source_id: 1012,
-            process_status: 'CONFIRMED',
             cloud_provider: 'AWS',
             created_at: '2026-03-29T00:00:00Z',
           },
@@ -436,15 +441,15 @@ describe('app/lib/api/index', () => {
     expect(projects).toEqual([
       expect.objectContaining({
         targetSourceId: 1011,
-        processStatus: ProcessStatus.APPLYING_APPROVED,
         cloudProvider: 'Azure',
       }),
       expect.objectContaining({
         targetSourceId: 1012,
-        processStatus: ProcessStatus.INSTALLING,
         cloudProvider: 'AWS',
       }),
     ]);
+    // The list summary no longer carries process_status.
+    expect(projects[0]).not.toHaveProperty('processStatus');
   });
 
   it('getCreationCandidates는 snake cloud_type/metadata 요청 본문을 직렬화한다 (35, D3)', async () => {

@@ -72,27 +72,24 @@ const parseTargetSourceId = (value: unknown): number | null => {
 };
 
 // Adapter: TargetSourceDetail (snake wire) → ProjectSummary (camel view).
-// Computes derived fields (connectionTestComplete, fallback codes) not present
-// in the wire contract — genuine join/reshape justifies the adapter (§1.3).
+// The service list no longer surfaces process_status, so the summary carries only
+// identity/metadata — per-target status is fetched from the process-status endpoint.
 const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
   const targetSourceId = parseTargetSourceId(item.target_source_id);
   if (targetSourceId === null) return null;
 
-  const processStatus = normalizeTargetSourceProcessStatus(item.process_status);
   const fallbackCode = `TS-${targetSourceId}`;
 
   return {
     id: fallbackCode,
     targetSourceId,
     projectCode: item.service_code ?? fallbackCode,
-    processStatus,
     cloudProvider: normalizeCloudProvider(item.cloud_provider),
     resourceCount: 0,
     hasDisconnected: false,
     hasNew: false,
     description: item.description ?? '',
     isRejected: false,
-    connectionTestComplete: processStatus >= ProcessStatus.CONNECTION_VERIFIED,
   };
 };
 
@@ -208,16 +205,18 @@ const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatus => {
 };
 
 // Adapter: TargetSourceDetail (snake wire, .passthrough()) → TargetSource (camel domain model).
-// Reads snake fields, computes derived values (processStatus, fallback codes).
-const toTargetSource = (raw: TargetSourceDetail): TargetSource => {
+// Reads snake fields, computes derived values (fallback codes). processStatusWire is the
+// raw `process_status` from the process-status endpoint — the payload no longer carries it.
+const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): TargetSource => {
   // .passthrough() means extra fields exist at runtime but are typed `unknown`.
   const item = raw as Record<string, unknown>;
   const asStr = (v: unknown): string | undefined => typeof v === 'string' ? v : undefined;
+  const asBool = (v: unknown): boolean | undefined => typeof v === 'boolean' ? v : undefined;
 
   const id = typeof item.target_source_id === 'number' ? item.target_source_id : 0;
   const fallbackCode = `TS-${id}`;
   const serviceCode = asStr(item.service_code)?.trim() ?? '';
-  const processStatus = normalizeTargetSourceProcessStatus(asStr(item.process_status));
+  const processStatus = normalizeTargetSourceProcessStatus(processStatusWire);
   const metadata = (typeof item.metadata === 'object' && item.metadata !== null)
     ? item.metadata as Record<string, unknown>
     : null;
@@ -226,6 +225,8 @@ const toTargetSource = (raw: TargetSourceDetail): TargetSource => {
   const subscriptionId = asStr(metadata?.subscription_id);
   const awsAccountId = asStr(metadata?.aws_account_id);
   const gcpProjectId = asStr(metadata?.gcp_project_id);
+  const isSduType = asBool(metadata?.is_sdu_type);
+  const isTerraformExecutionGranted = asBool(metadata?.grant_service_terraform_execution_permission);
   const createdAt = asStr(item.created_at) ?? new Date().toISOString();
 
   return {
@@ -245,14 +246,17 @@ const toTargetSource = (raw: TargetSourceDetail): TargetSource => {
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
+    ...(isSduType !== undefined ? { isSduType } : {}),
+    ...(isTerraformExecutionGranted !== undefined ? { isTerraformExecutionGranted } : {}),
   };
 };
 
 export const getProject = async (targetSourceId: number): Promise<TargetSource> => {
-  const data = await fetchInfraJson<TargetSourceDetail>(
-    `/target-sources/${targetSourceId}`,
-  );
-  return toTargetSource(data);
+  const [data, status] = await Promise.all([
+    fetchInfraJson<TargetSourceDetail>(`/target-sources/${targetSourceId}`),
+    getProcessStatus(targetSourceId),
+  ]);
+  return toTargetSource(data, status.process_status);
 };
 
 export const searchUsers = (

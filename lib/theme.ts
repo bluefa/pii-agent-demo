@@ -327,7 +327,7 @@ export const segmentedControlStyles = {
 export const pageChromeStyles = {
   breadcrumb: 'text-xs text-gray-500 px-6 pt-5 font-medium',
   title: 'text-[24px] font-extrabold tracking-[-0.03em] text-gray-900 px-6 mt-1 leading-[1.2]',
-  subtitle: 'text-sm text-gray-500 px-6 mt-1 mb-6',
+  subtitle: 'text-sm text-gray-500 px-6 mt-2 mb-6',
 } as const;
 
 /** PageHeader h1 — v15 page-title geometry (24/800/-0.03em/1.2), toss strong text color. */

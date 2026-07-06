@@ -302,6 +302,9 @@ export interface CloudTargetSource extends BaseTargetSource {
   awsRegionType?: 'global' | 'china';
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;
+  // swagger TargetSourceDetail.metadata.is_sdu_type — SDU accounts render "SDU"
+  // instead of "{Provider} Agent" in the identity bar.
+  isSduType?: boolean;
 
   tenantId?: string;
   subscriptionId?: string;
@@ -327,6 +330,7 @@ export type Project = BaseTargetSource & {
   awsRegionType?: 'global' | 'china';
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;
+  isSduType?: boolean;
   tenantId?: string;
   subscriptionId?: string;
   gcpProjectId?: string;
@@ -339,7 +343,6 @@ export interface ProjectSummary {
   id: string;
   targetSourceId: number;
   projectCode: string;
-  processStatus: ProcessStatus;
   cloudProvider: CloudProvider;
   resourceCount: number;
   hasDisconnected: boolean;
@@ -347,7 +350,6 @@ export interface ProjectSummary {
   description?: string;
   isRejected: boolean;
   rejectionReason?: string;
-  connectionTestComplete: boolean; // 연결 테스트 완료 여부 (선택된 리소스 모두 CONNECTED)
 }
 
 export interface ErrorResponse {
