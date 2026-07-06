@@ -4,6 +4,20 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 20.5 — 서비스·대상 검색: 플러시 레일 + 서버 검색·pagination (2026-07-06)
+
+오너 피드백: "/integration/services 디자인 참고 — (코드) 서비스 이름 표현 /
+pagination 필요할 것, 확인해 / 왼쪽에 딱 달라붙어서 별도 카드 객체로 안 보이게".
+
+- **레일**: 좌측 서비스 목록을 떠 있는 카드 → **컨텐츠 왼쪽 밀착 풀하이트 레일**
+  (280px, border-right, 카드 chrome 없음 — content 패딩을 음수 마진으로 탈출).
+  페이지 h1은 레일 상단 타이틀(16/700)로 이동.
+- **항목 2단**: `service_code`(14/600, 선택 시 primary) 위 + `service_name`(12/weak)
+  아래 — 레퍼런스 Service List 문법.
+- **서버 검색·pagination**: App은 `getServicesPage`의 `query`/`page`/`size`를 그대로
+  사용(디바운스 300ms, 페이지당 10) — 기존 size=200 클라이언트 필터 창 폐기.
+  레일 하단 pager 상시 노출. 선택 서비스명은 선택 시점에 저장(페이지 이동에도 유지).
+
 ## Round 20 — 헤더 행 분해·URL 정리·target 상태바 삭제 (2026-07-06)
 
 오너 피드백: "헤더는 각 한 줄로 — task명/상태/진행 상태 / 상세 URL은 pipelineId만

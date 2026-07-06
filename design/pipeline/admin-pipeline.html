@@ -409,12 +409,22 @@ details.collap>.body{padding:0 14px 14px}
 .empty.center{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:240px}
 .empty .ico{display:inline-flex;width:40px;height:40px;border-radius:50%;background:var(--gray-100);
   color:var(--text-faint);align-items:center;justify-content:center;margin-bottom:10px}
-#svclist .sb-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;
-  border-radius:6px;color:var(--text-medium);font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px}
+/* ── 서비스 레일 (R20.5, /integration/services 레퍼런스): 컨텐츠 왼쪽에 딱 붙는
+   풀하이트 패널 — 카드 아님. .content 패딩(24 32 48)을 음수 마진으로 벗어난다. */
+.svc-split{display:flex;align-items:stretch;margin:-24px 0 -48px -32px;min-height:calc(100vh - 52px)}
+.svcrail{width:280px;flex:none;display:flex;flex-direction:column;background:var(--bg-card);
+  border-right:1px solid var(--border);padding:24px 16px 16px}
+.svcrail .rail-title{margin:0 4px 16px;font-size:16px;font-weight:700;color:var(--text-strong)}
+.svc-main{flex:1;min-width:0;padding:24px 0 48px 32px}
+#svclist{flex:1;min-height:0;overflow-y:auto}
+#svclist .sb-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;
+  border-radius:6px;cursor:pointer;margin-bottom:2px}
 #svclist .sb-item:hover{background:var(--gray-100)}
-#svclist .sb-item.active{background:var(--primary-bg);color:var(--primary);font-weight:600}
-.two-col{display:grid;grid-template-columns:300px 1fr;gap:12px;align-items:stretch}
-.two-col>.card{min-height:420px;margin-top:0}
+#svclist .sb-item.active{background:var(--primary-bg)}
+#svclist .sb-item .code{font-size:14px;font-weight:600;color:var(--text-strong)}
+#svclist .sb-item.active .code{color:var(--primary)}
+#svclist .sb-item .name{font-size:12px;color:var(--text-weak)}
+.svcrail .railfoot{padding-top:12px}
 .meta-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
 .meta-2>.card{margin-top:0}
 .notice{background:var(--bg-inner);border:1px solid var(--border);color:var(--text-weak);font-size:12px;
@@ -895,46 +905,63 @@ function renderChips(root,total){
  * View 2: Services (#/services) — 🔵 getUserServices / getTargetSourcesByServiceCode
  * ========================================================================= */
 let svcQuery='';
+let svcPage=1;
+const SVC_PAGE_SIZE=10;
 function viewServices(){
-  const root=el(`<div>
-    <div class="page-head"><h1>서비스·대상 검색</h1></div>
-    <div class="two-col">
-      <div class="card">
-        <span class="searchbox" style="display:block;margin-bottom:12px">${ic('i-search')}<input class="input" id="svcq" placeholder="서비스 코드/이름 검색"></span>
-        <div id="svclist"></div>
-      </div>
-      <div class="card" id="tspanel"></div>
-    </div>
-    <div id="authwrap"></div>
+  // R20.5: 좌측은 카드가 아니라 컨텐츠 왼쪽에 밀착한 풀하이트 레일(App 미러).
+  const root=el(`<div class="svc-split">
+    <aside class="svcrail" aria-label="서비스 목록">
+      <h1 class="rail-title">서비스·대상 검색</h1>
+      <span class="searchbox" style="display:block;margin-bottom:12px">${ic('i-search')}<input class="input" id="svcq" placeholder="서비스 코드/이름 검색"></span>
+      <div id="svclist"></div>
+      <div class="railfoot" id="svcpgn"></div>
+    </aside>
+    <section class="svc-main">
+      <div id="tsmain"></div>
+      <div id="authwrap"></div>
+    </section>
   </div>`);
   const q=root.querySelector('#svcq'); q.value=svcQuery;
-  q.oninput=()=>{svcQuery=q.value; renderSvcList(root); };
+  q.oninput=()=>{svcQuery=q.value; svcPage=1; renderSvcList(root); };
   renderSvcList(root);
   renderTsPanel(root);
   return root;
 }
 function renderSvcList(root){
-  const list=root.querySelector('#svclist');
+  const list=root.querySelector('#svclist'), pgn=root.querySelector('#svcpgn');
   const items=SERVICES.filter(s=> !svcQuery || (s.code+s.name).toLowerCase().includes(svcQuery.toLowerCase()));
-  if(!items.length){ list.innerHTML=`<div class="empty"><span class="ico">${ic('i-search','ic lg')}</span>검색 결과 없음</div>`; return; }
-  list.innerHTML=items.map(s=>`<a class="sb-item ${app.selectedServiceCode===s.code?'active':''}" data-svc="${esc(s.code)}" role="button" tabindex="0">${esc(s.name)} <span class="meta">${esc(s.code)}</span></a>`).join('');
+  // R20.5: 레일 pagination 상시 노출(App: 서버 page/size 미러 — 여기선 fixture slice).
+  const pages=Math.max(1,Math.ceil(items.length/SVC_PAGE_SIZE));
+  svcPage=Math.min(svcPage,pages);
+  const slice=items.slice((svcPage-1)*SVC_PAGE_SIZE, svcPage*SVC_PAGE_SIZE);
+  pgn.innerHTML=`<div class="filterbar" style="justify-content:flex-end;margin-top:0">
+    <button class="btn ghost sm" ${svcPage<=1?'disabled':''} id="svcprev">${ic('i-chev-l','ic sm')} 이전</button>
+    <span class="pager-count">${svcPage} / ${pages}</span>
+    <button class="btn ghost sm" ${svcPage>=pages?'disabled':''} id="svcnext">다음 ${ic('i-chev-r','ic sm')}</button></div>`;
+  const sp=pgn.querySelector('#svcprev'), sn=pgn.querySelector('#svcnext');
+  if(sp) sp.onclick=()=>{svcPage--;renderSvcList(root);};
+  if(sn) sn.onclick=()=>{svcPage++;renderSvcList(root);};
+  if(!slice.length){ list.innerHTML=`<div class="empty"><span class="ico">${ic('i-search','ic lg')}</span>검색 결과 없음</div>`; return; }
+  // (코드) 위 + 서비스명 아래 2단 — 레퍼런스 /integration/services 항목 문법.
+  list.innerHTML=slice.map(s=>`<a class="sb-item ${app.selectedServiceCode===s.code?'active':''}" data-svc="${esc(s.code)}" role="button" tabindex="0"><span class="code">${esc(s.code)}</span><span class="name">${esc(s.name)}</span></a>`).join('');
   list.querySelectorAll('[data-svc]').forEach(a=>{
     const pick=()=>{app.selectedServiceCode=a.dataset.svc; renderSvcList(root); renderTsPanel(root);};
     a.onclick=pick; a.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}};
   });
 }
 function renderTsPanel(root){
-  const panel=root.querySelector('#tspanel'); const authwrap=root.querySelector('#authwrap');
+  const panel=root.querySelector('#tsmain'); const authwrap=root.querySelector('#authwrap');
   const svc=app.selectedServiceCode;
-  if(!svc){ panel.innerHTML=`<div class="empty center"><span class="ico">${ic('i-cursor','ic lg')}</span>좌측에서 서비스를 선택하세요</div>`; authwrap.innerHTML=''; return; }
+  if(!svc){ panel.innerHTML=`<div class="card" style="min-height:420px;margin-top:0"><div class="empty center"><span class="ico">${ic('i-cursor','ic lg')}</span>좌측에서 서비스를 선택하세요</div></div>`; authwrap.innerHTML=''; return; }
   const list=TARGET_SOURCES[svc]||[];
   const name=SERVICES.find(s=>s.code===svc).name;
   panel.innerHTML=`<div class="section-title" style="margin-top:0">${esc(name)} 의 Target Source</div>
-    <div class="section-desc">대상을 선택하면 상세에서 설치·삭제를 시작할 수 있어요</div>`+
+    <div class="section-desc">대상을 선택하면 상세에서 설치·삭제를 시작할 수 있어요</div>
+    <div class="card" style="min-height:420px">`+
     (list.length?`<table class="tbl"><thead><tr><th>TargetSourceId</th><th>CSP</th><th>파이프라인</th><th></th></tr></thead><tbody>${
       list.map(t=>{const run=activeRun(t.id);
         return `<tr class="click" data-ts="${esc(t.id)}"><td class="mono">${esc(t.id)}</td><td>${provTag(t.provider)}</td><td>${run?`${pill(run.status)} <span class="meta mono">#${run.id}</span>`:'<span class="muted">—</span>'}</td><td class="chev"><button class="btn secondary sm round" tabindex="-1" title="대상 상세로 이동">${ic('i-arrow-ur','ic sm')}</button></td></tr>`;}).join('')}</tbody></table>`
-    :`<div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>target source 없음</div>`);
+    :`<div class="empty"><span class="ico">${ic('i-inbox','ic lg')}</span>target source 없음</div>`)+`</div>`;
   panel.querySelectorAll('tr[data-ts]').forEach(tr=>{
     tr.setAttribute('role','button'); tr.setAttribute('tabindex','0');
     const go=()=>{const t=TS_INDEX[tr.dataset.ts]; nav(`#/target/${encodeURIComponent(t.id)}`,{serviceCode:svc, serviceName:name, targetId:t.id, provider:t.provider});};
