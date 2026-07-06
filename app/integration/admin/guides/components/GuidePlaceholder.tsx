@@ -56,7 +56,7 @@ export const GuidePlaceholder = ({
     </span>
     <div className="flex flex-col gap-1 max-w-[280px]">
       <p className={cn('text-[14px] font-semibold', textColors.primary)}>{children}</p>
-      <p className={cn('text-[12.5px] leading-snug', textColors.tertiary)}>{subtitle}</p>
+      <p className={cn('text-xs leading-[1.4]', textColors.tertiary)}>{subtitle}</p>
     </div>
   </div>
 );

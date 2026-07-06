@@ -15,11 +15,67 @@
 import type { BffClient } from '@/lib/bff/types';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
+import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
+import { OrchestratorUnreachableError } from '@/lib/bff/errors';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
+
+// ── pipeline-orchestrator upstream (LIN-25) — its own env, distinct from BFF_API_URL ──
+const PIPELINE_URL = process.env.PIPELINE_API_URL ?? 'http://localhost:8080';
+const PIPELINE_TIMEOUT_MS = 30_000;
+
+/**
+ * Calls the pipeline-orchestrator upstream and returns `{ status, body }`
+ * VERBATIM for ANY HTTP status (204 → body null). Never throws on a non-2xx
+ * response — the passthrough contract requires the route wrapper to see the
+ * real upstream status + snake_case body. Only an unreachable upstream
+ * (connection refused / DNS / timeout / reset) throws
+ * `OrchestratorUnreachableError`, which the wrapper maps to 502.
+ */
+async function pipelineRequest(
+  method: 'GET' | 'POST',
+  path: string,
+  body?: unknown,
+): Promise<OrchestratorRawResponse> {
+  const url = `${PIPELINE_URL}/api/v1${path}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort('TIMEOUT'), PIPELINE_TIMEOUT_MS);
+  const init: RequestInit = { method, headers: { Accept: 'application/json' }, signal: controller.signal };
+  if (body !== undefined) {
+    init.headers = { ...init.headers, 'Content-Type': 'application/json' };
+    init.body = JSON.stringify(body);
+  }
+
+  let res: Response;
+  try {
+    console.log(`[Orchestrator] → ${method} ${url}`);
+    res = await fetch(url, init);
+  } catch (cause) {
+    // Network failure / DNS / connection refused / abort(timeout) — no HTTP response.
+    throw new OrchestratorUnreachableError(`pipeline-orchestrator unreachable at ${url}`, cause);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  console.log(`[Orchestrator] ← ${method} ${url} (${res.status})`);
+  const status = res.status;
+  if (status === 204) return { status, body: null };
+
+  const text = await res.text();
+  if (text.length === 0) return { status, body: null };
+  try {
+    return { status, body: JSON.parse(text) as unknown };
+  } catch {
+    // Non-JSON upstream body — pass the raw text through rather than masking status.
+    return { status, body: text };
+  }
+}
+
+const withQuery = (path: string, query: string): string => (query ? `${path}?${query}` : path);
+const enc = (value: string): string => encodeURIComponent(value);
 
 async function throwBffError(res: Response): Promise<never> {
   const body = await res.json().catch(() => ({}));
@@ -83,6 +139,34 @@ const buildQuery = (params: Record<string, string | number | undefined>): string
 };
 
 export const httpBff: BffClient = {
+  // Pipeline domain (LIN-25): verbatim `{ status, body }` passthrough to the
+  // pipeline-orchestrator upstream; only unreachable upstream throws.
+  pipeline: {
+    liveStatistics: () => pipelineRequest('GET', '/pipelines/statistics/live'),
+    statistics: (period) =>
+      pipelineRequest('GET', withQuery('/pipelines/statistics', period ? `period=${enc(period)}` : '')),
+    list: (query) => pipelineRequest('GET', withQuery('/pipelines', query)),
+    detail: (pipelineId) => pipelineRequest('GET', `/pipelines/${enc(pipelineId)}`),
+    taskDetail: (pipelineId, taskId) =>
+      pipelineRequest('GET', `/pipelines/${enc(pipelineId)}/tasks/${enc(taskId)}`),
+    cancel: (pipelineId) => pipelineRequest('POST', `/pipelines/${enc(pipelineId)}/cancel`),
+    listByTarget: (targetSourceId, query) =>
+      pipelineRequest('GET', withQuery(`/target-sources/${enc(targetSourceId)}/pipelines`, query)),
+    latestByTarget: (targetSourceId) =>
+      pipelineRequest('GET', `/target-sources/${enc(targetSourceId)}/pipelines/latest`),
+    preview: (targetSourceId, type) =>
+      pipelineRequest(
+        'GET',
+        withQuery(`/target-sources/${enc(targetSourceId)}/pipelines/preview`, type ? `type=${enc(type)}` : ''),
+      ),
+    create: (targetSourceId, body) =>
+      pipelineRequest('POST', `/target-sources/${enc(targetSourceId)}/pipelines`, body),
+    createCustom: (targetSourceId, body) =>
+      pipelineRequest('POST', `/target-sources/${enc(targetSourceId)}/pipelines/custom`, body),
+    taskDefinitions: (provider) =>
+      pipelineRequest('GET', withQuery('/task-definitions', provider ? `provider=${enc(provider)}` : '')),
+  },
+
   targetSources: {
     // ADR-019 zod-codegen: route owns the parse boundary — return raw snake wire.
     get: (id) => getSnakeRaw<z.infer<typeof schemas.TargetSourceDetail>>(`/target-sources/${id}`),

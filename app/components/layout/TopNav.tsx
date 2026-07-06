@@ -55,6 +55,19 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    label: '파이프라인',
+    href: integrationRoutes.pipelines.dashboard,
+    isActive: (pathname) => pathname.startsWith('/integration/admin/pipelines'),
+    icon: (
+      <svg {...iconProps} aria-hidden="true">
+        <circle cx="4.5" cy="12" r="2.3" />
+        <circle cx="12" cy="12" r="2.3" />
+        <circle cx="19.5" cy="12" r="2.3" />
+        <path d="M6.8 12h2.9m4.6 0h2.9" />
+      </svg>
+    ),
+  },
+  {
     label: 'Credentials',
     href: integrationRoutes.credentials,
     disabled: true,
@@ -118,7 +131,7 @@ export const TopNav = () => {
       >
         <div
           className={cn(
-            'flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-[15px] whitespace-nowrap',
+            'flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-sm whitespace-nowrap',
             navStyles.brandGradient,
           )}
         >
@@ -133,7 +146,7 @@ export const TopNav = () => {
           {NAV_ITEMS.map((item) => {
             const active = item.isActive(pathname);
             const baseClass = cn(
-              'inline-flex items-center gap-2 px-4 py-2 rounded-md text-[13.5px] font-medium whitespace-nowrap transition-colors',
+              'inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
               active ? navStyles.link.active : navStyles.link.inactive,
               item.disabled && 'opacity-50 cursor-not-allowed',
             );

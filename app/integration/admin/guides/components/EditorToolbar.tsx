@@ -54,7 +54,7 @@ const TOOLBAR_BUTTONS: readonly ToolbarButtonSpec[] = [
     id: 'bold',
     label: '굵게',
     shortcut: '⌘B',
-    glyph: <span className="font-bold text-[13px]">B</span>,
+    glyph: <span className="font-bold text-xs">B</span>,
     isActive: (editor) => editor.isActive('bold'),
     apply: (editor) => {
       editor.chain().focus().toggleBold().run();
@@ -64,7 +64,7 @@ const TOOLBAR_BUTTONS: readonly ToolbarButtonSpec[] = [
     id: 'italic',
     label: '기울임',
     shortcut: '⌘I',
-    glyph: <span className="italic font-semibold text-[13px]">I</span>,
+    glyph: <span className="italic font-semibold text-xs">I</span>,
     isActive: (editor) => editor.isActive('italic'),
     apply: (editor) => {
       editor.chain().focus().toggleItalic().run();
@@ -74,7 +74,7 @@ const TOOLBAR_BUTTONS: readonly ToolbarButtonSpec[] = [
     id: 'code',
     label: '인라인 코드',
     shortcut: '⌘E',
-    glyph: <span className="font-mono text-[11px]">{'</>'}</span>,
+    glyph: <span className="font-mono text-xs">{'</>'}</span>,
     isActive: (editor) => editor.isActive('code'),
     apply: (editor) => {
       editor.chain().focus().toggleCode().run();

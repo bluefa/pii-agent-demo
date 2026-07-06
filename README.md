@@ -53,6 +53,20 @@ npm run dev
 - 브라우저가 BFF를 직접 치지 않으므로 BFF CORS를 직접 열 필요는 없습니다.
 - 현재 구현은 외부 BFF로 인증 헤더/쿠키를 자동 전달하지 않습니다. BFF가 별도 인증 없이 접근 가능하거나, 내부망/VPN에서 접근 가능해야 합니다.
 
+### Pipeline Orchestrator (LIN-25)
+
+파이프라인 대시보드/상세는 별도 업스트림(`pipeline-orchestrator`, Spring Boot)을 프록시합니다.
+install-v1 BFF(`BFF_API_URL`)와 독립된 env 를 씁니다.
+
+```bash
+# 기본값 http://localhost:8080 — 실제 orchestrator 서버로 붙일 때만 지정
+PIPELINE_API_URL=http://localhost:8080
+```
+
+- 라우트: `/integration/api/v1/orchestrator/**` → `PIPELINE_API_URL + /api/v1/**` (응답 verbatim passthrough).
+- `USE_MOCK_DATA=true`면 in-memory mock(`lib/bff/mock/pipeline.ts`)이 응답합니다(코드 기본값은 real HTTP — env 미설정 시 `PIPELINE_API_URL`로 프록시. 로컬 `.env.local`에서 true 설정 시에만 mock).
+- 업스트림 연결 실패/타임아웃만 502 `{code:"ORCHESTRATOR_UNREACHABLE"}` 로 매핑됩니다.
+
 ## Docker
 
 To build and run the application using Docker:

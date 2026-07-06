@@ -1,4 +1,4 @@
-import { textColors, cn } from '@/lib/theme';
+import { pageHeaderTitleStyle, textColors, cn } from '@/lib/theme';
 
 interface PageHeaderProps {
   title: React.ReactNode;
@@ -11,8 +11,8 @@ export const PageHeader = ({ title, subtitle, action }: PageHeaderProps) => {
     // v15 `.page-header` — flex space-between, align flex-start, gap 16, mb 8.
     <div className="mb-2 flex items-start justify-between gap-4">
       <div>
-        {/* v15 `.page-title` — geometry exact (30/800/-0.03em/1.2); color #191F28 (toss strong). */}
-        <h1 className="text-[30px] font-extrabold leading-[1.2] tracking-[-0.03em] text-[#191F28]">{title}</h1>
+        {/* v15 `.page-title` — geometry + toss strong color, owner-mandated 24px scale (lib/theme.ts). */}
+        <h1 className={pageHeaderTitleStyle}>{title}</h1>
         {subtitle && <p className={cn('mt-1 text-sm', textColors.tertiary)}>{subtitle}</p>}
       </div>
       {/* v15 `.page-header .actions` — flex, gap 8, align center, wrap, justify flex-end. */}

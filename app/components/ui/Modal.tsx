@@ -141,7 +141,7 @@ export const Modal = ({
   const iconCls = isToss
     ? cn(modalStyles.toss.iconBase, tone === 'warn' ? modalStyles.toss.iconWarn : modalStyles.toss.iconInfo)
     : cn('w-10 h-10', statusColors.info.bg, 'rounded-lg flex items-center justify-center flex-shrink-0');
-  const titleCls = isToss ? modalStyles.toss.title : cn('text-lg font-bold', textColors.primary);
+  const titleCls = isToss ? modalStyles.toss.title : cn('text-base font-bold', textColors.primary);
   const subtitleCls = isToss ? modalStyles.toss.subtitle : cn('text-sm', textColors.tertiary);
   const bodyCls = isToss ? modalStyles.toss.body : 'p-6';
   const footerCls = isToss

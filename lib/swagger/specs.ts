@@ -9,6 +9,7 @@ export const SWAGGER_SPEC_NAMES = [
   'confirm',
   'install-v1-client',
   'test-connection',
+  'orchestrator-v1',
 ] as const;
 
 export type SwaggerSpecName = (typeof SWAGGER_SPEC_NAMES)[number];

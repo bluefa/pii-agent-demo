@@ -25,6 +25,7 @@ import { mockIdc } from '@/lib/bff/mock/idc';
 import { mockLogicalDb } from '@/lib/bff/mock/logical-db';
 import { mockConfirm } from '@/lib/bff/mock/confirm';
 import { mockGuides } from '@/lib/bff/mock/guides';
+import { mockPipeline } from '@/lib/bff/mock/pipeline';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 
@@ -37,6 +38,23 @@ async function unwrap<T>(response: NextResponse): Promise<T> {
 }
 
 export const mockBff: BffClient = {
+  // Pipeline domain (LIN-25): NON-throwing — returns `{ status, body }` verbatim
+  // (204 → body null). Business logic lives in `lib/bff/mock/pipeline.ts`.
+  pipeline: {
+    liveStatistics: async () => mockPipeline.liveStatistics(),
+    statistics: async (period) => mockPipeline.statistics(period),
+    list: async (query) => mockPipeline.list(query),
+    detail: async (pipelineId) => mockPipeline.detail(pipelineId),
+    taskDetail: async (pipelineId, taskId) => mockPipeline.taskDetail(pipelineId, taskId),
+    cancel: async (pipelineId) => mockPipeline.cancel(pipelineId),
+    listByTarget: async (targetSourceId, query) => mockPipeline.listByTarget(targetSourceId, query),
+    latestByTarget: async (targetSourceId) => mockPipeline.latestByTarget(targetSourceId),
+    preview: async (targetSourceId, type) => mockPipeline.preview(targetSourceId, type),
+    create: async (targetSourceId, body) => mockPipeline.create(targetSourceId, body),
+    createCustom: async (targetSourceId, body) => mockPipeline.createCustom(targetSourceId, body),
+    taskDefinitions: async (provider) => mockPipeline.taskDefinitions(provider),
+  },
+
   targetSources: {
     get: async (id) => unwrap(await mockTargetSources.get(String(id))),
     list: async (serviceCode) => unwrap(await mockTargetSources.list(serviceCode)),
