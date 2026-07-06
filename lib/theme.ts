@@ -327,7 +327,7 @@ export const segmentedControlStyles = {
 export const pageChromeStyles = {
   breadcrumb: 'text-xs text-gray-500 px-6 pt-5 font-medium',
   title: 'text-[24px] font-extrabold tracking-[-0.03em] text-gray-900 px-6 mt-1 leading-[1.2]',
-  subtitle: 'text-sm text-gray-500 px-6 mt-1 mb-6',
+  subtitle: 'text-sm text-gray-500 px-6 mt-2 mb-6',
 } as const;
 
 /** PageHeader h1 — v15 page-title geometry (24/800/-0.03em/1.2), toss strong text color. */
@@ -983,11 +983,11 @@ export const pipelineStyles = {
     tableWrap: 'overflow-x-auto',
   },
 
-  /** Section header (title 64/0/12 margins; desc -8/0/12). */
+  /** Section header (title 64/0/12 margins; desc -4/0/12 — 8px under the title). */
   section: {
     title: cn(pipelineText.sectionTitle, 'mt-16 mb-3'),
     titleFirst: cn(pipelineText.sectionTitle, 'mt-0 mb-3'),
-    desc: cn(pipelineText.sectionDesc, '-mt-2 mb-3'),
+    desc: cn(pipelineText.sectionDesc, '-mt-1 mb-3'),
   },
 
   /** StatusPill — h20 pad 0 9 0 8 dot 6 (lg h28 pad 0 12 0 10 dot 8). Size lives
