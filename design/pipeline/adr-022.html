@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ADR-022: Install/Delete Pipeline — 완료 검증(postCheck)과 종단 상태 알림</title>
+<title>ADR-022: Install/Delete Pipeline — 종단 상태 알림</title>
 <style>
   /* ── Reset & Base ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -211,19 +211,6 @@
     padding-top: 0.5rem; border-top: 1px dashed var(--border);
   }
 
-  /* ── Split (postCheck A/B) ── */
-  .split { display: flex; flex-wrap: wrap; gap: 0.9rem; margin: 1rem 0 1.3rem; }
-  .split-col { flex: 1; min-width: 250px; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 0.9rem 1rem; }
-  .split-col .sc-head { font-weight: 700; font-size: 0.88rem; margin-bottom: 0.15rem; }
-  .split-col .sc-tag {
-    display: inline-block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
-    text-transform: uppercase; padding: 0.1rem 0.45rem; border-radius: 3px; margin-bottom: 0.5rem;
-  }
-  .split-col .sc-tag.now { background: var(--good-bg); color: var(--good); border: 1px solid var(--good-border); }
-  .split-col .sc-tag.later { background: #fbf4e6; color: #8a5f00; border: 1px solid #e6d3a8; }
-  .split-col ul { padding-left: 1.1rem; margin-bottom: 0; }
-  .split-col li { font-size: 0.82rem; color: var(--text-muted); }
-
   footer {
     margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border-light);
     font-size: 0.76rem; color: var(--text-faint); font-style: italic;
@@ -245,11 +232,10 @@
     <li><a href="#context">배경</a></li>
     <li><a href="#decision">결정</a>
       <ul class="toc-sub">
-        <li><a href="#d1">1. postCheck 게이팅/자문</a></li>
-        <li><a href="#d2">2. 상태 파생 알림</a></li>
-        <li><a href="#d3">3. claim/lease 재사용 전달</a></li>
-        <li><a href="#d4">4. 운영 알림은 밖</a></li>
-        <li><a href="#d5">5. 보장과 한계</a></li>
+        <li><a href="#d2">1. 상태 파생 알림</a></li>
+        <li><a href="#d3">2. claim/lease 재사용 전달</a></li>
+        <li><a href="#d4">3. 운영 알림은 밖</a></li>
+        <li><a href="#d5">4. 보장과 한계</a></li>
       </ul>
     </li>
     <li><a href="#options">검토한 대안</a></li>
@@ -264,18 +250,25 @@
 <div id="content">
 <article>
 
-  <h1>ADR-022: Install/Delete Pipeline — 완료 검증(postCheck)과 종단 상태 알림</h1>
+  <h1>ADR-022: Install/Delete Pipeline — 종단 상태 알림</h1>
 
   <section id="status">
     <span class="status-badge">제안됨</span>
-    <div class="doc-meta">제안됨 — 2026-07-01 · <a href="016-install-delete-pipeline-domain-model.md">ADR-016</a>(도메인)·<a href="021-pipeline-execution-model.md">ADR-021</a>(실행)의 후속</div>
+    <div class="doc-meta">제안됨 — 2026-07-01 (개정 2026-07-07: postCheck 분리) · <a href="016-install-delete-pipeline-domain-model.md">ADR-016</a>(도메인)·<a href="021-pipeline-execution-model.md">ADR-021</a>(실행)의 후속</div>
   </section>
 
   <!-- ── TL;DR ── -->
   <h2 id="tldr">한눈에</h2>
-  <p>두 가지 후속 결정을 다룬다. <strong>① postCheck</strong> — 자기 보고 완료 판정과 별개로
-  end-state를 독립 검증. <strong>② 종단 알림</strong> — 파이프라인 완료/실패/취소를 신뢰성 있게
-  알리기.</p>
+  <p>파이프라인이 종단(<code>DONE</code>/<code>FAILED</code>/<code>CANCELLED</code>)에 도달했음을
+  오퍼레이터·다운스트림에 <strong>신뢰성 있게 알리는 경로</strong>를 정한다. ADR-016이 유보한 사항이다.</p>
+
+  <div class="callout" style="border-left-color:var(--text-faint)">
+    <div class="callout-title" style="color:var(--text-faint)">postCheck는 범위 밖</div>
+    <p style="margin-bottom:0">자기 보고 완료와 별개의 end-state 검증(postCheck)은 ADR-016/021의
+    <code>CONDITION_CHECK</code>(retry-count 바운드 probe)로 <strong>확정·구현</strong>됐다. recipe 마지막
+    task로 두는 것은 ADR-016 <strong>recipe 규약</strong>이지 새 메커니즘이 아니므로 별도 결정이 필요 없다.
+    이 ADR은 남은 후속인 <strong>종단 알림</strong>만 다룬다.</p>
+  </div>
 
   <div class="callout">
     <div class="callout-title">핵심 통찰</div>
@@ -311,16 +304,6 @@
   <!-- ── Context ── -->
   <h2 id="context">배경</h2>
 
-  <h3>postCheck — "작업이 끝났다" ≠ "인프라가 실제로 원하는 상태다"</h3>
-  <p>ADR-016 §5의 완료 판정 <code>check(attempt, task)</code>은 <strong>InfraManager의 자기 보고 결과</strong>를
-  읽어 "job이 성공적으로 끝났는가"를 답한다. 이는 "대상 인프라가 지금 의도한 상태인가"와 다르다:</p>
-  <ul>
-    <li>INSTALL: job은 성공 보고했지만 리소스가 eventual-consistency로 아직 조회 불가</li>
-    <li>부분 적용: apply가 절반만 반영됐는데 job 응답엔 안 드러남(silent partial)</li>
-    <li>DELETE: job은 성공 보고했으나 의존 리소스(PII 저장소 등)가 잔존</li>
-  </ul>
-  <p>즉 자기 보고 신뢰만으론 종단 상태의 실제 정합성을 보장하지 못한다 — end-state를 <strong>독립 재확인</strong>할 수단이 필요하다.</p>
-
   <h3>종단 알림 — 신뢰성 있게 "끝났다" 전달하기</h3>
   <p>파이프라인이 종단에 도달해도 오퍼레이터·다운스트림에 신뢰성 있게 알릴 경로가 없다. 순진한 두 방법은 모두 틀렸다:</p>
   <ul>
@@ -339,37 +322,8 @@
   <!-- ── Decision ── -->
   <h2 id="decision">결정</h2>
 
-  <div class="decision-section" id="d1">
-    <h3><span class="decision-num">1</span> postCheck는 "게이팅"이 기본, "종단 후 자문"은 필요 시에만</h3>
-    <p>검증이 <strong>파이프라인 성공 자체를 게이팅해야 하는지</strong>로 배치가 갈린다.</p>
-
-    <div class="split">
-      <div class="split-col">
-        <div class="sc-tag now">현재 · 기본</div>
-        <div class="sc-head">(A) 게이팅 postCheck</div>
-        <ul>
-          <li>recipe의 <strong>마지막 task로 기존 <code>CONDITION_CHECK</code></strong>를 둔다</li>
-          <li>새 task kind·상태·실패 의미 <strong>0</strong> (개념 최소화)</li>
-          <li>실패 → task <code>FAILED</code>(§6) → projection으로 파이프라인 <code>FAILED</code>(§2)</li>
-          <li>ADR-016 개정(#526)으로 <code>CONDITION_CHECK</code>는 <strong>retry-count 바운드의 빠른 probe</strong> → 대기 ≈ <code>polling_interval × maxFailCount</code>, not-met 종료 시 <code>CONDITION_NOT_MET</code></li>
-          <li><em>순수 recipe 규약 — 새 메커니즘 없음</em></li>
-        </ul>
-      </div>
-      <div class="split-col">
-        <div class="sc-tag later">유보</div>
-        <div class="sc-head">(B) 종단 후 자문 postCheck</div>
-        <ul>
-          <li>종단을 커밋한 <em>뒤</em> 검증(드리프트·장기 eventual-consistency) — 게이팅 count-bound를 넘는 긴 검증은 여기로</li>
-          <li><strong>종단 부활 금지</strong>(§7) — 되돌리지 않고 <strong>불일치 신호만</strong></li>
-          <li>도입 시 §2의 상태-파생 claim-pull 재사용, MISMATCH만(OK 없음)</li>
-          <li><em>드리프트 요구 생기기 전까지 코드·스키마 안 만듦</em></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
   <div class="decision-section" id="d2">
-    <h3><span class="decision-num">2</span> 종단 알림은 상태에서 파생한다 — 별도 저장소 없음</h3>
+    <h3><span class="decision-num">1</span> 종단 알림은 상태에서 파생한다 — 별도 저장소 없음</h3>
     <p><code>pipeline</code>에 nullable 컬럼 <code>notified_at</code> 하나. 알림 대상은 <strong>쿼리로 파생</strong>된다:</p>
     <pre><code>status IN ('DONE','FAILED','CANCELLED') AND notified_at IS NULL</code></pre>
     <p>"전이는 커밋됐는데 알림은 아직"이 이 술어로 완전히 표현된다 — 별도 이벤트 행 INSERT가 없다.
@@ -379,7 +333,7 @@
   </div>
 
   <div class="decision-section" id="d3">
-    <h3><span class="decision-num">3</span> 알림 전달은 ADR-021의 claim/lease <em>메커니즘</em>을 재사용 (쿼리는 별개)</h3>
+    <h3><span class="decision-num">2</span> 알림 전달은 ADR-021의 claim/lease <em>메커니즘</em>을 재사용 (쿼리는 별개)</h3>
     <p><strong>핵심 이점</strong>: 알림 대상은 <code>pipeline</code> 행이고, 그 행에는 ADR-021의 lease/fencing
     컬럼(<code>claimed_by</code>, <code>claimed_until</code>)이 <strong>이미 있다</strong>. 그래서 알림은
     "종단 파이프라인에 대한 또 하나의 클레임 가능한 작업"일 뿐 — 별도 relay가 재발명해야 했던
@@ -428,7 +382,7 @@ SELECT id FROM pipeline
   </div>
 
   <div class="decision-section" id="d4">
-    <h3><span class="decision-num">4</span> 운영 알림(worker-outage/queue-wait)은 이 메커니즘 밖</h3>
+    <h3><span class="decision-num">3</span> 운영 알림(worker-outage/queue-wait)은 이 메커니즘 밖</h3>
     <p><code>WORKER_OUTAGE</code>/<code>QUEUE_WAIT</code>는 상태 전이가 아니라 <strong>지표 임계</strong>에서 나온다(도메인 행 없음).
     ADR-021이 이미 정의한 지표(lease-expired reclaim count, due-pipeline lag)에 대한 임계 알림으로,
     <strong>조직이 이미 운영하는 metrics/alerting 스택</strong>에서 처리한다. 상태-파생 경로에 억지로 태우면
@@ -436,7 +390,7 @@ SELECT id FROM pipeline
   </div>
 
   <div class="decision-section" id="d5">
-    <h3><span class="decision-num">5</span> 보장과 한계 (수용)</h3>
+    <h3><span class="decision-num">4</span> 보장과 한계 (수용)</h3>
     <ul>
       <li><strong>exactly-once 없음</strong> — at-least-once + 멱등 소비자로 충분(ADR-016 §5와 동일 이유).</li>
       <li><strong>소비자 계약</strong> — dedupe 키 <code>pipeline_id</code> 장기 보관; payload에 <code>schema_version</code>;
@@ -450,7 +404,6 @@ SELECT id FROM pipeline
   <!-- ── Considered Options ── -->
   <h2 id="options">검토한 대안</h2>
 
-  <h3>종단 알림</h3>
   <div class="table-wrap">
     <table>
       <thead><tr><th>대안</th><th>판정</th><th>이유</th></tr></thead>
@@ -489,30 +442,6 @@ SELECT id FROM pipeline
     </table>
   </div>
 
-  <h3>postCheck</h3>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>대안</th><th>판정</th><th>이유</th></tr></thead>
-      <tbody>
-        <tr>
-          <td><strong>A. 게이팅=트레일링 CONDITION_CHECK + 종단 후 자문(유보)</strong></td>
-          <td><span class="verdict-yes">채택</span></td>
-          <td>흔한 경우는 기존 task kind 재사용(새 개념 0); 자문은 필요 시에만.</td>
-        </tr>
-        <tr>
-          <td>B. 새 <code>POST_CHECK</code> task kind 도입</td>
-          <td><span class="verdict-no">기각</span></td>
-          <td>동작이 같은데 enum만 늘림 — 개념 최소화 위반.</td>
-        </tr>
-        <tr>
-          <td>C. 종단 후 mismatch 시 파이프라인 <code>FAILED</code>로 되돌림</td>
-          <td><span class="verdict-no">기각</span></td>
-          <td>ADR-016 §7 "종단 부활 금지" 위반. 올바른 신호는 자문 방출.</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
   <!-- ── Consequences ── -->
   <h2 id="consequences">결과</h2>
 
@@ -534,26 +463,19 @@ SELECT id FROM pipeline
       <li>알림 전달을 실행 워커풀에서 <strong>격리</strong>해야 함(relay 없앤 대가).</li>
       <li><strong>회귀(수용)</strong>: per-event 감사 추적 상실(파이프라인당 <code>notified_at</code> 1개; 로그/지표로 재구성).</li>
       <li><strong>회귀(수용)</strong>: 종단만·1회성 — 중간 이벤트("시작됨"·"step N 완료")나 성공 내 transient task 실패는 이 경로로 안 나감 → metrics 소관.</li>
-      <li>자문 postCheck는 유보; 도입 시 같은 lease 1쌍을 공유해 알림과 <strong>직렬화</strong>(실행과는 무경합).</li>
     </ul>
   </div>
 
   <!-- ── Schema ── -->
   <h2 id="schema">스키마</h2>
 
-  <p><strong>종단 알림 (현재 결정)</strong> — 모두 ADR-022 소유 알림 메타데이터 컬럼. ADR-021 실행 컬럼과 동일 범주이며 도메인 상태 컬럼이 아니다. lease 토큰(<code>claimed_by</code>/<code>claimed_until</code>)은 ADR-021 것을 공유.</p>
+  <p><strong>종단 알림</strong> — 모두 ADR-022 소유 알림 메타데이터 컬럼. ADR-021 실행 컬럼과 동일 범주이며 도메인 상태 컬럼이 아니다. lease 토큰(<code>claimed_by</code>/<code>claimed_until</code>)은 ADR-021 것을 공유.</p>
   <div class="schema-block">
     pipeline.notified_at   (nullable)      — 종단 알림 전달 완료(sink ack) 마커<br>
     pipeline.notify_next_at(nullable)      — 실패 backoff 게이트(다음 재시도 시각)<br>
     pipeline.notify_attempts (int, def 0)  — backoff 지수·give-up 임계 계산용<br>
     <span style="color:var(--text-faint)">※ 새 테이블 없음. 대상은 status IN(종단) AND notified_at IS NULL 파생.</span><br>
     인덱스: (notify_next_at) WHERE status IN('DONE','FAILED','CANCELLED') AND notified_at IS NULL
-  </div>
-
-  <p><strong>종단 후 자문 postCheck — 유보</strong>(현재 미구현, 범위 밖; §1(B)의 상태-파생 claim-pull 재사용)</p>
-  <div class="schema-block">
-    pipeline.post_check_due_at (nullable)  — 자문 검증 due 마커(ADR-022 소유)<br>
-    <span style="color:var(--text-faint)">※ 드리프트 이력 필요 시 결과 1행 UPDATE-in-place (반복 이력 없음)</span>
   </div>
 
   <div class="callout">
@@ -579,8 +501,7 @@ SELECT id FROM pipeline
     </table>
   </div>
   <ul>
-    <li><strong>운영 알림</strong>(worker-outage/queue-wait) — 이 경로가 아니라 기존 metrics/alerting(§4).</li>
-    <li><strong>유보 모드 전용</strong>: 자문 postCheck 도입 시 종단 후 <strong>불일치 신호 1종</strong>만 추가(OK 없음).</li>
+    <li><strong>운영 알림</strong>(worker-outage/queue-wait) — 이 경로가 아니라 기존 metrics/alerting(§3).</li>
   </ul>
 
   <!-- ── Links ── -->
@@ -594,16 +515,14 @@ SELECT id FROM pipeline
   <!-- ── Glossary ── -->
   <h2 id="glossary">용어</h2>
   <ul>
-    <li><strong>completion check</strong> — ADR-016 §5의 <code>check(attempt, task)</code>. 자기 보고 결과로 task 완료 판정. postCheck와 다름(자기 보고 vs 독립 end-state 검증).</li>
-    <li><strong>postCheck</strong> — end-state 독립 검증. 게이팅(트레일링 CONDITION_CHECK) 또는 종단 후 자문(read-only·부활 금지·불일치 신호만) 두 배치 방식.</li>
     <li><strong>derive-from-state</strong> — 별도 저장소 없이 도메인 행 상태(<code>status</code> 종단 + <code>notified_at IS NULL</code>)에서 알림 대상을 쿼리로 파생. 이벤트가 이미 상태에 있어 dual-write 없음.</li>
     <li><strong>notified_at</strong> — 파이프라인당 종단 알림 전달 완료(sink ack) 마커(알림 메타데이터, 도메인 상태 아님).</li>
     <li><strong>dual-write</strong> — DB write와 외부 부작용을 한 트랜잭션 경계에서 함께 시도해 부분 실패 시 갈라지는 안티패턴. 상태 파생이 이를 제거.</li>
   </ul>
 
   <footer>
-    <code>docs/adr/022-post-check-and-event-outbox.md</code>로부터 렌더링 — 원본 파일이 권위 있는 소스입니다.
-    설계 평가: codex xhigh 92 / opus 91 (sound).
+    <code>docs/adr/022-terminal-state-notification.md</code>로부터 렌더링 — 원본 파일이 권위 있는 소스입니다.
+    종단 알림 설계 평가: codex xhigh 92 / opus 91 (sound).
   </footer>
 
 </article>
