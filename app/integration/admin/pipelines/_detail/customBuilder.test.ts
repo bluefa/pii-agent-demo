@@ -3,7 +3,9 @@ import {
   availableEntries,
   canSubmit,
   descriptionTooLong,
+  dragTargetIndex,
   moveTask,
+  reorderTask,
   toCustomRequest,
   wireProvider,
   MAX_DESCRIPTION_LENGTH,
@@ -65,6 +67,42 @@ describe('moveTask', () => {
   it('does not mutate the input', () => {
     moveTask(list, 0, 1);
     expect(list.map((t) => t.entry.name)).toEqual(['A', 'B', 'C']);
+  });
+});
+
+describe('reorderTask', () => {
+  const list = [task('A'), task('B'), task('C'), task('D')];
+
+  it('moves a row across multiple slots in either direction', () => {
+    expect(reorderTask(list, 0, 2).map((t) => t.entry.name)).toEqual(['B', 'C', 'A', 'D']);
+    expect(reorderTask(list, 3, 1).map((t) => t.entry.name)).toEqual(['A', 'D', 'B', 'C']);
+  });
+
+  it('is a no-op (same reference) for same-slot or out-of-range moves', () => {
+    expect(reorderTask(list, 1, 1)).toBe(list);
+    expect(reorderTask(list, -1, 2)).toBe(list);
+    expect(reorderTask(list, 0, 4)).toBe(list);
+  });
+
+  it('does not mutate the input', () => {
+    reorderTask(list, 0, 3);
+    expect(list.map((t) => t.entry.name)).toEqual(['A', 'B', 'C', 'D']);
+  });
+});
+
+describe('dragTargetIndex', () => {
+  it('rounds the displacement to whole slots (half a step flips the slot)', () => {
+    expect(dragTargetIndex(1, 0, 186, 4)).toBe(1);
+    expect(dragTargetIndex(1, 92, 186, 4)).toBe(1); // < half step
+    expect(dragTargetIndex(1, 94, 186, 4)).toBe(2); // ≥ half step
+    expect(dragTargetIndex(1, -200, 186, 4)).toBe(0);
+    expect(dragTargetIndex(0, 400, 186, 4)).toBe(2);
+  });
+
+  it('clamps to the list bounds and ignores a non-positive step', () => {
+    expect(dragTargetIndex(0, -500, 186, 4)).toBe(0);
+    expect(dragTargetIndex(3, 900, 186, 4)).toBe(3);
+    expect(dragTargetIndex(2, 500, 0, 4)).toBe(2);
   });
 });
 

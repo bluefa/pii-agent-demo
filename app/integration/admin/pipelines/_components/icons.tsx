@@ -13,8 +13,6 @@ export type IconName =
   | 'search'
   | 'chev-l'
   | 'chev-r'
-  | 'chev-u'
-  | 'chev-d'
   | 'check'
   | 'x'
   | 'ban'
@@ -45,9 +43,6 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
   ),
   'chev-l': <path d="M15 18.5 8.5 12 15 5.5" />,
   'chev-r': <path d="m9 5.5 6.5 6.5L9 18.5" />,
-  // LIN-22 §B2 — builder-row reorder chevrons (same geometry as chev-l/r, rotated).
-  'chev-u': <path d="m5.5 15 6.5-6.5 6.5 6.5" />,
-  'chev-d': <path d="m5.5 9 6.5 6.5L18.5 9" />,
   check: <path d="m4.5 12.5 5 5L19.5 7" />,
   x: <path d="M6 6l12 12M18 6 6 18" />,
   ban: (

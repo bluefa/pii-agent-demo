@@ -39,11 +39,26 @@ export function availableEntries(
 
 /** Move the row at `index` one slot up (-1) / down (+1); no-op (same array) at the edges. */
 export function moveTask(list: BuilderTask[], index: number, dir: -1 | 1): BuilderTask[] {
-  const next = index + dir;
-  if (index < 0 || index >= list.length || next < 0 || next >= list.length) return list;
+  return reorderTask(list, index, index + dir);
+}
+
+/** Move the row at `from` to slot `to` (drag drop); no-op (same array) when out of range or equal. */
+export function reorderTask(list: BuilderTask[], from: number, to: number): BuilderTask[] {
+  if (from < 0 || from >= list.length || to < 0 || to >= list.length || from === to) return list;
   const copy = [...list];
-  [copy[index], copy[next]] = [copy[next], copy[index]];
+  const [moved] = copy.splice(from, 1);
+  copy.splice(to, 0, moved);
   return copy;
+}
+
+/**
+ * Slot the dragged node should occupy given its horizontal displacement:
+ * one slot per `step` (node width + connector), rounded, clamped to the list.
+ */
+export function dragTargetIndex(index: number, dx: number, step: number, length: number): number {
+  if (step <= 0) return index;
+  const target = index + Math.round(dx / step);
+  return Math.max(0, Math.min(length - 1, target));
 }
 
 export function descriptionTooLong(task: BuilderTask): boolean {

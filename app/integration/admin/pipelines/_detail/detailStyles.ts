@@ -184,15 +184,14 @@ export const detailStyles = {
 
   /**
    * LIN-22 §B2 — custom-recipe builder (PreviewModal step between the type
-   * tiles and the run summary). Rows are the editing surface; the summary
-   * step reuses `preview` for the mini flow. Every color is a --pl-* token.
+   * tiles and the run summary). The order lives on the TaskFlow grid canvas
+   * (FLOW_CSS/BUILD_CSS in CustomBuildStep); these classes cover the toolbar
+   * and the selected-node editor row. Every color is a --pl-* token.
    */
   builder: {
     /** Add-control row: provider-scoped catalog select + chosen count. */
     addRow: 'flex items-center gap-2.5',
     count: cn(text.meta, 'ml-auto tabular-nums'),
-    /** Chosen-task list — own scroll region so 10+ tasks never grow the dialog. */
-    list: 'mt-3 flex flex-col gap-2 max-h-[320px] overflow-y-auto overscroll-contain pr-1',
     /** Row border carries the over-limit state (rowErr) — plain cn join, one owner per property. */
     row: 'flex items-center gap-2.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 py-2.5',
     rowErr:
@@ -205,10 +204,8 @@ export const detailStyles = {
     counter: 'w-[52px] flex-none text-right text-[12px] tabular-nums text-[var(--pl-text-faint)]',
     counterOver:
       'w-[52px] flex-none text-right text-[12px] tabular-nums font-semibold text-[var(--pl-err-text)]',
-    ctrls: 'flex items-center gap-1 flex-none',
-    /** Dashed placeholder before the first task is added. */
-    empty:
-      'mt-3 grid place-items-center rounded-[10px] border border-dashed border-[var(--pl-border-strong)] px-4 py-8 text-[12px] text-[var(--pl-text-weak)]',
+    /** Drag/click affordance line under the canvas. */
+    hint: 'mt-2 text-[12px] text-[var(--pl-text-weak)]',
     /** Non-persistence notice (summary step) — .notice grammar. */
     notice:
       'mt-3 inline-block rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)] px-2.5 py-2 text-[12px] leading-[1.4] text-[var(--pl-text-weak)]',

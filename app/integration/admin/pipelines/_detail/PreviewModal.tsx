@@ -12,8 +12,9 @@
  *     recipe) + the recipe steps as a MINI FLOW in the detail canvas's node
  *     vocabulary (TF/CSP marks, clock for CONDITION_CHECK) — the preview reads
  *     as "the Task 흐름, seen small". [이전] returns to the tiles.
- *   step 'custom-build' (LIN-22): task list builder — add from the
- *     provider-scoped catalog (#12), reorder, optional ≤100-char note.
+ *   step 'custom-build' (LIN-22): grid-canvas builder (TaskFlow FLOW_CSS
+ *     reuse) — add from the provider-scoped catalog (#12), drag nodes to
+ *     reorder, optional ≤100-char note via the selected-node editor row.
  *     [구성 확인] gates on canSubmit (≥1 task, all notes within limit).
  *   step 'custom-summary' (LIN-22): the composed order as the same mini flow
  *     (operator notes as node captions) + non-persistence notice → run (#11).
@@ -278,7 +279,7 @@ export function PreviewModal({
           </h3>
           <div className={pv.ident}>
             <span className={pv.identNum}>{targetSourceId}</span> · {providerLabel} — Task를 추가하고
-            실행 순서를 구성하세요
+            드래그로 실행 순서를 구성하세요
           </div>
           <div className="mt-3.5">
             <CustomBuildStep
@@ -290,6 +291,7 @@ export function PreviewModal({
               }}
               chosen={chosen}
               onChange={setChosen}
+              provider={provider}
             />
           </div>
           <div className="flex-1" aria-hidden="true" />
