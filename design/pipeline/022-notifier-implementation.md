@@ -143,6 +143,10 @@ public record NotifySettings(
         if (maxAttempts < 1) throw new IllegalArgumentException("pipeline.notify.max-attempts must be >= 1");
         if (jitterRatio < 0.0 || jitterRatio > 1.0)
             throw new IllegalArgumentException("pipeline.notify.jitter-ratio must be within [0,1]");
+        // backoffBase 는 delivery-실패 backoff(§4.4)와 idle-sleep seed(§4.5) 두 곳에 쓰인다.
+        // backoffBase > backoffMax 면 지수 backoff 가 즉시 clamp 돼 무의미해지므로 막는다.
+        if (backoffMax.compareTo(backoffBase) < 0)
+            throw new IllegalArgumentException("pipeline.notify.backoff-max must be >= backoff-base");
         // 같은 이유(ADR-021 Decision 5): lease 가 호출 타임아웃보다 짧으면 정상 운영 중에도
         // write-back(tx2)이 만료된 lease 로 no-op 되는 병리가 생긴다.
         if (leaseDuration.compareTo(callTimeout) <= 0)
@@ -203,7 +207,8 @@ public interface NotifyRepository extends JpaRepository<Pipeline, Long> {
 
     // tx2 행 잠금은 기존 PipelineRepository.findByIdForUpdate 를 재사용한다(여기 중복 정의하지 않음).
 
-    /** 지표: 가장 오래된 미알림 종단 행의 종단 시각(=오래됨 age 계산용). */
+    // 지표: 가장 오래된 미알림 종단 행의 age. min(lastActivityAt) 을 종단 시각으로 쓰는 건, 종단 행은
+    // terminalize 후 다시 쓰이지 않아(ADR-021 불변식) lastActivityAt == 종단 시각이 되기 때문(그때만 유효).
     @Query("select min(p.lastActivityAt) from Pipeline p "
          + "where p.status in (com.bff.pipeline.enums.PipelineStatus.DONE, "
          + "                   com.bff.pipeline.enums.PipelineStatus.FAILED, "
@@ -247,7 +252,9 @@ public class NotifyClaimer {
                 errorCode = failed.getErrorCode() == null ? null : failed.getErrorCode().name();
             }
         }
-        return new NotifyPayload(p.getId(), p.getType().name(), p.getStatus().name(),
+        // type 은 write-once 캐시라 미해석 옛 값이 null 로 열화할 수 있다 → null-guard 필수(NPE 방지).
+        String type = p.getType() == null ? null : p.getType().name();   // INSTALL | DELETE | CUSTOM | null
+        return new NotifyPayload(p.getId(), type, p.getStatus().name(),
                 p.getTarget(), failedTask, errorCode, "1");
     }
 }
@@ -270,7 +277,7 @@ public class NotifyClaimer {
 ```java
 public record NotifyPayload(
         long pipelineId,
-        String type,            // INSTALL | DELETE
+        String type,            // INSTALL | DELETE | CUSTOM | null(열화)
         String terminalStatus,  // DONE | FAILED | CANCELLED
         String target,          // 식별자
         String failedTask,      // FAILED 일 때만, 아니면 null
@@ -305,9 +312,11 @@ public class SlackNotifier {
     /** 실패(비2xx/타임아웃/IO)면 예외 → 호출자(NotifyScheduler)가 잡아 tx2 backoff. */
     public void deliver(String webhookUrl, NotifyPayload p) { post(webhookUrl, toSlackMessage(p)); }
 
+    private static final String TEST_MESSAGE = ":bell: PII 파이프라인 알림 채널 테스트 메시지";
+
     /** admin 테스트 전송 — 실제 pipeline 없이 고정 메시지. */
     public void deliverTest(String webhookUrl) {
-        post(webhookUrl, Map.of("text", ":bell: PII 파이프라인 알림 채널 테스트 메시지"));
+        post(webhookUrl, Map.of("text", TEST_MESSAGE));
     }
 
     private void post(String webhookUrl, Object message) {   // core
@@ -423,7 +432,9 @@ public class NotifyScheduler {
             Duration delay;
             if (worked) { idleBackoff = settings.backoffBase(); delay = settings.pollInterval(); }
             else        { delay = nextIdle(); }              // idleBackoff 리셋 후 pollInterval (PipelineScheduler 동형)
-            loop.schedule(this::runSweep, delay.toMillis(), MILLISECONDS);
+            if (!loop.isShutdown()) {                        // @PreDestroy 종료 후 재예약 → RejectedExecutionException 방지
+                loop.schedule(this::runSweep, delay.toMillis(), MILLISECONDS);
+            }
         }
     }
 
@@ -484,14 +495,15 @@ PUT  /api/v1/admin/notification-channel   ChannelUpsert { channelLabel, enabled,
 POST /api/v1/admin/notification-channel/test → TestResult { delivered: bool, error?: string }  (항상 200)
 ```
 
-DTO(전부 record, `dto` 패키지). **이 repo 는 글로벌 snake_case 매퍼가 없고 DTO 마다 `@JsonProperty`
-로 snake_case 를 명시하며 `DtoSnakeCaseSerializationTest` 가 이를 강제한다** — 기존 컨벤션(ADR-019
-casing 경계)에 맞춰 각 필드에 `@JsonProperty` 를 단다:
+DTO(전부 record, `dto` 패키지). **이 repo 는 글로벌 snake_case 매퍼가 없어 DTO 마다 `@JsonProperty`
+로 snake_case 를 명시해야 한다**(기존 컨벤션, ADR-019 casing 경계). 주의: `DtoSnakeCaseSerializationTest`
+는 **자동 발견이 아니라 손으로 나열한 목록**이라 신규 DTO 를 자동으로 지키게 해주지 않는다 —
+**세 신규 DTO 케이스를 그 테스트에 명시적으로 추가**해야 한다(§11). 각 필드에 `@JsonProperty`:
 
 ```java
 public record ChannelUpsert(
         @JsonProperty("channel_label") String channelLabel,
-        @JsonProperty("enabled") boolean enabled,
+        @JsonProperty("enabled") Boolean enabled,        // Boolean(원시형 아님) — 생략 시 null 로 구분, 검증에서 필수화
         @JsonProperty("slack_webhook_url") String slackWebhookUrl) {}
 
 public record ChannelView(
@@ -507,11 +519,20 @@ public record TestResult(
 ```
 
 - **webhook 은 secret**: `GET` 은 **절대 원문을 반환하지 않는다** — `webhookConfigured` +
-  `webhookMasked`(예: `https://hooks.slack.com/…/xxxx` 뒤 4자만). `PUT` 에서 `slackWebhookUrl` 이
-  비어 있으면(생략/blank) 기존 값 유지, 값이 오면 교체(`updatedAt` 갱신).
-- **SSRF 방어(보안, 필수)**: `upsert` 는 webhook URL 을 검증한다 — `https` 스킴 + 호스트가
-  `hooks.slack.com` 이어야 한다. 위반 시 typed 예외(아래). "admin 이 넣는 값이라 안전"에 기대지 않는다
-  (서버가 임의 URL 로 POST 하게 두면 SSRF).
+  `webhookMasked`(예: `https://hooks.slack.com/…/xxxx` 뒤 4자만).
+- **upsert 필드 규칙(명시)**: `slack_webhook_url` 이 **null 또는 blank 이면 기존 값 유지**,
+  값이 오면 검증(아래 SSRF) 후 교체. `enabled` 는 **필수** — `Boolean` 이 null(생략)이면
+  `InvalidNotificationWebhookException`(400)으로 거절(원시 `boolean` 은 생략을 조용히 false 로
+  만들므로 쓰지 않는다). 어떤 경우든 성공 시 `updated_at` 갱신.
+- **upsert 구현(수동 @Id)**: `id` 는 `@GeneratedValue` 가 아니라 `SINGLETON_ID` 고정이므로,
+  `findById(SINGLETON_ID)` 로 **로드-또는-생성**(`orElseGet(() -> new …(SINGLETON_ID))`) 후 필드
+  변경 → `save`. (set-id 엔티티를 곧장 `save` 하면 Hibernate 가 detached 로 보고 select-then-insert
+  merge 를 하므로, 먼저 load 해 명확히 한다.)
+- **SSRF 방어(보안, 필수)**: `upsert` 는 webhook URL 을 `java.net.URI` 로 파싱해 검증한다 —
+  `"https".equalsIgnoreCase(scheme)` **AND** `"hooks.slack.com".equalsIgnoreCase(host)`(정확 일치;
+  `contains`/`endsWith` 금지 — `hooks.slack.com.evil` 우회) **AND** userinfo 없음
+  (`https://hooks.slack.com@evil/` 차단). 위반 시 `InvalidNotificationWebhookException`(400).
+  "admin 이 넣는 값이라 안전"에 기대지 않는다(서버가 임의 URL 로 POST 하면 SSRF).
 - **에러 매핑(`GlobalAdvice` 정합)**: `OrchestrationException` 은 abstract 이고 기존 패턴은
   status/code 를 실은 **구체 서브클래스**다. 신규로 하나 정의한다 —
   `class InvalidNotificationWebhookException extends OrchestrationException` 이 `HttpStatus.BAD_REQUEST`
@@ -567,7 +588,8 @@ public record TestResult(
 | `NotifySettings` | `config` (+ `PipelineConfig` 에 `@EnableConfigurationProperties`·RestClient 빈) |
 | `NotificationChannel`(엔티티), `Pipeline`(필드 추가) | `entity` |
 | `NotifyRepository`, (재사용) `TaskRepository` | `repository` |
-| `NotifyClaim`, `NotifyPayload` | `dto` (또는 `model`) |
+| `NotifyPayload`(Slack 로 직렬화=transport) | `dto` |
+| `NotifyClaim`(내부 handoff 값, 전송 안 함) | `model` |
 | `NotifyClaimer`, `NotifyWriteBack`, `NotifyScheduler`, `SlackNotifier`, `NotificationChannelService` | `service`(실행 하위 패턴 따르면 `service.notify`) |
 | `NotificationChannelController` | `controller` |
 | `ChannelUpsert`/`ChannelView`/`TestResult` (전부 `@JsonProperty` snake_case) | `dto` |
@@ -587,6 +609,15 @@ public record TestResult(
 
 ## 11. 테스트 체크리스트 (H2 MySQL-mode, `@DataJpaTest`/단위)
 
+**슬라이스 셋업(리포 필수 패턴, `PipelineSoftCapTest` 미러):** repository/claim/write-back 테스트는
+`@DataJpaTest` + `@AutoConfigureTestDatabase(replace = NONE)` + **`@Transactional(propagation = NOT_SUPPORTED)`**
+(래핑 tx 비활성 — 없으면 tx1/tx2 가 한 물리 tx 로 합쳐져 토큰 fencing·lease 재claim 을 못 본다) +
+협력자 `@Import`(`NotifyClaimer`, `NotifyWriteBack`, `NotifyRepository`, `PipelineRepository`,
+`TaskRepository`) + `Wiring @TestConfiguration`(고정 `Clock` 과 `NotifySettings` 를 빈으로 제공 —
+`@ConfigurationProperties`·`PipelineConfig` 는 슬라이스에 안 실린다). `@BeforeEach` 로 상태 정리.
+**`SlackNotifier` 는 슬라이스 밖 순수 단위 테스트**로(스텁 `RestClient`) 검증한다.
+
+
 - **claim 술어**: 종단·미알림·due 행만 잡고, `notified_at != null`/미도래 `notify_next_at`/유효 lease 행은 스킵.
 - **tx2 fencing**: 토큰 불일치 write-back 은 no-op(재claim 시나리오).
 - **backoff/give-up**: `attempts` 증가·`notify_next_at` 전진, `max-attempts` 도달 시 far-future + ERROR.
@@ -595,7 +626,11 @@ public record TestResult(
 - **payload PII**: 허용 필드만 직렬화(민감 필드 누락 확인). `FAILED` 는 `buildPayload` 가
   sequence 최소 FAILED task 에서 `failed_task`/`error_code` 를 채운다(비-FAILED 는 null).
 - **webhook 마스킹**: `GET` 응답에 원문 webhook 이 없다(마스킹만).
-- **SSRF 검증**: 비-https·비-`hooks.slack.com` webhook `PUT` 은 typed 4xx 로 거절.
+- **SSRF 검증**: 비-https·비-정확일치 host·userinfo 포함 webhook `PUT` 은 typed 400 으로 거절.
+- **DTO snake_case**: 세 신규 DTO(`ChannelUpsert`/`ChannelView`/`TestResult`) 케이스를
+  `DtoSnakeCaseSerializationTest` 에 **명시적으로 추가**(자동 발견 아님).
+- **upsert 필드 규칙**: `slack_webhook_url` null/blank → 기존 유지, 값 → 교체; `enabled` 생략(null) → 400;
+  최초 upsert 는 `SINGLETON_ID` 로 insert.
 - **test 엔드포인트**: 전달 실패해도 200 + `{delivered:false, error}`; 미설정이면 `channel not configured`.
 - **at-least-once**: 성공 후 tx2 전 크래시 모사 → 재전달(중복 Slack 메시지 수용, `pipeline_id` 로 식별).
 
