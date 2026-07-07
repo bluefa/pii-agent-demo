@@ -6,6 +6,12 @@
 > [ADR-021](../../docs/adr/021-pipeline-execution-model.md)에 있다. 타깃 스택은
 > **MySQL 8 + Spring Boot(JPA/Hibernate `ddl-auto: update`) + OpenFeign/RestClient**,
 > 코드베이스는 `pipeline-orchestrator`(패키지 `com.bff.pipeline`).
+>
+> **리포 위치**: 이 문서와 ADR-022 는 `pii-agent-demo`(ADR 원본 저장소)에서 작성한다. 백엔드
+> 구현은 `pipeline-orchestrator` 리포에서 이뤄지며, 그 리포는 이미 ADR-016/021 사본을
+> `docs/adr/` 에 동기화해 두고 있다 — **구현 착수 시 ADR-022 + 이 문서도 같은 방식으로
+> orchestrator 리포에 동기화**하면 상대 링크가 그 체크아웃에서 해석된다. 근거 문서 없이도
+> 이 명세만으로 구현 가능하도록 핵심 결정은 본문에 내재화했다.
 
 ## 0. 범위와 원칙 (작게 시작)
 
@@ -63,7 +69,8 @@ private String notifyClaimedBy;
 private Instant notifyClaimedUntil;
 ```
 
-`@Table(indexes = { ... })` 에 한 줄 추가:
+`@Table(indexes = { ... })` 의 **기존 인덱스 배열에 한 줄 append**(배열 교체 금지 — 기존 4개
+인덱스 + `active_target` 유일 제약 유지):
 
 ```java
 // ponytail: ~2,000행 규모엔 (notified_at, notify_next_at) 복합이면 충분. MySQL8은 부분(filtered)
@@ -194,10 +201,7 @@ public interface NotifyRepository extends JpaRepository<Pipeline, Long> {
          + "order by p.notifyNextAt asc, p.id asc")   // NULL first + 결정적 tie-break
     List<Pipeline> lockNotifiable(@Param("now") Instant now, Limit limit);
 
-    /** tx2 용 행 잠금. PipelineRepository.findByIdForUpdate 와 동일 역할(중복 두지 말고 재사용 가능). */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select p from Pipeline p where p.id = :id")
-    Optional<Pipeline> findByIdForUpdate(@Param("id") Long id);
+    // tx2 행 잠금은 기존 PipelineRepository.findByIdForUpdate 를 재사용한다(여기 중복 정의하지 않음).
 
     /** 지표: 가장 오래된 미알림 종단 행의 종단 시각(=오래됨 age 계산용). */
     @Query("select min(p.lastActivityAt) from Pipeline p "
@@ -333,14 +337,14 @@ Slack 메시지 형식(간단·읽기 쉬운 텍스트; blocks 는 나중에):
 ```
 
 - `DONE` → `:white_check_mark:`/`good`, `FAILED` → `:x:`/`danger`(+`failed_task`/`error_code` 필드),
-  `CANCELLED` → `:no_entry:`/`warning`. `pipeline_id` 는 항상 포함(소비자 dedupe 키).
+  `CANCELLED` → `:no_entry:`/`warning`. `pipeline_id` 는 항상 포함(중복 메시지를 사람이 식별하는 키).
 
 ### 4.4 `NotifyWriteBack` (tx2, guarded)
 
 ```java
 @Component
 public class NotifyWriteBack {
-    private final NotifyRepository repo;
+    private final PipelineRepository pipelines;   // tx2 행 잠금은 기존 findByIdForUpdate 재사용
     private final NotifySettings settings;
     private final Clock clock;
 
@@ -371,7 +375,7 @@ public class NotifyWriteBack {
 
     /** findByIdForUpdate 로 잠그고 notify_claimed_by == token 일 때만 apply (stale-straggler fencing). */
     private void guarded(long id, String token, Consumer<Pipeline> mutate) {
-        repo.findByIdForUpdate(id).ifPresent(p -> {
+        pipelines.findByIdForUpdate(id).ifPresent(p -> {
             if (token.equals(p.getNotifyClaimedBy())) mutate.accept(p);
             // 토큰 불일치 = lease 만료 후 재claim 됨 → no-op (ADR-021 §4 와 동형)
         });
@@ -460,8 +464,10 @@ public class NotifyScheduler {
 | 전달 실패, `attempts >= max` | `attempts++`, `notify_next_at = now + 3650d`, **ERROR 로그** | 자동 중단(사람 개입) |
 | lease 만료 후 지연 도착 tx2 | 토큰 불일치 → **no-op** | 다른 워커가 이미 처리/재시도 |
 
-- **at-least-once**: 전달 성공 후 tx2 커밋 전 크래시/타임아웃/lease 만료 → 중복 전달 가능 →
-  **소비자(Slack)는 `pipeline_id` 로 dedupe**(파이프라인당 종단 1개). exactly-once 보장 안 함.
+- **at-least-once**: 전달 성공 후 tx2 커밋 전 크래시/타임아웃/lease 만료 → 중복 전달 가능.
+  exactly-once 보장 안 함. **Slack은 자동 dedupe하지 않는다** — 같은 종단 메시지가 채널에
+  드물게 두 번 보일 수 있고 V1은 이를 수용한다(§1). `pipeline_id`는 사람이 눈으로 중복을 식별하는
+  키일 뿐, Slack이 제거해 주는 게 아니다. 자동 dedupe가 필요하면 Slack 앞 멱등 브리지(후속).
 - **give-up 복구**: admin 이 수동으로 `notify_next_at`/`notify_attempts` 를 리셋하면 재시도된다
   (전용 admin 액션은 V1 비범위 — DB 수정 또는 후속). 
 
@@ -478,13 +484,26 @@ PUT  /api/v1/admin/notification-channel   ChannelUpsert { channelLabel, enabled,
 POST /api/v1/admin/notification-channel/test → TestResult { delivered: bool, error?: string }  (항상 200)
 ```
 
-DTO(전부 record, `dto` 패키지):
+DTO(전부 record, `dto` 패키지). **이 repo 는 글로벌 snake_case 매퍼가 없고 DTO 마다 `@JsonProperty`
+로 snake_case 를 명시하며 `DtoSnakeCaseSerializationTest` 가 이를 강제한다** — 기존 컨벤션(ADR-019
+casing 경계)에 맞춰 각 필드에 `@JsonProperty` 를 단다:
 
 ```java
-public record ChannelUpsert(String channelLabel, boolean enabled, String slackWebhookUrl) {}
-public record ChannelView(String channelLabel, boolean enabled, boolean webhookConfigured,
-                          String webhookMasked, Instant updatedAt) {}
-public record TestResult(boolean delivered, String error) {}
+public record ChannelUpsert(
+        @JsonProperty("channel_label") String channelLabel,
+        @JsonProperty("enabled") boolean enabled,
+        @JsonProperty("slack_webhook_url") String slackWebhookUrl) {}
+
+public record ChannelView(
+        @JsonProperty("channel_label") String channelLabel,
+        @JsonProperty("enabled") boolean enabled,
+        @JsonProperty("webhook_configured") boolean webhookConfigured,
+        @JsonProperty("webhook_masked") String webhookMasked,
+        @JsonProperty("updated_at") Instant updatedAt) {}
+
+public record TestResult(
+        @JsonProperty("delivered") boolean delivered,
+        @JsonProperty("error") String error) {}
 ```
 
 - **webhook 은 secret**: `GET` 은 **절대 원문을 반환하지 않는다** — `webhookConfigured` +
@@ -493,8 +512,12 @@ public record TestResult(boolean delivered, String error) {}
 - **SSRF 방어(보안, 필수)**: `upsert` 는 webhook URL 을 검증한다 — `https` 스킴 + 호스트가
   `hooks.slack.com` 이어야 한다. 위반 시 typed 예외(아래). "admin 이 넣는 값이라 안전"에 기대지 않는다
   (서버가 임의 URL 로 POST 하게 두면 SSRF).
-- **에러 매핑(`GlobalAdvice` 정합)**: 검증 실패는 이 repo 의 typed `OrchestrationException`
-  (신규 `OrchestrationErrorCode.INVALID_NOTIFICATION_WEBHOOK` 등)으로 던져 `GlobalAdvice` 가 4xx 로 매핑.
+- **에러 매핑(`GlobalAdvice` 정합)**: `OrchestrationException` 은 abstract 이고 기존 패턴은
+  status/code 를 실은 **구체 서브클래스**다. 신규로 하나 정의한다 —
+  `class InvalidNotificationWebhookException extends OrchestrationException` 이 `HttpStatus.BAD_REQUEST`
+  + `OrchestrationErrorCode.INVALID_NOTIFICATION_WEBHOOK`(enum 값 추가)를 싣는다. `upsert` 검증
+  실패 시 이걸 던지면 `GlobalAdvice` 의 단일 `OrchestrationException` 핸들러가 4xx 로 매핑한다
+  (`PipelineNotFoundException` 등과 동형).
   **`test` 는 예외로 실패를 알리지 않는다** — `SlackNotifier.deliverTest` 의 `RestClientException` 을
   잡아 `TestResult{delivered:false, error:message}` 로 **200** 반환(probe 결과지 서버 오류가 아님).
   채널 미설정 상태의 `test` 는 `{delivered:false, error:"channel not configured"}`.
@@ -547,8 +570,9 @@ public record TestResult(boolean delivered, String error) {}
 | `NotifyClaim`, `NotifyPayload` | `dto` (또는 `model`) |
 | `NotifyClaimer`, `NotifyWriteBack`, `NotifyScheduler`, `SlackNotifier`, `NotificationChannelService` | `service`(실행 하위 패턴 따르면 `service.notify`) |
 | `NotificationChannelController` | `controller` |
-| `ChannelUpsert`/`ChannelView`/`TestResult` | `dto` |
-| `OrchestrationErrorCode.INVALID_NOTIFICATION_WEBHOOK` 등 | 기존 error enum |
+| `ChannelUpsert`/`ChannelView`/`TestResult` (전부 `@JsonProperty` snake_case) | `dto` |
+| `InvalidNotificationWebhookException`(extends `OrchestrationException`) | `exception` |
+| `OrchestrationErrorCode.INVALID_NOTIFICATION_WEBHOOK` (enum 값 추가) | 기존 `exception` |
 
 ## 10. 구현 순서 (슬라이스)
 
@@ -558,7 +582,7 @@ public record TestResult(boolean delivered, String error) {}
 4. `NotifyRepository`(claim/guard/oldest) + `NotifyClaimer`(tx1) + `NotifyWriteBack`(tx2).
 5. `SlackNotifier`(RestClient, 타임아웃) + payload 빌더(PII 허용 필드만).
 6. `NotifyScheduler`(단일 loop, 채널 가드).
-7. Frontend admin 카드 + Next 프록시 route.
+7. **(별도 repo `pii-agent-demo`)** Frontend admin 카드 + Next 프록시 route — 백엔드(1~6) 빌드와 독립.
 8. 테스트(§11).
 
 ## 11. 테스트 체크리스트 (H2 MySQL-mode, `@DataJpaTest`/단위)
