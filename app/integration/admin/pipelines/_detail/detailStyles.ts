@@ -186,32 +186,17 @@ export const detailStyles = {
    * LIN-22 §B2 — custom-recipe builder (PreviewModal step between the type
    * tiles and the run summary). The order lives on the TaskFlow grid canvas
    * (FLOW_CSS/BUILD_CSS in CustomBuildStep); these classes cover the toolbar
-   * and the selected-node editor row. Every color is a --pl-* token.
+   * and the hint/notice lines. Every color is a --pl-* token.
    */
   builder: {
     /** Add-control row: provider-scoped catalog select + chosen count. */
     addRow: 'flex items-center gap-2.5',
     count: cn(text.meta, 'ml-auto tabular-nums'),
-    /** Row border carries the over-limit state (rowErr) — plain cn join, one owner per property. */
-    row: 'flex items-center gap-2.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 py-2.5',
-    rowErr:
-      'flex items-center gap-2.5 rounded-[10px] border border-[var(--pl-err-border)] bg-[var(--pl-bg-card)] px-3 py-2.5',
-    /** Sequence badge — recipe .sq vocabulary (20px primary circle). */
-    seq: 'grid place-items-center w-5 h-5 rounded-full flex-none bg-[var(--pl-primary-bg)] text-[var(--pl-primary)] text-[12px] font-bold tabular-nums',
-    name: 'w-[190px] flex-none truncate text-[14px] font-semibold leading-[1.3] text-[var(--pl-text-strong)]',
-    input:
-      'h-8 min-w-0 flex-1 rounded-[8px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] px-2.5 text-[12px] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-faint)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]',
-    counter: 'w-[52px] flex-none text-right text-[12px] tabular-nums text-[var(--pl-text-faint)]',
-    counterOver:
-      'w-[52px] flex-none text-right text-[12px] tabular-nums font-semibold text-[var(--pl-err-text)]',
-    /** Drag/click affordance line under the canvas. */
+    /** Drag affordance line under the canvas. */
     hint: 'mt-2 text-[12px] text-[var(--pl-text-weak)]',
     /** Non-persistence notice (summary step) — .notice grammar. */
     notice:
       'mt-3 inline-block rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)] px-2.5 py-2 text-[12px] leading-[1.4] text-[var(--pl-text-weak)]',
-    /** Operator note under a summary-flow node name (clamps at 2 lines). */
-    nodeDesc:
-      'max-w-[150px] overflow-hidden text-[12px] leading-[1.4] text-[var(--pl-text-weak)] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]',
   },
 
   /**
