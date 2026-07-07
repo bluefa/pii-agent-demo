@@ -41,15 +41,22 @@ import type { CloudProvider, TaskCatalogEntry } from '@/lib/pipeline/types';
 /** Pointer must travel this far before a press becomes a drag. */
 const DRAG_THRESHOLD_PX = 6;
 
-/** Builder-canvas deltas over the shared FLOW_CSS grammar — sized for the 720px modal. */
+/**
+ * Builder-canvas deltas over the shared FLOW_CSS grammar — sized for the
+ * 720px modal: 200px nodes × 3 + 36px connectors × 2 = 672px (the body
+ * width), and every node is the SAME size (owner ask) — the name renders in
+ * full with a reserved 2-line box (200px fits the longest catalog name in 2
+ * lines) and the meta reserves 2 lines too, so short/long tasks line up.
+ */
 const BUILD_CSS = `
 .pl-flow.pl-build{min-height:236px}
 .pl-flow.pl-build .pl-scroll{padding:24px 16px}
-.pl-flow.pl-build .pl-tnode{width:150px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.pl-flow.pl-build .pl-tnode{width:200px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .pl-flow.pl-build .pl-tnode.dragging{cursor:grabbing;z-index:5;box-shadow:var(--pl-shadow-lg);border-color:var(--pl-primary)}
 .pl-flow.pl-build .pl-connector{width:36px}
 .pl-flow.pl-build .nd-badge.b-seq{background:var(--pl-primary-bg);color:var(--pl-primary)}
-.pl-flow.pl-build .nd-name{display:block;overflow:visible;-webkit-line-clamp:none;word-break:keep-all}
+.pl-flow.pl-build .nd-name{display:block;overflow:visible;-webkit-line-clamp:none;word-break:keep-all;min-height:37px}
+.pl-flow.pl-build .nd-meta{min-height:34px}
 .pl-flow.pl-build .nd-del{margin-left:auto;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;flex:none;border:none;background:transparent;color:var(--pl-text-weak);cursor:pointer}
 .pl-flow.pl-build .nd-del:hover{background:var(--pl-gray-100);color:var(--pl-err-text)}
 .pl-flow.pl-build .nd-del:focus-visible{outline:2px solid var(--pl-primary);outline-offset:1px}
