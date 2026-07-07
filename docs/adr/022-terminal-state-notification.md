@@ -112,9 +112,13 @@ claim 쿼리를 하나 더 두는 식으로 구현한다(둘 다 안전 — guar
 
 **실패 경로(backoff + give-up).** 전달 실패 시 tx2는 `notify_attempts += 1`,
 `notify_next_at = now() + backoff(notify_attempts)`(상한 있는 지수 backoff, ADR-021의
-429/503→next_due_at 밀기와 동형), 클레임 해제. `notify_attempts`가 상한을 넘으면
-`notify_next_at`을 크게 밀고 **운영 알림으로 승격**(§3) — 자동 재시도를 멈추고 사람이
-개입한다(별도 dead-letter 테이블 없이 “가장 오래된 미알림 종단 행 age” 지표로 감시).
+429/503→next_due_at 밀기와 동형), 클레임 해제. `notify_attempts`가 상한(`maxAttempts`)에
+도달하면 **give-up**: `notify_next_at`을 far-future로 밀어 자동 재시도를 멈추고 **운영
+알림으로 승격**(§3, 사람이 개입). give-up 행은 여전히 `notified_at IS NULL`이므로 파생
+쿼리상 “미알림”으로 남지만, 건전성 지표 **“가장 오래된 미알림 행 age”는 give-up을
+제외**(`notify_attempts < maxAttempts`)해 정의하고 give-up 행은 **별도 카운트**(§4)로
+감시한다 — give-up이 pending age를 무한히 오염시키지 않게 한다. 별도 dead-letter 테이블은
+두지 않는다(파생 술어 + `notify_attempts`로 충분).
 
 **실행 워커풀과 격리.** 느린/죽은 sink가 파이프라인 실행을 굶기지 않도록, 종단 알림은
 **전용 스레드풀(또는 별도 워커 loop)**에서 처리하거나 notify 클레임에 작은 동시성 상한을
@@ -158,8 +162,15 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 - **알림 지연 = 스캔 주기.** 저지연 wake-up은 필요해지면 durable 파생 위에 힌트로 얹을 수
   있으나(아래 대안) 지금은 불필요. (타깃 MySQL8은 Postgres `LISTEN/NOTIFY`가 없으므로, 필요 시
   in-process 신호나 메시지 브로커를 검토 — V1 범위 밖.)
-- **알림 전용 지표**: 미알림 종단 행 최고 age, notify 재시도/실패 수, give-up 승격 수.
-  ADR-021 워커 지표만으로는 알림 정체를 볼 수 없으므로 별도로 둔다.
+- **미설정/비활성 sink → 적체 후 소급 발화.** 채널이 없거나 비활성이면 종단 행은
+  `notified_at IS NULL`로 **적체**되고(발화 자체가 유실되진 않음 — 파생 모델의 이점),
+  채널을 (재)활성화하면 backlog가 한꺼번에 발화한다. 짧은 sink 다운타임 뒤엔 “그동안 뭐가
+  끝났나”를 받는 이점이지만, 오래 꺼져 있었으면 **알림 폭주**가 될 수 있다. 내부 도구
+  규모에서 폭주는 수용 가능하되, 문제가 되면 **활성화 시점에 기존 종단 행을 ack 처리
+  (backfill `notified_at`)하는 정책**을 구현에서 택한다(구현 문서 소관, V1 기본은 소급 발화).
+- **알림 전용 지표**: 미알림(전달 대기, give-up 제외 = `notify_attempts < maxAttempts`) 종단
+  행 최고 age, notify 재시도/실패 수, give-up 승격 수(사람 개입 필요 신호). ADR-021 워커
+  지표만으로는 알림 정체를 볼 수 없으므로 별도로 둔다.
 
 ## 고려한 대안
 
@@ -171,6 +182,7 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 | D. 커밋 후 best-effort 알림 | 기각 | 커밋~알림 사이 크래시로 조용히 유실; 재시도·복구 없음. |
 | E. CDC/브로커(Debezium/Kafka) | 기각 | 규모 대비 운영 비용 과다. 이미 DB를 소유하므로 “상태 스캔 파생”이 같은 아이디어의 경량판이고 그것으로 충분. |
 | F. 저지연 wake-up 힌트(브로커/in-process 신호) | 유보(선택) | 상태-파생을 대체하진 못하나, 스캔 폴링 대신 저지연 wake-up 힌트로 얹을 수 있다. 타깃 MySQL8엔 Postgres `LISTEN/NOTIFY`가 없어 in-process 신호나 브로커가 후보. 지연이 문제될 때 도입, V1 불필요. |
+| G. 알림 상태를 `pipeline` 컬럼이 아닌 1:1 사이드카 테이블(`pipeline_notification`)로 분리 | 기각 | “핵심 aggregate 오염 회피”가 동기지만, 파이프라인당 정확히 1행이라 실질은 컬럼과 동형이고 claim마다 join·수명주기(고아 행 정리) 부담만 는다. 알림 메타데이터는 ADR-021이 실행 메타데이터(`claimed_by` 등)를 `pipeline`에 둔 것과 **같은 범주**이며(도메인 상태 컬럼 아님), 종단 파생 claim이 같은 행을 이미 잠그므로 별 테이블의 이득이 없다. 다중 sink가 실제로 필요해지면 그때 per-sink 상태 테이블로 분리(§2 말미)—그 전엔 불필요. |
 
 ## 결과
 
@@ -236,6 +248,10 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
    되고, durable하면 반드시 대상이 된다(dual-write 없음, 유실 없음).
 3. 알림 메타데이터 손상/롤백은 pipeline/task **도메인 상태**를 오염시키지 않는다.
    최악의 경우는 재전달(멱등 소비자가 흡수) 또는 재클레임(delay)일 뿐 부정확이 아니다.
+4. **파이프라인당 종단 알림은 정확히 1회**라는 성질은 ADR-016의 **종단 상태 불변성**
+   (종단 도달 후 부활 금지)에 의존한다 — 종단 행이 다시 `RUNNING`으로 되돌아가 재종단할 수
+   없으므로, 한 번 찍힌 `notified_at`이 “두 번째 종단”을 잘못 억제할 여지가 없다. (파생 읽기
+   모델인 ADR-023 ProcessStatus의 회귀는 `pipeline.status` 도메인 상태와 무관하다.)
 
 ## 알림/신호 분류
 
@@ -245,7 +261,7 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 |---|---|---|
 | 파이프라인 완료 | `status = DONE` & `notified_at IS NULL` | pipeline id, type, target |
 | 파이프라인 실패 | `status = FAILED` & 〃 | 위 + 실패 task와 `error_code` |
-| 파이프라인 취소 | `status = CANCELLED` & 〃 | 위(취소 계기) |
+| 파이프라인 취소 | `status = CANCELLED` & 〃 | pipeline id, type, target |
 
 - **운영 알림**(worker-outage/queue-wait) — 이 경로가 아니라 기존 metrics/alerting(§3).
 
@@ -306,3 +322,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   → notify 전용 lease 쌍(`notify_claimed_by`/`notify_claimed_until`)으로 분리(컬럼 3→5).
   MySQL8 부분 인덱스 부재 반영(복합 인덱스), `LISTEN/NOTIFY`는 Postgres 전용이라 저지연 옵션은
   구현 문서에서 제외.
+- 2026-07-07: **정합·운영 반영(리뷰 후속).** (1) give-up 행이 “미알림 age” 지표를 무한 오염
+  하던 문제 수정 — pending age를 `notify_attempts < maxAttempts`로 정의, give-up은 별도 카운트.
+  (2) 미설정/비활성 sink 시 적체·소급 발화(및 backfill 대안) 명시. (3) CANCELLED payload의
+  “취소 계기”가 구현 payload에 없어 overclaim → 허용 필드(id/type/target)로 정정.
+  (4) 종단 알림 1회 성질이 ADR-016 종단 불변성에 의존함을 불변식 4로 명시(ADR-023 회귀와
+  무관). (5) 대안 G(1:1 사이드카 테이블) 추가·기각.
