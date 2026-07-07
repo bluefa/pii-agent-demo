@@ -32,6 +32,7 @@ import {
   PlChevCell,
 } from '@/app/integration/admin/pipelines/_components/PlTable';
 import { PreviewModal } from '@/app/integration/admin/pipelines/_detail/PreviewModal';
+import { wireProvider } from '@/app/integration/admin/pipelines/_detail/customBuilder';
 import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailStyles';
 import { targetCrumbs } from '@/app/integration/admin/pipelines/_detail/pipelineBreadcrumb';
 import { PipelineTypeTag } from '@/app/integration/admin/pipelines/_components/PipelineTypeTag';
@@ -257,6 +258,7 @@ export function TargetDetailView(): ReactElement {
         onClose={previewModal.close}
         targetSourceId={targetSourceId}
         providerLabel={providerLabel(provider)}
+        provider={wireProvider(provider)}
         showToast={toast.show}
       />
     </div>

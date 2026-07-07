@@ -175,6 +175,14 @@ export function TaskDetailBody({
 
       {detail?.definition?.description && <div className={s.taskModal.note}>{detail.definition.description}</div>}
 
+      {/* LIN-22 — custom-run operator note (TaskDetail.description; null for catalog tasks). */}
+      {detail?.description && (
+        <div className={s.taskModal.operatorNote}>
+          <span className={s.taskModal.operatorNoteKey}>운영자 설명</span>
+          {detail.description}
+        </div>
+      )}
+
       <div className={modal.body}>
         {detail ? (
           <>
