@@ -14,7 +14,7 @@
 브라우저(CSR)
   → app/lib/api/pipeline.ts 헬퍼
   → /integration/api/v1/orchestrator/** (Next.js BFF 라우트, same-origin)
-  → BFF_API_URL /infra-install/v1/** (verbatim proxy — 응답 body·status 그대로)
+  → BFF_API_URL /install/v1/** (verbatim proxy — 응답 body·status 그대로)
 ```
 
 CRUD 관점으로 보면 이 도메인은 **읽기 9 + 생성 2 + 취소 1**이다:

@@ -58,7 +58,7 @@ npm run dev
 파이프라인 대시보드/상세는 `pipeline-orchestrator`(Spring Boot) 업스트림을 프록시합니다.
 BFF 서버 뒤에서 서빙되므로 별도 env 없이 install-v1 과 같은 `BFF_API_URL` 을 씁니다.
 
-- 라우트: `/integration/api/v1/orchestrator/**` → `BFF_API_URL + /infra-install/v1/**` (응답 verbatim passthrough).
+- 라우트: `/integration/api/v1/orchestrator/**` → `BFF_API_URL + /install/v1/**` (응답 verbatim passthrough).
 - `USE_MOCK_DATA=true`면 in-memory mock(`lib/bff/mock/pipeline.ts`)이 응답합니다(코드 기본값은 real HTTP — env 미설정 시 `BFF_API_URL`로 프록시. 로컬 `.env.local`에서 true 설정 시에만 mock).
 - 업스트림 연결 실패/타임아웃만 502 `{code:"ORCHESTRATOR_UNREACHABLE"}` 로 매핑됩니다.
 
