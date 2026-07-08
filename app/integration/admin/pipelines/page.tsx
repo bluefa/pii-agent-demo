@@ -86,11 +86,19 @@ function StatTile({
   const { card, text, filterChip } = pipelineStyles;
   return (
     <div className={card.stat} title={title}>
-      <div className="flex items-center justify-between gap-2">
-        <div className={text.statLabelMain}>{labelMain}</div>
+      <div className="flex justify-end">
         <span className={filterChip.scope}>{labelPeriod}</span>
       </div>
-      <div className={cn(text.statValue, error ? text.statValueError : text.statValueDefault, 'mt-3')}>{value}</div>
+      <div className={cn(text.statLabelMain, 'mt-2 text-center')}>{labelMain}</div>
+      <div
+        className={cn(
+          text.statValue,
+          error ? text.statValueError : text.statValueDefault,
+          'mt-3 text-center',
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -230,7 +238,6 @@ export default function DashboardPage(): ReactElement {
         </span>
       </div>
 
-      <SectionHeader first title="현황" />
       <div className="grid grid-cols-[repeat(4,minmax(0,300px))] gap-3">
         <StatTile
           labelMain="동작 중 파이프라인"

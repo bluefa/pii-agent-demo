@@ -884,7 +884,7 @@ const pipelineText = {
   /** stat tile label — 12 / 400 / weak. */
   statLabel: 'text-[12px] font-normal text-[var(--pl-text-weak)]',
   /** stat tile main label — 16/600 medium (period now a tag above, not inline). */
-  statLabelMain: 'text-[16px] font-semibold text-[var(--pl-text-medium)]',
+  statLabelMain: 'text-[20px] font-semibold text-[var(--pl-text-medium)]',
   /** stat tile value — 40 / 600 / 1.2 / -.02em / tabular / strong. */
   statValue: 'text-[40px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums',
   statValueDefault: 'text-[var(--pl-text-strong)]',
@@ -1092,8 +1092,8 @@ export const pipelineStyles = {
   /** SegControl — container pad 2; buttons h28 pad 0 12 12/600; on = card+shadow.
    *  bg/text color live in idle/active (never in the button base). */
   seg: {
-    container: 'inline-flex p-0.5 rounded-lg bg-[var(--pl-gray-100)]',
-    button: 'inline-flex items-center h-7 px-3 rounded-md border-0 text-[12px] font-semibold cursor-pointer',
+    container: 'inline-flex p-1 rounded-lg bg-[var(--pl-gray-100)]',
+    button: 'inline-flex items-center h-9 px-4 rounded-md border-0 text-[14px] font-semibold cursor-pointer',
     buttonIdle: 'bg-transparent text-[var(--pl-text-weak)]',
     buttonActive: 'bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] shadow-[var(--pl-shadow-xs)]',
   },

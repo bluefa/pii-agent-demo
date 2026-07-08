@@ -77,7 +77,7 @@ function cspMetaRows(provider: string, raw: RawTargetSourceDetail | null): MetaR
     .filter(([, v]) => v != null && v !== '')
     .map(([k, v]) => ({ k, v: String(v) }));
   if (m.grant_service_terraform_execution_permission != null) {
-    rows.push({ k: 'TF 실행 권한', v: m.grant_service_terraform_execution_permission ? '허용' : '미허용' });
+    rows.push({ k: '설치 방식', v: m.grant_service_terraform_execution_permission ? '자동 설치' : '수동 설치' });
   }
   return rows;
 }
