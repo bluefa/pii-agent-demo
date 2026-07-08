@@ -86,8 +86,10 @@ function StatTile({
   const { card, text, filterChip } = pipelineStyles;
   return (
     <div className={card.stat} title={title}>
-      <span className={filterChip.scope}>{labelPeriod}</span>
-      <div className={cn(text.statLabelMain, 'mt-2')}>{labelMain}</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className={text.statLabelMain}>{labelMain}</div>
+        <span className={filterChip.scope}>{labelPeriod}</span>
+      </div>
       <div className={cn(text.statValue, error ? text.statValueError : text.statValueDefault, 'mt-3')}>{value}</div>
     </div>
   );
