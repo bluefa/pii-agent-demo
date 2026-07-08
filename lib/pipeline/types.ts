@@ -84,6 +84,9 @@ export interface PipelineSummary {
   pipeline_id: number;
   type: PipelineType;
   target_source_id: string;
+  /** Owning service — assumed addition to #3 (dashboard search filters on it). */
+  service_code: string;
+  service_name: string;
   cloud_provider: CloudProvider;
   /** RecipeDefinition constant name; null for CUSTOM pipelines (no catalog recipe). */
   recipe_definition: string | null;

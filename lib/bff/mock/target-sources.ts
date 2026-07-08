@@ -98,6 +98,11 @@ export const toBffApprovalProcessStatus = (processStatus: ProcessStatus): BffApp
 const getBffMetadata = (project: Project) => ({
   ...(project.tenantId ? { tenant_id: project.tenantId } : {}),
   ...(project.subscriptionId ? { subscription_id: project.subscriptionId } : {}),
+  ...(project.gcpProjectId ? { gcp_project_id: project.gcpProjectId } : {}),
+  ...(project.awsAccountId ? { aws_account_id: project.awsAccountId } : {}),
+  ...(project.isChinaRegion !== undefined || project.awsRegionType !== undefined
+    ? { is_china_region: project.isChinaRegion ?? project.awsRegionType === 'china' }
+    : {}),
   ...(project.isSduType !== undefined ? { is_sdu_type: project.isSduType } : {}),
   ...(project.isTerraformExecutionGranted !== undefined
     ? { grant_service_terraform_execution_permission: project.isTerraformExecutionGranted }

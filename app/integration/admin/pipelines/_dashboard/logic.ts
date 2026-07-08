@@ -1,15 +1,21 @@
 /**
  * Dashboard list pure logic (LIN-25 Phase C1-a).
  *
- * The upstream `GET /pipelines` (#3) supports only status/provider/period
- * filtering + property sort — so the design's TargetSourceId substring search,
- * the "실패 → 진행 중 → 최신순" priority ordering, and the 5/page pagination are
- * all applied CLIENT-side over the fetched window (size=200). These functions
- * hold that client pipeline; the page component wires them to state.
+ * The upstream `GET /pipelines` (#3) supports only status/provider/type/period
+ * filtering + property sort — so the search-box substring search and the
+ * 5/page pagination are applied CLIENT-side over the fetched window (size=200).
+ * Row ORDER always follows the API response verbatim — no client re-sort.
+ * These functions hold that client pipeline; the page component wires them
+ * to state.
  *
  * Verbatim from design/pipeline/admin-pipeline.html renderList()/renderStats().
  */
-import type { PipelineStatus, PipelineSummary, StatisticsPeriodToken } from '@/lib/pipeline/types';
+import type {
+  PipelineStatus,
+  PipelineSummary,
+  PipelineType,
+  StatisticsPeriodToken,
+} from '@/lib/pipeline/types';
 
 /** Design PAGE_SIZE — 5 rows per client page. */
 export const DASH_PAGE_SIZE = 5;
@@ -24,10 +30,10 @@ export const PERIOD_LABELS: Record<StatisticsPeriodToken, string> = {
   '7d': '최근 7일',
 };
 
-/** Segmented control options (default 1d). */
+/** Segmented control options (default 1d) — Figma Make labels (24시간, not 1일). */
 export const PERIOD_OPTIONS: ReadonlyArray<{ value: StatisticsPeriodToken; label: string }> = [
   { value: '1h', label: '1시간' },
-  { value: '1d', label: '1일' },
+  { value: '1d', label: '24시간' },
   { value: '7d', label: '7일' },
 ];
 
@@ -54,33 +60,33 @@ export const PROVIDER_OPTIONS: ReadonlyArray<{ value: string; label: string }> =
   { value: 'IDC', label: 'IDC' },
 ];
 
-/** Priority rank: FAILED(0) → RUNNING(1) → PENDING(2) → everything else(3). */
-const PRIORITY_RANK: Record<string, number> = { FAILED: 0, RUNNING: 1, PENDING: 2 };
-
-export function priorityRank(status: PipelineStatus): number {
-  return PRIORITY_RANK[status] ?? 3;
-}
+/** Pipeline-type filter options — '' = 전체; values are wire PipelineType. */
+export const TYPE_OPTIONS: ReadonlyArray<{ value: '' | PipelineType; label: string }> = [
+  { value: '', label: '유형 전체' },
+  { value: 'INSTALL', label: 'INSTALL' },
+  { value: 'DELETE', label: 'DELETE' },
+  { value: 'CUSTOM', label: 'CUSTOM' },
+];
 
 /**
- * Priority sort: FAILED → RUNNING → PENDING → rest, ties broken by pipeline_id
- * descending (newest first). Pure — returns a new array (never mutates input).
+ * Client substring search across service_code / target_source_id / service_name
+ * (case-insensitive; matches if ANY field contains the term). Trimmed; empty →
+ * passthrough. Preserves the input order (the API response order) verbatim.
  */
-export function sortByPriority(rows: readonly PipelineSummary[]): PipelineSummary[] {
-  return [...rows].sort(
-    (a, b) => priorityRank(a.status) - priorityRank(b.status) || b.pipeline_id - a.pipeline_id,
+export function filterBySearch(rows: readonly PipelineSummary[], q: string): PipelineSummary[] {
+  const term = q.trim().toLowerCase();
+  if (!term) return [...rows];
+  return rows.filter(
+    (p) =>
+      String(p.target_source_id).toLowerCase().includes(term)
+      || p.service_code.toLowerCase().includes(term)
+      || p.service_name.toLowerCase().includes(term),
   );
 }
 
-/** Client substring filter on target_source_id (trimmed; empty → passthrough). */
-export function filterByTarget(rows: readonly PipelineSummary[], q: string): PipelineSummary[] {
-  const term = q.trim();
-  if (!term) return [...rows];
-  return rows.filter((p) => String(p.target_source_id).includes(term));
-}
-
-/** Full client projection: substring filter → priority sort. */
+/** Full client projection: substring search only — order always follows the API response. */
 export function projectRows(rows: readonly PipelineSummary[], q: string): PipelineSummary[] {
-  return sortByPriority(filterByTarget(rows, q));
+  return filterBySearch(rows, q);
 }
 
 export interface PageSlice<T> {

@@ -51,6 +51,23 @@ export function fmtDateTime(iso: string | null | undefined): string {
   return `${pick('year')}-${pick('month')}-${pick('day')} ${hour}:${pick('minute')}`;
 }
 
+/**
+ * ISO-8601 UTC instant → Korean relative time from `now` (default Date.now()):
+ * '방금 전' (<1m), 'N분 전' (<1h), 'N시간 전' (<1d), else 'N일 전'.
+ * `null`/invalid → '-'. `now` is injectable so the derivation stays testable.
+ */
+export function fmtRelativeTime(iso: string | null | undefined, now: number = Date.now()): string {
+  if (!iso) return '-';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '-';
+  const diffMin = Math.floor((now - then) / 60_000);
+  if (diffMin < 1) return '방금 전';
+  if (diffMin < 60) return `${diffMin}분 전`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  return `${Math.floor(diffHour / 24)}일 전`;
+}
+
 const ISO_DURATION = /^P(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/;
 
 /**

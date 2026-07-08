@@ -10,6 +10,8 @@ const summary = (status: PipelineStatus): PipelineSummary => ({
   pipeline_id: 1,
   type: 'INSTALL',
   target_source_id: '101',
+  service_code: 'SVC-000',
+  service_name: '테스트 서비스',
   cloud_provider: 'AWS',
   recipe_definition: 'AWS_INSTALL_V1',
   status,

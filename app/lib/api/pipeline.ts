@@ -104,6 +104,7 @@ function buildQuery(params: Record<string, QueryValue>): string {
 export interface ListPipelinesParams {
   status?: PipelineStatus;
   provider?: CloudProvider;
+  type?: PipelineType;
   period?: StatisticsPeriodToken;
   page?: number;
   size?: number;
