@@ -19,7 +19,7 @@
 **핵심 설계 방향**: 종단 전이는 **이미 `pipeline.status`에 durable하게 저장**되므로
 별도 이벤트 저장소(트랜잭션 아웃박스)를 두지 않는다. 대신 `pipeline.notified_at` 마커
 하나를 두고 **상태에서 알림을 파생(derive-from-state)**하며, 전달은 ADR-021의
-claim/lease 실행 모델을 **그대로** 재사용한다. 이는 ADR-016이 초기 최대 모델에서 event
+claim/lease **메커니즘**을 재사용한다(claim 쿼리·lease 컬럼은 별개 — §2). 이는 ADR-016이 초기 최대 모델에서 event
 outbox를 잘라낸 취지("logs/metrics + domain rows로 충분")와 일치한다.
 
 ADR-016/021의 불변식(“DB row가 곧 상태”, at-least-once + 멱등성, 종단 상태 부활 금지,
@@ -91,11 +91,12 @@ SELECT id FROM pipeline
    AND notified_at IS NULL
    AND (notify_next_at IS NULL OR notify_next_at <= now())
    AND (notify_claimed_until IS NULL OR notify_claimed_until < now())
- ORDER BY notify_next_at            -- NULL 선두
+ ORDER BY notify_next_at ASC, id ASC   -- NULL 선두(신규 종단), id로 deterministic tie-break
  LIMIT 1
  FOR UPDATE SKIP LOCKED;            -- MySQL8; 구현은 @Lock + lock-timeout -2
 UPDATE pipeline SET notify_claimed_by = :fresh_uuid,     -- per-claim fencing
-       notify_claimed_until = now() + :lease;
+       notify_claimed_until = now() + :lease
+ WHERE id = :id;                   -- tx1 SELECT가 집은 그 행만(전체 테이블 아님)
 ```
 
 - **외부 호출** — 알림 sink에 전달(트랜잭션 밖, per-call 타임아웃).
@@ -118,7 +119,16 @@ claim 쿼리를 하나 더 두는 식으로 구현한다(둘 다 안전 — guar
 쿼리상 “미알림”으로 남지만, 건전성 지표 **“가장 오래된 미알림 행 age”는 give-up을
 제외**(`notify_attempts < maxAttempts`)해 정의하고 give-up 행은 **별도 카운트**(§4)로
 감시한다 — give-up이 pending age를 무한히 오염시키지 않게 한다. 별도 dead-letter 테이블은
-두지 않는다(파생 술어 + `notify_attempts`로 충분).
+두지 않는다(파생 술어 + `notify_attempts`로 충분). **재시도 재개**는 sink를 고친 뒤 운영자가
+`notify_attempts`를 리셋하고 `notify_next_at`을 `now()`로 되돌리면 된다(구현 문서 §5) —
+give-up은 영구 폐기가 아니라 “자동 재시도 중단 + 사람 개입 요청”이다.
+
+**채널 gate — 미설정/비활성 sink는 전달 시도가 아니다.** 활성 채널이 없으면(미설정 또는
+`enabled=false`) notifier는 **claim 자체를 하지 않고 idle**한다. 즉 `notify_attempts`를 올리지
+않고 backoff/give-up도 타지 않는다 — 종단 행은 `notified_at IS NULL`로 **보존**되고, 채널이
+(재)활성화되면 그대로 소급 발화한다(§4). “전달 실패”(→attempts++)는 **활성 채널에 실제로
+호출했으나 실패**한 경우로 한정한다. 채널 down 기간은 “전달 대기 age”가 아니라 별도 지표
+(채널 활성 여부 + 비활성 지속시간)로 감시한다.
 
 **실행 워커풀과 격리.** 느린/죽은 sink가 파이프라인 실행을 굶기지 않도록, 종단 알림은
 **전용 스레드풀(또는 별도 워커 loop)**에서 처리하거나 notify 클레임에 작은 동시성 상한을
@@ -157,8 +167,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 - **소비자 계약**: (a) 멱등 dedupe 키(`pipeline_id`, 파이프라인당 종단 1개)를 충분히 오래 보관,
   (b) payload에 `schema_version` 포함, (c) **PII 최소화** — 이 시스템은 PII-인접 인프라를
   다루므로 payload는 **허용 필드만**: `pipeline_id`, `type`(INSTALL/DELETE),
-  `terminal_status`, `target`(식별자), 실패 시 `failed_task`/`error_code`, `schema_version`.
-  그 외 민감 상세는 싣지 않는다.
+  `terminal_status`, `target`(**opaque 식별자 원칙** — hostname/account/DB명 같은 민감
+  식별자는 지양), 실패 시 `failed_task`/`error_code`, `schema_version`. 그 외 민감 상세는
+  싣지 않는다.
 - **알림 지연 = 스캔 주기.** 저지연 wake-up은 필요해지면 durable 파생 위에 힌트로 얹을 수
   있으나(아래 대안) 지금은 불필요. (타깃 MySQL8은 Postgres `LISTEN/NOTIFY`가 없으므로, 필요 시
   in-process 신호나 메시지 브로커를 검토 — V1 범위 밖.)
@@ -189,12 +200,12 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 ### 좋은 점
 
 - **신뢰성 있는 종단 알림**을 dual-write·별도 저장소 없이 얻는다 — 이벤트가 이미 도메인
-  행에 있고, 전달은 ADR-021의 검증된 claim/lease를 그대로 탄다.
+  행에 있고, 전달은 ADR-021의 검증된 claim/lease **메커니즘**(two-tx·fencing)을 탄다.
 - **relay-lease 딜레마가 원천 소멸.** 알림이 `pipeline` 행 작업이라 ADR-021의 two-tx
   split·fencing이 그대로 적용된다(별도 relay가 lease를 재발명할 필요 없음).
 - **움직이는 부품 최소.** 알림 전달용 새 테이블·relay·pruner·이벤트 taxonomy 없음
-  (`pipeline`에 알림 메타데이터 컬럼 + 스캔 술어/분기 하나). Slack 채널 설정만 단일 행
-  테이블 하나로 admin이 관리한다.
+  (`pipeline`에 알림 메타데이터 컬럼 + 스캔 술어/분기 하나). **V1 sink는 Slack** 하나이며,
+  채널 설정만 단일 행 테이블 하나로 admin이 관리한다(구현 문서).
 - **ADR-016 취지와 일치.** 잘라냈던 outbox를 되살리지 않고, “도메인 행 + logs/metrics”
   원칙을 지킨다. 도메인 상태(`status`·enum)는 불변.
 
@@ -204,7 +215,8 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   `notify_attempts` + notify 전용 lease 쌍 `notify_claimed_by`/`notify_claimed_until`, ADR-021
   실행 컬럼과 동일 범주). 종단-미알림 파이프라인을 집는 claim 술어·인덱스·워커 분기가
   하나씩 늘어난다.
-- **at-least-once → 멱등 소비자 필수**(`pipeline_id` + 종단 종류로 dedupe).
+- **at-least-once → 멱등 소비자 필수**(`pipeline_id`만으로 dedupe — 파이프라인당 종단 1개;
+  `terminal_status`는 payload 정보이지 dedupe 키가 아니다).
 - **알림 지연 = 스캔 주기.** 저지연이 필요하면 §4의 wake-up 힌트를 나중에 도입.
 - **다중 독립 sink는 V1 범위 밖** — 필요해질 때 per-sink 상태를 도입.
 - **알림 전달을 실행 워커풀에서 격리**해야 한다(전용 풀/loop 또는 notify 클레임 상한) —
@@ -270,8 +282,8 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 - [ADR-016](016-install-delete-pipeline-domain-model.md) — 이 ADR이 얹는 도메인 모델
   (event outbox를 “Costs we accept”로 잘라낸 원출처 — 이 ADR은 그 취지를 이어 상태 파생을
   택한다). `notified_at` 등 알림 메타데이터 컬럼은 ADR-022 소유.
-- [ADR-021](021-pipeline-execution-model.md) — 알림 전달이 **그대로** 재사용하는 claim/lease
-  실행 모델(§2 claim, §3 two-tx split, §4 guarded write-back, §2 「Execution schema note」).
+- [ADR-021](021-pipeline-execution-model.md) — 알림 전달이 재사용하는 claim/lease **메커니즘**
+  (claim 쿼리·lease 컬럼은 별개; §2 claim, §3 two-tx split, §4 guarded write-back, §2 「Execution schema note」).
   postCheck로 확정된 `CONDITION_CHECK`의 실행 의미(retry-count 바운드 poll)도 여기 있다.
 - [022-notifier-implementation.md](../../design/pipeline/022-notifier-implementation.md) —
   이 결정의 **구현 세부 명세**(Slack sink, MySQL8/Spring, 엔티티·설정·claim/전달/write-back·
@@ -328,3 +340,12 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   “취소 계기”가 구현 payload에 없어 overclaim → 허용 필드(id/type/target)로 정정.
   (4) 종단 알림 1회 성질이 ADR-016 종단 불변성에 의존함을 불변식 4로 명시(ADR-023 회귀와
   무관). (5) 대안 G(1:1 사이드카 테이블) 추가·기각.
+- 2026-07-08: **90점 게이트 리뷰 반영(codex 86 / opus 86 수렴).** (1) **채널 gate 명시** —
+  미설정/비활성 sink는 claim 자체를 안 하고 idle하므로 attempts/give-up을 소진하지 않는다
+  (backlog 소급 발화 보장과 give-up 로직의 충돌 해소; “전달 실패”를 활성 채널 실호출 실패로
+  한정). (2) **소비자 dedup 계약 통일** — `pipeline_id`만(§2·§4 불일치 제거; `terminal_status`는
+  payload 정보이지 키 아님). (3) claim `UPDATE`에 `WHERE id = :id` 명시(전체 테이블 오독 방지),
+  `ORDER BY notify_next_at ASC, id ASC` tie-break. (4) **ADR↔구현 정합** — 구현 문서
+  `oldestUnnotifiedAt`에 `notifyAttempts < maxAttempts` 필터 + `countGivenUp` 추가(§4 give-up
+  지표 정의를 실제 쿼리로 구현). (5) give-up 재개 경로(admin 리셋) 명시, payload `target`
+  opaque 원칙, V1 sink=Slack 명시, “그대로 재사용”→“메커니즘 재사용”으로 잔여 표현 정정.

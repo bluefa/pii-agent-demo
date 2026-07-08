@@ -207,14 +207,26 @@ public interface NotifyRepository extends JpaRepository<Pipeline, Long> {
 
     // tx2 행 잠금은 기존 PipelineRepository.findByIdForUpdate 를 재사용한다(여기 중복 정의하지 않음).
 
-    // 지표: 가장 오래된 미알림 종단 행의 age. min(lastActivityAt) 을 종단 시각으로 쓰는 건, 종단 행은
+    // 지표: 가장 오래된 "전달 대기" 종단 행의 age. min(lastActivityAt) 을 종단 시각으로 쓰는 건, 종단 행은
     // terminalize 후 다시 쓰이지 않아(ADR-021 불변식) lastActivityAt == 종단 시각이 되기 때문(그때만 유효).
+    // give-up 행(notifyAttempts >= maxAttempts)은 notifiedAt 이 영원히 null 이라 이 age 를 무한 오염하므로
+    // 제외한다(ADR-022 §4). give-up 은 별도로 countGivenUp() 으로 감시한다.
     @Query("select min(p.lastActivityAt) from Pipeline p "
          + "where p.status in (com.bff.pipeline.enums.PipelineStatus.DONE, "
          + "                   com.bff.pipeline.enums.PipelineStatus.FAILED, "
          + "                   com.bff.pipeline.enums.PipelineStatus.CANCELLED) "
-         + "and p.notifiedAt is null")
-    Optional<Instant> oldestUnnotifiedAt();
+         + "and p.notifiedAt is null "
+         + "and p.notifyAttempts < :maxAttempts")
+    Optional<Instant> oldestUnnotifiedAt(@Param("maxAttempts") int maxAttempts);
+
+    // give-up 행 수(사람 개입 필요 신호). maxAttempts 도달 후에도 notifiedAt 이 null 인 종단 행.
+    @Query("select count(p) from Pipeline p "
+         + "where p.status in (com.bff.pipeline.enums.PipelineStatus.DONE, "
+         + "                   com.bff.pipeline.enums.PipelineStatus.FAILED, "
+         + "                   com.bff.pipeline.enums.PipelineStatus.CANCELLED) "
+         + "and p.notifiedAt is null "
+         + "and p.notifyAttempts >= :maxAttempts")
+    long countGivenUp(@Param("maxAttempts") int maxAttempts);
 }
 ```
 
@@ -563,9 +575,10 @@ public record TestResult(
 `spring-boot-starter-actuator`/Micrometer 는 현재 pom 에 없다. V1 은 **구조화 로그**로 시작:
 
 - `notify delivered pipeline={} attempts={}` (INFO), `notify delivery failed …`(WARN), `notify give-up …`(ERROR).
-- 정체 감시: `NotifyRepository.oldestUnnotifiedAt()` 를 주기 로그 또는 (actuator 도입 시) gauge 로.
+- 정체 감시: `oldestUnnotifiedAt(settings.maxAttempts())`(give-up 제외한 전달 대기 age) +
+  `countGivenUp(settings.maxAttempts())`(사람 개입 필요 수) 를 주기 로그 또는 (actuator 도입 시) gauge 로.
 - actuator 를 추가하면 gauge 3개 노출: `notify.unnotified.oldest.age.seconds`,
-  `notify.attempts.total`(counter), `notify.giveup.total`(counter). **도입은 후속**(YAGNI).
+  `notify.attempts.total`(counter), `notify.giveup.total`(gauge=`countGivenUp`). **도입은 후속**(YAGNI).
 
 ## 8. 설계 판단 기록 (구현 중 갈린 지점)
 
