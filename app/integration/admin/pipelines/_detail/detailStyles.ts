@@ -190,11 +190,13 @@ export const detailStyles = {
    */
   builder: {
     /** Catalog rows inside the right-docked "+" panel (panel frame lives in BUILD_CSS). */
+    popList: 'flex flex-col gap-1.5',
+    /** Each catalog entry is its own rounded white card on the panel's primary wash. */
     popRow:
-      'w-full flex items-start gap-2.5 rounded-[8px] px-2.5 py-2 text-left cursor-pointer hover:bg-[var(--pl-bg-inner)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--pl-primary)]',
-    popName: 'block text-[13px] font-semibold leading-[1.3] text-[var(--pl-text-strong)]',
+      'w-full flex items-start gap-2.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 py-2.5 text-left cursor-pointer shadow-[var(--pl-shadow-xs)] hover:border-[var(--pl-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--pl-primary)]',
+    popName: 'block text-[14px] font-semibold leading-[1.3] text-[var(--pl-text-strong)]',
     popDesc:
-      'mt-0.5 text-[12px] leading-[1.4] text-[var(--pl-text-weak)] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden',
+      'mt-1.5 text-[12px] leading-[1.4] text-[var(--pl-text-weak)] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden',
     /** Count + drag affordance line under the canvas. */
     hint: 'mt-2 text-[12px] text-[var(--pl-text-weak)]',
     /** Non-persistence notice (summary step) — .notice grammar. */

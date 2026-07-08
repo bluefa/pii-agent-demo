@@ -68,9 +68,9 @@ const BUILD_CSS = `
 .pl-flow.pl-build .nd-add:focus-visible{outline:2px solid var(--pl-primary);outline-offset:2px}
 .pl-flow.pl-build .nd-add:disabled{opacity:.45;cursor:default}
 .pl-flow.pl-build .nd-add.nd-add-first{width:auto;height:auto;margin-inline:auto;display:flex;align-items:center;gap:8px;padding:20px 28px;font-size:13px;font-weight:600}
-.pl-flow.pl-build .pl-panel{flex:none;width:260px;display:flex;flex-direction:column;border-left:1px solid var(--pl-border);background:var(--pl-bg-card)}
-.pl-flow.pl-build .pl-panel-head{flex:none;display:flex;align-items:center;justify-content:space-between;padding:10px 12px 8px;font-size:12px;font-weight:700;color:var(--pl-text-strong);border-bottom:1px solid var(--pl-gray-100)}
-.pl-flow.pl-build .pl-panel-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px}
+.pl-flow.pl-build .pl-panel{flex:none;width:320px;display:flex;flex-direction:column;border-left:1px solid var(--pl-border);background:var(--pl-primary-bg)}
+.pl-flow.pl-build .pl-panel-head{flex:none;display:flex;align-items:center;justify-content:space-between;padding:12px 14px 9px;font-size:14px;font-weight:700;color:var(--pl-text-strong);border-bottom:1px solid var(--pl-primary-ring)}
+.pl-flow.pl-build .pl-panel-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:10px}
 @media (prefers-reduced-motion:no-preference){.pl-flow.pl-build .pl-panel{animation:pl-buildPanelIn .15s ease-out}}
 @keyframes pl-buildPanelIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
 `;
@@ -85,7 +85,7 @@ export function AddTaskMenu({ entries, onPick }: AddTaskMenuProps): ReactElement
   const b = detailStyles.builder;
   const pv = detailStyles.preview;
   return (
-    <div role="menu" aria-label="Task 추가">
+    <div role="menu" aria-label="Task 추가" className={b.popList}>
       {entries.map((e, i) => (
         <button
           key={e.name}
@@ -164,6 +164,20 @@ export function CustomBuildStep({
   // Detaches the window listeners of the active drag session (if any).
   const detachRef = useRef<(() => void) | null>(null);
   useEffect(() => () => detachRef.current?.(), []);
+
+  // A new task lands at the right end of the chain — bring it (and the "+")
+  // into view so the add is visible even when the track overflows.
+  const prevLenRef = useRef(chosen.length);
+  useEffect(() => {
+    const grew = chosen.length > prevLenRef.current;
+    prevLenRef.current = chosen.length;
+    if (!grew) return;
+    addBtnRef.current?.scrollIntoView({
+      inline: 'nearest',
+      block: 'nearest',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    });
+  }, [chosen.length]);
 
   // Escape closes the panel only — captured so the ModalShell's
   // document-level Escape handler doesn't also close the whole modal.
