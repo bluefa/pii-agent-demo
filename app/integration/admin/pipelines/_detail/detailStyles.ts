@@ -189,8 +189,7 @@ export const detailStyles = {
    * and the hint/notice lines. Every color is a --pl-* token.
    */
   builder: {
-    /** "+" popover — fixed above the modal (z-50) so canvas overflow can't clip it. */
-    pop: 'fixed z-[60] w-[300px] max-h-[248px] overflow-y-auto overscroll-contain rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-1.5 shadow-[var(--pl-shadow-lg)]',
+    /** Catalog rows inside the right-docked "+" panel (panel frame lives in BUILD_CSS). */
     popRow:
       'w-full flex items-start gap-2.5 rounded-[8px] px-2.5 py-2 text-left cursor-pointer hover:bg-[var(--pl-bg-inner)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--pl-primary)]',
     popName: 'block text-[13px] font-semibold leading-[1.3] text-[var(--pl-text-strong)]',
