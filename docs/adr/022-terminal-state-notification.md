@@ -112,7 +112,8 @@ UPDATE pipeline SET notify_claimed_by = :fresh_uuid,     -- per-claim fencing
 
 - **외부 호출** — 알림 sink에 전달(트랜잭션 밖, per-call 타임아웃).
 - **tx2(guarded write-back)** — 성공 시
-  `SET notified_at = :now, notify_claimed_by = NULL, notify_claimed_until = NULL WHERE id = :id AND notify_claimed_by = :token AND notified_at IS NULL`
+  `SET notified_at = :now, notify_claimed_by = NULL, notify_claimed_until = NULL, notify_next_at = NULL WHERE id = :id AND notify_claimed_by = :token AND notified_at IS NULL`
+  (`notify_next_at`도 비워 stale backoff 메타데이터를 남기지 않는다 — postmortem 혼선 방지)
   (ADR-021 §4 fencing과 동형; 실패 경로와 동일한 `notified_at IS NULL` 가드로 대칭). 실패 시 아래 실패 경로.
 
 이로써 ADR-021 §3의 **two-transaction split**(락을 외부 호출에 물리지 않는다)과 fencing이
@@ -206,7 +207,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   **최소 보관 기간 = max(파이프라인 행 보존기간, 최대 재시도 horizon + 수동 replay 창)**.
   중복 전달은 lease 만료·워커 크래시·타임아웃 모호·수동 재시도 리셋에서 나므로 그 창을
   넘겨 보관해야 안전하다. (V1 Slack sink는 사람 상관이라 이 정식 계약은 **이후 도입될
-  프로그램적 sink에 적용**된다.)
+  프로그램적 sink에 적용**된다.) **`pipeline_id` dedupe는 id가 환경 간 전역 유일하고 재사용
+  되지 않을 때만 성립**한다 — 아카이브/복원·멀티환경에서 같은 Slack/웹훅을 공유하면 payload에
+  `environment`/`tenant`를 넣어 dedupe 범위를 한정한다(V1 단일환경 가정).
   (b) payload에 `schema_version` 포함, (c) **PII 최소화(하드 계약)** — 이 시스템은 PII-인접
   인프라를 다루므로 payload는 **허용 필드만**: `pipeline_id`, `type`(INSTALL/DELETE/CUSTOM,
   미해석 열화 시 null 허용 — 구현 `NotifyPayload`와 정합), `terminal_status`, `target_ref`,
@@ -214,8 +217,10 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   **`target_ref`는 대상의 opaque 참조여야 하며, raw hostname·account·DB명 등 민감 연결
   식별자는 payload에 직렬화하지 않는다(MUST NOT)** — “지양”이 아니라 금지다. **참조는
   canonical opaque 소스(전용 매핑 지점 `toTargetRef`, 구현 §4.2)에서 나와야 하며 “아무 target
-  필드나 그대로”가 아니다** — 그 필드가 민감 값을 담게 되면 매핑에서 opaque 핸들로 치환한다. 사람이 봐야 할 실제 대상 상세는 알림 본문이 아니라 `pipeline_id`
-  링크 뒤 **권한 있는 화면**에서 조회한다. 이 규칙은 구현 문서 `NotifyPayload`/Slack 템플릿에도
+  필드나 그대로”가 아니다** — 그 필드가 민감 값을 담게 되면 매핑에서 opaque 핸들로 치환한다.
+  **payload allowlist에 `url`은 없다** — 사람이 봐야 할 실제 대상 상세는 알림 본문이 아니라
+  `pipeline_id`로 **권한 있는 콘솔**에서 조회한다(민감 링크를 채널에 싣지 않도록 링크 필드
+  자체를 payload에서 뺀다). 이 규칙은 구현 문서 `NotifyPayload`/Slack 템플릿에도
   동일하게 강제된다(그 외 민감 상세는 싣지 않는다). **특히 Slack 본문에 raw 예외 메시지/스택을
   넣지 않고 승인된 `error_code`로 매핑된 값만 노출**한다(예외 텍스트는 흔한 우발적 PII 유출 경로).
   **`failed_task`도 닫힌 recipe task 키/enum만 허용**한다 — provider/운영자 유래 raw task 명이
@@ -251,15 +256,35 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 - **give-up 경보는 필수(MUST).** give-up 행은 자동 재시도가 멈추고 pending-age 지표에서도
   빠지므로, **감시하지 않으면 종단 알림이 조용히 영구 유실**된다 — 이 설계의 최고 위험
   경로다. 따라서 **`countGivenUp > 0`이면 반드시 담당자(파이프라인 운영자)에게 경보**한다:
-  - **신호**: V1은 actuator/Micrometer가 없으므로 give-up 시 남기는 `ERROR` 로그
-    (`notify give-up pipeline={} after {} attempts`)를 **로그 기반 경보**(조직 alerting 스택,
-    §3)로 연결한다. actuator 도입 후에는 `notify.giveup.total` gauge에 임계 경보를 건다.
+  - **신호(정규 소스 = DB 파생)**: 경보의 **정규 소스는 durable DB 술어**
+    `count(status IN 종단 AND notified_at IS NULL AND notify_attempts >= maxAttempts) > 0`
+    (=`countGivenUp`)를 **주기 폴링**하는 것이다 — 로그는 유실·수집 누락·경보 배선 전 발생이
+    가능하므로 정규 소스로 삼지 않는다. **give-up `ERROR` 로그는 진단 보조**(2차)다. actuator
+    도입 후에는 이 DB gauge(`notify.giveup.total`)에 임계 경보를 건다.
   - **심각도/라우팅**: 운영 알림 경로(§3)와 동일 스택, page 대상은 파이프라인 운영자.
   - **복구 절차**: sink를 고친 뒤 admin이 해당 행의 `notify_attempts`를 리셋하고
     `notify_next_at`을 `now()`로 되돌려 재시도를 재개(§2, 구현 문서 §5).
   - **운영 수용 기준(배포 게이트)**: notifier를 프로덕션에서 켜기 전, 위 경보의 **쿼리/로그
     패턴·담당자·배포 점검이 실제로 존재**해야 한다 — give-up 경보 없이 켜면 조용한 유실
     위험을 그대로 지므로, 이 경보 배선은 “있으면 좋음”이 아니라 **가동 전제**다.
+
+### 5. 롤아웃(최초 도입) — 레거시 종단 행 소급 발화 방지
+
+상태-파생이므로 **`notified_at`을 라이브에 추가하는 순간 기존의 모든 종단 파이프라인이
+“미알림”이 된다** — 그대로 켜면 notifier가 **레거시 종단 전부를 Slack에 소급 발화**(폭주)한다.
+피처 도입 전 종단 행은 **알림 대상이 아니므로**, 도입은 **일회성 마이그레이션**으로 이들을
+범위에서 뺀다:
+
+- **V1 채택: 도입 시점 컷오프 backfill.** 배포 시 1회
+  `UPDATE pipeline SET notified_at = :enabled_at WHERE status IN 종단 AND notified_at IS NULL`로
+  기존 종단 행을 “처리됨”으로 표시한다. 이후 notifier는 도입 이후 종단만 발화한다. — 이는
+  §4가 금지한 **런타임 운영자 suppression-backfill(미전달 in-scope 행 은폐)과 다른, 문서화된
+  일회성 레거시 마이그레이션**이다(도입 전 행은 애초에 알림 대상이 아니었다).
+- **대안: 활성 컷오프 술어.** claim에 `AND last_activity_at >= :enabled_at`(config)를 더해
+  backfill 없이 컷오프. 컬럼 backfill을 피하지만 config 상시 유지가 필요. V1은 단순한 backfill 택함.
+
+어느 쪽이든 **“기존 종단 replay”는 기본이 아니다** — 정말 필요하면 명시적 opt-in으로 좁은
+기간만 replay한다.
 
 ## 고려한 대안
 
@@ -442,6 +467,12 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
     IS NULL` 종단 행(give-up 포함)을 삭제 금지**(불변식 5) — 안 그러면 알림이 조용히 소멸;
     정리하려면 감사 suppression 마커 선행. 구조화 전달 로그는 `pipeline_id`·`terminal_status`·
     `attempt`·`sink`·응답 분류 포함(ADR↔구현 §7 정합).
+  - **롤아웃(§5)**: `notified_at` 도입 시 레거시 종단 전부가 “미알림”이 되어 소급 폭주 →
+    도입 시점 컷오프 backfill(1회 마이그레이션, 런타임 suppression과 구별)로 도입 이후 종단만
+    발화. give-up 경보 **정규 소스 = DB 파생 `countGivenUp` 폴링**(로그는 2차 진단).
+  - **소소한 정정 2**: 성공 write-back이 `notify_next_at`도 clear(stale backoff 제거),
+    `pipeline_id` dedupe는 환경 전역유일 전제(멀티환경 시 `environment` 포함), payload에 `url`
+    없음(콘솔에서 `pipeline_id`로 조회).
   - **소소한 정정**: dedup 키 `pipeline_id`만, claim `WHERE id`·`ORDER BY … id` tie-break,
     단일 앱 `Clock` 일관(+멀티파드 skew 가정), 대안 G(사이드카 테이블) 기각, “verbatim”→
     “메커니즘” 재사용, `type` CUSTOM/null 정합, §1 “실행 claim” 한정 문구, 구조화 로그.

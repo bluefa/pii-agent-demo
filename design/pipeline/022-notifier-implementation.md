@@ -406,6 +406,7 @@ public class NotifyWriteBack {
             p.setNotifiedAt(clock.instant());
             p.setNotifyClaimedBy(null);
             p.setNotifyClaimedUntil(null);
+            p.setNotifyNextAt(null);   // stale backoff 메타데이터 제거(postmortem 혼선 방지)
         });
     }
 
