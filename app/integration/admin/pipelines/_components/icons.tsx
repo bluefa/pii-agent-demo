@@ -13,6 +13,7 @@ export type IconName =
   | 'search'
   | 'chev-l'
   | 'chev-r'
+  | 'plus'
   | 'check'
   | 'x'
   | 'ban'
@@ -43,6 +44,7 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
   ),
   'chev-l': <path d="M15 18.5 8.5 12 15 5.5" />,
   'chev-r': <path d="m9 5.5 6.5 6.5L9 18.5" />,
+  plus: <path d="M12 5v14M5 12h14" />,
   check: <path d="m4.5 12.5 5 5L19.5 7" />,
   x: <path d="M6 6l12 12M18 6 6 18" />,
   ban: (
