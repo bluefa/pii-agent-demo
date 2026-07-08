@@ -597,9 +597,12 @@ public record TestResult(
 - `notify delivered pipeline={} attempts={}` (INFO), `notify delivery failed …`(WARN),
   `notify give-up pipeline={} after {} attempts`(ERROR — **로그 기반 경보 필수**, ADR-022 §4).
 - **두 age 를 구분**(ADR-022 §4): `oldestUnnotifiedAt(maxAttempts)` 는 비활성 채널 backlog 까지
-  포함한 **총 backlog age**(`terminal_notification_backlog_age`). 반면 “전달 정체” 경보
+  포함한 **총 backlog age**(`terminal_notification_backlog_age`). “전달 정체” 경보
   (`notify_delivery_pending_age`)는 **활성 채널일 때만** 평가하고 채널 비활성 동안은 suppress 한다
-  (정체가 아니라 gate 때문). `countGivenUp(maxAttempts)` 는 give-up 수(사람 개입 필요).
+  (정체가 아니라 gate 때문). V1 은 이 둘을 **같은 쿼리 결과에 alert-gating 만 다르게** 얹어
+  시작한다(gauge 는 후속 YAGNI). 나중에 pending 을 별도 gauge 로 뽑을 땐 due 조건
+  `(notifyNextAt is null or notifyNextAt <= now)` 을 추가한 due-only 변형을 쓴다(future 재시도
+  예약 행이 pending age 를 조기 오염하지 않도록). `countGivenUp(maxAttempts)` 는 give-up 수(사람 개입 필요).
 - actuator 를 추가하면 gauge 노출: `notify.backlog.oldest.age.seconds`(총),
   `notify.delivery.pending.age.seconds`(활성 채널 한정), `notify.attempts.total`(counter),
   `notify.giveup.total`(gauge=`countGivenUp`). **도입은 후속**(YAGNI).

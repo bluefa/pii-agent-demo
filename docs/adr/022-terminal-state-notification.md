@@ -103,6 +103,11 @@ UPDATE pipeline SET notify_claimed_by = :fresh_uuid,     -- per-claim fencing
  WHERE id = :id;                   -- tx1 SELECT가 집은 그 행만(전체 테이블 아님)
 ```
 
+위 `now()`는 개념 표기이고, **구현은 주입된 단일 앱 `Clock`을 일관되게 쓴다**(DB `now()`와
+앱 시계를 섞지 않는다 — lease 만료·재시도 due 판정이 한 시계 기준이어야 함, 구현 문서).
+**설정 기본값**(`maxAttempts`·lease·call-timeout·scan interval 등)은 구현 문서 §3에
+비규범 기본으로 둔다(이 ADR은 정책만, 값은 튜닝 대상).
+
 - **외부 호출** — 알림 sink에 전달(트랜잭션 밖, per-call 타임아웃).
 - **tx2(guarded write-back)** — 성공 시
   `SET notified_at = now(), notify_claimed_by = NULL, notify_claimed_until = NULL WHERE id = :id AND notify_claimed_by = :token AND notified_at IS NULL`
@@ -156,9 +161,12 @@ give-up은 영구 폐기가 아니라 “자동 재시도 중단 + 사람 개입
 ADR-021의 `runningPipelineCap`/`slotCap`에 **계상하지 않는다**(그 캡은 `status='RUNNING'`만 센다).
 
 **보장:**
-- **at-least-once 전달.** `notified_at`은 **한 번만 찍히는 상태 마커**(파이프라인당 종단
-  알림 *상태* 1개)이지만 **외부 전달은 at-least-once** — 전달 성공 후 `notified_at` 기록
-  전 크래시/타임아웃/lease 만료로 **중복 전달이 가능**하다. 따라서 **소비자는 멱등해야
+- **at-least-once *시도* + give-up 전까지 무유실**(≠ 무조건 전달). 정확히는 **미전달 종단
+  행을 durable하게 검출**하고 성공까지 재시도하되 `maxAttempts`에서 멈춘다 — 따라서 **실제
+  전달은 sink 회복 + 성공 재시도(또는 admin reset 후 replay)에 조건부**다(give-up 후에도
+  “조용한 유실”은 없다: §4의 give-up 경보가 사람을 부른다). `notified_at`은 **한 번만 찍히는
+  상태 마커**(파이프라인당 종단 알림 *상태* 1개)이지만 **성공 전달 시도는 at-least-once**
+  — 전달 성공 후 `notified_at` 기록 전 크래시/타임아웃/lease 만료로 **중복 전달이 가능**하다. 따라서 **소비자는 멱등해야
   한다**(`pipeline_id`로 dedupe — 파이프라인당 종단은 하나이므로 `pipeline_id`만으로 충분;
   불변식 4 참조). **단, V1 sink인 Slack 웹훅은 프로그램적 dedupe를 못 한다** — 그래서
   V1에서 “멱등”은 **중복 메시지를 그대로 노출하고 사람이 `pipeline_id`로 상관(correlate)**하는
@@ -168,8 +176,11 @@ ADR-021의 `runningPipelineCap`/`slotCap`에 **계상하지 않는다**(그 캡�
   이전/이후 파이프라인 알림은 `pipeline_id` 키로 소비자가 구분한다.
 - **stale straggler 안전.** lease 만료 뒤 되살아난 워커의 tx2는 `notify_claimed_by` 가드
   (+`notified_at IS NULL`)에서 no-op(ADR-021 §4와 동형) — 이중 스탬프·클로버 없음.
-- **`notified_at`의 의미**: “sink가 durable하게 수신(ack)”이지 “모든 다운스트림이 봤다”가
-  아니다. sink가 내부적으로 fan-out하면 그 신뢰성은 sink 책임이다.
+- **`notified_at`의 의미(sink별)**: **V1 Slack에서는 “설정된 sink가 성공 HTTP 응답(2xx)을
+  반환”**을 뜻한다 — Slack Incoming Webhook의 2xx는 *접수*이지 강한 durable-receipt 계약이
+  아니다(그 이상은 Slack 책임). “durable ack”이 실제로 필요하면 그 계약을 제공하는 sink나
+  durable bridge sink를 도입할 때 `notified_at` 의미를 그 수준으로 올린다. 어느 경우든
+  “모든 다운스트림이 봤다”는 아니다(sink 내부 fan-out 신뢰성은 sink 책임).
 
 **V1은 단일 논리 sink(Slack 웹훅 하나)**를 가정한다. 서로 독립적으로 재시도돼야 하는 다중
 sink가 실제로 필요해지면 per-sink 전달 상태(또는 그때 비로소 작은 outbox)를 도입한다 —
@@ -196,9 +207,10 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   (b) payload에 `schema_version` 포함, (c) **PII 최소화(하드 계약)** — 이 시스템은 PII-인접
   인프라를 다루므로 payload는 **허용 필드만**: `pipeline_id`, `type`(INSTALL/DELETE),
   `terminal_status`, `target_ref`, 실패 시 `failed_task`/`error_code`, `schema_version`.
-  **`target_ref`는 대상의 opaque 참조(파이프라인 target 키/식별자)여야 하며, raw
-  hostname·account·DB명 등 민감 연결 식별자는 payload에 직렬화하지 않는다(MUST NOT)** —
-  “지양”이 아니라 금지다. 사람이 봐야 할 실제 대상 상세는 알림 본문이 아니라 `pipeline_id`
+  **`target_ref`는 대상의 opaque 참조여야 하며, raw hostname·account·DB명 등 민감 연결
+  식별자는 payload에 직렬화하지 않는다(MUST NOT)** — “지양”이 아니라 금지다. **참조는
+  canonical opaque 소스(전용 매핑 지점 `toTargetRef`, 구현 §4.2)에서 나와야 하며 “아무 target
+  필드나 그대로”가 아니다** — 그 필드가 민감 값을 담게 되면 매핑에서 opaque 핸들로 치환한다. 사람이 봐야 할 실제 대상 상세는 알림 본문이 아니라 `pipeline_id`
   링크 뒤 **권한 있는 화면**에서 조회한다. 이 규칙은 구현 문서 `NotifyPayload`/Slack 템플릿에도
   동일하게 강제된다(그 외 민감 상세는 싣지 않는다). **특히 Slack 본문에 raw 예외 메시지/스택을
   넣지 않고 승인된 `error_code`로 매핑된 값만 노출**한다(예외 텍스트는 흔한 우발적 PII 유출 경로).
@@ -234,6 +246,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   - **심각도/라우팅**: 운영 알림 경로(§3)와 동일 스택, page 대상은 파이프라인 운영자.
   - **복구 절차**: sink를 고친 뒤 admin이 해당 행의 `notify_attempts`를 리셋하고
     `notify_next_at`을 `now()`로 되돌려 재시도를 재개(§2, 구현 문서 §5).
+  - **운영 수용 기준(배포 게이트)**: notifier를 프로덕션에서 켜기 전, 위 경보의 **쿼리/로그
+    패턴·담당자·배포 점검이 실제로 존재**해야 한다 — give-up 경보 없이 켜면 조용한 유실
+    위험을 그대로 지므로, 이 경보 배선은 “있으면 좋음”이 아니라 **가동 전제**다.
 
 ## 고려한 대안
 
@@ -390,52 +405,28 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   → notify 전용 lease 쌍(`notify_claimed_by`/`notify_claimed_until`)으로 분리(컬럼 3→5).
   MySQL8 부분 인덱스 부재 반영(복합 인덱스), `LISTEN/NOTIFY`는 Postgres 전용이라 저지연 옵션은
   구현 문서에서 제외.
-- 2026-07-07: **정합·운영 반영(리뷰 후속).** (1) give-up 행이 “미알림 age” 지표를 무한 오염
-  하던 문제 수정 — pending age를 `notify_attempts < maxAttempts`로 정의, give-up은 별도 카운트.
-  (2) 미설정/비활성 sink 시 적체·소급 발화(및 backfill 대안) 명시. (3) CANCELLED payload의
-  “취소 계기”가 구현 payload에 없어 overclaim → 허용 필드(id/type/target)로 정정.
-  (4) 종단 알림 1회 성질이 ADR-016 종단 불변성에 의존함을 불변식 4로 명시(ADR-023 회귀와
-  무관). (5) 대안 G(1:1 사이드카 테이블) 추가·기각.
-- 2026-07-08: **90점 게이트 리뷰 반영(codex 86 / opus 86 수렴).** (1) **채널 gate 명시** —
-  미설정/비활성 sink는 claim 자체를 안 하고 idle하므로 attempts/give-up을 소진하지 않는다
-  (backlog 소급 발화 보장과 give-up 로직의 충돌 해소; “전달 실패”를 활성 채널 실호출 실패로
-  한정). (2) **소비자 dedup 계약 통일** — `pipeline_id`만(§2·§4 불일치 제거; `terminal_status`는
-  payload 정보이지 키 아님). (3) claim `UPDATE`에 `WHERE id = :id` 명시(전체 테이블 오독 방지),
-  `ORDER BY notify_next_at ASC, id ASC` tie-break. (4) **ADR↔구현 정합** — 구현 문서
-  `oldestUnnotifiedAt`에 `notifyAttempts < maxAttempts` 필터 + `countGivenUp` 추가(§4 give-up
-  지표 정의를 실제 쿼리로 구현). (5) give-up 재개 경로(admin 리셋) 명시, payload `target`
-  opaque 원칙, V1 sink=Slack 명시, “그대로 재사용”→“메커니즘 재사용”으로 잔여 표현 정정.
-- 2026-07-08: **재리뷰 반영(codex 88 / opus 92).** (1) **실패 write-back도 fencing 가드 명시**
-  (`WHERE id=:id AND notify_claimed_by=:token AND notified_at IS NULL`) — stale worker의 실패
-  write-back이 타 worker 성공 후 attempts를 오염시키는 것을 차단(구현 `guarded()`에 notifiedAt
-  가드 추가). (2) **claim 술어에 `notify_attempts < maxAttempts` 추가** — give-up 배제를
-  far-future 값이 아니라 술어로 보장(sentinel/clock/admin 실수에 강건; 구현 `lockNotifiable`도
-  동일 반영). (3) **채널 gate race 규칙 명시** — gate는 claim 직전 확인, in-flight 호출은 정상
-  성공/실패로 마무리(새 claim만 차단). (4) polish: dedup 문장에 불변식 4 xref, target 상세는
-  권한 화면에서 조회(채널에 원문 식별자 금지), §2 sink 문장에 Slack 명시. 구현 문서의 stale
-  TODO(§8) 완료 표기로 정정.
-- 2026-07-08: **PII·give-up 경보 하드닝(codex 88 재리뷰, 양 리뷰어 수렴 항목).** (1) **target
-  PII를 하드 계약으로** — `target`→`target_ref`(opaque 참조), raw host/account/DB명 직렬화
-  금지(MUST NOT), 사람용 상세는 권한 화면 조회. ADR §4 + 구현 `NotifyPayload`/Slack 템플릿
-  동시 반영(“지양”→금지). (2) **give-up 경보를 필수(MUST)로** — give-up은 자동 재시도 정지 +
-  pending-age 제외라 미감시 시 조용한 영구 유실 → `countGivenUp > 0`이면 담당자 page(신호=ERROR
-  로그 기반 경보, 심각도/라우팅/복구 절차 명시). (3) polish: 감사-손실 생존을 위한 구조화 전달
-  로그 필수 필드(`pipeline_id`·`terminal_status`·`attempt`·sink 응답 분류), relay-lease 문구
-  정밀화, 인덱스 커버리지 한계 명시, backlog burst 상한=단일 스레드 loop 직렬 드레인.
-- 2026-07-08: **일관성 하드닝(codex 87 재리뷰).** (1) **Slack 멱등 계약 명확화** — V1 Slack
-  웹훅은 프로그램적 dedupe 불가 → “멱등”은 중복 노출 + 사람이 `pipeline_id`로 상관(수용);
-  기계적 dedupe는 프로그램적 다운스트림 소비자 계약. (2) **두 age 지표 분리** —
-  `notify_delivery_pending_age`(활성 채널 한정, 비활성 시 suppress) vs
-  `terminal_notification_backlog_age`(비활성 backlog 포함); 채널 gate 문구와 정합(구현 §7도 반영).
-  (3) **`target_ref` opaque 강제 지점 명시** — 유일 매핑 `toTargetRef` + `NotifyPayloadPiiTest`가
-  raw 연결 식별자 유출을 실패로 검출. (4) polish: 성공 write-back에도 `notified_at IS NULL` 가드
-  대칭, `claimed_by`→`notify_claimed_by` 명명, §1 상태마커 1개 vs 전달제어 5컬럼 구분, 감사
-  로그 보존/검색성 가정 명시.
-- 2026-07-08: **의미 오염·모호성 제거(codex 86 재리뷰).** (1) **`notified_at` backfill 금지** —
-  옛 backlog를 backfill로 “ack” 덮으면 마커 의미가 “전달됨↔운영자 폐기”로 오염돼 놓친 알림을
-  숨긴다 → 억제가 필요하면 별도 suppression 마커(감사 로그 필수)로 모델링(V1 밖). burst 상한은
-  단일 스레드 직렬 드레인으로 충분. (2) **backoff post-increment 명시** — `nextAttempts=+1` 저장
-  후 `>=maxAttempts`면 give-up, 아니면 `backoff(nextAttempts)`(구현 편차 방지). (3) **dedup
-  보관 기간 정량화** — `max(행 보존, 재시도 horizon + 수동 replay 창)`, V1 Slack 면제/프로그램적
-  sink 적용. (4) polish: 예외 텍스트 PII 유출 금지(승인 `error_code`만), 채널 설정 무캐시(반영
-  지연 = 1 스캔 주기), V1 단일 스레드 loop↔전용 풀 확장 관계 정리, 대안표 A “메커니즘 재사용”.
+- 2026-07-07: **postCheck 분리 + 구현 명세 + notify lease 전용 쌍.** postCheck를 ADR에서
+  제거(위 항목)하고 buildable 구현 문서
+  ([022-notifier-implementation.md](../../design/pipeline/022-notifier-implementation.md))를
+  작성(Slack sink, admin 채널 관리, MySQL8/Spring). 실코드 확인 중 발견: 실행 admission
+  soft-cap(`countByClaimedUntilAfter`)이 상태 무관하게 활성 lease를 세므로 ADR-021
+  `claimed_by`/`claimed_until` 재사용은 실행 캡을 오염시킨다 → **notify 전용 lease 쌍**
+  (`notify_claimed_by`/`notify_claimed_until`)으로 분리(컬럼 3→5). MySQL8 부분 인덱스 부재
+  반영(복합 인덱스), `LISTEN/NOTIFY`(Postgres 전용) 저지연 옵션은 구현 문서에서 제외.
+- 2026-07-08: **리뷰 수렴 하드닝(codex/opus 다회 라운드, opus 최종 97).** 코어 설계는 유지한
+  채 계약 정확도·ADR↔구현 정합·운영성만 다졌다. 주요 확정 사항:
+  - **fencing 대칭·give-up 배제**: 성공/실패 write-back 모두 `id + notify_claimed_by(token)
+    + notified_at IS NULL` 가드; claim 술어에 `notify_attempts < maxAttempts`(give-up 배제를
+    sentinel이 아니라 술어로), backoff는 post-increment.
+  - **채널 gate**: 미설정/비활성 sink는 claim 안 함(idle) → attempts/give-up 미소진, backlog
+    보존; gate는 claim 직전 확인(in-flight는 정상 마무리), 채널 설정 무캐시(반영 ≤1 스캔).
+  - **PII 하드 계약**: `target_ref`(opaque, 전용 `toTargetRef` 매핑 + `NotifyPayloadPiiTest`
+    강제), raw host/account/DB명·예외 텍스트 직렬화 금지(MUST NOT), 사람용 상세는 권한 화면.
+  - **give-up 무유실**: give-up은 조용한 유실 위험 → `countGivenUp > 0` 경보 필수(MUST, 배포
+    게이트), 복구=admin reset. 지표는 pending age(활성 채널 한정)와 backlog age를 분리.
+  - **계약 정직화**: “at-least-once *시도* + give-up 전까지 무유실(무조건 전달 아님)”,
+    `notified_at`(V1)=“sink 2xx 접수”, dedup 보관 = `max(행 보존, 재시도 horizon + replay)`
+    (V1 Slack은 사람 상관, 정식 계약은 프로그램적 sink), Slack 중복 수용.
+  - **소소한 정정**: dedup 키 `pipeline_id`만, claim `WHERE id`·`ORDER BY … id` tie-break,
+    단일 앱 `Clock` 일관, 대안 G(사이드카 테이블) 기각, “verbatim”→“메커니즘” 재사용, 감사
+    로그 필수 필드/보존, 구조화 로그.
