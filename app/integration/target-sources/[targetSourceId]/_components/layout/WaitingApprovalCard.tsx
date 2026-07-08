@@ -18,6 +18,7 @@ import {
   type WaitingApprovalResource,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { WaitingApprovalToolbar } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import { ApprovalUnavailableCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ApprovalUnavailableCard';
 import { useApprovalTableState } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import {
   ErrorRow,
@@ -30,6 +31,9 @@ interface WaitingApprovalCardProps {
   targetSourceId: number;
   cancelSlot?: ReactNode;
   reselectSlot?: ReactNode;
+  // Called after the 연동 불가 verdict is acknowledged (go-back → Step 1) so the
+  // parent re-fetches the project and re-renders the new step.
+  onReselected?: () => Promise<void> | void;
 }
 
 const FETCH_ERROR_MESSAGE = '승인 요청 정보를 불러오지 못했습니다.';
@@ -68,10 +72,12 @@ export const WaitingApprovalCard = ({
   targetSourceId,
   cancelSlot,
   reselectSlot,
+  onReselected,
 }: WaitingApprovalCardProps) => {
   const [state, setState] = useState<AsyncState<WaitingApprovalResource[]>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
   const [requestSummary, setRequestSummary] = useState<RequestSummary | null>(null);
+  const [unavailable, setUnavailable] = useState<{ reason: string } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -81,12 +87,18 @@ export const WaitingApprovalCard = ({
         const rows = (response.resources ?? []).map(toResourceRow);
         setState({ status: 'ready', data: rows });
         setRequestSummary(toRequestSummary(response));
+        setUnavailable(
+          response.result?.status === 'UNAVAILABLE'
+            ? { reason: response.result?.reason ?? '' }
+            : null,
+        );
       })
       .catch((error: unknown) => {
         if (error instanceof AppError && error.code === 'ABORTED') return;
         if (error instanceof AppError && error.code === 'NOT_FOUND') {
           setState({ status: 'ready', data: [] });
           setRequestSummary(null);
+          setUnavailable(null);
           return;
         }
         setState({ status: 'error', message: FETCH_ERROR_MESSAGE });
@@ -109,6 +121,18 @@ export const WaitingApprovalCard = ({
 
   const showFilterEmpty =
     state.status === 'ready' && resources.length > 0 && table.filteredCount === 0;
+
+  // 연동 불가 verdict — replace the whole waiting card with the distinct 연동 불가
+  // notice + go-back action (the normal table / cancel action no longer apply).
+  if (state.status === 'ready' && unavailable) {
+    return (
+      <ApprovalUnavailableCard
+        targetSourceId={targetSourceId}
+        reason={unavailable.reason}
+        onReselected={onReselected}
+      />
+    );
+  }
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>

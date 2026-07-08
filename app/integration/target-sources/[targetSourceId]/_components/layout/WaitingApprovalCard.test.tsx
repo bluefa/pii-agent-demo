@@ -3,12 +3,15 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const getApprovalRequestLatestMock = vi.fn();
+const confirmApprovalUnavailableMock = vi.fn();
 
 // Step 2 now sources both the table (resources, split by `selected`) and the request
 // meta from the single approval-requests/latest call — approved-integration is no
-// longer fetched here (it stays on step 3).
+// longer fetched here (it stays on step 3). confirmApprovalUnavailable backs the
+// 연동 불가 go-back action (ApprovalUnavailableCard).
 vi.mock('@/app/lib/api', () => ({
   getApprovalRequestLatest: (...args: unknown[]) => getApprovalRequestLatestMock(...args),
+  confirmApprovalUnavailable: (...args: unknown[]) => confirmApprovalUnavailableMock(...args),
 }));
 
 import { WaitingApprovalCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
@@ -320,5 +323,28 @@ describe('WaitingApprovalCard', () => {
     });
     expect(screen.queryByText(/요청일시/)).toBeNull();
     expect(screen.queryByText(/요청자/)).toBeNull();
+  });
+
+  it('renders the distinct 연동 불가 notice with reason and go-back — not the waiting table', async () => {
+    getApprovalRequestLatestMock.mockResolvedValueOnce({
+      ...buildResponse(),
+      result: {
+        request_id: 1,
+        status: 'UNAVAILABLE' as const,
+        reason: 'RDS_CLUSTER 리소스는 연동 대상이 아닙니다.',
+      },
+    });
+    render(<WaitingApprovalCard targetSourceId={1003} onReselected={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('연동 대상 연동 불가')).toBeTruthy();
+    });
+    // 연동 불가 badge + reason surfaced, distinct from the generic 반려 copy.
+    expect(screen.getByText('선택하신 연동 대상은 연동할 수 없습니다.')).toBeTruthy();
+    expect(screen.getByText(/RDS_CLUSTER 리소스는 연동 대상이 아닙니다/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '뒤로 이동' })).toBeTruthy();
+    // The normal waiting card (table rows / 승인 대기 title) must not render.
+    expect(screen.queryByText('mysql-prod-01')).toBeNull();
+    expect(screen.queryByText('연동 대상 승인 대기')).toBeNull();
   });
 });

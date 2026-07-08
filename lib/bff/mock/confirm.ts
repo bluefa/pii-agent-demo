@@ -938,6 +938,7 @@ export const mockConfirm = {
         case 'APPROVED': return 'APPROVED';
         case 'AUTO_APPROVED': return 'AUTO_APPROVED';
         case 'REJECTED': return 'REJECTED';
+        case 'UNAVAILABLE': return 'UNAVAILABLE';
         case 'CANCELLED': return 'CANCELLED';
         default: return 'PENDING';
       }

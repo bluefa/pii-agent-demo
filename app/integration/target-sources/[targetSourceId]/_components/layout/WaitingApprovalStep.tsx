@@ -52,6 +52,7 @@ export const WaitingApprovalStep = ({
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <WaitingApprovalCard
         targetSourceId={project.targetSourceId}
+        onReselected={refreshProject}
         cancelSlot={
           project.isRejected ? null : (
             <WaitingApprovalCancelButton
