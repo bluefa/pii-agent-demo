@@ -189,10 +189,14 @@ export const detailStyles = {
    * and the hint/notice lines. Every color is a --pl-* token.
    */
   builder: {
-    /** Add-control row: provider-scoped catalog select + chosen count. */
-    addRow: 'flex items-center gap-2.5',
-    count: cn(text.meta, 'ml-auto tabular-nums'),
-    /** Drag affordance line under the canvas. */
+    /** "+" popover — fixed above the modal (z-50) so canvas overflow can't clip it. */
+    pop: 'fixed z-[60] w-[300px] max-h-[248px] overflow-y-auto overscroll-contain rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-1.5 shadow-[var(--pl-shadow-lg)]',
+    popRow:
+      'w-full flex items-start gap-2.5 rounded-[8px] px-2.5 py-2 text-left cursor-pointer hover:bg-[var(--pl-bg-inner)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--pl-primary)]',
+    popName: 'block text-[13px] font-semibold leading-[1.3] text-[var(--pl-text-strong)]',
+    popDesc:
+      'mt-0.5 text-[12px] leading-[1.4] text-[var(--pl-text-weak)] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden',
+    /** Count + drag affordance line under the canvas. */
     hint: 'mt-2 text-[12px] text-[var(--pl-text-weak)]',
     /** Non-persistence notice (summary step) — .notice grammar. */
     notice:

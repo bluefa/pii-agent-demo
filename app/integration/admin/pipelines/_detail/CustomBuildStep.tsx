@@ -7,12 +7,14 @@
  * horizontally to reorder (6px threshold, one slot per node+connector step),
  * ←/→ on a focused node reorders without a pointer, and every node carries a
  * ✕ delete control (Delete/Backspace works too). Node names render in full —
- * no clamp/truncation (owner ask). Tasks come from the provider-scoped
- * catalog (#12 — already-chosen entries are hidden, so dedup lives in the
- * UI); per-task descriptions are deliberately NOT collected (owner call —
- * the wire field stays optional and unsent). Pure list/drag math lives in
- * customBuilder.ts; the parent owns the chosen list and the [구성 확인]
- * gating via canSubmit().
+ * no clamp/truncation, and every node is the same fixed size (owner asks).
+ * Adding follows the n8n grammar too (owner pick over the old dropdown): a
+ * dashed "+" ghost node at the end of the chain opens a rich popover of the
+ * provider-scoped catalog (#12) — kind mark + name + description per row;
+ * already-chosen entries are hidden (UI dedup). Per-task descriptions are
+ * deliberately NOT collected (owner call — the wire field stays optional and
+ * unsent). Pure list/drag math lives in customBuilder.ts; the parent owns the
+ * chosen list and the [구성 확인] gating via canSubmit().
  */
 import {
   Fragment,
@@ -26,7 +28,6 @@ import {
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/integration/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/integration/admin/pipelines/_components/PlButton';
-import { PlSelect } from '@/app/integration/admin/pipelines/_components/PlSelect';
 import { TerraformLogo } from '@/app/integration/admin/pipelines/_components/brandMarks';
 import { detailStyles } from '@/app/integration/admin/pipelines/_detail/detailStyles';
 import { FLOW_CSS, ProviderMark } from '@/app/integration/admin/pipelines/_detail/TaskFlow';
@@ -40,6 +41,9 @@ import type { CloudProvider, TaskCatalogEntry } from '@/lib/pipeline/types';
 
 /** Pointer must travel this far before a press becomes a drag. */
 const DRAG_THRESHOLD_PX = 6;
+
+/** Add-menu popover width — also drives the keep-on-screen clamp. */
+const MENU_WIDTH_PX = 300;
 
 /**
  * Builder-canvas deltas over the shared FLOW_CSS grammar — sized for the
@@ -60,8 +64,51 @@ const BUILD_CSS = `
 .pl-flow.pl-build .nd-del{margin-left:auto;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;flex:none;border:none;background:transparent;color:var(--pl-text-weak);cursor:pointer}
 .pl-flow.pl-build .nd-del:hover{background:var(--pl-gray-100);color:var(--pl-err-text)}
 .pl-flow.pl-build .nd-del:focus-visible{outline:2px solid var(--pl-primary);outline-offset:1px}
-.pl-flow.pl-build .pl-empty{align-self:center;text-align:center;font-size:12px;color:var(--pl-text-weak);border:1px dashed var(--pl-border-strong);border-radius:10px;padding:24px 32px;background:var(--pl-bg-card)}
+.pl-flow.pl-build .nd-add{flex:none;align-self:center;width:48px;height:48px;border-radius:10px;border:1px dashed var(--pl-border-strong);background:var(--pl-bg-card);color:var(--pl-text-weak);display:grid;place-items:center;cursor:pointer;transition:border-color .15s,color .15s}
+.pl-flow.pl-build .nd-add:hover:not(:disabled){border-color:var(--pl-primary);color:var(--pl-primary)}
+.pl-flow.pl-build .nd-add:focus-visible{outline:2px solid var(--pl-primary);outline-offset:2px}
+.pl-flow.pl-build .nd-add:disabled{opacity:.45;cursor:default}
+.pl-flow.pl-build .nd-add.nd-add-first{width:auto;height:auto;margin-inline:auto;display:flex;align-items:center;gap:8px;padding:20px 28px;font-size:13px;font-weight:600}
 `;
+
+export interface AddTaskMenuProps {
+  entries: TaskCatalogEntry[];
+  onPick: (name: string) => void;
+}
+
+/** Rich catalog rows for the "+" popover — kind mark, full name, description. */
+export function AddTaskMenu({ entries, onPick }: AddTaskMenuProps): ReactElement {
+  const b = detailStyles.builder;
+  const pv = detailStyles.preview;
+  return (
+    <div role="menu" aria-label="Task 추가">
+      {entries.map((e, i) => (
+        <button
+          key={e.name}
+          type="button"
+          role="menuitem"
+          className={b.popRow}
+          autoFocus={i === 0}
+          onClick={() => onPick(e.name)}
+        >
+          {e.kind === 'CONDITION_CHECK' ? (
+            <span className={pv.markCond} title="조건 확인 — 폴링">
+              <Icon name="clock" size="sm" />
+            </span>
+          ) : (
+            <span className={pv.mark} title="Terraform">
+              <TerraformLogo />
+            </span>
+          )}
+          <span className="min-w-0">
+            <span className={b.popName}>{e.display_name}</span>
+            <span className={b.popDesc}>{e.description}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export interface CustomBuildStepProps {
   /** null = still loading (skeleton). */
@@ -104,6 +151,12 @@ export function CustomBuildStep({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  // "+" popover — fixed-positioned so the canvas's overflow can't clip it.
+  const [menu, setMenu] = useState<{ left: number; top: number } | null>(null);
+  const menuOpen = menu !== null;
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const addBtnRef = useRef<HTMLButtonElement | null>(null);
 
   // Track the drag on window, not the node: reordering makes React move the
   // dragged element in the DOM, which releases pointer capture (spec — capture
@@ -148,6 +201,29 @@ export function CustomBuildStep({
     };
   }, [dragging]);
 
+  // Popover dismissal: outside pointerdown, or Escape (captured so the
+  // ModalShell's document-level Escape handler doesn't also close the modal).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: Event): void => {
+      const t = e.target as Node;
+      if (menuRef.current?.contains(t) || addBtnRef.current?.contains(t)) return;
+      setMenu(null);
+    };
+    const onKey = (e: globalThis.KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setMenu(null);
+      addBtnRef.current?.focus();
+    };
+    document.addEventListener('pointerdown', onDown);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [menuOpen]);
+
   if (catalogError) {
     return (
       <div>
@@ -173,6 +249,16 @@ export function CustomBuildStep({
   };
   const remove = (name: string): void => {
     onChange(chosen.filter((t) => t.name !== name));
+  };
+  const toggleMenu = (): void => {
+    if (menu) {
+      setMenu(null);
+      return;
+    }
+    const rect = addBtnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - MENU_WIDTH_PX - 16));
+    setMenu({ left, top: rect.bottom + 6 });
   };
 
   const onNodeDown = (task: TaskCatalogEntry) => (e: ReactPointerEvent<HTMLDivElement>): void => {
@@ -202,30 +288,28 @@ export function CustomBuildStep({
     }
   };
 
+  const addButton = (first: boolean): ReactElement => (
+    <button
+      ref={addBtnRef}
+      type="button"
+      className={first ? 'nd-add nd-add-first' : 'nd-add'}
+      aria-label="Task 추가"
+      aria-expanded={menuOpen}
+      aria-haspopup="menu"
+      disabled={!available.length}
+      title={available.length ? 'Task 추가' : '추가할 Task 없음'}
+      onClick={toggleMenu}
+    >
+      <Icon name="plus" size="sm" />
+      {first ? 'Task 추가 — 카탈로그에서 골라 실행 순서를 구성하세요' : null}
+    </button>
+  );
+
   return (
     <div>
-      <div className={b.addRow}>
-        <PlSelect
-          value=""
-          aria-label="Task 추가"
-          disabled={!available.length}
-          onChange={(e) => {
-            if (e.target.value) add(e.target.value);
-          }}
-        >
-          <option value="">{available.length ? 'Task 추가…' : '추가할 Task 없음'}</option>
-          {available.map((e) => (
-            <option key={e.name} value={e.name}>
-              {e.display_name}
-            </option>
-          ))}
-        </PlSelect>
-        <span className={b.count}>Task {chosen.length}개</span>
-      </div>
-
-      <div className={cn('pl-flow', 'pl-build', 'mt-3')}>
+      <div className={cn('pl-flow', 'pl-build')}>
         <style>{FLOW_CSS + BUILD_CSS}</style>
-        <div className="pl-scroll">
+        <div className="pl-scroll" onScroll={() => menuOpen && setMenu(null)}>
           {chosen.length ? (
             <div className="pl-track" ref={trackRef}>
               {chosen.map((t, i) => {
@@ -277,14 +361,33 @@ export function CustomBuildStep({
                   </Fragment>
                 );
               })}
+              <div className="pl-connector" aria-hidden="true">
+                <span className="cdot" />
+              </div>
+              {addButton(false)}
             </div>
           ) : (
-            <div className="pl-empty">카탈로그에서 Task를 추가해 실행 순서를 구성하세요</div>
+            addButton(true)
           )}
         </div>
       </div>
 
-      {chosen.length > 0 && <div className={b.hint}>노드를 드래그해 실행 순서를 바꿀 수 있어요</div>}
+      {menu && available.length > 0 && (
+        <div ref={menuRef} className={b.pop} style={{ left: menu.left, top: menu.top }}>
+          <AddTaskMenu
+            entries={available}
+            onPick={(name) => {
+              add(name);
+              setMenu(null);
+              addBtnRef.current?.focus();
+            }}
+          />
+        </div>
+      )}
+
+      {chosen.length > 0 && (
+        <div className={b.hint}>Task {chosen.length}개 · 노드를 드래그해 실행 순서를 바꿀 수 있어요</div>
+      )}
     </div>
   );
 }
