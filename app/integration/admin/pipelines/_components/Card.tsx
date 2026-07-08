@@ -7,7 +7,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 
 export interface CardProps {
   children: ReactNode;
-  variant?: 'card' | 'stat';
+  variant?: 'card' | 'stat' | 'flush';
   /** Stacked below a sibling card in the same section (mt 16). */
   stacked?: boolean;
   className?: string;
@@ -15,9 +15,6 @@ export interface CardProps {
 
 export function Card({ children, variant = 'card', stacked, className }: CardProps): ReactElement {
   const { card } = pipelineStyles;
-  return (
-    <div className={cn(variant === 'stat' ? card.stat : card.base, stacked && card.stack, className)}>
-      {children}
-    </div>
-  );
+  const base = variant === 'stat' ? card.stat : variant === 'flush' ? card.flush : card.base;
+  return <div className={cn(base, stacked && card.stack, className)}>{children}</div>;
 }

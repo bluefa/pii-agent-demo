@@ -35,7 +35,6 @@ import type {
 
 import { Icon } from '@/app/integration/admin/pipelines/_components/icons';
 import { SegControl } from '@/app/integration/admin/pipelines/_components/SegControl';
-import { SectionHeader } from '@/app/integration/admin/pipelines/_components/SectionHeader';
 import { Card } from '@/app/integration/admin/pipelines/_components/Card';
 import { FilterBar } from '@/app/integration/admin/pipelines/_components/FilterBar';
 import { SearchBox } from '@/app/integration/admin/pipelines/_components/SearchBox';
@@ -66,31 +65,32 @@ import {
 } from '@/app/integration/admin/pipelines/_dashboard/logic';
 import { FilterChips } from '@/app/integration/admin/pipelines/_dashboard/FilterChips';
 
-/** Grey read-only stat tile (design `.stat`) — Card can't carry the `title`
- *  tooltip the design puts on the tile, so it composes the `card.stat` token. */
+/** KPI stat tile (Figma dashboard mock) — equal-width card composing `card.stat`
+ *  directly (Card can't carry the tile's flex-1 sizing). Badge tone: primary
+ *  for an instant value ("현재"), neutral for a period window ("최근 N"). */
 function StatTile({
   labelMain,
   labelPeriod,
   value,
-  title,
   error,
 }: {
-  /** Primary label — 14/600 medium (e.g. "실패"). */
+  /** Primary label — 16/600 medium (e.g. "실패"). */
   labelMain: string;
-  /** Period addendum — 12/400 faint (e.g. "최근 24시간" / "현재"). */
+  /** Period addendum (e.g. "최근 24시간" / "현재") — also picks the badge tone. */
   labelPeriod: string;
   value: ReactNode;
-  title: string;
   error?: boolean;
 }): ReactElement {
-  const { card, text } = pipelineStyles;
+  const { card, text, statBadge } = pipelineStyles;
   return (
-    <div className={card.stat} title={title}>
-      <div className="flex items-baseline gap-1.5">
-        <div className={text.statLabelMain}>{labelMain}</div>
-        <div className={text.statLabelPeriod}>{labelPeriod}</div>
+    <div className={cn(card.stat, 'flex-1 flex flex-col items-center gap-2')}>
+      <div className={text.statLabelMain}>{labelMain}</div>
+      <span className={cn(statBadge.base, labelPeriod === '현재' ? statBadge.primary : statBadge.neutral)}>
+        {labelPeriod}
+      </span>
+      <div className={cn(text.statValue, error ? text.statValueError : text.statValueDefault)}>
+        {value}
       </div>
-      <div className={cn(text.statValue, error ? text.statValueError : text.statValueDefault, 'mt-3')}>{value}</div>
     </div>
   );
 }
@@ -164,8 +164,7 @@ export default function DashboardPage(): ReactElement {
   );
 
   const projected = useMemo(() => projectRows(pageData?.content ?? [], q), [pageData, q]);
-  const { total, pages, current, slice } = useMemo(() => paginate(projected, page), [projected, page]);
-  const truncated = (pageData?.totalElements ?? 0) > DASH_FETCH_SIZE;
+  const { pages, current, slice } = useMemo(() => paginate(projected, page), [projected, page]);
 
   // Any filter change resets to page 1 (design: filter change → page 1).
   const resetPage = () => setPage(1);
@@ -198,20 +197,21 @@ export default function DashboardPage(): ReactElement {
   };
 
   const runningValue = live ? live.running_pipeline_count : '—';
+  const pendingValue = live ? live.pending_pipeline_count : '—';
   const failedCount = periodStats?.failed_count;
   const doneValue = periodStats ? periodStats.done_count : '—';
   const plabel = PERIOD_LABELS[period];
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <h1 className={pipelineStyles.text.pageTitle}>대시보드</h1>
-        <span className="inline-flex items-center gap-[10px]">
+        <div className="flex flex-col items-end gap-1.5">
           <span
-            className={cn(pipelineStyles.text.meta, 'inline-flex items-center gap-[5px]')}
+            className={pipelineStyles.text.meta}
             title="선택한 기간이 현황(실패·성공)과 파이프라인 목록에 함께 적용됩니다 — 생성시간 기준. 동작 중 카드만 현재 순간값"
           >
-            <Icon name="clock" size="sm" /> 기간 · 대시보드 전체 적용
+            대시보드 전체 적용
           </span>
           <SegControl
             options={PERIOD_OPTIONS}
@@ -226,95 +226,98 @@ export default function DashboardPage(): ReactElement {
               setListLoading(true); // period/status/provider refetch — show loading now
             }}
             ariaLabel="대시보드 기간"
+            leading={
+              <span className={pipelineStyles.seg.leadingIcon}>
+                <Icon name="calendar" size="sm" />
+              </span>
+            }
           />
-        </span>
+        </div>
       </div>
 
-      <SectionHeader first title="현황" />
-      <div className="grid grid-cols-[repeat(3,minmax(0,260px))] gap-3">
-        <StatTile
-          labelMain="동작 중 파이프라인"
-          labelPeriod="현재"
-          value={runningValue}
-          title="현재 RUNNING 상태인 파이프라인 수 — 기간과 무관한 순간값"
-        />
+      <div className="flex gap-4 items-stretch w-full">
+        <StatTile labelMain="동작 중 파이프라인" labelPeriod="현재" value={runningValue} />
+        <StatTile labelMain="대기 중 파이프라인" labelPeriod="현재" value={pendingValue} />
         <StatTile
           labelMain="실패"
           labelPeriod={plabel}
           value={failedCount ?? '—'}
           error={(failedCount ?? 0) > 0}
-          title={`${plabel} 내 생성 기준`}
         />
-        <StatTile
-          labelMain="성공"
-          labelPeriod={plabel}
-          value={doneValue}
-          title={`${plabel} 내 생성 기준`}
-        />
+        <StatTile labelMain="성공" labelPeriod={plabel} value={doneValue} />
       </div>
 
-      <SectionHeader title="파이프라인 목록" />
-      <FilterBar className="mb-3">
-        <SearchBox
-          wrapClassName="w-[240px]"
-          placeholder="TargetSourceId 검색"
-          value={q}
-          onChange={(event) => {
-            setQ(event.target.value);
-            resetPage();
-          }}
-          aria-label="TargetSourceId 검색"
-        />
-        <PlSelect
-          value={status}
-          aria-label="상태 필터"
-          onChange={(event) => {
-            const next = event.target.value as '' | PipelineStatus;
-            if (next === status) return; // same-value guard (see period seg)
-            setStatus(next);
-            resetPage();
-            setListLoading(true);
-          }}
-        >
-          {STATUS_OPTIONS.map((option) => (
-            <option key={option.value || 'all'} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </PlSelect>
-        <PlSelect
-          value={provider}
-          aria-label="CSP 필터"
-          onChange={(event) => {
-            const next = event.target.value;
-            if (next === provider) return; // same-value guard (see period seg)
-            setProvider(next);
-            resetPage();
-            setListLoading(true);
-          }}
-        >
-          {PROVIDER_OPTIONS.map((option) => (
-            <option key={option.value || 'all'} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </PlSelect>
-      </FilterBar>
+      <div className="flex items-center justify-between mt-6 mb-6">
+        <h2 className={pipelineStyles.text.dashboardListTitle}>파이프라인 목록</h2>
+        <span className={pipelineStyles.filterChip.timestampBadge}>
+          <span className={pipelineStyles.filterChip.timestampDot} />
+          {plabel}
+        </span>
+      </div>
 
-      <FilterChips
-        periodLabel={plabel}
-        status={status}
-        provider={provider}
-        q={q}
-        total={total}
-        truncated={truncated}
-        onClearStatus={clearStatus}
-        onClearProvider={clearProvider}
-        onClearSearch={clearSearch}
-        onResetFilters={resetFilters}
-      />
+      <Card variant="flush">
+        <FilterBar className="px-5 py-4 border-b border-[var(--pl-border)]">
+          <SearchBox
+            lg
+            wrapClassName="flex-1"
+            placeholder="TargetSourceId 검색"
+            value={q}
+            onChange={(event) => {
+              setQ(event.target.value);
+              resetPage();
+            }}
+            aria-label="TargetSourceId 검색"
+          />
+          <PlSelect
+            lg
+            value={status}
+            aria-label="상태 필터"
+            onChange={(event) => {
+              const next = event.target.value as '' | PipelineStatus;
+              if (next === status) return; // same-value guard (see period seg)
+              setStatus(next);
+              resetPage();
+              setListLoading(true);
+            }}
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value || 'all'} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </PlSelect>
+          <PlSelect
+            lg
+            value={provider}
+            aria-label="CSP 필터"
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next === provider) return; // same-value guard (see period seg)
+              setProvider(next);
+              resetPage();
+              setListLoading(true);
+            }}
+          >
+            {PROVIDER_OPTIONS.map((option) => (
+              <option key={option.value || 'all'} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </PlSelect>
+        </FilterBar>
 
-      <Card>
+        <div className="px-5">
+          <FilterChips
+            status={status}
+            provider={provider}
+            q={q}
+            onClearStatus={clearStatus}
+            onClearProvider={clearProvider}
+            onClearSearch={clearSearch}
+            onResetFilters={resetFilters}
+          />
+        </div>
+
         {listLoading ? (
           <div className="min-h-[240px]" aria-busy="true" />
         ) : listError != null ? (
@@ -334,7 +337,7 @@ export default function DashboardPage(): ReactElement {
             <PlTable
               head={
                 <>
-                  <PlTh>TargetSourceId</PlTh>
+                  <PlTh>Target Source</PlTh>
                   <PlTh>CSP</PlTh>
                   <PlTh>파이프라인 유형</PlTh>
                   <PlTh>상태</PlTh>
@@ -377,6 +380,8 @@ export default function DashboardPage(): ReactElement {
               pages={pages}
               onPrev={() => setPage(current - 1)}
               onNext={() => setPage(current + 1)}
+              className="px-5 pb-4"
+              center
             />
           </>
         )}

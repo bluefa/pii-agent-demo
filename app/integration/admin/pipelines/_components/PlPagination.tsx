@@ -13,12 +13,21 @@ export interface PlPaginationProps {
   onPrev: () => void;
   onNext: () => void;
   className?: string;
+  /** Centered variant (Figma dashboard mock) — default right-aligned. */
+  center?: boolean;
 }
 
-export function PlPagination({ page, pages, onPrev, onNext, className }: PlPaginationProps): ReactElement {
+export function PlPagination({
+  page,
+  pages,
+  onPrev,
+  onNext,
+  className,
+  center,
+}: PlPaginationProps): ReactElement {
   const { pager } = pipelineStyles;
   return (
-    <div className={cn(pager.bar, className)}>
+    <div className={cn(center ? pager.barCenter : pager.bar, className)}>
       <PlButton variant="ghost" size="sm" disabled={page <= 1} onClick={onPrev}>
         <Icon name="chev-l" size="sm" /> 이전
       </PlButton>

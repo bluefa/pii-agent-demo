@@ -47,7 +47,7 @@ export const STATUS_OPTIONS: ReadonlyArray<{ value: '' | PipelineStatus; label: 
  * lowercase option values were an in-memory-fixture artifact.
  */
 export const PROVIDER_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: '', label: 'CSP 전체' },
+  { value: '', label: 'Cloud 전체' },
   { value: 'AWS', label: 'AWS' },
   { value: 'AZURE', label: 'Azure' },
   { value: 'GCP', label: 'GCP' },
