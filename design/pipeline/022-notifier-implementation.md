@@ -209,9 +209,10 @@ public interface NotifyRepository extends JpaRepository<Pipeline, Long> {
 
     // tx2 행 잠금은 기존 PipelineRepository.findByIdForUpdate 를 재사용한다(여기 중복 정의하지 않음).
 
-    // 지표: 가장 오래된 "전달 대기" 종단 행의 age. min(lastActivityAt) 을 종단 시각으로 쓰는 건, 종단 행은
-    // terminalize 후 다시 쓰이지 않아(ADR-021 불변식) lastActivityAt == 종단 시각이 되기 때문(그때만 유효).
-    // give-up 행(notifyAttempts >= maxAttempts)은 notifiedAt 이 영원히 null 이라 이 age 를 무한 오염하므로
+    // 지표 1: terminal_notification_backlog_age — 비활성 채널 backlog 까지 포함한 총 미알림 age.
+    // min(lastActivityAt) 을 종단 시각으로 쓰는 건, 종단 행은 terminalize 후 다시 쓰이지 않아
+    // (ADR-021 불변식) lastActivityAt == 종단 시각이 되기 때문(그때만 유효).
+    // give-up 행(notifyAttempts >= maxAttempts)은 notifiedAt 이 영원히 null 이라 age 를 무한 오염하므로
     // 제외한다(ADR-022 §4). give-up 은 별도로 countGivenUp() 으로 감시한다.
     @Query("select min(p.lastActivityAt) from Pipeline p "
          + "where p.status in (com.bff.pipeline.enums.PipelineStatus.DONE, "
@@ -220,6 +221,18 @@ public interface NotifyRepository extends JpaRepository<Pipeline, Long> {
          + "and p.notifiedAt is null "
          + "and p.notifyAttempts < :maxAttempts")
     Optional<Instant> oldestUnnotifiedAt(@Param("maxAttempts") int maxAttempts);
+
+    // 지표 2: notify_delivery_pending_age — "전달 정체" age. backlog 과 달리 **due 행만**
+    // 본다(미도래 backoff 행 제외) — 건강한 재시도 대기를 전달 막힘으로 오인하지 않게. 이 쿼리를
+    // V1 부터 쓰고, 경보는 활성 채널일 때만 평가한다(비활성 시 suppress; ADR-022 §4).
+    @Query("select min(p.lastActivityAt) from Pipeline p "
+         + "where p.status in (com.bff.pipeline.enums.PipelineStatus.DONE, "
+         + "                   com.bff.pipeline.enums.PipelineStatus.FAILED, "
+         + "                   com.bff.pipeline.enums.PipelineStatus.CANCELLED) "
+         + "and p.notifiedAt is null "
+         + "and p.notifyAttempts < :maxAttempts "
+         + "and (p.notifyNextAt is null or p.notifyNextAt <= :now)")
+    Optional<Instant> oldestDeliveryPending(@Param("maxAttempts") int maxAttempts, @Param("now") Instant now);
 
     // give-up 행 수(사람 개입 필요 신호). maxAttempts 도달 후에도 notifiedAt 이 null 인 종단 행.
     @Query("select count(p) from Pipeline p "
@@ -262,6 +275,8 @@ public class NotifyClaimer {
             Task failed = taskRepo.findByPipelineIdOrderBySequenceAsc(p.getId()).stream()
                     .filter(t -> t.getStatus() == TaskStatus.FAILED).findFirst().orElse(null);
             if (failed != null) {
+                // failedTask 는 닫힌 recipe task 키만(ADR-022 §4). getTaskName() 이 provider/운영자
+                // 유래 raw 명을 담을 수 있으면 승인 코드로 매핑해 넣는다(NotifyPayloadPiiTest 가 검출).
                 failedTask = failed.getTaskName();
                 errorCode = failed.getErrorCode() == null ? null : failed.getErrorCode().name();
             }
@@ -596,13 +611,12 @@ public record TestResult(
 
 - `notify delivered pipeline={} attempts={}` (INFO), `notify delivery failed …`(WARN),
   `notify give-up pipeline={} after {} attempts`(ERROR — **로그 기반 경보 필수**, ADR-022 §4).
-- **두 age 를 구분**(ADR-022 §4): `oldestUnnotifiedAt(maxAttempts)` 는 비활성 채널 backlog 까지
-  포함한 **총 backlog age**(`terminal_notification_backlog_age`). “전달 정체” 경보
-  (`notify_delivery_pending_age`)는 **활성 채널일 때만** 평가하고 채널 비활성 동안은 suppress 한다
-  (정체가 아니라 gate 때문). V1 은 이 둘을 **같은 쿼리 결과에 alert-gating 만 다르게** 얹어
-  시작한다(gauge 는 후속 YAGNI). 나중에 pending 을 별도 gauge 로 뽑을 땐 due 조건
-  `(notifyNextAt is null or notifyNextAt <= now)` 을 추가한 due-only 변형을 쓴다(future 재시도
-  예약 행이 pending age 를 조기 오염하지 않도록). `countGivenUp(maxAttempts)` 는 give-up 수(사람 개입 필요).
+- **두 age 를 별도 쿼리로 구분**(ADR-022 §4, V1 부터): `oldestUnnotifiedAt(maxAttempts)` =
+  **총 backlog age**(`terminal_notification_backlog_age`, 비활성 채널 backlog 포함).
+  `oldestDeliveryPending(maxAttempts, now)` = **due 행만** 본 “전달 정체” age
+  (`notify_delivery_pending_age`, 미도래 backoff 행 제외 — 건강한 재시도 대기를 전달 막힘으로
+  오인하지 않게). **“전달 정체” 경보는 후자를 쓰고, 활성 채널일 때만 평가**한다(비활성 시 suppress).
+  gauge 노출은 후속(YAGNI)이나 쿼리는 처음부터 둘로 나눈다. `countGivenUp(maxAttempts)` 는 give-up 수(사람 개입 필요).
 - actuator 를 추가하면 gauge 노출: `notify.backlog.oldest.age.seconds`(총),
   `notify.delivery.pending.age.seconds`(활성 채널 한정), `notify.attempts.total`(counter),
   `notify.giveup.total`(gauge=`countGivenUp`). **도입은 후속**(YAGNI).
