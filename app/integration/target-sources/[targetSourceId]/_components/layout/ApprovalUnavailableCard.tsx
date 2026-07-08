@@ -16,10 +16,10 @@ interface ApprovalUnavailableCardProps {
 }
 
 /**
- * Step 2, 연동 불가 sub-state. The admin judged the requested targets un-integratable
- * (approval-requests/latest → result.status === 'UNAVAILABLE'). Surfaces the reason
- * and the single "뒤로 이동" recovery action: confirmApprovalUnavailable acknowledges
- * the verdict and returns the source to its initial state (Step 1) to re-select targets.
+ * Step 2, integration-unavailable sub-state. The admin judged the requested targets
+ * un-integratable (approval-requests/latest → result.status === 'UNAVAILABLE'). Surfaces
+ * the reason and the single go-back recovery action: confirmApprovalUnavailable
+ * acknowledges the verdict and returns the source to its initial state (Step 1).
  */
 export const ApprovalUnavailableCard = ({
   targetSourceId,

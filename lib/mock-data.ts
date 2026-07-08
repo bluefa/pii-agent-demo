@@ -942,7 +942,7 @@ mockProjects.push(
   makeIdcProject(1024, ProcessStatus.WAITING_CONNECTION_TEST, 'IDC PII Agent - 연결 테스트', idcResourcesForStep(ProcessStatus.WAITING_CONNECTION_TEST)),
   makeIdcProject(1025, ProcessStatus.CONNECTION_VERIFIED, 'IDC PII Agent - 연결 확인', idcResourcesForStep(ProcessStatus.CONNECTION_VERIFIED)),
   makeIdcProject(1026, ProcessStatus.INSTALLATION_COMPLETE, 'IDC PII Agent - 설치 완료', idcResourcesForStep(ProcessStatus.INSTALLATION_COMPLETE)),
-  // Step 2, 연동 불가 sub-state — admin judged the requested targets un-integratable.
+  // Step 2, integration-unavailable sub-state — targets judged un-integratable by admin.
   makeIdcProject(
     1027,
     ProcessStatus.WAITING_APPROVAL,
@@ -1062,7 +1062,7 @@ mockProjects.push(
   cloneForStep('azure-proj-1', { id: 'azure-proj-test', targetSourceId: 2004, projectCode: 'AZURE-TEST', name: 'Azure PII Agent - 연결 테스트', status: ProcessStatus.WAITING_CONNECTION_TEST }),
   cloneForStep('azure-proj-1', { id: 'azure-proj-verified', targetSourceId: 2005, projectCode: 'AZURE-VERIFIED', name: 'Azure PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED }),
   cloneForStep('azure-proj-1', { id: 'azure-proj-complete', targetSourceId: 2006, projectCode: 'AZURE-COMPLETE', name: 'Azure PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE }),
-  // Step 2, 연동 불가 sub-state — verdict + reason surface on the cloud approval card.
+  // Step 2, integration-unavailable sub-state — verdict + reason on the cloud approval card.
   cloneForStep('azure-proj-1', { id: 'azure-proj-unavailable', targetSourceId: 2013, projectCode: 'AZURE-UNAVAIL', name: 'Azure PII Agent - 연동 불가', status: ProcessStatus.WAITING_APPROVAL, unavailableReason: '선택하신 리소스는 현재 지원되지 않는 유형이라 연동할 수 없습니다. 지원 대상 DB만 다시 선택해주세요.' }),
   // GCP — fills steps 2/3/4/5/6/7 (gcp-proj-1 has no resources, so inject a demo set)
   cloneForStep('gcp-proj-1', { id: 'gcp-proj-approval', targetSourceId: 2007, projectCode: 'GCP-APPROVAL', name: 'GCP PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL, resources: gcpDemoResources }),

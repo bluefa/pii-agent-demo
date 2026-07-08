@@ -37,11 +37,11 @@ export const IdcStep2WaitingApproval = ({
 }: IdcStepProps) => {
   const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_APPROVAL);
 
-  // Step 2 source: the requested list (approval-requests/latest), not previous-request.
+  // Step 2 source: the requested list via approved-integration, not previous-request.
   const { state } = useIdcResources(project.targetSourceId, getIdcApprovalRequestResources);
 
-  // 연동 불가 verdict — IDC's table source (approved-integration) omits it, so read
-  // approval-requests/latest separately for the verdict + reason (provider-agnostic).
+  // Integration-unavailable verdict — the table source (approved-integration) omits it,
+  // so read approval-requests/latest separately for the verdict + reason.
   const [unavailable, setUnavailable] = useState<{ reason: string } | null>(null);
   useEffect(() => {
     const controller = new AbortController();

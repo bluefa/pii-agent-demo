@@ -31,8 +31,8 @@ interface WaitingApprovalCardProps {
   targetSourceId: number;
   cancelSlot?: ReactNode;
   reselectSlot?: ReactNode;
-  // Called after the 연동 불가 verdict is acknowledged (go-back → Step 1) so the
-  // parent re-fetches the project and re-renders the new step.
+  // Called after the integration-unavailable verdict is acknowledged (go-back → Step 1)
+  // so the parent re-fetches the project and re-renders the new step.
   onReselected?: () => Promise<void> | void;
 }
 
@@ -122,8 +122,8 @@ export const WaitingApprovalCard = ({
   const showFilterEmpty =
     state.status === 'ready' && resources.length > 0 && table.filteredCount === 0;
 
-  // 연동 불가 verdict — replace the whole waiting card with the distinct 연동 불가
-  // notice + go-back action (the normal table / cancel action no longer apply).
+  // Integration-unavailable verdict — replace the whole waiting card with the distinct
+  // unavailable notice + go-back action (the normal table / cancel no longer apply).
   if (state.status === 'ready' && unavailable) {
     return (
       <ApprovalUnavailableCard
