@@ -189,8 +189,8 @@ lock-timeout `-2` → MySQL8에서 `FOR UPDATE SKIP LOCKED` 렌더, H2에선 무
 public interface NotifyRepository extends JpaRepository<Pipeline, Long> {
 
     /** tx1 진입 질의 — 알림 가능한 종단·미알림 행 하나를 SKIP LOCKED 로 잠가 가져온다. */
-    default Optional<Pipeline> findNextNotifiable(Instant now) {
-        return lockNotifiable(now, Limit.of(1)).stream().findFirst();
+    default Optional<Pipeline> findNextNotifiable(Instant now, int maxAttempts) {
+        return lockNotifiable(now, maxAttempts, Limit.of(1)).stream().findFirst();
     }
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -200,21 +200,48 @@ public interface NotifyRepository extends JpaRepository<Pipeline, Long> {
          + "                   com.bff.pipeline.enums.PipelineStatus.FAILED, "
          + "                   com.bff.pipeline.enums.PipelineStatus.CANCELLED) "
          + "and p.notifiedAt is null "
+         + "and p.notifyAttempts < :maxAttempts "        // give-up 행은 재클레임 금지(안전장치; far-future 의존 X)
          + "and (p.notifyNextAt is null or p.notifyNextAt <= :now) "
          + "and (p.notifyClaimedUntil is null or p.notifyClaimedUntil < :now) "
          + "order by p.notifyNextAt asc, p.id asc")   // NULL first + 결정적 tie-break
-    List<Pipeline> lockNotifiable(@Param("now") Instant now, Limit limit);
+    List<Pipeline> lockNotifiable(@Param("now") Instant now,
+                                  @Param("maxAttempts") int maxAttempts, Limit limit);
 
     // tx2 행 잠금은 기존 PipelineRepository.findByIdForUpdate 를 재사용한다(여기 중복 정의하지 않음).
 
-    // 지표: 가장 오래된 미알림 종단 행의 age. min(lastActivityAt) 을 종단 시각으로 쓰는 건, 종단 행은
-    // terminalize 후 다시 쓰이지 않아(ADR-021 불변식) lastActivityAt == 종단 시각이 되기 때문(그때만 유효).
+    // 지표 1: terminal_notification_backlog_age — 비활성 채널 backlog 까지 포함한 총 미알림 age.
+    // min(lastActivityAt) 을 종단 시각으로 쓰는 건, 종단 행은 terminalize 후 다시 쓰이지 않아
+    // (ADR-021 불변식) lastActivityAt == 종단 시각이 되기 때문(그때만 유효).
+    // give-up 행(notifyAttempts >= maxAttempts)은 notifiedAt 이 영원히 null 이라 age 를 무한 오염하므로
+    // 제외한다(ADR-022 §4). give-up 은 별도로 countGivenUp() 으로 감시한다.
     @Query("select min(p.lastActivityAt) from Pipeline p "
          + "where p.status in (com.bff.pipeline.enums.PipelineStatus.DONE, "
          + "                   com.bff.pipeline.enums.PipelineStatus.FAILED, "
          + "                   com.bff.pipeline.enums.PipelineStatus.CANCELLED) "
-         + "and p.notifiedAt is null")
-    Optional<Instant> oldestUnnotifiedAt();
+         + "and p.notifiedAt is null "
+         + "and p.notifyAttempts < :maxAttempts")
+    Optional<Instant> oldestUnnotifiedAt(@Param("maxAttempts") int maxAttempts);
+
+    // 지표 2: notify_delivery_pending_age — "전달 정체" age. backlog 과 달리 **due 행만**
+    // 본다(미도래 backoff 행 제외) — 건강한 재시도 대기를 전달 막힘으로 오인하지 않게. 이 쿼리를
+    // V1 부터 쓰고, 경보는 활성 채널일 때만 평가한다(비활성 시 suppress; ADR-022 §4).
+    @Query("select min(p.lastActivityAt) from Pipeline p "
+         + "where p.status in (com.bff.pipeline.enums.PipelineStatus.DONE, "
+         + "                   com.bff.pipeline.enums.PipelineStatus.FAILED, "
+         + "                   com.bff.pipeline.enums.PipelineStatus.CANCELLED) "
+         + "and p.notifiedAt is null "
+         + "and p.notifyAttempts < :maxAttempts "
+         + "and (p.notifyNextAt is null or p.notifyNextAt <= :now)")
+    Optional<Instant> oldestDeliveryPending(@Param("maxAttempts") int maxAttempts, @Param("now") Instant now);
+
+    // give-up 행 수(사람 개입 필요 신호). maxAttempts 도달 후에도 notifiedAt 이 null 인 종단 행.
+    @Query("select count(p) from Pipeline p "
+         + "where p.status in (com.bff.pipeline.enums.PipelineStatus.DONE, "
+         + "                   com.bff.pipeline.enums.PipelineStatus.FAILED, "
+         + "                   com.bff.pipeline.enums.PipelineStatus.CANCELLED) "
+         + "and p.notifiedAt is null "
+         + "and p.notifyAttempts >= :maxAttempts")
+    long countGivenUp(@Param("maxAttempts") int maxAttempts);
 }
 ```
 
@@ -232,7 +259,7 @@ public class NotifyClaimer {
     @Transactional
     public Optional<NotifyClaim> claimOne() {
         Instant now = clock.instant();
-        return repo.findNextNotifiable(now).map(p -> {
+        return repo.findNextNotifiable(now, settings.maxAttempts()).map(p -> {
             String token = UUID.randomUUID().toString();
             p.setNotifyClaimedBy(token);
             p.setNotifyClaimedUntil(now.plus(settings.leaseDuration()));
@@ -248,14 +275,27 @@ public class NotifyClaimer {
             Task failed = taskRepo.findByPipelineIdOrderBySequenceAsc(p.getId()).stream()
                     .filter(t -> t.getStatus() == TaskStatus.FAILED).findFirst().orElse(null);
             if (failed != null) {
+                // failedTask 는 닫힌 recipe task 키만(ADR-022 §4). getTaskName() 이 provider/운영자
+                // 유래 raw 명을 담을 수 있으면 승인 코드로 매핑해 넣는다(NotifyPayloadPiiTest 가 검출).
                 failedTask = failed.getTaskName();
                 errorCode = failed.getErrorCode() == null ? null : failed.getErrorCode().name();
             }
         }
         // type 은 write-once 캐시라 미해석 옛 값이 null 로 열화할 수 있다 → null-guard 필수(NPE 방지).
         String type = p.getType() == null ? null : p.getType().name();   // INSTALL | DELETE | CUSTOM | null
+        // targetRef 의 canonical 안전 소스 = 파이프라인의 **opaque target 키**(target-source
+        // 식별자). raw hostname/account/DB명·연결 상세(host/port/credential)는 payload 에 절대
+        // 직렬화하지 않는다(MUST NOT, ADR-022 §4). 아래 toTargetRef 가 유일한 매핑 지점이며,
+        // 이 규칙은 NotifyPayloadPiiTest(§11)가 강제한다 — raw 식별자가 새면 테스트가 실패한다.
         return new NotifyPayload(p.getId(), type, p.getStatus().name(),
-                p.getTarget(), failedTask, errorCode, "1");
+                toTargetRef(p), failedTask, errorCode, "1");
+    }
+
+    /** 파이프라인 대상 → opaque 알림 참조. V1: 이미 opaque 한 target 키를 그대로 쓴다.
+     *  target 필드가 raw 식별자를 담게 되면 여기서 해싱/치환해 opaque 핸들만 내보내도록 바꾼다
+     *  (유일한 변경 지점). 연결 상세는 여기서도 접근하지 않는다. */
+    private String toTargetRef(Pipeline p) {
+        return p.getTarget();   // opaque target 키 가정. 아니게 되면 이 한 곳만 고친다.
     }
 }
 ```
@@ -279,7 +319,7 @@ public record NotifyPayload(
         long pipelineId,
         String type,            // INSTALL | DELETE | CUSTOM | null(열화)
         String terminalStatus,  // DONE | FAILED | CANCELLED
-        String target,          // 식별자
+        String targetRef,       // 대상의 opaque 참조(target 키/id). raw host/account/DB명 금지(MUST NOT) — ADR-022 §4
         String failedTask,      // FAILED 일 때만, 아니면 null
         String errorCode,       // FAILED 일 때만, 아니면 null
         String schemaVersion) { // 상수 "1"
@@ -331,15 +371,18 @@ public class SlackNotifier {
 
 Slack 메시지 형식(간단·읽기 쉬운 텍스트; blocks 는 나중에):
 
+`target_ref` 는 **opaque 참조만**(raw host/account/DB명 금지, ADR-022 §4). 어떤 대상인지
+사람이 확인해야 하면 `id 1234` 링크 뒤 권한 화면에서 조회한다 — Slack 본문엔 안 흘린다.
+
 ```json
 {
-  "text": ":white_check_mark: *Pipeline DONE* — INSTALL `target-abc` (id 1234)",
+  "text": ":white_check_mark: *Pipeline DONE* — INSTALL (id 1234)",
   "attachments": [{
     "color": "good",
     "fields": [
-      {"title": "type",   "value": "INSTALL", "short": true},
-      {"title": "status", "value": "DONE",    "short": true},
-      {"title": "target", "value": "target-abc", "short": false}
+      {"title": "type",       "value": "INSTALL",  "short": true},
+      {"title": "status",     "value": "DONE",     "short": true},
+      {"title": "target_ref", "value": "tgt_9f3a", "short": false}
     ]
   }]
 }
@@ -363,6 +406,7 @@ public class NotifyWriteBack {
             p.setNotifiedAt(clock.instant());
             p.setNotifyClaimedBy(null);
             p.setNotifyClaimedUntil(null);
+            p.setNotifyNextAt(null);   // stale backoff 메타데이터 제거(postmortem 혼선 방지)
         });
     }
 
@@ -372,7 +416,9 @@ public class NotifyWriteBack {
             int attempts = p.getNotifyAttempts() + 1;
             p.setNotifyAttempts(attempts);
             if (attempts >= settings.maxAttempts()) {
-                p.setNotifyNextAt(clock.instant().plus(Duration.ofDays(3650))); // give-up: far-future
+                // give-up: 재클레임 배제는 lockNotifiable 의 notifyAttempts < maxAttempts 가 담당(1차).
+                // far-future 는 보조 표시(정렬/가시성)일 뿐 give-up 의 근거가 아니다.
+                p.setNotifyNextAt(clock.instant().plus(Duration.ofDays(3650)));
                 log.error("notify give-up pipeline={} after {} attempts", pipelineId, attempts);
             } else {
                 p.setNotifyNextAt(clock.instant().plus(backoff(attempts)));
@@ -382,11 +428,13 @@ public class NotifyWriteBack {
         });
     }
 
-    /** findByIdForUpdate 로 잠그고 notify_claimed_by == token 일 때만 apply (stale-straggler fencing). */
+    /** findByIdForUpdate 로 잠그고 token 일치 + 아직 미알림일 때만 apply (stale-straggler fencing).
+     *  success·failure write-back 둘 다 이 가드를 탄다 — stale worker 의 실패 write-back 이
+     *  다른 worker 의 성공(notifiedAt 스탬프) 후 attempts/backoff 를 오염시키는 것을 막는다. */
     private void guarded(long id, String token, Consumer<Pipeline> mutate) {
         pipelines.findByIdForUpdate(id).ifPresent(p -> {
-            if (token.equals(p.getNotifyClaimedBy())) mutate.accept(p);
-            // 토큰 불일치 = lease 만료 후 재claim 됨 → no-op (ADR-021 §4 와 동형)
+            // 토큰 불일치 = lease 만료 후 재claim; notifiedAt != null = 다른 worker 가 이미 성공 → 둘 다 no-op.
+            if (token.equals(p.getNotifyClaimedBy()) && p.getNotifiedAt() == null) mutate.accept(p);
         });
     }
 
@@ -560,12 +608,29 @@ public record TestResult(
 
 ## 7. 관측(지표/로그)
 
-`spring-boot-starter-actuator`/Micrometer 는 현재 pom 에 없다. V1 은 **구조화 로그**로 시작:
+`spring-boot-starter-actuator`/Micrometer 는 현재 pom 에 없다. 단, **give-up 경보의 정규 소스는
+로그가 아니라 DB 파생 폴링**이다(ADR-022 §4). V1 관측은 아래로 구성한다:
 
-- `notify delivered pipeline={} attempts={}` (INFO), `notify delivery failed …`(WARN), `notify give-up …`(ERROR).
-- 정체 감시: `NotifyRepository.oldestUnnotifiedAt()` 를 주기 로그 또는 (actuator 도입 시) gauge 로.
-- actuator 를 추가하면 gauge 3개 노출: `notify.unnotified.oldest.age.seconds`,
-  `notify.attempts.total`(counter), `notify.giveup.total`(counter). **도입은 후속**(YAGNI).
+- **give-up 경보(필수·정규 소스 = DB 폴링, 배포 게이트)** — actuator 가 없어도 **`countGivenUp
+  (maxAttempts)` 리포지토리 술어를 주기 폴링하는 인터럽 잡**(예: `@Scheduled` 로 N 분마다 조회)을
+  두어 `> 0` 이면 담당자에게 page 한다. 로그는 유실·수집 누락·배선 전 발생이 가능하므로 정규
+  경보 소스로 삼지 않는다. **이 DB 폴링 경보 배선은 notifier 프로덕션 가동 전제**다. actuator
+  도입 후에는 같은 술어를 `notify.giveup.total` gauge 로 승격한다.
+- **구조화 로그(감사 재구성 보조, ADR-022 §결과)** — success/failure/give-up 모두 최소
+  `pipeline_id`·`terminal_status`·`attempt`·`sink`(=slack)·응답 분류(`resp_class`: 2xx/4xx/5xx/timeout,
+  실패 시 error class)를 포함한다(give-up 로그는 **진단 보조**이지 정규 경보 소스가 아니다):
+  - `notify delivered pipeline={} status={} attempt={} sink=slack resp_class=2xx`(INFO)
+  - `notify delivery failed pipeline={} status={} attempt={} sink=slack resp_class={}`(WARN)
+  - `notify give-up pipeline={} status={} after {} attempts sink=slack`(ERROR, 진단용).
+- **두 age 를 별도 쿼리로 구분**(ADR-022 §4, V1 부터): `oldestUnnotifiedAt(maxAttempts)` =
+  **총 backlog age**(`terminal_notification_backlog_age`, 비활성 채널 backlog 포함).
+  `oldestDeliveryPending(maxAttempts, now)` = **due 행만** 본 “전달 정체” age
+  (`notify_delivery_pending_age`, 미도래 backoff 행 제외 — 건강한 재시도 대기를 전달 막힘으로
+  오인하지 않게). **“전달 정체” 경보는 후자를 쓰고, 활성 채널일 때만 평가**한다(비활성 시 suppress).
+  gauge 노출은 후속(YAGNI)이나 쿼리는 처음부터 둘로 나눈다. `countGivenUp(maxAttempts)` 는 give-up 수(사람 개입 필요).
+- actuator 를 추가하면 gauge 노출: `notify.backlog.oldest.age.seconds`(총),
+  `notify.delivery.pending.age.seconds`(활성 채널 한정), `notify.attempts.total`(counter),
+  `notify.giveup.total`(gauge=`countGivenUp`). **도입은 후속**(YAGNI).
 
 ## 8. 설계 판단 기록 (구현 중 갈린 지점)
 
@@ -574,7 +639,7 @@ public record TestResult(
   **상태 무관**하게 활성 lease 를 센다. 재사용하면 종단 행의 notify lease 가 이 카운트를 부풀려 **실행
   처리량을 깎는다.** 전용 `notify_claimed_by/until` 로 격리하는 게 정확하고 실행 코드를 안 건드린다
   (대안: `countByClaimedUntilAfter` 에 `status in (RUNNING,PENDING)` 필터 추가로 재사용 — 실행 회계
-  질의를 건드리므로 기각). → **ADR-022 스키마/§2 문구를 이 결정에 맞게 갱신 필요**(컬럼 3 → 5, "재사용" → "전용 쌍").
+  질의를 건드리므로 기각). → **ADR-022 스키마/§2 갱신 완료**(컬럼 3 → 5, "재사용" → notify 전용 lease "전용 쌍").
 - **인터페이스 없음** — `SlackNotifier` 구체 클래스. 다중 sink 필요 시 추출(현재 비범위).
 - **단일 sink** — `notification_channel` 1행. 다중·독립 재시도 sink 는 ADR-022 가 유보(per-sink 상태).
 - **부분 인덱스 없음(MySQL8)** — `active_target` 유일 제약과 같은 제약. 복합 인덱스 + 소규모로 흡수.
@@ -618,13 +683,20 @@ public record TestResult(
 **`SlackNotifier` 는 슬라이스 밖 순수 단위 테스트**로(스텁 `RestClient`) 검증한다.
 
 
-- **claim 술어**: 종단·미알림·due 행만 잡고, `notified_at != null`/미도래 `notify_next_at`/유효 lease 행은 스킵.
-- **tx2 fencing**: 토큰 불일치 write-back 은 no-op(재claim 시나리오).
-- **backoff/give-up**: `attempts` 증가·`notify_next_at` 전진, `max-attempts` 도달 시 far-future + ERROR.
+- **claim 술어**: 종단·미알림·due 행만 잡고, `notified_at != null`/미도래 `notify_next_at`/유효 lease/
+  **give-up(`notify_attempts >= maxAttempts`)** 행은 스킵(attempts 술어가 give-up 을 배제하는지 명시 검증).
+- **tx2 fencing**: 토큰 불일치 **또는 이미 `notified_at != null`** 인 write-back 은 no-op
+  (stale worker 가 타 worker 성공 후 attempts 를 못 건드림 — success·failure 양쪽 guard).
+- **backoff/give-up**: `attempts` 증가·`notify_next_at` 전진, `max-attempts` 도달 시 ERROR 로그 +
+  이후 claim 에서 재선택 안 됨(far-future 아니라 attempts 술어로).
 - **격리**: notify lease 스탬프가 `countByClaimedUntilAfter`(실행 캡)에 **안 잡힘**(전용 컬럼 검증).
 - **채널 가드**: 미설정/비활성이면 claim 0건(scheduler idle).
-- **payload PII**: 허용 필드만 직렬화(민감 필드 누락 확인). `FAILED` 는 `buildPayload` 가
-  sequence 최소 FAILED task 에서 `failed_task`/`error_code` 를 채운다(비-FAILED 는 null).
+- **payload PII (`NotifyPayloadPiiTest`)**: 허용 필드만 직렬화하고 다음을 명시 단언한다 —
+  (a) 직렬화 JSON 에 raw 연결 식별자(host/port/credential/DB명 패턴)가 **없음**(`toTargetRef` 외
+  경로로 민감 값이 새면 실패), (b) `failed_task` 값이 **닫힌 recipe 키 집합에 속함**(raw provider/
+  운영자 명이면 실패), (c) payload 에 **`url` 필드가 없음**(스키마 구조상 부재를 회귀 방지로 고정).
+  `FAILED` 는 `buildPayload` 가 sequence 최소 FAILED task 에서 `failed_task`/`error_code` 를 채운다
+  (비-FAILED 는 null).
 - **webhook 마스킹**: `GET` 응답에 원문 webhook 이 없다(마스킹만).
 - **SSRF 검증**: 비-https·비-정확일치 host·userinfo 포함 webhook `PUT` 은 typed 400 으로 거절.
 - **DTO snake_case**: 세 신규 DTO(`ChannelUpsert`/`ChannelView`/`TestResult`) 케이스를
