@@ -122,9 +122,11 @@ export interface IconProps {
   className?: string;
   /** Accessible label; when omitted the icon is aria-hidden (decorative). */
   title?: string;
+  /** Stroke weight override (default 2) — bolden a single instance. */
+  strokeWidth?: number;
 }
 
-export function Icon({ name, size = 'md', className, title }: IconProps): ReactElement {
+export function Icon({ name, size = 'md', className, title, strokeWidth = 2 }: IconProps): ReactElement {
   const px = SIZE_PX[size];
   return (
     <svg
@@ -133,7 +135,7 @@ export function Icon({ name, size = 'md', className, title }: IconProps): ReactE
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={2}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}

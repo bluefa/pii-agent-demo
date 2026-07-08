@@ -99,7 +99,7 @@ export interface PlChevCellProps {
   title: string;
 }
 
-/** Right-aligned round chev button — decorative (tabindex -1); the row is the control. */
+/** Right-aligned chev button — decorative (tabindex -1); the row is the control. */
 export function PlChevCell({ title }: PlChevCellProps): ReactElement {
   const { table, button } = pipelineStyles;
   return (
@@ -109,9 +109,9 @@ export function PlChevCell({ title }: PlChevCellProps): ReactElement {
         tabIndex={-1}
         title={title}
         aria-hidden="true"
-        className={cn(button.base, button.round, button.secondary, table.chevButton)}
+        className={cn(button.base, 'h-7 w-7 p-0 text-[var(--pl-text-strong)]', table.chevButton)}
       >
-        <Icon name="arrow-ur" size="sm" />
+        <Icon name="arrow-ur" size="sm" strokeWidth={2.75} />
       </button>
     </td>
   );

@@ -883,12 +883,10 @@ const pipelineText = {
   metaGroupLabel: 'text-[12px] font-semibold text-[var(--pl-text-faint)]',
   /** stat tile label — 12 / 400 / weak. */
   statLabel: 'text-[12px] font-normal text-[var(--pl-text-weak)]',
-  /** stat tile label, R18 two-tier: main 14/600 medium + period 12/400 faint
-   *  (owner: 기간 부가는 색·크기를 주 라벨과 다르게 — improvement-r18.md §5). */
-  statLabelMain: 'text-[14px] font-semibold text-[var(--pl-text-medium)]',
-  statLabelPeriod: 'text-[12px] font-normal text-[var(--pl-text-faint)]',
-  /** stat tile value — 32 / 600 / 1.2 / -.02em / tabular / strong. */
-  statValue: 'text-[32px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums',
+  /** stat tile main label — 16/600 medium (period now a tag above, not inline). */
+  statLabelMain: 'text-[16px] font-semibold text-[var(--pl-text-medium)]',
+  /** stat tile value — 40 / 600 / 1.2 / -.02em / tabular / strong. */
+  statValue: 'text-[40px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums',
   statValueDefault: 'text-[var(--pl-text-strong)]',
   /** stat value error tint (failed count > 0). */
   statValueError: 'text-[var(--pl-err-text)]',
@@ -983,8 +981,8 @@ export const pipelineStyles = {
     base: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[10px] shadow-[var(--pl-shadow-xs)] px-6 pt-5 pb-6',
     /** Stacked below another card in the same section (mt 16). */
     stack: 'mt-4',
-    /** Read-only grey stat tile — no shadow, max-w 260. */
-    stat: 'bg-[var(--pl-gray-100)] border border-[var(--pl-border)] rounded-[10px] px-6 pt-5 pb-6 max-w-[260px]',
+    /** Read-only grey stat tile — no shadow, max-w 300. */
+    stat: 'bg-[var(--pl-gray-100)] border border-[var(--pl-border)] rounded-[10px] px-6 pt-6 pb-7 max-w-[300px]',
     /** Horizontal-overflow wrapper for a table inside a card (§ .tblwrap). */
     tableWrap: 'overflow-x-auto',
   },
@@ -1173,8 +1171,8 @@ export const pipelineStyles = {
     mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
     muted: 'text-[var(--pl-text-weak)]',
     chevCell: 'text-right w-12 whitespace-nowrap',
-    /** Round chev button inside a clickable row — turns primary on row hover. */
-    chevButton: 'group-hover:border-[var(--pl-primary)] group-hover:text-[var(--pl-primary)]',
+    /** Chev button inside a clickable row — turns primary on row hover. */
+    chevButton: 'group-hover:text-[var(--pl-primary)]',
   },
 
   /** PlPagination — ghost sm bounds + pager-count 12 weak tabular. */

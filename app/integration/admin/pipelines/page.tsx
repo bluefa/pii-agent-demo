@@ -83,13 +83,11 @@ function StatTile({
   title: string;
   error?: boolean;
 }): ReactElement {
-  const { card, text } = pipelineStyles;
+  const { card, text, filterChip } = pipelineStyles;
   return (
     <div className={card.stat} title={title}>
-      <div className="flex items-baseline gap-1.5">
-        <div className={text.statLabelMain}>{labelMain}</div>
-        <div className={text.statLabelPeriod}>{labelPeriod}</div>
-      </div>
+      <span className={filterChip.scope}>{labelPeriod}</span>
+      <div className={cn(text.statLabelMain, 'mt-2')}>{labelMain}</div>
       <div className={cn(text.statValue, error ? text.statValueError : text.statValueDefault, 'mt-3')}>{value}</div>
     </div>
   );
@@ -197,6 +195,7 @@ export default function DashboardPage(): ReactElement {
   };
 
   const runningValue = live ? live.running_pipeline_count : '—';
+  const pendingValue = live ? live.pending_pipeline_count : '—';
   const failedCount = periodStats?.failed_count;
   const doneValue = periodStats ? periodStats.done_count : '—';
   const plabel = PERIOD_LABELS[period];
@@ -230,12 +229,18 @@ export default function DashboardPage(): ReactElement {
       </div>
 
       <SectionHeader first title="현황" />
-      <div className="grid grid-cols-[repeat(3,minmax(0,260px))] gap-3">
+      <div className="grid grid-cols-[repeat(4,minmax(0,300px))] gap-3">
         <StatTile
           labelMain="동작 중 파이프라인"
           labelPeriod="현재"
           value={runningValue}
           title="현재 RUNNING 상태인 파이프라인 수 — 기간과 무관한 순간값"
+        />
+        <StatTile
+          labelMain="대기 중 파이프라인"
+          labelPeriod="현재"
+          value={pendingValue}
+          title="현재 PENDING 상태인 파이프라인 수 — 기간과 무관한 순간값"
         />
         <StatTile
           labelMain="실패"
