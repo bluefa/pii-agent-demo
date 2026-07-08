@@ -116,9 +116,11 @@ claim 쿼리를 하나 더 두는 식으로 구현한다(둘 다 안전 — guar
 비경합). 어느 쪽이든 종단 행에는 READY task도, 의미 있는 `cancel_requested`도, slot-gate도
 없으므로 ADR-021의 RUNNING 전용 분기(cancel 체크→slot gate→execute_step)를 타지 않는다.
 
-**실패 경로(backoff + give-up).** 전달 실패 시 tx2는 `notify_attempts += 1`,
-`notify_next_at = now() + backoff(notify_attempts)`(상한 있는 지수 backoff, ADR-021의
-429/503→next_due_at 밀기와 동형), 클레임 해제. **실패 write-back도 성공과 동일한 fencing
+**실패 경로(backoff + give-up).** 전달 실패 시 tx2는 **post-increment 기준**으로 계산한다:
+`nextAttempts = notify_attempts + 1`을 먼저 구해 `notify_attempts = nextAttempts`로 저장하고,
+`nextAttempts >= maxAttempts`면 give-up, 아니면 `notify_next_at = now() + backoff(nextAttempts)`
+(상한 있는 지수 backoff, ADR-021의 429/503→next_due_at 밀기와 동형), 클레임 해제. (backoff는
+증가 후 카운트를 쓴다 — 첫 재시도 지연·give-up 전이가 구현마다 어긋나지 않도록 명시.) **실패 write-back도 성공과 동일한 fencing
 가드**(`WHERE id = :id AND notify_claimed_by = :token AND notified_at IS NULL`)**를 탄다** —
 lease 만료 뒤 되살아난 stale worker의 실패 write-back이, 그 사이 다른 worker가 성공시켜 이미
 `notified_at`이 찍힌 행의 attempts/backoff를 오염시키지 못하게 한다(0행 매칭 → no-op).
@@ -144,11 +146,14 @@ give-up은 영구 폐기가 아니라 “자동 재시도 중단 + 사람 개입
 마무리**한다 — gate는 **새 claim을 막을 뿐 이미 집힌 호출을 취소하지 않는다.** 따라서
 “비활성 기간엔 attempts를 안 올린다”는 보장은 **비활성 기간에 시작된 claim이 없다**는
 뜻이며(경계의 in-flight 1건은 정상 경로), 이 내부 도구 규모에서 그 경계 1건은 수용한다.
+채널 설정은 **매 loop 반복마다 새로 읽는다(캐시하지 않음)** — enable/disable은 다음 스캔
+주기에 반영되므로 반영 지연 상한 = 1 스캔 주기(§4 “알림 지연 = 스캔 주기”와 동일).
 
 **실행 워커풀과 격리.** 느린/죽은 sink가 파이프라인 실행을 굶기지 않도록, 종단 알림은
-**전용 스레드풀(또는 별도 워커 loop)**에서 처리하거나 notify 클레임에 작은 동시성 상한을
-둔다. 종단 알림 클레임은 ADR-021의 `runningPipelineCap`/`slotCap`에 **계상하지 않는다**
-(그 캡은 `status='RUNNING'`만 센다).
+파이프라인 실행과 **다른 실행 컨텍스트**에서 돌린다. **V1은 단일 스레드 notify loop**로
+시작하고(격리 + backlog 직렬 드레인, §4), 처리량이 필요해지면 전용 스레드풀 + notify 클레임
+동시성 상한으로 확장한다(둘 다 안전 — guarded write-back·lease 동일). 종단 알림 클레임은
+ADR-021의 `runningPipelineCap`/`slotCap`에 **계상하지 않는다**(그 캡은 `status='RUNNING'`만 센다).
 
 **보장:**
 - **at-least-once 전달.** `notified_at`은 **한 번만 찍히는 상태 마커**(파이프라인당 종단
@@ -183,7 +188,11 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 
 - **exactly-once 없음.** at-least-once + 멱등 소비자로 충분하다(ADR-016 §5와 같은 이유).
   2PC/분산 트랜잭션은 도입하지 않는다.
-- **소비자 계약**: (a) 멱등 dedupe 키(`pipeline_id`, 파이프라인당 종단 1개)를 충분히 오래 보관,
+- **소비자 계약**: (a) 멱등 dedupe 키(`pipeline_id`, 파이프라인당 종단 1개) 보관 —
+  **최소 보관 기간 = max(파이프라인 행 보존기간, 최대 재시도 horizon + 수동 replay 창)**.
+  중복 전달은 lease 만료·워커 크래시·타임아웃 모호·수동 재시도 리셋에서 나므로 그 창을
+  넘겨 보관해야 안전하다. (V1 Slack sink는 사람 상관이라 이 정식 계약은 **이후 도입될
+  프로그램적 sink에 적용**된다.)
   (b) payload에 `schema_version` 포함, (c) **PII 최소화(하드 계약)** — 이 시스템은 PII-인접
   인프라를 다루므로 payload는 **허용 필드만**: `pipeline_id`, `type`(INSTALL/DELETE),
   `terminal_status`, `target_ref`, 실패 시 `failed_task`/`error_code`, `schema_version`.
@@ -191,7 +200,8 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   hostname·account·DB명 등 민감 연결 식별자는 payload에 직렬화하지 않는다(MUST NOT)** —
   “지양”이 아니라 금지다. 사람이 봐야 할 실제 대상 상세는 알림 본문이 아니라 `pipeline_id`
   링크 뒤 **권한 있는 화면**에서 조회한다. 이 규칙은 구현 문서 `NotifyPayload`/Slack 템플릿에도
-  동일하게 강제된다(그 외 민감 상세는 싣지 않는다).
+  동일하게 강제된다(그 외 민감 상세는 싣지 않는다). **특히 Slack 본문에 raw 예외 메시지/스택을
+  넣지 않고 승인된 `error_code`로 매핑된 값만 노출**한다(예외 텍스트는 흔한 우발적 PII 유출 경로).
 - **알림 지연 = 스캔 주기.** 저지연 wake-up은 필요해지면 durable 파생 위에 힌트로 얹을 수
   있으나(아래 대안) 지금은 불필요. (타깃 MySQL8은 Postgres `LISTEN/NOTIFY`가 없으므로, 필요 시
   in-process 신호나 메시지 브로커를 검토 — V1 범위 밖.)
@@ -199,10 +209,13 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   `notified_at IS NULL`로 **적체**되고(발화 자체가 유실되진 않음 — 파생 모델의 이점),
   채널을 (재)활성화하면 backlog가 한꺼번에 발화한다. 짧은 sink 다운타임 뒤엔 “그동안 뭐가
   끝났나”를 받는 이점이지만, 오래 꺼져 있었으면 **알림 폭주**가 될 수 있다. 내부 도구
-  규모에서 폭주는 수용 가능하되, 문제가 되면 **활성화 시점에 기존 종단 행을 ack 처리
-  (backfill `notified_at`)하는 정책**을 구현에서 택한다(구현 문서 소관, V1 기본은 소급 발화).
-  참고로 **V1 notifier는 단일 스레드 loop라 backlog도 한 건씩 직렬 전달**되므로(§2 격리),
-  “한꺼번에 발화”가 순간 폭주가 아니라 스캔 주기에 맞춰 드레인된다 — 이것이 V1의 burst 상한.
+  규모에서 폭주는 수용 가능하다. **V1 notifier는 단일 스레드 loop라 backlog도 한 건씩 직렬
+  전달**되므로(§2 격리) “한꺼번에 발화”가 순간 폭주가 아니라 스캔 주기에 맞춰 드레인된다 —
+  이것이 V1의 burst 상한. **`notified_at`을 backfill해 옛 backlog를 “ack”로 덮지 않는다** —
+  `notified_at`은 “sink가 실제로 durable 수신”만 뜻하므로(§2), 미전달 행에 이를 찍으면 마커
+  의미가 “전달됨↔운영자가 버림”으로 오염돼 놓친 알림을 숨긴다. 운영자가 정말 옛 backlog를
+  억제해야 하면 **별도 suppression 마커**(`notification_suppressed_at`/`_by`/`_reason`, 감사
+  로그 필수)로 모델링하지 `notified_at`을 재활용하지 않는다(V1 범위 밖, 필요 시 도입).
 - **알림 전용 지표(두 age를 구분한다)**: 채널 활성/비활성으로 의미가 갈리므로 한 지표로
   뭉치지 않는다.
   - `notify_delivery_pending_age` — **활성 채널일 때만** 평가하는 “전달 정체” age
@@ -226,7 +239,7 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 
 | 대안 | 판정 | 이유 |
 |---|---|---|
-| **A. 상태 파생 + `notified_at`(claim/lease 재사용)** | **채택** | 이벤트가 이미 도메인 행에 있어 dual-write 없음; ADR-021 claim/lease/two-tx를 그대로 재사용해 relay-lease 문제 없음; 새 테이블·relay·pruner 0. |
+| **A. 상태 파생 + `notified_at`(claim/lease 메커니즘 재사용)** | **채택** | 이벤트가 이미 도메인 행에 있어 dual-write 없음; ADR-021 claim/lease/two-tx를 그대로 재사용해 relay-lease 문제 없음; 새 테이블·relay·pruner 0. |
 | B. 트랜잭션 아웃박스(별도 `event_outbox` + relay) | 기각 | 이벤트가 이미 `pipeline.status`에 있어 별도 저장소가 불필요; relay는 외부 전달에 lease가 필요한데 "SKIP LOCKED만"으로는 락을 외부 호출에 물리거나(ADR-021 §3 위반) 이중 전달이 남음; 다중 sink·poison·pruner를 새로 떠안음; ADR-016이 이미 잘라낸 메커니즘. |
 | C. 전이 트랜잭션 내 동기 알림 호출 | 기각 | dual-write; 느린/실패 알림이 상태 전이를 롤백·차단; 상태 정합성이 알림 서버에 종속. |
 | D. 커밋 후 best-effort 알림 | 기각 | 커밋~알림 사이 크래시로 조용히 유실; 재시도·복구 없음. |
@@ -418,3 +431,11 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   raw 연결 식별자 유출을 실패로 검출. (4) polish: 성공 write-back에도 `notified_at IS NULL` 가드
   대칭, `claimed_by`→`notify_claimed_by` 명명, §1 상태마커 1개 vs 전달제어 5컬럼 구분, 감사
   로그 보존/검색성 가정 명시.
+- 2026-07-08: **의미 오염·모호성 제거(codex 86 재리뷰).** (1) **`notified_at` backfill 금지** —
+  옛 backlog를 backfill로 “ack” 덮으면 마커 의미가 “전달됨↔운영자 폐기”로 오염돼 놓친 알림을
+  숨긴다 → 억제가 필요하면 별도 suppression 마커(감사 로그 필수)로 모델링(V1 밖). burst 상한은
+  단일 스레드 직렬 드레인으로 충분. (2) **backoff post-increment 명시** — `nextAttempts=+1` 저장
+  후 `>=maxAttempts`면 give-up, 아니면 `backoff(nextAttempts)`(구현 편차 방지). (3) **dedup
+  보관 기간 정량화** — `max(행 보존, 재시도 horizon + 수동 replay 창)`, V1 Slack 면제/프로그램적
+  sink 적용. (4) polish: 예외 텍스트 PII 유출 금지(승인 `error_code`만), 채널 설정 무캐시(반영
+  지연 = 1 스캔 주기), V1 단일 스레드 loop↔전용 풀 확장 관계 정리, 대안표 A “메커니즘 재사용”.
