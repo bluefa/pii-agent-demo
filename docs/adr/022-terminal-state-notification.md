@@ -106,7 +106,8 @@ UPDATE pipeline SET notify_claimed_by = :fresh_uuid,     -- per-claim fencing
   (ADR-021 §4 fencing과 동형). 실패 시 아래 실패 경로.
 
 이로써 ADR-021 §3의 **two-transaction split**(락을 외부 호출에 물리지 않는다)과 fencing이
-그대로 적용된다 — **standalone relay가 재발명해야 했던 lease 문제가 애초에 발생하지 않는다.**
+그대로 적용된다 — 알림이 `pipeline` 행 작업이므로 **별도 relay용 lease 테이블/상태가 필요
+없다**(notify lease 자체는 있지만 같은 aggregate 행에 얹는다).
 종단 알림은 위의 **자체 claim 쿼리**(별도 술어)를 쓰며, 전용 loop로 돌리거나 공유 워커에
 claim 쿼리를 하나 더 두는 식으로 구현한다(둘 다 안전 — guarded write-back 동일, lease
 비경합). 어느 쪽이든 종단 행에는 READY task도, 의미 있는 `cancel_requested`도, slot-gate도
@@ -177,12 +178,14 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 - **exactly-once 없음.** at-least-once + 멱등 소비자로 충분하다(ADR-016 §5와 같은 이유).
   2PC/분산 트랜잭션은 도입하지 않는다.
 - **소비자 계약**: (a) 멱등 dedupe 키(`pipeline_id`, 파이프라인당 종단 1개)를 충분히 오래 보관,
-  (b) payload에 `schema_version` 포함, (c) **PII 최소화** — 이 시스템은 PII-인접 인프라를
-  다루므로 payload는 **허용 필드만**: `pipeline_id`, `type`(INSTALL/DELETE),
-  `terminal_status`, `target`(**opaque 식별자 원칙** — hostname/account/DB명 같은 민감
-  식별자는 지양), 실패 시 `failed_task`/`error_code`, `schema_version`. 그 외 민감 상세는
-  싣지 않는다. **사람이 봐야 할 상세(어떤 대상인지 등)는 알림 본문이 아니라 `pipeline_id`
-  링크 뒤 권한 있는 화면에서 조회**한다 — 알림 채널(Slack 등)에 원문 식별자를 흘리지 않는다.
+  (b) payload에 `schema_version` 포함, (c) **PII 최소화(하드 계약)** — 이 시스템은 PII-인접
+  인프라를 다루므로 payload는 **허용 필드만**: `pipeline_id`, `type`(INSTALL/DELETE),
+  `terminal_status`, `target_ref`, 실패 시 `failed_task`/`error_code`, `schema_version`.
+  **`target_ref`는 대상의 opaque 참조(파이프라인 target 키/식별자)여야 하며, raw
+  hostname·account·DB명 등 민감 연결 식별자는 payload에 직렬화하지 않는다(MUST NOT)** —
+  “지양”이 아니라 금지다. 사람이 봐야 할 실제 대상 상세는 알림 본문이 아니라 `pipeline_id`
+  링크 뒤 **권한 있는 화면**에서 조회한다. 이 규칙은 구현 문서 `NotifyPayload`/Slack 템플릿에도
+  동일하게 강제된다(그 외 민감 상세는 싣지 않는다).
 - **알림 지연 = 스캔 주기.** 저지연 wake-up은 필요해지면 durable 파생 위에 힌트로 얹을 수
   있으나(아래 대안) 지금은 불필요. (타깃 MySQL8은 Postgres `LISTEN/NOTIFY`가 없으므로, 필요 시
   in-process 신호나 메시지 브로커를 검토 — V1 범위 밖.)
@@ -192,9 +195,20 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   끝났나”를 받는 이점이지만, 오래 꺼져 있었으면 **알림 폭주**가 될 수 있다. 내부 도구
   규모에서 폭주는 수용 가능하되, 문제가 되면 **활성화 시점에 기존 종단 행을 ack 처리
   (backfill `notified_at`)하는 정책**을 구현에서 택한다(구현 문서 소관, V1 기본은 소급 발화).
+  참고로 **V1 notifier는 단일 스레드 loop라 backlog도 한 건씩 직렬 전달**되므로(§2 격리),
+  “한꺼번에 발화”가 순간 폭주가 아니라 스캔 주기에 맞춰 드레인된다 — 이것이 V1의 burst 상한.
 - **알림 전용 지표**: 미알림(전달 대기, give-up 제외 = `notify_attempts < maxAttempts`) 종단
-  행 최고 age, notify 재시도/실패 수, give-up 승격 수(사람 개입 필요 신호). ADR-021 워커
-  지표만으로는 알림 정체를 볼 수 없으므로 별도로 둔다.
+  행 최고 age, notify 재시도/실패 수, give-up 수(`countGivenUp`). ADR-021 워커 지표만으로는
+  알림 정체를 볼 수 없으므로 별도로 둔다.
+- **give-up 경보는 필수(MUST).** give-up 행은 자동 재시도가 멈추고 pending-age 지표에서도
+  빠지므로, **감시하지 않으면 종단 알림이 조용히 영구 유실**된다 — 이 설계의 최고 위험
+  경로다. 따라서 **`countGivenUp > 0`이면 반드시 담당자(파이프라인 운영자)에게 경보**한다:
+  - **신호**: V1은 actuator/Micrometer가 없으므로 give-up 시 남기는 `ERROR` 로그
+    (`notify give-up pipeline={} after {} attempts`)를 **로그 기반 경보**(조직 alerting 스택,
+    §3)로 연결한다. actuator 도입 후에는 `notify.giveup.total` gauge에 임계 경보를 건다.
+  - **심각도/라우팅**: 운영 알림 경로(§3)와 동일 스택, page 대상은 파이프라인 운영자.
+  - **복구 절차**: sink를 고친 뒤 admin이 해당 행의 `notify_attempts`를 리셋하고
+    `notify_next_at`을 `now()`로 되돌려 재시도를 재개(§2, 구현 문서 §5).
 
 ## 고려한 대안
 
@@ -237,7 +251,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   져야 한다(§2).
 - **회귀(수용): per-event 감사 추적 상실.** outbox는 이벤트당 durable 행을 남겼지만 이제
   파이프라인당 `notified_at` 1개뿐 — “무엇을 언제 몇 번 보냈나”는 로그/지표로만 재구성.
-  내부 도구 수준에서 수용하며, 규제/감사 요건이 생기면 재검토.
+  이 감사-손실을 운영적으로 견디려면 **구조화 전달 로그가 최소 `pipeline_id`·`terminal_status`·
+  `attempt`·sink 응답 분류(2xx/4xx/5xx/timeout)를 반드시 포함**해야 한다(그래야 사후에 전달
+  이력을 재구성할 수 있다). 내부 도구 수준에서 수용하며, 규제/감사 요건이 생기면 재검토.
 - **회귀(수용): 종단만·1회성.** 상태 파생은 durable 종단에서만 발화하므로 중간 이벤트
   (“시작됨”·“step N 완료”·“task 재시도”)나 성공한 파이프라인 내 **transient task 실패**는
   이 경로로 나가지 않는다 — 그런 신호는 metrics/logs 소관. 진행 알림이 제품 요구가 되면
@@ -258,9 +274,10 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 - 새 테이블 없음(알림 전달용). claim 술어는 §2(종단 + `notified_at IS NULL` + backoff 게이트 +
   notify lease 가용).
 - **인덱스**: MySQL8은 부분(filtered) 인덱스가 없으므로 복합 인덱스
-  `(notified_at, notify_next_at)`로 미알림 종단 행 스캔/정렬을 덮는다(status 필터는 옵티마이저에
-  맡김; `active_target` 유일 제약이 부분 인덱스를 컬럼으로 대체하는 것과 같은 제약). ~2,000행
-  규모에 충분하며, 대규모로 커지면 재검토.
+  `(notified_at, notify_next_at)`로 미알림 종단 행 스캔/정렬을 덮는다(status·`notify_attempts`·
+  `notify_claimed_until` 필터와 `id` tie-break는 인덱스로 완전히 커버되지 않고 옵티마이저/힙에
+  맡긴다 — `id` 정렬은 논리적 결정성이지 인덱스-커버가 아니다; `active_target` 유일 제약이 부분
+  인덱스를 컬럼으로 대체하는 것과 같은 제약). ~2,000행 규모에 충분하며, 대규모로 커지면 재검토.
 - **Slack 채널 설정용 `notification_channel` 테이블**(단일 행)이 별도로 추가된다 — 구현 세부는
   아래 링크의 구현 문서 참조.
 
@@ -284,9 +301,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 
 | 신호 | 파생 조건 | payload 요지 |
 |---|---|---|
-| 파이프라인 완료 | `status = DONE` & `notified_at IS NULL` | pipeline id, type, target |
+| 파이프라인 완료 | `status = DONE` & `notified_at IS NULL` | pipeline id, type, `target_ref`(opaque) |
 | 파이프라인 실패 | `status = FAILED` & 〃 | 위 + 실패 task와 `error_code` |
-| 파이프라인 취소 | `status = CANCELLED` & 〃 | pipeline id, type, target |
+| 파이프라인 취소 | `status = CANCELLED` & 〃 | pipeline id, type, `target_ref`(opaque) |
 
 - **운영 알림**(worker-outage/queue-wait) — 이 경로가 아니라 기존 metrics/alerting(§3).
 
@@ -371,3 +388,11 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   성공/실패로 마무리(새 claim만 차단). (4) polish: dedup 문장에 불변식 4 xref, target 상세는
   권한 화면에서 조회(채널에 원문 식별자 금지), §2 sink 문장에 Slack 명시. 구현 문서의 stale
   TODO(§8) 완료 표기로 정정.
+- 2026-07-08: **PII·give-up 경보 하드닝(codex 88 재리뷰, 양 리뷰어 수렴 항목).** (1) **target
+  PII를 하드 계약으로** — `target`→`target_ref`(opaque 참조), raw host/account/DB명 직렬화
+  금지(MUST NOT), 사람용 상세는 권한 화면 조회. ADR §4 + 구현 `NotifyPayload`/Slack 템플릿
+  동시 반영(“지양”→금지). (2) **give-up 경보를 필수(MUST)로** — give-up은 자동 재시도 정지 +
+  pending-age 제외라 미감시 시 조용한 영구 유실 → `countGivenUp > 0`이면 담당자 page(신호=ERROR
+  로그 기반 경보, 심각도/라우팅/복구 절차 명시). (3) polish: 감사-손실 생존을 위한 구조화 전달
+  로그 필수 필드(`pipeline_id`·`terminal_status`·`attempt`·sink 응답 분류), relay-lease 문구
+  정밀화, 인덱스 커버리지 한계 명시, backlog burst 상한=단일 스레드 loop 직렬 드레인.

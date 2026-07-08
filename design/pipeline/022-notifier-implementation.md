@@ -268,6 +268,10 @@ public class NotifyClaimer {
         }
         // type 은 write-once 캐시라 미해석 옛 값이 null 로 열화할 수 있다 → null-guard 필수(NPE 방지).
         String type = p.getType() == null ? null : p.getType().name();   // INSTALL | DELETE | CUSTOM | null
+        // targetRef: p.getTarget() 은 파이프라인 대상의 opaque 키여야 한다(ADR-022 §4 하드 계약).
+        // 만약 이 시스템에서 target 이 raw hostname/account/DB명을 담는다면, 여기서 opaque 핸들로
+        // 매핑해서 넣어야 하며 raw 값을 그대로 직렬화하면 안 된다(MUST NOT). 연결 상세(host/port/
+        // credential 등)는 payload 에 절대 싣지 않는다.
         return new NotifyPayload(p.getId(), type, p.getStatus().name(),
                 p.getTarget(), failedTask, errorCode, "1");
     }
@@ -293,7 +297,7 @@ public record NotifyPayload(
         long pipelineId,
         String type,            // INSTALL | DELETE | CUSTOM | null(열화)
         String terminalStatus,  // DONE | FAILED | CANCELLED
-        String target,          // 식별자
+        String targetRef,       // 대상의 opaque 참조(target 키/id). raw host/account/DB명 금지(MUST NOT) — ADR-022 §4
         String failedTask,      // FAILED 일 때만, 아니면 null
         String errorCode,       // FAILED 일 때만, 아니면 null
         String schemaVersion) { // 상수 "1"
@@ -345,15 +349,18 @@ public class SlackNotifier {
 
 Slack 메시지 형식(간단·읽기 쉬운 텍스트; blocks 는 나중에):
 
+`target_ref` 는 **opaque 참조만**(raw host/account/DB명 금지, ADR-022 §4). 어떤 대상인지
+사람이 확인해야 하면 `id 1234` 링크 뒤 권한 화면에서 조회한다 — Slack 본문엔 안 흘린다.
+
 ```json
 {
-  "text": ":white_check_mark: *Pipeline DONE* — INSTALL `target-abc` (id 1234)",
+  "text": ":white_check_mark: *Pipeline DONE* — INSTALL (id 1234)",
   "attachments": [{
     "color": "good",
     "fields": [
-      {"title": "type",   "value": "INSTALL", "short": true},
-      {"title": "status", "value": "DONE",    "short": true},
-      {"title": "target", "value": "target-abc", "short": false}
+      {"title": "type",       "value": "INSTALL",  "short": true},
+      {"title": "status",     "value": "DONE",     "short": true},
+      {"title": "target_ref", "value": "tgt_9f3a", "short": false}
     ]
   }]
 }
