@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { ClockIcon } from '@/app/components/ui/icons';
@@ -13,9 +14,11 @@ import {
   RejectionAlert,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalCancelButton } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCancelButton';
+import { ApprovalUnavailableCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ApprovalUnavailableCard';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
-import { getProject } from '@/app/lib/api';
+import { AppError } from '@/lib/errors';
+import { getApprovalRequestLatest, getProject } from '@/app/lib/api';
 import { getIdcApprovalRequestResources } from '@/app/lib/api/idc';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
 
@@ -37,6 +40,24 @@ export const IdcStep2WaitingApproval = ({
   // Step 2 source: the requested list (approval-requests/latest), not previous-request.
   const { state } = useIdcResources(project.targetSourceId, getIdcApprovalRequestResources);
 
+  // 연동 불가 verdict — IDC's table source (approved-integration) omits it, so read
+  // approval-requests/latest separately for the verdict + reason (provider-agnostic).
+  const [unavailable, setUnavailable] = useState<{ reason: string } | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    void getApprovalRequestLatest(project.targetSourceId, { signal: controller.signal })
+      .then((res) => {
+        setUnavailable(
+          res.result?.status === 'UNAVAILABLE' ? { reason: res.result?.reason ?? '' } : null,
+        );
+      })
+      .catch((error: unknown) => {
+        if (error instanceof AppError && (error.code === 'ABORTED' || error.code === 'NOT_FOUND')) return;
+        // Non-fatal: leave the verdict unset and let the normal waiting card render.
+      });
+    return () => controller.abort();
+  }, [project.targetSourceId]);
+
   return (
     <>
       <ProjectPageMeta
@@ -47,6 +68,13 @@ export const IdcStep2WaitingApproval = ({
       />
       <ProcessStatusCard project={project} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
+      {unavailable ? (
+        <ApprovalUnavailableCard
+          targetSourceId={project.targetSourceId}
+          reason={unavailable.reason}
+          onReselected={async () => onProjectUpdate(await getProject(project.targetSourceId))}
+        />
+      ) : (
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
@@ -80,6 +108,7 @@ export const IdcStep2WaitingApproval = ({
           </div>
         </div>
       </section>
+      )}
       <RejectionAlert project={project} />
     </>
   );

@@ -24,6 +24,7 @@ const createStatusForProcessStatus = (
   processStatus: ProcessStatus,
   options?: {
     isRejected?: boolean;
+    unavailableReason?: string;
     selectedCount?: number;
     excludedCount?: number;
   }
@@ -44,7 +45,9 @@ const createStatusForProcessStatus = (
         ...base,
         scan: { status: 'COMPLETED' },
         targets: { confirmed: true, selectedCount, excludedCount },
-        approval: { status: options?.isRejected ? 'REJECTED' : 'PENDING' },
+        approval: options?.unavailableReason
+          ? { status: 'UNAVAILABLE', rejectionReason: options.unavailableReason }
+          : { status: options?.isRejected ? 'REJECTED' : 'PENDING' },
       };
 
     case ProcessStatus.INSTALLING:
@@ -899,6 +902,7 @@ const makeIdcProject = (
   step: ProcessStatus,
   name: string,
   resources: MockResource[],
+  unavailableReason?: string,
 ): Project => ({
   id: `idc-proj-${targetSourceId}`,
   targetSourceId,
@@ -908,7 +912,7 @@ const makeIdcProject = (
   serviceCode: 'idc',
   cloudProvider: 'IDC',
   processStatus: step,
-  status: createStatusForProcessStatus(step, { selectedCount: 5, excludedCount: 2 }),
+  status: createStatusForProcessStatus(step, { selectedCount: 5, excludedCount: 2, unavailableReason }),
   resources,
   terraformState: { bdcTf: step >= ProcessStatus.INSTALLING ? 'COMPLETED' : 'PENDING' },
   createdAt: '2026-03-01T09:00:00Z',
@@ -938,6 +942,14 @@ mockProjects.push(
   makeIdcProject(1024, ProcessStatus.WAITING_CONNECTION_TEST, 'IDC PII Agent - 연결 테스트', idcResourcesForStep(ProcessStatus.WAITING_CONNECTION_TEST)),
   makeIdcProject(1025, ProcessStatus.CONNECTION_VERIFIED, 'IDC PII Agent - 연결 확인', idcResourcesForStep(ProcessStatus.CONNECTION_VERIFIED)),
   makeIdcProject(1026, ProcessStatus.INSTALLATION_COMPLETE, 'IDC PII Agent - 설치 완료', idcResourcesForStep(ProcessStatus.INSTALLATION_COMPLETE)),
+  // Step 2, 연동 불가 sub-state — admin judged the requested targets un-integratable.
+  makeIdcProject(
+    1027,
+    ProcessStatus.WAITING_APPROVAL,
+    'IDC PII Agent - 연동 불가',
+    idcResourcesForStep(ProcessStatus.WAITING_APPROVAL),
+    '요청하신 온프레미스 DB는 현재 연동 대상 네트워크 대역 밖에 있어 연동할 수 없습니다.',
+  ),
 );
 
 // ===== Cloud step-coverage seed (detail page) =====
@@ -999,6 +1011,7 @@ const cloneForStep = (
     name: string;
     status: ProcessStatus;
     resources?: Project['resources'];
+    unavailableReason?: string;
   },
 ): Project => {
   const base = mockProjects.find((p) => p.id === baseId);
@@ -1025,7 +1038,10 @@ const cloneForStep = (
     projectCode: over.projectCode,
     name: over.name,
     processStatus: over.status,
-    status: createStatusForProcessStatus(over.status, { selectedCount: 2 }),
+    status: createStatusForProcessStatus(over.status, {
+      selectedCount: 2,
+      unavailableReason: over.unavailableReason,
+    }),
     resources,
     isRejected: false,
   };
@@ -1046,6 +1062,8 @@ mockProjects.push(
   cloneForStep('azure-proj-1', { id: 'azure-proj-test', targetSourceId: 2004, projectCode: 'AZURE-TEST', name: 'Azure PII Agent - 연결 테스트', status: ProcessStatus.WAITING_CONNECTION_TEST }),
   cloneForStep('azure-proj-1', { id: 'azure-proj-verified', targetSourceId: 2005, projectCode: 'AZURE-VERIFIED', name: 'Azure PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED }),
   cloneForStep('azure-proj-1', { id: 'azure-proj-complete', targetSourceId: 2006, projectCode: 'AZURE-COMPLETE', name: 'Azure PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE }),
+  // Step 2, 연동 불가 sub-state — verdict + reason surface on the cloud approval card.
+  cloneForStep('azure-proj-1', { id: 'azure-proj-unavailable', targetSourceId: 2013, projectCode: 'AZURE-UNAVAIL', name: 'Azure PII Agent - 연동 불가', status: ProcessStatus.WAITING_APPROVAL, unavailableReason: '선택하신 리소스는 현재 지원되지 않는 유형이라 연동할 수 없습니다. 지원 대상 DB만 다시 선택해주세요.' }),
   // GCP — fills steps 2/3/4/5/6/7 (gcp-proj-1 has no resources, so inject a demo set)
   cloneForStep('gcp-proj-1', { id: 'gcp-proj-approval', targetSourceId: 2007, projectCode: 'GCP-APPROVAL', name: 'GCP PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL, resources: gcpDemoResources }),
   cloneForStep('gcp-proj-1', { id: 'gcp-proj-applying', targetSourceId: 2008, projectCode: 'GCP-APPLYING', name: 'GCP PII Agent - 반영 중', status: ProcessStatus.APPLYING_APPROVED, resources: gcpDemoResources }),
