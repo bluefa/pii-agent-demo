@@ -55,7 +55,10 @@ CDC/브로커 같은 이벤트 인프라를 정당화하지 않는다.
 
 ### 1. 종단 알림은 상태에서 파생한다(derive-from-state) — 별도 이벤트 저장소 없음
 
-`pipeline`에 nullable 컬럼 `notified_at` 하나를 둔다. 알림 대상은 **쿼리로 파생**된다:
+**상태 마커**는 `pipeline.notified_at`(nullable) **하나**다 — “알렸는가”는 이 컬럼만으로
+표현된다. (전달을 실제로 굴리는 lease/backoff 컬럼은 별도로 더 붙지만(§2·스키마, 총 5개),
+그건 *전달 제어* 메타데이터이지 “알림 대상 판정”은 아래처럼 `notified_at` 하나로 족하다.)
+알림 대상은 **쿼리로 파생**된다:
 
 ```
 status IN ('DONE','FAILED','CANCELLED') AND notified_at IS NULL
@@ -102,8 +105,8 @@ UPDATE pipeline SET notify_claimed_by = :fresh_uuid,     -- per-claim fencing
 
 - **외부 호출** — 알림 sink에 전달(트랜잭션 밖, per-call 타임아웃).
 - **tx2(guarded write-back)** — 성공 시
-  `SET notified_at = now(), notify_claimed_by = NULL, notify_claimed_until = NULL WHERE id = :id AND notify_claimed_by = :token`
-  (ADR-021 §4 fencing과 동형). 실패 시 아래 실패 경로.
+  `SET notified_at = now(), notify_claimed_by = NULL, notify_claimed_until = NULL WHERE id = :id AND notify_claimed_by = :token AND notified_at IS NULL`
+  (ADR-021 §4 fencing과 동형; 실패 경로와 동일한 `notified_at IS NULL` 가드로 대칭). 실패 시 아래 실패 경로.
 
 이로써 ADR-021 §3의 **two-transaction split**(락을 외부 호출에 물리지 않는다)과 fencing이
 그대로 적용된다 — 알림이 `pipeline` 행 작업이므로 **별도 relay용 lease 테이블/상태가 필요
@@ -152,11 +155,14 @@ give-up은 영구 폐기가 아니라 “자동 재시도 중단 + 사람 개입
   알림 *상태* 1개)이지만 **외부 전달은 at-least-once** — 전달 성공 후 `notified_at` 기록
   전 크래시/타임아웃/lease 만료로 **중복 전달이 가능**하다. 따라서 **소비자는 멱등해야
   한다**(`pipeline_id`로 dedupe — 파이프라인당 종단은 하나이므로 `pipeline_id`만으로 충분;
-  불변식 4 참조).
+  불변식 4 참조). **단, V1 sink인 Slack 웹훅은 프로그램적 dedupe를 못 한다** — 그래서
+  V1에서 “멱등”은 **중복 메시지를 그대로 노출하고 사람이 `pipeline_id`로 상관(correlate)**하는
+  것을 뜻한다(중복 Slack 메시지 수용, 구현 문서). 기계적 dedupe가 필요한 **프로그램적
+  다운스트림 소비자**가 붙을 때 그쪽이 `pipeline_id`로 dedupe한다 — 그 계약이 위 문장이다.
   순서: 파이프라인당 알림 상태가 1개라 파이프라인 내부 순서 문제는 없고, 같은 target의
   이전/이후 파이프라인 알림은 `pipeline_id` 키로 소비자가 구분한다.
-- **stale straggler 안전.** lease 만료 뒤 되살아난 워커의 tx2는 `claimed_by` 가드에서
-  no-op(ADR-021 §4) — 이중 스탬프·클로버 없음.
+- **stale straggler 안전.** lease 만료 뒤 되살아난 워커의 tx2는 `notify_claimed_by` 가드
+  (+`notified_at IS NULL`)에서 no-op(ADR-021 §4와 동형) — 이중 스탬프·클로버 없음.
 - **`notified_at`의 의미**: “sink가 durable하게 수신(ack)”이지 “모든 다운스트림이 봤다”가
   아니다. sink가 내부적으로 fan-out하면 그 신뢰성은 sink 책임이다.
 
@@ -197,9 +203,15 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   (backfill `notified_at`)하는 정책**을 구현에서 택한다(구현 문서 소관, V1 기본은 소급 발화).
   참고로 **V1 notifier는 단일 스레드 loop라 backlog도 한 건씩 직렬 전달**되므로(§2 격리),
   “한꺼번에 발화”가 순간 폭주가 아니라 스캔 주기에 맞춰 드레인된다 — 이것이 V1의 burst 상한.
-- **알림 전용 지표**: 미알림(전달 대기, give-up 제외 = `notify_attempts < maxAttempts`) 종단
-  행 최고 age, notify 재시도/실패 수, give-up 수(`countGivenUp`). ADR-021 워커 지표만으로는
-  알림 정체를 볼 수 없으므로 별도로 둔다.
+- **알림 전용 지표(두 age를 구분한다)**: 채널 활성/비활성으로 의미가 갈리므로 한 지표로
+  뭉치지 않는다.
+  - `notify_delivery_pending_age` — **활성 채널일 때만** 평가하는 “전달 정체” age
+    (미알림 + give-up 제외 + `notify_next_at <= now`). 이게 커지면 sink/전달이 막힌 것 →
+    경보. **채널 비활성 동안은 평가/경보를 suppress**한다(정체가 아니라 gate 때문).
+  - `terminal_notification_backlog_age` — 비활성 채널 backlog까지 포함한 총 미알림 age
+    (채널이 얼마나 오래 꺼져 있었나를 본다). 채널 활성 여부·비활성 지속시간과 함께 감시.
+  - 그 외: notify 재시도/실패 수, give-up 수(`countGivenUp`). ADR-021 워커 지표만으로는
+    알림 정체를 볼 수 없으므로 별도로 둔다.
 - **give-up 경보는 필수(MUST).** give-up 행은 자동 재시도가 멈추고 pending-age 지표에서도
   빠지므로, **감시하지 않으면 종단 알림이 조용히 영구 유실**된다 — 이 설계의 최고 위험
   경로다. 따라서 **`countGivenUp > 0`이면 반드시 담당자(파이프라인 운영자)에게 경보**한다:
@@ -252,8 +264,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 - **회귀(수용): per-event 감사 추적 상실.** outbox는 이벤트당 durable 행을 남겼지만 이제
   파이프라인당 `notified_at` 1개뿐 — “무엇을 언제 몇 번 보냈나”는 로그/지표로만 재구성.
   이 감사-손실을 운영적으로 견디려면 **구조화 전달 로그가 최소 `pipeline_id`·`terminal_status`·
-  `attempt`·sink 응답 분류(2xx/4xx/5xx/timeout)를 반드시 포함**해야 한다(그래야 사후에 전달
-  이력을 재구성할 수 있다). 내부 도구 수준에서 수용하며, 규제/감사 요건이 생기면 재검토.
+  `attempt`·sink 응답 분류(2xx/4xx/5xx/timeout)를 반드시 포함**하고, **해당 로그가 조회 가능한
+  보존기간 동안 검색 가능**해야 한다(로그가 짧게 순환되거나 검색 불가면 “사후 재구성”은 실제로
+  보장되지 않는다). 내부 도구 수준에서 수용하며, 규제/감사 요건이 생기면 재검토.
 - **회귀(수용): 종단만·1회성.** 상태 파생은 durable 종단에서만 발화하므로 중간 이벤트
   (“시작됨”·“step N 완료”·“task 재시도”)나 성공한 파이프라인 내 **transient task 실패**는
   이 경로로 나가지 않는다 — 그런 신호는 metrics/logs 소관. 진행 알림이 제품 요구가 되면
@@ -396,3 +409,12 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   로그 기반 경보, 심각도/라우팅/복구 절차 명시). (3) polish: 감사-손실 생존을 위한 구조화 전달
   로그 필수 필드(`pipeline_id`·`terminal_status`·`attempt`·sink 응답 분류), relay-lease 문구
   정밀화, 인덱스 커버리지 한계 명시, backlog burst 상한=단일 스레드 loop 직렬 드레인.
+- 2026-07-08: **일관성 하드닝(codex 87 재리뷰).** (1) **Slack 멱등 계약 명확화** — V1 Slack
+  웹훅은 프로그램적 dedupe 불가 → “멱등”은 중복 노출 + 사람이 `pipeline_id`로 상관(수용);
+  기계적 dedupe는 프로그램적 다운스트림 소비자 계약. (2) **두 age 지표 분리** —
+  `notify_delivery_pending_age`(활성 채널 한정, 비활성 시 suppress) vs
+  `terminal_notification_backlog_age`(비활성 backlog 포함); 채널 gate 문구와 정합(구현 §7도 반영).
+  (3) **`target_ref` opaque 강제 지점 명시** — 유일 매핑 `toTargetRef` + `NotifyPayloadPiiTest`가
+  raw 연결 식별자 유출을 실패로 검출. (4) polish: 성공 write-back에도 `notified_at IS NULL` 가드
+  대칭, `claimed_by`→`notify_claimed_by` 명명, §1 상태마커 1개 vs 전달제어 5컬럼 구분, 감사
+  로그 보존/검색성 가정 명시.

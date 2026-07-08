@@ -268,12 +268,19 @@ public class NotifyClaimer {
         }
         // type 은 write-once 캐시라 미해석 옛 값이 null 로 열화할 수 있다 → null-guard 필수(NPE 방지).
         String type = p.getType() == null ? null : p.getType().name();   // INSTALL | DELETE | CUSTOM | null
-        // targetRef: p.getTarget() 은 파이프라인 대상의 opaque 키여야 한다(ADR-022 §4 하드 계약).
-        // 만약 이 시스템에서 target 이 raw hostname/account/DB명을 담는다면, 여기서 opaque 핸들로
-        // 매핑해서 넣어야 하며 raw 값을 그대로 직렬화하면 안 된다(MUST NOT). 연결 상세(host/port/
-        // credential 등)는 payload 에 절대 싣지 않는다.
+        // targetRef 의 canonical 안전 소스 = 파이프라인의 **opaque target 키**(target-source
+        // 식별자). raw hostname/account/DB명·연결 상세(host/port/credential)는 payload 에 절대
+        // 직렬화하지 않는다(MUST NOT, ADR-022 §4). 아래 toTargetRef 가 유일한 매핑 지점이며,
+        // 이 규칙은 NotifyPayloadPiiTest(§11)가 강제한다 — raw 식별자가 새면 테스트가 실패한다.
         return new NotifyPayload(p.getId(), type, p.getStatus().name(),
-                p.getTarget(), failedTask, errorCode, "1");
+                toTargetRef(p), failedTask, errorCode, "1");
+    }
+
+    /** 파이프라인 대상 → opaque 알림 참조. V1: 이미 opaque 한 target 키를 그대로 쓴다.
+     *  target 필드가 raw 식별자를 담게 되면 여기서 해싱/치환해 opaque 핸들만 내보내도록 바꾼다
+     *  (유일한 변경 지점). 연결 상세는 여기서도 접근하지 않는다. */
+    private String toTargetRef(Pipeline p) {
+        return p.getTarget();   // opaque target 키 가정. 아니게 되면 이 한 곳만 고친다.
     }
 }
 ```
@@ -587,11 +594,15 @@ public record TestResult(
 
 `spring-boot-starter-actuator`/Micrometer 는 현재 pom 에 없다. V1 은 **구조화 로그**로 시작:
 
-- `notify delivered pipeline={} attempts={}` (INFO), `notify delivery failed …`(WARN), `notify give-up …`(ERROR).
-- 정체 감시: `oldestUnnotifiedAt(settings.maxAttempts())`(give-up 제외한 전달 대기 age) +
-  `countGivenUp(settings.maxAttempts())`(사람 개입 필요 수) 를 주기 로그 또는 (actuator 도입 시) gauge 로.
-- actuator 를 추가하면 gauge 3개 노출: `notify.unnotified.oldest.age.seconds`,
-  `notify.attempts.total`(counter), `notify.giveup.total`(gauge=`countGivenUp`). **도입은 후속**(YAGNI).
+- `notify delivered pipeline={} attempts={}` (INFO), `notify delivery failed …`(WARN),
+  `notify give-up pipeline={} after {} attempts`(ERROR — **로그 기반 경보 필수**, ADR-022 §4).
+- **두 age 를 구분**(ADR-022 §4): `oldestUnnotifiedAt(maxAttempts)` 는 비활성 채널 backlog 까지
+  포함한 **총 backlog age**(`terminal_notification_backlog_age`). 반면 “전달 정체” 경보
+  (`notify_delivery_pending_age`)는 **활성 채널일 때만** 평가하고 채널 비활성 동안은 suppress 한다
+  (정체가 아니라 gate 때문). `countGivenUp(maxAttempts)` 는 give-up 수(사람 개입 필요).
+- actuator 를 추가하면 gauge 노출: `notify.backlog.oldest.age.seconds`(총),
+  `notify.delivery.pending.age.seconds`(활성 채널 한정), `notify.attempts.total`(counter),
+  `notify.giveup.total`(gauge=`countGivenUp`). **도입은 후속**(YAGNI).
 
 ## 8. 설계 판단 기록 (구현 중 갈린 지점)
 
@@ -644,13 +655,18 @@ public record TestResult(
 **`SlackNotifier` 는 슬라이스 밖 순수 단위 테스트**로(스텁 `RestClient`) 검증한다.
 
 
-- **claim 술어**: 종단·미알림·due 행만 잡고, `notified_at != null`/미도래 `notify_next_at`/유효 lease 행은 스킵.
-- **tx2 fencing**: 토큰 불일치 write-back 은 no-op(재claim 시나리오).
-- **backoff/give-up**: `attempts` 증가·`notify_next_at` 전진, `max-attempts` 도달 시 far-future + ERROR.
+- **claim 술어**: 종단·미알림·due 행만 잡고, `notified_at != null`/미도래 `notify_next_at`/유효 lease/
+  **give-up(`notify_attempts >= maxAttempts`)** 행은 스킵(attempts 술어가 give-up 을 배제하는지 명시 검증).
+- **tx2 fencing**: 토큰 불일치 **또는 이미 `notified_at != null`** 인 write-back 은 no-op
+  (stale worker 가 타 worker 성공 후 attempts 를 못 건드림 — success·failure 양쪽 guard).
+- **backoff/give-up**: `attempts` 증가·`notify_next_at` 전진, `max-attempts` 도달 시 ERROR 로그 +
+  이후 claim 에서 재선택 안 됨(far-future 아니라 attempts 술어로).
 - **격리**: notify lease 스탬프가 `countByClaimedUntilAfter`(실행 캡)에 **안 잡힘**(전용 컬럼 검증).
 - **채널 가드**: 미설정/비활성이면 claim 0건(scheduler idle).
-- **payload PII**: 허용 필드만 직렬화(민감 필드 누락 확인). `FAILED` 는 `buildPayload` 가
-  sequence 최소 FAILED task 에서 `failed_task`/`error_code` 를 채운다(비-FAILED 는 null).
+- **payload PII (`NotifyPayloadPiiTest`)**: 허용 필드만 직렬화하고, **직렬화된 JSON 에 raw 연결
+  식별자(host/port/credential/DB명 패턴)가 없음**을 단언한다 — `toTargetRef` 외 경로로 민감 값이
+  새면 실패. `FAILED` 는 `buildPayload` 가 sequence 최소 FAILED task 에서 `failed_task`/`error_code`
+  를 채운다(비-FAILED 는 null).
 - **webhook 마스킹**: `GET` 응답에 원문 webhook 이 없다(마스킹만).
 - **SSRF 검증**: 비-https·비-정확일치 host·userinfo 포함 webhook `PUT` 은 typed 400 으로 거절.
 - **DTO snake_case**: 세 신규 DTO(`ChannelUpsert`/`ChannelView`/`TestResult`) 케이스를
