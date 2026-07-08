@@ -189,8 +189,8 @@ lock-timeout `-2` → MySQL8에서 `FOR UPDATE SKIP LOCKED` 렌더, H2에선 무
 public interface NotifyRepository extends JpaRepository<Pipeline, Long> {
 
     /** tx1 진입 질의 — 알림 가능한 종단·미알림 행 하나를 SKIP LOCKED 로 잠가 가져온다. */
-    default Optional<Pipeline> findNextNotifiable(Instant now) {
-        return lockNotifiable(now, Limit.of(1)).stream().findFirst();
+    default Optional<Pipeline> findNextNotifiable(Instant now, int maxAttempts) {
+        return lockNotifiable(now, maxAttempts, Limit.of(1)).stream().findFirst();
     }
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -200,10 +200,12 @@ public interface NotifyRepository extends JpaRepository<Pipeline, Long> {
          + "                   com.bff.pipeline.enums.PipelineStatus.FAILED, "
          + "                   com.bff.pipeline.enums.PipelineStatus.CANCELLED) "
          + "and p.notifiedAt is null "
+         + "and p.notifyAttempts < :maxAttempts "        // give-up 행은 재클레임 금지(안전장치; far-future 의존 X)
          + "and (p.notifyNextAt is null or p.notifyNextAt <= :now) "
          + "and (p.notifyClaimedUntil is null or p.notifyClaimedUntil < :now) "
          + "order by p.notifyNextAt asc, p.id asc")   // NULL first + 결정적 tie-break
-    List<Pipeline> lockNotifiable(@Param("now") Instant now, Limit limit);
+    List<Pipeline> lockNotifiable(@Param("now") Instant now,
+                                  @Param("maxAttempts") int maxAttempts, Limit limit);
 
     // tx2 행 잠금은 기존 PipelineRepository.findByIdForUpdate 를 재사용한다(여기 중복 정의하지 않음).
 
@@ -244,7 +246,7 @@ public class NotifyClaimer {
     @Transactional
     public Optional<NotifyClaim> claimOne() {
         Instant now = clock.instant();
-        return repo.findNextNotifiable(now).map(p -> {
+        return repo.findNextNotifiable(now, settings.maxAttempts()).map(p -> {
             String token = UUID.randomUUID().toString();
             p.setNotifyClaimedBy(token);
             p.setNotifyClaimedUntil(now.plus(settings.leaseDuration()));
@@ -384,7 +386,9 @@ public class NotifyWriteBack {
             int attempts = p.getNotifyAttempts() + 1;
             p.setNotifyAttempts(attempts);
             if (attempts >= settings.maxAttempts()) {
-                p.setNotifyNextAt(clock.instant().plus(Duration.ofDays(3650))); // give-up: far-future
+                // give-up: 재클레임 배제는 lockNotifiable 의 notifyAttempts < maxAttempts 가 담당(1차).
+                // far-future 는 보조 표시(정렬/가시성)일 뿐 give-up 의 근거가 아니다.
+                p.setNotifyNextAt(clock.instant().plus(Duration.ofDays(3650)));
                 log.error("notify give-up pipeline={} after {} attempts", pipelineId, attempts);
             } else {
                 p.setNotifyNextAt(clock.instant().plus(backoff(attempts)));
@@ -394,11 +398,13 @@ public class NotifyWriteBack {
         });
     }
 
-    /** findByIdForUpdate 로 잠그고 notify_claimed_by == token 일 때만 apply (stale-straggler fencing). */
+    /** findByIdForUpdate 로 잠그고 token 일치 + 아직 미알림일 때만 apply (stale-straggler fencing).
+     *  success·failure write-back 둘 다 이 가드를 탄다 — stale worker 의 실패 write-back 이
+     *  다른 worker 의 성공(notifiedAt 스탬프) 후 attempts/backoff 를 오염시키는 것을 막는다. */
     private void guarded(long id, String token, Consumer<Pipeline> mutate) {
         pipelines.findByIdForUpdate(id).ifPresent(p -> {
-            if (token.equals(p.getNotifyClaimedBy())) mutate.accept(p);
-            // 토큰 불일치 = lease 만료 후 재claim 됨 → no-op (ADR-021 §4 와 동형)
+            // 토큰 불일치 = lease 만료 후 재claim; notifiedAt != null = 다른 worker 가 이미 성공 → 둘 다 no-op.
+            if (token.equals(p.getNotifyClaimedBy()) && p.getNotifiedAt() == null) mutate.accept(p);
         });
     }
 
@@ -587,7 +593,7 @@ public record TestResult(
   **상태 무관**하게 활성 lease 를 센다. 재사용하면 종단 행의 notify lease 가 이 카운트를 부풀려 **실행
   처리량을 깎는다.** 전용 `notify_claimed_by/until` 로 격리하는 게 정확하고 실행 코드를 안 건드린다
   (대안: `countByClaimedUntilAfter` 에 `status in (RUNNING,PENDING)` 필터 추가로 재사용 — 실행 회계
-  질의를 건드리므로 기각). → **ADR-022 스키마/§2 문구를 이 결정에 맞게 갱신 필요**(컬럼 3 → 5, "재사용" → "전용 쌍").
+  질의를 건드리므로 기각). → **ADR-022 스키마/§2 갱신 완료**(컬럼 3 → 5, "재사용" → notify 전용 lease "전용 쌍").
 - **인터페이스 없음** — `SlackNotifier` 구체 클래스. 다중 sink 필요 시 추출(현재 비범위).
 - **단일 sink** — `notification_channel` 1행. 다중·독립 재시도 sink 는 ADR-022 가 유보(per-sink 상태).
 - **부분 인덱스 없음(MySQL8)** — `active_target` 유일 제약과 같은 제약. 복합 인덱스 + 소규모로 흡수.

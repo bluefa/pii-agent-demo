@@ -89,6 +89,7 @@ soft-cap이 활성 lease를 **상태 무관하게** 세기 때문에(구현: `co
 SELECT id FROM pipeline
  WHERE status IN ('DONE','FAILED','CANCELLED')
    AND notified_at IS NULL
+   AND notify_attempts < :maxAttempts    -- give-up 행 재클레임 금지(안전장치; far-future 값에만 의존 X)
    AND (notify_next_at IS NULL OR notify_next_at <= now())
    AND (notify_claimed_until IS NULL OR notify_claimed_until < now())
  ORDER BY notify_next_at ASC, id ASC   -- NULL 선두(신규 종단), id로 deterministic tie-break
@@ -113,9 +114,14 @@ claim 쿼리를 하나 더 두는 식으로 구현한다(둘 다 안전 — guar
 
 **실패 경로(backoff + give-up).** 전달 실패 시 tx2는 `notify_attempts += 1`,
 `notify_next_at = now() + backoff(notify_attempts)`(상한 있는 지수 backoff, ADR-021의
-429/503→next_due_at 밀기와 동형), 클레임 해제. `notify_attempts`가 상한(`maxAttempts`)에
-도달하면 **give-up**: `notify_next_at`을 far-future로 밀어 자동 재시도를 멈추고 **운영
-알림으로 승격**(§3, 사람이 개입). give-up 행은 여전히 `notified_at IS NULL`이므로 파생
+429/503→next_due_at 밀기와 동형), 클레임 해제. **실패 write-back도 성공과 동일한 fencing
+가드**(`WHERE id = :id AND notify_claimed_by = :token AND notified_at IS NULL`)**를 탄다** —
+lease 만료 뒤 되살아난 stale worker의 실패 write-back이, 그 사이 다른 worker가 성공시켜 이미
+`notified_at`이 찍힌 행의 attempts/backoff를 오염시키지 못하게 한다(0행 매칭 → no-op).
+`notify_attempts`가 상한(`maxAttempts`)에 도달하면 **give-up**: **claim 술어가 이미
+`notify_attempts < maxAttempts`로 give-up 행을 배제하므로**(§2 SQL) 재시도는 자동으로 멈춘다;
+`notify_next_at`을 far-future로 미는 것은 보조 표시일 뿐 give-up의 근거가 아니다. give-up 시
+**운영 알림으로 승격**(§3, 사람이 개입). give-up 행은 여전히 `notified_at IS NULL`이므로 파생
 쿼리상 “미알림”으로 남지만, 건전성 지표 **“가장 오래된 미알림 행 age”는 give-up을
 제외**(`notify_attempts < maxAttempts`)해 정의하고 give-up 행은 **별도 카운트**(§4)로
 감시한다 — give-up이 pending age를 무한히 오염시키지 않게 한다. 별도 dead-letter 테이블은
@@ -129,6 +135,11 @@ give-up은 영구 폐기가 아니라 “자동 재시도 중단 + 사람 개입
 (재)활성화되면 그대로 소급 발화한다(§4). “전달 실패”(→attempts++)는 **활성 채널에 실제로
 호출했으나 실패**한 경우로 한정한다. 채널 down 기간은 “전달 대기 age”가 아니라 별도 지표
 (채널 활성 여부 + 비활성 지속시간)로 감시한다.
+**race 규칙**: 채널 gate는 **claim 직전에 확인**한다(활성이면 claim, 아니면 idle). claim 이후
+호출 직전/도중에 채널이 비활성화되면 그 **in-flight 호출은 정상 성공/실패 의미론으로
+마무리**한다 — gate는 **새 claim을 막을 뿐 이미 집힌 호출을 취소하지 않는다.** 따라서
+“비활성 기간엔 attempts를 안 올린다”는 보장은 **비활성 기간에 시작된 claim이 없다**는
+뜻이며(경계의 in-flight 1건은 정상 경로), 이 내부 도구 규모에서 그 경계 1건은 수용한다.
 
 **실행 워커풀과 격리.** 느린/죽은 sink가 파이프라인 실행을 굶기지 않도록, 종단 알림은
 **전용 스레드풀(또는 별도 워커 loop)**에서 처리하거나 notify 클레임에 작은 동시성 상한을
@@ -139,7 +150,8 @@ give-up은 영구 폐기가 아니라 “자동 재시도 중단 + 사람 개입
 - **at-least-once 전달.** `notified_at`은 **한 번만 찍히는 상태 마커**(파이프라인당 종단
   알림 *상태* 1개)이지만 **외부 전달은 at-least-once** — 전달 성공 후 `notified_at` 기록
   전 크래시/타임아웃/lease 만료로 **중복 전달이 가능**하다. 따라서 **소비자는 멱등해야
-  한다**(`pipeline_id`로 dedupe — 파이프라인당 종단은 하나이므로 `pipeline_id`만으로 충분).
+  한다**(`pipeline_id`로 dedupe — 파이프라인당 종단은 하나이므로 `pipeline_id`만으로 충분;
+  불변식 4 참조).
   순서: 파이프라인당 알림 상태가 1개라 파이프라인 내부 순서 문제는 없고, 같은 target의
   이전/이후 파이프라인 알림은 `pipeline_id` 키로 소비자가 구분한다.
 - **stale straggler 안전.** lease 만료 뒤 되살아난 워커의 tx2는 `claimed_by` 가드에서
@@ -147,9 +159,9 @@ give-up은 영구 폐기가 아니라 “자동 재시도 중단 + 사람 개입
 - **`notified_at`의 의미**: “sink가 durable하게 수신(ack)”이지 “모든 다운스트림이 봤다”가
   아니다. sink가 내부적으로 fan-out하면 그 신뢰성은 sink 책임이다.
 
-**V1은 단일 논리 sink**(오퍼레이터 알림 서비스/웹훅 하나)를 가정한다. 서로 독립적으로
-재시도돼야 하는 다중 sink가 실제로 필요해지면 per-sink 전달 상태(또는 그때 비로소 작은
-outbox)를 도입한다 — 지금은 만들지 않는다.
+**V1은 단일 논리 sink(Slack 웹훅 하나)**를 가정한다. 서로 독립적으로 재시도돼야 하는 다중
+sink가 실제로 필요해지면 per-sink 전달 상태(또는 그때 비로소 작은 outbox)를 도입한다 —
+지금은 만들지 않는다.
 
 ### 3. 운영 알림(worker-outage/queue-wait)은 이 메커니즘 밖 — 기존 metrics/alerting
 
@@ -169,7 +181,8 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   다루므로 payload는 **허용 필드만**: `pipeline_id`, `type`(INSTALL/DELETE),
   `terminal_status`, `target`(**opaque 식별자 원칙** — hostname/account/DB명 같은 민감
   식별자는 지양), 실패 시 `failed_task`/`error_code`, `schema_version`. 그 외 민감 상세는
-  싣지 않는다.
+  싣지 않는다. **사람이 봐야 할 상세(어떤 대상인지 등)는 알림 본문이 아니라 `pipeline_id`
+  링크 뒤 권한 있는 화면에서 조회**한다 — 알림 채널(Slack 등)에 원문 식별자를 흘리지 않는다.
 - **알림 지연 = 스캔 주기.** 저지연 wake-up은 필요해지면 durable 파생 위에 힌트로 얹을 수
   있으나(아래 대안) 지금은 불필요. (타깃 MySQL8은 Postgres `LISTEN/NOTIFY`가 없으므로, 필요 시
   in-process 신호나 메시지 브로커를 검토 — V1 범위 밖.)
@@ -349,3 +362,12 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   `oldestUnnotifiedAt`에 `notifyAttempts < maxAttempts` 필터 + `countGivenUp` 추가(§4 give-up
   지표 정의를 실제 쿼리로 구현). (5) give-up 재개 경로(admin 리셋) 명시, payload `target`
   opaque 원칙, V1 sink=Slack 명시, “그대로 재사용”→“메커니즘 재사용”으로 잔여 표현 정정.
+- 2026-07-08: **재리뷰 반영(codex 88 / opus 92).** (1) **실패 write-back도 fencing 가드 명시**
+  (`WHERE id=:id AND notify_claimed_by=:token AND notified_at IS NULL`) — stale worker의 실패
+  write-back이 타 worker 성공 후 attempts를 오염시키는 것을 차단(구현 `guarded()`에 notifiedAt
+  가드 추가). (2) **claim 술어에 `notify_attempts < maxAttempts` 추가** — give-up 배제를
+  far-future 값이 아니라 술어로 보장(sentinel/clock/admin 실수에 강건; 구현 `lockNotifiable`도
+  동일 반영). (3) **채널 gate race 규칙 명시** — gate는 claim 직전 확인, in-flight 호출은 정상
+  성공/실패로 마무리(새 claim만 차단). (4) polish: dedup 문장에 불변식 4 xref, target 상세는
+  권한 화면에서 조회(채널에 원문 식별자 금지), §2 sink 문장에 Slack 명시. 구현 문서의 stale
+  TODO(§8) 완료 표기로 정정.
