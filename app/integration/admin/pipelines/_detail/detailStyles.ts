@@ -91,6 +91,10 @@ export const detailStyles = {
     respCell: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap',
     /** degraded-load notice + retry. */
     degraded: cn(text.meta, 'mt-3'),
+    /** LIN-22 — custom-run operator note (distinct from the catalog description above it). */
+    operatorNote:
+      'mt-3 flex items-baseline gap-2 rounded-[8px] bg-[var(--pl-bg-inner)] px-2.5 py-2 text-[12px] leading-[1.4] text-[var(--pl-text-medium)]',
+    operatorNoteKey: 'flex-none text-[12px] font-semibold text-[var(--pl-text-faint)]',
   },
 
   /**
@@ -176,6 +180,28 @@ export const detailStyles = {
     markTxt: 'grid place-items-center h-[26px] min-w-[26px] px-1.5 rounded-[7px] flex-none bg-[var(--pl-gray-100)] border border-[var(--pl-gray-100)] text-[12px] font-bold tracking-[.02em] text-[var(--pl-gray-600)]',
     nodeName: 'text-[12px] font-semibold leading-[1.3] text-[var(--pl-text-strong)]',
     conn: 'flex-none w-7 h-0.5 bg-[var(--pl-gray-300)]',
+  },
+
+  /**
+   * LIN-22 §B2 — custom-recipe builder (PreviewModal step between the type
+   * tiles and the run summary). The order lives on the TaskFlow grid canvas
+   * (FLOW_CSS/BUILD_CSS in CustomBuildStep); these classes cover the toolbar
+   * and the hint/notice lines. Every color is a --pl-* token.
+   */
+  builder: {
+    /** Catalog rows inside the right-docked "+" panel (panel frame lives in BUILD_CSS). */
+    popList: 'flex flex-col gap-1.5',
+    /** Each catalog entry is its own rounded white card on the panel's primary wash. */
+    popRow:
+      'w-full flex items-start gap-2.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 py-2.5 text-left cursor-pointer shadow-[var(--pl-shadow-xs)] hover:border-[var(--pl-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--pl-primary)]',
+    popName: 'block text-[14px] font-semibold leading-[1.3] text-[var(--pl-text-strong)]',
+    popDesc:
+      'mt-1.5 text-[12px] leading-[1.4] text-[var(--pl-text-weak)] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden',
+    /** Count + drag affordance line under the canvas. */
+    hint: 'mt-2 text-[12px] text-[var(--pl-text-weak)]',
+    /** Non-persistence notice (summary step) — .notice grammar. */
+    notice:
+      'mt-3 inline-block rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)] px-2.5 py-2 text-[12px] leading-[1.4] text-[var(--pl-text-weak)]',
   },
 
   /**
