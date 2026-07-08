@@ -608,14 +608,20 @@ public record TestResult(
 
 ## 7. 관측(지표/로그)
 
-`spring-boot-starter-actuator`/Micrometer 는 현재 pom 에 없다. V1 은 **구조화 로그**로 시작:
+`spring-boot-starter-actuator`/Micrometer 는 현재 pom 에 없다. 단, **give-up 경보의 정규 소스는
+로그가 아니라 DB 파생 폴링**이다(ADR-022 §4). V1 관측은 아래로 구성한다:
 
-- **구조화 로그(감사 재구성용, ADR-022 §결과)** — success/failure/give-up 모두 최소
+- **give-up 경보(필수·정규 소스 = DB 폴링, 배포 게이트)** — actuator 가 없어도 **`countGivenUp
+  (maxAttempts)` 리포지토리 술어를 주기 폴링하는 인터럽 잡**(예: `@Scheduled` 로 N 분마다 조회)을
+  두어 `> 0` 이면 담당자에게 page 한다. 로그는 유실·수집 누락·배선 전 발생이 가능하므로 정규
+  경보 소스로 삼지 않는다. **이 DB 폴링 경보 배선은 notifier 프로덕션 가동 전제**다. actuator
+  도입 후에는 같은 술어를 `notify.giveup.total` gauge 로 승격한다.
+- **구조화 로그(감사 재구성 보조, ADR-022 §결과)** — success/failure/give-up 모두 최소
   `pipeline_id`·`terminal_status`·`attempt`·`sink`(=slack)·응답 분류(`resp_class`: 2xx/4xx/5xx/timeout,
-  실패 시 error class)를 포함한다:
+  실패 시 error class)를 포함한다(give-up 로그는 **진단 보조**이지 정규 경보 소스가 아니다):
   - `notify delivered pipeline={} status={} attempt={} sink=slack resp_class=2xx`(INFO)
   - `notify delivery failed pipeline={} status={} attempt={} sink=slack resp_class={}`(WARN)
-  - `notify give-up pipeline={} status={} after {} attempts sink=slack`(ERROR — **로그 기반 경보 필수**, §4).
+  - `notify give-up pipeline={} status={} after {} attempts sink=slack`(ERROR, 진단용).
 - **두 age 를 별도 쿼리로 구분**(ADR-022 §4, V1 부터): `oldestUnnotifiedAt(maxAttempts)` =
   **총 backlog age**(`terminal_notification_backlog_age`, 비활성 채널 backlog 포함).
   `oldestDeliveryPending(maxAttempts, now)` = **due 행만** 본 “전달 정체” age
@@ -685,10 +691,12 @@ public record TestResult(
   이후 claim 에서 재선택 안 됨(far-future 아니라 attempts 술어로).
 - **격리**: notify lease 스탬프가 `countByClaimedUntilAfter`(실행 캡)에 **안 잡힘**(전용 컬럼 검증).
 - **채널 가드**: 미설정/비활성이면 claim 0건(scheduler idle).
-- **payload PII (`NotifyPayloadPiiTest`)**: 허용 필드만 직렬화하고, **직렬화된 JSON 에 raw 연결
-  식별자(host/port/credential/DB명 패턴)가 없음**을 단언한다 — `toTargetRef` 외 경로로 민감 값이
-  새면 실패. `FAILED` 는 `buildPayload` 가 sequence 최소 FAILED task 에서 `failed_task`/`error_code`
-  를 채운다(비-FAILED 는 null).
+- **payload PII (`NotifyPayloadPiiTest`)**: 허용 필드만 직렬화하고 다음을 명시 단언한다 —
+  (a) 직렬화 JSON 에 raw 연결 식별자(host/port/credential/DB명 패턴)가 **없음**(`toTargetRef` 외
+  경로로 민감 값이 새면 실패), (b) `failed_task` 값이 **닫힌 recipe 키 집합에 속함**(raw provider/
+  운영자 명이면 실패), (c) payload 에 **`url` 필드가 없음**(스키마 구조상 부재를 회귀 방지로 고정).
+  `FAILED` 는 `buildPayload` 가 sequence 최소 FAILED task 에서 `failed_task`/`error_code` 를 채운다
+  (비-FAILED 는 null).
 - **webhook 마스킹**: `GET` 응답에 원문 webhook 이 없다(마스킹만).
 - **SSRF 검증**: 비-https·비-정확일치 host·userinfo 포함 webhook `PUT` 은 typed 400 으로 거절.
 - **DTO snake_case**: 세 신규 DTO(`ChannelUpsert`/`ChannelView`/`TestResult`) 케이스를

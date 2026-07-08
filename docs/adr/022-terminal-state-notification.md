@@ -127,7 +127,7 @@ RUNNING 전용 분기(cancel 체크→slot gate→execute_step)를 타지 않는
 
 **실패 경로(backoff + give-up).** 전달 실패 시 tx2는 **post-increment 기준**으로 계산한다:
 `nextAttempts = notify_attempts + 1`을 먼저 구해 `notify_attempts = nextAttempts`로 저장하고,
-`nextAttempts >= maxAttempts`면 give-up, 아니면 `notify_next_at = now() + backoff(nextAttempts)`
+`nextAttempts >= maxAttempts`면 give-up, 아니면 `notify_next_at = :now + backoff(nextAttempts)`
 (상한 있는 지수 backoff, ADR-021의 429/503→next_due_at 밀기와 동형), 클레임 해제. (backoff는
 증가 후 카운트를 쓴다 — 첫 재시도 지연·give-up 전이가 구현마다 어긋나지 않도록 명시.) **실패 write-back도 성공과 동일한 fencing
 가드**(`WHERE id = :id AND notify_claimed_by = :token AND notified_at IS NULL`)**를 탄다** —
@@ -204,7 +204,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 - **exactly-once 없음.** at-least-once + 멱등 소비자로 충분하다(ADR-016 §5와 같은 이유).
   2PC/분산 트랜잭션은 도입하지 않는다.
 - **소비자 계약**: (a) 멱등 dedupe 키(`pipeline_id`, 파이프라인당 종단 1개) 보관 —
-  **최소 보관 기간 = max(파이프라인 행 보존기간, 최대 재시도 horizon + 수동 replay 창)**.
+  **최소 보관 기간 = max(파이프라인 행 보존기간, 최대 재시도 horizon + 수동 replay 창)**
+  (여기서 “수동 replay 창”은 운영자가 정하는 값 — give-up 후 admin이 재개할 수 있는 최대
+  기간; 보통 파이프라인 행 보존기간에 묶는다).
   중복 전달은 lease 만료·워커 크래시·타임아웃 모호·수동 재시도 리셋에서 나므로 그 창을
   넘겨 보관해야 안전하다. (V1 Slack sink는 사람 상관이라 이 정식 계약은 **이후 도입될
   프로그램적 sink에 적용**된다.) **`pipeline_id` dedupe는 id가 환경 간 전역 유일하고 재사용
@@ -244,8 +246,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   이를 찍으면 마커 의미가 “전달됨↔운영자가 버림”으로 오염돼 놓친 알림을 숨긴다. 운영자가 정말 옛 backlog를
   억제해야 하면 **별도 suppression 마커**(`notification_suppressed_at`/`_by`/`_reason`, 감사
   로그 필수)로 모델링하지 `notified_at`을 재활용하지 않는다(V1 범위 밖, 필요 시 도입).
-- **알림 전용 지표(두 age를 구분한다)**: 채널 활성/비활성으로 의미가 갈리므로 한 지표로
-  뭉치지 않는다.
+- **알림 전용 지표(두 age를 구분한다)**: 두 age의 종단 시각 기준은 **`pipeline.last_activity_at`**
+  (종단 후 다시 쓰이지 않아 = 종단 시각, ADR-021 불변식; 구현 §4.1)이다. 채널 활성/비활성으로
+  의미가 갈리므로 한 지표로 뭉치지 않는다.
   - `notify_delivery_pending_age` — **활성 채널일 때만** 평가하는 “전달 정체” age
     (미알림 + give-up 제외 + `notify_next_at <= now`). 이게 커지면 sink/전달이 막힌 것 →
     경보. **채널 비활성 동안은 평가/경보를 suppress**한다(정체가 아니라 gate 때문).
@@ -279,7 +282,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   `UPDATE pipeline SET notified_at = :enabled_at WHERE status IN 종단 AND notified_at IS NULL`로
   기존 종단 행을 “처리됨”으로 표시한다. 이후 notifier는 도입 이후 종단만 발화한다. — 이는
   §4가 금지한 **런타임 운영자 suppression-backfill(미전달 in-scope 행 은폐)과 다른, 문서화된
-  일회성 레거시 마이그레이션**이다(도입 전 행은 애초에 알림 대상이 아니었다).
+  일회성 레거시 마이그레이션**이다(도입 전 행은 애초에 알림 대상이 아니었다). **의미 주의**:
+  `enabled_at`으로 backfill된 값은 “전달됨”이 아니라 **“알림 범위 밖(도입 전)”**을 뜻한다 —
+  이 구분은 마이그레이션 기록(배포 로그/버전)으로 남겨 감사 시 실제 전달 ack와 헷갈리지 않게 한다.
 - **대안: 활성 컷오프 술어.** claim에 `AND last_activity_at >= :enabled_at`(config)를 더해
   backfill 없이 컷오프. 컬럼 backfill을 피하지만 config 상시 유지가 필요. V1은 단순한 backfill 택함.
 
@@ -447,8 +452,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   → notify 전용 lease 쌍(`notify_claimed_by`/`notify_claimed_until`)으로 분리(컬럼 3→5).
   MySQL8 부분 인덱스 부재 반영(복합 인덱스), `LISTEN/NOTIFY`는 Postgres 전용이라 저지연 옵션은
   구현 문서에서 제외.
-- 2026-07-08: **리뷰 수렴 하드닝(codex/opus 다회 라운드, opus 최종 97).** 코어 설계는 유지한
-  채 계약 정확도·ADR↔구현 정합·운영성만 다졌다. 주요 확정 사항:
+- 2026-07-08: **리뷰 수렴 하드닝(codex medium×9 + high×1, opus 최종 98/merge-ready).** 코어
+  설계는 유지한 채 계약 정확도·ADR↔구현 정합·운영성만 다졌다. give-up 경보 정규 소스는 DB
+  파생 `countGivenUp` 폴링으로 ADR·구현 §7 일치(로그는 진단 보조). 주요 확정 사항:
   - **fencing 대칭·give-up 배제**: 성공/실패 write-back 모두 `id + notify_claimed_by(token)
     + notified_at IS NULL` 가드; claim 술어에 `notify_attempts < maxAttempts`(give-up 배제를
     sentinel이 아니라 술어로), backoff는 post-increment.
