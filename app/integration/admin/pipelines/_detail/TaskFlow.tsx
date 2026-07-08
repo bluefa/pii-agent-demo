@@ -25,7 +25,8 @@ import {
 import { taskMetaLine } from '@/lib/pipeline/format';
 import type { CloudProvider, TaskDetail, TaskStatus, TaskSummary } from '@/lib/pipeline/types';
 
-const FLOW_CSS = `
+/** Exported so CustomBuildStep's canvas (LIN-22) reuses the same grid/node grammar. */
+export const FLOW_CSS = `
 .pl-flow{display:flex;align-items:stretch;min-height:440px;overflow:hidden;background-color:var(--pl-bg-inner);background-image:linear-gradient(var(--pl-flow-grid) 1px,transparent 1px),linear-gradient(90deg,var(--pl-flow-grid) 1px,transparent 1px),linear-gradient(var(--pl-flow-grid-strong) 1px,transparent 1px),linear-gradient(90deg,var(--pl-flow-grid-strong) 1px,transparent 1px);background-size:20px 20px,20px 20px,100px 100px,100px 100px;border:1px solid var(--pl-border);border-radius:12px}
 .pl-flow .pl-scroll{flex:1;min-width:0;overflow-x:auto;padding:28px 20px;display:flex;flex-direction:column;justify-content:center}
 .pl-flow .pl-track{display:flex;align-items:center;width:max-content;margin-inline:auto}
@@ -83,7 +84,7 @@ const FLOW_CSS = `
 `;
 
 /** Provider mark tile — logo when known, text chip for IDC/SDU (owner: 글자만). */
-function ProviderMark({ provider }: { provider: CloudProvider }): ReactElement {
+export function ProviderMark({ provider }: { provider: CloudProvider }): ReactElement {
   const logo = providerLogo(provider);
   if (!logo) return <span className="nd-mark-txt">{provider}</span>;
   return (

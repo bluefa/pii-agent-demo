@@ -164,6 +164,29 @@ describe('TaskDetailBody — R22 (F2) hierarchy', () => {
   });
 });
 
+describe('TaskDetailBody — LIN-22 operator note', () => {
+  it('surfaces the custom-run description with the 운영자 설명 label', () => {
+    const html = render({
+      task: summary({ kind: 'TERRAFORM_JOB', status: 'READY' }),
+      detail: detail({ kind: 'TERRAFORM_JOB', description: 'apply 재실행' }),
+      displayName: 'tf',
+      onClose: noop,
+    });
+    expect(html).toContain('운영자 설명');
+    expect(html).toContain('apply 재실행');
+  });
+
+  it('omits the note entirely for catalog tasks (description null)', () => {
+    const html = render({
+      task: summary({ kind: 'TERRAFORM_JOB', status: 'READY' }),
+      detail: detail({ kind: 'TERRAFORM_JOB' }),
+      displayName: 'tf',
+      onClose: noop,
+    });
+    expect(html).not.toContain('운영자 설명');
+  });
+});
+
 describe('TaskDetailBody — degraded (detail failed to load)', () => {
   it('renders a summary-only view + notice + 재시도', () => {
     const html = render({
