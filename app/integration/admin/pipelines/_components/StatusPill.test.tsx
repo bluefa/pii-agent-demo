@@ -38,15 +38,14 @@ describe('StatusPill', () => {
     expect(html).not.toContain('--pl-warn');
   });
 
-  it('pulses the dot for RUNNING and IN_PROGRESS only', () => {
-    expect(render('RUNNING')).toContain('pl-pulse');
-    expect(render('IN_PROGRESS')).toContain('pl-pulse');
-    expect(render('DONE')).not.toContain('pl-pulse');
-    expect(render('BLOCKED')).not.toContain('pl-pulse');
+  it('never spins the status icon (static, matching the Figma dashboard mock)', () => {
+    for (const status of ['RUNNING', 'IN_PROGRESS', 'DONE', 'BLOCKED'] as const) {
+      expect(render(status)).not.toContain('animate-spin');
+    }
   });
 
-  it('BLOCKED dot uses gray-300 (distinct from the off text)', () => {
-    expect(render('BLOCKED')).toContain('bg-[var(--pl-gray-300)]');
+  it('BLOCKED shares the off tone+border with CANCELLED', () => {
+    expect(render('BLOCKED')).toContain('--pl-off-border');
   });
 
   it('lg size switches to the h28 pill', () => {

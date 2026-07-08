@@ -73,13 +73,15 @@ function cspMetaRows(provider: string, raw: RawTargetSourceDetail | null): MetaR
     ],
     gcp: [['Project', m.gcp_project_id]],
   };
-  const rows = (byProvider[provider] ?? [])
+  return (byProvider[provider] ?? [])
     .filter(([, v]) => v != null && v !== '')
     .map(([k, v]) => ({ k, v: String(v) }));
-  if (m.grant_service_terraform_execution_permission != null) {
-    rows.push({ k: '설치 방식', v: m.grant_service_terraform_execution_permission ? '자동 설치' : '수동 설치' });
-  }
-  return rows;
+}
+
+/** Install method → self-labelling chip text (수동/자동 설치), or null if unset. */
+function installTagLabel(raw: RawTargetSourceDetail | null): string | null {
+  const perm = raw?.metadata?.grant_service_terraform_execution_permission;
+  return perm == null ? null : perm ? '자동 설치' : '수동 설치';
 }
 
 export function TargetDetailView(): ReactElement {
@@ -154,6 +156,7 @@ export function TargetDetailView(): ReactElement {
   const serviceCode = raw.service_code ?? '';
   const svcName = raw.service_name || serviceCode || targetSourceId;
   const metaRows = cspMetaRows(provider, raw);
+  const installTag = installTagLabel(raw);
 
   const totalElements = history?.totalElements ?? 0;
   const totalPages = history?.totalPages ?? 1;
@@ -162,9 +165,23 @@ export function TargetDetailView(): ReactElement {
   return (
     <div>
       <PlBreadcrumb crumbs={targetCrumbs(svcName, targetSourceId)} />
-      <h1 className={text.pageTitle}>
-        {svcName} <span className={cn(text.muted, 'font-normal')}>({serviceCode})</span>
-      </h1>
+
+      {/* Page head — title left, primary CTA anchored top-right (R21 §A1: ONE
+          CTA; the type choice lives in the modal). */}
+      <div className="flex items-center justify-between gap-4">
+        <h1 className={text.pageTitle}>
+          {svcName} <span className={cn(text.muted, 'font-normal')}>({serviceCode})</span>
+        </h1>
+        <PlButton
+          className="flex-none"
+          variant="primary"
+          title="파이프라인 유형을 선택해 시작합니다"
+          onClick={() => previewModal.open()}
+        >
+          <Icon name="play" size="sm" />
+          파이프라인 시작
+        </PlButton>
+      </div>
 
       {/* R21 §C1 — metadata as a front-matter strip: reference info, not the hero. */}
       <div className={fm.strip}>
@@ -179,6 +196,12 @@ export function TargetDetailView(): ReactElement {
           <span className={fm.k}>TargetSourceId</span>
           <span className={cn(fm.strong, 'tabular-nums')}>{targetSourceId}</span>
         </span>
+        {installTag && (
+          <>
+            <span className={fm.sep} aria-hidden="true" />
+            <span className={fm.tag}>{installTag}</span>
+          </>
+        )}
         {metaRows.map((r) => (
           <Fragment key={r.k}>
             <span className={fm.sep} aria-hidden="true" />
@@ -189,16 +212,6 @@ export function TargetDetailView(): ReactElement {
           </Fragment>
         ))}
       </div>
-
-      {/* R21 §A1 — ONE primary CTA; the type choice lives in the modal. */}
-      <PlButton
-        variant="primary"
-        title="파이프라인 유형을 선택해 시작합니다"
-        onClick={() => previewModal.open()}
-      >
-        <Icon name="play" size="sm" />
-        파이프라인 시작
-      </PlButton>
 
       <SectionHeader
         title="파이프라인 이력"

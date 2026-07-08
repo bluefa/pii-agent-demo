@@ -28,7 +28,10 @@ export type IconName =
   | 'trash'
   | 'sliders'
   | 'stop'
-  | 'play';
+  | 'play'
+  | 'x-circle'
+  | 'loader'
+  | 'calendar';
 
 export type IconSize = 'sm' | 'md' | 'lg';
 
@@ -113,6 +116,20 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
   stop: <rect x="7" y="7" width="10" height="10" rx="1.6" />,
   // R21 §A1 — the single start-CTA glyph (solid triangle, prototype i-play).
   play: <path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none" />,
+  'x-circle': (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" />
+    </>
+  ),
+  // StatusPill RUNNING/IN_PROGRESS — open 3/4 arc, spun via `animate-spin`.
+  loader: <path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5" />,
+  calendar: (
+    <>
+      <rect x="3.5" y="5" width="17" height="15" rx="2" />
+      <path d="M3.5 9.5h17M8 3v3M16 3v3" />
+    </>
+  ),
 };
 
 export interface IconProps {

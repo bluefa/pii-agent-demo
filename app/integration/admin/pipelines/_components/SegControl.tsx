@@ -18,6 +18,8 @@ export interface SegControlProps<T extends string> {
   onChange: (value: T) => void;
   ariaLabel?: string;
   className?: string;
+  /** Optional leading element inside the pill container (e.g. a calendar icon). */
+  leading?: ReactNode;
 }
 
 export function SegControl<T extends string>({
@@ -26,10 +28,12 @@ export function SegControl<T extends string>({
   onChange,
   ariaLabel,
   className,
+  leading,
 }: SegControlProps<T>) {
   const { seg } = pipelineStyles;
   return (
     <div className={cn(seg.container, className)} role="group" aria-label={ariaLabel}>
+      {leading}
       {options.map((option) => {
         const active = option.value === value;
         return (

@@ -209,11 +209,13 @@ export const detailStyles = {
    * 12px reference line under the h1 (head-nav feel), hairline below.
    */
   frontMeta: {
-    strip: 'mt-2.5 mb-4 flex items-center gap-2.5 flex-wrap border-b border-[var(--pl-gray-100)] pb-3 text-[12px] text-[var(--pl-text-medium)]',
+    strip: 'mt-2.5 mb-4 flex items-center gap-2.5 flex-nowrap whitespace-nowrap border-b border-[var(--pl-gray-100)] pb-3 text-[12px] text-[var(--pl-text-medium)]',
     item: 'inline-flex items-center gap-1.5',
     k: 'font-semibold text-[var(--pl-text-faint)]',
     strong: 'font-semibold text-[var(--pl-text-strong)]',
     sep: 'w-px h-3 bg-[var(--pl-gray-100)]',
+    /** Install-method chip — self-labelling pill (수동/자동 설치), neutral tone. */
+    tag: 'inline-flex items-center rounded-[5px] bg-[var(--pl-gray-100)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--pl-text-medium)]',
   },
 
   /** Loading / layout-stable skeleton block. */

@@ -4,11 +4,15 @@
 import type { ReactElement, SelectHTMLAttributes } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 
-export type PlSelectProps = SelectHTMLAttributes<HTMLSelectElement>;
+export interface PlSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+  /** h40 variant (Figma dashboard mock) — default h32. */
+  lg?: boolean;
+}
 
-export function PlSelect({ className, children, ...rest }: PlSelectProps): ReactElement {
+export function PlSelect({ className, children, lg, ...rest }: PlSelectProps): ReactElement {
+  const base = lg ? pipelineStyles.selectLg : pipelineStyles.select;
   return (
-    <select className={cn(pipelineStyles.select, className)} {...rest}>
+    <select className={cn(base, className)} {...rest}>
       {children}
     </select>
   );
