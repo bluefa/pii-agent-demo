@@ -164,8 +164,7 @@ export default function DashboardPage(): ReactElement {
   );
 
   const projected = useMemo(() => projectRows(pageData?.content ?? [], q), [pageData, q]);
-  const { total, pages, current, slice } = useMemo(() => paginate(projected, page), [projected, page]);
-  const truncated = (pageData?.totalElements ?? 0) > DASH_FETCH_SIZE;
+  const { pages, current, slice } = useMemo(() => paginate(projected, page), [projected, page]);
 
   // Any filter change resets to page 1 (design: filter change → page 1).
   const resetPage = () => setPage(1);
@@ -253,7 +252,14 @@ export default function DashboardPage(): ReactElement {
         />
       </div>
 
-      <SectionHeader title="파이프라인 목록" />
+      <SectionHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            파이프라인 목록
+            <span className={pipelineStyles.filterChip.scope}>{plabel}</span>
+          </span>
+        }
+      />
       <FilterBar className="mb-3">
         <SearchBox
           wrapClassName="w-[240px]"
@@ -302,12 +308,9 @@ export default function DashboardPage(): ReactElement {
       </FilterBar>
 
       <FilterChips
-        periodLabel={plabel}
         status={status}
         provider={provider}
         q={q}
-        total={total}
-        truncated={truncated}
         onClearStatus={clearStatus}
         onClearProvider={clearProvider}
         onClearSearch={clearSearch}
