@@ -5,6 +5,7 @@ import {
   currentTaskLabel,
   fmtDateTime,
   fmtDuration,
+  fmtRelativeTime,
   KIND_POLICY,
   progressCount,
   providerAccentVar,
@@ -73,6 +74,23 @@ describe('fmtDateTime', () => {
   it('returns - for null / invalid', () => {
     expect(fmtDateTime(null)).toBe('-');
     expect(fmtDateTime('not-a-date')).toBe('-');
+  });
+});
+
+describe('fmtRelativeTime', () => {
+  const now = new Date('2026-07-09T00:00:00Z').getTime();
+  it.each([
+    ['2026-07-09T00:00:00Z', '방금 전'],
+    ['2026-07-08T23:59:30Z', '방금 전'],
+    ['2026-07-08T23:45:00Z', '15분 전'],
+    ['2026-07-08T21:00:00Z', '3시간 전'],
+    ['2026-07-06T00:00:00Z', '3일 전'],
+  ])('%s → %s', (iso, expected) => {
+    expect(fmtRelativeTime(iso, now)).toBe(expected);
+  });
+  it('returns - for null / invalid', () => {
+    expect(fmtRelativeTime(null, now)).toBe('-');
+    expect(fmtRelativeTime('nope', now)).toBe('-');
   });
 });
 

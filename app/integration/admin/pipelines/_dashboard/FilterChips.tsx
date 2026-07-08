@@ -1,13 +1,11 @@
 /**
  * FilterChips (R18 §4, Komiser reference) — the chip row under the FilterBar.
  *
- * (R20 — the 정렬 chip is gone; failed-first ordering is behavior, not a
- * filter the operator toggles.)
  * Active-filter chips (only when the filter is off its default, × removes just
- * that filter): 상태 · FAILED, CSP · AWS, 검색 · "q". When any active chip is
- * present a [필터 초기화] button resets 검색·상태·CSP.
+ * that filter): 상태 · FAILED, Cloud · AWS, 유형 · INSTALL, 검색 · "q". When any
+ * active chip is present a [필터 초기화] button resets 검색·상태·Cloud·유형.
  * The period scope chip moved next to the section title (page.tsx); the row
- * count was dropped (오너 피드백).
+ * count was dropped (오너 피드백). Row order always follows the API response.
  */
 import type { ReactElement } from 'react';
 
@@ -49,26 +47,31 @@ export interface FilterChipsProps {
   status: string;
   /** Wire CloudProvider (UPPERCASE) or '' (no filter). */
   provider: string;
+  /** Wire PipelineType or '' (no filter). */
+  type: string;
   q: string;
   onClearStatus: () => void;
   onClearProvider: () => void;
+  onClearType: () => void;
   onClearSearch: () => void;
-  /** Reset 검색·상태·CSP (period kept). */
+  /** Reset 검색·상태·Cloud·유형 (period kept). */
   onResetFilters: () => void;
 }
 
 export function FilterChips({
   status,
   provider,
+  type,
   q,
   onClearStatus,
   onClearProvider,
+  onClearType,
   onClearSearch,
   onResetFilters,
 }: FilterChipsProps): ReactElement {
   const { filterChip } = pipelineStyles;
   const query = q.trim();
-  const hasActiveFilter = Boolean(status) || Boolean(provider) || Boolean(query);
+  const hasActiveFilter = Boolean(status) || Boolean(provider) || Boolean(type) || Boolean(query);
 
   return (
     <div className={filterChip.row}>
@@ -77,11 +80,14 @@ export function FilterChips({
       )}
       {provider && (
         <Chip
-          keyLabel="CSP"
+          keyLabel="Cloud"
           value={providerLabel(provider)}
           onRemove={onClearProvider}
-          removeAria="CSP 필터 제거"
+          removeAria="Cloud 필터 제거"
         />
+      )}
+      {type && (
+        <Chip keyLabel="유형" value={type} onRemove={onClearType} removeAria="유형 필터 제거" />
       )}
       {query && (
         <Chip

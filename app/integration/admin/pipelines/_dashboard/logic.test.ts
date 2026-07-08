@@ -3,11 +3,9 @@ import type { PipelineStatus, PipelineSummary } from '@/lib/pipeline/types';
 import {
   DASH_PAGE_SIZE,
   buildStatsDesc,
-  filterByTarget,
+  filterBySearch,
   paginate,
-  priorityRank,
   projectRows,
-  sortByPriority,
 } from '@/app/integration/admin/pipelines/_dashboard/logic';
 
 /** Minimal PipelineSummary factory — only the fields the client logic reads. */
@@ -15,10 +13,13 @@ const row = (
   pipeline_id: number,
   status: PipelineStatus,
   target_source_id: string,
+  service: { service_code?: string; service_name?: string } = {},
 ): PipelineSummary => ({
   pipeline_id,
   type: 'INSTALL',
   target_source_id,
+  service_code: service.service_code ?? 'SVC-000',
+  service_name: service.service_name ?? '테스트 서비스',
   cloud_provider: 'AWS',
   recipe_definition: 'AWS_INSTALL_V1',
   status,
@@ -28,61 +29,38 @@ const row = (
   last_activity_at: '2026-07-01T00:00:00Z',
 });
 
-describe('priorityRank', () => {
-  it('ranks FAILED→RUNNING→PENDING→rest', () => {
-    expect(priorityRank('FAILED')).toBe(0);
-    expect(priorityRank('RUNNING')).toBe(1);
-    expect(priorityRank('PENDING')).toBe(2);
-    expect(priorityRank('DONE')).toBe(3);
-    expect(priorityRank('CANCELLED')).toBe(3);
-  });
-});
-
-describe('sortByPriority', () => {
-  it('orders by rank then pipeline_id desc within a group', () => {
-    const rows = [
-      row(10, 'DONE', 't'),
-      row(20, 'FAILED', 't'),
-      row(21, 'FAILED', 't'),
-      row(30, 'PENDING', 't'),
-      row(40, 'RUNNING', 't'),
-      row(11, 'DONE', 't'),
-    ];
-    const ids = sortByPriority(rows).map((r) => r.pipeline_id);
-    // FAILED(21,20) → RUNNING(40) → PENDING(30) → rest DONE(11,10)
-    expect(ids).toEqual([21, 20, 40, 30, 11, 10]);
-  });
-
-  it('does not mutate the input array', () => {
-    const rows = [row(1, 'DONE', 't'), row(2, 'FAILED', 't')];
-    const before = rows.map((r) => r.pipeline_id);
-    sortByPriority(rows);
-    expect(rows.map((r) => r.pipeline_id)).toEqual(before);
-  });
-});
-
-describe('filterByTarget', () => {
+describe('filterBySearch', () => {
   const rows = [row(1, 'DONE', '101'), row(2, 'DONE', '2015'), row(3, 'DONE', '305')];
 
   it('substring-matches target_source_id', () => {
-    expect(filterByTarget(rows, '01').map((r) => r.target_source_id)).toEqual(['101', '2015']);
+    expect(filterBySearch(rows, '01').map((r) => r.target_source_id)).toEqual(['101', '2015']);
   });
 
   it('trims the query and passes through when empty', () => {
-    expect(filterByTarget(rows, '   ')).toHaveLength(3);
-    expect(filterByTarget(rows, ' 305 ').map((r) => r.target_source_id)).toEqual(['305']);
+    expect(filterBySearch(rows, '   ')).toHaveLength(3);
+    expect(filterBySearch(rows, ' 305 ').map((r) => r.target_source_id)).toEqual(['305']);
+  });
+
+  it('substring-matches service_code and service_name, case-insensitively', () => {
+    const withServices = [
+      row(1, 'DONE', '101', { service_code: 'N-IRP-001', service_name: 'PII Agent 설치 - 고객 DB' }),
+      row(2, 'DONE', '201', { service_code: 'GCP-001', service_name: 'GCP PII Agent' }),
+    ];
+    expect(filterBySearch(withServices, 'n-irp').map((r) => r.target_source_id)).toEqual(['101']);
+    expect(filterBySearch(withServices, '고객').map((r) => r.target_source_id)).toEqual(['101']);
+    expect(filterBySearch(withServices, 'gcp').map((r) => r.target_source_id)).toEqual(['201']);
   });
 });
 
 describe('projectRows', () => {
-  it('filters then priority-sorts', () => {
+  it('filters only — preserves the input (API response) order verbatim', () => {
     const rows = [
       row(1, 'DONE', '101'),
       row(2, 'FAILED', '102'),
       row(3, 'RUNNING', '201'),
     ];
-    // q '10' keeps 101/102; sort → FAILED(102) then DONE(101)
-    expect(projectRows(rows, '10').map((r) => r.pipeline_id)).toEqual([2, 1]);
+    // q '10' keeps 101/102, in the SAME order they arrived (no priority re-sort)
+    expect(projectRows(rows, '10').map((r) => r.pipeline_id)).toEqual([1, 2]);
   });
 });
 

@@ -845,10 +845,12 @@ export const motion = {
 const pipelineText = {
   /** page h1 — 24 / 700 / 1.2 / -.02em / strong. */
   pageTitle: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
+  /** dashboard h1 (page.tsx-exclusive, Figma Make redesign) — 24 / 600 / strong. */
+  dashboardPageTitle: 'text-[24px] font-semibold leading-[1.2] text-[var(--pl-text-strong)]',
   /** section-title — 20 / 600 / 1.2 / strong. */
   sectionTitle: 'text-[20px] font-semibold leading-[1.2] text-[var(--pl-text-strong)]',
-  /** dashboard "파이프라인 목록" list-header title (Figma dashboard mock) — 24 / 700, page.tsx-exclusive. */
-  dashboardListTitle: 'text-[24px] font-bold leading-[1.2] text-[var(--pl-text-strong)]',
+  /** dashboard "파이프라인 목록" list-header title (Figma Make redesign) — 16 / 600 / strong. */
+  dashboardListTitle: 'text-[16px] font-semibold leading-[1.2] text-[var(--pl-text-strong)]',
   /** section-desc — 12 / 400 / 1.4 / weak. */
   sectionDesc: 'text-[12px] font-normal leading-[1.4] text-[var(--pl-text-weak)]',
   /** subsection-title — 14 / 600 / medium. */
@@ -885,13 +887,13 @@ const pipelineText = {
   metaGroupLabel: 'text-[12px] font-semibold text-[var(--pl-text-faint)]',
   /** stat tile label — 12 / 400 / weak. */
   statLabel: 'text-[12px] font-normal text-[var(--pl-text-weak)]',
-  /** stat tile main label — 16/600 medium (period now a tag above, not inline). */
-  statLabelMain: 'text-[16px] font-semibold text-[var(--pl-text-medium)]',
-  /** stat tile value — 48 / 700 / 1.2 / -.02em / tabular / strong. */
-  statValue: 'text-[48px] font-bold leading-[1.2] tracking-[-0.02em] tabular-nums',
+  /** stat tile main label (Figma Make) — 16 / 600 / medium, below the badge. */
+  statLabelMain: 'text-[16px] font-semibold leading-[1.2] text-[var(--pl-text-medium)]',
+  /** stat tile value (Figma Make) — 48 / 700 / tabular. */
+  statValue: 'text-[48px] font-bold leading-[1.1] tabular-nums',
   statValueDefault: 'text-[var(--pl-text-strong)]',
-  /** stat value error tint (failed count > 0). */
-  statValueError: 'text-[var(--pl-err-text)]',
+  /** stat value error tint (failed count > 0) — Figma Make red-500. */
+  statValueError: 'text-[var(--pl-err)]',
   /** stat value denominator — 20 / 500 / faint. */
   statDen: 'text-[20px] font-medium text-[var(--pl-text-faint)]',
   /** status-bar current label — 14 / 600 / medium. */
@@ -941,6 +943,20 @@ const PIPELINE_PILL_ICON: Record<PipelineStatusToneKey, string> = {
   BLOCKED: 'ban',
 };
 
+/** Dashboard status dot+text tone (Figma Make) — colored text + matching dot,
+ *  no pill background. Keyed by wire status (task-level keys included for safety;
+ *  the dashboard list only surfaces pipeline statuses). */
+const DASHBOARD_STATUS_TONE: Record<PipelineStatusToneKey, { text: string; dot: string }> = {
+  PENDING: { text: 'text-[var(--pl-warn)]', dot: 'bg-[var(--pl-warn)]' },
+  RUNNING: { text: 'text-[var(--pl-info)]', dot: 'bg-[var(--pl-info)]' },
+  IN_PROGRESS: { text: 'text-[var(--pl-info)]', dot: 'bg-[var(--pl-info)]' },
+  READY: { text: 'text-[var(--pl-warn)]', dot: 'bg-[var(--pl-warn)]' },
+  DONE: { text: 'text-[var(--pl-ok)]', dot: 'bg-[var(--pl-ok)]' },
+  FAILED: { text: 'text-[var(--pl-err)]', dot: 'bg-[var(--pl-err)]' },
+  CANCELLED: { text: 'text-[var(--pl-text-faint)]', dot: 'bg-[var(--pl-gray-300)]' },
+  BLOCKED: { text: 'text-[var(--pl-text-faint)]', dot: 'bg-[var(--pl-gray-300)]' },
+};
+
 /** Provider dot fill per lowercased provider key. */
 const PIPELINE_PROVIDER_DOT: Record<string, string> = {
   aws: 'bg-[var(--pl-pv-aws)]',
@@ -987,9 +1003,9 @@ export const pipelineStyles = {
     base: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[10px] shadow-[var(--pl-shadow-xs)] px-6 pt-5 pb-6',
     /** Stacked below another card in the same section (mt 16). */
     stack: 'mt-4',
-    /** KPI stat tile (Figma dashboard mock) — white card, soft shadow, flex-1
-     *  equal-width row (width comes from the parent flex, not a max-w here). */
-    stat: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[12px] shadow-[var(--pl-shadow-xs)] px-4 pt-4 pb-5',
+    /** KPI stat tile (Figma Make redesign) — white card, r12, border, p-5,
+     *  soft shadow; centered badge→label→value column. */
+    stat: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[12px] shadow-[var(--pl-shadow-xs)] p-5',
     /** Horizontal-overflow wrapper for a table inside a card (§ .tblwrap). */
     tableWrap: 'overflow-x-auto',
     /** No-padding card (Figma dashboard mock table-card) — children own their
@@ -998,12 +1014,10 @@ export const pipelineStyles = {
     flush: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[12px] shadow-[var(--pl-shadow-xs)] overflow-hidden',
   },
 
-  /** KPI card period badge (Figma dashboard mock) — primary tint for "현재"
-   *  (instant-value cards), neutral tint for a period window ("최근 N"). */
+  /** KPI card period badge (Figma Make redesign) — neutral rounded-md chip with
+   *  a hairline border, above the label ("현재" / "최근 24시간"). */
   statBadge: {
-    base: 'inline-flex items-center h-5 rounded-full px-2 text-[11px] font-semibold',
-    primary: 'bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
-    neutral: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
+    base: 'inline-flex items-center rounded-md border border-[var(--pl-border)] bg-[var(--pl-gray-100)] px-2 py-0.5 text-[11px] font-medium text-[var(--pl-text-weak)]',
   },
 
   /** Section header (title 64/0/12 margins; desc R22.5: 16 below title — the
@@ -1055,10 +1069,6 @@ export const pipelineStyles = {
      *  light-blue tint to read as scope, not a removable filter. */
     scope:
       'inline-flex items-center h-7 rounded-full border border-[var(--pl-primary-ring)] bg-[var(--pl-primary-bg)] px-3 text-[12px] font-semibold text-[var(--pl-primary)]',
-    /** Section-header period badge (Figma dashboard mock) — white pill + live dot. */
-    timestampBadge:
-      'inline-flex items-center gap-1.5 h-7 rounded-full border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 text-[13px] font-medium text-[var(--pl-text-weak)]',
-    timestampDot: 'w-1.5 h-1.5 rounded-full bg-[var(--pl-ok)]',
   },
 
   /** ProvTag — neutral text + 8×8 r2.5 brand dot; 12/500 medium. */
@@ -1107,16 +1117,14 @@ export const pipelineStyles = {
     cur: 'text-[var(--pl-text-medium)] font-semibold',
   },
 
-  /** SegControl — container pad 2; buttons h28 pad 0 12 12/600; on = card+shadow.
-   *  bg/text color live in idle/active (never in the button base). */
+  /** SegControl (Figma Make redesign) — white bordered container, p-1 gap-1;
+   *  active tab = solid dark (slate-900) fill, idle = muted text. */
   seg: {
     container:
-      'inline-flex items-center p-0.5 rounded-[10px] bg-[var(--pl-gray-100)] border border-[var(--pl-border)]',
-    leadingIcon: 'flex items-center justify-center size-7 rounded-lg bg-[var(--pl-bg-card)] text-[var(--pl-text-weak)]',
-    button: 'inline-flex items-center h-8 px-3 rounded-lg border border-transparent text-[13px] font-semibold cursor-pointer',
-    buttonIdle: 'bg-[var(--pl-bg-card)] border-[var(--pl-border)] text-[var(--pl-text-strong)]',
-    /** Active tab — Figma dashboard mock: solid primary fill, bold white text. */
-    buttonActive: 'bg-[var(--pl-primary)] text-[var(--pl-white)] font-bold',
+      'inline-flex items-center gap-1 p-1 rounded-lg bg-[var(--pl-bg-card)] border border-[var(--pl-border)]',
+    button: 'inline-flex items-center px-3 py-1 rounded-md text-[14px] cursor-pointer transition-colors',
+    buttonIdle: 'text-[var(--pl-text-weak)] hover:text-[var(--pl-text-medium)]',
+    buttonActive: 'bg-[var(--pl-gray-900)] text-[var(--pl-white)] font-medium',
   },
 
   /** PlToast — bottom-center gray-900 white 14/500 i-check, shadow-lg. */
@@ -1150,19 +1158,20 @@ export const pipelineStyles = {
     wrap: 'relative inline-block',
     icon: 'absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--pl-text-faint)] pointer-events-none',
     input: cn(pipelineInputBase, 'w-full pr-2.5 pl-[30px]'),
-    /** h40 variant (Figma dashboard mock filter-bar) — icon sits at 16px, not 14. */
-    iconLg: 'absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--pl-text-faint)] pointer-events-none',
+    /** Dashboard filter-bar variant (Figma Make) — h9, white fill, r8 border,
+     *  16px inset icon, blue focus ring. */
+    iconLg: 'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--pl-text-faint)] pointer-events-none',
     inputLg:
-      'h-10 rounded-lg border border-[var(--pl-border)] text-[14px] bg-[var(--pl-gray-50)] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-faint)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] w-full pr-3.5 pl-10',
+      'h-9 rounded-lg border border-[var(--pl-border)] text-[14px] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-faint)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] w-full pr-3 pl-9',
   },
 
   /** Text input / select — h32, border-strong, focus ring. */
   input: cn(pipelineInputBase, 'px-2.5'),
   select: cn(pipelineInputBase, 'px-2.5'),
-  /** h40 select variant (Figma dashboard mock dropdowns) — strong border, bold
-   *  text. Dashboard-exclusive (page.tsx via PlSelect size="lg"). */
+  /** Dashboard filter-bar select variant (Figma Make) — h9, white fill, r8
+   *  border, medium slate text. Dashboard-exclusive (page.tsx via PlSelect lg). */
   selectLg:
-    'h-10 rounded-lg border border-[var(--pl-text-strong)] text-[14px] font-semibold bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] px-3.5 cursor-pointer',
+    'h-9 rounded-lg border border-[var(--pl-border)] text-[14px] bg-[var(--pl-bg-card)] text-[var(--pl-text-medium)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] px-3 cursor-pointer',
 
   /** PlButton — h32 pad 0 14 14/600 (sm h28 pad 0 10 12/600; round 28×28).
    *  Base = interaction only; one geometry (md/sm/round) + one variant compose so
@@ -1211,6 +1220,85 @@ export const pipelineStyles = {
     /** Centered variant (Figma dashboard mock table-card pagination). */
     barCenter: 'flex items-center justify-center gap-5 mt-4',
     count: 'text-[12px] text-[var(--pl-text-weak)] tabular-nums',
+  },
+
+  /**
+   * Dashboard list (Figma Make redesign, page.tsx-exclusive). A self-contained
+   * token set so the shared StatusPill / PipelineProgressBar / ProvTag / PlTable
+   * (used by the detail pages) stay untouched. Cells: #id chip, dot+text status,
+   * gray progress, plain cloud text, relative-time cell with hover tooltip, and
+   * a hover-reveal dark action button.
+   */
+  dashboard: {
+    /** KPI grid — 4 equal columns, then a gap before the list card. */
+    kpiGrid: 'grid grid-cols-4 gap-4 mb-8',
+    /** KPI card inner column — centered badge → label → value. */
+    kpiCard: 'flex flex-col items-center text-center gap-3',
+    /** Page header row (title + period selector). */
+    headerRow: 'flex items-center justify-between mb-6',
+
+    /** List-card header (title + timestamp), first row inside the flush card. */
+    listBar: 'flex items-center justify-between px-5 py-4 border-b border-[var(--pl-gray-100)]',
+    listStamp: 'inline-flex items-center gap-1 text-[12px] text-[var(--pl-text-faint)]',
+
+    /** Filter bar inside the card — tinted, bordered, h9 controls. */
+    filterBar: 'flex items-center gap-2 px-5 py-3 border-b border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)]',
+    /** Search wrapper — flex-1 up to a max width (SearchBox adds `relative`). */
+    searchWrap: 'flex-1 max-w-xs',
+    /** Removable-filter chips row inside the card (only rendered when a filter is on). */
+    chipsWrap: 'px-5',
+
+    /** Table chrome. */
+    table: 'w-full',
+    headRow: 'border-b border-[var(--pl-gray-100)]',
+    th: 'px-5 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.05em] text-[var(--pl-text-faint)]',
+    body: 'divide-y divide-[var(--pl-gray-100)]',
+    row: 'group cursor-pointer transition-colors hover:bg-[var(--pl-gray-50)]',
+    cell: 'px-5 py-3.5 align-middle',
+
+    /** Service column — name (strong) over a mono "{code} · #{targetId}" meta line. */
+    serviceCell: 'flex flex-col gap-0.5',
+    serviceName: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
+    serviceMeta:
+      'inline-flex items-center gap-1.5 text-[12px] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]',
+    /** Cloud — plain medium text (no brand dot). */
+    cloudText: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
+    /** Pipeline type — icon + text. */
+    typeCell: 'inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--pl-text-medium)]',
+
+    /** Status — colored dot + text (no pill). */
+    status: 'inline-flex items-center gap-1.5 text-[12px] font-semibold',
+    statusDot: 'w-1.5 h-1.5 rounded-full flex-shrink-0',
+    statusTone: DASHBOARD_STATUS_TONE,
+
+    /** Progress — gray track + gray fill + N/M count. The fill is `block` so its
+     *  `h-full` resolves against the track height (an inline span would collapse). */
+    progressWrap: 'flex items-center gap-2 min-w-[120px]',
+    progressTrack: 'block flex-1 h-1 rounded-full bg-[var(--pl-gray-100)] overflow-hidden',
+    progressFill: 'block h-full rounded-full bg-[var(--pl-gray-400)] transition-all duration-500',
+    progressCount: 'text-[12px] text-[var(--pl-text-faint)] tabular-nums whitespace-nowrap',
+
+    /** Relative-time cell + hover tooltip (named group so only the cell triggers it). */
+    timeWrap: 'group/time relative inline-block',
+    timeText: 'text-[14px] text-[var(--pl-text-weak)] cursor-default',
+    timeTip:
+      'absolute bottom-full left-0 mb-1.5 hidden group-hover/time:block z-10 whitespace-nowrap rounded-lg bg-[var(--pl-gray-800)] px-2.5 py-1.5 text-[12px] text-[var(--pl-white)] shadow-[var(--pl-shadow-lg)]',
+
+    /** Row action — hover-reveal dark button (row hover via the unnamed group). */
+    actionCell: 'px-5 py-3.5 text-right',
+    action:
+      'inline-flex items-center justify-center w-7 h-7 rounded-lg text-[var(--pl-gray-300)] transition-all group-hover:bg-[var(--pl-gray-900)] group-hover:text-[var(--pl-white)] group-hover:shadow-[var(--pl-shadow-xs)]',
+
+    /** Pagination — centered icon buttons + count. */
+    pager: 'flex items-center justify-center gap-2 px-5 py-3.5 border-t border-[var(--pl-gray-100)]',
+    pagerBtn:
+      'inline-flex items-center justify-center w-7 h-7 rounded-lg text-[var(--pl-text-faint)] transition-colors hover:text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-100)] disabled:opacity-40 disabled:pointer-events-none',
+    pagerCount: 'text-[14px] text-[var(--pl-text-weak)] tabular-nums',
+
+    /** No-results empty state inside the card. */
+    empty: 'px-5 py-12 text-center text-[14px] text-[var(--pl-text-faint)]',
+    /** Loading / error min-height so the card doesn't collapse. */
+    stateBox: 'min-h-[240px] flex flex-col items-center justify-center gap-3 text-[14px] text-[var(--pl-text-faint)]',
   },
 } as const;
 

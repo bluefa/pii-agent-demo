@@ -385,6 +385,8 @@ interface MockPipeline {
   pipeline_id: number;
   type: PipelineType;
   target_source_id: string;
+  service_code: string;
+  service_name: string;
   cloud_provider: CloudProvider;
   /** null for CUSTOM pipelines — upstream serializes no catalog recipe (PipelinePlan.custom). */
   recipe_definition: string | null;
@@ -471,7 +473,7 @@ function seedPipelines(): MockPipeline[] {
   return [
     // ── 129 PENDING (start-delay wait) — GCP target 1002. READY + BLOCKED. ──
     {
-      pipeline_id: 129, type: 'INSTALL', target_source_id: '1002', cloud_provider: 'GCP',
+      pipeline_id: 129, type: 'INSTALL', target_source_id: '1002', ...resolveService('1002'), cloud_provider: 'GCP',
       recipe_definition: 'GCP_INSTALL_V1', status: 'PENDING',
       created_at: ago(6), last_activity_at: ago(6), next_due_at: ahead(24),
       leased: false, cancel_requested: false, due_lag_millis: 0,
@@ -485,7 +487,7 @@ function seedPipelines(): MockPipeline[] {
     // ── 128 RUNNING (leased, full detail) — AWS target 1006. DONE + IN_PROGRESS + BLOCKED. ──
     //     Sole exercise of the CONDITION_CHECK render path (seq 3 NETWORK_READY DONE w/ check + attempt).
     {
-      pipeline_id: 128, type: 'INSTALL', target_source_id: '1006', cloud_provider: 'AWS',
+      pipeline_id: 128, type: 'INSTALL', target_source_id: '1006', ...resolveService('1006'), cloud_provider: 'AWS',
       recipe_definition: 'AWS_INSTALL_V1', status: 'RUNNING',
       created_at: ago(45), last_activity_at: ago(4), next_due_at: ahead(6), leased: true,
       cancel_requested: false, due_lag_millis: 300,
@@ -520,7 +522,7 @@ function seedPipelines(): MockPipeline[] {
     },
     // ── 127 DONE (DELETE) — AWS target 1006 (history for the running target). ──
     {
-      pipeline_id: 127, type: 'DELETE', target_source_id: '1006', cloud_provider: 'AWS',
+      pipeline_id: 127, type: 'DELETE', target_source_id: '1006', ...resolveService('1006'), cloud_provider: 'AWS',
       recipe_definition: 'AWS_DELETE_V1', status: 'DONE',
       created_at: ago(2 * 24 * 60), last_activity_at: ago(2 * 24 * 60 - 22), next_due_at: null,
       leased: false, cancel_requested: false, due_lag_millis: 0,
@@ -541,7 +543,7 @@ function seedPipelines(): MockPipeline[] {
     },
     // ── 126 DONE (INSTALL) — GCP target 1002 (history for the pending target). ──
     {
-      pipeline_id: 126, type: 'INSTALL', target_source_id: '1002', cloud_provider: 'GCP',
+      pipeline_id: 126, type: 'INSTALL', target_source_id: '1002', ...resolveService('1002'), cloud_provider: 'GCP',
       recipe_definition: 'GCP_INSTALL_V1', status: 'DONE',
       created_at: ago(5 * 24 * 60), last_activity_at: ago(5 * 24 * 60 - 40), next_due_at: null,
       leased: false, cancel_requested: false, due_lag_millis: 0,
@@ -566,7 +568,7 @@ function seedPipelines(): MockPipeline[] {
     },
     // ── 125 RUNNING + cancel_requested — AWS target 1007 (leased, cancel awaiting next cycle). ──
     {
-      pipeline_id: 125, type: 'DELETE', target_source_id: '1007', cloud_provider: 'AWS',
+      pipeline_id: 125, type: 'DELETE', target_source_id: '1007', ...resolveService('1007'), cloud_provider: 'AWS',
       recipe_definition: 'AWS_DELETE_V1', status: 'RUNNING',
       created_at: ago(38), last_activity_at: ago(3), next_due_at: ahead(4), leased: true,
       cancel_requested: true, due_lag_millis: 2400,
@@ -581,7 +583,7 @@ function seedPipelines(): MockPipeline[] {
     },
     // ── 124 FAILED (JOB_FAILED, quota exceeded) — Azure target 1003 (red path). ──
     {
-      pipeline_id: 124, type: 'INSTALL', target_source_id: '1003', cloud_provider: 'AZURE',
+      pipeline_id: 124, type: 'INSTALL', target_source_id: '1003', ...resolveService('1003'), cloud_provider: 'AZURE',
       recipe_definition: 'AZURE_INSTALL_V1', status: 'FAILED',
       created_at: ago(3 * 60), last_activity_at: ago(3 * 60 - 30), next_due_at: null,
       leased: false, cancel_requested: false, due_lag_millis: 0,
@@ -599,7 +601,7 @@ function seedPipelines(): MockPipeline[] {
     },
     // ── 123 CANCELLED (INSTALL) — AWS target 1008 (cascade-cancelled tasks). ──
     {
-      pipeline_id: 123, type: 'INSTALL', target_source_id: '1008', cloud_provider: 'AWS',
+      pipeline_id: 123, type: 'INSTALL', target_source_id: '1008', ...resolveService('1008'), cloud_provider: 'AWS',
       recipe_definition: 'AWS_INSTALL_V1', status: 'CANCELLED',
       created_at: ago(6 * 24 * 60), last_activity_at: ago(6 * 24 * 60 - 5), next_due_at: null,
       leased: false, cancel_requested: false, due_lag_millis: 0,
@@ -671,6 +673,8 @@ const toSummary = (p: MockPipeline): PipelineSummary => ({
   pipeline_id: p.pipeline_id,
   type: p.type,
   target_source_id: p.target_source_id,
+  service_code: p.service_code,
+  service_name: p.service_name,
   cloud_provider: p.cloud_provider,
   recipe_definition: p.recipe_definition,
   status: p.status,
@@ -824,6 +828,16 @@ const resolveProvider = (targetSourceId: string): CloudProvider | null => {
   return INTERNAL_PROVIDER[project.cloudProvider] ?? null;
 };
 
+/** Resolve a target-source's owning service (projectCode/name) from the app's
+ *  mock seed — assumed addition to PipelineSummary (#3). Falls back to the
+ *  target_source_id itself when the target isn't in the app's project seed. */
+const resolveService = (targetSourceId: string): { service_code: string; service_name: string } => {
+  const project = getProjectByTargetSourceId(Number(targetSourceId));
+  return project
+    ? { service_code: project.projectCode, service_name: project.name }
+    : { service_code: targetSourceId, service_name: targetSourceId };
+};
+
 const hasActiveRun = (targetSourceId: string): boolean =>
   store().some(
     (p) => p.target_source_id === targetSourceId && (p.status === 'PENDING' || p.status === 'RUNNING'),
@@ -851,6 +865,9 @@ const isPipelineStatus = (value: string): value is PipelineStatus =>
 
 const isCloudProvider = (value: string): value is CloudProvider =>
   value === 'AWS' || value === 'GCP' || value === 'AZURE' || value === 'IDC';
+
+const isPipelineType = (value: string): value is PipelineType =>
+  value === 'INSTALL' || value === 'DELETE' || value === 'CUSTOM';
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
@@ -913,6 +930,7 @@ export const mockPipeline = {
     const params = new URLSearchParams(query);
     const statusFilter = params.get('status');
     const providerFilter = params.get('provider');
+    const typeFilter = params.get('type');
     const period = params.get('period');
     const page = parseIntParam(params.get('page'), 0);
     const size = parseIntParam(params.get('size'), 20);
@@ -923,6 +941,9 @@ export const mockPipeline = {
     if (providerFilter !== null && !isCloudProvider(providerFilter)) {
       return err(400, 'INVALID_PARAMETER', 'invalid or missing request parameter', PATH.pipelines);
     }
+    if (typeFilter !== null && !isPipelineType(typeFilter)) {
+      return err(400, 'INVALID_PARAMETER', 'invalid or missing request parameter', PATH.pipelines);
+    }
     if (period !== null && !isPeriodToken(period)) {
       return err(400, 'INVALID_STATISTICS_PERIOD', `unknown statistics period: ${period}`, PATH.pipelines);
     }
@@ -931,6 +952,7 @@ export const mockPipeline = {
     const rows = store()
       .filter((p) => (statusFilter ? p.status === statusFilter : true))
       .filter((p) => (providerFilter ? p.cloud_provider === providerFilter : true))
+      .filter((p) => (typeFilter ? p.type === typeFilter : true))
       .filter((p) => (sinceMs === null ? true : new Date(p.created_at).getTime() >= sinceMs))
       .sort(byCreatedDesc)
       .map(toSummary);
@@ -1153,6 +1175,7 @@ export const mockPipeline = {
       pipeline_id: pipelineId,
       type: 'CUSTOM',
       target_source_id: targetSourceId,
+      ...resolveService(targetSourceId),
       cloud_provider: provider,
       recipe_definition: null,
       status: 'PENDING',
@@ -1219,6 +1242,7 @@ function buildPendingPipeline(
     pipeline_id: pipelineId,
     type,
     target_source_id: targetSourceId,
+    ...resolveService(targetSourceId),
     cloud_provider: provider,
     recipe_definition: recipeName,
     status: 'PENDING',
