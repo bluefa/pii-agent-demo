@@ -609,8 +609,12 @@ public record TestResult(
 
 `spring-boot-starter-actuator`/Micrometer 는 현재 pom 에 없다. V1 은 **구조화 로그**로 시작:
 
-- `notify delivered pipeline={} attempts={}` (INFO), `notify delivery failed …`(WARN),
-  `notify give-up pipeline={} after {} attempts`(ERROR — **로그 기반 경보 필수**, ADR-022 §4).
+- **구조화 로그(감사 재구성용, ADR-022 §결과)** — success/failure/give-up 모두 최소
+  `pipeline_id`·`terminal_status`·`attempt`·`sink`(=slack)·응답 분류(`resp_class`: 2xx/4xx/5xx/timeout,
+  실패 시 error class)를 포함한다:
+  - `notify delivered pipeline={} status={} attempt={} sink=slack resp_class=2xx`(INFO)
+  - `notify delivery failed pipeline={} status={} attempt={} sink=slack resp_class={}`(WARN)
+  - `notify give-up pipeline={} status={} after {} attempts sink=slack`(ERROR — **로그 기반 경보 필수**, §4).
 - **두 age 를 별도 쿼리로 구분**(ADR-022 §4, V1 부터): `oldestUnnotifiedAt(maxAttempts)` =
   **총 backlog age**(`terminal_notification_backlog_age`, 비활성 채널 backlog 포함).
   `oldestDeliveryPending(maxAttempts, now)` = **due 행만** 본 “전달 정체” age

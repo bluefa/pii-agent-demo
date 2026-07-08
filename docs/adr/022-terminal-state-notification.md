@@ -66,7 +66,8 @@ status IN ('DONE','FAILED','CANCELLED') AND notified_at IS NULL
 “전이는 커밋됐는데 알림은 아직”은 이 술어로 완전히 표현된다 — 별도 이벤트 행을 INSERT할
 필요가 없다. 종단 전이 자체가 durable하므로 **dual-write가 원천적으로 없다**(전이가
 커밋돼야만 알림 대상이 되고, 커밋됐다면 반드시 대상이 된다). `notified_at`은 알림
-메타데이터이지 도메인 상태가 아니다 — claim·스케줄링·전이 로직은 이를 읽지 않는다.
+메타데이터이지 도메인 상태가 아니다 — **파이프라인 실행 claim·도메인 전이 로직은 이를 읽지
+않는다**(알림 claim 술어는 당연히 읽는다 — 그건 “알림 대상 선별”이지 도메인 전이가 아니다).
 (위는 개념 술어이고, lease·backoff 게이트를 포함한 **완전한 claim 술어는 §2**에 있다.)
 
 알림 payload는 **이미 커밋된 `pipeline`/`task` 행에서 구성**한다(종단 종류, 실패 시
@@ -104,12 +105,14 @@ UPDATE pipeline SET notify_claimed_by = :fresh_uuid,     -- per-claim fencing
 
 위 `:now`는 **주입된 단일 앱 `Clock` 시각**이다(DB `now()`와
 앱 시계를 섞지 않는다 — lease 만료·재시도 due 판정이 한 시계 기준이어야 함, 구현 문서).
+**멀티 파드 운영 가정**: 파드 간 시계 skew는 lease duration 대비 작아야 한다(NTP) — skew가 커도
+최악은 **중복 전달 시도**(멱등/fencing이 흡수)일 뿐 **상태 손상은 아니다**.
 **설정 기본값**(`maxAttempts`·lease·call-timeout·scan interval 등)은 구현 문서 §3에
 비규범 기본으로 둔다(이 ADR은 정책만, 값은 튜닝 대상).
 
 - **외부 호출** — 알림 sink에 전달(트랜잭션 밖, per-call 타임아웃).
 - **tx2(guarded write-back)** — 성공 시
-  `SET notified_at = now(), notify_claimed_by = NULL, notify_claimed_until = NULL WHERE id = :id AND notify_claimed_by = :token AND notified_at IS NULL`
+  `SET notified_at = :now, notify_claimed_by = NULL, notify_claimed_until = NULL WHERE id = :id AND notify_claimed_by = :token AND notified_at IS NULL`
   (ADR-021 §4 fencing과 동형; 실패 경로와 동일한 `notified_at IS NULL` 가드로 대칭). 실패 시 아래 실패 경로.
 
 이로써 ADR-021 §3의 **two-transaction split**(락을 외부 호출에 물리지 않는다)과 fencing이
@@ -205,8 +208,9 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   넘겨 보관해야 안전하다. (V1 Slack sink는 사람 상관이라 이 정식 계약은 **이후 도입될
   프로그램적 sink에 적용**된다.)
   (b) payload에 `schema_version` 포함, (c) **PII 최소화(하드 계약)** — 이 시스템은 PII-인접
-  인프라를 다루므로 payload는 **허용 필드만**: `pipeline_id`, `type`(INSTALL/DELETE),
-  `terminal_status`, `target_ref`, 실패 시 `failed_task`/`error_code`, `schema_version`.
+  인프라를 다루므로 payload는 **허용 필드만**: `pipeline_id`, `type`(INSTALL/DELETE/CUSTOM,
+  미해석 열화 시 null 허용 — 구현 `NotifyPayload`와 정합), `terminal_status`, `target_ref`,
+  실패 시 `failed_task`/`error_code`, `schema_version`.
   **`target_ref`는 대상의 opaque 참조여야 하며, raw hostname·account·DB명 등 민감 연결
   식별자는 payload에 직렬화하지 않는다(MUST NOT)** — “지양”이 아니라 금지다. **참조는
   canonical opaque 소스(전용 매핑 지점 `toTargetRef`, 구현 §4.2)에서 나와야 하며 “아무 target
@@ -261,7 +265,7 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
 
 | 대안 | 판정 | 이유 |
 |---|---|---|
-| **A. 상태 파생 + `notified_at`(claim/lease 메커니즘 재사용)** | **채택** | 이벤트가 이미 도메인 행에 있어 dual-write 없음; ADR-021 claim/lease/two-tx를 그대로 재사용해 relay-lease 문제 없음; 새 테이블·relay·pruner 0. |
+| **A. 상태 파생 + `notified_at`(claim/lease 메커니즘 재사용)** | **채택** | 이벤트가 이미 도메인 행에 있어 dual-write 없음; ADR-021 claim/lease/two-tx를 그대로 재사용해 relay-lease 문제 없음; **알림 전달 상태 테이블·relay·pruner 0**(채널 설정용 `notification_channel` 단일 행은 별개). |
 | B. 트랜잭션 아웃박스(별도 `event_outbox` + relay) | 기각 | 이벤트가 이미 `pipeline.status`에 있어 별도 저장소가 불필요; relay는 외부 전달에 lease가 필요한데 "SKIP LOCKED만"으로는 락을 외부 호출에 물리거나(ADR-021 §3 위반) 이중 전달이 남음; 다중 sink·poison·pruner를 새로 떠안음; ADR-016이 이미 잘라낸 메커니즘. |
 | C. 전이 트랜잭션 내 동기 알림 호출 | 기각 | dual-write; 느린/실패 알림이 상태 전이를 롤백·차단; 상태 정합성이 알림 서버에 종속. |
 | D. 커밋 후 best-effort 알림 | 기각 | 커밋~알림 사이 크래시로 조용히 유실; 재시도·복구 없음. |
@@ -291,7 +295,8 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   하나씩 늘어난다.
 - **at-least-once → 멱등 소비자 필수**(`pipeline_id`만으로 dedupe — 파이프라인당 종단 1개;
   `terminal_status`는 payload 정보이지 dedupe 키가 아니다).
-- **알림 지연 = 스캔 주기.** 저지연이 필요하면 §4의 wake-up 힌트를 나중에 도입.
+- **알림 지연.** 새 작업 *검출* 지연 = 스캔/idle 주기(실제 전달 지연엔 call-timeout·backoff·
+  backlog 드레인이 더해짐, §4). 저지연이 필요하면 §4의 wake-up 힌트를 나중에 도입.
 - **다중 독립 sink는 V1 범위 밖** — 필요해질 때 per-sink 상태를 도입.
 - **알림 전달을 실행 워커풀에서 격리**해야 한다(전용 풀/loop 또는 notify 클레임 상한) —
   느린 sink가 파이프라인 실행을 굶기지 않도록. relay를 없앤 대가로 이 격리를 명시적으로
@@ -342,6 +347,11 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
    (종단 도달 후 부활 금지)에 의존한다 — 종단 행이 다시 `RUNNING`으로 되돌아가 재종단할 수
    없으므로, 한 번 찍힌 `notified_at`이 “두 번째 종단”을 잘못 억제할 여지가 없다. (파생 읽기
    모델인 ADR-023 ProcessStatus의 회귀는 `pipeline.status` 도메인 상태와 무관하다.)
+5. **producer-side 보존 제약(중요).** 알림은 독립 이벤트 행 없이 `pipeline` 행에서 파생되므로,
+   **retention/archive/pruner는 `notified_at IS NULL`인 종단 행(give-up 포함)을 삭제·아카이브
+   하면 안 된다(MUST NOT)** — 그러면 알림이 조용히 소멸한다. 알림이 나가지 않은 행을 정리해야
+   하면 먼저 **명시적·감사되는 suppression 마커**(§4)를 쓴 뒤에만 정리한다. 종단 행 보존을
+   요구한다면 **producer 최소 보존창 ≥ (알림 재시도 horizon + 수동 replay 창)**을 지켜야 한다.
 
 ## 알림/신호 분류
 
@@ -428,6 +438,10 @@ count, due-pipeline lag)에 대한 **임계 알림으로, 조직이 이미 운�
   - **계약 정직화**: “at-least-once *시도* + give-up 전까지 무유실(무조건 전달 아님)”,
     `notified_at`(V1)=“sink 2xx 접수”, dedup 보관 = `max(행 보존, 재시도 horizon + replay)`
     (V1 Slack은 사람 상관, 정식 계약은 프로그램적 sink), Slack 중복 수용.
+  - **producer-side 보존**: 알림은 독립 이벤트 행이 없으므로 **retention/pruner는 `notified_at
+    IS NULL` 종단 행(give-up 포함)을 삭제 금지**(불변식 5) — 안 그러면 알림이 조용히 소멸;
+    정리하려면 감사 suppression 마커 선행. 구조화 전달 로그는 `pipeline_id`·`terminal_status`·
+    `attempt`·`sink`·응답 분류 포함(ADR↔구현 §7 정합).
   - **소소한 정정**: dedup 키 `pipeline_id`만, claim `WHERE id`·`ORDER BY … id` tie-break,
-    단일 앱 `Clock` 일관, 대안 G(사이드카 테이블) 기각, “verbatim”→“메커니즘” 재사용, 감사
-    로그 필수 필드/보존, 구조화 로그.
+    단일 앱 `Clock` 일관(+멀티파드 skew 가정), 대안 G(사이드카 테이블) 기각, “verbatim”→
+    “메커니즘” 재사용, `type` CUSTOM/null 정합, §1 “실행 claim” 한정 문구, 구조화 로그.
