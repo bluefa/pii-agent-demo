@@ -48,8 +48,10 @@ import {
   GrayProgress,
   RelativeTime,
   RowAction,
-  ServiceCell,
+  ServiceCodeCell,
+  ServiceNameCell,
   StatusDot,
+  TargetIdCell,
   TypeCell,
 } from '@/app/integration/admin/pipelines/_dashboard/cells';
 
@@ -349,7 +351,9 @@ export default function DashboardPage(): ReactElement {
             <table className={d.table}>
               <thead>
                 <tr className={d.headRow}>
-                  <th className={d.th}>서비스 / 대상</th>
+                  <th className={cn(d.th, 'w-[28ch]')}>서비스 이름</th>
+                  <th className={d.th}>서비스 코드</th>
+                  <th className={d.th}>Target Source</th>
                   <th className={d.th}>Cloud</th>
                   <th className={d.th}>파이프라인 유형</th>
                   <th className={d.th}>상태</th>
@@ -365,11 +369,13 @@ export default function DashboardPage(): ReactElement {
                     onActivate={() => router.push(integrationRoutes.pipelines.pipeline(row.pipeline_id))}
                   >
                     <td className={d.cell}>
-                      <ServiceCell
-                        code={row.service_code}
-                        name={row.service_name}
-                        targetId={String(row.target_source_id)}
-                      />
+                      <ServiceNameCell name={row.service_name} />
+                    </td>
+                    <td className={d.cell}>
+                      <ServiceCodeCell code={row.service_code} />
+                    </td>
+                    <td className={d.cell}>
+                      <TargetIdCell targetId={String(row.target_source_id)} />
                     </td>
                     <td className={d.cell}>
                       <CloudText provider={row.cloud_provider} />
