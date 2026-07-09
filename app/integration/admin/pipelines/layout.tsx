@@ -22,6 +22,7 @@ const SIDEBAR_ITEMS = [
 export default function PipelinesLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? '';
   const { layout } = pipelineStyles;
+  const isDashboard = pathname === integrationRoutes.pipelines.dashboard;
 
   return (
     <div className={layout.shell}>
@@ -43,7 +44,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
-      <main className={layout.content}>
+      <main className={isDashboard ? layout.contentFluid : layout.content}>
         <PlToastProvider>{children}</PlToastProvider>
       </main>
     </div>

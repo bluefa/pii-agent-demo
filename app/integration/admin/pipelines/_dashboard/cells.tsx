@@ -23,24 +23,19 @@ const TYPE_ICON: Record<PipelineType, IconName> = {
   CUSTOM: 'sliders',
 };
 
-/** Service column — service name over a mono "{code} · #{targetId}" meta line. */
-export function ServiceCell({
-  code,
-  name,
-  targetId,
-}: {
-  code: string;
-  name: string;
-  targetId: string;
-}): ReactElement {
-  return (
-    <span className={d.serviceCell}>
-      <span className={d.serviceName}>{name}</span>
-      <span className={d.serviceMeta}>
-        {code} · #{targetId}
-      </span>
-    </span>
-  );
+/** 서비스 이름 — ≤20자, overflow는 말줄임. */
+export function ServiceNameCell({ name }: { name: string }): ReactElement {
+  return <span className={d.serviceName}>{name}</span>;
+}
+
+/** 서비스 코드 — 3자, 모노스페이스. */
+export function ServiceCodeCell({ code }: { code: string }): ReactElement {
+  return <span className={d.serviceCode}>{code}</span>;
+}
+
+/** 대상(Target Source) 번호. */
+export function TargetIdCell({ targetId }: { targetId: string }): ReactElement {
+  return <span className={d.targetId}>#{targetId}</span>;
 }
 
 /** Cloud provider — plain medium text (no brand dot). */

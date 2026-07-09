@@ -996,6 +996,9 @@ export const pipelineStyles = {
     // R18: 1280 → 1440 — the detail page's flow card needs the width (owner:
     // "margin이 오른쪽으로 너무 크게"); tables are row-scan content and may stretch.
     content: 'flex-1 min-w-0 max-w-[1440px] px-8 pt-6 pb-12',
+    // Dashboard-only: no max-width cap, fills the viewport (owner request — see
+    // layout.tsx's isDashboard check). Other pipelines pages keep `content`.
+    contentFluid: 'flex-1 min-w-0 px-8 pt-6 pb-12',
   },
 
   /** Card surfaces (§5). */
@@ -1251,16 +1254,16 @@ export const pipelineStyles = {
     /** Table chrome. */
     table: 'w-full',
     headRow: 'border-b border-[var(--pl-gray-100)]',
-    th: 'px-5 py-3 text-left text-[12px] font-semibold uppercase tracking-[0.05em] text-[var(--pl-text-faint)]',
+    th: 'px-5 py-3 text-left whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.05em] text-[var(--pl-text-faint)]',
     body: 'divide-y divide-[var(--pl-gray-100)]',
     row: 'group cursor-pointer transition-colors hover:bg-[var(--pl-gray-50)]',
     cell: 'px-5 py-3.5 align-middle',
 
-    /** Service column — name (strong) over a mono "{code} · #{targetId}" meta line. */
-    serviceCell: 'flex flex-col gap-0.5',
-    serviceName: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
-    serviceMeta:
-      'inline-flex items-center gap-1.5 text-[12px] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]',
+    /** 서비스 이름/코드/대상 — separate columns (이름 ≤20자, 코드 3자). */
+    serviceName: 'block max-w-[28ch] truncate text-[14px] font-semibold text-[var(--pl-text-strong)]',
+    serviceCode:
+      'whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
+    targetId: 'text-[14px] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]',
     /** Cloud — plain medium text (no brand dot). */
     cloudText: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
     /** Pipeline type — icon + text. */
