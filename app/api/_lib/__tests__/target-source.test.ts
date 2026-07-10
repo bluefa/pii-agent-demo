@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import type { Project } from '@/lib/types';
 
 vi.mock('@/lib/mock-data', () => ({
@@ -46,7 +46,12 @@ describe('parseTargetSourceId', () => {
 });
 
 describe('resolveProject', () => {
-  it('존재하지 않는 targetSourceId는 TARGET_SOURCE_NOT_FOUND를 반환한다', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('mock 모드에서 존재하지 않는 targetSourceId는 TARGET_SOURCE_NOT_FOUND를 반환한다', () => {
+    vi.stubEnv('USE_MOCK_DATA', 'true');
     mockedGetProjectByTargetSourceId.mockReturnValue(undefined);
 
     const result = resolveProject(9999, 'req');
@@ -57,7 +62,8 @@ describe('resolveProject', () => {
     }
   });
 
-  it('존재하는 targetSourceId는 project를 반환한다', () => {
+  it('mock 모드에서 존재하는 targetSourceId는 project를 반환한다', () => {
+    vi.stubEnv('USE_MOCK_DATA', 'true');
     const fakeProject = { id: 'proj-1', targetSourceId: 1001 } as Project;
     mockedGetProjectByTargetSourceId.mockReturnValue(fakeProject);
 
@@ -69,19 +75,30 @@ describe('resolveProject', () => {
     }
   });
 
-  it('BFF 모드(USE_MOCK_DATA=false)에서는 INTERNAL_ERROR를 반환한다 (mock seed 누설 방지)', async () => {
-    vi.stubEnv('USE_MOCK_DATA', 'false');
-    vi.resetModules();
-    const { resolveProject: resolveProjectBff } = await import('@/app/api/_lib/target-source');
+  // LIN-60: real mode is now the default. Unset OR any non-'true' value ⇒ real,
+  // and resolveProject must refuse (mock seed must never leak through the BFF path).
+  it.each([['false'], ['']])(
+    'real 모드(USE_MOCK_DATA=%j)에서는 INTERNAL_ERROR를 반환한다 (mock seed 누설 방지)',
+    (value) => {
+      vi.stubEnv('USE_MOCK_DATA', value);
 
-    const result = resolveProjectBff(1001, 'req');
+      const result = resolveProject(1001, 'req');
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.problem.code).toBe('INTERNAL_ERROR');
+      }
+    },
+  );
+
+  it('USE_MOCK_DATA 미설정 시 real 모드로 INTERNAL_ERROR를 반환한다', () => {
+    vi.stubEnv('USE_MOCK_DATA', undefined);
+
+    const result = resolveProject(1001, 'req');
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.problem.code).toBe('INTERNAL_ERROR');
     }
-
-    vi.unstubAllEnvs();
-    vi.resetModules();
   });
 });

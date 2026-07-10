@@ -2,8 +2,7 @@ import { getProjectByTargetSourceId } from '@/lib/mock-data';
 import type { Project } from '@/lib/types';
 import type { ProblemDetails } from '@/app/api/_lib/problem';
 import { createProblem } from '@/app/api/_lib/problem';
-
-const IS_MOCK = process.env.USE_MOCK_DATA !== 'false';
+import { isMock } from '@/lib/env';
 
 type ParseResult =
   | { ok: true; value: number }
@@ -33,7 +32,7 @@ export function resolveProject(
   targetSourceId: number,
   requestId: string,
 ): { ok: true; project: Project } | { ok: false; problem: ProblemDetails } {
-  if (!IS_MOCK) {
+  if (!isMock()) {
     return {
       ok: false,
       problem: createProblem(
