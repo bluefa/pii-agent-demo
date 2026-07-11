@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { EditLanguageTabs } from '@/app/integration/admin/guides/components/EditLanguageTabs';
+import { EditLanguageTabs } from '@/app/admin/guides/components/EditLanguageTabs';
 
 const noop = (): void => undefined;
 

@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { ServiceMoveConfirmModal } from '@/app/integration/target-sources/[targetSourceId]/_components/ServiceMoveConfirmModal';
+import { ServiceMoveConfirmModal } from '@/app/target-sources/[targetSourceId]/_components/ServiceMoveConfirmModal';
 
 const noop = (): void => undefined;
 

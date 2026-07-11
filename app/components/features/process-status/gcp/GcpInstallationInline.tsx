@@ -18,7 +18,7 @@ import { InstallTaskDetailModal } from '@/app/components/features/process-status
 import { joinGcpResources } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useModal } from '@/app/hooks/useModal';
-import { useConfirmedIntegration } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
+import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { buildGcpPipelineItems, type GcpStepKey } from '@/lib/constants/gcp';
 import type { GcpInstallationStatusResponse } from '@/app/api/_lib/v1-types';
 
