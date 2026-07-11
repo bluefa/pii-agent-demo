@@ -30,8 +30,8 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Service List',
     href: integrationRoutes.services,
     isActive: (pathname) =>
-      pathname.startsWith('/integration/services') ||
-      pathname.startsWith('/integration/target-sources'),
+      pathname.startsWith('/services') ||
+      pathname.startsWith('/target-sources'),
     icon: (
       <svg {...iconProps} aria-hidden="true">
         <line x1="8" y1="6" x2="21" y2="6" />
@@ -46,7 +46,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: '가이드 관리',
     href: integrationRoutes.adminGuides,
-    isActive: (pathname) => pathname.startsWith('/integration/admin/guides'),
+    isActive: (pathname) => pathname.startsWith('/admin/guides'),
     icon: (
       <svg {...iconProps} aria-hidden="true">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
@@ -57,7 +57,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: '파이프라인',
     href: integrationRoutes.pipelines.dashboard,
-    isActive: (pathname) => pathname.startsWith('/integration/admin/pipelines'),
+    isActive: (pathname) => pathname.startsWith('/admin/pipelines'),
     icon: (
       <svg {...iconProps} aria-hidden="true">
         <circle cx="4.5" cy="12" r="2.3" />

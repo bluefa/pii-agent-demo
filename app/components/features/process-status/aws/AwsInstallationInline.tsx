@@ -8,7 +8,7 @@ import { InstallTaskPipeline } from '@/app/components/features/process-status/in
 import { InstallResourceTable } from '@/app/components/features/process-status/install-task-pipeline/InstallResourceTable';
 import { joinAwsResources } from '@/app/components/features/process-status/aws/join-aws-install-resources';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
-import { useConfirmedIntegration } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
+import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { buildAwsAutoItems, buildAwsManualItems } from '@/lib/constants/aws-install';
 import { borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
 import type { AwsInstallationStatus } from '@/lib/types';

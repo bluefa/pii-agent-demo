@@ -20,16 +20,11 @@ fail loudly when misconfigured.
   (there is no `basePath` in `routes-manifest.json`).
 - Result: without a proxy rewriting `/integration/_next/* → /_next/*`, every
   CSS/JS/font 404s and the app renders unstyled and non-interactive.
-- The `/integration` URL prefix exists **only** because every page is physically
-  nested under `app/integration/**` (289 files). It was an arbitrary internal
-  choice, not an external contract.
-
-The recommended textbook fix is `basePath: '/integration'`, which makes the
-server serve routes *and* assets under the prefix. But `basePath` stacks on top
-of the folder nesting, yielding `/integration/integration/*` — so adopting it
-forces un-nesting all 289 files and rewriting ~333 hardcoded `/integration`
-references. That is a large, high-regression refactor for a prefix that carries
-no external meaning.
+- The `/integration` URL prefix existed **only** because every page was physically
+  nested under `app/integration/**` (289 files) — an implicit, folder-encoded
+  prefix. The owner set `/integration` arbitrarily and wants it expressed as
+  configuration, with pages, API route handlers, and assets all mounted under it
+  uniformly, rather than as a physical-nesting hack that assets don't participate in.
 
 ### LIN-60 — env drift and silent failure
 
@@ -45,21 +40,32 @@ no external meaning.
 
 ## Decision
 
-### LIN-56 — drop `assetPrefix`, keep folder nesting
+### LIN-56 — adopt `basePath: '/integration'`, un-nest the app
 
-Remove `assetPrefix` entirely. Pages stay at `/integration/*` via folder nesting;
-the server serves assets at `/_next/*`. The image is then **self-consistent**:
-`docker run` with no proxy loads styles and JS correctly.
+Set `basePath: '/integration'` and **remove `assetPrefix`**. The standalone
+server now serves routes, API route handlers, and `/_next/*` assets all under
+`/integration` from configuration — no `assetPrefix` 404 trap, no proxy rewrite.
+Verified end-to-end: `/integration/services` → 200, `/integration/_next/static/*.js`
+→ 200, `/integration/api/v1/health` → 200, `/integration` → 307 → `/integration/services`,
+and bare `/services` → 404 (the app mounts *only* under the prefix).
 
-`basePath` + un-nesting is explicitly **rejected** — disproportionate risk for an
-arbitrary prefix.
+Because `basePath` stacks on the folder nesting (`/integration/integration/*`),
+the app was **un-nested**: `app/integration/{admin,api-docs,services,swagger,
+target-sources}` → `app/*` and `app/integration/api/v1` → `app/api/v1`. The bulk
+of the ~330 `/integration` literals were `@/app/integration/...` import paths
+rewritten mechanically to `@/app/...`.
 
-**Deployment contract (must hold):** the LB chain (ELB → ILB → server) must
-forward **both** `/integration/*` (pages) and `/_next/*` (assets) to this
-service. Do **not** path-isolate `/integration/*` and drop the rest. Because the
-prefix is arbitrary, the natural "forward everything to the single frontend
-service" topology already satisfies this. If a future ingress must strictly
-isolate `/integration/*`, revisit and adopt `basePath` + un-nest at that point.
+**basePath-awareness is the rule that governs the remaining literals:**
+- `next/link`, `router`, `redirect`, `usePathname` **add/strip** basePath — so
+  `lib/routes.ts` and pathname comparisons are basePath-relative (no `/integration`).
+- raw `fetch` and `<iframe src>` are **not** basePath-aware — so `INTERNAL_INFRA_API_PREFIX`
+  (`/integration/api/v1`), the SwaggerUI spec URL, and the api-docs iframe keep the
+  literal `/integration`.
+
+**Deployment contract (simpler than before):** the LB chain (ELB → ILB → server)
+routes `/integration/*` to this service, path preserved (no strip). Everything —
+pages, API, assets — lives under that one prefix, so a single path rule suffices;
+there is no separate `/_next/*` routing requirement.
 
 ### LIN-60 — zod env schema + build & boot gates
 
@@ -88,20 +94,27 @@ image is always built in real mode regardless.
 
 ## Consequences
 
-- `docker run <image>` (no proxy) serves a fully styled, interactive app.
+- `docker run <image>` (no proxy) serves a fully styled, interactive app with
+  everything — pages, API, assets — under `/integration`.
+- The folder tree no longer encodes the prefix; the URL prefix is one config line.
+  Changing it (or removing it) is now a `next.config.ts` edit, not a 289-file move.
 - Booting real mode without `BFF_API_URL` fails immediately with a clear error
   instead of silently 500-ing per request.
 - `USE_MOCK_DATA` unset ⇒ real everywhere, pinned by tests.
 - A production **server** with `USE_MOCK_DATA=true` refuses to boot; a production
   build with it only warns (so local/pre-commit builds with a mock `.env.local`
   still succeed — the image itself is always built in real mode).
-- **New operational requirement:** the LB chain must route `/_next/*` to this
-  service. This is the one thing to verify before the first production deploy.
+- **Operational requirement:** the LB chain routes `/integration/*` to this
+  service with the path preserved (no strip). One rule covers pages, API, and assets.
 - `.env.example` documents the required variables.
 
 ## Related Files
 
-- `next.config.ts` — removed `assetPrefix`; imports `assertBuildEnv`
+- `next.config.ts` — `basePath: '/integration'`, no `assetPrefix`; imports `assertBuildEnv`
+- `app/integration/**` → `app/**` (un-nest); `@/app/integration/*` imports → `@/app/*`
+- `lib/routes.ts` — route values stripped of `/integration` (basePath-relative)
+- `app/components/layout/TopNav.tsx` — `usePathname` comparisons stripped of `/integration`
+- `app/swagger/**`, `app/api-docs/**` — raw fetch/iframe keep the literal `/integration`
 - `lib/env.ts` — new; zod schema + `isMock`/`assertBuildEnv`/`assertRuntimeEnv`
 - `instrumentation.ts` — new; boot-time `assertRuntimeEnv`
 - `lib/bff/client.ts`, `app/api/_lib/target-source.ts` — use `isMock()`

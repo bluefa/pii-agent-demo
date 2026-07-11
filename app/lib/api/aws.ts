@@ -2,7 +2,7 @@ import { fetchInfra, fetchInfraJson } from '@/app/lib/api/infra';
 import type { AwsInstallationStatus } from '@/lib/types';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import { transformAwsInstallationStatus } from '@/app/integration/api/v1/aws/target-sources/_lib/installation-transform';
+import { transformAwsInstallationStatus } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
 
 const BASE = '/aws/target-sources';
 

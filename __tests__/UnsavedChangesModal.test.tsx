@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { UnsavedChangesModal } from '@/app/integration/admin/guides/components/UnsavedChangesModal';
+import { UnsavedChangesModal } from '@/app/admin/guides/components/UnsavedChangesModal';
 
 const noop = (): void => undefined;
 
