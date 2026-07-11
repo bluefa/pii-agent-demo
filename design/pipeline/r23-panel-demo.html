@@ -64,6 +64,10 @@ h1{font-size:20px;font-weight:700;letter-spacing:-0.02em;margin:0 0 6px}
 .ecode{font-family:var(--font-mono);font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px;
   background:var(--err-bg);color:var(--err-text)}
 .p-body{padding:16px 20px 20px}
+.tabs{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--border)}
+.tabs button{font-size:13px;font-weight:600;color:var(--text-weak);padding:9px 10px 10px;
+  border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}
+.tabs button.on{color:var(--primary);border-bottom-color:var(--primary)}
 .p-head.sub-view{display:flex;align-items:center;gap:10px;padding:14px 16px}
 .btn-back{width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);
   color:var(--text-medium);font-size:14px;cursor:pointer;flex:none}
@@ -76,7 +80,7 @@ h1{font-size:20px;font-weight:700;letter-spacing:-0.02em;margin:0 0 6px}
 .sec-t .cnt{font-weight:400;color:var(--text-faint)}
 .kv{display:grid;grid-template-columns:130px 1fr;row-gap:6px;font-size:12.5px}
 .kv .k{color:var(--text-weak)}
-.kv .v{color:var(--text-medium);text-align:right}
+.kv .v{color:var(--text-medium);text-align:right;word-break:break-word}
 .kv .v.mono{font-family:var(--font-mono);font-size:11.5px}
 
 .jobs{border:1px solid var(--border);border-radius:var(--r-inner);overflow:hidden}
@@ -443,6 +447,7 @@ const SCENARIOS = [
 /* ════ 상태 ════ */
 let scenIdx = 0;          // 현재 시나리오
 let view = { name: 'root' }; // 'root' | {name:'attempt', n}
+let rootTab = 'exec';     // 'exec'(실행 정보) | 'contract'(정의·계약) — Figma 70-35 탭 구조
 let pollsExpanded = false;
 
 const $ = (id) => document.getElementById(id);
@@ -544,16 +549,38 @@ function renderRoot() {
           <td style="text-align:right">${hms(a.check?.last_checked_at ?? a.started_at)}</td></tr>`; }).join('')}</tbody></table>
         ${d.attempts.length > 5 ? `<button class="more-link" id="polls-more">${pollsExpanded ? '접기' : `전체 ${d.attempts.length}회 보기`}</button>` : ''}</div>`;
   }
-  const refold = `
-    <details class="refold"><summary>▸ 정의 · 실행 계약 — 참조 정보</summary><div class="kv">
+  const tabs = `
+    <div class="tabs">
+      <button data-tab="exec" class="${rootTab === 'exec' ? 'on' : ''}">실행 정보</button>
+      <button data-tab="contract" class="${rootTab === 'contract' ? 'on' : ''}">정의·계약</button>
+    </div>`;
+  if (rootTab === 'contract') body = contractHtml(d);
+  $('panel').innerHTML = head + tabs + `<div class="p-body">${body}</div>`;
+  bindPanel();
+}
+
+/* 정의·계약 탭 — Figma 70-35의 참조 정보 탭 (실행값은 effective_*, API 계약은 definition) */
+function contractHtml(d) {
+  const def = d.definition;
+  const cond = d.kind === 'CONDITION_CHECK';
+  return `
+    <div class="sec"><div class="sec-t">정의</div><div class="kv">
       <span class="k">task_definition</span><span class="v mono">${esc(d.task_definition)}</span>
       <span class="k">operation</span><span class="v mono">${esc(d.operation)}</span>
+    </div></div>
+    <div class="sec"><div class="sec-t">실행 계약</div><div class="kv">
+      <span class="k">실행 방식</span><span class="v">${cond ? '조건 확인 — 디스패치 없이 폴링' : '테라폼 잡 — 디스패치 후 폴링'}</span>
       <span class="k">polling</span><span class="v mono">${esc(d.effective_polling_interval ?? '—')}</span>
-      <span class="k">실행 타임아웃</span><span class="v mono">${esc(d.effective_execution_timeout ?? '—')}</span>
+      ${cond ? '' : `<span class="k">실행 타임아웃</span><span class="v mono">${esc(d.effective_execution_timeout ?? '—')}</span>`}
       <span class="k">재시도 예산</span><span class="v">${d.effective_max_fail_count}회</span>
-    </div></details>`;
-  $('panel').innerHTML = head + `<div class="p-body">${body}${refold}</div>`;
-  bindPanel();
+      ${d.consumes_terraform_slot ? '<span class="k">TF 슬롯</span><span class="v">사용</span>' : ''}
+    </div></div>
+    ${def ? `<div class="sec"><div class="sec-t">InfraManager API</div><div class="kv">
+      <span class="k">dispatch</span><span class="v mono">${esc(def.dispatch_api ?? '—')}</span>
+      <span class="k">status</span><span class="v mono">${esc(def.status_api ?? '—')}</span>
+      <span class="k">result</span><span class="v mono">${esc(def.result_api ?? '—')}</span>
+      <span class="k">판정 정책</span><span class="v mono">${esc(def.success_policy ?? '—')}</span>
+    </div></div>` : ''}`;
 }
 
 /* ════ Attempt 상세 뷰 (드릴다운) ════ */
@@ -660,6 +687,9 @@ function renderViewer() {
 
 /* ════ 바인딩 ════ */
 function bindPanel() {
+  document.querySelectorAll('[data-tab]').forEach((el) => {
+    el.onclick = () => { rootTab = el.dataset.tab; render(); };
+  });
   document.querySelectorAll('[data-att]').forEach((el) => {
     el.onclick = () => { view = { name: 'attempt', n: Number(el.dataset.att) }; render(); };
   });
@@ -679,7 +709,7 @@ function render() {
 SCENARIOS.forEach((s, i) => {
   const b = document.createElement('button');
   b.textContent = s.label;
-  b.onclick = () => { scenIdx = i; view = { name: 'root' }; pollsExpanded = false; render(); renderScen(); };
+  b.onclick = () => { scenIdx = i; view = { name: 'root' }; rootTab = 'exec'; pollsExpanded = false; render(); renderScen(); };
   $('scen').appendChild(b);
 });
 function renderScen() { [...$('scen').children].forEach((b, i) => b.classList.toggle('on', i === scenIdx)); }

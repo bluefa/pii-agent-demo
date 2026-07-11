@@ -133,10 +133,11 @@ table.ia td .mono{font-family:var(--font-mono);font-size:11.5px;color:var(--gray
 .att-row.current:hover{background:var(--primary-bg)}
 .cur-tag{font-size:9.5px;font-weight:700;color:var(--primary);flex:none}
 
-/* 정의·계약 접힘 (기존 R22 방식 유지) */
-.refold{border-top:1px solid var(--border);margin-top:18px;padding-top:12px;font-size:12px;color:var(--text-weak)}
-.refold summary{cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px}
-.refold .body{margin-top:10px}
+/* 탭 (Figma 70-35) — 실행 정보 | 정의·계약 */
+.tabs{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--border)}
+.tab{font-size:13px;font-weight:600;color:var(--text-weak);padding:9px 10px 10px;
+  border-bottom:2px solid transparent;margin-bottom:-1px;cursor:default}
+.tab.on{color:var(--primary);border-bottom-color:var(--primary)}
 
 /* 폴 이력 테이블 (CONDITION_CHECK) */
 table.polls{width:100%;border-collapse:collapse;font-size:12px}
@@ -222,16 +223,16 @@ table.polls .mono{font-family:var(--font-mono);font-size:11px}
 
 <h1>R23 v2 시안 랩 — Terraform Job · Condition Job 결과 노출</h1>
 <p class="sub">
-  파이프라인 상세 &gt; Task 패널에 orchestrator job 결과를 배치하는 시안 — <b>v2 (오너 피드백 반영)</b>:
-  탭 제거 → 단일 스크롤 루트 + Attempt 드릴다운(← 뒤로), job 실패 메시지 텍스트 제거(칩만),
-  로그 뷰어에 상태 응답 원문 토글 추가.<br>
+  파이프라인 상세 &gt; Task 패널에 orchestrator job 결과를 배치하는 시안 — <b>v2.2 (오너 피드백 반영)</b>:
+  2탭(실행 정보 | 정의·계약, Figma 70-35 유지) + 시도 기록은 실행 정보 안 Attempt 드릴다운(← 뒤로)으로 통합,
+  job 실패 메시지 텍스트 제거(칩만), 로그 뷰어에 상태 응답 원문 토글 + 실시간 폴백.<br>
   데이터 계약: P5 <code>attempts[].terraform_results[]</code> · <code>job_states[]</code> · <code>check</code>,
   로그 본문 <code>…/jobs/{jobId}/result</code>(P11), 상태 응답 원문 <code>…/jobs/{jobId}/state</code>.
 </p>
 
 <!-- ═══════════════ 1. 정보 계층 ═══════════════ -->
 <h2><span class="no">1</span>정보 계층 — 운영자 질문 → 표면 매핑</h2>
-<p class="h2sub">v2의 표면은 둘뿐이다: <b>루트 패널</b>(현재 상태 전부, 단일 스크롤)과 <b>Attempt 상세</b>(드릴다운). 탭 없음.</p>
+<p class="h2sub">표면은 셋이다: <b>실행 정보 탭</b>(현재 상태 + 시도 이력), <b>Attempt 상세</b>(드릴다운), <b>정의·계약 탭</b>(참조 정보 — Figma 원 디자인 유지). 시도 기록만 탭에서 드릴다운으로 접었다.</p>
 <div class="ia-wrap"><table class="ia">
   <tr><th style="width:60px">계층</th><th style="width:230px">운영자 질문</th><th>보여줄 정보 · 표면</th><th style="width:320px">데이터 소스</th></tr>
   <tr>
@@ -276,6 +277,7 @@ table.polls .mono{font-family:var(--font-mono);font-size:11px}
         <div class="p-desc">대상의 AWS service level 인프라를 Terraform apply로 구성한다.</div>
         <div class="p-kindrow">타입 <span class="kind">TERRAFORM_JOB</span></div>
       </div>
+      <div class="tabs"><span class="tab on">실행 정보</span><span class="tab">정의·계약</span></div>
       <div class="p-body">
         <div class="sec">
           <div class="sec-t">진행 기록</div>
@@ -298,10 +300,6 @@ table.polls .mono{font-family:var(--font-mono);font-size:11px}
             </div>
           </div>
         </div>
-        <details class="refold">
-          <summary>▸ 정의 · 실행 계약 — 참조 정보</summary>
-          <div class="body">task_definition · operation · 실행 타임아웃 · 재시도 예산 (기존 R22 접힘 구조 그대로)</div>
-        </details>
       </div>
     </div>
     <p class="note">
@@ -380,6 +378,7 @@ table.polls .mono{font-family:var(--font-mono);font-size:11px}
         <div class="p-desc">네트워크가 준비 완료 상태가 될 때까지 조건을 확인한다.</div>
         <div class="p-kindrow">타입 <span class="kind">CONDITION_CHECK</span></div>
       </div>
+      <div class="tabs"><span class="tab on">실행 정보</span><span class="tab">정의·계약</span></div>
       <div class="p-body">
         <div class="sec">
           <div class="sec-t">진행 기록</div>
@@ -490,7 +489,7 @@ by multiple users at the same time.</span></pre>
 <h2><span class="no">4</span>결정 로그 · 열린 질문</h2>
 <div class="dlog"><table>
   <tr><th style="width:260px">질문</th><th>결정</th></tr>
-  <tr><td>탭 구조 (v1 → v2)</td><td><b>탭 제거</b> — 루트 단일 스크롤 + Attempt 드릴다운(← 뒤로, 스택 내비게이션). 시도 기록을 명시 탭으로 나눌 근거 부족: 1차 질문은 전부 "현재"고, 이력은 드문 드릴 경로 (오너 피드백)</td></tr>
+  <tr><td>탭 구조 (v2.2)</td><td><b>2탭 — 실행 정보 | 정의·계약</b> (Figma 70-35 유지). 시도 기록 탭만 접어서 실행 정보 안 드릴다운(← 뒤로)으로 통합, 정의·계약은 원 디자인대로 별도 탭 (오너: "기존 디자인을 무너트리지 마라"). Attempt 상세 뷰에는 탭 없음 — ← 헤더가 대체</td></tr>
   <tr><td>실패 메시지 노출 (v1 → v2)</td><td><b>텍스트 제거</b> — job 칩 4종(성공/실패/진행 중/기록 없음) + 시도 error_code 배지까지만. failure_detail·last_fail_reason은 기본 UI에서 제외, 구체 원인은 뷰어(로그·상태 응답 원문)가 경로 (오너 피드백)</td></tr>
   <tr><td>Message 원문 접근</td><td>뷰어 안 토글 [Terraform 로그 | 상태 응답 원문] — result.content(P11)와 state.last_response를 같은 표면에서. job 행 버튼은 [로그] 하나 유지</td></tr>
   <tr><td>job 목록 구성</td><td><code>terraform_results ∪ job_states</code> job_id join. <code>response</code> 원문 파싱 금지(사적 계약) — 둘 다 없는 job은 UI가 존재를 모르는 게 계약상 맞다</td></tr>
