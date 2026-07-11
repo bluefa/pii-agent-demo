@@ -1,120 +1,123 @@
-# FE 관측성 — BFF 경유 아키텍처 (중간 산출물)
+# FE 관측성 아키텍처 (중간 산출물, v3)
 
-> 상태: **검토 중** — §2의 미해결 질문에 답이 나와야 확정.
-> 이 문서는 `error-boundary-and-error-tracking-plan.md`(LIN-58/59 구현 가이드)의 **상위 아키텍처를 수정**한다.
-> 계기: 2026-07-12 확인된 망 제약 — FE 서버 아웃바운드가 BFF·OAuth·인가 서버로 제한됨.
+> 상태: **로그 기반 아키텍처로 확정 제안** — §2의 기술 검증(V-2~V-4)만 남음.
+> 이 문서는 `error-boundary-and-error-tracking-plan.md`(LIN-58/59 구현 가이드)의 **상위 아키텍처를 대체**한다.
+> v1(07-10): Bugsink 셀프호스트 → v2(07-12 오전): BFF 경유+BFF망 Bugsink → **v3(07-12): 기존 인프라(Stackdriver/Grafana) 활용, 신규 수집 서버 없음.**
 
 ---
 
-## 1. Q&A 로그 — 질문과 받은 답변
+## 1. Q&A 로그 — 질문과 받은 답변 (누적)
 
-| # | 질문 | 답변 (2026-07-12) | 상태 |
+### 1라운드 (07-12)
+
+| # | 질문 | 답변 | 반영 |
 |---|------|------|------|
-| Q1 | FE 서버의 아웃바운드 허용 범위는? | **BFF, OAuth, 인가 서버만 허용.** Slack 등 외부 호출 불가 | ✅ 확정 |
-| Q2 | BFF 쪽에 기존 에러/메트릭 수집 인프라가 있는가? | **아직 없음.** 이 부분까지 설계에 포함할 것 | ✅ 확정 |
-| Q3 | Slack 아웃바운드는? | FE에서는 제한 확정. **BFF 망에서 가능한지는 미답** | ⚠️ 부분 (→ O-3) |
-| Q4 (신규 요구) | — | **"FE가 어떤 상황에서 API Call을 수행했는지" 추적 가능해야 함.** 기존 계획에 없던 요구 | ✅ 접수 (→ §4) |
-| Q5 (원칙) | — | FE 서버는 많은 작업을 수행할 수 없음 — **메트릭 저장이 있다면 BFF 전송 방식** | ✅ 확정 |
+| Q1 | FE 서버 아웃바운드 허용 범위? | **BFF, OAuth, 인가 서버만.** Slack 등 외부 호출 불가 | 모든 설계의 전제 |
+| Q2 | BFF 쪽 기존 수집 인프라? | 아직 없음 | v2에서 BFF망 Bugsink 안 도출 (→ 2라운드에서 폐기) |
+| Q3 (신규 요구) | — | "FE가 **어떤 상황에서 API Call**을 수행했는지" 추적 가능해야 | §5 컨텍스트 설계 |
+| Q4 (원칙) | — | FE는 많은 작업 불가, 메트릭 저장은 FE 밖으로 | 모든 설계의 전제 |
 
-## 2. 미해결 질문 (답변 필요)
+### 2라운드 (07-12)
+
+| # | 질문 | 답변 | 반영 |
+|---|------|------|------|
+| O-1 | BFF팀에 중계 라우트+Bugsink 컨테이너 호스팅 요청 가능? | **"이게 뭐지? 꼭 필요한건가?"** (사용자 역질문) | **필요 없어짐** — O-2/O-3 답변으로 신규 수집 서버 자체가 불필요해져 요청 철회. §3 참고 |
+| O-2 | FE 서버 컨테이너 stdout 로그 수집되는가? | **Stackdriver 연동되어 있어 수집 가능할 듯** | ★ 설계 전환점: 에러 저장소 = Cloud Logging |
+| O-3 | BFF 망에서 Slack 가능? | **가능. Grafana도 가능** | ★ 알림 = Grafana→Slack, 대시보드 = Grafana |
+| O-4 | BFF에 observability 경로 할당 가능? | **`/integration/observability/*` 가능** | 지금은 미사용. Bugsink 승격 시를 위한 확보 옵션으로만 기록 (§4) |
+
+## 2. 남은 확인 항목
+
+사용자 답변 필요:
 
 | # | 질문 | 답이 결정하는 것 |
 |---|------|------|
-| O-1 | **BFF 팀 협의**: BFF 쪽에 ① envelope 중계 라우트 1개(POST 스트리밍 forward, 수십 줄)와 ② Bugsink+Postgres 컨테이너 2개를 BFF 망에 배치하는 것을 요청할 수 있는가? 협의 채널과 일정은? | §5 A안 성립 여부. 불가면 B안(BFF 자체 수집 API — 총비용 큼) |
-| O-2 | FE 서버 컨테이너의 **stdout 로그는 현재 수집되는가?** (컨테이너 로그 수집 인프라 존재 여부) | LIN-62 구조화 로그의 목적지. 수집 안 되면 FE 서버 자체 지표도 BFF 전송 설계 필요 |
-| O-3 | **BFF 망에서 Slack 아웃바운드 가능한가?** | 알림 채널: Slack vs 사내 이메일/내부 웹훅 |
-| O-4 | BFF 도메인 아래 **경로 할당**: `/install/v1`과 별개로 `/observability/*` 같은 경로를 BFF 라우터(또는 그 앞 프록시)가 열어줄 수 있는가? | 중계 엔드포인트의 주소 체계 |
+| U-1 | Grafana는 누가 운영하고, 우리가 대시보드/알림 룰을 만들 수 있는 권한이 있는가? 데이터소스에 Cloud Logging(또는 GCP 프로젝트)이 이미 붙어 있는가? | Phase 5 (대시보드·알림) 진행 방식 |
+| U-2 | "에러가 BFF를 경유하지 않고 FE→Stackdriver로 직접 흐르는 것"이 처음 말씀하신 "문제 원인은 모두 BFF로 전송" 의도에 부합하는가? (stdout 수집은 플랫폼이 하므로 FE의 아웃바운드 제한 위반은 아님 — 다만 데이터가 BFF 팀 시야 밖에 쌓임) | 아키텍처 승인 자체 |
 
-기술 검증 (사용자 답변 불필요, 구현 시 내가 확인):
+기술 검증 (내가 할 것, 배포 환경 접근 필요 시 도움 요청):
 
-- V-1: `@sentry/nextjs` 서버 런타임에서 `tunnel` 옵션이 동작하는지 스모크 테스트 (브라우저 SDK는 공식 지원 확정, 서버 쪽은 문서 근거가 약해 실측 필요). 실패 시 폴백: DSN 호스트 자체를 BFF 도메인으로 지정 (`https://key@bff-host/observability/api/{id}/envelope/` 형태로 경로를 맞춤).
+| # | 항목 |
+|---|------|
+| V-2 | **프로덕션 FE 컨테이너의 stdout이 실제로 Stackdriver(Cloud Logging)에 들어가는지** 실측 — "가능할 듯"을 확정으로. 배포 형태(GCE/GKE/Cloud Run)에 따라 로깅 에이전트 구성이 다름 |
+| V-3 | **GCP Error Reporting이 이 로그에서 스택트레이스를 자동 그룹핑하는지** — 구조화 JSON에 stack을 담는 포맷(`message`에 스택 포함 또는 `@type: ReportedErrorEvent`)이 배포 형태에서 인식되는지 실측 |
+| V-4 | Grafana에서 Cloud Logging 기반 알림 룰(에러 로그 발생 → Slack)이 구성 가능한지 — 불가하면 Cloud Monitoring 알림으로 대체 |
 
----
+## 3. 아키텍처 v3 — "에러도 로그다"
 
-## 3. 아키텍처 (수정판)
-
-핵심 원칙: **FE에서 나가는 관측성 트래픽은 전부 "BFF로의 HTTP POST" 하나로 수렴한다.** FE는 저장·집계·알림을 하지 않는다.
+O-2/O-3으로 드러난 사실: **저장(Stackdriver)·대시보드(Grafana)·알림(Slack)이 이미 존재**한다. 없는 것은 "에러를 그 파이프에 넣는 부분"뿐이다. 따라서 에러 전용 수집 서버(Bugsink)와 그것을 위한 SDK·터널·BFF 중계를 전부 접고, 에러를 구조화 로그로 취급한다.
 
 ```
 [브라우저]
-  렌더 에러/unhandled rejection
-      │ Sentry SDK (tunnel: '/integration/api/v1/observability/envelope')
-      ▼
-[FE 서버]  중계 route 1개 ── raw passthrough ──┐
-  서버 예외 (handleUnexpectedError 1줄)          │
-      │ Sentry SDK (tunnel: BFF_API_URL/...)    │
-      ▼                                         ▼
-[BFF 서버]  중계 라우트 1개 (BFF 팀 구현) ──────→ [Bugsink + Postgres] (BFF 망)
-                                                    │ 저장·그룹핑·대시보드
-                                                    ▼
-                                              알림 (Slack 또는 사내 채널 — O-3)
+  렌더 에러 / unhandled rejection / 바운더리 리포트
+      │ 자체 캡처 ~40줄 (window.onerror 등) + 직전 API 호출 링버퍼 첨부
+      ▼ POST /integration/api/v1/observability/client-errors
+[FE 서버]
+  서버 예외 → handleUnexpectedError (기존 함수)
+  API 요청/응답 → withV1 (기존 래퍼)
+      │ 전부 구조화 JSON 한 줄 로그로 stdout에 출력  ← FE의 역할은 여기서 끝
+      ▼ (플랫폼 로깅 에이전트가 수집 — 앱의 아웃바운드 아님)
+[Cloud Logging (Stackdriver)] ── 저장·검색·보존
+      ├─→ [GCP Error Reporting] 스택트레이스 자동 그룹핑 (V-3)
+      └─→ [Grafana] 대시보드 + 알림 룰 → [Slack]
 ```
 
-API 사용 컨텍스트(§4)는 별도 파이프라인을 만들지 않는다:
+**신규 인프라 0, 신규 의존성 0(또는 pino 1개), BFF 팀 작업 0.** FE는 "구조화 로그를 찍는 것" 이상을 하지 않으므로 "FE는 많은 작업 불가" 원칙에 가장 충실한 안이다.
 
-```
-[브라우저] fetch-json.ts가 컨텍스트 헤더 부착
-      ▼
-[FE 서버] route → lib/bff/http.ts가 allowlist 헤더 forward   ← 현재는 인입 헤더 전부 드랍
-      ▼
-[BFF] 액세스 로그에 "누가·어느 화면에서·무슨 요청" 기록 (= API 사용 메트릭의 원천)
-```
+### 왜 이전 안(v1/v2)보다 나은가
 
-**설계 판단 (개념을 줄임):**
+| | v2: BFF망 Bugsink + Sentry SDK | **v3: 로그 기반** |
+|---|---|---|
+| 신규 컨테이너 | 2 (Bugsink+Postgres) + 운영(백업·업그레이드) | **0** |
+| BFF 팀 작업 | 중계 라우트 + 호스팅 협의 | **0** |
+| FE 신규 코드 | SDK 설정 3파일 + 중계 route + 훅 | 로거 + 클라 캡처 + route 1개 (총 ~150줄) |
+| 신규 의존성 | @sentry/nextjs (버전 핀 관리) | 0~1 (pino) |
+| 알림 | Bugsink→Slack (BFF망 가정) | Grafana→Slack (**이미 있음**) |
+| 대시보드 | Bugsink UI (영어, 신규 학습) | Grafana (**이미 씀**) + GCP 콘솔 |
+| 브라우저 에러 소스맵 심볼리케이션 | ○ (단, Next 16 실측 게이트 필요) | ✗ — §4 트레이드오프 |
+| 이슈 라이프사이클 (할당/해결/회귀 감지) | ○ | △ (Error Reporting의 기본 그룹핑/해결 표시 수준) |
 
-- BFF는 이미 FE의 **모든** API 호출을 받는다 (FE는 프록시 구조). 즉 "API 사용량 데이터"는 BFF에 이미 흐르고 있고, 빠진 것은 **상황(컨텍스트)** 뿐이다. 헤더 2~3개를 실어 보내면 BFF 로그가 곧 사용 메트릭 저장소가 된다 — 새 메트릭 수집 시스템을 만들 필요가 없다.
-- 에러만 새 경로가 필요하다 (에러는 API 호출이 아니므로). 그것이 envelope 중계이고, 저장은 BFF 망의 Bugsink가 담당한다.
+## 4. 접는 것과 그 트레이드오프 (정직하게)
 
-## 4. "어떤 상황에서 API Call을 수행했는가" 설계
+**접는 것**: `@sentry/nextjs` SDK, Bugsink, BFF 중계 라우트, 터널 설계 전부.
 
-두 소비자 관점으로 나뉜다. 수정 지점은 두 파일뿐이다.
+**잃는 것 두 가지**:
 
-**(a) BFF/서버 관점 — 컨텍스트 헤더.** `lib/fetch-json.ts`(모든 CSR 호출의 단일 래퍼)가 매 요청에 부착:
+1. **브라우저 minified 스택의 자동 심볼리케이션.** 완화: ① 클라 리포트에 페이지·컴포넌트 스택·직전 API 이력을 첨부하므로 "어디서 무슨 에러"는 대부분 특정 가능. ② 빌드마다 소스맵을 아티팩트로 보관(이미지에는 미포함)하고, 정말 필요한 스택만 오프라인에서 수동 디코드(`source-map` CLI). 1~3인 팀 트래픽에서 이 빈도는 낮다.
+2. **Sentry식 이슈 관리**(중복 병합·할당·해결·회귀 알림). Error Reporting의 자동 그룹핑+Grafana 알림이 하한선을 담당.
+
+**승격 경로 보존**: 이 갭이 실제로 아프면 그때 Bugsink를 BFF 망에 승격한다. 근거 리서치(R1/R3: Bugsink 선정, SDK ≥10.57 핀, tunnel SaaS 전용 → 수동 중계, `release.create:false` 등)는 `error-boundary-and-error-tracking-plan.md` Part D에 검증 완료 상태로 보존되어 있고, O-4로 확보한 `/integration/observability/*` 경로가 그때의 중계 주소가 된다. **지금 미리 만들지 않는다.**
+
+## 5. "어떤 상황에서 API Call" 설계 (v2에서 유지)
+
+수정 지점은 두 파일. 새 파이프라인 없음.
+
+**(a) 컨텍스트 헤더** — `lib/fetch-json.ts`(모든 CSR 호출의 단일 래퍼)가 매 요청에 부착, `lib/bff/http.ts`가 allowlist forward(현재는 인입 헤더 전부 드랍 — 이 allowlist는 향후 인증 헤더 전파에도 재사용):
 
 | 헤더 | 값 | 용도 |
 |---|---|---|
-| `X-Request-Id` | 클라이언트 생성 UUID | 브라우저→FE→BFF→에러 이벤트 전 구간 상관관계 키 (LIN-61의 "requestId 업스트림 미전파" 해소와 동일 작업) |
+| `X-Request-Id` | 클라 생성 UUID | 브라우저→FE 로그→BFF 로그 전 구간 상관관계 (LIN-61 해소) |
 | `X-Client-Page` | 호출 시점 `location.pathname` | 어느 화면에서 |
-| `X-Client-Action` | 선택: 트리거 액션명 (mutation 이름 등) | 무슨 행위로 |
+| `X-Client-Action` | 선택: 트리거 액션명 | 무슨 행위로 |
 
-`lib/bff/http.ts`에 **allowlist forward** 추가 (현재 인입 헤더 전부 드랍 — 이 allowlist 메커니즘은 향후 인증 헤더 전파에도 그대로 재사용됨). 쿼리스트링·body는 forward 대상에서 제외(PII).
+FE의 `withV1` 액세스 로그와 BFF의 액세스 로그 양쪽에 이 컨텍스트가 남는다 → "누가·어느 화면에서·무슨 요청"을 FE(Stackdriver)와 BFF 어느 쪽에서든 조회 가능.
 
-**(b) 에러 이벤트 관점 — breadcrumbs.** 같은 `fetch-json.ts`에서 성공/실패 호출을 `Sentry.addBreadcrumb({method, path(쿼리 제거), status, duration, requestId})`로 기록 → 에러 발생 시 **직전 API 호출 이력이 이벤트에 자동 첨부**되어 "이 에러 직전에 무슨 호출을 했는가"가 Bugsink에서 바로 보인다.
+**(b) 직전 호출 링버퍼** — `fetch-json.ts`가 최근 API 호출 10건 `{method, path(쿼리 제거), status, duration, requestId}`을 모듈 레벨 링버퍼에 유지 → 클라이언트 에러 리포트에 첨부. Sentry breadcrumbs의 수동 구현(~15줄).
 
-**(c) FE 서버 자체 로그.** `withV1`이 처리하는 서버 측 `{method, path, status, duration, requestId}`는 LIN-62(구조화 로깅) 스코프 — 목적지는 O-2 답변에 따라 stdout(수집 인프라 있음) 또는 BFF 전송(없음).
+## 6. 구현 계획
 
-## 5. 역할 분담
+| Phase | 내용 | 규모 | 검증 |
+|---|---|---|---|
+| 1 | **에러 바운더리 4파일** (기존 계획 Part A 그대로) | 반나절 | prod 빌드에서 강제 에러 → 대체 UI + 다시 시도 |
+| 2 | **서버 구조화 로깅** (LIN-62 선행분과 통합): `handleUnexpectedError`·`withV1`을 구조화 JSON 로그로 — severity/message/stack/requestId/path/duration, Error Reporting 인식 포맷 | 반나절 | 로컬 JSON 출력 스냅샷 테스트; 배포 후 V-2/V-3 실측 |
+| 3 | **브라우저 에러 캡처 + 수신 route**: 전역 핸들러 2개(onerror/onunhandledrejection)+바운더리 리포트+링버퍼 → `POST .../observability/client-errors` → 구조화 로그. 클라 스로틀(동일 에러 반복 억제)·서버 크기 제한·body 미로깅 원문 유지 | 반나절~1일 | 강제 렌더 에러/rejection → 로그 도착, 링버퍼·페이지 컨텍스트 포함 확인 |
+| 4 | **API 컨텍스트**: `fetch-json.ts` 헤더+링버퍼, `lib/bff/http.ts` allowlist forward | 반나절 | FE·BFF 로그에 X-Request-Id/X-Client-Page 상관관계 확인 |
+| 5 | **Grafana 대시보드 + Slack 알림 룰** (U-1/V-4에 따라) | 반나절 | 테스트 에러 → Slack 수신 |
+| — | 소스맵: 빌드 아티팩트로 보관만 (이미지 미포함). 심볼리케이션은 승격 시 | 빌드 스크립트 1줄 | — |
 
-**FE 작업 (thin — 파일 기준 총 4묶음):**
+의존성: Phase 1~4는 전부 로컬에서 완결(순차 무관, 1+2 병행 가능). Phase 5와 V-2/V-3만 배포 환경 필요. **총 개발 2.5~3.5일** — v2 대비 줄었고 협의 대기가 사라짐.
 
-1. 에러 바운더리 4파일 — 기존 계획 Part A 그대로, 변동 없음
-2. Sentry SDK init (errors-only, PII 스크럽, ≥10.57 핀) + `handleUnexpectedError`에 1줄 — 기존 계획 Part B 그대로, tunnel 목적지만 변경
-3. **envelope 중계 route 1개** (`app/integration/api/v1/observability/envelope/route.ts`): raw byte passthrough → BFF. 크기 제한(예: 1MiB)·rate limit·body 미로깅·타임아웃, BFF 에러 정규화(`withV1`/zod)에서 격리
-4. `lib/fetch-json.ts` 컨텍스트 헤더+breadcrumb, `lib/bff/http.ts` allowlist forward
+## 7. 폐기 기록 (왜 바뀌었는지 추적용)
 
-FE에 **없는** 것: 저장, 집계, 그룹핑, 알림, 스케줄러, 대시보드. 전부 BFF 망.
-
-**BFF 팀 요청 목록 (제안서 형태로 전달):**
-
-| 항목 | 규모 | 비고 |
-|---|---|---|
-| 중계 라우트 1개: `POST /observability/envelope` → Bugsink로 스트리밍 forward | 수십 줄 | 크기 제한·rate limit 포함. 인증은 FE→BFF 기존 신뢰 경계 따름 |
-| Bugsink + Postgres 컨테이너 호스팅 (BFF 망) | 컨테이너 2개 | `PHONEHOME=false`, `TIME_ZONE=Asia/Seoul`, 백업 |
-| (선택) 인입 로그에 `X-Request-Id`/`X-Client-Page` 기록 | 로깅 설정 | API 사용 분석의 원천 데이터화 |
-
-**B안 (페일백, 권장하지 않음):** BFF 팀이 컨테이너 호스팅 불가 시 — BFF가 자체 에러 수집 API+DB 저장을 구현. 그룹핑·대시보드·알림을 전부 직접 만들어야 하므로 총비용이 A안보다 훨씬 크다. Sentry SDK도 무용해져 FE가 커스텀 리포터를 짜야 함.
-
-## 6. 기존 계획서 대비 변경점
-
-| 기존 (error-boundary-and-error-tracking-plan.md) | 변경 |
-|---|---|
-| Phase 2: Bugsink를 "어딘가" 셀프호스트 (위치 미정, R4) | **BFF 망 확정** — BFF 팀 협의(O-1)가 선행 조건 |
-| Phase 4: 터널은 A안(인그레스)/B안(route.ts) 중 택1 | **인그레스 A안 폐기** (FE 인그레스는 BFF 망의 Bugsink로 라우팅 못 함). route.ts 중계 확정 + **BFF 쪽 중계 라우트가 추가로 필요** |
-| Phase 6: Bugsink→Slack 알림 | FE 스코프에서 제외, BFF 망 문제로 이관 (O-3) |
-| Part C: API 사용량 = FE의 LIN-62 pino 로그 | **BFF 액세스 로그가 원천**으로 이동 (FE는 컨텍스트 헤더만). FE 자체 로그 목적지는 O-2에 따름 |
-| (없던 항목) | §4 API 컨텍스트 — `fetch-json.ts`+`http.ts` 수정, LIN-61(requestId 전파)과 통합 수행 |
-
-## 7. 착수 가능 vs 대기
-
-- **지금 가능 (협의 무관):** 에러 바운더리 4파일 · SDK init+훅(개발 검증은 로컬 docker Bugsink로) · `fetch-json.ts` 컨텍스트/breadcrumb · `http.ts` allowlist forward · FE 중계 route (목적지 env로 추상화)
-- **O-1~O-4 대기:** BFF 중계 라우트, Bugsink 실배치, 알림 채널, 사용 로그 규격 합의
+- ~~v1: FE 인그레스 터널 + FE 옆 Bugsink~~ — FE 아웃바운드 제한(Q1)으로 폐기
+- ~~v2: BFF망 Bugsink + BFF 중계 라우트 + Sentry SDK tunnel~~ — 기존 인프라 존재(O-2/O-3)로 폐기. "관측성 인프라 제로" 가정이 깨짐. Bugsink 승격 시 재사용할 리서치·경로는 §4에 보존
