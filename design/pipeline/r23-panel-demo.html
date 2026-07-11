@@ -165,6 +165,7 @@ table.polls .mono{font-family:var(--font-mono);font-size:11px}
   border-top:1px solid var(--border)}
 
 /* ── API 응답 컬럼 ── */
+.api{min-width:0} /* grid 1fr 자식 — pre가 컬럼을 밀지 않게 */
 .api h3{font-size:13px;font-weight:700;margin:0 0 4px}
 .api .src{font-size:11.5px;color:var(--text-faint);margin:0 0 10px;line-height:1.6}
 .api .src code{font-size:11px}
@@ -617,7 +618,7 @@ function renderViewer() {
     <div class="v-meta">
       <span class="seg"><button id="seg-log" class="${viewerTab === 'log' ? 'on' : ''}">Terraform 로그</button><button id="seg-raw" class="${viewerTab === 'raw' ? 'on' : ''}">상태 응답 원문</button></span>
       ${succeeded !== null ? `<span class="pill ${succeeded ? 'DONE' : 'FAILED'}">${succeeded ? '성공' : '실패'}</span>` : ''}
-      ${result?.truncated ? '<span class="badge-warn">⚠ 16MB 초과 — 앞부분 절단 (tail 우선 보존)</span>' : ''}
+      ${viewerTab === 'log' && result?.truncated ? '<span class="badge-warn">⚠ 16MB 초과 — 앞부분 절단 (tail 우선 보존)</span>' : ''}
       ${meta?.created_at || meta?.last_polled_at ? `<span>수집 ${hms(meta.created_at ?? meta.last_polled_at)}</span>` : ''}
       <span class="grow"></span><button class="v-btn">복사</button><button class="v-btn">파일로 저장</button></div>
     ${bodyHtml}
