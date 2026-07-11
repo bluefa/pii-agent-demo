@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R23 시안 랩 — Terraform Job · Condition Job 결과 노출</title>
+<style>
+/* ══ LIN-20 Modern Admin 리디자인 — r22 토큰 승계 ══ */
+:root{
+  --gray-50:#F9FAFB; --gray-100:#F2F4F7; --gray-200:#E4E7EC; --gray-300:#D0D5DD;
+  --gray-400:#98A2B3; --gray-500:#667085; --gray-600:#475467; --gray-700:#344054;
+  --gray-800:#1D2939; --gray-900:#101828;
+  --bg-page:#F9FAFB; --bg-card:#FFFFFF; --bg-inner:#F9FAFB;
+  --border:#E4E7EC; --border-strong:#D0D5DD;
+  --text-strong:var(--gray-900); --text-medium:var(--gray-700);
+  --text-weak:var(--gray-500); --text-faint:var(--gray-400);
+  --primary:#2563EB; --primary-hover:#1D4ED8; --primary-bg:#EFF4FF; --primary-ring:#D1E0FF;
+  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3; --ok-border:#A6F4C5;
+  --err:#F04438; --err-text:#B42318; --err-bg:#FEF3F2; --err-border:#FDA29B;
+  --info:#2E90FA; --info-text:#175CD3; --info-bg:#EFF8FF; --info-border:#B2DDFF;
+  --warn:#F79009; --warn-text:#B54708; --warn-bg:#FFFAEB; --warn-border:#FEDF89;
+  --off:#98A2B3; --off-text:#475467; --off-bg:#F2F4F7;
+  --brand-tf:#7B42BC;
+  --r-card:10px; --r-inner:8px; --r-ctl:8px;
+  --shadow-xs:0 1px 2px rgba(16,24,40,.05);
+  --shadow-lg:0 12px 32px -8px rgba(16,24,40,.16),0 4px 10px -4px rgba(16,24,40,.08);
+  --font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Pretendard','Malgun Gothic',system-ui,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-page);color:var(--text-strong);
+  font-family:var(--font-sans);font-size:14px;letter-spacing:-0.014em;line-height:1.4;
+  -webkit-font-smoothing:antialiased;min-width:1080px}
+a{color:inherit;text-decoration:none}
+
+.wrap{max-width:1440px;margin:0 auto;padding:40px 48px 120px}
+h1{font-size:22px;font-weight:700;letter-spacing:-0.02em;margin:0 0 6px}
+.sub{color:var(--text-weak);font-size:13px;margin:0 0 36px;line-height:1.6}
+h2{font-size:16px;font-weight:700;margin:56px 0 4px;letter-spacing:-0.016em}
+h2 .no{color:var(--primary);margin-right:6px}
+.h2sub{color:var(--text-weak);font-size:13px;margin:0 0 20px;line-height:1.6;max-width:920px}
+code{font-family:var(--font-mono);font-size:12px;background:var(--gray-100);
+  border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--gray-700)}
+
+/* IA 표 */
+.ia-wrap{border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden;box-shadow:var(--shadow-xs)}
+table.ia{width:100%;border-collapse:collapse}
+table.ia th{background:var(--gray-50);text-align:left;font-size:12px;font-weight:600;
+  color:var(--text-weak);padding:10px 14px;border-bottom:1px solid var(--border)}
+table.ia td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;
+  color:var(--text-medium);vertical-align:top;line-height:1.55;background:var(--bg-card)}
+table.ia tr:last-child td{border-bottom:none}
+table.ia td.lv{font-weight:700;color:var(--text-strong);white-space:nowrap}
+table.ia td .mono{font-family:var(--font-mono);font-size:11.5px;color:var(--gray-600)}
+
+/* 시안 나열 */
+.lab-row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.lab-item{flex:none}
+.lab-cap{font-size:12px;font-weight:600;color:var(--text-medium);margin:0 0 10px;
+  display:flex;align-items:center;gap:8px}
+.lab-cap .tag{font-size:10.5px;font-weight:700;letter-spacing:.02em;border-radius:99px;
+  padding:2px 8px;background:var(--primary-bg);color:var(--primary)}
+.lab-cap .tag.new{background:var(--ok-bg);color:var(--ok-text)}
+.note{font-size:12px;color:var(--text-weak);line-height:1.6;margin-top:12px;max-width:400px}
+.note b{color:var(--text-medium)}
+.callout{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
+  border-radius:99px;background:var(--primary);color:#fff;font-size:10px;font-weight:700;flex:none;
+  vertical-align:1px}
+.note .callout{margin-right:6px}
+
+/* ── Task 패널 (Figma 70-35 우측 패널 재현) ── */
+.panel{width:400px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-card);box-shadow:var(--shadow-xs);overflow:hidden}
+.p-head{padding:18px 20px 14px}
+.p-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;letter-spacing:-0.016em}
+.p-desc{font-size:12.5px;color:var(--text-weak);margin-top:6px;line-height:1.55}
+.p-kindrow{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11.5px;color:var(--text-faint)}
+.kind{font-family:var(--font-mono);font-size:10.5px;font-weight:600;color:var(--gray-600);
+  background:var(--gray-100);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+.pill{font-size:10.5px;font-weight:700;letter-spacing:.03em;border-radius:99px;padding:2px 9px}
+.pill.done{background:var(--ok-bg);color:var(--ok-text)}
+.pill.failed{background:var(--err-bg);color:var(--err-text)}
+.pill.running{background:var(--info-bg);color:var(--info-text)}
+.pill.progress{background:var(--info-bg);color:var(--info-text)}
+
+.tabs{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--border)}
+.tab{font-size:13px;font-weight:600;color:var(--text-weak);padding:9px 10px 10px;
+  border-bottom:2px solid transparent;margin-bottom:-1px;cursor:default}
+.tab.on{color:var(--primary);border-bottom-color:var(--primary)}
+.p-body{padding:16px 20px 20px}
+
+.sec{margin-bottom:18px}
+.sec:last-child{margin-bottom:0}
+.sec-t{font-size:12px;font-weight:700;color:var(--text-strong);margin-bottom:8px;
+  display:flex;align-items:center;gap:6px}
+.sec-t .callout{width:15px;height:15px;font-size:9.5px}
+.kv{display:grid;grid-template-columns:120px 1fr;row-gap:6px;font-size:12.5px}
+.kv .k{color:var(--text-weak)}
+.kv .v{color:var(--text-medium);text-align:right}
+.kv .v.mono{font-family:var(--font-mono);font-size:11.5px}
+
+/* 실패 원인 스택 */
+.fail-box{background:var(--err-bg);border:1px solid var(--err-border);border-radius:var(--r-inner);
+  padding:10px 12px}
+.fail-code{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--err-text)}
+.fail-detail{font-family:var(--font-mono);font-size:11px;color:var(--gray-700);margin-top:6px;
+  line-height:1.55;word-break:break-all}
+
+/* Job 목록 */
+.jobs{border:1px solid var(--border);border-radius:var(--r-inner);overflow:hidden}
+.job{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);
+  background:var(--bg-card)}
+.job:last-child{border-bottom:none}
+.job .st{width:16px;height:16px;border-radius:99px;flex:none;display:flex;align-items:center;
+  justify-content:center;font-size:10px;font-weight:800;color:#fff}
+.job .st.ok{background:var(--ok)}
+.job .st.err{background:var(--err)}
+.job .st.run{background:var(--info)}
+.job .st.none{background:var(--gray-300);color:var(--gray-600)}
+.job .jid{font-family:var(--font-mono);font-size:11.5px;color:var(--gray-700);flex:none}
+.job .jmeta{font-size:11px;color:var(--text-faint);margin-left:auto;flex:none;text-align:right}
+.job .jstate{font-family:var(--font-mono);font-size:10px;font-weight:700;border-radius:4px;
+  padding:1px 6px;flex:none}
+.job .jstate.raw{background:var(--info-bg);color:var(--info-text)}
+.job .jstate.okraw{background:var(--ok-bg);color:var(--ok-text)}
+.btn-log{font-size:11px;font-weight:600;color:var(--primary);background:var(--primary-bg);
+  border:none;border-radius:6px;padding:3px 9px;cursor:pointer;flex:none}
+.btn-log.off{background:var(--gray-100);color:var(--text-faint);cursor:default}
+.job-sub{padding:0 12px 9px 36px;font-family:var(--font-mono);font-size:10.5px;
+  color:var(--err-text);line-height:1.5;background:var(--bg-card);word-break:break-all;
+  border-bottom:1px solid var(--border)}
+.job-sub.hint{color:var(--text-faint);font-family:var(--font-sans);font-size:11px}
+.jobs-foot{font-size:11px;color:var(--text-faint);padding:8px 12px;background:var(--gray-50)}
+
+/* attempt 아코디언 (시도 기록 탭) */
+.att{border:1px solid var(--border);border-radius:var(--r-inner);overflow:hidden;margin-bottom:8px}
+.att-h{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--gray-50);cursor:default}
+.att-h .chev{color:var(--text-faint);font-size:10px;width:12px;flex:none}
+.att-h .no{font-weight:700;font-size:12.5px}
+.att-h .time{margin-left:auto;font-size:11px;color:var(--text-faint)}
+.att-h .ecode{font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--err-text)}
+.att-b{padding:12px;border-top:1px solid var(--border)}
+.att-b .fail-box{margin-bottom:10px}
+.resp-fold{margin-top:10px;font-size:11.5px;color:var(--text-weak)}
+.resp-fold summary{cursor:pointer;font-weight:600}
+.resp-fold pre{font-family:var(--font-mono);font-size:10.5px;background:var(--gray-50);
+  border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow-x:auto;
+  color:var(--gray-600);margin:6px 0 0;white-space:pre-wrap;word-break:break-all}
+
+/* 폴 이력 테이블 (CONDITION_CHECK) */
+table.polls{width:100%;border-collapse:collapse;font-size:12px}
+table.polls th{text-align:left;font-size:11px;font-weight:600;color:var(--text-faint);
+  padding:6px 8px;border-bottom:1px solid var(--border)}
+table.polls td{padding:7px 8px;border-bottom:1px solid var(--gray-100);color:var(--text-medium)}
+table.polls tr:last-child td{border-bottom:none}
+table.polls .mono{font-family:var(--font-mono);font-size:11px}
+.verdict{font-size:10.5px;font-weight:700;border-radius:99px;padding:1px 8px}
+.verdict.met{background:var(--ok-bg);color:var(--ok-text)}
+.verdict.notmet{background:var(--gray-100);color:var(--gray-600)}
+.verdict.apierr{background:var(--warn-bg);color:var(--warn-text)}
+.verdict.tmo{background:var(--warn-bg);color:var(--warn-text)}
+
+/* ── 로그 뷰어 ── */
+.viewer{width:920px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-card);box-shadow:var(--shadow-lg);overflow:hidden}
+.v-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.v-crumb{font-size:13px;font-weight:600;color:var(--text-medium)}
+.v-crumb .sep{color:var(--text-faint);font-weight:400;margin:0 4px}
+.v-crumb .jid{font-family:var(--font-mono);font-size:12px;color:var(--gray-700)}
+.v-close{margin-left:auto;width:28px;height:28px;border-radius:8px;border:none;background:transparent;
+  color:var(--text-weak);font-size:14px;cursor:pointer}
+.v-close:hover{background:var(--gray-100)}
+.v-meta{display:flex;align-items:center;gap:8px;padding:10px 18px;border-bottom:1px solid var(--border);
+  background:var(--gray-50);font-size:11.5px;color:var(--text-weak)}
+.v-meta .grow{flex:1}
+.v-btn{font-size:11.5px;font-weight:600;color:var(--text-medium);background:var(--bg-card);
+  border:1px solid var(--border-strong);border-radius:6px;padding:4px 10px;cursor:pointer}
+.badge-warn{font-size:10.5px;font-weight:700;border-radius:99px;padding:2px 9px;
+  background:var(--warn-bg);color:var(--warn-text);border:1px solid var(--warn-border)}
+.v-log{background:#0C111D;padding:14px 18px;max-height:360px;overflow:auto}
+.v-log pre{margin:0;font-family:var(--font-mono);font-size:11.5px;line-height:1.65;color:#CECFD2;
+  white-space:pre-wrap;word-break:break-all}
+.v-log .lg-dim{color:#61646C}
+.v-log .lg-ok{color:#47CD89}
+.v-log .lg-err{color:#F97066}
+.v-log .lg-warn{color:#FDB022}
+.v-log .lg-cut{display:block;text-align:center;color:#61646C;font-size:10.5px;
+  border:1px dashed #333741;border-radius:6px;padding:5px;margin-bottom:10px}
+.v-foot{padding:8px 18px;font-size:11px;color:var(--text-faint);background:var(--gray-50);
+  border-top:1px solid var(--border);line-height:1.6}
+
+/* empty state 카드 */
+.empty{width:440px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);padding:36px 24px;text-align:center}
+.empty .ic{width:36px;height:36px;border-radius:99px;background:var(--gray-100);color:var(--text-faint);
+  display:inline-flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:12px}
+.empty .t{font-size:13.5px;font-weight:700;margin-bottom:6px}
+.empty .d{font-size:12px;color:var(--text-weak);line-height:1.6}
+.empty .d code{font-size:11px}
+
+/* 결정 로그 */
+.dlog{border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden;box-shadow:var(--shadow-xs)}
+.dlog table{width:100%;border-collapse:collapse}
+.dlog th{background:var(--gray-50);text-align:left;font-size:12px;font-weight:600;color:var(--text-weak);
+  padding:10px 14px;border-bottom:1px solid var(--border)}
+.dlog td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text-medium);
+  vertical-align:top;line-height:1.55;background:var(--bg-card)}
+.dlog tr:last-child td{border-bottom:none}
+.dlog td:first-child{font-weight:600;color:var(--text-strong);white-space:nowrap}
+.q{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:var(--r-inner);
+  padding:12px 16px;font-size:12.5px;color:var(--text-medium);line-height:1.7;margin-top:16px;max-width:920px}
+.q b{color:var(--warn-text)}
+</style></head>
+<body>
+<div class="wrap">
+
+<h1>R23 시안 랩 — Terraform Job · Condition Job 결과 노출</h1>
+<p class="sub">
+  파이프라인 상세 &gt; Task 패널(Figma 70-35: 실행 정보 · 시도 기록 · 정의·계약 3탭)에
+  orchestrator가 노출한 job별 실행 결과를 배치하는 시안.<br>
+  데이터 계약: Task 상세(P5)의 <code>attempts[].terraform_results[]</code>(job 결과 메타) ·
+  <code>attempts[].job_states[]</code>(job 진행 상태) · <code>attempts[].failure_detail</code> ·
+  <code>attempts[].check</code>(폴 카운터), 로그 본문은
+  <code>GET …/attempts/{n}/jobs/{jobId}/result</code>(P11) lazy 조회.
+</p>
+
+<!-- ═══════════════ 1. 정보 계층 ═══════════════ -->
+<h2><span class="no">1</span>정보 계층 — 운영자 질문 → 데이터 매핑</h2>
+<p class="h2sub">detail-ia.md §2의 질문 우선순위를 job 결과에 재적용. 위 계층이 답을 못 주면 아래 계층으로 내려간다.</p>
+<div class="ia-wrap"><table class="ia">
+  <tr><th style="width:60px">계층</th><th style="width:250px">운영자 질문</th><th>보여줄 정보</th><th style="width:330px">데이터 소스</th></tr>
+  <tr>
+    <td class="lv">L1</td><td>"이 task 성공했어? 실패했어?"</td>
+    <td>task status pill + 진행 기록 — <b>기존 그대로</b>, 패널 헤더·실행 정보 탭 상단</td>
+    <td><span class="mono">TaskDetail.status / started·finished_at</span></td>
+  </tr>
+  <tr>
+    <td class="lv">L2</td><td>"실패했으면 왜?"</td>
+    <td><b>실패 원인 스택</b> — error_code 배지 → failure_detail 텍스트 → 실패 job의 fail_reason. 실행 정보 탭에서 FAILED일 때만 등장</td>
+    <td><span class="mono">error_code + attempts[].failure_detail + job_states[].last_fail_reason</span></td>
+  </tr>
+  <tr>
+    <td class="lv">L3</td><td>"job 단위로는 어디까지 갔어?"</td>
+    <td><b>Job 목록</b> — job별 결과(✓/✕) 또는 진행 상태(원시 state 배지 + 폴 횟수). TERRAFORM_JOB의 실행 정보 탭 본문. CONDITION_CHECK는 판정 요약 kv</td>
+    <td><span class="mono">terraform_results ∪ job_states (job_id로 join) / check</span></td>
+  </tr>
+  <tr>
+    <td class="lv">L4</td><td>"로그 원문 보여줘"</td>
+    <td><b>로그 뷰어</b> — job 행의 [로그] 버튼 → 캔버스 오버레이. 클릭 시에만 fetch(본문 최대 16MB)</td>
+    <td><span class="mono">P11 …/jobs/{jobId}/result → content</span></td>
+  </tr>
+  <tr>
+    <td class="lv">L5</td><td>"이전 시도에선 무슨 일이?"</td>
+    <td><b>attempt 타임라인</b> — 시도 기록 탭. attempt 아코디언(최신 확장), 각 attempt 안에 그 시도의 job 목록·failure_detail·response 원문(접힘)</td>
+    <td><span class="mono">attempts[] 전체</span></td>
+  </tr>
+</table></div>
+<p class="note" style="max-width:860px">
+  핵심 원칙 둘. <b>① 결과는 attempt에 속한다</b> — terraform_results·job_states 모두 attempt 스코프의 데이터라서,
+  "현재 상황"(실행 정보 탭)은 <b>최신 attempt만 승격</b>해 보여주고 전체 이력은 시도 기록 탭이 담당한다.
+  <b>② 본문은 절대 인라인하지 않는다</b> — 서버가 메타(has_body)만 인라인한 것과 같은 이유로,
+  UI도 [로그] 클릭 시에만 P11을 fetch한다.
+</p>
+
+<!-- ═══════════════ 2. 실행 정보 탭 ═══════════════ -->
+<h2><span class="no">2</span>실행 정보 탭 — kind·상태별 3시안</h2>
+<p class="h2sub">Figma 패널(400px)의 첫 탭. 기존 진행 기록 kv 아래에 job 결과 섹션이 붙는다.</p>
+
+<div class="lab-row">
+
+  <!-- A. TERRAFORM_JOB FAILED -->
+  <div class="lab-item">
+    <p class="lab-cap">A · TERRAFORM_JOB — FAILED <span class="tag new">실패 원인 스택 + Job 목록</span></p>
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">AWS Service Level 테라폼 Apply <span class="pill failed">FAILED</span></div>
+        <div class="p-desc">대상의 AWS service level 인프라를 Terraform apply로 구성한다.</div>
+        <div class="p-kindrow">타입 <span class="kind">TERRAFORM_JOB</span></div>
+      </div>
+      <div class="tabs"><span class="tab on">실행 정보</span><span class="tab">시도 기록</span><span class="tab">정의·계약</span></div>
+      <div class="p-body">
+        <div class="sec">
+          <div class="sec-t">진행 기록</div>
+          <div class="kv">
+            <span class="k">Started</span><span class="v">2026-07-09 19:38</span>
+            <span class="k">Finished</span><span class="v">2026-07-09 19:44</span>
+            <span class="k">시도 횟수</span><span class="v">2 / 3</span>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-t"><span class="callout">1</span>실패 원인 <span style="font-weight:400;color:var(--text-faint)">— attempt #2</span></div>
+          <div class="fail-box">
+            <div class="fail-code">JOB_FAILED</div>
+            <div class="fail-detail">실패 job: tfj-7h1m2c9e — Error: Error acquiring the state lock. Lock Info: ID=8f2a…, Operation=OperationTypeApply</div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-t"><span class="callout">2</span>Terraform Job <span style="font-weight:400;color:var(--text-faint)">— attempt #2 · 3건</span></div>
+          <div class="jobs">
+            <div class="job">
+              <span class="st ok">✓</span><span class="jid">tfj-9x2k4…f1</span>
+              <span class="jmeta">19:41 종결</span>
+              <button class="btn-log">로그</button>
+            </div>
+            <div class="job" style="border-bottom:none">
+              <span class="st err">✕</span><span class="jid">tfj-7h1m2…c9</span>
+              <span class="jmeta">19:43 종결</span>
+              <button class="btn-log">로그</button>
+            </div>
+            <div class="job-sub">└ Error acquiring the state lock (ID=8f2a…)</div>
+            <div class="job">
+              <span class="st none">–</span><span class="jid">tfj-3k9p1…a4</span>
+              <span class="jmeta" style="color:var(--text-faint)">기록 없음</span>
+              <button class="btn-log off">로그</button>
+            </div>
+            <div class="job-sub hint" style="border-bottom:none">└ result 미기록 — 위 실패 원인(error_code) 참조</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      <span class="callout">1</span><b>실패 원인 스택</b>: error_code(분류) → failure_detail(서버가 남긴 원인 텍스트, 512자).
+      FAILED가 아니면 섹션 자체가 없다.<br>
+      <span class="callout">2</span><b>Job 목록</b> = <code>terraform_results ∪ job_states</code>를 job_id로 join.
+      결과 행이 있으면 ✓/✕(succeeded), 결과도 상태도 없는 job은 "기록 없음" — 로그 버튼 비활성.
+      실패 job은 <code>last_fail_reason</code> 한 줄을 바로 아래 노출(로그 열기 전에 원인 1차 확인).
+    </p>
+  </div>
+
+  <!-- B. TERRAFORM_JOB RUNNING -->
+  <div class="lab-item">
+    <p class="lab-cap">B · TERRAFORM_JOB — RUNNING <span class="tag new">job_states 라이브</span></p>
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">AWS BDC Common 테이블 Apply <span class="pill running">RUNNING</span></div>
+        <div class="p-desc">BDC common 테이블 인프라를 Terraform apply로 구성한다.</div>
+        <div class="p-kindrow">타입 <span class="kind">TERRAFORM_JOB</span></div>
+      </div>
+      <div class="tabs"><span class="tab on">실행 정보</span><span class="tab">시도 기록</span><span class="tab">정의·계약</span></div>
+      <div class="p-body">
+        <div class="sec">
+          <div class="sec-t">진행 기록</div>
+          <div class="kv">
+            <span class="k">Started</span><span class="v">2026-07-09 19:45</span>
+            <span class="k">시도 횟수</span><span class="v">0 / 3</span>
+            <span class="k">다음 확인</span><span class="v">10초 후 <span style="color:var(--text-faint)">(polling 10s)</span></span>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-t"><span class="callout">3</span>Terraform Job <span style="font-weight:400;color:var(--text-faint)">— attempt #1 · 진행 중</span></div>
+          <div class="jobs">
+            <div class="job">
+              <span class="st ok">✓</span><span class="jid">tfj-b81m3…e2</span>
+              <span class="jstate okraw">FINISHED</span>
+              <span class="jmeta">폴 6회 · 4초 전</span>
+            </div>
+            <div class="job">
+              <span class="st run">◌</span><span class="jid">tfj-c92n4…d7</span>
+              <span class="jstate raw">APPLYING</span>
+              <span class="jmeta">폴 6회 · 4초 전</span>
+            </div>
+            <div class="job">
+              <span class="st run">◌</span><span class="jid">tfj-d03p5…b9</span>
+              <span class="jstate raw">CREATED</span>
+              <span class="jmeta">폴 6회 · 4초 전</span>
+            </div>
+            <div class="jobs-foot">로그는 시도 종결 후 수집됩니다 — 실행 중에는 job 상태만 표시 <span class="callout" style="background:var(--gray-400)">4</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      <span class="callout">3</span>RUNNING 중엔 <code>terraform_results</code>가 아직 없고 <code>job_states</code>만 온다.
+      상태 배지는 <b>원시 terraformState 그대로</b>(APPLYING·CREATED…) — enum 재인코딩 없이 mono 배지로.
+      폴 횟수·마지막 폴 시각이 "살아있음"의 신호.<br>
+      <span class="callout">4</span>서버 계약의 알려진 한계(로그는 종결 turn에만 기록)를 <b>foot 안내 한 줄</b>로 정직하게 노출 —
+      로그 버튼을 말없이 숨겨서 생기는 "왜 없지?"를 선제 차단.
+    </p>
+  </div>
+
+  <!-- C. CONDITION_CHECK -->
+  <div class="lab-item">
+    <p class="lab-cap">C · CONDITION_CHECK — IN_PROGRESS <span class="tag new">판정 요약</span></p>
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">네트워크 준비 확인 <span class="pill progress">IN_PROGRESS</span></div>
+        <div class="p-desc">네트워크가 준비 완료 상태가 될 때까지 조건을 확인한다.</div>
+        <div class="p-kindrow">타입 <span class="kind">CONDITION_CHECK</span></div>
+      </div>
+      <div class="tabs"><span class="tab on">실행 정보</span><span class="tab">시도 기록</span><span class="tab">정의·계약</span></div>
+      <div class="p-body">
+        <div class="sec">
+          <div class="sec-t">진행 기록</div>
+          <div class="kv">
+            <span class="k">Started</span><span class="v">2026-07-09 19:36</span>
+            <span class="k">재시도 예산</span><span class="v">14 / 60</span>
+            <span class="k">다음 확인</span><span class="v">2026-07-09 19:52:30</span>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-t"><span class="callout">5</span>조건 판정 <span style="font-weight:400;color:var(--text-faint)">— 폴 1회 = 시도 1회</span></div>
+          <div class="kv">
+            <span class="k">현재 판정</span><span class="v"><span class="verdict notmet">미충족</span></span>
+            <span class="k">외부 상태</span><span class="v mono">PROVISIONING</span>
+            <span class="k">마지막 확인</span><span class="v">19:51:30 (21초 전)</span>
+            <span class="k">폴 누적</span><span class="v">14회 <span style="color:var(--text-faint)">= 미충족 12 · API 오류 1 · 타임아웃 1</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      <span class="callout">5</span>Condition은 job이 없다 — 결과는 <b>판정 요약 kv</b> 하나로 끝.
+      "현재 판정"은 최신 attempt의 check 카운터에서 파생(not_met=1→미충족, api_error=1→API 오류…),
+      "외부 상태"는 <code>last_external_status</code> 원시값. 폴 누적 내역은 attempts 전체 합산 —
+      미충족(정상 대기)과 오류(비정상)를 숫자로 구분해 "오래 걸리는 것"과 "고장난 것"을 나눈다.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════ 3. 시도 기록 탭 ═══════════════ -->
+<h2><span class="no">3</span>시도 기록 탭 — kind별 이력 구조</h2>
+<p class="h2sub">
+  두 kind는 시도의 의미가 달라 같은 UI를 쓸 수 없다. TERRAFORM_JOB의 attempt는 "디스패치 1회"(무겁고 적음, job 목록을 품음) →
+  <b>아코디언</b>. CONDITION_CHECK의 attempt는 "폴 1회"(가볍고 많음, 내용은 판정 하나) → <b>flat 테이블</b>.
+</p>
+
+<div class="lab-row">
+
+  <!-- D. TERRAFORM attempts accordion -->
+  <div class="lab-item">
+    <p class="lab-cap">D · TERRAFORM_JOB — attempt 아코디언</p>
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">AWS Service Level 테라폼 Apply <span class="pill failed">FAILED</span></div>
+        <div class="p-kindrow">타입 <span class="kind">TERRAFORM_JOB</span></div>
+      </div>
+      <div class="tabs"><span class="tab">실행 정보</span><span class="tab on">시도 기록</span><span class="tab">정의·계약</span></div>
+      <div class="p-body">
+        <div class="att">
+          <div class="att-h">
+            <span class="chev">▾</span><span class="no">#2</span>
+            <span class="pill failed">FAILED</span><span class="ecode">JOB_FAILED</span>
+            <span class="time">19:38 → 19:44 · 5m 40s</span>
+          </div>
+          <div class="att-b">
+            <div class="fail-box">
+              <div class="fail-code">JOB_FAILED</div>
+              <div class="fail-detail">실패 job: tfj-7h1m2c9e — Error acquiring the state lock</div>
+            </div>
+            <div class="jobs">
+              <div class="job">
+                <span class="st ok">✓</span><span class="jid">tfj-9x2k4…f1</span>
+                <span class="jmeta">19:41</span><button class="btn-log">로그</button>
+              </div>
+              <div class="job">
+                <span class="st err">✕</span><span class="jid">tfj-7h1m2…c9</span>
+                <span class="jmeta">19:43</span><button class="btn-log">로그</button>
+              </div>
+              <div class="job">
+                <span class="st none">–</span><span class="jid">tfj-3k9p1…a4</span>
+                <span class="jmeta" style="color:var(--text-faint)">기록 없음</span><button class="btn-log off">로그</button>
+              </div>
+            </div>
+            <details class="resp-fold">
+              <summary>response 원문 — 외부 응답, 파싱하지 않음</summary>
+              <pre>{"jobs":[{"id":"tfj-9x2k4","type":"APPLY"},{"id":"tfj-7h1m2","type":"APPLY"},{"id":"tfj-3k9p1","type":"APPLY"}]}</pre>
+            </details>
+          </div>
+        </div>
+        <div class="att">
+          <div class="att-h">
+            <span class="chev">▸</span><span class="no">#1</span>
+            <span class="pill failed">FAILED</span><span class="ecode">CALL_TIMEOUT</span>
+            <span class="time">19:31 → 19:36</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      최신 attempt 자동 확장, 과거는 접힘. attempt 본문 = 실행 정보 탭과 <b>같은 부품</b>(실패 원인 스택 + Job 목록)의
+      attempt 스코프 버전 — 새 컴포넌트를 늘리지 않는다. 기존 flat 테이블의 response 원문 컬럼은
+      <b>접힌 &lt;details&gt;로 강등</b>: 원시 계약 텍스트는 최후의 디버그 수단이지 1차 정보가 아니다.
+    </p>
+  </div>
+
+  <!-- E. CONDITION polls table -->
+  <div class="lab-item">
+    <p class="lab-cap">E · CONDITION_CHECK — 폴 이력 테이블</p>
+    <div class="panel">
+      <div class="p-head">
+        <div class="p-title">네트워크 준비 확인 <span class="pill progress">IN_PROGRESS</span></div>
+        <div class="p-kindrow">타입 <span class="kind">CONDITION_CHECK</span></div>
+      </div>
+      <div class="tabs"><span class="tab">실행 정보</span><span class="tab on">시도 기록</span><span class="tab">정의·계약</span></div>
+      <div class="p-body">
+        <table class="polls">
+          <thead><tr><th>#</th><th>판정</th><th>외부 상태</th><th style="text-align:right">확인 시각</th></tr></thead>
+          <tbody>
+            <tr><td>14</td><td><span class="verdict notmet">미충족</span></td><td class="mono">PROVISIONING</td><td style="text-align:right">19:51:30</td></tr>
+            <tr><td>13</td><td><span class="verdict notmet">미충족</span></td><td class="mono">PROVISIONING</td><td style="text-align:right">19:50:30</td></tr>
+            <tr><td>12</td><td><span class="verdict apierr">API 오류</span></td><td class="mono">—</td><td style="text-align:right">19:49:30</td></tr>
+            <tr><td>11</td><td><span class="verdict tmo">타임아웃</span></td><td class="mono">—</td><td style="text-align:right">19:48:30</td></tr>
+            <tr><td>10</td><td><span class="verdict notmet">미충족</span></td><td class="mono">CREATING_NIC</td><td style="text-align:right">19:47:30</td></tr>
+          </tbody>
+        </table>
+        <div class="jobs-foot" style="border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r-inner) var(--r-inner)">최근 5회 표시 · <a href="#" style="color:var(--primary);font-weight:600">전체 14회 보기</a></div>
+      </div>
+    </div>
+    <p class="note">
+      폴 하나가 행 하나 — 판정 pill(미충족/충족/API 오류/타임아웃)과 그 시점의 외부 상태 원시값.
+      수십 회 누적을 대비해 최근 N회 + 더보기. 외부 상태의 변화 추적("CREATING_NIC → PROVISIONING까지 갔네")이
+      이 테이블의 존재 이유 — 요약 kv(시안 C)로는 마지막 값만 보인다.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════ 4. 로그 뷰어 ═══════════════ -->
+<h2><span class="no">4</span>로그 뷰어 (P11) — 캔버스 오버레이</h2>
+<p class="h2sub">
+  [로그] 클릭 → 캔버스 영역만 덮는 오버레이(우측 Task 패널은 유지 — "어느 job의 로그인지" 맥락이 옆에 살아있다).
+  이때 처음으로 <code>GET …/jobs/{jobId}/result</code>를 호출한다. 본문 최대 16MB — 패널 인라인은 애초에 불가.
+</p>
+
+<div class="lab-item">
+  <div class="viewer">
+    <div class="v-head">
+      <span class="v-crumb">AWS Service Level 테라폼 Apply <span class="sep">›</span> attempt #2 <span class="sep">›</span> <span class="jid">tfj-7h1m2c9e</span></span>
+      <button class="v-close">✕</button>
+    </div>
+    <div class="v-meta">
+      <span class="pill failed">실패</span>
+      <span class="badge-warn">⚠ 16MB 초과 — 앞부분 절단됨 (tail 우선 보존)</span>
+      <span>수집 2026-07-09 19:43:07</span>
+      <span class="grow"></span>
+      <button class="v-btn">복사</button>
+      <button class="v-btn">파일로 저장</button>
+    </div>
+    <div class="v-log">
+      <pre><span class="lg-cut">— 이 지점 위 로그는 16MB 초과로 절단되었습니다 —</span><span class="lg-dim">aws_glue_catalog_table.bdc_common["tbl_0417"]: Still creating... [2m10s elapsed]</span>
+<span class="lg-dim">aws_glue_catalog_table.bdc_common["tbl_0417"]: Creation complete after 2m12s</span>
+<span class="lg-ok">Apply complete for module.service_level.core — 214 added, 0 changed, 0 destroyed.</span>
+
+<span class="lg-err">Error: Error acquiring the state lock</span>
+
+<span class="lg-err">Error message: ConditionalCheckFailedException: The conditional request failed</span>
+<span class="lg-dim">Lock Info:
+  ID:        8f2a1c3e-77b4-4e01-9d2f-3a5b6c7d8e90
+  Path:      svc-alpha/service-level/terraform.tfstate
+  Operation: OperationTypeApply
+  Who:       infra-manager@worker-3
+  Created:   2026-07-09 10:42:58 UTC</span>
+
+<span class="lg-warn">Terraform acquires a state lock to protect the state from being written
+by multiple users at the same time.</span></pre>
+    </div>
+    <div class="v-foot">열릴 때 스크롤은 맨 아래(tail)에서 시작 — terraform 오류는 로그 끝에 있고, 절단도 tail 우선이다.
+      원문은 escape 처리된 &lt;pre&gt;로만 렌더(설계 §4.6), ANSI는 알려진 SGR 색 코드만 색으로 변환하고 나머지는 strip.</div>
+  </div>
+</div>
+
+<p class="h2sub" style="margin-top:32px">서버가 구분하는 두 개의 "없음"은 다른 empty state로 — 안내가 다음 행동을 짚어야 한다.</p>
+<div class="lab-row">
+  <div class="lab-item">
+    <p class="lab-cap">F · content: null (200) — 포인터 행</p>
+    <div class="empty">
+      <div class="ic">◍</div>
+      <div class="t">로그 본문이 수집되지 않았습니다</div>
+      <div class="d">job은 종결됐지만 서버가 로그 본문을 가져오지 못한 기록입니다.<br>결과 판정(성공/실패)과 수집 시각은 유효합니다.</div>
+    </div>
+    <p class="note">succeeded/truncated 메타는 헤더에 그대로 표시 — 판정은 살아있고 본문만 없다.</p>
+  </div>
+  <div class="lab-item">
+    <p class="lab-cap">G · 404 — 행 자체가 없음</p>
+    <div class="empty">
+      <div class="ic">∅</div>
+      <div class="t">이 job의 로그 기록이 없습니다</div>
+      <div class="d">시도가 로그 수집 전에 종결됐습니다.<br>시도의 <code>error_code</code>·실패 원인에서 사유를 확인하세요.</div>
+    </div>
+    <p class="note">Job 목록에서 "기록 없음" job은 버튼이 비활성이라 보통 도달하지 않지만, 폴링 타이밍 경합 대비 방어.</p>
+  </div>
+</div>
+
+<!-- ═══════════════ 5. 결정 로그 ═══════════════ -->
+<h2><span class="no">5</span>결정 로그 · 열린 질문</h2>
+<div class="dlog"><table>
+  <tr><th style="width:240px">질문</th><th>결정</th></tr>
+  <tr><td>job 결과의 1차 표면</td><td>실행 정보 탭 (최신 attempt 승격) — 실패 시 클릭 0회로 원인 도달. 시도 기록 탭은 이력 전용</td></tr>
+  <tr><td>job 목록 구성</td><td><code>terraform_results ∪ job_states</code>를 job_id로 join. <code>response</code> 원문은 파싱하지 않는다(타입별 사적 계약) — 둘 다 없는 job은 UI가 존재를 모르는 게 계약상 맞다</td></tr>
+  <tr><td>진행 상태 배지</td><td>원시 <code>last_state</code> 그대로 mono 배지 — enum 재인코딩·번역 금지 (개념을 줄여라 원칙)</td></tr>
+  <tr><td>로그 뷰어 표면</td><td>캔버스 오버레이 (패널 유지). 전체 모달 대비: job 간 이동 시 맥락 유지. 16MB 대비 내부 스크롤, 열 때 tail 시작</td></tr>
+  <tr><td>두 개의 "없음"</td><td>content:null(포인터) ≠ 404(행 없음) — empty state 문구를 분리, 각각 다음 행동(메타 신뢰 / error_code 확인)을 안내</td></tr>
+  <tr><td>RUNNING 중 로그</td><td>없음이 계약 — foot 안내 한 줄로 정직 노출. 실시간 스트리밍은 서버 측 별도 결정(InfraManager 프록시) 전까지 스코프 밖</td></tr>
+  <tr><td>CONDITION_CHECK</td><td>job UI 미적용 — 판정 요약 kv(실행 정보) + 폴 이력 테이블(시도 기록). 기존 RecordTail의 check kv를 판정 중심으로 재구성</td></tr>
+</table></div>
+
+<div class="q">
+  <b>오너 확인 필요:</b><br>
+  ① <b>ANSI 처리 수위</b> — 서버는 정규화하지 않는다(설계 §4.6, owner 결정으로 명시). 시안은 "알려진 SGR 색 코드만 렌더 + 나머지 strip"인데, 전부 strip(더 단순)도 가능.<br>
+  ② <b>16MB 다운로드</b> — [파일로 저장]은 P11 응답을 blob로 저장하는 클라이언트 구현. 복사만으로 충분하면 뺀다.<br>
+  ③ <b>job_id 표기</b> — 축약(head…tail) + hover 전문 + 클릭 복사로 가정. 전문 노출이 필요하면 행이 2줄이 된다.<br>
+  ④ <b>Figma 3탭 유지 여부</b> — 현 앱 패널(R22)은 탭 없이 "진행 기록 + 접힌 정의" 구조. 이 시안은 Figma 3탭을 전제로 그렸다.
+     탭 없이 가려면 시안 A~C가 곧 패널 본문이 되고 시도 기록은 접힌 섹션으로 들어간다.
+</div>
+
+</div>
+</body></html>
