@@ -286,24 +286,7 @@ table.polls .mono{font-family:var(--font-mono);font-size:11px}
           </div>
         </div>
         <div class="sec">
-          <div class="sec-t">Terraform Job <span class="cnt">— 최근 시도(#2) · 3건</span></div>
-          <div class="jobs">
-            <div class="job">
-              <span class="jchip ok">성공</span><span class="jid">tfj-9x2k4…f1</span>
-              <span class="jmeta">19:41</span><button class="btn-log">로그</button>
-            </div>
-            <div class="job">
-              <span class="jchip err">실패</span><span class="jid">tfj-7h1m2…c9</span>
-              <span class="jmeta">19:43</span><button class="btn-log">로그</button>
-            </div>
-            <div class="job">
-              <span class="jchip none">기록 없음</span><span class="jid">tfj-3k9p1…a4</span>
-              <span class="jmeta"></span><button class="btn-log off">로그</button>
-            </div>
-          </div>
-        </div>
-        <div class="sec">
-          <div class="sec-t">시도 이력 <span class="cnt">— 2회</span> <span class="callout">2</span></div>
+          <div class="sec-t">시도 이력 <span class="cnt">— 2회 · 행을 누르면 job·로그 상세</span> <span class="callout">2</span></div>
           <div class="att-list">
             <div class="att-row current">
               <span class="no">#2</span><span class="pill failed">FAILED</span><span class="ecode">JOB_FAILED</span>
@@ -323,9 +306,9 @@ table.polls .mono{font-family:var(--font-mono);font-size:11px}
     </div>
     <p class="note">
       <span class="callout">1</span>실패는 <b>error_code 배지 하나</b>로 끝 — failure_detail·fail_reason 텍스트는
-      기본 UI에서 제거(오너 결정). 구체 원인이 필요하면 실패 job의 [로그]가 경로.<br>
-      <span class="callout">2</span>시도 이력은 <b>한 줄 요약 리스트</b> — #·status·error_code·시각만.
-      행 클릭 → 시안 B(Attempt 상세)로 패널 전환. 최신 시도는 "현재" 표시(Job 목록이 이미 이 시도의 것).
+      기본 UI에서 제거(오너 결정).<br>
+      <span class="callout">2</span>루트에 job 목록을 두지 않는다(v2.1, 오너 결정) — 루트는 "무슨 일이 있었나"까지만.
+      <b>job·로그 상세는 시도 이력 행 클릭 → 시안 B(Attempt 상세)가 유일한 경로</b>. 최신 시도는 "현재" 표시.
     </p>
   </div>
 
@@ -513,7 +496,7 @@ by multiple users at the same time.</span></pre>
   <tr><td>job 목록 구성</td><td><code>terraform_results ∪ job_states</code> job_id join. <code>response</code> 원문 파싱 금지(사적 계약) — 둘 다 없는 job은 UI가 존재를 모르는 게 계약상 맞다</td></tr>
   <tr><td>드릴다운 refetch</td><td>없음 — 루트·Attempt 상세 모두 로드된 TaskDetail 하나에서 렌더. 뷰어만 lazy fetch</td></tr>
   <tr><td>두 개의 "없음"</td><td>content:null(포인터) ≠ 404(행 없음) — empty state 문구 분리</td></tr>
-  <tr><td>RUNNING 중 로그</td><td>없음이 계약 — foot 안내 한 줄. 실시간 스트리밍은 서버 측 별도 결정 전까지 스코프 밖</td></tr>
+  <tr><td>로그 접근 범위 (v2.1)</td><td><b>저장본 + 실시간 폴백</b> — P11이 저장 행(terraform_result)을 우선 서빙하고, 없으면 InfraManager result API를 즉석 프록시(<code>source: "live"</code> 표시). RUNNING·호출 오류 종결 시도에서도 로그 확인 가능(오너 요구). <b>orchestrator 변경 필요</b> — exposure 설계 문서가 "별도 결정"으로 지목한 항목</td></tr>
   <tr><td>CONDITION_CHECK</td><td>드릴다운 없음 — 판정·외부상태를 진행 기록 kv에 흡수, 폴 이력 인라인(최근 5 + 전체 보기)</td></tr>
 </table></div>
 

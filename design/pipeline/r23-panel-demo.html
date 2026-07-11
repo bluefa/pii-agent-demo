@@ -148,6 +148,8 @@ table.polls .mono{font-family:var(--font-mono);font-size:11px}
   border:1px solid var(--border-strong);border-radius:6px;padding:4px 10px;cursor:pointer}
 .badge-warn{font-size:10.5px;font-weight:700;border-radius:99px;padding:2px 9px;
   background:var(--warn-bg);color:var(--warn-text);border:1px solid var(--warn-border)}
+.badge-info{font-size:10.5px;font-weight:700;border-radius:99px;padding:2px 9px;
+  background:var(--info-bg);color:var(--info-text);border:1px solid #B2DDFF}
 .seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;flex:none}
 .seg button{font-size:11.5px;font-weight:600;padding:4px 12px;color:var(--text-weak);cursor:pointer;
   background:var(--bg-card);border:none}
@@ -214,8 +216,9 @@ table.polls .mono{font-family:var(--font-mono);font-size:11px}
       <summary><span class="m">GET</span><span class="path">…/attempts/{n}/jobs/{jobId}/result</span> — Terraform 로그 본문 (P11)</summary>
       <pre id="json-p11">뷰어에서 [로그]를 열면 그 job의 응답이 여기 표시됩니다.</pre>
       <div class="hint"><code>content</code>가 로그 원문(최대 16MB, <code>truncated</code>면 tail 우선 절단).
-        <code>content: null</code> = 본문 수집 실패 포인터 행(200). 행 자체가 없으면 404
-        <code>ORCHESTRATION_TERRAFORM_RESULT_NOT_FOUND</code>.</div>
+        <code>content: null</code> = 본문 수집 실패 포인터 행(200). 행 자체가 없으면 404.
+        <b><code>source: "live"</code>는 제안</b> — 저장 행이 없으면 InfraManager result API를 즉석 프록시하는
+        폴백(orchestrator 변경 필요). RUNNING·호출 오류 종결 시도에서도 로그가 열린다.</div>
     </details>
     <details id="api-state">
       <summary><span class="m">GET</span><span class="path">…/attempts/{n}/jobs/{jobId}/state</span> — 상태 응답 원문</summary>
@@ -238,15 +241,35 @@ table.polls .mono{font-family:var(--font-mono);font-size:11px}
 /* ════ 데이터 — 실제 wire 계약 그대로 (snake_case, 값은 mock-infra 어휘) ════ */
 
 // P11 응답 (GET …/attempts/{n}/jobs/{jobId}/result) — key: `${attempt}:${jobId}`
+// source: "stored" = terraform_result 저장본(현행 계약) / "live" = 저장 행이 없을 때 InfraManager
+// result API를 즉석 프록시하는 폴백(제안 — orchestrator 변경 필요). live는 created_at이 null이다.
 const RESULTS = {
+  '1:1019': { task_id: 5, attempt_number: 1, job_id: '1019', succeeded: true, truncated: false,
+    created_at: null, source: 'live',
+    content: 'aws_glue_catalog_database.service_level: Creating...\naws_glue_catalog_database.service_level: Creation complete after 2s\n\nApply complete! Resources: 214 added, 0 changed, 0 destroyed.' },
+  '1:1020': { task_id: 5, attempt_number: 1, job_id: '1020', succeeded: null, truncated: false,
+    created_at: null, source: 'live',
+    content: 'aws_glue_catalog_table.bdc_common["tbl_0301"]: Creating...\naws_glue_catalog_table.bdc_common["tbl_0301"]: Still creating... [1m30s elapsed]' },
+  '1:1021': { task_id: 5, attempt_number: 1, job_id: '1021', succeeded: null, truncated: false,
+    created_at: null, source: 'live', content: null,
+    fetch_error: 'InfraManager returned no result (call timed out after PT30S)' },
+  '1:1031': { task_id: 6, attempt_number: 1, job_id: '1031', succeeded: true, truncated: false,
+    created_at: null, source: 'live',
+    content: 'aws_glue_catalog_database.bdc_common: Creating...\naws_glue_catalog_database.bdc_common: Creation complete after 3s\n\nApply complete! Resources: 96 added, 0 changed, 0 destroyed.' },
+  '1:1032': { task_id: 6, attempt_number: 1, job_id: '1032', succeeded: null, truncated: false,
+    created_at: null, source: 'live',
+    content: 'aws_glue_catalog_table.bdc_common["tbl_0114"]: Creating...\naws_glue_catalog_table.bdc_common["tbl_0114"]: Still creating... [40s elapsed]' },
+  '1:1033': { task_id: 6, attempt_number: 1, job_id: '1033', succeeded: null, truncated: false,
+    created_at: null, source: 'live',
+    content: 'Initializing the backend...\nInitializing provider plugins...\nTerraform has been successfully initialized!' },
   '2:1026': { task_id: 5, attempt_number: 2, job_id: '1026', succeeded: true, truncated: false,
-    created_at: '2026-07-09T10:44:02Z',
+    created_at: '2026-07-09T10:44:02Z', source: 'stored',
     content: 'aws_glue_catalog_database.service_level: Creating...\naws_glue_catalog_database.service_level: Creation complete after 2s [id=svc-alpha:service_level]\naws_iam_role.pii_agent_scan: Creating...\naws_iam_role.pii_agent_scan: Creation complete after 1s\n\nApply complete! Resources: 214 added, 0 changed, 0 destroyed.' },
   '2:1027': { task_id: 5, attempt_number: 2, job_id: '1027', succeeded: false, truncated: true,
-    created_at: '2026-07-09T10:44:02Z',
+    created_at: '2026-07-09T10:44:02Z', source: 'stored',
     content: 'aws_glue_catalog_table.bdc_common["tbl_0417"]: Still creating... [2m10s elapsed]\naws_glue_catalog_table.bdc_common["tbl_0417"]: Creation complete after 2m12s\n\nError: Error acquiring the state lock\n\nError message: ConditionalCheckFailedException: The conditional request failed\nLock Info:\n  ID:        8f2a1c3e-77b4-4e01-9d2f-3a5b6c7d8e90\n  Path:      svc-alpha/service-level/terraform.tfstate\n  Operation: OperationTypeApply\n  Who:       infra-manager@worker-3\n  Created:   2026-07-09 10:42:58 UTC\n\nTerraform acquires a state lock to protect the state from being written\nby multiple users at the same time.' },
   '2:1028': { task_id: 5, attempt_number: 2, job_id: '1028', succeeded: true, truncated: false,
-    created_at: '2026-07-09T10:44:02Z', content: null }, // 포인터 행 — 본문 수집 실패
+    created_at: '2026-07-09T10:44:02Z', source: 'stored', content: null }, // 포인터 행 — 본문 수집 실패
 };
 
 // 상태 응답 원문 (GET …/attempts/{n}/jobs/{jobId}/state)
@@ -450,7 +473,9 @@ function chipOf(row) {
 function jobListHtml(attempt, foot) {
   const rows = jobRows(attempt).map((row) => {
     const [cls, label] = chipOf(row);
-    const canLog = !!(row.result); // result 행이 있어야 P11 존재 (has_body=false여도 뷰어가 포인터 상태 안내)
+    // result가 없어도 상태 관측이 있으면 뷰어를 연다 — 로그 탭은 "기록 없음(404)" 사유를 안내하고
+    // 상태 응답 원문 탭이 유효하다. 둘 다 없을 때만 비활성.
+    const canLog = !!(row.result || row.state);
     const meta = row.result ? hm(row.result.created_at) : (row.state ? `폴 ${row.state.poll_count}회` : '');
     return `<div class="job"><span class="jchip ${cls}">${label}</span>
       <span class="jid">${esc(row.id)}</span><span class="jmeta">${meta}</span>
@@ -485,8 +510,6 @@ function renderRoot() {
     </div>`;
   let body = '';
   if (d.kind === 'TERRAFORM_JOB') {
-    const latest = d.attempts[d.attempts.length - 1];
-    const running = latest && latest.status === 'IN_PROGRESS';
     body = `
       <div class="sec"><div class="sec-t">진행 기록</div><div class="kv">
         <span class="k">Started / Finished</span><span class="v">${hm(d.started_at)} → ${hm(d.finished_at)}</span>
@@ -494,9 +517,7 @@ function renderRoot() {
         ${d.error_code ? `<span class="k">실패 코드</span><span class="v"><span class="ecode">${d.error_code}</span></span>` : ''}
         ${d.next_check_at ? `<span class="k">다음 확인</span><span class="v">${hms(d.next_check_at)}</span>` : ''}
       </div></div>
-      ${latest ? `<div class="sec"><div class="sec-t">Terraform Job <span class="cnt">— 최근 시도(#${latest.attempt_number}) · ${jobRows(latest).length}건</span></div>
-        ${jobListHtml(latest, running ? '로그는 시도 종결 후 수집됩니다 — 실행 중에는 job 상태만 표시' : '')}</div>` : ''}
-      <div class="sec"><div class="sec-t">시도 이력 <span class="cnt">— ${d.attempts.length}회</span></div>
+      <div class="sec"><div class="sec-t">시도 이력 <span class="cnt">— ${d.attempts.length}회 · 행을 누르면 job·로그 상세</span></div>
         <div class="att-list">${[...d.attempts].reverse().map((a, i) => `
           <button class="att-row ${i === 0 ? 'current' : ''}" data-att="${a.attempt_number}">
             <span class="no">#${a.attempt_number}</span><span class="pill ${a.status}">${a.status}</span>
@@ -546,8 +567,9 @@ function renderAttempt(n) {
         ${a.error_code ? `<span class="ecode">${a.error_code}</span>` : ''}</div>
         <div class="sub-crumb">${esc(d.definition.display_name)}</div></div>
     </div>`;
-  const finishedNote = a.status === 'IN_PROGRESS' ? '' :
-    '"진행 중"·"기록 없음"은 이 시도가 종결되던 시점의 마지막 관측입니다';
+  const finishedNote = a.status === 'IN_PROGRESS'
+    ? '실행 중 로그는 실시간 조회입니다 — 시도가 종결되면 저장본이 남습니다'
+    : '"진행 중"·"기록 없음"은 이 시도가 종결되던 시점의 마지막 관측입니다';
   const body = `
     <div class="sec"><div class="sec-t">시도 정보</div><div class="kv">
       <span class="k">Started / Finished</span><span class="v">${hm(a.started_at)} → ${hm(a.finished_at)}</span>
@@ -571,7 +593,8 @@ let viewerTab = 'log'; // 'log' | 'raw'
 let viewerKey = null;
 
 function openViewer(key) {
-  viewerKey = key; viewerTab = 'log';
+  viewerKey = key;
+  viewerTab = RESULTS[key] ? 'log' : 'raw'; // 로그가 없는 시도는 상태 응답 원문으로 시작
   renderViewer();
   $('overlay').classList.add('open');
 }
@@ -588,8 +611,12 @@ function renderViewer() {
   if (viewerTab === 'log') {
     if (!result) {
       bodyHtml = `<div class="v-empty"><div class="ic">∅</div><div class="t">이 job의 로그 기록이 없습니다</div>
-        <div class="d">시도가 로그 수집 전에 종결됐습니다. 시도의 실패 코드에서 사유를 확인하세요.<br>
+        <div class="d">저장된 로그가 없고 실시간 조회도 불가한 job입니다. 시도의 실패 코드에서 사유를 확인하세요.<br>
         (서버: 404 <code>ORCHESTRATION_TERRAFORM_RESULT_NOT_FOUND</code>)</div></div>`;
+    } else if (result.content === null && result.fetch_error) {
+      bodyHtml = `<div class="v-empty"><div class="ic">⟳</div><div class="t">실시간 조회에 실패했습니다</div>
+        <div class="d">저장된 로그가 없어 InfraManager에 실시간 조회를 시도했지만 응답을 받지 못했습니다.<br>
+        <code>${esc(result.fetch_error)}</code><br>잠시 후 다시 시도하세요.</div></div>`;
     } else if (result.content === null) {
       bodyHtml = `<div class="v-empty"><div class="ic">◍</div><div class="t">로그 본문이 수집되지 않았습니다</div>
         <div class="d">job은 종결됐지만 서버가 로그 본문을 가져오지 못한 기록입니다.<br>결과 판정(성공/실패)과 수집 시각은 유효합니다. (서버: 200, <code>content: null</code>)</div></div>`;
@@ -619,7 +646,9 @@ function renderViewer() {
       <span class="seg"><button id="seg-log" class="${viewerTab === 'log' ? 'on' : ''}">Terraform 로그</button><button id="seg-raw" class="${viewerTab === 'raw' ? 'on' : ''}">상태 응답 원문</button></span>
       ${succeeded !== null ? `<span class="pill ${succeeded ? 'DONE' : 'FAILED'}">${succeeded ? '성공' : '실패'}</span>` : ''}
       ${viewerTab === 'log' && result?.truncated ? '<span class="badge-warn">⚠ 16MB 초과 — 앞부분 절단 (tail 우선 보존)</span>' : ''}
-      ${meta?.created_at || meta?.last_polled_at ? `<span>수집 ${hms(meta.created_at ?? meta.last_polled_at)}</span>` : ''}
+      ${viewerTab === 'log' && result?.source === 'live' ? '<span class="badge-info">⟳ 실시간 조회 — InfraManager에서 방금 가져옴 (저장 전)</span>' : ''}
+      ${viewerTab === 'log' && result?.created_at ? `<span>수집 ${hms(result.created_at)}</span>` : ''}
+      ${viewerTab === 'raw' && state?.last_polled_at ? `<span>마지막 폴 ${hms(state.last_polled_at)}</span>` : ''}
       <span class="grow"></span><button class="v-btn">복사</button><button class="v-btn">파일로 저장</button></div>
     ${bodyHtml}
     <div class="v-foot">로그는 열릴 때 맨 아래(tail)에서 시작 — terraform 오류는 끝에 있고 절단도 tail 우선. escape된 &lt;pre&gt;로만 렌더.</div>`;
