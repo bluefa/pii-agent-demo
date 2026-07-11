@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R23 패널 데모 — 인터랙티브 + 실제 API 응답</title>
+<style>
+:root{
+  --gray-50:#F9FAFB; --gray-100:#F2F4F7; --gray-200:#E4E7EC; --gray-300:#D0D5DD;
+  --gray-400:#98A2B3; --gray-500:#667085; --gray-600:#475467; --gray-700:#344054;
+  --gray-800:#1D2939; --gray-900:#101828;
+  --bg-page:#F9FAFB; --bg-card:#FFFFFF;
+  --border:#E4E7EC; --border-strong:#D0D5DD;
+  --text-strong:var(--gray-900); --text-medium:var(--gray-700);
+  --text-weak:var(--gray-500); --text-faint:var(--gray-400);
+  --primary:#2563EB; --primary-bg:#EFF4FF; --primary-ring:#D1E0FF;
+  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3;
+  --err:#F04438; --err-text:#B42318; --err-bg:#FEF3F2; --err-border:#FDA29B;
+  --info-text:#175CD3; --info-bg:#EFF8FF;
+  --warn-text:#B54708; --warn-bg:#FFFAEB; --warn-border:#FEDF89;
+  --r-card:10px; --r-inner:8px;
+  --shadow-xs:0 1px 2px rgba(16,24,40,.05);
+  --shadow-lg:0 12px 32px -8px rgba(16,24,40,.16),0 4px 10px -4px rgba(16,24,40,.08);
+  --font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Pretendard','Malgun Gothic',system-ui,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-page);color:var(--text-strong);
+  font-family:var(--font-sans);font-size:14px;letter-spacing:-0.014em;line-height:1.4;
+  -webkit-font-smoothing:antialiased;min-width:1200px}
+button{font-family:inherit}
+code{font-family:var(--font-mono);font-size:12px;background:var(--gray-100);
+  border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--gray-700)}
+
+.wrap{max-width:1480px;margin:0 auto;padding:32px 40px 100px}
+h1{font-size:20px;font-weight:700;letter-spacing:-0.02em;margin:0 0 6px}
+.sub{color:var(--text-weak);font-size:13px;margin:0 0 20px;line-height:1.6;max-width:980px}
+
+/* 시나리오 스위처 */
+.scen{display:flex;gap:8px;margin-bottom:24px}
+.scen button{font-size:12.5px;font-weight:600;color:var(--text-medium);background:var(--bg-card);
+  border:1px solid var(--border-strong);border-radius:99px;padding:6px 14px;cursor:pointer}
+.scen button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* 2컬럼: 스테이지 + API 응답 */
+.cols{display:grid;grid-template-columns:520px 1fr;gap:32px;align-items:start}
+.stage{background:linear-gradient(0deg,rgba(208,213,221,.18) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(208,213,221,.18) 1px,transparent 1px);
+  background-size:16px 16px;background-color:#F3F5F8;border:1px solid var(--border);
+  border-radius:14px;padding:36px;display:flex;justify-content:center;min-height:640px;position:relative}
+.stage-cap{font-size:11px;color:var(--text-faint);position:absolute;top:12px;left:16px}
+
+/* ── 패널 ── */
+.panel{width:400px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-card);box-shadow:var(--shadow-xs);overflow:hidden;align-self:flex-start}
+.p-head{padding:18px 20px 14px;border-bottom:1px solid var(--border)}
+.p-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;flex-wrap:wrap}
+.p-desc{font-size:12.5px;color:var(--text-weak);margin-top:6px;line-height:1.55}
+.p-kindrow{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11.5px;color:var(--text-faint)}
+.kind{font-family:var(--font-mono);font-size:10.5px;font-weight:600;color:var(--gray-600);
+  background:var(--gray-100);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+.pill{font-size:10.5px;font-weight:700;letter-spacing:.03em;border-radius:99px;padding:2px 9px}
+.pill.DONE{background:var(--ok-bg);color:var(--ok-text)}
+.pill.FAILED{background:var(--err-bg);color:var(--err-text)}
+.pill.IN_PROGRESS,.pill.RUNNING{background:var(--info-bg);color:var(--info-text)}
+.pill.BLOCKED{background:var(--gray-100);color:var(--gray-600)}
+.ecode{font-family:var(--font-mono);font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px;
+  background:var(--err-bg);color:var(--err-text)}
+.p-body{padding:16px 20px 20px}
+.p-head.sub-view{display:flex;align-items:center;gap:10px;padding:14px 16px}
+.btn-back{width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);
+  color:var(--text-medium);font-size:14px;cursor:pointer;flex:none}
+.btn-back:hover{background:var(--gray-100)}
+.sub-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sub-crumb{font-size:11px;color:var(--text-faint);margin-top:2px}
+
+.sec{margin-bottom:18px}
+.sec-t{font-size:12px;font-weight:700;margin-bottom:8px}
+.sec-t .cnt{font-weight:400;color:var(--text-faint)}
+.kv{display:grid;grid-template-columns:130px 1fr;row-gap:6px;font-size:12.5px}
+.kv .k{color:var(--text-weak)}
+.kv .v{color:var(--text-medium);text-align:right}
+.kv .v.mono{font-family:var(--font-mono);font-size:11.5px}
+
+.jobs{border:1px solid var(--border);border-radius:var(--r-inner);overflow:hidden}
+.job{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);background:var(--bg-card)}
+.job:last-child{border-bottom:none}
+.jchip{font-size:10.5px;font-weight:700;border-radius:99px;padding:2px 9px;flex:none}
+.jchip.ok{background:var(--ok-bg);color:var(--ok-text)}
+.jchip.err{background:var(--err-bg);color:var(--err-text)}
+.jchip.run{background:var(--info-bg);color:var(--info-text)}
+.jchip.none{background:var(--gray-100);color:var(--text-faint)}
+.job .jid{font-family:var(--font-mono);font-size:11.5px;color:var(--gray-700)}
+.job .jmeta{font-size:11px;color:var(--text-faint);margin-left:auto;text-align:right}
+.btn-log{font-size:11px;font-weight:600;color:var(--primary);background:var(--primary-bg);
+  border:none;border-radius:6px;padding:3px 9px;cursor:pointer;flex:none}
+.btn-log:hover{background:var(--primary-ring)}
+.btn-log:disabled{background:var(--gray-100);color:var(--text-faint);cursor:default}
+.jobs-foot{font-size:11px;color:var(--text-faint);padding:8px 12px;background:var(--gray-50)}
+
+.att-list{border:1px solid var(--border);border-radius:var(--r-inner);overflow:hidden}
+.att-row{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);
+  background:var(--bg-card);cursor:pointer;width:100%;border-left:none;border-right:none;border-top:none;
+  text-align:left;font-size:12.5px}
+.att-row:hover{background:var(--gray-50)}
+.att-row:last-child{border-bottom:none}
+.att-row .no{font-weight:700;flex:none;width:26px}
+.att-row .time{margin-left:auto;font-size:11px;color:var(--text-faint);flex:none}
+.att-row .chev{color:var(--text-faint);font-size:11px;flex:none}
+.att-row.current{background:var(--primary-bg)}
+.cur-tag{font-size:9.5px;font-weight:700;color:var(--primary);flex:none}
+
+table.polls{width:100%;border-collapse:collapse;font-size:12px}
+table.polls th{text-align:left;font-size:11px;font-weight:600;color:var(--text-faint);
+  padding:6px 8px;border-bottom:1px solid var(--border)}
+table.polls td{padding:7px 8px;border-bottom:1px solid var(--gray-100);color:var(--text-medium)}
+table.polls .mono{font-family:var(--font-mono);font-size:11px}
+.verdict{font-size:10.5px;font-weight:700;border-radius:99px;padding:1px 8px}
+.verdict.notmet{background:var(--gray-100);color:var(--gray-600)}
+.verdict.met{background:var(--ok-bg);color:var(--ok-text)}
+.verdict.apierr,.verdict.tmo{background:var(--warn-bg);color:var(--warn-text)}
+.more-link{font-size:11px;color:var(--primary);font-weight:600;background:var(--gray-50);border:none;
+  border-top:1px solid var(--border);width:100%;padding:8px 12px;cursor:pointer;text-align:left}
+
+.refold{border-top:1px solid var(--border);margin-top:18px;padding-top:12px;font-size:12px;color:var(--text-weak)}
+.refold summary{cursor:pointer;font-weight:600}
+.refold .kv{margin-top:10px}
+.resp-fold{margin-top:12px;font-size:11.5px;color:var(--text-weak)}
+.resp-fold summary{cursor:pointer;font-weight:600}
+.resp-fold pre{font-family:var(--font-mono);font-size:10.5px;background:var(--gray-50);
+  border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow-x:auto;
+  color:var(--gray-600);margin:6px 0 0;white-space:pre-wrap;word-break:break-all}
+
+/* ── 뷰어 오버레이 ── */
+.overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);display:none;
+  align-items:center;justify-content:center;z-index:50;padding:40px}
+.overlay.open{display:flex}
+.viewer{width:880px;max-width:92vw;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-card);box-shadow:var(--shadow-lg);overflow:hidden}
+.v-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.v-crumb{font-size:13px;font-weight:600;color:var(--text-medium)}
+.v-crumb .sep{color:var(--text-faint);font-weight:400;margin:0 4px}
+.v-crumb .jid{font-family:var(--font-mono);font-size:12px}
+.v-close{margin-left:auto;width:28px;height:28px;border-radius:8px;border:none;background:transparent;
+  color:var(--text-weak);font-size:14px;cursor:pointer}
+.v-close:hover{background:var(--gray-100)}
+.v-meta{display:flex;align-items:center;gap:8px;padding:10px 18px;border-bottom:1px solid var(--border);
+  background:var(--gray-50);font-size:11.5px;color:var(--text-weak);flex-wrap:wrap}
+.v-meta .grow{flex:1}
+.v-btn{font-size:11.5px;font-weight:600;color:var(--text-medium);background:var(--bg-card);
+  border:1px solid var(--border-strong);border-radius:6px;padding:4px 10px;cursor:pointer}
+.badge-warn{font-size:10.5px;font-weight:700;border-radius:99px;padding:2px 9px;
+  background:var(--warn-bg);color:var(--warn-text);border:1px solid var(--warn-border)}
+.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;flex:none}
+.seg button{font-size:11.5px;font-weight:600;padding:4px 12px;color:var(--text-weak);cursor:pointer;
+  background:var(--bg-card);border:none}
+.seg button.on{background:var(--primary-bg);color:var(--primary)}
+.v-log{background:#0C111D;padding:14px 18px;height:340px;overflow:auto}
+.v-log pre{margin:0;font-family:var(--font-mono);font-size:11.5px;line-height:1.65;color:#CECFD2;
+  white-space:pre-wrap;word-break:break-all}
+.v-empty{height:340px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;background:var(--gray-50)}
+.v-empty .ic{width:36px;height:36px;border-radius:99px;background:var(--gray-100);color:var(--text-faint);
+  display:inline-flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:12px}
+.v-empty .t{font-size:13.5px;font-weight:700;margin-bottom:6px}
+.v-empty .d{font-size:12px;color:var(--text-weak);line-height:1.6;max-width:380px}
+.v-foot{padding:8px 18px;font-size:11px;color:var(--text-faint);background:var(--gray-50);
+  border-top:1px solid var(--border)}
+
+/* ── API 응답 컬럼 ── */
+.api h3{font-size:13px;font-weight:700;margin:0 0 4px}
+.api .src{font-size:11.5px;color:var(--text-faint);margin:0 0 10px;line-height:1.6}
+.api .src code{font-size:11px}
+.api details{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);margin-bottom:14px;overflow:hidden}
+.api summary{cursor:pointer;font-size:12.5px;font-weight:600;padding:11px 16px;color:var(--text-medium)}
+.api summary .m{font-family:var(--font-mono);font-size:10.5px;font-weight:700;color:var(--ok-text);
+  background:var(--ok-bg);border-radius:4px;padding:1px 6px;margin-right:6px}
+.api summary .path{font-family:var(--font-mono);font-size:11px;color:var(--gray-600)}
+.api pre{font-family:var(--font-mono);font-size:11px;line-height:1.6;background:#0C111D;color:#CECFD2;
+  margin:0;padding:14px 16px;overflow:auto;max-height:460px;white-space:pre;border-top:1px solid var(--border)}
+.api .key{color:#7CB6FF}.api .str{color:#8FDCA8}.api .num{color:#FDB022}.api .nul{color:#F97066}
+.api .hint{font-size:11px;color:var(--text-faint);padding:8px 16px;background:var(--gray-50);
+  border-top:1px solid var(--border);line-height:1.6}
+</style></head>
+<body>
+<div class="wrap">
+
+<h1>R23 패널 데모 — 인터랙티브 + 실제 API 응답</h1>
+<p class="sub">
+  좌측 패널은 클릭 가능합니다 — <b>시도 이력 행 클릭 → Attempt 상세(← 뒤로)</b>, <b>[로그] → 뷰어 오버레이</b>
+  (Terraform 로그 | 상태 응답 원문 토글), <b>Esc</b>는 뷰어 → 상세 → 루트 순으로 접힙니다.
+  우측은 이 패널을 그리는 <b>실제 API 응답 원문</b> — 필드명·형태는 orchestrator의
+  <code>DtoSnakeCaseSerializationTest</code>·DTO 코드에서 그대로 가져왔고, 값은 mock-infra 계약
+  (job id = 숫자, terraformState = RUNNING/COMPLETED/FAILED, failReason = "mock forced failure")을 따릅니다.
+</p>
+
+<div class="scen" id="scen"></div>
+
+<div class="cols">
+  <div class="stage">
+    <span class="stage-cap">파이프라인 상세 &gt; Task 패널 (400px) — 캔버스는 생략</span>
+    <div class="panel" id="panel"></div>
+  </div>
+
+  <div class="api" id="api">
+    <h3>이 패널을 그리는 API 응답</h3>
+    <p class="src">아래 JSON이 곧 좌측 패널의 데이터 소스입니다(같은 객체를 렌더). 시나리오를 바꾸면 함께 갱신됩니다.</p>
+    <details open id="api-p5">
+      <summary><span class="m">GET</span><span class="path">/api/v1/pipelines/{pipelineId}/tasks/{taskId}</span> — Task 상세 (P5)</summary>
+      <pre id="json-p5"></pre>
+      <div class="hint">attempt마다 <code>terraform_results[]</code>(종결 결과 메타) · <code>job_states[]</code>(진행 관측) ·
+        <code>check</code>(폴 카운터)가 인라인. <code>response</code>는 어댑터가 정규화한 job id 배열 원문.</div>
+    </details>
+    <details id="api-p11">
+      <summary><span class="m">GET</span><span class="path">…/attempts/{n}/jobs/{jobId}/result</span> — Terraform 로그 본문 (P11)</summary>
+      <pre id="json-p11">뷰어에서 [로그]를 열면 그 job의 응답이 여기 표시됩니다.</pre>
+      <div class="hint"><code>content</code>가 로그 원문(최대 16MB, <code>truncated</code>면 tail 우선 절단).
+        <code>content: null</code> = 본문 수집 실패 포인터 행(200). 행 자체가 없으면 404
+        <code>ORCHESTRATION_TERRAFORM_RESULT_NOT_FOUND</code>.</div>
+    </details>
+    <details id="api-state">
+      <summary><span class="m">GET</span><span class="path">…/attempts/{n}/jobs/{jobId}/state</span> — 상태 응답 원문</summary>
+      <pre id="json-state">뷰어에서 [상태 응답 원문] 탭을 열면 그 job의 응답이 여기 표시됩니다.</pre>
+      <div class="hint"><code>last_response</code> = InfraManager status 응답 body 전문(전 필드 보존, compact JSON).
+        <code>last_state</code>는 정규화 전 원시 <code>terraformState</code>.</div>
+    </details>
+  </div>
+</div>
+
+</div>
+
+<!-- 뷰어 오버레이 -->
+<div class="overlay" id="overlay">
+  <div class="viewer" id="viewer"></div>
+</div>
+
+<script>
+'use strict';
+/* ════ 데이터 — 실제 wire 계약 그대로 (snake_case, 값은 mock-infra 어휘) ════ */
+
+// P11 응답 (GET …/attempts/{n}/jobs/{jobId}/result) — key: `${attempt}:${jobId}`
+const RESULTS = {
+  '2:1026': { task_id: 5, attempt_number: 2, job_id: '1026', succeeded: true, truncated: false,
+    created_at: '2026-07-09T10:44:02Z',
+    content: 'aws_glue_catalog_database.service_level: Creating...\naws_glue_catalog_database.service_level: Creation complete after 2s [id=svc-alpha:service_level]\naws_iam_role.pii_agent_scan: Creating...\naws_iam_role.pii_agent_scan: Creation complete after 1s\n\nApply complete! Resources: 214 added, 0 changed, 0 destroyed.' },
+  '2:1027': { task_id: 5, attempt_number: 2, job_id: '1027', succeeded: false, truncated: true,
+    created_at: '2026-07-09T10:44:02Z',
+    content: 'aws_glue_catalog_table.bdc_common["tbl_0417"]: Still creating... [2m10s elapsed]\naws_glue_catalog_table.bdc_common["tbl_0417"]: Creation complete after 2m12s\n\nError: Error acquiring the state lock\n\nError message: ConditionalCheckFailedException: The conditional request failed\nLock Info:\n  ID:        8f2a1c3e-77b4-4e01-9d2f-3a5b6c7d8e90\n  Path:      svc-alpha/service-level/terraform.tfstate\n  Operation: OperationTypeApply\n  Who:       infra-manager@worker-3\n  Created:   2026-07-09 10:42:58 UTC\n\nTerraform acquires a state lock to protect the state from being written\nby multiple users at the same time.' },
+  '2:1028': { task_id: 5, attempt_number: 2, job_id: '1028', succeeded: true, truncated: false,
+    created_at: '2026-07-09T10:44:02Z', content: null }, // 포인터 행 — 본문 수집 실패
+};
+
+// 상태 응답 원문 (GET …/attempts/{n}/jobs/{jobId}/state)
+const STATES = {
+  '2:1026': { task_id: 5, attempt_number: 2, job_id: '1026', last_state: 'COMPLETED', last_fail_reason: null,
+    last_error: null, last_response: '{"terraformState":"COMPLETED","failReason":null}',
+    poll_count: 6, last_polled_at: '2026-07-09T10:43:55Z' },
+  '2:1027': { task_id: 5, attempt_number: 2, job_id: '1027', last_state: 'FAILED', last_fail_reason: 'mock forced failure',
+    last_error: null, last_response: '{"terraformState":"FAILED","failReason":"mock forced failure"}',
+    poll_count: 6, last_polled_at: '2026-07-09T10:43:55Z' },
+  '2:1028': { task_id: 5, attempt_number: 2, job_id: '1028', last_state: 'COMPLETED', last_fail_reason: null,
+    last_error: null, last_response: '{"terraformState":"COMPLETED","failReason":null}',
+    poll_count: 6, last_polled_at: '2026-07-09T10:43:55Z' },
+  '1:1019': { task_id: 5, attempt_number: 1, job_id: '1019', last_state: 'COMPLETED', last_fail_reason: null,
+    last_error: null, last_response: '{"terraformState":"COMPLETED","failReason":null}',
+    poll_count: 4, last_polled_at: '2026-07-09T10:35:41Z' },
+  '1:1020': { task_id: 5, attempt_number: 1, job_id: '1020', last_state: 'RUNNING', last_fail_reason: null,
+    last_error: null, last_response: '{"terraformState":"RUNNING","failReason":null}',
+    poll_count: 4, last_polled_at: '2026-07-09T10:35:41Z' },
+  '1:1021': { task_id: 5, attempt_number: 1, job_id: '1021', last_state: null, last_fail_reason: null,
+    last_error: 'infra-manager call timed out after PT30S', last_response: null,
+    poll_count: 4, last_polled_at: '2026-07-09T10:36:02Z' },
+};
+
+// P5 TaskDetail — 시나리오 3종
+const SCENARIOS = [
+{
+  key: 'tf-failed', label: 'Terraform · FAILED',
+  detail: {
+    task_id: 5, pipeline_id: 101, sequence: 2, kind: 'TERRAFORM_JOB',
+    task_definition: 'AWS_SERVICE_APPLY_V1',
+    definition: {
+      name: 'AWS_SERVICE_APPLY_V1', display_name: 'AWS Service Level 테라폼 Apply',
+      description: '대상의 AWS service level 인프라를 Terraform apply로 구성한다.',
+      dispatch_api: 'POST /api/v2/aws/target-sources/{targetSourceId}/service/level/terraform',
+      status_api: 'GET /api/v2/aws/terraform-jobs/{terraformJobId}',
+      result_api: 'GET /api/v2/aws/terraform-jobs/{terraformJobId}/result',
+      success_policy: 'ALL_JOBS_COMPLETED', result_storage: 'terraform_result (per job, attempt-terminal turn)'
+    },
+    operation: 'AWS_SERVICE_TF_APPLY', status: 'FAILED', fail_count: 2, error_code: 'JOB_FAILED',
+    consumes_terraform_slot: true,
+    started_at: '2026-07-09T10:31:12Z', ready_at: '2026-07-09T10:31:12Z',
+    finished_at: '2026-07-09T10:44:02Z', next_check_at: null,
+    effective_polling_interval: 'PT10M', effective_execution_timeout: 'PT50M', effective_max_fail_count: 3,
+    description: null,
+    attempts: [
+      { attempt_number: 1, status: 'FAILED', error_code: 'CALL_TIMEOUT',
+        failure_detail: 'infra-manager call timed out after PT30S (GET /api/v2/aws/terraform-jobs/1021)',
+        response: '["1019","1020","1021"]',
+        started_at: '2026-07-09T10:31:12Z', finished_at: '2026-07-09T10:36:02Z',
+        check: { call_count: 4, not_met_count: 0, api_error_count: 0, call_timeout_count: 1,
+          last_external_status: 'RUNNING', last_checked_at: '2026-07-09T10:36:02Z' },
+        terraform_results: [],
+        job_states: [
+          { job_id: '1019', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+            poll_count: 4, last_polled_at: '2026-07-09T10:35:41Z' },
+          { job_id: '1020', last_state: 'RUNNING', last_fail_reason: null, last_error: null,
+            poll_count: 4, last_polled_at: '2026-07-09T10:35:41Z' },
+          { job_id: '1021', last_state: null, last_fail_reason: null,
+            last_error: 'infra-manager call timed out after PT30S',
+            poll_count: 4, last_polled_at: '2026-07-09T10:36:02Z' }
+        ] },
+      { attempt_number: 2, status: 'FAILED', error_code: 'JOB_FAILED',
+        failure_detail: 'jobs reported FAILED: [1027]',
+        response: '["1026","1027","1028"]',
+        started_at: '2026-07-09T10:38:04Z', finished_at: '2026-07-09T10:44:02Z',
+        check: { call_count: 6, not_met_count: 0, api_error_count: 0, call_timeout_count: 0,
+          last_external_status: 'FAILED', last_checked_at: '2026-07-09T10:43:55Z' },
+        terraform_results: [
+          { job_id: '1026', succeeded: true, truncated: false, has_body: true, created_at: '2026-07-09T10:44:02Z' },
+          { job_id: '1027', succeeded: false, truncated: true, has_body: true, created_at: '2026-07-09T10:44:02Z' },
+          { job_id: '1028', succeeded: true, truncated: false, has_body: false, created_at: '2026-07-09T10:44:02Z' }
+        ],
+        job_states: [
+          { job_id: '1026', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+            poll_count: 6, last_polled_at: '2026-07-09T10:43:55Z' },
+          { job_id: '1027', last_state: 'FAILED', last_fail_reason: 'mock forced failure', last_error: null,
+            poll_count: 6, last_polled_at: '2026-07-09T10:43:55Z' },
+          { job_id: '1028', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+            poll_count: 6, last_polled_at: '2026-07-09T10:43:55Z' }
+        ] }
+    ]
+  }
+},
+{
+  key: 'tf-running', label: 'Terraform · RUNNING',
+  detail: {
+    task_id: 6, pipeline_id: 101, sequence: 3, kind: 'TERRAFORM_JOB',
+    task_definition: 'AWS_BDC_COMMON_APPLY_V1',
+    definition: {
+      name: 'AWS_BDC_COMMON_APPLY_V1', display_name: 'AWS BDC Common 테이블 Apply',
+      description: 'BDC common 테이블 인프라를 Terraform apply로 구성한다.',
+      dispatch_api: 'POST /api/v2/aws/target-sources/{targetSourceId}/bdc/common/terraform',
+      status_api: 'GET /api/v2/aws/terraform-jobs/{terraformJobId}',
+      result_api: 'GET /api/v2/aws/terraform-jobs/{terraformJobId}/result',
+      success_policy: 'ALL_JOBS_COMPLETED', result_storage: 'terraform_result (per job, attempt-terminal turn)'
+    },
+    operation: 'AWS_BDC_COMMON_TF_APPLY', status: 'IN_PROGRESS', fail_count: 0, error_code: null,
+    consumes_terraform_slot: true,
+    started_at: '2026-07-09T10:45:10Z', ready_at: '2026-07-09T10:45:10Z',
+    finished_at: null, next_check_at: '2026-07-09T10:56:02Z',
+    effective_polling_interval: 'PT10M', effective_execution_timeout: 'PT50M', effective_max_fail_count: 3,
+    description: null,
+    attempts: [
+      { attempt_number: 1, status: 'IN_PROGRESS', error_code: null, failure_detail: null,
+        response: '["1031","1032","1033"]',
+        started_at: '2026-07-09T10:45:10Z', finished_at: null,
+        check: { call_count: 2, not_met_count: 0, api_error_count: 0, call_timeout_count: 0,
+          last_external_status: 'RUNNING', last_checked_at: '2026-07-09T10:46:02Z' },
+        terraform_results: [],
+        job_states: [
+          { job_id: '1031', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+            poll_count: 2, last_polled_at: '2026-07-09T10:46:02Z' },
+          { job_id: '1032', last_state: 'RUNNING', last_fail_reason: null, last_error: null,
+            poll_count: 2, last_polled_at: '2026-07-09T10:46:02Z' },
+          { job_id: '1033', last_state: 'RUNNING', last_fail_reason: null, last_error: null,
+            poll_count: 2, last_polled_at: '2026-07-09T10:46:02Z' }
+        ] }
+    ]
+  }
+},
+{
+  key: 'condition', label: 'Condition · IN_PROGRESS',
+  detail: {
+    task_id: 7, pipeline_id: 101, sequence: 4, kind: 'CONDITION_CHECK',
+    task_definition: 'AWS_NETWORK_READY_V1',
+    definition: {
+      name: 'AWS_NETWORK_READY_V1', display_name: '네트워크 준비 확인',
+      description: '네트워크가 준비 완료 상태가 될 때까지 조건을 확인한다.',
+      dispatch_api: null,
+      status_api: 'GET /infra/network/ready?target={targetSourceId}',
+      result_api: null,
+      success_policy: 'CONDITION_MET', result_storage: null
+    },
+    operation: 'AWS_NETWORK_READY', status: 'IN_PROGRESS', fail_count: 4, error_code: null,
+    consumes_terraform_slot: false,
+    started_at: '2026-07-09T10:36:00Z', ready_at: '2026-07-09T10:36:00Z',
+    finished_at: null, next_check_at: '2026-07-09T11:16:30Z',
+    effective_polling_interval: 'PT10M', effective_execution_timeout: null, effective_max_fail_count: 60,
+    description: null,
+    attempts: [
+      { attempt_number: 1, status: 'FAILED', error_code: 'CONDITION_NOT_MET', failure_detail: null,
+        response: null, started_at: '2026-07-09T10:36:00Z', finished_at: '2026-07-09T10:36:01Z',
+        check: { call_count: 1, not_met_count: 1, api_error_count: 0, call_timeout_count: 0,
+          last_external_status: 'NOT_MET', last_checked_at: '2026-07-09T10:36:01Z' },
+        terraform_results: [], job_states: [] },
+      { attempt_number: 2, status: 'FAILED', error_code: 'CHECK_ERROR',
+        failure_detail: 'infra-manager call failed: 503 Service Unavailable (GET /infra/network/ready)',
+        response: null, started_at: '2026-07-09T10:46:30Z', finished_at: '2026-07-09T10:46:31Z',
+        check: { call_count: 1, not_met_count: 0, api_error_count: 1, call_timeout_count: 0,
+          last_external_status: null, last_checked_at: '2026-07-09T10:46:31Z' },
+        terraform_results: [], job_states: [] },
+      { attempt_number: 3, status: 'FAILED', error_code: 'CALL_TIMEOUT',
+        failure_detail: 'infra-manager call timed out after PT30S (GET /infra/network/ready)',
+        response: null, started_at: '2026-07-09T10:56:31Z', finished_at: '2026-07-09T10:57:01Z',
+        check: { call_count: 1, not_met_count: 0, api_error_count: 0, call_timeout_count: 1,
+          last_external_status: null, last_checked_at: '2026-07-09T10:57:01Z' },
+        terraform_results: [], job_states: [] },
+      { attempt_number: 4, status: 'FAILED', error_code: 'CONDITION_NOT_MET', failure_detail: null,
+        response: null, started_at: '2026-07-09T11:06:30Z', finished_at: '2026-07-09T11:06:31Z',
+        check: { call_count: 1, not_met_count: 1, api_error_count: 0, call_timeout_count: 0,
+          last_external_status: 'NOT_MET', last_checked_at: '2026-07-09T11:06:31Z' },
+        terraform_results: [], job_states: [] },
+      { attempt_number: 5, status: 'IN_PROGRESS', error_code: null, failure_detail: null,
+        response: null, started_at: '2026-07-09T11:16:30Z', finished_at: null,
+        check: null, terraform_results: [], job_states: [] }
+    ]
+  }
+}];
+
+/* ════ 상태 ════ */
+let scenIdx = 0;          // 현재 시나리오
+let view = { name: 'root' }; // 'root' | {name:'attempt', n}
+let pollsExpanded = false;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hm = (iso) => iso ? iso.slice(11, 16) : '—';
+const hms = (iso) => iso ? iso.slice(11, 19) : '—';
+
+/* job 행 도출: terraform_results ∪ job_states (job_id join). response는 파싱하지 않는다. */
+function jobRows(attempt) {
+  const byId = new Map();
+  for (const s of attempt.job_states) byId.set(s.job_id, { id: s.job_id, state: s });
+  for (const r of attempt.terraform_results) {
+    const row = byId.get(r.job_id) || { id: r.job_id };
+    row.result = r; byId.set(r.job_id, row);
+  }
+  return [...byId.values()];
+}
+/* 칩 4종: 결과가 있으면 succeeded, 없으면 원시 last_state의 terminal 3값만 해석(서버와 같은 규칙) */
+function chipOf(row) {
+  if (row.result) return row.result.succeeded ? ['ok', '성공'] : ['err', '실패'];
+  if (!row.state) return ['none', '기록 없음'];
+  const st = row.state.last_state;
+  if (st === 'COMPLETED' || st === 'DESTROYED') return ['ok', '성공'];
+  if (st === 'FAILED') return ['err', '실패'];
+  if (st === null) return ['none', '기록 없음'];
+  return ['run', '진행 중'];
+}
+function jobListHtml(attempt, foot) {
+  const rows = jobRows(attempt).map((row) => {
+    const [cls, label] = chipOf(row);
+    const canLog = !!(row.result); // result 행이 있어야 P11 존재 (has_body=false여도 뷰어가 포인터 상태 안내)
+    const meta = row.result ? hm(row.result.created_at) : (row.state ? `폴 ${row.state.poll_count}회` : '');
+    return `<div class="job"><span class="jchip ${cls}">${label}</span>
+      <span class="jid">${esc(row.id)}</span><span class="jmeta">${meta}</span>
+      <button class="btn-log" data-log="${attempt.attempt_number}:${esc(row.id)}" ${canLog ? '' : 'disabled'}>로그</button></div>`;
+  }).join('');
+  return `<div class="jobs">${rows}${foot ? `<div class="jobs-foot">${foot}</div>` : ''}</div>`;
+}
+
+/* Condition 폴 판정 파생: check 카운터(1폴=1시도) → pill */
+function verdictOf(a) {
+  if (a.status === 'DONE') return ['met', '충족'];
+  if (a.status === 'IN_PROGRESS') return ['notmet', '확인 중'];
+  if (a.error_code === 'CONDITION_NOT_MET') return ['notmet', '미충족'];
+  if (a.error_code === 'CALL_TIMEOUT') return ['tmo', '타임아웃'];
+  return ['apierr', 'API 오류'];
+}
+
+function fmtDur(startIso, endIso) {
+  if (!startIso || !endIso) return '';
+  const s = Math.round((new Date(endIso) - new Date(startIso)) / 1000);
+  return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
+}
+
+/* ════ 루트 뷰 ════ */
+function renderRoot() {
+  const d = SCENARIOS[scenIdx].detail;
+  const head = `
+    <div class="p-head">
+      <div class="p-title">${esc(d.definition.display_name)} <span class="pill ${d.status}">${d.status}</span></div>
+      <div class="p-desc">${esc(d.definition.description)}</div>
+      <div class="p-kindrow">타입 <span class="kind">${d.kind}</span></div>
+    </div>`;
+  let body = '';
+  if (d.kind === 'TERRAFORM_JOB') {
+    const latest = d.attempts[d.attempts.length - 1];
+    const running = latest && latest.status === 'IN_PROGRESS';
+    body = `
+      <div class="sec"><div class="sec-t">진행 기록</div><div class="kv">
+        <span class="k">Started / Finished</span><span class="v">${hm(d.started_at)} → ${hm(d.finished_at)}</span>
+        <span class="k">시도 횟수</span><span class="v">${d.fail_count} / ${d.effective_max_fail_count}</span>
+        ${d.error_code ? `<span class="k">실패 코드</span><span class="v"><span class="ecode">${d.error_code}</span></span>` : ''}
+        ${d.next_check_at ? `<span class="k">다음 확인</span><span class="v">${hms(d.next_check_at)}</span>` : ''}
+      </div></div>
+      ${latest ? `<div class="sec"><div class="sec-t">Terraform Job <span class="cnt">— 최근 시도(#${latest.attempt_number}) · ${jobRows(latest).length}건</span></div>
+        ${jobListHtml(latest, running ? '로그는 시도 종결 후 수집됩니다 — 실행 중에는 job 상태만 표시' : '')}</div>` : ''}
+      <div class="sec"><div class="sec-t">시도 이력 <span class="cnt">— ${d.attempts.length}회</span></div>
+        <div class="att-list">${[...d.attempts].reverse().map((a, i) => `
+          <button class="att-row ${i === 0 ? 'current' : ''}" data-att="${a.attempt_number}">
+            <span class="no">#${a.attempt_number}</span><span class="pill ${a.status}">${a.status}</span>
+            ${a.error_code ? `<span class="ecode">${a.error_code}</span>` : ''}
+            <span class="time">${hm(a.started_at)} → ${hm(a.finished_at)}</span>
+            ${i === 0 ? '<span class="cur-tag">현재</span>' : ''}<span class="chev">›</span>
+          </button>`).join('')}</div></div>`;
+  } else {
+    const latest = [...d.attempts].reverse().find((a) => a.check);
+    const shown = pollsExpanded ? [...d.attempts].reverse() : [...d.attempts].reverse().slice(0, 5);
+    body = `
+      <div class="sec"><div class="sec-t">진행 기록</div><div class="kv">
+        <span class="k">Started</span><span class="v">${hm(d.started_at)}</span>
+        <span class="k">재시도 예산</span><span class="v">${d.fail_count} / ${d.effective_max_fail_count}</span>
+        ${latest ? `<span class="k">현재 판정</span><span class="v"><span class="verdict ${verdictOf(d.attempts[d.attempts.length - 2] || latest)[0]}">${verdictOf(d.attempts[d.attempts.length - 2] || latest)[1]}</span></span>
+        <span class="k">외부 상태</span><span class="v mono">${esc(latest.check.last_external_status ?? '—')}</span>` : ''}
+        ${d.next_check_at ? `<span class="k">다음 확인</span><span class="v">${hms(d.next_check_at)}</span>` : ''}
+      </div></div>
+      <div class="sec"><div class="sec-t">폴 이력 <span class="cnt">— ${pollsExpanded ? '전체' : '최근 ' + Math.min(5, d.attempts.length)} / ${d.attempts.length}회</span></div>
+        <table class="polls"><thead><tr><th>#</th><th>판정</th><th>외부 상태</th><th style="text-align:right">확인 시각</th></tr></thead>
+        <tbody>${shown.map((a) => { const [c, l] = verdictOf(a); return `
+          <tr><td>${a.attempt_number}</td><td><span class="verdict ${c}">${l}</span></td>
+          <td class="mono">${esc(a.check?.last_external_status ?? '—')}</td>
+          <td style="text-align:right">${hms(a.check?.last_checked_at ?? a.started_at)}</td></tr>`; }).join('')}</tbody></table>
+        ${d.attempts.length > 5 ? `<button class="more-link" id="polls-more">${pollsExpanded ? '접기' : `전체 ${d.attempts.length}회 보기`}</button>` : ''}</div>`;
+  }
+  const refold = `
+    <details class="refold"><summary>▸ 정의 · 실행 계약 — 참조 정보</summary><div class="kv">
+      <span class="k">task_definition</span><span class="v mono">${esc(d.task_definition)}</span>
+      <span class="k">operation</span><span class="v mono">${esc(d.operation)}</span>
+      <span class="k">polling</span><span class="v mono">${esc(d.effective_polling_interval ?? '—')}</span>
+      <span class="k">실행 타임아웃</span><span class="v mono">${esc(d.effective_execution_timeout ?? '—')}</span>
+      <span class="k">재시도 예산</span><span class="v">${d.effective_max_fail_count}회</span>
+    </div></details>`;
+  $('panel').innerHTML = head + `<div class="p-body">${body}${refold}</div>`;
+  bindPanel();
+}
+
+/* ════ Attempt 상세 뷰 (드릴다운) ════ */
+function renderAttempt(n) {
+  const d = SCENARIOS[scenIdx].detail;
+  const a = d.attempts.find((x) => x.attempt_number === n);
+  const head = `
+    <div class="p-head sub-view">
+      <button class="btn-back" id="btn-back" title="뒤로 (Esc)">←</button>
+      <div><div class="sub-title">Attempt #${a.attempt_number} <span class="pill ${a.status}">${a.status}</span>
+        ${a.error_code ? `<span class="ecode">${a.error_code}</span>` : ''}</div>
+        <div class="sub-crumb">${esc(d.definition.display_name)}</div></div>
+    </div>`;
+  const finishedNote = a.status === 'IN_PROGRESS' ? '' :
+    '"진행 중"·"기록 없음"은 이 시도가 종결되던 시점의 마지막 관측입니다';
+  const body = `
+    <div class="sec"><div class="sec-t">시도 정보</div><div class="kv">
+      <span class="k">Started / Finished</span><span class="v">${hm(a.started_at)} → ${hm(a.finished_at)}</span>
+      ${a.finished_at ? `<span class="k">소요</span><span class="v">${fmtDur(a.started_at, a.finished_at)}</span>` : ''}
+    </div></div>
+    ${jobRows(a).length ? `<div class="sec"><div class="sec-t">Terraform Job <span class="cnt">— 이 시도 · ${jobRows(a).length}건</span></div>
+      ${jobListHtml(a, finishedNote)}</div>` : ''}
+    ${a.check ? `<div class="sec"><div class="sec-t">폴 요약</div><div class="kv">
+      <span class="k">폴 횟수</span><span class="v">${a.check.call_count}회</span>
+      <span class="k">API 오류 / 타임아웃</span><span class="v">${a.check.api_error_count} / ${a.check.call_timeout_count}</span>
+      <span class="k">마지막 확인</span><span class="v">${hms(a.check.last_checked_at)}</span>
+    </div></div>` : ''}
+    ${a.response ? `<details class="resp-fold"><summary>response 원문 — dispatch 응답, 파싱하지 않음</summary>
+      <pre>${esc(a.response)}</pre></details>` : ''}`;
+  $('panel').innerHTML = head + `<div class="p-body">${body}</div>`;
+  bindPanel();
+}
+
+/* ════ 뷰어 ════ */
+let viewerTab = 'log'; // 'log' | 'raw'
+let viewerKey = null;
+
+function openViewer(key) {
+  viewerKey = key; viewerTab = 'log';
+  renderViewer();
+  $('overlay').classList.add('open');
+}
+function closeViewer() { $('overlay').classList.remove('open'); viewerKey = null; }
+
+function renderViewer() {
+  const d = SCENARIOS[scenIdx].detail;
+  const [attNo, jobId] = viewerKey.split(':');
+  const result = RESULTS[viewerKey] ?? null;
+  const state = STATES[viewerKey] ?? null;
+  const meta = result ?? state;
+  const succeeded = result ? result.succeeded : null;
+  let bodyHtml;
+  if (viewerTab === 'log') {
+    if (!result) {
+      bodyHtml = `<div class="v-empty"><div class="ic">∅</div><div class="t">이 job의 로그 기록이 없습니다</div>
+        <div class="d">시도가 로그 수집 전에 종결됐습니다. 시도의 실패 코드에서 사유를 확인하세요.<br>
+        (서버: 404 <code>ORCHESTRATION_TERRAFORM_RESULT_NOT_FOUND</code>)</div></div>`;
+    } else if (result.content === null) {
+      bodyHtml = `<div class="v-empty"><div class="ic">◍</div><div class="t">로그 본문이 수집되지 않았습니다</div>
+        <div class="d">job은 종결됐지만 서버가 로그 본문을 가져오지 못한 기록입니다.<br>결과 판정(성공/실패)과 수집 시각은 유효합니다. (서버: 200, <code>content: null</code>)</div></div>`;
+    } else {
+      bodyHtml = `<div class="v-log" id="v-log"><pre>${result.truncated ? '<span style="display:block;text-align:center;color:#61646C;font-size:10.5px;border:1px dashed #333741;border-radius:6px;padding:5px;margin-bottom:10px">— 이 지점 위 로그는 16MB 초과로 절단되었습니다 —</span>' : ''}${esc(result.content)}</pre></div>`;
+    }
+    $('json-p11').textContent = result ? JSON.stringify(result, null, 2)
+      : '404 Not Found\n{"error_code":"ORCHESTRATION_TERRAFORM_RESULT_NOT_FOUND"}';
+    $('api-p11').open = true;
+  } else {
+    if (!state) {
+      bodyHtml = `<div class="v-empty"><div class="ic">∅</div><div class="t">이 job의 상태 관측이 없습니다</div>
+        <div class="d">(서버: 404 <code>ORCHESTRATION_TERRAFORM_JOB_STATE_NOT_FOUND</code>)</div></div>`;
+    } else if (state.last_response === null) {
+      bodyHtml = `<div class="v-empty"><div class="ic">◍</div><div class="t">상태 응답 원문이 없습니다</div>
+        <div class="d">마지막 폴이 호출 실패라 응답 body가 없습니다.<br>last_error: <code>${esc(state.last_error ?? '—')}</code></div></div>`;
+    } else {
+      bodyHtml = `<div class="v-log"><pre>${esc(JSON.stringify(JSON.parse(state.last_response), null, 2))}</pre></div>`;
+    }
+    if (state) { $('json-state').textContent = JSON.stringify(state, null, 2); $('api-state').open = true; }
+  }
+  $('viewer').innerHTML = `
+    <div class="v-head"><span class="v-crumb">${esc(d.definition.display_name)}
+      <span class="sep">›</span> attempt #${attNo} <span class="sep">›</span> <span class="jid">${esc(jobId)}</span></span>
+      <button class="v-close" id="v-close">✕</button></div>
+    <div class="v-meta">
+      <span class="seg"><button id="seg-log" class="${viewerTab === 'log' ? 'on' : ''}">Terraform 로그</button><button id="seg-raw" class="${viewerTab === 'raw' ? 'on' : ''}">상태 응답 원문</button></span>
+      ${succeeded !== null ? `<span class="pill ${succeeded ? 'DONE' : 'FAILED'}">${succeeded ? '성공' : '실패'}</span>` : ''}
+      ${result?.truncated ? '<span class="badge-warn">⚠ 16MB 초과 — 앞부분 절단 (tail 우선 보존)</span>' : ''}
+      ${meta?.created_at || meta?.last_polled_at ? `<span>수집 ${hms(meta.created_at ?? meta.last_polled_at)}</span>` : ''}
+      <span class="grow"></span><button class="v-btn">복사</button><button class="v-btn">파일로 저장</button></div>
+    ${bodyHtml}
+    <div class="v-foot">로그는 열릴 때 맨 아래(tail)에서 시작 — terraform 오류는 끝에 있고 절단도 tail 우선. escape된 &lt;pre&gt;로만 렌더.</div>`;
+  $('v-close').onclick = closeViewer;
+  $('seg-log').onclick = () => { viewerTab = 'log'; renderViewer(); };
+  $('seg-raw').onclick = () => { viewerTab = 'raw'; renderViewer(); };
+  const log = $('v-log'); if (log) log.scrollTop = log.scrollHeight; // tail 시작
+}
+
+/* ════ 바인딩 ════ */
+function bindPanel() {
+  document.querySelectorAll('[data-att]').forEach((el) => {
+    el.onclick = () => { view = { name: 'attempt', n: Number(el.dataset.att) }; render(); };
+  });
+  document.querySelectorAll('[data-log]').forEach((el) => {
+    el.onclick = () => openViewer(el.dataset.log);
+  });
+  const back = $('btn-back'); if (back) back.onclick = () => { view = { name: 'root' }; render(); };
+  const more = $('polls-more'); if (more) more.onclick = () => { pollsExpanded = !pollsExpanded; render(); };
+}
+
+function render() {
+  if (view.name === 'attempt') renderAttempt(view.n); else renderRoot();
+  $('json-p5').textContent = JSON.stringify(SCENARIOS[scenIdx].detail, null, 2);
+}
+
+/* 시나리오 스위처 */
+SCENARIOS.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.textContent = s.label;
+  b.onclick = () => { scenIdx = i; view = { name: 'root' }; pollsExpanded = false; render(); renderScen(); };
+  $('scen').appendChild(b);
+});
+function renderScen() { [...$('scen').children].forEach((b, i) => b.classList.toggle('on', i === scenIdx)); }
+
+/* Esc 계층: 뷰어 → Attempt 상세 → (루트: 무시) */
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if ($('overlay').classList.contains('open')) { closeViewer(); return; }
+  if (view.name === 'attempt') { view = { name: 'root' }; render(); }
+});
+$('overlay').addEventListener('click', (e) => { if (e.target === $('overlay')) closeViewer(); });
+
+renderScen(); render();
+</script>
+</body></html>
