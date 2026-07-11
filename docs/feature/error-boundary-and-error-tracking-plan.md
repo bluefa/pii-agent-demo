@@ -327,6 +327,36 @@ LIN-62(pino 구조화 로깅)가 완성되면 **모든 API 요청이 `{method, p
 - **Codex** (`/codex-review`, gpt-5.5 xhigh): 웹 리서치보다는 **결론 교차 검증**에 강함 — Claude 리서치 결과("Bugsink로 간다, 터널 구조는 이렇게")를 넘겨 반박시키는 최종 게이트로 사용.
 - 순서: Claude deep research (R3→R1→R4) → 결정 초안 → Codex 교차 검증 → 구현.
 
+### Part D 결과 — R3·R1 딥리서치 + codex(gpt-5.6-sol, xhigh) 교차 검증 (2026-07-11)
+
+**R3 (`@sentry/nextjs` × Next 16.1) = GO.** codex가 npm/GitHub/소스에서 독립 재검증 완료.
+
+- 최신 `@sentry/nextjs@10.65.0`(2026-07-10)이 Next 16을 peer range에 명시(`^16.0.0-0`), React 19.2 지원. **≥10.57.0으로 핀 필수** — standalone 빌드 파손 fix(10.26.0, getsentry#18172), Turbopack 서버 모듈 주입 fix(10.39.0/10.57.0)가 그 사이에 있음.
+- B-2의 파일 컨벤션(`instrumentation.ts` + `onRequestError`, `instrumentation-client.ts` + `onRouterTransitionStart`) 그대로 유효.
+- Turbopack 프로덕션 빌드에서 소스맵 자동 업로드 지원(Next ≥15.4.1 조건 충족). 단 webpack 시절 옵션(`excludeServerRoutes` 등)은 Turbopack에서 no-op — 필터링은 `beforeSend`로.
+- **⛔ 내장 `tunnelRoute`는 SaaS 전용** — 소스에서 DSN 호스트가 `o*.ingest.sentry.io` regex와 일치할 때만 동작(불일치 시 조용히 미터널링). 셀프호스트 트래커에는 못 씀 → R4의 터널은 직접 구현이 확정.
+
+**R1 (트래커 선택) = Bugsink 1순위, GlitchTip(v6.2.0, MIT) 공식 fallback.**
+
+- Bugsink: 월간 릴리스(최신 2.4.0, 2026-07-10), 모던 envelope 엔드포인트, 진짜 `sentry-cli` 지원, Slack 네이티브 알림, Polyform Shield(셀프호스트 무료·전기능). 리스크 = 1인 메인테이너.
+- self-host Sentry(16GB+/~50컨테이너) 과체급 탈락. PostHog self-host는 에러 인제스트 버그(#40443, dup #38918로 fix 머지됐으나 이후에도 설정 문제 보고)와 비-Sentry 프로토콜로 탈락.
+- codex 반박 수용 (원 리포트 교정): ① "단일 컨테이너"는 과소평가 — 운영은 +Postgres·백업·업그레이드 포함, ② **"이동은 DSN 교체뿐" 주장은 기각** — 인제스트만 DSN 교체이고 토큰·소스맵 업로드·알림·과거 데이터는 이관 안 됨. GlitchTip을 "검증된 fallback"으로 문서화하되 마이그레이션을 공짜로 서술하지 말 것.
+
+**구현 시 확정 설정 (Part B에 추가 반영할 것):**
+
+| 항목 | 값 | 이유 |
+| --- | --- | --- |
+| SDK 버전 | `@sentry/nextjs` ≥10.57.0 핀 | Next 16 관련 fix 포함 하한 |
+| `withSentryConfig` | `sentryUrl`=Bugsink, `release.create: false`, `telemetry: false`, 초기 `deleteSourcemapsAfterUpload: false` | release API는 Bugsink 미구현 → 켜두면 업로드 실패; telemetry는 폐쇄망+정책 |
+| Sentry init | errors-only (tracing/replay/logs 비활성) | Bugsink가 trace envelope을 버림 + PII 최소화 |
+| Bugsink 배포 | +Postgres, `PHONEHOME=false`(기본 true!), `TIME_ZONE=Asia/Seoul`, 백업 | phone-home이 설치 메타데이터를 bugsink.com에 전송; UI는 영어만(한국어 로케일 없음) |
+| 터널 | 가능하면 인그레스(리버스 프록시) 레벨에서 트래커로 직접 라우팅, 불가 시에만 자체 route.ts | route.ts로 받으면 envelope(압축 20MiB 허용)이 앱 메모리에 버퍼링 — 구현 시 크기 제한·rate limit·body 미로깅 필수 |
+| 소스맵 게이트 | 업로드 성공 ≠ 완료. standalone+Turbopack 실빌드 후 **브라우저 minified 예외 1건 + 서버 예외 1건이 원본 라인으로 심볼리케이션되는지** 확인해야 통과 | Bugsink의 Next.js 소스맵 이슈(#133, #157)가 아직 open; 실패 시 수동 `sentry-cli inject`+`upload` 폴백(플러그인 주입과 중복 금지) |
+| 전제 확인 | `assetPrefix` 제거(PR #552)가 **아직 미머지** — 터널 경로/프록시 매핑은 #552 머지 후 실제 배포 계약 기준으로 확정 | codex가 main 체크아웃에서 발견 |
+| 라이선스 | Polyform Shield는 source-available(비경쟁 조건) — 사내 법무/보안 승인 확인 | 걸리면 GlitchTip(MIT)으로 |
+
+R2(방문 분석)는 계속 보류. R4는 위 터널 방향 확정으로 "사내 망 확인"만 남음. R5는 위 소스맵 게이트로 흡수.
+
 ---
 
 ## Part E — 작업 순서 요약
