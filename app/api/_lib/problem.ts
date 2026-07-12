@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { BffError } from '@/lib/bff/errors';
+import { errorStack, logError } from '@/app/api/_lib/log';
 
 // --- Error Code Catalog ---
 
@@ -214,7 +215,7 @@ export function handleUnexpectedError(
   error: unknown,
   requestId: string,
 ): NextResponse {
-  console.error('[v1] Unexpected error:', error);
+  logError(errorStack(error), { requestId });
   return problemResponse(createProblem(
     'INTERNAL_ERROR',
     '서버에서 예기치 않은 오류가 발생했습니다.',

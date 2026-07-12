@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getRequestId } from '@/app/api/_lib/request-id';
 import { handleUnexpectedError, transformBffError, transformLegacyError } from '@/app/api/_lib/problem';
+import { logAccess } from '@/app/api/_lib/log';
 import { BffError } from '@/lib/bff/errors';
 
 const PROBLEM_JSON = 'application/problem+json';
@@ -50,6 +51,11 @@ export function withV1(
     { params: paramsPromise }: { params: Promise<Record<string, string>> },
   ): Promise<NextResponse> => {
     const requestId = getRequestId(request);
+    const start = Date.now();
+    const method = request.method;
+    const path = new URL(request.url).pathname;
+    const access = (status: number): void =>
+      logAccess({ method, path, status, durationMs: Date.now() - start, requestId });
     try {
       const params = await paramsPromise;
       const response = await handler(request, { requestId, params });
@@ -57,17 +63,21 @@ export function withV1(
       // Non-2xx from legacy client — transform to ProblemDetails
       if (!response.ok && !isProblemResponse(response)) {
         const problem = await transformLegacyError(response, requestId);
+        access(problem.status);
         return addV1Headers(problem, requestId, options?.expectedDuration);
       }
 
+      access(response.status);
       return addV1Headers(response, requestId, options?.expectedDuration);
     } catch (error) {
       // BffError thrown from `bff.<domain>.<method>` (typed BFF client) —
       // map to the same ProblemDetails shape as legacy `transformLegacyError`.
       if (error instanceof BffError) {
         const problem = transformBffError(error, requestId);
+        access(problem.status);
         return addV1Headers(problem, requestId, options?.expectedDuration);
       }
+      access(500);
       return handleUnexpectedError(error, requestId);
     }
   };
