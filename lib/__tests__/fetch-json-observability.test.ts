@@ -91,6 +91,25 @@ describe('fetchJson observability context', () => {
     expect(calls[0].status).toBe(0);
   });
 
+  it('aborted-request console.debug never contains query data', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new DOMException('The operation was aborted.', 'AbortError')), 50);
+        }),
+    );
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    const { fetchJson } = await import('@/lib/fetch-json');
+
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 10);
+    await fetchJson('/integration/api/v1/users/search?q=hong', { signal: controller.signal }).catch(() => {});
+
+    const logged = debugSpy.mock.calls.map((c) => c.map(String).join(' ')).join('\n');
+    expect(logged).toContain('/integration/api/v1/users/search');
+    expect(logged).not.toContain('q=hong');
+  });
+
   it('debug-logs the method + query-stripped path only, never the body/init', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(okResponse());
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});

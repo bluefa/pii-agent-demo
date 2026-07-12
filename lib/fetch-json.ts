@@ -228,7 +228,7 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
       const isTimeout = reason === 'TIMEOUT';
       if (process.env.NODE_ENV !== 'production' && !isTimeout) {
         // Dev only: race를 진단하기 위한 신호. 사용자에게는 안 보이므로 production에서는 제거.
-        console.debug('[fetchJson] aborted (caller superseded):', url);
+        console.debug('[fetchJson] aborted (caller superseded):', sanitizeLogPath(url));
       }
       throw new AppError({
         status: 0,
