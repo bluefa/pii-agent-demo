@@ -15,6 +15,9 @@ type AccessFields = {
   requestId: string;
   clientPage?: string;
   clientAction?: string;
+  /** id-collapsed `path`/`clientPage` for aggregation (see normalizePathTemplate). */
+  pathTemplate?: string;
+  pageTemplate?: string;
 };
 
 function emit(severity: 'ERROR' | 'INFO', message: string, fields: Record<string, unknown>): void {

@@ -3,6 +3,7 @@ import { getRequestId } from '@/app/api/_lib/request-id';
 import { handleUnexpectedError, transformBffError, transformLegacyError } from '@/app/api/_lib/problem';
 import { errorStack, logAccess, logError } from '@/app/api/_lib/log';
 import { clampHeaderValue } from '@/lib/observability-headers';
+import { normalizePathTemplate } from '@/lib/log-path';
 import { BffError } from '@/lib/bff/errors';
 
 const PROBLEM_JSON = 'application/problem+json';
@@ -57,8 +58,10 @@ export function withV1(
     const path = new URL(request.url).pathname;
     const clientPage = clampHeaderValue(request.headers.get('x-client-page'));
     const clientAction = clampHeaderValue(request.headers.get('x-client-action'));
+    const pathTemplate = normalizePathTemplate(path);
+    const pageTemplate = clientPage ? normalizePathTemplate(clientPage) : undefined;
     const access = (status: number): void =>
-      logAccess({ method, path, status, durationMs: Date.now() - start, requestId, clientPage, clientAction });
+      logAccess({ method, path, status, durationMs: Date.now() - start, requestId, clientPage, clientAction, pathTemplate, pageTemplate });
     try {
       const params = await paramsPromise;
       const response = await handler(request, { requestId, params });

@@ -10,7 +10,7 @@
 import { NextResponse } from 'next/server';
 import { logAccess, logError } from '@/app/api/_lib/log';
 import { getRequestId, isValidRequestId } from '@/app/api/_lib/request-id';
-import { sanitizeLogPath } from '@/lib/log-path';
+import { normalizePathTemplate, sanitizeLogPath } from '@/lib/log-path';
 
 const MAX_BODY_BYTES = 32 * 1024;
 const MAX_FIELD_CHARS = 8 * 1024;
@@ -118,9 +118,12 @@ export async function POST(request: Request): Promise<NextResponse> {
   const stack = clampString(record.stack, MAX_FIELD_CHARS);
   const type = typeof record.type === 'string' && KNOWN_TYPES.has(record.type) ? record.type : undefined;
 
+  const page = typeof record.page === 'string' ? clampString(sanitizeLogPath(record.page), MAX_PAGE_CHARS) : undefined;
+
   logError(stack ? `${message}\n${stack}` : message, {
     source: 'browser',
-    page: typeof record.page === 'string' ? clampString(sanitizeLogPath(record.page), MAX_PAGE_CHARS) : undefined,
+    page,
+    pageTemplate: page ? normalizePathTemplate(page) : undefined,
     type,
     digest: clampString(record.digest, MAX_DIGEST_CHARS),
     breadcrumbs: sanitizeBreadcrumbs(record.breadcrumbs),

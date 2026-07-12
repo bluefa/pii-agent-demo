@@ -180,4 +180,33 @@ describe('withV1 observability logging', () => {
     expect('clientPage' in info).toBe(false);
     expect('clientAction' in info).toBe(false);
   });
+
+  it('records id-collapsed pathTemplate/pageTemplate alongside the raw path/clientPage', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const req = new Request('http://localhost/integration/api/v1/target-sources/123/resources', {
+      headers: { 'x-client-page': '/target-sources/456' },
+    });
+
+    await withV1(handler)(req, makeParams());
+
+    const [info] = logLines(spy).filter((l) => l.severity === 'INFO');
+    // Raw values are preserved verbatim…
+    expect(info.path).toBe('/integration/api/v1/target-sources/123/resources');
+    expect(info.clientPage).toBe('/target-sources/456');
+    // …and the id-collapsed templates are added for aggregation.
+    expect(info.pathTemplate).toBe('/integration/api/v1/target-sources/:id/resources');
+    expect(info.pageTemplate).toBe('/target-sources/:id');
+  });
+
+  it('omits pageTemplate when clientPage is absent (pathTemplate always present)', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+
+    await withV1(handler)(makeRequest(), makeParams());
+
+    const [info] = logLines(spy).filter((l) => l.severity === 'INFO');
+    expect('pageTemplate' in info).toBe(false);
+    expect(info.pathTemplate).toBe('/test');
+  });
 });

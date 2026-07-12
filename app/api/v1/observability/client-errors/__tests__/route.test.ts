@@ -53,6 +53,20 @@ describe('POST /observability/client-errors', () => {
     expect(String(lines[0].message)).toContain('Error: boom');
   });
 
+  it('records an id-collapsed pageTemplate alongside the raw page', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { POST } = await import('@/app/api/v1/observability/client-errors/route');
+
+    const res = await POST(
+      post(JSON.stringify({ type: 'boundary', message: 'boom', page: '/target-sources/456' })),
+    );
+
+    expect(res.status).toBe(204);
+    const [line] = parsedLines(spy);
+    expect(line.page).toBe('/target-sources/456');
+    expect(line.pageTemplate).toBe('/target-sources/:id');
+  });
+
   it('rebuilds breadcrumbs from an allowlist — drops nested/unknown props, invalid entries, and query strings', async () => {
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const { POST } = await import('@/app/api/v1/observability/client-errors/route');
