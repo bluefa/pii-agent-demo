@@ -31,7 +31,6 @@ import { TaskDrawer } from '@/app/admin/pipelines/_detail/TaskDrawer';
 import { CancelModal } from '@/app/admin/pipelines/_detail/CancelModal';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyles';
-import { mapPool } from '@/app/admin/pipelines/_detail/mapPool';
 import {
   changedTaskIds,
   currentTaskInfo,
@@ -45,6 +44,7 @@ import {
   progressCount,
   providerLabel,
   recipeLabel,
+  taskMetaLine,
 } from '@/lib/pipeline/format';
 import {
   getPipeline,
@@ -55,7 +55,6 @@ import {
 } from '@/app/lib/api/pipeline';
 import type { PipelineDetail, PipelineSummary, TaskDetail, TaskSummary } from '@/lib/pipeline/types';
 
-const DETAIL_CONCURRENCY = 6;
 /** R23 (C안) — live-run poll cadence. */
 const POLL_INTERVAL_MS = 10_000;
 
@@ -70,9 +69,13 @@ export function PipelineDetailView(): ReactElement {
 
   const [detail, setDetail] = useState<PipelineDetail | null>(null);
   const [status, setStatus] = useState<LoadStatus>('loading');
+  // Task-definition catalog (one bulk call): display names + descriptions for the
+  // flow nodes, so a node needs NO per-task detail to render its name/subtitle.
   const [catalog, setCatalog] = useState<ReadonlyMap<string, string>>(new Map());
+  const [descMap, setDescMap] = useState<ReadonlyMap<string, string>>(new Map());
+  // Per-task detail is fetched lazily — only the task the operator opens. `has(id)`
+  // distinguishes "not fetched yet" (skeleton) from "fetched, value null" (error).
   const [detailMap, setDetailMap] = useState<ReadonlyMap<number, TaskDetail | null>>(new Map());
-  const [detailsLoaded, setDetailsLoaded] = useState(false);
   // Owning-service identity for the header — the SAME value the dashboard shows
   // (PipelineSummary.service_*, i.e. project code/name). PipelineDetail omits it,
   // so we read it off any of this target's pipeline summaries (all share it).
@@ -81,35 +84,12 @@ export function PipelineDetailView(): ReactElement {
   const cancelModal = useModal();
   const [reloadKey, setReloadKey] = useState(0);
 
-  const loadTaskDetails = useCallback(
-    async (
-      d: PipelineDetail,
-      shouldContinue: () => boolean = () => true,
-    ): Promise<Map<number, TaskDetail | null>> => {
-      const entries = await mapPool(
-        d.tasks,
-        DETAIL_CONCURRENCY,
-        async (t) => {
-          try {
-            return [t.task_id, await getTaskDetail(d.pipeline_id, t.task_id)] as const;
-          } catch {
-            return [t.task_id, null] as const;
-          }
-        },
-        shouldContinue,
-      );
-      return new Map(entries.filter((entry) => entry !== undefined));
-    },
-    [],
-  );
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setStatus('loading');
       setDetail(null);
       setDetailMap(new Map());
-      setDetailsLoaded(false);
       setSelected(null);
       try {
         const d = await getPipeline(pipelineId);
@@ -117,7 +97,11 @@ export function PipelineDetailView(): ReactElement {
         setDetail(d);
         setStatus('ready');
         getTaskDefinitions(d.cloud_provider)
-          .then((res) => !cancelled && setCatalog(new Map(res.task_definitions.map((c) => [c.name, c.display_name]))))
+          .then((res) => {
+            if (cancelled) return;
+            setCatalog(new Map(res.task_definitions.map((c) => [c.name, c.display_name])));
+            setDescMap(new Map(res.task_definitions.map((c) => [c.name, c.description])));
+          })
           .catch(() => {});
         // Service name/code for the header (PipelineDetail carries neither) —
         // read off any of this target's pipeline summaries so it matches the
@@ -125,11 +109,6 @@ export function PipelineDetailView(): ReactElement {
         listPipelinesByTarget(d.target_source_id, { page: 0, size: 1 })
           .then((page) => !cancelled && setSvc(page.content[0] ?? null))
           .catch(() => {});
-        const map = await loadTaskDetails(d, () => !cancelled);
-        if (!cancelled) {
-          setDetailMap(map);
-          setDetailsLoaded(true);
-        }
       } catch (err) {
         if (cancelled) return;
         setStatus(err instanceof OrchestratorApiError && err.status === 404 ? 'notfound' : 'error');
@@ -138,7 +117,22 @@ export function PipelineDetailView(): ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [pipelineId, reloadKey, loadTaskDetails]);
+  }, [pipelineId, reloadKey]);
+
+  // Lazy task-detail fetch: only when the operator opens a task and its detail
+  // isn't cached yet. `detailMap.has` gates both the fetch and the drawer skeleton.
+  useEffect(() => {
+    if (!selected || !detail || detailMap.has(selected.task_id)) return;
+    const taskId = selected.task_id;
+    const pipeId = detail.pipeline_id;
+    let cancelled = false;
+    getTaskDetail(pipeId, taskId)
+      .then((d) => !cancelled && setDetailMap((prev) => new Map(prev).set(taskId, d)))
+      .catch(() => !cancelled && setDetailMap((prev) => new Map(prev).set(taskId, null)));
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, detail, detailMap]);
 
   // R23 (C안) — 10s poll while live: refetch pipeline + only the details whose
   // summary moved (+ the open task). Terminalizing drops the interval.
@@ -149,22 +143,24 @@ export function PipelineDetailView(): ReactElement {
       if (document.hidden) return;
       try {
         const next = await getPipeline(pipelineId);
-        const ids = new Set(changedTaskIds(detail.tasks, next.tasks));
-        if (selected) ids.add(selected.task_id);
-        const entries = await Promise.all(
-          [...ids].map(async (taskId) => {
-            try {
-              return [taskId, await getTaskDetail(next.pipeline_id, taskId)] as const;
-            } catch {
-              return null;
-            }
-          }),
-        );
+        // Only the OPEN task's detail is refetched (it's the only one shown); every
+        // other cached detail whose summary moved is evicted so a later re-open
+        // refetches it fresh.
+        let openDetail: TaskDetail | null | undefined;
+        if (selected) {
+          try {
+            openDetail = await getTaskDetail(next.pipeline_id, selected.task_id);
+          } catch {
+            openDetail = undefined;
+          }
+        }
         if (cancelled) return;
+        const moved = new Set(changedTaskIds(detail.tasks, next.tasks));
         setDetail(next);
         setDetailMap((prev) => {
           const merged = new Map(prev);
-          for (const entry of entries) if (entry) merged.set(entry[0], entry[1]);
+          for (const id of moved) merged.delete(id);
+          if (selected && openDetail !== undefined) merged.set(selected.task_id, openDetail);
           return merged;
         });
         setSelected((prev) =>
@@ -188,10 +184,29 @@ export function PipelineDetailView(): ReactElement {
     [detailMap, catalog],
   );
 
+  // Retry budget denominator comes from the pipeline detail's current-task fields
+  // (no per-task detail needed): they describe exactly the failing/current task.
   const retryFor = useCallback(
-    (t: TaskSummary): string | null =>
-      retrySuffix(t.fail_count, detailMap.get(t.task_id)?.effective_max_fail_count),
-    [detailMap],
+    (t: TaskSummary): string =>
+      retrySuffix(
+        t.fail_count,
+        t.sequence === detail?.current_task_sequence ? detail?.current_max_fail_count : undefined,
+      ),
+    [detail],
+  );
+
+  // Node subtitle without a per-task fetch: FAILED → 실패 N회 — CODE (fail_count
+  // from the summary; the precise f/m retry budget lives in the drawer, which
+  // loads the task detail). Otherwise catalog description → operator description
+  // → status meta line.
+  const resolveMeta = useCallback(
+    (t: TaskSummary): string => {
+      if (t.status === 'FAILED') {
+        return `실패 ${t.fail_count}회 — ${t.error_code ?? '원인 미기록'}`;
+      }
+      return descMap.get(t.task_definition) || t.description || taskMetaLine(t, null);
+    },
+    [descMap],
   );
 
   const retrySelectedDetail = async (): Promise<void> => {
@@ -346,8 +361,8 @@ export function PipelineDetailView(): ReactElement {
       <TaskFlow
         className="flex-1"
         tasks={detail.tasks}
-        detailMap={detailMap}
         resolveName={resolveName}
+        resolveMeta={resolveMeta}
         selectedId={selected?.task_id ?? null}
         onOpen={(t) => setSelected((prev) => (prev?.task_id === t.task_id ? null : t))}
         panel={
@@ -357,7 +372,7 @@ export function PipelineDetailView(): ReactElement {
               onClose={() => setSelected(null)}
               task={selected}
               detail={selectedDetail}
-              detailLoaded={detailsLoaded}
+              detailLoaded={detailMap.has(selected.task_id)}
               displayName={resolveName(selected)}
               onRetry={retrySelectedDetail}
             />
@@ -372,7 +387,7 @@ export function PipelineDetailView(): ReactElement {
         onCancelled={(d) => {
           setDetail(d);
           setSelected(null);
-          void loadTaskDetails(d).then(setDetailMap);
+          setDetailMap(new Map());
         }}
         showToast={toast.show}
       />

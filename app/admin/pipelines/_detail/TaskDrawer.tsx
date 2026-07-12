@@ -157,7 +157,12 @@ export function TaskDrawer({
             <DefinitionTab detail={detail} displayName={displayName} />
           )
         ) : !detailLoaded ? (
-          <div className={cn(detailStyles.skeleton, 'h-24')} aria-hidden="true" />
+          <div className="flex flex-col gap-4" role="status" aria-label="상세 정보를 불러오는 중">
+            <div className={cn(detailStyles.skeleton, 'h-4 w-20')} />
+            <div className={cn(detailStyles.skeleton, 'h-16 w-full')} />
+            <div className={cn(detailStyles.skeleton, 'h-4 w-24 mt-1')} />
+            <div className={cn(detailStyles.skeleton, 'h-28 w-full')} />
+          </div>
         ) : (
           <div className="flex flex-col items-start gap-3">
             <div className={d.empty}>상세를 불러오지 못했습니다</div>
