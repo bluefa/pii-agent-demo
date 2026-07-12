@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>R23 패널 데모 — 인터랙티브 + 실제 API 응답</title>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
 <style>
 /* ══ 토큰 — app/globals.css --pl-* 값 그대로 (#551 상세 페이지 기준) ══ */
 :root{
@@ -814,5 +815,45 @@ window.addEventListener('keydown', (e) => {
 $('overlay').addEventListener('click', (e) => { if (e.target === $('overlay')) closeViewer(); });
 
 renderScen(); render();
+
+/* ── ?board — Figma 캡처용: 핵심 상태를 정적으로 나란히 펼친다 ── */
+if (new URLSearchParams(location.search).has('board')) {
+  const board = document.createElement('div');
+  board.style.cssText = 'display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap;padding:48px;background:#F3F5F8;font-family:var(--font-sans)';
+  const snap = (label, sourceId) => {
+    const cell = document.createElement('div');
+    const cap = document.createElement('div');
+    cap.textContent = label;
+    cap.style.cssText = 'font-size:12px;font-weight:600;color:#667085;margin-bottom:12px';
+    const node = $(sourceId).cloneNode(true);
+    node.removeAttribute('id');
+    cell.appendChild(cap);
+    cell.appendChild(node);
+    board.appendChild(cell);
+  };
+  scenIdx = 0; rootTab = 'exec'; view = { name: 'root' }; render();
+  snap('드로어 · 실행 정보 — Terraform FAILED', 'panel');
+  view = { name: 'attempt', n: 2 }; render();
+  snap('드로어 · 시도 상세 #2 — JOB_FAILED', 'panel');
+  view = { name: 'attempt', n: 1 }; render();
+  snap('드로어 · 시도 상세 #1 — CALL_TIMEOUT (실시간 조회)', 'panel');
+  view = { name: 'root' }; rootTab = 'contract'; render();
+  snap('드로어 · 정의·계약 탭', 'panel');
+  scenIdx = 2; rootTab = 'exec'; view = { name: 'root' }; render();
+  snap('드로어 · 실행 정보 — Condition (폴 이력)', 'panel');
+  openViewer('2:1027');
+  snap('뷰어 · Terraform 로그 — 실패 job, 16MB 절단', 'viewer');
+  viewerKey = '2:1027'; viewerTab = 'raw'; renderViewer();
+  snap('뷰어 · 상태 응답 원문', 'viewer');
+  openViewer('1:1021');
+  snap('뷰어 · 로그 조회 실패 (실시간 폴백)', 'viewer');
+  closeViewer();
+  // 기존 UI는 숨기기만 한다 — innerHTML 초기화는 캡처 스크립트(head async)가
+  // body에 심어둔 훅까지 지워 Figma 캡처가 조용히 죽는다.
+  for (const child of [...document.body.children]) child.style.display = 'none';
+  document.body.style.background = '#F3F5F8';
+  document.body.style.minWidth = '0';
+  document.body.appendChild(board);
+}
 </script>
 </body></html>
