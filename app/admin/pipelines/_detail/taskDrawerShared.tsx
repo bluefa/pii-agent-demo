@@ -54,8 +54,11 @@ export const spanLabel = (start: string | null, end: string | null): string => {
 export function conditionVerdict(a: TaskAttemptView): { label: string; tone: JobVerdict } {
   if (a.status === 'DONE') return { label: '충족', tone: 'success' };
   if (a.status === 'IN_PROGRESS') return { label: '확인 중', tone: 'running' };
+  if (a.status === 'CANCELLED') return { label: '취소', tone: 'none' };
   if (a.error_code === 'CONDITION_NOT_MET') return { label: '미충족', tone: 'none' };
-  return { label: a.error_code === 'CALL_TIMEOUT' ? '타임아웃' : 'API 오류', tone: 'failed' };
+  if (a.error_code === 'CALL_TIMEOUT') return { label: '타임아웃', tone: 'failed' };
+  // Any other settled attempt without a recognized code — an upstream API error.
+  return { label: a.error_code ? 'API 오류' : '기록 없음', tone: a.error_code ? 'failed' : 'none' };
 }
 
 export function MiniPill({ tone, children }: { tone: JobVerdict; children: ReactNode }): ReactElement {

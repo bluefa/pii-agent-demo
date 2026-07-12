@@ -123,14 +123,14 @@ export function JobViewer({
       body = <ViewerEmpty title="로그 기록이 없습니다" desc="이 job의 로그가 저장되지 않았습니다. 시도의 실패 코드에서 원인을 확인하세요." />;
     else if (result.phase === 'error')
       body = <ViewerEmpty title="로그를 불러오지 못했습니다" desc="잠시 후 다시 시도해 주세요." />;
-    else if (result.data?.content === null && result.data.fetch_error)
+    else if (result.data && result.data.content == null && result.data.fetch_error)
       body = (
         <ViewerEmpty
           title="로그를 가져오지 못했습니다"
           desc="이 시도는 로그가 저장되기 전에 끝나, 실행 서버(InfraManager)에서 직접 조회했지만 응답이 없었습니다."
         />
       );
-    else if (result.data?.content === null)
+    else if (result.data?.content == null)
       body = (
         <ViewerEmpty
           title="저장된 로그 본문이 없습니다"
@@ -152,7 +152,7 @@ export function JobViewer({
       body = <ViewerEmpty title="상태 관측이 없습니다" desc="이 job은 상태 확인이 기록되기 전에 시도가 끝났습니다." />;
     else if (state.phase === 'error')
       body = <ViewerEmpty title="상태를 불러오지 못했습니다" desc="잠시 후 다시 시도해 주세요." />;
-    else if (state.data?.last_response === null)
+    else if (state.data?.last_response == null)
       body = (
         <ViewerEmpty
           title="저장된 상태 응답이 없습니다"
