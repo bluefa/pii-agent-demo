@@ -778,7 +778,6 @@ function renderViewer() {
       ${viewerTab === 'log' && result?.source === 'live' && result?.content ? '<span class="badge-live">실시간 조회 — 저장 전</span>' : ''}
       <span class="grow"></span>
       <button class="btn-sec">복사</button>
-      <button class="btn-sec">파일로 저장</button>
     </div>
     ${bodyHtml}
     <div class="v-foot">로그는 열릴 때 맨 아래(tail)에서 시작합니다 — terraform 오류는 끝에 있고, 절단도 tail을 우선 보존합니다.</div>`;
