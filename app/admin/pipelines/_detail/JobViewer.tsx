@@ -9,7 +9,8 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { getJobResult, getJobState, OrchestratorApiError } from '@/app/lib/api/pipeline';
-import { d, hms, j, MiniPill, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { fmtDateTime } from '@/lib/pipeline/format';
+import { d, j, MiniPill, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TerraformJobResultDetail, TerraformJobStateDetail } from '@/lib/pipeline/types';
 
 type ViewerTab = 'log' | 'raw';
@@ -91,15 +92,15 @@ export function JobViewer({
   const truncated = tab === 'log' && result.phase === 'ok' && result.data?.truncated === true;
   const live = tab === 'log' && result.phase === 'ok' && result.data?.source === 'live' && !!result.data?.content;
 
-  const stamp =
-    tab === 'log'
-      ? result.data?.created_at
-        ? `수집시간 ${hms(result.data.created_at)}`
-        : live
-          ? '방금 조회함'
-          : ''
+  // Tab-independent: the header describes the job, so the stamp must not flip
+  // between "수집시간"/"마지막 확인" when the log/state tab is toggled. Prefer the
+  // stored result's collection time; fall back to a live read or the last poll.
+  const stamp = result.data?.created_at
+    ? `수집시간 ${fmtDateTime(result.data.created_at)}`
+    : result.data?.source === 'live' && result.data?.content
+      ? '방금 조회함'
       : state.data?.last_polled_at
-        ? `마지막 확인 ${hms(state.data.last_polled_at)}`
+        ? `마지막 확인 ${fmtDateTime(state.data.last_polled_at)}`
         : '';
 
   // The panel goes dark only when it actually renders a log/state body; empty and

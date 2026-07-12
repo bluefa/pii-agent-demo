@@ -12,13 +12,14 @@
 import { type ReactElement } from 'react';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { jobRows, jobVerdict, type JobRow } from '@/app/admin/pipelines/_detail/jobRows';
+import { fmtDateTime } from '@/lib/pipeline/format';
 import { d, hm, hms, j, MiniPill, Section, spanLabel, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView } from '@/lib/pipeline/types';
 
 function JobRowItem({ row, onOpen }: { row: JobRow; onOpen: () => void }): ReactElement {
   const verdict = jobVerdict(row);
   const meta = row.result?.created_at
-    ? hm(row.result.created_at)
+    ? fmtDateTime(row.result.created_at)
     : row.state
       ? `폴 ${row.state.poll_count}회`
       : '';
