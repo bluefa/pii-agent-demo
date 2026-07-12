@@ -117,7 +117,60 @@ FE의 `withV1` 액세스 로그와 BFF의 액세스 로그 양쪽에 이 컨텍�
 
 의존성: Phase 1~4는 전부 로컬에서 완결(순차 무관, 1+2 병행 가능). Phase 5와 V-2/V-3만 배포 환경 필요. **총 개발 2.5~3.5일** — v2 대비 줄었고 협의 대기가 사라짐.
 
-## 7. 폐기 기록 (왜 바뀌었는지 추적용)
+## 7. 전략 조망 — 처리 / 수집 / 저장 / 소비 (07-12 추가, FE 대시보드 요구 반영)
+
+> 배경: 사용자 규모가 클 수 있음 → 로그는 기본이고, **관리용 대시보드**(Grafana + FE 앱 내 대시보드)가 필요하다는 요구 추가.
+
+### 7-1. 4층 모델
+
+```
+[L0 처리]   사용자에게 무엇을 보여주나        — 바운더리·ProblemDetails·재시도   ✅ 구현됨
+[L1 수집]   무엇을 기록하나 (계측)            — 구조화 이벤트 3종                ✅ 구현됨
+[L2 저장]   어디에 쌓이나 (파이프)            — stdout→Cloud Logging (+선택 sink) 플랫폼 설정
+[L3 소비]   누가 어떻게 보나                  — Grafana / FE 대시보드 / Error Reporting  ← 신규 설계
+```
+
+핵심: L1까지는 소비 방식과 무관하게 동일하다. **대시보드 요구는 L3의 추가이지 L0~L2의 재설계가 아니다.**
+
+### 7-2. "로그 구조화는 어렵지 않은가"에 대한 답
+
+구조화가 어려운 것은 **읽을 때 파싱**하는 경우(자유 텍스트→regex)다. 우리는 **쓸 때 구조화**한다 — 소스에서 고정 스키마 JSON 한 줄(`app/api/_lib/log.ts`의 `emit()`이 유일한 출구). Cloud Logging은 JSON stdout을 `jsonPayload`로 자동 인식하므로 `jsonPayload.clientPage="/services"` 같은 필드 쿼리가 바로 된다. 파싱 단계가 존재하지 않는다.
+
+### 7-3. 이벤트 스키마 3종 (구현 완료된 실물)
+
+| 이벤트 | severity | message | 구조화 필드 |
+|---|---|---|---|
+| **접근 로그** (모든 API 요청, `withV1`) | INFO | `GET /api/v1/... 200 34ms` | `method, path, status, durationMs, requestId, clientPage?, clientAction?` |
+| **서버 에러** (unexpected + 업스트림 5xx) | ERROR | 스택 전체 (Error Reporting 그룹핑 키) | `context('v1-unexpected'\|'bff-upstream'), method, path, status, requestId` |
+| **브라우저 에러** (ingest route 경유) | ERROR | message+스택 | `source:'browser', page, type(global\|boundary\|rejection\|error-event), digest, breadcrumbs[≤10]{method,path,status,durationMs,requestId}, requestId` |
+
+공통 키 = `requestId` (브라우저 생성 → FE 로그 → BFF 전달). "어떤 상황에서" = `clientPage`/`clientAction`/`breadcrumbs`.
+
+### 7-4. L3 소비 전략
+
+| 소비자 | 대상 | 데이터 경로 | 상태 |
+|---|---|---|---|
+| GCP Error Reporting | 에러 그룹핑·회귀 감지 | severity≥ERROR 자동 인식 | V-3 실측 대기 |
+| Grafana (운영자) | 에러율·지연·알림→Slack | **로그 기반 metric**(카운터/분포) → Cloud Monitoring 데이터소스 | Phase 5 |
+| **FE 앱 내 대시보드 (신규)** | 관리자용: 최근 에러 목록, 페이지별 에러 수, API 사용 추이 | FE 서버 route → **Cloud Logging API**(최근 엔트리 목록) + **Cloud Monitoring API**(시계열 집계) → 기존 admin UI 패턴으로 렌더 | 설계 (아래) |
+
+**FE 대시보드 MVP (제안)** — admin 하위 페이지 1개:
+1. 최근 에러 50건 (시간·페이지·메시지 요약·requestId) — Logging API `entries.list`, 필터 `severity>=ERROR`, 시간창 ≤24h
+2. 24h 에러 카운트 (브라우저/서버 구분) — 로그 기반 metric 시계열
+3. API 사용 top-N (path별 호출 수·p95 durationMs) — 접근 로그 기반 metric
+- 서버 route가 GCP API를 호출하고 결과를 요약해 내려줌 (토큰·원본 로그는 클라 미노출, 조회 시간창 강제)
+
+**전제 검증 V-5**: FE 서버 → `googleapis.com` 도달성 (VPC의 Private Google Access 여부) + 서비스계정 IAM (`roles/logging.viewer`, `roles/monitoring.viewer`). Stackdriver **수집**은 플랫폼 몫이라 이미 성립하지만, **조회**는 앱이 GCP API를 부르는 것이라 별도 확인 필요. 불가 시 폴백: Grafana 대시보드 iframe/링크로 대체 또는 BFF 경유 조회.
+
+### 7-5. 규모(사용자 다수) 고려
+
+- **카운트/추이는 로그 기반 metric으로** — 원본 로그를 매번 스캔하지 않으므로 트래픽이 커져도 대시보드 쿼리 비용 일정. metric 라벨은 저카디널리티만(`path`, `severity`, `source`) — `requestId`·`page` 전체를 라벨로 넣지 말 것.
+- **상세 목록 조회는 시간창 강제** (≤24h) — Logging API 스캔 비용 통제.
+- **보존/장기 분석**: Cloud Logging 기본 보존(30일)을 넘는 사용 이력 분석이 필요해지면 **로그 라우터 sink → BigQuery** (플랫폼 설정만, 앱 코드 0줄). "월별 사용 추이" 같은 SQL 분석은 그때. 지금 미리 만들지 않는다.
+- **클라이언트 리포트 폭주**: 탭당 스로틀(30s dedupe+분당 10) + 서버 분당 60 캡 구현됨. 사용자가 수천 명 규모로 커지면 수용량 상향 또는 샘플링(예: 리포트 10%만 전송)으로 전환 — 서버 캡 상수 1곳 수정.
+- **로그가 유일 원천이라 불안한가?** → 에러·사용량은 재생 가능한 파생 데이터(비즈니스 원본 아님). 유실 허용치가 낮아지면 그때 BFF DB 저장으로 승격(§5 B안) — 지금은 과잉.
+
+## 8. 폐기 기록 (왜 바뀌었는지 추적용)
 
 - ~~v1: FE 인그레스 터널 + FE 옆 Bugsink~~ — FE 아웃바운드 제한(Q1)으로 폐기
 - ~~v2: BFF망 Bugsink + BFF 중계 라우트 + Sentry SDK tunnel~~ — 기존 인프라 존재(O-2/O-3)로 폐기. "관측성 인프라 제로" 가정이 깨짐. Bugsink 승격 시 재사용할 리서치·경로는 §4에 보존
