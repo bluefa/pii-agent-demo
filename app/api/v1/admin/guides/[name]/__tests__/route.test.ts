@@ -28,13 +28,13 @@ describe('admin/guides/[name] route', () => {
     });
     const req = new Request(
       'http://localhost/integration/api/v1/admin/guides/AZURE_APPLYING',
-      { headers: { 'x-request-id': 'req-test-1' } },
+      { headers: { 'x-request-id': '11111111-1111-4111-8111-111111111111' } },
     );
     const res = await GET(req, { params: Promise.resolve({ name: 'AZURE_APPLYING' }) });
     expect(mockedGet).toHaveBeenCalledWith('AZURE_APPLYING');
     expect(mockedPut).not.toHaveBeenCalled();
     expect(res.headers.get('x-expected-duration')).toBe('100ms ~ 500ms');
-    expect(res.headers.get('x-request-id')).toBe('req-test-1');
+    expect(res.headers.get('x-request-id')).toBe('11111111-1111-4111-8111-111111111111');
   });
 
   it('PUT dispatches to bff.guides.put with the parsed body', async () => {
@@ -47,7 +47,7 @@ describe('admin/guides/[name] route', () => {
       'http://localhost/integration/api/v1/admin/guides/AWS_APPLYING',
       {
         method: 'PUT',
-        headers: { 'content-type': 'application/json', 'x-request-id': 'req-test-2' },
+        headers: { 'content-type': 'application/json', 'x-request-id': '22222222-2222-4222-8222-222222222222' },
         body: JSON.stringify({ contents: { ko: '<p>k</p>', en: '<p>e</p>' } }),
       },
     );
@@ -56,7 +56,7 @@ describe('admin/guides/[name] route', () => {
       contents: { ko: '<p>k</p>', en: '<p>e</p>' },
     });
     expect(res.headers.get('x-expected-duration')).toBe('200ms ~ 1s');
-    expect(res.headers.get('x-request-id')).toBe('req-test-2');
+    expect(res.headers.get('x-request-id')).toBe('22222222-2222-4222-8222-222222222222');
   });
 
   it('PUT forwards null when the body is not JSON (thin dispatch — mock layer validates)', async () => {

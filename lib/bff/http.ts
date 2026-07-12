@@ -23,6 +23,28 @@ import { camelCaseKeys } from '@/lib/object-case';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
 
+// Observability context (LIN-61): forward the client-set correlation headers to
+// the BFF so a single X-Request-Id ties browser → FE log → BFF log. The
+// allowlist is deliberately narrow (also the reuse point for future auth-header
+// propagation). Returns `{}` outside a request scope (unit tests / build) so
+// callers keep their original headers unchanged.
+const FORWARD_HEADERS = ['x-request-id', 'x-client-page', 'x-client-action'] as const;
+
+async function forwardObservabilityHeaders(): Promise<Record<string, string>> {
+  try {
+    const { headers } = await import('next/headers');
+    const inbound = await headers();
+    const out: Record<string, string> = {};
+    for (const name of FORWARD_HEADERS) {
+      const value = inbound.get(name);
+      if (value) out[name] = value;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 // ── pipeline-orchestrator upstream (LIN-25) — served behind the BFF server,
 // no separate env: BFF_API_URL + /install/v1 ──
 const PIPELINE_TIMEOUT_MS = 30_000;
@@ -43,7 +65,11 @@ async function pipelineRequest(
   const url = `${BFF_URL}/install/v1${path}`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort('TIMEOUT'), PIPELINE_TIMEOUT_MS);
-  const init: RequestInit = { method, headers: { Accept: 'application/json' }, signal: controller.signal };
+  const init: RequestInit = {
+    method,
+    headers: { Accept: 'application/json', ...(await forwardObservabilityHeaders()) },
+    signal: controller.signal,
+  };
   if (body !== undefined) {
     init.headers = { ...init.headers, 'Content-Type': 'application/json' };
     init.body = JSON.stringify(body);
@@ -85,7 +111,9 @@ async function throwBffError(res: Response): Promise<never> {
 async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → GET ${fullPath}`);
-  const res = await fetch(fullPath, { headers: { Accept: 'application/json' } });
+  const res = await fetch(fullPath, {
+    headers: { Accept: 'application/json', ...(await forwardObservabilityHeaders()) },
+  });
   console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   const data = await res.json();
@@ -103,7 +131,9 @@ const getSnakeRaw = <T>(path: string): Promise<T> => get<T>(path, { raw: true })
 async function getRaw(path: string): Promise<Response> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → GET ${fullPath} (raw)`);
-  const res = await fetch(fullPath, { headers: { Accept: '*/*' } });
+  const res = await fetch(fullPath, {
+    headers: { Accept: '*/*', ...(await forwardObservabilityHeaders()) },
+  });
   console.log(`[BFF] ← GET ${fullPath} (${res.status}, raw)`);
   if (!res.ok) await throwBffError(res);
   return res;
@@ -112,10 +142,13 @@ async function getRaw(path: string): Promise<Response> {
 async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → ${method} ${fullPath}`);
+  const forwarded = await forwardObservabilityHeaders();
   const init: RequestInit = { method };
   if (body !== undefined) {
-    init.headers = { 'Content-Type': 'application/json' };
+    init.headers = { 'Content-Type': 'application/json', ...forwarded };
     init.body = JSON.stringify(body);
+  } else if (Object.keys(forwarded).length > 0) {
+    init.headers = forwarded;
   }
   const res = await fetch(fullPath, init);
   console.log(`[BFF] ← ${method} ${fullPath} (${res.status})`);

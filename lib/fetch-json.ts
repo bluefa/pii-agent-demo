@@ -19,6 +19,17 @@ export interface FetchJsonOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   /** 요청 타임아웃(ms). 기본 30초 */
   timeout?: number;
+  /** 관측성: 이 호출을 유발한 액션명. 있으면 X-Client-Action 헤더로 전파. */
+  action?: string;
+}
+
+/** 관측성 링버퍼 항목 — 클라이언트 에러 리포트의 breadcrumb으로 첨부된다. */
+export interface ApiCallRecord {
+  method: string;
+  path: string;
+  status: number;
+  durationMs: number;
+  requestId: string;
 }
 
 /** ProblemDetails (RFC 9457) 에러 응답 형태 */
@@ -37,6 +48,23 @@ interface ErrorBody {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+
+// ---------------------------------------------------------------------------
+// 관측성: 직전 API 호출 링버퍼 (최근 10건)
+// ---------------------------------------------------------------------------
+
+const RING_SIZE = 10;
+const recentApiCalls: ApiCallRecord[] = [];
+
+function recordApiCall(record: ApiCallRecord): void {
+  recentApiCalls.push(record);
+  if (recentApiCalls.length > RING_SIZE) recentApiCalls.shift();
+}
+
+/** 최근 API 호출(최대 10건) 스냅샷. 클라이언트 에러 리포트에 첨부된다. */
+export function getRecentApiCalls(): ApiCallRecord[] {
+  return [...recentApiCalls];
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -126,7 +154,7 @@ async function parseErrorResponse(res: Response): Promise<AppError> {
  * ```
  */
 export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}): Promise<T> {
-  const { body, timeout = DEFAULT_TIMEOUT_MS, ...init } = options;
+  const { body, timeout = DEFAULT_TIMEOUT_MS, action, ...init } = options;
 
   // AbortController: 타임아웃 + 외부 signal 병합
   const controller = new AbortController();
@@ -141,10 +169,29 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
     }
   }
 
+  // 관측성 컨텍스트: 요청별 상관관계 ID + 호출 화면/액션.
+  const requestId = crypto.randomUUID();
+  const method = (init.method ?? 'GET').toUpperCase();
+  const path = url.split('?')[0];
+  const startedAt = Date.now();
+  let recorded = false;
+  const record = (status: number): void => {
+    if (recorded) return;
+    recorded = true;
+    recordApiCall({ method, path, status, durationMs: Date.now() - startedAt, requestId });
+  };
+
   // Headers 병합: Headers 인스턴스/튜플 배열도 안전하게 처리
   const headers = new Headers(init.headers);
   if (body !== undefined) {
     headers.set('Content-Type', 'application/json');
+  }
+  headers.set('X-Request-Id', requestId);
+  if (typeof location !== 'undefined' && location.pathname) {
+    headers.set('X-Client-Page', location.pathname);
+  }
+  if (action) {
+    headers.set('X-Client-Action', action);
   }
 
   try {
@@ -155,6 +202,7 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
+    record(res.status);
 
     if (res.ok) {
       // 204 No Content
@@ -165,6 +213,8 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
     throw await parseErrorResponse(res);
   } catch (err) {
     if (err instanceof AppError) throw err;
+    // fetch 자체가 throw한 경우(네트워크/중단/타임아웃)만 여기서 status 0으로 기록.
+    record(0);
 
     // Abort 감지: signal.aborted 가 우선 — Chrome은 abort(reason) 의 reason 이
     // 문자열이면 fetch 가 DOMException 이 아니라 그 문자열을 그대로 reject 하므로
