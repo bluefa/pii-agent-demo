@@ -43,4 +43,24 @@ describe('httpBff observability header forwarding', () => {
       { method: 'POST' },
     );
   });
+
+  it('logs the query-stripped upstream path, never the query string', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const { httpBff } = await import('@/lib/bff/http');
+    // users.search builds `/users/search?q=hong&excludeIds=secret-id`.
+    await httpBff.users.search('hong', ['secret-id']);
+
+    const logged = logSpy.mock.calls.map((c) => c.map(String).join(' ')).join('\n');
+    expect(logged).toContain('/install/v1/users/search');
+    expect(logged).not.toContain('q=hong');
+    expect(logged).not.toContain('secret-id');
+  });
 });
