@@ -44,7 +44,7 @@ describe('CustomBuildStep', () => {
     expect(html).toContain('재시도');
   });
 
-  it('shows a labeled "+" ghost CTA on the empty canvas (no dropdown anywhere)', () => {
+  it('shows the ghost "Task 추가" card on the empty canvas (no dropdown anywhere)', () => {
     const html = renderToStaticMarkup(
       <CustomBuildStep
         catalog={[entry('A')]}
@@ -55,16 +55,16 @@ describe('CustomBuildStep', () => {
         provider="AWS"
       />,
     );
-    expect(html).toContain('nd-add-first');
-    expect(html).toContain('Task 추가 — 카탈로그에서 골라 실행 순서를 구성하세요');
+    expect(html).toContain('class="r24-tnode ghost"');
+    expect(html).toContain('Task 추가');
     expect(html).not.toContain('<select');
-    // the shared FLOW_CSS text mentions .pl-tnode — match the class attribute, not the stylesheet
-    expect(html).not.toContain('class="pl-tnode');
+    // no order cards yet — only the ghost slot
+    expect(html).not.toContain('class="r24-tnode"');
     // popover is closed by default
     expect(html).not.toContain('role="menu"');
   });
 
-  it('renders nodes + connectors + a trailing "+" ghost node; "+" disables when the catalog is exhausted', () => {
+  it('renders seq cards + arrows + a trailing ghost card; ghost disables when the catalog is exhausted', () => {
     const catalog = [entry('A'), entry('B', 'CONDITION_CHECK'), entry('C')];
     const html = renderToStaticMarkup(
       <CustomBuildStep
@@ -76,38 +76,25 @@ describe('CustomBuildStep', () => {
         provider="AWS"
       />,
     );
-    expect(html.match(/class="pl-tnode/g)).toHaveLength(3);
-    // node→node connectors (2) + one before the trailing "+"
-    expect(html.match(/class="pl-connector"/g)).toHaveLength(3);
-    expect(html).toContain('class="nd-badge b-seq"');
-    // trailing "+" — all 3 catalog entries chosen, so it is disabled with the reason
-    expect(html).toContain('class="nd-add"');
+    expect(html.match(/class="r24-tnode"/g)).toHaveLength(3);
+    // card→card arrows (2) + one before the trailing ghost
+    expect(html.match(/class="r24-arrow"/g)).toHaveLength(3);
+    // black order chips, one per card (R24)
+    expect(html.match(/class="r24-seq"/g)).toHaveLength(3);
+    // trailing ghost — all 3 catalog entries chosen, so it is disabled with the reason
+    expect(html).toContain('class="r24-tnode ghost"');
     expect(html).toContain('추가할 Task 없음');
-    // node identity: full name + catalog description as meta; no input/select anywhere
+    // card identity: full name + catalog description; no input/select anywhere
     expect(html).toContain('표시명 B');
     expect(html).toContain('카탈로그 설명 C');
     expect(html).not.toContain('<input');
     expect(html).not.toContain('<select');
-    // affordances: keyboard contract, per-node delete, count + drag hint
+    // affordances: keyboard contract, per-card delete, count + drag hint
     expect(html).toContain('표시명 A — 1번째. 좌우 화살표로 순서 이동, Delete로 제거');
     expect(html.match(/aria-label="표시명 [ABC] 제거"/g)).toHaveLength(3);
     expect(html).toContain('Task 3개 · 노드를 드래그해 실행 순서를 바꿀 수 있어요');
     // CONDITION_CHECK keeps the clock mark vocabulary
     expect(html).toContain('조건 확인 — 폴링');
-  });
-
-  it('renders node names un-clamped (builder override over the FLOW_CSS 2-line clamp)', () => {
-    const html = renderToStaticMarkup(
-      <CustomBuildStep
-        catalog={[entry('A')]}
-        catalogError={null}
-        onRetry={noop}
-        chosen={[entry('A')]}
-        onChange={noop}
-        provider="AWS"
-      />,
-    );
-    expect(html).toContain('.pl-flow.pl-build .nd-name{display:block;overflow:visible;-webkit-line-clamp:none');
   });
 });
 

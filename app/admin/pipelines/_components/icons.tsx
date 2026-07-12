@@ -12,6 +12,8 @@ import type { ReactElement } from 'react';
 export type IconName =
   | 'search'
   | 'chev-l'
+  | 'arrow-right'
+  | 'arrow-up-right'
   | 'chev-r'
   | 'plus'
   | 'check'
@@ -48,6 +50,8 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
     </>
   ),
   'chev-l': <path d="M15 18.5 8.5 12 15 5.5" />,
+  'arrow-right': <path d="M5 12h14M12 5l7 7-7 7" />,
+  'arrow-up-right': <path d="M7 17 17 7M7 7h10v10" />,
   'chev-r': <path d="m9 5.5 6.5 6.5L9 18.5" />,
   plus: <path d="M12 5v14M5 12h14" />,
   check: <path d="m4.5 12.5 5 5L19.5 7" />,
