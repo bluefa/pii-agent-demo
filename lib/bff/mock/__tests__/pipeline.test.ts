@@ -9,6 +9,8 @@ import type {
   RecipePreview,
   TaskCatalogResponse,
   TaskDetail,
+  TerraformJobResultDetail,
+  TerraformJobStateDetail,
 } from '@/lib/pipeline/types';
 
 const asError = (body: unknown): OrchestratorErrorBody => body as OrchestratorErrorBody;
@@ -87,6 +89,77 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       const res = mockPipeline.taskDetail('128', '99999');
       expect(res.status).toBe(404);
       expect(asError(res.body).code).toBe('ORCHESTRATION_TASK_NOT_FOUND');
+    });
+
+    it('inlines per-job results/states + failure_detail on the FAILED terraform task', () => {
+      const task = mockPipeline.taskDetail('124', '12401').body as TaskDetail;
+      expect(task.status).toBe('FAILED');
+      expect(task.attempts).toHaveLength(2);
+      const [a1, a2] = task.attempts;
+      // #1 timed out before terminal → states only, no results.
+      expect(a1.error_code).toBe('CALL_TIMEOUT');
+      expect(a1.terraform_results).toHaveLength(0);
+      expect(a1.job_states).toHaveLength(3);
+      // #2 judged with a FAILED job → results recorded, failure_detail names it.
+      expect(a2.terraform_results).toHaveLength(3);
+      expect(a2.job_states).toHaveLength(3);
+      expect(a2.failure_detail).toContain('1027');
+    });
+  });
+
+  describe('per-job result / state (#5a / #5b)', () => {
+    const result = (t: string, n: string, job: string): TerraformJobResultDetail =>
+      mockPipeline.jobResult('124', t, n, job).body as TerraformJobResultDetail;
+    const state = (t: string, n: string, job: string): TerraformJobStateDetail =>
+      mockPipeline.jobState('124', t, n, job).body as TerraformJobStateDetail;
+
+    it('returns a stored, truncated FAILED log body', () => {
+      const r = result('12401', '2', '1027');
+      expect(r.source).toBe('stored');
+      expect(r.succeeded).toBe(false);
+      expect(r.truncated).toBe(true);
+      expect(r.content).toContain('Error acquiring the state lock');
+      expect(r.created_at).not.toBeNull();
+    });
+
+    it('distinguishes a live fetch miss (content null + fetch_error, created_at null)', () => {
+      const res = mockPipeline.jobResult('124', '12401', '1', '1021');
+      expect(res.status).toBe(200); // NOT a 404 — the row exists as a pointer
+      const r = res.body as TerraformJobResultDetail;
+      expect(r.source).toBe('live');
+      expect(r.created_at).toBeNull();
+      expect(r.content).toBeNull();
+      expect(r.fetch_error).not.toBeNull();
+    });
+
+    it('distinguishes a stored pointer row (content null, no fetch_error)', () => {
+      const r = result('12401', '2', '1028');
+      expect(r.content).toBeNull();
+      expect(r.fetch_error).toBeNull();
+      expect(r.source).toBe('stored');
+    });
+
+    it('404s an unknown job result but 200s with a valid task', () => {
+      const res = mockPipeline.jobResult('124', '12401', '2', '9999');
+      expect(res.status).toBe(404);
+      expect(asError(res.body).code).toBe('ORCHESTRATION_TERRAFORM_RESULT_NOT_FOUND');
+    });
+
+    it('404s the result/state endpoints for an unknown pipeline or task', () => {
+      expect(mockPipeline.jobResult('99999', '12401', '2', '1027').status).toBe(404);
+      expect(asError(mockPipeline.jobResult('99999', '12401', '2', '1027').body).code).toBe('ORCHESTRATION_PIPELINE_NOT_FOUND');
+      expect(asError(mockPipeline.jobState('124', '99999', '2', '1027').body).code).toBe('ORCHESTRATION_TASK_NOT_FOUND');
+    });
+
+    it('returns the raw last_response for a terminal job, null when the last poll errored', () => {
+      const failed = state('12401', '2', '1027');
+      expect(failed.last_state).toBe('FAILED');
+      expect(failed.last_response).toContain('mock forced failure');
+
+      const errored = state('12401', '1', '1021');
+      expect(errored.last_state).toBeNull();
+      expect(errored.last_response).toBeNull();
+      expect(errored.last_error).not.toBeNull();
     });
   });
 
