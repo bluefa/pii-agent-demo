@@ -68,8 +68,11 @@ async function toOrchestratorError(res: Response): Promise<OrchestratorApiError>
   return new OrchestratorApiError({ status: res.status, code, message, body });
 }
 
-async function orchestratorGet<T>(path: string): Promise<T> {
-  const res = await fetch(toInternalInfraApiPath(path), { headers: { Accept: 'application/json' } });
+async function orchestratorGet<T>(path: string, opts?: { signal?: AbortSignal }): Promise<T> {
+  const res = await fetch(toInternalInfraApiPath(path), {
+    headers: { Accept: 'application/json' },
+    signal: opts?.signal,
+  });
   if (!res.ok) throw await toOrchestratorError(res);
   return (await res.json()) as T;
 }
@@ -133,15 +136,19 @@ export const listPipelines = (params: ListPipelinesParams = {}): Promise<SpringP
   orchestratorGet<SpringPage<PipelineSummary>>(`${ORCH}/pipelines${buildQuery({ ...params })}`);
 
 // #4
-export const getPipeline = (pipelineId: number | string): Promise<PipelineDetail> =>
-  orchestratorGet<PipelineDetail>(`${ORCH}/pipelines/${seg(pipelineId)}`);
+export const getPipeline = (
+  pipelineId: number | string,
+  opts?: { signal?: AbortSignal },
+): Promise<PipelineDetail> =>
+  orchestratorGet<PipelineDetail>(`${ORCH}/pipelines/${seg(pipelineId)}`, opts);
 
 // #5
 export const getTaskDetail = (
   pipelineId: number | string,
   taskId: number | string,
+  opts?: { signal?: AbortSignal },
 ): Promise<TaskDetail> =>
-  orchestratorGet<TaskDetail>(`${ORCH}/pipelines/${seg(pipelineId)}/tasks/${seg(taskId)}`);
+  orchestratorGet<TaskDetail>(`${ORCH}/pipelines/${seg(pipelineId)}/tasks/${seg(taskId)}`, opts);
 
 // #5a — a single terraform job's log body (tail-first, ≤16MB). `content: null`
 // is a valid 200 (pointer row / live fetch miss), NOT a 404.

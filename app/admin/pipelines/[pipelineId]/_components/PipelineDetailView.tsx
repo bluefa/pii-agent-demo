@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
+import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { integrationRoutes } from '@/lib/routes';
 import { Card } from '@/app/admin/pipelines/_components/Card';
@@ -121,40 +122,46 @@ export function PipelineDetailView(): ReactElement {
 
   // Lazy task-detail fetch: only when the operator opens a task and its detail
   // isn't cached yet. `detailMap.has` gates both the fetch and the drawer skeleton.
-  useEffect(() => {
-    if (!selected || !detail || detailMap.has(selected.task_id)) return;
-    const taskId = selected.task_id;
-    const pipeId = detail.pipeline_id;
-    let cancelled = false;
-    getTaskDetail(pipeId, taskId)
-      .then((d) => !cancelled && setDetailMap((prev) => new Map(prev).set(taskId, d)))
-      .catch(() => !cancelled && setDetailMap((prev) => new Map(prev).set(taskId, null)));
-    return () => {
-      cancelled = true;
-    };
-  }, [selected, detail, detailMap]);
+  // useAbortableEffect cancels the in-flight request (and discards its result)
+  // the instant the selection changes, so a slow response for a previously-open
+  // task can never land in the newly-open task's drawer.
+  useAbortableEffect(
+    (signal) => {
+      if (!selected || !detail || detailMap.has(selected.task_id)) return;
+      const taskId = selected.task_id;
+      return getTaskDetail(detail.pipeline_id, taskId, { signal })
+        .then((d) => {
+          if (!signal.aborted) setDetailMap((prev) => new Map(prev).set(taskId, d));
+        })
+        .catch(() => {
+          if (!signal.aborted) setDetailMap((prev) => new Map(prev).set(taskId, null));
+        });
+    },
+    [selected, detail, detailMap],
+  );
 
   // R23 (C안) — 10s poll while live: refetch pipeline + only the details whose
   // summary moved (+ the open task). Terminalizing drops the interval.
   useEffect(() => {
     if (status !== 'ready' || !detail || !isLivePipeline(detail.status)) return;
-    let cancelled = false;
+    const controller = new AbortController();
+    const { signal } = controller;
     const tick = async (): Promise<void> => {
       if (document.hidden) return;
       try {
-        const next = await getPipeline(pipelineId);
+        const next = await getPipeline(pipelineId, { signal });
         // Only the OPEN task's detail is refetched (it's the only one shown); every
         // other cached detail whose summary moved is evicted so a later re-open
         // refetches it fresh.
         let openDetail: TaskDetail | null | undefined;
         if (selected) {
           try {
-            openDetail = await getTaskDetail(next.pipeline_id, selected.task_id);
+            openDetail = await getTaskDetail(next.pipeline_id, selected.task_id, { signal });
           } catch {
             openDetail = undefined;
           }
         }
-        if (cancelled) return;
+        if (signal.aborted) return;
         const moved = new Set(changedTaskIds(detail.tasks, next.tasks));
         setDetail(next);
         setDetailMap((prev) => {
@@ -167,14 +174,14 @@ export function PipelineDetailView(): ReactElement {
           prev ? next.tasks.find((t) => t.task_id === prev.task_id) ?? null : prev,
         );
       } catch {
-        /* transient poll failure — silent, the next tick retries */
+        /* transient poll failure (incl. abort) — silent, the next tick retries */
       }
     };
     const id = window.setInterval(() => {
       void tick();
     }, POLL_INTERVAL_MS);
     return () => {
-      cancelled = true;
+      controller.abort();
       window.clearInterval(id);
     };
   }, [status, detail, selected, pipelineId]);
