@@ -1,19 +1,21 @@
 ---
 name: codex-review
-description: Cross-review the current branch with OpenAI Codex CLI (gpt-5.5, reasoning=xhigh). Use for major-decision sign-off, pre-PR second opinion, or any case where Claude's implementation should be validated by an external model.
+description: Cross-review the current branch with OpenAI Codex CLI using two Codex 5.6 models (gpt-5.6-terra + gpt-5.6-sol, reasoning=xhigh). Use for major-decision sign-off, pre-PR second opinion, or any case where Claude's implementation should be validated by an external model.
 ---
 
 # Codex Review Skill
 
 Run the current branch's changes through Codex CLI as an independent reviewer. Intended as a "sign-off" step — major decisions go through Codex so we catch blind spots and counter-opinions that a single-model loop would miss.
 
+The review runs the identical prompt through **two Codex 5.6 models** — `gpt-5.6-terra` and `gpt-5.6-sol`. Two independent 5.6 opinions catch more than one, and where they agree vs. disagree is itself signal.
+
 ## Execution principles
 
 0. **Fast mode**: enable Claude Code fast mode (`/fast`) before invoking Codex. Codex reviews can take up to 10 minutes — fast mode keeps Claude responsive during the wait. Keep this on for the duration of the skill.
 1. **Full access**: always pass `--dangerously-bypass-approvals-and-sandbox`. This is an explicit user preference — Codex must be able to read the full repo (especially `.claude/skills/**` and untracked files) for skill-aware review and uncommitted-scope reviews. The tradeoff (Codex can also write) is accepted; the SKILL.md itself prohibits auto-applying Codex's suggestions (see "Prohibitions" below).
-2. **Pinned model**: always pass `-c model="gpt-5.5" -c model_reasoning_effort="xhigh"` on the CLI. Do not rely on `~/.codex/config.toml` defaults — they can drift.
+2. **Pinned models**: run the review twice, once with `-c model="gpt-5.6-terra"` and once with `-c model="gpt-5.6-sol"`, both with `-c model_reasoning_effort="xhigh"`. Do not rely on `~/.codex/config.toml` defaults — they can drift (the config default is currently `gpt-5.6-luna`, which is NOT what this skill uses).
 3. **Fresh base**: run `git fetch origin --quiet` before invoking Codex. Do NOT use `git fetch origin main` — that form only updates `FETCH_HEAD`, leaving `refs/remotes/origin/main` stale, which breaks the default `origin/main...HEAD` diff scope.
-4. **Foreground Bash with `timeout: 600000`** (10 min) and `</dev/null` redirection — Codex otherwise blocks reading stdin even when a prompt arg is provided. Pipe stdout directly to the user **verbatim**, then prepend a 1–3 line Claude summary.
+4. **Foreground Bash with `timeout: 600000`** (10 min) and `</dev/null` redirection — Codex otherwise blocks reading stdin even when a prompt arg is provided. Run both models in a single Bash call (sequentially, or backgrounded and waited) so one 10-min timeout covers the pair; pipe each model's stdout to the user **verbatim** under its own heading, then prepend a 1–3 line Claude summary comparing them.
 
 ## Arg parsing
 
@@ -31,16 +33,25 @@ Combinable, e.g. `/codex-review uncommitted "focus on security"`.
 
 Use generic `codex exec` (not `codex exec review`). In codex-cli 0.124.0, `codex exec review` rejects a custom `[PROMPT]` argument when combined with `--base`, `--uncommitted`, or `--commit` (error: `the argument '--base <BRANCH>' cannot be used with '[PROMPT]'`), which makes skill-aware review impossible through that path. With full access, Codex can gather the diff itself via shell commands inside the prompt.
 
+Run the same prompt through both 5.6 models. Build the prompt once, then invoke each model:
+
 ```bash
-codex exec \
-  --dangerously-bypass-approvals-and-sandbox \
-  -c model="gpt-5.5" \
-  -c model_reasoning_effort="xhigh" \
-  "$(cat <<'PROMPT'
+PROMPT="$(cat <<'PROMPT'
 <REVIEW_PROMPT with DIFF_SCOPE variable filled in>
 PROMPT
 )"
+
+for MODEL in gpt-5.6-terra gpt-5.6-sol; do
+  echo "===== CODEX REVIEW: $MODEL ====="
+  codex exec \
+    --dangerously-bypass-approvals-and-sandbox \
+    -c model="$MODEL" \
+    -c model_reasoning_effort="xhigh" \
+    "$PROMPT" </dev/null
+done
 ```
+
+Both models run inside one Bash call (`timeout: 600000`). If wall-clock is tight, background each `codex exec` and `wait`, but keep each model's output clearly labeled by its heading.
 
 Fill `DIFF_SCOPE` inside the prompt based on the invocation:
 
@@ -120,14 +131,14 @@ Apply the rules from the skill files to the diff. Classify findings:
 
 ## Output handling
 
-- Dump Codex stdout **verbatim** to the user — the external model's own wording is the value of the sign-off.
-- Prepend a 1–3 line Claude summary: count of skills Codex actually referenced, Critical/Major totals, mergeable verdict. Users should be able to triage from the summary alone.
-- If Codex concludes "no issues", still surface the full output — the agreement/disagreement signal itself is data.
+- Dump **both** models' stdout **verbatim** to the user, each under its own `gpt-5.6-terra` / `gpt-5.6-sol` heading — the external models' own wording is the value of the sign-off.
+- Prepend a 1–3 line Claude summary comparing the two: where terra and sol **agree** (highest-confidence findings), where they **diverge**, and the combined mergeable verdict (take the stricter of the two verdicts as the gate). Users should be able to triage from the summary alone.
+- If either model concludes "no issues", still surface its full output — agreement and disagreement between the two models are both data.
 
 ## Failure handling
 
 - `codex: command not found` → tell the user to install Codex CLI, stop.
-- Non-zero exit → surface stderr verbatim, do not retry.
+- Non-zero exit → surface stderr verbatim, do not retry. If only one of the two models fails, still surface the other model's review and note which model failed — a single 5.6 opinion beats none.
 - Timeout on large diffs → report to user, suggest narrowing with `commit <sha>`.
 
 ## Prohibitions
