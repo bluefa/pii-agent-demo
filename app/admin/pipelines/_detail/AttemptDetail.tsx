@@ -10,7 +10,6 @@
  * the per-job log viewer.
  */
 import { type ReactElement } from 'react';
-import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { jobRows, jobVerdict, type JobRow } from '@/app/admin/pipelines/_detail/jobRows';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { d, j, MiniPill, Section, spanLabel, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
@@ -18,21 +17,21 @@ import type { TaskAttemptView } from '@/lib/pipeline/types';
 
 function JobRowItem({ row, onOpen }: { row: JobRow; onOpen: () => void }): ReactElement {
   const verdict = jobVerdict(row);
-  const meta = row.result?.created_at
-    ? fmtDateTime(row.result.created_at)
-    : row.state
-      ? `폴 ${row.state.poll_count}회`
-      : '';
+  // Meta = poll count (owner Figma node 121-311); every polled job carries a state.
+  const meta = row.state ? `폴 ${row.state.poll_count}회` : '';
   return (
     <div className={j.jobRow}>
       <MiniPill tone={verdict}>{j.verdictLabel[verdict]}</MiniPill>
       <span className={j.jobId}>{row.job_id}</span>
-      {meta && <span className={j.jobMeta}>{meta}</span>}
-      <span className={meta ? '' : 'ml-auto'}>
-        <PlButton variant="secondary" size="sm" onClick={onOpen} aria-label={`TerraformJob ${row.job_id} 로그 열기`}>
-          로그
-        </PlButton>
-      </span>
+      <span className={j.jobMeta}>{meta}</span>
+      <button
+        type="button"
+        className={j.logBtn}
+        onClick={onOpen}
+        aria-label={`TerraformJob ${row.job_id} 로그 열기`}
+      >
+        로그
+      </button>
     </div>
   );
 }
@@ -69,7 +68,7 @@ export function AttemptDetail({
 
       {rows.length > 0 && (
         <Section label="Terraform Job">
-          <div className={j.cardList}>
+          <div className={j.listTight}>
             {rows.map((row) => (
               <JobRowItem
                 key={row.job_id}
@@ -105,7 +104,7 @@ export function AttemptDetail({
       {attempt.response && (
         <details className={j.respFold} open>
           <summary className={j.respSummary}>
-            <span className={j.respTri} aria-hidden="true">▸</span>Response 원문
+            <span className={j.respTri} aria-hidden="true">›</span>Response 원문
           </summary>
           <pre className={j.respPre}>{attempt.response}</pre>
         </details>

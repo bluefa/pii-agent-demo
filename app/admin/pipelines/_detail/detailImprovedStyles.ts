@@ -116,7 +116,7 @@ export const improvedStyles = {
 
     /** Section label (progress log / attempt history / attempt info / …) — dark bold
      *  16px heading, the primary hierarchy anchor inside the body (owner Figma node 121-5). */
-    sectionLabel: 'text-[16px] font-bold text-[var(--pl-text-strong)]',
+    sectionLabel: 'text-[16px] font-semibold text-[var(--pl-text-strong)] tracking-[-0.196px]',
     descText: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-text-strong)] whitespace-pre-line',
     /** key/value progress rows — value is regular weight, 14px (node 70:35). */
     kvRow: 'flex items-center justify-between gap-3',
@@ -147,7 +147,7 @@ export const improvedStyles = {
     defVal: 'text-[13px] font-semibold text-[var(--pl-text-strong)] text-right break-all',
     defValMono: 'text-[13px] font-semibold text-[var(--pl-text-strong)] text-right break-all [font-family:var(--pl-font-mono)]',
     /** Judgment policy — dark bold 16px heading + prose paragraph (KIND_POLICY). */
-    policyLabel: 'text-[16px] font-bold text-[var(--pl-text-strong)]',
+    policyLabel: 'text-[16px] font-semibold text-[var(--pl-text-strong)] tracking-[-0.196px]',
     policyText: 'mt-1.5 text-[13px] leading-[1.6] text-[var(--pl-text-medium)]',
   },
 } as const;
