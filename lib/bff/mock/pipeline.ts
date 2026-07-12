@@ -1067,25 +1067,30 @@ const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' |
       + 'Terraform has been successfully initialized!' },
 };
 
+/** Raw state-poll response body, pretty-printed as the upstream stores it. The
+ *  viewer renders it verbatim (never re-parses), so the mock owns the formatting. */
+const stateJson = (terraformState: string, failReason: string | null): string =>
+  JSON.stringify({ terraformState, failReason }, null, 2);
+
 const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
   '12401:1:1019': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
-    last_response: '{"terraformState":"COMPLETED","failReason":null}', poll_count: 4, last_polled_at: jobAgo(3 * 60 - 13) },
+    last_response: stateJson('COMPLETED', null), poll_count: 4, last_polled_at: jobAgo(3 * 60 - 13) },
   '12401:1:1020': { last_state: 'RUNNING', last_fail_reason: null, last_error: null,
-    last_response: '{"terraformState":"RUNNING","failReason":null}', poll_count: 4, last_polled_at: jobAgo(3 * 60 - 13) },
+    last_response: stateJson('RUNNING', null), poll_count: 4, last_polled_at: jobAgo(3 * 60 - 13) },
   '12401:1:1021': { last_state: null, last_fail_reason: null, last_error: 'infra-manager call timed out after PT30S',
     last_response: null, poll_count: 4, last_polled_at: jobAgo(3 * 60 - 14) },
   '12401:2:1026': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
-    last_response: '{"terraformState":"COMPLETED","failReason":null}', poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
+    last_response: stateJson('COMPLETED', null), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
   '12401:2:1027': { last_state: 'FAILED', last_fail_reason: 'mock forced failure', last_error: null,
-    last_response: '{"terraformState":"FAILED","failReason":"mock forced failure"}', poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
+    last_response: stateJson('FAILED', 'mock forced failure'), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
   '12401:2:1028': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
-    last_response: '{"terraformState":"COMPLETED","failReason":null}', poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
+    last_response: stateJson('COMPLETED', null), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
   '12804:1:1031': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
-    last_response: '{"terraformState":"COMPLETED","failReason":null}', poll_count: 2, last_polled_at: jobAgo(29) },
+    last_response: stateJson('COMPLETED', null), poll_count: 2, last_polled_at: jobAgo(29) },
   '12804:1:1032': { last_state: 'RUNNING', last_fail_reason: null, last_error: null,
-    last_response: '{"terraformState":"RUNNING","failReason":null}', poll_count: 2, last_polled_at: jobAgo(29) },
+    last_response: stateJson('RUNNING', null), poll_count: 2, last_polled_at: jobAgo(29) },
   '12804:1:1033': { last_state: 'RUNNING', last_fail_reason: null, last_error: null,
-    last_response: '{"terraformState":"RUNNING","failReason":null}', poll_count: 2, last_polled_at: jobAgo(29) },
+    last_response: stateJson('RUNNING', null), poll_count: 2, last_polled_at: jobAgo(29) },
 };
 
 // Generic log bodies for synthesized jobs (tasks without hand-written fixtures).
@@ -1138,8 +1143,7 @@ const synthStateBody = (
   return {
     task_id: taskId, attempt_number: n, job_id: jobId,
     last_state: state.last_state, last_fail_reason: state.last_fail_reason, last_error: state.last_error,
-    last_response: state.last_state === null ? null
-      : `{"terraformState":"${state.last_state}","failReason":${JSON.stringify(state.last_fail_reason)}}`,
+    last_response: state.last_state === null ? null : stateJson(state.last_state, state.last_fail_reason),
     poll_count: state.poll_count, last_polled_at: state.last_polled_at,
   };
 };

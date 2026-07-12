@@ -53,15 +53,6 @@ function ViewerEmpty({ title, desc }: { title: string; desc: ReactNode }): React
   );
 }
 
-/** Pretty-print a compact JSON string; leaves non-JSON untouched. */
-function prettyJson(raw: string): string {
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return raw;
-  }
-}
-
 export function JobViewer({
   pipelineId,
   taskId,
@@ -171,7 +162,9 @@ export function JobViewer({
     else
       body = (
         <div className={j.logBody} tabIndex={0} role="region" aria-label="상태 응답 원문">
-          <pre className={j.logPre}>{prettyJson(state.data?.last_response ?? '')}</pre>
+          {/* Verbatim — this is the raw upstream response; never re-parse it
+              (JSON round-tripping would drop unsafe-int precision / reorder keys). */}
+          <pre className={j.logPre}>{state.data?.last_response ?? ''}</pre>
         </div>
       );
   }
