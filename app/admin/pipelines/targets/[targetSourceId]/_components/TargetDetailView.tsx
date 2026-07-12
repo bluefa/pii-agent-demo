@@ -27,7 +27,6 @@ import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
 import { PipelineProgressBar } from '@/app/admin/pipelines/_components/PipelineProgressBar';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { PreviewModal } from '@/app/admin/pipelines/_detail/PreviewModal';
-import { CancelModal } from '@/app/admin/pipelines/_detail/CancelModal';
 import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { targetCrumbs } from '@/app/admin/pipelines/_detail/pipelineBreadcrumb';
@@ -145,7 +144,6 @@ export function TargetDetailView(): ReactElement {
   // Repo rule: modal open/close flows go through useModal. R21 §A1 — the type
   // choice happens INSIDE the modal, so there is no payload to ride.
   const previewModal = useModal();
-  const cancelModal = useModal();
 
   // Raw detail (identity strip + CSP metadata).
   useEffect(() => {
@@ -319,7 +317,6 @@ export function TargetDetailView(): ReactElement {
           <CurrentPipelineCard
             detail={liveDetail}
             defs={defs}
-            onCancel={() => cancelModal.open()}
             onOpenPipeline={() => goPipeline(liveDetail.pipeline_id)}
           />
         ) : !latestLoaded || live ? (
@@ -435,18 +432,6 @@ export function TargetDetailView(): ReactElement {
         provider={orchProvider}
         showToast={toast.show}
       />
-      {liveId != null && (
-        <CancelModal
-          open={cancelModal.isOpen}
-          onClose={cancelModal.close}
-          pipelineId={liveId}
-          showToast={toast.show}
-          onCancelled={(d) => {
-            setLiveDetail(d);
-            setRunsKey((k) => k + 1);
-          }}
-        />
-      )}
     </div>
   );
 }

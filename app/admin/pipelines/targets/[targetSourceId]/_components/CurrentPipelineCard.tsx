@@ -15,7 +15,7 @@ import { Fragment, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { canCancel, recipeDisplayName, recipeLabel } from '@/lib/pipeline/format';
+import { recipeDisplayName, recipeLabel } from '@/lib/pipeline/format';
 import {
   FlowArrow,
   FlowStatusPill,
@@ -39,14 +39,12 @@ export interface CurrentPipelineCardProps {
   detail: PipelineDetail;
   /** task_definition name → catalog entry (display name + description). */
   defs: ReadonlyMap<string, TaskCatalogEntry>;
-  onCancel: () => void;
   onOpenPipeline: () => void;
 }
 
 export function CurrentPipelineCard({
   detail,
   defs,
-  onCancel,
   onOpenPipeline,
 }: CurrentPipelineCardProps): ReactElement {
   const label = recipeLabel(detail.recipe_definition);
@@ -82,12 +80,7 @@ export function CurrentPipelineCard({
               </p>
             ) : null}
           </div>
-          <div className="flex flex-none items-center gap-3.5 pt-0.5">
-            {canCancel(detail.status, detail.cancel_requested) && (
-              <PlButton variant="danger" size="sm" onClick={onCancel}>
-                중단
-              </PlButton>
-            )}
+          <div className="flex flex-none items-center pt-0.5">
             <button
               type="button"
               className={cn(
