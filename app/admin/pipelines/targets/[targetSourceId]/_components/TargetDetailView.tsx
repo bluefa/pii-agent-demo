@@ -13,7 +13,7 @@
  * (CSP metadata) comes from the reused BFF route via getRawTargetSourceDetail
  * (getProject drops those fields).
  */
-import { Fragment, useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
+import { Fragment, useCallback, useEffect, useState, type ReactElement } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -244,11 +244,6 @@ export function TargetDetailView(): ReactElement {
     [router],
   );
 
-  const lastTerminal = useMemo(
-    () => (latest && !isLivePipeline(latest.status) ? latest : null),
-    [latest],
-  );
-
   if (rawError) {
     return (
       <Card>
@@ -283,7 +278,7 @@ export function TargetDetailView(): ReactElement {
       {/* Page head — title left, primary CTA anchored top-right (R21 §A1: ONE
           CTA; the type choice lives in the modal). R24 — the CTA disables
           while a run is live (one concurrent run per target). */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className={text.pageTitle}>
           {svcName} <span className={cn(text.muted, 'font-normal')}>({serviceCode})</span>
         </h1>
@@ -299,8 +294,9 @@ export function TargetDetailView(): ReactElement {
         </PlButton>
       </div>
 
-      {/* R21 §C1 — metadata as a front-matter strip: reference info, not the hero. */}
-      <div className={fm.strip}>
+      {/* R21 §C1 — metadata as a front-matter strip: reference info, not the hero.
+          Stays on one line (flex-nowrap); scrolls horizontally when it can't fit. */}
+      <div className={cn(fm.strip, 'overflow-x-auto')}>
         <span className={fm.item}>
           <span style={{ color: `var(${providerAccentVar(provider)})` }} className="inline-flex">
             <Icon name="cloud" size="sm" />
@@ -329,20 +325,22 @@ export function TargetDetailView(): ReactElement {
         ))}
       </div>
 
-      {/* R24 — 현재 파이프라인: run-card while live, dashed empty card otherwise. */}
-      <R24Section title="현재 파이프라인" desc="이 대상에서 동시에 실행할 수 있는 파이프라인은 1개입니다" />
-      {live && liveDetail && liveDetail.pipeline_id === liveId ? (
-        <CurrentPipelineCard
-          detail={liveDetail}
-          defs={defs}
-          onCancel={() => cancelModal.open()}
-          onOpenPipeline={() => goPipeline(liveDetail.pipeline_id)}
-        />
-      ) : !latestLoaded || live ? (
-        <div className={cn(detailStyles.skeleton, 'mt-3.5 h-40')} aria-hidden="true" />
-      ) : (
-        <EmptyPipelineCard last={lastTerminal} onStart={() => previewModal.open()} />
-      )}
+      {/* R24 — 현재 파이프라인: run-card while live, empty card otherwise. The
+          section eyebrow lives inside the card itself (Figma 9:429). */}
+      <div className="mt-11">
+        {live && liveDetail && liveDetail.pipeline_id === liveId ? (
+          <CurrentPipelineCard
+            detail={liveDetail}
+            defs={defs}
+            onCancel={() => cancelModal.open()}
+            onOpenPipeline={() => goPipeline(liveDetail.pipeline_id)}
+          />
+        ) : !latestLoaded || live ? (
+          <div className={cn(detailStyles.skeleton, 'h-52')} aria-hidden="true" />
+        ) : (
+          <EmptyPipelineCard onStart={() => previewModal.open()} />
+        )}
+      </div>
 
       <R24Section
         title="파이프라인 이력"
@@ -351,7 +349,8 @@ export function TargetDetailView(): ReactElement {
       <div className="mt-3.5 overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]">
         {rows.length ? (
           <>
-            <table className="w-full border-collapse text-[13px]">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] border-collapse text-[13px]">
               <colgroup>
                 <col className="w-[72px]" />
                 <col />
@@ -377,11 +376,20 @@ export function TargetDetailView(): ReactElement {
                   <tr
                     key={p.pipeline_id}
                     className={cn(
-                      'cursor-pointer hover:bg-[var(--pl-gray-50)] [&:last-child>td]:border-b-0',
+                      'cursor-pointer hover:bg-[var(--pl-gray-50)] [&:last-child>td]:border-b-0 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pl-primary)]',
                       p.pipeline_id === liveId &&
                         'bg-[color-mix(in_srgb,var(--pl-primary)_4%,transparent)]',
                     )}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`파이프라인 #${p.pipeline_id} 상세 열기`}
                     onClick={() => goPipeline(p.pipeline_id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        goPipeline(p.pipeline_id);
+                      }
+                    }}
                   >
                     <td className={cn(HISTORY_TD, 'font-semibold [font-family:var(--pl-font-mono)]')}>
                       #{p.pipeline_id}
@@ -413,6 +421,7 @@ export function TargetDetailView(): ReactElement {
                 ))}
               </tbody>
             </table>
+            </div>
             {/* R20 — always visible so the history reads as a paged list. */}
             <div className="flex items-center justify-between border-t border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-4 py-1 text-[12px] text-[var(--pl-text-faint)]">
               <span>

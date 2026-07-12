@@ -24,7 +24,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
-import type { PipelineType, TaskKind } from '@/lib/pipeline/types';
+import type { PipelineStatus, PipelineType, TaskKind, TaskStatus } from '@/lib/pipeline/types';
 
 export const R24_CSS = `
 .r24-canvas{background-color:var(--pl-bg-inner);background-image:linear-gradient(var(--pl-flow-grid) 1px,transparent 1px),linear-gradient(90deg,var(--pl-flow-grid) 1px,transparent 1px);background-size:16px 16px;border:1px solid var(--pl-border);border-radius:10px}
@@ -167,6 +167,142 @@ export function R24TaskNode({ kind, name, desc, seq, state, footer, className }:
         <div className="r24-nm">{name}</div>
         {desc ? <div className="r24-ds">{desc}</div> : null}
         {footer ? <div className="r24-st">{footer}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- *
+ * Running-card flow variant (Figma node 9-2, 9:506 "Flow Track"). The live
+ * pipeline's task cards carry status, so they use a richer treatment than the
+ * bare modal node: a 44px kind-icon tile (violet Terraform / amber condition,
+ * neutral when queued), a top-right status corner (check / spinner / ordinal),
+ * and a status pill + retry counter. State drives the card frame — cur (primary
+ * border), pend (dashed + dimmed), failed (err border).
+ * -------------------------------------------------------------------------- */
+
+export const R24_RUN_CSS = `
+.rtc{position:relative;display:flex;align-items:center;gap:12px;width:248px;flex:none;background:var(--pl-bg-card);border:1px solid var(--pl-border);border-radius:12px;padding:12px 16px 12px 12px;box-shadow:var(--pl-shadow-xs)}
+.rtc-tile{flex:none;width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--pl-gray-50)}
+.rtc-tile svg{width:26px;height:26px}
+.rtc-tile.tf{background:color-mix(in srgb,var(--pl-type-custom) 9%,var(--pl-bg-card));color:var(--pl-brand-tf)}
+.rtc-tile.cond{background:color-mix(in srgb,var(--pl-warn) 13%,var(--pl-bg-card));color:var(--pl-warn)}
+.rtc-tx{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.rtc-nm{font-size:13px;font-weight:700;line-height:1.35;letter-spacing:-.2px;color:var(--pl-text-strong);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:keep-all}
+.rtc-ds{font-size:10.5px;line-height:1.5;color:var(--pl-text-weak);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.rtc-st{display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap}
+.rtc.cur{border-color:var(--pl-primary);border-width:2px;padding:11px 15px 11px 11px;box-shadow:0 2px 8px color-mix(in srgb,var(--pl-gray-900) 12%,transparent)}
+.rtc.pend{border-style:dashed;background:color-mix(in srgb,var(--pl-bg-card) 60%,transparent);opacity:.72;box-shadow:none}
+.rtc.pend .rtc-nm{color:var(--pl-text-weak)}
+.rtc.pend .rtc-ds{color:var(--pl-text-faint)}
+.rtc.pend .rtc-tile{background:var(--pl-gray-50);color:var(--pl-text-faint)}
+.rtc.failed{border-color:var(--pl-err-border)}
+.rtc-corner{position:absolute;top:-8px;right:6px;width:20px;height:20px;border-radius:99px;display:flex;align-items:center;justify-content:center;box-shadow:var(--pl-shadow-xs);font-family:var(--pl-font-mono);font-size:10px;font-weight:700}
+.rtc-corner svg{width:12px;height:12px}
+.rtc-corner.done{background:var(--pl-ok);color:var(--pl-white)}
+.rtc-corner.running{background:var(--pl-primary);color:var(--pl-white)}
+.rtc-corner.failed{background:var(--pl-err);color:var(--pl-white)}
+.rtc-corner.pending,.rtc-corner.cancelled{background:var(--pl-bg-card);border:1px solid var(--pl-border-strong);color:var(--pl-text-weak)}
+.rtc-corner.running svg{animation:r24-spin 1s linear infinite}
+@keyframes r24-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.rtc-corner.running svg{animation:none}}
+`;
+
+type FlowKey = 'done' | 'running' | 'pending' | 'failed' | 'cancelled';
+
+/** Wire status (pipeline OR task) → the flow's visual bucket + friendly label. */
+const STATUS_VIEW: Record<PipelineStatus | TaskStatus, { key: FlowKey; label: string }> = {
+  RUNNING: { key: 'running', label: 'RUNNING' },
+  IN_PROGRESS: { key: 'running', label: 'RUNNING' },
+  PENDING: { key: 'pending', label: 'PENDING' },
+  READY: { key: 'pending', label: 'PENDING' },
+  BLOCKED: { key: 'pending', label: 'PENDING' },
+  DONE: { key: 'done', label: 'DONE' },
+  FAILED: { key: 'failed', label: 'FAILED' },
+  CANCELLED: { key: 'cancelled', label: 'CANCELLED' },
+};
+
+const PILL_TONE: Record<FlowKey, string> = {
+  done: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
+  running: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]',
+  pending: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
+  failed: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+  cancelled: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
+};
+
+/** Status capsule for the run flow — green DONE / blue RUNNING (ring dot) /
+ *  gray PENDING / red FAILED. Friendly labels, not the raw wire enum. */
+export function FlowStatusPill({
+  status,
+  className,
+}: {
+  status: PipelineStatus | TaskStatus;
+  className?: string;
+}): ReactElement {
+  const view = STATUS_VIEW[status];
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-[5px] rounded-full px-2 py-[3px] text-[10.5px] font-semibold whitespace-nowrap',
+        PILL_TONE[view.key],
+        className,
+      )}
+    >
+      {view.key === 'running' && (
+        <span className="h-2 w-2 flex-none rounded-full border-[1.4px] border-current" aria-hidden="true" />
+      )}
+      {view.label}
+    </span>
+  );
+}
+
+const CORNER_ICON: Partial<Record<FlowKey, IconName>> = {
+  done: 'check',
+  running: 'loader',
+  failed: 'x',
+  cancelled: 'x',
+};
+
+export interface RunTaskCardProps {
+  kind: TaskKind;
+  name: string;
+  desc?: string | null;
+  status: TaskStatus;
+  /** 1-based ordinal — shown in the corner while the task is queued. */
+  seq: number;
+  /** '시도 1 / 3' — only on the in-progress task. */
+  retry?: string | null;
+}
+
+/** Live-pipeline task card — tile + status corner + status pill (R24 run flow). */
+export function RunTaskCard({ kind, name, desc, status, seq, retry }: RunTaskCardProps): ReactElement {
+  const view = STATUS_VIEW[status];
+  const cardState =
+    view.key === 'running'
+      ? 'cur'
+      : view.key === 'pending'
+        ? 'pend'
+        : view.key === 'failed'
+          ? 'failed'
+          : undefined;
+  const cornerIcon = CORNER_ICON[view.key];
+  return (
+    <div className={cn('rtc', cardState)}>
+      <span className={cn('rtc-corner', view.key)} aria-hidden="true">
+        {cornerIcon ? <Icon name={cornerIcon} size="sm" strokeWidth={2.4} /> : seq}
+      </span>
+      <span className={cn('rtc-tile', kind === 'CONDITION_CHECK' ? 'cond' : 'tf')} aria-hidden="true">
+        {kind === 'CONDITION_CHECK' ? <Icon name="clock" strokeWidth={2} /> : <TerraformLogo />}
+      </span>
+      <div className="rtc-tx">
+        <div className="rtc-nm">{name}</div>
+        {desc ? <div className="rtc-ds">{desc}</div> : null}
+        <div className="rtc-st">
+          <FlowStatusPill status={status} />
+          {view.key === 'running' && retry ? (
+            <span className="text-[10px] tabular-nums text-[var(--pl-text-faint)]">{retry}</span>
+          ) : null}
+        </div>
       </div>
     </div>
   );

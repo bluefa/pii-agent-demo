@@ -93,11 +93,15 @@ const TYPE_NOTES: Record<PipelineType, ReactNode> = {
   CUSTOM: null,
 };
 
-/** R24 seq-node flow — ONE row on the grid canvas, horizontal scroll. */
+/** R24 node flow — ONE row on the grid canvas, horizontal scroll. `numbered`
+ *  adds the black order chips (custom summary mirrors the builder); the recipe
+ *  preview omits them (Figma step 2 — order reads from the arrows alone). */
 function SeqFlow({
   steps,
+  numbered = false,
 }: {
   steps: ReadonlyArray<{ key: string; kind: TaskKind; name: string; desc?: string | null }>;
+  numbered?: boolean;
 }): ReactElement {
   return (
     <div className="r24-canvas r24-hscroll mt-3.5">
@@ -105,7 +109,7 @@ function SeqFlow({
         {steps.map((s, i) => (
           <Fragment key={s.key}>
             {i > 0 && <FlowArrow />}
-            <R24TaskNode kind={s.kind} name={s.name} desc={s.desc} seq={i + 1} />
+            <R24TaskNode kind={s.kind} name={s.name} desc={s.desc} seq={numbered ? i + 1 : undefined} />
           </Fragment>
         ))}
       </div>
@@ -382,6 +386,7 @@ export function PreviewModal({
             Task {chosen.length}개를 아래 순서로 실행합니다
           </div>
           <SeqFlow
+            numbered
             steps={chosen.map((t) => ({
               key: t.name,
               kind: t.kind,
