@@ -49,7 +49,7 @@ const DRAG_THRESHOLD_PX = 6;
  */
 const BUILD_CSS = `
 .r24-build{display:flex;align-items:stretch;min-height:340px;overflow:hidden}
-.r24-build .r24-bscroll{flex:1;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;padding:24px 22px 16px;display:flex;flex-direction:column;scrollbar-width:thin;scrollbar-color:var(--pl-gray-300) transparent}
+.r24-build .r24-bscroll{flex:1;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;padding:24px 22px 16px;display:flex;flex-direction:column;justify-content:center;scrollbar-width:thin;scrollbar-color:var(--pl-gray-300) transparent}
 .r24-build .r24-bscroll::-webkit-scrollbar{height:6px}
 .r24-build .r24-bscroll::-webkit-scrollbar-thumb{border-radius:99px;background:var(--pl-gray-300)}
 .r24-build .r24-bscroll::-webkit-scrollbar-track{border-radius:99px;background:color-mix(in srgb,var(--pl-gray-900) 7%,transparent)}

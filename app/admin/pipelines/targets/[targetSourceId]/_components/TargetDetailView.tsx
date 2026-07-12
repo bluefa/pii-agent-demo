@@ -275,24 +275,11 @@ export function TargetDetailView(): ReactElement {
     <div>
       <PlBreadcrumb crumbs={targetCrumbs(svcName, targetSourceId)} />
 
-      {/* Page head — title left, primary CTA anchored top-right (R21 §A1: ONE
-          CTA; the type choice lives in the modal). R24 — the CTA disables
-          while a run is live (one concurrent run per target). */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className={text.pageTitle}>
-          {svcName} <span className={cn(text.muted, 'font-normal')}>({serviceCode})</span>
-        </h1>
-        <PlButton
-          className="flex-none"
-          variant={live ? 'secondary' : 'primary'}
-          disabled={live}
-          title={live ? '실행 중에는 새 파이프라인을 시작할 수 없어요' : '파이프라인 유형을 선택해 시작합니다'}
-          onClick={() => previewModal.open()}
-        >
-          <Icon name="play" size="sm" />
-          파이프라인 시작
-        </PlButton>
-      </div>
+      {/* Page head — title only. R24: the start CTA lives in the 현재 파이프라인
+          empty card (and its modal), not a top-right header button. */}
+      <h1 className={text.pageTitle}>
+        {svcName} <span className={cn(text.muted, 'font-normal')}>({serviceCode})</span>
+      </h1>
 
       {/* R21 §C1 — metadata as a front-matter strip: reference info, not the hero.
           Stays on one line (flex-nowrap); scrolls horizontally when it can't fit. */}
