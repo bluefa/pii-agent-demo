@@ -107,7 +107,8 @@ export const improvedStyles = {
     /** Sub-tab nav. */
     nav: 'flex items-stretch border-b border-[var(--pl-border)]',
     navTab: 'flex-1 flex flex-col items-center justify-center gap-1.5 h-11 text-[14px]',
-    navActive: 'text-[var(--pl-primary)] font-semibold',
+    // Active tab: neutral strong text — blue is reserved for the underline only.
+    navActive: 'text-[var(--pl-text-strong)] font-semibold',
     navIdle: 'text-[var(--pl-text-faint)] font-normal',
     navUnderline: 'h-0.5 w-14 rounded-full bg-[var(--pl-primary)]',
     navUnderlineHidden: 'h-0.5 w-14',
@@ -128,13 +129,6 @@ export const improvedStyles = {
     bigValErr: 'text-[24px] font-bold text-[var(--pl-err-text)] tabular-nums',
     rowsGap: 'mt-4 flex flex-col gap-2.5',
 
-    /** FAILED task — 실패 원인 callout. */
-    failCard: 'rounded-[8px] border border-[var(--pl-err-border)] bg-[var(--pl-err-bg)] px-4 py-3 flex flex-col gap-1.5 text-[var(--pl-err-text)]',
-    failLabel: 'text-[11px] font-medium',
-    failRow: 'flex items-center gap-2',
-    failKey: 'text-[12px]',
-    failCode: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)]',
-
     /** attempts table. */
     tableWrap: 'rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] overflow-x-auto',
     table: 'w-full border-collapse text-[12px]',
@@ -142,7 +136,6 @@ export const improvedStyles = {
     td: 'px-2 py-2.5 align-middle text-[var(--pl-text-strong)] border-b border-[var(--pl-gray-100)] tabular-nums [&:last-child]:whitespace-nowrap',
     tbody: '[&>tr:last-child>td]:border-b-0',
     miniBadge: 'inline-flex items-center rounded-[10px] px-1.5 py-0.5 text-[10px] font-medium leading-none',
-    respCell: '[font-family:var(--pl-font-mono)] text-[var(--pl-text-medium)] max-w-[80px] overflow-hidden text-ellipsis whitespace-nowrap',
     empty: 'text-[13px] text-[var(--pl-text-faint)] py-6 text-center',
 
     /** definition·contract table. */

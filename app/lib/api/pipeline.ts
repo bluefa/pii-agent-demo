@@ -26,6 +26,8 @@ import type {
   StatisticsPeriodToken,
   TaskCatalogResponse,
   TaskDetail,
+  TerraformJobResultDetail,
+  TerraformJobStateDetail,
 } from '@/lib/pipeline/types';
 
 /**
@@ -140,6 +142,29 @@ export const getTaskDetail = (
   taskId: number | string,
 ): Promise<TaskDetail> =>
   orchestratorGet<TaskDetail>(`${ORCH}/pipelines/${seg(pipelineId)}/tasks/${seg(taskId)}`);
+
+// #5a — a single terraform job's log body (tail-first, ≤16MB). `content: null`
+// is a valid 200 (pointer row / live fetch miss), NOT a 404.
+export const getJobResult = (
+  pipelineId: number | string,
+  taskId: number | string,
+  attemptNumber: number | string,
+  jobId: number | string,
+): Promise<TerraformJobResultDetail> =>
+  orchestratorGet<TerraformJobResultDetail>(
+    `${ORCH}/pipelines/${seg(pipelineId)}/tasks/${seg(taskId)}/attempts/${seg(attemptNumber)}/jobs/${seg(jobId)}/result`,
+  );
+
+// #5b — a single terraform job's last state observation (incl. raw last_response).
+export const getJobState = (
+  pipelineId: number | string,
+  taskId: number | string,
+  attemptNumber: number | string,
+  jobId: number | string,
+): Promise<TerraformJobStateDetail> =>
+  orchestratorGet<TerraformJobStateDetail>(
+    `${ORCH}/pipelines/${seg(pipelineId)}/tasks/${seg(taskId)}/attempts/${seg(attemptNumber)}/jobs/${seg(jobId)}/state`,
+  );
 
 // #6
 export const cancelPipeline = (pipelineId: number | string): Promise<PipelineDetail> =>

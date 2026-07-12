@@ -44,6 +44,20 @@ export interface PipelineBffClient {
   detail: (pipelineId: string) => Promise<OrchestratorRawResponse>;
   /** #5 GET /api/v1/pipelines/{pipelineId}/tasks/{taskId} */
   taskDetail: (pipelineId: string, taskId: string) => Promise<OrchestratorRawResponse>;
+  /** #5a GET …/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/result */
+  jobResult: (
+    pipelineId: string,
+    taskId: string,
+    attemptNumber: string,
+    jobId: string,
+  ) => Promise<OrchestratorRawResponse>;
+  /** #5b GET …/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/state */
+  jobState: (
+    pipelineId: string,
+    taskId: string,
+    attemptNumber: string,
+    jobId: string,
+  ) => Promise<OrchestratorRawResponse>;
   /** #6 POST /api/v1/pipelines/{pipelineId}/cancel */
   cancel: (pipelineId: string) => Promise<OrchestratorRawResponse>;
   /** #7 GET /api/v1/target-sources/{targetSourceId}/pipelines?<query> */
