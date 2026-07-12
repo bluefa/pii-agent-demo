@@ -1,6 +1,6 @@
 /**
  * Class tokens for the R23 job-result surface added to the task drawer: the
- * 시도 이력 / Terraform Job list rows, the attempt drill-down header, and the
+ * attempt-history / Terraform Job list rows, the attempt drill-down header, and the
  * full-screen log/state viewer. Same discipline as `detailImprovedStyles` —
  * every value maps to a `--pl-*` token, no raw color classes (CLAUDE.md #4).
  * Reuses `improvedStyles.drawer` for shared kv/section grammar; only the pieces
@@ -23,7 +23,7 @@ const VERDICT_LABEL: Record<JobVerdict, string> = {
   none: '기록 없음',
 };
 
-/** Verdict as colored TEXT (no pill) — condition 판정 (owner Figma node 121-493). */
+/** Verdict as colored TEXT (no pill) — condition verdict (owner Figma node 121-493). */
 const VERDICT_TEXT_TONE: Record<JobVerdict, string> = {
   success: 'text-[var(--pl-ok-text)]',
   failed: 'text-[var(--pl-err-text)]',
@@ -38,21 +38,21 @@ export const jobStyles = {
   verdictText: 'text-[13px] font-medium',
   miniBadge: 'inline-flex items-center rounded-[10px] px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap',
 
-  /** A subdued suffix on a section label (e.g. "— 행을 누르면 job·로그 상세"). */
+  /** A subdued suffix on a section label (e.g. "row opens job/log detail"). */
   labelHint: 'font-normal text-[var(--pl-text-faint)]',
 
-  /** Bordered white card wrapping a stack of rows (시도 이력 / job 목록). */
+  /** Bordered white card wrapping a stack of rows (attempt history / job list). */
   cardList: 'mt-3 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] overflow-hidden',
   cardFoot: 'px-4 py-2.5 text-[11px] leading-[1.5] text-[var(--pl-text-faint)] bg-[var(--pl-gray-50)] border-t border-[var(--pl-border)]',
 
-  /** 시도 이력 row — a full-width button that drills into the attempt. */
+  /** Attempt-history row — a full-width button that drills into the attempt. */
   attemptRow: 'w-full flex items-center gap-2.5 px-4 py-3 text-left border-b border-[var(--pl-gray-100)] last:border-b-0 hover:bg-[var(--pl-gray-50)] transition-colors',
   attemptNo: 'text-[13px] font-semibold text-[var(--pl-text-medium)] tabular-nums flex-none w-6',
   attemptTime: 'ml-auto text-[12px] text-[var(--pl-text-faint)] tabular-nums whitespace-nowrap',
   attemptCur: 'flex-none rounded-full bg-[var(--pl-gray-100)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--pl-text-medium)]',
   attemptChev: 'flex-none text-[var(--pl-text-faint)] text-[14px] leading-none',
 
-  /** Terraform Job row — verdict + id + meta + 로그 action. */
+  /** Terraform Job row — verdict + id + meta + log action. */
   jobRow: 'flex items-center gap-2.5 px-4 py-3 border-b border-[var(--pl-gray-100)] last:border-b-0',
   jobId: 'text-[13px] font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums',
   jobMeta: 'ml-auto text-[12px] text-[var(--pl-text-faint)] tabular-nums whitespace-nowrap',
@@ -68,7 +68,7 @@ export const jobStyles = {
   respSummary: 'cursor-pointer list-none text-[12px] text-[var(--pl-text-faint)] [&::-webkit-details-marker]:hidden select-none',
   respPre: 'mt-2 rounded-[6px] bg-[var(--pl-gray-50)] border border-[var(--pl-border)] px-3 py-2 text-[11px] leading-[1.5] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
 
-  /** 폴 이력 "전체 보기" toggle. */
+  /** Poll-history "show all" toggle. */
   moreBtn: 'w-full border-t border-[var(--pl-border)] py-2.5 text-[12px] font-medium text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)] transition-colors',
 
   // ── Viewer (rendered inside ModalShell — scrim/Esc/backdrop are the shell's) ─
@@ -80,7 +80,7 @@ export const jobStyles = {
   vSub: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
   vClose: 'flex-none inline-flex items-center justify-center w-8 h-8 -mr-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-gray-50)] transition-colors',
 
-  /** Toolbar — segmented [로그 | 상태 응답 원문] + status pills + 복사. */
+  /** Toolbar — segmented [log | raw state] + status pills + copy. */
   toolbar: 'flex items-center gap-2.5 px-6 py-3 border-b border-[var(--pl-border)] flex-wrap',
   seg: 'inline-flex rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] p-0.5',
   segBtn: 'rounded-[6px] px-3 py-1.5 text-[12px] font-medium transition-colors',
@@ -93,7 +93,7 @@ export const jobStyles = {
   /** Log body — dark, mono, tail-anchored. */
   logBody: 'flex-1 overflow-auto bg-[var(--pl-gray-800)] px-5 py-4',
   logPre: 'text-[12px] leading-[1.6] text-[var(--pl-chrome-item)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
-  logCut: 'block pb-2 mb-2 text-[11px] text-[var(--pl-warn)] border-b border-white/15',
+  logCut: 'block pb-2 mb-2 text-[11px] text-[var(--pl-warn)] border-b border-[var(--pl-gray-600)]',
 
   /** Empty / error states inside the viewer body. */
   vEmpty: 'flex-1 flex flex-col items-center justify-center gap-2 px-8 py-16 text-center',

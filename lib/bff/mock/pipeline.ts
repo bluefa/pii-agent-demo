@@ -1016,7 +1016,7 @@ const PATH = {
 // Per-job log bodies + full state responses backing the #5a/#5b endpoints.
 // Keyed `${taskId}:${attemptNumber}:${jobId}`; only jobs the seed exercises are
 // present (task 12401 FAILED, task 12804 in-flight). Timestamps are anchored at
-// import time — good enough for the viewer's "수집 HH:MM" stamps.
+// import time — good enough for the viewer's "collected HH:MM" stamps.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const jobAgo = (min: number): string => new Date(Date.now() - min * 60_000).toISOString();

@@ -4,16 +4,17 @@
  * TaskDrawer — the right-docked task panel (Figma "pipeline-detail-improved"
  * node 70:35, extended with the R23 job-result surface).
  *
- * Two sub-tabs at the root:
- *   · 실행 정보 — 진행 기록 · 시도 횟수 · 시도 이력 (TERRAFORM_JOB) or
- *                 진행 기록 · 재시도 예산 · 폴 이력 (CONDITION_CHECK)
- *   · 정의·계약 — task_definition / operation / 실행 방식 / polling / timeout /
- *                 retry_budget / judgment_policy
+ * Two root sub-tabs:
+ *   · Execution info — progress log · attempt count · attempt history
+ *     (TERRAFORM_JOB) or progress log · retry budget · poll history
+ *     (CONDITION_CHECK)
+ *   · Definition/contract — task_definition / operation / execution kind /
+ *     polling / timeout / retry_budget / judgment_policy
  *
- * A TERRAFORM_JOB 시도 이력 row drills into the attempt (← replaces the header),
- * which lists its Terraform Job rows (results ∪ states). A 로그 button opens a
- * full-screen viewer that lazily fetches the job's log (#5a) and last state
- * observation (#5b). Esc layering: viewer → attempt → drawer.
+ * A TERRAFORM_JOB attempt-history row drills into the attempt (← replaces the
+ * header), which lists its Terraform Job rows (results ∪ states). A "로그" button
+ * opens a full-screen viewer that lazily fetches the job's log (#5a) and last
+ * state observation (#5b). Esc layering: viewer → attempt → drawer.
  *
  * The pipeline detail (#5) is already loaded by the page; only the per-job log
  * and state are fetched on demand. The parent remounts per task (`key={task_id}`)
@@ -21,6 +22,7 @@
  */
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
+import { useModal } from '@/app/hooks/useModal';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -90,7 +92,7 @@ function Section({ label, hint, children }: { label: string; hint?: string; chil
   );
 }
 
-// ── 실행 정보 (root) ─────────────────────────────────────────────────────────
+// ── Execution info (root) ───────────────────────────────────────────────────
 
 function TerraformExec({
   detail,
@@ -162,7 +164,7 @@ function TerraformExec({
 function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement {
   const reversed = [...detail.attempts].reverse();
   const latest = reversed.find((a) => a.check) ?? null;
-  // 현재 판정 = the most recent *settled* poll (skip a trailing in-flight one).
+  // Current verdict = the most recent settled poll (skip a trailing in-flight one).
   const judged = reversed.find((a) => a.status !== 'IN_PROGRESS') ?? reversed[0] ?? null;
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? reversed : reversed.slice(0, 5);
@@ -251,7 +253,7 @@ function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement {
   );
 }
 
-// ── 시도 상세 (drill-down) ───────────────────────────────────────────────────
+// ── Attempt detail (drill-down) ─────────────────────────────────────────────
 
 function AttemptDetail({
   attempt,
@@ -354,7 +356,7 @@ function JobRowItem({ row, onOpen }: { row: JobRow; onOpen: () => void }): React
   );
 }
 
-// ── 정의·계약 ────────────────────────────────────────────────────────────────
+// ── Definition / contract ───────────────────────────────────────────────────
 
 function DefinitionTab({ detail, displayName }: { detail: TaskDetail; displayName: string }): ReactElement {
   const cond = detail.kind === 'CONDITION_CHECK';
@@ -384,7 +386,7 @@ function DefinitionTab({ detail, displayName }: { detail: TaskDetail; displayNam
   );
 }
 
-// ── 로그/상태 뷰어 ────────────────────────────────────────────────────────────
+// ── Log / state viewer ──────────────────────────────────────────────────────
 
 type ViewerTab = 'log' | 'raw';
 type Loadable<T> = { phase: 'loading' | 'ok' | 'notfound' | 'error'; data: T | null; error: string | null };
@@ -624,14 +626,14 @@ export function TaskDrawer({
 }: TaskDrawerProps): ReactElement {
   const [tab, setTab] = useState<DrawerTab>('exec');
   const [view, setView] = useState<DrawerView>({ name: 'root' });
-  const [viewer, setViewer] = useState<ViewerTarget | null>(null);
+  const viewerModal = useModal<ViewerTarget>();
   const description = detail ? detail.definition?.description ?? detail.description : null;
 
   // Esc layering: viewer (ModalShell owns it) → attempt → close drawer.
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
-      if (viewer) return;
+      if (viewerModal.isOpen) return;
       if (view.name === 'attempt') {
         setView({ name: 'root' });
         return;
@@ -640,7 +642,7 @@ export function TaskDrawer({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, viewer, view]);
+  }, [onClose, viewerModal.isOpen, view]);
 
   const attempt =
     detail && view.name === 'attempt'
@@ -711,7 +713,7 @@ export function TaskDrawer({
       <div className={d.body}>
         {detail ? (
           view.name === 'attempt' && attempt ? (
-            <AttemptDetail attempt={attempt} onOpenViewer={setViewer} />
+            <AttemptDetail attempt={attempt} onOpenViewer={viewerModal.open} />
           ) : tab === 'exec' ? (
             detail.kind === 'CONDITION_CHECK' ? (
               <ConditionExec detail={detail} />
@@ -735,13 +737,13 @@ export function TaskDrawer({
         )}
       </div>
 
-      {viewer && detail && (
+      {viewerModal.isOpen && viewerModal.data && detail && (
         <JobViewer
           pipelineId={detail.pipeline_id}
           taskId={detail.task_id}
-          target={viewer}
+          target={viewerModal.data}
           jobLabel={displayName}
-          onClose={() => setViewer(null)}
+          onClose={viewerModal.close}
         />
       )}
     </aside>

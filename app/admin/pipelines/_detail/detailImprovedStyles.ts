@@ -114,7 +114,7 @@ export const improvedStyles = {
     navUnderlineHidden: 'h-0.5 w-14',
     body: 'flex-1 overflow-y-auto overscroll-contain px-6 py-7 flex flex-col gap-8',
 
-    /** Section label (진행 기록 / 시도 이력 / 시도 정보 / …) — dark bold heading,
+    /** Section label (progress log / attempt history / attempt info / …) — dark bold heading,
      *  the primary hierarchy anchor inside the body (owner Figma node 121-5). */
     sectionLabel: 'text-[14px] font-bold text-[var(--pl-text-strong)]',
     descText: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-text-strong)] whitespace-pre-line',
@@ -123,7 +123,7 @@ export const improvedStyles = {
     kvKey: 'text-[14px] text-[var(--pl-text-weak)]',
     kvVal: 'text-[14px] font-normal text-[var(--pl-text-strong)] tabular-nums',
     kvValErr: 'text-[14px] font-normal text-[var(--pl-err-text)] tabular-nums',
-    /** 시도 횟수 / 재시도 예산 — bold label + value on one row (Figma node 121-5). */
+    /** Attempt count / retry budget — bold label + value on one row (Figma node 121-5). */
     attemptRow: 'flex items-center justify-between gap-3',
     bigVal: 'text-[16px] font-bold text-[var(--pl-text-strong)] tabular-nums',
     bigValErr: 'text-[16px] font-bold text-[var(--pl-err-text)] tabular-nums',
@@ -145,7 +145,7 @@ export const improvedStyles = {
     defKey: 'flex-none text-[13px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
     defVal: 'text-[13px] font-semibold text-[var(--pl-text-strong)] text-right break-all',
     defValMono: 'text-[13px] font-semibold text-[var(--pl-text-strong)] text-right break-all [font-family:var(--pl-font-mono)]',
-    /** 판정 정책 — dark bold heading + prose paragraph (KIND_POLICY). */
+    /** Judgment policy — dark bold heading + prose paragraph (KIND_POLICY). */
     policyLabel: 'text-[14px] font-bold text-[var(--pl-text-strong)]',
     policyText: 'mt-1.5 text-[13px] leading-[1.6] text-[var(--pl-text-medium)]',
   },
