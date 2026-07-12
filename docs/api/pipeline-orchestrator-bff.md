@@ -108,11 +108,15 @@ GNB: `lib/routes.ts`에 경로 상수 추가 + `TopNav.tsx` `NAV_ITEMS`에 "파�
 
 ### 2.4 파이프라인 상세
 - IdentityBar·상태 바·Task 흐름 ← #4 (`tasks[]` = TaskSummary)
-- 노드 meta line·Task 상세 모달 ← #5를 **페이지 로드 시 task 전체 병렬 조회(동시성 캡 ≤6)**
-  — effective 값(주기/타임아웃/재시도 예산)·attempts·check는 TaskDetail에만 있고, meta line은
-  READY/BLOCKED(effective)·DONE(시도/폴 수)·FAILED(maxFail) 전부에서 detail 필드를 요구하므로
-  lazy로는 디자인 충실도를 만족할 수 없다(의도적 결정). 체인은 짧고(≤10) 로컬 서비스라 비용
-  미미. detail 로딩 전에는 summary 기반 축약 meta 표시, 모달은 로드된 detail 재사용(재조회 없음).
+- 노드 meta line ← #12 카탈로그(display_name + **description**)와 summary만으로 구성한다. FAILED
+  노드는 `실패 N회 — CODE`(summary의 fail_count + error_code), 그 외는 카탈로그 description →
+  operator description(summary.description) → summary 기반 축약 순으로 표시. 정확한 재시도
+  예산(f/m)·attempts·check 등 TaskDetail 전용 필드는 노드가 아니라 드로어에서만 노출한다.
+- Task 상세 드로어 ← #5를 **해당 Task를 열 때만 lazy 조회**한다(페이지 로드 시 task 전체 병렬
+  조회는 제거 — 진입 즉시 task별 상세 API를 호출하지 않는다). 조회 중엔 스켈레톤, 실패 시 재시도
+  버튼을 노출한다. 라이브 폴링(10s)은 파이프라인(#4) + **열려 있는 Task 1건**의 detail만 재조회하고,
+  요약이 바뀐 다른 캐시 detail은 축출해 재-오픈 시 새로 받는다. detail 요청은 AbortSignal로 취소되어
+  이전 선택의 지연 응답이 현재 드로어에 섞이지 않는다(선택 변경·언마운트 시 in-flight 취소).
 - Task 드로어의 시도 상세 → Terraform Job 로그/상태 뷰어 ← #5a/#5b를 **뷰어 열 때만 lazy 조회**
   (page-load 병렬 조회 대상 아님). #5a는 `content=null`(200 포인터/live 미수집)을 404와 구별하고,
   `source=live`는 저장 행이 없을 때 InfraManager 즉석 조회를 뜻한다(orchestrator 후속 구현 대상 —

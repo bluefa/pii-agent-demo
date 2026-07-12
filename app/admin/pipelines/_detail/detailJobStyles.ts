@@ -36,26 +36,28 @@ export const jobStyles = {
   verdictLabel: VERDICT_LABEL,
   verdictTextTone: VERDICT_TEXT_TONE,
   verdictText: 'text-[13px] font-medium',
-  miniBadge: 'inline-flex items-center rounded-[10px] px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap',
+  miniBadge: 'inline-flex items-center rounded-full px-[7px] py-[2.5px] text-[10px] font-medium leading-none whitespace-nowrap tracking-[-0.196px]',
 
   /** A muted caption line rendered on its own line under a section label
-   *  (e.g. the attempt-history "tap a row for detail" hint; owner Figma node 121-5). */
-  labelHint: 'mt-1 text-[13px] font-normal text-[var(--pl-text-faint)]',
+   *  (e.g. the attempt-history "tap a row for detail" hint; owner Figma node 121-74). */
+  labelHint: 'mt-2 text-[14px] font-normal text-[var(--pl-text-faint)]',
 
-  /** Bordered white card wrapping a stack of rows (attempt history / job list). */
-  cardList: 'mt-3 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] overflow-hidden',
+  /** Bare row list on the panel — rows carry their own hairline divider, no card
+   *  wrap (owner Figma nodes 121-74 / 121-311). Top margin clears the heading. */
+  list: 'mt-5 flex flex-col',
+  listTight: 'mt-4 flex flex-col',
 
   /** Attempt-history row — a full-width button that drills into the attempt. */
-  attemptRow: 'w-full flex items-center gap-2.5 px-4 py-3 text-left border-b border-[var(--pl-gray-100)] last:border-b-0 hover:bg-[var(--pl-gray-50)] transition-colors',
-  attemptNo: 'text-[13px] font-semibold text-[var(--pl-text-medium)] tabular-nums flex-none w-6',
-  attemptTime: 'ml-auto text-[12px] text-[var(--pl-text-faint)] tabular-nums whitespace-nowrap',
-  attemptCur: 'flex-none rounded-full bg-[var(--pl-gray-100)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--pl-text-medium)]',
-  attemptChev: 'flex-none text-[var(--pl-text-faint)] text-[14px] leading-none',
+  attemptRow: 'w-full flex items-center gap-2.5 pt-2.5 pb-[11px] text-left border-b border-[var(--pl-border)] last:border-b-0 hover:bg-[var(--pl-gray-50)] transition-colors',
+  attemptNo: 'flex-none min-w-[26px] text-[14px] font-semibold text-[var(--pl-text-strong)] tabular-nums tracking-[-0.196px]',
+  /** Row CTA — blue "view details" link text, right-aligned. */
+  attemptDetail: 'ml-auto flex-none text-[12px] font-semibold text-[var(--pl-primary)] tracking-[-0.196px]',
 
   /** Terraform Job row — verdict + id + meta + log action. */
-  jobRow: 'flex items-center gap-2.5 px-4 py-3 border-b border-[var(--pl-gray-100)] last:border-b-0',
-  jobId: 'text-[13px] font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums',
-  jobMeta: 'ml-auto text-[12px] text-[var(--pl-text-faint)] tabular-nums whitespace-nowrap',
+  jobRow: 'flex items-center gap-2.5 pt-3 pb-[13px] border-b border-[var(--pl-border)] last:border-b-0',
+  jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
+  /** Log action — blue text button (owner Figma node 121-326), not a bordered btn. */
+  logBtn: 'ml-auto flex-none rounded-[8px] px-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline transition-colors',
 
   /** Attempt drill-down header (replaces the tab bar on the sub-view). */
   subHeader: 'flex items-start gap-2.5 px-6 pt-5 pb-4 border-b border-[var(--pl-border)]',
@@ -63,12 +65,13 @@ export const jobStyles = {
   subTitle: 'flex items-center gap-2 text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
   subCrumb: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
 
-  /** Raw-response fold — bold heading with a disclosure triangle that rotates
-   *  open (owner Figma node 121-3). Raw dispatch response, not parsed. */
+  /** Raw-response fold (owner Figma node 121-389) — 16px SemiBold heading led by
+   *  a ▼ triangle (gray) that flips up + sky-blue when open; the raw dispatch
+   *  response sits in an inset mono code box. Not parsed. */
   respFold: 'group',
-  respSummary: 'flex items-center gap-1.5 cursor-pointer list-none text-[14px] font-bold text-[var(--pl-text-strong)] [&::-webkit-details-marker]:hidden select-none',
-  respTri: 'inline-block text-[10px] text-[var(--pl-text-faint)] transition-transform group-open:rotate-90',
-  respPre: 'mt-2 rounded-[6px] bg-[var(--pl-gray-50)] border border-[var(--pl-border)] px-3 py-2 text-[11px] leading-[1.5] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
+  respSummary: 'flex items-center gap-1.5 cursor-pointer list-none text-[16px] font-semibold text-[var(--pl-text-strong)] tracking-[-0.196px] [&::-webkit-details-marker]:hidden select-none',
+  respTri: 'inline-block text-[10px] leading-none text-[var(--pl-text-weak)] transition-transform group-open:rotate-180 group-open:text-[var(--pl-info)]',
+  respPre: 'mt-3 ml-[18px] rounded-[6px] bg-[var(--pl-gray-50)] border border-[var(--pl-border)] px-[15px] py-[13px] text-[11px] leading-[1.4] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
 
   /** Poll-history "show all" toggle. */
   moreBtn: 'w-full border-t border-[var(--pl-border)] py-2.5 text-[12px] font-medium text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)] transition-colors',

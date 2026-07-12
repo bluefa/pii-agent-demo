@@ -14,9 +14,10 @@
  * fetches the job's log (#5a) and state (#5b). Esc layering: viewer → attempt →
  * drawer.
  *
- * The pipeline detail (#5) is already loaded by the page; only the per-job log
- * and state are fetched on demand. The parent remounts per task (`key={task_id}`)
- * so all local view state resets.
+ * The task detail (#5) is fetched lazily by the page when this task is opened;
+ * `detail` is null (skeleton via `detailLoaded=false`) until it arrives. The
+ * per-job log and state are then fetched on demand from within. The parent
+ * remounts per task (`key={task_id}`) so all local view state resets.
  */
 import { useEffect, useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
@@ -157,7 +158,12 @@ export function TaskDrawer({
             <DefinitionTab detail={detail} displayName={displayName} />
           )
         ) : !detailLoaded ? (
-          <div className={cn(detailStyles.skeleton, 'h-24')} aria-hidden="true" />
+          <div className="flex flex-col gap-4" role="status" aria-label="상세 정보를 불러오는 중">
+            <div className={cn(detailStyles.skeleton, 'h-4 w-20')} />
+            <div className={cn(detailStyles.skeleton, 'h-16 w-full')} />
+            <div className={cn(detailStyles.skeleton, 'h-4 w-24 mt-1')} />
+            <div className={cn(detailStyles.skeleton, 'h-28 w-full')} />
+          </div>
         ) : (
           <div className="flex flex-col items-start gap-3">
             <div className={d.empty}>상세를 불러오지 못했습니다</div>

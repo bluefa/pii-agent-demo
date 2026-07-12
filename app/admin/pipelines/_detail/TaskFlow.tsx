@@ -24,8 +24,7 @@ import {
   connectorClass,
   nodeStateClass,
 } from '@/app/admin/pipelines/_detail/flowClasses';
-import { taskMetaLine } from '@/lib/pipeline/format';
-import type { CloudProvider, TaskDetail, TaskStatus, TaskSummary } from '@/lib/pipeline/types';
+import type { CloudProvider, TaskStatus, TaskSummary } from '@/lib/pipeline/types';
 
 /** Exported so CustomBuildStep's canvas (LIN-22) reuses the same grid/node grammar. */
 export const FLOW_CSS = `
@@ -165,9 +164,9 @@ function nodeBadge(status: TaskStatus, sequence: number): ReactElement {
 
 export interface TaskFlowProps {
   tasks: readonly TaskSummary[];
-  /** task_id → loaded TaskDetail (null while pending / on failure). */
-  detailMap: ReadonlyMap<number, TaskDetail | null>;
   resolveName: (task: TaskSummary) => string;
+  /** Node subtitle (catalog description / failed reason) — no per-task fetch. */
+  resolveMeta: (task: TaskSummary) => string;
   onOpen: (task: TaskSummary) => void;
   /** R18 §7-3 — task_id whose inline panel is open (primary ring highlight). */
   selectedId?: number | null;
@@ -192,8 +191,8 @@ function revealNode(el: HTMLElement): void {
 
 export function TaskFlow({
   tasks,
-  detailMap,
   resolveName,
+  resolveMeta,
   onOpen,
   selectedId,
   panel,
@@ -217,15 +216,10 @@ export function TaskFlow({
         <div className="pl-track">
         {tasks.map((task, index) => {
           const name = resolveName(task);
-          // Secondary line (Figma): the task description sentence. FAILED keeps
-          // the existing red reason line (실패 n/m — CODE) — an existing card
-          // element carrying info the description doesn't. Description degrades
-          // to the meta line until the detail loads.
-          const detail = detailMap.get(task.task_id);
-          const meta =
-            task.status === 'FAILED'
-              ? taskMetaLine(task, detail)
-              : detail?.definition?.description || detail?.description || taskMetaLine(task, detail);
+          // Secondary line (Figma): the task description sentence, or the red
+          // failure line (fail count + error code) for FAILED. Both come from the
+          // catalog + summary via resolveMeta — no per-task detail fetch.
+          const meta = resolveMeta(task);
           return (
             <Fragment key={task.task_id}>
               {index > 0 && (

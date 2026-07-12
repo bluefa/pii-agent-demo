@@ -9,7 +9,6 @@ import { cn } from '@/lib/theme';
 import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyles';
 import { jobStyles } from '@/app/admin/pipelines/_detail/detailJobStyles';
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
-import { fmtDateTime } from '@/lib/pipeline/format';
 import type { TaskAttemptView, TaskDetail } from '@/lib/pipeline/types';
 
 export const d = improvedStyles.drawer;
@@ -17,30 +16,6 @@ export const j = jobStyles;
 
 /** The (attempt, job) pair the log/state viewer is opened for. */
 export type ViewerTarget = { attemptNumber: number; jobId: string };
-
-/** "YYYY-MM-DD HH:MM" → "HH:MM" (Seoul tz, via fmtDateTime); null → "—". */
-export const hm = (iso: string | null | undefined): string => {
-  const s = fmtDateTime(iso);
-  return s === '-' ? '—' : s.slice(11);
-};
-
-const SEOUL_HMS = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Asia/Seoul',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false,
-});
-
-/** ISO instant → "HH:MM:SS" (Seoul tz); null/invalid → "—". Used for the
- *  observation timestamps the owner Figma renders to the second — external-check
- *  times, next-check, and the viewer's collection/last-poll stamps. */
-export const hms = (iso: string | null | undefined): string => {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-  return SEOUL_HMS.format(date);
-};
 
 /** Elapsed between two instants → "Xm Ys" / "Ys"; empty when either is missing. */
 export const spanLabel = (start: string | null, end: string | null): string => {
