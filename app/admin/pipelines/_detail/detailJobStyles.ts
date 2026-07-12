@@ -38,12 +38,12 @@ export const jobStyles = {
   verdictText: 'text-[13px] font-medium',
   miniBadge: 'inline-flex items-center rounded-[10px] px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap',
 
-  /** A subdued suffix on a section label (e.g. "row opens job/log detail"). */
-  labelHint: 'font-normal text-[var(--pl-text-faint)]',
+  /** A muted caption line under a section label (owner Figma node 121-5:
+   *  "시도 이력" then "행을 누르면 job·로그 상세" on the next line). */
+  labelHint: 'mt-1 text-[13px] font-normal text-[var(--pl-text-faint)]',
 
   /** Bordered white card wrapping a stack of rows (attempt history / job list). */
   cardList: 'mt-3 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] overflow-hidden',
-  cardFoot: 'px-4 py-2.5 text-[11px] leading-[1.5] text-[var(--pl-text-faint)] bg-[var(--pl-gray-50)] border-t border-[var(--pl-border)]',
 
   /** Attempt-history row — a full-width button that drills into the attempt. */
   attemptRow: 'w-full flex items-center gap-2.5 px-4 py-3 text-left border-b border-[var(--pl-gray-100)] last:border-b-0 hover:bg-[var(--pl-gray-50)] transition-colors',
@@ -63,9 +63,11 @@ export const jobStyles = {
   subTitle: 'flex items-center gap-2 text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
   subCrumb: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
 
-  /** response fold (dispatch raw — not parsed). */
+  /** "Response 원문" fold — bold heading with a disclosure triangle that rotates
+   *  open (owner Figma node 121-3). Raw dispatch response, not parsed. */
   respFold: 'group',
-  respSummary: 'cursor-pointer list-none text-[12px] text-[var(--pl-text-faint)] [&::-webkit-details-marker]:hidden select-none',
+  respSummary: 'flex items-center gap-1.5 cursor-pointer list-none text-[14px] font-bold text-[var(--pl-text-strong)] [&::-webkit-details-marker]:hidden select-none',
+  respTri: 'inline-block text-[10px] text-[var(--pl-text-faint)] transition-transform group-open:rotate-90',
   respPre: 'mt-2 rounded-[6px] bg-[var(--pl-gray-50)] border border-[var(--pl-border)] px-3 py-2 text-[11px] leading-[1.5] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
 
   /** Poll-history "show all" toggle. */
@@ -98,12 +100,11 @@ export const jobStyles = {
   logPre: 'text-[12px] leading-[1.6] text-[var(--pl-chrome-item)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
   logCut: 'block pb-2 mb-2 text-[11px] text-[var(--pl-warn)] border-b border-[var(--pl-gray-600)]',
 
-  /** Empty / error states inside the viewer body. */
+  /** Empty / error states inside the viewer body (owner Figma node 121-753:
+   *  amber warning mark, bold title, muted two-line description). */
   vEmpty: 'flex-1 flex flex-col items-center justify-center gap-2 px-8 py-16 text-center',
+  vEmptyIcon: 'mb-1 text-[var(--pl-warn)]',
   vEmptyTitle: 'text-[15px] font-semibold text-[var(--pl-text-strong)]',
   vEmptyDesc: 'text-[13px] leading-[1.6] text-[var(--pl-text-weak)] max-w-[380px]',
-  vEmptyDetail: 'mt-1 rounded-[6px] bg-[var(--pl-gray-50)] border border-[var(--pl-border)] px-3 py-2 text-[11px] leading-[1.5] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] break-all max-w-[380px]',
   vLoading: 'flex-1 flex items-center justify-center px-8 py-16 text-[13px] text-[var(--pl-text-faint)]',
-
-  vFoot: 'px-6 py-3 text-[11px] leading-[1.5] text-[var(--pl-text-faint)] border-t border-[var(--pl-border)] bg-[var(--pl-gray-50)]',
 } as const;

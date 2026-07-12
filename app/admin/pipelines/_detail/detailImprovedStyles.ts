@@ -112,7 +112,7 @@ export const improvedStyles = {
     navIdle: 'text-[var(--pl-text-faint)] font-normal',
     navUnderline: 'h-0.5 w-14 rounded-full bg-[var(--pl-primary)]',
     navUnderlineHidden: 'h-0.5 w-14',
-    body: 'flex-1 overflow-y-auto overscroll-contain px-6 py-7 flex flex-col gap-8',
+    body: 'flex-1 overflow-y-auto overscroll-contain px-6 py-7 flex flex-col gap-7',
 
     /** Section label (progress log / attempt history / attempt info / …) — dark bold heading,
      *  the primary hierarchy anchor inside the body (owner Figma node 121-5). */

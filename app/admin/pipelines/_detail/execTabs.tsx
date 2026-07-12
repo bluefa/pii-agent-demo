@@ -6,11 +6,12 @@
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { PipelineStatusBadge } from '@/app/admin/pipelines/_detail/PipelineStatusBadge';
-import { fmtDuration, KIND_POLICY } from '@/lib/pipeline/format';
+import { KIND_POLICY } from '@/lib/pipeline/format';
 import {
   conditionVerdict,
   d,
   hm,
+  hms,
   j,
   MiniPill,
   OperatorDescription,
@@ -49,7 +50,7 @@ export function TerraformExec({
           {detail.next_check_at && (
             <div className={d.kvRow}>
               <span className={d.kvKey}>다음 확인</span>
-              <span className={d.kvVal}>{hm(detail.next_check_at)}</span>
+              <span className={d.kvVal}>{hms(detail.next_check_at)}</span>
             </div>
           )}
         </div>
@@ -62,7 +63,7 @@ export function TerraformExec({
         </span>
       </div>
 
-      <Section label="시도 이력" hint="— 행을 누르면 job·로그 상세">
+      <Section label="시도 이력" hint="행을 누르면 job·로그 상세">
         {detail.attempts.length === 0 ? (
           <div className={d.empty}>아직 시도 없음</div>
         ) : (
@@ -129,7 +130,7 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
           {detail.next_check_at && (
             <div className={d.kvRow}>
               <span className={d.kvKey}>다음 확인</span>
-              <span className={d.kvVal}>{hm(detail.next_check_at)}</span>
+              <span className={d.kvVal}>{hms(detail.next_check_at)}</span>
             </div>
           )}
         </div>
@@ -142,10 +143,7 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
         </span>
       </div>
 
-      <Section
-        label="폴 이력"
-        hint={`— ${expanded ? '전체' : `최근 ${Math.min(5, detail.attempts.length)}`} / ${detail.attempts.length}회`}
-      >
+      <Section label="확인 이력">
         {detail.attempts.length === 0 ? (
           <div className={d.empty}>아직 폴링 기록 없음</div>
         ) : (
@@ -171,7 +169,7 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
                     <td className={cn(d.td, '[font-family:var(--pl-font-mono)]')}>
                       {a.check?.last_external_status ?? '—'}
                     </td>
-                    <td className={cn(d.td, 'text-right')}>{hm(a.check?.last_checked_at ?? a.started_at)}</td>
+                    <td className={cn(d.td, 'text-right')}>{hms(a.check?.last_checked_at ?? a.started_at)}</td>
                   </tr>
                 );
               })}
@@ -196,9 +194,13 @@ export function DefinitionTab({ detail, displayName }: { detail: TaskDetail; dis
     { k: 'task_definition', v: detail.task_definition, mono: true },
     { k: 'operation', v: detail.operation ?? displayName, mono: true },
     { k: '실행 방식', v: detail.kind, mono: true },
-    // Durations are display-converted to Korean per docs/api rule #4 (PT10M → 10분).
-    { k: 'polling_interval', v: fmtDuration(detail.effective_polling_interval) },
-    { k: 'timeout', v: cond ? '—' : fmtDuration(detail.effective_execution_timeout) },
+    // The definition·contract tab shows the raw contract values verbatim — the
+    // owner Figma (node 121-402) renders ISO-8601 durations as-is (PT10M / PT50M),
+    // matching the raw enums/codes in the rows above. (Diverges from the Korean
+    // display grammar in docs/api rule #4, which governs the human-facing meta
+    // lines, not this raw-contract surface.)
+    { k: 'polling_interval', v: detail.effective_polling_interval ?? '—', mono: true },
+    { k: 'timeout', v: cond ? '—' : detail.effective_execution_timeout ?? '—', mono: true },
     { k: 'retry_budget', v: `${detail.effective_max_fail_count}회` },
   ];
   return (

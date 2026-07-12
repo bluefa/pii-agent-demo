@@ -12,7 +12,7 @@
 import { type ReactElement } from 'react';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { jobRows, jobVerdict, type JobRow } from '@/app/admin/pipelines/_detail/jobRows';
-import { d, hm, j, MiniPill, Section, spanLabel, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { d, hm, hms, j, MiniPill, Section, spanLabel, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView } from '@/lib/pipeline/types';
 
 function JobRowItem({ row, onOpen }: { row: JobRow; onOpen: () => void }): ReactElement {
@@ -44,10 +44,6 @@ export function AttemptDetail({
   onOpenViewer: (t: ViewerTarget) => void;
 }): ReactElement {
   const rows = jobRows(attempt);
-  const inProgress = attempt.status === 'IN_PROGRESS';
-  const foot = inProgress
-    ? '실행 중 로그는 실시간 조회입니다 — 시도가 종결되면 저장본이 남습니다.'
-    : '"진행 중" · "기록 없음"은 이 시도가 종결되던 시점의 마지막 관측입니다.';
 
   return (
     <>
@@ -80,16 +76,15 @@ export function AttemptDetail({
                 onOpen={() => onOpenViewer({ attemptNumber: attempt.attempt_number, jobId: row.job_id })}
               />
             ))}
-            <div className={j.cardFoot}>{foot}</div>
           </div>
         </Section>
       )}
 
       {attempt.check && (
-        <Section label="폴 요약">
+        <Section label="확인 요약">
           <div className={d.rowsGap}>
             <div className={d.kvRow}>
-              <span className={d.kvKey}>폴 횟수</span>
+              <span className={d.kvKey}>확인 횟수</span>
               <span className={d.kvVal}>{attempt.check.call_count}회</span>
             </div>
             <div className={d.kvRow}>
@@ -100,15 +95,17 @@ export function AttemptDetail({
             </div>
             <div className={d.kvRow}>
               <span className={d.kvKey}>마지막 확인</span>
-              <span className={d.kvVal}>{hm(attempt.check.last_checked_at)}</span>
+              <span className={d.kvVal}>{hms(attempt.check.last_checked_at)}</span>
             </div>
           </div>
         </Section>
       )}
 
       {attempt.response && (
-        <details className={j.respFold}>
-          <summary className={j.respSummary}>response 원문 — dispatch 응답, 파싱하지 않음</summary>
+        <details className={j.respFold} open>
+          <summary className={j.respSummary}>
+            <span className={j.respTri}>▸</span>Response 원문
+          </summary>
           <pre className={j.respPre}>{attempt.response}</pre>
         </details>
       )}

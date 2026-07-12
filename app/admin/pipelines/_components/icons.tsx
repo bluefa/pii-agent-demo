@@ -31,6 +31,7 @@ export type IconName =
   | 'play'
   | 'x-circle'
   | 'check-circle'
+  | 'warn-tri'
   | 'loader'
   | 'calendar';
 
@@ -128,6 +129,14 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
     <>
       <circle cx="12" cy="12" r="8.5" />
       <path d="m8.4 12.2 2.6 2.6 4.6-5.2" />
+    </>
+  ),
+  // Warning triangle (viewer empty/error mark) — tinted amber via currentColor.
+  'warn-tri': (
+    <>
+      <path d="M12 4 21 19H3z" />
+      <path d="M12 10v4" />
+      <path d="M12 17h.01" />
     </>
   ),
   // StatusPill RUNNING/IN_PROGRESS — open 3/4 arc, spun via `animate-spin`.

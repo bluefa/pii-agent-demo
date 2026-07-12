@@ -24,6 +24,24 @@ export const hm = (iso: string | null | undefined): string => {
   return s === '-' ? '—' : s.slice(11);
 };
 
+const SEOUL_HMS = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Seoul',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+});
+
+/** ISO instant → "HH:MM:SS" (Seoul tz); null/invalid → "—". Used for the
+ *  observation timestamps the owner Figma renders to the second — external-check
+ *  times, next-check, and the viewer's collection/last-poll stamps. */
+export const hms = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  return SEOUL_HMS.format(date);
+};
+
 /** Elapsed between two instants → "Xm Ys" / "Ys"; empty when either is missing. */
 export const spanLabel = (start: string | null, end: string | null): string => {
   if (!start || !end) return '';
@@ -47,10 +65,8 @@ export function MiniPill({ tone, children }: { tone: JobVerdict; children: React
 export function Section({ label, hint, children }: { label: string; hint?: string; children: ReactNode }): ReactElement {
   return (
     <div>
-      <div className={d.sectionLabel}>
-        {label}
-        {hint && <span className={j.labelHint}> {hint}</span>}
-      </div>
+      <div className={d.sectionLabel}>{label}</div>
+      {hint && <div className={j.labelHint}>{hint}</div>}
       {children}
     </div>
   );

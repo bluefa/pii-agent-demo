@@ -9,7 +9,7 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { getJobResult, getJobState, OrchestratorApiError } from '@/app/lib/api/pipeline';
-import { d, hm, j, MiniPill, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { d, hms, j, MiniPill, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TerraformJobResultDetail, TerraformJobStateDetail } from '@/lib/pipeline/types';
 
 type ViewerTab = 'log' | 'raw';
@@ -43,20 +43,12 @@ function useLoadable<T>(fetcher: () => Promise<T>, deps: ReadonlyArray<unknown>)
   return state;
 }
 
-function ViewerEmpty({
-  title,
-  desc,
-  detail,
-}: {
-  title: string;
-  desc: ReactNode;
-  detail?: string | null;
-}): ReactElement {
+function ViewerEmpty({ title, desc }: { title: string; desc: ReactNode }): ReactElement {
   return (
     <div className={j.vEmpty}>
+      <Icon name="warn-tri" size="lg" className={j.vEmptyIcon} />
       <div className={j.vEmptyTitle}>{title}</div>
       <div className={j.vEmptyDesc}>{desc}</div>
-      {detail && <div className={j.vEmptyDetail}>{detail}</div>}
     </div>
   );
 }
@@ -111,12 +103,12 @@ export function JobViewer({
   const stamp =
     tab === 'log'
       ? result.data?.created_at
-        ? `수집시간 ${hm(result.data.created_at)}`
+        ? `수집시간 ${hms(result.data.created_at)}`
         : live
           ? '방금 조회함'
           : ''
       : state.data?.last_polled_at
-        ? `마지막 확인 ${hm(state.data.last_polled_at)}`
+        ? `마지막 확인 ${hms(state.data.last_polled_at)}`
         : '';
 
   // The panel goes dark only when it actually renders a log/state body; empty and
@@ -139,13 +131,12 @@ export function JobViewer({
     else if (result.phase === 'notfound')
       body = <ViewerEmpty title="로그 기록이 없습니다" desc="이 job의 로그가 저장되지 않았습니다. 시도의 실패 코드에서 원인을 확인하세요." />;
     else if (result.phase === 'error')
-      body = <ViewerEmpty title="로그를 불러오지 못했습니다" desc="잠시 후 다시 시도해 주세요." detail={result.error} />;
+      body = <ViewerEmpty title="로그를 불러오지 못했습니다" desc="잠시 후 다시 시도해 주세요." />;
     else if (result.data?.content === null && result.data.fetch_error)
       body = (
         <ViewerEmpty
           title="로그를 가져오지 못했습니다"
           desc="이 시도는 로그가 저장되기 전에 끝나, 실행 서버(InfraManager)에서 직접 조회했지만 응답이 없었습니다."
-          detail={result.data.fetch_error}
         />
       );
     else if (result.data?.content === null)
@@ -169,13 +160,12 @@ export function JobViewer({
     else if (state.phase === 'notfound' || (state.phase === 'ok' && !state.data))
       body = <ViewerEmpty title="상태 관측이 없습니다" desc="이 job은 상태 확인이 기록되기 전에 시도가 끝났습니다." />;
     else if (state.phase === 'error')
-      body = <ViewerEmpty title="상태를 불러오지 못했습니다" desc="잠시 후 다시 시도해 주세요." detail={state.error} />;
+      body = <ViewerEmpty title="상태를 불러오지 못했습니다" desc="잠시 후 다시 시도해 주세요." />;
     else if (state.data?.last_response === null)
       body = (
         <ViewerEmpty
           title="저장된 상태 응답이 없습니다"
           desc="마지막 상태 확인 호출이 실패해 응답 본문이 남지 않았습니다."
-          detail={state.data.last_error}
         />
       );
     else
@@ -238,12 +228,6 @@ export function JobViewer({
         </div>
         {body}
       </div>
-
-      {!dark && (
-        <div className={j.vFoot}>
-          로그는 열릴 때 맨 아래(tail)에서 시작합니다 — terraform 오류는 끝에 있고, 절단도 tail을 우선 보존합니다.
-        </div>
-      )}
     </ModalShell>
   );
 }
