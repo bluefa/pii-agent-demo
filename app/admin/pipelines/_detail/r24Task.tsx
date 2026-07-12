@@ -197,15 +197,16 @@ export const R24_RUN_CSS = `
 .rtc.pend .rtc-ds{color:var(--pl-text-faint)}
 .rtc.pend .rtc-tile{background:var(--pl-gray-50);color:var(--pl-text-faint)}
 .rtc.failed{border-color:var(--pl-err-border)}
-.rtc-corner{position:absolute;top:-8px;right:6px;width:20px;height:20px;border-radius:99px;display:flex;align-items:center;justify-content:center;box-shadow:var(--pl-shadow-xs);font-family:var(--pl-font-mono);font-size:10px;font-weight:700}
-.rtc-corner svg{width:12px;height:12px}
+.rtc-corner{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 2px var(--pl-bg-inner);font-family:var(--pl-font-mono);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.rtc-corner svg{width:12px;height:12px;stroke-width:3}
 .rtc-corner.done{background:var(--pl-ok);color:var(--pl-white)}
-.rtc-corner.running{background:var(--pl-primary);color:var(--pl-white)}
 .rtc-corner.failed{background:var(--pl-err);color:var(--pl-white)}
-.rtc-corner.pending,.rtc-corner.cancelled{background:var(--pl-bg-card);border:1px solid var(--pl-border-strong);color:var(--pl-text-weak)}
-.rtc-corner.running svg{animation:r24-spin 1s linear infinite}
+.rtc-corner.cancelled{background:var(--pl-gray-400);color:var(--pl-white)}
+.rtc-corner.running{background:var(--pl-bg-card);border:1px solid var(--pl-info-border)}
+.rtc-corner.pending{background:var(--pl-gray-200);color:var(--pl-text-weak)}
+.rtc-spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--pl-info-border);border-top-color:var(--pl-info);display:inline-block}
 @keyframes r24-spin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.rtc-corner.running svg{animation:none}}
+@media (prefers-reduced-motion:no-preference){.rtc-spin{animation:r24-spin .8s linear infinite}}
 `;
 
 type FlowKey = 'done' | 'running' | 'pending' | 'failed' | 'cancelled';
@@ -256,11 +257,12 @@ export function FlowStatusPill({
   );
 }
 
+// Corner glyphs match the pipeline 현황 flow (TaskFlow nodeBadge): check / ✕ /
+// ban, a ring spinner for running, and the ordinal for queued.
 const CORNER_ICON: Partial<Record<FlowKey, IconName>> = {
   done: 'check',
-  running: 'loader',
   failed: 'x',
-  cancelled: 'x',
+  cancelled: 'ban',
 };
 
 export interface RunTaskCardProps {
@@ -289,7 +291,13 @@ export function RunTaskCard({ kind, name, desc, status, seq, retry }: RunTaskCar
   return (
     <div className={cn('rtc', cardState)}>
       <span className={cn('rtc-corner', view.key)} aria-hidden="true">
-        {cornerIcon ? <Icon name={cornerIcon} size="sm" strokeWidth={2.4} /> : seq}
+        {view.key === 'running' ? (
+          <span className="rtc-spin" />
+        ) : cornerIcon ? (
+          <Icon name={cornerIcon} size="sm" strokeWidth={3} />
+        ) : (
+          seq
+        )}
       </span>
       <span className={cn('rtc-tile', kind === 'CONDITION_CHECK' ? 'cond' : 'tf')} aria-hidden="true">
         {kind === 'CONDITION_CHECK' ? <Icon name="clock" strokeWidth={2} /> : <TerraformLogo />}

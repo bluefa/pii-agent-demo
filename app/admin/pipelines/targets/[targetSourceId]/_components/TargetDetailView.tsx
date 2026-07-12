@@ -109,8 +109,8 @@ function runWindow(p: PipelineSummary): string {
 function R24Section({ title, desc }: { title: string; desc: string }): ReactElement {
   return (
     <div className="mt-11">
-      <h2 className="text-[15px] font-bold tracking-[-0.01em] text-[var(--pl-text-strong)]">{title}</h2>
-      <p className="mt-1 text-[12.5px] text-[var(--pl-text-faint)]">{desc}</p>
+      <h2 className="text-[16px] font-bold tracking-[-0.01em] text-[var(--pl-text-strong)]">{title}</h2>
+      <p className="mt-1 text-[14px] text-[var(--pl-text-faint)]">{desc}</p>
     </div>
   );
 }
@@ -264,7 +264,6 @@ export function TargetDetailView(): ReactElement {
   const metaRows = cspMetaRows(provider, raw);
   const installTag = installTagLabel(raw);
 
-  const totalElements = history?.totalElements ?? 0;
   const totalPages = history?.totalPages ?? 1;
   const rows = history?.content ?? [];
   const live = liveId != null;
@@ -326,10 +325,7 @@ export function TargetDetailView(): ReactElement {
         )}
       </div>
 
-      <R24Section
-        title="파이프라인 이력"
-        desc={`이 대상에서 실행된 파이프라인 전체 ${totalElements}건 · 최신순`}
-      />
+      <R24Section title="파이프라인 이력" desc="이 대상에서 실행된 최신순으로 정렬된 파이프라인" />
       <div className="mt-3.5 overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]">
         {rows.length ? (
           <>
