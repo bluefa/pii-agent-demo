@@ -29,7 +29,6 @@ import type { ProjectSummary } from '@/lib/types';
 
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { Card } from '@/app/admin/pipelines/_components/Card';
-import { SectionHeader } from '@/app/admin/pipelines/_components/SectionHeader';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
@@ -44,6 +43,7 @@ import { LatestCell } from '@/app/admin/pipelines/_services/LatestCell';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import {
   type ServiceItem,
+  latestCellState,
   runWithConcurrency,
   serviceItemsFrom,
 } from '@/app/admin/pipelines/_services/logic';
@@ -152,6 +152,15 @@ export default function ServicesPage(): ReactElement {
 
   const selectedName = selected?.name ?? '';
 
+  // Identity-block summary stats — both derived from data already on the page:
+  // 대상 수 = target count, 실행 중 = targets whose latest run is RUNNING/PENDING
+  // (the same `active` state LatestCell surfaces). null until targets resolve.
+  const targetCount = targets?.length ?? null;
+  const activeCount =
+    targets != null
+      ? targets.filter((t) => latestCellState(latest[t.targetSourceId]).kind === 'active').length
+      : null;
+
   const s = serviceListStyles;
 
   return (
@@ -208,8 +217,10 @@ export default function ServicesPage(): ReactElement {
                   }}
                   className={cn(s.item, active ? s.itemActive : s.itemIdle)}
                 >
-                  <span className={cn(s.code, active ? s.codeActive : s.codeIdle)}>{code}</span>
-                  <span className={s.name}>{service.service_name ?? code}</span>
+                  <span className={cn(s.name, active ? s.nameActive : s.nameIdle)}>
+                    {service.service_name ?? code}
+                  </span>
+                  <span className={s.code}>{code}</span>
                 </button>
               );
             })}
@@ -233,7 +244,24 @@ export default function ServicesPage(): ReactElement {
           </Card>
         ) : (
           <>
-            <SectionHeader first title={`${selectedName} 의 Target Source`} desc="대상을 선택하면 상세에서 설치·삭제를 시작할 수 있어요" />
+            <div className={s.identity}>
+              <span className={s.eyebrow}>서비스</span>
+              <div className={s.titleRow}>
+                <h2 className={s.svcTitle}>{selectedName}</h2>
+                <span className={s.svcCodeChip}>{selectedCode}</span>
+              </div>
+              <div className={s.statRow}>
+                <div className={s.stat}>
+                  <span className={s.statLabel}>대상 수</span>
+                  <span className={s.statVal}>{targetCount ?? '—'}</span>
+                </div>
+                <div className={s.stat}>
+                  <span className={s.statLabel}>실행 중</span>
+                  <span className={s.statValActive}>{activeCount ?? '—'}</span>
+                </div>
+              </div>
+              <p className={s.identityDesc}>대상을 선택하면 상세에서 설치·삭제를 시작할 수 있어요</p>
+            </div>
             <Card className="min-h-[420px]">
               {targetsError != null ? (
                 <PlEmptyState
@@ -260,8 +288,8 @@ export default function ServicesPage(): ReactElement {
                   head={
                     <>
                       <PlTh>TargetSourceId</PlTh>
-                      <PlTh>CSP</PlTh>
-                      <PlTh>파이프라인</PlTh>
+                      <PlTh>Cloud Provider</PlTh>
+                      <PlTh>실행 중 파이프라인</PlTh>
                       <PlTh />
                     </>
                   }

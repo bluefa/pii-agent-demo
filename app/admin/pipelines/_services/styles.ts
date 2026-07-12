@@ -19,13 +19,31 @@ export const serviceListStyles = {
   railFoot: 'pt-3',
   /** Right pane — restores the escaped content padding. */
   main: 'flex-1 min-w-0 pl-8 pt-6 pb-12',
-  /** 2-line picker item — service_code(14) over service_name(12/weak);
-   *  the state variants own bg + code color/weight. */
+  /** 2-line picker item — service_name(14/semibold) over service_code(12/faint);
+   *  the state variants own bg + name color/weight. */
   item: 'flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left cursor-pointer',
   itemActive: 'bg-[var(--pl-primary-bg)]',
   itemIdle: 'hover:bg-[var(--pl-gray-100)]',
-  code: 'text-[14px] font-semibold',
-  codeActive: 'text-[var(--pl-primary)]',
-  codeIdle: 'text-[var(--pl-text-strong)]',
-  name: 'text-[12px] text-[var(--pl-text-weak)]',
+  name: 'text-[14px] font-semibold',
+  nameActive: 'text-[var(--pl-primary)]',
+  nameIdle: 'text-[var(--pl-text-strong)]',
+  code: 'text-[12px] text-[var(--pl-text-faint)]',
+
+  /** Selected-service identity block (Figma "pipeline-services-improved"):
+   *  eyebrow + service_name(hero) + service_code chip, a summary stat row, then
+   *  a scope line — replaces the old "…의 Target Source" section header so the
+   *  right pane leads with WHAT is selected before the target table. */
+  identity: 'flex flex-col gap-4 mb-6',
+  eyebrow: 'text-[13px] font-medium text-[var(--pl-flow-meta-label)]',
+  titleRow: 'flex items-center gap-3 flex-wrap',
+  svcTitle: 'text-[26px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[var(--pl-text-strong)]',
+  svcCodeChip:
+    'inline-flex items-center rounded-full bg-[var(--pl-gray-100)] px-2.5 py-1 text-[13px] font-medium text-[var(--pl-text-medium)]',
+  statRow: 'flex items-center gap-10',
+  stat: 'flex flex-col gap-1.5',
+  statLabel: 'text-[12px] font-medium text-[var(--pl-flow-meta-label)]',
+  statVal: 'text-[18px] font-semibold text-[var(--pl-text-strong)] tabular-nums',
+  /** 실행 중 — the one actionable signal, tinted info like the RUNNING pill. */
+  statValActive: 'text-[18px] font-semibold text-[var(--pl-info-text)] tabular-nums',
+  identityDesc: 'text-[13px] leading-[1.55] text-[var(--pl-text-weak)]',
 } as const;
