@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * Pipeline detail — Figma "pipeline-detail-improved" redesign. The data layer
- * (pipeline #4 + task catalog #12 + every task detail #5 under a concurrency
- * cap, plus the R23 10s live-poll) is unchanged from the R22 version; only the
- * presentation is restructured to match Figma node 70:35:
+ * Pipeline detail — Figma "pipeline-detail-improved" redesign. Data layer:
+ * pipeline #4 + task catalog #12 (display names + descriptions) on load, plus
+ * the R23 10s live-poll. Task detail #5 is fetched LAZILY — only for the task
+ * the operator opens (never a page-load bulk fetch); the flow nodes render from
+ * the catalog + summary alone. The presentation matches Figma node 70:35:
  *   · a full-bleed header — Korean title + #id, a recipe description line, and
  *     two column-aligned meta rows (파이프라인 / Target Source). Status badge
  *     and [중단] appear here only when NOT running (the band carries them
@@ -202,10 +203,10 @@ export function PipelineDetailView(): ReactElement {
     [detail],
   );
 
-  // Node subtitle without a per-task fetch: FAILED → 실패 N회 — CODE (fail_count
-  // from the summary; the precise f/m retry budget lives in the drawer, which
-  // loads the task detail). Otherwise catalog description → operator description
-  // → status meta line.
+  // Node subtitle without a per-task fetch. FAILED → a failure line built from the
+  // summary (fail_count + error code); the precise f/m retry budget lives in the
+  // drawer, which loads the task detail. Otherwise: catalog description → operator
+  // description → status meta line.
   const resolveMeta = useCallback(
     (t: TaskSummary): string => {
       if (t.status === 'FAILED') {

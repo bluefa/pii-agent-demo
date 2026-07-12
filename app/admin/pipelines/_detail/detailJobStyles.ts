@@ -50,7 +50,7 @@ export const jobStyles = {
   /** Attempt-history row — a full-width button that drills into the attempt. */
   attemptRow: 'w-full flex items-center gap-2.5 pt-2.5 pb-[11px] text-left border-b border-[var(--pl-border)] last:border-b-0 hover:bg-[var(--pl-gray-50)] transition-colors',
   attemptNo: 'flex-none min-w-[26px] text-[14px] font-semibold text-[var(--pl-text-strong)] tabular-nums tracking-[-0.196px]',
-  /** Row CTA — blue "상세정보 보기" text, right-aligned. */
+  /** Row CTA — blue "view details" link text, right-aligned. */
   attemptDetail: 'ml-auto flex-none text-[12px] font-semibold text-[var(--pl-primary)] tracking-[-0.196px]',
 
   /** Terraform Job row — verdict + id + meta + log action. */

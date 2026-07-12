@@ -217,8 +217,8 @@ export function TaskFlow({
         {tasks.map((task, index) => {
           const name = resolveName(task);
           // Secondary line (Figma): the task description sentence, or the red
-          // reason line (실패 n/m — CODE) for FAILED. Both come from the catalog +
-          // summary via resolveMeta — no per-task detail fetch.
+          // failure line (fail count + error code) for FAILED. Both come from the
+          // catalog + summary via resolveMeta — no per-task detail fetch.
           const meta = resolveMeta(task);
           return (
             <Fragment key={task.task_id}>

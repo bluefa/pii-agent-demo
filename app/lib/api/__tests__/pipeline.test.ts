@@ -4,6 +4,7 @@ import {
   createPipeline,
   getLatestPipelineByTarget,
   getPipeline,
+  getTaskDetail,
 } from '@/app/lib/api/pipeline';
 
 const fetchMock = vi.fn();
@@ -57,5 +58,50 @@ describe('app/lib/api/pipeline CSR helper', () => {
       }),
     );
     await expect(getPipeline(128)).resolves.toEqual(detail);
+  });
+
+  // The detail page's stale-result prevention (lazy task-detail fetch + live
+  // poll) relies on these two getters forwarding an AbortSignal to fetch so an
+  // in-flight request can be cancelled when the selection changes / on unmount.
+  it('forwards the AbortSignal to fetch for getPipeline', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ pipeline_id: 128 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const controller = new AbortController();
+    await getPipeline(128, { signal: controller.signal });
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ signal: controller.signal });
+  });
+
+  it('forwards the AbortSignal to fetch for getTaskDetail', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ task_id: 12401 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const controller = new AbortController();
+    await getTaskDetail(128, 12401, { signal: controller.signal });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/pipelines/128/tasks/12401');
+    expect(init).toMatchObject({ signal: controller.signal });
+  });
+
+  it('rejects with the fetch AbortError once the signal is aborted', async () => {
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) =>
+      Promise.reject(
+        Object.assign(new Error('The operation was aborted'), {
+          name: init?.signal?.aborted ? 'AbortError' : 'Error',
+        }),
+      ),
+    );
+    const controller = new AbortController();
+    controller.abort();
+    const thrown = await getTaskDetail(128, 12401, { signal: controller.signal }).catch(
+      (e: unknown) => e,
+    );
+    expect((thrown as Error).name).toBe('AbortError');
   });
 });

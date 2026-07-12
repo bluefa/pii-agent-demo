@@ -14,9 +14,10 @@
  * fetches the job's log (#5a) and state (#5b). Esc layering: viewer → attempt →
  * drawer.
  *
- * The pipeline detail (#5) is already loaded by the page; only the per-job log
- * and state are fetched on demand. The parent remounts per task (`key={task_id}`)
- * so all local view state resets.
+ * The task detail (#5) is fetched lazily by the page when this task is opened;
+ * `detail` is null (skeleton via `detailLoaded=false`) until it arrives. The
+ * per-job log and state are then fetched on demand from within. The parent
+ * remounts per task (`key={task_id}`) so all local view state resets.
  */
 import { useEffect, useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
