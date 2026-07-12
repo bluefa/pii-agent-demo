@@ -1,6 +1,6 @@
 /**
- * The two root tab bodies of the task drawer: 실행 정보 (Execution info —
- * TerraformExec / ConditionExec) and 정의·계약 (DefinitionTab). Split out of
+ * The two root tab bodies of the task drawer: Execution info (TerraformExec /
+ * ConditionExec) and Definition/contract (DefinitionTab). Split out of
  * TaskDrawer to keep each unit focused (AP-B1).
  */
 import { useState, type ReactElement } from 'react';
@@ -10,7 +10,7 @@ import { KIND_POLICY } from '@/lib/pipeline/format';
 import { conditionVerdict, d, hm, j, MiniPill, Section } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskDetail } from '@/lib/pipeline/types';
 
-/** 실행 정보 for TERRAFORM_JOB — progress log · attempt count · attempt history. */
+/** Execution info for TERRAFORM_JOB — progress log / attempt count / attempt history. */
 export function TerraformExec({
   detail,
   onOpenAttempt,
@@ -78,7 +78,7 @@ export function TerraformExec({
   );
 }
 
-/** 실행 정보 for CONDITION_CHECK — progress log · retry budget · poll history. */
+/** Execution info for CONDITION_CHECK — progress log / retry budget / poll history. */
 export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement {
   const reversed = [...detail.attempts].reverse();
   const latest = reversed.find((a) => a.check) ?? null;
@@ -171,7 +171,7 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
   );
 }
 
-/** 정의·계약 — definition/contract rows + judgment policy prose. */
+/** Definition/contract — definition rows + judgment-policy prose. */
 export function DefinitionTab({ detail, displayName }: { detail: TaskDetail; displayName: string }): ReactElement {
   const cond = detail.kind === 'CONDITION_CHECK';
   const rows: Array<{ k: string; v: string; mono?: boolean }> = [

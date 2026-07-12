@@ -1,6 +1,7 @@
 /**
- * Attempt drill-down body: 시도 정보 + the Terraform Job list (results ∪ states)
- * + 폴 요약 + the raw response fold. Each job row opens the log/state viewer.
+ * Attempt drill-down body: attempt info + the Terraform Job list (results ∪
+ * states) + poll summary + the raw response fold. Each job row opens the
+ * log/state viewer.
  */
 import { type ReactElement } from 'react';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';

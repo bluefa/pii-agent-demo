@@ -4,13 +4,13 @@
  * TaskDrawer — the right-docked task panel (Figma "pipeline-detail-improved"
  * node 70:35, extended with the R23 job-result surface). This module is the
  * shell: header, tab nav, Esc layering, and view routing. The bodies live in
- * sibling modules — execTabs (실행 정보 / 정의·계약), AttemptDetail (drill-down),
+ * sibling modules — execTabs (the two root tabs), AttemptDetail (drill-down),
  * and JobViewer (log/state overlay).
  *
  * Two root sub-tabs: Execution info (progress log · attempt count · attempt
  * history for TERRAFORM_JOB, or retry budget · poll history for CONDITION_CHECK)
  * and Definition/contract. A TERRAFORM_JOB attempt-history row drills into the
- * attempt (← replaces the header); a "로그" button opens the viewer, which lazily
+ * attempt (← replaces the header); a log button opens the viewer, which lazily
  * fetches the job's log (#5a) and state (#5b). Esc layering: viewer → attempt →
  * drawer.
  *
