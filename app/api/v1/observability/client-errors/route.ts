@@ -76,6 +76,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     source: 'browser',
     page: optionalString(record.page),
     type: optionalString(record.type),
+    digest: optionalString(record.digest),
+    // Preceding API calls the client captured — the "what led to this crash".
+    breadcrumbs: Array.isArray(record.breadcrumbs) ? record.breadcrumbs : undefined,
     requestId,
   });
 

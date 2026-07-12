@@ -23,8 +23,16 @@ describe('POST /observability/client-errors', () => {
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const { POST } = await import('@/app/api/v1/observability/client-errors/route');
 
+    const breadcrumbs = [{ method: 'GET', path: '/integration/api/v1/x', status: 500, durationMs: 5, requestId: 'r1' }];
     const res = await POST(
-      post(JSON.stringify({ type: 'boundary', message: 'boom', stack: 'Error: boom\n at x', page: '/services' })),
+      post(JSON.stringify({
+        type: 'boundary',
+        message: 'boom',
+        stack: 'Error: boom\n at x',
+        page: '/services',
+        digest: 'd-42',
+        breadcrumbs,
+      })),
     );
 
     expect(res.status).toBe(204);
@@ -34,6 +42,8 @@ describe('POST /observability/client-errors', () => {
     expect(lines[0].source).toBe('browser');
     expect(lines[0].page).toBe('/services');
     expect(lines[0].type).toBe('boundary');
+    expect(lines[0].digest).toBe('d-42');
+    expect(lines[0].breadcrumbs).toEqual(breadcrumbs);
     expect(String(lines[0].message)).toContain('Error: boom');
   });
 

@@ -7,8 +7,6 @@
  * No dependency: `console.log` is the only sink.
  */
 
-type LogFields = Record<string, string | number | boolean | undefined>;
-
 type AccessFields = {
   method: string;
   path: string;
@@ -29,8 +27,12 @@ function emit(severity: 'ERROR' | 'INFO', message: string, fields: Record<string
   console.log(JSON.stringify(entry));
 }
 
-/** `message` must contain the full stack trace for Error Reporting grouping. */
-export function logError(message: string, fields: LogFields = {}): void {
+/**
+ * `message` must contain the full stack trace for Error Reporting grouping.
+ * Fields may carry structured values (e.g. client breadcrumbs) — they are
+ * serialized as-is into the JSON line.
+ */
+export function logError(message: string, fields: Record<string, unknown> = {}): void {
   emit('ERROR', message, fields);
 }
 
