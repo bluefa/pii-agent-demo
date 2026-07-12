@@ -10,7 +10,7 @@ import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyl
 import { jobStyles } from '@/app/admin/pipelines/_detail/detailJobStyles';
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import { fmtDateTime } from '@/lib/pipeline/format';
-import type { TaskAttemptView } from '@/lib/pipeline/types';
+import type { TaskAttemptView, TaskDetail } from '@/lib/pipeline/types';
 
 export const d = improvedStyles.drawer;
 export const j = jobStyles;
@@ -53,5 +53,19 @@ export function Section({ label, hint, children }: { label: string; hint?: strin
       </div>
       {children}
     </div>
+  );
+}
+
+/**
+ * 운영자 설명 — an operator-provided description distinct from the catalog
+ * definition text (which lives in the drawer header). Rendered only when both
+ * exist, e.g. custom tasks.
+ */
+export function OperatorDescription({ detail }: { detail: TaskDetail }): ReactElement | null {
+  if (!detail.description || !detail.definition?.description) return null;
+  return (
+    <Section label="운영자 설명">
+      <div className={d.descText}>{detail.description}</div>
+    </Section>
   );
 }

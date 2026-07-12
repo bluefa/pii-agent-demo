@@ -7,7 +7,15 @@ import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { PipelineStatusBadge } from '@/app/admin/pipelines/_detail/PipelineStatusBadge';
 import { fmtDuration, KIND_POLICY } from '@/lib/pipeline/format';
-import { conditionVerdict, d, hm, j, MiniPill, Section } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import {
+  conditionVerdict,
+  d,
+  hm,
+  j,
+  MiniPill,
+  OperatorDescription,
+  Section,
+} from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskDetail } from '@/lib/pipeline/types';
 
 /** Execution info for TERRAFORM_JOB — progress log / attempt count / attempt history. */
@@ -21,6 +29,7 @@ export function TerraformExec({
   const failed = detail.status === 'FAILED';
   return (
     <>
+      <OperatorDescription detail={detail} />
       <Section label="진행 기록">
         <div className={d.rowsGap}>
           <div className={d.kvRow}>
@@ -54,6 +63,9 @@ export function TerraformExec({
       </div>
 
       <Section label="시도 이력" hint="— 행을 누르면 job·로그 상세">
+        {detail.attempts.length === 0 ? (
+          <div className={d.empty}>아직 시도 없음</div>
+        ) : (
         <div className={j.cardList}>
           {[...detail.attempts].reverse().map((a, i) => (
             <button
@@ -73,6 +85,7 @@ export function TerraformExec({
             </button>
           ))}
         </div>
+        )}
       </Section>
     </>
   );
@@ -90,6 +103,7 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
 
   return (
     <>
+      <OperatorDescription detail={detail} />
       <Section label="진행 기록">
         <div className={d.rowsGap}>
           <div className={d.kvRow}>
@@ -132,6 +146,9 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
         label="폴 이력"
         hint={`— ${expanded ? '전체' : `최근 ${Math.min(5, detail.attempts.length)}`} / ${detail.attempts.length}회`}
       >
+        {detail.attempts.length === 0 ? (
+          <div className={d.empty}>아직 폴링 기록 없음</div>
+        ) : (
         <div className={cn(d.tableWrap, 'mt-3')}>
           <table className={d.table}>
             <thead>
@@ -166,6 +183,7 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
             </button>
           )}
         </div>
+        )}
       </Section>
     </>
   );
