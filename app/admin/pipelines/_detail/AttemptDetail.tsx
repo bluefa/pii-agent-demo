@@ -2,6 +2,12 @@
  * Attempt drill-down body: attempt info + the Terraform Job list (results ∪
  * states) + poll summary + the raw response fold. Each job row opens the
  * log/state viewer.
+ *
+ * NOTE: `attempt.failure_detail` is deliberately NOT surfaced. The owner decided
+ * the drawer conveys failure via the compact error_code chip only (JOB_FAILED,
+ * CALL_TIMEOUT, …); the verbose failure_detail / last_fail_reason strings are
+ * kept out of the default UI. The underlying cause is still reachable through
+ * the per-job log viewer.
  */
 import { type ReactElement } from 'react';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';

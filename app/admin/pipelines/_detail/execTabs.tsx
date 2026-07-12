@@ -6,7 +6,7 @@
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { PipelineStatusBadge } from '@/app/admin/pipelines/_detail/PipelineStatusBadge';
-import { KIND_POLICY } from '@/lib/pipeline/format';
+import { fmtDuration, KIND_POLICY } from '@/lib/pipeline/format';
 import { conditionVerdict, d, hm, j, MiniPill, Section } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskDetail } from '@/lib/pipeline/types';
 
@@ -178,8 +178,9 @@ export function DefinitionTab({ detail, displayName }: { detail: TaskDetail; dis
     { k: 'task_definition', v: detail.task_definition, mono: true },
     { k: 'operation', v: detail.operation ?? displayName, mono: true },
     { k: '실행 방식', v: detail.kind, mono: true },
-    { k: 'polling_interval', v: detail.effective_polling_interval ?? '—' },
-    { k: 'timeout', v: cond ? '—' : detail.effective_execution_timeout ?? '—' },
+    // Durations are display-converted to Korean per docs/api rule #4 (PT10M → 10분).
+    { k: 'polling_interval', v: fmtDuration(detail.effective_polling_interval) },
+    { k: 'timeout', v: cond ? '—' : fmtDuration(detail.effective_execution_timeout) },
     { k: 'retry_budget', v: `${detail.effective_max_fail_count}회` },
   ];
   return (
