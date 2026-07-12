@@ -164,6 +164,35 @@ export interface TaskCheckView {
   last_checked_at: string | null;
 }
 
+/**
+ * Per-job terminal result, inlined on a TERRAFORM_JOB attempt. Recorded only at
+ * the judgment-terminal turn (one row per job). `has_body` false = the result
+ * exists but its log body was not collected. Empty for CONDITION_CHECK.
+ */
+export interface TerraformJobResultSummary {
+  job_id: string;
+  succeeded: boolean | null;
+  truncated: boolean;
+  has_body: boolean;
+  created_at: string;
+}
+
+/**
+ * Per-job last-observed state, inlined on a TERRAFORM_JOB attempt. `last_state`
+ * is the raw external terraformState string (never re-encoded); null when the
+ * last poll of this job errored before returning a state. Empty for
+ * CONDITION_CHECK. Derive the job list from `terraform_results ∪ job_states`
+ * (join on job_id) — never parse `response`.
+ */
+export interface TerraformJobStateSummary {
+  job_id: string;
+  last_state: string | null;
+  last_fail_reason: string | null;
+  last_error: string | null;
+  poll_count: number;
+  last_polled_at: string | null;
+}
+
 /** A single retry attempt and its poll summary. */
 export interface TaskAttemptView {
   attempt_number: number;
@@ -171,9 +200,15 @@ export interface TaskAttemptView {
   error_code: ErrorCode | null;
   /** Raw external response text — never parsed by this API. */
   response: string | null;
+  /** Human-readable terminal-failure detail (≤512 chars); null unless failed. */
+  failure_detail: string | null;
   started_at: string | null;
   finished_at: string | null;
   check: TaskCheckView | null;
+  /** Per-job terminal results (TERRAFORM_JOB only; empty otherwise). */
+  terraform_results: TerraformJobResultSummary[];
+  /** Per-job last-observed states (TERRAFORM_JOB only; empty otherwise). */
+  job_states: TerraformJobStateSummary[];
 }
 
 /** Task detail (#5) — task columns + effective settings + attempt history. */
@@ -200,6 +235,44 @@ export interface TaskDetail {
   effective_max_fail_count: number;
   attempts: TaskAttemptView[];
   description: string | null;
+}
+
+/**
+ * P11 GET …/attempts/{n}/jobs/{jobId}/result — a single job's terraform log.
+ * Body is tail-first and capped at 16MB (`truncated` marks the cut). Note:
+ * `content: null` is a valid 200 pointer row (the result exists but its body was
+ * not collected) — distinct from a 404 (no result row at all).
+ *
+ * `source: "live"` = the orchestrator had no stored row and read the body
+ * through to InfraManager on demand (`created_at` null, `fetch_error` set if the
+ * live read failed). `source: "stored"` = the recorded terraform_result body.
+ */
+export interface TerraformJobResultDetail {
+  task_id: number;
+  attempt_number: number;
+  job_id: string;
+  succeeded: boolean | null;
+  truncated: boolean;
+  source: 'stored' | 'live';
+  created_at: string | null;
+  content: string | null;
+  fetch_error: string | null;
+}
+
+/**
+ * GET …/attempts/{n}/jobs/{jobId}/state — the last status observation of one
+ * job, including the raw external `last_response` body preserved verbatim.
+ */
+export interface TerraformJobStateDetail {
+  task_id: number;
+  attempt_number: number;
+  job_id: string;
+  last_state: string | null;
+  last_fail_reason: string | null;
+  last_error: string | null;
+  last_response: string | null;
+  poll_count: number;
+  last_polled_at: string | null;
 }
 
 // ---------------------------------------------------------------------------

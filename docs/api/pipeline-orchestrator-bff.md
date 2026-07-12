@@ -15,7 +15,7 @@ admin 파이프라인 4페이지가 사용하는 **신규 BFF API 경로 전체 
   `design/pipeline/admin-pipeline.html`의 mock 데이터(#123~#129)를 와이어 포맷
   (snake_case, ISO-8601)으로 이식한 것이다.
 
-## 1. 신규 BFF 경로 (12개)
+## 1. 신규 BFF 경로 (14개: #1~#12, #5a/#5b)
 
 모든 경로는 **`withOrchestratorProxy` 래핑** Next.js route handler(`withV1` 사용 금지 — 아래 참조).
 ESLint 경계에 따라 `@/lib/bff/client` 경유.
@@ -45,6 +45,8 @@ ESLint 경계에 따라 `@/lib/bff/client` 경유.
 | 3 | `GET /integration/api/v1/orchestrator/pipelines?status&provider&period&page&size&sort` | `GET /install/v1/pipelines?…` | 대시보드 목록 |
 | 4 | `GET /integration/api/v1/orchestrator/pipelines/{pipelineId}` | `GET /install/v1/pipelines/{pipelineId}` | 파이프라인 상세 |
 | 5 | `GET /integration/api/v1/orchestrator/pipelines/{pipelineId}/tasks/{taskId}` | `GET /install/v1/pipelines/{pipelineId}/tasks/{taskId}` | Task 상세 모달·노드 meta |
+| 5a | `GET …/pipelines/{pipelineId}/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/result` | `GET /install/v1/…/attempts/{n}/jobs/{jobId}/result` | Terraform job 로그 뷰어 (content=null=200 포인터, source=live=즉석 조회) |
+| 5b | `GET …/pipelines/{pipelineId}/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/state` | `GET /install/v1/…/attempts/{n}/jobs/{jobId}/state` | Terraform job 상태 원문 (last_response 보존) |
 | 6 | `POST /integration/api/v1/orchestrator/pipelines/{pipelineId}/cancel` | `POST /install/v1/pipelines/{pipelineId}/cancel` | 파이프라인 취소 |
 | 7 | `GET /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines?page&size&sort` | `GET /install/v1/target-sources/{id}/pipelines?…` | 타겟 이력 (5건/페이지) |
 | 8 | `GET /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/latest` | `GET /install/v1/target-sources/{id}/pipelines/latest` | 타겟 최신 실행 (없으면 204) |
@@ -111,6 +113,11 @@ GNB: `lib/routes.ts`에 경로 상수 추가 + `TopNav.tsx` `NAV_ITEMS`에 "파�
   READY/BLOCKED(effective)·DONE(시도/폴 수)·FAILED(maxFail) 전부에서 detail 필드를 요구하므로
   lazy로는 디자인 충실도를 만족할 수 없다(의도적 결정). 체인은 짧고(≤10) 로컬 서비스라 비용
   미미. detail 로딩 전에는 summary 기반 축약 meta 표시, 모달은 로드된 detail 재사용(재조회 없음).
+- Task 드로어의 시도 상세 → Terraform Job 로그/상태 뷰어 ← #5a/#5b를 **뷰어 열 때만 lazy 조회**
+  (page-load 병렬 조회 대상 아님). #5a는 `content=null`(200 포인터/live 미수집)을 404와 구별하고,
+  `source=live`는 저장 행이 없을 때 InfraManager 즉석 조회를 뜻한다(orchestrator 후속 구현 대상 —
+  BFF/mock은 계약 shape를 지금 제공). Job 목록은 attempt의 `terraform_results ∪ job_states`(job_id join)로
+  도출하며 `response`는 파싱하지 않는다.
 - 노드/모달 제목의 task 표시명 ← #12 카탈로그를 1회 조회해 `task_definition → display_name` 매핑
   (fallback: operation enum 원문)
 - 레시피 표시명/설명 ← 클라이언트 상수 맵(8개 RecipeDefinition; PROVIDERS 라벨 맵과 같은 성격).

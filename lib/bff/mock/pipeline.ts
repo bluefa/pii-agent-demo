@@ -46,6 +46,10 @@ import type {
   TaskOperation,
   TaskStatus,
   TaskSummary,
+  TerraformJobResultDetail,
+  TerraformJobResultSummary,
+  TerraformJobStateDetail,
+  TerraformJobStateSummary,
 } from '@/lib/pipeline/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -360,9 +364,12 @@ interface MockAttempt {
   status: TaskStatus;
   error_code: ErrorCode | null;
   response: string | null;
+  failure_detail: string | null;
   started_at: string | null;
   finished_at: string | null;
   check: MockCheck | null;
+  terraform_results: TerraformJobResultSummary[];
+  job_states: TerraformJobStateSummary[];
 }
 
 interface MockTask {
@@ -460,14 +467,22 @@ function seedPipelines(): MockPipeline[] {
     response: string | null,
     finishedMinAgo: number | null,
     chk: MockCheck | null = null,
+    extra: {
+      failure_detail?: string | null;
+      terraform_results?: TerraformJobResultSummary[];
+      job_states?: TerraformJobStateSummary[];
+    } = {},
   ): MockAttempt => ({
     attempt_number: n,
     status,
     error_code: errorCode,
     response,
+    failure_detail: extra.failure_detail ?? null,
     started_at: ago(startedMinAgo),
     finished_at: finishedMinAgo === null ? null : ago(finishedMinAgo),
     check: chk,
+    terraform_results: extra.terraform_results ?? [],
+    job_states: extra.job_states ?? [],
   });
 
   return [
@@ -514,7 +529,19 @@ function seedPipelines(): MockPipeline[] {
         }),
         mkTask(128, 4, 'AWS_BDC_COMMON_APPLY_V1', 'IN_PROGRESS', {
           started_at: ago(30), ready_at: ago(31), next_check_at: ahead(6),
-          attempts: [attempt(1, 'IN_PROGRESS', null, 30, '{"job_id":"tf-b22","terraformState":"IN_PROGRESS"}', null)],
+          // In-flight attempt — jobs still running, no results yet; logs are a
+          // live read-through to InfraManager until the attempt terminates.
+          attempts: [attempt(1, 'IN_PROGRESS', null, 30, '["1031","1032","1033"]', null,
+            check(2, 0, 0, 0, 'RUNNING', 29), {
+              job_states: [
+                { job_id: '1031', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+                  poll_count: 2, last_polled_at: ago(29) },
+                { job_id: '1032', last_state: 'RUNNING', last_fail_reason: null, last_error: null,
+                  poll_count: 2, last_polled_at: ago(29) },
+                { job_id: '1033', last_state: 'RUNNING', last_fail_reason: null, last_error: null,
+                  poll_count: 2, last_polled_at: ago(29) },
+              ],
+            })],
         }),
         mkTask(128, 5, 'AWS_BDC_SERVICE_LEVEL_PLAN_V1', 'BLOCKED'),
         mkTask(128, 6, 'AWS_BDC_SERVICE_LEVEL_APPLY_V1', 'BLOCKED'),
@@ -593,9 +620,44 @@ function seedPipelines(): MockPipeline[] {
           attempts: [attempt(1, 'DONE', null, 3 * 60, '{"job_id":"tf-z00","terraformState":"COMPLETED"}', 3 * 60 - 8)],
         }),
         mkTask(124, 1, 'AZURE_BDC_APPLY_V1', 'FAILED', {
-          fail_count: 1, error_code: 'JOB_FAILED', started_at: ago(3 * 60 - 9), finished_at: ago(3 * 60 - 30),
-          attempts: [attempt(1, 'FAILED', 'JOB_FAILED', 3 * 60 - 9,
-            '{"job_id":"tf-z01","terraformState":"FAILED","error":"quota exceeded"}', 3 * 60 - 30)],
+          fail_count: 2, error_code: 'JOB_FAILED', effective_max_fail_count: 2,
+          started_at: ago(3 * 60 - 9), finished_at: ago(3 * 60 - 30),
+          attempts: [
+            // #1 — a poll call timed out before the jobs reached a terminal state:
+            // no results stored, states hold the last observation (1021 errored).
+            attempt(1, 'FAILED', 'CALL_TIMEOUT', 3 * 60 - 9, '["1019","1020","1021"]', 3 * 60 - 14,
+              check(4, 0, 0, 1, 'RUNNING', 3 * 60 - 14), {
+                failure_detail: 'infra-manager call timed out after PT30S (GET /infra/azure/terraform-jobs/apply/1021)',
+                job_states: [
+                  { job_id: '1019', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+                    poll_count: 4, last_polled_at: ago(3 * 60 - 13) },
+                  { job_id: '1020', last_state: 'RUNNING', last_fail_reason: null, last_error: null,
+                    poll_count: 4, last_polled_at: ago(3 * 60 - 13) },
+                  { job_id: '1021', last_state: null, last_fail_reason: null,
+                    last_error: 'infra-manager call timed out after PT30S',
+                    poll_count: 4, last_polled_at: ago(3 * 60 - 14) },
+                ],
+              }),
+            // #2 — jobs reached terminal; 1027 FAILED → whole attempt JOB_FAILED.
+            // Per-job result rows recorded at the judgment turn (1028 body missing).
+            attempt(2, 'FAILED', 'JOB_FAILED', 3 * 60 - 20, '["1026","1027","1028"]', 3 * 60 - 30,
+              check(6, 0, 0, 0, 'FAILED', 3 * 60 - 30), {
+                failure_detail: 'jobs reported FAILED: [1027]',
+                terraform_results: [
+                  { job_id: '1026', succeeded: true, truncated: false, has_body: true, created_at: ago(3 * 60 - 30) },
+                  { job_id: '1027', succeeded: false, truncated: true, has_body: true, created_at: ago(3 * 60 - 30) },
+                  { job_id: '1028', succeeded: true, truncated: false, has_body: false, created_at: ago(3 * 60 - 30) },
+                ],
+                job_states: [
+                  { job_id: '1026', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+                    poll_count: 6, last_polled_at: ago(3 * 60 - 31) },
+                  { job_id: '1027', last_state: 'FAILED', last_fail_reason: 'mock forced failure', last_error: null,
+                    poll_count: 6, last_polled_at: ago(3 * 60 - 31) },
+                  { job_id: '1028', last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+                    poll_count: 6, last_polled_at: ago(3 * 60 - 31) },
+                ],
+              }),
+          ],
         }),
       ],
     },
@@ -721,15 +783,83 @@ const toCheckView = (c: MockCheck): TaskCheckView => ({
   last_checked_at: c.last_checked_at,
 });
 
-const toAttemptView = (a: MockAttempt): TaskAttemptView => ({
-  attempt_number: a.attempt_number,
-  status: a.status,
-  error_code: a.error_code,
-  response: a.response,
-  started_at: a.started_at,
-  finished_at: a.finished_at,
-  check: a.check ? toCheckView(a.check) : null,
-});
+// ── Synthetic per-job data ─────────────────────────────────────────────────
+// Every TERRAFORM_JOB attempt should surface a Terraform Job list, but only a
+// couple of tasks carry hand-written fixtures. For the rest, derive a
+// deterministic 2-job set from the attempt's own outcome + timestamps. Kept in
+// lockstep with the jobResult/jobState fallbacks so the log viewer resolves too.
+interface SynthJobs {
+  results: TerraformJobResultSummary[];
+  states: TerraformJobStateSummary[];
+}
+
+const successStateFor = (defName: string): string =>
+  (operationOf(defName) ?? '').includes('DESTROY') ? 'DESTROYED' : 'COMPLETED';
+
+const synthJobIds = (taskId: number, n: number): [string, string] => [
+  String(taskId * 100 + n * 10 + 1),
+  String(taskId * 100 + n * 10 + 2),
+];
+
+/** An attempt with no hand-written job fixtures → synthesize a job set. */
+const needsSynth = (a: MockAttempt): boolean =>
+  a.terraform_results.length === 0 && a.job_states.length === 0;
+
+const attemptStamp = (a: MockAttempt): string =>
+  a.finished_at ?? a.started_at ?? new Date().toISOString();
+
+const synthTerraformJobs = (
+  taskId: number,
+  n: number,
+  status: TaskStatus,
+  errorCode: ErrorCode | null,
+  successState: string,
+  stamp: string,
+): SynthJobs => {
+  const [j1, j2] = synthJobIds(taskId, n);
+  const st = (id: string, last_state: string | null, fail?: string): TerraformJobStateSummary => ({
+    job_id: id, last_state, last_fail_reason: fail ?? null, last_error: null, poll_count: 2, last_polled_at: stamp,
+  });
+  const rs = (id: string, succeeded: boolean): TerraformJobResultSummary => ({
+    job_id: id, succeeded, truncated: false, has_body: true, created_at: stamp,
+  });
+  if (status === 'DONE') {
+    return { results: [rs(j1, true), rs(j2, true)], states: [st(j1, successState), st(j2, successState)] };
+  }
+  if (status === 'FAILED' && errorCode === 'JOB_FAILED') {
+    return { results: [rs(j1, true), rs(j2, false)], states: [st(j1, successState), st(j2, 'FAILED', 'mock forced failure')] };
+  }
+  if (status === 'IN_PROGRESS' || status === 'READY') {
+    return { results: [], states: [st(j1, successState), st(j2, 'RUNNING')] };
+  }
+  if (status === 'FAILED') {
+    // CALL_TIMEOUT / CHECK_ERROR — timed out before terminal; last observation only.
+    return { results: [], states: [st(j1, successState), st(j2, 'RUNNING')] };
+  }
+  if (status === 'CANCELLED') {
+    return { results: [], states: [st(j1, 'RUNNING')] };
+  }
+  return { results: [], states: [] };
+};
+
+const synthFor = (a: MockAttempt, taskId: number, defName: string): SynthJobs =>
+  synthTerraformJobs(taskId, a.attempt_number, a.status, a.error_code, successStateFor(defName), attemptStamp(a));
+
+const toAttemptView = (a: MockAttempt, kind: TaskKind, taskId: number, defName: string): TaskAttemptView => {
+  const synth = kind === 'TERRAFORM_JOB' && needsSynth(a) ? synthFor(a, taskId, defName) : null;
+  return {
+    attempt_number: a.attempt_number,
+    status: a.status,
+    error_code: a.error_code,
+    response: a.response,
+    failure_detail: a.failure_detail,
+    started_at: a.started_at,
+    finished_at: a.finished_at,
+    check: a.check ? toCheckView(a.check) : null,
+    terraform_results: synth ? synth.results : a.terraform_results,
+    job_states: synth ? synth.states : a.job_states,
+  };
+};
 
 const toTaskDetail = (pipelineId: number, t: MockTask): TaskDetail => {
   const def = CATALOG.get(t.task_definition);
@@ -753,7 +883,7 @@ const toTaskDetail = (pipelineId: number, t: MockTask): TaskDetail => {
     effective_polling_interval: POLLING_INTERVAL,
     effective_execution_timeout: kind === 'CONDITION_CHECK' ? null : TERRAFORM_TIMEOUT,
     effective_max_fail_count: t.effective_max_fail_count,
-    attempts: t.attempts.map(toAttemptView),
+    attempts: t.attempts.map((a) => toAttemptView(a, kind, t.task_id, t.task_definition)),
     description: t.description,
   };
 };
@@ -882,6 +1012,142 @@ const PATH = {
   targetPipelines: (id: string): string => `/api/v1/target-sources/${id}/pipelines`,
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Per-job log bodies + full state responses backing the #5a/#5b endpoints.
+// Keyed `${taskId}:${attemptNumber}:${jobId}`; only jobs the seed exercises are
+// present (task 12401 FAILED, task 12804 in-flight). Timestamps are anchored at
+// import time — good enough for the viewer's "collected HH:MM" stamps.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const jobAgo = (min: number): string => new Date(Date.now() - min * 60_000).toISOString();
+
+const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
+  // task 12401 · attempt 1 — live read-through (no stored rows yet at timeout)
+  '12401:1:1019': { succeeded: true, truncated: false, source: 'live', created_at: null, fetch_error: null,
+    content: 'aws_glue_catalog_database.service_level: Creating...\n'
+      + 'aws_glue_catalog_database.service_level: Creation complete after 2s\n\n'
+      + 'Apply complete! Resources: 214 added, 0 changed, 0 destroyed.' },
+  '12401:1:1020': { succeeded: null, truncated: false, source: 'live', created_at: null, fetch_error: null,
+    content: 'aws_glue_catalog_table.bdc_common["tbl_0301"]: Creating...\n'
+      + 'aws_glue_catalog_table.bdc_common["tbl_0301"]: Still creating... [1m30s elapsed]' },
+  '12401:1:1021': { succeeded: null, truncated: false, source: 'live', created_at: null, content: null,
+    fetch_error: 'InfraManager returned no result (call timed out after PT30S)' },
+  // task 12401 · attempt 2 — stored terraform_result rows
+  '12401:2:1026': { succeeded: true, truncated: false, source: 'stored', created_at: jobAgo(3 * 60 - 30), fetch_error: null,
+    content: 'aws_glue_catalog_database.service_level: Creating...\n'
+      + 'aws_glue_catalog_database.service_level: Creation complete after 2s [id=svc-alpha:service_level]\n'
+      + 'aws_iam_role.pii_agent_scan: Creating...\n'
+      + 'aws_iam_role.pii_agent_scan: Creation complete after 1s\n\n'
+      + 'Apply complete! Resources: 214 added, 0 changed, 0 destroyed.' },
+  '12401:2:1027': { succeeded: false, truncated: true, source: 'stored', created_at: jobAgo(3 * 60 - 30), fetch_error: null,
+    content: 'aws_glue_catalog_table.bdc_common["tbl_0417"]: Still creating... [2m10s elapsed]\n'
+      + 'aws_glue_catalog_table.bdc_common["tbl_0417"]: Creation complete after 2m12s\n\n'
+      + 'Error: Error acquiring the state lock\n\n'
+      + 'Error message: ConditionalCheckFailedException: The conditional request failed\n'
+      + 'Lock Info:\n'
+      + '  ID:        8f2a1c3e-77b4-4e01-9d2f-3a5b6c7d8e90\n'
+      + '  Path:      svc-alpha/service-level/terraform.tfstate\n'
+      + '  Operation: OperationTypeApply\n'
+      + '  Who:       infra-manager@worker-3\n'
+      + '  Created:   2026-07-09 10:42:58 UTC\n\n'
+      + 'Terraform acquires a state lock to protect the state from being written\n'
+      + 'by multiple users at the same time.' },
+  // stored pointer row — job terminal, but the log body was never collected
+  '12401:2:1028': { succeeded: true, truncated: false, source: 'stored', created_at: jobAgo(3 * 60 - 30), content: null, fetch_error: null },
+  // task 12804 · attempt 1 — in-flight, live read-through
+  '12804:1:1031': { succeeded: true, truncated: false, source: 'live', created_at: null, fetch_error: null,
+    content: 'aws_glue_catalog_database.bdc_common: Creating...\n'
+      + 'aws_glue_catalog_database.bdc_common: Creation complete after 3s\n\n'
+      + 'Apply complete! Resources: 96 added, 0 changed, 0 destroyed.' },
+  '12804:1:1032': { succeeded: null, truncated: false, source: 'live', created_at: null, fetch_error: null,
+    content: 'aws_glue_catalog_table.bdc_common["tbl_0114"]: Creating...\n'
+      + 'aws_glue_catalog_table.bdc_common["tbl_0114"]: Still creating... [40s elapsed]' },
+  '12804:1:1033': { succeeded: null, truncated: false, source: 'live', created_at: null, fetch_error: null,
+    content: 'Initializing the backend...\nInitializing provider plugins...\n'
+      + 'Terraform has been successfully initialized!' },
+};
+
+/** Raw state-poll response body, pretty-printed as the upstream stores it. The
+ *  viewer renders it verbatim (never re-parses), so the mock owns the formatting. */
+const stateJson = (terraformState: string, failReason: string | null): string =>
+  JSON.stringify({ terraformState, failReason }, null, 2);
+
+const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
+  '12401:1:1019': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+    last_response: stateJson('COMPLETED', null), poll_count: 4, last_polled_at: jobAgo(3 * 60 - 13) },
+  '12401:1:1020': { last_state: 'RUNNING', last_fail_reason: null, last_error: null,
+    last_response: stateJson('RUNNING', null), poll_count: 4, last_polled_at: jobAgo(3 * 60 - 13) },
+  '12401:1:1021': { last_state: null, last_fail_reason: null, last_error: 'infra-manager call timed out after PT30S',
+    last_response: null, poll_count: 4, last_polled_at: jobAgo(3 * 60 - 14) },
+  '12401:2:1026': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+    last_response: stateJson('COMPLETED', null), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
+  '12401:2:1027': { last_state: 'FAILED', last_fail_reason: 'mock forced failure', last_error: null,
+    last_response: stateJson('FAILED', 'mock forced failure'), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
+  '12401:2:1028': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+    last_response: stateJson('COMPLETED', null), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
+  '12804:1:1031': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
+    last_response: stateJson('COMPLETED', null), poll_count: 2, last_polled_at: jobAgo(29) },
+  '12804:1:1032': { last_state: 'RUNNING', last_fail_reason: null, last_error: null,
+    last_response: stateJson('RUNNING', null), poll_count: 2, last_polled_at: jobAgo(29) },
+  '12804:1:1033': { last_state: 'RUNNING', last_fail_reason: null, last_error: null,
+    last_response: stateJson('RUNNING', null), poll_count: 2, last_polled_at: jobAgo(29) },
+};
+
+// Generic log bodies for synthesized jobs (tasks without hand-written fixtures).
+const LOG_OK = 'Initializing the backend...\nInitializing provider plugins...\n'
+  + 'aws_resource.main: Creating...\naws_resource.main: Creation complete after 3s\n\n'
+  + 'Apply complete! Resources: 12 added, 0 changed, 0 destroyed.';
+const LOG_FAIL = 'aws_resource.main: Creating...\n\n'
+  + 'Error: error applying plan\n\n  on main.tf line 14:\n\n'
+  + 'resource creation failed: mock forced failure\n\nApply cancelled.';
+const LOG_RUNNING = 'aws_resource.main: Creating...\n'
+  + 'aws_resource.main: Still creating... [30s elapsed]';
+
+/** Locate (pipeline, task, attempt) or the 404 to return. */
+const resolveAttempt = (
+  pipelineId: string, taskId: string, attemptNumber: string, path: string,
+): { error: OrchestratorRawResponse } | { task: MockTask; attempt: MockAttempt | undefined } => {
+  const pipeline = store().find((p) => String(p.pipeline_id) === pipelineId);
+  if (!pipeline) return { error: err(404, 'PIPELINE_NOT_FOUND', `no pipeline ${pipelineId}`, path) };
+  const task = pipeline.tasks.find((t) => String(t.task_id) === taskId);
+  if (!task) return { error: err(404, 'TASK_NOT_FOUND', `no task ${taskId} in pipeline ${pipelineId}`, path) };
+  return { task, attempt: task.attempts.find((a) => String(a.attempt_number) === attemptNumber) };
+};
+
+/** A synthesized job's result body (or null when the job isn't part of the attempt). */
+const synthResultBody = (
+  task: MockTask, attempt: MockAttempt, jobId: string, taskId: number, n: number,
+): TerraformJobResultDetail | null => {
+  if (kindOf(task.task_definition) !== 'TERRAFORM_JOB' || !needsSynth(attempt)) return null;
+  const s = synthFor(attempt, taskId, task.task_definition);
+  const result = s.results.find((r) => r.job_id === jobId);
+  const state = s.states.find((x) => x.job_id === jobId);
+  if (!result && !state) return null;
+  const base = { task_id: taskId, attempt_number: n, job_id: jobId, truncated: false, fetch_error: null };
+  if (result) {
+    return { ...base, succeeded: result.succeeded, source: 'stored', created_at: result.created_at,
+      content: result.succeeded ? LOG_OK : LOG_FAIL };
+  }
+  // State only (in-flight / timed-out) → live read-through.
+  return { ...base, succeeded: null, source: 'live', created_at: null,
+    content: state?.last_state === 'RUNNING' ? LOG_RUNNING : LOG_OK };
+};
+
+/** A synthesized job's state body (or null when the job isn't part of the attempt). */
+const synthStateBody = (
+  task: MockTask, attempt: MockAttempt, jobId: string, taskId: number, n: number,
+): TerraformJobStateDetail | null => {
+  if (kindOf(task.task_definition) !== 'TERRAFORM_JOB' || !needsSynth(attempt)) return null;
+  const state = synthFor(attempt, taskId, task.task_definition).states.find((x) => x.job_id === jobId);
+  if (!state) return null;
+  return {
+    task_id: taskId, attempt_number: n, job_id: jobId,
+    last_state: state.last_state, last_fail_reason: state.last_fail_reason, last_error: state.last_error,
+    last_response: state.last_state === null ? null : stateJson(state.last_state, state.last_fail_reason),
+    poll_count: state.poll_count, last_polled_at: state.last_polled_at,
+  };
+};
+
 export const mockPipeline = {
   // #1
   liveStatistics(): OrchestratorRawResponse {
@@ -980,6 +1246,40 @@ export const mockPipeline = {
       return err(404, 'TASK_NOT_FOUND', `no task ${taskId} in pipeline ${pipelineId}`, path);
     }
     return ok(toTaskDetail(pipeline.pipeline_id, task));
+  },
+
+  // #5a GET …/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/result
+  jobResult(pipelineId: string, taskId: string, attemptNumber: string, jobId: string): OrchestratorRawResponse {
+    const path = `${PATH.pipelines}/${pipelineId}/tasks/${taskId}/attempts/${attemptNumber}/jobs/${jobId}/result`;
+    const r = resolveAttempt(pipelineId, taskId, attemptNumber, path);
+    if ('error' in r) return r.error;
+    const fixture = RESULT_FIXTURES[`${taskId}:${attemptNumber}:${jobId}`];
+    if (fixture) {
+      return ok({ task_id: Number(taskId), attempt_number: Number(attemptNumber), job_id: jobId, ...fixture });
+    }
+    const synth = r.attempt
+      ? synthResultBody(r.task, r.attempt, jobId, Number(taskId), Number(attemptNumber))
+      : null;
+    if (synth) return ok(synth);
+    return err(404, 'TERRAFORM_RESULT_NOT_FOUND',
+      `no terraform result for job ${jobId} (task ${taskId}, attempt ${attemptNumber})`, path);
+  },
+
+  // #5b GET …/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/state
+  jobState(pipelineId: string, taskId: string, attemptNumber: string, jobId: string): OrchestratorRawResponse {
+    const path = `${PATH.pipelines}/${pipelineId}/tasks/${taskId}/attempts/${attemptNumber}/jobs/${jobId}/state`;
+    const r = resolveAttempt(pipelineId, taskId, attemptNumber, path);
+    if ('error' in r) return r.error;
+    const fixture = STATE_FIXTURES[`${taskId}:${attemptNumber}:${jobId}`];
+    if (fixture) {
+      return ok({ task_id: Number(taskId), attempt_number: Number(attemptNumber), job_id: jobId, ...fixture });
+    }
+    const synth = r.attempt
+      ? synthStateBody(r.task, r.attempt, jobId, Number(taskId), Number(attemptNumber))
+      : null;
+    if (synth) return ok(synth);
+    return err(404, 'TERRAFORM_JOB_STATE_NOT_FOUND',
+      `no state observation for job ${jobId} (task ${taskId}, attempt ${attemptNumber})`, path);
   },
 
   // #6 — two-phase cancel

@@ -149,6 +149,16 @@ export const httpBff: BffClient = {
     detail: (pipelineId) => pipelineRequest('GET', `/pipelines/${enc(pipelineId)}`),
     taskDetail: (pipelineId, taskId) =>
       pipelineRequest('GET', `/pipelines/${enc(pipelineId)}/tasks/${enc(taskId)}`),
+    jobResult: (pipelineId, taskId, attemptNumber, jobId) =>
+      pipelineRequest(
+        'GET',
+        `/pipelines/${enc(pipelineId)}/tasks/${enc(taskId)}/attempts/${enc(attemptNumber)}/jobs/${enc(jobId)}/result`,
+      ),
+    jobState: (pipelineId, taskId, attemptNumber, jobId) =>
+      pipelineRequest(
+        'GET',
+        `/pipelines/${enc(pipelineId)}/tasks/${enc(taskId)}/attempts/${enc(attemptNumber)}/jobs/${enc(jobId)}/state`,
+      ),
     cancel: (pipelineId) => pipelineRequest('POST', `/pipelines/${enc(pipelineId)}/cancel`),
     listByTarget: (targetSourceId, query) =>
       pipelineRequest('GET', withQuery(`/target-sources/${enc(targetSourceId)}/pipelines`, query)),

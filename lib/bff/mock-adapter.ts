@@ -46,6 +46,10 @@ export const mockBff: BffClient = {
     list: async (query) => mockPipeline.list(query),
     detail: async (pipelineId) => mockPipeline.detail(pipelineId),
     taskDetail: async (pipelineId, taskId) => mockPipeline.taskDetail(pipelineId, taskId),
+    jobResult: async (pipelineId, taskId, attemptNumber, jobId) =>
+      mockPipeline.jobResult(pipelineId, taskId, attemptNumber, jobId),
+    jobState: async (pipelineId, taskId, attemptNumber, jobId) =>
+      mockPipeline.jobState(pipelineId, taskId, attemptNumber, jobId),
     cancel: async (pipelineId) => mockPipeline.cancel(pipelineId),
     listByTarget: async (targetSourceId, query) => mockPipeline.listByTarget(targetSourceId, query),
     latestByTarget: async (targetSourceId) => mockPipeline.latestByTarget(targetSourceId),
