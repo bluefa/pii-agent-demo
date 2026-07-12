@@ -23,6 +23,14 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? '';
   const { layout } = pipelineStyles;
   const isDashboard = pathname === integrationRoutes.pipelines.dashboard;
+  // Pipeline detail = a single dynamic segment under the base (not `services`,
+  // not `targets/…`); it gets the fluid full-height column so its flow canvas
+  // fills the viewport. Dashboard is fluid too; everything else stays capped.
+  const rest = pathname.startsWith(`${integrationRoutes.pipelines.dashboard}/`)
+    ? pathname.slice(integrationRoutes.pipelines.dashboard.length + 1)
+    : '';
+  const isDetail = rest !== '' && !rest.includes('/') && rest !== 'services';
+  const mainClass = isDashboard ? layout.contentFluid : isDetail ? layout.contentDetail : layout.content;
 
   return (
     <div className={layout.shell}>
@@ -44,7 +52,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
-      <main className={isDashboard ? layout.contentFluid : layout.content}>
+      <main className={mainClass}>
         <PlToastProvider>{children}</PlToastProvider>
       </main>
     </div>

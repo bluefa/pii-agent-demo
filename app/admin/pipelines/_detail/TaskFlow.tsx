@@ -4,10 +4,12 @@
  * TaskFlow — horizontal task-chain canvas, R19 n8n-style (improvement-r18.md
  * lineage; owner: "N8N처럼, 격자 무늬, 카드 가운데 정렬, Terraform+클라우드
  * 아이콘"). Line-grid canvas (fine 20px + strong 100px), a centered track
- * (margin-inline:auto — centers when it fits, scrolls when it overflows),
- * identity icon pair per node (kind mark: Terraform logomark / condition
- * clock + provider logomark; IDC·SDU are text chips), and the task STATUS as
- * an n8n-style corner badge instead of the old leading status tile.
+ * (margin-inline:auto — centers when it fits, scrolls when it overflows), and
+ * the task STATUS as an n8n-style corner badge instead of the old leading
+ * status tile. The shared base grammar (used by CustomBuildStep) puts an
+ * identity icon pair per node (kind mark + provider logomark); TaskFlow itself
+ * is detail-exclusive and overrides this via DETAIL_CSS below into the Figma
+ * 70:35 icon-left layout (single large tile-less kind mark, no provider mark).
  *
  * The node/connector grammar needs pseudo-elements and keyframes that Tailwind
  * utilities can't express, so the structural CSS is scoped here in a single
@@ -83,6 +85,31 @@ export const FLOW_CSS = `
 }
 `;
 
+/**
+ * Detail-view-only node layout (Figma "pipeline-detail-improved", node 70:35):
+ * a large tile-less kind mark flush-left — the Terraform logomark / an orange
+ * ring+check for condition gates — then a title + secondary-description column
+ * on a soft blue-lavender canvas. The kind is the node's hero (owner: AWS
+ * 아이콘 대신 Terraform/조건 아이콘 강조), so there is no provider mark and no
+ * tinted tile behind the icon. STATUS is unchanged: the corner badge
+ * (top-right) + border-color from FLOW_CSS's `s-*` classes; connectors stay the
+ * shared grammar. Scoped under `.pl-detail` (hardcoded on this component's
+ * root — TaskFlow is detail-exclusive) so the shared FLOW_CSS stays
+ * byte-for-byte and CustomBuildStep's builder canvas is untouched.
+ */
+const DETAIL_CSS = `
+.pl-flow.pl-detail{background-color:var(--pl-flow-canvas)}
+.pl-flow.pl-detail .pl-scroll{padding:36px 28px}
+.pl-flow.pl-detail .pl-tnode{width:288px;padding:24px;border-radius:16px;display:flex;align-items:center;gap:20px}
+.pl-flow.pl-detail .nd-icons{margin:0;flex:none}
+.pl-flow.pl-detail .nd-mark,.pl-flow.pl-detail .nd-mark.m-cond{width:56px;height:56px;border:0;border-radius:0;background:transparent}
+.pl-flow.pl-detail .nd-mark.m-cond{color:var(--pl-warn)}
+.pl-flow.pl-detail .nd-mark svg{width:56px;height:56px}
+.pl-flow.pl-detail .nd-body{flex:1;min-width:0;display:flex;flex-direction:column}
+.pl-flow.pl-detail .nd-name{font-size:16px;line-height:1.35;font-weight:700}
+.pl-flow.pl-detail .nd-meta{font-size:13px;line-height:1.5;margin-top:10px;color:var(--pl-text-faint)}
+`;
+
 /** Provider mark tile — logo when known, text chip for IDC/SDU (owner: 글자만). */
 export function ProviderMark({ provider }: { provider: CloudProvider }): ReactElement {
   const logo = providerLogo(provider);
@@ -141,13 +168,11 @@ export interface TaskFlowProps {
   /** task_id → loaded TaskDetail (null while pending / on failure). */
   detailMap: ReadonlyMap<number, TaskDetail | null>;
   resolveName: (task: TaskSummary) => string;
-  /** Pipeline's cloud provider — drives each node's provider logomark. */
-  provider: CloudProvider;
   onOpen: (task: TaskSummary) => void;
   /** R18 §7-3 — task_id whose inline panel is open (primary ring highlight). */
   selectedId?: number | null;
   /**
-   * R19.5 — right-docked detail panel (TaskDetailPanel), rendered flush at the
+   * R19.5 — right-docked detail panel (TaskDrawer), rendered flush at the
    * canvas edge OUTSIDE the horizontal scroll region so it can never block
    * left/right scrolling (owner mandate).
    */
@@ -169,7 +194,6 @@ export function TaskFlow({
   tasks,
   detailMap,
   resolveName,
-  provider,
   onOpen,
   selectedId,
   panel,
@@ -187,12 +211,21 @@ export function TaskFlow({
   );
 
   return (
-    <div className={cn('pl-flow', className)}>
-      <style>{FLOW_CSS}</style>
+    <div className={cn('pl-flow', 'pl-detail', className)}>
+      <style>{FLOW_CSS + DETAIL_CSS}</style>
       <div className="pl-scroll">
         <div className="pl-track">
         {tasks.map((task, index) => {
           const name = resolveName(task);
+          // Secondary line (Figma): the task description sentence. FAILED keeps
+          // the existing red reason line (실패 n/m — CODE) — an existing card
+          // element carrying info the description doesn't. Description degrades
+          // to the meta line until the detail loads.
+          const detail = detailMap.get(task.task_id);
+          const meta =
+            task.status === 'FAILED'
+              ? taskMetaLine(task, detail)
+              : detail?.definition?.description || detail?.description || taskMetaLine(task, detail);
           return (
             <Fragment key={task.task_id}>
               {index > 0 && (
@@ -222,14 +255,16 @@ export function TaskFlow({
                     </span>
                   ) : (
                     <span className="nd-mark m-cond" title="조건 확인 — 폴링">
-                      <Icon name="clock" size="sm" />
+                      {/* 70:35 condition gate — amber ring + check (currentColor). */}
+                      <Icon name="check-circle" strokeWidth={2.2} />
                     </span>
                   )}
-                  <ProviderMark provider={provider} />
                 </div>
                 {nodeBadge(task.status, task.sequence)}
-                <span className="nd-name">{name}</span>
-                <div className="nd-meta">{taskMetaLine(task, detailMap.get(task.task_id))}</div>
+                <div className="nd-body">
+                  <span className="nd-name">{name}</span>
+                  <div className="nd-meta">{meta}</div>
+                </div>
               </div>
             </Fragment>
           );

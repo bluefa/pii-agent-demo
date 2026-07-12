@@ -161,6 +161,10 @@
   /* R19 n8n-style canvas grid — fine 20px lines + stronger 100px accent lines */
   --pl-flow-grid: rgba(208, 213, 221, 0.35);
   --pl-flow-grid-strong: rgba(208, 213, 221, 0.7);
+  /* Detail view (node 70:35) — blue-lavender canvas + light panel surface. */
+  --pl-flow-canvas: #E0E8F5;
+  --pl-flow-panel: #F1F4F9;
+  --pl-flow-meta-label: #94A3B2; /* header group labels (파이프라인 / Target Source) — muted slate */
   /* R19 node brand marks — Terraform purple + AWS lockup colors (Azure/GCP
      reuse --pl-pv-*); logomark artwork colors, not UI text roles. All provider
      marks sit on the same white tile (owner: 일관성). */

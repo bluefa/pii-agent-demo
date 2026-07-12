@@ -999,6 +999,10 @@ export const pipelineStyles = {
     // Dashboard-only: no max-width cap, fills the viewport (owner request — see
     // layout.tsx's isDashboard check). Other pipelines pages keep `content`.
     contentFluid: 'flex-1 min-w-0 px-8 pt-6 pb-12',
+    // Pipeline-detail-only: fluid width AND a full-height flex column so the
+    // Task 흐름 canvas can stretch to the bottom (owner: "하단까지 쭉", "우측
+    // 빈 공간 제거"). The detail view's bleed root is flex-1 inside this.
+    contentDetail: 'flex-1 min-w-0 flex flex-col px-8 pt-6 pb-12',
   },
 
   /** Card surfaces (§5). */

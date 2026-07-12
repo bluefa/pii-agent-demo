@@ -30,6 +30,7 @@ export type IconName =
   | 'stop'
   | 'play'
   | 'x-circle'
+  | 'check-circle'
   | 'loader'
   | 'calendar';
 
@@ -120,6 +121,13 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
     <>
       <circle cx="12" cy="12" r="8.5" />
       <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" />
+    </>
+  ),
+  // Condition-gate mark (detail flow) — ring + check, tinted amber via currentColor.
+  'check-circle': (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m8.4 12.2 2.6 2.6 4.6-5.2" />
     </>
   ),
   // StatusPill RUNNING/IN_PROGRESS — open 3/4 arc, spun via `animate-spin`.

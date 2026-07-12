@@ -1,6 +1,6 @@
 /**
  * Bespoke class tokens for the C2 detail composites (IdentityBar, flow card,
- * TaskDetailPanel, Preview/Cancel modals). Phase B `pipelineStyles` covers the
+ * Preview/Cancel modals). Phase B `pipelineStyles` covers the
  * primitives but NOT these composites and is READ-ONLY, so the composite chrome
  * lives here — every color still resolves to a `--pl-*` custom property (the same
  * design tokens the primitives use; no raw Tailwind palette classes). Sizes /
