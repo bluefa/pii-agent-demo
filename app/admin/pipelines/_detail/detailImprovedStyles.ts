@@ -123,10 +123,11 @@ export const improvedStyles = {
     kvKey: 'text-[14px] text-[var(--pl-text-weak)]',
     kvVal: 'text-[14px] font-normal text-[var(--pl-text-strong)] tabular-nums',
     kvValErr: 'text-[14px] font-normal text-[var(--pl-err-text)] tabular-nums',
-    /** Attempt count / retry budget — bold label + value on one row (Figma node 121-5). */
+    /** Attempt count / retry budget — bold label + value on one row, same 14px
+     *  as the label so the value doesn't outrank it (owner Figma node 121-5). */
     attemptRow: 'flex items-center justify-between gap-3',
-    bigVal: 'text-[16px] font-bold text-[var(--pl-text-strong)] tabular-nums',
-    bigValErr: 'text-[16px] font-bold text-[var(--pl-err-text)] tabular-nums',
+    bigVal: 'text-[14px] font-bold text-[var(--pl-text-strong)] tabular-nums',
+    bigValErr: 'text-[14px] font-bold text-[var(--pl-err-text)] tabular-nums',
     rowsGap: 'mt-4 flex flex-col gap-2.5',
 
     /** attempts table. */

@@ -71,7 +71,7 @@ export function AttemptDetail({
       </Section>
 
       {rows.length > 0 && (
-        <Section label="Terraform Job" hint={`— ${rows.length}건`}>
+        <Section label="Terraform Job">
           <div className={j.cardList}>
             {rows.map((row) => (
               <JobRowItem

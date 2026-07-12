@@ -9,10 +9,15 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { getJobResult, getJobState, OrchestratorApiError } from '@/app/lib/api/pipeline';
-import { hm, j, MiniPill, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { d, hm, j, MiniPill, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TerraformJobResultDetail, TerraformJobStateDetail } from '@/lib/pipeline/types';
 
 type ViewerTab = 'log' | 'raw';
+
+const VIEWER_TABS: ReadonlyArray<{ key: ViewerTab; label: string }> = [
+  { key: 'log', label: 'Terraform 로그' },
+  { key: 'raw', label: '상태 응답 원문' },
+];
 type Loadable<T> = { phase: 'loading' | 'ok' | 'notfound' | 'error'; data: T | null; error: string | null };
 
 function useLoadable<T>(fetcher: () => Promise<T>, deps: ReadonlyArray<unknown>): Loadable<T> {
@@ -106,7 +111,7 @@ export function JobViewer({
   const stamp =
     tab === 'log'
       ? result.data?.created_at
-        ? `수집 ${hm(result.data.created_at)}`
+        ? `수집시간 ${hm(result.data.created_at)}`
         : live
           ? '방금 조회함'
           : ''
@@ -114,8 +119,17 @@ export function JobViewer({
         ? `마지막 확인 ${hm(state.data.last_polled_at)}`
         : '';
 
+  // The panel goes dark only when it actually renders a log/state body; empty and
+  // error states stay on the white card. `dark` also drives the copy-button variant
+  // and whether the tail-note footer is shown (owner Figma nodes 121-659 / 121-753).
+  const dark =
+    (tab === 'log' && result.phase === 'ok' && !!result.data?.content) ||
+    (tab === 'raw' && state.phase === 'ok' && !!state.data?.last_response);
+
+  // The verdict is a property of the job, not the active tab — show it on both
+  // (owner Figma nodes 121-659 / 121-710).
   const resultBadge =
-    tab === 'log' && succeeded !== null ? (
+    succeeded !== null ? (
       <MiniPill tone={succeeded ? 'success' : 'failed'}>{succeeded ? '성공' : '실패'}</MiniPill>
     ) : null;
 
@@ -177,54 +191,59 @@ export function JobViewer({
       <div className={j.vHead}>
         <div className="min-w-0">
           <div className={j.vTitle} id="pl-job-viewer-title">
-            <span className={j.vJid}>Job {jobId}</span>
+            <span className={j.vJid}>TerraformJob #{jobId}</span>
             {resultBadge}
           </div>
           <div className={j.vSub}>
             {jobLabel} · 시도 #{attemptNumber}
-            {stamp && ` · ${stamp}`}
           </div>
+          {stamp && <div className={j.vStamp}>{stamp}</div>}
         </div>
         <button type="button" className={j.vClose} onClick={onClose} aria-label="닫기" title="닫기 (Esc)">
           <Icon name="x" size="lg" />
         </button>
       </div>
 
-      <div className={j.toolbar}>
-        <span className={j.seg}>
-          <button
-            type="button"
-            className={cn(j.segBtn, tab === 'log' ? j.segOn : j.segOff)}
-            onClick={() => setTab('log')}
-          >
-            Terraform 로그
-          </button>
-          <button
-            type="button"
-            className={cn(j.segBtn, tab === 'raw' ? j.segOn : j.segOff)}
-            onClick={() => setTab('raw')}
-          >
-            상태 응답 원문
-          </button>
-        </span>
-        {truncated && <span className={j.warnPill}>16MB 초과 — 앞부분 절단</span>}
-        {live && <span className={j.livePill}>실시간 조회 — 저장 전</span>}
-        <span className={j.toolbarGrow} />
-        <PlButton
-          variant="secondary"
-          size="sm"
-          onClick={() => void navigator.clipboard?.writeText(copyText)}
-          disabled={!copyText}
-        >
-          복사
-        </PlButton>
+      <div className={d.nav}>
+        {VIEWER_TABS.map((t) => {
+          const active = t.key === tab;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              className={cn(d.navTab, active ? d.navActive : d.navIdle)}
+              onClick={() => setTab(t.key)}
+              aria-pressed={active}
+            >
+              {t.label}
+              <span className={active ? d.navUnderline : d.navUnderlineHidden} />
+            </button>
+          );
+        })}
       </div>
 
-      {body}
-
-      <div className={j.vFoot}>
-        로그는 열릴 때 맨 아래(tail)에서 시작합니다 — terraform 오류는 끝에 있고, 절단도 tail을 우선 보존합니다.
+      <div className={cn(j.panel, dark && j.panelDark)}>
+        <div className={j.strip}>
+          {truncated && <span className={j.warnPill}>16MB 초과 — 앞부분 절단</span>}
+          {live && <span className={j.livePill}>실시간 조회 — 저장 전</span>}
+          <span className={j.toolbarGrow} />
+          <PlButton
+            variant={dark ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => void navigator.clipboard?.writeText(copyText)}
+            disabled={!copyText}
+          >
+            복사
+          </PlButton>
+        </div>
+        {body}
       </div>
+
+      {!dark && (
+        <div className={j.vFoot}>
+          로그는 열릴 때 맨 아래(tail)에서 시작합니다 — terraform 오류는 끝에 있고, 절단도 tail을 우선 보존합니다.
+        </div>
+      )}
     </ModalShell>
   );
 }

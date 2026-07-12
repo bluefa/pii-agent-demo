@@ -93,7 +93,7 @@ export function TaskDrawer({
             aria-label="뒤로"
             title="뒤로 (Esc)"
           >
-            ←
+            <Icon name="chev-l" size="lg" />
           </button>
           <div className="min-w-0">
             <div id={TITLE_ID} className={j.subTitle}>

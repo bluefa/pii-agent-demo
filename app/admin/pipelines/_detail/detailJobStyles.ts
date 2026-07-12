@@ -72,26 +72,29 @@ export const jobStyles = {
   moreBtn: 'w-full border-t border-[var(--pl-border)] py-2.5 text-[12px] font-medium text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)] transition-colors',
 
   // ── Viewer (rendered inside ModalShell — scrim/Esc/backdrop are the shell's) ─
-  /** Overrides ModalShell's default dialog padding/width for a full-bleed viewer. */
-  viewer: '!w-[720px] !max-w-[90vw] !p-0 !max-h-[80vh] flex flex-col overflow-hidden',
+  /** Overrides ModalShell's default dialog padding/width for a full-bleed viewer.
+   *  Fixed height (not just max) so the dark log panel fills all the way to the
+   *  bottom even when the log is short (owner Figma node 121-659). */
+  viewer: '!w-[720px] !max-w-[90vw] !p-0 !h-[572px] !max-h-[85vh] flex flex-col overflow-hidden',
   vHead: 'flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-[var(--pl-border)]',
   vTitle: 'flex items-center gap-2.5 text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
-  vJid: '[font-family:var(--pl-font-mono)] tabular-nums',
+  vJid: 'tabular-nums',
   vSub: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
+  vStamp: 'mt-0.5 text-[12px] text-[var(--pl-text-faint)] tabular-nums truncate',
   vClose: 'flex-none inline-flex items-center justify-center w-8 h-8 -mr-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-gray-50)] transition-colors',
 
-  /** Toolbar — segmented [log | raw state] + status pills + copy. */
-  toolbar: 'flex items-center gap-2.5 px-6 py-3 border-b border-[var(--pl-border)] flex-wrap',
-  seg: 'inline-flex rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] p-0.5',
-  segBtn: 'rounded-[6px] px-3 py-1.5 text-[12px] font-medium transition-colors',
-  segOn: 'bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] shadow-sm',
-  segOff: 'text-[var(--pl-text-faint)] hover:text-[var(--pl-text-medium)]',
+  /** Log/state panel — one flex column that owns the bottom of the viewer. Its
+   *  dark bg (when content is shown) therefore runs to the very bottom; the top
+   *  strip (status pills + copy) and the scrolling body share it. */
+  panel: 'flex-1 flex flex-col min-h-0 overflow-hidden',
+  panelDark: 'bg-[var(--pl-gray-800)]',
+  strip: 'flex items-center gap-2.5 px-5 py-2.5',
   warnPill: 'inline-flex items-center rounded-full bg-[var(--pl-warn-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--pl-warn-text)]',
   livePill: 'inline-flex items-center rounded-full bg-[var(--pl-info-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--pl-info-text)]',
   toolbarGrow: 'ml-auto',
 
-  /** Log body — dark, mono, tail-anchored. */
-  logBody: 'flex-1 overflow-auto bg-[var(--pl-gray-800)] px-5 py-4',
+  /** Log body — mono, tail-anchored; bg lives on the panel so it fills the bottom. */
+  logBody: 'flex-1 overflow-auto px-5 pb-4',
   logPre: 'text-[12px] leading-[1.6] text-[var(--pl-chrome-item)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
   logCut: 'block pb-2 mb-2 text-[11px] text-[var(--pl-warn)] border-b border-[var(--pl-gray-600)]',
 
