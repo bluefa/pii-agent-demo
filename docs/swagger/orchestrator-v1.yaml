@@ -688,13 +688,16 @@ components:
         CUSTOM_TASKS_REQUIRED, UNKNOWN_TASK, TASK_PROVIDER_MISMATCH, TASK_DESCRIPTION_TOO_LONG,
         INVALID_STATISTICS_PERIOD, INVALID_PARAMETER) · 404(PIPELINE_NOT_FOUND, TASK_NOT_FOUND) ·
         409(PIPELINE_ALREADY_ACTIVE) · 503(PROVIDER_LOOKUP_FAILED) · 500(PIPELINE_PERSISTENCE_ERROR,
-        INTERNAL_ERROR — 후자는 405 등 미매핑 프레임워크 에러의 fallback).
+        INTERNAL_ERROR — 후자는 405 등 미매핑 프레임워크 에러의 fallback). #5a/#5b 404:
+        TERRAFORM_RESULT_NOT_FOUND / TERRAFORM_JOB_STATE_NOT_FOUND.
       enum:
         - ORCHESTRATION_PIPELINE_ID_REQUIRED
         - ORCHESTRATION_PIPELINE_TYPE_REQUIRED
         - ORCHESTRATION_TARGET_REQUIRED
         - ORCHESTRATION_PIPELINE_NOT_FOUND
         - ORCHESTRATION_TASK_NOT_FOUND
+        - ORCHESTRATION_TERRAFORM_RESULT_NOT_FOUND
+        - ORCHESTRATION_TERRAFORM_JOB_STATE_NOT_FOUND
         - ORCHESTRATION_PIPELINE_ALREADY_ACTIVE
         - ORCHESTRATION_PIPELINE_PERSISTENCE_ERROR
         - ORCHESTRATION_UNSUPPORTED_RECIPE
@@ -951,7 +954,7 @@ components:
     TaskAttemptView:
       type: object
       description: 단일 재시도 시도 + 폴 요약.
-      required: [attempt_number, status]
+      required: [attempt_number, status, terraform_results, job_states]
       properties:
         attempt_number:
           type: integer

@@ -21,11 +21,15 @@ export interface JobRow {
 export type JobVerdict = 'success' | 'failed' | 'running' | 'none';
 
 export function jobRows(attempt: TaskAttemptView): JobRow[] {
+  // Defensive: the proxy passes upstream responses verbatim, so guard against a
+  // payload that omits either array even though the contract marks them present.
+  const states = attempt.job_states ?? [];
+  const results = attempt.terraform_results ?? [];
   const byId = new Map<string, JobRow>();
-  for (const state of attempt.job_states) {
+  for (const state of states) {
     byId.set(state.job_id, { job_id: state.job_id, result: null, state });
   }
-  for (const result of attempt.terraform_results) {
+  for (const result of results) {
     const row = byId.get(result.job_id) ?? { job_id: result.job_id, result: null, state: null };
     row.result = result;
     byId.set(result.job_id, row);
