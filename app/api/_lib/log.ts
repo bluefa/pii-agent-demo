@@ -13,6 +13,8 @@ type AccessFields = {
   status: number;
   durationMs: number;
   requestId: string;
+  clientPage?: string;
+  clientAction?: string;
 };
 
 function emit(severity: 'ERROR' | 'INFO', message: string, fields: Record<string, unknown>): void {
