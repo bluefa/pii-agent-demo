@@ -52,14 +52,14 @@ export const jobStyles = {
   attemptNo: 'flex-none min-w-[26px] text-[14px] font-semibold text-[var(--pl-text-strong)] tabular-nums tracking-[-0.196px]',
   attemptTime: 'ml-auto text-[12px] text-[var(--pl-text-faint)] tabular-nums whitespace-nowrap tracking-[-0.196px]',
   attemptCur: 'flex-none text-[11px] text-[var(--pl-text-faint)] tracking-[-0.196px]',
-  attemptChev: 'flex-none text-[var(--pl-text-faint)] text-[12px] leading-none',
+  /** Row CTA — blue "상세정보 보기" text (replaces the bare chevron). */
+  attemptDetail: 'flex-none text-[12px] font-semibold text-[var(--pl-primary)] tracking-[-0.196px]',
 
   /** Terraform Job row — verdict + id + meta + log action. */
   jobRow: 'flex items-center gap-2.5 pt-3 pb-[13px] border-b border-[var(--pl-border)] last:border-b-0',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
-  jobMeta: 'ml-auto text-[12px] text-[var(--pl-text-faint)] tabular-nums whitespace-nowrap tracking-[-0.196px]',
   /** Log action — blue text button (owner Figma node 121-326), not a bordered btn. */
-  logBtn: 'flex-none rounded-[8px] px-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline transition-colors',
+  logBtn: 'ml-auto flex-none rounded-[8px] px-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline transition-colors',
 
   /** Attempt drill-down header (replaces the tab bar on the sub-view). */
   subHeader: 'flex items-start gap-2.5 px-6 pt-5 pb-4 border-b border-[var(--pl-border)]',
@@ -67,13 +67,13 @@ export const jobStyles = {
   subTitle: 'flex items-center gap-2 text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
   subCrumb: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
 
-  /** Raw-response fold — bold heading with a disclosure chevron that points
-   *  down when closed and flips up + sky-blue when open (owner Figma node 121-3).
-   *  Raw dispatch response, not parsed. */
+  /** Raw-response fold (owner Figma node 121-389) — 16px SemiBold heading led by
+   *  a ▼ triangle (gray) that flips up + sky-blue when open; the raw dispatch
+   *  response sits in an inset mono code box. Not parsed. */
   respFold: 'group',
   respSummary: 'flex items-center gap-1.5 cursor-pointer list-none text-[16px] font-semibold text-[var(--pl-text-strong)] tracking-[-0.196px] [&::-webkit-details-marker]:hidden select-none',
-  respTri: 'inline-block text-[10px] text-[var(--pl-text-faint)] transition-transform rotate-90 group-open:-rotate-90 group-open:text-[var(--pl-info)]',
-  respPre: 'mt-2 rounded-[6px] bg-[var(--pl-gray-50)] border border-[var(--pl-border)] px-3 py-2 text-[11px] leading-[1.5] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
+  respTri: 'inline-block text-[10px] leading-none text-[var(--pl-text-weak)] transition-transform group-open:rotate-180 group-open:text-[var(--pl-info)]',
+  respPre: 'mt-3 ml-[18px] rounded-[6px] bg-[var(--pl-gray-50)] border border-[var(--pl-border)] px-[15px] py-[13px] text-[11px] leading-[1.4] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
 
   /** Poll-history "show all" toggle. */
   moreBtn: 'w-full border-t border-[var(--pl-border)] py-2.5 text-[12px] font-medium text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)] transition-colors',

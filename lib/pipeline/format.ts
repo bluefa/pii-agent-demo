@@ -51,28 +51,6 @@ export function fmtDateTime(iso: string | null | undefined): string {
   return `${pick('year')}-${pick('month')}-${pick('day')} ${hour}:${pick('minute')}`;
 }
 
-const SEOUL_CLOCK = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Asia/Seoul',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
-
-/**
- * ISO-8601 UTC instant → 'HH:mm' in Asia/Seoul. `null`/invalid → '-'. The compact
- * clock form for a same-view time RANGE (attempt history row) where the date is
- * redundant; standalone instants still use `fmtDateTime`.
- */
-export function fmtClock(iso: string | null | undefined): string {
-  if (!iso) return '-';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '-';
-  const parts = SEOUL_CLOCK.formatToParts(date);
-  const hour = parts.find((p) => p.type === 'hour')?.value ?? '';
-  const minute = parts.find((p) => p.type === 'minute')?.value ?? '';
-  return `${hour === '24' ? '00' : hour}:${minute}`;
-}
-
 /**
  * ISO-8601 UTC instant → Korean relative time from `now` (default Date.now()):
  * '방금 전' (<1m), 'N분 전' (<1h), 'N시간 전' (<1d), else 'N일 전'.

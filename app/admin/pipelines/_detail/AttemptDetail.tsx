@@ -17,20 +17,17 @@ import type { TaskAttemptView } from '@/lib/pipeline/types';
 
 function JobRowItem({ row, onOpen }: { row: JobRow; onOpen: () => void }): ReactElement {
   const verdict = jobVerdict(row);
-  // Meta = poll count (owner Figma node 121-311); every polled job carries a state.
-  const meta = row.state ? `폴 ${row.state.poll_count}회` : '';
   return (
     <div className={j.jobRow}>
       <MiniPill tone={verdict}>{j.verdictLabel[verdict]}</MiniPill>
       <span className={j.jobId}>{row.job_id}</span>
-      <span className={j.jobMeta}>{meta}</span>
       <button
         type="button"
         className={j.logBtn}
         onClick={onOpen}
         aria-label={`TerraformJob ${row.job_id} 로그 열기`}
       >
-        로그
+        로그 보기
       </button>
     </div>
   );
@@ -104,7 +101,7 @@ export function AttemptDetail({
       {attempt.response && (
         <details className={j.respFold} open>
           <summary className={j.respSummary}>
-            <span className={j.respTri} aria-hidden="true">›</span>Response 원문
+            <span className={j.respTri} aria-hidden="true">▼</span>Response 원문
           </summary>
           <pre className={j.respPre}>{attempt.response}</pre>
         </details>

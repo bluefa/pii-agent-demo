@@ -6,7 +6,7 @@
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { PipelineStatusBadge } from '@/app/admin/pipelines/_detail/PipelineStatusBadge';
-import { fmtClock, fmtDateTime, KIND_POLICY } from '@/lib/pipeline/format';
+import { fmtDateTime, KIND_POLICY } from '@/lib/pipeline/format';
 import {
   conditionVerdict,
   d,
@@ -61,7 +61,7 @@ export function TerraformExec({
         </span>
       </div>
 
-      <Section label="시도 이력" hint="행을 누르면 job·로그 상세">
+      <Section label="시도 이력" hint="행을 눌러서 Job 로그 상세 정보를 확인하세요.">
         {detail.attempts.length === 0 ? (
           <div className={d.empty}>아직 시도 없음</div>
         ) : (
@@ -76,11 +76,9 @@ export function TerraformExec({
               <span className={j.attemptNo}>#{a.attempt_number}</span>
               <PipelineStatusBadge status={a.status} size="mini" />
               {a.error_code && <MiniPill tone="failed">{a.error_code}</MiniPill>}
-              <span className={j.attemptTime}>
-                {fmtClock(a.started_at)} → {fmtClock(a.finished_at)}
-              </span>
+              <span className={j.attemptTime}>{fmtDateTime(a.started_at)}</span>
               {i === 0 && <span className={j.attemptCur}>현재</span>}
-              <span className={j.attemptChev} aria-hidden="true">›</span>
+              <span className={j.attemptDetail}>상세정보 보기</span>
             </button>
           ))}
         </div>
