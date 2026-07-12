@@ -23,9 +23,19 @@ const VERDICT_LABEL: Record<JobVerdict, string> = {
   none: '기록 없음',
 };
 
+/** Verdict as colored TEXT (no pill) — condition 판정 (owner Figma node 121-493). */
+const VERDICT_TEXT_TONE: Record<JobVerdict, string> = {
+  success: 'text-[var(--pl-ok-text)]',
+  failed: 'text-[var(--pl-err-text)]',
+  running: 'text-[var(--pl-primary)]',
+  none: 'text-[var(--pl-text-weak)]',
+};
+
 export const jobStyles = {
   verdictTone: VERDICT_TONE,
   verdictLabel: VERDICT_LABEL,
+  verdictTextTone: VERDICT_TEXT_TONE,
+  verdictText: 'text-[13px] font-medium',
   miniBadge: 'inline-flex items-center rounded-[10px] px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap',
 
   /** A subdued suffix on a section label (e.g. "— 행을 누르면 job·로그 상세"). */
@@ -38,9 +48,8 @@ export const jobStyles = {
   /** 시도 이력 row — a full-width button that drills into the attempt. */
   attemptRow: 'w-full flex items-center gap-2.5 px-4 py-3 text-left border-b border-[var(--pl-gray-100)] last:border-b-0 hover:bg-[var(--pl-gray-50)] transition-colors',
   attemptNo: 'text-[13px] font-semibold text-[var(--pl-text-medium)] tabular-nums flex-none w-6',
-  attemptCode: 'text-[11px] font-medium text-[var(--pl-err-text)] [font-family:var(--pl-font-mono)] truncate',
   attemptTime: 'ml-auto text-[12px] text-[var(--pl-text-faint)] tabular-nums whitespace-nowrap',
-  attemptCur: 'flex-none rounded-full bg-[var(--pl-info-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--pl-info-text)]',
+  attemptCur: 'flex-none rounded-full bg-[var(--pl-gray-100)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--pl-text-medium)]',
   attemptChev: 'flex-none text-[var(--pl-text-faint)] text-[14px] leading-none',
 
   /** Terraform Job row — verdict + id + meta + 로그 action. */
@@ -52,7 +61,6 @@ export const jobStyles = {
   subHeader: 'flex items-start gap-2.5 px-6 pt-5 pb-4 border-b border-[var(--pl-border)]',
   back: 'flex-none inline-flex items-center justify-center w-8 h-8 -ml-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-bg-card)] transition-colors text-[18px] leading-none',
   subTitle: 'flex items-center gap-2 text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
-  subCode: 'text-[11px] font-medium text-[var(--pl-err-text)] [font-family:var(--pl-font-mono)]',
   subCrumb: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
 
   /** response fold (dispatch raw — not parsed). */

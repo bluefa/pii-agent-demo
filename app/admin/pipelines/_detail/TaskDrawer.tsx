@@ -29,7 +29,7 @@ import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyl
 import { jobStyles } from '@/app/admin/pipelines/_detail/detailJobStyles';
 import { jobRows, jobVerdict, type JobRow, type JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
-import { fmtDateTime, fmtDuration, KIND_POLICY } from '@/lib/pipeline/format';
+import { fmtDateTime, KIND_POLICY } from '@/lib/pipeline/format';
 import { getJobResult, getJobState, OrchestratorApiError } from '@/app/lib/api/pipeline';
 import type {
   TaskAttemptView,
@@ -145,7 +145,7 @@ function TerraformExec({
             >
               <span className={j.attemptNo}>#{a.attempt_number}</span>
               <PipelineStatusBadge status={a.status} size="mini" />
-              {a.error_code && <span className={j.attemptCode}>{a.error_code}</span>}
+              {a.error_code && <MiniPill tone="failed">{a.error_code}</MiniPill>}
               <span className={j.attemptTime}>
                 {hm(a.started_at)} → {hm(a.finished_at)}
               </span>
@@ -162,9 +162,8 @@ function TerraformExec({
 function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement {
   const reversed = [...detail.attempts].reverse();
   const latest = reversed.find((a) => a.check) ?? null;
-  // The last *judged* attempt (skip a trailing in-flight poll) drives 현재 판정.
-  const judged =
-    detail.attempts[detail.attempts.length - 2] ?? latest ?? detail.attempts[detail.attempts.length - 1] ?? null;
+  // 현재 판정 = the most recent *settled* poll (skip a trailing in-flight one).
+  const judged = reversed.find((a) => a.status !== 'IN_PROGRESS') ?? reversed[0] ?? null;
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? reversed : reversed.slice(0, 5);
   const verdict = judged ? conditionVerdict(judged) : null;
@@ -179,7 +178,13 @@ function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement {
           </div>
           <div className={d.kvRow}>
             <span className={d.kvKey}>현재 판정</span>
-            <span className={d.kvVal}>{verdict ? <MiniPill tone={verdict.tone}>{verdict.label}</MiniPill> : '—'}</span>
+            <span className={d.kvVal}>
+              {verdict ? (
+                <span className={cn(j.verdictText, j.verdictTextTone[verdict.tone])}>{verdict.label}</span>
+              ) : (
+                '—'
+              )}
+            </span>
           </div>
           <div className={d.kvRow}>
             <span className={d.kvKey}>외부 상태</span>
@@ -197,7 +202,7 @@ function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement {
       </Section>
 
       <div className={d.attemptRow}>
-        <span className={d.sectionLabel}>재시도 예산</span>
+        <span className={d.sectionLabel}>시도 횟수</span>
         <span className={d.bigVal}>
           {detail.fail_count} / {detail.effective_max_fail_count}
         </span>
@@ -224,7 +229,7 @@ function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement {
                   <tr key={a.attempt_number}>
                     <td className={d.td}>{a.attempt_number}</td>
                     <td className={d.td}>
-                      <MiniPill tone={v.tone}>{v.label}</MiniPill>
+                      <span className={cn(j.verdictText, j.verdictTextTone[v.tone])}>{v.label}</span>
                     </td>
                     <td className={cn(d.td, '[font-family:var(--pl-font-mono)]')}>
                       {a.check?.last_external_status ?? '—'}
@@ -357,8 +362,8 @@ function DefinitionTab({ detail, displayName }: { detail: TaskDetail; displayNam
     { k: 'task_definition', v: detail.task_definition, mono: true },
     { k: 'operation', v: detail.operation ?? displayName, mono: true },
     { k: '실행 방식', v: detail.kind, mono: true },
-    { k: 'polling_interval', v: fmtDuration(detail.effective_polling_interval) },
-    { k: 'timeout', v: cond ? '—' : fmtDuration(detail.effective_execution_timeout) },
+    { k: 'polling_interval', v: detail.effective_polling_interval ?? '—' },
+    { k: 'timeout', v: cond ? '—' : detail.effective_execution_timeout ?? '—' },
     { k: 'retry_budget', v: `${detail.effective_max_fail_count}회` },
   ];
   return (
@@ -659,7 +664,7 @@ export function TaskDrawer({
             <div className={j.subTitle}>
               시도 #{attempt.attempt_number}
               <PipelineStatusBadge status={attempt.status} size="mini" />
-              {attempt.error_code && <span className={j.subCode}>{attempt.error_code}</span>}
+              {attempt.error_code && <MiniPill tone="failed">{attempt.error_code}</MiniPill>}
             </div>
             <div className={j.subCrumb}>{displayName}</div>
           </div>

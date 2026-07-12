@@ -107,26 +107,26 @@ export const improvedStyles = {
     /** Sub-tab nav. */
     nav: 'flex items-stretch border-b border-[var(--pl-border)]',
     navTab: 'flex-1 flex flex-col items-center justify-center gap-1.5 h-11 text-[14px]',
-    // Active tab: neutral strong text — blue is reserved for the underline only.
-    navActive: 'text-[var(--pl-text-strong)] font-semibold',
+    // Active tab: blue text + blue underline (owner Figma node 121-406).
+    navActive: 'text-[var(--pl-primary)] font-semibold',
     navIdle: 'text-[var(--pl-text-faint)] font-normal',
     navUnderline: 'h-0.5 w-14 rounded-full bg-[var(--pl-primary)]',
     navUnderlineHidden: 'h-0.5 w-14',
     body: 'flex-1 overflow-y-auto overscroll-contain px-6 py-7 flex flex-col gap-8',
 
-    /** Section label (진행 기록 / 시도 횟수 / 운영자 설명) — a subdued eyebrow so it
-     *  sits clearly below the 18px panel title (node 70:35). */
-    sectionLabel: 'text-[14px] font-semibold text-[var(--pl-text-faint)]',
+    /** Section label (진행 기록 / 시도 이력 / 시도 정보 / …) — dark bold heading,
+     *  the primary hierarchy anchor inside the body (owner Figma node 121-5). */
+    sectionLabel: 'text-[14px] font-bold text-[var(--pl-text-strong)]',
     descText: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-text-strong)] whitespace-pre-line',
     /** key/value progress rows — value is regular weight, 14px (node 70:35). */
     kvRow: 'flex items-center justify-between gap-3',
     kvKey: 'text-[14px] text-[var(--pl-text-weak)]',
     kvVal: 'text-[14px] font-normal text-[var(--pl-text-strong)] tabular-nums',
     kvValErr: 'text-[14px] font-normal text-[var(--pl-err-text)] tabular-nums',
-    /** 시도 횟수 — bold label + value on a single row (node 70:35). */
+    /** 시도 횟수 / 재시도 예산 — bold label + value on one row (Figma node 121-5). */
     attemptRow: 'flex items-center justify-between gap-3',
-    bigVal: 'text-[14px] font-normal text-[var(--pl-text-strong)] tabular-nums',
-    bigValErr: 'text-[24px] font-bold text-[var(--pl-err-text)] tabular-nums',
+    bigVal: 'text-[16px] font-bold text-[var(--pl-text-strong)] tabular-nums',
+    bigValErr: 'text-[16px] font-bold text-[var(--pl-err-text)] tabular-nums',
     rowsGap: 'mt-4 flex flex-col gap-2.5',
 
     /** attempts table. */
@@ -138,14 +138,15 @@ export const improvedStyles = {
     miniBadge: 'inline-flex items-center rounded-[10px] px-1.5 py-0.5 text-[10px] font-medium leading-none',
     empty: 'text-[13px] text-[var(--pl-text-faint)] py-6 text-center',
 
-    /** definition·contract table. */
-    defCard: 'rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] overflow-hidden',
-    defRow: 'flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--pl-gray-100)] [&:last-child]:border-b-0',
+    /** definition·contract rows — borderless on the panel, hairline dividers,
+     *  mono gray keys + right-aligned dark values (owner Figma node 121-406). */
+    defCard: 'flex flex-col',
+    defRow: 'flex items-center justify-between gap-3 py-3 border-b border-[var(--pl-border)] [&:last-child]:border-b-0',
     defKey: 'flex-none text-[13px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
-    defVal: 'text-[13px] font-medium text-[var(--pl-text-strong)] text-right break-all',
-    defValMono: 'text-[13px] font-medium text-[var(--pl-text-strong)] text-right break-all [font-family:var(--pl-font-mono)]',
-    /** 판정 정책 — a prose paragraph (KIND_POLICY), not a compact kv value. */
-    policyLabel: 'text-[13px] font-semibold text-[var(--pl-text-faint)]',
+    defVal: 'text-[13px] font-semibold text-[var(--pl-text-strong)] text-right break-all',
+    defValMono: 'text-[13px] font-semibold text-[var(--pl-text-strong)] text-right break-all [font-family:var(--pl-font-mono)]',
+    /** 판정 정책 — dark bold heading + prose paragraph (KIND_POLICY). */
+    policyLabel: 'text-[14px] font-bold text-[var(--pl-text-strong)]',
     policyText: 'mt-1.5 text-[13px] leading-[1.6] text-[var(--pl-text-medium)]',
   },
 } as const;

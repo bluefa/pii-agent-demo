@@ -783,18 +783,83 @@ const toCheckView = (c: MockCheck): TaskCheckView => ({
   last_checked_at: c.last_checked_at,
 });
 
-const toAttemptView = (a: MockAttempt): TaskAttemptView => ({
-  attempt_number: a.attempt_number,
-  status: a.status,
-  error_code: a.error_code,
-  response: a.response,
-  failure_detail: a.failure_detail,
-  started_at: a.started_at,
-  finished_at: a.finished_at,
-  check: a.check ? toCheckView(a.check) : null,
-  terraform_results: a.terraform_results,
-  job_states: a.job_states,
-});
+// ── Synthetic per-job data ─────────────────────────────────────────────────
+// Every TERRAFORM_JOB attempt should surface a Terraform Job list, but only a
+// couple of tasks carry hand-written fixtures. For the rest, derive a
+// deterministic 2-job set from the attempt's own outcome + timestamps. Kept in
+// lockstep with the jobResult/jobState fallbacks so the log viewer resolves too.
+interface SynthJobs {
+  results: TerraformJobResultSummary[];
+  states: TerraformJobStateSummary[];
+}
+
+const successStateFor = (defName: string): string =>
+  (operationOf(defName) ?? '').includes('DESTROY') ? 'DESTROYED' : 'COMPLETED';
+
+const synthJobIds = (taskId: number, n: number): [string, string] => [
+  String(taskId * 100 + n * 10 + 1),
+  String(taskId * 100 + n * 10 + 2),
+];
+
+/** An attempt with no hand-written job fixtures → synthesize a job set. */
+const needsSynth = (a: MockAttempt): boolean =>
+  a.terraform_results.length === 0 && a.job_states.length === 0;
+
+const attemptStamp = (a: MockAttempt): string =>
+  a.finished_at ?? a.started_at ?? new Date().toISOString();
+
+const synthTerraformJobs = (
+  taskId: number,
+  n: number,
+  status: TaskStatus,
+  errorCode: ErrorCode | null,
+  successState: string,
+  stamp: string,
+): SynthJobs => {
+  const [j1, j2] = synthJobIds(taskId, n);
+  const st = (id: string, last_state: string | null, fail?: string): TerraformJobStateSummary => ({
+    job_id: id, last_state, last_fail_reason: fail ?? null, last_error: null, poll_count: 2, last_polled_at: stamp,
+  });
+  const rs = (id: string, succeeded: boolean): TerraformJobResultSummary => ({
+    job_id: id, succeeded, truncated: false, has_body: true, created_at: stamp,
+  });
+  if (status === 'DONE') {
+    return { results: [rs(j1, true), rs(j2, true)], states: [st(j1, successState), st(j2, successState)] };
+  }
+  if (status === 'FAILED' && errorCode === 'JOB_FAILED') {
+    return { results: [rs(j1, true), rs(j2, false)], states: [st(j1, successState), st(j2, 'FAILED', 'mock forced failure')] };
+  }
+  if (status === 'IN_PROGRESS' || status === 'READY') {
+    return { results: [], states: [st(j1, successState), st(j2, 'RUNNING')] };
+  }
+  if (status === 'FAILED') {
+    // CALL_TIMEOUT / CHECK_ERROR — timed out before terminal; last observation only.
+    return { results: [], states: [st(j1, successState), st(j2, 'RUNNING')] };
+  }
+  if (status === 'CANCELLED') {
+    return { results: [], states: [st(j1, 'RUNNING')] };
+  }
+  return { results: [], states: [] };
+};
+
+const synthFor = (a: MockAttempt, taskId: number, defName: string): SynthJobs =>
+  synthTerraformJobs(taskId, a.attempt_number, a.status, a.error_code, successStateFor(defName), attemptStamp(a));
+
+const toAttemptView = (a: MockAttempt, kind: TaskKind, taskId: number, defName: string): TaskAttemptView => {
+  const synth = kind === 'TERRAFORM_JOB' && needsSynth(a) ? synthFor(a, taskId, defName) : null;
+  return {
+    attempt_number: a.attempt_number,
+    status: a.status,
+    error_code: a.error_code,
+    response: a.response,
+    failure_detail: a.failure_detail,
+    started_at: a.started_at,
+    finished_at: a.finished_at,
+    check: a.check ? toCheckView(a.check) : null,
+    terraform_results: synth ? synth.results : a.terraform_results,
+    job_states: synth ? synth.states : a.job_states,
+  };
+};
 
 const toTaskDetail = (pipelineId: number, t: MockTask): TaskDetail => {
   const def = CATALOG.get(t.task_definition);
@@ -818,7 +883,7 @@ const toTaskDetail = (pipelineId: number, t: MockTask): TaskDetail => {
     effective_polling_interval: POLLING_INTERVAL,
     effective_execution_timeout: kind === 'CONDITION_CHECK' ? null : TERRAFORM_TIMEOUT,
     effective_max_fail_count: t.effective_max_fail_count,
-    attempts: t.attempts.map(toAttemptView),
+    attempts: t.attempts.map((a) => toAttemptView(a, kind, t.task_id, t.task_definition)),
     description: t.description,
   };
 };
@@ -954,16 +1019,6 @@ const PATH = {
 // import time — good enough for the viewer's "수집 HH:MM" stamps.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** 404 guard shared by the per-job result/state endpoints. Returns the error
- *  response when the pipeline or task is missing, else null (caller proceeds). */
-const resolveTaskOr404 = (pipelineId: string, taskId: string, path: string): OrchestratorRawResponse | null => {
-  const pipeline = store().find((p) => String(p.pipeline_id) === pipelineId);
-  if (!pipeline) return err(404, 'PIPELINE_NOT_FOUND', `no pipeline ${pipelineId}`, path);
-  const task = pipeline.tasks.find((t) => String(t.task_id) === taskId);
-  if (!task) return err(404, 'TASK_NOT_FOUND', `no task ${taskId} in pipeline ${pipelineId}`, path);
-  return null;
-};
-
 const jobAgo = (min: number): string => new Date(Date.now() - min * 60_000).toISOString();
 
 const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
@@ -1031,6 +1086,62 @@ const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | '
     last_response: '{"terraformState":"RUNNING","failReason":null}', poll_count: 2, last_polled_at: jobAgo(29) },
   '12804:1:1033': { last_state: 'RUNNING', last_fail_reason: null, last_error: null,
     last_response: '{"terraformState":"RUNNING","failReason":null}', poll_count: 2, last_polled_at: jobAgo(29) },
+};
+
+// Generic log bodies for synthesized jobs (tasks without hand-written fixtures).
+const LOG_OK = 'Initializing the backend...\nInitializing provider plugins...\n'
+  + 'aws_resource.main: Creating...\naws_resource.main: Creation complete after 3s\n\n'
+  + 'Apply complete! Resources: 12 added, 0 changed, 0 destroyed.';
+const LOG_FAIL = 'aws_resource.main: Creating...\n\n'
+  + 'Error: error applying plan\n\n  on main.tf line 14:\n\n'
+  + 'resource creation failed: mock forced failure\n\nApply cancelled.';
+const LOG_RUNNING = 'aws_resource.main: Creating...\n'
+  + 'aws_resource.main: Still creating... [30s elapsed]';
+
+/** Locate (pipeline, task, attempt) or the 404 to return. */
+const resolveAttempt = (
+  pipelineId: string, taskId: string, attemptNumber: string, path: string,
+): { error: OrchestratorRawResponse } | { task: MockTask; attempt: MockAttempt | undefined } => {
+  const pipeline = store().find((p) => String(p.pipeline_id) === pipelineId);
+  if (!pipeline) return { error: err(404, 'PIPELINE_NOT_FOUND', `no pipeline ${pipelineId}`, path) };
+  const task = pipeline.tasks.find((t) => String(t.task_id) === taskId);
+  if (!task) return { error: err(404, 'TASK_NOT_FOUND', `no task ${taskId} in pipeline ${pipelineId}`, path) };
+  return { task, attempt: task.attempts.find((a) => String(a.attempt_number) === attemptNumber) };
+};
+
+/** A synthesized job's result body (or null when the job isn't part of the attempt). */
+const synthResultBody = (
+  task: MockTask, attempt: MockAttempt, jobId: string, taskId: number, n: number,
+): TerraformJobResultDetail | null => {
+  if (kindOf(task.task_definition) !== 'TERRAFORM_JOB' || !needsSynth(attempt)) return null;
+  const s = synthFor(attempt, taskId, task.task_definition);
+  const result = s.results.find((r) => r.job_id === jobId);
+  const state = s.states.find((x) => x.job_id === jobId);
+  if (!result && !state) return null;
+  const base = { task_id: taskId, attempt_number: n, job_id: jobId, truncated: false, fetch_error: null };
+  if (result) {
+    return { ...base, succeeded: result.succeeded, source: 'stored', created_at: result.created_at,
+      content: result.succeeded ? LOG_OK : LOG_FAIL };
+  }
+  // State only (in-flight / timed-out) → live read-through.
+  return { ...base, succeeded: null, source: 'live', created_at: null,
+    content: state?.last_state === 'RUNNING' ? LOG_RUNNING : LOG_OK };
+};
+
+/** A synthesized job's state body (or null when the job isn't part of the attempt). */
+const synthStateBody = (
+  task: MockTask, attempt: MockAttempt, jobId: string, taskId: number, n: number,
+): TerraformJobStateDetail | null => {
+  if (kindOf(task.task_definition) !== 'TERRAFORM_JOB' || !needsSynth(attempt)) return null;
+  const state = synthFor(attempt, taskId, task.task_definition).states.find((x) => x.job_id === jobId);
+  if (!state) return null;
+  return {
+    task_id: taskId, attempt_number: n, job_id: jobId,
+    last_state: state.last_state, last_fail_reason: state.last_fail_reason, last_error: state.last_error,
+    last_response: state.last_state === null ? null
+      : `{"terraformState":"${state.last_state}","failReason":${JSON.stringify(state.last_fail_reason)}}`,
+    poll_count: state.poll_count, last_polled_at: state.last_polled_at,
+  };
 };
 
 export const mockPipeline = {
@@ -1136,33 +1247,35 @@ export const mockPipeline = {
   // #5a GET …/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/result
   jobResult(pipelineId: string, taskId: string, attemptNumber: string, jobId: string): OrchestratorRawResponse {
     const path = `${PATH.pipelines}/${pipelineId}/tasks/${taskId}/attempts/${attemptNumber}/jobs/${jobId}/result`;
-    const guard = resolveTaskOr404(pipelineId, taskId, path);
-    if (guard) return guard;
+    const r = resolveAttempt(pipelineId, taskId, attemptNumber, path);
+    if ('error' in r) return r.error;
     const fixture = RESULT_FIXTURES[`${taskId}:${attemptNumber}:${jobId}`];
-    if (!fixture) {
-      return err(404, 'TERRAFORM_RESULT_NOT_FOUND',
-        `no terraform result for job ${jobId} (task ${taskId}, attempt ${attemptNumber})`, path);
+    if (fixture) {
+      return ok({ task_id: Number(taskId), attempt_number: Number(attemptNumber), job_id: jobId, ...fixture });
     }
-    const body: TerraformJobResultDetail = {
-      task_id: Number(taskId), attempt_number: Number(attemptNumber), job_id: jobId, ...fixture,
-    };
-    return ok(body);
+    const synth = r.attempt
+      ? synthResultBody(r.task, r.attempt, jobId, Number(taskId), Number(attemptNumber))
+      : null;
+    if (synth) return ok(synth);
+    return err(404, 'TERRAFORM_RESULT_NOT_FOUND',
+      `no terraform result for job ${jobId} (task ${taskId}, attempt ${attemptNumber})`, path);
   },
 
   // #5b GET …/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/state
   jobState(pipelineId: string, taskId: string, attemptNumber: string, jobId: string): OrchestratorRawResponse {
     const path = `${PATH.pipelines}/${pipelineId}/tasks/${taskId}/attempts/${attemptNumber}/jobs/${jobId}/state`;
-    const guard = resolveTaskOr404(pipelineId, taskId, path);
-    if (guard) return guard;
+    const r = resolveAttempt(pipelineId, taskId, attemptNumber, path);
+    if ('error' in r) return r.error;
     const fixture = STATE_FIXTURES[`${taskId}:${attemptNumber}:${jobId}`];
-    if (!fixture) {
-      return err(404, 'TERRAFORM_JOB_STATE_NOT_FOUND',
-        `no state observation for job ${jobId} (task ${taskId}, attempt ${attemptNumber})`, path);
+    if (fixture) {
+      return ok({ task_id: Number(taskId), attempt_number: Number(attemptNumber), job_id: jobId, ...fixture });
     }
-    const body: TerraformJobStateDetail = {
-      task_id: Number(taskId), attempt_number: Number(attemptNumber), job_id: jobId, ...fixture,
-    };
-    return ok(body);
+    const synth = r.attempt
+      ? synthStateBody(r.task, r.attempt, jobId, Number(taskId), Number(attemptNumber))
+      : null;
+    if (synth) return ok(synth);
+    return err(404, 'TERRAFORM_JOB_STATE_NOT_FOUND',
+      `no state observation for job ${jobId} (task ${taskId}, attempt ${attemptNumber})`, path);
   },
 
   // #6 — two-phase cancel

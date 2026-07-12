@@ -163,6 +163,38 @@ describe('mockPipeline (in-memory orchestrator)', () => {
     });
   });
 
+  describe('synthesized terraform jobs (tasks without hand-written fixtures)', () => {
+    it('every terraform attempt surfaces a Terraform Job list', () => {
+      // 12800 = 128 seq0 AWS_SERVICE_PLAN_V1 (DONE) — no fixtures → synthesized.
+      const task = mockPipeline.taskDetail('128', '12800').body as TaskDetail;
+      expect(task.kind).toBe('TERRAFORM_JOB');
+      expect(task.attempts[0].terraform_results.length).toBeGreaterThan(0);
+      expect(task.attempts[0].job_states.length).toBeGreaterThan(0);
+    });
+
+    it('resolves a log body + state for a synthesized job (200, not 404)', () => {
+      const task = mockPipeline.taskDetail('128', '12800').body as TaskDetail;
+      const jobId = task.attempts[0].job_states[0].job_id;
+      const res = mockPipeline.jobResult('128', '12800', '1', jobId);
+      expect(res.status).toBe(200);
+      expect((res.body as TerraformJobResultDetail).content).toBeTruthy();
+      const st = mockPipeline.jobState('128', '12800', '1', jobId);
+      expect(st.status).toBe(200);
+      expect((st.body as TerraformJobStateDetail).last_state).not.toBeNull();
+    });
+
+    it('does NOT synthesize jobs for CONDITION_CHECK attempts', () => {
+      const cond = mockPipeline.taskDetail('128', '12802').body as TaskDetail;
+      expect(cond.kind).toBe('CONDITION_CHECK');
+      expect(cond.attempts.every((a) => a.terraform_results.length === 0 && a.job_states.length === 0)).toBe(true);
+    });
+
+    it('404s a job id that is not part of the attempt', () => {
+      const res = mockPipeline.jobResult('128', '12800', '1', '404040');
+      expect(res.status).toBe(404);
+    });
+  });
+
   describe('latest by target', () => {
     it('returns 204 when a target has no runs', () => {
       const res = mockPipeline.latestByTarget('1010');
