@@ -104,7 +104,7 @@ export function AttemptDetail({
       {attempt.response && (
         <details className={j.respFold} open>
           <summary className={j.respSummary}>
-            <span className={j.respTri}>▸</span>Response 원문
+            <span className={j.respTri} aria-hidden="true">▸</span>Response 원문
           </summary>
           <pre className={j.respPre}>{attempt.response}</pre>
         </details>

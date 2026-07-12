@@ -73,9 +73,9 @@ export function Section({ label, hint, children }: { label: string; hint?: strin
 }
 
 /**
- * 운영자 설명 — an operator-provided description distinct from the catalog
- * definition text (which lives in the drawer header). Rendered only when both
- * exist, e.g. custom tasks.
+ * Operator description — an operator-provided description distinct from the
+ * catalog definition text (which lives in the drawer header). Rendered only when
+ * both exist, e.g. custom tasks.
  */
 export function OperatorDescription({ detail }: { detail: TaskDetail }): ReactElement | null {
   if (!detail.description || !detail.definition?.description) return null;

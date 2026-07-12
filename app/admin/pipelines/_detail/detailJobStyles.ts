@@ -38,8 +38,8 @@ export const jobStyles = {
   verdictText: 'text-[13px] font-medium',
   miniBadge: 'inline-flex items-center rounded-[10px] px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap',
 
-  /** A muted caption line under a section label (owner Figma node 121-5:
-   *  "시도 이력" then "행을 누르면 job·로그 상세" on the next line). */
+  /** A muted caption line rendered on its own line under a section label
+   *  (e.g. the attempt-history "tap a row for detail" hint; owner Figma node 121-5). */
   labelHint: 'mt-1 text-[13px] font-normal text-[var(--pl-text-faint)]',
 
   /** Bordered white card wrapping a stack of rows (attempt history / job list). */
@@ -63,7 +63,7 @@ export const jobStyles = {
   subTitle: 'flex items-center gap-2 text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
   subCrumb: 'mt-1 text-[12px] text-[var(--pl-text-weak)] truncate',
 
-  /** "Response 원문" fold — bold heading with a disclosure triangle that rotates
+  /** Raw-response fold — bold heading with a disclosure triangle that rotates
    *  open (owner Figma node 121-3). Raw dispatch response, not parsed. */
   respFold: 'group',
   respSummary: 'flex items-center gap-1.5 cursor-pointer list-none text-[14px] font-bold text-[var(--pl-text-strong)] [&::-webkit-details-marker]:hidden select-none',
@@ -95,8 +95,10 @@ export const jobStyles = {
   livePill: 'inline-flex items-center rounded-full bg-[var(--pl-info-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--pl-info-text)]',
   toolbarGrow: 'ml-auto',
 
-  /** Log body — mono, tail-anchored; bg lives on the panel so it fills the bottom. */
-  logBody: 'flex-1 overflow-auto px-5 pb-4',
+  /** Log body — mono, tail-anchored; bg lives on the panel so it fills the bottom.
+   *  tabIndex-focusable (it is the viewer's only scroll region), so give it a
+   *  visible focus ring for keyboard users. */
+  logBody: 'flex-1 overflow-auto px-5 pb-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--pl-primary)]',
   logPre: 'text-[12px] leading-[1.6] text-[var(--pl-chrome-item)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
   logCut: 'block pb-2 mb-2 text-[11px] text-[var(--pl-warn)] border-b border-[var(--pl-gray-600)]',
 

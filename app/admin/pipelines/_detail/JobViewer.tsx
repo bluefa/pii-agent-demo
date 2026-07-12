@@ -148,7 +148,7 @@ export function JobViewer({
       );
     else
       body = (
-        <div ref={logRef} className={j.logBody}>
+        <div ref={logRef} className={j.logBody} tabIndex={0} role="region" aria-label="Terraform 로그">
           <pre className={j.logPre}>
             {truncated && <span className={j.logCut}>— 이 지점 위 로그는 16MB 초과로 절단되었습니다 —</span>}
             {result.data?.content}
@@ -170,7 +170,7 @@ export function JobViewer({
       );
     else
       body = (
-        <div className={j.logBody}>
+        <div className={j.logBody} tabIndex={0} role="region" aria-label="상태 응답 원문">
           <pre className={j.logPre}>{prettyJson(state.data?.last_response ?? '')}</pre>
         </div>
       );
