@@ -1,23 +1,23 @@
 'use client';
 
 /**
- * PreviewModal — R21: the target page's single start-CTA opens this stepped
- * modal (r21-cta-lab A1+B1, owner-picked; custom flow = LIN-22 §B2).
+ * PreviewModal — R24 restyle of the R21 stepped start modal (Figma
+ * SzifNRYweRXhiIDI0uyK3R node 9-2, cells C/D/E; custom flow = LIN-22 §B2).
  *
- *   step 'choose'  (§A1): pipeline-type tiles — INSTALL/DELETE/CUSTOM. The
- *     page keeps ONE primary CTA; the type choice (incl. the destructive one)
- *     lives here, behind a deliberate step. CUSTOM disables when the target's
+ *   step 'choose'  (§A1): pipeline-type OPTION ROWS (icon tile + title + type
+ *     pill + description + chevron, stacked vertically — R24). The page keeps
+ *     ONE primary CTA; the type choice (incl. the destructive one) lives
+ *     here, behind a deliberate step. CUSTOM disables when the target's
  *     provider is outside the orchestrator enum (e.g. SDU).
- *   step 'preview' (§B1): identity header (TypeTag + target · provider ·
- *     recipe) + the recipe steps as a MINI FLOW in the detail canvas's node
- *     vocabulary (TF/CSP marks, clock for CONDITION_CHECK) — the preview reads
- *     as "the Task 흐름, seen small". [이전] returns to the tiles.
- *   step 'custom-build' (LIN-22): grid-canvas builder (TaskFlow FLOW_CSS
- *     reuse) — add from the provider-scoped catalog (#12), drag nodes to
- *     reorder, per-node ✕ delete. Descriptions are not collected (owner
- *     call). [구성 확인] gates on canSubmit (≥1 task).
- *   step 'custom-summary' (LIN-22): the composed order as the same mini flow
- *     + non-persistence notice → run (#11).
+ *   step 'preview' (§B1→R24): eyebrow (type tile + pill) + the recipe steps
+ *     as R24 task nodes with black seq chips on the 16px grid canvas — ONE
+ *     row, horizontal scroll (the clipped node is the affordance) + a
+ *     consequence note. [이전] returns to the options.
+ *   step 'custom-build' (LIN-22): grid-canvas builder — add from the
+ *     provider-scoped catalog (#12), drag nodes to reorder, per-node ✕
+ *     delete. [구성 확인] gates on canSubmit (≥1 task).
+ *   step 'custom-summary' (LIN-22→R24): the composed order as the same R24
+ *     seq-node flow + non-persistence notice → run (#11).
  *
  * Uniqueness handling is shared by both run paths: on 409
  * ORCHESTRATION_PIPELINE_ALREADY_ACTIVE the real API returns a conflict (not
@@ -27,18 +27,23 @@
  * normal use (provider-scoped catalog), so they remain defensive. All user
  * feedback goes through the caller's PlToast (`showToast`).
  */
-import { Fragment, useEffect, useState, type ReactElement } from 'react';
+import { Fragment, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
-import { PipelineTypeTag } from '@/app/admin/pipelines/_components/PipelineTypeTag';
-import { TerraformLogo, providerLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { CustomBuildStep } from '@/app/admin/pipelines/_detail/CustomBuildStep';
 import { canSubmit, toCustomRequest } from '@/app/admin/pipelines/_detail/customBuilder';
+import {
+  FlowArrow,
+  R24_CSS,
+  R24TaskNode,
+  TypePill,
+  TypeTile,
+} from '@/app/admin/pipelines/_detail/r24Task';
 import { integrationRoutes } from '@/lib/routes';
 import {
   createCustomPipeline,
@@ -53,6 +58,7 @@ import type {
   PipelineType,
   RecipePreview,
   TaskCatalogEntry,
+  TaskKind,
 } from '@/lib/pipeline/types';
 
 const TITLE_ID = 'pl-preview-title';
@@ -64,15 +70,68 @@ const TYPE_LABELS: Record<PipelineType, string> = {
   CUSTOM: 'Custom',
 };
 
-/** Provider mark tile (modal-scoped classes) — text chip for IDC/SDU. */
-function ProviderMarkTile({ provider }: { provider: CloudProvider }): ReactElement {
-  const pv = detailStyles.preview;
-  const logo = providerLogo(provider);
-  if (!logo) return <span className={pv.markTxt}>{provider}</span>;
+const TYPE_DESCS: Record<PipelineType, string> = {
+  INSTALL: '이 대상에 인프라를 설치합니다 — 표준 레시피 Task를 순서대로 실행',
+  CUSTOM: 'Task 순서를 직접 구성해 실행합니다 — 실패 구간만 골라 재실행할 때',
+  DELETE: '설치된 인프라를 destroy 합니다 — 대상의 리소스가 제거돼요',
+};
+
+/** Run-consequence note under the confirmation canvas (design `.m-note`). */
+const TYPE_NOTES: Record<PipelineType, ReactNode> = {
+  INSTALL: (
+    <>
+      설치는 대상 계정에 리소스를 생성합니다. 시작 후에는 <b>현재 파이프라인</b> 카드와 파이프라인
+      현황에서 진행을 볼 수 있어요.
+    </>
+  ),
+  DELETE: (
+    <>
+      삭제는 설치된 리소스를 destroy 합니다 — 되돌릴 수 없어요. 시작 후에는 <b>현재 파이프라인</b>{' '}
+      카드에서 진행을 볼 수 있어요.
+    </>
+  ),
+  CUSTOM: null,
+};
+
+/** R24 seq-node flow — ONE row on the grid canvas, horizontal scroll. */
+function SeqFlow({
+  steps,
+}: {
+  steps: ReadonlyArray<{ key: string; kind: TaskKind; name: string; desc?: string | null }>;
+}): ReactElement {
   return (
-    <span className={pv.mark} title={logo.title}>
-      {logo.svg}
-    </span>
+    <div className="r24-canvas r24-hscroll mt-3.5">
+      <div className="r24-line">
+        {steps.map((s, i) => (
+          <Fragment key={s.key}>
+            {i > 0 && <FlowArrow />}
+            <R24TaskNode kind={s.kind} name={s.name} desc={s.desc} seq={i + 1} />
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Consequence note line — info glyph + 12px weak text. */
+function ModalNote({ children }: { children: ReactNode }): ReactElement {
+  return (
+    <div className="mt-2.5 flex items-start gap-2 rounded-[8px] border border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-3 py-2.5 text-[12px] leading-[1.6] text-[var(--pl-text-weak)] [&_b]:font-semibold [&_b]:text-[var(--pl-text-medium)]">
+      <span className="mt-px flex-none text-[var(--pl-text-weak)]">
+        <Icon name="warn-tri" size="sm" strokeWidth={2} />
+      </span>
+      <span>{children}</span>
+    </div>
+  );
+}
+
+/** Modal eyebrow — type tile + mono pill above the title (R24). */
+function Eyebrow({ type }: { type: PipelineType }): ReactElement {
+  return (
+    <div className="mb-2.5 flex items-center gap-2">
+      <TypeTile type={type} size="xs" />
+      <TypePill type={type} />
+    </div>
   );
 }
 
@@ -98,9 +157,6 @@ export function PreviewModal({
 }: PreviewModalProps): ReactElement | null {
   const router = useRouter();
   const { modal, text } = pipelineStyles;
-  const tt = detailStyles.typeTile;
-  const pv = detailStyles.preview;
-  const bd = detailStyles.builder;
 
   const [step, setStep] = useState<PreviewStep>('choose');
   const [type, setType] = useState<PipelineType | null>(null);
@@ -115,7 +171,7 @@ export function PreviewModal({
   const [chosen, setChosen] = useState<TaskCatalogEntry[]>([]);
   const label = type ? TYPE_LABELS[type] : '';
 
-  // Reset AFTER close so every reopen starts at the type tiles.
+  // Reset AFTER close so every reopen starts at the type options.
   useEffect(() => {
     if (open) return;
     (async () => {
@@ -217,46 +273,52 @@ export function PreviewModal({
     setStep(next === 'CUSTOM' ? 'custom-build' : 'preview');
   };
 
+  const optionRow = (t: PipelineType, disabled = false): ReactElement => (
+    <button
+      type="button"
+      className="flex w-full items-center gap-3.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-[15px] text-left cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-[var(--pl-primary)] hover:shadow-[0_0_0_3px_var(--pl-primary-ring)] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-[var(--pl-border)] disabled:hover:shadow-none"
+      disabled={disabled}
+      title={disabled ? '이 provider는 Custom 실행을 지원하지 않습니다' : undefined}
+      onClick={() => pick(t)}
+    >
+      <TypeTile type={t} />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2 text-[14px] font-bold text-[var(--pl-text-strong)]">
+          {TYPE_LABELS[t]}
+          <TypePill type={t} />
+        </span>
+        <span className="mt-1 block text-[12.5px] leading-[1.55] text-[var(--pl-text-weak)]">
+          {TYPE_DESCS[t]}
+        </span>
+      </span>
+      <span className="flex-none text-[var(--pl-text-faint)]">
+        <Icon name="chev-r" size="sm" strokeWidth={2.2} />
+      </span>
+    </button>
+  );
+
   return (
     <ModalShell open={open} onClose={onClose} labelledBy={TITLE_ID} variant="wide">
+      <style>{R24_CSS}</style>
       {step === 'choose' || !type ? (
         <>
           <h3 id={TITLE_ID} className={modal.title}>
             파이프라인 시작
           </h3>
           <div className={modal.desc}>
-            <span className={pv.identNum}>{targetSourceId}</span> · {providerLabel} — 실행할 파이프라인
-            유형을 선택하세요
+            <span className="font-semibold tabular-nums text-[var(--pl-text-strong)]">
+              {targetSourceId} · {providerLabel}
+            </span>{' '}
+            — 실행할 파이프라인 유형을 선택하세요
           </div>
-          <div className={tt.row}>
-            <button type="button" className={tt.tile} onClick={() => pick('INSTALL')}>
-              <span className={cn(tt.ico, tt.icoTone.INSTALL)}>
-                <Icon name="install" />
-              </span>
-              <span className={tt.title}>설치</span>
-              <span className={tt.desc}>이 대상에 인프라를 설치합니다</span>
-            </button>
-            <button
-              type="button"
-              className={tt.tile}
-              disabled={!provider}
-              title={provider ? undefined : '이 provider는 Custom 실행을 지원하지 않습니다'}
-              onClick={() => pick('CUSTOM')}
-            >
-              <span className={cn(tt.ico, tt.icoTone.CUSTOM)}>
-                <Icon name="sliders" />
-              </span>
-              <span className={tt.title}>Custom</span>
-              <span className={tt.desc}>Task 순서를 직접 구성해 실행합니다</span>
-            </button>
-            <button type="button" className={tt.tile} onClick={() => pick('DELETE')}>
-              <span className={cn(tt.ico, tt.icoTone.DELETE)}>
-                <Icon name="trash" />
-              </span>
-              <span className={tt.title}>삭제</span>
-              <span className={tt.desc}>설치된 인프라를 destroy 합니다</span>
-            </button>
+          <div className="flex flex-col gap-2.5">
+            {optionRow('INSTALL')}
+            {optionRow('CUSTOM', !provider)}
+            {optionRow('DELETE')}
           </div>
+          <p className="mt-2 text-[11.5px] leading-[1.6] text-[var(--pl-text-faint)]">
+            유형을 선택하면 실행할 Task 순서를 확인한 뒤 시작합니다.
+          </p>
           {/* R22.5 — dialogWide is flex-col with a min height; the spacer pins
               the foot to the bottom of the taller dialog. */}
           <div className="flex-1" aria-hidden="true" />
@@ -268,13 +330,13 @@ export function PreviewModal({
         </>
       ) : step === 'custom-build' ? (
         <>
-          <PipelineTypeTag type="CUSTOM" />
-          <h3 id={TITLE_ID} className={cn(modal.title, 'mt-1.5')}>
+          <Eyebrow type="CUSTOM" />
+          <h3 id={TITLE_ID} className={modal.title}>
             Custom 파이프라인 구성
           </h3>
-          <div className={pv.ident}>
-            <span className={pv.identNum}>{targetSourceId}</span> · {providerLabel} — Task를 추가하고
-            드래그로 실행 순서를 구성하세요
+          <div className={detailStyles.preview.ident}>
+            <span className={detailStyles.preview.identNum}>{targetSourceId}</span> · {providerLabel} —
+            카탈로그에서 Task를 담아 순서를 만드세요 · 드래그로 재배열
           </div>
           <div className="mt-3.5">
             <CustomBuildStep
@@ -311,41 +373,23 @@ export function PreviewModal({
         </>
       ) : step === 'custom-summary' ? (
         <>
-          <PipelineTypeTag type="CUSTOM" />
-          <h3 id={TITLE_ID} className={cn(modal.title, 'mt-1.5')}>
+          <Eyebrow type="CUSTOM" />
+          <h3 id={TITLE_ID} className={modal.title}>
             Custom 파이프라인 시작
           </h3>
-          <div className={pv.ident}>
-            <span className={pv.identNum}>{targetSourceId}</span> · {providerLabel} · Task{' '}
-            {chosen.length}개를 아래 순서로 실행합니다
+          <div className={detailStyles.preview.ident}>
+            <span className={detailStyles.preview.identNum}>{targetSourceId}</span> · {providerLabel} ·
+            Task {chosen.length}개를 아래 순서로 실행합니다
           </div>
-          <div className={pv.flow}>
-            {chosen.map((t, i) => (
-              <Fragment key={t.name}>
-                {i > 0 && <span className={pv.conn} aria-hidden="true" />}
-                <span className={pv.node}>
-                  <span className={pv.nodeIcons}>
-                    {t.kind === 'CONDITION_CHECK' ? (
-                      <span className={pv.markCond} title="조건 확인 — 폴링">
-                        <Icon name="clock" size="sm" />
-                      </span>
-                    ) : (
-                      <>
-                        <span className={pv.mark} title="Terraform">
-                          <TerraformLogo />
-                        </span>
-                        {provider ? <ProviderMarkTile provider={provider} /> : null}
-                      </>
-                    )}
-                  </span>
-                  <span className={pv.nodeName}>{t.display_name}</span>
-                </span>
-              </Fragment>
-            ))}
-          </div>
-          <div>
-            <span className={bd.notice}>이 구성은 저장되지 않습니다 — 이번 실행에만 사용돼요</span>
-          </div>
+          <SeqFlow
+            steps={chosen.map((t) => ({
+              key: t.name,
+              kind: t.kind,
+              name: t.display_name,
+              desc: t.description,
+            }))}
+          />
+          <ModalNote>이 구성은 저장되지 않습니다 — 이번 실행에만 사용돼요</ModalNote>
 
           {runError && <div className={detailStyles.taskModal.degraded}>{runError}</div>}
 
@@ -369,49 +413,36 @@ export function PreviewModal({
         </>
       ) : (
         <>
-          <PipelineTypeTag type={type} />
-          <h3 id={TITLE_ID} className={cn(modal.title, 'mt-1.5')}>
+          <Eyebrow type={type} />
+          <h3 id={TITLE_ID} className={modal.title}>
             {label} 파이프라인 시작
           </h3>
-          <div className={pv.ident}>
-            <span className={pv.identNum}>{targetSourceId}</span> · {providerLabel} ·{' '}
+          <div className={detailStyles.preview.ident}>
+            <span className={detailStyles.preview.identNum}>{targetSourceId}</span> · {providerLabel} ·{' '}
             <span className={text.mono}>{preview?.recipe_definition ?? '…'}</span>
-            {preview?.display_name ? <span className={text.muted}> {preview.display_name}</span> : null}
+            {preview ? (
+              <span className={text.muted}> — 아래 {preview.steps.length}개 Task가 순서대로 실행됩니다</span>
+            ) : null}
           </div>
 
           {loadError ? (
             <div className={detailStyles.recipe.empty}>미리보기를 불러오지 못했습니다 — {loadError}</div>
           ) : loading || !preview ? (
-            <div className={cn(detailStyles.skeleton, 'mt-3.5 h-24')} aria-hidden="true" />
+            <div className={cn(detailStyles.skeleton, 'mt-3.5 h-32')} aria-hidden="true" />
+          ) : preview.steps.length ? (
+            <>
+              <SeqFlow
+                steps={preview.steps.map((s) => ({
+                  key: String(s.sequence),
+                  kind: s.kind,
+                  name: s.display_name,
+                  desc: s.definition?.description,
+                }))}
+              />
+              {TYPE_NOTES[type] && <ModalNote>{TYPE_NOTES[type]}</ModalNote>}
+            </>
           ) : (
-            <div className={pv.flow}>
-              {preview.steps.length ? (
-                preview.steps.map((s, i) => (
-                  <Fragment key={s.sequence}>
-                    {i > 0 && <span className={pv.conn} aria-hidden="true" />}
-                    <span className={pv.node}>
-                      <span className={pv.nodeIcons}>
-                        {s.kind === 'CONDITION_CHECK' ? (
-                          <span className={pv.markCond} title="조건 확인 — 폴링">
-                            <Icon name="clock" size="sm" />
-                          </span>
-                        ) : (
-                          <>
-                            <span className={pv.mark} title="Terraform">
-                              <TerraformLogo />
-                            </span>
-                            <ProviderMarkTile provider={preview.provider} />
-                          </>
-                        )}
-                      </span>
-                      <span className={pv.nodeName}>{s.display_name}</span>
-                    </span>
-                  </Fragment>
-                ))
-              ) : (
-                <span className={detailStyles.recipe.empty}>recipe 없음</span>
-              )}
-            </div>
+            <span className={detailStyles.recipe.empty}>recipe 없음</span>
           )}
 
           {runError && <div className={detailStyles.taskModal.degraded}>{runError}</div>}
