@@ -10,6 +10,7 @@
 
 import { AppError, isKnownErrorCode } from '@/lib/errors';
 import type { AppErrorCode } from '@/lib/errors';
+import { sanitizeLogPath } from '@/lib/log-path';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,11 +20,11 @@ export interface FetchJsonOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   /** 요청 타임아웃(ms). 기본 30초 */
   timeout?: number;
-  /** 관측성: 이 호출을 유발한 액션명. 있으면 X-Client-Action 헤더로 전파. */
+  /** Observability: the action that triggered this call; forwarded as X-Client-Action. */
   action?: string;
 }
 
-/** 관측성 링버퍼 항목 — 클라이언트 에러 리포트의 breadcrumb으로 첨부된다. */
+/** Observability ring-buffer entry — attached to client error reports as a breadcrumb. */
 export interface ApiCallRecord {
   method: string;
   path: string;
@@ -50,7 +51,7 @@ interface ErrorBody {
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 // ---------------------------------------------------------------------------
-// 관측성: 직전 API 호출 링버퍼 (최근 10건)
+// Observability: ring buffer of the last 10 API calls
 // ---------------------------------------------------------------------------
 
 const RING_SIZE = 10;
@@ -61,7 +62,7 @@ function recordApiCall(record: ApiCallRecord): void {
   if (recentApiCalls.length > RING_SIZE) recentApiCalls.shift();
 }
 
-/** 최근 API 호출(최대 10건) 스냅샷. 클라이언트 에러 리포트에 첨부된다. */
+/** Snapshot of the last 10 API calls; attached to client error reports. */
 export function getRecentApiCalls(): ApiCallRecord[] {
   return [...recentApiCalls];
 }
@@ -169,7 +170,7 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
     }
   }
 
-  // 관측성 컨텍스트: 요청별 상관관계 ID + 호출 화면/액션.
+  // Observability context: per-request correlation id + calling page/action.
   const requestId = crypto.randomUUID();
   const method = (init.method ?? 'GET').toUpperCase();
   const path = url.split('?')[0];
@@ -195,7 +196,8 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
   }
 
   try {
-    console.log('HTTP 요청:', url, init);
+    // Log method + query-stripped path only — never the init (it holds the body = PII).
+    console.log('HTTP 요청:', method, sanitizeLogPath(url));
     const res = await fetch(url, {
       ...init,
       headers,
@@ -213,7 +215,7 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
     throw await parseErrorResponse(res);
   } catch (err) {
     if (err instanceof AppError) throw err;
-    // fetch 자체가 throw한 경우(네트워크/중단/타임아웃)만 여기서 status 0으로 기록.
+    // Only reached when fetch itself threw (network/abort/timeout) — record status 0.
     record(0);
 
     // Abort 감지: signal.aborted 가 우선 — Chrome은 abort(reason) 의 reason 이

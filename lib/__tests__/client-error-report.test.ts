@@ -38,6 +38,23 @@ describe('reportClientError throttle', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(10);
   });
 
+  it('prunes stale dedupe entries on window rotation so the map stays bounded', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+    const { reportClientError, __dedupeSizeForTest } = await import('@/lib/client-error-report');
+
+    // Fill the dedupe map with 10 distinct messages in window 1.
+    for (let i = 0; i < 10; i += 1) {
+      reportClientError({ type: 'boundary', message: `w1-${i}` });
+    }
+    expect(__dedupeSizeForTest()).toBe(10);
+
+    // Rotate past the minute window; all window-1 entries are now older than the
+    // dedupe window and are pruned on the next report.
+    vi.advanceTimersByTime(61_000);
+    reportClientError({ type: 'boundary', message: 'w2-fresh' });
+    expect(__dedupeSizeForTest()).toBe(1);
+  });
+
   it('POSTs to the internal ingest path and swallows fetch rejections', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
     const { reportClientError } = await import('@/lib/client-error-report');

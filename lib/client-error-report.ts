@@ -1,13 +1,13 @@
 /**
- * 브라우저 에러 리포터 (관측성 v3, Phase 3).
+ * Browser error reporter (observability v3, Phase 3).
  *
- * 서버가 볼 수 없는 클라이언트 전용 에러(루트 레이아웃 에러, 바운더리 리포트,
- * unhandled rejection, window.onerror)만 수집한다. API 실패는 서버(withV1)가
- * 원천 기록하므로 여기서 다시 보내지 않는다.
+ * Collects only client-only errors the server can't see (root layout errors,
+ * boundary reports, unhandled rejections, window.onerror). API failures are
+ * recorded at the source by the server (withV1) and are not re-sent here.
  *
- * 원문 fetch로만 POST한다(fetchJson 금지) — fetchJson을 쓰면 이 리포트가 다시
- * 링버퍼에 쌓이고 상관관계 헤더를 달며, 실패 시 스스로의 rejection 핸들러로
- * 되먹임된다. 모든 실패는 삼킨다.
+ * POSTs with raw fetch only (never fetchJson) — fetchJson would push this report
+ * back into the ring buffer, attach correlation headers, and, on failure, feed
+ * its own rejection handler. All failures are swallowed.
  */
 
 import { toInternalInfraApiPath } from '@/lib/infra-api';
@@ -25,7 +25,7 @@ export interface ClientErrorInput {
 
 const ENDPOINT = toInternalInfraApiPath('/observability/client-errors');
 
-// 스로틀: 동일 메시지 30초 억제 + 전체 분당 10건 상한 (탭 단위 인메모리).
+// Throttle: suppress an identical message for 30s + cap 10/min (per-tab, in-memory).
 const DEDUPE_MS = 30_000;
 const MAX_PER_MINUTE = 10;
 const WINDOW_MS = 60_000;
@@ -41,12 +41,21 @@ function shouldSend(message: string, now: number): boolean {
   if (now - windowStart >= WINDOW_MS) {
     windowStart = now;
     windowCount = 0;
+    // Bound memory: drop dedupe entries older than the dedupe window on rotation.
+    for (const [key, sentAt] of lastSentAt) {
+      if (now - sentAt >= DEDUPE_MS) lastSentAt.delete(key);
+    }
   }
   if (windowCount >= MAX_PER_MINUTE) return false;
 
   lastSentAt.set(message, now);
   windowCount += 1;
   return true;
+}
+
+/** Test-only: current dedupe map size, to assert pruning bounds growth. */
+export function __dedupeSizeForTest(): number {
+  return lastSentAt.size;
 }
 
 export function reportClientError(input: ClientErrorInput): void {
