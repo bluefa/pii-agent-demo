@@ -66,7 +66,7 @@ export function TerraformExec({
           <div className={d.empty}>아직 시도 없음</div>
         ) : (
         <div className={j.list}>
-          {[...detail.attempts].reverse().map((a, i) => (
+          {[...detail.attempts].reverse().map((a) => (
             <button
               key={a.attempt_number}
               type="button"
@@ -76,8 +76,6 @@ export function TerraformExec({
               <span className={j.attemptNo}>#{a.attempt_number}</span>
               <PipelineStatusBadge status={a.status} size="mini" />
               {a.error_code && <MiniPill tone="failed">{a.error_code}</MiniPill>}
-              <span className={j.attemptTime}>{fmtDateTime(a.started_at)}</span>
-              {i === 0 && <span className={j.attemptCur}>현재</span>}
               <span className={j.attemptDetail}>상세정보 보기</span>
             </button>
           ))}
