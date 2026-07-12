@@ -82,7 +82,7 @@ export function TerraformExec({
                 {hm(a.started_at)} → {hm(a.finished_at)}
               </span>
               {i === 0 && <span className={j.attemptCur}>현재</span>}
-              <span className={j.attemptChev}>›</span>
+              <span className={j.attemptChev} aria-hidden="true">›</span>
             </button>
           ))}
         </div>

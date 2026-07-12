@@ -28,7 +28,7 @@ function JobRowItem({ row, onOpen }: { row: JobRow; onOpen: () => void }): React
       <span className={j.jobId}>{row.job_id}</span>
       {meta && <span className={j.jobMeta}>{meta}</span>}
       <span className={meta ? '' : 'ml-auto'}>
-        <PlButton variant="secondary" size="sm" onClick={onOpen}>
+        <PlButton variant="secondary" size="sm" onClick={onOpen} aria-label={`TerraformJob ${row.job_id} 로그 열기`}>
           로그
         </PlButton>
       </span>
