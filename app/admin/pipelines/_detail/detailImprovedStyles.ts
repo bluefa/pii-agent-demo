@@ -96,7 +96,7 @@ export const improvedStyles = {
     header: 'flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-[var(--pl-border)]',
     /** Title (h3); the status badge is rendered inline after the name so it
      *  always sits to the right of the title text (node 70:35). */
-    title: 'text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
+    title: 'text-[18px] font-bold leading-snug text-[var(--pl-text-strong)]',
     titleBadge: 'ml-2.5 align-middle',
     /** Task description — moved into the header (node 70:35), above the tabs. */
     headerDesc: 'mt-3 text-[14px] leading-[1.6] text-[var(--pl-text-weak)] whitespace-pre-line',
@@ -114,9 +114,9 @@ export const improvedStyles = {
     navUnderlineHidden: 'h-0.5 w-14',
     body: 'flex-1 overflow-y-auto overscroll-contain px-6 py-7 flex flex-col gap-7',
 
-    /** Section label (progress log / attempt history / attempt info / …) — dark bold heading,
-     *  the primary hierarchy anchor inside the body (owner Figma node 121-5). */
-    sectionLabel: 'text-[14px] font-bold text-[var(--pl-text-strong)]',
+    /** Section label (progress log / attempt history / attempt info / …) — dark bold
+     *  16px heading, the primary hierarchy anchor inside the body (owner Figma node 121-5). */
+    sectionLabel: 'text-[16px] font-bold text-[var(--pl-text-strong)]',
     descText: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-text-strong)] whitespace-pre-line',
     /** key/value progress rows — value is regular weight, 14px (node 70:35). */
     kvRow: 'flex items-center justify-between gap-3',
@@ -146,8 +146,8 @@ export const improvedStyles = {
     defKey: 'flex-none text-[13px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
     defVal: 'text-[13px] font-semibold text-[var(--pl-text-strong)] text-right break-all',
     defValMono: 'text-[13px] font-semibold text-[var(--pl-text-strong)] text-right break-all [font-family:var(--pl-font-mono)]',
-    /** Judgment policy — dark bold heading + prose paragraph (KIND_POLICY). */
-    policyLabel: 'text-[14px] font-bold text-[var(--pl-text-strong)]',
+    /** Judgment policy — dark bold 16px heading + prose paragraph (KIND_POLICY). */
+    policyLabel: 'text-[16px] font-bold text-[var(--pl-text-strong)]',
     policyText: 'mt-1.5 text-[13px] leading-[1.6] text-[var(--pl-text-medium)]',
   },
 } as const;
