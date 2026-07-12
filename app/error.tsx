@@ -5,11 +5,11 @@ import { ErrorState } from '@/app/components/ui/state/ErrorState';
 import { reportClientError } from '@/lib/client-error-report';
 
 /**
- * Segment boundary for the target-source detail route. Uses the themed
- * `ErrorState` (the local `_components/common` one has no retry affordance),
- * wires the segment `reset`, surfaces the digest, and reports the error.
+ * Root segment boundary — covers the page segments below the root layout.
+ * The layout is alive here, so it reuses the themed `ErrorState`. The raw
+ * `error.message` is never shown to users; only a generic copy + digest.
  */
-export default function ProjectDetailError({
+export default function RootError({
   error,
   reset,
 }: {
@@ -27,7 +27,7 @@ export default function ProjectDetailError({
 
   return (
     <ErrorState
-      title="과제를 불러오는데 실패했습니다"
+      title="화면을 표시하는 중 문제가 발생했습니다"
       message={error.digest ? `오류 코드: ${error.digest}` : '잠시 후 다시 시도해주세요.'}
       onRetry={reset}
     />
