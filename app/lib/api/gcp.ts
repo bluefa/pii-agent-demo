@@ -11,14 +11,20 @@ const BASE_URL = '/gcp/target-sources';
 export const getGcpInstallationStatus = async (
   targetSourceId: number
 ): Promise<z.infer<typeof schemas.GcpInstallationStatusResponse>> =>
-  fetchInfraJson(`${BASE_URL}/${targetSourceId}/installation-status`);
+  fetchInfraJson(`${BASE_URL}/${targetSourceId}/installation-status`, {
+    action: 'getGcpInstallationStatus',
+  });
 
 export const getGcpScanServiceAccount = async (
   targetSourceId: number
 ): Promise<z.infer<typeof schemas.GcpServiceAccountInfoResponse>> =>
-  fetchInfraJson(`${BASE_URL}/${targetSourceId}/scan-service-account`);
+  fetchInfraJson(`${BASE_URL}/${targetSourceId}/scan-service-account`, {
+    action: 'getGcpScanServiceAccount',
+  });
 
 export const getGcpTerraformServiceAccount = async (
   targetSourceId: number
 ): Promise<z.infer<typeof schemas.GcpServiceAccountInfoResponse>> =>
-  fetchInfraJson(`${BASE_URL}/${targetSourceId}/terraform-service-account`);
+  fetchInfraJson(`${BASE_URL}/${targetSourceId}/terraform-service-account`, {
+    action: 'getGcpTerraformServiceAccount',
+  });

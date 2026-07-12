@@ -49,7 +49,7 @@ export type TargetSourceDetail = z.infer<typeof schemas.TargetSourceDetail>;
 export type TargetSourceInfoWire = z.infer<typeof schemas.TargetSourceInfo>;
 
 export const getCurrentUser = (): Promise<UserMeResponse> =>
-  fetchInfraJson<UserMeResponse>('/user/me');
+  fetchInfraJson<UserMeResponse>('/user/me', { action: 'getCurrentUser' });
 
 export const getServicesPage = (
   page = 0,
@@ -61,7 +61,7 @@ export const getServicesPage = (
   if (query) params.set('query', query);
   return fetchInfraJson<PageServiceItem>(
     `/user/services/page?${params}`,
-    options?.signal ? { signal: options.signal } : undefined,
+    { action: 'getServicesPage', ...(options?.signal ? { signal: options.signal } : {}) },
   );
 };
 
@@ -96,6 +96,7 @@ const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
 export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]> => {
   const payload = await fetchInfraJson<TargetSourceDetail[]>(
     `/services/${serviceCode}/target-sources`,
+    { action: 'getProjects' },
   );
   const items = Array.isArray(payload) ? payload : [];
   return items
@@ -159,7 +160,7 @@ export const getCreationCandidates = async (
   };
   return fetchInfraJson<TargetSourceCreationCandidateResponse[]>(
     `/services/${serviceCode}/creation-candidates`,
-    { method: 'POST', body },
+    { action: 'getCreationCandidates', method: 'POST', body },
   );
 };
 
@@ -172,12 +173,15 @@ export const createTargetSource = async (
   candidate: TargetSourceCreationCandidateResponse,
 ): Promise<TargetSourceInfoWire> =>
   fetchInfraJson<TargetSourceInfoWire>(`/services/${serviceCode}/target-sources`, {
+    action: 'createTargetSource',
     method: 'POST',
     body: candidate,
   });
 
 export const getPermissions = (serviceCode: string): Promise<AuthorizedUsersResponse> =>
-  fetchInfraJson<AuthorizedUsersResponse>(`/services/${serviceCode}/authorized-users`);
+  fetchInfraJson<AuthorizedUsersResponse>(`/services/${serviceCode}/authorized-users`, {
+    action: 'getPermissions',
+  });
 
 // Maps BFF process_status strings to internal ProcessStatus enum.
 const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatus => {
@@ -253,7 +257,7 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
 
 export const getProject = async (targetSourceId: number): Promise<TargetSource> => {
   const [data, status] = await Promise.all([
-    fetchInfraJson<TargetSourceDetail>(`/target-sources/${targetSourceId}`),
+    fetchInfraJson<TargetSourceDetail>(`/target-sources/${targetSourceId}`, { action: 'getProject' }),
     getProcessStatus(targetSourceId),
   ]);
   return toTargetSource(data, status.process_status);
@@ -269,6 +273,7 @@ export const searchUsers = (
   const queryString = params.toString();
   return fetchInfraJson<UserSearchResponse>(
     queryString ? `/users/search?${queryString}` : '/users/search',
+    { action: 'searchUsers' },
   );
 };
 
@@ -376,7 +381,7 @@ export const getConfirmResources = async (
 ): Promise<ConfirmResourcesResponse> => {
   const raw = await fetchInfraJson<z.infer<typeof schemas.CloudResourceResponse>>(
     `${CONFIRM_BASE}/${targetSourceId}/resources`,
-    options?.signal ? { signal: options.signal } : undefined,
+    { action: 'getConfirmResources', ...(options?.signal ? { signal: options.signal } : {}) },
   );
   const items = Array.isArray(raw.resources) ? raw.resources as Record<string, unknown>[] : [];
   return {
@@ -391,7 +396,7 @@ export const createApprovalRequest = async (
 ): Promise<ApprovalRequestSummaryDto> =>
   fetchInfraJson<ApprovalRequestSummaryDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests`,
-    { method: 'POST', body: input },
+    { action: 'createApprovalRequest', method: 'POST', body: input },
   );
 
 export type ConfirmedIntegrationResourceItem = ConfirmedIntegrationResourceInfo;
@@ -407,7 +412,7 @@ export const getConfirmedIntegration = async (
 ): Promise<ConfirmedIntegrationResponse> =>
   fetchInfraJson<ConfirmedIntegrationResponse>(
     `${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`,
-    options?.signal ? { signal: options.signal } : undefined,
+    { action: 'getConfirmedIntegration', ...(options?.signal ? { signal: options.signal } : {}) },
   );
 
 // ADR-019: route emits flat ApprovedIntegrationResponseDto (snake, no envelope).
@@ -442,7 +447,7 @@ export const getApprovedIntegration = async (
 ): Promise<ApprovedIntegrationResponse> => {
   const raw = await fetchInfraJson<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>(
     `${CONFIRM_BASE}/${targetSourceId}/approved-integration`,
-    options?.signal ? { signal: options.signal } : undefined,
+    { action: 'getApprovedIntegration', ...(options?.signal ? { signal: options.signal } : {}) },
   );
 
   return {
@@ -477,6 +482,7 @@ export const getApprovalHistory = async (
 ): Promise<z.infer<typeof schemas.Page>> =>
   fetchInfraJson<z.infer<typeof schemas.Page>>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`,
+    { action: 'getApprovalHistory' },
   );
 
 export const approveApprovalRequestV1 = async (
@@ -485,7 +491,7 @@ export const approveApprovalRequestV1 = async (
 ): Promise<ApprovalActionResponseDto> =>
   fetchInfraJson<ApprovalActionResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`,
-    { method: 'POST', body: { comment } },
+    { action: 'approveApprovalRequestV1', method: 'POST', body: { comment } },
   );
 
 export const rejectApprovalRequestV1 = async (
@@ -494,7 +500,7 @@ export const rejectApprovalRequestV1 = async (
 ): Promise<ApprovalActionResponseDto> =>
   fetchInfraJson<ApprovalActionResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`,
-    { method: 'POST', body: { reason } },
+    { action: 'rejectApprovalRequestV1', method: 'POST', body: { reason } },
   );
 
 export const getApprovalRequestLatest = async (
@@ -503,7 +509,7 @@ export const getApprovalRequestLatest = async (
 ): Promise<ApprovalRequestLatestDto> =>
   fetchInfraJson<ApprovalRequestLatestDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/latest`,
-    options?.signal ? { signal: options.signal } : undefined,
+    { action: 'getApprovalRequestLatest', ...(options?.signal ? { signal: options.signal } : {}) },
   );
 
 export const cancelApprovalRequest = async (
@@ -511,7 +517,7 @@ export const cancelApprovalRequest = async (
 ): Promise<{ success: boolean }> => {
   await fetchInfraJson<ApprovalActionResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/cancel`,
-    { method: 'POST' },
+    { action: 'cancelApprovalRequest', method: 'POST' },
   );
   return { success: true };
 };
@@ -523,7 +529,7 @@ export const markApprovalRequestUnavailable = async (
 ): Promise<ApprovalUnavailableResponseDto> =>
   fetchInfraJson<ApprovalUnavailableResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-unavailable`,
-    { method: 'POST', body: { reason } },
+    { action: 'markApprovalRequestUnavailable', method: 'POST', body: { reason } },
   );
 
 // 연동 불가 담당자 확인 (swagger approval-unavailable/confirm, #8) — no body.
@@ -532,7 +538,7 @@ export const confirmApprovalUnavailable = async (
 ): Promise<ApprovalUnavailableConfirmResponseDto> =>
   fetchInfraJson<ApprovalUnavailableConfirmResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-unavailable/confirm`,
-    { method: 'POST' },
+    { action: 'confirmApprovalUnavailable', method: 'POST' },
   );
 
 export type BffProcessStatus = 'IDLE' | 'PENDING' | 'CONFIRMING' | 'CONFIRMED' | 'INSTALLED' | 'CONNECTED' | 'COMPLETED';
@@ -548,7 +554,9 @@ export interface ProcessStatusResponse {
 export const getProcessStatus = async (
   targetSourceId: number,
 ): Promise<ProcessStatusResponse> =>
-  fetchInfraJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`);
+  fetchInfraJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`, {
+    action: 'getProcessStatus',
+  });
 
 // ===== Connection Test API (Async) =====
 
@@ -556,6 +564,7 @@ export const getProcessStatus = async (
 export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> => {
   const raw = await fetchInfraJson<z.infer<typeof schemas.SecretResponse>[]>(
     `${CONFIRM_BASE}/${targetSourceId}/secrets`,
+    { action: 'getSecrets' },
   );
   return raw.map((s) => ({
     name: s.name ?? '',
@@ -578,7 +587,7 @@ export const triggerTestConnection = async (
     : '';
   return fetchInfraJson<TestConnectionTriggerResult>(
     `${CONFIRM_BASE}/${targetSourceId}/test-connection/async${query}`,
-    { method: 'POST' },
+    { action: 'triggerTestConnection', method: 'POST' },
   );
 };
 
@@ -588,6 +597,7 @@ export const getTestConnectionLatest = async (
 ): Promise<TestConnectionVersionResult> =>
   fetchInfraJson<TestConnectionVersionResult>(
     `${CONFIRM_BASE}/${targetSourceId}/test-connection/latest_version`,
+    { action: 'getTestConnectionLatest' },
   );
 
 // 최신 성공 run 의 resource/agent 별 논리 DB 요약
@@ -597,7 +607,7 @@ export const getLatestTestConnectionResultSummaries = async (
 ): Promise<TestConnectionLatestResultSummary[]> =>
   fetchInfraJson<TestConnectionLatestResultSummary[]>(
     `${CONFIRM_BASE}/${targetSourceId}/test-connection/latest-results`,
-    options?.signal ? { signal: options.signal } : undefined,
+    { action: 'getLatestTestConnectionResultSummaries', ...(options?.signal ? { signal: options.signal } : {}) },
   );
 
 // 완료 상태 (Step 5 배지 + 완료 승인 요청 버튼 게이트)
@@ -606,6 +616,7 @@ export const getTestConnectionCompletionStatus = async (
 ): Promise<TestConnectionCompletionStatus> =>
   fetchInfraJson<TestConnectionCompletionStatus>(
     `${CONFIRM_BASE}/${targetSourceId}/test-connection/completion-status`,
+    { action: 'getTestConnectionCompletionStatus' },
   );
 
 // 완료 확인 설정/롤백 — confirmed:true(완료 승인) / false(연결 테스트 재실행)
@@ -615,7 +626,7 @@ export const updateTestConnectionConfirmation = async (
 ): Promise<TestConnectionConfirmationResult> =>
   fetchInfraJson<TestConnectionConfirmationResult>(
     `${CONFIRM_BASE}/${targetSourceId}/test-connection-acknowledgment`,
-    { method: 'PUT', body: { confirmed } },
+    { action: 'updateTestConnectionConfirmation', method: 'PUT', body: { confirmed } },
   );
 
 // Credential 갱신 — v1
@@ -627,6 +638,7 @@ export const updateResourceCredential = async (
   fetchInfraJson<{ success: boolean }>(
     `${CONFIRM_BASE}/${targetSourceId}/resources/credential`,
     {
+      action: 'updateResourceCredential',
       method: 'PUT',
       body: { resourceId, credentialId },
     },
@@ -643,7 +655,7 @@ export const confirmInstallation = async (
 ): Promise<InstallationConfirmResult> =>
   fetchInfraJson<InstallationConfirmResult>(
     `${CONFIRM_BASE}/${targetSourceId}/pii-agent-installation/confirm`,
-    { method: 'POST' },
+    { action: 'confirmInstallation', method: 'POST' },
   );
 
 // ===== Azure API =====

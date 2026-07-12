@@ -411,7 +411,7 @@ export const getIdcPreviousRequest = async (
 ): Promise<IdcResourceView[]> => {
   const res = await fetchInfraJson<IdcPreviousRequestResponseWire>(
     `${idcTargetBase(targetSourceId)}/previous-request`,
-    { signal: opts?.signal },
+    { action: 'getIdcPreviousRequest', signal: opts?.signal },
   );
   return (res.resources ?? []).map((r, i) => toIdcResourceView(r, i));
 };
@@ -467,7 +467,7 @@ export const getIdcInstallationStatus = async (
 ): Promise<IdcInstallationView> => {
   const res = await fetchInfraJson<IdcInstallationStatusResponseWire>(
     `${idcTargetBase(targetSourceId)}/installation-status`,
-    { signal: opts?.signal },
+    { action: 'getIdcInstallationStatus', signal: opts?.signal },
   );
   return toIdcInstallationView(res);
 };
@@ -480,7 +480,7 @@ export const getOccupiedResources = async (
 ): Promise<NlbOccupiedResource[]> => {
   const res = await fetchInfraJson<NlbOccupiedResourceResponseWire[]>(
     `/idc/nlb/${nlbIndex}/resources`,
-    { signal: opts?.signal },
+    { action: 'getOccupiedResources', signal: opts?.signal },
   );
   return res.map(toNlbOccupiedResource);
 };
@@ -489,6 +489,7 @@ export const getOccupiedResources = async (
  *  consumer in the Step1–7 flow yet. */
 export const getNlbTable = async (opts?: { signal?: AbortSignal }): Promise<NlbTableRow[]> => {
   const res = await fetchInfraJson<NlbTableResponseWire[]>(`/idc/nlb/table`, {
+    action: 'getNlbTable',
     signal: opts?.signal,
   });
   return res.map(toNlbTableRow);

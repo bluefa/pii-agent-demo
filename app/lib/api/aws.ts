@@ -14,6 +14,7 @@ const BASE = '/aws/target-sources';
 export const getAwsInstallationStatus = async (targetSourceId: number): Promise<AwsInstallationStatus> => {
   const raw = await fetchInfraJson<z.infer<typeof schemas.AwsInstallationStatusResponse>>(
     `${BASE}/${targetSourceId}/installation-status`,
+    { action: 'getAwsInstallationStatus' },
   );
   return transformAwsInstallationStatus(raw);
 };
@@ -25,6 +26,8 @@ export const getAwsInstallationStatus = async (targetSourceId: number): Promise<
  * route streams it. Returns the response Blob for the caller to save.
  */
 export const getAwsTerraformScript = async (targetSourceId: number): Promise<Blob> => {
+  // Raw fetchInfra (not fetchInfraJson): binary octet-stream download, not a JSON
+  // envelope — the fetchJson observability/normalization wrapper does not apply.
   const res = await fetchInfra(`${BASE}/${targetSourceId}/terraform-script`);
   if (!res.ok) throw new Error(`terraform-script download failed (${res.status})`);
   return res.blob();

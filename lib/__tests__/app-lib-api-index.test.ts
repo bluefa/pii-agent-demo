@@ -22,6 +22,21 @@ describe('app/lib/api/index', () => {
     vi.restoreAllMocks();
   });
 
+  it('api-layer 함수는 자기 이름을 X-Client-Action 헤더로 보낸다 (observability)', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ id: 'u-1', name: 'x', email: 'x@x' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await getCurrentUser();
+
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    const headers = new Headers(init.headers);
+    expect(headers.get('X-Client-Action')).toBe('getCurrentUser');
+  });
+
   it('searchUsers는 excludeIds를 반복 쿼리로 직렬화한다', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

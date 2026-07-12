@@ -9,6 +9,7 @@ export const startScan = async (
   targetSourceId: number,
 ): Promise<z.infer<typeof schemas.ScanJobResponse>> =>
   fetchInfraJson(`${BASE_URL}/${targetSourceId}/scan`, {
+    action: 'startScan',
     method: 'POST',
     body: {},
   });
@@ -17,7 +18,9 @@ export const startScan = async (
 export const getLatestScanJob = async (
   targetSourceId: number,
 ): Promise<z.infer<typeof schemas.ScanJobResponse>> =>
-  fetchInfraJson(`${BASE_URL}/${targetSourceId}/scanJob/latest`);
+  fetchInfraJson(`${BASE_URL}/${targetSourceId}/scanJob/latest`, {
+    action: 'getLatestScanJob',
+  });
 
 /** 스캔 이력 조회 (페이지네이션) */
 export const getScanHistory = async (
@@ -32,5 +35,6 @@ export const getScanHistory = async (
 
   return fetchInfraJson(
     `${BASE_URL}/${targetSourceId}/scan/history${qs ? `?${qs}` : ''}`,
+    { action: 'getScanHistory' },
   );
 };

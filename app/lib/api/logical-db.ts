@@ -70,7 +70,7 @@ export const getTestedLogicalDatabases = async (
 ): Promise<TestedLogicalDatabase[]> => {
   const raw = await fetchInfraJson<z.infer<typeof schemas.TestedLogicalDatabasesResponse>>(
     `${base(targetSourceId)}/tested-logical-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
-    opts?.signal ? { signal: opts.signal } : undefined,
+    { action: 'getTestedLogicalDatabases', ...(opts?.signal ? { signal: opts.signal } : {}) },
   );
   return (raw.logical_database_list ?? []).map(toTestedLogicalDatabase);
 };
@@ -83,7 +83,7 @@ export const getExcludedLogicalDatabases = async (
 ): Promise<ExcludedLogicalDatabase[]> => {
   const raw = await fetchInfraJson<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>(
     `${base(targetSourceId)}/excluded-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
-    opts?.signal ? { signal: opts.signal } : undefined,
+    { action: 'getExcludedLogicalDatabases', ...(opts?.signal ? { signal: opts.signal } : {}) },
   );
   return (raw.skip_logical_database_list ?? []).map(toExcludedLogicalDatabase);
 };
@@ -104,7 +104,7 @@ export const updateExcludedLogicalDatabases = async (
   };
   const raw = await fetchInfraJson<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>(
     `${base(targetSourceId)}/excluded-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
-    { method: 'PUT', body },
+    { action: 'updateExcludedLogicalDatabases', method: 'PUT', body },
   );
   return (raw.skip_logical_database_list ?? []).map(toExcludedLogicalDatabase);
 };
