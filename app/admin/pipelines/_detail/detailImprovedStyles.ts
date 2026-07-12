@@ -96,7 +96,7 @@ export const improvedStyles = {
     header: 'flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-[var(--pl-border)]',
     /** Title (h3); the status badge is rendered inline after the name so it
      *  always sits to the right of the title text (node 70:35). */
-    title: 'text-[18px] font-bold leading-snug text-[var(--pl-text-strong)]',
+    title: 'text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
     titleBadge: 'ml-2.5 align-middle',
     /** Task description — moved into the header (node 70:35), above the tabs. */
     headerDesc: 'mt-3 text-[14px] leading-[1.6] text-[var(--pl-text-weak)] whitespace-pre-line',

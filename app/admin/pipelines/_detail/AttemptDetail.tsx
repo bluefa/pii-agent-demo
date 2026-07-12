@@ -13,7 +13,7 @@ import { type ReactElement } from 'react';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { jobRows, jobVerdict, type JobRow } from '@/app/admin/pipelines/_detail/jobRows';
 import { fmtDateTime } from '@/lib/pipeline/format';
-import { d, hm, hms, j, MiniPill, Section, spanLabel, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { d, j, MiniPill, Section, spanLabel, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView } from '@/lib/pipeline/types';
 
 function JobRowItem({ row, onOpen }: { row: JobRow; onOpen: () => void }): ReactElement {
@@ -52,11 +52,11 @@ export function AttemptDetail({
         <div className={d.rowsGap}>
           <div className={d.kvRow}>
             <span className={d.kvKey}>Started</span>
-            <span className={d.kvVal}>{hm(attempt.started_at)}</span>
+            <span className={d.kvVal}>{fmtDateTime(attempt.started_at)}</span>
           </div>
           <div className={d.kvRow}>
             <span className={d.kvKey}>Finished</span>
-            <span className={d.kvVal}>{hm(attempt.finished_at)}</span>
+            <span className={d.kvVal}>{fmtDateTime(attempt.finished_at)}</span>
           </div>
           {attempt.finished_at && (
             <div className={d.kvRow}>
@@ -96,7 +96,7 @@ export function AttemptDetail({
             </div>
             <div className={d.kvRow}>
               <span className={d.kvKey}>마지막 확인</span>
-              <span className={d.kvVal}>{hms(attempt.check.last_checked_at)}</span>
+              <span className={d.kvVal}>{fmtDateTime(attempt.check.last_checked_at)}</span>
             </div>
           </div>
         </Section>

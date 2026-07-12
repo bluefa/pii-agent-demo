@@ -6,12 +6,10 @@
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { PipelineStatusBadge } from '@/app/admin/pipelines/_detail/PipelineStatusBadge';
-import { KIND_POLICY } from '@/lib/pipeline/format';
+import { fmtDateTime, KIND_POLICY } from '@/lib/pipeline/format';
 import {
   conditionVerdict,
   d,
-  hm,
-  hms,
   j,
   MiniPill,
   OperatorDescription,
@@ -35,11 +33,11 @@ export function TerraformExec({
         <div className={d.rowsGap}>
           <div className={d.kvRow}>
             <span className={d.kvKey}>Started</span>
-            <span className={d.kvVal}>{hm(detail.started_at)}</span>
+            <span className={d.kvVal}>{fmtDateTime(detail.started_at)}</span>
           </div>
           <div className={d.kvRow}>
             <span className={d.kvKey}>{failed ? 'Failed' : 'Finished'}</span>
-            <span className={failed ? d.kvValErr : d.kvVal}>{hm(detail.finished_at)}</span>
+            <span className={failed ? d.kvValErr : d.kvVal}>{fmtDateTime(detail.finished_at)}</span>
           </div>
           {failed && detail.error_code && (
             <div className={d.kvRow}>
@@ -50,7 +48,7 @@ export function TerraformExec({
           {detail.next_check_at && (
             <div className={d.kvRow}>
               <span className={d.kvKey}>다음 확인</span>
-              <span className={d.kvVal}>{hms(detail.next_check_at)}</span>
+              <span className={d.kvVal}>{fmtDateTime(detail.next_check_at)}</span>
             </div>
           )}
         </div>
@@ -79,7 +77,7 @@ export function TerraformExec({
               <PipelineStatusBadge status={a.status} size="mini" />
               {a.error_code && <MiniPill tone="failed">{a.error_code}</MiniPill>}
               <span className={j.attemptTime}>
-                {hm(a.started_at)} → {hm(a.finished_at)}
+                {fmtDateTime(a.started_at)} → {fmtDateTime(a.finished_at)}
               </span>
               {i === 0 && <span className={j.attemptCur}>현재</span>}
               <span className={j.attemptChev} aria-hidden="true">›</span>
@@ -109,7 +107,7 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
         <div className={d.rowsGap}>
           <div className={d.kvRow}>
             <span className={d.kvKey}>Started</span>
-            <span className={d.kvVal}>{hm(detail.started_at)}</span>
+            <span className={d.kvVal}>{fmtDateTime(detail.started_at)}</span>
           </div>
           <div className={d.kvRow}>
             <span className={d.kvKey}>현재 판정</span>
@@ -130,7 +128,7 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
           {detail.next_check_at && (
             <div className={d.kvRow}>
               <span className={d.kvKey}>다음 확인</span>
-              <span className={d.kvVal}>{hms(detail.next_check_at)}</span>
+              <span className={d.kvVal}>{fmtDateTime(detail.next_check_at)}</span>
             </div>
           )}
         </div>
@@ -169,7 +167,7 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
                     <td className={cn(d.td, '[font-family:var(--pl-font-mono)]')}>
                       {a.check?.last_external_status ?? '—'}
                     </td>
-                    <td className={cn(d.td, 'text-right')}>{hms(a.check?.last_checked_at ?? a.started_at)}</td>
+                    <td className={cn(d.td, 'text-right')}>{fmtDateTime(a.check?.last_checked_at ?? a.started_at)}</td>
                   </tr>
                 );
               })}
