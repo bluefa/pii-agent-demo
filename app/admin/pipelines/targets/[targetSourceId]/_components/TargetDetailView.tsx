@@ -220,7 +220,10 @@ export function TargetDetailView(): ReactElement {
   }, [liveId]);
 
   // Task-definition catalog — display names/descriptions for the task strip.
-  const provider = providerKey(raw?.cloud_provider ?? '');
+  // An SDU account is surfaced as SDU regardless of its underlying CSP
+  // (metadata.is_sdu_type wins over cloud_provider — owner call): SDU has no
+  // CSP metadata rows and no orchestrator wire provider (Custom stays disabled).
+  const provider = raw?.metadata?.is_sdu_type ? 'sdu' : providerKey(raw?.cloud_provider ?? '');
   const orchProvider = raw ? wireProvider(provider) : null;
   useEffect(() => {
     if (!orchProvider || liveId == null) return;
@@ -403,10 +406,7 @@ export function TargetDetailView(): ReactElement {
             </table>
             </div>
             {/* R20 — always visible so the history reads as a paged list. */}
-            <div className="flex items-center justify-between border-t border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-4 py-1 text-[12px] text-[var(--pl-text-faint)]">
-              <span>
-                {live ? '실행 중에는 새 파이프라인을 시작할 수 없어요 — 완료 후 다시 시도하세요' : ''}
-              </span>
+            <div className="flex items-center justify-end border-t border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-4 py-1 text-[12px] text-[var(--pl-text-faint)]">
               <PlPagination
                 page={page}
                 pages={totalPages}
@@ -424,7 +424,6 @@ export function TargetDetailView(): ReactElement {
         open={previewModal.isOpen}
         onClose={previewModal.close}
         targetSourceId={targetSourceId}
-        providerLabel={providerLabel(provider)}
         provider={orchProvider}
         showToast={toast.show}
       />

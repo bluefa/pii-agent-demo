@@ -42,6 +42,10 @@ import type { CloudProvider, TaskCatalogEntry } from '@/lib/pipeline/types';
 
 /** Pointer must travel this far before a press becomes a drag. */
 const DRAG_THRESHOLD_PX = 6;
+/** While dragging within this many px of a scroll-port edge, auto-scroll. */
+const AUTOSCROLL_EDGE_PX = 56;
+/** Max horizontal auto-scroll per animation frame. */
+const AUTOSCROLL_MAX_PX = 16;
 
 /**
  * Builder deltas over the shared R24 grammar — the canvas is a flex pair of
@@ -53,7 +57,6 @@ const BUILD_CSS = `
 .r24-build .r24-bscroll::-webkit-scrollbar{height:6px}
 .r24-build .r24-bscroll::-webkit-scrollbar-thumb{border-radius:99px;background:var(--pl-gray-300)}
 .r24-build .r24-bscroll::-webkit-scrollbar-track{border-radius:99px;background:color-mix(in srgb,var(--pl-gray-900) 7%,transparent)}
-.r24-build .r24-bcap{font-size:11px;font-weight:600;color:var(--pl-text-faint);letter-spacing:.02em;margin-bottom:18px;flex:none}
 .r24-build .r24-line{align-items:center;margin-top:2px}
 .r24-build .r24-tnode{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .r24-build .r24-tnode:focus-visible{outline:2px solid var(--pl-primary);outline-offset:2px}
@@ -155,18 +158,23 @@ export function CustomBuildStep({
   const detachRef = useRef<(() => void) | null>(null);
   useEffect(() => () => detachRef.current?.(), []);
 
-  // A new task lands at the right end of the chain — bring it (and the ghost)
-  // into view so the add is visible even when the track overflows.
+  // A new task lands at the right end of the chain — move focus (and the scroll)
+  // to the just-added card so attention lands on the pipeline being built, not
+  // the catalog panel (owner: 초점을 생성된 파이프라인으로 이동).
   const prevLenRef = useRef(chosen.length);
   useEffect(() => {
     const grew = chosen.length > prevLenRef.current;
     prevLenRef.current = chosen.length;
     if (!grew) return;
-    addBtnRef.current?.scrollIntoView({
+    const nodes = trackRef.current?.querySelectorAll<HTMLElement>('.r24-tnode:not(.ghost)');
+    const last = nodes?.[nodes.length - 1] ?? null;
+    (last ?? addBtnRef.current)?.scrollIntoView({
       inline: 'nearest',
       block: 'nearest',
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
     });
+    // preventScroll so focus doesn't override the smooth scroll with a jump.
+    last?.focus({ preventScroll: true });
   }, [chosen.length]);
 
   // Escape closes the panel only — captured so the ModalShell's
@@ -222,6 +230,7 @@ export function CustomBuildStep({
   // commits (synthetic input delivers them within the same frame).
   const onNodeDown = (task: TaskCatalogEntry) => (e: ReactPointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return;
+    const scroller = trackRef.current?.parentElement ?? null; // .r24-bscroll
     const nodes = trackRef.current?.querySelectorAll<HTMLElement>('.r24-tnode:not(.ghost)');
     // Slot pitch measured from the DOM (card + arrow) so CSS resizes can't desync the math.
     const step = nodes && nodes.length >= 2 ? nodes[1].offsetLeft - nodes[0].offsetLeft : 0;
@@ -232,6 +241,53 @@ export function CustomBuildStep({
       step,
       active: false,
     };
+    let pointerX = e.clientX;
+    let raf = 0;
+
+    // Reorder to the slot the pointer currently maps to; shift the origin so
+    // the residual offset keeps tracking the pointer without a jump. Callable
+    // from both a pointermove and an auto-scroll tick.
+    const applyReorder = (): void => {
+      const d = dragRef.current;
+      if (!d) return;
+      const order = orderRef.current;
+      const index = order.findIndex((t) => t.name === d.name);
+      if (index < 0) return;
+      const target = dragTargetIndex(index, pointerX - d.startX, d.step, order.length);
+      if (target !== index) {
+        const next = reorderTask(order, index, target);
+        orderRef.current = next;
+        onChangeRef.current(next);
+        d.startX += (target - index) * d.step;
+      }
+      setDrag({ name: d.name, dx: pointerX - d.startX, active: true });
+    };
+
+    // While the pointer sits in an edge zone, scroll the track and shift the
+    // drag origin by the same delta so reorder targets advance into the slots
+    // scrolled into view (the dragged card stays under the pointer).
+    const tick = (): void => {
+      raf = 0;
+      const d = dragRef.current;
+      if (!d || !d.active || !scroller) return;
+      const r = scroller.getBoundingClientRect();
+      let dir = 0;
+      if (pointerX < r.left + AUTOSCROLL_EDGE_PX) dir = -(r.left + AUTOSCROLL_EDGE_PX - pointerX) / AUTOSCROLL_EDGE_PX;
+      else if (pointerX > r.right - AUTOSCROLL_EDGE_PX) dir = (pointerX - (r.right - AUTOSCROLL_EDGE_PX)) / AUTOSCROLL_EDGE_PX;
+      if (dir === 0) return;
+      const before = scroller.scrollLeft;
+      scroller.scrollLeft = before + Math.sign(dir) * Math.ceil(Math.min(1, Math.abs(dir)) * AUTOSCROLL_MAX_PX);
+      const ds = scroller.scrollLeft - before;
+      if (ds !== 0) {
+        d.startX -= ds;
+        applyReorder();
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    const ensureTick = (): void => {
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+
     const move = (ev: PointerEvent): void => {
       const d = dragRef.current;
       if (!d || ev.pointerId !== d.pointerId) return;
@@ -239,19 +295,9 @@ export function CustomBuildStep({
         if (Math.abs(ev.clientX - d.startX) < DRAG_THRESHOLD_PX) return;
         d.active = true;
       }
-      const order = orderRef.current;
-      const index = order.findIndex((t) => t.name === d.name);
-      if (index < 0) return;
-      const target = dragTargetIndex(index, ev.clientX - d.startX, d.step, order.length);
-      if (target !== index) {
-        const next = reorderTask(order, index, target);
-        orderRef.current = next;
-        onChangeRef.current(next);
-        // The card now occupies the target slot — shift the origin so the
-        // residual offset keeps tracking the pointer without a jump.
-        d.startX += (target - index) * d.step;
-      }
-      setDrag({ name: d.name, dx: ev.clientX - d.startX, active: true });
+      pointerX = ev.clientX;
+      applyReorder();
+      ensureTick();
     };
     const end = (ev: PointerEvent): void => {
       const d = dragRef.current;
@@ -266,6 +312,8 @@ export function CustomBuildStep({
     window.addEventListener('pointerup', end);
     window.addEventListener('pointercancel', end);
     detachRef.current = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
       window.removeEventListener('pointercancel', end);
@@ -306,7 +354,6 @@ export function CustomBuildStep({
       <div className="r24-canvas r24-build">
         <style>{R24_CSS + BUILD_CSS}</style>
         <div className="r24-bscroll">
-          <div className="r24-bcap">실행 순서 — {chosen.length}개 Task</div>
           <div className="r24-line" ref={trackRef}>
             {chosen.map((t, i) => {
               const isDragged = drag !== null && drag.active && drag.name === t.name;

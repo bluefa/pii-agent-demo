@@ -7,6 +7,7 @@
  * unique to this surface live here.
  */
 import type { JobVerdict } from '@/app/admin/pipelines/_detail/jobRows';
+import type { AnsiColor } from '@/app/admin/pipelines/_detail/ansiLog';
 
 /** Per-job verdict pill tone (success/fail/running/unobserved). */
 const VERDICT_TONE: Record<JobVerdict, string> = {
@@ -104,6 +105,18 @@ export const jobStyles = {
   logBody: 'flex-1 overflow-auto px-5 pb-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--pl-primary)]',
   logPre: 'text-[12px] leading-[1.6] text-[var(--pl-chrome-item)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
   logCut: 'block pb-2 mb-2 text-[11px] text-[var(--pl-warn)] border-b border-[var(--pl-gray-600)]',
+
+  /** ANSI SGR → semantic tokens, tuned to read on the dark log panel. Bold is
+   *  added inline (font-semibold). No raw colors — all `--pl-*` (CLAUDE.md #4). */
+  logAnsi: {
+    red: 'text-[var(--pl-err)]',
+    green: 'text-[var(--pl-ok)]',
+    yellow: 'text-[var(--pl-warn)]',
+    blue: 'text-[var(--pl-info)]',
+    cyan: 'text-[var(--pl-info)]',
+    magenta: 'text-[var(--pl-pv-sdu)]',
+    gray: 'text-[var(--pl-gray-400)]',
+  } as Record<AnsiColor, string>,
 
   /** Empty / error states inside the viewer body (owner Figma node 121-753:
    *  amber warning mark, bold title, muted two-line description). */

@@ -1151,6 +1151,9 @@ export const pipelineStyles = {
      *  room). flex-col + a flex-1 spacer before the foot (PreviewModal) keeps
      *  the actions pinned to the bottom of the taller dialog. */
     dialogWide: 'w-[720px] min-h-[420px] flex flex-col',
+    /** Custom builder — the drag canvas + docked catalog panel need more room
+     *  than the mini-flow steps (owner: modal too cramped when adding Tasks). */
+    dialogXWide: 'w-[960px] max-w-[92vw] min-h-[480px] flex flex-col',
     title: cn(pipelineText.modalTitle, 'mb-3'),
     desc: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)] mb-3.5',
     body: 'overflow-y-auto min-h-0 mt-1',

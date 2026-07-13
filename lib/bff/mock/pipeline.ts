@@ -486,6 +486,26 @@ function seedPipelines(): MockPipeline[] {
   });
 
   return [
+    // ── 130 RUNNING — SDU target 1099 (cloud_provider AWS → surfaced as "SDU"). ──
+    //     DONE tasks carry attempts so 시도 횟수 reads the real attempt count.
+    {
+      pipeline_id: 130, type: 'INSTALL', target_source_id: '1099', ...resolveService('1099'), cloud_provider: 'AWS',
+      recipe_definition: 'AWS_INSTALL_V1', status: 'RUNNING',
+      created_at: ago(30), last_activity_at: ago(2), next_due_at: ahead(6), leased: true,
+      cancel_requested: false, due_lag_millis: 0,
+      tasks: [
+        mkTask(130, 0, 'AWS_SERVICE_PLAN_V1', 'DONE', {
+          started_at: ago(30), finished_at: ago(28),
+          attempts: [attempt(1, 'DONE', null, 30, '{"job_id":"tf-b10","terraformState":"COMPLETED"}', 28)],
+        }),
+        mkTask(130, 1, 'AWS_SERVICE_APPLY_V1', 'IN_PROGRESS', {
+          started_at: ago(28),
+          attempts: [attempt(1, 'IN_PROGRESS', null, 28, '{"job_id":"tf-b11","terraformState":"RUNNING"}', null)],
+        }),
+        mkTask(130, 2, 'AWS_BDC_COMMON_PLAN_V1', 'BLOCKED'),
+        mkTask(130, 3, 'AWS_BDC_COMMON_APPLY_V1', 'BLOCKED'),
+      ],
+    },
     // ── 129 PENDING (start-delay wait) — GCP target 1002. READY + BLOCKED. ──
     {
       pipeline_id: 129, type: 'INSTALL', target_source_id: '1002', ...resolveService('1002'), cloud_provider: 'GCP',
@@ -731,6 +751,11 @@ const toTaskSummary = (t: MockTask): TaskSummary => ({
   description: t.description,
 });
 
+/** SDU flag for a pipeline's target — joined from the app's project seed so the
+ *  list/detail can surface "SDU" over the underlying CSP (passthrough). */
+const sduForTarget = (targetSourceId: string): boolean =>
+  getProjectByTargetSourceId(Number(targetSourceId))?.isSduType === true;
+
 const toSummary = (p: MockPipeline): PipelineSummary => ({
   pipeline_id: p.pipeline_id,
   type: p.type,
@@ -738,6 +763,7 @@ const toSummary = (p: MockPipeline): PipelineSummary => ({
   service_code: p.service_code,
   service_name: p.service_name,
   cloud_provider: p.cloud_provider,
+  is_sdu_type: sduForTarget(p.target_source_id),
   recipe_definition: p.recipe_definition,
   status: p.status,
   done_task_count: doneCount(p),
@@ -756,6 +782,7 @@ const toDetail = (p: MockPipeline): PipelineDetail => {
     type: p.type,
     target_source_id: p.target_source_id,
     cloud_provider: p.cloud_provider,
+    is_sdu_type: sduForTarget(p.target_source_id),
     recipe_definition: p.recipe_definition,
     status: p.status,
     created_at: p.created_at,
@@ -1021,6 +1048,15 @@ const PATH = {
 
 const jobAgo = (min: number): string => new Date(Date.now() - min * 60_000).toISOString();
 
+// Real terraform output is ANSI-colourised; these wrap text in SGR escape codes
+// so the log viewer exercises its formatting (green adds, red errors, bold
+// headers) instead of showing raw `[0m` litter. ESC (0x1b) as a char code keeps
+// the source pure ASCII.
+const E = String.fromCharCode(27);
+const green = (s: string): string => `${E}[32m${s}${E}[0m`;
+const red = (s: string): string => `${E}[31m${s}${E}[0m`;
+const bold = (s: string): string => `${E}[1m${s}${E}[0m`;
+
 const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
   // task 12401 · attempt 1 — live read-through (no stored rows yet at timeout)
   '12401:1:1019': { succeeded: true, truncated: false, source: 'live', created_at: null, fetch_error: null,
@@ -1035,14 +1071,14 @@ const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' |
   // task 12401 · attempt 2 — stored terraform_result rows
   '12401:2:1026': { succeeded: true, truncated: false, source: 'stored', created_at: jobAgo(3 * 60 - 30), fetch_error: null,
     content: 'aws_glue_catalog_database.service_level: Creating...\n'
-      + 'aws_glue_catalog_database.service_level: Creation complete after 2s [id=svc-alpha:service_level]\n'
+      + `aws_glue_catalog_database.service_level: ${green('Creation complete after 2s')} [id=svc-alpha:service_level]\n`
       + 'aws_iam_role.pii_agent_scan: Creating...\n'
-      + 'aws_iam_role.pii_agent_scan: Creation complete after 1s\n\n'
-      + 'Apply complete! Resources: 214 added, 0 changed, 0 destroyed.' },
+      + `aws_iam_role.pii_agent_scan: ${green('Creation complete after 1s')}\n\n`
+      + green(bold('Apply complete! Resources: 214 added, 0 changed, 0 destroyed.')) },
   '12401:2:1027': { succeeded: false, truncated: true, source: 'stored', created_at: jobAgo(3 * 60 - 30), fetch_error: null,
     content: 'aws_glue_catalog_table.bdc_common["tbl_0417"]: Still creating... [2m10s elapsed]\n'
-      + 'aws_glue_catalog_table.bdc_common["tbl_0417"]: Creation complete after 2m12s\n\n'
-      + 'Error: Error acquiring the state lock\n\n'
+      + `aws_glue_catalog_table.bdc_common["tbl_0417"]: ${green('Creation complete after 2m12s')}\n\n`
+      + `${red(bold('Error:'))} ${bold('Error acquiring the state lock')}\n\n`
       + 'Error message: ConditionalCheckFailedException: The conditional request failed\n'
       + 'Lock Info:\n'
       + '  ID:        8f2a1c3e-77b4-4e01-9d2f-3a5b6c7d8e90\n'
@@ -1095,10 +1131,10 @@ const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | '
 
 // Generic log bodies for synthesized jobs (tasks without hand-written fixtures).
 const LOG_OK = 'Initializing the backend...\nInitializing provider plugins...\n'
-  + 'aws_resource.main: Creating...\naws_resource.main: Creation complete after 3s\n\n'
-  + 'Apply complete! Resources: 12 added, 0 changed, 0 destroyed.';
+  + `aws_resource.main: Creating...\naws_resource.main: ${green('Creation complete after 3s')}\n\n`
+  + green(bold('Apply complete! Resources: 12 added, 0 changed, 0 destroyed.'));
 const LOG_FAIL = 'aws_resource.main: Creating...\n\n'
-  + 'Error: error applying plan\n\n  on main.tf line 14:\n\n'
+  + `${red(bold('Error:'))} ${bold('error applying plan')}\n\n  on main.tf line 14:\n\n`
   + 'resource creation failed: mock forced failure\n\nApply cancelled.';
 const LOG_RUNNING = 'aws_resource.main: Creating...\n'
   + 'aws_resource.main: Still creating... [30s elapsed]';

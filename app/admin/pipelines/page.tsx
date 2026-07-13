@@ -378,7 +378,7 @@ export default function DashboardPage(): ReactElement {
                       <TargetIdCell targetId={String(row.target_source_id)} />
                     </td>
                     <td className={d.cell}>
-                      <CloudText provider={row.cloud_provider} />
+                      <CloudText provider={row.cloud_provider} isSdu={row.is_sdu_type} />
                     </td>
                     <td className={d.cell}>
                       <TypeCell type={row.type} />

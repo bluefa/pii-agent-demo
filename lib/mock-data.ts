@@ -101,14 +101,14 @@ export const mockUsers: User[] = [
     name: '홍길동',
     email: 'hong@company.com',
     role: 'SERVICE_MANAGER',
-    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp'],
+    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp', 'SDU'],
   },
   {
     id: 'user-2',
     name: '김철수',
     email: 'kim@company.com',
     role: 'SERVICE_MANAGER',
-    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp'],
+    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp', 'SDU'],
   },
   {
     id: 'admin-1',
@@ -151,6 +151,11 @@ export const mockServiceCodes: ServiceCode[] = [
     code: 'gcp',
     name: 'GCP',
     description: 'GCP 클라우드 PII Agent 연동',
+  },
+  {
+    code: 'SDU',
+    name: 'SDU',
+    description: 'SDU 계정 PII Agent 연동',
   },
 ];
 
@@ -1072,6 +1077,90 @@ mockProjects.push(
   cloneForStep('gcp-proj-1', { id: 'gcp-proj-verified', targetSourceId: 2011, projectCode: 'GCP-VERIFIED', name: 'GCP PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED, resources: gcpDemoResources }),
   cloneForStep('gcp-proj-1', { id: 'gcp-proj-complete', targetSourceId: 2012, projectCode: 'GCP-COMPLETE', name: 'GCP PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE, resources: gcpDemoResources }),
 );
+
+// 데모: SDU 계정 대상 — cloud_provider 는 AWS 지만 metadata.is_sdu_type=true 라
+// 파이프라인 목록·상세·대상 상세 어디서든 하위 CSP 대신 "SDU"로 노출된다.
+mockProjects.push({
+  id: 'aws-proj-sdu',
+  targetSourceId: 1099,
+  projectCode: 'SDU-001',
+  name: 'SDU PII Agent - 데모 대상',
+  description: 'SDU 계정 대상. 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.',
+  serviceCode: 'SDU',
+  cloudProvider: 'AWS',
+  awsAccountId: '210987654321',
+  awsRegionType: 'global',
+  isSduType: true,
+  processStatus: ProcessStatus.INSTALLATION_COMPLETE,
+  status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, { selectedCount: 1 }),
+  resources: [
+    {
+      id: 'res-sdu-1',
+      type: 'RDS',
+      resourceId: 'rds-sdu-01',
+      databaseType: 'POSTGRESQL',
+      connectionStatus: 'CONNECTED',
+      isSelected: true,
+      awsType: 'RDS',
+      region: 'ap-northeast-2',
+      vpcId: 'vpc-sdu-001',
+      integrationCategory: 'TARGET',
+      note: '',
+    },
+  ],
+  terraformState: { serviceTf: 'COMPLETED', bdcTf: 'COMPLETED' },
+  createdAt: '2024-02-01T09:00:00Z',
+  updatedAt: '2024-02-01T12:00:00Z',
+  isRejected: false,
+});
+
+// 데모: 두 번째 SDU 대상 — 승인 대기 단계(설치 전)로, SDU 서비스에 대상이
+// 하나가 아님을 보이고 파이프라인 시작 흐름을 시연할 수 있게 한다.
+mockProjects.push({
+  id: 'aws-proj-sdu-2',
+  targetSourceId: 1100,
+  projectCode: 'SDU-002',
+  name: 'SDU PII Agent - 데이터 레이크',
+  description: 'SDU 계정 대상(승인 대기). 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.',
+  serviceCode: 'SDU',
+  cloudProvider: 'AWS',
+  awsAccountId: '345678901234',
+  awsRegionType: 'global',
+  isSduType: true,
+  processStatus: ProcessStatus.WAITING_APPROVAL,
+  status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, { selectedCount: 2, excludedCount: 1 }),
+  resources: [
+    {
+      id: 'res-sdu-2',
+      type: 'RDS',
+      resourceId: 'rds-sdu-02',
+      databaseType: 'MYSQL',
+      connectionStatus: 'PENDING',
+      isSelected: true,
+      awsType: 'RDS',
+      region: 'ap-northeast-2',
+      vpcId: 'vpc-sdu-002',
+      integrationCategory: 'TARGET',
+      note: 'NEW',
+    },
+    {
+      id: 'res-sdu-3',
+      type: 'DYNAMODB',
+      resourceId: 'ddb-sdu-01',
+      databaseType: 'DYNAMODB',
+      connectionStatus: 'PENDING',
+      isSelected: true,
+      awsType: 'DYNAMODB',
+      region: 'ap-northeast-2',
+      integrationCategory: 'TARGET',
+      note: 'NEW',
+    },
+  ],
+  terraformState: { serviceTf: 'PENDING', bdcTf: 'PENDING' },
+  createdAt: '2024-02-02T09:00:00Z',
+  updatedAt: '2024-02-02T10:00:00Z',
+  isRejected: false,
+});
 
 // ===== Helper Functions =====
 

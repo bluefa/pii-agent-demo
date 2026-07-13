@@ -56,8 +56,10 @@ export function TerraformExec({
 
       <div className={d.attemptRow}>
         <span className={d.sectionLabel}>시도 횟수</span>
+        {/* Attempts actually made (attempts.length), not the failure count —
+            a task that succeeded on the first run has fail_count 0 but 1 attempt. */}
         <span className={failed ? d.bigValErr : d.bigVal}>
-          {detail.fail_count} / {detail.effective_max_fail_count}
+          {detail.attempts.length} / {detail.effective_max_fail_count}
         </span>
       </div>
 
@@ -132,8 +134,9 @@ export function ConditionExec({ detail }: { detail: TaskDetail }): ReactElement 
 
       <div className={d.attemptRow}>
         <span className={d.sectionLabel}>시도 횟수</span>
+        {/* Attempts actually made (poll count), not the not-met failure count. */}
         <span className={d.bigVal}>
-          {detail.fail_count} / {detail.effective_max_fail_count}
+          {detail.attempts.length} / {detail.effective_max_fail_count}
         </span>
       </div>
 
