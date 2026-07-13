@@ -11,7 +11,7 @@
 import type { ReactElement, ReactNode } from 'react';
 
 import { cn, pipelineStyles } from '@/lib/theme';
-import { fmtDateTime, fmtRelativeTime, providerLabel } from '@/lib/pipeline/format';
+import { displayProvider, fmtDateTime, fmtRelativeTime, providerLabel } from '@/lib/pipeline/format';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import type { CloudProvider, PipelineStatus, PipelineType } from '@/lib/pipeline/types';
 
@@ -38,9 +38,16 @@ export function TargetIdCell({ targetId }: { targetId: string }): ReactElement {
   return <span className={d.targetId}>#{targetId}</span>;
 }
 
-/** Cloud provider — plain medium text (no brand dot). */
-export function CloudText({ provider }: { provider: CloudProvider | string }): ReactElement {
-  return <span className={d.cloudText}>{providerLabel(provider)}</span>;
+/** Cloud provider — plain medium text (no brand dot). An SDU target reads as
+ *  "SDU" over its underlying CSP. */
+export function CloudText({
+  provider,
+  isSdu,
+}: {
+  provider: CloudProvider | string;
+  isSdu?: boolean;
+}): ReactElement {
+  return <span className={d.cloudText}>{providerLabel(displayProvider(provider, isSdu))}</span>;
 }
 
 /** Pipeline type — icon + enum text. */

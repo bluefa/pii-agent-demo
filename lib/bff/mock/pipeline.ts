@@ -486,6 +486,26 @@ function seedPipelines(): MockPipeline[] {
   });
 
   return [
+    // ── 130 RUNNING — SDU target 1099 (cloud_provider AWS → surfaced as "SDU"). ──
+    //     DONE tasks carry attempts so 시도 횟수 reads the real attempt count.
+    {
+      pipeline_id: 130, type: 'INSTALL', target_source_id: '1099', ...resolveService('1099'), cloud_provider: 'AWS',
+      recipe_definition: 'AWS_INSTALL_V1', status: 'RUNNING',
+      created_at: ago(30), last_activity_at: ago(2), next_due_at: ahead(6), leased: true,
+      cancel_requested: false, due_lag_millis: 0,
+      tasks: [
+        mkTask(130, 0, 'AWS_SERVICE_PLAN_V1', 'DONE', {
+          started_at: ago(30), finished_at: ago(28),
+          attempts: [attempt(1, 'DONE', null, 30, '{"job_id":"tf-b10","terraformState":"COMPLETED"}', 28)],
+        }),
+        mkTask(130, 1, 'AWS_SERVICE_APPLY_V1', 'IN_PROGRESS', {
+          started_at: ago(28),
+          attempts: [attempt(1, 'IN_PROGRESS', null, 28, '{"job_id":"tf-b11","terraformState":"RUNNING"}', null)],
+        }),
+        mkTask(130, 2, 'AWS_BDC_COMMON_PLAN_V1', 'BLOCKED'),
+        mkTask(130, 3, 'AWS_BDC_COMMON_APPLY_V1', 'BLOCKED'),
+      ],
+    },
     // ── 129 PENDING (start-delay wait) — GCP target 1002. READY + BLOCKED. ──
     {
       pipeline_id: 129, type: 'INSTALL', target_source_id: '1002', ...resolveService('1002'), cloud_provider: 'GCP',
@@ -731,6 +751,11 @@ const toTaskSummary = (t: MockTask): TaskSummary => ({
   description: t.description,
 });
 
+/** SDU flag for a pipeline's target — joined from the app's project seed so the
+ *  list/detail can surface "SDU" over the underlying CSP (passthrough). */
+const sduForTarget = (targetSourceId: string): boolean =>
+  getProjectByTargetSourceId(Number(targetSourceId))?.isSduType === true;
+
 const toSummary = (p: MockPipeline): PipelineSummary => ({
   pipeline_id: p.pipeline_id,
   type: p.type,
@@ -738,6 +763,7 @@ const toSummary = (p: MockPipeline): PipelineSummary => ({
   service_code: p.service_code,
   service_name: p.service_name,
   cloud_provider: p.cloud_provider,
+  is_sdu_type: sduForTarget(p.target_source_id),
   recipe_definition: p.recipe_definition,
   status: p.status,
   done_task_count: doneCount(p),
@@ -756,6 +782,7 @@ const toDetail = (p: MockPipeline): PipelineDetail => {
     type: p.type,
     target_source_id: p.target_source_id,
     cloud_provider: p.cloud_provider,
+    is_sdu_type: sduForTarget(p.target_source_id),
     recipe_definition: p.recipe_definition,
     status: p.status,
     created_at: p.created_at,

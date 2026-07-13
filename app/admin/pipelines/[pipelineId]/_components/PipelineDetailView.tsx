@@ -41,6 +41,7 @@ import {
 } from '@/app/admin/pipelines/_detail/statusModel';
 import {
   canCancel,
+  displayProvider,
   fmtDateTime,
   isLivePipeline,
   progressCount,
@@ -268,7 +269,10 @@ export function PipelineDetailView(): ReactElement {
     return <div className={cn(detailStyles.skeleton, 'h-40')} aria-hidden="true" />;
   }
 
-  const provider = detail.cloud_provider;
+  // SDU targets read as "SDU" (over the AWS/GCP/… CSP). The task-definition
+  // catalog fetch above still uses the real cloud_provider — SDU is a display
+  // concern, not an orchestrator provider.
+  const provider = displayProvider(detail.cloud_provider, detail.is_sdu_type);
   const recipeDesc = recipeLabel(detail.recipe_definition)?.desc;
   const selectedDetail = selected ? detailMap.get(selected.task_id) ?? null : null;
   const cancellable = canCancel(detail.status, detail.cancel_requested);

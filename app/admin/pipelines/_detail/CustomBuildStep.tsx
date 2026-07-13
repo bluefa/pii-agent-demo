@@ -57,7 +57,6 @@ const BUILD_CSS = `
 .r24-build .r24-bscroll::-webkit-scrollbar{height:6px}
 .r24-build .r24-bscroll::-webkit-scrollbar-thumb{border-radius:99px;background:var(--pl-gray-300)}
 .r24-build .r24-bscroll::-webkit-scrollbar-track{border-radius:99px;background:color-mix(in srgb,var(--pl-gray-900) 7%,transparent)}
-.r24-build .r24-bcap{font-size:11px;font-weight:600;color:var(--pl-text-faint);letter-spacing:.02em;margin-bottom:18px;flex:none}
 .r24-build .r24-line{align-items:center;margin-top:2px}
 .r24-build .r24-tnode{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .r24-build .r24-tnode:focus-visible{outline:2px solid var(--pl-primary);outline-offset:2px}
@@ -355,7 +354,6 @@ export function CustomBuildStep({
       <div className="r24-canvas r24-build">
         <style>{R24_CSS + BUILD_CSS}</style>
         <div className="r24-bscroll">
-          <div className="r24-bcap">실행 순서 — {chosen.length}개 Task</div>
           <div className="r24-line" ref={trackRef}>
             {chosen.map((t, i) => {
               const isDragged = drag !== null && drag.active && drag.name === t.name;

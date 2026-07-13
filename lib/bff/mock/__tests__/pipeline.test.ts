@@ -25,28 +25,29 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       const { status, body } = mockPipeline.liveStatistics();
       const live = body as LivePipelineStatistics;
       expect(status).toBe(200);
-      // 128 + 125 RUNNING, 129 PENDING; one IN_PROGRESS terraform task per running pipeline.
-      expect(live.running_pipeline_count).toBe(2);
+      // 130 (SDU) + 128 + 125 RUNNING, 129 PENDING; one IN_PROGRESS terraform task per running pipeline.
+      expect(live.running_pipeline_count).toBe(3);
       expect(live.pending_pipeline_count).toBe(1);
-      expect(live.in_progress_terraform_task_count).toBe(2);
-      expect(live.active_claim_count).toBe(2);
+      expect(live.in_progress_terraform_task_count).toBe(3);
+      expect(live.active_claim_count).toBe(3);
       expect(live.terraform_slot_cap).toBeGreaterThan(0);
     });
 
     it('computes period statistics within the window', () => {
       const week = mockPipeline.statistics('7d').body as PipelineStatistics;
-      expect(week.total_count).toBe(7);
+      expect(week.total_count).toBe(8);
       expect(week.done_count).toBe(2);
       expect(week.failed_count).toBe(1);
       expect(week.cancelled_count).toBe(1);
-      expect(week.running_count).toBe(2);
+      expect(week.running_count).toBe(3);
       expect(week.pending_count).toBe(1);
 
-      // 1h window only catches the freshly-anchored PENDING + two RUNNING.
+      // 1h window only catches the freshly-anchored PENDING + three RUNNING
+      // (incl. the SDU demo pipeline 130).
       const hour = mockPipeline.statistics('1h').body as PipelineStatistics;
-      expect(hour.total_count).toBe(3);
+      expect(hour.total_count).toBe(4);
       expect(hour.pending_count).toBe(1);
-      expect(hour.running_count).toBe(2);
+      expect(hour.running_count).toBe(3);
     });
 
     it('rejects a missing / invalid period', () => {

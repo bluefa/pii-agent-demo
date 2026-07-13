@@ -88,6 +88,9 @@ export interface PipelineSummary {
   service_code: string;
   service_name: string;
   cloud_provider: CloudProvider;
+  /** True when the owning target is an SDU account — surfaced as "SDU" over the
+   *  underlying CSP (passthrough from the target metadata; assumed addition). */
+  is_sdu_type?: boolean;
   /** RecipeDefinition constant name; null for CUSTOM pipelines (no catalog recipe). */
   recipe_definition: string | null;
   status: PipelineStatus;
@@ -121,6 +124,9 @@ export interface PipelineDetail {
   type: PipelineType;
   target_source_id: string;
   cloud_provider: CloudProvider;
+  /** True when the owning target is an SDU account — surfaced as "SDU" over the
+   *  underlying CSP (passthrough from the target metadata; assumed addition). */
+  is_sdu_type?: boolean;
   /** RecipeDefinition constant name; null for CUSTOM pipelines (no catalog recipe). */
   recipe_definition: string | null;
   status: PipelineStatus;

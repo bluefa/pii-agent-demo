@@ -106,6 +106,15 @@ export function providerKey(provider: string | null | undefined): string {
   return (provider ?? '').toLowerCase();
 }
 
+/** Provider as shown to the user — an SDU target reads as "SDU" over its
+ *  underlying CSP (owner call). Feed the result to providerLabel/providerKey. */
+export function displayProvider(
+  cloudProvider: CloudProvider | string | null | undefined,
+  isSduType?: boolean,
+): string {
+  return isSduType ? 'SDU' : cloudProvider ?? '';
+}
+
 /** Wire provider → display label ('AZURE'→'Azure'). Lowercase-tolerant; unknown → passthrough. */
 export function providerLabel(provider: CloudProvider | string | null | undefined): string {
   if (!provider) return '-';

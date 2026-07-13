@@ -1073,6 +1073,42 @@ mockProjects.push(
   cloneForStep('gcp-proj-1', { id: 'gcp-proj-complete', targetSourceId: 2012, projectCode: 'GCP-COMPLETE', name: 'GCP PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE, resources: gcpDemoResources }),
 );
 
+// 데모: SDU 계정 대상 — cloud_provider 는 AWS 지만 metadata.is_sdu_type=true 라
+// 파이프라인 목록·상세·대상 상세 어디서든 하위 CSP 대신 "SDU"로 노출된다.
+mockProjects.push({
+  id: 'aws-proj-sdu',
+  targetSourceId: 1099,
+  projectCode: 'SDU-001',
+  name: 'SDU PII Agent - 데모 대상',
+  description: 'SDU 계정 대상. 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.',
+  serviceCode: 'aws',
+  cloudProvider: 'AWS',
+  awsAccountId: '210987654321',
+  awsRegionType: 'global',
+  isSduType: true,
+  processStatus: ProcessStatus.INSTALLATION_COMPLETE,
+  status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, { selectedCount: 1 }),
+  resources: [
+    {
+      id: 'res-sdu-1',
+      type: 'RDS',
+      resourceId: 'rds-sdu-01',
+      databaseType: 'POSTGRESQL',
+      connectionStatus: 'CONNECTED',
+      isSelected: true,
+      awsType: 'RDS',
+      region: 'ap-northeast-2',
+      vpcId: 'vpc-sdu-001',
+      integrationCategory: 'TARGET',
+      note: '',
+    },
+  ],
+  terraformState: { serviceTf: 'COMPLETED', bdcTf: 'COMPLETED' },
+  createdAt: '2024-02-01T09:00:00Z',
+  updatedAt: '2024-02-01T12:00:00Z',
+  isRejected: false,
+});
+
 // ===== Helper Functions =====
 
 export const getProjectsByServiceCode = (serviceCode: string): Project[] => {
