@@ -64,6 +64,9 @@ import type {
 const TITLE_ID = 'pl-preview-title';
 const ALREADY_ACTIVE = 'ORCHESTRATION_PIPELINE_ALREADY_ACTIVE';
 
+/** Modal title — Figma type ramp `title · 18 / 700` (nodes 9:999 / 9:1093). */
+const MODAL_H3 = 'mb-3 text-[18px] font-bold leading-[1.3] tracking-[-0.018em] text-[var(--pl-text-strong)]';
+
 const TYPE_LABELS: Record<PipelineType, string> = {
   INSTALL: '설치',
   DELETE: '삭제',
@@ -71,7 +74,7 @@ const TYPE_LABELS: Record<PipelineType, string> = {
 };
 
 const TYPE_DESCS: Record<PipelineType, string> = {
-  INSTALL: '이 대상에 인프라를 설치합니다 — 표준 레시피 Task를 순서대로 실행',
+  INSTALL: '이 대상에 인프라를 설치합니다 — 표준 레시피 7개 Task를 순서대로 실행',
   CUSTOM: 'Task 순서를 직접 구성해 실행합니다 — 실패 구간만 골라 재실행할 때',
   DELETE: '설치된 인프라를 destroy 합니다 — 대상의 리소스가 제거돼요',
 };
@@ -120,7 +123,7 @@ function SeqFlow({
 /** Consequence note line — info glyph + 12px weak text. */
 function ModalNote({ children }: { children: ReactNode }): ReactElement {
   return (
-    <div className="mt-2.5 flex items-start gap-2 rounded-[8px] border border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-3 py-2.5 text-[12px] leading-[1.6] text-[var(--pl-text-weak)] [&_b]:font-semibold [&_b]:text-[var(--pl-text-medium)]">
+    <div className="mt-2.5 flex items-start gap-2 rounded-[8px] border border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-3 py-2.5 text-[14px] leading-[1.37] text-[var(--pl-text-weak)] [&_b]:font-semibold [&_b]:text-[var(--pl-text-medium)]">
       <span className="mt-px flex-none text-[var(--pl-text-weak)]">
         <Icon name="warn-tri" size="sm" strokeWidth={2} />
       </span>
@@ -160,7 +163,7 @@ export function PreviewModal({
   showToast,
 }: PreviewModalProps): ReactElement | null {
   const router = useRouter();
-  const { modal, text } = pipelineStyles;
+  const { modal } = pipelineStyles;
 
   const [step, setStep] = useState<PreviewStep>('choose');
   const [type, setType] = useState<PipelineType | null>(null);
@@ -302,18 +305,31 @@ export function PreviewModal({
   );
 
   return (
-    <ModalShell open={open} onClose={onClose} labelledBy={TITLE_ID} variant="xwide">
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      labelledBy={TITLE_ID}
+      variant="wide"
+      /* Per-step width matches Figma: choose 560 (9-992), preview/summary 760
+         (9-1077), builder 960 (canvas + docked catalog). */
+      className={
+        step === 'choose'
+          ? '!w-[560px]'
+          : step === 'custom-build'
+            ? '!w-[960px] !max-w-[92vw]'
+            : '!w-[760px]'
+      }
+    >
       <style>{R24_CSS}</style>
       {step === 'choose' || !type ? (
         <>
-          <h3 id={TITLE_ID} className={modal.title}>
+          <h3 id={TITLE_ID} className={MODAL_H3}>
             파이프라인 시작
           </h3>
-          <div className={modal.desc}>
-            <span className="font-semibold tabular-nums text-[var(--pl-text-strong)]">
-              {targetSourceId} · {providerLabel}
-            </span>{' '}
-            — 실행할 파이프라인 유형을 선택하세요
+          {/* Figma 9-992: subtitle is 14px semibold, dark — just the instruction
+              (no id·provider prefix on step 1). */}
+          <div className="mb-3.5 text-[14px] font-semibold leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-strong)]">
+            실행할 파이프라인 유형을 선택하세요
           </div>
           <div className="flex flex-col gap-2.5">
             {optionRow('INSTALL')}
@@ -335,12 +351,12 @@ export function PreviewModal({
       ) : step === 'custom-build' ? (
         <>
           <Eyebrow type="CUSTOM" />
-          <h3 id={TITLE_ID} className={modal.title}>
+          <h3 id={TITLE_ID} className={MODAL_H3}>
             Custom 파이프라인 구성
           </h3>
-          <div className={detailStyles.preview.ident}>
-            <span className={detailStyles.preview.identNum}>{targetSourceId}</span> · {providerLabel} —
-            카탈로그에서 Task를 담아 순서를 만드세요 · 드래그로 재배열
+          {/* Figma 9:1257 copy. */}
+          <div className="text-[14px] leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-weak)]">
+            카탈로그에서 Task를 골라 담고 드래그로 순서를 자유롭게 배열하세요.
           </div>
           <div className="mt-3.5">
             <CustomBuildStep
@@ -378,7 +394,7 @@ export function PreviewModal({
       ) : step === 'custom-summary' ? (
         <>
           <Eyebrow type="CUSTOM" />
-          <h3 id={TITLE_ID} className={modal.title}>
+          <h3 id={TITLE_ID} className={MODAL_H3}>
             Custom 파이프라인 시작
           </h3>
           <div className={detailStyles.preview.ident}>
@@ -419,15 +435,13 @@ export function PreviewModal({
       ) : (
         <>
           <Eyebrow type={type} />
-          <h3 id={TITLE_ID} className={modal.title}>
+          {/* Figma 9-1077: subtitle 14px — just the task-count sentence (no
+              id·provider·recipe prefix on step 2). */}
+          <h3 id={TITLE_ID} className={MODAL_H3}>
             {label} 파이프라인 시작
           </h3>
-          <div className={detailStyles.preview.ident}>
-            <span className={detailStyles.preview.identNum}>{targetSourceId}</span> · {providerLabel} ·{' '}
-            <span className={text.mono}>{preview?.recipe_definition ?? '…'}</span>
-            {preview ? (
-              <span className={text.muted}> — 아래 {preview.steps.length}개 Task가 순서대로 실행됩니다</span>
-            ) : null}
+          <div className="text-[14px] leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-weak)]">
+            {preview ? `아래 ${preview.steps.length}개 Task가 순서대로 실행됩니다` : '…'}
           </div>
 
           {loadError ? (
