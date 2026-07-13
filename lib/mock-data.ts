@@ -101,14 +101,14 @@ export const mockUsers: User[] = [
     name: '홍길동',
     email: 'hong@company.com',
     role: 'SERVICE_MANAGER',
-    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp'],
+    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp', 'SDU'],
   },
   {
     id: 'user-2',
     name: '김철수',
     email: 'kim@company.com',
     role: 'SERVICE_MANAGER',
-    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp'],
+    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp', 'SDU'],
   },
   {
     id: 'admin-1',
@@ -151,6 +151,11 @@ export const mockServiceCodes: ServiceCode[] = [
     code: 'gcp',
     name: 'GCP',
     description: 'GCP 클라우드 PII Agent 연동',
+  },
+  {
+    code: 'SDU',
+    name: 'SDU',
+    description: 'SDU 계정 PII Agent 연동',
   },
 ];
 
@@ -1081,7 +1086,7 @@ mockProjects.push({
   projectCode: 'SDU-001',
   name: 'SDU PII Agent - 데모 대상',
   description: 'SDU 계정 대상. 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.',
-  serviceCode: 'aws',
+  serviceCode: 'SDU',
   cloudProvider: 'AWS',
   awsAccountId: '210987654321',
   awsRegionType: 'global',
