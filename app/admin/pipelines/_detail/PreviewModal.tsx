@@ -89,8 +89,8 @@ const TYPE_NOTES: Record<PipelineType, ReactNode> = {
   ),
   DELETE: (
     <>
-      삭제는 설치된 리소스를 destroy 합니다 — 되돌릴 수 없어요. 시작 후에는 <b>현재 파이프라인</b>{' '}
-      카드에서 진행을 볼 수 있어요.
+      삭제는 설치된 리소스를 destroy 하며 되돌릴 수 없어요. 시작 후에는 <b>현재 파이프라인</b> 카드에서
+      진행을 볼 수 있어요.
     </>
   ),
   CUSTOM: null,
@@ -148,7 +148,6 @@ export interface PreviewModalProps {
   open: boolean;
   onClose: () => void;
   targetSourceId: string;
-  providerLabel: string;
   /** Orchestrator wire provider; null = custom execution unsupported (e.g. SDU). */
   provider: CloudProvider | null;
   showToast: (message: string) => void;
@@ -158,7 +157,6 @@ export function PreviewModal({
   open,
   onClose,
   targetSourceId,
-  providerLabel,
   provider,
   showToast,
 }: PreviewModalProps): ReactElement | null {
@@ -397,9 +395,9 @@ export function PreviewModal({
           <h3 id={TITLE_ID} className={MODAL_H3}>
             Custom 파이프라인 시작
           </h3>
-          <div className={detailStyles.preview.ident}>
-            <span className={detailStyles.preview.identNum}>{targetSourceId}</span> · {providerLabel} ·
-            Task {chosen.length}개를 아래 순서로 실행합니다
+          {/* Consistent with the preview step — 14px, no id·provider prefix. */}
+          <div className="text-[14px] leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-weak)]">
+            아래 {chosen.length}개 Task를 이 순서로 실행합니다
           </div>
           <SeqFlow
             numbered
@@ -410,7 +408,7 @@ export function PreviewModal({
               desc: t.description,
             }))}
           />
-          <ModalNote>이 구성은 저장되지 않습니다 — 이번 실행에만 사용돼요</ModalNote>
+          <ModalNote>이 구성은 저장되지 않으며 이번 실행에만 사용돼요.</ModalNote>
 
           {runError && <div className={detailStyles.taskModal.degraded}>{runError}</div>}
 

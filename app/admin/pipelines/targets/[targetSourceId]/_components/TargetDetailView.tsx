@@ -424,7 +424,6 @@ export function TargetDetailView(): ReactElement {
         open={previewModal.isOpen}
         onClose={previewModal.close}
         targetSourceId={targetSourceId}
-        providerLabel={providerLabel(provider)}
         provider={orchProvider}
         showToast={toast.show}
       />
