@@ -302,7 +302,7 @@ export function PreviewModal({
   );
 
   return (
-    <ModalShell open={open} onClose={onClose} labelledBy={TITLE_ID} variant="wide">
+    <ModalShell open={open} onClose={onClose} labelledBy={TITLE_ID} variant="xwide">
       <style>{R24_CSS}</style>
       {step === 'choose' || !type ? (
         <>

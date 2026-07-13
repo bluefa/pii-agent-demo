@@ -4,8 +4,9 @@
  * ModalShell — overlay + centered dialog (design-inventory §Modal). Closes on
  * overlay click, ESC, and route change; focuses the first button on open.
  * `variant='task'` = 600px column with a max-height (body scrolls);
- * `variant='wide'` = 720px (start-pipeline modal). Pair with the app's
- * useModal() hook for open/close state (self-contained cleanup here).
+ * `variant='wide'` = 720px (start-pipeline modal); `variant='xwide'` = 960px
+ * (Custom builder — drag canvas + docked catalog need the room). Pair with the
+ * app's useModal() hook for open/close state (self-contained cleanup here).
  */
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
@@ -14,7 +15,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 export interface ModalShellProps {
   open: boolean;
   onClose: () => void;
-  variant?: 'default' | 'task' | 'wide';
+  variant?: 'default' | 'task' | 'wide' | 'xwide';
   children: ReactNode;
   /** id of the heading element that labels the dialog. */
   labelledBy?: string;
@@ -96,7 +97,13 @@ export function ModalShell({
         aria-labelledby={labelledBy}
         className={cn(
           modal.dialog,
-          variant === 'task' ? modal.dialogTask : variant === 'wide' ? modal.dialogWide : modal.dialogDefault,
+          variant === 'task'
+            ? modal.dialogTask
+            : variant === 'wide'
+              ? modal.dialogWide
+              : variant === 'xwide'
+                ? modal.dialogXWide
+                : modal.dialogDefault,
           className,
         )}
       >

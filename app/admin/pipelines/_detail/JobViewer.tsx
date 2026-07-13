@@ -11,6 +11,7 @@ import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { getJobResult, getJobState, OrchestratorApiError } from '@/app/lib/api/pipeline';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { d, j, MiniPill, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
+import { parseAnsi, stripAnsi } from '@/app/admin/pipelines/_detail/ansiLog';
 import type { TerraformJobResultDetail, TerraformJobStateDetail } from '@/lib/pipeline/types';
 
 type ViewerTab = 'log' | 'raw';
@@ -87,7 +88,13 @@ export function JobViewer({
     }
   }, [tab, result.phase, result.data]);
 
-  const copyText = tab === 'log' ? result.data?.content ?? '' : state.data?.last_response ?? '';
+  // Copy the log without ANSI codes; the state response is raw JSON — leave it verbatim.
+  const copyText =
+    tab === 'log'
+      ? result.data?.content
+        ? stripAnsi(result.data.content)
+        : ''
+      : state.data?.last_response ?? '';
   const succeeded = result.data?.succeeded ?? null;
   const truncated = tab === 'log' && result.phase === 'ok' && result.data?.truncated === true;
   const live = tab === 'log' && result.phase === 'ok' && result.data?.source === 'live' && !!result.data?.content;
@@ -143,7 +150,11 @@ export function JobViewer({
         <div ref={logRef} className={j.logBody} tabIndex={0} role="region" aria-label="Terraform 로그">
           <pre className={j.logPre}>
             {truncated && <span className={j.logCut}>— 이 지점 위 로그는 16MB 초과로 절단되었습니다 —</span>}
-            {result.data?.content}
+            {parseAnsi(result.data?.content ?? '').map((s, i) => (
+              <span key={i} className={cn(s.color && j.logAnsi[s.color], s.bold && 'font-semibold')}>
+                {s.text}
+              </span>
+            ))}
           </pre>
         </div>
       );

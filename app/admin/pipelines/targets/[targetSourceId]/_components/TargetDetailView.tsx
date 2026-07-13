@@ -220,7 +220,10 @@ export function TargetDetailView(): ReactElement {
   }, [liveId]);
 
   // Task-definition catalog — display names/descriptions for the task strip.
-  const provider = providerKey(raw?.cloud_provider ?? '');
+  // An SDU account is surfaced as SDU regardless of its underlying CSP
+  // (metadata.is_sdu_type wins over cloud_provider — owner call): SDU has no
+  // CSP metadata rows and no orchestrator wire provider (Custom stays disabled).
+  const provider = raw?.metadata?.is_sdu_type ? 'sdu' : providerKey(raw?.cloud_provider ?? '');
   const orchProvider = raw ? wireProvider(provider) : null;
   useEffect(() => {
     if (!orchProvider || liveId == null) return;

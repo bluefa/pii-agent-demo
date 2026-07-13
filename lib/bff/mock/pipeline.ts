@@ -1021,6 +1021,15 @@ const PATH = {
 
 const jobAgo = (min: number): string => new Date(Date.now() - min * 60_000).toISOString();
 
+// Real terraform output is ANSI-colourised; these wrap text in SGR escape codes
+// so the log viewer exercises its formatting (green adds, red errors, bold
+// headers) instead of showing raw `[0m` litter. ESC (0x1b) as a char code keeps
+// the source pure ASCII.
+const E = String.fromCharCode(27);
+const green = (s: string): string => `${E}[32m${s}${E}[0m`;
+const red = (s: string): string => `${E}[31m${s}${E}[0m`;
+const bold = (s: string): string => `${E}[1m${s}${E}[0m`;
+
 const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
   // task 12401 · attempt 1 — live read-through (no stored rows yet at timeout)
   '12401:1:1019': { succeeded: true, truncated: false, source: 'live', created_at: null, fetch_error: null,
@@ -1035,14 +1044,14 @@ const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' |
   // task 12401 · attempt 2 — stored terraform_result rows
   '12401:2:1026': { succeeded: true, truncated: false, source: 'stored', created_at: jobAgo(3 * 60 - 30), fetch_error: null,
     content: 'aws_glue_catalog_database.service_level: Creating...\n'
-      + 'aws_glue_catalog_database.service_level: Creation complete after 2s [id=svc-alpha:service_level]\n'
+      + `aws_glue_catalog_database.service_level: ${green('Creation complete after 2s')} [id=svc-alpha:service_level]\n`
       + 'aws_iam_role.pii_agent_scan: Creating...\n'
-      + 'aws_iam_role.pii_agent_scan: Creation complete after 1s\n\n'
-      + 'Apply complete! Resources: 214 added, 0 changed, 0 destroyed.' },
+      + `aws_iam_role.pii_agent_scan: ${green('Creation complete after 1s')}\n\n`
+      + green(bold('Apply complete! Resources: 214 added, 0 changed, 0 destroyed.')) },
   '12401:2:1027': { succeeded: false, truncated: true, source: 'stored', created_at: jobAgo(3 * 60 - 30), fetch_error: null,
     content: 'aws_glue_catalog_table.bdc_common["tbl_0417"]: Still creating... [2m10s elapsed]\n'
-      + 'aws_glue_catalog_table.bdc_common["tbl_0417"]: Creation complete after 2m12s\n\n'
-      + 'Error: Error acquiring the state lock\n\n'
+      + `aws_glue_catalog_table.bdc_common["tbl_0417"]: ${green('Creation complete after 2m12s')}\n\n`
+      + `${red(bold('Error:'))} ${bold('Error acquiring the state lock')}\n\n`
       + 'Error message: ConditionalCheckFailedException: The conditional request failed\n'
       + 'Lock Info:\n'
       + '  ID:        8f2a1c3e-77b4-4e01-9d2f-3a5b6c7d8e90\n'
@@ -1095,10 +1104,10 @@ const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | '
 
 // Generic log bodies for synthesized jobs (tasks without hand-written fixtures).
 const LOG_OK = 'Initializing the backend...\nInitializing provider plugins...\n'
-  + 'aws_resource.main: Creating...\naws_resource.main: Creation complete after 3s\n\n'
-  + 'Apply complete! Resources: 12 added, 0 changed, 0 destroyed.';
+  + `aws_resource.main: Creating...\naws_resource.main: ${green('Creation complete after 3s')}\n\n`
+  + green(bold('Apply complete! Resources: 12 added, 0 changed, 0 destroyed.'));
 const LOG_FAIL = 'aws_resource.main: Creating...\n\n'
-  + 'Error: error applying plan\n\n  on main.tf line 14:\n\n'
+  + `${red(bold('Error:'))} ${bold('error applying plan')}\n\n  on main.tf line 14:\n\n`
   + 'resource creation failed: mock forced failure\n\nApply cancelled.';
 const LOG_RUNNING = 'aws_resource.main: Creating...\n'
   + 'aws_resource.main: Still creating... [30s elapsed]';
