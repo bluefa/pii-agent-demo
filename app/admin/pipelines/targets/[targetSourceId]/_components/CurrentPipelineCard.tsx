@@ -11,7 +11,7 @@
  * state and the start CTA. Data (detail polling, catalog map, cancel flow)
  * stays in TargetDetailView — this file is presentation only.
  */
-import { Fragment, type ReactElement } from 'react';
+import { Fragment, useEffect, useRef, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -55,6 +55,24 @@ export function CurrentPipelineCard({
     detail.current_fail_count != null && detail.current_max_fail_count != null
       ? `시도 ${detail.current_fail_count + 1} / ${detail.current_max_fail_count}`
       : null;
+
+  // Bring the in-progress (current) task into view in the horizontal flow so
+  // attention lands on where the pipeline actually is (owner ask). Scrolls only
+  // the track — computed from client rects so it never nudges the page.
+  const flowRef = useRef<HTMLDivElement>(null);
+  const currentSeq = tasks.find((t) => t.status === 'IN_PROGRESS')?.sequence ?? null;
+  useEffect(() => {
+    const track = flowRef.current;
+    const el = track?.querySelector<HTMLElement>('.rtc.cur');
+    if (!track || !el) return;
+    const c = track.getBoundingClientRect();
+    const e = el.getBoundingClientRect();
+    const delta = e.left - c.left - (track.clientWidth - el.clientWidth) / 2;
+    track.scrollBy({
+      left: delta,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    });
+  }, [currentSeq, detail.pipeline_id]);
 
   return (
     <div className={CARD_SHELL}>
@@ -100,7 +118,7 @@ export function CurrentPipelineCard({
       </div>
 
       {/* flow — every task on the grid canvas, one row + horizontal scroll */}
-      <div className="r24-canvas r24-hscroll !rounded-none !border-x-0 !border-b-0">
+      <div ref={flowRef} className="r24-canvas r24-hscroll !rounded-none !border-x-0 !border-b-0">
         <div className="r24-line">
           {tasks.map((task, i) => {
             const def = defs.get(task.task_definition);

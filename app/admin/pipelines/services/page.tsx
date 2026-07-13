@@ -303,7 +303,7 @@ export default function ServicesPage(): ReactElement {
                     >
                       <PlTd mono>{target.targetSourceId}</PlTd>
                       <PlTd>
-                        <ProvTag provider={target.cloudProvider} />
+                        <ProvTag provider={target.cloudProvider} isSdu={target.isSduType} />
                       </PlTd>
                       <PlTd>
                         <LatestCell entry={latest[target.targetSourceId]} />

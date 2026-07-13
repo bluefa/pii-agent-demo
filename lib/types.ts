@@ -344,6 +344,8 @@ export interface ProjectSummary {
   targetSourceId: number;
   projectCode: string;
   cloudProvider: CloudProvider;
+  /** SDU account — surfaced as "SDU" over the underlying CSP (metadata passthrough). */
+  isSduType?: boolean;
   resourceCount: number;
   hasDisconnected: boolean;
   hasNew: boolean;

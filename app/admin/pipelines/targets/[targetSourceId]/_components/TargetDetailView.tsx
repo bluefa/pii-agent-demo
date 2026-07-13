@@ -406,10 +406,7 @@ export function TargetDetailView(): ReactElement {
             </table>
             </div>
             {/* R20 — always visible so the history reads as a paged list. */}
-            <div className="flex items-center justify-between border-t border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-4 py-1 text-[12px] text-[var(--pl-text-faint)]">
-              <span>
-                {live ? '실행 중에는 새 파이프라인을 시작할 수 없어요 — 완료 후 다시 시도하세요' : ''}
-              </span>
+            <div className="flex items-center justify-end border-t border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-4 py-1 text-[12px] text-[var(--pl-text-faint)]">
               <PlPagination
                 page={page}
                 pages={totalPages}
