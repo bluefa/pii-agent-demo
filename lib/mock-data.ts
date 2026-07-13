@@ -1114,6 +1114,54 @@ mockProjects.push({
   isRejected: false,
 });
 
+// 데모: 두 번째 SDU 대상 — 승인 대기 단계(설치 전)로, SDU 서비스에 대상이
+// 하나가 아님을 보이고 파이프라인 시작 흐름을 시연할 수 있게 한다.
+mockProjects.push({
+  id: 'aws-proj-sdu-2',
+  targetSourceId: 1100,
+  projectCode: 'SDU-002',
+  name: 'SDU PII Agent - 데이터 레이크',
+  description: 'SDU 계정 대상(승인 대기). 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.',
+  serviceCode: 'SDU',
+  cloudProvider: 'AWS',
+  awsAccountId: '345678901234',
+  awsRegionType: 'global',
+  isSduType: true,
+  processStatus: ProcessStatus.WAITING_APPROVAL,
+  status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, { selectedCount: 2, excludedCount: 1 }),
+  resources: [
+    {
+      id: 'res-sdu-2',
+      type: 'RDS',
+      resourceId: 'rds-sdu-02',
+      databaseType: 'MYSQL',
+      connectionStatus: 'PENDING',
+      isSelected: true,
+      awsType: 'RDS',
+      region: 'ap-northeast-2',
+      vpcId: 'vpc-sdu-002',
+      integrationCategory: 'TARGET',
+      note: 'NEW',
+    },
+    {
+      id: 'res-sdu-3',
+      type: 'DYNAMODB',
+      resourceId: 'ddb-sdu-01',
+      databaseType: 'DYNAMODB',
+      connectionStatus: 'PENDING',
+      isSelected: true,
+      awsType: 'DYNAMODB',
+      region: 'ap-northeast-2',
+      integrationCategory: 'TARGET',
+      note: 'NEW',
+    },
+  ],
+  terraformState: { serviceTf: 'PENDING', bdcTf: 'PENDING' },
+  createdAt: '2024-02-02T09:00:00Z',
+  updatedAt: '2024-02-02T10:00:00Z',
+  isRejected: false,
+});
+
 // ===== Helper Functions =====
 
 export const getProjectsByServiceCode = (serviceCode: string): Project[] => {
