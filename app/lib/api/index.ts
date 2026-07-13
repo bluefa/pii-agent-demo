@@ -85,6 +85,8 @@ const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
     targetSourceId,
     projectCode: item.service_code ?? fallbackCode,
     cloudProvider: normalizeCloudProvider(item.cloud_provider),
+    // SDU account → surfaced as "SDU" over the underlying CSP (ProvTag).
+    isSduType: item.metadata?.is_sdu_type === true,
     resourceCount: 0,
     hasDisconnected: false,
     hasNew: false,
