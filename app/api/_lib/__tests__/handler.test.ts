@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import { BffError } from '@/lib/bff/errors';
@@ -111,5 +111,102 @@ describe('withV1', () => {
     // Should preserve original problem, not re-wrap as INTERNAL_ERROR
     expect(body.code).toBe('FORBIDDEN');
     expect(body.detail).toBe('권한이 없습니다.');
+  });
+});
+
+describe('withV1 observability logging', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const logLines = (spy: ReturnType<typeof vi.spyOn>): Array<Record<string, unknown>> =>
+    spy.mock.calls.map((call: unknown[]) => JSON.parse(String(call[0])) as Record<string, unknown>);
+
+  it('emits an ERROR log for an upstream 5xx BffError, preserving the upstream status', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const handler = vi.fn().mockRejectedValue(new BffError(502, 'BAD_GATEWAY', 'upstream down'));
+
+    await withV1(handler)(makeRequest(), makeParams());
+
+    const errorLines = logLines(spy).filter((l) => l.severity === 'ERROR');
+    expect(errorLines).toHaveLength(1);
+    expect(errorLines[0].status).toBe(502);
+    expect(errorLines[0].context).toBe('bff-upstream');
+    expect(errorLines[0].method).toBe('GET');
+  });
+
+  it('emits an ERROR log when an upstream 500 maps to a non-5xx problem code', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const handler = vi.fn().mockRejectedValue(new BffError(500, 'ALREADY_EXISTS', 'dup'));
+
+    const res = await withV1(handler)(makeRequest(), makeParams());
+    const body = await res.json();
+    expect(body.code).toBe('CONFLICT_IN_PROGRESS'); // ALREADY_EXISTS → 409 problem
+
+    const errorLines = logLines(spy).filter((l) => l.severity === 'ERROR');
+    expect(errorLines).toHaveLength(1);
+    expect(errorLines[0].status).toBe(500); // gated on upstream status, not the problem status
+  });
+
+  it('does not emit an ERROR log for a 4xx BffError', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const handler = vi.fn().mockRejectedValue(new BffError(404, 'NOT_FOUND', 'missing'));
+
+    await withV1(handler)(makeRequest(), makeParams());
+
+    expect(logLines(spy).filter((l) => l.severity === 'ERROR')).toHaveLength(0);
+  });
+
+  it('includes clamped client page/action in the access log', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const req = new Request('http://localhost/test', {
+      headers: { 'x-client-page': '/services', 'x-client-action': 'refresh' },
+    });
+
+    await withV1(handler)(req, makeParams());
+
+    const infoLines = logLines(spy).filter((l) => l.severity === 'INFO');
+    expect(infoLines).toHaveLength(1);
+    expect(infoLines[0].clientPage).toBe('/services');
+    expect(infoLines[0].clientAction).toBe('refresh');
+  });
+
+  it('omits client page/action from the access log when absent', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+
+    await withV1(handler)(makeRequest(), makeParams());
+
+    const [info] = logLines(spy).filter((l) => l.severity === 'INFO');
+    expect('clientPage' in info).toBe(false);
+    expect('clientAction' in info).toBe(false);
+  });
+
+  it('records id-collapsed pathTemplate/pageTemplate alongside the raw path/clientPage', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const req = new Request('http://localhost/integration/api/v1/target-sources/123/resources', {
+      headers: { 'x-client-page': '/target-sources/456' },
+    });
+
+    await withV1(handler)(req, makeParams());
+
+    const [info] = logLines(spy).filter((l) => l.severity === 'INFO');
+    // Raw values are preserved verbatim…
+    expect(info.path).toBe('/integration/api/v1/target-sources/123/resources');
+    expect(info.clientPage).toBe('/target-sources/456');
+    // …and the id-collapsed templates are added for aggregation.
+    expect(info.pathTemplate).toBe('/integration/api/v1/target-sources/:id/resources');
+    expect(info.pageTemplate).toBe('/target-sources/:id');
+  });
+
+  it('omits pageTemplate when clientPage is absent (pathTemplate always present)', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+
+    await withV1(handler)(makeRequest(), makeParams());
+
+    const [info] = logLines(spy).filter((l) => l.severity === 'INFO');
+    expect('pageTemplate' in info).toBe(false);
+    expect(info.pathTemplate).toBe('/test');
   });
 });

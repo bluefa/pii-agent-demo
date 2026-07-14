@@ -15,13 +15,17 @@ const INFRA_TARGET_SOURCE_BASE_URL = '/infra/target-sources';
 export const getAzureInstallationStatus = (
   targetSourceId: number,
 ): Promise<z.infer<typeof schemas.AzureInstallationStatusResponse>> =>
-  fetchInfraJson(`${BASE_URL}/${targetSourceId}/installation-status`);
+  fetchInfraJson(`${BASE_URL}/${targetSourceId}/installation-status`, {
+    action: 'getAzureInstallationStatus',
+  });
 
 /** Issue #222: snake_case raw passthrough (scan-app uses getSnakeRaw at the route). */
 export const getAzureScanApp = (
   targetSourceId: number,
 ): Promise<z.infer<typeof schemas.AzureServicePrincipalVerificationResponse>> =>
-  fetchInfraJson(`${TARGET_SOURCE_BASE_URL}/${targetSourceId}/azure/scan-app`);
+  fetchInfraJson(`${TARGET_SOURCE_BASE_URL}/${targetSourceId}/azure/scan-app`, {
+    action: 'getAzureScanApp',
+  });
 
 /** G8 — Azure Private Link health check (wire already camelCase per swagger). */
 export const getAzurePrivateLinkHealthCheck = (
@@ -29,4 +33,5 @@ export const getAzurePrivateLinkHealthCheck = (
 ): Promise<z.infer<typeof schemas.AzureHealthCheckResult>> =>
   fetchInfraJson(
     `${INFRA_TARGET_SOURCE_BASE_URL}/${targetSourceId}/azure-private-link-health-check`,
+    { action: 'getAzurePrivateLinkHealthCheck' },
   );

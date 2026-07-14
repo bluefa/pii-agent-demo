@@ -3,6 +3,7 @@
 import { fetchJson, type FetchJsonOptions } from '@/lib/fetch-json';
 import { toInternalInfraApiPath, toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
+import { sanitizeLogPath } from '@/lib/log-path';
 
 const BFF_URL = process.env.BFF_API_URL || 'http://localhost:8082';
 
@@ -11,7 +12,8 @@ export const fetchInfra = (path: string, init?: RequestInit): Promise<Response> 
 
 export const fetchInfraJson = <T>(path: string, options?: FetchJsonOptions): Promise<T> => {
   const internalPath = toInternalInfraApiPath(path);
-  console.log('API 호출 - 내부 경로:', path, '→ 프록시 경로:', internalPath);
+  // LIN-63: query-stripped paths only — this surface is now the system of record.
+  console.log('API 호출 - 내부 경로:', sanitizeLogPath(path), '→ 프록시 경로:', sanitizeLogPath(internalPath));
   return fetchJson<T>(internalPath, options);
 };
 

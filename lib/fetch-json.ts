@@ -10,6 +10,7 @@
 
 import { AppError, isKnownErrorCode } from '@/lib/errors';
 import type { AppErrorCode } from '@/lib/errors';
+import { sanitizeLogPath } from '@/lib/log-path';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,6 +20,17 @@ export interface FetchJsonOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   /** 요청 타임아웃(ms). 기본 30초 */
   timeout?: number;
+  /** Observability: the action that triggered this call; forwarded as X-Client-Action. */
+  action?: string;
+}
+
+/** Observability ring-buffer entry — attached to client error reports as a breadcrumb. */
+export interface ApiCallRecord {
+  method: string;
+  path: string;
+  status: number;
+  durationMs: number;
+  requestId: string;
 }
 
 /** ProblemDetails (RFC 9457) 에러 응답 형태 */
@@ -37,6 +49,23 @@ interface ErrorBody {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+
+// ---------------------------------------------------------------------------
+// Observability: ring buffer of the last 10 API calls
+// ---------------------------------------------------------------------------
+
+const RING_SIZE = 10;
+const recentApiCalls: ApiCallRecord[] = [];
+
+function recordApiCall(record: ApiCallRecord): void {
+  recentApiCalls.push(record);
+  if (recentApiCalls.length > RING_SIZE) recentApiCalls.shift();
+}
+
+/** Snapshot of the last 10 API calls; attached to client error reports. */
+export function getRecentApiCalls(): ApiCallRecord[] {
+  return [...recentApiCalls];
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -126,7 +155,7 @@ async function parseErrorResponse(res: Response): Promise<AppError> {
  * ```
  */
 export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}): Promise<T> {
-  const { body, timeout = DEFAULT_TIMEOUT_MS, ...init } = options;
+  const { body, timeout = DEFAULT_TIMEOUT_MS, action, ...init } = options;
 
   // AbortController: 타임아웃 + 외부 signal 병합
   const controller = new AbortController();
@@ -141,20 +170,41 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
     }
   }
 
+  // Observability context: per-request correlation id + calling page/action.
+  const requestId = crypto.randomUUID();
+  const method = (init.method ?? 'GET').toUpperCase();
+  const path = url.split('?')[0];
+  const startedAt = Date.now();
+  let recorded = false;
+  const record = (status: number): void => {
+    if (recorded) return;
+    recorded = true;
+    recordApiCall({ method, path, status, durationMs: Date.now() - startedAt, requestId });
+  };
+
   // Headers 병합: Headers 인스턴스/튜플 배열도 안전하게 처리
   const headers = new Headers(init.headers);
   if (body !== undefined) {
     headers.set('Content-Type', 'application/json');
   }
+  headers.set('X-Request-Id', requestId);
+  if (typeof location !== 'undefined' && location.pathname) {
+    headers.set('X-Client-Page', location.pathname);
+  }
+  if (action) {
+    headers.set('X-Client-Action', action);
+  }
 
   try {
-    console.log('HTTP 요청:', url, init);
+    // Log method + query-stripped path only — never the init (it holds the body = PII).
+    console.log('HTTP 요청:', method, sanitizeLogPath(url));
     const res = await fetch(url, {
       ...init,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
+    record(res.status);
 
     if (res.ok) {
       // 204 No Content
@@ -165,6 +215,8 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
     throw await parseErrorResponse(res);
   } catch (err) {
     if (err instanceof AppError) throw err;
+    // Only reached when fetch itself threw (network/abort/timeout) — record status 0.
+    record(0);
 
     // Abort 감지: signal.aborted 가 우선 — Chrome은 abort(reason) 의 reason 이
     // 문자열이면 fetch 가 DOMException 이 아니라 그 문자열을 그대로 reject 하므로
@@ -176,7 +228,7 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
       const isTimeout = reason === 'TIMEOUT';
       if (process.env.NODE_ENV !== 'production' && !isTimeout) {
         // Dev only: race를 진단하기 위한 신호. 사용자에게는 안 보이므로 production에서는 제거.
-        console.debug('[fetchJson] aborted (caller superseded):', url);
+        console.debug('[fetchJson] aborted (caller superseded):', sanitizeLogPath(url));
       }
       throw new AppError({
         status: 0,

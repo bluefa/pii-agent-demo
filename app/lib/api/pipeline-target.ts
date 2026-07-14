@@ -43,4 +43,7 @@ export interface RawTargetSourceDetail {
 export const getRawTargetSourceDetail = (
   targetSourceId: number | string,
 ): Promise<RawTargetSourceDetail> =>
-  fetchInfraJson<RawTargetSourceDetail>(`/target-sources/${encodeURIComponent(String(targetSourceId))}`);
+  fetchInfraJson<RawTargetSourceDetail>(
+    `/target-sources/${encodeURIComponent(String(targetSourceId))}`,
+    { action: 'getRawTargetSourceDetail' },
+  );

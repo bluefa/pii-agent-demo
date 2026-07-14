@@ -47,7 +47,7 @@ export const useGuide = (name: GuideName | null): UseGuideResult => {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchJson<GuideDetail>(guideUrl(name));
+      const result = await fetchJson<GuideDetail>(guideUrl(name), { action: 'getGuide' });
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -65,7 +65,7 @@ export const useGuide = (name: GuideName | null): UseGuideResult => {
       if (!name) throw new Error('No guide selected');
       // body is passed as an object — fetchJson serialises it. Calling
       // JSON.stringify here would double-encode the payload.
-      return fetchJson<GuideDetail>(guideUrl(name), { method: 'PUT', body });
+      return fetchJson<GuideDetail>(guideUrl(name), { action: 'updateGuide', method: 'PUT', body });
     },
     { onSuccess: (result) => setData(result) },
   );
