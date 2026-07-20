@@ -25,6 +25,7 @@
  */
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
+import { getTcLogicalDbs } from '@/lib/bff/mock/task-queue';
 import { ProcessStatus } from '@/lib/types';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
@@ -126,7 +127,14 @@ const getTestedList = (targetSourceId: number): TestedLogicalDatabaseItemWire[] 
 // ===== Handlers (resourceId is the modal's only key) =====
 
 export const mockLogicalDb = {
-  getTestedByResourceId: async (targetSourceId: string, _resourceId: string) => {
+  getTestedByResourceId: async (targetSourceId: string, resourceId: string) => {
+    // Admin Task Queue demo targets (1799/1583) live outside the store — their
+    // per-resource lists come from the task-queue fixture.
+    const demo = getTcLogicalDbs(Number(targetSourceId), resourceId);
+    if (demo) {
+      const demoBody: TestedLogicalDatabasesResponseWire = { logical_database_list: demo.tested };
+      return NextResponse.json(demoBody);
+    }
     // Tested topology is shared across connection-test-phase targets (it is the
     // discovered DB list, not per-resource state), so resourceId is unused here.
     const auth = authorize(targetSourceId);
@@ -138,6 +146,11 @@ export const mockLogicalDb = {
   },
 
   getExcludedByResourceId: async (targetSourceId: string, resourceId: string) => {
+    const demo = getTcLogicalDbs(Number(targetSourceId), resourceId);
+    if (demo) {
+      const demoBody: SkipLogicalDatabaseResponseWire = { skip_logical_database_list: demo.excluded };
+      return NextResponse.json(demoBody);
+    }
     const auth = authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
     const body: SkipLogicalDatabaseResponseWire = {

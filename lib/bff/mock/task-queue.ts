@@ -98,7 +98,7 @@ const REQUESTS_ALL: RequestRow[] = [
   { ts: 1444, svc: '검색서비스', code: 'SRC', pv: 'IDC', cs: 'NO_REQUEST' },
 ];
 
-const REASON_BY_TS = new Map(REQUESTS_REJECTED.map((r) => [r.ts, r]));
+
 
 // ── NLB current occupancy (P3, IDC) — mutable so nlb saves move occupancy ────
 interface NlbRow {
@@ -107,7 +107,7 @@ interface NlbRow {
   occupiedListenerCount: number;
 }
 
-const nlbState: NlbRow[] = [
+const SEED_NLB: readonly NlbRow[] = [
   { nlbIndex: 1, nlbIpList: ['10.30.0.11', '10.30.0.12'], occupiedListenerCount: 12 },
   { nlbIndex: 2, nlbIpList: ['10.30.0.21', '10.30.0.22'], occupiedListenerCount: 28 },
   { nlbIndex: 3, nlbIpList: ['10.30.0.31', '10.30.0.32'], occupiedListenerCount: 42 },
@@ -118,7 +118,7 @@ const nlbState: NlbRow[] = [
 
 // Current NLB assignment per (targetSourceId:resourceId), seeded from DETAILS[1027]
 // so repeated saves move occupancy off the previous index.
-const nlbAssignment = new Map<string, number>([
+const SEED_NLB_ASSIGNMENT = new Map<string, number>([
   ['1027:idc-r-8f21', 3],
   ['1027:idc-r-8f22', 3],
   ['1027:idc-r-8f23', 5],
@@ -126,20 +126,21 @@ const nlbAssignment = new Map<string, number>([
 
 /** Shared with the reused `idc.getNlbTable` mock so both read one occupancy source. */
 export function getNlbTableRows(): NlbRow[] {
-  return nlbState.map((r) => ({ ...r, nlbIpList: [...r.nlbIpList] }));
+  return tq().nlbState.map((r) => ({ ...r, nlbIpList: [...r.nlbIpList] }));
 }
 
 function assignNlbIndex(targetSourceId: number, resourceId: string, nextIndex: number): void {
+  const state = tq();
   const key = `${targetSourceId}:${resourceId}`;
-  const prev = nlbAssignment.get(key);
+  const prev = state.nlbAssignment.get(key);
   if (prev === nextIndex) return;
   if (prev !== undefined) {
-    const prevRow = nlbState.find((r) => r.nlbIndex === prev);
+    const prevRow = state.nlbState.find((r) => r.nlbIndex === prev);
     if (prevRow && prevRow.occupiedListenerCount > 0) prevRow.occupiedListenerCount -= 1;
   }
-  const nextRow = nlbState.find((r) => r.nlbIndex === nextIndex);
+  const nextRow = state.nlbState.find((r) => r.nlbIndex === nextIndex);
   if (nextRow) nextRow.occupiedListenerCount += 1;
-  nlbAssignment.set(key, nextIndex);
+  state.nlbAssignment.set(key, nextIndex);
 }
 
 // ── Test Connection queue (P4/P5) — mutable status per target source ─────────
@@ -154,12 +155,253 @@ interface TcState {
   reject_reason: string | null;
 }
 
-const tcState = new Map<number, TcState>([
+const SEED_TC = new Map<number, TcState>([
   [1799, { ts: 1799, svc: '배송서비스', code: 'DLV', pv: 'AZURE', status: 'TEST_CONNECTION_COMPLETED', completed_at: '2026-07-20T17:19:00Z', rejected_at: null, reject_reason: null }],
   [1642, { ts: 1642, svc: '쿠폰서비스', code: 'CPN', pv: 'AWS', status: 'TEST_CONNECTION_COMPLETED', completed_at: '2026-07-20T06:23:00Z', rejected_at: null, reject_reason: null }],
   [1511, { ts: 1511, svc: '리뷰서비스', code: 'RVW', pv: 'GCP', status: 'TEST_CONNECTION_COMPLETED', completed_at: '2026-07-13T19:40:00Z', rejected_at: null, reject_reason: null }],
   [1583, { ts: 1583, svc: '재고서비스', code: 'IVT', pv: 'IDC', status: 'TEST_CONNECTION_REJECTED', completed_at: null, rejected_at: '2026-07-19T14:52:00Z', reject_reason: '대상 3건 중 1건 접속 실패(10.20.4.18:1521 timeout) — NLB 리스너 미반영 여부 확인 후 재실행 요청' }],
 ]);
+
+// ── Approval-request demo fixture (P3) ──────────────────────────────────────
+// Demo target sources (1027 IDC / 2013 AWS) are NOT store projects, so the
+// confirm mock falls back here when getProjectByTargetSourceId misses. Ported
+// from prototype DETAILS. nlb_index is read live from nlbAssignment so NLB
+// saves round-trip into the resource table.
+interface ApprovalDemoResource {
+  resource_id: string;
+  resource_name: string;
+  resource_type: string;
+  selected: boolean;
+  exclusion_reason?: string;
+  metadata: Record<string, unknown>;
+}
+
+interface ApprovalDemo {
+  ts: number;
+  status: string;
+  requested_by: string;
+  requested_at: string;
+  processed_at: string | null;
+  reason: string | null;
+  resources: ApprovalDemoResource[];
+}
+
+const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
+  [1027, {
+    ts: 1027, status: 'PENDING', requested_by: 'jun.park', requested_at: '2026-07-19T16:08:00Z',
+    processed_at: null, reason: null,
+    resources: [
+      { resource_id: 'idc-r-8f21', resource_name: 'oracle-order-prod', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'Oracle', port: 1521, oracle_service_id: 'ORCLPDB1', idc_host_format: 'IP', idc_ips: ['10.20.1.11', '10.20.1.12'], idc_source_ips: ['10.20.9.1', '10.20.9.2'] } },
+      { resource_id: 'idc-r-8f22', resource_name: 'mysql-order-prod', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'MySQL', port: 3306, idc_host_format: 'HOST', idc_host: 'db-mysql.order.prod.internal', idc_source_ips: ['10.20.9.1'] } },
+      { resource_id: 'idc-r-8f23', resource_name: 'pg-order-prod', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'PostgreSQL', port: 5432, idc_host_format: 'IP', idc_ips: ['10.20.2.31'], idc_source_ips: ['10.20.9.4'] } },
+      { resource_id: 'idc-r-8f24', resource_name: 'mysql-order-dev', resource_type: 'IDC', selected: false,
+        exclusion_reason: '개발(dev) 인스턴스 — 서비스 오너 제외',
+        metadata: { provider: 'IDC', database_type: 'MySQL', port: 3306, idc_host_format: 'HOST', idc_host: 'db-mysql.order.dev.internal' } },
+    ],
+  }],
+  [2013, {
+    ts: 2013, status: 'PENDING', requested_by: 'mina.choi', requested_at: '2026-07-20T18:09:00Z',
+    processed_at: null, reason: null,
+    resources: [
+      { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-pay-prod', resource_name: 'aurora-pay-prod', resource_type: 'RDS_CLUSTER', selected: true,
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
+      { resource_id: 'arn:aws:redshift:ap-northeast-2:558712049371:cluster:pay-redshift-main', resource_name: 'pay-redshift-main', resource_type: 'REDSHIFT', selected: true,
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'Redshift' } },
+      { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:db-proxy:prx-pay', resource_name: 'pay-rds-proxy', resource_type: 'RDS', selected: false,
+        exclusion_reason: 'RDS Proxy — 설치 불필요 리소스',
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
+    ],
+  }],
+]);
+
+/** Fallback ApprovalRequestLatestDto wire for demo targets (null = not a demo id). */
+export function getTqApprovalLatest(ts: number): Record<string, unknown> | null {
+  const demo = tq().approvalDemoState.get(ts);
+  if (!demo) return null;
+  const selected = demo.resources.filter((r) => r.selected).length;
+  return {
+    request: {
+      id: demo.ts,
+      target_source_id: demo.ts,
+      status: demo.status,
+      requested_by: { user_id: demo.requested_by },
+      requested_at: demo.requested_at,
+      resource_total_count: demo.resources.length,
+      resource_selected_count: selected,
+    },
+    resources: demo.resources.map((r) => ({
+      ...r,
+      metadata: {
+        ...r.metadata,
+        ...(tq().nlbAssignment.has(`${demo.ts}:${r.resource_id}`)
+          ? { nlb_index: tq().nlbAssignment.get(`${demo.ts}:${r.resource_id}`) }
+          : {}),
+      },
+    })),
+    ...(demo.processed_at
+      ? { result: { request_id: demo.ts, status: demo.status, processed_at: demo.processed_at, reason: demo.reason } }
+      : {}),
+  };
+}
+
+/** Fallback approve/reject for demo targets — mutates the P2 lists so the queue round-trips. */
+export function applyTqApprovalDecision(
+  ts: number,
+  decision: 'APPROVED' | 'REJECTED',
+  reason: string | null,
+): Record<string, unknown> | null {
+  const state = tq();
+  const demo = state.approvalDemoState.get(ts);
+  if (!demo) return null;
+  const now = new Date().toISOString();
+  demo.status = decision;
+  demo.processed_at = now;
+  demo.reason = reason;
+
+  const pIdx = state.requestsPending.findIndex((r) => r.ts === ts);
+  const row = pIdx >= 0 ? state.requestsPending.splice(pIdx, 1)[0] : undefined;
+  const allRow = state.requestsAll.find((r) => r.ts === ts);
+  if (decision === 'REJECTED') {
+    const rejected: RequestRow = {
+      ts, svc: row?.svc ?? allRow?.svc ?? '', code: row?.code ?? allRow?.code ?? '',
+      pv: row?.pv ?? allRow?.pv ?? 'IDC', cs: 'REJECTED', reason: reason ?? undefined, at: now,
+    };
+    state.requestsRejected.unshift(rejected);
+    state.reasonByTs.set(ts, rejected);
+  }
+  if (allRow) allRow.cs = decision === 'APPROVED' ? 'CONFIRMING' : 'REJECTED';
+  return { request_id: ts, status: decision, processed_at: now, reason };
+}
+
+// ── Test-connection per-resource results + logical DBs (P5 demo fixture) ────
+// Demo tc targets (1799/1583) are not store projects either; the confirm and
+// logical-db mocks fall back here for latest-results and by-resource-id reads.
+interface TcLogicalItem {
+  database_name: string;
+  schema_name?: string;
+  type: 'DATABASE' | 'SCHEMA';
+  skip_reason?: string;
+  // Passthrough wire compatibility (zod .passthrough() output is indexable).
+  [k: string]: unknown;
+}
+
+interface TcResultFixture {
+  resource_id: string;
+  database_type: string;
+  connection_target: string;
+  connection_status: 'SUCCESS' | 'FAILED';
+  tested: TcLogicalItem[];
+  excluded: TcLogicalItem[];
+}
+
+const dbList = (names: string[]): TcLogicalItem[] => names.map((n) => ({ database_name: n, type: 'DATABASE' }));
+const schemaList = (db: string, names: string[]): TcLogicalItem[] =>
+  names.map((n) => ({ database_name: db, schema_name: n, type: 'SCHEMA' }));
+
+const TC_RESULTS = new Map<number, TcResultFixture[]>([
+  [1799, [
+    { resource_id: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-01',
+      database_type: 'MySQL', connection_target: 'mysql-dlv-01', connection_status: 'SUCCESS',
+      tested: dbList(['dlv_main', 'dlv_order', 'dlv_ship', 'dlv_return', 'dlv_track', 'dlv_billing', 'dlv_partner', 'dlv_stats', 'dlv_noti', 'dlv_geo', 'dlv_history', 'dlv_audit']),
+      excluded: [
+        { database_name: 'dlv_stg', type: 'DATABASE', skip_reason: 'STG' },
+        { database_name: 'dlv_dev', type: 'DATABASE', skip_reason: 'DEV' },
+        { database_name: 'tmp_batch', type: 'DATABASE', skip_reason: 'TEMP' },
+      ] },
+    { resource_id: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-02',
+      database_type: 'MySQL', connection_target: 'mysql-dlv-02', connection_status: 'SUCCESS',
+      tested: dbList(['ship_core', 'ship_route', 'ship_fleet', 'ship_driver', 'ship_zone', 'ship_fee', 'ship_event', 'ship_log']),
+      excluded: [{ database_name: 'ship_dev', type: 'DATABASE', skip_reason: 'DEV' }] },
+    { resource_id: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforPostgreSQL/servers/pg-dlv-main',
+      database_type: 'PostgreSQL', connection_target: 'pg-dlv-main', connection_status: 'SUCCESS',
+      tested: schemaList('pg_dlv', ['public', 'delivery', 'partner', 'billing', 'analytics']),
+      excluded: [
+        { database_name: 'pg_dlv', schema_name: 'scratch', type: 'SCHEMA', skip_reason: 'TEMP' },
+        { database_name: 'pg_dlv', schema_name: 'dev_sandbox', type: 'SCHEMA', skip_reason: 'DEV' },
+      ] },
+  ]],
+  [1583, [
+    { resource_id: 'idc-ivt-9a01', database_type: 'MySQL', connection_target: 'db-mysql.ivt.prod.internal', connection_status: 'SUCCESS',
+      tested: dbList(['ivt_main', 'ivt_stock', 'ivt_wh', 'ivt_supplier', 'ivt_audit', 'ivt_stats']),
+      excluded: [{ database_name: 'ivt_dev', type: 'DATABASE', skip_reason: 'DEV' }] },
+    { resource_id: 'idc-ivt-9a02', database_type: 'MySQL', connection_target: '10.20.4.11', connection_status: 'SUCCESS',
+      tested: dbList(['ivt_order', 'ivt_out', 'ivt_in', 'ivt_move']), excluded: [] },
+    { resource_id: 'idc-ivt-9a03', database_type: 'Oracle', connection_target: '10.20.4.18', connection_status: 'FAILED',
+      tested: [], excluded: [] },
+  ]],
+]);
+
+/** Fallback latest-results rows for demo tc targets (null = not a demo id). */
+export function getTcLatestResultRows(ts: number): Record<string, unknown>[] | null {
+  const rows = TC_RESULTS.get(ts);
+  if (!rows) return null;
+  return rows.map((r) => ({
+    resource_id: r.resource_id,
+    agent_id: r.resource_id,
+    database_type: r.database_type,
+    connection_target: r.connection_target,
+    connection_status: r.connection_status,
+    ...(r.connection_status === 'SUCCESS'
+      ? { logical_database_count: r.tested.length, excluded_logical_database_count: r.excluded.length }
+      : {}),
+  }));
+}
+
+// ── Mutable state container ──────────────────────────────────────────────────
+// Next dev compiles each route into its own module graph, so plain module-level
+// mutable state is NOT shared between the PUT and GET routes (same trap the
+// main mock-store solves). All mutable task-queue state therefore lives on
+// globalThis, seeded lazily from the consts above.
+interface TqMockState {
+  requestsPending: RequestRow[];
+  requestsRejected: RequestRow[];
+  requestsAll: RequestRow[];
+  reasonByTs: Map<number, RequestRow>;
+  nlbState: NlbRow[];
+  nlbAssignment: Map<string, number>;
+  tcState: Map<number, TcState>;
+  approvalDemoState: Map<number, ApprovalDemo>;
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __piiAgentTaskQueueMock: TqMockState | undefined;
+}
+
+function tq(): TqMockState {
+  if (!globalThis.__piiAgentTaskQueueMock) {
+    const requestsRejected = REQUESTS_REJECTED.map((r) => ({ ...r }));
+    globalThis.__piiAgentTaskQueueMock = {
+      requestsPending: REQUESTS_PENDING.map((r) => ({ ...r })),
+      requestsRejected,
+      requestsAll: REQUESTS_ALL.map((r) => ({ ...r })),
+      reasonByTs: new Map(requestsRejected.map((r) => [r.ts, r])),
+      nlbState: SEED_NLB.map((r) => ({ ...r, nlbIpList: [...r.nlbIpList] })),
+      nlbAssignment: new Map(SEED_NLB_ASSIGNMENT),
+      tcState: new Map([...SEED_TC].map(([k, v]) => [k, { ...v }])),
+      approvalDemoState: new Map(
+        [...SEED_APPROVAL_DEMO].map(([k, v]) => [
+          k,
+          { ...v, resources: v.resources.map((r) => ({ ...r, metadata: { ...r.metadata } })) },
+        ]),
+      ),
+    };
+  }
+  return globalThis.__piiAgentTaskQueueMock;
+}
+
+/** Fallback tested/excluded logical-DB lists for demo tc targets. */
+export function getTcLogicalDbs(
+  ts: number,
+  resourceId: string,
+): { tested: TcLogicalItem[]; excluded: TcLogicalItem[] } | null {
+  const row = TC_RESULTS.get(ts)?.find((r) => r.resource_id === resourceId);
+  if (!row) return null;
+  return { tested: row.tested.map((i) => ({ ...i })), excluded: row.excluded.map((i) => ({ ...i })) };
+}
 
 // ── Wire builders ────────────────────────────────────────────────────────────
 interface WirePage<T> {
@@ -211,7 +453,7 @@ function toProcessWire(p: ProcRow) {
 
 function toTargetSourceInfoWire(r: RequestRow) {
   const isRejected = r.cs === 'REJECTED';
-  const rejected = REASON_BY_TS.get(r.ts) ?? r;
+  const rejected = tq().reasonByTs.get(r.ts) ?? r;
   const hasRequest = r.cs !== 'NO_REQUEST';
   return {
     targetSourceId: r.ts,
@@ -249,10 +491,10 @@ export const mockTaskQueue = {
   // GET /dashboard/summary
   getDashboardSummary: async () =>
     NextResponse.json({
-      pending_approval_count: REQUESTS_PENDING.length,
-      rejected_approval_count: REQUESTS_REJECTED.length,
-      test_connection_completed_count: [...tcState.values()].filter((s) => s.status === 'TEST_CONNECTION_COMPLETED').length,
-      test_connection_rejection_count: [...tcState.values()].filter((s) => s.status === 'TEST_CONNECTION_REJECTED').length,
+      pending_approval_count: tq().requestsPending.length,
+      rejected_approval_count: tq().requestsRejected.length,
+      test_connection_completed_count: [...tq().tcState.values()].filter((s) => s.status === 'TEST_CONNECTION_COMPLETED').length,
+      test_connection_rejection_count: [...tq().tcState.values()].filter((s) => s.status === 'TEST_CONNECTION_REJECTED').length,
       evaluated_at: new Date().toISOString(),
     }),
 
@@ -270,8 +512,8 @@ export const mockTaskQueue = {
     if (query.targetSourceId !== undefined) {
       const p = TS_INDEX.get(query.targetSourceId);
       const cs =
-        REQUESTS_ALL.find((r) => r.ts === query.targetSourceId)?.cs ??
-        (REASON_BY_TS.has(query.targetSourceId) ? 'REJECTED' : 'PENDING');
+        tq().requestsAll.find((r) => r.ts === query.targetSourceId)?.cs ??
+        (tq().reasonByTs.has(query.targetSourceId) ? 'REJECTED' : 'PENDING');
       const row: RequestRow | null = p
         ? { ts: p.ts, svc: p.svc, code: p.code, pv: p.pv, cs }
         : null;
@@ -281,10 +523,10 @@ export const mockTaskQueue = {
 
     const source =
       query.confirmStatus === 'PENDING'
-        ? REQUESTS_PENDING
+        ? tq().requestsPending
         : query.confirmStatus === 'REJECTED'
-          ? REQUESTS_REJECTED
-          : REQUESTS_ALL;
+          ? tq().requestsRejected
+          : tq().requestsAll;
     return NextResponse.json(wirePage(source.map(toTargetSourceInfoWire), query.page, query.size));
   },
 
@@ -298,20 +540,20 @@ export const mockTaskQueue = {
 
   // GET /target-sources/test-connection/status?status=&page=&size=
   getTestConnectionPage: async (query: { status: string; page: number; size: number }) => {
-    const rows = [...tcState.values()].filter((s) => s.status === query.status).map(toTcWire);
+    const rows = [...tq().tcState.values()].filter((s) => s.status === query.status).map(toTcWire);
     return NextResponse.json(wirePage(rows, query.page, query.size));
   },
 
   // GET …/{id}/test-connection/status (single)
   getTestConnectionStatus: async (id: number) => {
-    const s = tcState.get(id);
+    const s = tq().tcState.get(id);
     if (s) return NextResponse.json(toTcWire(s));
     return NextResponse.json({ target_source_id: id, target_source_exists: false, status: null });
   },
 
   // POST …/{id}/test-connection/reject — flips the target to REJECTED.
   rejectTestConnection: async (id: number, body: { reason?: string | null }) => {
-    const existing = tcState.get(id);
+    const existing = tq().tcState.get(id);
     const base: TcState = existing ?? {
       ts: id,
       svc: TS_INDEX.get(id)?.svc ?? '',
@@ -322,7 +564,7 @@ export const mockTaskQueue = {
       rejected_at: null,
       reject_reason: null,
     };
-    tcState.set(id, {
+    tq().tcState.set(id, {
       ...base,
       status: 'TEST_CONNECTION_REJECTED',
       rejected_at: new Date().toISOString(),
