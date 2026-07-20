@@ -12,9 +12,11 @@ import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 interface Props {
   slotKey: GuideSlotKey;
   lang?: 'ko' | 'en';
+  /** Render prose only — the outer surface (GuidePanel) owns chrome, header, and padding. */
+  bare?: boolean;
 }
 
-export const GuideCardContainer = ({ slotKey, lang = 'ko' }: Props) => {
+export const GuideCardContainer = ({ slotKey, lang = 'ko', bare = false }: Props) => {
   const slot = resolveSlot(slotKey);
   const { data, loading, error, refresh } = useGuide(slot.guideName);
 
@@ -25,5 +27,5 @@ export const GuideCardContainer = ({ slotKey, lang = 'ko' }: Props) => {
   const html = data.contents[lang];
   if (!html.trim()) return <GuideCardEmptyLang lang={lang} />;
 
-  return <GuideCardPure content={html} />;
+  return <GuideCardPure content={html} bare={bare} />;
 };

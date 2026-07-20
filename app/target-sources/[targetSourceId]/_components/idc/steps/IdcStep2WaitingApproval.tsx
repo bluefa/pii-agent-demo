@@ -1,15 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ProcessStatus } from '@/lib/types';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { ClockIcon } from '@/app/components/ui/icons';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ErrorState } from '@/app/components/ui/state';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -36,7 +33,6 @@ export const IdcStep2WaitingApproval = ({
   action,
   onProjectUpdate,
 }: IdcStepProps) => {
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_APPROVAL);
 
   // Step 2 source: the requested list via approved-integration, not previous-request.
   const { state } = useIdcResources(project.targetSourceId, getIdcApprovalRequestResources);
@@ -68,7 +64,6 @@ export const IdcStep2WaitingApproval = ({
         action={action}
       />
       <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       {unavailable ? (
         <ApprovalUnavailableCard
           targetSourceId={project.targetSourceId}

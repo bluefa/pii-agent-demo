@@ -13,12 +13,6 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
 vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => null,
 }));
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: () => null,
-}));
-vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: () => null,
-}));
 vi.mock('@/app/components/ui/Tooltip', () => ({
   InfoTooltip: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => children,

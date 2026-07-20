@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import { ProcessStatus, toWireDatabaseType } from '@/lib/types';
+import { toWireDatabaseType } from '@/lib/types';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
 import {
   idcDbTypeWireFromLabel,
@@ -16,8 +16,6 @@ import { usePagination } from '@/app/hooks/usePagination';
 import { EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -117,7 +115,6 @@ export const IdcStep1TargetInput = ({
   onProjectUpdate,
 }: IdcStepProps) => {
   const targetSourceId = project.targetSourceId;
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_TARGET_CONFIRMATION);
 
   // Step 1 starts EMPTY: IDC is manual input, so the working list begins blank and
   // the user either adds targets directly or loads a prior request on demand via
@@ -243,7 +240,6 @@ export const IdcStep1TargetInput = ({
     <>
       <ProjectPageMeta project={project} providerLabel={providerLabel} identity={identity} action={action} />
       <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <div className={cn('rounded-xl shadow-sm', bgColors.surface)}>
         <div className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>

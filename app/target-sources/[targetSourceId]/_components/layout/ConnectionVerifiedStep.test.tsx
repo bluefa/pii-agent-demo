@@ -26,16 +26,6 @@ vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => <div data-testid="process-status-card" />,
 }));
 
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: ({ slotKey }: { slotKey: string }) => (
-    <div data-testid="guide-card-container" data-slot-key={slotKey} />
-  ),
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: vi.fn(() => null),
-}));
-
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot',
   () => ({
@@ -56,8 +46,6 @@ vi.mock('@/app/components/ui/toast', () => ({
 }));
 
 import { ConnectionVerifiedStep } from '@/app/target-sources/[targetSourceId]/_components/layout/ConnectionVerifiedStep';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
-import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 
 const projectFixture: CloudTargetSource = {
   id: 'proj-1',
@@ -143,14 +131,6 @@ describe('ConnectionVerifiedStep', () => {
     await waitFor(() => expect(onProjectUpdate).toHaveBeenCalledWith(projectFixture));
   });
 
-  it('mounts GuideCardContainer when the resolver returns a slot key', () => {
-    const slotKey = 'process.azure.6' satisfies GuideSlotKey;
-    vi.mocked(resolveStepSlot).mockReturnValueOnce(slotKey);
-    renderStep();
-    const guide = screen.getByTestId('guide-card-container');
-    expect(guide).toBeTruthy();
-    expect(guide.getAttribute('data-slot-key')).toBe(slotKey);
-  });
 
   it('renders the card title with the cardTitle token (v15 26px / font-extrabold)', () => {
     renderStep();

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { ProcessStatus } from '@/lib/types';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ClockIcon, ReloadIcon } from '@/app/components/ui/icons';
@@ -9,8 +8,6 @@ import { useToast } from '@/app/components/ui/toast';
 import { ErrorState } from '@/app/components/ui/state';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -81,7 +78,6 @@ export const IdcStep6ConnectionVerified = ({
   action,
   onProjectUpdate,
 }: IdcStepProps) => {
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.CONNECTION_VERIFIED);
 
   // Step 6 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
   const { state } = useIdcResources(project.targetSourceId, getIdcConfirmedResources);
@@ -95,7 +91,6 @@ export const IdcStep6ConnectionVerified = ({
         action={action}
       />
       <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>

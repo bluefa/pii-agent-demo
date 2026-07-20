@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
 import { cardStyles, cn, statusColors } from '@/lib/theme';
 import {
@@ -12,8 +11,6 @@ import {
 } from '@/app/lib/api/idc';
 import { useIdcInstallationStatus } from '@/app/hooks/useIdcInstallationStatus';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   InstallTaskPipeline,
   type InstallTaskPipelineItem,
@@ -64,7 +61,6 @@ export const IdcStep4Installing = ({
   action,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.INSTALLING);
   const { status, loading } = useIdcInstallationStatus(targetSourceId);
 
   const [resources, setResources] = useState<IdcResourceView[]>([]);
@@ -132,7 +128,6 @@ export const IdcStep4Installing = ({
         action={action}
       />
       <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>

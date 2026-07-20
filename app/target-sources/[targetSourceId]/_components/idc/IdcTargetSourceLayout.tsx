@@ -39,7 +39,8 @@ export const IdcTargetSourceLayout = (props: IdcStepProps) => {
   return (
     <main className={cn('bg-[#F4F4FB]', 'min-h-screen')}>
       {/* v16 `.main` — full-width flex column, padding 32px 40px 80px (top/x/bottom). The 40px
-          left padding sits flush against the 296px sidebar so content begins at 336px, matching v16. */}
+          left padding sits flush against the 296px sidebar so content begins at 336px, matching v16.
+          The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
       <div className="px-10 pt-8 pb-20 space-y-6">{step}</div>
     </main>
   );

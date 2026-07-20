@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import type { TargetSource } from '@/lib/types';
-import { ErrorState } from '@/app/target-sources/[targetSourceId]/_components/common';
+import { ErrorState, GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common';
+import { resolveProjectStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import { AwsProjectPage } from '@/app/target-sources/[targetSourceId]/_components/aws';
 import { AzureProjectPage } from '@/app/target-sources/[targetSourceId]/_components/azure';
 import { GcpProjectPage } from '@/app/target-sources/[targetSourceId]/_components/gcp';
@@ -47,6 +48,8 @@ export const ProjectDetail = ({ initialProject }: ProjectDetailProps) => {
       <div className="flex-1 min-w-0 overflow-auto">
         {renderProvider()}
       </div>
+      {/* Full-height right rail (가이드/진행 내역) — mirrors the left ServiceListPanel. */}
+      <GuidePanel slotKey={resolveProjectStepSlot(project)} />
     </div>
   );
 };

@@ -8,16 +8,6 @@ vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => null,
 }));
 
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: ({ slotKey }: { slotKey: string }) => (
-    <div data-testid="guide-card-container" data-slot-key={slotKey} />
-  ),
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: vi.fn(() => 'stub-slot-key'),
-}));
-
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/layout/ApplyingApprovedCard',
   () => ({
@@ -65,8 +55,8 @@ const identityFixture: ProjectIdentity = {
   identifiers: [],
 };
 
-describe('ApplyingApprovedStep DOM order', () => {
-  it('renders GuideCardContainer with the resolved slotKey', () => {
+describe('ApplyingApprovedStep', () => {
+  it('renders the applying-approved card for the target source', () => {
     render(
       <ApplyingApprovedStep
         project={azureApplyingApprovedFixture}
@@ -77,25 +67,6 @@ describe('ApplyingApprovedStep DOM order', () => {
       />,
     );
 
-    const guide = screen.getByTestId('guide-card-container');
-    expect(guide.getAttribute('data-slot-key')).toBe('stub-slot-key');
-  });
-
-  it('renders guide-card before the applying-approved card', () => {
-    render(
-      <ApplyingApprovedStep
-        project={azureApplyingApprovedFixture}
-        identity={identityFixture}
-        providerLabel="Azure Infrastructure"
-        action={null}
-        onProjectUpdate={() => {}}
-      />,
-    );
-
-    const guide = screen.getByTestId('guide-card-container');
-    const applying = screen.getByTestId('applying-approved-card');
-
-    const guideBeforeApplying = guide.compareDocumentPosition(applying);
-    expect(guideBeforeApplying & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByTestId('applying-approved-card')).toBeTruthy();
   });
 });

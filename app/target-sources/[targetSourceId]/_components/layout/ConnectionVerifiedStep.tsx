@@ -4,8 +4,6 @@ import { useCallback, useState, type ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { getProject, updateTestConnectionConfirmation } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ClockIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
@@ -85,10 +83,6 @@ export const ConnectionVerifiedStep = ({
   action,
   onProjectUpdate,
 }: ConnectionVerifiedStepProps) => {
-  const slotKey = resolveStepSlot(
-    project.cloudProvider,
-    project.processStatus,
-  );
 
   const refreshProject = useCallback(async () => {
     const updated = await getProject(project.targetSourceId);
@@ -104,7 +98,6 @@ export const ConnectionVerifiedStep = ({
         action={action}
       />
       <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>

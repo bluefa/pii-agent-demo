@@ -3,8 +3,6 @@
 import type { ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -26,10 +24,6 @@ export const ApplyingApprovedStep = ({
   providerLabel,
   action,
 }: ApplyingApprovedStepProps) => {
-  const slotKey = resolveStepSlot(
-    project.cloudProvider,
-    project.processStatus,
-  );
 
   return (
     <>
@@ -40,7 +34,6 @@ export const ApplyingApprovedStep = ({
         action={action}
       />
       <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <ApplyingApprovedCard targetSourceId={project.targetSourceId} />
       <RejectionAlert project={project} />
     </>

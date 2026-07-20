@@ -1,6 +1,5 @@
 'use client';
 
-import { ProcessStatus } from '@/lib/types';
 import { formatDate } from '@/lib/utils/date';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { CheckIcon } from '@/app/components/ui/icons';
@@ -8,8 +7,6 @@ import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ErrorState } from '@/app/components/ui/state';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -31,7 +28,6 @@ export const IdcStep3Applying = ({
   providerLabel,
   action,
 }: IdcStepProps) => {
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.APPLYING_APPROVED);
 
   // Step 3 source: the approved list (approved-integration).
   const { state } = useIdcResources(project.targetSourceId, getIdcApprovedResources);
@@ -45,7 +41,6 @@ export const IdcStep3Applying = ({
         action={action}
       />
       <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>

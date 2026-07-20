@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { ErrorState } from '@/app/components/ui/state';
@@ -22,8 +21,6 @@ import {
   type TestConnectionStatus,
 } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -71,7 +68,6 @@ export const IdcStep5ConnectionTest = ({
   action,
   onProjectUpdate,
 }: IdcStepProps) => {
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_CONNECTION_TEST);
   const { targetSourceId } = project;
 
   const [state, setState] = useState<ResourcesState>({ status: 'loading' });
@@ -276,7 +272,6 @@ export const IdcStep5ConnectionTest = ({
         action={action}
       />
       <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>

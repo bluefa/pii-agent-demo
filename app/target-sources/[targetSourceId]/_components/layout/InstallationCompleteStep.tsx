@@ -3,8 +3,6 @@
 import { useState, type ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { cardStyles, cn, textColors } from '@/lib/theme';
@@ -88,10 +86,6 @@ export const InstallationCompleteStep = ({
   providerLabel,
   action,
 }: InstallationCompleteStepProps) => {
-  const slotKey = resolveStepSlot(
-    project.cloudProvider,
-    project.processStatus,
-  );
 
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
@@ -102,7 +96,6 @@ export const InstallationCompleteStep = ({
         action={action}
       />
       <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>

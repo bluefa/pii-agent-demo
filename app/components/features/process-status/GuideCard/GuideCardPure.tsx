@@ -12,6 +12,8 @@ import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
 interface Props {
   content: string;
   showHeader?: boolean;
+  /** Render prose only — no amber chrome/header/padding. The host surface (e.g. GuidePanel) owns them. */
+  bare?: boolean;
   invalidVariant?: 'admin' | 'enduser';
 }
 
@@ -40,6 +42,7 @@ const CardHeader = () => (
 export const GuideCardPure = ({
   content,
   showHeader = true,
+  bare = false,
   invalidVariant = 'enduser',
 }: Props) => {
   // Provider pages re-render on status polls; memo keeps DOM parsing
@@ -52,6 +55,12 @@ export const GuideCardPure = ({
 
   if (!result.valid) {
     return <GuideCardInvalidState errors={result.errors} variant={invalidVariant} />;
+  }
+
+  if (bare) {
+    return (
+      <div className="prose-guide text-[13px] leading-[1.72] text-[#374151]">{rendered}</div>
+    );
   }
 
   return (

@@ -25,16 +25,6 @@ vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => <div data-testid="process-status-card" />,
 }));
 
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: ({ slotKey }: { slotKey: string }) => (
-    <div data-testid="guide-card-container" data-slot-key={slotKey} />
-  ),
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: vi.fn(() => null),
-}));
-
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot',
   () => ({
@@ -57,8 +47,6 @@ vi.mock('@/app/components/ui/toast', () => ({
 }));
 
 import { InstallationCompleteStep } from '@/app/target-sources/[targetSourceId]/_components/layout/InstallationCompleteStep';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
-import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 
 const makeResource = (
   overrides: Partial<ConfirmedResource> = {},
@@ -185,15 +173,6 @@ describe('InstallationCompleteStep', () => {
     expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
   });
 
-  it('mounts GuideCardContainer when the resolver returns a slot key', () => {
-    providerState = { status: 'ready', data: [] };
-    const slotKey = 'process.azure.7' satisfies GuideSlotKey;
-    vi.mocked(resolveStepSlot).mockReturnValueOnce(slotKey);
-    renderStep();
-    const guide = screen.getByTestId('guide-card-container');
-    expect(guide).toBeTruthy();
-    expect(guide.getAttribute('data-slot-key')).toBe(slotKey);
-  });
 
   it('renders the card title with the cardTitle token (v15 26px / font-extrabold)', () => {
     providerState = { status: 'ready', data: [] };
