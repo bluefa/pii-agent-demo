@@ -208,6 +208,10 @@ select.sel.sm.dirty{border-color:var(--primary);box-shadow:0 0 0 3px var(--prima
 .seg button.on{background:var(--bg-card);color:var(--text-strong);box-shadow:var(--shadow-xs)}
 .seg button .cnt{font-weight:400;color:var(--text-faint);margin-left:4px;font-variant-numeric:tabular-nums}
 .seg button.on .cnt{color:var(--text-weak)}
+.seg.lg{padding:3px;border-radius:10px}
+.seg.lg button{height:40px;padding:0 20px;font-size:14px;font-weight:600;border-radius:8px;display:inline-flex;align-items:center}
+.seg.lg button .cnt{margin-left:6px}
+select.sel.lg{height:46px;font-size:14px;font-weight:600;border-radius:10px}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;
   border-radius:var(--r-ctl);font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;
@@ -260,10 +264,13 @@ select.sel.sm.dirty{border-color:var(--primary);box-shadow:0 0 0 3px var(--prima
 .ftag.ok{background:var(--ok-bg);color:var(--ok-text)}
 .ftag.na{background:var(--off-bg);color:var(--text-weak)}
 
-/* ── 지연 표기 ── */
-.delay{font-variant-numeric:tabular-nums;font-weight:500}
-.delay.warn{color:var(--warn-text);font-weight:600}
-.delay.err{color:var(--err-text);font-weight:600}
+/* ── 지연 표기 — 4단계: 회색(1시간 미만)/노랑(1시간↑)/주황(1일↑)/빨강(7일↑) ── */
+.delay{font-variant-numeric:tabular-nums;font-weight:500;color:var(--text-weak)}
+.delay.d1{color:#A16207;font-weight:600}
+.delay.d2{color:#C2410C;font-weight:600}
+.delay.d3{color:#DC2626;font-weight:700}
+.seg .tdot{width:8px;height:8px;border-radius:999px;display:inline-block;margin-right:6px;flex:none}
+.tdot.d1{background:#EAB308}.tdot.d2{background:#F97316}.tdot.d3{background:#EF4444}
 
 /* ── Modal / Toast / 툴팁 ── */
 .overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);z-index:50;display:flex;align-items:center;justify-content:center}
@@ -311,6 +318,12 @@ select.sel.sm.dirty{border-color:var(--primary);box-shadow:0 0 0 3px var(--prima
   z-index:60;display:flex;align-items:center;gap:8px}
 .toast svg.ic{color:var(--ok)}
 .empty{text-align:center;padding:32px;color:var(--text-weak);font-size:14px;line-height:1.4}
+.empty-state{display:flex;flex-direction:column;align-items:center;gap:4px;padding:56px 0 60px;text-align:center}
+.empty-state .eico{width:44px;height:44px;border-radius:999px;background:var(--gray-100);
+  display:flex;align-items:center;justify-content:center;color:var(--text-faint);margin-bottom:8px}
+.empty-state .et{font-size:16px;font-weight:600;color:var(--text-strong)}
+.empty-state .ec{font-size:14px;color:var(--text-weak)}
+.detail-link{display:inline-flex;align-items:center;gap:4px;color:var(--primary);font-size:14px;font-weight:600;white-space:nowrap}
 .rr{position:relative;display:inline-flex;align-items:center;gap:6px;max-width:100%}
 .rr .rr-text{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-medium)}
 .rr .tip{display:none;position:absolute;bottom:calc(100% + 8px);left:0;z-index:30;width:320px;
@@ -528,12 +541,14 @@ function humanDelay(sec){
   if(sec<86400){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return m?`${h}시간 ${m}분`:`${h}시간`;}
   const d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600);return h?`${d}일 ${h}시간`:`${d}일`;
 }
-const delayCls=sec=>sec>=86400?'err':sec>=3600?'warn':''; // 임계(1h/24h)는 프로토타입 가정
-const icArrow='<svg class="ic sm"><use href="#i-arrow"/></svg>';
-const icCopy='<svg class="ic xs"><use href="#i-copy"/></svg>';
+const delayCls=sec=>sec>=604800?'d3':sec>=86400?'d2':sec>=3600?'d1':''; // 임계(1h/1d/7d)는 프로토타입 가정
+const icArrow='<svg class="ic sm" viewBox="0 0 24 24"><use href="#i-arrow"/></svg>';
+const detailLink=`<span class="detail-link">상세보기${icArrow}</span>`;
+const emptyState=(t,c)=>`<div class="empty-state"><span class="eico"><svg class="ic" viewBox="0 0 24 24"><use href="#i-inbox"/></svg></span><span class="et">${t}</span><span class="ec">${c}</span></div>`;
+const icCopy='<svg class="ic xs" viewBox="0 0 24 24"><use href="#i-copy"/></svg>';
 const resIdCell=(id)=>`<span class="res-id-cell"><span class="res-id-text" title="${esc(id)}">${esc(id)}</span><button class="copy-btn" data-copy="${esc(id)}" title="복사">${icCopy}</button></span>`;
 function toast(msg){
-  $('#toast-root').innerHTML=`<div class="toast"><svg class="ic"><use href="#i-check"/></svg>${esc(msg)}</div>`;
+  $('#toast-root').innerHTML=`<div class="toast"><svg class="ic" viewBox="0 0 24 24"><use href="#i-check"/></svg>${esc(msg)}</div>`;
   clearTimeout(toast._t); toast._t=setTimeout(()=>{$('#toast-root').innerHTML='';},2200);
 }
 function closeModal(){$('#modal-root').innerHTML='';document.removeEventListener('keydown',escClose);}
@@ -563,9 +578,9 @@ function pagerHtml(key,total){
     <span class="pg-info"><strong>${a}–${b}</strong> / 전체 <strong>${total}</strong>건</span>
     <div class="pg-spacer"></div>
     <div class="pg-pages">
-      <button data-pg="${key}:${st.page-1}" ${st.page<=1?'disabled':''} aria-label="이전"><svg class="ic xs"><use href="#i-chev-l"/></svg></button>
+      <button data-pg="${key}:${st.page-1}" ${st.page<=1?'disabled':''} aria-label="이전"><svg class="ic xs" viewBox="0 0 24 24"><use href="#i-chev-l"/></svg></button>
       ${nums}
-      <button data-pg="${key}:${st.page+1}" ${st.page>=pages?'disabled':''} aria-label="다음"><svg class="ic xs"><use href="#i-chev-r"/></svg></button>
+      <button data-pg="${key}:${st.page+1}" ${st.page>=pages?'disabled':''} aria-label="다음"><svg class="ic xs" viewBox="0 0 24 24"><use href="#i-chev-r"/></svg></button>
     </div></div>`;
 }
 
@@ -595,9 +610,9 @@ function render(){
 }
 
 /* ══════════ P1 운영 대시보드 ══════════ */
-let procFilter='', procQ='';
+let procFilter='', procDelay=0;
 function renderQueue(){
-  const rows=PROC.filter(r=>(!procFilter||r.st===procFilter)&&(!procQ||String(r.ts).includes(procQ)));
+  const rows=PROC.filter(r=>(!procFilter||r.st===procFilter)&&r.delay>=procDelay);
   const slice=pslice(rows,'proc');
   return `
   <div class="page-head"><h1>운영 대시보드</h1></div>
@@ -614,14 +629,16 @@ function renderQueue(){
   <div class="section-desc">Target Source별 현재 단계와 지연(마지막 상태 변경 이후 경과)을 확인해요 · 30초마다 자동 갱신돼요</div>
   <div class="card">
     <div class="filterbar" style="margin-bottom:16px">
-      <select class="sel" id="proc-st">
+      <select class="sel lg" id="proc-st">
         <option value="">프로세스 상태 전체</option>
         ${Object.entries(STEP).map(([k,v])=>`<option value="${k}"${procFilter===k?' selected':''}>Step ${v.n} · ${v.label}</option>`).join('')}
       </select>
-      <span class="searchbox"><svg class="ic"><use href="#i-search"/></svg>
-        <input class="input" id="proc-q" style="width:220px" placeholder="Target Source ID" value="${esc(procQ)}"></span>
-      <span class="spacer"></span>
-      <span class="meta">지연 <span class="delay warn">1시간↑ 주의</span> · <span class="delay err">24시간↑ 위험</span></span>
+      <div class="seg lg" id="proc-delay">
+        <button data-d="0" class="${procDelay===0?'on':''}">지연 전체<span class="cnt">${PROC.length}</span></button>
+        <button data-d="3600" class="${procDelay===3600?'on':''}"><span class="tdot d1"></span>1시간↑<span class="cnt">${PROC.filter(r=>r.delay>=3600).length}</span></button>
+        <button data-d="86400" class="${procDelay===86400?'on':''}"><span class="tdot d2"></span>1일↑<span class="cnt">${PROC.filter(r=>r.delay>=86400).length}</span></button>
+        <button data-d="604800" class="${procDelay===604800?'on':''}"><span class="tdot d3"></span>7일↑<span class="cnt">${PROC.filter(r=>r.delay>=604800).length}</span></button>
+      </div>
     </div>
     <div class="res-wrap">
     <table class="tbl">
@@ -639,11 +656,11 @@ function renderQueue(){
           <td>${stepStack(r.st)}</td>
           <td><span class="delay ${delayCls(r.delay)}" title="${r.delay.toLocaleString()}s">${humanDelay(r.delay)}</span></td>
           <td class="meta">${r.at}</td>
-        </tr>`).join(''):`<tr><td colspan="7"><div class="empty">조건에 맞는 Target Source가 없어요</div></td></tr>`}
+        </tr>`).join(''):`<tr><td colspan="7" style="padding:0">${emptyState('조건에 맞는 Target Source가 없어요','필터를 바꾸면 다른 단계의 대상을 볼 수 있어요')}</td></tr>`}
       </tbody>
     </table>
     </div>
-    ${pagerHtml('proc',rows.length)}
+    ${rows.length?pagerHtml('proc',rows.length):''}
   </div>`;
 }
 
@@ -658,7 +675,7 @@ function renderRequests(){
   <div class="section-desc">서비스가 보낸 연동 승인 요청을 검토하고 처리해요</div>
   <div class="card">
     <div class="filterbar" style="margin-bottom:16px">
-      <div class="seg" id="req-seg">
+      <div class="seg lg" id="req-seg">
         <button data-t="PENDING" class="${reqTab==='PENDING'?'on':''}">승인 대기<span class="cnt">${REQUESTS.PENDING.length}</span></button>
         <button data-t="REJECTED" class="${reqTab==='REJECTED'?'on':''}">반려<span class="cnt">${REQUESTS.REJECTED.length}</span></button>
         <button data-t="ALL" class="${reqTab==='ALL'?'on':''}">전체<span class="cnt">${REQUESTS.ALL.length}</span></button>
@@ -667,28 +684,30 @@ function renderRequests(){
     <div class="res-wrap">
     <table class="tbl">
       <thead><tr>
-        <th>서비스 이름</th><th>서비스 코드</th><th>Target Source</th><th>Cloud</th><th>연동 프로세스 상태</th>
+        <th>서비스 이름</th><th>서비스 코드</th><th>Target Source</th><th>Cloud</th>
         ${isRej?'<th>반려 사유</th><th>반려 일자</th>':''}
         ${reqTab==='PENDING'?'<th></th>':''}
       </tr></thead>
       <tbody>
-        ${slice.map(r=>`
+        ${slice.length?slice.map(r=>`
         <tr ${reqTab==='PENDING'?`class="click" data-nav="#/requests/${r.ts}"`:''}>
           <td class="svc-name">${esc(r.svc)}</td>
           <td class="mono">${r.code}</td>
           <td class="mono">#${r.ts}</td>
           <td>${ptag(r.pv)}</td>
-          <td>${csPill(r.cs)}</td>
           ${isRej?`
           <td><span class="rr"><span class="rr-text">${esc(r.reason)}</span>
             <span class="tip">${esc(r.reason)}</span></span></td>
           <td class="meta">${r.at}</td>`:''}
-          ${reqTab==='PENDING'?`<td class="chev"><button class="btn secondary sm round" aria-label="상세">${icArrow}</button></td>`:''}
-        </tr>`).join('')}
+          ${reqTab==='PENDING'?`<td class="chev">${detailLink}</td>`:''}
+        </tr>`).join(''):`<tr><td colspan="${4+(isRej?2:0)+(reqTab==='PENDING'?1:0)}" style="padding:0">${
+          emptyState(...({PENDING:['승인을 기다리는 요청이 없어요','새 연동 요청이 들어오면 여기에 표시돼요'],
+            REJECTED:['반려된 요청이 없어요','반려 처리한 요청이 여기에 모여요'],
+            ALL:['연동 요청이 없어요','서비스가 연동을 요청하면 여기에 표시돼요']}[reqTab]))}</td></tr>`}
       </tbody>
     </table>
     </div>
-    ${pagerHtml('req',rows.length)}
+    ${rows.length?pagerHtml('req',rows.length):''}
   </div>`;
 }
 
@@ -875,7 +894,7 @@ function renderTc(){
   <div class="section-desc">완료 건은 관리자 승인(확정) 대상이에요 · 반려 건은 서비스에 재실행을 요청한 상태예요</div>
   <div class="card">
     <div class="filterbar" style="margin-bottom:16px">
-      <div class="seg" id="tc-seg">
+      <div class="seg lg" id="tc-seg">
         <button data-t="COMPLETED" class="${done?'on':''}">완료<span class="cnt">${TC.COMPLETED.length}</span></button>
         <button data-t="REJECTED" class="${!done?'on':''}">재실행 요청<span class="cnt">${TC.REJECTED.length}</span></button>
       </div>
@@ -887,7 +906,7 @@ function renderTc(){
         ${done?'<th>완료 일자</th><th></th>':'<th>반려 사유</th><th>반려 일자</th><th></th>'}
       </tr></thead>
       <tbody>
-        ${slice.map(r=>`
+        ${slice.length?slice.map(r=>`
         <tr class="click" data-nav="#/tc/${r.ts}">
           <td class="svc-name">${esc(r.svc)}</td>
           <td class="mono">${r.code}</td>
@@ -897,12 +916,14 @@ function renderTc(){
             ?`<td class="meta">${r.completed_at}</td>`
             :`<td><span class="rr"><span class="rr-text">${esc(r.reason)}</span><span class="tip">${esc(r.reason)}</span></span></td>
               <td class="meta">${r.rejected_at}</td>`}
-          <td class="chev"><button class="btn secondary sm round" aria-label="상세 페이지 이동">${icArrow}</button></td>
-        </tr>`).join('')}
+          <td class="chev">${detailLink}</td>
+        </tr>`).join(''):`<tr><td colspan="${done?6:7}" style="padding:0">${
+          done?emptyState('완료된 연결 테스트가 없어요','연결 테스트가 끝나면 여기에서 승인을 진행해요')
+              :emptyState('재실행을 요청한 건이 없어요','연결 테스트를 반려하면 여기에 모여요')}</td></tr>`}
       </tbody>
     </table>
     </div>
-    ${pagerHtml('tc',rows.length)}
+    ${rows.length?pagerHtml('tc',rows.length):''}
   </div>`;
 }
 
@@ -951,7 +972,7 @@ function renderTcDetail(ts){
   <div class="card">
     ${isDone?'':`
     <div class="reject-box">
-      <svg class="ic"><use href="#i-alert"/></svg>
+      <svg class="ic" viewBox="0 0 24 24"><use href="#i-alert"/></svg>
       <div>
         <div class="rb-title">재실행 요청 사유</div>
         <div class="rb-body">${esc(d.reason)}</div>
@@ -1076,8 +1097,8 @@ function bindPage(){
     const [key,p]=b.dataset.pg.split(':'); PG[key].page=+p; render();
   });
   const st=$('#proc-st'); if(st) st.onchange=e=>{procFilter=e.target.value;PG.proc.page=1;render();};
-  const q=$('#proc-q'); if(q){q.oninput=e=>{procQ=e.target.value.trim();PG.proc.page=1;
-    const pos=e.target.selectionStart;render();const nq=$('#proc-q');nq.focus();nq.setSelectionRange(pos,pos);};}
+  const pd=$('#proc-delay'); if(pd) pd.querySelectorAll('button').forEach(b=>
+    b.onclick=()=>{procDelay=+b.dataset.d;PG.proc.page=1;render();});
   const rseg=$('#req-seg'); if(rseg) rseg.querySelectorAll('button').forEach(b=>b.onclick=()=>{reqTab=b.dataset.t;PG.req.page=1;render();});
   const tseg=$('#tc-seg'); if(tseg) tseg.querySelectorAll('button').forEach(b=>b.onclick=()=>{tcTab=b.dataset.t;PG.tc.page=1;render();});
 
@@ -1156,7 +1177,7 @@ function bindPage(){
         <p class="am-sub">${esc(d.svc)}의 선택 리소스 ${d.selected}건을 승인해요. 승인하면 연동 대상 반영이 시작돼요.</p>
       </div>
       <div class="am-body">
-        ${dirtyCnt?`<div class="am-note"><svg class="ic sm"><use href="#i-alert"/></svg>
+        ${dirtyCnt?`<div class="am-note"><svg class="ic sm" viewBox="0 0 24 24"><use href="#i-alert"/></svg>
           저장하지 않은 NLB 변경 ${dirtyCnt}건이 있어요. 승인 전에 저장하지 않으면 반영되지 않아요.</div>`:''}
         <div class="am-label">승인 코멘트 (선택)</div>
         <textarea id="ap-comment" maxlength="1024" placeholder="서비스 오너에게 전달할 코멘트를 남길 수 있어요"></textarea>
@@ -1195,6 +1216,7 @@ function bindPage(){
   <defs>
     <g id="i-search"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></g>
     <g id="i-arrow"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></g>
+    <g id="i-inbox"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></g>
     <g id="i-check"><path d="M20 6 9 17l-5-5"/></g>
     <g id="i-copy"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></g>
     <g id="i-chev-l"><polyline points="15 18 9 12 15 6"/></g>
