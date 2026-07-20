@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -33,7 +32,6 @@ export const ApplyingApprovedStep = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
       <ApplyingApprovedCard targetSourceId={project.targetSourceId} />
       <RejectionAlert project={project} />
     </>

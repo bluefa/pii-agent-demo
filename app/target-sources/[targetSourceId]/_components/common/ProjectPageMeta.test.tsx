@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type TargetSource } from '@/lib/types';
+
+// The unified header card mounts the stepper footer; stub the animated bar and
+// surface the step it receives.
+vi.mock('@/app/components/features/process-status', () => ({
+  InstallationProcessProgressBar: ({ currentStep }: { currentStep: unknown }) => (
+    <div data-testid="process-progress-bar" data-step={String(currentStep)} />
+  ),
+}));
+
 import { ProjectPageMeta } from '@/app/target-sources/[targetSourceId]/_components/common/ProjectPageMeta';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
 
@@ -88,6 +97,17 @@ describe('ProjectPageMeta — identity-bar provider name vs breadcrumb crumb', (
     );
     const providerName = container.querySelector('.font-bold.text-\\[\\#191F28\\]');
     expect(providerName?.textContent).toBe('IDC');
+  });
+});
+
+describe('ProjectPageMeta — unified header card', () => {
+  // Lifted from the removed ProcessStatusCard: the stepper now mounts once as the
+  // header card's footer, fed by the project's processStatus.
+  it('mounts the stepper footer with the project processStatus', () => {
+    render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />);
+    expect(screen.getByTestId('process-progress-bar').getAttribute('data-step')).toBe(
+      String(projectFixture.processStatus),
+    );
   });
 });
 

@@ -1,9 +1,19 @@
+import type { CSSProperties } from 'react';
 import type { TargetSource } from '@/lib/types';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
 import { PageHeader } from '@/app/components/ui/PageHeader';
 import { IdentityBar, type IdentityBarField } from '@/app/components/ui/IdentityBar';
+import { InstallationProcessProgressBar } from '@/app/components/features/process-status';
 import { passRoutes } from '@/lib/routes';
-import { cn, primaryColors, providerAccent, providerAccentDefault } from '@/lib/theme';
+import {
+  borderColors,
+  cardStyles,
+  cn,
+  identityBarStyles,
+  primaryColors,
+  providerAccent,
+  providerAccentDefault,
+} from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
 
 interface ProjectPageMetaProps {
@@ -134,31 +144,46 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
   return (
     <>
       <Breadcrumb crumbs={crumbs} />
-      <PageHeader
-        title={
-          <>
-            {serviceTitle}{' '}
-            <span className="font-medium text-[#8B95A1]">({project.serviceCode})</span>
-          </>
-        }
-        action={
-          <>
-            <CollabChannelChip jiraLink={identity.jiraLink} />
-            {action}
-          </>
-        }
-      />
-      <IdentityBar
-        accent={accent}
-        // v16 identity bar shows the BARE provider token ('GCP'/'Azure'/'AWS'/'IDC',
-        // HTML 9426-9429), not the '{Provider} Infrastructure' string used for the
-        // breadcrumb crumb above. `cloudProvider` already carries v16's exact casing.
-        providerName={identity.cloudProvider}
-        providerSub={isIdc ? undefined : 'Cloud Provider'}
-        icon={PROVIDER_ICON}
-        fields={buildIdentityFields(identity)}
-        agentLabel={identity.monitoringMethod}
-      />
+      {/* Unified project header — the page title/actions, identity facts and the
+          process stepper are one hierarchical info cluster (what › context ›
+          progress), so they share a single card. The provider accent stripe
+          marks the whole header; the stepper sits as a border-t footer. */}
+      <section
+        className={cn(cardStyles.base, 'relative overflow-hidden', identityBarStyles.hostStripe)}
+        style={{ ['--ib-accent']: accent } as CSSProperties}
+      >
+        <div className="px-[28px] pt-[22px]">
+          <PageHeader
+            title={
+              <>
+                {serviceTitle}{' '}
+                <span className="font-medium text-[#8B95A1]">({project.serviceCode})</span>
+              </>
+            }
+            action={
+              <>
+                <CollabChannelChip jiraLink={identity.jiraLink} />
+                {action}
+              </>
+            }
+          />
+        </div>
+        <IdentityBar
+          bare
+          accent={accent}
+          // v16 identity bar shows the BARE provider token ('GCP'/'Azure'/'AWS'/'IDC',
+          // HTML 9426-9429), not the '{Provider} Infrastructure' string used for the
+          // breadcrumb crumb above. `cloudProvider` already carries v16's exact casing.
+          providerName={identity.cloudProvider}
+          providerSub={isIdc ? undefined : 'Cloud Provider'}
+          icon={PROVIDER_ICON}
+          fields={buildIdentityFields(identity)}
+          agentLabel={identity.monitoringMethod}
+        />
+        <div className={cn('border-t px-[28px] py-[16px]', borderColors.light)}>
+          <InstallationProcessProgressBar currentStep={project.processStatus} />
+        </div>
+      </section>
     </>
   );
 };

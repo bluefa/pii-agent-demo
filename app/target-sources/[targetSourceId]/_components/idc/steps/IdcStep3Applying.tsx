@@ -6,7 +6,6 @@ import { CheckIcon } from '@/app/components/ui/icons';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ErrorState } from '@/app/components/ui/state';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -40,7 +39,6 @@ export const IdcStep3Applying = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>

@@ -15,7 +15,6 @@ import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import {
   CardActionBar,
   ProjectPageMeta,
@@ -240,7 +239,6 @@ export const IdcStep1TargetInput = ({
   return (
     <>
       <ProjectPageMeta project={project} providerLabel={providerLabel} identity={identity} action={action} />
-      <ProcessStatusCard project={project} />
 
       <div className={cn('rounded-xl shadow-sm', bgColors.surface)}>
         <div className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>

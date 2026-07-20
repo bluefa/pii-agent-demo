@@ -6,6 +6,12 @@ import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_com
 
 const updateConfirmationMock = vi.fn();
 const getProjectMock = vi.fn();
+// The unified ProjectPageMeta header mounts the stepper; stub the animated bar
+// (its reduced-motion hook needs window.matchMedia, absent in jsdom).
+vi.mock('@/app/components/features/process-status', () => ({
+  InstallationProcessProgressBar: () => null,
+}));
+
 vi.mock('@/app/lib/api', () => ({
   updateTestConnectionConfirmation: (...args: unknown[]) => updateConfirmationMock(...args),
   getProject: (...args: unknown[]) => getProjectMock(...args),
@@ -21,10 +27,6 @@ vi.mock(
     }),
   }),
 );
-
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => <div data-testid="process-status-card" />,
-}));
 
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot',

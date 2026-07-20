@@ -3,7 +3,6 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { getProject, updateTestConnectionConfirmation } from '@/app/lib/api';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ClockIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
@@ -97,7 +96,6 @@ export const ConnectionVerifiedStep = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>

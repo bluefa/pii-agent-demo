@@ -17,9 +17,6 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
     </div>
   ),
 }));
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => null,
-}));
 vi.mock('@/app/components/ui/Tooltip', () => ({
   InfoTooltip: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => children,

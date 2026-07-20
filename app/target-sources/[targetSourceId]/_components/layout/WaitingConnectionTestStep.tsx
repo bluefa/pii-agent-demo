@@ -3,7 +3,6 @@
 import { useCallback, type ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -72,7 +71,6 @@ export const WaitingConnectionTestStep = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
       <ConnectionTestSection providerLabel={providerLabel} refreshProject={refreshProject} />
       <RejectionAlert project={project} />
     </ConfirmedIntegrationDataProvider>

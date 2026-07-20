@@ -4,10 +4,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
 
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => null,
-}));
-
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/layout/ApplyingApprovedCard',
   () => ({

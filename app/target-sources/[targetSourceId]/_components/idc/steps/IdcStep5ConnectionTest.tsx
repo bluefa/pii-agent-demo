@@ -20,7 +20,6 @@ import {
   updateTestConnectionConfirmation,
   type TestConnectionStatus,
 } from '@/app/lib/api';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import {
   CardActionBar,
   ProjectPageMeta,
@@ -272,7 +271,6 @@ export const IdcStep5ConnectionTest = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
       <section className={cardStyles.base}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>

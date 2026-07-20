@@ -10,6 +10,12 @@ let providerState: { status: 'loading' | 'ready' | 'error'; data?: ConfirmedReso
   data: [],
 };
 
+// The unified ProjectPageMeta header mounts the stepper; stub the animated bar
+// (its reduced-motion hook needs window.matchMedia, absent in jsdom).
+vi.mock('@/app/components/features/process-status', () => ({
+  InstallationProcessProgressBar: () => null,
+}));
+
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider',
   () => ({
@@ -20,10 +26,6 @@ vi.mock(
     }),
   }),
 );
-
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => <div data-testid="process-status-card" />,
-}));
 
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot',

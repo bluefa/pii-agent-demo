@@ -6,7 +6,6 @@ import { ClockIcon } from '@/app/components/ui/icons';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ErrorState } from '@/app/components/ui/state';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import {
   CardActionBar,
   ProjectPageMeta,
@@ -64,7 +63,6 @@ export const IdcStep2WaitingApproval = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
       {unavailable ? (
         <ApprovalUnavailableCard
           targetSourceId={project.targetSourceId}

@@ -9,9 +9,6 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
   ProjectPageMeta: () => null,
   RejectionAlert: () => null,
 }));
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => null,
-}));
 vi.mock('@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable', () => ({
   IdcResourceTable: () => null,
 }));

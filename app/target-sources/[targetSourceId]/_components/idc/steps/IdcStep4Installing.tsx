@@ -10,7 +10,6 @@ import {
   type IdcResourceView,
 } from '@/app/lib/api/idc';
 import { useIdcInstallationStatus } from '@/app/hooks/useIdcInstallationStatus';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import {
   InstallTaskPipeline,
   type InstallTaskPipelineItem,
@@ -127,7 +126,6 @@ export const IdcStep4Installing = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
 
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>

@@ -23,10 +23,6 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/layout/ConnectionTest
   },
 }));
 
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => null,
-}));
-
 vi.mock('@/app/lib/api', () => ({
   getProject: vi.fn().mockResolvedValue(undefined),
 }));
