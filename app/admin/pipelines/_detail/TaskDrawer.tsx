@@ -147,7 +147,7 @@ export function TaskDrawer({
       <div className={d.body}>
         {detail ? (
           view.name === 'attempt' && attempt ? (
-            <AttemptDetail attempt={attempt} onOpenViewer={viewerModal.open} />
+            <AttemptDetail attempt={attempt} operation={detail.operation} onOpenViewer={viewerModal.open} />
           ) : tab === 'exec' ? (
             detail.kind === 'CONDITION_CHECK' ? (
               <ConditionExec detail={detail} />

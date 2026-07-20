@@ -13,10 +13,12 @@ import { type ReactElement } from 'react';
 import { jobRows, jobVerdict, type JobRow } from '@/app/admin/pipelines/_detail/jobRows';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { d, j, MiniPill, Section, spanLabel, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
-import type { TaskAttemptView } from '@/lib/pipeline/types';
+import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
 
-function JobRowItem({ row, onOpen }: { row: JobRow; onOpen: () => void }): ReactElement {
-  const verdict = jobVerdict(row);
+function JobRowItem(
+  { row, operation, onOpen }: { row: JobRow; operation: TaskOperation | null; onOpen: () => void },
+): ReactElement {
+  const verdict = jobVerdict(row, operation);
   return (
     <div className={j.jobRow}>
       <MiniPill tone={verdict}>{j.verdictLabel[verdict]}</MiniPill>
@@ -35,9 +37,11 @@ function JobRowItem({ row, onOpen }: { row: JobRow; onOpen: () => void }): React
 
 export function AttemptDetail({
   attempt,
+  operation,
   onOpenViewer,
 }: {
   attempt: TaskAttemptView;
+  operation: TaskOperation | null;
   onOpenViewer: (t: ViewerTarget) => void;
 }): ReactElement {
   const rows = jobRows(attempt);
@@ -70,6 +74,7 @@ export function AttemptDetail({
               <JobRowItem
                 key={row.job_id}
                 row={row}
+                operation={operation}
                 onOpen={() => onOpenViewer({ attemptNumber: attempt.attempt_number, jobId: row.job_id })}
               />
             ))}

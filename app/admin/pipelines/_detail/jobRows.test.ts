@@ -67,4 +67,26 @@ describe('jobVerdict', () => {
     expect(jobVerdict(row(null, state(null)))).toBe('none');
     expect(jobVerdict(row(null, null))).toBe('none');
   });
+
+  it('reads each operation type\'s own success vocabulary (PLAN=CREATED, APPLY=COMPLETE, DESTROY=DESTROYED)', () => {
+    // PLAN completes as CREATED — the state the old code mislabeled as still-running.
+    expect(jobVerdict(row(null, state('CREATED')), 'AWS_SERVICE_TF_PLAN')).toBe('success');
+    expect(jobVerdict(row(null, state('COMPLETE')), 'AWS_SERVICE_TF_APPLY')).toBe('success');
+    expect(jobVerdict(row(null, state('DESTROYED')), 'AWS_SERVICE_TF_DESTROY')).toBe('success');
+    expect(jobVerdict(row(null, state('COMPLETED')), 'GCP_BDC_TF_APPLY')).toBe('success');
+    expect(jobVerdict(row(null, state('FAILED')), 'AWS_SERVICE_TF_PLAN')).toBe('failed');
+  });
+
+  it('does not accept a state outside the given type\'s success list', () => {
+    // CREATED is a PLAN terminal, not an APPLY one — for an APPLY job it is still-running.
+    expect(jobVerdict(row(null, state('CREATED')), 'AWS_SERVICE_TF_APPLY')).toBe('running');
+    expect(jobVerdict(row(null, state('DESTROYED')), 'AWS_SERVICE_TF_PLAN')).toBe('running');
+  });
+
+  it('unions all types\' success states when the operation is unknown', () => {
+    expect(jobVerdict(row(null, state('CREATED')))).toBe('success');
+    expect(jobVerdict(row(null, state('COMPLETE')))).toBe('success');
+    expect(jobVerdict(row(null, state('CREATED')), null)).toBe('success');
+    expect(jobVerdict(row(null, state('RUNNING')), 'NETWORK_READY')).toBe('running');
+  });
 });
