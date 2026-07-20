@@ -264,6 +264,8 @@ select.sel.sm.dirty{border-color:var(--primary);box-shadow:0 0 0 3px var(--prima
 /* ── Modal / Toast / 툴팁 ── */
 .overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);z-index:50;display:flex;align-items:center;justify-content:center}
 .modal{background:var(--bg-card);border-radius:12px;box-shadow:var(--shadow-lg);padding:24px;width:480px}
+.modal.wide{width:760px;max-height:82vh;display:flex;flex-direction:column}
+.modal.wide .modal-body{overflow-y:auto;min-height:0}
 .modal h3{margin:0 0 12px;font-size:16px;font-weight:700}
 .modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:14px;line-height:1.4}
 .modal textarea{width:100%;min-height:88px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);
@@ -609,7 +611,7 @@ function renderRequests(){
   const isRej=reqTab==='REJECTED', isAll=reqTab==='ALL';
   return `
   <div class="page-head"><h1>연동 요청</h1></div>
-  <div class="section-desc">관리자 확인이 필요한 연동 요청이에요 · 반려 사유는 행에서 바로 확인할 수 있어요 · 전체 탭은 조회 전용이에요</div>
+  <div class="section-desc">서비스가 보낸 연동 승인 요청을 검토하고 처리해요</div>
   <div class="card">
     <div class="filterbar" style="margin-bottom:16px">
       <div class="seg" id="req-seg">
@@ -643,7 +645,6 @@ function renderRequests(){
     </table>
     </div>
     ${pagerHtml('req',rows.length)}
-    ${isAll?'<div class="section-desc" style="margin-bottom:0">전체 탭은 진행 내역 파악용 — 행 이동·액션을 제공하지 않아요</div>':''}
   </div>`;
 }
 
@@ -706,7 +707,7 @@ function renderCloudResources(d){
     </tr>`;
   return `
   <div class="section-title">연동 대상 리소스</div>
-  <div class="section-desc">승인 요청에 담긴 리소스 목록이에요 · 제외 리소스는 회색으로 표시돼요</div>
+  <div class="section-desc">승인 요청에 담긴 리소스 목록이에요</div>
   <div class="card">
     <div class="res-wrap">
     <table class="res-tbl">
@@ -730,10 +731,13 @@ function renderIdcSection(ts){
   const slice=pslice(d.resources,'nlbres');
   return `
   <div class="section-title">연동 대상 리소스 · NLB 배정</div>
-  <div class="section-desc">승인 전에 리소스별 NLB Index를 확인·조정해요 · 수정은 승인 대기 상태에서만 가능해요</div>
+  <div class="section-desc">각 리소스가 어떤 NLB를 거쳐 연결될지 승인 전에 확인하고 조정해요</div>
 
   <div class="card">
-    <div class="subsection-title" style="margin-top:0">리소스별 NLB Index</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="subsection-title" style="margin:0">리소스별 NLB Index</div>
+      <button class="btn secondary sm" id="nlb-status-btn">NLB 리스너 현황</button>
+    </div>
     <div class="res-wrap">
     <table class="res-tbl">
       <thead><tr>
@@ -783,14 +787,17 @@ function renderIdcSection(ts){
     </table>
     </div>
     ${pagerHtml('nlbres',d.resources.length)}
-    <div class="section-desc" style="margin-bottom:0">점유 리스너 30↑ 주의 · 50↑ Hard Limit(신규 배정 불가) — Hard Limit NLB는 선택지에서 비활성화돼요 · 제외 리소스는 NLB를 배정하지 않아요</div>
-  </div>
+    <div class="section-desc" style="margin-bottom:0">점유 리스너가 30개를 넘으면 주의, 50개에 이르면 새로 배정할 수 없어요</div>
+  </div>`;
+}
 
-  <div class="card">
-    <div class="subsection-title" style="margin-top:0">NLB 리스너 현황</div>
+function openNlbModal(){
+  openModal(`<div class="modal wide"><h3>NLB 리스너 현황</h3>
+    <div class="desc">NLB별 리스너 점유량이에요. 여유 있는 NLB로 배정하면 부하를 나눌 수 있어요.</div>
+    <div class="modal-body">
     <div class="res-wrap" style="border-radius:10px">
     <table class="res-tbl">
-      <thead><tr><th style="width:110px">NLB Index</th><th>NLB IP</th><th style="width:260px">점유 리스너</th><th style="width:110px">상태</th></tr></thead>
+      <thead><tr><th style="width:100px">NLB Index</th><th>NLB IP</th><th style="width:240px">점유 리스너</th><th style="width:100px">상태</th></tr></thead>
       <tbody>
         ${NLB.map(n=>`
         <tr>
@@ -804,7 +811,8 @@ function renderIdcSection(ts){
       </tbody>
     </table>
     </div>
-  </div>`;
+    </div>
+    <div class="foot"><button class="btn secondary" onclick="closeModal()">닫기</button></div></div>`);
 }
 
 /* ══════════ P4 연결 테스트 목록 ══════════ */
@@ -971,6 +979,7 @@ function bindPage(){
   const tseg=$('#tc-seg'); if(tseg) tseg.querySelectorAll('button').forEach(b=>b.onclick=()=>{tcTab=b.dataset.t;PG.tc.page=1;render();});
 
   /* NLB 배정 편집 */
+  const nlbBtn=$('#nlb-status-btn'); if(nlbBtn) nlbBtn.onclick=openNlbModal;
   document.querySelectorAll('.nlb-sel').forEach(sel=>sel.onchange=e=>{
     nlbDraft[sel.dataset.rid]=+e.target.value;render();
   });
