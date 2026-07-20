@@ -82,6 +82,14 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .page-head h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.02em}
 .page-head .head-sub{display:flex;align-items:center;gap:8px;margin-top:8px}
 .page-head .actions{display:flex;gap:8px}
+/* 상세 헤더 메타 행 (Primer PageHeader Description + Helios kv≤4 문법) —
+   정적 요청 맥락은 카드가 아니라 헤더 소속. 헤더 아래 구분선으로 본문과 분리 */
+.page-head.detail-head{align-items:flex-start;padding-bottom:20px;border-bottom:1px solid var(--border);margin-bottom:24px}
+.head-meta{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;flex-wrap:wrap}
+.head-meta .hm-k{font-size:12px;font-weight:600;color:var(--text-weak)}
+.head-meta .hm-v{color:var(--text-strong);font-weight:500;font-variant-numeric:tabular-nums}
+.head-meta .hm-sep{color:var(--text-faint)}
+.page-head.detail-head+.section-title{margin-top:0}
 .section-title{font-size:20px;font-weight:600;color:var(--text-strong);margin:64px 0 12px;line-height:1.2}
 .section-title:first-child{margin-top:0}
 .section-desc{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4;margin:16px 0 16px}
@@ -731,24 +739,21 @@ function renderDetail(ts){
     <span class="crumb" data-nav="#/requests">연동 요청</span><span class="sep">/</span>
     <span class="cur">${esc(d.svc)} #${ts}</span>
   </div>
-  <div class="page-head">
+  <div class="page-head detail-head">
     <div>
       <h1>${esc(d.svc)} <span class="muted" style="font-weight:500">#${ts}</span></h1>
       <div class="head-sub">${ptag(d.pv)}<span class="mono">${d.code}</span>${csPill(d.status)}</div>
+      <div class="head-meta">
+        <span class="hm-k">요청자</span><span class="hm-v">${esc(d.requested_by)}</span>
+        <span class="hm-sep">·</span>
+        <span class="hm-k">요청 시각</span><span class="hm-v">${d.requested_at}</span>
+        <span class="hm-sep">·</span>
+        <span class="hm-k">리소스 선택</span><span class="hm-v">${d.selected} <span class="muted">/ ${d.total}</span></span>
+      </div>
     </div>
     <div class="actions">
       <button class="btn danger" id="act-reject">반려</button>
       <button class="btn primary" id="act-approve">승인</button>
-    </div>
-  </div>
-
-  <div class="section-title">요청 정보</div>
-  <div class="card">
-    <div class="kv2">
-      <span class="k">요청자</span><span class="v">${esc(d.requested_by)}</span>
-      <span class="k">요청 시각</span><span class="v">${d.requested_at}</span>
-      <span class="k">리소스 선택</span><span class="v">${d.selected} <span class="muted">/ ${d.total}</span></span>
-      <span class="k">요청 상태</span><span class="v">${csPill(d.status)}</span>
     </div>
   </div>
 
