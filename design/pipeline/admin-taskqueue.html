@@ -287,9 +287,15 @@ select.sel.sm.dirty{border-color:var(--primary);box-shadow:0 0 0 3px var(--prima
 .am-eyebrow .ey-ctx{color:var(--text-weak)}
 .am-eyebrow .ey-sep{color:var(--text-faint)}
 .am-eyebrow .ey-id{color:var(--primary);font-weight:700}
-.modal h3.am-title{margin:0 0 8px;font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.2;color:var(--text-strong)}
-.modal .am-sub{margin:0;font-size:14px;font-weight:400;color:var(--text-weak);line-height:1.5}
+.modal h3.am-title{margin:0 0 8px;font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.2;color:var(--text-strong)}
+.modal .am-sub{margin:0;font-size:16px;font-weight:400;color:var(--text-weak);line-height:1.5}
 .am-meta{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.am-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.am-stat{background:var(--bg-inner);border:1px solid var(--border);border-radius:var(--r-inner);
+  padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.am-stat .lb{font-size:12px;font-weight:600;color:var(--text-weak)}
+.am-stat .v{font-size:24px;font-weight:700;color:var(--text-strong);line-height:1.2;font-variant-numeric:tabular-nums}
+.am-stat .v small{font-size:14px;font-weight:600;color:var(--text-medium);margin-left:2px}
 .am-body{padding:24px 40px 0}
 .am-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
   color:var(--text-weak);margin:0 0 10px}
@@ -1128,9 +1134,10 @@ function bindPage(){
         <p class="am-sub">${esc(d.svc)}의 PII Agent 설치를 확정해요. 승인하면 연동이 완료되고 모니터링이 시작돼요.</p>
       </div>
       <div class="am-body">
-        <div class="am-note" style="background:var(--bg-inner);border-color:var(--border)">
-          <svg class="ic sm"><use href="#i-check"/></svg>
-          접속 성공 ${d.rows.filter(r=>r.st==='Success').length}건 · 연동 대상 논리 DB ${incTotal}개 · 제외 ${excTotal}개를 확인했어요.
+        <div class="am-stats">
+          <div class="am-stat"><span class="lb">리소스</span><span class="v">${d.rows.length}<small>건</small></span></div>
+          <div class="am-stat"><span class="lb">연동 대상 논리 DB</span><span class="v">${incTotal}<small>개</small></span></div>
+          <div class="am-stat"><span class="lb">연동 제외</span><span class="v">${excTotal}<small>개</small></span></div>
         </div>
       </div>
       <div class="am-footer"><button class="btn secondary" onclick="closeModal()">취소</button>
