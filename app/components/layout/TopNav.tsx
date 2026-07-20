@@ -55,7 +55,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    label: '파이프라인',
+    label: '관리자',
     href: integrationRoutes.pipelines.dashboard,
     isActive: (pathname) => pathname.startsWith('/admin/pipelines'),
     icon: (

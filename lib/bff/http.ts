@@ -277,6 +277,54 @@ export const httpBff: BffClient = {
     getNlbTable: () => getSnakeRaw(`/idc/nlb/table`),
   },
 
+  // Admin Task Queue: raw wire passthrough — the admin/queue routes own the
+  // wire→camel boundary (ADR-019, lib/types/task-queue.ts). Upstream paths match
+  // install-v1.yaml verbatim. PUT/POST bodies are authored snake (D3).
+  taskQueue: {
+    getDashboardSummary: () =>
+      getSnakeRaw<z.infer<typeof schemas.DashboardSummaryResponse>>(`/dashboard/summary`),
+    getProcessStatuses: (query) =>
+      getSnakeRaw<z.infer<typeof schemas.PageProcessStatusCurrentResponse>>(
+        `/process-statuses${buildQuery({
+          processStatus: query.processStatus,
+          targetSourceId: query.targetSourceId,
+          page: query.page,
+          size: query.size,
+        })}`,
+      ),
+    getTargetSourcesPage: (query) =>
+      getSnakeRaw<z.infer<typeof schemas.PageTargetSourceInfo>>(
+        `/target-sources/page${buildQuery({
+          confirmStatus: query.confirmStatus,
+          targetSourceId: query.targetSourceId,
+          page: query.page,
+          size: query.size,
+        })}`,
+      ),
+    putNlbIndex: (id, body) =>
+      put<z.infer<typeof schemas.ApprovalRequestDetailDto>>(
+        `/target-sources/${id}/approval-requests/nlb-indices`,
+        body,
+      ),
+    getTestConnectionPage: (query) =>
+      getSnakeRaw<z.infer<typeof schemas.PageTestConnectionRejectStatusResponse>>(
+        `/target-sources/test-connection/status${buildQuery({
+          status: query.status,
+          page: query.page,
+          size: query.size,
+        })}`,
+      ),
+    getTestConnectionStatus: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.TestConnectionRejectStatusResponse>>(
+        `/target-sources/${id}/test-connection/status`,
+      ),
+    rejectTestConnection: (id, body) =>
+      post<z.infer<typeof schemas.TestConnectionRejectResponse>>(
+        `/target-sources/${id}/test-connection/reject`,
+        body,
+      ),
+  },
+
   // Logical-DB: the CSR client (app/lib/api/logical-db.ts) owns the single camel
   // boundary, so these forward raw snake (ADR-019 D1 one-boundary). PUT body is
   // authored snake by the caller (D3).

@@ -26,5 +26,16 @@ export const integrationRoutes = {
       `/admin/pipelines/targets/${encodeURIComponent(String(targetSourceId))}`,
     pipeline: (pipelineId: number | string) =>
       `/admin/pipelines/${encodeURIComponent(String(pipelineId))}`,
+    /** Admin Task Queue (design/pipeline/admin-taskqueue-storyboard.md). The
+     * static `queue` segment wins over `[pipelineId]` route matching. */
+    queue: {
+      dashboard: '/admin/pipelines/queue',
+      requests: '/admin/pipelines/queue/requests',
+      request: (targetSourceId: number | string) =>
+        `/admin/pipelines/queue/requests/${encodeURIComponent(String(targetSourceId))}`,
+      testConnections: '/admin/pipelines/queue/test-connections',
+      testConnection: (targetSourceId: number | string) =>
+        `/admin/pipelines/queue/test-connections/${encodeURIComponent(String(targetSourceId))}`,
+    },
   },
 } as const;

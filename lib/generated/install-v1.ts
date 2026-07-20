@@ -21,6 +21,9 @@ const SkipLogicalDatabaseItem = z
 const UpdateSkipLogicalDatabaseRequest = z
   .object({ skip_logical_database_list: z.array(SkipLogicalDatabaseItem).nullable() })
   .partial().passthrough();
+const NlbIndexAssignmentDto = z
+  .object({ resource_id: Str, nlb_index: Num })
+  .partial().passthrough();
 const GuideContentRequest = z
   .object({
     ko: Loose,
@@ -29,6 +32,18 @@ const GuideContentRequest = z
   .partial().passthrough();
 const GuideUpdateRequest = z
   .object({ contents: GuideContentRequest })
+  .partial().passthrough();
+const TestConnectionRejectRequest = z
+  .object({ reason: Str })
+  .partial().passthrough();
+const CreatePipelineRequest = z
+  .object({ type: Str })
+  .partial().passthrough();
+const CustomTaskRequest = z
+  .object({ name: Str, description: Str.optional() })
+  .partial().passthrough();
+const CustomPipelineRequest = z
+  .object({ tasks: z.array(CustomTaskRequest).nullable() })
   .partial().passthrough();
 const PiiAgentInstallationConfirmRequest = z
   .object({ confirm: Bool })
@@ -145,6 +160,27 @@ const UpdateCredentialResponse = z
 const SkipLogicalDatabaseResponse = z
   .object({ skip_logical_database_list: z.array(SkipLogicalDatabaseItem).nullable() })
   .partial().passthrough();
+const ActorDto = z.object({ user_id: Str }).partial().passthrough();
+const ApprovalActionResponseDto = z
+  .object({
+    request_id: Num,
+    status: Str,
+    processed_by: ActorDto,
+    processed_at: Str,
+    reason: Str,
+  })
+  .partial().passthrough();
+const ApprovalRequestDetailDto = z
+  .object({
+    id: Num,
+    target_source_id: Num,
+    status: Str,
+    requested_by: ActorDto,
+    requested_at: Str,
+    resources: z.array(TargetSourceResourceItemDto).nullable(),
+    result: ApprovalActionResponseDto,
+  })
+  .partial().passthrough();
 const GuideContents = z
   .object({ ko: Str, en: Str })
   .partial().passthrough();
@@ -153,6 +189,14 @@ const GuideDetail = z
     name: Str,
     contents: GuideContents,
     updatedAt: Str,
+  })
+  .partial().passthrough();
+const TestConnectionRejectResponse = z
+  .object({
+    target_source_id: Num,
+    test_connection_rejected: Bool,
+    test_connection_reject_reason: Str,
+    test_connection_rejected_at: Str,
   })
   .partial().passthrough();
 const TestConnectionTriggerResponse = z
@@ -170,6 +214,45 @@ const ScanJobResponse = z
     duration_seconds: Num,
     resource_count_by_resource_type: z.record(Num).nullable(),
     scan_error: Str,
+  })
+  .partial().passthrough();
+const TaskSummary = z
+  .object({
+    task_id: Num,
+    sequence: Num,
+    kind: Str,
+    task_definition: Str,
+    operation: Str,
+    status: Str,
+    fail_count: Num,
+    error_code: Str,
+    consumes_terraform_slot: Bool,
+    started_at: Str,
+    finished_at: Str,
+    description: Str,
+  })
+  .partial().passthrough();
+const PipelineDetail = z
+  .object({
+    pipeline_id: Num,
+    type: Str,
+    target_source_id: Str,
+    cloud_provider: Str,
+    recipe_definition: Str,
+    status: Str,
+    created_at: Str,
+    last_activity_at: Str,
+    next_due_at: Str,
+    leased: Bool,
+    cancel_requested: Bool,
+    due_lag_millis: Num,
+    current_task_sequence: Num,
+    final_task_sequence: Num,
+    current_fail_count: Num,
+    current_max_fail_count: Num,
+    done_task_count: Num,
+    total_task_count: Num,
+    tasks: z.array(TaskSummary).nullable(),
   })
   .partial().passthrough();
 const ServiceInfoRefinedResponse = z
@@ -202,7 +285,6 @@ const TargetSourceResponse = z
     piiAgentInstalledAt: Str,
   })
   .partial().passthrough();
-const ActorDto = z.object({ user_id: Str }).partial().passthrough();
 const ApprovalUnavailableResponseDto = z
   .object({
     request_id: Num,
@@ -231,15 +313,6 @@ const ApprovalRequestSummaryDto = z
     resource_selected_count: Num,
   })
   .partial().passthrough();
-const ApprovalActionResponseDto = z
-  .object({
-    request_id: Num,
-    status: Str,
-    processed_by: ActorDto,
-    processed_at: Str,
-    reason: Str,
-  })
-  .partial().passthrough();
 const TargetSourceMetadata = z
   .object({
     tenant_id: Str,
@@ -251,6 +324,34 @@ const TargetSourceMetadata = z
     grant_service_terraform_execution_permission: Bool,
   })
   .partial().passthrough();
+const TestConnectionRejectStatusResponse = z
+  .object({
+    target_source_id: Num,
+    target_source_exists: Bool,
+    status: Str,
+    service_name: Str,
+    service_code: Str,
+    cloud_provider: Str,
+    reject_reason: Str,
+    rejected_at: Str,
+    completed_at: Str,
+    metadata: TargetSourceMetadata,
+  })
+  .partial().passthrough();
+const TestConnectionRejectStatusBatchResponse = z
+  .object({ items: z.array(TestConnectionRejectStatusResponse).nullable() })
+  .partial().passthrough();
+const LatestApprovalRequestSummaryDto = z
+  .object({
+    request_id: Num,
+    status: Str,
+    requested_by: ActorDto,
+    requested_at: Str,
+    processed_by: ActorDto,
+    processed_at: Str,
+    reason: Str,
+  })
+  .partial().passthrough();
 const TargetSourceInfo = z
   .object({
     targetSourceId: Num,
@@ -260,7 +361,9 @@ const TargetSourceInfo = z
     serviceCode: Str,
     serviceName: Str,
     updatedAt: Str,
+    confirmStatus: Str,
     metadata: TargetSourceMetadata,
+    latest_approval_request: LatestApprovalRequestSummaryDto,
   })
   .partial().passthrough();
 const UserInfo = z
@@ -293,8 +396,8 @@ const ServiceItem = z
   .partial().passthrough();
 const PageServiceItem = z
   .object({
-    totalPages: Num,
     totalElements: Num,
+    totalPages: Num,
     pageable: PageableObject,
     first: Bool,
     last: Bool,
@@ -308,6 +411,19 @@ const PageServiceItem = z
   .partial().passthrough();
 const UserMeResponse = z
   .object({ id: Str, name: Str, email: Str })
+  .partial().passthrough();
+const TaskCatalogEntry = z
+  .object({
+    name: Str,
+    display_name: Str,
+    description: Str,
+    provider: Str,
+    kind: Str,
+    consumes_terraform_slot: Bool,
+  })
+  .partial().passthrough();
+const TaskCatalogResponse = z
+  .object({ task_definitions: z.array(TaskCatalogEntry).nullable() })
   .partial().passthrough();
 const AzureServicePrincipalVerificationResponse = z
   .object({
@@ -324,7 +440,6 @@ const TargetSourceDetail = z
     target_source_id: Num,
     service_code: Str,
     service_name: Str,
-    process_status: Str,
     cloud_provider: Str,
     created_at: Str,
     metadata: TargetSourceMetadata,
@@ -367,6 +482,29 @@ const TestConnectionLatestResultSummaryResponse = z
     excluded_logical_database_count: Num,
   })
   .partial().passthrough();
+const TestConnectionHistoryItemResponse = z
+  .object({
+    target_source_id: Num,
+    status: Str,
+    reason: Str,
+    created_at: Str,
+  })
+  .partial().passthrough();
+const PageTestConnectionHistoryItemResponse = z
+  .object({
+    totalElements: Num,
+    totalPages: Num,
+    pageable: PageableObject,
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(TestConnectionHistoryItemResponse).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    empty: Bool,
+  })
+  .partial().passthrough();
 const TestConnectionCompletionStatusResponse = z
   .object({
     target_source_id: Num,
@@ -386,8 +524,8 @@ const SecretResponse = z
   .partial().passthrough();
 const PageScanJobResponse = z
   .object({
-    totalPages: Num,
     totalElements: Num,
+    totalPages: Num,
     pageable: PageableObject,
     first: Bool,
     last: Bool,
@@ -408,9 +546,74 @@ const CloudResourceResponse = z
 const ProcessStatusResponseDto = z
   .object({
     target_source_id: Num,
+    target_source_exists: Bool,
     process_status: Str,
     healthy: Str,
     evaluated_at: Str,
+  })
+  .partial().passthrough();
+const PipelineSummary = z
+  .object({
+    pipeline_id: Num,
+    type: Str,
+    target_source_id: Str,
+    service_code: Str,
+    service_name: Str,
+    cloud_provider: Str,
+    recipe_definition: Str,
+    status: Str,
+    done_task_count: Num,
+    total_task_count: Num,
+    created_at: Str,
+    last_activity_at: Str,
+  })
+  .partial().passthrough();
+const PagePipelineSummary = z
+  .object({
+    totalElements: Num,
+    totalPages: Num,
+    pageable: PageableObject,
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(PipelineSummary).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    empty: Bool,
+  })
+  .partial().passthrough();
+const TaskDefinitionView = z
+  .object({
+    name: Str,
+    display_name: Str,
+    description: Str,
+    dispatch_api: Str,
+    status_api: Str,
+    result_api: Str,
+    success_policy: Str,
+    result_storage: Str,
+  })
+  .partial().passthrough();
+const RecipePreviewStep = z
+  .object({
+    sequence: Num,
+    task_definition: Str,
+    kind: Str,
+    operation: Str,
+    display_name: Str,
+    consumes_terraform_slot: Bool,
+    definition: TaskDefinitionView,
+  })
+  .partial().passthrough();
+const RecipePreview = z
+  .object({
+    type: Str,
+    provider: Str,
+    recipe_definition: Str,
+    display_name: Str,
+    description: Str,
+    steps: z.array(RecipePreviewStep).nullable(),
   })
   .partial().passthrough();
 const IdcResourceInput = z
@@ -435,11 +638,12 @@ const CloudInstallationStepStatusDto = z
     guide: Str,
   })
   .partial().passthrough();
-const IdcLastCheckDto = z
+const LastCheckInfoDto = z
   .object({
     status: Str,
     checked_at: Str,
     fail_reason: Str,
+    installation_status_unavailable: Bool,
   })
   .partial().passthrough();
 const IdcResourceInstallationStatusDto = z
@@ -453,7 +657,7 @@ const IdcResourceInstallationStatusDto = z
   .partial().passthrough();
 const IdcInstallationStatusResponse = z
   .object({
-    last_check: IdcLastCheckDto,
+    last_check: LastCheckInfoDto,
     resources: z.array(IdcResourceInstallationStatusDto).nullable(),
   })
   .partial().passthrough();
@@ -464,13 +668,6 @@ const GcpServiceAccountInfoResponse = z
     fail_reason: Str,
     fail_message: Str,
     last_verified_at: Str,
-  })
-  .partial().passthrough();
-const LastCheckInfoDto = z
-  .object({
-    status: Str,
-    checked_at: Str,
-    fail_reason: Str,
   })
   .partial().passthrough();
 const GcpResourceInstallationStatusDto = z
@@ -519,28 +716,30 @@ const ResourceConfigDto = z
 const ConfirmedIntegrationResponse = z
   .object({ resource_infos: z.array(ResourceConfigDto).nullable() })
   .partial().passthrough();
-const PrivateEndpointDetail = z
-  .object({ id: Str, name: Str, status: Str })
-  .partial().passthrough();
-const VmInstallationDetail = z
+const AzurePrivateEndpointApprovalStepDto = z
   .object({
-    subnet_exists: Bool,
-    load_balancer: Loose,
+    id: Str,
+    name: Str,
+    status: Str,
+    guide: Str,
   })
   .partial().passthrough();
-const AzureResourceStatus = z
+const AzureResourceInstallationStatusDto = z
   .object({
     resource_id: Str,
     resource_name: Str,
     resource_type: Str,
-    private_endpoint: PrivateEndpointDetail,
-    vm_installation: VmInstallationDetail,
+    installation_status: Str,
+    bdc_side_terraform_apply: CloudInstallationStepStatusDto,
+    service_side_private_endpoint_approval: AzurePrivateEndpointApprovalStepDto,
+    azure_virtual_machine_subnet_creation: CloudInstallationStepStatusDto,
+    azure_virtual_machine_terraform_apply: CloudInstallationStepStatusDto,
   })
   .partial().passthrough();
 const AzureInstallationStatusResponse = z
   .object({
     last_check: LastCheckInfoDto,
-    resources: z.array(AzureResourceStatus).nullable(),
+    resources: z.array(AzureResourceInstallationStatusDto).nullable(),
   })
   .partial().passthrough();
 const AwsRoleVerificationResponse = z
@@ -593,8 +792,8 @@ const ApprovalRequestLatestDto = z
   .partial().passthrough();
 const Page = z
   .object({
-    totalPages: Num,
     totalElements: Num,
+    totalPages: Num,
     pageable: PageableObject,
     first: Bool,
     last: Bool,
@@ -606,8 +805,276 @@ const Page = z
     empty: Bool,
   })
   .partial().passthrough();
+const PageTestConnectionRejectStatusResponse = z
+  .object({
+    totalElements: Num,
+    totalPages: Num,
+    pageable: PageableObject,
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(TestConnectionRejectStatusResponse).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    empty: Bool,
+  })
+  .partial().passthrough();
+const PageTargetSourceInfo = z
+  .object({
+    totalElements: Num,
+    totalPages: Num,
+    pageable: PageableObject,
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(TargetSourceInfo).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    empty: Bool,
+  })
+  .partial().passthrough();
 const AuthorizedUsersResponse = z
   .object({ users: z.array(UserInfo).nullable() })
+  .partial().passthrough();
+const TargetSourceServiceInfoResponse = z
+  .object({
+    code: Str,
+    serviceName: Str,
+    abbr: Str,
+    is_eos_service: Bool,
+  })
+  .partial().passthrough();
+const TargetSourceMetadataResponse = z
+  .object({
+    id: Num,
+    serviceType: Str,
+    division: Str,
+    cloudProvider: Str,
+    state: Str,
+    supportRawData: Bool,
+    description: Str,
+    createdAt: Str,
+    updatedAt: Str,
+    confirmStatus: Str,
+    service_info: TargetSourceServiceInfoResponse,
+  })
+  .partial().passthrough();
+const ProcessStatusCurrentResponse = z
+  .object({
+    target_source_id: Num,
+    process_status: Str,
+    status_changed_at: Str,
+    last_calculated_at: Str,
+    delay_seconds: Num,
+    evaluated_at: Str,
+    target_source: TargetSourceMetadataResponse,
+  })
+  .partial().passthrough();
+const PageProcessStatusCurrentResponse = z
+  .object({
+    totalElements: Num,
+    totalPages: Num,
+    pageable: PageableObject,
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(ProcessStatusCurrentResponse).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    empty: Bool,
+  })
+  .partial().passthrough();
+const ProcessStatusHistoryResponse = z
+  .object({
+    id: Num,
+    target_source_id: Num,
+    process_status: Str,
+    changed_at: Str,
+    target_source: TargetSourceMetadataResponse,
+  })
+  .partial().passthrough();
+const PageProcessStatusHistoryResponse = z
+  .object({
+    totalElements: Num,
+    totalPages: Num,
+    pageable: PageableObject,
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(ProcessStatusHistoryResponse).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    empty: Bool,
+  })
+  .partial().passthrough();
+const TaskCheckView = z
+  .object({
+    call_count: Num,
+    not_met_count: Num,
+    api_error_count: Num,
+    call_timeout_count: Num,
+    last_external_status: Str,
+    last_checked_at: Str,
+  })
+  .partial().passthrough();
+const TerraformResultSummary = z
+  .object({
+    job_id: Str,
+    succeeded: Bool,
+    truncated: Bool,
+    has_body: Bool,
+    created_at: Str,
+  })
+  .partial().passthrough();
+const TerraformJobStateSummary = z
+  .object({
+    job_id: Str,
+    last_state: Str,
+    last_fail_reason: Str,
+    last_error: Str,
+    poll_count: Num,
+    last_polled_at: Str,
+  })
+  .partial().passthrough();
+const TaskAttemptView = z
+  .object({
+    attempt_number: Num,
+    status: Str,
+    error_code: Str,
+    failure_detail: Str,
+    response: Str,
+    started_at: Str,
+    finished_at: Str,
+    check: TaskCheckView,
+    terraform_results: z.array(TerraformResultSummary).nullable(),
+    job_states: z.array(TerraformJobStateSummary).nullable(),
+  })
+  .partial().passthrough();
+const TaskDetail = z
+  .object({
+    task_id: Num,
+    pipeline_id: Num,
+    sequence: Num,
+    kind: Str,
+    task_definition: Str,
+    definition: TaskDefinitionView,
+    operation: Str,
+    status: Str,
+    fail_count: Num,
+    error_code: Str,
+    consumes_terraform_slot: Bool,
+    started_at: Str,
+    ready_at: Str,
+    finished_at: Str,
+    next_check_at: Str,
+    effective_polling_interval: z
+      .object({
+        seconds: Num,
+        zero: Bool,
+        nano: Num,
+        negative: Bool,
+        positive: Bool,
+        units: z.array(
+          z
+            .object({
+              durationEstimated: Bool,
+              duration: z
+                .object({
+                  seconds: Num,
+                  zero: Bool,
+                  nano: Num,
+                  negative: Bool,
+                  positive: Bool,
+                })
+                .passthrough(),
+              timeBased: Bool,
+              dateBased: Bool,
+            })
+            .passthrough()
+        ).nullable(),
+      })
+      .passthrough(),
+    effective_execution_timeout: z
+      .object({
+        seconds: Num,
+        zero: Bool,
+        nano: Num,
+        negative: Bool,
+        positive: Bool,
+        units: z.array(
+          z
+            .object({
+              durationEstimated: Bool,
+              duration: z
+                .object({
+                  seconds: Num,
+                  zero: Bool,
+                  nano: Num,
+                  negative: Bool,
+                  positive: Bool,
+                })
+                .passthrough(),
+              timeBased: Bool,
+              dateBased: Bool,
+            })
+            .passthrough()
+        ).nullable(),
+      })
+      .passthrough(),
+    effective_max_fail_count: Num,
+    attempts: z.array(TaskAttemptView).nullable(),
+    description: Str,
+  })
+  .partial().passthrough();
+const TerraformJobStateDetail = z
+  .object({
+    task_id: Num,
+    attempt_number: Num,
+    job_id: Str,
+    last_state: Str,
+    last_fail_reason: Str,
+    last_error: Str,
+    last_response: Str,
+    poll_count: Num,
+    last_polled_at: Str,
+  })
+  .partial().passthrough();
+const TerraformResultDetail = z
+  .object({
+    task_id: Num,
+    attempt_number: Num,
+    job_id: Str,
+    succeeded: Bool,
+    truncated: Bool,
+    created_at: Str,
+    content: Str,
+  })
+  .partial().passthrough();
+const PipelineStatistics = z
+  .object({
+    period: Str,
+    since: Str,
+    pending_count: Num,
+    running_count: Num,
+    failed_count: Num,
+    done_count: Num,
+    cancelled_count: Num,
+    total_count: Num,
+  })
+  .partial().passthrough();
+const LivePipelineStatistics = z
+  .object({
+    running_pipeline_count: Num,
+    pending_pipeline_count: Num,
+    in_progress_terraform_task_count: Num,
+    terraform_slot_cap: Num,
+    running_pipeline_cap: Num,
+    active_claim_count: Num,
+  })
   .partial().passthrough();
 const AzurePrivateLinkHealthResult = z
   .object({
@@ -643,14 +1110,28 @@ const NlbTableResponse = z
     occupiedListenerCount: Num,
   })
   .partial().passthrough();
+const DashboardSummaryResponse = z
+  .object({
+    pending_approval_count: Num,
+    rejected_approval_count: Num,
+    test_connection_completed_count: Num,
+    test_connection_rejection_count: Num,
+    evaluated_at: Str,
+  })
+  .partial().passthrough();
 
 export const schemas = {
   UpdateTestConnectionConfirmationRequest,
   UpdateCredentialRequest,
   SkipLogicalDatabaseItem,
   UpdateSkipLogicalDatabaseRequest,
+  NlbIndexAssignmentDto,
   GuideContentRequest,
   GuideUpdateRequest,
+  TestConnectionRejectRequest,
+  CreatePipelineRequest,
+  CustomTaskRequest,
+  CustomPipelineRequest,
   PiiAgentInstallationConfirmRequest,
   ApprovalRejectRequestDto,
   NetworkInterfaceDto,
@@ -666,18 +1147,25 @@ export const schemas = {
   TestConnectionConfirmationResponse,
   UpdateCredentialResponse,
   SkipLogicalDatabaseResponse,
+  ActorDto,
+  ApprovalActionResponseDto,
+  ApprovalRequestDetailDto,
   GuideContents,
   GuideDetail,
+  TestConnectionRejectResponse,
   TestConnectionTriggerResponse,
   ScanJobResponse,
+  TaskSummary,
+  PipelineDetail,
   ServiceInfoRefinedResponse,
   TargetSourceResponse,
-  ActorDto,
   ApprovalUnavailableResponseDto,
   ApprovalUnavailableConfirmResponseDto,
   ApprovalRequestSummaryDto,
-  ApprovalActionResponseDto,
   TargetSourceMetadata,
+  TestConnectionRejectStatusResponse,
+  TestConnectionRejectStatusBatchResponse,
+  LatestApprovalRequestSummaryDto,
   TargetSourceInfo,
   UserInfo,
   UserSearchResponse,
@@ -686,6 +1174,8 @@ export const schemas = {
   ServiceItem,
   PageServiceItem,
   UserMeResponse,
+  TaskCatalogEntry,
+  TaskCatalogResponse,
   AzureServicePrincipalVerificationResponse,
   TargetSourceDetail,
   TestedLogicalDatabaseItem,
@@ -693,26 +1183,31 @@ export const schemas = {
   TestConnectionAgentResult,
   TestConnectionVersionResult,
   TestConnectionLatestResultSummaryResponse,
+  TestConnectionHistoryItemResponse,
+  PageTestConnectionHistoryItemResponse,
   TestConnectionCompletionStatusResponse,
   SecretResponse,
   PageScanJobResponse,
   CloudResourceResponse,
   ProcessStatusResponseDto,
+  PipelineSummary,
+  PagePipelineSummary,
+  TaskDefinitionView,
+  RecipePreviewStep,
+  RecipePreview,
   IdcResourceInput,
   IdcPreviousRequestResponse,
   CloudInstallationStepStatusDto,
-  IdcLastCheckDto,
+  LastCheckInfoDto,
   IdcResourceInstallationStatusDto,
   IdcInstallationStatusResponse,
   GcpServiceAccountInfoResponse,
-  LastCheckInfoDto,
   GcpResourceInstallationStatusDto,
   GcpInstallationStatusResponse,
   ResourceConfigDto,
   ConfirmedIntegrationResponse,
-  PrivateEndpointDetail,
-  VmInstallationDetail,
-  AzureResourceStatus,
+  AzurePrivateEndpointApprovalStepDto,
+  AzureResourceInstallationStatusDto,
   AzureInstallationStatusResponse,
   AwsRoleVerificationResponse,
   AwsResourceInstallationStatusDto,
@@ -721,9 +1216,27 @@ export const schemas = {
   ApprovedIntegrationResponseDto,
   ApprovalRequestLatestDto,
   Page,
+  PageTestConnectionRejectStatusResponse,
+  PageTargetSourceInfo,
   AuthorizedUsersResponse,
+  TargetSourceServiceInfoResponse,
+  TargetSourceMetadataResponse,
+  ProcessStatusCurrentResponse,
+  PageProcessStatusCurrentResponse,
+  ProcessStatusHistoryResponse,
+  PageProcessStatusHistoryResponse,
+  TaskCheckView,
+  TerraformResultSummary,
+  TerraformJobStateSummary,
+  TaskAttemptView,
+  TaskDetail,
+  TerraformJobStateDetail,
+  TerraformResultDetail,
+  PipelineStatistics,
+  LivePipelineStatistics,
   AzurePrivateLinkHealthResult,
   AzureHealthCheckResult,
   NlbOccupiedResourceResponse,
   NlbTableResponse,
+  DashboardSummaryResponse,
 };

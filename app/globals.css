@@ -171,6 +171,19 @@
   --pl-brand-tf: #7B42BC;
   --pl-brand-aws-ink: #232F3E;
   --pl-brand-aws-smile: #FF9900;
+  /* ── Admin Task Queue (design/pipeline/admin-taskqueue.html) ─────────────
+     Net-new roles not derivable from the existing --pl-* set; values verbatim
+     from the prototype. Delay tiers = the monitor 지연 column text + the seg.lg
+     tdot fills (text darker than the dot on purpose). Tag-blue = the app
+     db-list-table Database-Type tag (`.tag.blue`). */
+  --pl-delay1-text: #A16207; /* ≥1h text (.delay.d1) */
+  --pl-delay1-dot: #EAB308; /* ≥1h seg dot (.tdot.d1) */
+  --pl-delay2-text: #C2410C; /* ≥1d text (.delay.d2) */
+  --pl-delay2-dot: #F97316; /* ≥1d seg dot (.tdot.d2) */
+  --pl-delay3-text: #DC2626; /* ≥7d text (.delay.d3) */
+  --pl-delay3-dot: #EF4444; /* ≥7d seg dot (.tdot.d3) */
+  --pl-tag-blue-bg: #E8F1FF; /* .tag.blue background */
+  --pl-tag-blue-text: #1747B5; /* .tag.blue text */
   /* --pl-font-sans / --pl-font-mono are declared on `body` below, NOT here:
      their var(--font-geist-*) references only exist on <body> (next/font
      className in app/layout.tsx), so a :root declaration computes to

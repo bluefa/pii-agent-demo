@@ -7,6 +7,11 @@ import { getStore } from '@/lib/mock-store';
 import { ProcessStatus, cloudProviderToWireProvider } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { toBffApprovalProcessStatus } from '@/lib/bff/mock/target-sources';
+import {
+  applyTqApprovalDecision,
+  getTcLatestResultRows,
+  getTqApprovalLatest,
+} from '@/lib/bff/mock/task-queue';
 import { schemas } from '@/lib/generated/install-v1';
 import type {
   MockResource,
@@ -117,6 +122,18 @@ const computeLastApprovalResult = (project: Project): LastApprovalResult => {
 // off resourceId so they stay stable across re-renders and match the v15 sheet.
 
 // Region per provider (v15: AWS/Azure ap-northeast-1, GCP asia-northeast3).
+// Conventional engine ports for IDC resources (the domain store has no port
+// field). Keyed by upper-cased DatabaseType.
+const DEFAULT_PORT_BY_DB: Record<string, number> = {
+  MYSQL: 3306,
+  POSTGRESQL: 5432,
+  ORACLE: 1521,
+  MSSQL: 1433,
+  MARIADB: 3306,
+  MONGODB: 27017,
+  REDIS: 6379,
+};
+
 const demoRegion = (provider: Project['cloudProvider'], resource: MockResource): string => {
   if (provider === 'AWS') return resource.region ?? 'ap-northeast-1';
   if (provider === 'GCP') return 'asia-northeast3';
@@ -894,6 +911,10 @@ export const mockConfirm = {
 
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
+      // Admin Task Queue demo targets (1031/2113) live outside the store
+      // (1027/2013 are store projects — ids must not collide).
+      const demo = getTqApprovalLatest(Number(targetSourceId));
+      if (demo) return NextResponse.json(demo);
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
         { status: 404 },
@@ -963,6 +984,10 @@ export const mockConfirm = {
         ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
         ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
         ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
+        // Task Queue P3 table reads port/oracle_service_id (the domain store has
+        // no per-resource port, so derive the conventional one per DB engine).
+        ...(idc ? { port: DEFAULT_PORT_BY_DB[String(r.databaseType).toUpperCase()] ?? null } : {}),
+        ...(idc?.oracleSid ? { oracle_service_id: idc.oracleSid } : {}),
       };
       return {
         resource_id: r.resourceId,
@@ -1120,6 +1145,9 @@ export const mockConfirm = {
 
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
+      // Admin Task Queue demo targets — approve mutates the queue fixture.
+      const demoResult = applyTqApprovalDecision(Number(targetSourceId), 'APPROVED', null);
+      if (demoResult) return NextResponse.json(demoResult);
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
         { status: 404 },
@@ -1204,6 +1232,12 @@ export const mockConfirm = {
 
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
+      // Admin Task Queue demo targets — reject mutates the queue fixture.
+      const { reason: demoReason } = (body ?? {}) as { reason?: string };
+      if (demoReason?.trim()) {
+        const demoResult = applyTqApprovalDecision(Number(targetSourceId), 'REJECTED', demoReason.trim());
+        if (demoResult) return NextResponse.json(demoResult);
+      }
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
         { status: 404 },
@@ -1637,6 +1671,9 @@ export const mockConfirm = {
   getLatestTestConnectionResultSummaries: async (targetSourceId: string) => {
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
+      // Admin Task Queue demo targets (1799/1583) live outside the store.
+      const demoRows = getTcLatestResultRows(Number(targetSourceId));
+      if (demoRows) return NextResponse.json(demoRows);
       return NextResponse.json(
         { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
         { status: 404 },

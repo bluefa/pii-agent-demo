@@ -20,7 +20,7 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
 
   it('validates the snake wire response with schemas.AzureInstallationStatusResponse', async () => {
     // ADR-019 zod-codegen: bff returns raw snake wire; route parses with
-    // schemas.AzureInstallationStatusResponse (vm_installation embedded per resource).
+    // schemas.AzureInstallationStatusResponse (per-resource step DTOs).
     mockedGetInstallationStatus.mockResolvedValue({
       last_check: { status: 'IN_PROGRESS', checked_at: '2026-03-30T00:00:00Z' },
       resources: [
@@ -28,17 +28,19 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
           resource_id: 'vm-001',
           resource_name: 'vm-001',
           resource_type: 'AZURE_VM',
-          private_endpoint: { id: 'pe-vm-001', name: 'pe-vm-001', status: 'APPROVED' },
-          vm_installation: {
-            subnet_exists: true,
-            load_balancer: { installed: true, name: 'lb-001' },
-          },
+          installation_status: 'COMPLETED',
+          bdc_side_terraform_apply: { status: 'COMPLETED' },
+          service_side_private_endpoint_approval: { id: 'pe-vm-001', name: 'pe-vm-001', status: 'COMPLETED' },
+          azure_virtual_machine_subnet_creation: { status: 'COMPLETED' },
+          azure_virtual_machine_terraform_apply: { status: 'COMPLETED' },
         },
         {
           resource_id: 'mysql-001',
           resource_name: 'mysql-001',
           resource_type: 'AZURE_MYSQL',
-          private_endpoint: { id: 'pe-mysql-001', name: 'pe-mysql-001', status: 'NOT_REQUESTED' },
+          installation_status: 'IN_PROGRESS',
+          bdc_side_terraform_apply: { status: 'COMPLETED' },
+          service_side_private_endpoint_approval: { id: 'pe-mysql-001', name: 'pe-mysql-001', status: 'SKIP' },
         },
       ],
     });

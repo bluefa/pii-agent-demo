@@ -7,8 +7,10 @@
  *
  * Genuine reshapes performed here (not rename-only):
  *   - Narrows 5-value LastCheckInfoDto status → 3-value AzureV1LastCheck status.
- *   - Narrows PrivateEndpointDetail.status (free string) → PrivateEndpointStatus enum.
- *   - Reads load_balancer opaquely (ADR-019 D2.3 — may have arbitrary Azure keys).
+ *   - Collapses the per-resource step DTOs (service_side_private_endpoint_approval,
+ *     azure_virtual_machine_subnet_creation, azure_virtual_machine_terraform_apply)
+ *     into the existing Step-4 UI domain: step status → PrivateEndpointStatus /
+ *     subnetExists / loadBalancer.installed booleans.
  *   - Provides defaults for optional fields.
  */
 
@@ -34,43 +36,39 @@ const LAST_CHECK_TO_UI: Record<LastCheckStatusWire, AzureV1LastCheck['status']> 
   FAILED: 'FAILED',
 };
 
-const PRIVATE_ENDPOINT_STATUSES: readonly PrivateEndpointStatus[] = [
-  'NOT_REQUESTED',
-  'PENDING_APPROVAL',
-  'APPROVED',
-  'REJECTED',
-];
+// swagger step status (COMPLETED/FAIL/IN_PROGRESS/SKIP/BDC_INSTALL_REQUIRED) →
+// UI PrivateEndpointStatus. SKIP/BDC_INSTALL_REQUIRED/unknown mean the approval
+// flow has not been entered — NOT_REQUESTED.
+const STEP_TO_PE_STATUS: Record<string, PrivateEndpointStatus> = {
+  COMPLETED: 'APPROVED',
+  IN_PROGRESS: 'PENDING_APPROVAL',
+  FAIL: 'REJECTED',
+};
 
-// swagger PrivateEndpointDetail.status is a free string; map known UI enum
-// values, otherwise fall back to NOT_REQUESTED (do not narrow the wire type).
-const toPrivateEndpointStatus = (status?: string): PrivateEndpointStatus =>
-  PRIVATE_ENDPOINT_STATUSES.find((s) => s === status) ?? 'NOT_REQUESTED';
-
-const asBoolean = (value: unknown): boolean => value === true;
-const asString = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
+const stepDone = (step?: { status?: string | null } | null): boolean =>
+  step?.status === 'COMPLETED';
 
 const toUiResource = (r: WireResource): AzureV1Resource => {
-  const lb = r.vm_installation?.load_balancer;
+  const pe = r.service_side_private_endpoint_approval;
+  const subnet = r.azure_virtual_machine_subnet_creation;
+  const vmApply = r.azure_virtual_machine_terraform_apply;
   return {
     resourceId: r.resource_id ?? '',
     resourceName: r.resource_name ?? r.resource_id ?? '',
     resourceType: r.resource_type ?? '',
-    ...(r.private_endpoint && {
+    ...(pe && {
       privateEndpoint: {
-        id: r.private_endpoint.id ?? '',
-        name: r.private_endpoint.name ?? '',
-        status: toPrivateEndpointStatus(r.private_endpoint.status ?? undefined),
+        id: pe.id ?? '',
+        name: pe.name ?? '',
+        status: STEP_TO_PE_STATUS[pe.status ?? ''] ?? 'NOT_REQUESTED',
       },
     }),
-    ...(r.vm_installation && {
+    ...((subnet || vmApply) && {
       vmInstallation: {
-        subnetExists: r.vm_installation.subnet_exists ?? false,
-        // load_balancer is an opaque object — read the conventional keys.
-        loadBalancer: {
-          installed: asBoolean(lb?.installed),
-          ...(asString(lb?.name) !== undefined && { name: asString(lb?.name) }),
-        },
+        subnetExists: stepDone(subnet),
+        // The step wire no longer carries load-balancer identity — only the
+        // terraform-apply outcome. installed == apply step completed.
+        loadBalancer: { installed: stepDone(vmApply) },
       },
     }),
   };

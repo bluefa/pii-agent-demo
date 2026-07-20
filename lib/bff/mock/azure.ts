@@ -5,9 +5,9 @@ import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
 
 /**
  * Azure cloud-status mocks (ADR-019 Spec G). installation-status authors the
- * **swagger snake wire** `AzureInstallationStatusResponse` with `vm_installation`
- * embedded per resource (the real BFF returns the unified shape — the legacy
- * separate VM merge is gone). scan-app stays the sanctioned snake passthrough
+ * **swagger snake wire** `AzureInstallationStatusResponse` with per-resource
+ * step DTOs (bdc_side_terraform_apply / service_side_private_endpoint_approval /
+ * azure_virtual_machine_*). scan-app stays the sanctioned snake passthrough
  * (Issue #222). private-link-health-check (G8) is new; its wire is already
  * camelCase per swagger. Endpoints absent from install-v1.yaml (check-installation,
  * vm/*) were removed.
@@ -61,24 +61,39 @@ export const mockAzure = {
     const vmResult = azureFns.getAzureVmInstallationStatus(Number(projectId));
     const vmById = new Map((vmResult.data?.vms ?? []).map((vm) => [vm.vmId, vm]));
 
+    // Domain PrivateEndpointStatus → swagger step status enum.
+    const PE_TO_STEP: Record<string, string> = {
+      APPROVED: 'COMPLETED',
+      PENDING_APPROVAL: 'IN_PROGRESS',
+      REJECTED: 'FAIL',
+      NOT_REQUESTED: 'SKIP',
+    };
+
     const resources = (dbResult.data?.resources ?? []).map((r) => {
       const vm = vmById.get(r.resourceId);
+      const allDone =
+        r.privateEndpoint?.status === 'APPROVED' && vm?.subnetExists && vm?.loadBalancer.installed;
       return {
         resource_id: r.resourceId,
         resource_name: r.resourceName,
         resource_type: r.resourceType,
+        installation_status: allDone ? 'COMPLETED' : 'IN_PROGRESS',
+        bdc_side_terraform_apply: { status: 'COMPLETED' },
         // Object-typed wire fields are optional but NOT nullable (swagger $ref,
         // no `nullable: true`) — omit when absent rather than emit null.
         ...(r.privateEndpoint
-          ? { private_endpoint: { id: r.privateEndpoint.id, name: r.privateEndpoint.name, status: r.privateEndpoint.status } }
+          ? {
+              service_side_private_endpoint_approval: {
+                id: r.privateEndpoint.id,
+                name: r.privateEndpoint.name,
+                status: PE_TO_STEP[r.privateEndpoint.status] ?? 'SKIP',
+              },
+            }
           : {}),
         ...(vm
           ? {
-              vm_installation: {
-                subnet_exists: vm.subnetExists,
-                // load_balancer passes through opaque (ADR-019 D2.3).
-                load_balancer: { name: vm.loadBalancer.name, installed: vm.loadBalancer.installed },
-              },
+              azure_virtual_machine_subnet_creation: { status: vm.subnetExists ? 'COMPLETED' : 'IN_PROGRESS' },
+              azure_virtual_machine_terraform_apply: { status: vm.loadBalancer.installed ? 'COMPLETED' : 'IN_PROGRESS' },
             }
           : {}),
       };

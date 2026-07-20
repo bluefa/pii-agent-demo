@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Task Queue — PII Admin</title>
+<style>
+/* ══ Admin Task Queue 프로토타입 (r2) ══
+   상속: admin-pipeline.html variant B (다크 크롬 + 라이트 캔버스) — 토큰·컨트롤 3단(32/28/20)·
+   타입 스케일 {12,14,16,20,24,32}·간격 {4,8,12,16,24,64}.
+   리소스·연결테스트 테이블은 앱 구현(SIT Prototype Athena v16)의 db-list-table 문법을 따른다:
+   hover 행, 제외행 회색, tag 팔레트, pagination-row, conn-progress. */
+:root{
+  --gray-50:#F9FAFB; --gray-100:#F2F4F7; --gray-200:#E4E7EC; --gray-300:#D0D5DD;
+  --gray-400:#98A2B3; --gray-500:#667085; --gray-600:#475467; --gray-700:#344054;
+  --gray-800:#1D2939; --gray-900:#101828;
+  --bg-page:#F9FAFB; --bg-card:#FFFFFF; --bg-inner:#F9FAFB;
+  --border:#E4E7EC; --border-strong:#D0D5DD;
+  --text-strong:var(--gray-900); --text-medium:var(--gray-700);
+  --text-weak:var(--gray-500); --text-faint:var(--gray-400);
+  --primary:#2563EB; --primary-hover:#1D4ED8; --primary-bg:#EFF4FF; --primary-ring:#D1E0FF;
+  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3; --ok-border:#A6F4C5;
+  --err:#F04438; --err-text:#B42318; --err-bg:#FEF3F2; --err-border:#FDA29B;
+  --info:#2E90FA; --info-text:#175CD3; --info-bg:#EFF8FF; --info-border:#B2DDFF;
+  --warn:#F79009; --warn-text:#B54708; --warn-bg:#FFFAEB; --warn-border:#FEDF89;
+  --off:#98A2B3; --off-text:#475467; --off-bg:#F2F4F7;
+  --err-solid:#D92D20; --err-solid-hover:#B42318;
+  --pv-aws:#EC7211; --pv-azure:#0078D4; --pv-gcp:#4285F4; --pv-idc:#344054; --pv-sdu:#7F56D9;
+  --white:#FFFFFF;
+  --r-card:10px; --r-inner:8px; --r-ctl:8px;
+  --shadow-xs:0 1px 2px rgba(16,24,40,.05);
+  --shadow-lg:0 12px 32px -8px rgba(16,24,40,.16),0 4px 10px -4px rgba(16,24,40,.08);
+  --font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Pretendard','Malgun Gothic',system-ui,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-page);color:var(--text-strong);
+  font-family:var(--font-sans);font-size:14px;letter-spacing:-0.014em;line-height:1.4;
+  -webkit-font-smoothing:antialiased;min-width:1080px}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+
+svg.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+svg.ic.sm{width:14px;height:14px;vertical-align:-2px}
+svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
+
+.meta{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4}
+.mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
+.link{color:var(--primary);font-weight:600;cursor:pointer}
+.link:hover{text-decoration:underline}
+.muted{color:var(--text-weak)}
+.mt-16{margin-top:16px}.mt-12{margin-top:12px}
+
+/* ── App shell ── */
+.topnav{height:52px;background:#101828;border-bottom:1px solid #101828;
+  display:flex;align-items:stretch;gap:4px;padding:0 24px;position:sticky;top:0;z-index:20}
+.topnav .brand{color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;margin-right:20px}
+.topnav .brand::before{content:"";width:20px;height:20px;border-radius:6px;flex:none;
+  background:linear-gradient(135deg,var(--primary),#7F56D9)}
+.topnav .nav-item{color:#98A2B3;font-size:14px;font-weight:500;display:flex;align-items:center;
+  padding:0 12px;border-bottom:2px solid transparent;cursor:default}
+.topnav .nav-item.active{color:#fff;font-weight:600;border-bottom-color:var(--primary)}
+.topnav .nav-item.off{opacity:.5}
+.layout{display:flex;min-height:calc(100vh - 52px)}
+.sidebar{width:216px;flex:none;background:#101828;border-right:1px solid #101828;padding:16px 12px}
+.sidebar .sb-title{font-size:12px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;padding:8px 10px 10px;color:#667085}
+.sidebar .sb-group+.sb-title{margin-top:16px}
+.sidebar .sb-item{display:block;padding:7px 10px;border-radius:6px;color:#B9C0CC;
+  font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px}
+.sidebar .sb-item:hover{background:#1D2939}
+.sidebar .sb-item.active{background:#1D2939;color:#fff;font-weight:600;
+  box-shadow:inset 2px 0 0 var(--primary)}
+.content{flex:1;padding:24px 32px 48px;min-width:0;max-width:1440px}
+.breadcrumb{font-size:12px;color:var(--text-weak);margin-bottom:12px}
+.breadcrumb .crumb{cursor:pointer}
+.breadcrumb .crumb:hover{color:var(--text-medium);text-decoration:underline}
+.breadcrumb .sep{margin:0 6px;color:var(--text-faint)}
+.breadcrumb .cur{color:var(--text-medium);font-weight:600}
+.page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.page-head h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.02em}
+.page-head .head-sub{display:flex;align-items:center;gap:8px;margin-top:8px}
+.page-head .actions{display:flex;gap:8px}
+/* 상세 헤더 메타 행 (Primer PageHeader Description + Helios kv≤4 문법) —
+   정적 요청 맥락은 카드가 아니라 헤더 소속. 헤더 아래 구분선으로 본문과 분리 */
+.page-head.detail-head{align-items:flex-start;padding-bottom:20px;border-bottom:1px solid var(--border);margin-bottom:24px}
+.head-meta{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;flex-wrap:wrap}
+.head-meta .hm-k{font-size:12px;font-weight:600;color:var(--text-weak)}
+.head-meta .hm-v{color:var(--text-strong);font-weight:500;font-variant-numeric:tabular-nums}
+.head-meta .hm-sep{color:var(--text-faint)}
+.page-head.detail-head+.section-title{margin-top:0}
+.section-title{font-size:20px;font-weight:600;color:var(--text-strong);margin:64px 0 12px;line-height:1.2}
+.section-title:first-child{margin-top:0}
+.section-desc{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4;margin:16px 0 16px}
+.subsection-title{font-size:14px;font-weight:600;color:var(--text-medium);margin:16px 0 10px}
+
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);padding:20px 24px 24px}
+.card+.card{margin-top:16px}
+
+/* ── Stat (회색 타일 = 읽기 전용 요약 · 가운데 정렬) ── */
+.stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,260px));gap:12px}
+.stat{background:var(--gray-100);border:1px solid var(--border);border-radius:var(--r-card);
+  padding:20px 24px 24px;text-align:center}
+.stat .lbl{font-size:14px;font-weight:600;color:var(--text-medium)}
+.stat .val{font-size:32px;font-weight:600;margin-top:12px;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat .val.v-err{color:var(--err-text)}
+.stat .val.v-warn{color:var(--warn-text)}
+
+/* ── 요약 테이블 (모니터·목록 — admin-pipeline 리듬 th34/td44) ── */
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-size:12px;font-weight:600;color:var(--text-weak);letter-spacing:.03em;
+  height:34px;padding:0 12px;border-bottom:1px solid var(--border)}
+.tbl td{height:44px;padding:8px 12px;border-bottom:1px solid var(--gray-100);color:var(--text-medium);
+  vertical-align:middle;font-variant-numeric:tabular-nums}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover td{background:var(--gray-50)}
+.tbl .mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
+.tbl td.chev{text-align:right;width:48px;white-space:nowrap}
+tr.click:hover .btn.round{border-color:var(--primary);color:var(--primary)}
+.svc-name{font-weight:600;color:var(--text-strong)}
+
+/* ── 리소스 테이블 (앱 db-list-table 문법: hover·제외행·tag) ── */
+.res-wrap{border:1px solid var(--border);border-radius:10px 10px 0 0;overflow:hidden}
+.res-tbl{width:100%;border-collapse:collapse;font-size:14px}
+.res-tbl thead{background:var(--gray-50)}
+.res-tbl th{text-align:left;font-size:12px;font-weight:600;color:var(--text-weak);
+  padding:12px 16px;border-bottom:1px solid var(--border)}
+.res-tbl td{padding:13px 16px;border-top:1px solid var(--gray-100);color:var(--text-medium);
+  vertical-align:middle;font-variant-numeric:tabular-nums}
+.res-tbl tbody tr:first-child td{border-top:0}
+.res-tbl tbody tr{transition:background .12s}
+.res-tbl tbody tr:hover td{background:var(--bg-inner)}
+.res-tbl tbody tr.row-excluded td{background:var(--gray-100);color:var(--text-weak)}
+.res-tbl tbody tr.row-excluded:hover td{background:var(--gray-200)}
+.res-tbl .mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
+.res-tbl tr.row-excluded .mono{color:var(--text-weak)}
+.target-yes{color:var(--ok-text);font-weight:600;white-space:nowrap}
+.target-no{color:var(--text-weak);font-weight:600;white-space:nowrap}
+.res-id-cell{display:inline-flex;align-items:center;gap:6px;max-width:100%}
+.res-id-text{font-family:var(--font-mono);font-size:12px;color:var(--text-strong);
+  max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr.row-excluded .res-id-text{color:var(--text-weak)}
+.copy-btn{display:inline-grid;place-items:center;width:22px;height:22px;border:0;background:transparent;
+  border-radius:5px;color:var(--text-faint);cursor:pointer;flex:none}
+.copy-btn:hover{background:var(--gray-100);color:var(--text-medium)}
+.res-tbl .ldb-link{color:var(--primary);cursor:pointer;font-weight:600}
+.res-tbl .ldb-link:hover{text-decoration:underline}
+.stx{display:inline-flex;flex-direction:column;align-items:flex-start;gap:3px}
+.stx-step{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-weak)}
+
+/* ── Tag (앱 문법: dbtype=blue, 상태=green/red/orange) ── */
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;
+  padding:2px 8px;border-radius:6px;vertical-align:middle}
+.tag.blue{background:#E8F1FF;color:#1747B5}
+.tag.gray{background:var(--gray-100);color:var(--text-medium)}
+.tag.green{background:var(--ok-bg);color:var(--ok-text)}
+.tag.red{background:var(--err-bg);color:var(--err-text)}
+.tag.orange{background:var(--warn-bg);color:var(--warn-text)}
+tr.row-excluded .tag.blue{background:var(--gray-200);color:var(--text-weak)}
+
+/* ── Pagination (앱 pagination-row 문법) ── */
+.pagination-row{display:flex;align-items:center;padding:10px 14px;border:1px solid var(--border);
+  border-top:none;border-radius:0 0 10px 10px;background:#FCFCFD;font-size:12px;color:var(--text-weak)}
+.pg-perpage{display:inline-flex;align-items:center;gap:6px}
+.pg-perpage select{height:26px;border:1px solid var(--border-strong);border-radius:6px;padding:0 8px;
+  font-size:12px;background:var(--bg-card);color:var(--text-strong);cursor:pointer}
+.pg-info{margin-left:16px;color:var(--text-medium);font-variant-numeric:tabular-nums}
+.pg-info strong{color:var(--text-strong)}
+.pg-spacer{flex:1}
+.pg-pages{display:inline-flex;align-items:center;gap:4px}
+.pg-pages button{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 6px;
+  border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-medium);
+  font-size:12px;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums}
+.pg-pages button:hover:not(:disabled):not(.current){border-color:var(--border-strong);background:var(--gray-50)}
+.pg-pages button.current{background:var(--gray-900);border-color:var(--gray-900);color:#fff;cursor:default}
+.pg-pages button:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Pills / provider tag ── */
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  height:20px;padding:0 9px 0 8px;border-radius:999px;letter-spacing:.02em}
+.pill .dot{width:6px;height:6px;border-radius:50%}
+.pill.t-off{background:var(--off-bg);color:var(--off-text)} .pill.t-off .dot{background:var(--gray-300)}
+.pill.t-warn{background:var(--warn-bg);color:var(--warn-text)} .pill.t-warn .dot{background:var(--warn)}
+.pill.t-info{background:var(--info-bg);color:var(--info-text)} .pill.t-info .dot{background:var(--info)}
+.pill.t-run{background:var(--info-bg);color:var(--info-text)} .pill.t-run .dot{background:var(--info);animation:pulse 1.6s ease-in-out infinite}
+.pill.t-ready{background:var(--primary-bg);color:var(--primary)} .pill.t-ready .dot{background:var(--primary)}
+.pill.t-ok{background:var(--ok-bg);color:var(--ok-text)} .pill.t-ok .dot{background:var(--ok)}
+.pill.t-err{background:var(--err-bg);color:var(--err-text)} .pill.t-err .dot{background:var(--err)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.ptag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text-medium)}
+.ptag .pdot{width:8px;height:8px;border-radius:2.5px}
+
+/* ── KeyValueGrid ── */
+.kv2{display:grid;grid-template-columns:130px 1fr 130px 1fr;gap:10px 16px;font-size:14px}
+.kv2 .k{font-size:12px;font-weight:600;color:var(--text-weak);line-height:1.4}
+.kv2 .v{color:var(--text-strong);font-weight:500;line-height:1.4}
+
+/* ── Controls ── */
+.filterbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filterbar .spacer{flex:1}
+.searchbox{position:relative;display:inline-block}
+.searchbox svg.ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;
+  color:var(--text-faint);pointer-events:none}
+.searchbox .input{padding-left:30px;width:100%}
+.input,select.sel{height:32px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);padding:0 10px;
+  font-size:14px;font-family:inherit;color:var(--text-strong);background:var(--bg-card);outline:none}
+.input:focus,select.sel:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+select.sel.sm{height:28px;font-size:12px;border-radius:6px}
+select.sel.sm.dirty{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.seg{display:inline-flex;background:var(--gray-100);border-radius:var(--r-ctl);padding:2px}
+.seg button{border:0;background:transparent;height:28px;padding:0 12px;border-radius:6px;font-size:12px;
+  font-weight:600;color:var(--text-weak);cursor:pointer}
+.seg button.on{background:var(--bg-card);color:var(--text-strong);box-shadow:var(--shadow-xs)}
+.seg button .cnt{font-weight:400;color:var(--text-faint);margin-left:4px;font-variant-numeric:tabular-nums}
+.seg button.on .cnt{color:var(--text-weak)}
+.seg.lg{padding:3px;border-radius:10px}
+.seg.lg button{height:40px;padding:0 20px;font-size:14px;font-weight:600;border-radius:8px;display:inline-flex;align-items:center}
+.seg.lg button .cnt{margin-left:6px}
+select.sel.lg{height:46px;font-size:14px;font-weight:600;border-radius:10px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;
+  border-radius:var(--r-ctl);font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;
+  transition:background .12s,border-color .12s,color .12s}
+.btn:disabled{cursor:not-allowed}
+.btn.primary{background:var(--primary);color:#fff;box-shadow:var(--shadow-xs)}
+.btn.primary:not(:disabled):hover{background:var(--primary-hover)}
+.btn.primary:disabled{background:var(--gray-100);color:var(--text-faint);box-shadow:none}
+.btn.secondary{background:var(--bg-card);color:var(--text-medium);border-color:var(--border-strong);box-shadow:var(--shadow-xs)}
+.btn.secondary:not(:disabled):hover{background:var(--gray-50)}
+.btn.danger{background:var(--bg-card);color:var(--err-text);border-color:var(--err-border);box-shadow:var(--shadow-xs)}
+.btn.danger:not(:disabled):hover{background:var(--err-bg)}
+.btn.dangersolid{background:var(--err-solid);color:#fff;box-shadow:var(--shadow-xs)}
+.btn.dangersolid:not(:disabled):hover{background:var(--err-solid-hover)}
+.btn.dangersolid:disabled{background:var(--gray-100);color:var(--text-faint);box-shadow:none}
+.btn.sm{height:28px;padding:0 10px;font-size:12px}
+.btn.round{width:28px;padding:0;border-radius:999px}
+
+/* ── conn-progress (앱 Step5 문법) ── */
+.conn-progress{background:var(--bg-inner);border:1px solid var(--border);border-radius:var(--r-inner);
+  padding:13px 16px 14px;margin-bottom:16px}
+.conn-progress.cp-ok{background:var(--ok-bg);border-color:var(--ok-border)}
+.conn-progress.cp-fail{background:var(--err-bg);border-color:var(--err-border)}
+.cp-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}
+.cp-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--text-strong)}
+.cp-icon{display:inline-grid;place-items:center;width:18px;height:18px;color:var(--text-weak);flex:none}
+.cp-ok .cp-icon{color:var(--ok-text)} .cp-fail .cp-icon{color:var(--err-text)}
+.cp-meta{display:flex;align-items:center;gap:14px}
+.cp-counts{font-size:12px;color:var(--text-weak);font-weight:500;font-variant-numeric:tabular-nums}
+.cp-counts b{font-weight:700}
+.cp-counts .c-ok{color:var(--ok-text)} .cp-counts .c-fail{color:var(--err-text)}
+.cp-pct{font-size:16px;font-weight:700;letter-spacing:-.02em;color:var(--text-weak);
+  font-variant-numeric:tabular-nums;min-width:46px;text-align:right}
+.cp-ok .cp-pct{color:var(--ok-text)} .cp-fail .cp-pct{color:var(--err-text)}
+.cp-track{height:6px;border-radius:999px;background:var(--gray-200);overflow:hidden}
+.cp-fill{height:100%;border-radius:999px;background:var(--gray-400)}
+.cp-ok .cp-fill{background:var(--ok)} .cp-fail .cp-fill{background:var(--err)}
+
+/* ── NLB 점유 막대 ── */
+.occbar{position:relative;width:96px;height:6px;border-radius:999px;background:var(--gray-200);overflow:hidden;display:inline-block;vertical-align:middle}
+.occbar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--gray-400)}
+.occbar.warn i{background:var(--warn)}
+.occbar.err i{background:var(--err)}
+.occ-num{font-variant-numeric:tabular-nums;font-weight:600;color:var(--text-strong)}
+.occ-num .den{color:var(--text-faint);font-weight:500}
+.ftag{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;
+  padding:1px 6px;border-radius:4px;vertical-align:middle;white-space:nowrap}
+.ftag.warn{background:var(--warn-bg);color:var(--warn-text)}
+.ftag.err{background:var(--err-bg);color:var(--err-text)}
+.ftag.ok{background:var(--ok-bg);color:var(--ok-text)}
+.ftag.na{background:var(--off-bg);color:var(--text-weak)}
+
+/* ── 지연 표기 — 4단계: 회색(1시간 미만)/노랑(1시간↑)/주황(1일↑)/빨강(7일↑) ── */
+.delay{font-variant-numeric:tabular-nums;font-weight:500;color:var(--text-weak)}
+.delay.d1{color:#A16207;font-weight:600}
+.delay.d2{color:#C2410C;font-weight:600}
+.delay.d3{color:#DC2626;font-weight:700}
+.seg .tdot{width:8px;height:8px;border-radius:999px;display:inline-block;margin-right:6px;flex:none}
+.tdot.d1{background:#EAB308}.tdot.d2{background:#F97316}.tdot.d3{background:#EF4444}
+
+/* ── Modal / Toast / 툴팁 ── */
+.overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);z-index:50;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--bg-card);border-radius:12px;box-shadow:var(--shadow-lg);padding:24px;width:480px}
+.modal.wide{width:760px;max-height:82vh;display:flex;flex-direction:column}
+.modal.wide .modal-body{overflow-y:auto;min-height:0}
+.modal h3{margin:0 0 12px;font-size:16px;font-weight:700}
+.modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:14px;line-height:1.4}
+.modal textarea{width:100%;min-height:88px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);
+  padding:8px 10px;font-size:14px;font-family:inherit;resize:vertical;outline:none;line-height:1.4}
+.modal textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+
+/* ── 승인·반려 모달 (앱 모달 문법: 헤더 eyebrow+제목+서브 / 본문 폼 섹션 / border-top 푸터)
+   계층: 오버라인(컨텍스트 weak · 식별자 primary) → 타이틀 32 → 서브 24 → 메타/폼 ── */
+.modal.app{width:720px;padding:0;border-radius:20px;overflow-y:auto;max-height:88vh}
+.am-header{padding:36px 40px 4px}
+.am-eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);
+  font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;margin-bottom:12px}
+.am-eyebrow::before{content:"";width:6px;height:6px;border-radius:999px;background:var(--primary)}
+.am-eyebrow .ey-ctx{color:var(--text-weak)}
+.am-eyebrow .ey-sep{color:var(--text-faint)}
+.am-eyebrow .ey-id{color:var(--primary);font-weight:700}
+.modal h3.am-title{margin:0 0 8px;font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.2;color:var(--text-strong)}
+.modal .am-sub{margin:0;font-size:16px;font-weight:400;color:var(--text-weak);line-height:1.5}
+.am-meta{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.am-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.am-stat{background:var(--bg-inner);border:1px solid var(--border);border-radius:var(--r-inner);
+  padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.am-stat .lb{font-size:12px;font-weight:600;color:var(--text-weak)}
+.am-stat .v{font-size:24px;font-weight:700;color:var(--text-strong);line-height:1.2;font-variant-numeric:tabular-nums}
+.am-stat .v small{font-size:14px;font-weight:600;color:var(--text-medium);margin-left:2px}
+.am-body{padding:24px 40px 0}
+.am-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-weak);margin:0 0 10px}
+.am-body textarea{min-height:120px}
+.am-count{font-size:12px;color:var(--text-faint);text-align:right;margin-top:6px;font-variant-numeric:tabular-nums}
+.am-note{display:flex;gap:8px;align-items:flex-start;background:var(--warn-bg);border:1px solid var(--warn-border);
+  border-radius:var(--r-inner);padding:10px 12px;margin-bottom:16px;font-size:14px;color:var(--text-medium);line-height:1.4}
+.am-note svg.ic{color:var(--warn-text);flex:none;margin-top:1px}
+.am-footer{padding:16px 40px 20px;border-top:1px solid var(--border);display:flex;
+  justify-content:flex-end;gap:8px;margin-top:24px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--gray-900);
+  color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;font-weight:500;box-shadow:var(--shadow-lg);
+  z-index:60;display:flex;align-items:center;gap:8px}
+.toast svg.ic{color:var(--ok)}
+.empty{text-align:center;padding:32px;color:var(--text-weak);font-size:14px;line-height:1.4}
+.empty-state{display:flex;flex-direction:column;align-items:center;gap:4px;padding:56px 0 60px;text-align:center}
+.empty-state .eico{width:44px;height:44px;border-radius:999px;background:var(--gray-100);
+  display:flex;align-items:center;justify-content:center;color:var(--text-faint);margin-bottom:8px}
+.empty-state .et{font-size:16px;font-weight:600;color:var(--text-strong)}
+.empty-state .ec{font-size:14px;color:var(--text-weak)}
+.detail-link{display:inline-flex;align-items:center;gap:4px;color:var(--primary);font-size:14px;font-weight:600;white-space:nowrap}
+.rr{position:relative;display:inline-flex;align-items:center;gap:6px;max-width:100%}
+.rr .rr-text{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-medium)}
+.rr .tip{display:none;position:absolute;bottom:calc(100% + 8px);left:0;z-index:30;width:320px;
+  background:var(--gray-900);color:#fff;font-size:12px;font-weight:400;line-height:1.4;
+  padding:10px 12px;border-radius:8px;box-shadow:var(--shadow-lg);white-space:normal}
+.rr:hover .tip{display:block}
+
+/* 반려 사유 박스 (연결 테스트 상세) */
+.reject-box{display:flex;gap:10px;background:var(--err-bg);border:1px solid var(--err-border);
+  border-radius:var(--r-inner);padding:12px 14px;margin-bottom:16px}
+.reject-box svg.ic{color:var(--err-text);margin-top:1px}
+.reject-box .rb-title{font-size:14px;font-weight:600;color:var(--err-text)}
+.reject-box .rb-body{font-size:14px;color:var(--text-medium);margin-top:4px;line-height:1.4}
+.reject-box .rb-meta{font-size:12px;color:var(--text-weak);margin-top:6px}
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <span class="brand">PII Admin</span>
+  <span class="nav-item">Service List</span>
+  <span class="nav-item">가이드 관리</span>
+  <span class="nav-item active">관리자</span>
+  <span class="nav-item off">Credentials</span>
+  <span class="nav-item off">PII Tag mgmt.</span>
+  <span class="nav-item off">PII Map</span>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sb-group">
+      <div class="sb-title">파이프라인 오케스트레이션</div>
+      <span class="sb-item" title="기존 페이지 — 이 프로토타입 범위 밖">대시보드</span>
+      <span class="sb-item" title="기존 페이지 — 이 프로토타입 범위 밖">서비스·대상 검색</span>
+    </div>
+    <div class="sb-title">Task Queue</div>
+    <a class="sb-item" data-nav="#/queue">운영 대시보드</a>
+    <a class="sb-item" data-nav="#/requests">연동 요청</a>
+    <a class="sb-item" data-nav="#/tc">연결 테스트</a>
+  </nav>
+
+  <main class="content" id="content"></main>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script>
+/* ══════════ 공통: Step 매핑 (ProcessStatus ↔ Step1~7) ══════════ */
+const STEP = {
+  IDLE:       {n:1, label:'연동 대상 DB 선택',  tone:'t-off'},
+  PENDING:    {n:2, label:'연동 대상 승인 대기', tone:'t-warn'},
+  CONFIRMING: {n:3, label:'연동 대상 반영중',   tone:'t-run'},
+  CONFIRMED:  {n:4, label:'Agent 설치',        tone:'t-ready'},
+  INSTALLED:  {n:5, label:'연결 테스트',        tone:'t-info'},
+  CONNECTED:  {n:6, label:'관리자 승인 대기',   tone:'t-warn'},
+  COMPLETED:  {n:7, label:'완료',              tone:'t-ok'},
+};
+const CONFIRM_TONE = {
+  NO_REQUEST:{label:'요청 없음',tone:'t-off'}, IDLE:{label:'요청 없음',tone:'t-off'},
+  PENDING:{label:'승인 대기',tone:'t-warn'}, CONFIRMING:{label:'반영중',tone:'t-run'},
+  CONFIRMED:{label:'확정',tone:'t-ok'}, REJECTED:{label:'반려',tone:'t-err'},
+  UNAVAILABLE:{label:'연동 불가',tone:'t-off'},
+};
+const PV = {AWS:'var(--pv-aws)', AZURE:'var(--pv-azure)', GCP:'var(--pv-gcp)', IDC:'var(--pv-idc)'};
+
+/* ══════════ Mock data ══════════ */
+const SUMMARY = {pending:4, rejected:2, tcDone:3, tcRejected:1};
+
+const PROC = [
+  {ts:1027, svc:'주문서비스',   code:'ORD', pv:'IDC',   st:'PENDING',    delay:99120,   at:'07-19 16:08'},
+  {ts:2013, svc:'결제서비스',   code:'PAY', pv:'AWS',   st:'PENDING',    delay:5430,    at:'07-20 18:09'},
+  {ts:1980, svc:'회원서비스',   code:'MBR', pv:'GCP',   st:'CONFIRMING', delay:1120,    at:'07-20 19:21'},
+  {ts:1861, svc:'정산서비스',   code:'STL', pv:'AWS',   st:'CONFIRMED',  delay:262000,  at:'07-17 18:56'},
+  {ts:1799, svc:'배송서비스',   code:'DLV', pv:'AZURE', st:'INSTALLED',  delay:8460,    at:'07-20 17:19'},
+  {ts:1642, svc:'쿠폰서비스',   code:'CPN', pv:'AWS',   st:'CONNECTED',  delay:47800,   at:'07-20 06:23'},
+  {ts:1511, svc:'리뷰서비스',   code:'RVW', pv:'GCP',   st:'COMPLETED',  delay:604800,  at:'07-13 19:40'},
+  {ts:1444, svc:'검색서비스',   code:'SRC', pv:'IDC',   st:'IDLE',       delay:1266000, at:'07-06 04:00'},
+  {ts:2044, svc:'포인트서비스', code:'PNT', pv:'GCP',   st:'PENDING',    delay:12300,   at:'07-20 16:15'},
+  {ts:2051, svc:'알림서비스',   code:'NTF', pv:'AZURE', st:'PENDING',    delay:3400,    at:'07-20 18:43'},
+  {ts:1907, svc:'광고서비스',   code:'ADS', pv:'AWS',   st:'IDLE',       delay:175000,  at:'07-18 11:02'},
+  {ts:1873, svc:'채팅서비스',   code:'CHT', pv:'IDC',   st:'IDLE',       delay:445000,  at:'07-15 09:47'},
+  {ts:1583, svc:'재고서비스',   code:'IVT', pv:'IDC',   st:'INSTALLED',  delay:93500,   at:'07-19 14:52'},
+  {ts:1520, svc:'추천서비스',   code:'RCM', pv:'GCP',   st:'CONFIRMED',  delay:31700,   at:'07-20 10:52'},
+  {ts:1498, svc:'번역서비스',   code:'TRN', pv:'AWS',   st:'COMPLETED',  delay:1123000, at:'07-07 19:44'},
+  {ts:1462, svc:'인증서비스',   code:'ATH', pv:'AZURE', st:'CONNECTED',  delay:65900,   at:'07-20 01:22'},
+  {ts:1430, svc:'미디어서비스', code:'MDA', pv:'AWS',   st:'CONFIRMING', delay:2300,    at:'07-20 19:02'},
+  {ts:1415, svc:'로그서비스',   code:'LOG', pv:'GCP',   st:'COMPLETED',  delay:2210000, at:'06-25 01:47'},
+  {ts:1388, svc:'과금서비스',   code:'BIL', pv:'AWS',   st:'CONFIRMED',  delay:118000,  at:'07-19 10:53'},
+  {ts:1350, svc:'문의서비스',   code:'CSQ', pv:'IDC',   st:'IDLE',       delay:1900000, at:'06-28 15:53'},
+  {ts:1322, svc:'예약서비스',   code:'RSV', pv:'AZURE', st:'INSTALLED',  delay:15800,   at:'07-20 15:17'},
+  {ts:1287, svc:'통계서비스',   code:'STA', pv:'GCP',   st:'COMPLETED',  delay:3020000, at:'06-15 16:47'},
+  {ts:1255, svc:'메일서비스',   code:'MAI', pv:'AWS',   st:'CONNECTED',  delay:52100,   at:'07-20 05:11'},
+];
+
+const REQUESTS = {
+  PENDING: [
+    {ts:1027, svc:'주문서비스', code:'ORD', pv:'IDC', cs:'PENDING'},
+    {ts:2013, svc:'결제서비스', code:'PAY', pv:'AWS', cs:'PENDING'},
+    {ts:2044, svc:'포인트서비스', code:'PNT', pv:'GCP', cs:'PENDING'},
+    {ts:2051, svc:'알림서비스', code:'NTF', pv:'AZURE', cs:'PENDING'},
+  ],
+  REJECTED: [
+    {ts:1907, svc:'광고서비스', code:'ADS', pv:'AWS', cs:'REJECTED',
+     reason:'선택된 리소스 중 stg 계정 리소스가 포함되어 있습니다. 운영 계정 리소스만 선택 후 재요청해 주세요.', at:'07-18 11:02'},
+    {ts:1873, svc:'채팅서비스', code:'CHT', pv:'IDC', cs:'REJECTED',
+     reason:'Oracle SID 미기입 — 접속 정보를 채워 다시 요청해 주세요.', at:'07-15 09:47'},
+  ],
+  ALL: [
+    {ts:1027, svc:'주문서비스', code:'ORD', pv:'IDC', cs:'PENDING'},
+    {ts:2013, svc:'결제서비스', code:'PAY', pv:'AWS', cs:'PENDING'},
+    {ts:1980, svc:'회원서비스', code:'MBR', pv:'GCP', cs:'CONFIRMING'},
+    {ts:1907, svc:'광고서비스', code:'ADS', pv:'AWS', cs:'REJECTED'},
+    {ts:1873, svc:'채팅서비스', code:'CHT', pv:'IDC', cs:'REJECTED'},
+    {ts:1861, svc:'정산서비스', code:'STL', pv:'AWS', cs:'CONFIRMED'},
+    {ts:1799, svc:'배송서비스', code:'DLV', pv:'AZURE', cs:'CONFIRMED'},
+    {ts:1444, svc:'검색서비스', code:'SRC', pv:'IDC', cs:'NO_REQUEST'},
+  ],
+};
+
+let NLB = [
+  {idx:1, ips:['10.30.0.11','10.30.0.12'], occ:12},
+  {idx:2, ips:['10.30.0.21','10.30.0.22'], occ:28},
+  {idx:3, ips:['10.30.0.31','10.30.0.32'], occ:42},
+  {idx:4, ips:['10.30.0.41','10.30.0.42'], occ:55},
+  {idx:5, ips:['10.30.0.51','10.30.0.52'], occ:8},
+  {idx:6, ips:['10.30.0.61','10.30.0.62'], occ:31},
+];
+
+/* 승인 요청 상세 — resourceId는 IDC 화면에 노출하지 않는다(수정 호출에만 내부 사용).
+   행의 정체성은 연동 대상(IP/Host)·Port·Database Type·SID가 담당. */
+const DETAILS = {
+  1027: {
+    svc:'주문서비스', code:'ORD', pv:'IDC', status:'PENDING',
+    requested_by:'jun.park', requested_at:'2026-07-19 16:08', selected:3, total:4,
+    resources:[
+      {rid:'idc-r-8f21', selected:true,  db:'Oracle',     kind:'IP',   ips:['10.20.1.11','10.20.1.12'], port:1521, sid:'ORCLPDB1', srcIps:['10.20.9.1','10.20.9.2'], nlb:3},
+      {rid:'idc-r-8f22', selected:true,  db:'MySQL',      kind:'Host', host:'db-mysql.order.prod.internal', port:3306, srcIps:['10.20.9.1'], nlb:3},
+      {rid:'idc-r-8f23', selected:true,  db:'PostgreSQL', kind:'IP',   ips:['10.20.2.31'], port:5432, srcIps:['10.20.9.4'], nlb:5},
+      {rid:'idc-r-8f24', selected:false, db:'MySQL',      kind:'Host', host:'db-mysql.order.dev.internal', port:3306, srcIps:[],
+       excluded:'개발(dev) 인스턴스 — 서비스 오너 제외'},
+    ],
+  },
+  2013: {
+    svc:'결제서비스', code:'PAY', pv:'AWS', status:'PENDING',
+    requested_by:'mina.choi', requested_at:'2026-07-20 18:09', selected:2, total:3,
+    resources:[
+      {selected:true,  db:'MySQL',    id:'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-pay-prod',
+       region:'ap-northeast-2', name:'aurora-pay-prod'},
+      {selected:true,  db:'Redshift', id:'arn:aws:redshift:ap-northeast-2:558712049371:cluster:pay-redshift-main',
+       region:'ap-northeast-2', name:'pay-redshift-main'},
+      {selected:false, db:'MySQL',    id:'arn:aws:rds:ap-northeast-2:558712049371:db-proxy:prx-pay',
+       region:'ap-northeast-2', name:'pay-rds-proxy', excluded:'RDS Proxy — 설치 불필요 리소스'},
+    ],
+  },
+};
+
+const TC = {
+  COMPLETED: [
+    {ts:1799, svc:'배송서비스', code:'DLV', pv:'AZURE', completed_at:'2026-07-20 17:19'},
+    {ts:1642, svc:'쿠폰서비스', code:'CPN', pv:'AWS',   completed_at:'2026-07-20 06:23'},
+    {ts:1511, svc:'리뷰서비스', code:'RVW', pv:'GCP',   completed_at:'2026-07-13 19:40'},
+  ],
+  REJECTED: [
+    {ts:1583, svc:'재고서비스', code:'IVT', pv:'IDC', rejected_at:'2026-07-19 14:52',
+     reason:'대상 3건 중 1건 접속 실패(10.20.4.18:1521 timeout) — NLB 리스너 미반영 여부 확인 후 재실행 요청'},
+  ],
+};
+
+/* 연결 테스트 상세 — 앱 Step5/6 문법.
+   논리 DB: 리소스(agent)별 연동 대상 목록 + 제외 목록(사유 STG/DEV/TEMP)을 카운트로 보여주고
+   모달에서 직접 조회한다. 접속 실패 리소스는 논리 DB 결과가 없다. */
+const TC_DETAILS = {
+  1799: {
+    svc:'배송서비스', code:'DLV', pv:'AZURE', state:'COMPLETED', completed_at:'2026-07-20 17:19',
+    rows:[
+      {db:'MySQL', id:'/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-01',
+       region:'koreacentral', name:'mysql-dlv-01', cred:'dlv_svc_mysql', st:'Success',
+       inc:['dlv_main','dlv_order','dlv_ship','dlv_return','dlv_track','dlv_billing','dlv_partner','dlv_stats','dlv_noti','dlv_geo','dlv_history','dlv_audit'].map(n=>({db:n,type:'DATABASE'})),
+       exc:[{db:'dlv_stg',type:'DATABASE',reason:'STG'},{db:'dlv_dev',type:'DATABASE',reason:'DEV'},{db:'tmp_batch',type:'DATABASE',reason:'TEMP'}]},
+      {db:'MySQL', id:'/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-02',
+       region:'koreacentral', name:'mysql-dlv-02', cred:'dlv_svc_mysql', st:'Success',
+       inc:['ship_core','ship_route','ship_fleet','ship_driver','ship_zone','ship_fee','ship_event','ship_log'].map(n=>({db:n,type:'DATABASE'})),
+       exc:[{db:'ship_dev',type:'DATABASE',reason:'DEV'}]},
+      {db:'PostgreSQL', id:'/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforPostgreSQL/servers/pg-dlv-main',
+       region:'koreacentral', name:'pg-dlv-main', cred:'dlv_svc_pg', st:'Success',
+       inc:['public','delivery','partner','billing','analytics'].map(n=>({db:'pg_dlv',schema:n,type:'SCHEMA'})),
+       exc:[{db:'pg_dlv',schema:'scratch',type:'SCHEMA',reason:'TEMP'},{db:'pg_dlv',schema:'dev_sandbox',type:'SCHEMA',reason:'DEV'}]},
+    ],
+  },
+  1583: {
+    svc:'재고서비스', code:'IVT', pv:'IDC', state:'REJECTED', rejected_at:'2026-07-19 14:52',
+    reason:'대상 3건 중 1건 접속 실패(10.20.4.18:1521 timeout) — NLB 리스너 미반영 여부 확인 후 재실행을 요청했어요.',
+    rows:[
+      {db:'MySQL',  kind:'Host', host:'db-mysql.ivt.prod.internal', port:3306, srcIps:['10.20.9.7'], cred:'ivt_svc_mysql', st:'Success',
+       inc:['ivt_main','ivt_stock','ivt_wh','ivt_supplier','ivt_audit','ivt_stats'].map(n=>({db:n,type:'DATABASE'})),
+       exc:[{db:'ivt_dev',type:'DATABASE',reason:'DEV'}]},
+      {db:'MySQL',  kind:'IP',   ips:['10.20.4.11'], port:3306, srcIps:['10.20.9.7'], cred:'ivt_svc_mysql', st:'Success',
+       inc:['ivt_order','ivt_out','ivt_in','ivt_move'].map(n=>({db:n,type:'DATABASE'})), exc:[]},
+      {db:'Oracle', kind:'IP',   ips:['10.20.4.18'], port:1521, srcIps:['10.20.9.8'], cred:'ivt_svc_oracle', st:'Failed', fail:'connect timeout (5s)'},
+    ],
+  },
+};
+
+/* ══════════ 헬퍼 ══════════ */
+const $=(s,el=document)=>el.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* 프로세스 상태 — 색상 남용 대신 단일 연한 badge + Step 접두 (오너 피드백) */
+const stepStack=st=>{const s=STEP[st];return `<span class="stx"><span class="stx-step">Step ${s.n}</span><span class="tag gray">${s.label}</span></span>`;};
+const csPill=cs=>{const c=CONFIRM_TONE[cs]||CONFIRM_TONE.NO_REQUEST;return `<span class="pill ${c.tone}"><span class="dot"></span>${c.label}</span>`;};
+const ptag=pv=>`<span class="ptag"><span class="pdot" style="background:${PV[pv]||'var(--off)'}"></span>${pv}</span>`;
+function humanDelay(sec){
+  if(sec<60) return sec+'초';
+  if(sec<3600) return Math.floor(sec/60)+'분';
+  if(sec<86400){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return m?`${h}시간 ${m}분`:`${h}시간`;}
+  const d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600);return h?`${d}일 ${h}시간`:`${d}일`;
+}
+const delayCls=sec=>sec>=604800?'d3':sec>=86400?'d2':sec>=3600?'d1':''; // 임계(1h/1d/7d)는 프로토타입 가정
+const icArrow='<svg class="ic sm" viewBox="0 0 24 24"><use href="#i-arrow"/></svg>';
+const detailLink=`<span class="detail-link">상세보기${icArrow}</span>`;
+const emptyState=(t,c)=>`<div class="empty-state"><span class="eico"><svg class="ic" viewBox="0 0 24 24"><use href="#i-inbox"/></svg></span><span class="et">${t}</span><span class="ec">${c}</span></div>`;
+const icCopy='<svg class="ic xs" viewBox="0 0 24 24"><use href="#i-copy"/></svg>';
+const resIdCell=(id)=>`<span class="res-id-cell"><span class="res-id-text" title="${esc(id)}">${esc(id)}</span><button class="copy-btn" data-copy="${esc(id)}" title="복사">${icCopy}</button></span>`;
+function toast(msg){
+  $('#toast-root').innerHTML=`<div class="toast"><svg class="ic" viewBox="0 0 24 24"><use href="#i-check"/></svg>${esc(msg)}</div>`;
+  clearTimeout(toast._t); toast._t=setTimeout(()=>{$('#toast-root').innerHTML='';},2200);
+}
+function closeModal(){$('#modal-root').innerHTML='';document.removeEventListener('keydown',escClose);}
+function escClose(e){if(e.key==='Escape')closeModal();}
+function openModal(html){
+  $('#modal-root').innerHTML=`<div class="overlay" id="ovl">${html}</div>`;
+  $('#ovl').addEventListener('click',e=>{if(e.target.id==='ovl')closeModal();});
+  document.addEventListener('keydown',escClose);
+}
+
+/* ══════════ Pagination (앱 pagination-row 문법 · 클라이언트 mock) ══════════ */
+const PG={proc:{page:1,size:10},req:{page:1,size:10},tc:{page:1,size:10},res:{page:1,size:10},nlbres:{page:1,size:10},tcd:{page:1,size:10},ldb:{page:1,size:10}};
+function pslice(arr,key){
+  const st=PG[key], pages=Math.max(1,Math.ceil(arr.length/st.size));
+  if(st.page>pages) st.page=pages;
+  return arr.slice((st.page-1)*st.size, st.page*st.size);
+}
+function pagerHtml(key,total){
+  const st=PG[key], pages=Math.max(1,Math.ceil(total/st.size));
+  const a=total?((st.page-1)*st.size+1):0, b=Math.min(total,st.page*st.size);
+  let nums=''; const win=5, s=Math.max(1,Math.min(st.page-2,pages-win+1)), e=Math.min(pages,s+win-1);
+  for(let p=s;p<=e;p++) nums+=`<button ${p===st.page?'class="current"':`data-pg="${key}:${p}"`}>${p}</button>`;
+  return `<div class="pagination-row">
+    <div class="pg-perpage"><span>표시</span>
+      <select data-pgsize="${key}">${[10,20,50].map(n=>`<option${n===st.size?' selected':''}>${n}</option>`).join('')}</select>
+      <span>건씩</span></div>
+    <span class="pg-info"><strong>${a}–${b}</strong> / 전체 <strong>${total}</strong>건</span>
+    <div class="pg-spacer"></div>
+    <div class="pg-pages">
+      <button data-pg="${key}:${st.page-1}" ${st.page<=1?'disabled':''} aria-label="이전"><svg class="ic xs" viewBox="0 0 24 24"><use href="#i-chev-l"/></svg></button>
+      ${nums}
+      <button data-pg="${key}:${st.page+1}" ${st.page>=pages?'disabled':''} aria-label="다음"><svg class="ic xs" viewBox="0 0 24 24"><use href="#i-chev-r"/></svg></button>
+    </div></div>`;
+}
+
+/* ══════════ 라우팅 ══════════ */
+history.scrollRestoration='manual';
+function nav(h){location.hash=h;}
+window.addEventListener('hashchange',render);
+window.addEventListener('DOMContentLoaded',()=>{if(!location.hash)location.hash='#/queue';render();});
+
+function render(){
+  const h=location.hash||'#/queue';
+  closeModal();
+  const mReq=h.match(/^#\/requests\/(\d+)/), mTc=h.match(/^#\/tc\/(\d+)/);
+  let page, active;
+  if(mReq){page=renderDetail(+mReq[1]); active='#/requests';}
+  else if(h.startsWith('#/requests')){page=renderRequests(); active='#/requests';}
+  else if(mTc){page=renderTcDetail(+mTc[1]); active='#/tc';}
+  else if(h.startsWith('#/tc')){page=renderTc(); active='#/tc';}
+  else {page=renderQueue(); active='#/queue';}
+  $('#content').innerHTML=page;
+  document.querySelectorAll('#sidebar .sb-item[data-nav]').forEach(n=>{
+    n.classList.toggle('active',n.getAttribute('data-nav')===active);
+    n.onclick=()=>nav(n.getAttribute('data-nav'));
+  });
+  bindPage();
+  window.scrollTo(0,0);
+}
+
+/* ══════════ P1 운영 대시보드 ══════════ */
+let procFilter='', procDelay=0;
+function renderQueue(){
+  const rows=PROC.filter(r=>(!procFilter||r.st===procFilter)&&r.delay>=procDelay);
+  const slice=pslice(rows,'proc');
+  return `
+  <div class="page-head"><h1>운영 대시보드</h1></div>
+
+  <div class="section-title">현황</div>
+  <div class="stat-row">
+    <div class="stat"><div class="lbl">연동 요청 대기</div><div class="val v-warn">${SUMMARY.pending}</div></div>
+    <div class="stat"><div class="lbl">연동 요청 반려</div><div class="val ${SUMMARY.rejected?'v-err':''}">${SUMMARY.rejected}</div></div>
+    <div class="stat"><div class="lbl">연결 테스트 완료</div><div class="val">${SUMMARY.tcDone}</div></div>
+    <div class="stat"><div class="lbl">연결 테스트 반려</div><div class="val ${SUMMARY.tcRejected?'v-err':''}">${SUMMARY.tcRejected}</div></div>
+  </div>
+
+  <div class="section-title">Process Status 모니터</div>
+  <div class="section-desc">Target Source별 현재 단계와 지연(마지막 상태 변경 이후 경과)을 확인해요 · 30초마다 자동 갱신돼요</div>
+  <div class="card">
+    <div class="filterbar" style="margin-bottom:16px">
+      <select class="sel lg" id="proc-st">
+        <option value="">프로세스 상태 전체</option>
+        ${Object.entries(STEP).map(([k,v])=>`<option value="${k}"${procFilter===k?' selected':''}>Step ${v.n} · ${v.label}</option>`).join('')}
+      </select>
+      <div class="seg lg" id="proc-delay">
+        <button data-d="0" class="${procDelay===0?'on':''}">지연 전체<span class="cnt">${PROC.length}</span></button>
+        <button data-d="3600" class="${procDelay===3600?'on':''}"><span class="tdot d1"></span>1시간↑<span class="cnt">${PROC.filter(r=>r.delay>=3600).length}</span></button>
+        <button data-d="86400" class="${procDelay===86400?'on':''}"><span class="tdot d2"></span>1일↑<span class="cnt">${PROC.filter(r=>r.delay>=86400).length}</span></button>
+        <button data-d="604800" class="${procDelay===604800?'on':''}"><span class="tdot d3"></span>7일↑<span class="cnt">${PROC.filter(r=>r.delay>=604800).length}</span></button>
+      </div>
+    </div>
+    <div class="res-wrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>서비스 이름</th><th>서비스 코드</th><th>Target Source</th><th>Cloud</th>
+        <th>프로세스 상태</th><th>지연</th><th>상태 변경</th>
+      </tr></thead>
+      <tbody>
+        ${slice.length?slice.map(r=>`
+        <tr>
+          <td class="svc-name">${esc(r.svc)}</td>
+          <td class="mono">${r.code}</td>
+          <td class="mono">#${r.ts}</td>
+          <td>${ptag(r.pv)}</td>
+          <td>${stepStack(r.st)}</td>
+          <td><span class="delay ${delayCls(r.delay)}" title="${r.delay.toLocaleString()}s">${humanDelay(r.delay)}</span></td>
+          <td class="meta">${r.at}</td>
+        </tr>`).join(''):`<tr><td colspan="7" style="padding:0">${emptyState('조건에 맞는 Target Source가 없어요','필터를 바꾸면 다른 단계의 대상을 볼 수 있어요')}</td></tr>`}
+      </tbody>
+    </table>
+    </div>
+    ${rows.length?pagerHtml('proc',rows.length):''}
+  </div>`;
+}
+
+/* ══════════ P2 연동 요청 ══════════ */
+let reqTab='PENDING';
+function renderRequests(){
+  const rows=REQUESTS[reqTab];
+  const slice=pslice(rows,'req');
+  const isRej=reqTab==='REJECTED', isAll=reqTab==='ALL';
+  return `
+  <div class="page-head"><h1>연동 요청</h1></div>
+  <div class="section-desc">서비스가 보낸 연동 승인 요청을 검토하고 처리해요</div>
+  <div class="card">
+    <div class="filterbar" style="margin-bottom:16px">
+      <div class="seg lg" id="req-seg">
+        <button data-t="PENDING" class="${reqTab==='PENDING'?'on':''}">승인 대기<span class="cnt">${REQUESTS.PENDING.length}</span></button>
+        <button data-t="REJECTED" class="${reqTab==='REJECTED'?'on':''}">반려<span class="cnt">${REQUESTS.REJECTED.length}</span></button>
+        <button data-t="ALL" class="${reqTab==='ALL'?'on':''}">전체<span class="cnt">${REQUESTS.ALL.length}</span></button>
+      </div>
+    </div>
+    <div class="res-wrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>서비스 이름</th><th>서비스 코드</th><th>Target Source</th><th>Cloud</th>
+        ${isRej?'<th>반려 사유</th><th>반려 일자</th>':''}
+        ${reqTab==='PENDING'?'<th></th>':''}
+      </tr></thead>
+      <tbody>
+        ${slice.length?slice.map(r=>`
+        <tr ${reqTab==='PENDING'?`class="click" data-nav="#/requests/${r.ts}"`:''}>
+          <td class="svc-name">${esc(r.svc)}</td>
+          <td class="mono">${r.code}</td>
+          <td class="mono">#${r.ts}</td>
+          <td>${ptag(r.pv)}</td>
+          ${isRej?`
+          <td><span class="rr"><span class="rr-text">${esc(r.reason)}</span>
+            <span class="tip">${esc(r.reason)}</span></span></td>
+          <td class="meta">${r.at}</td>`:''}
+          ${reqTab==='PENDING'?`<td class="chev">${detailLink}</td>`:''}
+        </tr>`).join(''):`<tr><td colspan="${4+(isRej?2:0)+(reqTab==='PENDING'?1:0)}" style="padding:0">${
+          emptyState(...({PENDING:['승인을 기다리는 요청이 없어요','새 연동 요청이 들어오면 여기에 표시돼요'],
+            REJECTED:['반려된 요청이 없어요','반려 처리한 요청이 여기에 모여요'],
+            ALL:['연동 요청이 없어요','서비스가 연동을 요청하면 여기에 표시돼요']}[reqTab]))}</td></tr>`}
+      </tbody>
+    </table>
+    </div>
+    ${rows.length?pagerHtml('req',rows.length):''}
+  </div>`;
+}
+
+/* ══════════ P3 연동 요청 상세 ══════════ */
+const nlbDraft={};
+function occTone(occ){return occ>=50?'err':occ>=30?'warn':'';}
+function occLabel(occ){return occ>=50?'<span class="ftag err">Hard Limit</span>':occ>=30?'<span class="ftag warn">주의</span>':'<span class="ftag na">여유</span>';}
+function connText(r){
+  return r.kind==='Host'
+    ? `<span class="mono">${esc(r.host)}</span>`
+    : `<span class="mono">${r.ips.map(esc).join(' · ')}</span>`;
+}
+function renderDetail(ts){
+  const d=DETAILS[ts];
+  if(!d) return `<div class="breadcrumb"><span class="crumb" data-nav="#/requests">연동 요청</span><span class="sep">/</span><span class="cur">#${ts}</span></div>
+    <div class="card"><div class="empty">이 데모에는 #1027(IDC) · #2013(AWS) 상세만 준비되어 있어요</div></div>`;
+  const isIdc=d.pv==='IDC';
+  return `
+  <div class="breadcrumb">
+    <span class="crumb" data-nav="#/queue">Task Queue</span><span class="sep">/</span>
+    <span class="crumb" data-nav="#/requests">연동 요청</span><span class="sep">/</span>
+    <span class="cur">${esc(d.svc)} #${ts}</span>
+  </div>
+  <div class="page-head detail-head">
+    <div>
+      <h1>${esc(d.svc)} <span class="muted" style="font-weight:500">#${ts}</span></h1>
+      <div class="head-sub">${ptag(d.pv)}<span class="mono">${d.code}</span>${csPill(d.status)}</div>
+      <div class="head-meta">
+        <span class="hm-k">요청자</span><span class="hm-v">${esc(d.requested_by)}</span>
+        <span class="hm-sep">·</span>
+        <span class="hm-k">요청 시각</span><span class="hm-v">${d.requested_at}</span>
+        <span class="hm-sep">·</span>
+        <span class="hm-k">리소스 선택</span><span class="hm-v">${d.selected} <span class="muted">/ ${d.total}</span></span>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn danger" id="act-reject">반려</button>
+      <button class="btn primary" id="act-approve">승인</button>
+    </div>
+  </div>
+
+  ${isIdc?renderIdcSection(ts):renderCloudResources(d)}
+  `;
+}
+
+/* ── Cloud 리소스 — 앱 테이블 문법(연동 대상 / 연동 대상 제외) ── */
+function renderCloudResources(d){
+  const slice=pslice(d.resources,'res');
+  const row=r=>`
+    <tr${r.selected?'':' class="row-excluded"'}>
+      <td><span class="tag blue">${r.db}</span></td>
+      <td>${resIdCell(r.id)}</td>
+      <td class="mono">${r.region}</td>
+      <td class="mono">${esc(r.name)}</td>
+      <td>${r.selected?'<span class="target-yes">연동 대상</span>':'<span class="target-no">연동 대상 제외</span>'}</td>
+      <td>${r.selected?'<span class="muted">—</span>':`<span class="meta">${esc(r.excluded)}</span>`}</td>
+    </tr>`;
+  return `
+  <div class="section-title">연동 대상 리소스</div>
+  <div class="section-desc">승인 요청에 담긴 리소스 목록이에요</div>
+  <div class="card">
+    <div class="res-wrap">
+    <table class="res-tbl">
+      <thead><tr>
+        <th style="width:120px;white-space:nowrap">Database Type</th><th>Resource ID</th><th style="width:130px">Region</th>
+        <th style="width:170px">Resource Name</th><th style="width:120px">연동 대상</th><th style="width:220px">제외 사유</th>
+      </tr></thead>
+      <tbody>${slice.map(row).join('')}</tbody>
+    </table>
+    </div>
+    ${pagerHtml('res',d.resources.length)}
+  </div>`;
+}
+
+/* ── IDC — 연동 대상 + NLB 배정 (승인 전 확인의 핵심) ──
+   컬럼 문법은 앱 IDC 테이블(구분·연동 대상·Port·Database Type)을 따르고,
+   관리자 전용으로 NLB Index 편집 열을 덧붙인다. resourceId 미노출. */
+function renderIdcSection(ts){
+  const d=DETAILS[ts];
+  const nlbById=Object.fromEntries(NLB.map(n=>[n.idx,n]));
+  const slice=pslice(d.resources,'nlbres');
+  return `
+  <div class="section-title">연동 대상 리소스 · NLB 배정</div>
+  <div class="section-desc">각 리소스가 어떤 NLB를 거쳐 연결될지 승인 전에 확인하고 조정해요</div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="subsection-title" style="margin:0">리소스별 NLB Index</div>
+      <button class="btn secondary sm" id="nlb-status-btn">NLB 리스너 현황</button>
+    </div>
+    <div class="res-wrap">
+    <table class="res-tbl">
+      <thead><tr>
+        <th style="width:70px">구분</th><th style="width:110px">Database Type</th><th>연동 대상</th>
+        <th style="width:64px">Port</th><th style="width:100px">Oracle SID</th><th style="width:150px">Source IP</th>
+        <th style="width:170px">NLB Index</th><th style="width:210px">배정 NLB 상태</th><th style="width:70px"></th>
+      </tr></thead>
+      <tbody>
+        ${slice.map(r=>{
+          if(!r.selected) return `
+        <tr class="row-excluded">
+          <td><span class="tag gray">${r.kind}</span></td>
+          <td><span class="tag blue">${r.db}</span></td>
+          <td>${connText(r)}</td>
+          <td class="mono">${r.port}</td>
+          <td><span class="muted">—</span></td>
+          <td><span class="muted">—</span></td>
+          <td><span class="target-no">연동 대상 제외</span></td>
+          <td colspan="2"><span class="meta">${esc(r.excluded)}</span></td>
+        </tr>`;
+          const cur=nlbDraft[r.rid]??r.nlb;
+          const n=nlbById[cur];
+          const dirty=nlbDraft[r.rid]!=null&&nlbDraft[r.rid]!==r.nlb;
+          return `
+        <tr>
+          <td><span class="tag gray">${r.kind}</span></td>
+          <td><span class="tag blue">${r.db}</span></td>
+          <td>${connText(r)}</td>
+          <td class="mono">${r.port}</td>
+          <td>${r.sid?`<span class="mono">${esc(r.sid)}</span>`:'<span class="muted">—</span>'}</td>
+          <td>${r.srcIps.length?`<span class="mono">${r.srcIps.map(esc).join(' · ')}</span>`:'<span class="muted">—</span>'}</td>
+          <td>
+            <select class="sel sm nlb-sel ${dirty?'dirty':''}" data-rid="${r.rid}" aria-label="NLB Index">
+              ${NLB.map(o=>`<option value="${o.idx}" ${o.idx===cur?'selected':''} ${o.occ>=50&&o.idx!==r.nlb?'disabled':''}>NLB #${o.idx} · ${o.occ}/50${o.occ>=50?' · Hard Limit':o.occ>=30?' · 주의':''}</option>`).join('')}
+            </select>
+          </td>
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:8px">
+              <span class="occbar ${occTone(n.occ)}"><i style="width:${Math.min(100,n.occ/50*100)}%"></i></span>
+              <span class="occ-num">${n.occ}<span class="den">/50</span></span>
+              ${occLabel(n.occ)}
+            </span>
+          </td>
+          <td style="text-align:right">${dirty?`<button class="btn primary sm nlb-save" data-rid="${r.rid}">저장</button>`:''}</td>
+        </tr>`;}).join('')}
+      </tbody>
+    </table>
+    </div>
+    ${pagerHtml('nlbres',d.resources.length)}
+    <div class="section-desc" style="margin-bottom:0">점유 리스너가 30개를 넘으면 주의, 50개에 이르면 새로 배정할 수 없어요</div>
+  </div>`;
+}
+
+function openNlbModal(){
+  const m=location.hash.match(/^#\/requests\/(\d+)/);
+  openModal(`<div class="modal app" style="width:840px">
+    <div class="am-header">
+      <span class="am-eyebrow"><span class="ey-ctx">연동 요청</span><span class="ey-sep">·</span><span class="ey-id">#${m?m[1]:''}</span></span>
+      <h3 class="am-title">NLB 리스너 현황</h3>
+      <p class="am-sub">NLB별 리스너 점유량이에요. 여유 있는 NLB로 배정하면 부하를 나눌 수 있어요.</p>
+    </div>
+    <div class="am-body">
+    <div class="res-wrap" style="border-radius:10px">
+    <table class="res-tbl">
+      <thead><tr><th style="width:100px">NLB Index</th><th>NLB IP</th><th style="width:240px">점유 리스너</th><th style="width:100px">상태</th></tr></thead>
+      <tbody>
+        ${NLB.map(n=>`
+        <tr>
+          <td class="mono">#${n.idx}</td>
+          <td class="mono">${n.ips.map(esc).join(' · ')}</td>
+          <td><span style="display:inline-flex;align-items:center;gap:8px">
+            <span class="occbar ${occTone(n.occ)}"><i style="width:${Math.min(100,n.occ/50*100)}%"></i></span>
+            <span class="occ-num">${n.occ}<span class="den">/50</span></span></span></td>
+          <td>${occLabel(n.occ)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+    </div>
+    <div class="am-footer"><button class="btn secondary" onclick="closeModal()">닫기</button></div></div>`);
+}
+
+/* ══════════ P4 연결 테스트 목록 ══════════ */
+let tcTab='COMPLETED';
+function renderTc(){
+  const done=tcTab==='COMPLETED';
+  const rows=TC[tcTab];
+  const slice=pslice(rows,'tc');
+  return `
+  <div class="page-head"><h1>연결 테스트</h1></div>
+  <div class="section-desc">완료 건은 관리자 승인(확정) 대상이에요 · 반려 건은 서비스에 재실행을 요청한 상태예요</div>
+  <div class="card">
+    <div class="filterbar" style="margin-bottom:16px">
+      <div class="seg lg" id="tc-seg">
+        <button data-t="COMPLETED" class="${done?'on':''}">완료<span class="cnt">${TC.COMPLETED.length}</span></button>
+        <button data-t="REJECTED" class="${!done?'on':''}">재실행 요청<span class="cnt">${TC.REJECTED.length}</span></button>
+      </div>
+    </div>
+    <div class="res-wrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>서비스 이름</th><th>서비스 코드</th><th>Target Source</th><th>Cloud</th>
+        ${done?'<th>완료 일자</th><th></th>':'<th>반려 사유</th><th>반려 일자</th><th></th>'}
+      </tr></thead>
+      <tbody>
+        ${slice.length?slice.map(r=>`
+        <tr class="click" data-nav="#/tc/${r.ts}">
+          <td class="svc-name">${esc(r.svc)}</td>
+          <td class="mono">${r.code}</td>
+          <td class="mono">#${r.ts}</td>
+          <td>${ptag(r.pv)}</td>
+          ${done
+            ?`<td class="meta">${r.completed_at}</td>`
+            :`<td><span class="rr"><span class="rr-text">${esc(r.reason)}</span><span class="tip">${esc(r.reason)}</span></span></td>
+              <td class="meta">${r.rejected_at}</td>`}
+          <td class="chev">${detailLink}</td>
+        </tr>`).join(''):`<tr><td colspan="${done?6:7}" style="padding:0">${
+          done?emptyState('완료된 연결 테스트가 없어요','연결 테스트가 끝나면 여기에서 승인을 진행해요')
+              :emptyState('재실행을 요청한 건이 없어요','연결 테스트를 반려하면 여기에 모여요')}</td></tr>`}
+      </tbody>
+    </table>
+    </div>
+    ${rows.length?pagerHtml('tc',rows.length):''}
+  </div>`;
+}
+
+/* ══════════ P5 연결 테스트 상세 (앱 Step5 문법) ══════════ */
+function tcStatusTag(st){
+  return st==='Success'?'<span class="tag green">Success</span>'
+    :st==='Failed'?'<span class="tag red">Failed</span>'
+    :'<span class="tag orange">Pending</span>';
+}
+function ldbCountCell(ts,idx,r,tab){
+  if(!r.inc) return '<span class="muted">—</span>';
+  const n=tab==='inc'?r.inc.length:(r.exc||[]).length;
+  return `<span class="link ldb-link mono" data-ldb="${ts}:${idx}:${tab}" title="논리 DB 조회">${n}</span>`;
+}
+function renderTcDetail(ts){
+  const d=TC_DETAILS[ts];
+  if(!d) return `<div class="breadcrumb"><span class="crumb" data-nav="#/tc">연결 테스트</span><span class="sep">/</span><span class="cur">#${ts}</span></div>
+    <div class="card"><div class="empty">이 데모에는 #1799(완료·AZURE) · #1583(반려·IDC) 상세만 준비되어 있어요</div></div>`;
+  const isDone=d.state==='COMPLETED';
+  const isIdc=d.pv==='IDC';
+  const slice=pslice(d.rows,'tcd');
+  const incTotal=d.rows.reduce((a,r)=>a+(r.inc?r.inc.length:0),0);
+  const excTotal=d.rows.reduce((a,r)=>a+(r.exc?r.exc.length:0),0);
+  return `
+  <div class="breadcrumb">
+    <span class="crumb" data-nav="#/queue">Task Queue</span><span class="sep">/</span>
+    <span class="crumb" data-nav="#/tc">연결 테스트</span><span class="sep">/</span>
+    <span class="cur">${esc(d.svc)} #${ts}</span>
+  </div>
+  <div class="page-head">
+    <div>
+      <h1>${esc(d.svc)} <span class="muted" style="font-weight:500">#${ts}</span></h1>
+      <div class="head-sub">${ptag(d.pv)}<span class="mono">${d.code}</span>
+        ${isDone?'<span class="pill t-ok"><span class="dot"></span>연결 테스트 완료</span>':'<span class="pill t-err"><span class="dot"></span>재실행 요청</span>'}</div>
+    </div>
+    ${isDone?`<div class="actions">
+      <button class="btn danger" id="tc-rerun">연결 테스트 재실행 요청</button>
+      <button class="btn primary" id="tc-confirm">연동 승인</button>
+    </div>`:''}
+  </div>
+
+  <div class="section-title">연결 테스트 결과</div>
+  <div class="section-desc">${isDone
+    ?`완료 일자 ${d.completed_at} · 연동 대상 논리 DB ${incTotal}개 · 제외 논리 DB ${excTotal}개`
+    :`반려 일자 ${d.rejected_at} · 서비스에 재실행을 요청한 상태예요`}</div>
+  <div class="card">
+    ${isDone?'':`
+    <div class="reject-box">
+      <svg class="ic" viewBox="0 0 24 24"><use href="#i-alert"/></svg>
+      <div>
+        <div class="rb-title">재실행 요청 사유</div>
+        <div class="rb-body">${esc(d.reason)}</div>
+        <div class="rb-meta">반려 일자 ${d.rejected_at}</div>
+      </div>
+    </div>`}
+    <div class="res-wrap">
+    <table class="res-tbl">
+      ${isIdc?`
+      <thead><tr>
+        <th style="width:66px">구분</th><th style="width:104px">Database Type</th><th>연동 대상</th>
+        <th style="width:60px">Port</th><th style="width:120px">Source IP</th>
+        <th style="width:120px">DB Credential</th>
+        <th style="width:96px">연동 대상 논리 DB</th><th style="width:96px">연동 제외 논리 DB</th>
+        <th style="width:110px">Connection Status</th>
+      </tr></thead>
+      <tbody>
+        ${slice.map((r,i)=>`
+        <tr>
+          <td><span class="tag gray">${r.kind}</span></td>
+          <td><span class="tag blue">${r.db}</span></td>
+          <td>${connText(r)}${r.st==='Failed'&&r.fail?` <span class="ftag err">${esc(r.fail)}</span>`:''}</td>
+          <td class="mono">${r.port}</td>
+          <td class="mono">${r.srcIps.map(esc).join(' · ')}</td>
+          <td class="mono">${esc(r.cred)}</td>
+          <td>${ldbCountCell(ts,i,r,'inc')}</td>
+          <td>${ldbCountCell(ts,i,r,'exc')}</td>
+          <td>${tcStatusTag(r.st)}</td>
+        </tr>`).join('')}
+      </tbody>`:`
+      <thead><tr>
+        <th style="width:104px">Database Type</th><th>Resource ID</th><th style="width:110px">Region</th>
+        <th style="width:130px">Resource Name</th><th style="width:120px">DB Credential</th>
+        <th style="width:96px">연동 대상 논리 DB</th><th style="width:96px">연동 제외 논리 DB</th>
+        <th style="width:110px">Connection Status</th>
+      </tr></thead>
+      <tbody>
+        ${slice.map((r,i)=>`
+        <tr>
+          <td><span class="tag blue">${r.db}</span></td>
+          <td>${resIdCell(r.id)}</td>
+          <td class="mono">${r.region}</td>
+          <td class="mono">${esc(r.name)}</td>
+          <td class="mono">${esc(r.cred)}</td>
+          <td>${ldbCountCell(ts,i,r,'inc')}</td>
+          <td>${ldbCountCell(ts,i,r,'exc')}</td>
+          <td>${tcStatusTag(r.st)}</td>
+        </tr>`).join('')}
+      </tbody>`}
+    </table>
+    </div>
+    ${pagerHtml('tcd',d.rows.length)}
+    <div class="section-desc" style="margin-bottom:0">논리 DB 개수를 누르면 연동 대상·제외 목록을 바로 볼 수 있어요</div>
+  </div>`;
+}
+
+/* ── 논리 DB 조회 모달 (앱 논리 DB 확인 모달 문법 · 조회 전용) ── */
+let ldbTab='inc';
+function openLdbModal(ts,idx,tab){
+  ldbTab=tab;
+  renderLdbModal(ts,idx);
+}
+function renderLdbModal(ts,idx){
+  const d=TC_DETAILS[ts]; const r=d.rows[idx];
+  const isInc=ldbTab==='inc';
+  const list=isInc?r.inc:(r.exc||[]);
+  const label=r.name||r.host||(r.ips&&r.ips.join(' · '))||'';
+  const slice=pslice(list,'ldb');
+  openModal(`<div class="modal app" style="width:840px">
+    <div class="am-header">
+      <span class="am-eyebrow"><span class="ey-ctx">연결 테스트</span><span class="ey-sep">·</span><span class="ey-id">#${ts}</span></span>
+      <h3 class="am-title">논리 DB 확인</h3>
+      <div class="am-meta"><span class="tag blue">${r.db}</span><span class="mono">${esc(label)}</span></div>
+      <p class="am-sub">이 리소스에서 조회된 논리 DB 목록이에요. 제외 목록은 서비스 오너가 설정해요.</p>
+    </div>
+    <div class="am-body">
+      <div class="seg" id="ldb-seg" style="margin-bottom:16px">
+        <button data-t="inc" class="${isInc?'on':''}">연동 대상<span class="cnt">${r.inc.length}</span></button>
+        <button data-t="exc" class="${!isInc?'on':''}">연동 제외<span class="cnt">${(r.exc||[]).length}</span></button>
+      </div>
+      <div class="res-wrap">
+      <table class="res-tbl">
+        <thead><tr>
+          <th style="width:100px">구분</th><th>Database</th><th>Schema</th>
+          ${isInc?'':'<th style="width:100px">제외 사유</th>'}
+        </tr></thead>
+        <tbody>
+          ${slice.length?slice.map(it=>`
+          <tr>
+            <td><span class="tag gray">${it.type}</span></td>
+            <td class="mono">${esc(it.db)}</td>
+            <td>${it.schema?`<span class="mono">${esc(it.schema)}</span>`:'<span class="muted">—</span>'}</td>
+            ${isInc?'':`<td><span class="ftag na">${it.reason}</span></td>`}
+          </tr>`).join(''):`<tr><td colspan="${isInc?3:4}"><div class="empty">${isInc?'연동 대상 논리 DB가 없어요':'제외된 논리 DB가 없어요'}</div></td></tr>`}
+        </tbody>
+      </table>
+      </div>
+      ${pagerHtml('ldb',list.length)}
+    </div>
+    <div class="am-footer"><button class="btn secondary" onclick="closeModal()">닫기</button></div></div>`);
+  $('#ldb-seg').querySelectorAll('button').forEach(b=>b.onclick=()=>{ldbTab=b.dataset.t;PG.ldb.page=1;renderLdbModal(ts,idx);});
+  const root=$('#modal-root');
+  root.querySelectorAll('[data-pgsize]').forEach(s=>s.onchange=()=>{PG.ldb.size=+s.value;PG.ldb.page=1;renderLdbModal(ts,idx);});
+  root.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>{PG.ldb.page=+b.dataset.pg.split(':')[1];renderLdbModal(ts,idx);});
+}
+
+/* ══════════ 페이지별 바인딩 ══════════ */
+function bindPage(){
+  document.querySelectorAll('[data-nav]').forEach(n=>{
+    if(n.closest('#sidebar'))return;
+    n.addEventListener('click',()=>nav(n.getAttribute('data-nav')));
+  });
+  document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();
+    navigator.clipboard&&navigator.clipboard.writeText(b.dataset.copy);
+    toast('복사했어요');
+  }));
+  document.querySelectorAll('[data-pgsize]').forEach(s=>s.onchange=()=>{
+    const key=s.dataset.pgsize; PG[key].size=+s.value; PG[key].page=1; render();
+  });
+  document.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>{
+    const [key,p]=b.dataset.pg.split(':'); PG[key].page=+p; render();
+  });
+  const st=$('#proc-st'); if(st) st.onchange=e=>{procFilter=e.target.value;PG.proc.page=1;render();};
+  const pd=$('#proc-delay'); if(pd) pd.querySelectorAll('button').forEach(b=>
+    b.onclick=()=>{procDelay=+b.dataset.d;PG.proc.page=1;render();});
+  const rseg=$('#req-seg'); if(rseg) rseg.querySelectorAll('button').forEach(b=>b.onclick=()=>{reqTab=b.dataset.t;PG.req.page=1;render();});
+  const tseg=$('#tc-seg'); if(tseg) tseg.querySelectorAll('button').forEach(b=>b.onclick=()=>{tcTab=b.dataset.t;PG.tc.page=1;render();});
+
+  /* NLB 배정 편집 */
+  const nlbBtn=$('#nlb-status-btn'); if(nlbBtn) nlbBtn.onclick=openNlbModal;
+  document.querySelectorAll('.nlb-sel').forEach(sel=>sel.onchange=e=>{
+    nlbDraft[sel.dataset.rid]=+e.target.value;render();
+  });
+  document.querySelectorAll('.nlb-save').forEach(btn=>btn.onclick=()=>{
+    const rid=btn.dataset.rid;
+    const m=location.hash.match(/^#\/requests\/(\d+)/); const d=DETAILS[+m[1]];
+    const r=d.resources.find(x=>x.rid===rid);
+    const from=r.nlb,to=nlbDraft[rid];
+    NLB.find(n=>n.idx===from).occ--; NLB.find(n=>n.idx===to).occ++;
+    r.nlb=to; delete nlbDraft[rid];
+    toast(`NLB #${from} → #${to} 변경을 저장했어요`);
+    render();
+  });
+
+  /* 논리 DB 조회 + 연결 테스트 액션 */
+  document.querySelectorAll('.ldb-link').forEach(el=>el.onclick=()=>{
+    const [ts,idx,tab]=el.dataset.ldb.split(':');
+    openLdbModal(+ts,+idx,tab);
+  });
+  const bindCount=(ta,cnt,limit)=>{const f=()=>{cnt.textContent=`${ta.value.length.toLocaleString()} / ${limit.toLocaleString()}`;};f();return f;};
+  const tcRerun=$('#tc-rerun'); if(tcRerun) tcRerun.onclick=()=>{
+    const m=location.hash.match(/^#\/tc\/(\d+)/); const d=TC_DETAILS[+m[1]];
+    openModal(`<div class="modal app">
+      <div class="am-header">
+        <span class="am-eyebrow"><span class="ey-ctx">연결 테스트</span><span class="ey-sep">·</span><span class="ey-id">#${m[1]}</span></span>
+        <h3 class="am-title">연결 테스트 재실행 요청</h3>
+        <p class="am-sub">${esc(d.svc)}에 연결 테스트를 다시 실행해 달라고 요청해요. 사유는 서비스 오너에게 그대로 전달돼요.</p>
+      </div>
+      <div class="am-body">
+        <div class="am-label">재실행 요청 사유 (필수)</div>
+        <textarea id="tr-reason" maxlength="512" placeholder="무엇을 확인하고 다시 실행해야 하는지 적어 주세요"></textarea>
+        <div class="am-count" id="tr-count"></div>
+      </div>
+      <div class="am-footer"><button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn dangersolid" id="tr-go" disabled>재실행 요청</button></div></div>`);
+    const ta=$('#tr-reason'),go=$('#tr-go');
+    const upd=bindCount(ta,$('#tr-count'),512);
+    ta.oninput=()=>{upd();go.disabled=!ta.value.trim();};
+    go.onclick=()=>{closeModal();toast('재실행을 요청했어요 — 사유가 전달됐어요');};
+  };
+  const tcConfirm=$('#tc-confirm'); if(tcConfirm) tcConfirm.onclick=()=>{
+    const m=location.hash.match(/^#\/tc\/(\d+)/); const d=TC_DETAILS[+m[1]];
+    const incTotal=d.rows.reduce((a,r)=>a+(r.inc?r.inc.length:0),0);
+    const excTotal=d.rows.reduce((a,r)=>a+(r.exc?r.exc.length:0),0);
+    openModal(`<div class="modal app">
+      <div class="am-header">
+        <span class="am-eyebrow"><span class="ey-ctx">연결 테스트</span><span class="ey-sep">·</span><span class="ey-id">#${m[1]}</span></span>
+        <h3 class="am-title">연동 승인</h3>
+        <p class="am-sub">${esc(d.svc)}의 PII Agent 설치를 확정해요. 승인하면 연동이 완료되고 모니터링이 시작돼요.</p>
+      </div>
+      <div class="am-body">
+        <div class="am-stats">
+          <div class="am-stat"><span class="lb">리소스</span><span class="v">${d.rows.length}<small>건</small></span></div>
+          <div class="am-stat"><span class="lb">연동 대상 논리 DB</span><span class="v">${incTotal}<small>개</small></span></div>
+          <div class="am-stat"><span class="lb">연동 제외</span><span class="v">${excTotal}<small>개</small></span></div>
+        </div>
+      </div>
+      <div class="am-footer"><button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn primary" id="cf-go">승인</button></div></div>`);
+    $('#cf-go').onclick=()=>{closeModal();toast('연동을 승인했어요 — 연동이 완료됐어요');};
+  };
+
+  /* 연동 요청 승인 / 반려 — 앱 모달 문법, 메시지 1,024자 제한 */
+  const ap=$('#act-approve'); if(ap) ap.onclick=()=>{
+    const m=location.hash.match(/^#\/requests\/(\d+)/); const d=DETAILS[+m[1]];
+    const dirtyCnt=Object.keys(nlbDraft).length;
+    openModal(`<div class="modal app">
+      <div class="am-header">
+        <span class="am-eyebrow"><span class="ey-ctx">연동 요청</span><span class="ey-sep">·</span><span class="ey-id">#${m[1]}</span></span>
+        <h3 class="am-title">연동 요청 승인</h3>
+        <p class="am-sub">${esc(d.svc)}의 선택 리소스 ${d.selected}건을 승인해요. 승인하면 연동 대상 반영이 시작돼요.</p>
+      </div>
+      <div class="am-body">
+        ${dirtyCnt?`<div class="am-note"><svg class="ic sm" viewBox="0 0 24 24"><use href="#i-alert"/></svg>
+          저장하지 않은 NLB 변경 ${dirtyCnt}건이 있어요. 승인 전에 저장하지 않으면 반영되지 않아요.</div>`:''}
+        <div class="am-label">승인 코멘트 (선택)</div>
+        <textarea id="ap-comment" maxlength="1024" placeholder="서비스 오너에게 전달할 코멘트를 남길 수 있어요"></textarea>
+        <div class="am-count" id="ap-count"></div>
+      </div>
+      <div class="am-footer"><button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn primary" id="ap-go">승인</button></div></div>`);
+    const ta=$('#ap-comment');
+    ta.oninput=bindCount(ta,$('#ap-count'),1024);
+    $('#ap-go').onclick=()=>{closeModal();toast('승인했어요 — 연동 대상 반영이 시작돼요');};
+  };
+  const rj=$('#act-reject'); if(rj) rj.onclick=()=>{
+    const m=location.hash.match(/^#\/requests\/(\d+)/); const d=DETAILS[+m[1]];
+    openModal(`<div class="modal app">
+      <div class="am-header">
+        <span class="am-eyebrow"><span class="ey-ctx">연동 요청</span><span class="ey-sep">·</span><span class="ey-id">#${m[1]}</span></span>
+        <h3 class="am-title">연동 요청 반려</h3>
+        <p class="am-sub">${esc(d.svc)}의 요청을 반려해요. 사유는 서비스 오너에게 그대로 전달돼요.</p>
+      </div>
+      <div class="am-body">
+        <div class="am-label">반려 사유 (필수)</div>
+        <textarea id="rj-reason" maxlength="1024" placeholder="서비스 오너가 무엇을 고쳐 다시 요청해야 하는지 적어 주세요"></textarea>
+        <div class="am-count" id="rj-count"></div>
+      </div>
+      <div class="am-footer"><button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn dangersolid" id="rj-go" disabled>반려</button></div></div>`);
+    const ta=$('#rj-reason'),go=$('#rj-go');
+    const upd=bindCount(ta,$('#rj-count'),1024);
+    ta.oninput=()=>{upd();go.disabled=!ta.value.trim();};
+    go.onclick=()=>{closeModal();toast('반려했어요 — 사유가 전달됐어요');};
+  };
+}
+</script>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-search"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></g>
+    <g id="i-arrow"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></g>
+    <g id="i-inbox"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></g>
+    <g id="i-check"><path d="M20 6 9 17l-5-5"/></g>
+    <g id="i-copy"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></g>
+    <g id="i-chev-l"><polyline points="15 18 9 12 15 6"/></g>
+    <g id="i-chev-r"><polyline points="9 18 15 12 9 6"/></g>
+    <g id="i-alert"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></g>
+  </defs>
+</svg>
+</body>
+</html>
