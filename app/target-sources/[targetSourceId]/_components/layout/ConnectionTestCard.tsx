@@ -18,6 +18,7 @@ import {
   updateResourceCredential,
 } from '@/app/lib/api';
 import type { TestConnectionStatus } from '@/app/lib/api';
+import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { IdcCredSelectCell } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
@@ -189,7 +190,8 @@ export const ConnectionTestCard = ({
         : '연결 테스트 대기 중 — Run Test를 실행해 주세요';
 
   return (
-    <section className={cn(cardStyles.base, 'overflow-hidden')}>
+    // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
+    <section className={cardStyles.base}>
       <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
         <div>
           <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
@@ -197,11 +199,12 @@ export const ConnectionTestCard = ({
             DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
           </p>
         </div>
+        {/* C-1: repeatable action demoted to soft — 완료 승인 요청 keeps the only primary. */}
         <button
           type="button"
           onClick={runTest}
           disabled={testing || !allCredsSet}
-          className={idcStyles.triggerBtn.primary}
+          className={cn(idcStyles.triggerBtn.soft, 'disabled:cursor-not-allowed disabled:opacity-45')}
         >
           {testing ? (
             '연결 테스트 진행 중...'
@@ -327,20 +330,6 @@ export const ConnectionTestCard = ({
             pageSizeOptions={[10, 20, 50, 100]}
           />
         )}
-        <div className="flex items-center justify-between mt-4">
-          <p className={cn('text-[12px]', textColors.tertiary)}>
-            ※ 모든 DB의 Connection Status가 Success이고 논리 DB 확인 설정이 완료되어야 다음 단계로 진행할 수
-            있어요.
-          </p>
-          <button
-            type="button"
-            onClick={() => setApprovalOpen(true)}
-            disabled={!canRequestApproval}
-            className={idcStyles.triggerBtn.primary}
-          >
-            완료 승인 요청
-          </button>
-        </div>
         <CloudReqApprovalModal
           isOpen={approvalOpen}
           onClose={() => setApprovalOpen(false)}
@@ -361,6 +350,19 @@ export const ConnectionTestCard = ({
           />
         )}
       </div>
+      {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. */}
+      <CardActionBar
+        hint="※ 모든 DB의 Connection Status가 Success이고 논리 DB 확인 설정이 완료되어야 다음 단계로 진행할 수 있어요."
+      >
+        <button
+          type="button"
+          onClick={() => setApprovalOpen(true)}
+          disabled={!canRequestApproval}
+          className={idcStyles.triggerBtn.primary}
+        >
+          완료 승인 요청
+        </button>
+      </CardActionBar>
     </section>
   );
 };

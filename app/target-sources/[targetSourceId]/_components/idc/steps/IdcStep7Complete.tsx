@@ -37,7 +37,7 @@ const CompleteActions = () => {
   };
 
   return (
-    <div className="mb-3 flex justify-end gap-2">
+    <div className="flex items-center gap-2">
       <button type="button" className={idcStyles.triggerBtn.warnOutline} onClick={() => setConfirmKind('infra')}>
         <EditIcon className="w-3.5 h-3.5" />
         인프라 변경
@@ -89,12 +89,14 @@ export const IdcStep7Complete = ({
               PII가 사용되어 있을 가능성이 있어요. 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.
             </p>
           </div>
-          {/* No per-target health API source — render a neutral em-dash instead
-              of a fabricated green "Healthy" pill (B.6). */}
-          <span className={cn('text-[12px]', textColors.quaternary)}>—</span>
+          {/* C-3: auxiliary rewind actions pinned to the header right. The health slot
+              stays a neutral em-dash — no per-target health API source (B.6). */}
+          <div className="flex shrink-0 items-center gap-2.5">
+            <CompleteActions />
+            <span className={cn('text-[12px]', textColors.quaternary)}>—</span>
+          </div>
         </header>
         <div className="p-6">
-          <CompleteActions />
           {state.status === 'loading' && <ResourceTableSkeleton />}
           {state.status === 'error' && <ErrorState message="연동 대상을 불러오지 못했습니다." />}
           {state.status === 'ready' && (

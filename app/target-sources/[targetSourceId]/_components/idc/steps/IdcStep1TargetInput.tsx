@@ -17,6 +17,7 @@ import { EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import {
+  CardActionBar,
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
@@ -296,28 +297,34 @@ export const IdcStep1TargetInput = ({
                 onPageSizeChange={setPageSize}
                 pageSizeOptions={PAGE_SIZE_OPTIONS}
               />
-              <div className="mt-4 flex items-center justify-between">
-                <span className={cn('text-[12px]', textColors.tertiary)}>
-                  총 <strong className={textColors.primary}>{total}</strong>건 · 연동{' '}
-                  <strong className={primaryColors.text}>{liveCount}</strong>건
-                  {excludedCount > 0 && (
-                    <>
-                      {' '}· 제외 <strong className={statusColors.error.textDark}>{excludedCount}</strong>건
-                    </>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  disabled={liveCount === 0}
-                  onClick={() => setSubmitOpen(true)}
-                  className={idcStyles.triggerBtn.primary}
-                >
-                  연동 대상 승인 요청
-                </button>
-              </div>
             </>
           )}
         </div>
+        {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. */}
+        {rows.length > 0 && (
+          <CardActionBar
+            hint={
+              <>
+                총 <strong className={textColors.primary}>{total}</strong>건 · 연동{' '}
+                <strong className={primaryColors.text}>{liveCount}</strong>건
+                {excludedCount > 0 && (
+                  <>
+                    {' '}· 제외 <strong className={statusColors.error.textDark}>{excludedCount}</strong>건
+                  </>
+                )}
+              </>
+            }
+          >
+            <button
+              type="button"
+              disabled={liveCount === 0}
+              onClick={() => setSubmitOpen(true)}
+              className={idcStyles.triggerBtn.primary}
+            >
+              연동 대상 승인 요청
+            </button>
+          </CardActionBar>
+        )}
       </div>
 
       <RejectionAlert project={project} />

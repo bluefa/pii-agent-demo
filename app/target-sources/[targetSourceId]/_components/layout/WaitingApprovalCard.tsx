@@ -17,6 +17,7 @@ import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { ApprovalUnavailableCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ApprovalUnavailableCard';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
@@ -135,7 +136,8 @@ export const WaitingApprovalCard = ({
   }
 
   return (
-    <section className={cn(cardStyles.base, 'overflow-hidden')}>
+    // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
+    <section className={cardStyles.base}>
       <div className={cn(cardStyles.header, 'flex items-center justify-between')}>
         <div>
           <h2 className={cn(cardStyles.cardTitle)}>
@@ -226,13 +228,14 @@ export const WaitingApprovalCard = ({
           </div>
         )}
 
-        {(cancelSlot || reselectSlot) && (
-          <div className="flex justify-end items-center gap-2 mt-4">
-            {reselectSlot}
-            {cancelSlot}
-          </div>
-        )}
       </div>
+      {/* C-2 action zone: cancel/reselect dock (sticky) at the card bottom. */}
+      {(cancelSlot || reselectSlot) && (
+        <CardActionBar>
+          {reselectSlot}
+          {cancelSlot}
+        </CardActionBar>
+      )}
     </section>
   );
 };

@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { createApprovalRequest } from '@/app/lib/api';
 import { formatDate } from '@/lib/utils/date';
 import { Button } from '@/app/components/ui/Button';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ClockIcon, PlayIcon } from '@/app/components/ui/icons';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
@@ -12,12 +13,22 @@ import { ScanController, type ScanUiState } from '@/app/components/features/scan
 import { ScanEmptyState } from '@/app/components/features/scan/ScanEmptyState';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
 import { ScanRunningState } from '@/app/components/features/scan/ScanRunningState';
-import { borderColors, cardStyles, cn, getButtonClass, idcStyles, statusColors, textColors } from '@/lib/theme';
+import {
+  borderColors,
+  cardStyles,
+  cn,
+  getButtonClass,
+  idcStyles,
+  primaryColors,
+  statusColors,
+  textColors,
+} from '@/lib/theme';
 import type { CandidateDraftState, EndpointConfigDraft } from '@/lib/types/resources';
+import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
 import type { CandidateRowActions } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
-import { selectPhase } from '@/app/target-sources/[targetSourceId]/_components/candidate/phase';
+import { selectPhase, type Phase } from '@/app/target-sources/[targetSourceId]/_components/candidate/phase';
 import {
   listMissingExclusionReasons,
   toApprovalRequestInput,
@@ -178,12 +189,7 @@ export const CandidateResourceSection = ({
     void approval.execute();
   }, [approval]);
 
-  const renderBody = (scanState: ScanUiState, progress: number, startScan: () => void) => {
-    const phase = selectPhase({
-      fetchStatus: state.status,
-      scanState,
-      hasCandidates: candidates.length > 0,
-    });
+  const renderBody = (phase: Phase, progress: number, startScan: () => void) => {
     const errorMessage = state.status === 'error' ? state.message : '';
 
     switch (phase) {
@@ -211,9 +217,7 @@ export const CandidateResourceSection = ({
             drafts={drafts}
             expandedResourceId={expandedResourceId}
             readonly={readonly}
-            approvalSubmitting={approval.loading}
             actions={rowActions}
-            onRequestApproval={handleRequestApproval}
           />
         );
       case 'empty':
@@ -230,8 +234,14 @@ export const CandidateResourceSection = ({
         {({ state: scanState, lastScanAt, progress, starting, canStart, loading: scanLoading, startScan }) => {
           const initialLoading = scanLoading || state.status === 'loading';
           const busyLabel = initialLoading ? '불러오는 중...' : starting ? '시작 중...' : null;
+          const phase = selectPhase({
+            fetchStatus: state.status,
+            scanState,
+            hasCandidates: candidates.length > 0,
+          });
           return (
-            <section className={cn(cardStyles.base, 'overflow-hidden')}>
+            // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
+            <section className={cardStyles.base}>
               <header className={cn('flex flex-wrap items-start justify-between gap-3', cardStyles.header)}>
                 <div className="flex-shrink-0">
                   <h2 className={cn(cardStyles.cardTitle, 'whitespace-nowrap')}>연동 대상 DB 선택</h2>
@@ -267,7 +277,29 @@ export const CandidateResourceSection = ({
                 </div>
               </header>
 
-              <div className="px-6 py-6">{renderBody(scanState, progress, startScan)}</div>
+              <div className="px-6 py-6">{renderBody(phase, progress, startScan)}</div>
+              {/* C-2 action zone (lifted out of CandidateResourceTable): the transition
+                  CTA docks (sticky) at the card bottom while the long table scrolls. */}
+              {phase === 'list' && !readonly && (
+                <CardActionBar
+                  hint={
+                    <>
+                      총 <strong className={textColors.primary}>{candidates.length}</strong>건 ·{' '}
+                      <strong className={primaryColors.text}>{selectedIds.size}</strong>건 선택됨
+                    </>
+                  }
+                >
+                  <Button
+                    variant="primary"
+                    onClick={handleRequestApproval}
+                    disabled={approval.loading || selectedIds.size === 0}
+                    className="flex items-center gap-2"
+                  >
+                    {approval.loading && <LoadingSpinner />}
+                    연동 대상 승인 요청
+                  </Button>
+                </CardActionBar>
+              )}
             </section>
           );
         }}
