@@ -8,10 +8,6 @@
  * latest-results / by-resource-id routes, fetched independently so the header +
  * reject-box still render if those results are unavailable. Actions (재실행 요청 /
  * 연동 승인) show only in the 완료 state; a 재실행 요청 flips the status (refetch).
- *
- * NOTE (mock gap, reported to the lead): the demo queue target ids are not backed
- * by mock projects, so latest-results / by-resource-id return 404 in mock mode —
- * the 결과 section degrades to its empty state until the fixtures are wired.
  */
 import { useCallback, useState, type ReactElement } from 'react';
 import { useParams } from 'next/navigation';
@@ -78,11 +74,21 @@ export default function TestConnectionDetailPage(): ReactElement {
   const [resultsError, setResultsError] = useState<unknown>(null);
 
   const [reload, setReload] = useState(0);
-  const refetch = useCallback(() => setReload((n) => n + 1), []);
 
-  // 논리 DB modal + per-resource cache (reused across tab cycles).
+  // 논리 DB modal + per-resource cache (reused across tab cycles). Keyed by
+  // (targetSourceId, resourceId) so a stale entry can never serve another target
+  // source; dropped on refetch so post-action reopens reload fresh lists.
   const [ldbCache, setLdbCache] = useState<LdbCache>({});
   const [ldbTarget, setLdbTarget] = useState<LdbTarget | null>(null);
+  const ldbKey = useCallback(
+    (resourceId: string) => `${targetSourceId}:${resourceId}`,
+    [targetSourceId],
+  );
+
+  const refetch = useCallback(() => {
+    setLdbCache({});
+    setReload((n) => n + 1);
+  }, []);
 
   const [rerunOpen, setRerunOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -140,15 +146,15 @@ export default function TestConnectionDetailPage(): ReactElement {
         getExcludedLogicalDatabases(targetSourceId, resourceId),
       ])
         .then(([included, excluded]) => {
-          setLdbCache((prev) => putLdbCache(prev, resourceId, { included, excluded }));
+          setLdbCache((prev) => putLdbCache(prev, ldbKey(resourceId), { included, excluded }));
         })
         .catch(() => {
           setLdbCache((prev) =>
-            putLdbCache(prev, resourceId, { included: [], excluded: [], error: true }),
+            putLdbCache(prev, ldbKey(resourceId), { included: [], excluded: [], error: true }),
           );
         });
     },
-    [targetSourceId],
+    [targetSourceId, ldbKey],
   );
 
   const openLdb = useCallback(
@@ -162,11 +168,11 @@ export default function TestConnectionDetailPage(): ReactElement {
       });
       // Skip the fetch only when a successful entry is already cached; a prior
       // error re-attempts on reopen.
-      const cached = ldbCache[resourceId];
+      const cached = ldbCache[ldbKey(resourceId)];
       if (cached && !cached.error) return;
       loadLdb(resourceId);
     },
-    [results, ldbCache, loadLdb],
+    [results, ldbCache, ldbKey, loadLdb],
   );
 
   const retryLdb = useCallback(
@@ -174,12 +180,12 @@ export default function TestConnectionDetailPage(): ReactElement {
       // Drop the errored entry so the modal shows loading, then re-fetch.
       setLdbCache((prev) => {
         const next = { ...prev };
-        delete next[resourceId];
+        delete next[ldbKey(resourceId)];
         return next;
       });
       loadLdb(resourceId);
     },
-    [loadLdb],
+    [ldbKey, loadLdb],
   );
 
   // On failure the modal stays open (onSuccess is skipped, submitting resets) and
@@ -187,7 +193,7 @@ export default function TestConnectionDetailPage(): ReactElement {
   const rerun = useApiMutation((reason: string) => rejectTestConnection(targetSourceId, reason), {
     onSuccess: () => {
       setRerunOpen(false);
-      toast.show('재실행을 요청했어요');
+      toast.show('재실행을 요청했어요 — 사유가 전달됐어요');
       refetch();
     },
     onError: () => toast.show('재실행 요청에 실패했어요'),
@@ -322,7 +328,7 @@ export default function TestConnectionDetailPage(): ReactElement {
           databaseType={ldbTarget.databaseType}
           targetLabel={ldbTarget.targetLabel}
           defaultTab={ldbTarget.tab}
-          entry={ldbCache[ldbTarget.resourceId]}
+          entry={ldbCache[ldbKey(ldbTarget.resourceId)]}
           onRetry={() => retryLdb(ldbTarget.resourceId)}
         />
       )}

@@ -36,7 +36,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
               className={cn(appTable.row, !row.selected && appTable.rowExcluded)}
             >
               <td className={appTable.td}>
-                <span className={cn(tag.base, row.selected ? tag.blue : tag.gray)}>
+                <span className={cn(tag.base, row.selected ? tag.blue : tag.grayStrong)}>
                   {row.databaseType ?? '—'}
                 </span>
               </td>

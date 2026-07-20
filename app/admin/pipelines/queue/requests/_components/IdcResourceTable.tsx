@@ -87,7 +87,7 @@ export function IdcResourceTable({
                     <span className={cn(tag.base, tag.gray)}>{kindTag(row.idcKind)}</span>
                   </td>
                   <td className={appTable.td}>
-                    <span className={cn(tag.base, tag.gray)}>{row.databaseType ?? '—'}</span>
+                    <span className={cn(tag.base, tag.grayStrong)}>{row.databaseType ?? '—'}</span>
                   </td>
                   <td className={`${appTable.td} ${appTable.tdMono}`}>{connect}</td>
                   <td className={`${appTable.td} ${appTable.tdMono}`}>{row.port ?? '—'}</td>

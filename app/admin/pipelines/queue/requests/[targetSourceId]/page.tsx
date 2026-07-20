@@ -11,7 +11,7 @@
  * The non-IDC variant is a read-only resource table. 승인/반려 post to the approval
  * endpoints, then return to the list.
  */
-import { useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { integrationRoutes } from '@/lib/routes';
 import { pipelineStyles } from '@/lib/theme';
@@ -74,6 +74,16 @@ export default function RequestDetailPage(): ReactElement {
   const [savingResourceId, setSavingResourceId] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalKind>(null);
 
+  // Gates the post-save toast/refetch: the section-level toast provider outlives
+  // this page, so a save resolving after navigation must not fire a toast there.
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+
   useAbortableEffect(
     (signal) => {
       setLoading(true);
@@ -119,6 +129,7 @@ export default function RequestDetailPage(): ReactElement {
     if (row.resourceId == null) return;
     const nextIndex = effectiveNlbIndex(row, draft);
     if (nextIndex == null) return;
+    const fromIndex = row.nlbIndex;
     setSavingResourceId(row.resourceId);
     try {
       await putNlbIndex(targetSourceId, row.resourceId, nextIndex);
@@ -135,10 +146,16 @@ export default function RequestDetailPage(): ReactElement {
           : prev,
       );
       setDraft((prev) => clearNlbDraft(prev, row.resourceId as string));
-      setNlbTable(await getNlbTable());
-      toast.show(`NLB #${nextIndex} 배정을 저장했어요`);
+      const nlb = await getNlbTable();
+      if (!aliveRef.current) return;
+      setNlbTable(nlb);
+      toast.show(
+        fromIndex != null && fromIndex !== nextIndex
+          ? `NLB #${fromIndex} → #${nextIndex} 변경을 저장했어요`
+          : `NLB #${nextIndex} 배정을 저장했어요`,
+      );
     } catch (err) {
-      toast.show(errorMessage(err));
+      if (aliveRef.current) toast.show(errorMessage(err));
     } finally {
       setSavingResourceId(null);
     }

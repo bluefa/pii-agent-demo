@@ -132,7 +132,7 @@ export function LdbModal({
               <tr className={appTable.row}>
                 <td className={appTable.td} colSpan={colSpan}>
                   <span className="text-[var(--pl-text-faint)]">
-                    {isInc ? '연동 대상 논리 DB가 없어요' : '제외한 논리 DB가 없어요'}
+                    {isInc ? '연동 대상 논리 DB가 없어요' : '제외된 논리 DB가 없어요'}
                   </span>
                 </td>
               </tr>

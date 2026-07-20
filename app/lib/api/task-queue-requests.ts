@@ -218,7 +218,7 @@ export async function approveRequest(targetSourceId: number, comment: string): P
   if (!res.ok) throw new Error(`승인 처리에 실패했어요 (${res.status})`);
 }
 
-/** POST …/approval-requests/reject — reason required (UI 1,024자). */
+/** POST …/approval-requests/reject — reason required (contract max 1,000자). */
 export async function rejectRequest(targetSourceId: number, reason: string): Promise<void> {
   const res = await fetchInfra(`/target-sources/${targetSourceId}/approval-requests/reject`, {
     method: 'POST',

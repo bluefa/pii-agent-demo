@@ -330,7 +330,10 @@ export default function QueueDashboardPage(): ReactElement {
                       </option>
                     ))}
                   </PlSelect>
-                  <span className={pipelineStyles.pager.count}>전체 {totalElements}건</span>
+                  <span className={pipelineStyles.pager.count}>
+                    {currentPage * size + 1}–{Math.min(totalElements, (currentPage + 1) * size)} /
+                    전체 {totalElements}건
+                  </span>
                 </div>
                 <PlPagination
                   page={currentPage}

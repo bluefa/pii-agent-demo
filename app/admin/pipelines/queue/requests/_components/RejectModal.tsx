@@ -1,6 +1,6 @@
 /**
  * RejectModal — 연동 요청 반려 (design-spec §6). TqModal chrome + a required
- * 반려 사유 textarea (max 1,024 + CharCount); the 반려 dangerSolid CTA is disabled
+ * 반려 사유 textarea (max 1,000 + CharCount); the 반려 dangerSolid CTA is disabled
  * until the reason is non-blank. The reason is relayed verbatim to the owner.
  */
 'use client';

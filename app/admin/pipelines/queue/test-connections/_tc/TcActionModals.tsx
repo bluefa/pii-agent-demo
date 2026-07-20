@@ -45,7 +45,7 @@ export function TcRerunModal({
       eyebrowCtx="연결 테스트"
       eyebrowId={`#${targetSourceId}`}
       title="연결 테스트 재실행 요청"
-      sub="서비스에 연결 테스트를 다시 실행해 달라고 요청해요. 사유는 서비스 담당자에게 그대로 전달돼요."
+      sub="서비스에 연결 테스트를 다시 실행해 달라고 요청해요. 사유는 서비스 오너에게 그대로 전달돼요."
       footer={
         <>
           <PlButton variant="secondary" onClick={onClose} disabled={submitting}>

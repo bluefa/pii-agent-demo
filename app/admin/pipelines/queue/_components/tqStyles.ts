@@ -74,6 +74,9 @@ export const tqStyles = {
     base: 'inline-flex items-center gap-1 align-middle rounded-md px-2 py-0.5 text-[12px] font-semibold',
     blue: 'bg-[var(--pl-tag-blue-bg)] text-[var(--pl-tag-blue-text)]',
     gray: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
+    /** Excluded-row DB-type chip (`.row-excluded .tag.blue` → gray-200) — one
+     *  shade darker than the gray-100 row fill so the chip stays visible. */
+    grayStrong: 'bg-[var(--pl-gray-200)] text-[var(--pl-text-medium)]',
     green: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
     red: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
     orange: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
