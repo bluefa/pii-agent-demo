@@ -287,10 +287,9 @@ select.sel.sm.dirty{border-color:var(--primary);box-shadow:0 0 0 3px var(--prima
 .am-eyebrow .ey-ctx{color:var(--text-weak)}
 .am-eyebrow .ey-sep{color:var(--text-faint)}
 .am-eyebrow .ey-id{color:var(--primary);font-weight:700}
-.modal h3.am-title{margin:0 0 12px;font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1.2;color:var(--text-strong)}
-.modal .am-sub{margin:0;font-size:16px;font-weight:500;color:var(--text-weak);line-height:1.45;letter-spacing:-.02em}
-.am-meta{display:flex;align-items:center;gap:8px;margin:0 0 16px}
-.am-meta .k{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-weak)}
+.modal h3.am-title{margin:0 0 8px;font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.2;color:var(--text-strong)}
+.modal .am-sub{margin:0;font-size:14px;font-weight:400;color:var(--text-weak);line-height:1.5}
+.am-meta{display:flex;align-items:center;gap:8px;margin:0 0 8px}
 .am-body{padding:24px 40px 0}
 .am-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
   color:var(--text-weak);margin:0 0 10px}
@@ -1019,10 +1018,10 @@ function renderLdbModal(ts,idx){
     <div class="am-header">
       <span class="am-eyebrow"><span class="ey-ctx">연결 테스트</span><span class="ey-sep">·</span><span class="ey-id">#${ts}</span></span>
       <h3 class="am-title">논리 DB 확인</h3>
-      <p class="am-sub">마지막 연결 테스트에서 조회된 논리 DB 목록이에요. 제외 목록은 서비스 오너가 설정해요.</p>
+      <div class="am-meta"><span class="tag blue">${r.db}</span><span class="mono">${esc(label)}</span></div>
+      <p class="am-sub">이 리소스에서 조회된 논리 DB 목록이에요. 제외 목록은 서비스 오너가 설정해요.</p>
     </div>
     <div class="am-body">
-      <div class="am-meta"><span class="k">Resource</span><span class="tag blue">${r.db}</span><span class="mono">${esc(label)}</span></div>
       <div class="seg" id="ldb-seg" style="margin-bottom:16px">
         <button data-t="inc" class="${isInc?'on':''}">연동 대상<span class="cnt">${r.inc.length}</span></button>
         <button data-t="exc" class="${!isInc?'on':''}">연동 제외<span class="cnt">${(r.exc||[]).length}</span></button>
