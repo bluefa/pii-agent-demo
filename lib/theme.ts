@@ -1154,6 +1154,12 @@ export const pipelineStyles = {
     /** Custom builder — the drag canvas + docked catalog panel need more room
      *  than the mini-flow steps (owner: modal too cramped when adding Tasks). */
     dialogXWide: 'w-[960px] max-w-[92vw] min-h-[480px] flex flex-col',
+    /** Task Queue app-modal shell (admin-taskqueue.html `.modal.app`) — r20, no
+     *  padding (am-header/body/footer own it), inner scroll to 88vh. Width lives
+     *  in the caller (TqModal 720 / wide 840) so this base stays width-free and
+     *  never collides in the join. Replaces `dialog` entirely for variant='app'. */
+    dialogApp:
+      'max-w-[92vw] max-h-[88vh] overflow-y-auto rounded-[20px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
     title: cn(pipelineText.modalTitle, 'mb-3'),
     desc: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)] mb-3.5',
     body: 'overflow-y-auto min-h-0 mt-1',

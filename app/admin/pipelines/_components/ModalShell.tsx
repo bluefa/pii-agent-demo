@@ -5,8 +5,10 @@
  * overlay click, ESC, and route change; focuses the first button on open.
  * `variant='task'` = 600px column with a max-height (body scrolls);
  * `variant='wide'` = 720px (start-pipeline modal); `variant='xwide'` = 960px
- * (Custom builder — drag canvas + docked catalog need the room). Pair with the
- * app's useModal() hook for open/close state (self-contained cleanup here).
+ * (Custom builder — drag canvas + docked catalog need the room);
+ * `variant='app'` = Task Queue app-modal chrome (r20/p0/88vh scroll — width via
+ * className, see TqModal). Pair with the app's useModal() hook for open/close
+ * state (self-contained cleanup here).
  */
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
@@ -15,7 +17,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 export interface ModalShellProps {
   open: boolean;
   onClose: () => void;
-  variant?: 'default' | 'task' | 'wide' | 'xwide';
+  variant?: 'default' | 'task' | 'wide' | 'xwide' | 'app';
   children: ReactNode;
   /** id of the heading element that labels the dialog. */
   labelledBy?: string;
@@ -95,17 +97,23 @@ export function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className={cn(
-          modal.dialog,
-          variant === 'task'
-            ? modal.dialogTask
-            : variant === 'wide'
-              ? modal.dialogWide
-              : variant === 'xwide'
-                ? modal.dialogXWide
-                : modal.dialogDefault,
-          className,
-        )}
+        className={
+          // 'app' swaps the whole dialog chrome (r20/p0/scroll) — the others
+          // layer a width onto the shared `dialog` base.
+          variant === 'app'
+            ? cn(modal.dialogApp, className)
+            : cn(
+                modal.dialog,
+                variant === 'task'
+                  ? modal.dialogTask
+                  : variant === 'wide'
+                    ? modal.dialogWide
+                    : variant === 'xwide'
+                      ? modal.dialogXWide
+                      : modal.dialogDefault,
+                className,
+              )
+        }
       >
         {children}
       </div>

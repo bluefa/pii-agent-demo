@@ -24,6 +24,7 @@ import { mockGcp } from '@/lib/bff/mock/gcp';
 import { mockIdc } from '@/lib/bff/mock/idc';
 import { mockLogicalDb } from '@/lib/bff/mock/logical-db';
 import { mockConfirm } from '@/lib/bff/mock/confirm';
+import { mockTaskQueue } from '@/lib/bff/mock/task-queue';
 import { mockGuides } from '@/lib/bff/mock/guides';
 import { mockPipeline } from '@/lib/bff/mock/pipeline';
 import type { z } from 'zod';
@@ -129,6 +130,32 @@ export const mockBff: BffClient = {
     getOccupiedResources: async (nlbIndex) =>
       unwrap<z.infer<typeof schemas.NlbOccupiedResourceResponse>[]>(await mockIdc.getOccupiedResources(String(nlbIndex))),
     getNlbTable: async () => unwrap<z.infer<typeof schemas.NlbTableResponse>[]>(await mockIdc.getNlbTable()),
+  },
+
+  // Admin Task Queue: mock authors the wire shape; the admin/queue routes own
+  // the wire→camel boundary (lib/types/task-queue.ts).
+  taskQueue: {
+    getDashboardSummary: async () =>
+      unwrap<z.infer<typeof schemas.DashboardSummaryResponse>>(await mockTaskQueue.getDashboardSummary()),
+    getProcessStatuses: async (query) =>
+      unwrap<z.infer<typeof schemas.PageProcessStatusCurrentResponse>>(
+        await mockTaskQueue.getProcessStatuses(query),
+      ),
+    getTargetSourcesPage: async (query) =>
+      unwrap<z.infer<typeof schemas.PageTargetSourceInfo>>(
+        await mockTaskQueue.getTargetSourcesPage(query),
+      ),
+    putNlbIndex: async (id, body) => unwrap<unknown>(await mockTaskQueue.putNlbIndex(id, body)),
+    getTestConnectionPage: async (query) =>
+      unwrap<z.infer<typeof schemas.PageTestConnectionRejectStatusResponse>>(
+        await mockTaskQueue.getTestConnectionPage(query),
+      ),
+    getTestConnectionStatus: async (id) =>
+      unwrap<z.infer<typeof schemas.TestConnectionRejectStatusResponse>>(
+        await mockTaskQueue.getTestConnectionStatus(id),
+      ),
+    rejectTestConnection: async (id, body) =>
+      unwrap<unknown>(await mockTaskQueue.rejectTestConnection(id, body)),
   },
 
   logicalDb: {

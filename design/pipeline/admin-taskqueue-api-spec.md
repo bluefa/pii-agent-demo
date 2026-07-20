@@ -52,7 +52,7 @@
   - `resources[]` = `TargetSourceResourceItemDto` — `selected`·`exclusion_reason`·`metadata`
     (`database_type`·`port`·`oracle_service_id`·`idc_host`·`idc_ips`·`idc_source_ips`·`nlb_index`·`host`…)
   - **resourceId는 UI 비노출** — NLB 저장 호출용으로만 내부 보존.
-- 서비스 이름/Cloud 헤더: P2 목록에서 넘어온 값 재사용 대신 `GET /install/v1/target-sources/{id}` (`TargetSourceDetail`, 기존 bff.targetSources.get 재사용).
+- 서비스 이름/Cloud 헤더: `GET /install/v1/target-sources/page?targetSourceId={id}` 단건 필터 조회(`TargetSourceInfo` 1행) — 목록과 같은 wire를 재사용해 mock/실 서버 모두 일관.
 
 ### IDC 전용 — NLB 현황/배정
 - `GET /install/v1/idc/nlb/table` → `NlbTableResponse[]` (⚠️ wire가 **camelCase**: `nlbIndex`·`nlbIpList`·`occupiedListenerCount`)

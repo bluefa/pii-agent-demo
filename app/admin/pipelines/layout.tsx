@@ -14,9 +14,22 @@ import { cn, pipelineStyles } from '@/lib/theme';
 import { integrationRoutes } from '@/lib/routes';
 import { PlToastProvider } from '@/app/admin/pipelines/_components/PlToastProvider';
 
-const SIDEBAR_ITEMS = [
-  { label: '대시보드', href: integrationRoutes.pipelines.dashboard, exact: true },
-  { label: '서비스·대상 검색', href: integrationRoutes.pipelines.services, exact: false },
+const SIDEBAR_GROUPS = [
+  {
+    title: '파이프라인 오케스트레이션',
+    items: [
+      { label: '대시보드', href: integrationRoutes.pipelines.dashboard, exact: true },
+      { label: '서비스·대상 검색', href: integrationRoutes.pipelines.services, exact: false },
+    ],
+  },
+  {
+    title: 'Task Queue',
+    items: [
+      { label: '운영 대시보드', href: integrationRoutes.pipelines.queue.dashboard, exact: true },
+      { label: '연동 요청', href: integrationRoutes.pipelines.queue.requests, exact: false },
+      { label: '연결 테스트', href: integrationRoutes.pipelines.queue.testConnections, exact: false },
+    ],
+  },
 ] as const;
 
 export default function PipelinesLayout({ children }: { children: ReactNode }) {
@@ -29,28 +42,32 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   const rest = pathname.startsWith(`${integrationRoutes.pipelines.dashboard}/`)
     ? pathname.slice(integrationRoutes.pipelines.dashboard.length + 1)
     : '';
-  const isDetail = rest !== '' && !rest.includes('/') && rest !== 'services';
+  const isDetail = rest !== '' && !rest.includes('/') && rest !== 'services' && rest !== 'queue';
   const mainClass = isDashboard ? layout.contentFluid : isDetail ? layout.contentDetail : layout.content;
 
   return (
     <div className={layout.shell}>
       <nav className={layout.sidebar} aria-label="파이프라인 내비게이션">
-        <span className={layout.sidebarTitle}>파이프라인</span>
-        {SIDEBAR_ITEMS.map((item) => {
-          const active = item.exact
-            ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? 'page' : undefined}
-              className={cn(layout.sidebarItem, active ? layout.sidebarItemActive : layout.sidebarItemIdle)}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
+        {SIDEBAR_GROUPS.map((group, gi) => (
+          <div key={group.title} className={gi > 0 ? 'mt-4' : undefined}>
+            <span className={layout.sidebarTitle}>{group.title}</span>
+            {group.items.map((item) => {
+              const active = item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(layout.sidebarItem, active ? layout.sidebarItemActive : layout.sidebarItemIdle)}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
       <main className={mainClass}>
         <PlToastProvider>{children}</PlToastProvider>

@@ -67,11 +67,14 @@ Card
 
 ```
 breadcrumb: Task Queue / 연동 요청 / {서비스이름} #{id}
-page-head: h1 "{서비스이름} #{id}"  + head-sub(gap 8): ProvTag · mono 서비스코드 · StatusPill(요청 상태)
-  actions 우측: [연동 요청 반려](btn danger: white bg + err-text/err-border) [연동 요청 승인](btn primary)
-섹션 "요청 정보" → Card 안 kv2 그리드(130px 1fr 130px 1fr, gap 10/16)
-  k=12/600 weak, v=14/500 strong: 요청자 · 요청 일시 · 요청 상태(StatusPill) · 선택 리소스(n/전체 m)
-섹션 "연동 대상 리소스" (+desc 리소스 수 표기)
+page-head(detail-head — Primer PageHeader + Helios kv≤4 문법, admin-taskqueue-header-refs.md):
+  h1 "{서비스이름} #{id}" + 우측 actions: [반려](btn danger) [승인](btn primary)
+  head-sub(gap 8, mt 8): ProvTag · mono 서비스코드 · StatusPill(요청 상태 — 유일한 상태 배지)
+  head-meta(gap 8, mt 12, 14px): 요청자 k/v · 요청 시각 k/v · 리소스 선택 n/m
+    (hm-k 12/600 weak · hm-v 14/500 strong tabular · sep · faint)
+  헤더 하단: pb 20 + border-bottom + mb 24, 다음 section-title mt 0
+  ⛔ 구 "요청 정보" 섹션+kv2 카드는 삭제됨 — 정적 요청 맥락은 헤더 소속
+섹션 "연동 대상 리소스" (+desc 리소스 수 표기) — 첫 섹션으로 승격
   Card 안 res-wrap(border r10 상단만, overflow hidden) + res-tbl  ← 앱 db-list-table 문법
     thead: bg gray-50, th 12/600 weak pad 12/16
     td: pad 13/16, border-top gray-100, hover bg-inner

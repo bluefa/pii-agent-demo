@@ -145,6 +145,47 @@ export interface BffClient {
     getNlbTable: () => Promise<z.infer<typeof schemas.NlbTableResponse>[]>;
   };
 
+  /**
+   * Admin Task Queue (operator monitor + approval/test-connection queues).
+   * Only the endpoints NOT already covered by other groups live here; the
+   * feature reuses `idc.getNlbTable`, `logicalDb.*`, and `confirm.*` (approval
+   * latest/approve/reject, confirmInstallation). Methods return the raw wire
+   * shape; the admin/queue routes own the wire→camel boundary (ADR-019,
+   * lib/types/task-queue.ts).
+   */
+  taskQueue: {
+    getDashboardSummary: () => Promise<z.infer<typeof schemas.DashboardSummaryResponse>>;
+    getProcessStatuses: (query: {
+      processStatus?: string;
+      targetSourceId?: number;
+      page: number;
+      size: number;
+    }) => Promise<z.infer<typeof schemas.PageProcessStatusCurrentResponse>>;
+    getTargetSourcesPage: (query: {
+      confirmStatus?: string;
+      targetSourceId?: number;
+      page: number;
+      size: number;
+    }) => Promise<z.infer<typeof schemas.PageTargetSourceInfo>>;
+    // PUT …/approval-requests/nlb-indices — single { resource_id, nlb_index }.
+    putNlbIndex: (
+      id: number,
+      body: z.infer<typeof schemas.NlbIndexAssignmentDto>,
+    ) => Promise<unknown>;
+    getTestConnectionPage: (query: {
+      status: string;
+      page: number;
+      size: number;
+    }) => Promise<z.infer<typeof schemas.PageTestConnectionRejectStatusResponse>>;
+    getTestConnectionStatus: (
+      id: number,
+    ) => Promise<z.infer<typeof schemas.TestConnectionRejectStatusResponse>>;
+    rejectTestConnection: (
+      id: number,
+      body: z.infer<typeof schemas.TestConnectionRejectRequest>,
+    ) => Promise<unknown>;
+  };
+
   logicalDb: {
     getTestedByResourceId: (
       id: number,

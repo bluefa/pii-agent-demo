@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as idcFns from '@/lib/mock-idc';
 import type { MockIdcError } from '@/lib/mock-idc';
+import { getNlbTableRows } from '@/lib/bff/mock/task-queue';
 
 const AUTH_ERRORS = {
   UNAUTHORIZED: { code: 'UNAUTHORIZED', message: '인증이 필요합니다.', status: 401 },
@@ -61,12 +62,11 @@ export const mockIdc = {
     ]);
   },
 
+  // Occupancy is shared with the Admin Task Queue mock so a saved NLB index in
+  // the approval detail round-trips into this table (Admin Task Queue demo).
   getNlbTable: async () => {
     const user = mockData.getCurrentUser();
     if (!user) return errorResponse(AUTH_ERRORS.UNAUTHORIZED);
-    return NextResponse.json([
-      { nlbIndex: 0, nlbIpList: ['172.16.10.10', '172.16.10.11'], occupiedListenerCount: 3 },
-      { nlbIndex: 1, nlbIpList: ['172.16.10.20'], occupiedListenerCount: 0 },
-    ]);
+    return NextResponse.json(getNlbTableRows());
   },
 };
