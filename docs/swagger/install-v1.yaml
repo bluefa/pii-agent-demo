@@ -6,8 +6,14 @@ servers:
 - url: http://localhost:8082
   description: Generated server url
 tags:
+- name: Dashboard
+  description: Self-installation dashboard APIs
 - name: Scan Jobs
   description: Cloud resource scan job APIs
+- name: Installation Status
+  description: Installation status and history APIs
+- name: Pipeline Orchestration
+  description: Pipeline orchestrator dashboard/detail APIs
 - name: Cloud Permission
   description: Cloud permission and service account APIs
 - name: Users
@@ -24,6 +30,10 @@ tags:
   description: Installation status and confirmed integration APIs
 - name: IDC
   description: IDC 연동 관련 API
+- name: Pipeline Orchestration
+  description: Task definition catalog APIs
+- name: Pipeline Orchestration
+  description: Target source pipeline history/execution APIs
 - name: AWS Installation
   description: AWS installation APIs
 - name: IDC NLB
@@ -76,12 +86,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -90,6 +94,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -151,12 +161,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -165,6 +169,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -227,12 +237,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -241,6 +245,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -308,12 +318,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -322,6 +326,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -384,12 +394,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -398,6 +402,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -465,12 +475,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -479,6 +483,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -513,6 +523,83 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SkipLogicalDatabaseResponse"
+  /install/v1/target-sources/{targetSourceId}/approval-requests/nlb-indices:
+    put:
+      tags:
+      - Approval Requests
+      summary: Update NLB index
+      description: Manually override the NLB index for a single resource (by resourceId)
+        of the latest PENDING IDC approval request
+      operationId: updateNlbIndices
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NlbIndexAssignmentDto"
+        required: true
+      responses:
+        "400":
+          description: "Target source is not IDC, or the NLB index is invalid"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Approval request is not PENDING
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: No pending approval request found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: NLB index updated successfully
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApprovalRequestDetailDto"
   /install/v1/admin/guides/{name}:
     get:
       tags:
@@ -532,12 +619,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -546,6 +627,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -604,12 +691,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -618,6 +699,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -652,6 +739,80 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/GuideDetail"
+  /install/v1/target-sources/{targetSourceId}/test-connection/reject:
+    post:
+      tags:
+      - Test Connection
+      summary: Test Connection 재실행 반려 요청
+      operationId: rejectTestConnection
+      parameters:
+      - name: targetSourceId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TestConnectionRejectRequest"
+        required: true
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TestConnectionRejectResponse"
   /install/v1/target-sources/{targetSourceId}/test-connection/async:
     post:
       tags:
@@ -677,12 +838,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -691,6 +846,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -748,12 +909,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -762,6 +917,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -796,6 +957,238 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ScanJobResponse"
+  /install/v1/target-sources/{targetSourceId}/pipelines:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Get pipeline history
+      description: Get pipeline execution history for a target source
+      operationId: getPipelines
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PagePipelineSummary"
+    post:
+      tags:
+      - Pipeline Orchestration
+      summary: Create pipeline
+      description: Execute a catalog recipe pipeline (INSTALL/DELETE)
+      operationId: createPipeline
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePipelineRequest"
+        required: true
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PipelineDetail"
+  /install/v1/target-sources/{targetSourceId}/pipelines/custom:
+    post:
+      tags:
+      - Pipeline Orchestration
+      summary: Create custom pipeline
+      description: Execute a custom recipe pipeline with given tasks
+      operationId: createCustomPipeline
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomPipelineRequest"
+        required: true
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PipelineDetail"
   /install/v1/target-sources/{targetSourceId}/pii-agent-installation/confirm:
     post:
       tags:
@@ -825,12 +1218,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -839,6 +1226,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -901,12 +1294,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: 연동 불가 전이 불가능 상태
           content:
@@ -915,6 +1302,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: 승인 요청 없음
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -971,12 +1364,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: 연동 불가 상태가 아님
           content:
@@ -985,6 +1372,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: 대상 소스 없음
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1047,12 +1440,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict - pending request already exists
           content:
@@ -1061,6 +1448,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Target source not found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1123,12 +1516,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict - request already processed
           content:
@@ -1137,6 +1524,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: No pending request found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1193,12 +1586,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict - request already processed or applying in progress
           content:
@@ -1207,6 +1594,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: No pending request found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1268,12 +1661,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict - request already processed
           content:
@@ -1282,6 +1669,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: No pending request found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1316,6 +1709,76 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApprovalActionResponseDto"
+  /install/v1/target-sources/test-connection/status/batch:
+    post:
+      tags:
+      - Test Connection
+      summary: Test Connection 상태 조회 (배치)
+      operationId: getTestConnectionStatusBatch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: integer
+                format: int64
+        required: true
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TestConnectionRejectStatusBatchResponse"
   /install/v1/target-sources/services/{serviceCode}/target-sources:
     post:
       tags:
@@ -1341,12 +1804,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -1355,6 +1812,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1416,12 +1879,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -1430,6 +1887,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1466,6 +1929,76 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/TargetSourceCreationCandidateResponse"
+  /install/v1/pipelines/{pipelineId}/cancel:
+    post:
+      tags:
+      - Pipeline Orchestration
+      summary: Cancel pipeline
+      description: Cancel a running or pending pipeline
+      operationId: cancelPipeline
+      parameters:
+      - name: pipelineId
+        in: path
+        description: Pipeline ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PipelineDetail"
   /install/v1/users/search:
     get:
       tags:
@@ -1491,12 +2024,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -1505,6 +2032,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1573,12 +2106,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -1587,6 +2114,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1634,12 +2167,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -1648,6 +2175,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1682,6 +2215,213 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserMeResponse"
+  /install/v1/task-definitions:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Get task definition catalog
+      description: "Get the task definition catalog, optionally filtered by provider"
+      operationId: getTaskDefinitions
+      parameters:
+      - name: provider
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - SDU
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TaskCatalogResponse"
+  /install/v1/target-sources:
+    get:
+      tags:
+      - Target Sources
+      summary: Search target sources
+      description: "Search/filter target sources; confirmStatus is a single value,\
+        \ unspecified returns all rows"
+      operationId: getTargetSources
+      parameters:
+      - name: targetSourceId
+        in: query
+        description: Target source ID
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: serviceCode
+        in: query
+        description: Service code
+        required: false
+        schema:
+          type: string
+      - name: serviceAbbr
+        in: query
+        description: Service abbreviation
+        required: false
+        schema:
+          type: string
+      - name: serviceName
+        in: query
+        description: Service name
+        required: false
+        schema:
+          type: string
+      - name: serviceType
+        in: query
+        description: Service type
+        required: false
+        schema:
+          type: string
+      - name: division
+        in: query
+        description: Division
+        required: false
+        schema:
+          type: string
+      - name: cloudProvider
+        in: query
+        description: Cloud provider
+        required: false
+        schema:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - UNKNOWN
+      - name: supportRawData
+        in: query
+        description: Support raw data
+        required: false
+        schema:
+          type: boolean
+      - name: confirmStatus
+        in: query
+        description: Confirm status
+        required: false
+        schema:
+          type: string
+          enum:
+          - NO_REQUEST
+          - PENDING
+          - CONFIRM_INFO_UPDATE_REQUIRED
+          - CONFIRMED
+          - REJECTED
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TargetSourceResponse"
   /install/v1/target-sources/{target_source_id}/azure/scan-app:
     get:
       tags:
@@ -1703,12 +2443,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -1717,6 +2451,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1773,12 +2513,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -1787,6 +2521,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1849,12 +2589,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -1863,6 +2597,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1925,12 +2665,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -1939,6 +2673,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -1973,6 +2713,74 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/TestedLogicalDatabasesResponse"
+  /install/v1/target-sources/{targetSourceId}/test-connection/status:
+    get:
+      tags:
+      - Test Connection
+      summary: Test Connection 상태 조회 (단건)
+      operationId: getTestConnectionStatus
+      parameters:
+      - name: targetSourceId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TestConnectionRejectStatusResponse"
   /install/v1/target-sources/{targetSourceId}/test-connection/latest_version:
     get:
       tags:
@@ -1992,12 +2800,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2006,6 +2808,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2062,12 +2870,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2076,6 +2878,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2112,6 +2920,88 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/TestConnectionLatestResultSummaryResponse"
+  /install/v1/target-sources/{targetSourceId}/test-connection/history:
+    get:
+      tags:
+      - Test Connection
+      summary: Test Connection Complete/Reject/Reset 히스토리 조회
+      operationId: getTestConnectionHistory
+      parameters:
+      - name: targetSourceId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageTestConnectionHistoryItemResponse"
   /install/v1/target-sources/{targetSourceId}/test-connection/completion-status:
     get:
       tags:
@@ -2134,12 +3024,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2148,6 +3032,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2201,12 +3091,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2215,6 +3099,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2274,12 +3164,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2288,6 +3172,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2360,12 +3250,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2374,6 +3258,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2431,12 +3321,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2445,6 +3329,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2502,12 +3392,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2516,6 +3400,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2550,6 +3440,160 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ProcessStatusResponseDto"
+  /install/v1/target-sources/{targetSourceId}/pipelines/preview:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Preview pipeline execution
+      description: Preview the task chain for INSTALL/DELETE
+      operationId: previewPipeline
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: string
+      - name: type
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - INSTALL
+          - DELETE
+          - CUSTOM
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RecipePreview"
+  /install/v1/target-sources/{targetSourceId}/pipelines/latest:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Get latest pipeline
+      description: "Get the latest pipeline execution for a target source, or 204\
+        \ if none exists"
+      operationId: getLatestPipeline
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: string
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: Latest pipeline found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PipelineSummary"
+        "204":
+          description: No pipeline found for this target source
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PipelineSummary"
   /install/v1/target-sources/{targetSourceId}/idc/previous-request:
     get:
       tags:
@@ -2570,12 +3614,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2584,6 +3622,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2621,7 +3665,7 @@ paths:
   /install/v1/target-sources/{targetSourceId}/idc/installation-status:
     get:
       tags:
-      - IDC
+      - Installation Status
       summary: IDC 설치 상태 조회
       operationId: getIdcInstallationStatus
       parameters:
@@ -2638,12 +3682,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2652,6 +3690,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2708,12 +3752,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2722,6 +3760,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2777,12 +3821,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2791,6 +3829,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2846,12 +3890,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2860,6 +3898,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2917,12 +3961,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -2931,6 +3969,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -2986,12 +4030,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3000,6 +4038,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3055,12 +4099,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3069,6 +4107,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3124,12 +4168,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3138,6 +4176,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3193,12 +4237,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3207,6 +4245,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3263,12 +4307,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3277,6 +4315,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3333,12 +4377,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3347,6 +4385,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: No approved integration found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3381,6 +4425,83 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApprovedIntegrationResponseDto"
+  /install/v1/target-sources/{targetSourceId}/approval-requests/{requestId}:
+    get:
+      tags:
+      - Approval Requests
+      summary: Get approval request detail
+      description: Get the detail of a specific approval request
+      operationId: getApprovalRequestDetail
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: requestId
+        in: path
+        description: Approval request ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Approval request not found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: Approval request detail retrieved successfully
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApprovalRequestDetailDto"
   /install/v1/target-sources/{targetSourceId}/approval-requests/latest:
     get:
       tags:
@@ -3403,12 +4524,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3417,6 +4532,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: No approval request found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3491,12 +4612,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3505,6 +4620,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Target source not found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3539,6 +4660,93 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/Page"
+  /install/v1/target-sources/test-connection/status:
+    get:
+      tags:
+      - Test Connection
+      summary: Test Connection 상태 조회 (필터/페이지네이션)
+      description: "TEST_CONNECTION_COMPLETED, TEST_CONNECTION_REJECTED 상태로만 필터링할\
+        \ 수 있습니다."
+      operationId: getTargetSourcesByTestConnectionStatus
+      parameters:
+      - name: status
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - TEST_CONNECTION_COMPLETED
+          - TEST_CONNECTION_REJECTED
+          - TEST_CONNECTION_RESET
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageTestConnectionRejectStatusResponse"
   /install/v1/target-sources/services/{serviceCode}:
     get:
       tags:
@@ -3560,12 +4768,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3574,6 +4776,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3610,6 +4818,153 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/TargetSourceDetail"
+  /install/v1/target-sources/page:
+    get:
+      tags:
+      - Target Sources
+      summary: Search target sources with pagination
+      description: "Search/filter target sources with pagination; confirmStatus is\
+        \ a single value, unspecified returns all rows"
+      operationId: getTargetSourcesPage
+      parameters:
+      - name: targetSourceId
+        in: query
+        description: Target source ID
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: serviceCode
+        in: query
+        description: Service code
+        required: false
+        schema:
+          type: string
+      - name: serviceAbbr
+        in: query
+        description: Service abbreviation
+        required: false
+        schema:
+          type: string
+      - name: serviceName
+        in: query
+        description: Service name
+        required: false
+        schema:
+          type: string
+      - name: serviceType
+        in: query
+        description: Service type
+        required: false
+        schema:
+          type: string
+      - name: division
+        in: query
+        description: Division
+        required: false
+        schema:
+          type: string
+      - name: cloudProvider
+        in: query
+        description: Cloud provider
+        required: false
+        schema:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - UNKNOWN
+      - name: supportRawData
+        in: query
+        description: Support raw data
+        required: false
+        schema:
+          type: boolean
+      - name: confirmStatus
+        in: query
+        description: Confirm status
+        required: false
+        schema:
+          type: string
+          enum:
+          - NO_REQUEST
+          - PENDING
+          - CONFIRM_INFO_UPDATE_REQUIRED
+          - CONFIRMED
+          - REJECTED
+      - name: page
+        in: query
+        description: Page number (0-indexed)
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        description: Page size
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageTargetSourceInfo"
   /install/v1/services/{serviceCode}/authorized-users:
     get:
       tags:
@@ -3630,12 +4985,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3644,6 +4993,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3678,6 +5033,753 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/AuthorizedUsersResponse"
+  /install/v1/process-statuses:
+    get:
+      tags:
+      - Installation Status
+      summary: 현재 Process Status 조회
+      operationId: getCurrentStatuses
+      parameters:
+      - name: processStatus
+        in: query
+        description: Process Status filter
+        required: false
+        schema:
+          type: string
+          enum:
+          - IDLE
+          - PENDING
+          - CONFIRMING
+          - CONFIRMED
+          - INSTALLED
+          - CONNECTED
+          - COMPLETED
+      - name: targetSourceId
+        in: query
+        description: Target Source ID filter
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: page
+        in: query
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageProcessStatusCurrentResponse"
+  /install/v1/process-status-history:
+    get:
+      tags:
+      - Installation Status
+      summary: Target Source별 Process Status 변경 이력 조회
+      operationId: getHistory
+      parameters:
+      - name: targetSourceId
+        in: query
+        description: Target Source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: page
+        in: query
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageProcessStatusHistoryResponse"
+  /install/v1/pipelines:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: List pipelines
+      description: List pipelines filtered by status/provider/period
+      operationId: getPipelines_1
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - PENDING
+          - RUNNING
+          - DONE
+          - FAILED
+          - CANCELLED
+      - name: provider
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - SDU
+      - name: period
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PagePipelineSummary"
+  /install/v1/pipelines/{pipelineId}:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Get pipeline detail
+      description: Get pipeline detail with its task chain
+      operationId: getPipeline
+      parameters:
+      - name: pipelineId
+        in: path
+        description: Pipeline ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PipelineDetail"
+  /install/v1/pipelines/{pipelineId}/tasks/{taskId}:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Get task detail
+      description: Get task detail with effective settings and attempts
+      operationId: getTask
+      parameters:
+      - name: pipelineId
+        in: path
+        description: Pipeline ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: taskId
+        in: path
+        description: Task ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+  /install/v1/pipelines/{pipelineId}/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/state:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Get Terraform job state
+      description: Get the latest observed Terraform job state
+      operationId: getTerraformJobState
+      parameters:
+      - name: pipelineId
+        in: path
+        description: Pipeline ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: taskId
+        in: path
+        description: Task ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: attemptNumber
+        in: path
+        description: Attempt number
+        required: true
+        schema:
+          type: integer
+          format: int32
+      - name: jobId
+        in: path
+        description: Terraform job ID
+        required: true
+        schema:
+          type: string
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TerraformJobStateDetail"
+  /install/v1/pipelines/{pipelineId}/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/result:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Get Terraform job result
+      description: Get the captured Terraform job result body
+      operationId: getTerraformResult
+      parameters:
+      - name: pipelineId
+        in: path
+        description: Pipeline ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: taskId
+        in: path
+        description: Task ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: attemptNumber
+        in: path
+        description: Attempt number
+        required: true
+        schema:
+          type: integer
+          format: int32
+      - name: jobId
+        in: path
+        description: Terraform job ID
+        required: true
+        schema:
+          type: string
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TerraformResultDetail"
+  /install/v1/pipelines/statistics:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Get period pipeline statistics
+      description: Get pipeline status counts for the given period (1h/1d/7d)
+      operationId: getStatistics
+      parameters:
+      - name: period
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PipelineStatistics"
+  /install/v1/pipelines/statistics/live:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Get live pipeline statistics
+      description: Get current running/pending pipeline counts and slot caps
+      operationId: getLiveStatistics
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LivePipelineStatistics"
   /install/v1/infra/target-sources/{targetSourceId}/azure-private-link-health-check:
     get:
       tags:
@@ -3700,12 +5802,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3714,6 +5810,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3768,12 +5870,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3782,6 +5878,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3831,12 +5933,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3845,6 +5941,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3881,6 +5983,67 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/NlbTableResponse"
+  /install/v1/dashboard/summary:
+    get:
+      tags:
+      - Dashboard
+      summary: Dashboard summary 조회
+      operationId: getSummary
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DashboardSummaryResponse"
   /install/actuator:
     get:
       tags:
@@ -3894,12 +6057,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3908,6 +6065,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -3973,12 +6136,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -3987,6 +6144,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -4046,12 +6209,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -4060,6 +6217,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -4113,12 +6276,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -4127,6 +6284,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -4180,12 +6343,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "502":
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
@@ -4194,6 +6351,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
           content:
             '*/*':
               schema:
@@ -4388,191 +6551,24 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SkipLogicalDatabaseItem"
-    GuideContentRequest:
+    NlbIndexAssignmentDto:
       required:
-      - en
-      - ko
+      - nlb_index
+      - resource_id
       type: object
       properties:
-        ko:
-          type: object
-        en:
-          type: object
-    GuideUpdateRequest:
-      required:
-      - contents
-      type: object
-      properties:
-        contents:
-          $ref: "#/components/schemas/GuideContentRequest"
-    GuideContents:
-      type: object
-      properties:
-        ko:
+        resource_id:
           type: string
-        en:
-          type: string
-    GuideDetail:
-      type: object
-      properties:
-        name:
-          type: string
-        contents:
-          $ref: "#/components/schemas/GuideContents"
-        updatedAt:
-          type: string
-          format: date-time
-    TestConnectionTriggerResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-    ScanJobResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        scan_status:
-          type: string
-          enum:
-          - SCANNING
-          - FAIL
-          - CANCELED
-          - SUCCESS
-          - TIMEOUT
-        target_source_id:
-          type: integer
-          format: int64
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        scan_version:
+        nlb_index:
           type: integer
           format: int32
-        scan_progress:
-          type: integer
-          format: int32
-        duration_seconds:
-          type: number
-          format: float
-        resource_count_by_resource_type:
-          type: object
-          additionalProperties:
-            type: integer
-            format: int64
-        scan_error:
-          type: string
-          enum:
-          - AUTH_PERMISSION_ERROR
-          - RATE_LIMIT
-          - NETWORK_ERROR
-          - SERVICE_ERROR
-          - UNKNOWN
-    PiiAgentInstallationConfirmRequest:
-      required:
-      - confirm
-      type: object
-      properties:
-        confirm:
-          type: boolean
-    ServiceInfoRefinedResponse:
-      type: object
-      properties:
-        code:
-          type: string
-        serviceName:
-          type: string
-        abbr:
-          type: string
-        installed:
-          type: boolean
-        isEosService:
-          type: boolean
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-    TargetSourceResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        serviceInfo:
-          $ref: "#/components/schemas/ServiceInfoRefinedResponse"
-        serviceType:
-          type: string
-        division:
-          type: string
-        cloudProvider:
-          type: string
-          enum:
-          - AWS
-          - GCP
-          - AZURE
-          - IDC
-          - UNKNOWN
-        state:
-          type: string
-          enum:
-          - CREATED
-          - CONFIRMED
-          - PROVISIONING
-          - ACTIVE
-          - CONFIRM_FAILED
-          - PROVISION_FAILED
-          - DESTROY_FAILED
-        supportRawData:
-          type: boolean
-        description:
-          type: string
-        cloudResourceAccessList:
-          type: array
-          items:
-            type: object
-            additionalProperties:
-              type: object
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        confirmStatus:
-          type: string
-          enum:
-          - IDLE
-          - PENDING
-          - UNAVAILABLE
-          - CONFIRMING
-          - RESOURCE_CLEANING
-          - RESOURCE_CLEAN_FAILED
-          - CONFIRMED
-        piiAgentInstalledAt:
-          type: string
-          format: date-time
-    ApprovalRejectRequestDto:
-      required:
-      - reason
-      type: object
-      properties:
-        reason:
-          maxLength: 1000
-          minLength: 0
-          type: string
-      description: Rejection reason
+      description: NLB index
     ActorDto:
       type: object
       properties:
         user_id:
           type: string
-    ApprovalUnavailableResponseDto:
+    ApprovalActionResponseDto:
       type: object
       properties:
         request_id:
@@ -4595,35 +6591,36 @@ components:
           format: date-time
         reason:
           type: string
-    ApprovalUnavailableConfirmResponseDto:
+    ApprovalRequestDetailDto:
       type: object
       properties:
+        id:
+          type: integer
+          format: int64
         target_source_id:
           type: integer
           format: int64
-        confirm_status:
+        status:
           type: string
           enum:
-          - IDLE
           - PENDING
+          - APPROVED
+          - AUTO_APPROVED
+          - REJECTED
+          - CANCELLED
           - UNAVAILABLE
-          - CONFIRMING
-          - RESOURCE_CLEANING
-          - RESOURCE_CLEAN_FAILED
-          - CONFIRMED
-        processed_at:
+          - UNAVAILABLE_ACKNOWLEDGED
+        requested_by:
+          $ref: "#/components/schemas/ActorDto"
+        requested_at:
           type: string
           format: date-time
-        confirmed_by:
-          type: string
-    ApprovalRequestInputDto:
-      type: object
-      properties:
         resources:
           type: array
           items:
             $ref: "#/components/schemas/TargetSourceResourceItemDto"
-      description: Approval request input data
+        result:
+          $ref: "#/components/schemas/ApprovalActionResponseDto"
     NetworkInterfaceDto:
       type: object
       properties:
@@ -4826,6 +6823,429 @@ components:
         nlb_index:
           type: integer
           format: int32
+    GuideContentRequest:
+      required:
+      - en
+      - ko
+      type: object
+      properties:
+        ko:
+          type: object
+        en:
+          type: object
+    GuideUpdateRequest:
+      required:
+      - contents
+      type: object
+      properties:
+        contents:
+          $ref: "#/components/schemas/GuideContentRequest"
+    GuideContents:
+      type: object
+      properties:
+        ko:
+          type: string
+        en:
+          type: string
+    GuideDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        contents:
+          $ref: "#/components/schemas/GuideContents"
+        updatedAt:
+          type: string
+          format: date-time
+    TestConnectionRejectRequest:
+      required:
+      - reason
+      type: object
+      properties:
+        reason:
+          maxLength: 512
+          minLength: 0
+          type: string
+    TestConnectionRejectResponse:
+      type: object
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        test_connection_rejected:
+          type: boolean
+        test_connection_reject_reason:
+          type: string
+        test_connection_rejected_at:
+          type: string
+          format: date-time
+    TestConnectionTriggerResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+    ScanJobResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        scan_status:
+          type: string
+          enum:
+          - SCANNING
+          - FAIL
+          - CANCELED
+          - SUCCESS
+          - TIMEOUT
+        target_source_id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        scan_version:
+          type: integer
+          format: int32
+        scan_progress:
+          type: integer
+          format: int32
+        duration_seconds:
+          type: number
+          format: float
+        resource_count_by_resource_type:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        scan_error:
+          type: string
+          enum:
+          - AUTH_PERMISSION_ERROR
+          - RATE_LIMIT
+          - NETWORK_ERROR
+          - SERVICE_ERROR
+          - UNKNOWN
+    CreatePipelineRequest:
+      required:
+      - type
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - INSTALL
+          - DELETE
+          - CUSTOM
+    PipelineDetail:
+      type: object
+      properties:
+        pipeline_id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum:
+          - INSTALL
+          - DELETE
+          - CUSTOM
+        target_source_id:
+          type: string
+        cloud_provider:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - SDU
+        recipe_definition:
+          type: string
+        status:
+          type: string
+          enum:
+          - PENDING
+          - RUNNING
+          - DONE
+          - FAILED
+          - CANCELLED
+        created_at:
+          type: string
+          format: date-time
+        last_activity_at:
+          type: string
+          format: date-time
+        next_due_at:
+          type: string
+          format: date-time
+        leased:
+          type: boolean
+        cancel_requested:
+          type: boolean
+        due_lag_millis:
+          type: integer
+          format: int64
+        current_task_sequence:
+          type: integer
+          format: int32
+        final_task_sequence:
+          type: integer
+          format: int32
+        current_fail_count:
+          type: integer
+          format: int32
+        current_max_fail_count:
+          type: integer
+          format: int32
+        done_task_count:
+          type: integer
+          format: int64
+        total_task_count:
+          type: integer
+          format: int64
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskSummary"
+    TaskSummary:
+      type: object
+      properties:
+        task_id:
+          type: integer
+          format: int64
+        sequence:
+          type: integer
+          format: int32
+        kind:
+          type: string
+        task_definition:
+          type: string
+        operation:
+          type: string
+          enum:
+          - AWS_SERVICE_TF_PLAN
+          - AWS_SERVICE_TF_APPLY
+          - AWS_SERVICE_TF_DESTROY
+          - AWS_BDC_COMMON_TF_PLAN
+          - AWS_BDC_COMMON_TF_APPLY
+          - AWS_BDC_COMMON_TF_DESTROY
+          - AWS_BDC_SERVICE_LEVEL_TF_PLAN
+          - AWS_BDC_SERVICE_LEVEL_TF_APPLY
+          - AWS_BDC_SERVICE_LEVEL_TF_DESTROY
+          - GCP_SERVICE_TF_PLAN
+          - GCP_SERVICE_TF_APPLY
+          - GCP_SERVICE_TF_DESTROY
+          - GCP_BDC_TF_PLAN
+          - GCP_BDC_TF_APPLY
+          - GCP_BDC_TF_DESTROY
+          - AZURE_BDC_TF_PLAN
+          - AZURE_BDC_TF_APPLY
+          - AZURE_BDC_TF_DESTROY
+          - IDC_CX_TF_PLAN
+          - IDC_CX_TF_APPLY
+          - IDC_CX_TF_DESTROY
+          - IDC_BDP_TF_PLAN
+          - IDC_BDP_TF_APPLY
+          - IDC_BDP_TF_DESTROY
+        status:
+          type: string
+          enum:
+          - BLOCKED
+          - READY
+          - IN_PROGRESS
+          - DONE
+          - FAILED
+          - CANCELLED
+        fail_count:
+          type: integer
+          format: int32
+        error_code:
+          type: string
+          enum:
+          - JOB_FAILED
+          - EXECUTION_TIMEOUT
+          - CONDITION_NOT_MET
+          - CHECK_ERROR
+          - CALL_TIMEOUT
+          - UNKNOWN_TASK
+        consumes_terraform_slot:
+          type: boolean
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        description:
+          type: string
+    CustomPipelineRequest:
+      required:
+      - tasks
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomTaskRequest"
+    CustomTaskRequest:
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+    PiiAgentInstallationConfirmRequest:
+      required:
+      - confirm
+      type: object
+      properties:
+        confirm:
+          type: boolean
+    ServiceInfoRefinedResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        serviceName:
+          type: string
+        abbr:
+          type: string
+        installed:
+          type: boolean
+        isEosService:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    TargetSourceResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        serviceInfo:
+          $ref: "#/components/schemas/ServiceInfoRefinedResponse"
+        serviceType:
+          type: string
+        division:
+          type: string
+        cloudProvider:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - UNKNOWN
+        state:
+          type: string
+          enum:
+          - CREATED
+          - CONFIRMED
+          - PROVISIONING
+          - ACTIVE
+          - CONFIRM_FAILED
+          - PROVISION_FAILED
+          - DESTROY_FAILED
+        supportRawData:
+          type: boolean
+        description:
+          type: string
+        cloudResourceAccessList:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        confirmStatus:
+          type: string
+          enum:
+          - IDLE
+          - PENDING
+          - UNAVAILABLE
+          - CONFIRMING
+          - RESOURCE_CLEANING
+          - RESOURCE_CLEAN_FAILED
+          - CONFIRMED
+        piiAgentInstalledAt:
+          type: string
+          format: date-time
+    ApprovalRejectRequestDto:
+      required:
+      - reason
+      type: object
+      properties:
+        reason:
+          maxLength: 1000
+          minLength: 0
+          type: string
+      description: Rejection reason
+    ApprovalUnavailableResponseDto:
+      type: object
+      properties:
+        request_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+          - PENDING
+          - APPROVED
+          - AUTO_APPROVED
+          - REJECTED
+          - CANCELLED
+          - UNAVAILABLE
+          - UNAVAILABLE_ACKNOWLEDGED
+        processed_by:
+          $ref: "#/components/schemas/ActorDto"
+        processed_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    ApprovalUnavailableConfirmResponseDto:
+      type: object
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        confirm_status:
+          type: string
+          enum:
+          - IDLE
+          - PENDING
+          - UNAVAILABLE
+          - CONFIRMING
+          - RESOURCE_CLEANING
+          - RESOURCE_CLEAN_FAILED
+          - CONFIRMED
+        processed_at:
+          type: string
+          format: date-time
+        confirmed_by:
+          type: string
+    ApprovalRequestInputDto:
+      type: object
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/TargetSourceResourceItemDto"
+      description: Approval request input data
     ApprovalRequestSummaryDto:
       type: object
       properties:
@@ -4856,35 +7276,72 @@ components:
         resource_selected_count:
           type: integer
           format: int32
-    ApprovalActionResponseDto:
-      type: object
-      properties:
-        request_id:
-          type: integer
-          format: int64
-        status:
-          type: string
-          enum:
-          - PENDING
-          - APPROVED
-          - AUTO_APPROVED
-          - REJECTED
-          - CANCELLED
-          - UNAVAILABLE
-          - UNAVAILABLE_ACKNOWLEDGED
-        processed_by:
-          $ref: "#/components/schemas/ActorDto"
-        processed_at:
-          type: string
-          format: date-time
-        reason:
-          type: string
     ApprovalApproveRequestDto:
       type: object
       properties:
         comment:
           type: string
       description: Approval comment (optional)
+    TargetSourceMetadata:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+        subscription_id:
+          type: string
+        gcp_project_id:
+          type: string
+        aws_account_id:
+          type: string
+        is_sdu_type:
+          type: boolean
+        is_china_region:
+          type: boolean
+        grant_service_terraform_execution_permission:
+          type: boolean
+    TestConnectionRejectStatusBatchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestConnectionRejectStatusResponse"
+    TestConnectionRejectStatusResponse:
+      type: object
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        target_source_exists:
+          type: boolean
+        status:
+          type: string
+          enum:
+          - TEST_CONNECTION_COMPLETED
+          - TEST_CONNECTION_REJECTED
+          - TEST_CONNECTION_RESET
+        service_name:
+          type: string
+        service_code:
+          type: string
+        cloud_provider:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - UNKNOWN
+        reject_reason:
+          type: string
+        rejected_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        metadata:
+          $ref: "#/components/schemas/TargetSourceMetadata"
     TargetSourceCreationCandidateMetadata:
       type: object
       properties:
@@ -4945,6 +7402,34 @@ components:
           type: boolean
           nullable: true
           example: true
+    LatestApprovalRequestSummaryDto:
+      type: object
+      properties:
+        request_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+          - PENDING
+          - APPROVED
+          - AUTO_APPROVED
+          - REJECTED
+          - CANCELLED
+          - UNAVAILABLE
+          - UNAVAILABLE_ACKNOWLEDGED
+        requested_by:
+          $ref: "#/components/schemas/ActorDto"
+        requested_at:
+          type: string
+          format: date-time
+        processed_by:
+          $ref: "#/components/schemas/ActorDto"
+        processed_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
     TargetSourceInfo:
       type: object
       properties:
@@ -4971,25 +7456,20 @@ components:
         updatedAt:
           type: string
           format: date-time
+        confirmStatus:
+          type: string
+          enum:
+          - IDLE
+          - PENDING
+          - UNAVAILABLE
+          - CONFIRMING
+          - RESOURCE_CLEANING
+          - RESOURCE_CLEAN_FAILED
+          - CONFIRMED
         metadata:
           $ref: "#/components/schemas/TargetSourceMetadata"
-    TargetSourceMetadata:
-      type: object
-      properties:
-        tenant_id:
-          type: string
-        subscription_id:
-          type: string
-        gcp_project_id:
-          type: string
-        aws_account_id:
-          type: string
-        is_sdu_type:
-          type: boolean
-        is_china_region:
-          type: boolean
-        grant_service_terraform_execution_permission:
-          type: boolean
+        latest_approval_request:
+          $ref: "#/components/schemas/LatestApprovalRequestSummaryDto"
     TargetSourceCreationCandidateRequest:
       required:
       - cloud_type
@@ -5043,12 +7523,12 @@ components:
     PageServiceItem:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
         totalElements:
           type: integer
           format: int64
+        totalPages:
+          type: integer
+          format: int32
         pageable:
           $ref: "#/components/schemas/PageableObject"
         first:
@@ -5123,6 +7603,34 @@ components:
           type: string
         email:
           type: string
+    TaskCatalogEntry:
+      type: object
+      properties:
+        name:
+          type: string
+        display_name:
+          type: string
+        description:
+          type: string
+        provider:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - SDU
+        kind:
+          type: string
+        consumes_terraform_slot:
+          type: boolean
+    TaskCatalogResponse:
+      type: object
+      properties:
+        task_definitions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskCatalogEntry"
     AzureServicePrincipalVerificationResponse:
       type: object
       properties:
@@ -5149,16 +7657,6 @@ components:
           type: string
         service_name:
           type: string
-        process_status:
-          type: string
-          enum:
-          - IDLE
-          - PENDING
-          - CONFIRMING
-          - CONFIRMED
-          - INSTALLED
-          - CONNECTED
-          - COMPLETED
         cloud_provider:
           type: string
           enum:
@@ -5250,6 +7748,57 @@ components:
         excluded_logical_database_count:
           type: integer
           format: int64
+    PageTestConnectionHistoryItemResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestConnectionHistoryItemResponse"
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            $ref: "#/components/schemas/SortObject"
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    TestConnectionHistoryItemResponse:
+      type: object
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+          - TEST_CONNECTION_COMPLETED
+          - TEST_CONNECTION_REJECTED
+          - TEST_CONNECTION_RESET
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
     TestConnectionCompletionStatusResponse:
       type: object
       properties:
@@ -5286,12 +7835,12 @@ components:
     PageScanJobResponse:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
         totalElements:
           type: integer
           format: int64
+        totalPages:
+          type: integer
+          format: int32
         pageable:
           $ref: "#/components/schemas/PageableObject"
         first:
@@ -5333,6 +7882,8 @@ components:
         target_source_id:
           type: integer
           format: int64
+        target_source_exists:
+          type: boolean
         process_status:
           type: string
           enum:
@@ -5353,6 +7904,177 @@ components:
         evaluated_at:
           type: string
           format: date-time
+    PagePipelineSummary:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineSummary"
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            $ref: "#/components/schemas/SortObject"
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    PipelineSummary:
+      type: object
+      properties:
+        pipeline_id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum:
+          - INSTALL
+          - DELETE
+          - CUSTOM
+        target_source_id:
+          type: string
+        service_code:
+          type: string
+        service_name:
+          type: string
+        cloud_provider:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - SDU
+        recipe_definition:
+          type: string
+        status:
+          type: string
+          enum:
+          - PENDING
+          - RUNNING
+          - DONE
+          - FAILED
+          - CANCELLED
+        done_task_count:
+          type: integer
+          format: int64
+        total_task_count:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        last_activity_at:
+          type: string
+          format: date-time
+    RecipePreview:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - INSTALL
+          - DELETE
+          - CUSTOM
+        provider:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - SDU
+        recipe_definition:
+          type: string
+        display_name:
+          type: string
+        description:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipePreviewStep"
+    RecipePreviewStep:
+      type: object
+      properties:
+        sequence:
+          type: integer
+          format: int32
+        task_definition:
+          type: string
+        kind:
+          type: string
+        operation:
+          type: string
+          enum:
+          - AWS_SERVICE_TF_PLAN
+          - AWS_SERVICE_TF_APPLY
+          - AWS_SERVICE_TF_DESTROY
+          - AWS_BDC_COMMON_TF_PLAN
+          - AWS_BDC_COMMON_TF_APPLY
+          - AWS_BDC_COMMON_TF_DESTROY
+          - AWS_BDC_SERVICE_LEVEL_TF_PLAN
+          - AWS_BDC_SERVICE_LEVEL_TF_APPLY
+          - AWS_BDC_SERVICE_LEVEL_TF_DESTROY
+          - GCP_SERVICE_TF_PLAN
+          - GCP_SERVICE_TF_APPLY
+          - GCP_SERVICE_TF_DESTROY
+          - GCP_BDC_TF_PLAN
+          - GCP_BDC_TF_APPLY
+          - GCP_BDC_TF_DESTROY
+          - AZURE_BDC_TF_PLAN
+          - AZURE_BDC_TF_APPLY
+          - AZURE_BDC_TF_DESTROY
+          - IDC_CX_TF_PLAN
+          - IDC_CX_TF_APPLY
+          - IDC_CX_TF_DESTROY
+          - IDC_BDP_TF_PLAN
+          - IDC_BDP_TF_APPLY
+          - IDC_BDP_TF_DESTROY
+        display_name:
+          type: string
+        consumes_terraform_slot:
+          type: boolean
+        definition:
+          $ref: "#/components/schemas/TaskDefinitionView"
+    TaskDefinitionView:
+      type: object
+      properties:
+        name:
+          type: string
+        display_name:
+          type: string
+        description:
+          type: string
+        dispatch_api:
+          type: string
+        status_api:
+          type: string
+        result_api:
+          type: string
+        success_policy:
+          type: string
+        result_storage:
+          type: string
     IdcPreviousRequestResponse:
       type: object
       properties:
@@ -5397,34 +8119,18 @@ components:
           - FAIL
           - IN_PROGRESS
           - SKIP
-          - UNKNOWN
+          - BDC_INSTALL_REQUIRED
         guide:
           type: string
     IdcInstallationStatusResponse:
       type: object
       properties:
         last_check:
-          $ref: "#/components/schemas/IdcLastCheckDto"
+          $ref: "#/components/schemas/LastCheckInfoDto"
         resources:
           type: array
           items:
             $ref: "#/components/schemas/IdcResourceInstallationStatusDto"
-    IdcLastCheckDto:
-      type: object
-      properties:
-        status:
-          type: string
-          enum:
-          - COMPLETED
-          - FAIL
-          - IN_PROGRESS
-          - SKIP
-          - UNKNOWN
-        checked_at:
-          type: string
-          format: date-time
-        fail_reason:
-          type: string
     IdcResourceInstallationStatusDto:
       type: object
       properties:
@@ -5437,13 +8143,30 @@ components:
           - FAIL
           - IN_PROGRESS
           - SKIP
-          - UNKNOWN
+          - BDC_INSTALL_REQUIRED
         bdc_side_cx_terraform_apply:
           $ref: "#/components/schemas/CloudInstallationStepStatusDto"
         bdc_side_bdp_terraform_apply:
           $ref: "#/components/schemas/CloudInstallationStepStatusDto"
         firewall_check:
           $ref: "#/components/schemas/CloudInstallationStepStatusDto"
+    LastCheckInfoDto:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - IN_PROGRESS
+          - COMPLETED
+          - FAILED
+          - SUCCESS
+        checked_at:
+          type: string
+          format: date-time
+        fail_reason:
+          type: string
+        installation_status_unavailable:
+          type: boolean
     GcpServiceAccountInfoResponse:
       type: object
       properties:
@@ -5490,29 +8213,13 @@ components:
           - FAIL
           - IN_PROGRESS
           - SKIP
-          - UNKNOWN
+          - BDC_INSTALL_REQUIRED
         service_side_subnet_creation:
           $ref: "#/components/schemas/CloudInstallationStepStatusDto"
         service_side_terraform_apply:
           $ref: "#/components/schemas/CloudInstallationStepStatusDto"
         bdc_side_terraform_apply:
           $ref: "#/components/schemas/CloudInstallationStepStatusDto"
-    LastCheckInfoDto:
-      type: object
-      properties:
-        status:
-          type: string
-          enum:
-          - NEVER_CHECKED
-          - IN_PROGRESS
-          - COMPLETED
-          - FAILED
-          - SUCCESS
-        checked_at:
-          type: string
-          format: date-time
-        fail_reason:
-          type: string
     ConfirmedIntegrationResponse:
       type: object
       properties:
@@ -5592,21 +8299,8 @@ components:
         resources:
           type: array
           items:
-            $ref: "#/components/schemas/AzureResourceStatus"
-    AzureResourceStatus:
-      type: object
-      properties:
-        resource_id:
-          type: string
-        resource_name:
-          type: string
-        resource_type:
-          type: string
-        private_endpoint:
-          $ref: "#/components/schemas/PrivateEndpointDetail"
-        vm_installation:
-          $ref: "#/components/schemas/VmInstallationDetail"
-    PrivateEndpointDetail:
+            $ref: "#/components/schemas/AzureResourceInstallationStatusDto"
+    AzurePrivateEndpointApprovalStepDto:
       type: object
       properties:
         id:
@@ -5615,13 +8309,39 @@ components:
           type: string
         status:
           type: string
-    VmInstallationDetail:
+          enum:
+          - COMPLETED
+          - FAIL
+          - IN_PROGRESS
+          - SKIP
+          - BDC_INSTALL_REQUIRED
+        guide:
+          type: string
+    AzureResourceInstallationStatusDto:
       type: object
       properties:
-        subnet_exists:
-          type: boolean
-        load_balancer:
-          type: object
+        resource_id:
+          type: string
+        resource_name:
+          type: string
+        resource_type:
+          type: string
+        installation_status:
+          type: string
+          enum:
+          - COMPLETED
+          - FAIL
+          - IN_PROGRESS
+          - SKIP
+          - BDC_INSTALL_REQUIRED
+        bdc_side_terraform_apply:
+          $ref: "#/components/schemas/CloudInstallationStepStatusDto"
+        service_side_private_endpoint_approval:
+          $ref: "#/components/schemas/AzurePrivateEndpointApprovalStepDto"
+        azure_virtual_machine_subnet_creation:
+          $ref: "#/components/schemas/CloudInstallationStepStatusDto"
+        azure_virtual_machine_terraform_apply:
+          $ref: "#/components/schemas/CloudInstallationStepStatusDto"
     AwsRoleVerificationResponse:
       type: object
       properties:
@@ -5661,7 +8381,7 @@ components:
           - FAIL
           - IN_PROGRESS
           - SKIP
-          - UNKNOWN
+          - BDC_INSTALL_REQUIRED
         service_terraform:
           $ref: "#/components/schemas/CloudInstallationStepStatusDto"
         bdc_service_terraform:
@@ -5678,7 +8398,7 @@ components:
           - FAIL
           - IN_PROGRESS
           - SKIP
-          - UNKNOWN
+          - BDC_INSTALL_REQUIRED
         role_arn:
           type: string
     ApprovedIntegrationResponseDto:
@@ -5713,12 +8433,12 @@ components:
     Page:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
         totalElements:
           type: integer
           format: int64
+        totalPages:
+          type: integer
+          format: int32
         pageable:
           $ref: "#/components/schemas/PageableObject"
         first:
@@ -5744,6 +8464,74 @@ components:
           format: int32
         empty:
           type: boolean
+    PageTestConnectionRejectStatusResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestConnectionRejectStatusResponse"
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            $ref: "#/components/schemas/SortObject"
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    PageTargetSourceInfo:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/TargetSourceInfo"
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            $ref: "#/components/schemas/SortObject"
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
     AuthorizedUsersResponse:
       type: object
       properties:
@@ -5751,6 +8539,551 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/UserInfo"
+    PageProcessStatusCurrentResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProcessStatusCurrentResponse"
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            $ref: "#/components/schemas/SortObject"
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    ProcessStatusCurrentResponse:
+      type: object
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        process_status:
+          type: string
+          enum:
+          - IDLE
+          - PENDING
+          - CONFIRMING
+          - CONFIRMED
+          - INSTALLED
+          - CONNECTED
+          - COMPLETED
+        status_changed_at:
+          type: string
+          format: date-time
+        last_calculated_at:
+          type: string
+          format: date-time
+        delay_seconds:
+          type: integer
+          format: int64
+        evaluated_at:
+          type: string
+          format: date-time
+        target_source:
+          $ref: "#/components/schemas/TargetSourceMetadataResponse"
+    TargetSourceMetadataResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        serviceType:
+          type: string
+        division:
+          type: string
+        cloudProvider:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - UNKNOWN
+        state:
+          type: string
+          enum:
+          - CREATED
+          - CONFIRMED
+          - PROVISIONING
+          - ACTIVE
+          - CONFIRM_FAILED
+          - PROVISION_FAILED
+          - DESTROY_FAILED
+        supportRawData:
+          type: boolean
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        confirmStatus:
+          type: string
+          enum:
+          - IDLE
+          - PENDING
+          - UNAVAILABLE
+          - CONFIRMING
+          - RESOURCE_CLEANING
+          - RESOURCE_CLEAN_FAILED
+          - CONFIRMED
+        service_info:
+          $ref: "#/components/schemas/TargetSourceServiceInfoResponse"
+    TargetSourceServiceInfoResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        serviceName:
+          type: string
+        abbr:
+          type: string
+        is_eos_service:
+          type: boolean
+    PageProcessStatusHistoryResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProcessStatusHistoryResponse"
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            $ref: "#/components/schemas/SortObject"
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    ProcessStatusHistoryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        target_source_id:
+          type: integer
+          format: int64
+        process_status:
+          type: string
+          enum:
+          - IDLE
+          - PENDING
+          - CONFIRMING
+          - CONFIRMED
+          - INSTALLED
+          - CONNECTED
+          - COMPLETED
+        changed_at:
+          type: string
+          format: date-time
+        target_source:
+          $ref: "#/components/schemas/TargetSourceMetadataResponse"
+    TaskAttemptView:
+      type: object
+      properties:
+        attempt_number:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - BLOCKED
+          - READY
+          - IN_PROGRESS
+          - DONE
+          - FAILED
+          - CANCELLED
+        error_code:
+          type: string
+          enum:
+          - JOB_FAILED
+          - EXECUTION_TIMEOUT
+          - CONDITION_NOT_MET
+          - CHECK_ERROR
+          - CALL_TIMEOUT
+          - UNKNOWN_TASK
+        failure_detail:
+          type: string
+        response:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        check:
+          $ref: "#/components/schemas/TaskCheckView"
+        terraform_results:
+          type: array
+          items:
+            $ref: "#/components/schemas/TerraformResultSummary"
+        job_states:
+          type: array
+          items:
+            $ref: "#/components/schemas/TerraformJobStateSummary"
+    TaskCheckView:
+      type: object
+      properties:
+        call_count:
+          type: integer
+          format: int32
+        not_met_count:
+          type: integer
+          format: int32
+        api_error_count:
+          type: integer
+          format: int32
+        call_timeout_count:
+          type: integer
+          format: int32
+        last_external_status:
+          type: string
+        last_checked_at:
+          type: string
+          format: date-time
+    TaskDetail:
+      type: object
+      properties:
+        task_id:
+          type: integer
+          format: int64
+        pipeline_id:
+          type: integer
+          format: int64
+        sequence:
+          type: integer
+          format: int32
+        kind:
+          type: string
+        task_definition:
+          type: string
+        definition:
+          $ref: "#/components/schemas/TaskDefinitionView"
+        operation:
+          type: string
+          enum:
+          - AWS_SERVICE_TF_PLAN
+          - AWS_SERVICE_TF_APPLY
+          - AWS_SERVICE_TF_DESTROY
+          - AWS_BDC_COMMON_TF_PLAN
+          - AWS_BDC_COMMON_TF_APPLY
+          - AWS_BDC_COMMON_TF_DESTROY
+          - AWS_BDC_SERVICE_LEVEL_TF_PLAN
+          - AWS_BDC_SERVICE_LEVEL_TF_APPLY
+          - AWS_BDC_SERVICE_LEVEL_TF_DESTROY
+          - GCP_SERVICE_TF_PLAN
+          - GCP_SERVICE_TF_APPLY
+          - GCP_SERVICE_TF_DESTROY
+          - GCP_BDC_TF_PLAN
+          - GCP_BDC_TF_APPLY
+          - GCP_BDC_TF_DESTROY
+          - AZURE_BDC_TF_PLAN
+          - AZURE_BDC_TF_APPLY
+          - AZURE_BDC_TF_DESTROY
+          - IDC_CX_TF_PLAN
+          - IDC_CX_TF_APPLY
+          - IDC_CX_TF_DESTROY
+          - IDC_BDP_TF_PLAN
+          - IDC_BDP_TF_APPLY
+          - IDC_BDP_TF_DESTROY
+        status:
+          type: string
+          enum:
+          - BLOCKED
+          - READY
+          - IN_PROGRESS
+          - DONE
+          - FAILED
+          - CANCELLED
+        fail_count:
+          type: integer
+          format: int32
+        error_code:
+          type: string
+          enum:
+          - JOB_FAILED
+          - EXECUTION_TIMEOUT
+          - CONDITION_NOT_MET
+          - CHECK_ERROR
+          - CALL_TIMEOUT
+          - UNKNOWN_TASK
+        consumes_terraform_slot:
+          type: boolean
+        started_at:
+          type: string
+          format: date-time
+        ready_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        next_check_at:
+          type: string
+          format: date-time
+        effective_polling_interval:
+          type: object
+          properties:
+            seconds:
+              type: integer
+              format: int64
+            zero:
+              type: boolean
+            nano:
+              type: integer
+              format: int32
+            negative:
+              type: boolean
+            positive:
+              type: boolean
+            units:
+              type: array
+              items:
+                type: object
+                properties:
+                  durationEstimated:
+                    type: boolean
+                  duration:
+                    type: object
+                    properties:
+                      seconds:
+                        type: integer
+                        format: int64
+                      zero:
+                        type: boolean
+                      nano:
+                        type: integer
+                        format: int32
+                      negative:
+                        type: boolean
+                      positive:
+                        type: boolean
+                  timeBased:
+                    type: boolean
+                  dateBased:
+                    type: boolean
+        effective_execution_timeout:
+          type: object
+          properties:
+            seconds:
+              type: integer
+              format: int64
+            zero:
+              type: boolean
+            nano:
+              type: integer
+              format: int32
+            negative:
+              type: boolean
+            positive:
+              type: boolean
+            units:
+              type: array
+              items:
+                type: object
+                properties:
+                  durationEstimated:
+                    type: boolean
+                  duration:
+                    type: object
+                    properties:
+                      seconds:
+                        type: integer
+                        format: int64
+                      zero:
+                        type: boolean
+                      nano:
+                        type: integer
+                        format: int32
+                      negative:
+                        type: boolean
+                      positive:
+                        type: boolean
+                  timeBased:
+                    type: boolean
+                  dateBased:
+                    type: boolean
+        effective_max_fail_count:
+          type: integer
+          format: int32
+        attempts:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskAttemptView"
+        description:
+          type: string
+    TerraformJobStateSummary:
+      type: object
+      properties:
+        job_id:
+          type: string
+        last_state:
+          type: string
+        last_fail_reason:
+          type: string
+        last_error:
+          type: string
+        poll_count:
+          type: integer
+          format: int32
+        last_polled_at:
+          type: string
+          format: date-time
+    TerraformResultSummary:
+      type: object
+      properties:
+        job_id:
+          type: string
+        succeeded:
+          type: boolean
+        truncated:
+          type: boolean
+        has_body:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    TerraformJobStateDetail:
+      type: object
+      properties:
+        task_id:
+          type: integer
+          format: int64
+        attempt_number:
+          type: integer
+          format: int32
+        job_id:
+          type: string
+        last_state:
+          type: string
+        last_fail_reason:
+          type: string
+        last_error:
+          type: string
+        last_response:
+          type: string
+        poll_count:
+          type: integer
+          format: int32
+        last_polled_at:
+          type: string
+          format: date-time
+    TerraformResultDetail:
+      type: object
+      properties:
+        task_id:
+          type: integer
+          format: int64
+        attempt_number:
+          type: integer
+          format: int32
+        job_id:
+          type: string
+        succeeded:
+          type: boolean
+        truncated:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        content:
+          type: string
+    PipelineStatistics:
+      type: object
+      properties:
+        period:
+          type: string
+          enum:
+          - 1h
+          - 1d
+          - 7d
+        since:
+          type: string
+          format: date-time
+        pending_count:
+          type: integer
+          format: int64
+        running_count:
+          type: integer
+          format: int64
+        failed_count:
+          type: integer
+          format: int64
+        done_count:
+          type: integer
+          format: int64
+        cancelled_count:
+          type: integer
+          format: int64
+        total_count:
+          type: integer
+          format: int64
+    LivePipelineStatistics:
+      type: object
+      properties:
+        running_pipeline_count:
+          type: integer
+          format: int64
+        pending_pipeline_count:
+          type: integer
+          format: int64
+        in_progress_terraform_task_count:
+          type: integer
+          format: int64
+        terraform_slot_cap:
+          type: integer
+          format: int32
+        running_pipeline_cap:
+          type: integer
+          format: int32
+        active_claim_count:
+          type: integer
+          format: int64
     AzureHealthCheckResult:
       type: object
       properties:
@@ -5878,6 +9211,24 @@ components:
         occupiedListenerCount:
           type: integer
           format: int64
+    DashboardSummaryResponse:
+      type: object
+      properties:
+        pending_approval_count:
+          type: integer
+          format: int64
+        rejected_approval_count:
+          type: integer
+          format: int64
+        test_connection_completed_count:
+          type: integer
+          format: int64
+        test_connection_rejection_count:
+          type: integer
+          format: int64
+        evaluated_at:
+          type: string
+          format: date-time
     Link:
       type: object
       properties:
@@ -5885,4 +9236,3 @@ components:
           type: string
         templated:
           type: boolean
-
