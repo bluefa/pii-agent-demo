@@ -45,6 +45,8 @@ export interface RequestResourceRow {
   /** Internal only — NLB PUT key + non-IDC (AWS) 표시용 Resource ID. NEVER
    *  rendered in the IDC table. */
   resourceId: string | null;
+  /** Human-readable resource name — non-IDC (AWS) table column. */
+  resourceName: string | null;
   selected: boolean;
   exclusionReason: string | null;
   databaseType: string | null;
@@ -92,6 +94,7 @@ export function toRequestResourceRow(wire: ResourceItemWire): RequestResourceRow
   const kind = toIdcKind(meta.idc_host_format);
   return {
     resourceId: wire.resource_id ?? null,
+    resourceName: wire.resource_name ?? null,
     // The contract's `selected` is the source of truth (defaults to true when
     // absent — an item on the request without an exclusion reason is a target).
     selected: wire.selected ?? wire.exclusion_reason == null,

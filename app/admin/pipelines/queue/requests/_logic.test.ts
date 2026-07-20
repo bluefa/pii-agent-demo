@@ -13,6 +13,7 @@ import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 const row = (over: Partial<RequestResourceRow> = {}): RequestResourceRow => ({
   resourceId: 'r-1',
+  resourceName: null,
   selected: true,
   exclusionReason: null,
   databaseType: 'Oracle',

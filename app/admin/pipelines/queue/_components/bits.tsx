@@ -8,13 +8,15 @@ import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 
-const NLB_CAPACITY = 50;
+/** NLB thresholds — single source (prototype: ≥30 주의 · ≥50 Hard Limit). */
+export const NLB_CAPACITY = 50;
+export const NLB_WARN_THRESHOLD = 30;
 type OccTone = 'ok' | 'warn' | 'err';
 
 /** NLB occupancy tone — <30 여유(ok) · ≥30 주의(warn) · ≥50 Hard Limit(err). */
 function occTone(occupied: number, capacity: number): OccTone {
   if (occupied >= capacity) return 'err';
-  if (occupied >= capacity * 0.6) return 'warn';
+  if (occupied >= NLB_WARN_THRESHOLD) return 'warn';
   return 'ok';
 }
 

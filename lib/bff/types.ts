@@ -167,11 +167,12 @@ export interface BffClient {
       page: number;
       size: number;
     }) => Promise<z.infer<typeof schemas.PageTargetSourceInfo>>;
-    // PUT …/approval-requests/nlb-indices — single { resource_id, nlb_index }.
+    // PUT …/approval-requests/nlb-indices — single { resource_id, nlb_index };
+    // returns the updated approval-request detail (contract).
     putNlbIndex: (
       id: number,
       body: z.infer<typeof schemas.NlbIndexAssignmentDto>,
-    ) => Promise<unknown>;
+    ) => Promise<z.infer<typeof schemas.ApprovalRequestDetailDto>>;
     getTestConnectionPage: (query: {
       status: string;
       page: number;
@@ -183,7 +184,7 @@ export interface BffClient {
     rejectTestConnection: (
       id: number,
       body: z.infer<typeof schemas.TestConnectionRejectRequest>,
-    ) => Promise<unknown>;
+    ) => Promise<z.infer<typeof schemas.TestConnectionRejectResponse>>;
   };
 
   logicalDb: {

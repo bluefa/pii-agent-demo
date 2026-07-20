@@ -145,7 +145,10 @@ export const mockBff: BffClient = {
       unwrap<z.infer<typeof schemas.PageTargetSourceInfo>>(
         await mockTaskQueue.getTargetSourcesPage(query),
       ),
-    putNlbIndex: async (id, body) => unwrap<unknown>(await mockTaskQueue.putNlbIndex(id, body)),
+    putNlbIndex: async (id, body) =>
+      unwrap<z.infer<typeof schemas.ApprovalRequestDetailDto>>(
+        await mockTaskQueue.putNlbIndex(id, body),
+      ),
     getTestConnectionPage: async (query) =>
       unwrap<z.infer<typeof schemas.PageTestConnectionRejectStatusResponse>>(
         await mockTaskQueue.getTestConnectionPage(query),
@@ -155,7 +158,9 @@ export const mockBff: BffClient = {
         await mockTaskQueue.getTestConnectionStatus(id),
       ),
     rejectTestConnection: async (id, body) =>
-      unwrap<unknown>(await mockTaskQueue.rejectTestConnection(id, body)),
+      unwrap<z.infer<typeof schemas.TestConnectionRejectResponse>>(
+        await mockTaskQueue.rejectTestConnection(id, body),
+      ),
   },
 
   logicalDb: {

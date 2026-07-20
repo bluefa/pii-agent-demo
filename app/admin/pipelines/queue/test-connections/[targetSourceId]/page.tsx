@@ -131,6 +131,26 @@ export default function TestConnectionDetailPage(): ReactElement {
     [targetSourceId, reload],
   );
 
+  // Lazy per-resource load. A failure caches an `error` entry (NOT empty arrays)
+  // so the modal shows a retry affordance instead of a false "no logical DBs".
+  const loadLdb = useCallback(
+    (resourceId: string) => {
+      void Promise.all([
+        getTestedLogicalDatabases(targetSourceId, resourceId),
+        getExcludedLogicalDatabases(targetSourceId, resourceId),
+      ])
+        .then(([included, excluded]) => {
+          setLdbCache((prev) => putLdbCache(prev, resourceId, { included, excluded }));
+        })
+        .catch(() => {
+          setLdbCache((prev) =>
+            putLdbCache(prev, resourceId, { included: [], excluded: [], error: true }),
+          );
+        });
+    },
+    [targetSourceId],
+  );
+
   const openLdb = useCallback(
     (resourceId: string, tab: LdbTab) => {
       const row = results?.find((r) => r.resourceId === resourceId);
@@ -140,26 +160,37 @@ export default function TestConnectionDetailPage(): ReactElement {
         targetLabel: row?.connectionTarget || resourceId,
         tab,
       });
-      if (ldbCache[resourceId]) return;
-      // Lazy load once per resource; cache an empty entry on failure so the
-      // modal resolves to its empty state instead of an endless spinner.
-      void Promise.all([
-        getTestedLogicalDatabases(targetSourceId, resourceId).catch(() => []),
-        getExcludedLogicalDatabases(targetSourceId, resourceId).catch(() => []),
-      ]).then(([included, excluded]) => {
-        setLdbCache((prev) => putLdbCache(prev, resourceId, { included, excluded }));
-      });
+      // Skip the fetch only when a successful entry is already cached; a prior
+      // error re-attempts on reopen.
+      const cached = ldbCache[resourceId];
+      if (cached && !cached.error) return;
+      loadLdb(resourceId);
     },
-    [results, ldbCache, targetSourceId],
+    [results, ldbCache, loadLdb],
   );
 
+  const retryLdb = useCallback(
+    (resourceId: string) => {
+      // Drop the errored entry so the modal shows loading, then re-fetch.
+      setLdbCache((prev) => {
+        const next = { ...prev };
+        delete next[resourceId];
+        return next;
+      });
+      loadLdb(resourceId);
+    },
+    [loadLdb],
+  );
+
+  // On failure the modal stays open (onSuccess is skipped, submitting resets) and
+  // the error surfaces via the section toast — the pipeline pages' norm.
   const rerun = useApiMutation((reason: string) => rejectTestConnection(targetSourceId, reason), {
     onSuccess: () => {
       setRerunOpen(false);
       toast.show('재실행을 요청했어요');
       refetch();
     },
-    errorMessage: '재실행 요청에 실패했어요',
+    onError: () => toast.show('재실행 요청에 실패했어요'),
   });
 
   const approve = useApiAction(() => confirmInstallation(targetSourceId), {
@@ -168,7 +199,7 @@ export default function TestConnectionDetailPage(): ReactElement {
       toast.show('연동을 승인했어요 — 연동이 완료됐어요');
       refetch();
     },
-    errorMessage: '연동 승인에 실패했어요',
+    onError: () => toast.show('연동 승인에 실패했어요'),
   });
 
   const crumbs = [
@@ -292,6 +323,7 @@ export default function TestConnectionDetailPage(): ReactElement {
           targetLabel={ldbTarget.targetLabel}
           defaultTab={ldbTarget.tab}
           entry={ldbCache[ldbTarget.resourceId]}
+          onRetry={() => retryLdb(ldbTarget.resourceId)}
         />
       )}
 
@@ -308,6 +340,7 @@ export default function TestConnectionDetailPage(): ReactElement {
         open={approveOpen}
         onClose={() => setApproveOpen(false)}
         targetSourceId={targetSourceId}
+        serviceName={detail.serviceName ?? '이 서비스'}
         stats={stats}
         onSubmit={() => void approve.execute()}
         submitting={approve.loading}

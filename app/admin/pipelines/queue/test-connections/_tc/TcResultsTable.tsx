@@ -8,7 +8,7 @@ import { useCallback, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
-import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
+import type { TcConnectionStatus, TcResultRow } from '@/app/lib/api/task-queue-tc';
 import { ldbCount, type LdbTab } from '@/app/admin/pipelines/queue/test-connections/_tc/logic';
 
 export interface TcResultsTableProps {
@@ -40,7 +40,6 @@ export function TcResultsTable({ rows, onOpenLdb }: TcResultsTableProps): ReactE
           {rows.map((row) => {
             const inc = ldbCount(row, 'inc');
             const exc = ldbCount(row, 'exc');
-            const failed = row.connectionStatus === 'FAILED';
             return (
               <tr key={row.resourceId} className={appTable.row}>
                 <td className={appTable.td}>
@@ -72,11 +71,7 @@ export function TcResultsTable({ rows, onOpenLdb }: TcResultsTableProps): ReactE
                 </td>
                 <td className={appTable.td}>{countCell(inc, () => onOpenLdb(row.resourceId, 'inc'))}</td>
                 <td className={appTable.td}>{countCell(exc, () => onOpenLdb(row.resourceId, 'exc'))}</td>
-                <td className={appTable.td}>
-                  <span className={cn(tag.base, failed ? tag.red : tag.green)}>
-                    {failed ? 'Failed' : 'Success'}
-                  </span>
-                </td>
+                <td className={appTable.td}>{statusCell(row.connectionStatus)}</td>
               </tr>
             );
           })}
@@ -86,7 +81,7 @@ export function TcResultsTable({ rows, onOpenLdb }: TcResultsTableProps): ReactE
   );
 }
 
-/** A count as a drill-down link, or "—" when the row failed (count === null). */
+/** A count as a drill-down link, or "—" when the count is unavailable (null). */
 function countCell(count: number | null, onOpen: () => void): ReactElement {
   if (count === null) return <span className="text-[var(--pl-text-faint)]">—</span>;
   return (
@@ -94,4 +89,16 @@ function countCell(count: number | null, onOpen: () => void): ReactElement {
       {count}
     </button>
   );
+}
+
+/**
+ * Connection status: green Success / red Failed only for the explicit contract
+ * states. UNKNOWN (the wire omitted the status) renders a neutral "—" — never a
+ * fabricated Success tag.
+ */
+function statusCell(status: TcConnectionStatus): ReactElement {
+  const { tag } = tqStyles;
+  if (status === 'SUCCESS') return <span className={cn(tag.base, tag.green)}>Success</span>;
+  if (status === 'FAILED') return <span className={cn(tag.base, tag.red)}>Failed</span>;
+  return <span className="text-[var(--pl-text-faint)]">—</span>;
 }

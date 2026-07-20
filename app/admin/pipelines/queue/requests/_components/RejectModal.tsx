@@ -11,7 +11,8 @@ import { CharCount } from '@/app/admin/pipelines/queue/_components/bits';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 
-const MAX = 1024;
+// Contract: ApprovalRejectRequestDto.reason maxLength 1000.
+const MAX = 1000;
 
 export interface RejectModalProps {
   open: boolean;

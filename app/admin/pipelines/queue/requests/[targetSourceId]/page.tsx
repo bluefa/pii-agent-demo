@@ -146,15 +146,27 @@ export default function RequestDetailPage(): ReactElement {
 
   const backToList = (): void => router.push(integrationRoutes.pipelines.queue.requests);
 
+  // A failed submit keeps the modal open (it resets its own submitting flag) and
+  // surfaces the reason via the section toast — the same grammar as onSaveNlb.
   const onApprove = async (comment: string): Promise<void> => {
-    await approveRequest(targetSourceId, comment);
+    try {
+      await approveRequest(targetSourceId, comment);
+    } catch (err) {
+      toast.show(errorMessage(err));
+      return;
+    }
     setModal(null);
     toast.show('승인했어요 — 연동 대상 반영이 시작돼요');
     backToList();
   };
 
   const onReject = async (reason: string): Promise<void> => {
-    await rejectRequest(targetSourceId, reason);
+    try {
+      await rejectRequest(targetSourceId, reason);
+    } catch (err) {
+      toast.show(errorMessage(err));
+      return;
+    }
     setModal(null);
     toast.show('반려했어요 — 사유가 전달됐어요');
     backToList();
@@ -191,7 +203,7 @@ export default function RequestDetailPage(): ReactElement {
             targetSourceId={targetSourceId}
             provider={provider}
             serviceCode={header?.serviceCode ?? null}
-            confirmStatus={header?.confirmStatus ?? detail.request.status}
+            confirmStatus={detail.request.status ?? header?.confirmStatus ?? null}
             requestedBy={detail.request.requestedBy}
             requestedAt={detail.request.requestedAt}
             selectedCount={selectedCount}
@@ -202,7 +214,7 @@ export default function RequestDetailPage(): ReactElement {
 
           <SectionHeader
             first
-            title="연동 대상 리소스"
+            title={isIdc ? '연동 대상 리소스 · NLB 배정' : '연동 대상 리소스'}
             desc={`연동 대상 ${selectedCount}개 · 제외 ${excludedCount}개`}
           />
           <Card>
@@ -219,6 +231,7 @@ export default function RequestDetailPage(): ReactElement {
                   nlbTable={nlbTable}
                   draft={draft}
                   savingResourceId={savingResourceId}
+                  disabled={detail.request.status !== 'PENDING'}
                   onSelect={onSelectNlb}
                   onSave={(row) => void onSaveNlb(row)}
                 />
@@ -238,6 +251,7 @@ export default function RequestDetailPage(): ReactElement {
             rows={nlbTable}
           />
           <ApproveModal
+            key={`approve-${modal === 'approve'}`}
             open={modal === 'approve'}
             onClose={() => setModal(null)}
             targetSourceId={targetSourceId}
@@ -247,6 +261,7 @@ export default function RequestDetailPage(): ReactElement {
             onSubmit={onApprove}
           />
           <RejectModal
+            key={`reject-${modal === 'reject'}`}
             open={modal === 'reject'}
             onClose={() => setModal(null)}
             targetSourceId={targetSourceId}

@@ -14,5 +14,5 @@ export const PUT = withV1(async (request, { requestId, params }) => {
 
   const body = schemas.NlbIndexAssignmentDto.parse(await request.json().catch(() => ({})));
   const data = await bff.taskQueue.putNlbIndex(parsed.value, body);
-  return NextResponse.json(data);
+  return NextResponse.json(schemas.ApprovalRequestDetailDto.parse(data));
 });

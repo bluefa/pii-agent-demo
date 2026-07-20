@@ -367,7 +367,6 @@ interface TqMockState {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __piiAgentTaskQueueMock: TqMockState | undefined;
 }
 
@@ -531,11 +530,13 @@ export const mockTaskQueue = {
   },
 
   // PUT …/approval-requests/nlb-indices — single { resource_id, nlb_index }.
+  // Contract returns the updated ApprovalRequestDetailDto; reuse the demo latest
+  // (which reads nlb_index live from nlbAssignment) so the save round-trips.
   putNlbIndex: async (id: number, body: { resource_id?: string | null; nlb_index?: number | null }) => {
     if (body.resource_id && typeof body.nlb_index === 'number') {
       assignNlbIndex(id, body.resource_id, body.nlb_index);
     }
-    return NextResponse.json({ resource_id: body.resource_id ?? null, nlb_index: body.nlb_index ?? null });
+    return NextResponse.json(getTqApprovalLatest(id) ?? {});
   },
 
   // GET /target-sources/test-connection/status?status=&page=&size=
@@ -564,12 +565,18 @@ export const mockTaskQueue = {
       rejected_at: null,
       reject_reason: null,
     };
+    const rejectedAt = new Date().toISOString();
     tq().tcState.set(id, {
       ...base,
       status: 'TEST_CONNECTION_REJECTED',
-      rejected_at: new Date().toISOString(),
+      rejected_at: rejectedAt,
       reject_reason: body.reason ?? null,
     });
-    return NextResponse.json({ target_source_id: id, status: 'TEST_CONNECTION_REJECTED' });
+    return NextResponse.json({
+      target_source_id: id,
+      test_connection_rejected: true,
+      test_connection_reject_reason: body.reason ?? null,
+      test_connection_rejected_at: rejectedAt,
+    });
   },
 };

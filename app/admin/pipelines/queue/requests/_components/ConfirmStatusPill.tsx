@@ -1,9 +1,13 @@
 /**
  * ConfirmStatusPill — the 요청 상태 badge for the P3 header (design-spec §3
- * head-sub). The shared `StatusPill` renders the pipeline/task enums; the
- * approval confirmStatus set (PENDING/REJECTED/CONFIRMING/CONFIRMED/…) is a
- * different vocabulary, so this is a local dot-pill built on the same `.pill`
- * grammar (design-inventory §3), colors via --pl-* tokens.
+ * head-sub). The shared `StatusPill` renders the pipeline/task enums; this pill
+ * covers two overlapping-key vocabularies on the same `.pill` grammar
+ * (design-inventory §3), colors via --pl-* tokens:
+ *  - the approval-request axis (ApprovalRequestSummaryDto.status — the primary
+ *    P3 source): PENDING / APPROVED / AUTO_APPROVED / REJECTED / CANCELLED /
+ *    UNAVAILABLE / UNAVAILABLE_ACKNOWLEDGED;
+ *  - the target-source confirmStatus axis (P2 fallback): NO_REQUEST / IDLE /
+ *    CONFIRMING / CONFIRMED.
  */
 import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
@@ -15,18 +19,23 @@ interface ToneSpec {
   tone: Tone;
 }
 
-/** confirmStatus (+ approval status aliases) → Korean label + tone. */
+/** Both axes' status keys → Korean label + tone (keys are distinct across the
+ *  two vocabularies, so one map serves the request-axis primary and the
+ *  confirmStatus fallback). */
 const CONFIRM_TONE: Record<string, ToneSpec> = {
+  // Target-source confirmStatus axis (P2 fallback).
   NO_REQUEST: { label: '요청 없음', tone: 'off' },
   IDLE: { label: '요청 없음', tone: 'off' },
-  PENDING: { label: '승인 대기', tone: 'warn' },
   CONFIRMING: { label: '반영중', tone: 'run' },
   CONFIRMED: { label: '확정', tone: 'ok' },
-  APPROVED: { label: '확정', tone: 'ok' },
-  AUTO_APPROVED: { label: '확정', tone: 'ok' },
+  // Approval-request axis (ApprovalRequestSummaryDto.status — P3 primary).
+  PENDING: { label: '승인 대기', tone: 'warn' },
+  APPROVED: { label: '승인 완료', tone: 'ok' },
+  AUTO_APPROVED: { label: '자동 승인', tone: 'ok' },
   REJECTED: { label: '반려', tone: 'err' },
   CANCELLED: { label: '요청 취소', tone: 'off' },
   UNAVAILABLE: { label: '연동 불가', tone: 'off' },
+  UNAVAILABLE_ACKNOWLEDGED: { label: '연동 불가', tone: 'off' },
 };
 
 const TONE_CLASS: Record<Tone, { pill: string; dot: string }> = {

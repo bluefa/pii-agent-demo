@@ -24,8 +24,8 @@ export function tcResultStats(rows: readonly TcResultRow[]): TcResultStats {
   return rows.reduce<TcResultStats>(
     (acc, row) => ({
       resourceCount: acc.resourceCount + 1,
-      includedTotal: acc.includedTotal + row.includedCount,
-      excludedTotal: acc.excludedTotal + row.excludedCount,
+      includedTotal: acc.includedTotal + (row.includedCount ?? 0),
+      excludedTotal: acc.excludedTotal + (row.excludedCount ?? 0),
     }),
     { resourceCount: 0, includedTotal: 0, excludedTotal: 0 },
   );
@@ -34,11 +34,13 @@ export function tcResultStats(rows: readonly TcResultRow[]): TcResultStats {
 export type LdbTab = 'inc' | 'exc';
 
 /**
- * 논리 DB count cell value: the count for a SUCCESS row, or `null` for a FAILED
- * row (the design renders "—" with no drill-down link when the test failed).
+ * 논리 DB count cell value: the count only when the row is an explicit SUCCESS
+ * AND the wire carried the count. Any other case (FAILED, UNKNOWN, or a SUCCESS
+ * whose count the wire omitted) → `null`, which the table renders as "—" with no
+ * drill-down link (never a false "0" or fabricated success).
  */
 export function ldbCount(row: TcResultRow, tab: LdbTab): number | null {
-  if (row.connectionStatus === 'FAILED') return null;
+  if (row.connectionStatus !== 'SUCCESS') return null;
   return tab === 'inc' ? row.includedCount : row.excludedCount;
 }
 
@@ -50,6 +52,9 @@ export function ldbCount(row: TcResultRow, tab: LdbTab): number | null {
 export interface LdbCacheEntry {
   included: TestedLogicalDatabase[];
   excluded: ExcludedLogicalDatabase[];
+  /** A failed fetch — distinct from an empty result, so the modal can show a
+   *  retry affordance instead of an (untrue) "no logical DBs" empty state. */
+  error?: boolean;
 }
 
 export type LdbCache = Record<string, LdbCacheEntry>;

@@ -108,7 +108,7 @@ page-head: h1 + head-sub(ProvTag·mono 코드·상태 pill: 연결 테스트 완
 섹션 "연결 테스트 결과" + desc "완료 일자 … · 연동 대상 논리 DB n개 · 제외 논리 DB m개"
   Card > res-wrap + res-tbl:
     컬럼: Database Type(tag.blue) · Resource ID(res-id-cell 말줄임+copy) · 연동 대상(mono)
-          · 연동 대상 논리 DB(ldb-link: primary 600, 클릭→모달 '연동 대상' 탭) 
+          · 연동 대상 논리 DB(ldb-link: primary 600, 클릭→모달 '연동 대상' 탭)
           · 연동 제외 논리 DB(ldb-link → '연동 제외' 탭) · Connection Status(tag green|red)
     실패 행: 논리 DB 셀 "—" (링크 없음)
   PlPagination
@@ -133,7 +133,7 @@ am-footer (p 16/40/20, border-top, 우측 정렬 gap 8, 위 24)
 | 모달 | 본문 블록 | CTA |
 |---|---|---|
 | 연동 요청 승인 | (NLB 미저장 변경 있으면 am-note warn 박스) + am-label "관리자 메시지 · 선택" + textarea(min-h 120) + am-count "n/1,024" | 취소 secondary / 승인 primary |
-| 연동 요청 반려 | am-label "반려 사유 · 필수" + textarea + count 1,024 | 취소 / 반려 dangersolid(사유 없으면 disabled: gray-100 bg faint) |
+| 연동 요청 반려 | am-label "반려 사유 · 필수" + textarea + count 1,000 | 취소 / 반려 dangersolid(사유 없으면 disabled: gray-100 bg faint) |
 | 연결 테스트 재실행 요청 | am-label "요청 사유 · 필수" + textarea + count **512** | 취소 / 재실행 요청 dangersolid |
 | 연동 승인 (tc) | am-stats: 3열 grid gap12 — 타일(bg-inner border r8 p16/12 중앙): lb 12/600 weak ↑ v 24/700 tabular+단위 small 14/600 ↓ = [리소스 n건][연동 대상 논리 DB n개][연동 제외 n개] | 취소 / 승인 primary |
 | NLB 리스너 현황 | res-tbl: NLB Index(mono #n) · IP(mono ' · ' join) · 점유(occ-num n/50 + occbar) · 상태(ftag) | 닫기 secondary |

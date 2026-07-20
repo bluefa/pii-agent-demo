@@ -13,5 +13,5 @@ export const POST = withV1(async (request, { requestId, params }) => {
 
   const body = schemas.TestConnectionRejectRequest.parse(await request.json().catch(() => ({})));
   const data = await bff.taskQueue.rejectTestConnection(parsed.value, body);
-  return NextResponse.json(data);
+  return NextResponse.json(schemas.TestConnectionRejectResponse.parse(data));
 });

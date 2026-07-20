@@ -63,7 +63,7 @@
 
 ### 승인 / 반려
 - `POST /install/v1/target-sources/{id}/approval-requests/approve` body=`ApprovalApproveRequestDto{comment}` (UI 1,024자 제한)
-- `POST /install/v1/target-sources/{id}/approval-requests/reject` body=`ApprovalRejectRequestDto{reason}` (UI 1,024자 제한)
+- `POST /install/v1/target-sources/{id}/approval-requests/reject` body=`ApprovalRejectRequestDto{reason}` (계약 maxLength 1,000자)
 - 성공 시 P2로 복귀 + 목록 재조회.
 
 ## P4 연결 테스트 목록 `/admin/pipelines/queue/test-connections`

@@ -25,8 +25,9 @@ import { Card } from '@/app/admin/pipelines/_components/Card';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
-import { PlChevCell, PlRow, PlTable, PlTd, PlTh } from '@/app/admin/pipelines/_components/PlTable';
+import { PlRow, PlTable, PlTd, PlTh } from '@/app/admin/pipelines/_components/PlTable';
 import { TqSegLg } from '@/app/admin/pipelines/queue/_components/TqSegLg';
+import { DetailLink } from '@/app/admin/pipelines/queue/_components/DetailLink';
 import { RejectReasonCell, TqEmptyState } from '@/app/admin/pipelines/queue/_components/bits';
 
 const PAGE_SIZE = 10;
@@ -177,7 +178,9 @@ export default function TestConnectionsPage(): ReactElement {
                   </PlTd>
                 )}
                 {!done && <PlTd muted>{fmtDateTime(row.rejectedAt)}</PlTd>}
-                <PlChevCell title="연결 테스트 상세로 이동" />
+                <PlTd className="text-right whitespace-nowrap">
+                  <DetailLink />
+                </PlTd>
               </PlRow>
             ))}
           </PlTable>

@@ -6,6 +6,7 @@
  * approve-modal "미저장 변경" warning stay honest.
  */
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
+import { NLB_CAPACITY } from '@/app/admin/pipelines/queue/_components/bits';
 
 /** resource_id → drafted NLB index (only present when it differs from original). */
 export type NlbDraft = Readonly<Record<string, number>>;
@@ -51,9 +52,8 @@ export function dirtyCount(rows: readonly RequestResourceRow[], draft: NlbDraft)
   return rows.filter((row) => isNlbDirty(row, draft)).length;
 }
 
-/** NLB capacity: ≥30 주의, ≥50 Hard Limit (api-spec G2 — UI constants). */
-export const NLB_CAPACITY = 50;
-export const NLB_WARN_THRESHOLD = 30;
+/** NLB capacity: ≥30 주의, ≥50 Hard Limit (api-spec G2) — single source in bits. */
+export { NLB_CAPACITY, NLB_WARN_THRESHOLD } from '@/app/admin/pipelines/queue/_components/bits';
 
 /** A Hard-Limit (≥50) NLB can't take a new assignment — its option is disabled,
  *  UNLESS it is the row's current index (so the current value stays selectable). */

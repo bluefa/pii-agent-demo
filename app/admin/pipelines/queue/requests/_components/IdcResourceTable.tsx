@@ -30,6 +30,9 @@ export interface IdcResourceTableProps {
   nlbTable: NlbTableRow[];
   draft: NlbDraft;
   savingResourceId: string | null;
+  /** Lock NLB editing (select + 저장) — the request is no longer PENDING, so a
+   *  save would 409. */
+  disabled?: boolean;
   onSelect: (row: RequestResourceRow, nlbIndex: number) => void;
   onSave: (row: RequestResourceRow) => void;
 }
@@ -48,6 +51,7 @@ export function IdcResourceTable({
   nlbTable,
   draft,
   savingResourceId,
+  disabled = false,
   onSelect,
   onSave,
 }: IdcResourceTableProps): ReactElement {
@@ -109,7 +113,7 @@ export function IdcResourceTable({
             const dirty = isNlbDirty(row, draft);
             const saving = savingResourceId != null && savingResourceId === row.resourceId;
             const currentOcc = current != null ? occupancyByIndex.get(current) : undefined;
-            const canSave = row.resourceId != null;
+            const canSave = row.resourceId != null && !disabled;
 
             return (
               <tr key={row.resourceId ?? index} className={appTable.row}>
@@ -175,7 +179,7 @@ export function IdcResourceTable({
                   )}
                 </td>
                 <td className={`${appTable.td} text-right`}>
-                  {dirty && (
+                  {dirty && !disabled && (
                     <PlButton variant="primary" size="sm" disabled={saving} onClick={() => onSave(row)}>
                       저장
                     </PlButton>

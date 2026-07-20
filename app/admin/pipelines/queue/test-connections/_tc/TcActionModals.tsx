@@ -77,6 +77,7 @@ export interface TcApproveModalProps {
   open: boolean;
   onClose: () => void;
   targetSourceId: number;
+  serviceName: string;
   stats: TcResultStats;
   onSubmit: () => void;
   submitting: boolean;
@@ -86,6 +87,7 @@ export function TcApproveModal({
   open,
   onClose,
   targetSourceId,
+  serviceName,
   stats,
   onSubmit,
   submitting,
@@ -104,7 +106,7 @@ export function TcApproveModal({
       eyebrowCtx="연결 테스트"
       eyebrowId={`#${targetSourceId}`}
       title="연동 승인"
-      sub="연결 테스트 결과를 확인하고 연동을 확정해요. 승인하면 연동이 완료돼요."
+      sub={`${serviceName}의 PII Agent 설치를 확정해요. 승인하면 연동이 완료되고 모니터링이 시작돼요.`}
       footer={
         <>
           <PlButton variant="secondary" onClick={onClose} disabled={submitting}>

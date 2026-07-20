@@ -302,7 +302,10 @@ export const httpBff: BffClient = {
         })}`,
       ),
     putNlbIndex: (id, body) =>
-      put<unknown>(`/target-sources/${id}/approval-requests/nlb-indices`, body),
+      put<z.infer<typeof schemas.ApprovalRequestDetailDto>>(
+        `/target-sources/${id}/approval-requests/nlb-indices`,
+        body,
+      ),
     getTestConnectionPage: (query) =>
       getSnakeRaw<z.infer<typeof schemas.PageTestConnectionRejectStatusResponse>>(
         `/target-sources/test-connection/status${buildQuery({
@@ -316,7 +319,10 @@ export const httpBff: BffClient = {
         `/target-sources/${id}/test-connection/status`,
       ),
     rejectTestConnection: (id, body) =>
-      post<unknown>(`/target-sources/${id}/test-connection/reject`, body),
+      post<z.infer<typeof schemas.TestConnectionRejectResponse>>(
+        `/target-sources/${id}/test-connection/reject`,
+        body,
+      ),
   },
 
   // Logical-DB: the CSR client (app/lib/api/logical-db.ts) owns the single camel

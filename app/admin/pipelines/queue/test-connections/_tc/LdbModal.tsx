@@ -30,6 +30,8 @@ export interface LdbModalProps {
   defaultTab: LdbTab;
   /** Loaded lists — `undefined` while the resource is still being fetched. */
   entry: LdbCacheEntry | undefined;
+  /** Re-fetch the resource after a failed load. */
+  onRetry: () => void;
 }
 
 export function LdbModal({
@@ -40,6 +42,7 @@ export function LdbModal({
   targetLabel,
   defaultTab,
   entry,
+  onRetry,
 }: LdbModalProps): ReactElement {
   const { appTable, tag } = tqStyles;
   // Fresh mount per (resource, clicked tab) — the parent keys this modal — so the
@@ -56,6 +59,7 @@ export function LdbModal({
   const excluded = entry?.excluded ?? [];
   const isInc = tab === 'inc';
   const loading = entry === undefined;
+  const errored = entry?.error === true;
 
   const total = isInc ? included.length : excluded.length;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -111,6 +115,17 @@ export function LdbModal({
               <tr className={appTable.row}>
                 <td className={appTable.td} colSpan={colSpan} aria-busy="true">
                   <span className="text-[var(--pl-text-faint)]">불러오는 중이에요…</span>
+                </td>
+              </tr>
+            ) : errored ? (
+              <tr className={appTable.row}>
+                <td className={appTable.td} colSpan={colSpan}>
+                  <span className="inline-flex items-center gap-3">
+                    <span className="text-[var(--pl-text-weak)]">논리 DB 목록을 불러오지 못했어요</span>
+                    <PlButton variant="secondary" size="sm" onClick={onRetry}>
+                      재시도
+                    </PlButton>
+                  </span>
                 </td>
               </tr>
             ) : total === 0 ? (

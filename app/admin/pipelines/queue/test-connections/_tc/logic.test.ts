@@ -38,7 +38,7 @@ describe('toTcResultRow', () => {
     });
   });
 
-  it('falls back to "—"-able nulls and SUCCESS when the thin summary omits fields', () => {
+  it('keeps counts but maps an absent status to UNKNOWN (no fabricated Success)', () => {
     expect(
       toTcResultRow({ resource_id: 'r', logical_database_count: 3, excluded_logical_database_count: 0 }),
     ).toEqual({
@@ -47,7 +47,7 @@ describe('toTcResultRow', () => {
       connectionTarget: null,
       includedCount: 3,
       excludedCount: 0,
-      connectionStatus: 'SUCCESS',
+      connectionStatus: 'UNKNOWN',
     });
   });
 
@@ -56,14 +56,18 @@ describe('toTcResultRow', () => {
     expect(toTcResultRow({ connection_status: 'failed' }).connectionStatus).toBe('FAILED');
   });
 
-  it('coalesces absent counts to 0 and absent id to empty string', () => {
+  it('maps an unrecognized status value to UNKNOWN', () => {
+    expect(toTcResultRow({ connection_status: 'PENDING' }).connectionStatus).toBe('UNKNOWN');
+  });
+
+  it('coalesces absent counts to null, absent id to empty, absent status to UNKNOWN', () => {
     expect(toTcResultRow({})).toEqual({
       resourceId: '',
       databaseType: null,
       connectionTarget: null,
-      includedCount: 0,
-      excludedCount: 0,
-      connectionStatus: 'SUCCESS',
+      includedCount: null,
+      excludedCount: null,
+      connectionStatus: 'UNKNOWN',
     });
   });
 });
@@ -92,6 +96,16 @@ describe('ldbCount', () => {
   it('returns null (renders "—", no link) for a FAILED row', () => {
     expect(ldbCount(row({ connectionStatus: 'FAILED' }), 'inc')).toBeNull();
     expect(ldbCount(row({ connectionStatus: 'FAILED' }), 'exc')).toBeNull();
+  });
+
+  it('returns null for an UNKNOWN row (never a false 0)', () => {
+    expect(ldbCount(row({ connectionStatus: 'UNKNOWN' }), 'inc')).toBeNull();
+    expect(ldbCount(row({ connectionStatus: 'UNKNOWN' }), 'exc')).toBeNull();
+  });
+
+  it('returns null for a SUCCESS row whose count the wire omitted', () => {
+    expect(ldbCount(row({ includedCount: null }), 'inc')).toBeNull();
+    expect(ldbCount(row({ excludedCount: null }), 'exc')).toBeNull();
   });
 });
 
