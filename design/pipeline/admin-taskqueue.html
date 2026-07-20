@@ -138,6 +138,8 @@ tr.row-excluded .res-id-text{color:var(--text-weak)}
 .copy-btn{display:inline-grid;place-items:center;width:22px;height:22px;border:0;background:transparent;
   border-radius:5px;color:var(--text-faint);cursor:pointer;flex:none}
 .copy-btn:hover{background:var(--gray-100);color:var(--text-medium)}
+.res-tbl .ldb-link{color:var(--primary);cursor:pointer;font-weight:600}
+.res-tbl .ldb-link:hover{text-decoration:underline}
 
 /* ── Tag (앱 문법: dbtype=blue, 상태=green/red/orange) ── */
 .tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;
@@ -465,25 +467,36 @@ const TC = {
   ],
 };
 
-/* 연결 테스트 상세 — 앱 Step5 문법 (conn-progress + db-list-table) */
+/* 연결 테스트 상세 — 앱 Step5/6 문법.
+   논리 DB: 리소스(agent)별 연동 대상 목록 + 제외 목록(사유 STG/DEV/TEMP)을 카운트로 보여주고
+   모달에서 직접 조회한다. 접속 실패 리소스는 논리 DB 결과가 없다. */
 const TC_DETAILS = {
   1799: {
     svc:'배송서비스', code:'DLV', pv:'AZURE', state:'COMPLETED', completed_at:'2026-07-20 17:19',
     rows:[
       {db:'MySQL', id:'/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-01',
-       region:'koreacentral', name:'mysql-dlv-01', cred:'dlv_svc_mysql', st:'Success'},
+       region:'koreacentral', name:'mysql-dlv-01', cred:'dlv_svc_mysql', st:'Success',
+       inc:['dlv_main','dlv_order','dlv_ship','dlv_return','dlv_track','dlv_billing','dlv_partner','dlv_stats','dlv_noti','dlv_geo','dlv_history','dlv_audit'].map(n=>({db:n,type:'DATABASE'})),
+       exc:[{db:'dlv_stg',type:'DATABASE',reason:'STG'},{db:'dlv_dev',type:'DATABASE',reason:'DEV'},{db:'tmp_batch',type:'DATABASE',reason:'TEMP'}]},
       {db:'MySQL', id:'/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-02',
-       region:'koreacentral', name:'mysql-dlv-02', cred:'dlv_svc_mysql', st:'Success'},
+       region:'koreacentral', name:'mysql-dlv-02', cred:'dlv_svc_mysql', st:'Success',
+       inc:['ship_core','ship_route','ship_fleet','ship_driver','ship_zone','ship_fee','ship_event','ship_log'].map(n=>({db:n,type:'DATABASE'})),
+       exc:[{db:'ship_dev',type:'DATABASE',reason:'DEV'}]},
       {db:'PostgreSQL', id:'/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforPostgreSQL/servers/pg-dlv-main',
-       region:'koreacentral', name:'pg-dlv-main', cred:'dlv_svc_pg', st:'Success'},
+       region:'koreacentral', name:'pg-dlv-main', cred:'dlv_svc_pg', st:'Success',
+       inc:['public','delivery','partner','billing','analytics'].map(n=>({db:'pg_dlv',schema:n,type:'SCHEMA'})),
+       exc:[{db:'pg_dlv',schema:'scratch',type:'SCHEMA',reason:'TEMP'},{db:'pg_dlv',schema:'dev_sandbox',type:'SCHEMA',reason:'DEV'}]},
     ],
   },
   1583: {
     svc:'재고서비스', code:'IVT', pv:'IDC', state:'REJECTED', rejected_at:'2026-07-19 14:52',
     reason:'대상 3건 중 1건 접속 실패(10.20.4.18:1521 timeout) — NLB 리스너 미반영 여부 확인 후 재실행을 요청했어요.',
     rows:[
-      {db:'MySQL',  kind:'Host', host:'db-mysql.ivt.prod.internal', port:3306, srcIps:['10.20.9.7'], cred:'ivt_svc_mysql', st:'Success'},
-      {db:'MySQL',  kind:'IP',   ips:['10.20.4.11'], port:3306, srcIps:['10.20.9.7'], cred:'ivt_svc_mysql', st:'Success'},
+      {db:'MySQL',  kind:'Host', host:'db-mysql.ivt.prod.internal', port:3306, srcIps:['10.20.9.7'], cred:'ivt_svc_mysql', st:'Success',
+       inc:['ivt_main','ivt_stock','ivt_wh','ivt_supplier','ivt_audit','ivt_stats'].map(n=>({db:n,type:'DATABASE'})),
+       exc:[{db:'ivt_dev',type:'DATABASE',reason:'DEV'}]},
+      {db:'MySQL',  kind:'IP',   ips:['10.20.4.11'], port:3306, srcIps:['10.20.9.7'], cred:'ivt_svc_mysql', st:'Success',
+       inc:['ivt_order','ivt_out','ivt_in','ivt_move'].map(n=>({db:n,type:'DATABASE'})), exc:[]},
       {db:'Oracle', kind:'IP',   ips:['10.20.4.18'], port:1521, srcIps:['10.20.9.8'], cred:'ivt_svc_oracle', st:'Failed', fail:'connect timeout (5s)'},
     ],
   },
@@ -882,16 +895,20 @@ function tcStatusTag(st){
     :st==='Failed'?'<span class="tag red">Failed</span>'
     :'<span class="tag orange">Pending</span>';
 }
+function ldbCountCell(ts,idx,r,tab){
+  if(!r.inc) return '<span class="muted">—</span>';
+  const n=tab==='inc'?r.inc.length:(r.exc||[]).length;
+  return `<span class="link ldb-link mono" data-ldb="${ts}:${idx}:${tab}" title="논리 DB 조회">${n}</span>`;
+}
 function renderTcDetail(ts){
   const d=TC_DETAILS[ts];
   if(!d) return `<div class="breadcrumb"><span class="crumb" data-nav="#/tc">연결 테스트</span><span class="sep">/</span><span class="cur">#${ts}</span></div>
     <div class="card"><div class="empty">이 데모에는 #1799(완료·AZURE) · #1583(반려·IDC) 상세만 준비되어 있어요</div></div>`;
-  const okCnt=d.rows.filter(r=>r.st==='Success').length;
-  const failCnt=d.rows.filter(r=>r.st==='Failed').length;
-  const pct=Math.round(okCnt/d.rows.length*100);
   const isDone=d.state==='COMPLETED';
   const isIdc=d.pv==='IDC';
   const slice=pslice(d.rows,'tcd');
+  const incTotal=d.rows.reduce((a,r)=>a+(r.inc?r.inc.length:0),0);
+  const excTotal=d.rows.reduce((a,r)=>a+(r.exc?r.exc.length:0),0);
   return `
   <div class="breadcrumb">
     <span class="crumb" data-nav="#/queue">Task Queue</span><span class="sep">/</span>
@@ -904,11 +921,15 @@ function renderTcDetail(ts){
       <div class="head-sub">${ptag(d.pv)}<span class="mono">${d.code}</span>
         ${isDone?'<span class="pill t-ok"><span class="dot"></span>연결 테스트 완료</span>':'<span class="pill t-err"><span class="dot"></span>재실행 요청</span>'}</div>
     </div>
+    ${isDone?`<div class="actions">
+      <button class="btn danger" id="tc-rerun">연결 테스트 재실행 요청</button>
+      <button class="btn primary" id="tc-confirm">연동 승인</button>
+    </div>`:''}
   </div>
 
   <div class="section-title">연결 테스트 결과</div>
   <div class="section-desc">${isDone
-    ?`완료 일자 ${d.completed_at} · 모든 대상 접속에 성공해 관리자 승인(확정) 대상이에요`
+    ?`완료 일자 ${d.completed_at} · 연동 대상 논리 DB ${incTotal}개 · 제외 논리 DB ${excTotal}개`
     :`반려 일자 ${d.rejected_at} · 서비스에 재실행을 요청한 상태예요`}</div>
   <div class="card">
     ${isDone?'':`
@@ -920,29 +941,18 @@ function renderTcDetail(ts){
         <div class="rb-meta">반려 일자 ${d.rejected_at}</div>
       </div>
     </div>`}
-    <div class="conn-progress ${isDone?'cp-ok':'cp-fail'}">
-      <div class="cp-head">
-        <div class="cp-title">
-          <span class="cp-icon"><svg class="ic sm"><use href="${isDone?'#i-check':'#i-alert'}"/></svg></span>
-          ${isDone?'연결 테스트 완료 — 모든 대상 접속에 성공했어요':'연결 테스트 실패 — 접속하지 못한 대상이 있어요'}
-        </div>
-        <div class="cp-meta">
-          <span class="cp-counts">성공 <b class="c-ok">${okCnt}</b> · 실패 <b class="c-fail">${failCnt}</b> · 대기 <b>0</b></span>
-          <span class="cp-pct">${pct}%</span>
-        </div>
-      </div>
-      <div class="cp-track"><div class="cp-fill" style="width:${pct}%"></div></div>
-    </div>
     <div class="res-wrap">
     <table class="res-tbl">
       ${isIdc?`
       <thead><tr>
-        <th style="width:70px">구분</th><th style="width:110px">Database Type</th><th>연동 대상</th>
-        <th style="width:64px">Port</th><th style="width:150px">Source IP</th>
-        <th style="width:140px">DB Credential</th><th style="width:130px">Connection Status</th>
+        <th style="width:66px">구분</th><th style="width:104px">Database Type</th><th>연동 대상</th>
+        <th style="width:60px">Port</th><th style="width:120px">Source IP</th>
+        <th style="width:120px">DB Credential</th>
+        <th style="width:96px">연동 대상 논리 DB</th><th style="width:96px">연동 제외 논리 DB</th>
+        <th style="width:110px">Connection Status</th>
       </tr></thead>
       <tbody>
-        ${slice.map(r=>`
+        ${slice.map((r,i)=>`
         <tr>
           <td><span class="tag gray">${r.kind}</span></td>
           <td><span class="tag blue">${r.db}</span></td>
@@ -950,28 +960,80 @@ function renderTcDetail(ts){
           <td class="mono">${r.port}</td>
           <td class="mono">${r.srcIps.map(esc).join(' · ')}</td>
           <td class="mono">${esc(r.cred)}</td>
+          <td>${ldbCountCell(ts,i,r,'inc')}</td>
+          <td>${ldbCountCell(ts,i,r,'exc')}</td>
           <td>${tcStatusTag(r.st)}</td>
         </tr>`).join('')}
       </tbody>`:`
       <thead><tr>
-        <th style="width:110px">Database Type</th><th>Resource ID</th><th style="width:120px">Region</th>
-        <th style="width:150px">Resource Name</th><th style="width:140px">DB Credential</th><th style="width:130px">Connection Status</th>
+        <th style="width:104px">Database Type</th><th>Resource ID</th><th style="width:110px">Region</th>
+        <th style="width:130px">Resource Name</th><th style="width:120px">DB Credential</th>
+        <th style="width:96px">연동 대상 논리 DB</th><th style="width:96px">연동 제외 논리 DB</th>
+        <th style="width:110px">Connection Status</th>
       </tr></thead>
       <tbody>
-        ${slice.map(r=>`
+        ${slice.map((r,i)=>`
         <tr>
           <td><span class="tag blue">${r.db}</span></td>
           <td>${resIdCell(r.id)}</td>
           <td class="mono">${r.region}</td>
           <td class="mono">${esc(r.name)}</td>
           <td class="mono">${esc(r.cred)}</td>
+          <td>${ldbCountCell(ts,i,r,'inc')}</td>
+          <td>${ldbCountCell(ts,i,r,'exc')}</td>
           <td>${tcStatusTag(r.st)}</td>
         </tr>`).join('')}
       </tbody>`}
     </table>
     </div>
     ${pagerHtml('tcd',d.rows.length)}
+    <div class="section-desc" style="margin-bottom:0">논리 DB 개수를 누르면 연동 대상·제외 목록을 바로 볼 수 있어요</div>
   </div>`;
+}
+
+/* ── 논리 DB 조회 모달 (앱 논리 DB 확인 모달 문법 · 조회 전용) ── */
+let ldbTab='inc';
+function openLdbModal(ts,idx,tab){
+  ldbTab=tab;
+  renderLdbModal(ts,idx);
+}
+function renderLdbModal(ts,idx){
+  const d=TC_DETAILS[ts]; const r=d.rows[idx];
+  const isInc=ldbTab==='inc';
+  const list=isInc?r.inc:(r.exc||[]);
+  const label=r.name||r.host||(r.ips&&r.ips.join(' · '))||'';
+  openModal(`<div class="modal app" style="width:640px">
+    <div class="am-header">
+      <span class="am-eyebrow">연결 테스트 · #${ts}</span>
+      <h3 class="am-title">논리 DB 확인</h3>
+      <p class="am-sub"><span class="tag blue">${r.db}</span> <span class="mono">${esc(label)}</span>
+        에서 조회된 논리 DB예요. 제외 목록은 서비스 오너가 설정해요.</p>
+    </div>
+    <div class="am-body">
+      <div class="seg" id="ldb-seg" style="margin-bottom:16px">
+        <button data-t="inc" class="${isInc?'on':''}">연동 대상<span class="cnt">${r.inc.length}</span></button>
+        <button data-t="exc" class="${!isInc?'on':''}">연동 제외<span class="cnt">${(r.exc||[]).length}</span></button>
+      </div>
+      <div class="res-wrap" style="border-radius:10px;max-height:44vh;overflow-y:auto">
+      <table class="res-tbl">
+        <thead><tr>
+          <th style="width:100px">구분</th><th>Database</th><th>Schema</th>
+          ${isInc?'':'<th style="width:100px">제외 사유</th>'}
+        </tr></thead>
+        <tbody>
+          ${list.length?list.map(it=>`
+          <tr>
+            <td><span class="tag gray">${it.type}</span></td>
+            <td class="mono">${esc(it.db)}</td>
+            <td>${it.schema?`<span class="mono">${esc(it.schema)}</span>`:'<span class="muted">—</span>'}</td>
+            ${isInc?'':`<td><span class="ftag na">${it.reason}</span></td>`}
+          </tr>`).join(''):`<tr><td colspan="${isInc?3:4}"><div class="empty">${isInc?'연동 대상 논리 DB가 없어요':'제외된 논리 DB가 없어요'}</div></td></tr>`}
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <div class="am-footer"><button class="btn secondary" onclick="closeModal()">닫기</button></div></div>`);
+  $('#ldb-seg').querySelectorAll('button').forEach(b=>b.onclick=()=>{ldbTab=b.dataset.t;renderLdbModal(ts,idx);});
 }
 
 /* ══════════ 페이지별 바인딩 ══════════ */
@@ -1013,8 +1075,54 @@ function bindPage(){
     render();
   });
 
-  /* 승인 / 반려 — 앱 모달 문법, 메시지 1,024자 제한 */
-  const bindCount=(ta,cnt)=>{const f=()=>{cnt.textContent=`${ta.value.length.toLocaleString()} / 1,024`;};f();return f;};
+  /* 논리 DB 조회 + 연결 테스트 액션 */
+  document.querySelectorAll('.ldb-link').forEach(el=>el.onclick=()=>{
+    const [ts,idx,tab]=el.dataset.ldb.split(':');
+    openLdbModal(+ts,+idx,tab);
+  });
+  const bindCount=(ta,cnt,limit)=>{const f=()=>{cnt.textContent=`${ta.value.length.toLocaleString()} / ${limit.toLocaleString()}`;};f();return f;};
+  const tcRerun=$('#tc-rerun'); if(tcRerun) tcRerun.onclick=()=>{
+    const m=location.hash.match(/^#\/tc\/(\d+)/); const d=TC_DETAILS[+m[1]];
+    openModal(`<div class="modal app">
+      <div class="am-header">
+        <span class="am-eyebrow">연결 테스트 · #${m[1]}</span>
+        <h3 class="am-title">연결 테스트 재실행 요청</h3>
+        <p class="am-sub">${esc(d.svc)}에 연결 테스트를 다시 실행해 달라고 요청해요. 사유는 서비스 오너에게 그대로 전달돼요.</p>
+      </div>
+      <div class="am-body">
+        <div class="am-label">재실행 요청 사유 (필수)</div>
+        <textarea id="tr-reason" maxlength="512" placeholder="무엇을 확인하고 다시 실행해야 하는지 적어 주세요"></textarea>
+        <div class="am-count" id="tr-count"></div>
+      </div>
+      <div class="am-footer"><button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn dangersolid" id="tr-go" disabled>재실행 요청</button></div></div>`);
+    const ta=$('#tr-reason'),go=$('#tr-go');
+    const upd=bindCount(ta,$('#tr-count'),512);
+    ta.oninput=()=>{upd();go.disabled=!ta.value.trim();};
+    go.onclick=()=>{closeModal();toast('재실행을 요청했어요 — 사유가 전달됐어요');};
+  };
+  const tcConfirm=$('#tc-confirm'); if(tcConfirm) tcConfirm.onclick=()=>{
+    const m=location.hash.match(/^#\/tc\/(\d+)/); const d=TC_DETAILS[+m[1]];
+    const incTotal=d.rows.reduce((a,r)=>a+(r.inc?r.inc.length:0),0);
+    const excTotal=d.rows.reduce((a,r)=>a+(r.exc?r.exc.length:0),0);
+    openModal(`<div class="modal app">
+      <div class="am-header">
+        <span class="am-eyebrow">연결 테스트 · #${m[1]}</span>
+        <h3 class="am-title">연동 승인</h3>
+        <p class="am-sub">${esc(d.svc)}의 PII Agent 설치를 확정해요. 승인하면 연동이 완료되고 모니터링이 시작돼요.</p>
+      </div>
+      <div class="am-body">
+        <div class="am-note" style="background:var(--bg-inner);border-color:var(--border)">
+          <svg class="ic sm"><use href="#i-check"/></svg>
+          접속 성공 ${d.rows.filter(r=>r.st==='Success').length}건 · 연동 대상 논리 DB ${incTotal}개 · 제외 ${excTotal}개를 확인했어요.
+        </div>
+      </div>
+      <div class="am-footer"><button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn primary" id="cf-go">승인</button></div></div>`);
+    $('#cf-go').onclick=()=>{closeModal();toast('연동을 승인했어요 — 연동이 완료됐어요');};
+  };
+
+  /* 연동 요청 승인 / 반려 — 앱 모달 문법, 메시지 1,024자 제한 */
   const ap=$('#act-approve'); if(ap) ap.onclick=()=>{
     const m=location.hash.match(/^#\/requests\/(\d+)/); const d=DETAILS[+m[1]];
     const dirtyCnt=Object.keys(nlbDraft).length;
@@ -1034,7 +1142,7 @@ function bindPage(){
       <div class="am-footer"><button class="btn secondary" onclick="closeModal()">취소</button>
       <button class="btn primary" id="ap-go">승인</button></div></div>`);
     const ta=$('#ap-comment');
-    ta.oninput=bindCount(ta,$('#ap-count'));
+    ta.oninput=bindCount(ta,$('#ap-count'),1024);
     $('#ap-go').onclick=()=>{closeModal();toast('승인했어요 — 연동 대상 반영이 시작돼요');};
   };
   const rj=$('#act-reject'); if(rj) rj.onclick=()=>{
@@ -1053,7 +1161,7 @@ function bindPage(){
       <div class="am-footer"><button class="btn secondary" onclick="closeModal()">취소</button>
       <button class="btn dangersolid" id="rj-go" disabled>반려</button></div></div>`);
     const ta=$('#rj-reason'),go=$('#rj-go');
-    const upd=bindCount(ta,$('#rj-count'));
+    const upd=bindCount(ta,$('#rj-count'),1024);
     ta.oninput=()=>{upd();go.disabled=!ta.value.trim();};
     go.onclick=()=>{closeModal();toast('반려했어요 — 사유가 전달됐어요');};
   };
