@@ -51,14 +51,6 @@ const POLL_INTERVAL_MS = 30_000;
 const SIZE_OPTIONS = [10, 20, 50] as const;
 const DEFAULT_SIZE = 20;
 
-/**
- * Monitor `<th>` — the prototype's flat `.tbl th` (12/600 weak, .03em, h34, no
- * header fill). Deliberately NOT `pipelineStyles.table.th`: that shared token adds
- * `uppercase` (which would render the Latin 헤더 "Target Source"/"Cloud" as all-caps)
- * and a gray-50 header background the flat monitor prototype does not have.
- */
-const MONITOR_TH =
-  'text-left h-[34px] px-3 text-[12px] font-semibold tracking-[0.03em] text-[var(--pl-text-weak)] border-b border-[var(--pl-border)]';
 
 const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : '알 수 없는 오류가 발생했어요';
@@ -259,13 +251,13 @@ export default function QueueDashboardPage(): ReactElement {
               <table className={table.root}>
                 <thead>
                   <tr>
-                    <th className={MONITOR_TH}>서비스 이름</th>
-                    <th className={MONITOR_TH}>서비스 코드</th>
-                    <th className={MONITOR_TH}>Target Source</th>
-                    <th className={MONITOR_TH}>Cloud</th>
-                    <th className={MONITOR_TH}>프로세스 상태</th>
-                    <th className={MONITOR_TH}>지연</th>
-                    <th className={MONITOR_TH}>상태 변경</th>
+                    <th className={tqStyles.listTable.th}>서비스 이름</th>
+                    <th className={tqStyles.listTable.th}>서비스 코드</th>
+                    <th className={tqStyles.listTable.th}>Target Source</th>
+                    <th className={tqStyles.listTable.th}>Cloud</th>
+                    <th className={tqStyles.listTable.th}>프로세스 상태</th>
+                    <th className={tqStyles.listTable.th}>지연</th>
+                    <th className={tqStyles.listTable.th}>상태 변경</th>
                   </tr>
                 </thead>
                 <tbody className="[&>tr:last-child>td]:border-b-0">

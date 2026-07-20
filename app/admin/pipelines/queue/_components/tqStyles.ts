@@ -195,6 +195,13 @@ export const tqStyles = {
     meta: cn(text.meta, 'mt-1.5'),
   },
 
+  /** List table (`.tbl`) — flat prototype header: 12/600 weak, NO uppercase,
+   *  NO gray-50 fill; tbody without the Figma-dashboard zebra tint. */
+  listTable: {
+    th: 'text-left h-[34px] px-3 text-[12px] font-semibold tracking-[0.03em] text-[var(--pl-text-weak)] border-b border-[var(--pl-border)]',
+    body: '[&>tr:last-child>td]:border-b-0',
+  },
+
   /** Stat tile (`.stat`) — gray-100 centered read-only summary; label over value.
    *  Value tone: warn (대기), err (반려>0), strong (default). */
   stat: {

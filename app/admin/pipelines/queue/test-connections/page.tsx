@@ -25,7 +25,8 @@ import { Card } from '@/app/admin/pipelines/_components/Card';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
-import { PlRow, PlTable, PlTd, PlTh } from '@/app/admin/pipelines/_components/PlTable';
+import { PlRow, PlTd } from '@/app/admin/pipelines/_components/PlTable';
+import { TqListTable, TqTh } from '@/app/admin/pipelines/queue/_components/TqListTable';
 import { TqSegLg } from '@/app/admin/pipelines/queue/_components/TqSegLg';
 import { DetailLink } from '@/app/admin/pipelines/queue/_components/DetailLink';
 import { RejectReasonCell, TqEmptyState } from '@/app/admin/pipelines/queue/_components/bits';
@@ -143,16 +144,16 @@ export default function TestConnectionsPage(): ReactElement {
         ) : rows.length === 0 ? (
           <TqEmptyState title={EMPTY[tab].title} caption={EMPTY[tab].caption} />
         ) : (
-          <PlTable
+          <TqListTable
             head={
               <>
-                <PlTh>서비스 이름</PlTh>
-                <PlTh>서비스 코드</PlTh>
-                <PlTh>Target Source</PlTh>
-                <PlTh>Cloud</PlTh>
-                {done ? <PlTh>완료 일자</PlTh> : <PlTh>반려 사유</PlTh>}
-                {!done && <PlTh>반려 일자</PlTh>}
-                <PlTh />
+                <TqTh>서비스 이름</TqTh>
+                <TqTh>서비스 코드</TqTh>
+                <TqTh>Target Source</TqTh>
+                <TqTh>Cloud</TqTh>
+                {done ? <TqTh>완료 일자</TqTh> : <TqTh>반려 사유</TqTh>}
+                {!done && <TqTh>반려 일자</TqTh>}
+                <TqTh />
               </>
             }
           >
@@ -183,7 +184,7 @@ export default function TestConnectionsPage(): ReactElement {
                 </PlTd>
               </PlRow>
             ))}
-          </PlTable>
+          </TqListTable>
         )}
 
         {!error && !loading && rows.length > 0 && (

@@ -22,7 +22,8 @@ import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { PlTable, PlTh, PlTd, PlRow } from '@/app/admin/pipelines/_components/PlTable';
+import { PlTd, PlRow } from '@/app/admin/pipelines/_components/PlTable';
+import { TqListTable, TqTh } from '@/app/admin/pipelines/queue/_components/TqListTable';
 import { TqSegLg } from '@/app/admin/pipelines/queue/_components/TqSegLg';
 import { DetailLink } from '@/app/admin/pipelines/queue/_components/DetailLink';
 import { RejectReasonCell, TqEmptyState } from '@/app/admin/pipelines/queue/_components/bits';
@@ -128,20 +129,20 @@ export default function RequestsPage(): ReactElement {
           <div className="min-h-[240px]" aria-busy="true" />
         ) : (
           <>
-            <PlTable
+            <TqListTable
               head={
                 <>
-                  <PlTh>서비스 이름</PlTh>
-                  <PlTh>서비스 코드</PlTh>
-                  <PlTh>Target Source</PlTh>
-                  <PlTh>Cloud</PlTh>
+                  <TqTh>서비스 이름</TqTh>
+                  <TqTh>서비스 코드</TqTh>
+                  <TqTh>Target Source</TqTh>
+                  <TqTh>Cloud</TqTh>
                   {isRejected && (
                     <>
-                      <PlTh>반려 사유</PlTh>
-                      <PlTh>반려 일자</PlTh>
+                      <TqTh>반려 사유</TqTh>
+                      <TqTh>반려 일자</TqTh>
                     </>
                   )}
-                  {isPending && <PlTh />}
+                  {isPending && <TqTh />}
                 </>
               }
             >
@@ -185,7 +186,7 @@ export default function RequestsPage(): ReactElement {
                   );
                 })
               )}
-            </PlTable>
+            </TqListTable>
             {rows.length > 0 && (
               <PlPagination
                 className="mt-4"

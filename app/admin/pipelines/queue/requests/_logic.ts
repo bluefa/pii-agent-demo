@@ -6,7 +6,12 @@
  * approve-modal "미저장 변경" warning stay honest.
  */
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
+// NLB thresholds have a single definition in the shared occupancy bits. Import
+// the capacity for nlbOptionDisabled and re-export both so this layer and
+// IdcResourceTable read the same 30 주의 / 50 Hard Limit rule (api-spec G2).
 import { NLB_CAPACITY } from '@/app/admin/pipelines/queue/_components/bits';
+
+export { NLB_CAPACITY, NLB_WARN_THRESHOLD } from '@/app/admin/pipelines/queue/_components/bits';
 
 /** resource_id → drafted NLB index (only present when it differs from original). */
 export type NlbDraft = Readonly<Record<string, number>>;
@@ -51,9 +56,6 @@ export function clearNlbDraft(draft: NlbDraft, resourceId: string): NlbDraft {
 export function dirtyCount(rows: readonly RequestResourceRow[], draft: NlbDraft): number {
   return rows.filter((row) => isNlbDirty(row, draft)).length;
 }
-
-/** NLB capacity: ≥30 주의, ≥50 Hard Limit (api-spec G2) — single source in bits. */
-export { NLB_CAPACITY, NLB_WARN_THRESHOLD } from '@/app/admin/pipelines/queue/_components/bits';
 
 /** A Hard-Limit (≥50) NLB can't take a new assignment — its option is disabled,
  *  UNLESS it is the row's current index (so the current value stays selectable). */
