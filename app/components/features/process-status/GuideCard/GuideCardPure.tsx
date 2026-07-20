@@ -59,7 +59,8 @@ export const GuideCardPure = ({
 
   if (bare) {
     return (
-      <div className="prose-guide text-[13px] leading-[1.72] text-[#374151]">{rendered}</div>
+      // v16 .guide-content geometry; color via the --fg-2 foreground var (globals.css).
+      <div className="prose-guide text-[13px] leading-[1.72] text-[var(--fg-2)]">{rendered}</div>
     );
   }
 
