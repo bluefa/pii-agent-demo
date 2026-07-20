@@ -28,8 +28,8 @@ interface ProcRow {
 }
 
 const PROC: ProcRow[] = [
-  { ts: 1027, svc: '주문서비스', code: 'ORD', pv: 'IDC', st: 'PENDING', delay: 99120, at: '2026-07-19T16:08:00Z' },
-  { ts: 2013, svc: '결제서비스', code: 'PAY', pv: 'AWS', st: 'PENDING', delay: 5430, at: '2026-07-20T18:09:00Z' },
+  { ts: 1031, svc: '주문서비스', code: 'ORD', pv: 'IDC', st: 'PENDING', delay: 99120, at: '2026-07-19T16:08:00Z' },
+  { ts: 2113, svc: '결제서비스', code: 'PAY', pv: 'AWS', st: 'PENDING', delay: 5430, at: '2026-07-20T18:09:00Z' },
   { ts: 1980, svc: '회원서비스', code: 'MBR', pv: 'GCP', st: 'CONFIRMING', delay: 1120, at: '2026-07-20T19:21:00Z' },
   { ts: 1861, svc: '정산서비스', code: 'STL', pv: 'AWS', st: 'CONFIRMED', delay: 262000, at: '2026-07-17T18:56:00Z' },
   { ts: 1799, svc: '배송서비스', code: 'DLV', pv: 'AZURE', st: 'INSTALLED', delay: 8460, at: '2026-07-20T17:19:00Z' },
@@ -68,8 +68,8 @@ interface RequestRow {
 }
 
 const REQUESTS_PENDING: RequestRow[] = [
-  { ts: 1027, svc: '주문서비스', code: 'ORD', pv: 'IDC', cs: 'PENDING' },
-  { ts: 2013, svc: '결제서비스', code: 'PAY', pv: 'AWS', cs: 'PENDING' },
+  { ts: 1031, svc: '주문서비스', code: 'ORD', pv: 'IDC', cs: 'PENDING' },
+  { ts: 2113, svc: '결제서비스', code: 'PAY', pv: 'AWS', cs: 'PENDING' },
   { ts: 2044, svc: '포인트서비스', code: 'PNT', pv: 'GCP', cs: 'PENDING' },
   { ts: 2051, svc: '알림서비스', code: 'NTF', pv: 'AZURE', cs: 'PENDING' },
 ];
@@ -88,8 +88,8 @@ const REQUESTS_REJECTED: RequestRow[] = [
 ];
 
 const REQUESTS_ALL: RequestRow[] = [
-  { ts: 1027, svc: '주문서비스', code: 'ORD', pv: 'IDC', cs: 'PENDING' },
-  { ts: 2013, svc: '결제서비스', code: 'PAY', pv: 'AWS', cs: 'PENDING' },
+  { ts: 1031, svc: '주문서비스', code: 'ORD', pv: 'IDC', cs: 'PENDING' },
+  { ts: 2113, svc: '결제서비스', code: 'PAY', pv: 'AWS', cs: 'PENDING' },
   { ts: 1980, svc: '회원서비스', code: 'MBR', pv: 'GCP', cs: 'CONFIRMING' },
   { ts: 1907, svc: '광고서비스', code: 'ADS', pv: 'AWS', cs: 'REJECTED' },
   { ts: 1873, svc: '채팅서비스', code: 'CHT', pv: 'IDC', cs: 'REJECTED' },
@@ -116,12 +116,12 @@ const SEED_NLB: readonly NlbRow[] = [
   { nlbIndex: 6, nlbIpList: ['10.30.0.61', '10.30.0.62'], occupiedListenerCount: 31 },
 ];
 
-// Current NLB assignment per (targetSourceId:resourceId), seeded from DETAILS[1027]
+// Current NLB assignment per (targetSourceId:resourceId), seeded from DETAILS[1031]
 // so repeated saves move occupancy off the previous index.
 const SEED_NLB_ASSIGNMENT = new Map<string, number>([
-  ['1027:idc-r-8f21', 3],
-  ['1027:idc-r-8f22', 3],
-  ['1027:idc-r-8f23', 5],
+  ['1031:idc-r-8f21', 3],
+  ['1031:idc-r-8f22', 3],
+  ['1031:idc-r-8f23', 5],
 ]);
 
 /** Shared with the reused `idc.getNlbTable` mock so both read one occupancy source. */
@@ -163,7 +163,7 @@ const SEED_TC = new Map<number, TcState>([
 ]);
 
 // ── Approval-request demo fixture (P3) ──────────────────────────────────────
-// Demo target sources (1027 IDC / 2013 AWS) are NOT store projects, so the
+// Demo target sources (1031 IDC / 2113 AWS) are NOT store projects, so the
 // confirm mock falls back here when getProjectByTargetSourceId misses. Ported
 // from prototype DETAILS. nlb_index is read live from nlbAssignment so NLB
 // saves round-trip into the resource table.
@@ -187,8 +187,8 @@ interface ApprovalDemo {
 }
 
 const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
-  [1027, {
-    ts: 1027, status: 'PENDING', requested_by: 'jun.park', requested_at: '2026-07-19T16:08:00Z',
+  [1031, {
+    ts: 1031, status: 'PENDING', requested_by: 'jun.park', requested_at: '2026-07-19T16:08:00Z',
     processed_at: null, reason: null,
     resources: [
       { resource_id: 'idc-r-8f21', resource_name: 'oracle-order-prod', resource_type: 'IDC', selected: true,
@@ -202,8 +202,8 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
         metadata: { provider: 'IDC', database_type: 'MySQL', port: 3306, idc_host_format: 'HOST', idc_host: 'db-mysql.order.dev.internal' } },
     ],
   }],
-  [2013, {
-    ts: 2013, status: 'PENDING', requested_by: 'mina.choi', requested_at: '2026-07-20T18:09:00Z',
+  [2113, {
+    ts: 2113, status: 'PENDING', requested_by: 'mina.choi', requested_at: '2026-07-20T18:09:00Z',
     processed_at: null, reason: null,
     resources: [
       { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-pay-prod', resource_name: 'aurora-pay-prod', resource_type: 'RDS_CLUSTER', selected: true,

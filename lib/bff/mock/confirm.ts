@@ -911,7 +911,8 @@ export const mockConfirm = {
 
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
-      // Admin Task Queue demo targets (1027/2013) live outside the store.
+      // Admin Task Queue demo targets (1031/2113) live outside the store
+      // (1027/2013 are store projects — ids must not collide).
       const demo = getTqApprovalLatest(Number(targetSourceId));
       if (demo) return NextResponse.json(demo);
       return NextResponse.json(
