@@ -10,16 +10,15 @@ interface ProcessStatusCardProps {
 
 // Pure display: renders the progress bar from the project's current step.
 // Status transitions surface on the user's next refresh (no polling).
+// Compact strip (UX report B): the stepper is self-describing, so no card
+// title/header — visible label removed in favor of aria-label.
 export const ProcessStatusCard = ({ project }: ProcessStatusCardProps) => {
   return (
-    <section className={cn(cardStyles.base, 'overflow-hidden')}>
-      <header className={cardStyles.header}>
-        <h2 className={cardStyles.cardTitle}>프로세스 진행 상태</h2>
-      </header>
-
-      <div className={cardStyles.body}>
-        <InstallationProcessProgressBar currentStep={project.processStatus} />
-      </div>
+    <section
+      aria-label="프로세스 진행 상태"
+      className={cn(cardStyles.base, 'overflow-hidden px-[28px] py-[16px]')}
+    >
+      <InstallationProcessProgressBar currentStep={project.processStatus} />
     </section>
   );
 };
