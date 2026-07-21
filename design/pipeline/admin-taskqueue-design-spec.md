@@ -50,17 +50,20 @@ h1 "운영 대시보드"
 
 ```
 h1 "연동 요청" / section-desc "서비스가 보낸 연동 승인 요청을 검토하고 처리해요"
-계층 1 — 섹션 "연동 요청 확인" (confirmStatus=PENDING)
-  Card > tbl: 서비스 이름 · 서비스 코드 · Target Source · Cloud · 상세보기(detail-link ↗)
+카드 문법(2차 개편): 계층 = 카드 내장 헤더(9px r10 아이콘 칩 + 제목 16/700 + 건수 배지
+  pill 12/700 + desc 13 weak, border-b 구분) — 떠 있는 SectionHeader 사용 금지
+그룹 라벨: "처리가 필요한 요청"(계층 1·2, 카드 간 mt-16) / "이력"(계층 3) — 13/600 weak
+계층 1 — 카드 "연동 요청 확인" (confirmStatus=PENDING) · 칩 inbox/tag-blue · 배지 blue
+  tbl: 서비스 이름 · 서비스 코드 · Target Source · Cloud · 상세보기(detail-link ↗)
   행 전체 클릭 → 상세 (hover bg gray-50)
   empty: 승인을 기다리는 요청이 없어요 / 새 연동 요청이 들어오면 여기에 표시돼요
   PlPagination (섹션별 독립, 비었으면 숨김)
-계층 2 — 섹션 "연동 요청 반려 확인" (confirmStatus=REJECTED)
+계층 2 — 카드 "연동 요청 반려 확인" (confirmStatus=REJECTED) · 칩 warn-tri/err · 배지 err
   desc(보조 텍스트, 사용자 지정): "반려했으나 서비스 측 담당자가 아직 확인하지 않았어요"
-  Card > tbl: 공통 4 + 반려 사유(rr hover 툴팁) · 반려 일자(meta)
+  tbl: 공통 4 + 반려 사유(rr hover 툴팁) · 반려 일자(meta)
   empty: 확인 대기 중인 반려 건이 없어요
-계층 3 — 섹션 "전체 History 확인" (/approval-history, pagination 필수)
-  Card > tbl: 서비스 · Code(mono) · 요청 ID(#mono) · 상태(enum pill) · 일시 · 상세보기(detail-link)
+계층 3 — 카드 "전체 History 확인" (/approval-history, pagination 필수) · 칩 clock/gray-100
+  tbl: 서비스 · Code(mono) · 요청 ID(#mono) · 상태(enum pill) · 일시 — 상세보기 없음(read-only 감사 로그, 행 클릭 없음)
   enum 매핑: PENDING=승인 대기(warn) · APPROVED=승인(ok) · AUTO_APPROVED=자동 승인(ok)
              REJECTED=반려(err) · CANCELLED=취소(gray) · UNAVAILABLE=연동 불가(err)
              UNAVAILABLE_ACKNOWLEDGED=연동 불가 확인(gray) · 미지 값=gray raw

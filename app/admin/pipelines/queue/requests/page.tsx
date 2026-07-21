@@ -17,7 +17,7 @@ import { fmtDateTime } from '@/lib/pipeline/format';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 
 import { Card } from '@/app/admin/pipelines/_components/Card';
-import { SectionHeader } from '@/app/admin/pipelines/_components/SectionHeader';
+import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
@@ -85,11 +85,38 @@ function usePagedSection<T>(
   return { page, paged, loading, error, setPage, reload: () => setRetry((n) => n + 1) };
 }
 
+/** Visual tone of a 계층 card — drives the icon chip + count badge color. */
+type SectionTone = 'primary' | 'danger' | 'muted';
+
+const TONE_CHIP: Record<SectionTone, string> = {
+  primary: 'bg-[var(--pl-tag-blue-bg)] text-[var(--pl-tag-blue-text)]',
+  danger: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+  muted: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
+};
+
+const TONE_COUNT: Record<SectionTone, string> = {
+  primary: 'bg-[var(--pl-tag-blue-bg)] text-[var(--pl-tag-blue-text)]',
+  danger: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+  muted: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
+};
+
+/** Group caption above a cluster of 계층 cards (처리가 필요한 요청 / 이력). */
+function GroupLabel({ children, first }: { children: ReactNode; first?: boolean }): ReactElement {
+  return (
+    <div className={`${first ? 'mt-8' : 'mt-12'} mb-3 text-[13px] font-semibold text-[var(--pl-text-weak)]`}>
+      {children}
+    </div>
+  );
+}
+
 interface ListSectionProps<T> {
   title: string;
   desc: ReactNode;
-  /** First section under the page head — drops the 64px top margin. */
-  first?: boolean;
+  icon: IconName;
+  tone: SectionTone;
+  /** Header count badge — totalElements once loaded. */
+  count: number | null;
+  className?: string;
   state: PagedSection<T>;
   head: ReactNode;
   colSpan: number;
@@ -97,11 +124,15 @@ interface ListSectionProps<T> {
   children: (rows: T[]) => ReactNode;
 }
 
-/** Section 계층 shell: header + card with per-section loading / error / pager. */
+/** Section 계층 shell — a card that OWNS its header (icon chip + title + count
+ *  badge + desc, separated by a border) so each 계층 reads as one visual group. */
 function ListSection<T>({
   title,
   desc,
-  first,
+  icon,
+  tone,
+  count,
+  className,
   state,
   head,
   colSpan,
@@ -113,9 +144,29 @@ function ListSection<T>({
   const totalPages = Math.max(1, paged?.totalPages ?? 1);
 
   return (
-    <>
-      <SectionHeader title={title} desc={desc} first={first} />
+    <section className={className}>
       <Card>
+        <div className="flex items-start gap-3 pb-4 mb-1 border-b border-[var(--pl-border)]">
+          <span
+            className={`inline-flex h-9 w-9 flex-none items-center justify-center rounded-[10px] ${TONE_CHIP[tone]}`}
+            aria-hidden
+          >
+            <Icon name={icon} size="md" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="text-[16px] font-bold leading-[1.3] text-[var(--pl-text-strong)]">{title}</h2>
+              {count != null && count > 0 && (
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${TONE_COUNT[tone]}`}
+                >
+                  {count.toLocaleString()}
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-[13px] font-normal text-[var(--pl-text-weak)]">{desc}</p>
+          </div>
+        </div>
         {error != null ? (
           <PlEmptyState
             icon="inbox"
@@ -153,7 +204,7 @@ function ListSection<T>({
           </>
         )}
       </Card>
-    </>
+    </section>
   );
 }
 
@@ -168,22 +219,20 @@ export default function RequestsPage(): ReactElement {
       ? () => router.push(integrationRoutes.pipelines.queue.request(targetSourceId))
       : undefined;
 
-  const pendingCount = pending.paged?.totalElements ?? null;
-
   return (
     <div>
       <h1 className={text.pageTitle}>연동 요청</h1>
       <p className={section.desc}>서비스가 보낸 연동 승인 요청을 검토하고 처리해요</p>
 
+      <GroupLabel first>처리가 필요한 요청</GroupLabel>
+
       {/* 계층 1 — 연동 요청 확인 (승인 대기) */}
       <ListSection
-        first
         title="연동 요청 확인"
-        desc={
-          pendingCount != null
-            ? `승인이 필요한 연동 요청 ${pendingCount.toLocaleString()}건`
-            : '승인이 필요한 연동 요청'
-        }
+        desc="승인이 필요한 연동 요청이에요 — 검토 후 승인하거나 반려해 주세요"
+        icon="inbox"
+        tone="primary"
+        count={pending.paged?.totalElements ?? null}
         state={pending}
         colSpan={5}
         empty={{ title: '승인을 기다리는 요청이 없어요', caption: '새 연동 요청이 들어오면 여기에 표시돼요' }}
@@ -221,8 +270,12 @@ export default function RequestsPage(): ReactElement {
 
       {/* 계층 2 — 연동 요청 반려 확인 (반려) */}
       <ListSection
+        className="mt-4"
         title="연동 요청 반려 확인"
         desc="반려했으나 서비스 측 담당자가 아직 확인하지 않았어요"
+        icon="warn-tri"
+        tone="danger"
+        count={rejected.paged?.totalElements ?? null}
         state={rejected}
         colSpan={6}
         empty={{ title: '확인 대기 중인 반려 건이 없어요', caption: '반려 처리한 요청이 여기에 모여요' }}
@@ -260,12 +313,17 @@ export default function RequestsPage(): ReactElement {
         }
       </ListSection>
 
-      {/* 계층 3 — 전체 History 확인 (approval-history) */}
+      <GroupLabel>이력</GroupLabel>
+
+      {/* 계층 3 — 전체 History 확인 (approval-history) — read-only audit log. */}
       <ListSection
         title="전체 History 확인"
         desc="모든 연동 요청의 승인 처리 이력이에요"
+        icon="clock"
+        tone="muted"
+        count={history.paged?.totalElements ?? null}
         state={history}
-        colSpan={6}
+        colSpan={5}
         empty={{ title: '표시할 승인 이력이 없어요', caption: '연동 요청이 처리되면 이력이 여기에 쌓여요' }}
         head={
           <>
@@ -274,13 +332,12 @@ export default function RequestsPage(): ReactElement {
             <TqTh>요청 ID</TqTh>
             <TqTh>상태</TqTh>
             <TqTh>일시</TqTh>
-            <TqTh />
           </>
         }
       >
         {(rows) =>
           rows.map((row) => (
-            <PlRow key={row.requestId ?? row.serviceCode} onActivate={goDetail(row.targetSourceId)}>
+            <PlRow key={row.requestId ?? row.serviceCode}>
               <PlTd className="font-semibold text-[var(--pl-text-strong)]">
                 {row.serviceName ?? '—'}
               </PlTd>
@@ -290,9 +347,6 @@ export default function RequestsPage(): ReactElement {
                 <HistoryStatusPill status={row.status} />
               </PlTd>
               <PlTd muted>{fmtDateTime(row.createdAt)}</PlTd>
-              <PlTd className="text-right whitespace-nowrap">
-                <DetailLink />
-              </PlTd>
             </PlRow>
           ))
         }
