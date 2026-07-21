@@ -35,9 +35,11 @@ import {
 } from '@/app/components/features/project-create';
 import {
   AwsRegionToggle,
+  AwsInstallModeToggle,
   RegistrationPreviewCardList,
   RegistrationProgressList,
   type AwsRegion,
+  type AwsInstallMode,
   type PreviewRow,
   type ProgressRow,
   type ProgressRowStatus,
@@ -55,6 +57,7 @@ interface FormState {
   chipKey: ProviderChipKey;
   apiProvider: ApiProvider;
   awsRegion: AwsRegion;
+  installMode: AwsInstallMode | null;
   fields: Record<string, string>;
 }
 
@@ -67,6 +70,8 @@ const buildCandidatesInput = (form: FormState, dbTypes: DbType[]): CreationCandi
         cloudProvider: 'AWS',
         awsAccountId: fields.payerAccount,
         isChinaRegion: form.awsRegion === 'china',
+        // AWS 필수: 자동(권한 위임) / 수동(스크립트 직접 실행). handleNext 검증이 non-null 보장.
+        isTerraformExecutionGranted: form.installMode === 'auto',
         ...(description ? { description } : {}),
         dbTypes,
       };
@@ -130,6 +135,7 @@ export const ProjectCreateModal = ({
   const [phase, setPhase] = useState<Phase>('input');
   const [chipKey, setChipKey] = useState<ProviderChipKey>('aws');
   const [awsRegion, setAwsRegion] = useState<AwsRegion>('global');
+  const [installMode, setInstallMode] = useState<AwsInstallMode | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [dbTypes, setDbTypes] = useState<DbType[]>([]);
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
@@ -164,6 +170,7 @@ export const ProjectCreateModal = ({
   const handleChipChange = (key: ProviderChipKey) => {
     setChipKey(key);
     setFields({});
+    setInstallMode(null);
     setSubmitError(null);
   };
 
@@ -171,6 +178,7 @@ export const ProjectCreateModal = ({
     chipKey,
     apiProvider: chipDef.apiProvider,
     awsRegion,
+    installMode,
     fields,
   });
 
@@ -183,6 +191,10 @@ export const ProjectCreateModal = ({
     }
     if (dbTypes.length === 0) {
       setSubmitError('DB Type을 1개 이상 선택하세요');
+      return;
+    }
+    if (isAws && installMode === null) {
+      setSubmitError('설치 방식(자동/수동)을 선택하세요');
       return;
     }
 
@@ -258,7 +270,10 @@ export const ProjectCreateModal = ({
     onCreated();
   };
 
-  const phase1Valid = dbTypes.length > 0 && validateCredentials(chipKey, fields) === null;
+  const phase1Valid =
+    dbTypes.length > 0 &&
+    validateCredentials(chipKey, fields) === null &&
+    (!isAws || installMode !== null);
   const addRowCount = previewRows.filter((row) => row.candidate.status === 'ADD').length;
   const duplicateCount = previewRows.length - addRowCount;
   const progressDone = progressRows.filter((r) => r.status === 'done').length;
@@ -330,8 +345,14 @@ export const ProjectCreateModal = ({
                 </h3>
                 <ProviderChipGrid value={chipKey} onChange={handleChipChange} />
                 {isAws && (
-                  <div className="mt-3">
+                  <div className="mt-3 space-y-3">
                     <AwsRegionToggle value={awsRegion} onChange={setAwsRegion} />
+                    <div>
+                      <p className={cn('mb-1.5 text-xs font-medium', textColors.tertiary)}>
+                        설치 방식 <span className={statusColors.error.text}>*</span>
+                      </p>
+                      <AwsInstallModeToggle value={installMode} onChange={setInstallMode} />
+                    </div>
                   </div>
                 )}
               </section>

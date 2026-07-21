@@ -351,7 +351,7 @@ export const toIdcResourceViewFromExcluded = (
 export const idcDbTypeWireFromLabel = (label: string): IdcDatabaseTypeWire | undefined =>
   idcDbTypeByLabel(label)?.wire;
 
-const toStepView = (wire: IdcStepStatusWire | undefined): IdcInstallStepView => ({
+const toStepView = (wire: IdcStepStatusWire | null | undefined): IdcInstallStepView => ({
   // A missing status is "작업중", never silently COMPLETED (faithful default).
   status: wire?.status ?? 'UNKNOWN',
   guide: wire?.guide ?? undefined,

@@ -88,7 +88,7 @@ const TargetSourceResourceMetadataDto = z
 const TargetSourceResourceItemDto = z
   .object({
     selected: Bool.optional(),
-    metadata: TargetSourceResourceMetadataDto,
+    metadata: TargetSourceResourceMetadataDto.nullable(),
     resource_id: Str.optional(),
     resource_name: Str.optional(),
     resource_type: Str
@@ -121,7 +121,7 @@ const TargetSourceCreationCandidateResponse = z
     cloud_type: Str,
     is_sdu_type: Bool,
     is_china_region: Bool,
-    metadata: TargetSourceCreationCandidateMetadata,
+    metadata: TargetSourceCreationCandidateMetadata.nullable(),
     existing_target_source_id: Num.nullish(),
     grant_service_terraform_execution_permission: Bool.nullish(),
   })
@@ -132,7 +132,7 @@ const TargetSourceCreationCandidateRequest = z
     is_china_region: Bool,
     database_types: z.array(Str).nullable(),
     grant_service_terraform_execution_permission: Bool.optional(),
-    metadata: TargetSourceCreationCandidateMetadata,
+    metadata: TargetSourceCreationCandidateMetadata.nullable(),
   })
   .partial().passthrough();
 const Link = z
@@ -165,7 +165,7 @@ const ApprovalActionResponseDto = z
   .object({
     request_id: Num,
     status: Str,
-    processed_by: ActorDto,
+    processed_by: ActorDto.nullable(),
     processed_at: Str,
     reason: Str,
   })
@@ -175,10 +175,10 @@ const ApprovalRequestDetailDto = z
     id: Num,
     target_source_id: Num,
     status: Str,
-    requested_by: ActorDto,
+    requested_by: ActorDto.nullable(),
     requested_at: Str,
     resources: z.array(TargetSourceResourceItemDto).nullable(),
-    result: ApprovalActionResponseDto,
+    result: ApprovalActionResponseDto.nullable(),
   })
   .partial().passthrough();
 const GuideContents = z
@@ -187,7 +187,7 @@ const GuideContents = z
 const GuideDetail = z
   .object({
     name: Str,
-    contents: GuideContents,
+    contents: GuideContents.nullable(),
     updatedAt: Str,
   })
   .partial().passthrough();
@@ -269,7 +269,7 @@ const ServiceInfoRefinedResponse = z
 const TargetSourceResponse = z
   .object({
     id: Num,
-    serviceInfo: ServiceInfoRefinedResponse,
+    serviceInfo: ServiceInfoRefinedResponse.nullable(),
     serviceType: Str,
     division: Str,
     cloudProvider: Str,
@@ -289,7 +289,7 @@ const ApprovalUnavailableResponseDto = z
   .object({
     request_id: Num,
     status: Str,
-    processed_by: ActorDto,
+    processed_by: ActorDto.nullable(),
     processed_at: Str,
     reason: Str,
   })
@@ -307,7 +307,7 @@ const ApprovalRequestSummaryDto = z
     id: Num,
     target_source_id: Num,
     status: Str,
-    requested_by: ActorDto,
+    requested_by: ActorDto.nullable(),
     requested_at: Str,
     resource_total_count: Num,
     resource_selected_count: Num,
@@ -335,7 +335,7 @@ const TestConnectionRejectStatusResponse = z
     reject_reason: Str,
     rejected_at: Str,
     completed_at: Str,
-    metadata: TargetSourceMetadata,
+    metadata: TargetSourceMetadata.nullable(),
   })
   .partial().passthrough();
 const TestConnectionRejectStatusBatchResponse = z
@@ -345,9 +345,9 @@ const LatestApprovalRequestSummaryDto = z
   .object({
     request_id: Num,
     status: Str,
-    requested_by: ActorDto,
+    requested_by: ActorDto.nullable(),
     requested_at: Str,
-    processed_by: ActorDto,
+    processed_by: ActorDto.nullable(),
     processed_at: Str,
     reason: Str,
   })
@@ -362,8 +362,8 @@ const TargetSourceInfo = z
     serviceName: Str,
     updatedAt: Str,
     confirmStatus: Str,
-    metadata: TargetSourceMetadata,
-    latest_approval_request: LatestApprovalRequestSummaryDto,
+    metadata: TargetSourceMetadata.nullable(),
+    latest_approval_request: LatestApprovalRequestSummaryDto.nullable(),
   })
   .partial().passthrough();
 const UserInfo = z
@@ -398,7 +398,7 @@ const PageServiceItem = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject,
+    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -442,7 +442,7 @@ const TargetSourceDetail = z
     service_name: Str,
     cloud_provider: Str,
     created_at: Str,
-    metadata: TargetSourceMetadata,
+    metadata: TargetSourceMetadata.nullable(),
   })
   .partial().passthrough();
 const TestedLogicalDatabaseItem = z
@@ -494,7 +494,7 @@ const PageTestConnectionHistoryItemResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject,
+    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -526,7 +526,7 @@ const PageScanJobResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject,
+    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -572,7 +572,7 @@ const PagePipelineSummary = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject,
+    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -603,7 +603,7 @@ const RecipePreviewStep = z
     operation: Str,
     display_name: Str,
     consumes_terraform_slot: Bool,
-    definition: TaskDefinitionView,
+    definition: TaskDefinitionView.nullable(),
   })
   .partial().passthrough();
 const RecipePreview = z
@@ -650,14 +650,14 @@ const IdcResourceInstallationStatusDto = z
   .object({
     resource_id: Str,
     installation_status: Str,
-    bdc_side_cx_terraform_apply: CloudInstallationStepStatusDto,
-    bdc_side_bdp_terraform_apply: CloudInstallationStepStatusDto,
-    firewall_check: CloudInstallationStepStatusDto,
+    bdc_side_cx_terraform_apply: CloudInstallationStepStatusDto.nullable(),
+    bdc_side_bdp_terraform_apply: CloudInstallationStepStatusDto.nullable(),
+    firewall_check: CloudInstallationStepStatusDto.nullable(),
   })
   .partial().passthrough();
 const IdcInstallationStatusResponse = z
   .object({
-    last_check: LastCheckInfoDto,
+    last_check: LastCheckInfoDto.nullable(),
     resources: z.array(IdcResourceInstallationStatusDto).nullable(),
   })
   .partial().passthrough();
@@ -675,14 +675,14 @@ const GcpResourceInstallationStatusDto = z
     resource_id: Str,
     resource_name: Str,
     installation_status: Str,
-    service_side_subnet_creation: CloudInstallationStepStatusDto,
-    service_side_terraform_apply: CloudInstallationStepStatusDto,
-    bdc_side_terraform_apply: CloudInstallationStepStatusDto,
+    service_side_subnet_creation: CloudInstallationStepStatusDto.nullable(),
+    service_side_terraform_apply: CloudInstallationStepStatusDto.nullable(),
+    bdc_side_terraform_apply: CloudInstallationStepStatusDto.nullable(),
   })
   .partial().passthrough();
 const GcpInstallationStatusResponse = z
   .object({
-    last_check: LastCheckInfoDto,
+    last_check: LastCheckInfoDto.nullable(),
     resources: z.array(GcpResourceInstallationStatusDto).nullable(),
   })
   .partial().passthrough();
@@ -730,15 +730,15 @@ const AzureResourceInstallationStatusDto = z
     resource_name: Str,
     resource_type: Str,
     installation_status: Str,
-    bdc_side_terraform_apply: CloudInstallationStepStatusDto,
-    service_side_private_endpoint_approval: AzurePrivateEndpointApprovalStepDto,
-    azure_virtual_machine_subnet_creation: CloudInstallationStepStatusDto,
-    azure_virtual_machine_terraform_apply: CloudInstallationStepStatusDto,
+    bdc_side_terraform_apply: CloudInstallationStepStatusDto.nullable(),
+    service_side_private_endpoint_approval: AzurePrivateEndpointApprovalStepDto.nullable(),
+    azure_virtual_machine_subnet_creation: CloudInstallationStepStatusDto.nullable(),
+    azure_virtual_machine_terraform_apply: CloudInstallationStepStatusDto.nullable(),
   })
   .partial().passthrough();
 const AzureInstallationStatusResponse = z
   .object({
-    last_check: LastCheckInfoDto,
+    last_check: LastCheckInfoDto.nullable(),
     resources: z.array(AzureResourceInstallationStatusDto).nullable(),
   })
   .partial().passthrough();
@@ -756,9 +756,9 @@ const AwsResourceInstallationStatusDto = z
     resource_id: Str,
     resource_name: Str,
     installation_status: Str,
-    service_terraform: CloudInstallationStepStatusDto,
-    bdc_service_terraform: CloudInstallationStepStatusDto,
-    bdc_common_terraform: CloudInstallationStepStatusDto,
+    service_terraform: CloudInstallationStepStatusDto.nullable(),
+    bdc_service_terraform: CloudInstallationStepStatusDto.nullable(),
+    bdc_common_terraform: CloudInstallationStepStatusDto.nullable(),
   })
   .partial().passthrough();
 const AwsTerraformExecutionRoleVerifyDto = z
@@ -769,9 +769,9 @@ const AwsTerraformExecutionRoleVerifyDto = z
   .partial().passthrough();
 const AwsInstallationStatusResponse = z
   .object({
-    last_check: LastCheckInfoDto,
+    last_check: LastCheckInfoDto.nullable(),
     resources: z.array(AwsResourceInstallationStatusDto).nullable(),
-    terraform_execution_role_verify: AwsTerraformExecutionRoleVerifyDto,
+    terraform_execution_role_verify: AwsTerraformExecutionRoleVerifyDto.nullable(),
   })
   .partial().passthrough();
 const ApprovedIntegrationResponseDto = z
@@ -779,22 +779,22 @@ const ApprovedIntegrationResponseDto = z
     id: Num,
     request_id: Num,
     approved_at: Str,
-    approved_by: ActorDto,
+    approved_by: ActorDto.nullable(),
     resources: z.array(TargetSourceResourceItemDto).nullable(),
   })
   .partial().passthrough();
 const ApprovalRequestLatestDto = z
   .object({
-    request: ApprovalRequestSummaryDto,
+    request: ApprovalRequestSummaryDto.nullable(),
     resources: z.array(TargetSourceResourceItemDto).nullable(),
-    result: ApprovalActionResponseDto,
+    result: ApprovalActionResponseDto.nullable(),
   })
   .partial().passthrough();
 const Page = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject,
+    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -809,7 +809,7 @@ const PageTestConnectionRejectStatusResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject,
+    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -824,7 +824,7 @@ const PageTargetSourceInfo = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject,
+    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -858,7 +858,7 @@ const TargetSourceMetadataResponse = z
     createdAt: Str,
     updatedAt: Str,
     confirmStatus: Str,
-    service_info: TargetSourceServiceInfoResponse,
+    service_info: TargetSourceServiceInfoResponse.nullable(),
   })
   .partial().passthrough();
 const ProcessStatusCurrentResponse = z
@@ -869,14 +869,14 @@ const ProcessStatusCurrentResponse = z
     last_calculated_at: Str,
     delay_seconds: Num,
     evaluated_at: Str,
-    target_source: TargetSourceMetadataResponse,
+    target_source: TargetSourceMetadataResponse.nullable(),
   })
   .partial().passthrough();
 const PageProcessStatusCurrentResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject,
+    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -893,14 +893,14 @@ const ProcessStatusHistoryResponse = z
     target_source_id: Num,
     process_status: Str,
     changed_at: Str,
-    target_source: TargetSourceMetadataResponse,
+    target_source: TargetSourceMetadataResponse.nullable(),
   })
   .partial().passthrough();
 const PageProcessStatusHistoryResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject,
+    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -949,7 +949,7 @@ const TaskAttemptView = z
     response: Str,
     started_at: Str,
     finished_at: Str,
-    check: TaskCheckView,
+    check: TaskCheckView.nullable(),
     terraform_results: z.array(TerraformResultSummary).nullable(),
     job_states: z.array(TerraformJobStateSummary).nullable(),
   })
@@ -961,7 +961,7 @@ const TaskDetail = z
     sequence: Num,
     kind: Str,
     task_definition: Str,
-    definition: TaskDefinitionView,
+    definition: TaskDefinitionView.nullable(),
     operation: Str,
     status: Str,
     fail_count: Num,

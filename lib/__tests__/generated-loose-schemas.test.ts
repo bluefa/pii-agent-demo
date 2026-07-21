@@ -15,6 +15,17 @@ describe('generated install-v1 schemas tolerate BFF/swagger drift', () => {
     expect(parsed).toMatchObject({ host: null, port: null, ips: null, selected: null });
   });
 
+  it('accepts null where an object-reference field is declared', () => {
+    // The BFF returns latest_approval_request: null on the 201 create response; the field
+    // references an object DTO, which the loose transform must also make nullable.
+    const parsed = schemas.TargetSourceInfo.parse({
+      targetSourceId: 42,
+      latest_approval_request: null, // declared object ($ref)
+      metadata: null, // declared object ($ref)
+    });
+    expect(parsed).toMatchObject({ latest_approval_request: null, metadata: null });
+  });
+
   it('accepts datetime strings without a Z/offset (strict .datetime() removed)', () => {
     const parsed = schemas.ApprovalRequestSummaryDto.parse({
       requested_at: '2026-05-06T04:36:31.661958',
