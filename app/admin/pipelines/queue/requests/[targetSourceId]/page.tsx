@@ -28,6 +28,7 @@ import { RequestDetailHeader } from '@/app/admin/pipelines/queue/requests/_compo
 import { CloudResourceTable } from '@/app/admin/pipelines/queue/requests/_components/CloudResourceTable';
 import { IdcResourceTable } from '@/app/admin/pipelines/queue/requests/_components/IdcResourceTable';
 import { NlbListenerModal } from '@/app/admin/pipelines/queue/requests/_components/NlbListenerModal';
+import { NlbMappingModal } from '@/app/admin/pipelines/queue/requests/_components/NlbMappingModal';
 import { ApproveModal } from '@/app/admin/pipelines/queue/requests/_components/ApproveModal';
 import { RejectModal } from '@/app/admin/pipelines/queue/requests/_components/RejectModal';
 import {
@@ -40,6 +41,7 @@ import {
 import {
   approveRequest,
   getApprovalRequestLatest,
+  getNlbIndexMappings,
   getNlbTable,
   getRequestHeader,
   putNlbIndex,
@@ -47,6 +49,7 @@ import {
   type ApprovalRequestDetail,
   type NlbTableRow,
   type RequestResourceRow,
+  type ResourceNlbMappings,
 } from '@/app/lib/api/task-queue-requests';
 import type { RequestListRow } from '@/lib/types/task-queue';
 
@@ -66,6 +69,10 @@ export default function RequestDetailPage(): ReactElement {
   const [header, setHeader] = useState<RequestListRow | null>(null);
   const [detail, setDetail] = useState<ApprovalRequestDetail | null>(null);
   const [nlbTable, setNlbTable] = useState<NlbTableRow[]>([]);
+  // null = the per-resource NLB mappings fetch failed (modal shows a fallback,
+  // not a false "배정 없음"). Resolved before `loading` clears, so a row's "NLB
+  // 정보" control never opens onto a still-loading state.
+  const [nlbMappings, setNlbMappings] = useState<ResourceNlbMappings[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [retry, setRetry] = useState(0);
@@ -73,6 +80,9 @@ export default function RequestDetailPage(): ReactElement {
   const [draft, setDraft] = useState<NlbDraft>({});
   const [savingResourceId, setSavingResourceId] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalKind>(null);
+  // The resource whose "현재 배정된 NLB" modal is open — keyed per resource so
+  // reopening for another row shows that row's data (fresh mount via key prop).
+  const [nlbInfoResource, setNlbInfoResource] = useState<RequestResourceRow | null>(null);
 
   // Gates the post-save toast/refetch: the section-level toast provider outlives
   // this page, so a save resolving after navigation must not fire a toast there.
@@ -92,12 +102,16 @@ export default function RequestDetailPage(): ReactElement {
         getRequestHeader(targetSourceId, { signal }),
         getApprovalRequestLatest(targetSourceId, { signal }),
         getNlbTable({ signal }),
+        // Consumed only by the IDC "NLB 정보" modal — its failure must not break
+        // the detail, so it resolves to null (→ modal fallback) on its own.
+        getNlbIndexMappings(targetSourceId, { signal }).catch(() => null),
       ])
-        .then(([headerRow, detailData, nlb]) => {
+        .then(([headerRow, detailData, nlb, mappings]) => {
           if (signal.aborted) return;
           setHeader(headerRow);
           setDetail(detailData);
           setNlbTable(nlb);
+          setNlbMappings(mappings);
           setDraft({});
           setLoading(false);
         })
@@ -251,6 +265,7 @@ export default function RequestDetailPage(): ReactElement {
                   disabled={detail.request.status !== 'PENDING'}
                   onSelect={onSelectNlb}
                   onSave={(row) => void onSaveNlb(row)}
+                  onShowNlbInfo={setNlbInfoResource}
                 />
                 <p className={`${text.meta} mt-4`}>
                   점유 리스너가 30개를 넘으면 주의, 50개에 이르면 새로 배정할 수 없어요
@@ -267,6 +282,15 @@ export default function RequestDetailPage(): ReactElement {
             targetSourceId={targetSourceId}
             rows={nlbTable}
           />
+          {nlbInfoResource != null && (
+            <NlbMappingModal
+              key={nlbInfoResource.resourceId ?? 'nlb-info'}
+              open
+              onClose={() => setNlbInfoResource(null)}
+              resource={nlbInfoResource}
+              mappings={nlbMappings}
+            />
+          )}
           <ApproveModal
             key={`approve-${modal === 'approve'}`}
             open={modal === 'approve'}

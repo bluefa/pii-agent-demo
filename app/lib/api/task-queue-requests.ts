@@ -20,7 +20,7 @@
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import { fetchInfra, fetchInfraJson } from '@/app/lib/api/infra';
-import type { Paged, RequestListRow } from '@/lib/types/task-queue';
+import type { ApprovalHistoryRow, Paged, RequestListRow } from '@/lib/types/task-queue';
 
 // Re-export the NLB capacity read from the IDC adapter — one occupancy source.
 export { getNlbTable } from '@/app/lib/api/idc';
@@ -151,19 +151,6 @@ export async function getRequestList(
   });
 }
 
-/** Tab counts — one cheap size=1 fetch per tab (api-spec: totalElements is the
- *  authoritative count; the prototype's seg always shows all three). */
-export async function getRequestTabCounts(
-  opts?: { signal?: AbortSignal },
-): Promise<Record<RequestTab, number>> {
-  const [pending, rejected, all] = await Promise.all(
-    (['PENDING', 'REJECTED', 'ALL'] as const).map((tab) =>
-      getRequestList(tab, 0, { signal: opts?.signal, size: 1 }).then((p) => p.totalElements),
-    ),
-  );
-  return { PENDING: pending, REJECTED: rejected, ALL: all };
-}
-
 /** GET /admin/queue/target-sources?targetSourceId= — single-row header lookup (P3). */
 export async function getRequestHeader(
   targetSourceId: number,
@@ -206,6 +193,66 @@ export async function putNlbIndex(
     body: JSON.stringify({ resource_id: resourceId, nlb_index: nlbIndex }),
   });
   if (!res.ok) throw new Error(`NLB 배정 저장에 실패했어요 (${res.status})`);
+}
+
+/** GET /admin/queue/approval-history — global history (route returns camel
+ *  domain; item fields are the documented contract gap in lib/types/task-queue).
+ *  `toStatuses` omitted = 전체. */
+export async function getApprovalHistory(
+  page: number,
+  opts?: { signal?: AbortSignal; size?: number; toStatuses?: string[] },
+): Promise<Paged<ApprovalHistoryRow>> {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(opts?.size ?? REQUEST_PAGE_SIZE),
+  });
+  if (opts?.toStatuses?.length) params.set('toStatuses', opts.toStatuses.join(','));
+  return fetchInfraJson<Paged<ApprovalHistoryRow>>(`/admin/queue/approval-history?${params}`, {
+    signal: opts?.signal,
+  });
+}
+
+// ── NLB index mappings (P3 IDC "NLB 정보" modal) ─────────────────────────────
+// OFF-CONTRACT wire (user-provided, 2026-07-21) — this adapter owns the
+// wire→camel boundary, same as the other reused passthrough routes.
+
+export interface NlbIndexMapping {
+  serviceCode: string | null;
+  nlbIndex: number | null;
+}
+
+export interface ResourceNlbMappings {
+  resourceId: string;
+  mappings: NlbIndexMapping[];
+}
+
+interface NlbIndexMappingItemWire {
+  resource_id?: string | null;
+  nlb_index_mapping_list?:
+    | { service_code?: string | null; nlb_index?: number | null }[]
+    | null;
+}
+
+/** GET …/approval-requests/latest/nlb-index-mappings — per-resource current
+ *  NLB listener assignments (one entry per consuming service). */
+export async function getNlbIndexMappings(
+  targetSourceId: number,
+  opts?: { signal?: AbortSignal },
+): Promise<ResourceNlbMappings[]> {
+  const wire = await fetchInfraJson<NlbIndexMappingItemWire[]>(
+    `/target-sources/${targetSourceId}/approval-requests/latest/nlb-index-mappings`,
+    { signal: opts?.signal },
+  );
+  return (wire ?? [])
+    .filter((item): item is NlbIndexMappingItemWire & { resource_id: string } =>
+      item.resource_id != null && item.resource_id !== '')
+    .map((item) => ({
+      resourceId: item.resource_id,
+      mappings: (item.nlb_index_mapping_list ?? []).map((m) => ({
+        serviceCode: m.service_code ?? null,
+        nlbIndex: m.nlb_index ?? null,
+      })),
+    }));
 }
 
 /** POST …/approval-requests/approve — comment optional (UI 1,024자). */

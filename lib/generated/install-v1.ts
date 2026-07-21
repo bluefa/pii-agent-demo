@@ -383,10 +383,10 @@ const SortObject = z
   .partial().passthrough();
 const PageableObject = z
   .object({
+    unpaged: Bool,
     paged: Bool,
     pageNumber: Num,
     pageSize: Num,
-    unpaged: Bool,
     offset: Num,
     sort: z.array(SortObject).nullable(),
   })

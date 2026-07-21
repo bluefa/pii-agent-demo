@@ -44,7 +44,6 @@ import { TqEmptyState } from '@/app/admin/pipelines/queue/_components/bits';
 
 import { getDashboardSummary, getProcessStatuses } from '@/app/lib/api/task-queue';
 import type { DashboardSummary, Paged, ProcessStatusRow } from '@/lib/types/task-queue';
-import { delayCounts, filterByDelay } from '@/app/admin/pipelines/queue/_p1/logic';
 import type { DelayFilter } from '@/app/admin/pipelines/queue/_p1/logic';
 
 const POLL_INTERVAL_MS = 30_000;
@@ -86,7 +85,7 @@ export default function QueueDashboardPage(): ReactElement {
   // 현황 — degrades to "—" on error (the monitor owns the visible error surface).
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
 
-  // 모니터 — server-side processStatus/page/size; client-side delay filter.
+  // 모니터 — every filter is server-side (delay via our route, api-spec G1).
   const [procStatus, setProcStatus] = useState('');
   const [delayFilter, setDelayFilter] = useState<DelayFilter>('all');
   const [page, setPage] = useState(0); // 0-indexed (contract)
@@ -115,7 +114,7 @@ export default function QueueDashboardPage(): ReactElement {
       setLoading(true);
       setError(null);
       return getProcessStatuses(
-        { processStatus: procStatus || undefined, page, size },
+        { processStatus: procStatus || undefined, delay: delayFilter, page, size },
         { signal },
       )
         .then((data) => {
@@ -129,7 +128,7 @@ export default function QueueDashboardPage(): ReactElement {
           setLoading(false);
         });
     },
-    [procStatus, page, size, retryNonce],
+    [procStatus, delayFilter, page, size, retryNonce],
   );
 
   // 30s background poll — refresh both endpoints without the loading skeleton so
@@ -143,7 +142,7 @@ export default function QueueDashboardPage(): ReactElement {
         })
         .catch(() => {});
       getProcessStatuses(
-        { processStatus: procStatus || undefined, page, size },
+        { processStatus: procStatus || undefined, delay: delayFilter, page, size },
         { signal: controller.signal },
       )
         .then((data) => {
@@ -155,11 +154,9 @@ export default function QueueDashboardPage(): ReactElement {
       controller.abort();
       clearInterval(timer);
     };
-  }, [procStatus, page, size]);
+  }, [procStatus, delayFilter, page, size]);
 
-  const rows = useMemo(() => procPage?.content ?? [], [procPage]);
-  const counts = useMemo(() => delayCounts(rows), [rows]);
-  const visibleRows = useMemo(() => filterByDelay(rows, delayFilter), [rows, delayFilter]);
+  const visibleRows = useMemo(() => procPage?.content ?? [], [procPage]);
 
   const totalElements = procPage?.totalElements ?? 0;
   const totalPages = Math.max(1, procPage?.totalPages ?? 1);
@@ -219,17 +216,20 @@ export default function QueueDashboardPage(): ReactElement {
               ),
             )}
           </TqSelectLg>
-          {/* Delay filter is client-side over the fetched page (contract gap G1);
-              counts reflect that page, not the whole result set. */}
+          {/* Delay filter drives the API call (our route applies it — gap G1). */}
           <TqSegLg<DelayFilter>
             ariaLabel="지연 필터"
             value={delayFilter}
-            onChange={setDelayFilter}
+            onChange={(next) => {
+              if (next === delayFilter) return;
+              setDelayFilter(next);
+              setPage(0);
+            }}
             options={[
-              { label: '지연 전체', value: 'all', count: counts.all },
-              { label: '1시간↑', value: 'd1', count: counts.d1, dot: 'd1' },
-              { label: '1일↑', value: 'd2', count: counts.d2, dot: 'd2' },
-              { label: '7일↑', value: 'd3', count: counts.d3, dot: 'd3' },
+              { label: '지연 전체', value: 'all' },
+              { label: '1시간↑', value: 'd1', dot: 'd1' },
+              { label: '1일↑', value: 'd2', dot: 'd2' },
+              { label: '7일↑', value: 'd3', dot: 'd3' },
             ]}
           />
         </div>

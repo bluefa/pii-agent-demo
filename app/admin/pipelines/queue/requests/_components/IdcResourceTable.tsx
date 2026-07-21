@@ -17,7 +17,6 @@ import { OccBar, FtagBadge } from '@/app/admin/pipelines/queue/_components/bits'
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import {
   NLB_CAPACITY,
-  NLB_WARN_THRESHOLD,
   effectiveNlbIndex,
   isNlbDirty,
   nlbOptionDisabled,
@@ -35,15 +34,17 @@ export interface IdcResourceTableProps {
   disabled?: boolean;
   onSelect: (row: RequestResourceRow, nlbIndex: number) => void;
   onSave: (row: RequestResourceRow) => void;
+  /** Open the "현재 배정된 NLB" modal for this resource (read-only, always
+   *  available — not gated by `disabled`). */
+  onShowNlbInfo: (row: RequestResourceRow) => void;
 }
 
 const SELECT_BASE =
   'h-7 rounded-md border px-2.5 text-[12px] text-[var(--pl-text-strong)] bg-[var(--pl-bg-card)] cursor-pointer focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]';
 
-function optionLabel(index: number, occupied: number): string {
-  const suffix =
-    occupied >= NLB_CAPACITY ? ' · Hard Limit' : occupied >= NLB_WARN_THRESHOLD ? ' · 주의' : '';
-  return `NLB #${index} · ${occupied}/${NLB_CAPACITY}${suffix}`;
+/** Dropdown label is index-only — occupancy lives in the 배정 NLB 상태 cell. */
+function optionLabel(index: number): string {
+  return `NLB #${index}`;
 }
 
 export function IdcResourceTable({
@@ -54,6 +55,7 @@ export function IdcResourceTable({
   disabled = false,
   onSelect,
   onSave,
+  onShowNlbInfo,
 }: IdcResourceTableProps): ReactElement {
   const { appTable, tag, occ } = tqStyles;
   const occupancyByIndex = new Map(nlbTable.map((n) => [n.nlbIndex, n.occupiedListenerCount]));
@@ -74,7 +76,7 @@ export function IdcResourceTable({
             <th className={`${appTable.th} w-[150px]`}>Source IP</th>
             <th className={`${appTable.th} w-[170px]`}>NLB Index</th>
             <th className={`${appTable.th} w-[210px]`}>배정 NLB 상태</th>
-            <th className={`${appTable.th} w-[70px]`} />
+            <th className={`${appTable.th} w-[170px]`} />
           </tr>
         </thead>
         <tbody className={appTable.body}>
@@ -159,7 +161,7 @@ export function IdcResourceTable({
                         value={n.nlbIndex}
                         disabled={nlbOptionDisabled(n.occupiedListenerCount, n.nlbIndex, current)}
                       >
-                        {optionLabel(n.nlbIndex, n.occupiedListenerCount)}
+                        {optionLabel(n.nlbIndex)}
                       </option>
                     ))}
                   </select>
@@ -178,12 +180,17 @@ export function IdcResourceTable({
                     <span className="text-[var(--pl-text-weak)]">—</span>
                   )}
                 </td>
-                <td className={`${appTable.td} text-right`}>
-                  {dirty && !disabled && (
-                    <PlButton variant="primary" size="sm" disabled={saving} onClick={() => onSave(row)}>
-                      저장
+                <td className={appTable.td}>
+                  <span className="inline-flex items-center justify-end gap-1.5 w-full">
+                    <PlButton variant="ghost" size="sm" onClick={() => onShowNlbInfo(row)}>
+                      NLB 정보
                     </PlButton>
-                  )}
+                    {dirty && !disabled && (
+                      <PlButton variant="primary" size="sm" disabled={saving} onClick={() => onSave(row)}>
+                        저장
+                      </PlButton>
+                    )}
+                  </span>
                 </td>
               </tr>
             );

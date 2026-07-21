@@ -15,8 +15,8 @@ import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 export interface TqModalProps {
   open: boolean;
   onClose: () => void;
-  /** Eyebrow context label (weak) — e.g. "연동 요청". */
-  eyebrowCtx: ReactNode;
+  /** Eyebrow context label (weak) — e.g. "연동 요청". Omit to hide the eyebrow row. */
+  eyebrowCtx?: ReactNode;
   /** Eyebrow identifier (primary bold) — e.g. "#1027". Omit to show ctx alone. */
   eyebrowId?: ReactNode;
   /** Title — 24/700. */
@@ -55,16 +55,18 @@ export function TqModal({
       className={wide ? modal.widthWide : modal.width}
     >
       <div className={modal.header}>
-        <div className={modal.eyebrow}>
-          <span className={modal.eyebrowDot} />
-          <span className={modal.eyebrowCtx}>{eyebrowCtx}</span>
-          {eyebrowId != null && (
-            <>
-              <span className={modal.eyebrowSep}>·</span>
-              <span className={modal.eyebrowId}>{eyebrowId}</span>
-            </>
-          )}
-        </div>
+        {eyebrowCtx != null && (
+          <div className={modal.eyebrow}>
+            <span className={modal.eyebrowDot} />
+            <span className={modal.eyebrowCtx}>{eyebrowCtx}</span>
+            {eyebrowId != null && (
+              <>
+                <span className={modal.eyebrowSep}>·</span>
+                <span className={modal.eyebrowId}>{eyebrowId}</span>
+              </>
+            )}
+          </div>
+        )}
         <h3 id={titleId} className={modal.title}>
           {title}
         </h3>

@@ -87,6 +87,92 @@ const REQUESTS_REJECTED: RequestRow[] = [
   },
 ];
 
+// ── Approval history (global, GET /approval-history) ────────────────────────
+// Item wire = user-sanctioned assumption (swagger 200 is the generic Page; gap
+// documented in lib/types/task-queue.ts). Newest first; covers all 7 enums.
+interface ApprovalHistoryFixture {
+  request_id: number;
+  target_source_id: number;
+  status: string;
+  created_at: string;
+  service_name: string;
+  service_code: string;
+}
+
+const APPROVAL_HISTORY: ApprovalHistoryFixture[] = [
+  { request_id: 5121, target_source_id: 1031, status: 'PENDING', created_at: '2026-07-20T09:12:00Z', service_name: '주문서비스', service_code: 'ORD' },
+  { request_id: 5118, target_source_id: 2113, status: 'PENDING', created_at: '2026-07-20T08:40:00Z', service_name: '결제서비스', service_code: 'PAY' },
+  { request_id: 5116, target_source_id: 2044, status: 'PENDING', created_at: '2026-07-19T18:03:00Z', service_name: '포인트서비스', service_code: 'PNT' },
+  { request_id: 5112, target_source_id: 2051, status: 'PENDING', created_at: '2026-07-19T15:27:00Z', service_name: '알림서비스', service_code: 'NTF' },
+  { request_id: 5107, target_source_id: 1861, status: 'APPROVED', created_at: '2026-07-19T11:20:00Z', service_name: '정산서비스', service_code: 'STL' },
+  { request_id: 5101, target_source_id: 1907, status: 'REJECTED', created_at: '2026-07-18T11:02:00Z', service_name: '광고서비스', service_code: 'ADS' },
+  { request_id: 5093, target_source_id: 1980, status: 'AUTO_APPROVED', created_at: '2026-07-17T22:10:00Z', service_name: '회원서비스', service_code: 'MBR' },
+  { request_id: 5090, target_source_id: 1799, status: 'APPROVED', created_at: '2026-07-17T14:55:00Z', service_name: '배송서비스', service_code: 'DLV' },
+  { request_id: 5084, target_source_id: 1027, status: 'UNAVAILABLE_ACKNOWLEDGED', created_at: '2026-07-16T10:31:00Z', service_name: '쿠폰서비스', service_code: 'CPN' },
+  { request_id: 5080, target_source_id: 1027, status: 'UNAVAILABLE', created_at: '2026-07-16T09:02:00Z', service_name: '쿠폰서비스', service_code: 'CPN' },
+  { request_id: 5074, target_source_id: 1873, status: 'REJECTED', created_at: '2026-07-15T09:47:00Z', service_name: '채팅서비스', service_code: 'CHT' },
+  { request_id: 5069, target_source_id: 1583, status: 'CANCELLED', created_at: '2026-07-14T17:26:00Z', service_name: '인증서비스', service_code: 'ATH' },
+  { request_id: 5061, target_source_id: 1583, status: 'PENDING', created_at: '2026-07-14T09:15:00Z', service_name: '인증서비스', service_code: 'ATH' },
+  { request_id: 5055, target_source_id: 1861, status: 'PENDING', created_at: '2026-07-13T13:44:00Z', service_name: '정산서비스', service_code: 'STL' },
+  { request_id: 5049, target_source_id: 1444, status: 'CANCELLED', created_at: '2026-07-12T16:08:00Z', service_name: '검색서비스', service_code: 'SRC' },
+  { request_id: 5041, target_source_id: 1980, status: 'PENDING', created_at: '2026-07-11T10:52:00Z', service_name: '회원서비스', service_code: 'MBR' },
+  { request_id: 5033, target_source_id: 1799, status: 'AUTO_APPROVED', created_at: '2026-07-10T19:37:00Z', service_name: '배송서비스', service_code: 'DLV' },
+  { request_id: 5027, target_source_id: 1907, status: 'PENDING', created_at: '2026-07-10T08:21:00Z', service_name: '광고서비스', service_code: 'ADS' },
+  { request_id: 5019, target_source_id: 1873, status: 'PENDING', created_at: '2026-07-09T15:03:00Z', service_name: '채팅서비스', service_code: 'CHT' },
+  { request_id: 5012, target_source_id: 1031, status: 'REJECTED', created_at: '2026-07-08T11:49:00Z', service_name: '주문서비스', service_code: 'ORD' },
+  { request_id: 5006, target_source_id: 1031, status: 'PENDING', created_at: '2026-07-08T09:30:00Z', service_name: '주문서비스', service_code: 'ORD' },
+  { request_id: 4998, target_source_id: 1444, status: 'APPROVED', created_at: '2026-07-07T14:12:00Z', service_name: '검색서비스', service_code: 'SRC' },
+  { request_id: 4991, target_source_id: 2113, status: 'CANCELLED', created_at: '2026-07-06T10:05:00Z', service_name: '결제서비스', service_code: 'PAY' },
+];
+
+// ── NLB index mappings (…/approval-requests/latest/nlb-index-mappings) ──────
+// OFF-CONTRACT endpoint (user-provided wire, 2026-07-21). Per resource: the NLB
+// listeners currently serving it, one entry per consuming service.
+interface NlbIndexMappingFixture {
+  resource_id: string;
+  nlb_index_mapping_list: { service_code: string; nlb_index: number }[];
+}
+
+const NLB_INDEX_MAPPINGS = new Map<number, NlbIndexMappingFixture[]>([
+  [1031, [
+    // 24 entries — exercises the modal's in-modal pagination (10/page).
+    { resource_id: 'idc-r-8f21', nlb_index_mapping_list: [
+      { service_code: 'ORD', nlb_index: 3 },
+      { service_code: 'PAY', nlb_index: 3 },
+      { service_code: 'MBR', nlb_index: 1 },
+      { service_code: 'DLV', nlb_index: 1 },
+      { service_code: 'STL', nlb_index: 2 },
+      { service_code: 'CHT', nlb_index: 6 },
+      { service_code: 'ADS', nlb_index: 6 },
+      { service_code: 'SRC', nlb_index: 5 },
+      { service_code: 'PNT', nlb_index: 2 },
+      { service_code: 'NTF', nlb_index: 4 },
+      { service_code: 'CPN', nlb_index: 1 },
+      { service_code: 'ATH', nlb_index: 5 },
+      { service_code: 'RVW', nlb_index: 2 },
+      { service_code: 'INV', nlb_index: 3 },
+      { service_code: 'FLT', nlb_index: 6 },
+      { service_code: 'CRM', nlb_index: 4 },
+      { service_code: 'BIL', nlb_index: 1 },
+      { service_code: 'LOG', nlb_index: 5 },
+      { service_code: 'RCM', nlb_index: 2 },
+      { service_code: 'EVT', nlb_index: 6 },
+      { service_code: 'QNA', nlb_index: 4 },
+      { service_code: 'VOC', nlb_index: 3 },
+      { service_code: 'TAG', nlb_index: 5 },
+      { service_code: 'GFT', nlb_index: 1 },
+    ] },
+    { resource_id: 'idc-r-8f22', nlb_index_mapping_list: [
+      { service_code: 'ORD', nlb_index: 3 },
+    ] },
+    { resource_id: 'idc-r-8f23', nlb_index_mapping_list: [
+      { service_code: 'ORD', nlb_index: 5 },
+      { service_code: 'PNT', nlb_index: 5 },
+    ] },
+    { resource_id: 'idc-r-8f24', nlb_index_mapping_list: [] },
+  ]],
+]);
+
 const REQUESTS_ALL: RequestRow[] = [
   { ts: 1031, svc: '주문서비스', code: 'ORD', pv: 'IDC', cs: 'PENDING' },
   { ts: 2113, svc: '결제서비스', code: 'PAY', pv: 'AWS', cs: 'PENDING' },
@@ -538,6 +624,20 @@ export const mockTaskQueue = {
     }
     return NextResponse.json(getTqApprovalLatest(id) ?? {});
   },
+
+  // GET /approval-history?toStatuses=&page=&size= — global history (newest first).
+  getApprovalHistory: async (query: { toStatuses?: string[]; page: number; size: number }) => {
+    let rows: ApprovalHistoryFixture[] = APPROVAL_HISTORY;
+    if (query.toStatuses?.length) {
+      const wanted = new Set(query.toStatuses);
+      rows = rows.filter((r) => wanted.has(r.status));
+    }
+    return NextResponse.json(wirePage(rows, query.page, query.size));
+  },
+
+  // GET …/{id}/approval-requests/latest/nlb-index-mappings — off-contract wire.
+  getNlbIndexMappings: async (id: number) =>
+    NextResponse.json(NLB_INDEX_MAPPINGS.get(id) ?? []),
 
   // GET /target-sources/test-connection/status?status=&page=&size=
   getTestConnectionPage: async (query: { status: string; page: number; size: number }) => {

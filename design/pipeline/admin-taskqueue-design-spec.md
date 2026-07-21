@@ -18,6 +18,7 @@
 | 카드 | white·border·r10·shadow-xs·p 20/24/24 | `Card` (`card.base`) |
 | breadcrumb | 12 weak · sep `/` · cur 600 medium | `PlBreadcrumb` |
 | 토스트 | 하단 중앙 gray-900 | `PlToast` |
+| 연동 요청 알람 (2026-07-21) | 승인 대기 ≥1건이면 사이드바 "연동 요청" 라벨 옆 8px 빨간 점 | layout에서 `dashboard/summary` 30s 폴링(`pendingApprovalCount`), best-effort(실패 무시) |
 
 ## 1. P1 운영 대시보드 `#/queue`
 
@@ -45,22 +46,28 @@ h1 "운영 대시보드"
     PlPagination (rows 있을 때만): "표시 [10▾] 건씩 · 1–20 / 전체 N건 · ‹ 1 2 ›" 문법
 ```
 
-## 2. P2 연동 요청 `#/requests`
+## 2. P2 연동 요청 `#/requests` — 3계층 구성 (2026-07-21 개편, seg 탭 제거)
 
 ```
 h1 "연동 요청" / section-desc "서비스가 보낸 연동 승인 요청을 검토하고 처리해요"
-Card
-  seg.lg 탭 (id req-seg): [승인 대기 N] [반려 N] [전체 N]  ← 카운트 .cnt 400 faint(on일 때 weak)
-  tbl — 컬럼 탭별:
-    공통 4: 서비스 이름 · 서비스 코드 · Target Source · Cloud   ← 상태 컬럼 없음(탭이 상태)
-    반려 탭 +2: 반려 사유(rr hover 툴팁: 260px 말줄임 + gray-900 320px 툴팁) · 반려 일자(meta)
-    승인 대기 탭 +1: 우측 정렬 detail-link = "상세보기" 14/600 primary + ↗ 아이콘 14 (gap 4)
-  행 클릭: 승인 대기 탭만 row 전체 클릭 → 상세 (hover bg gray-50)
-  empty-state 탭별 문구:
-    PENDING: 승인을 기다리는 요청이 없어요 / 새 연동 요청이 들어오면 여기에 표시돼요
-    REJECTED: 반려된 요청이 없어요 / 반려 처리한 요청이 여기에 모여요
-    ALL: 연동 요청이 없어요 / 서비스가 연동을 요청하면 여기에 표시돼요
-  PlPagination (비었으면 숨김)
+카드 문법(2차 개편): 계층 = 카드 내장 헤더(9px r10 아이콘 칩 + 제목 16/700 + 건수 배지
+  pill 12/700 + desc 13 weak, border-b 구분) — 떠 있는 SectionHeader 사용 금지
+그룹 라벨: "처리가 필요한 요청"(계층 1·2, 카드 간 mt-16) / "이력"(계층 3) — 13/600 weak
+계층 1 — 카드 "연동 요청 확인" (confirmStatus=PENDING) · 칩 inbox/tag-blue · 배지 blue
+  tbl: 서비스 이름 · 서비스 코드 · Target Source · Cloud · 상세보기(detail-link ↗)
+  행 전체 클릭 → 상세 (hover bg gray-50)
+  empty: 승인을 기다리는 요청이 없어요 / 새 연동 요청이 들어오면 여기에 표시돼요
+  PlPagination (섹션별 독립, 비었으면 숨김)
+계층 2 — 카드 "연동 요청 반려 확인" (confirmStatus=REJECTED) · 칩 warn-tri/err · 배지 err
+  desc(보조 텍스트, 사용자 지정): "반려했으나 서비스 측 담당자가 아직 확인하지 않았어요"
+  tbl: 공통 4 + 반려 사유(rr hover 툴팁) · 반려 일자(meta)
+  empty: 확인 대기 중인 반려 건이 없어요
+계층 3 — 카드 "전체 History 확인" (/approval-history, pagination 필수) · 칩 clock/gray-100
+  tbl: 서비스 · Code(mono) · 요청 ID(#mono) · 상태(enum pill) · 일시 — 상세보기 없음(read-only 감사 로그, 행 클릭 없음)
+  enum 매핑: PENDING=승인 대기(warn) · APPROVED=승인(ok) · AUTO_APPROVED=자동 승인(ok)
+             REJECTED=반려(err) · CANCELLED=취소(gray) · UNAVAILABLE=연동 불가(err)
+             UNAVAILABLE_ACKNOWLEDGED=연동 불가 확인(gray) · 미지 값=gray raw
+  empty: 표시할 승인 이력이 없어요
 ```
 
 ## 3. P3 연동 요청 상세 `#/requests/{id}`
@@ -88,6 +95,11 @@ page-head(detail-head — Primer PageHeader + Helios kv≤4 문법, admin-taskqu
     occbar 톤: <30 gray-400 / ≥30 warn / ≥50 err · ftag: 여유(na)/주의(warn)/Hard Limit(err)
     Hard Limit(≥50) NLB는 select option disabled
 섹션 "NLB 리스너 현황" — 헤더 우측 secondary 버튼 [NLB 리스너 현황] → 모달(아래 §6)
+IDC 행별 "NLB 정보" (2026-07-21 추가) — 연동 대상 행의 액션 영역에 상시 노출, 클릭 → 모달
+  모달 "현재 배정된 NLB": eyebrow 연동 요청 · #{id} / meta = 연동 대상(mono)+DB tag
+  tbl: Service Code(mono) · NLB Index("NLB #n") — 목록이 길면 모달 내 스크롤(페이지네이션 없음)
+  empty: 배정된 NLB가 없어요 / 조회 실패: NLB 정보를 불러오지 못했어요 (거짓 '배정 없음' 금지)
+  데이터: …/latest/nlb-index-mappings (갭 G7) — 페이지 로드 시 1회, 실패해도 상세는 렌더
 ```
 
 ## 4. P4 연결 테스트 `#/tc`

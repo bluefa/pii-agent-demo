@@ -39,9 +39,17 @@
 
 ## P2 연동 요청 목록 `/admin/pipelines/queue/requests`
 
-- `GET /install/v1/target-sources/page?confirmStatus=&page=&size=10` → `PageTargetSourceInfo`
-  - 탭: 승인 대기=`confirmStatus=PENDING` · 반려=`confirmStatus=REJECTED` · 전체=파라미터 생략.
-  - row = `TargetSourceInfo` (⚠️ **camel 섬**: `targetSourceId`/`serviceName`/`serviceCode`/`cloudProvider`/`confirmStatus` camel + `latest_approval_request` snake 혼재 — route에서 정규화)
+3계층 구성(2026-07-21 개편 — 탭 세그 제거):
+
+1. **연동 요청 확인** — `GET /install/v1/target-sources/page?confirmStatus=PENDING&page=&size=10`
+2. **연동 요청 반려 확인** — `GET /install/v1/target-sources/page?confirmStatus=REJECTED&page=&size=10`
+   - 보조 텍스트: "반려했으나 서비스 측 담당자가 아직 확인하지 않았어요".
+3. **전체 History 확인** — `GET /install/v1/approval-history?toStatuses=&page=&size=10` → generic `Page`
+   - `toStatuses` 생략 = 전체. enum 7종: PENDING·APPROVED·AUTO_APPROVED·REJECTED·CANCELLED·UNAVAILABLE·UNAVAILABLE_ACKNOWLEDGED.
+   - ⚠️ 계약 갭 **G6**: 200이 generic `Page`(content: object[]) — 항목 필드는 사용자 지정 가정
+     (`request_id`·`target_source_id`·`status`·`created_at`·`service_name`·`service_code`, `lib/types/task-queue.ts` 단일 교정점).
+
+- `target-sources/page` row = `TargetSourceInfo` (⚠️ **camel 섬**: `targetSourceId`/`serviceName`/`serviceCode`/`cloudProvider`/`confirmStatus` camel + `latest_approval_request` snake 혼재 — route에서 정규화)
   - 반려 사유/일자: `latest_approval_request`(`LatestApprovalRequestSummaryDto`)의 `reason` / `processed_at`.
 
 ## P3 연동 요청 상세 `/admin/pipelines/queue/requests/[targetSourceId]`
@@ -60,6 +68,11 @@
 - `PUT /install/v1/target-sources/{id}/approval-requests/nlb-indices`
   - body = `NlbIndexAssignmentDto` **단건** `{resource_id, nlb_index}` — 행별 저장 버튼 1회 호출 = 계약 1회.
   - PENDING 요청에만 허용(계약 설명). 승인 전 미저장 변경 경고는 UI 로컬 상태.
+- `GET /install/v1/target-sources/{id}/approval-requests/latest/nlb-index-mappings`
+  - ⚠️ 계약 갭 **G7**: swagger 미수록 — 사용자 제공 wire(2026-07-21):
+    `[{ resource_id, nlb_index_mapping_list: [{ service_code, nlb_index }] }]`.
+  - 리소스별 현재 배정된 NLB 리스너(소비 서비스별 1건). 행별 "NLB 정보" 모달의 데이터 소스.
+  - 라우트는 raw passthrough, camel 경계는 CSR 어댑터(`getNlbIndexMappings`).
 
 ### 승인 / 반려
 - `POST /install/v1/target-sources/{id}/approval-requests/approve` body=`ApprovalApproveRequestDto{comment}` (UI 1,024자 제한)
@@ -94,8 +107,10 @@
 
 | # | 갭 | 처리 |
 |---|---|---|
-| G1 | 지연 필터(1h/1d/7d) 쿼리 없음 | 클라 필터 + 주석 |
+| G1 | 지연 필터(1h/1d/7d) 쿼리 없음 | **우리 route가 필터 소유**(2026-07-21): `?delay=d1\|d2\|d3` → 업스트림 페이지 집계(size 100 × 최대 10페이지) 후 필터·재페이지네이션. UI 세그는 카운트 없이 API 재호출 |
 | G2 | NLB 30/50 임계값 계약 부재 | UI 상수로 정의 |
 | G3 | `TargetSourceInfo` camel 섬 + `latest_approval_request` snake 혼재 | route에서 도메인 camel로 정규화 |
 | G4 | `NlbTableResponse` camel wire | route 정규화 (sanctioned) |
 | G5 | nlb-indices 단건 계약 | 행별 저장 UX로 흡수 (일괄 저장 없음) |
+| G6 | `/approval-history` 200이 generic `Page` — 항목 스키마 부재 | 사용자 지정 가정 shape로 구현, `ApprovalHistoryItemWire` 단일 교정점 |
+| G7 | `nlb-index-mappings` swagger 미수록 | 사용자 제공 wire로 구현, raw passthrough + 어댑터 경계 |

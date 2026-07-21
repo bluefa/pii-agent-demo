@@ -14,7 +14,12 @@
  * ── P1 운영 대시보드 ──────────────────────────────────────────────────────────
  */
 import { fetchInfraJson } from '@/app/lib/api/infra';
-import type { DashboardSummary, Paged, ProcessStatusRow } from '@/lib/types/task-queue';
+import type {
+  DashboardSummary,
+  DelayFilter,
+  Paged,
+  ProcessStatusRow,
+} from '@/lib/types/task-queue';
 
 /** GET /admin/queue/dashboard-summary — the 4 operator KPI counts (camel domain). */
 export const getDashboardSummary = (options?: { signal?: AbortSignal }): Promise<DashboardSummary> =>
@@ -28,6 +33,9 @@ export interface ProcessStatusesParams {
   processStatus?: string;
   /** Server-side single target-source filter (unused by P1; kept for parity). */
   targetSourceId?: number;
+  /** Delay-tier filter (d1/d2/d3) — applied by OUR route over aggregated
+   *  upstream pages (api-spec gap G1). Omit or 'all' for 전체. */
+  delay?: DelayFilter;
   /** 0-indexed page (contract). */
   page?: number;
   /** Page size (contract default 20, max 100). */
@@ -36,9 +44,9 @@ export interface ProcessStatusesParams {
 
 /**
  * GET /admin/queue/process-statuses — the Process Status monitor page.
- * `processStatus`/`targetSourceId` are server-side filters; the delay filter
- * (1h/1d/7d) is client-side over the returned page (api-spec gap G1). `delay_seconds`
- * is server-computed — never recompute it on the client.
+ * Every filter drives an API call: `processStatus`/`targetSourceId` pass through
+ * to the upstream, `delay` (1h/1d/7d) is applied by our route (api-spec gap G1).
+ * `delay_seconds` is server-computed — never recompute it on the client.
  */
 export const getProcessStatuses = (
   params: ProcessStatusesParams = {},
@@ -47,6 +55,7 @@ export const getProcessStatuses = (
   const search = new URLSearchParams();
   if (params.processStatus) search.set('processStatus', params.processStatus);
   if (params.targetSourceId != null) search.set('targetSourceId', String(params.targetSourceId));
+  if (params.delay && params.delay !== 'all') search.set('delay', params.delay);
   if (params.page != null) search.set('page', String(params.page));
   if (params.size != null) search.set('size', String(params.size));
   const qs = search.toString();
