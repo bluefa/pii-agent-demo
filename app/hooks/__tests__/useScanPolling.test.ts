@@ -165,6 +165,33 @@ describe('useScanPolling', () => {
     expect(onScanComplete).toHaveBeenCalledTimes(1);
   });
 
+  // An arm pinned to the started job's id must not be satisfied by a stale read
+  // of an OLDER job — even when that older job was never observed before (initial
+  // fetch error), its SUCCESS must neither fire nor consume the arm.
+  it('ignores a stale older-job SUCCESS while armed for a specific job id', async () => {
+    const onScanComplete = vi.fn();
+    vi.mocked(getLatestScanJob)
+      .mockRejectedValueOnce(new Error('endpoint down')) // old job never adopted
+      .mockResolvedValueOnce({ scan_status: 'SUCCESS', id: 3, target_source_id: 1 }) // stale pre-start read
+      .mockResolvedValue({ scan_status: 'SUCCESS', id: 7, target_source_id: 1 }); // the started scan
+
+    const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // first read errors
+    });
+
+    act(() => result.current.expectCompletion(7)); // startScan returned job id 7
+    await act(async () => {
+      await result.current.refresh(); // stale old job 3 → no fire, arm survives
+    });
+    expect(onScanComplete).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.refresh(); // job 7 SUCCESS → fires
+    });
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+  });
+
   // A first poll that settles as an error must still end the initial load, or the
   // Run Infra Scan button (gated on `loading`) freezes disabled forever. (LIN-39)
   it('clears loading when the first poll fails', async () => {

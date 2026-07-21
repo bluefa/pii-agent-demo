@@ -61,11 +61,12 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
   const { execute: doStartScan, loading: starting } = useApiAction(
     async () => {
       const minSpinnerDelay = new Promise<void>((resolve) => setTimeout(resolve, 500));
-      await startScan(targetSourceId);
+      const startedJob = await startScan(targetSourceId);
       // Arm completion detection BEFORE the refresh: a fast scan may already be
       // terminal (and id-less) on that very read, which identity/edge detection
-      // alone would miss.
-      expectCompletion();
+      // alone would miss. Pin the arm to the started job's id (when the backend
+      // returns one) so a stale response for an OLDER job cannot satisfy it.
+      expectCompletion(startedJob.id ?? undefined);
       await refresh();
       startPolling();
       await minSpinnerDelay;
