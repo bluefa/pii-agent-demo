@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import type { CandidateResource } from '@/lib/types/resources';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
 
@@ -13,6 +13,8 @@ const candidateFixture = (overrides: Partial<CandidateResource> = {}): Candidate
     databaseType: 'MYSQL',
     integrationCategory: 'TARGET',
     behaviorKey: 'default',
+    selected: false,
+    exclusionReason: null,
     metadata: {
       provider: 'AWS',
       resourceType: 'RDS',
@@ -24,13 +26,17 @@ const candidateFixture = (overrides: Partial<CandidateResource> = {}): Candidate
 const defaultProps = {
   candidates: [candidateFixture()],
   selectedIds: new Set<string>(),
+  exclusionReasons: {},
   drafts: { endpointDrafts: {} },
   expandedResourceId: null,
   readonly: false,
   approvalSubmitting: false,
-  onToggleSelected: () => {},
-  onExpandToggle: () => {},
-  onEndpointSave: () => {},
+  actions: {
+    toggleSelected: () => {},
+    reasonChipClick: () => {},
+    expandToggle: () => {},
+    endpointSave: () => {},
+  },
   onRequestApproval: () => {},
 };
 
@@ -82,6 +88,35 @@ describe('CandidateResourceTable', () => {
     const button = screen.getByRole('button', { name: 'Resource ID 복사' });
     expect(button.className).toContain('opacity-0');
     expect(button.className).toContain('group-hover/resid:opacity-100');
+  });
+
+  // A server-seeded unselected TARGET without a reason must expose a direct entry
+  // point to the reason picker — approval is blocked until a reason exists.
+  it('renders a 사유 입력 entry point for an unselected TARGET without a reason', () => {
+    const reasonChipClick = vi.fn();
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        actions={{ ...defaultProps.actions, reasonChipClick }}
+      />,
+    );
+    const entry = screen.getByRole('button', { name: '제외 사유 입력' });
+    fireEvent.click(entry);
+    expect(reasonChipClick).toHaveBeenCalledWith('c-1', expect.any(HTMLElement));
+  });
+
+  it('does not render the 사유 입력 entry point for selected or non-TARGET rows', () => {
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[
+          candidateFixture({ id: 'c-sel', resourceId: 'res-sel' }),
+          candidateFixture({ id: 'c-inel', resourceId: 'res-inel', integrationCategory: 'INSTALL_INELIGIBLE' }),
+        ]}
+        selectedIds={new Set(['c-sel'])}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: '제외 사유 입력' })).toBeNull();
   });
 
   it('does not render a pagination row, and shows every candidate (v16 cloud step-1 has no pager)', () => {

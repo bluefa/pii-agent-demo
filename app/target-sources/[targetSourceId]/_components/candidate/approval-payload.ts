@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import type { ApprovalRequestFormData, ApprovalRequestResource } from '@/app/components/features/process-status/ApprovalRequestModal';
+import type { ApprovalRequestResource } from '@/app/components/features/process-status/ApprovalRequestModal';
 import type {
   CandidateDraftState,
   CandidateResource,
@@ -39,27 +39,46 @@ export const toModalResources = (
   });
 
 /**
- * Input adapter: UI selection (candidates + selected set + endpoint drafts + form)
- * → contract `ApprovalRequestInputDto` ({ resources: TargetSourceResourceItemDto[] }).
- * Every item carries its identity (resource_name, integration_category) and the
- * candidate's intrinsic metadata (provider/region/database_type); selected items
- * additionally carry the behavior's endpoint fields (VM db_type/host/port) from
- * user drafts. This is the ONLY shape sent on the wire.
+ * Unselected TARGET resources must carry an exclusion reason before the approval
+ * request goes out (docs/cloud-provider-states.md: reason is required). Non-TARGET
+ * categories (no-install-needed / install-ineligible) are not user exclusions and
+ * need no reason.
+ */
+export const listMissingExclusionReasons = (
+  candidates: readonly CandidateResource[],
+  selectedIds: ReadonlySet<string>,
+  exclusionReasons: Readonly<Record<string, string>>,
+): CandidateResource[] =>
+  candidates.filter(
+    (candidate) =>
+      candidate.integrationCategory === 'TARGET'
+      && !selectedIds.has(candidate.id)
+      && !exclusionReasons[candidate.id],
+  );
+
+/**
+ * Input adapter: UI selection (candidates + selected set + endpoint drafts +
+ * per-resource exclusion reasons) → contract `ApprovalRequestInputDto`
+ * ({ resources: TargetSourceResourceItemDto[] }). Every item carries its identity
+ * (resource_name, integration_category) and the candidate's intrinsic metadata
+ * (provider/region/database_type); selected items additionally carry the behavior's
+ * endpoint fields (VM db_type/host/port) from user drafts; excluded items carry the
+ * reason the user picked. This is the ONLY shape sent on the wire.
  */
 export const toApprovalRequestInput = (
   candidates: readonly CandidateResource[],
   selectedIds: ReadonlySet<string>,
   drafts: CandidateDraftState,
-  formData: ApprovalRequestFormData,
+  exclusionReasons: Readonly<Record<string, string>>,
 ): ApprovalRequestInput => ({
-  resources: buildResourceInputs(candidates, selectedIds, drafts, formData),
+  resources: buildResourceInputs(candidates, selectedIds, drafts, exclusionReasons),
 });
 
 const buildResourceInputs = (
   candidates: readonly CandidateResource[],
   selectedIds: ReadonlySet<string>,
   drafts: CandidateDraftState,
-  formData: ApprovalRequestFormData,
+  exclusionReasons: Readonly<Record<string, string>>,
 ): ResourceItem[] =>
   candidates.map((candidate): ResourceItem => {
     // Contract: provider/region/database_type live under metadata
@@ -92,8 +111,8 @@ const buildResourceInputs = (
       resource_name: candidate.resourceName,
       selected: false,
       integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
-      ...(formData.exclusion_reason_default
-        ? { exclusion_reason: formData.exclusion_reason_default }
+      ...(exclusionReasons[candidate.id]
+        ? { exclusion_reason: exclusionReasons[candidate.id] }
         : {}),
       metadata: intrinsicMetadata,
     };

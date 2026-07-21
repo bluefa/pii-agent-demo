@@ -270,6 +270,9 @@ function toResourceCatalogItem(
     resource_id: resource.resourceId,
     resource_name: demoResourceName(project.cloudProvider, resource),
     resource_type: resource.type,
+    // The backend's default target choice; Step-1 seeds the checkboxes from this.
+    selected: resource.isSelected,
+    ...(resource.exclusion?.reason ? { exclusion_reason: resource.exclusion.reason } : {}),
     // database_type intentionally NOT top-level — it lives under metadata
     // (buildMetadata), matching TargetSourceResourceItemDto.
     integration_category: resource.integrationCategory,

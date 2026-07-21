@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { schemas } from '@/lib/generated/install-v1';
 import {
+  listMissingExclusionReasons,
   toApprovalRequestInput,
   toModalResources,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
@@ -19,6 +20,8 @@ const cloudCandidate: CandidateResource = {
   databaseType: 'MYSQL',
   integrationCategory: 'TARGET',
   behaviorKey: 'default',
+  selected: true,
+  exclusionReason: null,
   metadata: { provider: 'AWS', resourceType: 'RDS', region: 'ap-northeast-1' },
 };
 
@@ -46,7 +49,7 @@ describe('approval-payload', () => {
       [cloudCandidate],
       new Set<string>(),
       drafts,
-      { exclusion_reason_default: '미사용 인스턴스' },
+      { 'res-1': '미사용 인스턴스' },
     );
     const item = (input.resources ?? [])[0];
 
@@ -60,5 +63,29 @@ describe('approval-payload', () => {
       database_type: 'mysql',
     });
     expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
+  });
+
+  // Exclusion reason is required (docs/cloud-provider-states.md): an unselected
+  // TARGET without a reason blocks the approval request; non-TARGET rows never
+  // require one.
+  it('listMissingExclusionReasons flags unselected TARGETs without a reason', () => {
+    const ineligible: CandidateResource = {
+      ...cloudCandidate,
+      id: 'res-2',
+      integrationCategory: 'INSTALL_INELIGIBLE',
+    };
+
+    // No reason recorded → flagged.
+    expect(
+      listMissingExclusionReasons([cloudCandidate, ineligible], new Set<string>(), {}),
+    ).toEqual([cloudCandidate]);
+
+    // Reason present → clear. Selected → clear.
+    expect(
+      listMissingExclusionReasons([cloudCandidate], new Set<string>(), { 'res-1': '미사용' }),
+    ).toEqual([]);
+    expect(
+      listMissingExclusionReasons([cloudCandidate], new Set(['res-1']), {}),
+    ).toEqual([]);
   });
 });

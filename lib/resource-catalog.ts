@@ -30,6 +30,8 @@ export interface CatalogItem {
   resourceType: string;
   databaseType: DatabaseType;
   integrationCategory: IntegrationCategory;
+  selected: boolean;
+  exclusionReason: string | null;
   host: string | null;
   port: number | null;
   oracleServiceId: string | null;
@@ -91,6 +93,8 @@ export const catalogToCandidates = (
       databaseType: item.databaseType,
       integrationCategory: item.integrationCategory,
       behaviorKey: pickBehaviorKey(item),
+      selected: item.selected,
+      exclusionReason: item.exclusionReason,
       ...(endpointConfig ? { endpointConfig } : {}),
       ...(item.scanStatus ? { scanStatus: item.scanStatus } : {}),
       metadata: item.metadata,
