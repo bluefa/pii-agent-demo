@@ -122,6 +122,49 @@ describe('useScanPolling', () => {
     expect(onScanComplete).toHaveBeenCalledTimes(1);
   });
 
+  // onScanComplete resets Step-1 selection and refetches — a scan that concluded
+  // WITHOUT results (FAIL/TIMEOUT/CANCELED) must not wipe the user's work.
+  it('does not fire onScanComplete for a new failed terminal job', async () => {
+    const onScanComplete = vi.fn();
+    vi.mocked(getLatestScanJob)
+      .mockResolvedValueOnce(scanningJob)
+      .mockResolvedValue({ scan_status: 'FAIL', id: 2, target_source_id: 1 });
+
+    renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // SCANNING observed
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000); // new FAIL id — concluded, but no results
+    });
+    expect(onScanComplete).not.toHaveBeenCalled();
+  });
+
+  // An armed completion must survive an initial fetch error: the first successful
+  // read after expectCompletion() is a real completion, not a mount adoption.
+  it('fires an armed completion even when the very first fetch failed', async () => {
+    const onScanComplete = vi.fn();
+    vi.mocked(getLatestScanJob)
+      .mockRejectedValueOnce(new Error('endpoint down'))
+      .mockResolvedValue({ scan_status: 'SUCCESS', id: 5, target_source_id: 1 });
+
+    const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // first read errors — nothing observed yet
+    });
+
+    act(() => result.current.expectCompletion()); // user started a scan
+    await act(async () => {
+      await result.current.refresh(); // first OBSERVED job: terminal SUCCESS id=5
+    });
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.refresh(); // same id, no longer armed → no duplicate
+    });
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+  });
+
   // A first poll that settles as an error must still end the initial load, or the
   // Run Infra Scan button (gated on `loading`) freezes disabled forever. (LIN-39)
   it('clears loading when the first poll fails', async () => {

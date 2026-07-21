@@ -100,19 +100,27 @@ export const useScanPolling = (
   const handleUpdate = useCallback((job: ScanJob | null) => {
     const id = job?.id ?? null;
     const isTerminal = !!job && job.scan_status !== 'SCANNING';
+    const isSuccess = job?.scan_status === 'SUCCESS';
+    const isFirst = firstObservationRef.current;
     const sawScanning = prevScanStatusRef.current === 'SCANNING';
+    firstObservationRef.current = false;
     prevScanStatusRef.current = job?.scan_status ?? null;
-    if (firstObservationRef.current) {
-      firstObservationRef.current = false;
-      // Adopt a pre-existing completed scan so we don't fire for it on mount.
-      if (isTerminal && id !== null) notifiedJobIdRef.current = id;
-    } else if (
-      isTerminal
-      && (id !== null ? notifiedJobIdRef.current !== id : sawScanning || awaitingCompletionRef.current)
-    ) {
+
+    if (isTerminal) {
+      const armed = awaitingCompletionRef.current;
+      // New completion = a job id we have not notified for. On the first
+      // observation a pre-existing terminal job is adopted instead (no fire) —
+      // unless this client armed a scan while the first read was still failing.
+      // When the contract omits `id`, fall back to the SCANNING→terminal edge
+      // or the armed fast scan.
+      const isNewCompletion = id !== null
+        ? notifiedJobIdRef.current !== id && (!isFirst || armed)
+        : sawScanning || armed;
       if (id !== null) notifiedJobIdRef.current = id;
       awaitingCompletionRef.current = false;
-      onScanCompleteRef.current?.();
+      // Only SUCCESS refreshes Step-1 — the callback resets selection and
+      // refetches, so FAIL/TIMEOUT/CANCELED must not wipe the user's work.
+      if (isNewCompletion && isSuccess) onScanCompleteRef.current?.();
     }
     setError(null);
     if (firstFetchRef.current) {
