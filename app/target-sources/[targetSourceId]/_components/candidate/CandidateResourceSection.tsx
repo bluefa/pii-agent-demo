@@ -11,14 +11,13 @@ import { formatDate } from '@/lib/utils/date';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ClockIcon, PlayIcon } from '@/app/components/ui/icons';
-import { useApiMutation } from '@/app/hooks/useApiMutation';
+import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast';
 import { ScanController, type ScanUiState } from '@/app/components/features/scan/ScanPanel';
 import { ScanEmptyState } from '@/app/components/features/scan/ScanEmptyState';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
 import { ScanRunningState } from '@/app/components/features/scan/ScanRunningState';
-import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   cardStyles,
   cn,
@@ -38,6 +37,20 @@ import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_c
 import { selectPhase } from '@/app/target-sources/[targetSourceId]/_components/candidate/phase';
 import { toApprovalRequestInput } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
 import { IdcSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
+import { IdcExclusionPopover } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcExclusionPopover';
+import { IdcExclusionReasonModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcExclusionReasonModal';
+import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
+
+/** Per-resource exclusion reason held while the user picks it (mirror of the IDC flow). */
+interface Exclusion {
+  reason: string;
+  /** True when entered via the free-text modal (vs a preset) — drives the popover highlight. */
+  custom: boolean;
+}
+interface PopoverState {
+  resourceId: string;
+  anchor: HTMLElement;
+}
 
 interface CandidateResourceSectionProps {
   targetSourceId: number;
@@ -59,15 +72,29 @@ export const CandidateResourceSection = ({
   const [retryNonce, setRetryNonce] = useState(0);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [exclusions, setExclusions] = useState<Record<string, Exclusion>>({});
   const [drafts, setDrafts] = useState<CandidateDraftState>(EMPTY_DRAFTS);
   const [expandedResourceId, setExpandedResourceId] = useState<string | null>(null);
+  const [popover, setPopover] = useState<PopoverState | null>(null);
+  const [reasonFor, setReasonFor] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
 
     void getConfirmResources(targetSourceId, { signal: controller.signal })
       .then((response) => {
-        setState({ status: 'ready', data: catalogToCandidates(response.resources) });
+        const data = catalogToCandidates(response.resources);
+        setState({ status: 'ready', data });
+        // Seed selection from the backend's `selected` flag (never for ineligible
+        // rows, whose checkbox is disabled), and seed any exclusion reasons it sent.
+        setSelectedIds(new Set(
+          data.filter((c) => c.selected && c.integrationCategory !== 'INSTALL_INELIGIBLE').map((c) => c.id),
+        ));
+        setExclusions(Object.fromEntries(
+          data
+            .filter((c) => !c.selected && c.exclusionReason)
+            .map((c) => [c.id, { reason: c.exclusionReason as string, custom: !IDC_EXCL_PRESETS.includes(c.exclusionReason as (typeof IDC_EXCL_PRESETS)[number]) }]),
+        ));
       })
       .catch((error: unknown) => {
         if (error instanceof AppError && error.code === 'ABORTED') return;
@@ -87,9 +114,15 @@ export const CandidateResourceSection = ({
     setRetryNonce((n) => n + 1);
   }, []);
 
-  const approval = useApiMutation(
-    async (payload: { formData: ApprovalRequestFormData }) => {
-      const input = toApprovalRequestInput(candidates, selectedIds, drafts, payload.formData);
+  // Plain id→reason map for the payload adapter and the table's reason chips.
+  const exclusionReasons = useMemo(
+    () => Object.fromEntries(Object.entries(exclusions).map(([id, e]) => [id, e.reason])),
+    [exclusions],
+  );
+
+  const approval = useApiAction(
+    async () => {
+      const input = toApprovalRequestInput(candidates, selectedIds, drafts, exclusionReasons);
       await createApprovalRequest(targetSourceId, input);
       await refreshProject();
     },
@@ -103,14 +136,51 @@ export const CandidateResourceSection = ({
     },
   );
 
-  const handleToggleSelected = useCallback((resourceId: string, checked: boolean) => {
+  const select = useCallback((resourceId: string) => {
+    setSelectedIds((previous) => new Set(previous).add(resourceId));
+    setExclusions(({ [resourceId]: _removed, ...rest }) => rest);
+  }, []);
+
+  const exclude = useCallback((resourceId: string, reason: string, custom: boolean) => {
     setSelectedIds((previous) => {
       const next = new Set(previous);
-      if (checked) next.add(resourceId);
-      else next.delete(resourceId);
+      next.delete(resourceId);
       return next;
     });
+    setExclusions((previous) => ({ ...previous, [resourceId]: { reason, custom } }));
   }, []);
+
+  // Unchecking a target opens the exclusion-reason picker; the row stays selected
+  // until a reason is confirmed (mirror of the IDC flow). Re-checking clears it.
+  const handleToggleSelected = useCallback(
+    (resourceId: string, checked: boolean, anchor: HTMLElement) => {
+      if (checked) select(resourceId);
+      else setPopover({ resourceId, anchor });
+    },
+    [select],
+  );
+
+  const handleReasonChipClick = useCallback((resourceId: string, anchor: HTMLElement) => {
+    setPopover({ resourceId, anchor });
+  }, []);
+
+  const handlePickPreset = useCallback((reason: string) => {
+    if (!popover) return;
+    exclude(popover.resourceId, reason, false);
+    setPopover(null);
+  }, [popover, exclude]);
+
+  const handlePickCustom = useCallback(() => {
+    if (!popover) return;
+    setReasonFor(popover.resourceId);
+    setPopover(null);
+  }, [popover]);
+
+  const handleSaveReason = useCallback((reason: string) => {
+    if (!reasonFor) return;
+    exclude(reasonFor, reason, true);
+    setReasonFor(null);
+  }, [reasonFor, exclude]);
 
   const handleExpandToggle = useCallback((resourceId: string | null) => {
     setExpandedResourceId(resourceId);
@@ -140,15 +210,20 @@ export const CandidateResourceSection = ({
   }, [approval, approvalModal, candidates, drafts, selectedIds, toast]);
 
   const handleScanComplete = useCallback(async () => {
+    // Fresh scan → clear working state; the refetch re-seeds selection/exclusions
+    // from the new results' `selected`/`exclusion_reason` flags.
     setSelectedIds(new Set());
+    setExclusions({});
     setDrafts(EMPTY_DRAFTS);
     setExpandedResourceId(null);
+    setPopover(null);
+    setReasonFor(null);
     refetch();
     await refreshProject();
   }, [refetch, refreshProject]);
 
   const handleApprovalConfirm = useCallback(() => {
-    void approval.mutate({ formData: {} });
+    void approval.execute();
   }, [approval]);
 
   const renderBody = (scanState: ScanUiState, progress: number, startScan: () => void) => {
@@ -185,11 +260,13 @@ export const CandidateResourceSection = ({
           <CandidateResourceTable
             candidates={candidates}
             selectedIds={selectedIds}
+            exclusionReasons={exclusionReasons}
             drafts={drafts}
             expandedResourceId={expandedResourceId}
             readonly={readonly}
             approvalSubmitting={approval.loading}
             onToggleSelected={handleToggleSelected}
+            onReasonChipClick={handleReasonChipClick}
             onExpandToggle={handleExpandToggle}
             onEndpointSave={handleEndpointSave}
             onRequestApproval={handleRequestApproval}
@@ -265,6 +342,26 @@ export const CandidateResourceSection = ({
           submitting={approval.loading}
           onSubmit={handleApprovalConfirm}
           onClose={approvalModal.close}
+        />
+      )}
+
+      {popover && (
+        <IdcExclusionPopover
+          anchor={popover.anchor}
+          selectedPreset={exclusions[popover.resourceId]?.custom ? undefined : exclusions[popover.resourceId]?.reason}
+          customActive={exclusions[popover.resourceId]?.custom ?? false}
+          onPickPreset={handlePickPreset}
+          onPickCustom={handlePickCustom}
+          onDismiss={() => setPopover(null)}
+        />
+      )}
+
+      {reasonFor !== null && (
+        <IdcExclusionReasonModal
+          isOpen
+          initialReason={exclusions[reasonFor]?.reason}
+          onSave={handleSaveReason}
+          onClose={() => setReasonFor(null)}
         />
       )}
     </>

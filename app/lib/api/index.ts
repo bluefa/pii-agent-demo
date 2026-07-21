@@ -286,6 +286,10 @@ export interface ConfirmResourceItem {
   resourceType: string;
   databaseType: DatabaseType;
   integrationCategory: IntegrationCategory;
+  /** Top-level `selected` from the response — the backend's default target choice. */
+  selected: boolean;
+  /** Top-level `exclusion_reason` — a reason attached to an already-excluded resource. */
+  exclusionReason: string | null;
   host: string | null;
   port: number | null;
   oracleServiceId: string | null;
@@ -362,6 +366,8 @@ const toConfirmResourceItem = (item: Record<string, unknown>): ConfirmResourceIt
     // never top-level on TargetSourceResourceItemDto — read it there.
     databaseType: (str(meta.database_type) ?? '') as DatabaseType,
     integrationCategory: normalizeIntegrationCategory(item.integration_category),
+    selected: item.selected === true,
+    exclusionReason: str(item.exclusion_reason) ?? null,
     host: str(meta.host) ?? null,
     port: num(meta.port) ?? null,
     oracleServiceId: str(meta.oracle_service_id) ?? null,

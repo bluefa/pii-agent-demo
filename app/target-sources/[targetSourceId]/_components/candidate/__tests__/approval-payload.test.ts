@@ -19,6 +19,8 @@ const cloudCandidate: CandidateResource = {
   databaseType: 'MYSQL',
   integrationCategory: 'TARGET',
   behaviorKey: 'default',
+  selected: true,
+  exclusionReason: null,
   metadata: { provider: 'AWS', resourceType: 'RDS', region: 'ap-northeast-1' },
 };
 
@@ -46,7 +48,7 @@ describe('approval-payload', () => {
       [cloudCandidate],
       new Set<string>(),
       drafts,
-      { exclusion_reason_default: '미사용 인스턴스' },
+      { 'res-1': '미사용 인스턴스' },
     );
     const item = (input.resources ?? [])[0];
 

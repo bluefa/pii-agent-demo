@@ -13,6 +13,8 @@ const candidateFixture = (overrides: Partial<CandidateResource> = {}): Candidate
     databaseType: 'MYSQL',
     integrationCategory: 'TARGET',
     behaviorKey: 'default',
+    selected: false,
+    exclusionReason: null,
     metadata: {
       provider: 'AWS',
       resourceType: 'RDS',
@@ -24,11 +26,13 @@ const candidateFixture = (overrides: Partial<CandidateResource> = {}): Candidate
 const defaultProps = {
   candidates: [candidateFixture()],
   selectedIds: new Set<string>(),
+  exclusionReasons: {},
   drafts: { endpointDrafts: {} },
   expandedResourceId: null,
   readonly: false,
   approvalSubmitting: false,
   onToggleSelected: () => {},
+  onReasonChipClick: () => {},
   onExpandToggle: () => {},
   onEndpointSave: () => {},
   onRequestApproval: () => {},

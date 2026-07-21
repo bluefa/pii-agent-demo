@@ -55,6 +55,27 @@ describe('useScanPolling', () => {
     expect(result.current.isPolling).toBe(false);
   });
 
+  // Completion is detected by job identity, not by a SCANNING→terminal edge: a fast
+  // scan can complete between polls so the edge is never seen. A pre-existing terminal
+  // job on mount is adopted (no fire); a NEW terminal id fires even without an edge.
+  it('fires onScanComplete on a new terminal job id, but not for a pre-existing one', async () => {
+    const onScanComplete = vi.fn();
+    vi.mocked(getLatestScanJob)
+      .mockResolvedValueOnce({ scan_status: 'SUCCESS', id: 1, target_source_id: 1 })
+      .mockResolvedValue({ scan_status: 'SUCCESS', id: 2, target_source_id: 1 });
+
+    const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // mount poll: SUCCESS id=1 → adopt, no fire
+    });
+    expect(onScanComplete).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.refresh(); // a new scan finished: SUCCESS id=2, never saw SCANNING
+    });
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+  });
+
   // A first poll that settles as an error must still end the initial load, or the
   // Run Infra Scan button (gated on `loading`) freezes disabled forever. (LIN-39)
   it('clears loading when the first poll fails', async () => {

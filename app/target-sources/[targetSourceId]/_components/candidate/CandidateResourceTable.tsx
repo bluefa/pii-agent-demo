@@ -6,6 +6,7 @@ import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { VmDatabaseConfigPanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
 import { VnetIntegrationGuideModal } from '@/app/target-sources/[targetSourceId]/_components/candidate/VnetIntegrationGuideModal';
@@ -31,11 +32,14 @@ import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_com
 interface CandidateResourceTableProps {
   candidates: CandidateResource[];
   selectedIds: Set<string>;
+  /** id → exclusion reason for the currently-excluded (unselected) resources. */
+  exclusionReasons: Record<string, string>;
   drafts: CandidateDraftState;
   expandedResourceId: string | null;
   readonly: boolean;
   approvalSubmitting: boolean;
-  onToggleSelected: (resourceId: string, checked: boolean) => void;
+  onToggleSelected: (resourceId: string, checked: boolean, anchor: HTMLElement) => void;
+  onReasonChipClick: (resourceId: string, anchor: HTMLElement) => void;
   onExpandToggle: (resourceId: string | null) => void;
   onEndpointSave: (resourceId: string, draft: EndpointConfigDraft) => void;
   onRequestApproval: () => void;
@@ -44,11 +48,13 @@ interface CandidateResourceTableProps {
 export const CandidateResourceTable = ({
   candidates,
   selectedIds,
+  exclusionReasons,
   drafts,
   expandedResourceId,
   readonly,
   approvalSubmitting,
   onToggleSelected,
+  onReasonChipClick,
   onExpandToggle,
   onEndpointSave,
   onRequestApproval,
@@ -79,6 +85,7 @@ export const CandidateResourceTable = ({
                 <th className={idcStyles.table.headerCell}>Region</th>
                 <th className={idcStyles.table.headerCell}>Resource Name</th>
                 <th className={idcStyles.table.headerCell}>스캔 상태</th>
+                {showCheckboxColumn && <th className={idcStyles.table.headerCell}>제외 사유</th>}
                 <th className={idcStyles.table.headerCell}>연동 완료 여부</th>
               </tr>
             </thead>
@@ -88,11 +95,13 @@ export const CandidateResourceTable = ({
                   key={candidate.id}
                   candidate={candidate}
                   isSelected={selectedIds.has(candidate.id)}
+                  exclusionReason={exclusionReasons[candidate.id]}
                   isExpanded={expandedResourceId === candidate.id}
                   showCheckboxColumn={showCheckboxColumn}
                   readonly={readonly}
                   drafts={drafts}
                   onToggleSelected={onToggleSelected}
+                  onReasonChipClick={onReasonChipClick}
                   onExpandToggle={onExpandToggle}
                   onEndpointSave={onEndpointSave}
                 />
@@ -126,11 +135,14 @@ export const CandidateResourceTable = ({
 interface CandidateResourceRowProps {
   candidate: CandidateResource;
   isSelected: boolean;
+  /** Reason for an excluded (unselected) resource; undefined when selected or none picked. */
+  exclusionReason: string | undefined;
   isExpanded: boolean;
   showCheckboxColumn: boolean;
   readonly: boolean;
   drafts: CandidateDraftState;
-  onToggleSelected: (resourceId: string, checked: boolean) => void;
+  onToggleSelected: (resourceId: string, checked: boolean, anchor: HTMLElement) => void;
+  onReasonChipClick: (resourceId: string, anchor: HTMLElement) => void;
   onExpandToggle: (resourceId: string | null) => void;
   onEndpointSave: (resourceId: string, draft: EndpointConfigDraft) => void;
 }
@@ -138,11 +150,13 @@ interface CandidateResourceRowProps {
 const CandidateResourceRow = ({
   candidate,
   isSelected,
+  exclusionReason,
   isExpanded,
   showCheckboxColumn,
   readonly,
   drafts,
   onToggleSelected,
+  onReasonChipClick,
   onExpandToggle,
   onEndpointSave,
 }: CandidateResourceRowProps) => {
@@ -163,8 +177,8 @@ const CandidateResourceRow = ({
     if (canExpand) onExpandToggle(isExpanded ? null : candidate.id);
   };
 
-  const handleCheckboxChange = (checked: boolean) => {
-    onToggleSelected(candidate.id, checked);
+  const handleCheckboxChange = (checked: boolean, anchor: HTMLElement) => {
+    onToggleSelected(candidate.id, checked, anchor);
     if (requiresEndpointConfig) onExpandToggle(checked ? candidate.id : null);
   };
 
@@ -192,7 +206,7 @@ const CandidateResourceRow = ({
               type="checkbox"
               checked={isSelected}
               disabled={isIneligible}
-              onChange={(event) => handleCheckboxChange(event.target.checked)}
+              onChange={(event) => handleCheckboxChange(event.target.checked, event.currentTarget)}
               className={cn('w-4 h-4 rounded disabled:opacity-50 disabled:cursor-not-allowed', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
             />
           </td>
@@ -255,6 +269,23 @@ const CandidateResourceRow = ({
               )
             : <span className={cn('text-xs', textColors.quaternary)}>—</span>}
         </td>
+
+        {showCheckboxColumn && (
+          <td className={idcStyles.table.cell} onClick={(event) => event.stopPropagation()}>
+            {!isSelected && exclusionReason ? (
+              <button
+                type="button"
+                aria-label="제외 사유 수정"
+                onClick={(event) => onReasonChipClick(candidate.id, event.currentTarget)}
+                className="text-left"
+              >
+                <ReasonChipInline reason={exclusionReason} />
+              </button>
+            ) : (
+              <span className={cn('text-xs', textColors.quaternary)}>—</span>
+            )}
+          </td>
+        )}
 
         <td className={idcStyles.table.cell}>
           <span className={cn('text-xs', textColors.quaternary)}>—</span>

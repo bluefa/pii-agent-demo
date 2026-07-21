@@ -173,6 +173,8 @@ describe('app/lib/api/index', () => {
           resourceType: 'AZURE_VM',
           databaseType: 'ORACLE',
           integrationCategory: 'NO_INSTALL_NEEDED',
+          selected: false,
+          exclusionReason: null,
           host: 'db.internal',
           port: 1521,
           oracleServiceId: 'ORCL',
