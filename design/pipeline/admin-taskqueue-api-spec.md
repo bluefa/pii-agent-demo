@@ -107,7 +107,7 @@
 
 | # | 갭 | 처리 |
 |---|---|---|
-| G1 | 지연 필터(1h/1d/7d) 쿼리 없음 | 클라 필터 + 주석 |
+| G1 | 지연 필터(1h/1d/7d) 쿼리 없음 | **우리 route가 필터 소유**(2026-07-21): `?delay=d1\|d2\|d3` → 업스트림 페이지 집계(size 100 × 최대 10페이지) 후 필터·재페이지네이션. UI 세그는 카운트 없이 API 재호출 |
 | G2 | NLB 30/50 임계값 계약 부재 | UI 상수로 정의 |
 | G3 | `TargetSourceInfo` camel 섬 + `latest_approval_request` snake 혼재 | route에서 도메인 camel로 정규화 |
 | G4 | `NlbTableResponse` camel wire | route 정규화 (sanctioned) |

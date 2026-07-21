@@ -98,6 +98,33 @@ export interface ApprovalHistoryRow {
   serviceCode: string | null;
 }
 
+// ── 지연 (delay) filter rule — shared by the P1 UI and the process-statuses
+// route (contract gap G1: the upstream has no delay query param, so OUR route
+// applies this filter over aggregated upstream pages). `delaySeconds` is
+// server-computed; this only compares it. A null delay reads as 0.
+export const DELAY_THRESHOLDS = {
+  all: 0,
+  d1: 3600, // 1시간
+  d2: 86400, // 1일
+  d3: 604800, // 7일
+} as const;
+
+export type DelayFilter = keyof typeof DELAY_THRESHOLDS;
+
+export function isDelayFilter(value: string): value is DelayFilter {
+  return value in DELAY_THRESHOLDS;
+}
+
+/** Rows whose delay meets the selected filter's threshold. */
+export function filterByDelay<T extends Pick<ProcessStatusRow, 'delaySeconds'>>(
+  rows: readonly T[],
+  filter: DelayFilter,
+): T[] {
+  const threshold = DELAY_THRESHOLDS[filter];
+  if (threshold === 0) return [...rows];
+  return rows.filter((row) => (row.delaySeconds ?? 0) >= threshold);
+}
+
 type WirePageMeta = {
   totalElements?: number | null;
   totalPages?: number | null;
