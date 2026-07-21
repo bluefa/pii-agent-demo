@@ -14,10 +14,15 @@
 //                                          is indexable, fixing `x.requested_by.user_id` access.
 //   4. every primitive/array/record field nullable   null wire values pass (idc_host: null,
 //                                          idc_source_ips: null, nlb_index: null, ...).
-//   5. every object partial               missing fields pass ("field existence ignored"). Objects
-//                                          are NOT themselves made nullable: a top-level
+//   5. every object partial               missing fields pass ("field existence ignored"). The
+//                                          object CONSTANT is NOT made nullable: a top-level
 //                                          `schemas.X.parse(...)` result stays `T` (not `T | null`),
 //                                          which is what consumers index into.
+//   5b. object-reference FIELD nullable    a `key: SomeDto,` field value accepts null (steps 4+6
+//                                          only cover primitive/array/record fields; object $refs
+//                                          were the gap — e.g. latest_approval_request: null on the
+//                                          create response). Distinct from step 5: the field is
+//                                          nullable, the top-level object constant is not.
 //   6. passthrough (already emitted)       extra wire fields ignored.
 //
 // Net: only `string vs number`-class mismatches fail; null / datetime format / missing / extra
@@ -80,6 +85,14 @@ let src = readFileSync(OUT, 'utf8')
 // 6. arrays + records nullable (balanced-paren aware).
 src = appendNullable(src, 'array');
 src = appendNullable(src, 'record');
+
+// 6b. object-reference fields nullable — `key: SomeDto,` (a bare schema reference used as a field
+//     value) accepts a null wire value. The Str/Num/Bool/Loose aliases are already nullable, so
+//     exclude them; `z.*(...)` field values (start lowercase) never match `[A-Z]`.
+src = src.replace(
+  /^(\s*[A-Za-z_]\w*:\s*)(?!(?:Str|Num|Bool|Loose)\b)([A-Z]\w*)(,?)$/gm,
+  '$1$2.nullable()$3',
+);
 
 // 7. define the loose aliases used above.
 src = src.replace(
