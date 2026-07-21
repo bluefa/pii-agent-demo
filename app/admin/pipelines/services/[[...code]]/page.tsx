@@ -2,7 +2,12 @@
 
 /**
  * Admin Pipeline services·targets search (LIN-25 Phase C1-b) —
- * /integration/admin/pipelines/services.
+ * /integration/admin/pipelines/services and /…/services/{code}.
+ *
+ * Optional catch-all: the selected service lives in the PATH (`[[...code]]`), so
+ * a service is deep-linkable (`/services/{code}` opens it immediately) and rail
+ * clicks just `router.push` the code — one component serves both URLs, keeping
+ * the rail's search/pagination state across selections.
  *
  * Data strategy (docs/api/pipeline-orchestrator-bff.md §2.2): the service list
  * uses `getServicesPage` SERVER-side — page/size plus the `query` param (R20.5:
@@ -13,7 +18,7 @@
  * concurrency cap of 6. Design reference: /integration/services rail.
  */
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import type { ReactElement } from 'react';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
@@ -61,6 +66,9 @@ type LatestMap = Record<number, PipelineSummary | null | undefined>;
 
 export default function ServicesPage(): ReactElement {
   const router = useRouter();
+  // Optional catch-all: `/services` → no code, `/services/{code}` → params.code[0].
+  const params = useParams<{ code?: string[] }>();
+  const selectedCode = params.code?.[0] ?? null;
 
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
@@ -71,10 +79,9 @@ export default function ServicesPage(): ReactElement {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [svcPage, setSvcPage] = useState(1);
   const [svcPages, setSvcPages] = useState(1);
-  // Name is captured at selection time — paging/search may drop the selected
-  // service off the current page, and the header must not degrade to the code.
-  const [selected, setSelected] = useState<{ code: string; name: string } | null>(null);
-  const selectedCode = selected?.code ?? null;
+  // Deep-link name resolution — on a direct `/services/{code}` hit the service
+  // may sit on another list page, so its name is fetched once by search.
+  const [resolvedName, setResolvedName] = useState<{ code: string; name: string } | null>(null);
 
   const [targets, setTargets] = useState<ProjectSummary[] | null>(null);
   const [targetsLoading, setTargetsLoading] = useState(false);
@@ -150,7 +157,32 @@ export default function ServicesPage(): ReactElement {
     [selectedCode, targetsRetry],
   );
 
-  const selectedName = selected?.name ?? '';
+  // Name from the current list page if present — the common case (rail click).
+  const listName =
+    services.find((svc) => svc.service_code === selectedCode)?.service_name ?? null;
+
+  // Resolve the name once for a deep-linked service that isn't on this page.
+  useAbortableEffect(
+    (signal) => {
+      if (!selectedCode || listName) return;
+      return getServicesPage(0, SERVICE_PAGE_SIZE, selectedCode, { signal })
+        .then((page) => {
+          if (signal.aborted) return;
+          const match = serviceItemsFrom(page).find((item) => item.service_code === selectedCode);
+          if (match) {
+            setResolvedName({ code: selectedCode, name: match.service_name ?? selectedCode });
+          }
+        })
+        .catch(() => {});
+    },
+    [selectedCode, listName],
+  );
+
+  const selectedName =
+    listName ??
+    (resolvedName?.code === selectedCode ? resolvedName.name : null) ??
+    selectedCode ??
+    '';
 
   // Identity-block summary stats — both derived from data already on the page:
   // 대상 수 = target count, 실행 중 = targets whose latest run is RUNNING/PENDING
@@ -211,9 +243,9 @@ export default function ServicesPage(): ReactElement {
                     // Clear the previous service's rows synchronously so the
                     // next render shows the loading placeholder — never the
                     // prior table or a false "없음" before the fetch starts.
-                    setSelected({ code, name: service.service_name ?? code });
                     setTargets(null);
                     setLatest({});
+                    router.push(integrationRoutes.pipelines.service(code));
                   }}
                   className={cn(s.item, active ? s.itemActive : s.itemIdle)}
                 >

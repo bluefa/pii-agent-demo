@@ -22,6 +22,11 @@ export const integrationRoutes = {
   pipelines: {
     dashboard: '/admin/pipelines',
     services: '/admin/pipelines/services',
+    // Service-scoped deep link (R20 — code in the path, no query context). The
+    // list route above stays valid: the page is an optional catch-all serving
+    // both `/services` and `/services/{code}`.
+    service: (serviceCode: string) =>
+      `/admin/pipelines/services/${encodeURIComponent(serviceCode)}`,
     target: (targetSourceId: number | string) =>
       `/admin/pipelines/targets/${encodeURIComponent(String(targetSourceId))}`,
     pipeline: (pipelineId: number | string) =>
