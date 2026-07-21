@@ -17,7 +17,6 @@ import { OccBar, FtagBadge } from '@/app/admin/pipelines/queue/_components/bits'
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import {
   NLB_CAPACITY,
-  NLB_WARN_THRESHOLD,
   effectiveNlbIndex,
   isNlbDirty,
   nlbOptionDisabled,
@@ -43,10 +42,9 @@ export interface IdcResourceTableProps {
 const SELECT_BASE =
   'h-7 rounded-md border px-2.5 text-[12px] text-[var(--pl-text-strong)] bg-[var(--pl-bg-card)] cursor-pointer focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]';
 
-function optionLabel(index: number, occupied: number): string {
-  const suffix =
-    occupied >= NLB_CAPACITY ? ' · Hard Limit' : occupied >= NLB_WARN_THRESHOLD ? ' · 주의' : '';
-  return `NLB #${index} · ${occupied}/${NLB_CAPACITY}${suffix}`;
+/** Dropdown label is index-only — occupancy lives in the 배정 NLB 상태 cell. */
+function optionLabel(index: number): string {
+  return `NLB #${index}`;
 }
 
 export function IdcResourceTable({
@@ -163,7 +161,7 @@ export function IdcResourceTable({
                         value={n.nlbIndex}
                         disabled={nlbOptionDisabled(n.occupiedListenerCount, n.nlbIndex, current)}
                       >
-                        {optionLabel(n.nlbIndex, n.occupiedListenerCount)}
+                        {optionLabel(n.nlbIndex)}
                       </option>
                     ))}
                   </select>

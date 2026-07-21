@@ -135,6 +135,7 @@ interface NlbIndexMappingFixture {
 
 const NLB_INDEX_MAPPINGS = new Map<number, NlbIndexMappingFixture[]>([
   [1031, [
+    // 24 entries — exercises the modal's in-modal pagination (10/page).
     { resource_id: 'idc-r-8f21', nlb_index_mapping_list: [
       { service_code: 'ORD', nlb_index: 3 },
       { service_code: 'PAY', nlb_index: 3 },
@@ -144,6 +145,22 @@ const NLB_INDEX_MAPPINGS = new Map<number, NlbIndexMappingFixture[]>([
       { service_code: 'CHT', nlb_index: 6 },
       { service_code: 'ADS', nlb_index: 6 },
       { service_code: 'SRC', nlb_index: 5 },
+      { service_code: 'PNT', nlb_index: 2 },
+      { service_code: 'NTF', nlb_index: 4 },
+      { service_code: 'CPN', nlb_index: 1 },
+      { service_code: 'ATH', nlb_index: 5 },
+      { service_code: 'RVW', nlb_index: 2 },
+      { service_code: 'INV', nlb_index: 3 },
+      { service_code: 'FLT', nlb_index: 6 },
+      { service_code: 'CRM', nlb_index: 4 },
+      { service_code: 'BIL', nlb_index: 1 },
+      { service_code: 'LOG', nlb_index: 5 },
+      { service_code: 'RCM', nlb_index: 2 },
+      { service_code: 'EVT', nlb_index: 6 },
+      { service_code: 'QNA', nlb_index: 4 },
+      { service_code: 'VOC', nlb_index: 3 },
+      { service_code: 'TAG', nlb_index: 5 },
+      { service_code: 'GFT', nlb_index: 1 },
     ] },
     { resource_id: 'idc-r-8f22', nlb_index_mapping_list: [
       { service_code: 'ORD', nlb_index: 3 },

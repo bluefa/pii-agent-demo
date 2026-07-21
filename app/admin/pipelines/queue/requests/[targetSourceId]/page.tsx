@@ -287,7 +287,6 @@ export default function RequestDetailPage(): ReactElement {
               key={nlbInfoResource.resourceId ?? 'nlb-info'}
               open
               onClose={() => setNlbInfoResource(null)}
-              targetSourceId={targetSourceId}
               resource={nlbInfoResource}
               mappings={nlbMappings}
             />

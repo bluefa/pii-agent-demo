@@ -11,10 +11,11 @@
  */
 'use client';
 
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { TqModal } from '@/app/admin/pipelines/queue/_components/TqModal';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import type {
   NlbIndexMapping,
@@ -35,10 +36,11 @@ export function findResourceMappings(
   return entry ? entry.mappings : [];
 }
 
+const PAGE_SIZE = 10;
+
 export interface NlbMappingModalProps {
   open: boolean;
   onClose: () => void;
-  targetSourceId: number;
   resource: RequestResourceRow;
   /** All resources' mappings, or null when the fetch failed. */
   mappings: ResourceNlbMappings[] | null;
@@ -47,23 +49,23 @@ export interface NlbMappingModalProps {
 export function NlbMappingModal({
   open,
   onClose,
-  targetSourceId,
   resource,
   mappings,
 }: NlbMappingModalProps): ReactElement {
   const { appTable, tag } = tqStyles;
+  // Fresh mount per resource (parent keys this modal) — page seeds at 1.
+  const [page, setPage] = useState(1);
   const rows = findResourceMappings(mappings, resource.resourceId);
   const connect = resource.connectTargets.join(' · ') || '—';
-  // Long lists scroll inside the modal body instead of paginating (demo tops out
-  // at 8, but a consuming-service fan-out can exceed the modal height).
-  const scrollable = rows != null && rows.length > 10;
+  // A consuming-service fan-out can reach 20–30 entries — paginate in-modal.
+  const total = rows?.length ?? 0;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const slice = (rows ?? []).slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <TqModal
       open={open}
       onClose={onClose}
-      eyebrowCtx="연동 요청"
-      eyebrowId={`#${targetSourceId}`}
       title="현재 배정된 NLB"
       meta={
         <>
@@ -79,41 +81,49 @@ export function NlbMappingModal({
       }
     >
       <div className={appTable.wrap}>
-        <div className={scrollable ? 'max-h-[360px] overflow-y-auto' : undefined}>
-          <table className={appTable.root}>
-            <thead className={appTable.thead}>
-              <tr>
-                <th className={appTable.th}>Service Code</th>
-                <th className={`${appTable.th} w-[140px]`}>NLB Index</th>
+        <table className={appTable.root}>
+          <thead className={appTable.thead}>
+            <tr>
+              <th className={appTable.th}>Service Code</th>
+              <th className={`${appTable.th} w-[140px]`}>NLB Index</th>
+            </tr>
+          </thead>
+          <tbody className={appTable.body}>
+            {rows === null ? (
+              <tr className={appTable.row}>
+                <td className={appTable.td} colSpan={2}>
+                  <span className="text-[var(--pl-text-weak)]">NLB 정보를 불러오지 못했어요</span>
+                </td>
               </tr>
-            </thead>
-            <tbody className={appTable.body}>
-              {rows === null ? (
-                <tr className={appTable.row}>
-                  <td className={appTable.td} colSpan={2}>
-                    <span className="text-[var(--pl-text-weak)]">NLB 정보를 불러오지 못했어요</span>
+            ) : total === 0 ? (
+              <tr className={appTable.row}>
+                <td className={appTable.td} colSpan={2}>
+                  <span className="text-[var(--pl-text-weak)]">배정된 NLB가 없어요</span>
+                </td>
+              </tr>
+            ) : (
+              slice.map((m, index) => (
+                <tr key={`${m.serviceCode ?? '—'}-${m.nlbIndex ?? '—'}-${index}`} className={appTable.row}>
+                  <td className={`${appTable.td} ${appTable.tdMono}`}>{m.serviceCode ?? '—'}</td>
+                  <td className={`${appTable.td} ${appTable.tdMono}`}>
+                    {m.nlbIndex != null ? `NLB #${m.nlbIndex}` : '—'}
                   </td>
                 </tr>
-              ) : rows.length === 0 ? (
-                <tr className={appTable.row}>
-                  <td className={appTable.td} colSpan={2}>
-                    <span className="text-[var(--pl-text-weak)]">배정된 NLB가 없어요</span>
-                  </td>
-                </tr>
-              ) : (
-                rows.map((m, index) => (
-                  <tr key={`${m.serviceCode ?? '—'}-${m.nlbIndex ?? '—'}-${index}`} className={appTable.row}>
-                    <td className={`${appTable.td} ${appTable.tdMono}`}>{m.serviceCode ?? '—'}</td>
-                    <td className={`${appTable.td} ${appTable.tdMono}`}>
-                      {m.nlbIndex != null ? `NLB #${m.nlbIndex}` : '—'}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {total > PAGE_SIZE && (
+        <PlPagination
+          className="mt-4"
+          page={page}
+          pages={pages}
+          onPrev={() => setPage((n) => Math.max(1, n - 1))}
+          onNext={() => setPage((n) => Math.min(pages, n + 1))}
+        />
+      )}
     </TqModal>
   );
 }
