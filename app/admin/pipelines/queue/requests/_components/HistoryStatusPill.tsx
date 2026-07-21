@@ -23,7 +23,7 @@ const HISTORY_TONE: Record<string, ToneSpec> = {
   REJECTED: { label: '반려', tone: 'err' },
   CANCELLED: { label: '취소', tone: 'off' },
   UNAVAILABLE: { label: '연동 불가', tone: 'err' },
-  UNAVAILABLE_ACKNOWLEDGED: { label: '연동 불가 확인', tone: 'off' },
+  UNAVAILABLE_ACKNOWLEDGED: { label: '연동 불가 확인 (서비스 측 담당자 확인)', tone: 'off' },
 };
 
 const TONE_CLASS: Record<Tone, { pill: string; dot: string }> = {

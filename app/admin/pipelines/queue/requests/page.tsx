@@ -30,7 +30,7 @@ import { HistoryStatusPill } from '@/app/admin/pipelines/queue/requests/_compone
 import { getApprovalHistory, getRequestList } from '@/app/lib/api/task-queue-requests';
 import type { ApprovalHistoryRow, Paged, RequestListRow } from '@/lib/types/task-queue';
 
-const { text, section } = pipelineStyles;
+const { section } = pipelineStyles;
 
 const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
@@ -100,12 +100,15 @@ const TONE_COUNT: Record<SectionTone, string> = {
   muted: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
 };
 
-/** Group caption above a cluster of 계층 cards (처리가 필요한 요청 / 이력). */
+/** Group heading above a cluster of 계층 cards (처리가 필요한 요청 / 이력 확인) —
+ *  24px, one step under the 32px page title. */
 function GroupLabel({ children, first }: { children: ReactNode; first?: boolean }): ReactElement {
   return (
-    <div className={`${first ? 'mt-8' : 'mt-12'} mb-3 text-[13px] font-semibold text-[var(--pl-text-weak)]`}>
+    <h2
+      className={`${first ? 'mt-8' : 'mt-12'} mb-4 text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]`}
+    >
       {children}
-    </div>
+    </h2>
   );
 }
 
@@ -155,7 +158,7 @@ function ListSection<T>({
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-[16px] font-bold leading-[1.3] text-[var(--pl-text-strong)]">{title}</h2>
+              <h3 className="text-[20px] font-bold leading-[1.3] text-[var(--pl-text-strong)]">{title}</h3>
               {count != null && count > 0 && (
                 <span
                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${TONE_COUNT[tone]}`}
@@ -221,7 +224,9 @@ export default function RequestsPage(): ReactElement {
 
   return (
     <div>
-      <h1 className={text.pageTitle}>연동 요청</h1>
+      <h1 className="text-[32px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]">
+        연동 요청
+      </h1>
       <p className={section.desc}>서비스가 보낸 연동 승인 요청을 검토하고 처리해요</p>
 
       <GroupLabel first>처리가 필요한 요청</GroupLabel>
@@ -313,7 +318,7 @@ export default function RequestsPage(): ReactElement {
         }
       </ListSection>
 
-      <GroupLabel>이력</GroupLabel>
+      <GroupLabel>이력 확인</GroupLabel>
 
       {/* 계층 3 — 전체 History 확인 (approval-history) — read-only audit log. */}
       <ListSection
