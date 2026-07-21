@@ -129,16 +129,22 @@ export const TopNav = () => {
           navStyles.bg,
         )}
       >
-        <div
-          className={cn(
-            'flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-sm whitespace-nowrap',
-            navStyles.brandGradient,
-          )}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-white" aria-hidden="true" />
-          <span>SIT</span>
-          <small className="font-normal opacity-85 text-xs ml-1">
-            Self Installation Tool
+        <div className="flex items-baseline gap-2.5 px-1 whitespace-nowrap">
+          <span
+            className={cn(
+              'font-black text-xl tracking-tight',
+              navStyles.brand.wordmark,
+            )}
+          >
+            PASS
+          </span>
+          <small
+            className={cn(
+              'font-medium text-[10px] uppercase tracking-[0.14em]',
+              navStyles.brand.tagline,
+            )}
+          >
+            PII Agent Self Service
           </small>
         </div>
 
