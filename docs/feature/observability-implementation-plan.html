@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FE 관측성 구현 계획 — 아키텍처와 작업 목록</title>
+<style>
+:root {
+  --bg: #F6F8FC; --surface: #FFFFFF; --ink: #111C2E; --muted: #5B6B85;
+  --faint: #8695AE; --accent: #0064FF; --accent-soft: #E8F0FF; --line: #E2E8F2;
+  --code-bg: #0E1626; --code-ink: #C9D6EC;
+  --ok: #0E8A4C; --ok-soft: #E3F5EB; --todo: #B26A00; --todo-soft: #FCF1DE;
+  --err: #C4322E; --err-soft: #FBEAE9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0B1120; --surface: #121A2C; --ink: #E7EDF8; --muted: #93A3BE;
+    --faint: #6B7C99; --accent: #4D8DFF; --accent-soft: #16294A; --line: #223050;
+    --code-bg: #0A0F1C; --code-ink: #B9C8E2;
+    --ok: #3DBE7B; --ok-soft: #10301F; --todo: #E0A54C; --todo-soft: #33260F;
+    --err: #E76A62; --err-soft: #3A1715;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  font-size: 15.5px; line-height: 1.72; -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 900px; margin: 0 auto; padding: 56px 24px 96px; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent);
+  text-transform: uppercase; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+h1 { font-size: 29px; font-weight: 750; line-height: 1.3; letter-spacing: -0.015em; margin: 10px 0 8px; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0; max-width: 64ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; font-size: 12.5px;
+  color: var(--faint); font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.meta b { color: var(--muted); font-weight: 600; }
+
+section { margin-top: 52px; }
+h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px;
+  padding-top: 22px; border-top: 2px solid var(--line); text-wrap: balance; }
+h2 .sec { color: var(--accent); font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 14px; font-weight: 600; margin-right: 10px; }
+h3 { font-size: 16px; font-weight: 700; margin: 24px 0 4px; }
+p { margin: 10px 0; max-width: 70ch; }
+.note { color: var(--muted); font-size: 13.5px; }
+li { margin: 5px 0; max-width: 66ch; }
+code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.88em;
+  background: var(--accent-soft); padding: 1px 5px; border-radius: 5px; }
+pre { background: var(--code-bg); color: var(--code-ink); border-radius: 10px; padding: 16px 18px;
+  overflow-x: auto; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12.6px; line-height: 1.65; margin: 14px 0; }
+
+.tbl-scroll { overflow-x: auto; margin: 14px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; line-height: 1.55; }
+th { text-align: left; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--faint); font-weight: 600; padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+td:first-child { white-space: nowrap; }
+
+.pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.todo { background: var(--todo-soft); color: var(--todo); }
+.pill.acc { background: var(--accent-soft); color: var(--accent); }
+.pill.err { background: var(--err-soft); color: var(--err); }
+
+.flow { display: flex; flex-direction: column; margin: 20px 0; }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 13px 17px; }
+.stage .tag { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 650;
+  color: var(--accent); font-family: ui-monospace, "SF Mono", Menlo, monospace; margin-bottom: 3px; }
+.stage .body { font-size: 13.5px; color: var(--muted); }
+.stage .body b { color: var(--ink); font-weight: 650; }
+.flow-arrow { align-self: center; color: var(--faint); font-size: 15px; padding: 3px 0; line-height: 1; }
+.flow-arrow small { font-size: 11.5px; font-family: ui-monospace, "SF Mono", Menlo, monospace; margin-left: 8px; vertical-align: 2px; }
+.fanout { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.fanout .stage { border-top: 3px solid var(--accent); }
+
+.callout { border-left: 3px solid var(--accent); background: var(--surface);
+  border-radius: 0 10px 10px 0; padding: 13px 17px; margin: 16px 0; }
+.callout .t { font-weight: 700; margin: 0 0 2px; }
+.callout p { margin: 3px 0; font-size: 13.5px; color: var(--muted); max-width: none; }
+.callout.warn { border-left-color: var(--todo); }
+.callout.warn .t { color: var(--todo); }
+
+.phase { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); margin: 14px 0; overflow: hidden; }
+.phase > summary { list-style: none; cursor: pointer; padding: 14px 18px; display: flex;
+  flex-wrap: wrap; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+.phase > summary::-webkit-details-marker { display: none; }
+.phase > summary::before { content: "▸"; color: var(--faint); font-size: 13px; transition: transform 0.12s; }
+.phase[open] > summary::before { transform: rotate(90deg); }
+.phase > summary:hover { background: var(--accent-soft); }
+.phase > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.phase .ph-num { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--accent); font-weight: 700; }
+.phase .ph-note { font-weight: 400; font-size: 12.5px; color: var(--faint); margin-left: auto; }
+.phase .ph-body { padding: 2px 18px 16px; border-top: 1px solid var(--line); }
+.phase .ph-body .tbl-scroll { border-left: none; border-right: none; border-radius: 0; margin: 10px -18px; border-color: var(--line); }
+.done-crit { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.done-crit b { color: var(--ok); }
+
+.surfaces { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 16px 0; }
+.scard { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 13px 15px; }
+.scard.hot { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.scard .name { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; color: var(--accent); }
+.scard .paths { font-size: 12px; color: var(--faint); font-family: ui-monospace, "SF Mono", Menlo, monospace; margin: 2px 0 7px; }
+.scard .desc { font-size: 13px; color: var(--muted); }
+.scard .desc b { color: var(--ink); }
+
+footer { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--line);
+  font-size: 12.5px; color: var(--faint); line-height: 1.9; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">PII Agent · Observability Implementation Plan</div>
+  <h1>FE 관측성 구현 계획 — 아키텍처와 작업 목록</h1>
+  <p class="lede">전략 문서에서 확정한 방향(로그 기반 관측성)을 실행 가능한 작업 단위로 분해한 계획.
+  각 Phase를 펼치면 작업별 대상 파일·검증 기준이 나온다.</p>
+  <div class="meta">
+    <span><b>작성</b> 2026-07-21</span>
+    <span><b>md 원본</b> observability-implementation-plan.md</span>
+    <span><b>전략</b> observability-strategy-overview.md</span>
+    <span><b>수집 계층</b> observability-plan.md (PR #558)</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="sec">01</span>아키텍처 — 4계층 모델</h2>
+  <p>전체 시스템은 4개 계층으로 나뉘고, <strong>FE가 소유하는 것은 L0·L1과 L3의 일부(Admin 화면)뿐</strong>이다.
+  L2(저장·집계)는 전부 기존 GCP 인프라가 담당한다 — FE에 저장소·스케줄러를 두지 않는다(FE-thin 원칙).</p>
+
+  <div class="tbl-scroll"><table>
+    <tr><th>계층</th><th>책임</th><th>소유</th><th>구성요소</th></tr>
+    <tr><td><b>L0 · 에러 처리</b></td><td>사용자에게 복구 가능한 UI</td><td>FE</td><td>에러 바운더리 3단 + not-found</td></tr>
+    <tr><td><b>L1 · 수집</b></td><td>쓰는 순간 구조화 JSON을 stdout에</td><td>FE</td><td>fetchJson 헤더 3종+링버퍼 · withV1 접근/에러 로그 · 브라우저 리포트 수신 라우트 · log.ts(유일한 출구)</td></tr>
+    <tr><td><b>L2 · 저장·집계</b></td><td>수집·보존·그룹핑·증분 집계</td><td>플랫폼/GCP</td><td>Cloud Logging → Error Reporting / 로그 기반 metric → Cloud Monitoring</td></tr>
+    <tr><td><b>L3 · 소비</b></td><td>사람이 보고 판단</td><td>Grafana + FE</td><td>Grafana 패널·알림→Slack · In-app Admin 대시보드</td></tr>
+  </table></div>
+
+  <h3>데이터 흐름</h3>
+  <div class="flow">
+    <div class="stage">
+      <div class="tag">Browser</div>
+      <div class="body">렌더 에러·rejection → <b>바운더리+전역 핸들러</b> → 리포트(페이지·행동·직전 API 10건)<br>
+      <span class="pill todo">확장</span> 라우트 전환 → <b>page_view 이벤트</b><br>
+      모든 API 호출 → <b>fetchJson 단일 래퍼</b> → <code>X-Request-Id</code>·<code>X-Client-Page</code>·<code>X-Client-Action</code> <span class="pill todo">+X-Session-Id</span></div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="stage">
+      <div class="tag">FE Server — Next.js on GKE</div>
+      <div class="body"><b>withV1</b>: 요청마다 접근 로그 1줄(INFO) · 예외/업스트림 5xx는 ERROR<br>
+      수신 라우트: allowlist·바이트 캡·rate limit 후 로그 1줄 · BFF 프록시: 검증된 헤더 전달</div>
+    </div>
+    <div class="flow-arrow">↓ <small>stdout JSON 한 줄 — FE의 역할은 여기서 종료</small></div>
+    <div class="stage"><div class="tag">Cloud Logging</div><div class="body">jsonPayload 자동 인식 · 필드 쿼리 · 보존 30일</div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="fanout">
+      <div class="stage"><div class="tag">Error Reporting</div><div class="body">스택 자동 그룹핑 · 회귀 감지</div></div>
+      <div class="stage"><div class="tag">Grafana + Slack</div><div class="body">로그 기반 metric → 패널·알림</div></div>
+      <div class="stage"><div class="tag">In-app Admin</div><div class="body">FE 서버 라우트 → GCP API → 요약만 응답</div></div>
+    </div>
+  </div>
+
+  <h3>설계 원칙 (모든 작업에 적용)</h3>
+  <ul>
+    <li><b>FE-thin</b> — FE는 로그를 올바른 형식으로 찍는 것까지. 저장·집계·알림은 바깥.</li>
+    <li><b>PII 제로</b> — body·쿼리스트링은 어떤 로그에도 미기록. <code>lib/log-path.ts</code> 새니타이저 + 회귀 테스트로 잠금.</li>
+    <li><b>카디널리티 규율</b> — metric 라벨은 저카디널리티만. requestId·실경로·타깃 ID는 라벨 금지(로그에만).</li>
+    <li><b>공개 엔드포인트 방어</b> — 브라우저발 수신 라우트는 allowlist 재구성·바이트 캡·이중 rate limit·무에코 유지.</li>
+    <li><b>Surface 구분</b> — API 경로가 아니라 "호출이 일어난 화면"(<code>pageTemplate</code>)에서 파생.</li>
+  </ul>
+
+  <div class="surfaces">
+    <div class="scard"><div class="name">customer</div><div class="paths">/ · /services</div><div class="desc">고객 진입·탐색</div></div>
+    <div class="scard hot"><div class="name">target-detail</div><div class="paths">/target-sources/:id</div><div class="desc"><b>고객이 실제 작업하는 곳</b> — 관측 우선순위 1위</div></div>
+    <div class="scard"><div class="name">admin</div><div class="paths">/admin/**</div><div class="desc">운영자 콘솔 — 고객 지표에서 제외</div></div>
+    <div class="scard"><div class="name">dev</div><div class="paths">/api-docs · /swagger/*</div><div class="desc">지표에서 제외</div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="sec">02</span>작업 목록 — 6 Phase</h2>
+  <p class="note">Phase 0→2가 크리티컬 패스("에러를 신고 전에 아는" 상태 도달), 3~4가 이번 요구의 본체(행동 추적 + Admin 화면), 5~6은 외부 의존 후속. 각 Phase를 클릭해 펼치세요.</p>
+
+  <details class="phase" open>
+    <summary><span class="ph-num">Phase 0</span> PR #558 머지 <span class="pill err">전제 조건</span><span class="ph-note">다른 모든 작업의 선행</span></summary>
+    <div class="ph-body">
+      <div class="tbl-scroll"><table>
+        <tr><th>#</th><th>작업</th><th>상세</th></tr>
+        <tr><td>0-1</td><td>PR #558 리뷰·머지</td><td>수집 계층 전체(바운더리·로거·수신 라우트·헤더·PII 가드). 테스트 1,256+ green, 외부 모델 교차 리뷰 2회 완료. 리뷰 관점: PII 미로깅 위반 여부 · 수신 라우트 방어 · basePath(<code>/integration</code>) 경로 정합</td></tr>
+        <tr><td>0-2</td><td>브랜치 정리</td><td><code>docs/error-tracking-plan</code>(원자료)은 보존, 데모/실험 브랜치 정리</td></tr>
+      </table></div>
+      <p class="done-crit"><b>완료 기준</b> — main에 머지, 전체 테스트 green</p>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="ph-num">Phase 1</span> 배포 실측 <span class="pill acc">코드 0줄</span><span class="ph-note">플랫폼 확인</span></summary>
+    <div class="ph-body">
+      <div class="tbl-scroll"><table>
+        <tr><th>#</th><th>작업</th><th>검증 기준</th></tr>
+        <tr><td>1-1</td><td>stdout→Cloud Logging 인식 확인 (V-2) — JSON이 jsonPayload로 파싱·severity 매핑</td><td>접근 로그를 <code>jsonPayload.requestId</code> 필드 쿼리로 조회 성공</td></tr>
+        <tr><td>1-2</td><td>Error Reporting 그룹핑 확인 (V-3) — 테스트 에러 서버 1건+브라우저 1건</td><td>두 에러가 각각 그룹으로 잡히고 스택이 보임</td></tr>
+        <tr><td>1-3</td><td>로그 볼륨 베이스라인 1주 관찰</td><td>수치가 md 문서 부록에 기록됨</td></tr>
+      </table></div>
+      <p class="done-crit"><b>완료 기준</b> — 발생 → Cloud Logging → Error Reporting 그룹까지 실측</p>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="ph-num">Phase 2</span> Grafana + Slack <span class="pill acc">코드 0줄</span><span class="ph-note">플랫폼 설정 · 크리티컬 패스 종점</span></summary>
+    <div class="ph-body">
+      <div class="tbl-scroll"><table>
+        <tr><th>#</th><th>작업</th><th>상세</th></tr>
+        <tr><td>2-1</td><td>로그 기반 metric 3종</td><td><code>fe_error_count</code>(라벨 source·pageTemplate) · <code>fe_api_request_count</code>(pathTemplate·clientAction·status) · <code>fe_api_latency</code>(distribution, durationMs)</td></tr>
+        <tr><td>2-2</td><td>데이터소스·권한 (U-1)</td><td>GCP Monitoring 데이터소스 연결 + 팀 조회 권한</td></tr>
+        <tr><td>2-3</td><td>대시보드 v1 — 패널 4종</td><td>surface별 에러 추이(24h) · 에러율 · API top-N · p95 지연. surface 라벨은 Phase 3-1 전까지 pageTemplate prefix 매칭으로 대체</td></tr>
+        <tr><td>2-4</td><td>알림 룰 2종 → Slack</td><td>고객 대면(target-sources, 민감 임계) · 전체 급증(느슨 임계)</td></tr>
+      </table></div>
+      <p class="done-crit"><b>완료 기준</b> — 테스트 에러 1건이 5분 내 Slack에 도착</p>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="ph-num">Phase 3</span> surface · page_view · sessionId <span class="pill todo">본체 ①</span><span class="ph-note">규모 소 (~200줄+테스트) · Phase 1·2와 병행 가능</span></summary>
+    <div class="ph-body">
+      <div class="tbl-scroll"><table>
+        <tr><th>#</th><th>작업</th><th>대상 파일</th><th>상세 · 검증</th></tr>
+        <tr><td>3-1</td><td><code>surface</code> 필드</td><td class="mono" style="font-size:12px">lib/log-path.ts<br>app/api/_lib/log.ts<br>app/api/_lib/handler.ts</td><td>pageTemplate prefix 매칭으로 4값 파생, 접근 로그·에러 리포트에 필드 추가, metric 라벨 승격. 검증: 경로별 매핑 단위 테스트</td></tr>
+        <tr><td>3-2</td><td>익명 <code>sessionId</code></td><td class="mono" style="font-size:12px">lib/fetch-json.ts<br>lib/observability-headers.ts<br>lib/bff/http.ts</td><td>탭 세션 UUID를 sessionStorage 보관, <code>X-Session-Id</code> 부착, 서버는 UUID 형식 검증 후 채택. PII 아님(익명 난수) — 인증 전 "같은 사용자의 연속 행동"을 잇는 유일한 키. 검증: 위조 값 드랍 테스트</td></tr>
+        <tr><td>3-3</td><td><code>page_view</code> 이벤트</td><td class="mono" style="font-size:12px">ObservabilityInit.tsx<br>observability/events/route.ts (신규)</td><td>usePathname 변화 감지 → {event, pageTemplate, surface, sessionId} INFO 전송. 수신 라우트는 client-errors와 동일 방어. metric <code>fe_page_view_count</code> 추가. 검증: 전환 1건·중복 없음·방어 회귀</td></tr>
+        <tr><td>3-4</td><td>방어 상수 재점검</td><td class="mono" style="font-size:12px">lib/client-error-report.ts</td><td>page_view 추가로 탭당 분당 캡(10건)이 좁을 수 있음 — 이벤트 종류별 캡 분리</td></tr>
+      </table></div>
+      <p class="done-crit"><b>완료 기준</b> — sessionId 하나로 "방문 → 조회 → 동작 → (에러)"가 시간순 조회됨</p>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="ph-num">Phase 4</span> In-app Admin 대시보드 MVP <span class="pill todo">본체 ②</span><span class="ph-note">규모 중 · 전제 V-5</span></summary>
+    <div class="ph-body">
+      <div class="callout warn" style="margin-top:12px">
+        <p class="t">전제 V-5 — 지금 바로 확인할 것</p>
+        <p>FE 서버 → googleapis 도달성(Private Google Access) + 서비스계정 <code>logging.viewer</code>·<code>monitoring.viewer</code>.
+        불가하면 Phase 4 전체가 Grafana 단독 소비로 대체된다(화면 포기, 데이터 동일).</p>
+      </div>
+      <div class="tbl-scroll"><table>
+        <tr><th>#</th><th>작업</th><th>대상 파일</th><th>상세 · 검증</th></tr>
+        <tr><td>4-1</td><td>GCP 조회 어댑터</td><td class="mono" style="font-size:12px">lib/gcp/logging.ts (신규)<br>lib/gcp/monitoring.ts (신규)</td><td>entries.list·timeSeries.list. 24h 창 강제(무제한 스캔 구조적 차단)·페이지 캡·타임아웃. 토큰은 서버 전용. 검증: 24h 초과 요청 거부 테스트</td></tr>
+        <tr><td>4-2</td><td>Admin API 라우트 3종</td><td class="mono" style="font-size:12px">api/v1/admin/observability/*</td><td>recent-errors(50건) · error-trend(24h, browser/server) · api-usage(top-N·p95). 원본은 서버에서 요약으로 축약. 검증: 응답 스키마 계약 테스트</td></tr>
+        <tr><td>4-3</td><td>Admin 화면</td><td class="mono" style="font-size:12px">app/admin/observability/</td><td>기존 admin 패턴(theme.ts·한국어 UI). 에러 목록 → 행 확장 시 breadcrumbs·requestId 체인. 검증: 목업+실데이터 렌더</td></tr>
+        <tr><td>4-4</td><td>타깃소스 활동 이력</td><td class="mono" style="font-size:12px">admin/pipelines/targets/[id]/</td><td><code>path=~"/target-sources/{id}"</code> 필터로 접근/에러 로그 시간순 — 고객 행동 재구성. 검증: 확정→폴링→에러 흐름 재구성</td></tr>
+        <tr><td>4-5</td><td>접근 통제 (임시)</td><td>—</td><td>인증 전 과도기: 내부망 전제 + admin 경로 분리. 인증 도입 시 role 검사로 교체(5-2)</td></tr>
+      </table></div>
+      <p class="done-crit"><b>완료 기준</b> — 운영자가 GCP 콘솔 없이 "최근 에러 → 상세 → 타깃 이력"까지 도달</p>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="ph-num">Phase 5</span> 인증 연동 <span class="ph-note">인증 도입(~1개월) 후</span></summary>
+    <div class="ph-body">
+      <div class="tbl-scroll"><table>
+        <tr><th>#</th><th>작업</th><th>상세</th></tr>
+        <tr><td>5-1</td><td>로그에 userId 추가</td><td>서버 라우트에서 세션→userId resolve 후 로그 필드로. <b>클라이언트발 userId 헤더 채택 금지</b>(위조 가능). sessionId는 유지(로그인 전 구간 연결)</td></tr>
+        <tr><td>5-2</td><td>Admin 화면 인가</td><td>4-5의 임시 통제를 role 검사로 교체</td></tr>
+        <tr><td>5-3</td><td>사용자별 검색 축</td><td>"이 사용자의 최근 활동" 필터 — 로그 userId 필드 기반</td></tr>
+      </table></div>
+    </div>
+  </details>
+
+  <details class="phase">
+    <summary><span class="ph-num">Phase 6</span> BFF 감사 테이블 협의 <span class="ph-note">외부 의존 · 협의는 지금부터 가능</span></summary>
+    <div class="ph-body">
+      <div class="tbl-scroll"><table>
+        <tr><th>#</th><th>작업</th><th>상세</th></tr>
+        <tr><td>6-1</td><td>요구사항 정리·협의</td><td>30일 초과 보존이 필요한 도메인 이벤트(설치 확정·승인 요청·연결 테스트 등)와 스키마(누가·언제·무엇을·어느 타깃에·결과) 제안. FE는 이미 헤더로 맥락 전달 중 — <b>FE 추가 작업 없음</b></td></tr>
+        <tr><td>6-2</td><td>(대안) BigQuery sink</td><td>협의가 길어지면 sink로 장기 보존 먼저 확보(코드 0줄). 도메인 join은 불가 — 임시방편임을 명시</td></tr>
+      </table></div>
+    </div>
+  </details>
+</section>
+
+<section>
+  <h2><span class="sec">03</span>의존 관계와 순서</h2>
+<pre>Phase 0 (PR #558 머지)
+  ├─→ Phase 1 (배포 실측) ─→ Phase 2 (Grafana·Slack)   ← 크리티컬 패스: "신고 전에 아는" 상태
+  ├─→ Phase 3 (surface·page_view·sessionId)             ← 코드 작업, 1·2와 병행 가능
+  └─→ Phase 4 (Admin MVP)                                ← V-5 확인 선행, 3의 surface 활용
+Phase 5 (인증 연동)        ← 인증 도입 후
+Phase 6 (BFF 감사 테이블)  ← 협의 개시는 지금부터 가능</pre>
+  <div class="callout">
+    <p class="t">지금 바로 시작할 수 있는 것 (코드와 무관)</p>
+    <p>① PR #558 리뷰 ② V-5 확인(googleapis 도달성 + 서비스계정 권한, 인프라팀) ③ 6-1 BFF 감사 테이블 협의 개시</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="sec">04</span>하지 않는 것 — 명시적 스코프 아웃</h2>
+  <ul>
+    <li><b>전용 수집 서버</b>(Sentry/Bugsink/PostHog 셀프호스트) — 검증 후 보류, 승격 경로만 보존</li>
+    <li><b>OpenTelemetry 분산 트레이싱</b> — requestId 상관관계가 경량 대체, 아쉬워지면 재평가</li>
+    <li><b>고카디널리티 metric</b> — 타깃별/사용자별 집계는 Grafana가 아니라 Admin(로그 조회)의 몫</li>
+    <li><b>세션 리플레이·히트맵</b> — page_view + clientAction으로 행동 흐름은 충분히 재구성됨</li>
+    <li><b>소스맵 심볼리케이션 자동화</b> — 수동 디코드로 시작, 빈도가 올라가면 Bugsink 승격 신호</li>
+  </ul>
+</section>
+
+<footer>
+  md 원본: <span class="mono">docs/feature/observability-implementation-plan.md</span> ·
+  전략: <span class="mono">observability-strategy-overview.md</span> ·
+  수집 계층 상세: <span class="mono">observability-plan.md</span> (PR #558 브랜치)<br>
+  Linear: LIN-58 · LIN-59 · LIN-55~72 (운영 배포 준비)
+</footer>
+
+</div>
+</body>
+</html>

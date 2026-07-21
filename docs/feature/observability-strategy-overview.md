@@ -131,6 +131,8 @@ Cloud Logging은 기본 보존 30일이고 트랜잭션 보장이 없다. "고�
 
 ## 7. 참고 문서
 
+- `docs/feature/observability-implementation-plan.md` — 이 전략의 실행 계획(아키텍처 4계층 + Phase별 작업 목록), HTML 판 동일 경로 `.html`
+
 - `docs/feature/observability-plan.md` (PR #558 브랜치) — 아키텍처 상세·대안 비교·위협 모델·PII 가드·FAQ
 - `docs/feature/observability-via-bff.md` (docs/error-tracking-plan 브랜치) — 결정 과정 원자료
 - Linear LIN-58(에러 바운더리) · LIN-59(에러 트래킹) · LIN-55~72(운영 배포 준비)
