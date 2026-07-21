@@ -513,12 +513,20 @@ function seedPipelines(): MockPipeline[] {
           attempts: [
             attempt(1, 'FAILED', 'CHECK_ERROR', 93, null, 91, null, {
               failure_detail:
-                'infra-manager call failed: 503 Service Unavailable (POST /infra/aws/service-terraform-jobs/action)',
+                'infra-manager call failed: [503 Service Unavailable] during [POST] to ' +
+                '[http://infra-manager.internal/infra/aws/service-terraform-jobs/action] ' +
+                '[InfraManagerFeignClient#runTerraform(String,TaskOperation)]: ' +
+                '[{"error":"service_unavailable","message":"upstream connect error or disconnect/reset ' +
+                'before headers. reset reason: connection failure","trace_id":"a1b2c3d4e5f6"}]',
               no_jobs: true,
             }),
             attempt(2, 'FAILED', 'CHECK_ERROR', 85, null, 78, null, {
               failure_detail:
-                'infra-manager call failed: 503 Service Unavailable (POST /infra/aws/service-terraform-jobs/action)',
+                'infra-manager call failed: [503 Service Unavailable] during [POST] to ' +
+                '[http://infra-manager.internal/infra/aws/service-terraform-jobs/action] ' +
+                '[InfraManagerFeignClient#runTerraform(String,TaskOperation)]: ' +
+                '[{"error":"service_unavailable","message":"upstream connect error or disconnect/reset ' +
+                'before headers. reset reason: connection failure","trace_id":"a1b2c3d4e5f6"}]',
               no_jobs: true,
             }),
           ],
@@ -1147,8 +1155,10 @@ const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' |
 
 /** Raw state-poll response body, pretty-printed as the upstream stores it. The
  *  viewer renders it verbatim (never re-parses), so the mock owns the formatting. */
+// Compact, mirroring the backend's stored last_response (terraform_job_state.last_response is
+// compact JSON, all fields preserved); the job viewer pretty-prints it for display via formatJson.
 const stateJson = (terraformState: string, failReason: string | null): string =>
-  JSON.stringify({ terraformState, failReason }, null, 2);
+  JSON.stringify({ terraformState, failReason });
 
 const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
   '12401:1:1019': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
