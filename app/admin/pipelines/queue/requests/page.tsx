@@ -9,7 +9,7 @@
  * hidden when there is a single page. The PENDING and history rows navigate to
  * the detail; the rejected list keeps its 반려 사유 hover cell without navigation.
  */
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { integrationRoutes } from '@/lib/routes';
 import { pipelineStyles } from '@/lib/theme';
@@ -53,7 +53,11 @@ interface PagedSection<T> {
   reload: () => void;
 }
 
-/** One paginated section's data state (1-based page → 0-based server param). */
+const SECTION_POLL_MS = 30_000;
+
+/** One paginated section's data state (1-based page → 0-based server param).
+ *  Live: refetches every 30s and on window focus — silently once data exists
+ *  (no skeleton flash; a failed background poll keeps the last good rows). */
 function usePagedSection<T>(
   fetcher: (page: number, opts: { signal: AbortSignal }) => Promise<Paged<T>>,
 ): PagedSection<T> {
@@ -62,24 +66,39 @@ function usePagedSection<T>(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [retry, setRetry] = useState(0);
+  const [tick, setTick] = useState(0);
+  const hasData = useRef(false);
+
+  useEffect(() => {
+    const bump = (): void => setTick((n) => n + 1);
+    const timer = setInterval(bump, SECTION_POLL_MS);
+    window.addEventListener('focus', bump);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', bump);
+    };
+  }, []);
 
   useAbortableEffect(
     (signal) => {
-      setLoading(true);
-      setError(null);
+      if (!hasData.current) setLoading(true);
       return fetcher(page - 1, { signal })
         .then((result) => {
           if (signal.aborted) return;
+          hasData.current = true;
           setPaged(result);
+          setError(null);
           setLoading(false);
         })
         .catch((err) => {
           if (signal.aborted) return;
-          setError(err);
+          // Surface the error only before the first success — a failed silent
+          // poll keeps showing the last good rows.
+          if (!hasData.current) setError(err);
           setLoading(false);
         });
     },
-    [fetcher, page, retry],
+    [fetcher, page, retry, tick],
   );
 
   return { page, paged, loading, error, setPage, reload: () => setRetry((n) => n + 1) };
