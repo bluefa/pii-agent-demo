@@ -121,17 +121,21 @@ export const useScanPolling = (
         || expectedJobIdRef.current === null
         || id === expectedJobIdRef.current;
       // New completion: with a pinned expected id, only that exact job counts;
-      // otherwise a job id we have not notified for (on the first observation a
-      // pre-existing terminal job is adopted instead — no fire — unless this
-      // client armed a scan while the first read was still failing). When the
-      // contract omits `id`, fall back to the SCANNING→terminal edge or the
-      // armed fast scan.
+      // otherwise a job id NEWER than the last notified one — ids are monotonic
+      // (DB keys), so a delayed stale response for an OLDER job can never re-fire
+      // after a newer job completed. On the first observation a pre-existing
+      // terminal job is adopted instead (no fire) — unless this client armed a
+      // scan while the first read was still failing. When the contract omits
+      // `id`, fall back to the SCANNING→terminal edge or the armed fast scan.
+      const lastNotifiedId = notifiedJobIdRef.current;
       const isNewCompletion = id !== null
         ? (armed && expectedJobIdRef.current !== null
             ? id === expectedJobIdRef.current
-            : notifiedJobIdRef.current !== id && (!isFirst || armed))
+            : (lastNotifiedId === null ? !isFirst || armed : id > lastNotifiedId))
         : sawScanning || armed;
-      if (id !== null) notifiedJobIdRef.current = id;
+      if (id !== null) {
+        notifiedJobIdRef.current = lastNotifiedId === null ? id : Math.max(lastNotifiedId, id);
+      }
       if (!armed || matchesExpected) {
         awaitingCompletionRef.current = false;
         expectedJobIdRef.current = null;

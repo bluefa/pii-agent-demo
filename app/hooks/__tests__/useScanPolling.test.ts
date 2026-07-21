@@ -192,6 +192,30 @@ describe('useScanPolling', () => {
     expect(onScanComplete).toHaveBeenCalledTimes(1);
   });
 
+  // Job ids are monotonic: a DELAYED stale response for an older job arriving
+  // AFTER the newer job already completed must not re-fire (and re-wipe Step-1).
+  it('ignores a delayed older-job SUCCESS arriving after the newer job completed', async () => {
+    const onScanComplete = vi.fn();
+    vi.mocked(getLatestScanJob)
+      .mockResolvedValueOnce(scanningJob)
+      .mockResolvedValueOnce({ scan_status: 'SUCCESS', id: 7, target_source_id: 1 })
+      .mockResolvedValue({ scan_status: 'SUCCESS', id: 3, target_source_id: 1 }); // delayed stale
+
+    const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // SCANNING
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000); // SUCCESS id=7 → fires
+    });
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.refresh(); // delayed SUCCESS id=3 → older than 7, no re-fire
+    });
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+  });
+
   // A first poll that settles as an error must still end the initial load, or the
   // Run Infra Scan button (gated on `loading`) freezes disabled forever. (LIN-39)
   it('clears loading when the first poll fails', async () => {
