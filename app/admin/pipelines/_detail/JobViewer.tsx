@@ -12,13 +12,14 @@ import { getJobResult, getJobState, OrchestratorApiError } from '@/app/lib/api/p
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { d, j, MiniPill, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import { parseAnsi, stripAnsi } from '@/app/admin/pipelines/_detail/ansiLog';
+import { formatJson } from '@/app/admin/pipelines/_detail/jsonFormat';
 import type { TerraformJobResultDetail, TerraformJobStateDetail } from '@/lib/pipeline/types';
 
 type ViewerTab = 'log' | 'raw';
 
 const VIEWER_TABS: ReadonlyArray<{ key: ViewerTab; label: string }> = [
   { key: 'log', label: 'Terraform 로그' },
-  { key: 'raw', label: '상태 응답 원문' },
+  { key: 'raw', label: '상태 응답 (JSON)' },
 ];
 type Loadable<T> = { phase: 'loading' | 'ok' | 'notfound' | 'error'; data: T | null; error: string | null };
 
@@ -88,13 +89,16 @@ export function JobViewer({
     }
   }, [tab, result.phase, result.data]);
 
-  // Copy the log without ANSI codes; the state response is raw JSON — leave it verbatim.
+  // The status response is JSON — pretty-print it for display/copy WITHOUT reparsing
+  // (formatJson re-indents whitespace only, preserving key order + number precision).
+  const prettyResponse = formatJson(state.data?.last_response ?? '');
+  // Copy the log without ANSI codes; the status response exactly as shown (formatted).
   const copyText =
     tab === 'log'
       ? result.data?.content
         ? stripAnsi(result.data.content)
         : ''
-      : state.data?.last_response ?? '';
+      : prettyResponse;
   const succeeded = result.data?.succeeded ?? null;
   const truncated = tab === 'log' && result.phase === 'ok' && result.data?.truncated === true;
   const live = tab === 'log' && result.phase === 'ok' && result.data?.source === 'live' && !!result.data?.content;
@@ -173,10 +177,10 @@ export function JobViewer({
       );
     else
       body = (
-        <div className={j.logBody} tabIndex={0} role="region" aria-label="상태 응답 원문">
-          {/* Verbatim — this is the raw upstream response; never re-parse it
-              (JSON round-tripping would drop unsafe-int precision / reorder keys). */}
-          <pre className={j.logPre}>{state.data?.last_response ?? ''}</pre>
+        <div className={j.logBody} tabIndex={0} role="region" aria-label="상태 응답 (JSON)">
+          {/* Pretty-printed for readability but token-verbatim — formatJson re-indents
+              whitespace only, never JSON.parse (which would reorder keys / lose int precision). */}
+          <pre className={j.logPre}>{prettyResponse}</pre>
         </div>
       );
   }

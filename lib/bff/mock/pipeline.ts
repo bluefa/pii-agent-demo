@@ -370,6 +370,9 @@ interface MockAttempt {
   check: MockCheck | null;
   terraform_results: TerraformJobResultSummary[];
   job_states: TerraformJobStateSummary[];
+  /** Attempt genuinely observed no terraform jobs (e.g. the dispatch call failed before any
+   *  job id came back). Suppresses the placeholder job synthesis so the zero-job state is real. */
+  no_jobs?: boolean;
 }
 
 interface MockTask {
@@ -471,6 +474,7 @@ function seedPipelines(): MockPipeline[] {
       failure_detail?: string | null;
       terraform_results?: TerraformJobResultSummary[];
       job_states?: TerraformJobStateSummary[];
+      no_jobs?: boolean;
     } = {},
   ): MockAttempt => ({
     attempt_number: n,
@@ -483,9 +487,54 @@ function seedPipelines(): MockPipeline[] {
     check: chk,
     terraform_results: extra.terraform_results ?? [],
     job_states: extra.job_states ?? [],
+    no_jobs: extra.no_jobs ?? false,
   });
 
   return [
+    // ── 131 FAILED (dispatch call failed — zero jobs) — AWS target 1006 (red path). ──
+    //     The terraform execute (dispatch) API itself failed on every attempt, so no job id
+    //     ever came back: each attempt carries error_code + failure_detail but NO job rows.
+    //     `no_jobs` suppresses the placeholder synth, exercising AttemptDetail's "실패 원인"
+    //     fallback (the per-job log viewer is unreachable when there are zero jobs).
+    {
+      pipeline_id: 131, type: 'INSTALL', target_source_id: '1006', ...resolveService('1006'), cloud_provider: 'AWS',
+      recipe_definition: 'AWS_INSTALL_V1', status: 'FAILED',
+      // Older than the RUNNING 128 on the same target — this install failed first, then 128 retried.
+      created_at: ago(95), last_activity_at: ago(78), next_due_at: null,
+      leased: false, cancel_requested: false, due_lag_millis: 0,
+      tasks: [
+        mkTask(131, 0, 'AWS_SERVICE_PLAN_V1', 'DONE', {
+          started_at: ago(95), finished_at: ago(93),
+          attempts: [attempt(1, 'DONE', null, 95, '{"job_id":"tf-e00","terraformState":"COMPLETED"}', 93)],
+        }),
+        mkTask(131, 1, 'AWS_SERVICE_APPLY_V1', 'FAILED', {
+          fail_count: 2, error_code: 'CHECK_ERROR', effective_max_fail_count: 2,
+          started_at: ago(93), finished_at: ago(78),
+          attempts: [
+            attempt(1, 'FAILED', 'CHECK_ERROR', 93, null, 91, null, {
+              failure_detail:
+                'infra-manager call failed: [503 Service Unavailable] during [POST] to ' +
+                '[http://infra-manager.internal/infra/aws/service-terraform-jobs/action] ' +
+                '[InfraManagerFeignClient#runTerraform(String,TaskOperation)]: ' +
+                '[{"error":"service_unavailable","message":"upstream connect error or disconnect/reset ' +
+                'before headers. reset reason: connection failure","trace_id":"a1b2c3d4e5f6"}]',
+              no_jobs: true,
+            }),
+            attempt(2, 'FAILED', 'CHECK_ERROR', 85, null, 78, null, {
+              failure_detail:
+                'infra-manager call failed: [503 Service Unavailable] during [POST] to ' +
+                '[http://infra-manager.internal/infra/aws/service-terraform-jobs/action] ' +
+                '[InfraManagerFeignClient#runTerraform(String,TaskOperation)]: ' +
+                '[{"error":"service_unavailable","message":"upstream connect error or disconnect/reset ' +
+                'before headers. reset reason: connection failure","trace_id":"a1b2c3d4e5f6"}]',
+              no_jobs: true,
+            }),
+          ],
+        }),
+        mkTask(131, 2, 'AWS_BDC_COMMON_PLAN_V1', 'BLOCKED'),
+        mkTask(131, 3, 'AWS_BDC_COMMON_APPLY_V1', 'BLOCKED'),
+      ],
+    },
     // ── 130 RUNNING — SDU target 1099 (cloud_provider AWS → surfaced as "SDU"). ──
     //     DONE tasks carry attempts so 시도 횟수 reads the real attempt count.
     {
@@ -828,9 +877,10 @@ const synthJobIds = (taskId: number, n: number): [string, string] => [
   String(taskId * 100 + n * 10 + 2),
 ];
 
-/** An attempt with no hand-written job fixtures → synthesize a job set. */
+/** An attempt with no hand-written job fixtures → synthesize a job set (unless it declares
+ *  `no_jobs`, i.e. it genuinely observed none, e.g. a dispatch-call failure). */
 const needsSynth = (a: MockAttempt): boolean =>
-  a.terraform_results.length === 0 && a.job_states.length === 0;
+  !a.no_jobs && a.terraform_results.length === 0 && a.job_states.length === 0;
 
 const attemptStamp = (a: MockAttempt): string =>
   a.finished_at ?? a.started_at ?? new Date().toISOString();
@@ -1105,8 +1155,10 @@ const RESULT_FIXTURES: Record<string, Omit<TerraformJobResultDetail, 'task_id' |
 
 /** Raw state-poll response body, pretty-printed as the upstream stores it. The
  *  viewer renders it verbatim (never re-parses), so the mock owns the formatting. */
+// Compact, mirroring the backend's stored last_response (terraform_job_state.last_response is
+// compact JSON, all fields preserved); the job viewer pretty-prints it for display via formatJson.
 const stateJson = (terraformState: string, failReason: string | null): string =>
-  JSON.stringify({ terraformState, failReason }, null, 2);
+  JSON.stringify({ terraformState, failReason });
 
 const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | 'attempt_number' | 'job_id'>> = {
   '12401:1:1019': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,

@@ -30,6 +30,7 @@ import { d, j, MiniPill, type ViewerTarget } from '@/app/admin/pipelines/_detail
 import { ConditionExec, DefinitionTab, TerraformExec } from '@/app/admin/pipelines/_detail/execTabs';
 import { AttemptDetail } from '@/app/admin/pipelines/_detail/AttemptDetail';
 import { JobViewer } from '@/app/admin/pipelines/_detail/JobViewer';
+import { FailureReasonModal } from '@/app/admin/pipelines/_detail/FailureReasonModal';
 import type { TaskDetail, TaskSummary } from '@/lib/pipeline/types';
 
 const TITLE_ID = 'pl-task-drawer-title';
@@ -61,13 +62,17 @@ export function TaskDrawer({
   const [tab, setTab] = useState<DrawerTab>('exec');
   const [view, setView] = useState<DrawerView>({ name: 'root' });
   const viewerModal = useModal<ViewerTarget>();
+  const failModal = useModal<{ detail: string; subtitle: string }>();
   const description = detail ? detail.definition?.description ?? detail.description : null;
 
-  // Esc layering: viewer (ModalShell owns it) → attempt → close drawer.
+  // Esc layering: while a modal is open it owns Esc — the job viewer (ModalShell) closes
+  // itself; the failure-reason modal is mouse-only (Esc disabled) so it simply stays put.
+  // Either way we bail here so Esc never pops the attempt view out from under an open
+  // modal. With no modal open, Esc goes attempt → root, then closes the drawer.
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
-      if (viewerModal.isOpen) return;
+      if (viewerModal.isOpen || failModal.isOpen) return;
       if (view.name === 'attempt') {
         setView({ name: 'root' });
         return;
@@ -76,7 +81,7 @@ export function TaskDrawer({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, viewerModal.isOpen, view]);
+  }, [onClose, viewerModal.isOpen, failModal.isOpen, view]);
 
   const attempt =
     detail && view.name === 'attempt'
@@ -147,7 +152,14 @@ export function TaskDrawer({
       <div className={d.body}>
         {detail ? (
           view.name === 'attempt' && attempt ? (
-            <AttemptDetail attempt={attempt} operation={detail.operation} onOpenViewer={viewerModal.open} />
+            <AttemptDetail
+              attempt={attempt}
+              operation={detail.operation}
+              onOpenViewer={viewerModal.open}
+              onOpenFailure={(cause) =>
+                failModal.open({ detail: cause, subtitle: `${displayName} · 시도 #${attempt.attempt_number}` })
+              }
+            />
           ) : tab === 'exec' ? (
             detail.kind === 'CONDITION_CHECK' ? (
               <ConditionExec detail={detail} />
@@ -183,6 +195,14 @@ export function TaskDrawer({
           target={viewerModal.data}
           jobLabel={displayName}
           onClose={viewerModal.close}
+        />
+      )}
+
+      {failModal.isOpen && failModal.data && (
+        <FailureReasonModal
+          detail={failModal.data.detail}
+          subtitle={failModal.data.subtitle}
+          onClose={failModal.close}
         />
       )}
     </aside>

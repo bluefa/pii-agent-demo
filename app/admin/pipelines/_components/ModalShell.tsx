@@ -2,7 +2,8 @@
 
 /**
  * ModalShell — overlay + centered dialog (design-inventory §Modal). Closes on
- * overlay click, ESC, and route change; focuses the first button on open.
+ * overlay click, ESC (unless `closeOnEsc={false}` — mouse-only modals), and route
+ * change; focuses the first button on open.
  * `variant='task'` = 600px column with a max-height (body scrolls);
  * `variant='wide'` = 720px (start-pipeline modal); `variant='xwide'` = 960px
  * (Custom builder — drag canvas + docked catalog need the room);
@@ -22,6 +23,8 @@ export interface ModalShellProps {
   /** id of the heading element that labels the dialog. */
   labelledBy?: string;
   className?: string;
+  /** When false, the Escape key does NOT close the dialog (mouse-only: overlay click / close button). Default true. */
+  closeOnEsc?: boolean;
 }
 
 export function ModalShell({
@@ -31,20 +34,21 @@ export function ModalShell({
   children,
   labelledBy,
   className,
+  closeOnEsc = true,
 }: ModalShellProps): ReactElement | null {
   const dialogRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const openedAt = useRef(pathname);
 
-  // ESC closes.
+  // ESC closes, unless the caller opted out (mouse-only modal).
   useEffect(() => {
-    if (!open) return;
+    if (!open || !closeOnEsc) return;
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, closeOnEsc]);
 
   // Focus the first button on open, trap Tab inside, restore focus on close.
   useEffect(() => {

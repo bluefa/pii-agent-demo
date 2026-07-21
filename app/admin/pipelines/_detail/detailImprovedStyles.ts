@@ -118,6 +118,12 @@ export const improvedStyles = {
      *  16px heading, the primary hierarchy anchor inside the body (owner Figma node 121-5). */
     sectionLabel: 'text-[16px] font-semibold text-[var(--pl-text-strong)] tracking-[-0.196px]',
     descText: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-text-strong)] whitespace-pre-line',
+    /** Terminal-failure cause block — error-toned descText; shown when a failed attempt has no job rows. */
+    failReason: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-err-text)] whitespace-pre-line break-words',
+    /** Clamped 2-line preview of a long failure cause — the full text opens in FailureReasonModal. */
+    failReasonClamp: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
+    /** "자세히" link under a clamped failure cause — opens the full-message modal. */
+    failReasonMore: 'mt-1.5 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline transition-colors',
     /** key/value progress rows — value is regular weight, 14px (node 70:35). */
     kvRow: 'flex items-center justify-between gap-3',
     kvKey: 'text-[14px] text-[var(--pl-text-weak)]',

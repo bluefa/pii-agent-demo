@@ -35,15 +35,15 @@ describe('mockPipeline (in-memory orchestrator)', () => {
 
     it('computes period statistics within the window', () => {
       const week = mockPipeline.statistics('7d').body as PipelineStatistics;
-      expect(week.total_count).toBe(8);
+      expect(week.total_count).toBe(9);
       expect(week.done_count).toBe(2);
-      expect(week.failed_count).toBe(1);
+      expect(week.failed_count).toBe(2); // 124 (JOB_FAILED) + 131 (dispatch-call failure)
       expect(week.cancelled_count).toBe(1);
       expect(week.running_count).toBe(3);
       expect(week.pending_count).toBe(1);
 
       // 1h window only catches the freshly-anchored PENDING + three RUNNING
-      // (incl. the SDU demo pipeline 130).
+      // (incl. the SDU demo pipeline 130); the older FAILED 131 falls outside it.
       const hour = mockPipeline.statistics('1h').body as PipelineStatistics;
       expect(hour.total_count).toBe(4);
       expect(hour.pending_count).toBe(1);
@@ -105,6 +105,21 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       expect(a2.terraform_results).toHaveLength(3);
       expect(a2.job_states).toHaveLength(3);
       expect(a2.failure_detail).toContain('1027');
+    });
+
+    it('surfaces failure_detail with zero job rows on a dispatch-call failure (131)', () => {
+      // task_id = 131 * 100 + 1 → the APPLY step whose dispatch call failed on every attempt.
+      const task = mockPipeline.taskDetail('131', '13101').body as TaskDetail;
+      expect(task.status).toBe('FAILED');
+      expect(task.error_code).toBe('CHECK_ERROR');
+      expect(task.attempts).toHaveLength(2);
+      for (const a of task.attempts) {
+        // The dispatch call failed before any job id came back → no synth, zero jobs; the
+        // cause lives only in failure_detail (AttemptDetail's "실패 원인" fallback).
+        expect(a.terraform_results).toHaveLength(0);
+        expect(a.job_states).toHaveLength(0);
+        expect(a.failure_detail).toContain('503 Service Unavailable');
+      }
     });
   });
 
