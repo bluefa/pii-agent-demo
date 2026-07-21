@@ -67,7 +67,11 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
     ? pathname.slice(integrationRoutes.pipelines.dashboard.length + 1)
     : '';
   const isDetail = rest !== '' && !rest.includes('/') && rest !== 'services' && rest !== 'queue';
-  const mainClass = isDashboard ? layout.contentFluid : isDetail ? layout.contentDetail : layout.content;
+  // Task Queue pages are fluid like the dashboard — they must grow/shrink with
+  // the viewport instead of capping at layout.content's max-width.
+  const isQueue = rest === 'queue' || rest.startsWith('queue/');
+  const mainClass =
+    isDashboard || isQueue ? layout.contentFluid : isDetail ? layout.contentDetail : layout.content;
 
   return (
     <div className={layout.shell}>
