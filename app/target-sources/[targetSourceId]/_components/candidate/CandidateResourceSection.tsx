@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createApprovalRequest,
   getConfirmResources,
@@ -36,6 +36,7 @@ import { getCandidateErrorMessage } from '@/app/target-sources/[targetSourceId]/
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
 import { selectPhase } from '@/app/target-sources/[targetSourceId]/_components/candidate/phase';
 import { toApprovalRequestInput } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
+import { fetchResourcesWithRetry } from '@/app/target-sources/[targetSourceId]/_components/candidate/load-resources';
 import { IdcSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 import { IdcExclusionPopover } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcExclusionPopover';
 import { IdcExclusionReasonModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcExclusionReasonModal';
@@ -61,6 +62,12 @@ interface CandidateResourceSectionProps {
 const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
 const EMPTY_CANDIDATES: CandidateResource[] = [];
 
+// Right after a scan the resource list can momentarily read empty or error while the
+// backend finishes materializing it — retry a few times before settling into the
+// empty/error state. A plain load does a single attempt (empty is a valid rest state).
+const MAX_RESOURCE_ATTEMPTS = 4; // 1 initial + 3 retries
+const RESOURCE_RETRY_DELAY_MS = 800;
+
 export const CandidateResourceSection = ({
   targetSourceId,
   readonly,
@@ -77,13 +84,37 @@ export const CandidateResourceSection = ({
   const [expandedResourceId, setExpandedResourceId] = useState<string | null>(null);
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const [reasonFor, setReasonFor] = useState<string | null>(null);
+  // Set by handleScanComplete so the next fetch retries on empty/error (post-scan race).
+  const retryAfterScanRef = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
+    const maxAttempts = retryAfterScanRef.current ? MAX_RESOURCE_ATTEMPTS : 1;
+    retryAfterScanRef.current = false;
 
-    void getConfirmResources(targetSourceId, { signal: controller.signal })
-      .then((response) => {
-        const data = catalogToCandidates(response.resources);
+    const delayBeforeRetry = () =>
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, RESOURCE_RETRY_DELAY_MS);
+        controller.signal.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer);
+            resolve();
+          },
+          { once: true },
+        );
+      });
+
+    void fetchResourcesWithRetry(
+      () =>
+        getConfirmResources(targetSourceId, { signal: controller.signal }).then((response) =>
+          catalogToCandidates(response.resources),
+        ),
+      maxAttempts,
+      delayBeforeRetry,
+    )
+      .then((data) => {
+        if (controller.signal.aborted) return;
         setState({ status: 'ready', data });
         // Seed selection from the backend's `selected` flag (never for ineligible
         // rows, whose checkbox is disabled), and seed any exclusion reasons it sent.
@@ -98,6 +129,7 @@ export const CandidateResourceSection = ({
       })
       .catch((error: unknown) => {
         if (error instanceof AppError && error.code === 'ABORTED') return;
+        if (controller.signal.aborted) return;
         setState({ status: 'error', message: getCandidateErrorMessage(error) });
       });
 
@@ -218,6 +250,7 @@ export const CandidateResourceSection = ({
     setExpandedResourceId(null);
     setPopover(null);
     setReasonFor(null);
+    retryAfterScanRef.current = true; // retry on empty/error for this post-scan fetch
     refetch();
     await refreshProject();
   }, [refetch, refreshProject]);
