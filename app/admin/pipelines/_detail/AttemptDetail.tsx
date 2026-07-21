@@ -9,6 +9,8 @@
  * attempt with NO job rows (e.g. the terraform dispatch call itself failed):
  * there is no job row, hence no log-viewer entry point, so the "실패 원인" block
  * below surfaces `failure_detail` — the only cause the client has — in its place.
+ * A long cause is clamped to a preview with a "자세히" button that opens the full
+ * text in FailureReasonModal (`onOpenFailure`).
  */
 import { type ReactElement } from 'react';
 import { jobRows, jobVerdict, type JobRow } from '@/app/admin/pipelines/_detail/jobRows';
@@ -40,12 +42,18 @@ export function AttemptDetail({
   attempt,
   operation,
   onOpenViewer,
+  onOpenFailure,
 }: {
   attempt: TaskAttemptView;
   operation: TaskOperation | null;
   onOpenViewer: (t: ViewerTarget) => void;
+  onOpenFailure: (detail: string) => void;
 }): ReactElement {
   const rows = jobRows(attempt);
+  const failureCause = attempt.failure_detail ?? attempt.error_code ?? '원인 미기록';
+  // A dispatch-failure detail (Feign message) can run to ~512 chars; clamp the inline
+  // preview and offer the full text in FailureReasonModal.
+  const failureIsLong = (attempt.failure_detail?.length ?? 0) > 120;
 
   return (
     <>
@@ -83,7 +91,12 @@ export function AttemptDetail({
         </Section>
       ) : attempt.status === 'FAILED' ? (
         <Section label="실패 원인">
-          <p className={d.failReason}>{attempt.failure_detail ?? attempt.error_code ?? '원인 미기록'}</p>
+          <p className={failureIsLong ? d.failReasonClamp : d.failReason}>{failureCause}</p>
+          {failureIsLong && (
+            <button type="button" className={d.failReasonMore} onClick={() => onOpenFailure(failureCause)}>
+              자세히
+            </button>
+          )}
         </Section>
       ) : null}
 

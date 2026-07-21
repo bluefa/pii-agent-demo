@@ -30,7 +30,9 @@ const jobState = (over: Partial<TerraformJobStateSummary> = {}): TerraformJobSta
 });
 
 const html = (a: TaskAttemptView): string =>
-  renderToStaticMarkup(<AttemptDetail attempt={a} operation={null} onOpenViewer={noop} />);
+  renderToStaticMarkup(
+    <AttemptDetail attempt={a} operation={null} onOpenViewer={noop} onOpenFailure={noop} />,
+  );
 
 // A terraform dispatch-call failure yields a FAILED attempt with zero job rows: there is no
 // job row, so no per-job log viewer to reach. The attempt must then surface `failure_detail`.
@@ -57,5 +59,18 @@ describe('AttemptDetail — failure cause when there are no job rows', () => {
   it('shows no cause block for a non-failed attempt with no jobs', () => {
     const out = html(attempt({ status: 'IN_PROGRESS', error_code: null }));
     expect(out).not.toContain('실패 원인');
+  });
+
+  it('offers a 자세히 button when the cause is long (opens the modal)', () => {
+    const long = 'infra-manager call failed: ' + 'x'.repeat(200);
+    const out = html(attempt({ failure_detail: long }));
+    expect(out).toContain('실패 원인');
+    expect(out).toContain('자세히');
+  });
+
+  it('shows no 자세히 button for a short cause', () => {
+    const out = html(attempt({ failure_detail: 'infra-manager call failed: 503' }));
+    expect(out).toContain('실패 원인');
+    expect(out).not.toContain('자세히');
   });
 });
