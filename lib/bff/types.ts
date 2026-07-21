@@ -185,6 +185,18 @@ export interface BffClient {
       id: number,
       body: z.infer<typeof schemas.TestConnectionRejectRequest>,
     ) => Promise<z.infer<typeof schemas.TestConnectionRejectResponse>>;
+    // GET /approval-history — global history; 200 is the generic Page (item
+    // shape is a documented contract gap, lib/types/task-queue.ts).
+    getApprovalHistory: (query: {
+      toStatuses?: string[];
+      page: number;
+      size: number;
+    }) => Promise<z.infer<typeof schemas.Page>>;
+    // GET …/approval-requests/latest/nlb-index-mappings — NOT in install-v1.yaml
+    // (user-provided wire, 2026-07-21): [{ resource_id, nlb_index_mapping_list:
+    // [{ service_code, nlb_index }] }]. Raw passthrough; the CSR adapter owns
+    // the camel boundary.
+    getNlbIndexMappings: (id: number) => Promise<unknown>;
   };
 
   logicalDb: {

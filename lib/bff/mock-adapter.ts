@@ -161,6 +161,10 @@ export const mockBff: BffClient = {
       unwrap<z.infer<typeof schemas.TestConnectionRejectResponse>>(
         await mockTaskQueue.rejectTestConnection(id, body),
       ),
+    getApprovalHistory: async (query) =>
+      unwrap<z.infer<typeof schemas.Page>>(await mockTaskQueue.getApprovalHistory(query)),
+    getNlbIndexMappings: async (id) =>
+      unwrap<unknown>(await mockTaskQueue.getNlbIndexMappings(id)),
   },
 
   logicalDb: {

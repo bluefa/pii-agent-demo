@@ -323,6 +323,16 @@ export const httpBff: BffClient = {
         `/target-sources/${id}/test-connection/reject`,
         body,
       ),
+    getApprovalHistory: (query) =>
+      getSnakeRaw<z.infer<typeof schemas.Page>>(
+        `/approval-history${buildQuery({
+          toStatuses: query.toStatuses?.length ? query.toStatuses.join(',') : undefined,
+          page: query.page,
+          size: query.size,
+        })}`,
+      ),
+    getNlbIndexMappings: (id) =>
+      getSnakeRaw<unknown>(`/target-sources/${id}/approval-requests/latest/nlb-index-mappings`),
   },
 
   // Logical-DB: the CSR client (app/lib/api/logical-db.ts) owns the single camel

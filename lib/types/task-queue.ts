@@ -72,6 +72,32 @@ export interface TestConnectionStatusRow {
   completedAt: string | null;
 }
 
+/**
+ * GET /approval-history content item — CONTRACT GAP: the swagger 200 is the
+ * generic `Page` (content: object[]), so the item fields are not in the
+ * contract. Shape below is the user-sanctioned assumption (2026-07-21); adjust
+ * here (single site) once the real response is confirmed.
+ */
+export interface ApprovalHistoryItemWire {
+  request_id?: number | null;
+  target_source_id?: number | null;
+  /** Approval status enum — PENDING | APPROVED | AUTO_APPROVED | REJECTED |
+   *  CANCELLED | UNAVAILABLE | UNAVAILABLE_ACKNOWLEDGED (loose: string). */
+  status?: string | null;
+  created_at?: string | null;
+  service_name?: string | null;
+  service_code?: string | null;
+}
+
+export interface ApprovalHistoryRow {
+  requestId: number | null;
+  targetSourceId: number | null;
+  status: string | null;
+  createdAt: string | null;
+  serviceName: string | null;
+  serviceCode: string | null;
+}
+
 type WirePageMeta = {
   totalElements?: number | null;
   totalPages?: number | null;
@@ -180,4 +206,23 @@ export function toTestConnectionStatusPage(
   wire: z.infer<typeof schemas.PageTestConnectionRejectStatusResponse>,
 ): Paged<TestConnectionStatusRow> {
   return toPaged(wire, toTestConnectionStatusRow);
+}
+
+export function toApprovalHistoryRow(row: ApprovalHistoryItemWire): ApprovalHistoryRow {
+  return {
+    requestId: row.request_id ?? null,
+    targetSourceId: row.target_source_id ?? null,
+    status: row.status ?? null,
+    createdAt: row.created_at ?? null,
+    serviceName: row.service_name ?? null,
+    serviceCode: row.service_code ?? null,
+  };
+}
+
+/** The generic `Page` schema's content is `object[]` — narrow it to the
+ *  sanctioned item wire here (the gap is documented on ApprovalHistoryItemWire). */
+export function toApprovalHistoryPage(
+  wire: z.infer<typeof schemas.Page>,
+): Paged<ApprovalHistoryRow> {
+  return toPaged(wire, (row) => toApprovalHistoryRow(row as ApprovalHistoryItemWire));
 }
