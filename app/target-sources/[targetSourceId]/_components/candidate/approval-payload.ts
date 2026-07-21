@@ -40,8 +40,9 @@ export const toModalResources = (
 
 /**
  * Unselected TARGET resources must carry an exclusion reason before the approval
- * request goes out (docs/cloud-provider-states.md: 제외 사유 필수). Non-TARGET
- * categories (비대상/설치불가) are not user exclusions and need no reason.
+ * request goes out (docs/cloud-provider-states.md: reason is required). Non-TARGET
+ * categories (no-install-needed / install-ineligible) are not user exclusions and
+ * need no reason.
  */
 export const listMissingExclusionReasons = (
   candidates: readonly CandidateResource[],

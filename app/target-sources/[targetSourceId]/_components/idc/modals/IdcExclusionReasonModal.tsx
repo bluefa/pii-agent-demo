@@ -9,7 +9,7 @@ interface IdcExclusionReasonModalProps {
   isOpen: boolean;
   /** Prefill when editing an existing custom reason. */
   initialReason?: string;
-  /** Max reason length — IDC default 200 (결정 #28); cloud passes 3000 (docs/cloud-provider-states.md). */
+  /** Max reason length — IDC default 200; cloud passes 3000 (docs/cloud-provider-states.md). */
   maxLen?: number;
   /** Saved a non-empty reason. */
   onSave: (reason: string) => void;
@@ -18,7 +18,7 @@ interface IdcExclusionReasonModalProps {
 }
 
 /**
- * Free-text exclusion reason (≤maxLen chars, char counter). 저장 requires a
+ * Free-text exclusion reason (≤maxLen chars, char counter). Saving requires a
  * non-empty value; closing without saving reverts via `onClose`
  * (v15 idcReasonModal / saveIdcReason).
  */

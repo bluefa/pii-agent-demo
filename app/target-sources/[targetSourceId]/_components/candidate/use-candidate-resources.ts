@@ -6,7 +6,10 @@ import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
 import type { CandidateResource } from '@/lib/types/resources';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
 import { getCandidateErrorMessage } from '@/app/target-sources/[targetSourceId]/_components/candidate/errors';
-import { fetchResourcesWithRetry } from '@/app/target-sources/[targetSourceId]/_components/candidate/load-resources';
+import {
+  fetchResourcesWithRetry,
+  isTransientError,
+} from '@/app/target-sources/[targetSourceId]/_components/candidate/load-resources';
 
 /** Per-resource exclusion reason (mirror of the IDC flow). */
 export interface Exclusion {
@@ -22,11 +25,6 @@ const EMPTY_CANDIDATES: CandidateResource[] = [];
 // empty/error state. A plain load does a single attempt (empty is a valid rest state).
 const MAX_RESOURCE_ATTEMPTS = 4; // 1 initial + 3 retries
 const RESOURCE_RETRY_DELAY_MS = 800;
-
-// Retry only transient failures: aborts and non-retriable errors (403 etc — ADR-008
-// classification) must fail fast instead of burning the remaining attempts.
-const isTransientError = (error: unknown): boolean =>
-  !(error instanceof AppError) || (error.retriable && error.code !== 'ABORTED');
 
 /**
  * Owns the Step-1 resource list: fetch (+post-scan retry) and the selection /

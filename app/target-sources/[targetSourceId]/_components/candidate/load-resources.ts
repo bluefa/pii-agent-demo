@@ -1,3 +1,13 @@
+import { AppError } from '@/lib/errors';
+
+/**
+ * Retry classifier for the post-scan resource fetch: aborts and non-retriable
+ * AppErrors (403 etc — ADR-008 classification) must fail fast instead of burning
+ * the remaining attempts. Unknown (non-AppError) rejections count as transient.
+ */
+export const isTransientError = (error: unknown): boolean =>
+  !(error instanceof AppError) || (error.retriable && error.code !== 'ABORTED');
+
 /**
  * Fetch the resource list, retrying on an empty result — or on an error the caller
  * classifies as retriable — until a non-empty result arrives or `maxAttempts` is

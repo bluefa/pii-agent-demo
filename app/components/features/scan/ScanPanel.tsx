@@ -54,7 +54,7 @@ const uiStateToScanUiState = (uiState: 'IDLE' | 'IN_PROGRESS' | 'COMPLETED' | 'F
 };
 
 export const ScanController = ({ targetSourceId, onScanComplete, children }: ScanControllerProps) => {
-  const { latestJob, uiState, loading, refresh, startPolling } = useScanPolling(targetSourceId, {
+  const { latestJob, uiState, loading, refresh, startPolling, expectCompletion } = useScanPolling(targetSourceId, {
     onScanComplete,
   });
 
@@ -62,6 +62,10 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
     async () => {
       const minSpinnerDelay = new Promise<void>((resolve) => setTimeout(resolve, 500));
       await startScan(targetSourceId);
+      // Arm completion detection BEFORE the refresh: a fast scan may already be
+      // terminal (and id-less) on that very read, which identity/edge detection
+      // alone would miss.
+      expectCompletion();
       await refresh();
       startPolling();
       await minSpinnerDelay;

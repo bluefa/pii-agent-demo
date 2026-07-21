@@ -65,8 +65,9 @@ describe('approval-payload', () => {
     expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
   });
 
-  // 제외 사유 필수 (docs/cloud-provider-states.md): an unselected TARGET without a
-  // reason blocks the approval request; non-TARGET rows never require one.
+  // Exclusion reason is required (docs/cloud-provider-states.md): an unselected
+  // TARGET without a reason blocks the approval request; non-TARGET rows never
+  // require one.
   it('listMissingExclusionReasons flags unselected TARGETs without a reason', () => {
     const ineligible: CandidateResource = {
       ...cloudCandidate,

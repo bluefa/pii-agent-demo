@@ -25,6 +25,13 @@ export interface UseScanPollingReturn {
   refresh: () => Promise<void>;
   startPolling: () => void;
   stopPolling: () => void;
+  /**
+   * Mark that a scan was just started by this client, so the NEXT terminal job
+   * observation fires onScanComplete even when the job carries no `id` and the
+   * SCANNING state was never witnessed (a fast scan finishing before the first
+   * poll). Identity/edge detection alone cannot see that case.
+   */
+  expectCompletion: () => void;
 }
 
 const computeUIState = (job: ScanJob | null): ScanUIState => {
@@ -67,6 +74,9 @@ export const useScanPolling = (
   // partial), so when it is absent we fall back to the SCANNING→terminal edge.
   const notifiedJobIdRef = useRef<number | null>(null);
   const prevScanStatusRef = useRef<ScanJob['scan_status'] | null>(null);
+  // Armed by expectCompletion() when this client starts a scan — covers a fast
+  // no-id scan that is already terminal on the very next observation.
+  const awaitingCompletionRef = useRef(false);
   const firstObservationRef = useRef(true);
   const firstFetchRef = useRef(true);
 
@@ -96,8 +106,12 @@ export const useScanPolling = (
       firstObservationRef.current = false;
       // Adopt a pre-existing completed scan so we don't fire for it on mount.
       if (isTerminal && id !== null) notifiedJobIdRef.current = id;
-    } else if (isTerminal && (id !== null ? notifiedJobIdRef.current !== id : sawScanning)) {
+    } else if (
+      isTerminal
+      && (id !== null ? notifiedJobIdRef.current !== id : sawScanning || awaitingCompletionRef.current)
+    ) {
       if (id !== null) notifiedJobIdRef.current = id;
+      awaitingCompletionRef.current = false;
       onScanCompleteRef.current?.();
     }
     setError(null);
@@ -156,6 +170,10 @@ export const useScanPolling = (
 
   const uiState = computeUIState(latestJob);
 
+  const expectCompletion = useCallback(() => {
+    awaitingCompletionRef.current = true;
+  }, []);
+
   return {
     latestJob,
     uiState,
@@ -165,6 +183,7 @@ export const useScanPolling = (
     refresh,
     startPolling: start,
     stopPolling: stop,
+    expectCompletion,
   };
 };
 

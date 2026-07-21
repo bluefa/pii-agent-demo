@@ -11,6 +11,8 @@ interface VmDatabaseConfigPanelProps {
   resourceId: string;
   initialConfig?: VmDatabaseConfig;
   nics?: AzureVmNic[];
+  /** Column count of the host table so the panel spans the full row width. */
+  colSpan?: number;
   onSave: (resourceId: string, config: VmDatabaseConfig) => void;
   onCancel: () => void;
 }
@@ -19,6 +21,7 @@ export const VmDatabaseConfigPanel = ({
   resourceId,
   initialConfig,
   nics,
+  colSpan = 7,
   onSave,
   onCancel,
 }: VmDatabaseConfigPanelProps) => {
@@ -105,7 +108,7 @@ export const VmDatabaseConfigPanel = ({
 
   return (
     <tr>
-      <td colSpan={7} className="px-0 py-0">
+      <td colSpan={colSpan} className="px-0 py-0">
         <div className="mx-6 my-3">
           {/* 미설정 경고 */}
           {isNotConfigured && (

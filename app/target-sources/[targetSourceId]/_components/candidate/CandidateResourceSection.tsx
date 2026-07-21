@@ -37,7 +37,7 @@ interface CandidateResourceSectionProps {
 
 const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
 
-/** Cloud exclusion reason limit — docs/cloud-provider-states.md (필수, 3000자 이하). */
+/** Cloud exclusion reason limit — docs/cloud-provider-states.md (required, max 3000 chars). */
 const CLOUD_EXCL_REASON_MAXLEN = 3000;
 
 export const CandidateResourceSection = ({
@@ -135,7 +135,7 @@ export const CandidateResourceSection = ({
       );
       return;
     }
-    // 제외 사유 필수 (docs/cloud-provider-states.md) — every unselected TARGET needs one.
+    // Exclusion reason is required (docs/cloud-provider-states.md) — every unselected TARGET needs one.
     const missingReasons = listMissingExclusionReasons(candidates, selectedIds, exclusionReasons);
     if (missingReasons.length > 0) {
       toast.warning(

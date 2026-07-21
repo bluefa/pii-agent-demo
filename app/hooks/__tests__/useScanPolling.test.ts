@@ -96,6 +96,32 @@ describe('useScanPolling', () => {
     expect(onScanComplete).toHaveBeenCalledTimes(1);
   });
 
+  // expectCompletion() covers the remaining no-id gap: a client-started scan that is
+  // already terminal (and id-less) on the very next read, with SCANNING never seen.
+  it('fires onScanComplete for a fast id-less scan after expectCompletion()', async () => {
+    const onScanComplete = vi.fn();
+    vi.mocked(getLatestScanJob)
+      .mockResolvedValueOnce({ scan_status: 'SUCCESS', target_source_id: 1 }) // mount: old terminal, no id
+      .mockResolvedValue({ scan_status: 'SUCCESS', target_source_id: 1 }); // post-start read, still no id
+
+    const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // mount observation — no fire
+    });
+    expect(onScanComplete).not.toHaveBeenCalled();
+
+    act(() => result.current.expectCompletion()); // user started a scan
+    await act(async () => {
+      await result.current.refresh(); // terminal again, no id, no SCANNING seen → fires
+    });
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.refresh(); // no longer armed → no duplicate fire
+    });
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+  });
+
   // A first poll that settles as an error must still end the initial load, or the
   // Run Infra Scan button (gated on `loading`) freezes disabled forever. (LIN-39)
   it('clears loading when the first poll fails', async () => {

@@ -15,9 +15,9 @@ interface UseExclusionPickerArgs {
 
 /**
  * Exclusion-reason picking workflow (mirror of the IDC flow): unchecking a target
- * opens the preset popover; "사유 직접 입력" hands off to the free-text modal
- * (useModal<string>, data = resourceId). The row stays a target until a reason is
- * confirmed — dismissing either surface changes nothing.
+ * opens the preset popover; the "enter reason manually" option hands off to the
+ * free-text modal (useModal<string>, data = resourceId). The row stays a target
+ * until a reason is confirmed — dismissing either surface changes nothing.
  */
 export const useExclusionPicker = ({ onSelect, onExclude }: UseExclusionPickerArgs) => {
   const [popover, setPopover] = useState<ExclusionPopoverState | null>(null);

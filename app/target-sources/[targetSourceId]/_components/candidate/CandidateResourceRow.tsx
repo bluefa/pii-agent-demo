@@ -175,6 +175,17 @@ export const CandidateResourceRow = ({
               >
                 <ReasonChipInline reason={exclusionReason} />
               </button>
+            ) : !isSelected && candidate.integrationCategory === 'TARGET' ? (
+              // Server-seeded unselected TARGET without a reason: approval is blocked
+              // until one exists, so give a direct entry point to the reason picker.
+              <button
+                type="button"
+                aria-label="제외 사유 입력"
+                onClick={(event) => actions.reasonChipClick(candidate.id, event.currentTarget)}
+                className={cn('text-xs underline decoration-dotted underline-offset-2', statusColors.warning.textDark)}
+              >
+                사유 입력
+              </button>
             ) : (
               <span className={cn('text-xs', textColors.quaternary)}>—</span>
             )}
@@ -190,6 +201,8 @@ export const CandidateResourceRow = ({
         <VmDatabaseConfigPanel
           resourceId={candidate.id}
           initialConfig={drafts.endpointDrafts[candidate.id] ?? candidate.endpointConfig}
+          // Editable table: checkbox + 7 data columns + exclusion-reason column.
+          colSpan={9}
           onSave={handleEndpointSave}
           onCancel={() => actions.expandToggle(null)}
         />
