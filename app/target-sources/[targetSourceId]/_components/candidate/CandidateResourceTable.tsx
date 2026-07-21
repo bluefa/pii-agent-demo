@@ -1,33 +1,20 @@
 'use client';
 
-import { createPortal } from 'react-dom';
-import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
-import { StatusWarningIcon } from '@/app/components/ui/icons';
-import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
-import { VmDatabaseConfigPanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
-import { VnetIntegrationGuideModal } from '@/app/target-sources/[targetSourceId]/_components/candidate/VnetIntegrationGuideModal';
-import { useModal } from '@/app/hooks/useModal';
-import { getResourceDisplayName } from '@/lib/resource';
 import {
   bgColors,
   borderColors,
   cn,
   idcStyles,
   primaryColors,
-  statusColors,
-  tableStyles,
   textColors,
 } from '@/lib/theme';
-import type {
-  CandidateDraftState,
-  CandidateResource,
-  EndpointConfigDraft,
-} from '@/lib/types/resources';
-import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
+import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
+import {
+  CandidateResourceRow,
+  type CandidateRowActions,
+} from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
 
 interface CandidateResourceTableProps {
   candidates: CandidateResource[];
@@ -38,10 +25,7 @@ interface CandidateResourceTableProps {
   expandedResourceId: string | null;
   readonly: boolean;
   approvalSubmitting: boolean;
-  onToggleSelected: (resourceId: string, checked: boolean, anchor: HTMLElement) => void;
-  onReasonChipClick: (resourceId: string, anchor: HTMLElement) => void;
-  onExpandToggle: (resourceId: string | null) => void;
-  onEndpointSave: (resourceId: string, draft: EndpointConfigDraft) => void;
+  actions: CandidateRowActions;
   onRequestApproval: () => void;
 }
 
@@ -53,10 +37,7 @@ export const CandidateResourceTable = ({
   expandedResourceId,
   readonly,
   approvalSubmitting,
-  onToggleSelected,
-  onReasonChipClick,
-  onExpandToggle,
-  onEndpointSave,
+  actions,
   onRequestApproval,
 }: CandidateResourceTableProps) => {
   const totalCount = candidates.length;
@@ -97,13 +78,9 @@ export const CandidateResourceTable = ({
                   isSelected={selectedIds.has(candidate.id)}
                   exclusionReason={exclusionReasons[candidate.id]}
                   isExpanded={expandedResourceId === candidate.id}
-                  showCheckboxColumn={showCheckboxColumn}
                   readonly={readonly}
                   drafts={drafts}
-                  onToggleSelected={onToggleSelected}
-                  onReasonChipClick={onReasonChipClick}
-                  onExpandToggle={onExpandToggle}
-                  onEndpointSave={onEndpointSave}
+                  actions={actions}
                 />
               ))}
             </tbody>
@@ -129,182 +106,5 @@ export const CandidateResourceTable = ({
         </div>
       )}
     </div>
-  );
-};
-
-interface CandidateResourceRowProps {
-  candidate: CandidateResource;
-  isSelected: boolean;
-  /** Reason for an excluded (unselected) resource; undefined when selected or none picked. */
-  exclusionReason: string | undefined;
-  isExpanded: boolean;
-  showCheckboxColumn: boolean;
-  readonly: boolean;
-  drafts: CandidateDraftState;
-  onToggleSelected: (resourceId: string, checked: boolean, anchor: HTMLElement) => void;
-  onReasonChipClick: (resourceId: string, anchor: HTMLElement) => void;
-  onExpandToggle: (resourceId: string | null) => void;
-  onEndpointSave: (resourceId: string, draft: EndpointConfigDraft) => void;
-}
-
-const CandidateResourceRow = ({
-  candidate,
-  isSelected,
-  exclusionReason,
-  isExpanded,
-  showCheckboxColumn,
-  readonly,
-  drafts,
-  onToggleSelected,
-  onReasonChipClick,
-  onExpandToggle,
-  onEndpointSave,
-}: CandidateResourceRowProps) => {
-  const vnetModal = useModal();
-  const behavior = getCandidateBehavior(candidate);
-  const requiresEndpointConfig = behavior.configKind === 'endpoint';
-  const isIneligible = candidate.integrationCategory === 'INSTALL_INELIGIBLE';
-  const hasEndpointConfig = behavior.isConfigured(candidate, drafts);
-  const showConfigNeeded = requiresEndpointConfig && isSelected && !hasEndpointConfig;
-  const canExpand = requiresEndpointConfig && isSelected && !readonly;
-  const region = candidate.metadata.region ?? '—';
-  const displayName = getResourceDisplayName(candidate);
-  const effectiveDbType = drafts.endpointDrafts[candidate.id]?.databaseType
-    ?? candidate.endpointConfig?.databaseType
-    ?? candidate.databaseType;
-
-  const handleRowClick = () => {
-    if (canExpand) onExpandToggle(isExpanded ? null : candidate.id);
-  };
-
-  const handleCheckboxChange = (checked: boolean, anchor: HTMLElement) => {
-    onToggleSelected(candidate.id, checked, anchor);
-    if (requiresEndpointConfig) onExpandToggle(checked ? candidate.id : null);
-  };
-
-  const handleEndpointSave = (resourceId: string, draft: EndpointConfigDraft) => {
-    onEndpointSave(resourceId, draft);
-    onExpandToggle(null);
-  };
-
-  return (
-    <>
-      <tr
-        className={cn(
-          tableStyles.row,
-          'group',
-          canExpand && 'cursor-pointer',
-          isExpanded && statusColors.info.bg,
-          showConfigNeeded && !isExpanded && statusColors.warning.bg,
-          isIneligible && 'opacity-60',
-        )}
-        onClick={handleRowClick}
-      >
-        {showCheckboxColumn && (
-          <td className={cn(idcStyles.table.cell, 'w-10')} onClick={(event) => event.stopPropagation()}>
-            <input
-              type="checkbox"
-              checked={isSelected}
-              disabled={isIneligible}
-              onChange={(event) => handleCheckboxChange(event.target.checked, event.currentTarget)}
-              className={cn('w-4 h-4 rounded disabled:opacity-50 disabled:cursor-not-allowed', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
-            />
-          </td>
-        )}
-
-        <td className={idcStyles.table.cell}>
-          {isIneligible
-            ? <Badge variant="pending" size="sm">비대상</Badge>
-            : <Badge variant="success" size="sm">대상</Badge>}
-        </td>
-
-        <td className={idcStyles.table.cell}>
-          <div className="flex items-center gap-1.5">
-            {effectiveDbType
-              ? <Badge variant="info" size="sm">{getDatabaseLabel(effectiveDbType)}</Badge>
-              : <span className={cn('text-xs', textColors.quaternary)}>—</span>}
-            {showConfigNeeded && (
-              <span className={cn('text-xs', statusColors.warning.textDark)}>(DB 설정 필요)</span>
-            )}
-          </div>
-        </td>
-
-        <td className={idcStyles.table.cell}>
-          <div className="flex items-center gap-2">
-            <span onClick={(event) => event.stopPropagation()}>
-              <ResourceIdCell value={candidate.resourceId} label="Resource ID" />
-            </span>
-            {isIneligible && (
-              <button
-                onClick={(event) => { event.stopPropagation(); vnetModal.open(); }}
-                className={cn('flex-shrink-0 inline-flex items-center gap-1', statusColors.warning.text, 'hover:underline transition-opacity')}
-                aria-label="VNet Integration으로 인해 설치 불가 - 클릭하여 상세 안내 보기"
-              >
-                <StatusWarningIcon className="w-3.5 h-3.5" />
-                <span className={cn('text-xs font-medium', statusColors.warning.textDark)}>설치 불가</span>
-              </button>
-            )}
-          </div>
-        </td>
-
-        <td className={idcStyles.table.cell}>
-          <span className={cn('font-mono text-xs', textColors.tertiary)}>{region}</span>
-        </td>
-
-        <td className={idcStyles.table.cell}>
-          <span className={cn('font-mono text-xs', textColors.secondary)}>{displayName}</span>
-        </td>
-
-        <td className={idcStyles.table.cell}>
-          {candidate.scanStatus
-            ? (
-                <span
-                  className={cn(
-                    idcStyles.tag.base,
-                    candidate.scanStatus === 'NEW_SCAN' ? idcStyles.tag.blue : idcStyles.tag.orange,
-                  )}
-                >
-                  {candidate.scanStatus === 'NEW_SCAN' ? '신규' : '변경'}
-                </span>
-              )
-            : <span className={cn('text-xs', textColors.quaternary)}>—</span>}
-        </td>
-
-        {showCheckboxColumn && (
-          <td className={idcStyles.table.cell} onClick={(event) => event.stopPropagation()}>
-            {!isSelected && exclusionReason ? (
-              <button
-                type="button"
-                aria-label="제외 사유 수정"
-                onClick={(event) => onReasonChipClick(candidate.id, event.currentTarget)}
-                className="text-left"
-              >
-                <ReasonChipInline reason={exclusionReason} />
-              </button>
-            ) : (
-              <span className={cn('text-xs', textColors.quaternary)}>—</span>
-            )}
-          </td>
-        )}
-
-        <td className={idcStyles.table.cell}>
-          <span className={cn('text-xs', textColors.quaternary)}>—</span>
-        </td>
-      </tr>
-
-      {isExpanded && (
-        <VmDatabaseConfigPanel
-          resourceId={candidate.id}
-          initialConfig={drafts.endpointDrafts[candidate.id] ?? candidate.endpointConfig}
-          onSave={handleEndpointSave}
-          onCancel={() => onExpandToggle(null)}
-        />
-      )}
-
-      {isIneligible && typeof document !== 'undefined' && createPortal(
-        <VnetIntegrationGuideModal isOpen={vnetModal.isOpen} onClose={vnetModal.close} resourceId={candidate.resourceId} />,
-        document.body,
-      )}
-    </>
   );
 };

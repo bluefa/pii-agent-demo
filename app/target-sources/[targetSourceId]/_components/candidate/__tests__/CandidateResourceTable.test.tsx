@@ -31,10 +31,12 @@ const defaultProps = {
   expandedResourceId: null,
   readonly: false,
   approvalSubmitting: false,
-  onToggleSelected: () => {},
-  onReasonChipClick: () => {},
-  onExpandToggle: () => {},
-  onEndpointSave: () => {},
+  actions: {
+    toggleSelected: () => {},
+    reasonChipClick: () => {},
+    expandToggle: () => {},
+    endpointSave: () => {},
+  },
   onRequestApproval: () => {},
 };
 

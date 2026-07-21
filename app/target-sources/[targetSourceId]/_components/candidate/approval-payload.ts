@@ -39,6 +39,23 @@ export const toModalResources = (
   });
 
 /**
+ * Unselected TARGET resources must carry an exclusion reason before the approval
+ * request goes out (docs/cloud-provider-states.md: 제외 사유 필수). Non-TARGET
+ * categories (비대상/설치불가) are not user exclusions and need no reason.
+ */
+export const listMissingExclusionReasons = (
+  candidates: readonly CandidateResource[],
+  selectedIds: ReadonlySet<string>,
+  exclusionReasons: Readonly<Record<string, string>>,
+): CandidateResource[] =>
+  candidates.filter(
+    (candidate) =>
+      candidate.integrationCategory === 'TARGET'
+      && !selectedIds.has(candidate.id)
+      && !exclusionReasons[candidate.id],
+  );
+
+/**
  * Input adapter: UI selection (candidates + selected set + endpoint drafts +
  * per-resource exclusion reasons) → contract `ApprovalRequestInputDto`
  * ({ resources: TargetSourceResourceItemDto[] }). Every item carries its identity

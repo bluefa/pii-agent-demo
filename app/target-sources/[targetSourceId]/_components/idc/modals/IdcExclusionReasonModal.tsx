@@ -9,6 +9,8 @@ interface IdcExclusionReasonModalProps {
   isOpen: boolean;
   /** Prefill when editing an existing custom reason. */
   initialReason?: string;
+  /** Max reason length — IDC default 200 (결정 #28); cloud passes 3000 (docs/cloud-provider-states.md). */
+  maxLen?: number;
   /** Saved a non-empty reason. */
   onSave: (reason: string) => void;
   /** Closed without saving — parent reverts the check if no reason exists yet. */
@@ -16,13 +18,14 @@ interface IdcExclusionReasonModalProps {
 }
 
 /**
- * Free-text exclusion reason (≤200 chars, char counter). 저장 requires a
+ * Free-text exclusion reason (≤maxLen chars, char counter). 저장 requires a
  * non-empty value; closing without saving reverts via `onClose`
  * (v15 idcReasonModal / saveIdcReason).
  */
 export const IdcExclusionReasonModal = ({
   isOpen,
   initialReason = '',
+  maxLen = IDC_REASON_MAXLEN,
   onSave,
   onClose,
 }: IdcExclusionReasonModalProps) => {
@@ -62,14 +65,14 @@ export const IdcExclusionReasonModal = ({
         <textarea
           ref={textareaRef}
           value={text}
-          maxLength={IDC_REASON_MAXLEN}
+          maxLength={maxLen}
           rows={4}
           onChange={(e) => setText(e.target.value)}
           placeholder="예: Stg 환경 DB이며 운영 데이터가 아닌 익명화된 샘플 데이터만 보관하고 있어 제외합니다."
           className={idcStyles.textarea}
         />
         <div className={cn('text-right text-[11.5px]', textColors.quaternary)}>
-          {text.length}/{IDC_REASON_MAXLEN}자
+          {text.length}/{maxLen}자
         </div>
       </div>
     </Modal>

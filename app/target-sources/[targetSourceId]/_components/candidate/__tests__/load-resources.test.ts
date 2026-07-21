@@ -48,4 +48,26 @@ describe('fetchResourcesWithRetry', () => {
     expect(await fetchResourcesWithRetry(fetchOnce, 1, noDelay)).toEqual([]);
     expect(fetchOnce).toHaveBeenCalledTimes(1);
   });
+
+  it('rethrows immediately when shouldRetryError classifies the error as non-retriable', async () => {
+    const err = new Error('forbidden');
+    const fetchOnce = vi.fn().mockRejectedValue(err);
+    await expect(
+      fetchResourcesWithRetry(fetchOnce, 4, noDelay, () => false),
+    ).rejects.toBe(err);
+    expect(fetchOnce).toHaveBeenCalledTimes(1); // no retry burned on a hard failure
+  });
+
+  it('keeps retrying only errors the predicate accepts', async () => {
+    const transient = new Error('transient');
+    const hard = new Error('hard');
+    const fetchOnce = vi
+      .fn()
+      .mockRejectedValueOnce(transient)
+      .mockRejectedValueOnce(hard);
+    await expect(
+      fetchResourcesWithRetry(fetchOnce, 4, noDelay, (e) => e === transient),
+    ).rejects.toBe(hard);
+    expect(fetchOnce).toHaveBeenCalledTimes(2);
+  });
 });

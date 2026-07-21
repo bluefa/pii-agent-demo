@@ -1,12 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  createApprovalRequest,
-  getConfirmResources,
-} from '@/app/lib/api';
-import { catalogToCandidates } from '@/lib/resource-catalog';
-import { AppError } from '@/lib/errors';
+import { useCallback, useMemo, useState } from 'react';
+import { createApprovalRequest } from '@/app/lib/api';
 import { formatDate } from '@/lib/utils/date';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
@@ -18,40 +13,21 @@ import { ScanController, type ScanUiState } from '@/app/components/features/scan
 import { ScanEmptyState } from '@/app/components/features/scan/ScanEmptyState';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
 import { ScanRunningState } from '@/app/components/features/scan/ScanRunningState';
-import {
-  cardStyles,
-  cn,
-  getButtonClass,
-  statusColors,
-  textColors,
-} from '@/lib/theme';
-import type {
-  CandidateDraftState,
-  CandidateResource,
-  EndpointConfigDraft,
-} from '@/lib/types/resources';
-import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
+import { cardStyles, cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
+import type { CandidateDraftState, EndpointConfigDraft } from '@/lib/types/resources';
 import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
-import { getCandidateErrorMessage } from '@/app/target-sources/[targetSourceId]/_components/candidate/errors';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
+import type { CandidateRowActions } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
 import { selectPhase } from '@/app/target-sources/[targetSourceId]/_components/candidate/phase';
-import { toApprovalRequestInput } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
-import { fetchResourcesWithRetry } from '@/app/target-sources/[targetSourceId]/_components/candidate/load-resources';
+import {
+  listMissingExclusionReasons,
+  toApprovalRequestInput,
+} from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
+import { useCandidateResources } from '@/app/target-sources/[targetSourceId]/_components/candidate/use-candidate-resources';
+import { useExclusionPicker } from '@/app/target-sources/[targetSourceId]/_components/candidate/use-exclusion-picker';
 import { IdcSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 import { IdcExclusionPopover } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcExclusionPopover';
 import { IdcExclusionReasonModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcExclusionReasonModal';
-import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
-
-/** Per-resource exclusion reason held while the user picks it (mirror of the IDC flow). */
-interface Exclusion {
-  reason: string;
-  /** True when entered via the free-text modal (vs a preset) — drives the popover highlight. */
-  custom: boolean;
-}
-interface PopoverState {
-  resourceId: string;
-  anchor: HTMLElement;
-}
 
 interface CandidateResourceSectionProps {
   targetSourceId: number;
@@ -60,13 +36,9 @@ interface CandidateResourceSectionProps {
 }
 
 const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
-const EMPTY_CANDIDATES: CandidateResource[] = [];
 
-// Right after a scan the resource list can momentarily read empty or error while the
-// backend finishes materializing it — retry a few times before settling into the
-// empty/error state. A plain load does a single attempt (empty is a valid rest state).
-const MAX_RESOURCE_ATTEMPTS = 4; // 1 initial + 3 retries
-const RESOURCE_RETRY_DELAY_MS = 800;
+/** Cloud exclusion reason limit — docs/cloud-provider-states.md (필수, 3000자 이하). */
+const CLOUD_EXCL_REASON_MAXLEN = 3000;
 
 export const CandidateResourceSection = ({
   targetSourceId,
@@ -75,82 +47,47 @@ export const CandidateResourceSection = ({
 }: CandidateResourceSectionProps) => {
   const toast = useToast();
   const approvalModal = useModal();
-  const [state, setState] = useState<AsyncState<CandidateResource[]>>({ status: 'loading' });
-  const [retryNonce, setRetryNonce] = useState(0);
+  const {
+    state,
+    candidates,
+    selectedIds,
+    setSelectedIds,
+    exclusions,
+    setExclusions,
+    refetch,
+    refetchAfterScan,
+  } = useCandidateResources(targetSourceId);
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const [exclusions, setExclusions] = useState<Record<string, Exclusion>>({});
   const [drafts, setDrafts] = useState<CandidateDraftState>(EMPTY_DRAFTS);
   const [expandedResourceId, setExpandedResourceId] = useState<string | null>(null);
-  const [popover, setPopover] = useState<PopoverState | null>(null);
-  const [reasonFor, setReasonFor] = useState<string | null>(null);
-  // Set by handleScanComplete so the next fetch retries on empty/error (post-scan race).
-  const retryAfterScanRef = useRef(false);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const maxAttempts = retryAfterScanRef.current ? MAX_RESOURCE_ATTEMPTS : 1;
-    retryAfterScanRef.current = false;
-
-    const delayBeforeRetry = () =>
-      new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, RESOURCE_RETRY_DELAY_MS);
-        controller.signal.addEventListener(
-          'abort',
-          () => {
-            clearTimeout(timer);
-            resolve();
-          },
-          { once: true },
-        );
-      });
-
-    void fetchResourcesWithRetry(
-      () =>
-        getConfirmResources(targetSourceId, { signal: controller.signal }).then((response) =>
-          catalogToCandidates(response.resources),
-        ),
-      maxAttempts,
-      delayBeforeRetry,
-    )
-      .then((data) => {
-        if (controller.signal.aborted) return;
-        setState({ status: 'ready', data });
-        // Seed selection from the backend's `selected` flag (never for ineligible
-        // rows, whose checkbox is disabled), and seed any exclusion reasons it sent.
-        setSelectedIds(new Set(
-          data.filter((c) => c.selected && c.integrationCategory !== 'INSTALL_INELIGIBLE').map((c) => c.id),
-        ));
-        setExclusions(Object.fromEntries(
-          data
-            .filter((c) => !c.selected && c.exclusionReason)
-            .map((c) => [c.id, { reason: c.exclusionReason as string, custom: !IDC_EXCL_PRESETS.includes(c.exclusionReason as (typeof IDC_EXCL_PRESETS)[number]) }]),
-        ));
-      })
-      .catch((error: unknown) => {
-        if (error instanceof AppError && error.code === 'ABORTED') return;
-        if (controller.signal.aborted) return;
-        setState({ status: 'error', message: getCandidateErrorMessage(error) });
-      });
-
-    return () => controller.abort();
-  }, [targetSourceId, retryNonce]);
-
-  const candidates = useMemo(
-    () => (state.status === 'ready' ? state.data : EMPTY_CANDIDATES),
-    [state],
-  );
-
-  const refetch = useCallback(() => {
-    setState({ status: 'loading' });
-    setRetryNonce((n) => n + 1);
-  }, []);
 
   // Plain id→reason map for the payload adapter and the table's reason chips.
   const exclusionReasons = useMemo(
     () => Object.fromEntries(Object.entries(exclusions).map(([id, e]) => [id, e.reason])),
     [exclusions],
   );
+
+  const select = useCallback((resourceId: string) => {
+    setSelectedIds((previous) => new Set(previous).add(resourceId));
+    setExclusions((previous) => {
+      if (!(resourceId in previous)) return previous;
+      const next = { ...previous };
+      delete next[resourceId];
+      return next;
+    });
+  }, [setSelectedIds, setExclusions]);
+
+  const exclude = useCallback((resourceId: string, reason: string, custom: boolean) => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      next.delete(resourceId);
+      return next;
+    });
+    setExclusions((previous) => ({ ...previous, [resourceId]: { reason, custom } }));
+  }, [setSelectedIds, setExclusions]);
+
+  const picker = useExclusionPicker({ onSelect: select, onExclude: exclude });
+  const { popover, reasonModal, closeAll: closePicker } = picker;
 
   const approval = useApiAction(
     async () => {
@@ -168,52 +105,6 @@ export const CandidateResourceSection = ({
     },
   );
 
-  const select = useCallback((resourceId: string) => {
-    setSelectedIds((previous) => new Set(previous).add(resourceId));
-    setExclusions(({ [resourceId]: _removed, ...rest }) => rest);
-  }, []);
-
-  const exclude = useCallback((resourceId: string, reason: string, custom: boolean) => {
-    setSelectedIds((previous) => {
-      const next = new Set(previous);
-      next.delete(resourceId);
-      return next;
-    });
-    setExclusions((previous) => ({ ...previous, [resourceId]: { reason, custom } }));
-  }, []);
-
-  // Unchecking a target opens the exclusion-reason picker; the row stays selected
-  // until a reason is confirmed (mirror of the IDC flow). Re-checking clears it.
-  const handleToggleSelected = useCallback(
-    (resourceId: string, checked: boolean, anchor: HTMLElement) => {
-      if (checked) select(resourceId);
-      else setPopover({ resourceId, anchor });
-    },
-    [select],
-  );
-
-  const handleReasonChipClick = useCallback((resourceId: string, anchor: HTMLElement) => {
-    setPopover({ resourceId, anchor });
-  }, []);
-
-  const handlePickPreset = useCallback((reason: string) => {
-    if (!popover) return;
-    exclude(popover.resourceId, reason, false);
-    setPopover(null);
-  }, [popover, exclude]);
-
-  const handlePickCustom = useCallback(() => {
-    if (!popover) return;
-    setReasonFor(popover.resourceId);
-    setPopover(null);
-  }, [popover]);
-
-  const handleSaveReason = useCallback((reason: string) => {
-    if (!reasonFor) return;
-    exclude(reasonFor, reason, true);
-    setReasonFor(null);
-  }, [reasonFor, exclude]);
-
   const handleExpandToggle = useCallback((resourceId: string | null) => {
     setExpandedResourceId(resourceId);
   }, []);
@@ -224,6 +115,13 @@ export const CandidateResourceSection = ({
       endpointDrafts: { ...previous.endpointDrafts, [resourceId]: draft },
     }));
   }, []);
+
+  const rowActions = useMemo<CandidateRowActions>(() => ({
+    toggleSelected: picker.handleToggleSelected,
+    reasonChipClick: picker.handleReasonChipClick,
+    expandToggle: handleExpandToggle,
+    endpointSave: handleEndpointSave,
+  }), [picker.handleToggleSelected, picker.handleReasonChipClick, handleExpandToggle, handleEndpointSave]);
 
   const handleRequestApproval = useCallback(() => {
     if (selectedIds.size === 0) return;
@@ -237,23 +135,25 @@ export const CandidateResourceSection = ({
       );
       return;
     }
+    // 제외 사유 필수 (docs/cloud-provider-states.md) — every unselected TARGET needs one.
+    const missingReasons = listMissingExclusionReasons(candidates, selectedIds, exclusionReasons);
+    if (missingReasons.length > 0) {
+      toast.warning(
+        `제외 사유 입력이 필요합니다: ${missingReasons.map((candidate) => candidate.resourceId).join(', ')}`,
+      );
+      return;
+    }
     approval.reset();
     approvalModal.open();
-  }, [approval, approvalModal, candidates, drafts, selectedIds, toast]);
+  }, [approval, approvalModal, candidates, drafts, exclusionReasons, selectedIds, toast]);
 
   const handleScanComplete = useCallback(async () => {
-    // Fresh scan → clear working state; the refetch re-seeds selection/exclusions
-    // from the new results' `selected`/`exclusion_reason` flags.
-    setSelectedIds(new Set());
-    setExclusions({});
     setDrafts(EMPTY_DRAFTS);
     setExpandedResourceId(null);
-    setPopover(null);
-    setReasonFor(null);
-    retryAfterScanRef.current = true; // retry on empty/error for this post-scan fetch
-    refetch();
+    closePicker();
+    refetchAfterScan();
     await refreshProject();
-  }, [refetch, refreshProject]);
+  }, [closePicker, refetchAfterScan, refreshProject]);
 
   const handleApprovalConfirm = useCallback(() => {
     void approval.execute();
@@ -298,10 +198,7 @@ export const CandidateResourceSection = ({
             expandedResourceId={expandedResourceId}
             readonly={readonly}
             approvalSubmitting={approval.loading}
-            onToggleSelected={handleToggleSelected}
-            onReasonChipClick={handleReasonChipClick}
-            onExpandToggle={handleExpandToggle}
-            onEndpointSave={handleEndpointSave}
+            actions={rowActions}
             onRequestApproval={handleRequestApproval}
           />
         );
@@ -318,6 +215,7 @@ export const CandidateResourceSection = ({
       <ScanController targetSourceId={targetSourceId} onScanComplete={handleScanComplete}>
         {({ state: scanState, lastScanAt, progress, starting, canStart, loading: scanLoading, startScan }) => {
           const initialLoading = scanLoading || state.status === 'loading';
+          const busyLabel = initialLoading ? '불러오는 중...' : starting ? '시작 중...' : null;
           return (
             <section className={cn(cardStyles.base, 'overflow-hidden')}>
               <header className={cn('flex flex-wrap items-start justify-between gap-3', cardStyles.header)}>
@@ -340,15 +238,10 @@ export const CandidateResourceSection = ({
                     onClick={startScan}
                     className="inline-flex items-center gap-1.5 text-sm py-1.5"
                   >
-                    {initialLoading ? (
+                    {busyLabel ? (
                       <>
                         <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        불러오는 중...
-                      </>
-                    ) : starting ? (
-                      <>
-                        <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        시작 중...
+                        {busyLabel}
                       </>
                     ) : (
                       <>
@@ -383,18 +276,19 @@ export const CandidateResourceSection = ({
           anchor={popover.anchor}
           selectedPreset={exclusions[popover.resourceId]?.custom ? undefined : exclusions[popover.resourceId]?.reason}
           customActive={exclusions[popover.resourceId]?.custom ?? false}
-          onPickPreset={handlePickPreset}
-          onPickCustom={handlePickCustom}
-          onDismiss={() => setPopover(null)}
+          onPickPreset={picker.handlePickPreset}
+          onPickCustom={picker.handlePickCustom}
+          onDismiss={picker.dismissPopover}
         />
       )}
 
-      {reasonFor !== null && (
+      {reasonModal.isOpen && reasonModal.data !== undefined && (
         <IdcExclusionReasonModal
           isOpen
-          initialReason={exclusions[reasonFor]?.reason}
-          onSave={handleSaveReason}
-          onClose={() => setReasonFor(null)}
+          initialReason={exclusions[reasonModal.data]?.reason}
+          maxLen={CLOUD_EXCL_REASON_MAXLEN}
+          onSave={picker.handleSaveReason}
+          onClose={reasonModal.close}
         />
       )}
     </>

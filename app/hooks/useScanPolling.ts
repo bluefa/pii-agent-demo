@@ -57,13 +57,16 @@ export const useScanPolling = (
 
   const [loading, setLoading] = useState(autoStart);
   const [error, setError] = useState<AppError | null>(null);
-  // Completion is detected by job identity, not by observing a SCANNING→terminal
-  // edge: a fast scan can land wholly between two polls (or complete before the
-  // first poll), so the edge is never witnessed and onScanComplete would be missed.
-  // We fire when a NEW terminal job id appears. On the first observation a
-  // pre-existing terminal job is adopted as "already notified" so mounting on an
-  // old completed scan does not fire (which would wipe Step-1 selection).
+  // Completion is detected primarily by job identity, not by observing a
+  // SCANNING→terminal edge: a fast scan can land wholly between two polls (or
+  // complete before the first poll), so the edge is never witnessed and
+  // onScanComplete would be missed. We fire when a NEW terminal job id appears.
+  // On the first observation a pre-existing terminal job is adopted as "already
+  // notified" so mounting on an old completed scan does not fire (which would
+  // wipe Step-1 selection). `id` is optional on the contract (ScanJobResponse is
+  // partial), so when it is absent we fall back to the SCANNING→terminal edge.
   const notifiedJobIdRef = useRef<number | null>(null);
+  const prevScanStatusRef = useRef<ScanJob['scan_status'] | null>(null);
   const firstObservationRef = useRef(true);
   const firstFetchRef = useRef(true);
 
@@ -87,12 +90,14 @@ export const useScanPolling = (
   const handleUpdate = useCallback((job: ScanJob | null) => {
     const id = job?.id ?? null;
     const isTerminal = !!job && job.scan_status !== 'SCANNING';
+    const sawScanning = prevScanStatusRef.current === 'SCANNING';
+    prevScanStatusRef.current = job?.scan_status ?? null;
     if (firstObservationRef.current) {
       firstObservationRef.current = false;
       // Adopt a pre-existing completed scan so we don't fire for it on mount.
       if (isTerminal && id !== null) notifiedJobIdRef.current = id;
-    } else if (isTerminal && id !== null && notifiedJobIdRef.current !== id) {
-      notifiedJobIdRef.current = id;
+    } else if (isTerminal && (id !== null ? notifiedJobIdRef.current !== id : sawScanning)) {
+      if (id !== null) notifiedJobIdRef.current = id;
       onScanCompleteRef.current?.();
     }
     setError(null);

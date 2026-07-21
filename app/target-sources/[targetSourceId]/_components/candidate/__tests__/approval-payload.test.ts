@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { schemas } from '@/lib/generated/install-v1';
 import {
+  listMissingExclusionReasons,
   toApprovalRequestInput,
   toModalResources,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
@@ -62,5 +63,28 @@ describe('approval-payload', () => {
       database_type: 'mysql',
     });
     expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
+  });
+
+  // 제외 사유 필수 (docs/cloud-provider-states.md): an unselected TARGET without a
+  // reason blocks the approval request; non-TARGET rows never require one.
+  it('listMissingExclusionReasons flags unselected TARGETs without a reason', () => {
+    const ineligible: CandidateResource = {
+      ...cloudCandidate,
+      id: 'res-2',
+      integrationCategory: 'INSTALL_INELIGIBLE',
+    };
+
+    // No reason recorded → flagged.
+    expect(
+      listMissingExclusionReasons([cloudCandidate, ineligible], new Set<string>(), {}),
+    ).toEqual([cloudCandidate]);
+
+    // Reason present → clear. Selected → clear.
+    expect(
+      listMissingExclusionReasons([cloudCandidate], new Set<string>(), { 'res-1': '미사용' }),
+    ).toEqual([]);
+    expect(
+      listMissingExclusionReasons([cloudCandidate], new Set(['res-1']), {}),
+    ).toEqual([]);
   });
 });

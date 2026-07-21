@@ -76,6 +76,26 @@ describe('useScanPolling', () => {
     expect(onScanComplete).toHaveBeenCalledTimes(1);
   });
 
+  // `id` is optional on ScanJobResponse (partial contract) — when a terminal job
+  // has no id, fall back to the SCANNING→terminal edge so completion still fires.
+  it('fires onScanComplete via the edge fallback when the terminal job has no id', async () => {
+    const onScanComplete = vi.fn();
+    vi.mocked(getLatestScanJob)
+      .mockResolvedValueOnce(scanningJob) // no id
+      .mockResolvedValue({ scan_status: 'SUCCESS', target_source_id: 1 }); // no id
+
+    renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // SCANNING observed
+    });
+    expect(onScanComplete).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000); // SUCCESS without id → edge fallback
+    });
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+  });
+
   // A first poll that settles as an error must still end the initial load, or the
   // Run Infra Scan button (gated on `loading`) freezes disabled forever. (LIN-39)
   it('clears loading when the first poll fails', async () => {
