@@ -29,18 +29,18 @@ stdout 진단 로그(새니타이즈된 스택 등)는 보조로 유지하되, 3
 
 ```
 [브라우저]
- ├─ 렌더 에러/unhandled rejection → 바운더리+전역 핸들러
- │    └─ 리포트(페이지·행동·직전 API 10건) → POST /observability/client-errors (FE 라우트)
- ├─ (Phase 5) 라우트 전환 → page_view 이벤트
+ ├─ 렌더 에러/unhandled rejection → 바운더리+전역 핸들러 → client_error 이벤트
+ ├─ 라우트 전환(/services) → page_view 이벤트 (Phase 2b)
+ ├─ 사용자 Action·화면 조회·비동기 settle → audit 이벤트 (Phase 2b)
  └─ 모든 API 호출 → fetchJson 단일 래퍼
       └─ X-Request-Id · X-Client-Page · X-Client-Action
 
 [FE 서버 (Next.js standalone, GKE — 상태 없음)]
- ├─ withV1: 접근 이벤트(INFO) · 예외/업스트림 5xx(ERROR) · 인가 거부(403, WARN)
  ├─ 세션 → userId·role resolve (Phase 3) — 서버가 이벤트에 심음, 클라이언트 헤더 채택 금지
- └─ log.ts: 버퍼링 → 배치·비동기 POST → BFF ingest API (best-effort, 유실 카운터)
-      ├─▶ [BFF DB] 구조화 필드만 영구 저장 (errorMessage 없음)
-      └─▶ stdout 진단 로그 (보조·30일·이사 시 소멸 허용)
+ └─ log.ts — 출구 2개 (ADR-025 §5):
+      ├─ emitAudit: audit 6종(+403) → 배치·비동기 POST → BFF ingest → [BFF DB] 구조화 필드만 영구 저장
+      └─ emitDiagnostic: withV1 접근 기록·예외/업스트림 5xx·새니타이즈 스택
+                         → stdout 진단 로그만 (30일·이사 시 소멸, audit 행 아님 — requestId로만 연결)
 
 [In-app Admin]  FE 서버 라우트 → BFF 조회 API + 도메인 API → 이력과 현재 상태를 합쳐 표시
 [(보류) Grafana] BFF DB SQL 데이터소스 → 집계 패널·임계 알림 → Slack
@@ -62,16 +62,17 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 
 이 6종은 **audit 스트림**(사용 이력) 전용이다. 서버 운영 기록(withV1 접근 로그·업스트림 5xx)은
 진단 스트림에 남고 requestId로만 연결되며, 인가 거부(403)는 Phase 3에서 **7번째 타입으로 추가**된다
-(봉투는 추가 확장 가능하게 설계됨 — ADR-025 Scope).
+(`auth_denied` — 봉투 불변, eventType enum의 호환 가능한 추가 확장, ADR-025 Scope).
 
 핵심 규칙 (근거·대안·필드 계약은 ADR-025):
 
 - **폴링 미기록**: 스캔·연결 테스트를 지켜보는 개별 GET은 저장하지 않는다. 시작(`action`) +
   종료(`action_result`)만 남기고, 둘은 `job{kind,key}`(scan_version 등)로 잇는다(사실 기반 join).
   ⚠️ `triggerTestConnection` 응답엔 작업 번호가 없음 — trigger 응답에 key 추가가 **Phase 1 협의
-  항목**이고, 그 전까지 연결테스트 시작/결과 행은 짝 없이 표시된다(시간창 추정 join 금지).
-- **settle은 자기가 시작한 작업만**: 폴링 훅은 mount 시에도 돌므로(autoStart) 남이 시작한 작업의
-  종료도 관찰할 수 있다. 브라우저는 자기가 trigger한 job key만 기억해 그 settle만 발행하고,
+  항목**이고, 그 전까지 연결테스트는 시작 이벤트만 발행하고 **settle은 발행하지 않는다**
+  (시간창 추정 join 금지 — 시작 행이 결과 없이 서는 것이 계약의 정직한 상태).
+- **settle은 로컬로 증명된 key만**: 폴링 훅은 mount 시에도 돌므로(autoStart) 남이 시작한 작업의
+  종료도 관찰할 수 있다. 브라우저는 자기 trigger 응답에서 기록한 job key에 한해 settle을 발행하고,
   ingest는 `(targetSourceId, job.kind, job.key, eventType)` 멱등 키로 중복을 접는다.
 - **업무 실패 ≠ 시스템 오류**: `scan_status=FAIL`, 연결 테스트 부분 실패는 `action_result`의
   실패 outcome이다(운영자의 핵심 데이터). `client_error`/`ssr_error`는 시스템 고장 전용.
@@ -116,7 +117,7 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 | # | 작업 | 상세 | 산출물 |
 |---|---|---|---|
 | 1-1 | ingest API 계약 | 엔드포인트(예: `POST /integration/observability/events`), 배치 payload 스키마(이벤트 배열), 서버 간 인증 방식, 요청 크기 캡, 실패 시 FE 드랍 정책, **멱등 키 `(targetSourceId, job.kind, job.key, eventType)` 처리**, **`triggerTestConnection` 응답에 `test_connection_version` 추가**(시작/결과 join의 전제 — ADR-025 §2) 합의 | 계약 문서 (swagger) |
-| 1-2 | 이벤트 스키마·DB 필드 확정 | **입력 계약 = ADR-025 §1a 필드 표** — 이벤트 6종의 discriminated union(타입별 필수/선택 명시). 공통 봉투: `eventType`·`origin`(서버 스탬프)·`observedAt`(발행자)·`receivedAt`(서버 스탬프, 시간창 쿼리 기준)·`actor{userId,role}`(서버 스탬프, 인증 전 nullable)·`page{template}`·`surface`(서버 파생)·`action{name,method,status,durationMs}`·`job{kind,key}`·`correlation{requestId,targetSourceId,serviceCode}`·`domainContext{processStatus,provider}`·종류별 `detail`. **`errorMessage` 컬럼 없음.** `errorName`·`fingerprint`(새니타이즈 스택 해시) 포함 여부는 열린 결정 — 미포함 시 code 없는 에러는 DB에서 구분 불가함을 명시하고 결정 | 스키마 문서 |
+| 1-2 | 이벤트 스키마·DB 필드 확정 | **입력 계약 = ADR-025 §1a 필드 표** — 이벤트 6종의 discriminated union(타입별 필수/선택 명시). 공통 봉투: `eventType`·`origin`(서버 스탬프)·`observedAt`(발행자)·`receivedAt`(서버 스탬프, 시간창 쿼리 기준)·`actor{userId,role}`(서버 스탬프 — 인증 게이트로 항상 존재, ADR-025 §5)·`page{template}`·`surface`(서버 파생)·`action{name,method,status,durationMs}`·`job{kind,key}`·`correlation{requestId,targetSourceId,serviceCode}`·`domainContext{processStatus,provider}`·종류별 `detail`. **`errorMessage` 컬럼 없음.** `errorName`·`fingerprint`(새니타이즈 스택 해시) 포함 여부는 열린 결정 — 미포함 시 code 없는 에러는 DB에서 구분 불가함을 명시하고 결정 | 스키마 문서 |
 | 1-3 | 보존·삭제 정책 | 보존 기간(예: 상세 90일 + 일 단위 집계 롤업 장기), 삭제 주기, 용량 상한. "많아지면 삭제"의 구체 기준 | 정책 1쪽 |
 | 1-4 | 조회 API 계약 | Admin **MVP(§3 M1~M3)가 요구하는 것만**: 타깃소스별 이벤트 목록(시간순·페이지네이션)·타깃소스별 24h Action/오류 count·확인 필요 집계 3종(24h 창, group by targetSourceId/serviceCode). P1~P4(추이·top-N·userId/requestId 필터·403 목록) 계약은 해당 기능 착수 시점으로 이연 | 계약 문서 |
 
@@ -147,21 +148,26 @@ PR #558에는 이 이벤트 타입들이 없다(헤더·client-error 라우트�
 | 2b-3 | 비동기 settle 발행 | `useScanPolling`·`useTestConnectionPolling` + trigger 함수 | trigger 시 `action` 발행 + **로컬 job key 기억**, settle 관찰 시 그 key에 한해 `action_result` 발행. 연결테스트는 trigger 응답 key(1-1 계약) 전까지 시작 이벤트에 job 없음 허용 | mount-폴링만으로는 settle 이벤트 미발생 테스트 |
 | 2b-4 | 수신 라우트 확장 + 서버 스탬프 | `app/api/v1/observability/*` + `app/api/_lib/handler.ts` | client-errors 라우트를 일반 audit 이벤트 수신으로 확장(방어 유지). 서버가 actor(세션)·receivedAt·origin·surface 스탬프, **주장된 targetSourceId 접근 권한 검증 후 저장**, 멱등 키 전달 | 위조 actor 무시·무권한 target 거부 테스트 |
 | 2b-5 | SSR 발행 | `app/target-sources/[targetSourceId]/page.tsx` + `log.ts` | 동적 SSR 렌더 성공→`page_view`(renderMs), 실패→`ssr_error`(서버가 렌더 대상 template 자기 스탬프) | 렌더 실패 시 page_view 없음·ssr_error 1건 |
+| 2b-6 | 브라우저 page_view | `app/components/ObservabilityInit.tsx` | `/services`는 정적 셸이라 방문마다 서버 렌더가 없음 — 브라우저가 라우트 전환 시 발행, 서버가 actor·receivedAt 스탬프 | 전환 시 1건, 새로고침 중복 없음 |
+| 2b-7 | screen_read 발행 | 해당 UI 컴포넌트/훅 (패널 열림 지점) | **발행 지점은 UI 관찰 지점** — 사용자가 패널을 연 시점에 1건. 함수 단위 일괄 태깅 금지(mount 자동 로드·백그라운드 갱신·내부 재시도가 사용자 조회로 둔갑). `fetchJson` 우회 호출(`ProjectHistoryPanel`의 raw `fetchInfra` 등)은 래퍼로 이관하거나 미계측 목록에 명시 | mount 자동 로드 시 이벤트 미발생 테스트 |
 
-**완료 기준**: 목업 시나리오(스캔 시작→성공, 확정 409→200, 연결테스트 부분 실패, zod 검증 실패, SSR 504)가
-전부 실제 이벤트로 DB에 남는다. **규모**: 중~대. **전제**: Phase 0·1·2.
-**인증 전 계약**: Phase 3 전에는 `actor=null`로 저장하고 Admin은 "(인증 전)"으로 표시 — 소급 backfill 없음.
+**완료 기준**: 목업 시나리오(스캔 시작→성공, 확정 409→200, zod 검증 실패, SSR 504, 방문·화면 조회)가
+전부 실제 이벤트로 저장 경로를 통과한다(스테이징). **규모**: 중~대. **전제**: Phase 0·1·2.
+**⚠️ 인증 게이트(ADR-025 §5)**: actor 스탬프·target 접근 검증 모두 세션이 필요하므로, **프로덕션 영구
+저장 활성화와 Admin 노출은 Phase 3 이후**다. 그 전에는 스테이징/mock에서 개발·검증만 — actor 없는
+audit 행도, 자리만 차지하는 role 검사도 만들지 않는다.
 
 ### Phase 3 — 인증 연동 (인증 도입 ~1개월 후)
 
 | # | 작업 | 대상 파일 | 상세 | 검증 기준 |
 |---|---|---|---|---|
 | 3-1 | `userId`·`role` resolve | `app/api/_lib/handler.ts` | withV1이 세션에서 userId·role을 읽어 모든 이벤트에 심음. 클라이언트 헤더 채택 금지 | 위조 헤더 무시 테스트 |
-| 3-2 | 인가 거부(403) 이벤트 — API | `app/api/_lib/handler.ts` | 인가 검사 실패 시 `{userId, role, pathTemplate, status:403}` WARN 이벤트 — "권한 없이 접근 시도" 추적의 원천 | 403 시나리오 테스트 |
-| 3-3 | 인가 거부 — 페이지 수준 | middleware 또는 SSR 가드 | 페이지 접근 자체를 막는 가드의 거부도 같은 이벤트로. **withV1 밖이라 자동으로 안 잡힘 — 별도 구현 필수** | 페이지 403 시나리오 테스트 |
+| 3-2 | 인가 거부 이벤트 — API | `app/api/_lib/handler.ts` | 인가 검사 실패 시 **`auth_denied` 이벤트**(7번째 타입, ADR-025 Scope: origin=server·actor=세션·거부된 pathTemplate·action.status=403, 그 외 detail 없음). eventType enum 확장은 FE ingest 스키마·BFF enum을 함께 늘리는 **호환 가능한 추가 변경**으로 BFF와 조율 | 403 시나리오 테스트 |
+| 3-3 | 인가 거부 — 페이지 수준 | middleware 또는 SSR 가드 | 페이지 접근 자체를 막는 가드의 거부도 같은 `auth_denied`로(page.template 사용). **withV1 밖이라 자동으로 안 잡힘 — 별도 구현 필수** | 페이지 403 시나리오 테스트 |
 | 3-4 | SSR 화면 식별 | SSR fetch 경로 | SSR엔 `X-Client-Page`가 없음 — 서버가 자기 렌더 경로를 이벤트에 직접 심는 구현. 방법은 열린 항목(레이아웃별 상수 vs 요청 URL 파생) | SSR 에러에 화면 필드 존재 |
 
 **완료 기준**: 모든 이벤트에 userId·role, 403 시도가 API·페이지 양쪽에서 기록됨.
+**게이트 해제**: 이 phase가 끝나야 Phase 2b의 프로덕션 영구 저장과 Phase 4 Admin 노출이 켜진다(ADR-025 §5 인증 게이트).
 
 ### Phase 4 — In-app Admin 대시보드 (FE 코드 본체 ②)
 
@@ -176,16 +182,14 @@ PR #558에는 이 이벤트 타입들이 없다(헤더·client-error 라우트�
 | 4-5 | 표시 사전 | 4-2 하위 `_lib/` | 함수명→한국어 Action명, processStatus→단계명 사전(기존 UI 라벨 재사용). 사전에 없는 값은 원본 그대로 노출 | 미등록 값 원본 노출 테스트 |
 
 **완료 기준**: 운영자가 "확인 필요 → 해당 타깃소스 상세 → Action 이력·전체 이력 → 이벤트 원본"까지 도달.
-**규모**: 중. **전제**: Phase 1·2·**2b**(이벤트가 있어야 보여줄 것이 있다). 담당자 표시·M4 운영자 게이트는 Phase 3 이후 완성 — 그 전엔 actor "(인증 전)" 표시 + 4-1 role 검사 자리만 마련.
+**규모**: 중. **전제**: Phase 1·2·2b·**3**(이벤트가 있어야 보여줄 것이 있고, 인증이 있어야 actor·운영자 게이트가 성립 — ADR-025 §5 인증 게이트).
 
-### Phase 5 — page_view 이벤트 (방문 추적)
+### Phase 5 — 커버리지 점검·방어 상수 (발행은 Phase 2b로 이동)
 
 | # | 작업 | 대상 파일 | 상세 | 검증 기준 |
 |---|---|---|---|---|
-| 5-1 | page_view — 동적 SSR 페이지 | (= 2b-5, 타깃소스 상세) | 2b-5에서 이미 구현 — 여기서는 커버리지 확인만 | 진입 시 1건, 렌더 실패 시 page_view 없음(ssr_error만) |
-| 5-2 | page_view — 정적/CSR 페이지 | `app/components/ObservabilityInit.tsx` | `/services`는 정적 셸이라 방문마다 서버 렌더가 없음 — **브라우저가 라우트 전환 시 발행**하고 서버가 actor·receivedAt 스탬프(ADR-025 §1). 사람 묶기는 userId — **sessionId 없음** | 전환 시 1건, 새로고침 중복 없음 |
-| 5-3 | screen_read 이벤트 | `lib/fetch-json.ts` 래퍼 태깅 | 단발 조회 함수(리소스 목록 등)를 `screen_read`로 태깅 — 폴링 함수는 제외(ADR-025 §2). `fetchJson` 우회 호출(`ProjectHistoryPanel`의 raw `fetchInfra` 등)은 래퍼로 이관하거나 미계측 목록에 명시 | 폴링 함수 이벤트 미발생 테스트 |
-| 5-4 | 방어 상수 재점검 | `lib/client-error-report.ts` | 이벤트 종류별 rate cap 분리 | 연타 시나리오 테스트 |
+| 5-1 | 커버리지 점검 | — | 6종 이벤트가 실제 페이지 흐름 전체를 덮는지 점검(방문·조회·Action·오류 각 1건 이상 실데이터 확인) — 발행 구현 자체는 Phase 2b(2b-5·2b-6·2b-7) | 페이지별 이벤트 발생 매트릭스 |
+| 5-2 | 방어 상수 재점검 | `lib/client-error-report.ts` | 이벤트 종류별 rate cap 분리 | 연타 시나리오 테스트 |
 
 ### Phase 6 — Grafana (보류 — 도입 결정 후)
 
@@ -206,8 +210,12 @@ PR #558에는 이 이벤트 타입들이 없다(헤더·client-error 라우트�
 |---|---|---|---|
 | M1 | **타깃소스 사용 이력 — 목록** | 전체 타깃소스(~2,000)를 최근 활동 순으로, 검색(이름/서비스/담당자) | 타깃소스별 최근 이벤트 시각 + 24h Action/오류 count |
 | M2 | **타깃소스 사용 이력 — 상세** | ① 사용자 Action 이력(분리 표: 시각·담당자·Action·당시 단계·결과 — 비동기는 작업 번호로 짝지어 한 행) ② 전체 이력 타임라인(6종 전부 최신순, 운영자 문장 + 당시 단계) ③ 행 클릭 → Audit Event 원본 모달(필드·값·의미 표 + 전송 payload JSON) | ADR-025 이벤트 6종 그대로 |
-| M3 | **확인 필요** | 24h 창 집계 3표 — 오류 발생 타깃소스 · 실패 Action 타깃소스 · 서비스별 요약. 사이드바 메뉴에 빨간 배지(= 24h 오류 발생 타깃소스 수, 0이면 꺼짐) | `count(*) … where eventType in (client_error, ssr_error) and ts > now()-24h group by target_source_id` — 집계만, 판정 없음 |
+| M3 | **확인 필요** | 24h 창 집계 3표 — 오류 발생 타깃소스 · 실패 Action 타깃소스 · 서비스별 요약. 사이드바 메뉴에 빨간 배지(= 24h 오류 발생 타깃소스 수, 0이면 꺼짐) | `count(*) … where eventType in (client_error, ssr_error) and receivedAt > now()-24h group by target_source_id` — 집계만, 판정 없음 |
 | M4 | **접근 통제·조회 창** | 운영자 role만, 기본 24h 창(확장 가능), 보존 정책 표시 | — |
+
+M1/M2의 타깃소스 이름·담당자·현재 단계는 **도메인 API에서** 온다(채택 확정 — 전략 §8에서 열린 항목이었던
+"로그+도메인 상태 합치기"는 MVP 포함으로 결정). join은 FE Admin 라우트(4-1)가 조회 시점에 수행하고,
+audit 저장소에는 도메인 데이터를 복제하지 않는다.
 
 ### In-app Admin — 후순위 후보 (MVP 제외, 이벤트로 구현 가능)
 
@@ -240,13 +248,14 @@ PR #558에는 이 이벤트 타입들이 없다(헤더·client-error 라우트�
 
 ```
 Phase 0 (PR #558 머지)
-  └─→ Phase 2 (전송 교체·필드 정책) ─→ Phase 2b (Audit Event 발행) ─→ Phase 4 (Admin MVP) ─→ Phase 5 (page_view·screen_read 확장)
+  └─→ Phase 2 (전송 교체·필드 정책) ─→ Phase 2b (Audit Event 발행 — 개발·스테이징 검증)
 Phase 1 (BFF 협의: ingest·스키마·멱등키·연결테스트 trigger key·M1~M3 조회) ─→ Phase 2·2b·4   ← 코드와 무관, 지금 바로 시작
-Phase 3 (인증 연동) ─→ 이벤트 actor 채움 + Phase 4의 담당자 표시·운영자 게이트·403 축   ← 인증 도입 후
+Phase 3 (인증 연동) ─→ ⛔ 게이트: 프로덕션 audit 저장 활성화·Admin 노출은 여기부터
+  └─→ Phase 4 (Admin MVP) ─→ Phase 5 (커버리지 점검) → 후순위 P1~P4
 Phase 6 (Grafana)   ← 도입 결정 후, 언제든
 ```
 
-**권장 착수 순서**: 0‖1 → 2 → 2b → 4(M1~M3) → 3 → 4 마감(담당자·게이트) → 5 → (후순위 P1~P4) → 6.
+**권장 착수 순서**: 0‖1 → 2 → 2b(개발·스테이징) → 3(게이트 해제) → 4(M1~M4) → 5 → (후순위 P1~P4) → 6.
 지금 바로 시작할 수 있는 것: **PR #558 리뷰**와 **Phase 1 BFF 협의**.
 
 ## 5. 하지 않는 것 (명시적 스코프 아웃)

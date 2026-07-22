@@ -22,10 +22,13 @@ screens. It does **not** cover:
   exceptions, upstream 5xx diagnostics. These remain in the diagnostic log
   stream (strategy document §2) and are correlated with audit events via
   `requestId`, not stored as audit rows.
-- Authorization-denial (403) tracking. It is a **planned additive extension**
-  of this taxonomy (a seventh event type emitted by the FE server), specified
-  in implementation-plan Phase 3; the envelope below is designed so adding it
-  requires no schema break.
+- Authorization-denial (403) tracking. It is a **planned extension**: a
+  seventh event type named `auth_denied`, emitted by the FE server
+  (`origin=server`, actor from session, `page.template` or the denied API
+  path template, `action.status=403`, no other detail). The envelope below
+  is unchanged by it; adding the type is an **additive, coordinated enum
+  extension** (FE ingest schema and BFF column enum are extended together in
+  Phase 3 — it is a schema change, just a compatible one).
 
 ## Context
 
@@ -80,7 +83,7 @@ prerequisite, not merged behavior):
 | eventType | Meaning | Origin |
 |---|---|---|
 | `page_view` | A page was opened. Dynamic SSR pages: emitted by the FE server on successful render. Static/CSR pages (`/services`): emitted by the browser on route transition | FE server / browser |
-| `screen_read` | A single read triggered by the user opening/expanding UI (resource list, logical-DB list) | Browser |
+| `screen_read` | A single read triggered by the user opening/expanding UI (resource list, logical-DB list). **Emitted at the UI observation site** (the component/hook reacting to the user opening a panel), never by blanket per-function tagging — automatic mount loads, background refreshes, and internal retries do not emit (they would record machine activity as user reads) | Browser |
 | `action` | A button-driven act. Synchronous actions (e.g. `confirmInstallation`) carry their result (HTTP status, error `code`) in this one event | Browser |
 | `action_result` | The settle outcome of an asynchronous action (scan, test connection): status enum, duration, structured summary | Browser |
 | `client_error` | A failure observed while the page is in use: a render error or unhandled rejection in the browser, or an error response observed by the browser on a CSR call. When the underlying cause is a schema-validation failure, the event detail carries the issue list (`{path, code}` pairs) — note that in this codebase validation runs in the FE server route (`schemas.parse` inside `withV1`), so the browser typically observes it as an error status, not as a local exception | Browser |
@@ -97,8 +100,8 @@ see §5), **E** = emitter (browser for browser events, server for SSR events).
 | `eventType` | ✅ | E | one of the six values (closed enum at ingest) |
 | `origin` | ✅ | S | `browser` \| `server` — set from which ingest path the event arrived on, never from payload |
 | `observedAt` | ✅ | E | when the emitter observed the fact (ISO-8601) |
-| `receivedAt` | ✅ | S | server receipt time — authoritative for time-window queries; large `observedAt` drift is clamped and flagged |
-| `actor.userId` / `actor.role` | ✅* | S | from session. *Nullable until auth ships (Phase 3); pre-auth rows store `actor=null` and admin renders "(pre-auth)" |
+| `receivedAt` | ✅ | S | server receipt time — authoritative for time-window queries. If `|observedAt − receivedAt|` > 10 minutes, `observedAt` is clamped to `receivedAt` and `clockSkew:true` is set on the event |
+| `actor.userId` / `actor.role` | ✅ | S | from session. **Durable audit ingestion is gated on authentication existing** (§5) — there are no actor-less audit rows |
 | `page.template` | ✅ | E | normalized template (`/target-sources/:id`), never a raw path. Browser events: from the wrapper's page tagging; SSR events: server self-stamps its own render target |
 | `surface` | ✅ | S | derived server-side from `page.template` via `surfaceOf()` |
 | `action.name` | per type | E | API function name (`startScan`) — required for `screen_read`/`action`/`action_result`, optional in error events, absent in `page_view` |
@@ -109,10 +112,32 @@ see §5), **E** = emitter (browser for browser events, server for SSR events).
 | `domainContext.processStatus` / `domainContext.provider` | CSR events | B | snapshot of what the page held at event time |
 | `detail` | per type | E | type-specific block (§3, §4): `outcome` for results, `renderMs` for `page_view`, `error{name, code, zodIssues}` for errors |
 
-The Phase 1-2 deliverable is a **discriminated union schema** (one variant per
-`eventType`) that makes required/optional per type explicit; this table is its
-input. Units: durations in ms except where the upstream response provides
-seconds (`durationSec` mirrors `duration_seconds` as-is and is labeled).
+Per-type field matrix (normative — anything not listed as required/optional
+for a type is **forbidden** on that type):
+
+| eventType | Required beyond common¹ | Optional | Forbidden |
+|---|---|---|---|
+| `page_view` | `page.template`, `detail.renderMs` (SSR variant only) | — | `action.*`, `job.*`, `error.*`, `outcome.*` |
+| `screen_read` | `action{name, method, status, durationMs}`, `outcome.count` | `domainContext` | `job.*`, `error.*` |
+| `action` | `action{name, method, status}` | `error.code` (on failure), `job{kind, key}` (async trigger, when the response carries the key), `domainContext` | `outcome.*` |
+| `action_result` | `action.name`, `job{kind, key}`, `outcome.status`, `outcome.durationSec` | `outcome.detail` / `outcome.total` / `outcome.fail` / `outcome.failedResourceIds` (per §4), `domainContext` | `error.*` |
+| `client_error` | `error.name` | `action{name, method, status}` (when a call was involved), `error.code`, `error.zodIssues`, `domainContext` | `job.*`, `outcome.*` |
+| `ssr_error` | `page.template`, `error.name` | `action{name, method, status}` (the failed upstream call) | `job.*`, `outcome.*`, `domainContext` |
+
+¹ Common required fields (`eventType`, `origin`, `observedAt`, `receivedAt`,
+`actor`, `page.template`, `surface`, `correlation.requestId`) apply to every
+type per the ownership table above.
+
+**One observation, one event.** A failed synchronous action (e.g.
+`confirmInstallation` → 500) produces exactly one `action` event carrying the
+failure status — never an additional `client_error`. `client_error` is for
+failures outside a user action: render errors, unhandled rejections, and
+failed reads observed by the browser.
+
+The Phase 1-2 deliverable is the **discriminated union schema** transcribing
+this matrix (one variant per `eventType`). Units: durations in ms except
+where the upstream response provides seconds (`durationSec` mirrors
+`duration_seconds` as-is and is labeled).
 
 New pages, actions, or context keys extend the envelope additively; display
 labels are a read-time dictionary (function name → Korean label), so old rows
@@ -123,23 +148,27 @@ never go stale.
 - The trigger emits one `action` event with the accepted status and, when the
   trigger response carries it, the job key: `startScan` returns a full
   `ScanJobResponse`, so `job = {kind:'scan', key:scan_version}` is available
-  immediately. **`triggerTestConnection` returns only `{success}`** — the
-  start event has no job key today. Requiring the trigger response to return
-  the new `test_connection_version` is a **Phase 1 negotiation item**; until
-  it lands, test-connection start/settle rows may appear unpaired in admin
-  (the UI shows unpaired rows honestly rather than pairing by time-window
-  heuristics, which would be inference).
+  at trigger time (if the loose generated schema delivers no `scan_version`,
+  fall back to `id`; if neither is present, the start event has no `job` and
+  no settle will be emitted for it). **`triggerTestConnection` returns only
+  `{success}`** — the start event has no job key today.
+- **Settle emission requires a locally-proven job key.** The browser emits
+  `action_result` only for a job key it recorded from its own trigger
+  response. Until the test-connection trigger returns
+  `test_connection_version` (a **Phase 1 negotiation item**), test-connection
+  emits the unkeyed `action` start and **no settle event at all** — the admin
+  timeline shows a start without a result, which is the honest state of the
+  contract. Pairing by time window is forbidden (inference, wrong across
+  tabs/users).
 - The individual polling GETs are **not recorded**. When a poll observes a
-  settled status, the browser emits one `action_result` with the outcome
-  enum, the duration, and the job key from the result payload
-  (`scan_version` / `test_connection_version`).
-- Because both polling hooks also run on mount, a browser can observe the
-  settle of a job it did not start (another tab, another user). To keep
-  `action_result` an act-outcome rather than a viewing record, the browser
-  emits it **only for jobs whose trigger it performed locally** (it remembers
-  the job keys it started, in memory). Additionally the ingest layer enforces
-  an idempotency key `(targetSourceId, job.kind, job.key, eventType)` so
-  duplicate settle observations collapse to one row.
+  settled status (scan: `SUCCESS`/`FAIL`/`TIMEOUT`/`CANCELED`; test
+  connection: `SUCCESS`/`FAIL` — `PENDING`/`RUNNING` are in-progress) for a
+  locally-recorded job key, the browser emits one `action_result`.
+- Both polling hooks also run on mount, so a browser can observe the settle
+  of a job it did not start (another tab, another user); the local-key rule
+  above excludes those. Additionally the ingest layer enforces an idempotency
+  key `(targetSourceId, job.kind, job.key, eventType)` so duplicate settle
+  observations collapse to one row.
 - Durations: scan uses the response's `duration_seconds` verbatim;
   test connection computes `completed_at − requested_at` from the same
   response (arithmetic on two fields of one observed payload, not a
@@ -162,12 +191,13 @@ The exact matrix (start set; extending it is a reviewed change):
 
 | eventType | Allowed response-derived fields | Caps / validation |
 |---|---|---|
-| `screen_read` | `outcome.count` | integer |
+| `screen_read` | `outcome.count` | non-negative integer |
 | `action` (sync) | `action.status`, `error.code` | status = HTTP int; `code` validated against the known BFF code set, unknown → `UNKNOWN` |
-| `action_result` (scan) | `outcome.status` (= `scan_status`), `outcome.durationSec`, `outcome.detail` (= `resource_count_by_resource_type`) | status validated against the scan enum (`SUCCESS`/`FAIL`/`TIMEOUT`/`CANCELED`/…), unknown → `UNKNOWN`; detail = map of type→int only |
-| `action_result` (test connection) | `outcome.status` (= `connection_status`), `outcome.total`, `outcome.fail`, `outcome.failedResourceIds`, `outcome.durationSec` | status validated against the enum; `failedResourceIds` is a **bounded identifier array** (≤ 20 entries, each ≤ 64 chars) — an explicit exception to the "no list contents" rule because entries are domain identifiers, not payload data |
+| `action` (async trigger) | `action.status`, `job.key` (= `scan_version` or fallback `id`; test connection: none until the Phase 1 contract lands) | `job.key` = integer or string ≤ 64 chars |
+| `action_result` (scan) | `outcome.status` (= `scan_status`), `outcome.durationSec`, `outcome.detail` (= `resource_count_by_resource_type`), `job.key` | status validated against the **exact settle set** `SUCCESS`/`FAIL`/`TIMEOUT`/`CANCELED`, unknown → `UNKNOWN`; detail = map with ≤ 20 keys, each key ≤ 32 chars (resource-type symbol), values non-negative int |
+| `action_result` (test connection) | `outcome.status` (= `connection_status`), `outcome.total`, `outcome.fail`, `outcome.failedResourceIds`, `outcome.durationSec` (= `completed_at − requested_at`), `job.key` | status validated against the **exact settle set** `SUCCESS`/`FAIL` (`PENDING`/`RUNNING` never emit); `failedResourceIds` is a **bounded identifier array** (≤ 20 entries, each ≤ 64 chars) — an explicit exception to the "no list contents" rule because entries are domain identifiers, not payload data |
 | `client_error` / `ssr_error` | `action.status`, `error.code`, `error.name`, `error.zodIssues[{path, code}]` | `error.name` matched against a fixed allowlist of known error classes, else `Error`; `zodIssues` ≤ 20 entries, `path` ≤ 128 chars, no messages |
-| `page_view` | `detail.renderMs` | integer |
+| `page_view` | `detail.renderMs` | non-negative integer |
 
 General rules:
 
@@ -212,6 +242,21 @@ events against targets they are authorized for, every row carries their
 server-stamped identity, and rows carry `origin` so operational aggregates
 can be filtered or weighted by provenance if abuse is ever suspected.
 
+**Two sinks, one logger.** `log.ts` exposes two explicit paths:
+`emitAudit` (the six types + the future `auth_denied`) goes to BFF ingest;
+`emitDiagnostic` (withV1 access records, route-handler exceptions, upstream
+5xx diagnostics, sanitized stacks) goes to stdout only and is **never**
+stored as an audit row. The transport swap (implementation-plan Phase 2)
+changes where `emitAudit` delivers; diagnostic records keep their stdout
+destination.
+
+**Authentication gate.** Both the actor stamp and the target-authorization
+check require a session, so **durable audit ingestion and admin exposure are
+enabled only after authentication ships** (implementation-plan Phase 3).
+Before that, the emission code paths can be built and exercised in
+staging/mock, but production events are not durably stored — there is no
+actor-less audit data and no placeholder-guarded admin.
+
 ### 6. Facts only — no derived states, aggregation allowed
 
 - One event = one observation. The store never records interpretations that
@@ -234,8 +279,8 @@ can be filtered or weighted by provenance if abuse is ever suspected.
   drown the timeline and carry no operator information beyond the settle.
 - **Pair unkeyed test-connection start/settle by time window** — rejected:
   that is inference, and wrong across tabs/users. The contract change
-  (trigger returns the job key) is negotiated instead; until then unpaired
-  rows are shown as-is.
+  (trigger returns the job key) is negotiated instead; until then no settle
+  is emitted and the start row stands alone.
 - **Derive session/recovery/revisit states at write time** — rejected: that
   is business logic built on audit data, with boundary definitions (what
   counts as a visit?) the product has not made. Raw `page_view` facts plus
@@ -263,11 +308,11 @@ can be filtered or weighted by provenance if abuse is ever suspected.
   taxonomy as its input contract, including the two contract asks:
   test-connection trigger returning its job key, and the ingest idempotency
   key.
-- Gaps are honest: rows without results exist (closed browsers, and unpaired
-  test-connection rows until the trigger contract lands), pre-auth rows have
-  no actor, and code-less errors are distinguishable only if
-  `error.name`/fingerprint storage is adopted (open decision in the strategy
-  document).
+- Gaps are honest: rows without results exist (closed browsers, and
+  test-connection starts without settles until the trigger contract lands),
+  nothing is durably stored before authentication ships, and code-less errors
+  are distinguishable only if `error.name`/fingerprint storage is adopted
+  (open decision in the strategy document).
 
 ## References
 

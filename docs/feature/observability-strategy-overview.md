@@ -38,9 +38,11 @@ best-effort 유실 허용, Error Reporting의 자동 그룹핑·회귀 감지와
 [FE 서버 (Next.js, GKE — 프로젝트 이동 예정, 상태 없음)]
  ├─ withV1 공통 래퍼: 요청마다 접근 이벤트 1건, 예외·업스트림 5xx·인가 거부(403)는 ERROR/WARN
  ├─ 세션 → userId·role resolve (인증 도입 후) — 이벤트에 서버가 심음
- └─ log.ts(유일한 출구): 이벤트를 배치·비동기로 BFF ingest API에 전송 (best-effort, 유실 카운터)
-       ├─▶ [BFF (고정점)] ingest API → 자체 DB 저장 — 구조화 필드만, 보존·삭제 정책은 BFF 소유
-       └─▶ stdout 진단 로그(보조): 상세 스택 등 — 해당 프로젝트의 Cloud Logging 30일, 이사 시 소멸 허용
+ └─ log.ts(유일한 출구, 싱크 2개 — ADR-025 §5):
+       ├─▶ emitAudit: audit 이벤트 6종(+403) → 배치·비동기 → [BFF (고정점)] ingest API → 자체 DB 저장
+       │     — 구조화 필드만, 보존·삭제 정책은 BFF 소유
+       └─▶ emitDiagnostic: withV1 접근 기록·예외/업스트림 5xx·상세 스택 → stdout 진단 로그만
+             — Cloud Logging 30일, 이사 시 소멸 허용, audit 행 아님(requestId로만 연결)
 
 [소비]
  ├─ In-app Admin: FE 서버 라우트 → BFF 조회 API → 도메인 데이터와 join해 표시
@@ -138,17 +140,17 @@ code 없는 에러는 DB엔 `status`·`requestId`(+ 권고안 채택 시 `errorN
 | 0 | **PR #558 리뷰·머지** — 수집 로직(스키마·헤더·PII 가드)은 그대로 재사용 | 리뷰만 | — |
 | 1 | **BFF 협의** — ingest API 계약 · DB 스키마 · 보존/삭제 정책 · 조회 API | 협의 | 지금 시작 가능 |
 | 2 | **전송 교체** — `log.ts` 출구를 stdout→BFF 배치 전송으로, surface 필드, 필드 정책 적용 | FE 코드 | 0·1 |
-| 2b | **Audit Event 발행** — ADR-025 이벤트 6종(빌더·allowlist·동기/비동기 Action·SSR·서버 스탬프) | FE 코드 | 0·1·2 |
+| 2b | **Audit Event 발행** — ADR-025 이벤트 6종 전부(빌더·allowlist·동기/비동기 Action·SSR·브라우저 page_view·screen_read·서버 스탬프) — 개발·스테이징 검증까지 | FE 코드 | 0·1·2 |
 | 3 | **인증 연동** — userId·role 서버 resolve, 인가 거부(403) 로깅, SSR 화면 식별 | FE 코드 | 인증 도입(~1개월) |
-| 4 | **In-app Admin — MVP** — 타깃소스 사용 이력(목록·상세·이벤트 모달) + 확인 필요 24h 집계 (구현 계획 §3 M1~M4; 관제·고객별·403 뷰는 후순위 P1~P4) | FE+BFF | 1·2·2b |
-| 5 | **page_view·screen_read 확장** — 방문 추적(동적 SSR=서버 발행, `/services`=브라우저 발행) (userId 기반, sessionId 없음) | FE 코드 소규모 | 2b |
+| 4 | **In-app Admin — MVP** — 타깃소스 사용 이력(목록·상세·이벤트 모달) + 확인 필요 24h 집계 (구현 계획 §3 M1~M4; 관제·고객별·403 뷰는 후순위 P1~P4) | FE+BFF | 1·2·2b·3 (인증 게이트 — ADR-025 §5) |
+| 5 | **커버리지 점검·방어 상수** — 6종 이벤트의 실페이지 커버리지 확인, rate cap 분리 (발행 구현은 2b) | FE 코드 소규모 | 2b |
 | 6 | **Grafana 도입 결정** — push 알림 필요성 판단 후 SQL 데이터소스 구성 | 보류 | 결정 |
 
 ## 8. 열린 항목 (결정 필요)
 
 - **Admin의 성격**: 실시간 관제탑(자동 갱신) vs 문제 시 파는 조사실(수동 조회) — 화면 자동 갱신 여부가 여기 달림
 - **CTA 실패**: 전용 뷰로 만들지, 필터 축만 둘지
-- **로그+도메인 상태 합치기**를 Admin MVP(Phase 4)에 넣을지
+- ~~로그+도메인 상태 합치기를 Admin MVP(Phase 4)에 넣을지~~ → **채택 확정** (07-23): M1/M2의 이름·담당자·현재 단계는 도메인 API에서, join은 FE Admin 라우트가 조회 시점에 수행
 - **이벤트 체계 상세**(6종·봉투·allowlist·신뢰 경계)는 ADR-025로 확정 — 연결테스트 trigger 응답의 job key 추가는 BFF 협의 필요
 - **errorName/fingerprint 저장** 권고안 채택 여부 (§4)
 - **BFF DB 스키마 상세**: 필드·보존 기간·삭제 정책 (많아지면 삭제 — 주기·기준 미정)
