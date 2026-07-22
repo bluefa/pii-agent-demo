@@ -14,7 +14,7 @@ import {
 import { useModal } from '@/app/hooks/useModal';
 import { getServicesPage } from '@/app/lib/api';
 import { passRoutes } from '@/lib/routes';
-import { bgColors, borderColors, cn, idcStyles, textColors } from '@/lib/theme';
+import { bgColors, borderColors, cn, textColors } from '@/lib/theme';
 
 const ServiceMoveConfirmModal = dynamic(
   () =>
@@ -64,21 +64,6 @@ interface ConfirmModalData {
 
 const SERVICE_PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
-
-/** Skeleton frame shown while the service list loads — mirrors the sidebar (search box + rows). */
-const ServiceListSkeleton = () => (
-  <aside
-    className={cn('w-[296px] shrink-0 shadow-sm flex flex-col gap-2.5 p-4', bgColors.surface)}
-    aria-busy="true"
-    aria-live="polite"
-    aria-label="서비스 목록 로딩 중"
-  >
-    <div className={cn(idcStyles.skeletonBar, 'h-9 w-full rounded-lg')} />
-    {Array.from({ length: 8 }).map((_, i) => (
-      <div key={i} className={cn(idcStyles.skeletonBar, 'h-11 w-full rounded-lg')} />
-    ))}
-  </aside>
-);
 
 export const ServiceListPanel = () => {
   const router = useRouter();
@@ -202,10 +187,6 @@ export const ServiceListPanel = () => {
 
   const isInitialLoading = fetchState.status === 'loading' && services.length === 0;
 
-  if (isInitialLoading) {
-    return <ServiceListSkeleton />;
-  }
-
   if (fetchState.status === 'error') {
     return (
       <aside
@@ -244,6 +225,7 @@ export const ServiceListPanel = () => {
         onSearchChange={handleSearchChange}
         pageInfo={pageInfo}
         onPageChange={handlePageChange}
+        loading={isInitialLoading}
       />
       {confirmModal.data && (
         <ServiceMoveConfirmModal
