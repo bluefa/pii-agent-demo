@@ -90,39 +90,47 @@ const REQUESTS_REJECTED: RequestRow[] = [
 // ── Approval history (global, GET /approval-history) ────────────────────────
 // Item wire = user-sanctioned assumption (swagger 200 is the generic Page; gap
 // documented in lib/types/task-queue.ts). Newest first; covers all 7 enums.
+// Real /approval-history rows are flat camelCase keyed by historyRecordId (the
+// only unique id — requestId AND targetSourceId repeat: e.g. 1031 spans 3 rows).
+// actorId is the acting admin; null while PENDING (not yet processed), 시스템 for
+// AUTO_APPROVED.
 interface ApprovalHistoryFixture {
-  request_id: number;
-  target_source_id: number;
+  historyRecordId: number;
+  requestId: number;
+  targetSourceId: number;
   status: string;
-  created_at: string;
-  service_name: string;
-  service_code: string;
+  createdAt: string;
+  serviceName: string;
+  serviceCode: string;
+  actorId: string | null;
+  // Target source cloud — UPPERCASE wire; consistent per targetSourceId.
+  cloudProvider: string;
 }
 
 const APPROVAL_HISTORY: ApprovalHistoryFixture[] = [
-  { request_id: 5121, target_source_id: 1031, status: 'PENDING', created_at: '2026-07-20T09:12:00Z', service_name: '주문서비스', service_code: 'ORD' },
-  { request_id: 5118, target_source_id: 2113, status: 'PENDING', created_at: '2026-07-20T08:40:00Z', service_name: '결제서비스', service_code: 'PAY' },
-  { request_id: 5116, target_source_id: 2044, status: 'PENDING', created_at: '2026-07-19T18:03:00Z', service_name: '포인트서비스', service_code: 'PNT' },
-  { request_id: 5112, target_source_id: 2051, status: 'PENDING', created_at: '2026-07-19T15:27:00Z', service_name: '알림서비스', service_code: 'NTF' },
-  { request_id: 5107, target_source_id: 1861, status: 'APPROVED', created_at: '2026-07-19T11:20:00Z', service_name: '정산서비스', service_code: 'STL' },
-  { request_id: 5101, target_source_id: 1907, status: 'REJECTED', created_at: '2026-07-18T11:02:00Z', service_name: '광고서비스', service_code: 'ADS' },
-  { request_id: 5093, target_source_id: 1980, status: 'AUTO_APPROVED', created_at: '2026-07-17T22:10:00Z', service_name: '회원서비스', service_code: 'MBR' },
-  { request_id: 5090, target_source_id: 1799, status: 'APPROVED', created_at: '2026-07-17T14:55:00Z', service_name: '배송서비스', service_code: 'DLV' },
-  { request_id: 5084, target_source_id: 1027, status: 'UNAVAILABLE_ACKNOWLEDGED', created_at: '2026-07-16T10:31:00Z', service_name: '쿠폰서비스', service_code: 'CPN' },
-  { request_id: 5080, target_source_id: 1027, status: 'UNAVAILABLE', created_at: '2026-07-16T09:02:00Z', service_name: '쿠폰서비스', service_code: 'CPN' },
-  { request_id: 5074, target_source_id: 1873, status: 'REJECTED', created_at: '2026-07-15T09:47:00Z', service_name: '채팅서비스', service_code: 'CHT' },
-  { request_id: 5069, target_source_id: 1583, status: 'CANCELLED', created_at: '2026-07-14T17:26:00Z', service_name: '인증서비스', service_code: 'ATH' },
-  { request_id: 5061, target_source_id: 1583, status: 'PENDING', created_at: '2026-07-14T09:15:00Z', service_name: '인증서비스', service_code: 'ATH' },
-  { request_id: 5055, target_source_id: 1861, status: 'PENDING', created_at: '2026-07-13T13:44:00Z', service_name: '정산서비스', service_code: 'STL' },
-  { request_id: 5049, target_source_id: 1444, status: 'CANCELLED', created_at: '2026-07-12T16:08:00Z', service_name: '검색서비스', service_code: 'SRC' },
-  { request_id: 5041, target_source_id: 1980, status: 'PENDING', created_at: '2026-07-11T10:52:00Z', service_name: '회원서비스', service_code: 'MBR' },
-  { request_id: 5033, target_source_id: 1799, status: 'AUTO_APPROVED', created_at: '2026-07-10T19:37:00Z', service_name: '배송서비스', service_code: 'DLV' },
-  { request_id: 5027, target_source_id: 1907, status: 'PENDING', created_at: '2026-07-10T08:21:00Z', service_name: '광고서비스', service_code: 'ADS' },
-  { request_id: 5019, target_source_id: 1873, status: 'PENDING', created_at: '2026-07-09T15:03:00Z', service_name: '채팅서비스', service_code: 'CHT' },
-  { request_id: 5012, target_source_id: 1031, status: 'REJECTED', created_at: '2026-07-08T11:49:00Z', service_name: '주문서비스', service_code: 'ORD' },
-  { request_id: 5006, target_source_id: 1031, status: 'PENDING', created_at: '2026-07-08T09:30:00Z', service_name: '주문서비스', service_code: 'ORD' },
-  { request_id: 4998, target_source_id: 1444, status: 'APPROVED', created_at: '2026-07-07T14:12:00Z', service_name: '검색서비스', service_code: 'SRC' },
-  { request_id: 4991, target_source_id: 2113, status: 'CANCELLED', created_at: '2026-07-06T10:05:00Z', service_name: '결제서비스', service_code: 'PAY' },
+  { historyRecordId: 923, requestId: 5121, targetSourceId: 1031, status: 'PENDING', createdAt: '2026-07-20T09:12:00Z', serviceName: '주문서비스', serviceCode: 'ORD', actorId: null, cloudProvider: 'IDC' },
+  { historyRecordId: 922, requestId: 5118, targetSourceId: 2113, status: 'PENDING', createdAt: '2026-07-20T08:40:00Z', serviceName: '결제서비스', serviceCode: 'PAY', actorId: null, cloudProvider: 'AWS' },
+  { historyRecordId: 921, requestId: 5116, targetSourceId: 2044, status: 'PENDING', createdAt: '2026-07-19T18:03:00Z', serviceName: '포인트서비스', serviceCode: 'PNT', actorId: null, cloudProvider: 'GCP' },
+  { historyRecordId: 920, requestId: 5112, targetSourceId: 2051, status: 'PENDING', createdAt: '2026-07-19T15:27:00Z', serviceName: '알림서비스', serviceCode: 'NTF', actorId: null, cloudProvider: 'AZURE' },
+  { historyRecordId: 919, requestId: 5107, targetSourceId: 1861, status: 'APPROVED', createdAt: '2026-07-19T11:20:00Z', serviceName: '정산서비스', serviceCode: 'STL', actorId: '관리자', cloudProvider: 'AWS' },
+  { historyRecordId: 918, requestId: 5101, targetSourceId: 1907, status: 'REJECTED', createdAt: '2026-07-18T11:02:00Z', serviceName: '광고서비스', serviceCode: 'ADS', actorId: '관리자', cloudProvider: 'AWS' },
+  { historyRecordId: 917, requestId: 5093, targetSourceId: 1980, status: 'AUTO_APPROVED', createdAt: '2026-07-17T22:10:00Z', serviceName: '회원서비스', serviceCode: 'MBR', actorId: '시스템', cloudProvider: 'GCP' },
+  { historyRecordId: 916, requestId: 5090, targetSourceId: 1799, status: 'APPROVED', createdAt: '2026-07-17T14:55:00Z', serviceName: '배송서비스', serviceCode: 'DLV', actorId: '관리자', cloudProvider: 'AZURE' },
+  { historyRecordId: 915, requestId: 5084, targetSourceId: 1027, status: 'UNAVAILABLE_ACKNOWLEDGED', createdAt: '2026-07-16T10:31:00Z', serviceName: '쿠폰서비스', serviceCode: 'CPN', actorId: '관리자', cloudProvider: 'AWS' },
+  { historyRecordId: 914, requestId: 5080, targetSourceId: 1027, status: 'UNAVAILABLE', createdAt: '2026-07-16T09:02:00Z', serviceName: '쿠폰서비스', serviceCode: 'CPN', actorId: '관리자', cloudProvider: 'AWS' },
+  { historyRecordId: 913, requestId: 5074, targetSourceId: 1873, status: 'REJECTED', createdAt: '2026-07-15T09:47:00Z', serviceName: '채팅서비스', serviceCode: 'CHT', actorId: '관리자', cloudProvider: 'IDC' },
+  { historyRecordId: 912, requestId: 5069, targetSourceId: 1583, status: 'CANCELLED', createdAt: '2026-07-14T17:26:00Z', serviceName: '인증서비스', serviceCode: 'ATH', actorId: '관리자', cloudProvider: 'IDC' },
+  { historyRecordId: 911, requestId: 5061, targetSourceId: 1583, status: 'PENDING', createdAt: '2026-07-14T09:15:00Z', serviceName: '인증서비스', serviceCode: 'ATH', actorId: null, cloudProvider: 'IDC' },
+  { historyRecordId: 910, requestId: 5055, targetSourceId: 1861, status: 'PENDING', createdAt: '2026-07-13T13:44:00Z', serviceName: '정산서비스', serviceCode: 'STL', actorId: null, cloudProvider: 'AWS' },
+  { historyRecordId: 909, requestId: 5049, targetSourceId: 1444, status: 'CANCELLED', createdAt: '2026-07-12T16:08:00Z', serviceName: '검색서비스', serviceCode: 'SRC', actorId: '관리자', cloudProvider: 'IDC' },
+  { historyRecordId: 908, requestId: 5041, targetSourceId: 1980, status: 'PENDING', createdAt: '2026-07-11T10:52:00Z', serviceName: '회원서비스', serviceCode: 'MBR', actorId: null, cloudProvider: 'GCP' },
+  { historyRecordId: 907, requestId: 5033, targetSourceId: 1799, status: 'AUTO_APPROVED', createdAt: '2026-07-10T19:37:00Z', serviceName: '배송서비스', serviceCode: 'DLV', actorId: '시스템', cloudProvider: 'AZURE' },
+  { historyRecordId: 906, requestId: 5027, targetSourceId: 1907, status: 'PENDING', createdAt: '2026-07-10T08:21:00Z', serviceName: '광고서비스', serviceCode: 'ADS', actorId: null, cloudProvider: 'AWS' },
+  { historyRecordId: 905, requestId: 5019, targetSourceId: 1873, status: 'PENDING', createdAt: '2026-07-09T15:03:00Z', serviceName: '채팅서비스', serviceCode: 'CHT', actorId: null, cloudProvider: 'IDC' },
+  { historyRecordId: 904, requestId: 5012, targetSourceId: 1031, status: 'REJECTED', createdAt: '2026-07-08T11:49:00Z', serviceName: '주문서비스', serviceCode: 'ORD', actorId: '관리자', cloudProvider: 'IDC' },
+  { historyRecordId: 903, requestId: 5006, targetSourceId: 1031, status: 'PENDING', createdAt: '2026-07-08T09:30:00Z', serviceName: '주문서비스', serviceCode: 'ORD', actorId: null, cloudProvider: 'IDC' },
+  { historyRecordId: 902, requestId: 4998, targetSourceId: 1444, status: 'APPROVED', createdAt: '2026-07-07T14:12:00Z', serviceName: '검색서비스', serviceCode: 'SRC', actorId: '관리자', cloudProvider: 'IDC' },
+  { historyRecordId: 901, requestId: 4991, targetSourceId: 2113, status: 'CANCELLED', createdAt: '2026-07-06T10:05:00Z', serviceName: '결제서비스', serviceCode: 'PAY', actorId: '관리자', cloudProvider: 'AWS' },
 ];
 
 // ── NLB index mappings (…/approval-requests/latest/nlb-index-mappings) ──────

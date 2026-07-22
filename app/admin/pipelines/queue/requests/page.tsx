@@ -320,7 +320,9 @@ export default function RequestsPage(): ReactElement {
 
       <GroupLabel>이력 확인</GroupLabel>
 
-      {/* 계층 3 — 전체 History 확인 (approval-history) — read-only audit log. */}
+      {/* 계층 3 — 전체 History 확인 (approval-history) — read-only audit log.
+          key 는 historyRecordId (유일). targetSourceId·requestId 는 반복될 수 있어
+          key 로 못 쓰고, 둘 다 컬럼으로도 노출하지 않는다. */}
       <ListSection
         title="전체 History 확인"
         desc="모든 연동 요청의 승인 처리 이력이에요"
@@ -328,29 +330,35 @@ export default function RequestsPage(): ReactElement {
         tone="muted"
         count={history.paged?.totalElements ?? null}
         state={history}
-        colSpan={5}
+        colSpan={7}
         empty={{ title: '표시할 승인 이력이 없어요', caption: '연동 요청이 처리되면 이력이 여기에 쌓여요' }}
         head={
           <>
-            <TqTh>서비스</TqTh>
-            <TqTh>Code</TqTh>
-            <TqTh>요청 ID</TqTh>
+            <TqTh>서비스 이름</TqTh>
+            <TqTh>서비스 코드</TqTh>
+            <TqTh>Target Source</TqTh>
+            <TqTh>Cloud</TqTh>
             <TqTh>상태</TqTh>
+            <TqTh>수행자</TqTh>
             <TqTh>일시</TqTh>
           </>
         }
       >
         {(rows) =>
           rows.map((row) => (
-            <PlRow key={row.requestId ?? row.serviceCode}>
+            <PlRow key={row.historyRecordId ?? `${row.targetSourceId}:${row.requestId}`}>
               <PlTd className="font-semibold text-[var(--pl-text-strong)]">
                 {row.serviceName ?? '—'}
               </PlTd>
               <PlTd mono>{row.serviceCode ?? '—'}</PlTd>
-              <PlTd mono>{row.requestId != null ? `#${row.requestId}` : '—'}</PlTd>
+              <PlTd mono>{row.targetSourceId != null ? `#${row.targetSourceId}` : '—'}</PlTd>
+              <PlTd>
+                <ProvTag provider={row.cloudProvider ?? ''} />
+              </PlTd>
               <PlTd>
                 <HistoryStatusPill status={row.status} />
               </PlTd>
+              <PlTd>{row.actorId ?? '—'}</PlTd>
               <PlTd muted>{fmtDateTime(row.createdAt)}</PlTd>
             </PlRow>
           ))

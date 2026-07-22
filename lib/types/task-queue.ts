@@ -75,27 +75,40 @@ export interface TestConnectionStatusRow {
 /**
  * GET /approval-history content item — CONTRACT GAP: the swagger 200 is the
  * generic `Page` (content: object[]), so the item fields are not in the
- * contract. Shape below is the user-sanctioned assumption (2026-07-21); adjust
- * here (single site) once the real response is confirmed.
+ * contract. Real response confirmed 2026-07-22: flat camelCase rows keyed by
+ * `historyRecordId` (the ONLY unique id — requestId AND targetSourceId can both
+ * repeat across records), with the acting admin in `actorId`.
  */
 export interface ApprovalHistoryItemWire {
-  request_id?: number | null;
-  target_source_id?: number | null;
+  /** Unique row id — requestId/targetSourceId may repeat, this does not. */
+  historyRecordId?: number | null;
+  requestId?: number | null;
+  targetSourceId?: number | null;
   /** Approval status enum — PENDING | APPROVED | AUTO_APPROVED | REJECTED |
    *  CANCELLED | UNAVAILABLE | UNAVAILABLE_ACKNOWLEDGED (loose: string). */
   status?: string | null;
-  created_at?: string | null;
-  service_name?: string | null;
-  service_code?: string | null;
+  createdAt?: string | null;
+  serviceName?: string | null;
+  serviceCode?: string | null;
+  /** Who approved/rejected. */
+  actorId?: string | null;
+  /** Target source cloud — UPPERCASE wire (AWS | AZURE | GCP | IDC). */
+  cloudProvider?: string | null;
 }
 
 export interface ApprovalHistoryRow {
+  /** Unique row key (targetSourceId/requestId may repeat). Not rendered. */
+  historyRecordId: number | null;
+  /** Carried for the detail lookup (…/{targetSourceId}/approval-requests/{requestId}); not rendered. */
   requestId: number | null;
   targetSourceId: number | null;
   status: string | null;
   createdAt: string | null;
   serviceName: string | null;
   serviceCode: string | null;
+  /** 수행자 — who approved/rejected. */
+  actorId: string | null;
+  cloudProvider: string | null;
 }
 
 // ── 지연 (delay) filter rule — shared by the P1 UI and the process-statuses
@@ -237,12 +250,15 @@ export function toTestConnectionStatusPage(
 
 export function toApprovalHistoryRow(row: ApprovalHistoryItemWire): ApprovalHistoryRow {
   return {
-    requestId: row.request_id ?? null,
-    targetSourceId: row.target_source_id ?? null,
+    historyRecordId: row.historyRecordId ?? null,
+    requestId: row.requestId ?? null,
+    targetSourceId: row.targetSourceId ?? null,
     status: row.status ?? null,
-    createdAt: row.created_at ?? null,
-    serviceName: row.service_name ?? null,
-    serviceCode: row.service_code ?? null,
+    createdAt: row.createdAt ?? null,
+    serviceName: row.serviceName ?? null,
+    serviceCode: row.serviceCode ?? null,
+    actorId: row.actorId ?? null,
+    cloudProvider: row.cloudProvider ?? null,
   };
 }
 
