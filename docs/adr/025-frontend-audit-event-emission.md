@@ -120,7 +120,7 @@ see §5), **E** = emitter (browser for browser events, server for SSR events).
 | `correlation.targetSourceId` | ✅ on target-scoped variants | B | **required** whenever the event carries `job.*` (idempotency key needs it) or occurs on the target-detail page — ingest rejects such events without it; genuinely target-less events (`/services`-level) omit it. Validated against session access (§5) |
 | `correlation.serviceCode` | when known | S/B | when a target is present the server **derives it from the authorized target and ignores the client value**; on service-level events without a target the server validates the session user's membership in the claimed service (§5) |
 | `domainContext.processStatus` / `domainContext.provider` | CSR events | B | snapshot of what the page held at event time |
-| `outcome.*` / `error.*` / `detail.renderMs` | per type | E | the three type-specific blocks, **all top-level** (there is no wrapping `detail` object except `detail.renderMs` on `page_view`): `outcome.*` on `action_result` (§3, §4), `error.*` on failures, `detail.renderMs` on SSR `page_view` |
+| `outcome.*` / `error.*` / `detail.renderMs` | per type | E | the three type-specific blocks, **all top-level** (there is no wrapping `detail` object except `detail.renderMs` on `page_view`): `outcome.*` on `screen_read` (`outcome.count`) and `action_result` (§3, §4), `error.*` on failures, `detail.renderMs` on SSR `page_view` |
 
 Per-type field matrix (normative — anything not listed as required/optional
 for a type is **forbidden** on that type):
