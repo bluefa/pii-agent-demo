@@ -456,14 +456,17 @@ export const badgeStyles = {
 } as const;
 
 /**
- * TopNav 스타일 — SIT 프로토타입 전용 (slate-900 shell + 브랜드 그라디언트)
+ * TopNav 스타일 — PASS 프로토타입 전용 (slate-900 shell + PASS 워드마크 로고)
  *
- * brandGradient 의 raw hex (#0064FF / #4F46E5) 는 브랜드 색으로 예외 허용.
+ * brand 의 raw hex (#C5C6C7 워드마크 / #66FCF1 태그라인) 는 브랜드 색으로 예외 허용.
  * 소비 측에서 이 상수만 참조하고 문자열을 중복 정의하지 말 것.
  */
 export const navStyles = {
   bg: 'bg-slate-900',
-  brandGradient: 'bg-gradient-to-br from-[#0064FF] to-[#4F46E5]',
+  brand: {
+    wordmark: 'text-[#C5C6C7]',
+    tagline: 'text-[#66FCF1]',
+  },
   link: {
     inactive: 'text-slate-300 hover:bg-white/5 hover:text-white',
     active: 'text-white bg-white/10',
