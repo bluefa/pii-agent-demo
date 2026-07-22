@@ -107,7 +107,7 @@ export function surfaceOf(pageTemplate: string): 'customer' | 'target-detail' | 
 | `fingerprint` | 새니타이즈 스택 해시 | 🔲 **저장 권고 (결정 필요)** | 같은 error.name의 code 없는 에러(502·타임아웃·파싱)를 더 세분할 유일한 키. 해시는 자유 텍스트가 아니라 안전 |
 | body · 쿼리스트링 | — | ❌ 어떤 로그에도 금지 | `lib/log-path.ts` 새니타이저 + 회귀 테스트로 잠금 |
 
-code 없는 에러는 DB엔 `status`·`requestId`·`error.name`(+ 권고안 채택 시 `fingerprint`)만 남기고,
+code 없는 에러는 DB엔 `error.name`·`requestId`(+호출이 있었다면 `status`, 권고안 채택 시 `fingerprint`)만 남기고,
 상세는 진단 로그로만 흘린다. requestId로 BFF 로그 대조는 여전히 가능.
 
 ## 5. 무엇이 추적되나 — 되는 것 / 구현이 필요한 것
@@ -147,7 +147,7 @@ metric 소스가 별도로 필요하다(구현 계획 §3 ⚠️·Phase 6).
 | 1 | **BFF 협의** — ingest API 계약 · DB 스키마 · 보존/삭제 정책 · 조회 API | 협의 | 지금 시작 가능 |
 | 2 | **전송 교체** — `log.ts` 출구를 stdout→BFF 배치 전송으로, surface 필드, 필드 정책 적용 | FE 코드 | 0·1 |
 | 2b | **Audit Event 발행** — ADR-025 이벤트 6종 전부(빌더·allowlist·동기/비동기 Action·SSR·브라우저 page_view·screen_read·서버 스탬프) — 개발·스테이징 검증까지 | FE 코드 | 0·1·2 |
-| 3 | **인증 연동** — userId·role 서버 resolve, 인가 거부(403) 로깅, SSR 화면 식별 | FE 코드 | 인증 도입(~1개월) |
+| 3 | **인증 연동** — userId·role 서버 resolve, 인가 거부(`auth_denied`) 이벤트 | FE 코드 | 인증 도입(~1개월) |
 | 4 | **In-app Admin — MVP** — 타깃소스 사용 이력(목록·상세·이벤트 모달) + 확인 필요 24h 집계 (구현 계획 §3 M1~M4; 관제·고객별·403 뷰는 후순위 P1~P4) | FE+BFF | 1·2·2b·3 (인증 게이트 — ADR-025 §5) |
 | 5 | **커버리지 점검·방어 상수** — 6종 이벤트의 실페이지 커버리지 확인, rate cap 분리 (발행 구현은 2b) | FE 코드 소규모 | 2b |
 | 6 | **Grafana 도입 결정** — push 알림 필요성 판단 후 구성. SQL 데이터소스만으론 후보 일부(G2/G4/G8)만 가능 — 나머지는 진단 metric 소스 별도 | 보류 | 결정 |
@@ -161,7 +161,7 @@ metric 소스가 별도로 필요하다(구현 계획 §3 ⚠️·Phase 6).
 - ~~error.name 저장~~ → **채택 확정** (ADR-025 필드 매트릭스가 요구) · **fingerprint 저장**만 결정 필요 (§4)
 - **BFF DB 스키마 상세**: 필드·보존 기간·삭제 정책 (많아지면 삭제 — 주기·기준 미정)
 - **FE→BFF 전송 방식**: 배치 크기/주기, 유실 허용 범위
-- **SSR 화면 식별** 구현 방법
+- ~~SSR 화면 식별 구현 방법~~ → **해소** — 구현 계획 2b-5의 서버 렌더 컨텍스트가 template을 자기 스탬프
 - **Grafana/알림 도구** 도입 자체 (§6 판단 기준)
 
 ## 9. 참고 문서
