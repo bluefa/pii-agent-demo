@@ -6,7 +6,7 @@
  * detail (`service_name`), and the pipeline breadcrumb goes straight
  * 서비스 검색 › {targetId} › 파이프라인 #{id} (no service crumb).
  */
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 
 export interface BreadcrumbCrumb {
   label: string;
@@ -16,7 +16,7 @@ export interface BreadcrumbCrumb {
 /** Target-detail breadcrumb: 서비스 검색 › {svcName} › {targetId}. */
 export function targetCrumbs(svcName: string, targetId: string | number): BreadcrumbCrumb[] {
   return [
-    { label: '서비스 검색', href: integrationRoutes.pipelines.services },
+    { label: '서비스 검색', href: passRoutes.pipelines.services },
     { label: svcName },
     { label: String(targetId) },
   ];
@@ -28,8 +28,8 @@ export function pipelineCrumbs(
   targetSourceId: string,
 ): BreadcrumbCrumb[] {
   return [
-    { label: '서비스 검색', href: integrationRoutes.pipelines.services },
-    { label: targetSourceId, href: integrationRoutes.pipelines.target(targetSourceId) },
+    { label: '서비스 검색', href: passRoutes.pipelines.services },
+    { label: targetSourceId, href: passRoutes.pipelines.target(targetSourceId) },
     { label: `파이프라인 #${pipelineId}` },
   ];
 }

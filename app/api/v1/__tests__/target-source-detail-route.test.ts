@@ -14,7 +14,7 @@ import { BffError } from '@/lib/bff/errors';
 
 const mockedGet = vi.mocked(bff.targetSources.get);
 
-describe('GET /integration/api/v1/target-sources/[targetSourceId]', () => {
+describe('GET /pass/api/v1/target-sources/[targetSourceId]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -31,7 +31,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]', () => {
     } as unknown as Awaited<ReturnType<typeof bff.targetSources.get>>);
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/target-sources/1001'),
+      new Request('http://localhost/pass/api/v1/target-sources/1001'),
       { params: Promise.resolve({ targetSourceId: '1001' }) },
     );
 
@@ -46,7 +46,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]', () => {
 
   it('잘못된 targetSourceId면 INVALID_PARAMETER problem을 반환한다', async () => {
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/target-sources/abc'),
+      new Request('http://localhost/pass/api/v1/target-sources/abc'),
       { params: Promise.resolve({ targetSourceId: 'abc' }) },
     );
 
@@ -64,7 +64,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]', () => {
     );
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/target-sources/9999'),
+      new Request('http://localhost/pass/api/v1/target-sources/9999'),
       { params: Promise.resolve({ targetSourceId: '9999' }) },
     );
 

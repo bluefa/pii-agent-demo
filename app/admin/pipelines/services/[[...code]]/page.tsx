@@ -2,7 +2,7 @@
 
 /**
  * Admin Pipeline services·targets search (LIN-25 Phase C1-b) —
- * /integration/admin/pipelines/services and /…/services/{code}.
+ * /pass/admin/pipelines/services and /…/services/{code}.
  *
  * Optional catch-all: the selected service lives in the PATH (`[[...code]]`), so
  * a service is deep-linkable (`/services/{code}` opens it immediately) and rail
@@ -15,7 +15,7 @@
  * client-filter window is gone). The right pane's targets come from the
  * existing `getProjects` (`/services/{code}/target-sources`), and each row's
  * latest run is fetched via `getLatestPipelineByTarget` (#8) under a
- * concurrency cap of 6. Design reference: /integration/services rail.
+ * concurrency cap of 6. Design reference: /pass/services rail.
  */
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -23,7 +23,7 @@ import type { ReactElement } from 'react';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn } from '@/lib/theme';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import { getProjects, getServicesPage } from '@/app/lib/api';
 import {
   OrchestratorApiError,
@@ -245,7 +245,7 @@ export default function ServicesPage(): ReactElement {
                     // prior table or a false "없음" before the fetch starts.
                     setTargets(null);
                     setLatest({});
-                    router.push(integrationRoutes.pipelines.service(code));
+                    router.push(passRoutes.pipelines.service(code));
                   }}
                   className={cn(s.item, active ? s.itemActive : s.itemIdle)}
                 >
@@ -330,7 +330,7 @@ export default function ServicesPage(): ReactElement {
                     <PlRow
                       key={target.targetSourceId}
                       onActivate={() =>
-                        router.push(integrationRoutes.pipelines.target(target.targetSourceId))
+                        router.push(passRoutes.pipelines.target(target.targetSourceId))
                       }
                     >
                       <PlTd mono>{target.targetSourceId}</PlTd>

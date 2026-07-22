@@ -14,7 +14,7 @@ import { BffError } from '@/lib/bff/errors';
 
 const mockedSearch = vi.mocked(bff.users.search);
 
-describe('GET /integration/api/v1/users/search', () => {
+describe('GET /pass/api/v1/users/search', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedSearch.mockResolvedValue({ users: [] });
@@ -22,7 +22,7 @@ describe('GET /integration/api/v1/users/search', () => {
 
   it('excludeIds 반복 쿼리를 배열로 파싱한다', async () => {
     const request = new Request(
-      'http://localhost/integration/api/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
+      'http://localhost/pass/api/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
     );
 
     const response = await GET(request, { params: Promise.resolve({}) });
@@ -32,7 +32,7 @@ describe('GET /integration/api/v1/users/search', () => {
   });
 
   it('q와 excludeIds가 없으면 기본값으로 전달한다', async () => {
-    const request = new Request('http://localhost/integration/api/v1/users/search');
+    const request = new Request('http://localhost/pass/api/v1/users/search');
 
     const response = await GET(request, { params: Promise.resolve({}) });
 
@@ -46,7 +46,7 @@ describe('GET /integration/api/v1/users/search', () => {
     );
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/users/search'),
+      new Request('http://localhost/pass/api/v1/users/search'),
       { params: Promise.resolve({}) },
     );
 

@@ -13,8 +13,8 @@ import {
 } from '@/app/components/features/admin-dashboard/serviceListReducer';
 import { useModal } from '@/app/hooks/useModal';
 import { getServicesPage } from '@/app/lib/api';
-import { integrationRoutes } from '@/lib/routes';
-import { bgColors, borderColors, cn, statusColors, textColors } from '@/lib/theme';
+import { passRoutes } from '@/lib/routes';
+import { bgColors, borderColors, cn, textColors } from '@/lib/theme';
 
 const ServiceMoveConfirmModal = dynamic(
   () =>
@@ -175,7 +175,7 @@ export const ServiceListPanel = () => {
     // the original casing — the target-sources lookup is case-sensitive (404 on
     // a wrong-case code).
     router.push(
-      `${integrationRoutes.services}?service_code=${encodeURIComponent(confirmModal.data.code)}`,
+      `${passRoutes.services}?service_code=${encodeURIComponent(confirmModal.data.code)}`,
     );
   }, [confirmModal.data, router]);
 
@@ -186,25 +186,6 @@ export const ServiceListPanel = () => {
   }, [fetchServicesPage]);
 
   const isInitialLoading = fetchState.status === 'loading' && services.length === 0;
-
-  if (isInitialLoading) {
-    return (
-      <aside
-        className={cn(
-          'w-[296px] shrink-0 shadow-sm flex items-center justify-center',
-          bgColors.surface,
-        )}
-      >
-        <span
-          className={cn(
-            'w-5 h-5 border-2 border-t-transparent rounded-full animate-spin',
-            statusColors.pending.border,
-          )}
-          aria-label="서비스 목록 로딩 중"
-        />
-      </aside>
-    );
-  }
 
   if (fetchState.status === 'error') {
     return (
@@ -244,6 +225,7 @@ export const ServiceListPanel = () => {
         onSearchChange={handleSearchChange}
         pageInfo={pageInfo}
         onPageChange={handlePageChange}
+        loading={isInitialLoading}
       />
       {confirmModal.data && (
         <ServiceMoveConfirmModal

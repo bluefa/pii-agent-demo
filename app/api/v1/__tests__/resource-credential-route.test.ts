@@ -13,7 +13,7 @@ import { bff } from '@/lib/bff/client';
 
 const mockedUpdateResourceCredential = vi.mocked(bff.confirm.updateResourceCredential);
 
-describe('PUT /integration/api/v1/target-sources/[targetSourceId]/resources/credential', () => {
+describe('PUT /pass/api/v1/target-sources/[targetSourceId]/resources/credential', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -22,7 +22,7 @@ describe('PUT /integration/api/v1/target-sources/[targetSourceId]/resources/cred
     mockedUpdateResourceCredential.mockResolvedValue({ success: true });
 
     const response = await PUT(
-      new Request('http://localhost/integration/api/v1/target-sources/1003/resources/credential', {
+      new Request('http://localhost/pass/api/v1/target-sources/1003/resources/credential', {
         method: 'PUT',
         body: JSON.stringify({
           resourceId: 'res-1',
@@ -42,7 +42,7 @@ describe('PUT /integration/api/v1/target-sources/[targetSourceId]/resources/cred
 
   it('유효하지 않은 targetSourceId면 problem response를 반환한다', async () => {
     const response = await PUT(
-      new Request('http://localhost/integration/api/v1/target-sources/abc/resources/credential', {
+      new Request('http://localhost/pass/api/v1/target-sources/abc/resources/credential', {
         method: 'PUT',
         body: JSON.stringify({
           resourceId: 'res-1',

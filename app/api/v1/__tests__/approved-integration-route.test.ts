@@ -14,7 +14,7 @@ import { bff } from '@/lib/bff/client';
 
 const mockedGetApprovedIntegration = vi.mocked(bff.confirm.getApprovedIntegration);
 
-describe('GET /integration/api/v1/target-sources/[targetSourceId]/approved-integration', () => {
+describe('GET /pass/api/v1/target-sources/[targetSourceId]/approved-integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -25,7 +25,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approved-integ
     );
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/target-sources/1005/approved-integration'),
+      new Request('http://localhost/pass/api/v1/target-sources/1005/approved-integration'),
       { params: Promise.resolve({ targetSourceId: '1005' }) },
     );
 
@@ -75,7 +75,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approved-integ
     mockedGetApprovedIntegration.mockResolvedValue(wireResponse as never);
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/target-sources/1005/approved-integration'),
+      new Request('http://localhost/pass/api/v1/target-sources/1005/approved-integration'),
       { params: Promise.resolve({ targetSourceId: '1005' }) },
     );
 
@@ -111,7 +111,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approved-integ
     mockedGetApprovedIntegration.mockResolvedValue(wireResponse as never);
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/target-sources/1005/approved-integration'),
+      new Request('http://localhost/pass/api/v1/target-sources/1005/approved-integration'),
       { params: Promise.resolve({ targetSourceId: '1005' }) },
     );
 

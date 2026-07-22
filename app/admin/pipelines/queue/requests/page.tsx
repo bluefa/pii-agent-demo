@@ -11,7 +11,7 @@
  */
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import { pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
@@ -219,7 +219,7 @@ export default function RequestsPage(): ReactElement {
 
   const goDetail = (targetSourceId: number | null): (() => void) | undefined =>
     targetSourceId != null
-      ? () => router.push(integrationRoutes.pipelines.queue.request(targetSourceId))
+      ? () => router.push(passRoutes.pipelines.queue.request(targetSourceId))
       : undefined;
 
   return (

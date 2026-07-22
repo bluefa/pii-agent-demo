@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { pipelineStyles } from '@/lib/theme';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import {
   getTestConnectionQueue,
@@ -162,7 +162,7 @@ export default function TestConnectionsPage(): ReactElement {
                 key={row.targetSourceId ?? row.serviceCode}
                 onActivate={() =>
                   row.targetSourceId != null &&
-                  router.push(integrationRoutes.pipelines.queue.testConnection(row.targetSourceId))
+                  router.push(passRoutes.pipelines.queue.testConnection(row.targetSourceId))
                 }
               >
                 <PlTd className="font-semibold text-[var(--pl-text-strong)]">

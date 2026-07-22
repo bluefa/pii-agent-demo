@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn, navStyles, textColors } from '@/lib/theme';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 
 type NavItem = {
   label: string;
@@ -28,7 +28,7 @@ const iconProps = {
 const NAV_ITEMS: NavItem[] = [
   {
     label: 'Service List',
-    href: integrationRoutes.services,
+    href: passRoutes.services,
     isActive: (pathname) =>
       pathname.startsWith('/services') ||
       pathname.startsWith('/target-sources'),
@@ -44,19 +44,8 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    label: '가이드 관리',
-    href: integrationRoutes.adminGuides,
-    isActive: (pathname) => pathname.startsWith('/admin/guides'),
-    icon: (
-      <svg {...iconProps} aria-hidden="true">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-      </svg>
-    ),
-  },
-  {
     label: '관리자',
-    href: integrationRoutes.pipelines.dashboard,
+    href: passRoutes.pipelines.dashboard,
     isActive: (pathname) => pathname.startsWith('/admin/pipelines'),
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -69,7 +58,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     label: 'Credentials',
-    href: integrationRoutes.credentials,
+    href: passRoutes.credentials,
     disabled: true,
     isActive: () => false,
     icon: (
@@ -81,7 +70,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     label: 'PII Tag mgmt.',
-    href: integrationRoutes.piiTag,
+    href: passRoutes.piiTag,
     disabled: true,
     isActive: () => false,
     icon: (
@@ -93,7 +82,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     label: 'PII Map',
-    href: integrationRoutes.piiMap,
+    href: passRoutes.piiMap,
     disabled: true,
     isActive: () => false,
     icon: (

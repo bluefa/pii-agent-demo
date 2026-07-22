@@ -13,7 +13,7 @@ import { bff } from '@/lib/bff/client';
 
 const mockedGetInstallationStatus = vi.mocked(bff.azure.getInstallationStatus);
 
-describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installation-status', () => {
+describe('GET /pass/api/v1/azure/target-sources/[targetSourceId]/installation-status', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -46,7 +46,7 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
     });
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/azure/target-sources/1003/installation-status'),
+      new Request('http://localhost/pass/api/v1/azure/target-sources/1003/installation-status'),
       { params: Promise.resolve({ targetSourceId: '1003' }) },
     );
 

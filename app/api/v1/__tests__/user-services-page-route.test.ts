@@ -18,7 +18,7 @@ type PageServiceItem = z.infer<typeof schemas.PageServiceItem>;
 
 const mockedGetServicesPage = vi.mocked(bff.users.getServicesPage);
 
-describe('GET /integration/api/v1/user/services/page', () => {
+describe('GET /pass/api/v1/user/services/page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -36,7 +36,7 @@ describe('GET /integration/api/v1/user/services/page', () => {
     } as PageServiceItem);
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/user/services/page?page=0&size=10'),
+      new Request('http://localhost/pass/api/v1/user/services/page?page=0&size=10'),
       { params: Promise.resolve({}) },
     );
 
@@ -60,7 +60,7 @@ describe('GET /integration/api/v1/user/services/page', () => {
     } as PageServiceItem);
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/user/services/page?page=1&size=10'),
+      new Request('http://localhost/pass/api/v1/user/services/page?page=1&size=10'),
       { params: Promise.resolve({}) },
     );
 
@@ -78,7 +78,7 @@ describe('GET /integration/api/v1/user/services/page', () => {
     );
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/user/services/page?page=0&size=10&query=foo'),
+      new Request('http://localhost/pass/api/v1/user/services/page?page=0&size=10&query=foo'),
       { params: Promise.resolve({}) },
     );
 

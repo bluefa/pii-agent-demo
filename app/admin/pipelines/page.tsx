@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Admin Pipeline dashboard (LIN-25 Phase C1-a) — /integration/admin/pipelines.
+ * Admin Pipeline dashboard (LIN-25 Phase C1-a) — /pass/admin/pipelines.
  *
  * Data strategy (docs/api/pipeline-orchestrator-bff.md §2.1): period/status/
  * provider/type filter server-side; the search-box substring search and 5/page
@@ -18,7 +18,7 @@ import type { ReactElement, ReactNode } from 'react';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import {
   OrchestratorApiError,
   getLiveStatistics,
@@ -366,7 +366,7 @@ export default function DashboardPage(): ReactElement {
                 {slice.map((row) => (
                   <DashRow
                     key={row.pipeline_id}
-                    onActivate={() => router.push(integrationRoutes.pipelines.pipeline(row.pipeline_id))}
+                    onActivate={() => router.push(passRoutes.pipelines.pipeline(row.pipeline_id))}
                   >
                     <td className={d.cell}>
                       <ServiceNameCell name={row.service_name} />

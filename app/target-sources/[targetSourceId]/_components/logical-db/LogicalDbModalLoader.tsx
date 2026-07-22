@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
-import { cn, statusColors, textColors } from '@/lib/theme';
+import { cn, statusColors } from '@/lib/theme';
+import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { LogicalDbModal } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModal';
 import { useLogicalDatabases } from '@/app/target-sources/[targetSourceId]/_components/logical-db/useLogicalDatabases';
 import { draftToExcludedItems } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-deny';
@@ -83,12 +83,7 @@ export const LogicalDbModalLoader = ({
       title={`논리 DB 확인 · ${resourceName}`}
     >
       {state.status === 'loading' ? (
-        <div className="flex items-center justify-center gap-2 py-12">
-          <LoadingSpinner />
-          <span className={cn('text-sm', textColors.tertiary)}>
-            불러오는 중...
-          </span>
-        </div>
+        <ResourceTableSkeleton />
       ) : (
         <div className={cn('space-y-3 py-8 text-center')}>
           <p className={cn('text-sm font-medium', statusColors.error.textDark)}>

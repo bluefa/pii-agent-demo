@@ -26,7 +26,7 @@ import {
 import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
-import { LoadingState } from '@/app/components/ui/state';
+import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
 
@@ -157,7 +157,7 @@ export const IdcStep4Installing = ({
 
           <div className="mt-6">
             {loading && resources.length === 0 ? (
-              <LoadingState label="설치 정보를 불러오는 중입니다." />
+              <ResourceTableSkeleton />
             ) : (
               <IdcResourceTable
                 resources={resources}

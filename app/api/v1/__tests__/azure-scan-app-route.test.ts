@@ -13,7 +13,7 @@ import { bff } from '@/lib/bff/client';
 
 const mockedGetScanApp = vi.mocked(bff.azure.getScanApp);
 
-describe('GET /integration/api/v1/target-sources/[targetSourceId]/azure/scan-app', () => {
+describe('GET /pass/api/v1/target-sources/[targetSourceId]/azure/scan-app', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -28,7 +28,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/azure/scan-app
     });
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/target-sources/1003/azure/scan-app'),
+      new Request('http://localhost/pass/api/v1/target-sources/1003/azure/scan-app'),
       { params: Promise.resolve({ targetSourceId: '1003' }) },
     );
 
@@ -49,7 +49,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/azure/scan-app
     });
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/target-sources/1003/azure/scan-app'),
+      new Request('http://localhost/pass/api/v1/target-sources/1003/azure/scan-app'),
       { params: Promise.resolve({ targetSourceId: '1003' }) },
     );
 

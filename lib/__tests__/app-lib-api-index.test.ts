@@ -38,7 +38,7 @@ describe('app/lib/api/index', () => {
     await searchUsers('alice', ['u1', 'u2']);
 
     expect(fetchSpy.mock.calls[0]?.[0]).toBe(
-      '/integration/api/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
+      '/pass/api/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
     );
   });
 
@@ -57,7 +57,7 @@ describe('app/lib/api/index', () => {
 
     await searchUsers('');
 
-    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/integration/api/v1/users/search');
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/pass/api/v1/users/search');
   });
 
   it('getCurrentUser는 flat user/me 응답을 그대로 읽는다', async () => {
@@ -209,7 +209,7 @@ describe('app/lib/api/index', () => {
 
     expect(response).toEqual({ success: true });
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/integration/api/v1/target-sources/1001/resources/credential',
+      '/pass/api/v1/target-sources/1001/resources/credential',
       expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify({
@@ -293,7 +293,7 @@ describe('app/lib/api/index', () => {
 
     const result = await createApprovalRequest(1001, input);
 
-    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/integration/api/v1/target-sources/1001/approval-requests');
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/pass/api/v1/target-sources/1001/approval-requests');
     // Contract shape: { resources: TargetSourceResourceItemDto[] } forwarded verbatim.
     expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({
       method: 'POST',
@@ -471,7 +471,7 @@ describe('app/lib/api/index', () => {
     });
 
     const [url, init] = fetchSpy.mock.calls[0] ?? [];
-    expect(url).toBe('/integration/api/v1/services/SERVICE-A/creation-candidates');
+    expect(url).toBe('/pass/api/v1/services/SERVICE-A/creation-candidates');
     expect(init?.method).toBe('POST');
     expect(JSON.parse(String(init?.body))).toEqual({
       cloud_type: 'aws',
@@ -523,7 +523,7 @@ describe('app/lib/api/index', () => {
     const result = await createTargetSource('SERVICE-A', candidate);
 
     const [url, init] = fetchSpy.mock.calls[0] ?? [];
-    expect(url).toBe('/integration/api/v1/services/SERVICE-A/target-sources');
+    expect(url).toBe('/pass/api/v1/services/SERVICE-A/target-sources');
     expect(init?.method).toBe('POST');
     // Round-trip: snake wire candidate posted back verbatim (no conversion).
     expect(JSON.parse(String(init?.body))).toEqual({

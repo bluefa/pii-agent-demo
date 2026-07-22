@@ -1,14 +1,13 @@
 /**
- * App routes WITHOUT the `/integration` prefix. `basePath: '/integration'`
+ * App routes WITHOUT the `/pass` prefix. `basePath: '/pass'`
  * (next.config.ts) is applied automatically by `next/link`, `router`, and
  * `redirect`, and `usePathname()` returns paths with it stripped — so these
  * values are the basePath-relative source of truth for both navigation and
- * active-route matching. Never hardcode `/integration` in navigation.
+ * active-route matching. Never hardcode `/pass` in navigation.
  */
-export const integrationRoutes = {
+export const passRoutes = {
   services: '/services',
   adminDashboard: '/admin/dashboard',
-  adminGuides: '/admin/guides',
   taskAdmin: '/task_admin',
   targetSource: (targetSourceId: number | string) => `/target-sources/${targetSourceId}`,
   credentials: '/credentials',

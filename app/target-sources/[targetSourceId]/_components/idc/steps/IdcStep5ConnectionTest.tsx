@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
-import { ErrorState, LoadingState } from '@/app/components/ui/state';
+import { ErrorState } from '@/app/components/ui/state';
+import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import {
   ConnProgressStrip,
   type ConnProgressState,
@@ -309,7 +310,7 @@ export const IdcStep5ConnectionTest = ({
           </button>
         </header>
         <div className={cn(cardStyles.body, 'space-y-4')}>
-          {state.status === 'loading' && <LoadingState label="연동 대상을 불러오는 중..." />}
+          {state.status === 'loading' && <ResourceTableSkeleton />}
           {state.status === 'error' && (
             <ErrorState message="연동 대상을 불러오지 못했습니다." />
           )}

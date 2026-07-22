@@ -35,7 +35,7 @@ import {
   CurrentPipelineCard,
   EmptyPipelineCard,
 } from '@/app/admin/pipelines/targets/[targetSourceId]/_components/CurrentPipelineCard';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import {
   fmtDateTime,
   isLivePipeline,
@@ -241,7 +241,7 @@ export function TargetDetailView(): ReactElement {
   }, [orchProvider, liveId]);
 
   const goPipeline = useCallback(
-    (id: number) => router.push(integrationRoutes.pipelines.pipeline(id)),
+    (id: number) => router.push(passRoutes.pipelines.pipeline(id)),
     [router],
   );
 

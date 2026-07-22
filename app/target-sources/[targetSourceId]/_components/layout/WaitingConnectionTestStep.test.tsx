@@ -58,7 +58,7 @@ vi.mock(
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views',
   () => ({
-    LoadingRow: () => null,
+    ResourceTableSkeleton: () => null,
     ErrorRow: () => null,
   }),
 );

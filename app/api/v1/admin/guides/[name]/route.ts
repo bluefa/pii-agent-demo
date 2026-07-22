@@ -10,12 +10,3 @@ export const GET = withV1(
   },
   { expectedDuration: '100ms ~ 500ms' },
 );
-
-export const PUT = withV1(
-  async (req, ctx) => {
-    const body = (await req.json().catch(() => null)) as unknown;
-    const data = await bff.guides.put(ctx.params.name, body);
-    return NextResponse.json(schemas.GuideDetail.parse(data));
-  },
-  { expectedDuration: '200ms ~ 1s' },
-);

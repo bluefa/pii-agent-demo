@@ -19,7 +19,7 @@ import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_c
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import {
   ErrorRow,
-  LoadingRow,
+  ResourceTableSkeleton,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
@@ -172,7 +172,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
         </StepBanner>
 
         {state.status === 'loading' ? (
-          <LoadingRow message="반영 중인 리소스 목록을 불러오는 중입니다." />
+          <ResourceTableSkeleton />
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
         ) : (

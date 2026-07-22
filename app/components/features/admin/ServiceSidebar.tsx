@@ -1,7 +1,7 @@
 'use client';
 
 import type { PageServiceItem } from '@/app/lib/api';
-import { borderColors, bgColors, primaryColors, textColors, cn, getInputClass } from '@/lib/theme';
+import { borderColors, bgColors, idcStyles, primaryColors, textColors, cn, getInputClass } from '@/lib/theme';
 
 const footerLinkClass = cn(
   'flex items-center gap-2 text-[13px] py-1.5 transition-colors',
@@ -54,6 +54,8 @@ interface ServiceSidebarProps {
   onSearchChange: (query: string) => void;
   pageInfo: ServicePageInfo;
   onPageChange: (page: number) => void;
+  /** While true, the list body shows skeleton rows — header/search/footer stay static. */
+  loading?: boolean;
 }
 
 export const ServiceSidebar = ({
@@ -64,6 +66,7 @@ export const ServiceSidebar = ({
   onSearchChange,
   pageInfo,
   onPageChange,
+  loading = false,
 }: ServiceSidebarProps) => {
   const { totalElements, totalPages, number: currentPage } = pageInfo;
 
@@ -88,8 +91,15 @@ export const ServiceSidebar = ({
         />
       </div>
 
-      <ul className="py-2 flex-1 overflow-auto">
-        {services.length === 0 ? (
+      <ul className="py-2 flex-1 overflow-auto" aria-busy={loading}>
+        {loading ? (
+          Array.from({ length: 7 }).map((_, i) => (
+            <li key={i} className="mx-2 mb-0.5 px-[14px] py-3" aria-hidden="true">
+              <div className={cn(idcStyles.skeletonBar, 'h-3.5 w-24 rounded')} />
+              <div className={cn(idcStyles.skeletonBar, 'h-3 w-32 rounded mt-1.5')} />
+            </li>
+          ))
+        ) : services.length === 0 ? (
           <li className="px-4 py-8 text-center">
             <p className={cn('text-sm', textColors.tertiary)}>검색 결과가 없습니다</p>
             <p className={cn('text-xs mt-1', textColors.quaternary)}>다른 검색어를 입력해 주세요</p>

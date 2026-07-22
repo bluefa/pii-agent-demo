@@ -1,4 +1,4 @@
-export const INTERNAL_INFRA_API_PREFIX = '/integration/api/v1';
+export const INTERNAL_INFRA_API_PREFIX = '/pass/api/v1';
 export const UPSTREAM_INFRA_API_PREFIX = '/install/v1';
 
 const ensureLeadingSlash = (path: string): string =>
