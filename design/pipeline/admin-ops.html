@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>운영 콘솔 — PII Admin</title>
+<style>
+/* ══ Admin 운영 콘솔 프로토타입 (r1) ══
+   상속: admin-taskqueue.html r2 (다크 크롬 + 라이트 캔버스) — 토큰·컨트롤 3단(32/28/20)·
+   타입 스케일 {12,14,16,20,24,32}·간격 {4,8,12,16,24,64}.
+   확장 포인트(코드 수정 없이 데이터 추가만으로 확장):
+     · 좌측 메뉴  → JS `MENU` 배열에 그룹/항목 추가
+     · TS 상세 탭 → `COMMON_TABS` + `PROVIDER_TABS[provider]` 레지스트리에 {id,label,render} 추가
+     · Provider   → `PROVIDERS`에 색·라벨·metadata 렌더러 추가 */
+:root{
+  --gray-50:#F9FAFB; --gray-100:#F2F4F7; --gray-200:#E4E7EC; --gray-300:#D0D5DD;
+  --gray-400:#98A2B3; --gray-500:#667085; --gray-600:#475467; --gray-700:#344054;
+  --gray-800:#1D2939; --gray-900:#101828;
+  --bg-page:#F9FAFB; --bg-card:#FFFFFF; --bg-inner:#F9FAFB;
+  --border:#E4E7EC; --border-strong:#D0D5DD;
+  --text-strong:var(--gray-900); --text-medium:var(--gray-700);
+  --text-weak:var(--gray-500); --text-faint:var(--gray-400);
+  --primary:#2563EB; --primary-hover:#1D4ED8; --primary-bg:#EFF4FF; --primary-ring:#D1E0FF;
+  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3; --ok-border:#A6F4C5;
+  --err:#F04438; --err-text:#B42318; --err-bg:#FEF3F2; --err-border:#FDA29B;
+  --info:#2E90FA; --info-text:#175CD3; --info-bg:#EFF8FF; --info-border:#B2DDFF;
+  --warn:#F79009; --warn-text:#B54708; --warn-bg:#FFFAEB; --warn-border:#FEDF89;
+  --off:#98A2B3; --off-text:#475467; --off-bg:#F2F4F7;
+  --err-solid:#D92D20; --err-solid-hover:#B42318;
+  --pv-aws:#EC7211; --pv-azure:#0078D4; --pv-gcp:#4285F4; --pv-idc:#344054; --pv-sdu:#7F56D9;
+  --white:#FFFFFF;
+  --r-card:10px; --r-inner:8px; --r-ctl:8px;
+  --shadow-xs:0 1px 2px rgba(16,24,40,.05);
+  --shadow-lg:0 12px 32px -8px rgba(16,24,40,.16),0 4px 10px -4px rgba(16,24,40,.08);
+  --font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Pretendard','Malgun Gothic',system-ui,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-page);color:var(--text-strong);
+  font-family:var(--font-sans);font-size:14px;letter-spacing:-0.014em;line-height:1.4;
+  -webkit-font-smoothing:antialiased;min-width:1080px}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+
+svg.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+svg.ic.sm{width:14px;height:14px;vertical-align:-2px}
+svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
+
+.meta{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4}
+.mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
+.link{color:var(--primary);font-weight:600;cursor:pointer}
+.link:hover{text-decoration:underline}
+.muted{color:var(--text-weak)}
+.mt-16{margin-top:16px}.mt-12{margin-top:12px}
+
+/* ── App shell ── */
+.topnav{height:52px;background:#101828;border-bottom:1px solid #101828;
+  display:flex;align-items:stretch;gap:4px;padding:0 24px;position:sticky;top:0;z-index:20}
+.topnav .brand{color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;margin-right:20px}
+.topnav .brand::before{content:"";width:20px;height:20px;border-radius:6px;flex:none;
+  background:linear-gradient(135deg,var(--primary),#7F56D9)}
+.topnav .nav-item{color:#98A2B3;font-size:14px;font-weight:500;display:flex;align-items:center;
+  padding:0 12px;border-bottom:2px solid transparent;cursor:default}
+.topnav .nav-item.active{color:#fff;font-weight:600;border-bottom-color:var(--primary)}
+.topnav .nav-item.off{opacity:.5}
+.layout{display:flex;min-height:calc(100vh - 52px)}
+.sidebar{width:216px;flex:none;background:#101828;border-right:1px solid #101828;padding:16px 12px}
+.sidebar .sb-title{font-size:12px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;padding:8px 10px 10px;color:#667085}
+.sidebar .sb-group+.sb-group .sb-title{margin-top:16px}
+.sidebar .sb-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;color:#B9C0CC;
+  font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px}
+.sidebar .sb-item:hover{background:#1D2939}
+.sidebar .sb-item.active{background:#1D2939;color:#fff;font-weight:600;
+  box-shadow:inset 2px 0 0 var(--primary)}
+.sidebar .sb-item .sb-cnt{margin-left:auto;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
+  background:var(--err-solid);color:#fff;border-radius:999px;min-width:20px;height:18px;
+  display:inline-grid;place-items:center;padding:0 6px}
+.content{flex:1;padding:24px 32px 48px;min-width:0;max-width:1440px}
+.breadcrumb{font-size:12px;color:var(--text-weak);margin-bottom:12px}
+.breadcrumb .crumb{cursor:pointer}
+.breadcrumb .crumb:hover{color:var(--text-medium);text-decoration:underline}
+.breadcrumb .sep{margin:0 6px;color:var(--text-faint)}
+.breadcrumb .cur{color:var(--text-medium);font-weight:600}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px}
+.page-head h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.02em;
+  display:flex;align-items:center;gap:10px}
+.page-head h1 .h-id{font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--text-weak)}
+.page-head .head-sub{font-size:14px;color:var(--text-weak);margin-top:8px}
+.page-head .actions{display:flex;gap:8px;flex:none}
+.page-head.detail-head{padding-bottom:20px;border-bottom:1px solid var(--border);margin-bottom:0}
+.head-meta{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;flex-wrap:wrap}
+.head-meta .hm-k{font-size:12px;font-weight:600;color:var(--text-weak)}
+.head-meta .hm-v{color:var(--text-strong);font-weight:500;font-variant-numeric:tabular-nums}
+.head-meta .hm-sep{color:var(--text-faint)}
+.section-title{font-size:20px;font-weight:600;color:var(--text-strong);margin:64px 0 12px;line-height:1.2}
+.section-title:first-child{margin-top:0}
+.section-desc{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4;margin:16px 0 16px}
+.subsection-title{font-size:14px;font-weight:600;color:var(--text-medium);margin:16px 0 10px}
+
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);padding:20px 24px 24px}
+.card+.card{margin-top:16px}
+.card .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.card .card-title{font-size:16px;font-weight:600;color:var(--text-strong)}
+.card-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.card-grid2>.card+.card{margin-top:0}
+
+/* ── Stat 타일 (클릭 = 필터) ── */
+.stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,260px));gap:12px}
+.stat{background:var(--gray-100);border:1px solid var(--border);border-radius:var(--r-card);
+  padding:20px 24px 24px;text-align:center;cursor:pointer}
+.stat:hover{border-color:var(--border-strong)}
+.stat.on{background:var(--bg-card);border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.stat .lbl{font-size:14px;font-weight:600;color:var(--text-medium)}
+.stat .val{font-size:32px;font-weight:600;margin-top:12px;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat .val.v-err{color:var(--err-text)}
+.stat .val.v-warn{color:var(--warn-text)}
+
+/* ── 테이블 (admin-pipeline 리듬 th34/td44) ── */
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-size:12px;font-weight:600;color:var(--text-weak);letter-spacing:.03em;
+  height:34px;padding:0 12px;border-bottom:1px solid var(--border)}
+.tbl td{height:44px;padding:8px 12px;border-bottom:1px solid var(--gray-100);color:var(--text-medium);
+  vertical-align:middle;font-variant-numeric:tabular-nums}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover td{background:var(--gray-50)}
+.tbl .mono{font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
+.tbl td.chev{text-align:right;width:48px;white-space:nowrap;color:var(--text-faint)}
+.svc-name{font-weight:600;color:var(--text-strong)}
+
+/* ── Tag / Pill / Provider ── */
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;
+  padding:2px 8px;border-radius:6px;vertical-align:middle}
+.tag.blue{background:#E8F1FF;color:#1747B5}
+.tag.gray{background:var(--gray-100);color:var(--text-medium)}
+.tag.green{background:var(--ok-bg);color:var(--ok-text)}
+.tag.red{background:var(--err-bg);color:var(--err-text)}
+.tag.orange{background:var(--warn-bg);color:var(--warn-text)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  height:20px;padding:0 9px 0 8px;border-radius:999px;letter-spacing:.02em;white-space:nowrap}
+.pill .dot{width:6px;height:6px;border-radius:50%}
+.pill.t-off{background:var(--off-bg);color:var(--off-text)} .pill.t-off .dot{background:var(--gray-300)}
+.pill.t-warn{background:var(--warn-bg);color:var(--warn-text)} .pill.t-warn .dot{background:var(--warn)}
+.pill.t-info{background:var(--info-bg);color:var(--info-text)} .pill.t-info .dot{background:var(--info)}
+.pill.t-run{background:var(--info-bg);color:var(--info-text)} .pill.t-run .dot{background:var(--info);animation:pulse 1.6s ease-in-out infinite}
+.pill.t-ready{background:var(--primary-bg);color:var(--primary)} .pill.t-ready .dot{background:var(--primary)}
+.pill.t-ok{background:var(--ok-bg);color:var(--ok-text)} .pill.t-ok .dot{background:var(--ok)}
+.pill.t-err{background:var(--err-bg);color:var(--err-text)} .pill.t-err .dot{background:var(--err)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.ptag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text-medium)}
+.ptag .pdot{width:8px;height:8px;border-radius:2.5px}
+
+/* ── KeyValueGrid ── */
+.kv2{display:grid;grid-template-columns:150px 1fr;gap:10px 16px;font-size:14px}
+.kv2 .k{font-size:12px;font-weight:600;color:var(--text-weak);line-height:1.6}
+.kv2 .v{color:var(--text-strong);font-weight:500;line-height:1.6;word-break:break-all}
+.kv2 .v .mono{font-size:12px}
+
+/* ── Controls ── */
+.filterbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.filterbar .spacer{flex:1}
+.searchbox{position:relative;display:inline-block}
+.searchbox svg.ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;
+  color:var(--text-faint);pointer-events:none}
+.searchbox .input{padding-left:30px;width:100%}
+.input,select.sel{height:32px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);padding:0 10px;
+  font-size:14px;font-family:inherit;color:var(--text-strong);background:var(--bg-card);outline:none}
+.input:focus,select.sel:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;
+  border-radius:var(--r-ctl);font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;
+  white-space:nowrap;transition:background .12s,border-color .12s,color .12s}
+.btn:disabled{cursor:not-allowed}
+.btn.primary{background:var(--primary);color:#fff;box-shadow:var(--shadow-xs)}
+.btn.primary:not(:disabled):hover{background:var(--primary-hover)}
+.btn.primary:disabled{background:var(--gray-100);color:var(--text-faint);box-shadow:none}
+.btn.secondary{background:var(--bg-card);color:var(--text-medium);border-color:var(--border-strong);box-shadow:var(--shadow-xs)}
+.btn.secondary:not(:disabled):hover{background:var(--gray-50)}
+.btn.secondary:disabled{color:var(--text-faint)}
+.btn.danger{background:var(--bg-card);color:var(--err-text);border-color:var(--err-border);box-shadow:var(--shadow-xs)}
+.btn.danger:not(:disabled):hover{background:var(--err-bg)}
+.btn.dangersolid{background:var(--err-solid);color:#fff;box-shadow:var(--shadow-xs)}
+.btn.dangersolid:not(:disabled):hover{background:var(--err-solid-hover)}
+.btn.dangersolid:disabled{background:var(--gray-100);color:var(--text-faint);box-shadow:none}
+.btn.sm{height:28px;padding:0 10px;font-size:12px}
+
+/* ── 지연 표기 — 4단계: 회색(1시간 미만)/노랑(1시간↑)/주황(1일↑)/빨강(7일↑) ── */
+.delay{font-variant-numeric:tabular-nums;font-weight:500;color:var(--text-weak)}
+.delay.d1{color:#A16207;font-weight:600}
+.delay.d2{color:#C2410C;font-weight:600}
+.delay.d3{color:#DC2626;font-weight:700}
+
+/* ── TS 상세 탭바 ── */
+.tabbar{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:24px}
+.tabbar .tab{padding:12px 14px;font-size:14px;font-weight:500;color:var(--text-weak);cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabbar .tab:hover{color:var(--text-medium)}
+.tabbar .tab.on{color:var(--primary);font-weight:600;border-bottom-color:var(--primary)}
+.tabbar .tab .tmark{display:inline-block;width:6px;height:6px;border-radius:999px;background:var(--warn);
+  vertical-align:6px;margin-left:4px}
+
+/* ── Step rail (Process Status 탭) ── */
+.steprail{display:flex;align-items:flex-start;margin:8px 0 4px}
+.steprail .sp{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative}
+.steprail .sp::before{content:"";position:absolute;top:11px;left:calc(-50% + 14px);right:calc(50% + 14px);
+  height:2px;background:var(--gray-200)}
+.steprail .sp:first-child::before{display:none}
+.steprail .sp.done::before,.steprail .sp.cur::before{background:var(--primary)}
+.steprail .sp .n{width:24px;height:24px;border-radius:999px;display:grid;place-items:center;
+  font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
+  background:var(--gray-100);color:var(--text-faint);border:1px solid var(--border)}
+.steprail .sp.done .n{background:var(--primary);border-color:var(--primary);color:#fff}
+.steprail .sp.cur .n{background:var(--bg-card);border:2px solid var(--primary);color:var(--primary)}
+.steprail .sp .t{font-size:12px;font-weight:500;color:var(--text-faint);text-align:center;line-height:1.3;max-width:96px}
+.steprail .sp.done .t{color:var(--text-weak)}
+.steprail .sp.cur .t{color:var(--primary);font-weight:600}
+
+/* ── 권한 체크리스트 (AWS Role 검증) ── */
+.check-list{border:1px solid var(--border);border-radius:var(--r-inner);overflow:hidden;margin-top:12px}
+.check-list .ck{display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:14px;
+  border-top:1px solid var(--gray-100);color:var(--text-medium)}
+.check-list .ck:first-child{border-top:0}
+.check-list .ck .mono{flex:1}
+.check-list .ck svg.ic{width:15px;height:15px}
+.check-list .ck.ok svg.ic{color:var(--ok-text)}
+.check-list .ck.err{background:var(--err-bg)}
+.check-list .ck.err svg.ic{color:var(--err-text)}
+.check-list .ck.err .mono{color:var(--err-text)}
+.ck-verdict{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;font-weight:600}
+.ck-verdict.ok{color:var(--ok-text)} .ck-verdict.err{color:var(--err-text)}
+
+/* ── 설치 모드 선택 카드 ── */
+.mode-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+.mode-opt{border:1px solid var(--border-strong);border-radius:var(--r-inner);padding:14px 16px;
+  cursor:pointer;display:flex;gap:10px;align-items:flex-start;background:var(--bg-card)}
+.mode-opt:hover{background:var(--gray-50)}
+.mode-opt.on{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring);background:var(--primary-bg)}
+.mode-opt .radio{width:16px;height:16px;border-radius:999px;border:1.5px solid var(--border-strong);
+  flex:none;margin-top:1px;display:grid;place-items:center}
+.mode-opt.on .radio{border-color:var(--primary)}
+.mode-opt.on .radio::after{content:"";width:8px;height:8px;border-radius:999px;background:var(--primary)}
+.mode-opt .mt{font-size:14px;font-weight:600;color:var(--text-strong)}
+.mode-opt .md{font-size:12px;color:var(--text-weak);margin-top:4px;line-height:1.4}
+
+/* ── 안내/경고 박스 ── */
+.note{display:flex;gap:8px;align-items:flex-start;background:var(--warn-bg);border:1px solid var(--warn-border);
+  border-radius:var(--r-inner);padding:10px 12px;font-size:14px;color:var(--text-medium);line-height:1.4}
+.note svg.ic{color:var(--warn-text);flex:none;margin-top:1px}
+.note.info{background:var(--info-bg);border-color:var(--info-border)}
+.note.info svg.ic{color:var(--info-text)}
+.note.err{background:var(--err-bg);border-color:var(--err-border)}
+.note.err svg.ic{color:var(--err-text)}
+
+/* ── 사용자 칩 (Jira 등록 사용자) ── */
+.uchips{display:flex;gap:4px;flex-wrap:wrap}
+.uchip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;
+  background:var(--gray-100);color:var(--text-medium);border-radius:999px;padding:2px 8px}
+.uchip::before{content:"";width:5px;height:5px;border-radius:999px;background:var(--gray-400)}
+
+/* ── Modal / Toast ── */
+.overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);z-index:50;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--bg-card);border-radius:12px;box-shadow:var(--shadow-lg);padding:24px;width:480px}
+.modal h3{margin:0 0 12px;font-size:16px;font-weight:700}
+.modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:14px;line-height:1.4}
+.modal textarea{width:100%;min-height:88px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);
+  padding:8px 10px;font-size:14px;font-family:inherit;resize:vertical;outline:none;line-height:1.4}
+.modal textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.modal label.chk{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--text-medium);
+  padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-inner);cursor:pointer;margin-top:12px}
+.modal label.chk input{margin-top:2px;accent-color:var(--err-solid)}
+.modal label.chk b{color:var(--err-text)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--gray-900);
+  color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;font-weight:500;box-shadow:var(--shadow-lg);
+  z-index:60;display:flex;align-items:center;gap:8px}
+.toast svg.ic{color:var(--ok)}
+.empty{text-align:center;padding:32px;color:var(--text-weak);font-size:14px;line-height:1.4}
+.detail-link{display:inline-flex;align-items:center;gap:4px;color:var(--primary);font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer}
+.detail-link:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <span class="brand">PII Admin</span>
+  <span class="nav-item">Service List</span>
+  <span class="nav-item">가이드 관리</span>
+  <span class="nav-item active">관리자</span>
+  <span class="nav-item off">Credentials</span>
+  <span class="nav-item off">PII Tag mgmt.</span>
+  <span class="nav-item off">PII Map</span>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <main class="content" id="content"></main>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script>
+/* ══════════ 공통: ProcessStatus ↔ Step 매핑 (admin-taskqueue와 동일) ══════════ */
+const STEP = {
+  IDLE:       {n:1, label:'연동 대상 DB 선택',  tone:'t-off'},
+  PENDING:    {n:2, label:'연동 대상 승인 대기', tone:'t-warn'},
+  CONFIRMING: {n:3, label:'연동 대상 반영중',   tone:'t-run'},
+  CONFIRMED:  {n:4, label:'Agent 설치',        tone:'t-ready'},
+  INSTALLED:  {n:5, label:'연결 테스트',        tone:'t-info'},
+  CONNECTED:  {n:6, label:'관리자 승인 대기',   tone:'t-warn'},
+  COMPLETED:  {n:7, label:'완료',              tone:'t-ok'},
+};
+const STEP_ORDER = ['IDLE','PENDING','CONFIRMING','CONFIRMED','INSTALLED','CONNECTED','COMPLETED'];
+
+/* 확장 포인트: Provider 추가 = 여기 + PROVIDER_TABS 항목 추가 */
+const PROVIDERS = {
+  AWS:  {color:'var(--pv-aws)'},
+  AZURE:{color:'var(--pv-azure)'},
+  GCP:  {color:'var(--pv-gcp)'},
+  IDC:  {color:'var(--pv-idc)'},
+  SDU:  {color:'var(--pv-sdu)'},
+};
+
+/* ══════════ Mock data ══════════ */
+const SERVICES = [
+  {code:'PAY', name:'결제서비스', owner:'김유진', status:'운영중', jira:[
+    {key:'INFRA-2211', summary:'결제 DB PII Agent 설치 요청', status:'In Progress', users:['김유진','박선호']},
+    {key:'INFRA-2103', summary:'ScanRole 권한 재검토',        status:'Done',        users:['박선호']},
+  ]},
+  {code:'ORD', name:'주문서비스', owner:'이도현', status:'운영중', jira:[
+    {key:'INFRA-2244', summary:'IDC NLB 포트 오픈 협의',      status:'To Do',       users:[]},
+  ]},
+  {code:'MBR', name:'회원서비스', owner:'정하늘', status:'운영중', jira:[]},
+  {code:'DLV', name:'배송서비스', owner:'최민서', status:'운영중', jira:[
+    {key:'INFRA-2199', summary:'Azure Private Link 헬스체크 실패', status:'In Progress', users:['최민서']},
+  ]},
+  {code:'CPN', name:'쿠폰서비스', owner:'한지우', status:'운영중', jira:[]},
+  {code:'SRC', name:'검색서비스', owner:'오세라', status:'EOS',   jira:[]},
+];
+
+const TS = [
+  {id:2013, svc:'PAY', pv:'AWS',   st:'CONFIRMED',  delay:262000, at:'07-20 18:09', dbType:'MySQL',
+   endpoint:'pay-prod-cluster.cluster-cx1.ap-northeast-2.rds.amazonaws.com', port:3306,
+   meta:{awsAccountId:'123456789012', awsRegion:'ap-northeast-2', regionType:'Global'},
+   installMode:'AUTO',
+   scanRole:{arn:'arn:aws:iam::123456789012:role/pii-scan-role', verified:true,
+     checks:[{p:'rds:DescribeDBInstances',ok:true},{p:'rds:DescribeDBClusters',ok:true},{p:'ec2:DescribeSubnets',ok:true},{p:'secretsmanager:GetSecretValue',ok:true}]},
+   execRole:{arn:'arn:aws:iam::123456789012:role/pii-tf-exec-role', verified:false,
+     checks:[{p:'iam:PassRole',ok:true},{p:'ec2:RunInstances',ok:true},{p:'ec2:CreateSecurityGroup',ok:false},{p:'elasticloadbalancing:CreateTargetGroup',ok:true}]},
+   creds:[
+     {db:'pay_main',   user:'pii_agent', secret:'secret/pay/pii-agent-main',   st:'ACTIVE', at:'07-18 11:20'},
+     {db:'pay_ledger', user:'pii_agent', secret:'secret/pay/pii-agent-ledger', st:'ACTIVE', at:'07-18 11:20'},
+   ],
+   approval:{reqId:'AR-5121', status:'CONFIRMED', requester:'김유진', at:'07-17 18:56', dbCount:12},
+   confirmed:{dbCount:12, at:'07-17 19:02'},
+   pipelines:[
+     {id:'PL-88213', kind:'INSTALL', st:'RUNNING', at:'07-20 18:09', dur:'12m 40s'},
+     {id:'PL-87901', kind:'INSTALL', st:'FAILED',  at:'07-19 14:02', dur:'3m 05s'},
+   ],
+   tc:{done:9, total:12, fail:1, at:'07-20 17:44'},
+   history:[
+     {at:'07-20 18:09', from:'CONFIRMING', to:'CONFIRMED',  by:'system'},
+     {at:'07-17 18:56', from:'PENDING',    to:'CONFIRMING', by:'admin.kim'},
+     {at:'07-16 10:31', from:'IDLE',       to:'PENDING',    by:'김유진'},
+   ]},
+  {id:1027, svc:'ORD', pv:'IDC',   st:'PENDING',    delay:99120, at:'07-19 16:08', dbType:'Oracle',
+   endpoint:'10.32.11.7', port:1521,
+   meta:{host:'ord-db-prod-01.idc.local', ips:'10.32.11.7, 10.32.11.8', oracleSid:'ORDPRD', nlbIndex:3},
+   creds:[{db:'ORDPRD', user:'PII_AGENT', secret:'secret/ord/pii-agent', st:'ACTIVE', at:'07-12 09:10'}],
+   approval:{reqId:'AR-5108', status:'PENDING', requester:'이도현', at:'07-19 16:08', dbCount:4},
+   confirmed:null, pipelines:[], tc:null,
+   history:[
+     {at:'07-19 16:08', from:'IDLE', to:'PENDING', by:'이도현'},
+   ]},
+  {id:1980, svc:'MBR', pv:'GCP',   st:'CONFIRMING', delay:1120, at:'07-20 19:21', dbType:'PostgreSQL',
+   endpoint:'10.40.2.19', port:5432,
+   meta:{gcpProjectId:'mbr-prod-3921', region:'asia-northeast3'},
+   gcp:{scanSa:'pii-scan@mbr-prod-3921.iam.gserviceaccount.com', tfSa:'pii-tf@mbr-prod-3921.iam.gserviceaccount.com'},
+   creds:[],
+   approval:{reqId:'AR-5130', status:'CONFIRMING', requester:'정하늘', at:'07-20 19:21', dbCount:7},
+   confirmed:null,
+   pipelines:[{id:'PL-88240', kind:'INSTALL', st:'RUNNING', at:'07-20 19:22', dur:'1m 12s'}],
+   tc:null,
+   history:[
+     {at:'07-20 19:21', from:'PENDING', to:'CONFIRMING', by:'admin.kim'},
+     {at:'07-20 15:02', from:'IDLE',    to:'PENDING',    by:'정하늘'},
+   ]},
+  {id:1799, svc:'DLV', pv:'AZURE', st:'INSTALLED',  delay:8460, at:'07-20 17:19', dbType:'MSSQL',
+   endpoint:'dlv-sql-prod.database.windows.net', port:1433,
+   meta:{subscriptionId:'7c1e02aa-91f2-44d0-b7fb-3e1a52c9d001', resourceGroup:'rg-dlv-prod', scanAppId:'ap-3391cc'},
+   creds:[{db:'dlv_main', user:'pii_agent', secret:'secret/dlv/pii-agent', st:'ACTIVE', at:'07-15 13:44'}],
+   approval:{reqId:'AR-5090', status:'CONFIRMED', requester:'최민서', at:'07-14 10:12', dbCount:5},
+   confirmed:{dbCount:5, at:'07-14 10:40'},
+   pipelines:[{id:'PL-87710', kind:'INSTALL', st:'SUCCEEDED', at:'07-15 13:02', dur:'21m 08s'}],
+   tc:{done:3, total:5, fail:0, at:'07-20 17:19'},
+   history:[
+     {at:'07-20 17:19', from:'CONFIRMED', to:'INSTALLED', by:'system'},
+   ]},
+  {id:1642, svc:'CPN', pv:'SDU',   st:'CONNECTED',  delay:47800, at:'07-20 06:23', dbType:'MySQL',
+   endpoint:'cpn-sdu-gw.internal', port:3306,
+   meta:{sduType:'Shared DB Unit', sduCluster:'sdu-cluster-02'},
+   creds:[{db:'cpn_main', user:'pii_agent', secret:'secret/cpn/pii-agent', st:'ACTIVE', at:'07-10 16:30'}],
+   approval:{reqId:'AR-5044', status:'CONFIRMED', requester:'한지우', at:'07-09 11:00', dbCount:3},
+   confirmed:{dbCount:3, at:'07-09 11:31'},
+   pipelines:[{id:'PL-86122', kind:'INSTALL', st:'SUCCEEDED', at:'07-10 16:02', dur:'9m 51s'}],
+   tc:{done:3, total:3, fail:0, at:'07-20 06:23'},
+   history:[
+     {at:'07-20 06:23', from:'INSTALLED', to:'CONNECTED', by:'system'},
+   ]},
+  {id:1444, svc:'SRC', pv:'IDC',   st:'IDLE',       delay:1266000, at:'07-06 04:00', dbType:'Oracle',
+   endpoint:'10.18.4.2', port:1521,
+   meta:{host:'src-db-prod-02.idc.local', ips:'10.18.4.2', oracleSid:'SRCPRD', nlbIndex:1},
+   creds:[], approval:null, confirmed:null, pipelines:[], tc:null,
+   history:[]},
+];
+const svcOf = code => SERVICES.find(s=>s.code===code);
+const tsOf  = id   => TS.find(t=>t.id===Number(id));
+
+/* ══════════ 확장 포인트: 좌측 메뉴 레지스트리 ══════════ */
+const MENU = [
+  {title:'파이프라인 오케스트레이션', items:[
+    {label:'대시보드',        ext:true},
+    {label:'서비스·대상 검색', ext:true},
+  ]},
+  {title:'Task Queue', items:[
+    {label:'운영 대시보드', ext:true},
+    {label:'연동 요청',     ext:true},
+    {label:'연결 테스트',   ext:true},
+  ]},
+  {title:'운영 콘솔', items:[
+    {label:'운영 알림',           nav:'#/alerts', count:()=>TS.filter(t=>['PENDING','CONFIRMED','CONNECTED'].includes(t.st)).length},
+    {label:'서비스 운영',         nav:'#/services'},
+    {label:'Target Source 운영', nav:'#/ts'},
+  ]},
+];
+
+/* ══════════ 유틸 ══════════ */
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function icon(name, cls){
+  const paths = {
+    search:'<circle cx="7" cy="7" r="5"/><path d="m14 14-3.2-3.2"/>',
+    check:'<path d="M13.5 4.5 6.5 11.5 2.5 7.5"/>',
+    x:'<path d="M12 4 4 12M4 4l8 8"/>',
+    alert:'<path d="M8 5.5v3.5"/><circle cx="8" cy="11.5" r=".5"/><path d="M8 1.8 1.6 13.2h12.8L8 1.8z"/>',
+    info:'<circle cx="8" cy="8" r="6.4"/><path d="M8 7.5v3.4"/><circle cx="8" cy="5.2" r=".5"/>',
+    refresh:'<path d="M13.6 8a5.6 5.6 0 1 1-1.7-4L14 6"/><path d="M14 2v4h-4"/>',
+    chev:'<path d="m6 3.5 4.5 4.5L6 12.5"/>',
+    open:'<path d="M6.5 3.5H3.2A1.2 1.2 0 0 0 2 4.7v8.1A1.2 1.2 0 0 0 3.2 14h8.1a1.2 1.2 0 0 0 1.2-1.2V9.5"/><path d="M9.5 2H14v4.5"/><path d="M14 2 7.5 8.5"/>',
+    play:'<path d="M4.5 3.2v9.6L13 8 4.5 3.2z"/>',
+    trash:'<path d="M2.5 4.5h11M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4 4.5l.7 8.3a1.2 1.2 0 0 0 1.2 1.1h4.2a1.2 1.2 0 0 0 1.2-1.1l.7-8.3"/>',
+    plus:'<path d="M8 3.2v9.6M3.2 8h9.6"/>',
+  };
+  return `<svg class="ic ${cls||''}" viewBox="0 0 16 16">${paths[name]||''}</svg>`;
+}
+function pill(st){ const s=STEP[st]; return `<span class="pill ${s.tone}"><span class="dot"></span>Step ${s.n} · ${s.label}</span>`; }
+function ptag(pv){ return `<span class="ptag"><span class="pdot" style="background:${PROVIDERS[pv].color}"></span>${pv}</span>`; }
+function delayCell(sec){
+  const cls = sec>=604800?'d3':sec>=86400?'d2':sec>=3600?'d1':'';
+  const h = Math.floor(sec/3600), d = Math.floor(h/24);
+  const txt = d>0?`${d}일 ${h%24}시간`:h>0?`${h}시간`:`${Math.floor(sec/60)}분`;
+  return `<span class="delay ${cls}">${txt}</span>`;
+}
+function toast(msg){
+  const root = document.getElementById('toast-root');
+  root.innerHTML = `<div class="toast">${icon('check')}${esc(msg)}</div>`;
+  clearTimeout(toast._t); toast._t = setTimeout(()=>root.innerHTML='', 2600);
+}
+function openModal(html){ document.getElementById('modal-root').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+/* ══════════ 사이드바 ══════════ */
+function renderSidebar(){
+  const cur = (location.hash.split('/')[1]||'alerts');
+  document.getElementById('sidebar').innerHTML = MENU.map(g=>`
+    <div class="sb-group">
+      <div class="sb-title">${esc(g.title)}</div>
+      ${g.items.map(it=>{
+        if(it.ext) return `<span class="sb-item" title="기존 페이지 — 이 프로토타입 범위 밖">${esc(it.label)}</span>`;
+        const active = (it.nav==='#/'+cur) || (it.nav==='#/services' && cur==='svc') || (it.nav==='#/ts' && cur==='ts');
+        const cnt = it.count ? it.count() : 0;
+        return `<a class="sb-item ${active?'active':''}" href="${it.nav}">${esc(it.label)}${cnt?`<span class="sb-cnt">${cnt}</span>`:''}</a>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+/* ══════════ 페이지: 운영 알림 ══════════ */
+const ALERT_KINDS = [
+  {key:'PENDING',   lbl:'승인 대기',        need:'연동 대상 승인·반려', tone:'v-warn'},
+  {key:'CONFIRMED', lbl:'설치 작업 필요',    need:'Agent 설치 수행',    tone:'v-err'},
+  {key:'CONNECTED', lbl:'연결 테스트 검토',  need:'완료 승인',          tone:'v-warn'},
+  {key:'STALE',     lbl:'장기 정체 (7일↑)', need:'원인 확인',          tone:''},
+];
+let alertFilter = 'ALL';
+function alertRows(){
+  return TS.filter(t=>{
+    if(alertFilter==='ALL')   return ['PENDING','CONFIRMED','CONNECTED'].includes(t.st) || t.delay>=604800;
+    if(alertFilter==='STALE') return t.delay>=604800;
+    return t.st===alertFilter;
+  });
+}
+function renderAlerts(){
+  const rows = alertRows();
+  const cnt = k => k==='STALE' ? TS.filter(t=>t.delay>=604800).length : TS.filter(t=>t.st===k).length;
+  document.getElementById('content').innerHTML = `
+    <div class="page-head">
+      <div>
+        <h1>운영 알림</h1>
+        <div class="head-sub">설치 인력·관리자 액션이 필요한 Target Source를 모든 서비스에 걸쳐 모아 봅니다.</div>
+      </div>
+      <div class="actions"><button class="btn secondary" onclick="toast('새로고침했습니다')">${icon('refresh')}새로고침</button></div>
+    </div>
+    <div class="stat-row">
+      ${ALERT_KINDS.map(k=>`
+        <div class="stat ${alertFilter===k.key?'on':''}" onclick="alertFilter=alertFilter==='${k.key}'?'ALL':'${k.key}';renderAlerts()">
+          <div class="lbl">${k.lbl}</div><div class="val ${cnt(k.key)?k.tone:''}">${cnt(k.key)}</div>
+        </div>`).join('')}
+    </div>
+    <div class="card mt-16">
+      <div class="card-head">
+        <div class="card-title">액션 대기 목록 <span class="meta">${rows.length}건 · 경과 시간 내림차순</span></div>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Target Source</th><th>서비스</th><th>Provider</th><th>현재 단계</th><th>필요한 작업</th><th>경과</th><th></th></tr></thead>
+        <tbody>
+        ${rows.sort((a,b)=>b.delay-a.delay).map(t=>{
+          const kind = ALERT_KINDS.find(k=>k.key===t.st);
+          return `<tr class="click" onclick="location.hash='#/ts/${t.id}'">
+            <td><span class="mono">TS-${t.id}</span></td>
+            <td><span class="svc-name">${esc(svcOf(t.svc).name)}</span> <span class="meta">${t.svc}</span></td>
+            <td>${ptag(t.pv)}</td>
+            <td>${pill(t.st)}</td>
+            <td>${kind?esc(kind.need):'<span class="muted">장기 정체 — 원인 확인</span>'}</td>
+            <td>${delayCell(t.delay)}</td>
+            <td class="chev">${icon('chev','sm')}</td>
+          </tr>`;}).join('') || `<tr><td colspan="7"><div class="empty">해당 조건의 알림이 없습니다.</div></td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+/* ══════════ 페이지: 서비스 운영 (목록) ══════════ */
+let svcQuery='';
+function renderServices(){
+  const rows = SERVICES.filter(s=>!svcQuery || s.code.toLowerCase().includes(svcQuery) || s.name.includes(svcQuery));
+  document.getElementById('content').innerHTML = `
+    <div class="page-head">
+      <div>
+        <h1>서비스 운영</h1>
+        <div class="head-sub">ServiceCode 단위 운영 작업 — Target Source 목록 · Jira Ticket · EOS 처리</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="filterbar">
+        <div class="searchbox">${icon('search')}<input class="input" style="width:280px" placeholder="ServiceCode·서비스명 검색"
+          value="${esc(svcQuery)}" oninput="svcQuery=this.value.toLowerCase();renderServices();refocus(this)"></div>
+        <div class="spacer"></div>
+        <span class="meta">${rows.length}개 서비스</span>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>ServiceCode</th><th>서비스</th><th>담당</th><th>Target Source</th><th>Jira Ticket</th><th>상태</th><th></th></tr></thead>
+        <tbody>
+        ${rows.map(s=>{
+          const list = TS.filter(t=>t.svc===s.code);
+          return `<tr class="click" onclick="location.hash='#/svc/${s.code}'">
+            <td><span class="mono">${s.code}</span></td>
+            <td class="svc-name">${esc(s.name)}</td>
+            <td>${esc(s.owner)}</td>
+            <td>${list.length}건</td>
+            <td>${s.jira.length?`${s.jira.length}건`:'<span class="muted">—</span>'}</td>
+            <td>${s.status==='EOS'?'<span class="tag red">EOS</span>':'<span class="tag green">운영중</span>'}</td>
+            <td class="chev">${icon('chev','sm')}</td>
+          </tr>`;}).join('') || `<tr><td colspan="7"><div class="empty">검색 결과가 없습니다.</div></td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+}
+/* 재렌더 후 검색 input 포커스 복원 */
+function refocus(el){
+  const id = el.placeholder;
+  requestAnimationFrame(()=>{
+    const nx = [...document.querySelectorAll('input')].find(i=>i.placeholder===id);
+    if(nx){ nx.focus(); nx.setSelectionRange(nx.value.length, nx.value.length); }
+  });
+}
+
+/* ══════════ 페이지: 서비스 상세 ══════════ */
+function renderService(code){
+  const s = svcOf(code);
+  if(!s){ document.getElementById('content').innerHTML = `<div class="empty">서비스를 찾을 수 없습니다: ${esc(code)}</div>`; return; }
+  const list = TS.filter(t=>t.svc===code);
+  document.getElementById('content').innerHTML = `
+    <div class="breadcrumb"><span class="crumb" onclick="location.hash='#/services'">서비스 운영</span><span class="sep">/</span><span class="cur">${esc(s.name)}</span></div>
+    <div class="page-head detail-head">
+      <div>
+        <h1>${esc(s.name)} <span class="h-id">${s.code}</span></h1>
+        <div class="head-meta">
+          <span class="hm-k">담당</span><span class="hm-v">${esc(s.owner)}</span><span class="hm-sep">·</span>
+          <span class="hm-k">상태</span>${s.status==='EOS'?'<span class="tag red">EOS</span>':'<span class="tag green">운영중</span>'}<span class="hm-sep">·</span>
+          <span class="hm-k">Target Source</span><span class="hm-v">${list.length}건</span>
+        </div>
+      </div>
+      <div class="actions">
+        ${s.status==='EOS'
+          ? `<button class="btn secondary" disabled>EOS 처리됨</button>`
+          : `<button class="btn danger" onclick="openEosModal('${s.code}')">${icon('trash','sm')}EOS 처리</button>`}
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:24px">Target Source 목록</div>
+    <div class="card">
+      <table class="tbl">
+        <thead><tr><th>ID</th><th>Provider</th><th>DB</th><th>현재 단계</th><th>마지막 변경</th><th></th></tr></thead>
+        <tbody>
+        ${list.map(t=>`<tr class="click" onclick="location.hash='#/ts/${t.id}'">
+            <td><span class="mono">TS-${t.id}</span></td>
+            <td>${ptag(t.pv)}</td>
+            <td><span class="tag blue">${t.dbType}</span></td>
+            <td>${pill(t.st)}</td>
+            <td>${t.at}</td>
+            <td class="chev">${icon('chev','sm')}</td>
+          </tr>`).join('') || `<tr><td colspan="6"><div class="empty">등록된 Target Source가 없습니다.</div></td></tr>`}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title">Jira Ticket</div>
+    <div class="section-desc">서비스에 연결된 티켓을 관리하고, 티켓 알림을 받을 사용자를 등록합니다.</div>
+    <div class="card">
+      <table class="tbl">
+        <thead><tr><th>Ticket</th><th>요약</th><th>상태</th><th>등록 사용자</th><th style="width:110px"></th></tr></thead>
+        <tbody>
+        ${s.jira.map((j,i)=>`<tr>
+            <td><span class="mono link" onclick="toast('Jira로 이동합니다 (프로토타입)')">${j.key}</span></td>
+            <td>${esc(j.summary)}</td>
+            <td>${jiraTag(j.status)}</td>
+            <td>${j.users.length?`<span class="uchips">${j.users.map(u=>`<span class="uchip">${esc(u)}</span>`).join('')}</span>`:'<span class="muted">—</span>'}</td>
+            <td style="text-align:right"><button class="btn secondary sm" onclick="openJiraUserModal('${s.code}',${i})">${icon('plus','xs')}User 등록</button></td>
+          </tr>`).join('') || `<tr><td colspan="5"><div class="empty">연결된 Jira Ticket이 없습니다.</div></td></tr>`}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title">EOS 처리</div>
+    <div class="card">
+      <div class="note">
+        ${icon('alert')}
+        <div>EOS 처리 시 이 서비스의 모든 Target Source 연동이 종료 절차에 들어갑니다. 진행 중인 파이프라인이 있으면 기본적으로 처리할 수 없으며,
+        <b>Force 옵션</b>을 사용하면 진행 중 작업을 무시하고 강제로 종료합니다.</div>
+      </div>
+      <div class="mt-12">
+        ${s.status==='EOS'
+          ? `<span class="tag red">EOS</span> <span class="meta" style="margin-left:6px">이미 EOS 처리된 서비스입니다.</span>`
+          : `<button class="btn danger" onclick="openEosModal('${s.code}')">${icon('trash','sm')}EOS 처리</button>`}
+      </div>
+    </div>`;
+}
+function jiraTag(st){
+  return st==='Done'?'<span class="tag green">Done</span>'
+    : st==='In Progress'?'<span class="tag blue">In Progress</span>'
+    : '<span class="tag gray">To Do</span>';
+}
+
+function openEosModal(code){
+  const s = svcOf(code);
+  const running = TS.filter(t=>t.svc===code && t.pipelines.some(p=>p.st==='RUNNING')).length;
+  openModal(`
+    <h3>EOS 처리 — ${esc(s.name)} (${s.code})</h3>
+    <div class="desc">서비스의 모든 Target Source ${TS.filter(t=>t.svc===code).length}건이 연동 종료됩니다. 이 작업은 되돌릴 수 없습니다.</div>
+    ${running?`<div class="note err">${icon('alert')}<div>진행 중인 파이프라인이 있는 Target Source가 <b>${running}건</b> 있습니다. Force 없이 처리 시 실패합니다.</div></div>`:''}
+    <label class="chk"><input type="checkbox" id="eos-force">
+      <span><b>Force 강제 처리</b> — 진행 중인 파이프라인·승인 절차를 무시하고 즉시 EOS 처리합니다.</span></label>
+    <div class="foot">
+      <button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn dangersolid" onclick="doEos('${code}')">EOS 처리</button>
+    </div>`);
+}
+function doEos(code){
+  const force = document.getElementById('eos-force').checked;
+  svcOf(code).status='EOS';
+  closeModal(); toast(force?'Force 옵션으로 EOS 처리했습니다':'EOS 처리했습니다');
+  renderService(code); renderSidebar();
+}
+
+function openJiraUserModal(code, idx){
+  const j = svcOf(code).jira[idx];
+  openModal(`
+    <h3>Jira User 등록 — <span class="mono" style="font-size:14px">${j.key}</span></h3>
+    <div class="desc">티켓 상태 변경 알림을 받을 사용자를 등록합니다.</div>
+    <div class="searchbox" style="display:block">${icon('search')}<input class="input" id="jira-user" style="width:100%" placeholder="이름 또는 사번 검색" autofocus></div>
+    ${j.users.length?`<div class="subsection-title">등록된 사용자</div><span class="uchips">${j.users.map(u=>`<span class="uchip">${esc(u)}</span>`).join('')}</span>`:''}
+    <div class="foot">
+      <button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn primary" onclick="addJiraUser('${code}',${idx})">등록</button>
+    </div>`);
+}
+function addJiraUser(code, idx){
+  const v = document.getElementById('jira-user').value.trim();
+  if(!v){ toast('사용자를 입력하세요'); return; }
+  svcOf(code).jira[idx].users.push(v);
+  closeModal(); toast(`${v} 님을 등록했습니다`); renderService(code);
+}
+
+/* ══════════ 페이지: TS 검색 ══════════ */
+let tsQuery='';
+function renderTsSearch(){
+  const rows = TS.filter(t=>!tsQuery || String(t.id).includes(tsQuery) ||
+    t.svc.toLowerCase().includes(tsQuery) || svcOf(t.svc).name.includes(tsQuery));
+  document.getElementById('content').innerHTML = `
+    <div class="page-head">
+      <div>
+        <h1>Target Source 운영</h1>
+        <div class="head-sub">Target Source ID 또는 ServiceCode로 검색해 단건 운영 화면으로 이동합니다.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="filterbar">
+        <div class="searchbox">${icon('search')}<input class="input" style="width:320px" placeholder="Target Source ID · ServiceCode · 서비스명"
+          value="${esc(tsQuery)}" oninput="tsQuery=this.value.toLowerCase();renderTsSearch();refocus(this)"></div>
+        <div class="spacer"></div>
+        <span class="meta">${rows.length}건</span>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>ID</th><th>서비스</th><th>Provider</th><th>DB</th><th>현재 단계</th><th>마지막 변경</th><th></th></tr></thead>
+        <tbody>
+        ${rows.map(t=>`<tr class="click" onclick="location.hash='#/ts/${t.id}'">
+            <td><span class="mono">TS-${t.id}</span></td>
+            <td><span class="svc-name">${esc(svcOf(t.svc).name)}</span> <span class="meta">${t.svc}</span></td>
+            <td>${ptag(t.pv)}</td>
+            <td><span class="tag blue">${t.dbType}</span></td>
+            <td>${pill(t.st)}</td>
+            <td>${t.at}</td>
+            <td class="chev">${icon('chev','sm')}</td>
+          </tr>`).join('') || `<tr><td colspan="7"><div class="empty">검색 결과가 없습니다.</div></td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+/* ══════════ 페이지: TS 상세 — 탭 레지스트리 ══════════ */
+/* 확장 포인트: 탭 추가 = {id, label, render(t)} 객체 추가. Provider 전용 탭은 PROVIDER_TABS. */
+const COMMON_TABS = [
+  {id:'overview',   label:'Metadata',        render:tabOverview},
+  {id:'process',    label:'Process Status',  render:tabProcess},
+  {id:'confirm',    label:'확정 정보',        render:tabConfirm},
+  {id:'pipeline',   label:'파이프라인',       render:tabPipeline},
+  {id:'credential', label:'DB Credential',   render:tabCredential},
+  {id:'tc',         label:'Test Connection', render:tabTc},
+];
+const PROVIDER_TABS = {
+  AWS:  [{id:'aws',  label:'AWS 설정',  render:tabAws, attention:t=>t.execRole && !t.execRole.verified}],
+  GCP:  [{id:'gcp',  label:'GCP 설정',  render:tabGcp}],
+  AZURE:[{id:'azure',label:'Azure 설정',render:tabAzure}],
+  IDC:  [{id:'idc',  label:'IDC 설정',  render:tabIdc}],
+  SDU:  [],
+};
+function tabsFor(t){ return [...COMMON_TABS, ...(PROVIDER_TABS[t.pv]||[])]; }
+
+function renderTs(id, tabId){
+  const t = tsOf(id);
+  if(!t){ document.getElementById('content').innerHTML = `<div class="empty">Target Source를 찾을 수 없습니다: ${esc(id)}</div>`; return; }
+  const tabs = tabsFor(t);
+  const tab = tabs.find(x=>x.id===tabId) || tabs[0];
+  const s = svcOf(t.svc);
+  document.getElementById('content').innerHTML = `
+    <div class="breadcrumb"><span class="crumb" onclick="location.hash='#/ts'">Target Source 운영</span><span class="sep">/</span><span class="cur">TS-${t.id}</span></div>
+    <div class="page-head detail-head">
+      <div>
+        <h1>${esc(s.name)} <span class="h-id">TS-${t.id}</span></h1>
+        <div class="head-meta">
+          ${ptag(t.pv)}<span class="hm-sep">·</span>
+          <span class="tag blue">${t.dbType}</span><span class="hm-sep">·</span>
+          ${pill(t.st)}<span class="hm-sep">·</span>
+          <span class="hm-k">마지막 변경</span><span class="hm-v">${t.at}</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn secondary" onclick="toast('Process Status를 다시 조회했습니다')">${icon('refresh')}상태 새로고침</button>
+        <button class="btn secondary" onclick="toast('파이프라인 상세 페이지로 이동합니다 (프로토타입)')">${icon('open','sm')}파이프라인 페이지</button>
+      </div>
+    </div>
+    <div class="tabbar">
+      ${tabs.map(x=>`<span class="tab ${x.id===tab.id?'on':''}" onclick="location.hash='#/ts/${t.id}/${x.id}'">
+        ${esc(x.label)}${x.attention && x.attention(t)?'<span class="tmark" title="확인 필요"></span>':''}</span>`).join('')}
+    </div>
+    <div id="tab-body">${tab.render(t)}</div>`;
+}
+
+/* ── 탭: Metadata ── */
+const META_LABELS = {
+  awsAccountId:'AWS Account ID', awsRegion:'Region', regionType:'Region Type',
+  gcpProjectId:'GCP Project ID', region:'Region',
+  subscriptionId:'Subscription ID', resourceGroup:'Resource Group', scanAppId:'Scan App ID',
+  host:'Host', ips:'IP 목록', oracleSid:'Oracle SID', nlbIndex:'NLB Index',
+  sduType:'SDU Type', sduCluster:'SDU Cluster',
+};
+function kv(k,v){ return `<div class="k">${esc(k)}</div><div class="v">${v}</div>`; }
+function tabOverview(t){
+  const s = svcOf(t.svc);
+  return `
+    <div class="card-grid2">
+      <div class="card">
+        <div class="card-head"><div class="card-title">공통 Metadata</div></div>
+        <div class="kv2">
+          ${kv('Target Source ID', `<span class="mono">TS-${t.id}</span>`)}
+          ${kv('서비스', `${esc(s.name)} <span class="meta">${s.code}</span>`)}
+          ${kv('Provider', ptag(t.pv))}
+          ${kv('Database Type', `<span class="tag blue">${t.dbType}</span>`)}
+          ${kv('Endpoint', `<span class="mono">${esc(t.endpoint)}</span>`)}
+          ${kv('Port', `<span class="mono">${t.port}</span>`)}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">${t.pv} Metadata</div></div>
+        ${Object.keys(t.meta).length?`<div class="kv2">
+          ${Object.entries(t.meta).map(([k,v])=>kv(META_LABELS[k]||k, `<span class="mono">${esc(v)}</span>`)).join('')}
+        </div>`:`<div class="empty">Provider metadata가 없습니다.</div>`}
+      </div>
+    </div>
+    <div class="card mt-16">
+      <div class="card-head"><div class="card-title">Jira Ticket <span class="meta">서비스(${t.svc})에 연결된 티켓</span></div>
+        <span class="detail-link" onclick="location.hash='#/svc/${t.svc}'">서비스 운영에서 관리 ${icon('chev','xs')}</span></div>
+      ${s.jira.length?`<table class="tbl">
+        <thead><tr><th>Ticket</th><th>요약</th><th>상태</th><th>등록 사용자</th></tr></thead>
+        <tbody>${s.jira.map(j=>`<tr>
+          <td><span class="mono link" onclick="toast('Jira로 이동합니다 (프로토타입)')">${j.key}</span></td>
+          <td>${esc(j.summary)}</td>
+          <td>${jiraTag(j.status)}</td>
+          <td>${j.users.length?`<span class="uchips">${j.users.map(u=>`<span class="uchip">${esc(u)}</span>`).join('')}</span>`:'<span class="muted">—</span>'}</td>
+        </tr>`).join('')}</tbody></table>`
+      :`<div class="empty">연결된 Jira Ticket이 없습니다.</div>`}
+    </div>`;
+}
+
+/* ── 탭: Process Status ── */
+function tabProcess(t){
+  const cur = STEP[t.st];
+  return `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">현재 Process Status</div>
+        <button class="btn secondary sm" onclick="toast('단건 조회로 상태를 갱신했습니다')">${icon('refresh','sm')}단건 조회</button>
+      </div>
+      <div class="steprail">
+        ${STEP_ORDER.map(k=>{const s=STEP[k];
+          const cls = s.n<cur.n?'done':s.n===cur.n?'cur':'';
+          return `<div class="sp ${cls}"><div class="n">${s.n<cur.n?icon('check','xs'):s.n}</div><div class="t">${s.label}</div></div>`;}).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">상태 변경 이력</div></div>
+      ${t.history.length?`<table class="tbl">
+        <thead><tr><th>일시</th><th>변경</th><th>수행자</th></tr></thead>
+        <tbody>${t.history.map(h=>`<tr>
+          <td>${h.at}</td>
+          <td>${pill(h.from)} <span class="muted" style="margin:0 6px">→</span> ${pill(h.to)}</td>
+          <td>${esc(h.by)}</td>
+        </tr>`).join('')}</tbody></table>`
+      :`<div class="empty">상태 변경 이력이 없습니다.</div>`}
+    </div>`;
+}
+
+/* ── 탭: 확정 정보 ── */
+const APPROVAL_TONE = {PENDING:'orange', CONFIRMING:'blue', CONFIRMED:'green', REJECTED:'red'};
+function tabConfirm(t){
+  return `
+    <div class="card-grid2">
+      <div class="card">
+        <div class="card-head"><div class="card-title">승인 정보 <span class="meta">최근 승인 요청</span></div></div>
+        ${t.approval?`<div class="kv2">
+          ${kv('요청 ID', `<span class="mono">${t.approval.reqId}</span>`)}
+          ${kv('상태', `<span class="tag ${APPROVAL_TONE[t.approval.status]||'gray'}">${t.approval.status}</span>`)}
+          ${kv('요청자', esc(t.approval.requester))}
+          ${kv('요청 일시', t.approval.at)}
+          ${kv('대상 DB 수', `${t.approval.dbCount}개`)}
+        </div>`:`<div class="empty">승인 요청 이력이 없습니다.</div>`}
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">확정 정보</div>
+          ${t.confirmed?`<button class="btn danger sm" onclick="openDeleteConfirmedModal(${t.id})">${icon('trash','xs')}확정 정보 삭제</button>`:''}
+        </div>
+        ${t.confirmed?`<div class="kv2">
+          ${kv('확정 DB 수', `${t.confirmed.dbCount}개`)}
+          ${kv('확정 일시', t.confirmed.at)}
+        </div>`:`<div class="empty">확정된 연동 정보가 없습니다.</div>`}
+      </div>
+    </div>
+    <div class="card mt-16">
+      <div class="card-head"><div class="card-title">확정 정보 삭제 Policy</div></div>
+      <div class="section-desc" style="margin-top:0">삭제 실행 전 아래 정책이 적용됩니다. 정책은 서버에서 조회한 값입니다.</div>
+      <div class="kv2">
+        ${kv('재승인 필요', '<span class="tag orange">필요</span> — 삭제 후 연동 재개 시 승인 절차를 처음부터 다시 진행')}
+        ${kv('파이프라인 영향', '진행 중인 설치 파이프라인이 있으면 삭제 불가 (취소 후 가능)')}
+        ${kv('보존 기간', '삭제 후 30일간 이력 보존, 이후 영구 삭제')}
+        ${kv('연결 테스트 결과', '삭제 시 함께 무효화')}
+      </div>
+    </div>`;
+}
+function openDeleteConfirmedModal(id){
+  const t = tsOf(id);
+  const running = t.pipelines.some(p=>p.st==='RUNNING');
+  openModal(`
+    <h3>확정 정보 삭제 — <span class="mono" style="font-size:14px">TS-${t.id}</span></h3>
+    <div class="desc">확정 DB ${t.confirmed.dbCount}개의 연동 확정 정보를 삭제합니다. 삭제 후 재연동 시 승인 절차를 다시 진행해야 합니다.</div>
+    ${running?`<div class="note err">${icon('alert')}<div>진행 중인 파이프라인이 있습니다. 정책상 삭제할 수 없습니다 — 파이프라인 취소 후 다시 시도하세요.</div></div>`:''}
+    <div class="subsection-title">삭제 사유 (필수)</div>
+    <textarea id="del-reason" placeholder="예: 잘못된 대상 DB 확정으로 재승인 진행"></textarea>
+    <div class="foot">
+      <button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn dangersolid" ${running?'disabled':''} onclick="doDeleteConfirmed(${t.id})">삭제</button>
+    </div>`);
+}
+function doDeleteConfirmed(id){
+  const v = document.getElementById('del-reason').value.trim();
+  if(!v){ toast('삭제 사유를 입력하세요'); return; }
+  tsOf(id).confirmed = null;
+  closeModal(); toast('확정 정보를 삭제했습니다'); renderTs(id,'confirm');
+}
+
+/* ── 탭: 파이프라인 ── */
+const PL_TONE = {RUNNING:'t-run', SUCCEEDED:'t-ok', FAILED:'t-err', CANCELED:'t-off'};
+function tabPipeline(t){
+  const running = t.pipelines.some(p=>p.st==='RUNNING');
+  return `
+    <div class="card">
+      <div class="card-head"><div class="card-title">파이프라인 실행</div></div>
+      ${running?`<div class="note info" style="margin-bottom:12px">${icon('info')}<div>진행 중인 파이프라인이 있어 새 실행이 제한됩니다.</div></div>`:''}
+      <div style="display:flex;gap:8px">
+        <button class="btn primary" ${running?'disabled':''} onclick="runPipeline(${t.id},'INSTALL')">${icon('play','sm')}설치 파이프라인 실행</button>
+        <button class="btn danger" ${running?'disabled':''} onclick="runPipeline(${t.id},'DELETE')">${icon('trash','sm')}삭제 파이프라인 실행</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">최근 실행 현황</div>
+        <span class="detail-link" onclick="toast('파이프라인 상세 페이지로 이동합니다 (프로토타입)')">파이프라인 페이지에서 전체 보기 ${icon('open','xs')}</span>
+      </div>
+      ${t.pipelines.length?`<table class="tbl">
+        <thead><tr><th>Pipeline</th><th>종류</th><th>상태</th><th>시작</th><th>소요</th></tr></thead>
+        <tbody>${t.pipelines.map(p=>`<tr>
+          <td><span class="mono">${p.id}</span></td>
+          <td>${p.kind==='INSTALL'?'<span class="tag blue">설치</span>':'<span class="tag red">삭제</span>'}</td>
+          <td><span class="pill ${PL_TONE[p.st]}"><span class="dot"></span>${p.st}</span></td>
+          <td>${p.at}</td><td>${p.dur}</td>
+        </tr>`).join('')}</tbody></table>`
+      :`<div class="empty">실행된 파이프라인이 없습니다.</div>`}
+    </div>`;
+}
+function runPipeline(id, kind){
+  const t = tsOf(id);
+  const label = kind==='INSTALL'?'설치':'삭제';
+  openModal(`
+    <h3>${label} 파이프라인 실행 — <span class="mono" style="font-size:14px">TS-${t.id}</span></h3>
+    <div class="desc">${kind==='INSTALL'
+      ?'확정된 연동 정보를 기준으로 Agent 설치 파이프라인을 실행합니다.'
+      :'설치된 Agent와 인프라 리소스를 제거하는 삭제 파이프라인을 실행합니다. 이 작업은 서비스 연동에 영향을 줍니다.'}</div>
+    <div class="foot">
+      <button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn ${kind==='INSTALL'?'primary':'dangersolid'}" onclick="doRunPipeline(${t.id},'${kind}')">실행</button>
+    </div>`);
+}
+let plSeq = 88300;
+function doRunPipeline(id, kind){
+  tsOf(id).pipelines.unshift({id:'PL-'+(plSeq++), kind, st:'RUNNING', at:'07-23 방금', dur:'—'});
+  closeModal(); toast(`${kind==='INSTALL'?'설치':'삭제'} 파이프라인을 실행했습니다`); renderTs(id,'pipeline');
+}
+
+/* ── 탭: DB Credential ── */
+function tabCredential(t){
+  return `
+    <div class="card">
+      <div class="card-head"><div class="card-title">DB Credential 목록 <span class="meta">${t.creds.length}건</span></div></div>
+      ${t.creds.length?`<table class="tbl">
+        <thead><tr><th>논리 DB</th><th>계정</th><th>Secret 참조</th><th>상태</th><th>수정일</th></tr></thead>
+        <tbody>${t.creds.map(c=>`<tr>
+          <td class="svc-name">${esc(c.db)}</td>
+          <td><span class="mono">${esc(c.user)}</span></td>
+          <td><span class="mono">${esc(c.secret)}</span></td>
+          <td><span class="tag green">${c.st}</span></td>
+          <td>${c.at}</td>
+        </tr>`).join('')}</tbody></table>`
+      :`<div class="empty">등록된 Credential이 없습니다.</div>`}
+    </div>`;
+}
+
+/* ── 탭: Test Connection ── */
+function tabTc(t){
+  return `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">최근 Test Connection</div>
+        <button class="btn primary sm" onclick="toast('Test Connection을 실행했습니다 (async)')">${icon('play','xs')}Test Connection 실행</button>
+      </div>
+      ${t.tc?`<div class="kv2">
+        ${kv('진행', `${t.tc.done} / ${t.tc.total} 완료`)}
+        ${kv('실패', t.tc.fail?`<span class="tag red">${t.tc.fail}건 실패</span>`:'<span class="tag green">0건</span>')}
+        ${kv('마지막 실행', t.tc.at)}
+      </div>`:`<div class="empty">Test Connection 실행 이력이 없습니다.<br><span class="meta">Agent 설치 완료(Step 5) 이후 실행할 수 있습니다.</span></div>`}
+    </div>`;
+}
+
+/* ── 탭: AWS 설정 ── */
+function tabAws(t){
+  return `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">설치 모드</div>
+        <button class="btn primary sm" onclick="toast('설치 모드를 저장했습니다')">저장</button>
+      </div>
+      <div class="mode-row">
+        <div class="mode-opt ${t.installMode==='AUTO'?'on':''}" onclick="tsOf(${t.id}).installMode='AUTO';renderTs(${t.id},'aws')">
+          <span class="radio"></span>
+          <div><div class="mt">자동 설치</div><div class="md">Terraform 파이프라인이 인프라를 자동으로 생성·설치합니다.</div></div>
+        </div>
+        <div class="mode-opt ${t.installMode==='MANUAL'?'on':''}" onclick="tsOf(${t.id}).installMode='MANUAL';renderTs(${t.id},'aws')">
+          <span class="radio"></span>
+          <div><div class="mt">수동 설치</div><div class="md">스크립트를 내려받아 서비스 측에서 직접 실행합니다. 진행 상황은 수동으로 확인 처리합니다.</div></div>
+        </div>
+      </div>
+    </div>
+    ${awsRoleCard(t,'scanRole','Scan Role','리소스 스캔에 사용')}
+    ${awsRoleCard(t,'execRole','Terraform Execution Role','설치 파이프라인 실행에 사용')}`;
+}
+function awsRoleCard(t, key, title, desc){
+  const r = t[key];
+  return `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">${title} <span class="meta">${desc}</span></div>
+        <button class="btn secondary sm" onclick="verifyRole(${t.id},'${key}')">${icon('refresh','xs')}권한 검증</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input class="input" id="arn-${key}" style="flex:1;font-family:var(--font-mono);font-size:12px" value="${esc(r.arn)}">
+        <button class="btn secondary" onclick="saveRole(${t.id},'${key}')">등록·수정</button>
+      </div>
+      <div class="check-list">
+        ${r.checks.map(c=>`<div class="ck ${c.ok?'ok':'err'}">${icon(c.ok?'check':'x','sm')}<span class="mono">${c.p}</span>
+          <span class="meta">${c.ok?'허용':'권한 없음'}</span></div>`).join('')}
+      </div>
+      <div class="ck-verdict ${r.verified?'ok':'err'}">
+        ${icon(r.verified?'check':'alert','sm')}
+        ${r.verified?'모든 필수 권한이 확인되었습니다.':'누락된 권한이 있습니다 — Role 정책을 수정한 뒤 다시 검증하세요.'}
+      </div>
+    </div>`;
+}
+function saveRole(id, key){
+  const v = document.getElementById('arn-'+key).value.trim();
+  if(!v){ toast('Role ARN을 입력하세요'); return; }
+  tsOf(id)[key].arn = v; toast('Role을 저장했습니다. 권한 검증을 실행하세요.');
+}
+function verifyRole(id, key){
+  toast('권한 검증을 요청했습니다…');
+  setTimeout(()=>{ toast('권한 검증 결과를 갱신했습니다'); renderTs(id,'aws'); }, 900);
+}
+
+/* ── 탭: GCP / Azure / IDC ── */
+function tabGcp(t){
+  return `
+    <div class="card">
+      <div class="card-head"><div class="card-title">Service Account</div></div>
+      <div class="kv2">
+        ${kv('Scan SA', `<span class="mono">${esc(t.gcp.scanSa)}</span>`)}
+        ${kv('Terraform SA', `<span class="mono">${esc(t.gcp.tfSa)}</span>`)}
+        ${kv('Project', `<span class="mono">${esc(t.meta.gcpProjectId)}</span>`)}
+      </div>
+      <div class="note info mt-12">${icon('info')}<div>GCP Service Account는 설치 파이프라인에서 자동 생성·바인딩됩니다. 이 화면은 조회 전용입니다.</div></div>
+    </div>`;
+}
+function tabAzure(t){
+  return `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Scan App</div>
+        <button class="btn secondary sm" onclick="toast('Private Link 헬스체크를 실행했습니다')">${icon('refresh','xs')}Private Link 헬스체크</button>
+      </div>
+      <div class="kv2">
+        ${kv('Scan App ID', `<span class="mono">${esc(t.meta.scanAppId)}</span>`)}
+        ${kv('Subscription', `<span class="mono">${esc(t.meta.subscriptionId)}</span>`)}
+        ${kv('Resource Group', `<span class="mono">${esc(t.meta.resourceGroup)}</span>`)}
+      </div>
+    </div>`;
+}
+function tabIdc(t){
+  return `
+    <div class="card">
+      <div class="card-head"><div class="card-title">NLB · 접속 정보</div></div>
+      <div class="kv2">
+        ${kv('NLB Index', `<span class="mono">${t.meta.nlbIndex}</span>`)}
+        ${kv('Host', `<span class="mono">${esc(t.meta.host)}</span>`)}
+        ${kv('IP 목록', `<span class="mono">${esc(t.meta.ips)}</span>`)}
+        ${kv('Oracle SID', `<span class="mono">${esc(t.meta.oracleSid)}</span>`)}
+      </div>
+      <div class="note mt-12">${icon('alert')}<div>IDC는 자동 설치를 지원하지 않습니다. 설치 인력이 접속 정보로 직접 설치 후 완료 처리합니다.</div></div>
+    </div>`;
+}
+
+/* ══════════ 라우터 ══════════ */
+function route(){
+  const [, page, a, b] = location.hash.split('/');
+  renderSidebar();
+  window.scrollTo(0,0);
+  closeModal();
+  if(page==='services') return renderServices();
+  if(page==='svc')      return renderService(a);
+  if(page==='ts' && a)  return renderTs(a, b);
+  if(page==='ts')       return renderTsSearch();
+  return renderAlerts();
+}
+window.addEventListener('hashchange', route);
+if(!location.hash) location.hash = '#/alerts';
+route();
+</script>
+</body>
+</html>
