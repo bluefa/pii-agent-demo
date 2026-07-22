@@ -62,7 +62,7 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 
 이 6종은 **audit 스트림**(사용 이력) 전용이다. 서버 운영 기록(withV1 접근 로그·업스트림 5xx)은
 진단 스트림에 남고 requestId로만 연결되며, 인가 거부(403)는 Phase 3에서 **7번째 타입으로 추가**된다
-(`auth_denied` — 봉투 불변, eventType enum의 호환 가능한 추가 확장, ADR-025 Scope).
+(`auth_denied` — 기존 필드 변경 없음, eventType enum 값과 `route.template` 필드를 **함께 늘리는 호환 가능한 추가 확장**, ADR-025 Scope).
 
 핵심 규칙 (근거·대안·필드 계약은 ADR-025):
 
@@ -120,7 +120,7 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 | # | 작업 | 상세 | 산출물 |
 |---|---|---|---|
 | 1-1 | ingest API 계약 | 엔드포인트(예: `POST /integration/observability/events`), 배치 payload 스키마(이벤트 배열), 서버 간 인증 방식, 요청 크기 캡, 실패 시 FE 드랍 정책, **멱등 키 `(targetSourceId, job.kind, job.key, eventType)` 처리**, **`triggerTestConnection` 응답에 `test_connection_version` 추가**(시작/결과 join의 전제 — ADR-025 §2) 합의 | 계약 문서 (swagger) |
-| 1-2 | 이벤트 스키마·DB 필드 확정 | **입력 계약 = ADR-025 §1a 필드 표** — 이벤트 6종의 discriminated union(타입별 필수/선택 명시). 공통 봉투: `eventType`·`origin`(서버 스탬프)·`observedAt`(발행자)·`receivedAt`(서버 스탬프, 시간창 쿼리 기준)·`actor{userId,role}`(서버 스탬프 — 인증 게이트로 항상 존재, ADR-025 §5)·`clockSkew`(서버 스탬프, 클램프 시)·`page{template}`·`surface`(서버 파생)·`action{name,method,status,durationMs}`·`job{kind,key}`·`correlation{requestId,targetSourceId,serviceCode}`·`domainContext{processStatus,provider}`·종류별 `detail`. **`errorMessage` 컬럼 없음.** `error.name`은 ADR-025 필드 매트릭스가 요구하므로 **저장 확정**; `fingerprint`(새니타이즈 스택 해시)만 열린 결정 — 미채택 시 같은 error.name의 code 없는 에러들은 DB에서 더 세분 불가 | 스키마 문서 |
+| 1-2 | 이벤트 스키마·DB 필드 확정 | **입력 계약 = ADR-025 §1a 필드 표** — 이벤트 6종의 discriminated union(타입별 필수/선택 명시). 공통 봉투: `eventType`·`origin`(서버 스탬프)·`observedAt`(발행자)·`receivedAt`(서버 스탬프, 시간창 쿼리 기준)·`actor{userId,role}`(서버 스탬프 — 인증 게이트로 항상 존재, ADR-025 §5)·`clockSkew`(서버 스탬프, 클램프 시)·`page{template}`·`surface`(서버 파생)·`action{name,method,status,durationMs}`·`job{kind,key}`·`correlation{requestId,targetSourceId,serviceCode}`·`domainContext{processStatus,provider}`·종류별 블록(`outcome.*`/`error.*`/`detail.renderMs` — 전부 최상위, ADR-025 §1a). **`errorMessage` 컬럼 없음.** `error.name`은 ADR-025 필드 매트릭스가 요구하므로 **저장 확정**; `fingerprint`(새니타이즈 스택 해시)만 열린 결정 — 미채택 시 같은 error.name의 code 없는 에러들은 DB에서 더 세분 불가 | 스키마 문서 |
 | 1-3 | 보존·삭제 정책 | 보존 기간(예: 상세 90일 + 일 단위 집계 롤업 장기), 삭제 주기, 용량 상한. "많아지면 삭제"의 구체 기준 | 정책 1쪽 |
 | 1-4 | 조회 API 계약 | Admin **MVP(§3 M1~M3)가 요구하는 것만**: 타깃소스별 이벤트 목록(시간순·페이지네이션)·타깃소스별 24h Action/오류 count·확인 필요 집계 3종(24h 창, group by targetSourceId/serviceCode). P1~P4(추이·top-N·userId/requestId 필터·403 목록) 계약은 해당 기능 착수 시점으로 이연 | 계약 문서 |
 
@@ -130,7 +130,7 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 
 | # | 작업 | 대상 파일 | 상세 | 검증 기준 |
 |---|---|---|---|---|
-| 2-1 | `surface` 필드 | `lib/log-path.ts`(+`surfaceOf()`) · `app/api/_lib/log.ts` · `app/api/_lib/handler.ts` | `pageTemplate` prefix 매칭으로 4값 파생, 모든 이벤트에 필드 추가 | 경로별 매핑 단위 테스트 |
+| 2-1 | `surface` 필드 + basePath 정규화 | `lib/log-path.ts`(+`surfaceOf()`) · `app/api/_lib/log.ts` · `app/api/_lib/handler.ts` | **`page.template`을 basePath 상대값으로 정규화 후** prefix 매칭으로 4값 파생 — 앱은 `basePath:'/pass'`에 마운트되고 브라우저 태깅은 `location.pathname`의 `/pass/...`를 보므로, 서버가 `/pass`를 벗겨 저장하고 surfaceOf()는 정규값에만 적용 | 실제 `/pass/...` 경로 입력 매핑 테스트 |
 | 2-2 | `log.ts` 출구 교체 | `app/api/_lib/log.ts` (+신규 `app/api/_lib/log-transport.ts`) | 이벤트를 메모리 버퍼에 쌓고 배치(N건 또는 T초)로 BFF ingest에 비동기 POST. 실패/버퍼 초과 시 드랍 + 유실 카운터(주기적으로 진단 로그에 1줄). 프로세스 종료 시 flush 시도. **전송 실패가 요청 처리를 막지 않음** | 배치·드랍·flush 단위 테스트, 부하 시 요청 지연 무영향 |
 | 2-3 | 진단 로그 분리 | `app/api/_lib/log.ts` | 새니타이즈된 스택 등 상세는 stdout 진단 로그로만(BFF 전송 payload에서 제외). `errorMessage`는 어느 payload에도 원문 미포함 | payload 스냅샷 테스트 — 금지 필드 부재 확인 |
 | 2-4 | 브라우저 리포트 경로 정합 | `app/api/v1/observability/client-errors/route.ts` | 수신 라우트가 받은 리포트를 같은 출구(log.ts→BFF)로 흘림. 방어(allowlist·캡·rate limit)는 그대로 | 방어 회귀 테스트 유지 |
@@ -154,8 +154,8 @@ PR #558에는 이 이벤트 타입들이 없다(헤더·client-error 라우트�
 | 2b-1 | 이벤트 빌더 + ingest 스키마 + 관찰 콜백 계약 | 신규 `lib/audit-event.ts` + `lib/fetch-json.ts` | ADR-025 §1a discriminated union의 **ingest 판**(actor·origin·receivedAt·surface·clockSkew 없음 — 서버 스탬프 몫; **브라우저 ingress는 브라우저 발생 variant만** — ssr_error·renderMs 있는 page_view는 거부) + allowlist 매트릭스(§4) 구현. **관찰 콜백 계약**: `fetchJson`이 호출별 클로저로 `{requestId, status, durationMs, 파싱된 응답}`을 관찰 지점에 전달(전역 링버퍼로 이벤트 조립 금지 — 동시 호출 레이스). 응답 spread 금지, 필드 지명 복사, enum 로컬 검증(미지값→`UNKNOWN`), 배열·문자열 캡 | 스키마 단위 테스트 + 금지 필드 스냅샷 + 동시 호출 격리 테스트 |
 | 2b-2 | 동기 Action 발행 | `lib/fetch-json.ts` 래퍼 | 쓰기 함수(`confirmInstallation` 등) 호출 완료 시 `action` 1건(status·code 포함) 자동 발행 | 성공/실패(409) 각 1건 발행 테스트 |
 | 2b-3 | 비동기 settle 발행 | `useScanPolling`·`useTestConnectionPolling` + trigger 함수 | trigger 시 `action` 발행 + **로컬 job key 기억(공급 필드까지 — keyField)**, settle 관찰 시 같은 필드의 key에 한해 `action_result` 발행. 정확한 종료 상태 집합 밖(미지값·PENDING·RUNNING)은 발행 없음. 연결테스트는 trigger 응답 key(1-1 계약) 전까지 시작 이벤트에 job 없음 허용 | mount-폴링만으로는 settle 미발생 · 미지/진행 중 상태 settle 미발생 테스트 |
-| 2b-4 | 수신 라우트 확장 + 서버 스탬프 | `app/api/v1/observability/*` + `app/api/_lib/handler.ts` | client-errors 라우트를 일반 audit 이벤트 수신으로 확장(방어 유지). 서버가 actor(세션)·receivedAt·origin·surface·clockSkew(클램프 판정 후에만 — 클라이언트 값 무시) 스탬프, **주장된 targetSourceId 접근 권한 검증 후 저장**, target 있으면 **serviceCode는 검증된 target에서 서버가 파생(클라이언트 값 무시)**, target 없는 서비스 이벤트는 서비스 소속 검증, 멱등 키 전달 | 위조 actor 무시·무권한 target 거부·위조 serviceCode 무시·클라이언트 clockSkew 무시(스큐/정상 타임스탬프 각 1)·위조 zod issue code 정규화 테스트 |
-| 2b-5 | SSR 발행 | `app/target-sources/[targetSourceId]/page.tsx` + `log.ts` | 동적 SSR 렌더 성공→`page_view`(renderMs), 실패→`ssr_error`(서버가 렌더 대상 template 자기 스탬프) | 렌더 실패 시 page_view 없음·ssr_error 1건 |
+| 2b-4 | 수신 라우트 확장 + 서버 스탬프 | `app/api/v1/observability/*` + `app/api/_lib/handler.ts` | client-errors 라우트를 일반 audit 이벤트 수신으로 확장(방어 유지). 서버가 actor(세션)·receivedAt·origin·surface·clockSkew(클램프 판정 후에만 — 클라이언트 값 무시) 스탬프, **주장된 targetSourceId 접근 권한 검증 후 저장**, target 있으면 **serviceCode는 검증된 target에서 서버가 파생(클라이언트 값 무시)**, target 없는 서비스 이벤트는 서비스 소속 검증, 멱등 키 전달 | 위조 actor 무시·무권한 target 거부·위조 serviceCode 무시·클라이언트 clockSkew 무시(스큐/정상 타임스탬프 각 1)·위조 zod issue code 정규화·`job.*` 있는데 targetSourceId 없는 이벤트 거부 테스트 |
+| 2b-5 | SSR 발행 | `app/target-sources/[targetSourceId]/page.tsx` + `log.ts` | 동적 SSR 렌더 성공→`page_view`(renderMs), 실패→`ssr_error`(서버가 렌더 대상 template 자기 스탬프) | 렌더 실패 시 page_view 없음·ssr_error 1건·**같은 실패로 client_error 0건**(바운더리는 서버 에러 digest를 인지해 audit 발행 억제) |
 | 2b-6 | 브라우저 page_view | `app/components/ObservabilityInit.tsx` | `/services`는 정적 셸이라 방문마다 서버 렌더가 없음 — 브라우저가 라우트 전환 시 발행, 서버가 actor·receivedAt 스탬프 | 전환 시 1건, 새로고침 중복 없음 |
 | 2b-7 | screen_read 발행 | 해당 UI 컴포넌트/훅 (패널 열림 지점) | **발행 지점은 UI 관찰 지점** — 사용자가 패널을 연 시점에 1건. 함수 단위 일괄 태깅 금지(mount 자동 로드·백그라운드 갱신·내부 재시도가 사용자 조회로 둔갑). `fetchJson` 우회 호출(`ProjectHistoryPanel`의 raw `fetchInfra` 등)은 래퍼로 이관하거나 미계측 목록에 명시 | mount 자동 로드 시 이벤트 미발생 테스트 |
 | 2b-8 | 비-Action 읽기 실패의 client_error 발행 | `lib/fetch-json.ts` + 에러 소비 지점 | `fetchJson`은 throw하고 훅(`usePollingBase` 등)이 rejection을 삼키므로 기존 브라우저 리포터는 이를 못 본다 — **비-Action 읽기 실패에서 정확히 1건** client_error 발행(abort 제외, Action 실패와 중복 금지 = 1관찰 1이벤트). `error.zodIssues`는 서버가 ProblemDetails에 **캡 있는 `{path, code}` 확장**을 실어줄 때만 존재(withV1 검증 실패 시 이슈 목록 ≤20 포함 — 없으면 zodIssues 없이 저장) | 폴링 실패 1건·중복 0건·abort 미발행 테스트 |
@@ -203,7 +203,7 @@ audit 행도, 자리만 차지하는 role 검사도 만들지 않는다.
 ### Phase 6 — Grafana (보류 — 도입 결정 후)
 
 **판단 기준**: "사람이 들어가 보기 전에 시스템이 먼저 알려야 하는가"(push 알림 필요성).
-필요해지면: BFF DB에 읽기 전용 계정 → Grafana SQL 데이터소스 연결(로그 기반 metric 파이프라인 불필요)
+필요해지면: BFF DB에 읽기 전용 계정 → Grafana SQL 데이터소스 연결. 단 **SQL만으로 되는 후보는 G2·G4·G8뿐** — G1/G3/G5/G6/G7은 진단 스트림(접근 기록·서버 예외·유실 카운터) 기반 metric 소스가 별도로 필요(§3 표의 ⚠️)
 → §3 Grafana 후보 패널·알림 구성 → Slack 수신 확인. 고카디널리티(고객/타깃별) 패널 금지 원칙 유지.
 
 ---
@@ -240,13 +240,13 @@ audit 저장소에는 도메인 데이터를 복제하지 않는다.
 
 | # | 종류 | 후보 | 비고 |
 |---|---|---|---|
-| G1 | 패널 | surface별 에러율 추이 (에러/요청) | 고객 대면(`target-detail`)과 내부(`admin`) 분리 |
+| G1 | 패널 | surface별 에러율 추이 (에러/요청) | ⚠️ 분모(전체 요청 수)는 audit에 없음 — 진단 로그 기반 metric 별도 필요 |
 | G2 | 패널 | 에러 급증 감지 + 배포 마커 | "배포 직후 터졌나" 즉답 |
-| G3 | 패널 | API 호출량·p95 (`action.name`별) | 저카디널리티 라벨만 |
+| G3 | 패널 | API 호출량·p95 (`action.name`별) | ⚠️ audit은 전 호출을 덮지 않음(폴링 미기록 등) — 진단 로그 기반 metric 별도 필요 |
 | G4 | 패널 | CTA(쓰기) 실패율 | method+status 집계 |
-| G5 | 패널 | ingest 유실 카운터 | 관측 파이프 자체의 건강 |
-| G6 | 알림 | `target-detail` 에러율 임계 → Slack | 민감 임계 — 고객이 작업 중 실패 |
-| G7 | 알림 | server ERROR 급증 → Slack | 느슨 임계 |
+| G5 | 패널 | ingest 유실 카운터 | ⚠️ 유실 카운터는 stdout 진단에만 존재 — 진단 로그 기반 metric 별도 필요 |
+| G6 | 알림 | `target-detail` 에러율 임계 → Slack | 민감 임계 — 고객이 작업 중 실패. ⚠️ 에러율 분모는 G1과 동일 제약 |
+| G7 | 알림 | server ERROR 급증 → Slack | 느슨 임계. ⚠️ 서버 예외는 진단 스트림 — BFF DB SQL만으론 불가 |
 | G8 | 알림 | 403 시도 급증 → Slack | 보안 신호 |
 
 **금지**: 고객별/타깃별 드릴다운 패널(고카디널리티) — Admin의 몫.

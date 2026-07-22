@@ -58,6 +58,9 @@ best-effort 유실 허용, Error Reporting의 자동 그룹핑·회귀 감지와
 
 ## 3. 상관관계 키와 구분 축
 
+> ⚠️ `surfaceOf()`는 **basePath 상대 경로**를 전제한다. 앱은 `basePath:'/pass'`에 마운트되므로
+> 브라우저가 태깅한 `/pass/...` 경로는 서버가 `/pass`를 벗겨 정규화한 뒤 surface를 파생한다(구현 계획 2-1).
+
 키는 **2개**, 구분 축도 **2개**다. sessionId는 없다(결정 ③).
 
 | 키/축 | 무엇 | 신뢰 원천 |

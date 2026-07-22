@@ -95,7 +95,7 @@ prerequisite, not merged behavior):
 | `action` | A button-driven act. Synchronous actions (e.g. `confirmInstallation`) carry their result (HTTP status, error `code`) in this one event | Browser |
 | `action_result` | The settle outcome of an asynchronous action (scan, test connection): status enum, duration, structured summary | Browser |
 | `client_error` | A failure observed while the page is in use: a render error or unhandled rejection in the browser, or an error response observed by the browser on a CSR call. When the underlying cause is a schema-validation failure, the event detail carries the issue list (`{path, code}` pairs) — note that in this codebase validation runs in the FE server route (`schemas.parse` inside `withV1`), so the browser typically observes it as an error status, not as a local exception | Browser |
-| `ssr_error` | Page generation failed on the server; the customer saw an error page instead of the page | FE server (SSR) |
+| `ssr_error` | Page generation failed on the server; the customer saw an error page instead of the page. **Server-origin render failures belong exclusively here** — the browser error boundary that catches the same failure (recognizable by the server-error `digest` Next.js attaches) must not also emit `client_error`, or one failed render would double-count in error aggregates | FE server (SSR) |
 
 ### 1a. Envelope — field-level contract
 
@@ -111,16 +111,16 @@ see §5), **E** = emitter (browser for browser events, server for SSR events).
 | `receivedAt` | ✅ | S | server receipt time — authoritative for time-window queries |
 | `clockSkew` | optional | S | stored-envelope flag: when `|observedAt − receivedAt|` > 10 minutes the server clamps `observedAt` to `receivedAt` and sets `clockSkew:true`; absent otherwise |
 | `actor.userId` / `actor.role` | ✅ | S | from session. **Durable audit ingestion is gated on authentication existing** (§5) — there are no actor-less audit rows |
-| `page.template` | ✅ | E | normalized template (`/target-sources/:id`), never a raw path. Browser events: from the wrapper's page tagging; SSR events: server self-stamps its own render target |
+| `page.template` | ✅ | E | normalized template (`/target-sources/:id`), never a raw path, **canonicalized to a basePath-relative value** — the app mounts under `basePath:'/pass'` and browser tagging sees `/pass/...` in `location.pathname`, so the server strips the basePath before storage and `surfaceOf()` runs only on the canonical value (tests must use real `/pass/...` inputs). Browser events: from the wrapper's page tagging; SSR events: server self-stamps its own render target |
 | `surface` | ✅ | S | derived server-side from `page.template` via `surfaceOf()` |
 | `action.name` | per type | E | API function name (`startScan`) — required for `screen_read`/`action`/`action_result`, optional in error events, absent in `page_view` |
 | `action.method` / `action.status` / `action.durationMs` | per type | E | HTTP facts of the observed call, where one exists |
 | `job.kind` / `job.key` | async only | B | canonical async-job link: `{kind:'scan', key:scan_version}` / `{kind:'test_connection', key:test_connection_version}` (§2) |
 | `correlation.requestId` | ✅ | E | forgery-harmless, correlation only |
-| `correlation.targetSourceId` | when known | B | validated against session access (§5) |
+| `correlation.targetSourceId` | ✅ on target-scoped variants | B | **required** whenever the event carries `job.*` (idempotency key needs it) or occurs on the target-detail page — ingest rejects such events without it; genuinely target-less events (`/services`-level) omit it. Validated against session access (§5) |
 | `correlation.serviceCode` | when known | S/B | when a target is present the server **derives it from the authorized target and ignores the client value**; on service-level events without a target the server validates the session user's membership in the claimed service (§5) |
 | `domainContext.processStatus` / `domainContext.provider` | CSR events | B | snapshot of what the page held at event time |
-| `detail` | per type | E | type-specific block (§3, §4): `outcome` for results, `renderMs` for `page_view`, `error{name, code, zodIssues}` for errors |
+| `outcome.*` / `error.*` / `detail.renderMs` | per type | E | the three type-specific blocks, **all top-level** (there is no wrapping `detail` object except `detail.renderMs` on `page_view`): `outcome.*` on `action_result` (§3, §4), `error.*` on failures, `detail.renderMs` on SSR `page_view` |
 
 Per-type field matrix (normative — anything not listed as required/optional
 for a type is **forbidden** on that type):
@@ -132,7 +132,7 @@ for a type is **forbidden** on that type):
 | `action` | `action{name, method, status}` (`status:0` is the no-response sentinel for network/timeout failures, paired with `error.code` `NETWORK`/`TIMEOUT`) | `error.code` (on failure), `job{kind, key}` (async trigger, when the response carries the key), `domainContext` | `outcome.*` |
 | `action_result` | `action.name`, `job{kind, key}`, `outcome.status` | `outcome.durationSec` (omit when the source value or either timestamp is absent, invalid, negative, or reversed), `outcome.detail` / `outcome.total` / `outcome.fail` / `outcome.failedResourceIds` (per §4), `domainContext` | `error.*` |
 | `client_error` | `error.name` | `action{name, method, status}` (when a call was involved), `error.code`, `error.zodIssues` (only when the error surface carries issue pairs — requires the capped ProblemDetails extension, plan 2b-8), `domainContext` | `job.*`, `outcome.*` |
-| `ssr_error` | `page.template`, `error.name` | `action{name, method, status}` (the failed upstream call) | `job.*`, `outcome.*`, `domainContext` |
+| `ssr_error` | `page.template`, `error.name` | `action{name, method, status}` (the failed upstream call), `error.code`, `error.zodIssues` (schema validation runs on the FE server, so this is where issue pairs originate) | `job.*`, `outcome.*`, `domainContext` |
 
 ¹ Common required fields (`eventType`, `origin`, `observedAt`, `receivedAt`,
 `actor`, `page.template`, `surface`, `correlation.requestId`) apply to every
@@ -212,7 +212,7 @@ The exact matrix (start set; extending it is a reviewed change):
 |---|---|---|
 | `screen_read` | `outcome.count` | non-negative integer |
 | `action` (sync) | `action.status`, `error.code` | status = valid HTTP int, or `0` (no-response sentinel) **only when** paired with `error.code` `NETWORK`/`TIMEOUT`; `code` validated against the known BFF code set **plus the client-side codes** `NETWORK`/`TIMEOUT`/`UNKNOWN` (`lib/errors.ts` — these never come from the BFF), unknown → `UNKNOWN` |
-| `action` (async trigger) | `action.status`, `job.key` (= `scan_version` or fallback `id`; test connection: none until the Phase 1 contract lands) | `job.key` = integer or string ≤ 64 chars |
+| `action` (async trigger) | `action.status`, `error.code` (on failure — same status/code rules as the sync row, including the `status:0` + `NETWORK`/`TIMEOUT` sentinel), `job.key` (= `scan_version` or fallback `id`; test connection: none until the Phase 1 contract lands) | `job.key` = integer or string ≤ 64 chars |
 | `action_result` (scan) | `outcome.status` (= `scan_status`), `outcome.durationSec`, `outcome.detail` (= `resource_count_by_resource_type`), `job.key` | status validated against the **exact settle set** `SUCCESS`/`FAIL`/`TIMEOUT`/`CANCELED`, unknown → `UNKNOWN`; detail = map with ≤ 20 keys, each key ≤ 32 chars (resource-type symbol), values non-negative int |
 | `action_result` (test connection) | `outcome.status` (= `connection_status`), `outcome.total`, `outcome.fail`, `outcome.failedResourceIds`, `outcome.durationSec` (= `completed_at − requested_at`), `job.key` | status validated against the **exact settle set** `SUCCESS`/`FAIL` (`PENDING`/`RUNNING` never emit); `failedResourceIds` is a **bounded identifier array** (≤ 20 entries, each ≤ 64 chars) — an explicit exception to the "no list contents" rule because entries are domain identifiers, not payload data |
 | `client_error` / `ssr_error` | `action.status`, `error.code`, `error.name`, `error.zodIssues[{path, code}]` | `error.name` matched against a fixed allowlist of known error classes, else `Error`; `zodIssues` ≤ 20 entries, `path` ≤ 128 chars, `code` validated against the closed Zod issue-code set (`invalid_type`, `invalid_enum_value`, `too_small`, `too_big`, `invalid_string`, `custom`, …complete set in the schema), unknown → `custom`, no messages |
