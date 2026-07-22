@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — 타깃소스 사용 이력 (Audit Event 목업)</title>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#F7F8FA; --surface:#FFFFFF; --line:#E4E7EC; --line-soft:#EEF0F4;
+    --ink:#101828; --ink-2:#475467; --ink-3:#98A2B3;
+    --primary:#2563EB; --primary-soft:#EFF4FF;
+    --ok:#00815C; --ok-bg:#E6F4EF; --err:#D92D20; --err-bg:#FEF0EF;
+    --warn:#B54708; --warn-bg:#FEF4E6; --info:#175CD3; --info-bg:#EFF4FF;
+    --neutral-bg:#F2F4F7;
+    --chrome:#101828; --chrome-item:#B9C0CC; --chrome-active-bg:#1D2939;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --radius:10px; --radius-in:8px;
+  }
+  /* 실제 admin 제품과 동일하게 라이트 고정 — 뷰어 다크 테마를 따르지 않음 */
+  :root[data-theme="dark"], :root[data-theme="light"]{
+    --bg:#F7F8FA; --surface:#FFFFFF; --line:#E4E7EC; --line-soft:#EEF0F4;
+    --ink:#101828; --ink-2:#475467; --ink-3:#98A2B3;
+    --primary:#2563EB; --primary-soft:#EFF4FF;
+    --ok:#00815C; --ok-bg:#E6F4EF; --err:#D92D20; --err-bg:#FEF0EF;
+    --warn:#B54708; --warn-bg:#FEF4E6; --info:#175CD3; --info-bg:#EFF4FF;
+    --neutral-bg:#F2F4F7;
+    --chrome:#101828; --chrome-item:#B9C0CC; --chrome-active-bg:#1D2939;
+  }
+  html{color-scheme:light}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    letter-spacing:-.01em}
+  .app{display:flex;min-height:100vh}
+  /* ── sidebar (실제 admin 디자인) ── */
+  .side{width:216px;flex-shrink:0;background:var(--chrome);color:var(--chrome-item);padding:20px 0}
+  .side .brand{padding:0 20px 18px;font-weight:700;color:#fff;font-size:15px;letter-spacing:-.2px}
+  .side .grp{padding:14px 20px 6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#667085}
+  .side a{display:block;padding:9px 20px;color:var(--chrome-item);font-size:14px;text-decoration:none;cursor:pointer}
+  .side a.on{background:var(--chrome-active-bg);color:#fff;box-shadow:inset 2px 0 0 var(--primary)}
+  .side a:hover:not(.on){color:#fff}
+  /* ── main ── */
+  .main{flex:1;min-width:0;padding:28px 32px 64px;max-width:1180px}
+  h1{font-size:20px;margin:0 0 4px;letter-spacing:-.3px}
+  .crumb{font-size:12.5px;color:var(--ink-3);margin-bottom:18px}
+  .crumb a{color:var(--primary);text-decoration:none;cursor:pointer}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:20px;overflow:hidden}
+  .card>.hd{padding:14px 18px;border-bottom:1px solid var(--line-soft);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .card>.hd b{font-size:15px}
+  .card>.hd .hint{font-size:12.5px;color:var(--ink-3)}
+  .scrollx{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{font-size:12px;color:var(--ink-3);text-align:left;font-weight:600;padding:10px 18px;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  td{padding:11px 18px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  tr.rowlink{cursor:pointer}
+  tr.rowlink:hover td{background:var(--primary-soft)}
+  .num{font-variant-numeric:tabular-nums}
+  /* ── badges ── */
+  .bdg{display:inline-block;padding:1.5px 8px;border-radius:4px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .b-ok{background:var(--ok-bg);color:var(--ok)} .b-err{background:var(--err-bg);color:var(--err)}
+  .b-warn{background:var(--warn-bg);color:var(--warn)} .b-info{background:var(--info-bg);color:var(--info)}
+  .b-mut{background:var(--neutral-bg);color:var(--ink-2)}
+  .chip{display:inline-block;padding:2px 9px;border:1px solid var(--line);border-radius:99px;font-size:12px;color:var(--ink-2)}
+  .uname{color:var(--primary);font-weight:600}
+  /* ── detail header ── */
+  .dethd{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:6px}
+  .dethd h1{margin:0}
+  .meta{font-size:13px;color:var(--ink-2);margin-bottom:18px;display:flex;gap:16px;flex-wrap:wrap}
+  .meta b{color:var(--ink)}
+  /* ── timeline ── */
+  .day{padding:12px 18px 4px;font-size:12px;color:var(--ink-3);font-weight:600}
+  .ev{display:grid;grid-template-columns:48px 130px 1fr;gap:12px;padding:11px 18px;
+      border-bottom:1px solid var(--line-soft);cursor:pointer;align-items:start}
+  .ev:hover{background:var(--primary-soft)}
+  .ev:last-child{border-bottom:0}
+  .ev .t{font-variant-numeric:tabular-nums;color:var(--ink-3);font-size:12.5px;padding-top:2px}
+  .ev .k{padding-top:1px}
+  .ev .tt{font-weight:600;font-size:13.5px}
+  .ev .sub{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+  .ev .who{font-size:12px;color:var(--ink-3);margin-top:3px}
+  .legend{font-size:12.5px;color:var(--ink-3);padding:10px 18px;border-top:1px solid var(--line-soft)}
+  /* ── modal ── */
+  .ovl{position:fixed;inset:0;background:rgba(10,14,20,.55);display:none;align-items:flex-start;
+       justify-content:center;padding:6vh 20px;z-index:50;overflow-y:auto}
+  .ovl.show{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:100%;
+         max-width:780px;box-shadow:0 24px 64px rgba(0,0,0,.28)}
+  .modal .mh{padding:18px 22px 14px;border-bottom:1px solid var(--line-soft)}
+  .modal .mh .sent{font-size:15px;font-weight:700;letter-spacing:-.2px;padding-right:28px}
+  .modal .mh .chips{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+  .modal .mb{padding:16px 22px 22px}
+  .modal .sec{font-size:12px;color:var(--ink-3);font-weight:600;letter-spacing:.04em;margin:18px 0 8px;text-transform:uppercase}
+  .modal .sec:first-child{margin-top:0}
+  .rect{width:100%;border:1px solid var(--line-soft);border-radius:var(--radius-in);overflow-x:auto}
+  .rect table{font-size:12.5px}
+  .rect td{padding:8px 12px}
+  .rect td:first-child{font-family:var(--mono);font-size:12px;color:var(--ink-2);white-space:nowrap;width:132px}
+  .rect td:nth-child(2){font-family:var(--mono);font-size:12px}
+  .rect td:nth-child(3){color:var(--ink-3);font-size:12px}
+  pre{background:var(--neutral-bg);border-radius:var(--radius-in);padding:14px 16px;margin:0;
+      font:12px/1.6 var(--mono);overflow-x:auto;color:var(--ink)}
+  .note{font-size:12px;color:var(--ink-3);margin-top:10px;line-height:1.6}
+  .mclose{float:right;background:none;border:0;color:var(--ink-3);font-size:20px;cursor:pointer;padding:0;line-height:1}
+  .hide{display:none}
+  /* ── 확인 필요 red dot ── */
+  .side a{display:flex;align-items:center;gap:8px}
+  .dot{width:7px;height:7px;border-radius:99px;background:#F04438;flex-shrink:0;
+       box-shadow:0 0 0 3px rgba(240,68,56,.22)}
+  .cnt{margin-left:auto;background:#F04438;color:#fff;font-size:11px;font-weight:700;
+       border-radius:99px;padding:0 7px;line-height:18px}
+  .sqlnote{font:11.5px/1.7 var(--mono);background:var(--neutral-bg);border-radius:var(--radius-in);
+       padding:10px 14px;margin:0 18px 14px;color:var(--ink-2);overflow-x:auto;white-space:pre}
+</style>
+
+<div class="app">
+  <nav class="side">
+    <div class="brand">PII Agent Admin</div>
+    <div class="grp">파이프라인 오케스트레이션</div>
+    <a>파이프라인 현황</a><a>Task Queue</a>
+    <div class="grp">사용 이력 (Audit)</div>
+    <a id="nav-list" class="on" onclick="showList()">타깃소스 조회</a>
+    <a id="nav-attn" onclick="showAttn()"><span class="dot"></span>확인 필요<span class="cnt">3</span></a>
+    <div class="grp">설정</div>
+    <a>서비스 관리</a>
+  </nav>
+
+  <main class="main">
+    <!-- ══════════ LIST VIEW ══════════ -->
+    <section id="v-list">
+      <h1>타깃소스 사용 이력</h1>
+      <div class="crumb">전체 1,987건 중 최근 활동 순 · 검색: 타깃소스명 / 서비스 / 담당자</div>
+      <div class="card"><div class="scrollx">
+        <table>
+          <tr><th>타깃소스</th><th>서비스</th><th>Provider</th><th>최근 활동</th><th>24h Action</th><th>24h 오류</th><th>담당자</th></tr>
+          <tr class="rowlink" onclick="openDetail()">
+            <td><b>#1027 ora-pay-primary</b></td><td>결제서비스</td><td><span class="bdg b-mut">IDC</span></td>
+            <td class="num">11분 전</td><td class="num">4</td><td class="num"><span class="bdg b-err">2</span></td>
+            <td><span class="chip">chulsu.kim</span> <span class="chip">cyong12.park</span></td></tr>
+          <tr class="rowlink" onclick="openDetail()">
+            <td><b>#2013 aurora-settle</b></td><td>정산서비스</td><td><span class="bdg b-mut">AWS</span></td>
+            <td class="num">2시간 전</td><td class="num">1</td><td class="num">0</td>
+            <td><span class="chip">younghee.lee</span></td></tr>
+          <tr class="rowlink" onclick="openDetail()">
+            <td><b>#1590 pg-member-01</b></td><td>회원서비스</td><td><span class="bdg b-mut">GCP</span></td>
+            <td class="num">어제</td><td class="num">0</td><td class="num">0</td>
+            <td><span class="chip">minsu.choi</span></td></tr>
+        </table>
+      </div></div>
+    </section>
+
+    <!-- ══════════ 확인 필요 VIEW ══════════ -->
+    <section id="v-attn" class="hide">
+      <h1>확인 필요</h1>
+      <div class="crumb">저장된 Audit Event를 최근 24시간 창으로 집계한 목록 — 집계(count)만 하며, 부가 판정은 하지 않습니다</div>
+
+      <div class="card">
+        <div class="hd"><b>24시간 내 오류가 발생한 타깃소스</b><span class="hint">eventType이 오류(client_error · ssr_error)인 이벤트 기준 · 3건</span></div>
+        <div class="scrollx">
+          <table>
+            <tr><th>타깃소스</th><th>서비스</th><th>오류 24h</th><th>마지막 오류</th><th>마지막 오류 내용</th><th>담당자</th></tr>
+            <tr class="rowlink" onclick="openDetail()">
+              <td><b>#1027 ora-pay-primary</b></td><td>결제서비스</td>
+              <td class="num"><span class="bdg b-err">2</span></td><td class="num">11:53</td>
+              <td>사용 중 오류 — 응답의 상태값을 화면이 해석하지 못함</td>
+              <td><span class="chip">cyong12.park</span></td></tr>
+            <tr class="rowlink" onclick="openDetail()">
+              <td><b>#2044 mysql-order-03</b></td><td>주문서비스</td>
+              <td class="num"><span class="bdg b-err">1</span></td><td class="num">08:21</td>
+              <td>페이지를 여는 중 오류 — 페이지가 뜨지 않음 (504)</td>
+              <td><span class="chip">minsu.choi</span></td></tr>
+            <tr class="rowlink" onclick="openDetail()">
+              <td><b>#1733 pg-coupon-01</b></td><td>쿠폰서비스</td>
+              <td class="num"><span class="bdg b-err">1</span></td><td class="num">07:44</td>
+              <td>사용 중 오류 — 리소스 목록 조회 실패 (502)</td>
+              <td><span class="chip">jaeho.jung</span></td></tr>
+          </table>
+        </div>
+        <div class="sqlnote">SELECT target_source_id, count(*) FROM audit_event
+ WHERE event_type IN ('client_error','ssr_error') AND ts &gt; now() - 24h
+ GROUP BY target_source_id   -- 저장된 사실의 집계일 뿐, 새로운 판단 없음</div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><b>24시간 내 실패한 사용자 Action이 있는 타깃소스</b><span class="hint">Action 결과가 실패(4xx/5xx · FAIL/TIMEOUT)인 이벤트 기준 · 2건</span></div>
+        <div class="scrollx">
+          <table>
+            <tr><th>타깃소스</th><th>서비스</th><th>실패 Action 24h</th><th>마지막 실패</th><th>내용</th></tr>
+            <tr class="rowlink" onclick="openDetail()">
+              <td><b>#1027 ora-pay-primary</b></td><td>결제서비스</td>
+              <td class="num"><span class="bdg b-err">2</span></td><td class="num">11:52</td>
+              <td>연결 테스트 실패 (12개 중 2개) · 설치 확정 409</td></tr>
+            <tr class="rowlink" onclick="openDetail()">
+              <td><b>#2044 mysql-order-03</b></td><td>주문서비스</td>
+              <td class="num"><span class="bdg b-err">1</span></td><td class="num">08:15</td>
+              <td>스캔 실패 (TIMEOUT · 3분 2초)</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><b>서비스별 요약 (24h)</b><span class="hint">같은 이벤트를 serviceCode로 묶은 것</span></div>
+        <div class="scrollx">
+          <table>
+            <tr><th>서비스</th><th>오류 발생 타깃소스</th><th>오류 건수</th><th>실패 Action</th></tr>
+            <tr><td><b>결제서비스 (PAY)</b></td><td class="num">1</td><td class="num">2</td><td class="num">2</td></tr>
+            <tr><td><b>주문서비스 (ORD)</b></td><td class="num">1</td><td class="num">1</td><td class="num">1</td></tr>
+            <tr><td><b>쿠폰서비스 (CPN)</b></td><td class="num">1</td><td class="num">1</td><td class="num">0</td></tr>
+          </table>
+        </div>
+        <div class="legend">사이드바의 빨간 표시(●3)는 첫 번째 표의 행 수 — "24시간 내 오류가 발생한 타깃소스 수"입니다. 0이 되면 표시가 꺼집니다.</div>
+      </div>
+    </section>
+
+    <!-- ══════════ DETAIL VIEW ══════════ -->
+    <section id="v-detail" class="hide">
+      <div class="crumb"><a onclick="backToList()">타깃소스 사용 이력</a> / #1027</div>
+      <div class="dethd">
+        <h1>#1027 ora-pay-primary</h1>
+        <span class="bdg b-mut">IDC</span>
+        <span class="bdg b-info">현재 단계: 연결 테스트 대기</span>
+      </div>
+      <div class="meta">
+        <span>서비스 <b>결제서비스 (PAY)</b></span>
+        <span>담당자 <span class="chip">chulsu.kim</span> <span class="chip">cyong12.park</span></span>
+        <span>이벤트(7일) <b class="num">41건</b></span>
+        <span>오류(7일) <b class="num">3건</b></span>
+      </div>
+
+      <!-- ── ① 사용자 Action 이력 (분리 뷰) ── -->
+      <div class="card">
+        <div class="hd"><b>사용자 Action 이력</b><span class="hint">버튼으로 한 행동과 그 결과 — 행 클릭 시 Audit Event 원본</span></div>
+        <div class="scrollx">
+          <table id="tbl-actions">
+            <tr><th>시각</th><th>담당자</th><th>Action</th><th>당시 단계</th><th>결과</th></tr>
+          </table>
+        </div>
+        <div class="legend">비동기 Action(스캔 · 연결 테스트)의 결과는 별도 이벤트로 저장되며, 같은 작업 번호(scan_version 등)로 연결해 한 행에 표시합니다.</div>
+      </div>
+
+      <!-- ── ② 전체 이력 ── -->
+      <div class="card">
+        <div class="hd"><b>전체 이력</b><span class="hint">방문 · 화면 조회 · Action · 오류 — 최신순, 행 클릭 시 Audit Event 원본</span></div>
+        <div id="timeline"></div>
+        <div class="legend">모든 행은 Frontend가 관찰 시점에 만든 Audit Event 1건입니다. 이벤트를 이어붙인 해석(재방문 · 복구 등)은 만들지 않습니다.</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ══════════ MODAL: Audit Event 상세 ══════════ -->
+<div class="ovl" id="ovl" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="mh">
+      <button class="mclose" onclick="closeModal()">×</button>
+      <div class="sent" id="m-title"></div>
+      <div class="chips" id="m-chips"></div>
+    </div>
+    <div class="mb">
+      <div class="sec">저장된 구조화 레코드 (필드 · 값 · 의미)</div>
+      <div class="rect"><table id="m-rec"></table></div>
+      <div class="sec">전송된 이벤트 원문 (FE → 수집 API)</div>
+      <pre id="m-json"></pre>
+      <div class="note">actor는 브라우저가 보낸 값이 아니라 FE 서버가 세션에서 확정한 값입니다. 응답에서 복사하는 값은 허용 목록(상태값 · 개수 · 소요시간 · 도메인 식별자)에 한하며, 자유 텍스트(오류 메시지 원문 등)는 저장하지 않고 requestId로 진단 로그에서만 확인합니다.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Audit Event 데이터: 실제 함수명(startScan, getConfirmResources, confirmInstallation,
+//     triggerTestConnection, getTestedLogicalDatabases)과 실제 응답 필드 기준 ───
+const KB = {page_view:['b-info','페이지 방문'], screen_read:['b-mut','화면 조회'],
+  action:['b-warn','사용자 Action'], action_result:['b-warn','Action 결과'],
+  client_error:['b-err','오류 · 사용 중'], ssr_error:['b-err','오류 · 페이지 여는 중']};
+const STAGE = 'WAITING_CONNECTION_TEST';
+
+const EVENTS = [
+ {day:'오늘 · 07-23', t:'11:53', kind:'client_error', u:'cyong12.park',
+  title:'사용 중 오류 — 응답의 상태값을 화면이 해석하지 못함',
+  sub:'연결 테스트 결과 조회는 200이었지만 connection_status 값이 화면이 아는 스키마에 없어 검증(zod)에서 실패',
+  rec:[
+   ['eventType','client_error','화면 사용 중 잡힌 오류'],
+   ['actor','cyong12.park · customer','FE 서버가 세션에서 확정'],
+   ['page','/target-sources/:id','어느 페이지에서'],
+   ['action','getTestConnectionLatest · GET · 200','무엇을 하다가 — API는 정상 응답'],
+   ['error.name','ZodError','오류 종류(고정 심볼) — 메시지 원문은 미저장'],
+   ['error.zodIssues','[{path: connection_status, code: invalid_enum_value}]','어느 필드가 왜 실패했나'],
+   ['correlation','req-b81e22df · target #1027 · svc PAY','BFF 로그와 잇는 열쇠'],
+   ['domainContext','processStatus='+STAGE+' · provider=IDC','이벤트 순간의 진행 단계'],
+  ],
+  json:{eventType:'client_error',ts:'2026-07-23T11:53:40+09:00',
+   actor:{userId:'cyong12.park',role:'customer'},
+   page:{template:'/target-sources/:id'},
+   action:{name:'getTestConnectionLatest',method:'GET',status:200},
+   error:{name:'ZodError',zodIssues:[{path:'connection_status',code:'invalid_enum_value'}]},
+   correlation:{requestId:'req-b81e22df',targetSourceId:1027,serviceCode:'PAY'},
+   domainContext:{processStatus:STAGE,provider:'IDC'}}},
+
+ {day:'오늘 · 07-23', t:'11:52', kind:'action_result', u:'cyong12.park',
+  title:'연결 테스트 결과: 실패 — 12개 리소스 중 2개 실패',
+  sub:'응답의 리소스별 결과 배열에서 FAIL 2건 · 6분 35초 소요 (test_connection_version 7)',
+  rec:[
+   ['eventType','action_result','비동기 Action의 종료 결과'],
+   ['actor','cyong12.park · customer','FE 서버가 세션에서 확정'],
+   ['action','triggerTestConnection → settle','어떤 행동의 결과인가'],
+   ['outcome','FAIL','응답의 connection_status 그대로'],
+   ['detail','{total: 12, fail: 2, failedResourceIds: [ora-03, ora-07]}','리소스별 결과 배열의 구조화 요약 — resource_id는 도메인 식별자라 저장 가능'],
+   ['duration','395초','requested_at → completed_at'],
+   ['link','test_connection_version=7','시작 이벤트와 잇는 작업 번호'],
+   ['correlation','req-9a03c1b2 · target #1027 · svc PAY',''],
+   ['domainContext','processStatus='+STAGE+' · provider=IDC',''],
+  ],
+  json:{eventType:'action_result',ts:'2026-07-23T11:52:12+09:00',
+   actor:{userId:'cyong12.park',role:'customer'},
+   page:{template:'/target-sources/:id'},
+   action:{name:'triggerTestConnection'},
+   outcome:{status:'FAIL',detail:{total:12,fail:2,failedResourceIds:['ora-03','ora-07']},durationSec:395,link:{testConnectionVersion:7}},
+   correlation:{requestId:'req-9a03c1b2',targetSourceId:1027,serviceCode:'PAY'},
+   domainContext:{processStatus:STAGE,provider:'IDC'}}},
+
+ {day:'오늘 · 07-23', t:'11:45', kind:'action', u:'cyong12.park',
+  title:'연결 테스트 시작',
+  sub:'triggerTestConnection · POST · 202 접수 — 결과는 별도 이벤트(11:52)로',
+  rec:[
+   ['eventType','action','버튼으로 시작한 행동'],
+   ['actor','cyong12.park · customer','FE 서버가 세션에서 확정'],
+   ['action','triggerTestConnection · POST · 202','접수됨 — 결과는 아직 모름'],
+   ['link','test_connection_version=7','결과 이벤트와 잇는 작업 번호'],
+   ['correlation','req-4c11e09d · target #1027 · svc PAY',''],
+   ['domainContext','processStatus='+STAGE+' · provider=IDC',''],
+  ],
+  json:{eventType:'action',ts:'2026-07-23T11:45:37+09:00',
+   actor:{userId:'cyong12.park',role:'customer'},
+   page:{template:'/target-sources/:id'},
+   action:{name:'triggerTestConnection',method:'POST',status:202,link:{testConnectionVersion:7}},
+   correlation:{requestId:'req-4c11e09d',targetSourceId:1027,serviceCode:'PAY'},
+   domainContext:{processStatus:STAGE,provider:'IDC'}}},
+
+ {day:'오늘 · 07-23', t:'11:42', kind:'screen_read', u:'cyong12.park',
+  title:'테스트된 논리 DB 목록 조회',
+  sub:'getTestedLogicalDatabases · GET · 200 · 8건 · 112ms',
+  rec:[
+   ['eventType','screen_read','사용자가 화면을 열어 발생한 단발 조회'],
+   ['actor','cyong12.park · customer',''],
+   ['action','getTestedLogicalDatabases · GET · 200','무엇을 조회했나'],
+   ['outcome','{count: 8}','응답 건수만 — 목록 내용은 미저장'],
+   ['duration','112ms','호출 소요 시간'],
+   ['correlation','req-e290ffa1 · target #1027 · svc PAY',''],
+   ['domainContext','processStatus='+STAGE+' · provider=IDC',''],
+  ],
+  json:{eventType:'screen_read',ts:'2026-07-23T11:42:00+09:00',
+   actor:{userId:'cyong12.park',role:'customer'},
+   page:{template:'/target-sources/:id'},
+   action:{name:'getTestedLogicalDatabases',method:'GET',status:200,durationMs:112},
+   outcome:{count:8},
+   correlation:{requestId:'req-e290ffa1',targetSourceId:1027,serviceCode:'PAY'},
+   domainContext:{processStatus:STAGE,provider:'IDC'}}},
+
+ {day:'오늘 · 07-23', t:'11:40', kind:'page_view', u:'cyong12.park',
+  title:'타깃소스 상세 페이지 접속',
+  sub:'페이지 열기 성공 · 서버 생성 287ms',
+  rec:[
+   ['eventType','page_view','페이지를 열었다 (서버가 페이지 생성에 성공)'],
+   ['actor','cyong12.park · customer',''],
+   ['page','/target-sources/:id','실제 id는 correlation에'],
+   ['duration','287ms','서버가 페이지를 만드는 데 걸린 시간'],
+   ['correlation','req-cc71b0e4 · target #1027 · svc PAY',''],
+  ],
+  json:{eventType:'page_view',ts:'2026-07-23T11:40:19+09:00',
+   actor:{userId:'cyong12.park',role:'customer'},
+   page:{template:'/target-sources/:id',renderMs:287},
+   correlation:{requestId:'req-cc71b0e4',targetSourceId:1027,serviceCode:'PAY'}}},
+
+ {day:'오늘 · 07-23', t:'10:03', kind:'action', u:'chulsu.kim',
+  title:'설치 확정 요청 → 성공',
+  sub:'confirmInstallation · POST · 200 — 09:58 실패(409) 후 재시도',
+  rec:[
+   ['eventType','action','동기 Action — 결과가 즉시 응답으로 옴'],
+   ['actor','chulsu.kim · customer',''],
+   ['action','confirmInstallation · POST · 200','성공'],
+   ['correlation','req-1f60aa27 · target #1027 · svc PAY',''],
+   ['domainContext','processStatus=CONFIRMING · provider=IDC','당시엔 설치 확인 중 단계'],
+  ],
+  json:{eventType:'action',ts:'2026-07-23T10:03:05+09:00',
+   actor:{userId:'chulsu.kim',role:'customer'},
+   page:{template:'/target-sources/:id'},
+   action:{name:'confirmInstallation',method:'POST',status:200},
+   correlation:{requestId:'req-1f60aa27',targetSourceId:1027,serviceCode:'PAY'},
+   domainContext:{processStatus:'CONFIRMING',provider:'IDC'}}},
+
+ {day:'오늘 · 07-23', t:'09:58', kind:'action', u:'chulsu.kim',
+  title:'설치 확정 요청 → 실패 (이미 확정됨)',
+  sub:'confirmInstallation · POST · 409 · code=ALREADY_CONFIRMED',
+  rec:[
+   ['eventType','action','동기 Action — 실패 결과 포함'],
+   ['actor','chulsu.kim · customer',''],
+   ['action','confirmInstallation · POST · 409','HTTP 결과'],
+   ['error.code','ALREADY_CONFIRMED','BFF가 준 고정 코드 — 메시지 원문은 미저장'],
+   ['correlation','req-08d3b7c5 · target #1027 · svc PAY',''],
+   ['domainContext','processStatus=CONFIRMING · provider=IDC',''],
+  ],
+  json:{eventType:'action',ts:'2026-07-23T09:58:44+09:00',
+   actor:{userId:'chulsu.kim',role:'customer'},
+   page:{template:'/target-sources/:id'},
+   action:{name:'confirmInstallation',method:'POST',status:409},
+   error:{code:'ALREADY_CONFIRMED'},
+   correlation:{requestId:'req-08d3b7c5',targetSourceId:1027,serviceCode:'PAY'},
+   domainContext:{processStatus:'CONFIRMING',provider:'IDC'}}},
+
+ {day:'오늘 · 07-23', t:'09:18', kind:'action_result', u:'chulsu.kim',
+  title:'스캔 결과: 성공 — 2분 41초, 리소스 34개 발견',
+  sub:'scan_status=SUCCESS · ORACLE 12 · MYSQL 22 (scan_version 4)',
+  rec:[
+   ['eventType','action_result','비동기 Action의 종료 결과'],
+   ['actor','chulsu.kim · customer',''],
+   ['action','startScan → settle','어떤 행동의 결과인가'],
+   ['outcome','SUCCESS','응답의 scan_status 그대로'],
+   ['detail','{ORACLE: 12, MYSQL: 22}','resource_count_by_resource_type 그대로'],
+   ['duration','161초','응답의 duration_seconds 그대로'],
+   ['link','scan_version=4','시작 이벤트와 잇는 작업 번호'],
+   ['correlation','req-3f8a01cc · target #1027 · svc PAY',''],
+   ['domainContext','processStatus=WAITING_TARGET_CONFIRMATION · provider=IDC','당시엔 대상 확정 대기'],
+  ],
+  json:{eventType:'action_result',ts:'2026-07-23T09:18:03+09:00',
+   actor:{userId:'chulsu.kim',role:'customer'},
+   page:{template:'/target-sources/:id'},
+   action:{name:'startScan'},
+   outcome:{status:'SUCCESS',detail:{ORACLE:12,MYSQL:22},durationSec:161,link:{scanVersion:4}},
+   correlation:{requestId:'req-3f8a01cc',targetSourceId:1027,serviceCode:'PAY'},
+   domainContext:{processStatus:'WAITING_TARGET_CONFIRMATION',provider:'IDC'}}},
+
+ {day:'오늘 · 07-23', t:'09:15', kind:'action', u:'chulsu.kim',
+  title:'스캔 시작',
+  sub:'startScan · POST · 202 접수 — 결과는 별도 이벤트(09:18)로',
+  rec:[
+   ['eventType','action','버튼으로 시작한 행동'],
+   ['actor','chulsu.kim · customer',''],
+   ['action','startScan · POST · 202','접수됨 — 결과는 아직 모름'],
+   ['link','scan_version=4','결과 이벤트와 잇는 작업 번호'],
+   ['correlation','req-51b9d2e8 · target #1027 · svc PAY',''],
+   ['domainContext','processStatus=WAITING_TARGET_CONFIRMATION · provider=IDC',''],
+  ],
+  json:{eventType:'action',ts:'2026-07-23T09:15:22+09:00',
+   actor:{userId:'chulsu.kim',role:'customer'},
+   page:{template:'/target-sources/:id'},
+   action:{name:'startScan',method:'POST',status:202,link:{scanVersion:4}},
+   correlation:{requestId:'req-51b9d2e8',targetSourceId:1027,serviceCode:'PAY'},
+   domainContext:{processStatus:'WAITING_TARGET_CONFIRMATION',provider:'IDC'}}},
+
+ {day:'오늘 · 07-23', t:'09:12', kind:'screen_read', u:'chulsu.kim',
+  title:'확정 리소스 목록 조회',
+  sub:'getConfirmResources · GET · 200 · 34건 · 164ms',
+  rec:[
+   ['eventType','screen_read','사용자가 화면을 열어 발생한 단발 조회'],
+   ['actor','chulsu.kim · customer',''],
+   ['action','getConfirmResources · GET · 200',''],
+   ['outcome','{count: 34}','건수만 — 목록 내용은 미저장'],
+   ['duration','164ms',''],
+   ['correlation','req-77d1a3f0 · target #1027 · svc PAY',''],
+   ['domainContext','processStatus=WAITING_TARGET_CONFIRMATION · provider=IDC',''],
+  ],
+  json:{eventType:'screen_read',ts:'2026-07-23T09:12:41+09:00',
+   actor:{userId:'chulsu.kim',role:'customer'},
+   page:{template:'/target-sources/:id'},
+   action:{name:'getConfirmResources',method:'GET',status:200,durationMs:164},
+   outcome:{count:34},
+   correlation:{requestId:'req-77d1a3f0',targetSourceId:1027,serviceCode:'PAY'},
+   domainContext:{processStatus:'WAITING_TARGET_CONFIRMATION',provider:'IDC'}}},
+
+ {day:'오늘 · 07-23', t:'09:12', kind:'page_view', u:'chulsu.kim',
+  title:'타깃소스 상세 페이지 접속',
+  sub:'페이지 열기 성공 · 서버 생성 312ms',
+  rec:[
+   ['eventType','page_view','페이지를 열었다'],
+   ['actor','chulsu.kim · customer',''],
+   ['page','/target-sources/:id',''],
+   ['duration','312ms','서버가 페이지를 만드는 데 걸린 시간'],
+   ['correlation','req-d02e91ba · target #1027 · svc PAY',''],
+  ],
+  json:{eventType:'page_view',ts:'2026-07-23T09:12:04+09:00',
+   actor:{userId:'chulsu.kim',role:'customer'},
+   page:{template:'/target-sources/:id',renderMs:312},
+   correlation:{requestId:'req-d02e91ba',targetSourceId:1027,serviceCode:'PAY'}}},
+
+ {day:'어제 · 07-22', t:'17:06', kind:'page_view', u:'younghee.lee',
+  title:'타깃소스 상세 페이지 접속',
+  sub:'페이지 열기 성공 · 서버 생성 298ms — 직전 17:05에 여는 중 오류 있음',
+  rec:[
+   ['eventType','page_view','페이지를 열었다'],
+   ['actor','younghee.lee · operator',''],
+   ['page','/target-sources/:id',''],
+   ['duration','298ms',''],
+   ['correlation','req-6a80cd13 · target #1027 · svc PAY',''],
+  ],
+  json:{eventType:'page_view',ts:'2026-07-22T17:06:02+09:00',
+   actor:{userId:'younghee.lee',role:'operator'},
+   page:{template:'/target-sources/:id',renderMs:298},
+   correlation:{requestId:'req-6a80cd13',targetSourceId:1027,serviceCode:'PAY'}}},
+
+ {day:'어제 · 07-22', t:'17:05', kind:'ssr_error', u:'younghee.lee',
+  title:'페이지를 여는 중 오류 — 페이지가 뜨지 않음',
+  sub:'서버가 페이지 생성 중 BFF 호출 실패 (targetSources.get · 504) · error.name=UpstreamTimeoutError',
+  rec:[
+   ['eventType','ssr_error','페이지를 여는 중(서버 생성) 실패 — 고객은 오류 화면을 봄'],
+   ['actor','younghee.lee · operator','세션에서 확정 (페이지는 못 떴어도 요청자는 앎)'],
+   ['page','/target-sources/:id','서버가 스스로 기록한 렌더 대상 페이지'],
+   ['action','targetSources.get · GET · 504','페이지 생성에 필요했던 BFF 호출'],
+   ['error.name','UpstreamTimeoutError','고정 심볼 — 메시지 원문은 진단 로그에만'],
+   ['correlation','req-30e77f19 · target #1027 · svc PAY',''],
+  ],
+  json:{eventType:'ssr_error',ts:'2026-07-22T17:05:11+09:00',
+   actor:{userId:'younghee.lee',role:'operator'},
+   page:{template:'/target-sources/:id'},
+   action:{name:'targetSources.get',method:'GET',status:504},
+   error:{name:'UpstreamTimeoutError'},
+   correlation:{requestId:'req-30e77f19',targetSourceId:1027,serviceCode:'PAY'}}},
+];
+
+// ─── Action 분리 뷰: action + action_result를 작업 번호로 짝지어 한 행 ───
+const ACTION_ROWS = [
+ {t:'11:45', u:'cyong12.park', name:'연결 테스트', stage:'연결 테스트 대기',
+  result:['b-err','실패 — 12개 중 2개 (6분 35초)'], evIdx:1},
+ {t:'10:03', u:'chulsu.kim', name:'설치 확정', stage:'설치 확인 중',
+  result:['b-ok','성공'], evIdx:5},
+ {t:'09:58', u:'chulsu.kim', name:'설치 확정', stage:'설치 확인 중',
+  result:['b-err','실패 — 이미 확정됨 (409)'], evIdx:6},
+ {t:'09:15', u:'chulsu.kim', name:'스캔', stage:'대상 확정 대기',
+  result:['b-ok','성공 — 리소스 34개 (2분 41초)'], evIdx:7},
+];
+
+// ─── render ───
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function renderTimeline(){
+  const el = document.getElementById('timeline');
+  let html = '', day = '';
+  EVENTS.forEach((e,i)=>{
+    if(e.day!==day){day=e.day;html+=`<div class="day">${day}</div>`;}
+    const [cls,label]=KB[e.kind];
+    html+=`<div class="ev" onclick="openModal(${i})">
+      <div class="t">${e.t}</div>
+      <div class="k"><span class="bdg ${cls}">${label}</span></div>
+      <div><div class="tt">${esc(e.title)}</div>
+        <div class="sub">${esc(e.sub)}</div>
+        <div class="who"><span class="uname">${e.u}</span></div></div></div>`;
+  });
+  el.innerHTML = html;
+}
+function renderActions(){
+  const tbl = document.getElementById('tbl-actions');
+  ACTION_ROWS.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.className='rowlink';
+    tr.onclick=()=>openModal(r.evIdx);
+    tr.innerHTML=`<td class="num">${r.t}</td><td><span class="uname">${r.u}</span></td>
+      <td><b>${r.name}</b></td><td>${r.stage}</td>
+      <td><span class="bdg ${r.result[0]}">${esc(r.result[1])}</span></td>`;
+    tbl.appendChild(tr);
+  });
+}
+function openModal(i){
+  const e = EVENTS[i], [cls,label]=KB[e.kind];
+  document.getElementById('m-title').textContent = e.title;
+  document.getElementById('m-chips').innerHTML =
+    `<span class="bdg ${cls}">${label}</span><span class="chip">${e.day.split(' · ')[1]} ${e.t}</span><span class="chip">${e.u}</span>`;
+  document.getElementById('m-rec').innerHTML =
+    e.rec.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('');
+  document.getElementById('m-json').textContent = JSON.stringify(e.json,null,2);
+  document.getElementById('ovl').classList.add('show');
+}
+function closeModal(){document.getElementById('ovl').classList.remove('show');}
+function show(id,nav){
+  ['v-list','v-attn','v-detail'].forEach(v=>document.getElementById(v).classList.toggle('hide',v!==id));
+  document.getElementById('nav-list').classList.toggle('on',nav==='list');
+  document.getElementById('nav-attn').classList.toggle('on',nav==='attn');
+  window.scrollTo(0,0);
+}
+function openDetail(){show('v-detail','list');}
+function backToList(){show('v-list','list');}
+function showList(){show('v-list','list');}
+function showAttn(){show('v-attn','attn');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+renderTimeline(); renderActions();
+</script>
+</body>
+</html>

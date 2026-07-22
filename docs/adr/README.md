@@ -24,6 +24,7 @@
 | [ADR-021](./021-pipeline-execution-model.md) | Install/Delete Pipeline — Claim-Pull Execution Model | Proposed | 2026-06-27 |
 | [ADR-022](./022-terminal-state-notification.md) | Install/Delete 파이프라인 — 종단 상태 알림(state-derived notification) | Proposed | 2026-07-01 |
 | [ADR-024](./024-standalone-asset-serving-and-env-validation.md) | Standalone Asset Serving + Environment Validation | Accepted | 2026-07-11 |
+| [ADR-025](./025-frontend-audit-event-emission.md) | Frontend Audit Event Emission | Proposed | 2026-07-23 |
 
 ## ADR 작성 규칙
 
