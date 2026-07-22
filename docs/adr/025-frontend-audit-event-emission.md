@@ -29,10 +29,14 @@ screens. It does **not** cover:
   carry the denied API path in a separate normalized `route.template` field
   (an API path is not a page template, and `surfaceOf()` classifies page
   prefixes only — `surface` derives from `page.template` when present, else
-  from a route-prefix mapping defined in Phase 3). The envelope below
-  is unchanged by it; adding the type is an **additive, coordinated enum
-  extension** (FE ingest schema and BFF column enum are extended together in
-  Phase 3 — it is a schema change, just a compatible one).
+  from a route-prefix mapping defined in Phase 3). The variant requires
+  **exactly one location field** (`page.template` for page-level denials,
+  `route.template` for API-level denials) — a stated exception to the
+  common-required `page.template` rule. Adding the type changes no existing
+  field; it adds the enum value and the `route.template` column as an
+  **additive, coordinated schema extension** (FE ingest schema and BFF
+  schema extended together in Phase 3 — a schema change, just a compatible
+  one).
 
 ## Context
 
@@ -207,11 +211,11 @@ The exact matrix (start set; extending it is a reviewed change):
 | eventType | Allowed response-derived fields | Caps / validation |
 |---|---|---|
 | `screen_read` | `outcome.count` | non-negative integer |
-| `action` (sync) | `action.status`, `error.code` | status = HTTP int; `code` validated against the known BFF code set, unknown → `UNKNOWN` |
+| `action` (sync) | `action.status`, `error.code` | status = valid HTTP int, or `0` (no-response sentinel) **only when** paired with `error.code` `NETWORK`/`TIMEOUT`; `code` validated against the known BFF code set **plus the client-side codes** `NETWORK`/`TIMEOUT`/`UNKNOWN` (`lib/errors.ts` — these never come from the BFF), unknown → `UNKNOWN` |
 | `action` (async trigger) | `action.status`, `job.key` (= `scan_version` or fallback `id`; test connection: none until the Phase 1 contract lands) | `job.key` = integer or string ≤ 64 chars |
 | `action_result` (scan) | `outcome.status` (= `scan_status`), `outcome.durationSec`, `outcome.detail` (= `resource_count_by_resource_type`), `job.key` | status validated against the **exact settle set** `SUCCESS`/`FAIL`/`TIMEOUT`/`CANCELED`, unknown → `UNKNOWN`; detail = map with ≤ 20 keys, each key ≤ 32 chars (resource-type symbol), values non-negative int |
 | `action_result` (test connection) | `outcome.status` (= `connection_status`), `outcome.total`, `outcome.fail`, `outcome.failedResourceIds`, `outcome.durationSec` (= `completed_at − requested_at`), `job.key` | status validated against the **exact settle set** `SUCCESS`/`FAIL` (`PENDING`/`RUNNING` never emit); `failedResourceIds` is a **bounded identifier array** (≤ 20 entries, each ≤ 64 chars) — an explicit exception to the "no list contents" rule because entries are domain identifiers, not payload data |
-| `client_error` / `ssr_error` | `action.status`, `error.code`, `error.name`, `error.zodIssues[{path, code}]` | `error.name` matched against a fixed allowlist of known error classes, else `Error`; `zodIssues` ≤ 20 entries, `path` ≤ 128 chars, no messages |
+| `client_error` / `ssr_error` | `action.status`, `error.code`, `error.name`, `error.zodIssues[{path, code}]` | `error.name` matched against a fixed allowlist of known error classes, else `Error`; `zodIssues` ≤ 20 entries, `path` ≤ 128 chars, `code` validated against the closed Zod issue-code set (`invalid_type`, `invalid_enum_value`, `too_small`, `too_big`, `invalid_string`, `custom`, …complete set in the schema), unknown → `custom`, no messages |
 | `page_view` | `detail.renderMs` | non-negative integer |
 
 General rules:
@@ -236,7 +240,9 @@ browser  — builds the event at the observation site (fetchJson wrapper /
            poll settle / error boundary), batches, POSTs to the FE ingest route
 FE server — validates against the ingest schema (closed enums, caps, shapes);
            overwrites actor{userId, role} from the session (client-sent
-           identity is never adopted); stamps receivedAt, origin, surface;
+           identity is never adopted); stamps receivedAt, origin, surface,
+           and clockSkew (only after its own clamping decision — any
+           client-sent clockSkew is ignored);
            verifies the session user is authorized for the claimed
            correlation.targetSourceId (reusing the domain access check) and
            rejects the event otherwise; derives serviceCode from the
@@ -250,7 +256,14 @@ BFF      — stores structured fields only; enforces the §2 idempotency key
 
 The **ingest schema and the stored schema are distinct**: the ingest schema
 is what the browser may claim (no `actor`, no `origin`, no `receivedAt`,
-no `surface`); the stored schema adds the server-stamped fields. Browser
+no `surface`, no `clockSkew`); the stored schema adds the server-stamped
+fields. The two ingress paths accept **different unions**: browser ingress
+accepts only browser-originated variants (`screen_read`, `action`,
+`action_result`, `client_error`, and the browser `page_view` — which has no
+`detail.renderMs`); the server-only variants (`ssr_error`, the SSR
+`page_view` with `renderMs`) are constructed in-process by the FE server and
+are **rejected on browser ingress**, so no impossible type/origin
+combination can be stored. Browser
 events are therefore *authenticated assertions*: identity, time-of-record,
 origin, and target authorization are server-verified, while observation
 content (outcome, detail) is accepted as-is — the server cannot see what the

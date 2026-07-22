@@ -109,9 +109,9 @@ code 없는 에러는 DB엔 `status`·`requestId`·`error.name`(+ 권고안 채�
 
 ## 5. 무엇이 추적되나 — 되는 것 / 구현이 필요한 것
 
-**확실히 되는 것**: surface로 화면 구분(같은 API라도) · 누가·어떤 API·어떤 페이지(userId·clientAction·pageTemplate) ·
+**확실히 되는 것**: surface로 화면 구분(같은 API라도) · 누가·어떤 API·어떤 페이지(`actor.userId`·`action.name`·`page.template`) ·
 서버발/브라우저발 에러와 requestId로 BFF 대조("FE 에러인데 BFF는 200") · 타깃소스/고객 단위 조회 ·
-행동 흐름 시간순 재구성 · **CTA(쓰기) 실패 추적**(clientAction+status+requestId — "쓰기가 진짜 됐나") ·
+행동 흐름 시간순 재구성 · **CTA(쓰기) 실패 추적**(`action.name`+`action.status`+`correlation.requestId` — "쓰기가 진짜 됐나") ·
 **인가 거부(403) 시도**(로그인은 했지만 권한 없는 경로 접근 — 서버 인가 검사 시점에 userId·role·경로·403 기록)
 
 **구현이 따로 필요한 것(자동 아님)**:

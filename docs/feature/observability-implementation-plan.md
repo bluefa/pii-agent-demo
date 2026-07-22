@@ -77,7 +77,9 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 - **업무 실패 ≠ 시스템 오류**: `scan_status=FAIL`, 연결 테스트 부분 실패는 `action_result`의
   실패 outcome이다(운영자의 핵심 데이터). `client_error`/`ssr_error`는 시스템 고장 전용.
 - **응답 allowlist**: 이벤트 타입별 명시적 필드 매트릭스(ADR-025 §4)만 복사 — 상태값(로컬 enum
-  검증, 미지값→`UNKNOWN`)·개수·소요시간·경계 있는 식별자 배열(≤20)뿐. spread/통복사 금지
+  검증, 미지값→`UNKNOWN`)·개수·소요시간·경계 있는 식별자 배열(≤20)뿐. 단 **settle 판정은 별개**:
+  정확한 종료 상태 집합(스캔 SUCCESS/FAIL/TIMEOUT/CANCELED · 연결테스트 SUCCESS/FAIL) 밖의 값은
+  settle이 아니므로 `action_result` 자체를 발행하지 않고 진단 로그로만 남긴다. spread/통복사 금지
   (passthrough 스키마의 미지 필드 유출 방지). 자유 텍스트는 어떤 경우에도 미저장.
 - **신뢰 경계**: ingest 스키마(브라우저가 주장 가능한 것)와 저장 스키마(서버 스탬프 포함)는
   별개. 서버가 actor·receivedAt·origin·surface를 확정하고, 주장된 targetSourceId에 대한
@@ -91,8 +93,9 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 
 1. **FE-thin**: FE는 이벤트를 "올바른 형식으로 만들어 보내는 것"까지만. 저장·집계·보존은 BFF.
 2. **PII 제로 + 필드 정책**: body·쿼리스트링은 어떤 로그에도 금지(`lib/log-path.ts` 새니타이저).
-   `errorMessage`(자유 텍스트)는 **DB 저장 금지** — `status`(숫자)·`code`(고정 심볼)만 구조화 저장.
-   code 없는 에러는 status·requestId만 남기고 상세는 진단 로그로.
+   `errorMessage`(자유 텍스트)는 **DB 저장 금지** — `status`(숫자)·`code`(고정 심볼)·`error.name`
+   (allowlist 검증된 클래스명, ADR-025 채택)만 구조화 저장.
+   code 없는 에러는 status·requestId·error.name을 남기고 상세는 진단 로그로.
 3. **신뢰 경계**: userId·role은 서버 세션에서만 resolve. 클라이언트가 보낸 식별자 헤더는 채택 금지.
    requestId는 위조돼도 무해(상관관계 전용).
 4. **공개 엔드포인트 방어**: 브라우저발 수신 라우트는 allowlist·바이트 캡·이중 rate limit·무에코 유지.
@@ -117,7 +120,7 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 | # | 작업 | 상세 | 산출물 |
 |---|---|---|---|
 | 1-1 | ingest API 계약 | 엔드포인트(예: `POST /integration/observability/events`), 배치 payload 스키마(이벤트 배열), 서버 간 인증 방식, 요청 크기 캡, 실패 시 FE 드랍 정책, **멱등 키 `(targetSourceId, job.kind, job.key, eventType)` 처리**, **`triggerTestConnection` 응답에 `test_connection_version` 추가**(시작/결과 join의 전제 — ADR-025 §2) 합의 | 계약 문서 (swagger) |
-| 1-2 | 이벤트 스키마·DB 필드 확정 | **입력 계약 = ADR-025 §1a 필드 표** — 이벤트 6종의 discriminated union(타입별 필수/선택 명시). 공통 봉투: `eventType`·`origin`(서버 스탬프)·`observedAt`(발행자)·`receivedAt`(서버 스탬프, 시간창 쿼리 기준)·`actor{userId,role}`(서버 스탬프 — 인증 게이트로 항상 존재, ADR-025 §5)·`page{template}`·`surface`(서버 파생)·`action{name,method,status,durationMs}`·`job{kind,key}`·`correlation{requestId,targetSourceId,serviceCode}`·`domainContext{processStatus,provider}`·종류별 `detail`. **`errorMessage` 컬럼 없음.** `error.name`은 ADR-025 필드 매트릭스가 요구하므로 **저장 확정**; `fingerprint`(새니타이즈 스택 해시)만 열린 결정 — 미채택 시 같은 error.name의 code 없는 에러들은 DB에서 더 세분 불가 | 스키마 문서 |
+| 1-2 | 이벤트 스키마·DB 필드 확정 | **입력 계약 = ADR-025 §1a 필드 표** — 이벤트 6종의 discriminated union(타입별 필수/선택 명시). 공통 봉투: `eventType`·`origin`(서버 스탬프)·`observedAt`(발행자)·`receivedAt`(서버 스탬프, 시간창 쿼리 기준)·`actor{userId,role}`(서버 스탬프 — 인증 게이트로 항상 존재, ADR-025 §5)·`clockSkew`(서버 스탬프, 클램프 시)·`page{template}`·`surface`(서버 파생)·`action{name,method,status,durationMs}`·`job{kind,key}`·`correlation{requestId,targetSourceId,serviceCode}`·`domainContext{processStatus,provider}`·종류별 `detail`. **`errorMessage` 컬럼 없음.** `error.name`은 ADR-025 필드 매트릭스가 요구하므로 **저장 확정**; `fingerprint`(새니타이즈 스택 해시)만 열린 결정 — 미채택 시 같은 error.name의 code 없는 에러들은 DB에서 더 세분 불가 | 스키마 문서 |
 | 1-3 | 보존·삭제 정책 | 보존 기간(예: 상세 90일 + 일 단위 집계 롤업 장기), 삭제 주기, 용량 상한. "많아지면 삭제"의 구체 기준 | 정책 1쪽 |
 | 1-4 | 조회 API 계약 | Admin **MVP(§3 M1~M3)가 요구하는 것만**: 타깃소스별 이벤트 목록(시간순·페이지네이션)·타깃소스별 24h Action/오류 count·확인 필요 집계 3종(24h 창, group by targetSourceId/serviceCode). P1~P4(추이·top-N·userId/requestId 필터·403 목록) 계약은 해당 기능 착수 시점으로 이연 | 계약 문서 |
 
@@ -141,12 +144,17 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 Phase 2가 "관을 BFF로 돌리는 것"이라면 2b는 "그 관에 ADR-025 이벤트 6종을 실제로 흘리는 것"이다.
 PR #558에는 이 이벤트 타입들이 없다(헤더·client-error 라우트까지만) — Admin(Phase 4)은 이 phase 없이는 보여줄 데이터가 없다.
 
+**발행 소유자(이벤트 타입당 1곳 — 중복 발행 방지의 근거)**: `action`(동기)=`fetchJson` 관찰 콜백 ·
+`action`(비동기 trigger)/`action_result`=trigger 함수·폴링 훅 · `screen_read`=UI 관찰 지점 ·
+`client_error`=에러 바운더리+`fetchJson` 실패 경로 · `page_view`(브라우저)=`ObservabilityInit` ·
+`page_view`(SSR)/`ssr_error`=서버 렌더 경로.
+
 | # | 작업 | 대상 파일 | 상세 | 검증 기준 |
 |---|---|---|---|---|
-| 2b-1 | 이벤트 빌더 + ingest 스키마 | 신규 `lib/audit-event.ts` | ADR-025 §1a discriminated union의 **ingest 판**(actor·origin·receivedAt·surface 없음 — 서버 스탬프 몫) + allowlist 매트릭스(§4) 구현. 응답 spread 금지, 필드 지명 복사, enum 로컬 검증(미지값→`UNKNOWN`), 배열·문자열 캡 | 스키마 단위 테스트 + 금지 필드 스냅샷 테스트 |
+| 2b-1 | 이벤트 빌더 + ingest 스키마 + 관찰 콜백 계약 | 신규 `lib/audit-event.ts` + `lib/fetch-json.ts` | ADR-025 §1a discriminated union의 **ingest 판**(actor·origin·receivedAt·surface·clockSkew 없음 — 서버 스탬프 몫; **브라우저 ingress는 브라우저 발생 variant만** — ssr_error·renderMs 있는 page_view는 거부) + allowlist 매트릭스(§4) 구현. **관찰 콜백 계약**: `fetchJson`이 호출별 클로저로 `{requestId, status, durationMs, 파싱된 응답}`을 관찰 지점에 전달(전역 링버퍼로 이벤트 조립 금지 — 동시 호출 레이스). 응답 spread 금지, 필드 지명 복사, enum 로컬 검증(미지값→`UNKNOWN`), 배열·문자열 캡 | 스키마 단위 테스트 + 금지 필드 스냅샷 + 동시 호출 격리 테스트 |
 | 2b-2 | 동기 Action 발행 | `lib/fetch-json.ts` 래퍼 | 쓰기 함수(`confirmInstallation` 등) 호출 완료 시 `action` 1건(status·code 포함) 자동 발행 | 성공/실패(409) 각 1건 발행 테스트 |
-| 2b-3 | 비동기 settle 발행 | `useScanPolling`·`useTestConnectionPolling` + trigger 함수 | trigger 시 `action` 발행 + **로컬 job key 기억**, settle 관찰 시 그 key에 한해 `action_result` 발행. 연결테스트는 trigger 응답 key(1-1 계약) 전까지 시작 이벤트에 job 없음 허용 | mount-폴링만으로는 settle 이벤트 미발생 테스트 |
-| 2b-4 | 수신 라우트 확장 + 서버 스탬프 | `app/api/v1/observability/*` + `app/api/_lib/handler.ts` | client-errors 라우트를 일반 audit 이벤트 수신으로 확장(방어 유지). 서버가 actor(세션)·receivedAt·origin·surface 스탬프, **주장된 targetSourceId 접근 권한 검증 후 저장**, target 있으면 **serviceCode는 검증된 target에서 서버가 파생(클라이언트 값 무시)**, target 없는 서비스 이벤트는 서비스 소속 검증, 멱등 키 전달 | 위조 actor 무시·무권한 target 거부·위조 serviceCode 무시 테스트 |
+| 2b-3 | 비동기 settle 발행 | `useScanPolling`·`useTestConnectionPolling` + trigger 함수 | trigger 시 `action` 발행 + **로컬 job key 기억(공급 필드까지 — keyField)**, settle 관찰 시 같은 필드의 key에 한해 `action_result` 발행. 정확한 종료 상태 집합 밖(미지값·PENDING·RUNNING)은 발행 없음. 연결테스트는 trigger 응답 key(1-1 계약) 전까지 시작 이벤트에 job 없음 허용 | mount-폴링만으로는 settle 미발생 · 미지/진행 중 상태 settle 미발생 테스트 |
+| 2b-4 | 수신 라우트 확장 + 서버 스탬프 | `app/api/v1/observability/*` + `app/api/_lib/handler.ts` | client-errors 라우트를 일반 audit 이벤트 수신으로 확장(방어 유지). 서버가 actor(세션)·receivedAt·origin·surface·clockSkew(클램프 판정 후에만 — 클라이언트 값 무시) 스탬프, **주장된 targetSourceId 접근 권한 검증 후 저장**, target 있으면 **serviceCode는 검증된 target에서 서버가 파생(클라이언트 값 무시)**, target 없는 서비스 이벤트는 서비스 소속 검증, 멱등 키 전달 | 위조 actor 무시·무권한 target 거부·위조 serviceCode 무시·클라이언트 clockSkew 무시(스큐/정상 타임스탬프 각 1)·위조 zod issue code 정규화 테스트 |
 | 2b-5 | SSR 발행 | `app/target-sources/[targetSourceId]/page.tsx` + `log.ts` | 동적 SSR 렌더 성공→`page_view`(renderMs), 실패→`ssr_error`(서버가 렌더 대상 template 자기 스탬프) | 렌더 실패 시 page_view 없음·ssr_error 1건 |
 | 2b-6 | 브라우저 page_view | `app/components/ObservabilityInit.tsx` | `/services`는 정적 셸이라 방문마다 서버 렌더가 없음 — 브라우저가 라우트 전환 시 발행, 서버가 actor·receivedAt 스탬프 | 전환 시 1건, 새로고침 중복 없음 |
 | 2b-7 | screen_read 발행 | 해당 UI 컴포넌트/훅 (패널 열림 지점) | **발행 지점은 UI 관찰 지점** — 사용자가 패널을 연 시점에 1건. 함수 단위 일괄 태깅 금지(mount 자동 로드·백그라운드 갱신·내부 재시도가 사용자 조회로 둔갑). `fetchJson` 우회 호출(`ProjectHistoryPanel`의 raw `fetchInfra` 등)은 래퍼로 이관하거나 미계측 목록에 명시 | mount 자동 로드 시 이벤트 미발생 테스트 |
@@ -234,7 +242,7 @@ audit 저장소에는 도메인 데이터를 복제하지 않는다.
 |---|---|---|---|
 | G1 | 패널 | surface별 에러율 추이 (에러/요청) | 고객 대면(`target-detail`)과 내부(`admin`) 분리 |
 | G2 | 패널 | 에러 급증 감지 + 배포 마커 | "배포 직후 터졌나" 즉답 |
-| G3 | 패널 | API 호출량·p95 (clientAction별) | 저카디널리티 라벨만 |
+| G3 | 패널 | API 호출량·p95 (`action.name`별) | 저카디널리티 라벨만 |
 | G4 | 패널 | CTA(쓰기) 실패율 | method+status 집계 |
 | G5 | 패널 | ingest 유실 카운터 | 관측 파이프 자체의 건강 |
 | G6 | 알림 | `target-detail` 에러율 임계 → Slack | 민감 임계 — 고객이 작업 중 실패 |
@@ -261,9 +269,9 @@ Phase 6 (Grafana)   ← 도입 결정 후, 언제든
 
 ## 5. 하지 않는 것 (명시적 스코프 아웃)
 
-- **세션 리플레이·히트맵** — "그때 화면 재현" 불필요. page_view+clientAction으로 행동 흐름 재구성 (결정 ④)
+- **세션 리플레이·히트맵** — "그때 화면 재현" 불필요. page_view+`action.name`으로 행동 흐름 재구성 (결정 ④)
 - **sessionId** — 로그인 필수라 익명 구간이 없음. userId가 상위 호환 (결정 ③)
-- **errorMessage 저장** — 자유 텍스트 PII 위험. code/status만 구조화 저장 (필드 정책)
+- **errorMessage 저장** — 자유 텍스트 PII 위험. code/status/error.name(allowlist)만 구조화 저장 (필드 정책)
 - **전용 수집 서버**(Sentry/Bugsink 등) — 보류, 승격 경로만 보존 (`observability-plan.md` §9)
 - **OpenTelemetry 분산 트레이싱** — requestId 상관관계가 경량 대체
 - **클라이언트가 보내는 userId 헤더** — 위조 가능, 영구 채택 금지
