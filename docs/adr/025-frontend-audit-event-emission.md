@@ -24,8 +24,12 @@ screens. It does **not** cover:
   `requestId`, not stored as audit rows.
 - Authorization-denial (403) tracking. It is a **planned extension**: a
   seventh event type named `auth_denied`, emitted by the FE server
-  (`origin=server`, actor from session, `page.template` or the denied API
-  path template, `action.status=403`, no other detail). The envelope below
+  (`origin=server`, actor from session, `action.status=403`, no other
+  detail). Page-level denials self-stamp `page.template`; API-level denials
+  carry the denied API path in a separate normalized `route.template` field
+  (an API path is not a page template, and `surfaceOf()` classifies page
+  prefixes only — `surface` derives from `page.template` when present, else
+  from a route-prefix mapping defined in Phase 3). The envelope below
   is unchanged by it; adding the type is an **additive, coordinated enum
   extension** (FE ingest schema and BFF column enum are extended together in
   Phase 3 — it is a schema change, just a compatible one).
@@ -100,7 +104,8 @@ see §5), **E** = emitter (browser for browser events, server for SSR events).
 | `eventType` | ✅ | E | one of the six values (closed enum at ingest) |
 | `origin` | ✅ | S | `browser` \| `server` — set from which ingest path the event arrived on, never from payload |
 | `observedAt` | ✅ | E | when the emitter observed the fact (ISO-8601) |
-| `receivedAt` | ✅ | S | server receipt time — authoritative for time-window queries. If `|observedAt − receivedAt|` > 10 minutes, `observedAt` is clamped to `receivedAt` and `clockSkew:true` is set on the event |
+| `receivedAt` | ✅ | S | server receipt time — authoritative for time-window queries |
+| `clockSkew` | optional | S | stored-envelope flag: when `|observedAt − receivedAt|` > 10 minutes the server clamps `observedAt` to `receivedAt` and sets `clockSkew:true`; absent otherwise |
 | `actor.userId` / `actor.role` | ✅ | S | from session. **Durable audit ingestion is gated on authentication existing** (§5) — there are no actor-less audit rows |
 | `page.template` | ✅ | E | normalized template (`/target-sources/:id`), never a raw path. Browser events: from the wrapper's page tagging; SSR events: server self-stamps its own render target |
 | `surface` | ✅ | S | derived server-side from `page.template` via `surfaceOf()` |
@@ -108,7 +113,8 @@ see §5), **E** = emitter (browser for browser events, server for SSR events).
 | `action.method` / `action.status` / `action.durationMs` | per type | E | HTTP facts of the observed call, where one exists |
 | `job.kind` / `job.key` | async only | B | canonical async-job link: `{kind:'scan', key:scan_version}` / `{kind:'test_connection', key:test_connection_version}` (§2) |
 | `correlation.requestId` | ✅ | E | forgery-harmless, correlation only |
-| `correlation.targetSourceId` / `correlation.serviceCode` | when known | B | validated against session access (§5); absent on `/services`-level events that concern no target |
+| `correlation.targetSourceId` | when known | B | validated against session access (§5) |
+| `correlation.serviceCode` | when known | S/B | when a target is present the server **derives it from the authorized target and ignores the client value**; on service-level events without a target the server validates the session user's membership in the claimed service (§5) |
 | `domainContext.processStatus` / `domainContext.provider` | CSR events | B | snapshot of what the page held at event time |
 | `detail` | per type | E | type-specific block (§3, §4): `outcome` for results, `renderMs` for `page_view`, `error{name, code, zodIssues}` for errors |
 
@@ -119,14 +125,15 @@ for a type is **forbidden** on that type):
 |---|---|---|---|
 | `page_view` | `page.template`, `detail.renderMs` (SSR variant only) | — | `action.*`, `job.*`, `error.*`, `outcome.*` |
 | `screen_read` | `action{name, method, status, durationMs}`, `outcome.count` | `domainContext` | `job.*`, `error.*` |
-| `action` | `action{name, method, status}` | `error.code` (on failure), `job{kind, key}` (async trigger, when the response carries the key), `domainContext` | `outcome.*` |
-| `action_result` | `action.name`, `job{kind, key}`, `outcome.status`, `outcome.durationSec` | `outcome.detail` / `outcome.total` / `outcome.fail` / `outcome.failedResourceIds` (per §4), `domainContext` | `error.*` |
-| `client_error` | `error.name` | `action{name, method, status}` (when a call was involved), `error.code`, `error.zodIssues`, `domainContext` | `job.*`, `outcome.*` |
+| `action` | `action{name, method, status}` (`status:0` is the no-response sentinel for network/timeout failures, paired with `error.code` `NETWORK`/`TIMEOUT`) | `error.code` (on failure), `job{kind, key}` (async trigger, when the response carries the key), `domainContext` | `outcome.*` |
+| `action_result` | `action.name`, `job{kind, key}`, `outcome.status` | `outcome.durationSec` (omit when the source value or either timestamp is absent, invalid, negative, or reversed), `outcome.detail` / `outcome.total` / `outcome.fail` / `outcome.failedResourceIds` (per §4), `domainContext` | `error.*` |
+| `client_error` | `error.name` | `action{name, method, status}` (when a call was involved), `error.code`, `error.zodIssues` (only when the error surface carries issue pairs — requires the capped ProblemDetails extension, plan 2b-8), `domainContext` | `job.*`, `outcome.*` |
 | `ssr_error` | `page.template`, `error.name` | `action{name, method, status}` (the failed upstream call) | `job.*`, `outcome.*`, `domainContext` |
 
 ¹ Common required fields (`eventType`, `origin`, `observedAt`, `receivedAt`,
 `actor`, `page.template`, `surface`, `correlation.requestId`) apply to every
-type per the ownership table above.
+type per the ownership table above; `clockSkew` is a common optional
+server-stamped flag.
 
 **One observation, one event.** A failed synchronous action (e.g.
 `confirmInstallation` → 500) produces exactly one `action` event carrying the
@@ -147,11 +154,16 @@ never go stale.
 
 - The trigger emits one `action` event with the accepted status and, when the
   trigger response carries it, the job key: `startScan` returns a full
-  `ScanJobResponse`, so `job = {kind:'scan', key:scan_version}` is available
-  at trigger time (if the loose generated schema delivers no `scan_version`,
-  fall back to `id`; if neither is present, the start event has no `job` and
-  no settle will be emitted for it). **`triggerTestConnection` returns only
-  `{success}`** — the start event has no job key today.
+  `ScanJobResponse`, so a key is available at trigger time. The local trigger
+  record preserves **which field supplied the key** —
+  `{kind:'scan', keyField:'scan_version'|'id', key:<value>}` (prefer
+  `scan_version`, fall back to `id`) — and settle matching reads the **same
+  field** from the poll payload, so a poll carrying both fields cannot
+  mismatch. If neither field is present, the start event has no `job` and no
+  settle will be emitted for it. Standardizing scan correlation on one
+  guaranteed key is part of the Phase 1 contract discussion.
+  **`triggerTestConnection` returns only `{success}`** — the start event has
+  no job key today.
 - **Settle emission requires a locally-proven job key.** The browser emits
   `action_result` only for a job key it recorded from its own trigger
   response. Until the test-connection trigger returns
@@ -163,7 +175,10 @@ never go stale.
 - The individual polling GETs are **not recorded**. When a poll observes a
   settled status (scan: `SUCCESS`/`FAIL`/`TIMEOUT`/`CANCELED`; test
   connection: `SUCCESS`/`FAIL` — `PENDING`/`RUNNING` are in-progress) for a
-  locally-recorded job key, the browser emits one `action_result`.
+  locally-recorded job key, the browser emits one `action_result`. A status
+  outside both sets is **not** a settle: no `action_result` is emitted and
+  the value goes to the diagnostic log (the `UNKNOWN` normalization in §4
+  applies to fields inside an emitted event, not to the settle decision).
 - Both polling hooks also run on mount, so a browser can observe the settle
   of a job it did not start (another tab, another user); the local-key rule
   above excludes those. Additionally the ingest layer enforces an idempotency
@@ -224,7 +239,9 @@ FE server — validates against the ingest schema (closed enums, caps, shapes);
            identity is never adopted); stamps receivedAt, origin, surface;
            verifies the session user is authorized for the claimed
            correlation.targetSourceId (reusing the domain access check) and
-           rejects the event otherwise; forwards to BFF ingest (best-effort,
+           rejects the event otherwise; derives serviceCode from the
+           authorized target (ignoring the client value) or, for
+           target-less events, validates service membership; forwards to BFF ingest (best-effort,
            drop counter). SSR events (page_view, ssr_error) are built
            directly on the server, which self-stamps the rendered page
            template (there is no X-Client-Page during SSR).
@@ -310,9 +327,12 @@ actor-less audit data and no placeholder-guarded admin.
   key.
 - Gaps are honest: rows without results exist (closed browsers, and
   test-connection starts without settles until the trigger contract lands),
-  nothing is durably stored before authentication ships, and code-less errors
-  are distinguishable only if `error.name`/fingerprint storage is adopted
-  (open decision in the strategy document).
+  nothing is durably stored before authentication ships, and — since the
+  per-type matrix requires `error.name` on error events — **storing
+  `error.name` is adopted by this ADR**; only `fingerprint` (sanitized-stack
+  hash) storage remains an open decision in the strategy document, and
+  without it code-less errors sharing one `error.name` are not further
+  distinguishable in the DB.
 
 ## References
 

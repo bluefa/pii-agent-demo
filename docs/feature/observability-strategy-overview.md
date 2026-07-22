@@ -53,7 +53,7 @@ best-effort 유실 허용, Error Reporting의 자동 그룹핑·회귀 감지와
 
 | 저장소 | 무엇을 | 특성 |
 |---|---|---|
-| **BFF DB** (본선) | 구조화 필드만 — userId·surface·clientAction·status·code·requestId 등 | 영구적(정책 삭제), 조회·집계·도메인 join 가능, FE 이사와 무관 |
+| **BFF DB** (본선) | 구조화 필드만 — `actor.userId`·`surface`·`action.name`·`action.status`·`error.code`·`correlation.requestId` 등 (ADR-025 봉투; `X-Client-Action`/`clientAction`·`pageTemplate`는 수집 계층 헤더/진단 명칭) | 영구적(정책 삭제), 조회·집계·도메인 join 가능, FE 이사와 무관 |
 | **stdout 진단 로그** (보조) | 새니타이즈된 스택 등 상세 진단 | 30일 만료, FE 프로젝트 종속, 유실 허용 — requestId로 DB 레코드와 대조 |
 
 ## 3. 상관관계 키와 구분 축
@@ -100,10 +100,11 @@ export function surfaceOf(pageTemplate: string): 'customer' | 'target-detail' | 
 | `status` | 숫자 | ✅ 항상 | 안전 |
 | `code` | 고정 심볼 | ✅ 있으면 (분류·집계·알림 라벨) | 안전 |
 | `errorMessage` | **자유 텍스트** | ❌ **저장 금지** | 사용자 입력·이메일·내부 경로가 섞여 들어올 수 있음 — 진단 stdout 로그에도 새니타이즈 후 최소한만 |
-| `errorName` + `fingerprint` | 고정 심볼 + 해시 | 🔲 **저장 권고 (결정 필요)** | code 없는 에러(502·타임아웃·파싱)를 DB에서 구분할 유일한 키 — 없으면 "무슨 에러인지" 식별 불가. 에러 클래스명과 새니타이즈된 스택의 해시는 자유 텍스트가 아니라 안전 |
+| `error.name` | 고정 심볼 | ✅ **저장 확정 (ADR-025)** | 이벤트 필드 매트릭스가 에러 이벤트에 필수로 요구 — 알려진 에러 클래스 allowlist 검증, 미지값은 `Error` |
+| `fingerprint` | 새니타이즈 스택 해시 | 🔲 **저장 권고 (결정 필요)** | 같은 error.name의 code 없는 에러(502·타임아웃·파싱)를 더 세분할 유일한 키. 해시는 자유 텍스트가 아니라 안전 |
 | body · 쿼리스트링 | — | ❌ 어떤 로그에도 금지 | `lib/log-path.ts` 새니타이저 + 회귀 테스트로 잠금 |
 
-code 없는 에러는 DB엔 `status`·`requestId`(+ 권고안 채택 시 `errorName`/`fingerprint`)만 남기고,
+code 없는 에러는 DB엔 `status`·`requestId`·`error.name`(+ 권고안 채택 시 `fingerprint`)만 남기고,
 상세는 진단 로그로만 흘린다. requestId로 BFF 로그 대조는 여전히 가능.
 
 ## 5. 무엇이 추적되나 — 되는 것 / 구현이 필요한 것
@@ -152,7 +153,7 @@ code 없는 에러는 DB엔 `status`·`requestId`(+ 권고안 채택 시 `errorN
 - **CTA 실패**: 전용 뷰로 만들지, 필터 축만 둘지
 - ~~로그+도메인 상태 합치기를 Admin MVP(Phase 4)에 넣을지~~ → **채택 확정** (07-23): M1/M2의 이름·담당자·현재 단계는 도메인 API에서, join은 FE Admin 라우트가 조회 시점에 수행
 - **이벤트 체계 상세**(6종·봉투·allowlist·신뢰 경계)는 ADR-025로 확정 — 연결테스트 trigger 응답의 job key 추가는 BFF 협의 필요
-- **errorName/fingerprint 저장** 권고안 채택 여부 (§4)
+- ~~error.name 저장~~ → **채택 확정** (ADR-025 필드 매트릭스가 요구) · **fingerprint 저장**만 결정 필요 (§4)
 - **BFF DB 스키마 상세**: 필드·보존 기간·삭제 정책 (많아지면 삭제 — 주기·기준 미정)
 - **FE→BFF 전송 방식**: 배치 크기/주기, 유실 허용 범위
 - **SSR 화면 식별** 구현 방법

@@ -117,7 +117,7 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 | # | 작업 | 상세 | 산출물 |
 |---|---|---|---|
 | 1-1 | ingest API 계약 | 엔드포인트(예: `POST /integration/observability/events`), 배치 payload 스키마(이벤트 배열), 서버 간 인증 방식, 요청 크기 캡, 실패 시 FE 드랍 정책, **멱등 키 `(targetSourceId, job.kind, job.key, eventType)` 처리**, **`triggerTestConnection` 응답에 `test_connection_version` 추가**(시작/결과 join의 전제 — ADR-025 §2) 합의 | 계약 문서 (swagger) |
-| 1-2 | 이벤트 스키마·DB 필드 확정 | **입력 계약 = ADR-025 §1a 필드 표** — 이벤트 6종의 discriminated union(타입별 필수/선택 명시). 공통 봉투: `eventType`·`origin`(서버 스탬프)·`observedAt`(발행자)·`receivedAt`(서버 스탬프, 시간창 쿼리 기준)·`actor{userId,role}`(서버 스탬프 — 인증 게이트로 항상 존재, ADR-025 §5)·`page{template}`·`surface`(서버 파생)·`action{name,method,status,durationMs}`·`job{kind,key}`·`correlation{requestId,targetSourceId,serviceCode}`·`domainContext{processStatus,provider}`·종류별 `detail`. **`errorMessage` 컬럼 없음.** `errorName`·`fingerprint`(새니타이즈 스택 해시) 포함 여부는 열린 결정 — 미포함 시 code 없는 에러는 DB에서 구분 불가함을 명시하고 결정 | 스키마 문서 |
+| 1-2 | 이벤트 스키마·DB 필드 확정 | **입력 계약 = ADR-025 §1a 필드 표** — 이벤트 6종의 discriminated union(타입별 필수/선택 명시). 공통 봉투: `eventType`·`origin`(서버 스탬프)·`observedAt`(발행자)·`receivedAt`(서버 스탬프, 시간창 쿼리 기준)·`actor{userId,role}`(서버 스탬프 — 인증 게이트로 항상 존재, ADR-025 §5)·`page{template}`·`surface`(서버 파생)·`action{name,method,status,durationMs}`·`job{kind,key}`·`correlation{requestId,targetSourceId,serviceCode}`·`domainContext{processStatus,provider}`·종류별 `detail`. **`errorMessage` 컬럼 없음.** `error.name`은 ADR-025 필드 매트릭스가 요구하므로 **저장 확정**; `fingerprint`(새니타이즈 스택 해시)만 열린 결정 — 미채택 시 같은 error.name의 code 없는 에러들은 DB에서 더 세분 불가 | 스키마 문서 |
 | 1-3 | 보존·삭제 정책 | 보존 기간(예: 상세 90일 + 일 단위 집계 롤업 장기), 삭제 주기, 용량 상한. "많아지면 삭제"의 구체 기준 | 정책 1쪽 |
 | 1-4 | 조회 API 계약 | Admin **MVP(§3 M1~M3)가 요구하는 것만**: 타깃소스별 이벤트 목록(시간순·페이지네이션)·타깃소스별 24h Action/오류 count·확인 필요 집계 3종(24h 창, group by targetSourceId/serviceCode). P1~P4(추이·top-N·userId/requestId 필터·403 목록) 계약은 해당 기능 착수 시점으로 이연 | 계약 문서 |
 
@@ -146,10 +146,11 @@ PR #558에는 이 이벤트 타입들이 없다(헤더·client-error 라우트�
 | 2b-1 | 이벤트 빌더 + ingest 스키마 | 신규 `lib/audit-event.ts` | ADR-025 §1a discriminated union의 **ingest 판**(actor·origin·receivedAt·surface 없음 — 서버 스탬프 몫) + allowlist 매트릭스(§4) 구현. 응답 spread 금지, 필드 지명 복사, enum 로컬 검증(미지값→`UNKNOWN`), 배열·문자열 캡 | 스키마 단위 테스트 + 금지 필드 스냅샷 테스트 |
 | 2b-2 | 동기 Action 발행 | `lib/fetch-json.ts` 래퍼 | 쓰기 함수(`confirmInstallation` 등) 호출 완료 시 `action` 1건(status·code 포함) 자동 발행 | 성공/실패(409) 각 1건 발행 테스트 |
 | 2b-3 | 비동기 settle 발행 | `useScanPolling`·`useTestConnectionPolling` + trigger 함수 | trigger 시 `action` 발행 + **로컬 job key 기억**, settle 관찰 시 그 key에 한해 `action_result` 발행. 연결테스트는 trigger 응답 key(1-1 계약) 전까지 시작 이벤트에 job 없음 허용 | mount-폴링만으로는 settle 이벤트 미발생 테스트 |
-| 2b-4 | 수신 라우트 확장 + 서버 스탬프 | `app/api/v1/observability/*` + `app/api/_lib/handler.ts` | client-errors 라우트를 일반 audit 이벤트 수신으로 확장(방어 유지). 서버가 actor(세션)·receivedAt·origin·surface 스탬프, **주장된 targetSourceId 접근 권한 검증 후 저장**, 멱등 키 전달 | 위조 actor 무시·무권한 target 거부 테스트 |
+| 2b-4 | 수신 라우트 확장 + 서버 스탬프 | `app/api/v1/observability/*` + `app/api/_lib/handler.ts` | client-errors 라우트를 일반 audit 이벤트 수신으로 확장(방어 유지). 서버가 actor(세션)·receivedAt·origin·surface 스탬프, **주장된 targetSourceId 접근 권한 검증 후 저장**, target 있으면 **serviceCode는 검증된 target에서 서버가 파생(클라이언트 값 무시)**, target 없는 서비스 이벤트는 서비스 소속 검증, 멱등 키 전달 | 위조 actor 무시·무권한 target 거부·위조 serviceCode 무시 테스트 |
 | 2b-5 | SSR 발행 | `app/target-sources/[targetSourceId]/page.tsx` + `log.ts` | 동적 SSR 렌더 성공→`page_view`(renderMs), 실패→`ssr_error`(서버가 렌더 대상 template 자기 스탬프) | 렌더 실패 시 page_view 없음·ssr_error 1건 |
 | 2b-6 | 브라우저 page_view | `app/components/ObservabilityInit.tsx` | `/services`는 정적 셸이라 방문마다 서버 렌더가 없음 — 브라우저가 라우트 전환 시 발행, 서버가 actor·receivedAt 스탬프 | 전환 시 1건, 새로고침 중복 없음 |
 | 2b-7 | screen_read 발행 | 해당 UI 컴포넌트/훅 (패널 열림 지점) | **발행 지점은 UI 관찰 지점** — 사용자가 패널을 연 시점에 1건. 함수 단위 일괄 태깅 금지(mount 자동 로드·백그라운드 갱신·내부 재시도가 사용자 조회로 둔갑). `fetchJson` 우회 호출(`ProjectHistoryPanel`의 raw `fetchInfra` 등)은 래퍼로 이관하거나 미계측 목록에 명시 | mount 자동 로드 시 이벤트 미발생 테스트 |
+| 2b-8 | 비-Action 읽기 실패의 client_error 발행 | `lib/fetch-json.ts` + 에러 소비 지점 | `fetchJson`은 throw하고 훅(`usePollingBase` 등)이 rejection을 삼키므로 기존 브라우저 리포터는 이를 못 본다 — **비-Action 읽기 실패에서 정확히 1건** client_error 발행(abort 제외, Action 실패와 중복 금지 = 1관찰 1이벤트). `error.zodIssues`는 서버가 ProblemDetails에 **캡 있는 `{path, code}` 확장**을 실어줄 때만 존재(withV1 검증 실패 시 이슈 목록 ≤20 포함 — 없으면 zodIssues 없이 저장) | 폴링 실패 1건·중복 0건·abort 미발행 테스트 |
 
 **완료 기준**: 목업 시나리오(스캔 시작→성공, 확정 409→200, zod 검증 실패, SSR 504, 방문·화면 조회)가
 전부 실제 이벤트로 저장 경로를 통과한다(스테이징). **규모**: 중~대. **전제**: Phase 0·1·2.
@@ -162,7 +163,7 @@ audit 행도, 자리만 차지하는 role 검사도 만들지 않는다.
 | # | 작업 | 대상 파일 | 상세 | 검증 기준 |
 |---|---|---|---|---|
 | 3-1 | `userId`·`role` resolve | `app/api/_lib/handler.ts` | withV1이 세션에서 userId·role을 읽어 모든 이벤트에 심음. 클라이언트 헤더 채택 금지 | 위조 헤더 무시 테스트 |
-| 3-2 | 인가 거부 이벤트 — API | `app/api/_lib/handler.ts` | 인가 검사 실패 시 **`auth_denied` 이벤트**(7번째 타입, ADR-025 Scope: origin=server·actor=세션·거부된 pathTemplate·action.status=403, 그 외 detail 없음). eventType enum 확장은 FE ingest 스키마·BFF enum을 함께 늘리는 **호환 가능한 추가 변경**으로 BFF와 조율 | 403 시나리오 테스트 |
+| 3-2 | 인가 거부 이벤트 — API | `app/api/_lib/handler.ts` | 인가 검사 실패 시 **`auth_denied` 이벤트**(7번째 타입, ADR-025 Scope: origin=server·actor=세션·action.status=403, 그 외 detail 없음). 거부된 API 경로는 **별도 `route.template`**(정규화)로 — API 경로는 page.template이 아니고 surfaceOf()는 페이지 prefix 전용이므로, surface는 page.template 있으면 거기서, 없으면 Phase 3에서 정의하는 route prefix 매핑에서 파생. eventType enum 확장은 FE ingest 스키마·BFF enum을 함께 늘리는 **호환 가능한 추가 변경**으로 BFF와 조율 | 403 시나리오 테스트 |
 | 3-3 | 인가 거부 — 페이지 수준 | middleware 또는 SSR 가드 | 페이지 접근 자체를 막는 가드의 거부도 같은 `auth_denied`로(page.template 사용). **withV1 밖이라 자동으로 안 잡힘 — 별도 구현 필수** | 페이지 403 시나리오 테스트 |
 | 3-4 | SSR 화면 식별 | SSR fetch 경로 | SSR엔 `X-Client-Page`가 없음 — 서버가 자기 렌더 경로를 이벤트에 직접 심는 구현. 방법은 열린 항목(레이아웃별 상수 vs 요청 URL 파생) | SSR 에러에 화면 필드 존재 |
 
