@@ -90,8 +90,8 @@ prerequisite, not merged behavior):
 
 | eventType | Meaning | Origin |
 |---|---|---|
-| `page_view` | A page was opened. Dynamic SSR pages: emitted by the FE server on successful render. Static/CSR pages (`/services`): emitted by the browser on route transition | FE server / browser |
-| `screen_read` | A single read triggered by the user opening/expanding UI (resource list, logical-DB list). **Emitted at the UI observation site** (the component/hook reacting to the user opening a panel), never by blanket per-function tagging — automatic mount loads, background refreshes, and internal retries do not emit (they would record machine activity as user reads) | Browser |
+| `page_view` | A page was opened. Ownership is split by **navigation kind**, not only by page: the FE server emits only on a **full-document render** of a dynamic SSR page (with `renderMs`); the browser emits on the initial load of static/CSR pages (`/services`) and on every **committed client-side route transition** — any destination, including soft navigation into `/target-sources/:id` (no `renderMs`). RSC re-renders during soft navigation and prefetch renders never emit — prefetch is not a visit, and a hard load therefore produces exactly one event (server's) | FE server / browser |
+| `screen_read` | A single read triggered by the user opening/expanding UI (resource list, logical-DB list). **Emitted at the UI observation site** (the component/hook reacting to the user opening a panel), never by blanket per-function tagging — automatic mount loads, background refreshes, and internal retries do not emit (they would record machine activity as user reads). Emission additionally requires that the open gesture actually triggered a network read — a cache hit emits nothing (the required `action{...}`/`outcome.count` fields have no source without a call) | Browser |
 | `action` | A button-driven act. Synchronous actions (e.g. `confirmInstallation`) carry their result (HTTP status, error `code`) in this one event | Browser |
 | `action_result` | The settle outcome of an asynchronous action (scan, test connection): status enum, duration, structured summary | Browser |
 | `client_error` | A failure observed while the page is in use: a render error or unhandled rejection in the browser, or an error response observed by the browser on a CSR call. When the underlying cause is a schema-validation failure, the event detail carries the issue list (`{path, code}` pairs) — note that in this codebase validation runs in the FE server route (`schemas.parse` inside `withV1`), so the browser typically observes it as an error status, not as a local exception | Browser |
@@ -167,7 +167,11 @@ never go stale.
   settle will be emitted for it. Standardizing scan correlation on one
   guaranteed key is part of the Phase 1 contract discussion.
   **`triggerTestConnection` returns only `{success}`** — the start event has
-  no job key today.
+  no job key today. The trigger's `action` is emitted **at the trigger site,
+  not by the generic sync-write wrapper emission**: trigger functions opt out
+  of wrapper emission at the call site (an explicit per-call flag, not a
+  name denylist inside the wrapper), so one scan start never produces two
+  `action` rows.
 - **Settle emission requires a locally-proven job key.** The browser emits
   `action_result` only for a job key it recorded from its own trigger
   response. Until the test-connection trigger returns
@@ -237,7 +241,12 @@ General rules:
 
 ```
 browser  — builds the event at the observation site (fetchJson wrapper /
-           poll settle / error boundary), batches, POSTs to the FE ingest route
+           poll settle / error boundary), batches, POSTs to the FE ingest
+           route. Delivery is at-most-once: a small buffer flushed on a
+           timer and on pagehide/visibilitychange (sendBeacon or keepalive
+           fetch, so events emitted just before navigation are not lost);
+           failed or over-cap batches are dropped and counted, never
+           retried across navigations
 FE server — validates against the ingest schema (closed enums, caps, shapes);
            overwrites actor{userId, role} from the session (client-sent
            identity is never adopted); stamps receivedAt, origin, surface,

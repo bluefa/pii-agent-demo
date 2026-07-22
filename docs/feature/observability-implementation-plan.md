@@ -30,7 +30,7 @@ stdout 진단 로그(새니타이즈된 스택 등)는 보조로 유지하되, 3
 ```
 [브라우저]
  ├─ 렌더 에러/unhandled rejection → 바운더리+전역 핸들러 → client_error 이벤트
- ├─ 라우트 전환(/services) → page_view 이벤트 (Phase 2b)
+ ├─ 라우트 전환(커밋된 전환 전부 + 정적 페이지 초기 로드) → page_view 이벤트 (Phase 2b)
  ├─ 사용자 Action·화면 조회·비동기 settle → audit 이벤트 (Phase 2b)
  └─ 모든 API 호출 → fetchJson 단일 래퍼
       └─ X-Request-Id · X-Client-Page · X-Client-Action
@@ -53,7 +53,7 @@ FE가 보내는 이벤트는 6종이며, "누가 · 어느 페이지에서 · �
 
 | eventType | 의미 (운영자 언어) | 발생 위치 |
 |---|---|---|
-| `page_view` | 페이지 방문 — 페이지를 열었다 | 동적 SSR 페이지(`/target-sources/:id`)=FE 서버 · 정적/CSR 페이지(`/services`)=브라우저 라우트 전환 |
+| `page_view` | 페이지 방문 — 페이지를 열었다 | **내비게이션 종류로 분담**: 동적 SSR 페이지의 전체 문서 렌더=FE 서버 · 정적/CSR 초기 로드와 모든 커밋된 클라이언트 라우트 전환(타깃 상세로의 soft-nav 포함)=브라우저. soft-nav의 RSC 재실행·prefetch는 발행 안 함(방문 아님) |
 | `screen_read` | 화면 조회 — 리소스 목록 등 사용자가 열어본 단발 조회 | 브라우저 |
 | `action` | 사용자 Action — 버튼 행동. 동기 Action은 결과(status·code) 포함 | 브라우저 |
 | `action_result` | 비동기 Action(스캔·연결 테스트)의 종료 결과 — 상태값·소요시간·구조화 요약 | 브라우저 |
@@ -146,19 +146,20 @@ Phase 2가 "관을 BFF로 돌리는 것"이라면 2b는 "그 관에 ADR-025 이�
 PR #558에는 이 이벤트 타입들이 없다(헤더·client-error 라우트까지만) — Admin(Phase 4)은 이 phase 없이는 보여줄 데이터가 없다.
 
 **발행 소유자(이벤트 타입당 1곳 — 중복 발행 방지의 근거)**: `action`(동기)=`fetchJson` 관찰 콜백 ·
-`action`(비동기 trigger)/`action_result`=trigger 함수·폴링 훅 · `screen_read`=UI 관찰 지점 ·
+`action`(비동기 trigger)/`action_result`=trigger 함수·폴링 훅(trigger 함수는 래퍼 자동 발행을
+호출 지점에서 opt-out — 2b-2) · `screen_read`=UI 관찰 지점 ·
 `client_error`=에러 바운더리+`fetchJson` 실패 경로 · `page_view`(브라우저)=`ObservabilityInit` ·
-`page_view`(SSR)/`ssr_error`=서버 렌더 경로.
+`page_view`(SSR)/`ssr_error`=서버 렌더 경로(전체 문서 렌더에만 — 2b-5).
 
 | # | 작업 | 대상 파일 | 상세 | 검증 기준 |
 |---|---|---|---|---|
-| 2b-1 | 이벤트 빌더 + ingest 스키마 + 관찰 콜백 계약 | 신규 `lib/audit-event.ts` + `lib/fetch-json.ts` | ADR-025 §1a discriminated union의 **ingest 판**(actor·origin·receivedAt·surface·clockSkew 없음 — 서버 스탬프 몫; **브라우저 ingress는 브라우저 발생 variant만** — ssr_error·renderMs 있는 page_view는 거부) + allowlist 매트릭스(§4) 구현. **관찰 콜백 계약**: `fetchJson`이 호출별 클로저로 `{requestId, status, durationMs, 파싱된 응답}`을 관찰 지점에 전달(전역 링버퍼로 이벤트 조립 금지 — 동시 호출 레이스). 응답 spread 금지, 필드 지명 복사, enum 로컬 검증(미지값→`UNKNOWN`), 배열·문자열 캡 | 스키마 단위 테스트 + 금지 필드 스냅샷 + 동시 호출 격리 테스트 |
-| 2b-2 | 동기 Action 발행 | `lib/fetch-json.ts` 래퍼 | 쓰기 함수(`confirmInstallation` 등) 호출 완료 시 `action` 1건(status·code 포함) 자동 발행 | 성공/실패(409) 각 1건 발행 테스트 |
+| 2b-1 | 이벤트 빌더 + ingest 스키마 + 관찰 콜백 계약 | 신규 `lib/audit-event.ts` + `lib/fetch-json.ts` | ADR-025 §1a discriminated union의 **ingest 판**(actor·origin·receivedAt·surface·clockSkew 없음 — 서버 스탬프 몫; **브라우저 ingress는 브라우저 발생 variant만** — ssr_error·renderMs 있는 page_view는 거부) + allowlist 매트릭스(§4) 구현. **관찰 콜백 계약**: `fetchJson`이 호출별 클로저로 `{requestId, status, durationMs, 파싱된 응답}`을 관찰 지점에 전달(전역 링버퍼로 이벤트 조립 금지 — 동시 호출 레이스). 응답 spread 금지, 필드 지명 복사, enum 로컬 검증(미지값→`UNKNOWN`), 배열·문자열 캡. **브라우저 전송 계약**: 소량 버퍼 + 타이머·`pagehide`/`visibilitychange` 시 flush(`sendBeacon` 또는 keepalive fetch — 내비게이션 직전 발행분 유실 방지), at-most-once(실패/캡 초과 배치는 드랍+유실 카운터, 내비게이션 너머 재시도 없음) | 스키마 단위 테스트 + 금지 필드 스냅샷 + 동시 호출 격리 테스트 + pagehide flush 테스트 |
+| 2b-2 | 동기 Action 발행 | `lib/fetch-json.ts` 래퍼 | 쓰기 함수(`confirmInstallation` 등) 호출 완료 시 `action` 1건(status·code 포함) 자동 발행. **단 비동기 trigger 함수(`startScan`·`triggerTestConnection`)는 제외** — 그 `action`은 job key와 함께 2b-3의 trigger 지점이 발행(1관찰 1이벤트). 분류는 호출 지점의 명시적 opt-out 플래그로(래퍼 내부 함수명 denylist 금지 — ADR-025 §2) | 성공/실패(409) 각 1건 발행 + trigger 함수 호출 시 래퍼 발행 0건 테스트 |
 | 2b-3 | 비동기 settle 발행 | `useScanPolling`·`useTestConnectionPolling` + trigger 함수 | trigger 시 `action` 발행 + **로컬 job key 기억(공급 필드까지 — keyField)**, settle 관찰 시 같은 필드의 key에 한해 `action_result` 발행. 정확한 종료 상태 집합 밖(미지값·PENDING·RUNNING)은 발행 없음. 연결테스트는 trigger 응답 key(1-1 계약) 전까지 시작 이벤트에 job 없음 허용 | mount-폴링만으로는 settle 미발생 · 미지/진행 중 상태 settle 미발생 테스트 |
 | 2b-4 | 수신 라우트 확장 + 서버 스탬프 | `app/api/v1/observability/*` + `app/api/_lib/handler.ts` | client-errors 라우트를 일반 audit 이벤트 수신으로 확장(방어 유지). 서버가 actor(세션)·receivedAt·origin·surface·clockSkew(클램프 판정 후에만 — 클라이언트 값 무시) 스탬프, **주장된 targetSourceId 접근 권한 검증 후 저장**, target 있으면 **serviceCode는 검증된 target에서 서버가 파생(클라이언트 값 무시)**, target 없는 서비스 이벤트는 서비스 소속 검증, 멱등 키 전달 | 위조 actor 무시·무권한 target 거부·위조 serviceCode 무시·클라이언트 clockSkew 무시(스큐/정상 타임스탬프 각 1)·위조 zod issue code 정규화·`job.*` 있는데 targetSourceId 없는 이벤트 거부·target-detail 페이지 이벤트에 targetSourceId 없으면 거부·`/services` 수준 target 없는 이벤트 정상 수용 테스트 |
-| 2b-5 | SSR 발행 + 서버 렌더 컨텍스트 | `app/target-sources/[targetSourceId]/page.tsx` + `error.tsx`(또는 공용 브라우저 리포터) + `log.ts` | 동적 SSR 렌더 성공→`page_view`(renderMs), 실패→`ssr_error`. **서버 렌더 컨텍스트 헬퍼 신설** — 이 Server Component는 `withV1` 밖이므로: 세션에서 actor resolve, **단일 requestId를 audit 이벤트와 두 BFF 호출(`targetSources.get`·`getProcessStatus`)에 함께 전파**, 정규 page.template·targetSourceId 스탬프. **SSR template 식별은 여기로 일원화**(3-4는 본 작업으로 흡수). digest 억제는 바운더리 쪽 수정 필수 — PR #558 바운더리는 무조건 리포트하므로 서버 에러 digest 인지 로직을 `error.tsx`/공용 리포터에 추가 | 렌더 실패 시 page_view 없음·ssr_error 1건·**같은 실패로 client_error 0건**(digest 있는 에러 vs 진짜 클라이언트 에러 각각 테스트)·SSR page_view/ssr_error 모두 봉투 필수 필드 충족 |
-| 2b-6 | 브라우저 page_view | `app/components/ObservabilityInit.tsx` | `/services`는 정적 셸이라 방문마다 서버 렌더가 없음 — 브라우저가 라우트 전환 시 발행, 서버가 actor·receivedAt 스탬프 | 전환 시 1건, 새로고침 중복 없음 |
-| 2b-7 | screen_read 발행 | 해당 UI 컴포넌트/훅 (패널 열림 지점) | **발행 지점은 UI 관찰 지점** — 사용자가 패널을 연 시점에 1건. 함수 단위 일괄 태깅 금지(mount 자동 로드·백그라운드 갱신·내부 재시도가 사용자 조회로 둔갑). `fetchJson` 우회 호출(`ProjectHistoryPanel`의 raw `fetchInfra` 등)은 래퍼로 이관하거나 미계측 목록에 명시 | mount 자동 로드 시 이벤트 미발생 테스트 |
+| 2b-5 | SSR 발행 + 서버 렌더 컨텍스트 | `app/target-sources/[targetSourceId]/page.tsx` + `error.tsx`(또는 공용 브라우저 리포터) + `log.ts` | 동적 SSR 렌더 성공→`page_view`(renderMs), 실패→`ssr_error`. **전체 문서 렌더에만 발행** — soft-nav의 RSC 재실행·prefetch 렌더는 발행 없음(방문이 아님, 브라우저 전환 발행은 2b-6 몫). **서버 렌더 컨텍스트 헬퍼 신설** — 이 Server Component는 `withV1` 밖이므로: 세션에서 actor resolve, **단일 requestId를 audit 이벤트와 두 BFF 호출(`targetSources.get`·`getProcessStatus`)에 함께 전파**, 정규 page.template·targetSourceId 스탬프. **SSR template 식별은 여기로 일원화**(3-4는 본 작업으로 흡수). digest 억제는 바운더리 쪽 수정 필수 — PR #558 바운더리는 무조건 리포트하므로 서버 에러 digest 인지 로직을 `error.tsx`/공용 리포터에 추가 | 렌더 실패 시 page_view 없음·ssr_error 1건·**같은 실패로 client_error 0건**(digest 있는 에러 vs 진짜 클라이언트 에러 각각 테스트)·SSR page_view/ssr_error 모두 봉투 필수 필드 충족 |
+| 2b-6 | 브라우저 page_view | `app/components/ObservabilityInit.tsx` | 발행 규칙(ADR-025 §1): ① 초기 문서 로드 — 동적 SSR 라우트는 서버(2b-5)가 발행하므로 브라우저 미발행, 정적/CSR 라우트(`/`·`/services`)는 브라우저 발행 ② **커밋된 클라이언트 라우트 전환은 목적지 불문 브라우저 발행**(타깃 상세로의 soft-nav 포함, renderMs 없음) ③ prefetch는 미발행. 서버가 actor·receivedAt 스탬프 | 전환 시 1건 · 하드 로드 시 서버/브라우저 중복 0건 · prefetch 미발행 테스트 |
+| 2b-7 | screen_read 발행 | 해당 UI 컴포넌트/훅 (패널 열림 지점) | **발행 지점은 UI 관찰 지점** — 사용자가 패널을 연 시점에 1건. 함수 단위 일괄 태깅 금지(mount 자동 로드·백그라운드 갱신·내부 재시도가 사용자 조회로 둔갑). **발행 조건 = 열기 제스처가 실제 네트워크 조회를 트리거한 경우** — 캐시 히트면 미발행(필수 `action{...}`·`outcome.count`의 원천이 없음, ADR-025 §1). 패널 인벤토리는 본 작업에서 확정하고 5-1 매트릭스가 그 목록으로 검증. `fetchJson` 우회 호출은 래퍼로 이관하거나 미계측 목록에 명시 — 현 브랜치 raw `fetchInfra` 우회: `ProjectHistoryPanel`(고객 target-detail) · `app/lib/api/aws.ts`(terraform-script) · `app/lib/api/task-queue-requests.ts`(NLB/승인/거부 — admin) | mount 자동 로드·캐시 히트 재열기 시 이벤트 미발생 테스트 |
 | 2b-8 | 비-Action 읽기 실패의 client_error 발행 | `lib/fetch-json.ts` + 에러 소비 지점 | `fetchJson`은 throw하고 훅(`usePollingBase` 등)이 rejection을 삼키므로 기존 브라우저 리포터는 이를 못 본다 — **비-Action 읽기 실패에서 정확히 1건** client_error 발행(abort 제외, Action 실패와 중복 금지 = 1관찰 1이벤트). `error.zodIssues`는 서버가 ProblemDetails에 **캡 있는 `{path, code}` 확장**을 실어줄 때만 존재(withV1 검증 실패 시 이슈 목록 ≤20 포함 — 없으면 zodIssues 없이 저장) | 폴링 실패 1건·중복 0건·abort 미발행 테스트 |
 
 **완료 기준**: 목업 시나리오(스캔 시작→성공, 확정 409→200, zod 검증 실패, SSR 504, 방문·화면 조회)가
@@ -187,7 +188,7 @@ audit 행도, 자리만 차지하는 role 검사도 만들지 않는다.
 |---|---|---|---|---|
 | 4-1 | FE 프록시 라우트 | 신규 `app/api/v1/admin/observability/*/route.ts` | Phase 1-4 조회 API를 감싸는 라우트. 운영자 role 검사(3-1 이후), 24h 기본 창 | 계약 테스트 + 비운영자 403 |
 | 4-2 | 타깃소스 사용 이력 — 목록 | 신규 `app/admin/observability/page.tsx` + `_components/` | §3 M1. 타깃소스 목록(최근 활동 순·검색) + 24h Action/오류 집계 열. 기존 admin 패턴(theme.ts 토큰·한국어 UI) 준수 | 목업 모드 렌더 + 실데이터 |
-| 4-3 | 타깃소스 사용 이력 — 상세 | 4-2 하위 상세 페이지 | §3 M2. ① 사용자 Action 이력(분리 표 — Action·당시 단계·결과, 비동기는 작업 번호로 짝지음) ② 전체 이력 타임라인(6종 전부, 최신순) ③ 행 클릭 → Audit Event 원본 모달(구조화 레코드 + 전송 payload) | 타깃 1건의 행동 흐름 시간순 재구성 |
+| 4-3 | 타깃소스 사용 이력 — 상세 | 4-2 하위 상세 페이지 | §3 M2. ① 사용자 Action 이력(분리 표 — Action·당시 단계·결과, 비동기는 작업 번호로 짝지음) ② 전체 이력 타임라인(6종 전부, `receivedAt` 최신순) ③ 행 클릭 → Audit Event 원본 모달(구조화 레코드 + 전송 payload) | 타깃 1건의 행동 흐름 시간순 재구성 |
 | 4-4 | 확인 필요 뷰 | 4-2 하위 + 사이드바 | §3 M3. 24h 창 집계 3표(오류 발생 타깃소스·실패 Action 타깃소스·서비스별 요약) + 사이드바 빨간 배지(=오류 발생 타깃소스 수, 0이면 꺼짐) | 집계 쿼리 계약 테스트 |
 | 4-5 | 표시 사전 | 4-2 하위 `_lib/` | 함수명→한국어 Action명, processStatus→단계명 사전(기존 UI 라벨 재사용). 사전에 없는 값은 원본 그대로 노출 | 미등록 값 원본 노출 테스트 |
 
@@ -219,7 +220,7 @@ audit 행도, 자리만 차지하는 role 검사도 만들지 않는다.
 | # | 기능 | 내용 | 데이터 |
 |---|---|---|---|
 | M1 | **타깃소스 사용 이력 — 목록** | 전체 타깃소스(~2,000)를 최근 활동 순으로, 검색(이름/서비스/담당자) | 타깃소스별 최근 이벤트 시각 + 24h Action/오류 count |
-| M2 | **타깃소스 사용 이력 — 상세** | ① 사용자 Action 이력(분리 표: 시각·담당자·Action·당시 단계·결과 — 비동기는 작업 번호로 짝지어 한 행) ② 전체 이력 타임라인(6종 전부 최신순, 운영자 문장 + 당시 단계) ③ 행 클릭 → Audit Event 원본 모달(필드·값·의미 표 + 전송 payload JSON) | ADR-025 이벤트 6종 그대로 |
+| M2 | **타깃소스 사용 이력 — 상세** | ① 사용자 Action 이력(분리 표: 시각·담당자·Action·당시 단계·결과 — 비동기는 작업 번호로 짝지어 한 행) ② 전체 이력 타임라인(6종 전부, **`receivedAt` 최신순** — 시간창 필터와 동일 기준, `observedAt`은 클램프 대상이라 정렬 키 아님) ③ 행 클릭 → Audit Event 원본 모달(필드·값·의미 표 + 전송 payload JSON) | ADR-025 이벤트 6종 그대로 |
 | M3 | **확인 필요** | 24h 창 집계 3표 — 오류 발생 타깃소스 · 실패 Action 타깃소스 · 서비스별 요약. 사이드바 메뉴에 빨간 배지(= 24h 오류 발생 타깃소스 수, 0이면 꺼짐) | `count(*) … where eventType in (client_error, ssr_error) and receivedAt > now()-24h group by target_source_id` — 집계만, 판정 없음 |
 | M4 | **접근 통제·조회 창** | 운영자 role만, 기본 24h 창(확장 가능), 보존 정책 표시 | — |
 
@@ -261,7 +262,7 @@ Phase 0 (PR #558 머지)
   └─→ Phase 2 (전송 교체·필드 정책) ─→ Phase 2b (Audit Event 발행 — 개발·스테이징 검증)
 Phase 1 (BFF 협의: ingest·스키마·멱등키·연결테스트 trigger key·M1~M3 조회) ─→ Phase 2·2b·4   ← 코드와 무관, 지금 바로 시작
 Phase 3 (인증 연동) ─→ ⛔ 게이트: 프로덕션 audit 저장 활성화·Admin 노출은 여기부터
-  └─→ Phase 4 (Admin MVP) ─→ Phase 5 (커버리지 점검) → 후순위 P1~P4
+  └─→ Phase 4 (Admin MVP) ─→ Phase 5 (커버리지 점검) → 후순위 P1~P4(P5는 별도 기능 결정 — §3)
 Phase 6 (Grafana)   ← 도입 결정 후, 언제든
 ```
 
