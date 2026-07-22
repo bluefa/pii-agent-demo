@@ -138,9 +138,10 @@ code 없는 에러는 DB엔 `status`·`requestId`(+ 권고안 채택 시 `errorN
 | 0 | **PR #558 리뷰·머지** — 수집 로직(스키마·헤더·PII 가드)은 그대로 재사용 | 리뷰만 | — |
 | 1 | **BFF 협의** — ingest API 계약 · DB 스키마 · 보존/삭제 정책 · 조회 API | 협의 | 지금 시작 가능 |
 | 2 | **전송 교체** — `log.ts` 출구를 stdout→BFF 배치 전송으로, surface 필드, 필드 정책 적용 | FE 코드 | 0·1 |
+| 2b | **Audit Event 발행** — ADR-025 이벤트 6종(빌더·allowlist·동기/비동기 Action·SSR·서버 스탬프) | FE 코드 | 0·1·2 |
 | 3 | **인증 연동** — userId·role 서버 resolve, 인가 거부(403) 로깅, SSR 화면 식별 | FE 코드 | 인증 도입(~1개월) |
-| 4 | **In-app Admin 대시보드** — 관제·드릴다운·엔티티 축·보안 뷰 (기능 목록: 구현 계획 §3) | FE+BFF | 1·2 |
-| 5 | **page_view 이벤트** — 방문 추적 (userId 기반, sessionId 없음) | FE 코드 소규모 | 2 |
+| 4 | **In-app Admin — MVP** — 타깃소스 사용 이력(목록·상세·이벤트 모달) + 확인 필요 24h 집계 (구현 계획 §3 M1~M4; 관제·고객별·403 뷰는 후순위 P1~P4) | FE+BFF | 1·2·2b |
+| 5 | **page_view·screen_read 확장** — 방문 추적(동적 SSR=서버 발행, `/services`=브라우저 발행) (userId 기반, sessionId 없음) | FE 코드 소규모 | 2b |
 | 6 | **Grafana 도입 결정** — push 알림 필요성 판단 후 SQL 데이터소스 구성 | 보류 | 결정 |
 
 ## 8. 열린 항목 (결정 필요)
@@ -148,6 +149,7 @@ code 없는 에러는 DB엔 `status`·`requestId`(+ 권고안 채택 시 `errorN
 - **Admin의 성격**: 실시간 관제탑(자동 갱신) vs 문제 시 파는 조사실(수동 조회) — 화면 자동 갱신 여부가 여기 달림
 - **CTA 실패**: 전용 뷰로 만들지, 필터 축만 둘지
 - **로그+도메인 상태 합치기**를 Admin MVP(Phase 4)에 넣을지
+- **이벤트 체계 상세**(6종·봉투·allowlist·신뢰 경계)는 ADR-025로 확정 — 연결테스트 trigger 응답의 job key 추가는 BFF 협의 필요
 - **errorName/fingerprint 저장** 권고안 채택 여부 (§4)
 - **BFF DB 스키마 상세**: 필드·보존 기간·삭제 정책 (많아지면 삭제 — 주기·기준 미정)
 - **FE→BFF 전송 방식**: 배치 크기/주기, 유실 허용 범위
