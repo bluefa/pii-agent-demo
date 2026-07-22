@@ -5,7 +5,7 @@ import {
   ConfirmedIntegrationTable,
   type ConfirmedIntegrationTableVariant,
 } from '@/app/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable';
-import { ErrorRow, LoadingRow } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
+import { ErrorRow, ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 
 interface ConfirmedResourcesSlotProps {
@@ -18,7 +18,7 @@ export const ConfirmedResourcesSlot = ({ variant, bare }: ConfirmedResourcesSlot
 
   const body =
     state.status === 'loading' ? (
-      <LoadingRow message="불러오는 중..." />
+      <ResourceTableSkeleton />
     ) : state.status === 'error' ? (
       <ErrorRow message={state.message} onRetry={retry} />
     ) : (

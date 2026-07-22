@@ -16,7 +16,7 @@ import {
   useConfirmedIntegration,
 } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { ConnectionTestCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ConnectionTestCard';
-import { ErrorRow, LoadingRow } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
+import { ErrorRow, ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 
 interface WaitingConnectionTestStepProps {
   project: CloudTargetSource;
@@ -35,7 +35,7 @@ const ConnectionTestSection = ({
   refreshProject: () => void;
 }) => {
   const { targetSourceId, state, retry } = useConfirmedIntegration();
-  if (state.status === 'loading') return <LoadingRow message="불러오는 중..." />;
+  if (state.status === 'loading') return <ResourceTableSkeleton />;
   if (state.status === 'error') return <ErrorRow message={state.message} onRetry={retry} />;
   return (
     <ConnectionTestCard

@@ -6,7 +6,8 @@ import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ClockIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
-import { LoadingState, ErrorState } from '@/app/components/ui/state';
+import { ErrorState } from '@/app/components/ui/state';
+import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
@@ -113,7 +114,7 @@ export const IdcStep6ConnectionVerified = ({
             <strong className="font-semibold">최종 관리자 승인을 기다리고 있어요.</strong>{' '}
             승인이 완료되면 모니터링이 즉시 시작됩니다.
           </StepBanner>
-          {state.status === 'loading' && <LoadingState label="연동 대상을 불러오는 중..." />}
+          {state.status === 'loading' && <ResourceTableSkeleton />}
           {state.status === 'error' && <ErrorState message="연동 대상을 불러오지 못했습니다." />}
           {state.status === 'ready' && (
             <IdcResourceTable resources={state.resources} cols={['src', 'credro', 'conn']} />

@@ -22,7 +22,7 @@ import { ApprovalUnavailableCard } from '@/app/target-sources/[targetSourceId]/_
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import {
   ErrorRow,
-  LoadingRow,
+  ResourceTableSkeleton,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
 import { cardStyles, cn, statusColors, textColors } from '@/lib/theme';
@@ -176,7 +176,7 @@ export const WaitingApprovalCard = ({
         </StepBanner>
 
         {state.status === 'loading' ? (
-          <LoadingRow message="승인 요청 리소스를 불러오는 중입니다." />
+          <ResourceTableSkeleton />
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
         ) : (
