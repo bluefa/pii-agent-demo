@@ -13,7 +13,7 @@
  */
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import { pipelineStyles } from '@/lib/theme';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 
@@ -175,7 +175,7 @@ export default function RequestDetailPage(): ReactElement {
     }
   };
 
-  const backToList = (): void => router.push(integrationRoutes.pipelines.queue.requests);
+  const backToList = (): void => router.push(passRoutes.pipelines.queue.requests);
 
   // A failed submit keeps the modal open (it resets its own submitting flag) and
   // surfaces the reason via the section toast — the same grammar as onSaveNlb.
@@ -207,8 +207,8 @@ export default function RequestDetailPage(): ReactElement {
     <div>
       <PlBreadcrumb
         crumbs={[
-          { label: 'Task Queue', href: integrationRoutes.pipelines.queue.dashboard },
-          { label: '연동 요청', href: integrationRoutes.pipelines.queue.requests },
+          { label: 'Task Queue', href: passRoutes.pipelines.queue.dashboard },
+          { label: '연동 요청', href: passRoutes.pipelines.queue.requests },
           { label: `${serviceName} #${targetSourceId}` },
         ]}
       />

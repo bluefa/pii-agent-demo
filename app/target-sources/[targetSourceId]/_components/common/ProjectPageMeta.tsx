@@ -2,7 +2,7 @@ import type { TargetSource } from '@/lib/types';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
 import { PageHeader } from '@/app/components/ui/PageHeader';
 import { IdentityBar, type IdentityBarField } from '@/app/components/ui/IdentityBar';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import { cn, primaryColors, providerAccent, providerAccentDefault } from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
 
@@ -15,7 +15,7 @@ interface ProjectPageMetaProps {
 
 const STATIC_HEAD_CRUMBS = [
   { label: 'SIT Home', href: '/' },
-  { label: 'Service List', href: integrationRoutes.services },
+  { label: 'Service List', href: passRoutes.services },
 ];
 
 const JIRA_KEY_PATTERN = /\/browse\/([A-Z][A-Z0-9]+-\d+)/;
@@ -117,7 +117,7 @@ const buildIdentityFields = (identity: ProjectIdentity): IdentityBarField[] => {
 export const ProjectPageMeta = ({ project, providerLabel, identity, action }: ProjectPageMetaProps) => {
   const crumbs = [
     ...STATIC_HEAD_CRUMBS,
-    { label: project.serviceCode, href: `${integrationRoutes.services}?service_code=${encodeURIComponent(project.serviceCode)}` },
+    { label: project.serviceCode, href: `${passRoutes.services}?service_code=${encodeURIComponent(project.serviceCode)}` },
     { label: providerLabel },
   ];
   const provider = String(identity.cloudProvider).toLowerCase();

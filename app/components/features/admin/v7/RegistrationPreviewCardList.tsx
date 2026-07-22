@@ -12,7 +12,7 @@ import {
 } from '@/lib/theme';
 import type { TargetSourceCreationCandidateResponse } from '@/app/lib/api';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import type { CloudProvider } from '@/lib/types';
 
 const PROVIDER_CANONICAL: Record<string, CloudProvider> = {
@@ -69,7 +69,7 @@ const StatusBadge = ({ candidate }: { candidate: TargetSourceCreationCandidateRe
         </span>
         {candidate.existing_target_source_id != null && (
           <Link
-            href={integrationRoutes.targetSource(candidate.existing_target_source_id)}
+            href={passRoutes.targetSource(candidate.existing_target_source_id)}
             className={cn('text-[11px] font-medium underline', primaryColors.text)}
             onClick={(e) => e.stopPropagation()}
           >

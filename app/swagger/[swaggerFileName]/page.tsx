@@ -83,8 +83,8 @@ export default async function IntegrationSwaggerPreviewPage({ params }: PageProp
   }
 
   // SwaggerUI fetches this URL raw (not basePath-aware), so include the
-  // `/integration` basePath explicitly — the route serves at /integration/api/*.
-  const specUrl = `/integration/api/swagger-spec/${specName}`;
+  // `/pass` basePath explicitly — the route serves at /pass/api/*.
+  const specUrl = `/pass/api/swagger-spec/${specName}`;
 
   return (
     <main className="min-h-screen bg-white">

@@ -14,11 +14,11 @@ import { bff } from '@/lib/bff/client';
 const mockedGetSecrets = vi.mocked(bff.targetSources.getSecrets);
 
 const call = () =>
-  GET(new Request('http://localhost/integration/api/v1/target-sources/1003/secrets'), {
+  GET(new Request('http://localhost/pass/api/v1/target-sources/1003/secrets'), {
     params: Promise.resolve({ targetSourceId: '1003' }),
   });
 
-describe('GET /integration/api/v1/target-sources/[targetSourceId]/secrets', () => {
+describe('GET /pass/api/v1/target-sources/[targetSourceId]/secrets', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

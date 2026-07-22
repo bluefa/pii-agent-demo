@@ -2,7 +2,7 @@
  * Local style tokens for the services page composites (LIN-25 Phase C1-b).
  *
  * R20.5 — the service picker is a full-height RAIL flush at the content area's
- * left edge (reference: /integration/services "Service List" panel), NOT a
+ * left edge (reference: /pass/services "Service List" panel), NOT a
  * floating card. The split wrapper escapes the section content padding
  * (`layout.content` = px-8 pt-6 pb-12) with matching negative margins; the
  * right pane restores its own padding. Same conventions as pipelineStyles:

@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { createApprovalRequest } from '@/app/lib/api';
 import { formatDate } from '@/lib/utils/date';
 import { Button } from '@/app/components/ui/Button';
-import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ClockIcon, PlayIcon } from '@/app/components/ui/icons';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
@@ -13,7 +12,7 @@ import { ScanController, type ScanUiState } from '@/app/components/features/scan
 import { ScanEmptyState } from '@/app/components/features/scan/ScanEmptyState';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
 import { ScanRunningState } from '@/app/components/features/scan/ScanRunningState';
-import { cardStyles, cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
+import { borderColors, cardStyles, cn, getButtonClass, idcStyles, statusColors, textColors } from '@/lib/theme';
 import type { CandidateDraftState, EndpointConfigDraft } from '@/lib/types/resources';
 import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
@@ -39,6 +38,26 @@ const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
 
 /** Cloud exclusion reason limit — docs/cloud-provider-states.md (required, max 3000 chars). */
 const CLOUD_EXCL_REASON_MAXLEN = 3000;
+
+/** Skeleton frame shown while candidate resources load — mirrors the candidate table shape. */
+const CandidateTableSkeleton = () => (
+  <div className="space-y-3" aria-busy="true" aria-live="polite">
+    <div className={cn(idcStyles.skeletonBar, 'h-3.5 w-56 rounded')} />
+    <div className={cn('overflow-hidden rounded-xl border', borderColors.default)}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className={cn('flex items-center gap-3 px-4 py-3.5', i > 0 && cn('border-t', borderColors.light))}
+        >
+          <div className={cn(idcStyles.skeletonBar, 'h-4 w-4 rounded')} />
+          <div className={cn(idcStyles.skeletonBar, 'h-4 flex-1 rounded')} />
+          <div className={cn(idcStyles.skeletonBar, 'h-4 w-24 rounded')} />
+          <div className={cn(idcStyles.skeletonBar, 'h-5 w-20 rounded-full')} />
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 export const CandidateResourceSection = ({
   targetSourceId,
@@ -169,12 +188,7 @@ export const CandidateResourceSection = ({
 
     switch (phase) {
       case 'fetching':
-        return (
-          <div className="flex items-center justify-center gap-3 py-10">
-            <LoadingSpinner />
-            <span className={cn('text-sm', textColors.tertiary)}>리소스 정보를 불러오는 중입니다.</span>
-          </div>
-        );
+        return <CandidateTableSkeleton />;
       case 'fetchError':
         return (
           <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>

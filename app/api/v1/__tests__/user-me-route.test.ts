@@ -18,7 +18,7 @@ type UserMeResponse = z.infer<typeof schemas.UserMeResponse>;
 
 const mockedMe = vi.mocked(bff.users.me);
 
-describe('GET /integration/api/v1/user/me', () => {
+describe('GET /pass/api/v1/user/me', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -30,7 +30,7 @@ describe('GET /integration/api/v1/user/me', () => {
       email: 'hong@company.com',
     } as UserMeResponse);
 
-    const response = await GET(new Request('http://localhost/integration/api/v1/user/me'), {
+    const response = await GET(new Request('http://localhost/pass/api/v1/user/me'), {
       params: Promise.resolve({}),
     });
 
@@ -47,7 +47,7 @@ describe('GET /integration/api/v1/user/me', () => {
       new BffError(401, 'UNAUTHORIZED', '로그인이 필요합니다.'),
     );
 
-    const response = await GET(new Request('http://localhost/integration/api/v1/user/me'), {
+    const response = await GET(new Request('http://localhost/pass/api/v1/user/me'), {
       params: Promise.resolve({}),
     });
 

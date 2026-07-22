@@ -44,7 +44,7 @@ import {
   TypePill,
   TypeTile,
 } from '@/app/admin/pipelines/_detail/r24Task';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import {
   createCustomPipeline,
   createPipeline,
@@ -242,7 +242,7 @@ export function PreviewModal({
       onSuccess: (detail) => {
         onClose();
         showToast(`${label} 파이프라인이 실행됐어요`);
-        router.push(integrationRoutes.pipelines.pipeline(detail.pipeline_id));
+        router.push(passRoutes.pipelines.pipeline(detail.pipeline_id));
       },
       onError: (err) => {
         if (err instanceof OrchestratorApiError && err.code === ALREADY_ACTIVE) {
@@ -255,7 +255,7 @@ export function PreviewModal({
               if (latest) {
                 onClose();
                 showToast('이미 진행 중인 파이프라인으로 이동합니다');
-                router.push(integrationRoutes.pipelines.pipeline(latest.pipeline_id));
+                router.push(passRoutes.pipelines.pipeline(latest.pipeline_id));
                 return;
               }
             } catch {

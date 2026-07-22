@@ -16,7 +16,7 @@ import { bff } from '@/lib/bff/client';
 const mockedVerifyScanRole = vi.mocked(bff.aws.verifyScanRole);
 const mockedVerifyExecutionRole = vi.mocked(bff.aws.verifyExecutionRole);
 
-describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-scan-role', () => {
+describe('GET /pass/api/v1/aws/target-sources/[targetSourceId]/verify-scan-role', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -30,7 +30,7 @@ describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-sca
     });
 
     const response = await getScanRole(
-      new Request('http://localhost/integration/api/v1/aws/target-sources/42/verify-scan-role'),
+      new Request('http://localhost/pass/api/v1/aws/target-sources/42/verify-scan-role'),
       { params: Promise.resolve({ targetSourceId: '42' }) },
     );
 
@@ -45,7 +45,7 @@ describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-sca
 
   it('잘못된 targetSourceId는 problem 응답으로 거절한다', async () => {
     const response = await getScanRole(
-      new Request('http://localhost/integration/api/v1/aws/target-sources/abc/verify-scan-role'),
+      new Request('http://localhost/pass/api/v1/aws/target-sources/abc/verify-scan-role'),
       { params: Promise.resolve({ targetSourceId: 'abc' }) },
     );
 
@@ -54,7 +54,7 @@ describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-sca
   });
 });
 
-describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-execution-role', () => {
+describe('GET /pass/api/v1/aws/target-sources/[targetSourceId]/verify-execution-role', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -69,7 +69,7 @@ describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-exe
     });
 
     const response = await getExecutionRole(
-      new Request('http://localhost/integration/api/v1/aws/target-sources/42/verify-execution-role'),
+      new Request('http://localhost/pass/api/v1/aws/target-sources/42/verify-execution-role'),
       { params: Promise.resolve({ targetSourceId: '42' }) },
     );
 
@@ -86,7 +86,7 @@ describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-exe
 
   it('잘못된 targetSourceId는 problem 응답으로 거절한다', async () => {
     const response = await getExecutionRole(
-      new Request('http://localhost/integration/api/v1/aws/target-sources/abc/verify-execution-role'),
+      new Request('http://localhost/pass/api/v1/aws/target-sources/abc/verify-execution-role'),
       { params: Promise.resolve({ targetSourceId: 'abc' }) },
     );
 

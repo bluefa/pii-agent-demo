@@ -8,7 +8,7 @@
  * numeric ProcessStatus enum and drops the china/permission/sdu flags, so it is
  * unusable here (docs/api/pipeline-orchestrator-bff.md §2.3).
  *
- * This reuses the EXISTING BFF route `GET /integration/api/v1/target-sources/{id}`
+ * This reuses the EXISTING BFF route `GET /pass/api/v1/target-sources/{id}`
  * — its handler returns `schemas.TargetSourceDetail.parse(data)` (a `.passthrough()`
  * schema), i.e. the raw snake wire verbatim. No new route is added.
  */

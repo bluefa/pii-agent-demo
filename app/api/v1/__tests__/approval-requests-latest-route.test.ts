@@ -14,7 +14,7 @@ import { bff } from '@/lib/bff/client';
 
 const mockedGetApprovalRequestLatest = vi.mocked(bff.confirm.getApprovalRequestLatest);
 
-describe('GET /integration/api/v1/target-sources/[targetSourceId]/approval-requests/latest', () => {
+describe('GET /pass/api/v1/target-sources/[targetSourceId]/approval-requests/latest', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -40,7 +40,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approval-reque
     mockedGetApprovalRequestLatest.mockResolvedValue(bffResponse);
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/target-sources/1003/approval-requests/latest'),
+      new Request('http://localhost/pass/api/v1/target-sources/1003/approval-requests/latest'),
       { params: Promise.resolve({ targetSourceId: '1003' }) },
     );
 
@@ -71,7 +71,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approval-reque
     );
 
     const response = await GET(
-      new Request('http://localhost/integration/api/v1/target-sources/1003/approval-requests/latest'),
+      new Request('http://localhost/pass/api/v1/target-sources/1003/approval-requests/latest'),
       { params: Promise.resolve({ targetSourceId: '1003' }) },
     );
 

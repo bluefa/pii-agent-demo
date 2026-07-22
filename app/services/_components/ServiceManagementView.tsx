@@ -12,7 +12,7 @@ import {
 } from '@/app/lib/api';
 import { AppError } from '@/lib/errors';
 import type { ProjectSummary } from '@/lib/types';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import { bgColors, cn, textColors } from '@/lib/theme';
 import { ServiceSidebar } from '@/app/components/features/admin/ServiceSidebar';
 import { InfraRowList, ServiceHeaderV7 } from '@/app/components/features/admin/v7';
@@ -141,7 +141,7 @@ export const ServiceManagementView = () => {
     (code: string) => {
       // Preserve the original casing — /services/{code}/target-sources matches
       // case-sensitively (a wrong-case code 404s).
-      router.push(`${integrationRoutes.services}?service_code=${encodeURIComponent(code)}`);
+      router.push(`${passRoutes.services}?service_code=${encodeURIComponent(code)}`);
     },
     [router],
   );
@@ -166,7 +166,7 @@ export const ServiceManagementView = () => {
 
   const handleOpenDetail = useCallback(
     (targetSourceId: number) => {
-      router.push(integrationRoutes.targetSource(targetSourceId));
+      router.push(passRoutes.targetSource(targetSourceId));
     },
     [router],
   );
@@ -174,7 +174,7 @@ export const ServiceManagementView = () => {
   const handleManageAction = useCallback(
     (action: 'view' | 'delete', targetSourceId: number) => {
       if (action === 'view') {
-        router.push(integrationRoutes.targetSource(targetSourceId));
+        router.push(passRoutes.targetSource(targetSourceId));
         return;
       }
       toast.info('삭제 미구현');

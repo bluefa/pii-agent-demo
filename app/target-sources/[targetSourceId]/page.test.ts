@@ -32,7 +32,7 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
 
 import ProjectDetailPage from '@/app/target-sources/[targetSourceId]/page';
 
-describe('GET /integration/target-sources/[targetSourceId]', () => {
+describe('GET /pass/target-sources/[targetSourceId]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -21,7 +21,7 @@ import { useParams } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import { Card } from '@/app/admin/pipelines/_components/Card';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
@@ -240,7 +240,7 @@ export function PipelineDetailView(): ReactElement {
             message={
               <>
                 알 수 없는 경로입니다.{' '}
-                <Link href={integrationRoutes.pipelines.dashboard} className={text.link}>
+                <Link href={passRoutes.pipelines.dashboard} className={text.link}>
                   대시보드로 이동
                 </Link>
               </>
@@ -330,7 +330,7 @@ export function PipelineDetailView(): ReactElement {
             <span className={h.k}>TargetSourceId</span>
             <span className={cn(h.v, 'tabular-nums')}>{detail.target_source_id}</span>
           </div>
-          <Link href={integrationRoutes.pipelines.target(detail.target_source_id)} className={h.link}>
+          <Link href={passRoutes.pipelines.target(detail.target_source_id)} className={h.link}>
             Target 상세 확인 <Icon name="arrow-ur" size="sm" />
           </Link>
         </div>

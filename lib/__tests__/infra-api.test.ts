@@ -11,10 +11,10 @@ describe('lib/infra-api', () => {
   });
 
   it.each([
-    ['/user/me', '/integration/api/v1/user/me'],
-    ['/target-sources/abc', '/integration/api/v1/target-sources/abc'],
-    ['user/me', '/integration/api/v1/user/me'],
-  ])('toInternalInfraApiPath prepends /integration/api/v1 for %s', (input, expected) => {
+    ['/user/me', '/pass/api/v1/user/me'],
+    ['/target-sources/abc', '/pass/api/v1/target-sources/abc'],
+    ['user/me', '/pass/api/v1/user/me'],
+  ])('toInternalInfraApiPath prepends /pass/api/v1 for %s', (input, expected) => {
     expect(toInternalInfraApiPath(input)).toBe(expected);
   });
 });

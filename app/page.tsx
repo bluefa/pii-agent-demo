@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 
 export default function Home() {
-  redirect(integrationRoutes.services);
+  redirect(passRoutes.services);
 }

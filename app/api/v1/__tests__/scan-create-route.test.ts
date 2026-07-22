@@ -14,7 +14,7 @@ import { BffError } from '@/lib/bff/errors';
 
 const mockedCreate = vi.mocked(bff.scan.create);
 
-describe('POST /integration/api/v1/target-sources/[id]/scan', () => {
+describe('POST /pass/api/v1/target-sources/[id]/scan', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

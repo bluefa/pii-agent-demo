@@ -19,7 +19,7 @@ export default async function IntegrationApiDocsPage({ searchParams }: PageProps
             {SWAGGER_SPEC_NAMES.map((name) => (
               <Link
                 key={name}
-                // basePath-aware: next/link prepends `/integration`.
+                // basePath-aware: next/link prepends `/pass`.
                 href={`/api-docs?spec=${name}`}
                 className={cn('rounded border bg-white px-3 py-2 text-sm', textColors.primary, selectedSpec === name && 'font-semibold')}
               >
@@ -32,7 +32,7 @@ export default async function IntegrationApiDocsPage({ searchParams }: PageProps
         <section className="overflow-hidden rounded border bg-white">
           <iframe
             title={`swagger-${selectedSpec}`}
-            src={`/integration/swagger/${selectedSpec}`}
+            src={`/pass/swagger/${selectedSpec}`}
             className="h-[calc(100vh-2rem)] w-full border-0"
           />
         </section>

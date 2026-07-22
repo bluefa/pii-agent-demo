@@ -15,7 +15,7 @@ import { useParams } from 'next/navigation';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { useApiAction, useApiMutation } from '@/app/hooks/useApiMutation';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { integrationRoutes } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import {
   getTestConnectionDetail,
@@ -209,8 +209,8 @@ export default function TestConnectionDetailPage(): ReactElement {
   });
 
   const crumbs = [
-    { label: 'Task Queue', href: integrationRoutes.pipelines.queue.dashboard },
-    { label: '연결 테스트', href: integrationRoutes.pipelines.queue.testConnections },
+    { label: 'Task Queue', href: passRoutes.pipelines.queue.dashboard },
+    { label: '연결 테스트', href: passRoutes.pipelines.queue.testConnections },
     { label: `${detail?.serviceName ?? '연결 테스트'} #${params.targetSourceId}` },
   ];
 

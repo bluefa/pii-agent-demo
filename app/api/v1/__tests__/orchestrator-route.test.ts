@@ -33,7 +33,7 @@ describe('orchestrator proxy routes (withOrchestratorProxy)', () => {
     mockedDetail.mockResolvedValue({ status: 200, body });
 
     const response = await detailGET(
-      new Request('http://localhost/integration/api/v1/orchestrator/pipelines/128'),
+      new Request('http://localhost/pass/api/v1/orchestrator/pipelines/128'),
       { params: Promise.resolve({ pipelineId: '128' }) },
     );
 
@@ -54,7 +54,7 @@ describe('orchestrator proxy routes (withOrchestratorProxy)', () => {
     mockedCreate.mockResolvedValue({ status: 409, body: errorBody });
 
     const response = await createPOST(
-      new Request('http://localhost/integration/api/v1/orchestrator/target-sources/1006/pipelines', {
+      new Request('http://localhost/pass/api/v1/orchestrator/target-sources/1006/pipelines', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ type: 'INSTALL' }),
@@ -71,7 +71,7 @@ describe('orchestrator proxy routes (withOrchestratorProxy)', () => {
     mockedLatest.mockResolvedValue({ status: 204, body: null });
 
     const response = await latestGET(
-      new Request('http://localhost/integration/api/v1/orchestrator/target-sources/1010/pipelines/latest'),
+      new Request('http://localhost/pass/api/v1/orchestrator/target-sources/1010/pipelines/latest'),
       { params: Promise.resolve({ targetSourceId: '1010' }) },
     );
 
@@ -84,7 +84,7 @@ describe('orchestrator proxy routes (withOrchestratorProxy)', () => {
 
     const response = await listGET(
       new Request(
-        'http://localhost/integration/api/v1/orchestrator/pipelines?size=200&sort=createdAt,desc&sort=id,desc',
+        'http://localhost/pass/api/v1/orchestrator/pipelines?size=200&sort=createdAt,desc&sort=id,desc',
       ),
       { params: Promise.resolve({}) },
     );
@@ -100,7 +100,7 @@ describe('orchestrator proxy routes (withOrchestratorProxy)', () => {
     mockedDetail.mockRejectedValueOnce(new OrchestratorUnreachableError('pipeline-orchestrator unreachable'));
 
     const response = await detailGET(
-      new Request('http://localhost/integration/api/v1/orchestrator/pipelines/128'),
+      new Request('http://localhost/pass/api/v1/orchestrator/pipelines/128'),
       { params: Promise.resolve({ pipelineId: '128' }) },
     );
 
