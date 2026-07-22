@@ -95,7 +95,7 @@ prerequisite, not merged behavior):
 | `action` | A button-driven act. Synchronous actions (e.g. `confirmInstallation`) carry their result (HTTP status, error `code`) in this one event | Browser |
 | `action_result` | The settle outcome of an asynchronous action (scan, test connection): status enum, duration, structured summary | Browser |
 | `client_error` | A failure observed while the page is in use: a render error or unhandled rejection in the browser, or an error response observed by the browser on a CSR call. When the underlying cause is a schema-validation failure, the event detail carries the issue list (`{path, code}` pairs) — note that in this codebase validation runs in the FE server route (`schemas.parse` inside `withV1`), so the browser typically observes it as an error status, not as a local exception | Browser |
-| `ssr_error` | Page generation failed on the server; the customer saw an error page instead of the page. **Server-origin render failures belong exclusively here** — the browser error boundary that catches the same failure (recognizable by the server-error `digest` Next.js attaches) must not also emit `client_error`, or one failed render would double-count in error aggregates | FE server (SSR) |
+| `ssr_error` | Page generation failed on the server; the customer saw an error page instead of the page. Emitted for **every user-visible server render failure** — full-document renders and soft-navigation RSC renders alike (only prefetch render failures are excluded); the full-document restriction above applies to successful `page_view` only, because the `digest` suppression below means a soft-nav failure not recorded here would be recorded nowhere. **Server-origin render failures belong exclusively here** — the browser error boundary that catches the same failure (recognizable by the server-error `digest` Next.js attaches) must not also emit `client_error`, or one failed render would double-count in error aggregates | FE server (SSR) |
 
 ### 1a. Envelope — field-level contract
 
@@ -244,7 +244,7 @@ browser  — builds the event at the observation site (fetchJson wrapper /
            poll settle / error boundary), batches, POSTs to the FE ingest
            route. Delivery is at-most-once: a small buffer flushed on a
            timer and on pagehide/visibilitychange (sendBeacon or keepalive
-           fetch, so events emitted just before navigation are not lost);
+           fetch, reducing — not eliminating — navigation-time loss);
            failed or over-cap batches are dropped and counted, never
            retried across navigations
 FE server — validates against the ingest schema (closed enums, caps, shapes);
