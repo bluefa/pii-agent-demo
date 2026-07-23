@@ -198,28 +198,28 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
   border-bottom:1px solid var(--border)}
 .ts-mast .breadcrumb{margin-bottom:10px}
 .mast-id{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
-/* 계층: TS id(최강조 mono) > 서비스명+코드(강조) > 메타칩(약) */
-.mast-id h1{font-family:var(--font-mono);font-size:26px;font-weight:700;margin:0;line-height:1.15;
-  letter-spacing:-.01em;color:var(--text-strong)}
-.mast-sub{display:flex;align-items:center;gap:8px;margin-top:8px}
-.mast-sub .svc{font-size:18px;font-weight:600;color:var(--text-strong)}
-.mast-sub .code{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-medium);
-  background:var(--gray-100);padding:2px 8px;border-radius:6px}
+/* 계층 (app /pass/admin/pipelines 정합) — 크기·굵기·색·간격으로 tier 구분:
+   TS id 28/700 gray-900 (최강조) > 서비스명 18/600 gray-900 (강조) > label 13/400 gray-500 > value 15/400 gray-900 */
+.mast-id h1{font-size:28px;font-weight:700;margin:0;line-height:1;color:var(--gray-900)}
+.mast-sub{display:flex;align-items:center;gap:8px;margin-top:10px}
+.mast-sub .svc{font-size:18px;font-weight:600;color:var(--gray-900)}
+.mast-sub .code{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--gray-700);
+  background:var(--gray-100);padding:1px 8px;border-radius:6px}
 .mast-id .actions{display:flex;gap:8px;flex:none}
-/* 현재 단계 간결 표기 + 진행사항 보기 링크 */
-.mast-proc{display:flex;align-items:center;justify-content:space-between;gap:12px;
-  margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+/* 현재 단계 — 운영 상태 행 (identity와 reference meta 사이) */
+.mast-proc{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:20px}
 .mast-proc .mp-l{display:flex;align-items:center;gap:10px}
-.mast-proc .mp-k{font-size:12px;font-weight:600;color:var(--text-weak)}
-.mast-proc .link{font-size:14px;display:inline-flex;align-items:center;gap:2px}
-.mast-chips{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;font-size:14px}
-.mast-chips .hm-k{font-size:12px;font-weight:600;color:var(--text-weak)}
-.mast-chips .hm-v{color:var(--text-strong);font-weight:500;font-variant-numeric:tabular-nums}
-.mast-chips .hm-v.mono{font-family:var(--font-mono);font-size:12px}
-.mast-chips .hm-sep{color:var(--border-strong)}
-.jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:2px 6px;border-radius:6px}
+.mast-proc .mp-k{font-size:13px;font-weight:400;color:var(--gray-500)}
+.mast-proc .link{font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:2px}
+/* reference 메타 그리드 — label-value 셀 (gap 12/40) */
+.mast-meta{display:flex;flex-wrap:wrap;gap:12px 40px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.mast-meta .cell{display:flex;align-items:center;gap:8px}
+.mast-meta .k{font-size:13px;font-weight:400;color:var(--gray-500)}
+.mast-meta .v{font-size:15px;font-weight:400;color:var(--gray-900);font-variant-numeric:tabular-nums}
+.mast-meta .v.strong{font-weight:600}
+.jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:1px 6px;border-radius:6px}
 .jchip:hover{background:var(--gray-50)}
-.jchip .mono{font-size:12px;color:var(--primary);font-weight:600}
+.jchip .mono{font-size:13px;color:var(--primary);font-weight:600}
 
 /* tab rail — 독립 틴트 밴드; 활성 탭만 화이트로 body에 연결 */
 .tabbar{display:flex;gap:2px;background:var(--gray-100);border-bottom:1px solid var(--border);
@@ -830,10 +830,10 @@ function renderTs(id, tabId){
         <div class="mp-l"><span class="mp-k">현재 단계</span>${pill(t.st)}</div>
         <span class="link" onclick="location.hash='#/ts/${t.id}/process'">진행사항 보기 ${icon('chev','xs')}</span>
       </div>
-      <div class="mast-chips">
+      <div class="mast-meta">
         ${providerMetaChips(t)}
-        <span class="hm-k">Jira</span>${jiraChip(t.jira)}<span class="hm-sep">·</span>
-        <span class="hm-k">마지막 변경</span><span class="hm-v">${t.at}</span>
+        <div class="cell"><span class="k">Jira</span>${jiraChip(t.jira)}</div>
+        <div class="cell"><span class="k">마지막 변경</span><span class="v">${t.at}</span></div>
       </div>
     </div>
     <div class="tabbar">
@@ -853,10 +853,8 @@ const META_LABELS = {
 };
 function kv(k,v){ return `<div class="k">${esc(k)}</div><div class="v">${v}</div>`; }
 function providerMetaChips(t){
-  const keys = Object.keys(t.meta||{});
-  if(!keys.length) return '';
-  return keys.map(k=>`<span class="hm-k">${esc(META_LABELS[k]||k)}</span><span class="hm-v mono">${esc(t.meta[k])}</span>`)
-    .join('<span class="hm-sep">·</span>') + '<span class="hm-sep">·</span>';
+  return Object.keys(t.meta||{}).map(k=>
+    `<div class="cell"><span class="k">${esc(META_LABELS[k]||k)}</span><span class="v">${esc(t.meta[k])}</span></div>`).join('');
 }
 function stepRail(t){
   const cur = STEP[t.st];
