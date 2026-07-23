@@ -1,77 +1,89 @@
 # FE 관측성 전략 개요 — 무엇을, 어디에, 어떻게 쌓고 볼 것인가
 
 > **목적**: GKE에 배포될 프론트엔드에서 "고객이 무엇을 했고, 어떤 에러가 났고, API를 얼마나 호출했는가"를
-> 추적하는 전체 전략을 한 문서로 설명한다. 의사결정용 요약 문서이며, 구현 상세는
-> `docs/feature/observability-plan.md`(PR #558 브랜치)에 있다.
+> 추적하는 전체 전략을 한 문서로 설명한다. 의사결정용 요약 문서이며, 실행 계획은
+> `observability-implementation-plan.md`, 수집 계층 구현 상세는 `observability-plan.md`(PR #558 브랜치)에 있다.
 >
-> **작성일**: 2026-07-21 · **상태**: 전략 확정 제안 (수집 계층은 PR #558로 구현 완료·미머지)
+> **작성일**: 2026-07-21 · **개정**: 2026-07-22 — 저장소를 Cloud Logging에서 **BFF DB로 변경**(결정 ①),
+> 인증 전제·sessionId 제거·필드 정책·인가 거부 추적 반영 · **2026-07-23** — ADR-025 이벤트 체계 확정 반영,
+> 로그+도메인 join의 Admin MVP 채택, Grafana SQL 후보 분리(G2/G4/G8). **상태**: 전략 확정 제안
 
 ---
 
-## 1. 한 장 요약
+## 1. 확정 결정 (2026-07-22)
 
-요구는 성격이 다른 **3가지 관심사**로 나뉘고, 각각 정답이 다르다.
+| # | 결정 | 원래 설계에서 바뀐 것 | 이유 |
+|---|---|---|---|
+| ① | **FE 로그는 BFF로 전송, BFF가 자체 DB에 저장** | stdout → Cloud Logging(FE 프로젝트 적재) 폐기 | FE가 서로 다른 GCP 프로젝트로 **최소 2회 마이그레이션** 예정. stdout 방식이면 이사할 때마다 저장소·metric·알림 재구성 + 히스토리 단절. BFF는 마이그레이션하지 않는 **고정점** |
+| ② | **인증 전제 + 로그인 필수** | "인증 전 익명 구간" 개념 제거 | 로그인 없이는 페이지 접근 자체가 불가. userId는 **서버가 세션에서 resolve**(클라이언트가 보내는 userId는 신뢰 금지) |
+| ③ | **sessionId 완전 제거** | Phase 3의 익명 sessionId·`X-Session-Id` 헤더 삭제 | 로그인 필수라 로그인 전 구간이 존재하지 않음 → sessionId가 메울 공백이 0. userId가 상위 호환. SSR 예외 처리도 통째로 사라짐 |
+| ④ | **세션 리플레이 안 함** | (기존 스코프 아웃 재확인) | "그때 화면 재현"은 불필요. "무엇을 했는지(행동 흐름)"만 알면 충분 |
+| ⑤ | **Grafana는 결정 보류** | Phase 2(Grafana 구성)를 확정 작업에서 후보로 강등 | "정보를 push로 알려줘야 하는지"부터 결정 필요. 후보 구성은 §6에 보존 |
 
-| # | 관심사 | 예시 질문 | 업계 표준 도구 | 우리 환경의 정답 | 상태 |
-|---|---|---|---|---|---|
-| ① | **에러·API 메트릭** (Observability) | "BFF는 정상인데 Next.js 파싱 에러가 났다" · "이 API 몇 번 호출됐나" | Sentry + Grafana | 구조화 로그 → Cloud Logging → Error Reporting / Grafana | ✅ **PR #558 구현 완료, 머지 대기** |
-| ② | **방문·행동 추적** (Product Analytics) | "고객이 어느 페이지를 방문했나" · "어떤 버튼을 눌렀나" | PostHog / Amplitude | 같은 로그 파이프에 `page_view` 이벤트 추가 + 익명 sessionId | 🔲 소규모 확장 필요 |
-| ③ | **고객별 행동 이력** (Audit Trail) | "고객 X가 타깃 Y에서 설치를 몇 번 시도했나" | 백엔드 DB 감사 테이블 | 단기: Cloud Logging 조회 / 장기: BFF·orchestrator 감사 테이블 | 🔲 단기는 ①로 커버, 장기는 BFF팀 협의 |
+**트레이드오프 인지(결정 ①)**: stdout 무부하 → 네트워크 전송 부하 발생(배치·비동기로 완화),
+best-effort 유실 허용, Error Reporting의 자동 그룹핑·회귀 감지와 로그 기반 metric을 잃음 →
+그룹핑·집계·알림은 BFF DB 쿼리로 직접 구성해야 한다.
 
-**왜 SaaS(Sentry/PostHog)를 안 쓰나**: FE 서버의 아웃바운드가 BFF·OAuth·인가 서버로 제한되는 폐쇄망이다.
-2026-07-11 딥리서치 + 외부 모델 교차검증으로 Sentry SaaS/셀프호스트·Bugsink·GlitchTip·PostHog를 전부
-검토한 뒤 로그 기반을 채택했다(근거: `observability-plan.md` §4). 이 방식은 GCP 공식 권장 패턴이자
-12-factor 표준이며, 특수한 것은 우리 망 제약이지 방식이 아니다.
+## 2. 데이터가 흐르는 길 (개정)
 
-## 2. 데이터가 흐르는 길 (이미 구현된 부분)
+수집 로직(스키마·PII 가드·컨텍스트 헤더·surface)은 PR #558 것을 그대로 재사용하고,
+**유일한 출구인 `log.ts`의 전송부만 교체**한다.
 
 ```
 [브라우저]
  ├─ 렌더 에러 / unhandled rejection → 에러 바운더리 + 전역 핸들러
- │     └─ 리포트(페이지·행동·직전 API 10건 동봉) → POST /observability/client-errors
+ │     └─ 리포트(페이지·행동·직전 API 10건 동봉) → POST /observability/client-errors (FE 라우트)
  └─ 모든 API 호출 → fetchJson 단일 래퍼
        └─ X-Request-Id · X-Client-Page · X-Client-Action 헤더 자동 부착
 
-[FE 서버 (Next.js, GKE)]
- ├─ withV1 공통 래퍼: 요청마다 접근 로그 1줄, 예외·업스트림 5xx는 ERROR 로그
- └─ BFF 프록시: 검증된 컨텍스트 헤더를 BFF로 전달 (BFF 로그에도 같은 맥락)
-       ▼ stdout JSON 한 줄 — FE의 역할은 여기서 끝
-[Cloud Logging (Stackdriver)]
- ├─→ Error Reporting: severity≥ERROR 스택 자동 그룹핑·회귀 감지
- ├─→ 로그 기반 metric → Cloud Monitoring → Grafana 패널·알림 → Slack
- └─→ (필요 시) BigQuery sink: 장기 보존·SQL 분석 (플랫폼 설정만으로 활성화)
+[FE 서버 (Next.js, GKE — 프로젝트 이동 예정, 상태 없음)]
+ ├─ withV1 공통 래퍼: 요청마다 접근 이벤트 1건, 예외·업스트림 5xx·인가 거부(403)는 ERROR/WARN
+ ├─ 세션 → userId·role resolve (인증 도입 후) — 이벤트에 서버가 심음
+ └─ log.ts(유일한 출구, 싱크 2개 — ADR-025 §5):
+       ├─▶ emitAudit: audit 이벤트 6종(+403) → 배치·비동기 → [BFF (고정점)] ingest API → 자체 DB 저장
+       │     — 구조화 필드만, 보존·삭제 정책은 BFF 소유
+       └─▶ emitDiagnostic: withV1 접근 기록·예외/업스트림 5xx·상세 스택 → stdout 진단 로그만
+             — Cloud Logging 30일, 이사 시 소멸 허용, audit 행 아님(requestId로만 연결)
+
+[소비]
+ ├─ In-app Admin: FE 서버 라우트 → BFF 조회 API → 도메인 데이터와 join해 표시
+ └─ (보류) Grafana: BFF DB SQL 데이터소스(일부 후보만 — 에러율 분모·서버 예외·유실 카운터 등은 진단 스트림 기반 metric 소스 별도 필요, 구현 계획 §3 ⚠️) — 집계·알림 push용
 ```
 
-모든 이벤트에 이미 붙는 컨텍스트:
+**저장소가 2개인 이유** — 역할이 다르다:
 
-- `clientPage` / `pageTemplate` — 호출 시점의 화면 (예: `/integration/target-sources/:id`)
-- `clientAction` — API 레이어 함수명 자동 태깅 (예: `confirmInstallation`, 46개 함수 완료)
-- `requestId` — 브라우저 ↔ FE 접근 로그 ↔ BFF 로그를 하나로 잇는 상관관계 키
-- `breadcrumbs` — 에러 직전 API 호출 10건 링버퍼
+| 저장소 | 무엇을 | 특성 |
+|---|---|---|
+| **BFF DB** (본선) | 구조화 필드만 — `actor.userId`·`surface`·`action.name`·`action.status`·`error.code`·`correlation.requestId` 등 (ADR-025 봉투; `X-Client-Action`/`clientAction`·`pageTemplate`는 수집 계층 헤더/진단 명칭) | 영구적(정책 삭제), 조회·집계·도메인 join 가능, FE 이사와 무관 |
+| **stdout 진단 로그** (보조) | 새니타이즈된 스택 등 상세 진단 | 30일 만료, FE 프로젝트 종속, 유실 허용 — requestId로 DB 레코드와 대조 |
 
-"BFF API는 정상인데 Next.js 파싱에서 에러" 시나리오는 이 구조에서 정확히 잡힌다:
-라우트의 zod 파싱 실패·예외는 `withV1`이 서버 ERROR 로그로, 브라우저 렌더·파싱 에러는
-바운더리와 전역 핸들러가 리포트로 남긴다. 두 경우 모두 requestId로 BFF 로그와 대조하면
-"BFF 응답은 200이었다"까지 확인된다.
+## 3. 상관관계 키와 구분 축
 
-## 3. Surface 구분 — integration/services vs 타깃 상세 vs Admin
+> ⚠️ `surfaceOf()`는 **basePath 상대 경로**를 전제한다. 앱은 `basePath:'/pass'`에 마운트되므로
+> 브라우저가 태깅한 `/pass/...` 경로는 서버가 `/pass`를 벗겨 정규화한 뒤 surface를 파생한다(구현 계획 2-1).
 
-**핵심 원리: API 경로가 아니라 "호출이 일어난 화면"으로 구분한다.**
-같은 API(예: process-status 조회)가 고객 화면과 Admin 화면 양쪽에서 호출될 수 있으므로,
-API 경로만 보면 두 트래픽이 섞인다. 구분 축은 이미 모든 이벤트에 붙는 `pageTemplate`이다.
+키는 **2개**, 구분 축도 **2개**다. sessionId는 없다(결정 ③).
 
-현재 페이지 라우트를 surface로 분류하면:
+| 키/축 | 무엇 | 신뢰 원천 |
+|---|---|---|
+| `userId` | "이 사람이 누구고 뭘 했나" — 여러 탭·기기를 묶음 | **서버가 세션에서 resolve** (클라이언트 헤더 채택 금지) |
+| `requestId` | "이 호출이 브라우저→FE→BFF에서 어떻게 흘렀나" | 요청마다 생성(위조돼도 무해), SSR·CSR·BFF 관통 |
+| `surface` | 어느 화면에서 일어난 일인가 | `pageTemplate` prefix에서 파생 (아래) |
+| `role` | 누가 — 운영자가 고객 화면을 본 트래픽까지 구분 | 서버 세션 (인증 도입 후) |
 
-| Surface | pageTemplate prefix | 화면 | 성격 |
-|---|---|---|---|
-| `customer` | `/` · `/services` | 홈, 서비스 목록 | 고객 셀프서비스 진입·탐색 |
-| `target-detail` | `/target-sources/:id` | 타깃소스 상세 | **고객이 실제 작업을 수행하는 곳** — 설치·연결테스트·승인요청. 관측 우선순위 1위 |
-| `admin` | `/admin/**` | 운영자 콘솔 (pipelines·queue·guides·services·targets) | 내부 운영자 트래픽 — 고객 지표에서 제외해야 함 |
-| `dev` | `/api-docs` · `/swagger/*` | 개발 문서 | 지표에서 제외 |
+관계: `userId(사람) ⊃ requestId(요청)`.
 
-**구현 (1함수 + 1필드)**: `pageTemplate`에서 surface를 파생하는 함수를 `lib/log-path.ts`에 추가하고,
-접근 로그·에러 리포트·page_view 이벤트에 `surface` 필드로 실어 로그 기반 metric의 **라벨**로 쓴다.
-4개 값뿐이라 저카디널리티 규칙(observability-plan.md §8)에 안전하다.
+### Surface 구분 — integration/services vs 타깃 상세 vs Admin
+
+**API 경로가 아니라 "호출이 일어난 화면"으로 구분한다.** 같은 API(예: process-status)가
+고객 화면과 Admin 양쪽에서 호출되므로 경로만 보면 트래픽이 섞인다.
+
+| Surface | pageTemplate prefix | 성격 |
+|---|---|---|
+| `customer` | `/` · `/services` | 고객 셀프서비스 진입·탐색 |
+| `target-detail` | `/target-sources/:id` | **고객이 실제 작업을 수행하는 곳** — 관측 우선순위 1위 |
+| `admin` | `/admin/**` | 내부 운영자 트래픽 — 고객 지표에서 제외 |
+| `dev` | `/api-docs` · `/swagger/*` | 지표에서 제외 |
 
 ```ts
 // lib/log-path.ts — pageTemplate은 이미 정규화되어 있으므로 prefix 매칭이면 충분
@@ -83,56 +95,78 @@ export function surfaceOf(pageTemplate: string): 'customer' | 'target-detail' | 
 }
 ```
 
-이 라벨 하나로 얻는 것:
+## 4. 필드 정책 — 무엇을 저장하고 무엇을 저장하지 않나
 
-1. **Grafana 패널·알림 분리** — `surface="target-detail"` 에러율에는 민감한 임계값(고객이 작업 중 실패),
-   `surface="admin"`은 느슨한 임계값. "고객 대면 에러"와 "내부 콘솔 에러"의 온콜 우선순위가 다르다.
-2. **사용량 지표의 순도** — Admin에서 운영자가 같은 API를 두드린 트래픽이 "고객 사용량"에 섞이지 않는다.
-3. **폴링 노이즈 식별** — 타깃 상세의 설치/연결테스트 폴링(2초 간격)은 호출 수가 지배적이다.
-   `clientAction` 라벨(예: `getInstallationStatus`)과 조합하면 "폴링 제외 실사용" 지표를 만들 수 있다.
+에러 응답 처리의 원칙 (PII 제로):
 
-인증이 붙은 뒤에는 역할(role)이 두 번째 구분축이 된다 — surface는 "어느 화면", role은 "누가".
-운영자가 고객 화면을 열어본 트래픽까지 구분하려면 role이 필요하지만, 그 전까지는 surface로 충분하다.
-
-## 4. Grafana vs In-app Admin — 역할 분담
-
-| | Grafana | In-app Admin 대시보드 |
-|---|---|---|
-| 답하는 질문 | "지금 전체적으로 문제가 있나? 추이는?" | "**이 고객/이 타깃**에서 무슨 일이 있었나?" |
-| 데이터 | 로그 기반 metric (저카디널리티 라벨: surface·pageTemplate·clientAction·severity) | FE 서버 라우트 → Cloud Logging/Monitoring API 조회 (원본 로그, 24h 창) |
-| 사용자 | 개발자·운영자 (알림은 Slack으로) | 운영자 — 앱 안에서 도메인 맥락과 함께 |
-| 예시 패널 | surface별 에러율 · API top-N · p95 지연 · 폴링 실패율 | 최근 에러 50건 · 24h 추이 · 타깃소스별 최근 API 호출 이력 |
-
-**하지 말 것**: 고객별/타깃별 조회를 Grafana에 넣는 것. requestId·실경로·타깃 ID는 고카디널리티라
-metric 라벨로 쓰면 비용이 폭발하고, Grafana는 도메인 엔티티(타깃소스·승인상태)와 join하지 못한다.
-개별 드릴다운은 Admin 페이지의 몫이다 — 로그에 실경로(`/target-sources/123`)가 남으므로
-Cloud Logging API를 타깃 ID로 필터하면 "이 타깃의 최근 활동"을 코드 변경 없이 조회할 수 있다.
-
-## 5. "고객이 뭘 했나"의 최종 거처 — 감사 이력은 로그가 아니다
-
-Cloud Logging은 기본 보존 30일이고 트랜잭션 보장이 없다. "고객 X가 언제 설치를 승인했나" 같은
-질문에 6개월 뒤에도 답해야 한다면, 그것은 관측성 데이터가 아니라 **도메인 데이터**다.
-
-- **지금**: FE가 이미 `X-Client-Action`·`X-Request-Id`를 BFF로 전달 중 → BFF 로그에도 맥락이 남는다.
-- **중기**: BigQuery sink를 켜면 로그가 30일 넘게 보존되고 SQL 분석 가능 (플랫폼 설정, 코드 0줄).
-- **장기(정답)**: BFF/orchestrator에 감사 테이블(누가·언제·무엇을·어느 타깃에·결과) — BFF팀 협의 필요.
-  FE 쪽 준비는 이미 끝나 있어, 테이블이 생기면 헤더로 전달 중인 맥락이 그대로 기록 원천이 된다.
-
-## 6. 로드맵
-
-| 단계 | 내용 | 규모 | 전제 |
+| 필드 | 성격 | BFF DB 저장 | 근거 |
 |---|---|---|---|
-| 1 | **PR #558 리뷰·머지 + 배포 실측** — 테스트 에러가 Cloud Logging→Error Reporting에 잡히는지 확인 | 리뷰만 | — |
-| 2 | **Grafana 구성** — 로그 기반 metric 정의 → surface별 에러 패널 + 알림 룰 → Slack 수신 확인 | 플랫폼 설정 | 1 |
-| 3 | **`surface` 필드 + `page_view` 이벤트 + 익명 sessionId** — 방문 추적 시작 | 소 (수십 줄) | 1 |
-| 4 | **In-app Admin 대시보드 MVP** — 최근 에러 50건·24h 추이·API top-N + 타깃소스별 활동 이력 탭 | 중 | FE→googleapis 도달성(V-5) |
-| 5 | **인증 연동** — 서버 라우트에서 세션→userId를 로그에 추가 (클라이언트 헤더는 위조 가능하므로 서버에서 resolve) | 소 | 인증 도입 (~1개월) |
-| 6 | **BFF 감사 테이블 협의** — 30일 이상 보존할 고객 행동 이력의 최종 거처 | 협의 | BFF팀 |
+| `status` | 숫자 | ✅ 호출이 있는 경우 (렌더 오류·unhandled rejection엔 없을 수 있음 — ADR-025 §1a) | 안전 |
+| `code` | 고정 심볼 | ✅ 있으면 (분류·집계·알림 라벨) | 안전 |
+| `errorMessage` | **자유 텍스트** | ❌ **저장 금지** | 사용자 입력·이메일·내부 경로가 섞여 들어올 수 있음 — 진단 stdout 로그에도 새니타이즈 후 최소한만 |
+| `error.name` | 고정 심볼 | ✅ **저장 확정 (ADR-025)** | 이벤트 필드 매트릭스가 에러 이벤트에 필수로 요구 — 알려진 에러 클래스 allowlist 검증, 미지값은 `Error` |
+| `fingerprint` | 새니타이즈 스택 해시 | 🔲 **저장 권고 (결정 필요)** | 같은 error.name의 code 없는 에러(502·타임아웃·파싱)를 더 세분할 유일한 키. 해시는 자유 텍스트가 아니라 안전 |
+| body · 쿼리스트링 | — | ❌ 어떤 로그에도 금지 | `lib/log-path.ts` 새니타이저 + 회귀 테스트로 잠금 |
 
-## 7. 참고 문서
+code 없는 에러는 DB엔 `error.name`·`requestId`(+호출이 있었다면 `status`, 권고안 채택 시 `fingerprint`)만 남기고,
+상세는 진단 로그로만 흘린다. requestId로 BFF 로그 대조는 여전히 가능.
 
-- `docs/feature/observability-implementation-plan.md` — 이 전략의 실행 계획(아키텍처 4계층 + Phase별 작업 목록), HTML 판 동일 경로 `.html`
+## 5. 무엇이 추적되나 — 되는 것 / 구현이 필요한 것
 
-- `docs/feature/observability-plan.md` (PR #558 브랜치) — 아키텍처 상세·대안 비교·위협 모델·PII 가드·FAQ
-- `docs/feature/observability-via-bff.md` (docs/error-tracking-plan 브랜치) — 결정 과정 원자료
+**확실히 되는 것**: surface로 화면 구분(같은 API라도) · 누가·어떤 API·어떤 페이지(`actor.userId`·`action.name`·`page.template`) ·
+서버발/브라우저발 에러와 requestId로 BFF 대조("FE 에러인데 BFF는 200") · 타깃소스/고객 단위 조회 ·
+행동 흐름 시간순 재구성 · **CTA(쓰기) 실패 추적**(`action.name`+`action.status`+`correlation.requestId` — "쓰기가 진짜 됐나") ·
+**인가 거부(403) 시도**(로그인은 했지만 권한 없는 경로 접근 — 서버 인가 검사 시점에 userId·role·경로·403 기록)
+
+**구현이 따로 필요한 것(자동 아님)**:
+- **SSR 에러의 화면 식별** — SSR엔 `X-Client-Page`가 없으므로 서버가 자기 렌더 경로를 직접 심어야 함
+- **페이지 수준 인가 거부** — API 라우트(withV1)는 자동으로 잡히지만, 페이지 접근 자체를 막는
+  middleware/SSR 가드의 거부는 별도 로깅 코드가 필요
+- **"지금 상태"**(현재 process status 등) — 관측성 이력이 아니라 도메인 데이터. Admin이
+  로그(이력)+도메인 API(현재 상태)를 합쳐 보여줘야 함
+
+## 6. 소비 계층 — In-app Admin vs Grafana
+
+| | **In-app Admin** (확정) | **Grafana** (보류) |
+|---|---|---|
+| 답하는 질문 | "**이 고객/이 타깃/이 요청**에서 무슨 일이?" | "지금 전체적으로 문제가 있나? 추이는?" |
+| 소비 방식 | **pull** — 운영자가 들어가서 팜 | **push** — 임계 초과 시 Slack이 사람을 부름 |
+| 데이터 | FE 라우트 → BFF 조회 API (도메인 join 가능) | BFF DB SQL 데이터소스(G2/G4/G8) + 진단 스트림 metric 소스(G1/G3/G5/G6/G7 — 별도 필요) |
+| 도입 판단 기준 | 확정 (기능 목록은 구현 계획 §3) | **"사람이 보기 전에 시스템이 먼저 알려야 하는가"** — 알림이 필요해지는 순간이 도입 시점 |
+
+결정 ①의 부수 효과: audit 이벤트 기반 후보(G2/G4/G8)는 로그 기반 metric 파이프라인 없이
+**SQL 데이터소스 연결만으로** 구성 가능 — 도입 결정 시 비용이 원안보다 낮아졌다.
+단, 에러율 분모·서버 예외·유실 카운터를 쓰는 후보(G1/G3/G5/G6/G7)는 진단 스트림 기반
+metric 소스가 별도로 필요하다(구현 계획 §3 ⚠️·Phase 6).
+단, 고객별/타깃별 드릴다운을 Grafana에 넣지 않는 원칙(고카디널리티 금지)은 유지 — 그것은 Admin의 몫.
+
+## 7. 로드맵 (개정)
+
+| 단계 | 내용 | 성격 | 전제 |
+|---|---|---|---|
+| 0 | **PR #558 리뷰·머지** — 수집 로직(스키마·헤더·PII 가드)은 그대로 재사용 | 리뷰만 | — |
+| 1 | **BFF 협의** — ingest API 계약 · DB 스키마 · 보존/삭제 정책 · 조회 API | 협의 | 지금 시작 가능 |
+| 2 | **전송 교체** — `log.ts` 출구를 stdout→BFF 배치 전송으로, surface 필드, 필드 정책 적용 | FE 코드 | 0·1 |
+| 2b | **Audit Event 발행** — ADR-025 이벤트 6종 전부(빌더·allowlist·동기/비동기 Action·SSR·브라우저 page_view·screen_read·서버 스탬프) — 개발·스테이징 검증까지 | FE 코드 | 0·1·2 |
+| 3 | **인증 연동** — userId·role 서버 resolve, 인가 거부(`auth_denied`) 이벤트 | FE 코드 | 인증 도입(~1개월) |
+| 4 | **In-app Admin — MVP** — 타깃소스 사용 이력(목록·상세·이벤트 모달) + 확인 필요 24h 집계 (구현 계획 §3 M1~M4; 관제·고객별·403 뷰는 후순위 P1~P4) | FE+BFF | 1·2·2b·3 (인증 게이트 — ADR-025 §5) |
+| 5 | **커버리지 점검·방어 상수** — 6종 이벤트의 실페이지 커버리지 확인, rate cap 분리 (발행 구현은 2b) | FE 코드 소규모 | 2b (권장 착수는 4 이후 — 구현 계획 §4) |
+| 6 | **Grafana 도입 결정** — push 알림 필요성 판단 후 구성. SQL 데이터소스만으론 후보 일부(G2/G4/G8)만 가능 — 나머지는 진단 metric 소스 별도 | 보류 | 결정 |
+
+## 8. 열린 항목 (결정 필요)
+
+- **Admin의 성격**: 실시간 관제탑(자동 갱신) vs 문제 시 파는 조사실(수동 조회) — 화면 자동 갱신 여부가 여기 달림
+- **CTA 실패**: 전용 뷰로 만들지, 필터 축만 둘지
+- ~~로그+도메인 상태 합치기를 Admin MVP(Phase 4)에 넣을지~~ → **채택 확정** (07-23): M1/M2의 이름·담당자·현재 단계는 도메인 API에서, join은 FE Admin 라우트가 조회 시점에 수행
+- **이벤트 체계 상세**(6종·봉투·allowlist·신뢰 경계)는 ADR-025로 확정 — 연결테스트 trigger 응답의 job key 추가는 BFF 협의 필요
+- ~~error.name 저장~~ → **채택 확정** (ADR-025 필드 매트릭스가 요구) · **fingerprint 저장**만 결정 필요 (§4)
+- **BFF DB 스키마 상세**: 필드·보존 기간·삭제 정책 (많아지면 삭제 — 주기·기준 미정)
+- **FE→BFF 전송 방식**: 배치 크기/주기, 유실 허용 범위
+- ~~SSR 화면 식별 구현 방법~~ → **해소** — 구현 계획 2b-5의 서버 렌더 컨텍스트가 template을 자기 스탬프
+- **Grafana/알림 도구** 도입 자체 (§6 판단 기준)
+
+## 9. 참고 문서
+
+- `docs/feature/observability-implementation-plan.md` — 실행 계획(아키텍처 + Phase별 작업 + Admin/Grafana 기능 목록), HTML 판 동일 경로 `.html`
+- `docs/feature/observability-plan.md` (PR #558 브랜치) — 수집 계층 구현 상세·대안 비교·위협 모델·PII 가드
 - Linear LIN-58(에러 바운더리) · LIN-59(에러 트래킹) · LIN-55~72(운영 배포 준비)
