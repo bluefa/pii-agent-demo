@@ -3,7 +3,7 @@
 /**
  * PlToastProvider — section-level toast root for the pipeline admin pages.
  * Mounted once in app/integration/admin/pipelines/layout.tsx so a toast fired
- * right before router.push (e.g. "설치 파이프라인이 실행됐어요") survives the
+ * right before router.push (e.g. "설치 작업이 실행됐어요") survives the
  * page unmount — the layout persists across in-section navigations.
  */
 import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';

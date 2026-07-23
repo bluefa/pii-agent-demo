@@ -24,7 +24,8 @@ import type { ReactElement, ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
-import type { PipelineStatus, PipelineType, TaskKind, TaskStatus } from '@/lib/pipeline/types';
+import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
+import type { PipelineStatus, PipelineType, TaskKind, TaskStatus, TerraformAction } from '@/lib/pipeline/types';
 
 export const R24_CSS = `
 .r24-canvas{background-color:var(--pl-bg-inner);background-image:linear-gradient(var(--pl-flow-grid) 1px,transparent 1px),linear-gradient(90deg,var(--pl-flow-grid) 1px,transparent 1px);background-size:16px 16px;border:1px solid var(--pl-border);border-radius:10px}
@@ -145,6 +146,8 @@ export interface R24TaskNodeProps {
   name: string;
   /** Secondary 2-line description (catalog/definition sentence). */
   desc?: string | null;
+  /** PLAN/APPLY/DESTROY tag above the name for terraform jobs; null hides it. */
+  action?: TerraformAction | null;
   /** Black round order chip at the top-left corner. */
   seq?: number;
   state?: 'cur' | 'pend' | 'dim';
@@ -154,7 +157,7 @@ export interface R24TaskNodeProps {
 }
 
 /** 224px icon-left Task card on the grid canvas — the R24 node. */
-export function R24TaskNode({ kind, name, desc, seq, state, footer, className }: R24TaskNodeProps): ReactElement {
+export function R24TaskNode({ kind, name, desc, action, seq, state, footer, className }: R24TaskNodeProps): ReactElement {
   return (
     <div className={cn('r24-tnode', state, className)}>
       {seq != null && (
@@ -164,6 +167,11 @@ export function R24TaskNode({ kind, name, desc, seq, state, footer, className }:
       )}
       <KindMark kind={kind} />
       <div className="r24-tx">
+        {action ? (
+          <div className="mb-1">
+            <JobKindTag action={action} />
+          </div>
+        ) : null}
         <div className="r24-nm">{name}</div>
         {desc ? <div className="r24-ds">{desc}</div> : null}
         {footer ? <div className="r24-st">{footer}</div> : null}
@@ -269,6 +277,8 @@ export interface RunTaskCardProps {
   kind: TaskKind;
   name: string;
   desc?: string | null;
+  /** PLAN/APPLY/DESTROY tag for terraform jobs; null hides it. */
+  action?: TerraformAction | null;
   status: TaskStatus;
   /** 1-based ordinal — shown in the corner while the task is queued. */
   seq: number;
@@ -277,7 +287,7 @@ export interface RunTaskCardProps {
 }
 
 /** Live-pipeline task card — tile + status corner + status pill (R24 run flow). */
-export function RunTaskCard({ kind, name, desc, status, seq, retry }: RunTaskCardProps): ReactElement {
+export function RunTaskCard({ kind, name, desc, action, status, seq, retry }: RunTaskCardProps): ReactElement {
   const view = STATUS_VIEW[status];
   const cardState =
     view.key === 'running'
@@ -306,6 +316,7 @@ export function RunTaskCard({ kind, name, desc, status, seq, retry }: RunTaskCar
         <div className="rtc-nm">{name}</div>
         {desc ? <div className="rtc-ds">{desc}</div> : null}
         <div className="rtc-st">
+          <JobKindTag action={action} />
           <FlowStatusPill status={status} />
           {view.key === 'running' && retry ? (
             <span className="text-[10px] tabular-nums text-[var(--pl-text-faint)]">{retry}</span>

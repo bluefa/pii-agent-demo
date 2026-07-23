@@ -22,7 +22,7 @@ export interface ServicesPageLike {
 }
 
 /**
- * The "파이프라인" cell state for one target:
+ * The "작업" cell state for one target:
  *  - `loading`: the latest lookup has not resolved yet (map value undefined).
  *  - `active`:  latest run is RUNNING or PENDING → pill + `#{id}`.
  *  - `idle`:    204 (no runs) or a terminal latest → muted "—".

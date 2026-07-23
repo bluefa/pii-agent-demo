@@ -44,6 +44,7 @@ import type {
   TaskDetail,
   TaskKind,
   TaskOperation,
+  TerraformAction,
   TaskStatus,
   TaskSummary,
   TerraformJobResultDetail,
@@ -778,6 +779,13 @@ export const resetPipelineMockStore = (): void => {
 
 const kindOf = (defName: string): TaskKind => CATALOG.get(defName)?.kind ?? 'TERRAFORM_JOB';
 const operationOf = (defName: string): TaskOperation | null => CATALOG.get(defName)?.operation ?? null;
+
+/** Backend `terraform_action` — PLAN/APPLY/DESTROY from the operation suffix, null for non-terraform. */
+const terraformActionOf = (defName: string): TerraformAction | null => {
+  const op = operationOf(defName);
+  const marker = op?.lastIndexOf('_TF_') ?? -1;
+  return op && marker >= 0 ? (op.slice(marker + 4) as TerraformAction) : null;
+};
 const consumesOf = (defName: string): boolean | null => {
   const def = CATALOG.get(defName);
   return def ? consumesSlot(def) : null;
@@ -791,6 +799,7 @@ const toTaskSummary = (t: MockTask): TaskSummary => ({
   kind: kindOf(t.task_definition),
   task_definition: t.task_definition,
   operation: operationOf(t.task_definition),
+  terraform_action: terraformActionOf(t.task_definition),
   status: t.status,
   fail_count: t.fail_count,
   error_code: t.status === 'FAILED' ? t.error_code : null,
@@ -949,6 +958,7 @@ const toTaskDetail = (pipelineId: number, t: MockTask): TaskDetail => {
     task_definition: t.task_definition,
     definition: def ? toDefinitionView(def) : null,
     operation: operationOf(t.task_definition),
+    terraform_action: terraformActionOf(t.task_definition),
     status: t.status,
     fail_count: t.fail_count,
     error_code: t.status === 'FAILED' ? t.error_code : null,
@@ -1451,6 +1461,7 @@ export const mockPipeline = {
         task_definition: def.name,
         kind: def.kind,
         operation: def.operation,
+        terraform_action: terraformActionOf(def.name),
         display_name: def.displayName,
         consumes_terraform_slot: consumesSlot(def),
         definition: toDefinitionView(def),
@@ -1592,6 +1603,7 @@ export const mockPipeline = {
         description: def.description,
         provider: def.provider,
         kind: def.kind,
+        terraform_action: terraformActionOf(def.name),
         consumes_terraform_slot: consumesSlot(def),
       }));
     const body: TaskCatalogResponse = { task_definitions: entries };

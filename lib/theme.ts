@@ -852,7 +852,7 @@ const pipelineText = {
   dashboardPageTitle: 'text-[24px] font-semibold leading-[1.2] text-[var(--pl-text-strong)]',
   /** section-title — 20 / 600 / 1.2 / strong. */
   sectionTitle: 'text-[20px] font-semibold leading-[1.2] text-[var(--pl-text-strong)]',
-  /** dashboard "파이프라인 목록" list-header title (Figma Make redesign) — 16 / 600 / strong. */
+  /** dashboard "작업 목록" list-header title (Figma Make redesign) — 16 / 600 / strong. */
   dashboardListTitle: 'text-[16px] font-semibold leading-[1.2] text-[var(--pl-text-strong)]',
   /** section-desc — 12 / 400 / 1.4 / weak. */
   sectionDesc: 'text-[12px] font-normal leading-[1.4] text-[var(--pl-text-weak)]',
@@ -1059,6 +1059,18 @@ export const pipelineStyles = {
       DELETE: 'text-[var(--pl-type-delete)]',
       CUSTOM: 'text-[var(--pl-type-custom)]',
     } as Record<'INSTALL' | 'DELETE' | 'CUSTOM', string>,
+  },
+
+  /** JobKindTag — the terraform action (PLAN/APPLY/DESTROY) as a small bordered
+   *  pill on a job node. Bordered + colored text (no fill) so it stays below the
+   *  filled status badge; DESTROY reads red, APPLY green, PLAN neutral. */
+  jobKindTag: {
+    base: 'inline-flex items-center rounded border px-1 leading-[15px] text-[10px] font-bold tracking-wide [font-family:var(--pl-font-mono)]',
+    tone: {
+      PLAN: 'border-[var(--pl-border-strong)] text-[var(--pl-text-medium)]',
+      APPLY: 'border-[var(--pl-ok)] text-[var(--pl-ok)]',
+      DESTROY: 'border-[var(--pl-err)] text-[var(--pl-err)]',
+    } as Record<'PLAN' | 'APPLY' | 'DESTROY', string>,
   },
 
   /** Filter chips (R18 §4, Komiser reference) — scope chips (no ×) + removable

@@ -16,6 +16,7 @@ const entry = (name: string, kind: TaskCatalogEntry['kind'] = 'TERRAFORM_JOB'): 
   description: `카탈로그 설명 ${name}`,
   provider: 'AWS',
   kind,
+  terraform_action: kind === 'TERRAFORM_JOB' ? 'APPLY' : null,
   consumes_terraform_slot: kind === 'TERRAFORM_JOB',
 });
 

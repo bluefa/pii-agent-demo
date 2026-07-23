@@ -20,6 +20,7 @@ import { Fragment, useCallback, type KeyboardEvent, type ReactElement, type Reac
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo, providerLogo } from '@/app/admin/pipelines/_components/brandMarks';
+import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
 import {
   connectorClass,
   nodeStateClass,
@@ -256,6 +257,9 @@ export function TaskFlow({
                 </div>
                 {nodeBadge(task.status, task.sequence)}
                 <div className="nd-body">
+                  {task.terraform_action && (
+                    <JobKindTag action={task.terraform_action} className="self-start mb-1.5" />
+                  )}
                   <span className="nd-name">{name}</span>
                   <div className="nd-meta">{meta}</div>
                 </div>

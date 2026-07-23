@@ -4,7 +4,7 @@
  * R20: the svc/svcName query-param nav-context is gone — detail URLs carry only
  * their path id. The target page names its service from the raw target-source
  * detail (`service_name`), and the pipeline breadcrumb goes straight
- * 서비스 검색 › {targetId} › 파이프라인 #{id} (no service crumb).
+ * 서비스 검색 › {targetId} › 작업 #{id} (no service crumb).
  */
 import { passRoutes } from '@/lib/routes';
 
@@ -22,7 +22,7 @@ export function targetCrumbs(svcName: string, targetId: string | number): Breadc
   ];
 }
 
-/** Pipeline-detail breadcrumb: 서비스 검색 › {targetId}(→target) › 파이프라인 #{id}. */
+/** Pipeline-detail breadcrumb: 서비스 검색 › {targetId}(→target) › 작업 #{id}. */
 export function pipelineCrumbs(
   pipelineId: string | number,
   targetSourceId: string,
@@ -30,6 +30,6 @@ export function pipelineCrumbs(
   return [
     { label: '서비스 검색', href: passRoutes.pipelines.services },
     { label: targetSourceId, href: passRoutes.pipelines.target(targetSourceId) },
-    { label: `파이프라인 #${pipelineId}` },
+    { label: `작업 #${pipelineId}` },
   ];
 }
