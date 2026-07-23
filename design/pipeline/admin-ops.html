@@ -193,12 +193,55 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .delay.d2{color:#C2410C;font-weight:600}
 .delay.d3{color:#DC2626;font-weight:700}
 
-/* ── TS 상세 탭바 ── */
-.tabbar{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:24px}
-.tabbar .tab{padding:12px 14px;font-size:14px;font-weight:500;color:var(--text-weak);cursor:pointer;
-  border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
-.tabbar .tab:hover{color:var(--text-medium)}
-.tabbar .tab.on{color:var(--primary);font-weight:600;border-bottom-color:var(--primary)}
+/* ── TS 상세: 3-tier 표면 (chrome 다크 · masthead 화이트 · tab rail 틴트 · body 그레이) ── */
+.ts-mast{background:var(--bg-card);margin:-24px -32px 0;padding:20px 32px 18px;
+  border-bottom:1px solid var(--border)}
+.ts-mast .breadcrumb{margin-bottom:10px}
+/* 계층 (app /pass/admin/pipelines 정합) — 크기·굵기·색·간격으로 tier 구분:
+   TS id 28/700 gray-900 (최강조) > 서비스명 18/600 gray-900 (강조) > label 13/400 gray-500 > value 15/400 gray-900 */
+/* 현재 단계 — 타이틀 위 eyebrow */
+.mast-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.mast-eyebrow .mp-k{font-size:13px;font-weight:400;color:var(--gray-500)}
+.mast-h1{font-size:28px;font-weight:700;margin:0;line-height:1;color:var(--gray-900)}
+.mast-h1 .tid{font-size:18px;font-weight:500;color:var(--gray-400);margin-left:4px}
+/* 3개 정보 그룹 — 카드 아님, 컬럼 + 얇은 구분선으로만 구분 */
+.mast-groups{display:flex;margin-top:20px;padding-top:20px;border-top:1px solid var(--border)}
+.mast-groups .grp{flex:1;min-width:0;padding:0 28px;border-left:1px solid var(--border)}
+.mast-groups .grp:first-child{padding-left:0;border-left:0}
+.grp-title{font-size:12px;font-weight:700;color:var(--gray-400);letter-spacing:.02em;margin-bottom:14px}
+.grp-body{display:flex;flex-direction:column;gap:10px}
+.grp-body .row{display:flex;align-items:center;gap:8px}
+.grp-body .svc{font-size:15px;font-weight:600;color:var(--gray-900)}
+.grp-body .code{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--gray-700);
+  background:var(--gray-100);padding:1px 8px;border-radius:6px}
+.grp-body .cell{display:flex;align-items:center;gap:8px}
+.grp-body .k{font-size:13px;font-weight:400;color:var(--gray-500);min-width:84px}
+.grp-body .v{font-size:15px;font-weight:400;color:var(--gray-900);font-variant-numeric:tabular-nums}
+.grp-body .link{font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:2px}
+.grp-body .meta{font-size:12px;color:var(--text-weak)}
+.jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:1px 6px;border-radius:6px}
+.jchip:hover{background:var(--gray-50)}
+.jchip .mono{font-size:13px;color:var(--primary);font-weight:600}
+
+/* ── 연동 요청 정보: 요청 프로세스 미니 플로우 · 확정 원본 JSON ── */
+.miniflow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.miniflow .mf{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text-faint)}
+.miniflow .mf .fdot{width:8px;height:8px;border-radius:999px;background:var(--gray-200)}
+.miniflow .mf.done{color:var(--text-weak)}
+.miniflow .mf.done .fdot{background:var(--primary)}
+.miniflow .mf.cur{color:var(--primary);font-weight:700}
+.miniflow .mf.cur .fdot{background:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.miniflow .fa{color:var(--text-faint)}
+.jsonbox{background:var(--gray-900);color:#D0D5DD;font-family:var(--font-mono);font-size:12px;line-height:1.55;
+  border-radius:8px;padding:14px 16px;overflow:auto;max-height:420px;margin:0;white-space:pre}
+
+/* tab rail — 독립 틴트 밴드; 활성 탭만 화이트로 body에 연결 */
+.tabbar{display:flex;gap:2px;background:var(--gray-100);border-bottom:1px solid var(--border);
+  margin:0 -32px 24px;padding:0 32px}
+.tabbar .tab{padding:12px 16px;font-size:14px;font-weight:500;color:var(--text-weak);cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;border-radius:6px 6px 0 0}
+.tabbar .tab:hover{color:var(--text-medium);background:var(--gray-50)}
+.tabbar .tab.on{color:var(--primary);font-weight:600;border-bottom-color:var(--primary);background:var(--bg-card)}
 .tabbar .tab .tmark{display:inline-block;width:6px;height:6px;border-radius:999px;background:var(--warn);
   vertical-align:6px;margin-left:4px}
 
@@ -344,8 +387,9 @@ const SERVICES = [
 const TS = [
   {id:2013, svc:'PAY', pv:'AWS',   st:'CONFIRMED',  delay:262000, at:'07-20 18:09', dbType:'MySQL',
    endpoint:'pay-prod-cluster.cluster-cx1.ap-northeast-2.rds.amazonaws.com', port:3306,
-   meta:{awsAccountId:'123456789012', awsRegion:'ap-northeast-2', regionType:'Global'},
+   meta:{awsAccountId:'123456789012', regionType:'Global'},
    installMode:'AUTO',
+   jira:{key:'INFRA-2211', summary:'결제 DB PII Agent 설치 요청', status:'In Progress'},
    scanRole:{arn:'arn:aws:iam::123456789012:role/pii-scan-role', verified:true,
      checks:[{p:'rds:DescribeDBInstances',ok:true},{p:'rds:DescribeDBClusters',ok:true},{p:'ec2:DescribeSubnets',ok:true},{p:'secretsmanager:GetSecretValue',ok:true}]},
    execRole:{arn:'arn:aws:iam::123456789012:role/pii-tf-exec-role', verified:false,
@@ -354,8 +398,37 @@ const TS = [
      {db:'pay_main',   user:'pii_agent', secret:'secret/pay/pii-agent-main',   st:'ACTIVE', at:'07-18 11:20'},
      {db:'pay_ledger', user:'pii_agent', secret:'secret/pay/pii-agent-ledger', st:'ACTIVE', at:'07-18 11:20'},
    ],
-   approval:{reqId:'AR-5121', status:'CONFIRMED', requester:'김유진', at:'07-17 18:56', dbCount:12},
-   confirmed:{dbCount:12, at:'07-17 19:02'},
+   approvals:[
+     {id:'AR-5121', status:'APPROVED',  by:'김유진', at:'07-17 18:56', resourceCount:5, result:{by:'admin.kim', at:'07-17 18:58'},
+      resources:[
+        {rid:'db-pay-main-01',    name:'pay_main',         type:'AWS_DB_CLUSTER'},
+        {rid:'db-pay-ledger-01',  name:'pay_ledger',       type:'AWS_DB_CLUSTER'},
+        {rid:'db-pay-settle-01',  name:'pay_settle',       type:'AWS_DB_INSTANCE'},
+        {rid:'db-pay-archive-01', name:'pay_archive',      type:'AWS_DB_INSTANCE'},
+        {rid:'ath-pay-stats',     name:'pay_stats',        type:'AWS_ATHENA_DATABASE'},
+      ]},
+     {id:'AR-5098', status:'CANCELLED', by:'김유진', at:'07-16 09:12', resourceCount:10, result:null},
+   ],
+   confirmed:{dbCount:4, at:'07-17 19:02',
+     resources:[
+       {rid:'db-pay-main-01',    name:'pay_main',         type:'AWS_DB_CLUSTER'},
+       {rid:'db-pay-ledger-01',  name:'pay_ledger',       type:'AWS_DB_CLUSTER'},
+       {rid:'db-pay-settle-01',  name:'pay_settle',       type:'AWS_DB_INSTANCE'},
+       {rid:'db-pay-replica-02', name:'pay_read_replica', type:'AWS_DB_INSTANCE'},
+     ],
+     raw:{resource_infos:[
+       {resource_id:'db-pay-main-01', resource_type:'AWS_DB_CLUSTER', database_type:'MySQL',
+        host:'pay-prod-cluster.cluster-cx1.ap-northeast-2.rds.amazonaws.com', port:3306,
+        credential_id:'cred-2201', secret_info:'secret/pay/pii-agent-main', agent_id:'agt-088',
+        protocol:'TCP', db_target_ip_list:['10.20.1.5','10.20.2.5'],
+        vpc_endpoint_id:'vpce-0a1b2c9f', subnet_group:'pay-prod-subnet-grp', tf_workspace:'ts-2013-install'},
+       {resource_id:'db-pay-replica-02', resource_type:'AWS_DB_INSTANCE', database_type:'MySQL',
+        host:'pay-read-replica-02.cx1.ap-northeast-2.rds.amazonaws.com', port:3306,
+        credential_id:'cred-2205', secret_info:'secret/pay/pii-agent-replica', agent_id:'agt-088',
+        protocol:'TCP', db_target_ip_list:['10.20.3.7'],
+        vpc_endpoint_id:'vpce-0a1b2c9f', subnet_group:'pay-prod-subnet-grp', tf_workspace:'ts-2013-install'},
+     ]},
+   },
    pipelines:[
      {id:'PL-88213', kind:'INSTALL', st:'RUNNING', at:'07-20 18:09', dur:'12m 40s'},
      {id:'PL-87901', kind:'INSTALL', st:'FAILED',  at:'07-19 14:02', dur:'3m 05s'},
@@ -369,8 +442,11 @@ const TS = [
   {id:1027, svc:'ORD', pv:'IDC',   st:'PENDING',    delay:99120, at:'07-19 16:08', dbType:'Oracle',
    endpoint:'10.32.11.7', port:1521,
    meta:{host:'ord-db-prod-01.idc.local', ips:'10.32.11.7, 10.32.11.8', oracleSid:'ORDPRD', nlbIndex:3},
+   jira:{key:'INFRA-2244', summary:'IDC NLB 포트 오픈 협의', status:'To Do'},
    creds:[{db:'ORDPRD', user:'PII_AGENT', secret:'secret/ord/pii-agent', st:'ACTIVE', at:'07-12 09:10'}],
-   approval:{reqId:'AR-5108', status:'PENDING', requester:'이도현', at:'07-19 16:08', dbCount:4},
+   approvals:[
+     {id:'AR-5108', status:'PENDING', by:'이도현', at:'07-19 16:08', resourceCount:4, result:null},
+   ],
    confirmed:null, pipelines:[], tc:null,
    history:[
      {at:'07-19 16:08', from:'IDLE', to:'PENDING', by:'이도현'},
@@ -378,9 +454,17 @@ const TS = [
   {id:1980, svc:'MBR', pv:'GCP',   st:'CONFIRMING', delay:1120, at:'07-20 19:21', dbType:'PostgreSQL',
    endpoint:'10.40.2.19', port:5432,
    meta:{gcpProjectId:'mbr-prod-3921', region:'asia-northeast3'},
+   jira:null,
    gcp:{scanSa:'pii-scan@mbr-prod-3921.iam.gserviceaccount.com', tfSa:'pii-tf@mbr-prod-3921.iam.gserviceaccount.com'},
    creds:[],
-   approval:{reqId:'AR-5130', status:'CONFIRMING', requester:'정하늘', at:'07-20 19:21', dbCount:7},
+   approvals:[
+     {id:'AR-5130', status:'APPROVED', by:'정하늘', at:'07-20 19:21', resourceCount:3, result:{by:'admin.kim', at:'07-20 19:22'},
+      resources:[
+        {rid:'sql-mbr-main',  name:'mbr_main',   type:'GCP_CLOUD_SQL'},
+        {rid:'sql-mbr-auth',  name:'mbr_auth',   type:'GCP_CLOUD_SQL'},
+        {rid:'bq-mbr-events', name:'mbr_events', type:'GCP_BIGQUERY_DATASET'},
+      ]},
+   ],
    confirmed:null,
    pipelines:[{id:'PL-88240', kind:'INSTALL', st:'RUNNING', at:'07-20 19:22', dur:'1m 12s'}],
    tc:null,
@@ -391,8 +475,11 @@ const TS = [
   {id:1799, svc:'DLV', pv:'AZURE', st:'INSTALLED',  delay:8460, at:'07-20 17:19', dbType:'MSSQL',
    endpoint:'dlv-sql-prod.database.windows.net', port:1433,
    meta:{subscriptionId:'7c1e02aa-91f2-44d0-b7fb-3e1a52c9d001', resourceGroup:'rg-dlv-prod', scanAppId:'ap-3391cc'},
+   jira:{key:'INFRA-2199', summary:'Azure Private Link 헬스체크 실패', status:'In Progress'},
    creds:[{db:'dlv_main', user:'pii_agent', secret:'secret/dlv/pii-agent', st:'ACTIVE', at:'07-15 13:44'}],
-   approval:{reqId:'AR-5090', status:'CONFIRMED', requester:'최민서', at:'07-14 10:12', dbCount:5},
+   approvals:[
+     {id:'AR-5090', status:'APPROVED', by:'최민서', at:'07-14 10:12', resourceCount:5, result:{by:'admin.lee', at:'07-14 10:20'}},
+   ],
    confirmed:{dbCount:5, at:'07-14 10:40'},
    pipelines:[{id:'PL-87710', kind:'INSTALL', st:'SUCCEEDED', at:'07-15 13:02', dur:'21m 08s'}],
    tc:{done:3, total:5, fail:0, at:'07-20 17:19'},
@@ -402,8 +489,11 @@ const TS = [
   {id:1642, svc:'CPN', pv:'SDU',   st:'CONNECTED',  delay:47800, at:'07-20 06:23', dbType:'MySQL',
    endpoint:'cpn-sdu-gw.internal', port:3306,
    meta:{sduType:'Shared DB Unit', sduCluster:'sdu-cluster-02'},
+   jira:null,
    creds:[{db:'cpn_main', user:'pii_agent', secret:'secret/cpn/pii-agent', st:'ACTIVE', at:'07-10 16:30'}],
-   approval:{reqId:'AR-5044', status:'CONFIRMED', requester:'한지우', at:'07-09 11:00', dbCount:3},
+   approvals:[
+     {id:'AR-5044', status:'APPROVED', by:'한지우', at:'07-09 11:00', resourceCount:3, result:{by:'admin.kim', at:'07-09 11:10'}},
+   ],
    confirmed:{dbCount:3, at:'07-09 11:31'},
    pipelines:[{id:'PL-86122', kind:'INSTALL', st:'SUCCEEDED', at:'07-10 16:02', dur:'9m 51s'}],
    tc:{done:3, total:3, fail:0, at:'07-20 06:23'},
@@ -413,7 +503,8 @@ const TS = [
   {id:1444, svc:'SRC', pv:'IDC',   st:'IDLE',       delay:1266000, at:'07-06 04:00', dbType:'Oracle',
    endpoint:'10.18.4.2', port:1521,
    meta:{host:'src-db-prod-02.idc.local', ips:'10.18.4.2', oracleSid:'SRCPRD', nlbIndex:1},
-   creds:[], approval:null, confirmed:null, pipelines:[], tc:null,
+   jira:null,
+   creds:[], approvals:[], confirmed:null, pipelines:[], tc:null,
    history:[]},
 ];
 const svcOf = code => SERVICES.find(s=>s.code===code);
@@ -468,7 +559,7 @@ function toast(msg){
   root.innerHTML = `<div class="toast">${icon('check')}${esc(msg)}</div>`;
   clearTimeout(toast._t); toast._t = setTimeout(()=>root.innerHTML='', 2600);
 }
-function openModal(html){ document.getElementById('modal-root').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
+function openModal(html, w){ document.getElementById('modal-root').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal"${w?` style="width:${w}px"`:''}>${html}</div></div>`; }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
@@ -529,7 +620,7 @@ function renderAlerts(){
         ${rows.sort((a,b)=>b.delay-a.delay).map(t=>{
           const kind = ALERT_KINDS.find(k=>k.key===t.st);
           return `<tr class="click" onclick="location.hash='#/ts/${t.id}'">
-            <td><span class="mono">TS-${t.id}</span></td>
+            <td><span class="mono">#${t.id}</span></td>
             <td><span class="svc-name">${esc(svcOf(t.svc).name)}</span> <span class="meta">${t.svc}</span></td>
             <td>${ptag(t.pv)}</td>
             <td>${pill(t.st)}</td>
@@ -616,7 +707,7 @@ function renderService(code){
         <thead><tr><th>ID</th><th>Provider</th><th>DB</th><th>현재 단계</th><th>마지막 변경</th><th></th></tr></thead>
         <tbody>
         ${list.map(t=>`<tr class="click" onclick="location.hash='#/ts/${t.id}'">
-            <td><span class="mono">TS-${t.id}</span></td>
+            <td><span class="mono">#${t.id}</span></td>
             <td>${ptag(t.pv)}</td>
             <td><span class="tag blue">${t.dbType}</span></td>
             <td>${pill(t.st)}</td>
@@ -727,7 +818,7 @@ function renderTsSearch(){
         <thead><tr><th>ID</th><th>서비스</th><th>Provider</th><th>DB</th><th>현재 단계</th><th>마지막 변경</th><th></th></tr></thead>
         <tbody>
         ${rows.map(t=>`<tr class="click" onclick="location.hash='#/ts/${t.id}'">
-            <td><span class="mono">TS-${t.id}</span></td>
+            <td><span class="mono">#${t.id}</span></td>
             <td><span class="svc-name">${esc(svcOf(t.svc).name)}</span> <span class="meta">${t.svc}</span></td>
             <td>${ptag(t.pv)}</td>
             <td><span class="tag blue">${t.dbType}</span></td>
@@ -743,11 +834,9 @@ function renderTsSearch(){
 /* ══════════ 페이지: TS 상세 — 탭 레지스트리 ══════════ */
 /* 확장 포인트: 탭 추가 = {id, label, render(t)} 객체 추가. Provider 전용 탭은 PROVIDER_TABS. */
 const COMMON_TABS = [
-  {id:'overview',   label:'Metadata',        render:tabOverview},
-  {id:'process',    label:'Process Status',  render:tabProcess},
-  {id:'confirm',    label:'확정 정보',        render:tabConfirm},
+  {id:'process',    label:'진행 상태',        render:tabProcess},
+  {id:'confirm',    label:'연동 요청 정보',    render:tabConfirm},
   {id:'pipeline',   label:'파이프라인',       render:tabPipeline},
-  {id:'credential', label:'DB Credential',   render:tabCredential},
   {id:'tc',         label:'Test Connection', render:tabTc},
 ];
 const PROVIDER_TABS = {
@@ -766,20 +855,33 @@ function renderTs(id, tabId){
   const tab = tabs.find(x=>x.id===tabId) || tabs[0];
   const s = svcOf(t.svc);
   document.getElementById('content').innerHTML = `
-    <div class="breadcrumb"><span class="crumb" onclick="location.hash='#/ts'">Target Source 운영</span><span class="sep">/</span><span class="cur">TS-${t.id}</span></div>
-    <div class="page-head detail-head">
-      <div>
-        <h1>${esc(s.name)} <span class="h-id">TS-${t.id}</span></h1>
-        <div class="head-meta">
-          ${ptag(t.pv)}<span class="hm-sep">·</span>
-          <span class="tag blue">${t.dbType}</span><span class="hm-sep">·</span>
-          ${pill(t.st)}<span class="hm-sep">·</span>
-          <span class="hm-k">마지막 변경</span><span class="hm-v">${t.at}</span>
+    <div class="ts-mast">
+      <div class="breadcrumb"><span class="crumb" onclick="location.hash='#/ts'">Target Source 운영</span><span class="sep">/</span><span class="cur">#${t.id}</span></div>
+      <div class="mast-eyebrow"><span class="mp-k">현재 단계</span>${pill(t.st)}</div>
+      <h1 class="mast-h1">TargetSource <span class="tid">#${t.id}</span></h1>
+      <div class="mast-groups">
+        <div class="grp">
+          <div class="grp-title">서비스 정보</div>
+          <div class="grp-body">
+            <div class="row"><span class="svc">${esc(s.name)}</span><span class="code">${esc(s.code)}</span></div>
+            <span class="link" onclick="location.hash='#/svc/${t.svc}'">서비스 관리 ${icon('chev','xs')}</span>
+          </div>
         </div>
-      </div>
-      <div class="actions">
-        <button class="btn secondary" onclick="toast('Process Status를 다시 조회했습니다')">${icon('refresh')}상태 새로고침</button>
-        <button class="btn secondary" onclick="toast('파이프라인 상세 페이지로 이동합니다 (프로토타입)')">${icon('open','sm')}파이프라인 페이지</button>
+        <div class="grp">
+          <div class="grp-title">클라우드 정보</div>
+          <div class="grp-body">
+            <div class="row">${ptag(t.pv)}</div>
+            ${providerMetaChips(t)}
+          </div>
+        </div>
+        <div class="grp">
+          <div class="grp-title">협업 채널</div>
+          <div class="grp-body">
+            ${t.jira
+              ? `<div class="cell"><span class="k">Jira</span>${jiraChip(t.jira)}</div>`
+              : `<span class="muted">연결된 Jira 티켓 없음</span><span class="link" onclick="location.hash='#/svc/${t.svc}'">티켓 추가하러 가기 ${icon('chev','xs')}</span>`}
+          </div>
+        </div>
       </div>
     </div>
     <div class="tabbar">
@@ -789,66 +891,60 @@ function renderTs(id, tabId){
     <div id="tab-body">${tab.render(t)}</div>`;
 }
 
-/* ── 탭: Metadata ── */
+/* ── masthead 헬퍼: 서비스 메타는 헤더로 승격, 상세는 진행 상태 탭 ── */
 const META_LABELS = {
-  awsAccountId:'AWS Account ID', awsRegion:'Region', regionType:'Region Type',
-  gcpProjectId:'GCP Project ID', region:'Region',
-  subscriptionId:'Subscription ID', resourceGroup:'Resource Group', scanAppId:'Scan App ID',
-  host:'Host', ips:'IP 목록', oracleSid:'Oracle SID', nlbIndex:'NLB Index',
+  awsAccountId:'AWS Account', awsRegion:'Region', regionType:'Region Type',
+  gcpProjectId:'GCP Project', region:'Region',
+  subscriptionId:'Subscription', resourceGroup:'Resource Group', scanAppId:'Scan App',
+  host:'Host', ips:'IP', oracleSid:'Oracle SID', nlbIndex:'NLB Index',
   sduType:'SDU Type', sduCluster:'SDU Cluster',
 };
 function kv(k,v){ return `<div class="k">${esc(k)}</div><div class="v">${v}</div>`; }
-function tabOverview(t){
-  const s = svcOf(t.svc);
-  return `
-    <div class="card-grid2">
-      <div class="card">
-        <div class="card-head"><div class="card-title">공통 Metadata</div></div>
-        <div class="kv2">
-          ${kv('Target Source ID', `<span class="mono">TS-${t.id}</span>`)}
-          ${kv('서비스', `${esc(s.name)} <span class="meta">${s.code}</span>`)}
-          ${kv('Provider', ptag(t.pv))}
-          ${kv('Database Type', `<span class="tag blue">${t.dbType}</span>`)}
-          ${kv('Endpoint', `<span class="mono">${esc(t.endpoint)}</span>`)}
-          ${kv('Port', `<span class="mono">${t.port}</span>`)}
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title">${t.pv} Metadata</div></div>
-        ${Object.keys(t.meta).length?`<div class="kv2">
-          ${Object.entries(t.meta).map(([k,v])=>kv(META_LABELS[k]||k, `<span class="mono">${esc(v)}</span>`)).join('')}
-        </div>`:`<div class="empty">Provider metadata가 없습니다.</div>`}
-      </div>
-    </div>
-    <div class="card mt-16">
-      <div class="card-head"><div class="card-title">Jira Ticket <span class="meta">서비스(${t.svc})에 연결된 티켓</span></div>
-        <span class="detail-link" onclick="location.hash='#/svc/${t.svc}'">서비스 운영에서 관리 ${icon('chev','xs')}</span></div>
-      ${s.jira.length?`<table class="tbl">
-        <thead><tr><th>Ticket</th><th>요약</th><th>상태</th><th>등록 사용자</th></tr></thead>
-        <tbody>${s.jira.map(j=>`<tr>
-          <td><span class="mono link" onclick="toast('Jira로 이동합니다 (프로토타입)')">${j.key}</span></td>
-          <td>${esc(j.summary)}</td>
-          <td>${jiraTag(j.status)}</td>
-          <td>${j.users.length?`<span class="uchips">${j.users.map(u=>`<span class="uchip">${esc(u)}</span>`).join('')}</span>`:'<span class="muted">—</span>'}</td>
-        </tr>`).join('')}</tbody></table>`
-      :`<div class="empty">연결된 Jira Ticket이 없습니다.</div>`}
-    </div>`;
+function providerMetaChips(t){
+  return Object.keys(t.meta||{}).map(k=>
+    `<div class="cell"><span class="k">${esc(META_LABELS[k]||k)}</span><span class="v">${esc(t.meta[k])}</span></div>`).join('');
 }
+function stepRail(t){
+  const cur = STEP[t.st];
+  return `<div class="steprail">
+    ${STEP_ORDER.map(k=>{const s=STEP[k];
+      const cls = s.n<cur.n?'done':s.n===cur.n?'cur':'';
+      return `<div class="sp ${cls}"><div class="n">${s.n<cur.n?icon('check','xs'):s.n}</div><div class="t">${s.label}</div></div>`;}).join('')}
+  </div>`;
+}
+function jiraChip(j){
+  if(!j) return '<span class="muted">미연결</span>';
+  return `<span class="jchip" title="${esc(j.summary)}" onclick="toast('Jira로 이동합니다 (프로토타입)')"><span class="mono">${esc(j.key)}</span></span>`;
+}
+/* 승인 요청 상태 — install-v1 ApprovalRequest enum 정합 */
+const APPROVAL_TAG = {PENDING:'orange', APPROVED:'green', AUTO_APPROVED:'green',
+  REJECTED:'red', CANCELLED:'gray', UNAVAILABLE:'gray', UNAVAILABLE_ACKNOWLEDGED:'gray'};
+function approvalTag(st){ return `<span class="tag ${APPROVAL_TAG[st]||'gray'}">${esc(st)}</span>`; }
 
-/* ── 탭: Process Status ── */
+/* ── 탭: 진행 상태 (Process Status · 승인 요청 내역 · 상태 변경 이력) ── */
 function tabProcess(t){
   const cur = STEP[t.st];
   return `
     <div class="card">
       <div class="card-head">
         <div class="card-title">현재 Process Status</div>
-        <button class="btn secondary sm" onclick="toast('단건 조회로 상태를 갱신했습니다')">${icon('refresh','sm')}단건 조회</button>
       </div>
-      <div class="steprail">
-        ${STEP_ORDER.map(k=>{const s=STEP[k];
-          const cls = s.n<cur.n?'done':s.n===cur.n?'cur':'';
-          return `<div class="sp ${cls}"><div class="n">${s.n<cur.n?icon('check','xs'):s.n}</div><div class="t">${s.label}</div></div>`;}).join('')}
-      </div>
+      ${stepRail(t)}
+      <div class="section-desc" style="margin:16px 0 0">현재 <b>Step ${cur.n} · ${cur.label}</b> 단계입니다.</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">승인 요청 내역 <span class="meta">연동 요청 process · 최신순</span></div></div>
+      ${t.approvals && t.approvals.length?`<table class="tbl">
+        <thead><tr><th>요청 ID</th><th>상태</th><th>요청자</th><th>요청 일시</th><th>대상 리소스</th><th>처리</th></tr></thead>
+        <tbody>${t.approvals.map(a=>`<tr>
+          <td><span class="mono">${esc(a.id)}</span></td>
+          <td>${approvalTag(a.status)}</td>
+          <td>${esc(a.by)}</td>
+          <td>${a.at}</td>
+          <td>${a.resourceCount}개</td>
+          <td>${a.result?`${esc(a.result.by)} <span class="meta">${a.result.at}</span>`:'<span class="muted">—</span>'}</td>
+        </tr>`).join('')}</tbody></table>`
+      :`<div class="empty">승인 요청 내역이 없습니다.</div>`}
     </div>
     <div class="card">
       <div class="card-head"><div class="card-title">상태 변경 이력</div></div>
@@ -863,32 +959,99 @@ function tabProcess(t){
     </div>`;
 }
 
-/* ── 탭: 확정 정보 ── */
-const APPROVAL_TONE = {PENDING:'orange', CONFIRMING:'blue', CONFIRMED:'green', REJECTED:'red'};
+/* ── 탭: 연동 요청 정보 (최근 승인 요청 · 요청 프로세스 · 승인↔확정 diff) ── */
+const REQ_FLOW = ['연동 요청','관리자 승인','반영중','확정'];
+function latestApproval(t){ return (t.approvals && t.approvals[0]) || null; }
+function reqFlowHtml(t){
+  const a = latestApproval(t);
+  if(!a) return '';
+  if(['REJECTED','CANCELLED','UNAVAILABLE','UNAVAILABLE_ACKNOWLEDGED'].includes(a.status))
+    return `<div class="note err" style="margin-top:12px">${icon('alert')}<div>최근 요청이 <b>${esc(a.status)}</b> 처리되어 연동 요청 프로세스가 종료되었습니다. 연동을 계속하려면 재요청이 필요합니다.</div></div>`;
+  const done = t.confirmed?4 : ['APPROVED','AUTO_APPROVED'].includes(a.status)?2 : 1;
+  return `<div class="miniflow" style="margin-top:12px">
+    ${REQ_FLOW.map((l,i)=>{
+      const cls = i<done?'done':i===done?'cur':'';
+      return `${i?'<span class="fa">→</span>':''}<span class="mf ${cls}"><span class="fdot"></span>${l}</span>`;
+    }).join('')}
+  </div>`;
+}
+/* 승인 Set ↔ 확정 Set 비교 (양쪽 리소스 목록이 있을 때만) */
+function confirmDiff(t){
+  const a = latestApproval(t);
+  const ar = (a && a.resources)||[], cr = (t.confirmed && t.confirmed.resources)||[];
+  if(!ar.length || !cr.length) return null;
+  const aIds = new Set(ar.map(r=>r.rid)), cIds = new Set(cr.map(r=>r.rid));
+  return {
+    common:  ar.filter(r=>cIds.has(r.rid)),
+    removed: ar.filter(r=>!cIds.has(r.rid)),
+    added:   cr.filter(r=>!aIds.has(r.rid)),
+  };
+}
+function resourceRows(list, badge){
+  return list.map(r=>`<tr>
+    <td><span class="mono">${esc(r.rid)}</span></td>
+    <td class="svc-name">${esc(r.name)}</td>
+    <td><span class="tag gray">${esc(r.type)}</span></td>
+    ${badge?`<td>${badge(r)}</td>`:''}
+  </tr>`).join('');
+}
 function tabConfirm(t){
+  const a = latestApproval(t);
+  const d = confirmDiff(t);
+  const approved = a && ['APPROVED','AUTO_APPROVED'].includes(a.status);
+  const hasDiff = d && (d.removed.length || d.added.length);
   return `
-    <div class="card-grid2">
-      <div class="card">
-        <div class="card-head"><div class="card-title">승인 정보 <span class="meta">최근 승인 요청</span></div></div>
-        ${t.approval?`<div class="kv2">
-          ${kv('요청 ID', `<span class="mono">${t.approval.reqId}</span>`)}
-          ${kv('상태', `<span class="tag ${APPROVAL_TONE[t.approval.status]||'gray'}">${t.approval.status}</span>`)}
-          ${kv('요청자', esc(t.approval.requester))}
-          ${kv('요청 일시', t.approval.at)}
-          ${kv('대상 DB 수', `${t.approval.dbCount}개`)}
-        </div>`:`<div class="empty">승인 요청 이력이 없습니다.</div>`}
+    <div class="card">
+      <div class="card-head"><div class="card-title">최근 연동 승인 요청</div></div>
+      ${a?`<div class="kv2">
+        ${kv('요청 ID', `<span class="mono">${esc(a.id)}</span>`)}
+        ${kv('상태', approvalTag(a.status))}
+        ${kv('요청자', esc(a.by))}
+        ${kv('요청 일시', a.at)}
+        ${kv('처리', a.result?`${esc(a.result.by)} <span class="meta">${a.result.at}</span>`:'<span class="muted">—</span>')}
+        ${kv('승인 대상', `${a.resourceCount}개`)}
       </div>
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title">확정 정보</div>
+      <div class="subsection-title" style="margin-top:16px">연동 요청 프로세스</div>
+      ${reqFlowHtml(t)}`
+      :`<div class="empty">승인 요청 이력이 없습니다.</div>`}
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">확정 정보</div>
+        <div style="display:flex;gap:8px">
+          ${t.confirmed&&d?`<button class="btn secondary sm" onclick="openDiffModal(${t.id})">승인·확정 차이 보기</button>`:''}
+          ${t.confirmed&&t.confirmed.raw?`<button class="btn secondary sm" onclick="openRawModal(${t.id})">원본 JSON</button>`:''}
           ${t.confirmed?`<button class="btn danger sm" onclick="openDeleteConfirmedModal(${t.id})">${icon('trash','xs')}확정 정보 삭제</button>`:''}
         </div>
-        ${t.confirmed?`<div class="kv2">
-          ${kv('확정 DB 수', `${t.confirmed.dbCount}개`)}
-          ${kv('확정 일시', t.confirmed.at)}
-        </div>`:`<div class="empty">확정된 연동 정보가 없습니다.</div>`}
       </div>
+      ${t.confirmed?`
+        <div class="kv2">
+          ${kv('확정 리소스', `${t.confirmed.dbCount}개`)}
+          ${kv('확정 일시', t.confirmed.at)}
+        </div>
+        ${d?(hasDiff
+          ?`<div class="note" style="margin-top:14px">${icon('alert')}<div>승인 정보와 확정 정보의 리소스 Set이 다릅니다 — 공통 <b>${d.common.length}</b> · 확정에서 제외 <b>${d.removed.length}</b> · 승인 외 추가 <b>${d.added.length}</b> <span class="link" onclick="openDiffModal(${t.id})">차이 보기</span></div></div>`
+          :`<div class="note info" style="margin-top:14px">${icon('info')}<div>승인 정보와 동일한 리소스 Set으로 확정되었습니다.</div></div>`):''}
+        ${t.confirmed.resources?`
+        <div class="subsection-title" style="margin-top:16px">확정 리소스 목록</div>
+        <table class="tbl">
+          <thead><tr><th>Resource ID</th><th>이름</th><th>유형</th><th></th></tr></thead>
+          <tbody>${resourceRows(t.confirmed.resources, r=>{
+            if(!a || !a.resources) return '';
+            return a.resources.some(x=>x.rid===r.rid)?'':'<span class="tag orange">승인 외 추가</span>';
+          })}</tbody>
+        </table>`:''}`
+      : approved && a.resources ? `
+        <div class="note info">${icon('info')}<div>확정 정보가 아직 생성되지 않았습니다. <b>승인 정보 기준 예상 확정 정보</b>입니다. 실제 확정 입력에는 조회 API에 노출되지 않는 운영 변수가 추가로 필요합니다.</div></div>
+        <div class="subsection-title" style="margin-top:16px">예상 확정 리소스 <span class="meta">승인 ${esc(a.id)} 기준 ${a.resources.length}개</span></div>
+        <table class="tbl">
+          <thead><tr><th>Resource ID</th><th>이름</th><th>유형</th></tr></thead>
+          <tbody>${resourceRows(a.resources)}</tbody>
+        </table>`
+      : `<div class="empty">확정된 연동 정보가 없습니다.${a&&a.status==='PENDING'?'<br><span class="meta">승인 완료 후 확정 정보가 생성됩니다.</span>':''}</div>`}
     </div>
+
     <div class="card mt-16">
       <div class="card-head"><div class="card-title">확정 정보 삭제 Policy</div></div>
       <div class="section-desc" style="margin-top:0">삭제 실행 전 아래 정책이 적용됩니다. 정책은 서버에서 조회한 값입니다.</div>
@@ -904,7 +1067,7 @@ function openDeleteConfirmedModal(id){
   const t = tsOf(id);
   const running = t.pipelines.some(p=>p.st==='RUNNING');
   openModal(`
-    <h3>확정 정보 삭제 — <span class="mono" style="font-size:14px">TS-${t.id}</span></h3>
+    <h3>확정 정보 삭제 — <span class="mono" style="font-size:14px">#${t.id}</span></h3>
     <div class="desc">확정 DB ${t.confirmed.dbCount}개의 연동 확정 정보를 삭제합니다. 삭제 후 재연동 시 승인 절차를 다시 진행해야 합니다.</div>
     ${running?`<div class="note err">${icon('alert')}<div>진행 중인 파이프라인이 있습니다. 정책상 삭제할 수 없습니다 — 파이프라인 취소 후 다시 시도하세요.</div></div>`:''}
     <div class="subsection-title">삭제 사유 (필수)</div>
@@ -919,6 +1082,40 @@ function doDeleteConfirmed(id){
   if(!v){ toast('삭제 사유를 입력하세요'); return; }
   tsOf(id).confirmed = null;
   closeModal(); toast('확정 정보를 삭제했습니다'); renderTs(id,'confirm');
+}
+function openDiffModal(id){
+  const t = tsOf(id), a = latestApproval(t), d = confirmDiff(t);
+  if(!d) return;
+  const mark = on => on?`<span style="color:var(--ok-text)">${icon('check','sm')}</span>`:'<span class="muted">—</span>';
+  const row = (r, st) => `<tr>
+    <td><span class="mono">${esc(r.rid)}</span></td>
+    <td>${esc(r.name)}</td>
+    <td><span class="tag gray">${esc(r.type)}</span></td>
+    <td style="text-align:center">${mark(st!=='added')}</td>
+    <td style="text-align:center">${mark(st!=='removed')}</td>
+    <td>${st==='common'?'<span class="tag green">동일</span>':st==='removed'?'<span class="tag red">확정 제외</span>':'<span class="tag orange">승인 외 추가</span>'}</td>
+  </tr>`;
+  openModal(`
+    <h3>승인 정보 ↔ 확정 정보 비교 — <span class="mono" style="font-size:14px">#${t.id}</span></h3>
+    <div class="desc">승인 <span class="mono">${esc(a.id)}</span> ${a.resources.length}개 ↔ 확정 ${t.confirmed.resources.length}개
+      · 공통 ${d.common.length} · 확정 제외 ${d.removed.length} · 승인 외 추가 ${d.added.length}</div>
+    <table class="tbl">
+      <thead><tr><th>Resource ID</th><th>이름</th><th>유형</th><th style="text-align:center">승인</th><th style="text-align:center">확정</th><th>판정</th></tr></thead>
+      <tbody>
+        ${d.removed.map(r=>row(r,'removed')).join('')}
+        ${d.added.map(r=>row(r,'added')).join('')}
+        ${d.common.map(r=>row(r,'common')).join('')}
+      </tbody>
+    </table>
+    <div class="foot"><button class="btn secondary" onclick="closeModal()">닫기</button></div>`, 760);
+}
+function openRawModal(id){
+  const t = tsOf(id);
+  openModal(`
+    <h3>확정 정보 원본 — <span class="mono" style="font-size:14px">#${t.id}</span></h3>
+    <div class="desc">확정 입력 원본(JSON)입니다. 조회 API에 노출되지 않는 운영 변수를 포함하므로 관리자 화면에서만 표시됩니다.</div>
+    <pre class="jsonbox">${esc(JSON.stringify(t.confirmed.raw, null, 2))}</pre>
+    <div class="foot"><button class="btn secondary" onclick="closeModal()">닫기</button></div>`, 720);
 }
 
 /* ── 탭: 파이프라인 ── */
@@ -954,7 +1151,7 @@ function runPipeline(id, kind){
   const t = tsOf(id);
   const label = kind==='INSTALL'?'설치':'삭제';
   openModal(`
-    <h3>${label} 파이프라인 실행 — <span class="mono" style="font-size:14px">TS-${t.id}</span></h3>
+    <h3>${label} 파이프라인 실행 — <span class="mono" style="font-size:14px">#${t.id}</span></h3>
     <div class="desc">${kind==='INSTALL'
       ?'확정된 연동 정보를 기준으로 Agent 설치 파이프라인을 실행합니다.'
       :'설치된 Agent와 인프라 리소스를 제거하는 삭제 파이프라인을 실행합니다. 이 작업은 서비스 연동에 영향을 줍니다.'}</div>
@@ -969,25 +1166,7 @@ function doRunPipeline(id, kind){
   closeModal(); toast(`${kind==='INSTALL'?'설치':'삭제'} 파이프라인을 실행했습니다`); renderTs(id,'pipeline');
 }
 
-/* ── 탭: DB Credential ── */
-function tabCredential(t){
-  return `
-    <div class="card">
-      <div class="card-head"><div class="card-title">DB Credential 목록 <span class="meta">${t.creds.length}건</span></div></div>
-      ${t.creds.length?`<table class="tbl">
-        <thead><tr><th>논리 DB</th><th>계정</th><th>Secret 참조</th><th>상태</th><th>수정일</th></tr></thead>
-        <tbody>${t.creds.map(c=>`<tr>
-          <td class="svc-name">${esc(c.db)}</td>
-          <td><span class="mono">${esc(c.user)}</span></td>
-          <td><span class="mono">${esc(c.secret)}</span></td>
-          <td><span class="tag green">${c.st}</span></td>
-          <td>${c.at}</td>
-        </tr>`).join('')}</tbody></table>`
-      :`<div class="empty">등록된 Credential이 없습니다.</div>`}
-    </div>`;
-}
-
-/* ── 탭: Test Connection ── */
+/* ── 탭: Test Connection (DB Credential 포함) ── */
 function tabTc(t){
   return `
     <div class="card">
@@ -1000,6 +1179,19 @@ function tabTc(t){
         ${kv('실패', t.tc.fail?`<span class="tag red">${t.tc.fail}건 실패</span>`:'<span class="tag green">0건</span>')}
         ${kv('마지막 실행', t.tc.at)}
       </div>`:`<div class="empty">Test Connection 실행 이력이 없습니다.<br><span class="meta">Agent 설치 완료(Step 5) 이후 실행할 수 있습니다.</span></div>`}
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">DB Credential <span class="meta">연결 테스트에 사용 · ${t.creds.length}건</span></div></div>
+      ${t.creds.length?`<table class="tbl">
+        <thead><tr><th>논리 DB</th><th>계정</th><th>Secret 참조</th><th>상태</th><th>수정일</th></tr></thead>
+        <tbody>${t.creds.map(c=>`<tr>
+          <td class="svc-name">${esc(c.db)}</td>
+          <td><span class="mono">${esc(c.user)}</span></td>
+          <td><span class="mono">${esc(c.secret)}</span></td>
+          <td><span class="tag green">${c.st}</span></td>
+          <td>${c.at}</td>
+        </tr>`).join('')}</tbody></table>`
+      :`<div class="empty">등록된 Credential이 없습니다.</div>`}
     </div>`;
 }
 
