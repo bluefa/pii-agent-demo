@@ -770,7 +770,6 @@ function renderTsSearch(){
 const COMMON_TABS = [
   {id:'confirm',    label:'확정 정보',        render:tabConfirm},
   {id:'pipeline',   label:'파이프라인',       render:tabPipeline},
-  {id:'credential', label:'DB Credential',   render:tabCredential},
   {id:'tc',         label:'Test Connection', render:tabTc},
 ];
 const PROVIDER_TABS = {
@@ -947,25 +946,7 @@ function doRunPipeline(id, kind){
   closeModal(); toast(`${kind==='INSTALL'?'설치':'삭제'} 파이프라인을 실행했습니다`); renderTs(id,'pipeline');
 }
 
-/* ── 탭: DB Credential ── */
-function tabCredential(t){
-  return `
-    <div class="card">
-      <div class="card-head"><div class="card-title">DB Credential 목록 <span class="meta">${t.creds.length}건</span></div></div>
-      ${t.creds.length?`<table class="tbl">
-        <thead><tr><th>논리 DB</th><th>계정</th><th>Secret 참조</th><th>상태</th><th>수정일</th></tr></thead>
-        <tbody>${t.creds.map(c=>`<tr>
-          <td class="svc-name">${esc(c.db)}</td>
-          <td><span class="mono">${esc(c.user)}</span></td>
-          <td><span class="mono">${esc(c.secret)}</span></td>
-          <td><span class="tag green">${c.st}</span></td>
-          <td>${c.at}</td>
-        </tr>`).join('')}</tbody></table>`
-      :`<div class="empty">등록된 Credential이 없습니다.</div>`}
-    </div>`;
-}
-
-/* ── 탭: Test Connection ── */
+/* ── 탭: Test Connection (DB Credential 포함) ── */
 function tabTc(t){
   return `
     <div class="card">
@@ -978,6 +959,19 @@ function tabTc(t){
         ${kv('실패', t.tc.fail?`<span class="tag red">${t.tc.fail}건 실패</span>`:'<span class="tag green">0건</span>')}
         ${kv('마지막 실행', t.tc.at)}
       </div>`:`<div class="empty">Test Connection 실행 이력이 없습니다.<br><span class="meta">Agent 설치 완료(Step 5) 이후 실행할 수 있습니다.</span></div>`}
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">DB Credential <span class="meta">연결 테스트에 사용 · ${t.creds.length}건</span></div></div>
+      ${t.creds.length?`<table class="tbl">
+        <thead><tr><th>논리 DB</th><th>계정</th><th>Secret 참조</th><th>상태</th><th>수정일</th></tr></thead>
+        <tbody>${t.creds.map(c=>`<tr>
+          <td class="svc-name">${esc(c.db)}</td>
+          <td><span class="mono">${esc(c.user)}</span></td>
+          <td><span class="mono">${esc(c.secret)}</span></td>
+          <td><span class="tag green">${c.st}</span></td>
+          <td>${c.at}</td>
+        </tr>`).join('')}</tbody></table>`
+      :`<div class="empty">등록된 Credential이 없습니다.</div>`}
     </div>`;
 }
 
