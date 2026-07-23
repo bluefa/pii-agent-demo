@@ -198,18 +198,28 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
   border-bottom:1px solid var(--border)}
 .ts-mast .breadcrumb{margin-bottom:10px}
 .mast-id{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
-.mast-id h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.02em;
-  display:flex;align-items:center;gap:10px}
-.mast-id h1 .h-id{font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--text-weak)}
+/* 계층: TS id(최강조 mono) > 서비스명+코드(강조) > 메타칩(약) */
+.mast-id h1{font-family:var(--font-mono);font-size:26px;font-weight:700;margin:0;line-height:1.15;
+  letter-spacing:-.01em;color:var(--text-strong)}
+.mast-sub{display:flex;align-items:center;gap:8px;margin-top:8px}
+.mast-sub .svc{font-size:18px;font-weight:600;color:var(--text-strong)}
+.mast-sub .code{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-medium);
+  background:var(--gray-100);padding:2px 8px;border-radius:6px}
 .mast-id .actions{display:flex;gap:8px;flex:none}
-.mast-chips{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;font-size:14px}
+/* 현재 단계 간결 표기 + 진행사항 보기 링크 */
+.mast-proc{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.mast-proc .mp-l{display:flex;align-items:center;gap:10px}
+.mast-proc .mp-k{font-size:12px;font-weight:600;color:var(--text-weak)}
+.mast-proc .link{font-size:14px;display:inline-flex;align-items:center;gap:2px}
+.mast-chips{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;font-size:14px}
 .mast-chips .hm-k{font-size:12px;font-weight:600;color:var(--text-weak)}
 .mast-chips .hm-v{color:var(--text-strong);font-weight:500;font-variant-numeric:tabular-nums}
+.mast-chips .hm-v.mono{font-family:var(--font-mono);font-size:12px}
 .mast-chips .hm-sep{color:var(--border-strong)}
 .jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:2px 6px;border-radius:6px}
 .jchip:hover{background:var(--gray-50)}
 .jchip .mono{font-size:12px;color:var(--primary);font-weight:600}
-.mast-flow{margin-top:18px;padding-top:16px;border-top:1px dashed var(--border)}
 
 /* tab rail — 독립 틴트 밴드; 활성 탭만 화이트로 body에 연결 */
 .tabbar{display:flex;gap:2px;background:var(--gray-100);border-bottom:1px solid var(--border);
@@ -374,7 +384,10 @@ const TS = [
      {db:'pay_main',   user:'pii_agent', secret:'secret/pay/pii-agent-main',   st:'ACTIVE', at:'07-18 11:20'},
      {db:'pay_ledger', user:'pii_agent', secret:'secret/pay/pii-agent-ledger', st:'ACTIVE', at:'07-18 11:20'},
    ],
-   approval:{reqId:'AR-5121', status:'CONFIRMED', requester:'김유진', at:'07-17 18:56', dbCount:12},
+   approvals:[
+     {id:'AR-5121', status:'APPROVED',  by:'김유진', at:'07-17 18:56', resourceCount:12, result:{by:'admin.kim', at:'07-17 18:58'}},
+     {id:'AR-5098', status:'CANCELLED', by:'김유진', at:'07-16 09:12', resourceCount:10, result:null},
+   ],
    confirmed:{dbCount:12, at:'07-17 19:02'},
    pipelines:[
      {id:'PL-88213', kind:'INSTALL', st:'RUNNING', at:'07-20 18:09', dur:'12m 40s'},
@@ -391,7 +404,9 @@ const TS = [
    meta:{host:'ord-db-prod-01.idc.local', ips:'10.32.11.7, 10.32.11.8', oracleSid:'ORDPRD', nlbIndex:3},
    jira:{key:'INFRA-2244', summary:'IDC NLB 포트 오픈 협의', status:'To Do'},
    creds:[{db:'ORDPRD', user:'PII_AGENT', secret:'secret/ord/pii-agent', st:'ACTIVE', at:'07-12 09:10'}],
-   approval:{reqId:'AR-5108', status:'PENDING', requester:'이도현', at:'07-19 16:08', dbCount:4},
+   approvals:[
+     {id:'AR-5108', status:'PENDING', by:'이도현', at:'07-19 16:08', resourceCount:4, result:null},
+   ],
    confirmed:null, pipelines:[], tc:null,
    history:[
      {at:'07-19 16:08', from:'IDLE', to:'PENDING', by:'이도현'},
@@ -402,7 +417,9 @@ const TS = [
    jira:null,
    gcp:{scanSa:'pii-scan@mbr-prod-3921.iam.gserviceaccount.com', tfSa:'pii-tf@mbr-prod-3921.iam.gserviceaccount.com'},
    creds:[],
-   approval:{reqId:'AR-5130', status:'CONFIRMING', requester:'정하늘', at:'07-20 19:21', dbCount:7},
+   approvals:[
+     {id:'AR-5130', status:'APPROVED', by:'정하늘', at:'07-20 19:21', resourceCount:7, result:{by:'admin.kim', at:'07-20 19:22'}},
+   ],
    confirmed:null,
    pipelines:[{id:'PL-88240', kind:'INSTALL', st:'RUNNING', at:'07-20 19:22', dur:'1m 12s'}],
    tc:null,
@@ -415,7 +432,9 @@ const TS = [
    meta:{subscriptionId:'7c1e02aa-91f2-44d0-b7fb-3e1a52c9d001', resourceGroup:'rg-dlv-prod', scanAppId:'ap-3391cc'},
    jira:{key:'INFRA-2199', summary:'Azure Private Link 헬스체크 실패', status:'In Progress'},
    creds:[{db:'dlv_main', user:'pii_agent', secret:'secret/dlv/pii-agent', st:'ACTIVE', at:'07-15 13:44'}],
-   approval:{reqId:'AR-5090', status:'CONFIRMED', requester:'최민서', at:'07-14 10:12', dbCount:5},
+   approvals:[
+     {id:'AR-5090', status:'APPROVED', by:'최민서', at:'07-14 10:12', resourceCount:5, result:{by:'admin.lee', at:'07-14 10:20'}},
+   ],
    confirmed:{dbCount:5, at:'07-14 10:40'},
    pipelines:[{id:'PL-87710', kind:'INSTALL', st:'SUCCEEDED', at:'07-15 13:02', dur:'21m 08s'}],
    tc:{done:3, total:5, fail:0, at:'07-20 17:19'},
@@ -427,7 +446,9 @@ const TS = [
    meta:{sduType:'Shared DB Unit', sduCluster:'sdu-cluster-02'},
    jira:null,
    creds:[{db:'cpn_main', user:'pii_agent', secret:'secret/cpn/pii-agent', st:'ACTIVE', at:'07-10 16:30'}],
-   approval:{reqId:'AR-5044', status:'CONFIRMED', requester:'한지우', at:'07-09 11:00', dbCount:3},
+   approvals:[
+     {id:'AR-5044', status:'APPROVED', by:'한지우', at:'07-09 11:00', resourceCount:3, result:{by:'admin.kim', at:'07-09 11:10'}},
+   ],
    confirmed:{dbCount:3, at:'07-09 11:31'},
    pipelines:[{id:'PL-86122', kind:'INSTALL', st:'SUCCEEDED', at:'07-10 16:02', dur:'9m 51s'}],
    tc:{done:3, total:3, fail:0, at:'07-20 06:23'},
@@ -438,7 +459,7 @@ const TS = [
    endpoint:'10.18.4.2', port:1521,
    meta:{host:'src-db-prod-02.idc.local', ips:'10.18.4.2', oracleSid:'SRCPRD', nlbIndex:1},
    jira:null,
-   creds:[], approval:null, confirmed:null, pipelines:[], tc:null,
+   creds:[], approvals:[], confirmed:null, pipelines:[], tc:null,
    history:[]},
 ];
 const svcOf = code => SERVICES.find(s=>s.code===code);
@@ -768,6 +789,7 @@ function renderTsSearch(){
 /* ══════════ 페이지: TS 상세 — 탭 레지스트리 ══════════ */
 /* 확장 포인트: 탭 추가 = {id, label, render(t)} 객체 추가. Provider 전용 탭은 PROVIDER_TABS. */
 const COMMON_TABS = [
+  {id:'process',    label:'진행 상태',        render:tabProcess},
   {id:'confirm',    label:'확정 정보',        render:tabConfirm},
   {id:'pipeline',   label:'파이프라인',       render:tabPipeline},
   {id:'tc',         label:'Test Connection', render:tabTc},
@@ -792,12 +814,11 @@ function renderTs(id, tabId){
       <div class="breadcrumb"><span class="crumb" onclick="location.hash='#/ts'">Target Source 운영</span><span class="sep">/</span><span class="cur">TS-${t.id}</span></div>
       <div class="mast-id">
         <div>
-          <h1>${esc(s.name)} <span class="h-id">TS-${t.id}</span></h1>
-          <div class="mast-chips">
-            ${ptag(t.pv)}<span class="hm-sep">·</span>
-            <span class="hm-k">서비스</span><span class="hm-v">${esc(s.code)}</span><span class="hm-sep">·</span>
-            <span class="hm-k">마지막 변경</span><span class="hm-v">${t.at}</span><span class="hm-sep">·</span>
-            <span class="hm-k">Jira</span>${jiraChip(t.jira)}
+          <h1>TS-${t.id}</h1>
+          <div class="mast-sub">
+            <span class="svc">${esc(s.name)}</span>
+            <span class="code">${esc(s.code)}</span>
+            ${ptag(t.pv)}
           </div>
         </div>
         <div class="actions">
@@ -805,7 +826,15 @@ function renderTs(id, tabId){
           <button class="btn secondary" onclick="toast('파이프라인 상세 페이지로 이동합니다 (프로토타입)')">${icon('open','sm')}파이프라인 페이지</button>
         </div>
       </div>
-      <div class="mast-flow">${stepRail(t)}</div>
+      <div class="mast-proc">
+        <div class="mp-l"><span class="mp-k">현재 단계</span>${pill(t.st)}</div>
+        <span class="link" onclick="location.hash='#/ts/${t.id}/process'">진행사항 보기 ${icon('chev','xs')}</span>
+      </div>
+      <div class="mast-chips">
+        ${providerMetaChips(t)}
+        <span class="hm-k">Jira</span>${jiraChip(t.jira)}<span class="hm-sep">·</span>
+        <span class="hm-k">마지막 변경</span><span class="hm-v">${t.at}</span>
+      </div>
     </div>
     <div class="tabbar">
       ${tabs.map(x=>`<span class="tab ${x.id===tab.id?'on':''}" onclick="location.hash='#/ts/${t.id}/${x.id}'">
@@ -814,8 +843,21 @@ function renderTs(id, tabId){
     <div id="tab-body">${tab.render(t)}</div>`;
 }
 
-/* ── masthead 헬퍼: Process Status 미니 레일 · Jira 칩 (Metadata·Process Status 탭은 헤더로 이동) ── */
+/* ── masthead 헬퍼: 서비스 메타는 헤더로 승격, 상세는 진행 상태 탭 ── */
+const META_LABELS = {
+  awsAccountId:'AWS Account', awsRegion:'Region', regionType:'Region Type',
+  gcpProjectId:'GCP Project', region:'Region',
+  subscriptionId:'Subscription', resourceGroup:'Resource Group', scanAppId:'Scan App',
+  host:'Host', ips:'IP', oracleSid:'Oracle SID', nlbIndex:'NLB Index',
+  sduType:'SDU Type', sduCluster:'SDU Cluster',
+};
 function kv(k,v){ return `<div class="k">${esc(k)}</div><div class="v">${v}</div>`; }
+function providerMetaChips(t){
+  const keys = Object.keys(t.meta||{});
+  if(!keys.length) return '';
+  return keys.map(k=>`<span class="hm-k">${esc(META_LABELS[k]||k)}</span><span class="hm-v mono">${esc(t.meta[k])}</span>`)
+    .join('<span class="hm-sep">·</span>') + '<span class="hm-sep">·</span>';
+}
 function stepRail(t){
   const cur = STEP[t.st];
   return `<div class="steprail">
@@ -828,32 +870,62 @@ function jiraChip(j){
   if(!j) return '<span class="muted">미연결</span>';
   return `<span class="jchip" title="${esc(j.summary)}" onclick="toast('Jira로 이동합니다 (프로토타입)')"><span class="mono">${esc(j.key)}</span>${jiraTag(j.status)}</span>`;
 }
+/* 승인 요청 상태 — install-v1 ApprovalRequest enum 정합 */
+const APPROVAL_TAG = {PENDING:'orange', APPROVED:'green', AUTO_APPROVED:'green',
+  REJECTED:'red', CANCELLED:'gray', UNAVAILABLE:'gray', UNAVAILABLE_ACKNOWLEDGED:'gray'};
+function approvalTag(st){ return `<span class="tag ${APPROVAL_TAG[st]||'gray'}">${esc(st)}</span>`; }
+
+/* ── 탭: 진행 상태 (Process Status · 승인 요청 내역 · 상태 변경 이력) ── */
+function tabProcess(t){
+  const cur = STEP[t.st];
+  return `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">현재 Process Status</div>
+        <button class="btn secondary sm" onclick="toast('단건 조회로 상태를 갱신했습니다')">${icon('refresh','sm')}단건 조회</button>
+      </div>
+      ${stepRail(t)}
+      <div class="section-desc" style="margin:16px 0 0">현재 <b>Step ${cur.n} · ${cur.label}</b> 단계입니다.</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">승인 요청 내역 <span class="meta">연동 요청 process · 최신순</span></div></div>
+      ${t.approvals && t.approvals.length?`<table class="tbl">
+        <thead><tr><th>요청 ID</th><th>상태</th><th>요청자</th><th>요청 일시</th><th>대상 리소스</th><th>처리</th></tr></thead>
+        <tbody>${t.approvals.map(a=>`<tr>
+          <td><span class="mono">${esc(a.id)}</span></td>
+          <td>${approvalTag(a.status)}</td>
+          <td>${esc(a.by)}</td>
+          <td>${a.at}</td>
+          <td>${a.resourceCount}개</td>
+          <td>${a.result?`${esc(a.result.by)} <span class="meta">${a.result.at}</span>`:'<span class="muted">—</span>'}</td>
+        </tr>`).join('')}</tbody></table>`
+      :`<div class="empty">승인 요청 내역이 없습니다.</div>`}
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">상태 변경 이력</div></div>
+      ${t.history.length?`<table class="tbl">
+        <thead><tr><th>일시</th><th>변경</th><th>수행자</th></tr></thead>
+        <tbody>${t.history.map(h=>`<tr>
+          <td>${h.at}</td>
+          <td>${pill(h.from)} <span class="muted" style="margin:0 6px">→</span> ${pill(h.to)}</td>
+          <td>${esc(h.by)}</td>
+        </tr>`).join('')}</tbody></table>`
+      :`<div class="empty">상태 변경 이력이 없습니다.</div>`}
+    </div>`;
+}
 
 /* ── 탭: 확정 정보 ── */
-const APPROVAL_TONE = {PENDING:'orange', CONFIRMING:'blue', CONFIRMED:'green', REJECTED:'red'};
 function tabConfirm(t){
   return `
-    <div class="card-grid2">
-      <div class="card">
-        <div class="card-head"><div class="card-title">승인 정보 <span class="meta">최근 승인 요청</span></div></div>
-        ${t.approval?`<div class="kv2">
-          ${kv('요청 ID', `<span class="mono">${t.approval.reqId}</span>`)}
-          ${kv('상태', `<span class="tag ${APPROVAL_TONE[t.approval.status]||'gray'}">${t.approval.status}</span>`)}
-          ${kv('요청자', esc(t.approval.requester))}
-          ${kv('요청 일시', t.approval.at)}
-          ${kv('대상 DB 수', `${t.approval.dbCount}개`)}
-        </div>`:`<div class="empty">승인 요청 이력이 없습니다.</div>`}
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">확정 정보</div>
+        ${t.confirmed?`<button class="btn danger sm" onclick="openDeleteConfirmedModal(${t.id})">${icon('trash','xs')}확정 정보 삭제</button>`:''}
       </div>
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title">확정 정보</div>
-          ${t.confirmed?`<button class="btn danger sm" onclick="openDeleteConfirmedModal(${t.id})">${icon('trash','xs')}확정 정보 삭제</button>`:''}
-        </div>
-        ${t.confirmed?`<div class="kv2">
-          ${kv('확정 DB 수', `${t.confirmed.dbCount}개`)}
-          ${kv('확정 일시', t.confirmed.at)}
-        </div>`:`<div class="empty">확정된 연동 정보가 없습니다.</div>`}
-      </div>
+      ${t.confirmed?`<div class="kv2">
+        ${kv('확정 DB 수', `${t.confirmed.dbCount}개`)}
+        ${kv('확정 일시', t.confirmed.at)}
+      </div>`:`<div class="empty">확정된 연동 정보가 없습니다.</div>`}
     </div>
     <div class="card mt-16">
       <div class="card-head"><div class="card-title">확정 정보 삭제 Policy</div></div>
@@ -864,17 +936,6 @@ function tabConfirm(t){
         ${kv('보존 기간', '삭제 후 30일간 이력 보존, 이후 영구 삭제')}
         ${kv('연결 테스트 결과', '삭제 시 함께 무효화')}
       </div>
-    </div>
-    <div class="card mt-16">
-      <div class="card-head"><div class="card-title">상태 변경 이력</div></div>
-      ${t.history.length?`<table class="tbl">
-        <thead><tr><th>일시</th><th>변경</th><th>수행자</th></tr></thead>
-        <tbody>${t.history.map(h=>`<tr>
-          <td>${h.at}</td>
-          <td>${pill(h.from)} <span class="muted" style="margin:0 6px">→</span> ${pill(h.to)}</td>
-          <td>${esc(h.by)}</td>
-        </tr>`).join('')}</tbody></table>`
-      :`<div class="empty">상태 변경 이력이 없습니다.</div>`}
     </div>`;
 }
 function openDeleteConfirmedModal(id){
@@ -978,14 +1039,6 @@ function tabTc(t){
 /* ── 탭: AWS 설정 ── */
 function tabAws(t){
   return `
-    <div class="card">
-      <div class="card-head"><div class="card-title">AWS 환경 정보</div></div>
-      <div class="kv2">
-        ${kv('AWS Account ID', `<span class="mono">${esc(t.meta.awsAccountId)}</span>`)}
-        ${kv('Region', `<span class="mono">${esc(t.meta.awsRegion)}</span>`)}
-        ${kv('Region Type', esc(t.meta.regionType))}
-      </div>
-    </div>
     <div class="card">
       <div class="card-head">
         <div class="card-title">설치 모드</div>
