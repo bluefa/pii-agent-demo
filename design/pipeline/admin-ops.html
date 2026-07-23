@@ -223,6 +223,18 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .jchip:hover{background:var(--gray-50)}
 .jchip .mono{font-size:13px;color:var(--primary);font-weight:600}
 
+/* ── 연동 요청 정보: 요청 프로세스 미니 플로우 · 확정 원본 JSON ── */
+.miniflow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.miniflow .mf{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text-faint)}
+.miniflow .mf .fdot{width:8px;height:8px;border-radius:999px;background:var(--gray-200)}
+.miniflow .mf.done{color:var(--text-weak)}
+.miniflow .mf.done .fdot{background:var(--primary)}
+.miniflow .mf.cur{color:var(--primary);font-weight:700}
+.miniflow .mf.cur .fdot{background:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.miniflow .fa{color:var(--text-faint)}
+.jsonbox{background:var(--gray-900);color:#D0D5DD;font-family:var(--font-mono);font-size:12px;line-height:1.55;
+  border-radius:8px;padding:14px 16px;overflow:auto;max-height:420px;margin:0;white-space:pre}
+
 /* tab rail — 독립 틴트 밴드; 활성 탭만 화이트로 body에 연결 */
 .tabbar{display:flex;gap:2px;background:var(--gray-100);border-bottom:1px solid var(--border);
   margin:0 -32px 24px;padding:0 32px}
@@ -387,10 +399,36 @@ const TS = [
      {db:'pay_ledger', user:'pii_agent', secret:'secret/pay/pii-agent-ledger', st:'ACTIVE', at:'07-18 11:20'},
    ],
    approvals:[
-     {id:'AR-5121', status:'APPROVED',  by:'김유진', at:'07-17 18:56', resourceCount:12, result:{by:'admin.kim', at:'07-17 18:58'}},
+     {id:'AR-5121', status:'APPROVED',  by:'김유진', at:'07-17 18:56', resourceCount:5, result:{by:'admin.kim', at:'07-17 18:58'},
+      resources:[
+        {rid:'db-pay-main-01',    name:'pay_main',         type:'AWS_DB_CLUSTER'},
+        {rid:'db-pay-ledger-01',  name:'pay_ledger',       type:'AWS_DB_CLUSTER'},
+        {rid:'db-pay-settle-01',  name:'pay_settle',       type:'AWS_DB_INSTANCE'},
+        {rid:'db-pay-archive-01', name:'pay_archive',      type:'AWS_DB_INSTANCE'},
+        {rid:'ath-pay-stats',     name:'pay_stats',        type:'AWS_ATHENA_DATABASE'},
+      ]},
      {id:'AR-5098', status:'CANCELLED', by:'김유진', at:'07-16 09:12', resourceCount:10, result:null},
    ],
-   confirmed:{dbCount:12, at:'07-17 19:02'},
+   confirmed:{dbCount:4, at:'07-17 19:02',
+     resources:[
+       {rid:'db-pay-main-01',    name:'pay_main',         type:'AWS_DB_CLUSTER'},
+       {rid:'db-pay-ledger-01',  name:'pay_ledger',       type:'AWS_DB_CLUSTER'},
+       {rid:'db-pay-settle-01',  name:'pay_settle',       type:'AWS_DB_INSTANCE'},
+       {rid:'db-pay-replica-02', name:'pay_read_replica', type:'AWS_DB_INSTANCE'},
+     ],
+     raw:{resource_infos:[
+       {resource_id:'db-pay-main-01', resource_type:'AWS_DB_CLUSTER', database_type:'MySQL',
+        host:'pay-prod-cluster.cluster-cx1.ap-northeast-2.rds.amazonaws.com', port:3306,
+        credential_id:'cred-2201', secret_info:'secret/pay/pii-agent-main', agent_id:'agt-088',
+        protocol:'TCP', db_target_ip_list:['10.20.1.5','10.20.2.5'],
+        vpc_endpoint_id:'vpce-0a1b2c9f', subnet_group:'pay-prod-subnet-grp', tf_workspace:'ts-2013-install'},
+       {resource_id:'db-pay-replica-02', resource_type:'AWS_DB_INSTANCE', database_type:'MySQL',
+        host:'pay-read-replica-02.cx1.ap-northeast-2.rds.amazonaws.com', port:3306,
+        credential_id:'cred-2205', secret_info:'secret/pay/pii-agent-replica', agent_id:'agt-088',
+        protocol:'TCP', db_target_ip_list:['10.20.3.7'],
+        vpc_endpoint_id:'vpce-0a1b2c9f', subnet_group:'pay-prod-subnet-grp', tf_workspace:'ts-2013-install'},
+     ]},
+   },
    pipelines:[
      {id:'PL-88213', kind:'INSTALL', st:'RUNNING', at:'07-20 18:09', dur:'12m 40s'},
      {id:'PL-87901', kind:'INSTALL', st:'FAILED',  at:'07-19 14:02', dur:'3m 05s'},
@@ -420,7 +458,12 @@ const TS = [
    gcp:{scanSa:'pii-scan@mbr-prod-3921.iam.gserviceaccount.com', tfSa:'pii-tf@mbr-prod-3921.iam.gserviceaccount.com'},
    creds:[],
    approvals:[
-     {id:'AR-5130', status:'APPROVED', by:'정하늘', at:'07-20 19:21', resourceCount:7, result:{by:'admin.kim', at:'07-20 19:22'}},
+     {id:'AR-5130', status:'APPROVED', by:'정하늘', at:'07-20 19:21', resourceCount:3, result:{by:'admin.kim', at:'07-20 19:22'},
+      resources:[
+        {rid:'sql-mbr-main',  name:'mbr_main',   type:'GCP_CLOUD_SQL'},
+        {rid:'sql-mbr-auth',  name:'mbr_auth',   type:'GCP_CLOUD_SQL'},
+        {rid:'bq-mbr-events', name:'mbr_events', type:'GCP_BIGQUERY_DATASET'},
+      ]},
    ],
    confirmed:null,
    pipelines:[{id:'PL-88240', kind:'INSTALL', st:'RUNNING', at:'07-20 19:22', dur:'1m 12s'}],
@@ -516,7 +559,7 @@ function toast(msg){
   root.innerHTML = `<div class="toast">${icon('check')}${esc(msg)}</div>`;
   clearTimeout(toast._t); toast._t = setTimeout(()=>root.innerHTML='', 2600);
 }
-function openModal(html){ document.getElementById('modal-root').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
+function openModal(html, w){ document.getElementById('modal-root').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal"${w?` style="width:${w}px"`:''}>${html}</div></div>`; }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
@@ -792,7 +835,7 @@ function renderTsSearch(){
 /* 확장 포인트: 탭 추가 = {id, label, render(t)} 객체 추가. Provider 전용 탭은 PROVIDER_TABS. */
 const COMMON_TABS = [
   {id:'process',    label:'진행 상태',        render:tabProcess},
-  {id:'confirm',    label:'확정 정보',        render:tabConfirm},
+  {id:'confirm',    label:'연동 요청 정보',    render:tabConfirm},
   {id:'pipeline',   label:'파이프라인',       render:tabPipeline},
   {id:'tc',         label:'Test Connection', render:tabTc},
 ];
@@ -835,7 +878,7 @@ function renderTs(id, tabId){
           <div class="grp-title">협업 채널</div>
           <div class="grp-body">
             ${t.jira
-              ? `<div class="cell"><span class="k">Jira</span>${jiraChip(t.jira)}</div><div class="meta">${esc(t.jira.summary)}</div>`
+              ? `<div class="cell"><span class="k">Jira</span>${jiraChip(t.jira)}</div>`
               : `<span class="muted">연결된 Jira 티켓 없음</span><span class="link" onclick="location.hash='#/svc/${t.svc}'">티켓 추가하러 가기 ${icon('chev','xs')}</span>`}
           </div>
         </div>
@@ -871,7 +914,7 @@ function stepRail(t){
 }
 function jiraChip(j){
   if(!j) return '<span class="muted">미연결</span>';
-  return `<span class="jchip" title="${esc(j.summary)}" onclick="toast('Jira로 이동합니다 (프로토타입)')"><span class="mono">${esc(j.key)}</span>${jiraTag(j.status)}</span>`;
+  return `<span class="jchip" title="${esc(j.summary)}" onclick="toast('Jira로 이동합니다 (프로토타입)')"><span class="mono">${esc(j.key)}</span></span>`;
 }
 /* 승인 요청 상태 — install-v1 ApprovalRequest enum 정합 */
 const APPROVAL_TAG = {PENDING:'orange', APPROVED:'green', AUTO_APPROVED:'green',
@@ -916,19 +959,99 @@ function tabProcess(t){
     </div>`;
 }
 
-/* ── 탭: 확정 정보 ── */
+/* ── 탭: 연동 요청 정보 (최근 승인 요청 · 요청 프로세스 · 승인↔확정 diff) ── */
+const REQ_FLOW = ['연동 요청','관리자 승인','반영중','확정'];
+function latestApproval(t){ return (t.approvals && t.approvals[0]) || null; }
+function reqFlowHtml(t){
+  const a = latestApproval(t);
+  if(!a) return '';
+  if(['REJECTED','CANCELLED','UNAVAILABLE','UNAVAILABLE_ACKNOWLEDGED'].includes(a.status))
+    return `<div class="note err" style="margin-top:12px">${icon('alert')}<div>최근 요청이 <b>${esc(a.status)}</b> 처리되어 연동 요청 프로세스가 종료되었습니다. 연동을 계속하려면 재요청이 필요합니다.</div></div>`;
+  const done = t.confirmed?4 : ['APPROVED','AUTO_APPROVED'].includes(a.status)?2 : 1;
+  return `<div class="miniflow" style="margin-top:12px">
+    ${REQ_FLOW.map((l,i)=>{
+      const cls = i<done?'done':i===done?'cur':'';
+      return `${i?'<span class="fa">→</span>':''}<span class="mf ${cls}"><span class="fdot"></span>${l}</span>`;
+    }).join('')}
+  </div>`;
+}
+/* 승인 Set ↔ 확정 Set 비교 (양쪽 리소스 목록이 있을 때만) */
+function confirmDiff(t){
+  const a = latestApproval(t);
+  const ar = (a && a.resources)||[], cr = (t.confirmed && t.confirmed.resources)||[];
+  if(!ar.length || !cr.length) return null;
+  const aIds = new Set(ar.map(r=>r.rid)), cIds = new Set(cr.map(r=>r.rid));
+  return {
+    common:  ar.filter(r=>cIds.has(r.rid)),
+    removed: ar.filter(r=>!cIds.has(r.rid)),
+    added:   cr.filter(r=>!aIds.has(r.rid)),
+  };
+}
+function resourceRows(list, badge){
+  return list.map(r=>`<tr>
+    <td><span class="mono">${esc(r.rid)}</span></td>
+    <td class="svc-name">${esc(r.name)}</td>
+    <td><span class="tag gray">${esc(r.type)}</span></td>
+    ${badge?`<td>${badge(r)}</td>`:''}
+  </tr>`).join('');
+}
 function tabConfirm(t){
+  const a = latestApproval(t);
+  const d = confirmDiff(t);
+  const approved = a && ['APPROVED','AUTO_APPROVED'].includes(a.status);
+  const hasDiff = d && (d.removed.length || d.added.length);
   return `
+    <div class="card">
+      <div class="card-head"><div class="card-title">최근 연동 승인 요청</div></div>
+      ${a?`<div class="kv2">
+        ${kv('요청 ID', `<span class="mono">${esc(a.id)}</span>`)}
+        ${kv('상태', approvalTag(a.status))}
+        ${kv('요청자', esc(a.by))}
+        ${kv('요청 일시', a.at)}
+        ${kv('처리', a.result?`${esc(a.result.by)} <span class="meta">${a.result.at}</span>`:'<span class="muted">—</span>')}
+        ${kv('승인 대상', `${a.resourceCount}개`)}
+      </div>
+      <div class="subsection-title" style="margin-top:16px">연동 요청 프로세스</div>
+      ${reqFlowHtml(t)}`
+      :`<div class="empty">승인 요청 이력이 없습니다.</div>`}
+    </div>
+
     <div class="card">
       <div class="card-head">
         <div class="card-title">확정 정보</div>
-        ${t.confirmed?`<button class="btn danger sm" onclick="openDeleteConfirmedModal(${t.id})">${icon('trash','xs')}확정 정보 삭제</button>`:''}
+        <div style="display:flex;gap:8px">
+          ${t.confirmed&&d?`<button class="btn secondary sm" onclick="openDiffModal(${t.id})">승인·확정 차이 보기</button>`:''}
+          ${t.confirmed&&t.confirmed.raw?`<button class="btn secondary sm" onclick="openRawModal(${t.id})">원본 JSON</button>`:''}
+          ${t.confirmed?`<button class="btn danger sm" onclick="openDeleteConfirmedModal(${t.id})">${icon('trash','xs')}확정 정보 삭제</button>`:''}
+        </div>
       </div>
-      ${t.confirmed?`<div class="kv2">
-        ${kv('확정 DB 수', `${t.confirmed.dbCount}개`)}
-        ${kv('확정 일시', t.confirmed.at)}
-      </div>`:`<div class="empty">확정된 연동 정보가 없습니다.</div>`}
+      ${t.confirmed?`
+        <div class="kv2">
+          ${kv('확정 리소스', `${t.confirmed.dbCount}개`)}
+          ${kv('확정 일시', t.confirmed.at)}
+        </div>
+        ${d?(hasDiff
+          ?`<div class="note" style="margin-top:14px">${icon('alert')}<div>승인 정보와 확정 정보의 리소스 Set이 다릅니다 — 공통 <b>${d.common.length}</b> · 확정에서 제외 <b>${d.removed.length}</b> · 승인 외 추가 <b>${d.added.length}</b> <span class="link" onclick="openDiffModal(${t.id})">차이 보기</span></div></div>`
+          :`<div class="note info" style="margin-top:14px">${icon('info')}<div>승인 정보와 동일한 리소스 Set으로 확정되었습니다.</div></div>`):''}
+        ${t.confirmed.resources?`
+        <div class="subsection-title" style="margin-top:16px">확정 리소스 목록</div>
+        <table class="tbl">
+          <thead><tr><th>Resource ID</th><th>이름</th><th>유형</th><th></th></tr></thead>
+          <tbody>${resourceRows(t.confirmed.resources, r=>{
+            if(!a || !a.resources) return '';
+            return a.resources.some(x=>x.rid===r.rid)?'':'<span class="tag orange">승인 외 추가</span>';
+          })}</tbody>
+        </table>`:''}`
+      : approved && a.resources ? `
+        <div class="note info">${icon('info')}<div>확정 정보가 아직 생성되지 않았습니다. <b>승인 정보 기준 예상 확정 정보</b>입니다. 실제 확정 입력에는 조회 API에 노출되지 않는 운영 변수가 추가로 필요합니다.</div></div>
+        <div class="subsection-title" style="margin-top:16px">예상 확정 리소스 <span class="meta">승인 ${esc(a.id)} 기준 ${a.resources.length}개</span></div>
+        <table class="tbl">
+          <thead><tr><th>Resource ID</th><th>이름</th><th>유형</th></tr></thead>
+          <tbody>${resourceRows(a.resources)}</tbody>
+        </table>`
+      : `<div class="empty">확정된 연동 정보가 없습니다.${a&&a.status==='PENDING'?'<br><span class="meta">승인 완료 후 확정 정보가 생성됩니다.</span>':''}</div>`}
     </div>
+
     <div class="card mt-16">
       <div class="card-head"><div class="card-title">확정 정보 삭제 Policy</div></div>
       <div class="section-desc" style="margin-top:0">삭제 실행 전 아래 정책이 적용됩니다. 정책은 서버에서 조회한 값입니다.</div>
@@ -959,6 +1082,40 @@ function doDeleteConfirmed(id){
   if(!v){ toast('삭제 사유를 입력하세요'); return; }
   tsOf(id).confirmed = null;
   closeModal(); toast('확정 정보를 삭제했습니다'); renderTs(id,'confirm');
+}
+function openDiffModal(id){
+  const t = tsOf(id), a = latestApproval(t), d = confirmDiff(t);
+  if(!d) return;
+  const mark = on => on?`<span style="color:var(--ok-text)">${icon('check','sm')}</span>`:'<span class="muted">—</span>';
+  const row = (r, st) => `<tr>
+    <td><span class="mono">${esc(r.rid)}</span></td>
+    <td>${esc(r.name)}</td>
+    <td><span class="tag gray">${esc(r.type)}</span></td>
+    <td style="text-align:center">${mark(st!=='added')}</td>
+    <td style="text-align:center">${mark(st!=='removed')}</td>
+    <td>${st==='common'?'<span class="tag green">동일</span>':st==='removed'?'<span class="tag red">확정 제외</span>':'<span class="tag orange">승인 외 추가</span>'}</td>
+  </tr>`;
+  openModal(`
+    <h3>승인 정보 ↔ 확정 정보 비교 — <span class="mono" style="font-size:14px">#${t.id}</span></h3>
+    <div class="desc">승인 <span class="mono">${esc(a.id)}</span> ${a.resources.length}개 ↔ 확정 ${t.confirmed.resources.length}개
+      · 공통 ${d.common.length} · 확정 제외 ${d.removed.length} · 승인 외 추가 ${d.added.length}</div>
+    <table class="tbl">
+      <thead><tr><th>Resource ID</th><th>이름</th><th>유형</th><th style="text-align:center">승인</th><th style="text-align:center">확정</th><th>판정</th></tr></thead>
+      <tbody>
+        ${d.removed.map(r=>row(r,'removed')).join('')}
+        ${d.added.map(r=>row(r,'added')).join('')}
+        ${d.common.map(r=>row(r,'common')).join('')}
+      </tbody>
+    </table>
+    <div class="foot"><button class="btn secondary" onclick="closeModal()">닫기</button></div>`, 760);
+}
+function openRawModal(id){
+  const t = tsOf(id);
+  openModal(`
+    <h3>확정 정보 원본 — <span class="mono" style="font-size:14px">#${t.id}</span></h3>
+    <div class="desc">확정 입력 원본(JSON)입니다. 조회 API에 노출되지 않는 운영 변수를 포함하므로 관리자 화면에서만 표시됩니다.</div>
+    <pre class="jsonbox">${esc(JSON.stringify(t.confirmed.raw, null, 2))}</pre>
+    <div class="foot"><button class="btn secondary" onclick="closeModal()">닫기</button></div>`, 720);
 }
 
 /* ── 탭: 파이프라인 ── */
