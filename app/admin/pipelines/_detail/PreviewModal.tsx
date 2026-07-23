@@ -59,6 +59,7 @@ import type {
   RecipePreview,
   TaskCatalogEntry,
   TaskKind,
+  TerraformAction,
 } from '@/lib/pipeline/types';
 
 const TITLE_ID = 'pl-preview-title';
@@ -83,13 +84,13 @@ const TYPE_DESCS: Record<PipelineType, string> = {
 const TYPE_NOTES: Record<PipelineType, ReactNode> = {
   INSTALL: (
     <>
-      설치는 대상 계정에 리소스를 생성합니다. 시작 후에는 <b>현재 파이프라인</b> 카드와 파이프라인
+      설치는 대상 계정에 리소스를 생성합니다. 시작 후에는 <b>현재 작업</b> 카드와 작업
       현황에서 진행을 볼 수 있어요.
     </>
   ),
   DELETE: (
     <>
-      삭제는 설치된 리소스를 destroy 하며 되돌릴 수 없어요. 시작 후에는 <b>현재 파이프라인</b> 카드에서
+      삭제는 설치된 리소스를 destroy 하며 되돌릴 수 없어요. 시작 후에는 <b>현재 작업</b> 카드에서
       진행을 볼 수 있어요.
     </>
   ),
@@ -103,7 +104,13 @@ function SeqFlow({
   steps,
   numbered = false,
 }: {
-  steps: ReadonlyArray<{ key: string; kind: TaskKind; name: string; desc?: string | null }>;
+  steps: ReadonlyArray<{
+    key: string;
+    kind: TaskKind;
+    name: string;
+    desc?: string | null;
+    action?: TerraformAction | null;
+  }>;
   numbered?: boolean;
 }): ReactElement {
   return (
@@ -112,7 +119,13 @@ function SeqFlow({
         {steps.map((s, i) => (
           <Fragment key={s.key}>
             {i > 0 && <FlowArrow />}
-            <R24TaskNode kind={s.kind} name={s.name} desc={s.desc} seq={numbered ? i + 1 : undefined} />
+            <R24TaskNode
+              kind={s.kind}
+              name={s.name}
+              desc={s.desc}
+              action={s.action}
+              seq={numbered ? i + 1 : undefined}
+            />
           </Fragment>
         ))}
       </div>
@@ -241,7 +254,7 @@ export function PreviewModal({
       suppressAlert: true,
       onSuccess: (detail) => {
         onClose();
-        showToast(`${label} 파이프라인이 실행됐어요`);
+        showToast(`${label} 작업이 실행됐어요`);
         router.push(passRoutes.pipelines.pipeline(detail.pipeline_id));
       },
       onError: (err) => {
@@ -254,7 +267,7 @@ export function PreviewModal({
               const latest = await getLatestPipelineByTarget(targetSourceId);
               if (latest) {
                 onClose();
-                showToast('이미 진행 중인 파이프라인으로 이동합니다');
+                showToast('이미 진행 중인 작업으로 이동합니다');
                 router.push(passRoutes.pipelines.pipeline(latest.pipeline_id));
                 return;
               }
@@ -262,7 +275,7 @@ export function PreviewModal({
               /* fall through to the failure toast */
             }
             onClose();
-            showToast('진행 중인 파이프라인 확인에 실패했습니다 — 새로고침 후 다시 시도하세요');
+            showToast('진행 중인 작업 확인에 실패했습니다 — 새로고침 후 다시 시도하세요');
           })();
           return;
         }
@@ -309,12 +322,12 @@ export function PreviewModal({
       labelledBy={TITLE_ID}
       variant="wide"
       /* Per-step width matches Figma: choose 560 (9-992), preview/summary 760
-         (9-1077), builder 960 (canvas + docked catalog). */
+         (9-1077); builder is roomier (canvas + wider docked catalog) at 1080. */
       className={
         step === 'choose'
           ? '!w-[560px]'
           : step === 'custom-build'
-            ? '!w-[960px] !max-w-[92vw]'
+            ? '!w-[1080px] !max-w-[94vw]'
             : '!w-[760px]'
       }
     >
@@ -322,12 +335,12 @@ export function PreviewModal({
       {step === 'choose' || !type ? (
         <>
           <h3 id={TITLE_ID} className={MODAL_H3}>
-            파이프라인 시작
+            작업 시작
           </h3>
           {/* Figma 9-992: subtitle is 14px semibold, dark — just the instruction
               (no id·provider prefix on step 1). */}
           <div className="mb-3.5 text-[14px] font-semibold leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-strong)]">
-            실행할 파이프라인 유형을 선택하세요
+            실행할 작업 유형을 선택하세요
           </div>
           <div className="flex flex-col gap-2.5">
             {optionRow('INSTALL')}
@@ -350,11 +363,14 @@ export function PreviewModal({
         <>
           <Eyebrow type="CUSTOM" />
           <h3 id={TITLE_ID} className={MODAL_H3}>
-            Custom 파이프라인 구성
+            Custom 작업 구성
           </h3>
-          {/* Figma 9:1257 copy. */}
+          {/* Figma 9:1257 copy — the drag affordance is highlighted (owner: 너무 안 보임). */}
           <div className="text-[14px] leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-weak)]">
-            카탈로그에서 Task를 골라 담고 드래그로 순서를 자유롭게 배열하세요.
+            카탈로그에서 Task를 골라 담고{' '}
+            <span className="font-semibold text-[var(--pl-primary)]">
+              드래그로 순서를 자유롭게 배열하세요.
+            </span>
           </div>
           <div className="mt-3.5">
             <CustomBuildStep
@@ -393,7 +409,7 @@ export function PreviewModal({
         <>
           <Eyebrow type="CUSTOM" />
           <h3 id={TITLE_ID} className={MODAL_H3}>
-            Custom 파이프라인 시작
+            Custom 작업 시작
           </h3>
           {/* Consistent with the preview step — 14px, no id·provider prefix. */}
           <div className="text-[14px] leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-weak)]">
@@ -406,6 +422,7 @@ export function PreviewModal({
               kind: t.kind,
               name: t.display_name,
               desc: t.description,
+              action: t.terraform_action,
             }))}
           />
           <ModalNote>이 구성은 저장되지 않으며 이번 실행에만 사용돼요.</ModalNote>
@@ -436,7 +453,7 @@ export function PreviewModal({
           {/* Figma 9-1077: subtitle 14px — just the task-count sentence (no
               id·provider·recipe prefix on step 2). */}
           <h3 id={TITLE_ID} className={MODAL_H3}>
-            {label} 파이프라인 시작
+            {label} 작업 시작
           </h3>
           <div className="text-[14px] leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-weak)]">
             {preview ? `아래 ${preview.steps.length}개 Task가 순서대로 실행됩니다` : '…'}
@@ -454,6 +471,7 @@ export function PreviewModal({
                   kind: s.kind,
                   name: s.display_name,
                   desc: s.definition?.description,
+                  action: s.terraform_action,
                 }))}
               />
               {TYPE_NOTES[type] && <ModalNote>{TYPE_NOTES[type]}</ModalNote>}

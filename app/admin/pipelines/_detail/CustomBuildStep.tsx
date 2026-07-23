@@ -29,6 +29,7 @@ import {
 } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { FlowArrow, KindMark, R24_CSS } from '@/app/admin/pipelines/_detail/r24Task';
@@ -52,7 +53,7 @@ const AUTOSCROLL_MAX_PX = 16;
  * the scrolling order track (left) and the docked catalog panel (right).
  */
 const BUILD_CSS = `
-.r24-build{display:flex;align-items:stretch;min-height:340px;overflow:hidden}
+.r24-build{display:flex;align-items:stretch;min-height:400px;overflow:hidden}
 .r24-build .r24-bscroll{flex:1;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;padding:24px 22px 16px;display:flex;flex-direction:column;justify-content:center;scrollbar-width:thin;scrollbar-color:var(--pl-gray-300) transparent}
 .r24-build .r24-bscroll::-webkit-scrollbar{height:6px}
 .r24-build .r24-bscroll::-webkit-scrollbar-thumb{border-radius:99px;background:var(--pl-gray-300)}
@@ -65,7 +66,7 @@ const BUILD_CSS = `
 .r24-build .r24-tnode.ghost:hover:not(:disabled){border-color:var(--pl-primary);color:var(--pl-primary)}
 .r24-build .r24-tnode.ghost:focus-visible{outline:2px solid var(--pl-primary);outline-offset:2px}
 .r24-build .r24-tnode.ghost:disabled{opacity:.45;cursor:default}
-.r24-cat{width:288px;flex:none;min-width:0;display:flex;flex-direction:column;border-left:1px solid var(--pl-border);background:var(--pl-bg-card)}
+.r24-cat{width:340px;flex:none;min-width:0;display:flex;flex-direction:column;border-left:1px solid var(--pl-border);background:var(--pl-bg-card)}
 .r24-cat-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 @media (prefers-reduced-motion:no-preference){.r24-cat{animation:r24-catIn .15s ease-out}}
 @keyframes r24-catIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
@@ -76,7 +77,7 @@ export interface AddTaskMenuProps {
   onPick: (name: string) => void;
 }
 
-/** Compact catalog rows — kind mark + name + kind pill + ⊕ (R24 cell E). */
+/** Catalog rows — kind mark + (name · action tag) over a description line + ⊕ (R24 cell E). */
 export function AddTaskMenu({ entries, onPick }: AddTaskMenuProps): ReactElement {
   return (
     <div role="menu" aria-label="Task 추가">
@@ -85,21 +86,31 @@ export function AddTaskMenu({ entries, onPick }: AddTaskMenuProps): ReactElement
           key={e.name}
           type="button"
           role="menuitem"
-          className="flex w-full items-center gap-2.5 border-b border-[var(--pl-gray-100)] bg-[var(--pl-bg-card)] px-4 py-[11px] text-left cursor-pointer hover:bg-[var(--pl-gray-50)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pl-primary)]"
+          className="flex w-full items-start gap-3 border-b border-[var(--pl-gray-100)] bg-[var(--pl-bg-card)] px-4 py-3.5 text-left cursor-pointer hover:bg-[var(--pl-gray-50)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pl-primary)]"
           autoFocus={i === 0}
-          title={e.description}
           onClick={() => onPick(e.name)}
         >
-          <span className="[&_.r24-ticon_svg]:!h-4 [&_.r24-ticon_svg]:!w-4 [&_.r24-ticon.cond_svg]:!m-0">
+          <span className="mt-0.5 [&_.r24-ticon_svg]:!h-4 [&_.r24-ticon_svg]:!w-4 [&_.r24-ticon.cond_svg]:!m-0">
             <KindMark kind={e.kind} />
           </span>
-          <span className="min-w-0 flex-1 text-[12.5px] font-semibold leading-[1.35] text-[var(--pl-text-strong)]">
-            {e.display_name}
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1.5">
+              <span className="min-w-0 flex-1 text-[13px] font-semibold leading-[1.35] text-[var(--pl-text-strong)]">
+                {e.display_name}
+              </span>
+              {e.terraform_action ? (
+                <JobKindTag action={e.terraform_action} className="flex-none" />
+              ) : (
+                <span className="flex-none rounded border border-[var(--pl-border-strong)] px-1 text-[10px] font-bold tracking-wide text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]">
+                  COND
+                </span>
+              )}
+            </span>
+            <span className="mt-1 block text-[11.5px] leading-[1.5] text-[var(--pl-text-weak)] line-clamp-2">
+              {e.description}
+            </span>
           </span>
-          <span className="flex-none rounded-full bg-[var(--pl-gray-100)] px-[7px] py-0.5 text-[9.5px] font-semibold text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]">
-            {e.kind === 'CONDITION_CHECK' ? 'COND' : 'TF'}
-          </span>
-          <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-weak)]">
+          <span className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-weak)]">
             <Icon name="plus" size="sm" strokeWidth={2.2} />
           </span>
         </button>
@@ -160,7 +171,7 @@ export function CustomBuildStep({
 
   // A new task lands at the right end of the chain — move focus (and the scroll)
   // to the just-added card so attention lands on the pipeline being built, not
-  // the catalog panel (owner: 초점을 생성된 파이프라인으로 이동).
+  // the catalog panel (owner: 초점을 생성된 작업으로 이동).
   const prevLenRef = useRef(chosen.length);
   useEffect(() => {
     const grew = chosen.length > prevLenRef.current;
@@ -384,6 +395,11 @@ export function CustomBuildStep({
                     </button>
                     <KindMark kind={t.kind} />
                     <div className="r24-tx">
+                      {t.terraform_action && (
+                        <div className="mb-1">
+                          <JobKindTag action={t.terraform_action} />
+                        </div>
+                      )}
                       <div className="r24-nm">{t.display_name}</div>
                       <div className="r24-ds">{t.description}</div>
                     </div>

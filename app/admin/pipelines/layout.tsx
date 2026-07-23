@@ -19,7 +19,7 @@ const NAV_ALARM_POLL_MS = 30_000;
 
 const SIDEBAR_GROUPS = [
   {
-    title: '파이프라인 오케스트레이션',
+    title: '인프라 작업',
     items: [
       { label: '대시보드', href: passRoutes.pipelines.dashboard, exact: true },
       { label: '서비스·대상 검색', href: passRoutes.pipelines.services, exact: false },
@@ -75,7 +75,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className={layout.shell}>
-      <nav className={layout.sidebar} aria-label="파이프라인 내비게이션">
+      <nav className={layout.sidebar} aria-label="작업 내비게이션">
         {SIDEBAR_GROUPS.map((group, gi) => (
           <div key={group.title} className={gi > 0 ? 'mt-4' : undefined}>
             <span className={layout.sidebarTitle}>{group.title}</span>

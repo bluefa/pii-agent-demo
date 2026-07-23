@@ -16,7 +16,7 @@ const { text } = pipelineStyles;
 export const detailStyles = {
   /**
    * R22 (D2, owner-picked) — the pipeline meta card: the one-line identity
-   * strip is replaced by two ownership columns (파이프라인 kv / Target Source
+   * strip is replaced by two ownership columns (작업 kv / Target Source
    * kv + explicit blue drill-down link). Rendered inside a plain Card.
    */
   metaCard: {
@@ -25,7 +25,7 @@ export const detailStyles = {
     title: 'text-[16px] font-semibold leading-[1.2] text-[var(--pl-text-strong)] mb-4',
     /** Right column — hairline between the two ownerships. */
     aside: 'border-l border-[var(--pl-gray-100)] pl-7',
-    /** Recipe description line under the 파이프라인 kv. */
+    /** Recipe description line under the 작업 kv. */
     desc: cn(text.meta, 'mt-3'),
     /** Recipe wire name next to the display name in the 레시피 row. */
     recipeDef: 'ml-2 text-[12px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',

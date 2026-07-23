@@ -7,7 +7,7 @@
  * the operator opens (never a page-load bulk fetch); the flow nodes render from
  * the catalog + summary alone. The presentation matches Figma node 70:35:
  *   · a full-bleed header — Korean title + #id, a recipe description line, and
- *     two column-aligned meta rows (파이프라인 / Target Source). Status badge
+ *     two column-aligned meta rows (작업 / Target Source). Status badge
  *     and [중단] appear here only when NOT running (the band carries them
  *     while live). No tab bar: the ownership meta now lives in the header.
  *   · a RUNNING-only dark progress band (현재 실행 중 · task · RUNNING pill /
@@ -255,7 +255,7 @@ export function PipelineDetailView(): ReactElement {
   if (status === 'error') {
     return (
       <Card>
-        <PlEmptyState icon="inbox" message="파이프라인을 불러오지 못했습니다" center />
+        <PlEmptyState icon="inbox" message="작업을 불러오지 못했습니다" center />
         <div className="flex justify-center">
           <PlButton variant="secondary" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
             재시도
@@ -292,7 +292,7 @@ export function PipelineDetailView(): ReactElement {
         <div className={h.topRow}>
           <div className={h.titleWrap}>
             <div className={h.titleRow}>
-              <h1 className={h.title}>파이프라인 현황</h1>
+              <h1 className={h.title}>작업 현황</h1>
               <span className={h.id}>#{detail.pipeline_id}</span>
               {/* Status is shown in the exec band (below) for every state. */}
               {detail.cancel_requested && (
@@ -306,7 +306,7 @@ export function PipelineDetailView(): ReactElement {
         </div>
 
         <div className={h.metaGrid}>
-          <span className={h.groupLabel}>파이프라인</span>
+          <span className={h.groupLabel}>작업</span>
           <div className={h.pair}>
             <span className={h.k}>유형</span>
             <PipelineTypeTag type={detail.type} />
@@ -363,7 +363,7 @@ export function PipelineDetailView(): ReactElement {
             variant="dangerSolid"
             disabled={!cancellable}
             onClick={() => cancelModal.open()}
-            title={cancellable ? '이 파이프라인을 중단합니다' : '취소 처리 대기 중'}
+            title={cancellable ? '이 작업을 중단합니다' : '취소 처리 대기 중'}
           >
             중단
           </PlButton>

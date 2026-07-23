@@ -321,7 +321,7 @@ export default function ServicesPage(): ReactElement {
                     <>
                       <PlTh>TargetSourceId</PlTh>
                       <PlTh>Cloud Provider</PlTh>
-                      <PlTh>실행 중 파이프라인</PlTh>
+                      <PlTh>실행 중 작업</PlTh>
                       <PlTh />
                     </>
                   }

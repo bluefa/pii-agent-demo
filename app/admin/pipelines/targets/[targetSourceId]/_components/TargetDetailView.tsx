@@ -2,10 +2,10 @@
 
 /**
  * Target detail (C2-a) — R24 redesign (Figma SzifNRYweRXhiIDI0uyK3R node 9-2).
- * Layout: h1 + CSP front-matter strip (R21 §C1 kept) → NEW "현재 파이프라인"
+ * Layout: h1 + CSP front-matter strip (R21 §C1 kept) → NEW "현재 작업"
  * section (run-card in the drawer kv grammar + current-task strip while a run
  * is live, dashed empty card with the start CTA otherwise; one run per target)
- * → "파이프라인 이력" as a real table (header row, fixed colgroup, type tile +
+ * → "작업 이력" as a real table (header row, fixed colgroup, type tile +
  * recipe name, 실행 시각 range, ↗ detail link; the live run's row tinted).
  * The header CTA disables while a run is live — 시작 유도 moves into the empty
  * card. A live run polls its PipelineDetail every 8s; on the terminal
@@ -174,7 +174,7 @@ export function TargetDetailView(): ReactElement {
     };
   }, [targetSourceId, page, reloadKey, runsKey]);
 
-  // Latest run — live/idle switch for the 현재 파이프라인 section + CTA gating.
+  // Latest run — live/idle switch for the 현재 작업 section + CTA gating.
   useEffect(() => {
     let cancelled = false;
     getLatestPipelineByTarget(targetSourceId)
@@ -275,7 +275,7 @@ export function TargetDetailView(): ReactElement {
     <div>
       <PlBreadcrumb crumbs={targetCrumbs(svcName, targetSourceId)} />
 
-      {/* Page head — title only. R24: the start CTA lives in the 현재 파이프라인
+      {/* Page head — title only. R24: the start CTA lives in the 현재 작업
           empty card (and its modal), not a top-right header button. */}
       <h1 className={text.pageTitle}>
         {svcName} <span className={cn(text.muted, 'font-normal')}>({serviceCode})</span>
@@ -312,7 +312,7 @@ export function TargetDetailView(): ReactElement {
         ))}
       </div>
 
-      {/* R24 — 현재 파이프라인: run-card while live, empty card otherwise. The
+      {/* R24 — 현재 작업: run-card while live, empty card otherwise. The
           section eyebrow lives inside the card itself (Figma 9:429). */}
       <div className="mt-11">
         {live && liveDetail && liveDetail.pipeline_id === liveId ? (
@@ -328,7 +328,7 @@ export function TargetDetailView(): ReactElement {
         )}
       </div>
 
-      <R24Section title="파이프라인 이력" desc="이 대상에서 실행된 최신순으로 정렬된 파이프라인" />
+      <R24Section title="작업 이력" desc="이 대상에서 실행된 최신순으로 정렬된 작업" />
       <div className="mt-3.5 overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]">
         {rows.length ? (
           <>
@@ -346,7 +346,7 @@ export function TargetDetailView(): ReactElement {
               <thead>
                 <tr>
                   <th className={HISTORY_TH}>#</th>
-                  <th className={HISTORY_TH}>파이프라인</th>
+                  <th className={HISTORY_TH}>작업</th>
                   <th className={HISTORY_TH}>유형</th>
                   <th className={HISTORY_TH}>상태</th>
                   <th className={HISTORY_TH}>진행도</th>
@@ -365,7 +365,7 @@ export function TargetDetailView(): ReactElement {
                     )}
                     role="button"
                     tabIndex={0}
-                    aria-label={`파이프라인 #${p.pipeline_id} 상세 열기`}
+                    aria-label={`작업 #${p.pipeline_id} 상세 열기`}
                     onClick={() => goPipeline(p.pipeline_id)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -380,7 +380,7 @@ export function TargetDetailView(): ReactElement {
                     <td className={HISTORY_TD}>
                       <span className="flex items-center gap-2.5 text-[13.5px] font-semibold text-[var(--pl-text-strong)]">
                         <TypeTile type={p.type} size="xs" />
-                        {p.type === 'CUSTOM' ? 'Custom 파이프라인' : recipeDisplayName(p.recipe_definition)}
+                        {p.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(p.recipe_definition)}
                       </span>
                     </td>
                     <td className={HISTORY_TD}>
@@ -396,7 +396,7 @@ export function TargetDetailView(): ReactElement {
                       {runWindow(p)}
                     </td>
                     <td className={cn(HISTORY_TD, 'text-center')}>
-                      <span className="inline-flex text-[var(--pl-primary)]" title="파이프라인 상세로 이동">
+                      <span className="inline-flex text-[var(--pl-primary)]" title="작업 상세로 이동">
                         <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
                       </span>
                     </td>
@@ -416,7 +416,7 @@ export function TargetDetailView(): ReactElement {
             </div>
           </>
         ) : (
-          <PlEmptyState icon="inbox" message="파이프라인 이력이 없어요" />
+          <PlEmptyState icon="inbox" message="작업 이력이 없어요" />
         )}
       </div>
 

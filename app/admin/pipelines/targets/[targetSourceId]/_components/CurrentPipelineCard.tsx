@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * CurrentPipelineCard — R24 "현재 파이프라인" section body (Figma node 9-2,
+ * CurrentPipelineCard — R24 "현재 작업" section body (Figma node 9-2,
  * Header Section 17:3 + Flow Track 9:506). Running: a compact hero card — blue
- * eyebrow, recipe title + #id + RUNNING pill, recipe description, "파이프라인
+ * eyebrow, recipe title + #id + RUNNING pill, recipe description, "작업
  * 현황 보기 ↗" link, then a "Task 실행 흐름" label over the 16px grid canvas
  * that lays out EVERY task as a RunTaskCard (tile + status corner + status
  * pill) in one horizontally-scrolling row. Detailed progress lives on the
@@ -28,7 +28,7 @@ import type { PipelineDetail, TaskCatalogEntry } from '@/lib/pipeline/types';
 /** Blue section eyebrow shared by the running + idle cards (Figma 9:429). */
 function Eyebrow(): ReactElement {
   return (
-    <div className="text-[12px] font-bold tracking-[-0.01em] text-[var(--pl-primary)]">현재 파이프라인</div>
+    <div className="text-[12px] font-bold tracking-[-0.01em] text-[var(--pl-primary)]">현재 작업</div>
   );
 }
 
@@ -49,7 +49,7 @@ export function CurrentPipelineCard({
 }: CurrentPipelineCardProps): ReactElement {
   const label = recipeLabel(detail.recipe_definition);
   const title =
-    detail.type === 'CUSTOM' ? 'Custom 파이프라인' : recipeDisplayName(detail.recipe_definition);
+    detail.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(detail.recipe_definition);
   const tasks = [...detail.tasks].sort((a, b) => a.sequence - b.sequence);
   const retry =
     detail.current_fail_count != null && detail.current_max_fail_count != null
@@ -107,7 +107,7 @@ export function CurrentPipelineCard({
               )}
               onClick={onOpenPipeline}
             >
-              파이프라인 현황 보기
+              작업 현황 보기
               <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
             </button>
           </div>
@@ -129,6 +129,7 @@ export function CurrentPipelineCard({
                   kind={task.kind}
                   name={def?.display_name ?? task.task_definition}
                   desc={task.description ?? def?.description}
+                  action={task.terraform_action}
                   status={task.status}
                   seq={i + 1}
                   retry={task.status === 'IN_PROGRESS' ? retry : null}
@@ -158,15 +159,15 @@ export function EmptyPipelineCard({ onStart }: EmptyPipelineCardProps): ReactEle
           <Icon name="inbox" size="lg" strokeWidth={1.8} />
         </span>
         <div className="text-[20px] font-medium tracking-[-0.01em] text-[var(--pl-text-strong)]">
-          실행 중인 파이프라인이 없습니다.
+          실행 중인 작업이 없습니다.
         </div>
         <p className="mt-2 max-w-[468px] text-[15px] leading-[1.6] text-[var(--pl-text-weak)]">
-          파이프라인을 시작해 보세요. 설치·삭제·Custom 흐름이 Task 단위로 실행되고, 진행 상황을 여기서
+          작업을 시작해 보세요. 설치·삭제·Custom 흐름이 여러 단계로 실행되고, 진행 상황을 여기서
           바로 볼 수 있어요.
         </p>
         <PlButton variant="primary" className="mt-5" onClick={onStart}>
           <Icon name="play" size="sm" />
-          파이프라인 시작
+          작업 시작
         </PlButton>
       </div>
     </div>

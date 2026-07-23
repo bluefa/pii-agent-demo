@@ -1,5 +1,5 @@
 /**
- * The "파이프라인" cell of the services target table (design §2.2). Latest run is
+ * The "작업" cell of the services target table (design §2.2). Latest run is
  * RUNNING|PENDING → StatusPill + mono `#{pipeline_id}`; 204 / terminal / still
  * loading → muted em-dash. Pure presentational — drives off `latestCellState`.
  */

@@ -231,8 +231,8 @@ export default function DashboardPage(): ReactElement {
       </div>
 
       <div className={d.kpiGrid}>
-        <StatTile labelMain="동작 중 파이프라인" labelPeriod="현재" value={runningValue} />
-        <StatTile labelMain="대기 중 파이프라인" labelPeriod="현재" value={pendingValue} />
+        <StatTile labelMain="동작 중 작업" labelPeriod="현재" value={runningValue} />
+        <StatTile labelMain="대기 중 작업" labelPeriod="현재" value={pendingValue} />
         <StatTile
           labelMain="실패"
           labelPeriod={plabel}
@@ -244,7 +244,7 @@ export default function DashboardPage(): ReactElement {
 
       <Card variant="flush">
         <div className={d.listBar}>
-          <h2 className={pipelineStyles.text.dashboardListTitle}>파이프라인 목록</h2>
+          <h2 className={pipelineStyles.text.dashboardListTitle}>작업 목록</h2>
           <span className={d.listStamp}>
             <Icon name="clock" size="sm" />
             {plabel}
@@ -302,7 +302,7 @@ export default function DashboardPage(): ReactElement {
           <PlSelect
             lg
             value={type}
-            aria-label="파이프라인 유형 필터"
+            aria-label="작업 유형 필터"
             onChange={(event) => {
               const next = event.target.value as '' | PipelineType;
               if (next === type) return; // same-value guard (see period seg)
@@ -345,7 +345,7 @@ export default function DashboardPage(): ReactElement {
             </PlButton>
           </div>
         ) : slice.length === 0 ? (
-          <div className={d.empty}>선택한 기간·조건에 맞는 파이프라인이 없어요</div>
+          <div className={d.empty}>선택한 기간·조건에 맞는 작업이 없어요</div>
         ) : (
           <>
             <table className={d.table}>
@@ -355,7 +355,7 @@ export default function DashboardPage(): ReactElement {
                   <th className={d.th}>서비스 코드</th>
                   <th className={d.th}>Target Source</th>
                   <th className={d.th}>Cloud</th>
-                  <th className={d.th}>파이프라인 유형</th>
+                  <th className={d.th}>작업 유형</th>
                   <th className={d.th}>상태</th>
                   <th className={d.th}>진행도</th>
                   <th className={d.th}>생성시간</th>

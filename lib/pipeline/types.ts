@@ -75,6 +75,13 @@ export type TaskOperation =
   | 'IDC_BDP_TF_DESTROY'
   | 'NETWORK_READY';
 
+/**
+ * Terraform job action, derived server-side from the operation (backend
+ * `terraform_action`). Null for non-terraform tasks (CONDITION_CHECK). Rendered
+ * as a PLAN/APPLY/DESTROY tag on terraform job nodes.
+ */
+export type TerraformAction = 'PLAN' | 'APPLY' | 'DESTROY';
+
 // ---------------------------------------------------------------------------
 // Pipeline / task views
 // ---------------------------------------------------------------------------
@@ -107,6 +114,8 @@ export interface TaskSummary {
   kind: TaskKind;
   task_definition: string;
   operation: TaskOperation | null;
+  /** PLAN/APPLY/DESTROY for terraform jobs; null for CONDITION_CHECK. */
+  terraform_action: TerraformAction | null;
   status: TaskStatus;
   fail_count: number;
   /** Only populated when status === 'FAILED'. */
@@ -227,6 +236,8 @@ export interface TaskDetail {
   /** null when the definition name is unresolvable (deleted/renamed). */
   definition: TaskDefinitionView | null;
   operation: TaskOperation | null;
+  /** PLAN/APPLY/DESTROY for terraform jobs; null for CONDITION_CHECK. */
+  terraform_action: TerraformAction | null;
   status: TaskStatus;
   fail_count: number;
   error_code: ErrorCode | null;
@@ -317,6 +328,8 @@ export interface RecipePreviewStep {
   task_definition: string;
   kind: TaskKind;
   operation: TaskOperation;
+  /** PLAN/APPLY/DESTROY for terraform tasks; null for CONDITION_CHECK. */
+  terraform_action: TerraformAction | null;
   display_name: string;
   consumes_terraform_slot: boolean;
   definition: TaskDefinitionView;
@@ -339,6 +352,8 @@ export interface TaskCatalogEntry {
   description: string;
   provider: CloudProvider;
   kind: TaskKind;
+  /** PLAN/APPLY/DESTROY for terraform tasks; null for CONDITION_CHECK. */
+  terraform_action: TerraformAction | null;
   consumes_terraform_slot: boolean;
 }
 

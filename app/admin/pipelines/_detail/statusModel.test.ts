@@ -15,6 +15,7 @@ function mkTask(partial: Partial<TaskSummary> & Pick<TaskSummary, 'sequence' | '
     kind: partial.kind ?? 'TERRAFORM_JOB',
     task_definition: partial.task_definition ?? `def_${partial.sequence}`,
     operation: partial.operation ?? null,
+    terraform_action: partial.terraform_action ?? null,
     status: partial.status,
     fail_count: partial.fail_count ?? 0,
     error_code: partial.error_code ?? null,
