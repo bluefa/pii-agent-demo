@@ -200,23 +200,25 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .mast-id{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 /* 계층 (app /pass/admin/pipelines 정합) — 크기·굵기·색·간격으로 tier 구분:
    TS id 28/700 gray-900 (최강조) > 서비스명 18/600 gray-900 (강조) > label 13/400 gray-500 > value 15/400 gray-900 */
+/* 현재 단계 — 타이틀 위 eyebrow */
+.mast-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.mast-eyebrow .mp-k{font-size:13px;font-weight:400;color:var(--gray-500)}
 .mast-id h1{font-size:28px;font-weight:700;margin:0;line-height:1;color:var(--gray-900)}
+.mast-id h1 .tid{font-size:18px;font-weight:500;color:var(--gray-400);margin-left:4px}
 .mast-sub{display:flex;align-items:center;gap:8px;margin-top:10px}
 .mast-sub .svc{font-size:18px;font-weight:600;color:var(--gray-900)}
 .mast-sub .code{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--gray-700);
   background:var(--gray-100);padding:1px 8px;border-radius:6px}
 .mast-id .actions{display:flex;gap:8px;flex:none}
-/* 현재 단계 — 운영 상태 행 (identity와 reference meta 사이) */
-.mast-proc{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:20px}
-.mast-proc .mp-l{display:flex;align-items:center;gap:10px}
-.mast-proc .mp-k{font-size:13px;font-weight:400;color:var(--gray-500)}
-.mast-proc .link{font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:2px}
-/* reference 메타 그리드 — label-value 셀 (gap 12/40) */
-.mast-meta{display:flex;flex-wrap:wrap;gap:12px 40px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+/* reference 메타 — provider(AWS 등) 정보는 provider 태그와 한 그룹으로 묶음 */
+.mast-meta{display:flex;flex-wrap:wrap;align-items:center;gap:12px 40px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.mast-meta.second{margin-top:12px;padding-top:0;border-top:0}
 .mast-meta .cell{display:flex;align-items:center;gap:8px}
 .mast-meta .k{font-size:13px;font-weight:400;color:var(--gray-500)}
 .mast-meta .v{font-size:15px;font-weight:400;color:var(--gray-900);font-variant-numeric:tabular-nums}
-.mast-meta .v.strong{font-weight:600}
+.pv-group{display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px 20px;
+  padding:8px 14px;background:var(--gray-50);border:1px solid var(--border);border-radius:8px}
+.pv-group .ptag{font-weight:600}
 .jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:1px 6px;border-radius:6px}
 .jchip:hover{background:var(--gray-50)}
 .jchip .mono{font-size:13px;color:var(--primary);font-weight:600}
@@ -373,7 +375,7 @@ const SERVICES = [
 const TS = [
   {id:2013, svc:'PAY', pv:'AWS',   st:'CONFIRMED',  delay:262000, at:'07-20 18:09', dbType:'MySQL',
    endpoint:'pay-prod-cluster.cluster-cx1.ap-northeast-2.rds.amazonaws.com', port:3306,
-   meta:{awsAccountId:'123456789012', awsRegion:'ap-northeast-2', regionType:'Global'},
+   meta:{awsAccountId:'123456789012', regionType:'Global'},
    installMode:'AUTO',
    jira:{key:'INFRA-2211', summary:'결제 DB PII Agent 설치 요청', status:'In Progress'},
    scanRole:{arn:'arn:aws:iam::123456789012:role/pii-scan-role', verified:true,
@@ -575,7 +577,7 @@ function renderAlerts(){
         ${rows.sort((a,b)=>b.delay-a.delay).map(t=>{
           const kind = ALERT_KINDS.find(k=>k.key===t.st);
           return `<tr class="click" onclick="location.hash='#/ts/${t.id}'">
-            <td><span class="mono">TS-${t.id}</span></td>
+            <td><span class="mono">#${t.id}</span></td>
             <td><span class="svc-name">${esc(svcOf(t.svc).name)}</span> <span class="meta">${t.svc}</span></td>
             <td>${ptag(t.pv)}</td>
             <td>${pill(t.st)}</td>
@@ -662,7 +664,7 @@ function renderService(code){
         <thead><tr><th>ID</th><th>Provider</th><th>DB</th><th>현재 단계</th><th>마지막 변경</th><th></th></tr></thead>
         <tbody>
         ${list.map(t=>`<tr class="click" onclick="location.hash='#/ts/${t.id}'">
-            <td><span class="mono">TS-${t.id}</span></td>
+            <td><span class="mono">#${t.id}</span></td>
             <td>${ptag(t.pv)}</td>
             <td><span class="tag blue">${t.dbType}</span></td>
             <td>${pill(t.st)}</td>
@@ -773,7 +775,7 @@ function renderTsSearch(){
         <thead><tr><th>ID</th><th>서비스</th><th>Provider</th><th>DB</th><th>현재 단계</th><th>마지막 변경</th><th></th></tr></thead>
         <tbody>
         ${rows.map(t=>`<tr class="click" onclick="location.hash='#/ts/${t.id}'">
-            <td><span class="mono">TS-${t.id}</span></td>
+            <td><span class="mono">#${t.id}</span></td>
             <td><span class="svc-name">${esc(svcOf(t.svc).name)}</span> <span class="meta">${t.svc}</span></td>
             <td>${ptag(t.pv)}</td>
             <td><span class="tag blue">${t.dbType}</span></td>
@@ -811,14 +813,14 @@ function renderTs(id, tabId){
   const s = svcOf(t.svc);
   document.getElementById('content').innerHTML = `
     <div class="ts-mast">
-      <div class="breadcrumb"><span class="crumb" onclick="location.hash='#/ts'">Target Source 운영</span><span class="sep">/</span><span class="cur">TS-${t.id}</span></div>
+      <div class="breadcrumb"><span class="crumb" onclick="location.hash='#/ts'">Target Source 운영</span><span class="sep">/</span><span class="cur">#${t.id}</span></div>
+      <div class="mast-eyebrow"><span class="mp-k">현재 단계</span>${pill(t.st)}</div>
       <div class="mast-id">
         <div>
-          <h1>TS-${t.id}</h1>
+          <h1>TargetSource <span class="tid">#${t.id}</span></h1>
           <div class="mast-sub">
             <span class="svc">${esc(s.name)}</span>
             <span class="code">${esc(s.code)}</span>
-            ${ptag(t.pv)}
           </div>
         </div>
         <div class="actions">
@@ -826,12 +828,10 @@ function renderTs(id, tabId){
           <button class="btn secondary" onclick="toast('파이프라인 상세 페이지로 이동합니다 (프로토타입)')">${icon('open','sm')}파이프라인 페이지</button>
         </div>
       </div>
-      <div class="mast-proc">
-        <div class="mp-l"><span class="mp-k">현재 단계</span>${pill(t.st)}</div>
-        <span class="link" onclick="location.hash='#/ts/${t.id}/process'">진행사항 보기 ${icon('chev','xs')}</span>
-      </div>
       <div class="mast-meta">
-        ${providerMetaChips(t)}
+        <div class="pv-group">${ptag(t.pv)}${providerMetaChips(t)}</div>
+      </div>
+      <div class="mast-meta second">
         <div class="cell"><span class="k">Jira</span>${jiraChip(t.jira)}</div>
         <div class="cell"><span class="k">마지막 변경</span><span class="v">${t.at}</span></div>
       </div>
@@ -940,7 +940,7 @@ function openDeleteConfirmedModal(id){
   const t = tsOf(id);
   const running = t.pipelines.some(p=>p.st==='RUNNING');
   openModal(`
-    <h3>확정 정보 삭제 — <span class="mono" style="font-size:14px">TS-${t.id}</span></h3>
+    <h3>확정 정보 삭제 — <span class="mono" style="font-size:14px">#${t.id}</span></h3>
     <div class="desc">확정 DB ${t.confirmed.dbCount}개의 연동 확정 정보를 삭제합니다. 삭제 후 재연동 시 승인 절차를 다시 진행해야 합니다.</div>
     ${running?`<div class="note err">${icon('alert')}<div>진행 중인 파이프라인이 있습니다. 정책상 삭제할 수 없습니다 — 파이프라인 취소 후 다시 시도하세요.</div></div>`:''}
     <div class="subsection-title">삭제 사유 (필수)</div>
@@ -990,7 +990,7 @@ function runPipeline(id, kind){
   const t = tsOf(id);
   const label = kind==='INSTALL'?'설치':'삭제';
   openModal(`
-    <h3>${label} 파이프라인 실행 — <span class="mono" style="font-size:14px">TS-${t.id}</span></h3>
+    <h3>${label} 파이프라인 실행 — <span class="mono" style="font-size:14px">#${t.id}</span></h3>
     <div class="desc">${kind==='INSTALL'
       ?'확정된 연동 정보를 기준으로 Agent 설치 파이프라인을 실행합니다.'
       :'설치된 Agent와 인프라 리소스를 제거하는 삭제 파이프라인을 실행합니다. 이 작업은 서비스 연동에 영향을 줍니다.'}</div>
