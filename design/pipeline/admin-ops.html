@@ -197,28 +197,28 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .ts-mast{background:var(--bg-card);margin:-24px -32px 0;padding:20px 32px 18px;
   border-bottom:1px solid var(--border)}
 .ts-mast .breadcrumb{margin-bottom:10px}
-.mast-id{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 /* 계층 (app /pass/admin/pipelines 정합) — 크기·굵기·색·간격으로 tier 구분:
    TS id 28/700 gray-900 (최강조) > 서비스명 18/600 gray-900 (강조) > label 13/400 gray-500 > value 15/400 gray-900 */
 /* 현재 단계 — 타이틀 위 eyebrow */
 .mast-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .mast-eyebrow .mp-k{font-size:13px;font-weight:400;color:var(--gray-500)}
-.mast-id h1{font-size:28px;font-weight:700;margin:0;line-height:1;color:var(--gray-900)}
-.mast-id h1 .tid{font-size:18px;font-weight:500;color:var(--gray-400);margin-left:4px}
-.mast-sub{display:flex;align-items:center;gap:8px;margin-top:10px}
-.mast-sub .svc{font-size:18px;font-weight:600;color:var(--gray-900)}
-.mast-sub .code{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--gray-700);
+.mast-h1{font-size:28px;font-weight:700;margin:0;line-height:1;color:var(--gray-900)}
+.mast-h1 .tid{font-size:18px;font-weight:500;color:var(--gray-400);margin-left:4px}
+/* 3개 정보 그룹 — 카드 아님, 컬럼 + 얇은 구분선으로만 구분 */
+.mast-groups{display:flex;margin-top:20px;padding-top:20px;border-top:1px solid var(--border)}
+.mast-groups .grp{flex:1;min-width:0;padding:0 28px;border-left:1px solid var(--border)}
+.mast-groups .grp:first-child{padding-left:0;border-left:0}
+.grp-title{font-size:12px;font-weight:700;color:var(--gray-400);letter-spacing:.02em;margin-bottom:14px}
+.grp-body{display:flex;flex-direction:column;gap:10px}
+.grp-body .row{display:flex;align-items:center;gap:8px}
+.grp-body .svc{font-size:15px;font-weight:600;color:var(--gray-900)}
+.grp-body .code{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--gray-700);
   background:var(--gray-100);padding:1px 8px;border-radius:6px}
-.mast-id .actions{display:flex;gap:8px;flex:none}
-/* reference 메타 — provider(AWS 등) 정보는 provider 태그와 한 그룹으로 묶음 */
-.mast-meta{display:flex;flex-wrap:wrap;align-items:center;gap:12px 40px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
-.mast-meta.second{margin-top:12px;padding-top:0;border-top:0}
-.mast-meta .cell{display:flex;align-items:center;gap:8px}
-.mast-meta .k{font-size:13px;font-weight:400;color:var(--gray-500)}
-.mast-meta .v{font-size:15px;font-weight:400;color:var(--gray-900);font-variant-numeric:tabular-nums}
-.pv-group{display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px 20px;
-  padding:8px 14px;background:var(--gray-50);border:1px solid var(--border);border-radius:8px}
-.pv-group .ptag{font-weight:600}
+.grp-body .cell{display:flex;align-items:center;gap:8px}
+.grp-body .k{font-size:13px;font-weight:400;color:var(--gray-500);min-width:84px}
+.grp-body .v{font-size:15px;font-weight:400;color:var(--gray-900);font-variant-numeric:tabular-nums}
+.grp-body .link{font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:2px}
+.grp-body .meta{font-size:12px;color:var(--text-weak)}
 .jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:1px 6px;border-radius:6px}
 .jchip:hover{background:var(--gray-50)}
 .jchip .mono{font-size:13px;color:var(--primary);font-weight:600}
@@ -815,25 +815,30 @@ function renderTs(id, tabId){
     <div class="ts-mast">
       <div class="breadcrumb"><span class="crumb" onclick="location.hash='#/ts'">Target Source 운영</span><span class="sep">/</span><span class="cur">#${t.id}</span></div>
       <div class="mast-eyebrow"><span class="mp-k">현재 단계</span>${pill(t.st)}</div>
-      <div class="mast-id">
-        <div>
-          <h1>TargetSource <span class="tid">#${t.id}</span></h1>
-          <div class="mast-sub">
-            <span class="svc">${esc(s.name)}</span>
-            <span class="code">${esc(s.code)}</span>
+      <h1 class="mast-h1">TargetSource <span class="tid">#${t.id}</span></h1>
+      <div class="mast-groups">
+        <div class="grp">
+          <div class="grp-title">서비스 정보</div>
+          <div class="grp-body">
+            <div class="row"><span class="svc">${esc(s.name)}</span><span class="code">${esc(s.code)}</span></div>
+            <span class="link" onclick="location.hash='#/svc/${t.svc}'">서비스 관리 ${icon('chev','xs')}</span>
           </div>
         </div>
-        <div class="actions">
-          <button class="btn secondary" onclick="toast('Process Status를 다시 조회했습니다')">${icon('refresh')}상태 새로고침</button>
-          <button class="btn secondary" onclick="toast('파이프라인 상세 페이지로 이동합니다 (프로토타입)')">${icon('open','sm')}파이프라인 페이지</button>
+        <div class="grp">
+          <div class="grp-title">클라우드 정보</div>
+          <div class="grp-body">
+            <div class="row">${ptag(t.pv)}</div>
+            ${providerMetaChips(t)}
+          </div>
         </div>
-      </div>
-      <div class="mast-meta">
-        <div class="pv-group">${ptag(t.pv)}${providerMetaChips(t)}</div>
-      </div>
-      <div class="mast-meta second">
-        <div class="cell"><span class="k">Jira</span>${jiraChip(t.jira)}</div>
-        <div class="cell"><span class="k">마지막 변경</span><span class="v">${t.at}</span></div>
+        <div class="grp">
+          <div class="grp-title">협업 채널</div>
+          <div class="grp-body">
+            ${t.jira
+              ? `<div class="cell"><span class="k">Jira</span>${jiraChip(t.jira)}</div><div class="meta">${esc(t.jira.summary)}</div>`
+              : `<span class="muted">연결된 Jira 티켓 없음</span><span class="link" onclick="location.hash='#/svc/${t.svc}'">티켓 추가하러 가기 ${icon('chev','xs')}</span>`}
+          </div>
+        </div>
       </div>
     </div>
     <div class="tabbar">
@@ -880,7 +885,6 @@ function tabProcess(t){
     <div class="card">
       <div class="card-head">
         <div class="card-title">현재 Process Status</div>
-        <button class="btn secondary sm" onclick="toast('단건 조회로 상태를 갱신했습니다')">${icon('refresh','sm')}단건 조회</button>
       </div>
       ${stepRail(t)}
       <div class="section-desc" style="margin:16px 0 0">현재 <b>Step ${cur.n} · ${cur.label}</b> 단계입니다.</div>
