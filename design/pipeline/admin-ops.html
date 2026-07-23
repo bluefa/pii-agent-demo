@@ -193,12 +193,31 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .delay.d2{color:#C2410C;font-weight:600}
 .delay.d3{color:#DC2626;font-weight:700}
 
-/* ── TS 상세 탭바 ── */
-.tabbar{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:24px}
-.tabbar .tab{padding:12px 14px;font-size:14px;font-weight:500;color:var(--text-weak);cursor:pointer;
-  border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
-.tabbar .tab:hover{color:var(--text-medium)}
-.tabbar .tab.on{color:var(--primary);font-weight:600;border-bottom-color:var(--primary)}
+/* ── TS 상세: 3-tier 표면 (chrome 다크 · masthead 화이트 · tab rail 틴트 · body 그레이) ── */
+.ts-mast{background:var(--bg-card);margin:-24px -32px 0;padding:20px 32px 18px;
+  border-bottom:1px solid var(--border)}
+.ts-mast .breadcrumb{margin-bottom:10px}
+.mast-id{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.mast-id h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.02em;
+  display:flex;align-items:center;gap:10px}
+.mast-id h1 .h-id{font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--text-weak)}
+.mast-id .actions{display:flex;gap:8px;flex:none}
+.mast-chips{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;font-size:14px}
+.mast-chips .hm-k{font-size:12px;font-weight:600;color:var(--text-weak)}
+.mast-chips .hm-v{color:var(--text-strong);font-weight:500;font-variant-numeric:tabular-nums}
+.mast-chips .hm-sep{color:var(--border-strong)}
+.jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:2px 6px;border-radius:6px}
+.jchip:hover{background:var(--gray-50)}
+.jchip .mono{font-size:12px;color:var(--primary);font-weight:600}
+.mast-flow{margin-top:18px;padding-top:16px;border-top:1px dashed var(--border)}
+
+/* tab rail — 독립 틴트 밴드; 활성 탭만 화이트로 body에 연결 */
+.tabbar{display:flex;gap:2px;background:var(--gray-100);border-bottom:1px solid var(--border);
+  margin:0 -32px 24px;padding:0 32px}
+.tabbar .tab{padding:12px 16px;font-size:14px;font-weight:500;color:var(--text-weak);cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;border-radius:6px 6px 0 0}
+.tabbar .tab:hover{color:var(--text-medium);background:var(--gray-50)}
+.tabbar .tab.on{color:var(--primary);font-weight:600;border-bottom-color:var(--primary);background:var(--bg-card)}
 .tabbar .tab .tmark{display:inline-block;width:6px;height:6px;border-radius:999px;background:var(--warn);
   vertical-align:6px;margin-left:4px}
 
@@ -346,6 +365,7 @@ const TS = [
    endpoint:'pay-prod-cluster.cluster-cx1.ap-northeast-2.rds.amazonaws.com', port:3306,
    meta:{awsAccountId:'123456789012', awsRegion:'ap-northeast-2', regionType:'Global'},
    installMode:'AUTO',
+   jira:{key:'INFRA-2211', summary:'결제 DB PII Agent 설치 요청', status:'In Progress'},
    scanRole:{arn:'arn:aws:iam::123456789012:role/pii-scan-role', verified:true,
      checks:[{p:'rds:DescribeDBInstances',ok:true},{p:'rds:DescribeDBClusters',ok:true},{p:'ec2:DescribeSubnets',ok:true},{p:'secretsmanager:GetSecretValue',ok:true}]},
    execRole:{arn:'arn:aws:iam::123456789012:role/pii-tf-exec-role', verified:false,
@@ -369,6 +389,7 @@ const TS = [
   {id:1027, svc:'ORD', pv:'IDC',   st:'PENDING',    delay:99120, at:'07-19 16:08', dbType:'Oracle',
    endpoint:'10.32.11.7', port:1521,
    meta:{host:'ord-db-prod-01.idc.local', ips:'10.32.11.7, 10.32.11.8', oracleSid:'ORDPRD', nlbIndex:3},
+   jira:{key:'INFRA-2244', summary:'IDC NLB 포트 오픈 협의', status:'To Do'},
    creds:[{db:'ORDPRD', user:'PII_AGENT', secret:'secret/ord/pii-agent', st:'ACTIVE', at:'07-12 09:10'}],
    approval:{reqId:'AR-5108', status:'PENDING', requester:'이도현', at:'07-19 16:08', dbCount:4},
    confirmed:null, pipelines:[], tc:null,
@@ -378,6 +399,7 @@ const TS = [
   {id:1980, svc:'MBR', pv:'GCP',   st:'CONFIRMING', delay:1120, at:'07-20 19:21', dbType:'PostgreSQL',
    endpoint:'10.40.2.19', port:5432,
    meta:{gcpProjectId:'mbr-prod-3921', region:'asia-northeast3'},
+   jira:null,
    gcp:{scanSa:'pii-scan@mbr-prod-3921.iam.gserviceaccount.com', tfSa:'pii-tf@mbr-prod-3921.iam.gserviceaccount.com'},
    creds:[],
    approval:{reqId:'AR-5130', status:'CONFIRMING', requester:'정하늘', at:'07-20 19:21', dbCount:7},
@@ -391,6 +413,7 @@ const TS = [
   {id:1799, svc:'DLV', pv:'AZURE', st:'INSTALLED',  delay:8460, at:'07-20 17:19', dbType:'MSSQL',
    endpoint:'dlv-sql-prod.database.windows.net', port:1433,
    meta:{subscriptionId:'7c1e02aa-91f2-44d0-b7fb-3e1a52c9d001', resourceGroup:'rg-dlv-prod', scanAppId:'ap-3391cc'},
+   jira:{key:'INFRA-2199', summary:'Azure Private Link 헬스체크 실패', status:'In Progress'},
    creds:[{db:'dlv_main', user:'pii_agent', secret:'secret/dlv/pii-agent', st:'ACTIVE', at:'07-15 13:44'}],
    approval:{reqId:'AR-5090', status:'CONFIRMED', requester:'최민서', at:'07-14 10:12', dbCount:5},
    confirmed:{dbCount:5, at:'07-14 10:40'},
@@ -402,6 +425,7 @@ const TS = [
   {id:1642, svc:'CPN', pv:'SDU',   st:'CONNECTED',  delay:47800, at:'07-20 06:23', dbType:'MySQL',
    endpoint:'cpn-sdu-gw.internal', port:3306,
    meta:{sduType:'Shared DB Unit', sduCluster:'sdu-cluster-02'},
+   jira:null,
    creds:[{db:'cpn_main', user:'pii_agent', secret:'secret/cpn/pii-agent', st:'ACTIVE', at:'07-10 16:30'}],
    approval:{reqId:'AR-5044', status:'CONFIRMED', requester:'한지우', at:'07-09 11:00', dbCount:3},
    confirmed:{dbCount:3, at:'07-09 11:31'},
@@ -413,6 +437,7 @@ const TS = [
   {id:1444, svc:'SRC', pv:'IDC',   st:'IDLE',       delay:1266000, at:'07-06 04:00', dbType:'Oracle',
    endpoint:'10.18.4.2', port:1521,
    meta:{host:'src-db-prod-02.idc.local', ips:'10.18.4.2', oracleSid:'SRCPRD', nlbIndex:1},
+   jira:null,
    creds:[], approval:null, confirmed:null, pipelines:[], tc:null,
    history:[]},
 ];
@@ -743,8 +768,6 @@ function renderTsSearch(){
 /* ══════════ 페이지: TS 상세 — 탭 레지스트리 ══════════ */
 /* 확장 포인트: 탭 추가 = {id, label, render(t)} 객체 추가. Provider 전용 탭은 PROVIDER_TABS. */
 const COMMON_TABS = [
-  {id:'overview',   label:'Metadata',        render:tabOverview},
-  {id:'process',    label:'Process Status',  render:tabProcess},
   {id:'confirm',    label:'확정 정보',        render:tabConfirm},
   {id:'pipeline',   label:'파이프라인',       render:tabPipeline},
   {id:'credential', label:'DB Credential',   render:tabCredential},
@@ -766,21 +789,24 @@ function renderTs(id, tabId){
   const tab = tabs.find(x=>x.id===tabId) || tabs[0];
   const s = svcOf(t.svc);
   document.getElementById('content').innerHTML = `
-    <div class="breadcrumb"><span class="crumb" onclick="location.hash='#/ts'">Target Source 운영</span><span class="sep">/</span><span class="cur">TS-${t.id}</span></div>
-    <div class="page-head detail-head">
-      <div>
-        <h1>${esc(s.name)} <span class="h-id">TS-${t.id}</span></h1>
-        <div class="head-meta">
-          ${ptag(t.pv)}<span class="hm-sep">·</span>
-          <span class="tag blue">${t.dbType}</span><span class="hm-sep">·</span>
-          ${pill(t.st)}<span class="hm-sep">·</span>
-          <span class="hm-k">마지막 변경</span><span class="hm-v">${t.at}</span>
+    <div class="ts-mast">
+      <div class="breadcrumb"><span class="crumb" onclick="location.hash='#/ts'">Target Source 운영</span><span class="sep">/</span><span class="cur">TS-${t.id}</span></div>
+      <div class="mast-id">
+        <div>
+          <h1>${esc(s.name)} <span class="h-id">TS-${t.id}</span></h1>
+          <div class="mast-chips">
+            ${ptag(t.pv)}<span class="hm-sep">·</span>
+            <span class="hm-k">서비스</span><span class="hm-v">${esc(s.code)}</span><span class="hm-sep">·</span>
+            <span class="hm-k">마지막 변경</span><span class="hm-v">${t.at}</span><span class="hm-sep">·</span>
+            <span class="hm-k">Jira</span>${jiraChip(t.jira)}
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn secondary" onclick="toast('Process Status를 다시 조회했습니다')">${icon('refresh')}상태 새로고침</button>
+          <button class="btn secondary" onclick="toast('파이프라인 상세 페이지로 이동합니다 (프로토타입)')">${icon('open','sm')}파이프라인 페이지</button>
         </div>
       </div>
-      <div class="actions">
-        <button class="btn secondary" onclick="toast('Process Status를 다시 조회했습니다')">${icon('refresh')}상태 새로고침</button>
-        <button class="btn secondary" onclick="toast('파이프라인 상세 페이지로 이동합니다 (프로토타입)')">${icon('open','sm')}파이프라인 페이지</button>
-      </div>
+      <div class="mast-flow">${stepRail(t)}</div>
     </div>
     <div class="tabbar">
       ${tabs.map(x=>`<span class="tab ${x.id===tab.id?'on':''}" onclick="location.hash='#/ts/${t.id}/${x.id}'">
@@ -789,78 +815,19 @@ function renderTs(id, tabId){
     <div id="tab-body">${tab.render(t)}</div>`;
 }
 
-/* ── 탭: Metadata ── */
-const META_LABELS = {
-  awsAccountId:'AWS Account ID', awsRegion:'Region', regionType:'Region Type',
-  gcpProjectId:'GCP Project ID', region:'Region',
-  subscriptionId:'Subscription ID', resourceGroup:'Resource Group', scanAppId:'Scan App ID',
-  host:'Host', ips:'IP 목록', oracleSid:'Oracle SID', nlbIndex:'NLB Index',
-  sduType:'SDU Type', sduCluster:'SDU Cluster',
-};
+/* ── masthead 헬퍼: Process Status 미니 레일 · Jira 칩 (Metadata·Process Status 탭은 헤더로 이동) ── */
 function kv(k,v){ return `<div class="k">${esc(k)}</div><div class="v">${v}</div>`; }
-function tabOverview(t){
-  const s = svcOf(t.svc);
-  return `
-    <div class="card-grid2">
-      <div class="card">
-        <div class="card-head"><div class="card-title">공통 Metadata</div></div>
-        <div class="kv2">
-          ${kv('Target Source ID', `<span class="mono">TS-${t.id}</span>`)}
-          ${kv('서비스', `${esc(s.name)} <span class="meta">${s.code}</span>`)}
-          ${kv('Provider', ptag(t.pv))}
-          ${kv('Database Type', `<span class="tag blue">${t.dbType}</span>`)}
-          ${kv('Endpoint', `<span class="mono">${esc(t.endpoint)}</span>`)}
-          ${kv('Port', `<span class="mono">${t.port}</span>`)}
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head"><div class="card-title">${t.pv} Metadata</div></div>
-        ${Object.keys(t.meta).length?`<div class="kv2">
-          ${Object.entries(t.meta).map(([k,v])=>kv(META_LABELS[k]||k, `<span class="mono">${esc(v)}</span>`)).join('')}
-        </div>`:`<div class="empty">Provider metadata가 없습니다.</div>`}
-      </div>
-    </div>
-    <div class="card mt-16">
-      <div class="card-head"><div class="card-title">Jira Ticket <span class="meta">서비스(${t.svc})에 연결된 티켓</span></div>
-        <span class="detail-link" onclick="location.hash='#/svc/${t.svc}'">서비스 운영에서 관리 ${icon('chev','xs')}</span></div>
-      ${s.jira.length?`<table class="tbl">
-        <thead><tr><th>Ticket</th><th>요약</th><th>상태</th><th>등록 사용자</th></tr></thead>
-        <tbody>${s.jira.map(j=>`<tr>
-          <td><span class="mono link" onclick="toast('Jira로 이동합니다 (프로토타입)')">${j.key}</span></td>
-          <td>${esc(j.summary)}</td>
-          <td>${jiraTag(j.status)}</td>
-          <td>${j.users.length?`<span class="uchips">${j.users.map(u=>`<span class="uchip">${esc(u)}</span>`).join('')}</span>`:'<span class="muted">—</span>'}</td>
-        </tr>`).join('')}</tbody></table>`
-      :`<div class="empty">연결된 Jira Ticket이 없습니다.</div>`}
-    </div>`;
-}
-
-/* ── 탭: Process Status ── */
-function tabProcess(t){
+function stepRail(t){
   const cur = STEP[t.st];
-  return `
-    <div class="card">
-      <div class="card-head">
-        <div class="card-title">현재 Process Status</div>
-        <button class="btn secondary sm" onclick="toast('단건 조회로 상태를 갱신했습니다')">${icon('refresh','sm')}단건 조회</button>
-      </div>
-      <div class="steprail">
-        ${STEP_ORDER.map(k=>{const s=STEP[k];
-          const cls = s.n<cur.n?'done':s.n===cur.n?'cur':'';
-          return `<div class="sp ${cls}"><div class="n">${s.n<cur.n?icon('check','xs'):s.n}</div><div class="t">${s.label}</div></div>`;}).join('')}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-head"><div class="card-title">상태 변경 이력</div></div>
-      ${t.history.length?`<table class="tbl">
-        <thead><tr><th>일시</th><th>변경</th><th>수행자</th></tr></thead>
-        <tbody>${t.history.map(h=>`<tr>
-          <td>${h.at}</td>
-          <td>${pill(h.from)} <span class="muted" style="margin:0 6px">→</span> ${pill(h.to)}</td>
-          <td>${esc(h.by)}</td>
-        </tr>`).join('')}</tbody></table>`
-      :`<div class="empty">상태 변경 이력이 없습니다.</div>`}
-    </div>`;
+  return `<div class="steprail">
+    ${STEP_ORDER.map(k=>{const s=STEP[k];
+      const cls = s.n<cur.n?'done':s.n===cur.n?'cur':'';
+      return `<div class="sp ${cls}"><div class="n">${s.n<cur.n?icon('check','xs'):s.n}</div><div class="t">${s.label}</div></div>`;}).join('')}
+  </div>`;
+}
+function jiraChip(j){
+  if(!j) return '<span class="muted">미연결</span>';
+  return `<span class="jchip" title="${esc(j.summary)}" onclick="toast('Jira로 이동합니다 (프로토타입)')"><span class="mono">${esc(j.key)}</span>${jiraTag(j.status)}</span>`;
 }
 
 /* ── 탭: 확정 정보 ── */
@@ -898,6 +865,17 @@ function tabConfirm(t){
         ${kv('보존 기간', '삭제 후 30일간 이력 보존, 이후 영구 삭제')}
         ${kv('연결 테스트 결과', '삭제 시 함께 무효화')}
       </div>
+    </div>
+    <div class="card mt-16">
+      <div class="card-head"><div class="card-title">상태 변경 이력</div></div>
+      ${t.history.length?`<table class="tbl">
+        <thead><tr><th>일시</th><th>변경</th><th>수행자</th></tr></thead>
+        <tbody>${t.history.map(h=>`<tr>
+          <td>${h.at}</td>
+          <td>${pill(h.from)} <span class="muted" style="margin:0 6px">→</span> ${pill(h.to)}</td>
+          <td>${esc(h.by)}</td>
+        </tr>`).join('')}</tbody></table>`
+      :`<div class="empty">상태 변경 이력이 없습니다.</div>`}
     </div>`;
 }
 function openDeleteConfirmedModal(id){
@@ -1006,6 +984,14 @@ function tabTc(t){
 /* ── 탭: AWS 설정 ── */
 function tabAws(t){
   return `
+    <div class="card">
+      <div class="card-head"><div class="card-title">AWS 환경 정보</div></div>
+      <div class="kv2">
+        ${kv('AWS Account ID', `<span class="mono">${esc(t.meta.awsAccountId)}</span>`)}
+        ${kv('Region', `<span class="mono">${esc(t.meta.awsRegion)}</span>`)}
+        ${kv('Region Type', esc(t.meta.regionType))}
+      </div>
+    </div>
     <div class="card">
       <div class="card-head">
         <div class="card-title">설치 모드</div>
