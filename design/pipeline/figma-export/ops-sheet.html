@@ -238,10 +238,32 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .grp-body .v{font-size:14px;font-weight:400;color:var(--gray-900);font-variant-numeric:tabular-nums}
 .grp-body .link{font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:2px}
 .grp-body .meta{font-size:12px;color:var(--text-weak)}
-/* 설치 설정 그룹 — 상태와 진입점만. ARN 전문은 길어서 모달로 내린다 */
+/* ── 설치 설정 그룹 ──
+   ARN 전문을 헤더에 노출하므로 이 열만 넓게 쓴다(flex 1.6) — 47~58자 mono 를
+   351px 열에 넣으면 잘리고, 잘라서 hover 로만 보여주는 건 정보를 숨기는 것이다.
+   그래도 넘치면 끊어서 감싼다(break-all): 자르는 것보다 두 줄이 정직하다. */
+.mast-groups .grp.wide{flex:1.6}
 .grp-body .srow{display:flex;align-items:center;gap:8px;min-height:20px}
 .grp-body .srow .k{min-width:78px;flex:none}
 .grp-body .srow .link{font-size:12px}
+.grp-body .srow .kebab{margin-left:auto}
+.grp-body .arn-line{font-family:var(--font-mono);font-size:12px;color:var(--text-strong);
+  line-height:1.5;word-break:break-all;margin:2px 0 2px 86px}
+
+/* 케밥 = 20px 컨트롤(선언 3단 32/28/20). 아이콘 단독 버튼이라 aria-label 필수 */
+.kebab{width:20px;height:20px;border:0;background:transparent;border-radius:4px;
+  display:grid;place-items:center;cursor:pointer;color:var(--text-weak);padding:0;flex:none}
+.kebab:hover{background:var(--gray-100);color:var(--text-strong)}
+.kebab[aria-expanded="true"]{background:var(--gray-100);color:var(--text-strong)}
+.kebab:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+.menu{position:absolute;z-index:40;min-width:148px;background:var(--bg-card);
+  border:1px solid var(--border);border-radius:var(--r-inner);box-shadow:var(--shadow-lg);
+  padding:4px}
+.menu button{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;
+  border:0;background:transparent;border-radius:4px;cursor:pointer;
+  font-size:14px;font-weight:500;color:var(--text-medium);text-align:left}
+.menu button:hover{background:var(--gray-50);color:var(--text-strong)}
+.menu button svg.ic{color:var(--text-weak)}
 .jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:1px 6px;border-radius:6px}
 .jchip:hover{background:var(--gray-50)}
 .jchip .mono{font-size:12px;color:var(--primary);font-weight:600}
@@ -788,7 +810,8 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 <span><svg class="ic" viewBox="0 0 16 16"><path d="M6.5 3.5H3.2A1.2 1.2 0 0 0 2 4.7v8.1A1.2 1.2 0 0 0 3.2 14h8.1a1.2 1.2 0 0 0 1.2-1.2V9.5"/><path d="M9.5 2H14v4.5"/><path d="M14 2 7.5 8.5"/></svg>open</span>
 <span><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 3.2v9.6L13 8 4.5 3.2z"/></svg>play</span>
 <span><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4.5h11M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4 4.5l.7 8.3a1.2 1.2 0 0 0 1.2 1.1h4.2a1.2 1.2 0 0 0 1.2-1.1l.7-8.3"/></svg>trash</span>
-<span><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.2v9.6M3.2 8h9.6"/></svg>plus</span></div>
+<span><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.2v9.6M3.2 8h9.6"/></svg>plus</span>
+<span><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.6v.1M8 8v.1M8 12.4v.1"/></svg>dots</span></div>
 
 </div>
 </body>
