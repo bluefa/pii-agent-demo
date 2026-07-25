@@ -86,6 +86,11 @@ export const improvedStyles = {
     count: 'text-[14px] font-semibold text-[var(--pl-white)] tabular-nums whitespace-nowrap',
   },
 
+  /** Restart context strip between the exec band and the flow (§8.4) — where
+   *  this run sits inside the ORIGIN chain, without faking its own progress. */
+  originStrip:
+    'flex items-center gap-2 border-b border-[var(--pl-border)] bg-[var(--pl-primary-bg)] px-10 py-2.5 text-[13px] text-[var(--pl-primary)]',
+
   /** Content region below the band: flow canvas (flex-1) + docked drawer. */
   contentRow: 'flex items-stretch',
   flowPad: 'p-5 flex-1 min-w-0',
@@ -100,7 +105,10 @@ export const improvedStyles = {
     titleBadge: 'ml-2.5 align-middle',
     /** Task description — moved into the header (node 70:35), above the tabs. */
     headerDesc: 'mt-3 text-[14px] leading-[1.6] text-[var(--pl-text-weak)] whitespace-pre-line',
-    typeRow: 'flex items-center gap-2 mt-3.5',
+    typeRow: 'flex items-center gap-2 mt-3.5 flex-wrap',
+    /** "이전 실행 이력 보기 ↗" — restart task → origin task (§8.4). */
+    originLink:
+      'inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
     typeLabel: 'text-[13px] text-[var(--pl-text-weak)]',
     tag: 'inline-flex items-center rounded-full bg-[var(--pl-bg-card)] border border-[var(--pl-border)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
     close: 'flex-none inline-flex items-center justify-center w-8 h-8 -mr-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-bg-card)] transition-colors',

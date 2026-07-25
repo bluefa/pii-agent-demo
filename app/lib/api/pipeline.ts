@@ -22,6 +22,8 @@ import type {
   PipelineSummary,
   PipelineType,
   RecipePreview,
+  RestartPipelineRequest,
+  RestartPreview,
   SpringPage,
   StatisticsPeriodToken,
   TaskCatalogResponse,
@@ -228,3 +230,25 @@ export const createCustomPipeline = (
 // #12
 export const getTaskDefinitions = (provider?: CloudProvider): Promise<TaskCatalogResponse> =>
   orchestratorGet<TaskCatalogResponse>(`${ORCH}/task-definitions${buildQuery({ provider })}`);
+
+// #13 — restart preview. Runs the same validation as the execution, so an
+// un-restartable origin (DONE / live / stale) throws 409 HERE.
+export const getRestartPreview = (
+  targetSourceId: number | string,
+  pipelineId: number | string,
+  fromSequence?: number,
+): Promise<RestartPreview> =>
+  orchestratorGet<RestartPreview>(
+    `${ORCH}/target-sources/${seg(targetSourceId)}/pipelines/${seg(pipelineId)}/restart-preview${buildQuery({ from_sequence: fromSequence })}`,
+  );
+
+// #14 — restart execution; resolves to the NEW pipeline's detail.
+export const restartPipeline = (
+  targetSourceId: number | string,
+  pipelineId: number | string,
+  body?: RestartPipelineRequest,
+): Promise<PipelineDetail> =>
+  orchestratorPost<PipelineDetail>(
+    `${ORCH}/target-sources/${seg(targetSourceId)}/pipelines/${seg(pipelineId)}/restart`,
+    body,
+  );

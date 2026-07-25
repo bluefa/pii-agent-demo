@@ -42,7 +42,10 @@ export const R24_CSS = `
 .r24-tnode.cur{border-color:var(--pl-primary);box-shadow:0 0 0 3px var(--pl-primary-ring)}
 .r24-tnode.pend{border-style:dashed;background:color-mix(in srgb,var(--pl-bg-card) 65%,transparent);box-shadow:none}
 .r24-tnode.pend .r24-nm{color:var(--pl-text-weak)}
+.r24-tnode.dim{background:color-mix(in srgb,var(--pl-bg-card) 55%,transparent);box-shadow:none}
 .r24-tnode.dim .r24-nm{color:var(--pl-text-medium)}
+.r24-tnode.fail{border-color:var(--pl-err-border);box-shadow:0 0 0 3px var(--pl-flow-failed-halo)}
+.r24-tnode.fail .r24-ds{color:var(--pl-err-text);font-weight:600}
 .r24-tnode.ghost{border:1.5px dashed var(--pl-border-strong);background:color-mix(in srgb,var(--pl-bg-card) 50%,transparent);box-shadow:none;align-items:center;justify-content:center;flex-direction:column;gap:6px;min-height:78px;color:var(--pl-text-faint)}
 .r24-tnode.ghost .r24-gt{font-size:12px;font-weight:600}
 .r24-ticon{flex:none;margin-top:1px}
@@ -150,7 +153,8 @@ export interface R24TaskNodeProps {
   action?: TerraformAction | null;
   /** Black round order chip at the top-left corner. */
   seq?: number;
-  state?: 'cur' | 'pend' | 'dim';
+  /** `fail` = the restart's failure point (err border + red description). */
+  state?: 'cur' | 'pend' | 'dim' | 'fail';
   /** Status row under the description (badge + retry counter 등). */
   footer?: ReactNode;
   className?: string;

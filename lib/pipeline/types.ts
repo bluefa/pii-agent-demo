@@ -105,6 +105,9 @@ export interface PipelineSummary {
   total_task_count: number;
   created_at: string;
   last_activity_at: string;
+  /** Restart provenance — the pipeline this run restarted; null when not a restart.
+   *  Optional: absent on a backend without the restart feature. */
+  origin_pipeline_id?: number | null;
 }
 
 /** One task-flow node in a pipeline detail (`tasks[]`). */
@@ -125,6 +128,8 @@ export interface TaskSummary {
   finished_at: string | null;
   /** Custom-recipe operator description; null for catalog tasks. */
   description: string | null;
+  /** Restart provenance — the origin task row this task re-runs; null otherwise. */
+  origin_task_id?: number | null;
 }
 
 /** Pipeline detail (#4 / #6 / #10 response). */
@@ -152,6 +157,27 @@ export interface PipelineDetail {
   done_task_count: number;
   total_task_count: number;
   tasks: TaskSummary[];
+  /** Restart provenance (all three optional — absent on a pre-restart backend). */
+  origin_pipeline_id?: number | null;
+  /** Populated only when `origin_pipeline_id` is set; null if the origin row is gone. */
+  origin?: RestartOriginView | null;
+  /** Back-link — the latest run that restarted THIS pipeline. */
+  restarted_by_pipeline_id?: number | null;
+}
+
+/**
+ * Origin pipeline view — the `origin` block of PipelineDetail and of a restart
+ * preview. `resumed_from_sequence` is carried by PipelineDetail only (the
+ * preview states the resume point in its own `resume_from_sequence`).
+ */
+export interface RestartOriginView {
+  pipeline_id: number;
+  type: PipelineType;
+  recipe_definition: string | null;
+  status: PipelineStatus;
+  total_task_count: number;
+  done_task_count: number;
+  resumed_from_sequence?: number | null;
 }
 
 /**
@@ -252,6 +278,8 @@ export interface TaskDetail {
   effective_max_fail_count: number;
   attempts: TaskAttemptView[];
   description: string | null;
+  /** Restart provenance — the origin task row this task re-runs; null otherwise. */
+  origin_task_id?: number | null;
 }
 
 /**
@@ -363,6 +391,43 @@ export interface TaskCatalogResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Restart (pipeline-restart-design §3.1)
+// ---------------------------------------------------------------------------
+
+/** An origin task the restart skips because it already succeeded. */
+export interface RestartSkippedTask {
+  sequence: number;
+  task_definition: string;
+  status: TaskStatus;
+}
+
+/** An origin task the restart re-runs, carrying WHY it re-runs (origin_*). */
+export interface RestartTaskToRun {
+  /** Sequence in the ORIGIN chain (the new run renumbers from 0). */
+  sequence: number;
+  task_definition: string;
+  kind: TaskKind;
+  terraform_action: TerraformAction | null;
+  origin_task_id: number;
+  origin_status: TaskStatus;
+  origin_error_code: ErrorCode | null;
+  origin_fail_count: number;
+}
+
+/**
+ * Restart preview — read-only projection of what a restart WOULD run. Runs the
+ * same validation as the execution, so a 409/400 surfaces here first.
+ */
+export interface RestartPreview {
+  origin: RestartOriginView;
+  resume_from_sequence: number;
+  skipped_tasks: RestartSkippedTask[];
+  tasks_to_run: RestartTaskToRun[];
+  /** Non-blocking notices (e.g. an in-flight job from the cancelled origin). */
+  warnings: string[];
+}
+
+// ---------------------------------------------------------------------------
 // Request bodies
 // ---------------------------------------------------------------------------
 
@@ -379,6 +444,11 @@ export interface CustomTaskRequest {
 
 export interface CustomPipelineRequest {
   tasks: CustomTaskRequest[];
+}
+
+/** Restart body — omit `from_sequence` for the default (first non-DONE) point. */
+export interface RestartPipelineRequest {
+  from_sequence?: number;
 }
 
 // ---------------------------------------------------------------------------
