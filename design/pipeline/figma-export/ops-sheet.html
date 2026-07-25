@@ -238,6 +238,10 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .grp-body .v{font-size:14px;font-weight:400;color:var(--gray-900);font-variant-numeric:tabular-nums}
 .grp-body .link{font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:2px}
 .grp-body .meta{font-size:12px;color:var(--text-weak)}
+/* 설치 설정 그룹 — 상태와 진입점만. ARN 전문은 길어서 모달로 내린다 */
+.grp-body .srow{display:flex;align-items:center;gap:8px;min-height:20px}
+.grp-body .srow .k{min-width:78px;flex:none}
+.grp-body .srow .link{font-size:12px}
 .jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:1px 6px;border-radius:6px}
 .jchip:hover{background:var(--gray-50)}
 .jchip .mono{font-size:12px;color:var(--primary);font-weight:600}
@@ -309,8 +313,26 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
   flex:none;margin-top:1px;display:grid;place-items:center}
 .mode-opt.on .radio{border-color:var(--primary)}
 .mode-opt.on .radio::after{content:"";width:8px;height:8px;border-radius:999px;background:var(--primary)}
-.mode-opt .mt{font-size:14px;font-weight:600;color:var(--text-strong)}
-.mode-opt .md{font-size:12px;color:var(--text-weak);margin-top:4px;line-height:1.4}
+.mode-opt .mt{font-size:14px;font-weight:600;color:var(--text-strong);display:flex;align-items:center;gap:4px}
+/* 모드 설명은 hover(native title)로 — 항상 펼쳐두면 카드가 길어지고, 모드는 한 번 정하면
+   거의 안 바뀌는 값이라 상시 노출할 정보가치가 낮다. help 글리프가 hover 가능함을 알린다. */
+.mode-opt .help{color:var(--text-faint);cursor:help}
+
+/* Role ARN 표시 — 모달 안에서 코드값으로 읽히게 (본문 prose 와 구분) */
+.role-arn{font-family:var(--font-mono);font-size:12px;
+  color:var(--text-strong);background:var(--gray-50);border:1px solid var(--border);
+  border-radius:var(--r-inner);padding:8px 12px;word-break:break-all;margin-bottom:16px}
+/* 권한 확인 = 파란색 + 상시 밑줄 (.link 는 hover 시에만 밑줄) */
+.link.u{text-decoration:underline}
+
+/* ── 스캔 진행률 ── */
+.pbar{height:6px;border-radius:999px;background:var(--gray-200);overflow:hidden;margin-top:8px}
+.pbar>i{display:block;height:100%;background:var(--primary);border-radius:999px}
+.cnt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:12px}
+.cnt-cell{border:1px solid var(--border);border-radius:var(--r-inner);padding:12px}
+.cnt-cell .ct{font-size:12px;font-weight:600;color:var(--text-weak)}
+.cnt-cell .cv{font-size:20px;font-weight:700;color:var(--text-strong);
+  font-variant-numeric:tabular-nums;margin-top:4px}
 
 /* ── 안내/경고 박스 ── */
 .note{display:flex;gap:8px;align-items:flex-start;background:var(--warn-bg);border:1px solid var(--warn-border);

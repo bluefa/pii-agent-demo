@@ -239,6 +239,10 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .grp-body .v{font-size:14px;font-weight:400;color:var(--gray-900);font-variant-numeric:tabular-nums}
 .grp-body .link{font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:2px}
 .grp-body .meta{font-size:12px;color:var(--text-weak)}
+/* 설치 설정 그룹 — 상태와 진입점만. ARN 전문은 길어서 모달로 내린다 */
+.grp-body .srow{display:flex;align-items:center;gap:8px;min-height:20px}
+.grp-body .srow .k{min-width:78px;flex:none}
+.grp-body .srow .link{font-size:12px}
 .jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:1px 6px;border-radius:6px}
 .jchip:hover{background:var(--gray-50)}
 .jchip .mono{font-size:12px;color:var(--primary);font-weight:600}
@@ -310,8 +314,26 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
   flex:none;margin-top:1px;display:grid;place-items:center}
 .mode-opt.on .radio{border-color:var(--primary)}
 .mode-opt.on .radio::after{content:"";width:8px;height:8px;border-radius:999px;background:var(--primary)}
-.mode-opt .mt{font-size:14px;font-weight:600;color:var(--text-strong)}
-.mode-opt .md{font-size:12px;color:var(--text-weak);margin-top:4px;line-height:1.4}
+.mode-opt .mt{font-size:14px;font-weight:600;color:var(--text-strong);display:flex;align-items:center;gap:4px}
+/* 모드 설명은 hover(native title)로 — 항상 펼쳐두면 카드가 길어지고, 모드는 한 번 정하면
+   거의 안 바뀌는 값이라 상시 노출할 정보가치가 낮다. help 글리프가 hover 가능함을 알린다. */
+.mode-opt .help{color:var(--text-faint);cursor:help}
+
+/* Role ARN 표시 — 모달 안에서 코드값으로 읽히게 (본문 prose 와 구분) */
+.role-arn{font-family:var(--font-mono);font-size:12px;
+  color:var(--text-strong);background:var(--gray-50);border:1px solid var(--border);
+  border-radius:var(--r-inner);padding:8px 12px;word-break:break-all;margin-bottom:16px}
+/* 권한 확인 = 파란색 + 상시 밑줄 (.link 는 hover 시에만 밑줄) */
+.link.u{text-decoration:underline}
+
+/* ── 스캔 진행률 ── */
+.pbar{height:6px;border-radius:999px;background:var(--gray-200);overflow:hidden;margin-top:8px}
+.pbar>i{display:block;height:100%;background:var(--primary);border-radius:999px}
+.cnt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:12px}
+.cnt-cell{border:1px solid var(--border);border-radius:var(--r-inner);padding:12px}
+.cnt-cell .ct{font-size:12px;font-weight:600;color:var(--text-weak)}
+.cnt-cell .cv{font-size:20px;font-weight:700;color:var(--text-strong);
+  font-variant-numeric:tabular-nums;margin-top:4px}
 
 /* ── 안내/경고 박스 ── */
 .note{display:flex;gap:8px;align-items:flex-start;background:var(--warn-bg);border:1px solid var(--warn-border);
@@ -415,10 +437,25 @@ const TS = [
    meta:{awsAccountId:'123456789012', regionType:'Global'},
    installMode:'AUTO',
    jira:{key:'INFRA-2211', summary:'결제 DB PII Agent 설치 요청', status:'In Progress'},
-   scanRole:{arn:'arn:aws:iam::123456789012:role/pii-scan-role', verified:true,
-     checks:[{p:'rds:DescribeDBInstances',ok:true},{p:'rds:DescribeDBClusters',ok:true},{p:'ec2:DescribeSubnets',ok:true},{p:'secretsmanager:GetSecretValue',ok:true}]},
-   execRole:{arn:'arn:aws:iam::123456789012:role/pii-tf-exec-role', verified:false,
-     checks:[{p:'iam:PassRole',ok:true},{p:'ec2:RunInstances',ok:true},{p:'ec2:CreateSecurityGroup',ok:false},{p:'elasticloadbalancing:CreateTargetGroup',ok:true}]},
+   /* 스캔 = ScanJobResponse (scan_status·scan_version·scan_progress·duration_seconds·
+      resource_count_by_resource_type·scan_error). 이력 = /scan/history */
+   scan:{id:8821, status:'SUCCESS', version:4, progress:100, durationSec:7.4,
+     at:'07-20 18:02', updatedAt:'07-20 18:02', error:null,
+     counts:{RDS_CLUSTER:2, RDS:3, EC2:1}},
+   scanHistory:[
+     {version:4, status:'SUCCESS', at:'07-20 18:02', durationSec:7.4,  total:6, error:null},
+     {version:3, status:'FAIL',    at:'07-19 09:41', durationSec:2.1,  total:0, error:'AUTH_PERMISSION_ERROR'},
+     {version:2, status:'TIMEOUT', at:'07-18 22:15', durationSec:10.0, total:0, error:null},
+     {version:1, status:'SUCCESS', at:'07-18 09:20', durationSec:6.8,  total:5, error:null},
+   ],
+   /* Role 검증 결과 = AwsRoleVerificationResponse (status·role_arn·fail_reason·fail_message·last_verified_at).
+      ⚠️ 계약에는 권한별 통과/실패 배열이 없다 — 단일 판정만 온다. 필요 권한 목록은
+      ROLE_REQUIRED_PERMS(정적 참조)로 분리했고, 통과 여부를 권한별로 칠하지 않는다. */
+   scanRole:{arn:'arn:aws:iam::123456789012:role/pii-scan-role',
+     status:'COMPLETED', failReason:null, failMessage:null, lastVerifiedAt:'07-18 09:12'},
+   execRole:{arn:'arn:aws:iam::123456789012:role/pii-tf-exec-role',
+     status:'FAIL', failReason:'MISSING_PERMISSION',
+     failMessage:'ec2:CreateSecurityGroup 작업이 거부되었습니다 (AccessDenied).', lastVerifiedAt:'07-20 11:30'},
    creds:[
      {db:'pay_main',   user:'pii_agent', secret:'secret/pay/pii-agent-main',   st:'ACTIVE', at:'07-18 11:20'},
      {db:'pay_ledger', user:'pii_agent', secret:'secret/pay/pii-agent-ledger', st:'ACTIVE', at:'07-18 11:20'},
@@ -476,6 +513,16 @@ const TS = [
    history:[
      {at:'07-19 16:08', from:'IDLE', to:'PENDING', by:'이도현'},
    ]},
+  /* Role 미등록 AWS — 등록 전 상태와 "입력하기" 모달 경로를 볼 수 있게 하는 케이스 */
+  {id:2077, svc:'PAY', pv:'AWS',   st:'IDLE',       delay:5400,  at:'07-21 09:30', dbType:'MySQL',
+   endpoint:'pay-batch-db.cx1.ap-northeast-2.rds.amazonaws.com', port:3306,
+   meta:{awsAccountId:'123456789012', regionType:'Global'},
+   installMode:'AUTO',
+   jira:null,
+   scanRole:null, execRole:null,
+   scan:null, scanHistory:[],
+   creds:[], approvals:[], confirmed:null, pipelines:[], tc:null,
+   history:[{at:'07-21 09:30', from:'IDLE', to:'IDLE', by:'system'}]},
   {id:1980, svc:'MBR', pv:'GCP',   st:'CONFIRMING', delay:1120, at:'07-20 19:21', dbType:'PostgreSQL',
    endpoint:'10.40.2.19', port:5432,
    meta:{gcpProjectId:'mbr-prod-3921', region:'asia-northeast3'},
@@ -493,6 +540,9 @@ const TS = [
    confirmed:null,
    pipelines:[{id:'PL-88240', kind:'INSTALL', st:'RUNNING', at:'07-20 19:22', dur:'1m 12s'}],
    tc:null,
+   scan:{id:8830, status:'SCANNING', version:2, progress:45, durationSec:null,
+     at:'07-20 19:24', updatedAt:'07-20 19:25', error:null, counts:null},
+   scanHistory:[{version:1, status:'SUCCESS', at:'07-20 15:10', durationSec:5.2, total:3, error:null}],
    history:[
      {at:'07-20 19:21', from:'PENDING', to:'CONFIRMING', by:'admin.kim'},
      {at:'07-20 15:02', from:'IDLE',    to:'PENDING',    by:'정하늘'},
@@ -508,10 +558,17 @@ const TS = [
    confirmed:{dbCount:5, at:'07-14 10:40'},
    pipelines:[{id:'PL-87710', kind:'INSTALL', st:'SUCCEEDED', at:'07-15 13:02', dur:'21m 08s'}],
    tc:{done:3, total:5, fail:0, at:'07-20 17:19'},
+   scan:{id:8804, status:'FAIL', version:6, progress:20, durationSec:1.8,
+     at:'07-20 17:02', updatedAt:'07-20 17:02', error:'NETWORK_ERROR', counts:null},
+   scanHistory:[
+     {version:6, status:'FAIL',    at:'07-20 17:02', durationSec:1.8, total:0, error:'NETWORK_ERROR'},
+     {version:5, status:'SUCCESS', at:'07-14 09:58', durationSec:8.1, total:5, error:null},
+   ],
    history:[
      {at:'07-20 17:19', from:'CONFIRMED', to:'INSTALLED', by:'system'},
    ]},
-  {id:1642, svc:'CPN', pv:'SDU',   st:'CONNECTED',  delay:47800, at:'07-20 06:23', dbType:'MySQL',
+  /* SDU 는 표기값 — 스캔 지원 여부는 하부 CSP(csp)가 결정한다 (app displayProvider 동일 규칙) */
+  {id:1642, svc:'CPN', pv:'SDU',   csp:'AWS', st:'CONNECTED',  delay:47800, at:'07-20 06:23', dbType:'MySQL',
    endpoint:'cpn-sdu-gw.internal', port:3306,
    meta:{sduType:'Shared DB Unit', sduCluster:'sdu-cluster-02'},
    jira:null,
@@ -866,12 +923,13 @@ function renderTsSearch(){
 /* 확장 포인트: 탭 추가 = {id, label, render(t)} 객체 추가. Provider 전용 탭은 PROVIDER_TABS. */
 const COMMON_TABS = [
   {id:'process',    label:'진행 상태',        render:tabProcess},
+  {id:'scan',       label:'스캔',            render:tabScan, attention:t=>!!(t.scan && (t.scan.status==='FAIL'||t.scan.status==='TIMEOUT'))},
   {id:'confirm',    label:'연동 요청 정보',    render:tabConfirm},
   {id:'pipeline',   label:'파이프라인',       render:tabPipeline},
   {id:'tc',         label:'Test Connection', render:tabTc},
 ];
 const PROVIDER_TABS = {
-  AWS:  [{id:'aws',  label:'AWS 설정',  render:tabAws, attention:t=>t.execRole && !t.execRole.verified}],
+  AWS:  [],   /* 설치 설정은 masthead 「설치 설정」 그룹으로 흡수 — 전용 탭 없음 */
   GCP:  [{id:'gcp',  label:'GCP 설정',  render:tabGcp}],
   AZURE:[{id:'azure',label:'Azure 설정',render:tabAzure}],
   IDC:  [{id:'idc',  label:'IDC 설정',  render:tabIdc}],
@@ -905,6 +963,7 @@ function renderTs(id, tabId){
             ${providerMetaChips(t)}
           </div>
         </div>
+        ${installSettingsGroup(t)}
         <div class="grp">
           <div class="grp-title">협업 채널</div>
           <div class="grp-body">
@@ -1226,58 +1285,246 @@ function tabTc(t){
     </div>`;
 }
 
-/* ── 탭: AWS 설정 ── */
-function tabAws(t){
+/* ── masthead: 설치 설정 (AWS) ──
+   전용 탭이 아니라 헤더 그룹에 둔다 — 설치 모드·Role 은 "이 TS가 어떻게 설치되는가"를
+   말하는 식별 정보이고, 조작은 값 하나 바꾸기(모드)·ARN 입력·재검증 3가지뿐이라
+   화면 하나를 차지할 밀도가 아니다. 긴 ARN 전문은 모달로 내려 헤더 높이를 지킨다.
+   TerraformRole 은 자동 모드에서만 쓰이므로 MANUAL 이면 행을 내린다. */
+const INSTALL_MODE = {
+  AUTO:  {label:'자동 설치', desc:'Terraform 파이프라인이 VPC Endpoint·Security Group·Agent 인프라를 자동으로 생성하고 설치까지 진행합니다. Terraform Execution Role 이 필요합니다.'},
+  MANUAL:{label:'수동 설치', desc:'설치 스크립트를 내려받아 서비스 측에서 직접 실행합니다. 진행 상황은 운영자가 수동으로 확인 처리하며, Terraform Execution Role 은 쓰지 않습니다.'},
+};
+/* Role 별 필요 권한 — ⚠️ API 응답이 아니다. AwsRoleVerificationResponse 는 단일 판정만
+   주므로(권한별 배열 없음) 이 목록은 "무엇을 넣어야 하는지" 알려주는 정적 참조다.
+   권한별 통과/실패로 칠하지 않는다 — 그건 계약에 없는 정보를 만드는 것이 된다. */
+const ROLE_REQUIRED_PERMS = {
+  scanRole:['rds:DescribeDBInstances','rds:DescribeDBClusters','ec2:DescribeSubnets','secretsmanager:GetSecretValue'],
+  execRole:['iam:PassRole','ec2:RunInstances','ec2:CreateSecurityGroup','elasticloadbalancing:CreateTargetGroup'],
+};
+const ROLE_META = {
+  scanRole:{title:'Scan Role', short:'Scan Role', desc:'리소스 스캔에 사용'},
+  execRole:{title:'Terraform Execution Role', short:'TF Role', desc:'자동 설치 파이프라인 실행에 사용'},
+};
+const VERIFY_TONE = {COMPLETED:'green', FAIL:'red', IN_PROGRESS:'blue', SKIP:'gray', BDC_INSTALL_REQUIRED:'orange'};
+const VERIFY_LABEL = {COMPLETED:'검증 완료', FAIL:'검증 실패', IN_PROGRESS:'검증 중', SKIP:'검증 생략', BDC_INSTALL_REQUIRED:'BDC 설치 필요'};
+
+const HAS_INSTALL_SETTINGS = {AWS:true};
+function installSettingsGroup(t){
+  if(!HAS_INSTALL_SETTINGS[t.csp || t.pv]) return '';
+  const mode = INSTALL_MODE[t.installMode] || INSTALL_MODE.AUTO;
   return `
-    <div class="card">
-      <div class="card-head">
-        <div class="card-title">설치 모드</div>
-        <button class="btn primary sm" onclick="toast('설치 모드를 저장했습니다')">저장</button>
-      </div>
-      <div class="mode-row">
-        <div class="mode-opt ${t.installMode==='AUTO'?'on':''}" onclick="tsOf(${t.id}).installMode='AUTO';renderTs(${t.id},'aws')">
-          <span class="radio"></span>
-          <div><div class="mt">자동 설치</div><div class="md">Terraform 파이프라인이 인프라를 자동으로 생성·설치합니다.</div></div>
+    <div class="grp">
+      <div class="grp-title">설치 설정</div>
+      <div class="grp-body">
+        <div class="srow">
+          <span class="k">설치 모드</span>
+          <span class="tag gray" title="${esc(mode.desc)}" style="cursor:help">${mode.label}${icon('info','xs')}</span>
+          <span class="link u" onclick="openInstallModeModal(${t.id})">변경</span>
         </div>
-        <div class="mode-opt ${t.installMode==='MANUAL'?'on':''}" onclick="tsOf(${t.id}).installMode='MANUAL';renderTs(${t.id},'aws')">
-          <span class="radio"></span>
-          <div><div class="mt">수동 설치</div><div class="md">스크립트를 내려받아 서비스 측에서 직접 실행합니다. 진행 상황은 수동으로 확인 처리합니다.</div></div>
-        </div>
-      </div>
-    </div>
-    ${awsRoleCard(t,'scanRole','Scan Role','리소스 스캔에 사용')}
-    ${awsRoleCard(t,'execRole','Terraform Execution Role','설치 파이프라인 실행에 사용')}`;
-}
-function awsRoleCard(t, key, title, desc){
-  const r = t[key];
-  return `
-    <div class="card">
-      <div class="card-head">
-        <div class="card-title">${title} <span class="meta">${desc}</span></div>
-        <button class="btn secondary sm" onclick="verifyRole(${t.id},'${key}')">${icon('refresh','xs')}권한 검증</button>
-      </div>
-      <div style="display:flex;gap:8px">
-        <input class="input" id="arn-${key}" style="flex:1;font-family:var(--font-mono);font-size:12px" value="${esc(r.arn)}">
-        <button class="btn secondary" onclick="saveRole(${t.id},'${key}')">등록·수정</button>
-      </div>
-      <div class="check-list">
-        ${r.checks.map(c=>`<div class="ck ${c.ok?'ok':'err'}">${icon(c.ok?'check':'x','sm')}<span class="mono">${c.p}</span>
-          <span class="meta">${c.ok?'허용':'권한 없음'}</span></div>`).join('')}
-      </div>
-      <div class="ck-verdict ${r.verified?'ok':'err'}">
-        ${icon(r.verified?'check':'alert','sm')}
-        ${r.verified?'모든 필수 권한이 확인되었습니다.':'누락된 권한이 있습니다 — Role 정책을 수정한 뒤 다시 검증하세요.'}
+        ${roleRow(t,'scanRole')}
+        ${t.installMode==='AUTO'?roleRow(t,'execRole'):''}
       </div>
     </div>`;
 }
-function saveRole(id, key){
-  const v = document.getElementById('arn-'+key).value.trim();
-  if(!v){ toast('Role ARN을 입력하세요'); return; }
-  tsOf(id)[key].arn = v; toast('Role을 저장했습니다. 권한 검증을 실행하세요.');
+function roleRow(t, key){
+  const r = t[key], m = ROLE_META[key];
+  if(!(r && r.arn)) return `
+    <div class="srow">
+      <span class="k">${m.short}</span>
+      <span class="tag orange">${icon('alert','xs')}미등록</span>
+      <span class="link u" onclick="openRoleEditModal(${t.id},'${key}')">입력하기</span>
+    </div>`;
+  return `
+    <div class="srow">
+      <span class="k">${m.short}</span>
+      <span class="tag ${VERIFY_TONE[r.status]||'gray'}" title="${esc(r.arn)}">${VERIFY_LABEL[r.status]||esc(r.status)}</span>
+      <span class="link u" onclick="openRoleVerifyModal(${t.id},'${key}')">권한 확인</span>
+    </div>`;
 }
-function verifyRole(id, key){
-  toast('권한 검증을 요청했습니다…');
-  setTimeout(()=>{ toast('권한 검증 결과를 갱신했습니다'); renderTs(id,'aws'); }, 900);
+function openInstallModeModal(id){
+  const t = tsOf(id);
+  openModal(`
+    <h3>설치 모드 변경</h3>
+    <div class="desc">TargetSource #${id} 의 인프라 설치 방식을 선택합니다.</div>
+    <div class="mode-row" id="mode-row">
+      ${Object.keys(INSTALL_MODE).map(m=>`
+        <div class="mode-opt ${t.installMode===m?'on':''}" data-mode="${m}"
+          onclick="pickMode(this)">
+          <span class="radio"></span>
+          <div><div class="mt">${INSTALL_MODE[m].label}</div>
+            <div class="md">${esc(INSTALL_MODE[m].desc)}</div></div>
+        </div>`).join('')}
+    </div>
+    <div class="foot">
+      <button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn primary" onclick="saveInstallMode(${id})">저장</button>
+    </div>`, 620);
+}
+function pickMode(el){
+  el.parentElement.querySelectorAll('.mode-opt').forEach(x=>x.classList.remove('on'));
+  el.classList.add('on');
+}
+function saveInstallMode(id){
+  const sel = document.querySelector('#mode-row .mode-opt.on');
+  if(!sel) return;
+  tsOf(id).installMode = sel.dataset.mode;
+  closeModal(); toast('설치 모드를 저장했습니다'); reRenderTs(id);
+}
+/* 설정이 헤더에 있으므로 어느 탭에 있어도 그대로 다시 그린다 */
+function reRenderTs(id){
+  const m = /^#\/ts\/\d+\/([\w-]+)/.exec(location.hash);
+  renderTs(id, m?m[1]:undefined);
+}
+/* 권한 확인 모달 — 계약이 주는 판정(status·fail_reason·fail_message·last_verified_at) +
+   정적 참조인 필요 권한 목록. 두 출처를 캡션으로 구분해 섞이지 않게 한다. */
+function openRoleVerifyModal(id, key){
+  const t = tsOf(id), r = t[key], m = ROLE_META[key], ok = r.status==='COMPLETED';
+  openModal(`
+    <h3>${m.title} 권한 확인</h3>
+    <div class="role-arn">${esc(r.arn)}</div>
+    <div class="kv2">
+      ${kv('검증 상태', `<span class="tag ${VERIFY_TONE[r.status]||'gray'}">${VERIFY_LABEL[r.status]||esc(r.status)}</span>`)}
+      ${kv('최근 검증', esc(r.lastVerifiedAt||'-'))}
+      ${r.failReason?kv('실패 사유', `<span class="mono">${esc(r.failReason)}</span>`):''}
+    </div>
+    ${r.failMessage?`<div class="note err" style="margin-top:16px">${icon('alert')}<div>${esc(r.failMessage)}</div></div>`:''}
+    ${ok?`<div class="ck-verdict ok" style="margin-top:16px">${icon('check','sm')}필수 권한이 모두 확인되었습니다.</div>`:''}
+    <div class="subsection-title">필요 권한 <span class="meta">이 Role에 부여돼야 하는 항목 — 검증 API는 권한별 결과를 주지 않습니다</span></div>
+    <div class="check-list">
+      ${ROLE_REQUIRED_PERMS[key].map(p=>`<div class="ck"><span class="mono">${p}</span></div>`).join('')}
+    </div>
+    <div class="foot">
+      <button class="btn secondary" onclick="closeModal()">닫기</button>
+      <button class="btn secondary" onclick="openRoleEditModal(${id},'${key}')">Role 수정</button>
+      <button class="btn primary" onclick="verifyRole(${id},'${key}')">${icon('refresh','xs')}다시 검증</button>
+    </div>`, 560);
+}
+function openRoleEditModal(id, key){
+  const t = tsOf(id), r = t[key] || {}, m = ROLE_META[key];
+  openModal(`
+    <h3>${m.title} ${r.arn?'수정':'등록'}</h3>
+    <div class="desc">${m.desc}. 저장 후 권한 검증이 필요합니다.</div>
+    <input class="input" id="role-arn-input" style="width:100%;font-family:var(--font-mono);font-size:12px"
+      placeholder="arn:aws:iam::123456789012:role/pii-scan-role" value="${esc(r.arn||'')}">
+    <div class="foot">
+      <button class="btn secondary" onclick="closeModal()">취소</button>
+      <button class="btn primary" onclick="saveRole(${id},'${key}')">저장</button>
+    </div>`);
+}
+function saveRole(id, key){
+  const v = document.getElementById('role-arn-input').value.trim();
+  if(!v){ toast('Role ARN을 입력하세요'); return; }
+  const t = tsOf(id);
+  /* 새 ARN 은 아직 검증되지 않은 상태 — 이전 판정을 물려주면 안 된다 */
+  t[key] = {arn:v, status:'IN_PROGRESS', failReason:null, failMessage:null, lastVerifiedAt:null};
+  closeModal(); toast('Role을 저장했습니다. 권한 검증을 실행합니다…');
+  reRenderTs(id);
+  setTimeout(()=>verifyRole(id,key,true), 900);
+}
+function verifyRole(id, key, silent){
+  if(!silent){ closeModal(); toast('권한 검증을 요청했습니다…'); }
+  const t = tsOf(id);
+  setTimeout(()=>{
+    t[key].status='COMPLETED'; t[key].failReason=null; t[key].failMessage=null;
+    t[key].lastVerifiedAt='방금';
+    toast('권한 검증 결과를 갱신했습니다'); reRenderTs(id);
+  }, 900);
+}
+
+/* ── 탭: 스캔 ──
+   계약: POST /scan · GET /scanJob/latest (ScanJobResponse) · GET /scan/history.
+   정책은 app lib/constants/scan.ts SCAN_POLICY 와 같은 값 — IDC 는 자동 스캔 미지원. */
+const SCAN_POLICY = {
+  AWS:  {enabled:true,  types:['RDS','RDS_CLUSTER','DYNAMODB','ATHENA','REDSHIFT','EC2']},
+  AZURE:{enabled:true,  types:['AZURE_MSSQL','AZURE_POSTGRESQL','AZURE_MYSQL','AZURE_MARIADB','AZURE_COSMOS_NOSQL','AZURE_SYNAPSE','AZURE_VM']},
+  GCP:  {enabled:true,  types:['CLOUD_SQL','BIGQUERY']},
+  IDC:  {enabled:false, reason:'IDC 인프라는 description 식별자 기반으로 등록되며 자동 스캔을 지원하지 않습니다.'},
+};
+const SCAN_TONE  = {SUCCESS:'green', FAIL:'red', SCANNING:'blue', TIMEOUT:'orange', CANCELED:'gray'};
+const SCAN_LABEL = {SUCCESS:'성공', FAIL:'실패', SCANNING:'스캔 중', TIMEOUT:'시간 초과', CANCELED:'취소됨'};
+const SCAN_ERROR_LABEL = {
+  AUTH_PERMISSION_ERROR:'권한 부족 — Scan Role 권한을 확인하세요',
+  RATE_LIMIT:'클라우드 API 호출 한도 초과 — 잠시 후 재시도하세요',
+  NETWORK_ERROR:'네트워크 오류 — VPC Endpoint·경로를 확인하세요',
+  SERVICE_ERROR:'클라우드 서비스 오류',
+  UNKNOWN:'원인 미확인',
+};
+/* SDU 는 표기값이므로 하부 CSP 로 정책을 조회한다 */
+function scanPolicyOf(t){ return SCAN_POLICY[t.csp || t.pv] || {enabled:false, reason:'이 Provider의 스캔 정책이 정의되지 않았습니다.'}; }
+
+function tabScan(t){
+  const pol = scanPolicyOf(t);
+  if(!pol.enabled) return `<div class="card"><div class="note info">${icon('info')}<div>${esc(pol.reason)}</div></div></div>`;
+  const s = t.scan, running = s && s.status==='SCANNING';
+  return `
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">최근 스캔</div>
+        <button class="btn ${running?'secondary':'primary'} sm" ${running?'disabled':''} onclick="startScan(${t.id})">
+          ${icon(running?'refresh':'play','xs')}${running?'스캔 진행 중':'스캔 실행'}</button>
+      </div>
+      ${!s?`<div class="empty">스캔을 실행한 적이 없습니다.</div>`:`
+        <div class="kv2">
+          ${kv('상태', `<span class="tag ${SCAN_TONE[s.status]||'gray'}">${SCAN_LABEL[s.status]||esc(s.status)}</span>`)}
+          ${kv('스캔 버전', `v${s.version}`)}
+          ${kv('시작', esc(s.at))}
+          ${kv('소요', s.durationSec!=null?`${s.durationSec.toFixed(1)}초`:'<span class="muted">-</span>')}
+        </div>
+        ${running?`<div class="pbar"><i style="width:${s.progress}%"></i></div>
+          <div class="meta" style="margin-top:4px">${s.progress}% 진행 — 최대 10초 후 시간 초과 처리됩니다</div>`:''}
+        ${s.error?`<div class="note err" style="margin-top:16px">${icon('alert')}<div>
+          <b>${esc(s.error)}</b> — ${esc(SCAN_ERROR_LABEL[s.error]||'')}</div></div>`:''}
+        ${s.status==='TIMEOUT'?`<div class="note" style="margin-top:16px">${icon('alert')}<div>스캔이 제한 시간 내에 끝나지 않았습니다. 리소스 수가 많거나 클라우드 응답이 느린 경우 발생합니다.</div></div>`:''}
+        ${s.counts?`
+          <div class="subsection-title">리소스 유형별 개수</div>
+          <div class="cnt-grid">
+            ${Object.keys(s.counts).map(k=>`<div class="cnt-cell"><div class="ct">${esc(k)}</div><div class="cv">${s.counts[k]}</div></div>`).join('')}
+          </div>
+          <div class="meta" style="margin-top:8px">합계 ${Object.values(s.counts).reduce((a,b)=>a+b,0)}건 · 승인 요청은 최대 10건까지 선택할 수 있습니다</div>`:''}
+      `}
+      <div class="subsection-title">스캔 대상 유형 <span class="meta">이 Provider에서 탐색하는 리소스 종류</span></div>
+      <div class="meta">${pol.types.join(' · ')}</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">스캔 이력</div></div>
+      <table class="tbl">
+        <thead><tr><th style="width:80px">버전</th><th style="width:110px">상태</th><th>시각</th>
+          <th style="width:90px">소요</th><th style="width:90px">리소스</th><th>오류</th></tr></thead>
+        <tbody>
+          ${(t.scanHistory||[]).map(h=>`<tr>
+            <td>v${h.version}</td>
+            <td><span class="tag ${SCAN_TONE[h.status]||'gray'}">${SCAN_LABEL[h.status]||esc(h.status)}</span></td>
+            <td>${esc(h.at)}</td>
+            <td>${h.durationSec!=null?h.durationSec.toFixed(1)+'초':'-'}</td>
+            <td>${h.total}건</td>
+            <td>${h.error?`<span class="mono" style="font-size:12px;color:var(--err-text)">${esc(h.error)}</span>`:'<span class="muted">-</span>'}</td>
+          </tr>`).join('') || `<tr><td colspan="6"><div class="empty">스캔 이력이 없습니다.</div></td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+}
+function startScan(id){
+  const t = tsOf(id);
+  /* 계약: 이미 SCANNING 이면 POST /scan 은 409 Conflict */
+  if(t.scan && t.scan.status==='SCANNING'){ toast('이미 스캔이 진행 중입니다 (409)'); return; }
+  const version = (t.scan?t.scan.version:0) + 1;
+  t.scan = {id:Date.now()%100000, status:'SCANNING', version, progress:0, durationSec:null,
+    at:'방금', updatedAt:'방금', error:null, counts:null};
+  renderTs(id,'scan'); toast('스캔을 시작했습니다');
+  const tick = setInterval(()=>{
+    if(t.scan.status!=='SCANNING'){ clearInterval(tick); return; }
+    t.scan.progress = Math.min(100, t.scan.progress + 25);
+    if(t.scan.progress>=100){
+      clearInterval(tick);
+      const types = scanPolicyOf(t).types;
+      t.scan.status='SUCCESS'; t.scan.durationSec=7.2;
+      t.scan.counts = {[types[0]]:2, [types[1]]:1};
+      t.scanHistory = [{version, status:'SUCCESS', at:'방금', durationSec:7.2, total:3, error:null},
+        ...(t.scanHistory||[])];
+      toast('스캔이 완료되었습니다');
+    }
+    if(location.hash===`#/ts/${id}/scan`) renderTs(id,'scan');
+  }, 700);
 }
 
 /* ── 탭: GCP / Azure / IDC ── */
