@@ -1,0 +1,346 @@
+<!-- 운영 콘솔 컴포넌트 시트 본문 — build-ops-sheet.py 가 admin-ops.html의 <style>과
+     아이콘 path map을 주입해 ops-sheet.html 을 만든다. 새 컴포넌트가 생기면 여기에 추가.
+     아이콘은 HTML 주석 형태의 IC 플레이스홀더로 쓴다 — 여는 주석 + "IC:" + 이름
+     (+ 선택적으로 ".sm" 또는 ".xs") + 닫는 주석. 빌드 시 원본 path로 치환된다.
+     예시를 이 주석 안에 그대로 적으면 그것까지 치환되므로 아래 실제 사용부를 참고할 것.
+     ⚠ 이 파일에 색·크기 값을 하드코딩하지 않는다 — 전부 원본 CSS 클래스로만 조립. -->
+
+<div class="sheet-h">0. 이 시트의 사용법</div>
+<div class="sheet-cap">
+  admin-ops.html(운영 콘솔)의 컴포넌트 전량. Figma에 <b>html.to.design</b>으로 캡처하면
+  텍스트·오토레이아웃이 살아 있는 편집 가능한 레이어로 들어온다.
+  값의 근거는 <b>admin-pipeline-style-guide.md</b>(타입·간격 SSOT)와
+  <b>admin-pipeline-design-system.md</b>(표면·사이징)가 SSOT — 이 시트는 그 두 문서의 렌더링이다.
+</div>
+
+<div class="sheet-h">1. 텍스트 색 4단 — 대비가 역할을 정한다</div>
+<div class="sheet-cap">
+  2026-07-25 감사 결과 반영: <b>faint는 텍스트 역할에 쓰지 않는다</b>(흰 배경 2.58:1).
+  구분 글리프·장식 dot·아이콘 글리프·비활성 컨트롤 전용.
+</div>
+<div class="swatch-row">
+  <div class="swatch"><div class="chip" style="background:var(--text-strong)"></div><div class="nm">strong 19.3:1</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--text-medium)"></div><div class="nm">medium 7.69:1</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--text-weak)"></div><div class="nm">weak 4.97:1</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--text-faint)"></div><div class="nm">faint 2.58:1 ✕</div></div>
+</div>
+<table class="a11y mt-16">
+  <thead><tr><th style="width:280px">역할</th><th style="width:120px">토큰</th><th style="width:90px">배경</th><th style="width:80px">비율</th><th>판정</th></tr></thead>
+  <tbody>
+    <tr><td>본문·데이터 (테이블 셀·kv 값)</td><td>text-strong</td><td>card</td><td>19.30</td><td class="pass">PASS</td></tr>
+    <tr><td>보조 본문 (체크리스트·note)</td><td>text-medium</td><td>card</td><td>7.69</td><td class="pass">PASS</td></tr>
+    <tr><td>완료 스텝 라벨 (steprail·miniflow)</td><td>text-medium</td><td>card</td><td>7.69</td><td class="pass">PASS</td></tr>
+    <tr><td>캡션·라벨·미도달 스텝 라벨</td><td>text-weak</td><td>card</td><td>4.97</td><td class="pass">PASS</td></tr>
+    <tr><td>미도달 스텝 번호 (steprail .n)</td><td>text-weak</td><td>gray-100</td><td>4.51</td><td class="pass">PASS</td></tr>
+    <tr><td>사이드바 그룹 제목</td><td>gray-400</td><td>gray-900</td><td>6.89</td><td class="pass">PASS</td></tr>
+    <tr><td>구분 글리프 <span class="mono">/ · →</span> (정보 없음)</td><td>text-faint</td><td>card</td><td>2.58</td><td>의도적 예외</td></tr>
+    <tr><td>비활성 컨트롤</td><td>text-faint</td><td>gray-100</td><td>2.34</td><td>WCAG 1.4.3 비적용</td></tr>
+  </tbody>
+</table>
+
+<div class="sheet-h">2. 상태색 · Provider · 지연 단계</div>
+<div class="sheet-cap">상태색은 배경/테두리/텍스트 3종 세트로만 쓴다. Provider 색은 분류 전용(의미 없음).</div>
+<div class="swatch-row">
+  <div class="swatch"><div class="chip" style="background:var(--ok)"></div><div class="nm">ok</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--err)"></div><div class="nm">err</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--warn)"></div><div class="nm">warn</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--info)"></div><div class="nm">info</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--off)"></div><div class="nm">off</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--primary)"></div><div class="nm">primary</div></div>
+</div>
+<div class="swatch-row mt-12">
+  <div class="swatch"><div class="chip" style="background:var(--pv-aws)"></div><div class="nm">aws</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--pv-azure)"></div><div class="nm">azure</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--pv-gcp)"></div><div class="nm">gcp</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--pv-idc)"></div><div class="nm">idc</div></div>
+  <div class="swatch"><div class="chip" style="background:var(--pv-sdu)"></div><div class="nm">sdu</div></div>
+</div>
+
+<div class="subsection-title">지연 표기 4단 — 색 단독 의존 금지</div>
+<div class="sheet-cap">
+  1일↑부터 경고 글리프가 함께 붙는다. 색을 구분하지 못해도 "임계 초과" 경계가 읽히고,
+  d2/d3 구분은 색이 아니라 본문 숫자(<span class="mono">3일</span> vs <span class="mono">14일</span>)가 담당한다.
+</div>
+<div class="sheet-row">
+  <span class="delay" title="1시간 미만">42분</span>
+  <span class="delay d1" title="1시간 이상 경과">13시간</span>
+  <span class="delay d2" title="1일 이상 정체"><!--IC:alert.xs-->3일 0시간</span>
+  <span class="delay d3" title="7일 이상 정체"><!--IC:alert.xs-->14일 15시간</span>
+</div>
+
+<div class="sheet-h">3. 타입 스케일 6롤 — 역할 밖의 크기는 없다</div>
+<div class="sheet-cap">
+  {12, 14, 16, 20, 24, 32}. 인접 계층은 크기·무게·색 중 <b>2개 이상</b> 차이 —
+  1px 차이는 계층이 아니라 오차. 숫자는 항상 tabular-nums.
+</div>
+<div class="card">
+  <h1 style="font-size:24px;font-weight:700;line-height:1.2;letter-spacing:-.02em;margin:0">페이지 제목 — 24 / 700 / 120%</h1>
+  <div class="section-title" style="margin:24px 0 0">섹션 제목 — 20 / 600 / 120%</div>
+  <div style="font-size:16px;font-weight:600;margin-top:16px">서브 제목(다이얼로그) — 16 / 600 / 120%</div>
+  <div style="font-size:14px;margin-top:16px">본문·데이터 — 14 / 400 / 140%. 테이블 셀·버튼·입력·kv 값이 여기 속한다.</div>
+  <div class="meta" style="margin-top:16px">캡션·메타 — 12 / 400 / 140%. 라벨·시각·배지·th·mono.</div>
+  <div style="font-size:32px;font-weight:600;line-height:1.2;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:16px">1,284</div>
+  <div class="meta">디스플레이 숫자 — 32 / 600 / 120% (stat 값 전용)</div>
+</div>
+
+<div class="sheet-h">4. 버튼 · 컨트롤 — 같은 행에 서는 것은 같은 높이</div>
+<div class="sheet-cap">ctl 32 / ctl-sm 28 / chip 20 세 단만. input·select·btn 은 항상 같은 높이.</div>
+<div class="sheet-row">
+  <button class="btn primary"><!--IC:play.sm-->설치 파이프라인 실행</button>
+  <button class="btn secondary"><!--IC:refresh-->새로고침</button>
+  <button class="btn danger"><!--IC:trash.sm-->EOS 처리</button>
+  <button class="btn dangersolid">확정 정보 삭제</button>
+  <button class="btn primary" disabled>실행 (disabled)</button>
+  <button class="btn secondary" disabled>비활성</button>
+</div>
+<div class="sheet-row mt-12">
+  <button class="btn secondary sm"><!--IC:plus.xs-->User 등록</button>
+  <button class="btn primary sm"><!--IC:play.xs-->Test Connection 실행</button>
+  <span class="meta">btn.sm — 28px</span>
+</div>
+<div class="filterbar mt-16">
+  <div class="searchbox"><!--IC:search-->
+    <input class="input" style="width:280px" placeholder="ServiceCode·서비스명 검색"></div>
+  <select class="sel"><option>전체 Provider</option></select>
+  <div class="spacer"></div>
+  <span class="meta">6개 서비스</span>
+</div>
+<div class="sheet-row mt-12">
+  <span class="link">링크 텍스트</span>
+  <span class="detail-link">파이프라인 페이지에서 전체 보기 <!--IC:open.xs--></span>
+</div>
+
+<div class="sheet-h">5. 상태 배지 — Step pill · Tag · ProviderTag</div>
+<div class="sheet-cap">pill은 점+라벨 2채널이라 색을 못 봐도 읽힌다. 한 셀에 배지는 2개까지.</div>
+<div class="sheet-row">
+  <span class="pill t-off"><span class="dot"></span>Step 1 · 연동 대상 DB 선택</span>
+  <span class="pill t-warn"><span class="dot"></span>Step 2 · 연동 대상 승인 대기</span>
+  <span class="pill t-run"><span class="dot"></span>Step 3 · 연동 대상 반영중</span>
+  <span class="pill t-ready"><span class="dot"></span>Step 4 · Agent 설치</span>
+</div>
+<div class="sheet-row mt-12">
+  <span class="pill t-info"><span class="dot"></span>Step 5 · 연결 테스트</span>
+  <span class="pill t-ok"><span class="dot"></span>Step 7 · 완료</span>
+  <span class="pill t-err"><span class="dot"></span>FAILED</span>
+  <span class="meta">t-run 의 dot 만 pulse — "지금 실행 중" 의미가 있는 유일한 애니메이션</span>
+</div>
+<div class="sheet-row mt-12">
+  <span class="tag blue">MySQL</span><span class="tag gray">To Do</span>
+  <span class="tag green">운영중</span><span class="tag red">EOS</span>
+  <span class="tag orange">승인 외 추가</span>
+</div>
+<div class="sheet-row mt-12">
+  <span class="ptag"><span class="pdot" style="background:var(--pv-aws)"></span>AWS</span>
+  <span class="ptag"><span class="pdot" style="background:var(--pv-azure)"></span>AZURE</span>
+  <span class="ptag"><span class="pdot" style="background:var(--pv-gcp)"></span>GCP</span>
+  <span class="ptag"><span class="pdot" style="background:var(--pv-idc)"></span>IDC</span>
+  <span class="ptag"><span class="pdot" style="background:var(--pv-sdu)"></span>SDU</span>
+</div>
+<div class="sheet-row mt-12">
+  <span class="uchips"><span class="uchip">김유진</span><span class="uchip">박선호</span></span>
+  <span class="jchip"><span class="mono">INFRA-2211</span></span>
+</div>
+
+<div class="sheet-h">6. StatCard — 좌측 정렬 (클릭 = 필터)</div>
+<div class="sheet-cap">
+  회색 타일 = 읽기 전용 요약, 흰 카드+그림자 = 만질 수 있는 표면. 폭 상한 260 — 카드는 콘텐츠 크기다.
+  <b>좌측 정렬</b>: 아래 카드·테이블과 같은 왼쪽 눈금을 공유해 스캔 눈금을 늘리지 않는다.
+</div>
+<div class="stat-row">
+  <div class="stat"><div class="lbl">승인 대기</div><div class="val v-warn">2</div></div>
+  <div class="stat on"><div class="lbl">설치 작업 필요</div><div class="val v-err">1</div></div>
+  <div class="stat"><div class="lbl">연결 테스트 검토</div><div class="val v-warn">1</div></div>
+  <div class="stat"><div class="lbl">장기 정체 (7일↑)</div><div class="val">1</div></div>
+</div>
+
+<div class="sheet-h">7. TS 상세 masthead — 3 정보 그룹</div>
+<div class="sheet-cap">
+  카드가 아니라 컬럼 + 얇은 구분선. 계층은 크기·무게·색으로만:
+  TS id 24/700 &gt; 서비스명 16/600 &gt; label 12/400 &gt; value 14/400.
+  <b>.page-head h1(24/700) + .h-id(16/600)와 같은 값</b> — 두 헤더 패턴이 한 규칙을 쓴다.
+</div>
+<div class="ts-mast">
+  <div class="breadcrumb"><span class="crumb">Target Source 운영</span><span class="sep">/</span><span class="cur">#2013</span></div>
+  <div class="mast-eyebrow"><span class="mp-k">현재 단계</span>
+    <span class="pill t-ready"><span class="dot"></span>Step 4 · Agent 설치</span></div>
+  <h1 class="mast-h1">TargetSource <span class="tid">#2013</span></h1>
+  <div class="mast-groups">
+    <div class="grp">
+      <div class="grp-title">서비스 정보</div>
+      <div class="grp-body">
+        <div class="row"><span class="svc">결제서비스</span><span class="code">PAY</span></div>
+        <span class="link">서비스 관리 <!--IC:chev.xs--></span>
+      </div>
+    </div>
+    <div class="grp">
+      <div class="grp-title">클라우드 정보</div>
+      <div class="grp-body">
+        <div class="row"><span class="ptag"><span class="pdot" style="background:var(--pv-aws)"></span>AWS</span></div>
+        <div class="cell"><span class="k">AWS Account</span><span class="v">123456789012</span></div>
+        <div class="cell"><span class="k">Region Type</span><span class="v">Global</span></div>
+      </div>
+    </div>
+    <div class="grp">
+      <div class="grp-title">협업 채널</div>
+      <div class="grp-body">
+        <div class="cell"><span class="k">Jira</span><span class="jchip"><span class="mono">INFRA-2211</span></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-h">8. Tab rail — 활성 탭만 화이트로 body에 연결</div>
+<div class="sheet-cap">tmark(warn dot) = 해당 탭에 확인이 필요한 항목이 있음. 점의 유무 자체가 신호라 색과 무관하게 읽힌다.</div>
+<div class="tabbar">
+  <span class="tab on">진행 상태</span>
+  <span class="tab">연동 요청 정보</span>
+  <span class="tab">파이프라인</span>
+  <span class="tab">Test Connection</span>
+  <span class="tab">AWS 설정<span class="tmark" title="확인 필요"></span></span>
+</div>
+
+<div class="sheet-h">9. Step rail — 7단 진행 (done / current / upcoming)</div>
+<div class="sheet-cap">
+  3단 모두 4.5:1 통과: upcoming weak 4.97 &lt; done medium 7.69 &lt; current primary 5.17+600.
+  라벨은 <span class="mono">word-break:keep-all</span> — 한글이 어절 중간에서 끊기지 않는다.
+</div>
+<div class="card">
+  <div class="steprail">
+    <div class="sp done"><div class="n"><!--IC:check.xs--></div><div class="t">연동 대상 DB 선택</div></div>
+    <div class="sp done"><div class="n"><!--IC:check.xs--></div><div class="t">연동 대상 승인 대기</div></div>
+    <div class="sp done"><div class="n"><!--IC:check.xs--></div><div class="t">연동 대상 반영중</div></div>
+    <div class="sp cur"><div class="n">4</div><div class="t">Agent 설치</div></div>
+    <div class="sp"><div class="n">5</div><div class="t">연결 테스트</div></div>
+    <div class="sp"><div class="n">6</div><div class="t">관리자 승인 대기</div></div>
+    <div class="sp"><div class="n">7</div><div class="t">완료</div></div>
+  </div>
+  <div class="section-desc" style="margin:16px 0 0">현재 <b>Step 4 · Agent 설치</b> 단계입니다.</div>
+</div>
+
+<div class="sheet-h">10. MiniFlow — 연동 요청 프로세스 4단</div>
+<div class="sheet-cap">steprail과 같은 3단 대비 규칙. 화살표는 정보를 담지 않는 구분 글리프.</div>
+<div class="card">
+  <div class="miniflow">
+    <span class="mf done"><span class="fdot"></span>연동 요청</span>
+    <span class="fa">→</span>
+    <span class="mf done"><span class="fdot"></span>관리자 승인</span>
+    <span class="fa">→</span>
+    <span class="mf cur"><span class="fdot"></span>반영중</span>
+    <span class="fa">→</span>
+    <span class="mf"><span class="fdot"></span>확정</span>
+  </div>
+</div>
+
+<div class="sheet-h">11. KeyValueGrid · 테이블</div>
+<div class="sheet-cap">테이블 리듬 th 34 / td 44 고정. 숫자·시각은 tabular-nums.</div>
+<div class="card">
+  <div class="card-head"><div class="card-title">최근 연동 승인 요청</div></div>
+  <div class="kv2">
+    <div class="k">요청 ID</div><div class="v"><span class="mono">AR-5121</span></div>
+    <div class="k">상태</div><div class="v"><span class="tag green">APPROVED</span></div>
+    <div class="k">요청 일시</div><div class="v">07-17 18:56</div>
+  </div>
+  <div class="subsection-title" style="margin-top:16px">확정 리소스 목록</div>
+  <table class="tbl">
+    <thead><tr><th>Resource ID</th><th>이름</th><th>유형</th><th>경과</th><th></th></tr></thead>
+    <tbody>
+      <tr class="click"><td><span class="mono">db-pay-main-01</span></td><td class="svc-name">pay_main</td>
+        <td><span class="tag gray">AWS_DB_CLUSTER</span></td><td><span class="delay d1">13시간</span></td>
+        <td class="chev"><!--IC:chev.sm--></td></tr>
+      <tr class="click"><td><span class="mono">db-pay-replica-02</span></td><td class="svc-name">pay_read_replica</td>
+        <td><span class="tag gray">AWS_DB_INSTANCE</span></td>
+        <td><span class="delay d3"><!--IC:alert.xs-->14일 15시간</span></td>
+        <td class="chev"><!--IC:chev.sm--></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="sheet-h">12. 권한 체크리스트 · 검증 판정</div>
+<div class="sheet-cap">아이콘(모양) + 라벨(텍스트) + 배경 3채널 — 색 단독 의존이 없는 모범 사례.</div>
+<div class="card">
+  <div class="card-head">
+    <div class="card-title">Terraform Execution Role <span class="meta">설치 파이프라인 실행에 사용</span></div>
+    <button class="btn secondary sm"><!--IC:refresh.xs-->권한 검증</button>
+  </div>
+  <div style="display:flex;gap:8px">
+    <input class="input" style="flex:1;font-family:var(--font-mono);font-size:12px"
+      value="arn:aws:iam::123456789012:role/pii-tf-exec-role">
+    <button class="btn secondary">등록·수정</button>
+  </div>
+  <div class="check-list">
+    <div class="ck ok"><!--IC:check.sm--><span class="mono">iam:PassRole</span><span class="meta">허용</span></div>
+    <div class="ck ok"><!--IC:check.sm--><span class="mono">ec2:RunInstances</span><span class="meta">허용</span></div>
+    <div class="ck err"><!--IC:x.sm--><span class="mono">ec2:CreateSecurityGroup</span><span class="meta">권한 없음</span></div>
+  </div>
+  <div class="ck-verdict err"><!--IC:alert.sm-->누락된 권한이 있습니다 — Role 정책을 수정한 뒤 다시 검증하세요.</div>
+</div>
+
+<div class="sheet-h">13. 설치 모드 선택 · 안내 박스</div>
+<div class="sheet-cap">선택 상태는 radio 채움(모양) + 테두리 + 링 3채널.</div>
+<div class="card">
+  <div class="mode-row">
+    <div class="mode-opt on"><span class="radio"></span>
+      <div><div class="mt">자동 설치</div><div class="md">Terraform 파이프라인이 인프라를 자동으로 생성·설치합니다.</div></div></div>
+    <div class="mode-opt"><span class="radio"></span>
+      <div><div class="mt">수동 설치</div><div class="md">스크립트를 내려받아 서비스 측에서 직접 실행합니다.</div></div></div>
+  </div>
+</div>
+<div class="card">
+  <div class="note"><!--IC:alert--><div>EOS 처리 시 이 서비스의 모든 Target Source 연동이 종료 절차에 들어갑니다.</div></div>
+  <div class="note info" style="margin-top:16px"><!--IC:info--><div>승인 정보와 동일한 리소스 Set으로 확정되었습니다.</div></div>
+  <div class="note err" style="margin-top:16px"><!--IC:alert--><div>진행 중인 파이프라인이 있습니다. 정책상 삭제할 수 없습니다.</div></div>
+</div>
+
+<div class="sheet-h">14. 앱 셸 — topnav · sidebar</div>
+<div class="sheet-cap">
+  사이드바: <b>클릭 가능한 것만 클릭 가능하게 보인다</b> — hover·pointer는 <span class="mono">a.sb-item</span>에만.
+  프로토타입 범위 밖 항목(span)은 hover가 없고 색으로 비활성임을 밝힌다.
+</div>
+<header class="topnav">
+  <span class="brand">PII Admin</span>
+  <span class="nav-item">Service List</span>
+  <span class="nav-item active">관리자</span>
+  <span class="nav-item off">Credentials</span>
+</header>
+<div class="sidebar" style="width:216px;margin-top:16px;border-radius:10px">
+  <div class="sb-group">
+    <div class="sb-title">운영 콘솔</div>
+    <a class="sb-item active" href="#">운영 알림<span class="sb-cnt">3</span></a>
+    <a class="sb-item" href="#">서비스 운영</a>
+    <span class="sb-item" title="기존 페이지 — 이 프로토타입 범위 밖">연동 요청 (범위 밖)</span>
+  </div>
+</div>
+
+<div class="sheet-h">15. 모달 · 토스트 · 빈 상태 · JSON 뷰</div>
+<div class="sheet-cap">모달 푸터는 위 24 — 그룹 하단이 내부 간격보다 넓다(여백 7원칙 ②).</div>
+<div class="overlay">
+  <div class="modal">
+    <h3>확정 정보 삭제 — <span class="mono" style="font-size:14px">#2013</span></h3>
+    <div class="desc">확정 DB 4개의 연동 확정 정보를 삭제합니다. 삭제 후 재연동 시 승인 절차를 다시 진행해야 합니다.</div>
+    <div class="note err"><!--IC:alert--><div>진행 중인 파이프라인이 있습니다.</div></div>
+    <div class="subsection-title">삭제 사유 (필수)</div>
+    <textarea placeholder="예: 잘못된 대상 DB 확정으로 재승인 진행"></textarea>
+    <label class="chk"><input type="checkbox">
+      <span><b>Force 강제 처리</b> — 진행 중인 파이프라인·승인 절차를 무시하고 즉시 처리합니다.</span></label>
+    <div class="foot">
+      <button class="btn secondary">취소</button>
+      <button class="btn dangersolid">삭제</button>
+    </div>
+  </div>
+</div>
+<div class="sheet-row mt-16">
+  <div class="toast"><!--IC:check-->확정 정보를 삭제했습니다</div>
+</div>
+<div class="card mt-16"><div class="empty">해당 조건의 알림이 없습니다.</div></div>
+<pre class="jsonbox mt-16">{
+  "resource_infos": [
+    { "resource_id": "db-pay-main-01", "resource_type": "AWS_DB_CLUSTER" }
+  ]
+}</pre>
+
+<div class="sheet-h">16. 아이콘 세트 — 16px 기준, stroke 2, round cap/join</div>
+<div class="sheet-cap">
+  크기는 16(기본) / 14(.sm) / 12(.xs) 세 종만. 13·15px 금지 —
+  같은 stroke 두께와 라운드 처리로 아이콘끼리 시각 무게가 같아진다.
+</div>
+<div class="icon-strip"><!--ICON_STRIP--></div>

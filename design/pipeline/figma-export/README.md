@@ -19,6 +19,29 @@ Figma는 외부 API로 디자인 노드를 써 넣는 것을 허용하지 않는
 
 캡처 결과는 Figma 프레임으로 들어오며 텍스트·오토레이아웃이 살아 있다.
 
+### 운영 콘솔 (admin-ops.html) — 2026-07-25 신규
+
+운영 콘솔은 별도 파일이라 시트도 별도다. 아래 7개를 캡처하면 운영 콘솔 전 화면이 들어온다:
+
+| # | URL | 내용 |
+|---|---|---|
+| 1 | `http://localhost:8932/figma-export/ops-sheet.html` | **운영 콘솔 컴포넌트 시트** — 16섹션. 대비 감사 표·타입 6롤·pill·masthead·steprail·체크리스트·모달·아이콘 전량 |
+| 2 | `http://localhost:8932/admin-ops.html#/alerts` | 운영 알림 (stat 타일 + 액션 대기 목록) |
+| 3 | `http://localhost:8932/admin-ops.html#/services` | 서비스 운영 (목록) |
+| 4 | `http://localhost:8932/admin-ops.html#/svc/PAY` | 서비스 상세 (Jira Ticket · EOS) |
+| 5 | `http://localhost:8932/admin-ops.html#/ts/2013/process` | TS 상세 — masthead + Step rail |
+| 6 | `http://localhost:8932/admin-ops.html#/ts/2013/confirm` | TS 상세 — 연동 요청 정보 (승인↔확정 diff) |
+| 7 | `http://localhost:8932/admin-ops.html#/ts/2013/aws` | TS 상세 — AWS 설정 (설치 모드 · 권한 체크리스트) |
+
+시트 재생성 (CSS·아이콘이 바뀌면 반드시):
+
+```bash
+cd design/pipeline/figma-export && python3 build-ops-sheet.py
+```
+
+시트 본문은 `ops-sheet-body.html`. 아이콘 path와 `<style>`은 원본 `admin-ops.html`에서
+빌드 시 주입되므로 **시트가 원본과 어긋날 수 없다** — 본문에 색·크기 값을 하드코딩하지 말 것.
+
 ## 2단계 — 토큰을 Figma Variables로: Tokens Studio
 
 1. Figma 플러그인 **Tokens Studio for Figma** 설치.
