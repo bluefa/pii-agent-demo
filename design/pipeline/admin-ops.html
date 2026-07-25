@@ -319,18 +319,39 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
    거의 안 바뀌는 값이라 상시 노출할 정보가치가 낮다. help 글리프가 hover 가능함을 알린다. */
 .mode-opt .help{color:var(--text-faint);cursor:help}
 
-/* Role 이름만 입력 — 계정·partition 은 고정값이라 prefix 로 붙여 보여주고 편집 대상에서 뺀다 */
+/* ── 모달 폼 계층 4단 ──
+   1 제목 16/700 strong · 2 설명 14/400 medium · 3 라벨 12/600 medium · 4 값 14/500 strong
+   라벨은 읽기전용 블록 제목과 입력 필드 라벨이 같은 스타일을 쓴다 — 12/600 두 종류를
+   색만 다르게 두면 구분이 약하고, 편집 가능 여부는 "배경이 눌려 있는지"가 이미 말한다. */
+.f-label{font-size:12px;font-weight:600;color:var(--text-medium);margin-bottom:8px;
+  display:flex;align-items:center;gap:4px}
+.f-label .req{color:var(--err-text);font-weight:700}
+.f-help{font-size:12px;font-weight:400;color:var(--text-weak);margin-top:8px;line-height:1.4}
+.f-help.bad{color:var(--err-text);font-weight:500}
+
+/* 읽기 전용 컨텍스트 — disabled 가 아니라 "고칠 대상이 아님". 눌린 배경으로 구분한다
+   (ui-ux-pro-max: read-only-distinction) */
+.ro-block{background:var(--gray-50);border:1px solid var(--border);
+  border-radius:var(--r-inner);padding:12px 16px}
+.ro-row{display:flex;align-items:center;gap:12px;min-height:24px}
+.ro-row .rk{font-size:12px;font-weight:400;color:var(--text-weak);min-width:64px;flex:none}
+.ro-row .rv{font-size:14px;font-weight:500;color:var(--text-strong)}
+.ro-row .rv.mono{font-family:var(--font-mono);font-size:12px}
+
+/* Role 이름만 입력 — 계정·partition 은 고정값이라 prefix 로 붙이고 편집 대상에서 뺀다.
+   색 규칙 하나로 통일: weak = 시스템이 정한 고정값, strong = 내가 입력한 값.
+   그래서 prefix(weak) + 입력값(strong) 이 곧 완성된 ARN 이고, 같은 값을 아래에 또
+   다른 색으로 반복하지 않는다 (예전 미리보기 줄이 3번째 색이 되던 원인). */
 .arn-field{display:flex;align-items:stretch;border:1px solid var(--border-strong);
   border-radius:var(--r-ctl);overflow:hidden;background:var(--bg-card)}
 .arn-field:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
-.arn-field .pre{display:flex;align-items:center;padding:0 4px 0 10px;background:var(--gray-100);
+.arn-field.bad{border-color:var(--err);box-shadow:0 0 0 3px var(--err-bg)}
+.arn-field .pre{display:flex;align-items:center;padding:0 2px 0 10px;background:var(--gray-100);
   color:var(--text-weak);font-family:var(--font-mono);font-size:12px;white-space:nowrap;
-  border-right:1px solid var(--border)}
+  border-right:1px solid var(--border);user-select:all}
 .arn-field input{flex:1;min-width:0;border:0;outline:none;height:32px;padding:0 10px;
-  font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
-.arn-preview{font-family:var(--font-mono);font-size:12px;color:var(--text-medium);
-  word-break:break-all;margin-top:8px}
-.arn-preview.bad{color:var(--err-text)}
+  font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-strong)}
+.arn-field input::placeholder{font-weight:400;color:var(--text-faint)}
 /* Role ARN 표시 — 모달 안에서 코드값으로 읽히게 (본문 prose 와 구분) */
 .role-arn{font-family:var(--font-mono);font-size:12px;
   color:var(--text-strong);background:var(--gray-50);border:1px solid var(--border);
@@ -1314,8 +1335,10 @@ const ROLE_REQUIRED_PERMS = {
   execRole:['iam:PassRole','ec2:RunInstances','ec2:CreateSecurityGroup','elasticloadbalancing:CreateTargetGroup'],
 };
 const ROLE_META = {
-  scanRole:{title:'Scan Role', short:'Scan Role', desc:'리소스 스캔에 사용'},
-  execRole:{title:'Terraform Execution Role', short:'TF Role', desc:'자동 설치 파이프라인 실행에 사용'},
+  scanRole:{title:'Scan Role', short:'Scan Role', desc:'리소스 스캔에 사용',
+    sample:'PIIAgentScanRole'},
+  execRole:{title:'Terraform Execution Role', short:'TF Role', desc:'자동 설치 파이프라인 실행에 사용',
+    sample:'PIIAgentTerraformExecRole'},
 };
 const VERIFY_TONE = {COMPLETED:'green', FAIL:'red', IN_PROGRESS:'blue', SKIP:'gray', BDC_INSTALL_REQUIRED:'orange'};
 const VERIFY_LABEL = {COMPLETED:'검증 완료', FAIL:'검증 실패', IN_PROGRESS:'검증 중', SKIP:'검증 생략', BDC_INSTALL_REQUIRED:'BDC 설치 필요'};
@@ -1394,10 +1417,13 @@ function openRoleVerifyModal(id, key){
   openModal(`
     <h3>${m.title} 권한 확인</h3>
     <div class="role-arn">${esc(r.arn)}</div>
-    <div class="kv2">
-      ${kv('검증 상태', `<span class="tag ${VERIFY_TONE[r.status]||'gray'}">${VERIFY_LABEL[r.status]||esc(r.status)}</span>`)}
-      ${kv('최근 검증', esc(r.lastVerifiedAt||'-'))}
-      ${r.failReason?kv('실패 사유', `<span class="mono">${esc(r.failReason)}</span>`):''}
+    <div class="ro-block">
+      <div class="ro-row"><span class="rk">검증 상태</span>
+        <span class="tag ${VERIFY_TONE[r.status]||'gray'}">${VERIFY_LABEL[r.status]||esc(r.status)}</span></div>
+      <div class="ro-row"><span class="rk">최근 검증</span>
+        <span class="rv">${esc(r.lastVerifiedAt||'-')}</span></div>
+      ${r.failReason?`<div class="ro-row"><span class="rk">실패 사유</span>
+        <span class="rv mono">${esc(r.failReason)}</span></div>`:''}
     </div>
     ${r.failMessage?`<div class="note err" style="margin-top:16px">${icon('alert')}<div>${esc(r.failMessage)}</div></div>`:''}
     ${ok?`<div class="ck-verdict ok" style="margin-top:16px">${icon('check','sm')}필수 권한이 모두 확인되었습니다.</div>`:''}
@@ -1425,39 +1451,52 @@ function openRoleEditModal(id, key){
   const t = tsOf(id), r = t[key] || {}, m = ROLE_META[key];
   openModal(`
     <h3>${m.title} ${r.arn?'수정':'등록'}</h3>
-    <div class="desc">${m.desc}. Role <b>이름</b>만 입력하면 계정 ID와 partition을 붙여 ARN을 만듭니다.</div>
-    <div class="kv2" style="margin-bottom:12px">
-      ${kv('AWS 계정', `<span class="mono">${esc((t.meta&&t.meta.awsAccountId)||'-')}</span>`)}
-      ${kv('리전', `${esc((t.meta&&t.meta.regionType)||'-')}${isChina(t)?' <span class="tag orange">aws-cn partition</span>':''}`)}
+    <div class="desc">${m.desc}. Role <b>이름</b>만 입력하면 아래 계정 정보로 ARN을 만듭니다.</div>
+    <div class="ro-block">
+      <div class="f-label">대상 계정 ${icon('info','xs')}</div>
+      <div class="ro-row"><span class="rk">AWS 계정</span>
+        <span class="rv mono">${esc((t.meta&&t.meta.awsAccountId)||'-')}</span></div>
+      <div class="ro-row"><span class="rk">리전</span>
+        <span class="rv">${esc((t.meta&&t.meta.regionType)||'-')}</span>
+        ${isChina(t)?'<span class="tag orange">aws-cn partition</span>':''}</div>
     </div>
-    <div class="arn-field">
-      <span class="pre">${esc(arnPrefix(t))}</span>
-      <input id="role-name-input" spellcheck="false" placeholder="PIIAgentScanRole"
-        value="${esc(roleNameOf(r.arn))}" oninput="previewArn(${id})">
+    <div style="margin-top:24px">
+      <label class="f-label" for="role-name-input">Role 이름 <span class="req">*</span></label>
+      <div class="arn-field" id="arn-field">
+        <span class="pre">${esc(arnPrefix(t))}</span>
+        <input id="role-name-input" spellcheck="false" autocomplete="off"
+          placeholder="${esc(m.sample)}" value="${esc(roleNameOf(r.arn))}" oninput="validateRoleName()">
+      </div>
+      <div class="f-help" id="role-name-help"></div>
     </div>
-    <div class="arn-preview" id="arn-preview"></div>
     <div class="foot">
       <button class="btn secondary" onclick="closeModal()">취소</button>
       <button class="btn primary" onclick="saveRole(${id},'${key}')">저장</button>
     </div>`, 560);
-  previewArn(id);
+  validateRoleName();
   document.getElementById('role-name-input').focus();
 }
-function previewArn(id){
-  const t = tsOf(id), el = document.getElementById('arn-preview');
-  const name = document.getElementById('role-name-input').value.trim();
-  if(!name){ el.className='arn-preview'; el.textContent='Role 이름을 입력하세요.'; return; }
-  const bad = !ROLE_NAME_RE.test(name);
-  el.className = 'arn-preview' + (bad?' bad':'');
-  el.textContent = bad
-    ? '이름에 쓸 수 없는 문자가 있습니다 — 영숫자와 + = , . @ - _ , 최대 64자'
-    : arnPrefix(t) + name;
+/* 헬퍼는 상시 표시(input-helper-text) — 규칙을 placeholder 로만 알리지 않는다.
+   위반 시 같은 자리에서 에러로 바뀐다(error-placement: 필드 바로 아래) */
+const ROLE_NAME_HELP = '영숫자와 + = , . @ - _ 를 쓸 수 있고 최대 64자입니다.';
+function validateRoleName(){
+  const inp = document.getElementById('role-name-input');
+  const help = document.getElementById('role-name-help');
+  const name = inp.value.trim();
+  const bad = !!name && !ROLE_NAME_RE.test(name);
+  document.getElementById('arn-field').classList.toggle('bad', bad);
+  help.className = 'f-help' + (bad?' bad':'');
+  help.textContent = bad
+    ? (name.length>64 ? `이름이 ${name.length}자입니다 — 최대 64자까지 쓸 수 있습니다.`
+                      : '쓸 수 없는 문자가 있습니다. ' + ROLE_NAME_HELP)
+    : ROLE_NAME_HELP;
+  return !bad && !!name;
 }
 function saveRole(id, key){
   const t = tsOf(id);
-  const name = document.getElementById('role-name-input').value.trim();
-  if(!name){ toast('Role 이름을 입력하세요'); return; }
-  if(!ROLE_NAME_RE.test(name)){ toast('Role 이름 형식이 올바르지 않습니다'); return; }
+  const inp = document.getElementById('role-name-input');
+  const name = inp.value.trim();
+  if(!validateRoleName()){ inp.focus(); toast(name?'Role 이름 형식을 확인하세요':'Role 이름을 입력하세요'); return; }
   /* 새 ARN 은 아직 검증되지 않은 상태 — 이전 판정을 물려주면 안 된다 */
   t[key] = {arn:arnPrefix(t)+name, status:'IN_PROGRESS', failReason:null, failMessage:null, lastVerifiedAt:null};
   closeModal(); toast('Role을 저장했습니다. 권한 검증을 실행합니다…');
