@@ -219,12 +219,15 @@ export const R24_RUN_CSS = `
 
 type FlowKey = 'done' | 'running' | 'pending' | 'failed' | 'cancelled';
 
-/** Wire status (pipeline OR task) → the flow's visual bucket + friendly label. */
+/** Wire status (pipeline OR task) → the flow's visual bucket + friendly label.
+ *  READY keeps its own label (not 'PENDING'): a retry-waiting current task
+ *  labelled PENDING read as "the pipeline never left PENDING" to operators —
+ *  and the drawer's PipelineStatusBadge already says READY for the same task. */
 const STATUS_VIEW: Record<PipelineStatus | TaskStatus, { key: FlowKey; label: string }> = {
   RUNNING: { key: 'running', label: 'RUNNING' },
   IN_PROGRESS: { key: 'running', label: 'RUNNING' },
   PENDING: { key: 'pending', label: 'PENDING' },
-  READY: { key: 'pending', label: 'PENDING' },
+  READY: { key: 'pending', label: 'READY' },
   BLOCKED: { key: 'pending', label: 'PENDING' },
   DONE: { key: 'done', label: 'DONE' },
   FAILED: { key: 'failed', label: 'FAILED' },
@@ -282,7 +285,8 @@ export interface RunTaskCardProps {
   status: TaskStatus;
   /** 1-based ordinal — shown in the corner while the task is queued. */
   seq: number;
-  /** '시도 1 / 3' — only on the in-progress task. */
+  /** '시도 1 / 3' — the current task's retry budget (IN_PROGRESS, or READY
+   *  while waiting between retry attempts). */
   retry?: string | null;
 }
 
@@ -318,7 +322,7 @@ export function RunTaskCard({ kind, name, desc, action, status, seq, retry }: Ru
         <div className="rtc-st">
           <JobKindTag action={action} />
           <FlowStatusPill status={status} />
-          {view.key === 'running' && retry ? (
+          {retry ? (
             <span className="text-[10px] tabular-nums text-[var(--pl-text-faint)]">{retry}</span>
           ) : null}
         </div>

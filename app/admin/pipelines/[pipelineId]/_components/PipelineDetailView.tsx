@@ -206,16 +206,27 @@ export function PipelineDetailView(): ReactElement {
 
   // Node subtitle without a per-task fetch. FAILED → a failure line built from the
   // summary (fail_count + error code); the precise f/m retry budget lives in the
-  // drawer, which loads the task detail. Otherwise: catalog description → operator
-  // description → status meta line.
+  // drawer, which loads the task detail. A RETRYING task (fail_count>0, back to
+  // READY between attempts or IN_PROGRESS on the re-run) says so explicitly —
+  // otherwise the node reads "running/waiting" while the drawer's attempt list
+  // shows FAILED rows, which operators flagged as contradictory. Otherwise:
+  // catalog description → operator description → status meta line.
   const resolveMeta = useCallback(
     (t: TaskSummary): string => {
       if (t.status === 'FAILED') {
         return `실패 ${t.fail_count}회 — ${t.error_code ?? '원인 미기록'}`;
       }
+      if (t.fail_count > 0 && (t.status === 'IN_PROGRESS' || t.status === 'READY')) {
+        const max =
+          t.sequence === detail?.current_task_sequence ? detail?.current_max_fail_count : null;
+        const budget = `${t.fail_count}/${max ?? '?'}`;
+        return t.status === 'READY'
+          ? `직전 시도 실패 — 재시도 대기 중 (${budget})`
+          : `직전 시도 실패 — 재시도 실행 중 (${budget})`;
+      }
       return descMap.get(t.task_definition) || t.description || taskMetaLine(t, null);
     },
-    [descMap],
+    [descMap, detail],
   );
 
   const retrySelectedDetail = async (): Promise<void> => {

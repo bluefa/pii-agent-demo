@@ -55,6 +55,10 @@ export function CurrentPipelineCard({
     detail.current_fail_count != null && detail.current_max_fail_count != null
       ? `시도 ${detail.current_fail_count + 1} / ${detail.current_max_fail_count}`
       : null;
+  // The retry counter belongs to the CURRENT task (ADR-016: lowest READY /
+  // IN_PROGRESS) — including a READY task waiting out its retry interval, so
+  // a retrying task never reads as an untouched queued one (operator feedback).
+  const retrySeq = detail.current_task_sequence;
 
   // Bring the in-progress (current) task into view in the horizontal flow so
   // attention lands on where the pipeline actually is (owner ask). Scrolls only
@@ -132,7 +136,7 @@ export function CurrentPipelineCard({
                   action={task.terraform_action}
                   status={task.status}
                   seq={i + 1}
-                  retry={task.status === 'IN_PROGRESS' ? retry : null}
+                  retry={task.sequence === retrySeq ? retry : null}
                 />
               </Fragment>
             );

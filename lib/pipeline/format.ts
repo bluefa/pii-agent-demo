@@ -32,15 +32,11 @@ const SEOUL_DATETIME = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
   hour: '2-digit',
   minute: '2-digit',
+  second: '2-digit',
   hour12: false,
 });
 
-/**
- * ISO-8601 UTC instant → 'YYYY-MM-DD HH:mm' in Asia/Seoul. `null`/invalid → '-'.
- * Assembled from `formatToParts` so the output shape is stable across engines
- * (some emit 'YYYY-MM-DD, HH:mm'); midnight's '24' hour is normalized to '00'.
- */
-export function fmtDateTime(iso: string | null | undefined): string {
+function seoulDateTime(iso: string | null | undefined, withSeconds: boolean): string {
   if (!iso) return '-';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '-';
@@ -48,7 +44,26 @@ export function fmtDateTime(iso: string | null | undefined): string {
   const pick = (type: Intl.DateTimeFormatPartTypes): string =>
     parts.find((p) => p.type === type)?.value ?? '';
   const hour = pick('hour') === '24' ? '00' : pick('hour');
-  return `${pick('year')}-${pick('month')}-${pick('day')} ${hour}:${pick('minute')}`;
+  const base = `${pick('year')}-${pick('month')}-${pick('day')} ${hour}:${pick('minute')}`;
+  return withSeconds ? `${base}:${pick('second')}` : base;
+}
+
+/**
+ * ISO-8601 UTC instant → 'YYYY-MM-DD HH:mm' in Asia/Seoul. `null`/invalid → '-'.
+ * Assembled from `formatToParts` so the output shape is stable across engines
+ * (some emit 'YYYY-MM-DD, HH:mm'); midnight's '24' hour is normalized to '00'.
+ */
+export function fmtDateTime(iso: string | null | undefined): string {
+  return seoulDateTime(iso, false);
+}
+
+/**
+ * fmtDateTime + seconds ('YYYY-MM-DD HH:mm:ss') — for schedule times whose
+ * precision matters at second scale (start-delay is ~15s, so a minute-only
+ * 시작 예정 renders identical to "now"; operator feedback asked for seconds).
+ */
+export function fmtDateTimeSec(iso: string | null | undefined): string {
+  return seoulDateTime(iso, true);
 }
 
 /**
