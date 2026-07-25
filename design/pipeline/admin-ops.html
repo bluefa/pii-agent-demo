@@ -319,6 +319,18 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
    거의 안 바뀌는 값이라 상시 노출할 정보가치가 낮다. help 글리프가 hover 가능함을 알린다. */
 .mode-opt .help{color:var(--text-faint);cursor:help}
 
+/* Role 이름만 입력 — 계정·partition 은 고정값이라 prefix 로 붙여 보여주고 편집 대상에서 뺀다 */
+.arn-field{display:flex;align-items:stretch;border:1px solid var(--border-strong);
+  border-radius:var(--r-ctl);overflow:hidden;background:var(--bg-card)}
+.arn-field:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.arn-field .pre{display:flex;align-items:center;padding:0 4px 0 10px;background:var(--gray-100);
+  color:var(--text-weak);font-family:var(--font-mono);font-size:12px;white-space:nowrap;
+  border-right:1px solid var(--border)}
+.arn-field input{flex:1;min-width:0;border:0;outline:none;height:32px;padding:0 10px;
+  font-family:var(--font-mono);font-size:12px;color:var(--text-strong)}
+.arn-preview{font-family:var(--font-mono);font-size:12px;color:var(--text-medium);
+  word-break:break-all;margin-top:8px}
+.arn-preview.bad{color:var(--err-text)}
 /* Role ARN 표시 — 모달 안에서 코드값으로 읽히게 (본문 prose 와 구분) */
 .role-arn{font-family:var(--font-mono);font-size:12px;
   color:var(--text-strong);background:var(--gray-50);border:1px solid var(--border);
@@ -513,10 +525,10 @@ const TS = [
    history:[
      {at:'07-19 16:08', from:'IDLE', to:'PENDING', by:'이도현'},
    ]},
-  /* Role 미등록 AWS — 등록 전 상태와 "입력하기" 모달 경로를 볼 수 있게 하는 케이스 */
+  /* Role 미등록 + China 리전 AWS — 등록 모달과 aws-cn partition 조립을 볼 수 있게 하는 케이스 */
   {id:2077, svc:'PAY', pv:'AWS',   st:'IDLE',       delay:5400,  at:'07-21 09:30', dbType:'MySQL',
-   endpoint:'pay-batch-db.cx1.ap-northeast-2.rds.amazonaws.com', port:3306,
-   meta:{awsAccountId:'123456789012', regionType:'Global'},
+   endpoint:'pay-cn-db.cx9.cn-north-1.rds.amazonaws.com.cn', port:3306,
+   meta:{awsAccountId:'210987654321', regionType:'China'},
    installMode:'AUTO',
    jira:null,
    scanRole:null, execRole:null,
@@ -1399,24 +1411,55 @@ function openRoleVerifyModal(id, key){
       <button class="btn primary" onclick="verifyRole(${id},'${key}')">${icon('refresh','xs')}다시 검증</button>
     </div>`, 560);
 }
+/* ARN 은 계정 ID + partition + Role 이름으로 결정된다. 앞의 둘은 TS 메타에서 이미
+   아는 고정값이라 운영자가 다시 타이핑할 이유가 없다 — 이름만 받아 조립한다.
+   China 리전은 partition 이 aws-cn — 이걸 틀리면 ARN 자체가 무효가 된다. */
+function awsPartition(t){ return isChina(t) ? 'aws-cn' : 'aws'; }
+function isChina(t){ return (t.meta && t.meta.regionType) === 'China'; }
+function arnPrefix(t){ return `arn:${awsPartition(t)}:iam::${(t.meta&&t.meta.awsAccountId)||''}:role/`; }
+function roleNameOf(arn){ const i = arn ? arn.indexOf(':role/') : -1; return i<0 ? '' : arn.slice(i+6); }
+/* IAM Role 이름 규칙: 영숫자와 +=,.@-_ , 최대 64자 */
+const ROLE_NAME_RE = /^[\w+=,.@-]{1,64}$/;
+
 function openRoleEditModal(id, key){
   const t = tsOf(id), r = t[key] || {}, m = ROLE_META[key];
   openModal(`
     <h3>${m.title} ${r.arn?'수정':'등록'}</h3>
-    <div class="desc">${m.desc}. 저장 후 권한 검증이 필요합니다.</div>
-    <input class="input" id="role-arn-input" style="width:100%;font-family:var(--font-mono);font-size:12px"
-      placeholder="arn:aws:iam::123456789012:role/pii-scan-role" value="${esc(r.arn||'')}">
+    <div class="desc">${m.desc}. Role <b>이름</b>만 입력하면 계정 ID와 partition을 붙여 ARN을 만듭니다.</div>
+    <div class="kv2" style="margin-bottom:12px">
+      ${kv('AWS 계정', `<span class="mono">${esc((t.meta&&t.meta.awsAccountId)||'-')}</span>`)}
+      ${kv('리전', `${esc((t.meta&&t.meta.regionType)||'-')}${isChina(t)?' <span class="tag orange">aws-cn partition</span>':''}`)}
+    </div>
+    <div class="arn-field">
+      <span class="pre">${esc(arnPrefix(t))}</span>
+      <input id="role-name-input" spellcheck="false" placeholder="PIIAgentScanRole"
+        value="${esc(roleNameOf(r.arn))}" oninput="previewArn(${id})">
+    </div>
+    <div class="arn-preview" id="arn-preview"></div>
     <div class="foot">
       <button class="btn secondary" onclick="closeModal()">취소</button>
       <button class="btn primary" onclick="saveRole(${id},'${key}')">저장</button>
-    </div>`);
+    </div>`, 560);
+  previewArn(id);
+  document.getElementById('role-name-input').focus();
+}
+function previewArn(id){
+  const t = tsOf(id), el = document.getElementById('arn-preview');
+  const name = document.getElementById('role-name-input').value.trim();
+  if(!name){ el.className='arn-preview'; el.textContent='Role 이름을 입력하세요.'; return; }
+  const bad = !ROLE_NAME_RE.test(name);
+  el.className = 'arn-preview' + (bad?' bad':'');
+  el.textContent = bad
+    ? '이름에 쓸 수 없는 문자가 있습니다 — 영숫자와 + = , . @ - _ , 최대 64자'
+    : arnPrefix(t) + name;
 }
 function saveRole(id, key){
-  const v = document.getElementById('role-arn-input').value.trim();
-  if(!v){ toast('Role ARN을 입력하세요'); return; }
   const t = tsOf(id);
+  const name = document.getElementById('role-name-input').value.trim();
+  if(!name){ toast('Role 이름을 입력하세요'); return; }
+  if(!ROLE_NAME_RE.test(name)){ toast('Role 이름 형식이 올바르지 않습니다'); return; }
   /* 새 ARN 은 아직 검증되지 않은 상태 — 이전 판정을 물려주면 안 된다 */
-  t[key] = {arn:v, status:'IN_PROGRESS', failReason:null, failMessage:null, lastVerifiedAt:null};
+  t[key] = {arn:arnPrefix(t)+name, status:'IN_PROGRESS', failReason:null, failMessage:null, lastVerifiedAt:null};
   closeModal(); toast('Role을 저장했습니다. 권한 검증을 실행합니다…');
   reRenderTs(id);
   setTimeout(()=>verifyRole(id,key,true), 900);
