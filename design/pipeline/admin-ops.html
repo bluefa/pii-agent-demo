@@ -41,6 +41,10 @@ html,body{margin:0;padding:0;background:var(--bg-page);color:var(--text-strong);
   -webkit-font-smoothing:antialiased;min-width:1080px}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit}
+/* text-faint(#98A2B3)는 흰 배경에서 2.58:1 — 본문·라벨 텍스트로는 쓰지 않는다.
+   허용 용처: 정보를 담지 않는 구분 글리프(breadcrumb "/", head-meta "·", miniflow "→"),
+   장식 dot, 아이콘 글리프, 비활성 컨트롤(WCAG 1.4.3 비적용).
+   텍스트 역할은 text-weak(4.97:1) 이상만 쓴다. */
 
 svg.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;
   stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
@@ -66,12 +70,17 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .topnav .nav-item.off{opacity:.5}
 .layout{display:flex;min-height:calc(100vh - 52px)}
 .sidebar{width:216px;flex:none;background:#101828;border-right:1px solid #101828;padding:16px 12px}
+/* #667085 on #101828 = 3.57:1 (미달) → nav-item과 같은 #98A2B3 = 6.89:1 */
 .sidebar .sb-title{font-size:12px;font-weight:600;letter-spacing:.06em;
-  text-transform:uppercase;padding:8px 10px 10px;color:#667085}
+  text-transform:uppercase;padding:8px 10px 10px;color:#98A2B3}
 .sidebar .sb-group+.sb-group .sb-title{margin-top:16px}
 .sidebar .sb-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;color:#B9C0CC;
-  font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px}
-.sidebar .sb-item:hover{background:#1D2939}
+  font-size:14px;font-weight:500;margin-bottom:2px}
+/* 클릭 가능한 것만 클릭 가능하게 보인다 — hover·pointer는 a에만.
+   프로토타입 범위 밖 항목(span)은 hover가 없고 색으로 비활성임을 밝힌다 */
+.sidebar a.sb-item{cursor:pointer}
+.sidebar a.sb-item:hover{background:#1D2939}
+.sidebar span.sb-item{color:#98A2B3;cursor:default}
 .sidebar .sb-item.active{background:#1D2939;color:#fff;font-weight:600;
   box-shadow:inset 2px 0 0 var(--primary)}
 .sidebar .sb-item .sb-cnt{margin-left:auto;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
@@ -109,8 +118,10 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 
 /* ── Stat 타일 (클릭 = 필터) ── */
 .stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,260px));gap:12px}
+/* 좌측 정렬 — 아래 카드·테이블과 같은 왼쪽 눈금을 공유한다. 가운데 정렬은 타일마다
+   눈금이 하나씩 늘어나 스캔 비용만 커진다 (Dannaway: align elements consistently) */
 .stat{background:var(--gray-100);border:1px solid var(--border);border-radius:var(--r-card);
-  padding:20px 24px 24px;text-align:center;cursor:pointer}
+  padding:20px 24px 24px;text-align:left;cursor:pointer}
 .stat:hover{border-color:var(--border-strong)}
 .stat.on{background:var(--bg-card);border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
 .stat .lbl{font-size:14px;font-weight:600;color:var(--text-medium)}
@@ -187,8 +198,12 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .btn.dangersolid:disabled{background:var(--gray-100);color:var(--text-faint);box-shadow:none}
 .btn.sm{height:28px;padding:0 10px;font-size:12px}
 
-/* ── 지연 표기 — 4단계: 회색(1시간 미만)/노랑(1시간↑)/주황(1일↑)/빨강(7일↑) ── */
-.delay{font-variant-numeric:tabular-nums;font-weight:500;color:var(--text-weak)}
+/* ── 지연 표기 — 4단계: 회색(1시간 미만)/노랑(1시간↑)/주황(1일↑)/빨강(7일↑) ──
+   색만으로 심각도를 말하지 않는다: 1일↑(d2·d3)에는 경고 글리프가 함께 붙어
+   색을 구분하지 못해도 "임계 초과" 경계가 읽힌다 (Dannaway: don't rely on colour alone).
+   d2 vs d3 구분은 색이 아니라 본문 숫자(1일 vs 7일↑)가 이미 담당한다. */
+.delay{display:inline-flex;align-items:center;gap:4px;
+  font-variant-numeric:tabular-nums;font-weight:500;color:var(--text-weak)}
 .delay.d1{color:#A16207;font-weight:600}
 .delay.d2{color:#C2410C;font-weight:600}
 .delay.d3{color:#DC2626;font-weight:700}
@@ -197,37 +212,43 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .ts-mast{background:var(--bg-card);margin:-24px -32px 0;padding:20px 32px 18px;
   border-bottom:1px solid var(--border)}
 .ts-mast .breadcrumb{margin-bottom:10px}
-/* 계층 (app /pass/admin/pipelines 정합) — 크기·굵기·색·간격으로 tier 구분:
-   TS id 28/700 gray-900 (최강조) > 서비스명 18/600 gray-900 (강조) > label 13/400 gray-500 > value 15/400 gray-900 */
+/* 계층 — 크기·굵기·색으로 tier 구분. 2026-07-25: 구 28/18/15/13 4종을 파일 선언 스케일
+   {12,14,16,20,24,32}로 흡수 (Dannaway "reduce the number of styles" + style-guide §1
+   "크기는 표준 세트에서만"). 이전 값은 app /pass/admin/pipelines 정합용이었으나
+   같은 파일 안에 두 개의 타입 스케일이 공존하는 비용이 더 컸다.
+   TS id 24/700 gray-900 (최강조) > 서비스명 16/600 gray-900 (강조) > label 12/400 gray-500 > value 14/400 gray-900
+   → .page-head h1(24/700) + .h-id(16/600 weak)와 동일 값 = 두 헤더 패턴이 같은 규칙을 쓴다 */
 /* 현재 단계 — 타이틀 위 eyebrow */
 .mast-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.mast-eyebrow .mp-k{font-size:13px;font-weight:400;color:var(--gray-500)}
-.mast-h1{font-size:28px;font-weight:700;margin:0;line-height:1;color:var(--gray-900)}
-.mast-h1 .tid{font-size:18px;font-weight:500;color:var(--gray-400);margin-left:4px}
+.mast-eyebrow .mp-k{font-size:12px;font-weight:400;color:var(--gray-500)}
+.mast-h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;color:var(--gray-900)}
+.mast-h1 .tid{font-size:16px;font-weight:600;color:var(--text-weak);margin-left:4px}
 /* 3개 정보 그룹 — 카드 아님, 컬럼 + 얇은 구분선으로만 구분 */
 .mast-groups{display:flex;margin-top:20px;padding-top:20px;border-top:1px solid var(--border)}
 .mast-groups .grp{flex:1;min-width:0;padding:0 28px;border-left:1px solid var(--border)}
 .mast-groups .grp:first-child{padding-left:0;border-left:0}
-.grp-title{font-size:12px;font-weight:700;color:var(--gray-400);letter-spacing:.02em;margin-bottom:14px}
+/* grp-title: 구 gray-400 은 흰 배경에서 2.58:1 (4.5:1 미달) — text-weak 4.97:1 로 승격 */
+.grp-title{font-size:12px;font-weight:700;color:var(--text-weak);letter-spacing:.02em;margin-bottom:12px}
 .grp-body{display:flex;flex-direction:column;gap:10px}
 .grp-body .row{display:flex;align-items:center;gap:8px}
-.grp-body .svc{font-size:15px;font-weight:600;color:var(--gray-900)}
-.grp-body .code{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--gray-700);
+.grp-body .svc{font-size:16px;font-weight:600;color:var(--gray-900)}
+.grp-body .code{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--gray-700);
   background:var(--gray-100);padding:1px 8px;border-radius:6px}
 .grp-body .cell{display:flex;align-items:center;gap:8px}
-.grp-body .k{font-size:13px;font-weight:400;color:var(--gray-500);min-width:84px}
-.grp-body .v{font-size:15px;font-weight:400;color:var(--gray-900);font-variant-numeric:tabular-nums}
+.grp-body .k{font-size:12px;font-weight:400;color:var(--gray-500);min-width:84px}
+.grp-body .v{font-size:14px;font-weight:400;color:var(--gray-900);font-variant-numeric:tabular-nums}
 .grp-body .link{font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:2px}
 .grp-body .meta{font-size:12px;color:var(--text-weak)}
 .jchip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:1px 6px;border-radius:6px}
 .jchip:hover{background:var(--gray-50)}
-.jchip .mono{font-size:13px;color:var(--primary);font-weight:600}
+.jchip .mono{font-size:12px;color:var(--primary);font-weight:600}
 
 /* ── 연동 요청 정보: 요청 프로세스 미니 플로우 · 확정 원본 JSON ── */
 .miniflow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.miniflow .mf{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text-faint)}
+/* 3단(미도달·완료·현재)을 유지하면서 셋 다 4.5:1 통과: weak 4.97 < medium 7.69 < primary 5.17+700 */
+.miniflow .mf{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text-weak)}
 .miniflow .mf .fdot{width:8px;height:8px;border-radius:999px;background:var(--gray-200)}
-.miniflow .mf.done{color:var(--text-weak)}
+.miniflow .mf.done{color:var(--text-medium)}
 .miniflow .mf.done .fdot{background:var(--primary)}
 .miniflow .mf.cur{color:var(--primary);font-weight:700}
 .miniflow .mf.cur .fdot{background:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
@@ -252,13 +273,17 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
   height:2px;background:var(--gray-200)}
 .steprail .sp:first-child::before{display:none}
 .steprail .sp.done::before,.steprail .sp.cur::before{background:var(--primary)}
+/* 미도달 스텝의 번호도 읽을 수 있어야 한다 — faint on gray-100 은 2.34:1, weak 는 4.51:1 */
 .steprail .sp .n{width:24px;height:24px;border-radius:999px;display:grid;place-items:center;
   font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
-  background:var(--gray-100);color:var(--text-faint);border:1px solid var(--border)}
+  background:var(--gray-100);color:var(--text-weak);border:1px solid var(--border)}
 .steprail .sp.done .n{background:var(--primary);border-color:var(--primary);color:#fff}
 .steprail .sp.cur .n{background:var(--bg-card);border:2px solid var(--primary);color:var(--primary)}
-.steprail .sp .t{font-size:12px;font-weight:500;color:var(--text-faint);text-align:center;line-height:1.3;max-width:96px}
-.steprail .sp.done .t{color:var(--text-weak)}
+/* miniflow와 동일한 3단 대비 규칙 — 미도달도 4.5:1 통과 (구 faint 2.58:1).
+   keep-all: 한글이 어절 중간에서 끊기지 않게 ("연동 대상 DB 선 / 택" → "연동 대상 / DB 선택") */
+.steprail .sp .t{font-size:12px;font-weight:500;color:var(--text-weak);text-align:center;line-height:1.4;
+  max-width:96px;word-break:keep-all}
+.steprail .sp.done .t{color:var(--text-medium)}
 .steprail .sp.cur .t{color:var(--primary);font-weight:600}
 
 /* ── 권한 체크리스트 (AWS Role 검증) ── */
@@ -267,7 +292,7 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
   border-top:1px solid var(--gray-100);color:var(--text-medium)}
 .check-list .ck:first-child{border-top:0}
 .check-list .ck .mono{flex:1}
-.check-list .ck svg.ic{width:15px;height:15px}
+/* 아이콘 크기는 16/14/12 세트만 — 호출부가 이미 .sm(14)을 넘기므로 15px 덮어쓰기 제거 */
 .check-list .ck.ok svg.ic{color:var(--ok-text)}
 .check-list .ck.err{background:var(--err-bg)}
 .check-list .ck.err svg.ic{color:var(--err-text)}
@@ -307,11 +332,11 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .overlay{position:fixed;inset:0;background:rgba(16,24,40,.45);z-index:50;display:flex;align-items:center;justify-content:center}
 .modal{background:var(--bg-card);border-radius:12px;box-shadow:var(--shadow-lg);padding:24px;width:480px}
 .modal h3{margin:0 0 12px;font-size:16px;font-weight:700}
-.modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:14px;line-height:1.4}
+.modal .desc{font-size:14px;color:var(--text-medium);margin-bottom:12px;line-height:1.4}
 .modal textarea{width:100%;min-height:88px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);
   padding:8px 10px;font-size:14px;font-family:inherit;resize:vertical;outline:none;line-height:1.4}
 .modal textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
-.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:24px}
 .modal label.chk{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--text-medium);
   padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-inner);cursor:pointer;margin-top:12px}
 .modal label.chk input{margin-top:2px;accent-color:var(--err-solid)}
@@ -548,11 +573,17 @@ function icon(name, cls){
 }
 function pill(st){ const s=STEP[st]; return `<span class="pill ${s.tone}"><span class="dot"></span>Step ${s.n} · ${s.label}</span>`; }
 function ptag(pv){ return `<span class="ptag"><span class="pdot" style="background:${PROVIDERS[pv].color}"></span>${pv}</span>`; }
+const DELAY_TIER = [
+  {min:604800, cls:'d3', warn:true,  title:'7일 이상 정체'},
+  {min:86400,  cls:'d2', warn:true,  title:'1일 이상 정체'},
+  {min:3600,   cls:'d1', warn:false, title:'1시간 이상 경과'},
+  {min:0,      cls:'',   warn:false, title:'1시간 미만'},
+];
 function delayCell(sec){
-  const cls = sec>=604800?'d3':sec>=86400?'d2':sec>=3600?'d1':'';
+  const tier = DELAY_TIER.find(x=>sec>=x.min);
   const h = Math.floor(sec/3600), d = Math.floor(h/24);
   const txt = d>0?`${d}일 ${h%24}시간`:h>0?`${h}시간`:`${Math.floor(sec/60)}분`;
-  return `<span class="delay ${cls}">${txt}</span>`;
+  return `<span class="delay ${tier.cls}" title="${tier.title}">${tier.warn?icon('alert','xs'):''}${txt}</span>`;
 }
 function toast(msg){
   const root = document.getElementById('toast-root');
@@ -744,7 +775,7 @@ function renderService(code){
       </div>
       <div class="mt-12">
         ${s.status==='EOS'
-          ? `<span class="tag red">EOS</span> <span class="meta" style="margin-left:6px">이미 EOS 처리된 서비스입니다.</span>`
+          ? `<span class="tag red">EOS</span> <span class="meta" style="margin-left:8px">이미 EOS 처리된 서비스입니다.</span>`
           : `<button class="btn danger" onclick="openEosModal('${s.code}')">${icon('trash','sm')}EOS 처리</button>`}
       </div>
     </div>`;
@@ -1031,8 +1062,8 @@ function tabConfirm(t){
           ${kv('확정 일시', t.confirmed.at)}
         </div>
         ${d?(hasDiff
-          ?`<div class="note" style="margin-top:14px">${icon('alert')}<div>승인 정보와 확정 정보의 리소스 Set이 다릅니다 — 공통 <b>${d.common.length}</b> · 확정에서 제외 <b>${d.removed.length}</b> · 승인 외 추가 <b>${d.added.length}</b> <span class="link" onclick="openDiffModal(${t.id})">차이 보기</span></div></div>`
-          :`<div class="note info" style="margin-top:14px">${icon('info')}<div>승인 정보와 동일한 리소스 Set으로 확정되었습니다.</div></div>`):''}
+          ?`<div class="note" style="margin-top:16px">${icon('alert')}<div>승인 정보와 확정 정보의 리소스 Set이 다릅니다 — 공통 <b>${d.common.length}</b> · 확정에서 제외 <b>${d.removed.length}</b> · 승인 외 추가 <b>${d.added.length}</b> <span class="link" onclick="openDiffModal(${t.id})">차이 보기</span></div></div>`
+          :`<div class="note info" style="margin-top:16px">${icon('info')}<div>승인 정보와 동일한 리소스 Set으로 확정되었습니다.</div></div>`):''}
         ${t.confirmed.resources?`
         <div class="subsection-title" style="margin-top:16px">확정 리소스 목록</div>
         <table class="tbl">

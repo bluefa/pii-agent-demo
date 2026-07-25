@@ -97,6 +97,16 @@
   (현황=고정 24h 모니터링 / 목록=조회 필터로 태스크 분리).
 - 2026-07-05(2차): 기간 전역 확정(§4 3차 결정), 섹션 간 40→**64** + 블록 간 16 통일,
   `.section-desc` 스코프 캡션 신설, 오너 가이드 3종 → skill `design-guide` 반영.
+- 2026-07-25 (admin-ops.html): 외부 UI 가이드([Dannaway, 16 little UI design tips](https://www.adhamdannaway.com/blog/ui-design/ui-design-tips))
+  대조 감사 → §1 위반 소급 정정. `.ts-mast`가 별도 스케일(28/18/15/13)로 만들어져 한 파일에
+  타입 스케일이 2개 공존하던 것을 **§1 표준 세트로 흡수** — 렌더 실측 폰트 크기
+  10종 → **6종**({12,14,16,20,24,32}), 아이콘 15px 제거로 3종({12,14,16}).
+  대비: 텍스트 역할에서 `text-faint`(#98A2B3, 흰 배경 2.58:1) 전면 퇴출 —
+  `.grp-title`·`.mast-h1 .tid`·`.steprail .sp .t`·`.steprail .sp .n`(2.34:1)·`.miniflow .mf`,
+  사이드바 `.sb-title`(3.57:1). faint는 정보 없는 구분 글리프·비활성 컨트롤 전용으로 한정.
+  색 단독 의존 제거: 지연 1일↑ 단계에 경고 글리프 병기. stat 타일 가운데→좌측 정렬(눈금 통일).
+  거짓 어포던스 제거: 프로토타입 범위 밖 사이드바 항목의 hover·pointer 제거.
+  실측 검증: 10개 라우트 렌더 · 콘솔 에러 0 · 잔존 대비 미달은 구분 글리프(`/`·`·`·`→`) 3종뿐.
 - 2026-07-06 (r18): 오너 피드백 라운드 — 캡션 간격 8/16, stat 라벨 2단(14/600+12/400),
   콘텐츠 폭 1280→**1440**, 유형 TypeTag(아이콘+색+enum)·필터 칩·상세 통합 카드·인라인
   Task 패널·[중단] solid CTA. 근거·전체 스펙: [admin-pipeline-improvement-r18.md](admin-pipeline-improvement-r18.md).
