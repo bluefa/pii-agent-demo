@@ -339,19 +339,19 @@ svg.ic.xs{width:12px;height:12px;vertical-align:-1px}
 .ro-row .rv.mono{font-family:var(--font-mono);font-size:12px}
 
 /* Role 이름만 입력 — 계정·partition 은 고정값이라 prefix 로 붙이고 편집 대상에서 뺀다.
-   색 규칙 하나로 통일: weak = 시스템이 정한 고정값, strong = 내가 입력한 값.
-   그래서 prefix(weak) + 입력값(strong) 이 곧 완성된 ARN 이고, 같은 값을 아래에 또
-   다른 색으로 반복하지 않는다 (예전 미리보기 줄이 3번째 색이 되던 원인). */
+   prefix 와 입력값은 하나의 ARN 이므로 색·굵기를 똑같이 둔다(12/400 strong) — 한 문자열이
+   두 색으로 갈리면 서로 다른 값처럼 읽힌다. 편집 가능 여부는 색이 아니라 배경(고정=gray-100,
+   입력=흰색)·구분선·캐럿이 말한다. placeholder 만 faint 로 낮춰 실제 입력값과 구분한다. */
 .arn-field{display:flex;align-items:stretch;border:1px solid var(--border-strong);
   border-radius:var(--r-ctl);overflow:hidden;background:var(--bg-card)}
 .arn-field:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
 .arn-field.bad{border-color:var(--err);box-shadow:0 0 0 3px var(--err-bg)}
+.arn-field .pre,.arn-field input{font-family:var(--font-mono);font-size:12px;font-weight:400;
+  color:var(--text-strong)}
 .arn-field .pre{display:flex;align-items:center;padding:0 2px 0 10px;background:var(--gray-100);
-  color:var(--text-weak);font-family:var(--font-mono);font-size:12px;white-space:nowrap;
-  border-right:1px solid var(--border);user-select:all}
-.arn-field input{flex:1;min-width:0;border:0;outline:none;height:32px;padding:0 10px;
-  font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-strong)}
-.arn-field input::placeholder{font-weight:400;color:var(--text-faint)}
+  white-space:nowrap;border-right:1px solid var(--border);user-select:all}
+.arn-field input{flex:1;min-width:0;border:0;outline:none;height:32px;padding:0 10px}
+.arn-field input::placeholder{color:var(--text-faint)}
 /* Role ARN 표시 — 모달 안에서 코드값으로 읽히게 (본문 prose 와 구분) */
 .role-arn{font-family:var(--font-mono);font-size:12px;
   color:var(--text-strong);background:var(--gray-50);border:1px solid var(--border);
