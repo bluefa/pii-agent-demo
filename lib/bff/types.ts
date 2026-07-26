@@ -261,6 +261,11 @@ export interface BffClient {
     putRole: (id: number, kind: 'scan' | 'execution', roleName: string) => Promise<OpsRoleUpdateWire>;
     getCollabChannel: (id: number) => Promise<OpsCollabChannelWire | null>;
     putCollabChannel: (id: number, channel: OpsCollabChannelWire) => Promise<OpsCollabChannelWire>;
+    getTargetSourceList: (query: string | undefined, page: number, size: number) => Promise<OpsTargetSourceListPageWire>;
+    getServices: () => Promise<OpsServiceSummaryWire[]>;
+    getService: (code: string) => Promise<OpsServiceDetailWire>;
+    postServiceEos: (code: string, force: boolean) => Promise<OpsServiceSummaryWire>;
+    postJiraUser: (code: string, ticketKey: string, userId: string) => Promise<OpsJiraTicketWire>;
   };
 }
 
@@ -296,4 +301,52 @@ export interface OpsRoleUpdateWire {
 export interface OpsCollabChannelWire {
   issue_key: string;
   url: string;
+}
+
+/** Ops console list row (assumed §5) — powers 운영 알림 + Target Source 운영 목록. */
+export interface OpsTargetSourceListItemWire {
+  target_source_id: number;
+  service_code: string;
+  service_name: string;
+  cloud_provider: string;
+  is_sdu_type: boolean;
+  database_type: string | null;
+  process_status: OpsProcessStatusWire;
+  last_changed_at: string;
+}
+
+export interface OpsTargetSourceListPageWire {
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  content: OpsTargetSourceListItemWire[];
+}
+
+/** 서비스 운영 (assumed §6). */
+export type OpsJiraTicketStatusWire = 'TO_DO' | 'IN_PROGRESS' | 'DONE';
+
+export interface OpsJiraTicketWire {
+  ticket_key: string;
+  summary: string;
+  status: OpsJiraTicketStatusWire;
+  users: string[];
+}
+
+export interface OpsServiceSummaryWire {
+  service_code: string;
+  service_name: string;
+  owner: string;
+  status: 'OPERATING' | 'EOS';
+  target_source_count: number;
+  jira_ticket_count: number;
+}
+
+export interface OpsServiceDetailWire {
+  service_code: string;
+  service_name: string;
+  owner: string;
+  status: 'OPERATING' | 'EOS';
+  jira_tickets: OpsJiraTicketWire[];
+  target_sources: OpsTargetSourceListItemWire[];
 }

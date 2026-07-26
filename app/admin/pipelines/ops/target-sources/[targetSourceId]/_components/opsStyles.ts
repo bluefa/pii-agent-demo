@@ -60,4 +60,17 @@ export const opsStyles = {
 
   /** 상세 보기 → text button (Figma 40:21). */
   detailLink: 'inline-flex items-center gap-1 text-[13px] font-medium text-[var(--pl-primary)] cursor-pointer hover:underline whitespace-nowrap',
+
+  /** Figma 4:2 table grammar — plain headers (no fill), divider rows. */
+  table: {
+    base: 'w-full border-collapse text-[13px]',
+    headCell:
+      'py-2.5 px-3 text-left text-[12px] font-medium text-[var(--pl-text-weak)] border-b border-[var(--pl-border)] whitespace-nowrap',
+    cell: 'py-3 px-3 border-b border-[var(--pl-gray-100)] align-middle text-[var(--pl-text-strong)]',
+    rowHover: 'hover:bg-[var(--pl-gray-50)] transition-colors',
+  },
+
+  /** Uppercase wire-status tag (Figma APPROVED/CANCELLED chips). */
+  statusTag:
+    'inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold tracking-[0.02em]',
 } as const;

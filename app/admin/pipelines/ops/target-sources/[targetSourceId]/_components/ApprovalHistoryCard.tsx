@@ -8,13 +8,31 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { getApprovalHistory } from '@/app/lib/api';
-import { HistoryStatusPill } from '@/app/admin/pipelines/queue/requests/_components/HistoryStatusPill';
 import { ApprovalRequestDetailModal } from '@/app/components/features/process-status/ApprovalRequestDetailModal';
-import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
+import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
 const PAGE_SIZE = 5;
+
+/** Figma 4:2 — raw wire status as an uppercase tag (APPROVED green, etc.). */
+const STATUS_TAG_TONE: Record<string, string> = {
+  APPROVED: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
+  CONFIRMED: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
+  REJECTED: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+  PENDING: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
+};
+
+const StatusTag = ({ status }: { status: string | null }): ReactElement => (
+  <span
+    className={cn(
+      opsStyles.statusTag,
+      STATUS_TAG_TONE[status ?? ''] ?? 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
+    )}
+  >
+    {status ?? '-'}
+  </span>
+);
 
 /** Snake wire of one approval-history Page content item (swagger Page is untyped). */
 interface ApprovalHistoryRowWire {
@@ -86,7 +104,7 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
     void load(0);
   }, [load]);
 
-  const { table } = pipelineStyles;
+  const { table } = opsStyles;
 
   return (
     <section className={pipelineStyles.card.base} aria-label="승인 요청 내역">
@@ -99,28 +117,28 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
         <p className={cn(pipelineStyles.empty.base, 'mt-2')}>승인 요청 내역이 없습니다.</p>
       ) : (
         <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
-          <table className={table.root}>
+          <table className={table.base}>
             <thead>
               <tr>
-                <th className={table.th}>요청 일시</th>
-                <th className={table.th}>상태</th>
-                <th className={table.th}>요청자</th>
-                <th className={cn(table.th, 'w-24')} aria-label="상세" />
+                <th className={table.headCell}>요청 일시</th>
+                <th className={table.headCell}>상태</th>
+                <th className={table.headCell}>요청자</th>
+                <th className={cn(table.headCell, 'w-24')} aria-label="상세" />
               </tr>
             </thead>
             <tbody className="[&>tr:last-child>td]:border-b-0">
               {rows.map((row, index) => (
                 <tr key={`${row.request?.id ?? 'row'}-${index}`}>
-                  <td className={cn(table.td, table.tdColor, 'whitespace-nowrap')}>
+                  <td className={cn(table.cell, 'whitespace-nowrap')}>
                     {fmtDateTime(row.request?.requested_at)}
                   </td>
-                  <td className={table.td}>
-                    <HistoryStatusPill status={row.result?.status ?? row.request?.status ?? null} />
+                  <td className={table.cell}>
+                    <StatusTag status={row.result?.status ?? row.request?.status ?? null} />
                   </td>
-                  <td className={cn(table.td, table.tdColor)}>
+                  <td className={table.cell}>
                     {row.request?.requested_by?.user_id ?? '-'}
                   </td>
-                  <td className={cn(table.td, 'text-right')}>
+                  <td className={cn(table.cell, 'text-right')}>
                     <button type="button" className={opsStyles.detailLink} onClick={() => setDetail(row)}>
                       상세 보기 <span aria-hidden>→</span>
                     </button>
@@ -132,15 +150,7 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
         </div>
       )}
 
-      {totalPages > 1 && (
-        <PlPagination
-          center
-          page={page + 1}
-          pages={totalPages}
-          onPrev={() => void load(page - 1)}
-          onNext={() => void load(page + 1)}
-        />
-      )}
+      <OpsPagination page={page} totalPages={totalPages} onChange={(next) => void load(next)} />
 
       <ApprovalRequestDetailModal
         isOpen={detail !== null}

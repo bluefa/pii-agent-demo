@@ -279,6 +279,17 @@ export const httpBff: BffClient = {
       }),
     getCollabChannel: (id) => getSnakeRaw(`/target-sources/${id}/collaboration-channel`),
     putCollabChannel: (id, channel) => put(`/target-sources/${id}/collaboration-channel`, channel),
+    getTargetSourceList: (query, page, size) =>
+      getSnakeRaw(`/admin/ops/target-sources${buildQuery({ query, page, size })}`),
+    getServices: () => getSnakeRaw('/admin/ops/services'),
+    getService: (code) => getSnakeRaw(`/admin/ops/services/${encodeURIComponent(code)}`),
+    postServiceEos: (code, force) =>
+      post(`/admin/ops/services/${encodeURIComponent(code)}/eos`, { force }),
+    postJiraUser: (code, ticketKey, userId) =>
+      post(
+        `/admin/ops/services/${encodeURIComponent(code)}/jira-tickets/${encodeURIComponent(ticketKey)}/users`,
+        { user_id: userId },
+      ),
   },
 
   // Azure responses are raw snake passthrough — the route validates with

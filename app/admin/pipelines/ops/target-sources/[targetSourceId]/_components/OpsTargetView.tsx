@@ -23,8 +23,13 @@ import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetS
 import { ChannelModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ChannelModal';
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
+import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
+import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
+import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab';
 
 const TABS = ['진행 상태', '스캔', '연동 요청 정보', '파이프라인', 'Test Connection'] as const;
+type TabLabel = (typeof TABS)[number];
 
 type ModalState =
   | { type: 'mode' }
@@ -45,6 +50,7 @@ export function OpsTargetView({ targetSourceId }: OpsTargetViewProps): ReactElem
   const [grantTfExecution, setGrantTfExecution] = useState(false);
   const [channel, setChannel] = useState<CollaborationChannel | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
+  const [activeTab, setActiveTab] = useState<TabLabel>('진행 상태');
 
   const [reloadKey, setReloadKey] = useState(0);
   const retry = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -131,20 +137,16 @@ export function OpsTargetView({ targetSourceId }: OpsTargetViewProps): ReactElem
           onOpenChannel={() => setModal({ type: 'channel' })}
         />
         <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
-          {TABS.map((tab, index) => {
-            const active = index === 0;
+          {TABS.map((tab) => {
+            const active = tab === activeTab;
             return (
               <button
                 key={tab}
                 type="button"
                 role="tab"
                 aria-selected={active}
-                disabled={!active}
-                title={active ? undefined : '준비 중'}
-                className={cn(
-                  opsStyles.tab,
-                  active ? opsStyles.tabActive : opsStyles.tabDisabled,
-                )}
+                onClick={() => setActiveTab(tab)}
+                className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
               >
                 {tab}
                 {active && <span className={opsStyles.tabIndicator} aria-hidden />}
@@ -155,18 +157,26 @@ export function OpsTargetView({ targetSourceId }: OpsTargetViewProps): ReactElem
       </div>
 
       <div className={opsStyles.content}>
-        {processStatus ? (
-          <ProcessCard status={processStatus} />
-        ) : (
-          <section className={pipelineStyles.card.base} aria-label="현재 Process">
-            <h2 className={opsStyles.cardTitle}>현재 Process</h2>
-            <p className={cn(pipelineStyles.text.meta, 'mt-3')}>상태 정보를 불러오지 못했습니다.</p>
-          </section>
+        {activeTab === '진행 상태' && (
+          <>
+            {processStatus ? (
+              <ProcessCard status={processStatus} />
+            ) : (
+              <section className={pipelineStyles.card.base} aria-label="현재 Process">
+                <h2 className={opsStyles.cardTitle}>현재 Process</h2>
+                <p className={cn(pipelineStyles.text.meta, 'mt-3')}>상태 정보를 불러오지 못했습니다.</p>
+              </section>
+            )}
+            <div className={opsStyles.cardsRow}>
+              <ApprovalHistoryCard targetSourceId={targetSourceId} />
+              <StatusHistoryCard targetSourceId={targetSourceId} />
+            </div>
+          </>
         )}
-        <div className={opsStyles.cardsRow}>
-          <ApprovalHistoryCard targetSourceId={targetSourceId} />
-          <StatusHistoryCard targetSourceId={targetSourceId} />
-        </div>
+        {activeTab === '스캔' && <ScanTab targetSourceId={targetSourceId} detail={detail} />}
+        {activeTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
+        {activeTab === '파이프라인' && <PipelineTab targetSourceId={targetSourceId} detail={detail} />}
+        {activeTab === 'Test Connection' && <TcTab targetSourceId={targetSourceId} detail={detail} />}
       </div>
 
       <InstallModeModal

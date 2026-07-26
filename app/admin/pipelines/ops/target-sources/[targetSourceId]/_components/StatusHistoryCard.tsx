@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { getStatusHistory, type StatusHistoryItem } from '@/app/lib/api/ops';
-import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
+import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -45,7 +45,7 @@ export function StatusHistoryCard({ targetSourceId }: StatusHistoryCardProps): R
     void load(0);
   }, [load]);
 
-  const { table } = pipelineStyles;
+  const { table } = opsStyles;
 
   return (
     <section className={pipelineStyles.card.base} aria-label="상태 변경 이력">
@@ -57,21 +57,21 @@ export function StatusHistoryCard({ targetSourceId }: StatusHistoryCardProps): R
         <p className={cn(pipelineStyles.empty.base, 'mt-2')}>상태 변경 이력이 없습니다.</p>
       ) : (
         <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
-          <table className={table.root}>
+          {/* Figma 4:2: two columns only (일시 · 변경) — no actor column. */}
+          <table className={table.base}>
             <thead>
               <tr>
-                <th className={table.th}>일시</th>
-                <th className={table.th}>변경</th>
-                <th className={table.th}>수행자</th>
+                <th className={table.headCell}>일시</th>
+                <th className={table.headCell}>변경</th>
               </tr>
             </thead>
             <tbody className="[&>tr:last-child>td]:border-b-0">
               {rows.map((row, index) => (
                 <tr key={`${row.changed_at}-${index}`}>
-                  <td className={cn(table.td, table.tdColor, 'whitespace-nowrap')}>
+                  <td className={cn(table.cell, 'whitespace-nowrap')}>
                     {fmtDateTime(row.changed_at)}
                   </td>
-                  <td className={table.td}>
+                  <td className={table.cell}>
                     <span className="inline-flex flex-wrap items-center gap-2">
                       {row.from_status && (
                         <>
@@ -82,7 +82,6 @@ export function StatusHistoryCard({ targetSourceId }: StatusHistoryCardProps): R
                       <StepPill status={row.to_status} />
                     </span>
                   </td>
-                  <td className={cn(table.td, table.tdColor)}>{row.actor}</td>
                 </tr>
               ))}
             </tbody>
@@ -90,15 +89,7 @@ export function StatusHistoryCard({ targetSourceId }: StatusHistoryCardProps): R
         </div>
       )}
 
-      {totalPages > 1 && (
-        <PlPagination
-          center
-          page={page + 1}
-          pages={totalPages}
-          onPrev={() => void load(page - 1)}
-          onNext={() => void load(page + 1)}
-        />
-      )}
+      <OpsPagination page={page} totalPages={totalPages} onChange={(next) => void load(next)} />
     </section>
   );
 }

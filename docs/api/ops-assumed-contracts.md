@@ -66,8 +66,55 @@ body     { issue_key: string, url: string }
 → 200   same shape
 ```
 
+## 5. Ops target-source list
+
+Powers 운영 알림 (action-needed filter is client-side) and the Target Source 운영
+index list. `process_status` uses the 7-step wire enum from `process-status`;
+`last_changed_at` is the latest status-transition timestamp.
+
+```
+GET /install/v1/admin/ops/target-sources?query={q}&page={n}&size={n}
+→ 200   Spring Page<{
+          target_source_id: number,
+          service_code: string,
+          service_name: string,
+          cloud_provider: string,        // AWS | GCP | AZURE | IDC
+          is_sdu_type: boolean,
+          database_type: string | null,
+          process_status: IDLE|PENDING|CONFIRMING|CONFIRMED|INSTALLED|CONNECTED|COMPLETED,
+          last_changed_at: ISO-8601,
+        }>
+// query matches target_source_id / service_code / service_name (contains).
+```
+
+## 6. Service operations
+
+ServiceCode-level operations: owner/status summary, Jira ticket registry with
+notification users, and EOS processing.
+
+```
+GET /install/v1/admin/ops/services
+→ 200   [{ service_code, service_name, owner, status: OPERATING|EOS,
+           target_source_count, jira_ticket_count }]
+
+GET /install/v1/admin/ops/services/{serviceCode}
+→ 200   { service_code, service_name, owner, status,
+          jira_tickets: [{ ticket_key, summary, status: TO_DO|IN_PROGRESS|DONE, users: string[] }],
+          target_sources: <§5 row>[] }
+
+POST /install/v1/admin/ops/services/{serviceCode}/eos
+body     { force: boolean }
+→ 200   service summary (status becomes EOS)
+→ 409   ErrorMessage        // running pipeline exists and force=false
+
+POST /install/v1/admin/ops/services/{serviceCode}/jira-tickets/{ticketKey}/users
+body     { user_id: string }
+→ 200   updated jira ticket
+```
+
 ## Mock implementation
 
-All four are served by `app/api/v1/ops/…` route handlers backed by a globalThis-guarded
-in-memory store (`app/api/v1/ops/_lib/store.ts`), same pattern as the admin queue mocks.
+All sections are served by `app/api/v1/…` route handlers backed by globalThis-guarded
+in-memory stores in `lib/bff/mock/ops.ts` (`__opsConsoleMockStore` for per-target
+state, `__opsConsoleServiceStore` for §6), same pattern as the admin queue mocks.
 Handlers are marked `// ASSUMED CONTRACT — docs/api/ops-assumed-contracts.md`.

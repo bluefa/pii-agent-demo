@@ -71,3 +71,86 @@ export const saveCollaborationChannel = (
     method: 'PUT',
     body: channel,
   });
+
+/* ── 운영 콘솔 목록/서비스 (assumed §5–6) ── */
+
+export interface OpsTargetSourceListItem {
+  target_source_id: number;
+  service_code: string;
+  service_name: string;
+  cloud_provider: string;
+  is_sdu_type: boolean;
+  database_type: string | null;
+  process_status: BffProcessStatus;
+  last_changed_at: string;
+}
+
+export interface OpsTargetSourceListPage {
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  content: OpsTargetSourceListItem[];
+}
+
+export type OpsJiraTicketStatus = 'TO_DO' | 'IN_PROGRESS' | 'DONE';
+
+export interface OpsJiraTicket {
+  ticket_key: string;
+  summary: string;
+  status: OpsJiraTicketStatus;
+  users: string[];
+}
+
+export interface OpsServiceSummary {
+  service_code: string;
+  service_name: string;
+  owner: string;
+  status: 'OPERATING' | 'EOS';
+  target_source_count: number;
+  jira_ticket_count: number;
+}
+
+export interface OpsServiceDetail {
+  service_code: string;
+  service_name: string;
+  owner: string;
+  status: 'OPERATING' | 'EOS';
+  jira_tickets: OpsJiraTicket[];
+  target_sources: OpsTargetSourceListItem[];
+}
+
+export const getOpsTargetSources = (
+  query: string | undefined,
+  page = 0,
+  size = 20,
+): Promise<OpsTargetSourceListPage> => {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  if (query?.trim()) params.set('query', query.trim());
+  return fetchInfraJson<OpsTargetSourceListPage>(`/admin/ops/target-sources?${params}`);
+};
+
+export const getOpsServices = (): Promise<OpsServiceSummary[]> =>
+  fetchInfraJson<OpsServiceSummary[]>('/admin/ops/services');
+
+export const getOpsService = (serviceCode: string): Promise<OpsServiceDetail> =>
+  fetchInfraJson<OpsServiceDetail>(`/admin/ops/services/${encodeURIComponent(serviceCode)}`);
+
+export const requestServiceEos = (
+  serviceCode: string,
+  force: boolean,
+): Promise<OpsServiceSummary> =>
+  fetchInfraJson(`/admin/ops/services/${encodeURIComponent(serviceCode)}/eos`, {
+    method: 'POST',
+    body: { force },
+  });
+
+export const addJiraTicketUser = (
+  serviceCode: string,
+  ticketKey: string,
+  userId: string,
+): Promise<OpsJiraTicket> =>
+  fetchInfraJson(
+    `/admin/ops/services/${encodeURIComponent(serviceCode)}/jira-tickets/${encodeURIComponent(ticketKey)}/users`,
+    { method: 'POST', body: { user_id: userId } },
+  );

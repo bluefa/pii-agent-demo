@@ -43,6 +43,10 @@ export const passRoutes = {
     },
     /** 운영 콘솔 (design/pipeline/ops-target-source-app-plan.md). */
     ops: {
+      alerts: '/admin/pipelines/ops/alerts',
+      services: '/admin/pipelines/ops/services',
+      service: (serviceCode: string) =>
+        `/admin/pipelines/ops/services/${encodeURIComponent(serviceCode)}`,
       targetSources: '/admin/pipelines/ops/target-sources',
       targetSource: (targetSourceId: number | string) =>
         `/admin/pipelines/ops/target-sources/${encodeURIComponent(String(targetSourceId))}`,

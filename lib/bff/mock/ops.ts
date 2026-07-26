@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
-import type { OpsCollabChannelWire, OpsStatusHistoryItemWire } from '@/lib/bff/types';
+import type {
+  OpsCollabChannelWire,
+  OpsJiraTicketWire,
+  OpsServiceDetailWire,
+  OpsServiceSummaryWire,
+  OpsStatusHistoryItemWire,
+  OpsTargetSourceListItemWire,
+} from '@/lib/bff/types';
 
 /**
  * Ops-console mocks for the ASSUMED contracts (docs/api/ops-assumed-contracts.md).
@@ -107,6 +114,69 @@ export const consumeOpsRoleOverride = (
 export const opsInstallModeOverride = (targetSourceId: number): boolean | null =>
   globalStore.__opsConsoleMockStore?.get(targetSourceId)?.grantTfExecution ?? null;
 
+/* ── 서비스 운영 store (assumed §6) ── */
+
+interface OpsServiceState {
+  owner: string;
+  status: 'OPERATING' | 'EOS';
+  jira: OpsJiraTicketWire[];
+}
+
+const serviceGlobal = globalThis as typeof globalThis & {
+  __opsConsoleServiceStore?: Map<string, OpsServiceState>;
+};
+
+const SEED_OWNERS = ['김유진', '이도현', '정하늘', '최민서', '한지우', '오세라'];
+
+const serviceCodes = (): string[] =>
+  [...new Set(mockData.mockProjects.map((p) => p.serviceCode))].sort();
+
+const serviceState = (code: string): OpsServiceState => {
+  const store = (serviceGlobal.__opsConsoleServiceStore ??= new Map());
+  let state = store.get(code);
+  if (!state) {
+    const index = serviceCodes().indexOf(code);
+    state = {
+      owner: SEED_OWNERS[Math.max(0, index) % SEED_OWNERS.length],
+      status: 'OPERATING',
+      jira: (index === 0
+        ? [
+            { ticket_key: 'INFRA-2211', summary: 'PII Agent 설치 요청', status: 'IN_PROGRESS', users: ['김유진'] },
+            { ticket_key: 'INFRA-2103', summary: 'ScanRole 권한 재검토', status: 'DONE', users: [] },
+          ]
+        : []),
+    };
+    store.set(code, state);
+  }
+  return state;
+};
+
+const toListItem = (project: (typeof mockData.mockProjects)[number]): OpsTargetSourceListItemWire => ({
+  target_source_id: project.targetSourceId,
+  service_code: project.serviceCode,
+  service_name:
+    mockData.mockServiceCodes.find((s) => s.code === project.serviceCode)?.name
+      ?? project.serviceCode,
+  cloud_provider: project.cloudProvider,
+  is_sdu_type: project.isSduType === true,
+  database_type: project.dbType ?? null,
+  process_status: STATUS_ORDER[wireStatusIndex(project.processStatus)],
+  last_changed_at: project.updatedAt,
+});
+
+const serviceSummary = (code: string): OpsServiceSummaryWire => {
+  const projects = mockData.mockProjects.filter((p) => p.serviceCode === code);
+  const state = serviceState(code);
+  return {
+    service_code: code,
+    service_name: mockData.mockServiceCodes.find((s) => s.code === code)?.name ?? code,
+    owner: state.owner,
+    status: state.status,
+    target_source_count: projects.length,
+    jira_ticket_count: state.jira.length,
+  };
+};
+
 export const mockOps = {
   // GET …/status-history?page&size → Page<OpsStatusHistoryItemWire> (assumed §1).
   getStatusHistory: async (targetSourceId: number, page: number, size: number) => {
@@ -160,5 +230,78 @@ export const mockOps = {
     if (!project) return notFound();
     getState(targetSourceId, project.processStatus).channel = channel;
     return NextResponse.json(channel);
+  },
+
+  // GET /admin/ops/target-sources?query&page&size (assumed §5).
+  getTargetSourceList: async (query: string | undefined, page: number, size: number) => {
+    const q = query?.trim().toLowerCase();
+    const rows = mockData.mockProjects
+      .map(toListItem)
+      .filter((row) =>
+        !q
+        || String(row.target_source_id).includes(q)
+        || row.service_code.toLowerCase().includes(q)
+        || row.service_name.toLowerCase().includes(q))
+      .sort((a, b) => b.last_changed_at.localeCompare(a.last_changed_at));
+    const start = page * size;
+    return NextResponse.json({
+      totalElements: rows.length,
+      totalPages: Math.max(1, Math.ceil(rows.length / size)),
+      size,
+      number: page,
+      content: rows.slice(start, start + size),
+    });
+  },
+
+  // GET /admin/ops/services (assumed §6).
+  getServices: async () =>
+    NextResponse.json(serviceCodes().map(serviceSummary)),
+
+  // GET /admin/ops/services/{code} (assumed §6).
+  getService: async (code: string) => {
+    if (!serviceCodes().includes(code)) return notFound();
+    const state = serviceState(code);
+    const summary = serviceSummary(code);
+    const detail: OpsServiceDetailWire = {
+      service_code: summary.service_code,
+      service_name: summary.service_name,
+      owner: summary.owner,
+      status: summary.status,
+      jira_tickets: state.jira,
+      target_sources: mockData.mockProjects
+        .filter((p) => p.serviceCode === code)
+        .map(toListItem)
+        .sort((a, b) => b.last_changed_at.localeCompare(a.last_changed_at)),
+    };
+    return NextResponse.json(detail);
+  },
+
+  // POST /admin/ops/services/{code}/eos (assumed §6) — non-force fails while a
+  // target source is still mid-pipeline (INSTALLED = install running here).
+  postServiceEos: async (code: string, force: boolean) => {
+    if (!serviceCodes().includes(code)) return notFound();
+    const running = mockData.mockProjects.filter(
+      (p) => p.serviceCode === code && p.processStatus === ProcessStatus.INSTALLING,
+    ).length;
+    if (running > 0 && !force) {
+      return NextResponse.json(
+        {
+          error: 'EOS_BLOCKED',
+          message: `진행 중인 파이프라인이 있는 Target Source가 ${running}건 있습니다. Force 옵션을 사용하세요.`,
+        },
+        { status: 409 },
+      );
+    }
+    serviceState(code).status = 'EOS';
+    return NextResponse.json(serviceSummary(code));
+  },
+
+  // POST /admin/ops/services/{code}/jira-tickets/{key}/users (assumed §6).
+  postJiraUser: async (code: string, ticketKey: string, userId: string) => {
+    if (!serviceCodes().includes(code)) return notFound();
+    const ticket = serviceState(code).jira.find((j) => j.ticket_key === ticketKey);
+    if (!ticket) return notFound();
+    if (!ticket.users.includes(userId)) ticket.users.push(userId);
+    return NextResponse.json(ticket);
   },
 };
