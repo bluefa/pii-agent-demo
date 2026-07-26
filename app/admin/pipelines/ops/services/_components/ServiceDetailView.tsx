@@ -38,9 +38,6 @@ const JIRA_TONE: Record<OpsJiraTicketStatus, { label: string; cls: string }> = {
   TO_DO: { label: 'To Do', cls: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]' },
 };
 
-const NOTE_CLASS =
-  'flex items-start gap-2.5 rounded-lg border border-[var(--pl-warn-border)] bg-[var(--pl-warn-bg)] px-3.5 py-3 text-[13px] leading-[1.5] text-[var(--pl-warn-text)]';
-
 /** 운영중 / EOS — ok vs err tones (목록과 같은 문법). */
 function ServiceStatusTag({ status }: { status: OpsServiceDetail['status'] }): ReactElement {
   const eos = status === 'EOS';
@@ -303,30 +300,6 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
               )}
             </tbody>
           </table>
-        </div>
-      </section>
-
-      <h2 className={section.title}>EOS 처리</h2>
-      <section className={pipelineStyles.card.base} aria-label="EOS 처리">
-        <div className={NOTE_CLASS}>
-          <span className="mt-0.5 flex-none text-[var(--pl-warn)]">
-            <Icon name="warn-tri" size="sm" />
-          </span>
-          <p>
-            EOS 처리 시 이 서비스의 모든 Target Source 연동이 종료 절차에 들어갑니다. 진행 중인
-            파이프라인이 있으면 기본적으로 처리할 수 없으며, <b className="font-semibold">Force
-            옵션</b>을 사용하면 진행 중 작업을 무시하고 강제로 종료합니다.
-          </p>
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          {isEos ? (
-            <>
-              <ServiceStatusTag status={detail.status} />
-              <span className={text.meta}>이미 EOS 처리된 서비스입니다.</span>
-            </>
-          ) : (
-            eosButton
-          )}
         </div>
       </section>
 
