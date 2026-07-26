@@ -277,6 +277,11 @@ export const mockBff: BffClient = {
           confirmed: body.confirmed ?? false,
         }),
       ),
+
+    getTestConnectionHistory: async (id, page, size) =>
+      unwrap<z.infer<typeof schemas.PageTestConnectionHistoryItemResponse>>(
+        await mockConfirm.getTestConnectionHistory(String(id), page, size),
+      ),
   },
 
   guides: {

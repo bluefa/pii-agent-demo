@@ -246,6 +246,11 @@ export interface BffClient {
       id: number,
       body: z.infer<typeof schemas.UpdateTestConnectionConfirmationRequest>,
     ) => Promise<z.infer<typeof schemas.TestConnectionConfirmationResponse>>;
+    getTestConnectionHistory: (
+      id: number,
+      page: number,
+      size: number,
+    ) => Promise<z.infer<typeof schemas.PageTestConnectionHistoryItemResponse>>;
   };
 
   /**

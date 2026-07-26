@@ -167,3 +167,44 @@ export const confirmInstallation = (targetSourceId: number): Promise<unknown> =>
     `/target-sources/${targetSourceId}/pii-agent-installation/confirm`,
     { method: 'POST', body: { confirm: true } },
   );
+
+// ---------------------------------------------------------------------------
+// TC 이력 — Complete/Reject/Reset trail (swagger getTestConnectionHistory).
+// ---------------------------------------------------------------------------
+
+interface TcHistoryWire {
+  target_source_id?: number;
+  status?: string | null;
+  reason?: string | null;
+  created_at?: string | null;
+}
+
+export interface TcHistoryRow {
+  status: string;
+  reason: string | null;
+  createdAt: string | null;
+}
+
+export interface TcHistoryPage {
+  totalPages: number;
+  content: TcHistoryRow[];
+}
+
+/** GET …/{id}/test-connection/history?page&size — Spring page, newest first. */
+export const getTestConnectionHistory = async (
+  targetSourceId: number,
+  page = 0,
+  size = 5,
+): Promise<TcHistoryPage> => {
+  const raw = await fetchInfraJson<{ totalPages?: number; content?: TcHistoryWire[] | null }>(
+    `/target-sources/${targetSourceId}/test-connection/history?page=${page}&size=${size}`,
+  );
+  return {
+    totalPages: Math.max(1, raw.totalPages ?? 1),
+    content: (raw.content ?? []).map((w) => ({
+      status: w.status ?? 'UNKNOWN',
+      reason: w.reason ?? null,
+      createdAt: w.created_at ?? null,
+    })),
+  };
+};

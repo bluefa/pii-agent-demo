@@ -1733,4 +1733,44 @@ export const mockConfirm = {
     return NextResponse.json(tcFns.setConfirmation(Number(targetSourceId), body.confirmed === true));
   },
 
+  // GET …/test-connection/history?page&size → PageTestConnectionHistoryItemResponse.
+  // Rows derived from the project's confirm/reject trail (newest first).
+  getTestConnectionHistory: async (targetSourceId: string, page: number, size: number) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    const rows: Array<{ target_source_id: number; status: string; reason: string | null; created_at: string }> = [];
+    if (project.completionConfirmedAt) {
+      rows.push({
+        target_source_id: Number(targetSourceId),
+        status: 'COMPLETE',
+        reason: null,
+        created_at: project.completionConfirmedAt,
+      });
+    }
+    if (project.isRejected) {
+      rows.push({
+        target_source_id: Number(targetSourceId),
+        status: 'REJECT',
+        reason: project.rejectionReason ?? null,
+        created_at: project.rejectedAt ?? project.updatedAt,
+      });
+    }
+    rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    const start = page * size;
+    return NextResponse.json({
+      totalElements: rows.length,
+      totalPages: Math.max(1, Math.ceil(rows.length / size)),
+      size,
+      number: page,
+      content: rows.slice(start, start + size),
+    });
+  },
+
 };
