@@ -139,42 +139,42 @@ export function OpsHeader({
             </div>
           )}
         </div>
+      </div>
 
-        <div className={opsStyles.bubbleWrap}>
-          <div className={opsStyles.bubble}>
-            <div className={opsStyles.bubbleTop}>
-              <span className={opsStyles.bubbleTitle}>협업 채널</span>
-              {/* 관리 lands on the service ops page (Jira ticket management lives
-                  there); the modal remains the fallback when no service is linked. */}
-              {detail.service_code ? (
-                <Link
-                  href={passRoutes.pipelines.ops.service(detail.service_code)}
-                  className={opsStyles.bubbleManage}
-                >
-                  관리
-                </Link>
-              ) : (
-                <button type="button" className={opsStyles.bubbleManage} onClick={onOpenChannel}>
-                  관리
-                </button>
-              )}
-            </div>
-            {channel ? (
-              <a
-                href={channel.url}
-                target="_blank"
-                rel="noreferrer"
-                className={opsStyles.bubbleJiraRow}
+      <div className={opsStyles.bubbleWrap}>
+        <div className={opsStyles.bubble}>
+          <div className={opsStyles.bubbleTop}>
+            <span className={opsStyles.bubbleTitle}>협업 채널</span>
+            {/* 관리 (secondary CTA) lands on the service ops page; the modal
+                remains the fallback when no service is linked. */}
+            {detail.service_code ? (
+              <Link
+                href={passRoutes.pipelines.ops.service(detail.service_code)}
+                className={opsStyles.bubbleManage}
               >
-                <JiraMark />
-                <span className={opsStyles.bubbleLink}>
-                  {channel.issue_key} <span aria-hidden>↗</span>
-                </span>
-              </a>
+                관리
+              </Link>
             ) : (
-              <span className={cn(pipelineStyles.text.meta, 'whitespace-nowrap')}>연결된 채널 없음</span>
+              <button type="button" className={opsStyles.bubbleManage} onClick={onOpenChannel}>
+                관리
+              </button>
             )}
           </div>
+          {channel ? (
+            <a
+              href={channel.url}
+              target="_blank"
+              rel="noreferrer"
+              className={opsStyles.bubbleJiraRow}
+            >
+              <JiraMark />
+              <span className={opsStyles.bubbleLink}>
+                {channel.issue_key} <span aria-hidden>↗</span>
+              </span>
+            </a>
+          ) : (
+            <span className={cn(pipelineStyles.text.meta, 'whitespace-nowrap')}>연결된 채널 없음</span>
+          )}
           <span className={opsStyles.bubbleTail} aria-hidden />
         </div>
       </div>

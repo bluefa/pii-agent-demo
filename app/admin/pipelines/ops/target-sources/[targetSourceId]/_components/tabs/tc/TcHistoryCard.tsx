@@ -70,8 +70,8 @@ export function TcHistoryCard({ targetSourceId, reloadKey }: TcHistoryCardProps)
 
   return (
     <section aria-label="Test Connection 이력">
-      <h2 className={opsStyles.cardTitle}>Test Connection 이력</h2>
-      <p className={opsStyles.cardDesc}>완료 · 재실행 요청 · 초기화 기록 (최신순)</p>
+      <h2 className={opsStyles.cardTitle}>이력</h2>
+      <p className={opsStyles.cardDesc}>완료 · 재실행 · 초기화 (최신순)</p>
 
       {loading ? (
         <div className="min-h-[160px]" aria-busy />

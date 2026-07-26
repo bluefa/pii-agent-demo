@@ -30,14 +30,17 @@ export function TcTab({ targetSourceId, detail }: TcTabProps): ReactElement {
   return (
     <>
       <section className={pipelineStyles.card.base} aria-label="Test Connection">
-        <TcResultCard
-          targetSourceId={targetSourceId}
-          detail={detail}
-          reloadKey={reloadKey}
-          onReload={reload}
-        />
-        <div className="mt-6 border-t border-[var(--pl-border)] pt-5">
-          <TcHistoryCard targetSourceId={targetSourceId} reloadKey={reloadKey} />
+        {/* 결과 = main pane, 이력 = side rail (own pagination) — one dataset, two panes. */}
+        <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
+          <TcResultCard
+            targetSourceId={targetSourceId}
+            detail={detail}
+            reloadKey={reloadKey}
+            onReload={reload}
+          />
+          <div className="min-w-0 border-l border-[var(--pl-border)] pl-6">
+            <TcHistoryCard targetSourceId={targetSourceId} reloadKey={reloadKey} />
+          </div>
         </div>
       </section>
       <ConfirmedInfoCard targetSourceId={targetSourceId} reloadKey={reloadKey} onReload={reload} />

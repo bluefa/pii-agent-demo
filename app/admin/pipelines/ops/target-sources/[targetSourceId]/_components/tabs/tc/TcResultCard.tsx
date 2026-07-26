@@ -26,6 +26,7 @@ import {
   confirmInstallation,
   type TcResultRow,
 } from '@/app/lib/api/task-queue-tc';
+import { triggerTestConnection } from '@/app/lib/api';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -203,6 +204,16 @@ export function TcResultCard({
     onError: () => toast.show('연동 승인에 실패했습니다.'),
   });
 
+  // Direct run (POST …/test-connection/async) — the server owns eligibility
+  // (409 while running / 4xx before install), so the button just reports.
+  const runTc = useApiAction(() => triggerTestConnection(targetSourceId), {
+    onSuccess: () => {
+      toast.show('연결 테스트 실행을 요청했습니다.');
+      onReload();
+    },
+    onError: () => toast.show('연결 테스트 실행 요청에 실패했습니다.'),
+  });
+
   const stats = tcResultStats(results);
   const isCompleted = status?.status === COMPLETED;
   const isRejected = status?.status === REJECTED;
@@ -229,11 +240,21 @@ export function TcResultCard({
           <p className={cn(pipelineStyles.empty.meta, 'mt-1')}>
             Agent 설치 완료 이후 실행할 수 있습니다.
           </p>
-          {(statusFailed || resultsFailed) && (
-            <PlButton variant="secondary" size="sm" className="mt-3" onClick={onReload}>
-              다시 시도
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <PlButton
+              variant="primary"
+              size="sm"
+              onClick={() => void runTc.execute()}
+              disabled={runTc.loading}
+            >
+              연결 테스트 실행
             </PlButton>
-          )}
+            {(statusFailed || resultsFailed) && (
+              <PlButton variant="secondary" size="sm" onClick={onReload}>
+                다시 시도
+              </PlButton>
+            )}
+          </div>
         </div>
       </section>
     );

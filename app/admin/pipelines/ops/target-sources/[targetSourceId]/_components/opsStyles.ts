@@ -6,7 +6,7 @@ export const opsStyles = {
   /** 3-tier surface (admin-ops.html .ts-mast): full-bleed white masthead over the
       layout's gray page — escapes layout.content padding (-mt-6 -mx-8), no card. */
   headCard: '-mt-6 -mx-8',
-  header: 'bg-[var(--pl-bg-card)] px-8 pt-5 pb-[18px] border-b border-[var(--pl-border)]',
+  header: 'relative bg-[var(--pl-bg-card)] px-8 pt-5 pb-[18px] border-b border-[var(--pl-border)]',
 
   /** 현재 단계 row under the breadcrumb. */
   stageRow: 'flex items-center gap-2 mt-1',
@@ -33,16 +33,25 @@ export const opsStyles = {
   roleEmpty: 'text-[12px] text-[var(--pl-text-faint)]',
   roleRegister: 'text-[12px] font-semibold text-[var(--pl-primary)] underline cursor-pointer',
 
-  /** 협업 채널 speech bubble — Figma 61:6 (tail below-left). */
-  bubbleWrap: 'relative flex-none',
-  bubble: 'rounded-[10px] bg-[var(--pl-gray-100)] px-4 py-3.5 flex flex-col gap-2',
-  bubbleTail: 'absolute left-4 -bottom-[6px] h-3 w-3 rotate-45 bg-[var(--pl-gray-100)]',
-  bubbleTop: 'flex items-center gap-2',
-  bubbleTitle: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
-  bubbleManage: 'text-[11px] text-[var(--pl-primary)] underline cursor-pointer',
-  bubbleJiraRow: 'flex items-center gap-1.5',
+  /** 협업 채널 — popover-style callout (Radix/shadcn grammar: white surface +
+      border + soft shadow + border-matched arrow), pinned to the masthead's
+      top-right. CTA hierarchy: Jira link = primary (brand color), 관리 = quiet. */
+  bubbleWrap: 'absolute top-5 right-8 z-10',
+  bubble:
+    'relative min-w-[190px] rounded-xl bg-[var(--pl-bg-card)] border border-[var(--pl-border)] shadow-[var(--pl-shadow-lg)] px-4 py-3 flex flex-col gap-1.5',
+  /* Border-matched arrow: rotated square sharing the bubble's border on its two
+     visible edges, pointing down-left toward the target title. */
+  bubbleTail:
+    'absolute left-5 -bottom-[6.5px] h-3 w-3 rotate-45 bg-[var(--pl-bg-card)] border-b border-r border-[var(--pl-border)]',
+  bubbleTop: 'flex items-center justify-between gap-4',
+  bubbleTitle: 'text-[12px] font-semibold text-[var(--pl-text-weak)]',
+  bubbleManage:
+    'text-[11px] font-medium text-[var(--pl-text-faint)] hover:text-[var(--pl-text-medium)] hover:underline cursor-pointer',
+  bubbleJiraRow:
+    'self-start inline-flex items-center gap-1.5 -mx-1.5 px-1.5 py-0.5 rounded-md hover:bg-[var(--pl-primary-bg)] transition-colors',
   /* Plain inline (not inline-flex) so the underline runs unbroken across "KEY ↗". */
-  bubbleLink: 'text-[13px] font-medium text-[var(--pl-text-strong)] underline cursor-pointer',
+  bubbleLink:
+    'text-[13px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 cursor-pointer',
 
   /** Tab rail (admin-ops.html .tabbar) — tinted band; only the active tab turns
       white so it visually connects to the body below. */
