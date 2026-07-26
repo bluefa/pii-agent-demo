@@ -18,6 +18,7 @@ import {
   type ConfirmedIntegrationResourceItem,
 } from '@/app/lib/api';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { Dash } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
@@ -88,6 +89,9 @@ export function ConfirmedInfoCard({
         <div className="min-h-[160px]" aria-busy />
       ) : rows.length === 0 ? (
         <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
+          <span className={pipelineStyles.empty.icon}>
+            <Icon name="install" size="lg" />
+          </span>
           <p>확정된 연동 정보가 없습니다.</p>
           {failed && (
             <PlButton variant="secondary" size="sm" className="mt-3" onClick={onReload}>

@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { getApprovalHistory } from '@/app/lib/api';
+import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { ApprovalRequestDetailModal } from '@/app/components/features/process-status/ApprovalRequestDetailModal';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { fmtDateTime } from '@/lib/pipeline/format';
@@ -114,7 +115,7 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
       {failed ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-2')}>승인 요청 내역을 불러오지 못했습니다.</p>
       ) : !loading && rows.length === 0 ? (
-        <p className={cn(pipelineStyles.empty.base, 'mt-2')}>승인 요청 내역이 없습니다.</p>
+        <PlEmptyState icon="inbox" message="승인 요청 내역이 없습니다." className="mt-2" />
       ) : (
         <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
           <table className={table.base}>

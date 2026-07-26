@@ -29,6 +29,7 @@ import {
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import { LdbModal } from '@/app/admin/pipelines/queue/test-connections/_tc/LdbModal';
@@ -221,6 +222,9 @@ export function TcResultCard({
       <section className={pipelineStyles.card.base} aria-label="Test Connection 결과">
         <h2 className={opsStyles.cardTitle}>Test Connection 결과</h2>
         <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
+          <span className={pipelineStyles.empty.icon}>
+            <Icon name="flow" size="lg" />
+          </span>
           <p>Test Connection 실행 이력이 없습니다.</p>
           <p className={cn(pipelineStyles.empty.meta, 'mt-1')}>
             Agent 설치 완료 이후 실행할 수 있습니다.

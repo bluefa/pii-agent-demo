@@ -9,16 +9,21 @@
  * Reads are independent and best-effort so a failing card never blanks its
  * sibling:
  *   - 최근 승인 요청 / 요청 리소스 → …/approval-requests/latest
- *   - 확정 정보                    → …/approved-integration
+ *   - 확정 정보                    → …/confirmed-integration (현재 확정 상태)
  *   - 처리 (처리자 · 처리 일시)     → …/approval-history (latest page item)
  * A missing snapshot (404) is an empty state, not a failure.
  */
 import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { AppError, isMissingApprovedIntegrationError } from '@/lib/errors';
+import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { getApprovalHistory, getApprovedIntegration } from '@/app/lib/api';
+import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
+import {
+  getApprovalHistory,
+  getConfirmedIntegration,
+  type ConfirmedIntegrationResourceItem,
+} from '@/app/lib/api';
 import {
   getApprovalRequestLatest,
   type ApprovalRequestDetail,
@@ -30,13 +35,9 @@ import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 /** `data: null` = the snapshot does not exist yet (404), not a failure. */
 type Load<T> = { state: 'loading' } | { state: 'ready'; data: T | null } | { state: 'failed' };
 
-/** 확정 정보 source — the approved-integration snapshot (approved = 확정). */
-interface ApprovedSnapshot {
-  approvedAt: string | null;
-  approvedBy: string | null;
-  confirmedCount: number;
-  excludedCount: number;
-}
+/** 확정 정보 source — confirmed-integration rows (contract carries resources only,
+ *  no 확정 일시/확정자, so the card scopes down to what the wire declares). */
+type ConfirmedRows = ConfirmedIntegrationResourceItem[];
 
 /** 처리 source — one …/approval-history content item. CONTRACT GAP: the swagger
  *  200 is the generic `Page`, so the item shape is off-contract (same local wire
@@ -183,7 +184,7 @@ export interface RequestTabProps {
 
 export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactElement {
   const [request, setRequest] = useState<Load<ApprovalRequestDetail>>({ state: 'loading' });
-  const [approved, setApproved] = useState<Load<ApprovedSnapshot>>({ state: 'loading' });
+  const [confirmed, setConfirmed] = useState<Load<ConfirmedRows>>({ state: 'loading' });
   const [processed, setProcessed] = useState<ProcessedInfo | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const retry = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -204,27 +205,19 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
       }
     })();
 
-    // 확정 정보 — the approved-integration snapshot.
+    // 확정 정보 — the confirmed-integration state (the current confirmed truth;
+    // an absent snapshot 404s and an empty list both read as "not confirmed yet").
     void (async () => {
-      setApproved({ state: 'loading' });
+      setConfirmed({ state: 'loading' });
       try {
-        const { approved_integration: snapshot } = await getApprovedIntegration(targetSourceId);
+        const data = await getConfirmedIntegration(targetSourceId);
         if (cancelled) return;
-        setApproved({
-          state: 'ready',
-          data: snapshot
-            ? {
-                approvedAt: snapshot.approved_at || null,
-                approvedBy: snapshot.approved_by,
-                confirmedCount: snapshot.resource_infos.length,
-                excludedCount: snapshot.excluded_resource_infos.length,
-              }
-            : null,
-        });
+        const rows = data.resource_infos ?? [];
+        setConfirmed({ state: 'ready', data: rows.length > 0 ? rows : null });
       } catch (error) {
         if (cancelled) return;
-        setApproved(
-          isMissingApprovedIntegrationError(error)
+        setConfirmed(
+          isMissingConfirmedIntegrationError(error)
             ? { state: 'ready', data: null }
             : { state: 'failed' },
         );
@@ -256,6 +249,11 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
 
   const isIdc = detail.cloud_provider === 'IDC';
   const columns = isIdc ? IDC_COLUMNS : CLOUD_COLUMNS;
+
+  const confirmedDbTypes =
+    confirmed.state === 'ready' && confirmed.data
+      ? [...new Set(confirmed.data.map((row) => row.database_type).filter((type): type is string => !!type))]
+      : [];
 
   const summary = request.state === 'ready' ? request.data?.request ?? null : null;
   const rows = request.state === 'ready' ? request.data?.resources ?? [] : [];
@@ -293,7 +291,7 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
               {retryButton}
             </div>
           ) : summary == null ? (
-            <p className={cn(pipelineStyles.empty.base, 'mt-2')}>승인 요청 이력이 없습니다.</p>
+            <PlEmptyState icon="inbox" message="승인 요청 이력이 없습니다." className="mt-2" />
           ) : (
             <dl className={KV_GRID}>
               <KvRow label="요청 ID">
@@ -326,28 +324,34 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
             승인 후 확정된 연동 대상입니다. 설치 파이프라인의 입력이 됩니다.
           </p>
 
-          {approved.state === 'loading' ? (
+          {confirmed.state === 'loading' ? (
             <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
               불러오는 중…
             </p>
-          ) : approved.state === 'failed' ? (
+          ) : confirmed.state === 'failed' ? (
             <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
               <p>확정 정보를 불러오지 못했습니다.</p>
               {retryButton}
             </div>
-          ) : approved.data == null ? (
-            <p className={cn(pipelineStyles.empty.base, 'mt-2')}>확정된 연동 정보가 없습니다.</p>
+          ) : confirmed.data == null ? (
+            <PlEmptyState icon="install" message="확정된 연동 정보가 없습니다." className="mt-2" />
           ) : (
             <>
               <dl className={KV_GRID}>
-                <KvRow label="확정 리소스">
-                  {approved.data.confirmedCount}개{' '}
-                  <span className={pipelineStyles.text.muted}>
-                    (제외 {approved.data.excludedCount}개)
-                  </span>
+                <KvRow label="확정 리소스">{confirmed.data.length}개</KvRow>
+                <KvRow label="Database Type">
+                  {confirmedDbTypes.length > 0 ? (
+                    <span className="inline-flex flex-wrap gap-1.5">
+                      {confirmedDbTypes.map((type) => (
+                        <span key={type} className={DB_TAG}>
+                          {type}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    dash()
+                  )}
                 </KvRow>
-                <KvRow label="확정 일시">{fmtDateTime(approved.data.approvedAt)}</KvRow>
-                <KvRow label="확정자">{orDash(approved.data.approvedBy)}</KvRow>
               </dl>
               <p className={NOTE_WARN}>
                 확정 정보를 삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다.
@@ -376,7 +380,7 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
             {retryButton}
           </div>
         ) : rows.length === 0 ? (
-          <p className={cn(pipelineStyles.empty.base, 'mt-2')}>요청 리소스가 없습니다.</p>
+          <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-2" />
         ) : (
           <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
             <table className={opsStyles.table.base}>

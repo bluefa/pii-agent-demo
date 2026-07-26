@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { getStatusHistory, type StatusHistoryItem } from '@/app/lib/api/ops';
+import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
@@ -54,7 +55,7 @@ export function StatusHistoryCard({ targetSourceId }: StatusHistoryCardProps): R
       {failed ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-2')}>상태 변경 이력을 불러오지 못했습니다.</p>
       ) : !loading && rows.length === 0 ? (
-        <p className={cn(pipelineStyles.empty.base, 'mt-2')}>상태 변경 이력이 없습니다.</p>
+        <PlEmptyState icon="clock" message="상태 변경 이력이 없습니다." className="mt-2" />
       ) : (
         <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
           {/* Figma 4:2: two columns only (일시 · 변경) — no actor column. */}

@@ -15,6 +15,7 @@ import { getScanHistory, startScan } from '@/app/lib/api/scan';
 import { useScanPolling } from '@/app/hooks/useScanPolling';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
@@ -182,11 +183,11 @@ export function ScanTab({ targetSourceId }: ScanTabProps): ReactElement {
             불러오는 중…
           </p>
         ) : !latestJob ? (
-          <div className="mt-4">
-            <p className={pipelineStyles.text.meta}>
-              {error ? '스캔 정보를 불러오지 못했습니다.' : '스캔 이력이 없습니다.'}
-            </p>
-          </div>
+          error ? (
+            <p className={cn(pipelineStyles.text.meta, 'mt-4')}>스캔 정보를 불러오지 못했습니다.</p>
+          ) : (
+            <PlEmptyState icon="search" message="스캔 이력이 없습니다." className="mt-2" />
+          )
         ) : (
           <>
             <div className="mt-4 flex flex-wrap items-center gap-4">
@@ -260,7 +261,7 @@ export function ScanTab({ targetSourceId }: ScanTabProps): ReactElement {
             </PlButton>
           </div>
         ) : !historyLoading && rows.length === 0 ? (
-          <p className={cn(pipelineStyles.empty.base, 'mt-2')}>스캔 이력이 없습니다.</p>
+          <PlEmptyState icon="search" message="스캔 이력이 없습니다." className="mt-2" />
         ) : (
           <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
             <table className={table.base}>

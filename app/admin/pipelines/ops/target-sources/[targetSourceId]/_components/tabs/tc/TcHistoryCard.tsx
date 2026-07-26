@@ -11,6 +11,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { getTestConnectionHistory, type TcHistoryRow } from '@/app/lib/api/task-queue-tc';
+import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
@@ -77,7 +78,7 @@ export function TcHistoryCard({ targetSourceId, reloadKey }: TcHistoryCardProps)
       ) : failed ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-2')}>이력을 불러오지 못했습니다.</p>
       ) : rows.length === 0 ? (
-        <p className={cn(pipelineStyles.empty.base, 'mt-2')}>이력이 없습니다.</p>
+        <PlEmptyState icon="clock" message="이력이 없습니다." className="mt-2" />
       ) : (
         <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
           <table className={table.base}>
