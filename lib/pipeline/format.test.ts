@@ -4,6 +4,7 @@ import {
   currentTask,
   currentTaskLabel,
   fmtDateTime,
+  fmtDateTimeSec,
   fmtDuration,
   fmtRelativeTime,
   KIND_POLICY,
@@ -76,6 +77,19 @@ describe('fmtDateTime', () => {
   it('returns - for null / invalid', () => {
     expect(fmtDateTime(null)).toBe('-');
     expect(fmtDateTime('not-a-date')).toBe('-');
+  });
+});
+
+describe('fmtDateTimeSec', () => {
+  it('formats with seconds (schedule times — start-delay is second-scale)', () => {
+    expect(fmtDateTimeSec('2026-06-30T05:02:17Z')).toBe('2026-06-30 14:02:17');
+  });
+  it('normalizes midnight and keeps the seconds tail', () => {
+    expect(fmtDateTimeSec('2026-06-29T15:00:05Z')).toBe('2026-06-30 00:00:05');
+  });
+  it('returns - for null / invalid', () => {
+    expect(fmtDateTimeSec(null)).toBe('-');
+    expect(fmtDateTimeSec('not-a-date')).toBe('-');
   });
 });
 

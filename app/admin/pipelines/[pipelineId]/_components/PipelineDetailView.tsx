@@ -17,7 +17,7 @@
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -29,8 +29,10 @@ import { PipelineTypeTag } from '@/app/admin/pipelines/_components/PipelineTypeT
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { TaskFlow } from '@/app/admin/pipelines/_detail/TaskFlow';
+import { RestartBadge } from '@/app/admin/pipelines/_detail/r24Task';
 import { TaskDrawer } from '@/app/admin/pipelines/_detail/TaskDrawer';
 import { CancelModal } from '@/app/admin/pipelines/_detail/CancelModal';
+import { RestartModal } from '@/app/admin/pipelines/_detail/RestartModal';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyles';
 import {
@@ -50,10 +52,10 @@ import {
   taskMetaLine,
 } from '@/lib/pipeline/format';
 import {
+  getLatestPipelineByTarget,
   getPipeline,
   getTaskDefinitions,
   getTaskDetail,
-  listPipelinesByTarget,
   OrchestratorApiError,
 } from '@/app/lib/api/pipeline';
 import type { PipelineDetail, PipelineSummary, TaskDetail, TaskSummary } from '@/lib/pipeline/types';
@@ -79,13 +81,18 @@ export function PipelineDetailView(): ReactElement {
   // Per-task detail is fetched lazily — only the task the operator opens. `has(id)`
   // distinguishes "not fetched yet" (skeleton) from "fetched, value null" (error).
   const [detailMap, setDetailMap] = useState<ReadonlyMap<number, TaskDetail | null>>(new Map());
-  // Owning-service identity for the header — the SAME value the dashboard shows
-  // (PipelineSummary.service_*, i.e. project code/name). PipelineDetail omits it,
-  // so we read it off any of this target's pipeline summaries (all share it).
-  const [svc, setSvc] = useState<Pick<PipelineSummary, 'service_code' | 'service_name'> | null>(null);
+  // The target's LATEST run (#8). Two jobs: the owning-service identity for the
+  // header (PipelineDetail carries neither field, and every run of a target
+  // shares it), and the restart gate — only the latest run is restartable
+  // (decision 5), so the band CTA needs to know whether THIS run is it.
+  const [latest, setLatest] = useState<PipelineSummary | null>(null);
   const [selected, setSelected] = useState<TaskSummary | null>(null);
   const cancelModal = useModal();
+  const restartModal = useModal();
   const [reloadKey, setReloadKey] = useState(0);
+  // `?task=` (restart drawer deep-link) — applied as the pipeline loads.
+  const searchParams = useSearchParams();
+  const taskParam = searchParams.get('task');
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +106,12 @@ export function PipelineDetailView(): ReactElement {
         if (cancelled) return;
         setDetail(d);
         setStatus('ready');
+        // Restart deep-link (`?task=<originTaskId>` from the drawer's origin link):
+        // open that task's drawer as the page settles.
+        const deepLinked = taskParam
+          ? d.tasks.find((t) => String(t.task_id) === taskParam)
+          : undefined;
+        if (deepLinked) setSelected(deepLinked);
         getTaskDefinitions(d.cloud_provider)
           .then((res) => {
             if (cancelled) return;
@@ -106,11 +119,10 @@ export function PipelineDetailView(): ReactElement {
             setDescMap(new Map(res.task_definitions.map((c) => [c.name, c.description])));
           })
           .catch(() => {});
-        // Service name/code for the header (PipelineDetail carries neither) —
-        // read off any of this target's pipeline summaries so it matches the
-        // dashboard exactly; degrade silently on failure.
-        listPipelinesByTarget(d.target_source_id, { page: 0, size: 1 })
-          .then((page) => !cancelled && setSvc(page.content[0] ?? null))
+        // Latest run of the owning target — service identity + restart gate.
+        // Degrades silently: no latest ⇒ no restart CTA (server is the authority).
+        getLatestPipelineByTarget(d.target_source_id)
+          .then((p) => !cancelled && setLatest(p))
           .catch(() => {});
       } catch (err) {
         if (cancelled) return;
@@ -120,7 +132,7 @@ export function PipelineDetailView(): ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [pipelineId, reloadKey]);
+  }, [pipelineId, reloadKey, taskParam]);
 
   // Lazy task-detail fetch: only when the operator opens a task and its detail
   // isn't cached yet. `detailMap.has` gates both the fetch and the drawer skeleton.
@@ -206,16 +218,27 @@ export function PipelineDetailView(): ReactElement {
 
   // Node subtitle without a per-task fetch. FAILED → a failure line built from the
   // summary (fail_count + error code); the precise f/m retry budget lives in the
-  // drawer, which loads the task detail. Otherwise: catalog description → operator
-  // description → status meta line.
+  // drawer, which loads the task detail. A RETRYING task (fail_count>0, back to
+  // READY between attempts or IN_PROGRESS on the re-run) says so explicitly —
+  // otherwise the node reads "running/waiting" while the drawer's attempt list
+  // shows FAILED rows, which operators flagged as contradictory. Otherwise:
+  // catalog description → operator description → status meta line.
   const resolveMeta = useCallback(
     (t: TaskSummary): string => {
       if (t.status === 'FAILED') {
         return `실패 ${t.fail_count}회 — ${t.error_code ?? '원인 미기록'}`;
       }
+      if (t.fail_count > 0 && (t.status === 'IN_PROGRESS' || t.status === 'READY')) {
+        const max =
+          t.sequence === detail?.current_task_sequence ? detail?.current_max_fail_count : null;
+        const budget = `${t.fail_count}/${max ?? '?'}`;
+        return t.status === 'READY'
+          ? `직전 시도 실패 — 재시도 대기 중 (${budget})`
+          : `직전 시도 실패 — 재시도 실행 중 (${budget})`;
+      }
       return descMap.get(t.task_definition) || t.description || taskMetaLine(t, null);
     },
-    [descMap],
+    [descMap, detail],
   );
 
   const retrySelectedDetail = async (): Promise<void> => {
@@ -282,8 +305,16 @@ export function PipelineDetailView(): ReactElement {
   // terminal (DONE/FAILED/CANCELLED) → a plain status badge in the header.
   const live = isLivePipeline(detail.status);
   const cur = currentTaskInfo(detail.status, detail.next_due_at, detail.tasks, resolveName, retryFor);
-  const svcName = svc?.service_name || svc?.service_code || `Target ${detail.target_source_id}`;
+  const svcName = latest?.service_name || latest?.service_code || `Target ${detail.target_source_id}`;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  // §8.4 — the band's right slot is "what you can do in this state": live → cancel,
+  // restartable failure → restart, DONE → nothing (decision 5). An already-restarted run
+  // (restarted_by_pipeline_id) drops the CTA so it is never restarted twice.
+  const restartable =
+    (detail.status === 'FAILED' || detail.status === 'CANCELLED') &&
+    latest?.pipeline_id === detail.pipeline_id &&
+    detail.restarted_by_pipeline_id == null;
+  const origin = detail.origin ?? null;
 
   return (
     <div className={improvedStyles.bleed}>
@@ -294,6 +325,19 @@ export function PipelineDetailView(): ReactElement {
             <div className={h.titleRow}>
               <h1 className={h.title}>작업 현황</h1>
               <span className={h.id}>#{detail.pipeline_id}</span>
+              {/* The restart identity belongs next to the run's own id — an operator
+                  must not have to read the meta grid to learn this is a re-run. */}
+              {detail.origin_pipeline_id != null && (
+                <Link
+                  href={passRoutes.pipelines.pipeline(detail.origin_pipeline_id)}
+                  title={`원본 작업 #${detail.origin_pipeline_id} 상세로 이동`}
+                >
+                  <RestartBadge
+                    originPipelineId={detail.origin_pipeline_id}
+                    className="!text-[12.5px] !px-3 !py-[4px] hover:brightness-95"
+                  />
+                </Link>
+              )}
               {/* Status is shown in the exec band (below) for every state. */}
               {detail.cancel_requested && (
                 <span className={detailStyles.ftag.ext} title="cancel_requested=true — 다음 실행 사이클에 취소가 반영됩니다">
@@ -333,6 +377,36 @@ export function PipelineDetailView(): ReactElement {
           <Link href={passRoutes.pipelines.target(detail.target_source_id)} className={h.link}>
             Target 상세 확인 <Icon name="arrow-ur" size="sm" />
           </Link>
+
+          {/* §8.4 — bidirectional provenance. Walking to the origin and to the restart from
+              one place is what tells an operator "this was already handled". */}
+          {(detail.origin_pipeline_id != null || detail.restarted_by_pipeline_id != null) && (
+            <>
+              <span className={h.groupLabel}>계보</span>
+              {detail.origin_pipeline_id != null && (
+                <div className={h.pair}>
+                  <span className={h.k}>원본 작업</span>
+                  <Link
+                    href={passRoutes.pipelines.pipeline(detail.origin_pipeline_id)}
+                    className={h.link}
+                  >
+                    #{detail.origin_pipeline_id} <Icon name="arrow-ur" size="sm" />
+                  </Link>
+                </div>
+              )}
+              {detail.restarted_by_pipeline_id != null && (
+                <div className={h.pair}>
+                  <span className={h.k}>재시작됨</span>
+                  <Link
+                    href={passRoutes.pipelines.pipeline(detail.restarted_by_pipeline_id)}
+                    className={h.link}
+                  >
+                    ↻ #{detail.restarted_by_pipeline_id} <Icon name="arrow-ur" size="sm" />
+                  </Link>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </header>
 
@@ -358,7 +432,7 @@ export function PipelineDetailView(): ReactElement {
             </span>
           </div>
         </div>
-        {live && (
+        {live ? (
           <PlButton
             variant="dangerSolid"
             disabled={!cancellable}
@@ -367,8 +441,32 @@ export function PipelineDetailView(): ReactElement {
           >
             중단
           </PlButton>
-        )}
+        ) : restartable ? (
+          <PlButton
+            variant="primary"
+            onClick={() => restartModal.open()}
+            title="마지막으로 실패한 Task부터 새 작업으로 다시 실행합니다"
+          >
+            <Icon name="play" size="sm" />
+            실패 지점부터 재시작
+          </PlButton>
+        ) : null}
       </div>
+
+      {/* §8.4 — restart context strip. Progress (0/N) stays on this run's own suffix;
+          this one line explains where it sits in the origin chain (no ghost nodes). */}
+      {origin && (
+        <div className={improvedStyles.originStrip}>
+          <span>↻</span>
+          <span>
+            원본 <b className="font-semibold">#{origin.pipeline_id}</b>의{' '}
+            {origin.total_task_count}단계 중 {origin.done_task_count}단계 완료 —{' '}
+            {origin.resumed_from_sequence != null
+              ? `${origin.resumed_from_sequence + 1}단계부터 재실행`
+              : '남은 단계부터 재실행'}
+          </span>
+        </div>
+      )}
 
       <TaskFlow
         className="flex-1"
@@ -387,6 +485,11 @@ export function PipelineDetailView(): ReactElement {
               detailLoaded={detailMap.has(selected.task_id)}
               displayName={resolveName(selected)}
               onRetry={retrySelectedDetail}
+              originHref={
+                detail.origin_pipeline_id != null && selected.origin_task_id != null
+                  ? `${passRoutes.pipelines.pipeline(detail.origin_pipeline_id)}?task=${selected.origin_task_id}`
+                  : null
+              }
             />
           ) : undefined
         }
@@ -403,6 +506,19 @@ export function PipelineDetailView(): ReactElement {
         }}
         showToast={toast.show}
       />
+
+      {/* Mounted only while open — see RestartModal (fresh state per open). */}
+      {restartModal.isOpen && (
+      <RestartModal
+        open={restartModal.isOpen}
+        onClose={restartModal.close}
+        targetSourceId={detail.target_source_id}
+        pipelineId={detail.pipeline_id}
+        provider={detail.cloud_provider}
+        showToast={toast.show}
+        onStale={() => setReloadKey((k) => k + 1)}
+      />
+      )}
     </div>
   );
 }

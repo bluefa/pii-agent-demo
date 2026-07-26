@@ -58,6 +58,10 @@ export const mockBff: BffClient = {
     create: async (targetSourceId, body) => mockPipeline.create(targetSourceId, body),
     createCustom: async (targetSourceId, body) => mockPipeline.createCustom(targetSourceId, body),
     taskDefinitions: async (provider) => mockPipeline.taskDefinitions(provider),
+    restartPreview: async (targetSourceId, pipelineId, fromSequence) =>
+      mockPipeline.restartPreview(targetSourceId, pipelineId, fromSequence),
+    restart: async (targetSourceId, pipelineId, body) =>
+      mockPipeline.restart(targetSourceId, pipelineId, body),
   },
 
   targetSources: {

@@ -20,6 +20,7 @@
  * remounts per task (`key={task_id}`) so all local view state resets.
  */
 import { useEffect, useState, type ReactElement } from 'react';
+import Link from 'next/link';
 import { cn } from '@/lib/theme';
 import { useModal } from '@/app/hooks/useModal';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -49,6 +50,8 @@ export interface TaskDrawerProps {
   displayName: string;
   onClose: () => void;
   onRetry?: () => void;
+  /** Restart provenance (§8.4) — href of the ORIGIN task's drawer, or null. */
+  originHref?: string | null;
 }
 
 export function TaskDrawer({
@@ -58,6 +61,7 @@ export function TaskDrawer({
   displayName,
   onClose,
   onRetry,
+  originHref,
 }: TaskDrawerProps): ReactElement {
   const [tab, setTab] = useState<DrawerTab>('exec');
   const [view, setView] = useState<DrawerView>({ name: 'root' });
@@ -122,6 +126,14 @@ export function TaskDrawer({
               <div className={d.typeRow}>
                 <span className={d.typeLabel}>타입</span>
                 <span className={d.tag}>{task.kind}</span>
+                {/* §8.4 — a restart task links straight to the origin task's attempts and
+                    terraform logs (the source of the failure diagnosis). */}
+                {originHref && (
+                  <Link href={originHref} className={d.originLink} title="원본 작업의 이 Task 상세로 이동">
+                    이전 실행 이력 보기
+                    <Icon name="arrow-ur" size="sm" />
+                  </Link>
+                )}
               </div>
             </div>
             <button type="button" className={d.close} onClick={onClose} aria-label="Task 상세 닫기" title="닫기">

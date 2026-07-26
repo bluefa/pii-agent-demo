@@ -15,7 +15,7 @@ admin 파이프라인 4페이지가 사용하는 **신규 BFF API 경로 전체 
   `design/pipeline/admin-pipeline.html`의 mock 데이터(#123~#129)를 와이어 포맷
   (snake_case, ISO-8601)으로 이식한 것이다.
 
-## 1. 신규 BFF 경로 (14개: #1~#12, #5a/#5b)
+## 1. 신규 BFF 경로 (16개: #1~#14, #5a/#5b)
 
 모든 경로는 **`withOrchestratorProxy` 래핑** Next.js route handler(`withV1` 사용 금지 — 아래 참조).
 ESLint 경계에 따라 `@/lib/bff/client` 경유.
@@ -54,6 +54,8 @@ ESLint 경계에 따라 `@/lib/bff/client` 경유.
 | 10 | `POST /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines` body `{"type":"INSTALL"\|"DELETE"}` | `POST /install/v1/target-sources/{id}/pipelines` | 설치/삭제 시작 |
 | 11 | `POST /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/custom` body `{"tasks":[{"name","description?"}]}` | `POST /install/v1/target-sources/{id}/pipelines/custom` | custom recipe 실행 (빌더는 후속 이슈, 경로는 선제 제공) |
 | 12 | `GET /integration/api/v1/orchestrator/task-definitions?provider` | `GET /install/v1/task-definitions?provider` | task 카탈로그 — operation 표시명 매핑 |
+| 13 | `GET …/target-sources/{targetSourceId}/pipelines/{pipelineId}/restart-preview?from_sequence` | `GET /install/v1/target-sources/{id}/pipelines/{pipelineId}/restart-preview` | 재시작 미리보기 (실행과 동일 검증 — 불가 상태는 여기서 409) |
+| 14 | `POST …/target-sources/{targetSourceId}/pipelines/{pipelineId}/restart` body `{"from_sequence"?}` | `POST /install/v1/target-sources/{id}/pipelines/{pipelineId}/restart` | 실패 지점부터 재시작 (원본 type·recipe 승계한 새 실행) |
 
 응답 shape·enum·에러 코드 전체는 업스트림 계약을 그대로 따른다(이 문서 §4 요약,
 원계약은 pipeline-orchestrator 저장소 controller/dto).

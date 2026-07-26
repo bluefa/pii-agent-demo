@@ -17,6 +17,11 @@
  * descriptions are deliberately NOT collected (owner call — the wire field
  * stays optional and unsent). Pure list/drag math lives in customBuilder.ts;
  * the parent owns the chosen list and the [구성 확인] gating via canSubmit().
+ *
+ * The canvas height is FIXED (420px, not min-height): the docked catalog's
+ * intrinsic row stack must never size the flex container, or the modal grows
+ * with the catalog entry count (operator feedback — the dialog must not
+ * resize by task count; the catalog scrolls internally via .r24-cat-body).
  */
 import {
   Fragment,
@@ -53,7 +58,7 @@ const AUTOSCROLL_MAX_PX = 16;
  * the scrolling order track (left) and the docked catalog panel (right).
  */
 const BUILD_CSS = `
-.r24-build{display:flex;align-items:stretch;min-height:400px;overflow:hidden}
+.r24-build{display:flex;align-items:stretch;height:420px;overflow:hidden}
 .r24-build .r24-bscroll{flex:1;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;padding:24px 22px 16px;display:flex;flex-direction:column;justify-content:center;scrollbar-width:thin;scrollbar-color:var(--pl-gray-300) transparent}
 .r24-build .r24-bscroll::-webkit-scrollbar{height:6px}
 .r24-build .r24-bscroll::-webkit-scrollbar-thumb{border-radius:99px;background:var(--pl-gray-300)}

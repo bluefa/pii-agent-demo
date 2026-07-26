@@ -4,7 +4,7 @@
  * lives in one tested place. (R20: the target-page status bar is gone —
  * currentTaskInfo drives the pipeline page's flow-card header rows.)
  */
-import { currentTask, currentTaskLabel, fmtDateTime } from '@/lib/pipeline/format';
+import { currentTask, currentTaskLabel, fmtDateTimeSec } from '@/lib/pipeline/format';
 import type { PipelineStatus, TaskDetail, TaskSummary } from '@/lib/pipeline/types';
 
 /** Minimal shape both TaskSummary and RecipePreviewStep-ish rows satisfy. */
@@ -55,7 +55,8 @@ export function currentTaskInfo(
   retryFor?: (task: TaskSummary) => string | null,
 ): CurrentTaskInfo {
   if (status === 'PENDING') {
-    return { label: '시작 대기', name: `${fmtDateTime(nextDueAt)} 시작 예정`, retry: null };
+    // 초 단위까지 노출 — start-delay가 ~15초라 분 단위로는 "지금"과 구분되지 않는다(운영 피드백).
+    return { label: '시작 대기', name: `${fmtDateTimeSec(nextDueAt)} 시작 예정`, retry: null };
   }
   const cur = currentTask(tasks);
   if (cur) {

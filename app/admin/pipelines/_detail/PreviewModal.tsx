@@ -76,7 +76,9 @@ const TYPE_LABELS: Record<PipelineType, string> = {
 
 const TYPE_DESCS: Record<PipelineType, string> = {
   INSTALL: '이 대상에 인프라를 설치합니다 — 표준 레시피 7개 Task를 순서대로 실행',
-  CUSTOM: 'Task 순서를 직접 구성해 실행합니다 — 실패 구간만 골라 재실행할 때',
+  // Restarting (RestartModal) is now the sanctioned path for re-running a failure,
+  // so that promise is dropped from the CUSTOM description.
+  CUSTOM: 'Task 순서를 직접 구성해 실행합니다',
   DELETE: '설치된 인프라를 destroy 합니다 — 대상의 리소스가 제거돼요',
 };
 
@@ -133,8 +135,8 @@ function SeqFlow({
   );
 }
 
-/** Consequence note line — info glyph + 12px weak text. */
-function ModalNote({ children }: { children: ReactNode }): ReactElement {
+/** Consequence note line — info glyph + 12px weak text. Shared with RestartModal. */
+export function ModalNote({ children }: { children: ReactNode }): ReactElement {
   return (
     <div className="mt-2.5 flex items-start gap-2 rounded-[8px] border border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-3 py-2.5 text-[14px] leading-[1.37] text-[var(--pl-text-weak)] [&_b]:font-semibold [&_b]:text-[var(--pl-text-medium)]">
       <span className="mt-px flex-none text-[var(--pl-text-weak)]">

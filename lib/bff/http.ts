@@ -175,6 +175,20 @@ export const httpBff: BffClient = {
       pipelineRequest('POST', `/target-sources/${enc(targetSourceId)}/pipelines/custom`, body),
     taskDefinitions: (provider) =>
       pipelineRequest('GET', withQuery('/task-definitions', provider ? `provider=${enc(provider)}` : '')),
+    restartPreview: (targetSourceId, pipelineId, fromSequence) =>
+      pipelineRequest(
+        'GET',
+        withQuery(
+          `/target-sources/${enc(targetSourceId)}/pipelines/${enc(pipelineId)}/restart-preview`,
+          fromSequence ? `from_sequence=${enc(fromSequence)}` : '',
+        ),
+      ),
+    restart: (targetSourceId, pipelineId, body) =>
+      pipelineRequest(
+        'POST',
+        `/target-sources/${enc(targetSourceId)}/pipelines/${enc(pipelineId)}/restart`,
+        body,
+      ),
   },
 
   targetSources: {

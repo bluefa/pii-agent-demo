@@ -27,13 +27,15 @@ import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
 import { PipelineProgressBar } from '@/app/admin/pipelines/_components/PipelineProgressBar';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { PreviewModal } from '@/app/admin/pipelines/_detail/PreviewModal';
+import { RestartModal } from '@/app/admin/pipelines/_detail/RestartModal';
 import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { targetCrumbs } from '@/app/admin/pipelines/_detail/pipelineBreadcrumb';
-import { TypePill, TypeTile } from '@/app/admin/pipelines/_detail/r24Task';
+import { RestartBadge, TypePill, TypeTile } from '@/app/admin/pipelines/_detail/r24Task';
 import {
   CurrentPipelineCard,
   EmptyPipelineCard,
+  LastRunFailedCard,
 } from '@/app/admin/pipelines/targets/[targetSourceId]/_components/CurrentPipelineCard';
 import { passRoutes } from '@/lib/routes';
 import {
@@ -144,6 +146,7 @@ export function TargetDetailView(): ReactElement {
   // Repo rule: modal open/close flows go through useModal. R21 §A1 — the type
   // choice happens INSIDE the modal, so there is no payload to ride.
   const previewModal = useModal();
+  const restartModal = useModal();
 
   // Raw detail (identity strip + CSP metadata).
   useEffect(() => {
@@ -193,31 +196,42 @@ export function TargetDetailView(): ReactElement {
     };
   }, [targetSourceId, reloadKey, runsKey]);
 
-  const liveId = latest && isLivePipeline(latest.status) ? latest.pipeline_id : null;
+  const live = latest != null && isLivePipeline(latest.status);
+  const liveId = live ? latest.pipeline_id : null;
+  // The "현재 작업" section renders a detail for the latest run in TWO cases: it is
+  // live (polled), or it ended FAILED/CANCELLED (§8.1 — fetched once, so the
+  // failure context and the restart CTA share the screen).
+  const focusId =
+    latest && (live || latest.status === 'FAILED' || latest.status === 'CANCELLED')
+      ? latest.pipeline_id
+      : null;
 
-  // Live run — poll the detail; on the terminal transition refetch the pair.
-  // A stale snapshot is never rendered: the render below matches
-  // liveDetail.pipeline_id against liveId instead of resetting state here.
+  // Focused run — poll only while live; on the terminal transition refetch the
+  // pair. A stale snapshot is never rendered: the render below matches
+  // liveDetail.pipeline_id against focusId instead of resetting state here.
   useEffect(() => {
-    if (liveId == null) return;
+    if (focusId == null) return;
     let cancelled = false;
     const tick = async (): Promise<void> => {
       try {
-        const d = await getPipeline(liveId);
+        const d = await getPipeline(focusId);
         if (cancelled) return;
         setLiveDetail(d);
-        if (!isLivePipeline(d.status)) setRunsKey((k) => k + 1);
+        if (live && !isLivePipeline(d.status)) setRunsKey((k) => k + 1);
       } catch {
         /* transient poll failure — keep the last snapshot */
       }
     };
     void tick();
+    if (!live) return () => {
+      cancelled = true;
+    };
     const timer = setInterval(() => void tick(), LIVE_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [liveId]);
+  }, [focusId, live]);
 
   // Task-definition catalog — display names/descriptions for the task strip.
   // An SDU account is surfaced as SDU regardless of its underlying CSP
@@ -226,7 +240,7 @@ export function TargetDetailView(): ReactElement {
   const provider = raw?.metadata?.is_sdu_type ? 'sdu' : providerKey(raw?.cloud_provider ?? '');
   const orchProvider = raw ? wireProvider(provider) : null;
   useEffect(() => {
-    if (!orchProvider || liveId == null) return;
+    if (!orchProvider || focusId == null) return;
     let cancelled = false;
     getTaskDefinitions(orchProvider)
       .then((res) => {
@@ -238,7 +252,7 @@ export function TargetDetailView(): ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [orchProvider, liveId]);
+  }, [orchProvider, focusId]);
 
   const goPipeline = useCallback(
     (id: number) => router.push(passRoutes.pipelines.pipeline(id)),
@@ -269,7 +283,7 @@ export function TargetDetailView(): ReactElement {
 
   const totalPages = history?.totalPages ?? 1;
   const rows = history?.content ?? [];
-  const live = liveId != null;
+  const focusDetail = liveDetail && liveDetail.pipeline_id === focusId ? liveDetail : null;
 
   return (
     <div>
@@ -315,13 +329,25 @@ export function TargetDetailView(): ReactElement {
       {/* R24 — 현재 작업: run-card while live, empty card otherwise. The
           section eyebrow lives inside the card itself (Figma 9:429). */}
       <div className="mt-11">
-        {live && liveDetail && liveDetail.pipeline_id === liveId ? (
+        {focusDetail && live ? (
           <CurrentPipelineCard
-            detail={liveDetail}
+            detail={focusDetail}
             defs={defs}
-            onOpenPipeline={() => goPipeline(liveDetail.pipeline_id)}
+            onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
+            onOpenOrigin={goPipeline}
           />
-        ) : !latestLoaded || live ? (
+        ) : focusDetail ? (
+          /* §8.1 — latest ended FAILED/CANCELLED: keep the failure on screen
+             together with the action that answers it. */
+          <LastRunFailedCard
+            detail={focusDetail}
+            defs={defs}
+            onRestart={() => restartModal.open()}
+            onStartNew={() => previewModal.open()}
+            onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
+            onOpenOrigin={goPipeline}
+          />
+        ) : !latestLoaded || focusId != null ? (
           <div className={cn(detailStyles.skeleton, 'h-52')} aria-hidden="true" />
         ) : (
           <EmptyPipelineCard onStart={() => previewModal.open()} />
@@ -368,6 +394,11 @@ export function TargetDetailView(): ReactElement {
                     aria-label={`작업 #${p.pipeline_id} 상세 열기`}
                     onClick={() => goPipeline(p.pipeline_id)}
                     onKeyDown={(e) => {
+                      // Only the row itself activates: a keypress on the nested
+                      // origin chip must reach its own button, not be swallowed
+                      // here (preventDefault would suppress the chip's click and
+                      // navigate to the WRONG pipeline).
+                      if (e.target !== e.currentTarget) return;
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         goPipeline(p.pipeline_id);
@@ -381,6 +412,15 @@ export function TargetDetailView(): ReactElement {
                       <span className="flex items-center gap-2.5 text-[13.5px] font-semibold text-[var(--pl-text-strong)]">
                         <TypeTile type={p.type} size="xs" />
                         {p.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(p.recipe_definition)}
+                        {/* §8.3 — answers only "is this row a restart" (origin rows carry no chip). */}
+                        {p.origin_pipeline_id != null && (
+                          <span onClick={(e) => e.stopPropagation()}>
+                            <RestartBadge
+                              originPipelineId={p.origin_pipeline_id}
+                              onClick={() => goPipeline(p.origin_pipeline_id as number)}
+                            />
+                          </span>
+                        )}
                       </span>
                     </td>
                     <td className={HISTORY_TD}>
@@ -427,6 +467,19 @@ export function TargetDetailView(): ReactElement {
         provider={orchProvider}
         showToast={toast.show}
       />
+
+      {/* Mounted only while open — see RestartModal (fresh state per open). */}
+      {focusId != null && restartModal.isOpen && (
+        <RestartModal
+          open={restartModal.isOpen}
+          onClose={restartModal.close}
+          targetSourceId={targetSourceId}
+          pipelineId={focusId}
+          provider={orchProvider}
+          showToast={toast.show}
+          onStale={() => setRunsKey((k) => k + 1)}
+        />
+      )}
     </div>
   );
 }

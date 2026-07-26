@@ -5,7 +5,7 @@ info:
   description: |
     `pipeline-orchestrator`(Spring Boot; BFF 서버 뒤에서 서빙 — `BFF_API_URL` +
     경로 prefix `/install/v1`) 앞단의 BFF 프록시 계약이다.
-    이 문서가 다루는 14개 경로(#1~#12, #5a/#5b)는 모두 `withOrchestratorProxy` 래퍼(app/api/_lib/orchestrator.ts)를
+    이 문서가 다루는 16개 경로(#1~#14, #5a/#5b)는 모두 `withOrchestratorProxy` 래퍼(app/api/_lib/orchestrator.ts)를
     거쳐 업스트림 응답을 **verbatim**으로 브라우저에 전달한다.
 
     - **응답 passthrough가 원칙이다.** 업스트림의 HTTP status와 body(snake_case)를 그대로 전달한다.
@@ -514,6 +514,120 @@ paths:
         "502":
           $ref: "#/components/responses/OrchestratorUnreachable"
 
+  /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/{pipelineId}/restart-preview:
+    get:
+      tags: [Target Source Pipelines]
+      summary: "#13 재시작 미리보기"
+      description: >-
+        업스트림 `GET /install/v1/target-sources/{targetSourceId}/pipelines/{pipelineId}/restart-preview?from_sequence=`
+        프록시. 읽기 전용이며 아무것도 저장하지 않는다. **실행(#14)과 동일한 검증**을 수행하므로
+        재시작 불가 상태(DONE·RUNNING·PENDING 원본, 최신이 아닌 원본)는 미리보기 단계에서 409다.
+        기본 재시작 지점은 원본 체인의 첫 번째 non-DONE task이며, `from_sequence`로 **더 앞으로만**
+        당길 수 있다(실패 task 건너뛰기는 400).
+      operationId: previewPipelineRestart
+      parameters:
+        - $ref: "#/components/parameters/TargetSourceId"
+        - $ref: "#/components/parameters/PipelineId"
+        - name: from_sequence
+          in: query
+          required: false
+          description: 오버라이드 재시작 지점(원본 체인의 sequence). 0 이상 기본 재시작 지점 이하만 허용.
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestartPreview"
+        "400":
+          description: >-
+            from_sequence 범위 밖(ORCHESTRATION_INVALID_RESUME_SEQUENCE) · 카탈로그에서 사라진 task
+            정의(ORCHESTRATION_UNKNOWN_TASK)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "404":
+          description: 파이프라인이 없거나 해당 타겟소스 소속이 아님 (ORCHESTRATION_PIPELINE_NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "409":
+          description: >-
+            원본이 DONE 또는 비종료(RUNNING/PENDING)라 재시작 대상이 아님
+            (ORCHESTRATION_PIPELINE_NOT_RESTARTABLE) · 원본이 타겟의 최신 실행이 아님
+            (ORCHESTRATION_PIPELINE_NOT_LATEST)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
+  /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/{pipelineId}/restart:
+    post:
+      tags: [Target Source Pipelines]
+      summary: "#14 실패 지점부터 재시작"
+      description: >-
+        업스트림 `POST /install/v1/target-sources/{targetSourceId}/pipelines/{pipelineId}/restart` 프록시.
+        종료 상태는 되살아나지 않으므로(ADR-016 §7) 재시작은 원본 task suffix로 만든 **새 파이프라인**이다.
+        새 실행은 원본의 `type`·`recipe_definition`·`cloud_provider`를 승계하고(재시작이 CUSTOM으로
+        분류되지 않는다), sequence는 0부터 재부여되며 계보는 `origin_pipeline_id`/`origin_task_id`로 남는다.
+        요청 본문은 생략 가능하다(기본 = 첫 non-DONE task부터).
+      operationId: restartPipeline
+      parameters:
+        - $ref: "#/components/parameters/TargetSourceId"
+        - $ref: "#/components/parameters/PipelineId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestartPipelineRequest"
+      responses:
+        "200":
+          description: 신규 생성된 PipelineDetail(원본 type 승계, PENDING, origin 블록 포함)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineDetail"
+        "400":
+          description: >-
+            from_sequence 범위 밖(ORCHESTRATION_INVALID_RESUME_SEQUENCE) · 카탈로그에서 사라진 task
+            정의(ORCHESTRATION_UNKNOWN_TASK)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "404":
+          description: 파이프라인이 없거나 해당 타겟소스 소속이 아님 (ORCHESTRATION_PIPELINE_NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "409":
+          description: >-
+            원본이 재시작 대상이 아님(ORCHESTRATION_PIPELINE_NOT_RESTARTABLE) · 원본이 최신 실행이 아님
+            (ORCHESTRATION_PIPELINE_NOT_LATEST) · 해당 타겟소스에 이미 활성 run이 있음
+            (ORCHESTRATION_PIPELINE_ALREADY_ACTIVE — 동시 재시작 경합 포함)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "503":
+          description: 원본 provider 값이 열화되어 재조회에 실패 (ORCHESTRATION_PROVIDER_LOOKUP_FAILED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorErrorBody"
+        "502":
+          $ref: "#/components/responses/OrchestratorUnreachable"
+
   /integration/api/v1/orchestrator/task-definitions:
     get:
       tags: [Task Definitions]
@@ -686,8 +800,10 @@ components:
         에러 응답 body의 `code` 필드 값 전체 집합(`ORCHESTRATION_` + 상수명). HTTP status 매핑:
         400(PIPELINE_ID_REQUIRED, PIPELINE_TYPE_REQUIRED, TARGET_REQUIRED, UNSUPPORTED_RECIPE,
         CUSTOM_TASKS_REQUIRED, UNKNOWN_TASK, TASK_PROVIDER_MISMATCH, TASK_DESCRIPTION_TOO_LONG,
-        INVALID_STATISTICS_PERIOD, INVALID_PARAMETER) · 404(PIPELINE_NOT_FOUND, TASK_NOT_FOUND) ·
-        409(PIPELINE_ALREADY_ACTIVE) · 503(PROVIDER_LOOKUP_FAILED) · 500(PIPELINE_PERSISTENCE_ERROR,
+        INVALID_STATISTICS_PERIOD, INVALID_PARAMETER, INVALID_RESUME_SEQUENCE) ·
+        404(PIPELINE_NOT_FOUND, TASK_NOT_FOUND) ·
+        409(PIPELINE_ALREADY_ACTIVE, PIPELINE_NOT_RESTARTABLE, PIPELINE_NOT_LATEST) ·
+        503(PROVIDER_LOOKUP_FAILED) · 500(PIPELINE_PERSISTENCE_ERROR,
         INTERNAL_ERROR — 후자는 405 등 미매핑 프레임워크 에러의 fallback). #5a/#5b 404:
         TERRAFORM_RESULT_NOT_FOUND / TERRAFORM_JOB_STATE_NOT_FOUND.
       enum:
@@ -699,6 +815,9 @@ components:
         - ORCHESTRATION_TERRAFORM_RESULT_NOT_FOUND
         - ORCHESTRATION_TERRAFORM_JOB_STATE_NOT_FOUND
         - ORCHESTRATION_PIPELINE_ALREADY_ACTIVE
+        - ORCHESTRATION_PIPELINE_NOT_RESTARTABLE
+        - ORCHESTRATION_PIPELINE_NOT_LATEST
+        - ORCHESTRATION_INVALID_RESUME_SEQUENCE
         - ORCHESTRATION_PIPELINE_PERSISTENCE_ERROR
         - ORCHESTRATION_UNSUPPORTED_RECIPE
         - ORCHESTRATION_CUSTOM_TASKS_REQUIRED
@@ -746,6 +865,13 @@ components:
         last_activity_at:
           type: string
           description: ISO-8601 Instant.
+        origin_pipeline_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: >-
+            이 실행이 재시작한 원본 파이프라인 id(#14). 재시작이 아니면 null. 목록에서 "재시작" 배지와
+            원본 링크를 그리는 데 자기 행의 이 컬럼만으로 충분하다(행별 조인 불필요).
 
     PipelineDetail:
       type: object
@@ -809,6 +935,25 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TaskSummary"
+        origin_pipeline_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 이 실행이 재시작한 원본 파이프라인 id. 재시작이 아니면 null.
+        origin:
+          description: >-
+            `origin_pipeline_id`가 있을 때만 채워진다(원본 행이 삭제됐으면 null). 진행률은 조작하지
+            않는다 — 이 실행의 done/total은 자기 suffix 기준이고, "원본 N단계 중 M단계부터"는 이 블록으로 렌더한다.
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/RestartOriginView"
+        restarted_by_pipeline_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: >-
+            역링크 — 이 파이프라인을 재시작한 최신 실행의 id. 실패 원본 상세에서 "이미 조치됐는지"를
+            즉시 알려 중복 재시작을 예방한다.
 
     TaskSummary:
       type: object
@@ -852,6 +997,13 @@ components:
           type: string
           nullable: true
           description: 커스텀 레시피 task의 운영자 설명. 카탈로그 task는 null.
+        origin_task_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: >-
+            이 task가 다시 실행하는 원본 task 행 id(#14). 재시작이 아니면 null. UI는 이 링크로 원본
+            task의 시도 이력·terraform 로그(실패 진단의 원천)로 바로 이동한다.
 
     TaskDetail:
       type: object
@@ -924,6 +1076,11 @@ components:
         description:
           type: string
           nullable: true
+        origin_task_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 이 task가 다시 실행하는 원본 task 행 id. 재시작이 아니면 null.
 
     TaskDefinitionView:
       type: object
@@ -1282,6 +1439,121 @@ components:
           description: 비어있으면 400 ORCHESTRATION_CUSTOM_TASKS_REQUIRED.
           items:
             $ref: "#/components/schemas/CustomTaskRequest"
+
+    RestartPipelineRequest:
+      type: object
+      description: "#14 body. 생략 가능 — 기본은 원본 체인의 첫 non-DONE task부터."
+      properties:
+        from_sequence:
+          type: integer
+          format: int32
+          minimum: 0
+          description: >-
+            오버라이드 재시작 지점(원본 체인의 sequence). **더 앞으로만** 허용된다 — DONE task 재실행은
+            Terraform 수렴성으로 안전하지만, 실패 task를 건너뛰는 값은 설치 완전성을 깨므로 400
+            (ORCHESTRATION_INVALID_RESUME_SEQUENCE).
+
+    # -----------------------------------------------------------------------
+    # Restart (#13 / #14)
+    # -----------------------------------------------------------------------
+    RestartOriginView:
+      type: object
+      description: >-
+        재시작 실행이 가리키는 원본 요약. PipelineDetail.origin(재개 지점 포함)과 RestartPreview.origin
+        (재개 지점은 preview의 resume_from_sequence가 가진다)이 공유한다.
+      required: [pipeline_id, type, status, total_task_count, done_task_count]
+      properties:
+        pipeline_id:
+          type: integer
+          format: int64
+        type:
+          $ref: "#/components/schemas/PipelineType"
+        recipe_definition:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/RecipeDefinition"
+        status:
+          $ref: "#/components/schemas/PipelineStatus"
+        total_task_count:
+          type: integer
+        done_task_count:
+          type: integer
+        resumed_from_sequence:
+          type: integer
+          nullable: true
+          description: >-
+            PipelineDetail.origin에서만 채워진다 — 이 재시작이 원본 체인의 몇 번째 sequence부터
+            이어받았는지. 대응을 찾을 수 없으면 null.
+
+    RestartSkippedTask:
+      type: object
+      description: 이미 성공해서 재시작이 건너뛰는 원본 task.
+      required: [sequence, task_definition, status]
+      properties:
+        sequence:
+          type: integer
+          description: 원본 체인에서의 sequence.
+        task_definition:
+          $ref: "#/components/schemas/TaskDefinition"
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+
+    RestartTaskToRun:
+      type: object
+      description: >-
+        재시작이 다시 실행할 원본 task. `origin_*` 필드가 "왜 여기부터인지"를 화면에서 설명한다.
+      required: [sequence, task_definition, kind, origin_task_id, origin_status, origin_fail_count]
+      properties:
+        sequence:
+          type: integer
+          description: 원본 체인에서의 sequence(새 실행은 0부터 재부여된다).
+        task_definition:
+          $ref: "#/components/schemas/TaskDefinition"
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        terraform_action:
+          type: string
+          nullable: true
+          enum: [PLAN, APPLY, DESTROY]
+          description: TERRAFORM_JOB만 값이 있고 CONDITION_CHECK는 null.
+        origin_task_id:
+          type: integer
+          format: int64
+        origin_status:
+          $ref: "#/components/schemas/TaskStatus"
+        origin_error_code:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ErrorCode"
+        origin_fail_count:
+          type: integer
+
+    RestartPreview:
+      type: object
+      description: "#13 응답 — 저장 없이 재시작 결과를 그대로 보여준다."
+      required: [origin, resume_from_sequence, skipped_tasks, tasks_to_run, warnings]
+      properties:
+        origin:
+          $ref: "#/components/schemas/RestartOriginView"
+        resume_from_sequence:
+          type: integer
+          description: 원본 체인에서 다시 시작할 sequence.
+        skipped_tasks:
+          type: array
+          description: 완료되어 건너뛰는 접두부. 원본의 모든 task가 non-DONE이면 빈 배열이다.
+          items:
+            $ref: "#/components/schemas/RestartSkippedTask"
+        tasks_to_run:
+          type: array
+          items:
+            $ref: "#/components/schemas/RestartTaskToRun"
+        warnings:
+          type: array
+          description: >-
+            차단이 아닌 안내(현재 1종: 최근 취소·실패 직후라 이전에 dispatch된 Terraform job이 아직
+            실행 중일 수 있음 — 멱등이라 무해).
+          items:
+            type: string
 
     # -----------------------------------------------------------------------
     # Spring Page envelope

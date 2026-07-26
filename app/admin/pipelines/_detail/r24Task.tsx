@@ -42,7 +42,10 @@ export const R24_CSS = `
 .r24-tnode.cur{border-color:var(--pl-primary);box-shadow:0 0 0 3px var(--pl-primary-ring)}
 .r24-tnode.pend{border-style:dashed;background:color-mix(in srgb,var(--pl-bg-card) 65%,transparent);box-shadow:none}
 .r24-tnode.pend .r24-nm{color:var(--pl-text-weak)}
+.r24-tnode.dim{background:color-mix(in srgb,var(--pl-bg-card) 55%,transparent);box-shadow:none}
 .r24-tnode.dim .r24-nm{color:var(--pl-text-medium)}
+.r24-tnode.fail{border-color:var(--pl-err-border);box-shadow:0 0 0 3px var(--pl-flow-failed-halo)}
+.r24-tnode.fail .r24-ds{color:var(--pl-err-text);font-weight:600}
 .r24-tnode.ghost{border:1.5px dashed var(--pl-border-strong);background:color-mix(in srgb,var(--pl-bg-card) 50%,transparent);box-shadow:none;align-items:center;justify-content:center;flex-direction:column;gap:6px;min-height:78px;color:var(--pl-text-faint)}
 .r24-tnode.ghost .r24-gt{font-size:12px;font-weight:600}
 .r24-ticon{flex:none;margin-top:1px}
@@ -116,6 +119,50 @@ export function TypePill({ type, className }: { type: PipelineType; className?: 
   );
 }
 
+/**
+ * "↻ #123에서 재시작" — the one phrase that marks a run as a restart, used on
+ * every surface that titles a run (target run-card, history row, detail header).
+ * An icon + id alone (↻ #123) reads as decoration; operators asked for the word
+ * itself. `onClick` makes it a link to the origin run; omit it for a static mark.
+ *
+ * The particle is 에서, not (으)로부터: the correct form of the latter depends on
+ * how the trailing DIGIT is read (…4 → 로부터, …6 → 으로부터), so it cannot be
+ * hardcoded for an arbitrary pipeline id.
+ */
+export function RestartBadge({
+  originPipelineId,
+  onClick,
+  className,
+}: {
+  originPipelineId: number;
+  onClick?: () => void;
+  className?: string;
+}): ReactElement {
+  const label = (
+    <>
+      <span aria-hidden="true">↻</span>
+      <span>
+        <span className="[font-family:var(--pl-font-mono)]">#{originPipelineId}</span>에서 재시작
+      </span>
+    </>
+  );
+  const base =
+    'inline-flex items-center gap-1 rounded-full bg-[var(--pl-primary-bg)] px-2.5 py-[3px] text-[11.5px] font-semibold text-[var(--pl-primary)] whitespace-nowrap';
+  if (!onClick) {
+    return <span className={cn(base, className)}>{label}</span>;
+  }
+  return (
+    <button
+      type="button"
+      className={cn(base, 'transition-colors hover:brightness-95', className)}
+      title={`원본 작업 #${originPipelineId} 상세로 이동`}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
 /** Bare kind mark — Terraform brand logomark / warn clock, NO tile wrap (R24). */
 export function KindMark({ kind }: { kind: TaskKind }): ReactElement {
   if (kind === 'CONDITION_CHECK') {
@@ -150,7 +197,8 @@ export interface R24TaskNodeProps {
   action?: TerraformAction | null;
   /** Black round order chip at the top-left corner. */
   seq?: number;
-  state?: 'cur' | 'pend' | 'dim';
+  /** `fail` = the restart's failure point (err border + red description). */
+  state?: 'cur' | 'pend' | 'dim' | 'fail';
   /** Status row under the description (badge + retry counter 등). */
   footer?: ReactNode;
   className?: string;
@@ -219,12 +267,15 @@ export const R24_RUN_CSS = `
 
 type FlowKey = 'done' | 'running' | 'pending' | 'failed' | 'cancelled';
 
-/** Wire status (pipeline OR task) → the flow's visual bucket + friendly label. */
+/** Wire status (pipeline OR task) → the flow's visual bucket + friendly label.
+ *  READY keeps its own label (not 'PENDING'): a retry-waiting current task
+ *  labelled PENDING read as "the pipeline never left PENDING" to operators —
+ *  and the drawer's PipelineStatusBadge already says READY for the same task. */
 const STATUS_VIEW: Record<PipelineStatus | TaskStatus, { key: FlowKey; label: string }> = {
   RUNNING: { key: 'running', label: 'RUNNING' },
   IN_PROGRESS: { key: 'running', label: 'RUNNING' },
   PENDING: { key: 'pending', label: 'PENDING' },
-  READY: { key: 'pending', label: 'PENDING' },
+  READY: { key: 'pending', label: 'READY' },
   BLOCKED: { key: 'pending', label: 'PENDING' },
   DONE: { key: 'done', label: 'DONE' },
   FAILED: { key: 'failed', label: 'FAILED' },
@@ -282,7 +333,8 @@ export interface RunTaskCardProps {
   status: TaskStatus;
   /** 1-based ordinal — shown in the corner while the task is queued. */
   seq: number;
-  /** '시도 1 / 3' — only on the in-progress task. */
+  /** '시도 1 / 3' — the current task's retry budget (IN_PROGRESS, or READY
+   *  while waiting between retry attempts). */
   retry?: string | null;
 }
 
@@ -318,7 +370,7 @@ export function RunTaskCard({ kind, name, desc, action, status, seq, retry }: Ru
         <div className="rtc-st">
           <JobKindTag action={action} />
           <FlowStatusPill status={status} />
-          {view.key === 'running' && retry ? (
+          {retry ? (
             <span className="text-[10px] tabular-nums text-[var(--pl-text-faint)]">{retry}</span>
           ) : null}
         </div>

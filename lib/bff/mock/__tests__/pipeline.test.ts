@@ -7,6 +7,7 @@ import type {
   PipelineStatistics,
   PipelineSummary,
   RecipePreview,
+  RestartPreview,
   TaskCatalogResponse,
   TaskDetail,
   TerraformJobResultDetail,
@@ -325,6 +326,93 @@ describe('mockPipeline (in-memory orchestrator)', () => {
 
     it('rejects an invalid provider', () => {
       expect(mockPipeline.taskDefinitions('ORACLE').status).toBe(400);
+    });
+  });
+
+  // pipeline-restart-design decision 3 (resume at the first non-DONE) / decision 5
+  // (only the latest FAILED|CANCELLED run restarts)
+  describe('restart (#13 preview / #14 execute)', () => {
+    // 124: the only run of Azure target 1003 — task 0 DONE + task 1 FAILED (JOB_FAILED ×2).
+    it('previews the suffix from the first non-DONE task', () => {
+      const preview = mockPipeline.restartPreview('1003', '124', undefined).body as RestartPreview;
+      expect(preview.origin.pipeline_id).toBe(124);
+      expect(preview.origin.status).toBe('FAILED');
+      expect(preview.origin.done_task_count).toBe(1);
+      expect(preview.resume_from_sequence).toBe(1);
+      expect(preview.skipped_tasks.map((t) => t.sequence)).toEqual([0]);
+      expect(preview.skipped_tasks[0].status).toBe('DONE');
+      const first = preview.tasks_to_run[0];
+      expect(first.sequence).toBe(1);
+      expect(first.origin_status).toBe('FAILED');
+      expect(first.origin_error_code).toBe('JOB_FAILED');
+      expect(first.origin_fail_count).toBe(2);
+      expect(first.kind).toBe('TERRAFORM_JOB');
+      expect(preview.skipped_tasks.length + preview.tasks_to_run.length)
+        .toBe(preview.origin.total_task_count);
+    });
+
+    it('restarts as a NEW pipeline that inherits type/recipe and stamps provenance', () => {
+      const origin = mockPipeline.detail('124').body as PipelineDetail;
+      const restarted = mockPipeline.restart('1003', '124', null).body as PipelineDetail;
+      expect(restarted.pipeline_id).not.toBe(124);
+      expect(restarted.status).toBe('PENDING');
+      expect(restarted.type).toBe('INSTALL'); // decision 1 — a restart is not disguised as CUSTOM
+      expect(restarted.recipe_definition).toBe('AZURE_INSTALL_V1');
+      expect(restarted.cloud_provider).toBe('AZURE');
+      // Sequences renumber from 0; origin_task_id carries the correspondence.
+      expect(restarted.tasks.map((t) => t.sequence)).toEqual([0]);
+      expect(restarted.tasks[0].status).toBe('READY');
+      expect(restarted.tasks[0].origin_task_id).toBe(origin.tasks[1].task_id);
+      expect(restarted.origin_pipeline_id).toBe(124);
+      expect(restarted.origin?.resumed_from_sequence).toBe(1);
+      expect(restarted.origin?.total_task_count).toBe(origin.total_task_count);
+
+      // The origin detail advertises "already handled" through the back-link.
+      const originAfter = mockPipeline.detail('124').body as PipelineDetail;
+      expect(originAfter.restarted_by_pipeline_id).toBe(restarted.pipeline_id);
+
+      // After the restart the origin is no longer the latest, so a duplicate restart is
+      // blocked (§6 — only the chain tail restarts). The new run is live, so not restartable either.
+      expect(asError(mockPipeline.restart('1003', '124', null).body).code)
+        .toBe('ORCHESTRATION_PIPELINE_NOT_LATEST');
+      expect(asError(mockPipeline.restart('1003', String(restarted.pipeline_id), null).body).code)
+        .toBe('ORCHESTRATION_PIPELINE_NOT_RESTARTABLE');
+    });
+
+    it('re-runs the whole chain when the origin has no DONE task (cancelled at step 0)', () => {
+      const preview = mockPipeline.restartPreview('1008', '123', undefined).body as RestartPreview;
+      expect(preview.resume_from_sequence).toBe(0);
+      expect(preview.skipped_tasks).toEqual([]);
+      expect(preview.tasks_to_run).toHaveLength(7);
+      expect(preview.tasks_to_run[0].origin_status).toBe('CANCELLED');
+    });
+
+    it('rejects DONE / live / stale origins with the exact code (decision 5)', () => {
+      // 127 DONE — no failure point to resume from (checked before NOT_LATEST).
+      expect(asError(mockPipeline.restartPreview('1006', '127', undefined).body).code)
+        .toBe('ORCHESTRATION_PIPELINE_NOT_RESTARTABLE');
+      // 128 RUNNING (the latest of 1006) — a cancel target, not a restart target.
+      const live = mockPipeline.restart('1006', '128', null);
+      expect(live.status).toBe(409);
+      expect(asError(live.body).code).toBe('ORCHESTRATION_PIPELINE_NOT_RESTARTABLE');
+      // 131 is FAILED but no longer the latest run of 1006.
+      expect(asError(mockPipeline.restartPreview('1006', '131', undefined).body).code)
+        .toBe('ORCHESTRATION_PIPELINE_NOT_LATEST');
+      // Target mismatch / unknown id.
+      expect(mockPipeline.restartPreview('1003', '123', undefined).status).toBe(404);
+      expect(mockPipeline.restart('1003', '99999', null).status).toBe(404);
+    });
+
+    it('allows from_sequence to move EARLIER only', () => {
+      const earlier = mockPipeline.restartPreview('1003', '124', '0').body as RestartPreview;
+      expect(earlier.resume_from_sequence).toBe(0);
+      expect(earlier.skipped_tasks).toEqual([]);
+      expect(earlier.tasks_to_run).toHaveLength(2); // re-running the DONE task = the whole origin chain
+      // Skipping the failed task (a later point) and negatives are rejected — that would
+      // break install completeness.
+      expect(asError(mockPipeline.restartPreview('1003', '124', '2').body).code)
+        .toBe('ORCHESTRATION_INVALID_RESUME_SEQUENCE');
+      expect(mockPipeline.restart('1003', '124', { from_sequence: -1 }).status).toBe(400);
     });
   });
 });

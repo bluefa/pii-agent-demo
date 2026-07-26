@@ -74,6 +74,11 @@ describe('currentTaskInfo', () => {
     expect(info).toEqual({ label: '시작 대기', name: '- 시작 예정', retry: null });
   });
 
+  it('PENDING schedule time carries seconds (start-delay is second-scale)', () => {
+    const info = currentTaskInfo('PENDING', '2026-06-30T05:02:17Z', [], opName);
+    expect(info.name).toBe('2026-06-30 14:02:17 시작 예정');
+  });
+
   it('current task → 현재 태스크 label + name (retry stripped of parens)', () => {
     const tasks = [
       mkTask({ sequence: 0, status: 'DONE' }),

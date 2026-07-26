@@ -33,6 +33,10 @@ import type {
   PipelineType,
   RecipePreview,
   RecipePreviewStep,
+  RestartOriginView,
+  RestartPreview,
+  RestartSkippedTask,
+  RestartTaskToRun,
   SpringPage,
   SpringSort,
   StatisticsPeriodToken,
@@ -390,6 +394,8 @@ interface MockTask {
   effective_max_fail_count: number;
   description: string | null;
   attempts: MockAttempt[];
+  /** Restart provenance (write-once display metadata) — the origin task row. */
+  origin_task_id?: number;
 }
 
 interface MockPipeline {
@@ -409,6 +415,8 @@ interface MockPipeline {
   cancel_requested: boolean;
   due_lag_millis: number;
   tasks: MockTask[];
+  /** Restart provenance (write-once display metadata) — the origin pipeline. */
+  origin_pipeline_id?: number;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -807,6 +815,7 @@ const toTaskSummary = (t: MockTask): TaskSummary => ({
   started_at: t.started_at,
   finished_at: t.finished_at,
   description: t.description,
+  origin_task_id: t.origin_task_id ?? null,
 });
 
 /** SDU flag for a pipeline's target — joined from the app's project seed so the
@@ -828,6 +837,18 @@ const toSummary = (p: MockPipeline): PipelineSummary => ({
   total_task_count: p.tasks.length,
   created_at: p.created_at,
   last_activity_at: p.last_activity_at,
+  origin_pipeline_id: p.origin_pipeline_id ?? null,
+});
+
+/** Origin block of a restart's detail — null when the origin row is gone (no FK). */
+const toOriginView = (origin: MockPipeline, resumedFromSequence: number | null): RestartOriginView => ({
+  pipeline_id: origin.pipeline_id,
+  type: origin.type,
+  recipe_definition: origin.recipe_definition,
+  status: origin.status,
+  total_task_count: origin.tasks.length,
+  done_task_count: doneCount(origin),
+  resumed_from_sequence: resumedFromSequence,
 });
 
 const toDetail = (p: MockPipeline): PipelineDetail => {
@@ -835,6 +856,19 @@ const toDetail = (p: MockPipeline): PipelineDetail => {
     .filter((t) => t.status === 'READY' || t.status === 'IN_PROGRESS')
     .sort((a, b) => a.sequence - b.sequence)[0];
   const finalSeq = p.tasks.length > 0 ? Math.max(...p.tasks.map((t) => t.sequence)) : null;
+  // Provenance: the origin block (forward link) + the back-link to the latest
+  // run that restarted THIS pipeline. Both are display-only lookups.
+  const origin = p.origin_pipeline_id != null
+    ? store().find((o) => o.pipeline_id === p.origin_pipeline_id) ?? null
+    : null;
+  const firstOriginTaskId = p.tasks.find((t) => t.sequence === 0)?.origin_task_id;
+  const resumedFromSequence =
+    origin && firstOriginTaskId != null
+      ? origin.tasks.find((t) => t.task_id === firstOriginTaskId)?.sequence ?? null
+      : null;
+  const restartedBy = store()
+    .filter((o) => o.origin_pipeline_id === p.pipeline_id)
+    .sort((a, b) => b.pipeline_id - a.pipeline_id)[0];
   return {
     pipeline_id: p.pipeline_id,
     type: p.type,
@@ -856,6 +890,9 @@ const toDetail = (p: MockPipeline): PipelineDetail => {
     done_task_count: doneCount(p),
     total_task_count: p.tasks.length,
     tasks: p.tasks.map(toTaskSummary),
+    origin_pipeline_id: p.origin_pipeline_id ?? null,
+    origin: origin ? toOriginView(origin, resumedFromSequence) : null,
+    restarted_by_pipeline_id: restartedBy?.pipeline_id ?? null,
   };
 };
 
@@ -972,6 +1009,7 @@ const toTaskDetail = (pipelineId: number, t: MockTask): TaskDetail => {
     effective_max_fail_count: t.effective_max_fail_count,
     attempts: t.attempts.map((a) => toAttemptView(a, kind, t.task_id, t.task_definition)),
     description: t.description,
+    origin_task_id: t.origin_task_id ?? null,
   };
 };
 
@@ -1245,6 +1283,91 @@ const synthStateBody = (
     poll_count: state.poll_count, last_polled_at: state.last_polled_at,
   };
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Restart — pipeline-restart-design decisions 3 & 5, §3.2 validation order
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** In-flight-job warning window — the terraform executionTimeout (PT30M). */
+const RESTART_WARN_WINDOW_MS = 30 * 60_000;
+
+interface RestartComputation {
+  origin: MockPipeline;
+  /** Resume point as a sequence in the ORIGIN chain. */
+  resumeFrom: number;
+  skipped: MockTask[];
+  toRun: MockTask[];
+}
+
+const isRawResponse = (v: RestartComputation | OrchestratorRawResponse): v is OrchestratorRawResponse =>
+  'status' in v;
+
+/**
+ * §3.2 validation 1–5 + suffix computation. Returns the error response itself
+ * instead of throwing (the pipeline mock never throws — contract).
+ */
+function computeRestart(
+  targetSourceId: string,
+  pipelineId: string,
+  fromSequence: number | null,
+  path: string,
+): RestartComputation | OrchestratorRawResponse {
+  const origin = store().find((p) => String(p.pipeline_id) === pipelineId);
+  if (!origin || origin.target_source_id !== targetSourceId) {
+    return err(404, 'PIPELINE_NOT_FOUND', `pipeline ${pipelineId} not found`, path);
+  }
+  // Decision 5 — DONE / RUNNING / PENDING origins are not restartable.
+  if (origin.status !== 'FAILED' && origin.status !== 'CANCELLED') {
+    return err(409, 'PIPELINE_NOT_RESTARTABLE',
+      `pipeline ${origin.pipeline_id} is ${origin.status} — only the latest FAILED/CANCELLED run can be restarted`,
+      path);
+  }
+  const latest = store().filter((p) => p.target_source_id === targetSourceId).sort(byCreatedDesc)[0];
+  if (latest && latest.pipeline_id !== origin.pipeline_id) {
+    return err(409, 'PIPELINE_NOT_LATEST',
+      `pipeline ${origin.pipeline_id} is not the latest run (latest: ${latest.pipeline_id})`, path);
+  }
+  const chain = [...origin.tasks].sort((a, b) => a.sequence - b.sequence);
+  // Decision 3 — the default resume point is the first non-DONE task. A terminal
+  // row whose tasks are ALL done is unreachable per the state machine, but it has
+  // no resume point either, so reject it (same defense as upstream PipelineRestarter).
+  const firstNotDone = chain.find((t) => t.status !== 'DONE');
+  if (!firstNotDone) {
+    return err(409, 'PIPELINE_NOT_RESTARTABLE',
+      `pipeline ${origin.pipeline_id} is ${origin.status} — only the latest FAILED/CANCELLED run can be restarted`,
+      path);
+  }
+  const defaultResume = firstNotDone.sequence;
+  if (fromSequence !== null && (fromSequence < 0 || fromSequence > defaultResume)) {
+    return err(400, 'INVALID_RESUME_SEQUENCE',
+      `from_sequence ${fromSequence} must be between 0 and ${defaultResume}`, path);
+  }
+  const resumeFrom = fromSequence ?? defaultResume;
+  const toRun = chain.filter((t) => t.sequence >= resumeFrom);
+  const unknown = toRun.find((t) => !CATALOG.has(t.task_definition));
+  if (unknown) {
+    return err(400, 'UNKNOWN_TASK', `unknown task: ${unknown.task_definition}`, path);
+  }
+  return { origin, resumeFrom, skipped: chain.filter((t) => t.sequence < resumeFrom), toRun };
+}
+
+/** `?from_sequence=` → integer, or null when absent. NaN surfaces as -1 (→ 400). */
+const parseFromSequence = (raw: string | undefined): number | null => {
+  if (raw === undefined || raw === '') return null;
+  const n = Number(raw);
+  return Number.isInteger(n) ? n : -1;
+};
+
+/** Verbatim copy of the upstream sentence (PipelineRestarter.IN_FLIGHT_JOB_WARNING). */
+const IN_FLIGHT_JOB_WARNING =
+  '원본 실행이 최근에 종료되었습니다. 이전에 dispatch된 Terraform job이 아직 실행 중일 수 있습니다(멱등이므로 무해).';
+
+/** Restart right after a cancel/failure — a notice (never a block) that a previously
+ *  dispatched job may still be running. */
+function restartWarnings(origin: MockPipeline): string[] {
+  const sinceMs = Date.now() - new Date(origin.last_activity_at).getTime();
+  return sinceMs > RESTART_WARN_WINDOW_MS ? [] : [IN_FLIGHT_JOB_WARNING];
+}
 
 export const mockPipeline = {
   // #1
@@ -1608,6 +1731,108 @@ export const mockPipeline = {
       }));
     const body: TaskCatalogResponse = { task_definitions: entries };
     return ok(body);
+  },
+
+  // #13 — restart preview (read-only; runs the SAME validation as #14)
+  restartPreview(
+    targetSourceId: string,
+    pipelineId: string,
+    fromSequence: string | undefined,
+  ): OrchestratorRawResponse {
+    const path = `${PATH.targetPipelines(targetSourceId)}/${pipelineId}/restart-preview`;
+    const computed = computeRestart(targetSourceId, pipelineId, parseFromSequence(fromSequence), path);
+    if (isRawResponse(computed)) return computed;
+    const { origin, resumeFrom, skipped, toRun } = computed;
+    const skippedTasks: RestartSkippedTask[] = skipped.map((t) => ({
+      sequence: t.sequence,
+      task_definition: t.task_definition,
+      status: t.status,
+    }));
+    const tasksToRun: RestartTaskToRun[] = toRun.map((t) => ({
+      sequence: t.sequence,
+      task_definition: t.task_definition,
+      kind: kindOf(t.task_definition),
+      terraform_action: terraformActionOf(t.task_definition),
+      origin_task_id: t.task_id,
+      origin_status: t.status,
+      origin_error_code: t.status === 'FAILED' ? t.error_code : null,
+      origin_fail_count: t.fail_count,
+    }));
+    const body: RestartPreview = {
+      // Preview origin block carries no resumed_from_sequence (that IS
+      // resume_from_sequence below) — §3.1 shape.
+      origin: {
+        pipeline_id: origin.pipeline_id,
+        type: origin.type,
+        recipe_definition: origin.recipe_definition,
+        status: origin.status,
+        total_task_count: origin.tasks.length,
+        done_task_count: doneCount(origin),
+      },
+      resume_from_sequence: resumeFrom,
+      skipped_tasks: skippedTasks,
+      tasks_to_run: tasksToRun,
+      warnings: restartWarnings(origin),
+    };
+    return ok(body);
+  },
+
+  // #14 — restart execution: a NEW pipeline from the origin's task suffix.
+  // Decision 1 — type / recipe_definition / provider are inherited from the origin.
+  restart(targetSourceId: string, pipelineId: string, body: unknown): OrchestratorRawResponse {
+    const path = `${PATH.targetPipelines(targetSourceId)}/${pipelineId}/restart`;
+    const raw = asRecord(body);
+    const requested = raw.from_sequence;
+    const fromSequence =
+      requested === undefined || requested === null
+        ? null
+        : typeof requested === 'number' && Number.isInteger(requested)
+          ? requested
+          : -1;
+    const computed = computeRestart(targetSourceId, pipelineId, fromSequence, path);
+    if (isRawResponse(computed)) return computed;
+    const { origin, toRun } = computed;
+    if (hasActiveRun(targetSourceId)) {
+      return err(409, 'PIPELINE_ALREADY_ACTIVE', `target '${targetSourceId}' already has an active run`, path);
+    }
+    const newId = nextPipelineId();
+    const now = new Date().toISOString();
+    // Sequences are renumbered from 0; origin_task_id carries the correspondence (§4.1).
+    const tasks: MockTask[] = toRun.map((t, index) => ({
+      task_id: newId * 100 + index,
+      sequence: index,
+      task_definition: t.task_definition,
+      status: index === 0 ? 'READY' : 'BLOCKED',
+      fail_count: 0,
+      error_code: null,
+      started_at: null,
+      ready_at: index === 0 ? now : null,
+      finished_at: null,
+      next_check_at: null,
+      effective_max_fail_count: t.effective_max_fail_count,
+      description: t.description,
+      attempts: [],
+      origin_task_id: t.task_id,
+    }));
+    const created: MockPipeline = {
+      pipeline_id: newId,
+      type: origin.type,
+      target_source_id: targetSourceId,
+      ...resolveService(targetSourceId),
+      cloud_provider: origin.cloud_provider,
+      recipe_definition: origin.recipe_definition,
+      status: 'PENDING',
+      created_at: now,
+      last_activity_at: now,
+      next_due_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+      leased: false,
+      cancel_requested: false,
+      due_lag_millis: 0,
+      tasks,
+      origin_pipeline_id: origin.pipeline_id,
+    };
+    store().push(created);
+    return ok(toDetail(created));
   },
 };
 

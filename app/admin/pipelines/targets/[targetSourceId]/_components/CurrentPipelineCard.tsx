@@ -21,14 +21,15 @@ import {
   FlowStatusPill,
   R24_CSS,
   R24_RUN_CSS,
+  RestartBadge,
   RunTaskCard,
 } from '@/app/admin/pipelines/_detail/r24Task';
 import type { PipelineDetail, TaskCatalogEntry } from '@/lib/pipeline/types';
 
-/** Blue section eyebrow shared by the running + idle cards (Figma 9:429). */
-function Eyebrow(): ReactElement {
+/** Blue section eyebrow shared by the running / failed / idle cards (Figma 9:429). */
+function Eyebrow({ label = '현재 작업' }: { label?: string }): ReactElement {
   return (
-    <div className="text-[12px] font-bold tracking-[-0.01em] text-[var(--pl-primary)]">현재 작업</div>
+    <div className="text-[12px] font-bold tracking-[-0.01em] text-[var(--pl-primary)]">{label}</div>
   );
 }
 
@@ -40,12 +41,15 @@ export interface CurrentPipelineCardProps {
   /** task_definition name → catalog entry (display name + description). */
   defs: ReadonlyMap<string, TaskCatalogEntry>;
   onOpenPipeline: () => void;
+  /** Opens the ORIGIN run when this one is a restart (restart badge). */
+  onOpenOrigin?: (originPipelineId: number) => void;
 }
 
 export function CurrentPipelineCard({
   detail,
   defs,
   onOpenPipeline,
+  onOpenOrigin,
 }: CurrentPipelineCardProps): ReactElement {
   const label = recipeLabel(detail.recipe_definition);
   const title =
@@ -55,6 +59,10 @@ export function CurrentPipelineCard({
     detail.current_fail_count != null && detail.current_max_fail_count != null
       ? `시도 ${detail.current_fail_count + 1} / ${detail.current_max_fail_count}`
       : null;
+  // The retry counter belongs to the CURRENT task (ADR-016: lowest READY /
+  // IN_PROGRESS) — including a READY task waiting out its retry interval, so
+  // a retrying task never reads as an untouched queued one (operator feedback).
+  const retrySeq = detail.current_task_sequence;
 
   // Bring the in-progress (current) task into view in the horizontal flow so
   // attention lands on where the pipeline actually is (owner ask). Scrolls only
@@ -91,6 +99,12 @@ export function CurrentPipelineCard({
                 #{detail.pipeline_id}
               </span>
               <FlowStatusPill status={detail.status} className="!px-2.5 !py-1 !text-[12px]" />
+              {detail.origin_pipeline_id != null && (
+                <RestartBadge
+                  originPipelineId={detail.origin_pipeline_id}
+                  onClick={onOpenOrigin ? () => onOpenOrigin(detail.origin_pipeline_id as number) : undefined}
+                />
+              )}
             </div>
             {label?.desc ? (
               <p className="mt-1.5 max-w-[760px] text-[14px] leading-[1.55] text-[var(--pl-text-weak)]">
@@ -132,11 +146,111 @@ export function CurrentPipelineCard({
                   action={task.terraform_action}
                   status={task.status}
                   seq={i + 1}
-                  retry={task.status === 'IN_PROGRESS' ? retry : null}
+                  retry={task.sequence === retrySeq ? retry : null}
                 />
               </Fragment>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export interface LastRunFailedCardProps {
+  detail: PipelineDetail;
+  /** task_definition name → catalog entry (display name + description). */
+  defs: ReadonlyMap<string, TaskCatalogEntry>;
+  onRestart: () => void;
+  onStartNew: () => void;
+  onOpenPipeline: () => void;
+  /** Opens the ORIGIN run when this failed run was itself a restart. */
+  onOpenOrigin?: (originPipelineId: number) => void;
+}
+
+/**
+ * Terminal FAILED/CANCELLED latest run (restart-design §8.1) — the third state
+ * of the "현재 작업" section. Before this, a failed run fell back to the empty
+ * card and the failure context vanished; here the failure stays on screen WITH
+ * the action that answers it. The restart CTA renders only in this branch —
+ * that IS the frontend half of decision 5's gating (live → cancel only, DONE → start only).
+ */
+export function LastRunFailedCard({
+  detail,
+  defs,
+  onRestart,
+  onStartNew,
+  onOpenPipeline,
+  onOpenOrigin,
+}: LastRunFailedCardProps): ReactElement {
+  const title =
+    detail.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(detail.recipe_definition);
+  const tasks = [...detail.tasks].sort((a, b) => a.sequence - b.sequence);
+  // The stop point: the failed task, else the first task that never completed
+  // (a cancelled run's in-flight task). Same rule the server resumes from.
+  const stopped = tasks.find((t) => t.status === 'FAILED') ?? tasks.find((t) => t.status !== 'DONE');
+  const stoppedName = stopped
+    ? defs.get(stopped.task_definition)?.display_name ?? stopped.task_definition
+    : null;
+
+  return (
+    <div className={CARD_SHELL}>
+      <div className="px-6 pt-4 pb-5">
+        <Eyebrow label="최근 작업" />
+        <div className="mt-2 flex flex-wrap items-start gap-x-4 gap-y-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <b className="text-[16px] font-semibold tracking-[-0.02em] text-[var(--pl-text-strong)]">
+                {title}
+              </b>
+              <span className="text-[13px] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]">
+                #{detail.pipeline_id}
+              </span>
+              <FlowStatusPill status={detail.status} className="!px-2.5 !py-1 !text-[12px]" />
+              {detail.origin_pipeline_id != null && (
+                <RestartBadge
+                  originPipelineId={detail.origin_pipeline_id}
+                  onClick={onOpenOrigin ? () => onOpenOrigin(detail.origin_pipeline_id as number) : undefined}
+                />
+              )}
+            </div>
+            <p className="mt-1.5 text-[14px] leading-[1.55] text-[var(--pl-text-weak)]">
+              {detail.total_task_count}단계 중 {detail.done_task_count}단계 완료
+              {stoppedName && (
+                <>
+                  {' — '}
+                  <b className="font-semibold text-[var(--pl-err-text)]">
+                    {(stopped?.sequence ?? 0) + 1}단계 {stoppedName}
+                  </b>
+                  {detail.status === 'FAILED'
+                    ? ` 에서 실패${stopped?.error_code ? ` · ${stopped.error_code}` : ''}`
+                    : ' 에서 중단'}
+                </>
+              )}
+            </p>
+          </div>
+          <div className="flex flex-none items-center pt-0.5">
+            <button
+              type="button"
+              className={cn(
+                pipelineStyles.text.link,
+                'inline-flex items-center gap-1 text-[13px] font-semibold hover:underline',
+              )}
+              onClick={onOpenPipeline}
+            >
+              작업 현황 보기
+              <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
+            </button>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-2.5">
+          <PlButton variant="primary" onClick={onRestart}>
+            <Icon name="play" size="sm" />
+            실패 지점부터 재시작
+          </PlButton>
+          <PlButton variant="ghost" onClick={onStartNew}>
+            새 작업 시작
+          </PlButton>
         </div>
       </div>
     </div>

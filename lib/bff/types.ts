@@ -72,6 +72,14 @@ export interface PipelineBffClient {
   createCustom: (targetSourceId: string, body: unknown) => Promise<OrchestratorRawResponse>;
   /** #12 GET /api/v1/task-definitions?provider= */
   taskDefinitions: (provider: string | undefined) => Promise<OrchestratorRawResponse>;
+  /** #13 GET …/pipelines/{pipelineId}/restart-preview?from_sequence= */
+  restartPreview: (
+    targetSourceId: string,
+    pipelineId: string,
+    fromSequence: string | undefined,
+  ) => Promise<OrchestratorRawResponse>;
+  /** #14 POST …/pipelines/{pipelineId}/restart */
+  restart: (targetSourceId: string, pipelineId: string, body: unknown) => Promise<OrchestratorRawResponse>;
 }
 
 export interface BffClient {
