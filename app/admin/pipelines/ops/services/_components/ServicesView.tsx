@@ -132,49 +132,49 @@ export function ServicesView(): ReactElement {
                     rows.map((service) => {
                       const href = passRoutes.pipelines.ops.service(service.service_code);
                       return (
-                      // Mouse convenience only — the ServiceCode/chev anchors are the
-                      // accessible (keyboard, new-tab) control, so the row keeps no role.
-                      <tr
-                        key={service.service_code}
-                        className={cn(table.rowHover, 'cursor-pointer')}
-                        onClick={(event) => {
-                          if (event.target instanceof HTMLElement && event.target.closest('a')) return;
-                          router.push(href);
-                        }}
-                      >
-                        <td className={table.cell}>
-                          <Link
-                            href={href}
-                            className={cn(pipelineStyles.text.mono, 'font-semibold hover:underline')}
-                          >
-                            {service.service_code}
-                          </Link>
-                        </td>
-                        <td className={cn(table.cell, 'font-medium')}>{service.service_name}</td>
-                        <td className={table.cell}>{service.owner}</td>
-                        <td className={cn(table.cell, 'tabular-nums')}>
-                          {service.target_source_count}건
-                        </td>
-                        <td className={cn(table.cell, 'tabular-nums')}>
-                          {service.jira_ticket_count > 0 ? (
-                            `${service.jira_ticket_count}건`
-                          ) : (
-                            <span className={pipelineStyles.text.muted}>—</span>
-                          )}
-                        </td>
-                        <td className={table.cell}>
-                          <ServiceStatusTag status={service.status} />
-                        </td>
-                        <td className={cn(table.cell, 'text-right')}>
-                          <Link
-                            href={href}
-                            aria-label={`${service.service_name} 운영 상세로 이동`}
-                            className="inline-flex text-[var(--pl-text-faint)] hover:text-[var(--pl-primary)]"
-                          >
-                            <Icon name="chev-r" size="sm" />
-                          </Link>
-                        </td>
-                      </tr>
+                        // Mouse convenience only — the ServiceCode/chev anchors are the
+                        // accessible (keyboard, new-tab) control, so the row keeps no role.
+                        <tr
+                          key={service.service_code}
+                          className={cn(table.rowHover, 'cursor-pointer')}
+                          onClick={(event) => {
+                            if (event.target instanceof HTMLElement && event.target.closest('a')) return;
+                            router.push(href);
+                          }}
+                        >
+                          <td className={table.cell}>
+                            <Link
+                              href={href}
+                              className={cn(pipelineStyles.text.mono, 'font-semibold hover:underline')}
+                            >
+                              {service.service_code}
+                            </Link>
+                          </td>
+                          <td className={cn(table.cell, 'font-medium')}>{service.service_name}</td>
+                          <td className={table.cell}>{service.owner}</td>
+                          <td className={cn(table.cell, 'tabular-nums')}>
+                            {service.target_source_count}건
+                          </td>
+                          <td className={cn(table.cell, 'tabular-nums')}>
+                            {service.jira_ticket_count > 0 ? (
+                              `${service.jira_ticket_count}건`
+                            ) : (
+                              <span className={pipelineStyles.text.muted}>—</span>
+                            )}
+                          </td>
+                          <td className={table.cell}>
+                            <ServiceStatusTag status={service.status} />
+                          </td>
+                          <td className={cn(table.cell, 'text-right')}>
+                            <Link
+                              href={href}
+                              aria-label={`${service.service_name} 운영 상세로 이동`}
+                              className="inline-flex text-[var(--pl-text-faint)] hover:text-[var(--pl-primary)]"
+                            >
+                              <Icon name="chev-r" size="sm" />
+                            </Link>
+                          </td>
+                        </tr>
                       );
                     })
                   )}
