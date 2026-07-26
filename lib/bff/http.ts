@@ -20,6 +20,7 @@ import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { OrchestratorUnreachableError } from '@/lib/bff/errors';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
+import { authHeaders } from '@/lib/bff/auth-headers';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
 
@@ -43,7 +44,11 @@ async function pipelineRequest(
   const url = `${BFF_URL}/install/v1${path}`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort('TIMEOUT'), PIPELINE_TIMEOUT_MS);
-  const init: RequestInit = { method, headers: { Accept: 'application/json' }, signal: controller.signal };
+  const init: RequestInit = {
+    method,
+    headers: { Accept: 'application/json', ...(await authHeaders()) },
+    signal: controller.signal,
+  };
   if (body !== undefined) {
     init.headers = { ...init.headers, 'Content-Type': 'application/json' };
     init.body = JSON.stringify(body);
@@ -85,7 +90,9 @@ async function throwBffError(res: Response): Promise<never> {
 async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → GET ${fullPath}`);
-  const res = await fetch(fullPath, { headers: { Accept: 'application/json' } });
+  const res = await fetch(fullPath, {
+    headers: { Accept: 'application/json', ...(await authHeaders()) },
+  });
   console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   const data = await res.json();
@@ -103,7 +110,7 @@ const getSnakeRaw = <T>(path: string): Promise<T> => get<T>(path, { raw: true })
 async function getRaw(path: string): Promise<Response> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → GET ${fullPath} (raw)`);
-  const res = await fetch(fullPath, { headers: { Accept: '*/*' } });
+  const res = await fetch(fullPath, { headers: { Accept: '*/*', ...(await authHeaders()) } });
   console.log(`[BFF] ← GET ${fullPath} (${res.status}, raw)`);
   if (!res.ok) await throwBffError(res);
   return res;
@@ -112,9 +119,9 @@ async function getRaw(path: string): Promise<Response> {
 async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → ${method} ${fullPath}`);
-  const init: RequestInit = { method };
+  const init: RequestInit = { method, headers: await authHeaders() };
   if (body !== undefined) {
-    init.headers = { 'Content-Type': 'application/json' };
+    init.headers = { ...init.headers, 'Content-Type': 'application/json' };
     init.body = JSON.stringify(body);
   }
   const res = await fetch(fullPath, init);
