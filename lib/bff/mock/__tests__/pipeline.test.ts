@@ -329,9 +329,10 @@ describe('mockPipeline (in-memory orchestrator)', () => {
     });
   });
 
-  // pipeline-restart-design 결정 3 (첫 non-DONE부터) / 결정 5 (최신 + FAILED|CANCELLED만)
+  // pipeline-restart-design decision 3 (resume at the first non-DONE) / decision 5
+  // (only the latest FAILED|CANCELLED run restarts)
   describe('restart (#13 preview / #14 execute)', () => {
-    // 124: Azure target 1003의 유일한 실행, task 0 DONE + task 1 FAILED(JOB_FAILED ×2).
+    // 124: the only run of Azure target 1003 — task 0 DONE + task 1 FAILED (JOB_FAILED ×2).
     it('previews the suffix from the first non-DONE task', () => {
       const preview = mockPipeline.restartPreview('1003', '124', undefined).body as RestartPreview;
       expect(preview.origin.pipeline_id).toBe(124);
@@ -355,10 +356,10 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       const restarted = mockPipeline.restart('1003', '124', null).body as PipelineDetail;
       expect(restarted.pipeline_id).not.toBe(124);
       expect(restarted.status).toBe('PENDING');
-      expect(restarted.type).toBe('INSTALL'); // 결정 1 — CUSTOM으로 위장하지 않는다
+      expect(restarted.type).toBe('INSTALL'); // decision 1 — a restart is not disguised as CUSTOM
       expect(restarted.recipe_definition).toBe('AZURE_INSTALL_V1');
       expect(restarted.cloud_provider).toBe('AZURE');
-      // sequence는 0부터 재부여하고, 원본 대응은 origin_task_id가 진다.
+      // Sequences renumber from 0; origin_task_id carries the correspondence.
       expect(restarted.tasks.map((t) => t.sequence)).toEqual([0]);
       expect(restarted.tasks[0].status).toBe('READY');
       expect(restarted.tasks[0].origin_task_id).toBe(origin.tasks[1].task_id);
@@ -366,12 +367,12 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       expect(restarted.origin?.resumed_from_sequence).toBe(1);
       expect(restarted.origin?.total_task_count).toBe(origin.total_task_count);
 
-      // 원본 상세는 역링크로 "이미 조치됨"을 알린다.
+      // The origin detail advertises "already handled" through the back-link.
       const originAfter = mockPipeline.detail('124').body as PipelineDetail;
       expect(originAfter.restarted_by_pipeline_id).toBe(restarted.pipeline_id);
 
-      // 재시작 후 원본은 더 이상 최신이 아니므로 중복 재시작이 막힌다(§6 — 체인의
-      // 끝에서만 재시작). 새 실행 자체도 비종료라 재시작 대상이 아니다.
+      // After the restart the origin is no longer the latest, so a duplicate restart is
+      // blocked (§6 — only the chain tail restarts). The new run is live, so not restartable either.
       expect(asError(mockPipeline.restart('1003', '124', null).body).code)
         .toBe('ORCHESTRATION_PIPELINE_NOT_LATEST');
       expect(asError(mockPipeline.restart('1003', String(restarted.pipeline_id), null).body).code)
@@ -386,18 +387,18 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       expect(preview.tasks_to_run[0].origin_status).toBe('CANCELLED');
     });
 
-    it('rejects DONE / live / stale origins with the exact code (결정 5)', () => {
-      // 127 DONE — 재시작할 실패 지점이 없다(검사 순서상 NOT_LATEST보다 먼저 걸린다).
+    it('rejects DONE / live / stale origins with the exact code (decision 5)', () => {
+      // 127 DONE — no failure point to resume from (checked before NOT_LATEST).
       expect(asError(mockPipeline.restartPreview('1006', '127', undefined).body).code)
         .toBe('ORCHESTRATION_PIPELINE_NOT_RESTARTABLE');
-      // 128 RUNNING (1006의 최신) — 재시작이 아니라 취소 대상이다.
+      // 128 RUNNING (the latest of 1006) — a cancel target, not a restart target.
       const live = mockPipeline.restart('1006', '128', null);
       expect(live.status).toBe(409);
       expect(asError(live.body).code).toBe('ORCHESTRATION_PIPELINE_NOT_RESTARTABLE');
-      // 131 FAILED이지만 1006의 최신이 아니다.
+      // 131 is FAILED but no longer the latest run of 1006.
       expect(asError(mockPipeline.restartPreview('1006', '131', undefined).body).code)
         .toBe('ORCHESTRATION_PIPELINE_NOT_LATEST');
-      // target 불일치 / 미존재.
+      // Target mismatch / unknown id.
       expect(mockPipeline.restartPreview('1003', '123', undefined).status).toBe(404);
       expect(mockPipeline.restart('1003', '99999', null).status).toBe(404);
     });
@@ -406,8 +407,9 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       const earlier = mockPipeline.restartPreview('1003', '124', '0').body as RestartPreview;
       expect(earlier.resume_from_sequence).toBe(0);
       expect(earlier.skipped_tasks).toEqual([]);
-      expect(earlier.tasks_to_run).toHaveLength(2); // DONE 재실행 포함 = 원본 전체
-      // 실패 task 건너뛰기(더 뒤)와 음수는 거절 — 설치 완전성을 깬다.
+      expect(earlier.tasks_to_run).toHaveLength(2); // re-running the DONE task = the whole origin chain
+      // Skipping the failed task (a later point) and negatives are rejected — that would
+      // break install completeness.
       expect(asError(mockPipeline.restartPreview('1003', '124', '2').body).code)
         .toBe('ORCHESTRATION_INVALID_RESUME_SEQUENCE');
       expect(mockPipeline.restart('1003', '124', { from_sequence: -1 }).status).toBe(400);

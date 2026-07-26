@@ -76,7 +76,8 @@ const TYPE_LABELS: Record<PipelineType, string> = {
 
 const TYPE_DESCS: Record<PipelineType, string> = {
   INSTALL: '이 대상에 인프라를 설치합니다 — 표준 레시피 7개 Task를 순서대로 실행',
-  // 실패 재실행의 정식 경로는 재시작(RestartModal)이므로, CUSTOM 설명에서 그 문구를 뺀다.
+  // Restarting (RestartModal) is now the sanctioned path for re-running a failure,
+  // so that promise is dropped from the CUSTOM description.
   CUSTOM: 'Task 순서를 직접 구성해 실행합니다',
   DELETE: '설치된 인프라를 destroy 합니다 — 대상의 리소스가 제거돼요',
 };

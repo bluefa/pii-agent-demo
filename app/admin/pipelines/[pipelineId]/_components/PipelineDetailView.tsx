@@ -83,7 +83,7 @@ export function PipelineDetailView(): ReactElement {
   // The target's LATEST run (#8). Two jobs: the owning-service identity for the
   // header (PipelineDetail carries neither field, and every run of a target
   // shares it), and the restart gate — only the latest run is restartable
-  // (결정 5), so the band CTA needs to know whether THIS run is it.
+  // (decision 5), so the band CTA needs to know whether THIS run is it.
   const [latest, setLatest] = useState<PipelineSummary | null>(null);
   const [selected, setSelected] = useState<TaskSummary | null>(null);
   const cancelModal = useModal();
@@ -105,8 +105,8 @@ export function PipelineDetailView(): ReactElement {
         if (cancelled) return;
         setDetail(d);
         setStatus('ready');
-        // Restart deep-link (`?task=<originTaskId>` from the drawer's "이전 실행
-        // 이력 보기"): open that task's drawer as the page settles.
+        // Restart deep-link (`?task=<originTaskId>` from the drawer's origin link):
+        // open that task's drawer as the page settles.
         const deepLinked = taskParam
           ? d.tasks.find((t) => String(t.task_id) === taskParam)
           : undefined;
@@ -306,9 +306,9 @@ export function PipelineDetailView(): ReactElement {
   const cur = currentTaskInfo(detail.status, detail.next_due_at, detail.tasks, resolveName, retryFor);
   const svcName = latest?.service_name || latest?.service_code || `Target ${detail.target_source_id}`;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-  // §8.4 — the band's right slot is "이 상태에서 할 수 있는 행동": live → 중단,
-  // 재시작 가능한 실패 실행 → 재시작, DONE → 아무 것도 없음(결정 5). Already
-  // restarted (restarted_by_pipeline_id) drops the CTA so a run is not restarted twice.
+  // §8.4 — the band's right slot is "what you can do in this state": live → cancel,
+  // restartable failure → restart, DONE → nothing (decision 5). An already-restarted run
+  // (restarted_by_pipeline_id) drops the CTA so it is never restarted twice.
   const restartable =
     (detail.status === 'FAILED' || detail.status === 'CANCELLED') &&
     latest?.pipeline_id === detail.pipeline_id &&
@@ -364,8 +364,8 @@ export function PipelineDetailView(): ReactElement {
             Target 상세 확인 <Icon name="arrow-ur" size="sm" />
           </Link>
 
-          {/* §8.4 — 양방향 계보. 앞쪽(원본)과 뒤쪽(재시작본)을 같은 자리에서
-              오갈 수 있어야 "이미 조치됐는지"를 실패 화면에서 바로 안다. */}
+          {/* §8.4 — bidirectional provenance. Walking to the origin and to the restart from
+              one place is what tells an operator "this was already handled". */}
           {(detail.origin_pipeline_id != null || detail.restarted_by_pipeline_id != null) && (
             <>
               <span className={h.groupLabel}>계보</span>
@@ -439,8 +439,8 @@ export function PipelineDetailView(): ReactElement {
         ) : null}
       </div>
 
-      {/* §8.4 — 재시작 실행의 컨텍스트 스트립. 진행도(0/N)는 자기 suffix 기준을
-          유지하고, 원본 대비 위치는 이 한 줄이 설명한다(ghost 노드 없음). */}
+      {/* §8.4 — restart context strip. Progress (0/N) stays on this run's own suffix;
+          this one line explains where it sits in the origin chain (no ghost nodes). */}
       {origin && (
         <div className={improvedStyles.originStrip}>
           <span>↻</span>

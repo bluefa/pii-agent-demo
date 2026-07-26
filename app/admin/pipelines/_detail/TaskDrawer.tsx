@@ -126,8 +126,8 @@ export function TaskDrawer({
               <div className={d.typeRow}>
                 <span className={d.typeLabel}>타입</span>
                 <span className={d.tag}>{task.kind}</span>
-                {/* §8.4 — 재시작 task는 원본 task의 시도·terraform 로그(실패 진단의
-                    원천)로 화면 이탈 없이 연결된다. */}
+                {/* §8.4 — a restart task links straight to the origin task's attempts and
+                    terraform logs (the source of the failure diagnosis). */}
                 {originHref && (
                   <Link href={originHref} className={d.originLink} title="원본 작업의 이 Task 상세로 이동">
                     이전 실행 이력 보기

@@ -1,23 +1,23 @@
 'use client';
 
 /**
- * RestartModal — "실패 지점부터 재시작" (pipeline-restart-design §8.2).
+ * RestartModal — the "실패 지점부터 재시작" flow (pipeline-restart-design §8.2).
  *
  * Reuses the PreviewModal grammar: R24 seq-node canvas + ModalNote + the 409
- * handler shape. The canvas draws the ORIGIN's WHOLE chain so "왜 여기부터인지"
- * is answered by the picture itself — DONE nodes dim ("완료 — 건너뜀"), the
- * resume point carries the origin's failure line (`실패 N회 · ERROR_CODE`), and
- * the tail renders in the plain re-run tone.
+ * handler shape. The canvas draws the ORIGIN's WHOLE chain so the picture itself
+ * answers "why from here": DONE nodes dim (labelled 완료 — 건너뜀), the resume point
+ * carries the origin's failure line (실패 N회 · ERROR_CODE), and the tail renders in
+ * the plain re-run tone.
  *
- * Both entry points (Target 상세의 LastRunFailedCard, 작업 상세의 exec band)
- * share this modal. The frontend gate (§8.1) is convenience only, so the server
+ * Both entry points (LastRunFailedCard on the target page, the exec band on the
+ * pipeline page) share this modal. The frontend gate (§8.1) is convenience only, so the server
  * is still the authority: `restart-preview` runs the SAME validation as the
  * execution, and any 409 (`PIPELINE_NOT_RESTARTABLE` / `PIPELINE_NOT_LATEST` /
  * `PIPELINE_ALREADY_ACTIVE`) closes the modal, refetches the latest run, and
  * routes the operator there instead of failing in place.
  *
- * `from_sequence` (앞당기기) is deliberately NOT wired — the design puts the
- * override in a second pass; this modal always uses the server's default point.
+ * `from_sequence` (moving the resume point earlier) is deliberately NOT wired — the
+ * design defers the override to a second pass; this modal always uses the server default.
  */
 import { Fragment, useCallback, useEffect, useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
@@ -48,7 +48,7 @@ import type { CloudProvider, RestartPreview, TaskCatalogEntry } from '@/lib/pipe
 const TITLE_ID = 'pl-restart-title';
 const MODAL_H3 = 'mb-3 text-[18px] font-bold leading-[1.3] tracking-[-0.018em] text-[var(--pl-text-strong)]';
 
-/** Server states that mean "이 화면이 낡았다" — all three route to the latest run. */
+/** Server states that mean "this screen is stale" — all three route to the latest run. */
 const STALE_CODES = new Set([
   'ORCHESTRATION_PIPELINE_NOT_RESTARTABLE',
   'ORCHESTRATION_PIPELINE_NOT_LATEST',
@@ -58,7 +58,7 @@ const STALE_CODES = new Set([
 const isStale = (err: unknown): boolean =>
   err instanceof OrchestratorApiError && err.code !== null && STALE_CODES.has(err.code);
 
-/** Failure line under the resume-point node — 원본이 왜 여기서 멈췄는지. */
+/** Failure line under the resume-point node — why the origin stopped here. */
 function originReason(status: string, failCount: number, errorCode: string | null): string {
   if (status === 'FAILED') return `실패 ${failCount}회 · ${errorCode ?? '원인 미기록'}`;
   if (status === 'CANCELLED') return '취소됨 — 여기부터 재실행';
@@ -173,7 +173,7 @@ export function RestartModal({
 
   // The ORIGIN chain as one node row: skipped (dim) then the re-run suffix, the
   // first of which is the failure point. Sequence chips stay the ORIGIN's
-  // numbering — that is what "N단계부터" refers to.
+  // numbering — that is what the "N단계부터" CTA refers to.
   const nodes = preview
     ? [
         ...preview.skipped_tasks.map((t) => ({

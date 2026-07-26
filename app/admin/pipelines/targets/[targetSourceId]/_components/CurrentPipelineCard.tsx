@@ -158,10 +158,10 @@ export interface LastRunFailedCardProps {
 
 /**
  * Terminal FAILED/CANCELLED latest run (restart-design §8.1) — the third state
- * of the 현재 작업 section. Before this, a failed run fell back to the empty
+ * of the "현재 작업" section. Before this, a failed run fell back to the empty
  * card and the failure context vanished; here the failure stays on screen WITH
  * the action that answers it. The restart CTA renders only in this branch —
- * that IS the frontend half of 결정 5's gating (live → 중단만, DONE → 새 작업만).
+ * that IS the frontend half of decision 5's gating (live → cancel only, DONE → start only).
  */
 export function LastRunFailedCard({
   detail,

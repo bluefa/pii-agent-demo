@@ -1285,7 +1285,7 @@ const synthStateBody = (
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Restart — pipeline-restart-design 결정 3·5, §3.2 검증 순서
+// Restart — pipeline-restart-design decisions 3 & 5, §3.2 validation order
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** In-flight-job warning window — the terraform executionTimeout (PT30M). */
@@ -1316,7 +1316,7 @@ function computeRestart(
   if (!origin || origin.target_source_id !== targetSourceId) {
     return err(404, 'PIPELINE_NOT_FOUND', `pipeline ${pipelineId} not found`, path);
   }
-  // 결정 5 — DONE·RUNNING·PENDING 은 재시작 대상이 아니다.
+  // Decision 5 — DONE / RUNNING / PENDING origins are not restartable.
   if (origin.status !== 'FAILED' && origin.status !== 'CANCELLED') {
     return err(409, 'PIPELINE_NOT_RESTARTABLE',
       `pipeline ${origin.pipeline_id} is ${origin.status} — only the latest FAILED/CANCELLED run can be restarted`,
@@ -1328,8 +1328,9 @@ function computeRestart(
       `pipeline ${origin.pipeline_id} is not the latest run (latest: ${latest.pipeline_id})`, path);
   }
   const chain = [...origin.tasks].sort((a, b) => a.sequence - b.sequence);
-  // 결정 3 — 기본 재시작 지점 = 첫 번째 non-DONE task. terminal 인데 전부 DONE 인 행은 상태
-  // 기계상 도달 불가지만 재시작할 지점이 없으므로 거절한다(업스트림 PipelineRestarter 와 동일 방어).
+  // Decision 3 — the default resume point is the first non-DONE task. A terminal
+  // row whose tasks are ALL done is unreachable per the state machine, but it has
+  // no resume point either, so reject it (same defense as upstream PipelineRestarter).
   const firstNotDone = chain.find((t) => t.status !== 'DONE');
   if (!firstNotDone) {
     return err(409, 'PIPELINE_NOT_RESTARTABLE',
@@ -1357,11 +1358,12 @@ const parseFromSequence = (raw: string | undefined): number | null => {
   return Number.isInteger(n) ? n : -1;
 };
 
-/** 업스트림(PipelineRestarter.IN_FLIGHT_JOB_WARNING)이 보내는 문장 그대로. */
+/** Verbatim copy of the upstream sentence (PipelineRestarter.IN_FLIGHT_JOB_WARNING). */
 const IN_FLIGHT_JOB_WARNING =
   '원본 실행이 최근에 종료되었습니다. 이전에 dispatch된 Terraform job이 아직 실행 중일 수 있습니다(멱등이므로 무해).';
 
-/** 취소·실패 직후 재시작 — 이전 dispatch job이 아직 돌고 있을 수 있다는 안내(차단 아님). */
+/** Restart right after a cancel/failure — a notice (never a block) that a previously
+ *  dispatched job may still be running. */
 function restartWarnings(origin: MockPipeline): string[] {
   const sinceMs = Date.now() - new Date(origin.last_activity_at).getTime();
   return sinceMs > RESTART_WARN_WINDOW_MS ? [] : [IN_FLIGHT_JOB_WARNING];
@@ -1776,7 +1778,7 @@ export const mockPipeline = {
   },
 
   // #14 — restart execution: a NEW pipeline from the origin's task suffix.
-  // 결정 1 — type·recipe_definition·provider 는 원본에서 승계한다.
+  // Decision 1 — type / recipe_definition / provider are inherited from the origin.
   restart(targetSourceId: string, pipelineId: string, body: unknown): OrchestratorRawResponse {
     const path = `${PATH.targetPipelines(targetSourceId)}/${pipelineId}/restart`;
     const raw = asRecord(body);
@@ -1795,7 +1797,7 @@ export const mockPipeline = {
     }
     const newId = nextPipelineId();
     const now = new Date().toISOString();
-    // sequence 는 0부터 재부여하고, 원본과의 대응은 origin_task_id 가 진다(§4.1).
+    // Sequences are renumbered from 0; origin_task_id carries the correspondence (§4.1).
     const tasks: MockTask[] = toRun.map((t, index) => ({
       task_id: newId * 100 + index,
       sequence: index,

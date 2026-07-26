@@ -119,7 +119,7 @@ function R24Section({ title, desc }: { title: string; desc: string }): ReactElem
 
 const HISTORY_TH =
   'bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)] px-4 py-[9px] text-left text-[11px] font-medium text-[var(--pl-text-faint)] whitespace-nowrap';
-/** §8.3 — 재시작 행임을 한 줄에서 알리는 칩(클릭 시 원본 상세). */
+/** §8.3 — chip that marks a row as a restart; clicking opens the origin detail. */
 const RESTART_CHIP =
   'inline-flex items-center gap-1 rounded-full border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-2 py-[1.5px] text-[11px] font-semibold tabular-nums text-[var(--pl-text-weak)] hover:border-[var(--pl-primary)] hover:text-[var(--pl-primary)] transition-colors';
 const HISTORY_TD =
@@ -201,7 +201,7 @@ export function TargetDetailView(): ReactElement {
 
   const live = latest != null && isLivePipeline(latest.status);
   const liveId = live ? latest.pipeline_id : null;
-  // The 현재 작업 section renders a detail for the latest run in TWO cases: it is
+  // The "현재 작업" section renders a detail for the latest run in TWO cases: it is
   // live (polled), or it ended FAILED/CANCELLED (§8.1 — fetched once, so the
   // failure context and the restart CTA share the screen).
   const focusId =
@@ -395,6 +395,11 @@ export function TargetDetailView(): ReactElement {
                     aria-label={`작업 #${p.pipeline_id} 상세 열기`}
                     onClick={() => goPipeline(p.pipeline_id)}
                     onKeyDown={(e) => {
+                      // Only the row itself activates: a keypress on the nested
+                      // origin chip must reach its own button, not be swallowed
+                      // here (preventDefault would suppress the chip's click and
+                      // navigate to the WRONG pipeline).
+                      if (e.target !== e.currentTarget) return;
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         goPipeline(p.pipeline_id);
@@ -408,7 +413,7 @@ export function TargetDetailView(): ReactElement {
                       <span className="flex items-center gap-2.5 text-[13.5px] font-semibold text-[var(--pl-text-strong)]">
                         <TypeTile type={p.type} size="xs" />
                         {p.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(p.recipe_definition)}
-                        {/* §8.3 — 이 행이 재시작인가만 답한다(원본 행에는 칩 없음). */}
+                        {/* §8.3 — answers only "is this row a restart" (origin rows carry no chip). */}
                         {p.origin_pipeline_id != null && (
                           <button
                             type="button"

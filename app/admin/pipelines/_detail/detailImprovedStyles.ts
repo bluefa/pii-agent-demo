@@ -106,7 +106,7 @@ export const improvedStyles = {
     /** Task description — moved into the header (node 70:35), above the tabs. */
     headerDesc: 'mt-3 text-[14px] leading-[1.6] text-[var(--pl-text-weak)] whitespace-pre-line',
     typeRow: 'flex items-center gap-2 mt-3.5 flex-wrap',
-    /** "이전 실행 이력 보기 ↗" — restart task → origin task (§8.4). */
+    /** Restart task → origin task link in the drawer header (§8.4). */
     originLink:
       'inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline',
     typeLabel: 'text-[13px] text-[var(--pl-text-weak)]',
