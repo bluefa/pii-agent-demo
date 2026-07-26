@@ -119,6 +119,50 @@ export function TypePill({ type, className }: { type: PipelineType; className?: 
   );
 }
 
+/**
+ * "↻ #123에서 재시작" — the one phrase that marks a run as a restart, used on
+ * every surface that titles a run (target run-card, history row, detail header).
+ * An icon + id alone (↻ #123) reads as decoration; operators asked for the word
+ * itself. `onClick` makes it a link to the origin run; omit it for a static mark.
+ *
+ * The particle is 에서, not (으)로부터: the correct form of the latter depends on
+ * how the trailing DIGIT is read (…4 → 로부터, …6 → 으로부터), so it cannot be
+ * hardcoded for an arbitrary pipeline id.
+ */
+export function RestartBadge({
+  originPipelineId,
+  onClick,
+  className,
+}: {
+  originPipelineId: number;
+  onClick?: () => void;
+  className?: string;
+}): ReactElement {
+  const label = (
+    <>
+      <span aria-hidden="true">↻</span>
+      <span>
+        <span className="[font-family:var(--pl-font-mono)]">#{originPipelineId}</span>에서 재시작
+      </span>
+    </>
+  );
+  const base =
+    'inline-flex items-center gap-1 rounded-full bg-[var(--pl-primary-bg)] px-2.5 py-[3px] text-[11.5px] font-semibold text-[var(--pl-primary)] whitespace-nowrap';
+  if (!onClick) {
+    return <span className={cn(base, className)}>{label}</span>;
+  }
+  return (
+    <button
+      type="button"
+      className={cn(base, 'transition-colors hover:brightness-95', className)}
+      title={`원본 작업 #${originPipelineId} 상세로 이동`}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
 /** Bare kind mark — Terraform brand logomark / warn clock, NO tile wrap (R24). */
 export function KindMark({ kind }: { kind: TaskKind }): ReactElement {
   if (kind === 'CONDITION_CHECK') {

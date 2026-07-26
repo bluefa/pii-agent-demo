@@ -31,7 +31,7 @@ import { RestartModal } from '@/app/admin/pipelines/_detail/RestartModal';
 import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { targetCrumbs } from '@/app/admin/pipelines/_detail/pipelineBreadcrumb';
-import { TypePill, TypeTile } from '@/app/admin/pipelines/_detail/r24Task';
+import { RestartBadge, TypePill, TypeTile } from '@/app/admin/pipelines/_detail/r24Task';
 import {
   CurrentPipelineCard,
   EmptyPipelineCard,
@@ -119,9 +119,6 @@ function R24Section({ title, desc }: { title: string; desc: string }): ReactElem
 
 const HISTORY_TH =
   'bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)] px-4 py-[9px] text-left text-[11px] font-medium text-[var(--pl-text-faint)] whitespace-nowrap';
-/** §8.3 — chip that marks a row as a restart; clicking opens the origin detail. */
-const RESTART_CHIP =
-  'inline-flex items-center gap-1 rounded-full border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-2 py-[1.5px] text-[11px] font-semibold tabular-nums text-[var(--pl-text-weak)] hover:border-[var(--pl-primary)] hover:text-[var(--pl-primary)] transition-colors';
 const HISTORY_TD =
   'border-b border-[var(--pl-gray-100)] px-4 py-[13px] align-middle tabular-nums text-[13px] text-[var(--pl-text-strong)]';
 
@@ -337,6 +334,7 @@ export function TargetDetailView(): ReactElement {
             detail={focusDetail}
             defs={defs}
             onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
+            onOpenOrigin={goPipeline}
           />
         ) : focusDetail ? (
           /* §8.1 — latest ended FAILED/CANCELLED: keep the failure on screen
@@ -347,6 +345,7 @@ export function TargetDetailView(): ReactElement {
             onRestart={() => restartModal.open()}
             onStartNew={() => previewModal.open()}
             onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
+            onOpenOrigin={goPipeline}
           />
         ) : !latestLoaded || focusId != null ? (
           <div className={cn(detailStyles.skeleton, 'h-52')} aria-hidden="true" />
@@ -415,17 +414,12 @@ export function TargetDetailView(): ReactElement {
                         {p.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(p.recipe_definition)}
                         {/* §8.3 — answers only "is this row a restart" (origin rows carry no chip). */}
                         {p.origin_pipeline_id != null && (
-                          <button
-                            type="button"
-                            className={RESTART_CHIP}
-                            title={`원본 작업 #${p.origin_pipeline_id} 상세로 이동`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              goPipeline(p.origin_pipeline_id as number);
-                            }}
-                          >
-                            ↻ #{p.origin_pipeline_id}
-                          </button>
+                          <span onClick={(e) => e.stopPropagation()}>
+                            <RestartBadge
+                              originPipelineId={p.origin_pipeline_id}
+                              onClick={() => goPipeline(p.origin_pipeline_id as number)}
+                            />
+                          </span>
                         )}
                       </span>
                     </td>

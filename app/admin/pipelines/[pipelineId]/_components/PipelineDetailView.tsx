@@ -29,6 +29,7 @@ import { PipelineTypeTag } from '@/app/admin/pipelines/_components/PipelineTypeT
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { TaskFlow } from '@/app/admin/pipelines/_detail/TaskFlow';
+import { RestartBadge } from '@/app/admin/pipelines/_detail/r24Task';
 import { TaskDrawer } from '@/app/admin/pipelines/_detail/TaskDrawer';
 import { CancelModal } from '@/app/admin/pipelines/_detail/CancelModal';
 import { RestartModal } from '@/app/admin/pipelines/_detail/RestartModal';
@@ -324,6 +325,19 @@ export function PipelineDetailView(): ReactElement {
             <div className={h.titleRow}>
               <h1 className={h.title}>작업 현황</h1>
               <span className={h.id}>#{detail.pipeline_id}</span>
+              {/* The restart identity belongs next to the run's own id — an operator
+                  must not have to read the meta grid to learn this is a re-run. */}
+              {detail.origin_pipeline_id != null && (
+                <Link
+                  href={passRoutes.pipelines.pipeline(detail.origin_pipeline_id)}
+                  title={`원본 작업 #${detail.origin_pipeline_id} 상세로 이동`}
+                >
+                  <RestartBadge
+                    originPipelineId={detail.origin_pipeline_id}
+                    className="!text-[12.5px] !px-3 !py-[4px] hover:brightness-95"
+                  />
+                </Link>
+              )}
               {/* Status is shown in the exec band (below) for every state. */}
               {detail.cancel_requested && (
                 <span className={detailStyles.ftag.ext} title="cancel_requested=true — 다음 실행 사이클에 취소가 반영됩니다">

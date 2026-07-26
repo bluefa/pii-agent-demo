@@ -21,6 +21,7 @@ import {
   FlowStatusPill,
   R24_CSS,
   R24_RUN_CSS,
+  RestartBadge,
   RunTaskCard,
 } from '@/app/admin/pipelines/_detail/r24Task';
 import type { PipelineDetail, TaskCatalogEntry } from '@/lib/pipeline/types';
@@ -40,12 +41,15 @@ export interface CurrentPipelineCardProps {
   /** task_definition name → catalog entry (display name + description). */
   defs: ReadonlyMap<string, TaskCatalogEntry>;
   onOpenPipeline: () => void;
+  /** Opens the ORIGIN run when this one is a restart (restart badge). */
+  onOpenOrigin?: (originPipelineId: number) => void;
 }
 
 export function CurrentPipelineCard({
   detail,
   defs,
   onOpenPipeline,
+  onOpenOrigin,
 }: CurrentPipelineCardProps): ReactElement {
   const label = recipeLabel(detail.recipe_definition);
   const title =
@@ -95,6 +99,12 @@ export function CurrentPipelineCard({
                 #{detail.pipeline_id}
               </span>
               <FlowStatusPill status={detail.status} className="!px-2.5 !py-1 !text-[12px]" />
+              {detail.origin_pipeline_id != null && (
+                <RestartBadge
+                  originPipelineId={detail.origin_pipeline_id}
+                  onClick={onOpenOrigin ? () => onOpenOrigin(detail.origin_pipeline_id as number) : undefined}
+                />
+              )}
             </div>
             {label?.desc ? (
               <p className="mt-1.5 max-w-[760px] text-[14px] leading-[1.55] text-[var(--pl-text-weak)]">
@@ -154,6 +164,8 @@ export interface LastRunFailedCardProps {
   onRestart: () => void;
   onStartNew: () => void;
   onOpenPipeline: () => void;
+  /** Opens the ORIGIN run when this failed run was itself a restart. */
+  onOpenOrigin?: (originPipelineId: number) => void;
 }
 
 /**
@@ -169,6 +181,7 @@ export function LastRunFailedCard({
   onRestart,
   onStartNew,
   onOpenPipeline,
+  onOpenOrigin,
 }: LastRunFailedCardProps): ReactElement {
   const title =
     detail.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(detail.recipe_definition);
@@ -194,6 +207,12 @@ export function LastRunFailedCard({
                 #{detail.pipeline_id}
               </span>
               <FlowStatusPill status={detail.status} className="!px-2.5 !py-1 !text-[12px]" />
+              {detail.origin_pipeline_id != null && (
+                <RestartBadge
+                  originPipelineId={detail.origin_pipeline_id}
+                  onClick={onOpenOrigin ? () => onOpenOrigin(detail.origin_pipeline_id as number) : undefined}
+                />
+              )}
             </div>
             <p className="mt-1.5 text-[14px] leading-[1.55] text-[var(--pl-text-weak)]">
               {detail.total_task_count}단계 중 {detail.done_task_count}단계 완료
