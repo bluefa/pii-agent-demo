@@ -18,6 +18,20 @@ import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSource
 import { ROLE_META, type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
+/** Jira brand mark (Simple Icons path), tinted with the primary token. */
+function JiraMark(): ReactElement {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-[13px] w-[13px] flex-none text-[var(--pl-primary)]"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.001 1.001 0 0 0 23.013 0z" />
+    </svg>
+  );
+}
+
 export interface OpsHeaderProps {
   targetSourceId: number;
   detail: RawTargetSourceDetail;
@@ -130,9 +144,20 @@ export function OpsHeader({
           <div className={opsStyles.bubble}>
             <div className={opsStyles.bubbleTop}>
               <span className={opsStyles.bubbleTitle}>협업 채널</span>
-              <button type="button" className={opsStyles.bubbleManage} onClick={onOpenChannel}>
-                관리
-              </button>
+              {/* 관리 lands on the service ops page (Jira ticket management lives
+                  there); the modal remains the fallback when no service is linked. */}
+              {detail.service_code ? (
+                <Link
+                  href={passRoutes.pipelines.ops.service(detail.service_code)}
+                  className={opsStyles.bubbleManage}
+                >
+                  관리
+                </Link>
+              ) : (
+                <button type="button" className={opsStyles.bubbleManage} onClick={onOpenChannel}>
+                  관리
+                </button>
+              )}
             </div>
             {channel ? (
               <a
@@ -141,7 +166,7 @@ export function OpsHeader({
                 rel="noreferrer"
                 className={opsStyles.bubbleJiraRow}
               >
-                <span className={opsStyles.jiraDiamond} aria-hidden />
+                <JiraMark />
                 <span className={opsStyles.bubbleLink}>
                   {channel.issue_key} <span aria-hidden>↗</span>
                 </span>

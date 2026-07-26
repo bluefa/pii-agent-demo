@@ -41,7 +41,6 @@ export const opsStyles = {
   bubbleManage: 'text-[11px] text-[var(--pl-primary)] underline cursor-pointer',
   bubbleJiraRow: 'flex items-center gap-1.5',
   /** Jira mark — the Figma icon is literally a 45°-rotated rounded square. */
-  jiraDiamond: 'h-[11px] w-[11px] rotate-45 rounded-[2px] bg-[var(--pl-primary)] flex-none mx-0.5',
   bubbleLink: 'inline-flex items-center gap-1 text-[13px] font-medium text-[var(--pl-text-strong)] underline cursor-pointer',
 
   /** Tab strip — Figma 22:40 (indicator style). */

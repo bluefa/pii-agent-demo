@@ -156,6 +156,7 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
         isOpen={detail !== null}
         onClose={() => setDetail(null)}
         item={detail ? toModalItem(detail) : null}
+        targetSourceId={targetSourceId}
       />
     </section>
   );

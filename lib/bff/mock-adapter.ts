@@ -227,6 +227,9 @@ export const mockBff: BffClient = {
     getApprovalRequestLatest: async (id) =>
       unwrap<unknown>(await mockConfirm.getApprovalRequestLatest(String(id))),
 
+    getApprovalRequestDetail: async (id, requestId) =>
+      unwrap<unknown>(await mockConfirm.getApprovalRequestDetail(String(id), requestId)),
+
     getProcessStatus: async (id) =>
       unwrap<z.infer<typeof schemas.ProcessStatusResponseDto>>(await mockConfirm.getProcessStatus(String(id))),
 

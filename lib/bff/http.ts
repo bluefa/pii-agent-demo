@@ -427,6 +427,9 @@ export const httpBff: BffClient = {
     getApprovalRequestLatest: (id) =>
       getSnakeRaw<unknown>(`/target-sources/${id}/approval-requests/latest`),
 
+    getApprovalRequestDetail: (id, requestId) =>
+      getSnakeRaw<unknown>(`/target-sources/${id}/approval-requests/${requestId}`),
+
     getProcessStatus: (id) =>
       getSnakeRaw<z.infer<typeof schemas.ProcessStatusResponseDto>>(
         `/target-sources/${id}/process-status`,

@@ -230,6 +230,7 @@ export interface BffClient {
     getApprovedIntegration: (id: number) => Promise<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>;
     getApprovalHistory: (id: number, page: number, size: number) => Promise<unknown>;
     getApprovalRequestLatest: (id: number) => Promise<unknown>;
+    getApprovalRequestDetail: (id: number, requestId: number) => Promise<unknown>;
     getProcessStatus: (id: number) => Promise<z.infer<typeof schemas.ProcessStatusResponseDto>>;
     approveApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     rejectApprovalRequest: (id: number, body: unknown) => Promise<unknown>;

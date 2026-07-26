@@ -1,6 +1,13 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { Badge } from '@/app/components/ui/Badge';
 import { Modal } from '@/app/components/ui/Modal';
-import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
+import {
+  getApprovalRequestDetail,
+  type ApprovalRequestLatestResponse,
+  type ApprovalResourceItem,
+} from '@/app/lib/api';
 import { cn, statusColors, getButtonClass, textColors, bgColors, borderColors } from '@/lib/theme';
 
 interface ApprovalHistoryItem {
@@ -23,6 +30,12 @@ interface ApprovalRequestDetailModalProps {
   onClose: () => void;
   item?: ApprovalHistoryItem | null;
   latestResponse?: ApprovalRequestLatestResponse | null;
+  /**
+   * When set (with a numeric history item id), the modal fetches
+   * GET …/approval-requests/{requestId} on open and renders the actual
+   * 대상/비대상 resource lists instead of counts alone.
+   */
+  targetSourceId?: number;
 }
 
 const formatDateTime = (iso?: string): string => {
@@ -65,7 +78,7 @@ const getResultMeta = (status: ResultStatus) => {
         panelBg: statusColors.error.bg,
         panelBorder: statusColors.error.border,
         panelText: statusColors.error.textDark,
-        description: '승인 요청이 반려되었습니다. 처리 사유가 함께 기록되어 있으면 아래 요약에 표시됩니다.',
+        description: '승인 요청이 반려되었습니다. 처리 사유가 함께 기록되어 있으면 처리 결과에 표시됩니다.',
       };
     case 'CANCELLED':
       return {
@@ -101,7 +114,7 @@ const getResultMeta = (status: ResultStatus) => {
         panelBg: statusColors.info.bg,
         panelBorder: statusColors.info.border,
         panelText: statusColors.info.textDark,
-        description: '관리자 검토를 기다리는 요청입니다. 계약 기준으로 이 화면은 요청 메타데이터와 처리 결과 중심으로 표시합니다.',
+        description: '관리자 검토를 기다리는 요청입니다.',
       };
   }
 };
@@ -138,7 +151,6 @@ const toSummaryViewFromLatest = (response: ApprovalRequestLatestResponse): Norma
 };
 
 // Output adapter: contract ApprovalRequestSummaryDto (history item) → view-model.
-// Counts come straight from the contract; the response carries no resource list.
 const toSummaryViewFromHistory = (item: ApprovalHistoryItem): NormalizedData => {
   const totalCount = item.request.resource_total_count ?? 0;
   const selectedCount = item.request.resource_selected_count ?? 0;
@@ -156,28 +168,137 @@ const toSummaryViewFromHistory = (item: ApprovalHistoryItem): NormalizedData => 
   };
 };
 
+/** integration_category → operator-facing label for a 비대상 row without an explicit reason. */
+const CATEGORY_LABEL: Record<string, string> = {
+  NO_INSTALL_NEEDED: '설치 불필요',
+  INSTALL_INELIGIBLE: '설치 불가',
+};
+
+/** Region / host:port — whichever the resource metadata carries. */
+const locationOf = (r: ApprovalResourceItem): string => {
+  const meta = r.metadata;
+  const host = meta?.host ?? null;
+  if (host) return meta?.port != null ? `${host}:${meta.port}` : host;
+  return meta?.region ?? '-';
+};
+
+/** database_type rides under metadata (passthrough key — not in the declared DTO). */
+const databaseTypeOf = (r: ApprovalResourceItem): string | null => {
+  const value = (r.metadata as Record<string, unknown> | null | undefined)?.database_type;
+  return typeof value === 'string' ? value : null;
+};
+
+const RESOURCE_TH = cn('px-3 py-2 text-left text-xs font-medium whitespace-nowrap', textColors.tertiary);
+const RESOURCE_TD = cn('px-3 py-2.5 text-sm border-t', borderColors.default, textColors.secondary);
+
+function ResourceTable({
+  rows,
+  emptyLabel,
+  reasonColumn,
+}: {
+  rows: ApprovalResourceItem[];
+  emptyLabel: string;
+  reasonColumn: boolean;
+}) {
+  if (rows.length === 0) {
+    return <p className={cn('px-1 py-3 text-sm', textColors.tertiary)}>{emptyLabel}</p>;
+  }
+  return (
+    <div className={cn('overflow-x-auto rounded-lg border', borderColors.default)}>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className={bgColors.muted}>
+            <th className={RESOURCE_TH}>리소스</th>
+            <th className={RESOURCE_TH}>Database</th>
+            <th className={RESOURCE_TH}>{reasonColumn ? '제외 사유' : '위치'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, index) => (
+            <tr key={`${r.resource_id ?? 'row'}-${index}`}>
+              <td className={RESOURCE_TD}>
+                <p className={cn('text-sm font-medium', textColors.primary)}>
+                  {r.resource_name || r.resource_id || '-'}
+                </p>
+                {r.resource_name && r.resource_id && (
+                  <p className={cn('mt-0.5 break-all font-mono text-xs', textColors.tertiary)}>
+                    {r.resource_id}
+                  </p>
+                )}
+              </td>
+              <td className={cn(RESOURCE_TD, 'whitespace-nowrap')}>{databaseTypeOf(r) ?? '-'}</td>
+              <td className={RESOURCE_TD}>
+                {reasonColumn
+                  ? r.exclusion_reason || CATEGORY_LABEL[r.integration_category ?? ''] || '-'
+                  : locationOf(r)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export const ApprovalRequestDetailModal = ({
   isOpen,
   onClose,
   item,
   latestResponse,
+  targetSourceId,
 }: ApprovalRequestDetailModalProps) => {
+  // Resource lists: latest responses carry them inline; history items need the
+  // per-request detail fetch (GET …/approval-requests/{requestId}).
+  // `rows: null` marks a failed fetch for that id; loading is derived, never set.
+  const [fetchResult, setFetchResult] = useState<{
+    id: number;
+    rows: ApprovalResourceItem[] | null;
+  } | null>(null);
+
+  const historyRequestId =
+    item && typeof item.request.id === 'number' ? item.request.id : null;
+  const needsFetch =
+    isOpen && !latestResponse && targetSourceId != null && historyRequestId != null;
+  const fetchLoading = needsFetch && fetchResult?.id !== historyRequestId;
+
+  useEffect(() => {
+    if (!needsFetch) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const detail = await getApprovalRequestDetail(targetSourceId, historyRequestId);
+        if (!cancelled) setFetchResult({ id: historyRequestId, rows: detail.resources ?? [] });
+      } catch {
+        if (!cancelled) setFetchResult({ id: historyRequestId, rows: null });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [needsFetch, targetSourceId, historyRequestId]);
+
   if (!item && !latestResponse) return null;
 
   const data = latestResponse
     ? toSummaryViewFromLatest(latestResponse)
     : toSummaryViewFromHistory(item!);
 
-  const hasRequestSummary = data.totalCount > 0 || data.selectedCount > 0;
+  const resources = latestResponse
+    ? latestResponse.resources ?? null
+    : fetchResult?.id === historyRequestId
+      ? fetchResult.rows
+      : null;
+  const selectedResources = (resources ?? []).filter((r) => r.selected === true);
+  const excludedResources = (resources ?? []).filter((r) => r.selected !== true);
   const resultMeta = getResultMeta(data.resultStatus);
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="승인 요청 요약"
+      title="승인 요청 상세"
       subtitle={resultMeta.badgeLabel}
-      size="xl"
+      size="2xl"
       icon={
         <svg className={cn('w-5 h-5', statusColors.info.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -190,6 +311,7 @@ export const ApprovalRequestDetailModal = ({
       }
     >
       <div className="space-y-5">
+        {/* ① 처리 상태 — one glanceable panel answering "이 요청은 지금 어떤 상태인가". */}
         <div className={cn('rounded-xl border p-4 space-y-3', resultMeta.panelBg, resultMeta.panelBorder)}>
           <div className="flex items-center justify-between gap-3">
             <Badge variant={resultMeta.badgeVariant} dot>
@@ -200,6 +322,7 @@ export const ApprovalRequestDetailModal = ({
           <p className={cn('text-sm leading-6', resultMeta.panelText)}>{resultMeta.description}</p>
         </div>
 
+        {/* ② 요청 정보 */}
         <div className="grid grid-cols-3 gap-3">
           <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default, bgColors.muted)}>
             <p className={cn('text-xs font-medium', textColors.tertiary)}>요청자</p>
@@ -215,7 +338,30 @@ export const ApprovalRequestDetailModal = ({
           </div>
         </div>
 
-        {hasRequestSummary ? (
+        {/* ③ 연동 대상 / 비대상 리소스 — the actual request payload, split. */}
+        {fetchLoading ? (
+          <div className={cn('rounded-lg border p-6 text-center text-sm', borderColors.default, textColors.tertiary)}>
+            리소스 목록을 불러오는 중…
+          </div>
+        ) : resources != null ? (
+          <>
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between">
+                <p className={cn('text-sm font-semibold', textColors.primary)}>연동 대상 리소스</p>
+                <span className={cn('text-xs', textColors.tertiary)}>{selectedResources.length}개</span>
+              </div>
+              <ResourceTable rows={selectedResources} emptyLabel="연동 대상 리소스가 없습니다." reasonColumn={false} />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between">
+                <p className={cn('text-sm font-semibold', textColors.primary)}>연동 비대상 리소스</p>
+                <span className={cn('text-xs', textColors.tertiary)}>{excludedResources.length}개</span>
+              </div>
+              <ResourceTable rows={excludedResources} emptyLabel="제외된 리소스가 없습니다." reasonColumn />
+            </div>
+          </>
+        ) : (
+          /* Detail unavailable (fetch failed or no id to fetch by) — fall back to the counts. */
           <div className="grid grid-cols-2 gap-3">
             <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default)}>
               <p className={cn('text-xs font-medium', textColors.tertiary)}>승인 대상 수</p>
@@ -228,22 +374,13 @@ export const ApprovalRequestDetailModal = ({
               <p className={cn('text-xs', textColors.tertiary)}>총 요청 리소스 {data.totalCount}개</p>
             </div>
           </div>
-        ) : (
-          <div className={cn('rounded-xl border p-4 space-y-2', statusColors.info.bg, statusColors.info.border)}>
-            <p className={cn('text-sm font-medium', statusColors.info.textDark)}>
-              요청 메타데이터 중심 요약입니다
-            </p>
-            <p className={cn('text-sm leading-6', statusColors.info.text)}>
-              계약 기준으로 `approval-history`와 `approval-requests/latest`는 요약 정보만 보장합니다.
-              상세 선택 복원은 `target-source`, `approved-integration`, `confirmed-integration` 응답을 기준으로 이어집니다.
-            </p>
-          </div>
         )}
 
+        {/* ④ 처리 결과 */}
         {data.resultStatus && data.resultStatus !== 'PENDING' && (
           <div className={cn('rounded-xl border p-4 space-y-3', borderColors.default, bgColors.muted)}>
             <div className="flex items-center justify-between gap-3">
-              <p className={cn('text-sm font-semibold', textColors.primary)}>처리 결과 요약</p>
+              <p className={cn('text-sm font-semibold', textColors.primary)}>처리 결과</p>
               <Badge variant={resultMeta.badgeVariant}>{data.resultStatus}</Badge>
             </div>
             <div className="grid grid-cols-2 gap-3">
