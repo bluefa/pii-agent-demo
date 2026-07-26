@@ -149,7 +149,6 @@ export function OpsTargetView({ targetSourceId }: OpsTargetViewProps): ReactElem
                 className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
               >
                 {tab}
-                {active && <span className={opsStyles.tabIndicator} aria-hidden />}
               </button>
             );
           })}

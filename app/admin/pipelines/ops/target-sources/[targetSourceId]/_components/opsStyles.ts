@@ -3,9 +3,10 @@
  * the --pl-* token system — raw Figma hex values map to their semantic tokens).
  */
 export const opsStyles = {
-  /** White header block + tab strip live in one flush card; content sits below. */
-  headCard: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[10px] shadow-[var(--pl-shadow-xs)] overflow-hidden',
-  header: 'px-8 pt-6 pb-5',
+  /** 3-tier surface (admin-ops.html .ts-mast): full-bleed white masthead over the
+      layout's gray page — escapes layout.content padding (-mt-6 -mx-8), no card. */
+  headCard: '-mt-6 -mx-8',
+  header: 'bg-[var(--pl-bg-card)] px-8 pt-5 pb-[18px] border-b border-[var(--pl-border)]',
 
   /** 현재 단계 row under the breadcrumb. */
   stageRow: 'flex items-center gap-2 mt-1',
@@ -43,16 +44,16 @@ export const opsStyles = {
   /* Plain inline (not inline-flex) so the underline runs unbroken across "KEY ↗". */
   bubbleLink: 'text-[13px] font-medium text-[var(--pl-text-strong)] underline cursor-pointer',
 
-  /** Tab strip — Figma 22:40 (indicator style). */
-  tabStrip: 'flex items-stretch h-14 pl-8 bg-[var(--pl-gray-50)] border-t border-[var(--pl-border)]',
-  tab: 'relative flex flex-col items-center justify-center gap-2 px-4 text-[14px] cursor-pointer',
-  tabActive: 'font-semibold text-[var(--pl-primary)]',
-  tabIdle: 'font-medium text-[var(--pl-text-weak)] hover:text-[var(--pl-text-medium)]',
+  /** Tab rail (admin-ops.html .tabbar) — tinted band; only the active tab turns
+      white so it visually connects to the body below. */
+  tabStrip: 'flex gap-0.5 px-8 bg-[var(--pl-gray-100)] border-b border-[var(--pl-border)]',
+  tab: 'px-4 py-3 text-[14px] cursor-pointer whitespace-nowrap rounded-t-[6px] border-b-2 -mb-px',
+  tabActive: 'font-semibold text-[var(--pl-primary)] border-[var(--pl-primary)] bg-[var(--pl-bg-card)]',
+  tabIdle: 'font-medium text-[var(--pl-text-weak)] border-transparent hover:text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)]',
   tabDisabled: 'font-medium text-[var(--pl-text-faint)] cursor-not-allowed',
-  tabIndicator: 'absolute bottom-0 left-4 right-4 h-[2.5px] rounded-[1.5px] bg-[var(--pl-primary)]',
 
-  /** 진행 상태 tab content. */
-  content: 'mt-4 flex flex-col gap-4',
+  /** 진행 상태 tab content — 24px below the tab rail (prototype). */
+  content: 'mt-6 flex flex-col gap-4',
   cardsRow: 'grid grid-cols-2 gap-4 items-start',
   cardTitle: 'text-[16px] font-semibold text-[var(--pl-text-strong)]',
   cardDesc: 'text-[12px] text-[var(--pl-text-weak)] mt-1',
