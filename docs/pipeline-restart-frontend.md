@@ -5,6 +5,11 @@
 > 백엔드 계약: 같은 저장소 `docs/changes-pipeline-restart-backend.md` §4·§5·§7
 > 검증: `npx tsc --noEmit` 0, `npx eslint` 0, `npx vitest run` 163 files / 1297 tests pass
 
+**계약 대조.** 업스트림 구현(`bluefa/pipeline-orchestrator` PR #42, `feat/pipeline-restart`)의
+`TargetSourcePipelineController` · `RestartPreview` · `RestartOriginView` · `RestartPipelineRequest` ·
+`PipelineQueryService.toDetail` 와 경로·쿼리·본문·응답 필드를 1:1 대조했다. mock 도 동일 검증
+순서와 동일 파생식(`resumed_from_sequence`, `restarted_by_pipeline_id`)을 따른다.
+
 **전제.** 백엔드(#13 `restart-preview` / #14 `restart`)는 아직 배포 전이다. 신규 응답
 필드는 **전부 optional** 로 선언해 구버전 백엔드에서도 화면이 깨지지 않고(칩·계보·CTA가
 렌더되지 않을 뿐), Mock 모드(`USE_MOCK_DATA=true`)에서는 재시작 전 경로가 실제로 동작한다.
@@ -26,9 +31,9 @@ Mock 은 설계의 검증 순서를 그대로 구현한다: 404 `PIPELINE_NOT_FO
 suffix 는 **첫 non-DONE task부터**(결정 3), 새 파이프라인은 type·recipe·provider 를
 원본에서 승계하고(결정 1) sequence 를 0부터 재부여하며 `origin_task_id` 를 스탬핑한다.
 
-> 검증 순서에서 `INVALID_RESUME_SEQUENCE`(5)를 `UNKNOWN_TASK`(4)보다 먼저 본다 —
-> suffix 자체가 `from_sequence` 에 의존하기 때문. 두 오류가 동시에 성립하는 경우에만
-> 백엔드 명세와 코드가 달라진다(관측 가능한 다른 차이 없음).
+> 검증 순서에서 `INVALID_RESUME_SEQUENCE` 를 `UNKNOWN_TASK` 보다 먼저 본다 — suffix 자체가
+> `from_sequence` 에 의존하기 때문이다. 명세 문서의 번호(4→5)와는 다르지만 **실제 구현
+> (`PipelineRestarter.compute`: resolveResumeSequence → toStep)과 같은 순서**다.
 
 ## 2. 진입점 — 현재 작업 섹션 3분기 (§8.1)
 

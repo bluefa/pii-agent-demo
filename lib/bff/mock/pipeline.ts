@@ -1328,8 +1328,15 @@ function computeRestart(
       `pipeline ${origin.pipeline_id} is not the latest run (latest: ${latest.pipeline_id})`, path);
   }
   const chain = [...origin.tasks].sort((a, b) => a.sequence - b.sequence);
-  // 결정 3 — 기본 재시작 지점 = 첫 번째 non-DONE task.
-  const defaultResume = chain.find((t) => t.status !== 'DONE')?.sequence ?? 0;
+  // 결정 3 — 기본 재시작 지점 = 첫 번째 non-DONE task. terminal 인데 전부 DONE 인 행은 상태
+  // 기계상 도달 불가지만 재시작할 지점이 없으므로 거절한다(업스트림 PipelineRestarter 와 동일 방어).
+  const firstNotDone = chain.find((t) => t.status !== 'DONE');
+  if (!firstNotDone) {
+    return err(409, 'PIPELINE_NOT_RESTARTABLE',
+      `pipeline ${origin.pipeline_id} is ${origin.status} — only the latest FAILED/CANCELLED run can be restarted`,
+      path);
+  }
+  const defaultResume = firstNotDone.sequence;
   if (fromSequence !== null && (fromSequence < 0 || fromSequence > defaultResume)) {
     return err(400, 'INVALID_RESUME_SEQUENCE',
       `from_sequence ${fromSequence} must be between 0 and ${defaultResume}`, path);
@@ -1350,15 +1357,14 @@ const parseFromSequence = (raw: string | undefined): number | null => {
   return Number.isInteger(n) ? n : -1;
 };
 
+/** 업스트림(PipelineRestarter.IN_FLIGHT_JOB_WARNING)이 보내는 문장 그대로. */
+const IN_FLIGHT_JOB_WARNING =
+  '원본 실행이 최근에 종료되었습니다. 이전에 dispatch된 Terraform job이 아직 실행 중일 수 있습니다(멱등이므로 무해).';
+
 /** 취소·실패 직후 재시작 — 이전 dispatch job이 아직 돌고 있을 수 있다는 안내(차단 아님). */
 function restartWarnings(origin: MockPipeline): string[] {
   const sinceMs = Date.now() - new Date(origin.last_activity_at).getTime();
-  if (sinceMs > RESTART_WARN_WINDOW_MS) return [];
-  const minutes = Math.max(1, Math.round(sinceMs / 60_000));
-  const verb = origin.status === 'CANCELLED' ? '취소' : '실패';
-  return [
-    `원본 실행이 ${minutes}분 전 ${verb}했습니다. 이전에 dispatch된 Terraform job이 아직 실행 중일 수 있습니다(멱등이므로 무해).`,
-  ];
+  return sinceMs > RESTART_WARN_WINDOW_MS ? [] : [IN_FLIGHT_JOB_WARNING];
 }
 
 export const mockPipeline = {
