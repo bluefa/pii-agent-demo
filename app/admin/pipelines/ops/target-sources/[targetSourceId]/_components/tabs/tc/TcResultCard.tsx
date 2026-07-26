@@ -210,7 +210,7 @@ export function TcResultCard({
 
   if (loading) {
     return (
-      <section className={pipelineStyles.card.base} aria-label="Test Connection 결과">
+      <section aria-label="Test Connection 결과">
         <h2 className={opsStyles.cardTitle}>Test Connection 결과</h2>
         <div className="min-h-[200px]" aria-busy />
       </section>
@@ -219,11 +219,11 @@ export function TcResultCard({
 
   if (!hasStatus && results.length === 0) {
     return (
-      <section className={pipelineStyles.card.base} aria-label="Test Connection 결과">
+      <section aria-label="Test Connection 결과">
         <h2 className={opsStyles.cardTitle}>Test Connection 결과</h2>
         <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
           <span className={pipelineStyles.empty.icon}>
-            <Icon name="flow" size="lg" />
+            <Icon name="flow" size="xl" />
           </span>
           <p>Test Connection 실행 이력이 없습니다.</p>
           <p className={cn(pipelineStyles.empty.meta, 'mt-1')}>
@@ -247,7 +247,7 @@ export function TcResultCard({
       : summary;
 
   return (
-    <section className={pipelineStyles.card.base} aria-label="Test Connection 결과">
+    <section aria-label="Test Connection 결과">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">

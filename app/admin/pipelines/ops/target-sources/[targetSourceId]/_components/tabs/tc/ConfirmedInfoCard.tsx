@@ -90,7 +90,7 @@ export function ConfirmedInfoCard({
       ) : rows.length === 0 ? (
         <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
           <span className={pipelineStyles.empty.icon}>
-            <Icon name="install" size="lg" />
+            <Icon name="install" size="xl" />
           </span>
           <p>확정된 연동 정보가 없습니다.</p>
           {failed && (

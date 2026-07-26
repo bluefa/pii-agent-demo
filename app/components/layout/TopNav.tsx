@@ -115,7 +115,8 @@ export const TopNav = () => {
     <>
       <header
         className={cn(
-          'h-14 flex items-center gap-8 px-6 text-white',
+          // Sticky chrome — the admin nav must not scroll away with the page.
+          'sticky top-0 z-40 h-14 flex items-center gap-8 px-6 text-white',
           navStyles.bg,
         )}
       >

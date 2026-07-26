@@ -998,7 +998,9 @@ export const pipelineStyles = {
     // 56 here is a deliberate deviation from the prototype's 52 so the shell's
     // min-height matches the actual viewport remainder under the app's TopNav.
     shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_56px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
-    sidebar: 'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4',
+    sidebar:
+      // Sticky under the 56px TopNav so the section nav never scrolls away.
+      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-14 self-start h-[calc(100vh_-_56px)] overflow-y-auto',
     sidebarTitle: cn(pipelineText.sidebarTitle, 'block px-2.5 pt-2 pb-2.5'),
     // Item base carries no text color/weight — idle/active own it (plain `cn` join
     // has no tailwind-merge, so overlapping utilities must never co-occur).
@@ -1137,7 +1139,7 @@ export const pipelineStyles = {
   empty: {
     base: 'text-center p-8 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
     center: 'flex flex-col justify-center items-center min-h-[240px]',
-    icon: 'inline-flex items-center justify-center w-10 h-10 mb-2.5 rounded-full bg-[var(--pl-gray-100)] text-[var(--pl-text-faint)]',
+    icon: 'flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--pl-gray-100)] text-[var(--pl-text-faint)]',
     meta: cn(pipelineText.meta),
   },
 

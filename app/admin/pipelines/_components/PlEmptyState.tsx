@@ -19,7 +19,7 @@ export function PlEmptyState({ icon, message, meta, center, className }: PlEmpty
   return (
     <div className={cn(empty.base, center && empty.center, className)}>
       <span className={empty.icon}>
-        <Icon name={icon} size="lg" />
+        <Icon name={icon} size="xl" />
       </span>
       {message}
       {meta != null && (

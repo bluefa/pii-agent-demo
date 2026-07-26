@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * Test Connection 탭 — 결과 · 확정 정보 · 이력 세 카드의 컨테이너.
+ * Test Connection 탭 — [결과 + 이력] 그룹 카드와 확정 정보 카드의 컨테이너.
+ * 결과와 이력은 같은 Test Connection 데이터의 두 단면이라 한 카드로 묶는다.
  *
  * One shared `reloadKey` is the tab's refresh signal: every write in the tab
  * (재실행 요청 / 연동 승인 / 논리 DB 제외 정책 / Credential 변경) bumps it, because each of them
@@ -11,6 +12,7 @@
  * `opsStyles.content` column).
  */
 import { useCallback, useState, type ReactElement } from 'react';
+import { pipelineStyles } from '@/lib/theme';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { TcResultCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcResultCard';
 import { ConfirmedInfoCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard';
@@ -27,14 +29,18 @@ export function TcTab({ targetSourceId, detail }: TcTabProps): ReactElement {
 
   return (
     <>
-      <TcResultCard
-        targetSourceId={targetSourceId}
-        detail={detail}
-        reloadKey={reloadKey}
-        onReload={reload}
-      />
+      <section className={pipelineStyles.card.base} aria-label="Test Connection">
+        <TcResultCard
+          targetSourceId={targetSourceId}
+          detail={detail}
+          reloadKey={reloadKey}
+          onReload={reload}
+        />
+        <div className="mt-6 border-t border-[var(--pl-border)] pt-5">
+          <TcHistoryCard targetSourceId={targetSourceId} reloadKey={reloadKey} />
+        </div>
+      </section>
       <ConfirmedInfoCard targetSourceId={targetSourceId} reloadKey={reloadKey} onReload={reload} />
-      <TcHistoryCard targetSourceId={targetSourceId} reloadKey={reloadKey} />
     </>
   );
 }
