@@ -474,6 +474,16 @@ export const navStyles = {
   user: {
     avatar: 'bg-slate-600 text-white',
     email: 'text-slate-300',
+    /** Google account-chip pattern: 32px initial circle, click opens account card. */
+    chip: 'w-8 h-8 rounded-full inline-flex items-center justify-center text-xs font-semibold hover:ring-2 hover:ring-white/25 transition-shadow',
+    menu: {
+      container:
+        'absolute right-0 top-full mt-2 z-50 min-w-[240px] max-w-[320px] rounded-xl border border-gray-200 bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,0.14)] flex items-center gap-3 text-left',
+      avatar:
+        'w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold bg-slate-600 text-white shrink-0',
+      name: 'text-sm font-semibold text-gray-900 truncate',
+      email: 'text-xs text-gray-500 truncate',
+    },
   },
 } as const;
 

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn, navStyles, textColors } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
+import { UserChip } from '@/app/components/layout/UserChip';
 
 type NavItem = {
   label: string;
@@ -176,6 +177,8 @@ export const TopNav = () => {
         </nav>
 
         <div className="flex-1" />
+
+        <UserChip />
       </header>
 
       {toastMessage && (
