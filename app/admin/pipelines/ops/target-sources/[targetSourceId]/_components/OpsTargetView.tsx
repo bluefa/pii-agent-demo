@@ -28,7 +28,7 @@ import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSour
 import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
 import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab';
 
-const TABS = ['진행 상태', '스캔', '연동 요청 정보', '파이프라인', 'Test Connection'] as const;
+const TABS = ['진행 상태', '스캔', '연동 요청 정보', '인프라 작업', 'Test Connection'] as const;
 type TabLabel = (typeof TABS)[number];
 
 type ModalState =
@@ -175,7 +175,7 @@ export function OpsTargetView({ targetSourceId }: OpsTargetViewProps): ReactElem
         )}
         {activeTab === '스캔' && <ScanTab targetSourceId={targetSourceId} detail={detail} />}
         {activeTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
-        {activeTab === '파이프라인' && <PipelineTab targetSourceId={targetSourceId} detail={detail} />}
+        {activeTab === '인프라 작업' && <PipelineTab targetSourceId={targetSourceId} detail={detail} />}
         {activeTab === 'Test Connection' && <TcTab targetSourceId={targetSourceId} detail={detail} />}
       </div>
 
