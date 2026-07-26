@@ -40,8 +40,8 @@ export const opsStyles = {
   bubbleTitle: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
   bubbleManage: 'text-[11px] text-[var(--pl-primary)] underline cursor-pointer',
   bubbleJiraRow: 'flex items-center gap-1.5',
-  /** Jira mark — the Figma icon is literally a 45°-rotated rounded square. */
-  bubbleLink: 'inline-flex items-center gap-1 text-[13px] font-medium text-[var(--pl-text-strong)] underline cursor-pointer',
+  /* Plain inline (not inline-flex) so the underline runs unbroken across "KEY ↗". */
+  bubbleLink: 'text-[13px] font-medium text-[var(--pl-text-strong)] underline cursor-pointer',
 
   /** Tab strip — Figma 22:40 (indicator style). */
   tabStrip: 'flex items-stretch h-14 pl-8 bg-[var(--pl-gray-50)] border-t border-[var(--pl-border)]',
