@@ -1,0 +1,73 @@
+/**
+ * CSR helpers for the Target Source ops page.
+ *
+ * Backed by ASSUMED contracts (docs/api/ops-assumed-contracts.md) — the Next
+ * routes exist, the upstream BFF endpoints do not yet. Wire shapes are snake
+ * verbatim (no camel reshape needed by the consumers).
+ */
+import { fetchInfraJson } from '@/app/lib/api/infra';
+import type { BffProcessStatus } from '@/app/lib/api';
+
+export interface StatusHistoryItem {
+  changed_at: string;
+  from_status: BffProcessStatus | null;
+  to_status: BffProcessStatus;
+  actor: string;
+}
+
+export interface StatusHistoryPage {
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  content: StatusHistoryItem[];
+}
+
+export interface CollaborationChannel {
+  issue_key: string;
+  url: string;
+}
+
+export const getStatusHistory = (
+  targetSourceId: number,
+  page = 0,
+  size = 10,
+): Promise<StatusHistoryPage> =>
+  fetchInfraJson<StatusHistoryPage>(
+    `/target-sources/${targetSourceId}/status-history?page=${page}&size=${size}`,
+  );
+
+export const updateInstallationMode = (
+  targetSourceId: number,
+  grant: boolean,
+): Promise<{ target_source_id: number; grant_service_terraform_execution_permission: boolean }> =>
+  fetchInfraJson(`/target-sources/${targetSourceId}/installation-mode`, {
+    method: 'PUT',
+    body: { grant_service_terraform_execution_permission: grant },
+  });
+
+export const updateAwsRole = (
+  targetSourceId: number,
+  kind: 'scan' | 'execution',
+  roleName: string,
+): Promise<{ role_arn: string }> =>
+  fetchInfraJson(`/aws/target-sources/${targetSourceId}/${kind === 'scan' ? 'scan-role' : 'execution-role'}`, {
+    method: 'PUT',
+    body: { role_name: roleName },
+  });
+
+export const getCollaborationChannel = (
+  targetSourceId: number,
+): Promise<CollaborationChannel | null> =>
+  fetchInfraJson<CollaborationChannel | null>(
+    `/target-sources/${targetSourceId}/collaboration-channel`,
+  );
+
+export const saveCollaborationChannel = (
+  targetSourceId: number,
+  channel: CollaborationChannel,
+): Promise<CollaborationChannel> =>
+  fetchInfraJson(`/target-sources/${targetSourceId}/collaboration-channel`, {
+    method: 'PUT',
+    body: channel,
+  });

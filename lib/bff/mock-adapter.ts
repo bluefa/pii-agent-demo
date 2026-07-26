@@ -19,6 +19,7 @@ import { mockUsers } from '@/lib/bff/mock/users';
 import { mockServices } from '@/lib/bff/mock/services';
 import { mockScan } from '@/lib/bff/mock/scan';
 import { mockAws } from '@/lib/bff/mock/aws';
+import { mockOps } from '@/lib/bff/mock/ops';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
 import { mockIdc } from '@/lib/bff/mock/idc';
@@ -103,6 +104,15 @@ export const mockBff: BffClient = {
       unwrap<z.infer<typeof schemas.AwsRoleVerificationResponse>>(await mockAws.verifyScanRole(String(id))),
     verifyExecutionRole: async (id) =>
       unwrap<z.infer<typeof schemas.AwsRoleVerificationResponse>>(await mockAws.verifyExecutionRole(String(id))),
+  },
+
+  // Ops console — ASSUMED contracts (docs/api/ops-assumed-contracts.md).
+  ops: {
+    getStatusHistory: async (id, page, size) => unwrap(await mockOps.getStatusHistory(id, page, size)),
+    putInstallationMode: async (id, grant) => unwrap(await mockOps.putInstallationMode(id, grant)),
+    putRole: async (id, kind, roleName) => unwrap(await mockOps.putRole(id, kind, roleName)),
+    getCollabChannel: async (id) => unwrap(await mockOps.getCollabChannel(id)),
+    putCollabChannel: async (id, channel) => unwrap(await mockOps.putCollabChannel(id, channel)),
   },
 
   // Azure mock returns raw snake wire; the route validates with schemas.X.parse().

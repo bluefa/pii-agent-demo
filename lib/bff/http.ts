@@ -264,6 +264,23 @@ export const httpBff: BffClient = {
     verifyExecutionRole: (id) => getSnakeRaw(`/target-sources/${id}/aws/verify-execution-role`),
   },
 
+  // OPS: ASSUMED contracts (docs/api/ops-assumed-contracts.md) — these paths do
+  // not exist upstream yet; they 404 against the real BFF until it ships them.
+  ops: {
+    getStatusHistory: (id, page, size) =>
+      getSnakeRaw(`/target-sources/${id}/status-history${buildQuery({ page, size })}`),
+    putInstallationMode: (id, grant) =>
+      put(`/target-sources/${id}/installation-mode`, {
+        grant_service_terraform_execution_permission: grant,
+      }),
+    putRole: (id, kind, roleName) =>
+      put(`/target-sources/${id}/aws/${kind === 'scan' ? 'scan-role' : 'execution-role'}`, {
+        role_name: roleName,
+      }),
+    getCollabChannel: (id) => getSnakeRaw(`/target-sources/${id}/collaboration-channel`),
+    putCollabChannel: (id, channel) => put(`/target-sources/${id}/collaboration-channel`, channel),
+  },
+
   // Azure responses are raw snake passthrough — the route validates with
   // schemas.X.parse(raw) and the CSR adapter owns the camel conversion.
   // (AzureHealthCheckResult wire is already camelCase per swagger; getSnakeRaw is a

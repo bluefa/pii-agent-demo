@@ -247,4 +247,53 @@ export interface BffClient {
       body: z.infer<typeof schemas.UpdateTestConnectionConfirmationRequest>,
     ) => Promise<z.infer<typeof schemas.TestConnectionConfirmationResponse>>;
   };
+
+  /**
+   * Ops console — ASSUMED contracts (docs/api/ops-assumed-contracts.md).
+   * Deliberate exception to the "swagger is the sole authority" rule above
+   * (owner decision 2026-07-26): the Target Source ops page needs these four
+   * capabilities before the BFF ships them. httpBff targets the assumed paths;
+   * delete the doc section when the real endpoint lands in install-v1.yaml.
+   */
+  ops: {
+    getStatusHistory: (id: number, page: number, size: number) => Promise<OpsStatusHistoryPageWire>;
+    putInstallationMode: (id: number, grant: boolean) => Promise<OpsInstallationModeWire>;
+    putRole: (id: number, kind: 'scan' | 'execution', roleName: string) => Promise<OpsRoleUpdateWire>;
+    getCollabChannel: (id: number) => Promise<OpsCollabChannelWire | null>;
+    putCollabChannel: (id: number, channel: OpsCollabChannelWire) => Promise<OpsCollabChannelWire>;
+  };
+}
+
+/** Ops console assumed-contract wire shapes (docs/api/ops-assumed-contracts.md). */
+export type OpsProcessStatusWire =
+  | 'IDLE' | 'PENDING' | 'CONFIRMING' | 'CONFIRMED' | 'INSTALLED' | 'CONNECTED' | 'COMPLETED';
+
+export interface OpsStatusHistoryItemWire {
+  changed_at: string;
+  from_status: OpsProcessStatusWire | null;
+  to_status: OpsProcessStatusWire;
+  actor: string;
+}
+
+/** Spring-Page subset the assumed status-history endpoint returns. */
+export interface OpsStatusHistoryPageWire {
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  content: OpsStatusHistoryItemWire[];
+}
+
+export interface OpsInstallationModeWire {
+  target_source_id: number;
+  grant_service_terraform_execution_permission: boolean;
+}
+
+export interface OpsRoleUpdateWire {
+  role_arn: string;
+}
+
+export interface OpsCollabChannelWire {
+  issue_key: string;
+  url: string;
 }

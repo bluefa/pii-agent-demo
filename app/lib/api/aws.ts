@@ -29,3 +29,15 @@ export const getAwsTerraformScript = async (targetSourceId: number): Promise<Blo
   if (!res.ok) throw new Error(`terraform-script download failed (${res.status})`);
   return res.blob();
 };
+
+/** swagger AwsRoleVerificationResponse — snake wire verbatim (route parses). */
+export type AwsRoleVerification = z.infer<typeof schemas.AwsRoleVerificationResponse>;
+
+/** Role 검증 조회 (swagger verify-scan-role / verify-execution-role). */
+export const getAwsRoleVerification = (
+  targetSourceId: number,
+  kind: 'scan' | 'execution',
+): Promise<AwsRoleVerification> =>
+  fetchInfraJson<AwsRoleVerification>(
+    `${BASE}/${targetSourceId}/${kind === 'scan' ? 'verify-scan-role' : 'verify-execution-role'}`,
+  );
