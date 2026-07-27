@@ -95,6 +95,8 @@ async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
   });
   console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
+  // 204 No Content (e.g. collaboration-channel none) has no body to parse.
+  if (res.status === 204) return null as T;
   const data = await res.json();
   return (opts?.raw ? data : camelCaseKeys(data)) as T;
 }
@@ -264,6 +266,34 @@ export const httpBff: BffClient = {
     verifyExecutionRole: (id) => getSnakeRaw(`/target-sources/${id}/aws/verify-execution-role`),
   },
 
+  // OPS: ASSUMED contracts (docs/api/ops-assumed-contracts.md) — these paths do
+  // not exist upstream yet; they 404 against the real BFF until it ships them.
+  ops: {
+    getStatusHistory: (id, page, size) =>
+      getSnakeRaw(`/target-sources/${id}/status-history${buildQuery({ page, size })}`),
+    putInstallationMode: (id, grant) =>
+      put(`/target-sources/${id}/installation-mode`, {
+        grant_service_terraform_execution_permission: grant,
+      }),
+    putRole: (id, kind, roleName) =>
+      put(`/target-sources/${id}/aws/${kind === 'scan' ? 'scan-role' : 'execution-role'}`, {
+        role_name: roleName,
+      }),
+    getCollabChannel: (id) => getSnakeRaw(`/target-sources/${id}/collaboration-channel`),
+    putCollabChannel: (id, channel) => put(`/target-sources/${id}/collaboration-channel`, channel),
+    getTargetSourceList: (query, page, size) =>
+      getSnakeRaw(`/admin/ops/target-sources${buildQuery({ query, page, size })}`),
+    getServices: () => getSnakeRaw('/admin/ops/services'),
+    getService: (code) => getSnakeRaw(`/admin/ops/services/${encodeURIComponent(code)}`),
+    postServiceEos: (code, force) =>
+      post(`/admin/ops/services/${encodeURIComponent(code)}/eos`, { force }),
+    postJiraUser: (code, ticketKey, userId) =>
+      post(
+        `/admin/ops/services/${encodeURIComponent(code)}/jira-tickets/${encodeURIComponent(ticketKey)}/users`,
+        { user_id: userId },
+      ),
+  },
+
   // Azure responses are raw snake passthrough — the route validates with
   // schemas.X.parse(raw) and the CSR adapter owns the camel conversion.
   // (AzureHealthCheckResult wire is already camelCase per swagger; getSnakeRaw is a
@@ -399,6 +429,9 @@ export const httpBff: BffClient = {
     getApprovalRequestLatest: (id) =>
       getSnakeRaw<unknown>(`/target-sources/${id}/approval-requests/latest`),
 
+    getApprovalRequestDetail: (id, requestId) =>
+      getSnakeRaw<unknown>(`/target-sources/${id}/approval-requests/${requestId}`),
+
     getProcessStatus: (id) =>
       getSnakeRaw<z.infer<typeof schemas.ProcessStatusResponseDto>>(
         `/target-sources/${id}/process-status`,
@@ -451,6 +484,11 @@ export const httpBff: BffClient = {
       put<z.infer<typeof schemas.TestConnectionConfirmationResponse>>(
         `/target-sources/${id}/test-connection-acknowledgment`,
         body,
+      ),
+
+    getTestConnectionHistory: (id, page, size) =>
+      getSnakeRaw<z.infer<typeof schemas.PageTestConnectionHistoryItemResponse>>(
+        `/target-sources/${id}/test-connection/history${buildQuery({ page, size })}`,
       ),
   },
 

@@ -281,6 +281,40 @@ function toResourceCatalogItem(
   };
 }
 
+// swagger TargetSourceResourceItemDto[] for approval-request payloads (latest +
+// per-request detail) — carries idc_* fields under metadata so the IDC mapper
+// (toIdcResourceViewFromItem) can surface Source IPs in the Step-2 table.
+function toApprovalResourceItems(project: Project): Array<Record<string, unknown>> {
+  return project.resources.map((r) => {
+    const idc = r.idcConfig;
+    const metadata: Record<string, unknown> = {
+      provider: project.cloudProvider,
+      // swagger TargetSourceResourceMetadataDto: region + database_type live here.
+      region: demoRegion(project.cloudProvider, r),
+      database_type: r.databaseType,
+      ...(idc ? { idc_host_format: idc.inputFormat } : {}),
+      ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
+      ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
+      ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
+      // Task Queue P3 table reads port/oracle_service_id (the domain store has
+      // no per-resource port, so derive the conventional one per DB engine).
+      ...(idc ? { port: DEFAULT_PORT_BY_DB[String(r.databaseType).toUpperCase()] ?? null } : {}),
+      ...(idc?.oracleSid ? { oracle_service_id: idc.oracleSid } : {}),
+    };
+    return {
+      resource_id: r.resourceId,
+      resource_name: demoResourceName(project.cloudProvider, r),
+      resource_type: r.type,
+      selected: r.isSelected,
+      integration_category: r.integrationCategory,
+      ...(r.exclusion?.reason ? { exclusion_reason: r.exclusion.reason } : {}),
+      // database_type lives under metadata (swagger TargetSourceResourceMetadataDto),
+      // not top-level — TargetSourceResourceItemDto does not declare it there.
+      metadata,
+    };
+  });
+}
+
 // Connected resources count as UNCHANGED + INTEGRATED relative to the prior scan;
 // everything else is NEW_SCAN + NOT_INTEGRATED. Resources whose `note` opts into the
 // `—` UI branch (no scan / no integration info) return null so the table can render the
@@ -972,38 +1006,7 @@ export const mockConfirm = {
     const requestId = latestRequest ? parseInt(String(latestRequest.id).replace(/\D/g, '') || '0', 10) : 0;
     const processedAt = latestRequest?.timestamp ?? new Date().toISOString();
 
-    // swagger ApprovalRequestLatestDto.resources: TargetSourceResourceItemDto[] —
-    // carry idc_* fields under metadata so the IDC mapper (toIdcResourceViewFromItem)
-    // can surface Source IPs in the Step-2 table.
-    const resources = project.resources.map((r) => {
-      const idc = r.idcConfig;
-      const metadata: Record<string, unknown> = {
-        provider: project.cloudProvider,
-        // swagger TargetSourceResourceMetadataDto: region + database_type live here.
-        // Step-2 table (sourced from latest.resources) reads metadata.region / database_type.
-        region: demoRegion(project.cloudProvider, r),
-        database_type: r.databaseType,
-        ...(idc ? { idc_host_format: idc.inputFormat } : {}),
-        ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
-        ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
-        ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
-        // Task Queue P3 table reads port/oracle_service_id (the domain store has
-        // no per-resource port, so derive the conventional one per DB engine).
-        ...(idc ? { port: DEFAULT_PORT_BY_DB[String(r.databaseType).toUpperCase()] ?? null } : {}),
-        ...(idc?.oracleSid ? { oracle_service_id: idc.oracleSid } : {}),
-      };
-      return {
-        resource_id: r.resourceId,
-        resource_name: demoResourceName(project.cloudProvider, r),
-        resource_type: r.type,
-        selected: r.isSelected,
-        integration_category: r.integrationCategory,
-        ...(r.exclusion?.reason ? { exclusion_reason: r.exclusion.reason } : {}),
-        // database_type lives under metadata (swagger TargetSourceResourceMetadataDto),
-        // not top-level — TargetSourceResourceItemDto does not declare it there.
-        metadata,
-      };
-    });
+    const resources = toApprovalResourceItems(project);
 
     return NextResponse.json({
       request: {
@@ -1025,6 +1028,55 @@ export const mockConfirm = {
           ? { reason: project.status.approval.rejectionReason }
           : {}),
       },
+    });
+  },
+
+  // GET …/approval-requests/{requestId} — swagger getApprovalRequestDetail
+  // (ApprovalRequestDetailDto). The mock keeps no per-request snapshot, so the
+  // request/result rows come from the grouped approval history (same grouping as
+  // getApprovalHistory, reused via its handler) and `resources` is the project's
+  // CURRENT resource set — the real BFF returns the set captured at request time.
+  getApprovalRequestDetail: async (targetSourceId: string, requestId: number) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const historyRes = await mockConfirm.getApprovalHistory(targetSourceId, 0, 1000);
+    if (historyRes.status !== 200) return historyRes;
+    const historyPage = (await historyRes.json()) as {
+      content: Array<{
+        request: { id: number; status: string; requested_by: { user_id: string }; requested_at: string };
+        result?: Record<string, unknown>;
+      }>;
+    };
+    const entry = historyPage.content.find((e) => e.request.id === requestId);
+    if (!entry) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '승인 요청을 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      id: entry.request.id,
+      target_source_id: project.targetSourceId,
+      status: entry.request.status,
+      requested_by: entry.request.requested_by,
+      requested_at: entry.request.requested_at,
+      resources: toApprovalResourceItems(project),
+      ...(entry.result ? { result: entry.result } : {}),
     });
   },
 
@@ -1731,6 +1783,46 @@ export const mockConfirm = {
     }
 
     return NextResponse.json(tcFns.setConfirmation(Number(targetSourceId), body.confirmed === true));
+  },
+
+  // GET …/test-connection/history?page&size → PageTestConnectionHistoryItemResponse.
+  // Rows derived from the project's confirm/reject trail (newest first).
+  getTestConnectionHistory: async (targetSourceId: string, page: number, size: number) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    const rows: Array<{ target_source_id: number; status: string; reason: string | null; created_at: string }> = [];
+    if (project.completionConfirmedAt) {
+      rows.push({
+        target_source_id: Number(targetSourceId),
+        status: 'TEST_CONNECTION_COMPLETED',
+        reason: null,
+        created_at: project.completionConfirmedAt,
+      });
+    }
+    if (project.isRejected) {
+      rows.push({
+        target_source_id: Number(targetSourceId),
+        status: 'TEST_CONNECTION_REJECTED',
+        reason: project.rejectionReason ?? null,
+        created_at: project.rejectedAt ?? project.updatedAt,
+      });
+    }
+    rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    const start = page * size;
+    return NextResponse.json({
+      totalElements: rows.length,
+      totalPages: Math.max(1, Math.ceil(rows.length / size)),
+      size,
+      number: page,
+      content: rows.slice(start, start + size),
+    });
   },
 
 };

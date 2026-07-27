@@ -230,6 +230,7 @@ export interface BffClient {
     getApprovedIntegration: (id: number) => Promise<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>;
     getApprovalHistory: (id: number, page: number, size: number) => Promise<unknown>;
     getApprovalRequestLatest: (id: number) => Promise<unknown>;
+    getApprovalRequestDetail: (id: number, requestId: number) => Promise<unknown>;
     getProcessStatus: (id: number) => Promise<z.infer<typeof schemas.ProcessStatusResponseDto>>;
     approveApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     rejectApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
@@ -246,5 +247,112 @@ export interface BffClient {
       id: number,
       body: z.infer<typeof schemas.UpdateTestConnectionConfirmationRequest>,
     ) => Promise<z.infer<typeof schemas.TestConnectionConfirmationResponse>>;
+    getTestConnectionHistory: (
+      id: number,
+      page: number,
+      size: number,
+    ) => Promise<z.infer<typeof schemas.PageTestConnectionHistoryItemResponse>>;
   };
+
+  /**
+   * Ops console — ASSUMED contracts (docs/api/ops-assumed-contracts.md).
+   * Deliberate exception to the "swagger is the sole authority" rule above
+   * (owner decision 2026-07-26): the Target Source ops page needs these four
+   * capabilities before the BFF ships them. httpBff targets the assumed paths;
+   * delete the doc section when the real endpoint lands in install-v1.yaml.
+   */
+  ops: {
+    getStatusHistory: (id: number, page: number, size: number) => Promise<OpsStatusHistoryPageWire>;
+    putInstallationMode: (id: number, grant: boolean) => Promise<OpsInstallationModeWire>;
+    putRole: (id: number, kind: 'scan' | 'execution', roleName: string) => Promise<OpsRoleUpdateWire>;
+    getCollabChannel: (id: number) => Promise<OpsCollabChannelWire | null>;
+    putCollabChannel: (id: number, channel: OpsCollabChannelWire) => Promise<OpsCollabChannelWire>;
+    getTargetSourceList: (query: string | undefined, page: number, size: number) => Promise<OpsTargetSourceListPageWire>;
+    getServices: () => Promise<OpsServiceSummaryWire[]>;
+    getService: (code: string) => Promise<OpsServiceDetailWire>;
+    postServiceEos: (code: string, force: boolean) => Promise<OpsServiceSummaryWire>;
+    postJiraUser: (code: string, ticketKey: string, userId: string) => Promise<OpsJiraTicketWire>;
+  };
+}
+
+/** Ops console assumed-contract wire shapes (docs/api/ops-assumed-contracts.md). */
+export type OpsProcessStatusWire =
+  | 'IDLE' | 'PENDING' | 'CONFIRMING' | 'CONFIRMED' | 'INSTALLED' | 'CONNECTED' | 'COMPLETED';
+
+export interface OpsStatusHistoryItemWire {
+  changed_at: string;
+  from_status: OpsProcessStatusWire | null;
+  to_status: OpsProcessStatusWire;
+  actor: string;
+}
+
+/** Spring-Page subset the assumed status-history endpoint returns. */
+export interface OpsStatusHistoryPageWire {
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  content: OpsStatusHistoryItemWire[];
+}
+
+export interface OpsInstallationModeWire {
+  target_source_id: number;
+  grant_service_terraform_execution_permission: boolean;
+}
+
+export interface OpsRoleUpdateWire {
+  role_arn: string;
+}
+
+export interface OpsCollabChannelWire {
+  issue_key: string;
+  url: string;
+}
+
+/** Ops console list row (assumed §5) — powers 운영 알림 + Target Source 운영 목록. */
+export interface OpsTargetSourceListItemWire {
+  target_source_id: number;
+  service_code: string;
+  service_name: string;
+  cloud_provider: string;
+  is_sdu_type: boolean;
+  database_type: string | null;
+  process_status: OpsProcessStatusWire;
+  last_changed_at: string;
+}
+
+export interface OpsTargetSourceListPageWire {
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  content: OpsTargetSourceListItemWire[];
+}
+
+/** 서비스 운영 (assumed §6). */
+export type OpsJiraTicketStatusWire = 'TO_DO' | 'IN_PROGRESS' | 'DONE';
+
+export interface OpsJiraTicketWire {
+  ticket_key: string;
+  summary: string;
+  status: OpsJiraTicketStatusWire;
+  users: string[];
+}
+
+export interface OpsServiceSummaryWire {
+  service_code: string;
+  service_name: string;
+  owner: string;
+  status: 'OPERATING' | 'EOS';
+  target_source_count: number;
+  jira_ticket_count: number;
+}
+
+export interface OpsServiceDetailWire {
+  service_code: string;
+  service_name: string;
+  owner: string;
+  status: 'OPERATING' | 'EOS';
+  jira_tickets: OpsJiraTicketWire[];
+  target_sources: OpsTargetSourceListItemWire[];
 }

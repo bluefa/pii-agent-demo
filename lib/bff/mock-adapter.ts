@@ -19,6 +19,7 @@ import { mockUsers } from '@/lib/bff/mock/users';
 import { mockServices } from '@/lib/bff/mock/services';
 import { mockScan } from '@/lib/bff/mock/scan';
 import { mockAws } from '@/lib/bff/mock/aws';
+import { mockOps } from '@/lib/bff/mock/ops';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
 import { mockIdc } from '@/lib/bff/mock/idc';
@@ -103,6 +104,22 @@ export const mockBff: BffClient = {
       unwrap<z.infer<typeof schemas.AwsRoleVerificationResponse>>(await mockAws.verifyScanRole(String(id))),
     verifyExecutionRole: async (id) =>
       unwrap<z.infer<typeof schemas.AwsRoleVerificationResponse>>(await mockAws.verifyExecutionRole(String(id))),
+  },
+
+  // Ops console — ASSUMED contracts (docs/api/ops-assumed-contracts.md).
+  ops: {
+    getStatusHistory: async (id, page, size) => unwrap(await mockOps.getStatusHistory(id, page, size)),
+    putInstallationMode: async (id, grant) => unwrap(await mockOps.putInstallationMode(id, grant)),
+    putRole: async (id, kind, roleName) => unwrap(await mockOps.putRole(id, kind, roleName)),
+    getCollabChannel: async (id) => unwrap(await mockOps.getCollabChannel(id)),
+    putCollabChannel: async (id, channel) => unwrap(await mockOps.putCollabChannel(id, channel)),
+    getTargetSourceList: async (query, page, size) =>
+      unwrap(await mockOps.getTargetSourceList(query, page, size)),
+    getServices: async () => unwrap(await mockOps.getServices()),
+    getService: async (code) => unwrap(await mockOps.getService(code)),
+    postServiceEos: async (code, force) => unwrap(await mockOps.postServiceEos(code, force)),
+    postJiraUser: async (code, ticketKey, userId) =>
+      unwrap(await mockOps.postJiraUser(code, ticketKey, userId)),
   },
 
   // Azure mock returns raw snake wire; the route validates with schemas.X.parse().
@@ -210,6 +227,9 @@ export const mockBff: BffClient = {
     getApprovalRequestLatest: async (id) =>
       unwrap<unknown>(await mockConfirm.getApprovalRequestLatest(String(id))),
 
+    getApprovalRequestDetail: async (id, requestId) =>
+      unwrap<unknown>(await mockConfirm.getApprovalRequestDetail(String(id), requestId)),
+
     getProcessStatus: async (id) =>
       unwrap<z.infer<typeof schemas.ProcessStatusResponseDto>>(await mockConfirm.getProcessStatus(String(id))),
 
@@ -259,6 +279,11 @@ export const mockBff: BffClient = {
         await mockConfirm.updateTestConnectionConfirmation(String(id), {
           confirmed: body.confirmed ?? false,
         }),
+      ),
+
+    getTestConnectionHistory: async (id, page, size) =>
+      unwrap<z.infer<typeof schemas.PageTestConnectionHistoryItemResponse>>(
+        await mockConfirm.getTestConnectionHistory(String(id), page, size),
       ),
   },
 

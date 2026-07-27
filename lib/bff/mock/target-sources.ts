@@ -8,6 +8,7 @@ import {
   mockServiceCodes,
 } from '@/lib/mock-data';
 import { mockProjects } from '@/lib/bff/mock/projects';
+import { opsInstallModeOverride } from '@/lib/bff/mock/ops';
 import { createInitialProjectStatus } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
 import type { CloudProvider, Project } from '@/lib/types';
@@ -95,19 +96,25 @@ export const toBffApprovalProcessStatus = (processStatus: ProcessStatus): BffApp
   }
 };
 
-const getBffMetadata = (project: Project) => ({
-  ...(project.tenantId ? { tenant_id: project.tenantId } : {}),
-  ...(project.subscriptionId ? { subscription_id: project.subscriptionId } : {}),
-  ...(project.gcpProjectId ? { gcp_project_id: project.gcpProjectId } : {}),
-  ...(project.awsAccountId ? { aws_account_id: project.awsAccountId } : {}),
-  ...(project.isChinaRegion !== undefined || project.awsRegionType !== undefined
-    ? { is_china_region: project.isChinaRegion ?? project.awsRegionType === 'china' }
-    : {}),
-  ...(project.isSduType !== undefined ? { is_sdu_type: project.isSduType } : {}),
-  ...(project.isTerraformExecutionGranted !== undefined
-    ? { grant_service_terraform_execution_permission: project.isTerraformExecutionGranted }
-    : {}),
-});
+const getBffMetadata = (project: Project) => {
+  // Assumed ops PUT …/installation-mode overrides the seeded grant flag so the
+  // detail GET stays coherent after a mode change (docs/api/ops-assumed-contracts.md §2).
+  const grantOverride = opsInstallModeOverride(project.targetSourceId);
+  const grant = grantOverride ?? project.isTerraformExecutionGranted;
+  return {
+    ...(project.tenantId ? { tenant_id: project.tenantId } : {}),
+    ...(project.subscriptionId ? { subscription_id: project.subscriptionId } : {}),
+    ...(project.gcpProjectId ? { gcp_project_id: project.gcpProjectId } : {}),
+    ...(project.awsAccountId ? { aws_account_id: project.awsAccountId } : {}),
+    ...(project.isChinaRegion !== undefined || project.awsRegionType !== undefined
+      ? { is_china_region: project.isChinaRegion ?? project.awsRegionType === 'china' }
+      : {}),
+    ...(project.isSduType !== undefined ? { is_sdu_type: project.isSduType } : {}),
+    ...(grant !== undefined
+      ? { grant_service_terraform_execution_permission: grant }
+      : {}),
+  };
+};
 
 // swagger `TargetSourceDetail` (snake wire) — flat, used by 37 (`list`) and the
 // detail `get`. `service_code`/`service_name` are part of the swagger DTO.

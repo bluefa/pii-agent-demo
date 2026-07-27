@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Target Source 운영 — 탭 시안 (스캔·연동 요청 정보·파이프라인·Test Connection)</title>
+<!--
+  ops-target-source-tabs.html — 앱에 구현된 새 헤더/탭 문법(Figma pYCA7zTWcZysYOpYykuYAN)을
+  기준으로, 아직 앱에 없는 4개 탭 콘텐츠를 그린 시안. 진행 상태 탭은 앱 구현의 축약 replica.
+  데이터 근거: 스캔=install-v1.yaml ScanJobResponse(실계약), 나머지는 앱 기존 화면/계약에서 도출.
+-->
+<style>
+:root{
+  --gray-50:#F9FAFB; --gray-100:#F2F4F7; --gray-200:#E4E7EC; --gray-300:#D0D5DD;
+  --gray-400:#98A2B3; --gray-500:#667085; --gray-600:#475467; --gray-700:#344054;
+  --gray-800:#1D2939; --gray-900:#101828;
+  --bg-page:#F9FAFB; --bg-card:#FFFFFF; --border:#E4E7EC; --border-strong:#D0D5DD;
+  --text-strong:#101828; --text-medium:#344054; --text-weak:#667085; --text-faint:#98A2B3;
+  --primary:#2563EB; --primary-hover:#1D4ED8; --primary-bg:#EFF4FF; --primary-ring:#D1E0FF;
+  --ok:#12B76A; --ok-text:#027A48; --ok-bg:#ECFDF3; --ok-border:#A6F4C5;
+  --err:#F04438; --err-text:#B42318; --err-bg:#FEF3F2; --err-border:#FDA29B;
+  --info:#2E90FA; --info-text:#175CD3; --info-bg:#EFF8FF;
+  --warn:#F79009; --warn-text:#B54708; --warn-bg:#FFFAEB;
+  --off:#98A2B3; --off-text:#475467; --off-bg:#F2F4F7;
+  --r-card:10px; --r-inner:8px; --r-badge:4px;
+  --shadow-xs:0 1px 2px rgba(16,24,40,.05);
+  --font-mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg-page);color:var(--text-strong);font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;padding:32px 40px 80px}
+.wrap{max-width:1240px;margin:0 auto}
+button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
+.mono{font-family:var(--font-mono)}
+.muted{color:var(--text-faint)}
+
+/* ══ 헤더 카드 (앱 opsStyles replica) ══ */
+.headcard{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);overflow:hidden}
+.head{padding:24px 32px 20px}
+.crumbs{font-size:12px;color:var(--text-faint)}
+.crumbs .lnk{color:var(--text-weak);cursor:pointer}
+.crumbs .lnk:hover{text-decoration:underline}
+.crumbs .sep{margin:0 6px}
+.crumbs .cur{color:var(--text-medium);font-weight:600}
+.stagerow{display:flex;align-items:center;gap:8px;margin-top:4px}
+.stagelabel{font-size:12px;color:var(--text-weak)}
+.steppill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;
+  font-size:12px;font-weight:600}
+.steppill .dot{width:6px;height:6px;border-radius:999px;background:currentColor}
+.sp-primary{background:var(--primary-bg);color:var(--primary)}
+.sp-warn{background:var(--warn-bg);color:var(--warn-text)}
+.sp-ok{background:var(--ok-bg);color:var(--ok-text)}
+.sp-off{background:var(--off-bg);color:var(--off-text)}
+.titlerow{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-top:12px}
+.titlegrp{display:flex;align-items:center;gap:8px;min-width:0}
+h1{font-size:22px;font-weight:700;letter-spacing:-.01em}
+.htag{display:inline-flex;align-items:center;border-radius:4px;padding:4px 8px;font-size:11px;
+  font-weight:600;background:var(--gray-100);color:var(--text-medium);white-space:nowrap}
+.cloudrow{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:14px}
+.cloudrow b{font-weight:500;color:var(--text-strong)}
+.cloudrow .sep{color:var(--text-faint)}
+.regiontag{display:inline-flex;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:500;
+  background:var(--gray-100);color:var(--text-weak)}
+.modetag{display:inline-flex;align-items:center;gap:4px;border-radius:4px;padding:4px 8px;
+  font-size:11px;background:var(--gray-100)}
+.modetag:hover{background:var(--gray-200)}
+.modetag .k{color:var(--text-weak)}
+.modetag .v{font-weight:600;color:var(--primary);text-decoration:underline}
+.rolerow{display:flex;align-items:center;gap:12px;padding-left:14px;margin-top:8px}
+.rolelabel{width:72px;flex:none;font-size:12px;color:var(--text-weak)}
+.rolearn{font-size:12px;color:var(--primary);text-decoration:underline;font-family:var(--font-mono);
+  word-break:break-all;text-align:left}
+.bubblewrap{position:relative;flex:none}
+.bubble{border-radius:10px;background:var(--gray-100);padding:14px 16px;display:flex;
+  flex-direction:column;gap:8px}
+.bubbletail{position:absolute;left:16px;bottom:-6px;width:12px;height:12px;transform:rotate(45deg);
+  background:var(--gray-100)}
+.bubbletop{display:flex;align-items:center;gap:8px}
+.bubbletitle{font-size:14px;font-weight:600}
+.bubblemanage{font-size:11px;color:var(--primary);text-decoration:underline}
+.jirarow{display:flex;align-items:center;gap:6px;text-decoration:none;color:inherit}
+.jiradiamond{width:11px;height:11px;transform:rotate(45deg);border-radius:2px;background:var(--primary);
+  flex:none;margin:0 2px}
+.jiralink{font-size:13px;font-weight:500;color:var(--text-strong);text-decoration:underline}
+
+/* ══ 탭 스트립 ══ */
+.tabstrip{display:flex;align-items:stretch;height:56px;padding-left:32px;background:var(--gray-50);
+  border-top:1px solid var(--border)}
+.tab{position:relative;display:flex;align-items:center;padding:0 16px;font-size:14px;font-weight:500;
+  color:var(--text-weak)}
+.tab:hover{color:var(--text-medium)}
+.tab.on{font-weight:600;color:var(--primary)}
+.tab.on::after{content:'';position:absolute;bottom:0;left:16px;right:16px;height:2.5px;
+  border-radius:1.5px;background:var(--primary)}
+
+/* ══ 콘텐츠 공통 ══ */
+.content{margin-top:16px;display:flex;flex-direction:column;gap:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);padding:20px 24px 24px}
+.cardhead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.cardtitle{font-size:16px;font-weight:600}
+.carddesc{font-size:12px;color:var(--text-weak);margin-top:4px}
+.tbl{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+.tbl th{text-align:left;padding:8px 12px;font-size:12px;font-weight:600;color:var(--text-weak);
+  background:var(--gray-50);border-bottom:1px solid var(--border);white-space:nowrap}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--gray-100);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr:hover td{background:var(--gray-50)}
+.empty{text-align:center;padding:32px;font-size:14px;color:var(--text-weak)}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;
+  font-size:13px;font-weight:600;transition:background .12s}
+.btn.primary{background:var(--primary);color:#fff}
+.btn.primary:hover{background:var(--primary-hover)}
+.btn.secondary{background:var(--bg-card);border:1px solid var(--border-strong);color:var(--text-medium)}
+.btn.secondary:hover{background:var(--gray-50)}
+.btn.sm{height:30px;padding:0 10px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.danger{background:var(--bg-card);border:1px solid var(--err-border);color:var(--err-text)}
+.btn.danger:hover{background:var(--err-bg)}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;
+  font-size:12px;font-weight:600}
+.pill .dot{width:6px;height:6px;border-radius:999px;background:currentColor}
+.pill.ok{background:var(--ok-bg);color:var(--ok-text)}
+.pill.err{background:var(--err-bg);color:var(--err-text)}
+.pill.warn{background:var(--warn-bg);color:var(--warn-text)}
+.pill.info{background:var(--primary-bg);color:var(--primary)}
+.pill.off{background:var(--off-bg);color:var(--off-text)}
+.tag{display:inline-flex;align-items:center;border-radius:4px;padding:2px 8px;font-size:11px;
+  font-weight:600}
+.tag.gray{background:var(--gray-100);color:var(--text-medium)}
+.tag.blue{background:var(--primary-bg);color:var(--primary)}
+.tag.red{background:var(--err-bg);color:var(--err-text)}
+.tag.green{background:var(--ok-bg);color:var(--ok-text)}
+.tag.orange{background:var(--warn-bg);color:var(--warn-text)}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:10px 16px;margin-top:14px;font-size:13px}
+.kv .k{color:var(--text-weak)}
+.kv .v{color:var(--text-strong);font-weight:500}
+.note{display:flex;gap:10px;border-radius:8px;padding:12px 14px;font-size:13px;margin-top:12px;
+  background:var(--gray-50);color:var(--text-medium)}
+.note.info{background:var(--info-bg);color:var(--info-text)}
+.note.warn{background:var(--warn-bg);color:var(--warn-text)}
+.note.err{background:var(--err-bg);color:var(--err-text)}
+.pager{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:14px;
+  font-size:12px;color:var(--text-weak)}
+.pager button{color:var(--text-medium);font-weight:600;font-size:12px}
+.pager button:disabled{color:var(--text-faint);cursor:default}
+.detail-link{font-size:13px;font-weight:500;color:var(--primary);white-space:nowrap}
+.detail-link:hover{text-decoration:underline}
+.progress{height:6px;border-radius:999px;background:var(--gray-100);overflow:hidden}
+.progress .bar{height:100%;border-radius:999px;background:var(--primary)}
+
+/* 진행 상태 rail (앱 ProcessProgressBar 축약) */
+.rail{display:flex;gap:0;margin-top:18px}
+.rail .st{flex:1;text-align:center;position:relative}
+.rail .st::before{content:'';position:absolute;top:13px;left:-50%;width:100%;height:2px;
+  background:var(--gray-200)}
+.rail .st:first-child::before{display:none}
+.rail .st.done::before,.rail .st.cur::before{background:var(--ok)}
+.rail .n{width:28px;height:28px;border-radius:999px;margin:0 auto;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:700;background:var(--gray-100);
+  color:var(--text-faint);position:relative;z-index:1}
+.rail .st.done .n{background:var(--ok);color:#fff}
+.rail .st.cur .n{background:var(--primary);color:#fff;box-shadow:0 0 0 4px var(--primary-ring)}
+.rail .t{font-size:12px;margin-top:8px;color:var(--text-weak)}
+.rail .st.cur .t{color:var(--primary);font-weight:600}
+.rail .st.done .t{color:var(--text-medium)}
+
+/* R24 run-card flow (파이프라인 탭) */
+.flowrow{display:flex;align-items:stretch;gap:10px;overflow-x:auto;padding:14px 2px 6px}
+.runcard{position:relative;flex:none;width:200px;border:1px solid var(--border);border-radius:10px;
+  padding:14px 14px 12px;background:var(--bg-card)}
+.runcard.cur{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.runcard .corner{position:absolute;top:-1px;right:-1px;border-radius:0 10px 0 8px;padding:2px 8px;
+  font-size:10px;font-weight:700;font-family:var(--font-mono);letter-spacing:.04em}
+.corner.tf{background:var(--primary-bg);color:var(--primary)}
+.corner.cond{background:var(--warn-bg);color:var(--warn-text)}
+.runcard .rc-name{font-size:13px;font-weight:600;margin-top:4px;line-height:1.35}
+.runcard .rc-meta{font-size:11px;color:var(--text-faint);margin-top:2px;font-family:var(--font-mono)}
+.runcard .rc-foot{display:flex;align-items:center;gap:6px;margin-top:10px}
+.flowarrow{flex:none;align-self:center;color:var(--gray-300);font-size:16px}
+.tfact{display:inline-flex;border:1px solid;border-radius:4px;padding:0 4px;font-size:10px;
+  font-weight:700;font-family:var(--font-mono);line-height:15px}
+.tfact.plan{border-color:var(--info-border,#B2DDFF);color:var(--info-text)}
+.tfact.apply{border-color:var(--ok-border);color:var(--ok-text)}
+.eyebrow{font-size:12px;font-weight:700;color:var(--primary);letter-spacing:.02em}
+.rowlink{cursor:pointer}
+
+/* 토스트 */
+#toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%) translateY(16px);
+  background:var(--gray-900);color:#fff;font-size:13px;padding:10px 18px;border-radius:8px;
+  opacity:0;pointer-events:none;transition:all .2s}
+#toast.on{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="headcard">
+    <div class="head">
+      <div class="crumbs"><span class="lnk">Target Source 운영</span><span class="sep">/</span><span class="cur">#1008</span></div>
+      <div class="stagerow"><span class="stagelabel">현재 단계</span>
+        <span class="steppill sp-primary"><span class="dot"></span>Step 4 · 설치</span></div>
+      <div class="titlerow">
+        <div style="min-width:0">
+          <div class="titlegrp">
+            <h1>결제 서비스</h1>
+            <span class="htag">Target # 1008</span>
+            <span class="htag">pay-core</span>
+          </div>
+          <div class="cloudrow">
+            <b>AWS</b><span class="sep">·</span><b>123456789012</b><span class="sep">·</span>
+            <span class="regiontag">Global</span>
+            <button class="modetag" onclick="toast('설치모드 변경 모달 (앱 구현 완료)')"><span class="k">설치모드</span><span class="v">자동</span></button>
+          </div>
+          <div style="margin-top:4px">
+            <div class="rolerow"><span class="rolelabel">Scan Role</span>
+              <button class="rolearn" onclick="toast('권한 확인 모달 (앱 구현 완료)')">arn:aws:iam::123456789012:role/PIIAgentScanRole</button></div>
+            <div class="rolerow"><span class="rolelabel">TF Role</span>
+              <button class="rolearn" onclick="toast('권한 확인 모달 (앱 구현 완료)')">arn:aws:iam::123456789012:role/PIIAgentTerraformExecRole</button></div>
+          </div>
+        </div>
+        <div class="bubblewrap">
+          <div class="bubble">
+            <div class="bubbletop"><span class="bubbletitle">협업 채널</span>
+              <button class="bubblemanage" onclick="toast('채널 관리 모달 (앱 구현 완료)')">관리</button></div>
+            <a class="jirarow" href="#" onclick="toast('Jira로 이동 (프로토타입)');return false">
+              <span class="jiradiamond"></span><span class="jiralink">INFRA-2211 ↗</span></a>
+          </div>
+          <span class="bubbletail"></span>
+        </div>
+      </div>
+    </div>
+    <div class="tabstrip" id="tabstrip"></div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ══════════ 유틸 ══════════ */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let toastTimer;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>el.classList.remove('on'), 2200);
+}
+
+/* ══════════ 탭 레지스트리 ══════════ */
+const TABS = [
+  {id:'process', label:'진행 상태',        render: tabProcess},
+  {id:'scan',    label:'스캔',             render: tabScan},
+  {id:'request', label:'연동 요청 정보',    render: tabRequest},
+  {id:'pipeline',label:'파이프라인',        render: tabPipeline},
+  {id:'tc',      label:'Test Connection',  render: tabTc},
+];
+function route(){
+  const id = (location.hash||'').replace('#/','') || 'process';
+  const tab = TABS.find(t=>t.id===id) || TABS[0];
+  document.getElementById('tabstrip').innerHTML = TABS.map(t=>
+    `<button class="tab ${t.id===tab.id?'on':''}" onclick="location.hash='#/${t.id}'">${t.label}</button>`).join('');
+  document.getElementById('content').innerHTML = tab.render();
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange', route);
+
+/* ══════════ 탭 1: 진행 상태 (앱 구현 축약 replica) ══════════ */
+const STEPS = ['연동 요청','승인','확정','설치','연결 확인','연동','완료'];
+function tabProcess(){
+  const cur = 4;
+  return `
+  <div class="card">
+    <div class="cardhead"><div><div class="cardtitle">현재 Process</div></div></div>
+    <div class="rail">${STEPS.map((s,i)=>{
+      const n=i+1, cls=n<cur?'done':n===cur?'cur':'';
+      return `<div class="st ${cls}"><div class="n">${n<cur?'✓':n}</div><div class="t">${s}</div></div>`;}).join('')}
+    </div>
+    <p style="margin-top:16px;font-size:13px;color:var(--text-weak)">현재 <b style="color:var(--text-strong)">Step 4 · 설치</b> 단계입니다.</p>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="cardhead"><div><div class="cardtitle">승인 요청 내역</div></div></div>
+      <table class="tbl"><thead><tr><th>요청 일시</th><th>상태</th><th>요청자</th><th></th></tr></thead>
+      <tbody><tr><td>2026-07-16 10:31</td><td><span class="pill ok"><span class="dot"></span>승인</span></td><td>kim.yj</td>
+        <td style="text-align:right"><span class="detail-link" onclick="toast('승인 요청 상세 모달 (앱 구현 완료)')">상세 보기 →</span></td></tr></tbody></table>
+    </div>
+    <div class="card">
+      <div class="cardhead"><div><div class="cardtitle">상태 변경 이력</div></div></div>
+      <table class="tbl"><thead><tr><th>일시</th><th>변경</th><th>수행자</th></tr></thead><tbody>
+        <tr><td>2026-07-20 18:09</td><td><span class="steppill sp-primary"><span class="dot"></span>Step 3</span> <span class="muted">→</span> <span class="steppill sp-primary"><span class="dot"></span>Step 4</span></td><td>system</td></tr>
+        <tr><td>2026-07-17 18:56</td><td><span class="steppill sp-primary"><span class="dot"></span>Step 2</span> <span class="muted">→</span> <span class="steppill sp-primary"><span class="dot"></span>Step 3</span></td><td>admin.kim</td></tr>
+      </tbody></table>
+    </div>
+  </div>`;
+}
+
+/* ══════════ 탭 2: 스캔 (계약: ScanJobResponse — install-v1.yaml 실계약) ══════════ */
+const SCAN_TONE = {SUCCESS:'ok', SCANNING:'info', FAIL:'err', TIMEOUT:'err', CANCELED:'off'};
+const SCAN_LABEL = {SUCCESS:'성공', SCANNING:'스캔 중', FAIL:'실패', TIMEOUT:'타임아웃', CANCELED:'취소'};
+const scanPill = st => `<span class="pill ${SCAN_TONE[st]||'off'}"><span class="dot"></span>${SCAN_LABEL[st]||st}</span>`;
+const LATEST_SCAN = {
+  id: 88412, scan_status:'SUCCESS', scan_version: 17, scan_progress: 100,
+  duration_seconds: 214.6, created_at:'2026-07-25 09:10', updated_at:'2026-07-25 09:14',
+  resource_count_by_resource_type: {'RDS Instance':12,'RDS Cluster':3,'Subnet':28,'Secret':9},
+  scan_error: null,
+};
+const SCAN_HISTORY = [
+  {id:88412, st:'SUCCESS',  ver:17, prog:100, dur:'3분 34초', at:'2026-07-25 09:10', err:null},
+  {id:88301, st:'FAIL',     ver:16, prog:64,  dur:'2분 05초', at:'2026-07-24 17:40', err:'AUTH_PERMISSION_ERROR'},
+  {id:88240, st:'SUCCESS',  ver:16, prog:100, dur:'3분 41초', at:'2026-07-23 09:10', err:null},
+  {id:88180, st:'TIMEOUT',  ver:15, prog:81,  dur:'15분 00초', at:'2026-07-22 09:10', err:null},
+  {id:88121, st:'CANCELED', ver:15, prog:22,  dur:'44초',     at:'2026-07-21 14:02', err:null},
+];
+const SCAN_ERR_LABEL = {
+  AUTH_PERMISSION_ERROR:'권한 오류 — Scan Role 권한을 확인하세요',
+  RATE_LIMIT:'요청 한도 초과', NETWORK_ERROR:'네트워크 오류',
+  SERVICE_ERROR:'클라우드 서비스 오류', UNKNOWN:'알 수 없는 오류',
+};
+function tabScan(){
+  const s = LATEST_SCAN;
+  const scanning = s.scan_status === 'SCANNING';
+  return `
+  <div class="card">
+    <div class="cardhead">
+      <div><div class="cardtitle">최근 스캔</div>
+        <div class="carddesc">클라우드 리소스를 스캔해 연동 가능한 대상 목록을 갱신합니다.</div></div>
+      <button class="btn primary" ${scanning?'disabled':''} onclick="toast('스캔을 시작했습니다 (async)')">스캔 실행</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;margin-top:16px">
+      ${scanPill(s.scan_status)}
+      <span style="font-size:13px;color:var(--text-weak)">Scan #<span class="mono">${s.id}</span></span>
+      <span style="font-size:13px;color:var(--text-weak)">버전 <b style="color:var(--text-strong)">v${s.scan_version}</b></span>
+      <span style="font-size:13px;color:var(--text-weak)">소요 <b style="color:var(--text-strong)">3분 34초</b></span>
+      <span style="font-size:13px;color:var(--text-weak)">실행 <b style="color:var(--text-strong)">${s.created_at}</b></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+      <div class="progress" style="flex:1"><div class="bar" style="width:${s.scan_progress}%"></div></div>
+      <span style="font-size:12px;font-weight:600;color:var(--text-medium)">${s.scan_progress}%</span>
+    </div>
+    <div style="margin-top:18px">
+      <div style="font-size:13px;font-weight:600;color:var(--text-medium)">발견 리소스</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        ${Object.entries(s.resource_count_by_resource_type).map(([k,v])=>
+          `<span class="tag gray" style="padding:5px 10px">${esc(k)} <b style="margin-left:6px;color:var(--primary)">${v}</b></span>`).join('')}
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="cardhead"><div><div class="cardtitle">스캔 이력</div></div></div>
+    <table class="tbl">
+      <thead><tr><th>실행 일시</th><th>상태</th><th>버전</th><th>진행률</th><th>소요</th><th>오류</th></tr></thead>
+      <tbody>${SCAN_HISTORY.map(h=>`<tr>
+        <td>${h.at}</td>
+        <td>${scanPill(h.st)}</td>
+        <td><span class="mono">v${h.ver}</span></td>
+        <td>${h.prog}%</td>
+        <td>${h.dur}</td>
+        <td>${h.err?`<span class="tag red" title="${SCAN_ERR_LABEL[h.err]}">${h.err}</span>`:'<span class="muted">—</span>'}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div class="pager"><button disabled>‹ 이전</button><span>1 / 4</span><button onclick="toast('다음 페이지 (프로토타입)')">다음 ›</button></div>
+  </div>`;
+}
+/* ══════════ 탭 3: 연동 요청 정보 (계약: approval-requests/latest + approved-integration) ══════════ */
+const REQ_RESOURCES = [
+  {db:'MySQL',      id:'db-prod-mysql-01',  region:'ap-northeast-2', name:'prod-mysql',    sel:true,  reason:null},
+  {db:'PostgreSQL', id:'db-stg-pg-02',      region:'ap-northeast-2', name:'stg-postgres',  sel:true,  reason:null},
+  {db:'MySQL',      id:'db-legacy-my-03',   region:'ap-northeast-2', name:'legacy-mysql',  sel:false, reason:'EOS 예정 — 마이그레이션 후 제외'},
+  {db:'Aurora',     id:'cluster-pay-04',    region:'ap-northeast-1', name:'pay-aurora',    sel:true,  reason:null},
+];
+function tabRequest(){
+  const sel = REQ_RESOURCES.filter(r=>r.sel).length, total = REQ_RESOURCES.length;
+  return `
+  <div class="grid2">
+    <div class="card">
+      <div class="cardhead"><div><div class="cardtitle">최근 승인 요청</div>
+        <div class="carddesc">서비스가 제출한 연동 요청의 승인 정보입니다.</div></div>
+        <span class="detail-link" onclick="toast('승인 요청 상세 모달 (앱 구현 완료)')">상세 보기 →</span></div>
+      <div class="kv">
+        <div class="k">요청 ID</div><div class="v mono">#2044</div>
+        <div class="k">상태</div><div class="v"><span class="pill ok"><span class="dot"></span>승인</span></div>
+        <div class="k">요청자</div><div class="v">kim.yj</div>
+        <div class="k">요청 일시</div><div class="v">2026-07-16 10:31</div>
+        <div class="k">리소스 선택</div><div class="v">${sel} / ${total}</div>
+        <div class="k">처리</div><div class="v">admin.kim · 2026-07-17 18:56</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cardhead"><div><div class="cardtitle">확정 정보</div>
+        <div class="carddesc">승인 후 확정된 연동 대상입니다. 설치 파이프라인의 입력이 됩니다.</div></div></div>
+      <div class="kv">
+        <div class="k">확정 리소스</div><div class="v">${sel}개 <span class="muted">(제외 ${total-sel}개)</span></div>
+        <div class="k">확정 일시</div><div class="v">2026-07-17 18:56</div>
+        <div class="k">확정자</div><div class="v">admin.kim</div>
+      </div>
+      <div class="note warn" style="margin-top:16px">확정 정보를 삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다.</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="cardhead"><div><div class="cardtitle">요청 리소스</div>
+      <div class="carddesc">연동 대상 ${sel}개 · 제외 ${total-sel}개</div></div></div>
+    <table class="tbl">
+      <thead><tr><th>Database Type</th><th>Resource ID</th><th>Region</th><th>Resource Name</th><th>연동 대상</th><th>제외 사유</th></tr></thead>
+      <tbody>${REQ_RESOURCES.map(r=>`<tr>
+        <td><span class="tag blue">${r.db}</span></td>
+        <td><span class="mono">${r.id}</span></td>
+        <td>${r.region}</td>
+        <td>${esc(r.name)}</td>
+        <td>${r.sel?'<span class="pill ok"><span class="dot"></span>대상</span>':'<span class="pill off"><span class="dot"></span>제외</span>'}</td>
+        <td>${r.reason?esc(r.reason):'<span class="muted">—</span>'}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
+/* ══════════ 탭 4: 파이프라인 (R24 target detail 문법 — orchestrator 계약) ══════════ */
+const PL_TASKS = [
+  {name:'사전 조건 확인',    kind:'COND', act:null,    st:'ok'},
+  {name:'Network Terraform', kind:'TF',   act:'PLAN',  st:'ok'},
+  {name:'Network Terraform', kind:'TF',   act:'APPLY', st:'ok'},
+  {name:'Agent Terraform',   kind:'TF',   act:'PLAN',  st:'cur', try:'시도 2 / 3'},
+  {name:'Agent Terraform',   kind:'TF',   act:'APPLY', st:'wait'},
+  {name:'설치 상태 확인',     kind:'COND', act:null,    st:'wait'},
+];
+const PL_HISTORY = [
+  {id:1247, name:'표준 설치',   type:'INSTALL', st:'RUNNING',   prog:'3 / 6', at:'2026-07-25 09:20 → 진행 중', live:true},
+  {id:1201, name:'표준 설치',   type:'INSTALL', st:'FAILED',    prog:'2 / 6', at:'2026-07-24 17:02 → 17:41'},
+  {id:1150, name:'Custom 작업', type:'CUSTOM',  st:'SUCCEEDED', prog:'4 / 4', at:'2026-07-22 10:11 → 10:39'},
+  {id:1093, name:'표준 삭제',   type:'DELETE',  st:'CANCELED',  prog:'1 / 5', at:'2026-07-19 15:30 → 15:32'},
+];
+const PL_ST = {RUNNING:['info','진행 중'], SUCCEEDED:['ok','성공'], FAILED:['err','실패'], CANCELED:['off','취소']};
+const TASK_PILL = {ok:'<span class="pill ok"><span class="dot"></span>완료</span>',
+  cur:'<span class="pill info"><span class="dot"></span>진행 중</span>',
+  wait:'<span class="pill off"><span class="dot"></span>대기</span>'};
+function tabPipeline(){
+  return `
+  <div class="card">
+    <div class="eyebrow">현재 작업</div>
+    <div class="cardhead" style="margin-top:6px">
+      <div><div class="cardtitle">표준 설치 <span class="mono" style="font-size:13px;color:var(--text-faint)">#1247</span>
+        <span class="pill info" style="margin-left:8px"><span class="dot"></span>진행 중</span></div>
+        <div class="carddesc">확정된 연동 정보를 기준으로 Agent 설치 인프라를 생성합니다.</div></div>
+      <span class="detail-link" onclick="toast('작업 상세 페이지로 이동 (앱 구현 완료)')">작업 현황 보기 ↗</span>
+    </div>
+    <div style="margin-top:14px;font-size:13px;font-weight:600;color:var(--text-medium)">Task 실행 흐름</div>
+    <div class="flowrow">${PL_TASKS.map((t,i)=>`
+      ${i?'<span class="flowarrow">→</span>':''}
+      <div class="runcard ${t.st==='cur'?'cur':''}" onclick="toast('Task 드로어 열림 (앱 구현 완료 — 시도 이력·Terraform Job·로그)')">
+        <span class="corner ${t.kind==='TF'?'tf':'cond'}">${t.kind}</span>
+        <div class="rc-name">${esc(t.name)}</div>
+        <div class="rc-meta">seq ${i+1}${t.try?` · ${t.try}`:''}</div>
+        <div class="rc-foot">${TASK_PILL[t.st]}${t.act?`<span class="tfact ${t.act.toLowerCase()}">${t.act}</span>`:''}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="card">
+    <div class="cardhead"><div><div class="cardtitle">작업 이력</div></div></div>
+    <table class="tbl">
+      <thead><tr><th style="width:72px">#</th><th>작업</th><th>유형</th><th>상태</th><th>진행도</th><th>실행 시각</th><th></th></tr></thead>
+      <tbody>${PL_HISTORY.map(p=>{
+        const [tone,label] = PL_ST[p.st];
+        return `<tr class="rowlink" ${p.live?'style="background:rgba(37,99,235,.04)"':''} onclick="toast('작업 #${p.id} 상세로 이동 (앱 구현 완료)')">
+        <td><span class="mono">#${p.id}</span></td>
+        <td>${esc(p.name)}</td>
+        <td><span class="tag ${p.type==='DELETE'?'red':p.type==='CUSTOM'?'gray':'blue'}">${p.type}</span></td>
+        <td><span class="pill ${tone}"><span class="dot"></span>${label}</span></td>
+        <td class="mono">${p.prog}</td>
+        <td>${p.at}</td>
+        <td style="text-align:right"><span class="detail-link">↗</span></td>
+      </tr>`;}).join('')}</tbody>
+    </table>
+    <div class="pager"><button disabled>‹ 이전</button><span>1 / 3</span><button onclick="toast('다음 페이지 (프로토타입)')">다음 ›</button></div>
+  </div>`;
+}
+
+/* ══════════ 탭 5: Test Connection (계약: test-connection/status + latest-results) ══════════ */
+const TC_ROWS = [
+  {db:'MySQL',      id:'db-prod-mysql-01', target:'prod-mysql.cluster-xyz.ap-northeast-2.rds.amazonaws.com:3306', inc:4, exc:1, st:'SUCCESS'},
+  {db:'PostgreSQL', id:'db-stg-pg-02',     target:'stg-pg.cluster-abc.ap-northeast-2.rds.amazonaws.com:5432',    inc:2, exc:0, st:'FAILED'},
+  {db:null,         id:'cluster-pay-04',   target:null,                                                          inc:3, exc:2, st:'UNKNOWN'},
+];
+const TC_ST = {SUCCESS:['ok','Success'], FAILED:['err','Failed'], UNKNOWN:['off','Unknown']};
+function tabTc(){
+  const inc = TC_ROWS.reduce((a,r)=>a+r.inc,0), exc = TC_ROWS.reduce((a,r)=>a+r.exc,0);
+  return `
+  <div class="card">
+    <div class="cardhead">
+      <div><div class="cardtitle">Test Connection 결과 <span class="pill ok" style="margin-left:8px"><span class="dot"></span>완료</span></div>
+        <div class="carddesc">완료 일자 2026-07-24 16:05 · 연동 대상 논리 DB ${inc}개 · 제외 논리 DB ${exc}개</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn danger" onclick="toast('재실행 요청 모달 — 사유 입력 후 서비스에 재실행을 요청합니다')">재실행 요청</button>
+        <button class="btn primary" onclick="toast('연동 승인 — pii-agent-installation/confirm')">연동 승인</button>
+      </div>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Database Type</th><th>Resource ID</th><th>연동 대상</th><th>연동 대상 논리 DB</th><th>연동 제외 논리 DB</th><th>Connection Status</th></tr></thead>
+      <tbody>${TC_ROWS.map(r=>{
+        const [tone,label] = TC_ST[r.st];
+        return `<tr>
+        <td>${r.db?`<span class="tag blue">${r.db}</span>`:'<span class="muted">—</span>'}</td>
+        <td><span class="mono">${r.id}</span></td>
+        <td>${r.target?`<span class="mono" style="font-size:12px">${esc(r.target)}</span>`:'<span class="muted">—</span>'}</td>
+        <td><span class="detail-link" onclick="toast('논리 DB 목록 모달 — 연동 대상 탭 (앱 구현 완료)')">${r.inc}개</span></td>
+        <td>${r.exc?`<span class="detail-link" onclick="toast('논리 DB 목록 모달 — 제외 탭 (앱 구현 완료)')">${r.exc}개</span>`:'<span class="muted">0개</span>'}</td>
+        <td><span class="pill ${tone}"><span class="dot"></span>${label}</span></td>
+      </tr>`;}).join('')}</tbody>
+    </table>
+    <div class="note" style="margin-top:14px">Database Type · 연동 대상 · Connection Status는 계약 밖 passthrough 필드입니다 — 값이 없으면 — / Unknown으로 표기하며, 임의로 성공 처리하지 않습니다.</div>
+  </div>`;
+}
+
+route();
+</script>
+</body>
+</html>

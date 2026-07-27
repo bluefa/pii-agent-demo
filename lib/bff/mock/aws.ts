@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
+import { consumeOpsRoleOverride } from '@/lib/bff/mock/ops';
 
 /**
  * AWS cloud-status mocks (ADR-019 Spec G). Handlers author the **swagger snake
@@ -56,23 +57,27 @@ export const mockAws = {
       ],
       terraform_execution_role_verify: {
         status: completed ? 'COMPLETED' : 'IN_PROGRESS',
-        role_arn: `arn:aws:iam::${project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`,
+        role_arn: `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`,
       },
     });
   },
 
   // GET …/aws/verify-scan-role → AwsRoleVerificationResponse (snake wire).
+  // An ARN saved via the assumed ops PUT overrides the seed; the first verify
+  // after a save reports IN_PROGRESS (fresh ARN, not yet verified).
   verifyScanRole: async (targetSourceId: string) => {
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) return notFound();
     if (project.cloudProvider !== 'AWS') return notAws();
 
+    const override = consumeOpsRoleOverride(Number(targetSourceId), 'scan');
     return NextResponse.json({
-      status: 'VALID',
-      role_arn: `arn:aws:iam::${project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/scan`,
+      status: override?.pending ? 'IN_PROGRESS' : 'VALID',
+      role_arn: override?.roleArn
+        ?? `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/scan`,
       fail_reason: null,
       fail_message: null,
-      last_verified_at: '2026-06-23T10:00:00Z',
+      last_verified_at: override?.pending ? null : '2026-06-23T10:00:00Z',
     });
   },
 
@@ -82,12 +87,14 @@ export const mockAws = {
     if (!project) return notFound();
     if (project.cloudProvider !== 'AWS') return notAws();
 
+    const override = consumeOpsRoleOverride(Number(targetSourceId), 'execution');
     return NextResponse.json({
-      status: 'VALID',
-      role_arn: `arn:aws:iam::${project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`,
+      status: override?.pending ? 'IN_PROGRESS' : 'VALID',
+      role_arn: override?.roleArn
+        ?? `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`,
       fail_reason: null,
       fail_message: null,
-      last_verified_at: '2026-06-23T10:00:00Z',
+      last_verified_at: override?.pending ? null : '2026-06-23T10:00:00Z',
     });
   },
 

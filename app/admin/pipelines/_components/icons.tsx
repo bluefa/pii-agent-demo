@@ -38,9 +38,9 @@ export type IconName =
   | 'calendar'
   | 'copy';
 
-export type IconSize = 'sm' | 'md' | 'lg';
+export type IconSize = 'sm' | 'md' | 'lg' | 'xl';
 
-const SIZE_PX: Record<IconSize, number> = { sm: 14, md: 16, lg: 22 };
+const SIZE_PX: Record<IconSize, number> = { sm: 14, md: 16, lg: 22, xl: 26 };
 
 /** Symbol path geometry (viewBox 0 0 24 24), stroked with currentColor. */
 const ICON_PATHS: Record<IconName, ReactElement> = {
@@ -162,7 +162,7 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
 
 export interface IconProps {
   name: IconName;
-  /** 'sm' 14 · 'md' 16 (default) · 'lg' 22. */
+  /** 'sm' 14 · 'md' 16 (default) · 'lg' 22 · 'xl' 26. */
   size?: IconSize;
   className?: string;
   /** Accessible label; when omitted the icon is aria-hidden (decorative). */

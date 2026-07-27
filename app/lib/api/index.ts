@@ -36,6 +36,8 @@ export type ApprovalRequestLatestDto = z.infer<typeof schemas.ApprovalRequestLat
 export type ApprovalUnavailableResponseDto = z.infer<typeof schemas.ApprovalUnavailableResponseDto>;
 export type ApprovalUnavailableConfirmResponseDto = z.infer<typeof schemas.ApprovalUnavailableConfirmResponseDto>;
 export type ApprovalRequestLatestResponse = z.infer<typeof schemas.ApprovalRequestLatestDto>;
+export type ApprovalRequestDetailResponse = z.infer<typeof schemas.ApprovalRequestDetailDto>;
+export type ApprovalResourceItem = NonNullable<ApprovalRequestDetailResponse['resources']>[number];
 
 
 // Re-export USER/services wire types (zod-codegen, snake) so consumers import
@@ -511,6 +513,17 @@ export const getApprovalRequestLatest = async (
 ): Promise<ApprovalRequestLatestDto> =>
   fetchInfraJson<ApprovalRequestLatestDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/latest`,
+    options?.signal ? { signal: options.signal } : undefined,
+  );
+
+// swagger getApprovalRequestDetail — per-request resources for the 승인 요청 상세 modal.
+export const getApprovalRequestDetail = async (
+  targetSourceId: number,
+  requestId: number,
+  options?: { signal?: AbortSignal },
+): Promise<ApprovalRequestDetailResponse> =>
+  fetchInfraJson<ApprovalRequestDetailResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-requests/${requestId}`,
     options?.signal ? { signal: options.signal } : undefined,
   );
 

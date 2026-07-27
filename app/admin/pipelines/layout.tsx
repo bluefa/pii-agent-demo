@@ -33,6 +33,14 @@ const SIDEBAR_GROUPS = [
       { label: '연결 테스트', href: passRoutes.pipelines.queue.testConnections, exact: false },
     ],
   },
+  {
+    title: '운영 콘솔',
+    items: [
+      { label: '운영 알림', href: passRoutes.pipelines.ops.alerts, exact: false },
+      { label: '서비스 운영', href: passRoutes.pipelines.ops.services, exact: false },
+      { label: 'Target Source 운영', href: passRoutes.pipelines.ops.targetSources, exact: false },
+    ],
+  },
 ] as const;
 
 export default function PipelinesLayout({ children }: { children: ReactNode }) {
