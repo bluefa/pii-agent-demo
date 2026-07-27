@@ -1815,6 +1815,29 @@ export const mockConfirm = {
     }
     rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
 
+    // Demo backfill: once a target has at least one real event, synthesize
+    // earlier TC cycles behind it (contract-shaped, strictly older) so the
+    // history modal's pagination is exercisable against the mock.
+    if (rows.length > 0) {
+      const oldest = Date.parse(rows[rows.length - 1].created_at);
+      const cycles: Array<{ status: string; reason: string | null }> = [
+        { status: 'TEST_CONNECTION_RESET', reason: '논리 DB 변경으로 초기화되었습니다.' },
+        { status: 'TEST_CONNECTION_COMPLETED', reason: null },
+        { status: 'TEST_CONNECTION_REJECTED', reason: 'Credential 권한 오류로 재실행을 요청했습니다.' },
+        { status: 'TEST_CONNECTION_RESET', reason: null },
+        { status: 'TEST_CONNECTION_COMPLETED', reason: null },
+        { status: 'TEST_CONNECTION_REJECTED', reason: '일부 리소스 연결 실패로 재실행을 요청했습니다.' },
+      ];
+      cycles.forEach((cycle, index) => {
+        rows.push({
+          target_source_id: Number(targetSourceId),
+          status: cycle.status,
+          reason: cycle.reason,
+          created_at: new Date(oldest - (index + 1) * 86_400_000).toISOString(),
+        });
+      });
+    }
+
     const start = page * size;
     return NextResponse.json({
       totalElements: rows.length,
