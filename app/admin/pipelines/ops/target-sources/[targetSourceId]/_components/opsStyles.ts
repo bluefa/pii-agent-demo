@@ -81,5 +81,5 @@ export const opsStyles = {
 
   /** Uppercase wire-status tag (Figma APPROVED/CANCELLED chips). */
   statusTag:
-    'inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold tracking-[0.02em]',
+    'inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold tracking-[0.02em] whitespace-nowrap',
 } as const;
