@@ -15,7 +15,6 @@ import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
-  Dash,
   TC_TONE_FILL,
   type TcTone,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
@@ -73,8 +72,6 @@ export function TcHistoryCard({ targetSourceId, reloadKey }: TcHistoryCardProps)
     };
   }, [targetSourceId, page, loadKey]);
 
-  const { table } = opsStyles;
-
   return (
     <section aria-label="Test Connection 이력">
       <h2 className={opsStyles.cardTitle}>이력</h2>
@@ -87,40 +84,38 @@ export function TcHistoryCard({ targetSourceId, reloadKey }: TcHistoryCardProps)
       ) : rows.length === 0 ? (
         <PlEmptyState icon="clock" message="이력이 없습니다." className="mt-2" />
       ) : (
-        <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
-          <table className={table.base}>
-            <thead>
-              <tr>
-                <th className={table.headCell}>일시</th>
-                <th className={table.headCell}>상태</th>
-                <th className={table.headCell}>사유</th>
-              </tr>
-            </thead>
-            <tbody className="[&>tr:last-child>td]:border-b-0">
-              {rows.map((row, index) => {
-                const meta = STATUS_META[row.status];
-                return (
-                  <tr key={`${row.createdAt ?? 'row'}-${index}`}>
-                    <td className={cn(table.cell, 'whitespace-nowrap')}>
-                      {fmtDateTime(row.createdAt)}
-                    </td>
-                    <td className={table.cell}>
-                      <span
-                        className={cn(
-                          opsStyles.statusTag,
-                          TC_TONE_FILL[meta ? meta.tone : 'off'],
-                        )}
-                      >
-                        {meta ? meta.label : row.status}
-                      </span>
-                    </td>
-                    <td className={table.cell}>{row.reason || <Dash />}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        /* The 300px side rail cannot hold a 3-column table — stacked entries
+           (tag + datetime row, then wrapping reason) keep everything readable. */
+        <ul className="mt-2 flex flex-col text-[13px]">
+          {rows.map((row, index) => {
+            const meta = STATUS_META[row.status];
+            return (
+              <li
+                key={`${row.createdAt ?? 'row'}-${index}`}
+                className="flex flex-col gap-1.5 py-3 border-b border-[var(--pl-gray-100)] last:border-b-0"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className={cn(
+                      opsStyles.statusTag,
+                      TC_TONE_FILL[meta ? meta.tone : 'off'],
+                    )}
+                  >
+                    {meta ? meta.label : row.status}
+                  </span>
+                  <span className="text-[12px] text-[var(--pl-text-weak)] whitespace-nowrap tabular-nums">
+                    {fmtDateTime(row.createdAt)}
+                  </span>
+                </div>
+                {row.reason && (
+                  <p className="text-[12px] leading-[1.5] text-[var(--pl-text-medium)] break-keep">
+                    {row.reason}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       <OpsPagination page={page} totalPages={totalPages} onChange={setPage} />
