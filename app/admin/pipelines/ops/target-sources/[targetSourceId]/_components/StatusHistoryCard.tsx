@@ -5,7 +5,7 @@
  * ASSUMED CONTRACT — docs/api/ops-assumed-contracts.md §1 (no backing endpoint
  * in install-v1.yaml yet; the Next route serves a mock).
  */
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { getStatusHistory, type StatusHistoryItem } from '@/app/lib/api/ops';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
@@ -27,18 +27,24 @@ export function StatusHistoryCard({ targetSourceId }: StatusHistoryCardProps): R
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
+  // Latest-request-wins: rapid pagination can resolve out of order, and a stale
+  // response must not commit page/rows over a newer one.
+  const loadSeq = useRef(0);
   const load = useCallback(async (nextPage: number): Promise<void> => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setFailed(false);
     try {
       const data = await getStatusHistory(targetSourceId, nextPage, PAGE_SIZE);
+      if (seq !== loadSeq.current) return;
       setRows(data.content ?? []);
       setTotalPages(Math.max(1, data.totalPages ?? 1));
       setPage(nextPage);
     } catch {
+      if (seq !== loadSeq.current) return;
       setFailed(true);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [targetSourceId]);
 
@@ -52,9 +58,11 @@ export function StatusHistoryCard({ targetSourceId }: StatusHistoryCardProps): R
     <section className={pipelineStyles.card.base} aria-label="상태 변경 이력">
       <h2 className={opsStyles.cardTitle}>상태 변경 이력</h2>
 
-      {failed ? (
+      {loading ? (
+        <div className="min-h-[160px]" aria-busy />
+      ) : failed ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-2')}>상태 변경 이력을 불러오지 못했습니다.</p>
-      ) : !loading && rows.length === 0 ? (
+      ) : rows.length === 0 ? (
         <PlEmptyState icon="clock" message="상태 변경 이력이 없습니다." className="mt-2" />
       ) : (
         <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>

@@ -5,7 +5,7 @@
  * (swagger GET …/approval-history, Spring Page). 상세 보기 reuses the shared
  * ApprovalRequestDetailModal; rows adapt the snake wire to its item shape.
  */
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { getApprovalHistory } from '@/app/lib/api';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
@@ -86,18 +86,24 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
   const [failed, setFailed] = useState(false);
   const [detail, setDetail] = useState<ApprovalHistoryRowWire | null>(null);
 
+  // Latest-request-wins: rapid pagination can resolve out of order, and a stale
+  // response must not commit page/rows over a newer one.
+  const loadSeq = useRef(0);
   const load = useCallback(async (nextPage: number): Promise<void> => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setFailed(false);
     try {
       const data = await getApprovalHistory(targetSourceId, nextPage, PAGE_SIZE);
+      if (seq !== loadSeq.current) return;
       setRows((data.content ?? []) as ApprovalHistoryRowWire[]);
       setTotalPages(Math.max(1, data.totalPages ?? 1));
       setPage(nextPage);
     } catch {
+      if (seq !== loadSeq.current) return;
       setFailed(true);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [targetSourceId]);
 
@@ -112,9 +118,11 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
       <h2 className={opsStyles.cardTitle}>승인 요청 내역</h2>
       <p className={opsStyles.cardDesc}>연동 요청 process 진행 현황</p>
 
-      {failed ? (
+      {loading ? (
+        <div className="min-h-[160px]" aria-busy />
+      ) : failed ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-2')}>승인 요청 내역을 불러오지 못했습니다.</p>
-      ) : !loading && rows.length === 0 ? (
+      ) : rows.length === 0 ? (
         <PlEmptyState icon="inbox" message="승인 요청 내역이 없습니다." className="mt-2" />
       ) : (
         <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>

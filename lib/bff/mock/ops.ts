@@ -87,8 +87,8 @@ const getState = (targetSourceId: number, processStatus: ProcessStatus): OpsTarg
   return state;
 };
 
-const notFound = () =>
-  NextResponse.json({ error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' }, { status: 404 });
+const notFound = (message = '프로젝트를 찾을 수 없습니다.') =>
+  NextResponse.json({ error: 'NOT_FOUND', message }, { status: 404 });
 
 /** Real account id when the seed has one; else the lib/bff/mock/aws.ts derivation. */
 const accountId = (project: { id: string; awsAccountId?: string }): string =>
@@ -259,7 +259,7 @@ export const mockOps = {
 
   // GET /admin/ops/services/{code} (assumed §6).
   getService: async (code: string) => {
-    if (!serviceCodes().includes(code)) return notFound();
+    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
     const state = serviceState(code);
     const summary = serviceSummary(code);
     const detail: OpsServiceDetailWire = {
@@ -277,9 +277,9 @@ export const mockOps = {
   },
 
   // POST /admin/ops/services/{code}/eos (assumed §6) — non-force fails while a
-  // target source is still mid-pipeline (INSTALLED = install running here).
+  // target source is still mid-pipeline (INSTALLING = install running here).
   postServiceEos: async (code: string, force: boolean) => {
-    if (!serviceCodes().includes(code)) return notFound();
+    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
     const running = mockData.mockProjects.filter(
       (p) => p.serviceCode === code && p.processStatus === ProcessStatus.INSTALLING,
     ).length;
@@ -298,9 +298,9 @@ export const mockOps = {
 
   // POST /admin/ops/services/{code}/jira-tickets/{key}/users (assumed §6).
   postJiraUser: async (code: string, ticketKey: string, userId: string) => {
-    if (!serviceCodes().includes(code)) return notFound();
+    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
     const ticket = serviceState(code).jira.find((j) => j.ticket_key === ticketKey);
-    if (!ticket) return notFound();
+    if (!ticket) return notFound('Jira 티켓을 찾을 수 없습니다.');
     if (!ticket.users.includes(userId)) ticket.users.push(userId);
     return NextResponse.json(ticket);
   },

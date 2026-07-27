@@ -1800,7 +1800,7 @@ export const mockConfirm = {
     if (project.completionConfirmedAt) {
       rows.push({
         target_source_id: Number(targetSourceId),
-        status: 'COMPLETE',
+        status: 'TEST_CONNECTION_COMPLETED',
         reason: null,
         created_at: project.completionConfirmedAt,
       });
@@ -1808,7 +1808,7 @@ export const mockConfirm = {
     if (project.isRejected) {
       rows.push({
         target_source_id: Number(targetSourceId),
-        status: 'REJECT',
+        status: 'TEST_CONNECTION_REJECTED',
         reason: project.rejectionReason ?? null,
         created_at: project.rejectedAt ?? project.updatedAt,
       });

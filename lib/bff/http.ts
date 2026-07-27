@@ -95,6 +95,8 @@ async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
   });
   console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
+  // 204 No Content (e.g. collaboration-channel none) has no body to parse.
+  if (res.status === 204) return null as T;
   const data = await res.json();
   return (opts?.raw ? data : camelCaseKeys(data)) as T;
 }

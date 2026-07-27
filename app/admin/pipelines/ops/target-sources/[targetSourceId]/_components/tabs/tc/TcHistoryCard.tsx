@@ -23,9 +23,9 @@ import {
 const PAGE_SIZE = 5;
 
 const STATUS_META: Record<string, { tone: TcTone; label: string }> = {
-  COMPLETE: { tone: 'ok', label: '완료' },
-  REJECT: { tone: 'err', label: '재실행 요청' },
-  RESET: { tone: 'warn', label: '초기화' },
+  TEST_CONNECTION_COMPLETED: { tone: 'ok', label: '완료' },
+  TEST_CONNECTION_REJECTED: { tone: 'err', label: '재실행 요청' },
+  TEST_CONNECTION_RESET: { tone: 'warn', label: '초기화' },
 };
 
 export interface TcHistoryCardProps {
@@ -39,6 +39,13 @@ export function TcHistoryCard({ targetSourceId, reloadKey }: TcHistoryCardProps)
   const [totalPages, setTotalPages] = useState(1);
   const [failed, setFailed] = useState(false);
   const [page, setPage] = useState(0);
+
+  // A write adds a newest-first row — jump back to page 0 so it is visible.
+  const [prevReloadKey, setPrevReloadKey] = useState(reloadKey);
+  if (reloadKey !== prevReloadKey) {
+    setPrevReloadKey(reloadKey);
+    setPage(0);
+  }
 
   const loadKey = `${targetSourceId}:${reloadKey}:${page}`;
   const [loadedKey, setLoadedKey] = useState<string | null>(null);

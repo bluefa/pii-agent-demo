@@ -98,18 +98,24 @@ export function ScanTab({ targetSourceId }: ScanTabProps): ReactElement {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyFailed, setHistoryFailed] = useState(false);
 
+  // Latest-request-wins: rapid pagination can resolve out of order, and a stale
+  // response must not commit page/rows over a newer one.
+  const historySeq = useRef(0);
   const loadHistory = useCallback(async (nextPage: number): Promise<void> => {
+    const seq = ++historySeq.current;
     setHistoryLoading(true);
     setHistoryFailed(false);
     try {
       const data = await getScanHistory(targetSourceId, nextPage, PAGE_SIZE);
+      if (seq !== historySeq.current) return;
       setRows(data.content ?? []);
       setTotalPages(Math.max(1, data.totalPages ?? 1));
       setPage(nextPage);
     } catch {
+      if (seq !== historySeq.current) return;
       setHistoryFailed(true);
     } finally {
-      setHistoryLoading(false);
+      if (seq === historySeq.current) setHistoryLoading(false);
     }
   }, [targetSourceId]);
 
@@ -253,14 +259,16 @@ export function ScanTab({ targetSourceId }: ScanTabProps): ReactElement {
       <section className={pipelineStyles.card.base} aria-label="스캔 이력">
         <h2 className={opsStyles.cardTitle}>스캔 이력</h2>
 
-        {historyFailed ? (
+        {historyLoading ? (
+          <div className="min-h-[160px]" aria-busy />
+        ) : historyFailed ? (
           <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
             <p>스캔 이력을 불러오지 못했습니다.</p>
             <PlButton variant="secondary" className="mt-3" onClick={() => void loadHistory(page)}>
               다시 시도
             </PlButton>
           </div>
-        ) : !historyLoading && rows.length === 0 ? (
+        ) : rows.length === 0 ? (
           <PlEmptyState icon="search" message="스캔 이력이 없습니다." className="mt-2" />
         ) : (
           <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
