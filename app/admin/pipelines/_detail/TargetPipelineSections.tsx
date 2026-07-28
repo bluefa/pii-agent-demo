@@ -25,7 +25,7 @@ import {
   CurrentPipelineCard,
   EmptyPipelineCard,
   LastRunFailedCard,
-} from '@/app/admin/pipelines/targets/[targetSourceId]/_components/CurrentPipelineCard';
+} from '@/app/admin/pipelines/_detail/CurrentPipelineCard';
 import { passRoutes } from '@/lib/routes';
 import {
   fmtDateTime,
