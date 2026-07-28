@@ -233,6 +233,8 @@ export const mockBff: BffClient = {
 
     getProcessStatus: async (id) =>
       unwrap<z.infer<typeof schemas.ProcessStatusResponseDto>>(await mockConfirm.getProcessStatus(String(id))),
+    getTerraformStatus: async (id) =>
+      unwrap<z.infer<typeof schemas.TerraformStatusResponse>>(await mockConfirm.getTerraformStatus(String(id))),
 
     approveApprovalRequest: async (id, body) =>
       unwrap<unknown>(await mockConfirm.approveApprovalRequest(String(id), body)),

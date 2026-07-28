@@ -234,6 +234,7 @@ export interface BffClient {
     getApprovalRequestLatest: (id: number) => Promise<unknown>;
     getApprovalRequestDetail: (id: number, requestId: number) => Promise<unknown>;
     getProcessStatus: (id: number) => Promise<z.infer<typeof schemas.ProcessStatusResponseDto>>;
+    getTerraformStatus: (id: number) => Promise<z.infer<typeof schemas.TerraformStatusResponse>>;
     approveApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     rejectApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     cancelApprovalRequest: (id: number) => Promise<unknown>;

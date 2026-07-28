@@ -1848,4 +1848,70 @@ export const mockConfirm = {
     });
   },
 
+  // GET …/terraform-status — DB-only Terraform view. Mock derives the per-task
+  // states from the project's process status (the real BFF reads tf state rows).
+  getTerraformStatus: async (targetSourceId: string) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const provider = project.isSduType
+      ? 'SDU'
+      : cloudProviderToWireProvider(project.cloudProvider);
+    const tasks = TF_TASKS_BY_PROVIDER[provider] ?? [];
+    const applied = project.processStatus >= ProcessStatus.WAITING_CONNECTION_TEST;
+    const applying = project.processStatus === ProcessStatus.INSTALLING;
+    const confirmed = project.processStatus >= ProcessStatus.APPLYING_APPROVED;
+
+    return NextResponse.json({
+      target_source_id: Number(targetSourceId),
+      cloud_provider: provider,
+      is_sdu_type: project.isSduType === true,
+      has_confirmed_infra: confirmed,
+      latest_confirmed_at: confirmed ? project.updatedAt : null,
+      checked_at: new Date().toISOString(),
+      overall_state: applied ? 'APPLIED' : applying ? 'APPLYING' : 'NEVER_APPLIED',
+      destroy_required: false,
+      tasks: tasks.map((task, index) => ({
+        ...task,
+        // Mid-install the earlier tasks are already done — one task is in flight.
+        state: applied ? 'APPLIED' : !applying ? 'NEVER_APPLIED'
+          : index === 0 ? 'APPLIED' : index === 1 ? 'APPLYING' : 'NEVER_APPLIED',
+        destroy_required: false,
+      })),
+    });
+  },
+
+};
+
+/** Provider → Terraform task rows (swagger TerraformTaskStatusResponse enums). */
+const TF_TASKS_BY_PROVIDER: Record<
+  string,
+  { terraform_task_name: string; terraform_target: string; terraform_execution_side: string }[]
+> = {
+  AWS: [
+    { terraform_task_name: 'AWS_SERVICE_LEVEL', terraform_target: 'SERVICE', terraform_execution_side: 'SERVICE' },
+    { terraform_task_name: 'AWS_BDC_SERVICE_COMMON', terraform_target: 'BDC_SERVICE_LEVEL_COMMON', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'AWS_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+  ],
+  AZURE: [
+    { terraform_task_name: 'AZURE_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+  ],
+  GCP: [
+    { terraform_task_name: 'GCP_SERVICE_LEVEL', terraform_target: 'SERVICE', terraform_execution_side: 'SERVICE' },
+    { terraform_task_name: 'GCP_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+  ],
+  IDC: [
+    { terraform_task_name: 'IDC_BDC_CX', terraform_target: 'IDC_CX', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'IDC_BDC_BDP', terraform_target: 'IDC_BDP', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'IDC_BDC_PUBLIC_URL', terraform_target: 'IDC_PUBLIC_URL', terraform_execution_side: 'BDC' },
+  ],
+  SDU: [
+    { terraform_task_name: 'SDU_BDC_SERVICE_COMMON', terraform_target: 'BDC_SERVICE_LEVEL_COMMON', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'SDU_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+  ],
 };

@@ -36,8 +36,14 @@ const GuideUpdateRequest = z
 const TestConnectionRejectRequest = z
   .object({ reason: Str })
   .partial().passthrough();
+const TargetSourceResetRequestDto = z
+  .object({ reason: Str })
+  .partial().passthrough();
 const CreatePipelineRequest = z
   .object({ type: Str })
+  .partial().passthrough();
+const RestartPipelineRequest = z
+  .object({ from_sequence: Num })
   .partial().passthrough();
 const CustomTaskRequest = z
   .object({ name: Str, description: Str.optional() })
@@ -135,6 +141,9 @@ const TargetSourceCreationCandidateRequest = z
     metadata: TargetSourceCreationCandidateMetadata.nullable(),
   })
   .partial().passthrough();
+const JiraTicketAttachRequest = z
+  .object({ issueKey: Str })
+  .partial().passthrough();
 const Link = z
   .object({ href: Str, templated: Bool })
   .partial().passthrough();
@@ -145,6 +154,28 @@ const JiraTicketResponse = z
     serviceCode: Str,
     issueKey: Str,
     cloudProvider: Str,
+  })
+  .partial().passthrough();
+const TerraformTaskStatusResponse = z
+  .object({
+    terraform_target: Str,
+    terraform_execution_side: Str,
+    terraform_task_name: Str,
+    state: Str,
+    destroy_required: Bool,
+  })
+  .partial().passthrough();
+const TerraformStatusResponse = z
+  .object({
+    target_source_id: Num,
+    cloud_provider: Str,
+    is_sdu_type: Bool,
+    has_confirmed_infra: Bool,
+    latest_confirmed_at: Str,
+    checked_at: Str,
+    overall_state: Str,
+    destroy_required: Bool,
+    tasks: z.array(TerraformTaskStatusResponse).nullable(),
   })
   .partial().passthrough();
 const ErrorMessage = z
@@ -232,6 +263,7 @@ const TaskSummary = z
     kind: Str,
     task_definition: Str,
     operation: Str,
+    terraform_action: Str,
     status: Str,
     fail_count: Num,
     error_code: Str,
@@ -239,6 +271,18 @@ const TaskSummary = z
     started_at: Str,
     finished_at: Str,
     description: Str,
+    origin_task_id: Num,
+  })
+  .partial().passthrough();
+const RestartOriginView = z
+  .object({
+    pipeline_id: Num,
+    type: Str,
+    recipe_definition: Str,
+    status: Str,
+    total_task_count: Num,
+    done_task_count: Num,
+    resumed_from_sequence: Num,
   })
   .partial().passthrough();
 const PipelineDetail = z
@@ -262,6 +306,9 @@ const PipelineDetail = z
     done_task_count: Num,
     total_task_count: Num,
     tasks: z.array(TaskSummary).nullable(),
+    origin_pipeline_id: Num,
+    origin: RestartOriginView.nullable(),
+    restarted_by_pipeline_id: Num,
   })
   .partial().passthrough();
 const ServiceInfoRefinedResponse = z
@@ -292,6 +339,7 @@ const TargetSourceResponse = z
     updatedAt: Str,
     confirmStatus: Str,
     piiAgentInstalledAt: Str,
+    isSduType: Bool,
   })
   .partial().passthrough();
 const ApprovalUnavailableResponseDto = z
@@ -392,10 +440,10 @@ const SortObject = z
   .partial().passthrough();
 const PageableObject = z
   .object({
-    unpaged: Bool,
     paged: Bool,
     pageNumber: Num,
     pageSize: Num,
+    unpaged: Bool,
     offset: Num,
     sort: z.array(SortObject).nullable(),
   })
@@ -419,7 +467,12 @@ const PageServiceItem = z
   })
   .partial().passthrough();
 const UserMeResponse = z
-  .object({ id: Str, name: Str, email: Str })
+  .object({
+    id: Str,
+    name: Str,
+    email: Str,
+    source: Str,
+  })
   .partial().passthrough();
 const TaskCatalogEntry = z
   .object({
@@ -428,6 +481,7 @@ const TaskCatalogEntry = z
     description: Str,
     provider: Str,
     kind: Str,
+    terraform_action: Str,
     consumes_terraform_slot: Bool,
   })
   .partial().passthrough();
@@ -514,6 +568,30 @@ const PageTestConnectionHistoryItemResponse = z
     empty: Bool,
   })
   .partial().passthrough();
+const TestConnectionExecutionHistoryResponse = z
+  .object({
+    target_source_id: Num,
+    test_connection_version: Num,
+    status: Str,
+    requested_at: Str,
+    completed_at: Str,
+  })
+  .partial().passthrough();
+const PageTestConnectionExecutionHistoryResponse = z
+  .object({
+    totalElements: Num,
+    totalPages: Num,
+    pageable: PageableObject.nullable(),
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(TestConnectionExecutionHistoryResponse).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    empty: Bool,
+  })
+  .partial().passthrough();
 const TestConnectionCompletionStatusResponse = z
   .object({
     target_source_id: Num,
@@ -529,6 +607,7 @@ const SecretResponse = z
     name: Str,
     create_time: Num,
     create_time_str: Str,
+    last_updated_time: Str,
   })
   .partial().passthrough();
 const PageScanJobResponse = z
@@ -575,6 +654,7 @@ const PipelineSummary = z
     total_task_count: Num,
     created_at: Str,
     last_activity_at: Str,
+    origin_pipeline_id: Num,
   })
   .partial().passthrough();
 const PagePipelineSummary = z
@@ -590,6 +670,44 @@ const PagePipelineSummary = z
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
     empty: Bool,
+  })
+  .partial().passthrough();
+const OriginSummary = z
+  .object({
+    pipeline_id: Num,
+    type: Str,
+    recipe_definition: Str,
+    status: Str,
+    total_task_count: Num,
+    done_task_count: Num,
+  })
+  .partial().passthrough();
+const SkippedTask = z
+  .object({
+    sequence: Num,
+    task_definition: Str,
+    status: Str,
+  })
+  .partial().passthrough();
+const TaskToRun = z
+  .object({
+    sequence: Num,
+    task_definition: Str,
+    kind: Str,
+    terraform_action: Str,
+    origin_task_id: Num,
+    origin_status: Str,
+    origin_error_code: Str,
+    origin_fail_count: Num,
+  })
+  .partial().passthrough();
+const RestartPreview = z
+  .object({
+    origin: OriginSummary.nullable(),
+    resume_from_sequence: Num,
+    skipped_tasks: z.array(SkippedTask).nullable(),
+    tasks_to_run: z.array(TaskToRun).nullable(),
+    warnings: z.array(Str).nullable(),
   })
   .partial().passthrough();
 const TaskDefinitionView = z
@@ -610,6 +728,7 @@ const RecipePreviewStep = z
     task_definition: Str,
     kind: Str,
     operation: Str,
+    terraform_action: Str,
     display_name: Str,
     consumes_terraform_slot: Bool,
     definition: TaskDefinitionView.nullable(),
@@ -799,6 +918,15 @@ const ApprovalRequestLatestDto = z
     result: ApprovalActionResponseDto.nullable(),
   })
   .partial().passthrough();
+const NlbIndexMappingDto = z
+  .object({ service_code: Str, nlb_index: Num })
+  .partial().passthrough();
+const ResourceNlbIndexMappingDto = z
+  .object({
+    resource_id: Str,
+    nlb_index_mapping_list: z.array(NlbIndexMappingDto).nullable(),
+  })
+  .partial().passthrough();
 const Page = z
   .object({
     totalElements: Num,
@@ -972,6 +1100,7 @@ const TaskDetail = z
     task_definition: Str,
     definition: TaskDefinitionView.nullable(),
     operation: Str,
+    terraform_action: Str,
     status: Str,
     fail_count: Num,
     error_code: Str,
@@ -1037,6 +1166,7 @@ const TaskDetail = z
     effective_max_fail_count: Num,
     attempts: z.array(TaskAttemptView).nullable(),
     description: Str,
+    origin_task_id: Num,
   })
   .partial().passthrough();
 const TerraformJobStateDetail = z
@@ -1128,6 +1258,9 @@ const DashboardSummaryResponse = z
     evaluated_at: Str,
   })
   .partial().passthrough();
+const JiraTicketDetachResponse = z
+  .object({ issueKey: Str })
+  .partial().passthrough();
 
 export const schemas = {
   UpdateTestConnectionConfirmationRequest,
@@ -1138,7 +1271,9 @@ export const schemas = {
   GuideContentRequest,
   GuideUpdateRequest,
   TestConnectionRejectRequest,
+  TargetSourceResetRequestDto,
   CreatePipelineRequest,
+  RestartPipelineRequest,
   CustomTaskRequest,
   CustomPipelineRequest,
   PiiAgentInstallationConfirmRequest,
@@ -1151,8 +1286,11 @@ export const schemas = {
   TargetSourceCreationCandidateMetadata,
   TargetSourceCreationCandidateResponse,
   TargetSourceCreationCandidateRequest,
+  JiraTicketAttachRequest,
   Link,
   JiraTicketResponse,
+  TerraformTaskStatusResponse,
+  TerraformStatusResponse,
   ErrorMessage,
   TestConnectionConfirmationResponse,
   UpdateCredentialResponse,
@@ -1166,6 +1304,7 @@ export const schemas = {
   TestConnectionTriggerResponse,
   ScanJobResponse,
   TaskSummary,
+  RestartOriginView,
   PipelineDetail,
   ServiceInfoRefinedResponse,
   TargetSourceResponse,
@@ -1195,6 +1334,8 @@ export const schemas = {
   TestConnectionLatestResultSummaryResponse,
   TestConnectionHistoryItemResponse,
   PageTestConnectionHistoryItemResponse,
+  TestConnectionExecutionHistoryResponse,
+  PageTestConnectionExecutionHistoryResponse,
   TestConnectionCompletionStatusResponse,
   SecretResponse,
   PageScanJobResponse,
@@ -1202,6 +1343,10 @@ export const schemas = {
   ProcessStatusResponseDto,
   PipelineSummary,
   PagePipelineSummary,
+  OriginSummary,
+  SkippedTask,
+  TaskToRun,
+  RestartPreview,
   TaskDefinitionView,
   RecipePreviewStep,
   RecipePreview,
@@ -1225,6 +1370,8 @@ export const schemas = {
   AwsInstallationStatusResponse,
   ApprovedIntegrationResponseDto,
   ApprovalRequestLatestDto,
+  NlbIndexMappingDto,
+  ResourceNlbIndexMappingDto,
   Page,
   PageTestConnectionRejectStatusResponse,
   PageTargetSourceInfo,
@@ -1249,4 +1396,5 @@ export const schemas = {
   NlbOccupiedResourceResponse,
   NlbTableResponse,
   DashboardSummaryResponse,
+  JiraTicketDetachResponse,
 };
