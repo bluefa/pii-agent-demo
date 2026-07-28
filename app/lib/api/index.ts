@@ -15,6 +15,7 @@ import {
 } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraJson } from '@/app/lib/api/infra';
+import { AppError } from '@/lib/errors';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
 // Re-export TargetSourceCloudType so consumers keep importing from one place.
 export type { TargetSourceCloudType };
@@ -261,6 +262,25 @@ export const getProject = async (targetSourceId: number): Promise<TargetSource> 
     getProcessStatus(targetSourceId),
   ]);
   return toTargetSource(data, status.process_status);
+};
+
+/** Domain shape for the collab-channel card — wire JiraTicketResponse.issueKey only. */
+export interface JiraTicket {
+  issueKey: string;
+}
+
+// GET /target-sources/{id}/jira-ticket — 404 means no ticket is mapped yet → null
+// (the collab-channel card renders its 미연결 state).
+export const getJiraTicket = async (targetSourceId: number): Promise<JiraTicket | null> => {
+  try {
+    const raw = await fetchInfraJson<z.infer<typeof schemas.JiraTicketResponse>>(
+      `/target-sources/${targetSourceId}/jira-ticket`,
+    );
+    return raw?.issueKey ? { issueKey: raw.issueKey } : null;
+  } catch (err) {
+    if (err instanceof AppError && err.status === 404) return null;
+    throw err;
+  }
 };
 
 export const searchUsers = (

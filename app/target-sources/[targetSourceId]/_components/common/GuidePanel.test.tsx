@@ -11,15 +11,16 @@ import { GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/co
 // The collab-channel entry lives in the rail footer now (moved out of the page
 // header's action slot).
 describe('GuidePanel — collab-channel footer card', () => {
-  it('renders the help card with the v16 fallback ticket when no Jira link', () => {
-    render(<GuidePanel slotKey={null} />);
+  it('renders the explicit 미연결 state when no Jira ticket is mapped (404 → null)', () => {
+    render(<GuidePanel slotKey={null} jiraTicket={null} />);
     expect(screen.getByText('도움이 필요하신가요?')).toBeTruthy();
-    expect(screen.getByText('협업 채널 링크')).toBeTruthy();
-    expect(screen.getByText('BDCDIP-1353')).toBeTruthy();
+    expect(screen.getByText('아직 연결된 협업 채널이 없어요')).toBeTruthy();
+    // no fake sample key and no link when the API has no ticket for the target
+    expect(screen.queryByTitle('협업 채널 — Jira에서 논의하기')).toBeNull();
   });
 
-  it('uses the Jira ticket key + href when a Jira link is present', () => {
-    render(<GuidePanel slotKey={null} jiraLink="https://jira.example.com/browse/PII-42" />);
+  it('links the ticket via its issueKey when one is mapped', () => {
+    render(<GuidePanel slotKey={null} jiraTicket={{ issueKey: 'PII-42' }} />);
     const link = screen.getByTitle('협업 채널 — Jira에서 논의하기') as HTMLAnchorElement;
     expect(link.getAttribute('href')).toBe('https://jira.example.com/browse/PII-42');
     expect(link.getAttribute('target')).toBe('_blank');

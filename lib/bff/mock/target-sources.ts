@@ -361,6 +361,9 @@ const buildCandidateMetadata = (
   };
 };
 
+/** Demo seeds with NO mapped Jira ticket — the collab-channel card shows 미연결. */
+const NO_JIRA_TICKET_SEEDS = new Set([1003]);
+
 export const mockTargetSources = {
   list: async (serviceCode: string) => {
     const user = getCurrentUser();
@@ -397,6 +400,28 @@ export const mockTargetSources = {
     // swagger is a FLAT TargetSourceDetail (snake). Author the wire DTO and return
     // it raw — the route validates with schemas.TargetSourceDetail.parse(raw).
     return NextResponse.json(toBffTargetSourceDetail(project));
+  },
+
+  // GET /target-sources/{id}/jira-ticket — JiraTicketResponse (CAMEL wire, unlike
+  // the snake TargetSourceDetail above). 404 = no ticket mapped to the target; a
+  // few seeds stay unmapped so the 미연결 card state is demoable.
+  getJiraTicket: async (targetSourceId: string) => {
+    const response = await mockProjects.get(targetSourceId);
+    if (!response.ok) return response;
+    const { project } = (await response.json()) as { project: Project };
+    if (NO_JIRA_TICKET_SEEDS.has(project.targetSourceId)) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '타겟 소스에 연결된 Jira 티켓이 없습니다.' },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({
+      id: project.targetSourceId,
+      targetSourceId: project.targetSourceId,
+      serviceCode: project.serviceCode,
+      issueKey: `BDCDIP-${project.targetSourceId}`,
+      cloudProvider: project.cloudProvider.toUpperCase(),
+    });
   },
 
   // createTargetSource (36): body is the selected TargetSourceCreationCandidateResponse

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { TargetSource } from '@/lib/types';
+import { getJiraTicket, type JiraTicket } from '@/app/lib/api';
 import { ErrorState, GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { resolveProjectStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import { AwsProjectPage } from '@/app/target-sources/[targetSourceId]/_components/aws';
@@ -16,6 +17,23 @@ interface ProjectDetailProps {
 
 export const ProjectDetail = ({ initialProject }: ProjectDetailProps) => {
   const [project, setProject] = useState<TargetSource>(initialProject);
+
+  // Collab-channel ticket for the guide rail card — 404 (no ticket mapped) and
+  // fetch failures both leave null, which the card renders as 미연결.
+  const [jiraTicket, setJiraTicket] = useState<JiraTicket | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getJiraTicket(project.targetSourceId)
+      .then((ticket) => {
+        if (!cancelled) setJiraTicket(ticket);
+      })
+      .catch(() => {
+        if (!cancelled) setJiraTicket(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project.targetSourceId]);
 
   // Right column wrapper is a <div> (not <main>) — provider pages already
   // render their own <main>, and nesting two <main> elements is invalid.
@@ -49,7 +67,7 @@ export const ProjectDetail = ({ initialProject }: ProjectDetailProps) => {
         {renderProvider()}
       </div>
       {/* Full-height right rail (가이드/진행 내역) — mirrors the left ServiceListPanel. */}
-      <GuidePanel slotKey={resolveProjectStepSlot(project)} />
+      <GuidePanel slotKey={resolveProjectStepSlot(project)} jiraTicket={jiraTicket} />
     </div>
   );
 };

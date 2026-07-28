@@ -7,6 +7,12 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/ServiceListPanel', ()
   ServiceListPanel: () => null,
 }));
 
+// ProjectDetail fetches the collab-channel ticket on mount; keep it quiet here.
+vi.mock('@/app/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/app/lib/api')>()),
+  getJiraTicket: vi.fn(async () => null),
+}));
+
 vi.mock('@/app/target-sources/[targetSourceId]/_components/aws', () => ({
   AwsProjectPage: () => <div data-testid="aws-page" />,
 }));

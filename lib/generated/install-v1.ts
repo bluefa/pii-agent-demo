@@ -138,6 +138,15 @@ const TargetSourceCreationCandidateRequest = z
 const Link = z
   .object({ href: Str, templated: Bool })
   .partial().passthrough();
+const JiraTicketResponse = z
+  .object({
+    id: Num,
+    targetSourceId: Num,
+    serviceCode: Str,
+    issueKey: Str,
+    cloudProvider: Str,
+  })
+  .partial().passthrough();
 const ErrorMessage = z
   .object({
     timestamp: Str,
@@ -1143,6 +1152,7 @@ export const schemas = {
   TargetSourceCreationCandidateResponse,
   TargetSourceCreationCandidateRequest,
   Link,
+  JiraTicketResponse,
   ErrorMessage,
   TestConnectionConfirmationResponse,
   UpdateCredentialResponse,
