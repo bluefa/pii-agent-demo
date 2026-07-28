@@ -97,8 +97,6 @@ describe('mockConfirm.updateResourceCredential', () => {
         // Demo enrichment: Azure region + friendly name are derived deterministically.
         database_region: 'ap-northeast-1',
         resource_name: 'sea-payments-prod',
-        scan_status: 'UNCHANGED',
-        integration_status: 'INTEGRATED',
         selected: true,
       },
     ]);

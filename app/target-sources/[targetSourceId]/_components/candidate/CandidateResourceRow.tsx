@@ -149,21 +149,6 @@ export const CandidateResourceRow = ({
           <span className={cn('font-mono text-xs', textColors.secondary)}>{displayName}</span>
         </td>
 
-        <td className={idcStyles.table.cell}>
-          {candidate.scanStatus
-            ? (
-                <span
-                  className={cn(
-                    idcStyles.tag.base,
-                    candidate.scanStatus === 'NEW_SCAN' ? idcStyles.tag.blue : idcStyles.tag.orange,
-                  )}
-                >
-                  {candidate.scanStatus === 'NEW_SCAN' ? '신규' : '변경'}
-                </span>
-              )
-            : <span className={cn('text-xs', textColors.quaternary)}>—</span>}
-        </td>
-
         {showCheckboxColumn && (
           <td className={idcStyles.table.cell} onClick={(event) => event.stopPropagation()}>
             {!isSelected && exclusionReason ? (

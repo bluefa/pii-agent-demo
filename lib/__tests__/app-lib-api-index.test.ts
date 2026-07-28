@@ -180,7 +180,6 @@ describe('app/lib/api/index', () => {
           oracleServiceId: 'ORCL',
           networkInterfaceId: 'nic-1',
           ipConfigurationName: null,
-          scanStatus: null,
           metadata: {
             provider: 'Azure',
             resourceType: 'AZURE_VM',

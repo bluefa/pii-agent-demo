@@ -14,7 +14,6 @@ interface MockResourceCatalogResponse {
     resource_name: string;
     resource_type: string;
     integration_category: string;
-    scan_status: string | null;
     metadata: Record<string, unknown>;
   }>;
   total_count: number;
@@ -104,7 +103,6 @@ describe('mockConfirm.getResources', () => {
       resource_id: 'vm-db-001',
       resource_type: 'AZURE_VM',
       integration_category: 'NO_INSTALL_NEEDED',
-      scan_status: expect.any(String),
       metadata: expect.objectContaining({
         provider: 'AZURE',
         resource_type: 'AZURE_VM',

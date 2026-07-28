@@ -22,8 +22,6 @@ import type {
   BffApprovedIntegration,
   BffConfirmedIntegration,
   BffExcludedResourceInfo,
-  ResourceIntegrationStatus,
-  ResourceScanStatus,
   ResourceSnapshot,
 } from '@/lib/types';
 
@@ -248,18 +246,6 @@ function buildMetadata(resource: MockResource, project: Project): Record<string,
   }
 }
 
-// Step-1 scan-status tag (신규/변경). No upstream signal exists in the mock seed,
-// so derive a stable value from connectionStatus: previously-connected resources
-// read as UNCHANGED (re-scanned), everything else as NEW_SCAN. Mirrors the
-// sibling `deriveScanStatus` derivation so candidate scan_status stays on-contract.
-const deriveCandidateScanStatus = (resource: MockResource): ResourceScanStatus => {
-  if (resource.connectionStatus === 'CONNECTED') return 'UNCHANGED';
-  // v15 step-1 shows a mix of 신규(NEW_SCAN)/변경(UNCHANGED). No upstream re-scan
-  // signal exists in the seed, so derive a deterministic mix from resourceId:
-  // ~1 in 3 reads 변경 so the column is never uniformly 신규.
-  return stableIndex(resource.resourceId, 3) === 0 ? 'UNCHANGED' : 'NEW_SCAN';
-};
-
 // Swagger TargetSourceResourceItemDto (snake wire). The route validates with
 // schemas.CloudResourceResponse.parse(raw) — emit the wire shape directly.
 function toResourceCatalogItem(
@@ -276,7 +262,6 @@ function toResourceCatalogItem(
     // database_type intentionally NOT top-level — it lives under metadata
     // (buildMetadata), matching TargetSourceResourceItemDto.
     integration_category: resource.integrationCategory,
-    scan_status: deriveCandidateScanStatus(resource),
     metadata: buildMetadata(resource, project),
   };
 }
@@ -315,20 +300,6 @@ function toApprovalResourceItems(project: Project): Array<Record<string, unknown
   });
 }
 
-// Connected resources count as UNCHANGED + INTEGRATED relative to the prior scan;
-// everything else is NEW_SCAN + NOT_INTEGRATED. Resources whose `note` opts into the
-// `—` UI branch (no scan / no integration info) return null so the table can render the
-// missing-data state.
-const deriveScanStatus = (r: MockResource): ResourceScanStatus | null => {
-  if (r.note?.includes('새 스캔')) return null;
-  return r.connectionStatus === 'CONNECTED' ? 'UNCHANGED' : 'NEW_SCAN';
-};
-
-const deriveIntegrationStatus = (r: MockResource): ResourceIntegrationStatus | null => {
-  if (r.note?.includes('정보 없음')) return null;
-  return r.connectionStatus === 'CONNECTED' && r.isSelected ? 'INTEGRATED' : 'NOT_INTEGRATED';
-};
-
 function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot {
   let endpoint_config = null;
   if (r.vmDatabaseConfig) {
@@ -359,8 +330,6 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
     },
     database_region: demoRegion(project.cloudProvider, r),
     resource_name: demoResourceName(project.cloudProvider, r),
-    scan_status: deriveScanStatus(r),
-    integration_status: deriveIntegrationStatus(r),
     // Emit IDC fields only when present (IDC resources only).
     ...(idc ? { idc_host_format: idc.inputFormat } : {}),
     ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
@@ -376,8 +345,6 @@ function toExcludedResourceInfo(r: MockResource, project: Project): BffExcludedR
     resource_name: demoResourceName(project.cloudProvider, r),
     database_type: r.databaseType ?? null,
     database_region: demoRegion(project.cloudProvider, r),
-    scan_status: deriveScanStatus(r),
-    integration_status: deriveIntegrationStatus(r),
   };
 }
 

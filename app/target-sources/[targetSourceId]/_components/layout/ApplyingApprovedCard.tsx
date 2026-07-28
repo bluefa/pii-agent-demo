@@ -35,13 +35,11 @@ const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalRe
   resourceId: item.resource_id,
   resourceType: item.resource_type ?? '',
   // Contract: region/database_type live under metadata (TargetSourceResourceItemDto);
-  // resource_type is the declared placeholder. (integration_status has no contract home —
-  // see the follow-up issue; it drives the Step3 완료 count so it is kept as-is.)
+  // resource_type is the declared placeholder.
   region: item.metadata?.region ?? '',
   resourceName: item.resource_name ?? '',
   selected: true,
   displayDbType: item.metadata?.database_type ?? item.resource_type,
-  integrationStatus: item.integration_status ?? null,
 });
 
 const toExcludedRow = (
@@ -65,8 +63,8 @@ const EMPTY_VIEW: ApplyingView = { resources: [], approvedAt: null, approver: nu
 
 /**
  * Step 3 (applying) — the step-2 rich approval table re-skinned for the applying
- * state: approved-at/approver subtitle, green success banner, an integration-history
- * column, and no cancel action (advance to step 4 surfaces on the user's next refresh).
+ * state: approved-at/approver subtitle, green success banner, and no cancel action
+ * (advance to step 4 surfaces on the user's next refresh).
  */
 export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardProps) => {
   const [state, setState] = useState<AsyncState<ApplyingView>>({ status: 'loading' });
@@ -115,17 +113,6 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
 
   const table = useApprovalTableState(resources);
 
-  const { selectedCount, integratedCount } = useMemo(() => {
-    let selected = 0;
-    let integrated = 0;
-    for (const resource of resources) {
-      if (!resource.selected) continue;
-      selected += 1;
-      if (resource.integrationStatus === 'INTEGRATED') integrated += 1;
-    }
-    return { selectedCount: selected, integratedCount: integrated };
-  }, [resources]);
-
   const showFilterEmpty =
     state.status === 'ready' && resources.length > 0 && table.filteredCount === 0;
 
@@ -163,11 +150,6 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
       <div className="p-6">
         <StepBanner variant="success" icon={<CheckIcon className="w-[18px] h-[18px]" />}>
           <strong className="font-semibold">승인이 완료되어 시스템에 반영 중입니다.</strong>
-          {selectedCount > 0 && (
-            <>
-              {' '}전체 {selectedCount}건 중 {integratedCount}건 완료
-            </>
-          )}
           {' · '}평균 5분 내외 소요
         </StepBanner>
 
@@ -188,11 +170,8 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
               onDbTypeChange={table.onDbTypeChange}
               region={table.region}
               onRegionChange={table.onRegionChange}
-              integrationStatus={table.integrationStatus}
-              onIntegrationStatusChange={table.onIntegrationStatusChange}
               dbTypeOptions={table.dbTypeOptions}
               regionOptions={table.regionOptions}
-              integrationStatusOptions={table.integrationStatusOptions}
               countsByFilter={table.countsByFilter}
               visibleStart={table.visibleStart}
               visibleEnd={table.visibleEnd}

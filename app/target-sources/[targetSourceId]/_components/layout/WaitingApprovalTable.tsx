@@ -5,7 +5,6 @@ import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { idcStyles, textColors, cn } from '@/lib/theme';
-import type { ResourceIntegrationStatus } from '@/lib/types';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -19,13 +18,11 @@ export interface WaitingApprovalResource {
   exclusionMeta?: string;
   /** Display db-engine source — prefer endpoint_config.db_type over resource_type (e.g. VM rows). */
   displayDbType?: string;
-  /** Per-resource integration history — only rendered in the `applying` variant (step 3). */
-  integrationStatus?: ResourceIntegrationStatus | null;
 }
 
 /**
  * `waiting` (step 2): target column + exclusion-reason column, separate.
- * `applying` (step 3): merged target/reason column + an integration-history column.
+ * `applying` (step 3): merged target/reason column only — the reason folds under the pill.
  */
 type ApprovalTableVariant = 'waiting' | 'applying';
 
@@ -67,19 +64,6 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
     <span className={textColors.quaternary}>{PLACEHOLDER}</span>
   );
 
-// Integration history (step 3) — no API source for integrationStatus in TargetSourceResourceItemDto;
-// render — for all rows until the contract provides a value.
-const IntegrationHistoryCell = ({ resource }: { resource: WaitingApprovalResource }) => {
-  if (!resource.selected) return <span className={textColors.quaternary}>{PLACEHOLDER}</span>;
-  if (resource.integrationStatus == null) return <span className={textColors.quaternary}>{PLACEHOLDER}</span>;
-  const integrated = resource.integrationStatus === 'INTEGRATED';
-  return (
-    <span className={cn(idcStyles.tag.base, integrated ? idcStyles.tag.green : idcStyles.tag.orange)}>
-      {integrated ? 'Integrated' : 'Pending'}
-    </span>
-  );
-};
-
 export const WaitingApprovalTable = memo(
   ({ resources, variant = 'waiting', emptyMessage, connected = false }: WaitingApprovalTableProps) => {
     if (resources.length === 0) {
@@ -91,7 +75,6 @@ export const WaitingApprovalTable = memo(
     }
 
     const applying = variant === 'applying';
-    const lastColumnLabel = applying ? '연동 이력' : '제외 사유';
     const targetColumnLabel = applying ? '연동 대상 / 제외 사유' : '연동 대상';
     const monoCell = cn('font-mono text-[12px]', textColors.secondary);
 
@@ -106,7 +89,7 @@ export const WaitingApprovalTable = memo(
                 <th className={idcStyles.table.approvalHeaderCell}>Region</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
                 <th className={idcStyles.table.approvalHeaderCell}>{targetColumnLabel}</th>
-                <th className={idcStyles.table.approvalHeaderCell}>{lastColumnLabel}</th>
+                {!applying && <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>}
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
@@ -146,13 +129,11 @@ export const WaitingApprovalTable = memo(
                         <TargetPill excluded={excluded} />
                       )}
                     </td>
-                    <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
-                      {applying ? (
-                        <IntegrationHistoryCell resource={resource} />
-                      ) : (
+                    {!applying && (
+                      <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
                         <ReasonCell resource={resource} />
-                      )}
-                    </td>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

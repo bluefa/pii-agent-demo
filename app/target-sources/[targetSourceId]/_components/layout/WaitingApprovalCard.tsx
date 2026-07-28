@@ -43,7 +43,6 @@ const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 // Step 2 sources its table from approval-requests/latest.resources (which the BFF
 // already returns alongside the request meta), split by `selected` — so the separate
 // approved-integration GET is no longer needed here (that endpoint stays on step 3).
-// integration_status is a step-3 column with no source in this DTO, so it stays null.
 type LatestResourceItem = NonNullable<ApprovalRequestLatestResponse['resources']>[number];
 
 const toResourceRow = (item: LatestResourceItem): WaitingApprovalResource => ({
@@ -54,7 +53,6 @@ const toResourceRow = (item: LatestResourceItem): WaitingApprovalResource => ({
   selected: item.selected ?? false,
   displayDbType: item.metadata?.database_type ?? item.resource_type ?? undefined,
   exclusionReason: item.exclusion_reason ?? undefined,
-  integrationStatus: null,
 });
 
 interface RequestSummary {
@@ -199,11 +197,8 @@ export const WaitingApprovalCard = ({
               onDbTypeChange={table.onDbTypeChange}
               region={table.region}
               onRegionChange={table.onRegionChange}
-              integrationStatus={table.integrationStatus}
-              onIntegrationStatusChange={table.onIntegrationStatusChange}
               dbTypeOptions={table.dbTypeOptions}
               regionOptions={table.regionOptions}
-              integrationStatusOptions={table.integrationStatusOptions}
               countsByFilter={table.countsByFilter}
               visibleStart={table.visibleStart}
               visibleEnd={table.visibleEnd}

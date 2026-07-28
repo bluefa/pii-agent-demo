@@ -8,8 +8,6 @@ import {
   BffConfirmedIntegration,
   ConfirmedIntegrationResourceInfo,
   ConfirmResourceMetadata,
-  ResourceScanStatus,
-  ResourceIntegrationStatus,
   ResourceSnapshot,
   normalizeCloudProvider,
 } from '@/lib/types';
@@ -297,7 +295,6 @@ export interface ConfirmResourceItem {
   oracleServiceId: string | null;
   networkInterfaceId: string | null;
   ipConfigurationName: string | null;
-  scanStatus: ResourceScanStatus | null;
   metadata: ConfirmResourceMetadata;
 }
 
@@ -316,11 +313,6 @@ const inferProvider = (resourceType: string): CloudProvider => {
 const normalizeIntegrationCategory = (value: unknown): IntegrationCategory => {
   if (value === 'NO_INSTALL_NEEDED' || value === 'INSTALL_INELIGIBLE') return value;
   return 'TARGET';
-};
-
-const normalizeCandidateScanStatus = (value: unknown): ResourceScanStatus | null => {
-  if (value === 'NEW_SCAN' || value === 'UNCHANGED') return value;
-  return null;
 };
 
 const toConfirmResourceMetadata = (
@@ -375,7 +367,6 @@ const toConfirmResourceItem = (item: Record<string, unknown>): ConfirmResourceIt
     oracleServiceId: str(meta.oracle_service_id) ?? null,
     networkInterfaceId: str(meta.network_interface_id) ?? null,
     ipConfigurationName: null,
-    scanStatus: normalizeCandidateScanStatus(item.scan_status),
     metadata: toConfirmResourceMetadata(meta, resourceType),
   };
 };
@@ -429,8 +420,6 @@ export type ApprovedIntegrationExcludedResourceItem = {
   resource_name?: string | null;
   database_type?: string | null;
   database_region?: string | null;
-  scan_status?: ResourceScanStatus | null;
-  integration_status?: ResourceIntegrationStatus | null;
 };
 
 export interface ApprovedIntegrationResponse {

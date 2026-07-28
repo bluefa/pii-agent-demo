@@ -5,10 +5,7 @@ import { cn, numericFeatures } from '@/lib/theme';
 
 export type ApprovalFilter = 'all' | 'target' | 'excluded';
 
-// Step-3 (applying) 연동 상태 filter: Integrated / Pending / 제외, or all (placeholder).
-export type IntegrationStatusFilter = 'all' | 'integrated' | 'pending' | 'excluded';
-
-// `waiting` (step 2): [DB Type + Region]. `applying` (step 3): [연동 상태 + DB Type] (v16 6368-6394).
+// `waiting` (step 2): [DB Type + Region]. `applying` (step 3): [DB Type] only.
 type ToolbarVariant = 'waiting' | 'applying';
 
 interface SelectOption {
@@ -26,11 +23,8 @@ interface WaitingApprovalToolbarProps {
   onDbTypeChange: (next: string) => void;
   region: string;
   onRegionChange: (next: string) => void;
-  integrationStatus: string;
-  onIntegrationStatusChange: (next: string) => void;
   dbTypeOptions: ReadonlyArray<SelectOption>;
   regionOptions: ReadonlyArray<SelectOption>;
-  integrationStatusOptions: ReadonlyArray<SelectOption>;
   countsByFilter: { all: number; target: number; excluded: number };
   visibleStart: number;
   visibleEnd: number;
@@ -44,16 +38,6 @@ export const WaitingApprovalToolbar = (props: WaitingApprovalToolbarProps) => (
     <SearchBox value={props.searchValue} onChange={props.onSearchChange} />
     <FilterSeg filter={props.filter} onChange={props.onFilterChange} counts={props.countsByFilter} />
     <Divider />
-    {/* v16: step 3 (applying) leads with 연동 상태; step 2 (waiting) leads with DB Type + Region. */}
-    {props.variant === 'applying' && (
-      <Select
-        value={props.integrationStatus}
-        onChange={props.onIntegrationStatusChange}
-        options={props.integrationStatusOptions}
-        placeholder="연동 상태 · 전체"
-        aria-label="연동 상태 필터"
-      />
-    )}
     <Select
       value={props.dbType}
       onChange={props.onDbTypeChange}

@@ -57,7 +57,6 @@ export const CandidateResourceTable = ({
                 <th className={idcStyles.table.headerCell}>Resource ID</th>
                 <th className={idcStyles.table.headerCell}>Region</th>
                 <th className={idcStyles.table.headerCell}>Resource Name</th>
-                <th className={idcStyles.table.headerCell}>스캔 상태</th>
                 {showCheckboxColumn && <th className={idcStyles.table.headerCell}>제외 사유</th>}
                 <th className={idcStyles.table.headerCell}>연동 완료 여부</th>
               </tr>

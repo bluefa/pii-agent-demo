@@ -2,7 +2,6 @@ import type {
   ConfirmResourceMetadata,
   DatabaseType,
   IntegrationCategory,
-  ResourceScanStatus,
   VmDatabaseConfig,
 } from '@/lib/types';
 
@@ -25,7 +24,5 @@ export interface CandidateResource {
   /** Reason attached to an already-excluded resource by the backend (null when none). */
   exclusionReason: string | null;
   endpointConfig?: EndpointConfigDraft;
-  /** Step-1 scan-status tag — 직전 스캔 대비 본 리소스의 발견 상태 (신규/변경). */
-  scanStatus?: ResourceScanStatus;
   metadata: ConfirmResourceMetadata;
 }

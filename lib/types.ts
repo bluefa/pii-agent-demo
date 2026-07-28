@@ -818,12 +818,6 @@ export type LastApprovalResultType =
   | 'SYSTEM_ERROR'
   | 'COMPLETED';
 
-/** Swagger ResourceConfigDto.scan_status — 직전 스캔 대비 본 리소스의 변화 */
-export type ResourceScanStatus = 'UNCHANGED' | 'NEW_SCAN';
-
-/** Swagger ResourceConfigDto.integration_status — confirmed-integration 등록 여부 */
-export type ResourceIntegrationStatus = 'INTEGRATED' | 'NOT_INTEGRATED';
-
 /** 리소스 스냅샷 (Swagger ResourceSnapshot) */
 export interface ResourceSnapshot {
   resource_id: string;
@@ -840,8 +834,6 @@ export interface ResourceSnapshot {
   // ResourceConfigDto extension fields — preserved through the approved-integration mapping.
   database_region?: string | null;
   resource_name?: string | null;
-  scan_status?: ResourceScanStatus | null;
-  integration_status?: ResourceIntegrationStatus | null;
   // IDC-specific swagger fields (ResourceConfigDto.idc_*) — absent for cloud.
   idc_host_format?: 'IP' | 'HOST';
   idc_ips?: string[];
@@ -856,8 +848,6 @@ export interface BffExcludedResourceInfo {
   resource_name?: string | null;
   database_type?: string | null;
   database_region?: string | null;
-  scan_status?: ResourceScanStatus | null;
-  integration_status?: ResourceIntegrationStatus | null;
 }
 
 /** 연동 확정 리소스 정보 (Swagger ConfirmedResourceInfo) */

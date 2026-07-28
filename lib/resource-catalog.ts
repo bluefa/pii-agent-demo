@@ -4,7 +4,6 @@ import {
   type ConfirmResourceMetadata,
   type DatabaseType,
   type IntegrationCategory,
-  type ResourceScanStatus,
   type ResourceSnapshot,
   type VmDatabaseConfig,
   type VmDatabaseType,
@@ -37,7 +36,6 @@ export interface CatalogItem {
   oracleServiceId: string | null;
   networkInterfaceId: string | null;
   ipConfigurationName: string | null;
-  scanStatus: ResourceScanStatus | null;
   metadata: ConfirmResourceMetadata;
 }
 
@@ -96,7 +94,6 @@ export const catalogToCandidates = (
       selected: item.selected,
       exclusionReason: item.exclusionReason,
       ...(endpointConfig ? { endpointConfig } : {}),
-      ...(item.scanStatus ? { scanStatus: item.scanStatus } : {}),
       metadata: item.metadata,
     };
   });
