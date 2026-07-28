@@ -11,9 +11,10 @@ import {
   cn,
   statusColors,
   textColors,
-  bgColors,
   borderColors,
   numericFeatures,
+  pageHeaderTitleStyle,
+  pageHeaderTitleMutedStyle,
 } from '@/lib/theme';
 
 interface ServiceHeaderV7Props {
@@ -89,16 +90,14 @@ export const ServiceHeaderV7 = ({
       )}
     >
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-3">
-          <span
-            className={cn(
-              'inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold',
-              bgColors.muted,
-              textColors.secondary,
-            )}
-          >
-            {serviceCode}
-          </span>
+        {/* Same title grammar as the step pages (ProjectPageMeta): 24px H1 with
+            the service code as a muted inline suffix — the code chip row above
+            the name duplicated the code and inverted the name/code hierarchy. */}
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+          <h1 className={pageHeaderTitleStyle}>
+            {serviceName || serviceCode}{' '}
+            {serviceName && <span className={pageHeaderTitleMutedStyle}>({serviceCode})</span>}
+          </h1>
           <span
             className={cn(
               'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold',
@@ -110,15 +109,6 @@ export const ServiceHeaderV7 = ({
             운영 중
           </span>
         </div>
-        <h1
-          className={cn(
-            // DESIGN.md page-title — 30px / weight 800 / letter-spacing -0.03em / line-height 1.2
-            'text-[30px] font-extrabold tracking-[-0.03em] leading-tight',
-            textColors.primary,
-          )}
-        >
-          {serviceName || serviceCode}
-        </h1>
         <div className="mt-3 flex items-center gap-3">
           {/* DESIGN.md page-meta-key: 13px / 500 / text-tertiary
               DESIGN.md page-meta-value: 15px / 600 / letter-spacing -0.01em / text-primary */}

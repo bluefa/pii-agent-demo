@@ -87,12 +87,16 @@ export const ServiceSidebar = ({
                     : cn('px-[14px] py-3', bgColors.mutedHover),
                 )}
               >
+                {/* Name-first, code as the sub-line — same name > code hierarchy
+                    as the page headers (was inverted: code on top). */}
                 <div className={cn('text-[13px] font-semibold', isSelected ? primaryColors.text : textColors.primary)}>
-                  {code}
+                  {name || code}
                 </div>
-                <div className={cn('text-xs mt-0.5', textColors.tertiary)}>
-                  {name}
-                </div>
+                {name && (
+                  <div className={cn('text-xs mt-0.5', textColors.tertiary)}>
+                    {code}
+                  </div>
+                )}
               </li>
             );
           })
