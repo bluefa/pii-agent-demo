@@ -163,6 +163,7 @@ const TerraformTaskStatusResponse = z
     terraform_task_name: Str,
     state: Str,
     destroy_required: Bool,
+    completed_at: Str,
   })
   .partial().passthrough();
 const TerraformStatusResponse = z

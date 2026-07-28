@@ -7391,6 +7391,12 @@ components:
           - UNKNOWN
         destroy_required:
           type: boolean
+        # ASSUMED (owner directive, not yet in the upstream spec): the Terraform
+        # job's completion time, same date-time format as latest_confirmed_at.
+        # Replace with the real field name when the spec ships.
+        completed_at:
+          type: string
+          format: date-time
     ErrorMessage:
       type: object
       properties:

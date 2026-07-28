@@ -1876,13 +1876,21 @@ export const mockConfirm = {
       checked_at: new Date().toISOString(),
       overall_state: applied ? 'APPLIED' : applying ? 'APPLYING' : 'NEVER_APPLIED',
       destroy_required: false,
-      tasks: tasks.map((task, index) => ({
-        ...task,
+      tasks: tasks.map((task, index) => {
         // Mid-install the earlier tasks are already done — one task is in flight.
-        state: applied ? 'APPLIED' : !applying ? 'NEVER_APPLIED'
-          : index === 0 ? 'APPLIED' : index === 1 ? 'APPLYING' : 'NEVER_APPLIED',
-        destroy_required: false,
-      })),
+        const state = applied ? 'APPLIED' : !applying ? 'NEVER_APPLIED'
+          : index === 0 ? 'APPLIED' : index === 1 ? 'APPLYING' : 'NEVER_APPLIED';
+        return {
+          ...task,
+          state,
+          destroy_required: false,
+          // Only a finished job has a completion time; stagger them so the tiles
+          // read as a real sequence rather than one batch write.
+          completed_at: state === 'APPLIED'
+            ? new Date(Date.parse(project.updatedAt) + index * 7 * 60_000).toISOString()
+            : null,
+        };
+      }),
     });
   },
 
