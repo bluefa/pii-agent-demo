@@ -188,6 +188,12 @@ export const GuidePanel = ({ slotKey, jiraLink }: GuidePanelProps) => {
         bgColors.surface,
       )}
     >
+      {/* Jira ticket first — the collab channel is the escape hatch for every
+          step, so it leads the rail instead of hiding under the fold. */}
+      <div className={cn('shrink-0 border-b p-4', borderColors.light)}>
+        <CollabChannelCard jiraLink={jiraLink} />
+      </div>
+
       <div className={cn('shrink-0 border-b p-3', borderColors.light)}>
         <div role="tablist" className={cn(segmentedControlStyles.container, 'w-full')}>
           <button
@@ -253,10 +259,6 @@ export const GuidePanel = ({ slotKey, jiraLink }: GuidePanelProps) => {
           </button>
         </div>
       )}
-
-      <div className={cn('shrink-0 border-t p-4', borderColors.light)}>
-        <CollabChannelCard jiraLink={jiraLink} />
-      </div>
     </aside>
   );
 };
