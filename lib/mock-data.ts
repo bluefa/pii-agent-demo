@@ -12,6 +12,7 @@ import {
   LegacyAwsServiceSettings,
   ProjectStatus,
   MockResource,
+  CloudProvider,
 } from '@/lib/types';
 import { getStore } from '@/lib/mock-store';
 import { createInitialProjectStatus } from '@/lib/process';
@@ -157,6 +158,11 @@ export const mockServiceCodes: ServiceCode[] = [
     name: 'SDU',
     description: 'SDU 계정 PII Agent 연동',
   },
+  // Test Connection 큐 대상의 서비스 (mockProjects 하단 참조).
+  { code: 'DLV', name: '배송서비스', description: '배송 도메인 PII Agent 연동' },
+  { code: 'CPN', name: '쿠폰서비스', description: '쿠폰/프로모션 도메인 PII Agent 연동' },
+  { code: 'RVW', name: '리뷰서비스', description: '리뷰 도메인 PII Agent 연동' },
+  { code: 'IVT', name: '재고서비스', description: '재고 도메인 PII Agent 연동' },
 ];
 
 // ===== Mock Projects (각 단계별 1개씩) =====
@@ -1161,6 +1167,107 @@ mockProjects.push({
   updatedAt: '2024-02-02T10:00:00Z',
   isRejected: false,
 });
+
+// ===== Test Connection 큐 대상 =====
+// INVARIANT (docs/api/ops-assumed-contracts.md §7): every row of the Test
+// Connection queue is a real target source. 운영 알림 links those rows to the
+// target's 운영 화면 (?tab=tc) — the only place the Test Connection detail lives
+// — so a queue row without a project here would be a dangling link.
+//
+// These four used to live only in the task-queue fixture (`SEED_TC`), which made
+// that violation representable. They are projects now; the queue reads status
+// from its own store and the per-resource 결과/논리 DB fixtures still enrich the
+// drill-downs, but identity, service and step come from here.
+const makeTcQueueProject = (args: {
+  targetSourceId: number;
+  serviceCode: string;
+  name: string;
+  cloudProvider: CloudProvider;
+  /** CONNECTION_VERIFIED = 완료(승인 대기), WAITING_CONNECTION_TEST = 재실행 요청 후 되돌아간 단계. */
+  processStatus: ProcessStatus;
+  updatedAt: string;
+  resources: MockResource[];
+  extra?: Partial<Project>;
+}): Project => ({
+  id: `tcq-proj-${args.targetSourceId}`,
+  targetSourceId: args.targetSourceId,
+  projectCode: `${args.serviceCode}-${String(args.targetSourceId).slice(-3)}`,
+  name: args.name,
+  description: 'Test Connection 큐 대상 — 연결 테스트 완료/재실행 요청 흐름 시연',
+  serviceCode: args.serviceCode,
+  cloudProvider: args.cloudProvider,
+  processStatus: args.processStatus,
+  status: createStatusForProcessStatus(args.processStatus, {
+    selectedCount: args.resources.filter((r) => r.isSelected).length,
+    excludedCount: args.resources.filter((r) => !r.isSelected).length,
+  }),
+  resources: args.resources,
+  terraformState: { serviceTf: 'COMPLETED', bdcTf: 'COMPLETED' },
+  createdAt: '2026-06-28T09:00:00Z',
+  updatedAt: args.updatedAt,
+  isRejected: false,
+  ...args.extra,
+});
+
+mockProjects.push(
+  makeTcQueueProject({
+    targetSourceId: 1799,
+    serviceCode: 'DLV',
+    name: '배송서비스 PII Agent - 연결 테스트 완료',
+    cloudProvider: 'Azure',
+    processStatus: ProcessStatus.CONNECTION_VERIFIED,
+    updatedAt: '2026-07-20T17:19:00Z',
+    extra: {
+      subscriptionId: '2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188',
+      tenantId: '7f9c1b30-52d4-4a11-9d63-0c1e5a8b7742',
+    },
+    resources: [
+      { id: 'dlv-res-1', type: 'AZURE_MYSQL', resourceId: 'mysql-dlv-01', databaseType: 'MYSQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
+      { id: 'dlv-res-2', type: 'AZURE_MYSQL', resourceId: 'mysql-dlv-02', databaseType: 'MYSQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
+      { id: 'dlv-res-3', type: 'AZURE_POSTGRESQL', resourceId: 'pg-dlv-main', databaseType: 'POSTGRESQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
+    ],
+  }),
+  makeTcQueueProject({
+    targetSourceId: 1642,
+    serviceCode: 'CPN',
+    name: '쿠폰서비스 PII Agent - 연결 테스트 완료',
+    cloudProvider: 'AWS',
+    processStatus: ProcessStatus.CONNECTION_VERIFIED,
+    updatedAt: '2026-07-20T06:23:00Z',
+    extra: { awsAccountId: '481920374655', awsRegionType: 'global' },
+    resources: [
+      { id: 'cpn-res-1', type: 'RDS', resourceId: 'rds-cpn-main', databaseType: 'MYSQL', connectionStatus: 'CONNECTED', isSelected: true, awsType: 'RDS', region: 'ap-northeast-2', vpcId: 'vpc-cpn-001', integrationCategory: 'TARGET' },
+      { id: 'cpn-res-2', type: 'DYNAMODB', resourceId: 'ddb-cpn-issue', databaseType: 'DYNAMODB', connectionStatus: 'CONNECTED', isSelected: true, awsType: 'DYNAMODB', region: 'ap-northeast-2', integrationCategory: 'TARGET' },
+    ],
+  }),
+  makeTcQueueProject({
+    targetSourceId: 1511,
+    serviceCode: 'RVW',
+    name: '리뷰서비스 PII Agent - 연결 테스트 완료',
+    cloudProvider: 'GCP',
+    processStatus: ProcessStatus.CONNECTION_VERIFIED,
+    updatedAt: '2026-07-13T19:40:00Z',
+    extra: { gcpProjectId: 'sea-rvw-prd' },
+    resources: [
+      { id: 'rvw-res-1', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-main', databaseType: 'POSTGRESQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
+      { id: 'rvw-res-2', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-log', databaseType: 'MYSQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
+    ],
+  }),
+  // 재실행 요청 상태 — 반려로 되돌아가 어떤 상태 필터에도 걸리지 않는 케이스.
+  makeTcQueueProject({
+    targetSourceId: 1583,
+    serviceCode: 'IVT',
+    name: '재고서비스 PII Agent - 재실행 요청',
+    cloudProvider: 'IDC',
+    processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
+    updatedAt: '2026-07-19T14:52:00Z',
+    resources: [
+      { id: 'ivt-res-1', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a01', databaseType: 'MYSQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'HOST', ips: [], domain: 'db-mysql.ivt.prod.internal', sourceIps: ['10.20.9.11'], firewallOpen: true } },
+      { id: 'ivt-res-2', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a02', databaseType: 'MYSQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.11'], domain: '', sourceIps: ['10.20.9.11'], firewallOpen: true } },
+      { id: 'ivt-res-3', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a03', databaseType: 'ORACLE', connectionStatus: 'DISCONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.18'], domain: '', oracleSid: 'IVTPDB', sourceIps: ['10.20.9.12'], firewallOpen: false } },
+    ],
+  }),
+);
 
 // ===== Helper Functions =====
 
