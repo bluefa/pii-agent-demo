@@ -114,18 +114,20 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
   const { table } = opsStyles;
 
   return (
-    <section className={pipelineStyles.card.base} aria-label="승인 요청 내역">
+    <section className={cn(pipelineStyles.card.base, opsStyles.pagedCard)} aria-label="승인 요청 내역">
       <h2 className={opsStyles.cardTitle}>승인 요청 내역</h2>
-      <p className={opsStyles.cardDesc}>연동 요청 process 진행 현황</p>
+      <p className={opsStyles.cardDesc}>연동 요청 process의 진행 현황입니다.</p>
 
+      {/* Fixed body slot — see opsStyles.pagedCardBody. */}
+      <div className={opsStyles.pagedCardBody}>
       {loading ? (
-        <div className="min-h-[160px]" aria-busy />
+        <div className="h-full" aria-busy />
       ) : failed ? (
-        <p className={cn(pipelineStyles.empty.base, 'mt-2')}>승인 요청 내역을 불러오지 못했습니다.</p>
+        <p className={pipelineStyles.empty.base}>승인 요청 내역을 불러오지 못했습니다.</p>
       ) : rows.length === 0 ? (
-        <PlEmptyState icon="inbox" message="승인 요청 내역이 없습니다." className="mt-2" />
+        <PlEmptyState icon="inbox" message="승인 요청 내역이 없습니다." />
       ) : (
-        <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
+        <div className={pipelineStyles.card.tableWrap}>
           <table className={table.base}>
             <thead>
               <tr>
@@ -158,8 +160,9 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
           </table>
         </div>
       )}
+      </div>
 
-      <OpsPagination page={page} totalPages={totalPages} onChange={(next) => void load(next)} />
+      <OpsPagination page={page} totalPages={totalPages} onChange={(next) => void load(next)} always />
 
       <ApprovalRequestDetailModal
         isOpen={detail !== null}

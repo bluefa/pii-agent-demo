@@ -1,3 +1,4 @@
+
 openapi: 3.0.1
 info:
   title: OpenAPI definition
@@ -6,58 +7,144 @@ servers:
 - url: http://localhost:8082
   description: Generated server url
 tags:
-- name: Dashboard
-  description: Self-installation dashboard APIs
 - name: Scan Jobs
   description: Cloud resource scan job APIs
-- name: Installation Status
-  description: Installation status and history APIs
 - name: Pipeline Orchestration
   description: Pipeline orchestrator dashboard/detail APIs
-- name: Cloud Permission
-  description: Cloud permission and service account APIs
-- name: Users
-  description: Current user APIs
-- name: Database Credentials
-  description: Database credential and service account APIs
 - name: Tested Logical Database
   description: Test Connection 결과 논리 DB 목록 조회
 - name: Services
   description: Service access APIs
-- name: Excluded Logical Database
-  description: 연동 제외 논리 DB 목록 관리
 - name: Installation Status
   description: Installation status and confirmed integration APIs
-- name: IDC
-  description: IDC 연동 관련 API
-- name: Pipeline Orchestration
-  description: Task definition catalog APIs
 - name: Pipeline Orchestration
   description: Target source pipeline history/execution APIs
 - name: AWS Installation
   description: AWS installation APIs
 - name: Approval Requests
   description: Approval request lifecycle APIs
-- name: IDC NLB
-  description: IDC NLB 테이블 조회
 - name: Resource Recommendations
   description: AWS/Azure/GCP resource recommendation APIs
 - name: Test Connection Confirmation
   description: Test Connection 완료 확인 관리
-- name: Admin Guides
-  description: Admin guide content APIs
-- name: Test Connection
-  description: Test Connection APIs
-- name: Target Sources
-  description: Target source query and management APIs
-- name: Users
-  description: User search APIs
 - name: Actuator
   description: Monitor and interact
   externalDocs:
     description: Spring Boot Actuator Web API Documentation
     url: https://docs.spring.io/spring-boot/docs/current/actuator-api/html/
+- name: Test Connection
+  description: Test Connection APIs
+- name: Users
+  description: User search APIs
+- name: Dashboard
+  description: Self-installation dashboard APIs
+- name: Target Sources
+  description: Target source Jira ticket APIs
+- name: Installation Status
+  description: Installation status and history APIs
+- name: Cloud Permission
+  description: Cloud permission and service account APIs
+- name: Users
+  description: Current user APIs
+- name: Database Credentials
+  description: Database credential and service account APIs
+- name: Excluded Logical Database
+  description: 연동 제외 논리 DB 목록 관리
+- name: IDC
+  description: IDC 연동 관련 API
+- name: Pipeline Orchestration
+  description: Task definition catalog APIs
+- name: Jira Tickets
+  description: Service Jira ticket APIs
+- name: IDC NLB
+  description: IDC NLB 테이블 조회
+- name: Admin Guides
+  description: Admin guide content APIs
+- name: Target Sources
+  description: Target source query and management APIs
 paths:
+  /install/v1/target-sources/{targetSourceId}/terraform-status:
+    get:
+      tags:
+      - Terraform Status
+      summary: 최신 Terraform 상태 조회
+      description: Terraform Task(TerraformTarget) 단위 종합 상태와 Terraform Script별 개별 상태를
+        조회합니다. Cloud SDK를 호출하지 않고 DB만 조회하므로 설치 상태(installation-status)와 결론이 다를 수 있습니다.
+      operationId: getTerraformStatus
+      parameters:
+      - name: targetSourceId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "422":
+          description: Unprocessable Entity
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "425":
+          description: Too Early
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TerraformStatusResponse"
   /install/v1/target-sources/{targetSourceId}/test-connection-acknowledgment:
     put:
       tags:
@@ -86,18 +173,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -116,6 +191,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -124,6 +205,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -161,18 +248,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -191,6 +266,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -199,6 +280,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -237,18 +324,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -267,6 +342,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -275,6 +356,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -318,18 +405,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -348,6 +423,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -356,6 +437,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -394,18 +481,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -424,6 +499,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -432,6 +513,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -475,18 +562,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -505,6 +580,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -513,6 +594,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -552,18 +639,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Approval request is not PENDING
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: No pending approval request found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -582,6 +657,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Approval request is not PENDING
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -590,6 +671,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: No pending approval request found
           content:
             '*/*':
               schema:
@@ -619,18 +706,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -649,6 +724,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -657,6 +738,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -691,18 +778,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -721,6 +796,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -729,6 +810,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -765,18 +852,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -795,6 +870,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -803,6 +884,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -838,18 +925,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -868,6 +943,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -876,6 +957,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -909,14 +996,78 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "202":
+          description: Accepted
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ScanJobResponse"
+  /install/v1/target-sources/{targetSourceId}/reset:
+    post:
+      tags:
+      - Approval Requests
+      summary: 연동 상태 초기화
+      description: Target Source의 연동 승인 상태를 초기(IDLE) 상태로 강제 초기화합니다.
+      operationId: resetTargetSource
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: 대상 소스 ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TargetSourceResetRequestDto"
+        required: true
+      responses:
+        "400":
+          description: Bad Request
           content:
             '*/*':
               schema:
@@ -939,6 +1090,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: 이미 초기 상태
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -951,12 +1108,18 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "202":
-          description: Accepted
+        "404":
+          description: 대상 소스 없음
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ScanJobResponse"
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: 초기화 성공
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApprovalActionResponseDto"
   /install/v1/target-sources/{targetSourceId}/pipelines:
     get:
       tags:
@@ -992,18 +1155,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1022,6 +1173,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1030,6 +1187,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -1066,14 +1229,83 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PipelineDetail"
+  /install/v1/target-sources/{targetSourceId}/pipelines/{pipelineId}/restart:
+    post:
+      tags:
+      - Pipeline Orchestration
+      summary: Restart pipeline
+      description: Restart the suffix of a failed or cancelled latest pipeline
+      operationId: restartPipeline
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: string
+      - name: pipelineId
+        in: path
+        description: Pipeline ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestartPipelineRequest"
+      responses:
+        "400":
+          description: Bad Request
           content:
             '*/*':
               schema:
@@ -1096,6 +1328,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1104,6 +1342,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -1141,18 +1385,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1171,6 +1403,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1179,6 +1417,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -1218,18 +1462,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1248,6 +1480,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1256,6 +1494,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -1294,18 +1538,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: 연동 불가 전이 불가능 상태
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: 승인 요청 없음
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1324,6 +1556,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: 연동 불가 전이 불가능 상태
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1332,6 +1570,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: 승인 요청 없음
           content:
             '*/*':
               schema:
@@ -1364,18 +1608,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: 연동 불가 상태가 아님
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: 대상 소스 없음
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1394,6 +1626,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: 연동 불가 상태가 아님
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1402,6 +1640,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: 대상 소스 없음
           content:
             '*/*':
               schema:
@@ -1440,18 +1684,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict - pending request already exists
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Target source not found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1470,6 +1702,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict - pending request already exists
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1478,6 +1716,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Target source not found
           content:
             '*/*':
               schema:
@@ -1516,18 +1760,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict - request already processed
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: No pending request found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1546,6 +1778,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict - request already processed
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1554,6 +1792,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: No pending request found
           content:
             '*/*':
               schema:
@@ -1586,18 +1830,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict - request already processed or applying in progress
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: No pending request found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1616,6 +1848,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict - request already processed or applying in progress
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1624,6 +1862,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: No pending request found
           content:
             '*/*':
               schema:
@@ -1661,18 +1905,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict - request already processed
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: No pending request found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1691,6 +1923,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict - request already processed
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1699,6 +1937,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: No pending request found
           content:
             '*/*':
               schema:
@@ -1731,18 +1975,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1761,6 +1993,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1769,6 +2007,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -1804,18 +2048,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1834,6 +2066,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1842,6 +2080,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -1879,14 +2123,89 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TargetSourceCreationCandidateResponse"
+  /install/v1/services/{serviceCode}/jira-tickets/{cloudProvider}:
+    post:
+      tags:
+      - Jira Tickets
+      summary: Attach Jira ticket to service
+      operationId: attachJiraTicket
+      parameters:
+      - name: serviceCode
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cloudProvider
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - SDU
+          - UNKNOWN
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JiraTicketAttachRequest"
+        required: true
+      responses:
+        "400":
+          description: Bad Request
           content:
             '*/*':
               schema:
@@ -1909,6 +2228,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1921,14 +2246,92 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "204":
+          description: No Content
+    delete:
+      tags:
+      - Jira Tickets
+      summary: Detach Jira ticket from service
+      operationId: detachJiraTicket
+      parameters:
+      - name: serviceCode
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cloudProvider
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - SDU
+          - UNKNOWN
+      responses:
+        "400":
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "200":
           description: OK
           content:
             '*/*':
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/TargetSourceCreationCandidateResponse"
+                $ref: "#/components/schemas/JiraTicketDetachResponse"
   /install/v1/pipelines/{pipelineId}/cancel:
     post:
       tags:
@@ -1951,18 +2354,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -1981,6 +2372,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -1989,6 +2386,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2024,18 +2427,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2054,6 +2445,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2062,6 +2459,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2106,18 +2509,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2136,6 +2527,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2144,6 +2541,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2167,18 +2570,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2197,6 +2588,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2205,6 +2602,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2241,18 +2644,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2271,6 +2662,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2279,6 +2676,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2346,6 +2749,7 @@ paths:
           - GCP
           - AZURE
           - IDC
+          - SDU
           - UNKNOWN
       - name: supportRawData
         in: query
@@ -2372,18 +2776,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2402,6 +2794,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2410,6 +2808,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2443,18 +2847,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2473,6 +2865,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2481,6 +2879,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2513,18 +2917,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2543,6 +2935,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2551,6 +2949,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2589,18 +2993,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2619,6 +3011,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2627,6 +3025,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2665,18 +3069,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2695,6 +3087,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2703,6 +3101,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2733,18 +3137,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2763,6 +3155,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2771,6 +3169,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2800,18 +3204,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2830,6 +3222,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2838,6 +3236,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2870,18 +3274,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -2900,6 +3292,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2908,6 +3306,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -2954,14 +3358,84 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageTestConnectionHistoryItemResponse"
+  /install/v1/target-sources/{targetSourceId}/test-connection/execution-history:
+    get:
+      tags:
+      - Test Connection
+      summary: Test Connection 실행(요청/완료) 이력 조회
+      operationId: getTestConnectionExecutionHistory
+      parameters:
+      - name: targetSourceId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+      responses:
+        "400":
+          description: Bad Request
           content:
             '*/*':
               schema:
@@ -2984,6 +3458,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -2996,12 +3476,18 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "200":
           description: OK
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/PageTestConnectionHistoryItemResponse"
+                $ref: "#/components/schemas/PageTestConnectionExecutionHistoryResponse"
   /install/v1/target-sources/{targetSourceId}/test-connection/completion-status:
     get:
       tags:
@@ -3024,18 +3510,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3054,6 +3528,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3062,6 +3542,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3091,18 +3577,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3121,6 +3595,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3129,6 +3609,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3164,18 +3650,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3194,6 +3668,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3202,6 +3682,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3250,18 +3736,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3280,6 +3754,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3288,6 +3768,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3321,18 +3807,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3351,6 +3825,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3359,6 +3839,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3462,14 +3948,84 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProcessStatusResponseDto"
+  /install/v1/target-sources/{targetSourceId}/pipelines/{pipelineId}/restart-preview:
+    get:
+      tags:
+      - Pipeline Orchestration
+      summary: Preview pipeline restart
+      description: Preview restarting a failed or cancelled latest pipeline
+      operationId: previewRestartPipeline
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: string
+      - name: pipelineId
+        in: path
+        description: Pipeline ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: from_sequence
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "400":
+          description: Bad Request
           content:
             '*/*':
               schema:
@@ -3492,6 +4048,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3504,12 +4066,18 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "200":
           description: OK
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ProcessStatusResponseDto"
+                $ref: "#/components/schemas/RestartPreview"
   /install/v1/target-sources/{targetSourceId}/pipelines/preview:
     get:
       tags:
@@ -3540,18 +4108,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3570,6 +4126,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3578,6 +4140,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3610,18 +4178,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3640,6 +4196,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3648,6 +4210,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3684,18 +4252,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3714,6 +4270,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3722,6 +4284,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3752,18 +4320,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3782,6 +4338,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3790,6 +4352,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3822,18 +4390,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3852,6 +4408,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3860,6 +4422,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3891,18 +4459,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3921,6 +4477,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3929,6 +4491,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -3960,18 +4528,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -3990,6 +4546,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -3998,6 +4560,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -4031,18 +4599,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4061,6 +4617,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4069,6 +4631,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -4100,18 +4668,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4130,6 +4686,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4138,6 +4700,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -4169,18 +4737,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4199,6 +4755,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4207,6 +4769,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -4238,18 +4806,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4268,6 +4824,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4276,6 +4838,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -4307,18 +4875,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4337,6 +4893,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4345,6 +4907,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -4377,18 +4945,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4407,6 +4963,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4415,6 +4977,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -4447,18 +5015,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: No approved integration found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4477,6 +5033,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4485,6 +5047,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: No approved integration found
           content:
             '*/*':
               schema:
@@ -4524,18 +5092,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Approval request not found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4554,6 +5110,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4562,6 +5124,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Approval request not found
           content:
             '*/*':
               schema:
@@ -4594,14 +5162,73 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: No approval request found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: Latest approval request retrieved successfully
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApprovalRequestLatestDto"
+  /install/v1/target-sources/{targetSourceId}/approval-requests/latest/nlb-index-mappings:
+    get:
+      tags:
+      - Approval Requests
+      summary: Get latest NLB index mappings
+      description: "For each resource of the latest approval request, get the NLB\
+        \ indices its IP/Host is already mapped to across all services"
+      operationId: getLatestNlbIndexMappings
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "400":
+          description: Bad Request
           content:
             '*/*':
               schema:
@@ -4624,6 +5251,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4636,12 +5269,20 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "200":
-          description: Latest approval request retrieved successfully
+        "404":
+          description: No approval request found
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ApprovalRequestLatestDto"
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: NLB index mappings retrieved successfully
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceNlbIndexMappingDto"
   /install/v1/target-sources/{targetSourceId}/approval-history:
     get:
       tags:
@@ -4682,18 +5323,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Target source not found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4712,6 +5341,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4720,6 +5355,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Target source not found
           content:
             '*/*':
               schema:
@@ -4769,18 +5410,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4799,6 +5428,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4807,6 +5442,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -4838,18 +5479,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -4868,6 +5497,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -4876,6 +5511,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -4945,6 +5586,7 @@ paths:
           - GCP
           - AZURE
           - IDC
+          - SDU
           - UNKNOWN
       - name: supportRawData
         in: query
@@ -4987,14 +5629,69 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "502":
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "500":
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "403":
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "409":
           description: Conflict
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "503":
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "501":
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "404":
           description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageTargetSourceInfo"
+  /install/v1/services/{serviceCode}/jira-tickets:
+    get:
+      tags:
+      - Jira Tickets
+      summary: Get all Jira tickets for service
+      operationId: getJiraTickets
+      parameters:
+      - name: serviceCode
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "400":
+          description: Bad Request
           content:
             '*/*':
               schema:
@@ -5017,6 +5714,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5029,12 +5732,20 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "200":
           description: OK
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/PageTargetSourceInfo"
+                type: array
+                items:
+                  $ref: "#/components/schemas/JiraTicketResponse"
   /install/v1/services/{serviceCode}/authorized-users:
     get:
       tags:
@@ -5055,18 +5766,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5085,6 +5784,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5093,6 +5798,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5155,18 +5866,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5185,6 +5884,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5193,6 +5898,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5241,18 +5952,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5271,6 +5970,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5279,6 +5984,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5345,18 +6056,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5375,6 +6074,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5383,6 +6088,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5415,18 +6126,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5445,6 +6144,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5453,6 +6158,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5492,18 +6203,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5522,6 +6221,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5530,6 +6235,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5582,18 +6293,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5612,6 +6311,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5620,6 +6325,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5672,18 +6383,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5702,6 +6401,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5710,6 +6415,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5740,18 +6451,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5770,6 +6469,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5778,6 +6483,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5802,18 +6513,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5832,6 +6531,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5840,6 +6545,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5872,18 +6583,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5902,6 +6601,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5910,6 +6615,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -5940,18 +6651,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -5970,6 +6669,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -5978,6 +6683,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -6003,18 +6714,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -6033,6 +6732,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -6041,6 +6746,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -6066,18 +6777,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -6096,6 +6795,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -6104,6 +6809,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -6139,6 +6850,7 @@ paths:
             - CANCELLED
             - UNAVAILABLE
             - UNAVAILABLE_ACKNOWLEDGED
+            - RESET
         example: "APPROVED,REJECTED"
       - name: page
         in: query
@@ -6165,18 +6877,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -6195,6 +6895,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -6203,6 +6909,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -6226,18 +6938,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -6256,6 +6956,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -6264,6 +6970,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -6305,18 +7017,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -6335,6 +7035,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -6343,6 +7049,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -6378,18 +7090,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -6408,6 +7108,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -6416,6 +7122,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -6445,18 +7157,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -6475,6 +7175,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -6483,6 +7189,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -6512,18 +7224,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
-        "409":
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
-        "404":
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ErrorMessage"
         "502":
           description: Bad Gateway
           content:
@@ -6542,6 +7242,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+        "409":
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
         "503":
           description: Service Unavailable
           content:
@@ -6550,6 +7256,12 @@ paths:
                 $ref: "#/components/schemas/ErrorMessage"
         "501":
           description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+        "404":
+          description: Not Found
           content:
             '*/*':
               schema:
@@ -6590,6 +7302,101 @@ components:
           - IDC
           - SDU
           - UNKNOWN
+    TerraformStatusResponse:
+      type: object
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        cloud_provider:
+          type: string
+          enum:
+          - AWS
+          - GCP
+          - AZURE
+          - IDC
+          - SDU
+          - UNKNOWN
+        is_sdu_type:
+          type: boolean
+        has_confirmed_infra:
+          type: boolean
+        latest_confirmed_at:
+          type: string
+          format: date-time
+        checked_at:
+          type: string
+          format: date-time
+        overall_state:
+          type: string
+          enum:
+          - NEVER_APPLIED
+          - APPLYING
+          - APPLIED
+          - APPLY_FAILED
+          - DESTROYING
+          - DESTROYED
+          - DESTROY_FAILED
+          - UNKNOWN
+        destroy_required:
+          type: boolean
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TerraformTaskStatusResponse"
+    TerraformTaskStatusResponse:
+      type: object
+      properties:
+        terraform_target:
+          type: string
+          enum:
+          - BDC
+          - SERVICE
+          - BDC_SERVICE_LEVEL_COMMON
+          - BDC_SERVICE_LEVEL
+          - IDC_CX
+          - IDC_BDP
+          - IDC_PUBLIC_URL
+          - BDC_SERVICE
+          - BDC_KUBE_NAMESPACE
+        terraform_execution_side:
+          type: string
+          enum:
+          - SERVICE
+          - BDC
+        terraform_task_name:
+          type: string
+          enum:
+          - AWS_SERVICE_LEVEL
+          - AWS_BDC_SERVICE_COMMON
+          - AWS_BDC_SERVICE
+          - AZURE_BDC_SERVICE
+          - GCP_SERVICE_LEVEL
+          - GCP_BDC_SERVICE
+          - IDC_BDC_CX
+          - IDC_BDC_BDP
+          - IDC_BDC_PUBLIC_URL
+          - SDU_BDC_SERVICE_COMMON
+          - SDU_BDC_SERVICE
+        state:
+          type: string
+          enum:
+          - NEVER_APPLIED
+          - APPLYING
+          - APPLIED
+          - APPLY_FAILED
+          - DESTROYING
+          - DESTROYED
+          - DESTROY_FAILED
+          - UNKNOWN
+        destroy_required:
+          type: boolean
+        # ASSUMED (owner directive, not yet in the upstream spec): the Terraform
+        # job's completion time, same date-time format as latest_confirmed_at.
+        # Replace with the real field name when the spec ships.
+        completed_at:
+          type: string
+          format: date-time
     ErrorMessage:
       type: object
       properties:
@@ -6775,6 +7582,7 @@ components:
           - CANCELLED
           - UNAVAILABLE
           - UNAVAILABLE_ACKNOWLEDGED
+          - RESET
         processed_by:
           $ref: "#/components/schemas/ActorDto"
         processed_at:
@@ -6801,6 +7609,7 @@ components:
           - CANCELLED
           - UNAVAILABLE
           - UNAVAILABLE_ACKNOWLEDGED
+          - RESET
         requested_by:
           $ref: "#/components/schemas/ActorDto"
         requested_at:
@@ -6908,6 +7717,7 @@ components:
           - GCP
           - AZURE
           - IDC
+          - SDU
           - UNKNOWN
         region:
           type: string
@@ -7120,6 +7930,16 @@ components:
           - NETWORK_ERROR
           - SERVICE_ERROR
           - UNKNOWN
+    TargetSourceResetRequestDto:
+      required:
+      - reason
+      type: object
+      properties:
+        reason:
+          maxLength: 1000
+          minLength: 0
+          type: string
+      description: 초기화 사유
     CreatePipelineRequest:
       required:
       - type
@@ -7201,6 +8021,45 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TaskSummary"
+        origin_pipeline_id:
+          type: integer
+          format: int64
+        origin:
+          $ref: "#/components/schemas/RestartOriginView"
+        restarted_by_pipeline_id:
+          type: integer
+          format: int64
+    RestartOriginView:
+      type: object
+      properties:
+        pipeline_id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum:
+          - INSTALL
+          - DELETE
+          - CUSTOM
+        recipe_definition:
+          type: string
+        status:
+          type: string
+          enum:
+          - PENDING
+          - RUNNING
+          - DONE
+          - FAILED
+          - CANCELLED
+        total_task_count:
+          type: integer
+          format: int64
+        done_task_count:
+          type: integer
+          format: int64
+        resumed_from_sequence:
+          type: integer
+          format: int32
     TaskSummary:
       type: object
       properties:
@@ -7241,6 +8100,9 @@ components:
           - IDC_BDP_TF_PLAN
           - IDC_BDP_TF_APPLY
           - IDC_BDP_TF_DESTROY
+          - UNKNOWN
+        terraform_action:
+          type: string
         status:
           type: string
           enum:
@@ -7272,6 +8134,15 @@ components:
           format: date-time
         description:
           type: string
+        origin_task_id:
+          type: integer
+          format: int64
+    RestartPipelineRequest:
+      type: object
+      properties:
+        from_sequence:
+          type: integer
+          format: int32
     CustomPipelineRequest:
       required:
       - tasks
@@ -7335,6 +8206,7 @@ components:
           - GCP
           - AZURE
           - IDC
+          - SDU
           - UNKNOWN
         state:
           type: string
@@ -7375,6 +8247,8 @@ components:
         piiAgentInstalledAt:
           type: string
           format: date-time
+        isSduType:
+          type: boolean
     ApprovalRejectRequestDto:
       required:
       - reason
@@ -7401,6 +8275,7 @@ components:
           - CANCELLED
           - UNAVAILABLE
           - UNAVAILABLE_ACKNOWLEDGED
+          - RESET
         processed_by:
           $ref: "#/components/schemas/ActorDto"
         processed_at:
@@ -7456,6 +8331,7 @@ components:
           - CANCELLED
           - UNAVAILABLE
           - UNAVAILABLE_ACKNOWLEDGED
+          - RESET
         requested_by:
           $ref: "#/components/schemas/ActorDto"
         requested_at:
@@ -7522,6 +8398,7 @@ components:
           - GCP
           - AZURE
           - IDC
+          - SDU
           - UNKNOWN
         reject_reason:
           type: string
@@ -7575,6 +8452,7 @@ components:
           - GCP
           - AZURE
           - IDC
+          - SDU
           - UNKNOWN
         is_sdu_type:
           type: boolean
@@ -7609,6 +8487,7 @@ components:
           - CANCELLED
           - UNAVAILABLE
           - UNAVAILABLE_ACKNOWLEDGED
+          - RESET
         requested_by:
           $ref: "#/components/schemas/ActorDto"
         requested_at:
@@ -7636,6 +8515,7 @@ components:
           - GCP
           - AZURE
           - IDC
+          - SDU
           - UNKNOWN
         createdAt:
           type: string
@@ -7695,6 +8575,13 @@ components:
           example: true
         metadata:
           $ref: "#/components/schemas/TargetSourceCreationCandidateMetadata"
+    JiraTicketAttachRequest:
+      required:
+      - issueKey
+      type: object
+      properties:
+        issueKey:
+          type: string
     UserInfo:
       type: object
       properties:
@@ -7748,8 +8635,6 @@ components:
     PageableObject:
       type: object
       properties:
-        unpaged:
-          type: boolean
         paged:
           type: boolean
         pageNumber:
@@ -7758,6 +8643,8 @@ components:
         pageSize:
           type: integer
           format: int32
+        unpaged:
+          type: boolean
         offset:
           type: integer
           format: int64
@@ -7794,6 +8681,11 @@ components:
           type: string
         email:
           type: string
+        source:
+          type: string
+          enum:
+          - IAP
+          - LOCAL
     TaskCatalogEntry:
       type: object
       properties:
@@ -7812,6 +8704,8 @@ components:
           - IDC
           - SDU
         kind:
+          type: string
+        terraform_action:
           type: string
         consumes_terraform_slot:
           type: boolean
@@ -7855,6 +8749,7 @@ components:
           - GCP
           - AZURE
           - IDC
+          - SDU
           - UNKNOWN
         created_at:
           type: string
@@ -7990,6 +8885,62 @@ components:
         created_at:
           type: string
           format: date-time
+    PageTestConnectionExecutionHistoryResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestConnectionExecutionHistoryResponse"
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            $ref: "#/components/schemas/SortObject"
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    TestConnectionExecutionHistoryResponse:
+      type: object
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        test_connection_version:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+          - PENDING
+          - RUNNING
+          - SUCCESS
+          - FAIL
+        requested_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
     TestConnectionCompletionStatusResponse:
       type: object
       properties:
@@ -8023,6 +8974,9 @@ components:
           format: int64
         create_time_str:
           type: string
+        last_updated_time:
+          type: string
+          format: date-time
     PageScanJobResponse:
       type: object
       properties:
@@ -8177,6 +9131,110 @@ components:
         last_activity_at:
           type: string
           format: date-time
+        origin_pipeline_id:
+          type: integer
+          format: int64
+    OriginSummary:
+      type: object
+      properties:
+        pipeline_id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum:
+          - INSTALL
+          - DELETE
+          - CUSTOM
+        recipe_definition:
+          type: string
+        status:
+          type: string
+          enum:
+          - PENDING
+          - RUNNING
+          - DONE
+          - FAILED
+          - CANCELLED
+        total_task_count:
+          type: integer
+          format: int64
+        done_task_count:
+          type: integer
+          format: int64
+    RestartPreview:
+      type: object
+      properties:
+        origin:
+          $ref: "#/components/schemas/OriginSummary"
+        resume_from_sequence:
+          type: integer
+          format: int32
+        skipped_tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkippedTask"
+        tasks_to_run:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskToRun"
+        warnings:
+          type: array
+          items:
+            type: string
+    SkippedTask:
+      type: object
+      properties:
+        sequence:
+          type: integer
+          format: int32
+        task_definition:
+          type: string
+        status:
+          type: string
+          enum:
+          - BLOCKED
+          - READY
+          - IN_PROGRESS
+          - DONE
+          - FAILED
+          - CANCELLED
+    TaskToRun:
+      type: object
+      properties:
+        sequence:
+          type: integer
+          format: int32
+        task_definition:
+          type: string
+        kind:
+          type: string
+        terraform_action:
+          type: string
+        origin_task_id:
+          type: integer
+          format: int64
+        origin_status:
+          type: string
+          enum:
+          - BLOCKED
+          - READY
+          - IN_PROGRESS
+          - DONE
+          - FAILED
+          - CANCELLED
+        origin_error_code:
+          type: string
+          enum:
+          - JOB_FAILED
+          - EXECUTION_TIMEOUT
+          - CONDITION_NOT_MET
+          - CHECK_ERROR
+          - CALL_TIMEOUT
+          - UNKNOWN_TASK
+        origin_fail_count:
+          type: integer
+          format: int32
     RecipePreview:
       type: object
       properties:
@@ -8241,6 +9299,9 @@ components:
           - IDC_BDP_TF_PLAN
           - IDC_BDP_TF_APPLY
           - IDC_BDP_TF_DESTROY
+          - UNKNOWN
+        terraform_action:
+          type: string
         display_name:
           type: string
         consumes_terraform_slot:
@@ -8621,6 +9682,23 @@ components:
             $ref: "#/components/schemas/TargetSourceResourceItemDto"
         result:
           $ref: "#/components/schemas/ApprovalActionResponseDto"
+    NlbIndexMappingDto:
+      type: object
+      properties:
+        service_code:
+          type: string
+        nlb_index:
+          type: integer
+          format: int32
+    ResourceNlbIndexMappingDto:
+      type: object
+      properties:
+        resource_id:
+          type: string
+        nlb_index_mapping_list:
+          type: array
+          items:
+            $ref: "#/components/schemas/NlbIndexMappingDto"
     Page:
       type: object
       properties:
@@ -8811,6 +9889,7 @@ components:
           - GCP
           - AZURE
           - IDC
+          - SDU
           - UNKNOWN
         state:
           type: string
@@ -9022,6 +10101,9 @@ components:
           - IDC_BDP_TF_PLAN
           - IDC_BDP_TF_APPLY
           - IDC_BDP_TF_DESTROY
+          - UNKNOWN
+        terraform_action:
+          type: string
         status:
           type: string
           enum:
@@ -9148,6 +10230,9 @@ components:
             $ref: "#/components/schemas/TaskAttemptView"
         description:
           type: string
+        origin_task_id:
+          type: integer
+          format: int64
     TerraformJobStateSummary:
       type: object
       properties:
@@ -9427,3 +10512,8 @@ components:
           type: string
         templated:
           type: boolean
+    JiraTicketDetachResponse:
+      type: object
+      properties:
+        issueKey:
+          type: string

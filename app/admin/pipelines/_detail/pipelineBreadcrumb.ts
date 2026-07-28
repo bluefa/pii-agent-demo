@@ -29,7 +29,7 @@ export function pipelineCrumbs(
 ): BreadcrumbCrumb[] {
   return [
     { label: '서비스 검색', href: passRoutes.pipelines.services },
-    { label: targetSourceId, href: passRoutes.pipelines.target(targetSourceId) },
+    { label: targetSourceId, href: passRoutes.pipelines.ops.targetSource(targetSourceId, 'infra') },
     { label: `작업 #${pipelineId}` },
   ];
 }

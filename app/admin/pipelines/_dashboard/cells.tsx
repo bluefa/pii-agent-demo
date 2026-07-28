@@ -1,19 +1,22 @@
 /**
  * Dashboard list cell presenters (Figma Make redesign) — page.tsx-exclusive.
  *
- * These deliberately do NOT reuse the shared StatusPill / PipelineProgressBar /
- * ProvTag / PlTable (those keep their pill/colored look on the detail pages).
- * The dashboard row is a distinct visual language: #id chip, dot+text status,
- * gray progress, plain cloud text, relative time with a hover tooltip, and a
- * hover-reveal dark action button. All classes route through `dashboard.*`
- * tokens (no raw colors).
+ * These deliberately do NOT reuse the shared PipelineProgressBar / ProvTag /
+ * PlTable (those keep their colored look on the detail pages). The dashboard row
+ * is a quieter visual language: gray progress, plain cloud text, relative time
+ * with a hover tooltip, and a hover-reveal dark action button. All classes route
+ * through `dashboard.*` tokens (no raw colors).
+ *
+ * Status is the ONE exception (owner call): the row renders the shared
+ * StatusPill so the status tag reads identically here and on the target detail
+ * page. A dashboard-local dot+text variant used to live here and was removed.
  */
 import type { ReactElement, ReactNode } from 'react';
 
-import { cn, pipelineStyles } from '@/lib/theme';
+import { pipelineStyles } from '@/lib/theme';
 import { displayProvider, fmtDateTime, fmtRelativeTime, providerLabel } from '@/lib/pipeline/format';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
-import type { CloudProvider, PipelineStatus, PipelineType } from '@/lib/pipeline/types';
+import type { CloudProvider, PipelineType } from '@/lib/pipeline/types';
 
 const { dashboard: d } = pipelineStyles;
 
@@ -56,17 +59,6 @@ export function TypeCell({ type }: { type: PipelineType }): ReactElement {
     <span className={d.typeCell}>
       <Icon name={TYPE_ICON[type]} size="sm" />
       {type}
-    </span>
-  );
-}
-
-/** Status — colored dot + wire status text (no pill). */
-export function StatusDot({ status }: { status: PipelineStatus }): ReactElement {
-  const tone = d.statusTone[status] ?? d.statusTone.CANCELLED;
-  return (
-    <span className={cn(d.status, tone.text)}>
-      <span className={cn(d.statusDot, tone.dot)} />
-      {status}
     </span>
   );
 }

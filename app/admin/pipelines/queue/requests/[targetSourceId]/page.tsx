@@ -187,7 +187,7 @@ export default function RequestDetailPage(): ReactElement {
       return;
     }
     setModal(null);
-    toast.show('승인했어요 — 연동 대상 반영이 시작돼요');
+    toast.show('승인했습니다. 연동 대상 반영이 시작됩니다.');
     backToList();
   };
 
@@ -199,7 +199,7 @@ export default function RequestDetailPage(): ReactElement {
       return;
     }
     setModal(null);
-    toast.show('반려했어요 — 사유가 전달됐어요');
+    toast.show('반려했습니다. 사유가 전달됐습니다.');
     backToList();
   };
 

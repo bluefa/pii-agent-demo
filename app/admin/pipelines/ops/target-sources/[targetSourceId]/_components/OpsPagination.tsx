@@ -16,6 +16,12 @@ export interface OpsPaginationProps {
   page: number;
   totalPages: number;
   onChange: (page: number) => void;
+  /**
+   * Render the pager even for a single page. Used by the side-by-side 진행 상태
+   * cards, where a disappearing footer would make the two cards different
+   * heights depending on how much data each happens to hold.
+   */
+  always?: boolean;
 }
 
 /** Sliding window of up to 5 page indices centred on the current page. */
@@ -24,8 +30,13 @@ const windowPages = (page: number, totalPages: number): number[] => {
   return Array.from({ length: Math.min(5, totalPages) }, (_, i) => start + i);
 };
 
-export function OpsPagination({ page, totalPages, onChange }: OpsPaginationProps): ReactElement | null {
-  if (totalPages <= 1) return null;
+export function OpsPagination({
+  page,
+  totalPages,
+  onChange,
+  always,
+}: OpsPaginationProps): ReactElement | null {
+  if (totalPages <= 1 && !always) return null;
   return (
     <nav aria-label="페이지" className="mt-4 flex items-center justify-center gap-1">
       <button

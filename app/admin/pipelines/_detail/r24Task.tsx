@@ -169,7 +169,7 @@ export function RestartBadge({
 export function KindMark({ kind }: { kind: TaskKind }): ReactElement {
   if (kind === 'CONDITION_CHECK') {
     return (
-      <span className="r24-ticon cond" title="조건 확인 — 폴링">
+      <span className="r24-ticon cond" title="조건 확인(폴링)">
         <Icon name="clock" strokeWidth={2} />
       </span>
     );

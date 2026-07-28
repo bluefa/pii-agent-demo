@@ -286,6 +286,8 @@ export const httpBff: BffClient = {
     putCollabChannel: (id, channel) => put(`/target-sources/${id}/collaboration-channel`, channel),
     getTargetSourceList: (query, page, size) =>
       getSnakeRaw(`/admin/ops/target-sources${buildQuery({ query, page, size })}`),
+    getAlerts: (kind, page, size) =>
+      getSnakeRaw(`/admin/ops/alerts${buildQuery({ kind, page, size })}`),
     getServices: () => getSnakeRaw('/admin/ops/services'),
     getService: (code) => getSnakeRaw(`/admin/ops/services/${encodeURIComponent(code)}`),
     postServiceEos: (code, force) =>
@@ -438,6 +440,12 @@ export const httpBff: BffClient = {
     getProcessStatus: (id) =>
       getSnakeRaw<z.infer<typeof schemas.ProcessStatusResponseDto>>(
         `/target-sources/${id}/process-status`,
+      ),
+
+    // DB-only Terraform state — may disagree with installation-status by design.
+    getTerraformStatus: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.TerraformStatusResponse>>(
+        `/target-sources/${id}/terraform-status`,
       ),
 
     approveApprovalRequest: (id, body) =>

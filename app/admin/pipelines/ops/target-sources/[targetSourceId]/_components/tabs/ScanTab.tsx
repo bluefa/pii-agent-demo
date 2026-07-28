@@ -42,7 +42,7 @@ const SCAN_STATUS: Record<string, { tone: Tone; label: string }> = {
 };
 
 const SCAN_ERROR_LABEL: Record<string, string> = {
-  AUTH_PERMISSION_ERROR: '권한 오류 — Scan Role 권한을 확인하세요',
+  AUTH_PERMISSION_ERROR: '권한 오류입니다. Scan Role 권한을 확인해 주세요.',
   RATE_LIMIT: '요청 한도 초과',
   NETWORK_ERROR: '네트워크 오류',
   SERVICE_ERROR: '클라우드 서비스 오류',

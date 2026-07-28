@@ -571,6 +571,17 @@ export const getProcessStatus = async (
 ): Promise<ProcessStatusResponse> =>
   fetchInfraJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`);
 
+// Named after the wire DTO — `TerraformStatus` in lib/types is a different,
+// unrelated 3-value union.
+export type TerraformStatusResponse = z.infer<typeof schemas.TerraformStatusResponse>;
+export type TerraformTaskStatus = z.infer<typeof schemas.TerraformTaskStatusResponse>;
+
+// DB-only Terraform view — deliberately independent of installation-status.
+export const getTerraformStatus = async (
+  targetSourceId: number,
+): Promise<TerraformStatusResponse> =>
+  fetchInfraJson<TerraformStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/terraform-status`);
+
 // ===== Connection Test API (Async) =====
 
 // ADR-019: route emits snake SecretResponse[]; adapter reshapes create_time_str → createTimeStr.

@@ -80,7 +80,7 @@ export function ServicesView(): ReactElement {
       <div className="mb-4">
         <h1 className={pipelineStyles.text.pageTitle}>서비스 운영</h1>
         <p className={cn(pipelineStyles.text.sectionDesc, 'mt-1.5')}>
-          ServiceCode 단위 운영 작업 — Target Source 목록 · Jira Ticket · EOS 처리
+          ServiceCode 단위로 Target Source 목록과 Jira Ticket을 확인하고 EOS를 처리합니다.
         </p>
       </div>
 

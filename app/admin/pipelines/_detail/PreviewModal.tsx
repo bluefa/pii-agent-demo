@@ -76,11 +76,11 @@ const TYPE_LABELS: Record<PipelineType, string> = {
 };
 
 const TYPE_DESCS: Record<PipelineType, string> = {
-  INSTALL: '이 대상에 인프라를 설치합니다 — 표준 레시피 7개 Task를 순서대로 실행',
+  INSTALL: '이 대상에 인프라를 설치합니다. 표준 레시피 7개 Task를 순서대로 실행합니다.',
   // Restarting (RestartModal) is now the sanctioned path for re-running a failure,
   // so that promise is dropped from the CUSTOM description.
-  CUSTOM: 'Task 순서를 직접 구성해 실행합니다',
-  DELETE: '설치된 인프라를 destroy 합니다 — 대상의 리소스가 제거돼요',
+  CUSTOM: 'Task 순서를 직접 구성해 실행합니다.',
+  DELETE: '설치된 인프라를 destroy 합니다. 대상의 리소스가 제거됩니다.',
 };
 
 /** Run-consequence note under the confirmation canvas (design `.m-note`). */
@@ -280,7 +280,7 @@ export function PreviewModal({
               /* fall through to the failure toast */
             }
             onClose();
-            showToast('진행 중인 작업 확인에 실패했습니다 — 새로고침 후 다시 시도하세요');
+            showToast('진행 중인 작업 확인에 실패했습니다. 새로고침 후 다시 시도해 주세요.');
           })();
           return;
         }
@@ -466,7 +466,7 @@ export function PreviewModal({
           </div>
 
           {loadError ? (
-            <div className={detailStyles.recipe.empty}>미리보기를 불러오지 못했습니다 — {loadError}</div>
+            <div className={detailStyles.recipe.empty}>미리보기를 불러오지 못했습니다. {loadError}</div>
           ) : loading || !preview ? (
             <div className={cn(detailStyles.skeleton, 'mt-3.5 h-32')} aria-hidden="true" />
           ) : preview.steps.length ? (

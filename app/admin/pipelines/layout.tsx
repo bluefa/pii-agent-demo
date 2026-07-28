@@ -30,7 +30,6 @@ const SIDEBAR_GROUPS = [
     items: [
       { label: '운영 대시보드', href: passRoutes.pipelines.queue.dashboard, exact: true },
       { label: '연동 요청', href: passRoutes.pipelines.queue.requests, exact: false },
-      { label: '연결 테스트', href: passRoutes.pipelines.queue.testConnections, exact: false },
     ],
   },
   {

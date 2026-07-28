@@ -61,7 +61,7 @@ export function RoleEditModal({
     if (!AWS_ROLE_NAME_RE.test(trimmed)) {
       setError(
         trimmed.length > 64
-          ? `이름이 너무 깁니다 (${trimmed.length}자) — 최대 64자입니다.`
+          ? `이름이 너무 깁니다. ${trimmed.length}자를 입력했고 최대 64자입니다.`
           : '영숫자와 + = , . @ - _ 만 쓸 수 있습니다.',
       );
       return;

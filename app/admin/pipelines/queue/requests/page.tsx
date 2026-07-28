@@ -234,7 +234,7 @@ export default function RequestsPage(): ReactElement {
       {/* 계층 1 — 연동 요청 확인 (승인 대기) */}
       <ListSection
         title="연동 요청 확인"
-        desc="승인이 필요한 연동 요청이에요 — 검토 후 승인하거나 반려해 주세요"
+        desc="승인이 필요한 연동 요청입니다. 검토 후 승인하거나 반려해 주세요."
         icon="inbox"
         tone="primary"
         count={pending.paged?.totalElements ?? null}
@@ -277,7 +277,7 @@ export default function RequestsPage(): ReactElement {
       <ListSection
         className="mt-4"
         title="연동 요청 반려 확인"
-        desc="반려했으나 서비스 측 담당자가 아직 확인하지 않았어요"
+        desc="반려했으나 서비스 측 담당자가 아직 확인하지 않았습니다."
         icon="warn-tri"
         tone="danger"
         count={rejected.paged?.totalElements ?? null}
@@ -325,7 +325,7 @@ export default function RequestsPage(): ReactElement {
           key 로 못 쓰고, 둘 다 컬럼으로도 노출하지 않는다. */}
       <ListSection
         title="전체 History 확인"
-        desc="모든 연동 요청의 승인 처리 이력이에요"
+        desc="모든 연동 요청의 승인 처리 이력입니다."
         icon="clock"
         tone="muted"
         count={history.paged?.totalElements ?? null}

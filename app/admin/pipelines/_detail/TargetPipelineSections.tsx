@@ -25,7 +25,7 @@ import {
   CurrentPipelineCard,
   EmptyPipelineCard,
   LastRunFailedCard,
-} from '@/app/admin/pipelines/targets/[targetSourceId]/_components/CurrentPipelineCard';
+} from '@/app/admin/pipelines/_detail/CurrentPipelineCard';
 import { passRoutes } from '@/lib/routes';
 import {
   fmtDateTime,
@@ -231,7 +231,7 @@ export function TargetPipelineSections({
         )}
       </div>
 
-      <R24Section title="작업 이력" desc="이 대상에서 실행된 최신순으로 정렬된 작업" />
+      <R24Section title="작업 이력" desc="이 대상에서 실행된 작업을 최신순으로 보여줍니다." />
       <div className="mt-3.5 overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]">
         {rows.length ? (
           <>
@@ -333,7 +333,7 @@ export function TargetPipelineSections({
             </div>
           </>
         ) : (
-          <PlEmptyState icon="inbox" message="작업 이력이 없어요" />
+          <PlEmptyState icon="inbox" message="작업 이력이 없습니다." />
         )}
       </div>
 

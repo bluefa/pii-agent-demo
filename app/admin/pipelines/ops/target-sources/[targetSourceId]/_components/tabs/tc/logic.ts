@@ -1,7 +1,7 @@
 /**
- * P4/P5 연결 테스트 — pure presentation logic (no React, no I/O).
+ * 연결 테스트 — pure presentation logic (no React, no I/O).
  *
- * Kept out of the page/adapter so the results→row derivations and the ldb-cache
+ * Kept out of the card/adapter so the results→row derivations and the ldb-cache
  * reducer are unit-testable in isolation.
  */
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';

@@ -90,7 +90,7 @@ describe('paginate', () => {
 describe('buildStatsDesc', () => {
   it('uses the period label', () => {
     expect(buildStatsDesc('1d')).toBe(
-      '최근 24시간(생성시간 기준) 실패·성공 집계 — 기간 필터와 동기화 · 동작 중은 현재 순간값',
+      '최근 24시간(생성시간 기준) 실패·성공 집계입니다. 기간 필터와 동기화되며, 동작 중은 현재 순간값입니다.',
     );
   });
 });

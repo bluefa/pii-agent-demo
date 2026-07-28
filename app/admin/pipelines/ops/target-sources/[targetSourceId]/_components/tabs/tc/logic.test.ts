@@ -5,7 +5,7 @@ import {
   ldbCount,
   putLdbCache,
   type LdbCache,
-} from '@/app/admin/pipelines/queue/test-connections/_tc/logic';
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 const row = (over: Partial<TcResultRow> = {}): TcResultRow => ({
   resourceId: 'r-1',

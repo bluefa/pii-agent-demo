@@ -1724,11 +1724,14 @@ export const mockConfirm = {
   },
 
   getLatestTestConnectionResultSummaries: async (targetSourceId: string) => {
+    // Test Connection 큐 대상은 프로젝트이면서 별도의 리치한 결과 fixture 를 갖는다
+    // (mock-data.ts §Test Connection 큐 대상). 이 fixture 가 우선 — 논리 DB 드릴다운
+    // (mockLogicalDb) 이 같은 순서로 읽으므로 두 화면의 리소스 집합이 어긋나지 않는다.
+    const demoRows = getTcLatestResultRows(Number(targetSourceId));
+    if (demoRows) return NextResponse.json(demoRows);
+
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
-      // Admin Task Queue demo targets (1799/1583) live outside the store.
-      const demoRows = getTcLatestResultRows(Number(targetSourceId));
-      if (demoRows) return NextResponse.json(demoRows);
       return NextResponse.json(
         { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
         { status: 404 },
@@ -1815,6 +1818,29 @@ export const mockConfirm = {
     }
     rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
 
+    // Demo backfill: once a target has at least one real event, synthesize
+    // earlier TC cycles behind it (contract-shaped, strictly older) so the
+    // history modal's pagination is exercisable against the mock.
+    if (rows.length > 0) {
+      const oldest = Date.parse(rows[rows.length - 1].created_at);
+      const cycles: Array<{ status: string; reason: string | null }> = [
+        { status: 'TEST_CONNECTION_RESET', reason: '논리 DB 변경으로 초기화되었습니다.' },
+        { status: 'TEST_CONNECTION_COMPLETED', reason: null },
+        { status: 'TEST_CONNECTION_REJECTED', reason: 'Credential 권한 오류로 재실행을 요청했습니다.' },
+        { status: 'TEST_CONNECTION_RESET', reason: null },
+        { status: 'TEST_CONNECTION_COMPLETED', reason: null },
+        { status: 'TEST_CONNECTION_REJECTED', reason: '일부 리소스 연결 실패로 재실행을 요청했습니다.' },
+      ];
+      cycles.forEach((cycle, index) => {
+        rows.push({
+          target_source_id: Number(targetSourceId),
+          status: cycle.status,
+          reason: cycle.reason,
+          created_at: new Date(oldest - (index + 1) * 86_400_000).toISOString(),
+        });
+      });
+    }
+
     const start = page * size;
     return NextResponse.json({
       totalElements: rows.length,
@@ -1825,4 +1851,78 @@ export const mockConfirm = {
     });
   },
 
+  // GET …/terraform-status — DB-only Terraform view. Mock derives the per-task
+  // states from the project's process status (the real BFF reads tf state rows).
+  getTerraformStatus: async (targetSourceId: string) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const provider = project.isSduType
+      ? 'SDU'
+      : cloudProviderToWireProvider(project.cloudProvider);
+    const tasks = TF_TASKS_BY_PROVIDER[provider] ?? [];
+    const applied = project.processStatus >= ProcessStatus.WAITING_CONNECTION_TEST;
+    const applying = project.processStatus === ProcessStatus.INSTALLING;
+    const confirmed = project.processStatus >= ProcessStatus.APPLYING_APPROVED;
+
+    return NextResponse.json({
+      target_source_id: Number(targetSourceId),
+      cloud_provider: provider,
+      is_sdu_type: project.isSduType === true,
+      has_confirmed_infra: confirmed,
+      latest_confirmed_at: confirmed ? project.updatedAt : null,
+      checked_at: new Date().toISOString(),
+      overall_state: applied ? 'APPLIED' : applying ? 'APPLYING' : 'NEVER_APPLIED',
+      destroy_required: false,
+      tasks: tasks.map((task, index) => {
+        // Mid-install the earlier tasks are already done — one task is in flight.
+        const state = applied ? 'APPLIED' : !applying ? 'NEVER_APPLIED'
+          : index === 0 ? 'APPLIED' : index === 1 ? 'APPLYING' : 'NEVER_APPLIED';
+        return {
+          ...task,
+          state,
+          destroy_required: false,
+          // Only a finished job has a completion time; stagger them so the tiles
+          // read as a real sequence rather than one batch write.
+          completed_at: state === 'APPLIED'
+            ? new Date(Date.parse(project.updatedAt) + index * 7 * 60_000).toISOString()
+            : null,
+        };
+      }),
+    });
+  },
+
+};
+
+/** Provider → Terraform task rows (swagger TerraformTaskStatusResponse enums). */
+const TF_TASKS_BY_PROVIDER: Record<
+  string,
+  { terraform_task_name: string; terraform_target: string; terraform_execution_side: string }[]
+> = {
+  AWS: [
+    { terraform_task_name: 'AWS_SERVICE_LEVEL', terraform_target: 'SERVICE', terraform_execution_side: 'SERVICE' },
+    { terraform_task_name: 'AWS_BDC_SERVICE_COMMON', terraform_target: 'BDC_SERVICE_LEVEL_COMMON', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'AWS_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+  ],
+  AZURE: [
+    { terraform_task_name: 'AZURE_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+  ],
+  GCP: [
+    { terraform_task_name: 'GCP_SERVICE_LEVEL', terraform_target: 'SERVICE', terraform_execution_side: 'SERVICE' },
+    { terraform_task_name: 'GCP_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+  ],
+  IDC: [
+    { terraform_task_name: 'IDC_BDC_CX', terraform_target: 'IDC_CX', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'IDC_BDC_BDP', terraform_target: 'IDC_BDP', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'IDC_BDC_PUBLIC_URL', terraform_target: 'IDC_PUBLIC_URL', terraform_execution_side: 'BDC' },
+  ],
+  SDU: [
+    { terraform_task_name: 'SDU_BDC_SERVICE_COMMON', terraform_target: 'BDC_SERVICE_LEVEL_COMMON', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'SDU_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+  ],
 };

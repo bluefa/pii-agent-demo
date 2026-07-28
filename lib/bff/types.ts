@@ -234,6 +234,7 @@ export interface BffClient {
     getApprovalRequestLatest: (id: number) => Promise<unknown>;
     getApprovalRequestDetail: (id: number, requestId: number) => Promise<unknown>;
     getProcessStatus: (id: number) => Promise<z.infer<typeof schemas.ProcessStatusResponseDto>>;
+    getTerraformStatus: (id: number) => Promise<z.infer<typeof schemas.TerraformStatusResponse>>;
     approveApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     rejectApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     cancelApprovalRequest: (id: number) => Promise<unknown>;
@@ -270,6 +271,7 @@ export interface BffClient {
     getCollabChannel: (id: number) => Promise<OpsCollabChannelWire | null>;
     putCollabChannel: (id: number, channel: OpsCollabChannelWire) => Promise<OpsCollabChannelWire>;
     getTargetSourceList: (query: string | undefined, page: number, size: number) => Promise<OpsTargetSourceListPageWire>;
+    getAlerts: (kind: string | undefined, page: number, size: number) => Promise<OpsAlertsResponseWire>;
     getServices: () => Promise<OpsServiceSummaryWire[]>;
     getService: (code: string) => Promise<OpsServiceDetailWire>;
     postServiceEos: (code: string, force: boolean) => Promise<OpsServiceSummaryWire>;
@@ -311,7 +313,7 @@ export interface OpsCollabChannelWire {
   url: string;
 }
 
-/** Ops console list row (assumed §5) — powers 운영 알림 + Target Source 운영 목록. */
+/** Ops console list row (assumed §5) — powers the Target Source 운영 목록. */
 export interface OpsTargetSourceListItemWire {
   target_source_id: number;
   service_code: string;
@@ -329,6 +331,44 @@ export interface OpsTargetSourceListPageWire {
   size: number;
   number: number;
   content: OpsTargetSourceListItemWire[];
+}
+
+/**
+ * 운영 알림 (assumed §7). The server owns the taxonomy: which kinds apply to a
+ * row, the stale threshold, the total ordering, and the exact counts. A row can
+ * carry several kinds at once, so `alert_kinds` is a list and the client must
+ * not re-derive it from `process_status`.
+ */
+export type OpsAlertKindWire =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'CONNECTED'
+  | 'TC_REJECTED'
+  | 'STALE';
+
+export interface OpsAlertRowWire {
+  target_source_id: number;
+  service_code: string;
+  service_name: string;
+  cloud_provider: string;
+  is_sdu_type: boolean;
+  process_status: OpsProcessStatusWire;
+  /** What 경과 is measured from. */
+  last_changed_at: string;
+  /** Every kind that applies; never empty. */
+  alert_kinds: OpsAlertKindWire[];
+}
+
+export interface OpsAlertsResponseWire {
+  /** Whole population, independent of the `kind` filter and of paging. */
+  counts: Record<OpsAlertKindWire, number>;
+  alerts: {
+    totalElements: number;
+    totalPages: number;
+    size: number;
+    number: number;
+    content: OpsAlertRowWire[];
+  };
 }
 
 /** 서비스 운영 (assumed §6). */

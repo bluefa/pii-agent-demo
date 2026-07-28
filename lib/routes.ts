@@ -5,6 +5,31 @@
  * values are the basePath-relative source of truth for both navigation and
  * active-route matching. Never hardcode `/pass` in navigation.
  */
+/**
+ * Target Source 운영 상세의 탭. The slug is the URL contract (`?tab=`), so a tab
+ * is linkable, shareable, and survives reload / back-forward. Labels are the UI
+ * text and may be reworded without breaking any existing link.
+ */
+export const OPS_TAB_SLUGS = {
+  status: '진행 상태',
+  scan: '스캔',
+  request: '연동 요청 정보',
+  infra: '인프라 작업',
+  tc: 'Test Connection',
+} as const;
+
+export type OpsTargetTab = keyof typeof OPS_TAB_SLUGS;
+export type OpsTargetTabLabel = (typeof OPS_TAB_SLUGS)[OpsTargetTab];
+
+/** `?tab=` value → label. Unknown / missing falls back to the first tab. */
+export const opsTabLabel = (slug: string | undefined): OpsTargetTabLabel =>
+  OPS_TAB_SLUGS[(slug ?? '') as OpsTargetTab] ?? OPS_TAB_SLUGS.status;
+
+/** label → `?tab=` value (the tab strip writes the URL back). */
+export const opsTabSlug = (label: OpsTargetTabLabel): OpsTargetTab =>
+  (Object.keys(OPS_TAB_SLUGS) as OpsTargetTab[]).find((k) => OPS_TAB_SLUGS[k] === label)
+  ?? 'status';
+
 export const passRoutes = {
   services: '/services',
   adminDashboard: '/admin/dashboard',
@@ -26,8 +51,6 @@ export const passRoutes = {
     // both `/services` and `/services/{code}`.
     service: (serviceCode: string) =>
       `/admin/pipelines/services/${encodeURIComponent(serviceCode)}`,
-    target: (targetSourceId: number | string) =>
-      `/admin/pipelines/targets/${encodeURIComponent(String(targetSourceId))}`,
     pipeline: (pipelineId: number | string) =>
       `/admin/pipelines/${encodeURIComponent(String(pipelineId))}`,
     /** Admin Task Queue (design/pipeline/admin-taskqueue-storyboard.md). The
@@ -37,9 +60,6 @@ export const passRoutes = {
       requests: '/admin/pipelines/queue/requests',
       request: (targetSourceId: number | string) =>
         `/admin/pipelines/queue/requests/${encodeURIComponent(String(targetSourceId))}`,
-      testConnections: '/admin/pipelines/queue/test-connections',
-      testConnection: (targetSourceId: number | string) =>
-        `/admin/pipelines/queue/test-connections/${encodeURIComponent(String(targetSourceId))}`,
     },
     /** 운영 콘솔 (design/pipeline/ops-target-source-app-plan.md). */
     ops: {
@@ -48,8 +68,10 @@ export const passRoutes = {
       service: (serviceCode: string) =>
         `/admin/pipelines/ops/services/${encodeURIComponent(serviceCode)}`,
       targetSources: '/admin/pipelines/ops/target-sources',
-      targetSource: (targetSourceId: number | string) =>
-        `/admin/pipelines/ops/target-sources/${encodeURIComponent(String(targetSourceId))}`,
+      /** `tab` deep-links one tab open (OPS_TAB_SLUGS); omit for 진행 상태. */
+      targetSource: (targetSourceId: number | string, tab?: OpsTargetTab) =>
+        `/admin/pipelines/ops/target-sources/${encodeURIComponent(String(targetSourceId))}`
+        + (tab ? `?tab=${tab}` : ''),
     },
   },
 } as const;

@@ -226,15 +226,15 @@ export function PipelineDetailView(): ReactElement {
   const resolveMeta = useCallback(
     (t: TaskSummary): string => {
       if (t.status === 'FAILED') {
-        return `실패 ${t.fail_count}회 — ${t.error_code ?? '원인 미기록'}`;
+        return `${t.fail_count}회 실패했습니다. 원인은 ${t.error_code ?? '기록되지 않았습니다'}.`;
       }
       if (t.fail_count > 0 && (t.status === 'IN_PROGRESS' || t.status === 'READY')) {
         const max =
           t.sequence === detail?.current_task_sequence ? detail?.current_max_fail_count : null;
         const budget = `${t.fail_count}/${max ?? '?'}`;
         return t.status === 'READY'
-          ? `직전 시도 실패 — 재시도 대기 중 (${budget})`
-          : `직전 시도 실패 — 재시도 실행 중 (${budget})`;
+          ? `직전 시도가 실패해 재시도를 기다리고 있습니다. (${budget})`
+          : `직전 시도가 실패해 재시도를 실행하고 있습니다. (${budget})`;
       }
       return descMap.get(t.task_definition) || t.description || taskMetaLine(t, null);
     },
@@ -278,7 +278,7 @@ export function PipelineDetailView(): ReactElement {
   if (status === 'error') {
     return (
       <Card>
-        <PlEmptyState icon="inbox" message="작업을 불러오지 못했습니다" center />
+        <PlEmptyState icon="inbox" message="작업을 불러오지 못했습니다." center />
         <div className="flex justify-center">
           <PlButton variant="secondary" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
             재시도
@@ -340,7 +340,7 @@ export function PipelineDetailView(): ReactElement {
               )}
               {/* Status is shown in the exec band (below) for every state. */}
               {detail.cancel_requested && (
-                <span className={detailStyles.ftag.ext} title="cancel_requested=true — 다음 실행 사이클에 취소가 반영됩니다">
+                <span className={detailStyles.ftag.ext} title="cancel_requested=true 입니다. 다음 실행 사이클에 취소가 반영됩니다.">
                   취소 요청됨
                 </span>
               )}
@@ -374,7 +374,12 @@ export function PipelineDetailView(): ReactElement {
             <span className={h.k}>TargetSourceId</span>
             <span className={cn(h.v, 'tabular-nums')}>{detail.target_source_id}</span>
           </div>
-          <Link href={passRoutes.pipelines.target(detail.target_source_id)} className={h.link}>
+          {/* Lands on the ops console's 인프라 작업 tab: the operator came from a
+              pipeline, so the tab that continues that thread is the one to open. */}
+          <Link
+            href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
+            className={h.link}
+          >
             Target 상세 확인 <Icon name="arrow-ur" size="sm" />
           </Link>
 
@@ -445,10 +450,10 @@ export function PipelineDetailView(): ReactElement {
           <PlButton
             variant="primary"
             onClick={() => restartModal.open()}
-            title="마지막으로 실패한 Task부터 새 작업으로 다시 실행합니다"
+            title="멈춘 Task부터 새 작업으로 다시 실행합니다."
           >
             <Icon name="play" size="sm" />
-            실패 지점부터 재시작
+            재시작
           </PlButton>
         ) : null}
       </div>
@@ -460,10 +465,10 @@ export function PipelineDetailView(): ReactElement {
           <span>↻</span>
           <span>
             원본 <b className="font-semibold">#{origin.pipeline_id}</b>의{' '}
-            {origin.total_task_count}단계 중 {origin.done_task_count}단계 완료 —{' '}
+            {origin.total_task_count}단계 중 {origin.done_task_count}단계를 완료했습니다.{' '}
             {origin.resumed_from_sequence != null
-              ? `${origin.resumed_from_sequence + 1}단계부터 재실행`
-              : '남은 단계부터 재실행'}
+              ? `${origin.resumed_from_sequence + 1}단계부터 재실행합니다.`
+              : '남은 단계부터 재실행합니다.'}
           </span>
         </div>
       )}

@@ -116,6 +116,7 @@ export const mockBff: BffClient = {
     putCollabChannel: async (id, channel) => unwrap(await mockOps.putCollabChannel(id, channel)),
     getTargetSourceList: async (query, page, size) =>
       unwrap(await mockOps.getTargetSourceList(query, page, size)),
+    getAlerts: async (kind, page, size) => unwrap(await mockOps.getAlerts(kind, page, size)),
     getServices: async () => unwrap(await mockOps.getServices()),
     getService: async (code) => unwrap(await mockOps.getService(code)),
     postServiceEos: async (code, force) => unwrap(await mockOps.postServiceEos(code, force)),
@@ -233,6 +234,8 @@ export const mockBff: BffClient = {
 
     getProcessStatus: async (id) =>
       unwrap<z.infer<typeof schemas.ProcessStatusResponseDto>>(await mockConfirm.getProcessStatus(String(id))),
+    getTerraformStatus: async (id) =>
+      unwrap<z.infer<typeof schemas.TerraformStatusResponse>>(await mockConfirm.getTerraformStatus(String(id))),
 
     approveApprovalRequest: async (id, body) =>
       unwrap<unknown>(await mockConfirm.approveApprovalRequest(String(id), body)),

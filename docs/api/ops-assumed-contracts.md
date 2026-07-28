@@ -68,9 +68,8 @@ body     { issue_key: string, url: string }
 
 ## 5. Ops target-source list
 
-Powers 운영 알림 (action-needed filter is client-side) and the Target Source 운영
-index list. `process_status` uses the 7-step wire enum from `process-status`;
-`last_changed_at` is the latest status-transition timestamp.
+Powers the Target Source 운영 index list. `process_status` uses the 7-step wire enum
+from `process-status`; `last_changed_at` is the latest status-transition timestamp.
 
 ```
 GET /install/v1/admin/ops/target-sources?query={q}&page={n}&size={n}
@@ -111,6 +110,61 @@ POST /install/v1/admin/ops/services/{serviceCode}/jira-tickets/{ticketKey}/users
 body     { user_id: string }
 → 200   updated jira ticket
 ```
+
+## 7. Ops alerts (운영 알림)
+
+Powers 운영 알림. The page is a cross-service aggregation: it needs exact counts, a
+total ordering by elapsed time, and rows drawn from *two* populations (target sources
+by `process_status`, plus Test Connection re-run requests). None of that can be done
+correctly in the browser — filtering a single page of §5 caps the counts at the fetched
+window, silently drops rows past it, and sorts only within it. So the aggregation is
+the server's job.
+
+```
+GET /install/v1/admin/ops/alerts?kind={kind}&page={0}&size={20}
+→ 200 {
+     counts: {                       // whole population, independent of kind/paging
+       PENDING:     number,          // 연동 대상 승인·반려 대기
+       CONFIRMED:   number,          // Agent 설치 필요
+       CONNECTED:   number,          // 연결 테스트 완료 승인 대기
+       TC_REJECTED: number,          // 연결 테스트 재실행 요청됨
+       STALE:       number,          // last_changed_at 이 STALE_DAYS 이상 경과
+     },
+     alerts: Page<OpsAlertRow>
+   }
+
+OpsAlertRow {
+  target_source_id: number
+  service_code:     string
+  service_name:     string
+  cloud_provider:   string           // AWS | GCP | AZURE | IDC
+  is_sdu_type:      boolean
+  process_status:   IDLE|PENDING|CONFIRMING|CONFIRMED|INSTALLED|CONNECTED|COMPLETED
+  last_changed_at:  ISO-8601         // what 경과 is measured from
+  alert_kinds:      AlertKind[]      // every kind that applies; never empty
+}
+```
+
+- `kind` omitted → every row with at least one alert kind (the default view).
+- Rows are sorted by `last_changed_at` **ascending** (longest elapsed first) and paged.
+- `alert_kinds` is a list because a row can be several at once (a CONNECTED target that
+  has also sat for 8 days is both `CONNECTED` and `STALE`). The server decides which
+  kinds apply; the client must not re-derive them from `process_status`.
+- `STALE_DAYS` is server policy (currently 7). The client renders the threshold it is
+  told about, it does not own it.
+- `TC_REJECTED` is not a process status. Rejecting a Test Connection rolls the target
+  back to its pre-test step, so these rows match no status filter — the server joins the
+  test-connection queue to find them. That join is only sound because every queue row is
+  a real target source (see the invariant below).
+
+### Invariant: a Test Connection queue row is always a target source
+
+`GET /admin/queue/test-connections` returns rows keyed by `target_source_id`. Every such
+id MUST resolve at `GET /target-sources/{id}`, because 운영 알림 links Test Connection
+alerts to that target's 운영 화면 (`?tab=tc`) — the only place the Test Connection
+detail lives. A queue row without a target source is a dangling reference, and the mock
+is built to make that unrepresentable: the queue's demo targets are seeded as real
+projects in `lib/mock-data.ts`, not as a side fixture.
 
 ## Mock implementation
 
