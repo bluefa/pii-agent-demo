@@ -16,6 +16,7 @@
  *
  * `scripts[]` from the wire DTO is not rendered — the TerraformTaskScriptResponse
  * schema has not been published yet, so it is absent from install-v1.yaml.
+ * `completed_at` is an ASSUMED field (owner directive) pending the real spec.
  */
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -124,10 +125,17 @@ function TaskTile({ task }: { task: TerraformTaskStatus }): ReactElement {
       <p className="mt-1 break-all text-[12px] leading-[1.45] text-[var(--pl-text-weak)]">
         {task.terraform_target ?? '-'}
       </p>
-      <div className="mt-3.5 flex flex-wrap items-center gap-2">
+      <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
         <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, TONE[tone].pill)}>
           {label}
         </span>
+        {/* Only a finished job carries a completion time — an unfinished tile
+            simply omits the line rather than showing a placeholder dash. */}
+        {task.completed_at && (
+          <span className="text-[12px] text-[var(--pl-text-weak)] tabular-nums">
+            {fmtDateTime(task.completed_at)}
+          </span>
+        )}
         {task.destroy_required && (
           <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--pl-err-text)]">
             <Icon name="warn-tri" size="sm" />
