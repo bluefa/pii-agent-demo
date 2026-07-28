@@ -374,7 +374,12 @@ export function PipelineDetailView(): ReactElement {
             <span className={h.k}>TargetSourceId</span>
             <span className={cn(h.v, 'tabular-nums')}>{detail.target_source_id}</span>
           </div>
-          <Link href={passRoutes.pipelines.target(detail.target_source_id)} className={h.link}>
+          {/* Lands on the ops console's 인프라 작업 tab: the operator came from a
+              pipeline, so the tab that continues that thread is the one to open. */}
+          <Link
+            href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
+            className={h.link}
+          >
             Target 상세 확인 <Icon name="arrow-ur" size="sm" />
           </Link>
 
