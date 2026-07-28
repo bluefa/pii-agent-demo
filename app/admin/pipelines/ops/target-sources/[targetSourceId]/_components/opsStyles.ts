@@ -63,9 +63,17 @@ export const opsStyles = {
 
   /** 진행 상태 tab content — 24px below the tab rail (prototype). */
   content: 'mt-6 flex flex-col gap-4',
-  cardsRow: 'grid grid-cols-2 gap-4 items-start',
+  /** Side-by-side cards — grid rows stretch so the pair is always equal height. */
+  cardsRow: 'grid grid-cols-2 gap-4',
   cardTitle: 'text-[16px] font-semibold text-[var(--pl-text-strong)]',
   cardDesc: 'text-[12px] text-[var(--pl-text-weak)] mt-1',
+
+  /** A paged card in cardsRow: column layout so the pager sits at the bottom. */
+  pagedCard: 'flex flex-col',
+  /** Its body slot — tall enough for a full PAGE_SIZE(5) table, so a card with
+      one row (or none) does not shrink below its sibling. `flex-1` then absorbs
+      any extra height the taller sibling forces on this one. */
+  pagedCardBody: 'mt-3 min-h-[266px] flex-1',
 
   /** 상세 보기 → text button (Figma 40:21). */
   detailLink: 'inline-flex items-center gap-1 text-[13px] font-medium text-[var(--pl-primary)] cursor-pointer hover:underline whitespace-nowrap',
