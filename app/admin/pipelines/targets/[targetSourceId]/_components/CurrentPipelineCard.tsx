@@ -36,6 +36,10 @@ function Eyebrow({ label = '현재 작업' }: { label?: string }): ReactElement 
 const CARD_SHELL =
   'overflow-hidden rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] shadow-[var(--pl-shadow-xs)]';
 
+/** 중단/실패 지점의 Task 이름 태그 (LastRunFailedCard) — 중립 톤. */
+const STOP_TAG =
+  'inline-flex items-center rounded-[6px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-[7px] py-[3px] align-[1px] text-[13px] font-semibold text-[var(--pl-text-strong)]';
+
 export interface CurrentPipelineCardProps {
   detail: PipelineDetail;
   /** task_definition name → catalog entry (display name + description). */
@@ -221,9 +225,10 @@ export function LastRunFailedCard({
             <p className="mt-1.5 text-[14px] font-medium leading-[1.55] text-[var(--pl-text-strong)]">
               {stoppedName ? (
                 <>
-                  <b className="font-semibold text-[var(--pl-err-text)]">
-                    {(stopped?.sequence ?? 0) + 1}단계 {stoppedName}
-                  </b>
+                  {/* The task name is a value, not prose — a neutral tag reads it
+                      as one unit. The failure signal stays on the status pill and
+                      the error-code chip; a red name as well was too loud. */}
+                  <span className={STOP_TAG}>{stoppedName}</span>
                   {detail.status === 'FAILED' ? '에서 실패했습니다.' : '에서 중단됐습니다.'}
                 </>
               ) : detail.status === 'FAILED' ? (
