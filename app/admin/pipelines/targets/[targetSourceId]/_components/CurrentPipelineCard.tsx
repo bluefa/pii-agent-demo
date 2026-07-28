@@ -264,9 +264,10 @@ export function LastRunFailedCard({
         <div className="mt-4 flex items-center gap-2.5">
           <PlButton variant="primary" onClick={onRestart}>
             <Icon name="play" size="sm" />
-            {/* A CANCELLED run never "실패"했다 — the CTA must name what actually
-                happened, or it contradicts the line right above it. */}
-            {detail.status === 'FAILED' ? '실패 지점부터 재시작' : '중단 지점부터 재시작'}
+            {/* Just the verb: the line above already says where it stopped, and
+                the modal names the resume point. FAILED/CANCELLED wording no
+                longer has to be branched here. */}
+            재시작
           </PlButton>
           <PlButton variant="ghost" onClick={onStartNew}>
             새 작업 시작
