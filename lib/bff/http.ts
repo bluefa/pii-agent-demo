@@ -437,6 +437,12 @@ export const httpBff: BffClient = {
         `/target-sources/${id}/process-status`,
       ),
 
+    // DB-only Terraform state — may disagree with installation-status by design.
+    getTerraformStatus: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.TerraformStatusResponse>>(
+        `/target-sources/${id}/terraform-status`,
+      ),
+
     approveApprovalRequest: (id, body) =>
       post<unknown>(`/target-sources/${id}/approval-requests/approve`, body),
 
