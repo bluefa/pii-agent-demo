@@ -7,6 +7,12 @@
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import {
+  OPS_TAB_SLUGS,
+  opsTabLabel,
+  opsTabSlug,
+  type OpsTargetTabLabel,
+} from '@/lib/routes';
 import { getRawTargetSourceDetail, type RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { getProcessStatus } from '@/app/lib/api';
 import { getAwsRoleVerification, type AwsRoleVerification } from '@/app/lib/api/aws';
@@ -28,8 +34,8 @@ import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSour
 import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
 import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab';
 
-const TABS = ['진행 상태', '스캔', '연동 요청 정보', '인프라 작업', 'Test Connection'] as const;
-type TabLabel = (typeof TABS)[number];
+const TABS = Object.values(OPS_TAB_SLUGS);
+type TabLabel = OpsTargetTabLabel;
 
 type ModalState =
   | { type: 'mode' }
@@ -40,9 +46,11 @@ type ModalState =
 
 export interface OpsTargetViewProps {
   targetSourceId: number;
+  /** Tab from the `?tab=` deep link (server-resolved; defaults to 진행 상태). */
+  initialTab: TabLabel;
 }
 
-export function OpsTargetView({ targetSourceId }: OpsTargetViewProps): ReactElement {
+export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps): ReactElement {
   const [detail, setDetail] = useState<RawTargetSourceDetail | null>(null);
   const [detailFailed, setDetailFailed] = useState(false);
   const [processStatus, setProcessStatus] = useState<ProcessStatus | null>(null);
@@ -50,7 +58,29 @@ export function OpsTargetView({ targetSourceId }: OpsTargetViewProps): ReactElem
   const [grantTfExecution, setGrantTfExecution] = useState(false);
   const [channel, setChannel] = useState<CollaborationChannel | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
-  const [activeTab, setActiveTab] = useState<TabLabel>('진행 상태');
+  const [activeTab, setActiveTab] = useState<TabLabel>(initialTab);
+
+  // The URL is kept in sync so a tab is linkable/shareable and survives reload.
+  // history.replaceState (not router.replace) because switching a tab is not a
+  // navigation: no server round trip, no history entry, no scroll reset. Next
+  // supports this and useSearchParams stays consistent.
+  const selectTab = useCallback((tab: TabLabel) => {
+    setActiveTab(tab);
+    const slug = opsTabSlug(tab);
+    window.history.replaceState(
+      null,
+      '',
+      slug === 'status' ? window.location.pathname : `${window.location.pathname}?tab=${slug}`,
+    );
+  }, []);
+
+  // Back/forward restores the tab the URL points at.
+  useEffect(() => {
+    const onPop = (): void =>
+      setActiveTab(opsTabLabel(new URLSearchParams(window.location.search).get('tab') ?? undefined));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   const [reloadKey, setReloadKey] = useState(0);
   const retry = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -145,7 +175,7 @@ export function OpsTargetView({ targetSourceId }: OpsTargetViewProps): ReactElem
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => selectTab(tab)}
                 className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
               >
                 {tab}
