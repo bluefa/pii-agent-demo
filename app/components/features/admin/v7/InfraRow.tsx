@@ -39,7 +39,7 @@ export const InfraRow = ({
       onClick={handleRowClick}
       className={cn(
         'group relative grid items-center gap-4 cursor-pointer',
-        'grid-cols-[minmax(160px,1fr)_minmax(180px,1.4fr)_minmax(120px,1fr)_88px]',
+        'grid-cols-[minmax(160px,1fr)_minmax(180px,1.4fr)_minmax(120px,1fr)_104px]',
         bgColors.surface,
         interactiveColors.unselectedBorder,
         'border rounded-[12px] px-4 py-3 mb-2.5 transition-colors',

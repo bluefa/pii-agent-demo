@@ -87,7 +87,7 @@ const IdentityField = ({ field }: { field: IdentityBarField }) => {
     <div className={identityBarStyles.field}>
       <span className={identityBarStyles.key}>{field.label}</span>
       <span className={identityBarStyles.idRow}>
-        <span className={field.mono ? cn(identityBarStyles.mono, 'truncate') : 'min-w-0 truncate text-[13px]'}>
+        <span className={field.mono ? cn(identityBarStyles.mono, 'truncate') : identityBarStyles.value}>
           {field.value}
         </span>
         {copyTarget ? <CopyChip value={copyTarget} label={`${field.label} 복사`} /> : null}

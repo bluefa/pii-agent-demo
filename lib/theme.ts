@@ -271,7 +271,10 @@ export const cardStyles = {
   /** Large display heading inside a card header (ADR-014 card-display-title). */
   displayTitle: 'text-[26px] font-extrabold text-[#191F28] tracking-[-0.045em] leading-[1.2]',
   /** In-card section / step-card title — v15 display geometry (26 / 800 / -0.045em / #191F28). */
-  cardTitle: 'text-[26px] font-extrabold tracking-[-0.045em] leading-[1.2] text-[#191F28]',
+  // 22px sits BELOW the 24px page H1 (pageHeaderTitleStyle) — the unified header
+  // introduced a page-level title above every step card, so the step title must
+  // read as a section heading, not compete with the page identity (was 26px).
+  cardTitle: 'text-[22px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[#191F28]',
   /** Paragraph beneath a display title (ADR-014 card-subtitle) — v15 13.5/500/#8B95A1. */
   subtitle: 'text-[13.5px] font-medium text-[#8B95A1] leading-[1.55]',
   /** Inline "Provider: X" indicator in a card header — weak label + strong name. */
@@ -376,6 +379,8 @@ export const identityBarStyles = {
   key: 'text-[12px] font-semibold tracking-normal text-[#8B95A1]',
   idRow: 'inline-flex items-center gap-1.5',
   mono: 'font-mono text-[13px] font-semibold tracking-normal leading-[1.3] text-[#191F28]',
+  /** Non-mono field value — same weight/color as `mono` so plain values (e.g. TF 실행 권한) don't render in the inherited faint gray. */
+  value: 'min-w-0 truncate text-[13px] font-semibold tracking-[-0.005em] leading-[1.3] text-[#191F28]',
   copyBase:
     'inline-grid place-items-center w-6 h-6 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,color] duration-[120ms]',
   copyIdle: 'text-[#8B95A1] hover:bg-[#F7F8FA] hover:text-[#191F28]',

@@ -95,7 +95,7 @@ describe('WaitingApprovalCard', () => {
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     const heading = screen.getByRole('heading', { name: '연동 대상 승인 대기' });
-    expect(heading.className).toContain('text-[26px]');
+    expect(heading.className).toContain('text-[22px]');
     expect(heading.className).toContain('font-extrabold');
 
     await waitFor(() => {
