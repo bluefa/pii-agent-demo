@@ -10,6 +10,7 @@ import {
   cardStyles,
   cn,
   identityBarStyles,
+  pageHeaderTitleMutedStyle,
   primaryColors,
   providerAccent,
   providerAccentDefault,
@@ -102,7 +103,7 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
             title={
               <>
                 {serviceTitle}{' '}
-                <span className="font-medium text-[#8B95A1]">({project.serviceCode})</span>
+                <span className={pageHeaderTitleMutedStyle}>({project.serviceCode})</span>
               </>
             }
             action={action}

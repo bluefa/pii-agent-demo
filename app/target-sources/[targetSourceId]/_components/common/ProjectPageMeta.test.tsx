@@ -13,6 +13,15 @@ vi.mock('@/app/components/features/process-status', () => ({
 
 import { ProjectPageMeta } from '@/app/target-sources/[targetSourceId]/_components/common/ProjectPageMeta';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
+import { identityBarStyles } from '@/lib/theme';
+
+// Selector for the identity-bar provider name, derived from the theme token so
+// the test tracks the token instead of hardcoding its classes. (jsdom has no
+// CSS.escape, so escape selector metacharacters by hand.)
+const providerNameSelector = identityBarStyles.providerName
+  .split(' ')
+  .map((c) => `.${c.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`)}`)
+  .join('');
 
 const projectFixture: TargetSource = {
   id: 'proj-1',
@@ -70,7 +79,7 @@ describe('ProjectPageMeta — identity-bar provider name vs breadcrumb crumb', (
       <ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />,
     );
     // identity-bar provider name (.ib-provider-name) carries the bare token only (HTML 9428).
-    const providerName = container.querySelector('.font-bold.text-\\[\\#191F28\\]');
+    const providerName = container.querySelector(providerNameSelector);
     expect(providerName?.textContent).toBe('AWS');
   });
 
@@ -84,7 +93,7 @@ describe('ProjectPageMeta — identity-bar provider name vs breadcrumb crumb', (
     const { container } = render(
       <ProjectPageMeta project={projectFixture} providerLabel="IDC Infrastructure" identity={idcIdentity} />,
     );
-    const providerName = container.querySelector('.font-bold.text-\\[\\#191F28\\]');
+    const providerName = container.querySelector(providerNameSelector);
     expect(providerName?.textContent).toBe('IDC');
   });
 });

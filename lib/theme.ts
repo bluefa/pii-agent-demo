@@ -337,6 +337,9 @@ export const pageChromeStyles = {
 export const pageHeaderTitleStyle =
   'text-[24px] font-extrabold leading-[1.2] tracking-[-0.03em] text-[#191F28]';
 
+/** Muted suffix inside the page H1 (e.g. the "(serviceCode)" parens) — inherits the H1 size, weak Toss gray. */
+export const pageHeaderTitleMutedStyle = 'font-medium text-[#8B95A1]';
+
 /**
  * Page-meta horizontal kv strip (Toss display variant).
  * See ADR-014 D1; consumer rollout starts in Wave 1.

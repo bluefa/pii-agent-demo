@@ -110,7 +110,8 @@ export const ServiceSidebar = ({
               onClick={() => onPageChange(Math.max(0, currentPage - 1))}
               disabled={currentPage === 0}
               className={cn(
-                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#F3F4F6]',
+                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
+                bgColors.mutedHover,
                 textColors.tertiary,
               )}
               aria-label="이전 페이지"
@@ -128,7 +129,7 @@ export const ServiceSidebar = ({
                   'w-7 h-7 text-xs rounded-md transition-colors flex items-center justify-center',
                   n === currentPage
                     ? `${primaryColors.bg} text-white`
-                    : cn(textColors.tertiary, 'hover:bg-[#F3F4F6]'),
+                    : cn(textColors.tertiary, bgColors.mutedHover),
                 )}
               >
                 {n + 1}
@@ -139,7 +140,8 @@ export const ServiceSidebar = ({
               onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
               disabled={currentPage >= totalPages - 1}
               className={cn(
-                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#F3F4F6]',
+                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
+                bgColors.mutedHover,
                 textColors.tertiary,
               )}
               aria-label="다음 페이지"
