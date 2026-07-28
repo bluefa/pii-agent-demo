@@ -211,30 +211,31 @@ export const TopNav = () => {
           })}
         </nav>
 
+        {/* Help/announcement group — sits right after the primary items (owner
+            ask: "PII Map 옆으로"), separated by a thin divider so it reads as a
+            distinct-but-adjacent cluster. */}
+        <span aria-hidden="true" className="h-5 w-px shrink-0 bg-white/15 -mx-4" />
+
+        <nav aria-label="도움말" className="flex items-center gap-0.5">
+          {UTILITY_ITEMS.map((item) => (
+            <a
+              key={item.label}
+              href="#"
+              onClick={(e) => handleDisabledClick(e, item.label)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors',
+                navStyles.link.inactive,
+              )}
+            >
+              {item.icon}
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
         <div className="flex-1" />
 
-        <div className="flex items-center gap-4">
-          <nav aria-label="도움말" className="flex items-center gap-0.5">
-            {UTILITY_ITEMS.map((item) => (
-              <a
-                key={item.label}
-                href="#"
-                onClick={(e) => handleDisabledClick(e, item.label)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors',
-                  navStyles.link.inactive,
-                )}
-              >
-                {item.icon}
-                {item.label}
-              </a>
-            ))}
-          </nav>
-
-          <span aria-hidden="true" className="h-5 w-px bg-white/15" />
-
-          <UserChip />
-        </div>
+        <UserChip />
       </header>
 
       {toastMessage && (
