@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { TargetSource } from '@/lib/types';
-import { getJiraTicket } from '@/app/lib/api';
 import { providerAccent, providerAccentDefault } from '@/lib/theme';
 import { ErrorState, GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common';
 import type { JiraTicketState } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
@@ -15,35 +14,12 @@ import { ServiceListPanel } from '@/app/target-sources/[targetSourceId]/_compone
 
 interface ProjectDetailProps {
   initialProject: TargetSource;
+  /** SSR-resolved collab ticket (page.tsx): null = none mapped (404), 'error' = fetch failed. */
+  jiraTicket: JiraTicketState;
 }
 
-export const ProjectDetail = ({ initialProject }: ProjectDetailProps) => {
+export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps) => {
   const [project, setProject] = useState<TargetSource>(initialProject);
-
-  // Collab-channel ticket for the guide rail card. States are kept distinct so
-  // a fetch outage ('error') is never rendered as the 미연결 state (null = the
-  // API's 404, i.e. genuinely no ticket mapped).
-  const [jiraTicket, setJiraTicket] = useState<JiraTicketState>('loading');
-  // Reset during render (not in the effect) when the target changes, so the
-  // previous target's ticket never flashes on the new page.
-  const [ticketTargetId, setTicketTargetId] = useState(project.targetSourceId);
-  if (ticketTargetId !== project.targetSourceId) {
-    setTicketTargetId(project.targetSourceId);
-    setJiraTicket('loading');
-  }
-  useEffect(() => {
-    let cancelled = false;
-    getJiraTicket(project.targetSourceId)
-      .then((ticket) => {
-        if (!cancelled) setJiraTicket(ticket);
-      })
-      .catch(() => {
-        if (!cancelled) setJiraTicket('error');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [project.targetSourceId]);
 
   // Same semantics as the per-provider identity strips had: SDU accounts are
   // monitored via SDU, everything else via the provider agent.

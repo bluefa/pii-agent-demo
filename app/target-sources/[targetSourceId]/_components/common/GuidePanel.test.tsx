@@ -37,12 +37,6 @@ describe('GuidePanel — collab-channel card states', () => {
     expect(screen.queryByText('아직 연결된 협업 채널이 없어요')).toBeNull();
   });
 
-  it('renders neither row while loading', () => {
-    render(<GuidePanel {...baseProps} jiraTicket="loading" />);
-    expect(screen.queryByText('아직 연결된 협업 채널이 없어요')).toBeNull();
-    expect(screen.queryByText('협업 채널 정보를 불러오지 못했어요')).toBeNull();
-  });
-
   it('links the mapped issue key (owner ask: blue underlined hyperlink)', () => {
     render(<GuidePanel {...baseProps} jiraTicket={{ issueKey: 'PII-42' }} />);
     const link = screen.getByTitle('협업 채널 — Jira에서 논의하기') as HTMLAnchorElement;

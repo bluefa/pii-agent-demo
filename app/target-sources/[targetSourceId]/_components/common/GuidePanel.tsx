@@ -22,10 +22,10 @@ import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 type PanelTab = 'guide' | 'history';
 
 /**
- * Collab-channel ticket state for the rail card: 'loading' until the fetch
- * settles, 'error' on non-404 failures, null = no ticket mapped (API 404).
+ * Collab-channel ticket state for the rail card, resolved server-side
+ * (page.tsx): 'error' on non-404 failures, null = no ticket mapped (API 404).
  */
-export type JiraTicketState = { issueKey: string } | null | 'loading' | 'error';
+export type JiraTicketState = { issueKey: string } | null | 'error';
 
 /**
  * Jira base URL for ticket links — the wire (JiraTicketResponse) carries only
@@ -54,7 +54,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
       <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.tertiary)}>
         진행 중 막히는 부분은 협업 채널에서 담당자에게 바로 문의할 수 있어요.
       </p>
-      {jiraTicket === 'loading' ? null : jiraTicket === 'error' ? (
+      {jiraTicket === 'error' ? (
         <div
           className={cn(
             rowBase,
