@@ -3,9 +3,8 @@ import { toTcResultRow, type TcResultRow } from '@/app/lib/api/task-queue-tc';
 import {
   tcResultStats,
   ldbCount,
-  putLdbCache,
-  type LdbCache,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
+import { shortResourceId } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 
 const row = (over: Partial<TcResultRow> = {}): TcResultRow => ({
   resourceId: 'r-1',
@@ -109,17 +108,24 @@ describe('ldbCount', () => {
   });
 });
 
-describe('putLdbCache', () => {
-  it('immutably adds an entry without mutating the input', () => {
-    const cache: LdbCache = {};
-    const next = putLdbCache(cache, 'r-1', { included: [], excluded: [] });
-    expect(cache).toEqual({});
-    expect(next['r-1']).toEqual({ included: [], excluded: [] });
+describe('shortResourceId', () => {
+  it('leaves a short id untouched', () => {
+    expect(shortResourceId('idc-ivt-9a01')).toBe('idc-ivt-9a01');
   });
 
-  it('overwrites the same resource key', () => {
-    const first = putLdbCache({}, 'r-1', { included: [{ databaseName: 'a' }], excluded: [] });
-    const second = putLdbCache(first, 'r-1', { included: [], excluded: [] });
-    expect(second['r-1'].included).toEqual([]);
+  it('keeps the last two segments of a long path id', () => {
+    expect(
+      shortResourceId(
+        '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-01',
+      ),
+    ).toBe('…/servers/mysql-dlv-01');
+  });
+
+  it('elides the middle of a long id that has no path segments', () => {
+    const value = 'arn'.padEnd(60, 'x');
+    const short = shortResourceId(value);
+    expect(short).toContain('…');
+    expect(short.length).toBeLessThan(value.length);
+    expect(short.endsWith(value.slice(-16))).toBe(true);
   });
 });

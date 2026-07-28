@@ -433,7 +433,7 @@ describe('mock-test-connection behavior lock-in', () => {
     it('deterministic: seed timestamps are fixed (no Date.now())', () => {
       const job = getLatestJob(STEP5_TARGET);
       expect(job?.requested_at).toBe('2026-06-01T00:00:00.000Z');
-      expect(job?.completed_at).toBe('2026-06-01T00:00:20.000Z');
+      expect(job?.completed_at).toBe('2026-06-01T00:04:20.000Z');
     });
   });
 });

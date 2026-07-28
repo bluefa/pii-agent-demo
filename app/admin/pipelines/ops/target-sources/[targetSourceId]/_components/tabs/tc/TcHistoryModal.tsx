@@ -1,13 +1,14 @@
 'use client';
 
 /**
- * Test Connection 이력 modal — the Complete / Reject / Reset trail
+ * Test Connection 처리 이력 modal — the Complete / Reject / Reset trail
  * (GET …/test-connection/history, Spring-paged, newest first), opened from the
- * 결과 card's 이력 확인 header CTA. Mounted per open, so every open starts on
- * page 0 with a fresh fetch; writes cannot happen while the overlay is up.
+ * 실행 card's 처리 이력 header CTA. Distinct from the card's inline 수행 기록, which
+ * lists the RUNS. Mounted per open, so every open starts on page 0 with a fresh
+ * fetch; writes cannot happen while the overlay is up.
  *
- * Presentation mirrors the sibling LdbModal grammar: tqStyles.appTable rows in
- * a task-width shell with PlPagination below — the full trail is reachable
+ * Presentation mirrors the sibling LdbManageModal grammar: tqStyles.appTable rows
+ * in a task-width shell with PlPagination below — the full trail is reachable
  * page by page. An unmapped status renders its raw wire string on a neutral
  * tag rather than being folded into a known state.
  */
@@ -78,9 +79,9 @@ export function TcHistoryModal({ targetSourceId, onClose }: TcHistoryModalProps)
   return (
     <ModalShell open onClose={onClose} variant="task" labelledBy={TITLE_ID}>
       <h3 id={TITLE_ID} className={pipelineStyles.modal.title}>
-        Test Connection 이력
+        Test Connection 처리 이력
       </h3>
-      <p className={pipelineStyles.modal.desc}>완료 · 재실행 요청 · 초기화 이벤트의 전체 기록 (최신순)</p>
+      <p className={pipelineStyles.modal.desc}>완료 확인 · 재실행 요청 · 초기화 이벤트의 전체 기록 (최신순)</p>
 
       {loading ? (
         <div className="min-h-[220px]" aria-busy />
