@@ -956,20 +956,6 @@ const PIPELINE_PILL_ICON: Record<PipelineStatusToneKey, string> = {
   BLOCKED: 'ban',
 };
 
-/** Dashboard status dot+text tone (Figma Make) — colored text + matching dot,
- *  no pill background. Keyed by wire status (task-level keys included for safety;
- *  the dashboard list only surfaces pipeline statuses). */
-const DASHBOARD_STATUS_TONE: Record<PipelineStatusToneKey, { text: string; dot: string }> = {
-  PENDING: { text: 'text-[var(--pl-warn)]', dot: 'bg-[var(--pl-warn)]' },
-  RUNNING: { text: 'text-[var(--pl-info)]', dot: 'bg-[var(--pl-info)]' },
-  IN_PROGRESS: { text: 'text-[var(--pl-info)]', dot: 'bg-[var(--pl-info)]' },
-  READY: { text: 'text-[var(--pl-warn)]', dot: 'bg-[var(--pl-warn)]' },
-  DONE: { text: 'text-[var(--pl-ok)]', dot: 'bg-[var(--pl-ok)]' },
-  FAILED: { text: 'text-[var(--pl-err)]', dot: 'bg-[var(--pl-err)]' },
-  CANCELLED: { text: 'text-[var(--pl-text-faint)]', dot: 'bg-[var(--pl-gray-300)]' },
-  BLOCKED: { text: 'text-[var(--pl-text-faint)]', dot: 'bg-[var(--pl-gray-300)]' },
-};
-
 /** Provider dot fill per lowercased provider key. */
 const PIPELINE_PROVIDER_DOT: Record<string, string> = {
   aws: 'bg-[var(--pl-pv-aws)]',
@@ -1303,16 +1289,14 @@ export const pipelineStyles = {
     serviceName: 'block max-w-[28ch] truncate text-[14px] font-semibold text-[var(--pl-text-strong)]',
     serviceCode:
       'whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
-    targetId: 'text-[14px] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]',
+    /** Same weight/colour as 서비스 코드 — it is a row value, not a footnote. */
+    targetId:
+      'whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
     /** Cloud — plain medium text (no brand dot). */
     cloudText: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
     /** Pipeline type — icon + text. */
     typeCell: 'inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--pl-text-medium)]',
 
-    /** Status — colored dot + text (no pill). */
-    status: 'inline-flex items-center gap-1.5 text-[12px] font-semibold',
-    statusDot: 'w-1.5 h-1.5 rounded-full flex-shrink-0',
-    statusTone: DASHBOARD_STATUS_TONE,
 
     /** Progress — gray track + gray fill + N/M count. The fill is `block` so its
      *  `h-full` resolves against the track height (an inline span would collapse). */
