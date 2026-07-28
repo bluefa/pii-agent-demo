@@ -16,8 +16,11 @@
  * `PIPELINE_ALREADY_ACTIVE`) closes the modal, refetches the latest run, and
  * routes the operator there instead of failing in place.
  *
- * `from_sequence` (moving the resume point earlier) is deliberately NOT wired — the
- * design defers the override to a second pass; this modal always uses the server default.
+ * Choosing `from_sequence` (moving the resume point earlier) is deliberately NOT
+ * wired — the design defers the override to a second pass. The execution still
+ * SENDS `from_sequence`, echoing the resume point the preview just computed:
+ * upstream 500s on a bodyless restart, so "omit it for the server default" is not
+ * a usable path. Same resume point either way — this one just doesn't blow up.
  */
 import { Fragment, useCallback, useEffect, useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
@@ -149,7 +152,14 @@ export function RestartModal({
     };
   }, [open, provider]);
 
-  const run = useApiAction(() => restartPipeline(targetSourceId, pipelineId), {
+  // The CTA is disabled until the preview lands, so `preview` is non-null here in
+  // practice; the throw is the type guard, and it surfaces as a normal run error.
+  const run = useApiAction(() => {
+    if (!preview) throw new Error('재시작 미리보기를 불러오지 못했습니다');
+    return restartPipeline(targetSourceId, pipelineId, {
+      from_sequence: preview.resume_from_sequence,
+    });
+  }, {
     suppressAlert: true,
     onSuccess: (detail) => {
       onClose();
