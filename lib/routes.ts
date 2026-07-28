@@ -60,9 +60,6 @@ export const passRoutes = {
       requests: '/admin/pipelines/queue/requests',
       request: (targetSourceId: number | string) =>
         `/admin/pipelines/queue/requests/${encodeURIComponent(String(targetSourceId))}`,
-      testConnections: '/admin/pipelines/queue/test-connections',
-      testConnection: (targetSourceId: number | string) =>
-        `/admin/pipelines/queue/test-connections/${encodeURIComponent(String(targetSourceId))}`,
     },
     /** 운영 콘솔 (design/pipeline/ops-target-source-app-plan.md). */
     ops: {

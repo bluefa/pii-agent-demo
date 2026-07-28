@@ -10,6 +10,8 @@ import Link from 'next/link';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { getOpsTargetSources, type OpsTargetSourceListItem } from '@/app/lib/api/ops';
+import { getTestConnectionQueue } from '@/app/lib/api/task-queue-tc';
+import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import type { BffProcessStatus } from '@/app/lib/api';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
@@ -25,7 +27,14 @@ const DAY_SECONDS = 24 * 3600;
  *  everything below happens client-side (mock/ops scale is far under the cap). */
 const FETCH_CAP = 200;
 
-type AlertFilter = BffProcessStatus | 'STALE';
+/**
+ * 재실행 요청 is NOT a process status: rejecting a Test Connection rolls the
+ * target back to its pre-테스트 step, so those rows fall out of every status
+ * filter below. They come from the Test Connection queue endpoint instead and
+ * are overlaid onto the list by target_source_id — this is what the standalone
+ * 연결 테스트 목록 page used to show.
+ */
+type AlertFilter = BffProcessStatus | 'STALE' | 'TC_REJECTED';
 type ValueTone = 'warn' | 'err' | 'plain';
 
 interface AlertKind {
@@ -40,15 +49,22 @@ const ALERT_KINDS: readonly AlertKind[] = [
   { key: 'PENDING', label: '승인 대기', need: '연동 대상 승인·반려', tone: 'warn' },
   { key: 'CONFIRMED', label: '설치 작업 필요', need: 'Agent 설치 수행', tone: 'err' },
   { key: 'CONNECTED', label: '연결 테스트 검토', need: '완료 승인', tone: 'warn' },
+  { key: 'TC_REJECTED', label: '재실행 요청', need: '재실행 결과 확인', tone: 'err' },
   { key: 'STALE', label: '장기 정체 (7일↑)', need: '원인 확인', tone: 'plain' },
 ];
 
 /** The three statuses that always need someone — the default (no filter) view. */
 const ACTION_STATUSES: readonly BffProcessStatus[] = ['PENDING', 'CONFIRMED', 'CONNECTED'];
 
+/** The two Test Connection alerts deep-link straight into that tab. */
+const TC_ALERTS: readonly AlertFilter[] = ['CONNECTED', 'TC_REJECTED'];
+
 /** 필요한 작업 for a row's status; stale-only rows have no status-bound action. */
 const needForStatus = (status: BffProcessStatus): string | null =>
   ALERT_KINDS.find((kind) => kind.key === status)?.need ?? null;
+
+const needForRejected = (): string =>
+  ALERT_KINDS.find((kind) => kind.key === 'TC_REJECTED')?.need ?? '재실행 결과 확인';
 
 const VALUE_TONE_CLASS: Record<ValueTone, string> = {
   warn: 'text-[var(--pl-warn-text)]',
@@ -57,7 +73,7 @@ const VALUE_TONE_CLASS: Record<ValueTone, string> = {
 };
 
 const statCard = {
-  row: 'grid grid-cols-[repeat(4,minmax(0,260px))] gap-3',
+  row: 'grid grid-cols-[repeat(5,minmax(0,220px))] gap-3',
   base: 'text-left rounded-[10px] border px-5 py-4 cursor-pointer transition-colors',
   idle: 'bg-[var(--pl-gray-100)] border-[var(--pl-border)] hover:border-[var(--pl-border-strong)]',
   active:
@@ -90,55 +106,123 @@ const elapsedText = (seconds: number): string => {
   return `${Math.floor(seconds / 60)}분`;
 };
 
+/**
+ * One list row. The two sources are unioned, not intersected: a 재실행 요청 whose
+ * Target Source is absent from the (paged) ops list still gets a row, carrying
+ * the queue's own service fields and a null 현재 단계 — dropping it would lose
+ * exactly what folding the 연결 테스트 목록 in here was meant to preserve.
+ */
+interface AlertRow {
+  targetSourceId: number;
+  serviceName: string;
+  serviceCode: string;
+  cloudProvider: string;
+  isSdu: boolean;
+  /** null for a row known only to the Test Connection queue. */
+  processStatus: BffProcessStatus | null;
+  /** last_changed_at, or the reject time for a queue-only row. */
+  since: string;
+  isRejected: boolean;
+}
+
+const fromOps = (row: OpsTargetSourceListItem, isRejected: boolean): AlertRow => ({
+  targetSourceId: row.target_source_id,
+  serviceName: row.service_name,
+  serviceCode: row.service_code,
+  cloudProvider: row.cloud_provider,
+  isSdu: row.is_sdu_type,
+  processStatus: row.process_status,
+  since: row.last_changed_at,
+  isRejected,
+});
+
+const fromTcQueue = (row: TestConnectionStatusRow, targetSourceId: number): AlertRow => ({
+  targetSourceId,
+  serviceName: row.serviceName ?? '—',
+  serviceCode: row.serviceCode ?? '—',
+  cloudProvider: row.cloudProvider ?? '',
+  isSdu: false,
+  processStatus: null,
+  since: row.rejectedAt ?? '',
+  isRejected: true,
+});
+
 export function AlertsView(): ReactElement {
-  const [rows, setRows] = useState<OpsTargetSourceListItem[]>([]);
+  const [rows, setRows] = useState<AlertRow[]>([]);
   /** Captured with the payload so elapsed values stay consistent across renders. */
   const [now, setNow] = useState(() => Date.now());
-  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [filter, setFilter] = useState<AlertFilter | null>(null);
 
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
+  // Loading is derived from "which load has settled" rather than its own flag,
+  // so the effect never calls setState synchronously in its body.
+  const [loadedKey, setLoadedKey] = useState(-1);
+  const loading = loadedKey !== reloadKey;
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setFailed(false);
     (async () => {
-      try {
-        const page = await getOpsTargetSources(undefined, 0, FETCH_CAP);
-        if (cancelled) return;
-        setRows(page.content ?? []);
-        setNow(Date.now());
-      } catch {
-        if (cancelled) return;
-        setRows([]);
-        setFailed(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      // The list gates the page; the 재실행 요청 overlay is best-effort, so its
+      // failure costs that one filter rather than the whole view.
+      const [page, tcRejected] = await Promise.allSettled([
+        getOpsTargetSources(undefined, 0, FETCH_CAP),
+        getTestConnectionQueue({ status: 'TEST_CONNECTION_REJECTED', page: 0, size: FETCH_CAP }),
+      ]);
+      if (cancelled) return;
+      setFailed(page.status === 'rejected');
+
+      const rejectedRows =
+        tcRejected.status === 'fulfilled' ? (tcRejected.value.content ?? []) : [];
+      const rejectedById = new Map(
+        rejectedRows
+          .filter((row) => row.targetSourceId != null)
+          .map((row) => [row.targetSourceId as number, row]),
+      );
+
+      const opsRows = page.status === 'fulfilled' ? (page.value.content ?? []) : [];
+      const merged = opsRows.map((row) => fromOps(row, rejectedById.has(row.target_source_id)));
+      const seen = new Set(merged.map((row) => row.targetSourceId));
+      rejectedById.forEach((row, id) => {
+        if (!seen.has(id)) merged.push(fromTcQueue(row, id));
+      });
+
+      setRows(merged);
+      setNow(Date.now());
+      setLoadedKey(reloadKey);
     })();
     return () => {
       cancelled = true;
     };
   }, [reloadKey]);
 
+  // Counted off the same rows the table renders, so a card's number and its
+  // filtered list can never disagree.
   const count = (key: AlertFilter): number =>
     key === 'STALE'
-      ? rows.filter((row) => elapsedSeconds(row.last_changed_at, now) >= STALE_SECONDS).length
-      : rows.filter((row) => row.process_status === key).length;
+      ? rows.filter((row) => elapsedSeconds(row.since, now) >= STALE_SECONDS).length
+      : key === 'TC_REJECTED'
+        ? rows.filter((row) => row.isRejected).length
+        : rows.filter((row) => row.processStatus === key).length;
 
-  const matches = (row: OpsTargetSourceListItem): boolean => {
-    const stale = elapsedSeconds(row.last_changed_at, now) >= STALE_SECONDS;
-    if (filter === null) return ACTION_STATUSES.includes(row.process_status) || stale;
+  const matches = (row: AlertRow): boolean => {
+    const stale = elapsedSeconds(row.since, now) >= STALE_SECONDS;
+    if (filter === null)
+      return (
+        (row.processStatus != null && ACTION_STATUSES.includes(row.processStatus))
+        || row.isRejected
+        || stale
+      );
     if (filter === 'STALE') return stale;
-    return row.process_status === filter;
+    if (filter === 'TC_REJECTED') return row.isRejected;
+    return row.processStatus === filter;
   };
 
   const listed = rows
     .filter(matches)
-    .map((row) => ({ row, elapsed: elapsedSeconds(row.last_changed_at, now) }))
+    .map((row) => ({ row, elapsed: elapsedSeconds(row.since, now) }))
     .sort((a, b) => b.elapsed - a.elapsed);
 
   return (
@@ -147,7 +231,8 @@ export function AlertsView(): ReactElement {
         <div>
           <h1 className={cn(pipelineStyles.text.pageTitle, 'mb-1.5')}>운영 알림</h1>
           <p className={pipelineStyles.text.sectionDesc}>
-            설치 인력·관리자 액션이 필요한 Target Source를 모든 서비스에 걸쳐 모아 봅니다.
+            설치 인력·관리자 액션이 필요한 Target Source를 모든 서비스에 걸쳐 모아 봅니다. 연결 테스트
+            검토·재실행 요청 건도 여기에 함께 표시합니다.
           </p>
         </div>
         <PlButton variant="secondary" onClick={reload} disabled={loading}>
@@ -220,30 +305,52 @@ export function AlertsView(): ReactElement {
               <tbody>
                 {listed.map(({ row, elapsed }) => (
                   <tr
-                    key={row.target_source_id}
+                    key={row.targetSourceId}
                     // `relative` carries the stretched row link below.
                     className={cn(opsStyles.table.rowHover, 'relative cursor-pointer')}
                   >
                     <td className={cn(opsStyles.table.cell, 'whitespace-nowrap')}>
                       <Link
-                        href={passRoutes.pipelines.ops.targetSource(String(row.target_source_id))}
-                        aria-label={`Target Source ${row.target_source_id} 운영 화면으로 이동`}
+                        href={passRoutes.pipelines.ops.targetSource(
+                          String(row.targetSourceId),
+                          // A Test Connection alert lands on that tab; anything
+                          // else opens the default 진행 상태.
+                          row.isRejected
+                          || (row.processStatus != null && TC_ALERTS.includes(row.processStatus))
+                            ? 'tc'
+                            : undefined,
+                        )}
+                        aria-label={`Target Source ${row.targetSourceId} 운영 화면으로 이동`}
                         className="absolute inset-0"
                       />
-                      <span className={pipelineStyles.table.mono}>#{row.target_source_id}</span>
+                      <span className={pipelineStyles.table.mono}>#{row.targetSourceId}</span>
                     </td>
                     <td className={opsStyles.table.cell}>
-                      <span className="font-medium">{row.service_name}</span>{' '}
-                      <span className={pipelineStyles.text.meta}>{row.service_code}</span>
+                      <span className="font-medium">{row.serviceName}</span>{' '}
+                      <span className={pipelineStyles.text.meta}>{row.serviceCode}</span>
                     </td>
                     <td className={opsStyles.table.cell}>
-                      <ProvTag provider={row.cloud_provider} isSdu={row.is_sdu_type} />
+                      {row.cloudProvider ? (
+                        <ProvTag provider={row.cloudProvider} isSdu={row.isSdu} />
+                      ) : (
+                        <span className={pipelineStyles.text.muted}>—</span>
+                      )}
                     </td>
                     <td className={cn(opsStyles.table.cell, 'whitespace-nowrap')}>
-                      <StepPill status={row.process_status} />
+                      {/* A queue-only row has no process status — say so, don't guess one. */}
+                      {row.processStatus ? (
+                        <StepPill status={row.processStatus} />
+                      ) : (
+                        <span className={pipelineStyles.text.muted}>—</span>
+                      )}
                     </td>
                     <td className={cn(opsStyles.table.cell, 'whitespace-nowrap')}>
-                      {needForStatus(row.process_status) ?? (
+                      {/* 재실행 요청 wins: it is why the row is listed at all. */}
+                      {row.isRejected ? (
+                        needForRejected()
+                      ) : row.processStatus != null && needForStatus(row.processStatus) ? (
+                        needForStatus(row.processStatus)
+                      ) : (
                         <span className={pipelineStyles.text.muted}>장기 정체 상태입니다. 원인을 확인해 주세요.</span>
                       )}
                     </td>

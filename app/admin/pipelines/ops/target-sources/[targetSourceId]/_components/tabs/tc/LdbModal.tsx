@@ -14,7 +14,7 @@ import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
-import type { LdbCacheEntry, LdbTab } from '@/app/admin/pipelines/queue/test-connections/_tc/logic';
+import type { LdbCacheEntry, LdbTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 const PAGE_SIZE = 10;
 
