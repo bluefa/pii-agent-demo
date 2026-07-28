@@ -93,6 +93,48 @@ export interface OpsTargetSourceListPage {
   content: OpsTargetSourceListItem[];
 }
 
+/* ── 운영 알림 (assumed §7) ── */
+
+/**
+ * The alert taxonomy is the server's, not ours. A row carries every kind that
+ * applies, so the UI reads `alert_kinds` instead of re-deriving anything from
+ * `process_status` — TC_REJECTED in particular is invisible to status alone.
+ */
+export type OpsAlertKind = 'PENDING' | 'CONFIRMED' | 'CONNECTED' | 'TC_REJECTED' | 'STALE';
+
+export interface OpsAlertRow {
+  target_source_id: number;
+  service_code: string;
+  service_name: string;
+  cloud_provider: string;
+  is_sdu_type: boolean;
+  process_status: BffProcessStatus;
+  last_changed_at: string;
+  alert_kinds: OpsAlertKind[];
+}
+
+export interface OpsAlertsResponse {
+  /** Whole population — unaffected by the `kind` filter or by paging. */
+  counts: Record<OpsAlertKind, number>;
+  alerts: {
+    totalElements: number;
+    totalPages: number;
+    size: number;
+    number: number;
+    content: OpsAlertRow[];
+  };
+}
+
+export const getOpsAlerts = (
+  kind: OpsAlertKind | undefined,
+  page = 0,
+  size = 20,
+): Promise<OpsAlertsResponse> => {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  if (kind) params.set('kind', kind);
+  return fetchInfraJson<OpsAlertsResponse>(`/admin/ops/alerts?${params}`);
+};
+
 export type OpsJiraTicketStatus = 'TO_DO' | 'IN_PROGRESS' | 'DONE';
 
 export interface OpsJiraTicket {

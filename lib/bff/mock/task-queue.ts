@@ -580,6 +580,17 @@ function toTcWire(s: TcState) {
   };
 }
 
+/**
+ * Target sources whose Test Connection is currently sent back for a re-run.
+ * 운영 알림 (ops assumed §7) joins on this: rejecting rolls the target back to
+ * its pre-test step, so these rows match no `process_status` filter.
+ */
+export function getTcRejectedTargetSourceIds(): number[] {
+  return [...tq().tcState.values()]
+    .filter((state) => state.status === 'TEST_CONNECTION_REJECTED')
+    .map((state) => state.ts);
+}
+
 export const mockTaskQueue = {
   // GET /dashboard/summary
   getDashboardSummary: async () =>

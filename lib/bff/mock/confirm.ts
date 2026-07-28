@@ -1724,11 +1724,14 @@ export const mockConfirm = {
   },
 
   getLatestTestConnectionResultSummaries: async (targetSourceId: string) => {
+    // Test Connection 큐 대상은 프로젝트이면서 별도의 리치한 결과 fixture 를 갖는다
+    // (mock-data.ts §Test Connection 큐 대상). 이 fixture 가 우선 — 논리 DB 드릴다운
+    // (mockLogicalDb) 이 같은 순서로 읽으므로 두 화면의 리소스 집합이 어긋나지 않는다.
+    const demoRows = getTcLatestResultRows(Number(targetSourceId));
+    if (demoRows) return NextResponse.json(demoRows);
+
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
-      // Admin Task Queue demo targets (1799/1583) live outside the store.
-      const demoRows = getTcLatestResultRows(Number(targetSourceId));
-      if (demoRows) return NextResponse.json(demoRows);
       return NextResponse.json(
         { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
         { status: 404 },
