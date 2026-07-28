@@ -35,61 +35,6 @@ const extractJiraLabel = (url: string): string => {
   return match ? match[1] : 'Jira';
 };
 
-/** v16 sample collab-channel ticket key, used when the project has no real Jira link yet. */
-const COLLAB_CHANNEL_FALLBACK = 'BDCDIP-1353';
-
-/**
- * v16 page-header `.actions` collab chip (HTML 5745–5750, `.btn.collab-chip`):
- * a pill linking to the project's Jira discussion. Shared chrome — rendered
- * before the page action across every provider. Tokens map to the v16 vars
- * (inner-bg fill #F7F8FA, hover #ECEEF1, weak-text key #8B95A1, medium-text icon #4E5968).
- */
-const CollabChannelChip = ({ jiraLink }: { jiraLink?: string | null }) => {
-  const value = jiraLink ? extractJiraLabel(jiraLink) : COLLAB_CHANNEL_FALLBACK;
-
-  return (
-    <a
-      href={jiraLink ?? '#'}
-      target={jiraLink ? '_blank' : undefined}
-      rel={jiraLink ? 'noopener noreferrer' : undefined}
-      title="협업 채널 — Jira에서 논의하기"
-      className="inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#F7F8FA] px-3.5 text-[13px] font-semibold tracking-[-0.005em] text-[#191F28] no-underline transition-colors hover:bg-[#ECEEF1]"
-    >
-      <svg
-        className="shrink-0 text-[#4E5968]"
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-      <span className="text-[12px] font-semibold tracking-normal text-[#8B95A1]">협업 채널</span>
-      <span className="font-mono text-[12.5px] font-semibold">{value}</span>
-      <svg
-        className="shrink-0 opacity-50"
-        width="11"
-        height="11"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M7 17L17 7" />
-        <polyline points="9 7 17 7 17 15" />
-      </svg>
-    </a>
-  );
-};
-
 const PROVIDER_ICON = (
   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.62-1.46A4.5 4.5 0 0 1 17.5 18H7Z" />
@@ -160,12 +105,7 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
                 <span className="font-medium text-[#8B95A1]">({project.serviceCode})</span>
               </>
             }
-            action={
-              <>
-                <CollabChannelChip jiraLink={identity.jiraLink} />
-                {action}
-              </>
-            }
+            action={action}
           />
         </div>
         <IdentityBar

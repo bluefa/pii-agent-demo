@@ -43,23 +43,15 @@ const idcIdentity: ProjectIdentity = {
   identifiers: [],
 };
 
-describe('ProjectPageMeta — collab-channel chip', () => {
-  it('renders the collab chip with the v16 fallback ticket when no Jira link', () => {
+describe('ProjectPageMeta — header action slot', () => {
+  // The collab-channel entry moved to the GuidePanel rail footer (see
+  // GuidePanel.test.tsx); the header action slot now carries only the page action.
+  it('does not render the collab chip in the header anymore', () => {
     render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />);
-    expect(screen.getByText('협업 채널')).toBeTruthy();
-    expect(screen.getByText('BDCDIP-1353')).toBeTruthy();
+    expect(screen.queryByTitle('협업 채널 — Jira에서 논의하기')).toBeNull();
   });
 
-  it('uses the Jira ticket key + href when a Jira link is present', () => {
-    const linked: ProjectIdentity = { ...awsIdentity, jiraLink: 'https://jira.example.com/browse/PII-42' };
-    render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={linked} />);
-    const chip = screen.getByTitle('협업 채널 — Jira에서 논의하기') as HTMLAnchorElement;
-    expect(chip.getAttribute('href')).toBe('https://jira.example.com/browse/PII-42');
-    // chip ticket value (collab chip), distinct from the identity-field Jira link
-    expect(screen.getAllByText('PII-42').length).toBeGreaterThan(0);
-  });
-
-  it('renders the chip before the page action', () => {
+  it('renders the page action', () => {
     render(
       <ProjectPageMeta
         project={projectFixture}
@@ -68,10 +60,7 @@ describe('ProjectPageMeta — collab-channel chip', () => {
         action={<button type="button">인프라 삭제</button>}
       />,
     );
-    const chip = screen.getByTitle('협업 채널 — Jira에서 논의하기');
-    const action = screen.getByRole('button', { name: '인프라 삭제' });
-    // chip precedes the action in DOM order (Node.DOCUMENT_POSITION_FOLLOWING = 4)
-    expect(chip.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('button', { name: '인프라 삭제' })).toBeTruthy();
   });
 });
 

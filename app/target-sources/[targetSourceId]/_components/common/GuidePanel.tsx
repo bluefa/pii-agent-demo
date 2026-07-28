@@ -8,6 +8,7 @@ import {
   borderColors,
   cn,
   interactiveColors,
+  primaryColors,
   segmentedControlStyles,
   statusColors,
   textColors,
@@ -16,6 +17,76 @@ import {
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 
 type PanelTab = 'guide' | 'history';
+
+const JIRA_KEY_PATTERN = /\/browse\/([A-Z][A-Z0-9]+-\d+)/;
+
+/** v16 sample collab-channel ticket key, used when the project has no real Jira link yet. */
+const COLLAB_CHANNEL_FALLBACK = 'BDCDIP-1353';
+
+/**
+ * Rail-footer help card — the collab-channel entry point, moved out of the page
+ * header's action slot so the header keeps a single primary action and help
+ * lives with the rest of the auxiliary rail content.
+ */
+const CollabChannelCard = ({ jiraLink }: { jiraLink?: string | null }) => {
+  const ticket = jiraLink?.match(JIRA_KEY_PATTERN)?.[1] ?? COLLAB_CHANNEL_FALLBACK;
+
+  return (
+    <div className={cn('rounded-xl p-4', bgColors.muted)}>
+      <p className={cn('text-[13px] font-bold leading-[1.4]', textColors.primary)}>
+        도움이 필요하신가요?
+      </p>
+      <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.tertiary)}>
+        진행 중 막히는 부분은 협업 채널에서 담당자에게 바로 문의할 수 있어요.
+      </p>
+      <a
+        href={jiraLink ?? '#'}
+        target={jiraLink ? '_blank' : undefined}
+        rel={jiraLink ? 'noopener noreferrer' : undefined}
+        title="협업 채널 — Jira에서 논의하기"
+        className={cn(
+          'mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px] font-semibold no-underline transition-colors',
+          borderColors.light,
+          bgColors.surface,
+          textColors.secondary,
+          primaryColors.textHover,
+        )}
+      >
+        <svg
+          className="shrink-0"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        협업 채널 링크
+        <span className={cn('ml-auto font-mono text-[12px]', textColors.quaternary)}>{ticket}</span>
+        <svg
+          className="shrink-0 opacity-50"
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M7 17L17 7" />
+          <polyline points="9 7 17 7 17 15" />
+        </svg>
+      </a>
+    </div>
+  );
+};
 
 // ponytail: 진행 내역 API가 아직 없어 하드코딩 mock — 이력 데이터 소스가 생기면 교체.
 const MOCK_HISTORY: ReadonlyArray<{
@@ -69,6 +140,8 @@ const HistoryTimeline = ({ items }: { items: typeof MOCK_HISTORY }) => (
 
 interface GuidePanelProps {
   slotKey: GuideSlotKey | null;
+  /** Jira ticket URL for the collab-channel card; falls back to the v16 sample key. */
+  jiraLink?: string | null;
 }
 
 /**
@@ -78,7 +151,7 @@ interface GuidePanelProps {
  * working column keeps the visual weight. Replaces the inline amber guide card
  * (UX report P2/P3).
  */
-export const GuidePanel = ({ slotKey }: GuidePanelProps) => {
+export const GuidePanel = ({ slotKey, jiraLink }: GuidePanelProps) => {
   const [tab, setTab] = useState<PanelTab>('guide');
   const [page, setPage] = useState(0);
 
@@ -180,6 +253,10 @@ export const GuidePanel = ({ slotKey }: GuidePanelProps) => {
           </button>
         </div>
       )}
+
+      <div className={cn('shrink-0 border-t p-4', borderColors.light)}>
+        <CollabChannelCard jiraLink={jiraLink} />
+      </div>
     </aside>
   );
 };

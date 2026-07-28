@@ -26,6 +26,40 @@ const iconProps = {
   strokeLinejoin: 'round',
 } as const;
 
+// Help/announcement links — moved up from the Service List sidebar footer so
+// they are reachable from every page. All destinations are still placeholders,
+// so a click shows the same "준비 중" toast as the disabled primary items.
+const UTILITY_ITEMS: Array<{ label: string; icon: React.ReactNode }> = [
+  {
+    label: 'Notice',
+    icon: (
+      <svg {...iconProps} width={14} height={14} aria-hidden="true">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Guide',
+    icon: (
+      <svg {...iconProps} width={14} height={14} aria-hidden="true">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'FAQ',
+    icon: (
+      <svg {...iconProps} width={14} height={14} aria-hidden="true">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    ),
+  },
+];
+
 const NAV_ITEMS: NavItem[] = [
   {
     label: 'Service List',
@@ -179,7 +213,28 @@ export const TopNav = () => {
 
         <div className="flex-1" />
 
-        <UserChip />
+        <div className="flex items-center gap-4">
+          <nav aria-label="도움말" className="flex items-center gap-0.5">
+            {UTILITY_ITEMS.map((item) => (
+              <a
+                key={item.label}
+                href="#"
+                onClick={(e) => handleDisabledClick(e, item.label)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors',
+                  navStyles.link.inactive,
+                )}
+              >
+                {item.icon}
+                {item.label}
+              </a>
+            ))}
+          </nav>
+
+          <span aria-hidden="true" className="h-5 w-px bg-white/15" />
+
+          <UserChip />
+        </div>
       </header>
 
       {toastMessage && (
