@@ -60,9 +60,9 @@ const isStale = (err: unknown): boolean =>
 
 /** Failure line under the resume-point node — why the origin stopped here. */
 function originReason(status: string, failCount: number, errorCode: string | null): string {
-  if (status === 'FAILED') return `실패 ${failCount}회 · ${errorCode ?? '원인 미기록'}`;
-  if (status === 'CANCELLED') return '취소됨 — 여기부터 재실행';
-  return '미완료 — 여기부터 재실행';
+  if (status === 'FAILED') return `${failCount}회 실패했습니다. 원인은 ${errorCode ?? '기록되지 않았습니다'}.`;
+  if (status === 'CANCELLED') return '취소됐습니다. 여기부터 재실행합니다.';
+  return '완료되지 않았습니다. 여기부터 재실행합니다.';
 }
 
 export interface RestartModalProps {
@@ -100,7 +100,7 @@ export function RestartModal({
   const goToLatest = useCallback(async (): Promise<void> => {
     onClose();
     onStale?.();
-    showToast('작업 상태가 바뀌었어요 — 최신 작업으로 이동합니다');
+    showToast('작업 상태가 바뀌었습니다. 최신 작업으로 이동합니다.');
     try {
       const latest = await getLatestPipelineByTarget(targetSourceId);
       if (latest) router.push(passRoutes.pipelines.pipeline(latest.pipeline_id));
@@ -180,7 +180,7 @@ export function RestartModal({
           key: `skip-${t.sequence}`,
           kind: names.get(t.task_definition)?.kind ?? ('TERRAFORM_JOB' as const),
           name: displayName(t.task_definition),
-          desc: '완료 — 건너뜀',
+          desc: '이미 완료되어 건너뜁니다.',
           action: names.get(t.task_definition)?.terraform_action ?? null,
           seq: t.sequence + 1,
           state: 'dim' as const,
@@ -232,7 +232,7 @@ export function RestartModal({
       </div>
 
       {loadError ? (
-        <div className={detailStyles.recipe.empty}>재시작 미리보기를 불러오지 못했습니다 — {loadError}</div>
+        <div className={detailStyles.recipe.empty}>재시작 미리보기를 불러오지 못했습니다. {loadError}</div>
       ) : !preview ? (
         <div className={cn(detailStyles.skeleton, 'mt-3.5 h-32')} aria-hidden="true" />
       ) : (

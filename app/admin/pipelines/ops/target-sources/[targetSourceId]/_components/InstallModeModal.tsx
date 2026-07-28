@@ -13,8 +13,8 @@ import { updateInstallationMode } from '@/app/lib/api/ops';
 const TITLE_ID = 'ops-install-mode-title';
 
 const OPTIONS = [
-  { grant: true, title: '자동 설치', desc: 'Agent를 자동으로 설치하고 구성합니다 (Terraform 실행 권한 위임)' },
-  { grant: false, title: '수동 설치', desc: '직접 Agent를 설치하고 구성합니다 (설치 스크립트 직접 실행)' },
+  { grant: true, title: '자동 설치', desc: 'Agent를 자동으로 설치하고 구성합니다. Terraform 실행 권한을 위임합니다.' },
+  { grant: false, title: '수동 설치', desc: '직접 Agent를 설치하고 구성합니다. 설치 스크립트를 직접 실행합니다.' },
 ] as const;
 
 export interface InstallModeModalProps {

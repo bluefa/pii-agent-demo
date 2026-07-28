@@ -116,7 +116,7 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
   return (
     <section className={cn(pipelineStyles.card.base, opsStyles.pagedCard)} aria-label="승인 요청 내역">
       <h2 className={opsStyles.cardTitle}>승인 요청 내역</h2>
-      <p className={opsStyles.cardDesc}>연동 요청 process 진행 현황</p>
+      <p className={opsStyles.cardDesc}>연동 요청 process의 진행 현황입니다.</p>
 
       {/* Fixed body slot — see opsStyles.pagedCardBody. */}
       <div className={opsStyles.pagedCardBody}>

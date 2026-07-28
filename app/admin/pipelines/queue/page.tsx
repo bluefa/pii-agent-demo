@@ -193,7 +193,7 @@ export default function QueueDashboardPage(): ReactElement {
 
       <SectionHeader
         title="Process Status 모니터"
-        desc="Target Source별 현재 단계와 지연(마지막 상태 변경 이후 경과)을 확인해요 · 30초마다 자동 갱신돼요"
+        desc="Target Source별 현재 단계와 지연(마지막 상태 변경 이후 경과)을 확인합니다. 30초마다 자동으로 갱신됩니다."
       />
       <Card>
         <div className="mb-4 flex items-center gap-2">

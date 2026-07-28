@@ -360,8 +360,8 @@ export function TcResultCard({
             </table>
           </div>
           <p className={cn(text.meta, 'mt-3.5')}>
-            Database Type · 연동 대상 · Connection Status는 계약 밖 passthrough 필드입니다 — 값이 없으면
-            — / Unknown으로 표기하며, 임의로 성공 처리하지 않습니다.
+            Database Type · 연동 대상 · Connection Status는 계약 밖 passthrough 필드입니다. 값이 없으면
+            —(값 없음) 또는 Unknown으로 표기하며, 임의로 성공 처리하지 않습니다.
           </p>
         </>
       )}

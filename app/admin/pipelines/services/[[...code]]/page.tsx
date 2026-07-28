@@ -227,7 +227,7 @@ export default function ServicesPage(): ReactElement {
           </div>
         ) : services.length === 0 ? (
           <div className="flex-1">
-            <PlEmptyState icon="search" message="검색 결과 없음" />
+            <PlEmptyState icon="search" message="검색 결과가 없습니다." />
           </div>
         ) : (
           <div className={s.railList}>
@@ -272,7 +272,7 @@ export default function ServicesPage(): ReactElement {
       <section className={s.main}>
         {!selectedCode ? (
           <Card className="min-h-[420px]">
-            <PlEmptyState icon="cursor" center message="좌측에서 서비스를 선택하세요" />
+            <PlEmptyState icon="cursor" center message="좌측에서 서비스를 선택해 주세요." />
           </Card>
         ) : (
           <>
@@ -314,7 +314,7 @@ export default function ServicesPage(): ReactElement {
                 // so the first selection never flashes a false "target source 없음".
                 <div className="min-h-[240px]" aria-busy="true" />
               ) : targets.length === 0 ? (
-                <PlEmptyState icon="inbox" message="target source 없음" />
+                <PlEmptyState icon="inbox" message="target source가 없습니다." />
               ) : (
                 <PlTable
                   head={

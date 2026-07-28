@@ -211,7 +211,7 @@ export function CustomBuildStep({
     return (
       <div>
         <div className={detailStyles.taskModal.degraded}>
-          Task 카탈로그를 불러오지 못했습니다 — {catalogError}
+          Task 카탈로그를 불러오지 못했습니다. {catalogError}
         </div>
         <PlButton variant="secondary" size="sm" className="mt-3" onClick={onRetry}>
           재시도
@@ -381,7 +381,7 @@ export function CustomBuildStep({
                     style={isDragged && drag ? { transform: `translateX(${drag.dx}px)` } : undefined}
                     role="button"
                     tabIndex={0}
-                    aria-label={`${t.display_name} — ${i + 1}번째. 좌우 화살표로 순서 이동, Delete로 제거`}
+                    aria-label={`${t.display_name}, ${i + 1}번째입니다. 좌우 화살표로 순서를 옮기고 Delete로 제거합니다.`}
                     onPointerDown={onNodeDown(t)}
                     onKeyDown={onNodeKey(t, i)}
                   >

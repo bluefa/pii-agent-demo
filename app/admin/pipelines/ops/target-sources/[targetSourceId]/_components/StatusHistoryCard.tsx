@@ -57,7 +57,7 @@ export function StatusHistoryCard({ targetSourceId }: StatusHistoryCardProps): R
   return (
     <section className={cn(pipelineStyles.card.base, opsStyles.pagedCard)} aria-label="상태 변경 이력">
       <h2 className={opsStyles.cardTitle}>상태 변경 이력</h2>
-      <p className={opsStyles.cardDesc}>Target Source process 단계 전이 기록</p>
+      <p className={opsStyles.cardDesc}>Target Source process 단계가 전이된 기록입니다.</p>
 
       {/* Fixed body slot — see opsStyles.pagedCardBody. */}
       <div className={opsStyles.pagedCardBody}>
