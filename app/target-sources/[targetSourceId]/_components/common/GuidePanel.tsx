@@ -28,11 +28,13 @@ type PanelTab = 'guide' | 'history';
 export type JiraTicketState = { issueKey: string } | null | 'loading' | 'error';
 
 /**
- * Deployment-configured Jira base URL — the wire (JiraTicketResponse) carries
- * only `issueKey`, no URL. When unset (e.g. mock/demo), the card shows the
- * issue key without a link instead of pointing at a fake destination.
+ * Jira base URL for ticket links — the wire (JiraTicketResponse) carries only
+ * `issueKey`, no URL. Deployment overrides via NEXT_PUBLIC_JIRA_BROWSE_BASE;
+ * the fallback keeps the key navigable in mock/demo (owner ask: the issue key
+ * must render as a clickable link).
  */
-const JIRA_BROWSE_BASE = process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE;
+const JIRA_BROWSE_BASE =
+  process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? 'https://jira.example.com/browse/';
 
 /**
  * Top-of-rail help card — the collab-channel entry point, mirroring
@@ -78,7 +80,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           <ChatIcon className="h-3.5 w-3.5 shrink-0" />
           아직 연결된 협업 채널이 없어요
         </div>
-      ) : JIRA_BROWSE_BASE ? (
+      ) : (
         <a
           href={`${JIRA_BROWSE_BASE}${encodeURIComponent(jiraTicket.issueKey)}`}
           target="_blank"
@@ -95,27 +97,12 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
         >
           <ChatIcon className="h-3.5 w-3.5 shrink-0" />
           협업 채널 링크
-          <span className={cn('ml-auto font-mono text-[12px]', textColors.quaternary)}>
+          {/* Owner ask: the issue key reads as a classic hyperlink — blue + underline. */}
+          <span className={cn('ml-auto font-mono text-[12px] underline', primaryColors.text)}>
             {jiraTicket.issueKey}
           </span>
           <OpenExternalIcon className="h-[11px] w-[11px] shrink-0 opacity-50" />
         </a>
-      ) : (
-        <div
-          className={cn(
-            rowBase,
-            'font-semibold',
-            primaryColors.borderLight,
-            bgColors.surface,
-            textColors.secondary,
-          )}
-        >
-          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
-          협업 채널
-          <span className={cn('ml-auto font-mono text-[12px]', textColors.quaternary)}>
-            {jiraTicket.issueKey}
-          </span>
-        </div>
       )}
     </div>
   );

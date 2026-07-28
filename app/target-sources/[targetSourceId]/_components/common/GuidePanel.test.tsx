@@ -43,12 +43,13 @@ describe('GuidePanel — collab-channel card states', () => {
     expect(screen.queryByText('협업 채널 정보를 불러오지 못했어요')).toBeNull();
   });
 
-  it('shows the mapped issue key WITHOUT a link when no Jira base URL is configured', () => {
-    // NEXT_PUBLIC_JIRA_BROWSE_BASE is unset in tests — a mapped ticket must not
-    // point at a fabricated destination.
+  it('links the mapped issue key (owner ask: blue underlined hyperlink)', () => {
     render(<GuidePanel {...baseProps} jiraTicket={{ issueKey: 'PII-42' }} />);
-    expect(screen.getByText('PII-42')).toBeTruthy();
-    expect(screen.queryByTitle('협업 채널 — Jira에서 논의하기')).toBeNull();
+    const link = screen.getByTitle('협업 채널 — Jira에서 논의하기') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toContain('/browse/PII-42');
+    expect(link.getAttribute('target')).toBe('_blank');
+    const key = screen.getByText('PII-42');
+    expect(key.className).toContain('underline');
   });
 });
 
