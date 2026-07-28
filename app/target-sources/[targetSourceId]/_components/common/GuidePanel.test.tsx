@@ -52,11 +52,15 @@ describe('GuidePanel — collab-channel card states', () => {
   });
 });
 
-describe('GuidePanel — management footer', () => {
-  it('renders the monitoring pill and the delete action pinned in the rail footer', () => {
+describe('GuidePanel — monitoring header and danger footer', () => {
+  it('renders the monitoring pill at the top and the delete action pinned at the bottom', () => {
     render(<GuidePanel {...baseProps} jiraTicket={null} />);
-    expect(screen.getByText('모니터링')).toBeTruthy();
+    const monitoring = screen.getByText('모니터링');
+    const deleteButton = screen.getByRole('button', { name: '인프라 삭제' });
     expect(screen.getByText('AWS Agent')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '인프라 삭제' })).toBeTruthy();
+    // top strip precedes the delete footer in document order
+    expect(
+      monitoring.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

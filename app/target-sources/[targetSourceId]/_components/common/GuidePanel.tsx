@@ -230,8 +230,26 @@ export const GuidePanel = ({
         bgColors.surface,
       )}
     >
-      {/* Jira ticket first — the collab channel is the escape hatch for every
-          step, so it leads the rail instead of hiding under the fold. */}
+      {/* Monitoring method leads the rail (owner ask) — identity-level fact,
+          read before any step work. */}
+      <div
+        className={cn(
+          'flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3',
+          borderColors.light,
+        )}
+      >
+        <span className={cn('text-[12px] font-medium', textColors.tertiary)}>모니터링</span>
+        <span
+          className={identityBarStyles.agent}
+          style={{ ['--ib-accent']: monitoringAccent } as CSSProperties}
+        >
+          <ShieldCheckIcon className={identityBarStyles.agentIcon} />
+          {monitoringLabel}
+        </span>
+      </div>
+
+      {/* Jira ticket next — the collab channel is the escape hatch for every
+          step, so it stays above the fold. */}
       <div className={cn('shrink-0 border-b p-4', borderColors.light)}>
         <CollabChannelCard jiraTicket={jiraTicket} />
       </div>
@@ -302,22 +320,11 @@ export const GuidePanel = ({
         </div>
       )}
 
-      {/* Management zone — pinned to the rail's bottom edge across both tabs:
-          the monitoring method and the destructive infra action live in one
-          predictable, visually isolated spot (danger-zone grammar) instead of
-          competing with the page header's primary CTA. */}
+      {/* Danger zone — the destructive infra action stays pinned to the rail's
+          bottom edge across both tabs: one predictable, visually isolated spot
+          instead of competing with the page header's primary CTA. */}
       <div className={cn('shrink-0 border-t p-4', borderColors.light)}>
-        <div className="flex items-center justify-between gap-2">
-          <span className={cn('text-[12px] font-medium', textColors.tertiary)}>모니터링</span>
-          <span
-            className={identityBarStyles.agent}
-            style={{ ['--ib-accent']: monitoringAccent } as CSSProperties}
-          >
-            <ShieldCheckIcon className={identityBarStyles.agentIcon} />
-            {monitoringLabel}
-          </span>
-        </div>
-        <DeleteInfrastructureButton className="mt-3 w-full justify-center" />
+        <DeleteInfrastructureButton className="w-full justify-center" />
       </div>
     </aside>
   );
