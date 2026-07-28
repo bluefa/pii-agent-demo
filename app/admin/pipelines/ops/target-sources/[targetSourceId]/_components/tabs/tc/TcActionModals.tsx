@@ -1,5 +1,5 @@
 /**
- * P5 action modals (design-spec §6):
+ * Test Connection action modals (design-spec §6):
  *  - TcRerunModal   연결 테스트 재실행 요청 — 요청 사유(필수, maxLength 512) → POST reject.
  *  - TcApproveModal 연동 승인 — am-stats 3 tiles (리소스/연동 대상/연동 제외) → POST confirm.
  * Each owns only its form chrome; the parent owns the mutation + refetch.
@@ -11,7 +11,7 @@ import { TqModal } from '@/app/admin/pipelines/queue/_components/TqModal';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { CharCount } from '@/app/admin/pipelines/queue/_components/bits';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
-import type { TcResultStats } from '@/app/admin/pipelines/queue/test-connections/_tc/logic';
+import type { TcResultStats } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 const REASON_MAX = 512;
 

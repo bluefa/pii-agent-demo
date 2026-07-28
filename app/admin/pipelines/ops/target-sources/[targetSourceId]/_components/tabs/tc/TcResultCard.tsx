@@ -33,17 +33,17 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
-import { LdbModal } from '@/app/admin/pipelines/queue/test-connections/_tc/LdbModal';
+import { LdbModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/LdbModal';
 import {
   TcRerunModal,
   TcApproveModal,
-} from '@/app/admin/pipelines/queue/test-connections/_tc/TcActionModals';
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcActionModals';
 import {
   tcResultStats,
   putLdbCache,
   type LdbCache,
   type LdbTab,
-} from '@/app/admin/pipelines/queue/test-connections/_tc/logic';
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
   Dash,
