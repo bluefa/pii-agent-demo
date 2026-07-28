@@ -340,6 +340,10 @@ export const pageHeaderTitleStyle =
 /** Muted suffix inside the page H1 (e.g. the "(serviceCode)" parens) — inherits the H1 size, weak Toss gray. */
 export const pageHeaderTitleMutedStyle = 'font-medium text-[#8B95A1]';
 
+/** "인프라 삭제" chip — quiet danger-outline (red-50 fill, red-200 border, red-800 text). */
+export const deleteInfraButtonStyle =
+  'inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-800 transition-colors hover:bg-red-100';
+
 /**
  * Page-meta horizontal kv strip (Toss display variant).
  * See ADR-014 D1; consumer rollout starts in Wave 1.
@@ -476,6 +480,8 @@ export const badgeStyles = {
  */
 export const navStyles = {
   bg: 'bg-slate-900',
+  /** Thin vertical separator between nav clusters on the dark bar. */
+  divider: 'h-5 w-px shrink-0 bg-white/15',
   brand: {
     wordmark: 'text-[#C5C6C7]',
     tagline: 'text-[#66FCF1]',

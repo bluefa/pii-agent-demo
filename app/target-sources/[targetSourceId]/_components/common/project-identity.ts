@@ -14,8 +14,6 @@ export interface TargetSourceIdentifier {
 
 export interface ProjectIdentity {
   cloudProvider: CloudProvider;
-  /** e.g. "AWS Agent", "Azure Agent", "SDU" */
-  monitoringMethod: string;
   /** Jira ticket URL. The chip is not rendered when null or undefined. */
   jiraLink?: string | null;
   /** Provider-specific public identifiers (account id, subscription id, tenant id, project id, ...). */

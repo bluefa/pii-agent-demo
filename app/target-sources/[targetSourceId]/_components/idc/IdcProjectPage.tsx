@@ -1,10 +1,7 @@
 'use client';
 
 import type { CloudTargetSource } from '@/lib/types';
-import {
-  DeleteInfrastructureButton,
-  type ProjectIdentity,
-} from '@/app/target-sources/[targetSourceId]/_components/common';
+import { type ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { IdcTargetSourceLayout } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcTargetSourceLayout';
 
 interface IdcProjectPageProps {
@@ -13,12 +10,10 @@ interface IdcProjectPageProps {
 }
 
 export const IdcProjectPage = ({ project, onProjectUpdate }: IdcProjectPageProps) => {
-  // IDC identity is intentionally minimal (결정 #49): name + Agent chip only,
-  // no Datacenter ID / cloud-account identifiers.
+  // IDC identity is intentionally minimal (결정 #49): name only, no
+  // Datacenter ID / cloud-account identifiers.
   const identity: ProjectIdentity = {
     cloudProvider: 'IDC',
-    // detail metadata.is_sdu_type — SDU accounts surface as "SDU", not an Agent.
-    monitoringMethod: project.isSduType ? 'SDU' : 'IDC Agent',
     jiraLink: null,
     identifiers: [],
   };
@@ -28,7 +23,6 @@ export const IdcProjectPage = ({ project, onProjectUpdate }: IdcProjectPageProps
       project={project}
       identity={identity}
       providerLabel="IDC Infrastructure"
-      action={<DeleteInfrastructureButton />}
       onProjectUpdate={onProjectUpdate}
     />
   );

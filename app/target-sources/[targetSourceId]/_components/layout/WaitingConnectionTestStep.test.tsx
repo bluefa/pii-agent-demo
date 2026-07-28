@@ -70,7 +70,6 @@ const azureWaitingConnectionTestFixture: CloudTargetSource = {
 
 const identityFixture: ProjectIdentity = {
   cloudProvider: 'Azure',
-  monitoringMethod: 'Azure Agent',
   jiraLink: null,
   identifiers: [],
 };

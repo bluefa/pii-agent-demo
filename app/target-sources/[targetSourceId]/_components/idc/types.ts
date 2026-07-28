@@ -10,6 +10,7 @@ export interface IdcStepProps {
   project: CloudTargetSource;
   identity: ProjectIdentity;
   providerLabel: string;
-  action: ReactNode;
+  /** Optional page-header action slot (none by default — destructive actions live in the guide rail). */
+  action?: ReactNode;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }

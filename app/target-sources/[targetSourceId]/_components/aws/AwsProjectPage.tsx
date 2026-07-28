@@ -2,7 +2,6 @@
 
 import { CloudTargetSource } from '@/lib/types';
 import {
-  DeleteInfrastructureButton,
   ProjectPageMeta,
   type ProjectIdentity,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
@@ -19,8 +18,6 @@ export const AwsProjectPage = ({
 }: AwsProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'AWS',
-    // detail metadata.is_sdu_type — SDU accounts surface as "SDU", not an Agent.
-    monitoringMethod: project.isSduType ? 'SDU' : 'AWS Agent',
     jiraLink: null,
     identifiers: [
       { label: 'Account ID', value: project.awsAccountId ?? null, mono: true },
@@ -43,7 +40,6 @@ export const AwsProjectPage = ({
       project={project}
       identity={identity}
       providerLabel="AWS Infrastructure"
-      action={<DeleteInfrastructureButton />}
       onProjectUpdate={onProjectUpdate}
     />
   );

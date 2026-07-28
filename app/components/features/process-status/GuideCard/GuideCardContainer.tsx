@@ -12,8 +12,8 @@ interface Props {
   bare?: boolean;
 }
 
-// Guide content is hardcoded (owner decision 2026-07-28) — no CMS fetch,
-// so no skeleton/error/empty-lang states. See lib/constants/step-guide-content.ts.
+// Guide content is hardcoded — no CMS fetch, so no skeleton/error/empty-lang
+// states. See lib/constants/step-guide-content.ts.
 export const GuideCardContainer = ({ slotKey, bare = false }: Props) => {
   const slot = resolveSlot(slotKey);
   return <GuideCardPure content={STEP_GUIDE_HTML[slot.guideName]} bare={bare} />;

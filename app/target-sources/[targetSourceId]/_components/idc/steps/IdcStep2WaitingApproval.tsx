@@ -87,7 +87,7 @@ export const IdcStep2WaitingApproval = ({
         <div className="p-6">
           <StepBanner variant="info" icon={<ClockIcon className="w-[18px] h-[18px]" />}>
             <strong className="font-semibold">관리자 승인을 기다리고 있어요.</strong>{' '}
-            평균 1영업일 내 검토되며, 승인되면 메일로 안내됩니다.
+            평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
           </StepBanner>
           {state.status === 'loading' && <ResourceTableSkeleton />}
           {state.status === 'error' && (

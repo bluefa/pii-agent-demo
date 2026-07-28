@@ -1,8 +1,6 @@
 /**
- * Step guide content — hardcoded per owner decision (2026-07-28).
- *
- * The end-user guide rail renders these strings directly instead of the
- * Guide CMS fetch. Content was rewritten from scratch against the REAL
+ * Step guide content — hardcoded; the end-user guide rail renders these
+ * strings directly (no CMS fetch). Content is written against the REAL
  * step UI and the admin console flows, with one goal: users should be
  * able to self-resolve without contacting the operations team.
  *
@@ -26,13 +24,17 @@ import type { GuideName } from '@/lib/types/guide';
 // Step 1 — target selection
 // ---------------------------------------------------------------------------
 
-const step1Cloud = (resources: string): string =>
+// GCP has no VM integration (docs/cloud-provider-states.md) — the VM row
+// guidance is emitted only for providers that scan VMs (AWS/Azure).
+const step1Cloud = (resources: string, { vmRows = true }: { vmRows?: boolean } = {}): string =>
   '<h4>연동 대상 DB를 선택해 주세요</h4>' +
   `<p><strong>스캔 시작</strong>으로 ${resources} 리소스를 조회한 뒤, PII 모니터링이 필요한 DB를 선택하고 <strong>연동 대상 승인 요청</strong>을 눌러 주세요.</p>` +
   '<ul>' +
   '<li>스캔은 평균 5분 이내 완료돼요. 방금 스캔했다면 5분 안에는 다시 실행되지 않아요.</li>' +
   '<li>선택하지 않는 리소스에는 <strong>제외 사유</strong>를 입력해 주세요. 미선택 리소스가 모두 제외 확정되면 관리자 승인 없이 자동 승인돼요.</li>' +
-  '<li>VM 리소스는 행을 펼쳐 <strong>데이터베이스 설정</strong>(타입·Host·포트)을 저장해야 선택할 수 있어요.</li>' +
+  (vmRows
+    ? '<li>VM 리소스는 행을 펼쳐 <strong>데이터베이스 설정</strong>(타입·Host·포트)을 저장해야 선택할 수 있어요.</li>'
+    : '') +
   '<li>리소스가 안 보이거나 스캔이 실패하면 스캔 권한(Role) 설정을 확인하고 <strong>다시 시도</strong>해 주세요.</li>' +
   '</ul>';
 
@@ -106,7 +108,7 @@ const GCP_INSTALLING_HTML =
   '<h4>PII Agent를 설치하고 있어요</h4>' +
   '<p>모니터링용 Subnet 생성 → 서비스 측 구성 → BDC 측 리소스 순서로 자동 설치돼요. 각 카드를 누르면 리소스별 진행 현황을 볼 수 있어요.</p>' +
   '<ul>' +
-  '<li>Subnet(10.30.0.0/22)·VPC Peering·방화벽 구성은 시스템이 자동으로 처리해요. 사용자가 할 일은 없어요.</li>' +
+  '<li>Subnet 생성을 선택한 경우 Subnet(10.30.0.0/22)·VPC Peering·방화벽 구성까지 시스템이 자동으로 처리해요. 사용자가 할 일은 없어요.</li>' +
   '<li>진행 상태는 자동 갱신되지 않아요 — 새로고침으로 확인해 주세요.</li>' +
   '<li>작업이 <strong>실패</strong>로 표시되면 운영팀이 확인 후 재시작해요. 하루 이상 지속되면 상단 <strong>협업 채널</strong>로 알려 주세요.</li>' +
   '</ul>';
@@ -132,7 +134,7 @@ const STEP_5_CLOUD_HTML =
   '<ul>' +
   '<li>Credential이 비어 있는 리소스가 있으면 Run Test가 비활성화돼요. 먼저 전부 선택해 주세요.</li>' +
   '<li>테스트 결과는 자동으로 갱신돼요. 실패한 대상은 Credential과 네트워크(방화벽·보안 그룹)를 점검한 뒤 다시 실행하면 돼요. 횟수 제한은 없어요.</li>' +
-  '<li>Success인 대상은 <strong>논리 DB 확인 · 설정</strong>에서 모니터링에서 제외할 논리 DB를 정리할 수 있어요.</li>' +
+  '<li>Success인 대상은 <strong>논리 DB 확인</strong>에서 모니터링에서 제외할 논리 DB를 정리할 수 있어요.</li>' +
   '</ul>';
 
 const STEP_5_IDC_HTML =
@@ -141,7 +143,7 @@ const STEP_5_IDC_HTML =
   '<ul>' +
   '<li>Credential이 비어 있는 대상이 있으면 Run Test가 비활성화돼요. 먼저 전부 선택해 주세요.</li>' +
   '<li>테스트 결과는 자동으로 갱신돼요. 실패하면 Credential과 <strong>Source IP → 연동 대상(IP:Port)</strong> 방화벽을 점검한 뒤 다시 실행하면 돼요.</li>' +
-  '<li>Success인 대상은 <strong>논리 DB 관리 · 설정</strong>에서 모니터링에서 제외할 논리 DB를 정리할 수 있어요.</li>' +
+  '<li>Success인 대상은 <strong>논리 DB 관리</strong>에서 모니터링에서 제외할 논리 DB를 정리할 수 있어요.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------
@@ -164,7 +166,7 @@ const STEP_6_HTML =
 
 const STEP_7_HTML =
   '<h4>연동이 완료되었습니다</h4>' +
-  '<p>PII Agent가 동작 중이며, 탐지 결과는 PII Map과 대시보드에서 확인할 수 있어요.</p>' +
+  '<p>PII Agent가 동작 중이에요. 아래에서 각 DB의 연동 상태를 확인할 수 있어요.</p>' +
   '<ul>' +
   '<li>각 DB의 <strong>Status</strong>로 연동 상태를 확인할 수 있어요. 비정상이면 Credential과 Agent 상태를 점검해 주세요.</li>' +
   '<li>인프라가 변경되거나 새 리소스가 생기면 재연동이 필요해요. 상단 <strong>협업 채널</strong>로 요청해 주세요.</li>' +
@@ -176,7 +178,7 @@ const STEP_7_HTML =
 
 const AWS_STEP_1_HTML = step1Cloud('AWS 계정의 RDS·S3 등');
 const AZURE_STEP_1_HTML = step1Cloud('Azure Subscription의 SQL Database·Cosmos DB·Storage 등');
-const GCP_STEP_1_HTML = step1Cloud('GCP Project의 Cloud SQL·BigQuery 등');
+const GCP_STEP_1_HTML = step1Cloud('GCP Project의 Cloud SQL·BigQuery 등', { vmRows: false });
 
 export const STEP_GUIDE_HTML: Record<GuideName, string> = {
   // AWS (8) — AUTO/MANUAL share every step except step 4.

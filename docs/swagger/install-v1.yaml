@@ -3438,6 +3438,7 @@ paths:
           content:
             '*/*':
               schema:
+                $ref: "#/components/schemas/JiraTicketResponse"
   /install/v1/target-sources/{targetSourceId}/process-status:
     get:
       tags:

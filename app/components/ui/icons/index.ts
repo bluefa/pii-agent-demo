@@ -1,6 +1,9 @@
 export type { IconProps } from '@/app/components/ui/icons/types';
 
 // sorted alphabetically; group by concern if the list grows
+export { BellIcon } from '@/app/components/ui/icons/BellIcon';
+export { BookIcon } from '@/app/components/ui/icons/BookIcon';
+export { ChatIcon } from '@/app/components/ui/icons/ChatIcon';
 export { CheckIcon } from '@/app/components/ui/icons/CheckIcon';
 export { ChevronDownIcon } from '@/app/components/ui/icons/ChevronDownIcon';
 export { ChevronFirstIcon } from '@/app/components/ui/icons/ChevronFirstIcon';
@@ -20,8 +23,10 @@ export { GuideIcon } from '@/app/components/ui/icons/GuideIcon';
 export { OpenExternalIcon } from '@/app/components/ui/icons/OpenExternalIcon';
 export { PlayIcon } from '@/app/components/ui/icons/PlayIcon';
 export { PlusIcon } from '@/app/components/ui/icons/PlusIcon';
+export { QuestionCircleIcon } from '@/app/components/ui/icons/QuestionCircleIcon';
 export { ReloadIcon } from '@/app/components/ui/icons/ReloadIcon';
 export { SearchIcon } from '@/app/components/ui/icons/SearchIcon';
+export { ShieldCheckIcon } from '@/app/components/ui/icons/ShieldCheckIcon';
 export { StatusErrorIcon } from '@/app/components/ui/icons/StatusErrorIcon';
 export { StatusInfoIcon } from '@/app/components/ui/icons/StatusInfoIcon';
 export { StatusSuccessIcon } from '@/app/components/ui/icons/StatusSuccessIcon';

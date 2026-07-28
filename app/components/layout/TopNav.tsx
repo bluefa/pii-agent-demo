@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn, navStyles, textColors } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
+import { BellIcon, BookIcon, QuestionCircleIcon } from '@/app/components/ui/icons';
 import { UserChip } from '@/app/components/layout/UserChip';
 
 type NavItem = {
@@ -26,38 +27,13 @@ const iconProps = {
   strokeLinejoin: 'round',
 } as const;
 
-// Help/announcement links — moved up from the Service List sidebar footer so
-// they are reachable from every page. All destinations are still placeholders,
-// so a click shows the same "준비 중" toast as the disabled primary items.
+// Help/announcement links — live in the top nav so they are reachable from
+// every page. All destinations are still placeholders, so a click shows the
+// same "준비 중" toast as the disabled primary items.
 const UTILITY_ITEMS: Array<{ label: string; icon: React.ReactNode }> = [
-  {
-    label: 'Notice',
-    icon: (
-      <svg {...iconProps} width={14} height={14} aria-hidden="true">
-        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Guide',
-    icon: (
-      <svg {...iconProps} width={14} height={14} aria-hidden="true">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'FAQ',
-    icon: (
-      <svg {...iconProps} width={14} height={14} aria-hidden="true">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-    ),
-  },
+  { label: 'Notice', icon: <BellIcon className="h-3.5 w-3.5" /> },
+  { label: 'Guide', icon: <BookIcon className="h-3.5 w-3.5" /> },
+  { label: 'FAQ', icon: <QuestionCircleIcon className="h-3.5 w-3.5" /> },
 ];
 
 const NAV_ITEMS: NavItem[] = [
@@ -211,10 +187,10 @@ export const TopNav = () => {
           })}
         </nav>
 
-        {/* Help/announcement group — sits right after the primary items (owner
-            ask: "PII Map 옆으로"), separated by a thin divider so it reads as a
-            distinct-but-adjacent cluster. */}
-        <span aria-hidden="true" className="h-5 w-px shrink-0 bg-white/15 -mx-4" />
+        {/* Help/announcement group — sits right after the primary items,
+            separated by a thin divider so it reads as a distinct-but-adjacent
+            cluster. */}
+        <span aria-hidden="true" className={cn(navStyles.divider, '-mx-4')} />
 
         <nav aria-label="도움말" className="flex items-center gap-0.5">
           {UTILITY_ITEMS.map((item) => (

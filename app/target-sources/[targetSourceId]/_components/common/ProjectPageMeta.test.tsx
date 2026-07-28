@@ -40,14 +40,12 @@ const projectFixture: TargetSource = {
 
 const awsIdentity: ProjectIdentity = {
   cloudProvider: 'AWS',
-  monitoringMethod: 'AWS Agent',
   jiraLink: null,
   identifiers: [{ label: 'Account ID', value: '482915736204', mono: true }],
 };
 
 const idcIdentity: ProjectIdentity = {
   cloudProvider: 'IDC',
-  monitoringMethod: 'IDC Agent',
   jiraLink: null,
   identifiers: [],
 };

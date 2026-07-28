@@ -119,7 +119,6 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
           providerSub={isIdc ? undefined : 'Cloud Provider'}
           icon={PROVIDER_ICON}
           fields={buildIdentityFields(identity)}
-          agentLabel={identity.monitoringMethod}
         />
         <div className={cn('border-t px-[28px] py-[16px]', borderColors.light)}>
           <InstallationProcessProgressBar currentStep={project.processStatus} />

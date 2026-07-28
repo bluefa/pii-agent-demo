@@ -38,7 +38,6 @@ const project: CloudTargetSource = {
 
 const identity: ProjectIdentity = {
   cloudProvider: 'IDC',
-  monitoringMethod: 'IDC Agent',
   jiraLink: null,
   identifiers: [],
 };
