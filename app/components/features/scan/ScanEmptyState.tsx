@@ -30,7 +30,7 @@ export const ScanEmptyState = () => (
       인프라 스캔을 진행해주세요
     </h3>
     <p className={cn('text-[13px]', textColors.tertiary)}>
-      &apos;Run Infra Scan&apos;을 통해 부위 DB를 조회할 수 있어요
+      &apos;스캔 시작&apos;을 통해 부위 DB를 조회할 수 있어요
     </p>
   </div>
 );

@@ -18,11 +18,16 @@ const isInRange = (step: ProcessStatus): boolean =>
 export const resolveStepSlot = (
   provider: CloudProvider,
   currentStep: ProcessStatus,
+  opts?: { manualInstall?: boolean },
 ): GuideSlotKey | null => {
   if (!isInRange(currentStep)) return null;
 
   if (provider === 'AWS') {
-    const key = `process.aws.auto.${currentStep}`;
+    // AUTO/MANUAL guides only diverge at step 4 (same guideName elsewhere),
+    // so the manual variant is applied only there.
+    const variant =
+      opts?.manualInstall && currentStep === ProcessStatus.INSTALLING ? 'manual' : 'auto';
+    const key = `process.aws.${variant}.${currentStep}`;
     return isSlotKey(key) ? key : null;
   }
 
@@ -51,4 +56,10 @@ export const resolveStepSlot = (
 export const resolveProjectStepSlot = (project: {
   cloudProvider: CloudProvider;
   processStatus: ProcessStatus;
-}): GuideSlotKey | null => resolveStepSlot(project.cloudProvider, project.processStatus);
+  isTerraformExecutionGranted?: boolean;
+}): GuideSlotKey | null =>
+  resolveStepSlot(project.cloudProvider, project.processStatus, {
+    // Same semantics as AwsInstallationInline: only an explicit `false`
+    // means manual install; undefined stays on the auto guide.
+    manualInstall: project.isTerraformExecutionGranted === false,
+  });

@@ -197,6 +197,34 @@ export function recipeDisplayName(code: string | null | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
+// Infra side — 서비스측 vs BDC측
+// ---------------------------------------------------------------------------
+
+/** Which side's infrastructure a task operates on. */
+export type InfraSide = 'SERVICE' | 'BDC';
+
+export const INFRA_SIDE_LABELS: Record<InfraSide, string> = {
+  SERVICE: '서비스측',
+  BDC: 'BDC측',
+};
+
+/**
+ * Derive the infra side from a task-definition/operation name's tokens
+ * (AWS_SERVICE_PLAN_V1, GCP_BDC_TF_APPLY, …). BDC/BDP must win over SERVICE:
+ * AWS_BDC_SERVICE_LEVEL_* is BDC-side despite its SERVICE token. CX is the
+ * IDC service-side zone — the recipes order it exactly like GCP's 서비스 →
+ * BDC (apply CX → BDP, destroy BDP → CX). Unknown names (e.g. the
+ * NETWORK_READY condition) return null: no tag over a wrong tag.
+ */
+export function taskInfraSide(definitionName: string | null | undefined): InfraSide | null {
+  if (!definitionName) return null;
+  const tokens = definitionName.toUpperCase().split(/[^A-Z0-9]+/);
+  if (tokens.includes('BDC') || tokens.includes('BDP')) return 'BDC';
+  if (tokens.includes('SERVICE') || tokens.includes('CX')) return 'SERVICE';
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Kind success policy (verbatim design copy — TaskDefinitionView.success_policy)
 // ---------------------------------------------------------------------------
 

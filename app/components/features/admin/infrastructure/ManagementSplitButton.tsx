@@ -72,7 +72,7 @@ export const ManagementSplitButton = ({
         onClick={handlePrimary}
         className={cn(
           mgmtGroupStyles.primary,
-          'px-3.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 hover:opacity-90 transition-opacity',
+          'px-3.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap hover:opacity-90 transition-opacity',
         )}
       >
         {GEAR_ICON}

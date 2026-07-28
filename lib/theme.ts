@@ -271,7 +271,10 @@ export const cardStyles = {
   /** Large display heading inside a card header (ADR-014 card-display-title). */
   displayTitle: 'text-[26px] font-extrabold text-[#191F28] tracking-[-0.045em] leading-[1.2]',
   /** In-card section / step-card title — v15 display geometry (26 / 800 / -0.045em / #191F28). */
-  cardTitle: 'text-[26px] font-extrabold tracking-[-0.045em] leading-[1.2] text-[#191F28]',
+  // 22px sits BELOW the 24px page H1 (pageHeaderTitleStyle) — the unified header
+  // introduced a page-level title above every step card, so the step title must
+  // read as a section heading, not compete with the page identity (was 26px).
+  cardTitle: 'text-[22px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[#191F28]',
   /** Paragraph beneath a display title (ADR-014 card-subtitle) — v15 13.5/500/#8B95A1. */
   subtitle: 'text-[13.5px] font-medium text-[#8B95A1] leading-[1.55]',
   /** Inline "Provider: X" indicator in a card header — weak label + strong name. */
@@ -334,6 +337,13 @@ export const pageChromeStyles = {
 export const pageHeaderTitleStyle =
   'text-[24px] font-extrabold leading-[1.2] tracking-[-0.03em] text-[#191F28]';
 
+/** Muted suffix inside the page H1 (e.g. the "(serviceCode)" parens) — inherits the H1 size, weak Toss gray. */
+export const pageHeaderTitleMutedStyle = 'font-medium text-[#8B95A1]';
+
+/** "인프라 삭제" chip — quiet danger-outline (red-50 fill, red-200 border, red-800 text). */
+export const deleteInfraButtonStyle =
+  'inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-800 transition-colors hover:bg-red-100';
+
 /**
  * Page-meta horizontal kv strip (Toss display variant).
  * See ADR-014 D1; consumer rollout starts in Wave 1.
@@ -376,6 +386,8 @@ export const identityBarStyles = {
   key: 'text-[12px] font-semibold tracking-normal text-[#8B95A1]',
   idRow: 'inline-flex items-center gap-1.5',
   mono: 'font-mono text-[13px] font-semibold tracking-normal leading-[1.3] text-[#191F28]',
+  /** Non-mono field value — same weight/color as `mono` so plain values (e.g. TF 실행 권한) don't render in the inherited faint gray. */
+  value: 'min-w-0 truncate text-[13px] font-semibold tracking-[-0.005em] leading-[1.3] text-[#191F28]',
   copyBase:
     'inline-grid place-items-center w-6 h-6 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,color] duration-[120ms]',
   copyIdle: 'text-[#8B95A1] hover:bg-[#F7F8FA] hover:text-[#191F28]',
@@ -468,6 +480,8 @@ export const badgeStyles = {
  */
 export const navStyles = {
   bg: 'bg-slate-900',
+  /** Thin vertical separator between nav clusters on the dark bar. */
+  divider: 'h-5 w-px shrink-0 bg-white/15',
   brand: {
     wordmark: 'text-[#C5C6C7]',
     tagline: 'text-[#66FCF1]',
@@ -1088,6 +1102,17 @@ export const pipelineStyles = {
       APPLY: 'border-[var(--pl-ok)] text-[var(--pl-ok)]',
       DESTROY: 'border-[var(--pl-err)] text-[var(--pl-err)]',
     } as Record<'PLAN' | 'APPLY' | 'DESTROY', string>,
+  },
+
+  /** InfraSideTag — 서비스측/BDC측 ownership of a task's infrastructure, next to
+   *  the JobKindTag. Same bordered no-fill grammar (subordinate to status pills);
+   *  SERVICE reads info-blue so the two sides scan apart at a glance. */
+  infraSideTag: {
+    base: 'inline-flex items-center rounded border px-1 leading-[15px] text-[10px] font-semibold whitespace-nowrap',
+    tone: {
+      SERVICE: 'border-[var(--pl-info-border)] text-[var(--pl-info-text)]',
+      BDC: 'border-[var(--pl-border-strong)] text-[var(--pl-text-medium)]',
+    } as Record<'SERVICE' | 'BDC', string>,
   },
 
   /** Filter chips (R18 §4, Komiser reference) — scope chips (no ×) + removable

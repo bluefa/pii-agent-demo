@@ -15,6 +15,7 @@ import {
   RECIPE_LABELS,
   recipeDisplayName,
   recipeLabel,
+  taskInfraSide,
   taskMetaLine,
 } from '@/lib/pipeline/format';
 import type { TaskDetail, TaskStatus, TaskSummary } from '@/lib/pipeline/types';
@@ -329,5 +330,27 @@ describe('currentTask / currentTaskLabel / progressCount', () => {
   });
   it('progressCount counts DONE over total', () => {
     expect(progressCount(tasks)).toEqual({ done: 1, total: 3 });
+  });
+});
+
+describe('taskInfraSide — 서비스측/BDC측 derivation', () => {
+  it('maps *_SERVICE_* and IDC CX names to SERVICE', () => {
+    expect(taskInfraSide('AWS_SERVICE_PLAN_V1')).toBe('SERVICE');
+    expect(taskInfraSide('GCP_SERVICE_DESTROY_V1')).toBe('SERVICE');
+    expect(taskInfraSide('IDC_CX_APPLY_V1')).toBe('SERVICE');
+    expect(taskInfraSide('AWS_SERVICE_TF_APPLY')).toBe('SERVICE');
+  });
+  it('maps *_BDC_* / IDC BDP names to BDC — including AWS_BDC_SERVICE_LEVEL_*', () => {
+    expect(taskInfraSide('AWS_BDC_COMMON_APPLY_V1')).toBe('BDC');
+    expect(taskInfraSide('AWS_BDC_SERVICE_LEVEL_PLAN_V1')).toBe('BDC');
+    expect(taskInfraSide('AZURE_BDC_DESTROY_V1')).toBe('BDC');
+    expect(taskInfraSide('IDC_BDP_APPLY_V1')).toBe('BDC');
+  });
+  it('returns null for side-less names and blank input', () => {
+    expect(taskInfraSide('NETWORK_READY_V1')).toBeNull();
+    expect(taskInfraSide(null)).toBeNull();
+    expect(taskInfraSide(undefined)).toBeNull();
+    // Substring must not match across token boundaries (SERVICES ≠ SERVICE).
+    expect(taskInfraSide('AWS_SERVICES_PLAN_V1')).toBeNull();
   });
 });

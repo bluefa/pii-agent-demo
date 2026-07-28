@@ -66,7 +66,6 @@ const projectFixture: CloudTargetSource = {
 
 const identityFixture: ProjectIdentity = {
   cloudProvider: 'Azure',
-  monitoringMethod: 'Azure Agent',
   jiraLink: null,
   identifiers: [],
 };
@@ -137,7 +136,7 @@ describe('ConnectionVerifiedStep', () => {
   it('renders the card title with the cardTitle token (v15 26px / font-extrabold)', () => {
     renderStep();
     const h2 = screen.getByRole('heading', { level: 2, name: /완료 여부 관리자 승인 대기/ });
-    expect(h2.className).toContain('text-[26px]');
+    expect(h2.className).toContain('text-[22px]');
     expect(h2.className).toContain('font-extrabold');
   });
 });

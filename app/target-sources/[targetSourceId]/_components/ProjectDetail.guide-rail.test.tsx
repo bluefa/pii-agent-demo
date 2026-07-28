@@ -63,7 +63,7 @@ const azureFixture: TargetSource = {
 // full-height right rail (GuidePanel) with the slot key resolved from the project.
 describe('ProjectDetail guide rail', () => {
   it('renders the GuidePanel rail next to the provider page with the resolved slot key', () => {
-    render(<ProjectDetail initialProject={azureFixture} />);
+    render(<ProjectDetail initialProject={azureFixture} jiraTicket={null} />);
 
     expect(screen.getByTestId('azure-page')).toBeTruthy();
     const panel = screen.getByTestId('guide-panel');

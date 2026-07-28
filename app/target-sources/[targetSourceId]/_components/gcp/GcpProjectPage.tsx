@@ -1,10 +1,7 @@
 'use client';
 
 import { CloudTargetSource } from '@/lib/types';
-import {
-  DeleteInfrastructureButton,
-  type ProjectIdentity,
-} from '@/app/target-sources/[targetSourceId]/_components/common';
+import { type ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { CloudTargetSourceLayout } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout';
 
 interface GcpProjectPageProps {
@@ -18,8 +15,6 @@ export const GcpProjectPage = ({
 }: GcpProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'GCP',
-    // detail metadata.is_sdu_type — SDU accounts surface as "SDU", not an Agent.
-    monitoringMethod: project.isSduType ? 'SDU' : 'GCP Agent',
     jiraLink: null,
     identifiers: [
       // v16 id label is the bare 'Project ID' (gcp.idLabel, HTML 9427) — no provider prefix.
@@ -32,7 +27,6 @@ export const GcpProjectPage = ({
       project={project}
       identity={identity}
       providerLabel="GCP Infrastructure"
-      action={<DeleteInfrastructureButton />}
       onProjectUpdate={onProjectUpdate}
     />
   );

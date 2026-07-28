@@ -21,6 +21,8 @@ import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo, providerLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
+import { InfraSideTag } from '@/app/admin/pipelines/_components/InfraSideTag';
+import { taskInfraSide } from '@/lib/pipeline/format';
 import {
   connectorClass,
   nodeStateClass,
@@ -221,6 +223,7 @@ export function TaskFlow({
           // failure line (fail count + error code) for FAILED. Both come from the
           // catalog + summary via resolveMeta — no per-task detail fetch.
           const meta = resolveMeta(task);
+          const side = taskInfraSide(task.task_definition);
           return (
             <Fragment key={task.task_id}>
               {index > 0 && (
@@ -257,8 +260,11 @@ export function TaskFlow({
                 </div>
                 {nodeBadge(task.status, task.sequence)}
                 <div className="nd-body">
-                  {task.terraform_action && (
-                    <JobKindTag action={task.terraform_action} className="self-start mb-1.5" />
+                  {(task.terraform_action || side) && (
+                    <div className="flex items-center gap-1 self-start mb-1.5">
+                      <JobKindTag action={task.terraform_action} />
+                      <InfraSideTag side={side} />
+                    </div>
                   )}
                   <span className="nd-name">{name}</span>
                   <div className="nd-meta">{meta}</div>

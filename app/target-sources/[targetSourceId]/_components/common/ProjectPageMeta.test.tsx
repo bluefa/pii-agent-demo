@@ -13,6 +13,15 @@ vi.mock('@/app/components/features/process-status', () => ({
 
 import { ProjectPageMeta } from '@/app/target-sources/[targetSourceId]/_components/common/ProjectPageMeta';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
+import { identityBarStyles } from '@/lib/theme';
+
+// Selector for the identity-bar provider name, derived from the theme token so
+// the test tracks the token instead of hardcoding its classes. (jsdom has no
+// CSS.escape, so escape selector metacharacters by hand.)
+const providerNameSelector = identityBarStyles.providerName
+  .split(' ')
+  .map((c) => `.${c.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`)}`)
+  .join('');
 
 const projectFixture: TargetSource = {
   id: 'proj-1',
@@ -31,35 +40,25 @@ const projectFixture: TargetSource = {
 
 const awsIdentity: ProjectIdentity = {
   cloudProvider: 'AWS',
-  monitoringMethod: 'AWS Agent',
   jiraLink: null,
   identifiers: [{ label: 'Account ID', value: '482915736204', mono: true }],
 };
 
 const idcIdentity: ProjectIdentity = {
   cloudProvider: 'IDC',
-  monitoringMethod: 'IDC Agent',
   jiraLink: null,
   identifiers: [],
 };
 
-describe('ProjectPageMeta — collab-channel chip', () => {
-  it('renders the collab chip with the v16 fallback ticket when no Jira link', () => {
+describe('ProjectPageMeta — header action slot', () => {
+  // The collab-channel entry moved to the GuidePanel rail footer (see
+  // GuidePanel.test.tsx); the header action slot now carries only the page action.
+  it('does not render the collab chip in the header anymore', () => {
     render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />);
-    expect(screen.getByText('협업 채널')).toBeTruthy();
-    expect(screen.getByText('BDCDIP-1353')).toBeTruthy();
+    expect(screen.queryByTitle('협업 채널 — Jira에서 논의하기')).toBeNull();
   });
 
-  it('uses the Jira ticket key + href when a Jira link is present', () => {
-    const linked: ProjectIdentity = { ...awsIdentity, jiraLink: 'https://jira.example.com/browse/PII-42' };
-    render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={linked} />);
-    const chip = screen.getByTitle('협업 채널 — Jira에서 논의하기') as HTMLAnchorElement;
-    expect(chip.getAttribute('href')).toBe('https://jira.example.com/browse/PII-42');
-    // chip ticket value (collab chip), distinct from the identity-field Jira link
-    expect(screen.getAllByText('PII-42').length).toBeGreaterThan(0);
-  });
-
-  it('renders the chip before the page action', () => {
+  it('renders the page action', () => {
     render(
       <ProjectPageMeta
         project={projectFixture}
@@ -68,10 +67,7 @@ describe('ProjectPageMeta — collab-channel chip', () => {
         action={<button type="button">인프라 삭제</button>}
       />,
     );
-    const chip = screen.getByTitle('협업 채널 — Jira에서 논의하기');
-    const action = screen.getByRole('button', { name: '인프라 삭제' });
-    // chip precedes the action in DOM order (Node.DOCUMENT_POSITION_FOLLOWING = 4)
-    expect(chip.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('button', { name: '인프라 삭제' })).toBeTruthy();
   });
 });
 
@@ -81,7 +77,7 @@ describe('ProjectPageMeta — identity-bar provider name vs breadcrumb crumb', (
       <ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />,
     );
     // identity-bar provider name (.ib-provider-name) carries the bare token only (HTML 9428).
-    const providerName = container.querySelector('.font-bold.text-\\[\\#191F28\\]');
+    const providerName = container.querySelector(providerNameSelector);
     expect(providerName?.textContent).toBe('AWS');
   });
 
@@ -95,7 +91,7 @@ describe('ProjectPageMeta — identity-bar provider name vs breadcrumb crumb', (
     const { container } = render(
       <ProjectPageMeta project={projectFixture} providerLabel="IDC Infrastructure" identity={idcIdentity} />,
     );
-    const providerName = container.querySelector('.font-bold.text-\\[\\#191F28\\]');
+    const providerName = container.querySelector(providerNameSelector);
     expect(providerName?.textContent).toBe('IDC');
   });
 });

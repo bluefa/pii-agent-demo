@@ -23,8 +23,6 @@ interface IdentityBarProps {
   /** Provider glyph rendered inside the 38px accent-tinted icon box. */
   icon: ReactNode;
   fields: IdentityBarField[];
-  /** Agent badge label (monitoring method, e.g. "AWS Agent"). Hidden when empty. */
-  agentLabel?: string;
   /** Render without the standalone card chrome — the host surface owns bg/radius/stripe. */
   bare?: boolean;
 }
@@ -40,7 +38,6 @@ export const IdentityBar = ({
   providerSub,
   icon,
   fields,
-  agentLabel,
   bare,
 }: IdentityBarProps) => (
   <div
@@ -65,16 +62,6 @@ export const IdentityBar = ({
     ))}
 
     <span className={identityBarStyles.spacer} />
-
-    {agentLabel ? (
-      <span className={identityBarStyles.agent}>
-        <svg className={identityBarStyles.agentIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3 4 6v5c0 4.5 3.2 8.4 8 9.7 4.8-1.3 8-5.2 8-9.7V6l-8-3Z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="m9 12 2 2 4-4" />
-        </svg>
-        {agentLabel}
-      </span>
-    ) : null}
   </div>
 );
 
@@ -87,7 +74,7 @@ const IdentityField = ({ field }: { field: IdentityBarField }) => {
     <div className={identityBarStyles.field}>
       <span className={identityBarStyles.key}>{field.label}</span>
       <span className={identityBarStyles.idRow}>
-        <span className={field.mono ? cn(identityBarStyles.mono, 'truncate') : 'min-w-0 truncate text-[13px]'}>
+        <span className={field.mono ? cn(identityBarStyles.mono, 'truncate') : identityBarStyles.value}>
           {field.value}
         </span>
         {copyTarget ? <CopyChip value={copyTarget} label={`${field.label} 복사`} /> : null}

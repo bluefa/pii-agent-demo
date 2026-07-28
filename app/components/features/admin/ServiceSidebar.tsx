@@ -3,39 +3,6 @@
 import type { PageServiceItem } from '@/app/lib/api';
 import { borderColors, bgColors, idcStyles, primaryColors, textColors, cn, getInputClass } from '@/lib/theme';
 
-const footerLinkClass = cn(
-  'flex items-center gap-2 text-[13px] py-1.5 transition-colors',
-  textColors.secondary,
-  primaryColors.textHover,
-);
-
-const sidebarFooter = (
-  <nav className={cn('border-t px-5 py-3 flex flex-col gap-1', borderColors.light)}>
-    <a href="#" className={footerLinkClass}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-      </svg>
-      Notice
-    </a>
-    <a href="#" className={footerLinkClass}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-      </svg>
-      Guide
-    </a>
-    <a href="#" className={footerLinkClass}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-      FAQ
-    </a>
-  </nav>
-);
-
 interface ServicePageInfo {
   totalElements: number;
   totalPages: number;
@@ -120,12 +87,16 @@ export const ServiceSidebar = ({
                     : cn('px-[14px] py-3', bgColors.mutedHover),
                 )}
               >
+                {/* Name-first, code as the sub-line — same name > code hierarchy
+                    as the page headers (was inverted: code on top). */}
                 <div className={cn('text-[13px] font-semibold', isSelected ? primaryColors.text : textColors.primary)}>
-                  {code}
+                  {name || code}
                 </div>
-                <div className={cn('text-xs mt-0.5', textColors.tertiary)}>
-                  {name}
-                </div>
+                {name && (
+                  <div className={cn('text-xs mt-0.5', textColors.tertiary)}>
+                    {code}
+                  </div>
+                )}
               </li>
             );
           })
@@ -143,7 +114,8 @@ export const ServiceSidebar = ({
               onClick={() => onPageChange(Math.max(0, currentPage - 1))}
               disabled={currentPage === 0}
               className={cn(
-                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#F3F4F6]',
+                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
+                bgColors.mutedHover,
                 textColors.tertiary,
               )}
               aria-label="이전 페이지"
@@ -161,7 +133,7 @@ export const ServiceSidebar = ({
                   'w-7 h-7 text-xs rounded-md transition-colors flex items-center justify-center',
                   n === currentPage
                     ? `${primaryColors.bg} text-white`
-                    : cn(textColors.tertiary, 'hover:bg-[#F3F4F6]'),
+                    : cn(textColors.tertiary, bgColors.mutedHover),
                 )}
               >
                 {n + 1}
@@ -172,7 +144,8 @@ export const ServiceSidebar = ({
               onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
               disabled={currentPage >= totalPages - 1}
               className={cn(
-                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#F3F4F6]',
+                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
+                bgColors.mutedHover,
                 textColors.tertiary,
               )}
               aria-label="다음 페이지"
@@ -184,8 +157,6 @@ export const ServiceSidebar = ({
           </div>
         </div>
       )}
-
-      {sidebarFooter}
     </aside>
   );
 };

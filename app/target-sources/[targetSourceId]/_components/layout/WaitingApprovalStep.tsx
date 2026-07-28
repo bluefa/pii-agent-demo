@@ -15,7 +15,7 @@ interface WaitingApprovalStepProps {
   project: CloudTargetSource;
   identity: ProjectIdentity;
   providerLabel: string;
-  action: ReactNode;
+  action?: ReactNode;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 

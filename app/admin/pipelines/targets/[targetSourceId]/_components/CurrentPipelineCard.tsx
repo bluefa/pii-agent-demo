@@ -15,7 +15,7 @@ import { Fragment, useEffect, useRef, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { recipeDisplayName, recipeLabel } from '@/lib/pipeline/format';
+import { recipeDisplayName, recipeLabel, taskInfraSide } from '@/lib/pipeline/format';
 import {
   FlowArrow,
   FlowStatusPill,
@@ -144,6 +144,7 @@ export function CurrentPipelineCard({
                   name={def?.display_name ?? task.task_definition}
                   desc={task.description ?? def?.description}
                   action={task.terraform_action}
+                  side={taskInfraSide(task.task_definition)}
                   status={task.status}
                   seq={i + 1}
                   retry={task.sequence === retrySeq ? retry : null}

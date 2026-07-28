@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import type { TargetSource } from '@/lib/types';
+import { providerAccent, providerAccentDefault } from '@/lib/theme';
 import { ErrorState, GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common';
+import type { JiraTicketState } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
 import { resolveProjectStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import { AwsProjectPage } from '@/app/target-sources/[targetSourceId]/_components/aws';
 import { AzureProjectPage } from '@/app/target-sources/[targetSourceId]/_components/azure';
@@ -12,10 +14,18 @@ import { ServiceListPanel } from '@/app/target-sources/[targetSourceId]/_compone
 
 interface ProjectDetailProps {
   initialProject: TargetSource;
+  /** SSR-resolved collab ticket (page.tsx): null = none mapped (404), 'error' = fetch failed. */
+  jiraTicket: JiraTicketState;
 }
 
-export const ProjectDetail = ({ initialProject }: ProjectDetailProps) => {
+export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps) => {
   const [project, setProject] = useState<TargetSource>(initialProject);
+
+  // Same semantics as the per-provider identity strips had: SDU accounts are
+  // monitored via SDU, everything else via the provider agent.
+  const monitoringLabel = project.isSduType ? 'SDU' : `${project.cloudProvider} Agent`;
+  const monitoringAccent =
+    providerAccent[project.cloudProvider.toLowerCase()] ?? providerAccentDefault;
 
   // Right column wrapper is a <div> (not <main>) — provider pages already
   // render their own <main>, and nesting two <main> elements is invalid.
@@ -49,7 +59,12 @@ export const ProjectDetail = ({ initialProject }: ProjectDetailProps) => {
         {renderProvider()}
       </div>
       {/* Full-height right rail (가이드/진행 내역) — mirrors the left ServiceListPanel. */}
-      <GuidePanel slotKey={resolveProjectStepSlot(project)} />
+      <GuidePanel
+        slotKey={resolveProjectStepSlot(project)}
+        jiraTicket={jiraTicket}
+        monitoringLabel={monitoringLabel}
+        monitoringAccent={monitoringAccent}
+      />
     </div>
   );
 };

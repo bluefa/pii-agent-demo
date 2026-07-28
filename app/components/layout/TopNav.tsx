@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn, navStyles, textColors } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
+import { BellIcon, BookIcon, QuestionCircleIcon } from '@/app/components/ui/icons';
 import { UserChip } from '@/app/components/layout/UserChip';
 
 type NavItem = {
@@ -25,6 +26,15 @@ const iconProps = {
   strokeLinecap: 'round',
   strokeLinejoin: 'round',
 } as const;
+
+// Help/announcement links — live in the top nav so they are reachable from
+// every page. All destinations are still placeholders, so a click shows the
+// same "준비 중" toast as the disabled primary items.
+const UTILITY_ITEMS: Array<{ label: string; icon: React.ReactNode }> = [
+  { label: 'Notice', icon: <BellIcon className="h-3.5 w-3.5" /> },
+  { label: 'Guide', icon: <BookIcon className="h-3.5 w-3.5" /> },
+  { label: 'FAQ', icon: <QuestionCircleIcon className="h-3.5 w-3.5" /> },
+];
 
 const NAV_ITEMS: NavItem[] = [
   {
@@ -175,6 +185,28 @@ export const TopNav = () => {
               </Link>
             );
           })}
+        </nav>
+
+        {/* Help/announcement group — sits right after the primary items,
+            separated by a thin divider so it reads as a distinct-but-adjacent
+            cluster. */}
+        <span aria-hidden="true" className={cn(navStyles.divider, '-mx-4')} />
+
+        <nav aria-label="도움말" className="flex items-center gap-0.5">
+          {UTILITY_ITEMS.map((item) => (
+            <a
+              key={item.label}
+              href="#"
+              onClick={(e) => handleDisabledClick(e, item.label)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors',
+                navStyles.link.inactive,
+              )}
+            >
+              {item.icon}
+              {item.label}
+            </a>
+          ))}
         </nav>
 
         <div className="flex-1" />

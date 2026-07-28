@@ -95,7 +95,7 @@ describe('WaitingApprovalCard', () => {
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     const heading = screen.getByRole('heading', { name: '연동 대상 승인 대기' });
-    expect(heading.className).toContain('text-[26px]');
+    expect(heading.className).toContain('text-[22px]');
     expect(heading.className).toContain('font-extrabold');
 
     await waitFor(() => {
@@ -114,7 +114,7 @@ describe('WaitingApprovalCard', () => {
     expect(screen.getByText('승인 대기')).toBeTruthy();
     expect(screen.getByText('관리자 승인을 기다리고 있어요.')).toBeTruthy();
     expect(
-      screen.getByText(/평균 1영업일 내 검토되며, 승인되면 메일로 안내됩니다/),
+      screen.getByText(/평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요/),
     ).toBeTruthy();
 
     await waitFor(() => {

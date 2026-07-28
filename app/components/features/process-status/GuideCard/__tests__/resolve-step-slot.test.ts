@@ -6,8 +6,8 @@
  * `(provider, step)` combination and `null` for out-of-range steps. If
  * either contract drifts, `GuideCard.tsx` would fall through to a `null`
  * render and break every provider page — so the mapping is asserted
- * exhaustively here. (Install-mode variants were retired: AWS always
- * resolves to the `auto` slot.)
+ * exhaustively here. AWS resolves to the `auto` slot except step 4 with
+ * an explicit manual install, where the guide content diverges.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -21,6 +21,14 @@ describe('resolveStepSlot — AWS', () => {
     for (let step = 1; step <= 7; step++) {
       const key = resolveStepSlot('AWS', step as ProcessStatus);
       expect(key).toBe(`process.aws.auto.${step}`);
+      expect(key && GUIDE_SLOTS[key]).toBeDefined();
+    }
+  });
+
+  it('switches to the manual slot only at step 4 when manualInstall is set', () => {
+    for (let step = 1; step <= 7; step++) {
+      const key = resolveStepSlot('AWS', step as ProcessStatus, { manualInstall: true });
+      expect(key).toBe(step === 4 ? 'process.aws.manual.4' : `process.aws.auto.${step}`);
       expect(key && GUIDE_SLOTS[key]).toBeDefined();
     }
   });

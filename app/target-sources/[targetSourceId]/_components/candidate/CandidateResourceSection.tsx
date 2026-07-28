@@ -256,8 +256,9 @@ export const CandidateResourceSection = ({
                       Last Scan: {formatDate(lastScanAt, 'datetime')}
                     </span>
                   )}
+                  {/* Secondary on purpose: the step's primary CTA is 연동 대상 승인 요청 below. */}
                   <Button
-                    variant="primary"
+                    variant="secondary"
                     disabled={initialLoading || !canStart || readonly}
                     onClick={startScan}
                     className="inline-flex items-center gap-1.5 text-sm py-1.5"
@@ -270,7 +271,7 @@ export const CandidateResourceSection = ({
                     ) : (
                       <>
                         <PlayIcon className="w-3.5 h-3.5" />
-                        Run Infra Scan
+                        스캔 시작
                       </>
                     )}
                   </Button>

@@ -85,7 +85,6 @@ const projectFixture: CloudTargetSource = {
 
 const identityFixture: ProjectIdentity = {
   cloudProvider: 'Azure',
-  monitoringMethod: 'Azure Agent',
   jiraLink: null,
   identifiers: [],
 };
@@ -180,7 +179,7 @@ describe('InstallationCompleteStep', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
     const h2 = screen.getByRole('heading', { level: 2, name: /PII 모니터링 모듈 연동 완료/ });
-    expect(h2.className).toContain('text-[26px]');
+    expect(h2.className).toContain('text-[22px]');
     expect(h2.className).toContain('font-extrabold');
   });
 });

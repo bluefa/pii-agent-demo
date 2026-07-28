@@ -97,6 +97,8 @@ export interface BffClient {
       body: unknown,
     ) => Promise<z.infer<typeof schemas.TargetSourceCreationCandidateResponse>[]>;
     getSecrets: (id: number) => Promise<z.infer<typeof schemas.SecretResponse>[]>;
+    // GET …/jira-ticket — camel wire (JiraTicketResponse); upstream 404 = no ticket mapped.
+    getJiraTicket: (id: number) => Promise<z.infer<typeof schemas.JiraTicketResponse>>;
   };
 
   users: {

@@ -1,13 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
+import { ChatIcon, OpenExternalIcon, ShieldCheckIcon } from '@/app/components/ui/icons';
+import { DeleteInfrastructureButton } from '@/app/target-sources/[targetSourceId]/_components/common/DeleteInfrastructureButton';
 import {
   bgColors,
   borderColors,
   cn,
+  identityBarStyles,
   interactiveColors,
+  primaryColors,
   segmentedControlStyles,
   statusColors,
   textColors,
@@ -17,7 +21,95 @@ import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 
 type PanelTab = 'guide' | 'history';
 
-// ponytail: 진행 내역 API가 아직 없어 하드코딩 mock — 이력 데이터 소스가 생기면 교체.
+/**
+ * Collab-channel ticket state for the rail card, resolved server-side
+ * (page.tsx): 'error' on non-404 failures, null = no ticket mapped (API 404).
+ */
+export type JiraTicketState = { issueKey: string } | null | 'error';
+
+/**
+ * Jira base URL for ticket links — the wire (JiraTicketResponse) carries only
+ * `issueKey`, no URL. Deployment overrides via NEXT_PUBLIC_JIRA_BROWSE_BASE;
+ * the fallback keeps the key navigable in mock/demo (owner ask: the issue key
+ * must render as a clickable link).
+ */
+const JIRA_BROWSE_BASE =
+  process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? 'https://jira.example.com/browse/';
+
+/**
+ * Top-of-rail help card — the collab-channel entry point, mirroring
+ * GET /target-sources/{id}/jira-ticket: mapped ticket → Jira link row (or a
+ * plain key row when no Jira base URL is configured); 404 → explicit 미연결
+ * row instead of a fake sample key; fetch error → its own row, so an outage
+ * is not misread as "no channel".
+ */
+const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
+  const rowBase = 'mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px]';
+
+  return (
+    <div className={cn('rounded-xl border p-4', primaryColors.bgLight, primaryColors.borderLight)}>
+      <p className={cn('text-[16px] font-bold leading-[1.4]', textColors.primary)}>
+        도움이 필요하신가요?
+      </p>
+      <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.tertiary)}>
+        진행 중 막히는 부분은 협업 채널에서 담당자에게 바로 문의할 수 있어요.
+      </p>
+      {jiraTicket === 'error' ? (
+        <div
+          className={cn(
+            rowBase,
+            'border-dashed font-medium',
+            primaryColors.borderLight,
+            bgColors.surface,
+            textColors.quaternary,
+          )}
+        >
+          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
+          협업 채널 정보를 불러오지 못했어요
+        </div>
+      ) : jiraTicket === null ? (
+        <div
+          className={cn(
+            rowBase,
+            'border-dashed font-medium',
+            primaryColors.borderLight,
+            bgColors.surface,
+            textColors.quaternary,
+          )}
+        >
+          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
+          아직 연결된 협업 채널이 없어요
+        </div>
+      ) : (
+        <a
+          href={`${JIRA_BROWSE_BASE}${encodeURIComponent(jiraTicket.issueKey)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="협업 채널 — Jira에서 논의하기"
+          className={cn(
+            rowBase,
+            'font-semibold no-underline transition-colors',
+            primaryColors.borderLight,
+            bgColors.surface,
+            textColors.secondary,
+            primaryColors.textHover,
+          )}
+        >
+          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
+          협업 채널 링크
+          {/* Owner ask: the issue key reads as a classic hyperlink — blue + underline. */}
+          <span className={cn('ml-auto font-mono text-[12px] underline', primaryColors.text)}>
+            {jiraTicket.issueKey}
+          </span>
+          <OpenExternalIcon className="h-[11px] w-[11px] shrink-0 opacity-50" />
+        </a>
+      )}
+    </div>
+  );
+};
+
+// ponytail: no history API exists yet, so this is a hardcoded mock — swap in
+// the real data source when one lands.
 const MOCK_HISTORY: ReadonlyArray<{
   title: string;
   detail: string;
@@ -69,6 +161,11 @@ const HistoryTimeline = ({ items }: { items: typeof MOCK_HISTORY }) => (
 
 interface GuidePanelProps {
   slotKey: GuideSlotKey | null;
+  jiraTicket: JiraTicketState;
+  /** Monitoring-method pill in the management footer (e.g. "AWS Agent", "SDU"). */
+  monitoringLabel: string;
+  /** Provider accent hex driving the pill tint (see `providerAccent`). */
+  monitoringAccent: string;
 }
 
 /**
@@ -78,7 +175,12 @@ interface GuidePanelProps {
  * working column keeps the visual weight. Replaces the inline amber guide card
  * (UX report P2/P3).
  */
-export const GuidePanel = ({ slotKey }: GuidePanelProps) => {
+export const GuidePanel = ({
+  slotKey,
+  jiraTicket,
+  monitoringLabel,
+  monitoringAccent,
+}: GuidePanelProps) => {
   const [tab, setTab] = useState<PanelTab>('guide');
   const [page, setPage] = useState(0);
 
@@ -115,6 +217,30 @@ export const GuidePanel = ({ slotKey }: GuidePanelProps) => {
         bgColors.surface,
       )}
     >
+      {/* Monitoring method leads the rail (owner ask) — identity-level fact,
+          read before any step work. */}
+      <div
+        className={cn(
+          'flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3',
+          borderColors.light,
+        )}
+      >
+        <span className={cn('text-[12px] font-medium', textColors.tertiary)}>모니터링</span>
+        <span
+          className={identityBarStyles.agent}
+          style={{ ['--ib-accent']: monitoringAccent } as CSSProperties}
+        >
+          <ShieldCheckIcon className={identityBarStyles.agentIcon} />
+          {monitoringLabel}
+        </span>
+      </div>
+
+      {/* Jira ticket next — the collab channel is the escape hatch for every
+          step, so it stays above the fold. */}
+      <div className={cn('shrink-0 border-b p-4', borderColors.light)}>
+        <CollabChannelCard jiraTicket={jiraTicket} />
+      </div>
+
       <div className={cn('shrink-0 border-b p-3', borderColors.light)}>
         <div role="tablist" className={cn(segmentedControlStyles.container, 'w-full')}>
           <button
@@ -180,6 +306,13 @@ export const GuidePanel = ({ slotKey }: GuidePanelProps) => {
           </button>
         </div>
       )}
+
+      {/* Danger zone — the destructive infra action stays pinned to the rail's
+          bottom edge across both tabs: one predictable, visually isolated spot
+          instead of competing with the page header's primary CTA. */}
+      <div className={cn('shrink-0 border-t p-4', borderColors.light)}>
+        <DeleteInfrastructureButton className="w-full justify-center" />
+      </div>
     </aside>
   );
 };
