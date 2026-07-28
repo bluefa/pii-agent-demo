@@ -91,11 +91,11 @@ describe('CustomBuildStep', () => {
     expect(html).not.toContain('<input');
     expect(html).not.toContain('<select');
     // affordances: keyboard contract, per-card delete, count + drag hint
-    expect(html).toContain('표시명 A — 1번째. 좌우 화살표로 순서 이동, Delete로 제거');
+    expect(html).toContain('표시명 A, 1번째입니다. 좌우 화살표로 순서를 옮기고 Delete로 제거합니다.');
     expect(html.match(/aria-label="표시명 [ABC] 제거"/g)).toHaveLength(3);
     expect(html).toContain('Task 3개 · 노드를 드래그해 실행 순서를 바꿀 수 있어요');
     // CONDITION_CHECK keeps the clock mark vocabulary
-    expect(html).toContain('조건 확인 — 폴링');
+    expect(html).toContain('조건 확인(폴링)');
   });
 });
 
@@ -108,7 +108,7 @@ describe('AddTaskMenu', () => {
     expect(html.match(/role="menuitem"/g)).toHaveLength(2);
     expect(html).toContain('표시명 A');
     expect(html).toContain('카탈로그 설명 A');
-    expect(html).toContain('조건 확인 — 폴링'); // CONDITION_CHECK clock mark
+    expect(html).toContain('조건 확인(폴링)'); // CONDITION_CHECK clock mark
     expect(html).toContain('Terraform'); // TERRAFORM_JOB mark
   });
 });

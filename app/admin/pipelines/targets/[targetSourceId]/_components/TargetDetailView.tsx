@@ -87,7 +87,7 @@ export function TargetDetailView(): ReactElement {
   if (rawError) {
     return (
       <Card>
-        <PlEmptyState icon="inbox" message="대상 정보를 불러오지 못했습니다" center />
+        <PlEmptyState icon="inbox" message="대상 정보를 불러오지 못했습니다." center />
         <div className="flex justify-center">
           <PlButton variant="secondary" size="sm" onClick={() => setReloadKey((k) => k + 1)}>
             재시도

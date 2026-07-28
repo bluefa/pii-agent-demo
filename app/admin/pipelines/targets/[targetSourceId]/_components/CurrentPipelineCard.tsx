@@ -215,19 +215,31 @@ export function LastRunFailedCard({
                 />
               )}
             </div>
-            <p className="mt-1.5 text-[14px] leading-[1.55] text-[var(--pl-text-weak)]">
-              {detail.total_task_count}단계 중 {detail.done_task_count}단계 완료
-              {stoppedName && (
+            {/* Two facts, two lines, two weights. They used to be one 14px line
+                glued by an em dash, which flattened "어디서 멈췄나"(actionable)
+                and "얼마나 갔나"(context) into the same rank. The stop point
+                leads because it is what the restart CTA acts on. */}
+            <p className="mt-1.5 text-[14px] font-medium leading-[1.55] text-[var(--pl-text-strong)]">
+              {stoppedName ? (
                 <>
-                  {' — '}
                   <b className="font-semibold text-[var(--pl-err-text)]">
                     {(stopped?.sequence ?? 0) + 1}단계 {stoppedName}
                   </b>
-                  {detail.status === 'FAILED'
-                    ? ` 에서 실패${stopped?.error_code ? ` · ${stopped.error_code}` : ''}`
-                    : ' 에서 중단'}
+                  {detail.status === 'FAILED' ? '에서 실패했습니다.' : '에서 중단됐습니다.'}
                 </>
+              ) : detail.status === 'FAILED' ? (
+                '작업이 실패했습니다.'
+              ) : (
+                '작업이 중단됐습니다.'
               )}
+              {stopped?.error_code && (
+                <code className="ml-2 rounded bg-[var(--pl-err-bg)] px-1.5 py-0.5 align-middle text-[12px] font-medium text-[var(--pl-err-text)] [font-family:var(--pl-font-mono)]">
+                  {stopped.error_code}
+                </code>
+              )}
+            </p>
+            <p className="mt-1 text-[13px] leading-[1.5] text-[var(--pl-text-weak)]">
+              전체 {detail.total_task_count}단계 중 {detail.done_task_count}단계를 완료했습니다.
             </p>
           </div>
           <div className="flex flex-none items-center pt-0.5">
@@ -247,7 +259,9 @@ export function LastRunFailedCard({
         <div className="mt-4 flex items-center gap-2.5">
           <PlButton variant="primary" onClick={onRestart}>
             <Icon name="play" size="sm" />
-            실패 지점부터 재시작
+            {/* A CANCELLED run never "실패"했다 — the CTA must name what actually
+                happened, or it contradicts the line right above it. */}
+            {detail.status === 'FAILED' ? '실패 지점부터 재시작' : '중단 지점부터 재시작'}
           </PlButton>
           <PlButton variant="ghost" onClick={onStartNew}>
             새 작업 시작

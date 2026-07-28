@@ -108,6 +108,6 @@ export function paginate<T>(rows: readonly T[], page: number, size = DASH_PAGE_S
 
 /** 현황 section description (prototype line 762). */
 export function buildStatsDesc(period: StatisticsPeriodToken): string {
-  return `${PERIOD_LABELS[period]}(생성시간 기준) 실패·성공 집계 — 기간 필터와 동기화 · 동작 중은 현재 순간값`;
+  return `${PERIOD_LABELS[period]}(생성시간 기준) 실패·성공 집계입니다. 기간 필터와 동기화되며, 동작 중은 현재 순간값입니다.`;
 }
 

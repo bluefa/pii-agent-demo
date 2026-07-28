@@ -140,7 +140,7 @@ export function RoleVerifyModal({
       <div className="mt-4">
         <p className={pipelineStyles.text.subsectionTitle}>필요 권한</p>
         <p className={cn(pipelineStyles.text.meta, 'mt-1')}>
-          이 Role에 부여돼야 하는 항목 — 검증 API는 권한별 결과를 주지 않습니다
+          이 Role에 부여돼야 하는 항목입니다. 검증 API는 권한별 결과를 주지 않습니다.
         </p>
         <ul className="mt-2">
           {REQUIRED_PERMS[kind].map((perm) => (

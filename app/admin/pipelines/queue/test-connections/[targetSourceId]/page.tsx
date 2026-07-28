@@ -193,7 +193,7 @@ export default function TestConnectionDetailPage(): ReactElement {
   const rerun = useApiMutation((reason: string) => rejectTestConnection(targetSourceId, reason), {
     onSuccess: () => {
       setRerunOpen(false);
-      toast.show('재실행을 요청했어요 — 사유가 전달됐어요');
+      toast.show('재실행을 요청했습니다. 사유가 전달됐습니다.');
       refetch();
     },
     onError: () => toast.show('재실행 요청에 실패했어요'),
@@ -202,7 +202,7 @@ export default function TestConnectionDetailPage(): ReactElement {
   const approve = useApiAction(() => confirmInstallation(targetSourceId), {
     onSuccess: () => {
       setApproveOpen(false);
-      toast.show('연동을 승인했어요 — 연동이 완료됐어요');
+      toast.show('연동을 승인했습니다. 연동이 완료됐습니다.');
       refetch();
     },
     onError: () => toast.show('연동 승인에 실패했어요'),

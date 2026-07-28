@@ -244,7 +244,7 @@ export function AlertsView(): ReactElement {
                     </td>
                     <td className={cn(opsStyles.table.cell, 'whitespace-nowrap')}>
                       {needForStatus(row.process_status) ?? (
-                        <span className={pipelineStyles.text.muted}>장기 정체 — 원인 확인</span>
+                        <span className={pipelineStyles.text.muted}>장기 정체 상태입니다. 원인을 확인해 주세요.</span>
                       )}
                     </td>
                     <td className={cn(opsStyles.table.cell, 'whitespace-nowrap')}>

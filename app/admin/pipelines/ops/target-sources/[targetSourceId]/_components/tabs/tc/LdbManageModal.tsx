@@ -360,7 +360,7 @@ export function LdbManageModal({
       </div>
       {excludedFailed && !loading && (
         <p className={cn(pipelineStyles.text.meta, 'mt-2 text-right')}>
-          제외 목록을 불러오지 못했습니다 — 기존 정책이 지워질 수 있어 저장할 수 없습니다. 모달을 닫고 다시 열어
+          제외 목록을 불러오지 못했습니다. 기존 정책이 지워질 수 있어 저장할 수 없습니다. 모달을 닫고 다시 열어
           주세요.
         </p>
       )}

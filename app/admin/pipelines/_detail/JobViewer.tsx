@@ -153,7 +153,7 @@ export function JobViewer({
       body = (
         <div ref={logRef} className={j.logBody} tabIndex={0} role="region" aria-label="Terraform 로그">
           <pre className={j.logPre}>
-            {truncated && <span className={j.logCut}>— 이 지점 위 로그는 16MB 초과로 절단되었습니다 —</span>}
+            {truncated && <span className={j.logCut}>이 지점 위 로그는 16MB를 초과해 잘렸습니다.</span>}
             {parseAnsi(result.data?.content ?? '').map((s, i) => (
               <span key={i} className={cn(s.color && j.logAnsi[s.color], s.bold && 'font-semibold')}>
                 {s.text}
@@ -223,8 +223,8 @@ export function JobViewer({
 
       <div className={cn(j.panel, dark && j.panelDark)}>
         <div className={j.strip}>
-          {truncated && <span className={j.warnPill}>16MB 초과 — 앞부분 절단</span>}
-          {live && <span className={j.livePill}>실시간 조회 — 저장 전</span>}
+          {truncated && <span className={j.warnPill}>16MB 초과로 앞부분이 잘렸습니다.</span>}
+          {live && <span className={j.livePill}>저장 전 실시간 조회입니다.</span>}
           <span className={j.toolbarGrow} />
           <PlButton
             variant={dark ? 'primary' : 'secondary'}

@@ -252,7 +252,7 @@ export function TaskFlow({
                       <TerraformLogo />
                     </span>
                   ) : (
-                    <span className="nd-mark m-cond" title="조건 확인 — 폴링">
+                    <span className="nd-mark m-cond" title="조건 확인(폴링)">
                       {/* 70:35 condition gate — amber ring + check (currentColor). */}
                       <Icon name="check-circle" strokeWidth={2.2} />
                     </span>

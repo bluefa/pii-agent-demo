@@ -69,7 +69,7 @@ export function JiraUserModal({
   return (
     <ModalShell open={open} onClose={onClose} labelledBy={TITLE_ID}>
       <h3 id={TITLE_ID} className={pipelineStyles.modal.title}>
-        User 등록 — <span className={pipelineStyles.text.mono}>{ticket.ticket_key}</span>
+        User 등록: <span className={pipelineStyles.text.mono}>{ticket.ticket_key}</span>
       </h3>
       <p className={pipelineStyles.modal.desc}>
         티켓 상태 변경 알림을 받을 사용자를 등록합니다.
