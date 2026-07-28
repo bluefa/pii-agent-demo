@@ -1,13 +1,10 @@
 'use client';
 
-import { Button } from '@/app/components/ui/Button';
-import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import {
   bgColors,
   borderColors,
   cn,
   idcStyles,
-  primaryColors,
   textColors,
 } from '@/lib/theme';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
@@ -24,9 +21,7 @@ interface CandidateResourceTableProps {
   drafts: CandidateDraftState;
   expandedResourceId: string | null;
   readonly: boolean;
-  approvalSubmitting: boolean;
   actions: CandidateRowActions;
-  onRequestApproval: () => void;
 }
 
 export const CandidateResourceTable = ({
@@ -36,12 +31,9 @@ export const CandidateResourceTable = ({
   drafts,
   expandedResourceId,
   readonly,
-  approvalSubmitting,
   actions,
-  onRequestApproval,
 }: CandidateResourceTableProps) => {
   const totalCount = candidates.length;
-  const selectedCount = selectedIds.size;
   const showCheckboxColumn = !readonly;
 
   if (totalCount === 0) {
@@ -87,24 +79,6 @@ export const CandidateResourceTable = ({
           </table>
         </div>
       </div>
-
-      {!readonly && (
-        <div className="flex justify-between items-center pt-4">
-          <span className={cn('text-xs', textColors.tertiary)}>
-            총 <strong className={textColors.primary}>{totalCount}</strong>건 ·{' '}
-            <strong className={primaryColors.text}>{selectedCount}</strong>건 선택됨
-          </span>
-          <Button
-            variant="primary"
-            onClick={onRequestApproval}
-            disabled={approvalSubmitting || selectedCount === 0}
-            className="flex items-center gap-2"
-          >
-            {approvalSubmitting && <LoadingSpinner />}
-            연동 대상 승인 요청
-          </Button>
-        </div>
-      )}
     </div>
   );
 };

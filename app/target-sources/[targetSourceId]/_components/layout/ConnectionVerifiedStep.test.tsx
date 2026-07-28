@@ -6,6 +6,12 @@ import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_com
 
 const updateConfirmationMock = vi.fn();
 const getProjectMock = vi.fn();
+// The unified ProjectPageMeta header mounts the stepper; stub the animated bar
+// (its reduced-motion hook needs window.matchMedia, absent in jsdom).
+vi.mock('@/app/components/features/process-status', () => ({
+  InstallationProcessProgressBar: () => null,
+}));
+
 vi.mock('@/app/lib/api', () => ({
   updateTestConnectionConfirmation: (...args: unknown[]) => updateConfirmationMock(...args),
   getProject: (...args: unknown[]) => getProjectMock(...args),
@@ -21,20 +27,6 @@ vi.mock(
     }),
   }),
 );
-
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => <div data-testid="process-status-card" />,
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: ({ slotKey }: { slotKey: string }) => (
-    <div data-testid="guide-card-container" data-slot-key={slotKey} />
-  ),
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: vi.fn(() => null),
-}));
 
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot',
@@ -56,8 +48,6 @@ vi.mock('@/app/components/ui/toast', () => ({
 }));
 
 import { ConnectionVerifiedStep } from '@/app/target-sources/[targetSourceId]/_components/layout/ConnectionVerifiedStep';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
-import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 
 const projectFixture: CloudTargetSource = {
   id: 'proj-1',
@@ -143,14 +133,6 @@ describe('ConnectionVerifiedStep', () => {
     await waitFor(() => expect(onProjectUpdate).toHaveBeenCalledWith(projectFixture));
   });
 
-  it('mounts GuideCardContainer when the resolver returns a slot key', () => {
-    const slotKey = 'process.azure.6' satisfies GuideSlotKey;
-    vi.mocked(resolveStepSlot).mockReturnValueOnce(slotKey);
-    renderStep();
-    const guide = screen.getByTestId('guide-card-container');
-    expect(guide).toBeTruthy();
-    expect(guide.getAttribute('data-slot-key')).toBe(slotKey);
-  });
 
   it('renders the card title with the cardTitle token (v15 26px / font-extrabold)', () => {
     renderStep();

@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import { ProcessStatus, toWireDatabaseType } from '@/lib/types';
+import { toWireDatabaseType } from '@/lib/types';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
 import {
   idcDbTypeWireFromLabel,
@@ -15,10 +15,8 @@ import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
+  CardActionBar,
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
@@ -117,7 +115,6 @@ export const IdcStep1TargetInput = ({
   onProjectUpdate,
 }: IdcStepProps) => {
   const targetSourceId = project.targetSourceId;
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_TARGET_CONFIRMATION);
 
   // Step 1 starts EMPTY: IDC is manual input, so the working list begins blank and
   // the user either adds targets directly or loads a prior request on demand via
@@ -242,8 +239,6 @@ export const IdcStep1TargetInput = ({
   return (
     <>
       <ProjectPageMeta project={project} providerLabel={providerLabel} identity={identity} action={action} />
-      <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <div className={cn('rounded-xl shadow-sm', bgColors.surface)}>
         <div className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>
@@ -300,28 +295,34 @@ export const IdcStep1TargetInput = ({
                 onPageSizeChange={setPageSize}
                 pageSizeOptions={PAGE_SIZE_OPTIONS}
               />
-              <div className="mt-4 flex items-center justify-between">
-                <span className={cn('text-[12px]', textColors.tertiary)}>
-                  총 <strong className={textColors.primary}>{total}</strong>건 · 연동{' '}
-                  <strong className={primaryColors.text}>{liveCount}</strong>건
-                  {excludedCount > 0 && (
-                    <>
-                      {' '}· 제외 <strong className={statusColors.error.textDark}>{excludedCount}</strong>건
-                    </>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  disabled={liveCount === 0}
-                  onClick={() => setSubmitOpen(true)}
-                  className={idcStyles.triggerBtn.primary}
-                >
-                  연동 대상 승인 요청
-                </button>
-              </div>
             </>
           )}
         </div>
+        {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. */}
+        {rows.length > 0 && (
+          <CardActionBar
+            hint={
+              <>
+                총 <strong className={textColors.primary}>{total}</strong>건 · 연동{' '}
+                <strong className={primaryColors.text}>{liveCount}</strong>건
+                {excludedCount > 0 && (
+                  <>
+                    {' '}· 제외 <strong className={statusColors.error.textDark}>{excludedCount}</strong>건
+                  </>
+                )}
+              </>
+            }
+          >
+            <button
+              type="button"
+              disabled={liveCount === 0}
+              onClick={() => setSubmitOpen(true)}
+              className={idcStyles.triggerBtn.primary}
+            >
+              연동 대상 승인 요청
+            </button>
+          </CardActionBar>
+        )}
       </div>
 
       <RejectionAlert project={project} />

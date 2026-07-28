@@ -30,14 +30,12 @@ const defaultProps = {
   drafts: { endpointDrafts: {} },
   expandedResourceId: null,
   readonly: false,
-  approvalSubmitting: false,
   actions: {
     toggleSelected: () => {},
     reasonChipClick: () => {},
     expandToggle: () => {},
     endpointSave: () => {},
   },
-  onRequestApproval: () => {},
 };
 
 describe('CandidateResourceTable', () => {
@@ -128,7 +126,7 @@ describe('CandidateResourceTable', () => {
     expect(screen.queryByLabelText('페이지당 표시 건수')).toBeNull();
     // All 12 rows render (no 10-per-page slicing).
     expect(screen.getAllByRole('button', { name: 'Resource ID 복사' })).toHaveLength(12);
-    // Count + approve footer stays intact.
-    expect(screen.getByRole('button', { name: '연동 대상 승인 요청' })).toBeTruthy();
+    // The approve CTA lives in CandidateResourceSection's CardActionBar now (C-2).
+    expect(screen.queryByRole('button', { name: '연동 대상 승인 요청' })).toBeNull();
   });
 });

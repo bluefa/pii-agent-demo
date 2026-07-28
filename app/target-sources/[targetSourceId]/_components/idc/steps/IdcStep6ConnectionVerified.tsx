@@ -1,16 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { ProcessStatus } from '@/lib/types';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ClockIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { ErrorState } from '@/app/components/ui/state';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -50,7 +46,7 @@ const ConnectionVerifiedRetestButton = ({
   };
 
   return (
-    <div className="flex justify-end mt-4">
+    <>
       <button
         type="button"
         className={idcStyles.triggerBtn.warnOutline}
@@ -64,7 +60,7 @@ const ConnectionVerifiedRetestButton = ({
         onClose={() => setConfirmKind(null)}
         onConfirm={handleConfirm}
       />
-    </div>
+    </>
   );
 };
 
@@ -81,7 +77,6 @@ export const IdcStep6ConnectionVerified = ({
   action,
   onProjectUpdate,
 }: IdcStepProps) => {
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.CONNECTION_VERIFIED);
 
   // Step 6 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
   const { state } = useIdcResources(project.targetSourceId, getIdcConfirmedResources);
@@ -94,8 +89,6 @@ export const IdcStep6ConnectionVerified = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
@@ -104,10 +97,17 @@ export const IdcStep6ConnectionVerified = ({
               PII Agent 운영팀의 최종 승인이 완료되면 모니터링이 시작됩니다.
             </p>
           </div>
-          <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.partial.text)}>
-            <span className={cn(idcStyles.status.dot, idcStyles.status.partial.dot)} />
-            승인 대기
-          </span>
+          {/* C-3: auxiliary retest action pinned to the header right, status pill outermost. */}
+          <div className="flex shrink-0 items-center gap-2.5">
+            <ConnectionVerifiedRetestButton
+              targetSourceId={project.targetSourceId}
+              onProjectUpdate={onProjectUpdate}
+            />
+            <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.partial.text)}>
+              <span className={cn(idcStyles.status.dot, idcStyles.status.partial.dot)} />
+              승인 대기
+            </span>
+          </div>
         </header>
         <div className="p-6">
           <StepBanner variant="info" icon={<ClockIcon className="w-[18px] h-[18px]" />}>
@@ -119,10 +119,6 @@ export const IdcStep6ConnectionVerified = ({
           {state.status === 'ready' && (
             <IdcResourceTable resources={state.resources} cols={['src', 'credro', 'conn']} />
           )}
-          <ConnectionVerifiedRetestButton
-            targetSourceId={project.targetSourceId}
-            onProjectUpdate={onProjectUpdate}
-          />
         </div>
       </section>
       <RejectionAlert project={project} />

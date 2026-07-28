@@ -118,4 +118,5 @@ describe('CloudTargetSourceLayout process-status coverage', () => {
       expect(STATUS_TO_SENTINEL[status], `ProcessStatus=${status} missing from coverage map`).toBeDefined();
     }
   });
+
 });

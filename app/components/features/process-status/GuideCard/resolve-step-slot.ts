@@ -43,3 +43,12 @@ export const resolveStepSlot = (
 
   return null;
 };
+
+/**
+ * Project-level convenience over `resolveStepSlot` — lets layout shells stay
+ * provider-agnostic (R1: no `cloudProvider` token in CloudTargetSourceLayout).
+ */
+export const resolveProjectStepSlot = (project: {
+  cloudProvider: CloudProvider;
+  processStatus: ProcessStatus;
+}): GuideSlotKey | null => resolveStepSlot(project.cloudProvider, project.processStatus);

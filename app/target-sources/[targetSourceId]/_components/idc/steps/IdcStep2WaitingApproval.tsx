@@ -1,16 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ProcessStatus } from '@/lib/types';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { ClockIcon } from '@/app/components/ui/icons';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ErrorState } from '@/app/components/ui/state';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
+  CardActionBar,
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
@@ -36,7 +33,6 @@ export const IdcStep2WaitingApproval = ({
   action,
   onProjectUpdate,
 }: IdcStepProps) => {
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_APPROVAL);
 
   // Step 2 source: the requested list via approved-integration, not previous-request.
   const { state } = useIdcResources(project.targetSourceId, getIdcApprovalRequestResources);
@@ -67,8 +63,6 @@ export const IdcStep2WaitingApproval = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       {unavailable ? (
         <ApprovalUnavailableCard
           targetSourceId={project.targetSourceId}
@@ -76,7 +70,8 @@ export const IdcStep2WaitingApproval = ({
           onReselected={async () => onProjectUpdate(await getProject(project.targetSourceId))}
         />
       ) : (
-      <section className={cn(cardStyles.base, 'overflow-hidden')}>
+      // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
+      <section className={cardStyles.base}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
             <h2 className={cardStyles.cardTitle}>연동 대상 승인 대기</h2>
@@ -101,13 +96,14 @@ export const IdcStep2WaitingApproval = ({
           {state.status === 'ready' && (
             <IdcResourceTable resources={state.resources} cols={['src', 'excl']} />
           )}
-          <div className="mt-4 flex justify-end">
-            <WaitingApprovalCancelButton
-              targetSourceId={project.targetSourceId}
-              onSuccess={async () => onProjectUpdate(await getProject(project.targetSourceId))}
-            />
-          </div>
         </div>
+        {/* C-2 action zone: cancel docks (sticky) at the card bottom. */}
+        <CardActionBar>
+          <WaitingApprovalCancelButton
+            targetSourceId={project.targetSourceId}
+            onSuccess={async () => onProjectUpdate(await getProject(project.targetSourceId))}
+          />
+        </CardActionBar>
       </section>
       )}
       <RejectionAlert project={project} />

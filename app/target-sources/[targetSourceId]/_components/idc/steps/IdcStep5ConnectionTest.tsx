@@ -1,9 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
-import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles } from '@/lib/theme';
 import { ErrorState } from '@/app/components/ui/state';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import {
@@ -21,10 +20,8 @@ import {
   updateTestConnectionConfirmation,
   type TestConnectionStatus,
 } from '@/app/lib/api';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
+  CardActionBar,
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
@@ -71,7 +68,6 @@ export const IdcStep5ConnectionTest = ({
   action,
   onProjectUpdate,
 }: IdcStepProps) => {
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_CONNECTION_TEST);
   const { targetSourceId } = project;
 
   const [state, setState] = useState<ResourcesState>({ status: 'loading' });
@@ -275,9 +271,8 @@ export const IdcStep5ConnectionTest = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
-      <section className={cn(cardStyles.base, 'overflow-hidden')}>
+      {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
+      <section className={cardStyles.base}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
             <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
@@ -285,11 +280,12 @@ export const IdcStep5ConnectionTest = ({
               DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
             </p>
           </div>
+          {/* C-1: repeatable action demoted to soft — 완료 승인 요청 keeps the only primary. */}
           <button
             type="button"
             onClick={runTest}
             disabled={!ready || testing || savingCreds || !allCredsSet}
-            className={idcStyles.triggerBtn.primary}
+            className={cn(idcStyles.triggerBtn.soft, 'disabled:cursor-not-allowed disabled:opacity-45')}
           >
             {testing || savingCreds ? (
               '연결 테스트 진행 중...'
@@ -345,19 +341,6 @@ export const IdcStep5ConnectionTest = ({
                   onLogicalOpen={handleLogicalOpen}
                 />
               </div>
-              <div className="flex items-center justify-between mt-4">
-                <p className={cn('text-[12px]', textColors.tertiary)}>
-                  ※ 모든 DB의 Connection Status가 Success여야 다음 단계로 진행할 수 있어요.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setApprovalOpen(true)}
-                  disabled={!canRequestApproval}
-                  className={idcStyles.triggerBtn.primary}
-                >
-                  완료 승인 요청
-                </button>
-              </div>
               <IdcReqApprovalModal
                 isOpen={approvalOpen}
                 onClose={() => setApprovalOpen(false)}
@@ -378,6 +361,19 @@ export const IdcStep5ConnectionTest = ({
             </>
           )}
         </div>
+        {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. */}
+        {ready && (
+          <CardActionBar hint="※ 모든 DB의 Connection Status가 Success여야 다음 단계로 진행할 수 있어요.">
+            <button
+              type="button"
+              onClick={() => setApprovalOpen(true)}
+              disabled={!canRequestApproval}
+              className={idcStyles.triggerBtn.primary}
+            >
+              완료 승인 요청
+            </button>
+          </CardActionBar>
+        )}
       </section>
       <RejectionAlert project={project} />
     </>

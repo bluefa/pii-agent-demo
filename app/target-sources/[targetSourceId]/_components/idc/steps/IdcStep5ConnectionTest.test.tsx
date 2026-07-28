@@ -6,18 +6,16 @@ import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_com
 import { toIdcResourceView, type IdcResourceView } from '@/app/lib/api/idc';
 
 // Stub the heavy chrome so only the connection-test card (strip + IdcResourceTable) renders.
+// CardActionBar passes through so the 완료 승인 요청 CTA stays queryable.
 vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
   ProjectPageMeta: () => null,
   RejectionAlert: () => null,
-}));
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => null,
-}));
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: () => null,
-}));
-vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: () => null,
+  CardActionBar: ({ hint, children }: { hint?: React.ReactNode; children: React.ReactNode }) => (
+    <div>
+      {hint}
+      {children}
+    </div>
+  ),
 }));
 vi.mock('@/app/components/ui/Tooltip', () => ({
   InfoTooltip: () => null,

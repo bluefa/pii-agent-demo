@@ -48,7 +48,8 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
     <main className={cn('bg-[#F4F4FB]', 'min-h-screen')}>
       {/* v16 `.main`: full-width, padding 32/40/80 (top/x/bottom), flush to the 296px
           sidebar so content begins at 336px — matches IdcTargetSourceLayout. (Was
-          max-w-[1200px] mx-auto p-7 — centered + 28px, which diverged from IDC/v16.) */}
+          max-w-[1200px] mx-auto p-7 — centered + 28px, which diverged from IDC/v16.)
+          The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
       <div className="px-10 pt-8 pb-20 space-y-6">{step}</div>
     </main>
   );

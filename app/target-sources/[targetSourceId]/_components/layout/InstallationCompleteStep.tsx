@@ -2,9 +2,6 @@
 
 import { useState, type ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { cardStyles, cn, textColors } from '@/lib/theme';
@@ -56,7 +53,7 @@ const InstallationCompleteActions = () => {
   };
 
   return (
-    <div className="flex justify-end gap-2 mb-3">
+    <div className="flex items-center gap-2">
       <button
         type="button"
         className={WARNING_OUTLINE_BUTTON_CLASS}
@@ -88,10 +85,6 @@ export const InstallationCompleteStep = ({
   providerLabel,
   action,
 }: InstallationCompleteStepProps) => {
-  const slotKey = resolveStepSlot(
-    project.cloudProvider,
-    project.processStatus,
-  );
 
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
@@ -101,8 +94,6 @@ export const InstallationCompleteStep = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
@@ -113,10 +104,13 @@ export const InstallationCompleteStep = ({
               PII가 사용되어 있을 가능성이 있어요. 사용 단어 빈도가 표시되며, 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.
             </p>
           </div>
-          <InstallationCompleteHeaderRight />
+          {/* C-3: auxiliary rewind actions pinned to the header right, health badge outermost. */}
+          <div className="flex shrink-0 items-center gap-2.5">
+            <InstallationCompleteActions />
+            <InstallationCompleteHeaderRight />
+          </div>
         </header>
         <div className={cardStyles.body}>
-          <InstallationCompleteActions />
           <ConfirmedResourcesSlot variant="complete" bare />
         </div>
       </section>

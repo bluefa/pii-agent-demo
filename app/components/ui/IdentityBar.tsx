@@ -25,6 +25,8 @@ interface IdentityBarProps {
   fields: IdentityBarField[];
   /** Agent badge label (monitoring method, e.g. "AWS Agent"). Hidden when empty. */
   agentLabel?: string;
+  /** Render without the standalone card chrome — the host surface owns bg/radius/stripe. */
+  bare?: boolean;
 }
 
 /**
@@ -39,8 +41,12 @@ export const IdentityBar = ({
   icon,
   fields,
   agentLabel,
+  bare,
 }: IdentityBarProps) => (
-  <div className={identityBarStyles.bar} style={{ ['--ib-accent']: accent } as CSSProperties}>
+  <div
+    className={bare ? identityBarStyles.barBare : identityBarStyles.bar}
+    style={{ ['--ib-accent']: accent } as CSSProperties}
+  >
     <div className={identityBarStyles.provider}>
       <span className={identityBarStyles.providerIcon} aria-hidden="true">
         {icon}

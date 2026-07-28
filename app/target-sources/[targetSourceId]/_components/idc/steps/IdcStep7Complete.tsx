@@ -1,15 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { ProcessStatus } from '@/lib/types';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { ErrorState } from '@/app/components/ui/state';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
-import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -40,7 +36,7 @@ const CompleteActions = () => {
   };
 
   return (
-    <div className="mb-3 flex justify-end gap-2">
+    <div className="flex items-center gap-2">
       <button type="button" className={idcStyles.triggerBtn.warnOutline} onClick={() => setConfirmKind('infra')}>
         <EditIcon className="w-3.5 h-3.5" />
         인프라 변경
@@ -71,7 +67,6 @@ export const IdcStep7Complete = ({
   providerLabel,
   action,
 }: IdcStepProps) => {
-  const slotKey = resolveStepSlot('IDC', ProcessStatus.INSTALLATION_COMPLETE);
 
   // Step 7 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
   const { state } = useIdcResources(project.targetSourceId, getIdcConfirmedResources);
@@ -84,8 +79,6 @@ export const IdcStep7Complete = ({
         identity={identity}
         action={action}
       />
-      <ProcessStatusCard project={project} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
@@ -94,12 +87,14 @@ export const IdcStep7Complete = ({
               PII가 사용되어 있을 가능성이 있어요. 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.
             </p>
           </div>
-          {/* No per-target health API source — render a neutral em-dash instead
-              of a fabricated green "Healthy" pill (B.6). */}
-          <span className={cn('text-[12px]', textColors.quaternary)}>—</span>
+          {/* C-3: auxiliary rewind actions pinned to the header right. The health slot
+              stays a neutral em-dash — no per-target health API source (B.6). */}
+          <div className="flex shrink-0 items-center gap-2.5">
+            <CompleteActions />
+            <span className={cn('text-[12px]', textColors.quaternary)}>—</span>
+          </div>
         </header>
         <div className="p-6">
-          <CompleteActions />
           {state.status === 'loading' && <ResourceTableSkeleton />}
           {state.status === 'error' && <ErrorState message="연동 대상을 불러오지 못했습니다." />}
           {state.status === 'ready' && (

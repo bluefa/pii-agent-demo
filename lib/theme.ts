@@ -361,6 +361,11 @@ export const providerAccentDefault = providerAccent.azure;
  */
 export const identityBarStyles = {
   bar: 'relative flex items-center gap-8 flex-wrap overflow-hidden rounded-[14px] bg-white py-4 pr-[22px] pl-7 mt-4 mb-5 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_1px_3px_rgba(17,24,39,0.04)] before:content-[""] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--ib-accent)]',
+  /** `bare` variant — identity row nested inside a host surface (unified project header card): no chrome/margins of its own. */
+  barBare: 'flex items-center gap-8 flex-wrap px-[28px] pb-[18px]',
+  /** Provider accent stripe for the host card that absorbs the bare identity row. */
+  hostStripe:
+    'before:content-[""] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--ib-accent)]',
   provider: 'flex items-center gap-3 flex-shrink-0',
   providerIcon:
     'grid place-items-center w-[38px] h-[38px] rounded-[10px] flex-shrink-0 bg-[color-mix(in_srgb,var(--ib-accent)_12%,transparent)] text-[var(--ib-accent)]',

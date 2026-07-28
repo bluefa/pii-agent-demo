@@ -23,20 +23,6 @@ vi.mock(
   }),
 );
 
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => null,
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: ({ slotKey }: { slotKey: string | null }) => (
-    <div data-testid="guide-card" data-slot={slotKey ?? ''} />
-  ),
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: () => 'process.azure.4',
-}));
-
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/common',
   async (importOriginal) => {
@@ -103,13 +89,6 @@ describe('CloudInstallingStep DOM order', () => {
   });
 });
 
-describe('CloudInstallingStep GuideCard mount', () => {
-  it('mounts GuideCardContainer with the resolved slot key', () => {
-    renderStep();
-    const guide = screen.getByTestId('guide-card');
-    expect(guide.getAttribute('data-slot')).toBe('process.azure.4');
-  });
-});
 
 describe('CloudInstallingStep identity action slot', () => {
   it('forwards the action without injecting a "Provider:" badge (not in v16 HTML 5765-5793)', () => {
