@@ -50,10 +50,12 @@ import {
   RowAction,
   ServiceCodeCell,
   ServiceNameCell,
-  StatusDot,
   TargetIdCell,
   TypeCell,
 } from '@/app/admin/pipelines/_dashboard/cells';
+// Owner call: the dashboard status uses the SAME tag as the target detail page,
+// not a dashboard-local dot+text variant.
+import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
 
 import {
   DASH_FETCH_SIZE,
@@ -384,7 +386,7 @@ export default function DashboardPage(): ReactElement {
                       <TypeCell type={row.type} />
                     </td>
                     <td className={d.cell}>
-                      <StatusDot status={row.status} />
+                      <StatusPill status={row.status} />
                     </td>
                     <td className={d.cell}>
                       <GrayProgress n={row.done_task_count} m={row.total_task_count} />
