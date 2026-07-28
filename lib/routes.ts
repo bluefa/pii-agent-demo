@@ -51,8 +51,6 @@ export const passRoutes = {
     // both `/services` and `/services/{code}`.
     service: (serviceCode: string) =>
       `/admin/pipelines/services/${encodeURIComponent(serviceCode)}`,
-    target: (targetSourceId: number | string) =>
-      `/admin/pipelines/targets/${encodeURIComponent(String(targetSourceId))}`,
     pipeline: (pipelineId: number | string) =>
       `/admin/pipelines/${encodeURIComponent(String(pipelineId))}`,
     /** Admin Task Queue (design/pipeline/admin-taskqueue-storyboard.md). The

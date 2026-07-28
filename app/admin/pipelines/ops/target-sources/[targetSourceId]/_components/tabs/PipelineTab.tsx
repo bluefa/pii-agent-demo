@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * 인프라 작업 tab — Terraform 상태 card on top of the SAME 현재 작업 + 작업 이력
- * experience as the standalone target page (/admin/pipelines/targets/{id}) via
- * the shared TargetPipelineSections (live run-card with 8s polling, start CTA,
- * history).
+ * 인프라 작업 tab — Terraform 상태 card on top of the 현재 작업 + 작업 이력
+ * sections (TargetPipelineSections: live run-card with 8s polling, start CTA,
+ * paged history). This tab is the ONLY home for them since the standalone
+ * /admin/pipelines/targets/{id} route was removed.
  */
 import type { ReactElement } from 'react';
 import { TargetPipelineSections } from '@/app/admin/pipelines/_detail/TargetPipelineSections';

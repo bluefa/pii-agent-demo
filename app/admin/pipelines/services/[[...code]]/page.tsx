@@ -330,7 +330,7 @@ export default function ServicesPage(): ReactElement {
                     <PlRow
                       key={target.targetSourceId}
                       onActivate={() =>
-                        router.push(passRoutes.pipelines.target(target.targetSourceId))
+                        router.push(passRoutes.pipelines.ops.targetSource(target.targetSourceId, 'infra'))
                       }
                     >
                       <PlTd mono>{target.targetSourceId}</PlTd>
