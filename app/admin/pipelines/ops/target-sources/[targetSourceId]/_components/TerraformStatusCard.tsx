@@ -3,14 +3,16 @@
 /**
  * Terraform 상태 card (인프라 작업 tab head) — GET …/terraform-status.
  *
- * This is a DB-only view: the BFF reads its own Terraform state rows without
- * calling the Cloud SDK, so it can legitimately disagree with the installation
- * status shown elsewhere. The card says so rather than reconciling the two.
+ * InfraManager's own Terraform job records; no Cloud SDK call is made, so this
+ * can legitimately disagree with the real infrastructure. The card says so
+ * rather than reconciling the two.
  *
- * Layout (option C): a state-tinted hero panel carrying the CONCLUSION
- * (overall_state + a task tally + the confirmed/destroy facts) next to a stack
- * of per-task mini cards carrying the EVIDENCE. The tint means the card as a
- * whole radiates the state instead of hiding it in a corner pill.
+ * Layout: a state-tinted hero BAND carrying the conclusion (overall_state + a
+ * task tally + the confirmed/destroy facts) over a grid of per-task tiles
+ * carrying the evidence. Two surface levels only — the band is a tint with no
+ * border of its own, so the card does not read as boxes inside boxes. Tiles are
+ * a 3-column grid rather than full-width rows: a long `AWS_BDC_SERVICE_COMMON`
+ * wraps inside its tile instead of stretching a row across the whole page.
  *
  * `scripts[]` from the wire DTO is not rendered — the TerraformTaskScriptResponse
  * schema has not been published yet, so it is absent from install-v1.yaml.
@@ -32,26 +34,30 @@ import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 const TONE = {
   off: {
     pill: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)] border border-[var(--pl-off-border)]',
-    panel: 'bg-[var(--pl-off-bg)] border-[var(--pl-off-border)]',
+    band: 'bg-[var(--pl-off-bg)]',
     disc: 'bg-[var(--pl-bg-card)] text-[var(--pl-off-text)] border-[var(--pl-off-border)]',
+    bar: 'bg-[var(--pl-off-border)]',
     text: 'text-[var(--pl-off-text)]',
   },
   info: {
     pill: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)] border border-[var(--pl-info-border)]',
-    panel: 'bg-[var(--pl-info-bg)] border-[var(--pl-info-border)]',
+    band: 'bg-[var(--pl-info-bg)]',
     disc: 'bg-[var(--pl-bg-card)] text-[var(--pl-info-text)] border-[var(--pl-info-border)]',
+    bar: 'bg-[var(--pl-info-text)]',
     text: 'text-[var(--pl-info-text)]',
   },
   ok: {
     pill: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)] border border-[var(--pl-ok-border)]',
-    panel: 'bg-[var(--pl-ok-bg)] border-[var(--pl-ok-border)]',
+    band: 'bg-[var(--pl-ok-bg)]',
     disc: 'bg-[var(--pl-bg-card)] text-[var(--pl-ok-text)] border-[var(--pl-ok-border)]',
+    bar: 'bg-[var(--pl-ok-text)]',
     text: 'text-[var(--pl-ok-text)]',
   },
   err: {
     pill: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)] border border-[var(--pl-err-border)]',
-    panel: 'bg-[var(--pl-err-bg)] border-[var(--pl-err-border)]',
+    band: 'bg-[var(--pl-err-bg)]',
     disc: 'bg-[var(--pl-bg-card)] text-[var(--pl-err-text)] border-[var(--pl-err-border)]',
+    bar: 'bg-[var(--pl-err-text)]',
     text: 'text-[var(--pl-err-text)]',
   },
 } as const;
@@ -74,7 +80,7 @@ const metaOf = (state: string | null | undefined) => STATE_META[state ?? ''] ?? 
 const SIDE_LABEL: Record<string, string> = { SERVICE: '서비스', BDC: 'BDC' };
 
 /**
- * The hero's second line — what the overall pill alone cannot say: how many of
+ * The hero's second line — what the overall label alone cannot say: how many of
  * the tasks are behind it. Failures outrank in-flight work outrank the rest.
  */
 function tally(tasks: readonly TerraformTaskStatus[]): string {
@@ -92,46 +98,43 @@ function tally(tasks: readonly TerraformTaskStatus[]): string {
   return `작업 ${total}개 중 ${applied}개 적용 완료`;
 }
 
-/** Evidence row — one Terraform task. */
-function TaskCard({ task }: { task: TerraformTaskStatus }): ReactElement {
+/** Evidence tile — one Terraform task. */
+function TaskTile({ task }: { task: TerraformTaskStatus }): ReactElement {
   const { tone, icon, label } = metaOf(task.state);
   return (
-    <div className="flex items-center gap-3 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3.5 py-3">
-      <span
-        className={cn(
-          'flex h-7 w-7 flex-none items-center justify-center rounded-full border',
-          TONE[tone].disc,
+    <div className="relative overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] py-4 pl-[19px] pr-4">
+      {/* Full-height tone bar — the tile's state is readable before any text. */}
+      <span className={cn('absolute inset-y-0 left-0 w-1', TONE[tone].bar)} aria-hidden />
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className={cn(
+            'flex h-7 w-7 flex-none items-center justify-center rounded-full border',
+            TONE[tone].disc,
+          )}
+        >
+          <Icon name={icon} size="sm" className={icon === 'loader' ? 'animate-spin' : undefined} />
+        </span>
+        <span className={cn(opsStyles.regionTag, 'flex-none')}>
+          {SIDE_LABEL[task.terraform_execution_side ?? ''] ?? task.terraform_execution_side ?? '-'}
+        </span>
+      </div>
+      <p className="mt-3 break-all text-[13px] font-semibold leading-[1.45] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]">
+        {task.terraform_task_name ?? '-'}
+      </p>
+      <p className="mt-1 break-all text-[12px] leading-[1.45] text-[var(--pl-text-weak)]">
+        {task.terraform_target ?? '-'}
+      </p>
+      <div className="mt-3.5 flex flex-wrap items-center gap-2">
+        <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, TONE[tone].pill)}>
+          {label}
+        </span>
+        {task.destroy_required && (
+          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--pl-err-text)]">
+            <Icon name="warn-tri" size="sm" />
+            삭제 필요
+          </span>
         )}
-      >
-        <Icon name={icon} size="sm" className={icon === 'loader' ? 'animate-spin' : undefined} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]">
-          {task.terraform_task_name ?? '-'}
-        </span>
-        <span className="mt-0.5 block truncate text-[12px] text-[var(--pl-text-weak)]">
-          {task.terraform_target ?? '-'}
-        </span>
-      </span>
-      {task.destroy_required && (
-        <span className="inline-flex flex-none items-center gap-1 text-[12px] font-medium text-[var(--pl-err-text)]">
-          <Icon name="warn-tri" size="sm" />
-          삭제 필요
-        </span>
-      )}
-      <span className={cn(opsStyles.regionTag, 'flex-none')}>
-        {SIDE_LABEL[task.terraform_execution_side ?? ''] ?? task.terraform_execution_side ?? '-'}
-      </span>
-      <span
-        className={cn(
-          pipelineStyles.pill.base,
-          pipelineStyles.pill.md,
-          TONE[tone].pill,
-          'flex-none',
-        )}
-      >
-        {label}
-      </span>
+      </div>
     </div>
   );
 }
@@ -177,7 +180,8 @@ export function TerraformStatusCard({ targetSourceId }: TerraformStatusCardProps
         <div>
           <h2 className={opsStyles.cardTitle}>Terraform 상태</h2>
           <p className={opsStyles.cardDesc}>
-            BFF DB에 기록된 상태입니다. Cloud SDK를 조회하지 않으므로 설치 상태와 다를 수 있어요.
+            InfraManager에서 조회한 Terraform Job 결과값입니다. Cloud SDK를 조회하지 않아서 실제 인프라
+            설치 상태와 다를 수 있습니다.
           </p>
         </div>
         {status?.checked_at && (
@@ -192,44 +196,61 @@ export function TerraformStatusCard({ targetSourceId }: TerraformStatusCardProps
       ) : failed || !status ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-3')}>Terraform 상태를 불러오지 못했습니다.</p>
       ) : (
-        <div className="mt-4 grid grid-cols-[minmax(240px,268px)_1fr] items-stretch overflow-hidden rounded-[10px] border border-[var(--pl-border)]">
-          {/* 결론 — the state tint carries it before a single word is read. */}
-          <div className={cn('flex flex-col border-r p-5', TONE[overall.tone].panel)}>
-            <span
-              className={cn(
-                'flex h-14 w-14 items-center justify-center rounded-full border',
-                TONE[overall.tone].disc,
-              )}
-            >
-              <Icon
-                name={overall.icon}
-                size="xl"
-                strokeWidth={2.2}
-                className={overall.icon === 'loader' ? 'animate-spin' : undefined}
-              />
-            </span>
-            <span className={cn('mt-3.5 text-[20px] font-bold tracking-[-0.01em]', TONE[overall.tone].text)}>
-              {overall.label}
-            </span>
-            <span className="mt-1 text-[13px] text-[var(--pl-text-medium)]">{tally(tasks)}</span>
+        <>
+          {/* 결론 — a tint, not a box: the band carries the state without adding
+              another framed surface inside the card. */}
+          <div
+            className={cn(
+              'mt-4 flex flex-wrap items-center justify-between gap-x-10 gap-y-4 rounded-[10px] px-5 py-4',
+              TONE[overall.tone].band,
+            )}
+          >
+            <div className="flex items-center gap-4">
+              <span
+                className={cn(
+                  'flex h-[52px] w-[52px] flex-none items-center justify-center rounded-full border',
+                  TONE[overall.tone].disc,
+                )}
+              >
+                <Icon
+                  name={overall.icon}
+                  size="xl"
+                  strokeWidth={2.2}
+                  className={overall.icon === 'loader' ? 'animate-spin' : undefined}
+                />
+              </span>
+              <span>
+                <span
+                  className={cn(
+                    'block text-[20px] font-bold leading-tight tracking-[-0.01em]',
+                    TONE[overall.tone].text,
+                  )}
+                >
+                  {overall.label}
+                </span>
+                <span className="mt-1 block text-[13px] text-[var(--pl-text-medium)]">
+                  {tally(tasks)}
+                </span>
+              </span>
+            </div>
 
-            <dl className="mt-5 flex flex-col gap-2.5 border-t border-[var(--pl-border)] pt-4 text-[13px]">
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-[var(--pl-text-weak)]">확정 인프라</dt>
-                <dd className="text-right font-medium text-[var(--pl-text-strong)]">
+            <dl className="flex items-start gap-10">
+              <div>
+                <dt className="text-[12px] text-[var(--pl-text-weak)]">확정 인프라</dt>
+                <dd className="mt-1 text-[13.5px] font-semibold text-[var(--pl-text-strong)]">
                   {status.has_confirmed_infra ? '있음' : '없음'}
                   {status.latest_confirmed_at && (
-                    <span className="mt-0.5 block text-[11.5px] font-normal text-[var(--pl-text-weak)] tabular-nums">
+                    <span className="ml-1.5 text-[12px] font-normal text-[var(--pl-text-weak)] tabular-nums">
                       {fmtDateTime(status.latest_confirmed_at)}
                     </span>
                   )}
                 </dd>
               </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-[var(--pl-text-weak)]">삭제 필요</dt>
+              <div>
+                <dt className="text-[12px] text-[var(--pl-text-weak)]">삭제 필요</dt>
                 <dd
                   className={cn(
-                    'inline-flex items-center gap-1 font-medium',
+                    'mt-1 inline-flex items-center gap-1 text-[13.5px] font-semibold',
                     status.destroy_required
                       ? 'text-[var(--pl-err-text)]'
                       : 'text-[var(--pl-text-strong)]',
@@ -242,17 +263,17 @@ export function TerraformStatusCard({ targetSourceId }: TerraformStatusCardProps
             </dl>
           </div>
 
-          {/* 근거 — one mini card per Terraform task. */}
-          <div className="flex flex-col gap-2 bg-[var(--pl-gray-50)] p-3">
-            {tasks.length === 0 ? (
-              <PlEmptyState icon="install" message="Terraform 작업 기록이 없습니다." />
-            ) : (
-              tasks.map((task, index) => (
-                <TaskCard key={task.terraform_task_name ?? index} task={task} />
-              ))
-            )}
-          </div>
-        </div>
+          {/* 근거 — one tile per Terraform task. */}
+          {tasks.length === 0 ? (
+            <PlEmptyState icon="install" message="Terraform 작업 기록이 없습니다." className="mt-3" />
+          ) : (
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              {tasks.map((task, index) => (
+                <TaskTile key={task.terraform_task_name ?? index} task={task} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </section>
   );
