@@ -45,6 +45,7 @@ import {
   TypeTile,
 } from '@/app/admin/pipelines/_detail/r24Task';
 import { passRoutes } from '@/lib/routes';
+import { taskInfraSide, type InfraSide } from '@/lib/pipeline/format';
 import {
   createCustomPipeline,
   createPipeline,
@@ -112,6 +113,7 @@ function SeqFlow({
     name: string;
     desc?: string | null;
     action?: TerraformAction | null;
+    side?: InfraSide | null;
   }>;
   numbered?: boolean;
 }): ReactElement {
@@ -126,6 +128,7 @@ function SeqFlow({
               name={s.name}
               desc={s.desc}
               action={s.action}
+              side={s.side}
               seq={numbered ? i + 1 : undefined}
             />
           </Fragment>
@@ -425,6 +428,7 @@ export function PreviewModal({
               name: t.display_name,
               desc: t.description,
               action: t.terraform_action,
+              side: taskInfraSide(t.name),
             }))}
           />
           <ModalNote>이 구성은 저장되지 않으며 이번 실행에만 사용돼요.</ModalNote>
@@ -474,6 +478,7 @@ export function PreviewModal({
                   name: s.display_name,
                   desc: s.definition?.description,
                   action: s.terraform_action,
+                  side: taskInfraSide(s.task_definition),
                 }))}
               />
               {TYPE_NOTES[type] && <ModalNote>{TYPE_NOTES[type]}</ModalNote>}

@@ -39,6 +39,7 @@ import {
   TypeTile,
 } from '@/app/admin/pipelines/_detail/r24Task';
 import { passRoutes } from '@/lib/routes';
+import { taskInfraSide } from '@/lib/pipeline/format';
 import {
   getLatestPipelineByTarget,
   getRestartPreview,
@@ -192,6 +193,7 @@ export function RestartModal({
           name: displayName(t.task_definition),
           desc: '완료 — 건너뜀',
           action: names.get(t.task_definition)?.terraform_action ?? null,
+          side: taskInfraSide(t.task_definition),
           seq: t.sequence + 1,
           state: 'dim' as const,
         })),
@@ -204,6 +206,7 @@ export function RestartModal({
               ? originReason(t.origin_status, t.origin_fail_count, t.origin_error_code)
               : names.get(t.task_definition)?.description ?? null,
           action: t.terraform_action,
+          side: taskInfraSide(t.task_definition),
           seq: t.sequence + 1,
           state: i === 0 ? ('fail' as const) : undefined,
         })),
@@ -257,6 +260,7 @@ export function RestartModal({
                     name={n.name}
                     desc={n.desc}
                     action={n.action}
+                    side={n.side}
                     seq={n.seq}
                     state={n.state}
                   />

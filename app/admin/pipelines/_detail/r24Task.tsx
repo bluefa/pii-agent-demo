@@ -25,6 +25,8 @@ import { cn } from '@/lib/theme';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
+import { InfraSideTag } from '@/app/admin/pipelines/_components/InfraSideTag';
+import type { InfraSide } from '@/lib/pipeline/format';
 import type { PipelineStatus, PipelineType, TaskKind, TaskStatus, TerraformAction } from '@/lib/pipeline/types';
 
 export const R24_CSS = `
@@ -195,6 +197,8 @@ export interface R24TaskNodeProps {
   desc?: string | null;
   /** PLAN/APPLY/DESTROY tag above the name for terraform jobs; null hides it. */
   action?: TerraformAction | null;
+  /** 서비스측/BDC측 infra-ownership tag next to the action; null hides it. */
+  side?: InfraSide | null;
   /** Black round order chip at the top-left corner. */
   seq?: number;
   /** `fail` = the restart's failure point (err border + red description). */
@@ -205,7 +209,7 @@ export interface R24TaskNodeProps {
 }
 
 /** 224px icon-left Task card on the grid canvas — the R24 node. */
-export function R24TaskNode({ kind, name, desc, action, seq, state, footer, className }: R24TaskNodeProps): ReactElement {
+export function R24TaskNode({ kind, name, desc, action, side, seq, state, footer, className }: R24TaskNodeProps): ReactElement {
   return (
     <div className={cn('r24-tnode', state, className)}>
       {seq != null && (
@@ -215,9 +219,10 @@ export function R24TaskNode({ kind, name, desc, action, seq, state, footer, clas
       )}
       <KindMark kind={kind} />
       <div className="r24-tx">
-        {action ? (
-          <div className="mb-1">
+        {action || side ? (
+          <div className="mb-1 flex items-center gap-1">
             <JobKindTag action={action} />
+            <InfraSideTag side={side} />
           </div>
         ) : null}
         <div className="r24-nm">{name}</div>
@@ -330,6 +335,8 @@ export interface RunTaskCardProps {
   desc?: string | null;
   /** PLAN/APPLY/DESTROY tag for terraform jobs; null hides it. */
   action?: TerraformAction | null;
+  /** 서비스측/BDC측 infra-ownership tag next to the action; null hides it. */
+  side?: InfraSide | null;
   status: TaskStatus;
   /** 1-based ordinal — shown in the corner while the task is queued. */
   seq: number;
@@ -339,7 +346,7 @@ export interface RunTaskCardProps {
 }
 
 /** Live-pipeline task card — tile + status corner + status pill (R24 run flow). */
-export function RunTaskCard({ kind, name, desc, action, status, seq, retry }: RunTaskCardProps): ReactElement {
+export function RunTaskCard({ kind, name, desc, action, side, status, seq, retry }: RunTaskCardProps): ReactElement {
   const view = STATUS_VIEW[status];
   const cardState =
     view.key === 'running'
@@ -369,6 +376,7 @@ export function RunTaskCard({ kind, name, desc, action, status, seq, retry }: Ru
         {desc ? <div className="rtc-ds">{desc}</div> : null}
         <div className="rtc-st">
           <JobKindTag action={action} />
+          <InfraSideTag side={side} />
           <FlowStatusPill status={status} />
           {retry ? (
             <span className="text-[10px] tabular-nums text-[var(--pl-text-faint)]">{retry}</span>

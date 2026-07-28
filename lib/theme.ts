@@ -1090,6 +1090,17 @@ export const pipelineStyles = {
     } as Record<'PLAN' | 'APPLY' | 'DESTROY', string>,
   },
 
+  /** InfraSideTag — 서비스측/BDC측 ownership of a task's infrastructure, next to
+   *  the JobKindTag. Same bordered no-fill grammar (subordinate to status pills);
+   *  SERVICE reads info-blue so the two sides scan apart at a glance. */
+  infraSideTag: {
+    base: 'inline-flex items-center rounded border px-1 leading-[15px] text-[10px] font-semibold whitespace-nowrap',
+    tone: {
+      SERVICE: 'border-[var(--pl-info-border)] text-[var(--pl-info-text)]',
+      BDC: 'border-[var(--pl-border-strong)] text-[var(--pl-text-medium)]',
+    } as Record<'SERVICE' | 'BDC', string>,
+  },
+
   /** Filter chips (R18 §4, Komiser reference) — scope chips (no ×) + removable
    *  active-filter chips on a 28px pill. Key weak · value strong; the remove
    *  button keeps a ≥20×28 hit area. */
