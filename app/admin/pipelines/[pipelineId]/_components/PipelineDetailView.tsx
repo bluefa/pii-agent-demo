@@ -445,10 +445,10 @@ export function PipelineDetailView(): ReactElement {
           <PlButton
             variant="primary"
             onClick={() => restartModal.open()}
-            title="마지막으로 실패한 Task부터 새 작업으로 다시 실행합니다"
+            title="멈춘 Task부터 새 작업으로 다시 실행합니다."
           >
             <Icon name="play" size="sm" />
-            실패 지점부터 재시작
+            재시작
           </PlButton>
         ) : null}
       </div>

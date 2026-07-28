@@ -153,7 +153,7 @@ export function RestartModal({
     suppressAlert: true,
     onSuccess: (detail) => {
       onClose();
-      showToast('실패 지점부터 재시작했어요');
+      showToast('멈춘 지점부터 재시작했습니다.');
       router.push(passRoutes.pipelines.pipeline(detail.pipeline_id));
     },
     onError: (err) => {
@@ -216,7 +216,7 @@ export function RestartModal({
         </div>
       )}
       <h3 id={TITLE_ID} className={MODAL_H3}>
-        실패 지점부터 재시작
+        재시작
       </h3>
       <div className="text-[14px] leading-[1.48] tracking-[-0.014em] text-[var(--pl-text-weak)]">
         {preview ? (
