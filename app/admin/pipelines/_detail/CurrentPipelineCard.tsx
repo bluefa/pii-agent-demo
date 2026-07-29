@@ -56,12 +56,13 @@ function TerraformImpactNote({ detail }: { detail: PipelineDetail }): ReactEleme
 
   const interrupted = detail.status === 'FAILED' || detail.status === 'CANCELLED';
   const destructive = counts.DESTROY > 0;
+  // Two tones only: neutral for anything that builds, red for anything that
+  // destroys or broke. An APPLY-blue middle tier just made the note a third
+  // color on a screen that already had too many.
   const tone =
     destructive || interrupted
       ? 'border-[1.5px] border-[var(--pl-err)] bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]'
-      : counts.APPLY > 0
-        ? 'border border-[var(--pl-info-border)] bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]'
-        : 'border border-[var(--pl-border)] bg-[var(--pl-gray-50)] text-[var(--pl-text-medium)]';
+      : 'border border-[var(--pl-border)] bg-[var(--pl-gray-50)] text-[var(--pl-text-medium)]';
 
   return (
     <div

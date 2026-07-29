@@ -33,13 +33,31 @@ import { fmtDateTime } from '@/lib/pipeline/format';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { TerraformStatusResponse, TerraformTaskStatus } from '@/app/lib/api';
 
-/* Tone classes are written out in full — Tailwind only sees literal strings, so
+/* Monochrome status ladder — the same rule as theme.ts PILL_* : all states share
+   one neutral family and separate by weight, with red kept only for failure.
+   Classes are written out in full because Tailwind only sees literal strings, so
    a `bg-[var(--pl-${tone}-bg)]` template would never be generated. */
 const TONE = {
-  off: { dot: 'bg-[var(--pl-off-border)]', text: 'text-[var(--pl-off-text)]', pill: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)] border border-[var(--pl-off-border)]' },
-  info: { dot: 'bg-[var(--pl-info)]', text: 'text-[var(--pl-info-text)]', pill: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)] border border-[var(--pl-info-border)]' },
-  ok: { dot: 'bg-[var(--pl-ok)]', text: 'text-[var(--pl-ok-text)]', pill: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)] border border-[var(--pl-ok-border)]' },
-  err: { dot: 'bg-[var(--pl-err)]', text: 'text-[var(--pl-err-text)]', pill: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)] border border-[var(--pl-err-border)]' },
+  off: {
+    dot: 'bg-[var(--pl-gray-400)]',
+    text: 'text-[var(--pl-text-weak)]',
+    pill: 'bg-[var(--pl-gray-50)] text-[var(--pl-text-weak)] border border-[var(--pl-border)]',
+  },
+  info: {
+    dot: 'bg-[var(--pl-text-strong)]',
+    text: 'text-[var(--pl-text-strong)]',
+    pill: 'bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] border border-[var(--pl-text-strong)]',
+  },
+  ok: {
+    dot: 'bg-[var(--pl-text-medium)]',
+    text: 'text-[var(--pl-text-strong)]',
+    pill: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] border border-[var(--pl-border-strong)]',
+  },
+  err: {
+    dot: 'bg-[var(--pl-err)]',
+    text: 'text-[var(--pl-err-text)]',
+    pill: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)] border border-[var(--pl-err-border)]',
+  },
 } as const;
 
 /** Wire state → tone + icon + 한국어 label. UNKNOWN covers unseen values. */
