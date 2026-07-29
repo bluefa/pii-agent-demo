@@ -12,11 +12,15 @@
  * A long cause is clamped to a preview with a "자세히" button that opens the full
  * text in FailureReasonModal (`onOpenFailure`).
  */
-import { type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
+import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { jobRows, jobVerdict, type JobRow } from '@/app/admin/pipelines/_detail/jobRows';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { d, j, MiniPill, Section, spanLabel, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
+
+/** A single attempt can hold 20+ terraform jobs — page the list so the drawer stays scannable. */
+const JOBS_PER_PAGE = 10;
 
 function JobRowItem(
   { row, operation, onOpen }: { row: JobRow; operation: TaskOperation | null; onOpen: () => void },
@@ -50,6 +54,11 @@ export function AttemptDetail({
   onOpenFailure: (detail: string) => void;
 }): ReactElement {
   const rows = jobRows(attempt);
+  const [page, setPage] = useState(1);
+  const pages = Math.max(1, Math.ceil(rows.length / JOBS_PER_PAGE));
+  // Clamp — a poll refresh can shrink the list under the current page.
+  const shownPage = Math.min(page, pages);
+  const shownRows = rows.slice((shownPage - 1) * JOBS_PER_PAGE, shownPage * JOBS_PER_PAGE);
   const failureCause = attempt.failure_detail ?? attempt.error_code ?? '원인 미기록';
   // A dispatch-failure detail (Feign message) can run to ~512 chars; clamp the inline
   // preview and offer the full text in FailureReasonModal.
@@ -77,9 +86,9 @@ export function AttemptDetail({
       </Section>
 
       {rows.length > 0 ? (
-        <Section label="Terraform Job">
+        <Section label="Terraform Job" hint={rows.length > JOBS_PER_PAGE ? `총 ${rows.length}개` : undefined}>
           <div className={j.listTight}>
-            {rows.map((row) => (
+            {shownRows.map((row) => (
               <JobRowItem
                 key={row.job_id}
                 row={row}
@@ -88,6 +97,15 @@ export function AttemptDetail({
               />
             ))}
           </div>
+          {pages > 1 && (
+            <PlPagination
+              page={shownPage}
+              pages={pages}
+              onPrev={() => setPage(shownPage - 1)}
+              onNext={() => setPage(shownPage + 1)}
+              center
+            />
+          )}
         </Section>
       ) : attempt.status === 'FAILED' ? (
         <Section label="실패 원인">

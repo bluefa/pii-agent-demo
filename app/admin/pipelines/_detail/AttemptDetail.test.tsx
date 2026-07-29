@@ -74,3 +74,23 @@ describe('AttemptDetail — failure cause when there are no job rows', () => {
     expect(out).not.toContain('자세히');
   });
 });
+
+describe('AttemptDetail — Terraform Job pagination', () => {
+  const jobs = (n: number): TerraformJobStateSummary[] =>
+    Array.from({ length: n }, (_, i) => jobState({ job_id: `job-${i + 1}` }));
+
+  it('renders only the first page and the total count when there are more than 10 jobs', () => {
+    const out = html(attempt({ job_states: jobs(25) }));
+    expect(out).toContain('총 25개');
+    expect(out).toContain('1 / 3');
+    expect(out).toContain('>job-10<');
+    expect(out).not.toContain('>job-11<');
+  });
+
+  it('renders every job with no pager at 10 or fewer', () => {
+    const out = html(attempt({ job_states: jobs(10) }));
+    expect(out).toContain('>job-10<');
+    expect(out).not.toContain('총 10개');
+    expect(out).not.toContain('1 / 1');
+  });
+});
