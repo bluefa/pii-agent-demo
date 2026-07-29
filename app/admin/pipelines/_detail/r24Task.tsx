@@ -41,7 +41,7 @@ export const R24_CSS = `
 .r24-tnode .r24-nm{font-size:13px;font-weight:700;line-height:1.35;color:var(--pl-text-strong);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:keep-all}
 .r24-tnode .r24-ds{margin-top:3px;font-size:11.5px;color:var(--pl-text-weak);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .r24-tnode .r24-st{margin-top:7px;display:flex;align-items:center;gap:6px}
-.r24-tnode.cur{border-color:var(--pl-primary);box-shadow:0 0 0 3px var(--pl-primary-ring)}
+.r24-tnode.cur{border-color:var(--pl-text-strong);box-shadow:0 0 0 3px var(--pl-gray-200)}
 .r24-tnode.pend{border-style:dashed;background:color-mix(in srgb,var(--pl-bg-card) 65%,transparent);box-shadow:none}
 .r24-tnode.pend .r24-nm{color:var(--pl-text-weak)}
 .r24-tnode.dim{background:color-mix(in srgb,var(--pl-bg-card) 55%,transparent);box-shadow:none}
@@ -252,7 +252,7 @@ export const R24_RUN_CSS = `
 .rtc-nm{font-size:13px;font-weight:700;line-height:1.35;letter-spacing:-.2px;color:var(--pl-text-strong);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:keep-all}
 .rtc-ds{font-size:10.5px;line-height:1.5;color:var(--pl-text-weak);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .rtc-st{display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap}
-.rtc.cur{border-color:var(--pl-primary);border-width:2px;padding:11px 15px 11px 11px;box-shadow:0 2px 8px color-mix(in srgb,var(--pl-gray-900) 12%,transparent)}
+.rtc.cur{border-color:var(--pl-text-strong);border-width:2px;padding:11px 15px 11px 11px;box-shadow:0 2px 8px color-mix(in srgb,var(--pl-gray-900) 12%,transparent)}
 .rtc.pend{border-style:dashed;background:color-mix(in srgb,var(--pl-bg-card) 60%,transparent);opacity:.72;box-shadow:none}
 .rtc.pend .rtc-nm{color:var(--pl-text-weak)}
 .rtc.pend .rtc-ds{color:var(--pl-text-faint)}
@@ -260,12 +260,12 @@ export const R24_RUN_CSS = `
 .rtc.failed{border-color:var(--pl-err-border)}
 .rtc-corner{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 2px var(--pl-bg-inner);font-family:var(--pl-font-mono);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
 .rtc-corner svg{width:12px;height:12px;stroke-width:3}
-.rtc-corner.done{background:var(--pl-ok);color:var(--pl-white)}
+.rtc-corner.done{background:var(--pl-text-strong);color:var(--pl-white)}
 .rtc-corner.failed{background:var(--pl-err);color:var(--pl-white)}
 .rtc-corner.cancelled{background:var(--pl-gray-400);color:var(--pl-white)}
-.rtc-corner.running{background:var(--pl-bg-card);border:1px solid var(--pl-info-border)}
+.rtc-corner.running{background:var(--pl-bg-card);border:1px solid var(--pl-border-strong)}
 .rtc-corner.pending{background:var(--pl-gray-200);color:var(--pl-text-weak)}
-.rtc-spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--pl-info-border);border-top-color:var(--pl-info);display:inline-block}
+.rtc-spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--pl-gray-200);border-top-color:var(--pl-text-strong);display:inline-block}
 @keyframes r24-spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:no-preference){.rtc-spin{animation:r24-spin .8s linear infinite}}
 `;
@@ -287,16 +287,17 @@ const STATUS_VIEW: Record<PipelineStatus | TaskStatus, { key: FlowKey; label: st
   CANCELLED: { key: 'cancelled', label: 'CANCELLED' },
 };
 
+/** Same monochrome ladder as the status pills (theme.ts PILL_*): weight, not
+ *  hue, separates the states — red is kept only for FAILED. */
 const PILL_TONE: Record<FlowKey, string> = {
-  done: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
-  running: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]',
-  pending: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
+  done: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
+  running: 'bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] border border-[var(--pl-text-strong)]',
+  pending: 'bg-[var(--pl-gray-50)] text-[var(--pl-text-weak)]',
   failed: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
-  cancelled: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
+  cancelled: 'bg-[var(--pl-gray-50)] text-[var(--pl-text-weak)]',
 };
 
-/** Status capsule for the run flow — green DONE / blue RUNNING (ring dot) /
- *  gray PENDING / red FAILED. Friendly labels, not the raw wire enum. */
+/** Status capsule for the run flow. Friendly labels, not the raw wire enum. */
 export function FlowStatusPill({
   status,
   className,

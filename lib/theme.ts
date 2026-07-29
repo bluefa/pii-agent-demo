@@ -945,20 +945,43 @@ type PipelineStatusToneKey =
   | 'CANCELLED'
   | 'BLOCKED';
 
-/** Pill background+text+border per wire status (Figma dashboard mock — soft
- *  tint + hairline border + status icon, replacing the old filled dot). */
+/**
+ * Monochrome status ladder (owner: "색상이 너무 알록달록하다 — 상태는 모두 단일
+ * 색상으로").
+ *
+ * Status used to span five hues (warn PENDING / info RUNNING / primary READY /
+ * ok DONE / err FAILED), which turned every dense screen into a color chart and
+ * left no hue meaning anything in particular. All states now sit on ONE neutral
+ * ramp and separate by WEIGHT instead: quiet tint → settled tint → outlined ink
+ * → red.
+ *
+ * Red survives as the single accent because a failed run reading the same as a
+ * finished one is a safety regression, not a simplification. Everything a
+ * palette used to say is still said by the status icon (PIPELINE_PILL_ICON),
+ * which is why dropping the hues costs no information.
+ */
+const PILL_QUIET =
+  'bg-[var(--pl-gray-50)] text-[var(--pl-text-weak)] border border-[var(--pl-border)]';
+/** Reached a terminal, non-failed outcome — heavier than queued, still neutral. */
+const PILL_SETTLED =
+  'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] border border-[var(--pl-border-strong)]';
+/** Happening now — the only outlined-on-white chip; its icon is the loader
+ *  (animated on the flow-node surfaces, static in StatusPill). */
+const PILL_ACTIVE =
+  'bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] border border-[var(--pl-text-strong)]';
+/** The one accent left on the ramp. */
+const PILL_ALERT =
+  'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)] border border-[var(--pl-err-border)]';
+
 const PIPELINE_PILL_TONE: Record<PipelineStatusToneKey, string> = {
-  PENDING: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)] border border-[var(--pl-warn-border)]',
-  RUNNING: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)] border border-[var(--pl-info-border)]',
-  IN_PROGRESS:
-    'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)] border border-[var(--pl-info-border)]',
-  // NOTE: prototype `.pill.s-READY` is PRIMARY (blue), not warn — HTML wins over
-  // the inventory's "READY=warn" parenthetical (see report).
-  READY: 'bg-[var(--pl-primary-bg)] text-[var(--pl-primary)] border border-[var(--pl-primary-ring)]',
-  DONE: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)] border border-[var(--pl-ok-border)]',
-  FAILED: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)] border border-[var(--pl-err-border)]',
-  CANCELLED: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)] border border-[var(--pl-off-border)]',
-  BLOCKED: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)] border border-[var(--pl-off-border)]',
+  PENDING: PILL_QUIET,
+  RUNNING: PILL_ACTIVE,
+  IN_PROGRESS: PILL_ACTIVE,
+  READY: PILL_QUIET,
+  DONE: PILL_SETTLED,
+  FAILED: PILL_ALERT,
+  CANCELLED: PILL_QUIET,
+  BLOCKED: PILL_QUIET,
 };
 
 /** Status icon name per wire status (RUNNING/IN_PROGRESS spin via
@@ -1078,15 +1101,20 @@ export const pipelineStyles = {
     } as Record<'INSTALL' | 'DELETE' | 'CUSTOM', string>,
   },
 
-  /** JobKindTag — the terraform action (PLAN/APPLY/DESTROY) as a small bordered
-   *  pill on a job node. Bordered + colored text (no fill) so it stays below the
-   *  filled status badge; DESTROY reads red, APPLY green, PLAN neutral. */
+  /** JobKindTag — the terraform action (PLAN/APPLY/DESTROY) on a job node.
+   *
+   *  This is the ACTION, not a status, so it is exempt from the monochrome
+   *  status ramp: rendering it in grey buried it against the node's own grey
+   *  text. Tinted fill + matching stroke, on two axes — blue for the building
+   *  path (PLAN reads lighter than APPLY, which is the one that actually
+   *  changes infrastructure), red for the one that removes it. Green APPLY was
+   *  dropped along the way: it marked the ordinary case and diluted the red. */
   jobKindTag: {
     base: 'inline-flex items-center rounded border px-1 leading-[15px] text-[10px] font-bold tracking-wide [font-family:var(--pl-font-mono)]',
     tone: {
-      PLAN: 'border-[var(--pl-border-strong)] text-[var(--pl-text-medium)]',
-      APPLY: 'border-[var(--pl-ok)] text-[var(--pl-ok)]',
-      DESTROY: 'border-[var(--pl-err)] text-[var(--pl-err)]',
+      PLAN: 'border-[var(--pl-primary-ring)] bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
+      APPLY: 'border-[var(--pl-primary)] bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
+      DESTROY: 'border-[var(--pl-err)] bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
     } as Record<'PLAN' | 'APPLY' | 'DESTROY', string>,
   },
 
@@ -1136,10 +1164,12 @@ export const pipelineStyles = {
     trackNarrow: 'w-[110px]',
     trackWide: 'w-[160px]',
     fill: 'block h-full rounded-full',
-    fillPrimary: 'bg-[var(--pl-primary)]',
-    fillOk: 'bg-[var(--pl-ok)]',
+    /* Same monochrome rule as the status pills: the bar's LENGTH already carries
+       progress, so hue only had to separate finished from failed. */
+    fillPrimary: 'bg-[var(--pl-text-medium)]',
+    fillOk: 'bg-[var(--pl-text-strong)]',
     fillErr: 'bg-[var(--pl-err)]',
-    fillOff: 'bg-[var(--pl-off)]',
+    fillOff: 'bg-[var(--pl-gray-400)]',
     label: 'text-[12px] font-semibold text-[var(--pl-text-weak)] tabular-nums',
   },
 

@@ -16,6 +16,7 @@ import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
 import { PipelineProgressBar } from '@/app/admin/pipelines/_components/PipelineProgressBar';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
+import { CancelModal } from '@/app/admin/pipelines/_detail/CancelModal';
 import { PreviewModal } from '@/app/admin/pipelines/_detail/PreviewModal';
 import { RestartModal } from '@/app/admin/pipelines/_detail/RestartModal';
 import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
@@ -50,25 +51,46 @@ import type {
 const HISTORY_SIZE = 5;
 const LIVE_POLL_MS = 8_000;
 
-/** 실행 시각 cell — 'created → finished' (terminal) / 'created → 진행 중'. */
-function runWindow(p: PipelineSummary): string {
-  const start = fmtDateTime(p.created_at);
-  if (isLivePipeline(p.status)) return `${start} → 진행 중`;
-  const end = fmtDateTime(p.last_activity_at);
-  // Drop the duplicated date when the run ends on the same day.
-  const tail = end.slice(0, 10) === start.slice(0, 10) ? end.slice(11) : end;
-  return `${start} → ${tail}`;
+/**
+ * 완료 시각 cell. The two timestamps used to share one cell as
+ * `created → finished`, with the end truncated to a bare time on same-day runs —
+ * so a row read as one span whose halves were formatted differently and could
+ * not be scanned down the column. They are two columns now; a live run has no
+ * completion time yet and says so.
+ */
+function finishedAt(p: PipelineSummary): string {
+  return isLivePipeline(p.status) ? '진행 중' : fmtDateTime(p.last_activity_at);
 }
 
-/** R24 section head — title 15/700 + caption 12.5 faint (Figma typo ramp). */
-function R24Section({ title, desc }: { title: string; desc: string }): ReactElement {
+/**
+ * Section head — 16px name over a 12px caption, the same two-size hierarchy the
+ * 인프라 작업 tab's Terraform head uses, so every section on the page starts the
+ * same way. The caption exists to say what the section is FOR: 현재 작업 used to
+ * be a bare blue eyebrow inside the card, which named the section but never told
+ * an operator that this is where Terraform actually runs.
+ */
+function R24Section({
+  title,
+  desc,
+  className,
+}: {
+  title: string;
+  desc: string;
+  className?: string;
+}): ReactElement {
   return (
-    <div className="mt-11">
+    <div className={className ?? 'mt-11'}>
       <h2 className="text-[16px] font-bold tracking-[-0.01em] text-[var(--pl-text-strong)]">{title}</h2>
-      <p className="mt-1 text-[14px] text-[var(--pl-text-faint)]">{desc}</p>
+      <p className="mt-1 max-w-[68ch] break-keep text-[12px] leading-[1.55] text-[var(--pl-text-faint)]">
+        {desc}
+      </p>
     </div>
   );
 }
+
+/** What the 현재 작업 section is for — constant; only its title tracks state. */
+const RUN_SECTION_DESC =
+  'Terraform을 실행해 인프라를 생성하거나 삭제하는 작업입니다. 작업 시작·중단과 진행 상황을 여기서 확인합니다.';
 
 const HISTORY_TH =
   'bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)] px-4 py-[9px] text-left text-[11px] font-medium text-[var(--pl-text-faint)] whitespace-nowrap';
@@ -80,12 +102,23 @@ export interface TargetPipelineSectionsProps {
   raw: RawTargetSourceDetail;
   /** First section's top margin — the standalone page uses the default mt-11. */
   firstSectionClassName?: string;
+  /**
+   * Disables the start CTAs and states why, in the operator's words. Null (the
+   * default) allows starting, so the standalone targets page is unaffected —
+   * only the 인프라 작업 tab, which knows about 확정 정보, passes a reason.
+   */
+  startBlockedReason?: string | null;
+  /** Fired when a run reaches a terminal state, so the caller can refetch
+   *  anything derived from it (the tab's Terraform status). */
+  onRunsChanged?: () => void;
 }
 
 export function TargetPipelineSections({
   targetSourceId,
   raw,
   firstSectionClassName,
+  startBlockedReason = null,
+  onRunsChanged,
 }: TargetPipelineSectionsProps): ReactElement {
   const router = useRouter();
   const toast = usePlToast();
@@ -104,6 +137,7 @@ export function TargetPipelineSections({
   // choice happens INSIDE the modal, so there is no payload to ride.
   const previewModal = useModal();
   const restartModal = useModal();
+  const cancelModal = useModal();
 
   // History page (server pagination; 5/page).
   useEffect(() => {
@@ -156,7 +190,12 @@ export function TargetPipelineSections({
         const d = await getPipeline(focusId);
         if (cancelled) return;
         setLiveDetail(d);
-        if (live && !isLivePipeline(d.status)) setRunsKey((k) => k + 1);
+        if (live && !isLivePipeline(d.status)) {
+          setRunsKey((k) => k + 1);
+          // The run just changed the infrastructure — whatever the caller
+          // derived from it is now stale.
+          onRunsChanged?.();
+        }
       } catch {
         /* transient poll failure — keep the last snapshot */
       }
@@ -170,7 +209,7 @@ export function TargetPipelineSections({
       cancelled = true;
       clearInterval(timer);
     };
-  }, [focusId, live]);
+  }, [focusId, live, onRunsChanged]);
 
   // Task-definition catalog — display names/descriptions for the task strip.
   // An SDU account is surfaced as SDU regardless of its underlying CSP
@@ -203,15 +242,20 @@ export function TargetPipelineSections({
 
   return (
     <div>
-      {/* R24 — 현재 작업: run-card while live, empty card otherwise. The
-          section eyebrow lives inside the card itself (Figma 9:429). */}
-      <div className={firstSectionClassName ?? 'mt-11'}>
+      {/* R24 — 현재 작업: run-card while live, empty card otherwise. */}
+      <R24Section
+        title={focusDetail && !live ? '최근 작업' : '현재 작업'}
+        desc={RUN_SECTION_DESC}
+        className={firstSectionClassName ?? 'mt-11'}
+      />
+      <div className="mt-3.5">
         {focusDetail && live ? (
           <CurrentPipelineCard
             detail={focusDetail}
             defs={defs}
             onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
             onOpenOrigin={goPipeline}
+            onCancel={() => cancelModal.open()}
           />
         ) : focusDetail ? (
           /* §8.1 — latest ended FAILED/CANCELLED: keep the failure on screen
@@ -223,11 +267,15 @@ export function TargetPipelineSections({
             onStartNew={() => previewModal.open()}
             onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
             onOpenOrigin={goPipeline}
+            blockedReason={startBlockedReason}
           />
         ) : !latestLoaded || focusId != null ? (
           <div className={cn(detailStyles.skeleton, 'h-52')} aria-hidden="true" />
         ) : (
-          <EmptyPipelineCard onStart={() => previewModal.open()} />
+          <EmptyPipelineCard
+            onStart={() => previewModal.open()}
+            blockedReason={startBlockedReason}
+          />
         )}
       </div>
 
@@ -236,14 +284,15 @@ export function TargetPipelineSections({
         {rows.length ? (
           <>
             <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse text-[13px]">
+            <table className="w-full min-w-[920px] border-collapse text-[13px]">
               <colgroup>
                 <col className="w-[72px]" />
                 <col />
                 <col className="w-[112px]" />
                 <col className="w-[132px]" />
                 <col className="w-[190px]" />
-                <col className="w-[230px]" />
+                <col className="w-[150px]" />
+                <col className="w-[150px]" />
                 <col className="w-[64px]" />
               </colgroup>
               <thead>
@@ -254,6 +303,7 @@ export function TargetPipelineSections({
                   <th className={HISTORY_TH}>상태</th>
                   <th className={HISTORY_TH}>진행도</th>
                   <th className={HISTORY_TH}>실행 시각</th>
+                  <th className={HISTORY_TH}>완료 시각</th>
                   <th className={cn(HISTORY_TH, 'text-center')}>상세</th>
                 </tr>
               </thead>
@@ -310,7 +360,10 @@ export function TargetPipelineSections({
                       <PipelineProgressBar n={p.done_task_count} m={p.total_task_count} status={p.status} />
                     </td>
                     <td className={cn(HISTORY_TD, 'text-[12.5px] text-[var(--pl-text-weak)]')}>
-                      {runWindow(p)}
+                      {fmtDateTime(p.created_at)}
+                    </td>
+                    <td className={cn(HISTORY_TD, 'text-[12.5px] text-[var(--pl-text-weak)]')}>
+                      {finishedAt(p)}
                     </td>
                     <td className={cn(HISTORY_TD, 'text-center')}>
                       <span className="inline-flex text-[var(--pl-primary)]" title="작업 상세로 이동">
@@ -344,6 +397,23 @@ export function TargetPipelineSections({
         provider={orchProvider}
         showToast={toast.show}
       />
+
+      {/* Two-phase cancel (contract gap ⑤): the response may still be RUNNING
+          with cancel_requested set, so the returned detail is rendered verbatim
+          instead of assuming CANCELLED, and the run set is refetched either way. */}
+      {liveId != null && cancelModal.isOpen && (
+        <CancelModal
+          open={cancelModal.isOpen}
+          onClose={cancelModal.close}
+          pipelineId={liveId}
+          onCancelled={(detail) => {
+            setLiveDetail(detail);
+            setRunsKey((k) => k + 1);
+            onRunsChanged?.();
+          }}
+          showToast={toast.show}
+        />
+      )}
 
       {/* Mounted only while open — see RestartModal (fresh state per open). */}
       {focusId != null && restartModal.isOpen && (
