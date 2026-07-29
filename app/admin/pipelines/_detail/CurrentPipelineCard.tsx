@@ -2,14 +2,20 @@
 
 /**
  * CurrentPipelineCard — R24 "현재 작업" section body (Figma node 9-2,
- * Header Section 17:3 + Flow Track 9:506). Running: a compact hero card — blue
- * eyebrow, recipe title + #id + RUNNING pill, recipe description, "작업
- * 현황 보기 ↗" link, then a "Task 실행 흐름" label over the 16px grid canvas
- * that lays out EVERY task as a RunTaskCard (tile + status corner + status
- * pill) in one horizontally-scrolling row. Detailed progress lives on the
- * 현황 page the link points to. Idle: the same shell with a centered empty
- * state and the start CTA. Data (detail polling, catalog map, cancel flow)
- * stays in TargetDetailView — this file is presentation only.
+ * Header Section 17:3 + Flow Track 9:506). Running: a compact hero card —
+ * recipe title + #id + RUNNING pill (+ 중단 요청됨 once cancel is pending),
+ * recipe description, the derived TerraformImpactNote, "작업 현황 보기 ↗" and
+ * 작업 중단, then a "Task 실행 흐름" label over the 16px grid canvas that lays
+ * out EVERY task as a RunTaskCard (tile + status corner + status pill) in one
+ * horizontally-scrolling row. Detailed progress lives on the 현황 page the link
+ * points to. Idle: the same shell with a centered empty state and the start CTA.
+ *
+ * The section NAME and its explanation are not here — they belong to the page's
+ * R24Section header (TargetPipelineSections), so 현재 작업 reads with the same
+ * 16px/12px grammar as every other section on the tab.
+ *
+ * Data (detail polling, catalog map, cancel flow) stays in the caller — this
+ * file is presentation only.
  */
 import { Fragment, useEffect, useRef, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -25,13 +31,6 @@ import {
   RunTaskCard,
 } from '@/app/admin/pipelines/_detail/r24Task';
 import type { PipelineDetail, TaskCatalogEntry, TerraformAction } from '@/lib/pipeline/types';
-
-/** Blue section eyebrow shared by the running / failed / idle cards (Figma 9:429). */
-function Eyebrow({ label = '현재 작업' }: { label?: string }): ReactElement {
-  return (
-    <div className="text-[12px] font-bold tracking-[-0.01em] text-[var(--pl-primary)]">{label}</div>
-  );
-}
 
 const IMPACT_CHIP =
   'rounded-[5px] border px-2 py-[3px] text-[11.5px] font-bold tracking-[0.02em] [font-family:var(--pl-font-mono)] whitespace-nowrap';
@@ -167,9 +166,8 @@ export function CurrentPipelineCard({
       <style>{R24_CSS + R24_RUN_CSS}</style>
 
       {/* header — eyebrow, title row + status, description, actions, flow label */}
-      <div className="px-6 pt-4 pb-1">
-        <Eyebrow />
-        <div className="mt-2 flex flex-wrap items-start gap-x-4 gap-y-2">
+      <div className="px-6 pt-5 pb-1">
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <b className="text-[16px] font-semibold tracking-[-0.02em] text-[var(--pl-text-strong)]">
@@ -297,9 +295,8 @@ export function LastRunFailedCard({
 
   return (
     <div className={CARD_SHELL}>
-      <div className="px-6 pt-4 pb-5">
-        <Eyebrow label="최근 작업" />
-        <div className="mt-2 flex flex-wrap items-start gap-x-4 gap-y-2">
+      <div className="px-6 pt-5 pb-5">
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <b className="text-[16px] font-semibold tracking-[-0.02em] text-[var(--pl-text-strong)]">
@@ -412,10 +409,7 @@ export function EmptyPipelineCard({
   const blocked = blockedReason != null;
   return (
     <div className={CARD_SHELL}>
-      <div className="px-6 pt-4">
-        <Eyebrow />
-      </div>
-      <div className="flex flex-col items-center px-6 pb-10 pt-5 text-center">
+      <div className="flex flex-col items-center px-6 pb-10 pt-9 text-center">
         <span className="mb-3 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[var(--pl-gray-50)] text-[var(--pl-text-faint)]">
           <Icon name="inbox" size="lg" strokeWidth={1.8} />
         </span>
