@@ -77,8 +77,6 @@ const metaOf = (state: string | null | undefined) => STATE_META[state ?? ''] ?? 
 /** BDC/SERVICE 실행 주체 — neutral tag, never competing with the state. */
 const SIDE_LABEL: Record<string, string> = { SERVICE: '서비스', BDC: 'BDC' };
 
-const SEP = <span className="text-[var(--pl-gray-400)]" aria-hidden>·</span>;
-
 /** One Terraform task, one line (was a tile in a 3-column grid). */
 function TaskLine({ task }: { task: TerraformTaskStatus }): ReactElement {
   const { tone, icon, label } = metaOf(task.state);
