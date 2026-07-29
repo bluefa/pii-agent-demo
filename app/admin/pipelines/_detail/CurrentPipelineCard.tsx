@@ -24,12 +24,83 @@ import {
   RestartBadge,
   RunTaskCard,
 } from '@/app/admin/pipelines/_detail/r24Task';
-import type { PipelineDetail, TaskCatalogEntry } from '@/lib/pipeline/types';
+import type { PipelineDetail, TaskCatalogEntry, TerraformAction } from '@/lib/pipeline/types';
 
 /** Blue section eyebrow shared by the running / failed / idle cards (Figma 9:429). */
 function Eyebrow({ label = '현재 작업' }: { label?: string }): ReactElement {
   return (
     <div className="text-[12px] font-bold tracking-[-0.01em] text-[var(--pl-primary)]">{label}</div>
+  );
+}
+
+const IMPACT_CHIP =
+  'rounded-[5px] border px-2 py-[3px] text-[11.5px] font-bold tracking-[0.02em] [font-family:var(--pl-font-mono)] whitespace-nowrap';
+
+/**
+ * 이 작업이 인프라에 무엇을 하는가 — derived from the run's `terraform_action`s.
+ *
+ * A fixed caution line ("이 작업은 인프라를 변경합니다") stops being read after
+ * the second visit. Counting what THIS run actually does keeps the line
+ * informative every time, and lets the tone escalate ONLY when a DESTROY is
+ * involved — so a red note still means something when it appears.
+ *
+ * Returns null for a run with no terraform task at all (CONDITION_CHECK only):
+ * that run does not touch infrastructure, and saying it does would be a lie.
+ */
+function TerraformImpactNote({ detail }: { detail: PipelineDetail }): ReactElement | null {
+  const counts: Record<TerraformAction, number> = { PLAN: 0, APPLY: 0, DESTROY: 0 };
+  for (const task of detail.tasks) {
+    if (task.terraform_action) counts[task.terraform_action] += 1;
+  }
+  if (counts.PLAN + counts.APPLY + counts.DESTROY === 0) return null;
+
+  const interrupted = detail.status === 'FAILED' || detail.status === 'CANCELLED';
+  const destructive = counts.DESTROY > 0;
+  const tone =
+    destructive || interrupted
+      ? 'border-[1.5px] border-[var(--pl-err)] bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]'
+      : counts.APPLY > 0
+        ? 'border border-[var(--pl-info-border)] bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]'
+        : 'border border-[var(--pl-border)] bg-[var(--pl-gray-50)] text-[var(--pl-text-medium)]';
+
+  return (
+    <div
+      className={cn(
+        'mt-4 flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-[9px] px-4 py-3 text-[13.5px] leading-[1.5]',
+        tone,
+      )}
+    >
+      <Icon name="warn-tri" size="md" className="flex-none" />
+      <span className="font-semibold">
+        {interrupted
+          ? '작업이 중단되어 인프라가 부분 상태일 수 있습니다.'
+          : destructive
+            ? '이 작업은 실제 인프라를 삭제합니다'
+            : '이 작업은 실제 인프라를 변경합니다'}
+      </span>
+      <span className="ml-auto flex flex-wrap gap-1.5">
+        {counts.DESTROY > 0 && (
+          <span
+            className={cn(
+              IMPACT_CHIP,
+              'border-[var(--pl-err-solid)] bg-[var(--pl-err-solid)] text-[var(--pl-white)]',
+            )}
+          >
+            DESTROY {counts.DESTROY}건
+          </span>
+        )}
+        {counts.APPLY > 0 && (
+          <span className={cn(IMPACT_CHIP, 'border-current bg-[var(--pl-bg-card)]')}>
+            APPLY {counts.APPLY}건
+          </span>
+        )}
+        {counts.PLAN > 0 && (
+          <span className={cn(IMPACT_CHIP, 'border-current bg-[var(--pl-bg-card)]')}>
+            PLAN {counts.PLAN}건
+          </span>
+        )}
+      </span>
+    </div>
   );
 }
 
@@ -130,6 +201,7 @@ export function CurrentPipelineCard({
             </button>
           </div>
         </div>
+        <TerraformImpactNote detail={detail} />
         <div className="mt-[18px] text-[14px] font-semibold tracking-[0.01em] text-[var(--pl-text-medium)]">
           Task 실행 흐름
         </div>
@@ -171,6 +243,8 @@ export interface LastRunFailedCardProps {
   onOpenPipeline: () => void;
   /** Opens the ORIGIN run when this failed run was itself a restart. */
   onOpenOrigin?: (originPipelineId: number) => void;
+  /** Disables both CTAs and states why — see TargetPipelineSections. */
+  blockedReason?: string | null;
 }
 
 /**
@@ -187,6 +261,7 @@ export function LastRunFailedCard({
   onStartNew,
   onOpenPipeline,
   onOpenOrigin,
+  blockedReason = null,
 }: LastRunFailedCardProps): ReactElement {
   const title =
     detail.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(detail.recipe_definition);
@@ -261,29 +336,58 @@ export function LastRunFailedCard({
             </button>
           </div>
         </div>
+        <TerraformImpactNote detail={detail} />
         <div className="mt-4 flex items-center gap-2.5">
-          <PlButton variant="primary" onClick={onRestart}>
+          <PlButton variant="primary" onClick={onRestart} disabled={blockedReason != null}>
             <Icon name="play" size="sm" />
             {/* Just the verb: the line above already says where it stopped, and
                 the modal names the resume point. FAILED/CANCELLED wording no
                 longer has to be branched here. */}
             재시작
           </PlButton>
-          <PlButton variant="ghost" onClick={onStartNew}>
+          <PlButton variant="ghost" onClick={onStartNew} disabled={blockedReason != null}>
             새 작업 시작
           </PlButton>
         </div>
+        {blockedReason && <BlockedReason reason={blockedReason} className="mt-2.5" />}
       </div>
     </div>
   );
 }
 
+/** Why a start CTA is dead — stated next to the button that would not respond. */
+function BlockedReason({
+  reason,
+  className,
+}: {
+  reason: string;
+  className?: string;
+}): ReactElement {
+  return (
+    <p
+      className={cn(
+        'inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--pl-warn-text)]',
+        className,
+      )}
+    >
+      <Icon name="ban" size="sm" />
+      {reason}
+    </p>
+  );
+}
+
 export interface EmptyPipelineCardProps {
   onStart: () => void;
+  /** Disables the CTA and states why — see TargetPipelineSections. */
+  blockedReason?: string | null;
 }
 
 /** Idle state — the same card shell with a centered empty state + start CTA. */
-export function EmptyPipelineCard({ onStart }: EmptyPipelineCardProps): ReactElement {
+export function EmptyPipelineCard({
+  onStart,
+  blockedReason = null,
+}: EmptyPipelineCardProps): ReactElement {
+  const blocked = blockedReason != null;
   return (
     <div className={CARD_SHELL}>
       <div className="px-6 pt-4">
@@ -300,10 +404,20 @@ export function EmptyPipelineCard({ onStart }: EmptyPipelineCardProps): ReactEle
           작업을 시작해 보세요. 설치·삭제·Custom 흐름이 여러 단계로 실행되고, 진행 상황을 여기서
           바로 볼 수 있어요.
         </p>
-        <PlButton variant="primary" className="mt-5" onClick={onStart}>
+        {/* Pre-warning, in info blue: nothing is wrong yet — this states what the
+            button will do. Amber belongs to the 확정 정보 gate, red to real
+            failures, so neither is borrowed here. Suppressed when the CTA is
+            already blocked; the reason line below says the operative thing. */}
+        {!blocked && (
+          <p className="mt-2.5 max-w-[468px] text-[14px] font-semibold leading-[1.6] text-[var(--pl-info-text)]">
+            작업을 시작하면 Terraform이 실행되어 실제 인프라가 생성되거나 삭제됩니다.
+          </p>
+        )}
+        <PlButton variant="primary" className="mt-5" onClick={onStart} disabled={blocked}>
           <Icon name="play" size="sm" />
           작업 시작
         </PlButton>
+        {blockedReason && <BlockedReason reason={blockedReason} className="mt-2.5" />}
       </div>
     </div>
   );

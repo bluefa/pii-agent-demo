@@ -204,7 +204,13 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         )}
         {activeTab === '스캔' && <ScanTab targetSourceId={targetSourceId} detail={detail} />}
         {activeTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
-        {activeTab === '인프라 작업' && <PipelineTab targetSourceId={targetSourceId} detail={detail} />}
+        {activeTab === '인프라 작업' && (
+          <PipelineTab
+            targetSourceId={targetSourceId}
+            detail={detail}
+            onOpenRequest={() => selectTab('연동 요청 정보')}
+          />
+        )}
         {activeTab === 'Test Connection' && <TcTab targetSourceId={targetSourceId} detail={detail} />}
       </div>
 

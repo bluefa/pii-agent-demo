@@ -80,12 +80,23 @@ export interface TargetPipelineSectionsProps {
   raw: RawTargetSourceDetail;
   /** First section's top margin — the standalone page uses the default mt-11. */
   firstSectionClassName?: string;
+  /**
+   * Disables the start CTAs and states why, in the operator's words. Null (the
+   * default) allows starting, so the standalone targets page is unaffected —
+   * only the 인프라 작업 tab, which knows about 확정 정보, passes a reason.
+   */
+  startBlockedReason?: string | null;
+  /** Fired when a run reaches a terminal state, so the caller can refetch
+   *  anything derived from it (the tab's Terraform status). */
+  onRunsChanged?: () => void;
 }
 
 export function TargetPipelineSections({
   targetSourceId,
   raw,
   firstSectionClassName,
+  startBlockedReason = null,
+  onRunsChanged,
 }: TargetPipelineSectionsProps): ReactElement {
   const router = useRouter();
   const toast = usePlToast();
@@ -156,7 +167,12 @@ export function TargetPipelineSections({
         const d = await getPipeline(focusId);
         if (cancelled) return;
         setLiveDetail(d);
-        if (live && !isLivePipeline(d.status)) setRunsKey((k) => k + 1);
+        if (live && !isLivePipeline(d.status)) {
+          setRunsKey((k) => k + 1);
+          // The run just changed the infrastructure — whatever the caller
+          // derived from it is now stale.
+          onRunsChanged?.();
+        }
       } catch {
         /* transient poll failure — keep the last snapshot */
       }
@@ -170,7 +186,7 @@ export function TargetPipelineSections({
       cancelled = true;
       clearInterval(timer);
     };
-  }, [focusId, live]);
+  }, [focusId, live, onRunsChanged]);
 
   // Task-definition catalog — display names/descriptions for the task strip.
   // An SDU account is surfaced as SDU regardless of its underlying CSP
@@ -223,11 +239,15 @@ export function TargetPipelineSections({
             onStartNew={() => previewModal.open()}
             onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
             onOpenOrigin={goPipeline}
+            blockedReason={startBlockedReason}
           />
         ) : !latestLoaded || focusId != null ? (
           <div className={cn(detailStyles.skeleton, 'h-52')} aria-hidden="true" />
         ) : (
-          <EmptyPipelineCard onStart={() => previewModal.open()} />
+          <EmptyPipelineCard
+            onStart={() => previewModal.open()}
+            blockedReason={startBlockedReason}
+          />
         )}
       </div>
 
