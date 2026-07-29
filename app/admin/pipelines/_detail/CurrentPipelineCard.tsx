@@ -15,7 +15,7 @@ import { Fragment, useEffect, useRef, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { recipeDisplayName, recipeLabel, taskInfraSide } from '@/lib/pipeline/format';
+import { canCancel, recipeDisplayName, recipeLabel, taskInfraSide } from '@/lib/pipeline/format';
 import {
   FlowArrow,
   FlowStatusPill,
@@ -119,6 +119,9 @@ export interface CurrentPipelineCardProps {
   onOpenPipeline: () => void;
   /** Opens the ORIGIN run when this one is a restart (restart badge). */
   onOpenOrigin?: (originPipelineId: number) => void;
+  /** Opens the 작업 중단 confirmation. Never gated: stopping a run in flight is
+   *  always allowed, whatever else on the page is blocked. */
+  onCancel: () => void;
 }
 
 export function CurrentPipelineCard({
@@ -126,6 +129,7 @@ export function CurrentPipelineCard({
   defs,
   onOpenPipeline,
   onOpenOrigin,
+  onCancel,
 }: CurrentPipelineCardProps): ReactElement {
   const label = recipeLabel(detail.recipe_definition);
   const title =
@@ -181,6 +185,14 @@ export function CurrentPipelineCard({
                   onClick={onOpenOrigin ? () => onOpenOrigin(detail.origin_pipeline_id as number) : undefined}
                 />
               )}
+              {/* Cancel is two-phase (contract gap ⑤): a leased run keeps
+                  RUNNING and only records the request, so without this the stop
+                  button looked like it had done nothing. */}
+              {detail.cancel_requested && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--pl-err-border)] bg-[var(--pl-err-bg)] px-2.5 py-[3px] text-[12px] font-semibold text-[var(--pl-err-text)]">
+                  중단 요청됨
+                </span>
+              )}
             </div>
             {label?.desc ? (
               <p className="mt-1.5 max-w-[760px] text-[14px] leading-[1.55] text-[var(--pl-text-weak)]">
@@ -188,7 +200,7 @@ export function CurrentPipelineCard({
               </p>
             ) : null}
           </div>
-          <div className="flex flex-none items-center pt-0.5">
+          <div className="flex flex-none items-center gap-3 pt-0.5">
             <button
               type="button"
               className={cn(
@@ -200,6 +212,15 @@ export function CurrentPipelineCard({
               작업 현황 보기
               <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
             </button>
+            <PlButton
+              variant="danger"
+              size="sm"
+              onClick={onCancel}
+              disabled={!canCancel(detail.status, detail.cancel_requested)}
+            >
+              <Icon name="stop" size="sm" />
+              작업 중단
+            </PlButton>
           </div>
         </div>
         <TerraformImpactNote detail={detail} />

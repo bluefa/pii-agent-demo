@@ -185,57 +185,53 @@ export function InfraStatusHead({
 
   const tasks = status.tasks ?? [];
   const overall = metaOf(status.overall_state);
-  const applied = tasks.filter((task) => task.state === 'APPLIED').length;
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-b border-[var(--pl-border)] px-1 py-2.5 text-[13px] text-[var(--pl-text-medium)]">
-        <span className={cn('h-2.5 w-2.5 flex-none rounded-full', TONE[overall.tone].dot)} aria-hidden />
-        <span className={cn('text-[13.5px] font-bold', TONE[overall.tone].text)}>{overall.label}</span>
-        {tasks.length > 0 && (
-          <>
-            {SEP}
-            <span className="tabular-nums">
-              {applied}/{tasks.length} 적용
-            </span>
-          </>
-        )}
-        {SEP}
-        <span>
-          확정 정보 있음
-          {status.latest_confirmed_at && (
-            <span className="ml-1 tabular-nums text-[var(--pl-text-weak)]">
-              {fmtDateTime(status.latest_confirmed_at)}
-            </span>
-          )}
-        </span>
-        {SEP}
-        <span
-          className={cn(
-            status.destroy_required && 'font-semibold text-[var(--pl-err-text)]',
-            'inline-flex items-center gap-1',
-          )}
-        >
-          {status.destroy_required && <Icon name="warn-tri" size="sm" />}
-          {status.destroy_required ? '삭제 필요' : '삭제 불필요'}
-        </span>
+      {/* Three groups, not one long line: what this is (+ its caveat), the one
+          date worth carrying, and the way in. The row used to run every fact
+          together with middots, which read as a sentence nobody had written.
+          The heading NAMES the section rather than concluding a state — "적용
+          완료" was a verdict that never said what had been applied — and the dot
+          keeps the overall tone so a failed apply still tints the row. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3 border-b border-[var(--pl-border)] px-1 pb-3.5 pt-1">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn('h-2.5 w-2.5 flex-none rounded-full', TONE[overall.tone].dot)}
+              aria-hidden
+            />
+            <h2 className="text-[14px] font-bold tracking-[-0.01em] text-[var(--pl-text-strong)]">
+              Terraform 설치 현황 조회
+            </h2>
+          </div>
+          {/* break-keep: Korean must wrap between words, not mid-word (…설치 상/태와). */}
+          <p className="mt-1 max-w-[64ch] break-keep text-[12px] leading-[1.5] text-[var(--pl-text-faint)]">
+            InfraManager에서 조회한 Terraform Job 결과값입니다. Cloud SDK를 조회하지 않아서 실제 인프라
+            설치 상태와 다를 수 있습니다.
+          </p>
+        </div>
 
-        <span className="ml-auto flex items-center gap-3">
-          {status.checked_at && (
-            <span className="text-[11px] tabular-nums text-[var(--pl-text-faint)]">
-              조회 {fmtDateTime(status.checked_at)}
-            </span>
-          )}
-          <button
-            type="button"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-            className="inline-flex items-center gap-1 rounded-[5px] px-1 py-0.5 text-[12.5px] font-semibold text-[var(--pl-primary)] hover:bg-[var(--pl-primary-bg)]"
-          >
-            Terraform 작업 {tasks.length}개 상세
-            <span aria-hidden>{open ? '▴' : '▾'}</span>
-          </button>
-        </span>
+        {/* has_confirmed_infra is already true in this branch, so "있음" said
+            nothing — the date is the only part carrying information. */}
+        {status.latest_confirmed_at && (
+          <dl className="flex-none">
+            <dt className="text-[11px] text-[var(--pl-text-weak)]">최근 확정</dt>
+            <dd className="mt-1 text-[13px] font-semibold tabular-nums text-[var(--pl-text-strong)]">
+              {fmtDateTime(status.latest_confirmed_at)}
+            </dd>
+          </dl>
+        )}
+
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="inline-flex flex-none items-center gap-1 rounded-[6px] border border-[var(--pl-border)] px-2.5 py-1.5 text-[12.5px] font-semibold text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)]"
+        >
+          Terraform 작업 {tasks.length}개 상세
+          <span aria-hidden>{open ? '▴' : '▾'}</span>
+        </button>
       </div>
 
       {open && (
@@ -251,11 +247,6 @@ export function InfraStatusHead({
           )}
         </div>
       )}
-
-      <p className="mt-2 px-1 text-[12px] text-[var(--pl-text-faint)]">
-        InfraManager에서 조회한 Terraform Job 결과값입니다. Cloud SDK를 조회하지 않아서 실제 인프라
-        설치 상태와 다를 수 있습니다.
-      </p>
     </div>
   );
 }
