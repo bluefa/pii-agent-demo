@@ -1,15 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { getAwsInstallationStatus } from '@/app/lib/api/aws';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
-import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
-import { InstallResourceTable } from '@/app/components/features/process-status/install-task-pipeline/InstallResourceTable';
-import { joinAwsResources } from '@/app/components/features/process-status/aws/join-aws-install-resources';
+import { AwsInstallStatusDetail } from '@/app/components/features/process-status/aws/AwsInstallStatusDetail';
+import { isAwsInstallationComplete } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
-import { buildAwsAutoItems, buildAwsManualItems } from '@/lib/constants/aws-install';
 import { borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
 import type { AwsInstallationStatus } from '@/lib/types';
 
@@ -17,27 +15,11 @@ interface AwsInstallationInlineProps {
   targetSourceId: number;
   /**
    * metadata.grant_service_terraform_execution_permission — explicit false ⇒
-   * manual install (2 cards, no permission check); true/undefined ⇒ auto.
+   * manual install (no role-verify step); true/undefined ⇒ auto.
    */
   terraformExecutionGranted?: boolean;
   onInstallComplete?: () => void;
 }
-
-const getActionSummary = (status: AwsInstallationStatus) => {
-  if (status.actionSummary) {
-    return status.actionSummary;
-  }
-
-  return {
-    serviceActionRequired: status.serviceScripts.some(script => script.status !== 'COMPLETED'),
-    bdcInstallationRequired: status.bdcStatus.status !== 'COMPLETED',
-  };
-};
-
-const isFullyCompleted = (status: AwsInstallationStatus): boolean => {
-  const summary = getActionSummary(status);
-  return !summary.serviceActionRequired && !summary.bdcInstallationRequired;
-};
 
 export const AwsInstallationInline = ({
   targetSourceId,
@@ -52,12 +34,17 @@ export const AwsInstallationInline = ({
     completionNotifiedRef.current = false;
   }, [targetSourceId]);
 
+  const isComplete = useCallback(
+    (status: AwsInstallationStatus) => isAwsInstallationComplete(status, isManualInstall),
+    [isManualInstall],
+  );
+
   const { status, loading, error, fetchStatus } = useInstallationStatus<AwsInstallationStatus>({
     targetSourceId,
     getFn: getAwsInstallationStatus,
     // Refresh = re-GET installation-status (POST check-installation REMOVED-no-swagger).
     checkFn: getAwsInstallationStatus,
-    isComplete: isFullyCompleted,
+    isComplete,
     onComplete: () => {
       if (!completionNotifiedRef.current) {
         completionNotifiedRef.current = true;
@@ -66,15 +53,11 @@ export const AwsInstallationInline = ({
     },
   });
 
-  const joinedRows = useMemo(() => {
-    if (!status) return [];
-    const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
-    return joinAwsResources(status, confirmedResources);
-  }, [status, confirmedState]);
-
   if (loading) return <InstallationLoadingView provider="AWS" />;
   if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
   if (!status) return null;
+
+  const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
@@ -96,12 +79,6 @@ export const AwsInstallationInline = ({
             상태 확인 실패: {status.lastCheck.failReason}
           </div>
         )}
-        {isManualInstall ? (
-          <InstallTaskPipeline columns={2} items={buildAwsManualItems(status)} />
-        ) : (
-          <InstallTaskPipeline columns={3} items={buildAwsAutoItems(status)} />
-        )}
-
         {confirmedState.status === 'loading' && (
           <div
             className={cn(
@@ -132,7 +109,11 @@ export const AwsInstallationInline = ({
             </button>
           </div>
         )}
-        <InstallResourceTable rows={joinedRows} provider="AWS" />
+        <AwsInstallStatusDetail
+          status={status}
+          confirmed={confirmedResources}
+          manualInstall={isManualInstall}
+        />
       </div>
     </section>
   );

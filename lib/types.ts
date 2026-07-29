@@ -622,40 +622,39 @@ export interface V1LastCheck {
   failReason?: string;
 }
 
-export type V1ScriptStatus = 'PENDING' | 'INSTALLING' | 'COMPLETED' | 'FAILED';
-export type InstallationDisplayStatus = 'NOT_INSTALLED' | 'COMPLETED';
+/**
+ * Swagger CloudInstallationStepStatusDto.status. The loose codegen leaves the
+ * wire value as a plain string, so the adapter normalizes anything outside this
+ * union to 'UNKNOWN'.
+ */
+export type AwsInstallStepValue =
+  | 'COMPLETED'
+  | 'FAIL'
+  | 'IN_PROGRESS'
+  | 'SKIP'
+  | 'BDC_INSTALL_REQUIRED'
+  | 'UNKNOWN';
 
-export interface V1ResourceItem {
+export interface AwsInstallStepState {
+  status: AwsInstallStepValue;
+  guide: string | null;
+}
+
+/** One AwsResourceInstallationStatusDto — a resource with its three step states. */
+export interface AwsInstallResourceStatus {
   resourceId: string;
-  resource_id?: string;
-  type: string;
-  resource_type?: string;
-  name: string;
-  installationDisplayStatus?: InstallationDisplayStatus;
+  resourceName: string | null;
+  installationStatus: AwsInstallStepValue;
+  serviceTerraform: AwsInstallStepState;
+  bdcServiceTerraform: AwsInstallStepState;
+  bdcCommonTerraform: AwsInstallStepState;
 }
 
-export interface V1ServiceScript {
-  scriptId?: string;
-  scriptName: string;
-  terraformScriptName?: string;
-  status: V1ScriptStatus;
-  resourceCount?: number;
-  region?: string;
-  resources: V1ResourceItem[];
-}
-
-export interface AwsInstallationActionSummary {
-  serviceActionRequired: boolean;
-  bdcInstallationRequired: boolean;
-}
-
+/** Resource-centric AwsInstallationStatusResponse domain (swagger shape 1:1). */
 export interface AwsInstallationStatus {
-  hasExecutionPermission: boolean;
-  executionRoleArn?: string;
-  serviceScripts: V1ServiceScript[];
-  bdcStatus: { status: V1ScriptStatus };
   lastCheck: V1LastCheck;
-  actionSummary?: AwsInstallationActionSummary;
+  roleVerify: { status: AwsInstallStepValue; roleArn: string | null };
+  resources: AwsInstallResourceStatus[];
 }
 
 // TF Script

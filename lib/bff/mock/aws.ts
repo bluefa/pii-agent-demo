@@ -30,31 +30,62 @@ export const mockAws = {
 
     const completed = project.terraformState?.serviceTf === 'COMPLETED';
 
+    // Derive per-resource step states from the project's selected resources so
+    // resource_id joins against the confirmed integration (region/DB type in the
+    // UI). While installing, seed a deterministic mix incl. SKIP / FAIL(guide) /
+    // BDC_INSTALL_REQUIRED and one UNKNOWN (PLAN §4 requirement).
+    const selected = project.resources.filter((r) => r.isSelected);
+    const resources = selected.map((resource, index) => {
+      if (completed) {
+        return {
+          resource_id: resource.resourceId,
+          resource_name: null,
+          installation_status: 'COMPLETED',
+          service_terraform: { status: 'COMPLETED', guide: null },
+          bdc_service_terraform: { status: 'COMPLETED', guide: null },
+          bdc_common_terraform: { status: 'COMPLETED', guide: null },
+        };
+      }
+      const service =
+        index % 4 === 1 ? 'SKIP'
+          : index % 4 === 3 ? 'FAIL'
+            : index % 4 === 0 ? 'COMPLETED'
+              : 'IN_PROGRESS';
+      const serviceGuide =
+        service === 'SKIP' ? '설치 대상이 아닌 리소스입니다 (Read Replica).'
+          : service === 'FAIL' ? '서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다. VPC 서브넷을 확인해 주세요.'
+            : null;
+      const bdcService =
+        service === 'SKIP' ? 'SKIP'
+          : service === 'COMPLETED' ? 'BDC_INSTALL_REQUIRED'
+            // UNKNOWN seed (PLAN §4 requirement).
+            : 'UNKNOWN';
+      const bdcCommon = service === 'SKIP' ? 'SKIP' : index % 2 === 0 ? 'COMPLETED' : 'IN_PROGRESS';
+      const overall =
+        service === 'FAIL' ? 'FAIL'
+          : service === 'SKIP' ? 'SKIP'
+            : service === 'COMPLETED' && bdcService === 'BDC_INSTALL_REQUIRED' ? 'BDC_INSTALL_REQUIRED'
+              : 'IN_PROGRESS';
+      return {
+        resource_id: resource.resourceId,
+        resource_name: null,
+        installation_status: overall,
+        service_terraform: { status: service, guide: serviceGuide },
+        bdc_service_terraform: {
+          status: bdcService,
+          guide: bdcService === 'BDC_INSTALL_REQUIRED' ? '서비스 측 적용 완료 후 자동 진행됩니다.' : null,
+        },
+        bdc_common_terraform: { status: bdcCommon, guide: null },
+      };
+    });
+
     return NextResponse.json({
       last_check: {
         status: completed ? 'COMPLETED' : 'IN_PROGRESS',
         checked_at: '2026-06-23T10:00:00Z',
         fail_reason: null,
       },
-      resources: [
-        {
-          resource_id: `arn:aws:rds:ap-northeast-2:${project.id}:db/prod-mysql`,
-          resource_name: 'prod-mysql',
-          installation_status: completed ? 'COMPLETED' : 'IN_PROGRESS',
-          service_terraform: { status: completed ? 'COMPLETED' : 'IN_PROGRESS', guide: null },
-          bdc_service_terraform: { status: completed ? 'COMPLETED' : 'IN_PROGRESS', guide: null },
-          bdc_common_terraform: { status: completed ? 'COMPLETED' : 'IN_PROGRESS', guide: null },
-        },
-        {
-          resource_id: `arn:aws:rds:ap-northeast-2:${project.id}:db/stg-postgres`,
-          resource_name: 'stg-postgres',
-          installation_status: 'IN_PROGRESS',
-          service_terraform: { status: 'IN_PROGRESS', guide: 'https://guide/aws/service-tf' },
-          // UNKNOWN seed (PLAN §4 requirement).
-          bdc_service_terraform: { status: 'UNKNOWN', guide: null },
-          bdc_common_terraform: { status: 'UNKNOWN', guide: null },
-        },
-      ],
+      resources,
       terraform_execution_role_verify: {
         status: completed ? 'COMPLETED' : 'IN_PROGRESS',
         role_arn: `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`,
