@@ -1101,17 +1101,20 @@ export const pipelineStyles = {
     } as Record<'INSTALL' | 'DELETE' | 'CUSTOM', string>,
   },
 
-  /** JobKindTag — the terraform action (PLAN/APPLY/DESTROY) as a small bordered
-   *  pill on a job node. Bordered + colored text (no fill) so it stays below the
-   *  status badge. PLAN and APPLY are neutral; only DESTROY keeps a hue, because
-   *  it is the one action that removes infrastructure. Green APPLY was decoration
-   *  — it marked the ordinary case and diluted the red next to it. */
+  /** JobKindTag — the terraform action (PLAN/APPLY/DESTROY) on a job node.
+   *
+   *  This is the ACTION, not a status, so it is exempt from the monochrome
+   *  status ramp: rendering it in grey buried it against the node's own grey
+   *  text. Tinted fill + matching stroke, on two axes — blue for the building
+   *  path (PLAN reads lighter than APPLY, which is the one that actually
+   *  changes infrastructure), red for the one that removes it. Green APPLY was
+   *  dropped along the way: it marked the ordinary case and diluted the red. */
   jobKindTag: {
     base: 'inline-flex items-center rounded border px-1 leading-[15px] text-[10px] font-bold tracking-wide [font-family:var(--pl-font-mono)]',
     tone: {
-      PLAN: 'border-[var(--pl-border-strong)] text-[var(--pl-text-weak)]',
-      APPLY: 'border-[var(--pl-text-medium)] text-[var(--pl-text-medium)]',
-      DESTROY: 'border-[var(--pl-err)] text-[var(--pl-err)]',
+      PLAN: 'border-[var(--pl-primary-ring)] bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
+      APPLY: 'border-[var(--pl-primary)] bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
+      DESTROY: 'border-[var(--pl-err)] bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
     } as Record<'PLAN' | 'APPLY' | 'DESTROY', string>,
   },
 

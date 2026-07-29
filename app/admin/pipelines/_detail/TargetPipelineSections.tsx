@@ -62,15 +62,35 @@ function finishedAt(p: PipelineSummary): string {
   return isLivePipeline(p.status) ? '진행 중' : fmtDateTime(p.last_activity_at);
 }
 
-/** R24 section head — title 15/700 + caption 12.5 faint (Figma typo ramp). */
-function R24Section({ title, desc }: { title: string; desc: string }): ReactElement {
+/**
+ * Section head — 16px name over a 12px caption, the same two-size hierarchy the
+ * 인프라 작업 tab's Terraform head uses, so every section on the page starts the
+ * same way. The caption exists to say what the section is FOR: 현재 작업 used to
+ * be a bare blue eyebrow inside the card, which named the section but never told
+ * an operator that this is where Terraform actually runs.
+ */
+function R24Section({
+  title,
+  desc,
+  className,
+}: {
+  title: string;
+  desc: string;
+  className?: string;
+}): ReactElement {
   return (
-    <div className="mt-11">
+    <div className={className ?? 'mt-11'}>
       <h2 className="text-[16px] font-bold tracking-[-0.01em] text-[var(--pl-text-strong)]">{title}</h2>
-      <p className="mt-1 text-[14px] text-[var(--pl-text-faint)]">{desc}</p>
+      <p className="mt-1 max-w-[68ch] break-keep text-[12px] leading-[1.55] text-[var(--pl-text-faint)]">
+        {desc}
+      </p>
     </div>
   );
 }
+
+/** What the 현재 작업 section is for — constant; only its title tracks state. */
+const RUN_SECTION_DESC =
+  'Terraform을 실행해 인프라를 생성하거나 삭제하는 작업입니다. 작업 시작·중단과 진행 상황을 여기서 확인합니다.';
 
 const HISTORY_TH =
   'bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)] px-4 py-[9px] text-left text-[11px] font-medium text-[var(--pl-text-faint)] whitespace-nowrap';
@@ -222,9 +242,13 @@ export function TargetPipelineSections({
 
   return (
     <div>
-      {/* R24 — 현재 작업: run-card while live, empty card otherwise. The
-          section eyebrow lives inside the card itself (Figma 9:429). */}
-      <div className={firstSectionClassName ?? 'mt-11'}>
+      {/* R24 — 현재 작업: run-card while live, empty card otherwise. */}
+      <R24Section
+        title={focusDetail && !live ? '최근 작업' : '현재 작업'}
+        desc={RUN_SECTION_DESC}
+        className={firstSectionClassName ?? 'mt-11'}
+      />
+      <div className="mt-3.5">
         {focusDetail && live ? (
           <CurrentPipelineCard
             detail={focusDetail}

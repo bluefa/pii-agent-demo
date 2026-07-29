@@ -182,54 +182,51 @@ export function InfraStatusHead({
   if (!status.has_confirmed_infra) return <GateBanner onOpenRequest={onOpenRequest} />;
 
   const tasks = status.tasks ?? [];
-  const overall = metaOf(status.overall_state);
 
   return (
     <div>
-      {/* Three groups, not one long line: what this is (+ its caveat), the one
-          date worth carrying, and the way in. The row used to run every fact
-          together with middots, which read as a sentence nobody had written.
-          The heading NAMES the section rather than concluding a state — "적용
-          완료" was a verdict that never said what had been applied — and the dot
-          keeps the overall tone so a failed apply still tints the row. */}
-      <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3 border-b border-[var(--pl-border)] px-1 pb-3.5 pt-1">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span
-              className={cn('h-2.5 w-2.5 flex-none rounded-full', TONE[overall.tone].dot)}
-              aria-hidden
-            />
-            <h2 className="text-[14px] font-bold tracking-[-0.01em] text-[var(--pl-text-strong)]">
-              Terraform 설치 현황 조회
-            </h2>
-          </div>
-          {/* break-keep: Korean must wrap between words, not mid-word (…설치 상/태와). */}
-          <p className="mt-1 max-w-[64ch] break-keep text-[12px] leading-[1.5] text-[var(--pl-text-faint)]">
-            InfraManager에서 조회한 Terraform Job 결과값입니다. Cloud SDK를 조회하지 않아서 실제 인프라
-            설치 상태와 다를 수 있습니다.
-          </p>
+      {/* One left edge, two type sizes. Everything hangs off the same margin and
+          reads top-down: precondition tag → 16px section name → 12px supporting
+          detail. The earlier version spread three groups across the full width,
+          which gave the eye three competing starting points and no hierarchy at
+          all. Color does the same work as size here: the tag and the caption sit
+          back, the name and the date come forward. */}
+      <div className="border-b border-[var(--pl-border)] px-1 pb-4 pt-1">
+        {/* The precondition, stated before the thing it gates. Its false case is
+            the GateBanner above, so this branch only ever reads 있음. */}
+        <span className="inline-flex items-center rounded-[5px] border border-[var(--pl-border-strong)] bg-[var(--pl-gray-100)] px-2 py-[3px] text-[12px] font-semibold text-[var(--pl-text-medium)]">
+          확정 정보 있음
+        </span>
+
+        <h2 className="mt-2 text-[16px] font-bold tracking-[-0.015em] text-[var(--pl-text-strong)]">
+          Terraform 설치 현황
+        </h2>
+
+        {/* break-keep: Korean must wrap between words, not mid-word (…설치 상/태와). */}
+        <p className="mt-1 max-w-[68ch] break-keep text-[12px] leading-[1.55] text-[var(--pl-text-faint)]">
+          InfraManager에서 조회한 Terraform Job 결과값입니다. Cloud SDK를 조회하지 않아서 실제 인프라
+          설치 상태와 다를 수 있습니다.
+        </p>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px]">
+          {status.latest_confirmed_at && (
+            <span>
+              <span className="text-[var(--pl-text-weak)]">최근 확정</span>
+              <span className="ml-1.5 font-semibold tabular-nums text-[var(--pl-text-strong)]">
+                {fmtDateTime(status.latest_confirmed_at)}
+              </span>
+            </span>
+          )}
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex items-center gap-1 rounded-[6px] border border-[var(--pl-border)] px-2 py-1 text-[12px] font-semibold text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)]"
+          >
+            Terraform 작업 {tasks.length}개 상세
+            <span aria-hidden>{open ? '▴' : '▾'}</span>
+          </button>
         </div>
-
-        {/* has_confirmed_infra is already true in this branch, so "있음" said
-            nothing — the date is the only part carrying information. */}
-        {status.latest_confirmed_at && (
-          <dl className="flex-none">
-            <dt className="text-[11px] text-[var(--pl-text-weak)]">최근 확정</dt>
-            <dd className="mt-1 text-[13px] font-semibold tabular-nums text-[var(--pl-text-strong)]">
-              {fmtDateTime(status.latest_confirmed_at)}
-            </dd>
-          </dl>
-        )}
-
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-          className="inline-flex flex-none items-center gap-1 rounded-[6px] border border-[var(--pl-border)] px-2.5 py-1.5 text-[12.5px] font-semibold text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)]"
-        >
-          Terraform 작업 {tasks.length}개 상세
-          <span aria-hidden>{open ? '▴' : '▾'}</span>
-        </button>
       </div>
 
       {open && (
