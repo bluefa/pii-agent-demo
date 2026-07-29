@@ -221,7 +221,9 @@ export function InfraStatusHead({
             type="button"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex items-center gap-1 rounded-[6px] border border-[var(--pl-border)] px-2 py-1 text-[12px] font-semibold text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)]"
+            /* Blue stroke: this is the only control in the head, and a neutral
+               border left it reading as another static chip in a row of them. */
+            className="inline-flex items-center gap-1 rounded-[6px] border border-[var(--pl-primary)] px-2 py-1 text-[12px] font-semibold text-[var(--pl-text-medium)] hover:bg-[var(--pl-primary-bg)]"
           >
             Terraform 작업 {tasks.length}개 상세
             <span aria-hidden>{open ? '▴' : '▾'}</span>
