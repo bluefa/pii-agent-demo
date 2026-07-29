@@ -8,7 +8,7 @@ import { AwsInstallStatusDetail } from '@/app/components/features/process-status
 import { isAwsInstallationComplete } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
-import { bgColors, borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { bgColors, borderColors, cardStyles, cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 import type { AwsInstallationStatus } from '@/lib/types';
 
 interface AwsInstallationInlineProps {
@@ -90,27 +90,29 @@ export const AwsInstallationInline = ({
             승인된 인프라에 PII Agent를 배포하기 위한 설치 작업을 진행합니다.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        {/* v16 L6606 — provider indicator (not a control), short provider name. */}
+        <span className="text-[11.5px] text-[#8B95A1]">
+          Provider: <strong className="text-[#191F28]">AWS</strong>
+        </span>
+      </header>
+      <div className={cn(cardStyles.body, 'space-y-3')}>
+        {/* TF script download is available in BOTH install modes (owner requirement). */}
+        <div className={cn('rounded-[14px] border px-5 py-4 flex items-center justify-between gap-4', borderColors.default, bgColors.muted)}>
+          <div>
+            <h3 className={cn('text-[14px] font-bold', textColors.primary)}>Terraform Script</h3>
+            <p className={cn('mt-1 text-[13px]', textColors.secondary)}>
+              Terraform Script를 다운로드 받아 어떤 리소스가 생성되는지 미리 리뷰할 수 있습니다.
+            </p>
+          </div>
           <button
             type="button"
             onClick={handleDownloadScript}
             disabled={downloading}
-            className={cn(
-              'text-xs font-bold px-3 py-1.5 rounded-lg border disabled:opacity-50',
-              borderColors.default,
-              textColors.secondary,
-              bgColors.mutedHover,
-            )}
+            className={cn(getButtonClass('soft', 'sm'), 'shrink-0 whitespace-nowrap')}
           >
             {downloading ? '다운로드 중...' : 'Terraform Script 다운로드'}
           </button>
-          {/* v16 L6606 — provider indicator (not a control), short provider name. */}
-          <span className="text-[11.5px] text-[#8B95A1]">
-            Provider: <strong className="text-[#191F28]">AWS</strong>
-          </span>
         </div>
-      </header>
-      <div className={cn(cardStyles.body, 'space-y-3')}>
         {downloadError && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
             {downloadError}
