@@ -56,7 +56,7 @@ const STATUS_TAG: Record<AwsInstallStepValue, string> = {
 };
 
 const StatusPill = ({ status }: { status: AwsInstallStepValue }) => (
-  <span className={cn(TABLE_TAG_PILL, STATUS_TAG[status])}>
+  <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', STATUS_TAG[status])}>
     {AWS_INSTALL_STATUS_LABEL[status]}
   </span>
 );
@@ -273,7 +273,7 @@ const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
       <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>Role ARN</span>
       {status.roleVerify.roleArn ? (
         <span className="inline-flex items-center gap-1.5 min-w-0 group">
-          <span className="font-mono text-[12px] break-all">{status.roleVerify.roleArn}</span>
+          <span className={cn('font-mono text-[12px] break-all', textColors.primary)}>{status.roleVerify.roleArn}</span>
           <CopyButton
             value={status.roleVerify.roleArn}
             label="Role ARN 복사"
@@ -287,7 +287,7 @@ const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
     {status.lastCheck.checkedAt && (
       <div className="flex gap-3 py-1.5 text-sm items-center">
         <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>확인 시각</span>
-        <span>{formatDateTime(status.lastCheck.checkedAt)}</span>
+        <span className={textColors.primary}>{formatDateTime(status.lastCheck.checkedAt)}</span>
       </div>
     )}
   </div>
@@ -374,12 +374,12 @@ export const AwsInstallStatusDetail = ({
                 {step.id === 'summary' ? '≡' : index}
               </span>
               <span className="min-w-0 flex flex-col gap-1.5">
-                <span className="text-[13px] font-bold leading-[1.35] tracking-[-0.01em]">
+                <span className={cn('text-[13px] font-bold leading-[1.35] tracking-[-0.01em]', textColors.primary)}>
                   {step.title}
                 </span>
                 <span className="flex items-center gap-1.5 flex-wrap">
                   {step.side && <SideTag side={step.side} />}
-                  <span className={cn(TABLE_TAG_PILL, aggregate.tag)}>{aggregate.label}</span>
+                  <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', aggregate.tag)}>{aggregate.label}</span>
                   {aggregate.count && (
                     <span className={cn('text-[11px] font-semibold tabular-nums', textColors.tertiary)}>
                       {aggregate.count}
@@ -396,7 +396,7 @@ export const AwsInstallStatusDetail = ({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-[16px] font-bold tracking-[-0.02em]">{active.title}</h3>
+              <h3 className={cn('text-[16px] font-bold tracking-[-0.02em]', textColors.primary)}>{active.title}</h3>
               {active.side && <SideTag side={active.side} />}
             </div>
             <p className={cn('mt-1 text-[12.5px] max-w-[60ch]', textColors.secondary)}>
@@ -404,7 +404,7 @@ export const AwsInstallStatusDetail = ({
             </p>
           </div>
           {activeAggregate && (
-            <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'flex-shrink-0')}>
+            <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'flex-shrink-0 whitespace-nowrap')}>
               {activeAggregate.count
                 ? `${activeAggregate.label} ${activeAggregate.count}`
                 : activeAggregate.label}
