@@ -1,8 +1,12 @@
 'use client';
 
 /**
- * CancelModal — "작업 취소" (design-inventory §Cancel, adjusted for contract
- * gap ⑤). The real cancel is two-phase: an idle/PENDING run cancels immediately
+ * CancelModal — "작업 중단" (design-inventory §Cancel, adjusted for contract
+ * gap ⑤). The verb is 중단, matching how CANCELLED already reads elsewhere in
+ * the UI (LastRunFailedCard: "…에서 중단됐습니다"); 취소 beside a 작업 중단 button
+ * read as two different operations.
+ *
+ * The real cancel is two-phase: an idle/PENDING run cancels immediately
  * (→ CANCELLED); a live-leased run only records cancel_requested and the worker
  * applies it at the next safe point (response may be RUNNING + cancel_requested).
  * So the copy is the two-phase wording, the response is rendered verbatim by the
@@ -41,7 +45,7 @@ export function CancelModal({
     suppressAlert: true,
     onSuccess: (detail) => {
       onClose();
-      showToast(detail.status === 'CANCELLED' ? `#${pipelineId} 취소됨` : `#${pipelineId} 취소 요청됨`);
+      showToast(detail.status === 'CANCELLED' ? `#${pipelineId} 중단됨` : `#${pipelineId} 중단 요청됨`);
       onCancelled(detail);
     },
     onError: (err) => setError(err.message),
@@ -52,10 +56,10 @@ export function CancelModal({
   return (
     <ModalShell open={open} onClose={onClose} labelledBy={TITLE_ID} className="!w-[560px] !p-7">
       <h3 id={TITLE_ID} className="text-[24px] font-bold leading-[1.3] text-[var(--pl-text-strong)] mb-3">
-        작업 취소
+        작업 중단
       </h3>
       <div className="text-[18px] leading-[1.6] text-[var(--pl-text-medium)]">
-        #{pipelineId} 작업을 취소할까요? 대기 중이면 즉시 취소되고, 실행 중이면 다음 실행 사이클에
+        #{pipelineId} 작업을 중단할까요? 대기 중이면 즉시 중단되고, 실행 중이면 다음 실행 사이클에
         반영됩니다.
       </div>
 
@@ -73,7 +77,7 @@ export function CancelModal({
             void cancel.execute();
           }}
         >
-          취소 실행
+          중단 실행
         </PlButton>
       </div>
     </ModalShell>

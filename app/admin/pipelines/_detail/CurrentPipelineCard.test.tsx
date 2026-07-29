@@ -8,7 +8,7 @@
  *      terraform_action values, escalate on DESTROY, and stay silent for a run
  *      that touches no infrastructure at all.
  */
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import {
@@ -55,6 +55,7 @@ const makeDetail = (actions: Array<TerraformAction | null>): PipelineDetail =>
     current_task_sequence: 1,
     current_fail_count: null,
     current_max_fail_count: null,
+    cancel_requested: false,
     tasks: actions.map((action, index) => makeTask(index + 1, action)),
   }) as unknown as PipelineDetail;
 
@@ -64,6 +65,7 @@ const renderRun = (actions: Array<TerraformAction | null>) =>
       detail={makeDetail(actions)}
       defs={new Map()}
       onOpenPipeline={vi.fn()}
+      onCancel={vi.fn()}
     />,
   );
 
@@ -85,6 +87,44 @@ describe('EmptyPipelineCard — 확정 정보 gate', () => {
     expect(screen.getByText('확정된 연동 정보가 없어 시작할 수 없습니다.')).toBeTruthy();
     // The pre-warning describes what the button would do — pointless once it can't.
     expect(screen.queryByText(PRE_WARNING)).toBeNull();
+  });
+});
+
+const stopButton = (): HTMLButtonElement =>
+  screen.getByRole('button', { name: /작업 중단/ }) as HTMLButtonElement;
+
+describe('CurrentPipelineCard — 작업 중단', () => {
+  it('offers the stop control on a live run', () => {
+    const onCancel = vi.fn();
+    render(
+      <CurrentPipelineCard
+        detail={makeDetail(['DESTROY'])}
+        defs={new Map()}
+        onOpenPipeline={vi.fn()}
+        onCancel={onCancel}
+      />,
+    );
+
+    // Stopping a run in flight is never gated, whatever else the page blocks.
+    expect(stopButton().disabled).toBe(false);
+    fireEvent.click(stopButton());
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the pending request once cancel is two-phase', () => {
+    // A leased run stays RUNNING and only records the request; the card has to
+    // say so, or the stop button reads as having done nothing.
+    render(
+      <CurrentPipelineCard
+        detail={{ ...makeDetail(['APPLY']), cancel_requested: true }}
+        defs={new Map()}
+        onOpenPipeline={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('중단 요청됨')).toBeTruthy();
+    expect(stopButton().disabled).toBe(true);
   });
 });
 

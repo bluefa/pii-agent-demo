@@ -16,6 +16,7 @@ import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
 import { PipelineProgressBar } from '@/app/admin/pipelines/_components/PipelineProgressBar';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
+import { CancelModal } from '@/app/admin/pipelines/_detail/CancelModal';
 import { PreviewModal } from '@/app/admin/pipelines/_detail/PreviewModal';
 import { RestartModal } from '@/app/admin/pipelines/_detail/RestartModal';
 import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
@@ -50,14 +51,15 @@ import type {
 const HISTORY_SIZE = 5;
 const LIVE_POLL_MS = 8_000;
 
-/** 실행 시각 cell — 'created → finished' (terminal) / 'created → 진행 중'. */
-function runWindow(p: PipelineSummary): string {
-  const start = fmtDateTime(p.created_at);
-  if (isLivePipeline(p.status)) return `${start} → 진행 중`;
-  const end = fmtDateTime(p.last_activity_at);
-  // Drop the duplicated date when the run ends on the same day.
-  const tail = end.slice(0, 10) === start.slice(0, 10) ? end.slice(11) : end;
-  return `${start} → ${tail}`;
+/**
+ * 완료 시각 cell. The two timestamps used to share one cell as
+ * `created → finished`, with the end truncated to a bare time on same-day runs —
+ * so a row read as one span whose halves were formatted differently and could
+ * not be scanned down the column. They are two columns now; a live run has no
+ * completion time yet and says so.
+ */
+function finishedAt(p: PipelineSummary): string {
+  return isLivePipeline(p.status) ? '진행 중' : fmtDateTime(p.last_activity_at);
 }
 
 /** R24 section head — title 15/700 + caption 12.5 faint (Figma typo ramp). */
@@ -115,6 +117,7 @@ export function TargetPipelineSections({
   // choice happens INSIDE the modal, so there is no payload to ride.
   const previewModal = useModal();
   const restartModal = useModal();
+  const cancelModal = useModal();
 
   // History page (server pagination; 5/page).
   useEffect(() => {
@@ -228,6 +231,7 @@ export function TargetPipelineSections({
             defs={defs}
             onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
             onOpenOrigin={goPipeline}
+            onCancel={() => cancelModal.open()}
           />
         ) : focusDetail ? (
           /* §8.1 — latest ended FAILED/CANCELLED: keep the failure on screen
@@ -256,14 +260,15 @@ export function TargetPipelineSections({
         {rows.length ? (
           <>
             <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse text-[13px]">
+            <table className="w-full min-w-[920px] border-collapse text-[13px]">
               <colgroup>
                 <col className="w-[72px]" />
                 <col />
                 <col className="w-[112px]" />
                 <col className="w-[132px]" />
                 <col className="w-[190px]" />
-                <col className="w-[230px]" />
+                <col className="w-[150px]" />
+                <col className="w-[150px]" />
                 <col className="w-[64px]" />
               </colgroup>
               <thead>
@@ -274,6 +279,7 @@ export function TargetPipelineSections({
                   <th className={HISTORY_TH}>상태</th>
                   <th className={HISTORY_TH}>진행도</th>
                   <th className={HISTORY_TH}>실행 시각</th>
+                  <th className={HISTORY_TH}>완료 시각</th>
                   <th className={cn(HISTORY_TH, 'text-center')}>상세</th>
                 </tr>
               </thead>
@@ -330,7 +336,10 @@ export function TargetPipelineSections({
                       <PipelineProgressBar n={p.done_task_count} m={p.total_task_count} status={p.status} />
                     </td>
                     <td className={cn(HISTORY_TD, 'text-[12.5px] text-[var(--pl-text-weak)]')}>
-                      {runWindow(p)}
+                      {fmtDateTime(p.created_at)}
+                    </td>
+                    <td className={cn(HISTORY_TD, 'text-[12.5px] text-[var(--pl-text-weak)]')}>
+                      {finishedAt(p)}
                     </td>
                     <td className={cn(HISTORY_TD, 'text-center')}>
                       <span className="inline-flex text-[var(--pl-primary)]" title="작업 상세로 이동">
@@ -364,6 +373,23 @@ export function TargetPipelineSections({
         provider={orchProvider}
         showToast={toast.show}
       />
+
+      {/* Two-phase cancel (contract gap ⑤): the response may still be RUNNING
+          with cancel_requested set, so the returned detail is rendered verbatim
+          instead of assuming CANCELLED, and the run set is refetched either way. */}
+      {liveId != null && cancelModal.isOpen && (
+        <CancelModal
+          open={cancelModal.isOpen}
+          onClose={cancelModal.close}
+          pipelineId={liveId}
+          onCancelled={(detail) => {
+            setLiveDetail(detail);
+            setRunsKey((k) => k + 1);
+            onRunsChanged?.();
+          }}
+          showToast={toast.show}
+        />
+      )}
 
       {/* Mounted only while open — see RestartModal (fresh state per open). */}
       {focusId != null && restartModal.isOpen && (
