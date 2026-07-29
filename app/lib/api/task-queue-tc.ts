@@ -190,6 +190,66 @@ export interface TcHistoryPage {
   content: TcHistoryRow[];
 }
 
+// ---------------------------------------------------------------------------
+// TC 수행 기록 — the runs themselves (swagger getTestConnectionExecutionHistory).
+// Sibling to the trail below: this is "언제 돌렸고 결과가 무엇이었나", that one is
+// "누가 완료를 확인했고 누가 재실행을 요청했나".
+// ---------------------------------------------------------------------------
+
+interface TcExecutionWire {
+  test_connection_version?: number | null;
+  status?: string | null;
+  requested_at?: string | null;
+  completed_at?: string | null;
+}
+
+/** Contract enum; anything else (or absent) stays UNKNOWN — never a claimed success. */
+export type TcExecutionStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAIL' | 'UNKNOWN';
+
+const EXECUTION_STATUSES: readonly TcExecutionStatus[] = ['PENDING', 'RUNNING', 'SUCCESS', 'FAIL'];
+
+export interface TcExecutionRow {
+  /** Run ordinal — `null` when the wire omits it. */
+  version: number | null;
+  status: TcExecutionStatus;
+  requestedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface TcExecutionPage {
+  totalElements: number;
+  totalPages: number;
+  content: TcExecutionRow[];
+}
+
+/** GET …/{id}/test-connection/execution-history?page&size — newest first. */
+export const getTestConnectionExecutionHistory = async (
+  targetSourceId: number,
+  page = 0,
+  size = 5,
+): Promise<TcExecutionPage> => {
+  const raw = await fetchInfraJson<{
+    totalElements?: number | null;
+    totalPages?: number | null;
+    content?: TcExecutionWire[] | null;
+  }>(`/target-sources/${targetSourceId}/test-connection/execution-history?page=${page}&size=${size}`);
+
+  const content = (raw.content ?? []).map((w) => {
+    const status = (w.status ?? '').toUpperCase() as TcExecutionStatus;
+    return {
+      version: w.test_connection_version ?? null,
+      status: EXECUTION_STATUSES.includes(status) ? status : 'UNKNOWN',
+      requestedAt: w.requested_at ?? null,
+      completedAt: w.completed_at ?? null,
+    };
+  });
+  return {
+    totalElements: raw.totalElements ?? content.length,
+    totalPages: Math.max(1, raw.totalPages ?? 1),
+    content,
+  };
+};
+
 /** GET …/{id}/test-connection/history?page&size — Spring page, newest first. */
 export const getTestConnectionHistory = async (
   targetSourceId: number,

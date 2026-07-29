@@ -353,7 +353,37 @@ const TESTED_STEPS: ReadonlySet<ProcessStatus> = new Set([
 
 // Deterministic timestamps for seeded jobs (no Date.now()).
 const SEED_REQUESTED_AT = '2026-06-01T00:00:00.000Z';
-const SEED_COMPLETED_AT = '2026-06-01T00:00:20.000Z';
+const SEED_COMPLETED_AT = '2026-06-01T00:04:20.000Z';
+
+/**
+ * Runs that precede the latest seeded one, oldest last. They exist so the 수행 기록
+ * (execution-history) table has a trail to show instead of a single row; every one
+ * is strictly older than SEED_REQUESTED_AT so `getLatestJob` — and everything
+ * derived from it (latest-results, completion-status) — is untouched.
+ */
+const SEED_PRIOR_RUNS: ReadonlyArray<{
+  suffix: string;
+  status: TestConnectionStatus;
+  requestedAt: string;
+  completedAt: string;
+  /** Which selected resources failed — index-based so it is provider-agnostic. */
+  failedIndexes: readonly number[];
+}> = [
+  {
+    suffix: 'prev-1',
+    status: 'FAIL',
+    requestedAt: '2026-05-28T09:12:00.000Z',
+    completedAt: '2026-05-28T09:14:35.000Z',
+    failedIndexes: [0],
+  },
+  {
+    suffix: 'prev-2',
+    status: 'SUCCESS',
+    requestedAt: '2026-05-21T14:03:00.000Z',
+    completedAt: '2026-05-21T14:08:24.000Z',
+    failedIndexes: [],
+  },
+];
 
 /**
  * Build the per-step seed: one completed-SUCCESS TestConnectionJob for every
@@ -370,24 +400,41 @@ const SEED_COMPLETED_AT = '2026-06-01T00:00:20.000Z';
 export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnectionJob[] =>
   projects
     .filter((p) => p.targetSourceId !== undefined && TESTED_STEPS.has(p.processStatus))
-    .map((project) => {
+    .flatMap((project) => {
       const selected = project.resources.filter((r) => r.isSelected);
-      return {
-        id: `tc-seed-${project.targetSourceId}`,
-        target_source_id: project.targetSourceId as number,
-        status: 'SUCCESS',
-        requested_at: SEED_REQUESTED_AT,
-        completed_at: SEED_COMPLETED_AT,
-        requested_by: 'seed@pii-agent.dev',
-        resource_results: selected.map((r) => ({
-          resource_id: r.resourceId,
-          resource_type: r.type,
-          status: 'SUCCESS',
-          error_status: null,
-          guide: null,
-          agent_id: `agent-${r.resourceId}`,
+      const results = (failedIndexes: readonly number[]): TestConnectionResourceResult[] =>
+        selected.map((r, index) => {
+          const failed = failedIndexes.includes(index);
+          return {
+            resource_id: r.resourceId,
+            resource_type: r.type,
+            status: failed ? 'FAIL' : 'SUCCESS',
+            error_status: failed ? 'AUTH_FAIL' : null,
+            guide: failed ? ERROR_GUIDES.AUTH_FAIL : null,
+            agent_id: `agent-${r.resourceId}`,
+          };
+        });
+
+      return [
+        {
+          id: `tc-seed-${project.targetSourceId}`,
+          target_source_id: project.targetSourceId as number,
+          status: 'SUCCESS' as TestConnectionStatus,
+          requested_at: SEED_REQUESTED_AT,
+          completed_at: SEED_COMPLETED_AT,
+          requested_by: 'seed@pii-agent.dev',
+          resource_results: results([]),
+        },
+        ...SEED_PRIOR_RUNS.map((run) => ({
+          id: `tc-seed-${project.targetSourceId}-${run.suffix}`,
+          target_source_id: project.targetSourceId as number,
+          status: run.status,
+          requested_at: run.requestedAt,
+          completed_at: run.completedAt,
+          requested_by: 'seed@pii-agent.dev',
+          resource_results: results(run.failedIndexes),
         })),
-      };
+      ];
     });
 
 const findProject = (targetSourceId: number): Project | undefined =>

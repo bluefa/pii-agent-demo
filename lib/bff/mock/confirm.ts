@@ -1851,6 +1851,40 @@ export const mockConfirm = {
     });
   },
 
+  // GET …/test-connection/execution-history?page&size → 수행 기록.
+  // Distinct from getTestConnectionHistory (완료 확인/재실행 요청 trail): these are
+  // the RUNS themselves, so they come straight from the job store. The version is
+  // the run's ordinal (oldest = 1) — the store has no version column of its own.
+  getTestConnectionExecutionHistory: async (
+    targetSourceId: string,
+    page: number,
+    size: number,
+  ) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    const { content, total } = tcFns.getJobHistory(Number(targetSourceId), page, size);
+    return NextResponse.json({
+      totalElements: total,
+      totalPages: Math.max(1, Math.ceil(total / size)),
+      size,
+      number: page,
+      content: content.map((job, index) => ({
+        target_source_id: job.target_source_id,
+        test_connection_version: total - (page * size + index),
+        // PENDING in the job store is the contract's RUNNING.
+        status: job.status === 'PENDING' ? 'RUNNING' : job.status,
+        requested_at: job.requested_at,
+        completed_at: job.completed_at,
+      })),
+    });
+  },
+
   // GET …/terraform-status — DB-only Terraform view. Mock derives the per-task
   // states from the project's process status (the real BFF reads tf state rows).
   getTerraformStatus: async (targetSourceId: string) => {

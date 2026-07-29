@@ -501,6 +501,11 @@ export const httpBff: BffClient = {
       getSnakeRaw<z.infer<typeof schemas.PageTestConnectionHistoryItemResponse>>(
         `/target-sources/${id}/test-connection/history${buildQuery({ page, size })}`,
       ),
+
+    getTestConnectionExecutionHistory: (id, page, size) =>
+      getSnakeRaw<z.infer<typeof schemas.PageTestConnectionExecutionHistoryResponse>>(
+        `/target-sources/${id}/test-connection/execution-history${buildQuery({ page, size })}`,
+      ),
   },
 
   // Guides: raw snake passthrough — route validates with schemas.GuideDetail.parse(raw).
