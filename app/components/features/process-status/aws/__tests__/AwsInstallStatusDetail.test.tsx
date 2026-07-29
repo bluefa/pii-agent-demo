@@ -62,9 +62,9 @@ describe('AwsInstallStatusDetail', () => {
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
     expect(within(nav).getByText('설치 현황 요약')).toBeTruthy();
     expect(within(nav).getByText('Terraform 권한 부여 확인')).toBeTruthy();
-    expect(within(nav).getByText('서비스 측 Terraform 적용')).toBeTruthy();
-    expect(within(nav).getByText('BDC 서비스 Terraform 적용')).toBeTruthy();
-    expect(within(nav).getByText('BDC 공통 Terraform 적용')).toBeTruthy();
+    expect(within(nav).getByText('서비스 측 리소스 생성')).toBeTruthy();
+    expect(within(nav).getByText('BDC 서비스 리소스 생성')).toBeTruthy();
+    expect(within(nav).getByText('BDC 공통 리소스 생성')).toBeTruthy();
     expect(within(nav).getAllByText(/서비스측|BDC측/).length).toBeGreaterThanOrEqual(3);
 
     // failed service step wins the default selection → its guide is on screen.
@@ -138,7 +138,7 @@ describe('AwsInstallStatusDetail', () => {
 
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
     expect(within(nav).queryByText('Terraform 권한 부여 확인')).toBeNull();
-    expect(within(nav).getByText('서비스 측 Terraform 직접 적용')).toBeTruthy();
+    expect(within(nav).getByText('서비스 측 리소스 생성 (직접 적용)')).toBeTruthy();
   });
 
   it('paginates the resource table past 10 rows and has no 새로고침 control', () => {

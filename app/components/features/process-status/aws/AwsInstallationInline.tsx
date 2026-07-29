@@ -1,14 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
-import { getAwsInstallationStatus } from '@/app/lib/api/aws';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getAwsInstallationStatus, getAwsTerraformScript } from '@/app/lib/api/aws';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { AwsInstallStatusDetail } from '@/app/components/features/process-status/aws/AwsInstallStatusDetail';
 import { isAwsInstallationComplete } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
-import { borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { bgColors, borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
 import type { AwsInstallationStatus } from '@/lib/types';
 
 interface AwsInstallationInlineProps {
@@ -29,6 +29,28 @@ export const AwsInstallationInline = ({
   const isManualInstall = terraformExecutionGranted === false;
   const completionNotifiedRef = useRef(false);
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  // TF script download is available in BOTH install modes (owner requirement):
+  // manual installs apply it directly; auto installs keep it for inspection.
+  const handleDownloadScript = useCallback(async () => {
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const blob = await getAwsTerraformScript(targetSourceId);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `terraform-${targetSourceId}.zip`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setDownloadError('Terraform Script 다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setDownloading(false);
+    }
+  }, [targetSourceId]);
 
   useEffect(() => {
     completionNotifiedRef.current = false;
@@ -68,12 +90,32 @@ export const AwsInstallationInline = ({
             승인된 인프라에 PII Agent를 배포하기 위한 설치 작업을 진행합니다.
           </p>
         </div>
-        {/* v16 L6606 — provider indicator (not a control), short provider name. */}
-        <span className="text-[11.5px] text-[#8B95A1]">
-          Provider: <strong className="text-[#191F28]">AWS</strong>
-        </span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleDownloadScript}
+            disabled={downloading}
+            className={cn(
+              'text-xs font-bold px-3 py-1.5 rounded-lg border disabled:opacity-50',
+              borderColors.default,
+              textColors.secondary,
+              bgColors.mutedHover,
+            )}
+          >
+            {downloading ? '다운로드 중...' : 'Terraform Script 다운로드'}
+          </button>
+          {/* v16 L6606 — provider indicator (not a control), short provider name. */}
+          <span className="text-[11.5px] text-[#8B95A1]">
+            Provider: <strong className="text-[#191F28]">AWS</strong>
+          </span>
+        </div>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>
+        {downloadError && (
+          <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
+            {downloadError}
+          </div>
+        )}
         {status.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
             상태 확인 실패: {status.lastCheck.failReason}

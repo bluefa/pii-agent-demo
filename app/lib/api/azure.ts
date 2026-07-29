@@ -10,7 +10,7 @@ const INFRA_TARGET_SOURCE_BASE_URL = '/infra/target-sources';
  * Azure 설치 상태 조회 — returns validated snake wire type.
  * Refresh is a re-GET of this endpoint (the old POST check-installation is not
  * in install-v1.yaml — REMOVED).
- * Caller passes through buildAzureInstallationStatus() for the camel UI view.
+ * Caller passes through buildAzureInstallDetail() for the InstallStatusDetail model.
  */
 export const getAzureInstallationStatus = (
   targetSourceId: number,

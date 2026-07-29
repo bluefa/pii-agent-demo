@@ -1,0 +1,101 @@
+import type { ReactNode } from 'react';
+import type { DatabaseType } from '@/lib/types';
+
+/**
+ * Provider-agnostic Step-4 install-status detail model. Every cloud provider's
+ * installation-status wire is resource-centric (resources[] × per-step
+ * CloudInstallationStepStatusDto); adapters map it onto this shape and the
+ * shared InstallStatusDetail component renders the step nav + resource table.
+ */
+
+/**
+ * Swagger CloudInstallationStepStatusDto.status. The loose codegen leaves the
+ * wire value as a plain string, so adapters normalize anything outside this
+ * union to 'UNKNOWN'.
+ */
+export type InstallStepValue =
+  | 'COMPLETED'
+  | 'FAIL'
+  | 'IN_PROGRESS'
+  | 'SKIP'
+  | 'BDC_INSTALL_REQUIRED'
+  | 'UNKNOWN';
+
+const STEP_VALUES: readonly InstallStepValue[] = [
+  'COMPLETED',
+  'FAIL',
+  'IN_PROGRESS',
+  'SKIP',
+  'BDC_INSTALL_REQUIRED',
+  'UNKNOWN',
+];
+
+export const normalizeInstallStepValue = (
+  status: string | null | undefined,
+): InstallStepValue =>
+  (STEP_VALUES as readonly string[]).includes(status ?? '')
+    ? (status as InstallStepValue)
+    : 'UNKNOWN';
+
+export const INSTALL_STATUS_LABEL: Record<InstallStepValue, string> = {
+  COMPLETED: '완료',
+  IN_PROGRESS: '진행중',
+  FAIL: '실패',
+  SKIP: '해당 없음',
+  BDC_INSTALL_REQUIRED: 'BDC 설치 대기',
+  UNKNOWN: '확인 중',
+};
+
+/** COMPLETED/SKIP count as settled (done) in aggregates and completion checks. */
+export const isSettledInstallStatus = (status: InstallStepValue): boolean =>
+  status === 'COMPLETED' || status === 'SKIP';
+
+/** One step's state for one resource. `label` overrides the default status label
+ *  (e.g. Azure PE approval renders domain wording on the same status buckets). */
+export interface InstallStepCell {
+  status: InstallStepValue;
+  label?: string;
+  guide: string | null;
+}
+
+/** One wire resource: rollup (installation_status) + per-step cells keyed by step id. */
+export interface InstallDetailResource {
+  resourceId: string;
+  resourceName: string | null;
+  rollup: InstallStepCell;
+  cells: Record<string, InstallStepCell>;
+}
+
+/** Region/DB-type/name enrichment joined by resource id (confirmed integration 등). */
+export interface InstallResourceMeta {
+  resourceName: string | null;
+  region: string | null;
+  databaseType: DatabaseType | null;
+}
+
+/** A step rendered as a per-resource table. */
+export interface InstallTableStep {
+  id: string;
+  title: string;
+  /** 주체 태그 (서비스측/BDC측). */
+  side: string | null;
+  desc: string;
+  /** Optional control rendered in the step's panel head (e.g. IDC 방화벽 확인). */
+  action?: ReactNode;
+}
+
+/** Shared LastCheckInfoDto UI shape (SUCCESS/IN_PROGRESS/FAILED). */
+export interface InstallLastCheck {
+  status: 'SUCCESS' | 'IN_PROGRESS' | 'FAILED';
+  checkedAt?: string;
+  failReason?: string;
+}
+
+/** Install is complete when every resource's every cell is COMPLETED/SKIP. */
+export const areInstallResourcesSettled = (
+  resources: readonly InstallDetailResource[],
+): boolean =>
+  resources.length > 0 &&
+  resources.every((r) =>
+    Object.values(r.cells).every((cell) => isSettledInstallStatus(cell.status)),
+  );

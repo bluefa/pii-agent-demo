@@ -75,7 +75,8 @@ export const mockAzure = {
         r.privateEndpoint?.status === 'APPROVED' && vm?.subnetExists && vm?.loadBalancer.installed;
       return {
         resource_id: r.resourceId,
-        resource_name: r.resourceName,
+        // Demo: legacy names are full ARM paths — surface the trailing segment.
+        resource_name: r.resourceName?.split('/').pop() ?? r.resourceName,
         resource_type: r.resourceType,
         installation_status: allDone ? 'COMPLETED' : 'IN_PROGRESS',
         bdc_side_terraform_apply: { status: 'COMPLETED' },
