@@ -217,13 +217,15 @@ export function InfraStatusHead({
               </span>
             </span>
           )}
+          {/* The only control in the head, so it has to read as one. A neutral
+              border left it looking like another static chip in a row of them —
+              and a 1px primary hairline alone still read grey at 100% zoom, so
+              the label carries the hue too and the stroke goes to 1.5px. */}
           <button
             type="button"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            /* Blue stroke: this is the only control in the head, and a neutral
-               border left it reading as another static chip in a row of them. */
-            className="inline-flex items-center gap-1 rounded-[6px] border border-[var(--pl-primary)] px-2 py-1 text-[12px] font-semibold text-[var(--pl-text-medium)] hover:bg-[var(--pl-primary-bg)]"
+            className="inline-flex items-center gap-1 rounded-[6px] border-[1.5px] border-[var(--pl-primary)] px-2.5 py-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:bg-[var(--pl-primary-bg)]"
           >
             Terraform 작업 {tasks.length}개 상세
             <span aria-hidden>{open ? '▴' : '▾'}</span>
