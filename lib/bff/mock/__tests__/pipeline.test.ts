@@ -210,6 +210,18 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       const res = mockPipeline.jobResult('128', '12800', '1', '404040');
       expect(res.status).toBe(404);
     });
+
+    it('synthesizes 21 jobs for the many-job attempt (130 seq0, target 1099)', () => {
+      const task = mockPipeline.taskDetail('130', '13000').body as TaskDetail;
+      const [a] = task.attempts;
+      expect(a.job_states).toHaveLength(21);
+      expect(a.terraform_results).toHaveLength(21);
+      expect(new Set(a.job_states.map((s) => s.job_id)).size).toBe(21);
+      // The rows are only useful if they open — the last filler job must resolve too.
+      const last = a.job_states[20].job_id;
+      expect(mockPipeline.jobResult('130', '13000', '1', last).status).toBe(200);
+      expect(mockPipeline.jobState('130', '13000', '1', last).status).toBe(200);
+    });
   });
 
   describe('latest by target', () => {
