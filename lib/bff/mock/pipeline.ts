@@ -378,6 +378,9 @@ interface MockAttempt {
   /** Attempt genuinely observed no terraform jobs (e.g. the dispatch call failed before any
    *  job id came back). Suppresses the placeholder job synthesis so the zero-job state is real. */
   no_jobs?: boolean;
+  /** How many jobs the placeholder synthesis produces (default 2). Jobs past the first two are
+   *  always finished-OK — they exist to exercise a many-job attempt (the paged job list). */
+  job_count?: number;
 }
 
 interface MockTask {
@@ -484,6 +487,7 @@ function seedPipelines(): MockPipeline[] {
       terraform_results?: TerraformJobResultSummary[];
       job_states?: TerraformJobStateSummary[];
       no_jobs?: boolean;
+      job_count?: number;
     } = {},
   ): MockAttempt => ({
     attempt_number: n,
@@ -497,6 +501,7 @@ function seedPipelines(): MockPipeline[] {
     terraform_results: extra.terraform_results ?? [],
     job_states: extra.job_states ?? [],
     no_jobs: extra.no_jobs ?? false,
+    job_count: extra.job_count,
   });
 
   return [
@@ -545,7 +550,8 @@ function seedPipelines(): MockPipeline[] {
       ],
     },
     // ── 130 RUNNING — SDU target 1099 (cloud_provider AWS → surfaced as "SDU"). ──
-    //     DONE tasks carry attempts so 시도 횟수 reads the real attempt count.
+    //     DONE tasks carry attempts so 시도 횟수 reads the real attempt count. The PLAN task
+    //     runs 21 terraform jobs — the many-job attempt that exercises the paged job list.
     {
       pipeline_id: 130, type: 'INSTALL', target_source_id: '1099', ...resolveService('1099'), cloud_provider: 'AWS',
       recipe_definition: 'AWS_INSTALL_V1', status: 'RUNNING',
@@ -554,7 +560,9 @@ function seedPipelines(): MockPipeline[] {
       tasks: [
         mkTask(130, 0, 'AWS_SERVICE_PLAN_V1', 'DONE', {
           started_at: ago(30), finished_at: ago(28),
-          attempts: [attempt(1, 'DONE', null, 30, '{"job_id":"tf-b10","terraformState":"COMPLETED"}', 28)],
+          attempts: [
+            attempt(1, 'DONE', null, 30, '{"job_id":"tf-b10","terraformState":"COMPLETED"}', 28, null, { job_count: 21 }),
+          ],
         }),
         mkTask(130, 1, 'AWS_SERVICE_APPLY_V1', 'IN_PROGRESS', {
           started_at: ago(28),
@@ -918,10 +926,10 @@ interface SynthJobs {
 const successStateFor = (defName: string): string =>
   (operationOf(defName) ?? '').includes('DESTROY') ? 'DESTROYED' : 'COMPLETED';
 
-const synthJobIds = (taskId: number, n: number): [string, string] => [
-  String(taskId * 100 + n * 10 + 1),
-  String(taskId * 100 + n * 10 + 2),
-];
+/** Job ids for an attempt's synthesized set — 100 per attempt, so a many-job attempt
+ *  (`job_count`) can never collide with the next attempt's block. */
+const synthJobIds = (taskId: number, n: number, count: number): string[] =>
+  Array.from({ length: count }, (_, i) => String(taskId * 1000 + n * 100 + i + 1));
 
 /** An attempt with no hand-written job fixtures → synthesize a job set (unless it declares
  *  `no_jobs`, i.e. it genuinely observed none, e.g. a dispatch-call failure). */
@@ -938,35 +946,49 @@ const synthTerraformJobs = (
   errorCode: ErrorCode | null,
   successState: string,
   stamp: string,
+  count: number,
 ): SynthJobs => {
-  const [j1, j2] = synthJobIds(taskId, n);
+  const ids = synthJobIds(taskId, n, count);
+  const [j1, j2] = ids;
   const st = (id: string, last_state: string | null, fail?: string): TerraformJobStateSummary => ({
     job_id: id, last_state, last_fail_reason: fail ?? null, last_error: null, poll_count: 2, last_polled_at: stamp,
   });
   const rs = (id: string, succeeded: boolean): TerraformJobResultSummary => ({
     job_id: id, succeeded, truncated: false, has_body: true, created_at: stamp,
   });
-  if (status === 'DONE') {
-    return { results: [rs(j1, true), rs(j2, true)], states: [st(j1, successState), st(j2, successState)] };
-  }
-  if (status === 'FAILED' && errorCode === 'JOB_FAILED') {
-    return { results: [rs(j1, true), rs(j2, false)], states: [st(j1, successState), st(j2, 'FAILED', 'mock forced failure')] };
-  }
-  if (status === 'IN_PROGRESS' || status === 'READY') {
-    return { results: [], states: [st(j1, successState), st(j2, 'RUNNING')] };
-  }
-  if (status === 'FAILED') {
-    // CALL_TIMEOUT / CHECK_ERROR — timed out before terminal; last observation only.
-    return { results: [], states: [st(j1, successState), st(j2, 'RUNNING')] };
-  }
-  if (status === 'CANCELLED') {
-    return { results: [], states: [st(j1, 'RUNNING')] };
-  }
-  return { results: [], states: [] };
+  const base = ((): SynthJobs => {
+    if (status === 'DONE') {
+      return { results: [rs(j1, true), rs(j2, true)], states: [st(j1, successState), st(j2, successState)] };
+    }
+    if (status === 'FAILED' && errorCode === 'JOB_FAILED') {
+      return { results: [rs(j1, true), rs(j2, false)], states: [st(j1, successState), st(j2, 'FAILED', 'mock forced failure')] };
+    }
+    if (status === 'IN_PROGRESS' || status === 'READY') {
+      return { results: [], states: [st(j1, successState), st(j2, 'RUNNING')] };
+    }
+    if (status === 'FAILED') {
+      // CALL_TIMEOUT / CHECK_ERROR — timed out before terminal; last observation only.
+      return { results: [], states: [st(j1, successState), st(j2, 'RUNNING')] };
+    }
+    if (status === 'CANCELLED') {
+      return { results: [], states: [st(j1, 'RUNNING')] };
+    }
+    return { results: [], states: [] };
+  })();
+  // Jobs past the first two are filler for a many-job attempt: always finished-OK, and
+  // only judged (result rows) when the attempt itself reached judgment.
+  const filler = ids.slice(2);
+  if (filler.length === 0) return base;
+  return {
+    results: base.results.length > 0 ? [...base.results, ...filler.map((id) => rs(id, true))] : base.results,
+    states: [...base.states, ...filler.map((id) => st(id, successState))],
+  };
 };
 
 const synthFor = (a: MockAttempt, taskId: number, defName: string): SynthJobs =>
-  synthTerraformJobs(taskId, a.attempt_number, a.status, a.error_code, successStateFor(defName), attemptStamp(a));
+  synthTerraformJobs(
+    taskId, a.attempt_number, a.status, a.error_code, successStateFor(defName), attemptStamp(a), a.job_count ?? 2,
+  );
 
 const toAttemptView = (a: MockAttempt, kind: TaskKind, taskId: number, defName: string): TaskAttemptView => {
   const synth = kind === 'TERRAFORM_JOB' && needsSynth(a) ? synthFor(a, taskId, defName) : null;

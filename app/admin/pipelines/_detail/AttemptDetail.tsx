@@ -20,7 +20,7 @@ import { d, j, MiniPill, Section, spanLabel, type ViewerTarget } from '@/app/adm
 import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
 
 /** A single attempt can hold 20+ terraform jobs — page the list so the drawer stays scannable. */
-const JOBS_PER_PAGE = 10;
+const JOBS_PER_PAGE = 5;
 
 function JobRowItem(
   { row, operation, onOpen }: { row: JobRow; operation: TaskOperation | null; onOpen: () => void },
