@@ -37,6 +37,8 @@ export const PUT = withV1(async (request, { requestId, params }) => {
   }
 
   const body = (await request.json()) as z.infer<typeof schemas.UpdateSkipLogicalDatabaseRequest>;
+  // Upstream may answer 200 with an empty body — the CSR client only reads
+  // skip_logical_database_list, so an empty object is the faithful shape.
   const data = await bff.logicalDb.updateExcludedByResourceId(parsed.value, resourceId, body);
-  return NextResponse.json(schemas.SkipLogicalDatabaseResponse.parse(data));
+  return NextResponse.json(schemas.SkipLogicalDatabaseResponse.parse(data ?? {}));
 });

@@ -118,7 +118,19 @@ async function getRaw(path: string): Promise<Response> {
   return res;
 }
 
-async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
+/**
+ * `emptyBodyOk` opts into tolerating a 2xx with no body. Scoped to the one
+ * endpoint observed violating its own contract — PUT
+ * excluded-databases/by-resource-id answers 200 with an empty body although
+ * install-v1.yaml declares SkipLogicalDatabaseResponse. Every other caller
+ * keeps the strict behaviour so a silent contract break stays visible.
+ */
+async function send<T>(
+  method: 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  body?: unknown,
+  opts?: { emptyBodyOk?: boolean },
+): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → ${method} ${fullPath}`);
   const init: RequestInit = { method, headers: await authHeaders() };
@@ -130,12 +142,15 @@ async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: u
   console.log(`[BFF] ← ${method} ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  if (opts?.emptyBodyOk && text.trim().length === 0) return undefined as T;
   // I-3 invariant: POST/PUT bodies are raw passthrough (snake_case), no camelCase.
-  return await res.json() as T;
+  return JSON.parse(text) as T;
 }
 
 const post = <T>(path: string, body?: unknown) => send<T>('POST', path, body);
-const put = <T>(path: string, body?: unknown) => send<T>('PUT', path, body);
+const put = <T>(path: string, body?: unknown, opts?: { emptyBodyOk?: boolean }) =>
+  send<T>('PUT', path, body, opts);
 
 const buildQuery = (params: Record<string, string | number | undefined>): string => {
   const search = new URLSearchParams();
@@ -407,6 +422,7 @@ export const httpBff: BffClient = {
       put(
         `/target-sources/${id}/excluded-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
         body,
+        { emptyBodyOk: true },
       ),
   },
 
