@@ -7,9 +7,7 @@ import {
 } from '@/app/lib/api';
 import { AppError } from '@/lib/errors';
 import { formatDate } from '@/lib/utils/date';
-import { ClockIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
-import { StepBanner } from '@/app/components/ui/StepBanner';
 import {
   WaitingApprovalStats,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
@@ -26,7 +24,7 @@ import {
   ResourceTableSkeleton,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
-import { cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
 
 interface WaitingApprovalCardProps {
   targetSourceId: number;
@@ -68,6 +66,16 @@ const toRequestSummary = (response: ApprovalRequestLatestResponse): RequestSumma
   if (!requestedAt || !requestedBy) return null;
   return { requestedAt, requestedBy };
 };
+
+// One request-meta pair — label and value are both 12px; only weight and color separate them.
+const MetaField = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex min-w-0 flex-col gap-1">
+    <span className={cn('text-[12px] font-normal', textColors.tertiary)}>{label}</span>
+    <span className={cn('min-w-0 truncate text-[12px] font-semibold leading-[1.3]', textColors.secondary)}>
+      {value}
+    </span>
+  </div>
+);
 
 export const WaitingApprovalCard = ({
   targetSourceId,
@@ -138,45 +146,54 @@ export const WaitingApprovalCard = ({
   return (
     // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
     <section className={cardStyles.base}>
-      <div className={cn(cardStyles.header, 'flex items-center justify-between')}>
-        <div>
-          <h2 className={cn(cardStyles.cardTitle)}>
-            연동 대상 승인 대기
-          </h2>
-          <p className={cn('mt-2.5', cardStyles.subtitle)}>
-            요청하신 DB 목록을 관리자가 확인하고 있어요.
-            {requestSummary && (
-              <>
-                {' · '}요청일시{' '}
-                <strong className={cn('font-semibold', textColors.secondary)}>
-                  {formatDate(requestSummary.requestedAt, 'datetime')}
-                </strong>
-                {' · '}요청자{' '}
-                <strong className={cn('font-semibold', textColors.secondary)}>
-                  {requestSummary.requestedBy}
-                </strong>
-              </>
-            )}
-          </p>
+      {/* Left-aligned single stack: title + status, guidance copy, request meta.
+          Secondary tiers differ by weight and color, not by a new font size. */}
+      <div className={cardStyles.header}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <h2 className={cn(cardStyles.cardTitle)}>
+              연동 대상 승인 대기
+            </h2>
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
+                statusColors.warning.bg,
+                statusColors.warning.textDark,
+              )}
+            >
+              승인 대기
+            </span>
+          </div>
+          {/* Card CTA sits beside the title — in the bottom dock the user only meets it past the whole table. */}
+          {cancelSlot}
         </div>
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-            statusColors.warning.bg,
-            statusColors.warning.textDark,
-          )}
-        >
-          <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
-          승인 대기
-        </span>
+        {/* Blue marks the status sentence only; the rest drops to the secondary tone.
+            `cn` is a plain join, so stacking a size over the subtitle token leaves the winner to CSS
+            order — declare the size here instead. */}
+        <p className={cn('mt-2 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+          <strong className={cn('font-semibold', primaryColors.text)}>
+            관리자 승인을 기다리고 있어요.
+          </strong>{' '}
+          평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
+        </p>
+        <p className={cn('mt-1 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+          연동 대상을 다시 고르고 싶다면 우측 상단{' '}
+          <strong className={cn('font-semibold', textColors.secondary)}>다시 요청하기</strong>를
+          눌러주세요.
+        </p>
+        {requestSummary && (
+          // Label over value, two columns. This tier sits well below the 16px guidance copy, so it
+          // declares 12px + muted color instead of identityBarStyles (13px, near-black), which the
+          // page-level identity bar keeps.
+          <div className="mt-4 flex flex-wrap gap-8">
+            <MetaField label="요청일시" value={formatDate(requestSummary.requestedAt, 'datetime')} />
+            <MetaField label="요청자" value={requestSummary.requestedBy} />
+          </div>
+        )}
       </div>
 
-      <div className="p-6">
-        <StepBanner variant="info" icon={<ClockIcon className="w-[18px] h-[18px]" />}>
-          <strong className="font-semibold">관리자 승인을 기다리고 있어요.</strong>
-          {' '}평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
-        </StepBanner>
-
+      {/* No body top padding, so the header's 12px bottom padding IS the meta-to-table gap. */}
+      <div className="px-6 pb-6">
         {state.status === 'loading' ? (
           <ResourceTableSkeleton />
         ) : state.status === 'error' ? (
@@ -187,8 +204,10 @@ export const WaitingApprovalCard = ({
               totalCount={table.countsByFilter.all}
               selectedCount={table.countsByFilter.target}
               excludedCount={table.countsByFilter.excluded}
+              filter={table.filter}
+              onFilterChange={table.onFilterChange}
             />
-            {/* v16: toolbar (top-rounded) + approval table (bottom-rounded) join as one connected card — no gap. */}
+            {/* Toolbar (top-rounded) + table + pagination (bottom-rounded) join as one card, no gaps. */}
             <WaitingApprovalToolbar
               variant="waiting"
               searchValue={table.searchValue}
@@ -205,9 +224,6 @@ export const WaitingApprovalCard = ({
               regionOptions={table.regionOptions}
               integrationStatusOptions={table.integrationStatusOptions}
               countsByFilter={table.countsByFilter}
-              visibleStart={table.visibleStart}
-              visibleEnd={table.visibleEnd}
-              totalCount={table.filteredCount}
             />
             <WaitingApprovalTable
               resources={table.visibleResources}
@@ -215,27 +231,20 @@ export const WaitingApprovalCard = ({
               emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
             />
             {table.filteredCount > 0 && (
-              <div className="mt-3">
-                <Pagination
-                  page={table.safePage}
-                  pageSize={table.pageSize}
-                  totalCount={table.filteredCount}
-                  onPageChange={table.onPageChange}
-                  onPageSizeChange={table.onPageSizeChange}
-                />
-              </div>
+              <Pagination
+                page={table.safePage}
+                pageSize={table.pageSize}
+                totalCount={table.filteredCount}
+                onPageChange={table.onPageChange}
+                onPageSizeChange={table.onPageSizeChange}
+              />
             )}
           </div>
         )}
 
       </div>
-      {/* C-2 action zone: cancel/reselect dock (sticky) at the card bottom. */}
-      {(cancelSlot || reselectSlot) && (
-        <CardActionBar>
-          {reselectSlot}
-          {cancelSlot}
-        </CardActionBar>
-      )}
+      {/* C-2 action zone: reselect dock (sticky) at the card bottom. cancelSlot moved to the header. */}
+      {reselectSlot && <CardActionBar>{reselectSlot}</CardActionBar>}
     </section>
   );
 };

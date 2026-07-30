@@ -42,9 +42,9 @@ interface WaitingApprovalTableProps {
   connected?: boolean;
 }
 
-// v16 `.approval-table-wrap` (CSS ~2846): border:0; border-radius:0 0 inner inner; overflow:hidden;
-// background:#fff — joins flush under the top-rounded toolbar with no gap or top border.
-const CONNECTED_FRAME = 'overflow-hidden rounded-b-xl bg-white';
+// v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
+// under the top-rounded toolbar. The bottom radius belongs to the pagination footer stacked below.
+const CONNECTED_FRAME = 'overflow-hidden bg-white';
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
@@ -55,17 +55,16 @@ const TargetPill = ({ excluded }: { excluded: boolean }) => {
   return (
     <span className={cn(idcStyles.targetPill.base, variant.box)}>
       <span className={cn(idcStyles.targetPill.dot, variant.dot)} />
-      {excluded ? '비대상' : '대상'}
+      {excluded ? '제외' : '대상'}
     </span>
   );
 };
 
+// Blank when there is no reason — target rows can never have one, so an em-dash is noise.
 const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
   !resource.selected && resource.exclusionReason ? (
     <ReasonChipInline reason={resource.exclusionReason} meta={resource.exclusionMeta} />
-  ) : (
-    <span className={textColors.quaternary}>{PLACEHOLDER}</span>
-  );
+  ) : null;
 
 // Integration history (step 3) — no API source for integrationStatus in TargetSourceResourceItemDto;
 // render — for all rows until the contract provides a value.
@@ -92,7 +91,9 @@ export const WaitingApprovalTable = memo(
 
     const applying = variant === 'applying';
     const lastColumnLabel = applying ? '연동 이력' : '제외 사유';
-    const targetColumnLabel = applying ? '연동 대상 / 제외 사유' : '연동 대상';
+    // The header asks the question, the cell answers it. Same vocabulary as the stat tiles above,
+    // minus the redundant prefix the card title already carries.
+    const targetColumnLabel = applying ? '요청 대상 여부 / 제외 사유' : '요청 대상 여부';
     const monoCell = cn('font-mono text-[12px]', textColors.secondary);
 
     return (
@@ -100,11 +101,13 @@ export const WaitingApprovalTable = memo(
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className={idcStyles.table.approvalHeader}>
+              {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
+                  The scan anchor is the human-readable name, not a 3-value category column. */}
               <tr className="whitespace-nowrap">
-                <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
-                <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
-                <th className={idcStyles.table.approvalHeaderCell}>Region</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
+                <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
+                <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
+                <th className={idcStyles.table.approvalHeaderCell}>Region</th>
                 <th className={idcStyles.table.approvalHeaderCell}>{targetColumnLabel}</th>
                 <th className={idcStyles.table.approvalHeaderCell}>{lastColumnLabel}</th>
               </tr>
@@ -117,19 +120,19 @@ export const WaitingApprovalTable = memo(
                     key={resource.resourceId}
                     className={cn('group', excluded ? idcStyles.table.rowExcluded : idcStyles.table.row)}
                   >
-                    <td className={idcStyles.table.approvalCell}>
-                      <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>
-                        {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
-                      </span>
+                    <td className={cn(idcStyles.table.approvalCell, 'font-mono text-[14px]', textColors.primary)}>
+                      {resource.resourceName || PLACEHOLDER}
                     </td>
                     <td className={idcStyles.table.approvalCell}>
                       <ResourceIdCell value={resource.resourceId} label="Resource ID" />
                     </td>
+                    {/* DB Type is a repeating attribute, not a status — one badge per row (the
+                        verdict) is enough; a second pill would compete with it. */}
+                    <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary)}>
+                      {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
+                    </td>
                     <td className={cn(idcStyles.table.approvalCell, monoCell)}>
                       {resource.region || PLACEHOLDER}
-                    </td>
-                    <td className={cn(idcStyles.table.approvalCell, 'font-mono text-[12.5px]', textColors.primary)}>
-                      {resource.resourceName || PLACEHOLDER}
                     </td>
                     <td className={idcStyles.table.approvalCell}>
                       {applying ? (

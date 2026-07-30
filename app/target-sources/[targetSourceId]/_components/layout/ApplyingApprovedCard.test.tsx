@@ -70,28 +70,36 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
     getApprovedIntegrationMock.mockReset();
   });
 
+  // Toolbar filters live in a popover behind the icon button — open it, then click a row.
+  const openFilterMenu = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /필터/ }));
+    return screen.getByRole('group', { name: '필터 옵션' });
+  };
+
   it('renders the 연동 상태 filter (not Region) with Integrated/Pending counts + 제외', async () => {
     getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
     render(<ApplyingApprovedCard targetSourceId={1003} />);
 
-    const select = await screen.findByLabelText('연동 상태 필터');
-    expect(within(select).getByText('연동 상태 · 전체')).toBeTruthy();
-    expect(within(select).getByText('Integrated (2)')).toBeTruthy();
-    expect(within(select).getByText('Pending (1)')).toBeTruthy();
-    expect(within(select).getByText('제외')).toBeTruthy();
+    const menu = await openFilterMenu();
+    const status = within(menu).getByRole('group', { name: '연동 상태 필터' });
+    expect(within(status).getByText('Integrated (2)')).toBeTruthy();
+    expect(within(status).getByText('Pending (1)')).toBeTruthy();
+    expect(within(status).getByText('제외')).toBeTruthy();
 
     // step 3 must NOT expose the Region filter.
-    expect(screen.queryByLabelText('Region 필터')).toBeNull();
+    expect(within(menu).queryByRole('group', { name: 'Region 필터' })).toBeNull();
     // DB Type filter stays.
-    expect(screen.getByLabelText('DB Type 필터')).toBeTruthy();
+    expect(within(menu).getByRole('group', { name: 'DB Type 필터' })).toBeTruthy();
   });
 
   it('filtering 연동 상태 = Integrated keeps only integrated rows', async () => {
     getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
     render(<ApplyingApprovedCard targetSourceId={1003} />);
 
-    const select = await screen.findByLabelText('연동 상태 필터');
-    fireEvent.change(select, { target: { value: 'integrated' } });
+    const menu = await openFilterMenu();
+    fireEvent.click(
+      within(within(menu).getByRole('group', { name: '연동 상태 필터' })).getByText('Integrated (2)'),
+    );
 
     await waitFor(() => {
       expect(screen.queryByText('pg-pending-01')).toBeNull();
@@ -105,8 +113,10 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
     getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
     render(<ApplyingApprovedCard targetSourceId={1003} />);
 
-    const select = await screen.findByLabelText('연동 상태 필터');
-    fireEvent.change(select, { target: { value: 'pending' } });
+    const menu = await openFilterMenu();
+    fireEvent.click(
+      within(within(menu).getByRole('group', { name: '연동 상태 필터' })).getByText('Pending (1)'),
+    );
 
     await waitFor(() => {
       expect(screen.getByText('pg-pending-01')).toBeTruthy();
@@ -119,8 +129,10 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
     getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
     render(<ApplyingApprovedCard targetSourceId={1003} />);
 
-    const select = await screen.findByLabelText('연동 상태 필터');
-    fireEvent.change(select, { target: { value: 'excluded' } });
+    const menu = await openFilterMenu();
+    fireEvent.click(
+      within(within(menu).getByRole('group', { name: '연동 상태 필터' })).getByText('제외'),
+    );
 
     await waitFor(() => {
       expect(screen.getByText('pg-excluded-01')).toBeTruthy();

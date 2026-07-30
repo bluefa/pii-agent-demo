@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const getApprovalRequestLatestMock = vi.fn();
@@ -85,9 +85,11 @@ describe('WaitingApprovalCard', () => {
     await waitFor(() => {
       expect(screen.getByText('mysql-prod-01')).toBeTruthy();
     });
-    expect(screen.getByLabelText('Region 필터')).toBeTruthy();
-    expect(screen.getByLabelText('DB Type 필터')).toBeTruthy();
-    expect(screen.queryByLabelText('연동 상태 필터')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /필터/ }));
+    const menu = screen.getByRole('group', { name: '필터 옵션' });
+    expect(within(menu).getByRole('group', { name: 'Region 필터' })).toBeTruthy();
+    expect(within(menu).getByRole('group', { name: 'DB Type 필터' })).toBeTruthy();
+    expect(within(menu).queryByRole('group', { name: '연동 상태 필터' })).toBeNull();
   });
 
   it('renders the card title with the cardStyles.cardTitle token', async () => {
@@ -103,19 +105,15 @@ describe('WaitingApprovalCard', () => {
     });
   });
 
-  it('renders title, sub-text, status pill, and banner copy', async () => {
+  it('renders title, status pill, and guidance copy', async () => {
     getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     expect(screen.getByText('연동 대상 승인 대기')).toBeTruthy();
-    expect(
-      screen.getByText('요청하신 DB 목록을 관리자가 확인하고 있어요.'),
-    ).toBeTruthy();
     expect(screen.getByText('승인 대기')).toBeTruthy();
     expect(screen.getByText('관리자 승인을 기다리고 있어요.')).toBeTruthy();
-    expect(
-      screen.getByText(/평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요/),
-    ).toBeTruthy();
+    expect(screen.getByText(/평균 1영업일 내 검토되며/)).toBeTruthy();
+    expect(screen.getByText(/연동 대상을 다시 고르고 싶다면/)).toBeTruthy();
 
     await waitFor(() => {
       expect(screen.getByText('mysql-prod-01')).toBeTruthy();
@@ -162,26 +160,25 @@ describe('WaitingApprovalCard', () => {
     expect(screen.queryByTestId('reselect-slot')).toBeNull();
   });
 
-  it('renders stats with selected/excluded counts and percentages', async () => {
+  it('renders stats with selected/excluded counts', async () => {
     getApprovalRequestLatestMock.mockResolvedValueOnce(buildLargeResponse(3, 2));
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
       expect(screen.getByText('전체 요청')).toBeTruthy();
     });
-    expect(screen.getAllByText('연동 대상').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('비대상').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('연동 요청 대상').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('연동 요청 제외대상').length).toBeGreaterThanOrEqual(1);
 
     const tiles = screen.getAllByText(/^\d+$/);
     expect(tiles.some((el) => el.textContent === '5')).toBe(true);
     expect(tiles.some((el) => el.textContent === '3')).toBe(true);
     expect(tiles.some((el) => el.textContent === '2')).toBe(true);
 
-    expect(screen.getByText(/60\.0%/)).toBeTruthy();
-    expect(screen.getByText(/40\.0%/)).toBeTruthy();
+    expect(screen.queryByText(/60\.0%/)).toBeNull();
   });
 
-  it('filter "대상" hides excluded rows', async () => {
+  it('filter "연동 대상" hides excluded rows', async () => {
     getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
@@ -190,7 +187,7 @@ describe('WaitingApprovalCard', () => {
     });
     expect(screen.getByText('pg-analytics-03')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /^대상/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^연동 요청 대상/ }));
 
     await waitFor(() => {
       expect(screen.queryByText('pg-analytics-03')).toBeNull();
@@ -289,14 +286,14 @@ describe('WaitingApprovalCard', () => {
     expect(screen.getAllByText('Stg DB').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('selected row shows a dash placeholder in 제외 사유 column', async () => {
+  it('leaves 제외 사유 blank for rows without an exclusion reason', async () => {
     getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
       expect(screen.getByText('mysql-prod-01')).toBeTruthy();
     });
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryAllByText('—')).toHaveLength(0);
   });
 
   it('renders 요청일시 + 요청자 in the subtitle from the latest request meta', async () => {

@@ -1,11 +1,11 @@
 'use client';
 
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
-import { DeleteIcon } from '@/app/components/ui/icons';
+import { ReloadIcon } from '@/app/components/ui/icons';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { cancelApprovalRequest } from '@/app/lib/api';
-import { cn, confirmModalStyles } from '@/lib/theme';
+import { idcStyles } from '@/lib/theme';
 
 interface WaitingApprovalCancelButtonProps {
   targetSourceId: number;
@@ -34,13 +34,15 @@ export const WaitingApprovalCancelButton = ({
 
   return (
     <>
+      {/* A rewind, not a deletion — reuses the existing warnOutline (amber) tone shared with the IDC
+          "rerun connection test" action. The modal states that the request is cancelled. */}
       <button
         type="button"
-        className={cn(confirmModalStyles.dangerOutlineButton, 'gap-1.5 text-[13px]')}
+        className={idcStyles.triggerBtn.warnOutline}
         onClick={() => modal.open()}
       >
-        <DeleteIcon className="w-3.5 h-3.5" />
-        전체 요청 취소
+        <ReloadIcon className="w-[13px] h-[13px]" />
+        다시 요청하기
       </button>
 
       <ConfirmStepModal
@@ -49,12 +51,12 @@ export const WaitingApprovalCancelButton = ({
         onConfirm={() => {
           void handleConfirm();
         }}
-        title="연동 대상 승인 요청을 취소할까요?"
+        title="연동 대상을 다시 선택할까요?"
         description={
           <>
-            1단계 · 연동 대상 DB 선택으로 되돌아갑니다.
+            현재 승인 요청은 취소되고, 1단계 · 연동 대상 DB 선택으로 되돌아갑니다.
             <br />
-            취소 후에는 다시 DB 선택부터 진행해야 해요.
+            되돌아간 뒤에는 DB 선택부터 다시 진행해야 해요.
           </>
         }
         note="관리자에게 전달된 요청 내용은 보존되지 않으며, 취소 즉시 처리됩니다."
