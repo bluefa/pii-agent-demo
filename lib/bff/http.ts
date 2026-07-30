@@ -97,7 +97,10 @@ async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
   if (!res.ok) await throwBffError(res);
   // 204 No Content (e.g. collaboration-channel none) has no body to parse.
   if (res.status === 204) return null as T;
-  const data = await res.json();
+  // Same undocumented case send() hit: a 2xx with a zero-length body.
+  const text = await res.text();
+  if (text.length === 0) return null as T;
+  const data = JSON.parse(text);
   return (opts?.raw ? data : camelCaseKeys(data)) as T;
 }
 
