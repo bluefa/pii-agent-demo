@@ -80,7 +80,8 @@ export function ConfirmedInfoCard({
 
   const loadKey = `${targetSourceId}:${reloadKey}`;
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const loading = loadedKey !== loadKey;
+  // First paint only — a reload after a write keeps the table rendered.
+  const loading = loadedKey === null;
 
   useEffect(() => {
     let cancelled = false;
