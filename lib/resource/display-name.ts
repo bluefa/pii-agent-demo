@@ -1,9 +1,14 @@
-// `resourceName`(논리 DB 이름) 필드가 없어, resourceId 의 꼬리
-// 세그먼트(AWS ARN 의 `:`, Azure/GCP 의 `/`, IDC 의 ' (' 앞부분)를 잘라 표시.
-// BFF 가 별도 DB Name 필드를 게시하면 이 함수 본문만 교체하면 된다.
+// BFF 가 내려주는 `resource_name` 이 있으면 그대로 쓰고, 없을 때만 resourceId 의 꼬리
+// 세그먼트(AWS ARN 의 `:`, Azure/GCP 의 `/`, IDC 의 ' (' 앞부분)를 잘라 표시한다.
 const IDC_HEAD_PATTERN = /^(.+?)\s*\(/;
 
-export const getResourceDisplayName = (resource: { resourceId: string }): string => {
+export const getResourceDisplayName = (resource: {
+  resourceId: string;
+  resourceName?: string | null;
+}): string => {
+  const name = resource.resourceName?.trim();
+  if (name) return name;
+
   const id = resource.resourceId;
   if (!id) return '—';
 

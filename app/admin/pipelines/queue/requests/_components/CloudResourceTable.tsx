@@ -7,6 +7,7 @@
 import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResIdCell } from '@/app/admin/pipelines/queue/requests/_components/ResIdCell';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
@@ -37,7 +38,8 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             >
               <td className={appTable.td}>
                 <span className={cn(tag.base, row.selected ? tag.blue : tag.grayStrong)}>
-                  {row.databaseType ?? '—'}
+                  {/* wire 는 소문자 원문(mysql·athena)이라 사용자 화면과 같은 표기로 맞춘다. */}
+                  {row.databaseType ? getDatabaseShortLabel(row.databaseType) : '—'}
                 </span>
               </td>
               <td className={appTable.td}>

@@ -977,7 +977,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         database_type: 'MYSQL',
         oracle_service_id: null,
         network_interface_id: null,
-        ip_configuration_name: null,
+        ip_configuration: null,
       });
       expect(typeof data.resource_infos[0].port).toBe('number');
       expect(typeof data.resource_infos[0].host).toBe('string');

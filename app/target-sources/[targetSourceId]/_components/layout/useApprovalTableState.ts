@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import type { WaitingApprovalResource } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type {
   ApprovalFilter,
@@ -34,6 +35,7 @@ const matchesIntegrationStatus = (
 const collectOptions = (
   resources: readonly WaitingApprovalResource[],
   accessor: (resource: WaitingApprovalResource) => string,
+  toLabel: (value: string) => string = (value) => value,
 ): ReadonlyArray<{ value: string; label: string }> => {
   const unique = new Set<string>();
   for (const resource of resources) {
@@ -42,8 +44,14 @@ const collectOptions = (
   }
   return Array.from(unique)
     .sort((a, b) => a.localeCompare(b))
-    .map((value) => ({ value, label: value }));
+    .map((value) => ({ value, label: toLabel(value) }));
 };
+
+// 표의 Database Type 열은 `displayDbType`(metadata.database_type)을 쓰고 resource_type
+// 은 폴백일 뿐이다. DB Type 필터도 같은 값을 써야 한다 — 아니면 선택지엔
+// AWS_DB_CLUSTER, 열에는 MySQL 이 뜬다.
+const dbTypeOf = (resource: WaitingApprovalResource): string =>
+  resource.displayDbType ?? resource.resourceType;
 
 /**
  * Search / filter / pagination state shared by the step-2 and step-3 approval tables.
@@ -60,7 +68,7 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const dbTypeOptions = useMemo(
-    () => collectOptions(resources, (resource) => resource.resourceType),
+    () => collectOptions(resources, dbTypeOf, getDatabaseShortLabel),
     [resources],
   );
   const regionOptions = useMemo(
@@ -98,7 +106,7 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
   const filteredResources = useMemo(() => {
     const search = searchValue.trim().toLowerCase();
     return resources.filter((resource) => {
-      if (dbType && resource.resourceType !== dbType) return false;
+      if (dbType && dbTypeOf(resource) !== dbType) return false;
       if (region && resource.region !== region) return false;
       if (!matchesIntegrationStatus(resource, integrationStatus)) return false;
       if (filter === 'target' && !resource.selected) return false;

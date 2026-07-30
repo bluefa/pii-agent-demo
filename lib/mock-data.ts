@@ -12,10 +12,16 @@ import {
   LegacyAwsServiceSettings,
   ProjectStatus,
   MockResource,
+  TerraformState,
   CloudProvider,
 } from '@/lib/types';
 import { getStore } from '@/lib/mock-store';
 import { createInitialProjectStatus } from '@/lib/process';
+import {
+  AWS_WIRE_SAMPLE_STEP_TARGET_SOURCE_IDS,
+  AWS_WIRE_SAMPLE_TARGET_SOURCE_ID,
+  awsWireSampleResources,
+} from '@/lib/bff/mock/aws-wire-sample';
 
 /**
  * ProcessStatus에 맞는 ProjectStatus를 생성합니다.
@@ -1304,6 +1310,90 @@ mockProjects.push(
       { id: 'ivt-res-3', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a03', databaseType: 'ORACLE', selectedCredentialId: 'DW-Redshift', connectionStatus: 'DISCONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.18'], domain: '', oracleSid: 'IVTPDB', sourceIps: ['10.20.9.12'], firewallOpen: false } },
     ],
   }),
+);
+
+// 실 BFF 응답 캡처(2026-07-30) 기반 대상 소스. installation-status /
+// confirmed-integration / approval-requests-latest 3개 응답을 그대로 서빙하므로
+// 데모 보정값(host·port·resource_name·credential 합성) 없이 실제 화면을 확인할 수 있다.
+// 1545 는 설치 진행(Step 4), 1546~1548 은 같은 확정 정보로 Step 5·6·7 을 본다.
+// @see lib/bff/mock/aws-wire-sample.ts
+const makeAwsWireSampleProject = (
+  targetSourceId: number,
+  suffix: string,
+  name: string,
+  processStatus: ProcessStatus,
+  terraformState: TerraformState,
+): Project => ({
+  id: `aws-proj-wire-${suffix}`,
+  targetSourceId,
+  projectCode: `AWS-WIRE-${targetSourceId}`,
+  name,
+  description: '실 BFF 응답 캡처를 그대로 사용하는 대상. 빈 값(host/port/credential)과 Athena 리전 단위 설치 상태가 그대로 노출됩니다.',
+  serviceCode: 'aws',
+  cloudProvider: 'AWS',
+  awsAccountId: '804656952396',
+  awsRegionType: 'global',
+  processStatus,
+  status: createStatusForProcessStatus(processStatus, {
+    selectedCount: awsWireSampleResources.length,
+  }),
+  resources: awsWireSampleResources,
+  terraformState,
+  createdAt: '2026-07-21T02:00:00Z',
+  updatedAt: '2026-07-30T05:46:38Z',
+  isRejected: false,
+});
+
+mockProjects.push(
+  makeAwsWireSampleProject(
+    AWS_WIRE_SAMPLE_STEP_TARGET_SOURCE_IDS[3],
+    'select',
+    'AWS PII Agent - 실 응답 샘플 (대상 선택)',
+    ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    { bdcTf: 'PENDING' },
+  ),
+  makeAwsWireSampleProject(
+    AWS_WIRE_SAMPLE_STEP_TARGET_SOURCE_IDS[4],
+    'approval',
+    'AWS PII Agent - 실 응답 샘플 (승인 대기)',
+    ProcessStatus.WAITING_APPROVAL,
+    { bdcTf: 'PENDING' },
+  ),
+  makeAwsWireSampleProject(
+    AWS_WIRE_SAMPLE_STEP_TARGET_SOURCE_IDS[5],
+    'applying',
+    'AWS PII Agent - 실 응답 샘플 (대상 반영중)',
+    ProcessStatus.APPLYING_APPROVED,
+    { bdcTf: 'PENDING' },
+  ),
+  makeAwsWireSampleProject(
+    AWS_WIRE_SAMPLE_TARGET_SOURCE_ID,
+    'sample',
+    'AWS PII Agent - 실 응답 샘플 (설치 진행)',
+    ProcessStatus.INSTALLING,
+    { serviceTf: 'PENDING', bdcTf: 'PENDING' },
+  ),
+  makeAwsWireSampleProject(
+    AWS_WIRE_SAMPLE_STEP_TARGET_SOURCE_IDS[0],
+    'test',
+    'AWS PII Agent - 실 응답 샘플 (연결 테스트)',
+    ProcessStatus.WAITING_CONNECTION_TEST,
+    { serviceTf: 'COMPLETED', bdcTf: 'COMPLETED' },
+  ),
+  makeAwsWireSampleProject(
+    AWS_WIRE_SAMPLE_STEP_TARGET_SOURCE_IDS[1],
+    'verified',
+    'AWS PII Agent - 실 응답 샘플 (관리자 승인 대기)',
+    ProcessStatus.CONNECTION_VERIFIED,
+    { serviceTf: 'COMPLETED', bdcTf: 'COMPLETED' },
+  ),
+  makeAwsWireSampleProject(
+    AWS_WIRE_SAMPLE_STEP_TARGET_SOURCE_IDS[2],
+    'complete',
+    'AWS PII Agent - 실 응답 샘플 (완료)',
+    ProcessStatus.INSTALLATION_COMPLETE,
+    { serviceTf: 'COMPLETED', bdcTf: 'COMPLETED' },
+  ),
 );
 
 // ===== Helper Functions =====

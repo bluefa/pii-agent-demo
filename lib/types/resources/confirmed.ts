@@ -12,5 +12,7 @@ export interface ConfirmedResource {
   networkInterfaceId: string | null;
   ipConfigurationName: string | null;
   credentialId: string | null;
+  /** Athena DB 행이 속한 리전 단위 리소스 id (설치 상태 조인 키). Athena 외에는 없다. */
+  athenaRegionResourceId?: string | null;
   connectionStatus: 'CONNECTED' | 'DISCONNECTED';
 }

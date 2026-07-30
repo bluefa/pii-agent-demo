@@ -237,6 +237,7 @@ export interface MockResource {
 
   // --- 상태/표시 ---
   note?: string;                          // 비고(선택)
+  resourceName?: string;                  // BFF 가 내려주는 이름 (없으면 데모용 이름 합성)
 
   // --- Credential ---
   selectedCredentialId?: string;          // 선택된 credential ID (4단계용)
@@ -859,7 +860,7 @@ export interface BffExcludedResourceInfo {
   integration_status?: ResourceIntegrationStatus | null;
 }
 
-/** 연동 확정 리소스 정보 (Swagger ConfirmedResourceInfo) */
+/** 연동 확정 리소스 정보 (Swagger ResourceConfigDto) */
 export interface ConfirmedIntegrationResourceInfo {
   resource_id: string;
   resource_type: string;
@@ -870,8 +871,15 @@ export interface ConfirmedIntegrationResourceInfo {
   host: string | null;
   oracle_service_id: string | null;
   network_interface_id: string | null;
-  ip_configuration_name: string | null;
+  // Swagger key is `ip_configuration` — the app previously read a non-existent
+  // `ip_configuration_name`, so the value was always null against the real BFF.
+  ip_configuration: string | null;
   credential_id: string | null;
+  /**
+   * Athena 는 확정 정보가 DB 단위(`athena:<acct>:<region>:<catalog>/<db>`)인 반면
+   * 설치 상태는 리전 단위(`athena:<acct>:<region>/<catalog>`)로 온다. 두 축을 잇는 키.
+   */
+  athena_region_resource_id?: string | null;
   // IDC-specific swagger fields (ResourceConfigDto.idc_*) — optional, absent for cloud.
   idc_host_format?: 'IP' | 'HOST';
   idc_ips?: string[];

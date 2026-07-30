@@ -112,6 +112,40 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(nav).getAllByText('1/2').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('fills Athena region rows from the confirmed DB rows of that region', () => {
+    // installation-status reports Athena per region+catalog; confirmed-integration
+    // is per database and links back via athena_region_resource_id.
+    const regionId = 'athena:804656952396:us-east-1/AwsDataCatalog';
+    const athenaDb: ConfirmedResource = {
+      resourceId: 'athena:804656952396:us-east-1:AwsDataCatalog/default',
+      type: 'AWS_ATHENA_DATABASE',
+      databaseType: 'athena',
+      region: 'us-east-1',
+      resourceName: 'default',
+      host: null,
+      port: null,
+      oracleServiceId: null,
+      networkInterfaceId: null,
+      ipConfigurationName: null,
+      credentialId: null,
+      athenaRegionResourceId: regionId,
+      connectionStatus: 'CONNECTED',
+    };
+
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource(regionId, 'IN_PROGRESS', { resourceName: 'us-east-1' })])}
+        confirmed={[athenaDb]}
+        manualInstall={false}
+      />,
+    );
+
+    const row = screen.getByTitle('us-east-1').closest('tr')!;
+    expect(within(row).getByText('Athena')).toBeTruthy();
+    // Region cell — the wire row carries no region of its own.
+    expect(within(row).getAllByText('us-east-1').length).toBeGreaterThanOrEqual(2);
+  });
+
   it('shows the role-verify panel (Role ARN, no resource table) when selected', () => {
     render(
       <AwsInstallStatusDetail

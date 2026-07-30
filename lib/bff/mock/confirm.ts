@@ -12,6 +12,11 @@ import {
   getTcLatestResultRows,
   getTqApprovalLatest,
 } from '@/lib/bff/mock/task-queue';
+import {
+  awsWireSampleApprovalLatest,
+  awsWireSampleConfirmedIntegration,
+  isAwsWireSample,
+} from '@/lib/bff/mock/aws-wire-sample';
 import { schemas } from '@/lib/generated/install-v1';
 import type {
   MockResource,
@@ -161,6 +166,8 @@ const stableIndex = (key: string, length: number): number => {
 };
 
 const demoResourceName = (provider: Project['cloudProvider'], resource: MockResource): string => {
+  // 실 응답 기반 seed 는 이름을 들고 있다 — 합성 이름으로 덮으면 단계마다 이름이 달라진다.
+  if (resource.resourceName) return resource.resourceName;
   if (provider === 'GCP') {
     return GCP_RESOURCE_NAMES[stableIndex(resource.id, GCP_RESOURCE_NAMES.length)];
   }
@@ -398,7 +405,7 @@ function toConfirmedIntegrationResourceInfo(r: MockResource, project: Project): 
     host,
     oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
     network_interface_id: r.vmDatabaseConfig?.selectedNicId ?? null,
-    ip_configuration_name: null,
+    ip_configuration: null,
     credential_id: demoCredential(r),
     // Emit IDC fields only when present (IDC resources only).
     ...(idc ? { idc_host_format: idc.inputFormat } : {}),
@@ -686,6 +693,12 @@ export const mockConfirm = {
       );
     }
 
+    // 0. Real-BFF capture, served verbatim once the target source is past approval
+    //    (empty host / null port / null credential / Athena region ids).
+    if (isAwsWireSample(Number(targetSourceId)) && project.status.installation.status !== 'PENDING') {
+      return NextResponse.json(awsWireSampleConfirmedIntegration);
+    }
+
     // 1. snapshot store 확인 (변경요청 이전-보존 또는 APPLYING→INSTALLING 자동 전이 채움)
     const snapshot = confirmedIntegrationSnapshotStore.get(project.id);
     if (snapshot) {
@@ -956,6 +969,12 @@ export const mockConfirm = {
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
         { status: 404 },
       );
+    }
+
+    // Real-BFF capture, served verbatim while the approval stands (null
+    // resource_type, timezone-less requested_at, total_count > returned rows).
+    if (isAwsWireSample(Number(targetSourceId)) && project.status.approval.status === 'APPROVED') {
+      return NextResponse.json(awsWireSampleApprovalLatest);
     }
 
     const { history: allHistory } = mockHistory.getProjectHistory({

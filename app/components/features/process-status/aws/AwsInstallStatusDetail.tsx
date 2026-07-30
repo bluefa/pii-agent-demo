@@ -122,16 +122,24 @@ export const AwsInstallStatusDetail = ({
     [status.resources],
   );
 
-  const meta = useMemo(
-    () =>
-      new Map<string, InstallResourceMeta>(
-        confirmed.map((c) => [
-          c.resourceId,
-          { resourceName: c.resourceName, region: c.region, databaseType: c.databaseType },
-        ]),
-      ),
-    [confirmed],
-  );
+  const meta = useMemo(() => {
+    const map = new Map<string, InstallResourceMeta>();
+    for (const c of confirmed) {
+      // Athena 설치 상태는 리전+카탈로그 단위(`athena:<acct>:<region>/<catalog>`)로 오고
+      // 확정 정보는 DB 단위(`…:<catalog>/<db>`)라 resource_id 가 어긋난다. 같은 리전의
+      // DB 행으로 리전 단위 키도 채워야 Database Type / Region 이 비지 않는다.
+      const regionId = c.athenaRegionResourceId;
+      if (regionId && !map.has(regionId)) {
+        map.set(regionId, { resourceName: null, region: c.region, databaseType: c.databaseType });
+      }
+      map.set(c.resourceId, {
+        resourceName: c.resourceName,
+        region: c.region,
+        databaseType: c.databaseType,
+      });
+    }
+    return map;
+  }, [confirmed]);
 
   return (
     <InstallStatusDetail
