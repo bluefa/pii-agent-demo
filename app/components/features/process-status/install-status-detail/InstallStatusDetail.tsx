@@ -185,6 +185,7 @@ const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
                 <td className={TABLE_BODY_CELL}>
                   <StatusPill cell={row.cell} />
                 </td>
+                {/* 안내 없음은 빈 칸 — 대시는 시각적 노이즈만 남긴다. */}
                 <td className={cn(TABLE_BODY_CELL, 'text-[13px]')}>
                   {row.cell.guide ? (
                     <span
@@ -196,9 +197,7 @@ const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
                     >
                       {row.cell.guide}
                     </span>
-                  ) : (
-                    <span className={textColors.tertiary}>—</span>
-                  )}
+                  ) : null}
                 </td>
               </tr>
             ))}
