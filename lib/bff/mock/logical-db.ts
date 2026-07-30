@@ -148,7 +148,12 @@ export const mockLogicalDb = {
   getExcludedByResourceId: async (targetSourceId: string, resourceId: string) => {
     const demo = getTcLogicalDbs(Number(targetSourceId), resourceId);
     if (demo) {
-      const demoBody: SkipLogicalDatabaseResponseWire = { skip_logical_database_list: demo.excluded };
+      // The fixture only seeds the list — a save writes to skipState, and the
+      // client now re-reads through this GET, so a stored set has to win.
+      const stored = skipState.get(stateKey(Number(targetSourceId), resourceId));
+      const demoBody: SkipLogicalDatabaseResponseWire = {
+        skip_logical_database_list: stored ?? demo.excluded,
+      };
       return NextResponse.json(demoBody);
     }
     const auth = authorize(targetSourceId);

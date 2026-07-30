@@ -102,9 +102,12 @@ export const updateExcludedLogicalDatabases = async (
       type: it.type,
     })),
   };
-  const raw = await fetchInfraJson<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>(
+  await fetchInfraJson(
     `${base(targetSourceId)}/excluded-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
     { method: 'PUT', body },
   );
-  return (raw.skip_logical_database_list ?? []).map(toExcludedLogicalDatabase);
+  // The PUT response body is not trustworthy — upstream answers 200 with no
+  // body despite declaring SkipLogicalDatabaseResponse. Re-read the policy so
+  // the caller always gets what the server actually stored.
+  return getExcludedLogicalDatabases(targetSourceId, resourceId);
 };

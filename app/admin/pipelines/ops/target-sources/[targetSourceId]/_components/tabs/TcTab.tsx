@@ -65,7 +65,10 @@ export function TcTab({ targetSourceId, detail }: TcTabProps): ReactElement {
     };
   }, [targetSourceId, loadKey]);
 
-  const settled = loadedKey === loadKey;
+  // "Has a load settled at least once", not "has THIS load settled" — a reload
+  // triggered by a write in the tab keeps the current values on screen instead of
+  // blanking every card until the refetch lands.
+  const settled = loadedKey !== null;
 
   return (
     <>

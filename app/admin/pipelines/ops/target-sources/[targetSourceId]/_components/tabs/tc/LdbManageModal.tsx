@@ -92,10 +92,8 @@ export function LdbManageModal({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const [loadKey, setLoadKey] = useState(0);
-  const settledKey = `${resourceId}:${loadKey}`;
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const loading = loadedKey !== settledKey;
+  const loading = loadedKey !== resourceId;
 
   useEffect(() => {
     let cancelled = false;
@@ -111,12 +109,12 @@ export function LdbManageModal({
       setDraft(excluded);
       setBaseline(signature(excluded));
       setExcludedFailed(excludedList.status === 'rejected');
-      setLoadedKey(settledKey);
+      setLoadedKey(resourceId);
     })();
     return () => {
       cancelled = true;
     };
-  }, [targetSourceId, resourceId, settledKey]);
+  }, [targetSourceId, resourceId]);
 
   const prefill = useCallback((item: TestedLogicalDatabase) => {
     setDatabase(item.databaseName ?? '');
@@ -161,10 +159,13 @@ export function LdbManageModal({
     setSaving(true);
     setSaveError(null);
     try {
-      await updateExcludedLogicalDatabases(targetSourceId, resourceId, draft);
+      // The client re-reads the policy through the GET, so the returned list is
+      // already the server's own state — adopting it keeps both panels on screen
+      // instead of tearing them down for a second round trip.
+      const stored = await updateExcludedLogicalDatabases(targetSourceId, resourceId, draft);
+      setDraft(stored);
+      setBaseline(signature(stored));
       setSaved(true);
-      // Refetch both panels from the server, then let the caller refresh counts.
-      setLoadKey((key) => key + 1);
       onSaved();
     } catch {
       setSaveError('제외 정책 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
