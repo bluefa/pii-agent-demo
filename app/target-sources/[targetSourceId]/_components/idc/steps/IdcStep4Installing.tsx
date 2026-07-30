@@ -141,6 +141,7 @@ export const IdcStep4Installing = ({
       id: 'firewall',
       title: '방화벽',
       side: '서비스측 확인',
+      serviceAction: 'Source IP에서 연동 대상으로의 방화벽을 오픈한 뒤 확인해 주세요.',
       desc: 'Source IP → 연동 대상 방화벽 오픈 여부를 점검하는 단계입니다.',
       action: (
         <button

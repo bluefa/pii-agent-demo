@@ -29,6 +29,7 @@ const AZURE_STEPS: InstallTableStep[] = [
     id: 'pe',
     title: 'Private Endpoint 승인',
     side: '서비스측 승인',
+    serviceAction: 'Azure Portal에서 BDC가 요청한 Private Endpoint 연결을 승인해 주세요.',
     desc: 'BDC가 요청한 Private Endpoint 연결을 Azure Portal에서 승인하는 단계입니다.',
   },
   {
