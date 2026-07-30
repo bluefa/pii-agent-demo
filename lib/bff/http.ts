@@ -99,7 +99,7 @@ async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
   if (res.status === 204) return null as T;
   // Same undocumented case send() hit: a 2xx with a zero-length body.
   const text = await res.text();
-  if (text.length === 0) return null as T;
+  if (text.trim().length === 0) return null as T;
   const data = JSON.parse(text);
   return (opts?.raw ? data : camelCaseKeys(data)) as T;
 }
@@ -137,7 +137,7 @@ async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: u
   // excluded-databases/by-resource-id) — res.json() would throw
   // "Unexpected end of JSON input" and surface to the caller as a 500.
   const text = await res.text();
-  if (text.length === 0) return undefined as T;
+  if (text.trim().length === 0) return undefined as T;
   // I-3 invariant: POST/PUT bodies are raw passthrough (snake_case), no camelCase.
   return JSON.parse(text) as T;
 }

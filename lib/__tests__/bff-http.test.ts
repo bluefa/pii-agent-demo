@@ -84,7 +84,7 @@ describe('httpBff PUT with an empty 200 body', () => {
   it('resolves to undefined instead of throwing on JSON.parse', async () => {
     process.env.BFF_API_URL = 'https://bff.example.com';
 
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 200 }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('   ', { status: 200 }));
 
     const { httpBff } = await import('@/lib/bff/http');
 
