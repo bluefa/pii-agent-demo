@@ -130,8 +130,13 @@ async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: u
   console.log(`[BFF] ← ${method} ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   if (res.status === 204) return undefined as T;
+  // Upstream can answer 2xx with an empty body (observed on PUT
+  // excluded-databases/by-resource-id) — res.json() would throw
+  // "Unexpected end of JSON input" and surface to the caller as a 500.
+  const text = await res.text();
+  if (text.length === 0) return undefined as T;
   // I-3 invariant: POST/PUT bodies are raw passthrough (snake_case), no camelCase.
-  return await res.json() as T;
+  return JSON.parse(text) as T;
 }
 
 const post = <T>(path: string, body?: unknown) => send<T>('POST', path, body);
