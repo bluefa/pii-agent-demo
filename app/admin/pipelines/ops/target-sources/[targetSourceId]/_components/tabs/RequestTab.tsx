@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState, type ReactElement, type ReactNode } f
 import { cn, pipelineStyles } from '@/lib/theme';
 import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { fmtDateTime } from '@/lib/pipeline/format';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import {
@@ -134,7 +135,12 @@ function TargetPill({ selected }: { selected: boolean }): ReactElement {
 function ResourceCells({ row, isIdc }: { row: RequestResourceRow; isIdc: boolean }): ReactElement {
   const { cell } = opsStyles.table;
   const mono = pipelineStyles.text.mono;
-  const dbTag = <span className={DB_TAG}>{row.databaseType ?? '—'}</span>;
+  // wire 는 소문자 원문(mysql·athena)이라 사용자 화면과 같은 표기로 맞춘다.
+  const dbTag = (
+    <span className={DB_TAG}>
+      {row.databaseType ? getDatabaseShortLabel(row.databaseType) : '—'}
+    </span>
+  );
   const target = (
     <>
       <td className={cell}>
@@ -252,7 +258,14 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
 
   const confirmedDbTypes =
     confirmed.state === 'ready' && confirmed.data
-      ? [...new Set(confirmed.data.map((row) => row.database_type).filter((type): type is string => !!type))]
+      ? [
+          ...new Set(
+            confirmed.data
+              .map((row) => row.database_type)
+              .filter((type): type is string => !!type)
+              .map(getDatabaseShortLabel),
+          ),
+        ]
       : [];
 
   const summary = request.state === 'ready' ? request.data?.request ?? null : null;

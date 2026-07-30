@@ -13,6 +13,7 @@
 
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { TqModal } from '@/app/admin/pipelines/queue/_components/TqModal';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
@@ -69,7 +70,7 @@ export function NlbMappingModal({
       title="현재 배정된 NLB"
       meta={
         <>
-          <span className={cn(tag.base, tag.blue)}>{resource.databaseType ?? '—'}</span>
+          <span className={cn(tag.base, tag.blue)}>{resource.databaseType ? getDatabaseShortLabel(resource.databaseType) : '—'}</span>
           <span className={appTable.tdMono}>{connect}</span>
         </>
       }

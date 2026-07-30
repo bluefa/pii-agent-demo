@@ -13,6 +13,7 @@
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
@@ -190,7 +191,7 @@ export function LdbManageModal({
       </h3>
       <div className="mb-2 flex items-center gap-2">
         {databaseType && (
-          <span className={cn(tqStyles.tag.base, tqStyles.tag.blue)}>{databaseType}</span>
+          <span className={cn(tqStyles.tag.base, tqStyles.tag.blue)}>{getDatabaseShortLabel(databaseType)}</span>
         )}
         <span className={tqStyles.appTable.tdMono}>{resourceLabel}</span>
       </div>

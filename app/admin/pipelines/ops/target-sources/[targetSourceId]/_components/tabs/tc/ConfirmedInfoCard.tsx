@@ -27,6 +27,7 @@ import {
 } from '@/app/lib/api';
 import type { SecretKey } from '@/lib/types';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -173,7 +174,8 @@ export function ConfirmedInfoCard({
                       <td className={table.cell}>
                         {row.database_type ? (
                           <span className={cn(tqStyles.tag.base, tqStyles.tag.blue)}>
-                            {row.database_type}
+                            {/* wire 는 소문자 원문(mysql·athena) — 사용자 화면과 같은 표기. */}
+                            {getDatabaseShortLabel(row.database_type)}
                           </span>
                         ) : (
                           <Dash />

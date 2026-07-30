@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Badge } from '@/app/components/ui/Badge';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Modal } from '@/app/components/ui/Modal';
 import {
   getApprovalRequestDetail,
@@ -182,7 +183,7 @@ const locationOf = (r: ApprovalResourceItem): string => {
   return meta?.region ?? '-';
 };
 
-/** database_type rides under metadata (passthrough key — not in the declared DTO). */
+/** database_type 는 metadata(TargetSourceResourceMetadataDto)에만 있다 — 최상위 아님. */
 const databaseTypeOf = (r: ApprovalResourceItem): string | null => {
   const value = (r.metadata as Record<string, unknown> | null | undefined)?.database_type;
   return typeof value === 'string' ? value : null;
@@ -226,7 +227,13 @@ function ResourceTable({
                   </p>
                 )}
               </td>
-              <td className={cn(RESOURCE_TD, 'whitespace-nowrap')}>{databaseTypeOf(r) ?? '-'}</td>
+              <td className={cn(RESOURCE_TD, 'whitespace-nowrap')}>
+                {/* wire 는 소문자 원문(mysql·athena) — 다른 표와 같은 표기로 맞춘다. */}
+                {(() => {
+                  const dbType = databaseTypeOf(r);
+                  return dbType ? getDatabaseShortLabel(dbType) : '-';
+                })()}
+              </td>
               <td className={RESOURCE_TD}>
                 {reasonColumn
                   ? r.exclusion_reason || CATEGORY_LABEL[r.integration_category ?? ''] || '-'

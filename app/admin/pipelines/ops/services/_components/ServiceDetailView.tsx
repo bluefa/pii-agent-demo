@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { passRoutes } from '@/lib/routes';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -210,7 +211,7 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                               'bg-[var(--pl-tag-blue-bg)] text-[var(--pl-tag-blue-text)]',
                             )}
                           >
-                            {target.database_type}
+                            {getDatabaseShortLabel(target.database_type)}
                           </span>
                         ) : (
                           <span className={text.muted}>—</span>
