@@ -75,10 +75,8 @@ export const AwsInstallationInline = ({
     },
   });
 
-  if (loading) return <InstallationLoadingView provider="AWS" />;
-  if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
-  if (!status) return null;
-
+  // 로딩/에러는 카드 안에서 교체한다 — 카드 자체를 조기 반환하면 헤더와 TF
+  // 스크립트 박스까지 사라졌다 나타나 스켈레톤의 목적(레이아웃 유지)이 깨진다.
   const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
 
   return (
@@ -118,7 +116,7 @@ export const AwsInstallationInline = ({
             {downloadError}
           </div>
         )}
-        {status.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
+        {status?.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
             상태 확인 실패: {status.lastCheck.failReason}
           </div>
@@ -153,11 +151,17 @@ export const AwsInstallationInline = ({
             </button>
           </div>
         )}
-        <AwsInstallStatusDetail
-          status={status}
-          confirmed={confirmedResources}
-          manualInstall={isManualInstall}
-        />
+        {loading ? (
+          <InstallationLoadingView provider="AWS" />
+        ) : error ? (
+          <InstallationErrorView message={error} onRetry={fetchStatus} />
+        ) : status ? (
+          <AwsInstallStatusDetail
+            status={status}
+            confirmed={confirmedResources}
+            manualInstall={isManualInstall}
+          />
+        ) : null}
       </div>
     </section>
   );

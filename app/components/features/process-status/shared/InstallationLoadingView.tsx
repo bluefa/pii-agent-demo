@@ -6,37 +6,56 @@ interface InstallationLoadingViewProps {
   provider: string;
 }
 
+const Bar = ({ className }: { className: string }) => (
+  <div className={cn(idcStyles.skeletonBar, className)} />
+);
+
 /**
  * Skeleton frame for the Agent 설치 step while the installation status loads —
- * mirrors the real layout (3 stage tiles over the resource table) so the card
- * keeps its shape instead of collapsing to a one-line spinner and reflowing
- * when the data lands. IDC's step 4 already renders ResourceTableSkeleton;
- * this brings the three cloud providers to the same pattern.
+ * mirrors InstallStatusDetail's master-detail frame (320px step rail + summary
+ * panel) so the card keeps its shape instead of reflowing when the data lands.
+ *
+ * The action banner is deliberately NOT drawn: it only appears when the service
+ * side has something to do, and a skeleton must not promise an alert that may
+ * never materialize.
  */
 export const InstallationLoadingView = ({ provider }: InstallationLoadingViewProps) => (
   <div aria-busy="true" aria-live="polite" aria-label={`${provider} 설치 상태 확인 중`}>
-    <div className="grid grid-cols-3 gap-4">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className={cn('rounded-xl border p-5', borderColors.light)}>
-          <div className={cn(idcStyles.skeletonBar, 'h-7 w-7 rounded-full')} />
-          <div className={cn(idcStyles.skeletonBar, 'mt-3 h-4 w-3/4 rounded')} />
-          <div className={cn(idcStyles.skeletonBar, 'mt-2 h-3 w-full rounded')} />
-          <div className={cn(idcStyles.skeletonBar, 'mt-3 h-5 w-14 rounded-full')} />
-        </div>
-      ))}
-    </div>
-    <div className={cn('mt-4 overflow-hidden rounded-xl border', borderColors.default)}>
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div
-          key={i}
-          className={cn('flex items-center gap-3 px-4 py-3.5', i > 0 && cn('border-t', borderColors.light))}
-        >
-          <div className={cn(idcStyles.skeletonBar, 'h-5 w-20 rounded-full')} />
-          <div className={cn(idcStyles.skeletonBar, 'h-4 flex-1 rounded')} />
-          <div className={cn(idcStyles.skeletonBar, 'h-4 w-28 rounded')} />
-          <div className={cn(idcStyles.skeletonBar, 'h-5 w-16 rounded-full')} />
-        </div>
-      ))}
+    <div className={cn('grid grid-cols-[320px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.default)}>
+      {/* step rail — index circle + title + side tag, status pill on the second line */}
+      <div className={cn('border-r p-2.5 flex flex-col gap-1 bg-white', borderColors.default)}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex flex-col gap-1.5 px-2.5 py-2.5">
+            <div className="flex items-start gap-2.5">
+              <Bar className="h-6 w-6 flex-shrink-0 rounded-full" />
+              <Bar className="mt-1 h-3.5 flex-1 rounded" />
+              <Bar className="h-6 w-[88px] flex-shrink-0 rounded-md" />
+            </div>
+            <div className="flex items-center gap-1.5 pl-[34px]">
+              <Bar className="h-6 w-12 rounded-md" />
+              <Bar className="h-3 w-7 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* summary panel — title / desc / rollup line, then two action cards */}
+      <div className="flex flex-col gap-3 bg-white p-5">
+        <Bar className="h-5 w-40 rounded" />
+        <Bar className="h-3.5 w-[68%] rounded" />
+        <Bar className="h-3 w-52 rounded" />
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className={cn('flex flex-col gap-2.5 rounded-xl border p-4', borderColors.light)}>
+            <div className="flex items-center gap-2">
+              <Bar className="h-4 w-36 rounded" />
+              <Bar className="h-6 w-16 rounded-md" />
+              <Bar className="h-6 w-[88px] rounded-md" />
+            </div>
+            <Bar className="h-3.5 w-[78%] rounded" />
+            <Bar className="h-8 w-28 rounded-lg" />
+          </div>
+        ))}
+      </div>
     </div>
   </div>
 );

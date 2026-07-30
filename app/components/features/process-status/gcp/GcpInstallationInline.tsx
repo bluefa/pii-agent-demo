@@ -84,10 +84,8 @@ export const GcpInstallationInline = ({
     [confirmedResources],
   );
 
-  if (loading) return <InstallationLoadingView provider="GCP" />;
-  if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
-  if (!status) return null;
-
+  // 로딩/에러는 카드 안에서 교체한다 — 카드를 조기 반환하면 헤더까지 사라졌다
+  // 나타나 스켈레톤의 목적(레이아웃 유지)이 깨진다.
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
       <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
@@ -103,7 +101,7 @@ export const GcpInstallationInline = ({
         </span>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>
-        {status.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
+        {status?.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
             상태 확인 실패: {status.lastCheck.failReason}
           </div>
@@ -138,12 +136,18 @@ export const GcpInstallationInline = ({
             </button>
           </div>
         )}
-        <InstallStatusDetail
-          lastCheck={status.lastCheck}
-          resources={status.resources}
-          steps={GCP_STEPS}
-          meta={meta}
-        />
+        {loading ? (
+          <InstallationLoadingView provider="GCP" />
+        ) : error ? (
+          <InstallationErrorView message={error} onRetry={fetchStatus} />
+        ) : status ? (
+          <InstallStatusDetail
+            lastCheck={status.lastCheck}
+            resources={status.resources}
+            steps={GCP_STEPS}
+            meta={meta}
+          />
+        ) : null}
       </div>
     </section>
   );
