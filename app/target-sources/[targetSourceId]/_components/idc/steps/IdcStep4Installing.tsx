@@ -2,19 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { AppError } from '@/lib/errors';
-import { cardStyles, cn, statusColors } from '@/lib/theme';
+import { bgColors, borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
 import {
   getIdcConfirmedResources,
-  IDC_INSTALL_TASK_STATUS,
   type IdcInstallStatus,
   type IdcResourceView,
 } from '@/app/lib/api/idc';
 import { useIdcInstallationStatus } from '@/app/hooks/useIdcInstallationStatus';
+import { InstallStatusDetail } from '@/app/components/features/process-status/install-status-detail/InstallStatusDetail';
 import {
-  InstallTaskPipeline,
-  type InstallTaskPipelineItem,
-} from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
-import type { InstallTaskStatus } from '@/lib/constants/install-task';
+  normalizeInstallStepValue,
+  type InstallDetailResource,
+  type InstallLastCheck,
+  type InstallResourceMeta,
+  type InstallTableStep,
+} from '@/app/components/features/process-status/install-status-detail/model';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -26,18 +28,20 @@ import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_co
 
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
 
-/**
- * Aggregate per-resource install statuses into one card bucket: a FAIL present
- * → failed; else a still-running (IN_PROGRESS/UNKNOWN) present → running; else done.
- * UNKNOWN shares the running bucket via IDC_INSTALL_TASK_STATUS (work-in-progress).
- */
-const aggregateCardStatus = (statuses: IdcInstallStatus[]): InstallTaskStatus => {
-  if (statuses.length === 0) return 'pending';
-  const buckets = statuses.map((s) => IDC_INSTALL_TASK_STATUS[s]);
-  if (buckets.includes('failed')) return 'failed';
-  if (buckets.includes('running')) return 'running';
-  return 'done';
-};
+// IDC lastCheck status is the shared install enum; the generic detail wants the
+// 3-value LastCheckInfo bucket.
+const toInstallLastCheck = (
+  lastCheck: { status: IdcInstallStatus; checkedAt?: string; failReason?: string } | undefined,
+): InstallLastCheck => ({
+  status:
+    lastCheck?.status === 'FAIL' || lastCheck?.status === 'FAILED'
+      ? 'FAILED'
+      : lastCheck?.status === 'COMPLETED' || lastCheck?.status === 'SUCCESS'
+        ? 'SUCCESS'
+        : 'IN_PROGRESS',
+  ...(lastCheck?.checkedAt && { checkedAt: lastCheck.checkedAt }),
+  ...(lastCheck?.failReason && { failReason: lastCheck.failReason }),
+});
 
 /**
  * IDC Step 4 — Agent 설치 (v15 `data-prov-view="idc"`, L6579~6634).
@@ -85,14 +89,7 @@ export const IdcStep4Installing = ({
     };
   }, [targetSourceId]);
 
-  // The two install cards aggregate the per-resource installation-status steps:
-  // BDC ← cxTerraform + bdpTerraform; 방화벽 ← firewallCheck. A backend mid-install
-  // reports UNKNOWN, which buckets to "작업중"/running (not done/failed).
   const installResources = status?.resources ?? [];
-  const bdcStatus = aggregateCardStatus(
-    installResources.flatMap((r) => [r.cxTerraform.status, r.bdpTerraform.status]),
-  );
-  const firewallStatus = aggregateCardStatus(installResources.map((r) => r.firewallCheck.status));
 
   // Per-row firewall status for the `fw` column: join the installation-status
   // firewall_check.status to the confirmed-integration rows by resource_id (the
@@ -102,19 +99,63 @@ export const IdcStep4Installing = ({
     installResources.map((r) => [r.resourceId, r.firewallCheck.status]),
   );
 
-  const tasks: InstallTaskPipelineItem[] = [
+  // Master-detail model: per-resource cells for the three IDC steps. A backend
+  // mid-install reports UNKNOWN, which renders as "확인 중" (never done/failed).
+  const detailResources: InstallDetailResource[] = installResources.map((r) => ({
+    resourceId: r.resourceId,
+    resourceName: null,
+    rollup: { status: normalizeInstallStepValue(r.installationStatus), guide: null },
+    cells: {
+      cx: { status: normalizeInstallStepValue(r.cxTerraform.status), guide: r.cxTerraform.guide ?? null },
+      bdp: { status: normalizeInstallStepValue(r.bdpTerraform.status), guide: r.bdpTerraform.guide ?? null },
+      firewall: { status: normalizeInstallStepValue(r.firewallCheck.status), guide: r.firewallCheck.guide ?? null },
+    },
+  }));
+
+  // Region은 IDC 계약에 없음(정상); DB Type은 확정 연동 리소스에서 join.
+  const detailMeta = new Map<string, InstallResourceMeta>(
+    resources.map((r) => [
+      r.resourceId,
+      {
+        resourceName: r.hosts[0] ?? null,
+        region: null,
+        databaseType: r.databaseTypeWire ?? null,
+      },
+    ]),
+  );
+
+  const steps: InstallTableStep[] = [
     {
-      key: 'bdc',
-      title: 'BDC 측 리소스 설치 진행',
-      sub: 'BDC망 내 PII Agent 수집 모듈과 네트워크 경로를 구성하는 단계',
-      status: bdcStatus,
+      id: 'cx',
+      title: 'BDC CX 리소스 생성',
+      side: 'BDC측 · 자동',
+      desc: 'BDC망 CX 영역에 PII Agent 수집 모듈과 네트워크 경로를 구성합니다.',
     },
     {
-      key: 'firewall',
-      title: '방화벽 확인',
-      sub: 'Source IP → 연동 대상 방화벽 오픈 여부를 점검하는 단계',
-      status: firewallStatus,
-      onClick: () => setFirewallOpen(true),
+      id: 'bdp',
+      title: 'BDC BDP 리소스 생성',
+      side: 'BDC측 · 자동',
+      desc: 'BDC망 BDP 영역 리소스를 구성합니다.',
+    },
+    {
+      id: 'firewall',
+      title: '방화벽',
+      side: '서비스측',
+      desc: 'Source IP → 연동 대상 방화벽 오픈 여부를 점검하는 단계입니다.',
+      action: (
+        <button
+          type="button"
+          onClick={() => setFirewallOpen(true)}
+          className={cn(
+            'text-xs font-bold px-3 py-1.5 rounded-lg border',
+            borderColors.default,
+            textColors.secondary,
+            bgColors.mutedHover,
+          )}
+        >
+          방화벽 확인
+        </button>
+      ),
     },
   ];
 
@@ -146,7 +187,12 @@ export const IdcStep4Installing = ({
               상태 확인 실패: {status.lastCheck.failReason}
             </div>
           )}
-          <InstallTaskPipeline items={tasks} columns={2} />
+          <InstallStatusDetail
+            lastCheck={toInstallLastCheck(status?.lastCheck)}
+            resources={detailResources}
+            steps={steps}
+            meta={detailMeta}
+          />
 
           <div className="mt-6">
             {loading && resources.length === 0 ? (

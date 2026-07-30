@@ -12,17 +12,21 @@
 import { render, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConfirmedResource } from '@/lib/types/resources';
-import type { AzureV1InstallationStatus } from '@/lib/types/azure';
+import type { AzureInstallDetail } from '@/app/components/features/process-status/azure/install-detail-adapter';
 
-const view: AzureV1InstallationStatus = {
+const view: AzureInstallDetail = {
   lastCheck: { status: 'SUCCESS' },
   resources: [
     {
       resourceId: 'vm-1',
       resourceName: 'vm-1',
-      resourceType: 'AZURE_VM',
-      vmInstallation: { subnetExists: true, loadBalancer: { installed: true } },
-      privateEndpoint: { id: 'pe-1', name: 'pe-1', status: 'PENDING_APPROVAL' },
+      rollup: { status: 'IN_PROGRESS', guide: null },
+      cells: {
+        pe: { status: 'IN_PROGRESS', guide: null },
+        vmSubnet: { status: 'COMPLETED', guide: null },
+        vmApply: { status: 'COMPLETED', guide: null },
+        bdc: { status: 'COMPLETED', guide: null },
+      },
     },
   ],
 };
@@ -33,8 +37,8 @@ vi.mock('@/app/lib/api/azure', () => ({
 
 // Adapter is pure; stub it so the test does not depend on raw-wire shaping.
 vi.mock(
-  '@/app/components/features/process-status/azure/installation-status-adapter',
-  () => ({ buildAzureInstallationStatus: () => view }),
+  '@/app/components/features/process-status/azure/install-detail-adapter',
+  () => ({ buildAzureInstallDetail: () => view }),
 );
 
 import { getAzureInstallationStatus } from '@/app/lib/api/azure';

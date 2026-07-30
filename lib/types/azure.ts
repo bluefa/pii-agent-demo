@@ -99,37 +99,3 @@ export interface AzureTerraformScript {
   generatedAt: string;
 }
 
-// ===== Azure v1 API 응답 타입 =====
-
-export interface AzureV1LastCheck {
-  status: 'SUCCESS' | 'IN_PROGRESS' | 'FAILED';
-  checkedAt?: string;
-  failReason?: string;
-}
-
-export interface AzureV1PrivateEndpoint {
-  id: string;
-  name: string;
-  status: PrivateEndpointStatus;
-}
-
-export interface AzureV1VmInstallation {
-  subnetExists?: boolean;
-  loadBalancer?: {
-    installed: boolean;
-    name?: string;
-  };
-}
-
-export interface AzureV1Resource {
-  resourceId: string;
-  resourceName: string;
-  resourceType: string;
-  privateEndpoint?: AzureV1PrivateEndpoint;
-  vmInstallation?: AzureV1VmInstallation;
-}
-
-export interface AzureV1InstallationStatus {
-  lastCheck: AzureV1LastCheck;
-  resources?: AzureV1Resource[];
-}

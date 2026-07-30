@@ -1,28 +1,42 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import type { ConfirmedResource } from '@/lib/types/resources';
-import type { AzureV1InstallationStatus } from '@/lib/types/azure';
+import type { AzureInstallDetail } from '@/app/components/features/process-status/azure/install-detail-adapter';
 
-// A VM resource whose subnet + load balancer are ready but whose private
-// endpoint is still pending → phases 1 & 2 = done, phase 3 = running. This
-// gives a clean done/running split for the click-wiring assertions.
-const installationStatus: AzureV1InstallationStatus = {
-  lastCheck: { status: 'SUCCESS' },
+// A VM whose subnet + terraform apply are done but whose private endpoint is
+// still pending approval, plus a DB resource (VM steps → SKIP).
+const installDetail: AzureInstallDetail = {
+  lastCheck: { status: 'SUCCESS', checkedAt: '2026-07-30T10:00:00Z' },
   resources: [
     {
       resourceId: 'vm-1',
       resourceName: 'vm-1',
-      resourceType: 'AZURE_VM',
-      vmInstallation: { subnetExists: true, loadBalancer: { installed: true } },
-      privateEndpoint: { id: 'pe-1', name: 'pe-1', status: 'PENDING_APPROVAL' },
+      rollup: { status: 'IN_PROGRESS', guide: null },
+      cells: {
+        pe: { status: 'IN_PROGRESS', label: 'Azure Portal에서 승인 필요', guide: null },
+        vmSubnet: { status: 'COMPLETED', guide: null },
+        vmApply: { status: 'COMPLETED', guide: null },
+        bdc: { status: 'COMPLETED', guide: null },
+      },
+    },
+    {
+      resourceId: 'db-1',
+      resourceName: 'db-1',
+      rollup: { status: 'COMPLETED', guide: null },
+      cells: {
+        pe: { status: 'COMPLETED', label: '승인 완료', guide: null },
+        vmSubnet: { status: 'SKIP', guide: null },
+        vmApply: { status: 'SKIP', guide: null },
+        bdc: { status: 'COMPLETED', guide: null },
+      },
     },
   ],
 };
 
 vi.mock('@/app/hooks/useInstallationStatus', () => ({
   useInstallationStatus: () => ({
-    status: installationStatus,
+    status: installDetail,
     loading: false,
     refreshing: false,
     error: null,
@@ -33,7 +47,6 @@ vi.mock('@/app/hooks/useInstallationStatus', () => ({
 
 vi.mock('@/app/lib/api/azure', () => ({
   getAzureInstallationStatus: vi.fn(),
-  checkAzureInstallation: vi.fn(),
 }));
 
 import { AzureInstallationInline } from '@/app/components/features/process-status/azure/AzureInstallationInline';
@@ -55,26 +68,29 @@ const confirmed: readonly ConfirmedResource[] = [
   },
 ];
 
-describe('AzureInstallationInline — install-task detail modal wiring (v16 L6598)', () => {
-  it('renders the completed phase card as a clickable button', () => {
+describe('AzureInstallationInline — master-detail step nav', () => {
+  it('renders the four Azure steps with 서비스측/BDC측 side tags', () => {
     render(<AzureInstallationInline targetSourceId={1003} confirmed={confirmed} />);
-    const doneCard = screen.getByRole('button', { name: /서비스 측 리소스 설치 진행/ });
-    expect(doneCard).toBeTruthy();
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    expect(within(nav).getByText('서비스 측 Private Endpoint 승인')).toBeTruthy();
+    expect(within(nav).getByText('서비스 측 VM Subnet 생성')).toBeTruthy();
+    expect(within(nav).getByText('서비스 측 VM 리소스 생성')).toBeTruthy();
+    expect(within(nav).getByText('BDC 측 리소스 생성')).toBeTruthy();
+    expect(within(nav).getAllByText(/서비스측|BDC측/).length).toBeGreaterThanOrEqual(4);
   });
 
-  it('keeps the running phase card non-interactive (no button)', () => {
+  it('auto-selects the running PE step and renders the domain pill label', () => {
     render(<AzureInstallationInline targetSourceId={1003} confirmed={confirmed} />);
-    expect(
-      screen.queryByRole('button', { name: /Private Link 모듈 설치 진행/ }),
-    ).toBeNull();
+    // PE step is the only non-settled one → default selection; the pending VM
+    // row shows the PE wording, the DB row shows 승인 완료.
+    expect(screen.getByText('Azure Portal에서 승인 필요')).toBeTruthy();
+    expect(screen.getByText('승인 완료')).toBeTruthy();
   });
 
-  it('opens the detail modal when the completed phase card is clicked', () => {
+  it('renders 해당 없음 for non-VM resources on VM-only steps (SKIP)', () => {
     render(<AzureInstallationInline targetSourceId={1003} confirmed={confirmed} />);
-    expect(screen.queryByText('리소스별 설치 진행 현황을 확인할 수 있어요.')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: /서비스 측 리소스 설치 진행/ }));
-
-    expect(screen.getByText('리소스별 설치 진행 현황을 확인할 수 있어요.')).toBeTruthy();
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    // VM steps aggregate 2/2 (COMPLETED + SKIP both settle).
+    expect(within(nav).getAllByText('2/2').length).toBeGreaterThanOrEqual(2);
   });
 });

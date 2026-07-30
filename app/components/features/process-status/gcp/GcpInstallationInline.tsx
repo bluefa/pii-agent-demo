@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   borderColors,
   cardStyles,
@@ -9,60 +9,84 @@ import {
   textColors,
 } from '@/lib/theme';
 import { getGcpInstallationStatus } from '@/app/lib/api/gcp';
-import { buildGcpInstallationStatus } from '@/app/components/features/process-status/gcp/installation-status-adapter';
+import {
+  buildGcpInstallDetail,
+  type GcpInstallDetail,
+} from '@/app/components/features/process-status/gcp/install-detail-adapter';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
-import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
-import { InstallResourceTable } from '@/app/components/features/process-status/install-task-pipeline/InstallResourceTable';
-import { InstallTaskDetailModal } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal';
-import { joinGcpResources } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
+import { InstallStatusDetail } from '@/app/components/features/process-status/install-status-detail/InstallStatusDetail';
+import {
+  areInstallResourcesSettled,
+  type InstallResourceMeta,
+  type InstallTableStep,
+} from '@/app/components/features/process-status/install-status-detail/model';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
-import { useModal } from '@/app/hooks/useModal';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
-import { buildGcpPipelineItems, type GcpStepKey } from '@/lib/constants/gcp';
-import type { GcpInstallationStatusResponse } from '@/app/api/_lib/v1-types';
 
 interface GcpInstallationInlineProps {
   targetSourceId: number;
   onInstallComplete?: () => void;
 }
 
+const GCP_STEPS: InstallTableStep[] = [
+  {
+    id: 'subnet',
+    title: '서비스 측 Subnet 생성',
+    side: '서비스측 인프라 · 자동',
+    desc: 'Project 내 모니터링용 Subnet (10.30.0.0/22)을 생성합니다.',
+  },
+  {
+    id: 'service',
+    title: '서비스 측 리소스 생성',
+    side: '서비스측 인프라 · 자동',
+    desc: 'VPC Peering / Firewall / Service Account 권한 위임을 구성합니다.',
+  },
+  {
+    id: 'bdc',
+    title: 'BDC 측 리소스 생성',
+    side: 'BDC측 · 자동',
+    desc: 'PII Agent GCE 인스턴스 + Service Account + IAM Role을 자동 배포합니다.',
+  },
+];
+
 export const GcpInstallationInline = ({
   targetSourceId,
   onInstallComplete,
 }: GcpInstallationInlineProps) => {
-  const detailModal = useModal<GcpStepKey>();
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
 
-  // Compose the API call with the CSR adapter so useInstallationStatus works
-  // against the camel UI type (GcpInstallationStatusResponse from v1-types).
-  const getInstallationStatusView = useCallback(
-    (id: number) => getGcpInstallationStatus(id).then(buildGcpInstallationStatus),
+  // Must be stable: useInstallationStatus re-runs its fetch effect whenever
+  // getFn's identity changes (see AzureInstallationInline refetch-loop note).
+  const getInstallDetail = useCallback(
+    (id: number) => getGcpInstallationStatus(id).then(buildGcpInstallDetail),
     [],
   );
 
-  const { status, loading, error, fetchStatus } =
-    useInstallationStatus<GcpInstallationStatusResponse>({
-      targetSourceId,
-      getFn: getInstallationStatusView,
-      // Refresh = re-GET installation-status (POST check-installation REMOVED-no-swagger).
-      checkFn: getInstallationStatusView,
-      isComplete: (data) => data.summary.allCompleted,
-      onComplete: onInstallComplete,
-    });
+  const { status, loading, error, fetchStatus } = useInstallationStatus<GcpInstallDetail>({
+    targetSourceId,
+    getFn: getInstallDetail,
+    // Refresh = re-GET installation-status (POST check-installation REMOVED-no-swagger).
+    checkFn: getInstallDetail,
+    isComplete: (data) => areInstallResourcesSettled(data.resources),
+    onComplete: onInstallComplete,
+  });
+
+  const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
+  const meta = useMemo(
+    () =>
+      new Map<string, InstallResourceMeta>(
+        confirmedResources.map((c) => [
+          c.resourceId,
+          { resourceName: c.resourceName, region: c.region, databaseType: c.databaseType },
+        ]),
+      ),
+    [confirmedResources],
+  );
 
   if (loading) return <InstallationLoadingView provider="GCP" />;
   if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
-
-  const resources = status?.resources ?? [];
-  const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
-  const joinedRows = joinGcpResources(resources, confirmedResources);
-  const pipelineItems = buildGcpPipelineItems(resources).map((item) => ({
-    ...item,
-    onClick: () => detailModal.open(item.key),
-  }));
-
-  const lastCheck = status?.lastCheck;
+  if (!status) return null;
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
@@ -79,14 +103,11 @@ export const GcpInstallationInline = ({
         </span>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>
-        {lastCheck?.status === 'FAILED' && lastCheck.failReason && (
+        {status.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
-            상태 확인 실패: {lastCheck.failReason}
+            상태 확인 실패: {status.lastCheck.failReason}
           </div>
         )}
-
-        <InstallTaskPipeline items={pipelineItems} />
-
         {confirmedState.status === 'loading' && (
           <div
             className={cn(
@@ -117,15 +138,13 @@ export const GcpInstallationInline = ({
             </button>
           </div>
         )}
-        <InstallResourceTable rows={joinedRows} provider="GCP" />
+        <InstallStatusDetail
+          lastCheck={status.lastCheck}
+          resources={status.resources}
+          steps={GCP_STEPS}
+          meta={meta}
+        />
       </div>
-
-      <InstallTaskDetailModal
-        open={detailModal.isOpen}
-        onClose={detailModal.close}
-        stepKey={detailModal.data ?? null}
-        rows={joinedRows}
-      />
     </section>
   );
 };

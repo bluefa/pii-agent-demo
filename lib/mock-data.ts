@@ -656,7 +656,7 @@ export const mockProjects: Project[] = [
     // 데모: TF 실행 권한 허용 → 자동 설치 모드 (설치중 화면)
     isTerraformExecutionGranted: true,
     processStatus: ProcessStatus.INSTALLING,
-    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 1, excludedCount: 1 }),
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 4, excludedCount: 1 }),
     resources: [
       {
         id: 'res-6',
@@ -670,6 +670,43 @@ export const mockProjects: Project[] = [
         vpcId: 'vpc-uswest-001',
         integrationCategory: 'TARGET',
         note: 'NEW',
+      },
+      // 데모: 설치중 상태 표시가 SKIP/FAIL/진행중 셀을 모두 보여주도록 선택
+      // 리소스 4개 유지 (mock installation-status가 index 기반으로 상태를 배정).
+      {
+        id: 'res-14',
+        type: 'RDS',
+        resourceId: 'rds-004',
+        databaseType: 'POSTGRESQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        awsType: 'RDS',
+        region: 'us-west-2',
+        vpcId: 'vpc-uswest-001',
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: 'res-15',
+        type: 'DYNAMODB',
+        resourceId: 'ddb-003',
+        databaseType: 'DYNAMODB',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        awsType: 'DYNAMODB',
+        region: 'ap-northeast-2',
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: 'res-16',
+        type: 'RDS',
+        resourceId: 'rds-005',
+        databaseType: 'MYSQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        awsType: 'RDS',
+        region: 'ap-northeast-2',
+        vpcId: 'vpc-seoul-002',
+        integrationCategory: 'TARGET',
       },
       {
         id: 'res-13',
@@ -686,7 +723,7 @@ export const mockProjects: Project[] = [
       },
     ],
     terraformState: {
-      serviceTf: 'COMPLETED',
+      serviceTf: 'PENDING',
       bdcTf: 'PENDING',
     },
     createdAt: '2024-01-19T08:00:00Z',
