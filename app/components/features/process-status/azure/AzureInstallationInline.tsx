@@ -27,26 +27,26 @@ interface AzureInstallationInlineProps {
 const AZURE_STEPS: InstallTableStep[] = [
   {
     id: 'pe',
-    title: '서비스 측 Private Endpoint 승인',
-    side: '서비스측',
+    title: 'Private Endpoint 승인',
+    side: '서비스측 승인',
     desc: 'BDC가 요청한 Private Endpoint 연결을 Azure Portal에서 승인하는 단계입니다.',
   },
   {
     id: 'vmSubnet',
-    title: '서비스 측 VM Subnet 생성',
-    side: '서비스측',
+    title: 'VM Subnet',
+    side: '서비스측 리소스 생성',
     desc: 'VM 연동용 Subnet을 생성합니다. VM이 아닌 리소스는 해당 없음으로 표시됩니다.',
   },
   {
     id: 'vmApply',
-    title: '서비스 측 VM 리소스 생성',
-    side: '서비스측',
+    title: 'VM Load Balancer',
+    side: '서비스측 리소스 생성',
     desc: 'VM용 Load Balancer 등 서비스 측 리소스를 Terraform으로 적용합니다.',
   },
   {
     id: 'bdc',
-    title: 'BDC 측 리소스 생성',
-    side: 'BDC측 · 자동',
+    title: 'PII Agent VM · KeyVault',
+    side: 'BDC측 리소스 생성',
     desc: 'PII Agent VM, IAM Role, KeyVault 연결을 자동 배포합니다.',
   },
 ];

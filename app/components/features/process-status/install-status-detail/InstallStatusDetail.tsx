@@ -92,15 +92,17 @@ const aggregateCells = (cells: InstallStepValue[]): StepAggregate => {
   return { label: '대기', tag: tagStyles.neutral, count, kind: 'waiting' };
 };
 
-/** 주체 태그 (서비스측/BDC측) — deliberately prominent (owner ask). */
+/**
+ * 주체 태그 (서비스측 리소스 생성 / BDC측 리소스 생성) — top-right of every step,
+ * color-coded by owner so the two sides read apart at a glance (owner ask).
+ * Adapters phrase the label; the "BDC" prefix is the color key.
+ */
 const SideTag = ({ side }: { side: string }) => (
   <span
     className={cn(
-      'inline-flex items-center px-2.5 py-1 rounded-md border text-[12.5px] font-extrabold tracking-[-0.01em] whitespace-nowrap',
-      borderColors.default,
-      textColors.primary,
-      'bg-white',
-      side.startsWith('BDC') && 'border-dashed',
+      TABLE_TAG_PILL,
+      'whitespace-nowrap font-bold',
+      side.startsWith('BDC') ? tagStyles.indigo : tagStyles.info,
     )}
   >
     {side}
@@ -302,7 +304,7 @@ export const InstallStatusDetail = ({
   }, [activePanel, active.id, resources, meta, cellOf]);
 
   return (
-    <div className={cn('grid grid-cols-[280px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.default)}>
+    <div className={cn('grid grid-cols-[320px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.default)}>
       <nav className={cn('border-r p-2.5 flex flex-col gap-1 bg-white', borderColors.default)} aria-label="설치 단계">
         {navSteps.map((step, index) => {
           const aggregate = aggregates.get(step.id)!;
@@ -314,34 +316,40 @@ export const InstallStatusDetail = ({
               onClick={() => setSelected(step.id)}
               aria-current={isActive}
               className={cn(
-                'flex items-start gap-2.5 w-full text-left px-2.5 py-2.5 rounded-lg border',
+                'flex flex-col gap-1.5 w-full text-left px-2.5 py-2.5 rounded-lg border',
                 isActive
                   ? cn(bgColors.muted, borderColors.default)
                   : cn('border-transparent', bgColors.mutedHover),
               )}
             >
-              <span
-                className={cn(
-                  'w-6 h-6 rounded-full grid place-items-center text-[11.5px] font-bold flex-shrink-0 mt-0.5',
-                  bgColors.muted,
-                  textColors.secondary,
-                )}
-              >
-                {step.id === SUMMARY_ID ? '≡' : index}
-              </span>
-              <span className="min-w-0 flex flex-col gap-1.5">
-                <span className={cn('text-[13px] font-bold leading-[1.35] tracking-[-0.01em]', textColors.primary)}>
+              <span className="flex items-start gap-2.5 w-full">
+                <span
+                  className={cn(
+                    'w-6 h-6 rounded-full grid place-items-center text-[11.5px] font-bold flex-shrink-0',
+                    bgColors.muted,
+                    textColors.secondary,
+                  )}
+                >
+                  {step.id === SUMMARY_ID ? '≡' : index}
+                </span>
+                <span
+                  className={cn(
+                    'flex-1 min-w-0 text-[13px] font-bold leading-[1.5] tracking-[-0.01em]',
+                    textColors.primary,
+                  )}
+                >
                   {step.title}
                 </span>
-                <span className="flex items-center gap-1.5 flex-wrap">
-                  {step.side && <SideTag side={step.side} />}
-                  <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', aggregate.tag)}>{aggregate.label}</span>
-                  {aggregate.count && (
-                    <span className={cn('text-[11px] font-semibold tabular-nums', textColors.tertiary)}>
-                      {aggregate.count}
-                    </span>
-                  )}
-                </span>
+                {step.side && <SideTag side={step.side} />}
+              </span>
+              {/* 34px = 24px index circle + 10px gap — aligns with the title. */}
+              <span className="flex items-center gap-1.5 flex-wrap pl-[34px]">
+                <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', aggregate.tag)}>{aggregate.label}</span>
+                {aggregate.count && (
+                  <span className={cn('text-[11px] font-semibold tabular-nums', textColors.tertiary)}>
+                    {aggregate.count}
+                  </span>
+                )}
               </span>
             </button>
           );
@@ -351,15 +359,13 @@ export const InstallStatusDetail = ({
       <div className="p-5 bg-white min-w-0">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={cn('text-[16px] font-bold tracking-[-0.02em]', textColors.primary)}>{active.title}</h3>
-              {active.side && <SideTag side={active.side} />}
-            </div>
+            <h3 className={cn('text-[16px] font-bold tracking-[-0.02em]', textColors.primary)}>{active.title}</h3>
             <p className={cn('mt-1 text-[12.5px] max-w-[60ch]', textColors.secondary)}>
               {active.desc}
             </p>
           </div>
           <span className="flex items-center gap-2 flex-shrink-0">
+            {active.side && <SideTag side={active.side} />}
             {active.action}
             {activeAggregate && (
               <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>

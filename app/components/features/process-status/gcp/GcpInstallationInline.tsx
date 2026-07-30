@@ -32,20 +32,20 @@ interface GcpInstallationInlineProps {
 const GCP_STEPS: InstallTableStep[] = [
   {
     id: 'subnet',
-    title: '서비스 측 Subnet 생성',
-    side: '서비스측 인프라 · 자동',
+    title: '모니터링용 Subnet',
+    side: '서비스측 리소스 생성',
     desc: 'Project 내 모니터링용 Subnet (10.30.0.0/22)을 생성합니다.',
   },
   {
     id: 'service',
-    title: '서비스 측 리소스 생성',
-    side: '서비스측 인프라 · 자동',
+    title: 'VPC Peering · 권한 위임',
+    side: '서비스측 리소스 생성',
     desc: 'VPC Peering / Firewall / Service Account 권한 위임을 구성합니다.',
   },
   {
     id: 'bdc',
-    title: 'BDC 측 리소스 생성',
-    side: 'BDC측 · 자동',
+    title: 'PII Agent 인스턴스',
+    side: 'BDC측 리소스 생성',
     desc: 'PII Agent GCE 인스턴스 + Service Account + IAM Role을 자동 배포합니다.',
   },
 ];

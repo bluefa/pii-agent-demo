@@ -77,7 +77,7 @@ export interface InstallResourceMeta {
 export interface InstallTableStep {
   id: string;
   title: string;
-  /** 주체 태그 (서비스측/BDC측). */
+  /** 주체 태그 — '서비스측 …' / 'BDC측 …' (BDC 접두사가 태그 색상을 정한다). */
   side: string | null;
   desc: string;
   /** Optional control rendered in the step's panel head (e.g. IDC 방화벽 확인). */
