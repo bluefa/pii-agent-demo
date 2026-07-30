@@ -103,18 +103,14 @@ describe('WaitingApprovalCard', () => {
     });
   });
 
-  it('renders title, sub-text, status pill, and banner copy', async () => {
+  it('renders title, status pill, and guidance copy', async () => {
     getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     expect(screen.getByText('연동 대상 승인 대기')).toBeTruthy();
-    expect(
-      screen.getByText('요청하신 DB 목록을 관리자가 확인하고 있어요.'),
-    ).toBeTruthy();
     expect(screen.getByText('승인 대기')).toBeTruthy();
-    expect(screen.getByText('관리자 승인을 기다리고 있어요.')).toBeTruthy();
     expect(
-      screen.getByText(/평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요/),
+      screen.getByText(/관리자 승인을 기다리고 있어요\. 평균 1영업일 내 검토되며/),
     ).toBeTruthy();
 
     await waitFor(() => {
@@ -162,7 +158,7 @@ describe('WaitingApprovalCard', () => {
     expect(screen.queryByTestId('reselect-slot')).toBeNull();
   });
 
-  it('renders stats with selected/excluded counts and percentages', async () => {
+  it('renders stats with selected/excluded counts', async () => {
     getApprovalRequestLatestMock.mockResolvedValueOnce(buildLargeResponse(3, 2));
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
@@ -170,18 +166,17 @@ describe('WaitingApprovalCard', () => {
       expect(screen.getByText('전체 요청')).toBeTruthy();
     });
     expect(screen.getAllByText('연동 대상').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('비대상').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('연동 제외대상').length).toBeGreaterThanOrEqual(1);
 
     const tiles = screen.getAllByText(/^\d+$/);
     expect(tiles.some((el) => el.textContent === '5')).toBe(true);
     expect(tiles.some((el) => el.textContent === '3')).toBe(true);
     expect(tiles.some((el) => el.textContent === '2')).toBe(true);
 
-    expect(screen.getByText(/60\.0%/)).toBeTruthy();
-    expect(screen.getByText(/40\.0%/)).toBeTruthy();
+    expect(screen.queryByText(/60\.0%/)).toBeNull();
   });
 
-  it('filter "대상" hides excluded rows', async () => {
+  it('filter "연동 대상" hides excluded rows', async () => {
     getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
@@ -190,7 +185,7 @@ describe('WaitingApprovalCard', () => {
     });
     expect(screen.getByText('pg-analytics-03')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /^대상/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^연동 대상/ }));
 
     await waitFor(() => {
       expect(screen.queryByText('pg-analytics-03')).toBeNull();

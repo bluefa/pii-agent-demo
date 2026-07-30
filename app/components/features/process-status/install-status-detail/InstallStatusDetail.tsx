@@ -6,9 +6,11 @@ import {
   borderColors,
   cn,
   idcStyles,
+  stackGap,
   statusColors,
   tagStyles,
   textColors,
+  textStyles,
 } from '@/lib/theme';
 import {
   TABLE_BODY_CELL,
@@ -122,16 +124,16 @@ const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
 
   if (rows.length === 0) {
     return (
-      <div className={cn('px-4 py-3 rounded-lg border text-sm', borderColors.default, textColors.tertiary)}>
+      <div className={cn('px-4 py-3 rounded-lg border', textStyles.body, borderColors.default, textColors.tertiary)}>
         설치 대상 리소스가 없습니다.
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn('flex flex-col', stackGap.related)}>
       <div className={cn(idcStyles.table.frame, 'overflow-x-auto')}>
-        <table className="w-full text-sm">
+        <table className={cn('w-full', textStyles.body)}>
           <thead className={bgColors.muted}>
             <tr>
               <th className={TABLE_HEADER_CELL}>Database Type</th>
@@ -186,7 +188,7 @@ const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
                   <StatusPill cell={row.cell} />
                 </td>
                 {/* 안내 없음은 빈 칸 — 대시는 시각적 노이즈만 남긴다. */}
-                <td className={cn(TABLE_BODY_CELL, 'text-[13px]')}>
+                <td className={TABLE_BODY_CELL}>
                   {row.cell.guide ? (
                     <span
                       className={cn(
@@ -245,14 +247,14 @@ const StepLine = ({ view, onOpen }: { view: StepView; onOpen: () => void }) => (
       bgColors.mutedHover,
     )}
   >
-    <span className={cn('text-[13px] font-bold flex-1 min-w-0 truncate', textColors.primary)}>
+    <span className={cn(textStyles.bodyStrong, 'flex-1 min-w-0 truncate', textColors.primary)}>
       {view.step.title}
     </span>
     <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', view.aggregate.tag)}>
       {view.aggregate.label}
     </span>
     {view.aggregate.count && (
-      <span className={cn('text-[11px] font-semibold tabular-nums', textColors.tertiary)}>
+      <span className={cn(textStyles.caption, 'tabular-nums', textColors.tertiary)}>
         {view.aggregate.count}
       </span>
     )}
@@ -265,26 +267,28 @@ const ActionCard = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
   return (
     <div
       className={cn(
-        'rounded-xl border px-4 py-3.5 flex flex-col gap-2',
+        'rounded-xl border px-4 py-3.5 flex flex-col',
+        stackGap.related,
         failed ? cn(statusColors.error.border, statusColors.error.bg) : cn(statusColors.warning.border, statusColors.warning.bg),
       )}
     >
       <div className="flex items-center gap-2 flex-wrap">
-        <span className={cn('text-[14px] font-bold', textColors.primary)}>{view.step.title}</span>
+        <span className={cn(textStyles.bodyStrong, textColors.primary)}>{view.step.title}</span>
         <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', view.aggregate.tag)}>
           {view.aggregate.count ? `${view.aggregate.label} ${view.aggregate.count}` : view.aggregate.label}
         </span>
         {view.step.side && <SideTag side={view.step.side} />}
       </div>
 
+      {/* 조치 문구는 제목과 같은 14px — 계층은 크기가 아니라 색으로 가른다. */}
       {view.step.serviceAction && (
-        <p className={cn('text-[13px] font-semibold', failed ? statusColors.error.textDark : statusColors.warning.textDark)}>
+        <p className={cn(textStyles.body, failed ? statusColors.error.textDark : statusColors.warning.textDark)}>
           {view.step.serviceAction}
         </p>
       )}
 
       {view.reasons.length > 0 && (
-        <ul className={cn('flex flex-col gap-1 text-[12.5px]', textColors.secondary)}>
+        <ul className={cn('flex flex-col', stackGap.tight, textStyles.caption, textColors.secondary)}>
           {view.reasons.map((reason) => (
             <li key={reason.text} className="flex gap-1.5">
               <span aria-hidden>·</span>
@@ -303,7 +307,8 @@ const ActionCard = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
         type="button"
         onClick={onOpen}
         className={cn(
-          'self-start text-xs font-bold px-3 py-1.5 rounded-lg border bg-white',
+          'self-start px-3 py-1.5 rounded-lg border bg-white',
+          textStyles.captionStrong,
           borderColors.default,
           textColors.secondary,
         )}
@@ -333,21 +338,23 @@ const InstallSummaryPanel = ({
   const done = views.filter((v) => !v.actionable && v.aggregate.kind === 'done');
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className={cn('flex items-center gap-3 text-[12.5px] tabular-nums', textColors.secondary)}>
+    // 그룹(섹션) 사이 = section 32px, 그룹 제목↔본문 = related 8px (비대칭 규칙)
+    <div className={cn('flex flex-col', stackGap.section)}>
+      <div className={cn('flex items-center gap-3 tabular-nums', textStyles.caption, textColors.secondary)}>
         <span>리소스 {rollup.total}개</span>
         <span className={statusColors.success.textDark}>완료 {rollup.done}</span>
         <span className={statusColors.info.textDark}>진행중 {rollup.running}</span>
         <span className={statusColors.error.textDark}>실패 {rollup.failed}</span>
       </div>
-      <section className="flex flex-col gap-2">
-        <h4 className={cn('text-[13px] font-bold', textColors.primary)}>
+      <section className={cn('flex flex-col', stackGap.related)}>
+        <h4 className={cn(textStyles.bodyStrong, textColors.primary)}>
           지금 서비스 측에서 확인이 필요합니다
         </h4>
         {action.length === 0 ? (
           <div
             className={cn(
-              'px-4 py-3 rounded-xl border text-[13px] font-semibold',
+              'px-4 py-3 rounded-xl border',
+              textStyles.bodyStrong,
               statusColors.success.border,
               statusColors.success.bg,
               statusColors.success.textDark,
@@ -363,8 +370,8 @@ const InstallSummaryPanel = ({
       </section>
 
       {waiting.length > 0 && (
-        <section className="flex flex-col gap-1">
-          <h4 className={cn('text-[13px] font-bold', textColors.primary)}>
+        <section className={cn('flex flex-col', stackGap.related)}>
+          <h4 className={cn(textStyles.bodyStrong, textColors.primary)}>
             진행 중 · 대기 — 서비스 측 조치 불필요
           </h4>
           {waiting.map((view) => (
@@ -374,8 +381,8 @@ const InstallSummaryPanel = ({
       )}
 
       {done.length > 0 && (
-        <section className="flex flex-col gap-1">
-          <h4 className={cn('text-[13px] font-bold', textColors.tertiary)}>완료된 단계</h4>
+        <section className={cn('flex flex-col', stackGap.related)}>
+          <h4 className={cn(textStyles.bodyStrong, textColors.tertiary)}>완료된 단계</h4>
           {done.map((view) => (
             <StepLine key={view.step.id} view={view} onOpen={() => onOpen(view.step.id)} />
           ))}
@@ -394,21 +401,24 @@ const ActionBanner = ({ views, onOpen }: { views: readonly StepView[]; onOpen: (
       type="button"
       onClick={onOpen}
       className={cn(
-        'flex items-center gap-2 w-full text-left px-4 py-2.5 rounded-xl border text-[13px]',
+        'flex items-center gap-2 w-full text-left px-4 py-2.5 rounded-xl border',
+        textStyles.body,
         failed ? cn(statusColors.error.border, statusColors.error.bg) : cn(statusColors.warning.border, statusColors.warning.bg),
       )}
     >
-      <span className={cn('font-bold', failed ? statusColors.error.textDark : statusColors.warning.textDark)}>
+      <span className={cn(textStyles.bodyStrong, failed ? statusColors.error.textDark : statusColors.warning.textDark)}>
         서비스 측 확인 필요
       </span>
-      <span className={cn('font-semibold', textColors.primary)}>{first.step.title}</span>
+      <span className={cn(textStyles.bodyStrong, textColors.primary)}>{first.step.title}</span>
       <span className={textColors.secondary}>
         {first.step.serviceAction ?? first.reasons[0]?.text ?? first.aggregate.label}
       </span>
       {rest.length > 0 && (
-        <span className={cn('font-semibold', textColors.tertiary)}>외 {rest.length}건</span>
+        <span className={cn(textStyles.captionStrong, textColors.tertiary)}>외 {rest.length}건</span>
       )}
-      <span className={cn('ml-auto font-bold whitespace-nowrap', textColors.secondary)}>요약 보기 →</span>
+      <span className={cn(textStyles.captionStrong, 'ml-auto whitespace-nowrap', textColors.secondary)}>
+        요약 보기 →
+      </span>
     </button>
   );
 };
@@ -554,19 +564,15 @@ export const InstallStatusDetail = ({
               <span className="flex items-start gap-2.5 w-full">
                 <span
                   className={cn(
-                    'w-6 h-6 rounded-full grid place-items-center text-[11.5px] font-bold flex-shrink-0',
+                    'w-6 h-6 rounded-full grid place-items-center flex-shrink-0',
+                    textStyles.captionStrong,
                     bgColors.muted,
                     textColors.secondary,
                   )}
                 >
                   {step.id === SUMMARY_ID ? '≡' : index}
                 </span>
-                <span
-                  className={cn(
-                    'flex-1 min-w-0 text-[13px] font-bold leading-[1.5] tracking-[-0.01em]',
-                    textColors.primary,
-                  )}
-                >
+                <span className={cn('flex-1 min-w-0', textStyles.bodyStrong, textColors.primary)}>
                   {step.title}
                 </span>
                 {step.side && <SideTag side={step.side} />}
@@ -575,7 +581,7 @@ export const InstallStatusDetail = ({
               <span className="flex items-center gap-1.5 flex-wrap pl-[34px]">
                 <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', aggregate.tag)}>{aggregate.label}</span>
                 {aggregate.count && (
-                  <span className={cn('text-[11px] font-semibold tabular-nums', textColors.tertiary)}>
+                  <span className={cn(textStyles.caption, 'tabular-nums', textColors.tertiary)}>
                     {aggregate.count}
                   </span>
                 )}
@@ -587,9 +593,10 @@ export const InstallStatusDetail = ({
 
       <div className="p-5 bg-white min-w-0">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className={cn('text-[16px] font-bold tracking-[-0.02em]', textColors.primary)}>{active.title}</h3>
-            <p className={cn('mt-1 text-[12.5px] max-w-[60ch]', textColors.secondary)}>
+          {/* 제목↔부제 = tight 4px */}
+          <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
+            <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
+            <p className={cn(textStyles.caption, 'max-w-[60ch]', textColors.secondary)}>
               {active.desc}
             </p>
           </div>
@@ -607,7 +614,7 @@ export const InstallStatusDetail = ({
         </div>
 
         {!activePanel && (
-          <div className={cn('mt-3 mb-2.5 text-[11.5px]', textColors.tertiary)}>
+          <div className={cn('mt-4 mb-2', textStyles.caption, textColors.tertiary)}>
             {lastCheck.checkedAt && <>마지막 확인 {formatDateTime(lastCheck.checkedAt)}</>}
             {lastCheck.status === 'FAILED' && (
               <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>

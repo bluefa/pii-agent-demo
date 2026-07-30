@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { borderColors, cn, textColors } from '@/lib/theme';
+import { borderColors, cn, stackGap, textColors, textStyles } from '@/lib/theme';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { formatDateTime } from '@/lib/utils/date';
 import {
@@ -25,16 +25,19 @@ import type { AwsInstallationStatus } from '@/lib/types';
  */
 
 const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
-  <div className={cn('rounded-xl border px-5 py-4 flex flex-col gap-1', borderColors.default)}>
-    <div className="flex gap-3 py-1.5 text-sm items-center">
+  // 라벨↔값은 한 덩어리(tight), 항목끼리는 형제(related).
+  <div className={cn('rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.default)}>
+    <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
       <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>검증 결과</span>
       <span className={textColors.primary}>{INSTALL_STATUS_LABEL[status.roleVerify.status]}</span>
     </div>
-    <div className="flex gap-3 py-1.5 text-sm items-center">
+    <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
       <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>Role ARN</span>
       {status.roleVerify.roleArn ? (
         <span className="inline-flex items-center gap-1.5 min-w-0 group">
-          <span className={cn('font-mono text-[12px] break-all', textColors.primary)}>{status.roleVerify.roleArn}</span>
+          <span className={cn('font-mono break-all', textStyles.caption, textColors.primary)}>
+            {status.roleVerify.roleArn}
+          </span>
           <CopyButton
             value={status.roleVerify.roleArn}
             label="Role ARN 복사"
@@ -46,7 +49,7 @@ const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
       )}
     </div>
     {status.lastCheck.checkedAt && (
-      <div className="flex gap-3 py-1.5 text-sm items-center">
+      <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
         <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>확인 시각</span>
         <span className={textColors.primary}>{formatDateTime(status.lastCheck.checkedAt)}</span>
       </div>

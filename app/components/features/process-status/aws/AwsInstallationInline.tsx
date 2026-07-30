@@ -8,7 +8,7 @@ import { AwsInstallStatusDetail } from '@/app/components/features/process-status
 import { isAwsInstallationComplete } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
-import { bgColors, borderColors, cardStyles, cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
+import { bgColors, borderColors, cardStyles, cn, getButtonClass, stackGap, statusColors, textColors, textStyles } from '@/lib/theme';
 import type { AwsInstallationStatus } from '@/lib/types';
 
 interface AwsInstallationInlineProps {
@@ -89,16 +89,18 @@ export const AwsInstallationInline = ({
           </p>
         </div>
         {/* v16 L6606 — provider indicator (not a control), short provider name. */}
-        <span className="text-[11.5px] text-[#8B95A1]">
-          Provider: <strong className="text-[#191F28]">AWS</strong>
+        <span className={cn(textStyles.caption, 'text-[#8B95A1]')}>
+          Provider: <strong className="font-semibold text-[#191F28]">AWS</strong>
         </span>
       </header>
-      <div className={cn(cardStyles.body, 'space-y-3')}>
+      {/* 카드 내 블록 경계 = group 16px */}
+      <div className={cn(cardStyles.body, 'flex flex-col', stackGap.group)}>
         {/* TF script download is available in BOTH install modes (owner requirement). */}
         <div className={cn('rounded-[14px] border px-5 py-4 flex items-center justify-between gap-4', borderColors.default, bgColors.muted)}>
-          <div>
-            <h3 className={cn('text-[14px] font-bold', textColors.primary)}>Terraform Script</h3>
-            <p className={cn('mt-1 text-[13px]', textColors.secondary)}>
+          {/* 제목↔부제 = tight 4px */}
+          <div className={cn('flex flex-col', stackGap.tight)}>
+            <h3 className={cn(textStyles.cardTitle, textColors.primary)}>Terraform Script</h3>
+            <p className={cn(textStyles.body, textColors.secondary)}>
               Terraform Script를 다운로드 받아 어떤 리소스가 생성되는지 미리 리뷰할 수 있습니다.
             </p>
           </div>
@@ -112,19 +114,20 @@ export const AwsInstallationInline = ({
           </button>
         </div>
         {downloadError && (
-          <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
+          <div className={cn('px-4 py-2 rounded-lg border', textStyles.body, statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
             {downloadError}
           </div>
         )}
         {status?.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
-          <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
+          <div className={cn('px-4 py-2 rounded-lg border', textStyles.body, statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
             상태 확인 실패: {status.lastCheck.failReason}
           </div>
         )}
         {confirmedState.status === 'loading' && (
           <div
             className={cn(
-              'px-4 py-2 rounded-lg border text-sm',
+              'px-4 py-2 rounded-lg border',
+              textStyles.body,
               borderColors.default,
               textColors.tertiary,
             )}
@@ -135,7 +138,8 @@ export const AwsInstallationInline = ({
         {confirmedState.status === 'error' && (
           <div
             className={cn(
-              'px-4 py-2 rounded-lg border text-sm flex items-center justify-between gap-3',
+              'px-4 py-2 rounded-lg border flex items-center justify-between gap-3',
+              textStyles.body,
               statusColors.error.bg,
               statusColors.error.border,
               statusColors.error.textDark,
@@ -145,7 +149,7 @@ export const AwsInstallationInline = ({
             <button
               type="button"
               onClick={retryConfirmed}
-              className={cn('text-xs font-semibold underline', statusColors.error.textDark)}
+              className={cn(textStyles.captionStrong, 'underline', statusColors.error.textDark)}
             >
               재시도
             </button>

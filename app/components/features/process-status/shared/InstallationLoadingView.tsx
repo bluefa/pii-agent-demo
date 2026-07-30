@@ -1,6 +1,6 @@
 'use client';
 
-import { borderColors, cn, idcStyles } from '@/lib/theme';
+import { borderColors, cn, idcStyles, stackGap } from '@/lib/theme';
 
 interface InstallationLoadingViewProps {
   provider: string;
@@ -40,12 +40,12 @@ export const InstallationLoadingView = ({ provider }: InstallationLoadingViewPro
       </div>
 
       {/* summary panel — title / desc / rollup line, then two action cards */}
-      <div className="flex flex-col gap-3 bg-white p-5">
-        <Bar className="h-5 w-40 rounded" />
+      <div className={cn('flex flex-col bg-white p-5', stackGap.group)}>
+        <Bar className="h-4 w-40 rounded" />
         <Bar className="h-3.5 w-[68%] rounded" />
         <Bar className="h-3 w-52 rounded" />
         {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className={cn('flex flex-col gap-2.5 rounded-xl border p-4', borderColors.light)}>
+          <div key={i} className={cn('flex flex-col rounded-xl border p-4', stackGap.related, borderColors.light)}>
             <div className="flex items-center gap-2">
               <Bar className="h-4 w-36 rounded" />
               <Bar className="h-6 w-16 rounded-md" />

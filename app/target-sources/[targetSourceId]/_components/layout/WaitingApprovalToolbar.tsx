@@ -42,8 +42,13 @@ export const WaitingApprovalToolbar = (props: WaitingApprovalToolbarProps) => (
   // 14/16 padding, gap 10, no bottom border (v15 lines 2583–2591).
   <div className="flex flex-wrap items-center gap-[10px] rounded-t-[12px] bg-[#F7F8FA] px-[16px] py-[14px]">
     <SearchBox value={props.searchValue} onChange={props.onSearchChange} />
-    <FilterSeg filter={props.filter} onChange={props.onFilterChange} counts={props.countsByFilter} />
-    <Divider />
+    {/* waiting (step 2): the stat tiles above are the 대상 filter, so the segment would duplicate them. */}
+    {props.variant !== 'waiting' && (
+      <>
+        <FilterSeg filter={props.filter} onChange={props.onFilterChange} counts={props.countsByFilter} />
+        <Divider />
+      </>
+    )}
     {/* v16: step 3 (applying) leads with 연동 상태; step 2 (waiting) leads with DB Type + Region. */}
     {props.variant === 'applying' && (
       <Select
@@ -116,8 +121,8 @@ interface FilterSegProps {
 
 const FILTER_BUTTONS: ReadonlyArray<{ value: ApprovalFilter; label: string }> = [
   { value: 'all', label: '전체' },
-  { value: 'target', label: '대상' },
-  { value: 'excluded', label: '비대상' },
+  { value: 'target', label: '연동 대상' },
+  { value: 'excluded', label: '연동 제외대상' },
 ];
 
 // .filter-seg — white bg, border 0, radius 10, padding 3px (v15 lines 2623–2630).

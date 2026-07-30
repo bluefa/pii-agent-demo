@@ -7,9 +7,7 @@ import {
 } from '@/app/lib/api';
 import { AppError } from '@/lib/errors';
 import { formatDate } from '@/lib/utils/date';
-import { ClockIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
-import { StepBanner } from '@/app/components/ui/StepBanner';
 import {
   WaitingApprovalStats,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
@@ -26,7 +24,7 @@ import {
   ResourceTableSkeleton,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
-import { cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, identityBarStyles, statusColors } from '@/lib/theme';
 
 interface WaitingApprovalCardProps {
   targetSourceId: number;
@@ -138,45 +136,46 @@ export const WaitingApprovalCard = ({
   return (
     // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
     <section className={cardStyles.base}>
-      <div className={cn(cardStyles.header, 'flex items-center justify-between')}>
-        <div>
+      {/* 좌측 정렬 1단 스택 — 제목+상태, 강조 안내문, 요청 메타 순.
+          보조 텍스트 계층은 크기가 아니라 굵기·색상으로만 구분한다. */}
+      <div className={cardStyles.header}>
+        <div className="flex items-center gap-2">
           <h2 className={cn(cardStyles.cardTitle)}>
             연동 대상 승인 대기
           </h2>
-          <p className={cn('mt-2.5', cardStyles.subtitle)}>
-            요청하신 DB 목록을 관리자가 확인하고 있어요.
-            {requestSummary && (
-              <>
-                {' · '}요청일시{' '}
-                <strong className={cn('font-semibold', textColors.secondary)}>
-                  {formatDate(requestSummary.requestedAt, 'datetime')}
-                </strong>
-                {' · '}요청자{' '}
-                <strong className={cn('font-semibold', textColors.secondary)}>
-                  {requestSummary.requestedBy}
-                </strong>
-              </>
+          <span
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+              statusColors.warning.bg,
+              statusColors.warning.textDark,
             )}
-          </p>
+          >
+            <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
+            승인 대기
+          </span>
         </div>
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-            statusColors.warning.bg,
-            statusColors.warning.textDark,
-          )}
-        >
-          <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
-          승인 대기
-        </span>
+        <p className={cn('mt-2.5', cardStyles.subtitle, 'font-semibold', statusColors.info.text)}>
+          관리자 승인을 기다리고 있어요. 평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
+        </p>
+        {requestSummary && (
+          // 라벨 위 / 값 아래 2열 — 페이지 상단 identity bar(Account ID·TF 실행 권한)와
+          // 같은 패턴이라 "라벨인지 값인지" 헷갈리지 않는다.
+          <div className="mt-3 flex flex-wrap gap-8">
+            <div className={identityBarStyles.field}>
+              <span className={identityBarStyles.key}>요청일시</span>
+              <span className={identityBarStyles.value}>
+                {formatDate(requestSummary.requestedAt, 'datetime')}
+              </span>
+            </div>
+            <div className={identityBarStyles.field}>
+              <span className={identityBarStyles.key}>요청자</span>
+              <span className={identityBarStyles.value}>{requestSummary.requestedBy}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="p-6">
-        <StepBanner variant="info" icon={<ClockIcon className="w-[18px] h-[18px]" />}>
-          <strong className="font-semibold">관리자 승인을 기다리고 있어요.</strong>
-          {' '}평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
-        </StepBanner>
-
         {state.status === 'loading' ? (
           <ResourceTableSkeleton />
         ) : state.status === 'error' ? (
@@ -187,6 +186,8 @@ export const WaitingApprovalCard = ({
               totalCount={table.countsByFilter.all}
               selectedCount={table.countsByFilter.target}
               excludedCount={table.countsByFilter.excluded}
+              filter={table.filter}
+              onFilterChange={table.onFilterChange}
             />
             {/* v16: toolbar (top-rounded) + approval table (bottom-rounded) join as one connected card — no gap. */}
             <WaitingApprovalToolbar

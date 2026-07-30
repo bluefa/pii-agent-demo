@@ -539,6 +539,41 @@ export const bannerStyles = {
 } as const;
 
 /**
+ * 텍스트 계층 램프 — 5 크기(24/20/16/14/12) × 3 weight = 7 역할.
+ * 기준: docs/redesign/typography-and-spacing.md
+ *
+ * line-height 는 배수가 아니라 px 로 고정한다 — 소수 행간이 half-leading 으로
+ * 새어나가면 stackGap 이 선언대로 보이지 않는다.
+ * ⚠️ admin 파이프라인(Figma R24) 화면은 대상이 아니다. 그쪽 홀수·소수 px 는
+ * 디자이너 램프의 충실 반영이라 이 램프로 덮으면 안 된다.
+ */
+export const textStyles = {
+  pageTitle: 'text-[24px] font-bold leading-[32px] tracking-[-0.02em]',
+  sectionTitle: 'text-[20px] font-bold leading-[28px] tracking-[-0.02em]',
+  cardTitle: 'text-[16px] font-bold leading-[24px] tracking-[-0.01em]',
+  body: 'text-[14px] font-normal leading-[20px] tracking-[-0.01em]',
+  bodyStrong: 'text-[14px] font-semibold leading-[20px] tracking-[-0.01em]',
+  caption: 'text-[12px] font-normal leading-[16px] tracking-[-0.01em]',
+  captionStrong: 'text-[12px] font-semibold leading-[16px] tracking-[-0.01em]',
+} as const;
+
+/**
+ * 텍스트 계층 간 수직 거리 — 요소가 아니라 두 계층의 '관계'에 붙는다.
+ * 각 단계가 정확히 2배라 "섹션 간 여백 ≥ 내부 여백 × 2"가 구조로 보장된다.
+ * margin 이 아니라 컨테이너 gap 으로 적용한다.
+ */
+export const stackGap = {
+  /** 4px — 한 덩어리로 읽혀야 하는 쌍 (라벨↔값, 제목↔부제) */
+  tight: 'gap-1',
+  /** 8px — 같은 그룹의 형제 항목 */
+  related: 'gap-2',
+  /** 16px — 그룹 제목↔본문, 카드 내 블록 경계 */
+  group: 'gap-4',
+  /** 32px — 섹션↔섹션, 카드↔카드 */
+  section: 'gap-8',
+} as const;
+
+/**
  * 인라인 색상 태그 — DB Type, 연동 대상/비대상 등.
  * Color keys (blue/green/...) preserved for legacy callers.
  * Prefer semantic aliases (success/info/warning/error/neutral) in new code.
