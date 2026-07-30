@@ -95,13 +95,13 @@ describe('httpBff PUT with an empty 200 body', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('resolves GET to null instead of throwing on JSON.parse', async () => {
+  it('still throws for callers that did not opt in', async () => {
     process.env.BFF_API_URL = 'https://bff.example.com';
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 200 }));
 
     const { httpBff } = await import('@/lib/bff/http');
 
-    await expect(httpBff.logicalDb.getExcludedByResourceId(1545, 'arn:aws:rds:db')).resolves.toBeNull();
+    await expect(httpBff.confirm.createApprovalRequest(1545, {})).rejects.toThrow(SyntaxError);
   });
 });

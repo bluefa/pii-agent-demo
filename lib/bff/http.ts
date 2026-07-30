@@ -97,10 +97,7 @@ async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
   if (!res.ok) await throwBffError(res);
   // 204 No Content (e.g. collaboration-channel none) has no body to parse.
   if (res.status === 204) return null as T;
-  // Same undocumented case send() hit: a 2xx with a zero-length body.
-  const text = await res.text();
-  if (text.trim().length === 0) return null as T;
-  const data = JSON.parse(text);
+  const data = await res.json();
   return (opts?.raw ? data : camelCaseKeys(data)) as T;
 }
 
@@ -121,7 +118,19 @@ async function getRaw(path: string): Promise<Response> {
   return res;
 }
 
-async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
+/**
+ * `emptyBodyOk` opts into tolerating a 2xx with no body. Scoped to the one
+ * endpoint observed violating its own contract — PUT
+ * excluded-databases/by-resource-id answers 200 with an empty body although
+ * install-v1.yaml declares SkipLogicalDatabaseResponse. Every other caller
+ * keeps the strict behaviour so a silent contract break stays visible.
+ */
+async function send<T>(
+  method: 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  body?: unknown,
+  opts?: { emptyBodyOk?: boolean },
+): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → ${method} ${fullPath}`);
   const init: RequestInit = { method, headers: await authHeaders() };
@@ -133,17 +142,15 @@ async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: u
   console.log(`[BFF] ← ${method} ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   if (res.status === 204) return undefined as T;
-  // Upstream can answer 2xx with an empty body (observed on PUT
-  // excluded-databases/by-resource-id) — res.json() would throw
-  // "Unexpected end of JSON input" and surface to the caller as a 500.
   const text = await res.text();
-  if (text.trim().length === 0) return undefined as T;
+  if (opts?.emptyBodyOk && text.trim().length === 0) return undefined as T;
   // I-3 invariant: POST/PUT bodies are raw passthrough (snake_case), no camelCase.
   return JSON.parse(text) as T;
 }
 
 const post = <T>(path: string, body?: unknown) => send<T>('POST', path, body);
-const put = <T>(path: string, body?: unknown) => send<T>('PUT', path, body);
+const put = <T>(path: string, body?: unknown, opts?: { emptyBodyOk?: boolean }) =>
+  send<T>('PUT', path, body, opts);
 
 const buildQuery = (params: Record<string, string | number | undefined>): string => {
   const search = new URLSearchParams();
@@ -415,6 +422,7 @@ export const httpBff: BffClient = {
       put(
         `/target-sources/${id}/excluded-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
         body,
+        { emptyBodyOk: true },
       ),
   },
 
