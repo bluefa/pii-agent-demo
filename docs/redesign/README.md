@@ -100,6 +100,11 @@ transcribed from a spec and still correct where they are. When a variant introdu
 rotated-square arrow needs edges on its two outward faces only, and its offset shifts by the border
 width — guard that shift so borderless variants keep their exact original geometry.
 
+**Sweep the whole surface, do not spot-check the thing you just touched.** Raising one label to AA
+while never measuring the card around it is how a fresh violation ships in the same commit. Walk
+every text node against its *effective* background — the parent chain, not "white" — and the count
+is what it is: 7 of 73 here, one of them newly introduced.
+
 **Brand blue is not automatically accessible on a tinted row.** #0064FF passes on white (4.92:1)
 and fails on the hover background (4.46:1); 14px stays under the large-text threshold even at
 semibold, so 4.5:1 still applies. The dark primary already in the palette holds 6.11:1.

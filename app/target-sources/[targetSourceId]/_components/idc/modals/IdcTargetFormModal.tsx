@@ -69,7 +69,7 @@ const SectionLabel = ({ num, children }: { num: number; children: React.ReactNod
       className={cn(
         'inline-flex h-[18px] w-[18px] items-center justify-center rounded-full text-[11px] font-bold',
         primaryColors.bgLight,
-        primaryColors.text,
+        primaryColors.textOnLight,
       )}
     >
       {num}

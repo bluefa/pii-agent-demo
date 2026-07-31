@@ -68,6 +68,11 @@ export const primaryColors = {
   bg50: 'bg-blue-50',
   bg100: 'bg-blue-100',
   text: 'text-[#0064FF]',
+  /**
+   * Primary text ON `bgLight` (#E8F1FF). `text` cannot be used there: #0064FF holds 4.92:1 on
+   * white but drops to 4.33:1 on the tint, under AA for text below 18px. #0050D6 gives 5.92:1.
+   */
+  textOnLight: 'text-[#0050D6]',
   textHover: 'hover:text-[#0050D6]',
   textHoverBase: 'hover:text-[#0064FF]',
   text700: 'text-blue-700',
@@ -460,8 +465,14 @@ export const modalStyles = {
  * 테이블 스타일
  */
 export const tableStyles = {
-  /** v15 thead — #F7F8FA bg, 600, #8B95A1; NO uppercase / NO tracking-wider. */
-  header: 'bg-[#F7F8FA] text-left text-xs font-semibold text-[#8B95A1]',
+  /**
+   * v15 thead — #F7F8FA bg, 600; NO uppercase / NO tracking-wider.
+   * Text is #4E5968, NOT the v15 #8B95A1: that gray scores 2.86:1 on this header background,
+   * far under AA, and column names are the labels a user needs most when scanning rows they
+   * cannot yet read. #4E5968 holds 6.69:1 and still sits lighter than every body cell
+   * (#374151 secondary, #191F28 primary), so the header/body hierarchy is unchanged.
+   */
+  header: 'bg-[#F7F8FA] text-left text-xs font-semibold text-[#4E5968]',
   headerCell: 'px-[18px] py-[12px]',
   body: 'divide-y divide-[#EBEEF2]',
   row: 'hover:bg-gray-50 transition-colors',
@@ -783,8 +794,12 @@ export const idcStyles = {
       'overflow-hidden rounded-xl border border-[#EBEEF2] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)]',
     /** Excluded-row tint — v16 `.approval-table tr.row-excluded`. */
     rowExcluded: 'bg-[#F9FAFB]',
-    /** Approval-table header — v16 `.approval-table thead th` (12px/600 #8B95A1, bg #F7F8FA; distinct from the db-list-table 13px/700 header). */
-    approvalHeader: 'bg-[#F7F8FA] text-left text-[12px] font-semibold text-[#8B95A1]',
+    /**
+     * Approval-table header — v16 `.approval-table thead th` (12px/600, bg #F7F8FA; distinct
+     * from the db-list-table 13px/700 header). Text is #4E5968 rather than the v16 #8B95A1,
+     * which measures 2.86:1 here — see `tableStyles.header` for the full reasoning.
+     */
+    approvalHeader: 'bg-[#F7F8FA] text-left text-[12px] font-semibold text-[#4E5968]',
     /** Approval-table header cell padding — v16 12px V / 18px H. */
     approvalHeaderCell: 'px-[18px] py-3',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */

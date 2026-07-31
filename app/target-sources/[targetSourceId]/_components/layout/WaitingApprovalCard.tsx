@@ -145,7 +145,7 @@ export const WaitingApprovalCard = ({
               className={cn(
                 'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
                 primaryColors.bgLight,
-                primaryColors.text,
+                primaryColors.textOnLight,
               )}
             >
               2번째 단계
