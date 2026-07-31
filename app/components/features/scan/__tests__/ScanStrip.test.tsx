@@ -69,6 +69,16 @@ describe('ScanStrip', () => {
     expect(screen.queryByText(/마지막 스캔/)).toBeNull();
   });
 
+  // connected = the step-2 toolbar grammar (tinted, top-rounded, borderless) so the
+  // strip and the table below read as one flat group inside the card.
+  it('drops its own border and takes the toolbar surface when connected', () => {
+    const { container } = render(<ScanStrip {...baseProps} job={successJob} connected />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain('rounded-t-[12px]');
+    expect(root.className).toContain('bg-[#F7F8FA]');
+    expect(root.className).not.toContain('border ');
+  });
+
   it('renders the timestamped verification result and wires the two ghost actions', () => {
     const onOpenHistory = vi.fn();
     const onCheckPermission = vi.fn();

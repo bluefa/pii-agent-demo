@@ -33,6 +33,11 @@ export interface ScanStripProps {
   showScanButton: boolean;
   scanDisabled: boolean;
   starting: boolean;
+  /**
+   * 테이블 위에 붙는 list 상태용 — Step 2 툴바 문법(틴트·상단 라운드·무테두리)
+   * 으로 표와 한 덩어리가 된다. false(기본)는 표 없는 상태의 독립 밴드.
+   */
+  connected?: boolean;
 }
 
 // 텍스트 버튼(이력·권한 확인) — 스트립의 보조 행동은 버튼 크롬 없이 밑줄 링크
@@ -57,6 +62,7 @@ export const ScanStrip = ({
   showScanButton,
   scanDisabled,
   starting,
+  connected = false,
 }: ScanStripProps) => {
   const succeeded = job?.scan_status === 'SUCCESS';
   const failedByPermission = job != null && !succeeded && job.scan_error === 'AUTH_PERMISSION_ERROR';
@@ -91,9 +97,12 @@ export const ScanStrip = ({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border px-4 py-3',
-        bgColors.surface,
-        borderColors.default,
+        'flex flex-wrap items-center justify-between gap-x-4 gap-y-2',
+        // connected = WaitingApprovalToolbar 문법 그대로(#F7F8FA·rounded-t-12·무테두리):
+        // 표와 이어 붙어 한 덩어리로 읽힌다. 독립 밴드만 자기 테두리를 가진다.
+        connected
+          ? 'rounded-t-[12px] bg-[#F7F8FA] px-[16px] py-[14px]'
+          : cn('rounded-xl border px-4 py-3', bgColors.surface, borderColors.default),
       )}
     >
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">

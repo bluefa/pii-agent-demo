@@ -337,7 +337,9 @@ export const CandidateResourceSection = ({
 
               <div className="px-6 py-6">
                 {showStrip && (
-                  <div className="mb-4">
+                  // list에서는 스트립이 표의 상단 세그먼트(툴바 자리)라 붙여 놓고,
+                  // 표 없는 상태에서만 독립 밴드로 아래와 간격을 둔다.
+                  <div className={phase === 'list' ? undefined : 'mb-4'}>
                     <ScanStrip
                       job={finishedJob}
                       newCount={newCount}
@@ -349,6 +351,7 @@ export const CandidateResourceSection = ({
                       showScanButton={phase !== 'scanFailed'}
                       scanDisabled={scanDisabled}
                       starting={starting}
+                      connected={phase === 'list'}
                     />
                   </div>
                 )}

@@ -45,7 +45,10 @@ export const CandidateResourceTable = ({
   }
 
   return (
-    <div className={idcStyles.table.frame}>
+    // Step 2's connected grammar, not idcStyles.table.frame: the scan strip above is
+    // the group's top segment (toolbar position), so the table itself carries no
+    // border/shadow/radius — a framed box here doubled the outlines inside the card.
+    <div className="overflow-hidden bg-white">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className={idcStyles.table.approvalHeader}>
