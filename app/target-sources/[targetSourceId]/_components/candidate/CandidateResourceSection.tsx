@@ -2,17 +2,19 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { createApprovalRequest } from '@/app/lib/api';
-import { formatDate } from '@/lib/utils/date';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { ClockIcon, PlayIcon } from '@/app/components/ui/icons';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast';
-import { ScanController, type ScanUiState } from '@/app/components/features/scan/ScanPanel';
-import { ScanEmptyState } from '@/app/components/features/scan/ScanEmptyState';
+import { ScanController } from '@/app/components/features/scan/ScanPanel';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
+import { ScanHeroState } from '@/app/components/features/scan/ScanHeroState';
+import { ScanHistoryModal } from '@/app/components/features/scan/ScanHistoryModal';
 import { ScanRunningState } from '@/app/components/features/scan/ScanRunningState';
+import { ScanStrip } from '@/app/components/features/scan/ScanStrip';
+import { TERMINAL_SCAN_STATUSES } from '@/app/components/features/scan/scan-labels';
+import { useScanPermission } from '@/app/components/features/scan/scan-permission';
 import {
   borderColors,
   cardStyles,
@@ -23,12 +25,13 @@ import {
   statusColors,
   textColors,
 } from '@/lib/theme';
+import type { CloudProvider } from '@/lib/types';
 import type { CandidateDraftState, EndpointConfigDraft } from '@/lib/types/resources';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
 import type { CandidateRowActions } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
-import { selectPhase, type Phase } from '@/app/target-sources/[targetSourceId]/_components/candidate/phase';
+import { selectPhase } from '@/app/target-sources/[targetSourceId]/_components/candidate/phase';
 import {
   listMissingExclusionReasons,
   toApprovalRequestInput,
@@ -41,6 +44,8 @@ import { IdcExclusionReasonModal } from '@/app/target-sources/[targetSourceId]/_
 
 interface CandidateResourceSectionProps {
   targetSourceId: number;
+  /** 스캔 권한 검증·안내 문구가 프로바이더별 자격을 그대로 부르기 위한 값. */
+  provider: CloudProvider;
   readonly: boolean;
   refreshProject: () => Promise<void>;
 }
@@ -49,6 +54,14 @@ const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
 
 /** Cloud exclusion reason limit — docs/cloud-provider-states.md (required, max 3000 chars). */
 const CLOUD_EXCL_REASON_MAXLEN = 3000;
+
+// Step tag — same classes as WaitingApprovalCard's "2번째 단계" tag (keep the two in
+// sync; tokenize when a third step card adopts the grammar).
+const STEP_TAG = cn(
+  'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
+  primaryColors.bgLight,
+  primaryColors.textOnLight,
+);
 
 /** Skeleton frame shown while candidate resources load — mirrors the candidate table shape. */
 const CandidateTableSkeleton = () => (
@@ -72,11 +85,14 @@ const CandidateTableSkeleton = () => (
 
 export const CandidateResourceSection = ({
   targetSourceId,
+  provider,
   readonly,
   refreshProject,
 }: CandidateResourceSectionProps) => {
   const toast = useToast();
   const approvalModal = useModal();
+  const historyModal = useModal();
+  const { state: permission, check: checkPermission } = useScanPermission(provider, targetSourceId);
   const {
     state,
     candidates,
@@ -95,6 +111,12 @@ export const CandidateResourceSection = ({
   const exclusionReasons = useMemo(
     () => Object.fromEntries(Object.entries(exclusions).map(([id, e]) => [id, e.reason])),
     [exclusions],
+  );
+
+  // 재스캔 차분 표기 — 스트립의 "신규 N"은 이번 목록의 NEW_SCAN 태그 수와 같은 수다.
+  const newCount = useMemo(
+    () => candidates.filter((candidate) => candidate.scanStatus === 'NEW_SCAN').length,
+    [candidates],
   );
 
   const select = useCallback((resourceId: string) => {
@@ -189,96 +211,125 @@ export const CandidateResourceSection = ({
     void approval.execute();
   }, [approval]);
 
-  const renderBody = (phase: Phase, progress: number, startScan: () => void) => {
-    const errorMessage = state.status === 'error' ? state.message : '';
-
-    switch (phase) {
-      case 'fetching':
-        return <CandidateTableSkeleton />;
-      case 'fetchError':
-        return (
-          <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
-            <p className={cn('text-sm font-medium', statusColors.error.textDark)}>{errorMessage}</p>
-            <button onClick={refetch} className={getButtonClass('secondary')}>
-              다시 시도
-            </button>
-          </div>
-        );
-      case 'scanning':
-        return <ScanRunningState progress={progress} />;
-      case 'scanFailed':
-        return <ScanErrorState onRetry={startScan} />;
-      case 'list':
-        return (
-          <CandidateResourceTable
-            candidates={candidates}
-            selectedIds={selectedIds}
-            exclusionReasons={exclusionReasons}
-            drafts={drafts}
-            expandedResourceId={expandedResourceId}
-            readonly={readonly}
-            actions={rowActions}
-          />
-        );
-      case 'empty':
-        return <ScanEmptyState />;
-      default:
-        phase satisfies never;
-        return null;
-    }
-  };
+  const handleCheckPermission = useCallback(() => {
+    void checkPermission();
+  }, [checkPermission]);
 
   return (
     <>
       <ScanController targetSourceId={targetSourceId} onScanComplete={handleScanComplete}>
-        {({ state: scanState, lastScanAt, progress, starting, canStart, loading: scanLoading, startScan }) => {
+        {({ state: scanState, latestJob, progress, starting, canStart, loading: scanLoading, startScan }) => {
           const initialLoading = scanLoading || state.status === 'loading';
-          const busyLabel = initialLoading ? '불러오는 중...' : starting ? '시작 중...' : null;
           const phase = selectPhase({
             fetchStatus: state.status,
             scanState,
             hasCandidates: candidates.length > 0,
           });
+          // 종료된 스캔만 "결과"다 — mock BFF는 이력이 없으면 NO_SCAN 센티널 잡을
+          // 합성하므로(실 BFF는 404 → latestJob null) 상태 집합으로 걸러낸다.
+          const finishedJob = latestJob != null
+            && latestJob.scan_status != null
+            && TERMINAL_SCAN_STATUSES.has(latestJob.scan_status)
+            ? latestJob
+            : null;
+          const neverScanned = finishedJob == null;
+          // 스트립은 본문이 스캔 결과 위에 서 있을 때만 — scanning 은 러닝 화면이
+          // 스스로 말하고, fetch 상태는 프레임 전체를 소유한다. list 에서는 잡이
+          // 없어도(목 시드·이력 유실) 렌더한다: 스캔 진입점이 스트립뿐이므로.
+          const showStrip = phase === 'list'
+            || (finishedJob != null && (phase === 'empty' || phase === 'scanFailed'));
+          const scanDisabled = initialLoading || !canStart || readonly;
+
+          const renderBody = (): React.ReactNode => {
+            switch (phase) {
+              case 'fetching':
+                return <CandidateTableSkeleton />;
+              case 'fetchError':
+                return (
+                  <div className={cn('space-y-3 rounded-xl border p-6', statusColors.error.bg, statusColors.error.border)}>
+                    <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
+                      {state.status === 'error' ? state.message : ''}
+                    </p>
+                    <button onClick={refetch} className={getButtonClass('secondary')}>
+                      다시 시도
+                    </button>
+                  </div>
+                );
+              case 'scanning':
+                return <ScanRunningState progress={progress} />;
+              case 'scanFailed':
+                return <ScanErrorState onRetry={startScan} />;
+              case 'list':
+                return (
+                  <CandidateResourceTable
+                    candidates={candidates}
+                    selectedIds={selectedIds}
+                    exclusionReasons={exclusionReasons}
+                    drafts={drafts}
+                    expandedResourceId={expandedResourceId}
+                    readonly={readonly}
+                    actions={rowActions}
+                  />
+                );
+              case 'empty':
+                // 스캔 전엔 온보딩 히어로가 본문 전체 — 이 순간 화면의 유일한 행동이
+                // 스캔이므로 primary CTA를 가진다. 스캔 후 0건은 스트립 아래 한 줄로.
+                return neverScanned ? (
+                  <ScanHeroState
+                    provider={provider}
+                    permission={permission}
+                    onCheckPermission={handleCheckPermission}
+                    onStartScan={startScan}
+                    canStart={!scanDisabled}
+                    starting={starting}
+                  />
+                ) : (
+                  <p className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
+                    발견된 리소스가 없어요. 다시 스캔으로 최신 상태를 확인해보세요.
+                  </p>
+                );
+              default:
+                phase satisfies never;
+                return null;
+            }
+          };
+
           return (
             // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
             <section className={cardStyles.base}>
-              <header className={cn('flex flex-wrap items-start justify-between gap-3', cardStyles.header)}>
-                <div className="flex-shrink-0">
-                  <h2 className={cn(cardStyles.cardTitle, 'whitespace-nowrap')}>연동 대상 DB 선택</h2>
-                  <p className={cn('mt-2.5', cardStyles.subtitle)}>
-                    Infra Scan을 통해 부위 DB 조회 후 Agent 연동 대상 DB를 선택하세요.
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 flex-wrap justify-end">
-                  {lastScanAt && (
-                    <span className={cn('inline-flex items-center gap-1 text-[11.5px] whitespace-nowrap', textColors.tertiary)}>
-                      <ClockIcon className="w-3 h-3" />
-                      Last Scan: {formatDate(lastScanAt, 'datetime')}
-                    </span>
-                  )}
-                  {/* Secondary on purpose: the step's primary CTA is 연동 대상 승인 요청 below. */}
-                  <Button
-                    variant="secondary"
-                    disabled={initialLoading || !canStart || readonly}
-                    onClick={startScan}
-                    className="inline-flex items-center gap-1.5 text-sm py-1.5"
-                  >
-                    {busyLabel ? (
-                      <>
-                        <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        {busyLabel}
-                      </>
-                    ) : (
-                      <>
-                        <PlayIcon className="w-3.5 h-3.5" />
-                        스캔 시작
-                      </>
-                    )}
-                  </Button>
-                </div>
+              {/* Step 2·3 헤더 문법: 단계 태그 → 고정 제목 → 안내 문장. 스캔 컨트롤은
+                  헤더가 아니라 스트립/히어로가 소유한다 — 목록이 있을 때 이 카드의
+                  primary CTA는 하단 승인 요청 하나뿐이고, 스캔은 보조 밴드로 물러난다. */}
+              <header className={cardStyles.header}>
+                <span className={STEP_TAG}>1번째 단계</span>
+                <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
+                <p className={cn('mt-2.5 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+                  인프라 스캔으로 {provider} 계정의 보유 DB를 조회한 뒤, 연동할 DB를 선택하는
+                  단계예요. 제외하는 DB에는 사유를 입력해야 하고, 선택 결과는 관리자 승인을
+                  거쳐 확정돼요.
+                </p>
               </header>
 
-              <div className="px-6 py-6">{renderBody(phase, progress, startScan)}</div>
+              <div className="px-6 py-6">
+                {showStrip && (
+                  <div className="mb-4">
+                    <ScanStrip
+                      job={finishedJob}
+                      newCount={newCount}
+                      permission={permission}
+                      onCheckPermission={handleCheckPermission}
+                      onOpenHistory={historyModal.open}
+                      onStartScan={startScan}
+                      // 실패 본문(ScanErrorState)이 재시도 CTA를 소유 — 중복 금지.
+                      showScanButton={phase !== 'scanFailed'}
+                      scanDisabled={scanDisabled}
+                      starting={starting}
+                    />
+                  </div>
+                )}
+                {renderBody()}
+              </div>
+
               {/* C-2 action zone (lifted out of CandidateResourceTable): the transition
                   CTA docks (sticky) at the card bottom while the long table scrolls. */}
               {phase === 'list' && !readonly && (
@@ -305,6 +356,10 @@ export const CandidateResourceSection = ({
           );
         }}
       </ScanController>
+
+      {historyModal.isOpen && (
+        <ScanHistoryModal targetSourceId={targetSourceId} onClose={historyModal.close} />
+      )}
 
       {!readonly && (
         <IdcSubmitModal

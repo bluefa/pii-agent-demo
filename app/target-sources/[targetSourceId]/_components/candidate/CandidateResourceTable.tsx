@@ -45,39 +45,39 @@ export const CandidateResourceTable = ({
   }
 
   return (
-    <div>
-      <div className={idcStyles.table.frame}>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className={idcStyles.table.header}>
-              <tr className="whitespace-nowrap">
-                {showCheckboxColumn && <th className={cn(idcStyles.table.headerCell, 'w-10')} />}
-                <th className={idcStyles.table.headerCell}>연동 대상 여부</th>
-                <th className={idcStyles.table.headerCell}>Database Type</th>
-                <th className={idcStyles.table.headerCell}>Resource ID</th>
-                <th className={idcStyles.table.headerCell}>Region</th>
-                <th className={idcStyles.table.headerCell}>Resource Name</th>
-                <th className={idcStyles.table.headerCell}>스캔 상태</th>
-                {showCheckboxColumn && <th className={idcStyles.table.headerCell}>제외 사유</th>}
-                <th className={idcStyles.table.headerCell}>연동 완료 여부</th>
-              </tr>
-            </thead>
-            <tbody className={idcStyles.table.body}>
-              {candidates.map((candidate) => (
-                <CandidateResourceRow
-                  key={candidate.id}
-                  candidate={candidate}
-                  isSelected={selectedIds.has(candidate.id)}
-                  exclusionReason={exclusionReasons[candidate.id]}
-                  isExpanded={expandedResourceId === candidate.id}
-                  readonly={readonly}
-                  drafts={drafts}
-                  actions={actions}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+    <div className={idcStyles.table.frame}>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className={idcStyles.table.approvalHeader}>
+            {/* Identity (name → id) → attributes (type · region) → scan diff → decision,
+                matching the step 2·3 approval tables. The checkbox IS the verdict here,
+                so there is no 대상/비대상 badge column; the always-empty 연동 완료 여부
+                column was deleted (it had no source in this phase). */}
+            <tr className="whitespace-nowrap">
+              {showCheckboxColumn && <th className={cn(idcStyles.table.approvalHeaderCell, 'w-10')} />}
+              <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
+              <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
+              <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
+              <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+              <th className={idcStyles.table.approvalHeaderCell}>스캔 상태</th>
+              {showCheckboxColumn && <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>}
+            </tr>
+          </thead>
+          <tbody className={idcStyles.table.body}>
+            {candidates.map((candidate) => (
+              <CandidateResourceRow
+                key={candidate.id}
+                candidate={candidate}
+                isSelected={selectedIds.has(candidate.id)}
+                exclusionReason={exclusionReasons[candidate.id]}
+                isExpanded={expandedResourceId === candidate.id}
+                readonly={readonly}
+                drafts={drafts}
+                actions={actions}
+              />
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

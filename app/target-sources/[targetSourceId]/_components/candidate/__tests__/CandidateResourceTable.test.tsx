@@ -39,15 +39,55 @@ const defaultProps = {
 };
 
 describe('CandidateResourceTable', () => {
-  it('renders column headers matching the prototype', () => {
+  it('renders the step-2·3 column order: identity → attributes → scan diff → reason', () => {
     render(<CandidateResourceTable {...defaultProps} />);
-    expect(screen.getByRole('columnheader', { name: 'Database Type' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Resource Name' })).toBeTruthy();
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
+    expect(headers).toEqual([
+      '', // checkbox column
+      'Resource Name',
+      'Resource ID',
+      'Database Type',
+      'Region',
+      '스캔 상태',
+      '제외 사유',
+    ]);
   });
 
   it('does not render the 스캔 이력 column (dropped per prototype)', () => {
     render(<CandidateResourceTable {...defaultProps} />);
     expect(screen.queryByRole('columnheader', { name: '스캔 이력' })).toBeNull();
+  });
+
+  // The checkbox IS the verdict — the 대상/비대상 badge column and the always-empty
+  // 연동 완료 여부 column were deleted in the step-2·3 grammar port.
+  it('renders no verdict badge column and no 연동 완료 여부 column', () => {
+    render(<CandidateResourceTable {...defaultProps} />);
+    expect(screen.queryByRole('columnheader', { name: '연동 대상 여부' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: '연동 완료 여부' })).toBeNull();
+    expect(screen.queryByText('대상')).toBeNull();
+  });
+
+  // Unchecked rows rest one tier dimmer (#6B7280 on the row tint, AA with margin);
+  // checked rows keep full contrast. Mirrors WaitingApprovalTable's excluded-row rule.
+  it('dims unselected-row text and keeps selected rows at full contrast', () => {
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[
+          candidateFixture({ id: 'c-sel', resourceId: 'res-sel' }),
+          candidateFixture({ id: 'c-exc', resourceId: 'res-exc' }),
+        ]}
+        selectedIds={new Set(['c-sel'])}
+      />,
+    );
+    const rows = screen.getAllByRole('row').slice(1);
+    const selectedCells = rows[0].querySelectorAll('td');
+    const excludedCells = rows[1].querySelectorAll('td');
+    // Name cell is index 1 (after the checkbox cell).
+    expect(selectedCells[1].className).not.toContain('text-[#6B7280]');
+    expect(excludedCells[1].className).toContain('text-[#6B7280]');
+    expect(excludedCells[3].className).toContain('text-[#6B7280]');
+    expect(excludedCells[4].className).toContain('text-[#6B7280]');
   });
 
   it('renders the 스캔 상태 column with 신규/변경 tags reflecting scanStatus', () => {
