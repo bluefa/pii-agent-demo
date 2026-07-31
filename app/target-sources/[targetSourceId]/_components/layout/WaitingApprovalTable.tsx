@@ -37,6 +37,25 @@ interface WaitingApprovalTableProps {
 // under the top-rounded toolbar. The bottom radius belongs to the pagination footer stacked below.
 const CONNECTED_FRAME = 'overflow-hidden bg-white';
 
+// Row hover, declared here rather than via idcStyles.table.row — that token is shared with six
+// other tables, and its #F7F8FA tint measures 1.06:1 against white (invisible). Excluded rows had
+// no hover at all: `rowExcluded` REPLACED `row`, and #F9FAFB -> #F7F8FA would be 1.02:1 anyway.
+// Each state keeps its own lift so the excluded tint survives hover (1.10:1 each).
+// `focus-within` mirrors hover: the row carries a copy button and tooltip triggers, so a keyboard
+// user tabbing through gets the same row highlight a mouse user gets.
+// The two hover values must never land on the same element: `cn` is a plain join, so two
+// `focus-within:bg-*` classes would let CSS order pick the winner. Each branch owns both of its
+// state colors; ROW_BASE carries no color at all.
+const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-none';
+const ROW_TARGET = 'hover:bg-[#F2F4F6] focus-within:bg-[#F2F4F6]';
+const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#ECEFF3] focus-within:bg-[#ECEFF3]';
+
+// Background alone marks position; it does not make a row easier to READ. The secondary columns
+// lift to near-black on hover, taking the row from 6.45:1 to 15.0:1 — that is the "선명하게" part.
+// Declared per cell: `cn` is a plain join, so a group-hover color must sit on the element that
+// owns the resting color, not be layered over it from the row.
+const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
+
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
 const PLACEHOLDER = '—';
@@ -103,7 +122,7 @@ export const WaitingApprovalTable = memo(
                 return (
                   <tr
                     key={resource.resourceId}
-                    className={cn('group', excluded ? idcStyles.table.rowExcluded : idcStyles.table.row)}
+                    className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
                   >
                     {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
                         block and left row heights ragged (59/69/75px); the full name is in the tip. */}
@@ -114,14 +133,19 @@ export const WaitingApprovalTable = memo(
                     </td>
                     <td className={idcStyles.table.approvalCell}>
                       {/* 260px (the cell default) plus a non-wrapping Region overran the card. */}
-                      <ResourceIdCell value={resource.resourceId} label="Resource ID" maxWidthClass="max-w-[220px]" />
+                      <ResourceIdCell
+                        value={resource.resourceId}
+                        label="Resource ID"
+                        maxWidthClass="max-w-[220px]"
+                        textClassName={CELL_LIFT}
+                      />
                     </td>
                     {/* DB Type is a repeating attribute, not a status — one badge per row (the
                         verdict) is enough; a second pill would compete with it. */}
-                    <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary)}>
+                    <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary, CELL_LIFT)}>
                       {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
                     </td>
-                    <td className={cn(idcStyles.table.approvalCell, monoCell)}>
+                    <td className={cn(idcStyles.table.approvalCell, monoCell, CELL_LIFT)}>
                       {resource.region || PLACEHOLDER}
                     </td>
                     <td className={idcStyles.table.approvalCell}>

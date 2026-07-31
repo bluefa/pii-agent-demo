@@ -68,6 +68,13 @@ styling a value. Step 3's `연동 이력` column, its status filter and a progre
 counter is permanently zero. Deleting the three of them removed both `variant` props and 339 lines.
 Check what the tests guard, too: all four tests over that column existed to pin an off-contract field.
 
+**"Make it stand out more" is usually a contrast problem, not a background problem.** A row
+highlight marks position; it does not make the row easier to read. Lifting the row's secondary text
+toward near-black on hover took it from 6.45:1 to 15.0:1, which is what the request actually meant.
+Measure the resting state first — the tint that was already there scored 1.06:1 against white, and
+excluded rows had no hover at all because their tint class replaced the hover class outright. Mirror
+whatever you add onto `focus-within`, or keyboard users get none of it.
+
 **Measure before you restyle.** "These values feel too heavy" was, on inspection, byte-identical
 typography to the screen it was being compared against — the weight came from values wrapping to
 2–3 lines and leaving row heights ragged. Dump the computed styles of both screens before changing

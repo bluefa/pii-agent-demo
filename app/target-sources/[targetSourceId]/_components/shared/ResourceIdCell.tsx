@@ -9,6 +9,8 @@ interface ResourceIdCellProps {
   /** Copy-button aria label prefix, e.g. "Resource ID". */
   label: string;
   maxWidthClass?: string;
+  /** Extra classes on the id text — used by the approval table for its row-hover contrast lift. */
+  textClassName?: string;
 }
 
 /**
@@ -20,6 +22,7 @@ export const ResourceIdCell = ({
   value,
   label,
   maxWidthClass = 'max-w-[260px]',
+  textClassName,
 }: ResourceIdCellProps) => (
   <span className={cn('group/resid inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
     <Tooltip content={value} size="md" triggerClassName="min-w-0 overflow-hidden">
@@ -29,6 +32,7 @@ export const ResourceIdCell = ({
           // distinguishing tail (…/servers/mysql-prod-01) visible instead of the common prefix.
           'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px] text-left [direction:rtl]',
           textColors.secondary,
+          textClassName,
         )}
       >
         {value}
