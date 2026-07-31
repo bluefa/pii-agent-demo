@@ -28,6 +28,7 @@ export const ResourceIdCell = ({
     {/* Long ids are the norm here, but short ones exist — no tooltip when the value already fits. */}
     <Tooltip
       content={<IdentifierTip label={label} value={value} />}
+      variant="value"
       size="md"
       triggerClassName="min-w-0 overflow-hidden"
       truncatedOnly

@@ -89,8 +89,16 @@ full-value tip only when the cell is actually clipped, and measure that at open 
 child: one of them can report no overflow while the other is clipped by 4x.
 
 **A tooltip carrying a bare value does not say which field it belongs to** — the trigger that
-opened it is behind the box. Title it with the field name. And identifiers need `break-all`: an ARN
-has no spaces, so default wrapping runs it straight out of a fixed-width popover.
+opened it is behind the box. Title it with the field name, and split the two tiers on size as well
+as color. Identifiers also need `break-all`: an ARN has no spaces, so default wrapping runs it
+straight out of a fixed-width popover.
+
+**Reusing a component is not the same as reusing its variant.** The dark popover here was authored
+to explain a state; pointing it at a clipped cell value made it read as UI from another system
+sitting on a white table. Add a variant rather than restyling the existing one — the old ones were
+transcribed from a spec and still correct where they are. When a variant introduces a border, the
+rotated-square arrow needs edges on its two outward faces only, and its offset shifts by the border
+width — guard that shift so borderless variants keep their exact original geometry.
 
 **Brand blue is not automatically accessible on a tinted row.** #0064FF passes on white (4.92:1)
 and fails on the hover background (4.46:1); 14px stays under the large-text threshold even at

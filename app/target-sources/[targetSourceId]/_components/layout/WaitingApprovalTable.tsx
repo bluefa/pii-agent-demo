@@ -151,6 +151,7 @@ export const WaitingApprovalTable = memo(
                         content={
                           <IdentifierTip label="Resource Name" value={resource.resourceName} />
                         }
+                        variant="value"
                         size="md"
                         triggerClassName="min-w-0 max-w-[200px] block"
                         truncatedOnly
