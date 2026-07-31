@@ -92,7 +92,9 @@ describe('WaitingApprovalStep', () => {
     expect(screen.getByTestId('waiting-approval-cancel-button')).toBeTruthy();
   });
 
-  it('omits the cancel button slot when project.isRejected and still renders RejectionAlert', () => {
+  // Rejection now comes from approval-requests/latest inside the card, not from the project
+  // payload — the wire DTO has no rejection fields, so project.isRejected is always false.
+  it('keeps the cancel button slot and renders no rejection alert regardless of project.isRejected', () => {
     render(
       <WaitingApprovalStep
         project={{ ...azureWaitingApprovalFixture, isRejected: true }}
@@ -104,7 +106,7 @@ describe('WaitingApprovalStep', () => {
     );
 
     expect(screen.getByTestId('waiting-approval-card')).toBeTruthy();
-    expect(screen.getByTestId('rejection-alert')).toBeTruthy();
-    expect(screen.queryByTestId('waiting-approval-cancel-button')).toBeNull();
+    expect(screen.queryByTestId('rejection-alert')).toBeNull();
+    expect(screen.getByTestId('waiting-approval-cancel-button')).toBeTruthy();
   });
 });

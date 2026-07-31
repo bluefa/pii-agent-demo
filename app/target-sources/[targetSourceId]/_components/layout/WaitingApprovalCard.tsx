@@ -17,6 +17,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import { WaitingApprovalReselectButton } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalReselectButton';
 import { ApprovalUnavailableCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ApprovalUnavailableCard';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
@@ -25,7 +26,7 @@ import {
   ResourceTableSkeleton,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
-import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 
 interface WaitingApprovalCardProps {
   targetSourceId: number;
@@ -35,6 +36,26 @@ interface WaitingApprovalCardProps {
   // so the parent re-fetches the project and re-renders the new step.
   onReselected?: () => Promise<void> | void;
 }
+
+// The admin's answer to the request. Both verdicts come from approval-requests/latest.result —
+// the project payload has no rejection fields, so this response is the only source for either.
+type Verdict =
+  | { kind: 'unavailable'; reason: string }
+  | { kind: 'rejected'; reason: string; processedAt: string; processedBy: string };
+
+const toVerdict = (response: ApprovalRequestLatestResponse): Verdict | null => {
+  const result = response.result;
+  if (result?.status === 'UNAVAILABLE') return { kind: 'unavailable', reason: result.reason ?? '' };
+  if (result?.status === 'REJECTED') {
+    return {
+      kind: 'rejected',
+      reason: result.reason ?? '',
+      processedAt: result.processed_at ?? '',
+      processedBy: result.processed_by?.user_id ?? '',
+    };
+  }
+  return null;
+};
 
 const FETCH_ERROR_MESSAGE = '승인 요청 정보를 불러오지 못했습니다.';
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
@@ -75,7 +96,7 @@ export const WaitingApprovalCard = ({
   const [state, setState] = useState<AsyncState<WaitingApprovalResource[]>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
   const [requestSummary, setRequestSummary] = useState<RequestSummary | null>(null);
-  const [unavailable, setUnavailable] = useState<{ reason: string } | null>(null);
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -85,18 +106,14 @@ export const WaitingApprovalCard = ({
         const rows = (response.resources ?? []).map(toResourceRow);
         setState({ status: 'ready', data: rows });
         setRequestSummary(toRequestSummary(response));
-        setUnavailable(
-          response.result?.status === 'UNAVAILABLE'
-            ? { reason: response.result?.reason ?? '' }
-            : null,
-        );
+        setVerdict(toVerdict(response));
       })
       .catch((error: unknown) => {
         if (error instanceof AppError && error.code === 'ABORTED') return;
         if (error instanceof AppError && error.code === 'NOT_FOUND') {
           setState({ status: 'ready', data: [] });
           setRequestSummary(null);
-          setUnavailable(null);
+          setVerdict(null);
           return;
         }
         setState({ status: 'error', message: FETCH_ERROR_MESSAGE });
@@ -122,15 +139,39 @@ export const WaitingApprovalCard = ({
 
   // Integration-unavailable verdict — replace the whole waiting card with the distinct
   // unavailable notice + go-back action (the normal table / cancel no longer apply).
-  if (state.status === 'ready' && unavailable) {
+  if (state.status === 'ready' && verdict?.kind === 'unavailable') {
     return (
       <ApprovalUnavailableCard
         targetSourceId={targetSourceId}
-        reason={unavailable.reason}
+        reason={verdict.reason}
         onReselected={onReselected}
       />
     );
   }
+
+  // Rejected keeps the table: the reason names a resource ("RDS_CLUSTER …"), so the list of what
+  // was requested is what the user needs to act on. Only the header switches state.
+  const rejected = verdict?.kind === 'rejected' ? verdict : null;
+  const resolved = state.status === 'ready';
+
+  // The verdict group's footer: verdict meta bottom-left in the app's label-over-value grammar
+  // (the same tier the pending state uses for 요청일시/요청자 — an inline "date · actor" sentence
+  // broke that grammar), the one way out bottom-right. Shared by the reason well and the
+  // no-reason fallback. This is the only meta cluster on the rejected screen.
+  const verdictFooter = rejected && (
+    <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      <div className="flex flex-wrap gap-8">
+        {rejected.processedAt && (
+          <MetaField label="반려일시" value={formatDate(rejected.processedAt, 'datetime')} />
+        )}
+        {rejected.processedBy && <MetaField label="처리자" value={rejected.processedBy} />}
+      </div>
+      <WaitingApprovalReselectButton
+        targetSourceId={targetSourceId}
+        onSuccess={() => onReselected?.()}
+      />
+    </div>
+  );
 
   return (
     // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
@@ -151,39 +192,112 @@ export const WaitingApprovalCard = ({
               2번째 단계
             </span>
             <div className="flex items-center gap-2">
-            <h2 className={cn(cardStyles.cardTitle)}>
-              연동 대상 승인 대기
-            </h2>
-            <span
-              className={cn(
-                'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
-                statusColors.warning.bg,
-                statusColors.warning.textDark,
-              )}
-            >
-              승인 대기
-            </span>
+            {/* The verdict arrives with the fetch, so title and badge stay unresolved until then —
+                rendering the pending copy first makes every rejected load flash 승인 대기 → 반려. */}
+            {resolved ? (
+              <>
+                {/* Fixed step name, matching the progress bar — the badge alone carries state. */}
+                <h2 className={cn(cardStyles.cardTitle)}>연동 대상 승인 대기</h2>
+                <span
+                  className={cn(
+                    'inline-flex items-center font-medium',
+                    // Rejected matches the 반려 사유 tag in the well below, so the two chips read
+                    // as one pair on this screen; pending keeps the rounded-full state badge.
+                    rejected
+                      ? 'rounded-md px-1.5 py-0.5 text-[12px]'
+                      : 'rounded-full px-2.5 py-1 text-xs',
+                    statusColors.warning.bg,
+                    statusColors.warning.textDark,
+                  )}
+                >
+                  {rejected ? '반려' : '승인 대기'}
+                </span>
+              </>
+            ) : (
+              <>
+                <div className={cn(idcStyles.skeletonBar, 'h-[26px] w-[220px] rounded-[6px]')} />
+                <div className={cn(idcStyles.skeletonBar, 'h-[26px] w-[68px] rounded-full')} />
+              </>
+            )}
             </div>
           </div>
-          {/* Card CTA sits beside the title — in the bottom dock the user only meets it past the whole table. */}
-          {cancelSlot}
+          {/* Card CTA sits beside the title — in the bottom dock the user only meets it past the whole table.
+              Rejected renders NO corner button: its single primary action lives in the verdict block
+              below, where the reading flow ends (one screen, one primary CTA). */}
+          {!resolved || rejected ? null : cancelSlot}
         </div>
         {/* Blue marks the status sentence only; the rest drops to the secondary tone.
             `cn` is a plain join, so stacking a size over the subtitle token leaves the winner to CSS
             order — declare the size here instead. */}
-        <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
-          <strong className={cn('font-semibold', primaryColors.text)}>
-            관리자 승인을 기다리고 있어요.
-          </strong>{' '}
-          평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
-        </p>
-        <p className={cn('mt-1 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
-          연동 대상을 다시 고르고 싶다면 우측 상단{' '}
-          <strong className={cn('font-semibold', textColors.secondary)}>다시 요청하기</strong>를
-          눌러주세요.
-        </p>
-        {requestSummary && (
-          <div className="mt-4 flex flex-wrap gap-8">
+        {!resolved ? (
+          <div className="mt-3 flex flex-col gap-2">
+            <div className={cn(idcStyles.skeletonBar, 'h-4 w-[420px] rounded')} />
+            <div className={cn(idcStyles.skeletonBar, 'h-4 w-[300px] rounded')} />
+          </div>
+        ) : rejected ? (
+          // Rejected mirrors the pending grammar — status sentence → guidance → meta row below —
+          // so the state switch changes content, not page structure (a divider + extra section
+          // read as bolted-on). The reason sits in a quiet gray well (label + containment make it
+          // read as the admin's words, not our copy) that carries the verdict meta and the way
+          // out in its footer. role="status" because the verdict only resolves after the fetch.
+          <div className="mt-3" role="status">
+            {/* One quiet tone for the whole sentence: the title + badge already carry "rejected"
+                at the top tier, so bolding it again here would compete with the well below.
+                The emphasis budget: amber chips (badge + reason tag, one shared fill) mark the
+                state, the blue link is the action — everything else stays neutral. */}
+            <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+              관리자가 승인 요청을 반려했어요.{' '}
+              {rejected.reason
+                ? '아래 반려 사유를 확인한 뒤, 연동 대상을 다시 선택해주세요.'
+                : '연동 대상을 다시 선택한 뒤 승인을 다시 요청해주세요.'}
+            </p>
+            {rejected.reason ? (
+              // The well is a self-contained unit: tag → the admin's words → footer (meta left,
+              // the way out right). Warning-tinted banner (option C): the weak orange surface is
+              // what marks "the why" as the block to read — the tag goes dark-orange for contrast
+              // on the tint, and the reason carries 500 so the message leads inside the banner.
+              <div className={cn('mt-4 rounded-xl px-4 py-3.5', statusColors.warning.bgSoft)}>
+                {/* Plain title, not a chip: the tinted surface already says "caution", so a filled
+                    tag on top of it double-encodes — dark-orange text keeps the tie to the banner. */}
+                <p className={cn('text-[16px] font-semibold', statusColors.warning.textDark)}>
+                  반려 사유
+                </p>
+                {/* gray-700, one step above the gray-500 guidance sentence: the reason is the
+                    payload so it stays darker, but full gray-900 read as heavy on the tint. */}
+                <p className={cn('mt-2 text-[14px] font-medium leading-[1.55]', textColors.secondary)}>
+                  {rejected.reason}
+                </p>
+                {verdictFooter}
+              </div>
+            ) : (
+              // No reason → no well; the footer row still carries the meta and the action.
+              verdictFooter
+            )}
+          </div>
+        ) : (
+          <>
+            <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+              <strong className={cn('font-semibold', primaryColors.text)}>
+                관리자 승인을 기다리고 있어요.
+              </strong>{' '}
+              평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
+            </p>
+            <p className={cn('mt-1 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+              연동 대상을 다시 고르고 싶다면 우측 상단{' '}
+              <strong className={cn('font-semibold', textColors.secondary)}>다시 요청하기</strong>를
+              눌러주세요.
+            </p>
+          </>
+        )}
+        {requestSummary && !rejected && (
+          // Label over value, one row. This tier sits well below the guidance copy, so it
+          // declares 12px + muted color instead of identityBarStyles (13px, near-black), which the
+          // page-level identity bar keeps. 24px above it — the widest gap in the header, marking
+          // the boundary between "what happened / what to do" and reference facts.
+          // Rejected drops this row: on a closed request the submission meta is dead info, and a
+          // second meta cluster under the well read as clutter — the verdict signature inside the
+          // well is the date that survives, and the table is the reference that matters.
+          <div className="mt-6 flex flex-wrap gap-8">
             <MetaField label="요청일시" value={formatDate(requestSummary.requestedAt, 'datetime')} />
             <MetaField label="요청자" value={requestSummary.requestedBy} />
           </div>

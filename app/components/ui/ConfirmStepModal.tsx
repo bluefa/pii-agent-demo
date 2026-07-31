@@ -25,6 +25,14 @@ const dangerConfirmButton =
 const warnBanner =
   'rounded-[12px] bg-[#FEF3C7] px-4 py-[13px] text-[13px] leading-[1.55] tracking-[-0.01em] text-[#92400E]';
 
+/** Tighter chrome than modalStyles.toss.* (px-10/pt-9, no footer hairline change): a two-button
+ *  confirm is a compact dialog, and the full approval-modal padding left its short content
+ *  floating in air. The footer also drops the top hairline — short enough that a divider reads
+ *  as cutting the dialog in half. The taller approval modals keep the shared tokens. */
+const confirmHeader = 'px-6 pt-6 pb-1.5 flex items-start justify-between';
+const confirmBody = 'px-6 pt-5 pb-2';
+const confirmFooter = 'px-6 pt-5 pb-6 bg-white flex justify-end gap-2.5';
+
 export const ConfirmStepModal = ({
   open,
   onClose,
@@ -106,14 +114,14 @@ export const ConfirmStepModal = ({
           'w-[480px] max-w-[calc(100vw-2rem)]',
         )}
       >
-        <div className={modalStyles.toss.header}>
+        <div className={confirmHeader}>
           <div>
             <h2 id="confirm-step-modal-title" className={modalStyles.toss.title}>
               {title}
             </h2>
             <p
               id="confirm-step-modal-desc"
-              className={cn(modalStyles.toss.subtitle, 'mt-2')}
+              className={modalStyles.toss.subtitle}
             >
               {description}
             </p>
@@ -121,12 +129,12 @@ export const ConfirmStepModal = ({
         </div>
 
         {note && (
-          <div className={modalStyles.toss.body}>
+          <div className={confirmBody}>
             <div className={warnBanner}>{note}</div>
           </div>
         )}
 
-        <div className={modalStyles.toss.footer}>
+        <div className={confirmFooter}>
           <button
             ref={cancelRef}
             type="button"

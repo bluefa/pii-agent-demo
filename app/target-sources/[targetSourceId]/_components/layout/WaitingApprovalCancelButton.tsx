@@ -12,6 +12,7 @@ interface WaitingApprovalCancelButtonProps {
   onSuccess: () => Promise<void> | void;
 }
 
+/** PENDING requests only — a rejected one uses WaitingApprovalReselectButton (cancel rejects it). */
 export const WaitingApprovalCancelButton = ({
   targetSourceId,
   onSuccess,
