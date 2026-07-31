@@ -154,10 +154,8 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
             is declared here rather than layered over cardStyles.subtitle. */}
         {loaded ? (
           <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
-            <strong className={cn('font-semibold', primaryColors.text)}>
-              승인이 완료되어 시스템에 반영 중입니다.
-            </strong>{' '}
-            Agent 설치를 위한 사전 작업이 자동으로 진행되며, 평균 5분 내외 소요돼요.
+            <strong className={cn('font-semibold', primaryColors.text)}>승인이 완료됐어요.</strong>{' '}
+            Agent 설치에 필요한 준비를 최대한 빠르게 진행하고 있어요.
           </p>
         ) : (
           <div className={cn('mt-3 h-[25px] w-[520px] max-w-full rounded', idcStyles.skeletonBar)} />

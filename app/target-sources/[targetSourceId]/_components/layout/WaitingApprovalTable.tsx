@@ -2,6 +2,7 @@
 
 import { memo } from 'react';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
+import { Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { idcStyles, textColors, cn } from '@/lib/theme';
@@ -52,7 +53,7 @@ const TargetPill = ({ excluded }: { excluded: boolean }) => {
 
 // The chip's own 40-char default overruns this six-column table and forces horizontal
 // scroll (Azure step 3 reasons run past it). Clamp here — the full text is in the hover tip.
-const SUMMARY_LIMIT = 22;
+const SUMMARY_LIMIT = 15;
 
 const clampReason = (reason: string): string =>
   reason.length <= SUMMARY_LIMIT ? reason : reason.slice(0, SUMMARY_LIMIT).trimEnd() + '…';
@@ -77,7 +78,7 @@ export const WaitingApprovalTable = memo(
       );
     }
 
-    const monoCell = cn('font-mono text-[12px]', textColors.secondary);
+    const monoCell = cn('whitespace-nowrap font-mono text-[12px]', textColors.secondary);
 
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
@@ -104,11 +105,16 @@ export const WaitingApprovalTable = memo(
                     key={resource.resourceId}
                     className={cn('group', excluded ? idcStyles.table.rowExcluded : idcStyles.table.row)}
                   >
+                    {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
+                        block and left row heights ragged (59/69/75px); the full name is in the tip. */}
                     <td className={cn(idcStyles.table.approvalCell, 'font-mono text-[14px]', textColors.primary)}>
-                      {resource.resourceName || PLACEHOLDER}
+                      <Tooltip content={resource.resourceName} size="md" triggerClassName="min-w-0 max-w-[200px] block">
+                        <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+                      </Tooltip>
                     </td>
                     <td className={idcStyles.table.approvalCell}>
-                      <ResourceIdCell value={resource.resourceId} label="Resource ID" />
+                      {/* 260px (the cell default) plus a non-wrapping Region overran the card. */}
+                      <ResourceIdCell value={resource.resourceId} label="Resource ID" maxWidthClass="max-w-[220px]" />
                     </td>
                     {/* DB Type is a repeating attribute, not a status — one badge per row (the
                         verdict) is enough; a second pill would compete with it. */}

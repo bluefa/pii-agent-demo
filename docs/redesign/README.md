@@ -68,6 +68,12 @@ styling a value. Step 3's `연동 이력` column, its status filter and a progre
 counter is permanently zero. Deleting the three of them removed both `variant` props and 339 lines.
 Check what the tests guard, too: all four tests over that column existed to pin an off-contract field.
 
+**Measure before you restyle.** "These values feel too heavy" was, on inspection, byte-identical
+typography to the screen it was being compared against — the weight came from values wrapping to
+2–3 lines and leaving row heights ragged. Dump the computed styles of both screens before changing
+a token. And when the perceived problem is visual weight, suspect layout (line count, row height)
+before font size, color or family.
+
 **Assert state only after the data that decides it lands.** Rendering a status tag and its
 supporting sentence before the fetch resolves lets the header contradict what appears under it.
 Hold them behind skeletons — but only the parts the response decides; the step number and the title
