@@ -1031,6 +1031,13 @@ export const mockConfirm = {
 
     const resources = toApprovalResourceItems(project);
 
+    // The reason lives on `status.approval` for runtime verdicts and at the project root for the
+    // seeded ones — read both, or a seeded rejection ships a REJECTED status with no reason.
+    const verdictReason = project.status.approval.rejectionReason ?? project.rejectionReason;
+    // Same split for the timestamp: a seeded rejection carries `rejectedAt`, and falling back to the
+    // request timestamp would date the verdict to when the request was made.
+    const verdictAt = bffStatus === 'REJECTED' ? project.rejectedAt ?? processedAt : processedAt;
+
     return NextResponse.json({
       request: {
         id: requestId,
@@ -1046,10 +1053,8 @@ export const mockConfirm = {
         request_id: latestRequest ? requestId : undefined,
         status: bffStatus,
         processed_by: { user_id: requestActor.name ?? requestActor.id },
-        processed_at: processedAt,
-        ...(project.status.approval.rejectionReason
-          ? { reason: project.status.approval.rejectionReason }
-          : {}),
+        processed_at: verdictAt,
+        ...(verdictReason ? { reason: verdictReason } : {}),
       },
     });
   },
@@ -1532,9 +1537,14 @@ export const mockConfirm = {
       );
     }
 
-    if (project.status.approval.status !== 'UNAVAILABLE') {
+    // Also the rejected exit: both verdicts close the request, and this is the endpoint that
+    // returns the source to its initial state (cancel only accepts a PENDING request).
+    const closedByVerdict =
+      project.status.approval.status === 'UNAVAILABLE' ||
+      project.status.approval.status === 'REJECTED';
+    if (!closedByVerdict) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION_FAILED', message: '연동 불가 상태가 아닙니다.' } },
+        { error: { code: 'VALIDATION_FAILED', message: '확인할 판정 결과가 없습니다.' } },
         { status: 409 },
       );
     }

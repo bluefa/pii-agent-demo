@@ -77,6 +77,15 @@ const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]'
 // row's hover background). Lighter is not available: #0064FF is already below AA there.
 const NAME_LIFT = primaryColors.textGroupHover;
 
+// Excluded rows REST one tier dimmer: all four text cells drop to #6B7280 — 4.63:1 on the
+// #F9FAFB tint, AA with margin, where the full-strength text made 제외 rows read identical to
+// 대상 rows (the 1.05:1 background tint carries nothing). The hover/focus lifts above restore
+// full contrast the moment the row is engaged, so the dim tier is never the reading surface.
+// Chips and the reason chip keep full contrast: the verdict and the why must survive the fade.
+// 3:1-grade dimming (#8B95A1, 2.9:1) was considered and rejected — 13px body text is normal-size
+// text under WCAG, and the reason column is content, not an inactive control.
+const DIM_TEXT = 'text-[#6B7280]';
+
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
 const PLACEHOLDER = '—';
@@ -118,7 +127,8 @@ export const WaitingApprovalTable = memo(
       );
     }
 
-    const monoCell = cn('whitespace-nowrap font-mono text-[12px]', textColors.secondary);
+    // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
+    const monoCell = 'whitespace-nowrap font-mono text-[12px]';
 
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
@@ -151,7 +161,7 @@ export const WaitingApprovalTable = memo(
                       className={cn(
                         idcStyles.table.approvalCell,
                         'font-mono text-[14px]',
-                        textColors.primary,
+                        excluded ? DIM_TEXT : textColors.primary,
                         NAME_LIFT,
                       )}
                     >
@@ -173,15 +183,29 @@ export const WaitingApprovalTable = memo(
                         value={resource.resourceId}
                         label="Resource ID"
                         maxWidthClass="max-w-[220px]"
-                        textClassName={CELL_LIFT}
+                        textClassName={cn(excluded ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
                       />
                     </td>
                     {/* DB Type is a repeating attribute, not a status — one badge per row (the
                         verdict) is enough; a second pill would compete with it. */}
-                    <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary, CELL_LIFT)}>
+                    <td
+                      className={cn(
+                        idcStyles.table.approvalCell,
+                        'text-[12px]',
+                        excluded ? DIM_TEXT : textColors.secondary,
+                        CELL_LIFT,
+                      )}
+                    >
                       {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
                     </td>
-                    <td className={cn(idcStyles.table.approvalCell, monoCell, CELL_LIFT)}>
+                    <td
+                      className={cn(
+                        idcStyles.table.approvalCell,
+                        monoCell,
+                        excluded ? DIM_TEXT : textColors.secondary,
+                        CELL_LIFT,
+                      )}
+                    >
                       {resource.region || PLACEHOLDER}
                     </td>
                     <td className={idcStyles.table.approvalCell}>

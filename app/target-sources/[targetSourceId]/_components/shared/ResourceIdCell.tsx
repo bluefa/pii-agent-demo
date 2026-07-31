@@ -9,7 +9,9 @@ interface ResourceIdCellProps {
   /** Field name, e.g. "Resource ID" — titles the tooltip and prefixes the copy-button aria label. */
   label: string;
   maxWidthClass?: string;
-  /** Extra classes on the id text — used by the approval table for its row-hover contrast lift. */
+  /** Text classes on the id text. When given it REPLACES the default secondary resting color
+   *  (`cn` is a plain join, so stacking two text colors would leave the winner to CSS order) —
+   *  the approval table passes its own resting tier plus the row-hover contrast lift. */
   textClassName?: string;
 }
 
@@ -38,8 +40,7 @@ export const ResourceIdCell = ({
           // v16 .res-id-text: rtl direction + left align truncates from the LEFT, keeping the
           // distinguishing tail (…/servers/mysql-prod-01) visible instead of the common prefix.
           'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px] text-left [direction:rtl]',
-          textColors.secondary,
-          textClassName,
+          textClassName ?? textColors.secondary,
         )}
       >
         {value}

@@ -4,14 +4,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const getApprovalRequestLatestMock = vi.fn();
 const confirmApprovalUnavailableMock = vi.fn();
+const cancelApprovalRequestMock = vi.fn();
 
 // Step 2 now sources both the table (resources, split by `selected`) and the request
 // meta from the single approval-requests/latest call — approved-integration is no
 // longer fetched here (it stays on step 3). confirmApprovalUnavailable backs the
 // unavailable go-back action (ApprovalUnavailableCard).
+// cancelApprovalRequest backs the rejected-variant CTA the card renders itself.
 vi.mock('@/app/lib/api', () => ({
   getApprovalRequestLatest: (...args: unknown[]) => getApprovalRequestLatestMock(...args),
   confirmApprovalUnavailable: (...args: unknown[]) => confirmApprovalUnavailableMock(...args),
+  cancelApprovalRequest: (...args: unknown[]) => cancelApprovalRequestMock(...args),
 }));
 
 import { WaitingApprovalCard } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
@@ -96,7 +99,8 @@ describe('WaitingApprovalCard', () => {
     getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
-    const heading = screen.getByRole('heading', { name: '연동 대상 승인 대기' });
+    // The title only appears once the verdict is known — before that the header is a skeleton.
+    const heading = await screen.findByRole('heading', { name: '연동 대상 승인 대기' });
     expect(heading.className).toContain('text-[22px]');
     expect(heading.className).toContain('font-extrabold');
 
@@ -109,7 +113,7 @@ describe('WaitingApprovalCard', () => {
     getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
-    expect(screen.getByText('연동 대상 승인 대기')).toBeTruthy();
+    expect(await screen.findByText('연동 대상 승인 대기')).toBeTruthy();
     expect(screen.getByText('승인 대기')).toBeTruthy();
     expect(screen.getByText('관리자 승인을 기다리고 있어요.')).toBeTruthy();
     expect(screen.getByText(/평균 1영업일 내 검토되며/)).toBeTruthy();
@@ -343,5 +347,66 @@ describe('WaitingApprovalCard', () => {
     // The normal waiting card (table rows / waiting-approval title) must not render.
     expect(screen.queryByText('mysql-prod-01')).toBeNull();
     expect(screen.queryByText('연동 대상 승인 대기')).toBeNull();
+  });
+
+  it('leads with the reason, attributes the verdict, and keeps the table', async () => {
+    getApprovalRequestLatestMock.mockResolvedValueOnce({
+      ...buildResponse(),
+      request: { ...requestMeta, status: 'REJECTED' as const },
+      result: {
+        request_id: 1,
+        status: 'REJECTED' as const,
+        reason: 'RDS_CLUSTER 리소스는 현재 지원되지 않습니다.',
+        processed_at: '2026-04-30T05:00:00Z',
+        processed_by: { user_id: '관리자' },
+      },
+    });
+    render(<WaitingApprovalCard targetSourceId={1003} onReselected={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/관리자가 승인 요청을 반려했어요/)).toBeTruthy();
+    });
+    // The title is the step's fixed name — only the badge flips to 반려.
+    expect(screen.getByText('연동 대상 승인 대기')).toBeTruthy();
+    expect(screen.getByText('반려')).toBeTruthy();
+    // The status sentence names what happened and what to do, in the pending copy's grammar.
+    expect(screen.getByText(/관리자가 승인 요청을 반려했어요/)).toBeTruthy();
+    // The reason reads as a quoted verdict: labelled and grouped — not headline copy.
+    expect(screen.getByText('반려 사유')).toBeTruthy();
+    const reason = screen.getByText('RDS_CLUSTER 리소스는 현재 지원되지 않습니다.');
+    expect(reason.className).toContain('text-[14px]');
+    // The single primary action sits inside the verdict block, not in the corner slot.
+    expect(screen.getByRole('button', { name: /연동 대상 다시 선택하기/ })).toBeTruthy();
+    // Verdict meta in the well footer, label-over-value like the pending meta row.
+    expect(screen.getByText('반려일시')).toBeTruthy();
+    expect(screen.getByText('처리자')).toBeTruthy();
+    // The request-submission meta row is dropped on a closed request — the table is the reference.
+    expect(screen.queryByText('요청일시')).toBeNull();
+    // The waiting copy must be gone, but the requested resources stay on screen.
+    expect(screen.queryByText('관리자 승인을 기다리고 있어요.')).toBeNull();
+    expect(screen.getByText('mysql-prod-01-name')).toBeTruthy();
+  });
+
+  it('keeps the rejection sentence and skips the reason well when the verdict carries no reason', async () => {
+    getApprovalRequestLatestMock.mockResolvedValueOnce({
+      ...buildResponse(),
+      request: { ...requestMeta, status: 'REJECTED' as const },
+      result: { request_id: 1, status: 'REJECTED' as const },
+    });
+    render(<WaitingApprovalCard targetSourceId={1003} onReselected={vi.fn()} />);
+
+    expect(await screen.findByText(/관리자가 승인 요청을 반려했어요/)).toBeTruthy();
+    expect(screen.queryByText('반려 사유')).toBeNull();
+  });
+
+  it('leaves the pending header untouched when the request is still PENDING', async () => {
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
+    render(<WaitingApprovalCard targetSourceId={1003} cancelSlot={<button type="button">다시 요청하기</button>} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('연동 대상 승인 대기')).toBeTruthy();
+    });
+    expect(screen.getByText('관리자 승인을 기다리고 있어요.')).toBeTruthy();
+    expect(screen.queryByText('반려 사유')).toBeNull();
   });
 });

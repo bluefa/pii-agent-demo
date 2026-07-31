@@ -78,7 +78,8 @@ export const ConfirmRewindModal = ({ kind, onClose, onConfirm }: ConfirmRewindMo
         aria-modal="true"
         aria-label={content.title}
       >
-        <div className="flex items-start gap-3.5 px-7 pb-3 pt-7">
+        {/* 24px frame all around — the compact-confirm tier shared with ConfirmStepModal. */}
+        <div className="flex items-start gap-3.5 px-6 pb-3 pt-6">
           <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full bg-[#FEF3C7] text-[#B45309]">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -87,18 +88,18 @@ export const ConfirmRewindModal = ({ kind, onClose, onConfirm }: ConfirmRewindMo
             </svg>
           </div>
           <div>
-            <h2 className="mb-1.5 mt-0.5 text-[26px] font-extrabold leading-[1.25] tracking-[-0.03em] text-[#191F28]">
+            <h2 className={cn(modalStyles.toss.title, 'mb-4 mt-0.5')}>
               {content.title}
             </h2>
             <p className={cn('text-[13px] font-medium leading-[1.55]', textColors.tertiary)}>{content.desc}</p>
           </div>
         </div>
-        <div className="px-7 pt-1">
+        <div className="px-6 pt-1">
           <div className="rounded-lg border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2.5 text-[12px] leading-[1.55] text-[#92400E]">
             {content.note}
           </div>
         </div>
-        <div className="flex justify-end gap-2 px-7 pb-6 pt-5">
+        <div className="flex justify-end gap-2 px-6 pb-6 pt-5">
           <button
             type="button"
             onClick={onClose}

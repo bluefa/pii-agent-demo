@@ -5,7 +5,6 @@ import type { CloudTargetSource } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import {
   ProjectPageMeta,
-  RejectionAlert,
   type ProjectIdentity,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalCard } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
@@ -43,16 +42,15 @@ export const WaitingApprovalStep = ({
       <WaitingApprovalCard
         targetSourceId={project.targetSourceId}
         onReselected={refreshProject}
+        // Rejection is decided inside the card (approval-requests/latest), which swaps this slot
+        // for its own rejected-variant button — the project payload carries no rejection state.
         cancelSlot={
-          project.isRejected ? null : (
-            <WaitingApprovalCancelButton
-              targetSourceId={project.targetSourceId}
-              onSuccess={refreshProject}
-            />
-          )
+          <WaitingApprovalCancelButton
+            targetSourceId={project.targetSourceId}
+            onSuccess={refreshProject}
+          />
         }
       />
-      <RejectionAlert project={project} />
     </>
   );
 };

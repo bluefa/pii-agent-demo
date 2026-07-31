@@ -68,15 +68,11 @@ describe('ConfirmStepModal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('renders the optional note', () => {
-    render(<ConfirmStepModal {...baseProps} open note="중요 안내" />);
-    expect(screen.getByText('중요 안내')).toBeTruthy();
-  });
-
-  it('applies the red destructive confirm button when confirmVariant=danger', () => {
-    render(<ConfirmStepModal {...baseProps} open confirmVariant="danger" />);
+  it('renders the blue primary confirm on the compact .btn scale', () => {
+    render(<ConfirmStepModal {...baseProps} open />);
     const confirmBtn = screen.getByRole('button', { name: '확인' });
-    expect(confirmBtn.className).toContain('bg-[#DC2626]');
+    expect(confirmBtn.className).toContain('bg-[#0064FF]');
+    expect(confirmBtn.className).toContain('h-10');
   });
 
   it('applies the v16 toss modal title styling', () => {

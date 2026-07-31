@@ -118,6 +118,8 @@ export const statusColors = {
   },
   warning: {
     bg: 'bg-orange-100',
+    /** Weakest warning surface — a tinted panel/banner, one step below `bg`. */
+    bgSoft: 'bg-orange-50',
     text: 'text-orange-500',
     textDark: 'text-orange-800',
     border: 'border-orange-300',
@@ -445,7 +447,8 @@ export const modalStyles = {
     container: 'rounded-[24px]',
     header: 'px-10 pt-9 pb-1.5 flex items-start justify-between',
     title: 'text-[26px] font-extrabold tracking-[-0.03em] leading-[1.25] text-[#191F28]',
-    subtitle: 'text-[14px] font-medium leading-[1.6] text-[#8B95A1]',
+    /* mt-4 = the 16px title→subtitle gap every step-flow modal shares (reqModal.sub, ConfirmRewind). */
+    subtitle: 'mt-4 text-[14px] font-medium leading-[1.6] text-[#8B95A1]',
     body: 'px-10 pt-7 pb-2',
     footer: 'px-10 pt-5 pb-6 border-t border-[#EBEEF2] bg-white flex justify-end gap-2.5',
     iconBase: 'w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0',
@@ -717,6 +720,10 @@ export const idcStyles = {
     warnOutline: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#FEF3C7] px-[18px] text-[14px] font-semibold tracking-[-0.01em] text-[#92400E] transition-colors hover:bg-[#FDE68A]',
     /** Small blue ghost — v16 `.btn.sm.ghost` (the in-table "set" action). Disabled = opacity-45. */
     ghostSm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] px-3 text-[13px] font-bold text-[#0064FF] transition-colors hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
+    /** Underlined blue text action docked in a content group's footer (e.g. the rejected-reason
+     *  well). border-b, not text-decoration: the underline must run under the trailing icon too,
+     *  and text-decoration stops at a flex container's atomic children. */
+    linkPrimary: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[13px] font-semibold text-[#0064FF] transition-colors hover:text-[#0050D6]',
   },
   /** Toss form input — `.field input/select` (52px / borderless #F7F8FA fill / radius 12 / 15px). */
   input: 'w-full h-[52px] rounded-xl border-0 bg-[#F7F8FA] px-3.5 text-[15px] font-medium text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
@@ -728,8 +735,9 @@ export const idcStyles = {
   reqModal: {
     eyebrow: 'inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.09em] text-[#0064FF]',
     eyebrowDot: 'h-1.5 w-1.5 rounded-full bg-[#0064FF]',
-    title: 'mt-2 text-[23px] font-extrabold leading-[1.25] tracking-[-0.03em] text-[#191F28]',
-    sub: 'mt-1.5 max-w-[60ch] text-[13px] font-medium leading-[1.6] text-[#6B7280]',
+    /* 26px aligns with modalStyles.toss.title — every step-flow modal shares one title size. */
+    title: 'mt-2 text-[26px] font-extrabold leading-[1.25] tracking-[-0.03em] text-[#191F28]',
+    sub: 'mt-4 max-w-[60ch] text-[13px] font-medium leading-[1.6] text-[#6B7280]',
     warn: 'mt-3 rounded-[10px] border border-[#F8D2D0] bg-[#FEF1F1] px-3.5 py-[11px] text-[12.5px] leading-[1.5] text-[#B42318]',
     /** `.req-modal .db-list-table th` override — 11px uppercase #9CA3AF (v16 2682). */
     thHeader: 'bg-[#FAFBFC] text-left text-[11px] font-bold uppercase tracking-[0.05em] text-[#9CA3AF]',

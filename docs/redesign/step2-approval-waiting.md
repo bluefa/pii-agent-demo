@@ -5,6 +5,7 @@
 > `docs/redesign/typography-and-spacing.md` (별도 브랜치에서 작성 중)
 > 적용 컴포넌트: `WaitingApprovalCard` / `WaitingApprovalStats` / `WaitingApprovalTable` /
 > `WaitingApprovalToolbar` / `WaitingApprovalCancelButton` / `useApprovalTableState`
+> (2차: `WaitingApprovalReselectButton` / `ConfirmStepModal` / `ApprovalUnavailableCard` / `ResourceIdCell`)
 > 공유 파일: `lib/theme.ts`(cardTitle 자간) · `app/layout.tsx` · `app/globals.css` · `app/fonts/`
 > 진행 기록: `docs/redesign/step2-review-session-log.md`
 
@@ -226,6 +227,68 @@ Step 3(`ApplyingApprovedCard`)이 같은 툴바·표·페이지네이션을 공�
 
 ---
 
+*아래 13–15는 2차 세션(PR #593) 분량. 진행 기록은 `step2-review-session-log.md`의 세션 2 참조.*
+
+## 13. 반려 상태 — 대기 문법의 재사용
+
+Before: REJECTED 판정이 와도 카드는 승인 대기 화면 그대로였다(판정은 진행 내역에서만 보임).
+After: 같은 뼈대 위에서 내용만 반려로 바뀐다.
+
+- **제목은 고정, 배지가 상태를 든다.** 제목은 진행바와 같은 `연동 대상 승인 대기`로 두고,
+  옆 배지만 `승인 대기` → `반려`(주황 fill · medium · rounded-md — 아래 반려 사유 타이틀과 한 쌍).
+  처음엔 제목을 `연동 대상 승인 반려`로 바꿨다가 "단계 이름은 바뀌면 안 되는 텍스트"로 확정.
+- **반려 사유는 인용 문법.** 관리자의 말임을 라벨(`반려 사유`, 진한 주황 타이틀) + 담기(orange-50
+  틴트 웰) + 서명(반려일시/처리자 MetaField, 웰 좌하단)으로 표시한다. 본문은 gray-700 —
+  안내문(gray-500)보다 한 단계 진하게 해서 "읽을 것"을 가리키되, gray-900은 틴트 위에서
+  16.7:1로 과했다(피드백 반영).
+- **한 화면 한 CTA.** 우상단 버튼을 없애고, 파란 밑줄 링크 `연동 대상 다시 선택하기 ↗`를 웰
+  우하단(읽기 흐름이 끝나는 곳)에 도킹. 밑줄은 `border-b border-current`로 화살표 아이콘까지 잇는다
+  (`text-decoration`은 flex 안 SVG 밑까지 이어지지 않는다).
+- **닫힌 요청의 메타는 지운다.** 바깥 요청일시/요청자 행은 반려 상태에서 제거 — 판정 서명이 남는
+  날짜다. 표는 유지: 사유가 리소스를 지목하므로("RDS_CLUSTER…") 무엇을 요청했는지가 행동의 근거다.
+- 복구는 `approval-unavailable/confirm` — `approval-requests/cancel`은 PENDING 전용이라 판정난
+  요청에는 404/409를 돌려준다.
+
+**강조 예산 원칙**: 한 계층에 강조 장치 하나. 주황 칩(배지+사유 타이틀)이 상태 패밀리,
+파란 링크가 행동 — 그 밖의 텍스트는 전부 중립을 지켜 사유 웰이 화면의 무게중심이 된다.
+
+## 14. 확인 모달 3종 통일
+
+Step 2에서 열리는 확인 모달 세 개(반려 재선택 / 대기 취소 / 연동 불가 복귀)가 제각각이었다:
+빨간 확인 버튼, "보존되지 않으며" 경고 배너(거짓 — 이력은 진행 내역에 남는다), 2문장 설명, 40px 패딩.
+
+한 문법으로 통일:
+
+| 축 | 값 |
+|---|---|
+| 제목 | 사전 질문형 26px — "반려 사유를 확인하셨나요?" / "승인 요청을 취소할까요?" / "연동 불가 사유를 확인하셨나요?" |
+| 설명 | 확인→결과 한 문장, **한 줄 렌더**(480px 안에서 줄바꿈되면 잘라낸다), `1단계`만 브랜드 파랑 |
+| 버튼 | `머무르기`(회색) + `확인`(파랑) — 파괴가 아니라 되돌리기이므로 빨강 금지 |
+| 크기 | 버튼은 카드 `.btn` 스케일(h-40 / radius-12 / 14px) — 52px modalBtn 티어는 대형 승인 모달 전용 |
+| 프레임 | 24px 패딩 · 제목↔설명 16px(`toss.subtitle` 토큰) · 푸터 헤어라인 없음 |
+
+- 강조 토큰은 짧은 것만: `1단계`는 3글자라 조사가 붙어도 경계가 안 뭉개진다. 긴 화면 이름을
+  인라인 강조하면 조사가 경계를 부순다(세션 1의 교훈 재확인).
+- 미사용이 된 `note`/`confirmVariant=danger` 기구는 컴포넌트에서 삭제.
+
+## 15. 제외행 감광 — "흐림"은 상대값
+
+Before: 제외행과 대상행의 텍스트가 동일 색. 구분은 1.05:1 배경 틴트(사실상 안 보임)와 칩뿐.
+After: 제외행 텍스트 4개 셀 전부 `#6B7280` — 틴트 위 실측 **4.63:1**, AA 여유.
+
+- **3:1 전략은 기각.** 3:1은 대형 텍스트(≥24px/굵은 18.7px)·비텍스트 전용 기준이다. 13px 표 본문은
+  일반 텍스트라 4.5:1이 하한이고, 제외 사유는 읽으라고 있는 콘텐츠라 "비활성 예외"도 성립하지 않는다.
+- 그래도 충분히 흐려 보인다 — 이웃이 15.9:1이면 4.63:1은 체감 3.4배 감광이다. **흐림은 절대값이
+  아니라 이웃과의 차이다.**
+- hover/focus 리프트가 원 대비를 복원하므로 읽는 순간의 표면은 항상 선명하다. 칩·사유는 원 대비 유지
+  (판정과 이유는 감광에서 살아남아야 한다).
+- 선택행 이름 700 굵기(감광된 다수 속 앵커)도 시도했지만 화면을 보고 즉시 철회 — 모노 이름의 bold는
+  과했다.
+- `ResourceIdCell.textClassName`은 이제 기본 색을 **대체**한다 — plain-join `cn`에 색 클래스 2개가
+  겹치면 승자가 스타일시트 순서로 결정되는 함정 차단.
+
+---
+
 ## 남은 작업
 
 - [ ] 표 헤더 색 대비 — 공유 토큰이라 전역 영향 검토 필요
@@ -233,3 +296,9 @@ Step 3(`ApplyingApprovedCard`)이 같은 툴바·표·페이지네이션을 공�
 - [ ] 필터 상태를 URL 쿼리로 (새로고침·공유 시 유실)
 - [ ] 우측 GuidePanel 문구의 옛 라벨("전체 요청 취소") 정리
 - [ ] IDC 표(`idc/cells.tsx`)·Step 1 후보 목록의 `대상/비대상` 표기 통일
+- [ ] `RejectionAlert` 죽은 코드 — 스텝 컴포넌트 ~13곳에서 import만 남음, 일괄 정리 필요
+- [ ] 어댑터 `isRejected: false` 하드코딩(`app/lib/api/index.ts` 2곳 · `lib/target-source-response.ts`) —
+      verdict는 approval-requests/latest에서 읽으므로 지금은 무해하나 오해 소지
+- [ ] 실 BFF에서 REJECTED에 대한 `approval-unavailable/confirm` 동작 미검증 (mock만 확인)
+- [ ] Modal.tsx 기본 크롬 모달군(16px 제목: IDC 대상 추가 폼·승인 요청/상세·이력 상세·서비스 이동)의
+      제목 26px 통일 여부 — 별도 결정 필요

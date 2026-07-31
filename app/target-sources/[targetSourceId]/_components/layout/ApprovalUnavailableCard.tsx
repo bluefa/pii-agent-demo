@@ -7,7 +7,7 @@ import { StepBanner } from '@/app/components/ui/StepBanner';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
-import { cardStyles, cn, confirmModalStyles, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, confirmModalStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 
 interface ApprovalUnavailableCardProps {
   targetSourceId: number;
@@ -81,23 +81,24 @@ export const ApprovalUnavailableCard = ({
         </div>
       </div>
 
+      {/* Same grammar as the rejected-state reselect modal: pre-flight question (the reason
+          leaves the screen once we move on), one cause→effect sentence with 1단계 in brand
+          blue, blue 확인. No loss banner — the request history stays in 진행 내역. */}
       <ConfirmStepModal
         open={modal.isOpen}
         onClose={modal.close}
         onConfirm={() => {
           void handleConfirm();
         }}
-        title="연동 대상 DB 선택으로 되돌아갈까요?"
+        title="연동 불가 사유를 확인하셨나요?"
         description={
           <>
-            1단계 · 연동 대상 DB 선택으로 되돌아갑니다.
-            <br />
-            기존 선택은 초기화되며, 다시 DB 선택부터 진행해야 해요.
+            {'확인을 누르면 '}
+            <strong className={cn('font-semibold', primaryColors.text)}>1단계</strong>
+            {'로 돌아가, 연동 대상 DB 선택부터 다시 진행해요.'}
           </>
         }
-        note="연동 불가로 판정된 요청 내용은 보존되지 않습니다."
-        confirmLabel="뒤로 이동"
-        confirmVariant="danger"
+        confirmLabel="확인"
         isPending={loading}
       />
     </section>

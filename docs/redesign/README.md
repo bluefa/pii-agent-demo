@@ -10,7 +10,7 @@ Documents may be written in Korean (this README must stay English — repo rule)
 
 | Screen | Document | Status |
 |---|---|---|
-| Step 2 · approval waiting (`/pass/target-sources/{id}`) | [`step2-approval-waiting.md`](step2-approval-waiting.md) | shipped (PR #590) |
+| Step 2 · approval waiting (`/pass/target-sources/{id}`) | [`step2-approval-waiting.md`](step2-approval-waiting.md) | shipped (PR #590 · #593 rejected state, modals, row dimming) |
 | Step 2 · live review session log | [`step2-review-session-log.md`](step2-review-session-log.md) | reference |
 | Step 3 · applying approved (`/pass/target-sources/{id}`) | [`step3-applying-approved.md`](step3-applying-approved.md) | shipped |
 | Text scale & spacing tokens | [`typography-and-spacing.md`](typography-and-spacing.md) | shipped (Step 4 applied) |
@@ -43,6 +43,16 @@ Two practical notes from the Step 3 session:
   have added a violation; shipping it corrected meant the approved picture and the merged code
   differed, which then had to be explained. Run the contrast check on the mockup, not just on the
   implementation.
+
+From the Step 2 rejected-state session (PR #593):
+
+- **"Faded" is relative, not absolute.** Next to 15.9:1 neighbors, 4.63:1 text reads as a 3× dim —
+  there is no need to break AA (or reach for the 3:1 tier, which only covers large text and
+  non-text) to make a row look inactive. Dim to the AA floor and let contrast with the neighbors
+  do the work; restore full contrast on hover so the reading surface is never the dim tier.
+- **The mock store is live state, shared with the reviewer.** Confirm buttons in modals really
+  mutate it, and the reviewer clicks things too. Capture, then Escape immediately; when the state
+  drifts, restarting the dev server re-seeds it.
 
 ## Checklist for the next step
 
