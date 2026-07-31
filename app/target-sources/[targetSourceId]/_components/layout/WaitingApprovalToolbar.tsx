@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { CheckIcon, FilterIcon, SearchIcon } from '@/app/components/ui/icons';
+import { FilterIcon, SearchIcon } from '@/app/components/ui/icons';
 import { cn, numericFeatures } from '@/lib/theme';
 
 export type ApprovalFilter = 'all' | 'target' | 'excluded';
@@ -64,7 +64,7 @@ export const WaitingApprovalToolbar = (props: WaitingApprovalToolbarProps) => (
           : []),
         {
           key: 'dbType',
-          label: 'DB Type',
+          label: 'Database Type',
           value: props.dbType,
           onChange: props.onDbTypeChange,
           options: props.dbTypeOptions,
@@ -144,43 +144,38 @@ const FilterMenu = ({ groups }: { groups: ReadonlyArray<FilterGroup> }) => {
           {/* The list scrolls so the panel height is fixed however many options arrive; group headers stick. */}
           <div className="max-h-[280px] overflow-y-auto">
             {groups.map((group) => (
-              <div key={group.key} aria-label={`${group.label} 필터`} role="group">
-                <p className="sticky top-0 bg-white px-3 py-1.5 text-[12px] font-bold text-[#8B95A1]">
+              <div key={group.key} aria-label={`${group.label} 필터`} role="radiogroup">
+                {/* Header sits on a tinted strip with rules above and below: options are a level
+                    below it, which same-surface text alone did not convey. */}
+                <p className="sticky top-0 z-10 border-y border-[#F1F3F5] bg-[#F9FAFB] px-3 py-[5px] text-[11px] font-bold tracking-[0.02em] text-[#8B95A1] first:border-t-0">
                   {group.label}
                 </p>
-                <FilterOption active={!group.value} onClick={() => group.onChange('')}>
-                  전체
-                </FilterOption>
-                {group.options.map((option) => (
-                  <FilterOption
-                    key={option.value}
-                    active={group.value === option.value}
-                    onClick={() => group.onChange(option.value)}
-                  >
-                    {option.label}
+                <div className="py-1">
+                  <FilterOption active={!group.value} onClick={() => group.onChange('')}>
+                    전체
                   </FilterOption>
-                ))}
+                  {group.options.map((option) => (
+                    <FilterOption
+                      key={option.value}
+                      active={group.value === option.value}
+                      onClick={() => group.onChange(option.value)}
+                    >
+                      {option.label}
+                    </FilterOption>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
-          {activeCount > 0 && (
-            <div className="mt-1 border-t border-[#F1F3F5] px-3 pb-1 pt-2">
-              <button
-                type="button"
-                onClick={() => groups.forEach((group) => group.onChange(''))}
-                className="w-full rounded-[7px] border border-[#E5E7EB] py-[6px] text-[12px] font-semibold text-[#4E5968] hover:bg-[#F7F8FA]"
-              >
-                필터 초기화
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
   );
 };
 
-// One dropdown row — label left, check mark on the selected one, ellipsis when it overflows.
+// One option row. Only one value per group can be active, so it renders as a radio: the dot carries
+// the state (a check mark reads as "applied" and does not imply the others are mutually exclusive),
+// and the extra left indent puts the row visually under its group header.
 const FilterOption = ({
   active,
   onClick,
@@ -192,15 +187,22 @@ const FilterOption = ({
 }) => (
   <button
     type="button"
+    role="radio"
+    aria-checked={active}
     onClick={onClick}
-    aria-pressed={active}
     className={cn(
-      'flex w-full items-center gap-2 px-3 py-[6px] text-left text-[14px] transition-colors hover:bg-[#F7F8FA]',
-      active ? 'font-semibold text-[#0064FF]' : 'font-medium text-[#4E5968]',
+      'flex w-full items-center gap-2 py-[6px] pl-4 pr-3 text-left text-[14px] transition-colors hover:bg-[#F7F8FA]',
+      active ? 'font-semibold text-[#191F28]' : 'font-medium text-[#4E5968]',
     )}
   >
+    <span
+      aria-hidden="true"
+      className={cn(
+        'grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border transition-colors',
+        active ? 'border-[#0064FF] border-[4px]' : 'border-[#D1D5DB]',
+      )}
+    />
     <span className="min-w-0 flex-1 truncate">{children}</span>
-    {active && <CheckIcon className="h-3.5 w-3.5 shrink-0" />}
   </button>
 );
 

@@ -5,6 +5,8 @@
 > `docs/redesign/typography-and-spacing.md` (별도 브랜치에서 작성 중)
 > 적용 컴포넌트: `WaitingApprovalCard` / `WaitingApprovalStats` / `WaitingApprovalTable` /
 > `WaitingApprovalToolbar` / `WaitingApprovalCancelButton` / `useApprovalTableState`
+> 공유 파일: `lib/theme.ts`(cardTitle 자간) · `app/layout.tsx` · `app/globals.css` · `app/fonts/`
+> 진행 기록: `docs/redesign/step2-review-session-log.md`
 
 Step 3(`ApplyingApprovedCard`)이 같은 툴바·표·페이지네이션을 공유하므로,
 공용 컴포넌트를 건드린 항목은 Step 3에도 함께 적용됐다.
@@ -103,10 +105,13 @@ Step 3(`ApplyingApprovedCard`)이 같은 툴바·표·페이지네이션을 공�
 
 | | Before | After |
 |---|---|---|
-| 필터 UI | `DB Type · 전체` / `Region · 전체` select 나열 | 우측 **16×16 필터 아이콘** → 팝오버 |
+| 필터 UI | `DB Type · 전체` / `Region · 전체` select 나열 | 우측 **필터 아이콘**(32×32 클릭 영역) → 팝오버 |
 | 대상 세그먼트 | 전체/대상/비대상 버튼 | 삭제 (상단 타일이 대신함) |
 | 건수 표기 | 우상단 `1–3 / 3건` | 삭제 (푸터와 중복) |
-| 팝오버 내용 | — | 그룹별 목록 + 체크, `max-h-280px` 스크롤, sticky 헤더, 필터 초기화 |
+| 팝오버 내용 | — | 그룹별 목록, `max-h-280px` 스크롤, sticky 그룹 헤더 |
+| 그룹 라벨 | `DB Type` | **`Database Type`** (표 컬럼 헤더와 같은 문자열) |
+| 선택 표현 | 체크 아이콘 (`aria-pressed`) | **라디오 버튼** (`role="radiogroup"` / `aria-checked`) |
+| 필터 초기화 | 하단 버튼 | **삭제** |
 
 **좋아진 점**
 
@@ -114,6 +119,13 @@ Step 3(`ApplyingApprovedCard`)이 같은 툴바·표·페이지네이션을 공�
 - 칩 wrap 대신 세로 목록 + 높이 상한이라, **DB Type/Region이 20개씩 늘어도 패널이 깨지지 않는다**.
 - 필터가 걸리면 아이콘이 파란색으로 남아 닫아도 필터 중임을 알 수 있다.
 - 건수는 페이지네이션 푸터에 이미 `1–3 / 전체 3건`으로 있었다.
+- 그룹 헤더와 항목이 둘 다 평평한 목록이라 **어디까지가 그룹이고 어디부터 선택지인지** 안 보였다.
+  헤더는 회색 띠 + 11px/700, 항목은 14px + 라디오 + 들여쓰기 — 배경·크기·들여쓰기 세 축으로 갈랐다.
+- 체크 아이콘은 "여러 개 고를 수 있다"는 신호인데 실제 동작은 그룹당 하나였다. 라디오는 **동작과
+  기호가 일치**하고 스크린리더에도 `radiogroup`으로 정확히 전달된다.
+- `DB Type`은 표 컬럼(`Database Type`)과 같은 것을 다른 이름으로 불렀다. 축약은 폭을 줄여주지도
+  않는 자리였다.
+- `필터 초기화`는 각 그룹의 `전체` 항목이 이미 하는 일이었다. 그룹이 2개뿐이라 아껴주는 클릭도 1회다.
 
 ## 6. 🐞 DB Type 필터 버그 수정
 
@@ -131,6 +143,7 @@ Step 3(`ApplyingApprovedCard`)이 같은 툴바·표·페이지네이션을 공�
 | 컬럼 순서 | Database Type · Resource ID · Region · Resource Name · … | **Resource Name · Resource ID · Database Type · Region · …** |
 | Database Type | 파란 태그 | 평문 12px |
 | Resource Name | 12.5px | **14px** (스캔 기준점) |
+| 대상/제외 알약 | 색 점 + 라벨 | **라벨만** (점 삭제) |
 | 제외 사유 없음 | `—` | **빈 칸** |
 | 페이지네이션 | 표와 12px 간격, 별개 요소 | **간격 0, 카드 푸터로 결합** (아래 라운드를 푸터가 담당) |
 
@@ -141,6 +154,8 @@ Step 3(`ApplyingApprovedCard`)이 같은 툴바·표·페이지네이션을 공�
 - 이름과 ID가 인접해 서로를 보조한다(기존엔 Region이 끼어 있었다).
 - 파란 태그는 상태도, 클릭 대상도 아니면서 행에서 가장 먼저 눈에 들어왔다. 이제 행의 배지는
   판정(대상/제외) 하나뿐이라 봐야 할 것이 먼저 보인다.
+- 알약 안의 색 점은 바로 옆 라벨(`대상`/`제외`)과 같은 말을 더 약한 채널로 반복하고 있었다.
+  배경·테두리·글자색에 이미 색이 실려 있어 점이 없어도 구분은 그대로다.
 - 대상 행에는 제외 사유가 존재할 수 없다. `—`는 "값이 빠졌다"는 잘못된 신호였다.
 - 툴바 + 표 + 페이지네이션이 하나의 카드로 붙어 경계가 한 번만 그어진다.
 
@@ -174,13 +189,47 @@ Step 3(`ApplyingApprovedCard`)이 같은 툴바·표·페이지네이션을 공�
 > ⚠️ 공유 토큰(`idcStyles.table.*`, `Pagination`, `identityBarStyles`)은 다른 화면까지 번지므로
 > 건드리지 않았다. 표 헤더 색(#8B95A1 · 3.04:1)이 여기 남아 있다.
 
+## 10. 단계 태그 + 제목 자간
+
+- 제목 위에 파란 태그 **`2번째 단계`** 추가. 상단 진행바가 이미 위치를 그리지만, 카드만 보고 있을 때
+  "이게 몇 번째인지"를 카드 안에서도 알 수 있다.
+  → 태그 문구는 `InstallationProcessProgressBar`의 `INSTALL_STEPS` 순서를 그대로 따랐다. 화면에서
+  세어본 값이 아니라 **코드가 말하는 순서**를 적어야 나중에 단계가 늘어도 문서·화면이 어긋나지 않는다.
+- `cardStyles.cardTitle` 자간 `-0.03em` → **`-0.01em`** (공유 토큰, 18곳).
+  -0.03em은 라틴 디스플레이 서체의 관행인데, 한글은 글자 자체가 이미 빽빽해서 같은 값을 주면
+  "조여진 헤드라인"이 아니라 **답답한 덩어리**로 읽힌다.
+
+## 11. 폰트 — Pretendard 자체 호스팅
+
+실측(`document.fonts` + canvas 폭 측정)으로 확인한 사실:
+
+| | Before | After |
+|---|---|---|
+| 선언 | `Geist` (`next/font/google`) + CSS에 이름만 있던 `Pretendard` | **`next/font/local` Pretendard** |
+| 한글 실제 렌더 | Geist에 한글 글리프 없음 → **OS 폴백**(macOS Apple SD Gothic Neo / Windows Malgun Gothic) | Pretendard |
+| 800 weight | 폴백에 800 페이스 없음 → 브라우저 합성 | **실제 ExtraBold 페이스** |
+| 파일 | — | `app/fonts/*.subset.woff2` 5종 (400/500/600/700/800), `display: swap` |
+
+**좋아진 점**
+
+- 한글이 **OS마다 다른 서체·다른 자폭**으로 렌더되던 것이 한 서체로 고정됐다. 지금까지의 픽셀 조정은
+  전부 "내 맥에서만 맞는 값"이었다.
+- `font-extrabold`가 진짜 800 페이스에 착지한다(합성 볼드는 획이 뭉갠다).
+- CSS 변수명은 `--font-geist-sans` 그대로 둬서 **소비자 코드는 한 줄도 바뀌지 않았다**.
+
+## 12. 시도했다가 되돌린 것
+
+- **표 전체 가운데 정렬**: 값 길이가 제각각인 컬럼(Resource Name, Region, 사유)을 가운데 정렬하니
+  행마다 시작점이 흔들려 세로로 훑을 때 삐뚤빼뚤해졌다. 좌측 정렬로 원복.
+  → 데이터 표의 기본이 좌측 정렬인 이유는 **시작점 정렬이 스캔의 기준선**이기 때문이다.
+    가운데 정렬은 값 길이가 고르게 짧은 컬럼(배지 하나)에서만 이득이 있다.
+
 ---
 
 ## 남은 작업
 
 - [ ] 표 헤더 색 대비 — 공유 토큰이라 전역 영향 검토 필요
-- [ ] 필터 결과 0건일 때 "필터 초기화" 액션 (현재는 안내 문구만)
+- [ ] 필터 결과 0건일 때 초기화 액션 (현재는 안내 문구만)
 - [ ] 필터 상태를 URL 쿼리로 (새로고침·공유 시 유실)
-- [ ] 팝오버 단일 선택을 `role="radiogroup"` + `aria-checked`로 (현재 `aria-pressed`)
 - [ ] 우측 GuidePanel 문구의 옛 라벨("전체 요청 취소") 정리
 - [ ] IDC 표(`idc/cells.tsx`)·Step 1 후보 목록의 `대상/비대상` 표기 통일

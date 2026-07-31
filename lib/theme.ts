@@ -274,7 +274,9 @@ export const cardStyles = {
   // 22px sits BELOW the 24px page H1 (pageHeaderTitleStyle) — the unified header
   // introduced a page-level title above every step card, so the step title must
   // read as a section heading, not compete with the page identity (was 26px).
-  cardTitle: 'text-[22px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[#191F28]',
+  // Tracking is -0.01em, not the -0.03em latin display type takes: Korean glyphs are already dense,
+  // so tighter tracking reads as cramped instead of as a tightened headline.
+  cardTitle: 'text-[22px] font-extrabold tracking-[-0.01em] leading-[1.2] text-[#191F28]',
   /** Paragraph beneath a display title (ADR-014 card-subtitle) — v15 13.5/500/#8B95A1. */
   subtitle: 'text-[13.5px] font-medium text-[#8B95A1] leading-[1.55]',
   /** Inline "Provider: X" indicator in a card header — weak label + strong name. */

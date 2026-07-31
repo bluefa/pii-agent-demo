@@ -81,15 +81,15 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
     render(<ApplyingApprovedCard targetSourceId={1003} />);
 
     const menu = await openFilterMenu();
-    const status = within(menu).getByRole('group', { name: '연동 상태 필터' });
+    const status = within(menu).getByRole('radiogroup', { name: '연동 상태 필터' });
     expect(within(status).getByText('Integrated (2)')).toBeTruthy();
     expect(within(status).getByText('Pending (1)')).toBeTruthy();
     expect(within(status).getByText('제외')).toBeTruthy();
 
     // step 3 must NOT expose the Region filter.
-    expect(within(menu).queryByRole('group', { name: 'Region 필터' })).toBeNull();
+    expect(within(menu).queryByRole('radiogroup', { name: 'Region 필터' })).toBeNull();
     // DB Type filter stays.
-    expect(within(menu).getByRole('group', { name: 'DB Type 필터' })).toBeTruthy();
+    expect(within(menu).getByRole('radiogroup', { name: 'Database Type 필터' })).toBeTruthy();
   });
 
   it('filtering 연동 상태 = Integrated keeps only integrated rows', async () => {
@@ -98,7 +98,7 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
 
     const menu = await openFilterMenu();
     fireEvent.click(
-      within(within(menu).getByRole('group', { name: '연동 상태 필터' })).getByText('Integrated (2)'),
+      within(within(menu).getByRole('radiogroup', { name: '연동 상태 필터' })).getByText('Integrated (2)'),
     );
 
     await waitFor(() => {
@@ -115,7 +115,7 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
 
     const menu = await openFilterMenu();
     fireEvent.click(
-      within(within(menu).getByRole('group', { name: '연동 상태 필터' })).getByText('Pending (1)'),
+      within(within(menu).getByRole('radiogroup', { name: '연동 상태 필터' })).getByText('Pending (1)'),
     );
 
     await waitFor(() => {
@@ -131,7 +131,7 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
 
     const menu = await openFilterMenu();
     fireEvent.click(
-      within(within(menu).getByRole('group', { name: '연동 상태 필터' })).getByText('제외'),
+      within(within(menu).getByRole('radiogroup', { name: '연동 상태 필터' })).getByText('제외'),
     );
 
     await waitFor(() => {

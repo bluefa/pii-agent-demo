@@ -50,11 +50,11 @@ const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
 const PLACEHOLDER = '—';
 
+// No status dot: the label already says 대상 / 제외, so the dot repeats it in a weaker channel.
 const TargetPill = ({ excluded }: { excluded: boolean }) => {
   const variant = excluded ? idcStyles.targetPill.no : idcStyles.targetPill.yes;
   return (
     <span className={cn(idcStyles.targetPill.base, variant.box)}>
-      <span className={cn(idcStyles.targetPill.dot, variant.dot)} />
       {excluded ? '제외' : '대상'}
     </span>
   );

@@ -150,7 +150,18 @@ export const WaitingApprovalCard = ({
           Secondary tiers differ by weight and color, not by a new font size. */}
       <div className={cardStyles.header}>
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-2">
+          <div>
+            {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
+            <span
+              className={cn(
+                'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
+                primaryColors.bgLight,
+                primaryColors.text,
+              )}
+            >
+              2번째 단계
+            </span>
+            <div className="flex items-center gap-2">
             <h2 className={cn(cardStyles.cardTitle)}>
               연동 대상 승인 대기
             </h2>
@@ -163,6 +174,7 @@ export const WaitingApprovalCard = ({
             >
               승인 대기
             </span>
+            </div>
           </div>
           {/* Card CTA sits beside the title — in the bottom dock the user only meets it past the whole table. */}
           {cancelSlot}
@@ -170,7 +182,7 @@ export const WaitingApprovalCard = ({
         {/* Blue marks the status sentence only; the rest drops to the secondary tone.
             `cn` is a plain join, so stacking a size over the subtitle token leaves the winner to CSS
             order — declare the size here instead. */}
-        <p className={cn('mt-2 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+        <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
           <strong className={cn('font-semibold', primaryColors.text)}>
             관리자 승인을 기다리고 있어요.
           </strong>{' '}

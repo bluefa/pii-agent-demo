@@ -87,9 +87,9 @@ describe('WaitingApprovalCard', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /필터/ }));
     const menu = screen.getByRole('group', { name: '필터 옵션' });
-    expect(within(menu).getByRole('group', { name: 'Region 필터' })).toBeTruthy();
-    expect(within(menu).getByRole('group', { name: 'DB Type 필터' })).toBeTruthy();
-    expect(within(menu).queryByRole('group', { name: '연동 상태 필터' })).toBeNull();
+    expect(within(menu).getByRole('radiogroup', { name: 'Region 필터' })).toBeTruthy();
+    expect(within(menu).getByRole('radiogroup', { name: 'Database Type 필터' })).toBeTruthy();
+    expect(within(menu).queryByRole('radiogroup', { name: '연동 상태 필터' })).toBeNull();
   });
 
   it('renders the card title with the cardStyles.cardTitle token', async () => {
