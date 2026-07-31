@@ -76,6 +76,19 @@ describe('WaitingApprovalTable', () => {
     expect(cells[3].className).toContain('font-mono');
   });
 
+  it('dims excluded-row text to the AA tier, leaving selected rows at full contrast', () => {
+    render(<WaitingApprovalTable resources={fixture} />);
+    const rows = screen.getAllByRole('row').slice(1);
+    const selectedCells = within(rows[0]).getAllByRole('cell');
+    const excludedCells = within(rows[2]).getAllByRole('cell');
+    expect(selectedCells[0].className).not.toContain('text-[#6B7280]');
+    // Excluded: every text cell rests on #6B7280 (4.63:1 on the row tint — AA floor with margin).
+    expect(excludedCells[0].className).toContain('text-[#6B7280]');
+    expect(within(excludedCells[1]).getByText('pg-analytics-03').className).toContain('text-[#6B7280]');
+    expect(excludedCells[2].className).toContain('text-[#6B7280]');
+    expect(excludedCells[3].className).toContain('text-[#6B7280]');
+  });
+
   it('mounts a single hover-revealed CopyButton on the Resource ID cell only (v15)', () => {
     const resources: WaitingApprovalResource[] = [
       {

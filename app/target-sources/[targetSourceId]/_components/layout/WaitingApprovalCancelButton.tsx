@@ -57,10 +57,12 @@ export const WaitingApprovalCancelButton = ({
         }}
         title="승인 요청을 취소할까요?"
         description={
+          // Kept to one rendered line in the 480px dialog: '진행 중인' and the screen name are
+          // dropped — the request can only be the current one, and 1단계 already names the place.
           <>
-            {'확인을 누르면 진행 중인 승인 요청이 취소되고, '}
+            {'확인을 누르면 승인 요청이 취소되고, '}
             <strong className={cn('font-semibold', primaryColors.text)}>1단계</strong>
-            {'로 돌아가 연동 대상 DB 선택부터 다시 진행해요.'}
+            {'부터 다시 진행해요.'}
           </>
         }
         confirmLabel="확인"
