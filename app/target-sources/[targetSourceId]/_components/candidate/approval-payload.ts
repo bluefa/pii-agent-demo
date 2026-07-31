@@ -42,7 +42,8 @@ export const toModalResources = (
  * Unselected TARGET resources must carry an exclusion reason before the approval
  * request goes out (docs/cloud-provider-states.md: reason is required). Non-TARGET
  * categories (no-install-needed / install-ineligible) are not user exclusions and
- * need no reason.
+ * need no reason. An empty or whitespace-only string counts as missing — this list
+ * DISABLES the approval CTA, so a blank that slipped in server-side must not pass.
  */
 export const listMissingExclusionReasons = (
   candidates: readonly CandidateResource[],
@@ -53,7 +54,7 @@ export const listMissingExclusionReasons = (
     (candidate) =>
       candidate.integrationCategory === 'TARGET'
       && !selectedIds.has(candidate.id)
-      && !exclusionReasons[candidate.id],
+      && !exclusionReasons[candidate.id]?.trim(),
   );
 
 /**

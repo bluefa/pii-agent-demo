@@ -39,7 +39,7 @@ const defaultProps = {
 };
 
 describe('CandidateResourceTable', () => {
-  it('renders the step-2·3 column order: identity → attributes → scan diff → reason', () => {
+  it('renders the step-2·3 column order: identity → attributes → system verdict → decision', () => {
     render(<CandidateResourceTable {...defaultProps} />);
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
@@ -48,7 +48,7 @@ describe('CandidateResourceTable', () => {
       'Resource ID',
       'Database Type',
       'Region',
-      '스캔 상태',
+      '설치 구분',
       '제외 사유',
     ]);
   });
@@ -88,32 +88,38 @@ describe('CandidateResourceTable', () => {
     expect(excludedCells[1].className).toContain('text-[#6B7280]');
     expect(excludedCells[3].className).toContain('text-[#6B7280]');
     expect(excludedCells[4].className).toContain('text-[#6B7280]');
+    // 설치 구분 (index 5) rides the same fact tier — the text inside dims too.
+    expect(excludedCells[5].querySelector('span')?.className).toContain('text-[#6B7280]');
   });
 
-  it('renders the 스캔 상태 column with 신규/변경 tags reflecting scanStatus', () => {
+  // integration_category is a SYSTEM fact, spoken only in the 설치- word family so
+  // it can never be read as the user's selection (which speaks 연동 요청-).
+  it('renders the 설치 구분 cell per integration_category, with the 안내 entry on 설치 불가', () => {
     render(
       <CandidateResourceTable
         {...defaultProps}
         candidates={[
-          candidateFixture({ id: 'c-new', resourceId: 'res-new', scanStatus: 'NEW_SCAN' }),
-          candidateFixture({ id: 'c-changed', resourceId: 'res-changed', scanStatus: 'UNCHANGED' }),
+          candidateFixture({ id: 'c-target', resourceId: 'res-target' }),
+          candidateFixture({ id: 'c-noinstall', resourceId: 'res-noinstall', integrationCategory: 'NO_INSTALL_NEEDED' }),
+          candidateFixture({ id: 'c-inel', resourceId: 'res-inel', integrationCategory: 'INSTALL_INELIGIBLE' }),
         ]}
       />,
     );
-    expect(screen.getByRole('columnheader', { name: '스캔 상태' })).toBeTruthy();
-    expect(screen.getByText('신규')).toBeTruthy();
-    expect(screen.getByText('변경')).toBeTruthy();
+    expect(screen.getByText('설치 대상')).toBeTruthy();
+    expect(screen.getByText('설치 불필요')).toBeTruthy();
+    // 설치 불가 is the one action-blocking value — it carries the guide entry point.
+    expect(screen.getByRole('button', { name: '설치 불가 사유 안내 보기' })).toBeTruthy();
   });
 
-  it('renders — in the 스캔 상태 cell when scanStatus is absent', () => {
+  it('does not render the deleted 스캔 상태 column or its tags', () => {
     render(
       <CandidateResourceTable
         {...defaultProps}
-        candidates={[candidateFixture({ scanStatus: undefined })]}
+        candidates={[candidateFixture({ scanStatus: 'NEW_SCAN' })]}
       />,
     );
+    expect(screen.queryByRole('columnheader', { name: '스캔 상태' })).toBeNull();
     expect(screen.queryByText('신규')).toBeNull();
-    expect(screen.queryByText('변경')).toBeNull();
   });
 
   it('renders a hover-revealed CopyButton on each Resource ID cell', () => {

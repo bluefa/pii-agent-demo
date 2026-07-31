@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { createApprovalRequest } from '@/app/lib/api';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { Tooltip } from '@/app/components/ui/Tooltip';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast';
@@ -113,11 +114,35 @@ export const CandidateResourceSection = ({
     [exclusions],
   );
 
-  // 재스캔 차분 표기 — 스트립의 "신규 N"은 이번 목록의 NEW_SCAN 태그 수와 같은 수다.
+  // 재스캔 차분 표기 — 스트립의 "신규 N" (테이블 열은 아니고 스트립 메타 전용).
   const newCount = useMemo(
     () => candidates.filter((candidate) => candidate.scanStatus === 'NEW_SCAN').length,
     [candidates],
   );
+
+  // 승인 요청 CTA의 비활성 사유를 데이터로 명시 — 버튼 disabled 와 호버 설명이
+  // 같은 원천을 읽는다. 빈 문자열·공백 사유는 미입력으로 취급(listMissing이 trim).
+  const missingReasonResources = useMemo(
+    () => listMissingExclusionReasons(candidates, selectedIds, exclusionReasons),
+    [candidates, selectedIds, exclusionReasons],
+  );
+  const approvalBlockReason = useMemo(() => {
+    if (selectedIds.size === 0) {
+      return {
+        title: '연동할 DB를 선택해주세요',
+        detail: '목록에서 1개 이상 선택하면 승인 요청을 보낼 수 있어요.',
+      };
+    }
+    if (missingReasonResources.length > 0) {
+      const preview = missingReasonResources.slice(0, 2).map((c) => c.resourceName).join(', ');
+      const rest = missingReasonResources.length - 2;
+      return {
+        title: `제외 사유 미입력 ${missingReasonResources.length}건`,
+        detail: `제외한 설치 대상에는 사유가 필요해요: ${preview}${rest > 0 ? ` 외 ${rest}건` : ''}`,
+      };
+    }
+    return null;
+  }, [missingReasonResources, selectedIds.size]);
 
   const select = useCallback((resourceId: string) => {
     setSelectedIds((previous) => new Set(previous).add(resourceId));
@@ -341,15 +366,37 @@ export const CandidateResourceSection = ({
                     </>
                   }
                 >
-                  <Button
-                    variant="primary"
-                    onClick={handleRequestApproval}
-                    disabled={approval.loading || selectedIds.size === 0}
-                    className="flex items-center gap-2"
-                  >
-                    {approval.loading && <LoadingSpinner />}
-                    연동 대상 승인 요청
-                  </Button>
+                  {(() => {
+                    // disabled 버튼은 자체 포인터 이벤트를 삼키므로(pointer-events-none)
+                    // 호버는 Tooltip 래퍼가 받는다. 설명은 막힌 이유가 있을 때만 —
+                    // 활성 버튼 위 툴팁은 장애물이다.
+                    const approveButton = (
+                      <Button
+                        variant="primary"
+                        onClick={handleRequestApproval}
+                        disabled={approval.loading || approvalBlockReason != null}
+                        className="flex items-center gap-2 disabled:pointer-events-none"
+                      >
+                        {approval.loading && <LoadingSpinner />}
+                        연동 대상 승인 요청
+                      </Button>
+                    );
+                    return approvalBlockReason ? (
+                      <Tooltip
+                        variant="status"
+                        position="top"
+                        triggerClassName="cursor-not-allowed"
+                        content={
+                          <div>
+                            <p className="font-semibold">{approvalBlockReason.title}</p>
+                            <p className="mt-1">{approvalBlockReason.detail}</p>
+                          </div>
+                        }
+                      >
+                        {approveButton}
+                      </Tooltip>
+                    ) : approveButton;
+                  })()}
                 </CardActionBar>
               )}
             </section>

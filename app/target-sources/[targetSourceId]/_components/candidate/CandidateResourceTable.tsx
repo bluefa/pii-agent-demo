@@ -49,17 +49,18 @@ export const CandidateResourceTable = ({
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className={idcStyles.table.approvalHeader}>
-            {/* Identity (name → id) → attributes (type · region) → scan diff → decision,
-                matching the step 2·3 approval tables. The checkbox IS the verdict here,
-                so there is no 대상/비대상 badge column; the always-empty 연동 완료 여부
-                column was deleted (it had no source in this phase). */}
+            {/* Identity (name → id) → attributes (type · region) → system verdict
+                (설치 구분 = integration_category, a FACT the user cannot change) →
+                user decision (checkbox + 제외 사유). The two axes never share a word
+                family: 분류 speaks 설치-, selection speaks 연동 요청-. The checkbox IS
+                the selection verdict, so there is no 대상/비대상 badge column. */}
             <tr className="whitespace-nowrap">
               {showCheckboxColumn && <th className={cn(idcStyles.table.approvalHeaderCell, 'w-10')} />}
               <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
               <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
               <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
               <th className={idcStyles.table.approvalHeaderCell}>Region</th>
-              <th className={idcStyles.table.approvalHeaderCell}>스캔 상태</th>
+              <th className={idcStyles.table.approvalHeaderCell}>설치 구분</th>
               {showCheckboxColumn && <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>}
             </tr>
           </thead>

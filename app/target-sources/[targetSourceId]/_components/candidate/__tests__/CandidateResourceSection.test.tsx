@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import type { ScanControllerRenderProps } from '@/app/components/features/scan/ScanPanel';
 
@@ -8,8 +8,9 @@ vi.mock('@/app/lib/api', () => ({
   createApprovalRequest: vi.fn().mockResolvedValue(undefined),
 }));
 
-// One candidate → the EMPTY-scan fixture below lands in the 'list' phase, which
-// mounts the lifted approval CardActionBar (C-2).
+// Two candidates → the EMPTY-scan fixture below lands in the 'list' phase, which
+// mounts the lifted approval CardActionBar (C-2). c-1 seeds as selected; c-2 is an
+// unselected TARGET without a reason, so the approval CTA rests disabled.
 vi.mock('@/lib/resource-catalog', () => ({
   catalogToCandidates: () => [
     {
@@ -20,6 +21,20 @@ vi.mock('@/lib/resource-catalog', () => ({
       databaseType: 'MYSQL',
       integrationCategory: 'TARGET',
       behaviorKey: 'default',
+      selected: true,
+      exclusionReason: null,
+      metadata: { provider: 'AWS', resourceType: 'RDS', region: 'ap-northeast-2' },
+    },
+    {
+      id: 'c-2',
+      resourceId: 'res-2',
+      resourceName: 'res-2',
+      type: 'RDS',
+      databaseType: 'MYSQL',
+      integrationCategory: 'TARGET',
+      behaviorKey: 'default',
+      selected: false,
+      exclusionReason: null,
       metadata: { provider: 'AWS', resourceType: 'RDS', region: 'ap-northeast-2' },
     },
   ],
@@ -100,7 +115,8 @@ describe('CandidateResourceSection', () => {
   });
 
   // Lifted from CandidateResourceTable: the approve CTA + count hint render once
-  // in the section's bottom CardActionBar (C-2), gated until a row is selected.
+  // in the section's bottom CardActionBar (C-2). It rests DISABLED here because
+  // c-2 is an unselected TARGET without an exclusion reason.
   it('renders the approval action bar with the count hint in the list phase', async () => {
     render(
       <CandidateResourceSection
@@ -113,6 +129,24 @@ describe('CandidateResourceSection', () => {
     const cta = await screen.findByRole('button', { name: '연동 대상 승인 요청' });
     expect((cta as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/건 선택됨/)).toBeTruthy();
+  });
+
+  // The disable reason is explained in place: hovering the blocked CTA names the
+  // rule and the offending resources (the disabled button itself swallows pointer
+  // events, so the Tooltip wrapper carries the hover).
+  it('explains the disabled approval CTA on hover — missing exclusion reasons', async () => {
+    render(
+      <CandidateResourceSection
+        targetSourceId={1}
+        provider="AWS"
+        readonly={false}
+        refreshProject={async () => {}}
+      />,
+    );
+    const cta = await screen.findByRole('button', { name: '연동 대상 승인 요청' });
+    fireEvent.mouseEnter(cta.parentElement!);
+    expect(await screen.findByText('제외 사유 미입력 1건')).toBeTruthy();
+    expect(screen.getByText(/사유가 필요해요: res-2/)).toBeTruthy();
   });
 
   // A list with no finished scan job (mock seed / lost history) still needs a scan

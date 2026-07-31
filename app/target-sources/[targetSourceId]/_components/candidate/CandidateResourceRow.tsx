@@ -44,6 +44,15 @@ const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]'
 const NAME_LIFT = primaryColors.textGroupHover;
 const DIM_TEXT = 'text-[#6B7280]';
 
+// integration_category(시스템의 사실) → 설치-계열 표기. 선택(사용자의 결정)과
+// 단어 가족을 나눠 갖지 않도록 "설치"로만 말한다 — 관리자 승인 상세 모달의
+// 기존 라벨(설치 불필요·설치 불가)과 같은 계열.
+const CATEGORY_LABELS: Record<CandidateResource['integrationCategory'], string> = {
+  TARGET: '설치 대상',
+  NO_INSTALL_NEEDED: '설치 불필요',
+  INSTALL_INELIGIBLE: '설치 불가',
+};
+
 interface CandidateResourceRowProps {
   candidate: CandidateResource;
   isSelected: boolean;
@@ -146,26 +155,16 @@ export const CandidateResourceRow = ({
         </td>
 
         <td className={idcStyles.table.approvalCell}>
-          <div className="flex items-center gap-2">
-            <span onClick={(event) => event.stopPropagation()}>
-              <ResourceIdCell
-                value={candidate.resourceId}
-                label="Resource ID"
-                maxWidthClass="max-w-[220px]"
-                textClassName={cn(dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
-              />
-            </span>
-            {isIneligible && (
-              <button
-                onClick={(event) => { event.stopPropagation(); vnetModal.open(); }}
-                className={cn('inline-flex flex-shrink-0 items-center gap-1', statusColors.warning.text, 'transition-opacity hover:underline')}
-                aria-label="VNet Integration으로 인해 설치 불가 - 클릭하여 상세 안내 보기"
-              >
-                <StatusWarningIcon className="h-3.5 w-3.5" />
-                <span className={cn('text-xs font-medium', statusColors.warning.textDark)}>설치 불가</span>
-              </button>
-            )}
-          </div>
+          <span onClick={(event) => event.stopPropagation()}>
+            <ResourceIdCell
+              value={candidate.resourceId}
+              label="Resource ID"
+              // 220px(승인 테이블 기본)에서 축소: 이 테이블은 체크박스+설치 구분이
+              // 더 있어 220이면 제외 사유 열이 가로 스크롤 뒤로 밀린다. 전문은 팁·복사에.
+              maxWidthClass="max-w-[160px]"
+              textClassName={cn(dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
+            />
+          </span>
         </td>
 
         {/* DB Type is a repeating attribute, not a status — plain text, no badge; the
@@ -197,19 +196,27 @@ export const CandidateResourceRow = ({
           {region}
         </td>
 
-        <td className={idcStyles.table.approvalCell}>
-          {candidate.scanStatus
-            ? (
-                <span
-                  className={cn(
-                    idcStyles.tag.base,
-                    candidate.scanStatus === 'NEW_SCAN' ? idcStyles.tag.blue : idcStyles.tag.orange,
-                  )}
-                >
-                  {candidate.scanStatus === 'NEW_SCAN' ? '신규' : '변경'}
-                </span>
-              )
-            : <span className={cn('text-xs', textColors.quaternary)}>—</span>}
+        {/* 시스템 분류는 조용한 사실 티어 — 행동을 막는 설치 불가만 주황 + 안내
+            링크로 예외 강조(감광에서도 제외: 왜 못 고르는지는 살아 있어야 한다). */}
+        <td className={cn(idcStyles.table.approvalCell, 'text-[12px]')}>
+          {isIneligible ? (
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); vnetModal.open(); }}
+              className={cn(
+                'inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold underline decoration-dotted underline-offset-2',
+                statusColors.warning.textDark,
+              )}
+              aria-label="설치 불가 사유 안내 보기"
+            >
+              <StatusWarningIcon className="h-3.5 w-3.5" />
+              설치 불가
+            </button>
+          ) : (
+            <span className={cn('whitespace-nowrap', dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}>
+              {CATEGORY_LABELS[candidate.integrationCategory]}
+            </span>
+          )}
         </td>
 
         {showCheckboxColumn && (
