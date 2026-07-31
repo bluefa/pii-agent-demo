@@ -32,6 +32,18 @@ Two things made this work. Small request units meant reverting cost almost nothi
 (centering table cells) was undone the moment it was on screen. And the test suite failed on every
 label rename, which is how it kept surfacing which strings other code treats as a contract.
 
+Two practical notes from the Step 3 session:
+
+- **State the port, and confirm both sides are on it.** Another worktree already held the default
+  port, so this branch ran on a different one. A shipped change then looked "not applied" for a
+  round trip, because the two of us were reading different servers. The reviewer is looking at a
+  URL, not at your diff.
+- **Measure a proposal before you show it.** The mockup that got approved used the table header's
+  existing gray for its label — a color that was already failing AA. Shipping it as drawn would
+  have added a violation; shipping it corrected meant the approved picture and the merged code
+  differed, which then had to be explained. Run the contrast check on the mockup, not just on the
+  implementation.
+
 ## Checklist for the next step
 
 Ordered by how often it caught something real in Step 2.
@@ -123,9 +135,12 @@ are already settled by the time the card mounts.
 **Left-align data tables.** Aligned starting characters are the scan baseline; centering only pays
 off for a column whose values are uniformly short (a single badge).
 
-**Shared tokens repaint other screens.** `idcStyles.table.*`, `Pagination`, `identityBarStyles` were
-left alone on purpose. Touch them only as a deliberate, separately verified change (`cardStyles.cardTitle`
-tracking was one, and it hits 18 call sites).
+**Shared tokens repaint other screens — which is sometimes the point.** `Pagination` and
+`identityBarStyles` were left alone. The two table-header tokens were changed on purpose, because an
+under-AA column name is under-AA on every table that uses them, and fixing it on one screen would
+have left the others wrong while making them inconsistent. The test is whether the change is
+*correct everywhere it lands*: if yes, do it once at the token and verify each surface (IDC and CSP
+were both re-measured here); if no, declare the value locally. Cosmetic preferences do not qualify.
 
 **Step position comes from the code.** Write the step number from `INSTALL_STEPS`, not from counting
 what is on screen.
