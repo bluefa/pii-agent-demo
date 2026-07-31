@@ -127,20 +127,21 @@ export const IdcStep4Installing = ({
   const steps: InstallTableStep[] = [
     {
       id: 'cx',
-      title: 'BDC CX 리소스 생성',
-      side: 'BDC측 · 자동',
+      title: 'BDC CX 영역',
+      side: 'BDC측 리소스 생성',
       desc: 'BDC망 CX 영역에 PII Agent 수집 모듈과 네트워크 경로를 구성합니다.',
     },
     {
       id: 'bdp',
-      title: 'BDC BDP 리소스 생성',
-      side: 'BDC측 · 자동',
+      title: 'BDC BDP 영역',
+      side: 'BDC측 리소스 생성',
       desc: 'BDC망 BDP 영역 리소스를 구성합니다.',
     },
     {
       id: 'firewall',
       title: '방화벽',
-      side: '서비스측',
+      side: '서비스측 확인',
+      serviceAction: 'Source IP에서 연동 대상으로의 방화벽을 오픈한 뒤 확인해 주세요.',
       desc: 'Source IP → 연동 대상 방화벽 오픈 여부를 점검하는 단계입니다.',
       action: (
         <button

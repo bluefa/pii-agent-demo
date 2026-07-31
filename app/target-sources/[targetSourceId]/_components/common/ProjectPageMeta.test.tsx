@@ -71,7 +71,7 @@ describe('ProjectPageMeta — header action slot', () => {
   });
 });
 
-describe('ProjectPageMeta — identity-bar provider name vs breadcrumb crumb', () => {
+describe('ProjectPageMeta — identity-bar provider name', () => {
   it('shows the bare provider token in the identity bar, not the "{Provider} Infrastructure" label', () => {
     const { container } = render(
       <ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />,
@@ -81,10 +81,10 @@ describe('ProjectPageMeta — identity-bar provider name vs breadcrumb crumb', (
     expect(providerName?.textContent).toBe('AWS');
   });
 
-  it('keeps "{Provider} Infrastructure" as the breadcrumb current crumb', () => {
+  it('renders no breadcrumb', () => {
     render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />);
-    // breadcrumb current crumb (aria-current="page") stays the full label (HTML 5737).
-    expect(screen.getByText('AWS Infrastructure').getAttribute('aria-current')).toBe('page');
+    expect(screen.queryByText('AWS Infrastructure')).toBeNull();
+    expect(screen.queryByText('Service List')).toBeNull();
   });
 
   it('shows the bare "IDC" token in the identity bar for IDC', () => {
