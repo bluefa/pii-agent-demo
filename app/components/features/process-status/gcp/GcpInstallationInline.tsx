@@ -32,20 +32,20 @@ interface GcpInstallationInlineProps {
 const GCP_STEPS: InstallTableStep[] = [
   {
     id: 'subnet',
-    title: '서비스 측 Subnet 생성',
-    side: '서비스측 인프라 · 자동',
+    title: '모니터링용 Subnet',
+    side: '서비스측 리소스 생성',
     desc: 'Project 내 모니터링용 Subnet (10.30.0.0/22)을 생성합니다.',
   },
   {
     id: 'service',
-    title: '서비스 측 리소스 생성',
-    side: '서비스측 인프라 · 자동',
+    title: 'VPC Peering · 권한 위임',
+    side: '서비스측 리소스 생성',
     desc: 'VPC Peering / Firewall / Service Account 권한 위임을 구성합니다.',
   },
   {
     id: 'bdc',
-    title: 'BDC 측 리소스 생성',
-    side: 'BDC측 · 자동',
+    title: 'PII Agent 인스턴스',
+    side: 'BDC측 리소스 생성',
     desc: 'PII Agent GCE 인스턴스 + Service Account + IAM Role을 자동 배포합니다.',
   },
 ];
@@ -84,10 +84,8 @@ export const GcpInstallationInline = ({
     [confirmedResources],
   );
 
-  if (loading) return <InstallationLoadingView provider="GCP" />;
-  if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
-  if (!status) return null;
-
+  // 로딩/에러는 카드 안에서 교체한다 — 카드를 조기 반환하면 헤더까지 사라졌다
+  // 나타나 스켈레톤의 목적(레이아웃 유지)이 깨진다.
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
       <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
@@ -103,7 +101,7 @@ export const GcpInstallationInline = ({
         </span>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>
-        {status.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
+        {status?.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
             상태 확인 실패: {status.lastCheck.failReason}
           </div>
@@ -138,12 +136,18 @@ export const GcpInstallationInline = ({
             </button>
           </div>
         )}
-        <InstallStatusDetail
-          lastCheck={status.lastCheck}
-          resources={status.resources}
-          steps={GCP_STEPS}
-          meta={meta}
-        />
+        {loading ? (
+          <InstallationLoadingView provider="GCP" />
+        ) : error ? (
+          <InstallationErrorView message={error} onRetry={fetchStatus} />
+        ) : status ? (
+          <InstallStatusDetail
+            lastCheck={status.lastCheck}
+            resources={status.resources}
+            steps={GCP_STEPS}
+            meta={meta}
+          />
+        ) : null}
       </div>
     </section>
   );

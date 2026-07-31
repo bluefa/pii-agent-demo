@@ -400,7 +400,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1006,
     projectCode: 'N-IRP-001',
     name: 'PII Agent 설치 - 고객 DB',
-    description: '자동 승인 테스트: res-excluded를 제외하고 나머지를 모두 선택하면 자동 승인됩니다.',
+    description: 'Step 1. 연동 대상 확정 — res-excluded(관리자 제외)를 빼고 나머지를 모두 선택하면 자동 승인되는 경로를 검증합니다. TF 실행 권한 미허용이라 이후 설치는 직접 적용 모드로 이어집니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
@@ -581,7 +581,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1007,
     projectCode: 'N-IRP-002',
     name: 'PII Agent 설치 - 로그 분석 계정',
-    description: '스캔된 신규 리소스를 연동 대상으로 확정하고 관리자 승인을 대기합니다.',
+    description: 'Step 2. 관리자 승인 반려 — RDS_CLUSTER 미지원 사유로 반려된 상태입니다. 반려 사유 노출과 재신청 흐름을 검증합니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
@@ -648,7 +648,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1008,
     projectCode: 'OTHER-003',
     name: 'PII Agent 설치 - 이벤트 적재 파이프라인',
-    description: '승인 완료 후 설치가 진행 중입니다. (데모: 설치중 상태 표시)',
+    description: 'Step 4. 자동 설치 진행 중 — 단계별 설치 현황(서비스측/BDC측)을 검증합니다. 리소스마다 완료·해당 없음·진행중·실패·BDC 설치 대기가 섞여 있어 상태 표기와 실패 안내를 함께 확인할 수 있습니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
@@ -735,7 +735,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1010,
     projectCode: 'DATA-005',
     name: 'PII Agent 설치 - 데이터 마트',
-    description: '설치가 완료되어 연결 테스트가 필요합니다. 끊김/신규 리소스도 함께 표시합니다.',
+    description: 'Step 5. 연결 테스트 — 설치 완료 후 연결 테스트 수행을 검증합니다. 끊김/신규 리소스 표시와 SDU 표기(AWS 대신 SDU)를 함께 확인할 수 있습니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
@@ -797,7 +797,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1011,
     projectCode: 'DATA-006',
     name: 'PII Agent 설치 - 결제 데이터',
-    description: '연결 테스트까지 끝나 최종 관리자 승인 대기 중입니다.',
+    description: 'Step 6. 최종 관리자 승인 대기 — 연결 테스트 검증까지 끝난 뒤 완료 승인을 기다리는 화면을 검증합니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
@@ -842,7 +842,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1012,
     projectCode: 'DATA-007',
     name: 'PII Agent 모니터링 운영',
-    description: '연동 설치가 완료되어 PII 모니터링이 실행 중입니다.',
+    description: 'Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 검증합니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
@@ -1058,6 +1058,8 @@ const cloneForStep = (
     projectCode: string;
     name: string;
     status: ProcessStatus;
+    /** 미지정 시 base 설명을 그대로 상속한다. */
+    description?: string;
     resources?: Project['resources'];
     unavailableReason?: string;
   },
@@ -1085,6 +1087,7 @@ const cloneForStep = (
     targetSourceId: over.targetSourceId,
     projectCode: over.projectCode,
     name: over.name,
+    description: over.description ?? base.description,
     processStatus: over.status,
     status: createStatusForProcessStatus(over.status, {
       selectedCount: 2,
@@ -1103,6 +1106,7 @@ mockProjects.push(
     projectCode: 'AWS-APPLYING',
     name: 'AWS PII Agent - 반영 중',
     status: ProcessStatus.APPLYING_APPROVED,
+    description: 'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면을 검증합니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인할 수 있습니다.',
   }),
   // Azure — fills steps 2/3/5/6/7 (base azure-proj-1 carries full resources)
   cloneForStep('azure-proj-1', { id: 'azure-proj-approval', targetSourceId: 2002, projectCode: 'AZURE-APPROVAL', name: 'Azure PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL }),

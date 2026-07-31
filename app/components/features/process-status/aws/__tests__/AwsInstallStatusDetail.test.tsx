@@ -62,13 +62,16 @@ describe('AwsInstallStatusDetail', () => {
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
     expect(within(nav).getByText('설치 현황 요약')).toBeTruthy();
     expect(within(nav).getByText('Terraform 권한 부여 확인')).toBeTruthy();
-    expect(within(nav).getByText('서비스 측 리소스 생성')).toBeTruthy();
-    expect(within(nav).getByText('BDC 서비스 리소스 생성')).toBeTruthy();
-    expect(within(nav).getByText('BDC 공통 리소스 생성')).toBeTruthy();
-    expect(within(nav).getAllByText(/서비스측|BDC측/).length).toBeGreaterThanOrEqual(3);
+    expect(within(nav).getByText('Terraform 자동 적용')).toBeTruthy();
+    expect(within(nav).getByText('BDC 서비스 영역')).toBeTruthy();
+    expect(within(nav).getByText('BDC 공통 영역')).toBeTruthy();
+    // 주체 태그: 서비스측 1 + BDC측 2 (요약 스텝은 태그 없음).
+    expect(within(nav).getByText('서비스측 리소스 생성')).toBeTruthy();
+    expect(within(nav).getAllByText('BDC측 리소스 생성').length).toBe(2);
 
-    // failed service step wins the default selection → its guide is on screen.
-    expect(screen.getByText('서브넷 IP 부족')).toBeTruthy();
+    // A failed step makes the summary the default view: the banner and the
+    // action card both surface the failure reason.
+    expect(screen.getAllByText('서브넷 IP 부족').length).toBeGreaterThanOrEqual(2);
   });
 
   it('joins region / DB type / name from the confirmed integration', () => {
@@ -138,7 +141,7 @@ describe('AwsInstallStatusDetail', () => {
 
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
     expect(within(nav).queryByText('Terraform 권한 부여 확인')).toBeNull();
-    expect(within(nav).getByText('서비스 측 리소스 생성 (직접 적용)')).toBeTruthy();
+    expect(within(nav).getByText('Terraform 직접 적용')).toBeTruthy();
   });
 
   it('paginates the resource table past 10 rows and has no 새로고침 control', () => {

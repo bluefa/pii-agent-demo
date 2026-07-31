@@ -27,26 +27,27 @@ interface AzureInstallationInlineProps {
 const AZURE_STEPS: InstallTableStep[] = [
   {
     id: 'pe',
-    title: '서비스 측 Private Endpoint 승인',
-    side: '서비스측',
+    title: 'Private Endpoint 승인',
+    side: '서비스측 승인',
+    serviceAction: 'Azure Portal에서 BDC가 요청한 Private Endpoint 연결을 승인해 주세요.',
     desc: 'BDC가 요청한 Private Endpoint 연결을 Azure Portal에서 승인하는 단계입니다.',
   },
   {
     id: 'vmSubnet',
-    title: '서비스 측 VM Subnet 생성',
-    side: '서비스측',
+    title: 'VM Subnet',
+    side: '서비스측 리소스 생성',
     desc: 'VM 연동용 Subnet을 생성합니다. VM이 아닌 리소스는 해당 없음으로 표시됩니다.',
   },
   {
     id: 'vmApply',
-    title: '서비스 측 VM 리소스 생성',
-    side: '서비스측',
+    title: 'VM Load Balancer',
+    side: '서비스측 리소스 생성',
     desc: 'VM용 Load Balancer 등 서비스 측 리소스를 Terraform으로 적용합니다.',
   },
   {
     id: 'bdc',
-    title: 'BDC 측 리소스 생성',
-    side: 'BDC측 · 자동',
+    title: 'PII Agent VM · KeyVault',
+    side: 'BDC측 리소스 생성',
     desc: 'PII Agent VM, IAM Role, KeyVault 연결을 자동 배포합니다.',
   },
 ];
@@ -86,11 +87,9 @@ export const AzureInstallationInline = ({
     [confirmed],
   );
 
-  if (loading) return <InstallationLoadingView provider="Azure" />;
-  if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
-  if (!status) return null;
-
-  const hasSyncFailure = status.lastCheck.status === 'FAILED';
+  // 로딩/에러는 카드 안에서 교체한다 — 카드를 조기 반환하면 헤더까지 사라졌다
+  // 나타나 스켈레톤의 목적(레이아웃 유지)이 깨진다.
+  const hasSyncFailure = status?.lastCheck.status === 'FAILED';
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
@@ -107,17 +106,23 @@ export const AzureInstallationInline = ({
         </span>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>
-        {hasSyncFailure && (
+        {hasSyncFailure && status && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
             상태 확인 실패: {status.lastCheck.failReason ?? '최근 설치 상태 확인에 실패했습니다.'}
           </div>
         )}
-        <InstallStatusDetail
-          lastCheck={status.lastCheck}
-          resources={status.resources}
-          steps={AZURE_STEPS}
-          meta={meta}
-        />
+        {loading ? (
+          <InstallationLoadingView provider="Azure" />
+        ) : error ? (
+          <InstallationErrorView message={error} onRetry={fetchStatus} />
+        ) : status ? (
+          <InstallStatusDetail
+            lastCheck={status.lastCheck}
+            resources={status.resources}
+            steps={AZURE_STEPS}
+            meta={meta}
+          />
+        ) : null}
       </div>
     </section>
   );
