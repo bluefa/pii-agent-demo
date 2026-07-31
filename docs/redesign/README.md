@@ -75,17 +75,22 @@ Measure the resting state first — the tint that was already there scored 1.06:
 excluded rows had no hover at all because their tint class replaced the hover class outright. Mirror
 whatever you add onto `focus-within`, or keyboard users get none of it.
 
-**Emphasis: use the axis that still has headroom, per column.** The anchor column was inert on
-hover because its color was already maxed (15.9:1) — only weight was left. Weight is normally a
-layout-shift trap, but it is free in a monospace column: Geist Mono's advance width is
-weight-invariant (measured 520.80px at 400 vs 520.79px at 700), and forcing semibold on every name
-cell at once moved no column by even 0.01px. The proportional column next to it widens 4% at the
-same change, so that one stays color-only. Measure the font before assuming which axis is safe.
+**Emphasis: use the axis that still has headroom, per column — and only one of them.** The anchor
+column was inert on hover because its neutral color was already maxed (15.9:1), so it switched
+color *family* instead (neutral to brand). Weight was available too — it is free in a monospace
+column, since Geist Mono's advance width is weight-invariant (measured 520.80px at 400 vs 520.79px
+at 700), while the proportional column beside it widens 4% at the same change. Available is not the
+same as worth using: color plus weight on the one differently-colored cell in a row reads as
+shouting. Measure the font to learn which axes are safe, then still spend one.
 
 **A tooltip that repeats what is already on screen is an obstacle, not a hint.** Show the
 full-value tip only when the cell is actually clipped, and measure that at open time
 (`scrollWidth > clientWidth`) rather than watching every cell. Check the clipping container AND its
 child: one of them can report no overflow while the other is clipped by 4x.
+
+**A tooltip carrying a bare value does not say which field it belongs to** — the trigger that
+opened it is behind the box. Title it with the field name. And identifiers need `break-all`: an ARN
+has no spaces, so default wrapping runs it straight out of a fixed-width popover.
 
 **Brand blue is not automatically accessible on a tinted row.** #0064FF passes on white (4.92:1)
 and fails on the hover background (4.46:1); 14px stays under the large-text threshold even at

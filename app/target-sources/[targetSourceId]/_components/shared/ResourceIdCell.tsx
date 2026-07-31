@@ -1,12 +1,12 @@
 'use client';
 
 import { CopyButton } from '@/app/components/ui/CopyButton';
-import { Tooltip } from '@/app/components/ui/Tooltip';
+import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, textColors } from '@/lib/theme';
 
 interface ResourceIdCellProps {
   value: string;
-  /** Copy-button aria label prefix, e.g. "Resource ID". */
+  /** Field name, e.g. "Resource ID" — titles the tooltip and prefixes the copy-button aria label. */
   label: string;
   maxWidthClass?: string;
   /** Extra classes on the id text — used by the approval table for its row-hover contrast lift. */
@@ -26,7 +26,12 @@ export const ResourceIdCell = ({
 }: ResourceIdCellProps) => (
   <span className={cn('group/resid inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
     {/* Long ids are the norm here, but short ones exist — no tooltip when the value already fits. */}
-    <Tooltip content={value} size="md" triggerClassName="min-w-0 overflow-hidden" truncatedOnly>
+    <Tooltip
+      content={<IdentifierTip label={label} value={value} />}
+      size="md"
+      triggerClassName="min-w-0 overflow-hidden"
+      truncatedOnly
+    >
       <span
         className={cn(
           // v16 .res-id-text: rtl direction + left align truncates from the LEFT, keeping the

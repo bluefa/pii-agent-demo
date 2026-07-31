@@ -45,6 +45,23 @@ const isClipped = (container: HTMLElement | null): boolean => {
   );
 };
 
+/**
+ * Content preset for identifier tooltips (Resource Name / Resource ID). A bare value in a dark
+ * box does not say WHICH field it belongs to — the trigger that opened it is covered by the box
+ * itself. `break-all` is not cosmetic: an ARN has no spaces, so the default wrap rules push it
+ * straight out of the fixed 280px box.
+ */
+export const IdentifierTip = ({ label, value }: { label: string; value: string }) => (
+  <>
+    <span className="block text-[10.5px] font-medium tracking-[0.04em] text-[#9CA3AF]">
+      {label}
+    </span>
+    <span className="mt-1 block break-all font-mono text-[12px] leading-[1.5] text-white">
+      {value}
+    </span>
+  </>
+);
+
 // Per-variant literal hex/box geometry — values transcribed verbatim from
 // design/v15-extract/09-tooltips.md (no rounding, no inference).
 const variantStyles: Record<

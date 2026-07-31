@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { Tooltip } from '@/app/components/ui/Tooltip';
+import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { idcStyles, primaryColors, textColors, cn } from '@/lib/theme';
@@ -54,23 +54,20 @@ const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#ECEFF3] focus-within:bg-[#ECEFF3]'
 // whichever axis still has headroom:
 //
 //   secondary columns  color  #4E5968 -> #191F28 (6.45:1 -> 15.0:1)
-//   Resource Name      weight 400 -> 600, because its color is already maxed at 15.9:1
+//   Resource Name      color  #191F28 -> the primary hover blue, marking the row's anchor
 //
-// Weight is free for the mono columns only: Geist Mono is a variable font whose advance width is
-// weight-invariant (measured 520.80px at 400 and 520.79px at 700, 14px), so the row cannot reflow.
-// Database Type is Pretendard — 400 -> 600 widens it 4% (352 -> 366px), so it stays color-only.
+// Weight was tried on the name (400 -> 600, safe from reflow because Geist Mono's advance width is
+// weight-invariant) and removed: color plus weight on the one blue cell in the row read as shouting.
+// One axis per column is the rule; the name already gets the loudest one.
 // Dimming the OTHER rows was rejected: #4E5968 at opacity .75 is 4.0:1, under WCAG AA, and it
 // would apply to most of the screen the whole time the pointer is in the table.
 //
 // Declared per cell: `cn` is a plain join, so a group-hover value must sit on the element that
 // owns the resting value, not be layered over it from the row.
 const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
-// Weight plus the primary hover blue. The blue is the DARK token, not #0064FF — see
-// primaryColors.textGroupHover for why (contrast under the row's hover background).
-const NAME_LIFT = cn(
-  'group-hover:font-semibold group-focus-within:font-semibold',
-  primaryColors.textGroupHover,
-);
+// The DARK primary, not #0064FF — see primaryColors.textGroupHover for why (contrast under the
+// row's hover background). Lighter is not available: #0064FF is already below AA there.
+const NAME_LIFT = primaryColors.textGroupHover;
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
@@ -151,7 +148,9 @@ export const WaitingApprovalTable = memo(
                       )}
                     >
                       <Tooltip
-                        content={resource.resourceName}
+                        content={
+                          <IdentifierTip label="Resource Name" value={resource.resourceName} />
+                        }
                         size="md"
                         triggerClassName="min-w-0 max-w-[200px] block"
                         truncatedOnly
