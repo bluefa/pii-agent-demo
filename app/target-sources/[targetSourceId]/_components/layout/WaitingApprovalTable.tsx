@@ -46,14 +46,22 @@ const CONNECTED_FRAME = 'overflow-hidden bg-white';
 // The two hover values must never land on the same element: `cn` is a plain join, so two
 // `focus-within:bg-*` classes would let CSS order pick the winner. Each branch owns both of its
 // state colors; ROW_BASE carries no color at all.
+// The tints lean blue rather than neutral. On hover the Resource Name turns brand blue, and over a
+// neutral gray that one cell reads as the only thing that changed; a faintly blue row reads as one
+// active object. Depth is the same as the neutral palette step #EBEEF2 would have given (1.16:1 vs
+// white) — the extra value buys hue, not darkness, and costs almost nothing in text contrast
+// (#0050D6 5.79:1, #191F28 14.25:1).
+// Chroma stays deliberately low: this family sits at the SAME luminance as the primary tint
+// #E8F1FF (1.01:1 apart), so saturation is the only thing separating "hovered" from "primary".
+// A future `selected` state must therefore not be a blue tint — hover already owns that.
 const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-none';
-const ROW_TARGET = 'hover:bg-[#F2F4F6] focus-within:bg-[#F2F4F6]';
-const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#ECEFF3] focus-within:bg-[#ECEFF3]';
+const ROW_TARGET = 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]';
+const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]';
 
 // Background alone marks position; it does not make a row easier to READ. Each column lifts on
 // whichever axis still has headroom:
 //
-//   secondary columns  color  #4E5968 -> #191F28 (6.45:1 -> 15.0:1)
+//   secondary columns  color  #4E5968 -> #191F28 (6.12:1 -> 14.25:1 on the hover tint)
 //   Resource Name      color  #191F28 -> the primary hover blue, marking the row's anchor
 //
 // Weight was tried on the name (400 -> 600, safe from reflow because Geist Mono's advance width is

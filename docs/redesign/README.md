@@ -117,6 +117,22 @@ while never measuring the card around it is how a fresh violation ships in the s
 every text node against its *effective* background — the parent chain, not "white" — and the count
 is what it is: 7 of 73 here, one of them newly introduced.
 
+**Do not apply text-contrast thresholds to a row tint.** Nothing in WCAG governs a hover
+background, and forcing 3:1 against white would need roughly #767676 — a gray row that costs
+contrast on the text it sits under. Judge the inside of the row (all of it passed: 5.48:1 for the
+brand-blue name, 13.48:1 for the body cells) and let the tint be as light as it needs to be. A
+1.16:1 tint reads because of three things: large area, a hard rectangular edge, and text that lifts
+at the same moment. Remove any of the three and it stops working — in particular a *persistent*
+state (selected, active) cannot rely on this, because it has to survive the pointer leaving. Use a
+separate channel, like an edge marker, for that.
+
+**Introduce a new color for hue, not for depth.** A darker hover was available from the palette
+(#EBEEF2). The value actually worth adding was the same lightness shifted blue (#EAEEF7), because
+the row's anchor text turns brand blue on hover and a neutral tint leaves that one cell looking like
+the only thing that changed. Check where the new value lands in the existing ramp: this one sits at
+the same luminance as the primary tint and is separated from it only by saturation, which is a
+constraint the next state (selected) inherits.
+
 **Brand blue is not automatically accessible on a tinted row.** #0064FF passes on white (4.92:1)
 and fails on the hover background (4.46:1); 14px stays under the large-text threshold even at
 semibold, so 4.5:1 still applies. The dark primary already in the palette holds 6.11:1.
