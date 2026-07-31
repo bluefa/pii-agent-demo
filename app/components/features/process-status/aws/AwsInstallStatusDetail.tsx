@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { borderColors, cn, textColors } from '@/lib/theme';
+import { borderColors, cn, stackGap, textColors, textStyles } from '@/lib/theme';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { formatDateTime } from '@/lib/utils/date';
 import {
@@ -25,16 +25,19 @@ import type { AwsInstallationStatus } from '@/lib/types';
  */
 
 const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
-  <div className={cn('rounded-xl border px-5 py-4 flex flex-col gap-1', borderColors.default)}>
-    <div className="flex gap-3 py-1.5 text-sm items-center">
+  // 라벨↔값은 한 덩어리(tight), 항목끼리는 형제(related).
+  <div className={cn('rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.default)}>
+    <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
       <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>검증 결과</span>
       <span className={textColors.primary}>{INSTALL_STATUS_LABEL[status.roleVerify.status]}</span>
     </div>
-    <div className="flex gap-3 py-1.5 text-sm items-center">
+    <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
       <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>Role ARN</span>
       {status.roleVerify.roleArn ? (
         <span className="inline-flex items-center gap-1.5 min-w-0 group">
-          <span className={cn('font-mono text-[12px] break-all', textColors.primary)}>{status.roleVerify.roleArn}</span>
+          <span className={cn('font-mono break-all', textStyles.caption, textColors.primary)}>
+            {status.roleVerify.roleArn}
+          </span>
           <CopyButton
             value={status.roleVerify.roleArn}
             label="Role ARN 복사"
@@ -46,7 +49,7 @@ const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
       )}
     </div>
     {status.lastCheck.checkedAt && (
-      <div className="flex gap-3 py-1.5 text-sm items-center">
+      <div className={cn('flex items-center', stackGap.group, textStyles.body)}>
         <span className={cn('w-24 flex-shrink-0', textColors.tertiary)}>확인 시각</span>
         <span className={textColors.primary}>{formatDateTime(status.lastCheck.checkedAt)}</span>
       </div>
@@ -57,22 +60,26 @@ const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
 const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
   {
     id: 'service',
-    title: manualInstall ? '서비스 측 리소스 생성 (직접 적용)' : '서비스 측 리소스 생성',
-    side: manualInstall ? '서비스측 · 직접 수행' : '서비스측 인프라 · 자동',
+    title: manualInstall ? 'Terraform 직접 적용' : 'Terraform 자동 적용',
+    side: '서비스측 리소스 생성',
+    // 자동 모드는 BDC가 배포하므로 서비스 측 조치 문구를 달지 않는다.
+    serviceAction: manualInstall
+      ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용해 주세요.'
+      : undefined,
     desc: manualInstall
       ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용합니다.'
       : '리소스별 Private Endpoint / IAM Role / Glue Policy 설정을 Terraform으로 자동 배포합니다.',
   },
   {
     id: 'bdcService',
-    title: 'BDC 서비스 리소스 생성',
-    side: 'BDC측 · 자동',
+    title: 'BDC 서비스 영역',
+    side: 'BDC측 리소스 생성',
     desc: '리소스별 BDC 계정 측 Private Endpoint Service / IAM Role 설정을 자동 배포합니다.',
   },
   {
     id: 'bdcCommon',
-    title: 'BDC 공통 리소스 생성',
-    side: 'BDC측 · 자동',
+    title: 'BDC 공통 영역',
+    side: 'BDC측 리소스 생성',
     desc: '대상 소스 공통 BDC 인프라 설정을 자동 배포합니다.',
   },
 ];
@@ -98,7 +105,8 @@ export const AwsInstallStatusDetail = ({
             {
               id: 'perm',
               title: 'Terraform 권한 부여 확인',
-              side: '서비스측',
+              side: '서비스측 확인',
+              serviceAction: '대상 AWS 계정에 Terraform 실행용 IAM Role / AssumeRole 권한을 부여해 주세요.',
               desc: '대상 AWS 계정에 Terraform 실행을 위한 IAM Role / AssumeRole 권한이 부여되었는지 검증합니다.',
               status: status.roleVerify.status,
               panel: <RoleVerifyPanel status={status} />,

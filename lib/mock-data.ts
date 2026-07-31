@@ -414,7 +414,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1006,
     projectCode: 'N-IRP-001',
     name: 'PII Agent 설치 - 고객 DB',
-    description: '실 응답 캡처의 스캔 후보 9건. 1건만 연동 대상으로 선택된 상태입니다.',
+    description: 'Step 1. 연동 대상 확정 — 실 BFF 응답 캡처의 스캔 후보 9건(엔진 6종)에서 1건만 선택된 상태입니다. TF 실행 권한 미허용이라 이후 설치는 직접 적용 모드로 이어집니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: AWS_WIRE_APPROVAL_ACCOUNT_ID,
@@ -437,7 +437,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1007,
     projectCode: 'N-IRP-002',
     name: 'PII Agent 설치 - 로그 분석 계정',
-    description: '실 응답 캡처의 스캔 후보 9건으로 관리자 승인을 대기합니다.',
+    description: 'Step 2. 관리자 승인 반려 — RDS_CLUSTER 미지원 사유로 반려된 상태입니다. 반려 사유 노출과 재신청 흐름을 검증합니다. 리소스는 실 BFF 응답 캡처의 스캔 후보 9건입니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: AWS_WIRE_APPROVAL_ACCOUNT_ID,
@@ -460,7 +460,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1008,
     projectCode: 'OTHER-003',
     name: 'PII Agent 설치 - 이벤트 적재 파이프라인',
-    description: '실 응답 캡처의 확정 리소스 7건을 설치 중입니다. installation-status 도 캡처 원문입니다.',
+    description: 'Step 4. 자동 설치 진행 중 — 단계별 설치 현황(서비스측/BDC측)을 검증합니다. installation-status 를 실 BFF 응답 캡처 원문으로 서빙하므로 상태는 전부 진행중이고, 빈 Role ARN·Athena 리전 단위 리소스 id 가 그대로 노출됩니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
@@ -483,7 +483,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1010,
     projectCode: 'DATA-005',
     name: 'PII Agent 설치 - 데이터 마트',
-    description: '설치가 완료되어 연결 테스트가 필요합니다. 확정 정보는 실 응답 캡처입니다.',
+    description: 'Step 5. 연결 테스트 — 설치 완료 후 연결 테스트 수행을 검증합니다. 확정 정보가 실 BFF 응답 캡처라 Credential 불필요 엔진(Athena)과 필요 엔진(MySQL)이 섞여 있고, SDU 표기(AWS 대신 SDU)도 함께 확인할 수 있습니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
@@ -506,7 +506,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1011,
     projectCode: 'DATA-006',
     name: 'PII Agent 설치 - 결제 데이터',
-    description: '연결 테스트까지 끝나 최종 관리자 승인 대기 중입니다.',
+    description: 'Step 6. 최종 관리자 승인 대기 — 연결 테스트 검증까지 끝난 뒤 완료 승인을 기다리는 화면을 검증합니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
@@ -527,7 +527,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1012,
     projectCode: 'DATA-007',
     name: 'PII Agent 모니터링 운영',
-    description: '연동 설치가 완료되어 PII 모니터링이 실행 중입니다.',
+    description: 'Step 7. 설치 완료 — 연동이 끝나 PII 모니터링이 실행 중인 최종 화면을 검증합니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
@@ -707,6 +707,8 @@ const cloneForStep = (
     projectCode: string;
     name: string;
     status: ProcessStatus;
+    /** 미지정 시 base 설명을 그대로 상속한다. */
+    description?: string;
     resources?: Project['resources'];
     unavailableReason?: string;
   },
@@ -734,6 +736,7 @@ const cloneForStep = (
     targetSourceId: over.targetSourceId,
     projectCode: over.projectCode,
     name: over.name,
+    description: over.description ?? base.description,
     processStatus: over.status,
     status: createStatusForProcessStatus(over.status, {
       selectedCount: 2,
@@ -752,6 +755,7 @@ mockProjects.push(
     projectCode: 'AWS-APPLYING',
     name: 'AWS PII Agent - 반영 중',
     status: ProcessStatus.APPLYING_APPROVED,
+    description: 'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면을 검증합니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인할 수 있습니다.',
   }),
   // Azure — fills steps 2/3/5/6/7 (base azure-proj-1 carries full resources)
   cloneForStep('azure-proj-1', { id: 'azure-proj-approval', targetSourceId: 2002, projectCode: 'AZURE-APPROVAL', name: 'Azure PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL }),

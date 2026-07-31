@@ -12,7 +12,7 @@ Documents may be written in Korean (this README must stay English — repo rule)
 |---|---|---|
 | Step 2 · approval waiting (`/pass/target-sources/{id}`) | [`step2-approval-waiting.md`](step2-approval-waiting.md) | shipped (PR #590) |
 | Step 2 · live review session log | [`step2-review-session-log.md`](step2-review-session-log.md) | reference |
-| Text scale & spacing tokens | `typography-and-spacing.md` | on the Step 4 branch |
+| Text scale & spacing tokens | [`typography-and-spacing.md`](typography-and-spacing.md) | shipped (Step 4 applied) |
 
 Step 3 (`ApplyingApprovedCard`) shares the toolbar, table and pagination with Step 2, so the Step 2
 document also covers what changed there.

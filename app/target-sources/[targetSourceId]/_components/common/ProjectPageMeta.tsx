@@ -1,10 +1,8 @@
 import type { CSSProperties } from 'react';
 import type { TargetSource } from '@/lib/types';
-import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
 import { PageHeader } from '@/app/components/ui/PageHeader';
 import { IdentityBar, type IdentityBarField } from '@/app/components/ui/IdentityBar';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status';
-import { passRoutes } from '@/lib/routes';
 import {
   borderColors,
   cardStyles,
@@ -19,15 +17,15 @@ import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_com
 
 interface ProjectPageMetaProps {
   project: TargetSource;
+  /**
+   * '{Provider} Infrastructure'. 브레드크럼이 제거되면서 이 컴포넌트는 더 이상
+   * 읽지 않지만, 상위 스텝 컴포넌트들이 ConnectionTestCard 등과 공유하는
+   * prop 이라 시그니처는 유지한다.
+   */
   providerLabel: string;
   identity: ProjectIdentity;
   action?: React.ReactNode;
 }
-
-const STATIC_HEAD_CRUMBS = [
-  { label: 'SIT Home', href: '/' },
-  { label: 'Service List', href: passRoutes.services },
-];
 
 const JIRA_KEY_PATTERN = /\/browse\/([A-Z][A-Z0-9]+-\d+)/;
 
@@ -70,12 +68,7 @@ const buildIdentityFields = (identity: ProjectIdentity): IdentityBarField[] => {
   return fields;
 };
 
-export const ProjectPageMeta = ({ project, providerLabel, identity, action }: ProjectPageMetaProps) => {
-  const crumbs = [
-    ...STATIC_HEAD_CRUMBS,
-    { label: project.serviceCode, href: `${passRoutes.services}?service_code=${encodeURIComponent(project.serviceCode)}` },
-    { label: providerLabel },
-  ];
+export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaProps) => {
   const provider = String(identity.cloudProvider).toLowerCase();
   const accent = providerAccent[provider] ?? providerAccentDefault;
   // v16 hides the "Cloud Provider" sub-line for IDC — it has no cloud account (HTML 9439).
@@ -89,7 +82,6 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
 
   return (
     <>
-      <Breadcrumb crumbs={crumbs} />
       {/* Unified project header — the page title/actions, identity facts and the
           process stepper are one hierarchical info cluster (what › context ›
           progress), so they share a single card. The provider accent stripe
