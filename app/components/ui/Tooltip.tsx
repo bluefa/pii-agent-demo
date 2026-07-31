@@ -11,8 +11,13 @@ type TooltipSize = 'sm' | 'md' | 'lg' | 'xl';
  * (#111827 box, radius 8, line-height 1.5); `sourceIp` = the IDC Source-IP header
  * tooltip (#1F2937 box, radius 10, line-height 1.6). Both share the 280px fixed
  * width, 11.5px text, and rotated-square arrow per `design/v15-extract/09-tooltips.md`.
+ *
+ * `value` is not from that spec. The dark box was authored to EXPLAIN a state; reflecting a
+ * clipped cell value back is a different job, and over a white table the dark box reads as UI
+ * from another system. This one borrows the surrounding card language instead (white,
+ * #E5E8EB hairline, soft shadow) so it sits on the table rather than on top of it.
  */
-type TooltipVariant = 'status' | 'sourceIp';
+type TooltipVariant = 'status' | 'sourceIp' | 'value';
 
 interface TooltipProps {
   content: React.ReactNode;
@@ -26,25 +31,83 @@ interface TooltipProps {
    * can actually ellipsis inside a constrained cell.
    */
   triggerClassName?: string;
+  /**
+   * Open only when the trigger's content is actually clipped. A cell that already shows its
+   * whole value has nothing to reveal, so a tooltip there is just noise the user has to wait out.
+   * Measured on open rather than watched: the answer is only needed at that instant, which avoids
+   * a ResizeObserver per cell in a paginated table.
+   */
+  truncatedOnly?: boolean;
 }
+
+// True when the element (or the child it clips) overflows its box. The 1px slack absorbs
+// sub-pixel layout rounding, which otherwise reports a 1px overflow on exact-fit text.
+const isClipped = (container: HTMLElement | null): boolean => {
+  if (!container) return false;
+  const candidates = [container, container.firstElementChild];
+  return candidates.some(
+    (el) => el instanceof HTMLElement && el.scrollWidth > el.clientWidth + 1,
+  );
+};
+
+/**
+ * Content preset for identifier tooltips (Resource Name / Resource ID), paired with
+ * `variant="value"`. A bare value does not say WHICH field it belongs to — the trigger that
+ * would have answered that is covered by the box itself.
+ *
+ * The two tiers split on size AND color, not color alone: #4E5968 semibold 12px over #191F28
+ * 13px. The label is deliberately not #8B95A1 (3.0:1 on white, under AA) even though the table
+ * header still uses that gray.
+ *
+ * `break-all` is not cosmetic: an ARN has no spaces, so default wrap rules push it straight out
+ * of the fixed 280px box.
+ */
+export const IdentifierTip = ({ label, value }: { label: string; value: string }) => (
+  <>
+    <span className="block text-[12px] font-semibold text-[#4E5968]">{label}</span>
+    <span className="mt-[5px] block break-all font-mono text-[13px] leading-[1.5] text-[#191F28]">
+      {value}
+    </span>
+  </>
+);
 
 // Per-variant literal hex/box geometry — values transcribed verbatim from
 // design/v15-extract/09-tooltips.md (no rounding, no inference).
 const variantStyles: Record<
   TooltipVariant,
-  { box: string; radius: string; shadow: string; lineHeight: string }
+  {
+    box: string;
+    text: string;
+    radius: string;
+    shadow: string;
+    lineHeight: string;
+    /** Hairline on the box and the two outward arrow edges. Only the light variant needs one. */
+    border?: string;
+  }
 > = {
   status: {
     box: '#111827',
+    text: '#FFFFFF',
     radius: '8px',
     shadow: '0 8px 24px rgba(0,0,0,0.18)',
     lineHeight: '1.5',
   },
   sourceIp: {
     box: '#1F2937',
+    text: '#FFFFFF',
     radius: '10px',
     shadow: '0 8px 24px rgba(0,0,0,0.22)',
     lineHeight: '1.6',
+  },
+  value: {
+    box: '#FFFFFF',
+    text: '#191F28',
+    radius: '10px',
+    // Softer and bluer than the dark variants': a white box needs the shadow to separate it from
+    // the white card under it, which is the one job the dark box never had to do.
+    shadow: '0 6px 20px rgba(0,19,43,0.10)',
+    lineHeight: '1.5',
+    border: '#E5E8EB',
   },
 };
 
@@ -55,6 +118,7 @@ export const Tooltip = ({
   size = 'md',
   variant = 'status',
   triggerClassName,
+  truncatedOnly = false,
 }: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
   // `actualPosition` is the resolved top/bottom placement after viewport flip.
@@ -147,7 +211,8 @@ export const Tooltip = ({
     top: `${coords?.top ?? 0}px`,
     width: `${BOX_WIDTH}px`,
     background: box.box,
-    color: '#FFFFFF',
+    color: box.text,
+    border: box.border ? `1px solid ${box.border}` : undefined,
     borderRadius: box.radius,
     padding: '12px 14px',
     boxShadow: box.shadow,
@@ -163,24 +228,38 @@ export const Tooltip = ({
   // v15 arrow = a 10×10 square rotated 45deg in the box color (not a CSS border
   // triangle). Sits at the box edge facing the trigger, horizontally aligned to
   // the trigger center even when the box is clamped to the viewport.
-  const getArrowStyle = (): React.CSSProperties => ({
-    width: '10px',
-    height: '10px',
-    background: box.box,
-    transform: 'rotate(45deg)',
-    left: `${arrowOffset - 5}px`,
-    ...(actualPosition === 'top'
-      ? { top: 'calc(100% - 5px)' }
-      : { top: '-5px' }),
-  });
+  const getArrowStyle = (): React.CSSProperties => {
+    const pointsDown = actualPosition === 'top';
+    // The square's half that sits inside the box paints over the box's own border, so the
+    // hairline appears to run around the arrow instead of straight through it. Only the two
+    // outward faces are drawn — after the 45deg rotation those are right/bottom when the arrow
+    // points down, left/top when it points up.
+    const edge = box.border ? `1px solid ${box.border}` : undefined;
+    // The containing block is the padding box, so `100%` lands 1px inside the border. Nudge by
+    // the border width to centre the square on the border line itself. Borderless variants keep
+    // their original 5px exactly — shift is 0 for them.
+    const shift = box.border ? 1 : 0;
+    return {
+      width: '10px',
+      height: '10px',
+      background: box.box,
+      transform: 'rotate(45deg)',
+      left: `${arrowOffset - 5}px`,
+      borderRight: pointsDown ? edge : undefined,
+      borderBottom: pointsDown ? edge : undefined,
+      borderLeft: pointsDown ? undefined : edge,
+      borderTop: pointsDown ? undefined : edge,
+      ...(pointsDown ? { top: `calc(100% - ${5 - shift}px)` } : { top: `-${5 + shift}px` }),
+    };
+  };
 
   return (
     <div
       ref={containerRef}
       className={cn('relative inline-flex', triggerClassName)}
-      onMouseEnter={() => setIsVisible(true)}
+      onMouseEnter={() => setIsVisible(!truncatedOnly || isClipped(containerRef.current))}
       onMouseLeave={() => setIsVisible(false)}
-      onFocus={() => setIsVisible(true)}
+      onFocus={() => setIsVisible(!truncatedOnly || isClipped(containerRef.current))}
       onBlur={() => setIsVisible(false)}
     >
       {children}

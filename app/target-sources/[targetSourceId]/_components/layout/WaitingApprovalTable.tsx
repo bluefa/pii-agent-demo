@@ -2,10 +2,10 @@
 
 import { memo } from 'react';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
+import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
-import { idcStyles, textColors, cn } from '@/lib/theme';
-import type { ResourceIntegrationStatus } from '@/lib/types';
+import { idcStyles, primaryColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -19,19 +19,10 @@ export interface WaitingApprovalResource {
   exclusionMeta?: string;
   /** Display db-engine source — prefer endpoint_config.db_type over resource_type (e.g. VM rows). */
   displayDbType?: string;
-  /** Per-resource integration history — only rendered in the `applying` variant (step 3). */
-  integrationStatus?: ResourceIntegrationStatus | null;
 }
-
-/**
- * `waiting` (step 2): target column + exclusion-reason column, separate.
- * `applying` (step 3): merged target/reason column + an integration-history column.
- */
-type ApprovalTableVariant = 'waiting' | 'applying';
 
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
-  variant?: ApprovalTableVariant;
   /** Custom empty message shown when `resources` is empty. Defaults to the source-level empty copy. */
   emptyMessage?: string;
   /**
@@ -45,6 +36,46 @@ interface WaitingApprovalTableProps {
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
 // under the top-rounded toolbar. The bottom radius belongs to the pagination footer stacked below.
 const CONNECTED_FRAME = 'overflow-hidden bg-white';
+
+// Row hover, declared here rather than via idcStyles.table.row — that token is shared with six
+// other tables, and its #F7F8FA tint measures 1.06:1 against white (invisible). Excluded rows had
+// no hover at all: `rowExcluded` REPLACED `row`, and #F9FAFB -> #F7F8FA would be 1.02:1 anyway.
+// Each state keeps its own lift so the excluded tint survives hover (1.10:1 each).
+// `focus-within` mirrors hover: the row carries a copy button and tooltip triggers, so a keyboard
+// user tabbing through gets the same row highlight a mouse user gets.
+// The two hover values must never land on the same element: `cn` is a plain join, so two
+// `focus-within:bg-*` classes would let CSS order pick the winner. Each branch owns both of its
+// state colors; ROW_BASE carries no color at all.
+// The tints lean blue rather than neutral. On hover the Resource Name turns brand blue, and over a
+// neutral gray that one cell reads as the only thing that changed; a faintly blue row reads as one
+// active object. Depth is the same as the neutral palette step #EBEEF2 would have given (1.16:1 vs
+// white) — the extra value buys hue, not darkness, and costs almost nothing in text contrast
+// (#0050D6 5.79:1, #191F28 14.25:1).
+// Chroma stays deliberately low: this family sits at the SAME luminance as the primary tint
+// #E8F1FF (1.01:1 apart), so saturation is the only thing separating "hovered" from "primary".
+// A future `selected` state must therefore not be a blue tint — hover already owns that.
+const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-none';
+const ROW_TARGET = 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]';
+const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]';
+
+// Background alone marks position; it does not make a row easier to READ. Each column lifts on
+// whichever axis still has headroom:
+//
+//   secondary columns  color  #4E5968 -> #191F28 (6.12:1 -> 14.25:1 on the hover tint)
+//   Resource Name      color  #191F28 -> the primary hover blue, marking the row's anchor
+//
+// Weight was tried on the name (400 -> 600, safe from reflow because Geist Mono's advance width is
+// weight-invariant) and removed: color plus weight on the one blue cell in the row read as shouting.
+// One axis per column is the rule; the name already gets the loudest one.
+// Dimming the OTHER rows was rejected: #4E5968 at opacity .75 is 4.0:1, under WCAG AA, and it
+// would apply to most of the screen the whole time the pointer is in the table.
+//
+// Declared per cell: `cn` is a plain join, so a group-hover value must sit on the element that
+// owns the resting value, not be layered over it from the row.
+const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
+// The DARK primary, not #0064FF — see primaryColors.textGroupHover for why (contrast under the
+// row's hover background). Lighter is not available: #0064FF is already below AA there.
+const NAME_LIFT = primaryColors.textGroupHover;
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
@@ -60,27 +91,25 @@ const TargetPill = ({ excluded }: { excluded: boolean }) => {
   );
 };
 
+// The chip's own 40-char default overruns this six-column table and forces horizontal
+// scroll (Azure step 3 reasons run past it). Clamp here — the full text is in the hover tip.
+const SUMMARY_LIMIT = 15;
+
+const clampReason = (reason: string): string =>
+  reason.length <= SUMMARY_LIMIT ? reason : reason.slice(0, SUMMARY_LIMIT).trimEnd() + '…';
+
 // Blank when there is no reason — target rows can never have one, so an em-dash is noise.
 const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
   !resource.selected && resource.exclusionReason ? (
-    <ReasonChipInline reason={resource.exclusionReason} meta={resource.exclusionMeta} />
+    <ReasonChipInline
+      reason={resource.exclusionReason}
+      summary={clampReason(resource.exclusionReason)}
+      meta={resource.exclusionMeta}
+    />
   ) : null;
 
-// Integration history (step 3) — no API source for integrationStatus in TargetSourceResourceItemDto;
-// render — for all rows until the contract provides a value.
-const IntegrationHistoryCell = ({ resource }: { resource: WaitingApprovalResource }) => {
-  if (!resource.selected) return <span className={textColors.quaternary}>{PLACEHOLDER}</span>;
-  if (resource.integrationStatus == null) return <span className={textColors.quaternary}>{PLACEHOLDER}</span>;
-  const integrated = resource.integrationStatus === 'INTEGRATED';
-  return (
-    <span className={cn(idcStyles.tag.base, integrated ? idcStyles.tag.green : idcStyles.tag.orange)}>
-      {integrated ? 'Integrated' : 'Pending'}
-    </span>
-  );
-};
-
 export const WaitingApprovalTable = memo(
-  ({ resources, variant = 'waiting', emptyMessage, connected = false }: WaitingApprovalTableProps) => {
+  ({ resources, emptyMessage, connected = false }: WaitingApprovalTableProps) => {
     if (resources.length === 0) {
       return (
         <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
@@ -89,12 +118,7 @@ export const WaitingApprovalTable = memo(
       );
     }
 
-    const applying = variant === 'applying';
-    const lastColumnLabel = applying ? '연동 이력' : '제외 사유';
-    // The header asks the question, the cell answers it. Same vocabulary as the stat tiles above,
-    // minus the redundant prefix the card title already carries.
-    const targetColumnLabel = applying ? '요청 대상 여부 / 제외 사유' : '요청 대상 여부';
-    const monoCell = cn('font-mono text-[12px]', textColors.secondary);
+    const monoCell = cn('whitespace-nowrap font-mono text-[12px]', textColors.secondary);
 
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
@@ -108,8 +132,9 @@ export const WaitingApprovalTable = memo(
                 <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Region</th>
-                <th className={idcStyles.table.approvalHeaderCell}>{targetColumnLabel}</th>
-                <th className={idcStyles.table.approvalHeaderCell}>{lastColumnLabel}</th>
+                {/* The header asks the question, the cell answers it. */}
+                <th className={idcStyles.table.approvalHeaderCell}>요청 대상 여부</th>
+                <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
@@ -118,43 +143,52 @@ export const WaitingApprovalTable = memo(
                 return (
                   <tr
                     key={resource.resourceId}
-                    className={cn('group', excluded ? idcStyles.table.rowExcluded : idcStyles.table.row)}
+                    className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
                   >
-                    <td className={cn(idcStyles.table.approvalCell, 'font-mono text-[14px]', textColors.primary)}>
-                      {resource.resourceName || PLACEHOLDER}
+                    {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
+                        block and left row heights ragged (59/69/75px); the full name is in the tip. */}
+                    <td
+                      className={cn(
+                        idcStyles.table.approvalCell,
+                        'font-mono text-[14px]',
+                        textColors.primary,
+                        NAME_LIFT,
+                      )}
+                    >
+                      <Tooltip
+                        content={
+                          <IdentifierTip label="Resource Name" value={resource.resourceName} />
+                        }
+                        variant="value"
+                        size="md"
+                        triggerClassName="min-w-0 max-w-[200px] block"
+                        truncatedOnly
+                      >
+                        <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+                      </Tooltip>
                     </td>
                     <td className={idcStyles.table.approvalCell}>
-                      <ResourceIdCell value={resource.resourceId} label="Resource ID" />
+                      {/* 260px (the cell default) plus a non-wrapping Region overran the card. */}
+                      <ResourceIdCell
+                        value={resource.resourceId}
+                        label="Resource ID"
+                        maxWidthClass="max-w-[220px]"
+                        textClassName={CELL_LIFT}
+                      />
                     </td>
                     {/* DB Type is a repeating attribute, not a status — one badge per row (the
                         verdict) is enough; a second pill would compete with it. */}
-                    <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary)}>
+                    <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary, CELL_LIFT)}>
                       {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
                     </td>
-                    <td className={cn(idcStyles.table.approvalCell, monoCell)}>
+                    <td className={cn(idcStyles.table.approvalCell, monoCell, CELL_LIFT)}>
                       {resource.region || PLACEHOLDER}
                     </td>
                     <td className={idcStyles.table.approvalCell}>
-                      {applying ? (
-                        <span className="flex flex-col items-start gap-1.5">
-                          <TargetPill excluded={excluded} />
-                          {excluded && resource.exclusionReason && (
-                            <ReasonChipInline
-                              reason={resource.exclusionReason}
-                              meta={resource.exclusionMeta}
-                            />
-                          )}
-                        </span>
-                      ) : (
-                        <TargetPill excluded={excluded} />
-                      )}
+                      <TargetPill excluded={excluded} />
                     </td>
                     <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
-                      {applying ? (
-                        <IntegrationHistoryCell resource={resource} />
-                      ) : (
-                        <ReasonCell resource={resource} />
-                      )}
+                      <ReasonCell resource={resource} />
                     </td>
                   </tr>
                 );
