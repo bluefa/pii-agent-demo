@@ -26,7 +26,24 @@ interface TooltipProps {
    * can actually ellipsis inside a constrained cell.
    */
   triggerClassName?: string;
+  /**
+   * Open only when the trigger's content is actually clipped. A cell that already shows its
+   * whole value has nothing to reveal, so a tooltip there is just noise the user has to wait out.
+   * Measured on open rather than watched: the answer is only needed at that instant, which avoids
+   * a ResizeObserver per cell in a paginated table.
+   */
+  truncatedOnly?: boolean;
 }
+
+// True when the element (or the child it clips) overflows its box. The 1px slack absorbs
+// sub-pixel layout rounding, which otherwise reports a 1px overflow on exact-fit text.
+const isClipped = (container: HTMLElement | null): boolean => {
+  if (!container) return false;
+  const candidates = [container, container.firstElementChild];
+  return candidates.some(
+    (el) => el instanceof HTMLElement && el.scrollWidth > el.clientWidth + 1,
+  );
+};
 
 // Per-variant literal hex/box geometry — values transcribed verbatim from
 // design/v15-extract/09-tooltips.md (no rounding, no inference).
@@ -55,6 +72,7 @@ export const Tooltip = ({
   size = 'md',
   variant = 'status',
   triggerClassName,
+  truncatedOnly = false,
 }: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
   // `actualPosition` is the resolved top/bottom placement after viewport flip.
@@ -178,9 +196,9 @@ export const Tooltip = ({
     <div
       ref={containerRef}
       className={cn('relative inline-flex', triggerClassName)}
-      onMouseEnter={() => setIsVisible(true)}
+      onMouseEnter={() => setIsVisible(!truncatedOnly || isClipped(containerRef.current))}
       onMouseLeave={() => setIsVisible(false)}
-      onFocus={() => setIsVisible(true)}
+      onFocus={() => setIsVisible(!truncatedOnly || isClipped(containerRef.current))}
       onBlur={() => setIsVisible(false)}
     >
       {children}

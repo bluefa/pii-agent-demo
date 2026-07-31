@@ -82,6 +82,15 @@ weight-invariant (measured 520.80px at 400 vs 520.79px at 700), and forcing semi
 cell at once moved no column by even 0.01px. The proportional column next to it widens 4% at the
 same change, so that one stays color-only. Measure the font before assuming which axis is safe.
 
+**A tooltip that repeats what is already on screen is an obstacle, not a hint.** Show the
+full-value tip only when the cell is actually clipped, and measure that at open time
+(`scrollWidth > clientWidth`) rather than watching every cell. Check the clipping container AND its
+child: one of them can report no overflow while the other is clipped by 4x.
+
+**Brand blue is not automatically accessible on a tinted row.** #0064FF passes on white (4.92:1)
+and fails on the hover background (4.46:1); 14px stays under the large-text threshold even at
+semibold, so 4.5:1 still applies. The dark primary already in the palette holds 6.11:1.
+
 **Measure before you restyle.** "These values feel too heavy" was, on inspection, byte-identical
 typography to the screen it was being compared against — the weight came from values wrapping to
 2–3 lines and leaving row heights ragged. Dump the computed styles of both screens before changing

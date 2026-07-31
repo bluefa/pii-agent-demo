@@ -5,7 +5,7 @@ import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
-import { idcStyles, textColors, cn } from '@/lib/theme';
+import { idcStyles, primaryColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -65,7 +65,12 @@ const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#ECEFF3] focus-within:bg-[#ECEFF3]'
 // Declared per cell: `cn` is a plain join, so a group-hover value must sit on the element that
 // owns the resting value, not be layered over it from the row.
 const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
-const NAME_LIFT = 'group-hover:font-semibold group-focus-within:font-semibold';
+// Weight plus the primary hover blue. The blue is the DARK token, not #0064FF — see
+// primaryColors.textGroupHover for why (contrast under the row's hover background).
+const NAME_LIFT = cn(
+  'group-hover:font-semibold group-focus-within:font-semibold',
+  primaryColors.textGroupHover,
+);
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
@@ -145,7 +150,12 @@ export const WaitingApprovalTable = memo(
                         NAME_LIFT,
                       )}
                     >
-                      <Tooltip content={resource.resourceName} size="md" triggerClassName="min-w-0 max-w-[200px] block">
+                      <Tooltip
+                        content={resource.resourceName}
+                        size="md"
+                        triggerClassName="min-w-0 max-w-[200px] block"
+                        truncatedOnly
+                      >
                         <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
                       </Tooltip>
                     </td>

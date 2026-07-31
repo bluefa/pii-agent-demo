@@ -165,7 +165,8 @@ Step 2에서 이미 공유 컴포넌트로 반영된 것(컬럼 순서, `요청 
 | 대상 행 hover | `#F7F8FA` (1.06:1) | **`#F2F4F6`** (1.10:1) |
 | 제외 행 hover | 없음 | **`#ECEFF3`** (제외 tint 기준 1.10:1) |
 | 보조 컬럼 텍스트 | #4E5968 고정 | **hover 시 #191F28** (6.45:1 → **15.0:1**) |
-| Resource Name | 무반응 (색이 이미 15.9:1로 max) | **400 → 600** (폭 변화 0) |
+| Resource Name | 무반응 (색이 이미 15.9:1로 max) | **400 → 600 + primary 파랑** (폭 변화 0) |
+| 툴팁 | 값이 다 보여도 항상 뜸 | **잘린 셀에서만** (`truncatedOnly`) |
 | 키보드 | hover 전용 | **`focus-within` 동일 적용** |
 | 전환 | `transition-colors` | + `duration-150` · **`motion-reduce:transition-none`** |
 
@@ -183,7 +184,7 @@ Step 2에서 이미 공유 컴포넌트로 반영된 것(컬럼 순서, `요청 
 
   | 컬럼 | 폰트 | 쓰는 축 |
   |---|---|---|
-  | Resource Name | Geist Mono | **굵기 400→600** |
+  | Resource Name | Geist Mono | **굵기 400→600 + 파랑 #0050D6** |
   | Resource ID · Region | Geist Mono | 색 |
   | Database Type | Pretendard | 색 |
 
@@ -191,6 +192,16 @@ Step 2에서 이미 공유 컴포넌트로 반영된 것(컬럼 순서, `요청 
   무관**하다(14px 실측 400=520.80px, 700=520.79px). 모든 이름 셀에 `font-semibold`를 동시에
   강제해도 컬럼 폭이 소수점 둘째 자리까지 그대로다. Pretendard는 400→600에서 4% 넓어지므로
   (352→366px) Database Type은 색만 쓴다.
+- **파랑은 `#0064FF`가 아니라 `#0050D6`(primaryDark)를 쓴다.** `#0064FF`는 흰 배경에서 4.92:1로
+  통과하지만, hover 배경이 깔리면 **4.46:1(대상) / 4.27:1(제외)로 AA 미달**이 된다. 14px는
+  semibold여도 WCAG large text가 아니라 4.5:1이 그대로 적용된다. `#0050D6`은 6.11:1 / 5.84:1로
+  여유가 있고, 토큰 계열도 이미 hover용으로 쓰던 색이다
+  (`primaryColors.textGroupHover` 신설 — 이유를 토큰 주석에 남겼다).
+- **툴팁은 값이 잘린 셀에서만 연다.** 전체 이름이 다 보이는데도 툴팁이 뜨는 건 정보가 아니라
+  방해였다. `Tooltip`에 `truncatedOnly` opt-in을 추가하고 **열리는 순간에 `scrollWidth >
+  clientWidth`를 잰다** — 셀마다 ResizeObserver를 두지 않아도 되고, 그 값은 그 순간에만 필요하다.
+  컨테이너와 **첫 자식 둘 다** 검사한다: Resource ID는 컨테이너가 `192=192`인데 자식 span이
+  `961 > 192`라 한쪽만 봤으면 정작 필요한 툴팁을 죽일 뻔했다.
 - **다른 행을 흐리게(dim) 하는 방식은 버렸다.** #4E5968를 opacity 0.75로 낮추면 4.0:1,
   0.5면 2.4:1 — **WCAG AA 미달**이다. 게다가 포인터가 표 위에 있는 내내 화면 대부분이
   기준 미달 상태가 된다. 하나를 띄우려고 나머지를 못 읽게 만드는 거래는 성립하지 않는다.

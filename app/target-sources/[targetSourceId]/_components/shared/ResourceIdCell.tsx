@@ -25,7 +25,8 @@ export const ResourceIdCell = ({
   textClassName,
 }: ResourceIdCellProps) => (
   <span className={cn('group/resid inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
-    <Tooltip content={value} size="md" triggerClassName="min-w-0 overflow-hidden">
+    {/* Long ids are the norm here, but short ones exist — no tooltip when the value already fits. */}
+    <Tooltip content={value} size="md" triggerClassName="min-w-0 overflow-hidden" truncatedOnly>
       <span
         className={cn(
           // v16 .res-id-text: rtl direction + left align truncates from the LEFT, keeping the

@@ -80,6 +80,12 @@ export const primaryColors = {
   haloRing: 'shadow-[0_0_0_4px_rgba(0,100,255,0.18)]',
   haloRingSoft: 'shadow-[0_0_0_6px_rgba(0,100,255,0.10)]',
   marker: 'marker:text-[#0064FF]',
+  /**
+   * Row/card hover tint driven by an ancestor `group`. Uses the DARK primary: #0064FF scores
+   * 4.92:1 on white but only 4.46:1 once a hover background sits under it, which is below AA
+   * for text under 18px. #0050D6 holds 6.11:1 on the same surface.
+   */
+  textGroupHover: 'group-hover:text-[#0050D6] group-focus-within:text-[#0050D6]',
 } as const;
 
 /**
