@@ -29,7 +29,7 @@ describe('WaitingApprovalCancelButton', () => {
     fireEvent.click(screen.getByRole('button', { name: /다시 요청하기/ }));
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(
-      screen.getByText('연동 대상을 다시 선택할까요?'),
+      screen.getByText('승인 요청을 취소할까요?'),
     ).toBeTruthy();
   });
 
@@ -42,7 +42,7 @@ describe('WaitingApprovalCancelButton', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /다시 요청하기/ }));
-    fireEvent.click(screen.getByRole('button', { name: '요청 취소' }));
+    fireEvent.click(screen.getByRole('button', { name: '확인' }));
 
     await waitFor(() => {
       expect(cancelApprovalRequestMock).toHaveBeenCalledWith(1003);
@@ -64,7 +64,7 @@ describe('WaitingApprovalCancelButton', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /다시 요청하기/ }));
-    fireEvent.click(screen.getByRole('button', { name: '요청 취소' }));
+    fireEvent.click(screen.getByRole('button', { name: '확인' }));
 
     await waitFor(() => {
       expect(cancelApprovalRequestMock).toHaveBeenCalled();

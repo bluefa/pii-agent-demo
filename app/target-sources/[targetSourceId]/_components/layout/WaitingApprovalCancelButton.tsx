@@ -5,7 +5,7 @@ import { ReloadIcon } from '@/app/components/ui/icons';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { cancelApprovalRequest } from '@/app/lib/api';
-import { idcStyles } from '@/lib/theme';
+import { cn, idcStyles, primaryColors } from '@/lib/theme';
 
 interface WaitingApprovalCancelButtonProps {
   targetSourceId: number;
@@ -46,23 +46,24 @@ export const WaitingApprovalCancelButton = ({
         다시 요청하기
       </button>
 
+      {/* Same grammar as the rejected-state reselect modal: question title, one cause→effect
+          sentence with 1단계 in brand blue, blue 확인. No loss banner — the request history
+          stays visible in 진행 내역, and cancelling is a rewind, not a deletion. */}
       <ConfirmStepModal
         open={modal.isOpen}
         onClose={modal.close}
         onConfirm={() => {
           void handleConfirm();
         }}
-        title="연동 대상을 다시 선택할까요?"
+        title="승인 요청을 취소할까요?"
         description={
           <>
-            현재 승인 요청은 취소되고, 1단계 · 연동 대상 DB 선택으로 되돌아갑니다.
-            <br />
-            되돌아간 뒤에는 DB 선택부터 다시 진행해야 해요.
+            {'확인을 누르면 진행 중인 승인 요청이 취소되고, '}
+            <strong className={cn('font-semibold', primaryColors.text)}>1단계</strong>
+            {'로 돌아가 연동 대상 DB 선택부터 다시 진행해요.'}
           </>
         }
-        note="관리자에게 전달된 요청 내용은 보존되지 않으며, 취소 즉시 처리됩니다."
-        confirmLabel="요청 취소"
-        confirmVariant="danger"
+        confirmLabel="확인"
         isPending={loading}
       />
     </>

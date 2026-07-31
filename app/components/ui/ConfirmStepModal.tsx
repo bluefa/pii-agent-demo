@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
-import { cn, idcStyles, modalStyles } from '@/lib/theme';
-
-type ConfirmVariant = 'warn' | 'danger';
+import { cn, modalStyles } from '@/lib/theme';
 
 export interface ConfirmStepModalProps {
   open: boolean;
@@ -11,27 +9,24 @@ export interface ConfirmStepModalProps {
   onConfirm: () => void;
   title: string;
   description: ReactNode;
-  note?: ReactNode;
   confirmLabel: string;
   cancelLabel?: string;
-  confirmVariant?: ConfirmVariant;
   isPending?: boolean;
 }
-
-/** v16 destructive-confirm chrome (`.adm-banner.amber` warn + red `.btn.primary`). */
-const dangerConfirmButton =
-  'inline-flex h-[52px] items-center justify-center rounded-[14px] bg-[#DC2626] px-7 text-[15px] font-bold tracking-[-0.01em] text-white transition-colors hover:bg-[#B91C1C] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]';
-
-const warnBanner =
-  'rounded-[12px] bg-[#FEF3C7] px-4 py-[13px] text-[13px] leading-[1.55] tracking-[-0.01em] text-[#92400E]';
 
 /** Tighter chrome than modalStyles.toss.* (px-10/pt-9, no footer hairline change): a two-button
  *  confirm is a compact dialog, and the full approval-modal padding left its short content
  *  floating in air. The footer also drops the top hairline — short enough that a divider reads
  *  as cutting the dialog in half. The taller approval modals keep the shared tokens. */
 const confirmHeader = 'px-6 pt-6 pb-1.5 flex items-start justify-between';
-const confirmBody = 'px-6 pt-5 pb-2';
 const confirmFooter = 'px-6 pt-5 pb-6 bg-white flex justify-end gap-2.5';
+
+/** Footer pair on the in-card `.btn` scale (h40 / radius12 / 14px) — the 52px modalBtn tier
+ *  belongs to the tall approval modals and overwhelmed a two-line dialog. */
+const confirmCancelBtn =
+  'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#F7F8FA] px-5 text-[14px] font-semibold text-[#191F28] transition-colors hover:bg-[#EBEEF2] disabled:cursor-not-allowed disabled:opacity-60';
+const confirmPrimaryBtn =
+  'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#0064FF] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]';
 
 export const ConfirmStepModal = ({
   open,
@@ -39,10 +34,8 @@ export const ConfirmStepModal = ({
   onConfirm,
   title,
   description,
-  note,
   confirmLabel,
   cancelLabel = '머무르기',
-  confirmVariant = 'warn',
   isPending = false,
 }: ConfirmStepModalProps) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -128,17 +121,11 @@ export const ConfirmStepModal = ({
           </div>
         </div>
 
-        {note && (
-          <div className={confirmBody}>
-            <div className={warnBanner}>{note}</div>
-          </div>
-        )}
-
         <div className={confirmFooter}>
           <button
             ref={cancelRef}
             type="button"
-            className={idcStyles.modalBtn.gray}
+            className={confirmCancelBtn}
             onClick={onClose}
             disabled={isPending}
           >
@@ -147,11 +134,7 @@ export const ConfirmStepModal = ({
           <button
             ref={confirmRef}
             type="button"
-            className={
-              confirmVariant === 'danger'
-                ? dangerConfirmButton
-                : idcStyles.modalBtn.primary
-            }
+            className={confirmPrimaryBtn}
             onClick={onConfirm}
             disabled={isPending}
           >
