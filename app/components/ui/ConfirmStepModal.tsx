@@ -12,6 +12,13 @@ export interface ConfirmStepModalProps {
   confirmLabel: string;
   cancelLabel?: string;
   isPending?: boolean;
+  /**
+   * Optional body between the description and the footer (e.g. the approval
+   * submit stats). Text-only confirms omit it and keep the compact two-line shape.
+   */
+  children?: ReactNode;
+  /** 560px instead of 480px — for confirms that carry a body block. */
+  wide?: boolean;
 }
 
 /** Tighter chrome than modalStyles.toss.* (px-10/pt-9, no footer hairline change): a two-button
@@ -37,6 +44,8 @@ export const ConfirmStepModal = ({
   confirmLabel,
   cancelLabel = '머무르기',
   isPending = false,
+  children,
+  wide = false,
 }: ConfirmStepModalProps) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -104,7 +113,8 @@ export const ConfirmStepModal = ({
         className={cn(
           modalStyles.container,
           modalStyles.toss.container,
-          'w-[480px] max-w-[calc(100vw-2rem)]',
+          wide ? 'w-[560px]' : 'w-[480px]',
+          'max-w-[calc(100vw-2rem)]',
         )}
       >
         <div className={confirmHeader}>
@@ -120,6 +130,8 @@ export const ConfirmStepModal = ({
             </p>
           </div>
         </div>
+
+        {children && <div className="px-6 pt-4">{children}</div>}
 
         <div className={confirmFooter}>
           <button

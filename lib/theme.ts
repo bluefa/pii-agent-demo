@@ -447,8 +447,11 @@ export const modalStyles = {
     container: 'rounded-[24px]',
     header: 'px-10 pt-9 pb-1.5 flex items-start justify-between',
     title: 'text-[26px] font-extrabold tracking-[-0.03em] leading-[1.25] text-[#191F28]',
-    /* mt-4 = the 16px title→subtitle gap every step-flow modal shares (reqModal.sub, ConfirmRewind). */
-    subtitle: 'mt-4 text-[14px] font-medium leading-[1.6] text-[#8B95A1]',
+    /* mt-4 = the 16px title→subtitle gap every step-flow modal shares (reqModal.sub, ConfirmRewind).
+       #6B7280, not #8B95A1: the description is normal-size text (14px) so AA needs 4.5:1 —
+       #8B95A1 measured 3.04:1 on white and read as washed out; #6B7280 is 4.83:1 on the
+       same quiet tier. */
+    subtitle: 'mt-4 text-[14px] font-medium leading-[1.6] text-[#6B7280]',
     body: 'px-10 pt-7 pb-2',
     footer: 'px-10 pt-5 pb-6 border-t border-[#EBEEF2] bg-white flex justify-end gap-2.5',
     iconBase: 'w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0',

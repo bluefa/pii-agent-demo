@@ -80,4 +80,17 @@ describe('ConfirmStepModal', () => {
     const title = screen.getByText('취소할까요?');
     expect(title.className).toContain(modalStyles.toss.title);
   });
+
+  // Body slot: confirms that carry content (approval submit stats) render it
+  // between the description and the footer, and widen to 560px.
+  it('renders body children and the wide width when provided', () => {
+    render(
+      <ConfirmStepModal {...baseProps} open wide>
+        <div data-testid="confirm-body">stats</div>
+      </ConfirmStepModal>,
+    );
+    expect(screen.getByTestId('confirm-body')).toBeTruthy();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.className).toContain('w-[560px]');
+  });
 });
