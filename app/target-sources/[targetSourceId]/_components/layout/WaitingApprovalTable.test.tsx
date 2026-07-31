@@ -35,28 +35,28 @@ describe('WaitingApprovalTable', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
-      'Database Type',
-      'Resource ID',
-      'Region',
       'Resource Name',
-      '연동 대상',
+      'Resource ID',
+      'Database Type',
+      'Region',
+      '요청 대상 여부',
       '제외 사유',
     ]);
   });
 
-  it('maps selected boolean to 대상/비대상', () => {
+  it('maps selected boolean to 대상/제외', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const rows = screen.getAllByRole('row').slice(1);
     expect(within(rows[0]).getByText('대상')).toBeTruthy();
     expect(within(rows[1]).getByText('대상')).toBeTruthy();
-    expect(within(rows[2]).getByText('비대상')).toBeTruthy();
+    expect(within(rows[2]).getByText('제외')).toBeTruthy();
   });
 
-  it('renders the em-dash placeholder for an excluded row without an exclusion reason', () => {
+  it('leaves 제외 사유 blank when the row has no exclusion reason', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const rows = screen.getAllByRole('row').slice(1);
-    // row[2] is the excluded fixture row with no exclusionReason → 제외 사유 placeholder.
-    expect(within(rows[2]).getAllByText('—').length).toBe(1);
+    // row[2] is the excluded fixture row with no exclusionReason → empty cell, no '—'.
+    expect(within(rows[2]).queryAllByText('—')).toHaveLength(0);
   });
 
   it('shows empty state when no resources', () => {
@@ -69,9 +69,10 @@ describe('WaitingApprovalTable', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const rows = screen.getAllByRole('row').slice(1);
     const cells = within(rows[0]).getAllByRole('cell');
-    // v15: Resource ID mono lives inside the ellipsis ResourceIdCell span; Region/Name cells carry mono.
+    // Column order: Name(0) · ID(1) · DB Type(2) · Region(3).
+    // Resource ID mono lives inside the ellipsis ResourceIdCell span; Name/Region cells carry it.
+    expect(cells[0].className).toContain('font-mono');
     expect(within(cells[1]).getByText('mysql-prod-01').className).toContain('font-mono');
-    expect(cells[2].className).toContain('font-mono');
     expect(cells[3].className).toContain('font-mono');
   });
 

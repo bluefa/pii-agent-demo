@@ -240,11 +240,13 @@ body {
      Cards/surfaces stay white (bg-white) and sit on this light lavender-gray page. */
   background: #F4F4FB;
   color: var(--foreground);
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', sans-serif;
+  /* --font-geist-sans now resolves to the self-hosted Pretendard (app/layout.tsx); the OS faces
+     that follow only cover glyphs outside the KS X 1001 subset. */
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   letter-spacing: -0.018em;
   /* LIN-25 pipeline font tokens — on body (not :root) so var(--font-geist-*),
      which next/font attaches to <body>, resolves at computed-value time. */
-  --pl-font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Pretendard', 'Malgun Gothic', system-ui, sans-serif;
+  --pl-font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
   --pl-font-mono: var(--font-geist-mono), ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import type { WaitingApprovalResource } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type {
   ApprovalFilter,
@@ -31,6 +32,10 @@ const matchesIntegrationStatus = (
   }
 };
 
+// The DB Type label as the table renders it — displayDbType (metadata.database_type) first.
+const dbTypeLabel = (resource: WaitingApprovalResource): string =>
+  getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType);
+
 const collectOptions = (
   resources: readonly WaitingApprovalResource[],
   accessor: (resource: WaitingApprovalResource) => string,
@@ -59,10 +64,9 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const dbTypeOptions = useMemo(
-    () => collectOptions(resources, (resource) => resource.resourceType),
-    [resources],
-  );
+  // Options must be the very strings the Database Type column shows. Using resourceType listed
+  // 'RDS_CLUSTER' while the cell rendered 'PostgreSQL', so the option matched nothing.
+  const dbTypeOptions = useMemo(() => collectOptions(resources, dbTypeLabel), [resources]);
   const regionOptions = useMemo(
     () => collectOptions(resources, (resource) => resource.region),
     [resources],
@@ -98,7 +102,7 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
   const filteredResources = useMemo(() => {
     const search = searchValue.trim().toLowerCase();
     return resources.filter((resource) => {
-      if (dbType && resource.resourceType !== dbType) return false;
+      if (dbType && dbTypeLabel(resource) !== dbType) return false;
       if (region && resource.region !== region) return false;
       if (!matchesIntegrationStatus(resource, integrationStatus)) return false;
       if (filter === 'target' && !resource.selected) return false;
