@@ -19,6 +19,7 @@ import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { ApprovalUnavailableCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ApprovalUnavailableCard';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
+import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import {
   ErrorRow,
   ResourceTableSkeleton,
@@ -41,7 +42,6 @@ const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 // Step 2 sources its table from approval-requests/latest.resources (which the BFF
 // already returns alongside the request meta), split by `selected` — so the separate
 // approved-integration GET is no longer needed here (that endpoint stays on step 3).
-// integration_status is a step-3 column with no source in this DTO, so it stays null.
 type LatestResourceItem = NonNullable<ApprovalRequestLatestResponse['resources']>[number];
 
 const toResourceRow = (item: LatestResourceItem): WaitingApprovalResource => ({
@@ -52,7 +52,6 @@ const toResourceRow = (item: LatestResourceItem): WaitingApprovalResource => ({
   selected: item.selected ?? false,
   displayDbType: item.metadata?.database_type ?? item.resource_type ?? undefined,
   exclusionReason: item.exclusion_reason ?? undefined,
-  integrationStatus: null,
 });
 
 interface RequestSummary {
@@ -66,16 +65,6 @@ const toRequestSummary = (response: ApprovalRequestLatestResponse): RequestSumma
   if (!requestedAt || !requestedBy) return null;
   return { requestedAt, requestedBy };
 };
-
-// One request-meta pair — label and value are both 12px; only weight and color separate them.
-const MetaField = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex min-w-0 flex-col gap-1">
-    <span className={cn('text-[12px] font-normal', textColors.tertiary)}>{label}</span>
-    <span className={cn('min-w-0 truncate text-[12px] font-semibold leading-[1.3]', textColors.secondary)}>
-      {value}
-    </span>
-  </div>
-);
 
 export const WaitingApprovalCard = ({
   targetSourceId,
@@ -194,9 +183,6 @@ export const WaitingApprovalCard = ({
           눌러주세요.
         </p>
         {requestSummary && (
-          // Label over value, two columns. This tier sits well below the 16px guidance copy, so it
-          // declares 12px + muted color instead of identityBarStyles (13px, near-black), which the
-          // page-level identity bar keeps.
           <div className="mt-4 flex flex-wrap gap-8">
             <MetaField label="요청일시" value={formatDate(requestSummary.requestedAt, 'datetime')} />
             <MetaField label="요청자" value={requestSummary.requestedBy} />
@@ -221,21 +207,14 @@ export const WaitingApprovalCard = ({
             />
             {/* Toolbar (top-rounded) + table + pagination (bottom-rounded) join as one card, no gaps. */}
             <WaitingApprovalToolbar
-              variant="waiting"
               searchValue={table.searchValue}
               onSearchChange={table.onSearchChange}
-              filter={table.filter}
-              onFilterChange={table.onFilterChange}
               dbType={table.dbType}
               onDbTypeChange={table.onDbTypeChange}
               region={table.region}
               onRegionChange={table.onRegionChange}
-              integrationStatus={table.integrationStatus}
-              onIntegrationStatusChange={table.onIntegrationStatusChange}
               dbTypeOptions={table.dbTypeOptions}
               regionOptions={table.regionOptions}
-              integrationStatusOptions={table.integrationStatusOptions}
-              countsByFilter={table.countsByFilter}
             />
             <WaitingApprovalTable
               resources={table.visibleResources}

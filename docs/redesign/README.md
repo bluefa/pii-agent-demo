@@ -12,10 +12,12 @@ Documents may be written in Korean (this README must stay English — repo rule)
 |---|---|---|
 | Step 2 · approval waiting (`/pass/target-sources/{id}`) | [`step2-approval-waiting.md`](step2-approval-waiting.md) | shipped (PR #590) |
 | Step 2 · live review session log | [`step2-review-session-log.md`](step2-review-session-log.md) | reference |
+| Step 3 · applying approved (`/pass/target-sources/{id}`) | [`step3-applying-approved.md`](step3-applying-approved.md) | shipped |
 | Text scale & spacing tokens | [`typography-and-spacing.md`](typography-and-spacing.md) | shipped (Step 4 applied) |
 
 Step 3 (`ApplyingApprovedCard`) shares the toolbar, table and pagination with Step 2, so the Step 2
-document also covers what changed there.
+document also covers part of what changed there. Step 3's own pass then deleted every control that
+was unique to it, so the two screens now run the same card.
 
 ## How these sessions run
 
@@ -51,11 +53,25 @@ half the answer in the header. Also check the value reads forward into the next 
 button for an action that only rewinds a step teaches the wrong thing. One badge per row is the
 budget; a second one competes with the verdict.
 
-**Ask what breaks at 20 rows / 20 options.** Mock fixtures hide wrapping, scrolling and truncation.
+**Ask what breaks at 20 rows / 20 options — and at one long value.** Mock fixtures hide wrapping,
+scrolling and truncation. A fixture whose column is *empty* means that column's width has never been
+tested at all: Step 2 shipped with no exclusion reasons, and the same column overflowed the table
+horizontally the moment Step 3 fed it real ones.
 
 **When a value looks wrong, suspect the data source, not the styling.** The Database Type filter
 listing `RDS_CLUSTER` while cells showed `PostgreSQL` was a real bug (two different fields) found
 inside a request to make the filter prettier.
+
+**A column with no source in the swagger is not a column.** Grep the generated contract before
+styling a value. Step 3's `연동 이력` column, its status filter and a progress counter were all fed by
+`integration_status`, which only the mock generates — in production the column is empty and the
+counter is permanently zero. Deleting the three of them removed both `variant` props and 339 lines.
+Check what the tests guard, too: all four tests over that column existed to pin an off-contract field.
+
+**Assert state only after the data that decides it lands.** Rendering a status tag and its
+supporting sentence before the fetch resolves lets the header contradict what appears under it.
+Hold them behind skeletons — but only the parts the response decides; the step number and the title
+are already settled by the time the card mounts.
 
 **Left-align data tables.** Aligned starting characters are the scan baseline; centering only pays
 off for a column whose values are uniformly short (a single badge).

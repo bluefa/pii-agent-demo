@@ -3,34 +3,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import type { WaitingApprovalResource } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
-import type {
-  ApprovalFilter,
-  IntegrationStatusFilter,
-} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import type { ApprovalFilter } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 
 const DEFAULT_PAGE_SIZE = 10;
-
-// Narrow the raw <select> value (empty placeholder included) to an IntegrationStatusFilter.
-const toIntegrationStatusFilter = (value: string): IntegrationStatusFilter =>
-  value === 'integrated' || value === 'pending' || value === 'excluded' ? value : 'all';
-
-// Step-3 (applying) only: a row is `integrated` when integration_status === 'INTEGRATED',
-// `pending` when it is a selected target that has not yet integrated, and `excluded` otherwise.
-const matchesIntegrationStatus = (
-  resource: WaitingApprovalResource,
-  filter: IntegrationStatusFilter,
-): boolean => {
-  switch (filter) {
-    case 'integrated':
-      return resource.selected && resource.integrationStatus === 'INTEGRATED';
-    case 'pending':
-      return resource.selected && resource.integrationStatus !== 'INTEGRATED';
-    case 'excluded':
-      return !resource.selected;
-    default:
-      return true;
-  }
-};
 
 // The DB Type label as the table renders it — displayDbType (metadata.database_type) first.
 const dbTypeLabel = (resource: WaitingApprovalResource): string =>
@@ -60,7 +35,6 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
   const [filter, setFilter] = useState<ApprovalFilter>('all');
   const [dbType, setDbType] = useState('');
   const [region, setRegion] = useState('');
-  const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatusFilter>('all');
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
@@ -71,23 +45,6 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
     () => collectOptions(resources, (resource) => resource.region),
     [resources],
   );
-
-  // Step-3 (applying) integration-status select — fixed options with live counts,
-  // matching v16 markup: `Integrated (N)` / `Pending (N)` / `제외`.
-  const integrationStatusOptions = useMemo(() => {
-    let integrated = 0;
-    let pending = 0;
-    for (const resource of resources) {
-      if (!resource.selected) continue;
-      if (resource.integrationStatus === 'INTEGRATED') integrated += 1;
-      else pending += 1;
-    }
-    return [
-      { value: 'integrated', label: `Integrated (${integrated})` },
-      { value: 'pending', label: `Pending (${pending})` },
-      { value: 'excluded', label: '제외' },
-    ] as const;
-  }, [resources]);
 
   const countsByFilter = useMemo(() => {
     let target = 0;
@@ -104,7 +61,6 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
     return resources.filter((resource) => {
       if (dbType && dbTypeLabel(resource) !== dbType) return false;
       if (region && resource.region !== region) return false;
-      if (!matchesIntegrationStatus(resource, integrationStatus)) return false;
       if (filter === 'target' && !resource.selected) return false;
       if (filter === 'excluded' && resource.selected) return false;
       if (search) {
@@ -114,7 +70,7 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
       }
       return true;
     });
-  }, [resources, dbType, region, integrationStatus, filter, searchValue]);
+  }, [resources, dbType, region, filter, searchValue]);
 
   const filteredCount = filteredResources.length;
   const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
@@ -148,11 +104,6 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
     setPage(0);
   }, []);
 
-  const handleIntegrationStatusChange = useCallback((next: string) => {
-    setIntegrationStatus(toIntegrationStatusFilter(next));
-    setPage(0);
-  }, []);
-
   const handlePageSizeChange = useCallback((next: number) => {
     setPageSize(next);
     setPage(0);
@@ -163,13 +114,10 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
     filter,
     dbType,
     region,
-    // `'all'` maps to the empty placeholder value so the select shows `연동 상태 · 전체`.
-    integrationStatus: integrationStatus === 'all' ? '' : integrationStatus,
     pageSize,
     safePage,
     dbTypeOptions,
     regionOptions,
-    integrationStatusOptions,
     countsByFilter,
     filteredCount,
     visibleResources,
@@ -179,7 +127,6 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
     onFilterChange: handleFilterChange,
     onDbTypeChange: handleDbTypeChange,
     onRegionChange: handleRegionChange,
-    onIntegrationStatusChange: handleIntegrationStatusChange,
     onPageChange: setPage,
     onPageSizeChange: handlePageSizeChange,
   };

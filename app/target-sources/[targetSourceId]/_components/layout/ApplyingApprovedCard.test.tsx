@@ -10,7 +10,7 @@ vi.mock('@/app/lib/api', () => ({
 
 import { ApplyingApprovedCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ApplyingApprovedCard';
 
-// 2 INTEGRATED + 1 NOT_INTEGRATED (pending) selected rows + 1 excluded row.
+// 3 selected rows (2 MySQL + 1 PostgreSQL) + 1 excluded row.
 const buildResponse = () => ({
   approved_integration: {
     id: 'ai-1',
@@ -26,7 +26,6 @@ const buildResponse = () => ({
         database_region: 'ap-northeast-1',
         resource_name: 'sea-integrated-01',
         scan_status: 'NEW_SCAN' as const,
-        integration_status: 'INTEGRATED' as const,
       },
       {
         resource_id: 'mysql-integrated-02',
@@ -36,7 +35,6 @@ const buildResponse = () => ({
         database_region: 'ap-northeast-1',
         resource_name: 'sea-integrated-02',
         scan_status: 'NEW_SCAN' as const,
-        integration_status: 'INTEGRATED' as const,
       },
       {
         resource_id: 'pg-pending-01',
@@ -46,7 +44,6 @@ const buildResponse = () => ({
         database_region: 'ap-northeast-2',
         resource_name: 'sea-pending-01',
         scan_status: 'NEW_SCAN' as const,
-        integration_status: 'NOT_INTEGRATED' as const,
       },
     ],
     excluded_resource_ids: ['pg-excluded-01'],
@@ -58,7 +55,6 @@ const buildResponse = () => ({
         database_type: 'PostgreSQL',
         database_region: 'ap-northeast-1',
         scan_status: 'UNCHANGED' as const,
-        integration_status: null,
       },
     ],
     exclusion_reason: undefined,
@@ -70,74 +66,48 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
     getApprovedIntegrationMock.mockReset();
   });
 
-  // Toolbar filters live in a popover behind the icon button — open it, then click a row.
+  // Toolbar filters live in a popover behind the icon button.
   const openFilterMenu = async () => {
     fireEvent.click(await screen.findByRole('button', { name: /필터/ }));
     return screen.getByRole('group', { name: '필터 옵션' });
   };
 
-  it('renders the 연동 상태 filter (not Region) with Integrated/Pending counts + 제외', async () => {
+  it('offers Database Type and Region filters, and no 연동 상태 filter', async () => {
     getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
     render(<ApplyingApprovedCard targetSourceId={1003} />);
 
     const menu = await openFilterMenu();
-    const status = within(menu).getByRole('radiogroup', { name: '연동 상태 필터' });
-    expect(within(status).getByText('Integrated (2)')).toBeTruthy();
-    expect(within(status).getByText('Pending (1)')).toBeTruthy();
-    expect(within(status).getByText('제외')).toBeTruthy();
-
-    // step 3 must NOT expose the Region filter.
-    expect(within(menu).queryByRole('radiogroup', { name: 'Region 필터' })).toBeNull();
-    // DB Type filter stays.
     expect(within(menu).getByRole('radiogroup', { name: 'Database Type 필터' })).toBeTruthy();
+    expect(within(menu).getByRole('radiogroup', { name: 'Region 필터' })).toBeTruthy();
+    // integration_status is not in the contract, so the filter it fed is gone.
+    expect(within(menu).queryByRole('radiogroup', { name: '연동 상태 필터' })).toBeNull();
   });
 
-  it('filtering 연동 상태 = Integrated keeps only integrated rows', async () => {
+  it('renders no 연동 이력 column and no Integrated/Pending tag', async () => {
+    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    render(<ApplyingApprovedCard targetSourceId={1003} />);
+
+    await screen.findByText('mysql-integrated-01');
+    expect(screen.queryByText('연동 이력')).toBeNull();
+    expect(screen.queryByText('Pending')).toBeNull();
+    expect(screen.queryByText('Integrated')).toBeNull();
+    // The exclusion reason keeps its own column instead of stacking under the verdict.
+    expect(screen.getByText('제외 사유')).toBeTruthy();
+    expect(screen.getByText('Stg DB')).toBeTruthy();
+  });
+
+  it('filtering Database Type keeps only the matching rows', async () => {
     getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
     render(<ApplyingApprovedCard targetSourceId={1003} />);
 
     const menu = await openFilterMenu();
     fireEvent.click(
-      within(within(menu).getByRole('radiogroup', { name: '연동 상태 필터' })).getByText('Integrated (2)'),
+      within(within(menu).getByRole('radiogroup', { name: 'Database Type 필터' })).getByText('PostgreSQL'),
     );
 
     await waitFor(() => {
-      expect(screen.queryByText('pg-pending-01')).toBeNull();
+      expect(screen.queryByText('mysql-integrated-01')).toBeNull();
     });
-    expect(screen.getByText('mysql-integrated-01')).toBeTruthy();
-    expect(screen.getByText('mysql-integrated-02')).toBeTruthy();
-    expect(screen.queryByText('pg-excluded-01')).toBeNull();
-  });
-
-  it('filtering 연동 상태 = Pending keeps only the not-yet-integrated target', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
-    render(<ApplyingApprovedCard targetSourceId={1003} />);
-
-    const menu = await openFilterMenu();
-    fireEvent.click(
-      within(within(menu).getByRole('radiogroup', { name: '연동 상태 필터' })).getByText('Pending (1)'),
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('pg-pending-01')).toBeTruthy();
-    });
-    expect(screen.queryByText('mysql-integrated-01')).toBeNull();
-    expect(screen.queryByText('pg-excluded-01')).toBeNull();
-  });
-
-  it('filtering 연동 상태 = 제외 keeps only excluded rows', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
-    render(<ApplyingApprovedCard targetSourceId={1003} />);
-
-    const menu = await openFilterMenu();
-    fireEvent.click(
-      within(within(menu).getByRole('radiogroup', { name: '연동 상태 필터' })).getByText('제외'),
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('pg-excluded-01')).toBeTruthy();
-    });
-    expect(screen.queryByText('mysql-integrated-01')).toBeNull();
-    expect(screen.queryByText('pg-pending-01')).toBeNull();
+    expect(screen.getByText('pg-pending-01')).toBeTruthy();
   });
 });

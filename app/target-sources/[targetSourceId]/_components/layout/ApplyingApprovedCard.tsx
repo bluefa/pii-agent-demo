@@ -8,21 +8,21 @@ import {
 } from '@/app/lib/api';
 import { AppError, isMissingApprovedIntegrationError } from '@/lib/errors';
 import { formatDate } from '@/lib/utils/date';
-import { CheckIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
-import { StepBanner } from '@/app/components/ui/StepBanner';
 import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { WaitingApprovalStats } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
+import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import {
   ErrorRow,
   ResourceTableSkeleton,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
-import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 
 interface ApplyingApprovedCardProps {
   targetSourceId: number;
@@ -35,13 +35,11 @@ const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalRe
   resourceId: item.resource_id,
   resourceType: item.resource_type ?? '',
   // Contract: region/database_type live under metadata (TargetSourceResourceItemDto);
-  // resource_type is the declared placeholder. (integration_status has no contract home —
-  // see the follow-up issue; it drives the Step3 완료 count so it is kept as-is.)
+  // resource_type is the declared placeholder.
   region: item.metadata?.region ?? '',
   resourceName: item.resource_name ?? '',
   selected: true,
   displayDbType: item.metadata?.database_type ?? item.resource_type,
-  integrationStatus: item.integration_status ?? null,
 });
 
 const toExcludedRow = (
@@ -64,9 +62,9 @@ interface ApplyingView {
 const EMPTY_VIEW: ApplyingView = { resources: [], approvedAt: null, approver: null };
 
 /**
- * Step 3 (applying) — the step-2 rich approval table re-skinned for the applying
- * state: approved-at/approver subtitle, green success banner, an integration-history
- * column, and no cancel action (advance to step 4 surfaces on the user's next refresh).
+ * Step 3 (applying) — the same stats/toolbar/table/pagination card as step 2, with the
+ * approval meta (approved at / approver) in place of the request meta and no CTA
+ * (advance to step 4 surfaces on the user's next refresh).
  */
 export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardProps) => {
   const [state, setState] = useState<AsyncState<ApplyingView>>({ status: 'loading' });
@@ -115,89 +113,94 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
 
   const table = useApprovalTableState(resources);
 
-  const { selectedCount, integratedCount } = useMemo(() => {
-    let selected = 0;
-    let integrated = 0;
-    for (const resource of resources) {
-      if (!resource.selected) continue;
-      selected += 1;
-      if (resource.integrationStatus === 'INTEGRATED') integrated += 1;
-    }
-    return { selectedCount: selected, integratedCount: integrated };
-  }, [resources]);
-
-  const showFilterEmpty =
-    state.status === 'ready' && resources.length > 0 && table.filteredCount === 0;
+  const loaded = state.status === 'ready';
+  const showFilterEmpty = loaded && resources.length > 0 && table.filteredCount === 0;
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
-      <div className={cn(cardStyles.header, 'flex items-center justify-between')}>
-        <div>
-          <h2 className={cn(cardStyles.cardTitle)}>연동 대상 반영중</h2>
-          <p className={cn('mt-2.5', cardStyles.subtitle)}>
-            관리자 승인 후 Agent 설치를 위한 사전 작업이 자동으로 진행됩니다.
-            {view.approvedAt && (
-              <>
-                {' · '}승인일시{' '}
-                <strong className={cn('font-semibold', textColors.secondary)}>
-                  {formatDate(view.approvedAt, 'datetime')}
-                </strong>
-              </>
-            )}
-            {view.approver && (
-              <>
-                {' · '}승인자{' '}
-                <strong className={cn('font-semibold', textColors.secondary)}>
-                  {view.approver}
-                </strong>
-              </>
-            )}
-          </p>
-        </div>
-        <span className={cn(idcStyles.status.base, idcStyles.status.partial.text)}>
-          <span className={cn(idcStyles.status.dot, idcStyles.status.partial.dot)} />
-          반영중
+      {/* Same left-aligned stack as step 2: step tag, title + status, guidance copy, approval meta. */}
+      <div className={cardStyles.header}>
+        {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
+        <span
+          className={cn(
+            'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
+            primaryColors.bgLight,
+            primaryColors.text,
+          )}
+        >
+          3번째 단계
         </span>
+        {/* Status tag and guidance copy wait for the fetch: asserting a state before the data lands
+            means the header can contradict what resolves under it. Skeletons hold the space so the
+            card does not jump when they arrive. */}
+        <div className="flex items-center gap-2">
+          <h2 className={cn(cardStyles.cardTitle)}>연동 대상 반영중</h2>
+          {loaded ? (
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
+                statusColors.warning.bg,
+                statusColors.warning.textDark,
+              )}
+            >
+              반영중
+            </span>
+          ) : (
+            <span className={cn(idcStyles.skeletonBar, 'h-[26px] w-[62px] rounded-full')} />
+          )}
+        </div>
+        {/* Was said three times — this sentence, a green StepBanner below it, and the guide panel.
+            The banner is gone; blue marks the status clause only. `cn` is a plain join, so the size
+            is declared here rather than layered over cardStyles.subtitle. */}
+        {loaded ? (
+          <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+            <strong className={cn('font-semibold', primaryColors.text)}>
+              승인이 완료되어 시스템에 반영 중입니다.
+            </strong>{' '}
+            Agent 설치를 위한 사전 작업이 자동으로 진행되며, 평균 5분 내외 소요돼요.
+          </p>
+        ) : (
+          <div className={cn('mt-3 h-[25px] w-[520px] max-w-full rounded', idcStyles.skeletonBar)} />
+        )}
+        {loaded && (view.approvedAt || view.approver) && (
+          <div className="mt-4 flex flex-wrap gap-8">
+            {view.approvedAt && (
+              <MetaField label="승인일시" value={formatDate(view.approvedAt, 'datetime')} />
+            )}
+            {view.approver && <MetaField label="승인자" value={view.approver} />}
+          </div>
+        )}
       </div>
 
-      <div className="p-6">
-        <StepBanner variant="success" icon={<CheckIcon className="w-[18px] h-[18px]" />}>
-          <strong className="font-semibold">승인이 완료되어 시스템에 반영 중입니다.</strong>
-          {selectedCount > 0 && (
-            <>
-              {' '}전체 {selectedCount}건 중 {integratedCount}건 완료
-            </>
-          )}
-          {' · '}평균 5분 내외 소요
-        </StepBanner>
-
+      {/* No body top padding, so the header's bottom padding IS the meta-to-tiles gap. */}
+      <div className="px-6 pb-6">
         {state.status === 'loading' ? (
           <ResourceTableSkeleton />
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
         ) : (
           <div className="mt-4">
-            {/* v16: toolbar (top-rounded) + approval table (bottom-rounded) join as one connected card — no gap. */}
-            <WaitingApprovalToolbar
-              variant="applying"
-              searchValue={table.searchValue}
-              onSearchChange={table.onSearchChange}
+            {/* Tiles carry the all/target/excluded counts and double as that filter — same as step 2. */}
+            <WaitingApprovalStats
+              totalCount={table.countsByFilter.all}
+              selectedCount={table.countsByFilter.target}
+              excludedCount={table.countsByFilter.excluded}
               filter={table.filter}
               onFilterChange={table.onFilterChange}
+            />
+            {/* Toolbar (top-rounded) + table + pagination (bottom-rounded) join as one card, no gaps. */}
+            <WaitingApprovalToolbar
+              searchValue={table.searchValue}
+              onSearchChange={table.onSearchChange}
               dbType={table.dbType}
               onDbTypeChange={table.onDbTypeChange}
               region={table.region}
               onRegionChange={table.onRegionChange}
-              integrationStatus={table.integrationStatus}
-              onIntegrationStatusChange={table.onIntegrationStatusChange}
               dbTypeOptions={table.dbTypeOptions}
               regionOptions={table.regionOptions}
-              integrationStatusOptions={table.integrationStatusOptions}
-              countsByFilter={table.countsByFilter}
             />
             <WaitingApprovalTable
               resources={table.visibleResources}
-              variant="applying"
               connected
               emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
             />
