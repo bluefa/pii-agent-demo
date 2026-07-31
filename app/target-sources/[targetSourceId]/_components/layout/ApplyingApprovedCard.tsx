@@ -194,9 +194,6 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
               regionOptions={table.regionOptions}
               integrationStatusOptions={table.integrationStatusOptions}
               countsByFilter={table.countsByFilter}
-              visibleStart={table.visibleStart}
-              visibleEnd={table.visibleEnd}
-              totalCount={table.filteredCount}
             />
             <WaitingApprovalTable
               resources={table.visibleResources}
@@ -205,15 +202,13 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
               emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
             />
             {table.filteredCount > 0 && (
-              <div className="mt-3">
-                <Pagination
-                  page={table.safePage}
-                  pageSize={table.pageSize}
-                  totalCount={table.filteredCount}
-                  onPageChange={table.onPageChange}
-                  onPageSizeChange={table.onPageSizeChange}
-                />
-              </div>
+              <Pagination
+                page={table.safePage}
+                pageSize={table.pageSize}
+                totalCount={table.filteredCount}
+                onPageChange={table.onPageChange}
+                onPageSizeChange={table.onPageSizeChange}
+              />
             )}
           </div>
         )}

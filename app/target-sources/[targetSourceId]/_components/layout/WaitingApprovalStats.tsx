@@ -1,45 +1,91 @@
-import { cn, numericFeatures } from '@/lib/theme';
+import type { ApprovalFilter } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import { cn, numericFeatures, textColors } from '@/lib/theme';
 
 interface WaitingApprovalStatsProps {
   totalCount: number;
   selectedCount: number;
   excludedCount: number;
+  filter: ApprovalFilter;
+  onFilterChange: (next: ApprovalFilter) => void;
 }
 
+/** The three tiles double as the all / target / excluded filter (replaces the toolbar segment). */
 export const WaitingApprovalStats = ({
   totalCount,
   selectedCount,
   excludedCount,
-}: WaitingApprovalStatsProps) => {
-  const selectedPct = totalCount === 0 ? 0 : Math.round((selectedCount / totalCount) * 1000) / 10;
-  const excludedPct = totalCount === 0 ? 0 : Math.round((excludedCount / totalCount) * 1000) / 10;
-
-  return (
-    <div className="grid grid-cols-3 gap-3 mb-[18px]">
-      <StatTile label="전체 요청" value={totalCount} unit="건" />
-      <StatTile label="연동 대상" value={selectedCount} unit="건" pct={selectedPct} swatch="target" />
-      <StatTile label="비대상" value={excludedCount} unit="건" pct={excludedPct} swatch="exclude" />
-    </div>
-  );
-};
+  filter,
+  onFilterChange,
+}: WaitingApprovalStatsProps) => (
+  <div className="grid grid-cols-3 gap-3 mb-[18px]" role="group" aria-label="대상 필터">
+    <StatTile
+      label="전체 요청"
+      value={totalCount}
+      unit="건"
+      active={filter === 'all'}
+      onClick={() => onFilterChange('all')}
+    />
+    <StatTile
+      label="연동 요청 대상"
+      value={selectedCount}
+      unit="건"
+      active={filter === 'target'}
+      onClick={() => onFilterChange('target')}
+    />
+    <StatTile
+      label="연동 요청 제외대상"
+      value={excludedCount}
+      unit="건"
+      active={filter === 'excluded'}
+      onClick={() => onFilterChange('excluded')}
+    />
+  </div>
+);
 
 export interface StatTileProps {
   label: string;
   value: number;
   unit: string;
-  pct?: number;
   swatch?: 'target' | 'exclude';
-  /** `card` (default, 26px num) vs `modal` (v16 req-modal override, 30px num). */
+  /** `card` (default, centered, 32px num) vs `modal` (v16 req-modal override, left, 30px num). */
   variant?: 'card' | 'modal';
+  /** Set on the filter tiles only — renders a button with a selected state. */
+  onClick?: () => void;
+  active?: boolean;
 }
 
 /** Single approval-stat tile — v16 `.approval-stat` (reused by the completion-approval modals). */
-export const StatTile = ({ label, value, unit, pct, swatch, variant = 'card' }: StatTileProps) => (
-  <div className="flex flex-col gap-1.5 rounded-xl bg-[#F7F8FA] px-5 py-[18px] transition-colors duration-150 hover:bg-[#ECEEF1]">
+export const StatTile = ({
+  label,
+  value,
+  unit,
+  swatch,
+  variant = 'card',
+  onClick,
+  active,
+}: StatTileProps) => {
+  const Tag = onClick ? 'button' : 'div';
+  return (
+  <Tag
+    type={onClick ? 'button' : undefined}
+    onClick={onClick}
+    aria-pressed={onClick ? active : undefined}
+    className={cn(
+      'flex flex-col gap-1.5 rounded-xl px-5 py-[18px] transition-colors duration-150',
+      variant === 'card' && 'items-center',
+      active
+        ? 'bg-white ring-2 ring-inset ring-[#191F28]'
+        : 'bg-[#F7F8FA] hover:bg-[#ECEEF1]',
+      onClick && 'cursor-pointer text-left',
+    )}
+  >
+    {/* The label is a peer of the value, so it stays darker and bolder than the unit suffix. */}
     <div
       className={cn(
-        'flex items-center gap-1.5 font-semibold text-[#8B95A1]',
-        variant === 'modal' ? 'text-[11.5px]' : 'text-[13px]',
+        'flex items-center gap-1.5',
+        variant === 'modal'
+          ? 'text-[12px] font-semibold text-[#8B95A1]'
+          : 'text-[14px] font-bold text-[#4E5968]',
       )}
     >
       {swatch && (
@@ -53,16 +99,23 @@ export const StatTile = ({ label, value, unit, pct, swatch, variant = 'card' }: 
       <span
         className={cn(
           'font-extrabold leading-[1.1] text-[#191F28]',
-          variant === 'modal' ? 'text-[30px] tracking-[-0.035em]' : 'text-[26px] tracking-[-0.03em]',
+          variant === 'modal' ? 'text-[30px] tracking-[-0.035em]' : 'text-[40px] tracking-[-0.03em]',
           numericFeatures.tabular,
         )}
       >
         {value}
       </span>
-      <span className="ml-1 text-[13px] font-semibold text-[#8B95A1]">{unit}</span>
-      {pct !== undefined && (
-        <span className="ml-2 text-[13px] font-semibold text-[#8B95A1]">{pct.toFixed(1)}%</span>
-      )}
+      {/* The unit is a suffix of the value — lighter than the label so it reads one tier down. */}
+      <span
+        className={cn(
+          'ml-1 text-[12px]',
+          textColors.tertiary,
+          variant === 'modal' ? 'font-semibold' : 'font-normal',
+        )}
+      >
+        {unit}
+      </span>
     </div>
-  </div>
-);
+  </Tag>
+  );
+};
