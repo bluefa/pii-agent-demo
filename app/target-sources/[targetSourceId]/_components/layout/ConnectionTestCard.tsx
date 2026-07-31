@@ -24,6 +24,7 @@ import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_component
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import { CloudReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudReqApprovalModal';
 import type { ConfirmedResource } from '@/lib/types/resources';
+import { needsCredential } from '@/lib/types';
 
 interface LogicalModalTarget {
   resourceId: string;
@@ -36,6 +37,11 @@ type CredMap = Record<string, string>;
 
 const seedCreds = (confirmed: readonly ConfirmedResource[]): CredMap =>
   Object.fromEntries(confirmed.map((r) => [r.resourceId, r.credentialId ?? '']));
+
+// Athena / DynamoDB 등은 DB Credential 없이 연결한다. 이런 행까지 Credential 을
+// 요구하면 Run Test 가 열리지 않고, 진행 요약도 "성공 0 · 완료 100%" 로 어긋난다.
+const requiresCredential = (resource: ConfirmedResource): boolean =>
+  !!resource.databaseType && needsCredential(resource.databaseType);
 
 interface ConnectionTestCardProps {
   targetSourceId: number;
@@ -110,10 +116,11 @@ export const ConnectionTestCard = ({
   }, [latestJob]);
 
   // A row is connected (for the approval gate) when the latest poll returned
-  // SUCCESS for this resource and it has a credential.
+  // SUCCESS for this resource and it has a credential — where one is required.
   const rowConnected = useCallback(
-    (resourceId: string): boolean =>
-      !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
+    (resource: ConfirmedResource): boolean =>
+      statusByResource[resource.resourceId] === 'SUCCESS' &&
+      (!requiresCredential(resource) || !!creds[resource.resourceId]),
     [creds, statusByResource],
   );
 
@@ -121,9 +128,10 @@ export const ConnectionTestCard = ({
   // only open it when latest_version.connectionStatus === 'SUCCESS' (B2).
   const approvalEnabled = uiState === 'SUCCESS';
 
-  // Run Test gate (v16 updateConnRunBtn): every row must have a credential selected.
+  // Run Test gate (v16 updateConnRunBtn): every row that needs a credential has one.
   const total = confirmed.length;
-  const allCredsSet = total > 0 && confirmed.every((r) => creds[r.resourceId]);
+  const allCredsSet =
+    total > 0 && confirmed.every((r) => !requiresCredential(r) || !!creds[r.resourceId]);
 
   const runTest = useCallback(async () => {
     if (testing || !allCredsSet) return;
@@ -159,16 +167,14 @@ export const ConnectionTestCard = ({
     refreshProject();
   }, [refreshProject]);
 
-  // Progress counts every settled pipeline (SUCCESS or FAIL) as done, not just the
-  // connected ones — done / total drives the percentage.
-  const okCount = confirmed.filter((r) => rowConnected(r.resourceId)).length;
+  // Progress counts a row as done when it is connected or failed. A row still
+  // missing a required credential renders "자격 증명 필요" in the table, so counting
+  // its poll result as done would claim 완료 100% for a target nobody tested yet.
+  const okCount = confirmed.filter((r) => rowConnected(r)).length;
   const failCount = confirmed.filter(
     (r) => statusByResource[r.resourceId] === 'FAIL',
   ).length;
-  const doneCount = confirmed.filter((r) => {
-    const s = statusByResource[r.resourceId];
-    return s === 'SUCCESS' || s === 'FAIL';
-  }).length;
+  const doneCount = okCount + failCount;
   const pendingCount = total - doneCount;
   const progressPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
   // Completion-approval gate: every target connected, latest_version settled SUCCESS, no test in flight.
@@ -258,7 +264,8 @@ export const ConnectionTestCard = ({
               {pageRows.map((resource) => {
                 const cred = creds[resource.resourceId] ?? '';
                 const status = statusByResource[resource.resourceId];
-                const connected = rowConnected(resource.resourceId);
+                const connected = rowConnected(resource);
+                const credRequired = requiresCredential(resource);
                 return (
                   <tr key={resource.resourceId} className={idcStyles.table.row}>
                     <td className={idcStyles.table.cell}>
@@ -280,14 +287,18 @@ export const ConnectionTestCard = ({
                       {resource.resourceName ?? '-'}
                     </td>
                     <td className={idcStyles.table.cell}>
-                      <IdcCredSelectCell
-                        value={cred}
-                        onChange={(next) => handleCredChange(resource.resourceId, next)}
-                        options={credOptions}
-                      />
+                      {credRequired ? (
+                        <IdcCredSelectCell
+                          value={cred}
+                          onChange={(next) => handleCredChange(resource.resourceId, next)}
+                          options={credOptions}
+                        />
+                      ) : (
+                        <span className={cn('text-[12px]', textColors.tertiary)}>불필요</span>
+                      )}
                     </td>
                     <td className={idcStyles.table.cell}>
-                      {!cred ? (
+                      {credRequired && !cred ? (
                         <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>
                       ) : status === 'SUCCESS' ? (
                         <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>

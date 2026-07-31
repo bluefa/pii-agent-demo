@@ -128,7 +128,8 @@ export const confirmedIntegrationToConfirmed = (
     port: info.port,
     oracleServiceId: info.oracle_service_id,
     networkInterfaceId: info.network_interface_id,
-    ipConfigurationName: info.ip_configuration_name,
+    ipConfigurationName: info.ip_configuration,
     credentialId: info.credential_id,
+    athenaRegionResourceId: info.athena_region_resource_id ?? null,
     connectionStatus: 'CONNECTED',
   }));

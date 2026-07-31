@@ -42,7 +42,7 @@ const fixtureResponse: BffConfirmedIntegration = {
       host: null,
       oracle_service_id: null,
       network_interface_id: null,
-      ip_configuration_name: null,
+      ip_configuration: null,
       credential_id: null,
     },
     {
@@ -55,7 +55,7 @@ const fixtureResponse: BffConfirmedIntegration = {
       host: null,
       oracle_service_id: null,
       network_interface_id: null,
-      ip_configuration_name: null,
+      ip_configuration: null,
       credential_id: null,
     },
   ],

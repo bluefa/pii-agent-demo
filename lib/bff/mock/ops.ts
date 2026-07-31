@@ -164,7 +164,10 @@ const toListItem = (project: (typeof mockData.mockProjects)[number]): OpsTargetS
       ?? project.serviceCode,
   cloud_provider: project.cloudProvider,
   is_sdu_type: project.isSduType === true,
-  database_type: project.dbType ?? null,
+  // 어떤 fixture 도 dbType 을 세팅하지 않아 운영 목록의 DB 열이 전부 — 로 보였다.
+  // 대상의 리소스에서 대표 DB 종류를 뽑아 채운다 (계약상 단일 문자열).
+  database_type:
+    project.dbType ?? project.resources.find((r) => r.databaseType)?.databaseType ?? null,
   process_status: STATUS_ORDER[wireStatusIndex(project.processStatus)],
   last_changed_at: project.updatedAt,
 });

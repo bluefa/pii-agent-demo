@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import { consumeOpsRoleOverride } from '@/lib/bff/mock/ops';
+import {
+  awsWireSampleInstallationStatus,
+  isAwsWireInstallSample,
+} from '@/lib/bff/mock/aws-wire-sample';
 
 /**
  * AWS cloud-status mocks (ADR-019 Spec G). Handlers author the **swagger snake
@@ -27,6 +31,11 @@ export const mockAws = {
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) return notFound();
     if (project.cloudProvider !== 'AWS') return notAws();
+
+    // Real-BFF capture, served verbatim (region-level Athena ids, null role_arn).
+    if (isAwsWireInstallSample(Number(targetSourceId))) {
+      return NextResponse.json(awsWireSampleInstallationStatus);
+    }
 
     const completed = project.terraformState?.serviceTf === 'COMPLETED';
 

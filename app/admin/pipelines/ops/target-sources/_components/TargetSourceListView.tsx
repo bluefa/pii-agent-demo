@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import Link from 'next/link';
 import { cn, pipelineStyles } from '@/lib/theme';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { passRoutes } from '@/lib/routes';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { getOpsTargetSources, type OpsTargetSourceListItem } from '@/app/lib/api/ops';
@@ -142,7 +143,7 @@ export function TargetSourceListView(): ReactElement {
                       </td>
                       <td className={opsStyles.table.cell}>
                         {row.database_type ? (
-                          <span className={dbTag}>{row.database_type}</span>
+                          <span className={dbTag}>{getDatabaseShortLabel(row.database_type)}</span>
                         ) : (
                           <span className={pipelineStyles.text.muted}>—</span>
                         )}

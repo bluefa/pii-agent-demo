@@ -149,6 +149,22 @@ describe('ConnectionTestCard', () => {
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', false);
   });
 
+  it('does not require a credential for engines that connect without one (Athena)', () => {
+    renderCard([
+      makeResource({ resourceId: 'athena-1', databaseType: 'athena', credentialId: null }),
+    ]);
+    expect(screen.getByText('불필요')).toBeTruthy();
+    expect(screen.queryByText('자격 증명 필요')).toBeNull();
+    expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', false);
+  });
+
+  it('counts a credential-less row as 대기 instead of a finished test', () => {
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    renderCard([makeResource({ resourceId: 'res-1', credentialId: null })]);
+    expect(screen.getByText(/연결 테스트 대기 중/)).toBeTruthy();
+    expect(screen.getByText('0%')).toBeTruthy();
+  });
+
   it('Run Test triggers the async test (no local credential change → no credential PUT)', async () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
     await act(async () => {

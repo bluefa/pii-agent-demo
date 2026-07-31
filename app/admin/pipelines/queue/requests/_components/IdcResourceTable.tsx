@@ -12,6 +12,7 @@
 
 import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import { OccBar, FtagBadge } from '@/app/admin/pipelines/queue/_components/bits';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -89,7 +90,7 @@ export function IdcResourceTable({
                     <span className={cn(tag.base, tag.gray)}>{kindTag(row.idcKind)}</span>
                   </td>
                   <td className={appTable.td}>
-                    <span className={cn(tag.base, tag.grayStrong)}>{row.databaseType ?? '—'}</span>
+                    <span className={cn(tag.base, tag.grayStrong)}>{row.databaseType ? getDatabaseShortLabel(row.databaseType) : '—'}</span>
                   </td>
                   <td className={`${appTable.td} ${appTable.tdMono}`}>{connect}</td>
                   <td className={`${appTable.td} ${appTable.tdMono}`}>{row.port ?? '—'}</td>
@@ -123,7 +124,7 @@ export function IdcResourceTable({
                   <span className={cn(tag.base, tag.gray)}>{kindTag(row.idcKind)}</span>
                 </td>
                 <td className={appTable.td}>
-                  <span className={cn(tag.base, tag.blue)}>{row.databaseType ?? '—'}</span>
+                  <span className={cn(tag.base, tag.blue)}>{row.databaseType ? getDatabaseShortLabel(row.databaseType) : '—'}</span>
                 </td>
                 <td className={`${appTable.td} ${appTable.tdMono}`}>{connect}</td>
                 <td className={`${appTable.td} ${appTable.tdMono}`}>{row.port ?? '—'}</td>

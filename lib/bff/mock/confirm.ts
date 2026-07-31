@@ -161,16 +161,29 @@ const stableIndex = (key: string, length: number): number => {
 };
 
 const demoResourceName = (provider: Project['cloudProvider'], resource: MockResource): string => {
+  // 실 응답 기반 seed 는 이름을 들고 있다 — 합성 이름으로 덮으면 단계마다 이름이 달라진다.
+  if (resource.resourceName) return resource.resourceName;
   if (provider === 'GCP') {
     return GCP_RESOURCE_NAMES[stableIndex(resource.id, GCP_RESOURCE_NAMES.length)];
   }
   return DEMO_RESOURCE_NAMES[stableIndex(resource.id, DEMO_RESOURCE_NAMES.length)];
 };
 
+/**
+ * AWS seed 는 실 BFF 응답 캡처라 host·port·credential 을 직접 들고 있다. 캡처가
+ * 없는 provider 만 데모 값을 합성한다 — 합성값은 실제로 비어 오는 칸을 가려서
+ * 화면 검증을 못 하게 만든다. @see lib/bff/mock/aws-wire-sample.ts
+ */
+const isWireSeeded = (provider: Project['cloudProvider']): boolean => provider === 'AWS';
+
 // v15 shows DB Credential as Key1 / Key2 links. Preserve an explicit selection
 // when present, otherwise alternate Key1/Key2 by a stable hash.
-const demoCredential = (resource: MockResource): string =>
-  resource.selectedCredentialId ?? (stableIndex(resource.id, 2) === 0 ? 'Key1' : 'Key2');
+const resolveCredential = (
+  provider: Project['cloudProvider'],
+  resource: MockResource,
+): string | null =>
+  resource.selectedCredentialId ??
+  (isWireSeeded(provider) ? null : stableIndex(resource.id, 2) === 0 ? 'Key1' : 'Key2');
 
 // Default DB port by database type (demo). Confirmed-integration must surface a
 // non-null host/port; cloud seeds carry neither on the resource (only VM configs
@@ -190,19 +203,27 @@ const DEMO_PORT_BY_DB: Record<string, number> = {
   ATHENA: 443,
 };
 
-const demoPort = (resource: MockResource): number => {
+const resolvePort = (
+  provider: Project['cloudProvider'],
+  resource: MockResource,
+): number | null => {
+  if (isWireSeeded(provider)) return resource.port ?? null;
   const db = resource.vmDatabaseConfig?.databaseType ?? resource.databaseType ?? '';
   return DEMO_PORT_BY_DB[db] ?? 3306;
 };
 
 // Demo host: resource_name as an FQDN under a provider-ish suffix (deterministic).
-const demoHost = (provider: Project['cloudProvider'], resource: MockResource): string => {
+const resolveHost = (
+  provider: Project['cloudProvider'],
+  resource: MockResource,
+): string | null => {
+  // 캡처의 빈 문자열은 그대로 빈 문자열이어야 한다 (?? 는 '' 를 통과시킨다).
+  if (isWireSeeded(provider)) return resource.host ?? null;
   const name = demoResourceName(provider, resource).replace(/[^a-z0-9-]/gi, '-').toLowerCase();
   const suffix =
-    provider === 'AWS' ? 'rds.amazonaws.com'
-      : provider === 'Azure' ? 'database.azure.com'
-        : provider === 'GCP' ? 'cloudsql.gcp.internal'
-          : 'db.internal';
+    provider === 'Azure' ? 'database.azure.com'
+      : provider === 'GCP' ? 'cloudsql.gcp.internal'
+        : 'db.internal';
   return `${name}.${suffix}`;
 };
 
@@ -350,7 +371,7 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
     resource_id: r.resourceId,
     resource_type: r.type,
     endpoint_config,
-    credential_id: demoCredential(r),
+    credential_id: resolveCredential(project.cloudProvider, r),
     // Contract metadata (TargetSourceResourceMetadataDto) — Step3 reads region/database_type here.
     metadata: {
       provider: cloudProviderToWireProvider(project.cloudProvider),
@@ -383,11 +404,11 @@ function toExcludedResourceInfo(r: MockResource, project: Project): BffExcludedR
 
 function toConfirmedIntegrationResourceInfo(r: MockResource, project: Project): BffConfirmedIntegration['resource_infos'][number] {
   const idc = r.idcConfig;
-  // host/port: VM config if present, else IDC endpoint (domain or first ip), else a
-  // deterministic demo value so confirmed-integration never surfaces null host/port.
+  // host/port: VM config if present, else IDC endpoint (domain or first ip), else the
+  // seed value (AWS 캡처) 또는 데모 합성값.
   const idcHost = idc ? (idc.inputFormat === 'HOST' ? idc.domain : idc.ips[0]) : undefined;
-  const host = r.vmDatabaseConfig?.host ?? idcHost ?? demoHost(project.cloudProvider, r);
-  const port = r.vmDatabaseConfig?.port ?? demoPort(r);
+  const host = r.vmDatabaseConfig?.host ?? idcHost ?? resolveHost(project.cloudProvider, r);
+  const port = r.vmDatabaseConfig?.port ?? resolvePort(project.cloudProvider, r);
   return {
     resource_id: r.resourceId,
     resource_type: r.type,
@@ -398,8 +419,10 @@ function toConfirmedIntegrationResourceInfo(r: MockResource, project: Project): 
     host,
     oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
     network_interface_id: r.vmDatabaseConfig?.selectedNicId ?? null,
-    ip_configuration_name: null,
-    credential_id: demoCredential(r),
+    ip_configuration: null,
+    // Athena 설치 상태는 리전 단위 id 로 와서 DB 단위 확정 정보와 조인이 어긋난다.
+    athena_region_resource_id: r.athenaRegionResourceId ?? null,
+    credential_id: resolveCredential(project.cloudProvider, r),
     // Emit IDC fields only when present (IDC resources only).
     ...(idc ? { idc_host_format: idc.inputFormat } : {}),
     ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
