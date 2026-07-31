@@ -50,11 +50,22 @@ const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-
 const ROW_TARGET = 'hover:bg-[#F2F4F6] focus-within:bg-[#F2F4F6]';
 const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#ECEFF3] focus-within:bg-[#ECEFF3]';
 
-// Background alone marks position; it does not make a row easier to READ. The secondary columns
-// lift to near-black on hover, taking the row from 6.45:1 to 15.0:1 — that is the "선명하게" part.
-// Declared per cell: `cn` is a plain join, so a group-hover color must sit on the element that
-// owns the resting color, not be layered over it from the row.
+// Background alone marks position; it does not make a row easier to READ. Each column lifts on
+// whichever axis still has headroom:
+//
+//   secondary columns  color  #4E5968 -> #191F28 (6.45:1 -> 15.0:1)
+//   Resource Name      weight 400 -> 600, because its color is already maxed at 15.9:1
+//
+// Weight is free for the mono columns only: Geist Mono is a variable font whose advance width is
+// weight-invariant (measured 520.80px at 400 and 520.79px at 700, 14px), so the row cannot reflow.
+// Database Type is Pretendard — 400 -> 600 widens it 4% (352 -> 366px), so it stays color-only.
+// Dimming the OTHER rows was rejected: #4E5968 at opacity .75 is 4.0:1, under WCAG AA, and it
+// would apply to most of the screen the whole time the pointer is in the table.
+//
+// Declared per cell: `cn` is a plain join, so a group-hover value must sit on the element that
+// owns the resting value, not be layered over it from the row.
 const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
+const NAME_LIFT = 'group-hover:font-semibold group-focus-within:font-semibold';
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
@@ -126,7 +137,14 @@ export const WaitingApprovalTable = memo(
                   >
                     {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
                         block and left row heights ragged (59/69/75px); the full name is in the tip. */}
-                    <td className={cn(idcStyles.table.approvalCell, 'font-mono text-[14px]', textColors.primary)}>
+                    <td
+                      className={cn(
+                        idcStyles.table.approvalCell,
+                        'font-mono text-[14px]',
+                        textColors.primary,
+                        NAME_LIFT,
+                      )}
+                    >
                       <Tooltip content={resource.resourceName} size="md" triggerClassName="min-w-0 max-w-[200px] block">
                         <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
                       </Tooltip>

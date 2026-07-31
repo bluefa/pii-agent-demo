@@ -75,6 +75,13 @@ Measure the resting state first — the tint that was already there scored 1.06:
 excluded rows had no hover at all because their tint class replaced the hover class outright. Mirror
 whatever you add onto `focus-within`, or keyboard users get none of it.
 
+**Emphasis: use the axis that still has headroom, per column.** The anchor column was inert on
+hover because its color was already maxed (15.9:1) — only weight was left. Weight is normally a
+layout-shift trap, but it is free in a monospace column: Geist Mono's advance width is
+weight-invariant (measured 520.80px at 400 vs 520.79px at 700), and forcing semibold on every name
+cell at once moved no column by even 0.01px. The proportional column next to it widens 4% at the
+same change, so that one stays color-only. Measure the font before assuming which axis is safe.
+
 **Measure before you restyle.** "These values feel too heavy" was, on inspection, byte-identical
 typography to the screen it was being compared against — the weight came from values wrapping to
 2–3 lines and leaving row heights ragged. Dump the computed styles of both screens before changing

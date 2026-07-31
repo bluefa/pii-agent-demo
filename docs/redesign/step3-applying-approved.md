@@ -165,6 +165,7 @@ Step 2에서 이미 공유 컴포넌트로 반영된 것(컬럼 순서, `요청 
 | 대상 행 hover | `#F7F8FA` (1.06:1) | **`#F2F4F6`** (1.10:1) |
 | 제외 행 hover | 없음 | **`#ECEFF3`** (제외 tint 기준 1.10:1) |
 | 보조 컬럼 텍스트 | #4E5968 고정 | **hover 시 #191F28** (6.45:1 → **15.0:1**) |
+| Resource Name | 무반응 (색이 이미 15.9:1로 max) | **400 → 600** (폭 변화 0) |
 | 키보드 | hover 전용 | **`focus-within` 동일 적용** |
 | 전환 | `transition-colors` | + `duration-150` · **`motion-reduce:transition-none`** |
 
@@ -177,6 +178,22 @@ Step 2에서 이미 공유 컴포넌트로 반영된 것(컬럼 순서, `요청 
   각 분기가 자기 rest/hover 색을 모두 소유하도록 바꿔 두 상태 모두 1.10:1을 확보했다.
 - 행에는 복사 버튼과 툴팁 트리거가 있다. `focus-within`을 같이 걸어 **탭으로 이동해도 마우스와
   같은 하이라이트**를 받는다 (ui-ux-pro-max: `focus-states` · `hover-vs-tap`).
+- **컬럼마다 여유가 남은 축을 쓴다.** Resource Name은 색이 이미 상한(#191F28 · 15.9:1)이라
+  올릴 곳이 없었다 — 행에서 실제로 읽는 앵커 컬럼이 hover에 무반응이었다. 여기만 **굵기**를 쓴다.
+
+  | 컬럼 | 폰트 | 쓰는 축 |
+  |---|---|---|
+  | Resource Name | Geist Mono | **굵기 400→600** |
+  | Resource ID · Region | Geist Mono | 색 |
+  | Database Type | Pretendard | 색 |
+
+  굵기가 mono 컬럼에서만 공짜인 이유: **Geist Mono는 가변 폰트인데 advance width가 굵기와
+  무관**하다(14px 실측 400=520.80px, 700=520.79px). 모든 이름 셀에 `font-semibold`를 동시에
+  강제해도 컬럼 폭이 소수점 둘째 자리까지 그대로다. Pretendard는 400→600에서 4% 넓어지므로
+  (352→366px) Database Type은 색만 쓴다.
+- **다른 행을 흐리게(dim) 하는 방식은 버렸다.** #4E5968를 opacity 0.75로 낮추면 4.0:1,
+  0.5면 2.4:1 — **WCAG AA 미달**이다. 게다가 포인터가 표 위에 있는 내내 화면 대부분이
+  기준 미달 상태가 된다. 하나를 띄우려고 나머지를 못 읽게 만드는 거래는 성립하지 않는다.
 - 공유 토큰 `idcStyles.table.row`는 **안 건드렸다** — IDC 표 3종·모달 3종·ConnectionTestCard까지
   7곳이 쓴다. 이 표에만 선언했다.
 
