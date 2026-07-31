@@ -37,8 +37,8 @@ describe('targetSourceId — seed 데이터', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('seed 데이터는 44개 프로젝트를 포함한다 (cloud 10 + step-coverage 13 + IDC 데모 8 + SDU 데모 2 + TC 큐 4 + 실 응답 샘플 7)', () => {
-    expect(mockProjects).toHaveLength(44);
+  it('seed 데이터는 37개 프로젝트를 포함한다 (cloud 10 + step-coverage 13 + IDC 데모 8 + SDU 데모 2 + TC 큐 4)', () => {
+    expect(mockProjects).toHaveLength(37);
   });
 });
 

@@ -963,7 +963,12 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         processStatus: ProcessStatus.INSTALLATION_COMPLETE,
         status,
         resources: [
-          createTestResource('res-1', { isSelected: true, connectionStatus: 'CONNECTED' }),
+          createTestResource('res-1', {
+            isSelected: true,
+            connectionStatus: 'CONNECTED',
+            host: '',
+            port: 3306,
+          }),
           createTestResource('res-2', { isSelected: true, connectionStatus: 'CONNECTED' }),
         ],
       });
@@ -971,16 +976,40 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const res = await mockConfirm.getConfirmedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const data = await parseResponse(res);
       expect(data.resource_infos).toHaveLength(2);
-      // confirmed-integration must surface a non-null host/port (demo-derived when
-      // the seed has no VM/IDC endpoint) — null host/port was the Step-5/6 bug.
+      // AWS host/port come from the seed (real BFF capture) — the empty host and the
+      // absent port pass through untouched. Synthesizing them hid every empty cell.
       expect(data.resource_infos[0]).toMatchObject({
         database_type: 'MYSQL',
+        host: '',
+        port: 3306,
+        credential_id: null,
         oracle_service_id: null,
         network_interface_id: null,
         ip_configuration: null,
       });
+      expect(data.resource_infos[1]).toMatchObject({ host: null, port: null });
+    });
+
+    it('캡처가 없는 provider 는 host/port 를 데모 값으로 채운다', async () => {
+      addTestProject({
+        cloudProvider: 'Azure',
+        processStatus: ProcessStatus.INSTALLATION_COMPLETE,
+        status: {
+          ...createInitialProjectStatus(),
+          scan: { status: 'COMPLETED' },
+          targets: { confirmed: true, selectedCount: 1, excludedCount: 0 },
+          approval: { status: 'APPROVED', approvedAt: '2026-01-10T00:00:00Z' },
+          installation: { status: 'COMPLETED' },
+          connectionTest: { status: 'PASSED', passedAt: '2026-01-13T00:00:00Z' },
+        },
+        resources: [
+          createTestResource('res-1', { isSelected: true, connectionStatus: 'CONNECTED' }),
+        ],
+      });
+
+      const res = await mockConfirm.getConfirmedIntegration(TEST_TARGET_SOURCE_ID_STR);
+      const data = await parseResponse(res);
       expect(typeof data.resource_infos[0].port).toBe('number');
-      expect(typeof data.resource_infos[0].host).toBe('string');
       expect(data.resource_infos[0].host).toBeTruthy();
     });
 

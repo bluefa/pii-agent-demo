@@ -3,10 +3,16 @@ import type { schemas } from '@/lib/generated/install-v1';
 import type { MockResource } from '@/lib/types';
 
 /**
- * Real-BFF AWS response capture (owner-provided, 2026-07-30), served verbatim for
- * one demo target source so the app is exercised against the wire as it actually
- * arrives — not against the mock's demo enrichment (which fabricates host/port/
- * resource_name/credential and therefore hides every empty cell).
+ * Real-BFF AWS response capture (owner-provided, 2026-07-30). These are the seed
+ * values for every AWS demo target source — the mock no longer fabricates host /
+ * port / resource_name / credential for AWS, because fabricated values hide every
+ * cell that actually arrives empty.
+ *
+ * Two captures, from two accounts, seeding the two halves of the lifecycle:
+ * - `confirmed-integration` (804656952396) → the confirmed set, used by the
+ *   post-approval steps (설치 · 연결 테스트 · 완료 승인 · 완료).
+ * - `approval-requests/latest` (451814760281) → the scan candidate set, used by
+ *   the pre-approval steps (대상 선택 · 승인 대기).
  *
  * What the capture makes visible that the synthesized mocks did not:
  * - `installation-status` rows for Athena are **region-level** ids
@@ -17,33 +23,23 @@ import type { MockResource } from '@/lib/types';
  * - `terraform_execution_role_verify.role_arn` is null while IN_PROGRESS.
  * - approval items carry `resource_type: null` and a metadata block whose
  *   host/port/region-specific fields are null.
- * - `resource_total_count` (23) is the full scan, not the returned page (9 rows).
+ * - the approval request reported `resource_total_count` 23 for 9 returned rows.
  * - timestamps arrive with nanosecond precision and, on the approval request,
  *   with **no timezone offset**.
  */
 
-/** 설치 진행 중(Step 4) 대상 — installation-status 캡처를 그대로 서빙한다. */
-export const AWS_WIRE_SAMPLE_TARGET_SOURCE_ID = 1545;
-
-/**
- * 같은 리소스 집합으로 나머지 단계를 보기 위한 대상 — 순서대로
- * [연결 테스트(5), 관리자 승인 대기(6), 완료(7), 대상 선택(1), 승인 대기(2), 반영중(3)].
- * installation-status 캡처는 단계와 모순되므로 이 대상들엔 서빙하지 않는다.
- */
-export const AWS_WIRE_SAMPLE_STEP_TARGET_SOURCE_IDS = [1546, 1547, 1548, 1541, 1542, 1543] as const;
-
-const SAMPLE_IDS: readonly number[] = [
-  AWS_WIRE_SAMPLE_TARGET_SOURCE_ID,
-  ...AWS_WIRE_SAMPLE_STEP_TARGET_SOURCE_IDS,
-];
-
-export const isAwsWireSample = (targetSourceId: number): boolean =>
-  SAMPLE_IDS.includes(targetSourceId);
+/** 설치 진행(Step 4) 대상 — installation-status 캡처를 그대로 서빙한다. */
+export const AWS_WIRE_INSTALL_TARGET_SOURCE_ID = 1008;
 
 export const isAwsWireInstallSample = (targetSourceId: number): boolean =>
-  targetSourceId === AWS_WIRE_SAMPLE_TARGET_SOURCE_ID;
+  targetSourceId === AWS_WIRE_INSTALL_TARGET_SOURCE_ID;
 
-const ACCOUNT_ID = '804656952396';
+/** 확정 정보 캡처 계정. */
+export const AWS_WIRE_CONFIRMED_ACCOUNT_ID = '804656952396';
+/** 승인 요청 캡처 계정. */
+export const AWS_WIRE_APPROVAL_ACCOUNT_ID = '451814760281';
+
+const ACCOUNT_ID = AWS_WIRE_CONFIRMED_ACCOUNT_ID;
 
 // GET …/aws/installation-status
 export const awsWireSampleInstallationStatus: z.infer<
@@ -100,7 +96,7 @@ export const awsWireSampleInstallationStatus: z.infer<
   terraform_execution_role_verify: { status: 'IN_PROGRESS', role_arn: null },
 };
 
-// GET …/confirmed-integration
+// GET …/confirmed-integration — 확정 리소스 seed 의 원본.
 export const awsWireSampleConfirmedIntegration: z.infer<
   typeof schemas.ConfirmedIntegrationResponse
 > = {
@@ -283,97 +279,12 @@ export const awsWireSampleConfirmedIntegration: z.infer<
   ],
 };
 
-// GET …/approval-requests/latest — the pre-approval candidate snapshot for this
-// target source. Only 9 of the 23 scanned resources are returned by the BFF.
-const APPROVAL_ACCOUNT_ID = '451814760281';
-
-const approvalMetadata = (
-  databaseType: string,
-  region: string,
-): NonNullable<z.infer<typeof schemas.TargetSourceResourceItemDto>['metadata']> => ({
-  provider: 'AWS',
-  region,
-  host: null,
-  port: null,
-  networkInterfaces: null,
-  resource_type: null,
-  database_type: databaseType,
-  oracle_service_id: null,
-  credential_id: null,
-  network_interface_id: null,
-  ip_configuration: null,
-  project_id: null,
-  instance_name: null,
-  host_network: null,
-  host_project: null,
-  cloud_sql_type: null,
-  subscription_id: null,
-  resource_group: null,
-  server_name: null,
-  idc_host_format: null,
-  idc_ips: null,
-  idc_host: null,
-  idc_source_ips: null,
-  nlb_index: null,
-});
-
-const approvalItem = (
-  selected: boolean,
-  resourceId: string,
-  resourceName: string,
-  databaseType: string,
-  region = 'ap-northeast-2',
-): z.infer<typeof schemas.TargetSourceResourceItemDto> => ({
-  selected,
-  metadata: approvalMetadata(databaseType, region),
-  resource_id: resourceId,
-  resource_name: resourceName,
-  resource_type: null,
-  integration_category: 'TARGET',
-  recommend_fail_reason: null,
-  exclusion_reason: null,
-});
-
-export const awsWireSampleApprovalLatest: z.infer<
-  typeof schemas.ApprovalRequestLatestDto
-> = {
-  request: {
-    id: 34,
-    target_source_id: AWS_WIRE_SAMPLE_TARGET_SOURCE_ID,
-    status: 'APPROVED',
-    requested_by: { user_id: 'admin' },
-    requested_at: '2026-07-21T02:09:23.339987',
-    resource_total_count: 23,
-    resource_selected_count: 4,
-  },
-  resources: [
-    approvalItem(false, `arn:aws:rds:ap-northeast-2:${APPROVAL_ACCOUNT_ID}:cluster:raw-mongo-deq-test-1`, 'raw-mongo-deq-test-1', 'mongodb'),
-    approvalItem(true, `arn:aws:rds:ap-northeast-2:${APPROVAL_ACCOUNT_ID}:cluster:raw-e2e-test-mysql-cluster-cluster`, 'raw-e2e-test-mysql-cluster-cluster', 'mysql'),
-    approvalItem(false, `arn:aws:rds:ap-northeast-2:${APPROVAL_ACCOUNT_ID}:cluster:raw-test-cluster-deq-cluster`, 'raw-test-cluster-deq-cluster', 'mysql'),
-    approvalItem(false, `arn:aws:rds:ap-northeast-2:${APPROVAL_ACCOUNT_ID}:cluster:raw-test-cluster-dic-cluster`, 'raw-test-cluster-dic-cluster', 'mysql'),
-    approvalItem(false, `arn:aws:rds:ap-northeast-2:${APPROVAL_ACCOUNT_ID}:db:e2e-test-mssql`, 'e2e-test-mssql', 'mssql'),
-    approvalItem(false, `arn:aws:redshift:ap-northeast-2:${APPROVAL_ACCOUNT_ID}:namespace:2b7e5028-3b60-47c2-a621-0cf79ea0ad16`, 'redshift-cluster-1', 'redshift'),
-    approvalItem(false, `dynamodb:${APPROVAL_ACCOUNT_ID}:ap-northeast-2`, `dynamodb:${APPROVAL_ACCOUNT_ID}:ap-northeast-2`, 'dynamodb'),
-    approvalItem(false, `dynamodb:${APPROVAL_ACCOUNT_ID}:ap-northeast-1`, `dynamodb:${APPROVAL_ACCOUNT_ID}:ap-northeast-1`, 'dynamodb', 'ap-northeast-1'),
-    approvalItem(false, `athena:${APPROVAL_ACCOUNT_ID}:ap-northeast-2/AwsDataCatalog/test_raw`, 'test_raw', 'athena'),
-  ],
-  result: {
-    request_id: null,
-    status: 'APPROVED',
-    processed_by: { user_id: 'admin' },
-    processed_at: '2026-07-21T02:09:45.921342',
-    reason: '승인하도록 하겠습니다.',
-  },
-};
-
 /**
- * Project seed for the sample target source — the confirmed resource set, so the
- * steps that read the domain store (step 1/3/5/6/7, process status, test
- * connection) stay consistent with the captured `confirmed-integration` rows.
- * `databaseType` keeps the wire's lower-case value on purpose.
+ * 확정 리소스 seed — 설치 이후 단계(4·5·6·7) 대상이 그대로 쓴다.
+ * host `''`·port/credential 없음까지 캡처 값 그대로 옮긴다.
  */
-export const awsWireSampleResources: MockResource[] = awsWireSampleConfirmedIntegration.resource_infos!.map(
-  (info, index) => ({
+export const awsWireSampleResources: MockResource[] =
+  awsWireSampleConfirmedIntegration.resource_infos!.map((info, index) => ({
     id: `res-wire-${index + 1}`,
     type: info.resource_type!,
     resourceId: info.resource_id!,
@@ -384,5 +295,51 @@ export const awsWireSampleResources: MockResource[] = awsWireSampleConfirmedInte
     awsType: info.resource_type === 'AWS_ATHENA_DATABASE' ? 'ATHENA' : 'RDS_CLUSTER',
     region: info.database_region!,
     integrationCategory: 'TARGET',
-  }),
-);
+    host: info.host,
+    port: info.port,
+    athenaRegionResourceId: info.athena_region_resource_id,
+  }));
+
+/**
+ * 승인 요청 캡처(GET …/approval-requests/latest)의 후보 리소스 9건 — 승인 전
+ * 단계(대상 선택·승인 대기)의 seed. 23건 스캔 중 9건만 내려온 응답이라 엔진이
+ * 섞여 있다(mongodb·mysql·mssql·redshift·dynamodb·athena). 캡처의 `selected`
+ * 를 그대로 옮겨 1건만 연동 대상이다.
+ */
+const APPROVAL_ACCOUNT = AWS_WIRE_APPROVAL_ACCOUNT_ID;
+
+const approvalCapture: ReadonlyArray<{
+  selected: boolean;
+  resourceId: string;
+  resourceName: string;
+  databaseType: string;
+  awsType: MockResource['awsType'];
+  type: string;
+  region: string;
+}> = [
+  { selected: false, resourceId: `arn:aws:rds:ap-northeast-2:${APPROVAL_ACCOUNT}:cluster:raw-mongo-deq-test-1`, resourceName: 'raw-mongo-deq-test-1', databaseType: 'mongodb', awsType: 'DOCUMENTDB', type: 'AWS_DB_CLUSTER', region: 'ap-northeast-2' },
+  { selected: true, resourceId: `arn:aws:rds:ap-northeast-2:${APPROVAL_ACCOUNT}:cluster:raw-e2e-test-mysql-cluster-cluster`, resourceName: 'raw-e2e-test-mysql-cluster-cluster', databaseType: 'mysql', awsType: 'RDS_CLUSTER', type: 'AWS_DB_CLUSTER', region: 'ap-northeast-2' },
+  { selected: false, resourceId: `arn:aws:rds:ap-northeast-2:${APPROVAL_ACCOUNT}:cluster:raw-test-cluster-deq-cluster`, resourceName: 'raw-test-cluster-deq-cluster', databaseType: 'mysql', awsType: 'RDS_CLUSTER', type: 'AWS_DB_CLUSTER', region: 'ap-northeast-2' },
+  { selected: false, resourceId: `arn:aws:rds:ap-northeast-2:${APPROVAL_ACCOUNT}:cluster:raw-test-cluster-dic-cluster`, resourceName: 'raw-test-cluster-dic-cluster', databaseType: 'mysql', awsType: 'RDS_CLUSTER', type: 'AWS_DB_CLUSTER', region: 'ap-northeast-2' },
+  { selected: false, resourceId: `arn:aws:rds:ap-northeast-2:${APPROVAL_ACCOUNT}:db:e2e-test-mssql`, resourceName: 'e2e-test-mssql', databaseType: 'mssql', awsType: 'RDS', type: 'AWS_DB_INSTANCE', region: 'ap-northeast-2' },
+  { selected: false, resourceId: `arn:aws:redshift:ap-northeast-2:${APPROVAL_ACCOUNT}:namespace:2b7e5028-3b60-47c2-a621-0cf79ea0ad16`, resourceName: 'redshift-cluster-1', databaseType: 'redshift', awsType: 'REDSHIFT', type: 'AWS_REDSHIFT_CLUSTER', region: 'ap-northeast-2' },
+  { selected: false, resourceId: `dynamodb:${APPROVAL_ACCOUNT}:ap-northeast-2`, resourceName: `dynamodb:${APPROVAL_ACCOUNT}:ap-northeast-2`, databaseType: 'dynamodb', awsType: 'DYNAMODB', type: 'AWS_DYNAMODB_REGION', region: 'ap-northeast-2' },
+  { selected: false, resourceId: `dynamodb:${APPROVAL_ACCOUNT}:ap-northeast-1`, resourceName: `dynamodb:${APPROVAL_ACCOUNT}:ap-northeast-1`, databaseType: 'dynamodb', awsType: 'DYNAMODB', type: 'AWS_DYNAMODB_REGION', region: 'ap-northeast-1' },
+  { selected: false, resourceId: `athena:${APPROVAL_ACCOUNT}:ap-northeast-2/AwsDataCatalog/test_raw`, resourceName: 'test_raw', databaseType: 'athena', awsType: 'ATHENA', type: 'AWS_ATHENA_DATABASE', region: 'ap-northeast-2' },
+];
+
+export const awsWireApprovalResources: MockResource[] = approvalCapture.map((row, index) => ({
+  id: `res-wire-cand-${index + 1}`,
+  type: row.type,
+  resourceId: row.resourceId,
+  resourceName: row.resourceName,
+  databaseType: row.databaseType,
+  connectionStatus: 'PENDING',
+  isSelected: row.selected,
+  awsType: row.awsType,
+  region: row.region,
+  integrationCategory: 'TARGET',
+  // 캡처의 metadata 는 host/port/credential 이 전부 null 이다.
+  host: null,
+  port: null,
+}));

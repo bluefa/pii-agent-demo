@@ -239,6 +239,13 @@ export interface MockResource {
   note?: string;                          // 비고(선택)
   resourceName?: string;                  // BFF 가 내려주는 이름 (없으면 데모용 이름 합성)
 
+  // --- 실 BFF 응답 캡처 기반 seed 전용 (AWS) ---
+  // 캡처는 host 를 빈 문자열로, port·credential 을 null 로 내려준다. 합성하지 않고
+  // 그대로 노출하려면 리소스가 직접 들고 있어야 한다. @see lib/bff/mock/aws-wire-sample.ts
+  host?: string | null;
+  port?: number | null;
+  athenaRegionResourceId?: string | null; // Athena 설치 상태(리전 단위) 조인 키
+
   // --- Credential ---
   selectedCredentialId?: string;          // 선택된 credential ID (4단계용)
 
