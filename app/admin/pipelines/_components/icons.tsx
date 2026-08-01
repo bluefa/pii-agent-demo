@@ -162,8 +162,8 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
 
 export interface IconProps {
   name: IconName;
-  /** 'sm' 14 · 'md' 16 (default) · 'lg' 22 · 'xl' 26. */
-  size?: IconSize;
+  /** 'sm' 14 · 'md' 16 (default) · 'lg' 22 · 'xl' 26 — or a raw px number for one-off sizes. */
+  size?: IconSize | number;
   className?: string;
   /** Accessible label; when omitted the icon is aria-hidden (decorative). */
   title?: string;
@@ -172,7 +172,7 @@ export interface IconProps {
 }
 
 export function Icon({ name, size = 'md', className, title, strokeWidth = 2 }: IconProps): ReactElement {
-  const px = SIZE_PX[size];
+  const px = typeof size === 'number' ? size : SIZE_PX[size];
   return (
     <svg
       width={px}

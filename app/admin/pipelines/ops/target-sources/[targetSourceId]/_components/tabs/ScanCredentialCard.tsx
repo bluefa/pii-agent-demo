@@ -146,7 +146,7 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
     // flex-col — 하단 시각행(마지막 검증)을 mt-auto로 밑바닥에 깔아 짝 카드와 바닥선을 맞춘다.
     <section className={cn(pipelineStyles.card.base, 'flex flex-col')} aria-label="스캔 권한">
       <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-        <Icon name="check-circle" size="md" className="text-[var(--pl-primary)]" />
+        <Icon name="check-circle" size={18} className="text-[var(--pl-primary)]" />
         스캔 권한
         {pill && (
           <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>

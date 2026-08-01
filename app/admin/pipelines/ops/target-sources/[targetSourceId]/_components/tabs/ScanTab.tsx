@@ -139,13 +139,15 @@ function ResourceTypeTag({
     <span
       title={type}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-[6px] border bg-white px-2.5 py-1 text-[12px] font-semibold shadow-[var(--pl-shadow-xs)] [font-family:var(--pl-font-mono)]',
-        removed
-          ? 'border-dashed border-[var(--pl-border)] text-[var(--pl-text-faint)]'
-          : 'border-[var(--pl-border)] text-[var(--pl-text-medium)]',
+        'inline-flex items-center gap-1.5 rounded-[6px] border bg-white px-2.5 py-1 shadow-[var(--pl-shadow-xs)] [font-family:var(--pl-font-mono)]',
+        removed ? 'border-dashed border-[var(--pl-border)]' : 'border-[var(--pl-border)]',
       )}
     >
-      {trimProviderPrefix(type, provider)}
+      {/* 계층: 라벨(500/weak)은 물러나고 숫자(700/strong)가 데이터 — 12타입 규모에서
+          라벨·카운트·증감이 같은 급으로 읽히던 혼란 교정. */}
+      <span className={cn('text-[12px] font-medium', removed ? 'text-[var(--pl-text-faint)]' : 'text-[var(--pl-text-weak)]')}>
+        {trimProviderPrefix(type, provider)}
+      </span>
       <b
         className={cn(
           'text-[12px] font-bold tabular-nums',
@@ -282,7 +284,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-            <Icon name="search" size="md" className="text-[var(--pl-primary)]" />
+            <Icon name="search" size={18} className="text-[var(--pl-primary)]" />
             최근 스캔
             {latestJob && <ScanStatusPill status={latestJob.scan_status} />}
             {latestJob?.scan_version != null && (
@@ -435,7 +437,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
 
       <section className={pipelineStyles.card.base} aria-label="스캔 이력">
         <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-          <Icon name="clock" size="md" className="text-[var(--pl-primary)]" />
+          <Icon name="clock" size={18} className="text-[var(--pl-primary)]" />
           스캔 이력
         </h2>
         {/* 보관 정책 선언 — 페이지 용어(스캔 결과·버전) 그대로. 한도 절만
@@ -553,9 +555,23 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                       </b>
                       개를 발견했어요.
                     </p>
-                    <div className="mt-2.5 flex max-h-[280px] flex-wrap gap-2 overflow-y-auto">
+                    {/* 12타입+ 규모에서 태그 클라우드는 랩이 깨지고 자릿수 비교가 안 된다 —
+                        정렬 리스트(라벨 좌 / 카운트 우, tabular)로 전환. 카드는 한눈
+                        요약(태그), 모달은 비교·정밀(리스트)로 역할을 가른다. */}
+                    <div className="mt-3 max-h-[320px] overflow-y-auto rounded-lg border border-[var(--pl-gray-100)]">
                       {detailCounts.map(([type, count]) => (
-                        <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
+                        <div
+                          key={type}
+                          title={type}
+                          className="flex items-center justify-between gap-4 border-b border-[var(--pl-gray-100)] px-4 py-1.5 last:border-b-0"
+                        >
+                          <span className="truncate text-[12px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]">
+                            {trimProviderPrefix(type, provider)}
+                          </span>
+                          <b className="text-[14px] font-bold tabular-nums text-[var(--pl-text-strong)]">
+                            {fmtCount(count)}
+                          </b>
+                        </div>
                       ))}
                     </div>
                   </>
