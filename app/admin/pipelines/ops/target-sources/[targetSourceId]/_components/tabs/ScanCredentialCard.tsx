@@ -101,7 +101,8 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
   const pill = state.phase === 'done' ? pillSpec(state.data.status) : null;
 
   return (
-    <section className={pipelineStyles.card.base} aria-label="스캔 권한">
+    // flex-col — 하단 시각행(마지막 검증)을 mt-auto로 밑바닥에 깔아 짝 카드와 바닥선을 맞춘다.
+    <section className={cn(pipelineStyles.card.base, 'flex flex-col')} aria-label="스캔 권한">
       <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
         <Icon name="check-circle" size="md" className="text-[var(--pl-primary)]" />
         스캔 권한
@@ -159,14 +160,17 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
         </p>
       )}
 
-      {/* 하단 시각행 — 최근 스캔 카드와 같은 문법(라벨 위/값 아래). 값 없으면 행 생략. */}
+      {/* 하단 시각행 — 최근 스캔 카드와 같은 문법(라벨 위/값 아래), mt-auto로 밑바닥 고정.
+          값 없으면 행 생략. */}
       {data.last_verified_at && (
-        <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
-          <div className="min-w-0">
-            <p className="text-[12px] font-medium text-[var(--pl-text-faint)]">마지막 검증</p>
-            <p className="mt-0.5 whitespace-nowrap text-[13px] font-medium tabular-nums text-[var(--pl-text-medium)]">
-              {fmtDateTimeSec(data.last_verified_at)}
-            </p>
+        <div className="mt-auto">
+          <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
+            <div className="min-w-0">
+              <p className="text-[12px] font-medium text-[var(--pl-text-faint)]">마지막 검증</p>
+              <p className="mt-0.5 whitespace-nowrap text-[13px] font-medium tabular-nums text-[var(--pl-text-medium)]">
+                {fmtDateTimeSec(data.last_verified_at)}
+              </p>
+            </div>
           </div>
         </div>
       )}

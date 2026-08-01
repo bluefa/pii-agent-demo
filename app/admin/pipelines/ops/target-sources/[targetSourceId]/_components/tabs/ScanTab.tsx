@@ -274,7 +274,8 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
   const detailCounts = sortResourceCounts(detailJob?.resource_count_by_resource_type);
 
   const recentScanCard = (
-    <section className={pipelineStyles.card.base} aria-label="최근 스캔">
+    // flex-col — 하단 시각행을 mt-auto로 카드 밑바닥에 깐다(짝 카드가 더 길 때 허공 방지).
+    <section className={cn(pipelineStyles.card.base, 'flex flex-col')} aria-label="최근 스캔">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
@@ -294,19 +295,14 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         {/* 새로고침 삭제 — 스캔 중엔 useScanPolling이 2초 폴링, 이 탭에서 실행한
             스캔은 refresh()가 즉시 반영한다. 다른 화면에서 시작된 스캔은 탭
             재진입으로만 보인다(폴링은 SCANNING 동안만 도는 트레이드오프).
-            variant secondary — 운영 콘솔에서 스캔 실행은 상시 CTA가 아니라
-            도구라 primary 파랑이 과했다(운영 피드백). */}
+            variant outline(파란 스트로크)·아이콘 없음 — primary 면은 과하고
+            회색은 죽어 보인다는 운영 피드백의 절충. */}
         <PlButton
-          variant="secondary"
+          variant="outline"
           className="flex-none"
           disabled={scanning || starting}
           onClick={() => void runScan()}
         >
-          <Icon
-            name={scanning || starting ? 'loader' : 'play'}
-            size="sm"
-            className={scanning || starting ? 'animate-spin' : undefined}
-          />
           {scanning ? '스캔 중…' : starting ? '시작 중…' : '스캔 실행'}
         </PlButton>
       </div>
@@ -402,16 +398,18 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             </p>
           )}
 
-          {/* 시각행 — 라벨 위/값 아래 필드로 나열 (완료시간 = updated_at, 같은 날이면 시간만). */}
-          <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
-            <TimeField label="실행시간">{fmtDateTimeSec(latestJob.created_at)}</TimeField>
-            {!scanning && (
-              <>
-                {/* 실행시간과 같은 포맷 — 같은 날이어도 날짜를 생략하지 않는다. */}
-                <TimeField label="완료시간">{fmtDateTimeSec(latestJob.updated_at)}</TimeField>
-                <TimeField label="소요">{fmtDuration(latestJob.duration_seconds)}</TimeField>
-              </>
-            )}
+          {/* 시각행 — 라벨 위/값 아래 필드, mt-auto로 카드 밑바닥 고정(안쪽 mt-4가 최소 간격). */}
+          <div className="mt-auto">
+            <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
+              <TimeField label="실행시간">{fmtDateTimeSec(latestJob.created_at)}</TimeField>
+              {!scanning && (
+                <>
+                  {/* 실행시간과 같은 포맷 — 같은 날이어도 날짜를 생략하지 않는다. */}
+                  <TimeField label="완료시간">{fmtDateTimeSec(latestJob.updated_at)}</TimeField>
+                  <TimeField label="소요">{fmtDuration(latestJob.duration_seconds)}</TimeField>
+                </>
+              )}
+            </div>
           </div>
         </>
       )}
@@ -453,6 +451,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
               <thead>
                 <tr>
                   <th className={table.headCell}>실행 일시</th>
+                  <th className={table.headCell}>완료 일시</th>
                   <th className={table.headCell}>상태</th>
                   <th className={table.headCell}>버전</th>
                   <th className={table.headCell}>발견 리소스</th>
@@ -471,6 +470,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                       onClick={() => setDetailJob(row)}
                     >
                       <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.created_at)}</td>
+                      <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.updated_at)}</td>
                       <td className={table.cell}>
                         <ScanStatusPill status={row.scan_status} />
                       </td>

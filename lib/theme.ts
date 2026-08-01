@@ -1398,6 +1398,10 @@ export const pipelineStyles = {
       'border border-transparent bg-[var(--pl-primary)] text-[var(--pl-white)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-primary-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
     secondary:
       'border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-medium)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-gray-50)] disabled:text-[var(--pl-text-faint)] disabled:border-[var(--pl-border)] disabled:shadow-none',
+    /** Outline-primary — 파란 스트로크 + 흰 배경. primary(면)만큼 소리치지 않으면서
+     *  secondary(회색)보다는 행동임이 보이는 도구 CTA(스캔 실행류). */
+    outline:
+      'border border-[var(--pl-primary)] bg-[var(--pl-bg-card)] text-[var(--pl-primary)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-primary-bg)] disabled:text-[var(--pl-text-faint)] disabled:border-[var(--pl-border)] disabled:shadow-none',
     ghost:
       'border border-transparent bg-transparent text-[var(--pl-text-weak)] enabled:hover:bg-[var(--pl-gray-100)] enabled:hover:text-[var(--pl-text-medium)] disabled:text-[var(--pl-gray-300)]',
     danger:
