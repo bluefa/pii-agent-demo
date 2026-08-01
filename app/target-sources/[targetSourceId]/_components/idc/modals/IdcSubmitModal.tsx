@@ -35,7 +35,8 @@ interface StatProps {
 // white modal surface instead of reading as inset gray wells.
 const Stat = ({ label, value, valueClass }: StatProps) => (
   <div className={cn('rounded-xl bg-white px-4 py-4 text-center', tossShadow.md)}>
-    <div className={cn('text-[14px] font-medium', textColors.tertiary)}>
+    {/* medium보다 한 단계 위(semibold)만 — 숫자(bold)와의 위계는 유지한다. */}
+    <div className={cn('text-[14px] font-semibold', textColors.tertiary)}>
       {label}
     </div>
     <div className={cn('mt-1 text-[36px] font-bold leading-[1.2]', numericFeatures.tabular, valueClass ?? textColors.primary)}>
