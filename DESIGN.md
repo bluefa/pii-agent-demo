@@ -143,7 +143,9 @@ The palette has four roles: brand, status, neutral (text/surface/border), and pr
 
 - **`{colors.primary}`** (`#0064FF`) — the only colour authorised to drive primary actions, focus rings, and active states. Every "do this" affordance reads in this blue.
 - **`{colors.primary-hover}`** (`#0050D6`) — the hover/pressed shade. The contrast step is intentionally small; the affordance is the elevation/cursor change, not the colour shift.
-- **`{colors.primary-light}`** (`#E8F1FF`) — used for selected-row backgrounds and information-blue tinted surfaces. Keep the foreground at `{colors.text-primary}`.
+- **`{colors.primary-light}`** (`#E8F1FF`) — selected/hovered rows, badge fills, and information-blue tinted surfaces. It carries two roles, and the foreground rule differs by role:
+  - **As a badge or chip fill** — step tags, numbered markers, a row under hover or focus — the label is `#0050D6` (`primaryColors.textOnLight`). `{colors.primary}` is not available here: `#0064FF` measures 4.33:1 on the tint, under AA for the small text these badges carry, where `#0050D6` gives 5.92:1.
+  - **As a panel surface** — help cards, callouts — the text is neutral, but only down to `{colors.text-secondary}` (9.06:1). `{colors.text-tertiary}` is calibrated against white: it drops from 4.83:1 to 4.25:1 on the tint and fails AA there.
 - **`{colors.primary-accent}`** (`#4F46E5`) — appears only as the right-hand stop of the brand gradient on the top navigation. Do not use it as a standalone fill.
 
 ### Status

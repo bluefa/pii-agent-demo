@@ -37,7 +37,9 @@ export const ScanHeroState = ({
       className={cn(
         'mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl',
         primaryColors.bgLight,
-        primaryColors.text,
+        // textOnLight is the foreground `bgLight` pairs with: #0064FF holds 4.33:1 on the
+        // tint, which clears 1.4.11 for this glyph but nothing else that might join it.
+        primaryColors.textOnLight,
       )}
     >
       <svg
