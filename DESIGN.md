@@ -25,6 +25,7 @@ colors:
   border-light:           "#F3F4F6"
   border-default:        "#E5E7EB"
   border-strong:         "#D1D5DB"
+  border-emphasis:       "#6B7280"
   provider-aws:          "#FF9900"
   provider-azure:        "#0078D4"
   provider-gcp:          "#4285F4"
@@ -163,6 +164,8 @@ Status colours pair a base value with a darker readable variant. Use the dark va
 ### Neutral
 
 Surfaces, borders, and text together carry most of the page. The progression follows Tailwind's slate ramp at `gray-50 / 100 / 200 / 300 / 400 / 500 / 700 / 900` — don't reach for in-between shades. Five surface levels (white, `surface-secondary`, `surface-tertiary`) and three border weights (`light`, `default`, `strong`) cover every layout pattern this product needs.
+
+`border-emphasis` (`#6B7280`) is the exception, and it is not a fourth layout weight: it exists because `light` / `default` / `strong` all fail WCAG 1.4.11 on light grounds (`strong` manages 1.4:1), so none of them may carry meaning on their own. Use it only where the border *is* the state indicator — the selected page in a paginator, for instance — never to separate.
 
 ### Provider
 

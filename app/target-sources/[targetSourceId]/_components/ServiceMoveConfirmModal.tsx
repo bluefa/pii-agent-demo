@@ -27,8 +27,11 @@ export const ServiceMoveConfirmModal = ({
     open={isOpen}
     onClose={onClose}
     onConfirm={onConfirm}
-    title="다른 서비스로 이동할까요?"
-    // 강조는 목적지 하나 — 사용자가 확인해야 하는 정보는 "어느 서비스로 가는가"뿐이다.
+    // The sidebar's current-service row opens this dialog too, so the title cannot claim
+    // the destination is a *different* service. What is always true — and what the
+    // confirm is actually for — is that the user leaves this page.
+    title="서비스 인프라 목록으로 이동할까요?"
+    // One emphasis, on the destination: the only thing to check is which service.
     description={
       <>
         <span className={primaryColors.text}>

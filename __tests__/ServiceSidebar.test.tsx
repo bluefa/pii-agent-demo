@@ -37,7 +37,8 @@ describe('ServiceSidebar — empty list', () => {
       services: [{ service_code: 'AWS', service_name: 'AWS' }],
       currentService: { code: 'AWS', name: 'AWS' },
     });
-    expect(html).toContain('다른 서비스가 없습니다');
+    // Page-scoped, because the filter is: earlier pages may hold services this one doesn't.
+    expect(html).toContain('이 페이지에 다른 서비스가 없습니다');
     // Column headings over a blank body read as a broken table.
     expect(html).not.toContain('서비스 코드');
     expect(html).not.toContain('검색어 지우기');
@@ -47,6 +48,14 @@ describe('ServiceSidebar — empty list', () => {
     const html = render({ services: [] });
     expect(html).toContain('서비스가 없습니다');
     expect(html).not.toContain('다른 서비스가 없습니다');
+  });
+
+  it('hides pagination when there is nothing to page through', () => {
+    // The API reports one page for an empty result, which rendered a lone clickable
+    // "1" under "no services" — `totalElements` is what actually gates the footer.
+    const html = render({ services: [], searchQuery: 'zzzz' });
+    expect(html).not.toContain('이전 페이지');
+    expect(html).not.toContain('다음 페이지');
   });
 
   it('quotes the search term and offers to clear it', () => {

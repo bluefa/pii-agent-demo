@@ -196,10 +196,13 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
 
   if (fetchState.status === 'error') {
     return (
+      // Same recessed plane as ServiceSidebar — a failed fetch must not hand back a
+      // white elevated rail the successful path no longer uses.
       <aside
         className={cn(
-          'w-[296px] shrink-0 shadow-sm flex flex-col items-center justify-center px-4 gap-3',
-          bgColors.surface,
+          'w-[296px] shrink-0 flex flex-col items-center justify-center border-r px-4 gap-3',
+          bgColors.muted,
+          borderColors.default,
         )}
       >
         <p className={cn('text-sm text-center', textColors.secondary)}>

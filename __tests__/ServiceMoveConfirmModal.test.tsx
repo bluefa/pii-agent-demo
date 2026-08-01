@@ -40,7 +40,8 @@ describe('ServiceMoveConfirmModal — open state', () => {
         serviceName="Sample Service"
       />,
     );
-    expect(html).toContain('다른 서비스로 이동할까요?');
+    // Neutral on which service: the sidebar's current-service row opens this too.
+    expect(html).toContain('서비스 인프라 목록으로 이동할까요?');
     expect(html).toContain('SVC-001');
     expect(html).toContain('Sample Service');
     expect(html).toContain('인프라 목록으로 이동해요');

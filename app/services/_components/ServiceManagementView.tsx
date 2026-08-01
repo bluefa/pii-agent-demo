@@ -48,7 +48,7 @@ export const ServiceManagementView = () => {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  // Surface the deep-linked service exactly once on entry (see init effect).
+  // Guards the sidebar's initial load so it runs once per mount (see init effect).
   const initRef = useRef(false);
 
   const fetchServicesPage = useCallback(async (page: number, searchQuery?: string) => {
@@ -97,10 +97,10 @@ export const ServiceManagementView = () => {
   // the loaded page. Resolve it once per selection with a query-scoped lookup that
   // never touches the visible list.
   useEffect(() => {
-    if (!selectedService) {
-      setSelectedName('');
-      return;
-    }
+    // Clear first: the name belongs to the previous code until this lookup lands, and
+    // rendering it beside the new one would label service B with service A's name.
+    setSelectedName('');
+    if (!selectedService) return;
     let cancelled = false;
     getServicesPage(0, SERVICE_PAGE_SIZE, selectedService)
       .then((data) => {
