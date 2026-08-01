@@ -229,6 +229,11 @@ export interface MockResource {
   isSelected: boolean;
   databaseType: DatabaseType;             // DB 종류 (필수)
   integrationCategory: IntegrationCategory; // 연동 분류
+  /**
+   * 스캔이 판정한 연동 불가 사유 (swagger recommend_fail_reason enum). INSTALL_INELIGIBLE
+   * 일 때만 붙고, enum 이 GCP 2종·Azure 1종만 정의돼 있어 AWS·IDC 연동 불가에는 없다.
+   */
+  recommendFailReason?: string;
 
   // --- AWS 전용 ---
   awsType?: AwsResourceType;              // AWS일 때만
@@ -867,6 +872,9 @@ export interface BffExcludedResourceInfo {
   database_region?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
+  /** 비대상 사유의 두 축 — 시스템 판정(연동 불가)과 그 사유. @see TargetSourceResourceItemDto */
+  integration_category?: string | null;
+  recommend_fail_reason?: string | null;
 }
 
 /** 연동 확정 리소스 정보 (Swagger ResourceConfigDto) */

@@ -51,6 +51,8 @@ const toExcludedRow = (
   resourceName: item.resource_name ?? '',
   selected: false,
   exclusionReason: item.exclusion_reason ?? undefined,
+  integrationCategory: item.integration_category ?? undefined,
+  recommendFailReason: item.recommend_fail_reason ?? undefined,
 });
 
 interface ApplyingView {

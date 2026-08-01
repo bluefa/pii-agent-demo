@@ -17,6 +17,10 @@ export interface WaitingApprovalResource {
   selected: boolean;
   /** Exclusion reason text from `excluded_resource_infos[].exclusion_reason`. Only meaningful when `selected === false`. */
   exclusionReason?: string;
+  /** `integration_category` — separates a system verdict (연동 불가) from a user's 제외. */
+  integrationCategory?: string;
+  /** `recommend_fail_reason` — the scan's reason for 연동 불가; absent for AWS/IDC. */
+  recommendFailReason?: string;
   /** Optional metadata line shown beneath the reason text in the tooltip — typically registrant and date. */
   exclusionMeta?: string;
   /** Display db-engine source — prefer endpoint_config.db_type over resource_type (e.g. VM rows). */
@@ -109,7 +113,26 @@ const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 const PLACEHOLDER = '—';
 
 // No status dot: the label already says 대상 / 제외, so the dot repeats it in a weaker channel.
-const TargetPill = ({ excluded }: { excluded: boolean }) => {
+//
+// 연동 불가 is its own verdict, not a flavour of 제외. The two answer different questions —
+// 제외 means a person chose to leave it out and can put it back by re-selecting; 연동 불가
+// means the scan found the resource unreachable and no amount of re-selecting changes that.
+// Step 1 already draws that line (the row's checkbox is disabled there); collapsing it back
+// into 제외 here made a system verdict look like a revisable human decision.
+const TargetPill = ({
+  excluded,
+  ineligible,
+}: {
+  excluded: boolean;
+  ineligible: boolean;
+}) => {
+  if (ineligible) {
+    return (
+      <span className={cn(idcStyles.targetPill.base, idcStyles.targetPill.no.box)}>
+        연동 불가
+      </span>
+    );
+  }
   const variant = excluded ? idcStyles.targetPill.no : idcStyles.targetPill.yes;
   return (
     <span className={cn(idcStyles.targetPill.base, variant.box)}>
@@ -126,14 +149,25 @@ const clampReason = (reason: string): string =>
   reason.length <= SUMMARY_LIMIT ? reason : reason.slice(0, SUMMARY_LIMIT).trimEnd() + '…';
 
 // Blank when there is no reason — target rows can never have one, so an em-dash is noise.
-const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
-  !resource.selected && resource.exclusionReason ? (
+//
+// For an install-ineligible row the scan's own verdict stands in: `exclusion_reason` already
+// carries it (the request adapter writes it there), but older requests predate that and only
+// have `recommend_fail_reason`, so read both. The enum is shown verbatim — its three values
+// name specific network conditions (a public IP, an internal-LB subnet, a failed private
+// endpoint) and there is no documented Korean wording for them, so translating would mean
+// inventing guidance about infrastructure the user is expected to go fix.
+const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
+  if (resource.selected) return null;
+  const reason = resource.exclusionReason || resource.recommendFailReason;
+  if (!reason) return null;
+  return (
     <ReasonChipInline
-      reason={resource.exclusionReason}
-      summary={clampReason(resource.exclusionReason)}
+      reason={reason}
+      summary={clampReason(reason)}
       meta={resource.exclusionMeta}
     />
-  ) : null;
+  );
+};
 
 export const WaitingApprovalTable = memo(
   ({
@@ -259,7 +293,10 @@ export const WaitingApprovalTable = memo(
                     ) : (
                       <>
                         <td className={idcStyles.table.approvalCell}>
-                          <TargetPill excluded={excluded} />
+                          <TargetPill
+                            excluded={excluded}
+                            ineligible={resource.integrationCategory === 'INSTALL_INELIGIBLE'}
+                          />
                         </td>
                         <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
                           <ReasonCell resource={resource} />

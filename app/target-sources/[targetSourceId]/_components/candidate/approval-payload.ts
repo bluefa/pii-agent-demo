@@ -107,14 +107,26 @@ const buildResourceInputs = (
         },
       };
     }
+    // An install-ineligible row has no user reason — its checkbox is disabled, so nobody
+    // could have typed one. Send the scan's verdict as the reason instead: every consumer
+    // downstream (steps 2·3, the admin request queue, the ops request tab) reads
+    // `exclusion_reason` and would otherwise render a blank cell, indistinguishable from a
+    // reason the user forgot. `recommend_fail_reason` rides along as itself so the fact
+    // stays machine-readable and is not inferred back out of free text.
+    const userReason = exclusionReasons[candidate.id];
+    const reason = userReason || candidate.recommendFailReason || undefined;
     return {
       resource_id: candidate.id,
       resource_name: candidate.resourceName,
       selected: false,
       integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
-      ...(exclusionReasons[candidate.id]
-        ? { exclusion_reason: exclusionReasons[candidate.id] }
+      ...(candidate.recommendFailReason
+        ? {
+            recommend_fail_reason:
+              candidate.recommendFailReason as ResourceItem['recommend_fail_reason'],
+          }
         : {}),
+      ...(reason ? { exclusion_reason: reason } : {}),
       metadata: intrinsicMetadata,
     };
   });

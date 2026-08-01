@@ -22,6 +22,7 @@ const cloudCandidate: CandidateResource = {
   behaviorKey: 'default',
   selected: true,
   exclusionReason: null,
+  recommendFailReason: null,
   metadata: { provider: 'AWS', resourceType: 'RDS', region: 'ap-northeast-1' },
 };
 

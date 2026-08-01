@@ -175,6 +175,7 @@ describe('app/lib/api/index', () => {
           integrationCategory: 'NO_INSTALL_NEEDED',
           selected: false,
           exclusionReason: null,
+          recommendFailReason: null,
           host: 'db.internal',
           port: 1521,
           oracleServiceId: 'ORCL',

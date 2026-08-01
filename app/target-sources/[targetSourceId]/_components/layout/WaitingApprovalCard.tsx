@@ -82,6 +82,8 @@ const toResourceRow = (item: LatestResourceItem): WaitingApprovalResource => ({
   selected: item.selected ?? false,
   displayDbType: item.metadata?.database_type ?? item.resource_type ?? undefined,
   exclusionReason: item.exclusion_reason ?? undefined,
+  integrationCategory: item.integration_category ?? undefined,
+  recommendFailReason: item.recommend_fail_reason ?? undefined,
 });
 
 interface RequestSummary {

@@ -290,6 +290,13 @@ export interface ConfirmResourceItem {
   integrationCategory: IntegrationCategory;
   /** Top-level `selected` from the response — the backend's default target choice. */
   selected: boolean;
+  /**
+   * Top-level `recommend_fail_reason` — the scan's verdict on *why* this resource cannot
+   * be installed. Only present with `integration_category: INSTALL_INELIGIBLE`, and the
+   * enum covers GCP (2) + Azure (1) only, so null is the common case even for ineligible
+   * resources.
+   */
+  recommendFailReason: string | null;
   /** Top-level `exclusion_reason` — a reason attached to an already-excluded resource. */
   exclusionReason: string | null;
   host: string | null;
@@ -370,6 +377,7 @@ const toConfirmResourceItem = (item: Record<string, unknown>): ConfirmResourceIt
     integrationCategory: normalizeIntegrationCategory(item.integration_category),
     selected: item.selected === true,
     exclusionReason: str(item.exclusion_reason) ?? null,
+    recommendFailReason: str(item.recommend_fail_reason) ?? null,
     host: str(meta.host) ?? null,
     port: num(meta.port) ?? null,
     oracleServiceId: str(meta.oracle_service_id) ?? null,
@@ -431,6 +439,13 @@ export type ApprovedIntegrationExcludedResourceItem = {
   database_region?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
+  /**
+   * Carried through from `ApprovedIntegrationResponseDto.resources`, which is a
+   * `TargetSourceResourceItemDto` — these two were always on the wire; this type just
+   * used to declare a narrower shape than the split below actually produces.
+   */
+  integration_category?: string | null;
+  recommend_fail_reason?: string | null;
 };
 
 export interface ApprovedIntegrationResponse {

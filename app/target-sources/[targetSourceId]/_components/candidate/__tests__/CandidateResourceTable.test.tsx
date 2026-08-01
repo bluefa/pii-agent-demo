@@ -15,6 +15,7 @@ const candidateFixture = (overrides: Partial<CandidateResource> = {}): Candidate
     behaviorKey: 'default',
     selected: false,
     exclusionReason: null,
+    recommendFailReason: null,
     metadata: {
       provider: 'AWS',
       resourceType: 'RDS',
