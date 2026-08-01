@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRightIcon, CloseIcon, SearchIcon } from '@/app/components/ui/icons';
+import { CloseIcon, SearchIcon } from '@/app/components/ui/icons';
 import type { PageServiceItem } from '@/app/lib/api';
 import {
   borderColors,
@@ -41,11 +41,16 @@ interface ServiceSidebarProps {
   loading?: boolean;
 }
 
-const rowLayoutClass = 'w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors';
+const rowLayoutClass = 'w-full flex items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors';
 // Service names run up to 30 characters — wrap to a second line instead of cutting
 // them off at the panel's 296px. The full name stays in the row's title attribute.
 const nameClass = 'flex-1 min-w-0 text-sm font-normal line-clamp-2 break-words';
-const codeClass = 'ml-1.5 font-mono text-xs';
+// leading-5 matches the name's line box so the code sits on the first line's baseline
+// even when the name wraps — the code column keeps one horizontal rhythm down the list.
+const codeClass = 'shrink-0 font-mono text-xs leading-5 text-right';
+// Rows sit at ul(px-2) + button(px-3); the column header matches that 20px inset on
+// both edges so its labels line up with the name and the code column.
+const listInsetClass = 'px-5';
 
 const pageButtonClass = cn(
   'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
@@ -69,9 +74,14 @@ interface ServiceRowProps {
  * edge, where users scan; every row began with the same grey rectangle, so the names
  * (the actual scan target) all started one indent in.
  *
- * The code stays inline rather than in its own column so it flows with the name and
- * wraps with it; it is still exact and case-sensitive (`/services/{code}` matches
- * exactly), just no longer competing with the name for first read.
+ * The code gets its own right-hand column rather than trailing the name inline:
+ * names vary in length, so an inline code landed at a different x on every row and
+ * never became scannable. Pushed right it stacks into a column you can read straight
+ * down — which is what the header above the list labels. It stays exact and
+ * case-sensitive (`/services/{code}` matches exactly).
+ *
+ * The hover chevron is gone: the code owns the right edge now, and the row's hover
+ * fill already reads as clickable.
  */
 const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
   <li>
@@ -79,18 +89,10 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
       type="button"
       onClick={() => onSelect(code)}
       title={name ? `${name} (${code})` : code}
-      className={cn('group', rowLayoutClass, bgColors.mutedHover)}
+      className={cn(rowLayoutClass, bgColors.mutedHover)}
     >
-      <span className={nameClass}>
-        <span className={textColors.primary}>{name || code}</span>
-        {name && <span className={cn(codeClass, textColors.quaternary)}>{code}</span>}
-      </span>
-      <ChevronRightIcon
-        className={cn(
-          'shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100',
-          textColors.quaternary,
-        )}
-      />
+      <span className={cn(nameClass, textColors.primary)}>{name || code}</span>
+      {name && <span className={cn(codeClass, textColors.quaternary)}>{code}</span>}
     </button>
   </li>
 );
@@ -117,7 +119,9 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
     </span>
     <span className={cn('mt-1.5 block text-sm line-clamp-2 break-words', primaryColors.textOnLight)}>
       {name || code}
-      {name && <span className={cn(codeClass, 'opacity-60')}>{code}</span>}
+      {/* Inline here, not right-pushed: this is one card, so there is no column for a
+          right-aligned code to line up with. */}
+      {name && <span className="ml-1.5 font-mono text-xs opacity-60">{code}</span>}
     </span>
   </button>
 );
@@ -203,13 +207,32 @@ export const ServiceSidebar = ({
         )}
       </div>
 
-      <ul className="flex-1 overflow-auto px-2 pb-2" aria-busy={loading}>
+      {/* Column header. A right-aligned mono token is unreadable without a label, so
+          pushing the code into its own column requires naming the columns. Kept at
+          12px quaternary — table chrome, a clear tier below the 16px panel title, so
+          it doesn't read as a third heading competing with it. Hidden on an empty
+          result, where column headings over nothing look like a broken table. */}
+      {(loading || services.length > 0) && (
+        <div
+          className={cn(
+            'flex items-baseline justify-between pb-1.5 border-b',
+            listInsetClass,
+            borderColors.light,
+          )}
+        >
+          <span className={cn('text-xs', textColors.quaternary)}>서비스 이름</span>
+          <span className={cn('text-xs', textColors.quaternary)}>서비스 코드</span>
+        </div>
+      )}
+
+      <ul className="flex-1 overflow-auto px-2 py-2" aria-busy={loading}>
         {loading ? (
           Array.from({ length: 7 }).map((_, i) => (
             // h-9 matches a real single-line row (20px text + py-2) so the list
             // doesn't jump height when the skeleton is replaced.
-            <li key={i} className="flex h-9 items-center px-3" aria-hidden="true">
+            <li key={i} className="flex h-9 items-center justify-between px-3" aria-hidden="true">
               <div className={cn(idcStyles.skeletonBar, 'h-3.5 w-2/3 rounded')} />
+              <div className={cn(idcStyles.skeletonBar, 'h-3 w-8 rounded')} />
             </li>
           ))
         ) : services.length === 0 ? (
