@@ -43,7 +43,9 @@ interface ServiceSidebarProps {
 
 const rowLayoutClass = 'w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors';
 const chipClass = 'shrink-0 w-14 py-1 rounded-md text-center font-mono text-xs font-normal truncate';
-const nameClass = 'flex-1 min-w-0 truncate text-sm font-normal';
+// Service names run up to 30 characters — wrap to a second line instead of cutting
+// them off at the panel's 296px. The full name stays in the row's title attribute.
+const nameClass = 'flex-1 min-w-0 text-sm font-normal line-clamp-2 break-words';
 
 const pageButtonClass = cn(
   'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
@@ -84,25 +86,26 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
 
 /**
  * The service the page is about, shown in the header zone as context — not as a list
- * group. It is a destination like any other row, so it stays clickable.
+ * group. Its caption says what it is, so no badge is needed, and the name owns the
+ * full card width (two lines) rather than competing with a chip and a tag.
+ * It is a destination like any other row, so it stays clickable.
  */
-const CurrentServiceCard = ({ code, name, onSelect }: Omit<ServiceRowProps, 'isCurrent'>) => (
+const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
   <button
     type="button"
     onClick={() => onSelect(code)}
     title={name ? `${name} (${code})` : code}
-    className={cn('mt-3', rowLayoutClass, primaryColors.bgLight)}
+    className={cn(
+      'mt-3 w-full rounded-lg px-3 py-2.5 text-left transition-colors',
+      primaryColors.bgLight,
+    )}
   >
-    <span className={cn(chipClass, bgColors.surface, primaryColors.textOnLight)}>{code}</span>
-    <span className={cn(nameClass, primaryColors.textOnLight)}>{name || code}</span>
-    <span
-      className={cn(
-        'shrink-0 rounded px-1.5 py-0.5 text-xs',
-        bgColors.surface,
-        primaryColors.textOnLight,
-      )}
-    >
-      현재
+    <span className={cn('flex items-baseline justify-between gap-2 text-xs', primaryColors.textOnLight)}>
+      <span>현재 보고 있는 서비스</span>
+      <span className="shrink-0 font-mono truncate max-w-[40%]">{code}</span>
+    </span>
+    <span className={cn('mt-1 block text-sm line-clamp-2 break-words', primaryColors.textOnLight)}>
+      {name || code}
     </span>
   </button>
 );
