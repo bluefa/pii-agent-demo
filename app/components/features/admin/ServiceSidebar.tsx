@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRightIcon, SearchIcon } from '@/app/components/ui/icons';
+import { ChevronRightIcon, CloseIcon, SearchIcon } from '@/app/components/ui/icons';
 import type { PageServiceItem } from '@/app/lib/api';
 import {
   borderColors,
@@ -148,27 +148,46 @@ export const ServiceSidebar = ({
       </div>
 
       {/* List zone: search is the list's control, so it sits with the list, not under the title. */}
-      <div className={cn('px-3 pt-3 pb-3 relative border-t', borderColors.light)}>
-        <SearchIcon
-          className={cn('absolute left-6 top-1/2 -translate-y-[calc(50%+6px)]', textColors.quaternary)}
-        />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="서비스 이름 또는 코드"
-          aria-label="서비스 검색"
-          className={cn(getInputClass(), '!py-2 !pl-9 !pr-14 text-sm')}
-        />
-        {searchQuery && (
-          <span
+      <div className={cn('px-3 py-3 border-t', borderColors.light)}>
+        {/* The relative box is the input itself, so the icons center on it — no
+            offset math against the wrapper's padding. */}
+        <div className="relative">
+          <SearchIcon
             className={cn(
-              'absolute right-6 top-1/2 -translate-y-[calc(50%+6px)] text-xs tabular-nums',
-              textColors.tertiary,
+              'pointer-events-none absolute left-3 top-1/2 -translate-y-1/2',
+              textColors.quaternary,
             )}
-          >
+          />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="서비스 이름 또는 코드"
+            aria-label="서비스 검색"
+            className={cn(
+              getInputClass(),
+              '!py-2 !pl-9 !pr-9 text-sm [&::-webkit-search-cancel-button]:appearance-none',
+            )}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => onSearchChange('')}
+              aria-label="검색어 지우기"
+              className={cn(
+                'absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full transition-colors',
+                textColors.quaternary,
+                bgColors.mutedHover,
+              )}
+            >
+              <CloseIcon className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className={cn('mt-2 px-1 text-xs tabular-nums', textColors.tertiary)}>
             {totalElements}건
-          </span>
+          </p>
         )}
       </div>
 
