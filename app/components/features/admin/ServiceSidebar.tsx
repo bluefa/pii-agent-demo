@@ -82,7 +82,7 @@ const ServiceRow = ({ code, name, isCurrent, onSelect }: ServiceRowProps) => (
       </span>
       <span
         className={cn(
-          'flex-1 min-w-0 truncate text-sm font-semibold',
+          'flex-1 min-w-0 truncate text-sm font-medium',
           isCurrent ? primaryColors.text : textColors.primary,
         )}
       >
@@ -180,7 +180,7 @@ export const ServiceSidebar = ({
           <>
             {pinned && (
               <>
-                <li className={groupLabelClass}>현재 작업 중</li>
+                <li className={groupLabelClass}>현재 서비스</li>
                 <ServiceRow
                   code={pinned.code}
                   name={pinned.name}
