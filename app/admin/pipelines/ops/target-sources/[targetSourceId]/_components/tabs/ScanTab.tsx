@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState, type ReactElement } from 'rea
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { fmtDateTime } from '@/lib/pipeline/format';
+import { fmtDateTime, fmtDateTimeSec } from '@/lib/pipeline/format';
 import { getScanHistory, startScan } from '@/app/lib/api/scan';
 import { useScanPolling } from '@/app/hooks/useScanPolling';
 import { normalizeCloudProvider, type CloudProvider } from '@/lib/types';
@@ -33,11 +33,12 @@ const PAGE_SIZE = 5;
 
 type Tone = 'ok' | 'info' | 'err' | 'off';
 
-const TONE_CLASS: Record<Tone, { pill: string; dot: string }> = {
-  ok: { pill: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]', dot: 'bg-[var(--pl-ok)]' },
-  info: { pill: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]', dot: 'bg-[var(--pl-info)]' },
-  err: { pill: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]', dot: 'bg-[var(--pl-err)]' },
-  off: { pill: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]', dot: 'bg-[var(--pl-gray-300)]' },
+// 도트 없는 틴트 pill — 라벨과 색이 이미 상태를 말해서 도트는 같은 말의 반복(운영 피드백).
+const TONE_CLASS: Record<Tone, string> = {
+  ok: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
+  info: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]',
+  err: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+  off: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
 };
 
 /** ScanStatus (app/api/_lib/v1-types.ts) → tone + Korean label. */
@@ -98,14 +99,20 @@ const totalOf = (entries: Array<[string, number]>): number =>
 
 function ScanStatusPill({ status }: { status: string | null | undefined }): ReactElement {
   const spec = (status && SCAN_STATUS[status]) || { tone: 'off' as Tone, label: status ?? '-' };
-  const tone = TONE_CLASS[spec.tone];
   return (
-    <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, tone.pill)}>
-      <span className={cn('h-1.5 w-1.5 rounded-full', tone.dot)} aria-hidden />
+    <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, TONE_CLASS[spec.tone])}>
       {spec.label}
     </span>
   );
 }
+
+/** 완료 시각 — 실행과 같은 날이면 날짜를 생략하고 시간만 ('17:30:03'). */
+const fmtCompletedAt = (startIso: string | null | undefined, endIso: string | null | undefined): string => {
+  const full = fmtDateTimeSec(endIso);
+  const start = fmtDateTimeSec(startIso);
+  if (full === '-' || start === '-') return full;
+  return full.slice(0, 10) === start.slice(0, 10) ? full.slice(11) : full;
+};
 
 /** 발견 리소스 태그 — 저채도(흰 배경) + 스트로크 + 섀도, wire 키는 mono 그대로. */
 function ResourceTypeTag({
@@ -275,10 +282,18 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <ScanStatusPill status={latestJob.scan_status} />
             <span className={CAPTION}>
-              실행 <b className={CAPTION_VALUE}>{fmtDateTime(latestJob.created_at)}</b>
+              실행 <b className={CAPTION_VALUE}>{fmtDateTimeSec(latestJob.created_at)}</b>
               {!scanning && (
                 <>
+                  {/* 완료 = updated_at (터미널 전이 시각). 같은 날이면 시간만. */}
+                  {' · '}완료{' '}
+                  <b className={CAPTION_VALUE}>
+                    {fmtCompletedAt(latestJob.created_at, latestJob.updated_at)}
+                  </b>
                   {' · '}소요 <b className={CAPTION_VALUE}>{fmtDuration(latestJob.duration_seconds)}</b>
+                  {latestJob.scan_version !== undefined && (
+                    <span className="text-[var(--pl-text-faint)]"> · v{latestJob.scan_version}</span>
+                  )}
                 </>
               )}
             </span>
@@ -305,26 +320,22 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             </div>
           )}
 
-          {/* 발견 리소스 — 성공/진행 중에만. 실패는 결과가 아니라 원인(오류 박스)을 말한다. */}
+          {/* 발견 리소스 — 성공/진행 중에만. 실패는 결과가 아니라 원인(오류 박스)을 말한다.
+              라벨과 총계를 한 베이스라인에 붙여 라벨/큰수/태그 3단 스택을 2단으로. */}
           {(scanning || latestJob.scan_status === 'SUCCESS') && (
             <div className="mt-5">
-              <p className={pipelineStyles.text.kvKey}>발견 리소스</p>
-              {scanning ? (
-                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
-              ) : latestCounts.length === 0 ? (
-                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
-              ) : (
-                <>
-                  {/* 총계가 카드의 주인공 — 20/700, 단위는 값의 꼬리표 계층 (step2 타일 교훈). */}
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-[20px] font-bold leading-[28px] tabular-nums text-[var(--pl-text-strong)]">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <p className={pipelineStyles.text.kvKey}>발견 리소스</p>
+                {!scanning && latestCounts.length > 0 && (
+                  <>
+                    <span className="text-[20px] font-bold leading-[24px] tabular-nums text-[var(--pl-text-strong)]">
                       {latestTotal}
                       <span className="ml-0.5 text-[12px] font-medium text-[var(--pl-text-weak)]">개</span>
                     </span>
                     {countDiff !== null && countDiff !== 0 && (
                       <span
                         className={cn(
-                          'rounded-full px-2 py-0.5 text-[11.5px] font-bold tabular-nums',
+                          'self-center rounded-full px-2 py-0.5 text-[11.5px] font-bold tabular-nums',
                           countDiff > 0
                             ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
                             : 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
@@ -334,13 +345,19 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                         {countDiff > 0 ? `+${countDiff}` : countDiff}
                       </span>
                     )}
-                  </div>
-                  <div className="mt-2.5 flex flex-wrap gap-2">
-                    {latestCounts.map(([type, count]) => (
-                      <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
-                    ))}
-                  </div>
-                </>
+                  </>
+                )}
+              </div>
+              {scanning ? (
+                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
+              ) : latestCounts.length === 0 ? (
+                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
+              ) : (
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {latestCounts.map(([type, count]) => (
+                    <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -352,17 +369,6 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             </p>
           )}
 
-          {/* 참조행 — Scan #·버전은 로그 대조용 참조 정보라 최하위 계층.
-              (목의 #가 Date.now() 합성이라 커 보일 뿐, 계약 필드는 실존한다.) */}
-          <p className="mt-4 border-t border-[var(--pl-gray-100)] pt-3 text-[12px] text-[var(--pl-text-faint)]">
-            {latestJob.id !== undefined && (
-              <>
-                Scan <span className="[font-family:var(--pl-font-mono)]">#{latestJob.id}</span>
-                {' · '}
-              </>
-            )}
-            <span className="[font-family:var(--pl-font-mono)]">v{latestJob.scan_version ?? '-'}</span>
-          </p>
         </>
       )}
     </section>

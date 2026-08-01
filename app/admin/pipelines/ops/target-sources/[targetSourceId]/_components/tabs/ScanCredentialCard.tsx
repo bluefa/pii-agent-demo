@@ -56,24 +56,20 @@ type LoadState =
  * 문자열이라 열린 집합으로 매핑한다. 어휘·톤은 RoleVerifyModal verdictMeta와
  * 정렬(검증 완료/검증 중/검증 실패), UNVERIFIED는 오류가 아니라 미검증(off).
  */
-const pillSpec = (status: string | null | undefined): { cls: string; dot: string; label: string } => {
+const pillSpec = (status: string | null | undefined): { cls: string; label: string } => {
   switch (status) {
     case 'VALID':
     case 'COMPLETED':
-      return { cls: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]', dot: 'bg-[var(--pl-ok)]', label: '검증 완료' };
+      return { cls: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]', label: '검증 완료' };
     case 'IN_PROGRESS':
-      return { cls: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]', dot: 'bg-[var(--pl-warn)]', label: '검증 중' };
+      return { cls: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]', label: '검증 중' };
     case 'UNVERIFIED':
-      return { cls: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]', dot: 'bg-[var(--pl-gray-300)]', label: '미검증' };
+      return { cls: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]', label: '미검증' };
     case 'FAIL':
     case 'INVALID':
-      return { cls: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]', dot: 'bg-[var(--pl-err)]', label: '검증 실패' };
+      return { cls: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]', label: '검증 실패' };
     default:
-      return {
-        cls: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
-        dot: 'bg-[var(--pl-gray-300)]',
-        label: status ?? '미확인',
-      };
+      return { cls: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]', label: status ?? '미확인' };
   }
 };
 
@@ -171,7 +167,6 @@ function CredentialResult({
           identity는 참조 정보라 같은 계층에 두지 않는다. */}
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>
-          <span className={cn('h-1.5 w-1.5 rounded-full', pill.dot)} aria-hidden />
           {pill.label}
         </span>
         <span className="text-[12px] text-[var(--pl-text-weak)]">
