@@ -146,7 +146,7 @@ export const ConnectionVerifiedStep = ({
             눌러주세요.
           </p>
         </header>
-        <div className="px-6 pb-6">
+        <div className={cardStyles.body}>
           <ConfirmedResourcesSlot bare />
         </div>
       </section>

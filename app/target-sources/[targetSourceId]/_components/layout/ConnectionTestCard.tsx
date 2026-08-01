@@ -270,7 +270,7 @@ export const ConnectionTestCard = ({
                   <tr key={resource.resourceId} className={idcStyles.table.row}>
                     <td className={idcStyles.table.cell}>
                       {resource.databaseType ? (
-                        <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>
+                        <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>
                           {getDatabaseShortLabel(resource.databaseType)}
                         </span>
                       ) : (

@@ -127,7 +127,8 @@ export const ConfirmedIntegrationTable = ({
             <th className={idcStyles.table.headerCell}>
               <span className="inline-flex items-center gap-1">
                 Status
-                <InfoTooltip content={STATUS_TOOLTIP_CONTENT} position="top" size="md" />
+                {/* 17px — same table-header (?) size as CSP step 1 and the IDC Source IP header. */}
+                <InfoTooltip content={STATUS_TOOLTIP_CONTENT} position="top" size="md" iconSize={17} />
               </span>
             </th>
           </tr>
@@ -137,7 +138,7 @@ export const ConfirmedIntegrationTable = ({
             const counts = logicalDbCounts.get(resource.resourceId);
             return (
               <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-                <td className={cellClass}>{resource.databaseType ? <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
+                <td className={cellClass}>{resource.databaseType ? <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
                 <td className={cellClass}>
                   <ResourceIdCell value={resource.resourceId} label="Resource ID" />
                 </td>
@@ -171,8 +172,10 @@ export const ConfirmedIntegrationTable = ({
   // contract (it only exists once a Step-5 test-connection run is fetched), so the column
   // could never render anything but a placeholder here.
   // Toolbar (top-rounded) + table + pagination join as one card, same as steps 2·3.
+  // No margin of its own — the card body's top padding (cardStyles.body) is the gap, so the
+  // table's left edge lines up with the header copy above it.
   return (
-    <div className="mt-4">
+    <div>
       <WaitingApprovalToolbar
         searchValue={table.searchValue}
         onSearchChange={table.onSearchChange}

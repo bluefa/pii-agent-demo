@@ -83,7 +83,7 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
 
 export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
   <div className="flex flex-col items-start gap-1">
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>{resource.databaseTypeLabel}</span>
+    <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>{resource.databaseTypeLabel}</span>
     {resource.oracleSid ? (
       <span className="group/sid inline-flex items-center gap-1 min-w-0 max-w-[170px]">
         <span className={idcStyles.sidKey}>SID</span>

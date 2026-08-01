@@ -168,7 +168,7 @@ export const IdcStep6ConnectionVerified = ({
             눌러주세요.
           </p>
         </header>
-        <div className="px-6 pb-6">
+        <div className={cardStyles.body}>
           {state.status === 'loading' && <ResourceTableSkeleton />}
           {state.status === 'error' && <ErrorState message="연동 대상을 불러오지 못했습니다." />}
           {state.status === 'ready' && (

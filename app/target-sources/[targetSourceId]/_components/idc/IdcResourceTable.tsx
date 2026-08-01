@@ -66,6 +66,9 @@ const SourceIpHeader = () => (
     Source IP
     <InfoTooltip
       variant="sourceIp"
+      // 17px — the table-header (?) size set by CSP step 1 (CandidateResourceTable). The
+      // component default is 13, which reads as a different control next to the same header.
+      iconSize={17}
       content={
         <div className="space-y-1">
           <div className="font-bold">{TIP_TITLE}</div>
