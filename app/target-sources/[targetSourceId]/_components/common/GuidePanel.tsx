@@ -51,7 +51,9 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
       <p className={cn('text-[16px] font-bold leading-[1.4]', textColors.primary)}>
         도움이 필요하신가요?
       </p>
-      <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.tertiary)}>
+      {/* secondary, not tertiary: gray-500 is calibrated against white (4.83:1) and drops
+          to 4.25:1 on the primary tint — under AA at this size. gray-700 holds 9.06:1. */}
+      <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.secondary)}>
         진행 중 막히는 부분은 협업 채널에서 담당자에게 바로 문의할 수 있어요.
       </p>
       {jiraTicket === 'error' ? (
