@@ -2,8 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
-import { StatusWarningIcon } from '@/app/components/ui/icons';
-import { cn, confirmModalStyles, primaryColors } from '@/lib/theme';
+import { cn, primaryColors, statusColors } from '@/lib/theme';
 
 export type ConfirmRewindKind = 'infra' | 'retest';
 
@@ -74,17 +73,18 @@ export const ConfirmRewindModal = ({ kind, onClose, onConfirm }: ConfirmRewindMo
       confirmLabel="확인"
       tone="warning"
     >
-      {/* What gets reset, stated once, in the body slot the shared dialog reserves for it. The
-          icon keeps the warning off color alone (WCAG 1.4.1); amber-800 on amber-50 is 8.1:1. */}
-      <div
+      {/* What gets reset — a second paragraph, not a boxed callout: a bordered well around one
+          sentence read as a separate object in a dialog this short. Color carries the emphasis,
+          and the sentence still states the consequence in words, so nothing rides on hue alone
+          (WCAG 1.4.1). orange-800 is 6.5:1 on white. */}
+      <p
         className={cn(
-          'flex items-start gap-2.5 rounded-[10px] border px-3.5 py-3 text-[12.5px] font-medium leading-[1.55]',
-          confirmModalStyles.note.warning,
+          'text-[14px] font-semibold leading-[1.6]',
+          statusColors.warning.textDark,
         )}
       >
-        <StatusWarningIcon className="mt-px h-4 w-4 flex-shrink-0" />
-        <span>{content.note}</span>
-      </div>
+        {content.note}
+      </p>
     </ConfirmStepModal>
   );
 };
