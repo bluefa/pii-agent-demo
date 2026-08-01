@@ -229,6 +229,12 @@ export const borderColors = {
   light: 'border-gray-100',
   default: 'border-gray-200',
   strong: 'border-gray-300',
+  /**
+   * The only neutral border that clears WCAG 1.4.11 (3:1) against light grounds —
+   * 4.63:1 on gray-50, 5.9:1 on white, where `strong` manages 1.4:1. Use it when the
+   * border *is* the state indicator, not when it merely separates.
+   */
+  emphasis: 'border-gray-500',
 } as const;
 
 /**
@@ -437,7 +443,9 @@ export const numericFeatures = {
  * 입력 필드 스타일
  */
 export const inputStyles = {
-  base: 'w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF] focus:border-transparent transition-shadow',
+  // Placeholder is gray-500, not gray-400: WCAG counts placeholder text as text, and
+  // gray-400 measures 2.6:1 on white — well under AA. gray-500 gives 4.83:1.
+  base: 'w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0064FF] focus:border-transparent transition-shadow',
   error: 'border-red-300 bg-red-50 text-red-700 focus:ring-red-500',
   success: 'border-[#45CB85]/30 bg-[#45CB85]/5',
 } as const;

@@ -7,7 +7,6 @@ import {
   bgColors,
   idcStyles,
   primaryColors,
-  tagStyles,
   textColors,
   cn,
   getInputClass,
@@ -57,7 +56,7 @@ const listInsetClass = 'px-5';
 
 const pageButtonClass = cn(
   'w-7 h-7 flex items-center justify-center rounded-md text-sm cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
-  bgColors.mutedHover,
+  bgColors.surfaceHover,
   textColors.tertiary,
 );
 
@@ -118,10 +117,9 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
  * top as plain text, and Primer marks a selection with a small glyph on the item rather
  * than a block around it.
  *
- * Only the name, and one weight step above the rows. This card answers "where am I",
- * which the name alone answers; the code is the key you need when *choosing* a row, and
- * repeating it here just re-ran the list's grammar in the one place that has no column
- * to line up with. It stays in the title attribute for anyone who needs the exact value.
+ * Only the name, one weight step above the rows. The code is the key you need when
+ * *choosing* a row, so repeating it here re-ran the list's grammar in the one place with
+ * no column to line up with. It stays in the title attribute for the exact value.
  *
  * It is a destination like any other row, so it stays clickable.
  */
@@ -134,7 +132,7 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
       // No fill, no border, no card. Nothing at rest but text at the panel's 20px
       // left edge; the neutral hover is the only chrome, and only while pointed at.
       'mt-3 w-full rounded-lg px-2 py-1.5 text-left cursor-pointer transition-colors',
-      bgColors.mutedHover,
+      bgColors.surfaceHover,
     )}
   >
     {/* Caption lighter than the value it labels — 12px/500 against 14px/600, so size
@@ -179,7 +177,23 @@ export const ServiceSidebar = ({
 
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
-    <aside className="w-[296px] shrink-0 bg-white shadow-sm flex flex-col">
+    //
+    // Recessed, not elevated. White + shadow-sm made this the only surface in the shell
+    // claiming to float above the canvas, while the right-hand rail — the same kind of
+    // thing — sits on the canvas tint with white cards on top. Nav chrome outranking
+    // content is backwards, so the panel joins the canvas plane and a hairline does the
+    // separating.
+    //
+    // gray-50 rather than the page's own tint: the target-source canvas is #F4F4FB, and
+    // gray-500 measures 4.41:1 on it — under AA. On gray-50 the same text holds 4.63:1,
+    // and the two grounds are within 1% of each other, so it still reads as one plane.
+    <aside
+      className={cn(
+        'w-[296px] shrink-0 flex flex-col border-r',
+        bgColors.muted,
+        borderColors.default,
+      )}
+    >
       {/* Header zone: what this panel is, and where you currently are. */}
       <div className="px-3 pt-4 pb-4">
         {/* 18/700 against the card name's 14/600: two levers apart. At 16/600 the two
@@ -199,7 +213,9 @@ export const ServiceSidebar = ({
       </div>
 
       {/* List zone: search is the list's control, so it sits with the list, not under the title. */}
-      <div className={cn('px-3 py-3 border-t', borderColors.light)}>
+      {/* gray-200 dividers, not gray-100: on the gray-50 ground gray-100 is a 1.5%
+          step and effectively disappears. */}
+      <div className={cn('px-3 py-3 border-t', borderColors.default)}>
         {/* The relative box is the input itself, so the icons center on it — no
             offset math against the wrapper's padding. */}
         <div className="relative">
@@ -217,7 +233,10 @@ export const ServiceSidebar = ({
             aria-label="서비스 검색"
             className={cn(
               getInputClass(),
+              // Explicit white: the input was transparent and borrowed the panel's old
+              // white ground. On the recessed panel a field has to be the lifted surface.
               '!py-2 !pl-9 !pr-9 text-sm [&::-webkit-search-cancel-button]:appearance-none',
+              bgColors.surface,
             )}
           />
           {searchQuery && (
@@ -228,7 +247,7 @@ export const ServiceSidebar = ({
               className={cn(
                 'absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full cursor-pointer transition-colors',
                 textColors.quaternary,
-                bgColors.mutedHover,
+                bgColors.surfaceHover,
               )}
             >
               <CloseIcon className="w-3.5 h-3.5" />
@@ -254,7 +273,7 @@ export const ServiceSidebar = ({
           className={cn(
             'flex items-baseline justify-between pb-1.5 border-b',
             listInsetClass,
-            borderColors.light,
+            borderColors.default,
           )}
         >
           {/* medium + tracking, against the code column's 12/400/gray-500. Identical
@@ -327,7 +346,7 @@ export const ServiceSidebar = ({
           page on so the control doesn't appear and disappear as the result count
           crosses one page; hidden only when there is nothing to page through. */}
       {totalPages > 0 && (
-        <div className={cn('border-t px-4 py-3', borderColors.light)}>
+        <div className={cn('border-t px-4 py-3', borderColors.default)}>
           <div className="flex items-center justify-center gap-1">
             <button
               type="button"
@@ -347,11 +366,20 @@ export const ServiceSidebar = ({
                 onClick={() => onPageChange(n)}
                 className={cn(
                   'w-7 h-7 text-xs rounded-md cursor-pointer transition-colors flex items-center justify-center',
-                  // Current page reads as "pressed" (neutral fill), not as an accent —
-                  // paging is navigation, not a branded action.
+                  // Current page reads as "pressed", not as an accent — paging is
+                  // navigation, not a branded action. The old gray-100 chip vanished
+                  // once the panel itself went gray-50 (1.05:1 against the ground), so
+                  // the marker is now a lifted white key with an edge: white matches the
+                  // panel's other raised surfaces (the search field, row hover) and the
+                  // border is what actually carries the shape.
                   n === currentPage
-                    ? cn(tagStyles.neutral, 'font-semibold')
-                    : cn(textColors.tertiary, bgColors.mutedHover),
+                    ? cn(
+                        'border font-semibold',
+                        bgColors.surface,
+                        borderColors.emphasis,
+                        textColors.secondary,
+                      )
+                    : cn(textColors.tertiary, bgColors.surfaceHover),
                 )}
               >
                 {n + 1}
