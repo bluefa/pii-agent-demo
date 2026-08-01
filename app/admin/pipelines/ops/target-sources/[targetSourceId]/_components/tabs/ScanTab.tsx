@@ -384,7 +384,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                     )}
                     {countDiff === 0 && <>직전 스캔과 같은 </>}
                     총{' '}
-                    <b className="text-[24px] font-bold tabular-nums text-[var(--pl-primary)]">
+                    <b className="text-[20px] font-bold tabular-nums text-[var(--pl-primary)]">
                       {fmtCount(latestTotal)}
                     </b>
                     개를 발견했어요.
@@ -551,7 +551,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                   <>
                     <p className="text-[14px] text-[var(--pl-text-weak)]">
                       총{' '}
-                      <b className="text-[24px] font-bold tabular-nums text-[var(--pl-primary)]">
+                      <b className="text-[20px] font-bold tabular-nums text-[var(--pl-primary)]">
                         {fmtCount(totalOf(detailCounts))}
                       </b>
                       개를 발견했어요.
