@@ -131,7 +131,9 @@ export const ServiceSidebar = ({
               aria-label="검색어 지우기"
               className={cn(
                 'absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full cursor-pointer transition-colors',
-                textColors.quaternary,
+                // tertiary, unlike the decorative magnifier: this glyph *is* the control,
+                // and gray-400 is 2.5:1 on white — under WCAG 1.4.11's 3:1 for one.
+                textColors.tertiary,
                 bgColors.surfaceHover,
               )}
             >
@@ -183,13 +185,11 @@ export const ServiceSidebar = ({
             </li>
           ))
         ) : listed.length === 0 ? (
-          // Keyed off `listed`, not `services`: a page holding nothing but the current
-          // service filters down to an empty list, and reporting the unfiltered count
-          // left the body blank with no explanation. Each empty reason gets its own
-          // sentence — quoting an empty search term reads as a rendering bug, and the
-          // "other services" wording is untrue when there is no current service to be
-          // other than. The filter is page-scoped, so the sentence is too: earlier
-          // pages may well hold services this one does not.
+          // Keyed off `listed`, not `services` — a page holding nothing but the current
+          // service filters down to empty. Each reason gets its own sentence: only quote
+          // a search term when there is one, only say "other services" when there is a
+          // current service to be other than, and keep that sentence page-scoped, since
+          // the filter is.
           <li className="px-4 py-10 text-center">
             <p className={cn('text-sm', textColors.tertiary)}>
               {searchQuery
@@ -228,9 +228,9 @@ export const ServiceSidebar = ({
       </ul>
 
       {/* Shown from the first page on so the control doesn't appear and disappear as the
-          result count crosses one page. `totalElements` gates it, not `totalPages`: an
-          empty result still reports one page, which rendered a lone clickable "1" under
-          "no services". */}
+          result count crosses one page. Gated on `totalElements`, not `totalPages` — the
+          API reports one page for an empty result, so `totalPages` alone can't tell
+          "one page of hits" from "nothing to page through". */}
       {totalElements > 0 && totalPages > 0 && (
         <SidebarPagination
           totalPages={totalPages}

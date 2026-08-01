@@ -44,7 +44,11 @@ export const ServiceManagementView = () => {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [selectedName, setSelectedName] = useState('');
+  // Keyed to the code it belongs to. Clearing it in an effect instead would still let
+  // one render pair the new code with the previous service's name — the effect runs
+  // after that paint. Derived at render, the pair can never come apart.
+  const [resolvedName, setResolvedName] = useState<{ code: string; name: string } | null>(null);
+  const selectedName = resolvedName?.code === selectedService ? resolvedName.name : '';
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -97,20 +101,17 @@ export const ServiceManagementView = () => {
   // the loaded page. Resolve it once per selection with a query-scoped lookup that
   // never touches the visible list.
   useEffect(() => {
-    // Clear first: the name belongs to the previous code until this lookup lands, and
-    // rendering it beside the new one would label service B with service A's name.
-    setSelectedName('');
     if (!selectedService) return;
     let cancelled = false;
     getServicesPage(0, SERVICE_PAGE_SIZE, selectedService)
       .then((data) => {
         if (cancelled) return;
         const hit = (data.content ?? []).find((s) => s.service_code === selectedService);
-        setSelectedName(hit?.service_name ?? '');
+        setResolvedName({ code: selectedService, name: hit?.service_name ?? '' });
       })
       .catch(() => {
         // Name is decoration — the code alone still identifies the service.
-        if (!cancelled) setSelectedName('');
+        if (!cancelled) setResolvedName({ code: selectedService, name: '' });
       });
     return () => {
       cancelled = true;
