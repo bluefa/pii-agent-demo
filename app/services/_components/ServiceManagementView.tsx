@@ -208,8 +208,11 @@ export const ServiceManagementView = () => {
   }, []);
 
   return (
-    <div className={cn('min-h-screen', bgColors.muted)}>
-      <div className="flex h-[calc(100vh-56px)]">
+    // Exact viewport minus the sticky 56px TopNav — `min-h-screen` here stacked a
+    // full 100vh under the nav, so the page scrolled 56px and the left panel ended
+    // short of the bottom edge.
+    <div className={cn('h-[calc(100vh-56px)]', bgColors.muted)}>
+      <div className="flex h-full">
         <ServiceSidebar
           services={services}
           currentService={selectedService ? { code: selectedService, name: selectedName } : null}

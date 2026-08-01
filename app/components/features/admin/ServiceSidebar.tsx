@@ -122,13 +122,8 @@ export const ServiceSidebar = ({
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
     <aside className="w-[296px] shrink-0 bg-white shadow-sm flex flex-col">
-      <div className="px-4 pt-4 pb-3 flex items-baseline justify-between gap-2">
+      <div className="px-4 pt-4 pb-3">
         <h2 className={cn('text-sm font-bold', textColors.primary)}>서비스 목록</h2>
-        {/* Query-scoped while searching, so the catalog total only holds when idle —
-            during a search the count lives next to the input instead. */}
-        {!searchQuery && totalElements > 0 && (
-          <span className={cn('text-xs tabular-nums', textColors.tertiary)}>{totalElements}개</span>
-        )}
       </div>
 
       <div className="px-3 pb-3 relative">
@@ -208,9 +203,10 @@ export const ServiceSidebar = ({
         )}
       </ul>
 
-      {/* Counts live in the header (catalog total) and next to the input (hits), so
-          the bottom bar carries pagination only. */}
-      {totalPages > 1 && (
+      {/* Pagination only — the hit count sits next to the input. Shown from the first
+          page on so the control doesn't appear and disappear as the result count
+          crosses one page; hidden only when there is nothing to page through. */}
+      {totalPages > 0 && (
         <div className={cn('border-t px-4 py-3', borderColors.light)}>
           <div className="flex items-center justify-center gap-1">
             <button
