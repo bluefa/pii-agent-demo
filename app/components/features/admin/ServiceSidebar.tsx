@@ -132,11 +132,16 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
     {/* Neutral type on the tint: the fill already marks the card as the current
         service, so coloring the words blue as well said it twice. gray-700 holds
         9:1 on #E8F1FF — `tertiary` would drop to 4.3:1, under AA at 12px. */}
-    <span className={cn('block text-xs font-semibold', textColors.secondary)}>
+    {/* Caption lighter than the value it labels — 12px/500 against 14px/600, so size
+        and weight point the same way instead of fighting. */}
+    <span className={cn('block text-xs font-medium', textColors.secondary)}>
       현재 보고 있는 서비스
     </span>
     <span
-      className={cn('mt-1.5 block text-sm font-medium line-clamp-2 break-words', textColors.primary)}
+      className={cn(
+        'mt-1.5 block text-sm font-semibold line-clamp-2 break-words',
+        textColors.primary,
+      )}
     >
       {name || code}
     </span>
