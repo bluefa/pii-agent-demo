@@ -56,8 +56,9 @@ interface CandidateResourceSectionProps {
 
 const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
 
-/** Cloud exclusion reason limit — docs/cloud-provider-states.md (required, max 3000 chars). */
-const CLOUD_EXCL_REASON_MAXLEN = 3000;
+/** Cloud exclusion reason UI cap. Contract allows 3000 (docs/cloud-provider-states.md);
+ *  운영 정책으로 1000자로 조인다 — 계약의 부분집합이라 wire엔 영향 없다. */
+const CLOUD_EXCL_REASON_MAXLEN = 1000;
 
 // Step tag — same classes as WaitingApprovalCard's "2번째 단계" tag (keep the two in
 // sync; tokenize when a third step card adopts the grammar).

@@ -20,6 +20,10 @@ export interface ConfirmStepModalProps {
   children?: ReactNode;
   /** 560px instead of 480px — for confirms that carry a body block. */
   wide?: boolean;
+  /** Gates the confirm button beyond isPending (e.g. required input still empty). */
+  confirmDisabled?: boolean;
+  /** Where focus lands on open — input-carrying confirms point at their field; default is 취소. */
+  initialFocus?: React.RefObject<HTMLElement | null>;
 }
 
 /** Tighter chrome than modalStyles.toss.* (px-10/pt-9, no footer hairline change): a two-button
@@ -55,10 +59,13 @@ export const ConfirmStepModal = ({
   isPending = false,
   children,
   wide = false,
+  confirmDisabled = false,
+  initialFocus,
 }: ConfirmStepModalProps) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -68,8 +75,13 @@ export const ConfirmStepModal = ({
         return;
       }
       if (event.key === 'Tab') {
-        const focusables = [cancelRef.current, confirmRef.current].filter(
-          (node): node is HTMLButtonElement => node !== null,
+        // Trap over everything focusable in the dialog, not just the footer pair —
+        // input-carrying confirms (e.g. the exclusion-reason textarea) must stay
+        // inside the Tab cycle or the wrap skips them permanently.
+        const focusables = Array.from(
+          dialogRef.current?.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), textarea, input, select, a[href]',
+          ) ?? [],
         );
         if (focusables.length === 0) return;
         const first = focusables[0];
@@ -94,7 +106,7 @@ export const ConfirmStepModal = ({
       // opened the dialog. A detached trigger (e.g. the step transitioned away
       // after a successful confirm) makes .focus() a harmless no-op.
       const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      cancelRef.current?.focus();
+      (initialFocus?.current ?? cancelRef.current)?.focus();
       const previous = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
@@ -102,7 +114,7 @@ export const ConfirmStepModal = ({
         trigger?.focus();
       };
     }
-  }, [open]);
+  }, [open, initialFocus]);
 
   if (!open) return null;
 
@@ -120,6 +132,7 @@ export const ConfirmStepModal = ({
       data-testid="confirm-step-modal-backdrop"
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-step-modal-title"
@@ -162,7 +175,7 @@ export const ConfirmStepModal = ({
             type="button"
             className={confirmPrimaryBtn}
             onClick={onConfirm}
-            disabled={isPending}
+            disabled={isPending || confirmDisabled}
           >
             {/* In-flight feedback beyond the disabled tint — the label stays, the
                 spinner says "working" (currentColor follows the disabled text). */}
