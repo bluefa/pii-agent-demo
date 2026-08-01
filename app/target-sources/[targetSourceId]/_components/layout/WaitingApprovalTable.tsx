@@ -6,7 +6,7 @@ import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
-import { idcStyles, primaryColors, textColors, cn } from '@/lib/theme';
+import { idcStyles, numericFeatures, primaryColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -20,20 +20,26 @@ export interface WaitingApprovalResource {
   exclusionMeta?: string;
   /** Display db-engine source — prefer endpoint_config.db_type over resource_type (e.g. VM rows). */
   displayDbType?: string;
-  /** `confirmed` variant only — the credential bound to the resource. */
-  credentialId?: string | null;
+  /**
+   * `confirmed` variant only — Step 5 connection-test counts (latest-results). `null` when the
+   * resource has no summary row; the cell renders — rather than a fabricated 0.
+   */
+  logicalDbCount?: number | null;
+  excludedLogicalDbCount?: number | null;
 }
 
 /**
  * `approval` (steps 2·3): verdict + exclusion reason as the last two columns.
- * `confirmed` (step 6): every row is a confirmed target, so the verdict pair is replaced
- * by the single DB Credential column.
+ * `confirmed` (step 6): every row is a confirmed target, so the verdict pair is replaced by
+ * the Step 5 logical-DB counts — what the user actually reviews before the final approval.
  */
 type WaitingApprovalTableVariant = 'approval' | 'confirmed';
 
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
   variant?: WaitingApprovalTableVariant;
+  /** `confirmed` variant — open the read-only logical-DB list for one resource. */
+  onLogicalDbOpen?: (resource: WaitingApprovalResource) => void;
   /** Custom empty message shown when `resources` is empty. Defaults to the source-level empty copy. */
   emptyMessage?: string;
   /**
@@ -118,6 +124,47 @@ const SUMMARY_LIMIT = 15;
 const clampReason = (reason: string): string =>
   reason.length <= SUMMARY_LIMIT ? reason : reason.slice(0, SUMMARY_LIMIT).trimEnd() + '…';
 
+/**
+ * A logical-DB count (step 6). Non-zero opens the read-only list, so it renders as the
+ * underlined text action the app uses for in-context links — a filled button per row would
+ * turn the table into a toolbar. Zero has nothing to open, so it stays plain text rather
+ * than a link that answers with an empty panel; a missing summary row renders —.
+ */
+const LogicalDbCountCell = ({
+  count,
+  tone,
+  label,
+  onOpen,
+}: {
+  count: number | null | undefined;
+  tone: 'included' | 'excluded';
+  label: string;
+  onOpen?: () => void;
+}) => {
+  if (count == null) return <span className={textColors.quaternary}>{PLACEHOLDER}</span>;
+  if (count === 0) {
+    return (
+      <span className={cn('text-[13px] font-medium', numericFeatures.tabular, textColors.quaternary)}>
+        0<span className="ml-px text-[12px]">개</span>
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={label}
+      className={cn(
+        tone === 'excluded' ? idcStyles.triggerBtn.linkWarn : idcStyles.triggerBtn.linkPrimary,
+        numericFeatures.tabular,
+      )}
+    >
+      {count}
+      <span className="text-[12px] font-medium">개</span>
+    </button>
+  );
+};
+
 // Blank when there is no reason — target rows can never have one, so an em-dash is noise.
 const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
   !resource.selected && resource.exclusionReason ? (
@@ -129,7 +176,13 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
   ) : null;
 
 export const WaitingApprovalTable = memo(
-  ({ resources, variant = 'approval', emptyMessage, connected = false }: WaitingApprovalTableProps) => {
+  ({
+    resources,
+    variant = 'approval',
+    onLogicalDbOpen,
+    emptyMessage,
+    connected = false,
+  }: WaitingApprovalTableProps) => {
     if (resources.length === 0) {
       return <TableEmptyState message={emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />;
     }
@@ -152,7 +205,10 @@ export const WaitingApprovalTable = memo(
                 <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Region</th>
                 {confirmedVariant ? (
-                  <th className={idcStyles.table.approvalHeaderCell}>DB Credential</th>
+                  <>
+                    <th className={idcStyles.table.approvalHeaderCell}>연동 논리 DB</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>연동 제외</th>
+                  </>
                 ) : (
                   <>
                     {/* The header asks the question, the cell answers it. */}
@@ -224,16 +280,24 @@ export const WaitingApprovalTable = memo(
                       {resource.region || PLACEHOLDER}
                     </td>
                     {confirmedVariant ? (
-                      <td
-                        className={cn(
-                          idcStyles.table.approvalCell,
-                          monoCell,
-                          textColors.secondary,
-                          CELL_LIFT,
-                        )}
-                      >
-                        {resource.credentialId || PLACEHOLDER}
-                      </td>
+                      <>
+                        <td className={idcStyles.table.approvalCell}>
+                          <LogicalDbCountCell
+                            count={resource.logicalDbCount}
+                            tone="included"
+                            label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
+                            onOpen={() => onLogicalDbOpen?.(resource)}
+                          />
+                        </td>
+                        <td className={idcStyles.table.approvalCell}>
+                          <LogicalDbCountCell
+                            count={resource.excludedLogicalDbCount}
+                            tone="excluded"
+                            label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
+                            onOpen={() => onLogicalDbOpen?.(resource)}
+                          />
+                        </td>
+                      </>
                     ) : (
                       <>
                         <td className={idcStyles.table.approvalCell}>

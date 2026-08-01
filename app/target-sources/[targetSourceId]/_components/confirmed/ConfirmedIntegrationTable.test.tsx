@@ -44,7 +44,7 @@ describe('ConfirmedIntegrationTable', () => {
   });
 
   describe('variant=pre-install (default)', () => {
-    it('renders the step-2·3 approval columns: Resource Name / Resource ID / Database Type / Region / DB Credential', () => {
+    it('renders the step-2·3 approval columns plus the Step 5 logical-DB counts', () => {
       const { container } = render(
         <ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />,
       );
@@ -54,8 +54,22 @@ describe('ConfirmedIntegrationTable', () => {
         'Resource ID',
         'Database Type',
         'Region',
-        'DB Credential',
+        '연동 논리 DB',
+        '연동 제외',
       ]);
+    });
+
+    // Which credential was picked is a step-5 decision; a successful connection is the
+    // evidence it was right, so step 6 spends the column on what is actually reviewed.
+    it('drops the DB Credential column', () => {
+      render(
+        <ConfirmedIntegrationTable
+          confirmed={[makeResource({ credentialId: 'cred-prod' })]}
+          targetSourceId={42}
+        />,
+      );
+      expect(screen.queryByText('DB Credential')).toBeNull();
+      expect(screen.queryByText('cred-prod')).toBeNull();
     });
 
     it('drops the Connection Status column (not in the confirmed-integration contract)', () => {
@@ -65,17 +79,40 @@ describe('ConfirmedIntegrationTable', () => {
       expect(screen.queryByText('Pending')).toBeNull();
     });
 
-    it('renders the DB Credential value in the last cell', () => {
+    it('renders a non-zero count as a button and zero as plain text', async () => {
+      getSummariesMock.mockResolvedValue([
+        {
+          resource_id: 'res-1',
+          agent_id: 'agent-1',
+          logical_database_count: 6,
+          excluded_logical_database_count: 0,
+        },
+      ]);
       const { container } = render(
-        <ConfirmedIntegrationTable
-          confirmed={[makeResource({ credentialId: 'cred-prod' })]}
-          targetSourceId={42}
-        />,
+        <ConfirmedIntegrationTable confirmed={[makeResource({ resourceId: 'res-1' })]} targetSourceId={42} />,
       );
+      // 6 opens the list; 0 has nothing to open, so it must not be a control.
+      await waitFor(() => expect(screen.getByRole('button', { name: /연동 논리 DB 목록 보기/ })).toBeTruthy());
+      expect(screen.queryByRole('button', { name: /연동 제외 대상 보기/ })).toBeNull();
       const dataRow = container.querySelector('tbody tr');
       if (!(dataRow instanceof HTMLElement)) throw new Error('expected data row');
       const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map((c) => c.textContent);
-      expect(cellTexts[4]).toBe('cred-prod');
+      expect(cellTexts[4]).toBe('6개');
+      expect(cellTexts[5]).toBe('0개');
+    });
+
+    // No summary row for the resource → "—", never a fabricated 0.
+    it('renders — when the resource has no summary row', async () => {
+      getSummariesMock.mockResolvedValue([]);
+      const { container } = render(
+        <ConfirmedIntegrationTable confirmed={[makeResource({ resourceId: 'res-1' })]} targetSourceId={42} />,
+      );
+      await waitFor(() => expect(getSummariesMock).toHaveBeenCalled());
+      const dataRow = container.querySelector('tbody tr');
+      if (!(dataRow instanceof HTMLElement)) throw new Error('expected data row');
+      const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map((c) => c.textContent);
+      expect(cellTexts[4]).toBe('—');
+      expect(cellTexts[5]).toBe('—');
     });
 
     it('renders the search + filter toolbar shared with steps 2·3', () => {
@@ -95,9 +132,9 @@ describe('ConfirmedIntegrationTable', () => {
       expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
     });
 
-    it('does not fetch test-connection summaries on the pre-install variant', () => {
+    it('fetches the test-connection summaries — step 6 now renders the counts too', async () => {
       render(<ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />);
-      expect(getSummariesMock).not.toHaveBeenCalled();
+      await waitFor(() => expect(getSummariesMock).toHaveBeenCalled());
     });
 
     it('does not render Status, 연동 대상 논리 DB, 연동 제외 논리 DB columns', () => {

@@ -15,6 +15,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
+import { LogicalDbSummaryModal } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbSummaryModal';
 import { getLatestTestConnectionResultSummaries } from '@/app/lib/api';
 import {
   buildLogicalDbCountMap,
@@ -56,12 +57,12 @@ export const ConfirmedIntegrationTable = ({
     initialPageSize: 10,
   });
 
-  // Real per-resource logical-DB counts (연동 대상 / 연동 제외). Only the complete
-  // variant renders these columns, so fetch the latest test-connection result
-  // summaries there; a resource with no summary entry renders "—".
+  // Real per-resource logical-DB counts (연동 대상 / 연동 제외) from the latest
+  // test-connection result summaries. Both variants render them: step 7 as plain cells,
+  // step 6 as the links into the read-only list. A resource with no summary entry
+  // renders "—" rather than a fabricated 0.
   const [logicalDbCounts, setLogicalDbCounts] = useState<LogicalDbCountMap>(new Map());
   useEffect(() => {
-    if (variant !== 'complete') return;
     const controller = new AbortController();
     void getLatestTestConnectionResultSummaries(targetSourceId, { signal: controller.signal })
       .then((summaries) => {
@@ -72,24 +73,31 @@ export const ConfirmedIntegrationTable = ({
         // No summaries available → leave the map empty so cells render "—".
       });
     return () => controller.abort();
-  }, [variant, targetSourceId]);
+  }, [targetSourceId]);
 
   // Step 6 renders the step-2·3 approval table: every confirmed row is a target, so the
-  // verdict/reason pair is swapped for DB Credential (`confirmed` variant).
+  // verdict/reason pair is swapped for the Step 5 logical-DB counts (`confirmed` variant).
   const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
     () =>
-      confirmed.map((resource) => ({
-        resourceId: resource.resourceId,
-        resourceType: resource.databaseType ?? '',
-        region: resource.region ?? '',
-        resourceName: resource.resourceName ?? '',
-        selected: true,
-        displayDbType: resource.databaseType ?? undefined,
-        credentialId: resource.credentialId,
-      })),
-    [confirmed],
+      confirmed.map((resource) => {
+        const counts = logicalDbCounts.get(resource.resourceId);
+        return {
+          resourceId: resource.resourceId,
+          resourceType: resource.databaseType ?? '',
+          region: resource.region ?? '',
+          resourceName: resource.resourceName ?? '',
+          selected: true,
+          displayDbType: resource.databaseType ?? undefined,
+          logicalDbCount: counts?.target ?? null,
+          excludedLogicalDbCount: counts?.excluded ?? null,
+        };
+      }),
+    [confirmed, logicalDbCounts],
   );
   const table = useApprovalTableState(approvalRows);
+
+  // The resource whose logical-DB list is open (step 6). null = closed.
+  const [logicalDbTarget, setLogicalDbTarget] = useState<WaitingApprovalResource | null>(null);
 
   if (confirmed.length === 0) {
     return (
@@ -178,6 +186,7 @@ export const ConfirmedIntegrationTable = ({
       <WaitingApprovalTable
         resources={table.visibleResources}
         variant="confirmed"
+        onLogicalDbOpen={setLogicalDbTarget}
         connected
         emptyMessage={FILTER_EMPTY_MESSAGE}
       />
@@ -189,6 +198,16 @@ export const ConfirmedIntegrationTable = ({
           onPageChange={table.onPageChange}
           onPageSizeChange={table.onPageSizeChange}
           pageSizeOptions={[10, 20, 50, 100]}
+        />
+      )}
+      {/* Mounted only while open so the hook fetches on open and drops its state on close. */}
+      {logicalDbTarget && (
+        <LogicalDbSummaryModal
+          open
+          targetSourceId={targetSourceId}
+          resourceId={logicalDbTarget.resourceId}
+          resourceName={logicalDbTarget.resourceName || logicalDbTarget.resourceId}
+          onClose={() => setLogicalDbTarget(null)}
         />
       )}
     </div>
