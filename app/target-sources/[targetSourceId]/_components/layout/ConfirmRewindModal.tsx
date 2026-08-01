@@ -56,8 +56,8 @@ interface ConfirmRewindModalProps {
 /**
  * Confirm-rewind dialog — the 인프라 변경 / 연결 재확인 actions open this before rewinding
  * the step. Runs on the shared ConfirmStepModal chrome (steps 1·2·3 open the same dialog), so
- * this file owns only what is specific to a rewind: the amber consequence well and the
- * `warning` tone on the commit button. Open when `kind` is non-null.
+ * this file owns only what is specific to a rewind: the consequence line and the `warning`
+ * tone on the commit button. Open when `kind` is non-null.
  */
 export const ConfirmRewindModal = ({ kind, onClose, onConfirm }: ConfirmRewindModalProps) => {
   if (!kind) return null;
@@ -69,22 +69,23 @@ export const ConfirmRewindModal = ({ kind, onClose, onConfirm }: ConfirmRewindMo
       onClose={onClose}
       onConfirm={() => onConfirm(kind)}
       title={content.title}
-      description={content.desc}
+      // Both lines live in the description block, not in the dialog's body slot: that slot
+      // adds 16px, and the app sets consecutive paragraphs with no margin at all — the
+      // leading is the break (WaitingApprovalCard). `block` inside the description <p>, so
+      // the second line inherits modalStyles.toss.subtitle's 14px / 1.6 and only the color
+      // and weight change. Color carries the emphasis; the sentence still states the
+      // consequence in words, so nothing rides on hue alone (WCAG 1.4.1). orange-800 is
+      // 6.5:1 on white.
+      description={
+        <>
+          {content.desc}
+          <span className={cn('block font-semibold', statusColors.warning.textDark)}>
+            {content.note}
+          </span>
+        </>
+      }
       confirmLabel="확인"
       tone="warning"
-    >
-      {/* What gets reset — a second paragraph, not a boxed callout: a bordered well around one
-          sentence read as a separate object in a dialog this short. Color carries the emphasis,
-          and the sentence still states the consequence in words, so nothing rides on hue alone
-          (WCAG 1.4.1). orange-800 is 6.5:1 on white. */}
-      <p
-        className={cn(
-          'text-[14px] font-semibold leading-[1.6]',
-          statusColors.warning.textDark,
-        )}
-      >
-        {content.note}
-      </p>
-    </ConfirmStepModal>
+    />
   );
 };
