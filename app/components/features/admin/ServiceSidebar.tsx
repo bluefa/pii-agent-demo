@@ -41,7 +41,9 @@ interface ServiceSidebarProps {
   loading?: boolean;
 }
 
-const groupLabelClass = cn('px-3 pt-4 pb-1.5 text-base font-semibold', textColors.tertiary);
+const rowLayoutClass = 'w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors';
+const chipClass = 'shrink-0 w-14 py-1 rounded-md text-center font-mono text-xs font-normal truncate';
+const nameClass = 'flex-1 min-w-0 truncate text-sm font-normal';
 
 const pageButtonClass = cn(
   'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
@@ -52,7 +54,6 @@ const pageButtonClass = cn(
 interface ServiceRowProps {
   code: string;
   name?: string;
-  isCurrent: boolean;
   onSelect: (code: string) => void;
 }
 
@@ -61,33 +62,16 @@ interface ServiceRowProps {
  * list can be scanned down a single edge; it carries the full code (case-sensitive —
  * `/services/{code}` matches exactly), so no duplicate code sub-line is needed.
  */
-const ServiceRow = ({ code, name, isCurrent, onSelect }: ServiceRowProps) => (
+const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
   <li>
     <button
       type="button"
       onClick={() => onSelect(code)}
       title={name ? `${name} (${code})` : code}
-      className={cn(
-        'group w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors',
-        bgColors.mutedHover,
-      )}
+      className={cn('group', rowLayoutClass, bgColors.mutedHover)}
     >
-      <span
-        className={cn(
-          'shrink-0 w-14 py-1 rounded-md text-center font-mono text-xs font-semibold truncate',
-          isCurrent ? cn(primaryColors.bgLight, primaryColors.textOnLight) : tagStyles.neutral,
-        )}
-      >
-        {code}
-      </span>
-      <span
-        className={cn(
-          'flex-1 min-w-0 truncate text-sm font-medium',
-          isCurrent ? primaryColors.text : textColors.primary,
-        )}
-      >
-        {name || code}
-      </span>
+      <span className={cn(chipClass, tagStyles.neutral)}>{code}</span>
+      <span className={cn(nameClass, textColors.primary)}>{name || code}</span>
       <ChevronRightIcon
         className={cn(
           'shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100',
@@ -96,6 +80,31 @@ const ServiceRow = ({ code, name, isCurrent, onSelect }: ServiceRowProps) => (
       />
     </button>
   </li>
+);
+
+/**
+ * The service the page is about, shown in the header zone as context — not as a list
+ * group. It is a destination like any other row, so it stays clickable.
+ */
+const CurrentServiceCard = ({ code, name, onSelect }: Omit<ServiceRowProps, 'isCurrent'>) => (
+  <button
+    type="button"
+    onClick={() => onSelect(code)}
+    title={name ? `${name} (${code})` : code}
+    className={cn('mt-3', rowLayoutClass, primaryColors.bgLight)}
+  >
+    <span className={cn(chipClass, bgColors.surface, primaryColors.textOnLight)}>{code}</span>
+    <span className={cn(nameClass, primaryColors.textOnLight)}>{name || code}</span>
+    <span
+      className={cn(
+        'shrink-0 rounded px-1.5 py-0.5 text-xs',
+        bgColors.surface,
+        primaryColors.textOnLight,
+      )}
+    >
+      현재
+    </span>
+  </button>
 );
 
 export const ServiceSidebar = ({
@@ -114,19 +123,29 @@ export const ServiceSidebar = ({
   const paginationEnd = Math.min(totalPages, paginationStart + 5);
   const pageNumbers = Array.from({ length: paginationEnd - paginationStart }, (_, i) => paginationStart + i);
 
-  // The current service is pinned to the top only while browsing: during a search
-  // the list is pure results, so a pinned row that doesn't match would lie.
-  const pinned = !searchQuery ? currentService : null;
-  const listed = pinned ? services.filter((s) => s.service_code !== pinned.code) : services;
+  // The current service lives in the header, so browsing the list would show it twice.
+  // A search is different: the results are the results, and hiding a match would lie.
+  const listed = !searchQuery && currentService
+    ? services.filter((s) => s.service_code !== currentService.code)
+    : services;
 
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
     <aside className="w-[296px] shrink-0 bg-white shadow-sm flex flex-col">
-      <div className="px-4 pt-4 pb-3">
-        <h2 className={cn('text-base font-semibold', textColors.primary)}>서비스 목록</h2>
+      {/* Header zone: what this panel is, and where you currently are. */}
+      <div className="px-3 pt-4 pb-4">
+        <h2 className={cn('px-1 text-base font-semibold', textColors.primary)}>서비스 목록</h2>
+        {currentService && (
+          <CurrentServiceCard
+            code={currentService.code}
+            name={currentService.name}
+            onSelect={onSelectService}
+          />
+        )}
       </div>
 
-      <div className="px-3 pb-3 relative">
+      {/* List zone: search is the list's control, so it sits with the list, not under the title. */}
+      <div className={cn('px-3 pt-3 pb-3 relative border-t', borderColors.light)}>
         <SearchIcon
           className={cn('absolute left-6 top-1/2 -translate-y-[calc(50%+6px)]', textColors.quaternary)}
         />
@@ -172,34 +191,17 @@ export const ServiceSidebar = ({
             </button>
           </li>
         ) : (
-          <>
-            {pinned && (
-              <>
-                <li className={groupLabelClass}>현재 서비스</li>
-                <ServiceRow
-                  code={pinned.code}
-                  name={pinned.name}
-                  isCurrent
-                  onSelect={onSelectService}
-                />
-              </>
-            )}
-            {pinned && listed.length > 0 && (
-              <li className={groupLabelClass}>전체 서비스</li>
-            )}
-            {listed.map((service) => {
-              const code = service.service_code ?? '';
-              return (
-                <ServiceRow
-                  key={code}
-                  code={code}
-                  name={service.service_name ?? undefined}
-                  isCurrent={!pinned && code === currentService?.code}
-                  onSelect={onSelectService}
-                />
-              );
-            })}
-          </>
+          listed.map((service) => {
+            const code = service.service_code ?? '';
+            return (
+              <ServiceRow
+                key={code}
+                code={code}
+                name={service.service_name ?? undefined}
+                onSelect={onSelectService}
+              />
+            );
+          })
         )}
       </ul>
 
@@ -227,8 +229,10 @@ export const ServiceSidebar = ({
                 onClick={() => onPageChange(n)}
                 className={cn(
                   'w-7 h-7 text-xs rounded-md transition-colors flex items-center justify-center',
+                  // Current page reads as "pressed" (neutral fill), not as an accent —
+                  // paging is navigation, not a branded action.
                   n === currentPage
-                    ? `${primaryColors.bg} text-white`
+                    ? cn(tagStyles.neutral, 'font-semibold')
                     : cn(textColors.tertiary, bgColors.mutedHover),
                 )}
               >
