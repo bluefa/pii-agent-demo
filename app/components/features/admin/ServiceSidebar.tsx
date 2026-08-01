@@ -86,8 +86,8 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
 
 /**
  * The service the page is about, shown in the header zone as context — not as a list
- * group. Its caption says what it is, so no badge is needed, and the name owns the
- * full card width (two lines) rather than competing with a chip and a tag.
+ * group. The caption says what it is, so no badge is needed; below it the same
+ * [code chip][name] grammar as the list rows, on its own line so the name keeps room.
  * It is a destination like any other row, so it stays clickable.
  */
 const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
@@ -100,12 +100,12 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
       primaryColors.bgLight,
     )}
   >
-    <span className={cn('flex items-baseline justify-between gap-2 text-xs', primaryColors.textOnLight)}>
-      <span>현재 보고 있는 서비스</span>
-      <span className="shrink-0 font-mono truncate max-w-[40%]">{code}</span>
+    <span className={cn('block text-xs font-semibold', primaryColors.textOnLight)}>
+      현재 보고 있는 서비스
     </span>
-    <span className={cn('mt-1 block text-sm line-clamp-2 break-words', primaryColors.textOnLight)}>
-      {name || code}
+    <span className="mt-2 flex items-center gap-2.5">
+      <span className={cn(chipClass, bgColors.surface, primaryColors.textOnLight)}>{code}</span>
+      <span className={cn(nameClass, primaryColors.textOnLight)}>{name || code}</span>
     </span>
   </button>
 );
