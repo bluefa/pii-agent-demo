@@ -281,9 +281,9 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             <Icon name="search" size="md" className="text-[var(--pl-primary)]" />
             최근 스캔
             {latestJob && <ScanStatusPill status={latestJob.scan_status} />}
-            {latestJob?.scan_version !== undefined && (
+            {latestJob?.scan_version != null && (
               <span className="text-[12px] font-medium text-[var(--pl-text-weak)]">
-                v{latestJob.scan_version}
+                #{latestJob.scan_version}
               </span>
             )}
           </h2>
@@ -468,7 +468,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                         <ScanStatusPill status={row.scan_status} />
                       </td>
                       <td className={cn(table.cell, '[font-family:var(--pl-font-mono)]')}>
-                        v{row.scan_version ?? '-'}
+                        #{row.scan_version ?? '-'}
                       </td>
                       <td className={cn(table.cell, 'tabular-nums')}>
                         {rowCounts.length > 0 ? (

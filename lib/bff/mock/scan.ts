@@ -97,13 +97,15 @@ export const mockScan = {
     // Full Spring PageScanJobResponse. The route validates with
     // schemas.PageScanJobResponse.parse(raw) — content items must be snake wire.
     return NextResponse.json({
-      content: history.map((h) => ({
+      // scan_version = 타깃 내 실행 순번 (오래된 것부터 1) — 이력은 최신순이라
+      // 페이지 오프셋을 더한 역순 인덱스로 파생한다.
+      content: history.map((h, index) => ({
         id: parseNumericId(h.scanId),
         scan_status: h.status,
         target_source_id: targetSourceId,
         created_at: h.startedAt,
         updated_at: h.completedAt,
-        scan_version: 1,
+        scan_version: total - (query.offset + index),
         scan_progress: null,
         duration_seconds: h.duration,
         resource_count_by_resource_type: toResourceCountMap(h.result),
@@ -170,6 +172,8 @@ export const mockScan = {
     }
 
     const scanJob = scanFns.createScanJob(project);
+    // 새 스캔의 버전 = 완료된 이력 수 + 1.
+    const { total: completedTotal } = scanFns.getScanHistory(targetSourceId, 1, 0);
 
     return NextResponse.json(
       {
@@ -178,7 +182,7 @@ export const mockScan = {
         target_source_id: targetSourceId,
         created_at: scanJob.startedAt,
         updated_at: scanJob.startedAt,
-        scan_version: 1,
+        scan_version: completedTotal + 1,
         scan_progress: scanJob.progress,
         duration_seconds: 0,
         resource_count_by_resource_type: null,
@@ -218,13 +222,14 @@ export const mockScan = {
     if (activeScan) {
       const updated = scanFns.calculateScanStatus(activeScan);
       if (updated.status === 'SCANNING') {
+        const { total: completedTotal } = scanFns.getScanHistory(targetSourceId, 1, 0);
         return NextResponse.json({
           id: parseNumericId(updated.id),
           scan_status: updated.status,
           target_source_id: targetSourceId,
           created_at: updated.startedAt,
           updated_at: updated.startedAt,
-          scan_version: 1,
+          scan_version: completedTotal + 1,
           scan_progress: updated.progress,
           duration_seconds: 0,
           resource_count_by_resource_type: null,
@@ -233,7 +238,7 @@ export const mockScan = {
       }
     }
 
-    const { history } = scanFns.getScanHistory(targetSourceId, 1, 0);
+    const { history, total } = scanFns.getScanHistory(targetSourceId, 1, 0);
     if (history.length > 0) {
       const last = history[0];
       return NextResponse.json({
@@ -242,7 +247,7 @@ export const mockScan = {
         target_source_id: targetSourceId,
         created_at: last.startedAt,
         updated_at: last.completedAt,
-        scan_version: 1,
+        scan_version: total,
         scan_progress: null,
         duration_seconds: last.duration,
         resource_count_by_resource_type: toResourceCountMap(last.result),
