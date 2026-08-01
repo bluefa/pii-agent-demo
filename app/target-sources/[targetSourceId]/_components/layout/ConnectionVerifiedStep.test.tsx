@@ -129,17 +129,17 @@ describe('ConnectionVerifiedStep', () => {
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /연결 재확인/ }));
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
-    expect(screen.getByText('연결 테스트 결과에 따라 6 · 7단계의 상태가 초기화될 수 있어요.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '되돌아가기' }).className).toContain('bg-[#B45309]');
+    expect(screen.getByText('연결을 다시 확인할까요?')).toBeTruthy();
+    expect(screen.getByText('지금까지의 6 · 7단계 진행 상태는 초기화돼요.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '확인' }).className).toContain('bg-[#B45309]');
   });
 
-  it('되돌아가기 rolls back the acknowledgment (confirmed:false) then refetches the project', async () => {
+  it('확인 rolls back the acknowledgment (confirmed:false) then refetches the project', async () => {
     const onProjectUpdate = vi.fn();
     renderStep(onProjectUpdate);
     fireEvent.click(screen.getByRole('button', { name: /연결 재확인/ }));
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '되돌아가기' }));
+      fireEvent.click(screen.getByRole('button', { name: '확인' }));
     });
     expect(updateConfirmationMock).toHaveBeenCalledWith(2001, false);
     await waitFor(() => expect(getProjectMock).toHaveBeenCalledWith(2001));

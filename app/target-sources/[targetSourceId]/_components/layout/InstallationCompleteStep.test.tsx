@@ -164,14 +164,14 @@ describe('InstallationCompleteStep', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /인프라 변경/ }));
-    expect(screen.getByText('인프라를 변경하시겠어요?')).toBeTruthy();
+    expect(screen.getByText('인프라를 변경할까요?')).toBeTruthy();
   });
 
   it('opens the retest confirm modal when 연결 테스트 재실행 is clicked', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
-    expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
+    expect(screen.getByText('연결을 다시 확인할까요?')).toBeTruthy();
   });
 
 
