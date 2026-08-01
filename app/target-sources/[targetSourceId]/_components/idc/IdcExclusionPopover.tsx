@@ -111,9 +111,8 @@ export const IdcExclusionPopover = ({
         role="menuitem"
         onClick={onPickCustom}
         className={cn(
-          idcStyles.popover.opt,
           idcStyles.popover.custom,
-          customActive && idcStyles.popover.optSelected,
+          customActive ? idcStyles.popover.customActive : idcStyles.popover.customRest,
         )}
       >
         <EditIcon className="h-3 w-3" />
