@@ -7,17 +7,15 @@ import { cn, primaryColors } from '@/lib/theme';
 type TooltipSize = 'sm' | 'md' | 'lg' | 'xl';
 
 /**
- * v15 dark-popover variants. `status` = the Step 7 health-status header tooltip
- * (#111827 box, radius 8, line-height 1.5); `sourceIp` = the IDC Source-IP header
- * tooltip (#1F2937 box, radius 10, line-height 1.6). Both share the 280px fixed
- * width, 11.5px text, and rotated-square arrow per `design/v15-extract/09-tooltips.md`.
+ * `status` = the v15 dark popover (#111827 box, radius 8, line-height 1.5), 280px fixed width,
+ * 11.5px text, rotated-square arrow per `design/v15-extract/09-tooltips.md`.
  *
  * `value` is not from that spec. The dark box was authored to EXPLAIN a state; reflecting a
  * clipped cell value back is a different job, and over a white table the dark box reads as UI
  * from another system. This one borrows the surrounding card language instead (white,
  * #E5E8EB hairline, soft shadow) so it sits on the table rather than on top of it.
  */
-type TooltipVariant = 'status' | 'sourceIp' | 'value';
+type TooltipVariant = 'status' | 'value';
 
 interface TooltipProps {
   content: React.ReactNode;
@@ -91,13 +89,6 @@ const variantStyles: Record<
     radius: '8px',
     shadow: '0 8px 24px rgba(0,0,0,0.18)',
     lineHeight: '1.5',
-  },
-  sourceIp: {
-    box: '#1F2937',
-    text: '#FFFFFF',
-    radius: '10px',
-    shadow: '0 8px 24px rgba(0,0,0,0.22)',
-    lineHeight: '1.6',
   },
   value: {
     box: '#FFFFFF',

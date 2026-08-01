@@ -7,6 +7,7 @@ import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_compone
 // Stub the tooltip/pagination chrome so only the table cells under test render.
 vi.mock('@/app/components/ui/Tooltip', () => ({
   InfoTooltip: () => null,
+  IdentifierTip: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock('@/app/components/ui/Pagination', () => ({ Pagination: () => null }));

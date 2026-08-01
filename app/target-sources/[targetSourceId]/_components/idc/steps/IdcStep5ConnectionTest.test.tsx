@@ -19,6 +19,7 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
 }));
 vi.mock('@/app/components/ui/Tooltip', () => ({
   InfoTooltip: () => null,
+  IdentifierTip: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock('@/app/components/ui/toast', () => ({

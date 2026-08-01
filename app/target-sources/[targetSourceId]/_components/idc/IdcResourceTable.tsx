@@ -65,7 +65,9 @@ const SourceIpHeader = () => (
   <span className="inline-flex items-center gap-1">
     Source IP
     <InfoTooltip
-      variant="sourceIp"
+      // Light `value` box, the same one the 연동 대상 cell tooltip uses — one table should not
+      // answer a hover with a dark popover in one column and a light one in another.
+      variant="value"
       // 17px — the table-header (?) size set by CSP step 1 (CandidateResourceTable). The
       // component default is 13, which reads as a different control next to the same header.
       iconSize={17}
