@@ -32,10 +32,10 @@ interface StatProps {
 // Centered tile, 36px number: the three counts ARE the modal's payload, so they
 // carry the display tier while the label stays quiet above them. No status dots —
 // the blue number already marks the one count that matters.
-// White card + toss shadow, edged with the faintest stroke (gray-100) — the
-// hairline closes the card where the soft shadow alone leaves the edge fuzzy.
+// White card + toss shadow(lg) + default stroke — the hairline closes the card
+// where the soft shadow alone leaves the edge fuzzy.
 const Stat = ({ label, value, valueClass }: StatProps) => (
-  <div className={cn('rounded-xl border bg-white px-4 py-4 text-center', borderColors.light, tossShadow.md)}>
+  <div className={cn('rounded-xl border bg-white px-4 py-4 text-center', borderColors.default, tossShadow.lg)}>
     {/* medium보다 한 단계 위(semibold)만 — 숫자(bold)와의 위계는 유지한다. */}
     <div className={cn('text-[14px] font-semibold', textColors.tertiary)}>
       {label}

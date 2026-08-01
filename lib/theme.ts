@@ -54,6 +54,8 @@ export const tossShadow = {
   /** One step up from `sm` — same 2-layer shape, roughly doubled presence. For
    *  small white cards that must read as raised on an already-white surface. */
   md: 'shadow-[0_1px_3px_rgba(17,24,39,0.06),0_8px_20px_-8px_rgba(17,24,39,0.12)]',
+  /** One step up from `md` — clearly lifted, still soft-edged. */
+  lg: 'shadow-[0_2px_4px_rgba(17,24,39,0.08),0_12px_28px_-8px_rgba(17,24,39,0.18)]',
 } as const;
 
 // =============================================================================
