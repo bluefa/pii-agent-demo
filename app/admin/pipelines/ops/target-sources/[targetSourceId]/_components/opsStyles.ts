@@ -80,6 +80,9 @@ export const opsStyles = {
   /** 상세 보기 → text button (Figma 40:21). */
   detailLink: 'inline-flex items-center gap-1 text-[14px] font-medium text-[var(--pl-primary)] cursor-pointer hover:underline whitespace-nowrap',
 
+  /** Loading skeleton block — same grammar as detailStyles.skeleton (task detail). */
+  skeleton: 'animate-pulse rounded-[10px] bg-[var(--pl-gray-100)]',
+
   /** Figma 4:2 table grammar — plain headers (no fill), divider rows. */
   table: {
     base: 'w-full border-collapse text-[14px]',

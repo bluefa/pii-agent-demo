@@ -119,11 +119,12 @@ function ScanStatusPill({ status }: { status: string | null | undefined }): Reac
 }
 
 /**
- * 발견 리소스 태그 — 저채도(흰 배경) + 스트로크 + 섀도, wire 키는 mono 그대로.
- * diff가 있으면 타입별 증감(+N ok / −N err)을 붙이고, 이번 스캔에서 사라진
- * 타입(count 0)은 점선 보더 + faint로 흐리게 남긴다.
+ * 발견 리소스 스탯 타일 — 라벨(12/500 weak, mono) 위 / 숫자(16/500 strong) 아래.
+ * 인라인 태그 나열은 숫자가 정렬되지 않아 규모 비교가 안 된다는 운영 피드백으로
+ * 그리드 타일 전환(그리드가 숫자 세로줄을 만든다). 증감(+N ok / −N err)은 숫자
+ * 옆 12px, 이번 스캔에서 사라진 타입(count 0)은 점선 보더 + faint로 흐리게 남긴다.
  */
-function ResourceTypeTag({
+function ResourceTypeTile({
   type,
   count,
   provider,
@@ -136,38 +137,42 @@ function ResourceTypeTag({
 }): ReactElement {
   const removed = count === 0;
   return (
-    <span
+    <div
       title={type}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-[6px] border bg-[var(--pl-bg-card)] px-2.5 py-1 shadow-[var(--pl-shadow-xs)] [font-family:var(--pl-font-mono)]',
+        'min-w-0 rounded-[6px] border bg-[var(--pl-bg-card)] px-3 py-2 shadow-[var(--pl-shadow-sm)]',
         removed ? 'border-dashed border-[var(--pl-border)]' : 'border-[var(--pl-border)]',
       )}
     >
-      {/* 계층: 라벨(500/weak)은 물러나고 숫자(700/strong)가 데이터 — 12타입 규모에서
-          라벨·카운트·증감이 같은 급으로 읽히던 혼란 교정. */}
-      <span className={cn('text-[12px] font-medium', removed ? 'text-[var(--pl-text-faint)]' : 'text-[var(--pl-text-weak)]')}>
-        {trimProviderPrefix(type, provider)}
-      </span>
-      {/* 값·증감은 500 — 볼드는 이 밀도에서 전부-강조가 된다(운영 피드백). 값은 색으로만 승급. */}
-      <b
+      <p
         className={cn(
-          'text-[12px] font-medium tabular-nums',
-          removed ? 'text-[var(--pl-text-faint)]' : 'text-[var(--pl-text-strong)]',
+          'truncate text-[12px] font-medium [font-family:var(--pl-font-mono)]',
+          removed ? 'text-[var(--pl-text-faint)]' : 'text-[var(--pl-text-weak)]',
         )}
       >
-        {fmtCount(count)}
-      </b>
-      {diff != null && diff !== 0 && (
-        <b
+        {trimProviderPrefix(type, provider)}
+      </p>
+      <p className="mt-0.5 flex items-baseline gap-1.5">
+        <span
           className={cn(
-            'text-[12px] font-medium tabular-nums',
-            diff > 0 ? 'text-[var(--pl-ok-text)]' : 'text-[var(--pl-err-text)]',
+            'text-[16px] font-medium tabular-nums',
+            removed ? 'text-[var(--pl-text-faint)]' : 'text-[var(--pl-text-strong)]',
           )}
         >
-          {diff > 0 ? `+${fmtCount(diff)}` : fmtCount(diff)}
-        </b>
-      )}
-    </span>
+          {fmtCount(count)}
+        </span>
+        {diff != null && diff !== 0 && (
+          <span
+            className={cn(
+              'text-[12px] font-medium tabular-nums',
+              diff > 0 ? 'text-[var(--pl-ok-text)]' : 'text-[var(--pl-err-text)]',
+            )}
+          >
+            {diff > 0 ? `+${fmtCount(diff)}` : fmtCount(diff)}
+          </span>
+        )}
+      </p>
+    </div>
   );
 }
 
@@ -321,9 +326,16 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
       )}
 
       {loading && !latestJob ? (
-        <p className={cn(pipelineStyles.text.meta, 'mt-4')} aria-busy>
-          불러오는 중…
-        </p>
+        // 최종 레이아웃(결과 헤더 + 문장 + 타일 그리드) 자리를 그리는 스켈레톤 — 점프 방지.
+        <div className="mt-5" aria-busy>
+          <div className={cn(opsStyles.skeleton, 'h-5 w-24')} aria-hidden="true" />
+          <div className={cn(opsStyles.skeleton, 'mt-2.5 h-5 w-72')} aria-hidden="true" />
+          <div className="mt-2.5 grid grid-cols-3 gap-2">
+            {Array.from({ length: 6 }, (_, index) => (
+              <div key={index} className={cn(opsStyles.skeleton, 'h-[60px]')} aria-hidden="true" />
+            ))}
+          </div>
+        </div>
       ) : !latestJob ? (
         error ? (
           <p className={cn(pipelineStyles.text.meta, 'mt-4')}>스캔 정보를 불러오지 못했습니다.</p>
@@ -390,9 +402,9 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                     </b>
                     개를 발견했어요.
                   </p>
-                  <div className="mt-2.5 flex flex-wrap gap-2">
+                  <div className="mt-2.5 grid grid-cols-3 gap-2">
                     {typeEntries.map(({ type, count, diff }) => (
-                      <ResourceTypeTag key={type} type={type} count={count} provider={provider} diff={diff} />
+                      <ResourceTypeTile key={type} type={type} count={count} provider={provider} diff={diff} />
                     ))}
                   </div>
                 </>
@@ -450,7 +462,12 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         </p>
 
         {historyLoading ? (
-          <div className="min-h-[160px]" aria-busy />
+          // 행 높이(≈40px) × 페이지 크기 스켈레톤 — 빈 공백 대신 테이블 자리를 그린다.
+          <div className="mt-3" aria-busy>
+            {Array.from({ length: PAGE_SIZE }, (_, index) => (
+              <div key={index} className={cn(opsStyles.skeleton, 'mt-2 h-10 first:mt-0')} aria-hidden="true" />
+            ))}
+          </div>
         ) : historyFailed ? (
           <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
             <p>스캔 이력을 불러오지 못했습니다.</p>

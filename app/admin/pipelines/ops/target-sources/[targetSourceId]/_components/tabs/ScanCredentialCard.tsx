@@ -157,9 +157,11 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
       <p className={opsStyles.cardDesc}>{credentialLabel} 권한을 검증합니다.</p>
 
       {state.phase === 'loading' ? (
-        <p className={cn(pipelineStyles.text.meta, 'mt-4')} aria-busy>
-          검증 중…
-        </p>
+        // 응답 원문 박스 + 하단 시각행 자리를 그리는 스켈레톤 — 점프 방지.
+        <div className="mt-4" aria-busy>
+          <div className={cn(opsStyles.skeleton, 'h-[176px]')} aria-hidden="true" />
+          <div className={cn(opsStyles.skeleton, 'mt-4 h-4 w-44')} aria-hidden="true" />
+        </div>
       ) : state.phase === 'error' ? (
         <p className={cn(pipelineStyles.text.meta, 'mt-4')}>자격 정보를 불러오지 못했습니다.</p>
       ) : (
