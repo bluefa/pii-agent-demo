@@ -111,6 +111,13 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
  * The service the page is about, shown in the header zone as context — not as a list
  * group. The caption says what it is, so no badge is needed.
  *
+ * Plain text, no container. This began as a tinted card because it inherited the weight
+ * of the "현재 서비스" list group it replaced, and a filled block reads as something to
+ * act on — but this only answers "where am I", which nobody needs drawn to. The sidebar
+ * references land in the same place: Notion and Linear put the current workspace at the
+ * top as plain text, and Primer marks a selection with a small glyph on the item rather
+ * than a block around it.
+ *
  * Only the name, and one weight step above the rows. This card answers "where am I",
  * which the name alone answers; the code is the key you need when *choosing* a row, and
  * repeating it here just re-ran the list's grammar in the one place that has no column
@@ -124,22 +131,17 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
     onClick={() => onSelect(code)}
     title={name ? `${name} (${code})` : code}
     className={cn(
-      // Already the tinted fill at rest, so hover deepens it rather than recolouring.
-      // The border is what keeps this card ahead of a hovered row: both carry the same
-      // tint, so a deeper shade would only differ by degree (#E8F1FF vs #EFF6FF is not
-      // a visible step). Outlined-vs-filled is a difference in kind — "you are here"
-      // stays louder than "the pointer is passing over".
-      'mt-3 w-full rounded-lg border px-3 py-2.5 text-left cursor-pointer transition-[filter] hover:brightness-95',
-      primaryColors.bgLight,
-      primaryColors.border100,
+      // No fill, no border, no card. Nothing at rest but text at the panel's 20px
+      // left edge; the neutral hover is the only chrome, and only while pointed at.
+      'mt-3 w-full rounded-lg px-2 py-1.5 text-left cursor-pointer transition-colors',
+      bgColors.mutedHover,
     )}
   >
-    {/* Neutral type on the tint: the fill already marks the card as the current
-        service, so coloring the words blue as well said it twice. gray-700 holds
-        9:1 on #E8F1FF — `tertiary` would drop to 4.3:1, under AA at 12px. */}
     {/* Caption lighter than the value it labels — 12px/500 against 14px/600, so size
-        and weight point the same way instead of fighting. */}
-    <span className={cn('block text-xs font-medium', textColors.secondary)}>
+        and weight point the same way instead of fighting. gray-500 only became
+        available when the tint went away: it measures 4.3:1 on #E8F1FF but 4.9:1 on
+        white. */}
+    <span className={cn('block text-xs font-medium', textColors.tertiary)}>
       현재 보고 있는 서비스
     </span>
     <span
@@ -183,7 +185,10 @@ export const ServiceSidebar = ({
         {/* 18/700 against the card name's 14/600: two levers apart. At 16/600 the two
             differed only by 2px and read as peers — the exact collision the tinted card
             was introduced to avoid. */}
-        <h2 className={cn('px-1 text-lg font-bold', textColors.primary)}>서비스 목록</h2>
+        {/* px-2 inside the zone's px-3 puts the title on the same 20px left edge as the
+            column header and the rows. Without the card's fill to mark its own bounds,
+            every text in the panel now starts on one axis. */}
+        <h2 className={cn('px-2 text-lg font-bold', textColors.primary)}>서비스 목록</h2>
         {currentService && (
           <CurrentServiceCard
             code={currentService.code}
