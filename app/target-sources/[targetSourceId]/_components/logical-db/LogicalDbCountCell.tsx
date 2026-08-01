@@ -8,16 +8,17 @@ import { cn, idcStyles, numericFeatures, textColors } from '@/lib/theme';
  * turn the table into a toolbar. Zero has nothing to open, so it stays plain text rather
  * than a link that answers with an empty panel; a missing summary row renders —.
  *
+ * Neutral in both columns: the header says which is 연동 and which is 제외, so tinting the
+ * numbers repeats that in a louder channel once per row.
+ *
  * Shared by the cloud (WaitingApprovalTable) and IDC (IdcResourceTable) step-6 tables.
  */
 export const LogicalDbCountCell = ({
   count,
-  tone,
   label,
   onOpen,
 }: {
   count: number | null | undefined;
-  tone: 'included' | 'excluded';
   label: string;
   onOpen?: () => void;
 }) => {
@@ -34,10 +35,7 @@ export const LogicalDbCountCell = ({
       type="button"
       onClick={onOpen}
       aria-label={label}
-      className={cn(
-        tone === 'excluded' ? idcStyles.triggerBtn.linkWarn : idcStyles.triggerBtn.linkPrimary,
-        numericFeatures.tabular,
-      )}
+      className={cn(idcStyles.triggerBtn.linkNeutral, numericFeatures.tabular)}
     >
       {count}
       <span className="text-[12px] font-medium">개</span>

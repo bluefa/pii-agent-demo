@@ -83,7 +83,9 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
 
 export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
   <div className="flex flex-col items-start gap-1">
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>{resource.databaseTypeLabel}</span>
+    {/* Plain text, matching the CSP approval table: the engine name is an attribute,
+        not a state, so a chip per row spends emphasis on the least decisive column. */}
+    <span className={cn('text-[12px]', textColors.secondary)}>{resource.databaseTypeLabel}</span>
     {resource.oracleSid ? (
       <span className="group/sid inline-flex items-center gap-1 min-w-0 max-w-[170px]">
         <span className={idcStyles.sidKey}>SID</span>

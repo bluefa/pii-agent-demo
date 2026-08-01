@@ -244,7 +244,6 @@ export const WaitingApprovalTable = memo(
                         <td className={idcStyles.table.approvalCell}>
                           <LogicalDbCountCell
                             count={resource.logicalDbCount}
-                            tone="included"
                             label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
                             onOpen={() => onLogicalDbOpen?.(resource)}
                           />
@@ -252,7 +251,6 @@ export const WaitingApprovalTable = memo(
                         <td className={idcStyles.table.approvalCell}>
                           <LogicalDbCountCell
                             count={resource.excludedLogicalDbCount}
-                            tone="excluded"
                             label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
                             onOpen={() => onLogicalDbOpen?.(resource)}
                           />

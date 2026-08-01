@@ -202,7 +202,6 @@ export const IdcResourceTable = ({
                     <td className={idcStyles.table.cell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.target ?? null}
-                        tone="included"
                         label={`${r.hosts[0] ?? r.resourceId} 연동 논리 DB 목록 보기`}
                         onOpen={() => onLogicalOpen?.(r)}
                       />
@@ -210,7 +209,6 @@ export const IdcResourceTable = ({
                     <td className={idcStyles.table.cell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.excluded ?? null}
-                        tone="excluded"
                         label={`${r.hosts[0] ?? r.resourceId} 연동 제외 대상 보기`}
                         onOpen={() => onLogicalOpen?.(r)}
                       />

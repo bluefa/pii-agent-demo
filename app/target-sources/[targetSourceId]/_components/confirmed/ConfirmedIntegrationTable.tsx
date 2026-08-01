@@ -138,7 +138,7 @@ export const ConfirmedIntegrationTable = ({
             const counts = logicalDbCounts.get(resource.resourceId);
             return (
               <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-                <td className={cellClass}>{resource.databaseType ? <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
+                <td className={cellClass}>{resource.databaseType ? <span className={textColors.secondary}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
                 <td className={cellClass}>
                   <ResourceIdCell value={resource.resourceId} label="Resource ID" />
                 </td>

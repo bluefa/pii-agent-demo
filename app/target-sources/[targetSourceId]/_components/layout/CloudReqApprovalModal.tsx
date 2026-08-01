@@ -164,7 +164,7 @@ export const CloudReqApprovalModal = ({
                     <tr key={r.resourceId} className={idcStyles.table.row}>
                       <td className={idcStyles.table.cell}>
                         {r.databaseType ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>
+                          <span className={cn('text-[12px]', textColors.secondary)}>
                             {getDatabaseShortLabel(r.databaseType)}
                           </span>
                         ) : (
