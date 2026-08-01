@@ -139,7 +139,7 @@ export const ConnectionVerifiedStep = ({
             </strong>{' '}
             PII Agent 운영팀의 승인이 완료되면 모니터링이 즉시 시작됩니다.
           </p>
-          {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (step 2 문법). */}
+          {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
           <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
             통합 테스트 결과가 잘못됐거나 연결 테스트를 한 번 더 수행하고 싶다면 우측 상단{' '}
             <strong className={cn('font-semibold', textColors.secondary)}>연결 재확인</strong>을

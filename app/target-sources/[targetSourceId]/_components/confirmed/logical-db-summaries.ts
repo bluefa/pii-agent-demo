@@ -9,11 +9,20 @@ import type { TestConnectionLatestResultSummary } from '@/app/lib/api';
  * the map — callers render `—` for it rather than a fabricated value.
  */
 export interface LogicalDbCounts {
-  target: number;
-  excluded: number;
+  /** `null` when no agent row for the resource carried the field — the cell renders —, not 0. */
+  target: number | null;
+  excluded: number | null;
 }
 
 export type LogicalDbCountMap = ReadonlyMap<string, LogicalDbCounts>;
+
+/**
+ * The response schema is `.partial()`, so a row can arrive with the count absent. Absent is not
+ * zero: folding it in as 0 reports "no logical DBs" for a resource the API never answered for.
+ * Each field stays null until at least one row carries a number.
+ */
+const addCount = (prev: number | null, next: number | null | undefined): number | null =>
+  next == null ? prev : (prev ?? 0) + next;
 
 export const buildLogicalDbCountMap = (
   summaries: readonly TestConnectionLatestResultSummary[],
@@ -22,10 +31,10 @@ export const buildLogicalDbCountMap = (
   for (const summary of summaries) {
     const resourceId = summary.resource_id;
     if (!resourceId) continue;
-    const prev = map.get(resourceId) ?? { target: 0, excluded: 0 };
+    const prev = map.get(resourceId) ?? { target: null, excluded: null };
     map.set(resourceId, {
-      target: prev.target + (summary.logical_database_count ?? 0),
-      excluded: prev.excluded + (summary.excluded_logical_database_count ?? 0),
+      target: addCount(prev.target, summary.logical_database_count),
+      excluded: addCount(prev.excluded, summary.excluded_logical_database_count),
     });
   }
   return map;

@@ -35,6 +35,7 @@ import { useIdcResources } from '@/app/hooks/useIdcResources';
 
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 const EMPTY_RESOURCES: readonly IdcResourceView[] = [];
+const EMPTY_COUNTS: LogicalDbCountMap = new Map();
 
 /** `resourceType` already carries the IDC display label — pass it through unchanged. */
 const dbTypeLabelOf = (row: WaitingApprovalResource): string => row.resourceType;
@@ -104,19 +105,26 @@ export const IdcStep6ConnectionVerified = ({
   const { state } = useIdcResources(targetSourceId, getIdcConfirmedResources);
 
   // Step 5 counts for the whole table in one call; the per-resource lists load only on open.
-  const [logicalDbCounts, setLogicalDbCounts] = useState<LogicalDbCountMap>(new Map());
+  const [fetched, setFetched] = useState<{ targetSourceId: number; counts: LogicalDbCountMap }>({
+    targetSourceId,
+    counts: EMPTY_COUNTS,
+  });
   useEffect(() => {
     const controller = new AbortController();
     void getLatestTestConnectionResultSummaries(targetSourceId, { signal: controller.signal })
       .then((summaries) => {
         if (controller.signal.aborted) return;
-        setLogicalDbCounts(buildLogicalDbCountMap(summaries));
+        setFetched({ targetSourceId, counts: buildLogicalDbCountMap(summaries) });
       })
       .catch(() => {
         // No summaries available → leave the map empty so cells render "—".
       });
     return () => controller.abort();
   }, [targetSourceId]);
+  // Stamped with the id it was fetched for, so a switch to another target shows "—" until its own
+  // counts land. Resource ids can repeat across target sources — a stale map would silently
+  // attribute one target's counts to another's rows.
+  const logicalDbCounts = fetched.targetSourceId === targetSourceId ? fetched.counts : EMPTY_COUNTS;
 
   // The resource whose logical-DB list is open. null = closed.
   const [logicalTarget, setLogicalTarget] = useState<IdcResourceView | null>(null);
@@ -198,7 +206,7 @@ export const IdcStep6ConnectionVerified = ({
             </strong>{' '}
             PII Agent 운영팀의 승인이 완료되면 모니터링이 즉시 시작됩니다.
           </p>
-          {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (step 2 문법). */}
+          {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
           <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
             통합 테스트 결과가 잘못됐거나 연결 테스트를 한 번 더 수행하고 싶다면 우측 상단{' '}
             <strong className={cn('font-semibold', textColors.secondary)}>연결 재확인</strong>을

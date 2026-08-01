@@ -70,6 +70,8 @@ export const LogicalDbSummaryModal = ({
       // Mirrors the Step 5 modal: no shared header, the title block below is the first
       // element so the two screens read as the same object in two modes.
       chrome="bare"
+      // The bare chrome renders no header, so the dialog carries its name directly.
+      ariaLabel={`${resourceName} 논리 DB 연동 현황`}
       footer={
         <div className="flex w-full items-center justify-between gap-3">
           <span className={cn('text-[12px] leading-[1.5]', textColors.tertiary)}>

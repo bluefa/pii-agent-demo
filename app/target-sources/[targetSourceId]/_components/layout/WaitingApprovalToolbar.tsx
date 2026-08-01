@@ -64,7 +64,9 @@ const FilterMenu = ({ groups: allGroups }: { groups: ReadonlyArray<FilterGroup> 
   const rootRef = useRef<HTMLDivElement>(null);
   // A group with nothing to choose from is dropped rather than rendered as a lone 전체 — IDC rows
   // carry no region, so the Region group would otherwise open onto a single dead option.
-  const groups = allGroups.filter((group) => group.options.length > 0);
+  // A group whose value IS set always stays: if a refetch drops the selected option, hiding the
+  // group would leave the filter applied with no control left to clear it.
+  const groups = allGroups.filter((group) => group.options.length > 0 || group.value);
   const activeCount = groups.filter((group) => group.value).length;
 
   useEffect(() => {

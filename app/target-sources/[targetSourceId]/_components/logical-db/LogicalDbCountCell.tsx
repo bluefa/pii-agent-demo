@@ -24,8 +24,10 @@ export const LogicalDbCountCell = ({
 }) => {
   if (count == null) return <span className={textColors.quaternary}>—</span>;
   if (count === 0) {
+    // tertiary, not the quaternary used for the — placeholder: a reported 0 is content, and 13px
+    // normal text needs 4.5:1 (gray-400 is 2.8:1 on white). Quieter than a link, still readable.
     return (
-      <span className={cn('text-[13px] font-medium', numericFeatures.tabular, textColors.quaternary)}>
+      <span className={cn('text-[13px] font-medium', numericFeatures.tabular, textColors.tertiary)}>
         0<span className="ml-px text-[12px]">개</span>
       </span>
     );

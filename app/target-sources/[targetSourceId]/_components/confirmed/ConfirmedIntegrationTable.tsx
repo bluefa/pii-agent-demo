@@ -31,6 +31,8 @@ interface ConfirmedIntegrationTableProps {
 }
 
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
+const EMPTY_COUNTS: LogicalDbCountMap = new Map();
+
 
 const STATUS_TOOLTIP_CONTENT = (
   <div className="space-y-2 text-[12px] leading-[1.5]">
@@ -61,19 +63,26 @@ export const ConfirmedIntegrationTable = ({
   // test-connection result summaries. Both variants render them: step 7 as plain cells,
   // step 6 as the links into the read-only list. A resource with no summary entry
   // renders "—" rather than a fabricated 0.
-  const [logicalDbCounts, setLogicalDbCounts] = useState<LogicalDbCountMap>(new Map());
+  const [fetched, setFetched] = useState<{ targetSourceId: number; counts: LogicalDbCountMap }>({
+    targetSourceId,
+    counts: EMPTY_COUNTS,
+  });
   useEffect(() => {
     const controller = new AbortController();
     void getLatestTestConnectionResultSummaries(targetSourceId, { signal: controller.signal })
       .then((summaries) => {
         if (controller.signal.aborted) return;
-        setLogicalDbCounts(buildLogicalDbCountMap(summaries));
+        setFetched({ targetSourceId, counts: buildLogicalDbCountMap(summaries) });
       })
       .catch(() => {
         // No summaries available → leave the map empty so cells render "—".
       });
     return () => controller.abort();
   }, [targetSourceId]);
+  // Stamped with the id it was fetched for, so a switch to another target shows "—" until its own
+  // counts land. Resource ids can repeat across target sources — a stale map would silently
+  // attribute one target's counts to another's rows.
+  const logicalDbCounts = fetched.targetSourceId === targetSourceId ? fetched.counts : EMPTY_COUNTS;
 
   // Step 6 renders the step-2·3 approval table: every confirmed row is a target, so the
   // verdict/reason pair is swapped for the Step 5 logical-DB counts (`confirmed` variant).
