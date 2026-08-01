@@ -37,7 +37,7 @@ const CATEGORY_TERMS = [
 
 const CATEGORY_TOOLTIP_CONTENT = (
   <div className="leading-[1.55]">
-    <span className="block text-[13px] font-semibold text-[#6B7280]">설치 구분 안내</span>
+    <span className="block text-[13px] font-semibold text-[#191F28]">설치 구분 안내</span>
     <p className="mt-[4px] text-[12px] text-[#4E5968]">
       스캔 결과를 바탕으로 시스템이 판정하는 값이라 직접 변경할 수 없어요.
     </p>
