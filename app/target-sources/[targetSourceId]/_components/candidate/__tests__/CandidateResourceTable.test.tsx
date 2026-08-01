@@ -62,7 +62,7 @@ describe('CandidateResourceTable', () => {
     expect(screen.getByText('설치 구분 안내')).toBeTruthy();
     expect(screen.getByText(/직접 변경할 수 없어요/)).toBeTruthy();
     expect(screen.getByText(/제외하려면 제외 사유를 입력해야 해요/)).toBeTruthy();
-    expect(screen.getByText(/별도 Agent 설치 없이 연동할 수 있는 리소스/)).toBeTruthy();
+    expect(screen.getByText(/DB 서버를 운영하고 있다면 연동 대상이 맞아요/)).toBeTruthy();
     expect(screen.getByText(/선택할 수 없고, 행의 설치 불가 라벨을 누르면/)).toBeTruthy();
   });
 
@@ -119,7 +119,7 @@ describe('CandidateResourceTable', () => {
       />,
     );
     expect(screen.getByText('설치 대상')).toBeTruthy();
-    expect(screen.getByText('설치 불필요')).toBeTruthy();
+    expect(screen.getByText('설치 선택')).toBeTruthy();
     // 설치 불가 is the one action-blocking value — it carries the guide entry point.
     expect(screen.getByRole('button', { name: '설치 불가 사유 안내 보기' })).toBeTruthy();
   });

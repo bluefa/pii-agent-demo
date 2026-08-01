@@ -45,11 +45,12 @@ const NAME_LIFT = primaryColors.textGroupHover;
 const DIM_TEXT = 'text-[#6B7280]';
 
 // integration_category(시스템의 사실) → 설치-계열 표기. 선택(사용자의 결정)과
-// 단어 가족을 나눠 갖지 않도록 "설치"로만 말한다 — 관리자 승인 상세 모달의
-// 기존 라벨(설치 불필요·설치 불가)과 같은 계열.
+// 단어 가족을 나눠 갖지 않도록 "설치"로만 말한다 — 승인 요청/상세 모달 라벨과
+// 같은 계열. NO_INSTALL_NEEDED는 "설치가 선택사항"(VM·EC2는 DB 외 용도가 많아
+// 필수 대상이 아니고, DB 서버를 운영 중일 때만 연동 대상)이라 설치 선택으로 쓴다.
 const CATEGORY_LABELS: Record<CandidateResource['integrationCategory'], string> = {
   TARGET: '설치 대상',
-  NO_INSTALL_NEEDED: '설치 불필요',
+  NO_INSTALL_NEEDED: '설치 선택',
   INSTALL_INELIGIBLE: '설치 불가',
 };
 

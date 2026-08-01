@@ -24,9 +24,9 @@ const CATEGORY_TERMS = [
       '연동하려면 Agent 설치(4단계)가 진행되는 DB예요. 연동에서 제외하려면 제외 사유를 입력해야 해요.',
   },
   {
-    term: '설치 불필요',
+    term: '설치 선택',
     description:
-      'VM(EC2 등)에 직접 설치해 운영하는 DB처럼 별도 Agent 설치 없이 연동할 수 있는 리소스예요.',
+      'VM·EC2처럼 DB 외 다른 용도로도 쓰는 리소스라 필수 연동 대상은 아니에요. DB 서버를 운영하고 있다면 연동 대상이 맞아요. 행을 펼쳐 데이터베이스 설정을 저장하면 선택할 수 있어요.',
   },
   {
     term: '설치 불가',
@@ -37,7 +37,7 @@ const CATEGORY_TERMS = [
 
 const CATEGORY_TOOLTIP_CONTENT = (
   <div className="leading-[1.55]">
-    <span className="block text-[13px] font-semibold text-[#191F28]">설치 구분 안내</span>
+    <span className="block text-[14px] font-semibold text-[#191F28]">설치 구분 안내</span>
     <p className="mt-[4px] text-[12px] text-[#4E5968]">
       스캔 결과를 바탕으로 시스템이 판정하는 값이라 직접 변경할 수 없어요.
     </p>
@@ -45,7 +45,7 @@ const CATEGORY_TOOLTIP_CONTENT = (
     <div className="space-y-[10px]">
       {CATEGORY_TERMS.map(({ term, description }) => (
         <div key={term}>
-          <span className="block text-[13px] font-bold text-[#191F28]">{term}</span>
+          <span className="block text-[14px] font-bold text-[#191F28]">{term}</span>
           <p className="mt-[2px] text-[12px] text-[#4E5968]">{description}</p>
         </div>
       ))}
