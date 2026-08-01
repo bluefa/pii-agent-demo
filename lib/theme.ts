@@ -1394,6 +1394,10 @@ export const pipelineStyles = {
       'border border-transparent bg-[var(--pl-primary)] text-[var(--pl-white)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-primary-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
     secondary:
       'border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-medium)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-gray-50)] disabled:text-[var(--pl-text-faint)] disabled:border-[var(--pl-border)] disabled:shadow-none',
+    /** Outline-primary — brand stroke on white. Tool CTAs (run-scan family):
+     *  quieter than primary (filled) yet more actionable than secondary (gray). */
+    outline:
+      'border border-[var(--pl-primary)] bg-[var(--pl-bg-card)] text-[var(--pl-primary)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-primary-bg)] disabled:text-[var(--pl-text-faint)] disabled:border-[var(--pl-border)] disabled:shadow-none',
     ghost:
       'border border-transparent bg-transparent text-[var(--pl-text-weak)] enabled:hover:bg-[var(--pl-gray-100)] enabled:hover:text-[var(--pl-text-medium)] disabled:text-[var(--pl-gray-300)]',
     danger:

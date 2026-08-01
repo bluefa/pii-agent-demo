@@ -301,10 +301,17 @@ const addScanHistory = (
   addedResourceIds: string[]
 ): void => {
   const store = getStore();
+  // Monotonic per-target scan version: the max always sits on a retained (newest)
+  // row, so the counter keeps growing even after old rows are purged below.
+  const version =
+    store.scanHistory
+      .filter((h) => h.targetSourceId === scan.targetSourceId)
+      .reduce((max, h) => Math.max(max, h.version), 0) + 1;
   const history: ScanHistory = {
     id: generateId('history'),
     targetSourceId: scan.targetSourceId,
     scanId: scan.id,
+    version,
     provider: scan.provider,
     status: scan.status === 'SUCCESS' ? 'SUCCESS' : 'FAIL',
     startedAt: scan.startedAt,
@@ -319,7 +326,22 @@ const addScanHistory = (
     addedResourceIds,
   };
   store.scanHistory.push(history);
+  // The admin scan tab states the retention policy ("최근 10개 버전까지만 보관") —
+  // enforce it here so the mock tells the truth: keep only the latest 10 per target.
+  const purged = store.scanHistory
+    .filter((h) => h.targetSourceId === scan.targetSourceId)
+    .sort((a, b) => b.version - a.version)
+    .slice(10);
+  for (const stale of purged) {
+    store.scanHistory.splice(store.scanHistory.indexOf(stale), 1);
+  }
 };
+
+/** Version the next scan gets once it completes (provisional for SCANNING responses). */
+export const getNextScanVersion = (targetSourceId: number): number =>
+  getStore()
+    .scanHistory.filter((h) => h.targetSourceId === targetSourceId)
+    .reduce((max, h) => Math.max(max, h.version), 0) + 1;
 
 // ===== MockResource Generation =====
 

@@ -528,6 +528,8 @@ export interface ScanHistory {
   id: string;
   targetSourceId: number;
   scanId: string;
+  /** Per-target run number (monotonic) — survives retention trimming of old rows. */
+  version: number;
   provider: CloudProvider;
   status: 'SUCCESS' | 'FAIL';
   startedAt: string;

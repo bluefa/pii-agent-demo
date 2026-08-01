@@ -2,16 +2,74 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as scanFns from '@/lib/mock-scan';
 import { SCAN_ERROR_CODES } from '@/lib/constants/scan';
-import type { ScanResult } from '@/lib/types';
 
 const parseNumericId = (id: string): number =>
   Number(id.replace(/\D/g, '')) || 0;
 
-const toResourceCountMap = (result: ScanResult | null | undefined): Record<string, number> | null => {
-  if (!result?.byResourceType) return null;
+/**
+ * Demo count synthesis — returns deterministic, scan_version-keyed counts at
+ * production scale (~12 types, up to ~70k per type, ~100k total) instead of the
+ * real mock resource counts, so tag/diff/total rendering can be exercised
+ * (same version = always the same map). Each +1 version drifts every type by
+ * its `drift`, which naturally produces +/− marks; `fromVersion` types appear
+ * from that version to cover the new-type case. Keys are real contract
+ * resource_type enum values.
+ * Caveat (accepted demo artifact, per operator request): the step-1 user screen
+ * lists the real mock resources, so its numbers will not match these — this
+ * synthesis exists for the admin scan tab demo.
+ */
+interface DemoCountSpec {
+  type: string;
+  base: number;
+  drift: number;
+  fromVersion?: number;
+}
+
+const DEMO_COUNTS: Record<string, DemoCountSpec[]> = {
+  AWS: [
+    { type: 'AWS_NETWORK_INTERFACE', base: 68_000, drift: 137 },
+    { type: 'AWS_SUBNET', base: 21_800, drift: 61 },
+    { type: 'AWS_EC2_INSTANCE', base: 9_100, drift: -45 },
+    { type: 'AWS_VPC_SECURITY_GROUP', base: 4_070, drift: 23 },
+    { type: 'AWS_IAM_ROLE', base: 2_580, drift: 9 },
+    { type: 'AWS_DYNAMO_DB_TABLE', base: 1_180, drift: -4 },
+    { type: 'AWS_DB_INSTANCE', base: 590, drift: 3 },
+    { type: 'AWS_S3_BUCKET_POLICY', base: 240, drift: 2 },
+    { type: 'AWS_DB_CLUSTER', base: 84, drift: -1 },
+    { type: 'AWS_REDSHIFT_CLUSTER', base: 30, drift: 1 },
+    { type: 'AWS_ATHENA_DATABASE', base: 12, drift: 1 },
+    { type: 'AWS_KMS', base: 5, drift: 2, fromVersion: 3 },
+  ],
+  Azure: [
+    { type: 'AZURE_NETWORK_INTERFACE', base: 54_000, drift: 118 },
+    { type: 'AZURE_VIRTUAL_SUBNET', base: 18_600, drift: 44 },
+    { type: 'AZURE_VIRTUAL_MACHINE', base: 7_300, drift: -32 },
+    { type: 'AZURE_PRIVATE_ENDPOINT', base: 3_450, drift: 19 },
+    { type: 'AZURE_SERVICE_PRINCIPAL', base: 1_940, drift: 8 },
+    { type: 'AZURE_SQL_SERVER', base: 820, drift: 4 },
+    { type: 'AZURE_MYSQL_FLEXIBLE_SERVER', base: 410, drift: -3 },
+    { type: 'AZURE_POSTGRESQL_FLEXIBLE_SERVER', base: 260, drift: 3 },
+    { type: 'AZURE_COSMOSDB_NOSQL', base: 96, drift: 2 },
+    { type: 'AZURE_MARIADB', base: 34, drift: -1 },
+    { type: 'AZURE_SYNAPSE_WORKSPACE', base: 14, drift: 1 },
+    { type: 'AZURE_SQL_SERVER_MANAGED_INSTANCE', base: 6, drift: 1, fromVersion: 3 },
+  ],
+  // GCP's contract enum only has 3 types — scale (not variety) covers rendering.
+  GCP: [
+    { type: 'GCP_VPC_NETWORK', base: 46_000, drift: 92 },
+    { type: 'GCP_BIGQUERY_DATASET_REGION', base: 12_400, drift: 31 },
+    { type: 'GCP_SQL', base: 3_800, drift: -12 },
+  ],
+  IDC: [{ type: 'IDC_RESOURCE', base: 96_000, drift: 210 }],
+};
+
+const demoCountMap = (provider: string, version: number | null | undefined): Record<string, number> => {
+  const specs = DEMO_COUNTS[provider] ?? DEMO_COUNTS.AWS;
+  const v = Math.max(1, version ?? 1);
   const counts: Record<string, number> = {};
-  for (const { resourceType, count } of result.byResourceType) {
-    counts[resourceType] = count;
+  for (const { type, base, drift, fromVersion } of specs) {
+    if (fromVersion !== undefined && v < fromVersion) continue;
+    counts[type] = Math.max(0, base + drift * (v - 1));
   }
   return counts;
 };
@@ -97,16 +155,20 @@ export const mockScan = {
     // Full Spring PageScanJobResponse. The route validates with
     // schemas.PageScanJobResponse.parse(raw) — content items must be snake wire.
     return NextResponse.json({
+      // scan_version comes from the store row — persisted per run so it keeps
+      // growing even after retention trims old rows (deriving it from
+      // total-offset-index would renumber history whenever rows are purged).
       content: history.map((h) => ({
         id: parseNumericId(h.scanId),
         scan_status: h.status,
         target_source_id: targetSourceId,
         created_at: h.startedAt,
         updated_at: h.completedAt,
-        scan_version: 1,
+        scan_version: h.version,
         scan_progress: null,
         duration_seconds: h.duration,
-        resource_count_by_resource_type: toResourceCountMap(h.result),
+        // Failed scans have no aggregation (null) — only successes get demo counts.
+        resource_count_by_resource_type: h.result ? demoCountMap(h.provider, h.version) : null,
         scan_error: h.error ?? null,
       })),
       totalElements: total,
@@ -178,7 +240,8 @@ export const mockScan = {
         target_source_id: targetSourceId,
         created_at: scanJob.startedAt,
         updated_at: scanJob.startedAt,
-        scan_version: 1,
+        // Provisional version for the run that just started.
+        scan_version: scanFns.getNextScanVersion(targetSourceId),
         scan_progress: scanJob.progress,
         duration_seconds: 0,
         resource_count_by_resource_type: null,
@@ -224,7 +287,7 @@ export const mockScan = {
           target_source_id: targetSourceId,
           created_at: updated.startedAt,
           updated_at: updated.startedAt,
-          scan_version: 1,
+          scan_version: scanFns.getNextScanVersion(targetSourceId),
           scan_progress: updated.progress,
           duration_seconds: 0,
           resource_count_by_resource_type: null,
@@ -242,10 +305,10 @@ export const mockScan = {
         target_source_id: targetSourceId,
         created_at: last.startedAt,
         updated_at: last.completedAt,
-        scan_version: 1,
+        scan_version: last.version,
         scan_progress: null,
         duration_seconds: last.duration,
-        resource_count_by_resource_type: toResourceCountMap(last.result),
+        resource_count_by_resource_type: last.result ? demoCountMap(last.provider, last.version) : null,
         scan_error: last.error ?? null,
       });
     }
