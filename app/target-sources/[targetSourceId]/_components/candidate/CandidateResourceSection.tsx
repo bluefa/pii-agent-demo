@@ -427,7 +427,7 @@ export const CandidateResourceSection = ({
                     break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
                 <p className={cn('mt-2.5 break-keep text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
                   인프라 스캔으로 {provider} 계정의 리소스를 조회하고,{' '}
-                  <span className={primaryColors.text}>연동할 DB를 선택</span>해요. 제외하는
+                  <span className={primaryColors.text}>연동할 리소스를 선택</span>해요. 제외하는
                   리소스에는 <span className={primaryColors.text}>사유가 필요</span>하고, 결과는
                   관리자 승인을 거쳐 확정돼요.
                 </p>
