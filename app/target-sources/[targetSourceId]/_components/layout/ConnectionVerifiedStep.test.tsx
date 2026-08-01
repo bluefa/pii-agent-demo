@@ -99,9 +99,20 @@ describe('ConnectionVerifiedStep', () => {
     expect(screen.getByText('승인 대기')).toBeTruthy();
   });
 
-  it('renders the banner copy', () => {
+  it('renders the 6번째 단계 step tag', () => {
+    renderStep();
+    expect(screen.getByText('6번째 단계')).toBeTruthy();
+  });
+
+  it('renders the merged guidance sentence (header subtitle + banner copy were one message)', () => {
     renderStep();
     expect(screen.getByText('최종 관리자 승인을 기다리고 있어요.')).toBeTruthy();
+    expect(screen.getByText(/PII Agent 운영팀의 승인이 완료되면 모니터링이 즉시 시작됩니다/)).toBeTruthy();
+  });
+
+  it('captions the retest button with when to press it', () => {
+    renderStep();
+    expect(screen.getByText('접속 정보가 바뀌었거나 결과가 잘못됐다면 눌러주세요')).toBeTruthy();
   });
 
   it('mounts the ConfirmedResourcesSlot', () => {

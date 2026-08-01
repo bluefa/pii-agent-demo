@@ -3,10 +3,9 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { getProject, updateTestConnectionConfirmation } from '@/app/lib/api';
-import { StepBanner } from '@/app/components/ui/StepBanner';
-import { ClockIcon, ReloadIcon } from '@/app/components/ui/icons';
+import { ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
-import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
+import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -97,32 +96,55 @@ export const ConnectionVerifiedStep = ({
         action={action}
       />
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
-        <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
-          <div>
-            <h2 className={cardStyles.cardTitle}>
-              완료 여부 관리자 승인 대기
-            </h2>
-            <p className={cn('mt-2.5', cardStyles.subtitle)}>
-              PII Agent 운영팀의 최종 승인이 완료되면 모니터링이 시작됩니다.
-            </p>
+        {/* Same left-aligned stack as steps 2·3: step tag, title + status, guidance copy. */}
+        <header className={cardStyles.header}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
+              <span
+                className={cn(
+                  'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
+                  primaryColors.bgLight,
+                  primaryColors.textOnLight,
+                )}
+              >
+                6번째 단계
+              </span>
+              <div className="flex items-center gap-2">
+                <h2 className={cardStyles.cardTitle}>완료 여부 관리자 승인 대기</h2>
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
+                    statusColors.warning.bg,
+                    statusColors.warning.textDark,
+                  )}
+                >
+                  승인 대기
+                </span>
+              </div>
+            </div>
+            {/* C-3: auxiliary retest action pinned to the header right. The caption under it
+                answers "when do I press this?" — the action is a rewind, not a next step. */}
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <ConnectionVerifiedRetestButton
+                targetSourceId={project.targetSourceId}
+                onRolledBack={refreshProject}
+              />
+              <p className={cn('text-[12px] leading-[1.5]', textColors.quaternary)}>
+                접속 정보가 바뀌었거나 결과가 잘못됐다면 눌러주세요
+              </p>
+            </div>
           </div>
-          {/* C-3: auxiliary retest action pinned to the header right, status pill outermost. */}
-          <div className="flex shrink-0 items-center gap-2.5">
-            <ConnectionVerifiedRetestButton
-              targetSourceId={project.targetSourceId}
-              onRolledBack={refreshProject}
-            />
-            <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.partial.text)}>
-              <span className={cn(idcStyles.status.dot, idcStyles.status.partial.dot)} />
-              승인 대기
-            </span>
-          </div>
+          {/* One sentence instead of two: the header subtitle and the info banner said the same
+              thing. Blue marks the status clause only, matching steps 2·3. */}
+          <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+            <strong className={cn('font-semibold', primaryColors.text)}>
+              최종 관리자 승인을 기다리고 있어요.
+            </strong>{' '}
+            PII Agent 운영팀의 승인이 완료되면 모니터링이 즉시 시작됩니다.
+          </p>
         </header>
-        <div className="p-6">
-          <StepBanner variant="info" icon={<ClockIcon className="w-[18px] h-[18px]" />}>
-            <strong className="font-semibold">최종 관리자 승인을 기다리고 있어요.</strong>
-            {' '}승인이 완료되면 모니터링이 즉시 시작됩니다.
-          </StepBanner>
+        <div className="px-6 pb-6">
           <ConfirmedResourcesSlot bare />
         </div>
       </section>
