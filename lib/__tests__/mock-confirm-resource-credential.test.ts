@@ -87,12 +87,16 @@ describe('mockConfirm.updateResourceCredential', () => {
         resource_type: 'AZURE_MSSQL',
         endpoint_config: null,
         credential_id: 'cred-new',
-        // Contract metadata (region/database_type live here for Step3).
+        // Contract metadata — the connection facts live here, since endpoint_config is the VM
+        // path and stays null for everything else.
         // provider is the wire value (AZURE), not the internal CloudProvider ('Azure').
         metadata: {
           provider: 'AZURE',
           region: 'ap-northeast-1',
           database_type: 'MSSQL',
+          // Same derive the confirmed serializer uses, so a row keeps one port across steps 3→4.
+          port: 1433,
+          oracle_service_id: null,
         },
         // Demo enrichment: Azure region + friendly name are derived deterministically.
         database_region: 'ap-northeast-1',

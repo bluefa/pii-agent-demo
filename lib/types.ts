@@ -845,6 +845,13 @@ export interface ResourceSnapshot {
     provider?: string | null;
     region?: string | null;
     database_type?: string | null;
+    // `endpoint_config` is the VM path only (it is null for every non-VM row). For IDC the
+    // connection facts arrive here — TargetSourceResourceMetadataDto declares host/port/
+    // oracle_service_id — and reading only endpoint_config left steps 2·3 rendering an empty
+    // Database Type and a fabricated port 0.
+    host?: string | null;
+    port?: number | null;
+    oracle_service_id?: string | null;
   } | null;
   // ResourceConfigDto extension fields — preserved through the approved-integration mapping.
   database_region?: string | null;

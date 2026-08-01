@@ -47,15 +47,36 @@ export function useIdcResources(
   targetSourceId: number,
   source: IdcResourceSource,
 ): { state: ResourcesState } {
-  const [state, setState] = useState<ResourcesState>({ status: 'loading' });
+  const { state } = useIdcRead(targetSourceId, source);
+  return {
+    state: state.status === 'ready' ? { status: 'ready', resources: state.data } : state,
+  };
+}
+
+/** What a read resolves to. */
+export type IdcReadState<T> =
+  | { status: 'loading' }
+  | { status: 'ready'; data: T }
+  | { status: 'error' };
+
+/**
+ * `useIdcResources` for a read whose payload is more than the row list — step 3 also needs the
+ * approval meta, which rides the same approved-integration response and would otherwise cost a
+ * second GET of the endpoint the rows already came from. Same DR3 discipline.
+ */
+export function useIdcRead<T>(
+  targetSourceId: number,
+  source: (targetSourceId: number, opts?: { signal?: AbortSignal }) => Promise<T>,
+): { state: IdcReadState<T> } {
+  const [state, setState] = useState<IdcReadState<T>>({ status: 'loading' });
 
   useEffect(() => {
     const controller = new AbortController();
 
     void source(targetSourceId, { signal: controller.signal })
-      .then((resources) => {
+      .then((data) => {
         if (controller.signal.aborted) return; // cleanup aborted this request (DR3)
-        setState({ status: 'ready', resources });
+        setState({ status: 'ready', data });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted || isAbort(error)) return; // DR3

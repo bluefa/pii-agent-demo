@@ -44,14 +44,19 @@ interface IdcTargetListTableProps {
 // Checkbox → identity (구분 · 연동 대상 · Port) → attribute (Database Type) → decision (제외 사유)
 // → row actions, the cloud step-1 order. The 연동 완료 여부 column is gone: every IDC adapter
 // sets `done: null`, so it rendered an em-dash on every row of every list.
+// Widths are declared for the approval skin's 18px horizontal cell padding — the old set was
+// tuned for px-4 (32px) and left every fixed column narrower than its own content, so the browser
+// re-flowed them and dumped the slack into Database Type (the only auto column). Port and 구분
+// take the step-6 table's numbers for the same columns; the identity column is the one left auto,
+// because hosts are the unbounded value here.
 const HEADERS: ReadonlyArray<{ label: string; className?: string }> = [
-  { label: '', className: 'w-[44px]' },
-  { label: '구분', className: 'w-[100px]' },
-  { label: '연동 대상', className: 'w-[220px]' },
-  { label: 'Port', className: 'w-[70px]' },
-  { label: 'Database Type' },
+  { label: '', className: 'w-[52px]' },
+  { label: '구분', className: 'w-[110px]' },
+  { label: '연동 대상' },
+  { label: 'Port', className: 'w-[80px]' },
+  { label: 'Database Type', className: 'w-[140px]' },
   { label: '제외 사유', className: 'w-[190px]' },
-  { label: '', className: 'w-[76px]' },
+  { label: '', className: 'w-[84px]' },
 ];
 
 /**
@@ -121,7 +126,7 @@ export const IdcTargetListTable = ({
                       dim,
                     )}
                   >
-                    {row.port}
+                    {row.port || <span className={textColors.quaternary}>—</span>}
                   </td>
                   <td className={cn(idcStyles.table.approvalCell, dim)}>
                     <IdcDbTypeCell resource={row} />

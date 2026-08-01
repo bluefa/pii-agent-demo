@@ -19,11 +19,13 @@ import {
   IDC_SEARCH_PLACEHOLDER,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
-import type { IdcResourceView } from '@/app/lib/api/idc';
-import { getIdcApprovedResources } from '@/app/lib/api/idc';
-import { useIdcResources } from '@/app/hooks/useIdcResources';
+import {
+  getIdcApprovedIntegration,
+  type IdcApprovedIntegrationView,
+} from '@/app/lib/api/idc';
+import { useIdcRead } from '@/app/hooks/useIdcResources';
 
-const EMPTY_RESOURCES: readonly IdcResourceView[] = [];
+const EMPTY_VIEW: IdcApprovedIntegrationView = { resources: [], approvedAt: null, approver: null };
 
 /**
  * IDC Step 3 — 연동 대상 반영중 (read-only). The cloud sibling's card (ApplyingApprovedCard):
@@ -39,11 +41,11 @@ export const IdcStep3Applying = ({
   providerLabel,
   action,
 }: IdcStepProps) => {
-  // Step 3 source: the approved list (approved-integration).
-  const { state } = useIdcResources(project.targetSourceId, getIdcApprovedResources);
+  // Step 3 source: the approved list + its approval signature (approved-integration).
+  const { state } = useIdcRead(project.targetSourceId, getIdcApprovedIntegration);
 
-  const resources = state.status === 'ready' ? state.resources : EMPTY_RESOURCES;
-  const { table, visibleResources } = useIdcApprovalTable(resources);
+  const view = state.status === 'ready' ? state.data : EMPTY_VIEW;
+  const { table, visibleResources } = useIdcApprovalTable(view.resources);
 
   return (
     <>
@@ -74,12 +76,15 @@ export const IdcStep3Applying = ({
             <strong className={cn('font-semibold', primaryColors.text)}>승인이 완료됐어요.</strong>{' '}
             Agent 설치에 필요한 준비를 최대한 빠르게 진행하고 있어요.
           </p>
-          {/* 승인일시 only. The approver used to render a hardcoded name (and the date fell back to
-              a hardcoded one) — the IDC read returns neither, so the row shows the one fact the
-              project actually carries rather than a plausible-looking invention. */}
-          {project.approvedAt && (
+          {/* Both come from the approved-integration response the rows came from. They used to be
+              a hardcoded name and a hardcoded date fallback — the project payload has no approver,
+              which is what made the invention tempting. */}
+          {(view.approvedAt || view.approver) && (
             <div className="mt-4 flex flex-wrap gap-8">
-              <MetaField label="승인일시" value={formatDate(project.approvedAt, 'datetime')} />
+              {view.approvedAt && (
+                <MetaField label="승인일시" value={formatDate(view.approvedAt, 'datetime')} />
+              )}
+              {view.approver && <MetaField label="승인자" value={view.approver} />}
             </div>
           )}
         </header>
@@ -108,7 +113,7 @@ export const IdcStep3Applying = ({
               />
               <IdcResourceTable
                 resources={visibleResources}
-                cols={['src', 'excl']}
+                cols={['excl']}
                 connected
                 emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
               />

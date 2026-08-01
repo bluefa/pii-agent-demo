@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { ErrorState } from '@/app/components/ui/state';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -22,26 +21,19 @@ import {
   IDC_SEARCH_PLACEHOLDER,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
-import type { IdcResourceView } from '@/app/lib/api/idc';
-import { AppError } from '@/lib/errors';
-import { getApprovalRequestLatest, getProject } from '@/app/lib/api';
-import { getIdcApprovalRequestResources } from '@/app/lib/api/idc';
-import { useIdcResources } from '@/app/hooks/useIdcResources';
+import { getProject } from '@/app/lib/api';
+import {
+  getIdcApprovalRequestLatest,
+  type IdcApprovalRequestView,
+} from '@/app/lib/api/idc';
+import { useIdcRead } from '@/app/hooks/useIdcResources';
 
-const EMPTY_RESOURCES: readonly IdcResourceView[] = [];
-
-interface RequestSummary {
-  requestedAt: string;
-  requestedBy: string;
-}
-
-/** The verdict + the submission meta, both from approval-requests/latest. */
-interface LatestView {
-  unavailable: { reason: string } | null;
-  summary: RequestSummary | null;
-}
-
-const EMPTY_LATEST: LatestView = { unavailable: null, summary: null };
+const EMPTY_VIEW: IdcApprovalRequestView = {
+  resources: [],
+  unavailableReason: null,
+  requestedAt: null,
+  requestedBy: null,
+};
 
 /**
  * IDC Step 2 — 연동 대상 승인 대기 (read-only).
@@ -63,43 +55,13 @@ export const IdcStep2WaitingApproval = ({
 }: IdcStepProps) => {
   const { targetSourceId } = project;
 
-  // Step 2 source: the requested list via approved-integration, not previous-request.
-  const { state } = useIdcResources(targetSourceId, getIdcApprovalRequestResources);
+  // Step 2 source: approval-requests/latest — the request as submitted. Rows, verdict and
+  // signature all ride one response, and it is the only read that keeps the connection info on
+  // EXCLUDED rows (approved-integration's excluded DTO drops it).
+  const { state } = useIdcRead(targetSourceId, getIdcApprovalRequestLatest);
 
-  // The table source (approved-integration) carries neither the verdict nor who requested it,
-  // so approval-requests/latest is read separately for both.
-  const [latest, setLatest] = useState<{ targetSourceId: number; view: LatestView }>({
-    targetSourceId,
-    view: EMPTY_LATEST,
-  });
-  useEffect(() => {
-    const controller = new AbortController();
-    void getApprovalRequestLatest(targetSourceId, { signal: controller.signal })
-      .then((res) => {
-        if (controller.signal.aborted) return;
-        const requestedAt = res.request?.requested_at;
-        const requestedBy = res.request?.requested_by?.user_id;
-        setLatest({
-          targetSourceId,
-          view: {
-            unavailable:
-              res.result?.status === 'UNAVAILABLE' ? { reason: res.result?.reason ?? '' } : null,
-            summary: requestedAt && requestedBy ? { requestedAt, requestedBy } : null,
-          },
-        });
-      })
-      .catch((error: unknown) => {
-        if (error instanceof AppError && (error.code === 'ABORTED' || error.code === 'NOT_FOUND')) return;
-        // Non-fatal: leave the verdict unset and let the normal waiting card render.
-      });
-    return () => controller.abort();
-  }, [targetSourceId]);
-  // Stamped with the id it was fetched for — a stale verdict would replace the whole card for the
-  // wrong target on a switch.
-  const { unavailable, summary } = latest.targetSourceId === targetSourceId ? latest.view : EMPTY_LATEST;
-
-  const resources = state.status === 'ready' ? state.resources : EMPTY_RESOURCES;
-  const { table, visibleResources } = useIdcApprovalTable(resources);
+  const view = state.status === 'ready' ? state.data : EMPTY_VIEW;
+  const { table, visibleResources } = useIdcApprovalTable(view.resources);
 
   const refreshProject = async () => onProjectUpdate(await getProject(targetSourceId));
 
@@ -111,10 +73,10 @@ export const IdcStep2WaitingApproval = ({
         identity={identity}
         action={action}
       />
-      {unavailable ? (
+      {view.unavailableReason != null ? (
         <ApprovalUnavailableCard
           targetSourceId={targetSourceId}
-          reason={unavailable.reason}
+          reason={view.unavailableReason}
           onReselected={refreshProject}
         />
       ) : (
@@ -156,12 +118,12 @@ export const IdcStep2WaitingApproval = ({
               <strong className={cn('font-semibold', textColors.secondary)}>다시 요청하기</strong>를
               눌러주세요.
             </p>
-            {summary && (
+            {view.requestedAt && view.requestedBy && (
               // 24px above it — the widest gap in the header, marking the boundary between
               // "what happened / what to do" and reference facts.
               <div className="mt-6 flex flex-wrap gap-8">
-                <MetaField label="요청일시" value={formatDate(summary.requestedAt, 'datetime')} />
-                <MetaField label="요청자" value={summary.requestedBy} />
+                <MetaField label="요청일시" value={formatDate(view.requestedAt, 'datetime')} />
+                <MetaField label="요청자" value={view.requestedBy} />
               </div>
             )}
           </header>
@@ -192,7 +154,7 @@ export const IdcStep2WaitingApproval = ({
                 />
                 <IdcResourceTable
                   resources={visibleResources}
-                  cols={['src', 'excl']}
+                  cols={['excl']}
                   connected
                   emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
                 />

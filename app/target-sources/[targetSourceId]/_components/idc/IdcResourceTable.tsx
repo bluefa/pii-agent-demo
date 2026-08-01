@@ -190,9 +190,22 @@ export const IdcResourceTable = ({
                     : cn(idcStyles.table.row, r.excluded && 'bg-[#F7F8FA]')
                 }
               >
-                <td className={cn(skin.cell, dim)}><IdcKindBadge kind={r.kind} /></td>
+                {/* Same rule as the host and port cells: rows from ExcludedResourceInfoDto carry
+                    no endpoint at all, and the adapter's fallback 'SINGLE' would assert an
+                    endpoint shape nobody reported. */}
+                <td className={cn(skin.cell, dim)}>
+                  {r.hosts.length > 0 ? (
+                    <IdcKindBadge kind={r.kind} />
+                  ) : (
+                    <span className={textColors.quaternary}>—</span>
+                  )}
+                </td>
                 <td className={cn(skin.cell, dim)}><IdcEndpointCell resource={r} /></td>
-                <td className={cn(skin.cell, 'font-mono text-[12px]', textColors.secondary, CELL_LIFT, dim)}>{r.port}</td>
+                {/* 0 is the adapter's "no port in the payload" value, not a port — an em-dash
+                    says the field is missing instead of asserting a nonsense one. */}
+                <td className={cn(skin.cell, 'font-mono text-[12px]', textColors.secondary, CELL_LIFT, dim)}>
+                  {r.port || <span className={textColors.quaternary}>—</span>}
+                </td>
                 <td className={cn(skin.cell, dim)}><IdcDbTypeCell resource={r} /></td>
                 {has('src') && (
                   <td className={cn(skin.cell, dim)}>

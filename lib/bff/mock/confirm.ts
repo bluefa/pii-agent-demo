@@ -372,11 +372,16 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
     resource_type: r.type,
     endpoint_config,
     credential_id: resolveCredential(project.cloudProvider, r),
-    // Contract metadata (TargetSourceResourceMetadataDto) — Step3 reads region/database_type here.
+    // Contract metadata (TargetSourceResourceMetadataDto) — Steps 2·3 read the connection facts
+    // here, since endpoint_config stays null for everything but VM rows. Port and Oracle SID come
+    // from the same derive the confirmed serializer uses, so a row does not change its port
+    // between step 3 and step 4.
     metadata: {
       provider: cloudProviderToWireProvider(project.cloudProvider),
       region: demoRegion(project.cloudProvider, r),
       database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
+      port: r.vmDatabaseConfig?.port ?? resolvePort(project.cloudProvider, r),
+      oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
     },
     database_region: demoRegion(project.cloudProvider, r),
     resource_name: demoResourceName(project.cloudProvider, r),
@@ -792,7 +797,15 @@ export const mockConfirm = {
         approved_by: { user_id: '김보안 (kim.security)' },
         resources: [
           ...selectedResources.map((r) => ({ ...toResourceSnapshot(r, project), selected: true })),
-          ...excludedResources.map((r) => ({ ...toExcludedResourceInfo(r, project), selected: false })),
+          // Excluded rows ride the SAME flat `resources` array, so they carry the same snapshot
+          // fields — the exclusion payload only adds the reason on top. Emitting the reduced
+          // shape alone dropped metadata/idc_* and left steps 2·3 rendering an em-dash for the
+          // host and port the user had actually submitted.
+          ...excludedResources.map((r) => ({
+            ...toResourceSnapshot(r, project),
+            ...toExcludedResourceInfo(r, project),
+            selected: false,
+          })),
         ],
       });
     }

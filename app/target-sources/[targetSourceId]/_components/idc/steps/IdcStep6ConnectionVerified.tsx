@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
@@ -17,8 +17,11 @@ import {
 import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
-import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
-import type { WaitingApprovalResource } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { useIdcApprovalTable } from '@/app/target-sources/[targetSourceId]/_components/idc/approval-table';
+import {
+  IDC_FILTER_EMPTY_MESSAGE,
+  IDC_SEARCH_PLACEHOLDER,
+} from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
 import { LogicalDbSummaryModal } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbSummaryModal';
 import {
   buildLogicalDbCountMap,
@@ -33,12 +36,8 @@ import {
 import { getIdcConfirmedResources, type IdcResourceView } from '@/app/lib/api/idc';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
 
-const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 const EMPTY_RESOURCES: readonly IdcResourceView[] = [];
 const EMPTY_COUNTS: LogicalDbCountMap = new Map();
-
-/** `resourceType` already carries the IDC display label — pass it through unchanged. */
-const dbTypeLabelOf = (row: WaitingApprovalResource): string => row.resourceType;
 
 /** 연결 재확인 — opens the confirm-rewind modal (mirrors the cloud sibling). */
 const ConnectionVerifiedRetestButton = ({
@@ -129,32 +128,10 @@ export const IdcStep6ConnectionVerified = ({
   // The resource whose logical-DB list is open. null = closed.
   const [logicalTarget, setLogicalTarget] = useState<IdcResourceView | null>(null);
 
-  // Search / filter / paging shared with the CSP step-6 table. The IDC row is projected onto the
-  // approval shape the hook indexes: host stands in for the resource name (it is what the 연동 대상
-  // column shows and what a user would type), and region stays empty — IDC rows have none, so the
-  // toolbar drops that filter group rather than offering an empty one.
+  // Search / filter / paging shared with the cloud step-6 table, via the same IDC projection
+  // steps 1·2·3 use.
   const resources = state.status === 'ready' ? state.resources : EMPTY_RESOURCES;
-  const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
-    () =>
-      resources.map((r) => ({
-        resourceId: r.resourceId,
-        // The IDC display label, so the filter option reads exactly as the column does.
-        resourceType: r.databaseTypeLabel,
-        region: '',
-        resourceName: r.hosts.join(' '),
-        selected: !r.excluded,
-      })),
-    [resources],
-  );
-  const table = useApprovalTableState(approvalRows, dbTypeLabelOf);
-  const byId = useMemo(() => new Map(resources.map((r) => [r.resourceId, r])), [resources]);
-  const visibleResources = useMemo(
-    () =>
-      table.visibleResources
-        .map((row) => byId.get(row.resourceId))
-        .filter((r): r is IdcResourceView => r != null),
-    [table.visibleResources, byId],
-  );
+  const { table, visibleResources } = useIdcApprovalTable(resources);
 
   return (
     <>
@@ -219,6 +196,7 @@ export const IdcStep6ConnectionVerified = ({
                 onRegionChange={table.onRegionChange}
                 dbTypeOptions={table.dbTypeOptions}
                 regionOptions={table.regionOptions}
+                searchPlaceholder={IDC_SEARCH_PLACEHOLDER}
               />
               <IdcResourceTable
                 resources={visibleResources}
@@ -226,7 +204,7 @@ export const IdcStep6ConnectionVerified = ({
                 logicalDbCounts={logicalDbCounts}
                 onLogicalOpen={setLogicalTarget}
                 connected
-                emptyMessage={FILTER_EMPTY_MESSAGE}
+                emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
               />
               {table.filteredCount > 0 && (
                 <Pagination
