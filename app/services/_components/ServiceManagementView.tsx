@@ -252,7 +252,7 @@ export const ServiceManagementView = () => {
               <Breadcrumb
                 crumbs={[
                   { label: 'SIT Home', href: '/' },
-                  { label: 'Service List' },
+                  { label: '서비스 목록' },
                 ]}
               />
               <ServiceHeaderV7

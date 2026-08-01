@@ -84,7 +84,7 @@ describe('ProjectPageMeta — identity-bar provider name', () => {
   it('renders no breadcrumb', () => {
     render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />);
     expect(screen.queryByText('AWS Infrastructure')).toBeNull();
-    expect(screen.queryByText('Service List')).toBeNull();
+    expect(screen.queryByText('서비스 목록')).toBeNull();
   });
 
   it('shows the bare "IDC" token in the identity bar for IDC', () => {

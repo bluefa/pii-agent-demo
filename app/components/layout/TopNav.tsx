@@ -38,7 +38,7 @@ const UTILITY_ITEMS: Array<{ label: string; icon: React.ReactNode }> = [
 
 const NAV_ITEMS: NavItem[] = [
   {
-    label: 'Service List',
+    label: '서비스 목록',
     href: passRoutes.services,
     isActive: (pathname) =>
       pathname.startsWith('/services') ||

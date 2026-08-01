@@ -123,7 +123,7 @@ export const ServiceSidebar = ({
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
     <aside className="w-[296px] shrink-0 bg-white shadow-sm flex flex-col">
       <div className="px-4 pt-4 pb-3 flex items-baseline justify-between gap-2">
-        <h2 className={cn('text-sm font-bold', textColors.primary)}>Service List</h2>
+        <h2 className={cn('text-sm font-bold', textColors.primary)}>서비스 목록</h2>
         {/* Query-scoped while searching, so the catalog total only holds when idle —
             during a search the count lives next to the input instead. */}
         {!searchQuery && totalElements > 0 && (
@@ -208,14 +208,11 @@ export const ServiceSidebar = ({
         )}
       </ul>
 
-      <div className={cn('border-t px-4 py-3', borderColors.light)}>
-        <div className={cn('flex items-center justify-between text-xs tabular-nums', textColors.tertiary)}>
-          <span>{searchQuery ? `검색 결과 ${totalElements}개` : `총 ${totalElements}개 서비스`}</span>
-          {totalPages > 1 && <span>{currentPage + 1} / {totalPages}쪽</span>}
-        </div>
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-1 mt-2">
+      {/* Counts live in the header (catalog total) and next to the input (hits), so
+          the bottom bar carries pagination only. */}
+      {totalPages > 1 && (
+        <div className={cn('border-t px-4 py-3', borderColors.light)}>
+          <div className="flex items-center justify-center gap-1">
             <button
               type="button"
               onClick={() => onPageChange(Math.max(0, currentPage - 1))}
@@ -254,8 +251,8 @@ export const ServiceSidebar = ({
               </svg>
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </aside>
   );
 };
