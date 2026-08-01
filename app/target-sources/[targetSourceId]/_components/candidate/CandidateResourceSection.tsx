@@ -28,8 +28,10 @@ import {
   textColors,
 } from '@/lib/theme';
 import type { CloudProvider } from '@/lib/types';
-import type { CandidateDraftState, EndpointConfigDraft } from '@/lib/types/resources';
+import type { CandidateDraftState, CandidateResource, EndpointConfigDraft } from '@/lib/types/resources';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
+import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
+import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
 import type { CandidateRowActions } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
@@ -109,12 +111,6 @@ export const CandidateResourceSection = ({
   const [drafts, setDrafts] = useState<CandidateDraftState>(EMPTY_DRAFTS);
   const [expandedResourceId, setExpandedResourceId] = useState<string | null>(null);
 
-  // 표 푸터 페이지네이션 — Step 2 표와 같은 마감 바(rounded-b)가 표를 닫는다.
-  // 선택(selectedIds)·제외 사유·비활성 사유 계산은 전부 전체 후보 기준을 유지하고,
-  // 페이지는 렌더되는 행만 자른다.
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-
   // Plain id→reason map for the payload adapter and the table's reason chips.
   const exclusionReasons = useMemo(
     () => Object.fromEntries(Object.entries(exclusions).map(([id, e]) => [id, e.reason])),
@@ -127,12 +123,32 @@ export const CandidateResourceSection = ({
     [candidates],
   );
 
-  // 재스캔으로 후보가 줄면 현재 페이지가 범위를 벗어날 수 있다 — 항상 클램프해 읽는다.
-  const safePage = Math.min(page, Math.max(0, Math.ceil(candidates.length / pageSize) - 1));
-  const visibleCandidates = useMemo(
-    () => candidates.slice(safePage * pageSize, (safePage + 1) * pageSize),
-    [candidates, safePage, pageSize],
+  // Step 2·3와 동일한 검색/DB Type/Region/페이지 파생(useApprovalTableState)을
+  // 그대로 쓴다 — 훅의 입력 모양(WaitingApprovalResource)으로 어댑트하고, 옵션
+  // 문자열이 셀 표기와 일치하도록 셀과 같은 소스(드래프트 인지 dbType,
+  // metadata.region)를 넣는다. 선택·제외 사유·CTA 비활성 계산은 전부 필터와
+  // 무관하게 전체 후보 기준을 유지한다.
+  const approvalShaped = useMemo(
+    () => candidates.map((candidate) => ({
+      resourceId: candidate.resourceId,
+      resourceName: candidate.resourceName,
+      resourceType: candidate.type,
+      displayDbType: drafts.endpointDrafts[candidate.id]?.databaseType
+        ?? candidate.endpointConfig?.databaseType
+        ?? candidate.databaseType
+        ?? '',
+      region: candidate.metadata.region ?? '',
+      selected: selectedIds.has(candidate.id),
+    })),
+    [candidates, drafts, selectedIds],
   );
+  const table = useApprovalTableState(approvalShaped);
+  const visibleCandidates = useMemo(() => {
+    const byResourceId = new Map(candidates.map((candidate) => [candidate.resourceId, candidate]));
+    return table.visibleResources
+      .map((resource) => byResourceId.get(resource.resourceId))
+      .filter((candidate): candidate is CandidateResource => candidate != null);
+  }, [candidates, table.visibleResources]);
 
   // 승인 요청 CTA의 비활성 사유를 데이터로 명시 — 버튼 disabled 와 호버 설명이
   // 같은 원천을 읽는다. 빈 문자열·공백 사유는 미입력으로 취급(listMissing이 trim).
@@ -180,20 +196,39 @@ export const CandidateResourceSection = ({
   const picker = useExclusionPicker({ onSelect: select, onExclude: exclude });
   const { popover, reasonModal, closeAll: closePicker } = picker;
 
-  // 페이지가 바뀌면 행에 앵커된 UI(확장 패널·제외 팝오버)의 대상 행이 화면에서
-  // 사라진다 — 죽은 앵커를 남기지 않게 함께 닫는다.
+  // 검색·필터·페이지가 바뀌면 행에 앵커된 UI(확장 패널·제외 팝오버)의 대상 행이
+  // 화면에서 사라진다 — 죽은 앵커를 남기지 않게 모든 뷰 변경 핸들러가 함께 닫는다.
+  const {
+    onSearchChange: tableSearchChange,
+    onDbTypeChange: tableDbTypeChange,
+    onRegionChange: tableRegionChange,
+    onPageChange: tablePageChange,
+    onPageSizeChange: tablePageSizeChange,
+  } = table;
+  const closeRowUi = useCallback(() => {
+    setExpandedResourceId(null);
+    closePicker();
+  }, [closePicker]);
+  const handleSearchChange = useCallback((next: string) => {
+    tableSearchChange(next);
+    closeRowUi();
+  }, [tableSearchChange, closeRowUi]);
+  const handleDbTypeChange = useCallback((next: string) => {
+    tableDbTypeChange(next);
+    closeRowUi();
+  }, [tableDbTypeChange, closeRowUi]);
+  const handleRegionChange = useCallback((next: string) => {
+    tableRegionChange(next);
+    closeRowUi();
+  }, [tableRegionChange, closeRowUi]);
   const handlePageChange = useCallback((next: number) => {
-    setPage(next);
-    setExpandedResourceId(null);
-    closePicker();
-  }, [closePicker]);
-
+    tablePageChange(next);
+    closeRowUi();
+  }, [tablePageChange, closeRowUi]);
   const handlePageSizeChange = useCallback((next: number) => {
-    setPageSize(next);
-    setPage(0);
-    setExpandedResourceId(null);
-    closePicker();
-  }, [closePicker]);
+    tablePageSizeChange(next);
+    closeRowUi();
+  }, [tablePageSizeChange, closeRowUi]);
 
   const approval = useApiAction(
     async () => {
@@ -256,11 +291,15 @@ export const CandidateResourceSection = ({
   const handleScanComplete = useCallback(async () => {
     setDrafts(EMPTY_DRAFTS);
     setExpandedResourceId(null);
-    setPage(0);
+    // 재스캔이면 목록이 통째로 바뀐다 — 이전 검색·필터가 새 결과를 가리지 않게 초기화.
+    tableSearchChange('');
+    tableDbTypeChange('');
+    tableRegionChange('');
+    tablePageChange(0);
     closePicker();
     refetchAfterScan();
     await refreshProject();
-  }, [closePicker, refetchAfterScan, refreshProject]);
+  }, [tableSearchChange, tableDbTypeChange, tableRegionChange, tablePageChange, closePicker, refetchAfterScan, refreshProject]);
 
   const handleApprovalConfirm = useCallback(() => {
     void approval.execute();
@@ -315,10 +354,20 @@ export const CandidateResourceSection = ({
               case 'scanFailed':
                 return <ScanErrorState onRetry={startScan} />;
               case 'list':
-                // Step 2 표 문법 그대로: 틴트 thead(상단 라운드) → 무윤곽 바디 →
+                // Step 2 표 스택 그대로: 툴바(검색+필터, 상단 라운드) → 무윤곽 표 →
                 // Pagination 마감 바(rounded-b). 윤곽은 Header/Footer 두 세그먼트뿐이다.
                 return (
                   <div>
+                    <WaitingApprovalToolbar
+                      searchValue={table.searchValue}
+                      onSearchChange={handleSearchChange}
+                      dbType={table.dbType}
+                      onDbTypeChange={handleDbTypeChange}
+                      region={table.region}
+                      onRegionChange={handleRegionChange}
+                      dbTypeOptions={table.dbTypeOptions}
+                      regionOptions={table.regionOptions}
+                    />
                     <CandidateResourceTable
                       candidates={visibleCandidates}
                       selectedIds={selectedIds}
@@ -327,14 +376,17 @@ export const CandidateResourceSection = ({
                       expandedResourceId={expandedResourceId}
                       readonly={readonly}
                       actions={rowActions}
+                      emptyMessage="조건에 맞는 결과가 없어요."
                     />
-                    <Pagination
-                      page={safePage}
-                      pageSize={pageSize}
-                      totalCount={candidates.length}
-                      onPageChange={handlePageChange}
-                      onPageSizeChange={handlePageSizeChange}
-                    />
+                    {table.filteredCount > 0 && (
+                      <Pagination
+                        page={table.safePage}
+                        pageSize={table.pageSize}
+                        totalCount={table.filteredCount}
+                        onPageChange={handlePageChange}
+                        onPageSizeChange={handlePageSizeChange}
+                      />
+                    )}
                   </div>
                 );
               case 'empty':

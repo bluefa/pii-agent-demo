@@ -4,9 +4,9 @@ import { memo } from 'react';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { SearchIcon } from '@/app/components/ui/icons';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
-import { bgColors, idcStyles, primaryColors, textColors, cn } from '@/lib/theme';
+import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
+import { idcStyles, primaryColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -121,18 +121,7 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
 export const WaitingApprovalTable = memo(
   ({ resources, emptyMessage, connected = false }: WaitingApprovalTableProps) => {
     if (resources.length === 0) {
-      // Structured empty state, not a lone caption — the icon-in-circle gives the
-      // void a body so a 0-result filter doesn't read as the table vanishing.
-      return (
-        <div className="flex flex-col items-center gap-3 px-6 py-14">
-          <div className={cn('flex h-12 w-12 items-center justify-center rounded-full', bgColors.muted)}>
-            <SearchIcon className={cn('h-6 w-6', textColors.quaternary)} aria-hidden="true" />
-          </div>
-          <p className={cn('text-sm', textColors.tertiary)}>
-            {emptyMessage ?? DEFAULT_EMPTY_MESSAGE}
-          </p>
-        </div>
-      );
+      return <TableEmptyState message={emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />;
     }
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.

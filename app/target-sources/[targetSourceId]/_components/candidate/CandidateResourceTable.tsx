@@ -1,17 +1,12 @@
 'use client';
 
-import {
-  bgColors,
-  borderColors,
-  cn,
-  idcStyles,
-  textColors,
-} from '@/lib/theme';
+import { cn, idcStyles } from '@/lib/theme';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
 import {
   CandidateResourceRow,
   type CandidateRowActions,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
+import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 
 interface CandidateResourceTableProps {
   candidates: CandidateResource[];
@@ -22,6 +17,8 @@ interface CandidateResourceTableProps {
   expandedResourceId: string | null;
   readonly: boolean;
   actions: CandidateRowActions;
+  /** Shown when the (filtered) list is empty — the section passes the filter-empty copy. */
+  emptyMessage?: string;
 }
 
 export const CandidateResourceTable = ({
@@ -32,24 +29,20 @@ export const CandidateResourceTable = ({
   expandedResourceId,
   readonly,
   actions,
+  emptyMessage,
 }: CandidateResourceTableProps) => {
   const totalCount = candidates.length;
   const showCheckboxColumn = !readonly;
 
   if (totalCount === 0) {
-    return (
-      <div className={cn('rounded-lg border px-6 py-10 text-center text-sm', bgColors.surface, borderColors.default, textColors.tertiary)}>
-        발견된 리소스가 없습니다
-      </div>
-    );
+    return <TableEmptyState message={emptyMessage ?? '발견된 리소스가 없습니다'} />;
   }
 
   return (
-    // Step 2's connected grammar, not idcStyles.table.frame: no border/shadow — the only
-    // outlined segments are the tinted thead (top-rounded here, since this table has no
-    // toolbar above it) and the Pagination footer the section stacks below (rounded-b).
-    // Everything between them stays bare, matching the step-2 table silhouette.
-    <div className="overflow-hidden rounded-t-[12px] bg-white">
+    // Step 2's connected grammar, not idcStyles.table.frame: no border/shadow/radius —
+    // the toolbar above owns the rounded top, the Pagination footer below owns the
+    // rounded bottom, and everything between stays bare (step-2 table silhouette).
+    <div className="overflow-hidden bg-white">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className={idcStyles.table.approvalHeader}>
