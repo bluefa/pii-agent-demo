@@ -3,7 +3,8 @@
 /**
  * ModalShell — overlay + centered dialog (design-inventory §Modal). Closes on
  * overlay click, ESC (unless `closeOnEsc={false}` — mouse-only modals), and route
- * change; focuses the first button on open.
+ * change; focuses the first button on open (the dialog itself when nothing
+ * inside is focusable).
  * `variant='task'` = 600px column with a max-height (body scrolls);
  * `variant='wide'` = 720px (start-pipeline modal); `variant='xwide'` = 960px
  * (Custom builder — drag canvas + docked catalog need the room);
@@ -50,11 +51,12 @@ export function ModalShell({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose, closeOnEsc]);
 
-  // Focus the first button on open, trap Tab inside, restore focus on close.
+  // Focus the first button on open (the dialog itself when there is none, so
+  // keyboard/SR context still enters the modal), trap Tab inside, restore on close.
   useEffect(() => {
     if (!open) return;
     const restoreTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    dialogRef.current?.querySelector<HTMLElement>('button')?.focus();
+    (dialogRef.current?.querySelector<HTMLElement>('button') ?? dialogRef.current)?.focus();
     const onTab = (event: KeyboardEvent): void => {
       if (event.key !== 'Tab' || !dialogRef.current) return;
       const focusables = Array.from(
@@ -62,7 +64,12 @@ export function ModalShell({
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         ),
       ).filter((el) => !el.hasAttribute('disabled'));
-      if (!focusables.length) return;
+      if (!focusables.length) {
+        // Nothing tabbable inside — pin focus to the dialog instead of letting Tab escape behind the overlay.
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
       const current = document.activeElement;
@@ -101,6 +108,7 @@ export function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
+        tabIndex={-1}
         className={
           // 'app' swaps the whole dialog chrome (r20/p0/scroll) — the others
           // layer a width onto the shared `dialog` base.

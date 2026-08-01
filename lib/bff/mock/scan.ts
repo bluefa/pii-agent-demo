@@ -7,13 +7,16 @@ const parseNumericId = (id: string): number =>
   Number(id.replace(/\D/g, '')) || 0;
 
 /**
- * 데모용 카운트 합성 — 운영 규모(타입 ~12종, 단일 타입 최대 ~7만, 총 ~10만)에서
- * 태그·증감·총계 렌더링을 검증하려고 실 mock 리소스 수 대신 scan_version 기반
- * 결정적 수치를 리턴한다(같은 버전 = 항상 같은 맵). 버전이 1 오를 때마다 타입별로
- * drift만큼 증감해 +/− 표기가 자연히 생기고, fromVersion 타입은 그 버전부터
- * 등장해 신규 타입 케이스를 만든다. 키는 계약 resource_type enum 실값.
- * 주의: step 1 사용자 화면의 리소스 테이블은 실 mock 리소스 그대로라 이 수치와
- * 다르다 — 관리자 스캔 탭 데모 전용.
+ * Demo count synthesis — returns deterministic, scan_version-keyed counts at
+ * production scale (~12 types, up to ~70k per type, ~100k total) instead of the
+ * real mock resource counts, so tag/diff/total rendering can be exercised
+ * (same version = always the same map). Each +1 version drifts every type by
+ * its `drift`, which naturally produces +/− marks; `fromVersion` types appear
+ * from that version to cover the new-type case. Keys are real contract
+ * resource_type enum values.
+ * Caveat (accepted demo artifact, per operator request): the step-1 user screen
+ * lists the real mock resources, so its numbers will not match these — this
+ * synthesis exists for the admin scan tab demo.
  */
 interface DemoCountSpec {
   type: string;
@@ -51,7 +54,7 @@ const DEMO_COUNTS: Record<string, DemoCountSpec[]> = {
     { type: 'AZURE_SYNAPSE_WORKSPACE', base: 14, drift: 1 },
     { type: 'AZURE_SQL_SERVER_MANAGED_INSTANCE', base: 6, drift: 1, fromVersion: 3 },
   ],
-  // GCP는 계약 enum 자체가 3종뿐 — 종수 대신 규모로 렌더링을 검증한다.
+  // GCP's contract enum only has 3 types — scale (not variety) covers rendering.
   GCP: [
     { type: 'GCP_VPC_NETWORK', base: 46_000, drift: 92 },
     { type: 'GCP_BIGQUERY_DATASET_REGION', base: 12_400, drift: 31 },
@@ -152,24 +155,22 @@ export const mockScan = {
     // Full Spring PageScanJobResponse. The route validates with
     // schemas.PageScanJobResponse.parse(raw) — content items must be snake wire.
     return NextResponse.json({
-      // scan_version = 타깃 내 실행 순번 (오래된 것부터 1) — 이력은 최신순이라
-      // 페이지 오프셋을 더한 역순 인덱스로 파생한다.
-      content: history.map((h, index) => {
-        const version = total - (query.offset + index);
-        return {
-          id: parseNumericId(h.scanId),
-          scan_status: h.status,
-          target_source_id: targetSourceId,
-          created_at: h.startedAt,
-          updated_at: h.completedAt,
-          scan_version: version,
-          scan_progress: null,
-          duration_seconds: h.duration,
-          // 실패 스캔은 집계가 없다(null 유지) — 성공만 데모 카운트 합성.
-          resource_count_by_resource_type: h.result ? demoCountMap(h.provider, version) : null,
-          scan_error: h.error ?? null,
-        };
-      }),
+      // scan_version comes from the store row — persisted per run so it keeps
+      // growing even after retention trims old rows (deriving it from
+      // total-offset-index would renumber history whenever rows are purged).
+      content: history.map((h) => ({
+        id: parseNumericId(h.scanId),
+        scan_status: h.status,
+        target_source_id: targetSourceId,
+        created_at: h.startedAt,
+        updated_at: h.completedAt,
+        scan_version: h.version,
+        scan_progress: null,
+        duration_seconds: h.duration,
+        // Failed scans have no aggregation (null) — only successes get demo counts.
+        resource_count_by_resource_type: h.result ? demoCountMap(h.provider, h.version) : null,
+        scan_error: h.error ?? null,
+      })),
       totalElements: total,
       totalPages,
       number,
@@ -231,8 +232,6 @@ export const mockScan = {
     }
 
     const scanJob = scanFns.createScanJob(project);
-    // 새 스캔의 버전 = 완료된 이력 수 + 1.
-    const { total: completedTotal } = scanFns.getScanHistory(targetSourceId, 1, 0);
 
     return NextResponse.json(
       {
@@ -241,7 +240,8 @@ export const mockScan = {
         target_source_id: targetSourceId,
         created_at: scanJob.startedAt,
         updated_at: scanJob.startedAt,
-        scan_version: completedTotal + 1,
+        // Provisional version for the run that just started.
+        scan_version: scanFns.getNextScanVersion(targetSourceId),
         scan_progress: scanJob.progress,
         duration_seconds: 0,
         resource_count_by_resource_type: null,
@@ -281,14 +281,13 @@ export const mockScan = {
     if (activeScan) {
       const updated = scanFns.calculateScanStatus(activeScan);
       if (updated.status === 'SCANNING') {
-        const { total: completedTotal } = scanFns.getScanHistory(targetSourceId, 1, 0);
         return NextResponse.json({
           id: parseNumericId(updated.id),
           scan_status: updated.status,
           target_source_id: targetSourceId,
           created_at: updated.startedAt,
           updated_at: updated.startedAt,
-          scan_version: completedTotal + 1,
+          scan_version: scanFns.getNextScanVersion(targetSourceId),
           scan_progress: updated.progress,
           duration_seconds: 0,
           resource_count_by_resource_type: null,
@@ -297,7 +296,7 @@ export const mockScan = {
       }
     }
 
-    const { history, total } = scanFns.getScanHistory(targetSourceId, 1, 0);
+    const { history } = scanFns.getScanHistory(targetSourceId, 1, 0);
     if (history.length > 0) {
       const last = history[0];
       return NextResponse.json({
@@ -306,10 +305,10 @@ export const mockScan = {
         target_source_id: targetSourceId,
         created_at: last.startedAt,
         updated_at: last.completedAt,
-        scan_version: total,
+        scan_version: last.version,
         scan_progress: null,
         duration_seconds: last.duration,
-        resource_count_by_resource_type: last.result ? demoCountMap(last.provider, total) : null,
+        resource_count_by_resource_type: last.result ? demoCountMap(last.provider, last.version) : null,
         scan_error: last.error ?? null,
       });
     }

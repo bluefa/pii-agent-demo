@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   sortResourceCounts,
   trimProviderPrefix,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/scanShared';
 import { tokenizeJson } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanCredentialCard';
 
 describe('sortResourceCounts', () => {

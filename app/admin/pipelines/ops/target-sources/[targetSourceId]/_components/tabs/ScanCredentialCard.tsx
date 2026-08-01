@@ -1,10 +1,12 @@
 'use client';
 
 /**
- * 스캔 권한(자격) 검증 카드 — 스캔 실패의 최빈 원인이 자격이라, 검증 결과와
- * 원인(fail_reason/fail_message)을 스캔 탭 안에서 그 자리에 보여준다(조회 전용).
- * 3사 검증 응답은 같은 형태를 공유한다: { status, fail_reason, fail_message,
- * last_verified_at } + 프로바이더별 identity(role_arn/app_id/gcp_project_id).
+ * Scan credential (permission) card — invalid credentials are the most common
+ * cause of scan failures, so the verification verdict and its cause
+ * (fail_reason/fail_message) render inside the scan tab, in place (read-only).
+ * The three providers share one response shape: { status, fail_reason,
+ * fail_message, last_verified_at } + a provider identity
+ * (role_arn/app_id/gcp_project_id).
  */
 import { useEffect, useState, type ReactElement } from 'react';
 import { getAwsRoleVerification } from '@/app/lib/api/aws';
@@ -17,7 +19,7 @@ import type { CloudProvider } from '@/lib/types';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
-/** 3사 검증 응답의 구조적 합집합 — 스키마가 전부 partial이라 전 필드 optional. */
+/** Structural union of the three providers' verification responses — every schema is partial, so all fields are optional. */
 interface CredentialVerification {
   status?: string | null;
   fail_reason?: string | null;
@@ -40,7 +42,7 @@ const fetchByProvider = (
     case 'GCP':
       return getGcpScanServiceAccount(targetSourceId);
     case 'IDC':
-      // IDC는 클라우드 스캔이 없음 — 호출부(ScanTab)가 이 카드를 렌더하지 않는다.
+      // IDC has no cloud scan — the caller (ScanTab) never renders this card.
       return Promise.resolve({});
   }
 };
@@ -51,9 +53,10 @@ type LoadState =
   | { phase: 'done'; data: CredentialVerification };
 
 /**
- * 계약상 status enum은 GCP만 열거(VALID/INVALID/UNVERIFIED) — AWS·Azure는 자유
- * 문자열이라 열린 집합으로 매핑한다. 어휘·톤은 RoleVerifyModal verdictMeta와
- * 정렬(검증 완료/검증 중/검증 실패), UNVERIFIED는 오류가 아니라 미검증(off).
+ * Only GCP enumerates the status contract (VALID/INVALID/UNVERIFIED) — AWS and
+ * Azure send free strings, so map as an open set. Vocabulary and tone align
+ * with RoleVerifyModal verdictMeta (검증 완료/검증 중/검증 실패); UNVERIFIED is
+ * "not verified yet" (off), not an error.
  */
 const pillSpec = (status: string | null | undefined): { cls: string; label: string } => {
   switch (status) {
@@ -75,9 +78,10 @@ const pillSpec = (status: string | null | undefined): { cls: string; label: stri
 type JsonTokenKind = 'key' | 'string' | 'number' | 'bool' | 'null';
 
 /**
- * JSON.stringify(…, 2) 출력용 미니 토크나이저 — 키/문자열/숫자/불리언/null만
- * 구분하고 구두점·공백은 사이사이 plain으로 남긴다. 토큰 text를 이어붙이면
- * 입력과 동일(라운드트립)해야 한다.
+ * Mini tokenizer for JSON.stringify(…, 2) output — distinguishes keys /
+ * strings / numbers / booleans / null and leaves punctuation/whitespace as
+ * plain gaps in between. Concatenating token texts must round-trip the input
+ * exactly.
  */
 export const tokenizeJson = (
   text: string,
@@ -89,7 +93,7 @@ export const tokenizeJson = (
     if (match.index > last) tokens.push({ kind: 'plain', text: text.slice(last, match.index) });
     const [raw, str, colon] = match;
     if (str !== undefined) {
-      // 콜론이 따라오는 문자열 = 키 (유효한 JSON에서 값 뒤에 콜론은 못 온다).
+      // A string followed by a colon is a key (valid JSON never puts a colon after a value).
       tokens.push({ kind: colon ? 'key' : 'string', text: str });
       if (colon) tokens.push({ kind: 'plain', text: colon });
     } else if (raw === 'true' || raw === 'false') {
@@ -105,7 +109,7 @@ export const tokenizeJson = (
   return tokens;
 };
 
-/** JSON 토큰 색 — 시맨틱 토큰만: 키 primary, 문자열 ok, 숫자·불리언 warn, null은 italic으로만 물러남. */
+/** JSON token colors — semantic tokens only: keys primary, strings ok, numbers/booleans warn; null retreats via italic alone. */
 const JSON_TOKEN_CLASS: Record<JsonTokenKind, string> = {
   key: 'text-[var(--pl-primary)]',
   string: 'text-[var(--pl-ok-text)]',
@@ -120,7 +124,7 @@ export interface ScanCredentialCardProps {
 }
 
 export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialCardProps): ReactElement {
-  // 조회 전용 — '다시 검증' 버튼은 제거(운영 피드백: 화면 갱신이면 충분).
+  // Read-only — the "re-verify" button was dropped (ops feedback: refreshing the screen is enough).
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
 
   useEffect(() => {
@@ -139,11 +143,11 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
   }, [provider, targetSourceId]);
 
   const credentialLabel = SCAN_CREDENTIAL_LABELS[provider];
-  // 판정은 타이틀 옆 — 최근 스캔 카드의 상태 pill과 같은 자리(운영 피드백).
+  // Verdict beside the title — same slot as the recent-scan card's status pill (ops feedback).
   const pill = state.phase === 'done' ? pillSpec(state.data.status) : null;
 
   return (
-    // flex-col — 하단 시각행(마지막 검증)을 mt-auto로 밑바닥에 깔아 짝 카드와 바닥선을 맞춘다.
+    // flex-col — mt-auto pins the bottom time row (last verified) so the floor lines up with the sibling card.
     <section className={cn(pipelineStyles.card.base, 'flex flex-col')} aria-label="스캔 권한">
       <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
         <Icon name="shield" size={18} className="text-[var(--pl-primary)]" />
@@ -157,8 +161,8 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
       <p className={opsStyles.cardDesc}>{credentialLabel} 권한을 검증합니다.</p>
 
       {state.phase === 'loading' ? (
-        // 응답 원문 박스 + 하단 시각행 자리를 그리는 스켈레톤 — 점프 방지.
-        // 박스 스켈레톤도 flex-1로 실물과 같은 자리(남는 높이 흡수)를 차지한다.
+        // Skeleton drawing the response box + bottom time row — no jump on load.
+        // The box skeleton is flex-1 too, holding the same slack-absorbing slot as the real box.
         <div className="mt-4 flex min-h-0 flex-1 flex-col" aria-busy>
           <div className={cn(opsStyles.skeleton, 'min-h-[176px] flex-1')} aria-hidden="true" />
           <div className={cn(opsStyles.skeleton, 'mt-4 h-4 w-44 flex-none')} aria-hidden="true" />
@@ -173,7 +177,7 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
 }
 
 function CredentialResult({ data }: { data: CredentialVerification }): ReactElement {
-  // 오류 박스는 실패(FAIL/INVALID)거나 서버가 원인을 보냈을 때만 — 미검증은 오류가 아니다.
+  // Error box only for failure (FAIL/INVALID) or when the server sent a cause — unverified is not an error.
   const failed =
     data.status === 'FAIL'
     || data.status === 'INVALID'
@@ -182,17 +186,18 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
 
   return (
     <>
-      {/* 검증 응답 원문 — identity 포함 전체 payload. 라벨은 박스 안 헤더로,
-          본문은 토큰 하이라이트(진짜 JSON 뷰어 문법) — 진단·백엔드 대조용.
-          flex-1 — 짝 카드(최근 스캔)가 더 길 때 남는 높이를 회색 면이 흡수해
-          박스 아래 흰 여백이 휑하게 남지 않는다(운영 피드백). */}
+      {/* Raw verification response — the full payload, identity included. The
+          label is an in-box header; the body gets token highlighting (real
+          JSON-viewer grammar) for diagnosis and backend cross-checks.
+          flex-1 — when the sibling (recent scan) card is taller, the gray box
+          absorbs the slack so no bare white gap is left under it (ops feedback). */}
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--pl-gray-100)] bg-[var(--pl-bg-inner)]">
-        {/* 12/500 — 시각행 라벨·모달 th와 같은 라벨 문법(600+tracking은 혼자 이질). */}
+        {/* 12/500 — same label grammar as time-row labels and modal th (600+tracking would be the odd one out). */}
         <p className="px-3.5 pt-2.5 text-[12px] font-medium text-[var(--pl-text-faint)]">
           응답 원문
         </p>
-        {/* 구두점은 pre 기본색(weak)으로 물러나고 값 토큰만 색을 갖는다 —
-            faint는 12px에서 대비 ≈2.6:1로 AA 미달이라 본문에는 못 쓴다. */}
+        {/* Punctuation stays the pre's base color (weak); only value tokens get
+            color — faint at 12px is ≈2.6:1 contrast, below AA, so never body text. */}
         <pre className="min-h-0 flex-1 overflow-auto px-3.5 pb-3 pt-1 text-[12px] leading-[1.7] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]">
           {tokenizeJson(JSON.stringify(data, null, 2)).map((token, index) =>
             token.kind === 'plain' ? (
@@ -206,7 +211,7 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
         </pre>
       </div>
 
-      {/* 실패면 원인(코드+설명)이 그 자리에 — 계약상 자유 문자열이라 그대로 통과시킨다. */}
+      {/* On failure the cause (code + message) shows right here — free strings by contract, passed through as-is. */}
       {failed && (
         <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[14px] text-[var(--pl-err-text)]">
           {data.fail_reason && (
@@ -218,8 +223,8 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
         </p>
       )}
 
-      {/* 하단 시각행 — 최근 스캔 카드와 같은 문법(라벨 위/값 아래), mt-auto로 밑바닥 고정.
-          값 없으면 행 생략. */}
+      {/* Bottom time row — same grammar as the recent-scan card (label over value),
+          mt-auto pins it to the floor. Omitted when there is no value. */}
       {data.last_verified_at && (
         <div className="mt-auto">
           <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">

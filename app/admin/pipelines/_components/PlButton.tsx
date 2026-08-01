@@ -2,7 +2,7 @@
  * PlButton — design-inventory §5 `.btn` (h32 pad 0 14 14/600; sm h28 pad 0 10
  * 12/600; round 28×28). Variants primary / secondary / outline / danger /
  * dangerSolid / ghost (dangerSolid = R18 destructive CTA, improvement-r18.md
- * §7-1; outline = 파란 스트로크 도구 CTA).
+ * §7-1; outline = brand-stroke tool CTA).
  */
 import type { ButtonHTMLAttributes, ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
