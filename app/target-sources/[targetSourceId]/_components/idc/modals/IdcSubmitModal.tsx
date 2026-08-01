@@ -2,12 +2,11 @@
 
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import {
-  bgColors,
-  borderColors,
   cn,
   numericFeatures,
   primaryColors,
   textColors,
+  tossShadow,
 } from '@/lib/theme';
 
 interface IdcSubmitModalProps {
@@ -32,8 +31,10 @@ interface StatProps {
 // Centered tile, 36px number: the three counts ARE the modal's payload, so they
 // carry the display tier while the label stays quiet above them. No status dots —
 // the blue number already marks the one count that matters.
+// White card + toss shadow only (no border, no tint) — the tiles float on the
+// white modal surface instead of reading as inset gray wells.
 const Stat = ({ label, value, valueClass }: StatProps) => (
-  <div className={cn('rounded-xl border px-4 py-4 text-center', borderColors.default, bgColors.muted)}>
+  <div className={cn('rounded-xl bg-white px-4 py-4 text-center', tossShadow.sm)}>
     <div className={cn('text-[14px] font-medium', textColors.tertiary)}>
       {label}
     </div>
