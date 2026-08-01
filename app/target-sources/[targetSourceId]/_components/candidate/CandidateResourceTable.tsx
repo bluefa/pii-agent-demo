@@ -45,10 +45,11 @@ export const CandidateResourceTable = ({
   }
 
   return (
-    // Step 2's connected grammar, not idcStyles.table.frame: the scan strip above is
-    // the group's top segment (toolbar position), so the table itself carries no
-    // border/shadow/radius — a framed box here doubled the outlines inside the card.
-    <div className="overflow-hidden bg-white">
+    // Step 2's connected grammar, not idcStyles.table.frame: no border/shadow — the only
+    // outlined segments are the tinted thead (top-rounded here, since this table has no
+    // toolbar above it) and the Pagination footer the section stacks below (rounded-b).
+    // Everything between them stays bare, matching the step-2 table silhouette.
+    <div className="overflow-hidden rounded-t-[12px] bg-white">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className={idcStyles.table.approvalHeader}>

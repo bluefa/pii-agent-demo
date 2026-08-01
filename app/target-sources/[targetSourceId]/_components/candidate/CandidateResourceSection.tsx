@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { createApprovalRequest } from '@/app/lib/api';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
@@ -108,6 +109,12 @@ export const CandidateResourceSection = ({
   const [drafts, setDrafts] = useState<CandidateDraftState>(EMPTY_DRAFTS);
   const [expandedResourceId, setExpandedResourceId] = useState<string | null>(null);
 
+  // 표 푸터 페이지네이션 — Step 2 표와 같은 마감 바(rounded-b)가 표를 닫는다.
+  // 선택(selectedIds)·제외 사유·비활성 사유 계산은 전부 전체 후보 기준을 유지하고,
+  // 페이지는 렌더되는 행만 자른다.
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+
   // Plain id→reason map for the payload adapter and the table's reason chips.
   const exclusionReasons = useMemo(
     () => Object.fromEntries(Object.entries(exclusions).map(([id, e]) => [id, e.reason])),
@@ -118,6 +125,13 @@ export const CandidateResourceSection = ({
   const newCount = useMemo(
     () => candidates.filter((candidate) => candidate.scanStatus === 'NEW_SCAN').length,
     [candidates],
+  );
+
+  // 재스캔으로 후보가 줄면 현재 페이지가 범위를 벗어날 수 있다 — 항상 클램프해 읽는다.
+  const safePage = Math.min(page, Math.max(0, Math.ceil(candidates.length / pageSize) - 1));
+  const visibleCandidates = useMemo(
+    () => candidates.slice(safePage * pageSize, (safePage + 1) * pageSize),
+    [candidates, safePage, pageSize],
   );
 
   // 승인 요청 CTA의 비활성 사유를 데이터로 명시 — 버튼 disabled 와 호버 설명이
@@ -165,6 +179,21 @@ export const CandidateResourceSection = ({
 
   const picker = useExclusionPicker({ onSelect: select, onExclude: exclude });
   const { popover, reasonModal, closeAll: closePicker } = picker;
+
+  // 페이지가 바뀌면 행에 앵커된 UI(확장 패널·제외 팝오버)의 대상 행이 화면에서
+  // 사라진다 — 죽은 앵커를 남기지 않게 함께 닫는다.
+  const handlePageChange = useCallback((next: number) => {
+    setPage(next);
+    setExpandedResourceId(null);
+    closePicker();
+  }, [closePicker]);
+
+  const handlePageSizeChange = useCallback((next: number) => {
+    setPageSize(next);
+    setPage(0);
+    setExpandedResourceId(null);
+    closePicker();
+  }, [closePicker]);
 
   const approval = useApiAction(
     async () => {
@@ -227,6 +256,7 @@ export const CandidateResourceSection = ({
   const handleScanComplete = useCallback(async () => {
     setDrafts(EMPTY_DRAFTS);
     setExpandedResourceId(null);
+    setPage(0);
     closePicker();
     refetchAfterScan();
     await refreshProject();
@@ -285,16 +315,27 @@ export const CandidateResourceSection = ({
               case 'scanFailed':
                 return <ScanErrorState onRetry={startScan} />;
               case 'list':
+                // Step 2 표 문법 그대로: 틴트 thead(상단 라운드) → 무윤곽 바디 →
+                // Pagination 마감 바(rounded-b). 윤곽은 Header/Footer 두 세그먼트뿐이다.
                 return (
-                  <CandidateResourceTable
-                    candidates={candidates}
-                    selectedIds={selectedIds}
-                    exclusionReasons={exclusionReasons}
-                    drafts={drafts}
-                    expandedResourceId={expandedResourceId}
-                    readonly={readonly}
-                    actions={rowActions}
-                  />
+                  <div>
+                    <CandidateResourceTable
+                      candidates={visibleCandidates}
+                      selectedIds={selectedIds}
+                      exclusionReasons={exclusionReasons}
+                      drafts={drafts}
+                      expandedResourceId={expandedResourceId}
+                      readonly={readonly}
+                      actions={rowActions}
+                    />
+                    <Pagination
+                      page={safePage}
+                      pageSize={pageSize}
+                      totalCount={candidates.length}
+                      onPageChange={handlePageChange}
+                      onPageSizeChange={handlePageSizeChange}
+                    />
+                  </div>
                 );
               case 'empty':
                 // 스캔 전엔 온보딩 히어로가 본문 전체 — 이 순간 화면의 유일한 행동이
@@ -337,9 +378,9 @@ export const CandidateResourceSection = ({
 
               <div className="px-6 py-6">
                 {showStrip && (
-                  // list에서는 스트립이 표의 상단 세그먼트(툴바 자리)라 붙여 놓고,
-                  // 표 없는 상태에서만 독립 밴드로 아래와 간격을 둔다.
-                  <div className={phase === 'list' ? undefined : 'mb-4'}>
+                  // 스캔 밴드는 리소스 테이블과 명시적으로 분리된 영역 — 항상 독립
+                  // 밴드로 서고, 표 그룹과는 간격으로 구분한다.
+                  <div className="mb-4">
                     <ScanStrip
                       job={finishedJob}
                       newCount={newCount}
@@ -351,7 +392,6 @@ export const CandidateResourceSection = ({
                       showScanButton={phase !== 'scanFailed'}
                       scanDisabled={scanDisabled}
                       starting={starting}
-                      connected={phase === 'list'}
                     />
                   </div>
                 )}

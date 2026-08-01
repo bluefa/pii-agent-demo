@@ -131,6 +131,24 @@ describe('CandidateResourceSection', () => {
     expect(screen.getByText(/건 선택됨/)).toBeTruthy();
   });
 
+  // The table group closes with the same pagination footer step 2 uses (the only
+  // outlined segments are the tinted thead and this bar); the scan band above stays
+  // a separate bordered strip rather than the table's toolbar segment.
+  it('renders the step-2 pagination footer under the table in the list phase', async () => {
+    render(
+      <CandidateResourceSection
+        targetSourceId={1}
+        provider="AWS"
+        readonly={false}
+        refreshProject={async () => {}}
+      />,
+    );
+    await screen.findByRole('button', { name: '연동 대상 승인 요청' });
+    expect(screen.getByLabelText('페이지당 표시 건수')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '1 페이지' })).toBeTruthy();
+    expect(screen.getByText('1–2')).toBeTruthy();
+  });
+
   // The disable reason is explained in place: hovering the blocked CTA names the
   // rule and the offending resources (the disabled button itself swallows pointer
   // events, so the Tooltip wrapper carries the hover).

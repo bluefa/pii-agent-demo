@@ -69,14 +69,14 @@ describe('ScanStrip', () => {
     expect(screen.queryByText(/마지막 스캔/)).toBeNull();
   });
 
-  // connected = the step-2 toolbar grammar (tinted, top-rounded, borderless) so the
-  // strip and the table below read as one flat group inside the card.
-  it('drops its own border and takes the toolbar surface when connected', () => {
-    const { container } = render(<ScanStrip {...baseProps} job={successJob} connected />);
+  // The scan band is explicitly SEPARATE from the resource table: it always keeps its
+  // own bordered frame and never takes the table-toolbar surface.
+  it('always renders as a standalone bordered band', () => {
+    const { container } = render(<ScanStrip {...baseProps} job={successJob} />);
     const root = container.firstElementChild as HTMLElement;
-    expect(root.className).toContain('rounded-t-[12px]');
-    expect(root.className).toContain('bg-[#F7F8FA]');
-    expect(root.className).not.toContain('border ');
+    expect(root.className).toContain('rounded-xl');
+    expect(root.className).toContain('border');
+    expect(root.className).not.toContain('rounded-t-[12px]');
   });
 
   it('renders the timestamped verification result and wires the two ghost actions', () => {
