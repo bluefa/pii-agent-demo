@@ -277,26 +277,10 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         )
       ) : (
         <>
-          {/* 계층: 결과행(판정+시점·소요 캡션) > 발견 리소스(주인공) > 참조행(Scan#·버전).
-              완료된 스캔의 답은 "뭘 찾았나"다 — 메타는 캡션으로 물러난다. */}
-          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {/* 계층: 판정(pill) > 발견 리소스(주인공) > 시각행(하단 캡션).
+              완료된 스캔의 답은 "뭘 찾았나"다 — 시각 메타는 카드 바닥으로 물러난다. */}
+          <div className="mt-4">
             <ScanStatusPill status={latestJob.scan_status} />
-            <span className={CAPTION}>
-              실행 <b className={CAPTION_VALUE}>{fmtDateTimeSec(latestJob.created_at)}</b>
-              {!scanning && (
-                <>
-                  {/* 완료 = updated_at (터미널 전이 시각). 같은 날이면 시간만. */}
-                  {' · '}완료{' '}
-                  <b className={CAPTION_VALUE}>
-                    {fmtCompletedAt(latestJob.created_at, latestJob.updated_at)}
-                  </b>
-                  {' · '}소요 <b className={CAPTION_VALUE}>{fmtDuration(latestJob.duration_seconds)}</b>
-                  {latestJob.scan_version !== undefined && (
-                    <span className="text-[var(--pl-text-faint)]"> · v{latestJob.scan_version}</span>
-                  )}
-                </>
-              )}
-            </span>
           </div>
 
           {/* 진행 바는 SCANNING에서만 — 끝난 스캔의 진행률은 정보가 아니라 착시다. */}
@@ -369,6 +353,19 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             </p>
           )}
 
+          {/* 시각행 — 실행·완료·소요는 카드 바닥의 캡션 계층 (완료 = updated_at). */}
+          <p className={cn(CAPTION, 'mt-4 border-t border-[var(--pl-gray-100)] pt-3')}>
+            실행 <b className={CAPTION_VALUE}>{fmtDateTimeSec(latestJob.created_at)}</b>
+            {!scanning && (
+              <>
+                {' · '}완료{' '}
+                <b className={CAPTION_VALUE}>
+                  {fmtCompletedAt(latestJob.created_at, latestJob.updated_at)}
+                </b>
+                {' · '}소요 <b className={CAPTION_VALUE}>{fmtDuration(latestJob.duration_seconds)}</b>
+              </>
+            )}
+          </p>
         </>
       )}
     </section>
