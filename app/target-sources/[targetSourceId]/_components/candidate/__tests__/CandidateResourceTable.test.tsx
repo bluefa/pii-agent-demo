@@ -53,6 +53,19 @@ describe('CandidateResourceTable', () => {
     ]);
   });
 
+  // The 설치 구분 header carries a (?) help tooltip explaining the system-verdict
+  // taxonomy — each value's meaning plus the selection rule it implies.
+  it('explains the 설치 구분 taxonomy from the header help icon', () => {
+    render(<CandidateResourceTable {...defaultProps} />);
+    const trigger = screen.getByRole('button', { name: '설치 구분 안내' });
+    fireEvent.mouseEnter(trigger.parentElement!);
+    expect(screen.getByText('설치 구분 안내')).toBeTruthy();
+    expect(screen.getByText(/직접 변경할 수 없어요/)).toBeTruthy();
+    expect(screen.getByText(/제외하려면 제외 사유를 입력해야 해요/)).toBeTruthy();
+    expect(screen.getByText(/별도 Agent 설치 없이 연동할 수 있는 리소스/)).toBeTruthy();
+    expect(screen.getByText(/선택할 수 없고, 행의 설치 불가 라벨을 누르면/)).toBeTruthy();
+  });
+
   it('does not render the 스캔 이력 column (dropped per prototype)', () => {
     render(<CandidateResourceTable {...defaultProps} />);
     expect(screen.queryByRole('columnheader', { name: '스캔 이력' })).toBeNull();

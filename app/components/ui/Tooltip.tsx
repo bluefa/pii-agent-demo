@@ -292,9 +292,11 @@ interface InfoTooltipProps {
   position?: 'top' | 'bottom' | 'left' | 'right';
   size?: TooltipSize;
   variant?: TooltipVariant;
+  /** Accessible name for the icon-only trigger — the (?) glyph carries no text of its own. */
+  label?: string;
 }
 
-export const InfoTooltip = ({ content, position = 'top', size = 'lg', variant = 'status' }: InfoTooltipProps) => {
+export const InfoTooltip = ({ content, position = 'top', size = 'lg', variant = 'status', label = '도움말' }: InfoTooltipProps) => {
   return (
     <Tooltip content={content} position={position} size={size} variant={variant}>
       {/* tabIndex makes the trigger keyboard-focusable so the :focus reveal path
@@ -302,6 +304,7 @@ export const InfoTooltip = ({ content, position = 'top', size = 'lg', variant = 
       <button
         type="button"
         tabIndex={0}
+        aria-label={label}
         className={cn('inline-flex items-center justify-center text-[#9CA3AF] transition-colors', primaryColors.textHoverBase)}
       >
         <svg
