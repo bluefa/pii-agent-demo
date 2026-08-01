@@ -47,12 +47,6 @@ const rowLayoutClass = 'w-full flex items-center gap-2.5 rounded-lg px-3 py-2 te
 const nameClass = 'flex-1 min-w-0 text-sm font-normal line-clamp-2 break-words';
 const codeClass = 'ml-1.5 font-mono text-xs';
 
-// Several services are named after their own code (AWS/aws, GCP/gcp, SDU/SDU), where
-// trailing the code reads as a stutter and adds nothing. Anything the name already
-// spells out is dropped.
-const showsCode = (code: string, name?: string) =>
-  Boolean(name) && name?.toLowerCase() !== code.toLowerCase();
-
 const pageButtonClass = cn(
   'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
   bgColors.mutedHover,
@@ -89,9 +83,7 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
     >
       <span className={nameClass}>
         <span className={textColors.primary}>{name || code}</span>
-        {showsCode(code, name) && (
-          <span className={cn(codeClass, textColors.quaternary)}>{code}</span>
-        )}
+        {name && <span className={cn(codeClass, textColors.quaternary)}>{code}</span>}
       </span>
       <ChevronRightIcon
         className={cn(
@@ -125,7 +117,7 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
     </span>
     <span className={cn('mt-1.5 block text-sm line-clamp-2 break-words', primaryColors.textOnLight)}>
       {name || code}
-      {showsCode(code, name) && <span className={cn(codeClass, 'opacity-60')}>{code}</span>}
+      {name && <span className={cn(codeClass, 'opacity-60')}>{code}</span>}
     </span>
   </button>
 );
