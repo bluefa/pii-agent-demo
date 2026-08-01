@@ -100,9 +100,7 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className={opsStyles.cardTitle}>스캔 권한</h2>
-          <p className={opsStyles.cardDesc}>
-            {credentialLabel} 권한을 검증합니다. 결과는 마지막 검증 시각과 함께 표시돼요.
-          </p>
+          <p className={opsStyles.cardDesc}>{credentialLabel} 권한을 검증합니다.</p>
         </div>
         <PlButton
           variant="secondary"
@@ -140,30 +138,27 @@ function CredentialResult({
 
   return (
     <>
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+      {/* 계층 3단: 판정(pill) → 라벨 위/값 아래 KV — docs/redesign step2 §3 문법. */}
+      <div className="mt-4">
         <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>
           <span className={cn('h-1.5 w-1.5 rounded-full', pill.dot)} aria-hidden />
           {pill.label}
         </span>
-        {identity && (
-          <span className="min-w-0 text-[13px] text-[var(--pl-text-weak)]">
-            {credentialLabel}{' '}
-            <span
-              className="break-all font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]"
-              title={identity}
-            >
-              {identity}
-            </span>
-          </span>
-        )}
-        {data.last_verified_at && (
-          <span className="whitespace-nowrap text-[13px] text-[var(--pl-text-weak)]">
-            마지막 검증{' '}
-            <span className="font-semibold text-[var(--pl-text-strong)]">
-              {fmtDateTime(data.last_verified_at)}
-            </span>
-          </span>
-        )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-start gap-x-8 gap-y-3">
+        <div className="min-w-0">
+          <p className={pipelineStyles.text.kvKey}>{credentialLabel}</p>
+          <p className={cn(pipelineStyles.text.kvValueMono, 'mt-1 break-all')} title={identity ?? undefined}>
+            {identity ?? '—'}
+          </p>
+        </div>
+        <div>
+          <p className={pipelineStyles.text.kvKey}>마지막 검증</p>
+          <p className={cn(pipelineStyles.text.kvValue, 'mt-1 whitespace-nowrap')}>
+            {data.last_verified_at ? fmtDateTime(data.last_verified_at) : '—'}
+          </p>
+        </div>
       </div>
 
       {/* 실패면 원인(코드+설명)이 그 자리에 — 계약상 자유 문자열이라 그대로 통과시킨다. */}

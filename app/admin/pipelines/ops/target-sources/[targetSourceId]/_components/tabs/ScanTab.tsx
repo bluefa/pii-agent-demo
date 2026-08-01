@@ -58,8 +58,25 @@ const SCAN_ERROR_LABEL: Record<string, string> = {
 
 const errorLabel = (code: string): string => SCAN_ERROR_LABEL[code] ?? SCAN_ERROR_LABEL.UNKNOWN;
 
-const META_LABEL = 'text-[13px] text-[var(--pl-text-weak)] whitespace-nowrap';
-const META_VALUE = 'font-semibold text-[var(--pl-text-strong)]';
+/** 라벨 위 / 값 아래 KV 필드 — docs/redesign step2 §3 문법 (RequestTab kv 토큰 공유). */
+function KvField({
+  label,
+  mono,
+  children,
+}: {
+  label: string;
+  mono?: boolean;
+  children: React.ReactNode;
+}): ReactElement {
+  return (
+    <div className="min-w-0">
+      <p className={pipelineStyles.text.kvKey}>{label}</p>
+      <p className={cn(mono ? pipelineStyles.text.kvValueMono : pipelineStyles.text.kvValue, 'mt-1 break-all')}>
+        {children}
+      </p>
+    </div>
+  );
+}
 
 /** 214.6s → '3분 34초', 44s → '44초'; unknown → '—'. */
 const fmtDuration = (seconds: number | null | undefined): string => {
@@ -263,23 +280,16 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         )
       ) : (
         <>
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {/* 계층 3단: 판정(pill) → 라벨 위/값 아래 KV 2×2 → 발견 리소스 블록. */}
+          <div className="mt-4">
             <ScanStatusPill status={latestJob.scan_status} />
-            {latestJob.id !== undefined && (
-              <span className={META_LABEL}>
-                Scan{' '}
-                <span className={cn(META_VALUE, '[font-family:var(--pl-font-mono)]')}>#{latestJob.id}</span>
-              </span>
-            )}
-            <span className={META_LABEL}>
-              버전 <span className={META_VALUE}>v{latestJob.scan_version ?? '-'}</span>
-            </span>
-            <span className={META_LABEL}>
-              소요 <span className={META_VALUE}>{fmtDuration(latestJob.duration_seconds)}</span>
-            </span>
-            <span className={META_LABEL}>
-              실행 <span className={META_VALUE}>{fmtDateTime(latestJob.created_at)}</span>
-            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3">
+            <KvField label="실행">{fmtDateTime(latestJob.created_at)}</KvField>
+            <KvField label="소요">{fmtDuration(latestJob.duration_seconds)}</KvField>
+            <KvField label="Scan #" mono>{latestJob.id ?? '—'}</KvField>
+            <KvField label="버전">v{latestJob.scan_version ?? '-'}</KvField>
           </div>
 
           {/* 진행 바는 SCANNING에서만 — 끝난 스캔의 진행률은 정보가 아니라 착시다. */}
@@ -304,12 +314,18 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
           )}
 
           <div className="mt-4">
-            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <p className="text-[13px] font-semibold text-[var(--pl-text-medium)]">발견 리소스</p>
-              {!scanning && latestCounts.length > 0 && (
-                <>
-                  <span className="text-[13px] text-[var(--pl-text-weak)]">
-                    총 <b className="font-bold text-[var(--pl-text-strong)] tabular-nums">{latestTotal}개</b>
+            <p className={pipelineStyles.text.kvKey}>발견 리소스</p>
+            {scanning ? (
+              <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
+            ) : latestCounts.length === 0 ? (
+              <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
+            ) : (
+              <>
+                {/* 총계가 이 블록의 값 — 숫자 16/700, 단위는 값의 꼬리표 계층 (step2 타일 교훈). */}
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-[16px] font-bold tabular-nums text-[var(--pl-text-strong)]">
+                    {latestTotal}
+                    <span className="ml-0.5 text-[12px] font-medium text-[var(--pl-text-weak)]">개</span>
                   </span>
                   {countDiff !== null && countDiff !== 0 && (
                     <span
@@ -324,19 +340,13 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                       {countDiff > 0 ? `+${countDiff}` : countDiff}
                     </span>
                   )}
-                </>
-              )}
-            </div>
-            {scanning ? (
-              <p className={cn(pipelineStyles.text.meta, 'mt-2')}>스캔 완료 후 집계돼요.</p>
-            ) : latestCounts.length === 0 ? (
-              <p className={cn(pipelineStyles.text.meta, 'mt-2')}>발견된 리소스가 없습니다.</p>
-            ) : (
-              <div className="mt-2.5 flex flex-wrap gap-2">
-                {latestCounts.map(([type, count]) => (
-                  <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
-                ))}
-              </div>
+                </div>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {latestCounts.map(([type, count]) => (
+                    <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
