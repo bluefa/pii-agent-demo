@@ -106,6 +106,9 @@ export const trimProviderPrefix = (type: string, provider: CloudProvider): strin
 const totalOf = (entries: Array<[string, number]>): number =>
   entries.reduce((sum, [, count]) => sum + count, 0);
 
+/** 운영 규모(수만 단위) 카운트용 천 단위 콤마 — 로케일 고정(SSR/CSR 불일치 방지). */
+const fmtCount = (n: number): string => n.toLocaleString('ko-KR');
+
 function ScanStatusPill({ status }: { status: string | null | undefined }): ReactElement {
   const spec = (status && SCAN_STATUS[status]) || { tone: 'off' as Tone, label: status ?? '-' };
   return (
@@ -149,7 +152,7 @@ function ResourceTypeTag({
           removed ? 'text-[var(--pl-text-faint)]' : 'text-[var(--pl-text-strong)]',
         )}
       >
-        {count}
+        {fmtCount(count)}
       </b>
       {diff != null && diff !== 0 && (
         <b
@@ -158,7 +161,7 @@ function ResourceTypeTag({
             diff > 0 ? 'text-[var(--pl-ok-text)]' : 'text-[var(--pl-err-text)]',
           )}
         >
-          {diff > 0 ? `+${diff}` : diff}
+          {diff > 0 ? `+${fmtCount(diff)}` : fmtCount(diff)}
         </b>
       )}
     </span>
@@ -371,14 +374,17 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                             countDiff > 0 ? 'text-[var(--pl-ok-text)]' : 'text-[var(--pl-err-text)]',
                           )}
                         >
-                          {Math.abs(countDiff)}개
+                          {fmtCount(Math.abs(countDiff))}개
                         </b>
                         {countDiff > 0 ? ' 늘어난' : ' 줄어든'}{' '}
                       </>
                     )}
                     {countDiff === 0 && <>직전 스캔과 같은 </>}
-                    총 <b className="text-[24px] font-bold tabular-nums text-[var(--pl-primary)]">{latestTotal}</b>개를
-                    발견했어요.
+                    총{' '}
+                    <b className="text-[24px] font-bold tabular-nums text-[var(--pl-primary)]">
+                      {fmtCount(latestTotal)}
+                    </b>
+                    개를 발견했어요.
                   </p>
                   <div className="mt-2.5 flex flex-wrap gap-2">
                     {typeEntries.map(({ type, count, diff }) => (
@@ -484,7 +490,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                       </td>
                       <td className={cn(table.cell, 'tabular-nums')}>
                         {rowCounts.length > 0 ? (
-                          `${totalOf(rowCounts)}개`
+                          `${fmtCount(totalOf(rowCounts))}개`
                         ) : (
                           <span className="text-[var(--pl-text-faint)]">—</span>
                         )}
@@ -541,8 +547,11 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                 ) : (
                   <>
                     <p className="text-[14px] text-[var(--pl-text-weak)]">
-                      총 <b className="text-[24px] font-bold tabular-nums text-[var(--pl-primary)]">{totalOf(detailCounts)}</b>개를
-                      발견했어요.
+                      총{' '}
+                      <b className="text-[24px] font-bold tabular-nums text-[var(--pl-primary)]">
+                        {fmtCount(totalOf(detailCounts))}
+                      </b>
+                      개를 발견했어요.
                     </p>
                     <div className="mt-2.5 flex max-h-[280px] flex-wrap gap-2 overflow-y-auto">
                       {detailCounts.map(([type, count]) => (
