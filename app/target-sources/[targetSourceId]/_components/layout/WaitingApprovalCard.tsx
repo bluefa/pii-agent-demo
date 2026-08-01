@@ -7,7 +7,6 @@ import {
 } from '@/app/lib/api';
 import { AppError } from '@/lib/errors';
 import { formatDate } from '@/lib/utils/date';
-import { ChevronDownIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
 import {
   WaitingApprovalStats,
@@ -20,6 +19,8 @@ import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { WaitingApprovalReselectButton } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalReselectButton';
 import { ApprovalUnavailableCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ApprovalUnavailableCard';
+import { RejectionVerdict } from '@/app/target-sources/[targetSourceId]/_components/layout/RejectionVerdict';
+import { RejectedTargetRecord } from '@/app/target-sources/[targetSourceId]/_components/layout/RejectedTargetRecord';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import {
@@ -28,8 +29,6 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
 import {
-  bgColors,
-  borderColors,
   cardStyles,
   cn,
   idcStyles,
@@ -164,18 +163,6 @@ export const WaitingApprovalCard = ({
   const rejected = verdict?.kind === 'rejected' ? verdict : null;
   const resolved = state.status === 'ready';
 
-  // Labelled MetaField pairs, not a bare "누가 · 언제" byline: an unlabelled line leaves the reader
-  // to infer which date it is (반려일시? 요청일시?) on a screen that carries both. Two fields at
-  // 32px is the pending header's row — safe stacked, unlike the five-field record row below.
-  const verdictMeta = rejected && (
-    <div className="flex flex-wrap gap-8">
-      {rejected.processedAt && (
-        <MetaField label="반려일시" value={formatDate(rejected.processedAt, 'datetime')} />
-      )}
-      {rejected.processedBy && <MetaField label="처리자" value={rejected.processedBy} />}
-    </div>
-  );
-
   const reselect = (
     <WaitingApprovalReselectButton
       targetSourceId={targetSourceId}
@@ -283,60 +270,12 @@ export const WaitingApprovalCard = ({
             <div className={cn(idcStyles.skeletonBar, 'h-4 w-[300px] rounded')} />
           </div>
         ) : rejected ? (
-          // The reason used to sit in a tinted well. A filled, rounded block at the card's own
-          // inner width reads as a second card rather than a subsection, and its meta+action
-          // footer made a third nesting level — so the block floated instead of belonging.
-          // It becomes a quote instead: the admin's words hang off a 3px rule, no fill, no box.
-          // role="status" because the verdict only resolves after the fetch.
-          <div className="mt-4" role="status">
-            {rejected.reason ? (
-              // #EA580C, not the well's orange-50 fill: the same state now costs ~800px² of hue
-              // instead of ~99,000px², and 3.56:1 on white clears the 3:1 non-text floor
-              // (orange-500 is 2.80:1 and would not).
-              <div className="border-l-[3px] border-[#EA580C] pl-4">
-                {/* A tag, not a heading. The old label was 16px semibold over a 14px reason — it
-                    outsized the very thing it labelled, which is what flattened the hierarchy.
-                    12px keeps it below its payload while still naming the block. */}
-                <p
-                  className={cn(
-                    'text-[12px] font-bold tracking-[0.02em]',
-                    statusColors.warning.textDark,
-                  )}
-                >
-                  반려 사유
-                </p>
-                {/* The payload is now the largest text in the block and, after the title, the
-                    darkest tone on the card — it stops being the smallest thing on the screen. */}
-                <p
-                  className={cn(
-                    'mt-1.5 text-[17px] font-semibold leading-[1.5]',
-                    textColors.primary,
-                  )}
-                >
-                  {rejected.reason}
-                </p>
-                {/* Signature row: verdict meta left, the one way out right. Keeping the exit
-                    inside the rule makes the verdict a self-contained unit — a standalone button
-                    under it read as a second block, which is what the well was doing wrong. */}
-                <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-                  {verdictMeta}
-                  {reselect}
-                </div>
-              </div>
-            ) : (
-              // No reason → nothing to quote, so the sentence carries the verdict on its own.
-              <>
-                <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
-                  관리자가 승인 요청을 반려했어요. 연동 대상을 다시 선택한 뒤 승인을 다시
-                  요청해주세요.
-                </p>
-                <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-                  {verdictMeta}
-                  {reselect}
-                </div>
-              </>
-            )}
-          </div>
+          <RejectionVerdict
+            reason={rejected.reason}
+            processedAt={rejected.processedAt}
+            processedBy={rejected.processedBy}
+            action={reselect}
+          />
         ) : (
           <>
             <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
@@ -374,70 +313,14 @@ export const WaitingApprovalCard = ({
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
         ) : rejected ? (
-          // A closed request's targets are a record, not a worklist: the verdict is already made,
-          // so leading with tiles-as-filters + search + a 9-row table put ~800px of interactive-
-          // looking surface after the one decision the screen asks for. It collapses instead —
-          // native <details>, so no state to hold — and the summary line answers what the list
-          // would have been scanned for anyway: how many, from whom, when.
-          // mx-1: the body runs at px-6 while the header runs at px-[28px]. The bordered tiles
-          // hid that 4px, but this block opens with plain text directly under the header's, so
-          // the two text edges have to line up.
-          <details className={cn('group mx-1 mt-4 border-t pt-4', borderColors.light)}>
-            {/* Three tiers, one per line: what this block is (14/600), the reference facts
-                (MetaField, 12), and the way in (brand blue). Counts and request meta share one
-                MetaField row because they are the same kind of fact — a number you read off,
-                not copy the pending header's grammar for one half and invent another for the
-                other half. */}
-            <summary className="flex cursor-pointer list-none flex-col gap-2.5 [&::-webkit-details-marker]:hidden">
-              <div className="flex items-center justify-between gap-4">
-                <span className={cn('text-[14px] font-semibold', textColors.secondary)}>
-                  이 요청에 포함된 연동 대상
-                </span>
-                {/* Blue: this is the only action in the block, and the neutral gray it used to
-                    carry read as another label rather than something to click. */}
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1 text-[13px] font-semibold',
-                    primaryColors.text,
-                  )}
-                >
-                  <span className="group-open:hidden">목록 보기</span>
-                  <span className="hidden group-open:inline">접기</span>
-                  <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-                </span>
-              </div>
-              {/* Inline pairs, not stacked: five stacked label-over-value columns in one row read
-                  as a run — "요청자 / 관리자 / 요청일시 / …" binds the wrong way. Beside its value,
-                  each label owns exactly one thing. The two kinds are then split by a rule rather
-                  than by gap alone. */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                {/* Dropped once open: the stat tiles below carry the same three numbers, and
-                    showing them twice is what made the old screen read as duplicated. */}
-                <div className="flex flex-wrap gap-x-5 gap-y-2 group-open:hidden">
-                  <MetaField inline label="전체" value={`${table.countsByFilter.all}건`} />
-                  <MetaField inline label="연동 대상" value={`${table.countsByFilter.target}건`} />
-                  <MetaField inline label="제외" value={`${table.countsByFilter.excluded}건`} />
-                </div>
-                {requestSummary && (
-                  <>
-                    <span
-                      aria-hidden
-                      className={cn('h-3 w-px shrink-0 group-open:hidden', bgColors.divider)}
-                    />
-                    <div className="flex flex-wrap gap-x-5 gap-y-2">
-                      <MetaField inline label="요청자" value={requestSummary.requestedBy} />
-                      <MetaField
-                        inline
-                        label="요청일시"
-                        value={formatDate(requestSummary.requestedAt, 'datetime')}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            </summary>
-            <div className="mt-4">{listBlock}</div>
-          </details>
+          <RejectedTargetRecord
+            totalCount={table.countsByFilter.all}
+            selectedCount={table.countsByFilter.target}
+            excludedCount={table.countsByFilter.excluded}
+            request={requestSummary}
+          >
+            {listBlock}
+          </RejectedTargetRecord>
         ) : (
           <div className="mt-4">{listBlock}</div>
         )}

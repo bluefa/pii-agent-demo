@@ -18,6 +18,7 @@ vi.mock('@/app/lib/api', () => ({
 }));
 
 import { WaitingApprovalCard } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
+import { primaryColors } from '@/lib/theme';
 
 interface ResourceOpts {
   selected: boolean;
@@ -397,15 +398,17 @@ describe('WaitingApprovalCard', () => {
     // Counts and request meta share the pending header's MetaField grammar — label over value,
     // one row — rather than an inline "a · b · c" sentence at its own tier.
     const summary = screen.getByText('이 요청에 포함된 연동 대상').closest('summary');
-    expect(summary).toBeTruthy();
-    const meta = within(summary as HTMLElement);
+    if (!summary) throw new Error('record summary not rendered');
+    const meta = within(summary);
     expect(meta.getByText('전체').nextElementSibling?.textContent).toBe('2건');
     expect(meta.getByText('연동 대상').nextElementSibling?.textContent).toBe('1건');
     expect(meta.getByText('제외').nextElementSibling?.textContent).toBe('1건');
     expect(meta.getByText('요청자').nextElementSibling?.textContent).toBe('tester');
     expect(meta.getByText('요청일시').nextElementSibling?.textContent).toMatch(/^2026\. 04\. 29\./);
     // The way in is the block's only action, so it reads as brand blue, not another gray label.
-    expect(meta.getByText('목록 보기').parentElement?.className).toContain('#0064FF');
+    // Assert through the token, never a hex literal — pr-check.sh rejects six-digit hex in any
+    // changed non-theme file, tests included.
+    expect(meta.getByText('목록 보기').parentElement?.className).toContain(primaryColors.text);
     // The rows still render inside the closed disclosure — the browser hides them, and opening
     // must not refetch.
     expect(screen.getByText('mysql-prod-01-name')).toBeTruthy();
