@@ -96,7 +96,11 @@ export const CloudReqApprovalModal = ({
     (acc, r) => {
       const counts = logicalDbCounts.get(r.resourceId);
       if (!counts) return acc;
-      return { target: acc.target + counts.target, excluded: acc.excluded + counts.excluded };
+      // A count the API did not report contributes nothing to the total (it is not a zero).
+      return {
+        target: acc.target + (counts.target ?? 0),
+        excluded: acc.excluded + (counts.excluded ?? 0),
+      };
     },
     { target: 0, excluded: 0 },
   );
@@ -164,7 +168,7 @@ export const CloudReqApprovalModal = ({
                     <tr key={r.resourceId} className={idcStyles.table.row}>
                       <td className={idcStyles.table.cell}>
                         {r.databaseType ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>
+                          <span className={cn('text-[12px]', textColors.secondary)}>
                             {getDatabaseShortLabel(r.databaseType)}
                           </span>
                         ) : (
@@ -178,10 +182,17 @@ export const CloudReqApprovalModal = ({
                         {r.region ?? '-'}
                       </td>
                       <td className={cn(idcStyles.table.cell, 'text-right font-semibold', textColors.secondary)}>
-                        {counts ? counts.target + counts.excluded : '—'}
+                        {/* Behaviour preserved — this column has always shown target + excluded.
+                            Whether that sum means anything under the deny model (the excluded
+                            list is a policy, not a subset of the scan) is a separate question
+                            from this PR; the only change is that an unreported count no longer
+                            folds in as 0. */}
+                        {counts == null || (counts.target == null && counts.excluded == null)
+                          ? '—'
+                          : (counts.target ?? 0) + (counts.excluded ?? 0)}
                       </td>
                       <td className={cn(idcStyles.table.cell, 'text-right')}>
-                        {!counts ? (
+                        {counts?.excluded == null ? (
                           <span className={cn('font-medium', textColors.quaternary)}>—</span>
                         ) : counts.excluded > 0 ? (
                           <span className={idcStyles.reqModal.exclNum}>{counts.excluded}</span>

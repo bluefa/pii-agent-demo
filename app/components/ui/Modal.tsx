@@ -30,6 +30,12 @@ export interface ModalProps {
   /** Header icon-circle tone (meaningful with toss chrome). 'warn' is the amber warning color. */
   tone?: 'info' | 'warn';
   /** 모달 본문 */
+  /**
+   * Accessible name for `chrome="bare"`, which renders no header for `aria-labelledby` to point
+   * at. Without it the dialog reaches a screen reader unnamed. Ignored for the other chromes,
+   * whose shared header title already names them.
+   */
+  ariaLabel?: string;
   children: ReactNode;
   /** 푸터 영역 (버튼 등) */
   footer?: ReactNode;
@@ -77,6 +83,7 @@ export const Modal = ({
   size = 'md',
   chrome = 'default',
   tone = 'info',
+  ariaLabel,
   children,
   footer,
   closeOnBackdropClick = true,
@@ -156,6 +163,7 @@ export const Modal = ({
         aria-modal="true"
         // 'bare' chrome renders no header, so there is no `#modal-title` to point at.
         aria-labelledby={isBare ? undefined : 'modal-title'}
+        aria-label={isBare ? ariaLabel : undefined}
       >
         {/* Header — omitted entirely for 'bare' chrome (no title bar, no close-X). */}
         {!isBare && (

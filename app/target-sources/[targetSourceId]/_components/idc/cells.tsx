@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { CopyButton } from '@/app/components/ui/CopyButton';
-import { Tooltip } from '@/app/components/ui/Tooltip';
+import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, textColors } from '@/lib/theme';
+import { CELL_LIFT } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type {
   IdcConnState,
   IdcHealth,
@@ -27,7 +28,14 @@ export const IdcKindBadge = ({ kind }: { kind: IdcKind }) => (
   <span className={cn(idcStyles.kindBadge.base, KIND_STYLE[kind])}>{KIND_LABEL[kind]}</span>
 );
 
-/** Long host/SID/IP: ellipsis + copy-on-hover + full-value tooltip (res-id-cell pattern). */
+/**
+ * Long host/SID/IP: ellipsis + copy-on-hover + full-value tooltip (res-id-cell pattern).
+ *
+ * Same tooltip contract as the CSP ResourceIdCell: `truncatedOnly`, so a value that already
+ * fits its cell has nothing to reveal and stays inert, and the light `value` variant with a
+ * labelled body — a bare dark string repeats what is already on screen without naming the
+ * field it belongs to.
+ */
 const HostCell = ({
   value,
   label,
@@ -38,7 +46,13 @@ const HostCell = ({
   maxWidthClass?: string;
 }) => (
   <span className={cn('group/host inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
-    <Tooltip content={value} size="md" triggerClassName="min-w-0 overflow-hidden">
+    <Tooltip
+      content={<IdentifierTip label={label} value={value} />}
+      variant="value"
+      size="md"
+      triggerClassName="min-w-0 overflow-hidden"
+      truncatedOnly
+    >
       <span
         className={cn(
           'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12.5px] text-left [direction:ltr]',
@@ -83,11 +97,23 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
 
 export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
   <div className="flex flex-col items-start gap-1">
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>{resource.databaseTypeLabel}</span>
+    {/* Plain text, matching the CSP approval table: the engine name is an attribute,
+        not a state, so a chip per row spends emphasis on the least decisive column. */}
+    {/* CELL_LIFT is inert unless the row carries `group` (the CSP approval skin), so the same
+        cell serves both table skins. */}
+    <span className={cn('text-[12px]', textColors.secondary, CELL_LIFT)}>
+      {resource.databaseTypeLabel}
+    </span>
     {resource.oracleSid ? (
       <span className="group/sid inline-flex items-center gap-1 min-w-0 max-w-[170px]">
         <span className={idcStyles.sidKey}>SID</span>
-        <Tooltip content={resource.oracleSid} size="md" triggerClassName="min-w-0 overflow-hidden">
+        <Tooltip
+          content={<IdentifierTip label="Oracle SID" value={resource.oracleSid} />}
+          variant="value"
+          size="md"
+          triggerClassName="min-w-0 overflow-hidden"
+          truncatedOnly
+        >
           <span
             className={cn(
               'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[11.5px] text-left',

@@ -30,7 +30,15 @@ const collectOptions = (
  * Pure derivation over the supplied resource list — both cards fetch their own data,
  * then drive the identical toolbar + table + pagination from this hook.
  */
-export const useApprovalTableState = (resources: readonly WaitingApprovalResource[]) => {
+export const useApprovalTableState = (
+  resources: readonly WaitingApprovalResource[],
+  /**
+   * How the caller's own table renders the Database Type cell. The options have to be the very
+   * strings that column shows, and IDC keeps its own label map (MSSQL, where the cloud one says
+   * SQL Server), so it passes its label instead of letting the option disagree with the cell.
+   */
+  labelOfDbType: (resource: WaitingApprovalResource) => string = dbTypeLabel,
+) => {
   const [searchValue, setSearchValue] = useState('');
   const [filter, setFilter] = useState<ApprovalFilter>('all');
   const [dbType, setDbType] = useState('');
@@ -40,7 +48,10 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
 
   // Options must be the very strings the Database Type column shows. Using resourceType listed
   // 'RDS_CLUSTER' while the cell rendered 'PostgreSQL', so the option matched nothing.
-  const dbTypeOptions = useMemo(() => collectOptions(resources, dbTypeLabel), [resources]);
+  const dbTypeOptions = useMemo(
+    () => collectOptions(resources, labelOfDbType),
+    [resources, labelOfDbType],
+  );
   const regionOptions = useMemo(
     () => collectOptions(resources, (resource) => resource.region),
     [resources],
@@ -59,7 +70,7 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
   const filteredResources = useMemo(() => {
     const search = searchValue.trim().toLowerCase();
     return resources.filter((resource) => {
-      if (dbType && dbTypeLabel(resource) !== dbType) return false;
+      if (dbType && labelOfDbType(resource) !== dbType) return false;
       if (region && resource.region !== region) return false;
       if (filter === 'target' && !resource.selected) return false;
       if (filter === 'excluded' && resource.selected) return false;
@@ -70,7 +81,7 @@ export const useApprovalTableState = (resources: readonly WaitingApprovalResourc
       }
       return true;
     });
-  }, [resources, dbType, region, filter, searchValue]);
+  }, [resources, dbType, region, filter, searchValue, labelOfDbType]);
 
   const filteredCount = filteredResources.length;
   const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));

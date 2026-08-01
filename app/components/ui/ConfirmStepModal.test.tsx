@@ -31,6 +31,19 @@ describe('ConfirmStepModal', () => {
     expect(screen.getByRole('button', { name: '아니요' })).toBeTruthy();
   });
 
+  // Rewind confirms (step 6/7) commit in the amber tone; the ordinary confirm stays blue.
+  // Either way the dialog carries exactly one filled button.
+  it('tone=warning swaps the confirm fill to amber, default keeps the primary blue', () => {
+    const { unmount } = render(<ConfirmStepModal {...baseProps} open tone="warning" />);
+    const warn = screen.getByRole('button', { name: '확인' });
+    expect(warn.className).toContain('bg-[#B45309]');
+    expect(warn.className).not.toContain('bg-[#0064FF]');
+    unmount();
+
+    render(<ConfirmStepModal {...baseProps} open />);
+    expect(screen.getByRole('button', { name: '확인' }).className).toContain('bg-[#0064FF]');
+  });
+
   // WCAG dialog pattern: focus moves into the dialog on open (safe cancel side)
   // and returns to the trigger element when the dialog closes.
   it('moves focus to cancel on open and restores the trigger on close', () => {

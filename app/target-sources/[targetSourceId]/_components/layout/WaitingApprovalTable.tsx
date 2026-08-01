@@ -6,6 +6,7 @@ import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
+import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
 import { idcStyles, primaryColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
@@ -20,10 +21,26 @@ export interface WaitingApprovalResource {
   exclusionMeta?: string;
   /** Display db-engine source — prefer endpoint_config.db_type over resource_type (e.g. VM rows). */
   displayDbType?: string;
+  /**
+   * `confirmed` variant only — Step 5 connection-test counts (latest-results). `null` when the
+   * resource has no summary row; the cell renders — rather than a fabricated 0.
+   */
+  logicalDbCount?: number | null;
+  excludedLogicalDbCount?: number | null;
 }
+
+/**
+ * `approval` (steps 2·3): verdict + exclusion reason as the last two columns.
+ * `confirmed` (step 6): every row is a confirmed target, so the verdict pair is replaced by
+ * the Step 5 logical-DB counts — what the user actually reviews before the final approval.
+ */
+type WaitingApprovalTableVariant = 'approval' | 'confirmed';
 
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
+  variant?: WaitingApprovalTableVariant;
+  /** `confirmed` variant — open the read-only logical-DB list for one resource. */
+  onLogicalDbOpen?: (resource: WaitingApprovalResource) => void;
   /** Custom empty message shown when `resources` is empty. Defaults to the source-level empty copy. */
   emptyMessage?: string;
   /**
@@ -36,7 +53,7 @@ interface WaitingApprovalTableProps {
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
 // under the top-rounded toolbar. The bottom radius belongs to the pagination footer stacked below.
-const CONNECTED_FRAME = 'overflow-hidden bg-white';
+export const CONNECTED_FRAME = 'overflow-hidden bg-white';
 
 // Row hover, declared here rather than via idcStyles.table.row — that token is shared with six
 // other tables, and its #F7F8FA tint measures 1.06:1 against white (invisible). Excluded rows had
@@ -55,9 +72,9 @@ const CONNECTED_FRAME = 'overflow-hidden bg-white';
 // Chroma stays deliberately low: this family sits at the SAME luminance as the primary tint
 // #E8F1FF (1.01:1 apart), so saturation is the only thing separating "hovered" from "primary".
 // A future `selected` state must therefore not be a blue tint — hover already owns that.
-const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-none';
-const ROW_TARGET = 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]';
-const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]';
+export const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-none';
+export const ROW_TARGET = 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]';
+export const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]';
 
 // Background alone marks position; it does not make a row easier to READ. Each column lifts on
 // whichever axis still has headroom:
@@ -73,7 +90,7 @@ const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]'
 //
 // Declared per cell: `cn` is a plain join, so a group-hover value must sit on the element that
 // owns the resting value, not be layered over it from the row.
-const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
+export const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
 // The DARK primary, not #0064FF — see primaryColors.textGroupHover for why (contrast under the
 // row's hover background). Lighter is not available: #0064FF is already below AA there.
 const NAME_LIFT = primaryColors.textGroupHover;
@@ -119,10 +136,18 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
   ) : null;
 
 export const WaitingApprovalTable = memo(
-  ({ resources, emptyMessage, connected = false }: WaitingApprovalTableProps) => {
+  ({
+    resources,
+    variant = 'approval',
+    onLogicalDbOpen,
+    emptyMessage,
+    connected = false,
+  }: WaitingApprovalTableProps) => {
     if (resources.length === 0) {
       return <TableEmptyState message={emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />;
     }
+
+    const confirmedVariant = variant === 'confirmed';
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[12px]';
@@ -139,9 +164,18 @@ export const WaitingApprovalTable = memo(
                 <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Region</th>
-                {/* The header asks the question, the cell answers it. */}
-                <th className={idcStyles.table.approvalHeaderCell}>요청 대상 여부</th>
-                <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>
+                {confirmedVariant ? (
+                  <>
+                    <th className={idcStyles.table.approvalHeaderCell}>연동 논리 DB</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>연동 제외</th>
+                  </>
+                ) : (
+                  <>
+                    {/* The header asks the question, the cell answers it. */}
+                    <th className={idcStyles.table.approvalHeaderCell}>요청 대상 여부</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
@@ -205,12 +239,33 @@ export const WaitingApprovalTable = memo(
                     >
                       {resource.region || PLACEHOLDER}
                     </td>
-                    <td className={idcStyles.table.approvalCell}>
-                      <TargetPill excluded={excluded} />
-                    </td>
-                    <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
-                      <ReasonCell resource={resource} />
-                    </td>
+                    {confirmedVariant ? (
+                      <>
+                        <td className={idcStyles.table.approvalCell}>
+                          <LogicalDbCountCell
+                            count={resource.logicalDbCount}
+                            label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
+                            onOpen={() => onLogicalDbOpen?.(resource)}
+                          />
+                        </td>
+                        <td className={idcStyles.table.approvalCell}>
+                          <LogicalDbCountCell
+                            count={resource.excludedLogicalDbCount}
+                            label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
+                            onOpen={() => onLogicalDbOpen?.(resource)}
+                          />
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className={idcStyles.table.approvalCell}>
+                          <TargetPill excluded={excluded} />
+                        </td>
+                        <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
+                          <ReasonCell resource={resource} />
+                        </td>
+                      </>
+                    )}
                   </tr>
                 );
               })}

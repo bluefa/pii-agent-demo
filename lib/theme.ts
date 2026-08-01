@@ -745,6 +745,16 @@ export const idcStyles = {
      *  well). border-b, not text-decoration: the underline must run under the trailing icon too,
      *  and text-decoration stops at a flex container's atomic children. */
     linkPrimary: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[13px] font-semibold text-[#0064FF] transition-colors hover:text-[#0050D6]',
+    /** `linkPrimary` in the warning tone — a rewind that resets downstream progress (Step 6
+     *  연결 재확인). Text weight rather than a filled block: the step has no primary CTA, so a
+     *  filled amber button reads as the thing to do when the user's job is to wait, and the
+     *  confirm modal already carries the warning. amber-800 on white is 7.4:1. */
+    linkWarn: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[13px] font-semibold text-[#92400E] transition-colors hover:text-[#78350F]',
+    /** `linkPrimary` with no hue — an in-cell link that repeats once per row (Step 6 논리 DB
+     *  counts). Blue and amber once per row made the two columns the loudest thing on a screen
+     *  whose job is to wait; the header already says which column is which, so the underline
+     *  carries the affordance and color goes back to meaning state. #4E5968 is 7.5:1 on white. */
+    linkNeutral: 'inline-flex cursor-pointer items-center gap-1 border-b border-current pb-0.5 text-[13px] font-semibold text-[#4E5968] transition-colors hover:text-[#191F28]',
   },
   /** Toss form input — `.field input/select` (52px / borderless #F7F8FA fill / radius 12 / 15px). */
   input: 'w-full h-[52px] rounded-xl border-0 bg-[#F7F8FA] px-3.5 text-[15px] font-medium text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
