@@ -1,10 +1,14 @@
 'use client';
 
 /**
- * 스캔 tab (mockup design/pipeline/ops-target-source-tabs.html `tabScan`) —
- * 최근 스캔 card (status/progress/discovered resources) + paged 스캔 이력 table.
+ * 스캔 tab — 스캔 권한(자격 검증) + 최근 스캔 카드를 한 행에, 그 아래 paged 스캔
+ * 이력 table (docs 정의: 운영자 질문 순서 — 돌고 있나 / 언제·성공했나 / 실패 왜 /
+ * 자격 유효한가 / 뭘 발견했나 / 과거 패턴).
  * Latest job comes from useScanPolling, so a running scan animates and a 404
  * (never scanned) surfaces as the empty state rather than an error.
+ * 표시 규칙: 진행 바는 SCANNING에서만(끝난 스캔이 0%를 말하는 착시 제거), 발견
+ * 리소스는 개수 내림차순 태그(프로바이더 접두어 트림), 이력의 발견 셀은 총계
+ * 언더라인 → 클릭 시 모달로 전량.
  */
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import type { z } from 'zod';
@@ -13,11 +17,14 @@ import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { getScanHistory, startScan } from '@/app/lib/api/scan';
 import { useScanPolling } from '@/app/hooks/useScanPolling';
+import { normalizeCloudProvider, type CloudProvider } from '@/lib/types';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
+import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { ScanCredentialCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanCredentialCard';
 
 type ScanJob = z.infer<typeof schemas.ScanJobResponse>;
 
@@ -42,7 +49,7 @@ const SCAN_STATUS: Record<string, { tone: Tone; label: string }> = {
 };
 
 const SCAN_ERROR_LABEL: Record<string, string> = {
-  AUTH_PERMISSION_ERROR: '권한 오류입니다. Scan Role 권한을 확인해 주세요.',
+  AUTH_PERMISSION_ERROR: '권한 오류입니다. 스캔 권한 카드에서 자격을 검증해 주세요.',
   RATE_LIMIT: '요청 한도 초과',
   NETWORK_ERROR: '네트워크 오류',
   SERVICE_ERROR: '클라우드 서비스 오류',
@@ -68,6 +75,26 @@ const fmtPercent = (progress: number | null | undefined): number => {
   return Math.min(100, Math.max(0, Math.round(progress)));
 };
 
+/** 카운트 맵 → [type, count] 배열, 개수 내림차순·동률은 이름순. */
+export const sortResourceCounts = (
+  counts: Record<string, number | null | undefined> | null | undefined,
+): Array<[string, number]> =>
+  Object.entries(counts ?? {})
+    .filter((entry): entry is [string, number] => typeof entry[1] === 'number')
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+/**
+ * 한 타깃 안에선 프로바이더가 상수라 AWS_/AZURE_/GCP_ 접두어는 중복 정보 —
+ * 표시는 트림하고 전체 키는 title로 남긴다. 모르는 접두어는 그대로(열린 집합).
+ */
+export const trimProviderPrefix = (type: string, provider: CloudProvider): string => {
+  const prefix = `${provider.toUpperCase()}_`;
+  return type.startsWith(prefix) ? type.slice(prefix.length) : type;
+};
+
+const totalOf = (entries: Array<[string, number]>): number =>
+  entries.reduce((sum, [, count]) => sum + count, 0);
+
 function ScanStatusPill({ status }: { status: string | null | undefined }): ReactElement {
   const spec = (status && SCAN_STATUS[status]) || { tone: 'off' as Tone, label: status ?? '-' };
   const tone = TONE_CLASS[spec.tone];
@@ -79,12 +106,34 @@ function ScanStatusPill({ status }: { status: string | null | undefined }): Reac
   );
 }
 
+/** 발견 리소스 태그 — 저채도(흰 배경) + 스트로크 + 섀도, wire 키는 mono 그대로. */
+function ResourceTypeTag({
+  type,
+  count,
+  provider,
+}: {
+  type: string;
+  count: number;
+  provider: CloudProvider;
+}): ReactElement {
+  return (
+    <span
+      title={type}
+      className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--pl-border)] bg-white px-2.5 py-[5px] text-[11px] font-semibold text-[var(--pl-text-medium)] shadow-[var(--pl-shadow-xs)] [font-family:var(--pl-font-mono)]"
+    >
+      {trimProviderPrefix(type, provider)}
+      <b className="text-[12px] font-bold tabular-nums text-[var(--pl-text-strong)]">{count}</b>
+    </span>
+  );
+}
+
 export interface ScanTabProps {
   targetSourceId: number;
   detail: RawTargetSourceDetail;
 }
 
-export function ScanTab({ targetSourceId }: ScanTabProps): ReactElement {
+export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement {
+  const provider = normalizeCloudProvider(detail.cloud_provider);
   const { latestJob: rawLatestJob, loading, error, refresh } = useScanPolling(targetSourceId);
   // The mock latest endpoint answers a NO_SCAN placeholder instead of 404 for a
   // never-scanned target — normalize it to "no scan yet" so the empty state wins.
@@ -97,6 +146,8 @@ export function ScanTab({ targetSourceId }: ScanTabProps): ReactElement {
   const [totalPages, setTotalPages] = useState(1);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyFailed, setHistoryFailed] = useState(false);
+  /** 이력 셀 클릭으로 여는 발견 리소스 전량 모달의 대상 잡. */
+  const [breakdownJob, setBreakdownJob] = useState<ScanJob | null>(null);
 
   // Latest-request-wins: rapid pagination can resolve out of order, and a stale
   // response must not commit page/rows over a newer one.
@@ -155,106 +206,162 @@ export function ScanTab({ targetSourceId }: ScanTabProps): ReactElement {
   }, [refresh, loadHistory, page]);
 
   const { table } = opsStyles;
-  const percent = fmtPercent(latestJob?.scan_progress);
-  const resourceCounts = Object.entries(latestJob?.resource_count_by_resource_type ?? {});
+  const latestCounts = sortResourceCounts(latestJob?.resource_count_by_resource_type);
+  const latestTotal = totalOf(latestCounts);
 
-  return (
-    <>
-      <section className={pipelineStyles.card.base} aria-label="최근 스캔">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <h2 className={opsStyles.cardTitle}>최근 스캔</h2>
-            <p className={opsStyles.cardDesc}>
-              클라우드 리소스를 스캔해 연동 가능한 대상 목록을 갱신합니다.
-            </p>
-          </div>
-          <div className="flex flex-none items-center gap-2">
-            <PlButton variant="secondary" onClick={reload}>
-              새로고침
-            </PlButton>
-            <PlButton variant="primary" disabled={scanning || starting} onClick={() => void runScan()}>
-              {scanning ? '스캔 중…' : starting ? '시작 중…' : '스캔 실행'}
-            </PlButton>
-          </div>
+  // 직전 성공 대비 증감 — 이력 1페이지에서 파생한다.
+  // ponytail: 직전 성공이 1페이지(5행) 밖이면 증감을 생략한다. 필요해지면 서버 파생으로.
+  const prevSuccess =
+    latestJob?.scan_status === 'SUCCESS'
+      ? rows.find(
+          (row) =>
+            row.id !== latestJob.id
+            && row.scan_status === 'SUCCESS'
+            && row.resource_count_by_resource_type != null,
+        )
+      : undefined;
+  const countDiff = prevSuccess
+    ? latestTotal - totalOf(sortResourceCounts(prevSuccess.resource_count_by_resource_type))
+    : null;
+
+  const breakdownCounts = sortResourceCounts(breakdownJob?.resource_count_by_resource_type);
+
+  const recentScanCard = (
+    <section className={pipelineStyles.card.base} aria-label="최근 스캔">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className={opsStyles.cardTitle}>최근 스캔</h2>
+          <p className={opsStyles.cardDesc}>
+            클라우드 리소스를 스캔해 연동 가능한 대상 목록을 갱신합니다.
+          </p>
         </div>
+        <div className="flex flex-none items-center gap-2">
+          <PlButton variant="secondary" onClick={reload}>
+            새로고침
+          </PlButton>
+          <PlButton variant="primary" disabled={scanning || starting} onClick={() => void runScan()}>
+            {scanning ? '스캔 중…' : starting ? '시작 중…' : '스캔 실행'}
+          </PlButton>
+        </div>
+      </div>
 
-        {startFailed && (
-          <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
-            스캔을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.
-          </p>
-        )}
+      {startFailed && (
+        <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
+          스캔을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.
+        </p>
+      )}
 
-        {loading && !latestJob ? (
-          <p className={cn(pipelineStyles.text.meta, 'mt-4')} aria-busy>
-            불러오는 중…
-          </p>
-        ) : !latestJob ? (
-          error ? (
-            <p className={cn(pipelineStyles.text.meta, 'mt-4')}>스캔 정보를 불러오지 못했습니다.</p>
-          ) : (
-            <PlEmptyState icon="search" message="스캔 이력이 없습니다." className="mt-2" />
-          )
+      {loading && !latestJob ? (
+        <p className={cn(pipelineStyles.text.meta, 'mt-4')} aria-busy>
+          불러오는 중…
+        </p>
+      ) : !latestJob ? (
+        error ? (
+          <p className={cn(pipelineStyles.text.meta, 'mt-4')}>스캔 정보를 불러오지 못했습니다.</p>
         ) : (
-          <>
-            <div className="mt-4 flex flex-wrap items-center gap-4">
-              <ScanStatusPill status={latestJob.scan_status} />
-              {latestJob.id !== undefined && (
-                <span className={META_LABEL}>
-                  Scan{' '}
-                  <span className={cn(META_VALUE, '[font-family:var(--pl-font-mono)]')}>#{latestJob.id}</span>
-                </span>
-              )}
+          <PlEmptyState icon="search" message="스캔 이력이 없습니다." className="mt-2" />
+        )
+      ) : (
+        <>
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <ScanStatusPill status={latestJob.scan_status} />
+            {latestJob.id !== undefined && (
               <span className={META_LABEL}>
-                버전 <span className={META_VALUE}>v{latestJob.scan_version ?? '-'}</span>
+                Scan{' '}
+                <span className={cn(META_VALUE, '[font-family:var(--pl-font-mono)]')}>#{latestJob.id}</span>
               </span>
-              <span className={META_LABEL}>
-                소요 <span className={META_VALUE}>{fmtDuration(latestJob.duration_seconds)}</span>
-              </span>
-              <span className={META_LABEL}>
-                실행 <span className={META_VALUE}>{fmtDateTime(latestJob.created_at)}</span>
-              </span>
-            </div>
+            )}
+            <span className={META_LABEL}>
+              버전 <span className={META_VALUE}>v{latestJob.scan_version ?? '-'}</span>
+            </span>
+            <span className={META_LABEL}>
+              소요 <span className={META_VALUE}>{fmtDuration(latestJob.duration_seconds)}</span>
+            </span>
+            <span className={META_LABEL}>
+              실행 <span className={META_VALUE}>{fmtDateTime(latestJob.created_at)}</span>
+            </span>
+          </div>
 
+          {/* 진행 바는 SCANNING에서만 — 끝난 스캔의 진행률은 정보가 아니라 착시다. */}
+          {scanning && (
             <div className="mt-3.5 flex items-center gap-3">
               <div
                 className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--pl-gray-100)]"
                 role="progressbar"
-                aria-valuenow={percent}
+                aria-valuenow={fmtPercent(latestJob.scan_progress)}
                 aria-valuemin={0}
                 aria-valuemax={100}
               >
-                <div className="h-full rounded-full bg-[var(--pl-primary)]" style={{ width: `${percent}%` }} />
+                <div
+                  className="h-full rounded-full bg-[var(--pl-primary)]"
+                  style={{ width: `${fmtPercent(latestJob.scan_progress)}%` }}
+                />
               </div>
               <span className="text-[12px] font-semibold tabular-nums text-[var(--pl-text-medium)]">
-                {percent}%
+                {fmtPercent(latestJob.scan_progress)}%
               </span>
             </div>
+          )}
 
-            <div className="mt-4">
+          <div className="mt-4">
+            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
               <p className="text-[13px] font-semibold text-[var(--pl-text-medium)]">발견 리소스</p>
-              {resourceCounts.length === 0 ? (
-                <p className={cn(pipelineStyles.text.meta, 'mt-2')}>발견된 리소스가 없습니다.</p>
-              ) : (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {resourceCounts.map(([type, count]) => (
-                    <span key={type} className={cn(opsStyles.tag, 'px-2.5 py-[5px]')}>
-                      {type}
-                      <b className="ml-1.5 text-[var(--pl-primary)]">{count}</b>
+              {!scanning && latestCounts.length > 0 && (
+                <>
+                  <span className="text-[13px] text-[var(--pl-text-weak)]">
+                    총 <b className="font-bold text-[var(--pl-text-strong)] tabular-nums">{latestTotal}개</b>
+                  </span>
+                  {countDiff !== null && countDiff !== 0 && (
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[11.5px] font-bold tabular-nums',
+                        countDiff > 0
+                          ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
+                          : 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
+                      )}
+                      title="직전 성공 스캔 대비"
+                    >
+                      {countDiff > 0 ? `+${countDiff}` : countDiff}
                     </span>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
-
-            {latestJob.scan_error && (
-              <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
-                <span className="[font-family:var(--pl-font-mono)] font-semibold">{latestJob.scan_error}</span>
-                <span className="ml-2">{errorLabel(latestJob.scan_error)}</span>
-              </p>
+            {scanning ? (
+              <p className={cn(pipelineStyles.text.meta, 'mt-2')}>스캔 완료 후 집계돼요.</p>
+            ) : latestCounts.length === 0 ? (
+              <p className={cn(pipelineStyles.text.meta, 'mt-2')}>발견된 리소스가 없습니다.</p>
+            ) : (
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {latestCounts.map(([type, count]) => (
+                  <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
+                ))}
+              </div>
             )}
-          </>
-        )}
-      </section>
+          </div>
+
+          {latestJob.scan_error && (
+            <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
+              <span className="[font-family:var(--pl-font-mono)] font-semibold">{latestJob.scan_error}</span>
+              <span className="ml-2">{errorLabel(latestJob.scan_error)}</span>
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  );
+
+  return (
+    <>
+      {/* IDC는 클라우드 스캔 자격이 없어 권한 카드를 렌더하지 않는다 — 최근 스캔이 전폭. */}
+      {provider === 'IDC' ? (
+        recentScanCard
+      ) : (
+        <div className={opsStyles.cardsRow}>
+          <ScanCredentialCard provider={provider} targetSourceId={targetSourceId} />
+          {recentScanCard}
+        </div>
+      )}
 
       <section className={pipelineStyles.card.base} aria-label="스캔 이력">
         <h2 className={opsStyles.cardTitle}>스캔 이력</h2>
@@ -278,40 +385,55 @@ export function ScanTab({ targetSourceId }: ScanTabProps): ReactElement {
                   <th className={table.headCell}>실행 일시</th>
                   <th className={table.headCell}>상태</th>
                   <th className={table.headCell}>버전</th>
-                  <th className={table.headCell}>진행률</th>
+                  <th className={table.headCell}>발견 리소스</th>
                   <th className={table.headCell}>소요</th>
                   <th className={table.headCell}>오류</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, index) => (
-                  <tr key={row.id ?? `${row.created_at ?? ''}-${index}`}>
-                    <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.created_at)}</td>
-                    <td className={table.cell}>
-                      <ScanStatusPill status={row.scan_status} />
-                    </td>
-                    <td className={cn(table.cell, '[font-family:var(--pl-font-mono)]')}>
-                      v{row.scan_version ?? '-'}
-                    </td>
-                    <td className={cn(table.cell, 'tabular-nums')}>{fmtPercent(row.scan_progress)}%</td>
-                    <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDuration(row.duration_seconds)}</td>
-                    <td className={table.cell}>
-                      {row.scan_error ? (
-                        <span
-                          className={cn(
-                            opsStyles.statusTag,
-                            'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
-                          )}
-                          title={errorLabel(row.scan_error)}
-                        >
-                          {row.scan_error}
-                        </span>
-                      ) : (
-                        <span className="text-[var(--pl-text-faint)]">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((row, index) => {
+                  const rowCounts = sortResourceCounts(row.resource_count_by_resource_type);
+                  return (
+                    <tr key={row.id ?? `${row.created_at ?? ''}-${index}`}>
+                      <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.created_at)}</td>
+                      <td className={table.cell}>
+                        <ScanStatusPill status={row.scan_status} />
+                      </td>
+                      <td className={cn(table.cell, '[font-family:var(--pl-font-mono)]')}>
+                        v{row.scan_version ?? '-'}
+                      </td>
+                      <td className={cn(table.cell, 'tabular-nums')}>
+                        {rowCounts.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setBreakdownJob(row)}
+                            className="font-semibold text-[var(--pl-text-medium)] underline decoration-[var(--pl-text-faint)] underline-offset-[3px] transition-colors hover:text-[var(--pl-primary)] hover:decoration-[var(--pl-primary)]"
+                          >
+                            {totalOf(rowCounts)}개
+                          </button>
+                        ) : (
+                          <span className="text-[var(--pl-text-faint)]">—</span>
+                        )}
+                      </td>
+                      <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDuration(row.duration_seconds)}</td>
+                      <td className={table.cell}>
+                        {row.scan_error ? (
+                          <span
+                            className={cn(
+                              opsStyles.statusTag,
+                              'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+                            )}
+                            title={errorLabel(row.scan_error)}
+                          >
+                            {row.scan_error}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--pl-text-faint)]">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -319,6 +441,37 @@ export function ScanTab({ targetSourceId }: ScanTabProps): ReactElement {
 
         <OpsPagination page={page} totalPages={totalPages} onChange={(next) => void loadHistory(next)} />
       </section>
+
+      {/* 이력 발견 셀 클릭 → 해당 실행의 타입별 전량 (최근 스캔 카드와 같은 태그 문법). */}
+      <ModalShell
+        open={breakdownJob !== null}
+        onClose={() => setBreakdownJob(null)}
+        labelledBy="scan-breakdown-title"
+      >
+        {breakdownJob && (
+          <>
+            <h3 id="scan-breakdown-title" className="text-[16px] font-semibold text-[var(--pl-text-strong)]">
+              발견 리소스
+            </h3>
+            <p className="mt-1 text-[12.5px] text-[var(--pl-text-weak)]">
+              {fmtDateTime(breakdownJob.created_at)} · 총{' '}
+              <b className="font-bold text-[var(--pl-text-strong)] tabular-nums">{totalOf(breakdownCounts)}개</b>
+              {' · '}
+              {breakdownCounts.length}타입
+            </p>
+            <div className="mt-4 flex max-h-[320px] flex-wrap gap-2 overflow-y-auto">
+              {breakdownCounts.map(([type, count]) => (
+                <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
+              ))}
+            </div>
+            <div className="mt-5 flex justify-end">
+              <PlButton variant="secondary" onClick={() => setBreakdownJob(null)}>
+                닫기
+              </PlButton>
+            </div>
+          </>
+        )}
+      </ModalShell>
     </>
   );
 }
