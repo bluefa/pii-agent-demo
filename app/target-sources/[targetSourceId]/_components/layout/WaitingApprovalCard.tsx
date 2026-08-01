@@ -163,6 +163,13 @@ export const WaitingApprovalCard = ({
         .join(' · ')
     : '';
 
+  const reselect = (
+    <WaitingApprovalReselectButton
+      targetSourceId={targetSourceId}
+      onSuccess={() => onReselected?.()}
+    />
+  );
+
   return (
     // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
     <section className={cardStyles.base}>
@@ -257,32 +264,35 @@ export const WaitingApprovalCard = ({
                 >
                   {rejected.reason}
                 </p>
-                {verdictByline && (
-                  <p className={cn('mt-2 text-[12px] font-medium', textColors.tertiary)}>
-                    {verdictByline}
-                  </p>
-                )}
+                {/* Signature row: who·when left, the one way out right. Keeping the exit inside
+                    the rule makes the verdict a self-contained unit — a standalone button under
+                    it read as a second block, which is what the well was doing wrong. */}
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  {verdictByline && (
+                    <p className={cn('text-[12px] font-medium', textColors.tertiary)}>
+                      {verdictByline}
+                    </p>
+                  )}
+                  <div className="ml-auto">{reselect}</div>
+                </div>
               </div>
             ) : (
               // No reason → nothing to quote, so the sentence carries the verdict on its own.
-              <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
-                관리자가 승인 요청을 반려했어요. 연동 대상을 다시 선택한 뒤 승인을 다시
-                요청해주세요.
-                {verdictByline && (
-                  <span className={cn('mt-2 block text-[12px]', textColors.tertiary)}>
-                    {verdictByline}
-                  </span>
-                )}
-              </p>
+              <>
+                <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+                  관리자가 승인 요청을 반려했어요. 연동 대상을 다시 선택한 뒤 승인을 다시
+                  요청해주세요.
+                </p>
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  {verdictByline && (
+                    <p className={cn('text-[12px] font-medium', textColors.tertiary)}>
+                      {verdictByline}
+                    </p>
+                  )}
+                  <div className="ml-auto">{reselect}</div>
+                </div>
+              </>
             )}
-            {/* The one way out, at the end of the reading flow. It was an underlined link docked
-                inside the well; standing alone on white it needs the in-card `.btn` weight. */}
-            <div className="mt-5 flex justify-end">
-              <WaitingApprovalReselectButton
-                targetSourceId={targetSourceId}
-                onSuccess={() => onReselected?.()}
-              />
-            </div>
           </div>
         ) : (
           <>
