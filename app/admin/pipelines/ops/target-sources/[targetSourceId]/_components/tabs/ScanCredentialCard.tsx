@@ -117,8 +117,9 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
           </h2>
           <p className={opsStyles.cardDesc}>{credentialLabel} 권한을 검증합니다.</p>
         </div>
+        {/* 보조 행동이라 버튼 크롬 없이 텍스트 버튼(ghost)으로 물러난다. */}
         <PlButton
-          variant="secondary"
+          variant="ghost"
           className="flex-none"
           disabled={state.phase === 'loading'}
           onClick={verify}
@@ -139,21 +140,14 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
       ) : state.phase === 'error' ? (
         <p className={cn(pipelineStyles.text.meta, 'mt-4')}>자격 정보를 불러오지 못했습니다.</p>
       ) : (
-        <CredentialResult data={state.data} credentialLabel={credentialLabel} />
+        <CredentialResult data={state.data} />
       )}
     </section>
   );
 }
 
-function CredentialResult({
-  data,
-  credentialLabel,
-}: {
-  data: CredentialVerification;
-  credentialLabel: string;
-}): ReactElement {
+function CredentialResult({ data }: { data: CredentialVerification }): ReactElement {
   const pill = pillSpec(data.status);
-  const identity = data.role_arn ?? data.app_id ?? data.gcp_project_id ?? null;
   // 오류 박스는 실패(FAIL/INVALID)거나 서버가 원인을 보냈을 때만 — 미검증은 오류가 아니다.
   const failed =
     data.status === 'FAIL'
@@ -163,8 +157,7 @@ function CredentialResult({
 
   return (
     <>
-      {/* 계층 2단: 결과행(pill + 검증 시각) > 참조행(자격 identity) — 결과가 답,
-          identity는 참조 정보라 같은 계층에 두지 않는다. */}
+      {/* 계층: 결과행(pill + 검증 시각)이 요약, 아래 응답 원문이 상세. */}
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>
           {pill.label}
@@ -177,15 +170,16 @@ function CredentialResult({
         </span>
       </div>
 
-      <p className="mt-3 text-[12px] text-[var(--pl-text-weak)]">
-        <span className="font-semibold">{credentialLabel}</span>{' '}
-        <span
-          className="break-all font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]"
-          title={identity ?? undefined}
-        >
-          {identity ?? '—'}
-        </span>
-      </p>
+      {/* 검증 응답 원문 — identity 포함 전체 payload를 그대로. 요약(pill·시각)은
+          위 결과행이 담당하고, 원문은 진단·백엔드 대조용이다 (카드 공백 해소 겸). */}
+      <div className="mt-3.5">
+        <p className="text-[11px] font-semibold tracking-[0.04em] text-[var(--pl-text-faint)]">
+          응답 원문
+        </p>
+        <pre className="mt-1.5 max-h-[200px] overflow-auto rounded-lg border border-[var(--pl-gray-100)] bg-[var(--pl-bg-inner)] px-3.5 py-3 text-[12px] leading-[1.7] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      </div>
 
       {/* 실패면 원인(코드+설명)이 그 자리에 — 계약상 자유 문자열이라 그대로 통과시킨다. */}
       {failed && (

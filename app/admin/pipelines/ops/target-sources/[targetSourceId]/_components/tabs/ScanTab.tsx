@@ -293,9 +293,11 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         </div>
         {/* 새로고침 삭제 — 스캔 중엔 useScanPolling이 2초 폴링, 이 탭에서 실행한
             스캔은 refresh()가 즉시 반영한다. 다른 화면에서 시작된 스캔은 탭
-            재진입으로만 보인다(폴링은 SCANNING 동안만 도는 트레이드오프). */}
+            재진입으로만 보인다(폴링은 SCANNING 동안만 도는 트레이드오프).
+            variant secondary — 운영 콘솔에서 스캔 실행은 상시 CTA가 아니라
+            도구라 primary 파랑이 과했다(운영 피드백). */}
         <PlButton
-          variant="primary"
+          variant="secondary"
           className="flex-none"
           disabled={scanning || starting}
           onClick={() => void runScan()}
