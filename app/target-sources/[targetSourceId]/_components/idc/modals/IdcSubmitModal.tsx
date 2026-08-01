@@ -39,7 +39,7 @@ const Stat = ({ label, value, valueClass }: StatProps) => (
     <div className={cn('text-[14px] font-semibold', textColors.tertiary)}>
       {label}
     </div>
-    <div className={cn('mt-1 text-[36px] font-bold leading-[1.2]', numericFeatures.tabular, valueClass ?? textColors.primary)}>
+    <div className={cn('mt-1 text-[40px] font-bold leading-[1.2]', numericFeatures.tabular, valueClass ?? textColors.primary)}>
       {value}
       <span className={cn('ml-1 text-[13px] font-medium', textColors.tertiary)}>건</span>
     </div>

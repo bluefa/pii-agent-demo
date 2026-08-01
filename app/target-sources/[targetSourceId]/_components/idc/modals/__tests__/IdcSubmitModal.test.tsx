@@ -27,13 +27,13 @@ describe('IdcSubmitModal', () => {
   });
 
   // Tile labels share the step-2 stats vocabulary (WaitingApprovalStats) verbatim.
-  it('renders the three centered stats with 36px numbers and unified labels', () => {
+  it('renders the three centered stats with 40px numbers and unified labels', () => {
     render(<IdcSubmitModal {...baseProps} total={4} live={3} excluded={1} />);
     expect(screen.getByText('전체 요청')).toBeTruthy();
     expect(screen.getByText('연동 요청 대상')).toBeTruthy();
     expect(screen.getByText('연동 요청 제외대상')).toBeTruthy();
     const four = screen.getByText('4');
-    expect(four.className).toContain('text-[36px]');
+    expect(four.className).toContain('text-[40px]');
     expect(four.parentElement?.className ?? four.className).toBeTruthy();
     // Tiles are center-aligned.
     expect(four.closest('div.text-center')).toBeTruthy();
