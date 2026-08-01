@@ -28,6 +28,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
 import {
+  bgColors,
   borderColors,
   cardStyles,
   cn,
@@ -410,24 +411,33 @@ export const WaitingApprovalCard = ({
                   <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
                 </span>
               </div>
-              {/* 48px between the two groups, 32px inside each — counts and submission facts are
-                  different kinds, and a uniform gap would render five fields as one flat run. */}
-              <div className="flex flex-wrap gap-x-12 gap-y-3">
+              {/* Inline pairs, not stacked: five stacked label-over-value columns in one row read
+                  as a run — "요청자 / 관리자 / 요청일시 / …" binds the wrong way. Beside its value,
+                  each label owns exactly one thing. The two kinds are then split by a rule rather
+                  than by gap alone. */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 {/* Dropped once open: the stat tiles below carry the same three numbers, and
                     showing them twice is what made the old screen read as duplicated. */}
-                <div className="flex flex-wrap gap-8 group-open:hidden">
-                  <MetaField label="전체" value={`${table.countsByFilter.all}건`} />
-                  <MetaField label="연동 대상" value={`${table.countsByFilter.target}건`} />
-                  <MetaField label="제외" value={`${table.countsByFilter.excluded}건`} />
+                <div className="flex flex-wrap gap-x-5 gap-y-2 group-open:hidden">
+                  <MetaField inline label="전체" value={`${table.countsByFilter.all}건`} />
+                  <MetaField inline label="연동 대상" value={`${table.countsByFilter.target}건`} />
+                  <MetaField inline label="제외" value={`${table.countsByFilter.excluded}건`} />
                 </div>
                 {requestSummary && (
-                  <div className="flex flex-wrap gap-8">
-                    <MetaField label="요청자" value={requestSummary.requestedBy} />
-                    <MetaField
-                      label="요청일시"
-                      value={formatDate(requestSummary.requestedAt, 'datetime')}
+                  <>
+                    <span
+                      aria-hidden
+                      className={cn('h-3 w-px shrink-0 group-open:hidden', bgColors.divider)}
                     />
-                  </div>
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
+                      <MetaField inline label="요청자" value={requestSummary.requestedBy} />
+                      <MetaField
+                        inline
+                        label="요청일시"
+                        value={formatDate(requestSummary.requestedAt, 'datetime')}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             </summary>

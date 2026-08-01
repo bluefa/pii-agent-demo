@@ -6,9 +6,30 @@ import { cn, textColors } from '@/lib/theme';
  * Deliberately not `identityBarStyles` (13px, near-black): that tier belongs to the
  * page-level identity bar, and this one sits below the 16px guidance copy.
  */
-export const MetaField = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex min-w-0 flex-col gap-1">
-    <span className={cn('text-[12px] font-normal', textColors.tertiary)}>{label}</span>
+export const MetaField = ({
+  label,
+  value,
+  inline = false,
+}: {
+  label: string;
+  value: string;
+  /**
+   * Label beside the value instead of above it. Stacked pairs standing side by side read
+   * ambiguously — the eye can bind a value to the label above it OR to the pair on its right —
+   * so a row of several pairs sets this and lets adjacency do the binding.
+   */
+  inline?: boolean;
+}) => (
+  <div className={cn('flex min-w-0', inline ? 'items-baseline gap-1.5' : 'flex-col gap-1')}>
+    <span
+      className={cn(
+        'text-[12px] font-normal',
+        inline && 'shrink-0 whitespace-nowrap',
+        textColors.tertiary,
+      )}
+    >
+      {label}
+    </span>
     <span className={cn('min-w-0 truncate text-[12px] font-semibold leading-[1.3]', textColors.secondary)}>
       {value}
     </span>
