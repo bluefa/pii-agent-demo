@@ -719,10 +719,11 @@ export const idcStyles = {
     chipRest: 'border-gray-200 bg-white font-medium text-gray-700 hover:border-[#0064FF] hover:text-[#0064FF]',
     chipSelected: 'border-[#0064FF] bg-[#E8F1FF] font-semibold text-[#0064FF]',
     // 직접 입력은 텍스트 버튼(언더라인) — 칩(값)과 형태를 달리해 행동으로 읽히게.
-    // 구분선 없이 여백만으로 칩 구역과 가른다.
-    custom: 'mt-1.5 inline-flex w-full items-center gap-1.5 px-2.5 pb-1.5 pt-1 text-left text-[13px] font-semibold underline underline-offset-2 transition-colors',
-    customRest: 'text-[#0064FF] hover:text-[#0050D6]',
-    customActive: 'font-bold text-[#0050D6]',
+    // 구분선 없이 여백만으로 칩 구역과 가른다. hover는 색 다크닝만으로는 약해서
+    // 브랜드 틴트 필을 깔아 "눌러서 입력/수정한다"는 신호를 준다.
+    custom: 'mt-1.5 inline-flex w-full items-center gap-1.5 rounded-[8px] px-2.5 pb-1.5 pt-1.5 text-left text-[13px] font-semibold underline underline-offset-2 transition-colors',
+    customRest: 'text-[#0064FF] hover:bg-[#E8F1FF] hover:text-[#0050D6]',
+    customActive: 'font-bold text-[#0050D6] hover:bg-[#E8F1FF]',
   },
   /** Amber overwrite/warn banner — `.idc-ip-warn` / `.idc-load-note` (#FFFBEB / #FCD34D / #92400E). */
   warnBanner: 'flex items-start gap-2 rounded-lg border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2.5 text-[12px] leading-[1.55] text-[#92400E]',
