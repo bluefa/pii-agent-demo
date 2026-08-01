@@ -51,6 +51,9 @@ export const tossColors = {
  */
 export const tossShadow = {
   sm: 'shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
+  /** One step up from `sm` — same 2-layer shape, roughly doubled presence. For
+   *  small white cards that must read as raised on an already-white surface. */
+  md: 'shadow-[0_1px_3px_rgba(17,24,39,0.06),0_8px_20px_-8px_rgba(17,24,39,0.12)]',
 } as const;
 
 // =============================================================================

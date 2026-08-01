@@ -34,7 +34,7 @@ interface StatProps {
 // White card + toss shadow only (no border, no tint) — the tiles float on the
 // white modal surface instead of reading as inset gray wells.
 const Stat = ({ label, value, valueClass }: StatProps) => (
-  <div className={cn('rounded-xl bg-white px-4 py-4 text-center', tossShadow.sm)}>
+  <div className={cn('rounded-xl bg-white px-4 py-4 text-center', tossShadow.md)}>
     <div className={cn('text-[14px] font-medium', textColors.tertiary)}>
       {label}
     </div>
