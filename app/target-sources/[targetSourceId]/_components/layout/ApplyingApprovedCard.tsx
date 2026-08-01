@@ -22,7 +22,7 @@ import {
   ResourceTableSkeleton,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
-import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, primaryColors, statusColors } from '@/lib/theme';
 
 interface ApplyingApprovedCardProps {
   targetSourceId: number;
@@ -121,15 +121,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
       {/* Same left-aligned stack as step 2: step tag, title + status, guidance copy, approval meta. */}
       <div className={cardStyles.header}>
         {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
-        <span
-          className={cn(
-            'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
-            primaryColors.bgLight,
-            primaryColors.textOnLight,
-          )}
-        >
-          3번째 단계
-        </span>
+        <span className={cardStyles.stepTag}>3번째 단계</span>
         {/* Status tag and guidance copy wait for the fetch: asserting a state before the data lands
             means the header can contradict what resolves under it. Skeletons hold the space so the
             card does not jump when they arrive. */}
@@ -138,7 +130,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
           {loaded ? (
             <span
               className={cn(
-                'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
+                cardStyles.stepBadge,
                 statusColors.warning.bg,
                 statusColors.warning.textDark,
               )}
@@ -153,7 +145,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
             The banner is gone; blue marks the status clause only. `cn` is a plain join, so the size
             is declared here rather than layered over cardStyles.subtitle. */}
         {loaded ? (
-          <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+          <p className={cn('mt-3', cardStyles.guidance)}>
             <strong className={cn('font-semibold', primaryColors.text)}>승인이 완료됐어요.</strong>{' '}
             Agent 설치에 필요한 준비를 최대한 빠르게 진행하고 있어요.
           </p>
@@ -170,14 +162,13 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
         )}
       </div>
 
-      {/* No body top padding, so the header's bottom padding IS the meta-to-tiles gap. */}
-      <div className="px-6 pb-6">
+      <div className={cardStyles.body}>
         {state.status === 'loading' ? (
           <ResourceTableSkeleton />
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
         ) : (
-          <div className="mt-4">
+          <div>
             {/* Tiles carry the all/target/excluded counts and double as that filter — same as step 2. */}
             <WaitingApprovalStats
               totalCount={table.countsByFilter.all}

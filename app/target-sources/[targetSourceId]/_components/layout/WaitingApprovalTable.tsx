@@ -109,7 +109,8 @@ const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 const PLACEHOLDER = '—';
 
 // No status dot: the label already says 대상 / 제외, so the dot repeats it in a weaker channel.
-const TargetPill = ({ excluded }: { excluded: boolean }) => {
+// Exported for the IDC steps 2·3 table, which asks the same question in the same column.
+export const TargetPill = ({ excluded }: { excluded: boolean }) => {
   const variant = excluded ? idcStyles.targetPill.no : idcStyles.targetPill.yes;
   return (
     <span className={cn(idcStyles.targetPill.base, variant.box)}>
@@ -122,7 +123,7 @@ const TargetPill = ({ excluded }: { excluded: boolean }) => {
 // scroll (Azure step 3 reasons run past it). Clamp here — the full text is in the hover tip.
 const SUMMARY_LIMIT = 15;
 
-const clampReason = (reason: string): string =>
+export const clampReason = (reason: string): string =>
   reason.length <= SUMMARY_LIMIT ? reason : reason.slice(0, SUMMARY_LIMIT).trimEnd() + '…';
 
 // Blank when there is no reason — target rows can never have one, so an em-dash is noise.

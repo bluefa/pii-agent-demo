@@ -18,7 +18,6 @@ import {
   IdcKindBadge,
   IdcLogicalButtonCell,
   IdcSourceIpCell,
-  IdcTargetPill,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
 import {
@@ -27,6 +26,8 @@ import {
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
+  TargetPill,
+  clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { LogicalDbCountMap } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
@@ -156,7 +157,14 @@ export const IdcResourceTable = ({
                 <SourceIpHeader />
               </th>
             )}
-            {has('excl') && <th className={cn(skin.headerCell, 'w-[230px]')}>연동 대상 / 제외 사유</th>}
+            {/* Two columns, not one merged cell: the verdict and the why answer different
+                questions, which is how the cloud steps 2·3 table asks them. */}
+            {has('excl') && (
+              <>
+                <th className={cn(skin.headerCell, 'w-[110px]')}>요청 대상 여부</th>
+                <th className={cn(skin.headerCell, 'w-[170px]')}>제외 사유</th>
+              </>
+            )}
             {has('fw') && <th className={cn(skin.headerCell, 'w-[170px]')}>방화벽 상태</th>}
             {has('cred') && <th className={cn(skin.headerCell, 'w-[150px]')}>DB Credential</th>}
             {has('conn') && <th className={cn(skin.headerCell, 'w-[150px]')}>Connection Status</th>}
@@ -192,16 +200,22 @@ export const IdcResourceTable = ({
                   </td>
                 )}
                 {has('excl') && (
-                  <td className={skin.cell}>
-                    {r.excluded ? (
-                      <span className="inline-flex items-center gap-2">
-                        <IdcTargetPill excluded />
-                        {r.exclusionReason ? <ReasonChipInline reason={r.exclusionReason} /> : null}
-                      </span>
-                    ) : (
-                      <IdcTargetPill excluded={false} />
-                    )}
-                  </td>
+                  <>
+                    <td className={skin.cell}>
+                      <TargetPill excluded={r.excluded} />
+                    </td>
+                    {/* Blank, not an em-dash: a 대상 row can never carry a reason. The chip is
+                        clamped to the same 15 chars the cloud table uses — the full text is in
+                        its hover tip. */}
+                    <td className={cn(skin.cell, 'text-sm')}>
+                      {r.excluded && r.exclusionReason ? (
+                        <ReasonChipInline
+                          reason={r.exclusionReason}
+                          summary={clampReason(r.exclusionReason)}
+                        />
+                      ) : null}
+                    </td>
+                  </>
                 )}
                 {has('fw') && <td className={cn(skin.cell, dim)}><IdcFirewallBadge status={firewallStatusByResource?.[r.resourceId]} /></td>}
                 {has('cred') && (

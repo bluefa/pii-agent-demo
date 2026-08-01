@@ -167,21 +167,13 @@ export const IdcStep6ConnectionVerified = ({
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         {/* Same left-aligned stack as the cloud step: step tag, title + status, guidance copy. */}
         <header className={cardStyles.header}>
-          <span
-            className={cn(
-              'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
-              primaryColors.bgLight,
-              primaryColors.textOnLight,
-            )}
-          >
-            6번째 단계
-          </span>
+          <span className={cardStyles.stepTag}>6번째 단계</span>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <h2 className={cardStyles.cardTitle}>완료 여부 관리자 승인 대기</h2>
               <span
                 className={cn(
-                  'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
+                  cardStyles.stepBadge,
                   statusColors.warning.bg,
                   statusColors.warning.textDark,
                 )}
@@ -200,14 +192,14 @@ export const IdcStep6ConnectionVerified = ({
           </div>
           {/* One sentence instead of two: the header subtitle and the info banner said the same
               thing. Blue marks the status clause only, matching steps 2·3. */}
-          <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+          <p className={cn('mt-3', cardStyles.guidance)}>
             <strong className={cn('font-semibold', primaryColors.text)}>
               최종 관리자 승인을 기다리고 있어요.
             </strong>{' '}
             PII Agent 운영팀의 승인이 완료되면 모니터링이 즉시 시작됩니다.
           </p>
           {/* No top margin — the 1.55 leading is the paragraph break (step-2 grammar). */}
-          <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+          <p className={cardStyles.guidance}>
             통합 테스트 결과가 잘못됐거나 연결 테스트를 한 번 더 수행하고 싶다면 우측 상단{' '}
             <strong className={cn('font-semibold', textColors.secondary)}>연결 재확인</strong>을
             눌러주세요.
