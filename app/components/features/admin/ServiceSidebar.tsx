@@ -125,8 +125,13 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
     title={name ? `${name} (${code})` : code}
     className={cn(
       // Already the tinted fill at rest, so hover deepens it rather than recolouring.
-      'mt-3 w-full rounded-lg px-3 py-2.5 text-left cursor-pointer transition-[filter] hover:brightness-95',
+      // The border is what keeps this card ahead of a hovered row: both carry the same
+      // tint, so a deeper shade would only differ by degree (#E8F1FF vs #EFF6FF is not
+      // a visible step). Outlined-vs-filled is a difference in kind — "you are here"
+      // stays louder than "the pointer is passing over".
+      'mt-3 w-full rounded-lg border px-3 py-2.5 text-left cursor-pointer transition-[filter] hover:brightness-95',
       primaryColors.bgLight,
+      primaryColors.border100,
     )}
   >
     {/* Neutral type on the tint: the fill already marks the card as the current
@@ -175,7 +180,10 @@ export const ServiceSidebar = ({
     <aside className="w-[296px] shrink-0 bg-white shadow-sm flex flex-col">
       {/* Header zone: what this panel is, and where you currently are. */}
       <div className="px-3 pt-4 pb-4">
-        <h2 className={cn('px-1 text-base font-semibold', textColors.primary)}>서비스 목록</h2>
+        {/* 18/700 against the card name's 14/600: two levers apart. At 16/600 the two
+            differed only by 2px and read as peers — the exact collision the tinted card
+            was introduced to avoid. */}
+        <h2 className={cn('px-1 text-lg font-bold', textColors.primary)}>서비스 목록</h2>
         {currentService && (
           <CurrentServiceCard
             code={currentService.code}
@@ -244,8 +252,15 @@ export const ServiceSidebar = ({
             borderColors.light,
           )}
         >
-          <span className={cn('text-xs', textColors.tertiary)}>서비스 이름</span>
-          <span className={cn('text-xs', textColors.tertiary)}>서비스 코드</span>
+          {/* medium + tracking, against the code column's 12/400/gray-500. Identical
+              specs made the heading read as the column's first entry instead of its
+              label; 12px is the scale floor, so weight and tracking do the separating. */}
+          <span className={cn('text-xs font-medium tracking-wide', textColors.tertiary)}>
+            서비스 이름
+          </span>
+          <span className={cn('text-xs font-medium tracking-wide', textColors.tertiary)}>
+            서비스 코드
+          </span>
         </div>
       )}
 
