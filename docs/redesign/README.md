@@ -11,7 +11,7 @@ Documents may be written in Korean (this README must stay English — repo rule)
 | Screen | Document | Status |
 |---|---|---|
 | Step 1 · scan + target selection (`/pass/target-sources/{id}`) | [`step1-scan-select.md`](step1-scan-select.md) | shipped |
-| Step 2 · approval waiting (`/pass/target-sources/{id}`) | [`step2-approval-waiting.md`](step2-approval-waiting.md) | shipped (PR #590 · #593 rejected state, modals, row dimming) |
+| Step 2 · approval waiting (`/pass/target-sources/{id}`) | [`step2-approval-waiting.md`](step2-approval-waiting.md) | shipped (PR #590 · #593 rejected state, modals, row dimming) · §16 reason-quote + collapsed target record supersedes §13 |
 | Step 2 · live review session log | [`step2-review-session-log.md`](step2-review-session-log.md) | reference |
 | Step 3 · applying approved (`/pass/target-sources/{id}`) | [`step3-applying-approved.md`](step3-applying-approved.md) | shipped |
 | Text scale & spacing tokens | [`typography-and-spacing.md`](typography-and-spacing.md) | shipped (Step 4 applied) |
@@ -174,6 +174,55 @@ what is on screen.
 
 **`cn` is a plain join, not tailwind-merge.** Layering conflicting utilities leaves the winner to CSS
 order — declare the final value on the element instead.
+
+**Fill + radius + parent's width = a second card, not a subsection.** Nesting only reads as nesting
+when the child is visibly contained. A tinted block spanning the card's own inner width has no depth
+signal left, so it floats. Prefer an edge (a rule, a hanging indent) over a filled surface, and never
+put a meta/action footer inside it — that is a third structural level inside one card.
+
+**A label must be smaller than the thing it labels.** A 16px semibold `반려 사유` over a 14px reason
+inverts the hierarchy: size says "the label leads", contrast says "the body leads", and the two
+signals cancel. Check that contrast descends monotonically down a block; a non-monotonic ramp
+(16.6 → 4.8 → 6.9 → 9.7) is the measurable form of "the hierarchy is off".
+
+**"The color is too strong" usually means area, not contrast.** An `orange-50` panel is 1.05:1
+against white — no contrast at all — yet it dominated the screen because it covered ~99,000px². The
+fix is not a lighter tint (there is nothing below -50); it is less chromatic area. Moving the same
+state to a 3px rule cut it to ~800px². And a state encoded three times in one hue (badge + fill +
+title) is double-encoding — pick one carrier.
+
+**A load-bearing colored edge needs 3:1, so it needs its own token.** The `border` tier of a status
+family is tuned to sit under a matching tint; standing alone on white it fails WCAG 1.4.11.
+`warning.borderStrong` (orange-600, 3.56:1) exists because orange-300 (1.7:1) and orange-500
+(2.80:1) do not clear the floor.
+
+**Label-over-value only survives while the pairs are few.** Two stacked pairs at 32px read fine (the
+pending header). Five in one row read as a run — the eye binds a value to the label above it *or* to
+the pair on its right. Switch to inline pairs and split the kinds with a rule.
+
+**Never ship an unlabelled byline when the screen carries a sibling of the same kind.** `관리자 ·
+2024. 01. 18.` is unambiguous alone and ambiguous next to a 요청일시 — the reader has to infer which
+date it is. Labels are not clutter when two of the same type coexist.
+
+**A closed request is a record, not a worklist.** After a verdict, filter tiles + search + a full
+table put hundreds of px of interactive-looking surface after the one decision the screen asks for.
+Collapse it behind native `<details>` — no hook, no flag — and let the summary line answer what the
+list would have been scanned for (how many, from whom, when). Drop counts from the summary once open
+(`group-open:hidden`) so the tiles do not repeat them.
+
+**Deletion overshoots; expect a round trip.** Removing the `반려 사유` label and promoting the CTA to
+a solid button both had to be reverted — the label because the block stopped naming itself, the
+button because the left rule was already acting as the container the link needed. Decide weight and
+naming against the running screen, not the diff.
+
+**The raw-color hook and the PR gate catch different things.** `post-edit-grep.sh` blocks Tailwind
+palette classes (`border-gray-100`) but not arbitrary values (`border-[#EA580C]`); `scripts/pr-check.sh`
+rejects any six-digit hex in a changed non-theme file — **including test files**. Assert through the
+token (`toContain(primaryColors.text)`), never a hex literal.
+
+**`npm run build` kills a dev server sharing the worktree.** They write the same `.next`. Either stop
+the server first or accept that the running preview dies mid-verification — and re-check before
+telling anyone the link works.
 
 ## Adding a document
 
