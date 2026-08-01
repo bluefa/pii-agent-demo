@@ -109,9 +109,13 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
 
 /**
  * The service the page is about, shown in the header zone as context — not as a list
- * group. The caption says what it is, so no badge is needed; below it the same
- * [name][code] grammar as the list rows. The tinted card is already a container, so a
- * chip around the code here would be a container inside a container.
+ * group. The caption says what it is, so no badge is needed.
+ *
+ * Only the name, and one weight step above the rows. This card answers "where am I",
+ * which the name alone answers; the code is the key you need when *choosing* a row, and
+ * repeating it here just re-ran the list's grammar in the one place that has no column
+ * to line up with. It stays in the title attribute for anyone who needs the exact value.
+ *
  * It is a destination like any other row, so it stays clickable.
  */
 const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
@@ -128,13 +132,13 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
     <span className={cn('block text-xs font-semibold', primaryColors.textOnLight)}>
       현재 보고 있는 서비스
     </span>
-    <span className={cn('mt-1.5 block text-sm line-clamp-2 break-words', primaryColors.textOnLight)}>
+    <span
+      className={cn(
+        'mt-1.5 block text-sm font-medium line-clamp-2 break-words',
+        primaryColors.textOnLight,
+      )}
+    >
       {name || code}
-      {/* Inline here, not right-pushed: this is one card, so there is no column for a
-          right-aligned code to line up with. No opacity either — #0050D6 at 60% over
-          the tint lands at 2.8:1, under AA for 12px. Size and family already carry the
-          subordination. */}
-      {name && <span className="ml-1.5 font-mono text-xs">{code}</span>}
     </span>
   </button>
 );
