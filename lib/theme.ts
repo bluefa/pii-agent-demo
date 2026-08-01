@@ -706,8 +706,16 @@ export const idcStyles = {
   rowActionDelete: 'inline-flex h-[26px] w-[26px] items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[#FEECEC] hover:text-[#B42318]',
   /** Exclusion-reason popover — `.idc-reason-pop`. */
   popover: {
-    container: 'fixed z-[120] min-w-[180px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.14)]',
-    title: 'px-2.5 pb-1.5 pt-2 text-[11px] font-bold tracking-[0.01em] text-gray-500',
+    container: 'fixed z-[120] min-w-[248px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.14)]',
+    title: 'px-2.5 pb-2 pt-2 text-[14px] font-semibold text-[#191F28]',
+    // 프리셋 값은 칩(태그 피커) — 맨텍스트 행은 휴지 상태에서 선택지로 읽히지
+    // 않는다. 휴지 gray-200 보더 < hover 브랜드 프리뷰 < 선택 브랜드+틴트로,
+    // Step1·2 필터 타일과 같은 상호작용 사다리. 색 충돌 방지를 위해 border-color는
+    // rest/selected 어느 한쪽만 소유한다(cn은 단순 join — 순서가 승자를 못 정한다).
+    chipRow: 'flex flex-wrap gap-1.5 px-2.5 pb-1',
+    chip: 'rounded-full border px-3 py-1.5 text-[13px] transition-colors',
+    chipRest: 'border-gray-200 bg-white font-medium text-gray-700 hover:border-[#0064FF] hover:text-[#0064FF]',
+    chipSelected: 'border-[#0064FF] bg-[#E8F1FF] font-semibold text-[#0064FF]',
     opt: 'flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-gray-900 transition-colors hover:bg-[#F7F8FA]',
     optSelected: 'bg-[#E8F1FF] font-bold text-[#0064FF]',
     custom: 'mt-1 border-t border-gray-200 pt-2.5 font-semibold text-[#0064FF]',
