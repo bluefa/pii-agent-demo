@@ -405,6 +405,8 @@ describe('WaitingApprovalCard', () => {
     expect(meta.getByText('제외').nextElementSibling?.textContent).toBe('1건');
     expect(meta.getByText('요청자').nextElementSibling?.textContent).toBe('tester');
     expect(meta.getByText('요청일시').nextElementSibling?.textContent).toMatch(/^2026\. 04\. 29\./);
+    // 일시 → 사람, the same order as 반려일시/처리자 above and the pending header's meta row.
+    expect(summary.textContent).toMatch(/전체[\s\S]*제외[\s\S]*요청일시[\s\S]*요청자/);
     // The way in is the block's only action, so it reads as brand blue, not another gray label.
     // Assert through the token, never a hex literal — pr-check.sh rejects six-digit hex in any
     // changed non-theme file, tests included.

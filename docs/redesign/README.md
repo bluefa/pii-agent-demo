@@ -200,6 +200,10 @@ family is tuned to sit under a matching tint; standing alone on white it fails W
 pending header). Five in one row read as a run — the eye binds a value to the label above it *or* to
 the pair on its right. Switch to inline pairs and split the kinds with a rule.
 
+**Meta pairs read 일시 → 사람, everywhere.** `반려일시`/`처리자` and the pending header's
+`요청일시`/`요청자` already did; a new group that flips to 사람 → 일시 makes the reader re-parse
+which field is which. Order is part of the grammar, not a per-block choice.
+
 **Never ship an unlabelled byline when the screen carries a sibling of the same kind.** `관리자 ·
 2024. 01. 18.` is unambiguous alone and ambiguous next to a 요청일시 — the reader has to infer which
 date it is. Labels are not clutter when two of the same type coexist.

@@ -70,9 +70,12 @@ export const RejectedTargetRecord = ({
               aria-hidden
               className={cn('h-3 w-px shrink-0 group-open:hidden', bgColors.divider)}
             />
+            {/* 일시 → 사람. Every meta pair on this screen reads in that order (반려일시/처리자,
+                pending header's 요청일시/요청자) — a group that flips it makes the reader re-parse
+                which field is which. */}
             <div className="flex flex-wrap gap-x-5 gap-y-2">
-              <MetaField inline label="요청자" value={request.requestedBy} />
               <MetaField inline label="요청일시" value={formatDate(request.requestedAt, 'datetime')} />
+              <MetaField inline label="요청자" value={request.requestedBy} />
             </div>
           </>
         )}
