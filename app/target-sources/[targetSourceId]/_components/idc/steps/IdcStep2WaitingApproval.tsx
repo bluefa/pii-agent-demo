@@ -154,7 +154,7 @@ export const IdcStep2WaitingApproval = ({
                 />
                 <IdcResourceTable
                   resources={visibleResources}
-                  cols={['excl']}
+                  cols={['src', 'excl']}
                   connected
                   emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
                 />

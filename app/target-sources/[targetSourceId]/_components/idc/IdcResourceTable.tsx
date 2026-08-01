@@ -157,7 +157,7 @@ export const IdcResourceTable = ({
                 own width — the widest engine label plus its SID line fits. */}
             <th className={cn(skin.headerCell, 'w-[172px]')}>Database Type</th>
             {has('src') && (
-              <th className={cn(skin.headerCell, 'w-[190px]')}>
+              <th className={cn(skin.headerCell, 'w-[144px]')}>
                 <SourceIpHeader />
               </th>
             )}
@@ -165,23 +165,23 @@ export const IdcResourceTable = ({
                 questions, which is how the cloud steps 2·3 table asks them. */}
             {has('excl') && (
               <>
-                <th className={cn(skin.headerCell, 'w-[110px]')}>요청 대상 여부</th>
+                <th className={cn(skin.headerCell, 'w-[112px]')}>요청 대상 여부</th>
                 {/* The flexible one on these steps: the reason is the only free-text value in a
                     row, so leftover width belongs to it, not to an attribute column. */}
                 <th className={skin.headerCell}>제외 사유</th>
               </>
             )}
-            {has('fw') && <th className={cn(skin.headerCell, 'w-[170px]')}>방화벽 상태</th>}
+            {has('fw') && <th className={skin.headerCell}>방화벽 상태</th>}
             {has('cred') && <th className={cn(skin.headerCell, 'w-[150px]')}>DB Credential</th>}
             {has('conn') && <th className={cn(skin.headerCell, 'w-[150px]')}>Connection Status</th>}
             {has('logical') && <th className={cn(skin.headerCell, 'w-[110px]')}>논리 DB 관리</th>}
             {has('logicalro') && (
               <>
                 <th className={cn(skin.headerCell, 'w-[120px]')}>연동 논리 DB</th>
-                <th className={cn(skin.headerCell, 'w-[110px]')}>연동 제외</th>
+                <th className={skin.headerCell}>연동 제외</th>
               </>
             )}
-            {has('health') && <th className={cn(skin.headerCell, 'w-[150px]')}>Status</th>}
+            {has('health') && <th className={skin.headerCell}>Status</th>}
           </tr>
         </thead>
         <tbody className={idcStyles.table.body}>

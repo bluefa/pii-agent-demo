@@ -113,7 +113,7 @@ export const IdcStep3Applying = ({
               />
               <IdcResourceTable
                 resources={visibleResources}
-                cols={['excl']}
+                cols={['src', 'excl']}
                 connected
                 emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
               />
