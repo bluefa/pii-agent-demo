@@ -15,14 +15,14 @@ export const opsStyles = {
   titleRow: 'flex items-start justify-between gap-6 mt-3',
   titleGroup: 'flex items-center gap-2 min-w-0',
   /** Neutral header tags (Target # id / service code) — Figma 49:4/34:4. */
-  tag: 'inline-flex items-center rounded px-2 py-1 text-[11px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
+  tag: 'inline-flex items-center rounded px-2 py-1 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] whitespace-nowrap',
 
   /** Cloud info inline row — Figma 34:12. */
   cloudRow: 'flex items-center gap-1.5 mt-2 text-[14px]',
   cloudStrong: 'font-medium text-[var(--pl-text-strong)]',
   cloudSep: 'text-[var(--pl-text-faint)]',
   regionTag: 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
-  modeTag: 'inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] bg-[var(--pl-gray-100)] cursor-pointer hover:bg-[var(--pl-gray-200)]',
+  modeTag: 'inline-flex items-center gap-1 rounded px-2 py-1 text-[12px] bg-[var(--pl-gray-100)] cursor-pointer hover:bg-[var(--pl-gray-200)]',
   modeTagKey: 'text-[var(--pl-text-weak)]',
   modeTagValue: 'font-semibold text-[var(--pl-primary)] underline',
 
@@ -42,16 +42,16 @@ export const opsStyles = {
   /* Border-matched arrow: rotated square sharing the bubble's border on its two
      visible edges, pointing down-left toward the target title. */
   bubbleTail:
-    'absolute left-5 -bottom-[6.5px] h-3 w-3 rotate-45 bg-[var(--pl-bg-card)] border-b border-r border-[var(--pl-border)]',
+    'absolute left-5 -bottom-[6px] h-3 w-3 rotate-45 bg-[var(--pl-bg-card)] border-b border-r border-[var(--pl-border)]',
   bubbleTop: 'flex items-center justify-between gap-4',
   bubbleTitle: 'text-[12px] font-semibold text-[var(--pl-text-weak)]',
   bubbleManage:
-    'text-[11px] font-medium text-[var(--pl-text-faint)] hover:text-[var(--pl-text-medium)] hover:underline cursor-pointer',
+    'text-[12px] font-medium text-[var(--pl-text-faint)] hover:text-[var(--pl-text-medium)] hover:underline cursor-pointer',
   bubbleJiraRow:
     'self-start inline-flex items-center gap-1.5 -mx-1.5 px-1.5 py-0.5 rounded-md hover:bg-[var(--pl-primary-bg)] transition-colors',
   /* Plain inline (not inline-flex) so the underline runs unbroken across "KEY ↗". */
   bubbleLink:
-    'text-[13px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 cursor-pointer',
+    'text-[14px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 cursor-pointer',
 
   /** Tab rail (admin-ops.html .tabbar) — tinted band; only the active tab turns
       white so it visually connects to the body below. */
@@ -67,8 +67,8 @@ export const opsStyles = {
   cardsRow: 'grid grid-cols-2 gap-4',
   /** 20px — 16은 카드 안 블록 제목들과 급이 안 벌어진다는 운영 피드백(스캔 탭). */
   cardTitle: 'text-[20px] font-semibold text-[var(--pl-text-strong)]',
-  /** 13/weak + 타이틀과 12px 간격 — 보조 설명은 회색으로 물러나 본문 헤더와 급을 가른다. */
-  cardDesc: 'text-[13px] text-[var(--pl-text-weak)] mt-3',
+  /** 14/weak + 타이틀과 12px 간격 — 보조 설명은 회색으로 물러나 본문 헤더와 급을 가른다. */
+  cardDesc: 'text-[14px] text-[var(--pl-text-weak)] mt-3',
 
   /** A paged card in cardsRow: column layout so the pager sits at the bottom. */
   pagedCard: 'flex flex-col',
@@ -78,11 +78,11 @@ export const opsStyles = {
   pagedCardBody: 'mt-3 min-h-[266px] flex-1',
 
   /** 상세 보기 → text button (Figma 40:21). */
-  detailLink: 'inline-flex items-center gap-1 text-[13px] font-medium text-[var(--pl-primary)] cursor-pointer hover:underline whitespace-nowrap',
+  detailLink: 'inline-flex items-center gap-1 text-[14px] font-medium text-[var(--pl-primary)] cursor-pointer hover:underline whitespace-nowrap',
 
   /** Figma 4:2 table grammar — plain headers (no fill), divider rows. */
   table: {
-    base: 'w-full border-collapse text-[13px]',
+    base: 'w-full border-collapse text-[14px]',
     headCell:
       'py-2.5 px-3 text-left text-[12px] font-medium text-[var(--pl-text-weak)] border-b border-[var(--pl-border)] whitespace-nowrap',
     cell: 'py-3 px-3 border-b border-[var(--pl-gray-100)] align-middle text-[var(--pl-text-strong)]',
@@ -91,5 +91,5 @@ export const opsStyles = {
 
   /** Uppercase wire-status tag (Figma APPROVED/CANCELLED chips). */
   statusTag:
-    'inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold tracking-[0.02em] whitespace-nowrap',
+    'inline-flex items-center rounded px-2 py-0.5 text-[12px] font-semibold tracking-[0.02em] whitespace-nowrap',
 } as const;

@@ -65,7 +65,7 @@ function TimeField({ label, children }: { label: string; children: React.ReactNo
   return (
     <div className="min-w-0">
       <p className="text-[12px] font-medium text-[var(--pl-text-faint)]">{label}</p>
-      <p className="mt-0.5 whitespace-nowrap text-[13px] font-medium tabular-nums text-[var(--pl-text-medium)]">
+      <p className="mt-0.5 whitespace-nowrap text-[14px] font-medium tabular-nums text-[var(--pl-text-medium)]">
         {children}
       </p>
     </div>
@@ -136,7 +136,7 @@ function ResourceTypeTag({
     <span
       title={type}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-[6px] border bg-white px-2.5 py-[5px] text-[11px] font-semibold shadow-[var(--pl-shadow-xs)] [font-family:var(--pl-font-mono)]',
+        'inline-flex items-center gap-1.5 rounded-[6px] border bg-white px-2.5 py-1 text-[12px] font-semibold shadow-[var(--pl-shadow-xs)] [font-family:var(--pl-font-mono)]',
         removed
           ? 'border-dashed border-[var(--pl-border)] text-[var(--pl-text-faint)]'
           : 'border-[var(--pl-border)] text-[var(--pl-text-medium)]',
@@ -154,7 +154,7 @@ function ResourceTypeTag({
       {diff != null && diff !== 0 && (
         <b
           className={cn(
-            'text-[11px] font-bold tabular-nums',
+            'text-[12px] font-bold tabular-nums',
             diff > 0 ? 'text-[var(--pl-ok-text)]' : 'text-[var(--pl-err-text)]',
           )}
         >
@@ -308,7 +308,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
       </div>
 
       {startFailed && (
-        <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
+        <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[14px] text-[var(--pl-err-text)]">
           스캔을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.
         </p>
       )}
@@ -359,27 +359,26 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
               ) : (
                 <>
-                  <p className="mt-1 text-[13px] text-[var(--pl-text-weak)]">
-                    {/* 숫자만 브랜드 색 + 18px — 개는 꼬리표 계층 그대로. */}
-                    총 <b className="text-[18px] font-bold tabular-nums text-[var(--pl-primary)]">{latestTotal}</b>개
-                    {countDiff !== null
-                      && (countDiff === 0 ? (
-                        <> · 직전 스캔과 동일</>
-                      ) : (
-                        <>
-                          {' · '}직전 스캔 대비{' '}
-                          <b
-                            className={cn(
-                              'rounded-full px-1.5 py-0.5 text-[11.5px] font-bold tabular-nums',
-                              countDiff > 0
-                                ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
-                                : 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
-                            )}
-                          >
-                            {countDiff > 0 ? `+${countDiff}` : countDiff}
-                          </b>
-                        </>
-                      ))}
+                  {/* 한 문장으로 — '총 N개 · 직전 대비 +N' 조각 나열이 어색하다는
+                      운영 피드백. 총계 숫자만 브랜드 색 + 18px, 증감 숫자는 ok/err. */}
+                  <p className="mt-1 text-[14px] text-[var(--pl-text-weak)]">
+                    {countDiff !== null && countDiff !== 0 && (
+                      <>
+                        직전 스캔보다{' '}
+                        <b
+                          className={cn(
+                            'font-bold tabular-nums',
+                            countDiff > 0 ? 'text-[var(--pl-ok-text)]' : 'text-[var(--pl-err-text)]',
+                          )}
+                        >
+                          {Math.abs(countDiff)}개
+                        </b>
+                        {countDiff > 0 ? ' 늘어난' : ' 줄어든'}{' '}
+                      </>
+                    )}
+                    {countDiff === 0 && <>직전 스캔과 같은 </>}
+                    총 <b className="text-[18px] font-bold tabular-nums text-[var(--pl-primary)]">{latestTotal}</b>개를
+                    발견했어요.
                   </p>
                   <div className="mt-2.5 flex flex-wrap gap-2">
                     {typeEntries.map(({ type, count, diff }) => (
@@ -392,7 +391,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
           )}
 
           {latestJob.scan_error && (
-            <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
+            <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[14px] text-[var(--pl-err-text)]">
               <span className="[font-family:var(--pl-font-mono)] font-semibold">{latestJob.scan_error}</span>
               <span className="ml-2">{errorLabel(latestJob.scan_error)}</span>
             </p>
@@ -519,25 +518,25 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
       >
         {detailJob && (
           <>
+            {/* '스캔 #N' 타이틀 + '스캔 결과' 헤더 2단이 계층을 흐린다는 피드백 —
+                타이틀 한 줄('스캔 결과 #N + 판정')로 병합. */}
             <h3
               id="scan-detail-title"
               className="flex items-center gap-2 text-[16px] font-bold text-[var(--pl-text-strong)]"
             >
-              스캔 <span className="[font-family:var(--pl-font-mono)]">#{detailJob.scan_version ?? '-'}</span>
+              스캔 결과 <span className="[font-family:var(--pl-font-mono)]">#{detailJob.scan_version ?? '-'}</span>
               <ScanStatusPill status={detailJob.scan_status} />
             </h3>
 
             {detailJob.scan_status === 'SUCCESS' && (
-              <div className="mt-5">
-                <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">스캔 결과</p>
+              <div className="mt-4">
                 {detailCounts.length === 0 ? (
-                  <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
+                  <p className={pipelineStyles.text.meta}>발견된 리소스가 없습니다.</p>
                 ) : (
                   <>
-                    <p className="mt-1 text-[13px] text-[var(--pl-text-weak)]">
-                      총 <b className="text-[18px] font-bold tabular-nums text-[var(--pl-primary)]">{totalOf(detailCounts)}</b>개
-                      {' · '}
-                      {detailCounts.length}타입
+                    <p className="text-[14px] text-[var(--pl-text-weak)]">
+                      총 <b className="text-[18px] font-bold tabular-nums text-[var(--pl-primary)]">{totalOf(detailCounts)}</b>개를
+                      발견했어요.
                     </p>
                     <div className="mt-2.5 flex max-h-[280px] flex-wrap gap-2 overflow-y-auto">
                       {detailCounts.map(([type, count]) => (
@@ -550,7 +549,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             )}
 
             {detailJob.scan_error && (
-              <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
+              <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[14px] text-[var(--pl-err-text)]">
                 <span className="[font-family:var(--pl-font-mono)] font-semibold">{detailJob.scan_error}</span>
                 <span className="ml-2">{errorLabel(detailJob.scan_error)}</span>
               </p>

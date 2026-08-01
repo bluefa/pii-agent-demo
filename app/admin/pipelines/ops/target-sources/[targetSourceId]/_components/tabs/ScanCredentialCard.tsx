@@ -182,7 +182,7 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
       {/* 검증 응답 원문 — identity 포함 전체 payload. 라벨은 박스 안 헤더로,
           본문은 토큰 하이라이트(진짜 JSON 뷰어 문법) — 진단·백엔드 대조용. */}
       <div className="mt-4 overflow-hidden rounded-lg border border-[var(--pl-gray-100)] bg-[var(--pl-bg-inner)]">
-        <p className="px-3.5 pt-2.5 text-[11px] font-semibold tracking-[0.04em] text-[var(--pl-text-faint)]">
+        <p className="px-3.5 pt-2.5 text-[12px] font-semibold tracking-[0.04em] text-[var(--pl-text-faint)]">
           응답 원문
         </p>
         {/* 구두점은 pre 기본색(faint)으로 물러나고 값 토큰만 색을 갖는다. */}
@@ -201,7 +201,7 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
 
       {/* 실패면 원인(코드+설명)이 그 자리에 — 계약상 자유 문자열이라 그대로 통과시킨다. */}
       {failed && (
-        <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
+        <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[14px] text-[var(--pl-err-text)]">
           {data.fail_reason && (
             <span className="[font-family:var(--pl-font-mono)] font-semibold">{data.fail_reason}</span>
           )}
@@ -218,7 +218,7 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
           <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
             <div className="min-w-0">
               <p className="text-[12px] font-medium text-[var(--pl-text-faint)]">마지막 검증</p>
-              <p className="mt-0.5 whitespace-nowrap text-[13px] font-medium tabular-nums text-[var(--pl-text-medium)]">
+              <p className="mt-0.5 whitespace-nowrap text-[14px] font-medium tabular-nums text-[var(--pl-text-medium)]">
                 {fmtDateTimeSec(data.last_verified_at)}
               </p>
             </div>
