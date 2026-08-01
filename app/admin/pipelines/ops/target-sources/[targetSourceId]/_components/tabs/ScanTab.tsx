@@ -330,9 +330,9 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         <div className="mt-5" aria-busy>
           <div className={cn(opsStyles.skeleton, 'h-5 w-24')} aria-hidden="true" />
           <div className={cn(opsStyles.skeleton, 'mt-2.5 h-5 w-72')} aria-hidden="true" />
-          <div className="mt-2.5 grid grid-cols-3 gap-2">
-            {Array.from({ length: 6 }, (_, index) => (
-              <div key={index} className={cn(opsStyles.skeleton, 'h-[60px]')} aria-hidden="true" />
+          <div className="mt-2.5 grid h-[196px] grid-cols-3 content-start gap-2 overflow-hidden">
+            {Array.from({ length: 9 }, (_, index) => (
+              <div key={index} className={cn(opsStyles.skeleton, 'h-[52px]')} aria-hidden="true" />
             ))}
           </div>
         </div>
@@ -402,7 +402,9 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                     </b>
                     개를 발견했어요.
                   </p>
-                  <div className="mt-2.5 grid grid-cols-3 gap-2">
+                  {/* 뷰포트 고정(3행 + 다음 행 살짝) — 타입 수(프로바이더·버전별 상이)가
+                      카드 세로 길이를 끌고 가지 않게, 넘치면 그리드 안에서 스크롤. */}
+                  <div className="mt-2.5 grid h-[196px] grid-cols-3 content-start gap-2 overflow-y-auto">
                     {typeEntries.map(({ type, count, diff }) => (
                       <ResourceTypeTile key={type} type={type} count={count} provider={provider} diff={diff} />
                     ))}

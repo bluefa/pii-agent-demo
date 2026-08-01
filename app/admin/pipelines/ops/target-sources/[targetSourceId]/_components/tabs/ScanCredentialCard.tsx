@@ -158,9 +158,10 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
 
       {state.phase === 'loading' ? (
         // 응답 원문 박스 + 하단 시각행 자리를 그리는 스켈레톤 — 점프 방지.
-        <div className="mt-4" aria-busy>
-          <div className={cn(opsStyles.skeleton, 'h-[176px]')} aria-hidden="true" />
-          <div className={cn(opsStyles.skeleton, 'mt-4 h-4 w-44')} aria-hidden="true" />
+        // 박스 스켈레톤도 flex-1로 실물과 같은 자리(남는 높이 흡수)를 차지한다.
+        <div className="mt-4 flex min-h-0 flex-1 flex-col" aria-busy>
+          <div className={cn(opsStyles.skeleton, 'min-h-[176px] flex-1')} aria-hidden="true" />
+          <div className={cn(opsStyles.skeleton, 'mt-4 h-4 w-44 flex-none')} aria-hidden="true" />
         </div>
       ) : state.phase === 'error' ? (
         <p className={cn(pipelineStyles.text.meta, 'mt-4')}>자격 정보를 불러오지 못했습니다.</p>
@@ -182,15 +183,17 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
   return (
     <>
       {/* 검증 응답 원문 — identity 포함 전체 payload. 라벨은 박스 안 헤더로,
-          본문은 토큰 하이라이트(진짜 JSON 뷰어 문법) — 진단·백엔드 대조용. */}
-      <div className="mt-4 overflow-hidden rounded-lg border border-[var(--pl-gray-100)] bg-[var(--pl-bg-inner)]">
+          본문은 토큰 하이라이트(진짜 JSON 뷰어 문법) — 진단·백엔드 대조용.
+          flex-1 — 짝 카드(최근 스캔)가 더 길 때 남는 높이를 회색 면이 흡수해
+          박스 아래 흰 여백이 휑하게 남지 않는다(운영 피드백). */}
+      <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--pl-gray-100)] bg-[var(--pl-bg-inner)]">
         {/* 12/500 — 시각행 라벨·모달 th와 같은 라벨 문법(600+tracking은 혼자 이질). */}
         <p className="px-3.5 pt-2.5 text-[12px] font-medium text-[var(--pl-text-faint)]">
           응답 원문
         </p>
         {/* 구두점은 pre 기본색(weak)으로 물러나고 값 토큰만 색을 갖는다 —
             faint는 12px에서 대비 ≈2.6:1로 AA 미달이라 본문에는 못 쓴다. */}
-        <pre className="max-h-[200px] overflow-auto px-3.5 pb-3 pt-1 text-[12px] leading-[1.7] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]">
+        <pre className="min-h-0 flex-1 overflow-auto px-3.5 pb-3 pt-1 text-[12px] leading-[1.7] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]">
           {tokenizeJson(JSON.stringify(data, null, 2)).map((token, index) =>
             token.kind === 'plain' ? (
               token.text
