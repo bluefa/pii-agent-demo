@@ -53,7 +53,7 @@ interface WaitingApprovalTableProps {
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
 // under the top-rounded toolbar. The bottom radius belongs to the pagination footer stacked below.
-const CONNECTED_FRAME = 'overflow-hidden bg-white';
+export const CONNECTED_FRAME = 'overflow-hidden bg-white';
 
 // Row hover, declared here rather than via idcStyles.table.row — that token is shared with six
 // other tables, and its #F7F8FA tint measures 1.06:1 against white (invisible). Excluded rows had
@@ -72,9 +72,9 @@ const CONNECTED_FRAME = 'overflow-hidden bg-white';
 // Chroma stays deliberately low: this family sits at the SAME luminance as the primary tint
 // #E8F1FF (1.01:1 apart), so saturation is the only thing separating "hovered" from "primary".
 // A future `selected` state must therefore not be a blue tint — hover already owns that.
-const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-none';
-const ROW_TARGET = 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]';
-const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]';
+export const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-none';
+export const ROW_TARGET = 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]';
+export const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]';
 
 // Background alone marks position; it does not make a row easier to READ. Each column lifts on
 // whichever axis still has headroom:
@@ -90,7 +90,7 @@ const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]'
 //
 // Declared per cell: `cn` is a plain join, so a group-hover value must sit on the element that
 // owns the resting value, not be layered over it from the row.
-const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
+export const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
 // The DARK primary, not #0064FF — see primaryColors.textGroupHover for why (contrast under the
 // row's hover background). Lighter is not available: #0064FF is already below AA there.
 const NAME_LIFT = primaryColors.textGroupHover;

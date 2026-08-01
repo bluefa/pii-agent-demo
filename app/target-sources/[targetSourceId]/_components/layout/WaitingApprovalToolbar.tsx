@@ -59,9 +59,12 @@ interface FilterGroup {
 
 // Filter trigger + popover. The trigger stays tinted while any condition is set, so the state
 // survives the popover being closed.
-const FilterMenu = ({ groups }: { groups: ReadonlyArray<FilterGroup> }) => {
+const FilterMenu = ({ groups: allGroups }: { groups: ReadonlyArray<FilterGroup> }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  // A group with nothing to choose from is dropped rather than rendered as a lone 전체 — IDC rows
+  // carry no region, so the Region group would otherwise open onto a single dead option.
+  const groups = allGroups.filter((group) => group.options.length > 0);
   const activeCount = groups.filter((group) => group.value).length;
 
   useEffect(() => {

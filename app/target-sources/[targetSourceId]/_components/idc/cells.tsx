@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, textColors } from '@/lib/theme';
+import { CELL_LIFT } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type {
   IdcConnState,
   IdcHealth,
@@ -98,7 +99,11 @@ export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
   <div className="flex flex-col items-start gap-1">
     {/* Plain text, matching the CSP approval table: the engine name is an attribute,
         not a state, so a chip per row spends emphasis on the least decisive column. */}
-    <span className={cn('text-[12px]', textColors.secondary)}>{resource.databaseTypeLabel}</span>
+    {/* CELL_LIFT is inert unless the row carries `group` (the CSP approval skin), so the same
+        cell serves both table skins. */}
+    <span className={cn('text-[12px]', textColors.secondary, CELL_LIFT)}>
+      {resource.databaseTypeLabel}
+    </span>
     {resource.oracleSid ? (
       <span className="group/sid inline-flex items-center gap-1 min-w-0 max-w-[170px]">
         <span className={idcStyles.sidKey}>SID</span>

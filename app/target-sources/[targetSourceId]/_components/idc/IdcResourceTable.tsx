@@ -21,6 +21,13 @@ import {
   IdcTargetPill,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
+import {
+  CELL_LIFT,
+  CONNECTED_FRAME,
+  ROW_BASE,
+  ROW_EXCLUDED,
+  ROW_TARGET,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { LogicalDbCountMap } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
 export type IdcTableCol =
@@ -50,6 +57,13 @@ interface IdcResourceTableProps {
    * latest-results. A resource absent from the map renders "—", never a fabricated 0.
    */
   logicalDbCounts?: LogicalDbCountMap;
+  /**
+   * Render in the CSP approval-table skin (step 6): the borderless frame that joins under a
+   * toolbar, the 12px/600 approval header, 18/16 cell padding and the readable row-hover lift.
+   * Pagination moves to the caller, which owns the toolbar's filter state — same contract as
+   * WaitingApprovalTable's own `connected`.
+   */
+  connected?: boolean;
   /**
    * Step-4 `fw` column only: per-resource firewall step status keyed by
    * resourceId, sourced from the installation-status `firewall_check.status`
@@ -89,6 +103,7 @@ export const IdcResourceTable = ({
   credOptions = [],
   onLogicalOpen,
   logicalDbCounts,
+  connected = false,
   firewallStatusByResource,
 }: IdcResourceTableProps) => {
   const has = (c: IdcTableCol) => cols.includes(c);
@@ -97,9 +112,26 @@ export const IdcResourceTable = ({
 
   // Display-only pagination; per-step gating runs over the full list in the step
   // components, so slicing the view here is safe.
-  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(rows, {
+  const { page, pageSize, setPage, setPageSize, pageItems: paged } = usePagination(rows, {
     initialPageSize: 10,
   });
+  // `connected` callers slice the list themselves (their toolbar owns the filter state), so the
+  // internal pager is bypassed rather than rendered twice.
+  const pageRows = connected ? rows : paged;
+
+  const skin = connected
+    ? {
+        frame: CONNECTED_FRAME,
+        header: idcStyles.table.approvalHeader,
+        headerCell: idcStyles.table.approvalHeaderCell,
+        cell: idcStyles.table.approvalCell,
+      }
+    : {
+        frame: idcStyles.table.frame,
+        header: idcStyles.table.header,
+        headerCell: idcStyles.table.headerCell,
+        cell: idcStyles.table.cell,
+      };
 
   if (rows.length === 0) {
     return (
@@ -111,49 +143,56 @@ export const IdcResourceTable = ({
 
   return (
     <>
-    <div className={idcStyles.table.frame}>
+    <div className={skin.frame}>
       <table className="w-full">
-        <thead className={idcStyles.table.header}>
+        <thead className={skin.header}>
           <tr>
-            <th className={cn(idcStyles.table.headerCell, 'w-[110px]')}>구분</th>
-            <th className={cn(idcStyles.table.headerCell, 'w-[168px]')}>연동 대상</th>
-            <th className={cn(idcStyles.table.headerCell, 'w-[80px]')}>Port</th>
-            <th className={idcStyles.table.headerCell}>Database Type</th>
+            <th className={cn(skin.headerCell, 'w-[110px]')}>구분</th>
+            <th className={cn(skin.headerCell, 'w-[168px]')}>연동 대상</th>
+            <th className={cn(skin.headerCell, 'w-[80px]')}>Port</th>
+            <th className={skin.headerCell}>Database Type</th>
             {has('src') && (
-              <th className={cn(idcStyles.table.headerCell, 'w-[190px]')}>
+              <th className={cn(skin.headerCell, 'w-[190px]')}>
                 <SourceIpHeader />
               </th>
             )}
-            {has('excl') && <th className={cn(idcStyles.table.headerCell, 'w-[230px]')}>연동 대상 / 제외 사유</th>}
-            {has('fw') && <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>방화벽 상태</th>}
-            {has('cred') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>DB Credential</th>}
-            {has('conn') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Connection Status</th>}
-            {has('logical') && <th className={cn(idcStyles.table.headerCell, 'w-[110px]')}>논리 DB 관리</th>}
+            {has('excl') && <th className={cn(skin.headerCell, 'w-[230px]')}>연동 대상 / 제외 사유</th>}
+            {has('fw') && <th className={cn(skin.headerCell, 'w-[170px]')}>방화벽 상태</th>}
+            {has('cred') && <th className={cn(skin.headerCell, 'w-[150px]')}>DB Credential</th>}
+            {has('conn') && <th className={cn(skin.headerCell, 'w-[150px]')}>Connection Status</th>}
+            {has('logical') && <th className={cn(skin.headerCell, 'w-[110px]')}>논리 DB 관리</th>}
             {has('logicalro') && (
               <>
-                <th className={cn(idcStyles.table.headerCell, 'w-[120px]')}>연동 논리 DB</th>
-                <th className={cn(idcStyles.table.headerCell, 'w-[110px]')}>연동 제외</th>
+                <th className={cn(skin.headerCell, 'w-[120px]')}>연동 논리 DB</th>
+                <th className={cn(skin.headerCell, 'w-[110px]')}>연동 제외</th>
               </>
             )}
-            {has('health') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Status</th>}
+            {has('health') && <th className={cn(skin.headerCell, 'w-[150px]')}>Status</th>}
           </tr>
         </thead>
         <tbody className={idcStyles.table.body}>
           {pageRows.map((r) => {
             const dim = r.excluded ? 'opacity-50' : '';
             return (
-              <tr key={r.resourceId} className={cn(idcStyles.table.row, r.excluded && 'bg-[#F7F8FA]')}>
-                <td className={cn(idcStyles.table.cell, dim)}><IdcKindBadge kind={r.kind} /></td>
-                <td className={cn(idcStyles.table.cell, dim)}><IdcEndpointCell resource={r} /></td>
-                <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary, dim)}>{r.port}</td>
-                <td className={cn(idcStyles.table.cell, dim)}><IdcDbTypeCell resource={r} /></td>
+              <tr
+                key={r.resourceId}
+                className={
+                  connected
+                    ? cn(ROW_BASE, r.excluded ? ROW_EXCLUDED : ROW_TARGET)
+                    : cn(idcStyles.table.row, r.excluded && 'bg-[#F7F8FA]')
+                }
+              >
+                <td className={cn(skin.cell, dim)}><IdcKindBadge kind={r.kind} /></td>
+                <td className={cn(skin.cell, dim)}><IdcEndpointCell resource={r} /></td>
+                <td className={cn(skin.cell, 'font-mono text-[12px]', textColors.secondary, CELL_LIFT, dim)}>{r.port}</td>
+                <td className={cn(skin.cell, dim)}><IdcDbTypeCell resource={r} /></td>
                 {has('src') && (
-                  <td className={cn(idcStyles.table.cell, dim)}>
+                  <td className={cn(skin.cell, dim)}>
                     {r.excluded ? <span className={textColors.quaternary}>—</span> : <IdcSourceIpCell sourceIps={r.sourceIps} />}
                   </td>
                 )}
                 {has('excl') && (
-                  <td className={idcStyles.table.cell}>
+                  <td className={skin.cell}>
                     {r.excluded ? (
                       <span className="inline-flex items-center gap-2">
                         <IdcTargetPill excluded />
@@ -164,9 +203,9 @@ export const IdcResourceTable = ({
                     )}
                   </td>
                 )}
-                {has('fw') && <td className={cn(idcStyles.table.cell, dim)}><IdcFirewallBadge status={firewallStatusByResource?.[r.resourceId]} /></td>}
+                {has('fw') && <td className={cn(skin.cell, dim)}><IdcFirewallBadge status={firewallStatusByResource?.[r.resourceId]} /></td>}
                 {has('cred') && (
-                  <td className={idcStyles.table.cell}>
+                  <td className={skin.cell}>
                     {r.excluded ? (
                       <span className={textColors.quaternary}>—</span>
                     ) : (
@@ -179,7 +218,7 @@ export const IdcResourceTable = ({
                   </td>
                 )}
                 {has('conn') && (
-                  <td className={cn(idcStyles.table.cell, dim)}>
+                  <td className={cn(skin.cell, dim)}>
                     {/* Credential-aware status whenever the credential column is present (step-5
                         `cred`): no cred -> '자격 증명 필요', cred+SUCCESS -> Success, else Pending
                         (v16 idcConnBadge). Steps without a credential column keep the plain badge. */}
@@ -191,7 +230,7 @@ export const IdcResourceTable = ({
                   </td>
                 )}
                 {has('logical') && (
-                  <td className={idcStyles.table.cell}>
+                  <td className={skin.cell}>
                     {r.excluded ? (
                       <span className={textColors.quaternary}>—</span>
                     ) : (
@@ -201,14 +240,14 @@ export const IdcResourceTable = ({
                 )}
                 {has('logicalro') && (
                   <>
-                    <td className={idcStyles.table.cell}>
+                    <td className={skin.cell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.target ?? null}
                         label={`${r.hosts[0] ?? r.resourceId} 연동 논리 DB 목록 보기`}
                         onOpen={() => onLogicalOpen?.(r)}
                       />
                     </td>
-                    <td className={idcStyles.table.cell}>
+                    <td className={skin.cell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.excluded ?? null}
                         label={`${r.hosts[0] ?? r.resourceId} 연동 제외 대상 보기`}
@@ -217,13 +256,14 @@ export const IdcResourceTable = ({
                     </td>
                   </>
                 )}
-                {has('health') && <td className={cn(idcStyles.table.cell, dim)}><IdcHealthBadge health={r.health} /></td>}
+                {has('health') && <td className={cn(skin.cell, dim)}><IdcHealthBadge health={r.health} /></td>}
               </tr>
             );
           })}
         </tbody>
       </table>
     </div>
+    {!connected && (
     <Pagination
       page={page}
       pageSize={pageSize}
@@ -233,6 +273,7 @@ export const IdcResourceTable = ({
       pageSizeOptions={[10, 20, 50, 100]}
       controls="prevNext"
     />
+    )}
     </>
   );
 };
