@@ -130,22 +130,30 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
     title={name ? `${name} (${code})` : code}
     className={cn(
       // No fill, no border, no card. Nothing at rest but text at the panel's 20px
-      // left edge; the neutral hover is the only chrome, and only while pointed at.
-      'mt-3 w-full rounded-lg px-2 py-1.5 text-left cursor-pointer transition-colors',
-      bgColors.surfaceHover,
+      // left edge; the hover is the only chrome, and only while pointed at — the same
+      // primary tint the list rows take, since this is a destination row like any other.
+      'group mt-3 w-full rounded-lg px-2 py-1.5 text-left cursor-pointer transition-colors',
+      primaryColors.bgLightActive,
     )}
   >
     {/* Caption lighter than the value it labels — 12px/500 against 14px/600, so size
         and weight point the same way instead of fighting. gray-500 only became
         available when the tint went away: it measures 4.3:1 on #E8F1FF but 4.9:1 on
         white. */}
-    <span className={cn('block text-xs font-medium', textColors.tertiary)}>
+    <span
+      className={cn(
+        'block text-xs font-medium',
+        textColors.tertiary,
+        primaryColors.groupTextOnLight,
+      )}
+    >
       현재 보고 있는 서비스
     </span>
     <span
       className={cn(
         'mt-1.5 block text-sm font-semibold line-clamp-2 break-words',
         textColors.primary,
+        primaryColors.groupTextOnLight,
       )}
     >
       {name || code}
