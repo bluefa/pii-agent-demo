@@ -9,20 +9,24 @@ export type ConfirmRewindKind = 'infra' | 'retest';
 interface ConfirmStepContent {
   title: string;
   desc: ReactNode;
-  note: string;
+  /** Only when the rewind destroys work the sentence above cannot imply — see `infra`. */
+  note?: string;
 }
 
 /**
  * Copy grammar is the step-flow confirm grammar (WaitingApprovalCancelButton,
  * WaitingApprovalReselectButton, ApprovalUnavailableCard): a question title, then ONE
  * cause→effect sentence that starts at the 확인 button and names the step it lands on in
- * brand blue. The well below states what is lost — the one thing the sentence cannot say
- * without running to two lines. `infra` rewinds to step 1, `retest` to step 5.
+ * brand blue. A second line only where the rewind destroys work — `infra` unwinds a finished
+ * installation, `retest` just moves the source back a step.
  */
 const CONTENT: Record<ConfirmRewindKind, ConfirmStepContent> = {
   retest: {
     // Matches the trigger's wording (연결 재확인) rather than restating the step name.
     title: '연결을 다시 확인할까요?',
+    // One sentence, no loss line. What happens IS "you go back to step 5" — the earlier
+    // "6 · 7단계 진행 상태는 초기화돼요" restated that in the system's own bookkeeping terms,
+    // and the sibling rewind dialog (step 2 → step 1) carries no loss line either.
     desc: (
       <>
         {'확인을 누르면 '}
@@ -30,9 +34,6 @@ const CONTENT: Record<ConfirmRewindKind, ConfirmStepContent> = {
         {'로 돌아가, 연결 테스트부터 다시 진행해요.'}
       </>
     ),
-    // Was "결과에 따라 … 초기화될 수 있어요" — the reset is not conditional on the result,
-    // it happens the moment the step rewinds. A hedge on a warning reads as noise.
-    note: '지금까지의 6 · 7단계 진행 상태는 초기화돼요.',
   },
   infra: {
     title: '인프라를 변경할까요?',
@@ -43,7 +44,9 @@ const CONTENT: Record<ConfirmRewindKind, ConfirmStepContent> = {
         {'로 돌아가, 연동 대상 DB 선택부터 다시 진행해요.'}
       </>
     ),
-    note: '진행 중이던 Agent 설치 · 승인 · 연결 테스트 결과는 모두 초기화돼요.',
+    // Kept: this rewind throws away a completed installation, which the sentence above
+    // does not imply.
+    note: '이미 끝난 Agent 설치와 승인은 모두 사라져요.',
   },
 };
 
@@ -79,9 +82,11 @@ export const ConfirmRewindModal = ({ kind, onClose, onConfirm }: ConfirmRewindMo
       description={
         <>
           {content.desc}
-          <span className={cn('block font-semibold', statusColors.warning.textDark)}>
-            {content.note}
-          </span>
+          {content.note && (
+            <span className={cn('block font-semibold', statusColors.warning.textDark)}>
+              {content.note}
+            </span>
+          )}
         </>
       }
       confirmLabel="확인"

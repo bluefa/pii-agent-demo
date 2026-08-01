@@ -130,8 +130,9 @@ describe('ConnectionVerifiedStep', () => {
     fireEvent.click(screen.getByRole('button', { name: /연결 재확인/ }));
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByText('연결을 다시 확인할까요?')).toBeTruthy();
-    expect(screen.getByText('지금까지의 6 · 7단계 진행 상태는 초기화돼요.')).toBeTruthy();
     expect(screen.getByRole('button', { name: '확인' }).className).toContain('bg-[#B45309]');
+    // A rewind by one step, not a loss — no second line here (the infra rewind keeps one).
+    expect(screen.queryByText(/초기화|사라져요/)).toBeNull();
   });
 
   it('확인 rolls back the acknowledgment (confirmed:false) then refetches the project', async () => {
