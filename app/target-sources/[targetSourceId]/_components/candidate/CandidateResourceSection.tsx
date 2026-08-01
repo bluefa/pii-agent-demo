@@ -422,10 +422,14 @@ export const CandidateResourceSection = ({
               <header className={cardStyles.header}>
                 <span className={STEP_TAG}>1번째 단계</span>
                 <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
-                <p className={cn('mt-2.5 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
-                  인프라 스캔으로 {provider} 계정의 보유 DB를 조회한 뒤, 연동할 DB를 선택하는
-                  단계예요. 제외하는 DB에는 사유를 입력해야 하고, 선택 결과는 관리자 승인을
-                  거쳐 확정돼요.
+                {/* 2호흡: 스캔→선택 / 사유→승인. 강조는 사용자가 직접 해야 하는
+                    행동 두 가지(선택·사유 입력)만 파랑 — 승인은 시스템 몫이라 평문.
+                    break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
+                <p className={cn('mt-2.5 break-keep text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+                  인프라 스캔으로 {provider} 계정의 리소스를 조회하고,{' '}
+                  <span className={primaryColors.text}>연동할 DB를 선택</span>해요. 제외하는
+                  리소스에는 <span className={primaryColors.text}>사유가 필요</span>하고, 결과는
+                  관리자 승인을 거쳐 확정돼요.
                 </p>
               </header>
 
