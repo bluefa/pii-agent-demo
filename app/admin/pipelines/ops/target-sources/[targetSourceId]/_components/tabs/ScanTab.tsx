@@ -354,7 +354,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
               헤더(14/700) 아래 보조 한 줄(총계·직전 비교, 값만 약간 강조) → 태그가 내용. */}
           {(scanning || latestJob.scan_status === 'SUCCESS') && (
             <div className="mt-5">
-              <p className="text-[14px] font-bold text-[var(--pl-text-strong)]">스캔 결과</p>
+              <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">스캔 결과</p>
               {scanning ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
               ) : latestCounts.length === 0 ? (
@@ -362,7 +362,8 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
               ) : (
                 <>
                   <p className="mt-1 text-[13px] text-[var(--pl-text-weak)]">
-                    총 <b className="font-semibold tabular-nums text-[var(--pl-text-strong)]">{latestTotal}개</b>
+                    {/* 숫자만 브랜드 색 + 18px — 개는 꼬리표 계층 그대로. */}
+                    총 <b className="text-[18px] font-bold tabular-nums text-[var(--pl-primary)]">{latestTotal}</b>개
                     {countDiff !== null
                       && (countDiff === 0 ? (
                         <> · 직전 스캔과 동일</>
