@@ -41,7 +41,7 @@ interface ServiceSidebarProps {
   loading?: boolean;
 }
 
-const groupLabelClass = cn('px-3 pt-4 pb-1.5 text-xs font-semibold', textColors.tertiary);
+const groupLabelClass = cn('px-3 pt-4 pb-1.5 text-base font-semibold', textColors.tertiary);
 
 const pageButtonClass = cn(
   'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
@@ -123,7 +123,7 @@ export const ServiceSidebar = ({
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
     <aside className="w-[296px] shrink-0 bg-white shadow-sm flex flex-col">
       <div className="px-4 pt-4 pb-3">
-        <h2 className={cn('text-sm font-bold', textColors.primary)}>서비스 목록</h2>
+        <h2 className={cn('text-base font-semibold', textColors.primary)}>서비스 목록</h2>
       </div>
 
       <div className="px-3 pb-3 relative">
