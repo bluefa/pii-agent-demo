@@ -105,13 +105,13 @@ export const tokenizeJson = (
   return tokens;
 };
 
-/** JSON 토큰 색 — 시맨틱 토큰만: 키 primary, 문자열 ok, 숫자·불리언 warn, null faint. */
+/** JSON 토큰 색 — 시맨틱 토큰만: 키 primary, 문자열 ok, 숫자·불리언 warn, null은 italic으로만 물러남. */
 const JSON_TOKEN_CLASS: Record<JsonTokenKind, string> = {
   key: 'text-[var(--pl-primary)]',
   string: 'text-[var(--pl-ok-text)]',
   number: 'text-[var(--pl-warn-text)]',
   bool: 'text-[var(--pl-warn-text)]',
-  null: 'italic text-[var(--pl-text-faint)]',
+  null: 'italic text-[var(--pl-text-weak)]',
 };
 
 export interface ScanCredentialCardProps {
@@ -146,7 +146,7 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
     // flex-col — 하단 시각행(마지막 검증)을 mt-auto로 밑바닥에 깔아 짝 카드와 바닥선을 맞춘다.
     <section className={cn(pipelineStyles.card.base, 'flex flex-col')} aria-label="스캔 권한">
       <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-        <Icon name="check-circle" size={18} className="text-[var(--pl-primary)]" />
+        <Icon name="shield" size={18} className="text-[var(--pl-primary)]" />
         스캔 권한
         {pill && (
           <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>
@@ -182,11 +182,13 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
       {/* 검증 응답 원문 — identity 포함 전체 payload. 라벨은 박스 안 헤더로,
           본문은 토큰 하이라이트(진짜 JSON 뷰어 문법) — 진단·백엔드 대조용. */}
       <div className="mt-4 overflow-hidden rounded-lg border border-[var(--pl-gray-100)] bg-[var(--pl-bg-inner)]">
-        <p className="px-3.5 pt-2.5 text-[12px] font-semibold tracking-[0.04em] text-[var(--pl-text-faint)]">
+        {/* 12/500 — 시각행 라벨·모달 th와 같은 라벨 문법(600+tracking은 혼자 이질). */}
+        <p className="px-3.5 pt-2.5 text-[12px] font-medium text-[var(--pl-text-faint)]">
           응답 원문
         </p>
-        {/* 구두점은 pre 기본색(faint)으로 물러나고 값 토큰만 색을 갖는다. */}
-        <pre className="max-h-[200px] overflow-auto px-3.5 pb-3 pt-1 text-[12px] leading-[1.7] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]">
+        {/* 구두점은 pre 기본색(weak)으로 물러나고 값 토큰만 색을 갖는다 —
+            faint는 12px에서 대비 ≈2.6:1로 AA 미달이라 본문에는 못 쓴다. */}
+        <pre className="max-h-[200px] overflow-auto px-3.5 pb-3 pt-1 text-[12px] leading-[1.7] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]">
           {tokenizeJson(JSON.stringify(data, null, 2)).map((token, index) =>
             token.kind === 'plain' ? (
               token.text

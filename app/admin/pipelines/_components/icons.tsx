@@ -4,8 +4,9 @@
  * <Icon> component. Stroke geometry is copied verbatim; the prototype's unused
  * symbols (i-refresh/i-arrow-r/i-play/i-circle/i-circle-dot/i-info) are omitted.
  *
- * Sizes: 16 default / 14 'sm' / 22 'lg' (the 'lg' glyph sits inside the 40px
- * empty-state circle — the box is PlEmptyState's, not the icon's).
+ * Sizes: 16 default / 14 'sm' / 22 'lg' / 26 'xl', or a raw px number for
+ * one-offs (the 'lg' glyph sits inside the 40px empty-state circle — the box
+ * is PlEmptyState's, not the icon's).
  */
 import type { ReactElement } from 'react';
 
@@ -33,6 +34,7 @@ export type IconName =
   | 'play'
   | 'x-circle'
   | 'check-circle'
+  | 'shield'
   | 'warn-tri'
   | 'loader'
   | 'calendar'
@@ -142,6 +144,9 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
       <path d="m8.4 12.2 2.6 2.6 4.6-5.2" />
     </>
   ),
+  // Scan-credential identity — neutral shield, not a state mark (the verdict
+  // pill carries state; a check glyph reads "done" even when verification fails).
+  shield: <path d="M12 3.5 18.5 6v5.2c0 4.3-2.6 7.3-6.5 9.3-3.9-2-6.5-5-6.5-9.3V6Z" />,
   // Warning triangle (viewer empty/error mark) — tinted amber via currentColor.
   'warn-tri': (
     <>

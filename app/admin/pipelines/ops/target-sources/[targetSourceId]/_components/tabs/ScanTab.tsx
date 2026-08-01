@@ -60,7 +60,7 @@ const SCAN_ERROR_LABEL: Record<string, string> = {
 
 const errorLabel = (code: string): string => SCAN_ERROR_LABEL[code] ?? SCAN_ERROR_LABEL.UNKNOWN;
 
-/** 하단 시각행 전용 필드 — 콘텐츠(kv)가 아니라 메타데이터 톤: 라벨 faint, 값 13/medium. */
+/** 하단 시각행 전용 필드 — 콘텐츠(kv)가 아니라 메타데이터 톤: 라벨 faint, 값 14/medium. */
 function TimeField({ label, children }: { label: string; children: React.ReactNode }): ReactElement {
   return (
     <div className="min-w-0">
@@ -139,7 +139,7 @@ function ResourceTypeTag({
     <span
       title={type}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-[6px] border bg-white px-2.5 py-1 shadow-[var(--pl-shadow-xs)] [font-family:var(--pl-font-mono)]',
+        'inline-flex items-center gap-1.5 rounded-[6px] border bg-[var(--pl-bg-card)] px-2.5 py-1 shadow-[var(--pl-shadow-xs)] [font-family:var(--pl-font-mono)]',
         removed ? 'border-dashed border-[var(--pl-border)]' : 'border-[var(--pl-border)]',
       )}
     >
@@ -287,12 +287,13 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
           <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
             <Icon name="search" size={18} className="text-[var(--pl-primary)]" />
             최근 스캔
-            {latestJob && <ScanStatusPill status={latestJob.scan_status} />}
+            {/* 식별자(#N) 먼저, 판정 pill 나중 — 모달 타이틀과 같은 순서. */}
             {latestJob?.scan_version != null && (
               <span className="text-[12px] font-medium text-[var(--pl-text-weak)]">
                 #{latestJob.scan_version}
               </span>
             )}
+            {latestJob && <ScanStatusPill status={latestJob.scan_status} />}
           </h2>
           <p className={opsStyles.cardDesc}>
             클라우드 리소스를 스캔해 연동 가능한 대상 목록을 갱신합니다.
@@ -355,7 +356,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
           )}
 
           {/* 스캔 결과 — 성공/진행 중에만. 실패는 결과가 아니라 원인(오류 박스)을 말한다.
-              헤더(14/700) 아래 보조 한 줄(총계·직전 비교, 값만 약간 강조) → 태그가 내용. */}
+              헤더(16/600) 아래 보조 한 줄(총계·직전 비교, 값만 약간 강조) → 태그가 내용. */}
           {(scanning || latestJob.scan_status === 'SUCCESS') && (
             <div className="mt-5">
               <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">스캔 결과</p>
@@ -414,7 +415,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                 <>
                   {/* 실행시간과 같은 포맷 — 같은 날이어도 날짜를 생략하지 않는다. */}
                   <TimeField label="완료시간">{fmtDateTimeSec(latestJob.updated_at)}</TimeField>
-                  <TimeField label="소요">{fmtDuration(latestJob.duration_seconds)}</TimeField>
+                  <TimeField label="소요 시간">{fmtDuration(latestJob.duration_seconds)}</TimeField>
                 </>
               )}
             </div>
@@ -469,7 +470,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                   <th className={table.headCell}>상태</th>
                   <th className={table.headCell}>버전</th>
                   <th className={table.headCell}>발견 리소스</th>
-                  <th className={table.headCell}>소요</th>
+                  <th className={table.headCell}>소요 시간</th>
                   <th className={table.headCell}>오류</th>
                 </tr>
               </thead>
@@ -477,11 +478,23 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                 {rows.map((row, index) => {
                   const rowCounts = sortResourceCounts(row.resource_count_by_resource_type);
                   return (
-                    // 행 전체가 클릭 대상 — hover 하이라이트 후 우측 드로어로 상세.
+                    // 행 전체가 클릭 대상(Enter/Space 동일) — 상세는 모달로. 클릭이
+                    // 유일한 진입로라 키보드 포커스·활성화를 행에 직접 단다.
                     <tr
                       key={row.id ?? `${row.created_at ?? ''}-${index}`}
-                      className={cn(table.rowHover, 'cursor-pointer')}
+                      tabIndex={0}
+                      aria-haspopup="dialog"
+                      className={cn(
+                        table.rowHover,
+                        'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pl-primary)]',
+                      )}
                       onClick={() => setDetailJob(row)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setDetailJob(row);
+                        }
+                      }}
                     >
                       <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.created_at)}</td>
                       <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.updated_at)}</td>
@@ -602,7 +615,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             <div className="mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
               <TimeField label="실행시간">{fmtDateTimeSec(detailJob.created_at)}</TimeField>
               <TimeField label="완료시간">{fmtDateTimeSec(detailJob.updated_at)}</TimeField>
-              <TimeField label="소요">{fmtDuration(detailJob.duration_seconds)}</TimeField>
+              <TimeField label="소요 시간">{fmtDuration(detailJob.duration_seconds)}</TimeField>
             </div>
           </>
         )}
