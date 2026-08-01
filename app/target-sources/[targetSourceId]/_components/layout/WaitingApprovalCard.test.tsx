@@ -392,10 +392,18 @@ describe('WaitingApprovalCard', () => {
     expect(record?.open).toBe(false);
     // Its summary line answers what the list would have been scanned for: how many, from whom,
     // when — so the submission meta moves here instead of a header row of its own.
-    expect(screen.getByText('이 요청에 포함된 연동 대상')).toBeTruthy();
-    expect(screen.getByText(/전체 2 · 대상 1 · 제외 1/)).toBeTruthy();
-    expect(screen.getByText(/요청자 tester · 요청일시 2026\. 04\. 29\./)).toBeTruthy();
-    expect(screen.queryByText('요청일시')).toBeNull();
+    // Counts and request meta share the pending header's MetaField grammar — label over value,
+    // one row — rather than an inline "a · b · c" sentence at its own tier.
+    const summary = screen.getByText('이 요청에 포함된 연동 대상').closest('summary');
+    expect(summary).toBeTruthy();
+    const meta = within(summary as HTMLElement);
+    expect(meta.getByText('전체').nextElementSibling?.textContent).toBe('2건');
+    expect(meta.getByText('연동 대상').nextElementSibling?.textContent).toBe('1건');
+    expect(meta.getByText('제외').nextElementSibling?.textContent).toBe('1건');
+    expect(meta.getByText('요청자').nextElementSibling?.textContent).toBe('tester');
+    expect(meta.getByText('요청일시').nextElementSibling?.textContent).toMatch(/^2026\. 04\. 29\./);
+    // The way in is the block's only action, so it reads as brand blue, not another gray label.
+    expect(meta.getByText('목록 보기').parentElement?.className).toContain('#0064FF');
     // The rows still render inside the closed disclosure — the browser hides them, and opening
     // must not refetch.
     expect(screen.getByText('mysql-prod-01-name')).toBeTruthy();

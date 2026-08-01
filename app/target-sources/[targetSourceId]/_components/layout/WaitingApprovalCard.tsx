@@ -387,41 +387,49 @@ export const WaitingApprovalCard = ({
           // hid that 4px, but this block opens with plain text directly under the header's, so
           // the two text edges have to line up.
           <details className={cn('group mx-1 mt-4 border-t pt-4', borderColors.light)}>
-            <summary className="flex cursor-pointer list-none flex-col gap-1 [&::-webkit-details-marker]:hidden">
+            {/* Three tiers, one per line: what this block is (14/600), the reference facts
+                (MetaField, 12), and the way in (brand blue). Counts and request meta share one
+                MetaField row because they are the same kind of fact — a number you read off,
+                not copy the pending header's grammar for one half and invent another for the
+                other half. */}
+            <summary className="flex cursor-pointer list-none flex-col gap-2.5 [&::-webkit-details-marker]:hidden">
               <div className="flex items-center justify-between gap-4">
                 <span className={cn('text-[14px] font-semibold', textColors.secondary)}>
                   이 요청에 포함된 연동 대상
                 </span>
-                <span className="flex items-center gap-3">
-                  {/* Hidden once open: the stat tiles below carry the same three numbers, and
-                      showing them twice is what made the old screen read as duplicated. */}
-                  <span
-                    className={cn('text-[13px] font-medium group-open:hidden', textColors.tertiary)}
-                  >
-                    전체 {table.countsByFilter.all} · 대상 {table.countsByFilter.target} · 제외{' '}
-                    {table.countsByFilter.excluded}
-                  </span>
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1 text-[13px] font-semibold',
-                      textColors.tertiary,
-                    )}
-                  >
-                    <span className="group-open:hidden">목록 보기</span>
-                    <span className="hidden group-open:inline">접기</span>
-                    <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-                  </span>
+                {/* Blue: this is the only action in the block, and the neutral gray it used to
+                    carry read as another label rather than something to click. */}
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 text-[13px] font-semibold',
+                    primaryColors.text,
+                  )}
+                >
+                  <span className="group-open:hidden">목록 보기</span>
+                  <span className="hidden group-open:inline">접기</span>
+                  <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
                 </span>
               </div>
-              {requestSummary && (
-                // The verdict byline's grammar ("누가 · 언제"), labelled here because two bylines
-                // on one screen would otherwise be indistinguishable — this one is the request,
-                // the one inside the rule is the answer to it.
-                <span className={cn('text-[12px] font-medium', textColors.tertiary)}>
-                  요청자 {requestSummary.requestedBy} · 요청일시{' '}
-                  {formatDate(requestSummary.requestedAt, 'datetime')}
-                </span>
-              )}
+              {/* 48px between the two groups, 32px inside each — counts and submission facts are
+                  different kinds, and a uniform gap would render five fields as one flat run. */}
+              <div className="flex flex-wrap gap-x-12 gap-y-3">
+                {/* Dropped once open: the stat tiles below carry the same three numbers, and
+                    showing them twice is what made the old screen read as duplicated. */}
+                <div className="flex flex-wrap gap-8 group-open:hidden">
+                  <MetaField label="전체" value={`${table.countsByFilter.all}건`} />
+                  <MetaField label="연동 대상" value={`${table.countsByFilter.target}건`} />
+                  <MetaField label="제외" value={`${table.countsByFilter.excluded}건`} />
+                </div>
+                {requestSummary && (
+                  <div className="flex flex-wrap gap-8">
+                    <MetaField label="요청자" value={requestSummary.requestedBy} />
+                    <MetaField
+                      label="요청일시"
+                      value={formatDate(requestSummary.requestedAt, 'datetime')}
+                    />
+                  </div>
+                )}
+              </div>
             </summary>
             <div className="mt-4">{listBlock}</div>
           </details>
