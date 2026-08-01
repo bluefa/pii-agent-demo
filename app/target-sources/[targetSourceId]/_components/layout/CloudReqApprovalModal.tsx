@@ -193,11 +193,11 @@ export const CloudReqApprovalModal = ({
                       </td>
                       <td className={cn(idcStyles.table.cell, 'text-right')}>
                         {counts?.excluded == null ? (
-                          <span className={cn('font-medium', textColors.quaternary)}>—</span>
+                          <span className={cn('font-medium', textColors.tertiary)}>—</span>
                         ) : counts.excluded > 0 ? (
                           <span className={idcStyles.reqModal.exclNum}>{counts.excluded}</span>
                         ) : (
-                          <span className={cn('font-medium', textColors.quaternary)}>0</span>
+                          <span className={cn('font-medium', textColors.tertiary)}>0</span>
                         )}
                       </td>
                     </tr>

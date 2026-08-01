@@ -211,7 +211,15 @@ export const providerColors = {
 export const textColors = {
   primary: 'text-gray-900',
   secondary: 'text-gray-700',
+  /** The quietest tier available to text: 4.83:1 on white, 4.63:1 on gray-50. */
   tertiary: 'text-gray-500',
+  /**
+   * Decorative only — empty-state glyphs, the icon inside a labelled input, a `·`
+   * between meta groups. Never text, and never a control's only glyph: gray-400 is
+   * 2.54:1 on white, under AA's 4.5:1 for text *and* under 1.4.11's 3:1 for a
+   * meaningful graphic. If removing it would cost the user information, it does not
+   * belong on this token — use `tertiary`.
+   */
   quaternary: 'text-gray-400',
   inverse: 'text-white',
 } as const;

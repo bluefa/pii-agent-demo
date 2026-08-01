@@ -165,6 +165,8 @@ Status colours pair a base value with a darker readable variant. Use the dark va
 
 Surfaces, borders, and text together carry most of the page. The progression follows Tailwind's slate ramp at `gray-50 / 100 / 200 / 300 / 400 / 500 / 700 / 900` — don't reach for in-between shades. Five surface levels (white, `surface-secondary`, `surface-tertiary`) and three border weights (`light`, `default`, `strong`) cover every layout pattern this product needs.
 
+The four text tiers are not four ranks of text. `{colors.text-quaternary}` (`#9CA3AF`) measures 2.54:1 on white — under AA's 4.5:1 for text, and under WCAG 1.4.11's 3:1 for a meaningful graphic — so it is reserved for decoration: empty-state glyphs, the icon inside a labelled input, a `·` between meta groups. Anything a reader would miss if it vanished belongs on `{colors.text-tertiary}` (`#6B7280`, 4.83:1 on white, 4.63:1 on gray-50), which is the quietest tier text may use. That includes `—` placeholders in table cells, timestamps, counters, and the unselected half of a toggle — an unselected option is still an operable control, not an inactive one.
+
 `border-emphasis` (`#6B7280`) is the exception, and it is not a fourth layout weight: it exists because `light` / `default` / `strong` all fail WCAG 1.4.11 on light grounds (`strong` manages 1.4:1), so none of them may carry meaning on their own. Use it only where the border *is* the state indicator — the selected page in a paginator, for instance — never to separate.
 
 ### Provider

@@ -292,7 +292,7 @@ const Panel = ({
                 colSpan={4}
                 className={cn(
                   'px-3 py-6 text-center text-[12px]',
-                  textColors.quaternary,
+                  textColors.tertiary,
                 )}
               >
                 {emptyMessage}

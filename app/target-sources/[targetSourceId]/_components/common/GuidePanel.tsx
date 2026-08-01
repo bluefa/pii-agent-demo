@@ -61,7 +61,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
             'border-dashed font-medium',
             primaryColors.borderLight,
             bgColors.surface,
-            textColors.quaternary,
+            textColors.tertiary,
           )}
         >
           <ChatIcon className="h-3.5 w-3.5 shrink-0" />
@@ -74,7 +74,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
             'border-dashed font-medium',
             primaryColors.borderLight,
             bgColors.surface,
-            textColors.quaternary,
+            textColors.tertiary,
           )}
         >
           <ChatIcon className="h-3.5 w-3.5 shrink-0" />
@@ -152,7 +152,7 @@ const HistoryTimeline = ({ items }: { items: typeof MOCK_HISTORY }) => (
           <p className={cn('mt-0.5 text-[12px] leading-[1.5]', textColors.tertiary)}>
             {item.detail}
           </p>
-          <p className={cn('mt-1 text-[11px]', textColors.quaternary)}>{item.at}</p>
+          <p className={cn('mt-1 text-[11px]', textColors.tertiary)}>{item.at}</p>
         </div>
       </li>
     ))}
@@ -293,7 +293,7 @@ export const GuidePanel = ({
           >
             ‹ 이전
           </button>
-          <span className={cn('text-[11.5px] tabular-nums', textColors.quaternary)}>
+          <span className={cn('text-[11.5px] tabular-nums', textColors.tertiary)}>
             {page + 1} / {pageCount}
           </span>
           <button

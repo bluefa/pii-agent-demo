@@ -218,7 +218,7 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                 >
                   <span className="text-[14px] font-semibold leading-tight">{opt.title}</span>
                   <span
-                    className={cn('text-[11.5px] leading-tight', selected ? textColors.tertiary : textColors.quaternary)}
+                    className={cn('text-[11.5px] leading-tight', textColors.tertiary)}
                   >
                     {opt.desc}
                   </span>
