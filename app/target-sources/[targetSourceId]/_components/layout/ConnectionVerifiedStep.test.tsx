@@ -125,10 +125,13 @@ describe('ConnectionVerifiedStep', () => {
     expect(screen.getByRole('button', { name: /연결 재확인/ })).toBeTruthy();
   });
 
-  it('opens the retest confirm modal when the retest button is clicked', () => {
+  it('opens the retest confirm modal on the shared ConfirmStepModal chrome, warning-toned', () => {
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /연결 재확인/ }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
+    expect(screen.getByText('연결 테스트 결과에 따라 6 · 7단계의 상태가 초기화될 수 있어요.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '되돌아가기' }).className).toContain('bg-[#B45309]');
   });
 
   it('되돌아가기 rolls back the acknowledgment (confirmed:false) then refetches the project', async () => {

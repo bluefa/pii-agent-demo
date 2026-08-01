@@ -24,6 +24,13 @@ export interface ConfirmStepModalProps {
   confirmDisabled?: boolean;
   /** Where focus lands on open — input-carrying confirms point at their field; default is 취소. */
   initialFocus?: React.RefObject<HTMLElement | null>;
+  /**
+   * `warning` for confirms that undo work already done (the step rewinds): the confirm
+   * button switches to the amber fill so the commit itself carries the caution, instead of
+   * a blue CTA that looks like the ordinary way forward. Still exactly one filled button —
+   * the tone changes, the hierarchy does not.
+   */
+  tone?: 'default' | 'warning';
 }
 
 /** Tighter chrome than modalStyles.toss.* (px-10/pt-9, no footer hairline change): a two-button
@@ -43,8 +50,18 @@ const confirmCancelBtn = cn(
   'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#F7F8FA] px-5 text-[14px] font-semibold text-[#191F28] transition-colors hover:bg-[#EBEEF2] disabled:cursor-not-allowed disabled:opacity-60',
   confirmFocusRing,
 );
+const confirmBtnBase =
+  'inline-flex h-10 items-center justify-center gap-2 rounded-[12px] px-5 text-[14px] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]';
 const confirmPrimaryBtn = cn(
-  'inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#0064FF] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
+  confirmBtnBase,
+  'bg-[#0064FF] hover:bg-[#0050D6]',
+  confirmFocusRing,
+);
+/** amber-700 fill — 4.72:1 against white text, carrying the same weight as the blue CTA it
+ *  replaces, so the dialog keeps one filled commit button and only its tone changes. */
+const confirmWarningBtn = cn(
+  confirmBtnBase,
+  'bg-[#B45309] hover:bg-[#92400E]',
   confirmFocusRing,
 );
 
@@ -61,6 +78,7 @@ export const ConfirmStepModal = ({
   wide = false,
   confirmDisabled = false,
   initialFocus,
+  tone = 'default',
 }: ConfirmStepModalProps) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -173,7 +191,7 @@ export const ConfirmStepModal = ({
           <button
             ref={confirmRef}
             type="button"
-            className={confirmPrimaryBtn}
+            className={tone === 'warning' ? confirmWarningBtn : confirmPrimaryBtn}
             onClick={onConfirm}
             disabled={isPending || confirmDisabled}
           >
