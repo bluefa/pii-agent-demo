@@ -42,10 +42,16 @@ interface ServiceSidebarProps {
 }
 
 const rowLayoutClass = 'w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors';
-const chipClass = 'shrink-0 w-14 py-1 rounded-md text-center font-mono text-xs font-normal truncate';
 // Service names run up to 30 characters — wrap to a second line instead of cutting
 // them off at the panel's 296px. The full name stays in the row's title attribute.
 const nameClass = 'flex-1 min-w-0 text-sm font-normal line-clamp-2 break-words';
+const codeClass = 'ml-1.5 font-mono text-xs';
+
+// Several services are named after their own code (AWS/aws, GCP/gcp, SDU/SDU), where
+// trailing the code reads as a stutter and adds nothing. Anything the name already
+// spells out is dropped.
+const showsCode = (code: string, name?: string) =>
+  Boolean(name) && name?.toLowerCase() !== code.toLowerCase();
 
 const pageButtonClass = cn(
   'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
@@ -60,9 +66,18 @@ interface ServiceRowProps {
 }
 
 /**
- * Code chip + name. The chip is a fixed-width column so the names line up and the
- * list can be scanned down a single edge; it carries the full code (case-sensitive —
- * `/services/{code}` matches exactly), so no duplicate code sub-line is needed.
+ * Name first, then the code trailing it as plain monospace text.
+ *
+ * The code used to lead the row inside a grey chip. Two things were wrong with that:
+ * a chip is the visual language of mutable, categorical state (status, owner), and a
+ * per-row-unique identifier is neither — the container carried no grouping information
+ * at full visual weight. And it put the least information-carrying token at the left
+ * edge, where users scan; every row began with the same grey rectangle, so the names
+ * (the actual scan target) all started one indent in.
+ *
+ * The code stays inline rather than in its own column so it flows with the name and
+ * wraps with it; it is still exact and case-sensitive (`/services/{code}` matches
+ * exactly), just no longer competing with the name for first read.
  */
 const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
   <li>
@@ -72,8 +87,12 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
       title={name ? `${name} (${code})` : code}
       className={cn('group', rowLayoutClass, bgColors.mutedHover)}
     >
-      <span className={cn(chipClass, tagStyles.neutral)}>{code}</span>
-      <span className={cn(nameClass, textColors.primary)}>{name || code}</span>
+      <span className={nameClass}>
+        <span className={textColors.primary}>{name || code}</span>
+        {showsCode(code, name) && (
+          <span className={cn(codeClass, textColors.quaternary)}>{code}</span>
+        )}
+      </span>
       <ChevronRightIcon
         className={cn(
           'shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100',
@@ -87,7 +106,8 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
 /**
  * The service the page is about, shown in the header zone as context — not as a list
  * group. The caption says what it is, so no badge is needed; below it the same
- * [code chip][name] grammar as the list rows, on its own line so the name keeps room.
+ * [name][code] grammar as the list rows. The tinted card is already a container, so a
+ * chip around the code here would be a container inside a container.
  * It is a destination like any other row, so it stays clickable.
  */
 const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
@@ -103,9 +123,9 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
     <span className={cn('block text-xs font-semibold', primaryColors.textOnLight)}>
       현재 보고 있는 서비스
     </span>
-    <span className="mt-2 flex items-center gap-2.5">
-      <span className={cn(chipClass, bgColors.surface, primaryColors.textOnLight)}>{code}</span>
-      <span className={cn(nameClass, primaryColors.textOnLight)}>{name || code}</span>
+    <span className={cn('mt-1.5 block text-sm line-clamp-2 break-words', primaryColors.textOnLight)}>
+      {name || code}
+      {showsCode(code, name) && <span className={cn(codeClass, 'opacity-60')}>{code}</span>}
     </span>
   </button>
 );
@@ -194,9 +214,10 @@ export const ServiceSidebar = ({
       <ul className="flex-1 overflow-auto px-2 pb-2" aria-busy={loading}>
         {loading ? (
           Array.from({ length: 7 }).map((_, i) => (
-            <li key={i} className="flex items-center gap-2.5 px-3 py-2" aria-hidden="true">
-              <div className={cn(idcStyles.skeletonBar, 'h-[26px] w-14 rounded-md shrink-0')} />
-              <div className={cn(idcStyles.skeletonBar, 'h-3.5 flex-1 rounded')} />
+            // h-9 matches a real single-line row (20px text + py-2) so the list
+            // doesn't jump height when the skeleton is replaced.
+            <li key={i} className="flex h-9 items-center px-3" aria-hidden="true">
+              <div className={cn(idcStyles.skeletonBar, 'h-3.5 w-2/3 rounded')} />
             </li>
           ))
         ) : services.length === 0 ? (
