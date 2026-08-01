@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { IDC_REASON_MAXLEN } from '@/lib/constants/idc';
-import { cn, idcStyles, statusColors, textColors } from '@/lib/theme';
+import { cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 
 interface IdcExclusionReasonModalProps {
   isOpen: boolean;
@@ -46,7 +46,13 @@ export const IdcExclusionReasonModal = ({
       onClose={onClose}
       onConfirm={() => onSave(trimmed)}
       title="제외 사유 직접 입력"
-      description="이 DB를 연동 대상에서 제외하는 이유를 입력해주세요. 관리자 승인 시 함께 전달돼요."
+      // 한 문장·한 줄 — 중간 줄바꿈이 생기던 두 문장 안내를 접었다. 대상은 DB가
+      // 아니라 리소스이고, 강조는 승인 모달 문법대로 핵심 구절 하나만 파랑.
+      description={
+        <>
+          리소스 제외 사유는 <span className={primaryColors.text}>관리자 승인 시 함께 전달</span>돼요.
+        </>
+      }
       confirmLabel="저장"
       cancelLabel="취소"
       confirmDisabled={!canSave}
