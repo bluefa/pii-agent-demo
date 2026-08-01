@@ -110,9 +110,9 @@ describe('ConnectionVerifiedStep', () => {
     expect(screen.getByText(/PII Agent 운영팀의 승인이 완료되면 모니터링이 즉시 시작됩니다/)).toBeTruthy();
   });
 
-  it('captions the retest button with when to press it', () => {
+  it('explains when to press the retest button in the guidance copy', () => {
     renderStep();
-    expect(screen.getByText('접속 정보가 바뀌었거나 결과가 잘못됐다면 눌러주세요')).toBeTruthy();
+    expect(screen.getByText(/통합 테스트 결과가 잘못됐거나 연결 테스트를 한 번 더 수행하고 싶다면/)).toBeTruthy();
   });
 
   it('mounts the ConfirmedResourcesSlot', () => {

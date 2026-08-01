@@ -123,16 +123,13 @@ export const ConnectionVerifiedStep = ({
                 </span>
               </div>
             </div>
-            {/* C-3: auxiliary retest action pinned to the header right. The caption under it
-                answers "when do I press this?" — the action is a rewind, not a next step. */}
-            <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {/* C-3: auxiliary retest action pinned to the header right. When to press it is
+                explained in the guidance copy below, not in a caption under the button. */}
+            <div className="shrink-0">
               <ConnectionVerifiedRetestButton
                 targetSourceId={project.targetSourceId}
                 onRolledBack={refreshProject}
               />
-              <p className={cn('text-[12px] leading-[1.5]', textColors.quaternary)}>
-                접속 정보가 바뀌었거나 결과가 잘못됐다면 눌러주세요
-              </p>
             </div>
           </div>
           {/* One sentence instead of two: the header subtitle and the info banner said the same
@@ -142,6 +139,12 @@ export const ConnectionVerifiedStep = ({
               최종 관리자 승인을 기다리고 있어요.
             </strong>{' '}
             PII Agent 운영팀의 승인이 완료되면 모니터링이 즉시 시작됩니다.
+          </p>
+          {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (step 2 문법). */}
+          <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+            통합 테스트 결과가 잘못됐거나 연결 테스트를 한 번 더 수행하고 싶다면 우측 상단{' '}
+            <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>을
+            눌러주세요.
           </p>
         </header>
         <div className="px-6 pb-6">
