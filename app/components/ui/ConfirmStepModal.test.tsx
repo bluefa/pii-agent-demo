@@ -31,6 +31,41 @@ describe('ConfirmStepModal', () => {
     expect(screen.getByRole('button', { name: '아니요' })).toBeTruthy();
   });
 
+  // WCAG dialog pattern: focus moves into the dialog on open (safe cancel side)
+  // and returns to the trigger element when the dialog closes.
+  it('moves focus to cancel on open and restores the trigger on close', () => {
+    const trigger = document.createElement('button');
+    trigger.textContent = '열기';
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const { rerender } = render(<ConfirmStepModal {...baseProps} open />);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '머무르기' }));
+
+    rerender(<ConfirmStepModal {...baseProps} open={false} />);
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
+
+  it('shows a spinner inside the confirm button while pending', () => {
+    const { container, rerender } = render(<ConfirmStepModal {...baseProps} open />);
+    expect(container.querySelector('.animate-spin')).toBeNull();
+    rerender(<ConfirmStepModal {...baseProps} open isPending />);
+    const confirm = screen.getByRole('button', { name: '확인' });
+    expect(confirm.querySelector('.animate-spin')).toBeTruthy();
+  });
+
+  // Keyboard focus gets the branded #0064FF halo; mouse clicks stay ring-free
+  // (focus-visible, not focus).
+  it('carries the focus-visible ring grammar on both buttons', () => {
+    render(<ConfirmStepModal {...baseProps} open />);
+    for (const name of ['머무르기', '확인']) {
+      const button = screen.getByRole('button', { name });
+      expect(button.className).toContain('focus-visible:ring-2');
+      expect(button.className).toContain('focus-visible:ring-[#0064FF]');
+    }
+  });
+
   it('calls onClose on backdrop click', () => {
     const onClose = vi.fn();
     render(<ConfirmStepModal {...baseProps} open onClose={onClose} />);

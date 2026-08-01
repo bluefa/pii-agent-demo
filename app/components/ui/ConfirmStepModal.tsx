@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { cn, modalStyles } from '@/lib/theme';
 
 export interface ConfirmStepModalProps {
@@ -29,11 +30,19 @@ const confirmHeader = 'px-6 pt-6 pb-1.5 flex items-start justify-between';
 const confirmFooter = 'px-6 pt-5 pb-6 bg-white flex justify-end gap-2.5';
 
 /** Footer pair on the in-card `.btn` scale (h40 / radius12 / 14px) — the 52px modalBtn tier
- *  belongs to the tall approval modals and overwhelmed a two-line dialog. */
-const confirmCancelBtn =
-  'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#F7F8FA] px-5 text-[14px] font-semibold text-[#191F28] transition-colors hover:bg-[#EBEEF2] disabled:cursor-not-allowed disabled:opacity-60';
-const confirmPrimaryBtn =
-  'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#0064FF] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]';
+ *  belongs to the tall approval modals and overwhelmed a two-line dialog.
+ *  focus-visible = the app's #0064FF halo, offset so it reads on the blue fill too;
+ *  keyboard focus gets the branded ring, mouse clicks stay ring-free. */
+const confirmFocusRing =
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0064FF] focus-visible:ring-offset-2';
+const confirmCancelBtn = cn(
+  'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#F7F8FA] px-5 text-[14px] font-semibold text-[#191F28] transition-colors hover:bg-[#EBEEF2] disabled:cursor-not-allowed disabled:opacity-60',
+  confirmFocusRing,
+);
+const confirmPrimaryBtn = cn(
+  'inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#0064FF] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
+  confirmFocusRing,
+);
 
 export const ConfirmStepModal = ({
   open,
@@ -81,11 +90,16 @@ export const ConfirmStepModal = ({
 
   useEffect(() => {
     if (open) {
+      // WCAG dialog pattern: closing must hand focus back to the element that
+      // opened the dialog. A detached trigger (e.g. the step transitioned away
+      // after a successful confirm) makes .focus() a harmless no-op.
+      const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       cancelRef.current?.focus();
       const previous = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = previous;
+        trigger?.focus();
       };
     }
   }, [open]);
@@ -150,6 +164,9 @@ export const ConfirmStepModal = ({
             onClick={onConfirm}
             disabled={isPending}
           >
+            {/* In-flight feedback beyond the disabled tint — the label stays, the
+                spinner says "working" (currentColor follows the disabled text). */}
+            {isPending && <LoadingSpinner size="sm" />}
             {confirmLabel}
           </button>
         </div>
