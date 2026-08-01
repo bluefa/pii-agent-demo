@@ -59,25 +59,8 @@ const SCAN_ERROR_LABEL: Record<string, string> = {
 
 const errorLabel = (code: string): string => SCAN_ERROR_LABEL[code] ?? SCAN_ERROR_LABEL.UNKNOWN;
 
-/** 라벨 위 / 값 아래 KV 필드 — docs/redesign step2 §3 문법 (RequestTab kv 토큰 공유). */
-function KvField({
-  label,
-  mono,
-  children,
-}: {
-  label: string;
-  mono?: boolean;
-  children: React.ReactNode;
-}): ReactElement {
-  return (
-    <div className="min-w-0">
-      <p className={pipelineStyles.text.kvKey}>{label}</p>
-      <p className={cn(mono ? pipelineStyles.text.kvValueMono : pipelineStyles.text.kvValue, 'mt-1 break-all')}>
-        {children}
-      </p>
-    </div>
-  );
-}
+const CAPTION = 'text-[12px] text-[var(--pl-text-weak)]';
+const CAPTION_VALUE = 'font-semibold text-[var(--pl-text-strong)]';
 
 /** 214.6s → '3분 34초', 44s → '44초'; unknown → '—'. */
 const fmtDuration = (seconds: number | null | undefined): string => {
@@ -287,16 +270,18 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         )
       ) : (
         <>
-          {/* 계층 3단: 판정(pill) → 라벨 위/값 아래 KV 2×2 → 발견 리소스 블록. */}
-          <div className="mt-4">
+          {/* 계층: 결과행(판정+시점·소요 캡션) > 발견 리소스(주인공) > 참조행(Scan#·버전).
+              완료된 스캔의 답은 "뭘 찾았나"다 — 메타는 캡션으로 물러난다. */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <ScanStatusPill status={latestJob.scan_status} />
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3">
-            <KvField label="실행">{fmtDateTime(latestJob.created_at)}</KvField>
-            <KvField label="소요">{fmtDuration(latestJob.duration_seconds)}</KvField>
-            <KvField label="Scan #" mono>{latestJob.id ?? '—'}</KvField>
-            <KvField label="버전">v{latestJob.scan_version ?? '-'}</KvField>
+            <span className={CAPTION}>
+              실행 <b className={CAPTION_VALUE}>{fmtDateTime(latestJob.created_at)}</b>
+              {!scanning && (
+                <>
+                  {' · '}소요 <b className={CAPTION_VALUE}>{fmtDuration(latestJob.duration_seconds)}</b>
+                </>
+              )}
+            </span>
           </div>
 
           {/* 진행 바는 SCANNING에서만 — 끝난 스캔의 진행률은 정보가 아니라 착시다. */}
@@ -320,42 +305,45 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             </div>
           )}
 
-          <div className="mt-4">
-            <p className={pipelineStyles.text.kvKey}>발견 리소스</p>
-            {scanning ? (
-              <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
-            ) : latestCounts.length === 0 ? (
-              <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
-            ) : (
-              <>
-                {/* 총계가 이 블록의 값 — 숫자 16/700, 단위는 값의 꼬리표 계층 (step2 타일 교훈). */}
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="text-[16px] font-bold tabular-nums text-[var(--pl-text-strong)]">
-                    {latestTotal}
-                    <span className="ml-0.5 text-[12px] font-medium text-[var(--pl-text-weak)]">개</span>
-                  </span>
-                  {countDiff !== null && countDiff !== 0 && (
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-0.5 text-[11.5px] font-bold tabular-nums',
-                        countDiff > 0
-                          ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
-                          : 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
-                      )}
-                      title="직전 성공 스캔 대비"
-                    >
-                      {countDiff > 0 ? `+${countDiff}` : countDiff}
+          {/* 발견 리소스 — 성공/진행 중에만. 실패는 결과가 아니라 원인(오류 박스)을 말한다. */}
+          {(scanning || latestJob.scan_status === 'SUCCESS') && (
+            <div className="mt-5">
+              <p className={pipelineStyles.text.kvKey}>발견 리소스</p>
+              {scanning ? (
+                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
+              ) : latestCounts.length === 0 ? (
+                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
+              ) : (
+                <>
+                  {/* 총계가 카드의 주인공 — 20/700, 단위는 값의 꼬리표 계층 (step2 타일 교훈). */}
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className="text-[20px] font-bold leading-[28px] tabular-nums text-[var(--pl-text-strong)]">
+                      {latestTotal}
+                      <span className="ml-0.5 text-[12px] font-medium text-[var(--pl-text-weak)]">개</span>
                     </span>
-                  )}
-                </div>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  {latestCounts.map(([type, count]) => (
-                    <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+                    {countDiff !== null && countDiff !== 0 && (
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-[11.5px] font-bold tabular-nums',
+                          countDiff > 0
+                            ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
+                            : 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
+                        )}
+                        title="직전 성공 스캔 대비"
+                      >
+                        {countDiff > 0 ? `+${countDiff}` : countDiff}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {latestCounts.map(([type, count]) => (
+                      <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {latestJob.scan_error && (
             <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
@@ -363,6 +351,18 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
               <span className="ml-2">{errorLabel(latestJob.scan_error)}</span>
             </p>
           )}
+
+          {/* 참조행 — Scan #·버전은 로그 대조용 참조 정보라 최하위 계층.
+              (목의 #가 Date.now() 합성이라 커 보일 뿐, 계약 필드는 실존한다.) */}
+          <p className="mt-4 border-t border-[var(--pl-gray-100)] pt-3 text-[12px] text-[var(--pl-text-faint)]">
+            {latestJob.id !== undefined && (
+              <>
+                Scan <span className="[font-family:var(--pl-font-mono)]">#{latestJob.id}</span>
+                {' · '}
+              </>
+            )}
+            <span className="[font-family:var(--pl-font-mono)]">v{latestJob.scan_version ?? '-'}</span>
+          </p>
         </>
       )}
     </section>
