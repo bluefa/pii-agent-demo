@@ -78,6 +78,10 @@ export const primaryColors = {
    * white but drops to 4.33:1 on the tint, under AA for text below 18px. #0050D6 gives 5.92:1.
    */
   textOnLight: 'text-[#0050D6]',
+  /** Hover fill for a clickable row — same tint as `bgLight`, so pair with `textOnLight`. */
+  bgLightHover: 'hover:bg-[#E8F1FF]',
+  /** `textOnLight` driven by an ancestor `group` — for rows whose fill turns to `bgLight`. */
+  groupTextOnLight: 'group-hover:text-[#0050D6]',
   textHover: 'hover:text-[#0050D6]',
   textHoverBase: 'hover:text-[#0064FF]',
   text700: 'text-blue-700',

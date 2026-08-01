@@ -41,7 +41,10 @@ interface ServiceSidebarProps {
   loading?: boolean;
 }
 
-const rowLayoutClass = 'w-full flex items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors';
+// Tailwind v4 preflight gives buttons `cursor: default`, so clickable rows have to ask
+// for the pointer explicitly — same as Pagination and Table do.
+const rowLayoutClass =
+  'w-full flex items-start gap-3 rounded-lg px-3 py-2 text-left cursor-pointer transition-colors';
 // Service names run up to 30 characters — wrap to a second line instead of cutting
 // them off at the panel's 296px. The full name stays in the row's title attribute.
 const nameClass = 'flex-1 min-w-0 text-sm font-normal line-clamp-2 break-words';
@@ -53,7 +56,7 @@ const codeClass = 'shrink-0 font-mono text-xs leading-5 text-right';
 const listInsetClass = 'px-5';
 
 const pageButtonClass = cn(
-  'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
+  'w-7 h-7 flex items-center justify-center rounded-md text-sm cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
   bgColors.mutedHover,
   textColors.tertiary,
 );
@@ -89,10 +92,17 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
       type="button"
       onClick={() => onSelect(code)}
       title={name ? `${name} (${code})` : code}
-      className={cn(rowLayoutClass, bgColors.mutedHover)}
+      className={cn('group', rowLayoutClass, primaryColors.bgLightHover)}
     >
-      <span className={cn(nameClass, textColors.primary)}>{name || code}</span>
-      {name && <span className={cn(codeClass, textColors.quaternary)}>{code}</span>}
+      <span className={cn(nameClass, textColors.primary, primaryColors.groupTextOnLight)}>
+        {name || code}
+      </span>
+      {name && (
+        // tertiary, not quaternary: gray-400 sits at 2.5:1 on white, under AA for 12px.
+        <span className={cn(codeClass, textColors.tertiary, primaryColors.groupTextOnLight)}>
+          {code}
+        </span>
+      )}
     </button>
   </li>
 );
@@ -110,7 +120,8 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
     onClick={() => onSelect(code)}
     title={name ? `${name} (${code})` : code}
     className={cn(
-      'mt-3 w-full rounded-lg px-3 py-2.5 text-left transition-colors',
+      // Already the tinted fill at rest, so hover deepens it rather than recolouring.
+      'mt-3 w-full rounded-lg px-3 py-2.5 text-left cursor-pointer transition-[filter] hover:brightness-95',
       primaryColors.bgLight,
     )}
   >
@@ -191,7 +202,7 @@ export const ServiceSidebar = ({
               onClick={() => onSearchChange('')}
               aria-label="검색어 지우기"
               className={cn(
-                'absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full transition-colors',
+                'absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full cursor-pointer transition-colors',
                 textColors.quaternary,
                 bgColors.mutedHover,
               )}
@@ -243,7 +254,11 @@ export const ServiceSidebar = ({
             <button
               type="button"
               onClick={() => onSearchChange('')}
-              className={cn('mt-2 text-xs', primaryColors.text, primaryColors.textHover)}
+              className={cn(
+                'mt-2 text-xs cursor-pointer',
+                primaryColors.text,
+                primaryColors.textHover,
+              )}
             >
               검색어 지우기
             </button>
@@ -286,7 +301,7 @@ export const ServiceSidebar = ({
                 type="button"
                 onClick={() => onPageChange(n)}
                 className={cn(
-                  'w-7 h-7 text-xs rounded-md transition-colors flex items-center justify-center',
+                  'w-7 h-7 text-xs rounded-md cursor-pointer transition-colors flex items-center justify-center',
                   // Current page reads as "pressed" (neutral fill), not as an accent —
                   // paging is navigation, not a branded action.
                   n === currentPage
