@@ -12,22 +12,44 @@ import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_componen
 // 설치 구분 = 스캔이 판정한 시스템 사실(사용자 변경 불가). 값의 뜻만이 아니라
 // 각 값이 선택에 거는 규칙(대상 제외 시 사유 필수, 불가는 선택 자체 불가)까지가
 // 한 세트다 — 사유 입력·비활성 체크박스를 만난 사용자가 여기서 이유를 찾는다.
+//
+// IdentifierTip(변수: variant="value")과 같은 화이트 박스 가족. 계층 3단 —
+// 캡션(11px 회색 제목) < 본문(12px #4E5968) < 용어(13px bold #191F28) — 로
+// 용어가 제목보다 크게 읽힌다: 사용자가 찾으러 온 것은 "안내"가 아니라 자기
+// 행에 찍힌 그 단어다. 제목 구역과 용어 구역은 헤어라인으로 가른다.
+const CATEGORY_TERMS = [
+  {
+    term: '설치 대상',
+    description:
+      '연동하려면 Agent 설치(4단계)가 진행되는 DB예요. 연동에서 제외하려면 제외 사유를 입력해야 해요.',
+  },
+  {
+    term: '설치 불필요',
+    description:
+      'VM(EC2 등)에 직접 설치해 운영하는 DB처럼 별도 Agent 설치 없이 연동할 수 있는 리소스예요.',
+  },
+  {
+    term: '설치 불가',
+    description:
+      '네트워크 구성 제약으로 Agent를 설치할 수 없는 리소스예요. 선택할 수 없고, 행의 설치 불가 라벨을 누르면 상세 사유를 확인할 수 있어요.',
+  },
+] as const;
+
 const CATEGORY_TOOLTIP_CONTENT = (
-  <div className="space-y-2 text-[12px] leading-[1.5]">
-    <div className="font-semibold">설치 구분 안내</div>
-    <p>스캔 결과를 바탕으로 시스템이 판정하는 값이라 직접 변경할 수 없어요.</p>
-    <p>
-      <span className="font-semibold">설치 대상</span> — 연동하려면 Agent 설치(4단계)가 진행되는
-      DB예요. 연동에서 제외하려면 제외 사유를 입력해야 해요.
+  <div className="leading-[1.55]">
+    <span className="block text-[11px] font-semibold text-[#6B7280]">설치 구분 안내</span>
+    <p className="mt-[4px] text-[12px] text-[#4E5968]">
+      스캔 결과를 바탕으로 시스템이 판정하는 값이라 직접 변경할 수 없어요.
     </p>
-    <p>
-      <span className="font-semibold">설치 불필요</span> — VM(EC2 등)에 직접 설치해 운영하는
-      DB처럼 별도 Agent 설치 없이 연동할 수 있는 리소스예요.
-    </p>
-    <p>
-      <span className="font-semibold">설치 불가</span> — 네트워크 구성 제약으로 Agent를 설치할 수
-      없는 리소스예요. 선택할 수 없고, 행의 설치 불가 라벨을 누르면 상세 사유를 확인할 수 있어요.
-    </p>
+    <div className="my-[10px] h-px bg-[#E5E8EB]" aria-hidden="true" />
+    <div className="space-y-[10px]">
+      {CATEGORY_TERMS.map(({ term, description }) => (
+        <div key={term}>
+          <span className="block text-[13px] font-bold text-[#191F28]">{term}</span>
+          <p className="mt-[2px] text-[12px] text-[#4E5968]">{description}</p>
+        </div>
+      ))}
+    </div>
   </div>
 );
 
@@ -87,6 +109,7 @@ export const CandidateResourceTable = ({
                     content={CATEGORY_TOOLTIP_CONTENT}
                     position="top"
                     size="md"
+                    variant="value"
                     label="설치 구분 안내"
                   />
                 </span>
