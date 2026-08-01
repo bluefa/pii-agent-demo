@@ -101,10 +101,13 @@ const renderStep = () =>
   );
 
 describe('InstallationCompleteStep', () => {
-  it('renders the Step 7 title', () => {
+  it('renders the step tag, the title, the 연동 완료 badge and the cloud guidance clause', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
-    expect(screen.getByText('PII 모니터링 모듈 연동 완료')).toBeTruthy();
+    expect(screen.getByText('7번째 단계')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'PII 모니터링 모듈 연동' })).toBeTruthy();
+    expect(screen.getByText('연동 완료')).toBeTruthy();
+    expect(screen.getByText(/사용 단어 빈도가 표시돼요/)).toBeTruthy();
   });
 
   it('mounts the ConfirmedResourcesSlot with complete variant', () => {
@@ -178,7 +181,7 @@ describe('InstallationCompleteStep', () => {
   it('renders the card title with the cardTitle token (v15 26px / font-extrabold)', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
-    const h2 = screen.getByRole('heading', { level: 2, name: /PII 모니터링 모듈 연동 완료/ });
+    const h2 = screen.getByRole('heading', { level: 2, name: /PII 모니터링 모듈 연동/ });
     expect(h2.className).toContain('text-[22px]');
     expect(h2.className).toContain('font-extrabold');
   });

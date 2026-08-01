@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
-import { ErrorState } from '@/app/components/ui/state';
-import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -14,30 +12,11 @@ import {
   ConfirmRewindModal,
   type ConfirmRewindKind,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
-import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
-import { Pagination } from '@/app/components/ui/Pagination';
-import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
-import { useIdcApprovalTable } from '@/app/target-sources/[targetSourceId]/_components/idc/approval-table';
-import {
-  IDC_FILTER_EMPTY_MESSAGE,
-  IDC_SEARCH_PLACEHOLDER,
-} from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
-import { LogicalDbSummaryModal } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbSummaryModal';
-import {
-  buildLogicalDbCountMap,
-  type LogicalDbCountMap,
-} from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
+import { IdcConfirmedResourcesPanel } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcConfirmedResourcesPanel';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
-import {
-  getLatestTestConnectionResultSummaries,
-  getProject,
-  updateTestConnectionConfirmation,
-} from '@/app/lib/api';
-import { getIdcConfirmedResources, type IdcResourceView } from '@/app/lib/api/idc';
+import { getProject, updateTestConnectionConfirmation } from '@/app/lib/api';
+import { getIdcConfirmedResources } from '@/app/lib/api/idc';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
-
-const EMPTY_RESOURCES: readonly IdcResourceView[] = [];
-const EMPTY_COUNTS: LogicalDbCountMap = new Map();
 
 /** 연결 재확인 — opens the confirm-rewind modal (mirrors the cloud sibling). */
 const ConnectionVerifiedRetestButton = ({
@@ -89,7 +68,8 @@ const ConnectionVerifiedRetestButton = ({
  * logical-DB result. Both dropped columns were placeholders here — the confirmed-integration
  * rows have no connection_status, so every row read "Pending" after a passing test.
  * Each step fetches its own list under its `targetSourceId` (DR3/DR4/DR5/DR7)
- * via the shared `useIdcResources` read hook, never module-level state.
+ * via the shared `useIdcResources` read hook, never module-level state; the table
+ * chrome lives in IdcConfirmedResourcesPanel (shared with Step 7).
  */
 export const IdcStep6ConnectionVerified = ({
   project,
@@ -102,36 +82,6 @@ export const IdcStep6ConnectionVerified = ({
 
   // Step 6 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
   const { state } = useIdcResources(targetSourceId, getIdcConfirmedResources);
-
-  // Step 5 counts for the whole table in one call; the per-resource lists load only on open.
-  const [fetched, setFetched] = useState<{ targetSourceId: number; counts: LogicalDbCountMap }>({
-    targetSourceId,
-    counts: EMPTY_COUNTS,
-  });
-  useEffect(() => {
-    const controller = new AbortController();
-    void getLatestTestConnectionResultSummaries(targetSourceId, { signal: controller.signal })
-      .then((summaries) => {
-        if (controller.signal.aborted) return;
-        setFetched({ targetSourceId, counts: buildLogicalDbCountMap(summaries) });
-      })
-      .catch(() => {
-        // No summaries available → leave the map empty so cells render "—".
-      });
-    return () => controller.abort();
-  }, [targetSourceId]);
-  // Stamped with the id it was fetched for, so a switch to another target shows "—" until its own
-  // counts land. Resource ids can repeat across target sources — a stale map would silently
-  // attribute one target's counts to another's rows.
-  const logicalDbCounts = fetched.targetSourceId === targetSourceId ? fetched.counts : EMPTY_COUNTS;
-
-  // The resource whose logical-DB list is open. null = closed.
-  const [logicalTarget, setLogicalTarget] = useState<IdcResourceView | null>(null);
-
-  // Search / filter / paging shared with the cloud step-6 table, via the same IDC projection
-  // steps 1·2·3 use.
-  const resources = state.status === 'ready' ? state.resources : EMPTY_RESOURCES;
-  const { table, visibleResources } = useIdcApprovalTable(resources);
 
   return (
     <>
@@ -183,53 +133,9 @@ export const IdcStep6ConnectionVerified = ({
           </p>
         </header>
         <div className={cardStyles.body}>
-          {state.status === 'loading' && <ResourceTableSkeleton />}
-          {state.status === 'error' && <ErrorState message="연동 대상을 불러오지 못했습니다." />}
-          {state.status === 'ready' && (
-            <>
-              <WaitingApprovalToolbar
-                searchValue={table.searchValue}
-                onSearchChange={table.onSearchChange}
-                dbType={table.dbType}
-                onDbTypeChange={table.onDbTypeChange}
-                region={table.region}
-                onRegionChange={table.onRegionChange}
-                dbTypeOptions={table.dbTypeOptions}
-                regionOptions={table.regionOptions}
-                searchPlaceholder={IDC_SEARCH_PLACEHOLDER}
-              />
-              <IdcResourceTable
-                resources={visibleResources}
-                cols={['src', 'logicalro']}
-                logicalDbCounts={logicalDbCounts}
-                onLogicalOpen={setLogicalTarget}
-                connected
-                emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
-              />
-              {table.filteredCount > 0 && (
-                <Pagination
-                  page={table.safePage}
-                  pageSize={table.pageSize}
-                  totalCount={table.filteredCount}
-                  onPageChange={table.onPageChange}
-                  onPageSizeChange={table.onPageSizeChange}
-                  pageSizeOptions={[10, 20, 50, 100]}
-                />
-              )}
-            </>
-          )}
+          <IdcConfirmedResourcesPanel targetSourceId={targetSourceId} state={state} />
         </div>
       </section>
-      {/* Mounted only while open so the hook fetches on open and drops its state on close. */}
-      {logicalTarget && (
-        <LogicalDbSummaryModal
-          open
-          targetSourceId={targetSourceId}
-          resourceId={logicalTarget.resourceId}
-          resourceName={logicalTarget.hosts[0] ?? logicalTarget.resourceId}
-          onClose={() => setLogicalTarget(null)}
-        />
-      )}
       <RejectionAlert project={project} />
     </>
   );
