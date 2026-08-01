@@ -1,8 +1,7 @@
 'use client';
 
-import { Modal } from '@/app/components/ui/Modal';
-import { Button } from '@/app/components/ui/Button';
-import { cn, textColors } from '@/lib/theme';
+import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
+import { primaryColors } from '@/lib/theme';
 
 interface ServiceMoveConfirmModalProps {
   isOpen: boolean;
@@ -12,31 +11,36 @@ interface ServiceMoveConfirmModalProps {
   serviceName: string;
 }
 
+/**
+ * Built on ConfirmStepModal so it shares the step-confirm spec exactly (480px, no
+ * close X, 40px button pair, no footer hairline) — this dialog interrupts the same
+ * flow as the step confirms and used to arrive in the older Modal chrome.
+ */
 export const ServiceMoveConfirmModal = ({
   isOpen,
   onClose,
   onConfirm,
   serviceCode,
   serviceName,
-}: ServiceMoveConfirmModalProps) => {
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="서비스 이동 확인"
-      size="sm"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            취소
-          </Button>
-          <Button onClick={onConfirm}>이동</Button>
-        </>
-      }
-    >
-      <p className={cn('text-sm', textColors.secondary)}>
-        {serviceCode} {serviceName} 서비스 관리 페이지로 이동하시겠습니까?
-      </p>
-    </Modal>
-  );
-};
+}: ServiceMoveConfirmModalProps) => (
+  <ConfirmStepModal
+    open={isOpen}
+    onClose={onClose}
+    onConfirm={onConfirm}
+    // The sidebar's current-service row opens this dialog too, so the title cannot claim
+    // the destination is a *different* service. What is always true — and what the
+    // confirm is actually for — is that the user leaves this page.
+    title="서비스 인프라 목록으로 이동할까요?"
+    // One emphasis, on the destination: the only thing to check is which service.
+    description={
+      <>
+        <span className={primaryColors.text}>
+          {serviceName || serviceCode}
+          {serviceName && ` (${serviceCode})`}
+        </span>
+        의 인프라 목록으로 이동해요. 지금 보고 있는 화면에서 벗어나요.
+      </>
+    }
+    confirmLabel="이동하기"
+  />
+);

@@ -54,7 +54,9 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
 
   return (
     <div className="flex h-[calc(100vh-56px)]">
-      <ServiceListPanel />
+      <ServiceListPanel
+        currentService={{ code: project.serviceCode, name: project.serviceName }}
+      />
       <div className="flex-1 min-w-0 overflow-auto">
         {renderProvider()}
       </div>

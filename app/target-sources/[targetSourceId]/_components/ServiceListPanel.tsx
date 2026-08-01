@@ -65,7 +65,12 @@ interface ConfirmModalData {
 const SERVICE_PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
 
-export const ServiceListPanel = () => {
+interface ServiceListPanelProps {
+  /** The service this target source belongs to — pinned to the top of the list. */
+  currentService: { code: string; name?: string };
+}
+
+export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
   const router = useRouter();
   const [state, dispatch] = useReducer(panelReducer, undefined, buildInitialPanelState);
   const { services, query, pageInfo } = state.list;
@@ -148,10 +153,12 @@ export const ServiceListPanel = () => {
   }, []);
 
   const handleSelectService = useCallback((code: string) => {
-    const svc = services.find((s) => s.service_code === code);
-    if (!svc) return;
-    confirmModal.open({ code: svc.service_code ?? '', name: svc.service_name ?? '' });
-  }, [services, confirmModal]);
+    // The pinned current service is not necessarily on the loaded page, so fall
+    // back to its own name rather than swallowing the click.
+    const name = services.find((s) => s.service_code === code)?.service_name
+      ?? (code === currentService.code ? currentService.name : undefined);
+    confirmModal.open({ code, name: name ?? '' });
+  }, [services, currentService, confirmModal]);
 
   const handleSearchChange = useCallback((newQuery: string) => {
     dispatch({ type: 'SET_QUERY', query: newQuery });
@@ -189,10 +196,13 @@ export const ServiceListPanel = () => {
 
   if (fetchState.status === 'error') {
     return (
+      // Same recessed plane as ServiceSidebar — a failed fetch must not hand back a
+      // white elevated rail the successful path no longer uses.
       <aside
         className={cn(
-          'w-[296px] shrink-0 shadow-sm flex flex-col items-center justify-center px-4 gap-3',
-          bgColors.surface,
+          'w-[296px] shrink-0 flex flex-col items-center justify-center border-r px-4 gap-3',
+          bgColors.muted,
+          borderColors.default,
         )}
       >
         <p className={cn('text-sm text-center', textColors.secondary)}>
@@ -218,9 +228,8 @@ export const ServiceListPanel = () => {
     <>
       <ServiceSidebar
         services={services}
-        selectedService={null}
+        currentService={currentService}
         onSelectService={handleSelectService}
-        projectCount={0}
         searchQuery={query}
         onSearchChange={handleSearchChange}
         pageInfo={pageInfo}
