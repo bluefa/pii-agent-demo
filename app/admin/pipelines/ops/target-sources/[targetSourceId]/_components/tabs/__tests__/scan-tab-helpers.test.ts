@@ -3,6 +3,7 @@ import {
   sortResourceCounts,
   trimProviderPrefix,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
+import { tokenizeJson } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanCredentialCard';
 
 describe('sortResourceCounts', () => {
   it('sorts by count desc, then name asc, dropping null counts', () => {
@@ -38,5 +39,29 @@ describe('trimProviderPrefix', () => {
   it('leaves unknown-prefix keys untouched (open set)', () => {
     expect(trimProviderPrefix('AWS_DB_INSTANCE', 'Azure')).toBe('AWS_DB_INSTANCE');
     expect(trimProviderPrefix('CUSTOM_THING', 'AWS')).toBe('CUSTOM_THING');
+  });
+});
+
+describe('tokenizeJson', () => {
+  it('classifies keys, strings, numbers, booleans, and null', () => {
+    const tokens = tokenizeJson('{"a": "b", "n": -1.5, "ok": true, "x": null}');
+    expect(tokens.filter((t) => t.kind !== 'plain').map((t) => `${t.kind}:${t.text}`)).toEqual([
+      'key:"a"',
+      'string:"b"',
+      'key:"n"',
+      'number:-1.5',
+      'key:"ok"',
+      'bool:true',
+      'key:"x"',
+      'null:null',
+    ]);
+  });
+
+  it('round-trips the input and keeps escaped quotes in one string token', () => {
+    const text = JSON.stringify({ msg: 'sa"y \\ true', arn: null }, null, 2);
+    const tokens = tokenizeJson(text);
+    expect(tokens.map((t) => t.text).join('')).toBe(text);
+    expect(tokens.filter((t) => t.kind === 'string')).toHaveLength(1);
+    expect(tokens.filter((t) => t.kind === 'bool')).toHaveLength(0);
   });
 });

@@ -1353,10 +1353,6 @@ export const pipelineStyles = {
      *  never collides in the join. Replaces `dialog` entirely for variant='app'. */
     dialogApp:
       'max-w-[92vw] max-h-[88vh] overflow-y-auto rounded-[20px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
-    /** Right-docked drawer (row-click detail) — standalone chrome like `app`:
-     *  full-height at the overlay's right edge, square corners, slide-in. */
-    dialogDrawer:
-      'self-stretch ml-auto w-[440px] max-w-[92vw] bg-[var(--pl-bg-card)] border-l border-[var(--pl-border)] shadow-[var(--pl-shadow-lg)] px-6 py-[22px] overflow-y-auto motion-safe:[animation:pl-panel-in_.2s_ease-out]',
     title: cn(pipelineText.modalTitle, 'mb-3'),
     desc: 'text-[14px] leading-[1.4] text-[var(--pl-text-medium)] mb-3.5',
     body: 'overflow-y-auto min-h-0 mt-1',

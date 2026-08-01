@@ -8,9 +8,8 @@
  * `variant='wide'` = 720px (start-pipeline modal); `variant='xwide'` = 960px
  * (Custom builder — drag canvas + docked catalog need the room);
  * `variant='app'` = Task Queue app-modal chrome (r20/p0/88vh scroll — width via
- * className, see TqModal); `variant='drawer'` = right-docked full-height panel
- * (row-click detail surfaces). Pair with the app's useModal() hook for
- * open/close state (self-contained cleanup here).
+ * className, see TqModal). Pair with the app's useModal() hook for open/close
+ * state (self-contained cleanup here).
  */
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
@@ -19,7 +18,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 export interface ModalShellProps {
   open: boolean;
   onClose: () => void;
-  variant?: 'default' | 'task' | 'wide' | 'xwide' | 'app' | 'drawer';
+  variant?: 'default' | 'task' | 'wide' | 'xwide' | 'app';
   children: ReactNode;
   /** id of the heading element that labels the dialog. */
   labelledBy?: string;
@@ -103,13 +102,11 @@ export function ModalShell({
         aria-modal="true"
         aria-labelledby={labelledBy}
         className={
-          // 'app'/'drawer' swap the whole dialog chrome — the others layer a
-          // width onto the shared `dialog` base.
+          // 'app' swaps the whole dialog chrome (r20/p0/scroll) — the others
+          // layer a width onto the shared `dialog` base.
           variant === 'app'
             ? cn(modal.dialogApp, className)
-            : variant === 'drawer'
-              ? cn(modal.dialogDrawer, className)
-              : cn(
+            : cn(
                 modal.dialog,
                 variant === 'task'
                   ? modal.dialogTask

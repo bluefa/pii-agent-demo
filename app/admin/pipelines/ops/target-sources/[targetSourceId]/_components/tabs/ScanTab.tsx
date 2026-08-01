@@ -7,8 +7,8 @@
  * Latest job comes from useScanPolling, so a running scan animates and a 404
  * (never scanned) surfaces as the empty state rather than an error.
  * 표시 규칙: 진행 바는 SCANNING에서만(끝난 스캔이 0%를 말하는 착시 제거), 발견
- * 리소스는 개수 내림차순 태그(프로바이더 접두어 트림), 이력은 행 클릭 → 우측
- * 드로어로 상세(시작·완료 시각, 태그 전량, 오류).
+ * 리소스는 개수 내림차순 태그(프로바이더 접두어 트림), 이력은 행 클릭 → 모달로
+ * 상세(최근 스캔 카드와 같은 계층: 판정 → 스캔 결과 → 오류 → 시각행).
  */
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import type { z } from 'zod';
@@ -184,7 +184,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
   const [totalPages, setTotalPages] = useState(1);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyFailed, setHistoryFailed] = useState(false);
-  /** 이력 행 클릭으로 여는 우측 상세 드로어의 대상 잡. */
+  /** 이력 행 클릭으로 여는 상세 모달의 대상 잡. */
   const [detailJob, setDetailJob] = useState<ScanJob | null>(null);
 
   // Latest-request-wins: rapid pagination can resolve out of order, and a stale
@@ -510,65 +510,62 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         <OpsPagination page={page} totalPages={totalPages} onChange={(next) => void loadHistory(next)} />
       </section>
 
-      {/* 이력 행 클릭 → 우측 드로어 — 표가 요약(일시·상태·총계)이고, 드로어가
-          시작·완료 시각(초 단위)·태그 전량·오류까지 그 실행의 전부를 말한다. */}
+      {/* 이력 행 클릭 → 상세 모달 — 최근 스캔 카드의 계층을 그대로 미러링:
+          판정(타이틀 옆 pill) → 스캔 결과(총계 + 태그) → 오류 → 시각행(하단). */}
       <ModalShell
         open={detailJob !== null}
         onClose={() => setDetailJob(null)}
-        variant="drawer"
         labelledBy="scan-detail-title"
       >
         {detailJob && (
           <>
-            <div className="flex items-start justify-between gap-3">
-              <h3
-                id="scan-detail-title"
-                className="flex items-center gap-2 text-[16px] font-semibold text-[var(--pl-text-strong)]"
-              >
-                스캔 <span className="[font-family:var(--pl-font-mono)]">#{detailJob.scan_version ?? '-'}</span>
-                <ScanStatusPill status={detailJob.scan_status} />
-              </h3>
-              <button
-                type="button"
-                aria-label="닫기"
-                onClick={() => setDetailJob(null)}
-                className="-m-1 rounded p-1 text-[var(--pl-text-faint)] transition-colors hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]"
-              >
-                <Icon name="x" size="md" />
-              </button>
-            </div>
+            <h3
+              id="scan-detail-title"
+              className="flex items-center gap-2 text-[16px] font-bold text-[var(--pl-text-strong)]"
+            >
+              스캔 <span className="[font-family:var(--pl-font-mono)]">#{detailJob.scan_version ?? '-'}</span>
+              <ScanStatusPill status={detailJob.scan_status} />
+            </h3>
 
-            <div className="mt-5 flex flex-wrap gap-x-10 gap-y-3">
-              <TimeField label="시작 시간">{fmtDateTimeSec(detailJob.created_at)}</TimeField>
-              <TimeField label="완료 시간">{fmtDateTimeSec(detailJob.updated_at)}</TimeField>
-              <TimeField label="소요">{fmtDuration(detailJob.duration_seconds)}</TimeField>
-            </div>
+            {detailJob.scan_status === 'SUCCESS' && (
+              <div className="mt-5">
+                <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">스캔 결과</p>
+                {detailCounts.length === 0 ? (
+                  <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
+                ) : (
+                  <>
+                    <p className="mt-1 text-[13px] text-[var(--pl-text-weak)]">
+                      총 <b className="text-[18px] font-bold tabular-nums text-[var(--pl-primary)]">{totalOf(detailCounts)}</b>개
+                      {' · '}
+                      {detailCounts.length}타입
+                    </p>
+                    <div className="mt-2.5 flex max-h-[280px] flex-wrap gap-2 overflow-y-auto">
+                      {detailCounts.map(([type, count]) => (
+                        <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {detailJob.scan_error && (
-              <p className="mt-5 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
+              <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
                 <span className="[font-family:var(--pl-font-mono)] font-semibold">{detailJob.scan_error}</span>
                 <span className="ml-2">{errorLabel(detailJob.scan_error)}</span>
               </p>
             )}
 
-            <div className="mt-6 border-t border-[var(--pl-gray-100)] pt-4">
-              <p className="text-[13px] font-semibold text-[var(--pl-text-strong)]">
-                발견 리소스 <b className="tabular-nums">{totalOf(detailCounts)}개</b>
-                {detailCounts.length > 0 && (
-                  <span className="ml-1 font-medium text-[var(--pl-text-weak)]">
-                    · {detailCounts.length}타입
-                  </span>
-                )}
-              </p>
-              {detailCounts.length === 0 ? (
-                <p className={cn(pipelineStyles.text.meta, 'mt-2')}>발견된 리소스가 없습니다.</p>
-              ) : (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {detailCounts.map(([type, count]) => (
-                    <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
-                  ))}
-                </div>
-              )}
+            <div className="mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
+              <TimeField label="실행시간">{fmtDateTimeSec(detailJob.created_at)}</TimeField>
+              <TimeField label="완료시간">{fmtDateTimeSec(detailJob.updated_at)}</TimeField>
+              <TimeField label="소요">{fmtDuration(detailJob.duration_seconds)}</TimeField>
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <PlButton variant="secondary" onClick={() => setDetailJob(null)}>
+                닫기
+              </PlButton>
             </div>
           </>
         )}

@@ -72,6 +72,48 @@ const pillSpec = (status: string | null | undefined): { cls: string; label: stri
   }
 };
 
+type JsonTokenKind = 'key' | 'string' | 'number' | 'bool' | 'null';
+
+/**
+ * JSON.stringify(…, 2) 출력용 미니 토크나이저 — 키/문자열/숫자/불리언/null만
+ * 구분하고 구두점·공백은 사이사이 plain으로 남긴다. 토큰 text를 이어붙이면
+ * 입력과 동일(라운드트립)해야 한다.
+ */
+export const tokenizeJson = (
+  text: string,
+): Array<{ kind: JsonTokenKind | 'plain'; text: string }> => {
+  const tokens: Array<{ kind: JsonTokenKind | 'plain'; text: string }> = [];
+  const re = /("(?:[^"\\]|\\.)*")(\s*:)?|\btrue\b|\bfalse\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
+  let last = 0;
+  for (let match = re.exec(text); match !== null; match = re.exec(text)) {
+    if (match.index > last) tokens.push({ kind: 'plain', text: text.slice(last, match.index) });
+    const [raw, str, colon] = match;
+    if (str !== undefined) {
+      // 콜론이 따라오는 문자열 = 키 (유효한 JSON에서 값 뒤에 콜론은 못 온다).
+      tokens.push({ kind: colon ? 'key' : 'string', text: str });
+      if (colon) tokens.push({ kind: 'plain', text: colon });
+    } else if (raw === 'true' || raw === 'false') {
+      tokens.push({ kind: 'bool', text: raw });
+    } else if (raw === 'null') {
+      tokens.push({ kind: 'null', text: raw });
+    } else {
+      tokens.push({ kind: 'number', text: raw });
+    }
+    last = re.lastIndex;
+  }
+  if (last < text.length) tokens.push({ kind: 'plain', text: text.slice(last) });
+  return tokens;
+};
+
+/** JSON 토큰 색 — 시맨틱 토큰만: 키 primary, 문자열 ok, 숫자·불리언 warn, null faint. */
+const JSON_TOKEN_CLASS: Record<JsonTokenKind, string> = {
+  key: 'text-[var(--pl-primary)]',
+  string: 'text-[var(--pl-ok-text)]',
+  number: 'text-[var(--pl-warn-text)]',
+  bool: 'text-[var(--pl-warn-text)]',
+  null: 'italic text-[var(--pl-text-faint)]',
+};
+
 export interface ScanCredentialCardProps {
   provider: CloudProvider;
   targetSourceId: number;
@@ -137,14 +179,23 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
 
   return (
     <>
-      {/* 검증 응답 원문 — identity 포함 전체 payload를 그대로. 판정(pill)은 타이틀
-          옆이 담당하고, 원문은 진단·백엔드 대조용이다 (카드 공백 해소 겸). */}
-      <div className="mt-4">
-        <p className="text-[11px] font-semibold tracking-[0.04em] text-[var(--pl-text-faint)]">
+      {/* 검증 응답 원문 — identity 포함 전체 payload. 라벨은 박스 안 헤더로,
+          본문은 토큰 하이라이트(진짜 JSON 뷰어 문법) — 진단·백엔드 대조용. */}
+      <div className="mt-4 overflow-hidden rounded-lg border border-[var(--pl-gray-100)] bg-[var(--pl-bg-inner)]">
+        <p className="px-3.5 pt-2.5 text-[11px] font-semibold tracking-[0.04em] text-[var(--pl-text-faint)]">
           응답 원문
         </p>
-        <pre className="mt-1.5 max-h-[200px] overflow-auto rounded-lg border border-[var(--pl-gray-100)] bg-[var(--pl-bg-inner)] px-3.5 py-3 text-[12px] leading-[1.7] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]">
-          {JSON.stringify(data, null, 2)}
+        {/* 구두점은 pre 기본색(faint)으로 물러나고 값 토큰만 색을 갖는다. */}
+        <pre className="max-h-[200px] overflow-auto px-3.5 pb-3 pt-1 text-[12px] leading-[1.7] text-[var(--pl-text-faint)] [font-family:var(--pl-font-mono)]">
+          {tokenizeJson(JSON.stringify(data, null, 2)).map((token, index) =>
+            token.kind === 'plain' ? (
+              token.text
+            ) : (
+              <span key={index} className={JSON_TOKEN_CLASS[token.kind]}>
+                {token.text}
+              </span>
+            ),
+          )}
         </pre>
       </div>
 
