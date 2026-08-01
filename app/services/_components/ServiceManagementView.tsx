@@ -44,6 +44,7 @@ export const ServiceManagementView = () => {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedName, setSelectedName] = useState('');
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -76,21 +77,15 @@ export const ServiceManagementView = () => {
     }
   }, [toast]);
 
-  // Initial sidebar load (runs once). When deep-linked with ?service_code=, the
-  // sidebar can't know which page the service lives on (no page-index API), so
-  // filter the list to that code so the selection surfaces and highlights on
-  // page 0. Plain entry loads page 0 unfiltered. After this one-shot, the user
-  // can search/paginate freely without the selection re-filtering the list.
+  // Initial sidebar load (runs once) — always page 0, unfiltered. A deep-linked
+  // ?service_code= used to pre-fill the search box with the code so the selection
+  // would surface on page 0; the sidebar now pins the current service above the
+  // list on its own, so the list no longer has to be filtered to show it.
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
-    if (selectedService) {
-      dispatch({ type: 'SET_QUERY', query: selectedService });
-      void fetchServicesPage(0, selectedService);
-    } else {
-      void fetchServicesPage(0);
-    }
-  }, [selectedService, fetchServicesPage]);
+    void fetchServicesPage(0);
+  }, [fetchServicesPage]);
 
   useEffect(() => {
     return () => {
@@ -98,7 +93,29 @@ export const ServiceManagementView = () => {
     };
   }, []);
 
-  const selectedServiceObj = services.find((s) => s.service_code === selectedService);
+  // The selected service may live on a later page, so its name can't be read off
+  // the loaded page. Resolve it once per selection with a query-scoped lookup that
+  // never touches the visible list.
+  useEffect(() => {
+    if (!selectedService) {
+      setSelectedName('');
+      return;
+    }
+    let cancelled = false;
+    getServicesPage(0, SERVICE_PAGE_SIZE, selectedService)
+      .then((data) => {
+        if (cancelled) return;
+        const hit = (data.content ?? []).find((s) => s.service_code === selectedService);
+        setSelectedName(hit?.service_name ?? '');
+      })
+      .catch(() => {
+        // Name is decoration — the code alone still identifies the service.
+        if (!cancelled) setSelectedName('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedService]);
 
   // Fetch the selected service's target sources. Race guard: a stale in-flight
   // response for a previously-selected service must not overwrite the panel.
@@ -190,16 +207,13 @@ export const ServiceManagementView = () => {
     setCreateOpen(false);
   }, []);
 
-  const selectedName = selectedServiceObj?.service_name ?? '';
-
   return (
     <div className={cn('min-h-screen', bgColors.muted)}>
       <div className="flex h-[calc(100vh-56px)]">
         <ServiceSidebar
           services={services}
-          selectedService={selectedService}
+          currentService={selectedService ? { code: selectedService, name: selectedName } : null}
           onSelectService={handleSelectService}
-          projectCount={projects.length}
           searchQuery={serviceQuery}
           onSearchChange={handleSearchChange}
           pageInfo={servicePageInfo}

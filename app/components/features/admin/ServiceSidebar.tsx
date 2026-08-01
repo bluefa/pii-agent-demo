@@ -1,7 +1,17 @@
 'use client';
 
+import { ChevronRightIcon, SearchIcon } from '@/app/components/ui/icons';
 import type { PageServiceItem } from '@/app/lib/api';
-import { borderColors, bgColors, idcStyles, primaryColors, textColors, cn, getInputClass } from '@/lib/theme';
+import {
+  borderColors,
+  bgColors,
+  idcStyles,
+  primaryColors,
+  tagStyles,
+  textColors,
+  cn,
+  getInputClass,
+} from '@/lib/theme';
 
 interface ServicePageInfo {
   totalElements: number;
@@ -12,11 +22,17 @@ interface ServicePageInfo {
 
 type ServiceItem = NonNullable<PageServiceItem['content']>[number];
 
+/** The service the surrounding page is about — pinned above the list and highlighted. */
+interface CurrentService {
+  code: string;
+  /** Absent while the name is still being resolved; the row falls back to the code. */
+  name?: string;
+}
+
 interface ServiceSidebarProps {
   services: ServiceItem[];
-  selectedService: string | null;
+  currentService: CurrentService | null;
   onSelectService: (code: string) => void;
-  projectCount: number;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   pageInfo: ServicePageInfo;
@@ -25,9 +41,66 @@ interface ServiceSidebarProps {
   loading?: boolean;
 }
 
+const groupLabelClass = cn('px-3 pt-4 pb-1.5 text-xs font-semibold', textColors.tertiary);
+
+const pageButtonClass = cn(
+  'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
+  bgColors.mutedHover,
+  textColors.tertiary,
+);
+
+interface ServiceRowProps {
+  code: string;
+  name?: string;
+  isCurrent: boolean;
+  onSelect: (code: string) => void;
+}
+
+/**
+ * Code chip + name. The chip is a fixed-width column so the names line up and the
+ * list can be scanned down a single edge; it carries the full code (case-sensitive —
+ * `/services/{code}` matches exactly), so no duplicate code sub-line is needed.
+ */
+const ServiceRow = ({ code, name, isCurrent, onSelect }: ServiceRowProps) => (
+  <li>
+    <button
+      type="button"
+      onClick={() => onSelect(code)}
+      title={name ? `${name} (${code})` : code}
+      className={cn(
+        'group w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors',
+        bgColors.mutedHover,
+      )}
+    >
+      <span
+        className={cn(
+          'shrink-0 w-14 py-1 rounded-md text-center font-mono text-xs font-semibold truncate',
+          isCurrent ? cn(primaryColors.bgLight, primaryColors.textOnLight) : tagStyles.neutral,
+        )}
+      >
+        {code}
+      </span>
+      <span
+        className={cn(
+          'flex-1 min-w-0 truncate text-sm font-semibold',
+          isCurrent ? primaryColors.text : textColors.primary,
+        )}
+      >
+        {name || code}
+      </span>
+      <ChevronRightIcon
+        className={cn(
+          'shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100',
+          textColors.quaternary,
+        )}
+      />
+    </button>
+  </li>
+);
+
 export const ServiceSidebar = ({
   services,
-  selectedService,
+  currentService,
   onSelectService,
   searchQuery,
   onSearchChange,
@@ -41,83 +114,113 @@ export const ServiceSidebar = ({
   const paginationEnd = Math.min(totalPages, paginationStart + 5);
   const pageNumbers = Array.from({ length: paginationEnd - paginationStart }, (_, i) => paginationStart + i);
 
+  // The current service is pinned to the top only while browsing: during a search
+  // the list is pure results, so a pinned row that doesn't match would lie.
+  const pinned = !searchQuery ? currentService : null;
+  const listed = pinned ? services.filter((s) => s.service_code !== pinned.code) : services;
+
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
     <aside className="w-[296px] shrink-0 bg-white shadow-sm flex flex-col">
-      <div className={cn('px-4 py-3 border-b', borderColors.light)}>
-        <h2 className={cn('text-[15px] font-semibold', textColors.primary)}>Service List</h2>
+      <div className="px-4 pt-4 pb-3 flex items-baseline justify-between gap-2">
+        <h2 className={cn('text-sm font-bold', textColors.primary)}>Service List</h2>
+        {/* Query-scoped while searching, so the catalog total only holds when idle —
+            during a search the count lives next to the input instead. */}
+        {!searchQuery && totalElements > 0 && (
+          <span className={cn('text-xs tabular-nums', textColors.tertiary)}>{totalElements}개</span>
+        )}
       </div>
 
-      <div className={cn('px-3 py-2 border-b', borderColors.light)}>
+      <div className="px-3 pb-3 relative">
+        <SearchIcon
+          className={cn('absolute left-6 top-1/2 -translate-y-[calc(50%+6px)]', textColors.quaternary)}
+        />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Service name or Service Code"
-          className={cn(getInputClass(), '!py-2 !px-3 text-sm')}
+          placeholder="서비스 이름 또는 코드"
+          aria-label="서비스 검색"
+          className={cn(getInputClass(), '!py-2 !pl-9 !pr-14 text-sm')}
         />
+        {searchQuery && (
+          <span
+            className={cn(
+              'absolute right-6 top-1/2 -translate-y-[calc(50%+6px)] text-xs tabular-nums',
+              textColors.tertiary,
+            )}
+          >
+            {totalElements}건
+          </span>
+        )}
       </div>
 
-      <ul className="py-2 flex-1 overflow-auto" aria-busy={loading}>
+      <ul className="flex-1 overflow-auto px-2 pb-2" aria-busy={loading}>
         {loading ? (
           Array.from({ length: 7 }).map((_, i) => (
-            <li key={i} className="mx-2 mb-0.5 px-[14px] py-3" aria-hidden="true">
-              <div className={cn(idcStyles.skeletonBar, 'h-3.5 w-24 rounded')} />
-              <div className={cn(idcStyles.skeletonBar, 'h-3 w-32 rounded mt-1.5')} />
+            <li key={i} className="flex items-center gap-2.5 px-3 py-2" aria-hidden="true">
+              <div className={cn(idcStyles.skeletonBar, 'h-[26px] w-14 rounded-md shrink-0')} />
+              <div className={cn(idcStyles.skeletonBar, 'h-3.5 flex-1 rounded')} />
             </li>
           ))
         ) : services.length === 0 ? (
-          <li className="px-4 py-8 text-center">
-            <p className={cn('text-sm', textColors.tertiary)}>검색 결과가 없습니다</p>
-            <p className={cn('text-xs mt-1', textColors.quaternary)}>다른 검색어를 입력해 주세요</p>
+          <li className="px-4 py-10 text-center">
+            <p className={cn('text-sm', textColors.tertiary)}>
+              ‘{searchQuery}’와 일치하는 서비스가 없습니다
+            </p>
+            <button
+              type="button"
+              onClick={() => onSearchChange('')}
+              className={cn('mt-2 text-xs', primaryColors.text, primaryColors.textHover)}
+            >
+              검색어 지우기
+            </button>
           </li>
         ) : (
-          services.map((service) => {
-            const code = service.service_code ?? '';
-            const name = service.service_name ?? '';
-            const isSelected = selectedService === code;
-            return (
-              <li
-                key={code}
-                onClick={() => onSelectService(code)}
-                className={cn(
-                  'mx-2 mb-0.5 cursor-pointer rounded-lg transition-all duration-150',
-                  isSelected
-                    ? cn('px-[13px] py-[11px] border', primaryColors.bgLight, primaryColors.border)
-                    : cn('px-[14px] py-3', bgColors.mutedHover),
-                )}
-              >
-                {/* Name-first, code as the sub-line — same name > code hierarchy
-                    as the page headers (was inverted: code on top). */}
-                <div className={cn('text-[13px] font-semibold', isSelected ? primaryColors.text : textColors.primary)}>
-                  {name || code}
-                </div>
-                {name && (
-                  <div className={cn('text-xs mt-0.5', textColors.tertiary)}>
-                    {code}
-                  </div>
-                )}
-              </li>
-            );
-          })
+          <>
+            {pinned && (
+              <>
+                <li className={groupLabelClass}>현재 작업 중</li>
+                <ServiceRow
+                  code={pinned.code}
+                  name={pinned.name}
+                  isCurrent
+                  onSelect={onSelectService}
+                />
+              </>
+            )}
+            {pinned && listed.length > 0 && (
+              <li className={groupLabelClass}>전체 서비스</li>
+            )}
+            {listed.map((service) => {
+              const code = service.service_code ?? '';
+              return (
+                <ServiceRow
+                  key={code}
+                  code={code}
+                  name={service.service_name ?? undefined}
+                  isCurrent={!pinned && code === currentService?.code}
+                  onSelect={onSelectService}
+                />
+              );
+            })}
+          </>
         )}
       </ul>
 
-      {totalPages > 1 && (
-        <div className={cn('px-3 py-3 border-t', borderColors.light)}>
-          <p className={cn('text-xs mb-2 text-center', textColors.quaternary)}>
-            총 {totalElements}개 서비스
-          </p>
-          <div className="flex items-center justify-center gap-1">
+      <div className={cn('border-t px-4 py-3', borderColors.light)}>
+        <div className={cn('flex items-center justify-between text-xs tabular-nums', textColors.tertiary)}>
+          <span>{searchQuery ? `검색 결과 ${totalElements}개` : `총 ${totalElements}개 서비스`}</span>
+          {totalPages > 1 && <span>{currentPage + 1} / {totalPages}쪽</span>}
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1 mt-2">
             <button
               type="button"
               onClick={() => onPageChange(Math.max(0, currentPage - 1))}
               disabled={currentPage === 0}
-              className={cn(
-                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
-                bgColors.mutedHover,
-                textColors.tertiary,
-              )}
+              className={pageButtonClass}
               aria-label="이전 페이지"
             >
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
@@ -143,11 +246,7 @@ export const ServiceSidebar = ({
               type="button"
               onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
               disabled={currentPage >= totalPages - 1}
-              className={cn(
-                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
-                bgColors.mutedHover,
-                textColors.tertiary,
-              )}
+              className={pageButtonClass}
               aria-label="다음 페이지"
             >
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
@@ -155,8 +254,8 @@ export const ServiceSidebar = ({
               </svg>
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   );
 };
