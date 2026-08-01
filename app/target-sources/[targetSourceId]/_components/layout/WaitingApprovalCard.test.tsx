@@ -383,11 +383,51 @@ describe('WaitingApprovalCard', () => {
     expect(screen.getByText(/^관리자 · 2026\. 04\. 30\./)).toBeTruthy();
     expect(screen.queryByText('반려일시')).toBeNull();
     expect(screen.queryByText('처리자')).toBeNull();
-    // The request-submission meta row is dropped on a closed request — the table is the reference.
-    expect(screen.queryByText('요청일시')).toBeNull();
-    // The waiting copy must be gone, but the requested resources stay on screen.
+    // The waiting copy must be gone.
     expect(screen.queryByText('관리자 승인을 기다리고 있어요.')).toBeNull();
+
+    // The targets become a collapsed record, not the open worklist the pending state shows.
+    const record = document.querySelector('details');
+    expect(record).toBeTruthy();
+    expect(record?.open).toBe(false);
+    // Its summary line answers what the list would have been scanned for: how many, from whom,
+    // when — so the submission meta moves here instead of a header row of its own.
+    expect(screen.getByText('이 요청에 포함된 연동 대상')).toBeTruthy();
+    expect(screen.getByText(/전체 2 · 대상 1 · 제외 1/)).toBeTruthy();
+    expect(screen.getByText(/요청자 tester · 요청일시 2026\. 04\. 29\./)).toBeTruthy();
+    expect(screen.queryByText('요청일시')).toBeNull();
+    // The rows still render inside the closed disclosure — the browser hides them, and opening
+    // must not refetch.
     expect(screen.getByText('mysql-prod-01-name')).toBeTruthy();
+  });
+
+  it('opens the target record on demand and keeps the pending state expanded', async () => {
+    getApprovalRequestLatestMock.mockResolvedValueOnce({
+      ...buildResponse(),
+      request: { ...requestMeta, status: 'REJECTED' as const },
+      result: {
+        request_id: 1,
+        status: 'REJECTED' as const,
+        reason: 'RDS_CLUSTER 리소스는 현재 지원되지 않습니다.',
+        processed_at: '2026-04-30T05:00:00Z',
+        processed_by: { user_id: '관리자' },
+      },
+    });
+    render(<WaitingApprovalCard targetSourceId={1003} onReselected={vi.fn()} />);
+
+    const summary = await screen.findByText('이 요청에 포함된 연동 대상');
+    fireEvent.click(summary);
+    expect(document.querySelector('details')?.open).toBe(true);
+  });
+
+  it('leaves the pending target list open — no disclosure', async () => {
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
+    render(<WaitingApprovalCard targetSourceId={1003} onReselected={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mysql-prod-01-name')).toBeTruthy();
+    });
+    expect(document.querySelector('details')).toBeNull();
   });
 
   it('keeps the rejection sentence and skips the reason well when the verdict carries no reason', async () => {

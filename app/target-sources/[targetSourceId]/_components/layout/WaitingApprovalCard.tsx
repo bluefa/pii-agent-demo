@@ -7,6 +7,7 @@ import {
 } from '@/app/lib/api';
 import { AppError } from '@/lib/errors';
 import { formatDate } from '@/lib/utils/date';
+import { ChevronDownIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
 import {
   WaitingApprovalStats,
@@ -26,7 +27,15 @@ import {
   ResourceTableSkeleton,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
-import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import {
+  borderColors,
+  cardStyles,
+  cn,
+  idcStyles,
+  primaryColors,
+  statusColors,
+  textColors,
+} from '@/lib/theme';
 
 interface WaitingApprovalCardProps {
   targetSourceId: number;
@@ -168,6 +177,44 @@ export const WaitingApprovalCard = ({
       targetSourceId={targetSourceId}
       onSuccess={() => onReselected?.()}
     />
+  );
+
+  // Same list in both states — pending shows it outright, rejected tucks it behind a disclosure.
+  const listBlock = (
+    <>
+      <WaitingApprovalStats
+        totalCount={table.countsByFilter.all}
+        selectedCount={table.countsByFilter.target}
+        excludedCount={table.countsByFilter.excluded}
+        filter={table.filter}
+        onFilterChange={table.onFilterChange}
+      />
+      {/* Toolbar (top-rounded) + table + pagination (bottom-rounded) join as one card, no gaps. */}
+      <WaitingApprovalToolbar
+        searchValue={table.searchValue}
+        onSearchChange={table.onSearchChange}
+        dbType={table.dbType}
+        onDbTypeChange={table.onDbTypeChange}
+        region={table.region}
+        onRegionChange={table.onRegionChange}
+        dbTypeOptions={table.dbTypeOptions}
+        regionOptions={table.regionOptions}
+      />
+      <WaitingApprovalTable
+        resources={table.visibleResources}
+        connected
+        emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+      />
+      {table.filteredCount > 0 && (
+        <Pagination
+          page={table.safePage}
+          pageSize={table.pageSize}
+          totalCount={table.filteredCount}
+          onPageChange={table.onPageChange}
+          onPageSizeChange={table.onPageSizeChange}
+        />
+      )}
+    </>
   );
 
   return (
@@ -315,9 +362,8 @@ export const WaitingApprovalCard = ({
           // declares 12px + muted color instead of identityBarStyles (13px, near-black), which the
           // page-level identity bar keeps. 24px above it — the widest gap in the header, marking
           // the boundary between "what happened / what to do" and reference facts.
-          // Rejected drops this row: on a closed request the submission meta is dead info, and a
-          // second meta cluster under the well read as clutter — the verdict signature inside the
-          // well is the date that survives, and the table is the reference that matters.
+          // Rejected does not repeat it here: the submission meta moves into the record block's
+          // summary line below, where it belongs to the list it describes.
           <div className="mt-6 flex flex-wrap gap-8">
             <MetaField label="요청일시" value={formatDate(requestSummary.requestedAt, 'datetime')} />
             <MetaField label="요청자" value={requestSummary.requestedBy} />
@@ -331,43 +377,57 @@ export const WaitingApprovalCard = ({
           <ResourceTableSkeleton />
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
+        ) : rejected ? (
+          // A closed request's targets are a record, not a worklist: the verdict is already made,
+          // so leading with tiles-as-filters + search + a 9-row table put ~800px of interactive-
+          // looking surface after the one decision the screen asks for. It collapses instead —
+          // native <details>, so no state to hold — and the summary line answers what the list
+          // would have been scanned for anyway: how many, from whom, when.
+          // mx-1: the body runs at px-6 while the header runs at px-[28px]. The bordered tiles
+          // hid that 4px, but this block opens with plain text directly under the header's, so
+          // the two text edges have to line up.
+          <details className={cn('group mx-1 mt-4 border-t pt-4', borderColors.light)}>
+            <summary className="flex cursor-pointer list-none flex-col gap-1 [&::-webkit-details-marker]:hidden">
+              <div className="flex items-center justify-between gap-4">
+                <span className={cn('text-[14px] font-semibold', textColors.secondary)}>
+                  이 요청에 포함된 연동 대상
+                </span>
+                <span className="flex items-center gap-3">
+                  {/* Hidden once open: the stat tiles below carry the same three numbers, and
+                      showing them twice is what made the old screen read as duplicated. */}
+                  <span
+                    className={cn('text-[13px] font-medium group-open:hidden', textColors.tertiary)}
+                  >
+                    전체 {table.countsByFilter.all} · 대상 {table.countsByFilter.target} · 제외{' '}
+                    {table.countsByFilter.excluded}
+                  </span>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 text-[13px] font-semibold',
+                      textColors.tertiary,
+                    )}
+                  >
+                    <span className="group-open:hidden">목록 보기</span>
+                    <span className="hidden group-open:inline">접기</span>
+                    <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+                  </span>
+                </span>
+              </div>
+              {requestSummary && (
+                // The verdict byline's grammar ("누가 · 언제"), labelled here because two bylines
+                // on one screen would otherwise be indistinguishable — this one is the request,
+                // the one inside the rule is the answer to it.
+                <span className={cn('text-[12px] font-medium', textColors.tertiary)}>
+                  요청자 {requestSummary.requestedBy} · 요청일시{' '}
+                  {formatDate(requestSummary.requestedAt, 'datetime')}
+                </span>
+              )}
+            </summary>
+            <div className="mt-4">{listBlock}</div>
+          </details>
         ) : (
-          <div className="mt-4">
-            <WaitingApprovalStats
-              totalCount={table.countsByFilter.all}
-              selectedCount={table.countsByFilter.target}
-              excludedCount={table.countsByFilter.excluded}
-              filter={table.filter}
-              onFilterChange={table.onFilterChange}
-            />
-            {/* Toolbar (top-rounded) + table + pagination (bottom-rounded) join as one card, no gaps. */}
-            <WaitingApprovalToolbar
-              searchValue={table.searchValue}
-              onSearchChange={table.onSearchChange}
-              dbType={table.dbType}
-              onDbTypeChange={table.onDbTypeChange}
-              region={table.region}
-              onRegionChange={table.onRegionChange}
-              dbTypeOptions={table.dbTypeOptions}
-              regionOptions={table.regionOptions}
-            />
-            <WaitingApprovalTable
-              resources={table.visibleResources}
-              connected
-              emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
-            />
-            {table.filteredCount > 0 && (
-              <Pagination
-                page={table.safePage}
-                pageSize={table.pageSize}
-                totalCount={table.filteredCount}
-                onPageChange={table.onPageChange}
-                onPageSizeChange={table.onPageSizeChange}
-              />
-            )}
-          </div>
+          <div className="mt-4">{listBlock}</div>
         )}
-
       </div>
       {/* C-2 action zone: reselect dock (sticky) at the card bottom. cancelSlot moved to the header. */}
       {reselectSlot && <CardActionBar>{reselectSlot}</CardActionBar>}
