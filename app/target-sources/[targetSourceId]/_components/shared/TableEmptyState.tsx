@@ -7,9 +7,9 @@ import { bgColors, cn, textColors } from '@/lib/theme';
  */
 export const TableEmptyState = ({ message }: { message: string }) => (
   <div className="flex flex-col items-center gap-3 px-6 py-14">
-    <div className={cn('flex h-12 w-12 items-center justify-center rounded-full', bgColors.muted)}>
-      <SearchIcon className={cn('h-6 w-6', textColors.quaternary)} aria-hidden="true" />
+    <div className={cn('flex h-14 w-14 items-center justify-center rounded-full', bgColors.muted)}>
+      <SearchIcon className={cn('h-7 w-7', textColors.quaternary)} aria-hidden="true" />
     </div>
-    <p className={cn('text-sm', textColors.tertiary)}>{message}</p>
+    <p className={cn('text-base', textColors.secondary)}>{message}</p>
   </div>
 );
