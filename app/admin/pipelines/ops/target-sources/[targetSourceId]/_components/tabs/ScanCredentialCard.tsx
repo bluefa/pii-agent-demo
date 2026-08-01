@@ -12,7 +12,7 @@ import { getAzureScanApp } from '@/app/lib/api/azure';
 import { getGcpScanServiceAccount } from '@/app/lib/api/gcp';
 import { SCAN_CREDENTIAL_LABELS } from '@/app/components/features/scan/scan-labels';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { fmtDateTime } from '@/lib/pipeline/format';
+import { fmtDateTimeSec } from '@/lib/pipeline/format';
 import type { CloudProvider } from '@/lib/types';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -106,6 +106,8 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
   }, []);
 
   const credentialLabel = SCAN_CREDENTIAL_LABELS[provider];
+  // 판정은 타이틀 옆 — 최근 스캔 카드의 상태 pill과 같은 자리(운영 피드백).
+  const pill = state.phase === 'done' ? pillSpec(state.data.status) : null;
 
   return (
     <section className={pipelineStyles.card.base} aria-label="스캔 권한">
@@ -114,6 +116,11 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
           <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
             <Icon name="check-circle" size="md" className="text-[var(--pl-primary)]" />
             스캔 권한
+            {pill && (
+              <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>
+                {pill.label}
+              </span>
+            )}
           </h2>
           <p className={opsStyles.cardDesc}>{credentialLabel} 권한을 검증합니다.</p>
         </div>
@@ -147,7 +154,6 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
 }
 
 function CredentialResult({ data }: { data: CredentialVerification }): ReactElement {
-  const pill = pillSpec(data.status);
   // 오류 박스는 실패(FAIL/INVALID)거나 서버가 원인을 보냈을 때만 — 미검증은 오류가 아니다.
   const failed =
     data.status === 'FAIL'
@@ -157,22 +163,9 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
 
   return (
     <>
-      {/* 계층: 결과행(pill + 검증 시각)이 요약, 아래 응답 원문이 상세. */}
-      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>
-          {pill.label}
-        </span>
-        <span className="text-[12px] text-[var(--pl-text-weak)]">
-          마지막 검증{' '}
-          <b className="font-semibold text-[var(--pl-text-strong)]">
-            {data.last_verified_at ? fmtDateTime(data.last_verified_at) : '—'}
-          </b>
-        </span>
-      </div>
-
-      {/* 검증 응답 원문 — identity 포함 전체 payload를 그대로. 요약(pill·시각)은
-          위 결과행이 담당하고, 원문은 진단·백엔드 대조용이다 (카드 공백 해소 겸). */}
-      <div className="mt-3.5">
+      {/* 검증 응답 원문 — identity 포함 전체 payload를 그대로. 판정(pill)은 타이틀
+          옆이 담당하고, 원문은 진단·백엔드 대조용이다 (카드 공백 해소 겸). */}
+      <div className="mt-4">
         <p className="text-[11px] font-semibold tracking-[0.04em] text-[var(--pl-text-faint)]">
           응답 원문
         </p>
@@ -191,6 +184,18 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
             {data.fail_message ?? '자격 검증에 실패했습니다. 권한 설정을 확인해 주세요.'}
           </span>
         </p>
+      )}
+
+      {/* 하단 시각행 — 최근 스캔 카드와 같은 문법(라벨 위/값 아래). 값 없으면 행 생략. */}
+      {data.last_verified_at && (
+        <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
+          <div className="min-w-0">
+            <p className="text-[12px] font-medium text-[var(--pl-text-faint)]">마지막 검증</p>
+            <p className="mt-0.5 whitespace-nowrap text-[13px] font-medium tabular-nums text-[var(--pl-text-medium)]">
+              {fmtDateTimeSec(data.last_verified_at)}
+            </p>
+          </div>
+        </div>
       )}
     </>
   );

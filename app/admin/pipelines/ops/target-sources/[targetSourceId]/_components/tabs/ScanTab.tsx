@@ -487,7 +487,8 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                       </td>
                       <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDuration(row.duration_seconds)}</td>
                       <td className={table.cell}>
-                        {row.scan_error ? (
+                        {/* 오류 없음 = 빈 셀 — '—'조차 시선을 끈다(운영 피드백). */}
+                        {row.scan_error && (
                           <span
                             className={cn(
                               opsStyles.statusTag,
@@ -497,8 +498,6 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                           >
                             {row.scan_error}
                           </span>
-                        ) : (
-                          <span className="text-[var(--pl-text-faint)]">—</span>
                         )}
                       </td>
                     </tr>
