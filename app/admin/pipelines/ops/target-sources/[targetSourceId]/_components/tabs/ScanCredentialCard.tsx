@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * 스캔 권한(자격) 검증 카드 — 스캔 실패의 최빈 원인이 자격이라, 검증을 스캔 탭
- * 안에서 실행하고 결과·원인(fail_reason/fail_message)을 그 자리에서 보여준다.
+ * 스캔 권한(자격) 검증 카드 — 스캔 실패의 최빈 원인이 자격이라, 검증 결과와
+ * 원인(fail_reason/fail_message)을 스캔 탭 안에서 그 자리에 보여준다(조회 전용).
  * 3사 검증 응답은 같은 형태를 공유한다: { status, fail_reason, fail_message,
  * last_verified_at } + 프로바이더별 identity(role_arn/app_id/gcp_project_id).
  */
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { getAwsRoleVerification } from '@/app/lib/api/aws';
 import { getAzureScanApp } from '@/app/lib/api/azure';
 import { getGcpScanServiceAccount } from '@/app/lib/api/gcp';
@@ -14,7 +14,6 @@ import { SCAN_CREDENTIAL_LABELS } from '@/app/components/features/scan/scan-labe
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
 import type { CloudProvider } from '@/lib/types';
-import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
@@ -79,11 +78,8 @@ export interface ScanCredentialCardProps {
 }
 
 export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialCardProps): ReactElement {
-  // 초기 state가 loading이라 마운트 경로는 effect가 fetch만 한다. 재검증 버튼은
-  // loading으로 되돌린 뒤 attempt를 올려 같은 effect를 다시 태운다 (OpsTargetView
-  // reloadKey 패턴 — effect 본문 동기 setState 금지 규칙과 공존).
+  // 조회 전용 — '다시 검증' 버튼은 제거(운영 피드백: 화면 갱신이면 충분).
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
-  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,12 +94,7 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
     return () => {
       cancelled = true;
     };
-  }, [provider, targetSourceId, attempt]);
-
-  const verify = useCallback((): void => {
-    setState({ phase: 'loading' });
-    setAttempt((n) => n + 1);
-  }, []);
+  }, [provider, targetSourceId]);
 
   const credentialLabel = SCAN_CREDENTIAL_LABELS[provider];
   // 판정은 타이틀 옆 — 최근 스캔 카드의 상태 pill과 같은 자리(운영 피드백).
@@ -111,34 +102,16 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
 
   return (
     <section className={pipelineStyles.card.base} aria-label="스캔 권한">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-            <Icon name="check-circle" size="md" className="text-[var(--pl-primary)]" />
-            스캔 권한
-            {pill && (
-              <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>
-                {pill.label}
-              </span>
-            )}
-          </h2>
-          <p className={opsStyles.cardDesc}>{credentialLabel} 권한을 검증합니다.</p>
-        </div>
-        {/* 보조 행동이라 버튼 크롬 없이 텍스트 버튼(ghost)으로 물러난다. */}
-        <PlButton
-          variant="ghost"
-          className="flex-none"
-          disabled={state.phase === 'loading'}
-          onClick={verify}
-        >
-          <Icon
-            name={state.phase === 'loading' ? 'loader' : 'check-circle'}
-            size="sm"
-            className={state.phase === 'loading' ? 'animate-spin' : undefined}
-          />
-          {state.phase === 'loading' ? '검증 중…' : '다시 검증'}
-        </PlButton>
-      </div>
+      <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+        <Icon name="check-circle" size="md" className="text-[var(--pl-primary)]" />
+        스캔 권한
+        {pill && (
+          <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>
+            {pill.label}
+          </span>
+        )}
+      </h2>
+      <p className={opsStyles.cardDesc}>{credentialLabel} 권한을 검증합니다.</p>
 
       {state.phase === 'loading' ? (
         <p className={cn(pipelineStyles.text.meta, 'mt-4')} aria-busy>

@@ -7,8 +7,8 @@
  * Latest job comes from useScanPolling, so a running scan animates and a 404
  * (never scanned) surfaces as the empty state rather than an error.
  * 표시 규칙: 진행 바는 SCANNING에서만(끝난 스캔이 0%를 말하는 착시 제거), 발견
- * 리소스는 개수 내림차순 태그(프로바이더 접두어 트림), 이력의 발견 셀은 총계
- * 언더라인 → 클릭 시 모달로 전량.
+ * 리소스는 개수 내림차순 태그(프로바이더 접두어 트림), 이력은 행 클릭 → 우측
+ * 드로어로 상세(시작·완료 시각, 태그 전량, 오류).
  */
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import type { z } from 'zod';
@@ -184,8 +184,8 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
   const [totalPages, setTotalPages] = useState(1);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyFailed, setHistoryFailed] = useState(false);
-  /** 이력 셀 클릭으로 여는 발견 리소스 전량 모달의 대상 잡. */
-  const [breakdownJob, setBreakdownJob] = useState<ScanJob | null>(null);
+  /** 이력 행 클릭으로 여는 우측 상세 드로어의 대상 잡. */
+  const [detailJob, setDetailJob] = useState<ScanJob | null>(null);
 
   // Latest-request-wins: rapid pagination can resolve out of order, and a stale
   // response must not commit page/rows over a newer one.
@@ -271,7 +271,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
       .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
   })();
 
-  const breakdownCounts = sortResourceCounts(breakdownJob?.resource_count_by_resource_type);
+  const detailCounts = sortResourceCounts(detailJob?.resource_count_by_resource_type);
 
   const recentScanCard = (
     <section className={pipelineStyles.card.base} aria-label="최근 스캔">
@@ -464,7 +464,12 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                 {rows.map((row, index) => {
                   const rowCounts = sortResourceCounts(row.resource_count_by_resource_type);
                   return (
-                    <tr key={row.id ?? `${row.created_at ?? ''}-${index}`}>
+                    // 행 전체가 클릭 대상 — hover 하이라이트 후 우측 드로어로 상세.
+                    <tr
+                      key={row.id ?? `${row.created_at ?? ''}-${index}`}
+                      className={cn(table.rowHover, 'cursor-pointer')}
+                      onClick={() => setDetailJob(row)}
+                    >
                       <td className={cn(table.cell, 'whitespace-nowrap')}>{fmtDateTime(row.created_at)}</td>
                       <td className={table.cell}>
                         <ScanStatusPill status={row.scan_status} />
@@ -474,13 +479,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                       </td>
                       <td className={cn(table.cell, 'tabular-nums')}>
                         {rowCounts.length > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => setBreakdownJob(row)}
-                            className="font-semibold text-[var(--pl-text-medium)] underline decoration-[var(--pl-text-faint)] underline-offset-[3px] transition-colors hover:text-[var(--pl-primary)] hover:decoration-[var(--pl-primary)]"
-                          >
-                            {totalOf(rowCounts)}개
-                          </button>
+                          `${totalOf(rowCounts)}개`
                         ) : (
                           <span className="text-[var(--pl-text-faint)]">—</span>
                         )}
@@ -511,32 +510,65 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         <OpsPagination page={page} totalPages={totalPages} onChange={(next) => void loadHistory(next)} />
       </section>
 
-      {/* 이력 발견 셀 클릭 → 해당 실행의 타입별 전량 (최근 스캔 카드와 같은 태그 문법). */}
+      {/* 이력 행 클릭 → 우측 드로어 — 표가 요약(일시·상태·총계)이고, 드로어가
+          시작·완료 시각(초 단위)·태그 전량·오류까지 그 실행의 전부를 말한다. */}
       <ModalShell
-        open={breakdownJob !== null}
-        onClose={() => setBreakdownJob(null)}
-        labelledBy="scan-breakdown-title"
+        open={detailJob !== null}
+        onClose={() => setDetailJob(null)}
+        variant="drawer"
+        labelledBy="scan-detail-title"
       >
-        {breakdownJob && (
+        {detailJob && (
           <>
-            <h3 id="scan-breakdown-title" className="text-[16px] font-semibold text-[var(--pl-text-strong)]">
-              발견 리소스
-            </h3>
-            <p className="mt-1 text-[12.5px] text-[var(--pl-text-weak)]">
-              {fmtDateTime(breakdownJob.created_at)} · 총{' '}
-              <b className="font-bold text-[var(--pl-text-strong)] tabular-nums">{totalOf(breakdownCounts)}개</b>
-              {' · '}
-              {breakdownCounts.length}타입
-            </p>
-            <div className="mt-4 flex max-h-[320px] flex-wrap gap-2 overflow-y-auto">
-              {breakdownCounts.map(([type, count]) => (
-                <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
-              ))}
+            <div className="flex items-start justify-between gap-3">
+              <h3
+                id="scan-detail-title"
+                className="flex items-center gap-2 text-[16px] font-semibold text-[var(--pl-text-strong)]"
+              >
+                스캔 <span className="[font-family:var(--pl-font-mono)]">#{detailJob.scan_version ?? '-'}</span>
+                <ScanStatusPill status={detailJob.scan_status} />
+              </h3>
+              <button
+                type="button"
+                aria-label="닫기"
+                onClick={() => setDetailJob(null)}
+                className="-m-1 rounded p-1 text-[var(--pl-text-faint)] transition-colors hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]"
+              >
+                <Icon name="x" size="md" />
+              </button>
             </div>
-            <div className="mt-5 flex justify-end">
-              <PlButton variant="secondary" onClick={() => setBreakdownJob(null)}>
-                닫기
-              </PlButton>
+
+            <div className="mt-5 flex flex-wrap gap-x-10 gap-y-3">
+              <TimeField label="시작 시간">{fmtDateTimeSec(detailJob.created_at)}</TimeField>
+              <TimeField label="완료 시간">{fmtDateTimeSec(detailJob.updated_at)}</TimeField>
+              <TimeField label="소요">{fmtDuration(detailJob.duration_seconds)}</TimeField>
+            </div>
+
+            {detailJob.scan_error && (
+              <p className="mt-5 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[13px] text-[var(--pl-err-text)]">
+                <span className="[font-family:var(--pl-font-mono)] font-semibold">{detailJob.scan_error}</span>
+                <span className="ml-2">{errorLabel(detailJob.scan_error)}</span>
+              </p>
+            )}
+
+            <div className="mt-6 border-t border-[var(--pl-gray-100)] pt-4">
+              <p className="text-[13px] font-semibold text-[var(--pl-text-strong)]">
+                발견 리소스 <b className="tabular-nums">{totalOf(detailCounts)}개</b>
+                {detailCounts.length > 0 && (
+                  <span className="ml-1 font-medium text-[var(--pl-text-weak)]">
+                    · {detailCounts.length}타입
+                  </span>
+                )}
+              </p>
+              {detailCounts.length === 0 ? (
+                <p className={cn(pipelineStyles.text.meta, 'mt-2')}>발견된 리소스가 없습니다.</p>
+              ) : (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {detailCounts.map(([type, count]) => (
+                    <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}
