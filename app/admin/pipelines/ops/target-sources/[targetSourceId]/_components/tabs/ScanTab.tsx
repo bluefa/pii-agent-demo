@@ -148,9 +148,10 @@ function ResourceTypeTag({
       <span className={cn('text-[12px] font-medium', removed ? 'text-[var(--pl-text-faint)]' : 'text-[var(--pl-text-weak)]')}>
         {trimProviderPrefix(type, provider)}
       </span>
+      {/* 값·증감은 500 — 볼드는 이 밀도에서 전부-강조가 된다(운영 피드백). 값은 색으로만 승급. */}
       <b
         className={cn(
-          'text-[12px] font-bold tabular-nums',
+          'text-[12px] font-medium tabular-nums',
           removed ? 'text-[var(--pl-text-faint)]' : 'text-[var(--pl-text-strong)]',
         )}
       >
@@ -159,7 +160,7 @@ function ResourceTypeTag({
       {diff != null && diff !== 0 && (
         <b
           className={cn(
-            'text-[12px] font-bold tabular-nums',
+            'text-[12px] font-medium tabular-nums',
             diff > 0 ? 'text-[var(--pl-ok-text)]' : 'text-[var(--pl-err-text)]',
           )}
         >
@@ -555,24 +556,35 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
                       </b>
                       개를 발견했어요.
                     </p>
-                    {/* 12타입+ 규모에서 태그 클라우드는 랩이 깨지고 자릿수 비교가 안 된다 —
-                        정렬 리스트(라벨 좌 / 카운트 우, tabular)로 전환. 카드는 한눈
-                        요약(태그), 모달은 비교·정밀(리스트)로 역할을 가른다. */}
-                    <div className="mt-3 max-h-[320px] overflow-y-auto rounded-lg border border-[var(--pl-gray-100)]">
-                      {detailCounts.map(([type, count]) => (
-                        <div
-                          key={type}
-                          title={type}
-                          className="flex items-center justify-between gap-4 border-b border-[var(--pl-gray-100)] px-4 py-1.5 last:border-b-0"
-                        >
-                          <span className="truncate text-[12px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]">
-                            {trimProviderPrefix(type, provider)}
-                          </span>
-                          <b className="text-[14px] font-bold tabular-nums text-[var(--pl-text-strong)]">
-                            {fmtCount(count)}
-                          </b>
-                        </div>
-                      ))}
+                    {/* 타입별 개수 — 선은 헤더 아래 한 줄이 전부. 행은 구분선 없이
+                        여백+정렬(mono 좌 / 숫자 우 tabular)이 만들고, 추적은 hover가
+                        돕는다. 값 400/헤더 500 — 데이터 잉크가 아닌 장식은 뺀다.
+                        (sticky 헤더: border-collapse는 보더가 떨어져 나가 border-separate) */}
+                    <div className="mt-3 max-h-[320px] overflow-y-auto">
+                      <table className="w-full border-separate border-spacing-0">
+                        <thead>
+                          <tr>
+                            <th className="sticky top-0 border-b border-[var(--pl-border)] bg-[var(--pl-bg-card)] py-2 pr-3 text-left text-[12px] font-medium text-[var(--pl-text-weak)]">
+                              리소스 타입
+                            </th>
+                            <th className="sticky top-0 border-b border-[var(--pl-border)] bg-[var(--pl-bg-card)] py-2 pl-3 text-right text-[12px] font-medium text-[var(--pl-text-weak)]">
+                              개수
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detailCounts.map(([type, count]) => (
+                            <tr key={type} title={type} className="hover:bg-[var(--pl-gray-50)]">
+                              <td className="rounded-l-md py-2 pl-1 pr-3 text-[12px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]">
+                                {trimProviderPrefix(type, provider)}
+                              </td>
+                              <td className="rounded-r-md py-2 pl-3 pr-1 text-right text-[14px] tabular-nums text-[var(--pl-text-strong)]">
+                                {fmtCount(count)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </>
                 )}
