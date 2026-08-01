@@ -151,7 +151,11 @@ export const IdcResourceTable = ({
             <th className={cn(skin.headerCell, 'w-[110px]')}>구분</th>
             <th className={cn(skin.headerCell, 'w-[168px]')}>연동 대상</th>
             <th className={cn(skin.headerCell, 'w-[80px]')}>Port</th>
-            <th className={skin.headerCell}>Database Type</th>
+            {/* Declared, not auto. As the only un-widthed column it was the slack sink: with the
+                six columns of steps 2·3 it rendered 306px against the 172px it takes on step 6,
+                so the same four leading columns did not line up between steps. 172 is step 6's
+                own width — the widest engine label plus its SID line fits. */}
+            <th className={cn(skin.headerCell, 'w-[172px]')}>Database Type</th>
             {has('src') && (
               <th className={cn(skin.headerCell, 'w-[190px]')}>
                 <SourceIpHeader />
@@ -162,7 +166,9 @@ export const IdcResourceTable = ({
             {has('excl') && (
               <>
                 <th className={cn(skin.headerCell, 'w-[110px]')}>요청 대상 여부</th>
-                <th className={cn(skin.headerCell, 'w-[170px]')}>제외 사유</th>
+                {/* The flexible one on these steps: the reason is the only free-text value in a
+                    row, so leftover width belongs to it, not to an attribute column. */}
+                <th className={skin.headerCell}>제외 사유</th>
               </>
             )}
             {has('fw') && <th className={cn(skin.headerCell, 'w-[170px]')}>방화벽 상태</th>}
