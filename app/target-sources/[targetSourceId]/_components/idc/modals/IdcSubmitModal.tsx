@@ -64,14 +64,24 @@ export const IdcSubmitModal = ({
     onConfirm={onSubmit}
     isPending={submitting}
     title="연동 대상을 승인 요청할까요?"
-    description="요청 후에는 관리자 검토가 시작되고, 변경하려면 취소 후 다시 요청해야 해요."
+    // 꼭 알아야 하는 정보만 파란색으로, 굵기는 본문과 동일하게 — 강조는 행동
+    // 문구("N건을 연동 대상으로 요청해요") 하나뿐이다. 취소 경로 문장은 평문.
+    description={
+      <>
+        전체 {total}건 중{' '}
+        <span className={primaryColors.text}>{live}건을 연동 대상으로 요청해요</span>.
+        요청 후에는 관리자 검토가 시작되고, 변경하려면 취소 후 다시 요청해야 해요.
+      </>
+    }
     confirmLabel="요청하기"
     wide
   >
+    {/* 타일 라벨은 Step 2 통계(WaitingApprovalStats)와 동일한 용어를 쓴다:
+        전체 요청 / 연동 요청 대상 / 연동 요청 제외대상. */}
     <div className="grid grid-cols-3 gap-3">
-      <Stat label="전체 리소스" value={total} />
-      <Stat label="연동 대상" value={live} valueClass={primaryColors.text} />
-      <Stat label="미연동 대상" value={excluded} />
+      <Stat label="전체 요청" value={total} />
+      <Stat label="연동 요청 대상" value={live} valueClass={primaryColors.text} />
+      <Stat label="연동 요청 제외대상" value={excluded} />
     </div>
   </ConfirmStepModal>
 );

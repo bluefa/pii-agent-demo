@@ -26,16 +26,30 @@ describe('IdcSubmitModal', () => {
     expect(screen.queryByRole('button', { name: '제출하기' })).toBeNull();
   });
 
-  it('renders the three centered stats with 36px numbers', () => {
+  // Tile labels share the step-2 stats vocabulary (WaitingApprovalStats) verbatim.
+  it('renders the three centered stats with 36px numbers and unified labels', () => {
     render(<IdcSubmitModal {...baseProps} total={4} live={3} excluded={1} />);
-    expect(screen.getByText('전체 리소스')).toBeTruthy();
-    expect(screen.getByText('연동 대상')).toBeTruthy();
-    expect(screen.getByText('미연동 대상')).toBeTruthy();
+    expect(screen.getByText('전체 요청')).toBeTruthy();
+    expect(screen.getByText('연동 요청 대상')).toBeTruthy();
+    expect(screen.getByText('연동 요청 제외대상')).toBeTruthy();
     const four = screen.getByText('4');
     expect(four.className).toContain('text-[36px]');
     expect(four.parentElement?.className ?? four.className).toBeTruthy();
     // Tiles are center-aligned.
     expect(four.closest('div.text-center')).toBeTruthy();
+  });
+
+  // The description states the request as M-of-N with ONE blue emphasis on the
+  // action phrase — color only, never weight. The cancel-path sentence stays plain.
+  it('emphasizes only the M-of-N action phrase in color-only blue', () => {
+    render(<IdcSubmitModal {...baseProps} total={4} live={3} excluded={1} />);
+    expect(screen.getByText(/전체 4건 중/)).toBeTruthy();
+    const action = screen.getByText('3건을 연동 대상으로 요청해요');
+    expect(action.className).toContain('text-[#0064FF]');
+    expect(action.className).not.toMatch(/font-/);
+    // No dedicated emphasis node for the cancel path — it lives in the plain text.
+    expect(screen.queryByText('취소 후 다시 요청')).toBeNull();
+    expect(screen.getByText(/취소 후 다시 요청해야 해요/)).toBeTruthy();
   });
 
   it('disables both buttons while submitting', () => {
