@@ -120,21 +120,21 @@ describe('ConnectionVerifiedStep', () => {
     expect(screen.getByTestId('confirmed-resources-slot')).toBeTruthy();
   });
 
-  it('renders the 연결 테스트 재실행 button', () => {
+  it('renders the 연결 재확인 button', () => {
     renderStep();
-    expect(screen.getByRole('button', { name: /연결 테스트 재실행/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /연결 재확인/ })).toBeTruthy();
   });
 
   it('opens the retest confirm modal when the retest button is clicked', () => {
     renderStep();
-    fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
+    fireEvent.click(screen.getByRole('button', { name: /연결 재확인/ }));
     expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
   });
 
   it('되돌아가기 rolls back the acknowledgment (confirmed:false) then refetches the project', async () => {
     const onProjectUpdate = vi.fn();
     renderStep(onProjectUpdate);
-    fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
+    fireEvent.click(screen.getByRole('button', { name: /연결 재확인/ }));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '되돌아가기' }));
     });

@@ -5,13 +5,12 @@ import type { CloudTargetSource } from '@/lib/types';
 import { getProject, updateTestConnectionConfirmation } from '@/app/lib/api';
 import { ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
-import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import {
   ProjectPageMeta,
   RejectionAlert,
   type ProjectIdentity,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
-import { WARNING_OUTLINE_BUTTON_CLASS } from '@/app/target-sources/[targetSourceId]/_components/common/warning-outline-button';
 import {
   ConfirmRewindModal,
   type ConfirmRewindKind,
@@ -49,7 +48,7 @@ const ConnectionVerifiedRetestButton = ({
       setConfirmKind(null);
       await onRolledBack();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '연결 테스트 재실행 요청에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : '연결 재확인 요청에 실패했습니다.');
     } finally {
       setRollingBack(false);
     }
@@ -59,11 +58,11 @@ const ConnectionVerifiedRetestButton = ({
     <>
       <button
         type="button"
-        className={WARNING_OUTLINE_BUTTON_CLASS}
+        className={idcStyles.triggerBtn.linkWarn}
         onClick={() => setConfirmKind('retest')}
       >
         <ReloadIcon className="w-[13px] h-[13px]" />
-        연결 테스트 재실행
+        연결 재확인
       </button>
       <ConfirmRewindModal
         kind={confirmKind}
@@ -98,30 +97,30 @@ export const ConnectionVerifiedStep = ({
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         {/* Same left-aligned stack as steps 2·3: step tag, title + status, guidance copy. */}
         <header className={cardStyles.header}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
+          {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
+          <span
+            className={cn(
+              'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
+              primaryColors.bgLight,
+              primaryColors.textOnLight,
+            )}
+          >
+            6번째 단계
+          </span>
+          {/* The step tag sits on its own row above, so the title and the action share one
+              centered row — the text-weight action lines up with the title, not with the tag. */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <h2 className={cardStyles.cardTitle}>완료 여부 관리자 승인 대기</h2>
               <span
                 className={cn(
-                  'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
-                  primaryColors.bgLight,
-                  primaryColors.textOnLight,
+                  'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
+                  statusColors.warning.bg,
+                  statusColors.warning.textDark,
                 )}
               >
-                6번째 단계
+                승인 대기
               </span>
-              <div className="flex items-center gap-2">
-                <h2 className={cardStyles.cardTitle}>완료 여부 관리자 승인 대기</h2>
-                <span
-                  className={cn(
-                    'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
-                    statusColors.warning.bg,
-                    statusColors.warning.textDark,
-                  )}
-                >
-                  승인 대기
-                </span>
-              </div>
             </div>
             {/* C-3: auxiliary retest action pinned to the header right. When to press it is
                 explained in the guidance copy below, not in a caption under the button. */}
@@ -143,7 +142,7 @@ export const ConnectionVerifiedStep = ({
           {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (step 2 문법). */}
           <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
             통합 테스트 결과가 잘못됐거나 연결 테스트를 한 번 더 수행하고 싶다면 우측 상단{' '}
-            <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>을
+            <strong className={cn('font-semibold', textColors.secondary)}>연결 재확인</strong>을
             눌러주세요.
           </p>
         </header>
