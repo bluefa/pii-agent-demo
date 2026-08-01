@@ -60,12 +60,14 @@ const SCAN_ERROR_LABEL: Record<string, string> = {
 
 const errorLabel = (code: string): string => SCAN_ERROR_LABEL[code] ?? SCAN_ERROR_LABEL.UNKNOWN;
 
-/** 라벨 위 / 값 아래 시각 필드 — 하단 시각행 전용 (kv 토큰 공유). */
+/** 하단 시각행 전용 필드 — 콘텐츠(kv)가 아니라 메타데이터 톤: 라벨 faint, 값 13/medium. */
 function TimeField({ label, children }: { label: string; children: React.ReactNode }): ReactElement {
   return (
     <div className="min-w-0">
-      <p className={pipelineStyles.text.kvKey}>{label}</p>
-      <p className={cn(pipelineStyles.text.kvValue, 'mt-1 whitespace-nowrap')}>{children}</p>
+      <p className="text-[12px] font-medium text-[var(--pl-text-faint)]">{label}</p>
+      <p className="mt-0.5 whitespace-nowrap text-[13px] font-medium tabular-nums text-[var(--pl-text-medium)]">
+        {children}
+      </p>
     </div>
   );
 }
@@ -313,30 +315,37 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             </div>
           )}
 
-          {/* 발견 리소스 — 성공/진행 중에만. 실패는 결과가 아니라 원인(오류 박스)을 말한다.
-              라벨과 총계를 한 베이스라인에 붙여 라벨/큰수/태그 3단 스택을 2단으로. */}
+          {/* 스캔 결과 — 성공/진행 중에만. 실패는 결과가 아니라 원인(오류 박스)을 말한다.
+              헤더(14/700) + 총계(20/700) + 직전 스캔 비교를 한 베이스라인에. */}
           {(scanning || latestJob.scan_status === 'SUCCESS') && (
             <div className="mt-5">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <p className={pipelineStyles.text.kvKey}>발견 리소스</p>
+              <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                <p className="text-[14px] font-bold text-[var(--pl-text-strong)]">스캔 결과</p>
                 {!scanning && latestCounts.length > 0 && (
                   <>
                     <span className="text-[20px] font-bold leading-[24px] tabular-nums text-[var(--pl-text-strong)]">
                       {latestTotal}
                       <span className="ml-0.5 text-[12px] font-medium text-[var(--pl-text-weak)]">개</span>
                     </span>
-                    {countDiff !== null && countDiff !== 0 && (
-                      <span
-                        className={cn(
-                          'self-center rounded-full px-2 py-0.5 text-[11.5px] font-bold tabular-nums',
-                          countDiff > 0
-                            ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
-                            : 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
-                        )}
-                        title="직전 성공 스캔 대비"
-                      >
-                        {countDiff > 0 ? `+${countDiff}` : countDiff}
-                      </span>
+                    {/* 비교는 말로 — 배지만 떠 있으면 무엇 대비인지 안 읽힌다. */}
+                    {countDiff !== null && (
+                      countDiff === 0 ? (
+                        <span className="text-[12px] text-[var(--pl-text-weak)]">직전 스캔과 동일</span>
+                      ) : (
+                        <span className="text-[12px] text-[var(--pl-text-weak)]">
+                          직전 스캔 대비{' '}
+                          <b
+                            className={cn(
+                              'rounded-full px-1.5 py-0.5 text-[11.5px] font-bold tabular-nums',
+                              countDiff > 0
+                                ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
+                                : 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
+                            )}
+                          >
+                            {countDiff > 0 ? `+${countDiff}` : countDiff}
+                          </b>
+                        </span>
+                      )
                     )}
                   </>
                 )}

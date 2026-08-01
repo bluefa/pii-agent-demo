@@ -67,8 +67,8 @@ export const opsStyles = {
   cardsRow: 'grid grid-cols-2 gap-4',
   /** 20px — 16은 카드 안 블록 제목들과 급이 안 벌어진다는 운영 피드백(스캔 탭). */
   cardTitle: 'text-[20px] font-semibold text-[var(--pl-text-strong)]',
-  /** 13/medium + 타이틀과 12px 간격 — 12/weak·4px는 힌트처럼 흐릿하다는 운영 피드백. */
-  cardDesc: 'text-[13px] text-[var(--pl-text-medium)] mt-3',
+  /** 13/weak + 타이틀과 12px 간격 — 보조 설명은 회색으로 물러나 본문 헤더와 급을 가른다. */
+  cardDesc: 'text-[13px] text-[var(--pl-text-weak)] mt-3',
 
   /** A paged card in cardsRow: column layout so the pager sits at the bottom. */
   pagedCard: 'flex flex-col',
