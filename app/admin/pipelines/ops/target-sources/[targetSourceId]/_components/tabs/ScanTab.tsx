@@ -432,9 +432,11 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
           <Icon name="clock" size="md" className="text-[var(--pl-primary)]" />
           스캔 이력
         </h2>
-        {/* 보관 정책 선언 — 페이지 용어(스캔 결과·버전) 그대로. */}
+        {/* 보관 정책 선언 — 페이지 용어(스캔 결과·버전) 그대로. 한도 절만
+            weight+색 한 단계 승급(크기 아님)으로 강조. */}
         <p className={opsStyles.cardDesc}>
-          내부 정책에 따라 스캔 결과는 최근 10개 버전까지만 보관합니다.
+          내부 정책에 따라 스캔 결과는{' '}
+          <b className="font-semibold text-[var(--pl-text-medium)]">최근 10개 버전까지만 보관합니다.</b>
         </p>
 
         {historyLoading ? (
