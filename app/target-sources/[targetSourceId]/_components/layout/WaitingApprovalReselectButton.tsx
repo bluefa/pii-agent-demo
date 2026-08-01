@@ -40,7 +40,7 @@ export const WaitingApprovalReselectButton = ({
 
   return (
     <>
-      {/* Blue underlined action with a forward arrow, docked bottom-right inside the reason well —
+      {/* Blue underlined action with a forward arrow, docked on the reason block's signature row —
           the verdict group carries its own way out instead of a loud standalone button under it. */}
       <button
         type="button"

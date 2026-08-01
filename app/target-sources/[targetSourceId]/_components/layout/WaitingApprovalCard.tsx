@@ -19,6 +19,8 @@ import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { WaitingApprovalReselectButton } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalReselectButton';
 import { ApprovalUnavailableCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ApprovalUnavailableCard';
+import { RejectionVerdict } from '@/app/target-sources/[targetSourceId]/_components/layout/RejectionVerdict';
+import { RejectedTargetRecord } from '@/app/target-sources/[targetSourceId]/_components/layout/RejectedTargetRecord';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import {
@@ -26,7 +28,14 @@ import {
   ResourceTableSkeleton,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
-import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import {
+  cardStyles,
+  cn,
+  idcStyles,
+  primaryColors,
+  statusColors,
+  textColors,
+} from '@/lib/theme';
 
 interface WaitingApprovalCardProps {
   targetSourceId: number;
@@ -154,23 +163,49 @@ export const WaitingApprovalCard = ({
   const rejected = verdict?.kind === 'rejected' ? verdict : null;
   const resolved = state.status === 'ready';
 
-  // The verdict group's footer: verdict meta bottom-left in the app's label-over-value grammar
-  // (the same tier the pending state uses for 요청일시/요청자 — an inline "date · actor" sentence
-  // broke that grammar), the one way out bottom-right. Shared by the reason well and the
-  // no-reason fallback. This is the only meta cluster on the rejected screen.
-  const verdictFooter = rejected && (
-    <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-      <div className="flex flex-wrap gap-8">
-        {rejected.processedAt && (
-          <MetaField label="반려일시" value={formatDate(rejected.processedAt, 'datetime')} />
-        )}
-        {rejected.processedBy && <MetaField label="처리자" value={rejected.processedBy} />}
-      </div>
-      <WaitingApprovalReselectButton
-        targetSourceId={targetSourceId}
-        onSuccess={() => onReselected?.()}
+  const reselect = (
+    <WaitingApprovalReselectButton
+      targetSourceId={targetSourceId}
+      onSuccess={() => onReselected?.()}
+    />
+  );
+
+  // Same list in both states — pending shows it outright, rejected tucks it behind a disclosure.
+  const listBlock = (
+    <>
+      <WaitingApprovalStats
+        totalCount={table.countsByFilter.all}
+        selectedCount={table.countsByFilter.target}
+        excludedCount={table.countsByFilter.excluded}
+        filter={table.filter}
+        onFilterChange={table.onFilterChange}
       />
-    </div>
+      {/* Toolbar (top-rounded) + table + pagination (bottom-rounded) join as one card, no gaps. */}
+      <WaitingApprovalToolbar
+        searchValue={table.searchValue}
+        onSearchChange={table.onSearchChange}
+        dbType={table.dbType}
+        onDbTypeChange={table.onDbTypeChange}
+        region={table.region}
+        onRegionChange={table.onRegionChange}
+        dbTypeOptions={table.dbTypeOptions}
+        regionOptions={table.regionOptions}
+      />
+      <WaitingApprovalTable
+        resources={table.visibleResources}
+        connected
+        emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+      />
+      {table.filteredCount > 0 && (
+        <Pagination
+          page={table.safePage}
+          pageSize={table.pageSize}
+          totalCount={table.filteredCount}
+          onPageChange={table.onPageChange}
+          onPageSizeChange={table.onPageSizeChange}
+        />
+      )}
+    </>
   );
 
   return (
@@ -201,7 +236,7 @@ export const WaitingApprovalCard = ({
                 <span
                   className={cn(
                     'inline-flex items-center font-medium',
-                    // Rejected matches the 반려 사유 tag in the well below, so the two chips read
+                    // Rejected matches the 반려 사유 tag in the quote below, so the two marks read
                     // as one pair on this screen; pending keeps the rounded-full state badge.
                     rejected
                       ? 'rounded-md px-1.5 py-0.5 text-[12px]'
@@ -235,45 +270,12 @@ export const WaitingApprovalCard = ({
             <div className={cn(idcStyles.skeletonBar, 'h-4 w-[300px] rounded')} />
           </div>
         ) : rejected ? (
-          // Rejected mirrors the pending grammar — status sentence → guidance → meta row below —
-          // so the state switch changes content, not page structure (a divider + extra section
-          // read as bolted-on). The reason sits in a quiet gray well (label + containment make it
-          // read as the admin's words, not our copy) that carries the verdict meta and the way
-          // out in its footer. role="status" because the verdict only resolves after the fetch.
-          <div className="mt-3" role="status">
-            {/* One quiet tone for the whole sentence: the title + badge already carry "rejected"
-                at the top tier, so bolding it again here would compete with the well below.
-                The emphasis budget: amber chips (badge + reason tag, one shared fill) mark the
-                state, the blue link is the action — everything else stays neutral. */}
-            <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
-              관리자가 승인 요청을 반려했어요.{' '}
-              {rejected.reason
-                ? '아래 반려 사유를 확인한 뒤, 연동 대상을 다시 선택해주세요.'
-                : '연동 대상을 다시 선택한 뒤 승인을 다시 요청해주세요.'}
-            </p>
-            {rejected.reason ? (
-              // The well is a self-contained unit: tag → the admin's words → footer (meta left,
-              // the way out right). Warning-tinted banner (option C): the weak orange surface is
-              // what marks "the why" as the block to read — the tag goes dark-orange for contrast
-              // on the tint, and the reason carries 500 so the message leads inside the banner.
-              <div className={cn('mt-4 rounded-xl px-4 py-3.5', statusColors.warning.bgSoft)}>
-                {/* Plain title, not a chip: the tinted surface already says "caution", so a filled
-                    tag on top of it double-encodes — dark-orange text keeps the tie to the banner. */}
-                <p className={cn('text-[16px] font-semibold', statusColors.warning.textDark)}>
-                  반려 사유
-                </p>
-                {/* gray-700, one step above the gray-500 guidance sentence: the reason is the
-                    payload so it stays darker, but full gray-900 read as heavy on the tint. */}
-                <p className={cn('mt-2 text-[14px] font-medium leading-[1.55]', textColors.secondary)}>
-                  {rejected.reason}
-                </p>
-                {verdictFooter}
-              </div>
-            ) : (
-              // No reason → no well; the footer row still carries the meta and the action.
-              verdictFooter
-            )}
-          </div>
+          <RejectionVerdict
+            reason={rejected.reason}
+            processedAt={rejected.processedAt}
+            processedBy={rejected.processedBy}
+            action={reselect}
+          />
         ) : (
           <>
             <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
@@ -295,9 +297,8 @@ export const WaitingApprovalCard = ({
           // declares 12px + muted color instead of identityBarStyles (13px, near-black), which the
           // page-level identity bar keeps. 24px above it — the widest gap in the header, marking
           // the boundary between "what happened / what to do" and reference facts.
-          // Rejected drops this row: on a closed request the submission meta is dead info, and a
-          // second meta cluster under the well read as clutter — the verdict signature inside the
-          // well is the date that survives, and the table is the reference that matters.
+          // Rejected does not repeat it here: the submission meta moves into the record block's
+          // summary line below, where it belongs to the list it describes.
           <div className="mt-6 flex flex-wrap gap-8">
             <MetaField label="요청일시" value={formatDate(requestSummary.requestedAt, 'datetime')} />
             <MetaField label="요청자" value={requestSummary.requestedBy} />
@@ -311,43 +312,18 @@ export const WaitingApprovalCard = ({
           <ResourceTableSkeleton />
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
+        ) : rejected ? (
+          <RejectedTargetRecord
+            totalCount={table.countsByFilter.all}
+            selectedCount={table.countsByFilter.target}
+            excludedCount={table.countsByFilter.excluded}
+            request={requestSummary}
+          >
+            {listBlock}
+          </RejectedTargetRecord>
         ) : (
-          <div className="mt-4">
-            <WaitingApprovalStats
-              totalCount={table.countsByFilter.all}
-              selectedCount={table.countsByFilter.target}
-              excludedCount={table.countsByFilter.excluded}
-              filter={table.filter}
-              onFilterChange={table.onFilterChange}
-            />
-            {/* Toolbar (top-rounded) + table + pagination (bottom-rounded) join as one card, no gaps. */}
-            <WaitingApprovalToolbar
-              searchValue={table.searchValue}
-              onSearchChange={table.onSearchChange}
-              dbType={table.dbType}
-              onDbTypeChange={table.onDbTypeChange}
-              region={table.region}
-              onRegionChange={table.onRegionChange}
-              dbTypeOptions={table.dbTypeOptions}
-              regionOptions={table.regionOptions}
-            />
-            <WaitingApprovalTable
-              resources={table.visibleResources}
-              connected
-              emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
-            />
-            {table.filteredCount > 0 && (
-              <Pagination
-                page={table.safePage}
-                pageSize={table.pageSize}
-                totalCount={table.filteredCount}
-                onPageChange={table.onPageChange}
-                onPageSizeChange={table.onPageSizeChange}
-              />
-            )}
-          </div>
+          <div className="mt-4">{listBlock}</div>
         )}
-
       </div>
       {/* C-2 action zone: reselect dock (sticky) at the card bottom. cancelSlot moved to the header. */}
       {reselectSlot && <CardActionBar>{reselectSlot}</CardActionBar>}

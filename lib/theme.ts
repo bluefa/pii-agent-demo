@@ -136,6 +136,13 @@ export const statusColors = {
     text: 'text-orange-500',
     textDark: 'text-orange-800',
     border: 'border-orange-300',
+    /**
+     * Load-bearing warning edge — a rule or bar that carries the state on its own, with no
+     * tinted surface behind it. orange-600, not the `border` tier (orange-300, 1.7:1) or
+     * orange-500 (2.80:1): a mark that IS the signal must clear the 3:1 non-text floor
+     * (WCAG 1.4.11), and orange-600 holds 3.56:1 on white.
+     */
+    borderStrong: 'border-orange-600',
     dot: 'bg-orange-500',
   },
   pending: {

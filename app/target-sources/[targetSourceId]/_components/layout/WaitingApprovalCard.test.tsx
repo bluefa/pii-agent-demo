@@ -18,6 +18,7 @@ vi.mock('@/app/lib/api', () => ({
 }));
 
 import { WaitingApprovalCard } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
+import { primaryColors } from '@/lib/theme';
 
 interface ResourceOpts {
   selected: boolean;
@@ -364,27 +365,84 @@ describe('WaitingApprovalCard', () => {
     render(<WaitingApprovalCard targetSourceId={1003} onReselected={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/관리자가 승인 요청을 반려했어요/)).toBeTruthy();
+      expect(screen.getByText('반려 사유')).toBeTruthy();
     });
     // The title is the step's fixed name — only the badge flips to 반려.
     expect(screen.getByText('연동 대상 승인 대기')).toBeTruthy();
     expect(screen.getByText('반려')).toBeTruthy();
-    // The status sentence names what happened and what to do, in the pending copy's grammar.
-    expect(screen.getByText(/관리자가 승인 요청을 반려했어요/)).toBeTruthy();
-    // The reason reads as a quoted verdict: labelled and grouped — not headline copy.
-    expect(screen.getByText('반려 사유')).toBeTruthy();
+    // The reason is the payload, so it outsizes the tag that labels it (was 14px under a 16px
+    // label — the inversion that flattened the block).
     const reason = screen.getByText('RDS_CLUSTER 리소스는 현재 지원되지 않습니다.');
-    expect(reason.className).toContain('text-[14px]');
-    // The single primary action sits inside the verdict block, not in the corner slot.
+    expect(reason.className).toContain('text-[17px]');
+    expect(screen.getByText('반려 사유').className).toContain('text-[12px]');
+    // The guidance sentence is gone: the badge + tag already name the state, and the CTA names
+    // the next move — repeating it in a third place was the copy the reason had to compete with.
+    expect(screen.queryByText(/관리자가 승인 요청을 반려했어요/)).toBeNull();
+    // The single primary action sits at the end of the verdict block, not in the corner slot.
     expect(screen.getByRole('button', { name: /연동 대상 다시 선택하기/ })).toBeTruthy();
-    // Verdict meta in the well footer, label-over-value like the pending meta row.
-    expect(screen.getByText('반려일시')).toBeTruthy();
-    expect(screen.getByText('처리자')).toBeTruthy();
-    // The request-submission meta row is dropped on a closed request — the table is the reference.
-    expect(screen.queryByText('요청일시')).toBeNull();
-    // The waiting copy must be gone, but the requested resources stay on screen.
+    // Verdict meta stays labelled — an unlabelled byline leaves the reader to infer which date
+    // it is on a screen that also carries 요청일시.
+    expect(screen.getByText('반려일시').nextElementSibling?.textContent).toMatch(
+      /^2026\. 04\. 30\./,
+    );
+    expect(screen.getByText('처리자').nextElementSibling?.textContent).toBe('관리자');
+    // The waiting copy must be gone.
     expect(screen.queryByText('관리자 승인을 기다리고 있어요.')).toBeNull();
+
+    // The targets become a collapsed record, not the open worklist the pending state shows.
+    const record = document.querySelector('details');
+    expect(record).toBeTruthy();
+    expect(record?.open).toBe(false);
+    // Its summary line answers what the list would have been scanned for: how many, from whom,
+    // when — so the submission meta moves here instead of a header row of its own.
+    // Counts and request meta share the pending header's MetaField grammar — label over value,
+    // one row — rather than an inline "a · b · c" sentence at its own tier.
+    const summary = screen.getByText('이 요청에 포함된 연동 대상').closest('summary');
+    if (!summary) throw new Error('record summary not rendered');
+    const meta = within(summary);
+    expect(meta.getByText('전체').nextElementSibling?.textContent).toBe('2건');
+    expect(meta.getByText('연동 대상').nextElementSibling?.textContent).toBe('1건');
+    expect(meta.getByText('제외').nextElementSibling?.textContent).toBe('1건');
+    expect(meta.getByText('요청자').nextElementSibling?.textContent).toBe('tester');
+    expect(meta.getByText('요청일시').nextElementSibling?.textContent).toMatch(/^2026\. 04\. 29\./);
+    // 일시 → 사람, the same order as 반려일시/처리자 above and the pending header's meta row.
+    expect(summary.textContent).toMatch(/전체[\s\S]*제외[\s\S]*요청일시[\s\S]*요청자/);
+    // The way in is the block's only action, so it reads as brand blue, not another gray label.
+    // Assert through the token, never a hex literal — pr-check.sh rejects six-digit hex in any
+    // changed non-theme file, tests included.
+    expect(meta.getByText('목록 보기').parentElement?.className).toContain(primaryColors.text);
+    // The rows still render inside the closed disclosure — the browser hides them, and opening
+    // must not refetch.
     expect(screen.getByText('mysql-prod-01-name')).toBeTruthy();
+  });
+
+  it('opens the target record on demand and keeps the pending state expanded', async () => {
+    getApprovalRequestLatestMock.mockResolvedValueOnce({
+      ...buildResponse(),
+      request: { ...requestMeta, status: 'REJECTED' as const },
+      result: {
+        request_id: 1,
+        status: 'REJECTED' as const,
+        reason: 'RDS_CLUSTER 리소스는 현재 지원되지 않습니다.',
+        processed_at: '2026-04-30T05:00:00Z',
+        processed_by: { user_id: '관리자' },
+      },
+    });
+    render(<WaitingApprovalCard targetSourceId={1003} onReselected={vi.fn()} />);
+
+    const summary = await screen.findByText('이 요청에 포함된 연동 대상');
+    fireEvent.click(summary);
+    expect(document.querySelector('details')?.open).toBe(true);
+  });
+
+  it('leaves the pending target list open — no disclosure', async () => {
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
+    render(<WaitingApprovalCard targetSourceId={1003} onReselected={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mysql-prod-01-name')).toBeTruthy();
+    });
+    expect(document.querySelector('details')).toBeNull();
   });
 
   it('keeps the rejection sentence and skips the reason well when the verdict carries no reason', async () => {
