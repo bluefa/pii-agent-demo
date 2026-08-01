@@ -78,10 +78,14 @@ export const primaryColors = {
    * white but drops to 4.33:1 on the tint, under AA for text below 18px. #0050D6 gives 5.92:1.
    */
   textOnLight: 'text-[#0050D6]',
-  /** Hover fill for a clickable row — same tint as `bgLight`, so pair with `textOnLight`. */
-  bgLightHover: 'hover:bg-[#E8F1FF]',
-  /** `textOnLight` driven by an ancestor `group` — for rows whose fill turns to `bgLight`. */
-  groupTextOnLight: 'group-hover:text-[#0050D6]',
+  /**
+   * Fill for a clickable row under pointer hover *or* keyboard focus — same tint as
+   * `bgLight`, so pair with `textOnLight`. Both variants together: a row that only
+   * lights up on hover leaves keyboard users without the state pointer users get.
+   */
+  bgLightActive: 'hover:bg-[#E8F1FF] focus-visible:bg-[#E8F1FF]',
+  /** `textOnLight` driven by an ancestor `group`'s hover/focus — pairs with `bgLightActive`. */
+  groupTextOnLight: 'group-hover:text-[#0050D6] group-focus-visible:text-[#0050D6]',
   textHover: 'hover:text-[#0050D6]',
   textHoverBase: 'hover:text-[#0064FF]',
   text700: 'text-blue-700',

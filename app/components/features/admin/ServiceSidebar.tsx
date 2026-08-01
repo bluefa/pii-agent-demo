@@ -92,7 +92,7 @@ const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
       type="button"
       onClick={() => onSelect(code)}
       title={name ? `${name} (${code})` : code}
-      className={cn('group', rowLayoutClass, primaryColors.bgLightHover)}
+      className={cn('group', rowLayoutClass, primaryColors.bgLightActive)}
     >
       <span className={cn(nameClass, textColors.primary, primaryColors.groupTextOnLight)}>
         {name || code}
@@ -131,8 +131,10 @@ const CurrentServiceCard = ({ code, name, onSelect }: ServiceRowProps) => (
     <span className={cn('mt-1.5 block text-sm line-clamp-2 break-words', primaryColors.textOnLight)}>
       {name || code}
       {/* Inline here, not right-pushed: this is one card, so there is no column for a
-          right-aligned code to line up with. */}
-      {name && <span className="ml-1.5 font-mono text-xs opacity-60">{code}</span>}
+          right-aligned code to line up with. No opacity either — #0050D6 at 60% over
+          the tint lands at 2.8:1, under AA for 12px. Size and family already carry the
+          subordination. */}
+      {name && <span className="ml-1.5 font-mono text-xs">{code}</span>}
     </span>
   </button>
 );
@@ -220,10 +222,12 @@ export const ServiceSidebar = ({
 
       {/* Column header. A right-aligned mono token is unreadable without a label, so
           pushing the code into its own column requires naming the columns. Kept at
-          12px quaternary — table chrome, a clear tier below the 16px panel title, so
-          it doesn't read as a third heading competing with it. Hidden on an empty
-          result, where column headings over nothing look like a broken table. */}
-      {(loading || services.length > 0) && (
+          12px tertiary — table chrome, a clear tier below the 16px panel title, so it
+          doesn't read as a third heading competing with it. Not quaternary: gray-400
+          is 2.5:1 on white, and a label nobody can read defeats the column it names.
+          Keyed off `listed`, the rows actually rendered, so headings never sit over an
+          empty body. */}
+      {(loading || listed.length > 0) && (
         <div
           className={cn(
             'flex items-baseline justify-between pb-1.5 border-b',
@@ -231,8 +235,8 @@ export const ServiceSidebar = ({
             borderColors.light,
           )}
         >
-          <span className={cn('text-xs', textColors.quaternary)}>서비스 이름</span>
-          <span className={cn('text-xs', textColors.quaternary)}>서비스 코드</span>
+          <span className={cn('text-xs', textColors.tertiary)}>서비스 이름</span>
+          <span className={cn('text-xs', textColors.tertiary)}>서비스 코드</span>
         </div>
       )}
 
@@ -246,22 +250,34 @@ export const ServiceSidebar = ({
               <div className={cn(idcStyles.skeletonBar, 'h-3 w-8 rounded')} />
             </li>
           ))
-        ) : services.length === 0 ? (
+        ) : listed.length === 0 ? (
+          // Keyed off `listed`, not `services`: a page holding nothing but the current
+          // service filters down to an empty list, and reporting the unfiltered count
+          // left the body blank with no explanation. Each empty reason gets its own
+          // sentence — quoting an empty search term reads as a rendering bug, and
+          // "다른 서비스가 없습니다" is untrue when there is no current service to be
+          // other than.
           <li className="px-4 py-10 text-center">
             <p className={cn('text-sm', textColors.tertiary)}>
-              ‘{searchQuery}’와 일치하는 서비스가 없습니다
+              {searchQuery
+                ? `‘${searchQuery}’와 일치하는 서비스가 없습니다`
+                : currentService
+                  ? '다른 서비스가 없습니다'
+                  : '서비스가 없습니다'}
             </p>
-            <button
-              type="button"
-              onClick={() => onSearchChange('')}
-              className={cn(
-                'mt-2 text-xs cursor-pointer',
-                primaryColors.text,
-                primaryColors.textHover,
-              )}
-            >
-              검색어 지우기
-            </button>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => onSearchChange('')}
+                className={cn(
+                  'mt-2 text-xs cursor-pointer',
+                  primaryColors.text,
+                  primaryColors.textHover,
+                )}
+              >
+                검색어 지우기
+              </button>
+            )}
           </li>
         ) : (
           listed.map((service) => {
