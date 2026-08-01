@@ -15,6 +15,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import type { CloudProvider } from '@/lib/types';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
 /** 3사 검증 응답의 구조적 합집합 — 스키마가 전부 partial이라 전 필드 optional. */
@@ -50,15 +51,30 @@ type LoadState =
   | { phase: 'error' }
   | { phase: 'done'; data: CredentialVerification };
 
-/** VALID/IN_PROGRESS 외의 status는 전부 실패로 취급 (사용자 화면 훅과 같은 규칙). */
+/**
+ * 계약상 status enum은 GCP만 열거(VALID/INVALID/UNVERIFIED) — AWS·Azure는 자유
+ * 문자열이라 열린 집합으로 매핑한다. 어휘·톤은 RoleVerifyModal verdictMeta와
+ * 정렬(검증 완료/검증 중/검증 실패), UNVERIFIED는 오류가 아니라 미검증(off).
+ */
 const pillSpec = (status: string | null | undefined): { cls: string; dot: string; label: string } => {
-  if (status === 'VALID') {
-    return { cls: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]', dot: 'bg-[var(--pl-ok)]', label: '유효' };
+  switch (status) {
+    case 'VALID':
+    case 'COMPLETED':
+      return { cls: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]', dot: 'bg-[var(--pl-ok)]', label: '검증 완료' };
+    case 'IN_PROGRESS':
+      return { cls: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]', dot: 'bg-[var(--pl-warn)]', label: '검증 중' };
+    case 'UNVERIFIED':
+      return { cls: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]', dot: 'bg-[var(--pl-gray-300)]', label: '미검증' };
+    case 'FAIL':
+    case 'INVALID':
+      return { cls: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]', dot: 'bg-[var(--pl-err)]', label: '검증 실패' };
+    default:
+      return {
+        cls: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
+        dot: 'bg-[var(--pl-gray-300)]',
+        label: status ?? '미확인',
+      };
   }
-  if (status === 'IN_PROGRESS') {
-    return { cls: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]', dot: 'bg-[var(--pl-info)]', label: '검증 중' };
-  }
-  return { cls: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]', dot: 'bg-[var(--pl-err)]', label: '실패' };
 };
 
 export interface ScanCredentialCardProps {
@@ -99,7 +115,10 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
     <section className={pipelineStyles.card.base} aria-label="스캔 권한">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className={opsStyles.cardTitle}>스캔 권한</h2>
+          <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+            <Icon name="check-circle" size="md" className="text-[var(--pl-primary)]" />
+            스캔 권한
+          </h2>
           <p className={opsStyles.cardDesc}>{credentialLabel} 권한을 검증합니다.</p>
         </div>
         <PlButton
@@ -108,6 +127,11 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
           disabled={state.phase === 'loading'}
           onClick={verify}
         >
+          <Icon
+            name={state.phase === 'loading' ? 'loader' : 'check-circle'}
+            size="sm"
+            className={state.phase === 'loading' ? 'animate-spin' : undefined}
+          />
           {state.phase === 'loading' ? '검증 중…' : '다시 검증'}
         </PlButton>
       </div>
@@ -134,32 +158,39 @@ function CredentialResult({
 }): ReactElement {
   const pill = pillSpec(data.status);
   const identity = data.role_arn ?? data.app_id ?? data.gcp_project_id ?? null;
-  const failed = data.status !== 'VALID' && data.status !== 'IN_PROGRESS';
+  // 오류 박스는 실패(FAIL/INVALID)거나 서버가 원인을 보냈을 때만 — 미검증은 오류가 아니다.
+  const failed =
+    data.status === 'FAIL'
+    || data.status === 'INVALID'
+    || data.fail_reason != null
+    || data.fail_message != null;
 
   return (
     <>
-      {/* 계층 3단: 판정(pill) → 라벨 위/값 아래 KV — docs/redesign step2 §3 문법. */}
-      <div className="mt-4">
+      {/* 계층 2단: 결과행(pill + 검증 시각) > 참조행(자격 identity) — 결과가 답,
+          identity는 참조 정보라 같은 계층에 두지 않는다. */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>
           <span className={cn('h-1.5 w-1.5 rounded-full', pill.dot)} aria-hidden />
           {pill.label}
         </span>
+        <span className="text-[12px] text-[var(--pl-text-weak)]">
+          마지막 검증{' '}
+          <b className="font-semibold text-[var(--pl-text-strong)]">
+            {data.last_verified_at ? fmtDateTime(data.last_verified_at) : '—'}
+          </b>
+        </span>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-start gap-x-8 gap-y-3">
-        <div className="min-w-0">
-          <p className={pipelineStyles.text.kvKey}>{credentialLabel}</p>
-          <p className={cn(pipelineStyles.text.kvValueMono, 'mt-1 break-all')} title={identity ?? undefined}>
-            {identity ?? '—'}
-          </p>
-        </div>
-        <div>
-          <p className={pipelineStyles.text.kvKey}>마지막 검증</p>
-          <p className={cn(pipelineStyles.text.kvValue, 'mt-1 whitespace-nowrap')}>
-            {data.last_verified_at ? fmtDateTime(data.last_verified_at) : '—'}
-          </p>
-        </div>
-      </div>
+      <p className="mt-3 text-[12px] text-[var(--pl-text-weak)]">
+        <span className="font-semibold">{credentialLabel}</span>{' '}
+        <span
+          className="break-all font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]"
+          title={identity ?? undefined}
+        >
+          {identity ?? '—'}
+        </span>
+      </p>
 
       {/* 실패면 원인(코드+설명)이 그 자리에 — 계약상 자유 문자열이라 그대로 통과시킨다. */}
       {failed && (

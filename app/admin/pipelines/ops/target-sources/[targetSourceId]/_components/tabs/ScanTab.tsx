@@ -21,6 +21,7 @@ import { normalizeCloudProvider, type CloudProvider } from '@/lib/types';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -217,11 +218,6 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
     }
   }, [targetSourceId, refresh]);
 
-  const reload = useCallback((): void => {
-    void refresh();
-    void loadHistory(page);
-  }, [refresh, loadHistory, page]);
-
   const { table } = opsStyles;
   const latestCounts = sortResourceCounts(latestJob?.resource_count_by_resource_type);
   const latestTotal = totalOf(latestCounts);
@@ -247,19 +243,30 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
     <section className={pipelineStyles.card.base} aria-label="최근 스캔">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className={opsStyles.cardTitle}>최근 스캔</h2>
+          <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+            <Icon name="search" size="md" className="text-[var(--pl-primary)]" />
+            최근 스캔
+          </h2>
           <p className={opsStyles.cardDesc}>
             클라우드 리소스를 스캔해 연동 가능한 대상 목록을 갱신합니다.
           </p>
         </div>
-        <div className="flex flex-none items-center gap-2">
-          <PlButton variant="secondary" onClick={reload}>
-            새로고침
-          </PlButton>
-          <PlButton variant="primary" disabled={scanning || starting} onClick={() => void runScan()}>
-            {scanning ? '스캔 중…' : starting ? '시작 중…' : '스캔 실행'}
-          </PlButton>
-        </div>
+        {/* 새로고침 삭제 — 스캔 중엔 useScanPolling이 2초 폴링, 이 탭에서 실행한
+            스캔은 refresh()가 즉시 반영한다. 다른 화면에서 시작된 스캔은 탭
+            재진입으로만 보인다(폴링은 SCANNING 동안만 도는 트레이드오프). */}
+        <PlButton
+          variant="primary"
+          className="flex-none"
+          disabled={scanning || starting}
+          onClick={() => void runScan()}
+        >
+          <Icon
+            name={scanning || starting ? 'loader' : 'play'}
+            size="sm"
+            className={scanning || starting ? 'animate-spin' : undefined}
+          />
+          {scanning ? '스캔 중…' : starting ? '시작 중…' : '스캔 실행'}
+        </PlButton>
       </div>
 
       {startFailed && (
@@ -374,7 +381,10 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
       )}
 
       <section className={pipelineStyles.card.base} aria-label="스캔 이력">
-        <h2 className={opsStyles.cardTitle}>스캔 이력</h2>
+        <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+          <Icon name="clock" size="md" className="text-[var(--pl-primary)]" />
+          스캔 이력
+        </h2>
 
         {historyLoading ? (
           <div className="min-h-[160px]" aria-busy />

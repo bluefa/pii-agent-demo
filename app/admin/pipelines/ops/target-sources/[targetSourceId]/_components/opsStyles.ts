@@ -66,7 +66,8 @@ export const opsStyles = {
   /** Side-by-side cards — grid rows stretch so the pair is always equal height. */
   cardsRow: 'grid grid-cols-2 gap-4',
   cardTitle: 'text-[16px] font-semibold text-[var(--pl-text-strong)]',
-  cardDesc: 'text-[12px] text-[var(--pl-text-weak)] mt-1',
+  /** 13/medium — 12/weak는 카드 밀도에서 힌트처럼 흐릿하다는 운영 피드백(스캔 탭). */
+  cardDesc: 'text-[13px] text-[var(--pl-text-medium)] mt-1',
 
   /** A paged card in cardsRow: column layout so the pager sits at the bottom. */
   pagedCard: 'flex flex-col',
