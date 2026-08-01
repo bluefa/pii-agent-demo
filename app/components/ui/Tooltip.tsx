@@ -294,9 +294,11 @@ interface InfoTooltipProps {
   variant?: TooltipVariant;
   /** Accessible name for the icon-only trigger — the (?) glyph carries no text of its own. */
   label?: string;
+  /** (?) glyph edge in px. Default keeps the legacy 13; headers that need presence pass larger. */
+  iconSize?: number;
 }
 
-export const InfoTooltip = ({ content, position = 'top', size = 'lg', variant = 'status', label = '도움말' }: InfoTooltipProps) => {
+export const InfoTooltip = ({ content, position = 'top', size = 'lg', variant = 'status', label = '도움말', iconSize = 13 }: InfoTooltipProps) => {
   return (
     <Tooltip content={content} position={position} size={size} variant={variant}>
       {/* tabIndex makes the trigger keyboard-focusable so the :focus reveal path
@@ -308,8 +310,8 @@ export const InfoTooltip = ({ content, position = 'top', size = 'lg', variant = 
         className={cn('inline-flex items-center justify-center text-[#9CA3AF] transition-colors', primaryColors.textHoverBase)}
       >
         <svg
-          width={13}
-          height={13}
+          width={iconSize}
+          height={iconSize}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

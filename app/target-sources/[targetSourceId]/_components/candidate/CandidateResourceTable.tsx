@@ -111,6 +111,7 @@ export const CandidateResourceTable = ({
                     size="md"
                     variant="value"
                     label="설치 구분 안내"
+                    iconSize={17}
                   />
                 </span>
               </th>
