@@ -244,6 +244,11 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             <Icon name="search" size="md" className="text-[var(--pl-primary)]" />
             최근 스캔
             {latestJob && <ScanStatusPill status={latestJob.scan_status} />}
+            {latestJob?.scan_version !== undefined && (
+              <span className="text-[12px] font-medium text-[var(--pl-text-weak)]">
+                v{latestJob.scan_version}
+              </span>
+            )}
           </h2>
           <p className={opsStyles.cardDesc}>
             클라우드 리소스를 스캔해 연동 가능한 대상 목록을 갱신합니다.
