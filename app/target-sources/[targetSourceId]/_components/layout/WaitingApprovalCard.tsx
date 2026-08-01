@@ -164,14 +164,17 @@ export const WaitingApprovalCard = ({
   const rejected = verdict?.kind === 'rejected' ? verdict : null;
   const resolved = state.status === 'ready';
 
-  // "누가 · 언제" as one line, not a label-over-value grid: the grid was a third structural level
-  // inside the verdict block, and on a closed request the two facts are a signature, not reference
-  // data the user looks up by label.
-  const verdictByline = rejected
-    ? [rejected.processedBy, rejected.processedAt && formatDate(rejected.processedAt, 'datetime')]
-        .filter(Boolean)
-        .join(' · ')
-    : '';
+  // Labelled MetaField pairs, not a bare "누가 · 언제" byline: an unlabelled line leaves the reader
+  // to infer which date it is (반려일시? 요청일시?) on a screen that carries both. Two fields at
+  // 32px is the pending header's row — safe stacked, unlike the five-field record row below.
+  const verdictMeta = rejected && (
+    <div className="flex flex-wrap gap-8">
+      {rejected.processedAt && (
+        <MetaField label="반려일시" value={formatDate(rejected.processedAt, 'datetime')} />
+      )}
+      {rejected.processedBy && <MetaField label="처리자" value={rejected.processedBy} />}
+    </div>
+  );
 
   const reselect = (
     <WaitingApprovalReselectButton
@@ -312,16 +315,12 @@ export const WaitingApprovalCard = ({
                 >
                   {rejected.reason}
                 </p>
-                {/* Signature row: who·when left, the one way out right. Keeping the exit inside
-                    the rule makes the verdict a self-contained unit — a standalone button under
-                    it read as a second block, which is what the well was doing wrong. */}
-                <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-                  {verdictByline && (
-                    <p className={cn('text-[12px] font-medium', textColors.tertiary)}>
-                      {verdictByline}
-                    </p>
-                  )}
-                  <div className="ml-auto">{reselect}</div>
+                {/* Signature row: verdict meta left, the one way out right. Keeping the exit
+                    inside the rule makes the verdict a self-contained unit — a standalone button
+                    under it read as a second block, which is what the well was doing wrong. */}
+                <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+                  {verdictMeta}
+                  {reselect}
                 </div>
               </div>
             ) : (
@@ -331,13 +330,9 @@ export const WaitingApprovalCard = ({
                   관리자가 승인 요청을 반려했어요. 연동 대상을 다시 선택한 뒤 승인을 다시
                   요청해주세요.
                 </p>
-                <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-                  {verdictByline && (
-                    <p className={cn('text-[12px] font-medium', textColors.tertiary)}>
-                      {verdictByline}
-                    </p>
-                  )}
-                  <div className="ml-auto">{reselect}</div>
+                <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+                  {verdictMeta}
+                  {reselect}
                 </div>
               </>
             )}

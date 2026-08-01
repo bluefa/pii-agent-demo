@@ -379,10 +379,12 @@ describe('WaitingApprovalCard', () => {
     expect(screen.queryByText(/관리자가 승인 요청을 반려했어요/)).toBeNull();
     // The single primary action sits at the end of the verdict block, not in the corner slot.
     expect(screen.getByRole('button', { name: /연동 대상 다시 선택하기/ })).toBeTruthy();
-    // Verdict meta is one "who · when" byline, not a label-over-value grid.
-    expect(screen.getByText(/^관리자 · 2026\. 04\. 30\./)).toBeTruthy();
-    expect(screen.queryByText('반려일시')).toBeNull();
-    expect(screen.queryByText('처리자')).toBeNull();
+    // Verdict meta stays labelled — an unlabelled byline leaves the reader to infer which date
+    // it is on a screen that also carries 요청일시.
+    expect(screen.getByText('반려일시').nextElementSibling?.textContent).toMatch(
+      /^2026\. 04\. 30\./,
+    );
+    expect(screen.getByText('처리자').nextElementSibling?.textContent).toBe('관리자');
     // The waiting copy must be gone.
     expect(screen.queryByText('관리자 승인을 기다리고 있어요.')).toBeNull();
 
