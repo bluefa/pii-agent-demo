@@ -1,5 +1,5 @@
 import type { ApprovalFilter } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
-import { cn, numericFeatures, textColors } from '@/lib/theme';
+import { borderColors, cn, numericFeatures, primaryColors, textColors, tossShadow } from '@/lib/theme';
 
 interface WaitingApprovalStatsProps {
   totalCount: number;
@@ -73,19 +73,35 @@ export const StatTile = ({
     className={cn(
       'flex flex-col gap-1.5 rounded-xl px-5 py-[18px] transition-colors duration-150',
       variant === 'card' && 'items-center',
-      active
-        ? 'bg-white ring-2 ring-inset ring-[#191F28]'
-        : 'bg-[#F7F8FA] hover:bg-[#ECEEF1]',
+      // card = the step-1 submit-modal tile grammar (white card + gray-200 stroke +
+      // toss lg shadow) so the two stats rows read as one design. Selection speaks
+      // ONLY through the boundary: the 1px stroke turns brand and an inset ring
+      // doubles it to a 2px edge — same surface, same shadow, no layout shift.
+      // Unselected tiles preview that grammar on hover (1px brand stroke), which is
+      // what keeps three identical white cards reading as a filter, not static stats.
+      // modal = the legacy gray well, untouched (CloudReq/IdcReq approval modals).
+      variant === 'card'
+        ? cn(
+            'border bg-white',
+            tossShadow.lg,
+            active
+              ? 'border-[#0064FF] ring-1 ring-inset ring-[#0064FF]'
+              : cn(borderColors.default, primaryColors.borderHoverBase),
+          )
+        : active
+          ? 'bg-white ring-2 ring-inset ring-[#191F28]'
+          : 'bg-[#F7F8FA] hover:bg-[#ECEEF1]',
       onClick && 'cursor-pointer text-left',
     )}
   >
-    {/* The label is a peer of the value, so it stays darker and bolder than the unit suffix. */}
+    {/* The label is a peer of the value, so it stays darker and bolder than the unit suffix.
+        card = the submit-modal tile ramp (14 semibold, quiet tier). */}
     <div
       className={cn(
         'flex items-center gap-1.5',
         variant === 'modal'
           ? 'text-[12px] font-semibold text-[#8B95A1]'
-          : 'text-[14px] font-bold text-[#4E5968]',
+          : cn('text-[14px] font-semibold', textColors.tertiary),
       )}
     >
       {swatch && (
@@ -98,8 +114,9 @@ export const StatTile = ({
     <div className="flex items-baseline">
       <span
         className={cn(
-          'font-extrabold leading-[1.1] text-[#191F28]',
-          variant === 'modal' ? 'text-[30px] tracking-[-0.035em]' : 'text-[40px] tracking-[-0.03em]',
+          variant === 'modal'
+            ? 'font-extrabold leading-[1.1] text-[#191F28] text-[30px] tracking-[-0.035em]'
+            : cn('text-[40px] font-bold leading-[1.2]', textColors.primary),
           numericFeatures.tabular,
         )}
       >
@@ -108,9 +125,9 @@ export const StatTile = ({
       {/* The unit is a suffix of the value — lighter than the label so it reads one tier down. */}
       <span
         className={cn(
-          'ml-1 text-[12px]',
+          'ml-1',
           textColors.tertiary,
-          variant === 'modal' ? 'font-semibold' : 'font-normal',
+          variant === 'modal' ? 'text-[12px] font-semibold' : 'text-[13px] font-medium',
         )}
       >
         {unit}

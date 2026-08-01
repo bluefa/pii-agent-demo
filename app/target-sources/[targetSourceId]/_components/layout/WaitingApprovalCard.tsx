@@ -282,7 +282,8 @@ export const WaitingApprovalCard = ({
               </strong>{' '}
               평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
             </p>
-            <p className={cn('mt-1 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+            {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (기존 mt-1에서 −4px). */}
+            <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
               연동 대상을 다시 고르고 싶다면 우측 상단{' '}
               <strong className={cn('font-semibold', textColors.secondary)}>다시 요청하기</strong>를
               눌러주세요.

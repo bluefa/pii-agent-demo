@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { cn, modalStyles } from '@/lib/theme';
 
 export interface ConfirmStepModalProps {
@@ -12,6 +13,17 @@ export interface ConfirmStepModalProps {
   confirmLabel: string;
   cancelLabel?: string;
   isPending?: boolean;
+  /**
+   * Optional body between the description and the footer (e.g. the approval
+   * submit stats). Text-only confirms omit it and keep the compact two-line shape.
+   */
+  children?: ReactNode;
+  /** 560px instead of 480px — for confirms that carry a body block. */
+  wide?: boolean;
+  /** Gates the confirm button beyond isPending (e.g. required input still empty). */
+  confirmDisabled?: boolean;
+  /** Where focus lands on open — input-carrying confirms point at their field; default is 취소. */
+  initialFocus?: React.RefObject<HTMLElement | null>;
 }
 
 /** Tighter chrome than modalStyles.toss.* (px-10/pt-9, no footer hairline change): a two-button
@@ -22,11 +34,19 @@ const confirmHeader = 'px-6 pt-6 pb-1.5 flex items-start justify-between';
 const confirmFooter = 'px-6 pt-5 pb-6 bg-white flex justify-end gap-2.5';
 
 /** Footer pair on the in-card `.btn` scale (h40 / radius12 / 14px) — the 52px modalBtn tier
- *  belongs to the tall approval modals and overwhelmed a two-line dialog. */
-const confirmCancelBtn =
-  'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#F7F8FA] px-5 text-[14px] font-semibold text-[#191F28] transition-colors hover:bg-[#EBEEF2] disabled:cursor-not-allowed disabled:opacity-60';
-const confirmPrimaryBtn =
-  'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#0064FF] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]';
+ *  belongs to the tall approval modals and overwhelmed a two-line dialog.
+ *  focus-visible = the app's #0064FF halo, offset so it reads on the blue fill too;
+ *  keyboard focus gets the branded ring, mouse clicks stay ring-free. */
+const confirmFocusRing =
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0064FF] focus-visible:ring-offset-2';
+const confirmCancelBtn = cn(
+  'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#F7F8FA] px-5 text-[14px] font-semibold text-[#191F28] transition-colors hover:bg-[#EBEEF2] disabled:cursor-not-allowed disabled:opacity-60',
+  confirmFocusRing,
+);
+const confirmPrimaryBtn = cn(
+  'inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#0064FF] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
+  confirmFocusRing,
+);
 
 export const ConfirmStepModal = ({
   open,
@@ -37,10 +57,15 @@ export const ConfirmStepModal = ({
   confirmLabel,
   cancelLabel = '머무르기',
   isPending = false,
+  children,
+  wide = false,
+  confirmDisabled = false,
+  initialFocus,
 }: ConfirmStepModalProps) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -50,8 +75,13 @@ export const ConfirmStepModal = ({
         return;
       }
       if (event.key === 'Tab') {
-        const focusables = [cancelRef.current, confirmRef.current].filter(
-          (node): node is HTMLButtonElement => node !== null,
+        // Trap over everything focusable in the dialog, not just the footer pair —
+        // input-carrying confirms (e.g. the exclusion-reason textarea) must stay
+        // inside the Tab cycle or the wrap skips them permanently.
+        const focusables = Array.from(
+          dialogRef.current?.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), textarea, input, select, a[href]',
+          ) ?? [],
         );
         if (focusables.length === 0) return;
         const first = focusables[0];
@@ -72,14 +102,19 @@ export const ConfirmStepModal = ({
 
   useEffect(() => {
     if (open) {
-      cancelRef.current?.focus();
+      // WCAG dialog pattern: closing must hand focus back to the element that
+      // opened the dialog. A detached trigger (e.g. the step transitioned away
+      // after a successful confirm) makes .focus() a harmless no-op.
+      const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      (initialFocus?.current ?? cancelRef.current)?.focus();
       const previous = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = previous;
+        trigger?.focus();
       };
     }
-  }, [open]);
+  }, [open, initialFocus]);
 
   if (!open) return null;
 
@@ -97,6 +132,7 @@ export const ConfirmStepModal = ({
       data-testid="confirm-step-modal-backdrop"
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-step-modal-title"
@@ -104,7 +140,8 @@ export const ConfirmStepModal = ({
         className={cn(
           modalStyles.container,
           modalStyles.toss.container,
-          'w-[480px] max-w-[calc(100vw-2rem)]',
+          wide ? 'w-[560px]' : 'w-[480px]',
+          'max-w-[calc(100vw-2rem)]',
         )}
       >
         <div className={confirmHeader}>
@@ -121,6 +158,8 @@ export const ConfirmStepModal = ({
           </div>
         </div>
 
+        {children && <div className="px-6 pt-4">{children}</div>}
+
         <div className={confirmFooter}>
           <button
             ref={cancelRef}
@@ -136,8 +175,11 @@ export const ConfirmStepModal = ({
             type="button"
             className={confirmPrimaryBtn}
             onClick={onConfirm}
-            disabled={isPending}
+            disabled={isPending || confirmDisabled}
           >
+            {/* In-flight feedback beyond the disabled tint — the label stays, the
+                spinner says "working" (currentColor follows the disabled text). */}
+            {isPending && <LoadingSpinner size="sm" />}
             {confirmLabel}
           </button>
         </div>

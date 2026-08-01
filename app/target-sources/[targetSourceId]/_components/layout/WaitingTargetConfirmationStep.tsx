@@ -41,6 +41,7 @@ export const WaitingTargetConfirmationStep = ({
       />
       <CandidateResourceSection
         targetSourceId={project.targetSourceId}
+        provider={project.cloudProvider}
         readonly={false}
         refreshProject={refreshProject}
       />

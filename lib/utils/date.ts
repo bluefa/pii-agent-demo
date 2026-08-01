@@ -91,3 +91,25 @@ export const formatDuration = (ms: number): string => {
   const minutes = Math.floor(seconds / 60);
   return `${minutes}분 ${seconds % 60}초`;
 };
+
+/**
+ * 과거 시각을 상대 표기로 변환합니다 — 스캔 신선도처럼 "얼마나 낡았는가"가
+ * 핵심인 자리용. 임계값 경고 대신 상대시간 자체가 낡음 신호를 전달합니다.
+ *
+ * @example
+ * formatRelativeTime('2026-07-31T14:20:00Z')  // "3분 전" (14:23 기준)
+ */
+export const formatRelativeTime = (dateString: string): string => {
+  const then = new Date(dateString).getTime();
+  if (Number.isNaN(then)) return '';
+  const minutes = Math.floor((Date.now() - then) / 60_000);
+  if (minutes < 1) return '방금 전';
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}일 전`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}개월 전`;
+  return `${Math.floor(months / 12)}년 전`;
+};

@@ -84,28 +84,35 @@ export const IdcExclusionPopover = ({
       className={idcStyles.popover.container}
     >
       <div className={idcStyles.popover.title}>제외 사유 선택</div>
-      {IDC_EXCL_PRESETS.map((reason) => {
-        const active = !customActive && selectedPreset === reason;
-        return (
-          <button
-            key={reason}
-            type="button"
-            role="menuitem"
-            onClick={() => onPickPreset(reason)}
-            className={cn(idcStyles.popover.opt, active && idcStyles.popover.optSelected)}
-          >
-            {reason}
-          </button>
-        );
-      })}
+      {/* 프리셋은 값(칩), 직접 입력은 행동(행) — 어포던스를 다르게 가져가
+          "고를 수 있는 토큰"과 "다음 단계로 가는 행동"이 한눈에 갈린다. */}
+      <div className={idcStyles.popover.chipRow}>
+        {IDC_EXCL_PRESETS.map((reason) => {
+          const active = !customActive && selectedPreset === reason;
+          return (
+            <button
+              key={reason}
+              type="button"
+              role="menuitemradio"
+              aria-checked={active}
+              onClick={() => onPickPreset(reason)}
+              className={cn(
+                idcStyles.popover.chip,
+                active ? idcStyles.popover.chipSelected : idcStyles.popover.chipRest,
+              )}
+            >
+              {reason}
+            </button>
+          );
+        })}
+      </div>
       <button
         type="button"
         role="menuitem"
         onClick={onPickCustom}
         className={cn(
-          idcStyles.popover.opt,
           idcStyles.popover.custom,
-          customActive && idcStyles.popover.optSelected,
+          customActive ? idcStyles.popover.customActive : idcStyles.popover.customRest,
         )}
       >
         <EditIcon className="h-3 w-3" />

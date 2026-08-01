@@ -171,7 +171,7 @@ const toSummaryViewFromHistory = (item: ApprovalHistoryItem): NormalizedData => 
 
 /** integration_category → operator-facing label for a 비대상 row without an explicit reason. */
 const CATEGORY_LABEL: Record<string, string> = {
-  NO_INSTALL_NEEDED: '설치 불필요',
+  NO_INSTALL_NEEDED: '설치 선택',
   INSTALL_INELIGIBLE: '설치 불가',
 };
 

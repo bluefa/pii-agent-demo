@@ -39,7 +39,7 @@ interface ApprovalRequestModalProps {
 const getCategoryLabel = (category: IntegrationCategory): string => {
   switch (category) {
     case 'TARGET': return '연동 대상';
-    case 'NO_INSTALL_NEEDED': return '설치 불필요';
+    case 'NO_INSTALL_NEEDED': return '설치 선택';
     case 'INSTALL_INELIGIBLE': return '연동 불가';
   }
 };

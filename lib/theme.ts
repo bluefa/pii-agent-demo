@@ -51,6 +51,11 @@ export const tossColors = {
  */
 export const tossShadow = {
   sm: 'shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
+  /** One step up from `sm` — same 2-layer shape, roughly doubled presence. For
+   *  small white cards that must read as raised on an already-white surface. */
+  md: 'shadow-[0_1px_3px_rgba(17,24,39,0.06),0_8px_20px_-8px_rgba(17,24,39,0.12)]',
+  /** One step up from `md` — clearly lifted, still soft-edged. */
+  lg: 'shadow-[0_2px_4px_rgba(17,24,39,0.08),0_12px_28px_-8px_rgba(17,24,39,0.18)]',
 } as const;
 
 // =============================================================================
@@ -447,8 +452,11 @@ export const modalStyles = {
     container: 'rounded-[24px]',
     header: 'px-10 pt-9 pb-1.5 flex items-start justify-between',
     title: 'text-[26px] font-extrabold tracking-[-0.03em] leading-[1.25] text-[#191F28]',
-    /* mt-4 = the 16px title→subtitle gap every step-flow modal shares (reqModal.sub, ConfirmRewind). */
-    subtitle: 'mt-4 text-[14px] font-medium leading-[1.6] text-[#8B95A1]',
+    /* mt-4 = the 16px title→subtitle gap every step-flow modal shares (reqModal.sub, ConfirmRewind).
+       #6B7280, not #8B95A1: the description is normal-size text (14px) so AA needs 4.5:1 —
+       #8B95A1 measured 3.04:1 on white and read as washed out; #6B7280 is 4.83:1 on the
+       same quiet tier. */
+    subtitle: 'mt-4 text-[14px] font-medium leading-[1.6] text-[#6B7280]',
     body: 'px-10 pt-7 pb-2',
     footer: 'px-10 pt-5 pb-6 border-t border-[#EBEEF2] bg-white flex justify-end gap-2.5',
     iconBase: 'w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0',
@@ -698,11 +706,24 @@ export const idcStyles = {
   rowActionDelete: 'inline-flex h-[26px] w-[26px] items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[#FEECEC] hover:text-[#B42318]',
   /** Exclusion-reason popover — `.idc-reason-pop`. */
   popover: {
-    container: 'fixed z-[120] min-w-[180px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.14)]',
-    title: 'px-2.5 pb-1.5 pt-2 text-[11px] font-bold tracking-[0.01em] text-gray-500',
-    opt: 'flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-gray-900 transition-colors hover:bg-[#F7F8FA]',
-    optSelected: 'bg-[#E8F1FF] font-bold text-[#0064FF]',
-    custom: 'mt-1 border-t border-gray-200 pt-2.5 font-semibold text-[#0064FF]',
+    container: 'fixed z-[120] min-w-[248px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.14)]',
+    title: 'px-2.5 pb-2 pt-2 text-[14px] font-semibold text-[#191F28]',
+    // 프리셋 값은 칩(태그 피커) — 맨텍스트 행은 휴지 상태에서 선택지로 읽히지
+    // 않는다. 표면은 승인 요청 모달 타일과 같은 흰 카드+스트로크+lg 섀도 패턴,
+    // 라운드는 "N번째 단계" 태그의 6px. 휴지 gray-200 보더 < hover 브랜드 프리뷰
+    // < 선택 브랜드+틴트로, Step1·2 필터 타일과 같은 상호작용 사다리. 색 충돌
+    // 방지를 위해 border-color는 rest/selected 어느 한쪽만 소유한다(cn은 단순
+    // join — 순서가 승자를 못 정한다).
+    chipRow: 'flex flex-wrap gap-1.5 px-2.5 pb-1.5',
+    chip: `rounded-[6px] border px-3 py-1.5 text-[13px] transition-colors ${tossShadow.lg}`,
+    chipRest: 'border-gray-200 bg-white font-medium text-gray-700 hover:border-[#0064FF] hover:text-[#0064FF]',
+    chipSelected: 'border-[#0064FF] bg-[#E8F1FF] font-semibold text-[#0064FF]',
+    // 직접 입력은 텍스트 버튼(언더라인) — 칩(값)과 형태를 달리해 행동으로 읽히게.
+    // 구분선 없이 여백만으로 칩 구역과 가른다. hover는 색 다크닝만으로는 약해서
+    // 브랜드 틴트 필을 깔아 "눌러서 입력/수정한다"는 신호를 준다.
+    custom: 'mt-1.5 inline-flex w-full items-center gap-1.5 rounded-[8px] px-2.5 pb-1.5 pt-1.5 text-left text-[13px] font-semibold underline underline-offset-2 transition-colors',
+    customRest: 'text-[#0064FF] hover:bg-[#E8F1FF] hover:text-[#0050D6]',
+    customActive: 'font-bold text-[#0050D6] hover:bg-[#E8F1FF]',
   },
   /** Amber overwrite/warn banner — `.idc-ip-warn` / `.idc-load-note` (#FFFBEB / #FCD34D / #92400E). */
   warnBanner: 'flex items-start gap-2 rounded-lg border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2.5 text-[12px] leading-[1.55] text-[#92400E]',

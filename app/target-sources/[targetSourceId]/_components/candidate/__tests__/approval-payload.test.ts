@@ -88,4 +88,15 @@ describe('approval-payload', () => {
       listMissingExclusionReasons([cloudCandidate], new Set(['res-1']), {}),
     ).toEqual([]);
   });
+
+  // The list now gates (disables) the approval CTA, so a blank that slipped in —
+  // empty string or whitespace-only — must count as missing, not as a reason.
+  it('treats empty and whitespace-only reasons as missing', () => {
+    expect(
+      listMissingExclusionReasons([cloudCandidate], new Set<string>(), { 'res-1': '' }),
+    ).toEqual([cloudCandidate]);
+    expect(
+      listMissingExclusionReasons([cloudCandidate], new Set<string>(), { 'res-1': '   ' }),
+    ).toEqual([cloudCandidate]);
+  });
 });

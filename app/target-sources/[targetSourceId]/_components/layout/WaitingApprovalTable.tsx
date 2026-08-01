@@ -5,6 +5,7 @@ import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
+import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import { idcStyles, primaryColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
@@ -120,11 +121,7 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
 export const WaitingApprovalTable = memo(
   ({ resources, emptyMessage, connected = false }: WaitingApprovalTableProps) => {
     if (resources.length === 0) {
-      return (
-        <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-          {emptyMessage ?? DEFAULT_EMPTY_MESSAGE}
-        </div>
-      );
+      return <TableEmptyState message={emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />;
     }
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
