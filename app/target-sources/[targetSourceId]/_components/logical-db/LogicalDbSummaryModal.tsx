@@ -5,6 +5,7 @@ import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { useLogicalDatabases } from '@/app/target-sources/[targetSourceId]/_components/logical-db/useLogicalDatabases';
+import { isParentDeny } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-deny';
 import type { LogicalDatabase } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
 import type { SkipReason } from '@/app/lib/api/logical-db';
 import {
@@ -44,14 +45,19 @@ export const LogicalDbSummaryModal = ({
 }: LogicalDbSummaryModalProps) => {
   const { state, retry } = useLogicalDatabases(targetSourceId, resourceId);
 
+  // `databases` already merges the policy-only names (excluded but not discovered), so the
+  // split is by membership in the skip set. A SCHEMA under an excluded parent DATABASE is
+  // dropped from both panels — the parent deny already covers it, which is how Step 5's
+  // right panel and the PUT payload (`isParentDeny`) treat it.
   const { included, excluded, reasons } = useMemo(() => {
     if (state.status !== 'ready') {
       return { included: [], excluded: [], reasons: {} as Record<string, SkipReason> };
     }
     const excludedIds = state.initialDraft.excludedIds;
+    const rows = state.databases.filter((db) => !isParentDeny(db, excludedIds));
     return {
-      included: state.databases.filter((db) => !excludedIds.has(db.id)),
-      excluded: state.databases.filter((db) => excludedIds.has(db.id)),
+      included: rows.filter((db) => !excludedIds.has(db.id)),
+      excluded: rows.filter((db) => excludedIds.has(db.id)),
       reasons: state.initialDraft.reasons,
     };
   }, [state]);
