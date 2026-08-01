@@ -555,16 +555,11 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
               </p>
             )}
 
+            {/* 닫기 버튼 없음 — Esc·바깥 클릭으로 충분(운영 피드백), 시각행이 바닥. */}
             <div className="mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
               <TimeField label="실행시간">{fmtDateTimeSec(detailJob.created_at)}</TimeField>
               <TimeField label="완료시간">{fmtDateTimeSec(detailJob.updated_at)}</TimeField>
               <TimeField label="소요">{fmtDuration(detailJob.duration_seconds)}</TimeField>
-            </div>
-
-            <div className="mt-5 flex justify-end">
-              <PlButton variant="secondary" onClick={() => setDetailJob(null)}>
-                닫기
-              </PlButton>
             </div>
           </>
         )}
