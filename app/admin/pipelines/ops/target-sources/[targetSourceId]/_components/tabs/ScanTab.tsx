@@ -115,31 +115,52 @@ function ScanStatusPill({ status }: { status: string | null | undefined }): Reac
   );
 }
 
-/** 완료 시각 — 실행과 같은 날이면 날짜를 생략하고 시간만 ('17:30:03'). */
-const fmtCompletedAt = (startIso: string | null | undefined, endIso: string | null | undefined): string => {
-  const full = fmtDateTimeSec(endIso);
-  const start = fmtDateTimeSec(startIso);
-  if (full === '-' || start === '-') return full;
-  return full.slice(0, 10) === start.slice(0, 10) ? full.slice(11) : full;
-};
-
-/** 발견 리소스 태그 — 저채도(흰 배경) + 스트로크 + 섀도, wire 키는 mono 그대로. */
+/**
+ * 발견 리소스 태그 — 저채도(흰 배경) + 스트로크 + 섀도, wire 키는 mono 그대로.
+ * diff가 있으면 타입별 증감(+N ok / −N err)을 붙이고, 이번 스캔에서 사라진
+ * 타입(count 0)은 점선 보더 + faint로 흐리게 남긴다.
+ */
 function ResourceTypeTag({
   type,
   count,
   provider,
+  diff,
 }: {
   type: string;
   count: number;
   provider: CloudProvider;
+  diff?: number | null;
 }): ReactElement {
+  const removed = count === 0;
   return (
     <span
       title={type}
-      className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--pl-border)] bg-white px-2.5 py-[5px] text-[11px] font-semibold text-[var(--pl-text-medium)] shadow-[var(--pl-shadow-xs)] [font-family:var(--pl-font-mono)]"
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-[6px] border bg-white px-2.5 py-[5px] text-[11px] font-semibold shadow-[var(--pl-shadow-xs)] [font-family:var(--pl-font-mono)]',
+        removed
+          ? 'border-dashed border-[var(--pl-border)] text-[var(--pl-text-faint)]'
+          : 'border-[var(--pl-border)] text-[var(--pl-text-medium)]',
+      )}
     >
       {trimProviderPrefix(type, provider)}
-      <b className="text-[12px] font-bold tabular-nums text-[var(--pl-text-strong)]">{count}</b>
+      <b
+        className={cn(
+          'text-[12px] font-bold tabular-nums',
+          removed ? 'text-[var(--pl-text-faint)]' : 'text-[var(--pl-text-strong)]',
+        )}
+      >
+        {count}
+      </b>
+      {diff != null && diff !== 0 && (
+        <b
+          className={cn(
+            'text-[11px] font-bold tabular-nums',
+            diff > 0 ? 'text-[var(--pl-ok-text)]' : 'text-[var(--pl-err-text)]',
+          )}
+        >
+          {diff > 0 ? `+${diff}` : diff}
+        </b>
+      )}
     </span>
   );
 }
@@ -236,6 +257,20 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
     ? latestTotal - totalOf(sortResourceCounts(prevSuccess.resource_count_by_resource_type))
     : null;
 
+  // 타입별 증감 — 직전 성공이 있으면 현재∪직전 키 합집합으로 diff를 계산한다.
+  // 직전에만 있던 타입은 count 0(사라짐)으로 남겨 −N을 정직하게 보여준다.
+  const typeEntries: Array<{ type: string; count: number; diff: number | null }> = (() => {
+    if (!prevSuccess) return latestCounts.map(([type, count]) => ({ type, count, diff: null }));
+    const prevMap = Object.fromEntries(sortResourceCounts(prevSuccess.resource_count_by_resource_type));
+    const currentMap = Object.fromEntries(latestCounts);
+    return Array.from(new Set([...Object.keys(currentMap), ...Object.keys(prevMap)]))
+      .map((type) => {
+        const count = currentMap[type] ?? 0;
+        return { type, count, diff: count - (prevMap[type] ?? 0) };
+      })
+      .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
+  })();
+
   const breakdownCounts = sortResourceCounts(breakdownJob?.resource_count_by_resource_type);
 
   const recentScanCard = (
@@ -316,50 +351,43 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
           )}
 
           {/* 스캔 결과 — 성공/진행 중에만. 실패는 결과가 아니라 원인(오류 박스)을 말한다.
-              헤더(14/700) + 총계(20/700) + 직전 스캔 비교를 한 베이스라인에. */}
+              헤더(14/700) 아래 보조 한 줄(총계·직전 비교, 값만 약간 강조) → 태그가 내용. */}
           {(scanning || latestJob.scan_status === 'SUCCESS') && (
             <div className="mt-5">
-              <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                <p className="text-[14px] font-bold text-[var(--pl-text-strong)]">스캔 결과</p>
-                {!scanning && latestCounts.length > 0 && (
-                  <>
-                    <span className="text-[20px] font-bold leading-[24px] tabular-nums text-[var(--pl-text-strong)]">
-                      {latestTotal}
-                      <span className="ml-0.5 text-[12px] font-medium text-[var(--pl-text-weak)]">개</span>
-                    </span>
-                    {/* 비교는 말로 — 배지만 떠 있으면 무엇 대비인지 안 읽힌다. */}
-                    {countDiff !== null && (
-                      countDiff === 0 ? (
-                        <span className="text-[12px] text-[var(--pl-text-weak)]">직전 스캔과 동일</span>
-                      ) : (
-                        <span className="text-[12px] text-[var(--pl-text-weak)]">
-                          직전 스캔 대비{' '}
-                          <b
-                            className={cn(
-                              'rounded-full px-1.5 py-0.5 text-[11.5px] font-bold tabular-nums',
-                              countDiff > 0
-                                ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
-                                : 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
-                            )}
-                          >
-                            {countDiff > 0 ? `+${countDiff}` : countDiff}
-                          </b>
-                        </span>
-                      )
-                    )}
-                  </>
-                )}
-              </div>
+              <p className="text-[14px] font-bold text-[var(--pl-text-strong)]">스캔 결과</p>
               {scanning ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
               ) : latestCounts.length === 0 ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
               ) : (
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  {latestCounts.map(([type, count]) => (
-                    <ResourceTypeTag key={type} type={type} count={count} provider={provider} />
-                  ))}
-                </div>
+                <>
+                  <p className="mt-1 text-[13px] text-[var(--pl-text-weak)]">
+                    총 <b className="font-semibold tabular-nums text-[var(--pl-text-strong)]">{latestTotal}개</b>
+                    {countDiff !== null
+                      && (countDiff === 0 ? (
+                        <> · 직전 스캔과 동일</>
+                      ) : (
+                        <>
+                          {' · '}직전 스캔 대비{' '}
+                          <b
+                            className={cn(
+                              'rounded-full px-1.5 py-0.5 text-[11.5px] font-bold tabular-nums',
+                              countDiff > 0
+                                ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
+                                : 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+                            )}
+                          >
+                            {countDiff > 0 ? `+${countDiff}` : countDiff}
+                          </b>
+                        </>
+                      ))}
+                  </p>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {typeEntries.map(({ type, count, diff }) => (
+                      <ResourceTypeTag key={type} type={type} count={count} provider={provider} diff={diff} />
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -376,9 +404,8 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             <TimeField label="실행시간">{fmtDateTimeSec(latestJob.created_at)}</TimeField>
             {!scanning && (
               <>
-                <TimeField label="완료시간">
-                  {fmtCompletedAt(latestJob.created_at, latestJob.updated_at)}
-                </TimeField>
+                {/* 실행시간과 같은 포맷 — 같은 날이어도 날짜를 생략하지 않는다. */}
+                <TimeField label="완료시간">{fmtDateTimeSec(latestJob.updated_at)}</TimeField>
                 <TimeField label="소요">{fmtDuration(latestJob.duration_seconds)}</TimeField>
               </>
             )}
