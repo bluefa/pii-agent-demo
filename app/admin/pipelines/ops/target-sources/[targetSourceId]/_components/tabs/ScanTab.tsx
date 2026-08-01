@@ -60,8 +60,15 @@ const SCAN_ERROR_LABEL: Record<string, string> = {
 
 const errorLabel = (code: string): string => SCAN_ERROR_LABEL[code] ?? SCAN_ERROR_LABEL.UNKNOWN;
 
-const CAPTION = 'text-[12px] text-[var(--pl-text-weak)]';
-const CAPTION_VALUE = 'font-semibold text-[var(--pl-text-strong)]';
+/** 라벨 위 / 값 아래 시각 필드 — 하단 시각행 전용 (kv 토큰 공유). */
+function TimeField({ label, children }: { label: string; children: React.ReactNode }): ReactElement {
+  return (
+    <div className="min-w-0">
+      <p className={pipelineStyles.text.kvKey}>{label}</p>
+      <p className={cn(pipelineStyles.text.kvValue, 'mt-1 whitespace-nowrap')}>{children}</p>
+    </div>
+  );
+}
 
 /** 214.6s → '3분 34초', 44s → '44초'; unknown → '—'. */
 const fmtDuration = (seconds: number | null | undefined): string => {
@@ -236,6 +243,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
           <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
             <Icon name="search" size="md" className="text-[var(--pl-primary)]" />
             최근 스캔
+            {latestJob && <ScanStatusPill status={latestJob.scan_status} />}
           </h2>
           <p className={opsStyles.cardDesc}>
             클라우드 리소스를 스캔해 연동 가능한 대상 목록을 갱신합니다.
@@ -277,15 +285,11 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         )
       ) : (
         <>
-          {/* 계층: 판정(pill) > 발견 리소스(주인공) > 시각행(하단 캡션).
+          {/* 계층: 판정(타이틀 옆 pill) > 발견 리소스(주인공) > 시각행(하단).
               완료된 스캔의 답은 "뭘 찾았나"다 — 시각 메타는 카드 바닥으로 물러난다. */}
-          <div className="mt-4">
-            <ScanStatusPill status={latestJob.scan_status} />
-          </div>
-
           {/* 진행 바는 SCANNING에서만 — 끝난 스캔의 진행률은 정보가 아니라 착시다. */}
           {scanning && (
-            <div className="mt-3.5 flex items-center gap-3">
+            <div className="mt-4 flex items-center gap-3">
               <div
                 className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--pl-gray-100)]"
                 role="progressbar"
@@ -353,19 +357,18 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
             </p>
           )}
 
-          {/* 시각행 — 실행·완료·소요는 카드 바닥의 캡션 계층 (완료 = updated_at). */}
-          <p className={cn(CAPTION, 'mt-4 border-t border-[var(--pl-gray-100)] pt-3')}>
-            실행 <b className={CAPTION_VALUE}>{fmtDateTimeSec(latestJob.created_at)}</b>
+          {/* 시각행 — 라벨 위/값 아래 필드로 나열 (완료시간 = updated_at, 같은 날이면 시간만). */}
+          <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
+            <TimeField label="실행시간">{fmtDateTimeSec(latestJob.created_at)}</TimeField>
             {!scanning && (
               <>
-                {' · '}완료{' '}
-                <b className={CAPTION_VALUE}>
+                <TimeField label="완료시간">
                   {fmtCompletedAt(latestJob.created_at, latestJob.updated_at)}
-                </b>
-                {' · '}소요 <b className={CAPTION_VALUE}>{fmtDuration(latestJob.duration_seconds)}</b>
+                </TimeField>
+                <TimeField label="소요">{fmtDuration(latestJob.duration_seconds)}</TimeField>
               </>
             )}
-          </p>
+          </div>
         </>
       )}
     </section>
