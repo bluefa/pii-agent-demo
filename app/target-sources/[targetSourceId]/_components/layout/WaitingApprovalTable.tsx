@@ -20,10 +20,20 @@ export interface WaitingApprovalResource {
   exclusionMeta?: string;
   /** Display db-engine source — prefer endpoint_config.db_type over resource_type (e.g. VM rows). */
   displayDbType?: string;
+  /** `confirmed` variant only — the credential bound to the resource. */
+  credentialId?: string | null;
 }
+
+/**
+ * `approval` (steps 2·3): verdict + exclusion reason as the last two columns.
+ * `confirmed` (step 6): every row is a confirmed target, so the verdict pair is replaced
+ * by the single DB Credential column.
+ */
+type WaitingApprovalTableVariant = 'approval' | 'confirmed';
 
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
+  variant?: WaitingApprovalTableVariant;
   /** Custom empty message shown when `resources` is empty. Defaults to the source-level empty copy. */
   emptyMessage?: string;
   /**
@@ -119,10 +129,12 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
   ) : null;
 
 export const WaitingApprovalTable = memo(
-  ({ resources, emptyMessage, connected = false }: WaitingApprovalTableProps) => {
+  ({ resources, variant = 'approval', emptyMessage, connected = false }: WaitingApprovalTableProps) => {
     if (resources.length === 0) {
       return <TableEmptyState message={emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />;
     }
+
+    const confirmedVariant = variant === 'confirmed';
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[12px]';
@@ -139,9 +151,15 @@ export const WaitingApprovalTable = memo(
                 <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Region</th>
-                {/* The header asks the question, the cell answers it. */}
-                <th className={idcStyles.table.approvalHeaderCell}>요청 대상 여부</th>
-                <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>
+                {confirmedVariant ? (
+                  <th className={idcStyles.table.approvalHeaderCell}>DB Credential</th>
+                ) : (
+                  <>
+                    {/* The header asks the question, the cell answers it. */}
+                    <th className={idcStyles.table.approvalHeaderCell}>요청 대상 여부</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
@@ -205,12 +223,27 @@ export const WaitingApprovalTable = memo(
                     >
                       {resource.region || PLACEHOLDER}
                     </td>
-                    <td className={idcStyles.table.approvalCell}>
-                      <TargetPill excluded={excluded} />
-                    </td>
-                    <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
-                      <ReasonCell resource={resource} />
-                    </td>
+                    {confirmedVariant ? (
+                      <td
+                        className={cn(
+                          idcStyles.table.approvalCell,
+                          monoCell,
+                          textColors.secondary,
+                          CELL_LIFT,
+                        )}
+                      >
+                        {resource.credentialId || PLACEHOLDER}
+                      </td>
+                    ) : (
+                      <>
+                        <td className={idcStyles.table.approvalCell}>
+                          <TargetPill excluded={excluded} />
+                        </td>
+                        <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
+                          <ReasonCell resource={resource} />
+                        </td>
+                      </>
+                    )}
                   </tr>
                 );
               })}

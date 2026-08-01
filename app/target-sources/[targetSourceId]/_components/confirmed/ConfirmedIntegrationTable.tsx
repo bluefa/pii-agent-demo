@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
@@ -9,6 +9,12 @@ import { cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { HealthBadge } from '@/app/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
+import {
+  WaitingApprovalTable,
+  type WaitingApprovalResource,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import { getLatestTestConnectionResultSummaries } from '@/app/lib/api';
 import {
   buildLogicalDbCountMap,
@@ -22,6 +28,8 @@ interface ConfirmedIntegrationTableProps {
   variant?: ConfirmedIntegrationTableVariant;
   targetSourceId: number;
 }
+
+const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 
 const STATUS_TOOLTIP_CONTENT = (
   <div className="space-y-2 text-[12px] leading-[1.5]">
@@ -65,6 +73,23 @@ export const ConfirmedIntegrationTable = ({
       });
     return () => controller.abort();
   }, [variant, targetSourceId]);
+
+  // Step 6 renders the step-2·3 approval table: every confirmed row is a target, so the
+  // verdict/reason pair is swapped for DB Credential (`confirmed` variant).
+  const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
+    () =>
+      confirmed.map((resource) => ({
+        resourceId: resource.resourceId,
+        resourceType: resource.databaseType ?? '',
+        region: resource.region ?? '',
+        resourceName: resource.resourceName ?? '',
+        selected: true,
+        displayDbType: resource.databaseType ?? undefined,
+        credentialId: resource.credentialId,
+      })),
+    [confirmed],
+  );
+  const table = useApprovalTableState(approvalRows);
 
   if (confirmed.length === 0) {
     return (
@@ -133,48 +158,39 @@ export const ConfirmedIntegrationTable = ({
     );
   }
 
-  // Connection Status is NOT part of the confirmed-integration contract — it only
-  // exists once a test-connection run is fetched (Step 5's latest_version agent
-  // results). On the steps that render this table (cloud Step 6) no test-connection
-  // result is fetched, so the column shows "-" rather than a fabricated badge.
+  // Step 6 — the step-2·3 approval table, minus the verdict pair (every confirmed row is a
+  // target) and minus Connection Status: that field is NOT part of the confirmed-integration
+  // contract (it only exists once a Step-5 test-connection run is fetched), so the column
+  // could never render anything but a placeholder here.
+  // Toolbar (top-rounded) + table + pagination join as one card, same as steps 2·3.
   return (
-    <>
-    <div className={idcStyles.table.frame}>
-    <table className="w-full text-sm">
-      <thead className={idcStyles.table.header}>
-        <tr>
-          <th className={idcStyles.table.headerCell}>Database Type</th>
-          <th className={idcStyles.table.headerCell}>Resource ID</th>
-          <th className={idcStyles.table.headerCell}>Region</th>
-          <th className={idcStyles.table.headerCell}>Resource Name</th>
-          <th className={idcStyles.table.headerCell}>DB Credential</th>
-          <th className={idcStyles.table.headerCell}>Connection Status</th>
-        </tr>
-      </thead>
-      <tbody className={tableStyles.body}>
-        {pageRows.map((resource) => (
-          <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-            <td className={cellClass}>{resource.databaseType ? <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
-            <td className={cellClass}>
-              <ResourceIdCell value={resource.resourceId} label="Resource ID" />
-            </td>
-            <td className={monoCellClass}>{resource.region ?? '-'}</td>
-            <td className={monoCellClass}>{resource.resourceName ?? '-'}</td>
-            <td className={cellClass}>{resource.credentialId ?? '-'}</td>
-            <td className={cn(tableStyles.cell, textColors.quaternary)}>-</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="mt-4">
+      <WaitingApprovalToolbar
+        searchValue={table.searchValue}
+        onSearchChange={table.onSearchChange}
+        dbType={table.dbType}
+        onDbTypeChange={table.onDbTypeChange}
+        region={table.region}
+        onRegionChange={table.onRegionChange}
+        dbTypeOptions={table.dbTypeOptions}
+        regionOptions={table.regionOptions}
+      />
+      <WaitingApprovalTable
+        resources={table.visibleResources}
+        variant="confirmed"
+        connected
+        emptyMessage={FILTER_EMPTY_MESSAGE}
+      />
+      {table.filteredCount > 0 && (
+        <Pagination
+          page={table.safePage}
+          pageSize={table.pageSize}
+          totalCount={table.filteredCount}
+          onPageChange={table.onPageChange}
+          onPageSizeChange={table.onPageSizeChange}
+          pageSizeOptions={[10, 20, 50, 100]}
+        />
+      )}
     </div>
-    <Pagination
-      page={page}
-      pageSize={pageSize}
-      totalCount={confirmed.length}
-      onPageChange={setPage}
-      onPageSizeChange={setPageSize}
-      pageSizeOptions={[10, 20, 50, 100]}
-    />
-    </>
   );
 };

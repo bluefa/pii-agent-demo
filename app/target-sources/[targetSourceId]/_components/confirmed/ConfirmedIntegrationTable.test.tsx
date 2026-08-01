@@ -44,16 +44,44 @@ describe('ConfirmedIntegrationTable', () => {
   });
 
   describe('variant=pre-install (default)', () => {
-    it('renders the 6 v15 columns: Database Type / Resource ID / Region / Resource Name / DB Credential / Connection Status', () => {
-      render(
+    it('renders the step-2·3 approval columns: Resource Name / Resource ID / Database Type / Region / DB Credential', () => {
+      const { container } = render(
         <ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />,
       );
-      expect(screen.getByRole('columnheader', { name: 'Database Type' })).toBeTruthy();
-      expect(screen.getByRole('columnheader', { name: 'Resource ID' })).toBeTruthy();
-      expect(screen.getByRole('columnheader', { name: 'Region' })).toBeTruthy();
-      expect(screen.getByRole('columnheader', { name: 'Resource Name' })).toBeTruthy();
-      expect(screen.getByRole('columnheader', { name: 'DB Credential' })).toBeTruthy();
-      expect(screen.getByRole('columnheader', { name: 'Connection Status' })).toBeTruthy();
+      const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent);
+      expect(headers).toEqual([
+        'Resource Name',
+        'Resource ID',
+        'Database Type',
+        'Region',
+        'DB Credential',
+      ]);
+    });
+
+    it('drops the Connection Status column (not in the confirmed-integration contract)', () => {
+      render(<ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />);
+      expect(screen.queryByText('Connection Status')).toBeNull();
+      expect(screen.queryByText('Success')).toBeNull();
+      expect(screen.queryByText('Pending')).toBeNull();
+    });
+
+    it('renders the DB Credential value in the last cell', () => {
+      const { container } = render(
+        <ConfirmedIntegrationTable
+          confirmed={[makeResource({ credentialId: 'cred-prod' })]}
+          targetSourceId={42}
+        />,
+      );
+      const dataRow = container.querySelector('tbody tr');
+      if (!(dataRow instanceof HTMLElement)) throw new Error('expected data row');
+      const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map((c) => c.textContent);
+      expect(cellTexts[4]).toBe('cred-prod');
+    });
+
+    it('renders the search + filter toolbar shared with steps 2·3', () => {
+      render(<ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />);
+      expect(screen.getByRole('textbox', { name: '리소스 검색' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: '필터' })).toBeTruthy();
     });
 
     it('renders Region and Resource Name values', () => {
@@ -65,21 +93,6 @@ describe('ConfirmedIntegrationTable', () => {
       );
       expect(screen.getByText('ap-northeast-1')).toBeTruthy();
       expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
-    });
-
-    it('renders Connection Status as "-" (not fabricated) — no test-connection result on this step', () => {
-      const { container } = render(
-        <ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />,
-      );
-      // Connection Status is not in the confirmed-integration contract; no Success/Pending
-      // badge is invented here (that only comes from a Step 5 test-connection fetch).
-      expect(screen.queryByText('Success')).toBeNull();
-      expect(screen.queryByText('Pending')).toBeNull();
-      const dataRow = container.querySelector('tbody tr');
-      if (!(dataRow instanceof HTMLElement)) throw new Error('expected data row');
-      const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map((c) => c.textContent);
-      // cells: Database Type / Resource ID / Region / Resource Name / DB Credential / Connection Status
-      expect(cellTexts[5]).toBe('-');
     });
 
     it('does not fetch test-connection summaries on the pre-install variant', () => {
