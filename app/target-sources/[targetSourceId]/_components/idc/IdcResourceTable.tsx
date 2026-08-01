@@ -20,8 +20,19 @@ import {
   IdcSourceIpCell,
   IdcTargetPill,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
+import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
+import type { LogicalDbCountMap } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
-export type IdcTableCol = 'src' | 'excl' | 'fw' | 'conn' | 'health' | 'cred' | 'credro' | 'logical';
+export type IdcTableCol =
+  | 'src'
+  | 'excl'
+  | 'fw'
+  | 'conn'
+  | 'health'
+  | 'cred'
+  | 'logical'
+  /** Step 6 — the Step 5 logical-DB result as two read-only count columns (연동 논리 DB / 연동 제외). */
+  | 'logicalro';
 
 interface IdcResourceTableProps {
   resources: readonly IdcResourceView[];
@@ -34,6 +45,11 @@ interface IdcResourceTableProps {
   credOptions?: readonly string[];
   /** Step-5/6: open the per-resource logical-DB modal. */
   onLogicalOpen?: (resource: IdcResourceView) => void;
+  /**
+   * `logicalro` column only — per-resource Step 5 counts from the test-connection
+   * latest-results. A resource absent from the map renders "—", never a fabricated 0.
+   */
+  logicalDbCounts?: LogicalDbCountMap;
   /**
    * Step-4 `fw` column only: per-resource firewall step status keyed by
    * resourceId, sourced from the installation-status `firewall_check.status`
@@ -67,6 +83,7 @@ export const IdcResourceTable = ({
   onCredChange,
   credOptions = [],
   onLogicalOpen,
+  logicalDbCounts,
   firewallStatusByResource,
 }: IdcResourceTableProps) => {
   const has = (c: IdcTableCol) => cols.includes(c);
@@ -105,9 +122,14 @@ export const IdcResourceTable = ({
             {has('excl') && <th className={cn(idcStyles.table.headerCell, 'w-[230px]')}>연동 대상 / 제외 사유</th>}
             {has('fw') && <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>방화벽 상태</th>}
             {has('cred') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>DB Credential</th>}
-            {has('credro') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>DB Credential</th>}
             {has('conn') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Connection Status</th>}
             {has('logical') && <th className={cn(idcStyles.table.headerCell, 'w-[110px]')}>논리 DB 관리</th>}
+            {has('logicalro') && (
+              <>
+                <th className={cn(idcStyles.table.headerCell, 'w-[120px]')}>연동 논리 DB</th>
+                <th className={cn(idcStyles.table.headerCell, 'w-[110px]')}>연동 제외</th>
+              </>
+            )}
             {has('health') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Status</th>}
           </tr>
         </thead>
@@ -151,23 +173,12 @@ export const IdcResourceTable = ({
                     )}
                   </td>
                 )}
-                {has('credro') && (
-                  <td className={idcStyles.table.cell}>
-                    {r.excluded || !r.credentialId ? (
-                      <span className={textColors.quaternary}>—</span>
-                    ) : (
-                      <span className={cn('font-mono text-[12px] font-semibold', textColors.primary)}>
-                        {r.credentialId}
-                      </span>
-                    )}
-                  </td>
-                )}
                 {has('conn') && (
                   <td className={cn(idcStyles.table.cell, dim)}>
-                    {/* Credential-aware status whenever a credential column is present (step-5 `cred`,
-                        step-6 `credro`): no cred -> '자격 증명 필요', cred+SUCCESS -> Success, else Pending
+                    {/* Credential-aware status whenever the credential column is present (step-5
+                        `cred`): no cred -> '자격 증명 필요', cred+SUCCESS -> Success, else Pending
                         (v16 idcConnBadge). Steps without a credential column keep the plain badge. */}
-                    {has('cred') || has('credro') ? (
+                    {has('cred') ? (
                       <IdcConnStatusCell resource={r} />
                     ) : (
                       <IdcConnBadge state={r.connection} />
@@ -182,6 +193,26 @@ export const IdcResourceTable = ({
                       <IdcLogicalButtonCell resource={r} onOpen={() => onLogicalOpen?.(r)} />
                     )}
                   </td>
+                )}
+                {has('logicalro') && (
+                  <>
+                    <td className={idcStyles.table.cell}>
+                      <LogicalDbCountCell
+                        count={logicalDbCounts?.get(r.resourceId)?.target ?? null}
+                        tone="included"
+                        label={`${r.hosts[0] ?? r.resourceId} 연동 논리 DB 목록 보기`}
+                        onOpen={() => onLogicalOpen?.(r)}
+                      />
+                    </td>
+                    <td className={idcStyles.table.cell}>
+                      <LogicalDbCountCell
+                        count={logicalDbCounts?.get(r.resourceId)?.excluded ?? null}
+                        tone="excluded"
+                        label={`${r.hosts[0] ?? r.resourceId} 연동 제외 대상 보기`}
+                        onOpen={() => onLogicalOpen?.(r)}
+                      />
+                    </td>
+                  </>
                 )}
                 {has('health') && <td className={cn(idcStyles.table.cell, dim)}><IdcHealthBadge health={r.health} /></td>}
               </tr>
