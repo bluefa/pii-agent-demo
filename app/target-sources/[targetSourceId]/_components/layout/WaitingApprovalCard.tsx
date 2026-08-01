@@ -154,24 +154,14 @@ export const WaitingApprovalCard = ({
   const rejected = verdict?.kind === 'rejected' ? verdict : null;
   const resolved = state.status === 'ready';
 
-  // The verdict group's footer: verdict meta bottom-left in the app's label-over-value grammar
-  // (the same tier the pending state uses for 요청일시/요청자 — an inline "date · actor" sentence
-  // broke that grammar), the one way out bottom-right. Shared by the reason well and the
-  // no-reason fallback. This is the only meta cluster on the rejected screen.
-  const verdictFooter = rejected && (
-    <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-      <div className="flex flex-wrap gap-8">
-        {rejected.processedAt && (
-          <MetaField label="반려일시" value={formatDate(rejected.processedAt, 'datetime')} />
-        )}
-        {rejected.processedBy && <MetaField label="처리자" value={rejected.processedBy} />}
-      </div>
-      <WaitingApprovalReselectButton
-        targetSourceId={targetSourceId}
-        onSuccess={() => onReselected?.()}
-      />
-    </div>
-  );
+  // "누가 · 언제" as one line, not a label-over-value grid: the grid was a third structural level
+  // inside the verdict block, and on a closed request the two facts are a signature, not reference
+  // data the user looks up by label.
+  const verdictByline = rejected
+    ? [rejected.processedBy, rejected.processedAt && formatDate(rejected.processedAt, 'datetime')]
+        .filter(Boolean)
+        .join(' · ')
+    : '';
 
   return (
     // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
@@ -201,7 +191,7 @@ export const WaitingApprovalCard = ({
                 <span
                   className={cn(
                     'inline-flex items-center font-medium',
-                    // Rejected matches the 반려 사유 tag in the well below, so the two chips read
+                    // Rejected matches the 반려 사유 tag in the quote below, so the two marks read
                     // as one pair on this screen; pending keeps the rounded-full state badge.
                     rejected
                       ? 'rounded-md px-1.5 py-0.5 text-[12px]'
@@ -235,44 +225,64 @@ export const WaitingApprovalCard = ({
             <div className={cn(idcStyles.skeletonBar, 'h-4 w-[300px] rounded')} />
           </div>
         ) : rejected ? (
-          // Rejected mirrors the pending grammar — status sentence → guidance → meta row below —
-          // so the state switch changes content, not page structure (a divider + extra section
-          // read as bolted-on). The reason sits in a quiet gray well (label + containment make it
-          // read as the admin's words, not our copy) that carries the verdict meta and the way
-          // out in its footer. role="status" because the verdict only resolves after the fetch.
-          <div className="mt-3" role="status">
-            {/* One quiet tone for the whole sentence: the title + badge already carry "rejected"
-                at the top tier, so bolding it again here would compete with the well below.
-                The emphasis budget: amber chips (badge + reason tag, one shared fill) mark the
-                state, the blue link is the action — everything else stays neutral. */}
-            <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
-              관리자가 승인 요청을 반려했어요.{' '}
-              {rejected.reason
-                ? '아래 반려 사유를 확인한 뒤, 연동 대상을 다시 선택해주세요.'
-                : '연동 대상을 다시 선택한 뒤 승인을 다시 요청해주세요.'}
-            </p>
+          // The reason used to sit in a tinted well. A filled, rounded block at the card's own
+          // inner width reads as a second card rather than a subsection, and its meta+action
+          // footer made a third nesting level — so the block floated instead of belonging.
+          // It becomes a quote instead: the admin's words hang off a 3px rule, no fill, no box.
+          // role="status" because the verdict only resolves after the fetch.
+          <div className="mt-4" role="status">
             {rejected.reason ? (
-              // The well is a self-contained unit: tag → the admin's words → footer (meta left,
-              // the way out right). Warning-tinted banner (option C): the weak orange surface is
-              // what marks "the why" as the block to read — the tag goes dark-orange for contrast
-              // on the tint, and the reason carries 500 so the message leads inside the banner.
-              <div className={cn('mt-4 rounded-xl px-4 py-3.5', statusColors.warning.bgSoft)}>
-                {/* Plain title, not a chip: the tinted surface already says "caution", so a filled
-                    tag on top of it double-encodes — dark-orange text keeps the tie to the banner. */}
-                <p className={cn('text-[16px] font-semibold', statusColors.warning.textDark)}>
+              // #EA580C, not the well's orange-50 fill: the same state now costs ~800px² of hue
+              // instead of ~99,000px², and 3.56:1 on white clears the 3:1 non-text floor
+              // (orange-500 is 2.80:1 and would not).
+              <div className="border-l-[3px] border-[#EA580C] pl-4">
+                {/* A tag, not a heading. The old label was 16px semibold over a 14px reason — it
+                    outsized the very thing it labelled, which is what flattened the hierarchy.
+                    12px keeps it below its payload while still naming the block. */}
+                <p
+                  className={cn(
+                    'text-[12px] font-bold tracking-[0.02em]',
+                    statusColors.warning.textDark,
+                  )}
+                >
                   반려 사유
                 </p>
-                {/* gray-700, one step above the gray-500 guidance sentence: the reason is the
-                    payload so it stays darker, but full gray-900 read as heavy on the tint. */}
-                <p className={cn('mt-2 text-[14px] font-medium leading-[1.55]', textColors.secondary)}>
+                {/* The payload is now the largest text in the block and, after the title, the
+                    darkest tone on the card — it stops being the smallest thing on the screen. */}
+                <p
+                  className={cn(
+                    'mt-1.5 text-[17px] font-semibold leading-[1.5]',
+                    textColors.primary,
+                  )}
+                >
                   {rejected.reason}
                 </p>
-                {verdictFooter}
+                {verdictByline && (
+                  <p className={cn('mt-2 text-[12px] font-medium', textColors.tertiary)}>
+                    {verdictByline}
+                  </p>
+                )}
               </div>
             ) : (
-              // No reason → no well; the footer row still carries the meta and the action.
-              verdictFooter
+              // No reason → nothing to quote, so the sentence carries the verdict on its own.
+              <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+                관리자가 승인 요청을 반려했어요. 연동 대상을 다시 선택한 뒤 승인을 다시
+                요청해주세요.
+                {verdictByline && (
+                  <span className={cn('mt-2 block text-[12px]', textColors.tertiary)}>
+                    {verdictByline}
+                  </span>
+                )}
+              </p>
             )}
+            {/* The one way out, at the end of the reading flow. It was an underlined link docked
+                inside the well; standing alone on white it needs the in-card `.btn` weight. */}
+            <div className="mt-5 flex justify-end">
+              <WaitingApprovalReselectButton
+                targetSourceId={targetSourceId}
+                onSuccess={() => onReselected?.()}
+              />
+            </div>
           </div>
         ) : (
           <>

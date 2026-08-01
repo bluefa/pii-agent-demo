@@ -364,22 +364,25 @@ describe('WaitingApprovalCard', () => {
     render(<WaitingApprovalCard targetSourceId={1003} onReselected={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/관리자가 승인 요청을 반려했어요/)).toBeTruthy();
+      expect(screen.getByText('반려 사유')).toBeTruthy();
     });
     // The title is the step's fixed name — only the badge flips to 반려.
     expect(screen.getByText('연동 대상 승인 대기')).toBeTruthy();
     expect(screen.getByText('반려')).toBeTruthy();
-    // The status sentence names what happened and what to do, in the pending copy's grammar.
-    expect(screen.getByText(/관리자가 승인 요청을 반려했어요/)).toBeTruthy();
-    // The reason reads as a quoted verdict: labelled and grouped — not headline copy.
-    expect(screen.getByText('반려 사유')).toBeTruthy();
+    // The reason is the payload, so it outsizes the tag that labels it (was 14px under a 16px
+    // label — the inversion that flattened the block).
     const reason = screen.getByText('RDS_CLUSTER 리소스는 현재 지원되지 않습니다.');
-    expect(reason.className).toContain('text-[14px]');
-    // The single primary action sits inside the verdict block, not in the corner slot.
+    expect(reason.className).toContain('text-[17px]');
+    expect(screen.getByText('반려 사유').className).toContain('text-[12px]');
+    // The guidance sentence is gone: the badge + tag already name the state, and the CTA names
+    // the next move — repeating it in a third place was the copy the reason had to compete with.
+    expect(screen.queryByText(/관리자가 승인 요청을 반려했어요/)).toBeNull();
+    // The single primary action sits at the end of the verdict block, not in the corner slot.
     expect(screen.getByRole('button', { name: /연동 대상 다시 선택하기/ })).toBeTruthy();
-    // Verdict meta in the well footer, label-over-value like the pending meta row.
-    expect(screen.getByText('반려일시')).toBeTruthy();
-    expect(screen.getByText('처리자')).toBeTruthy();
+    // Verdict meta is one "who · when" byline, not a label-over-value grid.
+    expect(screen.getByText(/^관리자 · 2026\. 04\. 30\./)).toBeTruthy();
+    expect(screen.queryByText('반려일시')).toBeNull();
+    expect(screen.queryByText('처리자')).toBeNull();
     // The request-submission meta row is dropped on a closed request — the table is the reference.
     expect(screen.queryByText('요청일시')).toBeNull();
     // The waiting copy must be gone, but the requested resources stay on screen.

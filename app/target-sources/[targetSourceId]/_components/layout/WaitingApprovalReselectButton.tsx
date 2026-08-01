@@ -1,7 +1,6 @@
 'use client';
 
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
-import { ArrowUpRightIcon } from '@/app/components/ui/icons';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { confirmApprovalUnavailable } from '@/app/lib/api';
@@ -40,15 +39,15 @@ export const WaitingApprovalReselectButton = ({
 
   return (
     <>
-      {/* Blue underlined action with a forward arrow, docked bottom-right inside the reason well —
-          the verdict group carries its own way out instead of a loud standalone button under it. */}
+      {/* The in-card `.btn` scale, not the underlined link it used to be: the reason well that
+          gave the link a container is gone, and a 13px underline standing alone on white is too
+          quiet for the only action on the screen. */}
       <button
         type="button"
-        className={idcStyles.triggerBtn.linkPrimary}
+        className={idcStyles.triggerBtn.primary}
         onClick={() => modal.open()}
       >
         연동 대상 다시 선택하기
-        <ArrowUpRightIcon className="h-[13px] w-[13px]" />
       </button>
 
       {/* The title is the pre-flight nudge — once the user moves on, the reason leaves the
