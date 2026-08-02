@@ -71,6 +71,17 @@ interface StepAggregate {
   kind: AggregateKind;
 }
 
+/**
+ * 레일 상태 글자색 — 태그를 걷어낸 자리. 손댈 단계(실패·진행중)만 색을 갖고,
+ * 끝났거나 남의 차례인 단계(완료·대기)는 회색으로 가라앉는다.
+ */
+const NAV_STATUS_TEXT: Record<AggregateKind, string> = {
+  failed: statusColors.error.textDark,
+  running: statusColors.info.textDark,
+  done: textColors.tertiary,
+  waiting: textColors.tertiary,
+};
+
 const kindOfValue = (value: InstallStepValue): AggregateKind =>
   value === 'FAIL' ? 'failed'
     : value === 'IN_PROGRESS' ? 'running'
@@ -507,15 +518,29 @@ export const InstallStatusDetail = ({
                 </span>
               </span>
               {/* 34px = 24px index circle + 10px gap — aligns with the title.
-                  주체 태그는 제목 옆이 아니라 이 줄로 — 좁은 레일에서 제목을 밀어내지 않는다. */}
-              <span className="flex items-center gap-1.5 flex-wrap pl-[34px]">
-                <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', aggregate.tag)}>{aggregate.label}</span>
+                  목차 한 줄에 채운 태그가 둘씩 반복되면 색이 내용을 이긴다. 여기서는 상태도
+                  주체도 글자로 쓰고, 색은 "봐야 하는가"(실패·진행중)에만 남긴다. */}
+              <span className={cn('flex items-center gap-1.5 flex-wrap pl-[34px]', textStyles.caption)}>
+                <span
+                  className={cn(
+                    NAV_STATUS_TEXT[aggregate.kind],
+                    // 끝난 단계는 굵기까지 내려놓는다 — 남은 일만 눈에 걸리게.
+                    aggregate.kind === 'done' || aggregate.kind === 'waiting'
+                      ? 'font-normal'
+                      : 'font-semibold',
+                  )}
+                >
+                  {aggregate.label}
+                </span>
                 {aggregate.count && (
-                  <span className={cn(textStyles.caption, 'tabular-nums', textColors.tertiary)}>
-                    {aggregate.count}
+                  <span className={cn('tabular-nums', textColors.tertiary)}>{aggregate.count}</span>
+                )}
+                {step.side && (
+                  <span className={cn('flex items-center gap-1.5', textColors.tertiary)}>
+                    <span aria-hidden>·</span>
+                    <span className="truncate">{step.side}</span>
                   </span>
                 )}
-                {step.side && <SideTag side={step.side} />}
               </span>
             </button>
           );
