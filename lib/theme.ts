@@ -127,6 +127,13 @@ export const statusColors = {
     text: 'text-red-500',
     textDark: 'text-red-800',
     border: 'border-red-300',
+    /**
+     * Load-bearing error edge — a rule that carries the state on its own, with no tinted
+     * surface behind it (see `warning.borderStrong` for the full reasoning). red-600 holds
+     * 4.05:1 on white, clearing the 3:1 non-text floor (WCAG 1.4.11); the `border` tier
+     * (red-300) does not.
+     */
+    borderStrong: 'border-red-600',
     dot: 'bg-red-500',
   },
   warning: {

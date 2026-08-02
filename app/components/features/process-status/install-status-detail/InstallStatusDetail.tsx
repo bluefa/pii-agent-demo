@@ -226,34 +226,43 @@ interface StepView {
 }
 
 /**
- * 조치 항목 — 박스가 아니다. 요약 자체가 이미 카드 안이고, 그 안에 또 채운 카드를
- * 두면 "설치 현황 요약 > 카드"로 한 겹이 더 생긴다(오너 지적). 여백으로 묶고,
- * 색은 조치 문구 한 줄에만 남긴다.
+ * 조치 항목 — Step 2 의 반려 사유와 같은 인용 룰 문법.
+ *
+ * 채운 블록은 카드 폭 그대로 서서 "두 번째 카드"로 읽히지만, 3px 룰에 걸어두면 같은
+ * 상태를 색면 ~800px² 로 말한다. 크기 계층도 Step 2 와 같다: 12px 태그가 블록의 이름,
+ * 17px 문장이 payload — 사용자가 실제로 해야 하는 일이 이 블록에서 가장 큰 글자다.
  */
 const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) => {
   const failed = view.aggregate.kind === 'failed';
+  const tone = failed ? statusColors.error : statusColors.warning;
+  // 조치 문구가 없는 단계(자동 진행 중 실패 등)는 계약이 준 사유 첫 줄이 payload 다.
+  // 그 경우 아래 목록은 나머지만 — 같은 문장을 크게 한 번, 작게 또 한 번 쓰지 않는다.
+  const payload = view.step.serviceAction ?? view.reasons[0]?.text ?? view.aggregate.label;
+  const payloadCount = view.step.serviceAction ? null : view.reasons[0]?.count ?? null;
+  const restReasons = view.step.serviceAction ? view.reasons : view.reasons.slice(1);
   return (
-    <div className={cn('flex flex-col', stackGap.related)}>
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <span className={cn(textStyles.bodyStrong, textColors.primary)}>{view.step.title}</span>
+    <div className={cn('border-l-[3px] pl-4', tone.borderStrong)}>
+      {/* 제목이 아니라 태그 — 이 블록이 무엇에 대한 것인지만 말하고, payload 아래로 내려간다. */}
+      <p className={cn('text-[12px] font-bold tracking-[0.02em]', tone.textDark)}>
+        {view.step.title}
         {view.step.side && (
-          <span className={textStyles.caption}>
-            <span className={textColors.tertiary}>· </span>
-            <SideText side={view.step.side} />
+          <span className={cn('ml-1.5 font-semibold', textColors.tertiary)}>· {view.step.side}</span>
+        )}
+      </p>
+
+      {/* payload = 해야 하는 일. 이 블록에서 가장 큰 글자이자 가장 진한 톤. */}
+      <p className={cn('mt-1.5 text-[17px] font-semibold leading-[1.5]', textColors.primary)}>
+        {payload}
+        {payloadCount !== null && (
+          <span className={cn('ml-2 font-semibold tabular-nums', textStyles.caption, textColors.tertiary)}>
+            {payloadCount}건
           </span>
         )}
-      </div>
+      </p>
 
-      {/* 조치 문구는 제목과 같은 14px — 계층은 크기가 아니라 색으로 가른다. */}
-      {view.step.serviceAction && (
-        <p className={cn(textStyles.body, failed ? statusColors.error.textDark : statusColors.warning.textDark)}>
-          {view.step.serviceAction}
-        </p>
-      )}
-
-      {view.reasons.length > 0 && (
-        <ul className={cn('flex flex-col', stackGap.tight, textStyles.caption, textColors.secondary)}>
-          {view.reasons.map((reason) => (
+      {restReasons.length > 0 && (
+        <ul className={cn('mt-2 flex flex-col', stackGap.tight, textStyles.caption, textColors.secondary)}>
+          {restReasons.map((reason) => (
             <li key={reason.text} className="flex gap-1.5">
               <span aria-hidden>·</span>
               <span className="min-w-0">
@@ -267,19 +276,20 @@ const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
         </ul>
       )}
 
-      {/* 이동 문자는 링크처럼 — 밑줄이 "누를 수 있다"를 말한다. 어느 단계로 가는지
-          문장 안에 넣어, 링크만 읽어도 목적지를 안다. */}
-      <button
-        type="button"
-        onClick={onOpen}
-        className={cn(
-          'self-start underline underline-offset-2 decoration-1',
-          textStyles.captionStrong,
-          primaryColors.text,
-        )}
-      >
-        {view.step.title} 단계로 이동
-      </button>
+      {/* 나가는 길은 룰 안에 둔다 — 밖으로 빼면 별개 블록으로 읽힌다(Step 2 서명행 규칙). */}
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={onOpen}
+          className={cn(
+            'underline underline-offset-2 decoration-1',
+            textStyles.captionStrong,
+            primaryColors.text,
+          )}
+        >
+          {view.step.title} 단계로 이동
+        </button>
+      </div>
     </div>
   );
 };
@@ -332,9 +342,8 @@ const InstallSummaryPanel = ({
           목록에서 진행 상황을 볼 수 있어요.
         </p>
       ) : (
-        // 이 카드가 이 패널의 유일한 판이다 — 제목·조치 문구·이동 링크가 한 덩어리라는
-        // 것만 말하면 되므로 테두리만 두르고 채우지 않는다(색은 조치 문구가 갖는다).
-        <section className={cn('rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.light)}>
+        // 판을 두르지 않는다 — 묶음은 각 항목의 인용 룰이 말한다(Step 2 문법).
+        <section className={cn('flex flex-col', stackGap.related)}>
           {/* 섹션 라벨은 한 단 내려 쓴다 — 항목 제목과 같은 14/700 이면 둘 중 무엇이
               상위인지 화면이 답하지 못한다(인접 계층은 크기·색 두 축이 달라야 한다). */}
           <h4 className={cn(textStyles.captionStrong, textColors.tertiary)}>
@@ -574,16 +583,7 @@ export const InstallStatusDetail = ({
           </span>
         </div>
 
-        {!activePanel && (
-          <div className={cn('mt-4 mb-2', textStyles.caption, textColors.tertiary)}>
-            {lastCheck.checkedAt && <>마지막 확인 {formatDateTime(lastCheck.checkedAt)}</>}
-            {lastCheck.status === 'FAILED' && (
-              <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
-            )}
-          </div>
-        )}
-
-        <div className={activePanel ? 'mt-4' : ''}>
+        <div className="mt-4">
           {activePanel ? (
             activePanel.panel
           ) : isSummary ? (
@@ -593,6 +593,17 @@ export const InstallStatusDetail = ({
             <StepResourceTable key={active.id} rows={rows} />
           )}
         </div>
+
+        {/* 조회 시각은 내용 아래 — 무엇을 보고 있는지가 먼저고, 그게 언제 기준인지는
+            읽고 나서 궁금해지는 것이다. */}
+        {!activePanel && (
+          <div className={cn('mt-4', textStyles.caption, textColors.tertiary)}>
+            {lastCheck.checkedAt && <>마지막 확인 {formatDateTime(lastCheck.checkedAt)}</>}
+            {lastCheck.status === 'FAILED' && (
+              <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
+            )}
+          </div>
+        )}
       </div>
       </div>
     </div>
