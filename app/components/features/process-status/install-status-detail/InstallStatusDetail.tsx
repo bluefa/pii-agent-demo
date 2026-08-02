@@ -324,19 +324,6 @@ const InstallSummaryPanel = ({
   return (
     // 그룹(섹션) 사이 = section 32px, 그룹 제목↔본문 = related 8px (비대칭 규칙)
     <div className={cn('flex flex-col', stackGap.section)}>
-      {/* 지표 행 — 요약 패널의 본문. 숫자 20px 이 이 패널에서 가장 큰 글자다.
-          판을 깔지 않는다: 카드 안에 또 카드를 두지 않는 것이 이 화면의 규칙. */}
-      <div className="flex items-start gap-8">
-        <RollupStat label="전체 리소스" value={rollup.total} />
-        <RollupStat label="완료" value={rollup.done} />
-        <RollupStat label="진행중" value={rollup.running} tone={statusColors.info.textDark} />
-        <RollupStat
-          label="실패"
-          value={rollup.failed}
-          {...(rollup.failed > 0 && { tone: statusColors.error.textDark })}
-        />
-      </div>
-
       {/* 제목은 조건부다 — 확인할 게 없는데 "확인이 필요합니다"를 띄워놓고 그 아래에서
           "없어요"라고 하면 한 섹션이 서로 반대말을 한다. */}
       {action.length === 0 ? (
@@ -345,7 +332,9 @@ const InstallSummaryPanel = ({
           목록에서 진행 상황을 볼 수 있어요.
         </p>
       ) : (
-        <section className={cn('flex flex-col', stackGap.related)}>
+        // 이 카드가 이 패널의 유일한 판이다 — 제목·조치 문구·이동 링크가 한 덩어리라는
+        // 것만 말하면 되므로 테두리만 두르고 채우지 않는다(색은 조치 문구가 갖는다).
+        <section className={cn('rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.light)}>
           {/* 섹션 라벨은 한 단 내려 쓴다 — 항목 제목과 같은 14/700 이면 둘 중 무엇이
               상위인지 화면이 답하지 못한다(인접 계층은 크기·색 두 축이 달라야 한다). */}
           <h4 className={cn(textStyles.captionStrong, textColors.tertiary)}>
@@ -361,6 +350,18 @@ const InstallSummaryPanel = ({
           </ul>
         </section>
       )}
+
+      {/* 지표는 아래로 — 참고용 현황이지 첫 시선이 갈 자리가 아니다. 판은 위 카드 하나뿐. */}
+      <div className="flex items-start gap-8">
+        <RollupStat label="전체 리소스" value={rollup.total} />
+        <RollupStat label="완료" value={rollup.done} />
+        <RollupStat label="진행중" value={rollup.running} tone={statusColors.info.textDark} />
+        <RollupStat
+          label="실패"
+          value={rollup.failed}
+          {...(rollup.failed > 0 && { tone: statusColors.error.textDark })}
+        />
+      </div>
     </div>
   );
 };
