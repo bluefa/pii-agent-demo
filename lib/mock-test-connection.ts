@@ -312,20 +312,43 @@ const versionForTarget = (targetSourceId: number): number =>
 /** `TestConnectionVersionResult` wire shape (getLatestTestConnectionStatus). */
 export const toVersionResultResponse = (job: TestConnectionJob) => {
   const topStatus: WireConnectionStatus = job.status === 'PENDING' ? 'RUNNING' : job.status;
+  const settled = job.resource_results.map((r, index) => ({
+    agent_id: r.agent_id ?? fallbackAgentId(index),
+    gcp_region: '',
+    resource_id: r.resource_id,
+    connection_status: r.status as WireConnectionStatus,
+    database_uri_list: r.status === 'SUCCESS' ? [`mysql://${r.resource_id}/db`] : [],
+  }));
   return {
     target_source_id: job.target_source_id,
     test_connection_version: versionForTarget(job.target_source_id),
     connection_status: topStatus,
     requested_at: job.requested_at,
     completed_at: job.completed_at ?? WIRE_DATE_PLACEHOLDER,
-    test_connection_agent_results: job.resource_results.map((r, index) => ({
-      agent_id: r.agent_id ?? fallbackAgentId(index),
-      gcp_region: '',
-      resource_id: r.resource_id,
-      connection_status: r.status,
-      database_uri_list: r.status === 'SUCCESS' ? [`mysql://${r.resource_id}/db`] : [],
-    })),
+    test_connection_agent_results: [...settled, ...unsettledAgentResults(job, settled.length)],
   };
+};
+
+/**
+ * 아직 결과가 없는 agent 들. 예전에는 이 응답이 끝난 agent 만 실어서, 진행 중인 실행에서
+ * 30건 중 10건만 존재하는 것처럼 보였다 — 계약의 PENDING/RUNNING 이 한 번도 나오지 않아
+ * 화면이 "대기"와 "정보 없음"을 구분할 수 없었다.
+ *
+ * 시뮬레이션이 리소스를 한 건씩 차례로 처리하므로, 다음 차례 하나가 RUNNING 이고 그
+ * 뒤는 전부 PENDING 이다.
+ */
+const unsettledAgentResults = (job: TestConnectionJob, settledCount: number) => {
+  const schedule = (job as InternalTestConnectionJob).resource_schedule ?? [];
+  const done = new Set(job.resource_results.map((r) => r.resource_id));
+  return schedule
+    .filter((item) => !done.has(item.resource_id))
+    .map((item, offset) => ({
+      agent_id: fallbackAgentId(settledCount + offset),
+      gcp_region: '',
+      resource_id: item.resource_id,
+      connection_status: (offset === 0 ? 'RUNNING' : 'PENDING') as WireConnectionStatus,
+      database_uri_list: [] as string[],
+    }));
 };
 
 /**

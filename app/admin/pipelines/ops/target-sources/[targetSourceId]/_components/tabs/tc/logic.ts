@@ -15,7 +15,7 @@ import type { SecretKey } from '@/lib/types';
  * 유일한 per-resource 연결 상태다. `latest-results` 의 `connection_status` 는 계약에
  * 없는 passthrough 필드라 여기서 쓰지 않는다.
  */
-export type TcVerdict = 'SUCCESS' | 'FAIL' | 'RUNNING' | 'UNKNOWN';
+export type TcVerdict = 'SUCCESS' | 'FAIL' | 'RUNNING' | 'PENDING' | 'UNKNOWN';
 
 /**
  * agent 결과를 리소스 단위로 접는다. 한 리소스에 agent 가 여럿일 수 있어 규칙이 필요한데,
@@ -24,6 +24,10 @@ export type TcVerdict = 'SUCCESS' | 'FAIL' | 'RUNNING' | 'UNKNOWN';
  *   아니고 PENDING/RUNNING → RUNNING (아직 판정 전)
  *   아니고 알 수 없는 값    → UNKNOWN (임의로 성공 처리하지 않는다)
  *   전부 SUCCESS           → SUCCESS
+ *
+ * PENDING 은 여기서 나오지 않는다. 대기와 실행이 섞인 리소스를 "대기"라고 부를 수 없어
+ * 둘 다 진행 중으로 접는다 — PENDING/RUNNING 의 구분은 agent 한 건을 볼 때만 성립한다
+ * (`runAgentRows`).
  */
 export function verdictByResource(
   latest: TestConnectionVersionResult | null,
@@ -66,6 +70,10 @@ export interface TcAgentRow {
  * agent 결과를 화면 순서대로 편다. `verdictByResource` 가 접기 전의 원재료 —
  * 한 리소스를 여러 agent 가 나눠 맡을 수 있어서, 어느 agent 가 어디서 걸렸는지는
  * 접힌 판정으로는 알 수 없다.
+ *
+ * 여기서는 PENDING(아직 시작 안 함)과 RUNNING(붙는 중)을 계약이 나눈 그대로 둔다.
+ * 30건짜리 실행에서 "10건이 아직 시작도 안 했다"와 "10건이 붙는 중이다"는 운영자에게
+ * 다른 사실이다.
  */
 export function runAgentRows(latest: TestConnectionVersionResult | null): TcAgentRow[] {
   return (latest?.test_connection_agent_results ?? [])
@@ -78,10 +86,48 @@ export function runAgentRows(latest: TestConnectionVersionResult | null): TcAgen
         verdict:
           status === 'SUCCESS' ? 'SUCCESS'
             : status === 'FAIL' ? 'FAIL'
-              : status === 'PENDING' || status === 'RUNNING' ? 'RUNNING'
-                : 'UNKNOWN',
+              : status === 'RUNNING' ? 'RUNNING'
+                : status === 'PENDING' ? 'PENDING'
+                  : 'UNKNOWN',
       };
     });
+}
+
+/** 조치가 필요한 순서 — 실패가 맨 위, 이미 끝난 성공이 맨 아래. */
+export const AGENT_VERDICT_ORDER: readonly TcVerdict[] = [
+  'FAIL',
+  'RUNNING',
+  'PENDING',
+  'UNKNOWN',
+  'SUCCESS',
+];
+
+/**
+ * 판정 순으로 세운다. wire 순서에는 의미가 없고, 30건 목록에서 실패가 27번째 줄에
+ * 있으면 목록이 없는 것과 같다. 같은 판정 안에서는 받은 순서를 지킨다(안정 정렬).
+ */
+export function sortAgentRows(rows: readonly TcAgentRow[]): TcAgentRow[] {
+  const rank = new Map(AGENT_VERDICT_ORDER.map((verdict, index) => [verdict, index]));
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort(
+      (a, b) =>
+        (rank.get(a.row.verdict) ?? 0) - (rank.get(b.row.verdict) ?? 0) || a.index - b.index,
+    )
+    .map((entry) => entry.row);
+}
+
+/** 판정별 건수 — 필터 칩이 "몇 건인지"를 눌러보기 전에 말하게 한다. */
+export function countAgentVerdicts(rows: readonly TcAgentRow[]): Record<TcVerdict, number> {
+  const counts: Record<TcVerdict, number> = {
+    FAIL: 0,
+    RUNNING: 0,
+    PENDING: 0,
+    UNKNOWN: 0,
+    SUCCESS: 0,
+  };
+  for (const row of rows) counts[row.verdict] += 1;
+  return counts;
 }
 
 /**
