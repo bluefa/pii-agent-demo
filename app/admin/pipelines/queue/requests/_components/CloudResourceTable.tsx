@@ -1,18 +1,26 @@
+'use client';
+
 /**
  * CloudResourceTable — P3 비-IDC (AWS 등) 연동 대상 리소스.
  *
- * Column order and cell grammar follow Step 2's approval table (the same request,
- * seen by the service owner): identity (name → id) → attributes (type · region) →
- * decision (verdict → reason). The scan anchor is the human-readable name, so it
- * leads and it is the cell that turns brand on row hover.
+ * Uses the app-side approval table itself — `idcStyles.table` chrome, the shared
+ * ROW_* hover/lift tokens and ReasonChipInline — so the admin and the service owner
+ * read one request through one design. Column order is Step 2's: identity (name →
+ * id) → attributes (type · region) → decision (verdict → reason).
  *
- * Database Type carries no chip: it is a repeating attribute, not a status, and one
- * badge per row (the verdict) is enough — a second pill competes with it.
+ * Database Type carries no chip: it is a repeating attribute, not a status.
  */
 import type { ReactElement } from 'react';
-import { cn } from '@/lib/theme';
-import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
+import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
+import {
+  CELL_LIFT,
+  ROW_BASE,
+  ROW_EXCLUDED,
+  ROW_TARGET,
+  clampReason,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { ResIdCell } from '@/app/admin/pipelines/queue/requests/_components/ResIdCell';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
@@ -22,108 +30,88 @@ export interface CloudResourceTableProps {
   wrapClassName?: string;
 }
 
+/** Excluded rows REST one tier dimmer; the hover lift restores full contrast. */
+const DIM = 'text-[#6B7280]';
+
 export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTableProps): ReactElement {
-  const { appTable, resTable } = tqStyles;
+  const { table } = idcStyles;
   return (
-    <div className={cn(resTable.wrap, wrapClassName)}>
-      <table className={resTable.root}>
-        <thead className={resTable.thead}>
+    <div className={cn(table.frame, wrapClassName)}>
+      <table className="w-full">
+        <thead className={table.header}>
           <tr>
             {/* Resource ID's text caps at 300px (resId.text), so its column was sitting
                 on ~150px it could not use. Spent here: names differ in their TAIL
                 (…-cluster-001 / -002), which is exactly what truncation eats first. */}
-            <th className={`${resTable.th} w-[340px]`}>Resource Name</th>
-            <th className={resTable.th}>Resource ID</th>
-            <th className={`${resTable.th} w-[120px] whitespace-nowrap`}>Database Type</th>
-            <th className={`${resTable.th} w-[130px]`}>Region</th>
-            <th className={`${resTable.th} w-[110px]`}>연동 대상</th>
-            {/* Reasons are sentences ("스테이징 전용 인스턴스로 …"). 220px wrapped every
-                one of them to three lines and left row heights ragged. */}
-            <th className={`${resTable.th} w-[300px]`}>제외 사유</th>
+            <th className={cn(table.headerCell, 'w-[360px]')}>Resource Name</th>
+            <th className={table.headerCell}>Resource ID</th>
+            <th className={cn(table.headerCell, 'w-[120px] whitespace-nowrap')}>Database Type</th>
+            <th className={cn(table.headerCell, 'w-[130px]')}>Region</th>
+            <th className={cn(table.headerCell, 'w-[110px]')}>연동 대상</th>
+            <th className={cn(table.headerCell, 'w-[220px]')}>제외 사유</th>
           </tr>
         </thead>
-        <tbody className={resTable.body}>
+        <tbody className={table.body}>
           {rows.map((row, index) => {
             const excluded = !row.selected;
             // Resting tier is per cell, not per row: a row-level override would win over
             // the cells' own hover lifts and freeze excluded rows at the dim tier.
-            const restTone = excluded ? appTable.cellDim : undefined;
+            const tone = excluded ? DIM : textColors.secondary;
             return (
               <tr
                 key={row.resourceId ?? index}
-                className={excluded ? appTable.rowExcluded : appTable.rowApproval}
+                className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
               >
                 <td
                   className={cn(
-                    resTable.td,
-                    appTable.tdMonoBare,
-                    restTone ?? 'text-[var(--pl-text-strong)]',
-                    appTable.cellLiftName,
+                    table.cell,
+                    'font-mono text-[13px]',
+                    excluded ? DIM : textColors.primary,
+                    // The row's anchor lifts to brand, marking which cell identifies it.
+                    primaryColors.textGroupHover,
                   )}
                 >
                   {/* One line, always. Wrapping turned the row's anchor column into a
                       2–3 line block and left row heights ragged; the full name is in
                       the title tip. */}
-                  <span className="block max-w-[340px] truncate" title={row.resourceName ?? undefined}>
+                  <span className="block max-w-[360px] truncate" title={row.resourceName ?? undefined}>
                     {row.resourceName}
                   </span>
                 </td>
-                <td className={resTable.td}>
+                <td className={table.cell}>
                   {row.resourceId && (
-                    <ResIdCell
-                      value={row.resourceId}
-                      textClassName={cn(
-                        restTone ?? 'text-[var(--pl-text-medium)]',
-                        appTable.cellLift,
-                      )}
-                    />
+                    <ResIdCell value={row.resourceId} textClassName={cn(tone, CELL_LIFT)} />
                   )}
                 </td>
-                <td
-                  className={cn(
-                    resTable.td,
-                    'text-[12px]',
-                    restTone ?? 'text-[var(--pl-text-medium)]',
-                    appTable.cellLift,
-                  )}
-                >
+                <td className={cn(table.cell, 'text-[12px]', tone, CELL_LIFT)}>
                   {/* wire 는 소문자 원문(mysql·athena)이라 사용자 화면과 같은 표기로 맞춘다. */}
                   {row.databaseType ? getDatabaseShortLabel(row.databaseType) : ''}
                 </td>
                 <td
                   className={cn(
-                    resTable.td,
-                    appTable.tdMonoBare,
+                    table.cell,
                     // A region is one token — wrapping it to "ap-northeast-" / "2" reads
                     // as two values.
-                    'whitespace-nowrap',
-                    restTone ?? 'text-[var(--pl-text-medium)]',
-                    appTable.cellLift,
+                    'whitespace-nowrap font-mono text-[12px]',
+                    tone,
+                    CELL_LIFT,
                   )}
                 >
                   {row.region}
                 </td>
-                <td
-                  className={cn(
-                    resTable.td,
-                    appTable.targetText,
-                    restTone ?? 'text-[var(--pl-text-medium)]',
-                    appTable.cellLift,
-                  )}
-                >
+                <td className={cn(table.cell, 'whitespace-nowrap text-[12px]', tone, CELL_LIFT)}>
                   {excluded ? '제외' : '대상'}
                 </td>
-                <td
-                  className={cn(
-                    resTable.td,
-                    'text-[12px] font-normal',
-                    excluded ? appTable.cellDim : 'text-[var(--pl-text-faint)]',
-                    excluded && appTable.cellLift,
-                  )}
-                >
+                <td className={table.cell}>
                   {/* A 대상 row has no reason to give — blank, not an em-dash, which
-                      would read as "this should have had one and it is missing". */}
-                  {excluded && row.exclusionReason}
+                      would read as "this should have had one and it is missing". The
+                      chip clamps and the full sentence lives in its floating tip. */}
+                  {excluded && row.exclusionReason && (
+                    <ReasonChipInline
+                      reason={row.exclusionReason}
+                      summary={clampReason(row.exclusionReason)}
+                    />
+                  )}
                 </td>
               </tr>
             );

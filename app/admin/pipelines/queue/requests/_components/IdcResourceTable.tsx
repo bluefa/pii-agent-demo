@@ -1,9 +1,9 @@
 /**
  * IdcResourceTable — P3 IDC 연동 대상 리소스 + NLB 배정 (design-spec §3), rendered
- * with the app-side IDC step-1 table grammar (`resTable` chrome + `idcCells`) so the
- * admin reads the same request the service owner submitted, in the same shape, plus
- * the admin-only NLB Index select (with the assigned NLB's load as a footnote under
- * it) and a per-row 저장 button.
+ * rendered with the app-side IDC step-1 table itself — `idcStyles.table` chrome, the
+ * shared ROW_* hover/lift tokens, ReasonChipInline — so the admin reads the request
+ * the service owner submitted through the same design, plus the admin-only NLB Index
+ * select (with the assigned NLB's load as a footnote under it) and a 저장 button.
  *
  * No 구분 column: IP-vs-Host is already legible from the value itself (an address or
  * a hostname), and a multi-IP endpoint says so by collapsing behind its own toggle.
@@ -17,9 +17,16 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { cn } from '@/lib/theme';
+import { cn, idcStyles, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
+import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
+import {
+  CELL_LIFT,
+  ROW_BASE,
+  ROW_EXCLUDED,
+  ROW_TARGET,
+  clampReason,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { NlbOccupancyNote } from '@/app/admin/pipelines/queue/_components/bits';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import {
@@ -55,6 +62,9 @@ export interface IdcResourceTableProps {
 const SELECT_BASE =
   'h-7 rounded-md border px-2.5 text-[12px] text-[var(--pl-text-strong)] bg-[var(--pl-bg-card)] cursor-pointer focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]';
 
+/** Excluded rows REST one tier dimmer; the hover lift restores full contrast. */
+const DIM = 'text-[#6B7280]';
+
 /** Dropdown label is index-only — occupancy is the note under the select. */
 function optionLabel(index: number): string {
   return `NLB #${index}`;
@@ -71,75 +81,58 @@ export function IdcResourceTable({
   onShowNlbInfo,
   wrapClassName,
 }: IdcResourceTableProps): ReactElement {
-  const { appTable, resTable } = tqStyles;
+  const { table } = idcStyles;
   const occupancyByIndex = new Map(nlbTable.map((n) => [n.nlbIndex, n.occupiedListenerCount]));
 
   return (
-    <div className={cn(resTable.wrap, wrapClassName)}>
-      <table className={resTable.root}>
-        <thead className={resTable.thead}>
+    <div className={cn(table.frame, wrapClassName)}>
+      <table className="w-full">
+        <thead className={table.header}>
           {/* Identity first, then its attributes, then the decision — the same reading
               order as the cloud table and step 1. An IDC row's identity is its host/IP,
               so 연동 대상 leads; Database Type carries the SID underneath. */}
           <tr>
-            <th className={resTable.th}>연동 대상</th>
-            <th className={`${resTable.th} w-[172px]`}>Database Type</th>
-            <th className={`${resTable.th} w-[80px]`}>Port</th>
-            <th className={`${resTable.th} w-[150px]`}>Source IP</th>
+            <th className={table.headerCell}>연동 대상</th>
+            <th className={cn(table.headerCell, 'w-[172px]')}>Database Type</th>
+            <th className={cn(table.headerCell, 'w-[80px]')}>Port</th>
+            <th className={cn(table.headerCell, 'w-[144px]')}>Source IP</th>
             {/* One column, not two: the assigned NLB's load is a footnote on the choice,
                 so it sits under the select instead of claiming its own 210px. */}
-            <th className={`${resTable.th} w-[170px]`}>NLB Index</th>
+            <th className={cn(table.headerCell, 'w-[170px]')}>NLB Index</th>
             {/* The freed column. A row is either assignable or excluded, never both, so
                 the two never collide — and the reason gets the width it needs. */}
-            <th className={`${resTable.th} w-[260px]`}>제외 사유</th>
-            <th className={`${resTable.th} w-[170px]`} />
+            <th className={cn(table.headerCell, 'w-[220px]')}>제외 사유</th>
+            <th className={cn(table.headerCell, 'w-[170px]')} />
           </tr>
         </thead>
-        <tbody className={resTable.body}>
+        <tbody className={table.body}>
           {rows.map((row, index) => {
             const dbLabel = row.databaseType ? getDatabaseShortLabel(row.databaseType) : '';
             if (!row.selected) {
               return (
-                <tr key={row.resourceId ?? index} className={appTable.rowExcluded}>
-                  <td className={cn(resTable.td, appTable.cellDim, appTable.cellLiftName)}>
-                    <IdcEndpointCell hosts={row.connectTargets} tone="" />
+                <tr key={row.resourceId ?? index} className={cn(ROW_BASE, ROW_EXCLUDED)}>
+                  <td className={table.cell}>
+                    <IdcEndpointCell hosts={row.connectTargets} tone={DIM} />
                   </td>
-                  <td className={cn(resTable.td, appTable.cellDim, appTable.cellLift)}>
-                    <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} tone="" />
+                  <td className={table.cell}>
+                    <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} tone={DIM} />
                   </td>
-                  <td
-                    className={cn(
-                      resTable.td,
-                      appTable.tdMonoBare,
-                      appTable.cellDim,
-                      appTable.cellLift,
-                    )}
-                  >
+                  <td className={cn(table.cell, 'font-mono text-[12px]', DIM, CELL_LIFT)}>
                     {row.port}
                   </td>
                   {/* Excluded rows come from ExcludedResourceInfoDto, which carries no
                       source IPs — blank rather than asserting a missing value. */}
-                  <td className={resTable.td} />
-                  <td
-                    className={cn(
-                      resTable.td,
-                      appTable.targetText,
-                      appTable.cellDim,
-                      appTable.cellLift,
-                    )}
-                  >
+                  <td className={table.cell} />
+                  <td className={cn(table.cell, 'whitespace-nowrap text-[12px]', DIM, CELL_LIFT)}>
                     제외
                   </td>
-                  <td
-                    className={cn(
-                      resTable.td,
-                      'text-[12px] font-normal',
-                      appTable.cellDim,
-                      appTable.cellLift,
+                  <td className={table.cell} colSpan={2}>
+                    {row.exclusionReason && (
+                      <ReasonChipInline
+                        reason={row.exclusionReason}
+                        summary={clampReason(row.exclusionReason)}
+                      />
                     )}
-                    colSpan={2}
-                  >
-                    {row.exclusionReason}
                   </td>
                 </tr>
               );
@@ -152,33 +145,27 @@ export function IdcResourceTable({
             const canSave = row.resourceId != null && !disabled;
 
             return (
-              <tr key={row.resourceId ?? index} className={appTable.rowApproval}>
-                <td
-                  className={cn(resTable.td, 'text-[var(--pl-text-strong)]', appTable.cellLiftName)}
-                >
-                  <IdcEndpointCell hosts={row.connectTargets} tone="" />
+              <tr key={row.resourceId ?? index} className={cn(ROW_BASE, ROW_TARGET)}>
+                <td className={table.cell}>
+                  <IdcEndpointCell hosts={row.connectTargets} />
                 </td>
-                <td
-                  className={cn(resTable.td, 'text-[var(--pl-text-medium)]', appTable.cellLift)}
-                >
-                  <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} tone="" />
+                <td className={table.cell}>
+                  <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} />
                 </td>
                 <td
                   className={cn(
-                    resTable.td,
-                    appTable.tdMonoBare,
-                    'text-[var(--pl-text-medium)]',
-                    appTable.cellLift,
+                    table.cell,
+                    'font-mono text-[12px]',
+                    textColors.secondary,
+                    CELL_LIFT,
                   )}
                 >
                   {row.port}
                 </td>
-                <td
-                  className={cn(resTable.td, 'text-[var(--pl-text-medium)]', appTable.cellLift)}
-                >
-                  <IdcSourceIpCell sourceIps={row.sourceIps} tone="" />
+                <td className={table.cell}>
+                  <IdcSourceIpCell sourceIps={row.sourceIps} />
                 </td>
-                <td className={resTable.td}>
+                <td className={table.cell}>
                   <span className="flex flex-col items-start gap-1">
                     <select
                       className={cn(
@@ -207,8 +194,8 @@ export function IdcResourceTable({
                   </span>
                 </td>
                 {/* 제외 사유 — a target row has none, so the cell stays empty. */}
-                <td className={resTable.td} />
-                <td className={resTable.td}>
+                <td className={table.cell} />
+                <td className={table.cell}>
                   <span className="inline-flex items-center justify-end gap-1.5 w-full">
                     <PlButton variant="ghost" size="sm" onClick={() => onShowNlbInfo(row)}>
                       NLB 정보

@@ -12,7 +12,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 
 const { text } = pipelineStyles;
 
-// Colorless cell bases — see `appTable.tdBare` for why the color is split out.
+// Cell bases, split from their color so  can take the caller's tone.
 const APP_TD_BASE = 'px-4 py-[13px] align-middle tabular-nums border-t border-[var(--pl-gray-100)]';
 const APP_TD_MONO_BASE = 'text-[12px] [font-family:var(--pl-font-mono)]';
 const RES_ID_TEXT_BASE =
@@ -101,80 +101,17 @@ export const tqStyles = {
     body: '[&>tr:first-child>td]:border-t-0',
     td: `${APP_TD_BASE} text-[var(--pl-text-medium)]`,
     tdMono: `${APP_TD_MONO_BASE} text-[var(--pl-text-strong)]`,
-    /** Colorless cell bases — the P3 approval tables pick a resting tier AND a hover
-     *  lift per cell, and `cn` is a plain join with no cascade authority, so a base
-     *  color would collide with both. Every other table keeps `td` / `tdMono`. */
-    tdBare: APP_TD_BASE,
-    tdMonoBare: APP_TD_MONO_BASE,
     row: 'transition-colors hover:bg-[var(--pl-bg-inner)]',
-    /** Step-2 approval-table row grammar (P3 리소스 테이블). `group` is what lets each
-     *  cell declare its own hover lift — `cn` is a plain join with no cascade authority,
-     *  so a row-level color would lose to the cell's own resting color. `focus-within`
-     *  mirrors hover: these rows carry copy buttons and selects, so a keyboard user gets
-     *  the same row highlight a mouse user gets. */
-    rowApproval:
-      'group transition-colors duration-150 motion-reduce:transition-none hover:bg-[var(--pl-row-hover)] focus-within:bg-[var(--pl-row-hover)]',
-    rowExcluded:
-      'group bg-[var(--pl-gray-50)] transition-colors duration-150 motion-reduce:transition-none hover:bg-[var(--pl-row-hover-excluded)] focus-within:bg-[var(--pl-row-hover-excluded)]',
-    /** Secondary cells lift to full strength on row hover — a background alone marks
-     *  position, it does not make the row easier to READ. */
-    cellLift: 'group-hover:text-[var(--pl-text-strong)] group-focus-within:text-[var(--pl-text-strong)]',
-    /** The row's anchor (Resource Name / IDC 연동 대상) lifts to brand instead, marking
-     *  which cell identifies the row. One axis per column — color, never weight too. */
-    cellLiftName:
-      'group-hover:text-[var(--pl-primary-hover)] group-focus-within:text-[var(--pl-primary-hover)]',
-    /** Excluded rows REST one tier dimmer — the 1.05:1 background tint carries nothing on
-     *  its own. The lifts above restore full contrast the moment the row is engaged. */
-    cellDim: 'text-[var(--pl-text-weak)]',
-    /**
-     * 연동 대상 여부 — plain 12px text on the row's own tone, the same as every other
-     * value cell. It was bold 14px "연동 대상 제외" in its own color, which on an
-     * already-dimmed row was the loudest thing in it: the row is excluded, not
-     * alarming. The column header supplies 연동 대상, so the cell only names the side.
-     */
-    targetText: 'text-[12px] whitespace-nowrap',
     /** Resource-id cell w/ copy (`.res-id-cell`) — non-IDC tables (P3/P5). */
     resId: {
       cell: 'inline-flex items-center gap-1.5 max-w-full',
       text: `${RES_ID_TEXT_BASE} text-[var(--pl-text-strong)]`,
-      /** Colorless — the caller supplies the tone (see `tdBare`). */
+      /** Colorless — the caller supplies the tone and the row's hover lift. */
       textBare: RES_ID_TEXT_BASE,
       copy: 'inline-grid place-items-center w-[22px] h-[22px] flex-none rounded-[5px] border-0 bg-transparent text-[var(--pl-text-faint)] cursor-pointer hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]',
     },
     /** 논리 DB drill-down link (`.ldb-link`) — P5. */
     ldbLink: 'font-semibold text-[var(--pl-primary)] cursor-pointer hover:underline',
-  },
-
-  /** IDC endpoint / Oracle SID cell grammar, ported from the app-side IDC step 1
-   *  (`idcStyles` HostCell / IdcDbTypeCell) onto admin tokens. A host is the row's
-   *  identity, so it gets the mono 12.5 treatment; the SID rides under Database Type
-   *  rather than claiming a column of its own — only Oracle rows have one, so as a
-   *  column it was an em-dash on four rows out of five. */
-  idcCell: {
-    host: 'block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] [font-family:var(--pl-font-mono)]',
-    /** "IP n개 더보기 ▾" — collapses a multi-IP endpoint to its first address. */
-    epToggle: 'text-[11.5px] font-semibold text-[var(--pl-primary)] hover:underline',
-    sidKey: 'text-[10px] font-bold tracking-[0.02em] text-[var(--pl-text-faint)]',
-    sidValue:
-      'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] [font-family:var(--pl-font-mono)]',
-  },
-
-  /**
-   * P3 연동 대상 리소스 table chrome — the app-side IDC step-1 `.db-table` outline
-   * ported to admin tokens (r12 framed card + shadow, 13/700 header on gray-50, 14px
-   * cell rhythm, hairline dividers instead of per-cell top borders). Separate from
-   * `appTable`, whose 12/600 header and 13px rhythm the NLB/TC modals still use — the
-   * admin and the service owner should read the SAME request through the same table,
-   * and those modals are a different object.
-   */
-  resTable: {
-    wrap: 'overflow-hidden rounded-xl border border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]',
-    root: 'w-full',
-    thead: 'bg-[var(--pl-gray-50)] text-left text-[13px] font-bold text-[var(--pl-text-medium)]',
-    th: 'px-4 py-3.5',
-    body: 'divide-y divide-[var(--pl-gray-200)]',
-    /** Colorless — every cell picks its own resting tier and hover lift. */
-    td: 'px-4 py-3.5 align-middle tabular-nums',
   },
 
   /** App-modal anatomy (`.modal.app` header/body/footer) — layered on ModalShell
