@@ -2,12 +2,13 @@
 
 import { memo } from 'react';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
+import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
-import { idcStyles, primaryColors, textColors, cn } from '@/lib/theme';
+import { idcStyles, primaryColors, statusColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -127,8 +128,19 @@ const TargetPill = ({
   ineligible: boolean;
 }) => {
   if (ineligible) {
+    // Step 1's grammar for the same fact: warning-dark + ⚠, not a pill. A pill would put
+    // it in the same visual class as 대상/제외 — two revisable verdicts — when this one is
+    // the scan telling you the resource cannot be reached at all. No underline and no
+    // button here: step 1 links to the guidance modal because that is where you act, and
+    // by this step there is nothing left to act on.
     return (
-      <span className={cn(idcStyles.targetPill.base, idcStyles.targetPill.no.box)}>
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold',
+          statusColors.warning.textDark,
+        )}
+      >
+        <StatusWarningIcon className="h-3.5 w-3.5" />
         연동 불가
       </span>
     );
