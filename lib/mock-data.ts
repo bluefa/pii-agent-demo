@@ -467,6 +467,67 @@ export const mockProjects: Project[] = [
     updatedAt: '2026-03-02T10:00:00Z',
     isRejected: false,
   })),
+  // The same shape on GCP, where both of the CSP's `recommend_fail_reason` values appear in
+  // one table. They share their first 18 characters, so the reason column's clamp renders
+  // them identically — the two rows below are the case that makes that visible.
+  ...([
+    [1015, ProcessStatus.WAITING_APPROVAL, 'GCP-004', 'GCP PII Agent - 승인 대기 (연동 불가 포함)'],
+    [1016, ProcessStatus.APPLYING_APPROVED, 'GCP-005', 'GCP PII Agent - 반영 중 (연동 불가 포함)'],
+  ] as const).map(([targetSourceId, processStatus, projectCode, name]): Project => ({
+    id: `gcp-proj-${targetSourceId}`,
+    targetSourceId,
+    projectCode,
+    name,
+    description: '연동 대상 2건, 사용자 제외 1건, 연동 불가 2건 (공인 IP / 내부 LB 서브넷)',
+    serviceCode: 'gcp',
+    cloudProvider: 'GCP',
+    gcpProjectId: 'pii-agent-prod-12345',
+    processStatus,
+    status: createStatusForProcessStatus(processStatus, { selectedCount: 2, excludedCount: 3 }),
+    resources: [
+      {
+        id: `gcp-inel-${targetSourceId}-1`, type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-020',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: true,
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: `gcp-inel-${targetSourceId}-2`, type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-021',
+        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: true,
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: `gcp-inel-${targetSourceId}-3`, type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-stg-022',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'TARGET',
+        exclusion: {
+          reason: '스테이징 DB라 연동 대상에서 제외합니다.',
+          excludedBy: { id: 'admin-1', name: '관리자' },
+          excludedAt: '2026-03-01T09:00:00Z',
+        },
+      },
+      {
+        id: `gcp-inel-${targetSourceId}-4`, type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-pubip-023',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'INSTALL_INELIGIBLE',
+        recommendFailReason: 'GCP_CLOUD_SQL_HAS_PUBLIC_IP',
+      },
+      {
+        id: `gcp-inel-${targetSourceId}-5`, type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-ilb-024',
+        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'INSTALL_INELIGIBLE',
+        recommendFailReason: 'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
+      },
+    ],
+    terraformState: { bdcTf: 'PENDING' },
+    createdAt: '2026-03-01T09:00:00Z',
+    updatedAt: '2026-03-02T10:00:00Z',
+    isRejected: false,
+  })),
   // ===== AWS 프로젝트 =====
   {
     id: 'proj-1',
