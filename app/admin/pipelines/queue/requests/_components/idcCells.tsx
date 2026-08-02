@@ -68,7 +68,7 @@ export function IdcEndpointCell({
 }): ReactElement {
   const [expanded, setExpanded] = useState(false);
 
-  if (hosts.length === 0) return <span className={appTable.cellDim}>—</span>;
+  if (hosts.length === 0) return <span />;
   if (hosts.length === 1) {
     return <MonoValue value={hosts[0]} label="연동 대상" tone={tone} maxWidthClass="max-w-[280px]" />;
   }

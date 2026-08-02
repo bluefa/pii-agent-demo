@@ -65,11 +65,11 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                       2–3 line block and left row heights ragged; the full name is in
                       the title tip. */}
                   <span className="block max-w-[340px] truncate" title={row.resourceName ?? undefined}>
-                    {row.resourceName ?? '—'}
+                    {row.resourceName}
                   </span>
                 </td>
                 <td className={resTable.td}>
-                  {row.resourceId ? (
+                  {row.resourceId && (
                     <ResIdCell
                       value={row.resourceId}
                       textClassName={cn(
@@ -77,8 +77,6 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                         appTable.cellLift,
                       )}
                     />
-                  ) : (
-                    <span className={cn(appTable.tdMonoBare, appTable.cellDim)}>—</span>
                   )}
                 </td>
                 <td
@@ -90,7 +88,7 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                   )}
                 >
                   {/* wire 는 소문자 원문(mysql·athena)이라 사용자 화면과 같은 표기로 맞춘다. */}
-                  {row.databaseType ? getDatabaseShortLabel(row.databaseType) : '—'}
+                  {row.databaseType ? getDatabaseShortLabel(row.databaseType) : ''}
                 </td>
                 <td
                   className={cn(
@@ -103,7 +101,7 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                     appTable.cellLift,
                   )}
                 >
-                  {row.region ?? '—'}
+                  {row.region}
                 </td>
                 <td
                   className={cn(
@@ -123,7 +121,9 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                     excluded && appTable.cellLift,
                   )}
                 >
-                  {excluded ? row.exclusionReason ?? '—' : '—'}
+                  {/* A 대상 row has no reason to give — blank, not an em-dash, which
+                      would read as "this should have had one and it is missing". */}
+                  {excluded && row.exclusionReason}
                 </td>
               </tr>
             );
