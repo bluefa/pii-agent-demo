@@ -389,6 +389,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
+        recommendFailReason: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
       },
       {
         id: 'azure-res-vnet-2',
@@ -399,6 +400,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
+        recommendFailReason: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
       },
     ],
     terraformState: {
