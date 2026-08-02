@@ -13,11 +13,8 @@ export interface ModalProps {
    * caller supplies its own title block in `children`; `title` may be omitted.
    */
   title?: string;
-  /**
-   * 모달 부제목 (선택). ReactNode — 보조 텍스트가 여러 문장이거나 그 안에서 한 조각만
-   * 강조해야 할 때 인라인 마크업을 넣는다. `<p>` 안에 놓이므로 블록 요소는 쓸 수 없다.
-   */
-  subtitle?: ReactNode;
+  /** 모달 부제목 (선택) */
+  subtitle?: string;
   /** 헤더 아이콘 (선택) */
   icon?: ReactNode;
   /** 모달 크기 */

@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal } from '@/app/components/ui/Modal';
-import { cn, textColors, textStyles } from '@/lib/theme';
+import { cn, stackGap, textColors, textStyles } from '@/lib/theme';
 import { AZURE_GUIDE_URLS, AZURE_NETWORKING_MODE_LABELS } from '@/lib/constants/azure';
 import { GCP_GUIDE_URLS } from '@/lib/constants/gcp';
 import type { RecommendFailReason } from '@/lib/types';
@@ -52,9 +52,14 @@ const UNKNOWN_GUIDE: Guide = {
   cause: '네트워크 구성 제약으로 Agent를 설치할 수 없는 리소스예요.',
 };
 
+/** 묶음 이름 — 값보다 한 단계 작고 조용해서, 읽는 순서를 방해하지 않고 구조만 그린다. */
+const GroupLabel = ({ children }: { children: string }) => (
+  <span className={cn(textStyles.captionStrong, textColors.tertiary)}>{children}</span>
+);
+
 /**
- * 읽기 전용 안내 — 제목 + 보조 텍스트 한 덩어리가 전부다. 카드도, 푸터도, ✕도 없고
- * 배경 클릭 / ESC 로 닫는다. 계층은 여백이 아니라 타입 램프가 만든다(아래 주석 참고).
+ * 읽기 전용 안내 — 제목 아래로 원인 / 조치 방법 / 공식 문서 / 문의 네 묶음.
+ * 카드도, 푸터도, ✕도 없다.
  */
 export const InstallIneligibleGuideModal = ({
   isOpen,
@@ -71,39 +76,48 @@ export const InstallIneligibleGuideModal = ({
       size="lg"
       closeButton={false}
       title="설치 불가 사유"
-      subtitle={
-        // 한 덩어리 안에서 계층은 크기·굵기·명도로 준다(간격만으로는 다섯 줄이 평평하다).
-        //   26px 제목 → 16px 굵은 원인 → 14px 회색 배경 → 14px 진한 조치 → 문의.
-        // 배경이 조치보다 옅은 건 순서가 아니라 무게 때문 — 읽을 것은 조치다.
-        <>
-          <span className={cn('block', textStyles.cardTitle, textColors.primary)}>{guide.cause}</span>
-          {guide.detail && <span className="mt-3 block">{guide.detail}</span>}
-          {guide.remedy && (
-            <span className={cn('mt-2 block', textColors.secondary)}>{guide.remedy}</span>
-          )}
-          {guide.doc && (
+    >
+      {/* 사용자가 던지는 질문 순서대로 네 묶음 — 왜 안 되는지 / 뭘 해야 하는지 /
+          어디서 확인하는지 / 누구에게 묻는지. 라벨↔본문은 한 쌍이라 4px, 묶음 사이는
+          16px. 계층을 글자 크기로만 주면 14px 문장들이 평평해져 보이지 않는다.
+          푸터도 ✕도 없다 — 배경 클릭 / ESC 로 닫는다. */}
+      <div className={cn('flex flex-col pb-7', stackGap.group, textStyles.body, textColors.secondary)}>
+        <section className={cn('flex flex-col', stackGap.tight)}>
+          <GroupLabel>원인</GroupLabel>
+          <p className={cn(textStyles.bodyStrong, textColors.primary)}>{guide.cause}</p>
+          {guide.detail && <p>{guide.detail}</p>}
+        </section>
+
+        {guide.remedy && (
+          <section className={cn('flex flex-col', stackGap.tight)}>
+            <GroupLabel>조치 방법</GroupLabel>
+            <p>{guide.remedy}</p>
+          </section>
+        )}
+
+        {guide.doc && (
+          <section className={cn('flex flex-col', stackGap.tight)}>
+            <GroupLabel>공식 문서</GroupLabel>
             <a
               href={guide.doc.href}
               target="_blank"
               rel="noopener noreferrer"
-              /* 밑줄만으로 링크임을 말한다 — 굵기까지 주면 강조가 하나 더 는다. */
-              className={cn('mt-2 inline-block underline underline-offset-2', textColors.secondary)}
+              className="self-start underline underline-offset-2"
             >
               {guide.doc.label}
             </a>
-          )}
-          {/* 문의는 사유·조치와 다른 이야기라 형제 간격(8px)이 아니라 그룹 간격(16px). */}
-          <span className="mt-4 block">
+          </section>
+        )}
+
+        <section className={cn('flex flex-col', stackGap.tight)}>
+          <GroupLabel>문의</GroupLabel>
+          <p>
             추가적인 문의사항이 있으면{' '}
             <strong className={cn('font-semibold', textColors.primary)}>협업 채널</strong>
             에 문의해주세요.
-          </span>
-        </>
-      }
-    >
-      {/* 푸터도 ✕도 없다. 빈 본문의 pt-7+pb-2 = 36px 가 아래 여백이 되어 헤더의 pt-9 와
-          맞는다. 닫기는 배경 클릭 / ESC. */}
-      <div />
+          </p>
+        </section>
+      </div>
     </Modal>
   );
 };
