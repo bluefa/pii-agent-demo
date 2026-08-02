@@ -5,10 +5,15 @@
  * service owner submitted through the same design, plus the admin-only NLB column
  * (select carrying each index's load, its detail affordance, and its 저장).
  *
- * No 구분 column: IP-vs-Host is already legible from the value itself (an address or
- * a hostname), and a multi-IP endpoint says so by collapsing behind its own toggle.
- * No Oracle SID column either — it rides under Database Type, since only Oracle rows
- * carry one.
+ * Four columns, because the other three said nothing a fourth did not already say:
+ *   - 구분 — IP-vs-Host is legible from the value itself (an address or a hostname).
+ *   - Oracle SID — rides under Database Type; only Oracle rows carry one.
+ *   - Port — rides with the host as `host:port`; a target IS an endpoint.
+ *   - 요청 대상 여부 — the tiles above are the filter, the row is dimmed, and the
+ *     reason is right there; a fourth restatement only cost width (sr-only keeps it
+ *     on the non-visual channel).
+ * NLB 배정 and 제외 사유 share one column: a row is one or the other, never both, so
+ * two columns meant every row rendering one of them empty.
  *
  * resource_id is NEVER rendered — the row identity is 연동 대상 (IP/Host) + Port +
  * DB type + SID. Presentational: draft/save state is owned by the page; a select
@@ -17,11 +22,10 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { cn, idcStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import {
-  CELL_LIFT,
   CONNECTED_FRAME,
   DIM_TEXT,
   ROW_BASE,
@@ -106,20 +110,13 @@ export function IdcResourceTable({
               so 연동 대상 leads; Database Type carries the SID underneath. */}
           <tr>
             <th className={table.approvalHeaderCell}>연동 대상</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[172px]')}>Database Type</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[80px]')}>Port</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[144px]')}>Source IP</th>
-            {/* The verdict gets a header of its own. It used to ride in the NLB Index
-                cell, which made a screen reader announce "NLB Index: 제외". */}
-            <th className={cn(table.approvalHeaderCell, 'w-[110px] whitespace-nowrap')}>요청 대상 여부</th>
-            {/* One column carries the whole NLB decision: the choice, its detail link and
-                its save. The trailing unnamed 170px action column that used to hold 정보 /
-                저장 is gone — it repeated one identical ghost button down every row, and
-                저장 appearing there shifted the layout of a row mid-edit. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[280px]')}>NLB Index</th>
-            {/* A row is either assignable or excluded, never both, so the NLB cell and the
-                verdict never collide — and the reason gets a column of its own. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[220px]')}>제외 사유</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[190px]')}>Database Type</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[160px]')}>Source IP</th>
+            {/* A row is either assignable or excluded, never both — so one column holds
+                whichever applies: the NLB choice (+ detail, + save) or the reason it was
+                left out. Two mutually exclusive columns meant every row rendered one of
+                them empty. */}
+            <th className={cn(table.approvalHeaderCell, 'w-[300px]')}>NLB 배정 / 제외 사유</th>
           </tr>
         </thead>
         <tbody className={table.body}>
@@ -132,21 +129,17 @@ export function IdcResourceTable({
               return (
                 <tr key={rowKey} className={cn(ROW_BASE, ROW_EXCLUDED)}>
                   <td className={table.approvalCell}>
-                    <IdcEndpointCell hosts={row.connectTargets} tone={DIM_TEXT} />
+                    {/* The 요청 대상 여부 column is gone — the dim row and the reason say it
+                        visually. Restated here for assistive tech, at the row's identity so
+                        it is heard before the values it qualifies. */}
+                    <span className="sr-only">제외 대상</span>
+                    <IdcEndpointCell hosts={row.connectTargets} port={row.port} tone={DIM_TEXT} />
                   </td>
                   <td className={table.approvalCell}>
                     <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} tone={DIM_TEXT} />
                   </td>
-                  <td className={cn(table.approvalCell, 'font-mono text-[12px]', DIM_TEXT, CELL_LIFT)}>
-                    {row.port}
-                  </td>
                   {/* Excluded rows come from ExcludedResourceInfoDto, which carries no
                       source IPs — blank rather than asserting a missing value. */}
-                  <td className={table.approvalCell} />
-                  <td className={cn(table.approvalCell, 'whitespace-nowrap text-[12px]', DIM_TEXT, CELL_LIFT)}>
-                    제외
-                  </td>
-                  {/* An excluded row is never assignable, so its NLB cell stays empty. */}
                   <td className={table.approvalCell} />
                   <td className={table.approvalCell}>
                     {row.exclusionReason && (
@@ -168,33 +161,13 @@ export function IdcResourceTable({
             return (
               <tr key={rowKey} className={cn(ROW_BASE, ROW_TARGET)}>
                 <td className={table.approvalCell}>
-                  <IdcEndpointCell hosts={row.connectTargets} />
+                  <IdcEndpointCell hosts={row.connectTargets} port={row.port} />
                 </td>
                 <td className={table.approvalCell}>
                   <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} />
                 </td>
-                <td
-                  className={cn(
-                    table.approvalCell,
-                    'font-mono text-[12px]',
-                    textColors.secondary,
-                    CELL_LIFT,
-                  )}
-                >
-                  {row.port}
-                </td>
                 <td className={table.approvalCell}>
                   <IdcSourceIpCell sourceIps={row.sourceIps} />
-                </td>
-                <td
-                  className={cn(
-                    table.approvalCell,
-                    'whitespace-nowrap text-[12px]',
-                    textColors.secondary,
-                    CELL_LIFT,
-                  )}
-                >
-                  대상
                 </td>
                 <td className={table.approvalCell}>
                   <span className="flex items-center gap-1.5">
@@ -248,8 +221,6 @@ export function IdcResourceTable({
                     </span>
                   </span>
                 </td>
-                {/* 제외 사유 — a target row has none, so the cell stays empty. */}
-                <td className={table.approvalCell} />
               </tr>
             );
           })}

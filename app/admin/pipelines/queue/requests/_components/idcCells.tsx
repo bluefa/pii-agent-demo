@@ -10,7 +10,7 @@
  * a step-1 form model with a dozen fields (persisted, connection, firewallOpen …)
  * that a queue row does not have and must not fabricate.
  */
-import { useState, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, textColors } from '@/lib/theme';
@@ -61,33 +61,38 @@ function HostCell({
   );
 }
 
-/** 연동 대상 — host(s) only, no port. Multiple IPs collapse behind a toggle. */
+/**
+ * 연동 대상 — one endpoint per line, `host:port`, every address always visible.
+ *
+ * The port used to be a column of its own and the extra IPs sat behind a "n개 더보기"
+ * toggle. Both were undone by the same fact: a target is an endpoint, so an admin
+ * reading "which addresses am I about to open" needs all of them at once, and needs
+ * each one paired with the port it answers on. Row height grows with the address
+ * count — that is the honest shape of a multi-IP target.
+ */
 export function IdcEndpointCell({
   hosts,
+  port,
   tone,
 }: {
   hosts: readonly string[];
+  port: number | null;
   tone?: string;
 }): ReactElement | null {
-  const [expanded, setExpanded] = useState(false);
-
   if (hosts.length === 0) return null;
-  if (hosts.length === 1) {
-    return <HostCell value={hosts[0]} label="연동 대상" tone={tone} maxWidthClass="max-w-[280px]" />;
-  }
+  const endpoint = (host: string): string => (port == null ? host : `${host}:${port}`);
 
   return (
     <span className="flex flex-col items-start gap-0.5">
-      <HostCell value={hosts[0]} label="연동 대상" tone={tone} maxWidthClass="max-w-[280px]" />
-      {expanded &&
-        hosts
-          .slice(1)
-          .map((host) => (
-            <HostCell key={host} value={host} label="연동 대상" tone={tone} maxWidthClass="max-w-[280px]" />
-          ))}
-      <button type="button" onClick={() => setExpanded((v) => !v)} className={idcStyles.epToggle}>
-        {expanded ? '접기 ▴' : `IP ${hosts.length - 1}개 더보기 ▾`}
-      </button>
+      {hosts.map((host) => (
+        <HostCell
+          key={host}
+          value={endpoint(host)}
+          label="연동 대상"
+          tone={tone}
+          maxWidthClass="max-w-[340px]"
+        />
+      ))}
     </span>
   );
 }
