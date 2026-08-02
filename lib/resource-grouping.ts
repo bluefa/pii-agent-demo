@@ -44,6 +44,22 @@ export const GROUPED_TYPE_LABEL_KEY = 'ATHENA';
  */
 export const GROUPED_CHILD_KIND_LABEL = 'Database';
 
+/**
+ * The id a step-4-and-later RESULT is keyed on.
+ *
+ * From step 4 the region is the resource for Athena: installation status and test-connection
+ * results both come back per `athena:<acct>:<region>/<catalog>` and never per database, while
+ * the confirmed-integration rows stay per database (`…/<catalog>/<db>`). Looking a result up by
+ * the database's own id therefore finds nothing. Every other resource type is its own unit.
+ *
+ * The key is used verbatim — `athena_region_resource_id` is a contract field, and nothing here
+ * parses it.
+ */
+export const resultUnitId = (resource: {
+  resourceId: string;
+  athenaRegionResourceId?: string | null;
+}): string => resource.athenaRegionResourceId || resource.resourceId;
+
 export const isGroupedResourceType = (type: string | null | undefined): boolean => {
   const normalized = normalizeResourceType(type);
   return normalized != null && GROUPED_TYPES.has(normalized);

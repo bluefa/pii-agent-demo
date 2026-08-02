@@ -10,6 +10,7 @@ import {
   toLatestResultSummaries,
   getCompletionStatus,
   setConfirmation,
+  testConnectionUnits,
 } from '@/lib/mock-test-connection';
 import { getStore, resetStore } from '@/lib/mock-store';
 import type { Project } from '@/lib/types';
@@ -434,6 +435,26 @@ describe('mock-test-connection behavior lock-in', () => {
       const job = getLatestJob(STEP5_TARGET);
       expect(job?.requested_at).toBe('2026-06-01T00:00:00.000Z');
       expect(job?.completed_at).toBe('2026-06-01T00:04:20.000Z');
+    });
+
+    // The real BFF tests Athena once per region and returns the verdict under
+    // `athena_region_resource_id`. Emitting one result per database handed the UI four
+    // verdicts for one test, none of them under a key the table looks up.
+    it('reports Athena once per region, keyed on the region id', () => {
+      const project = getStore().projects.find((p) => p.targetSourceId === STEP5_TARGET);
+      const selected = project!.resources.filter((r) => r.isSelected);
+      const athena = selected.filter((r) => r.athenaRegionResourceId);
+      const regions = new Set(athena.map((r) => r.athenaRegionResourceId));
+      // The fixture has to actually exercise the fold, or this asserts nothing.
+      expect(athena.length).toBeGreaterThan(regions.size);
+
+      const units = testConnectionUnits(project!);
+      expect(units).toHaveLength(selected.length - athena.length + regions.size);
+
+      const unitIds = units.map((u) => u.resourceId);
+      for (const region of regions) expect(unitIds).toContain(region);
+      // No database-level Athena id survives — every one of them folded.
+      for (const db of athena) expect(unitIds).not.toContain(db.resourceId);
     });
   });
 });

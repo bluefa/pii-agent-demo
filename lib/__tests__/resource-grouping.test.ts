@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   groupResourceRows,
   isGroupedResourceType,
+  resultUnitId,
   toPaginationUnits,
 } from '@/lib/resource-grouping';
 
@@ -156,5 +157,32 @@ describe('toPaginationUnits', () => {
       row('a2', 'ATHENA', 'us-east-1'),
     ];
     expect(units(rows).flat().map((r) => r.id)).toEqual(['a1', 'r1', 'a2']);
+  });
+});
+
+// From step 4 the region IS the resource for Athena: install status and test-connection results
+// are keyed on `athena_region_resource_id`, never on the database's own id.
+describe('resultUnitId', () => {
+  const ATHENA_REGION = 'athena:804656952396:ap-northeast-1/AwsDataCatalog';
+
+  it('folds every database of one region onto that region key', () => {
+    const databases = ['sampledb', 'integration', '6lb_fulldump'].map((name) => ({
+      resourceId: `athena:804656952396:ap-northeast-1:AwsDataCatalog/${name}`,
+      athenaRegionResourceId: ATHENA_REGION,
+    }));
+    expect(new Set(databases.map(resultUnitId))).toEqual(new Set([ATHENA_REGION]));
+  });
+
+  it('keeps regions apart', () => {
+    const usEast = 'athena:804656952396:us-east-1/AwsDataCatalog';
+    expect(
+      resultUnitId({ resourceId: 'athena:…/default', athenaRegionResourceId: usEast }),
+    ).not.toBe(ATHENA_REGION);
+  });
+
+  it('leaves every other resource as its own unit', () => {
+    const id = 'arn:aws:rds:ap-northeast-2:804656952396:cluster:database-1';
+    expect(resultUnitId({ resourceId: id })).toBe(id);
+    expect(resultUnitId({ resourceId: id, athenaRegionResourceId: null })).toBe(id);
   });
 });
