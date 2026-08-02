@@ -27,10 +27,16 @@ interface IdcConfirmedResourcesPanelProps {
   targetSourceId: number;
   /** Confirmed-integration read owned by the host step (DR3/DR4/DR5/DR7 — one fetch per step). */
   state: ResourcesState;
+  /**
+   * Step 5 only. The logical-DB exclusion policy is still editable there, so that step owns
+   * the modal (LogicalDbModalLoader, which writes) and the panel only reports the click.
+   * Steps 6·7 omit it and get the read-only summary rendered below.
+   */
+  onLogicalOpen?: (resource: IdcResourceView) => void;
 }
 
 /**
- * Confirmed-resources block shared by IDC Steps 6·7 — the IDC counterpart of the
+ * Confirmed-resources block shared by IDC Steps 5·6·7 — the IDC counterpart of the
  * cloud ConfirmedResourcesSlot. The step owns the confirmed-integration fetch;
  * the panel owns the table chrome: search/filter toolbar, the `src` + logical-DB
  * table, pagination, the Step-5 logical-DB count map and the per-resource modal.
@@ -38,6 +44,7 @@ interface IdcConfirmedResourcesPanelProps {
 export const IdcConfirmedResourcesPanel = ({
   targetSourceId,
   state,
+  onLogicalOpen,
 }: IdcConfirmedResourcesPanelProps) => {
   // Step 5 counts for the whole table in one call; the per-resource lists load only on open.
   const [fetched, setFetched] = useState<{ targetSourceId: number; counts: LogicalDbCountMap }>({
@@ -90,7 +97,7 @@ export const IdcConfirmedResourcesPanel = ({
             resources={visibleResources}
             cols={['src', 'logicalro']}
             logicalDbCounts={logicalDbCounts}
-            onLogicalOpen={setLogicalTarget}
+            onLogicalOpen={onLogicalOpen ?? setLogicalTarget}
             connected
             emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
           />
@@ -106,7 +113,8 @@ export const IdcConfirmedResourcesPanel = ({
           )}
         </>
       )}
-      {/* Mounted only while open so the hook fetches on open and drops its state on close. */}
+      {/* Mounted only while open so the hook fetches on open and drops its state on close.
+          Never reached when the step owns the modal — `logicalTarget` stays null then. */}
       {logicalTarget && (
         <LogicalDbSummaryModal
           open

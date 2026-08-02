@@ -6,7 +6,6 @@ import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, textColors } from '@/lib/theme';
 import { CELL_LIFT } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type {
-  IdcConnState,
   IdcHealth,
   IdcInstallStatus,
   IdcKind,
@@ -171,13 +170,6 @@ export const IdcFirewallBadge = ({ status }: { status: IdcInstallStatus | undefi
   }
 };
 
-export const IdcConnBadge = ({ state }: { state: IdcConnState }) =>
-  state === 'SUCCESS' ? (
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
-  ) : (
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Pending</span>
-  );
-
 /**
  * Per-resource health badge. There is no per-resource health API source
  * (`health` is null), so a null value renders a neutral em-dash placeholder
@@ -257,20 +249,4 @@ export const IdcConnStatusCell = ({ resource }: { resource: IdcResourceView }) =
     default:
       return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>;
   }
-};
-
-/** Logical-DB manage button (the "set" action) — disabled until credential set AND connection SUCCESS. */
-export const IdcLogicalButtonCell = ({
-  resource,
-  onOpen,
-}: {
-  resource: IdcResourceView;
-  onOpen: () => void;
-}) => {
-  const enabled = !!resource.credentialId && resource.connection === 'SUCCESS';
-  return (
-    <button type="button" disabled={!enabled} onClick={onOpen} className={idcStyles.triggerBtn.ghostSm}>
-      설정
-    </button>
-  );
 };

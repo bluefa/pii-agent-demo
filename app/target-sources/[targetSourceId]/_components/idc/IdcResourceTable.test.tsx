@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { type IdcResourceView } from '@/app/lib/api/idc';
 import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
+import { IdcConnStatusCell } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 
 // Stub the tooltip/pagination chrome so only the table cells under test render.
 vi.mock('@/app/components/ui/Tooltip', () => ({
@@ -30,27 +31,24 @@ const view = (over: Partial<IdcResourceView>): IdcResourceView => ({
 });
 
 /**
- * Step-5 column set (`src`, `cred`, `conn`) — locks the v16 audit fix: the
- * credential-aware connection status.
+ * The credential-aware connection status (v16 audit fix). It is no longer a table column —
+ * steps 5·6·7 all render `logicalro` — but the completion-approval modal still asks the same
+ * question per row, so the cell keeps its own coverage.
  */
-describe('IdcResourceTable — step-5 cred/conn', () => {
+describe('IdcConnStatusCell — credential-aware status', () => {
   it('renders Success for a credentialed row whose test passed', () => {
     render(
-      <IdcResourceTable
-        resources={[view({ resourceId: 'with-cred', credentialId: 'idc_svc_mysql', connection: 'SUCCESS' })]}
-        cols={['src', 'cred', 'conn']}
+      <IdcConnStatusCell
+        resource={view({ resourceId: 'with-cred', credentialId: 'idc_svc_mysql', connection: 'SUCCESS' })}
       />,
     );
-    const row = screen.getByText('idc_svc_mysql').closest('tr')!;
-    // Credential-aware status: cred + SUCCESS -> Success (not the plain Pending/Success badge path).
-    expect(within(row).getByText('Success')).toBeTruthy();
+    expect(screen.getByText('Success')).toBeTruthy();
   });
 
   it("shows '자격 증명 필요' for a live row with no credential", () => {
     render(
-      <IdcResourceTable
-        resources={[view({ resourceId: 'no-cred', credentialId: undefined, connection: 'PENDING' })]}
-        cols={['src', 'cred', 'conn']}
+      <IdcConnStatusCell
+        resource={view({ resourceId: 'no-cred', credentialId: undefined, connection: 'PENDING' })}
       />,
     );
     expect(screen.getByText('자격 증명 필요')).toBeTruthy();
@@ -59,7 +57,7 @@ describe('IdcResourceTable — step-5 cred/conn', () => {
 });
 
 /**
- * Step-6 column set (`src`, `logicalro`) — the Step 5 logical-DB result. A non-zero count
+ * Steps 5·6·7 column set (`src`, `logicalro`) — the Step 5 logical-DB result. A non-zero count
  * opens the read-only list; 0 has nothing to open; a resource with no summary row renders
  * "—" rather than a fabricated 0.
  */
