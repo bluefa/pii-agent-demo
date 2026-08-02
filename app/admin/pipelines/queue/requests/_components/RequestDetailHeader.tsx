@@ -5,14 +5,14 @@
  * (Step 2's MetaField grammar), and a bottom border separating it from the first
  * section.
  *
- * 요청 시각 leads: the meta answers "이 요청이 언제 들어왔나" before "누가" — the
- * queue is triaged by age (the list ranks by 지연), so time is the fact the admin
- * arrives already holding.
+ * Request time leads: the queue is triaged by age (the list ranks by delay), so the
+ * arrival time is the fact the admin already holds when they open this page — the
+ * requester is the second question, not the first.
  *
- * Resource counts deliberately absent: the section below opens with 전체 / 대상 /
- * 제외 as 40px tiles that are also the list filter. Repeating "35 / 44" here made
- * the header state a number the reader cannot act on, two lines above the one
- * they can.
+ * Resource counts deliberately absent: the section below opens with the all / target /
+ * excluded counts as 40px tiles that are also the list filter. Repeating "35 / 44" here
+ * made the header state a number the reader cannot act on, two lines above the one they
+ * can.
  */
 import type { ReactElement } from 'react';
 import { pipelineStyles } from '@/lib/theme';

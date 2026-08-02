@@ -95,12 +95,15 @@ const NOTE_WARN =
  * One request, one presentation, wherever an operator opens it — this tab had its
  * own hand-rolled table with a different column order and no filtering at all.
  *
- * IDC carries no scan-assigned name, so its host/IP takes that seat. The wider IDC
- * column set (구분 · Port · Oracle SID · Source IP) is the same gap this list has in
- * the modal, tracked separately.
+ * IDC carries no scan-assigned name, so its host/IP takes that seat — and its
+ * resource_id is NEVER surfaced: the adapter documents it as an internal NLB-PUT key
+ * (app/lib/api/task-queue-requests.ts, design-spec §8), so feeding it to a table with
+ * a Resource ID column would publish an id the IDC operator has no use for. The wider
+ * IDC column set (구분 · Port · Oracle SID · Source IP) is the same gap this list has
+ * in the modal, tracked separately.
  */
 const toApprovalRow = (row: RequestResourceRow, isIdc: boolean): WaitingApprovalResource => ({
-  resourceId: row.resourceId ?? '',
+  resourceId: isIdc ? '' : row.resourceId ?? '',
   resourceType: row.databaseType ?? '',
   region: row.region ?? '',
   resourceName: isIdc ? row.connectTargets.join(' · ') : row.resourceName ?? '',
@@ -126,6 +129,61 @@ function StatusTag({ status }: { status: string | null }): ReactElement {
   if (!status) return dash();
   const tone = TONE[STATUS_TONE[status] ?? 'off'];
   return <span className={cn(opsStyles.statusTag, tone.fill)}>{status}</span>;
+}
+
+/** 요청 리소스 목록 — owns the list's own filter/search/page state, so mounting it
+ *  under a per-request `key` is what resets that state between requests. */
+function ResourceList({
+  rows,
+  isIdc,
+}: {
+  rows: readonly RequestResourceRow[];
+  isIdc: boolean;
+}): ReactElement {
+  const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
+    () => rows.map((row) => toApprovalRow(row, isIdc)),
+    [rows, isIdc],
+  );
+  const table = useApprovalTableState(approvalRows);
+  const showFilterEmpty = approvalRows.length > 0 && table.filteredCount === 0;
+
+  return (
+    <div className="mt-6">
+      {/* The counts ARE the 전체/대상/제외 filter — the read-only
+          "연동 대상 n개 · 제외 m개" line they replace could not be acted on. */}
+      <WaitingApprovalStats
+        totalCount={table.countsByFilter.all}
+        selectedCount={table.countsByFilter.target}
+        excludedCount={table.countsByFilter.excluded}
+        filter={table.filter}
+        onFilterChange={table.onFilterChange}
+      />
+      <WaitingApprovalToolbar
+        searchValue={table.searchValue}
+        onSearchChange={table.onSearchChange}
+        dbType={table.dbType}
+        onDbTypeChange={table.onDbTypeChange}
+        region={table.region}
+        onRegionChange={table.onRegionChange}
+        dbTypeOptions={table.dbTypeOptions}
+        regionOptions={table.regionOptions}
+      />
+      <WaitingApprovalTable
+        resources={table.visibleResources}
+        connected
+        emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+      />
+      {table.filteredCount > 0 && (
+        <Pagination
+          page={table.safePage}
+          pageSize={table.pageSize}
+          totalCount={table.filteredCount}
+          onPageChange={table.onPageChange}
+          onPageSizeChange={table.onPageSizeChange}
+        />
+      )}
+    </div>
+  );
 }
 
 export interface RequestTabProps {
@@ -213,17 +271,7 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
       : [];
 
   const summary = request.state === 'ready' ? request.data?.request ?? null : null;
-  // Memoized off the loaded array itself — a fresh `[]` literal per render would make
-  // the row mapping below (and the table state keyed on it) churn on every render.
-  const loadedResources = request.state === 'ready' ? request.data?.resources : undefined;
-  const rows = useMemo(() => loadedResources ?? [], [loadedResources]);
-
-  const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
-    () => rows.map((row) => toApprovalRow(row, isIdc)),
-    [rows, isIdc],
-  );
-  const table = useApprovalTableState(approvalRows);
-  const showFilterEmpty = approvalRows.length > 0 && table.filteredCount === 0;
+  const rows = request.state === 'ready' ? request.data?.resources ?? [] : [];
 
   // The 처리 row belongs to the latest request only — drop a stale history record.
   const processedRow =
@@ -276,41 +324,10 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
             {rows.length === 0 ? (
               <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-4" />
             ) : (
-          <div className="mt-6">
-            {/* The counts ARE the 전체/대상/제외 filter — the read-only
-                "연동 대상 n개 · 제외 m개" line they replace could not be acted on. */}
-            <WaitingApprovalStats
-              totalCount={table.countsByFilter.all}
-              selectedCount={table.countsByFilter.target}
-              excludedCount={table.countsByFilter.excluded}
-              filter={table.filter}
-              onFilterChange={table.onFilterChange}
-            />
-            <WaitingApprovalToolbar
-              searchValue={table.searchValue}
-              onSearchChange={table.onSearchChange}
-              dbType={table.dbType}
-              onDbTypeChange={table.onDbTypeChange}
-              region={table.region}
-              onRegionChange={table.onRegionChange}
-              dbTypeOptions={table.dbTypeOptions}
-              regionOptions={table.regionOptions}
-            />
-            <WaitingApprovalTable
-              resources={table.visibleResources}
-              connected
-              emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
-            />
-            {table.filteredCount > 0 && (
-              <Pagination
-                page={table.safePage}
-                pageSize={table.pageSize}
-                totalCount={table.filteredCount}
-                onPageChange={table.onPageChange}
-                onPageSizeChange={table.onPageSizeChange}
-              />
-            )}
-          </div>
+              /* Keyed by request: the filter/search/page state below belongs to ONE
+                 request, and this tab is not guaranteed to remount when the route's
+                 target source changes under a soft navigation. */
+              <ResourceList key={summary.requestId ?? 'none'} rows={rows} isIdc={isIdc} />
             )}
           </>
         )}

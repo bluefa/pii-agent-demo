@@ -229,7 +229,11 @@ export const ApprovalRequestDetailModal = ({
           {resultMeta.badgeLabel}
         </Badge>
         <MetaField label="요청자" value={data.requestedBy} />
-        <MetaField label="요청일시" value={formatDate(data.requestedAt, 'datetime')} />
+        {/* requested_at is optional in the contract, and `new Date('')` renders the
+            literal string "Invalid Date" — say nothing rather than that. */}
+        {data.requestedAt && (
+          <MetaField label="요청일시" value={formatDate(data.requestedAt, 'datetime')} />
+        )}
         {data.processedBy && <MetaField label="처리자" value={data.processedBy} />}
         {data.processedAt && (
           <MetaField label="처리일시" value={formatDate(data.processedAt, 'datetime')} />

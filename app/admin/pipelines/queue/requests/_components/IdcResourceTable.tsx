@@ -23,6 +23,7 @@ import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import {
   CELL_LIFT,
   CONNECTED_FRAME,
+  DIM_TEXT,
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
@@ -63,9 +64,6 @@ export interface IdcResourceTableProps {
 const SELECT_BASE =
   'h-7 rounded-md border px-2.5 text-[12px] text-[var(--pl-text-strong)] bg-[var(--pl-bg-card)] cursor-pointer focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]';
 
-/** Excluded rows REST one tier dimmer; the hover lift restores full contrast. */
-const DIM = 'text-[#6B7280]';
-
 const NLB_INFO_BTN =
   'inline-grid h-7 w-7 flex-none place-items-center rounded-md text-[var(--pl-text-faint)] transition-colors hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)]';
 
@@ -77,8 +75,10 @@ const NLB_INFO_BTN =
  */
 function optionLabel(row: NlbTableRow): string {
   const { nlbIndex, occupiedListenerCount: occupied } = row;
+  // Same three labels the NLB 리스너 현황 badge uses — "한도 초과" would also be wrong
+  // at exactly 50, which is the limit rather than past it.
   const tier =
-    occupied >= NLB_CAPACITY ? ' 한도 초과' : occupied >= NLB_WARN_THRESHOLD ? ' 주의' : '';
+    occupied >= NLB_CAPACITY ? ' Hard Limit' : occupied >= NLB_WARN_THRESHOLD ? ' 주의' : '';
   return `NLB #${nlbIndex} · ${occupied}/${NLB_CAPACITY}${tier}`;
 }
 
@@ -109,6 +109,9 @@ export function IdcResourceTable({
             <th className={cn(table.approvalHeaderCell, 'w-[172px]')}>Database Type</th>
             <th className={cn(table.approvalHeaderCell, 'w-[80px]')}>Port</th>
             <th className={cn(table.approvalHeaderCell, 'w-[144px]')}>Source IP</th>
+            {/* The verdict gets a header of its own. It used to ride in the NLB Index
+                cell, which made a screen reader announce "NLB Index: 제외". */}
+            <th className={cn(table.approvalHeaderCell, 'w-[110px] whitespace-nowrap')}>요청 대상 여부</th>
             {/* One column carries the whole NLB decision: the choice, its detail link and
                 its save. The trailing unnamed 170px action column that used to hold 정보 /
                 저장 is gone — it repeated one identical ghost button down every row, and
@@ -120,26 +123,31 @@ export function IdcResourceTable({
           </tr>
         </thead>
         <tbody className={table.body}>
-          {rows.map((row, index) => {
+          {rows.map((row) => {
+            // Keyed by identity, never by index: the list filters and pages, and
+            // IdcEndpointCell owns per-row expand state that must not follow a slot.
+            const rowKey = row.resourceId ?? row.connectTargets.join('|');
             const dbLabel = row.databaseType ? getDatabaseShortLabel(row.databaseType) : '';
             if (!row.selected) {
               return (
-                <tr key={row.resourceId ?? index} className={cn(ROW_BASE, ROW_EXCLUDED)}>
+                <tr key={rowKey} className={cn(ROW_BASE, ROW_EXCLUDED)}>
                   <td className={table.approvalCell}>
-                    <IdcEndpointCell hosts={row.connectTargets} tone={DIM} />
+                    <IdcEndpointCell hosts={row.connectTargets} tone={DIM_TEXT} />
                   </td>
                   <td className={table.approvalCell}>
-                    <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} tone={DIM} />
+                    <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} tone={DIM_TEXT} />
                   </td>
-                  <td className={cn(table.approvalCell, 'font-mono text-[12px]', DIM, CELL_LIFT)}>
+                  <td className={cn(table.approvalCell, 'font-mono text-[12px]', DIM_TEXT, CELL_LIFT)}>
                     {row.port}
                   </td>
                   {/* Excluded rows come from ExcludedResourceInfoDto, which carries no
                       source IPs — blank rather than asserting a missing value. */}
                   <td className={table.approvalCell} />
-                  <td className={cn(table.approvalCell, 'whitespace-nowrap text-[12px]', DIM, CELL_LIFT)}>
+                  <td className={cn(table.approvalCell, 'whitespace-nowrap text-[12px]', DIM_TEXT, CELL_LIFT)}>
                     제외
                   </td>
+                  {/* An excluded row is never assignable, so its NLB cell stays empty. */}
+                  <td className={table.approvalCell} />
                   <td className={table.approvalCell}>
                     {row.exclusionReason && (
                       <ReasonChipInline
@@ -158,7 +166,7 @@ export function IdcResourceTable({
             const canSave = row.resourceId != null && !disabled;
 
             return (
-              <tr key={row.resourceId ?? index} className={cn(ROW_BASE, ROW_TARGET)}>
+              <tr key={rowKey} className={cn(ROW_BASE, ROW_TARGET)}>
                 <td className={table.approvalCell}>
                   <IdcEndpointCell hosts={row.connectTargets} />
                 </td>
@@ -177,6 +185,16 @@ export function IdcResourceTable({
                 </td>
                 <td className={table.approvalCell}>
                   <IdcSourceIpCell sourceIps={row.sourceIps} />
+                </td>
+                <td
+                  className={cn(
+                    table.approvalCell,
+                    'whitespace-nowrap text-[12px]',
+                    textColors.secondary,
+                    CELL_LIFT,
+                  )}
+                >
+                  대상
                 </td>
                 <td className={table.approvalCell}>
                   <span className="flex items-center gap-1.5">

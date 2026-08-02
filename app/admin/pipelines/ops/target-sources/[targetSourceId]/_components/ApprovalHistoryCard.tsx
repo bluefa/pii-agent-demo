@@ -164,7 +164,12 @@ export function ApprovalHistoryCard({ targetSourceId }: ApprovalHistoryCardProps
 
       <OpsPagination page={page} totalPages={totalPages} onChange={(next) => void load(next)} always />
 
+      {/* Keyed per request: the modal stays mounted across opens, and its body now owns
+          filter/search/page state, so without this a request opened after another
+          inherits the previous one's query — a stale search reads as "결과 없음" on a
+          request that has rows. */}
       <ApprovalRequestDetailModal
+        key={detail?.request?.id ?? 'none'}
         isOpen={detail !== null}
         onClose={() => setDetail(null)}
         item={detail ? toModalItem(detail) : null}

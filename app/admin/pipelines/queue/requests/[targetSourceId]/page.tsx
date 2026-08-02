@@ -15,6 +15,7 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { passRoutes } from '@/lib/routes';
 import { pipelineStyles } from '@/lib/theme';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 
 import { PlBreadcrumb } from '@/app/admin/pipelines/_components/PlBreadcrumb';
@@ -46,12 +47,10 @@ import {
 import {
   axisOptions,
   databaseTypeOptions,
-  EMPTY_RESOURCE_QUERY,
   pageResources,
   queryResources,
-  RESOURCE_PAGE_SIZE,
   resourceCounts,
-  type ResourceQuery,
+  useResourceListState,
 } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
 import {
   approveRequest,
@@ -99,16 +98,8 @@ export default function RequestDetailPage(): ReactElement {
   // reopening for another row shows that row's data (fresh mount via key prop).
   const [nlbInfoResource, setNlbInfoResource] = useState<RequestResourceRow | null>(null);
 
-  // 리소스 목록 질의 — 탭/검색/축 필터 + 10행 페이지. Every query change resets the
-  // page: narrowing the result while on page 3 would otherwise land on an empty
-  // table with no hint that the rows are simply elsewhere.
-  const [query, setQuery] = useState<ResourceQuery>(EMPTY_RESOURCE_QUERY);
-  const [resourcePage, setResourcePage] = useState(0);
-  const [resourcePageSize, setResourcePageSize] = useState(RESOURCE_PAGE_SIZE);
-  const patchQuery = (patch: Partial<ResourceQuery>): void => {
-    setQuery((prev) => ({ ...prev, ...patch }));
-    setResourcePage(0);
-  };
+  const list = useResourceListState();
+  const { query, patchQuery, reset: resetList } = list;
 
   // Gates the post-save toast/refetch: the section-level toast provider outlives
   // this page, so a save resolving after navigation must not fire a toast there.
@@ -139,8 +130,7 @@ export default function RequestDetailPage(): ReactElement {
           setNlbTable(nlb);
           setNlbMappings(mappings);
           setDraft({});
-          setQuery(EMPTY_RESOURCE_QUERY);
-          setResourcePage(0);
+          resetList();
           setLoading(false);
         })
         .catch((err) => {
@@ -149,7 +139,7 @@ export default function RequestDetailPage(): ReactElement {
           setLoading(false);
         });
     },
-    [targetSourceId, retry],
+    [targetSourceId, retry, resetList],
   );
 
   const provider = header?.cloudProvider ?? '';
@@ -165,7 +155,7 @@ export default function RequestDetailPage(): ReactElement {
   const dbTypeValues = databaseTypeOptions(resources);
   const axisValues = axisOptions(resources, isIdc);
   const filteredResources = queryResources(resources, query, isIdc);
-  const pagedResources = pageResources(filteredResources, resourcePage, resourcePageSize);
+  const pagedResources = pageResources(filteredResources, list.page, list.pageSize);
 
   const onSelectNlb = (row: RequestResourceRow, nlbIndex: number): void => {
     setDraft((prev) => setNlbDraft(prev, row, nlbIndex));
@@ -278,8 +268,8 @@ export default function RequestDetailPage(): ReactElement {
             title={isIdc ? '연동 대상 리소스 · NLB 배정' : '연동 대상 리소스'}
           />
           <Card>
-            {/* 대상/제외 카운트는 읽기 전용 문구가 아니라 필터 자체입니다 — 40건짜리
-                요청에서 "제외 9건이 왜 빠졌는지"를 페이지를 넘겨가며 찾지 않도록. */}
+            {/* The counts ARE the filter, not a read-only line — so that finding why
+                9 rows were excluded out of 44 does not mean paging through all of them. */}
             <ResourceStatTiles
               counts={counts}
               filter={query.filter}
@@ -299,6 +289,9 @@ export default function RequestDetailPage(): ReactElement {
                   value: query.databaseType,
                   onChange: (next) => patchQuery({ databaseType: next }),
                   options: dbTypeValues,
+                  // The option VALUE stays the wire string (that is what the filter
+                  // compares); only its label is cased like the column shows it.
+                  formatOption: getDatabaseShortLabel,
                 },
                 {
                   key: 'axis',
@@ -345,13 +338,10 @@ export default function RequestDetailPage(): ReactElement {
             {filteredResources.length > 0 && (
               <Pagination
                 page={pagedResources.page}
-                pageSize={resourcePageSize}
+                pageSize={list.pageSize}
                 totalCount={filteredResources.length}
-                onPageChange={setResourcePage}
-                onPageSizeChange={(next) => {
-                  setResourcePageSize(next);
-                  setResourcePage(0);
-                }}
+                onPageChange={list.setPage}
+                onPageSizeChange={list.setPageSize}
               />
             )}
           </Card>

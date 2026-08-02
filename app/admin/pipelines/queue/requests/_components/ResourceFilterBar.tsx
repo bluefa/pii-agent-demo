@@ -1,14 +1,13 @@
 'use client';
 
 /**
- * P3 리소스 목록 필터 — Step 2 (연동 요청 대기 카드) 문법을 admin 파이프라인 토큰으로
- * 옮긴 것. 관리자와 서비스 담당자가 같은 요청을 보므로 두 화면의 목록 조작 방식이
- * 달라야 할 이유가 없습니다.
+ * P3 resource-list filter — step 2's list grammar on the admin pipeline tokens. The
+ * admin and the service owner look at the same request, so the two screens should not
+ * operate their lists differently.
  *
- * Grammar, not components: Step 2's WaitingApprovalStats / WaitingApprovalToolbar
- * hard-code the app palette (#0064FF), so importing them would drop app blue into
- * a --pl-* console. Same layout and metrics (40px 카운트, h32 검색, 12/12/0/0 툴바),
- * admin tokens.
+ * Grammar, not components: step 2's WaitingApprovalStats / WaitingApprovalToolbar
+ * hard-code the app palette (#0064FF), which would drop app blue into a --pl-*
+ * console. Same layout and metrics (40px count, h32 search, 12/12/0/0 toolbar).
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
@@ -128,7 +127,11 @@ function FilterMenu({ groups: allGroups }: { groups: readonly FilterGroup[] }) {
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      // `instanceof` rather than a cast: EventTarget is not always a Node
+      // (media elements, XHR), and an assertion would hide that.
+      const target = event.target;
+      if (target instanceof Node && rootRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);

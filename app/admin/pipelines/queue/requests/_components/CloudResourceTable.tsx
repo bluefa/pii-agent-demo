@@ -18,6 +18,7 @@ import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import {
   CELL_LIFT,
   CONNECTED_FRAME,
+  DIM_TEXT,
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
@@ -29,9 +30,6 @@ import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 export interface CloudResourceTableProps {
   rows: RequestResourceRow[];
 }
-
-/** Excluded rows REST one tier dimmer; the hover lift restores full contrast. */
-const DIM = 'text-[#6B7280]';
 
 export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElement {
   const { table } = idcStyles;
@@ -57,19 +55,22 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
         <tbody className={table.body}>
           {rows.map((row, index) => {
             const excluded = !row.selected;
+            // resource_id is optional in the contract; the index only stands in when
+            // the row genuinely has no identity to key on.
+            const rowKey = row.resourceId || `row-${index}`;
             // Resting tier is per cell, not per row: a row-level override would win over
             // the cells' own hover lifts and freeze excluded rows at the dim tier.
-            const tone = excluded ? DIM : textColors.secondary;
+            const tone = excluded ? DIM_TEXT : textColors.secondary;
             return (
               <tr
-                key={row.resourceId ?? index}
+                key={rowKey}
                 className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
               >
                 <td
                   className={cn(
                     table.approvalCell,
                     'font-mono text-[13px]',
-                    excluded ? DIM : textColors.primary,
+                    excluded ? DIM_TEXT : textColors.primary,
                     // The row's anchor lifts to brand, marking which cell identifies it.
                     primaryColors.textGroupHover,
                   )}

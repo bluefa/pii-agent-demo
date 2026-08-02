@@ -124,7 +124,7 @@ const NAME_LIFT = primaryColors.textGroupHover;
 // Chips and the reason chip keep full contrast: the verdict and the why must survive the fade.
 // 3:1-grade dimming (#8B95A1, 2.9:1) was considered and rejected — 13px body text is normal-size
 // text under WCAG, and the reason column is content, not an inactive control.
-const DIM_TEXT = 'text-[#6B7280]';
+export const DIM_TEXT = 'text-[#6B7280]';
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
@@ -274,7 +274,10 @@ export const WaitingApprovalTable = memo(
       const excluded = !resource.selected;
       return (
         <tr
-          key={resource.resourceId}
+          // `resource_id` is optional in the contract, so two id-less rows would collide on
+          // one '' key and React would drop a row. `rowKey` is for consumers that HAVE an
+          // identity they may not render (IDC's internal NLB key — design-spec §8).
+          key={resource.rowKey || resource.resourceId || resource.resourceName}
           className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
         >
           {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line

@@ -22,10 +22,11 @@ describe('Modal viewport cap', () => {
     expect(dialog.className).toContain('max-h-[90vh]');
     expect(dialog.className).toContain('flex flex-col');
 
-    const body = screen.getByText('body').parentElement!;
-    expect(body.className).toContain('overflow-y-auto');
+    const body = screen.getByText('body').parentElement;
+    expect(body).not.toBeNull();
+    expect(body?.className).toContain('overflow-y-auto');
     // Without min-h-0 the flex child refuses to shrink and overflow-y-auto never scrolls.
-    expect(body.className).toContain('min-h-0');
+    expect(body?.className).toContain('min-h-0');
   });
 
   it('keeps the header and the footer out of the shrinking', () => {
