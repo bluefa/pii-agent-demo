@@ -301,8 +301,6 @@ export const httpBff: BffClient = {
     putCollabChannel: (id, channel) => put(`/target-sources/${id}/collaboration-channel`, channel),
     getTargetSourceList: (query, page, size) =>
       getSnakeRaw(`/admin/ops/target-sources${buildQuery({ query, page, size })}`),
-    getAlerts: (kind, page, size) =>
-      getSnakeRaw(`/admin/ops/alerts${buildQuery({ kind, page, size })}`),
     getServices: () => getSnakeRaw('/admin/ops/services'),
     getService: (code) => getSnakeRaw(`/admin/ops/services/${encodeURIComponent(code)}`),
     postServiceEos: (code, force) =>
@@ -359,6 +357,13 @@ export const httpBff: BffClient = {
         `/process-statuses${buildQuery({
           processStatus: query.processStatus,
           targetSourceId: query.targetSourceId,
+          page: query.page,
+          size: query.size,
+        })}`,
+      ),
+    getAlertTargetSources: (query) =>
+      getSnakeRaw<z.infer<typeof schemas.PageTargetSourceInfo>>(
+        `/dashboard/target-sources/${query.kind}${buildQuery({
           page: query.page,
           size: query.size,
         })}`,

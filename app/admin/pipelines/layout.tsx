@@ -42,13 +42,30 @@ const SIDEBAR_GROUPS = [
   },
 ] as const;
 
+/** Which nav items carry a count badge, and what they count. */
+const NAV_BADGES: Record<
+  string,
+  { label: string; count: (c: { pendingApprovals: number; alertCount: number }) => number }
+> = {
+  [passRoutes.pipelines.queue.requests]: {
+    label: '승인 대기 연동 요청',
+    count: (c) => c.pendingApprovals,
+  },
+  [passRoutes.pipelines.ops.alerts]: {
+    label: '조치가 필요한 대상',
+    count: (c) => c.alertCount,
+  },
+};
+
 export default function PipelinesLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? '';
   const { layout } = pipelineStyles;
 
-  // 연동 요청 nav alarm — pending approval requests light a red dot on the menu.
+  // Nav count badges: 연동 요청 = 승인 대기 requests, 운영 알림 = the four Step 3~6
+  // action buckets. Hidden at 0, clamped to "9+".
   // Best-effort (errors ignored): the nav badge must never break the shell.
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [alertCount, setAlertCount] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     const load = (): void => {
@@ -56,6 +73,12 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
         .then((summary) => {
           if (controller.signal.aborted) return;
           setPendingApprovals(summary.pendingApprovalCount ?? 0);
+          setAlertCount(
+            (summary.confirmingCount ?? 0) +
+              (summary.needInstallCount ?? 0) +
+              (summary.needTestConnectionCount ?? 0) +
+              (summary.needPiiAgentConfirmCount ?? 0),
+          );
         })
         .catch(() => undefined);
     };
@@ -90,22 +113,29 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
               const active = item.exact
                 ? pathname === item.href
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
-              const alarm =
-                item.href === passRoutes.pipelines.queue.requests && pendingApprovals > 0;
+              const badge = NAV_BADGES[item.href];
+              const count = badge ? badge.count({ pendingApprovals, alertCount }) : 0;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className={cn(layout.sidebarItem, active ? layout.sidebarItemActive : layout.sidebarItemIdle)}
+                  className={cn(
+                    layout.sidebarItem,
+                    active ? layout.sidebarItemActive : layout.sidebarItemIdle,
+                    // The count badge docks right; every other item stays a plain block.
+                    count > 0 && 'flex items-center justify-between gap-2',
+                  )}
                 >
                   {item.label}
-                  {alarm && (
+                  {badge && count > 0 && (
                     <span
-                      className="ml-2 inline-block h-2 w-2 flex-none rounded-full bg-[var(--pl-err)] align-middle"
+                      className="inline-block min-w-[18px] flex-none rounded-full bg-[var(--pl-err)] px-1.5 py-px text-center text-[11px] font-bold tabular-nums text-[var(--pl-white)]"
                       role="status"
-                      aria-label={`승인 대기 연동 요청 ${pendingApprovals}건`}
-                    />
+                      aria-label={`${badge.label} ${count}건`}
+                    >
+                      {count > 9 ? '9+' : count}
+                    </span>
                   )}
                 </Link>
               );

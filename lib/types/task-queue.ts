@@ -31,8 +31,29 @@ export interface DashboardSummary {
   rejectedApprovalCount: number;
   testConnectionCompletedCount: number;
   testConnectionRejectionCount: number;
+  /** 운영 알림 — Step 3/4/5/6 targets waiting on an operator action. */
+  confirmingCount: number;
+  needInstallCount: number;
+  needTestConnectionCount: number;
+  needPiiAgentConfirmCount: number;
   evaluatedAt: string | null;
 }
+
+/**
+ * 운영 알림 kinds. The value IS the `/dashboard/target-sources/{kind}` path
+ * segment (contract), so it must not be renamed for display purposes.
+ */
+export const ALERT_TARGET_KINDS = [
+  'confirming',
+  'need-install',
+  'need-test-connection',
+  'need-pii-agent-confirm',
+] as const;
+
+export type AlertTargetKind = (typeof ALERT_TARGET_KINDS)[number];
+
+export const isAlertTargetKind = (value: string): value is AlertTargetKind =>
+  (ALERT_TARGET_KINDS as readonly string[]).includes(value);
 
 export interface ProcessStatusRow {
   targetSourceId: number | null;
@@ -175,6 +196,10 @@ export function toDashboardSummary(
     rejectedApprovalCount: wire.rejected_approval_count ?? 0,
     testConnectionCompletedCount: wire.test_connection_completed_count ?? 0,
     testConnectionRejectionCount: wire.test_connection_rejection_count ?? 0,
+    confirmingCount: wire.confirming_count ?? 0,
+    needInstallCount: wire.need_install_count ?? 0,
+    needTestConnectionCount: wire.need_test_connection_count ?? 0,
+    needPiiAgentConfirmCount: wire.need_pii_agent_confirm_count ?? 0,
     evaluatedAt: wire.evaluated_at ?? null,
   };
 }

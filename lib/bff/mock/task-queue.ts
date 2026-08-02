@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { AlertTargetKind } from '@/lib/types/task-queue';
 
 /**
  * Admin Task Queue mocks. Ported from the prototype consts in
@@ -544,6 +545,21 @@ function toProcessWire(p: ProcRow) {
   };
 }
 
+/**
+ * 운영 알림 — the process_status that puts a target in each alert bucket.
+ * Upstream owns this mapping; the mock reproduces it off the monitor fixture so
+ * counts and drill-down lists stay consistent with each other.
+ */
+const ALERT_KIND_STATUS: Record<AlertTargetKind, string> = {
+  confirming: 'CONFIRMING',
+  'need-install': 'CONFIRMED',
+  'need-test-connection': 'INSTALLED',
+  'need-pii-agent-confirm': 'CONNECTED',
+};
+
+const alertRows = (kind: AlertTargetKind): ProcRow[] =>
+  PROC.filter((p) => p.st === ALERT_KIND_STATUS[kind]);
+
 function toTargetSourceInfoWire(r: RequestRow) {
   const isRejected = r.cs === 'REJECTED';
   const rejected = tq().reasonByTs.get(r.ts) ?? r;
@@ -580,17 +596,6 @@ function toTcWire(s: TcState) {
   };
 }
 
-/**
- * Target sources whose Test Connection is currently sent back for a re-run.
- * 운영 알림 (ops assumed §7) joins on this: rejecting rolls the target back to
- * its pre-test step, so these rows match no `process_status` filter.
- */
-export function getTcRejectedTargetSourceIds(): number[] {
-  return [...tq().tcState.values()]
-    .filter((state) => state.status === 'TEST_CONNECTION_REJECTED')
-    .map((state) => state.ts);
-}
-
 export const mockTaskQueue = {
   // GET /dashboard/summary
   getDashboardSummary: async () =>
@@ -599,8 +604,26 @@ export const mockTaskQueue = {
       rejected_approval_count: tq().requestsRejected.length,
       test_connection_completed_count: [...tq().tcState.values()].filter((s) => s.status === 'TEST_CONNECTION_COMPLETED').length,
       test_connection_rejection_count: [...tq().tcState.values()].filter((s) => s.status === 'TEST_CONNECTION_REJECTED').length,
+      confirming_count: alertRows('confirming').length,
+      need_install_count: alertRows('need-install').length,
+      need_test_connection_count: alertRows('need-test-connection').length,
+      need_pii_agent_confirm_count: alertRows('need-pii-agent-confirm').length,
       evaluated_at: new Date().toISOString(),
     }),
+
+  // GET /dashboard/target-sources/{kind} — 운영 알림 drill-down (TargetSourceInfo
+  // camel island, same page shape as /target-sources/page).
+  getAlertTargetSources: async (query: { kind: AlertTargetKind; page: number; size: number }) => {
+    const content = alertRows(query.kind).map((p) => ({
+      targetSourceId: p.ts,
+      serviceName: p.svc,
+      serviceCode: p.code,
+      cloudProvider: p.pv,
+      confirmStatus: p.st === 'CONFIRMING' ? 'CONFIRMING' : 'CONFIRMED',
+      updatedAt: p.at,
+    }));
+    return NextResponse.json(wirePage(content, query.page, query.size));
+  },
 
   // GET /process-statuses?processStatus=&targetSourceId=&page=&size=
   getProcessStatuses: async (query: { processStatus?: string; targetSourceId?: number; page: number; size: number }) => {

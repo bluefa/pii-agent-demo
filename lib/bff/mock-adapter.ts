@@ -116,7 +116,6 @@ export const mockBff: BffClient = {
     putCollabChannel: async (id, channel) => unwrap(await mockOps.putCollabChannel(id, channel)),
     getTargetSourceList: async (query, page, size) =>
       unwrap(await mockOps.getTargetSourceList(query, page, size)),
-    getAlerts: async (kind, page, size) => unwrap(await mockOps.getAlerts(kind, page, size)),
     getServices: async () => unwrap(await mockOps.getServices()),
     getService: async (code) => unwrap(await mockOps.getService(code)),
     postServiceEos: async (code, force) => unwrap(await mockOps.postServiceEos(code, force)),
@@ -167,6 +166,10 @@ export const mockBff: BffClient = {
     getTargetSourcesPage: async (query) =>
       unwrap<z.infer<typeof schemas.PageTargetSourceInfo>>(
         await mockTaskQueue.getTargetSourcesPage(query),
+      ),
+    getAlertTargetSources: async (query) =>
+      unwrap<z.infer<typeof schemas.PageTargetSourceInfo>>(
+        await mockTaskQueue.getAlertTargetSources(query),
       ),
     putNlbIndex: async (id, body) =>
       unwrap<z.infer<typeof schemas.ApprovalRequestDetailDto>>(
