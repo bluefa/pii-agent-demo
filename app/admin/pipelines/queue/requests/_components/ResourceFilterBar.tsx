@@ -1,0 +1,235 @@
+'use client';
+
+/**
+ * P3 리소스 목록 필터 — Step 2 (연동 요청 대기 카드) 문법을 admin 파이프라인 토큰으로
+ * 옮긴 것. 관리자와 서비스 담당자가 같은 요청을 보므로 두 화면의 목록 조작 방식이
+ * 달라야 할 이유가 없습니다.
+ *
+ * Grammar, not components: Step 2's WaitingApprovalStats / WaitingApprovalToolbar
+ * hard-code the app palette (#0064FF), so importing them would drop app blue into
+ * a --pl-* console. Same layout and metrics (40px 카운트, h32 검색, 12/12/0/0 툴바),
+ * admin tokens.
+ */
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { cn } from '@/lib/theme';
+import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
+import { FilterIcon } from '@/app/components/ui/icons';
+import type { ResourceCounts, ResourceFilter } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
+
+export interface ResourceStatTilesProps {
+  counts: ResourceCounts;
+  filter: ResourceFilter;
+  onFilterChange: (next: ResourceFilter) => void;
+}
+
+/** The three counts ARE the 전체/대상/제외 filter — not a read-only summary above one. */
+export function ResourceStatTiles({ counts, filter, onFilterChange }: ResourceStatTilesProps) {
+  return (
+    <div className="grid grid-cols-3 gap-3 mb-[18px]" role="group" aria-label="대상 필터">
+      <StatTile label="전체 요청" value={counts.all} active={filter === 'all'} onClick={() => onFilterChange('all')} />
+      <StatTile label="연동 요청 대상" value={counts.target} active={filter === 'target'} onClick={() => onFilterChange('target')} />
+      <StatTile label="연동 요청 제외대상" value={counts.excluded} active={filter === 'excluded'} onClick={() => onFilterChange('excluded')} />
+    </div>
+  );
+}
+
+/** Selection speaks only through the boundary — a brand stroke doubled by an inset
+ *  ring, so the tile never shifts or changes surface when picked. */
+function StatTile({
+  label,
+  value,
+  active,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-5 py-[18px] text-left transition-colors duration-150',
+        'bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]',
+        active
+          ? 'border-[var(--pl-primary)] ring-1 ring-inset ring-[var(--pl-primary)]'
+          : 'border-[var(--pl-border)] hover:border-[var(--pl-primary)]',
+      )}
+    >
+      <span className="text-[14px] font-semibold text-[var(--pl-text-weak)]">{label}</span>
+      <span className="flex items-baseline">
+        <span className="text-[40px] font-bold leading-[1.2] tabular-nums text-[var(--pl-text-strong)]">
+          {value}
+        </span>
+        <span className="ml-1 text-[13px] font-medium text-[var(--pl-text-weak)]">건</span>
+      </span>
+    </button>
+  );
+}
+
+export interface FilterGroup {
+  key: string;
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  options: readonly string[];
+  /** Option label override (구분 IP/HOST → IP/Host); defaults to the raw value. */
+  formatOption?: (value: string) => string;
+}
+
+export interface ResourceToolbarProps {
+  searchValue: string;
+  onSearchChange: (next: string) => void;
+  searchPlaceholder: string;
+  groups: readonly FilterGroup[];
+  /** Section-level action rendered before the filter trigger (IDC: NLB 리스너 현황). */
+  actions?: ReactNode;
+}
+
+/** Attaches to the table top (radius 12/12/0/0, no bottom border) — the toolbar and
+ *  the rows it governs read as one object. */
+export function ResourceToolbar({
+  searchValue,
+  onSearchChange,
+  searchPlaceholder,
+  groups,
+  actions,
+}: ResourceToolbarProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-[10px] rounded-t-[12px] border border-b-0 border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-4 py-[14px]">
+      <SearchBox
+        wrapClassName="min-w-[220px] max-w-[360px] flex-[1_1_260px]"
+        aria-label="리소스 검색"
+        placeholder={searchPlaceholder}
+        value={searchValue}
+        onChange={(event) => onSearchChange(event.target.value)}
+      />
+      <span className="ml-auto flex items-center gap-2">
+        {actions}
+        <FilterMenu groups={groups} />
+      </span>
+    </div>
+  );
+}
+
+/** Filter trigger + popover. The trigger stays tinted while any condition is set, so
+ *  the state survives the popover being closed. */
+function FilterMenu({ groups: allGroups }: { groups: readonly FilterGroup[] }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // A group with one value is not a choice — dropped, unless its value IS set (else
+  // a refetch that drops the selected option would leave no control to clear it).
+  const groups = allGroups.filter((group) => group.options.length > 1 || group.value);
+  const activeCount = groups.filter((group) => group.value).length;
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  if (groups.length === 0) return null;
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label="필터"
+        className={cn(
+          // 32x32 hit area (WCAG 2.5.8 asks for at least 24x24) around a 16px glyph.
+          'flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--pl-gray-100)] [&_svg]:stroke-[2.2]',
+          activeCount > 0
+            ? 'text-[var(--pl-primary)]'
+            : 'text-[var(--pl-text-medium)] hover:text-[var(--pl-primary)]',
+        )}
+      >
+        <FilterIcon className="h-4 w-4" />
+      </button>
+
+      {open && (
+        <div
+          role="group"
+          aria-label="필터 옵션"
+          className="absolute right-0 top-[34px] z-20 w-[220px] rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] py-1.5 shadow-[var(--pl-shadow-lg)]"
+        >
+          {/* The list scrolls so the panel height is fixed however many options arrive. */}
+          <div className="max-h-[280px] overflow-y-auto">
+            {groups.map((group) => (
+              <div key={group.key} aria-label={`${group.label} 필터`} role="radiogroup">
+                <p className="sticky top-0 z-10 border-y border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-3 py-[5px] text-[11px] font-bold tracking-[0.02em] text-[var(--pl-text-weak)] first:border-t-0">
+                  {group.label}
+                </p>
+                <div className="py-1">
+                  <FilterOption active={!group.value} onClick={() => group.onChange('')}>
+                    전체
+                  </FilterOption>
+                  {group.options.map((option) => (
+                    <FilterOption
+                      key={option}
+                      active={group.value === option}
+                      onClick={() => group.onChange(option)}
+                    >
+                      {group.formatOption ? group.formatOption(option) : option}
+                    </FilterOption>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One value per group, so the row is a radio: the dot carries the state (a check
+ *  mark reads as "applied" and would not imply the options are exclusive). */
+function FilterOption({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      onClick={onClick}
+      className={cn(
+        'flex w-full items-center gap-2 py-[6px] pl-4 pr-3 text-left text-[14px] transition-colors hover:bg-[var(--pl-gray-50)]',
+        active
+          ? 'font-semibold text-[var(--pl-text-strong)]'
+          : 'font-medium text-[var(--pl-text-medium)]',
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border transition-colors',
+          active ? 'border-[4px] border-[var(--pl-primary)]' : 'border-[var(--pl-border-strong)]',
+        )}
+      />
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+    </button>
+  );
+}

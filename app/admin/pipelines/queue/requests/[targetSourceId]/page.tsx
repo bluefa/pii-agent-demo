@@ -22,10 +22,11 @@ import { Card } from '@/app/admin/pipelines/_components/Card';
 import { SectionHeader } from '@/app/admin/pipelines/_components/SectionHeader';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
-import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
-import { TqSegLg } from '@/app/admin/pipelines/queue/_components/TqSegLg';
-import { TqSelectLg } from '@/app/admin/pipelines/queue/_components/TqSelectLg';
+import {
+  ResourceStatTiles,
+  ResourceToolbar,
+} from '@/app/admin/pipelines/queue/requests/_components/ResourceFilterBar';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 
 import { RequestDetailHeader } from '@/app/admin/pipelines/queue/requests/_components/RequestDetailHeader';
@@ -49,7 +50,6 @@ import {
   pageResources,
   queryResources,
   resourceCounts,
-  type ResourceFilter,
   type ResourceQuery,
 } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
 import {
@@ -281,70 +281,52 @@ export default function RequestDetailPage(): ReactElement {
           <Card>
             {/* 대상/제외 카운트는 읽기 전용 문구가 아니라 필터 자체입니다 — 40건짜리
                 요청에서 "제외 9건이 왜 빠졌는지"를 페이지를 넘겨가며 찾지 않도록. */}
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <TqSegLg<ResourceFilter>
-                ariaLabel="연동 대상 필터"
-                value={query.filter}
-                onChange={(next) => {
-                  if (next !== query.filter) patchQuery({ filter: next });
-                }}
-                options={[
-                  { label: '전체', value: 'all', count: counts.all },
-                  { label: '연동 대상', value: 'target', count: counts.target },
-                  { label: '제외', value: 'excluded', count: counts.excluded },
-                ]}
-              />
-              {/* A one-value axis is not a filter — the select only earns its place
-                  when the request actually spans more than one value. */}
-              {dbTypeValues.length > 1 && (
-                <TqSelectLg
-                  aria-label="Database Type 필터"
-                  value={query.databaseType}
-                  onChange={(event) => patchQuery({ databaseType: event.target.value })}
-                >
-                  <option value="">Database Type 전체</option>
-                  {dbTypeValues.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </TqSelectLg>
-              )}
-              {axisValues.length > 1 && (
-                <TqSelectLg
-                  aria-label={isIdc ? '구분 필터' : 'Region 필터'}
-                  value={query.axis}
-                  onChange={(event) => patchQuery({ axis: event.target.value })}
-                >
-                  <option value="">{isIdc ? '구분 전체' : 'Region 전체'}</option>
-                  {axisValues.map((value) => (
-                    <option key={value} value={value}>
-                      {isIdc ? (value === 'HOST' ? 'Host' : 'IP') : value}
-                    </option>
-                  ))}
-                </TqSelectLg>
-              )}
-              <SearchBox
-                lg
-                wrapClassName="ml-auto w-[260px]"
-                className="h-[46px]"
-                aria-label="리소스 검색"
-                placeholder={isIdc ? '호스트 · IP · SID 검색' : '리소스 이름 · ID 검색'}
-                value={query.search}
-                onChange={(event) => patchQuery({ search: event.target.value })}
-              />
-            </div>
+            <ResourceStatTiles
+              counts={counts}
+              filter={query.filter}
+              onFilterChange={(next) => patchQuery({ filter: next })}
+            />
 
-            {filteredResources.length === 0 ? (
-              <PlEmptyState icon="inbox" message="조건에 맞는 리소스가 없어요." />
-            ) : isIdc ? (
-              <>
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className={text.subsectionTitle}>리소스별 NLB Index</span>
+            <ResourceToolbar
+              searchValue={query.search}
+              onSearchChange={(next) => patchQuery({ search: next })}
+              searchPlaceholder={
+                isIdc ? '호스트 · IP · Oracle SID 검색' : 'Resource Name 또는 Resource ID 검색'
+              }
+              groups={[
+                {
+                  key: 'dbType',
+                  label: 'Database Type',
+                  value: query.databaseType,
+                  onChange: (next) => patchQuery({ databaseType: next }),
+                  options: dbTypeValues,
+                },
+                {
+                  key: 'axis',
+                  label: isIdc ? '구분' : 'Region',
+                  value: query.axis,
+                  onChange: (next) => patchQuery({ axis: next }),
+                  options: axisValues,
+                  formatOption: isIdc ? (value) => (value === 'HOST' ? 'Host' : 'IP') : undefined,
+                },
+              ]}
+              actions={
+                isIdc ? (
                   <PlButton variant="secondary" size="sm" onClick={() => setModal('nlb')}>
                     NLB 리스너 현황
                   </PlButton>
-                </div>
+                ) : undefined
+              }
+            />
+
+            {filteredResources.length === 0 ? (
+              <PlEmptyState
+                icon="inbox"
+                message="조건에 맞는 리소스가 없어요."
+                className="rounded-b-[10px] border border-t-0 border-[var(--pl-border)]"
+              />
+            ) : isIdc ? (
+              <>
                 <IdcResourceTable
                   rows={pagedResources.rows}
                   nlbTable={nlbTable}
@@ -354,13 +336,14 @@ export default function RequestDetailPage(): ReactElement {
                   onSelect={onSelectNlb}
                   onSave={(row) => void onSaveNlb(row)}
                   onShowNlbInfo={setNlbInfoResource}
+                  wrapClassName="rounded-t-none"
                 />
                 <p className={`${text.meta} mt-4`}>
                   점유 리스너가 30개를 넘으면 주의, 50개에 이르면 새로 배정할 수 없어요
                 </p>
               </>
             ) : (
-              <CloudResourceTable rows={pagedResources.rows} />
+              <CloudResourceTable rows={pagedResources.rows} wrapClassName="rounded-t-none" />
             )}
 
             <OpsPagination

@@ -38,6 +38,8 @@ export interface IdcResourceTableProps {
   /** Open the "현재 배정된 NLB" modal for this resource (read-only, always
    *  available — not gated by `disabled`). */
   onShowNlbInfo: (row: RequestResourceRow) => void;
+  /** Squares the top corners when a toolbar is attached above (P3). */
+  wrapClassName?: string;
 }
 
 const SELECT_BASE =
@@ -57,6 +59,7 @@ export function IdcResourceTable({
   onSelect,
   onSave,
   onShowNlbInfo,
+  wrapClassName,
 }: IdcResourceTableProps): ReactElement {
   const { appTable, tag, occ } = tqStyles;
   const occupancyByIndex = new Map(nlbTable.map((n) => [n.nlbIndex, n.occupiedListenerCount]));
@@ -65,7 +68,7 @@ export function IdcResourceTable({
     kind === 'HOST' ? 'Host' : 'IP';
 
   return (
-    <div className={appTable.wrap}>
+    <div className={cn(appTable.wrap, wrapClassName)}>
       <table className={appTable.root}>
         <thead className={appTable.thead}>
           <tr>

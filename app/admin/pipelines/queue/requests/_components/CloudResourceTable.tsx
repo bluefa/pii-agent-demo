@@ -13,12 +13,14 @@ import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 export interface CloudResourceTableProps {
   rows: RequestResourceRow[];
+  /** Squares the top corners when a toolbar is attached above (P3). */
+  wrapClassName?: string;
 }
 
-export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElement {
+export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTableProps): ReactElement {
   const { appTable, tag } = tqStyles;
   return (
-    <div className={appTable.wrap}>
+    <div className={cn(appTable.wrap, wrapClassName)}>
       <table className={appTable.root}>
         <thead className={appTable.thead}>
           <tr>
