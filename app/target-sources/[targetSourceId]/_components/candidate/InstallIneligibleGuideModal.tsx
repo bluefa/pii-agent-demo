@@ -42,7 +42,8 @@ const GUIDES: Record<RecommendFailReason, Guide> = {
   GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET: {
     cause: 'Cloud SQL 인스턴스가 내부 HTTP 로드밸런서용 서브넷을 쓰고 있어 Agent를 설치할 수 없어요.',
     detail: 'PII Agent는 Private Service Connect(PSC)로 Cloud SQL에 연결해요. 내부 HTTP(S) 로드밸런서 전용 서브넷은 PSC가 지원하지 않아요.',
-    remedy: 'PSC를 지원하는 서브넷으로 인스턴스를 옮긴 뒤 다시 스캔하면 연동 대상으로 잡혀요.',
+    // 조치 방법 없음 — 서브넷을 바꾸려면 인스턴스를 옮겨야 하고, 그 마이그레이션 비용은
+    // 이 모달이 한 줄로 권할 수 있는 크기가 아니다. 제약만 말하고 판단은 협업 채널로 넘긴다.
     doc: { href: GCP_GUIDE_URLS.CLOUD_SQL_PSC, label: 'Cloud SQL Private Service Connect 문서' },
   },
 };

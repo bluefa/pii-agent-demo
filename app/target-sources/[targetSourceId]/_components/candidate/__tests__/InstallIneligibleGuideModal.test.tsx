@@ -21,21 +21,32 @@ describe('InstallIneligibleGuideModal', () => {
     expect(screen.getByRole('link', { name: 'Azure VNet 네트워킹 문서' })).toBeTruthy();
   });
 
-  // Both GCP values are PSC prerequisites the instance fails, so each one names PSC,
-  // says what to change, and links Google's own doc — never Azure's story.
+  // Both GCP values are PSC prerequisites the instance fails, so each one names PSC and
+  // links Google's own doc — never Azure's story.
   it.each([
-    ['GCP_CLOUD_SQL_HAS_PUBLIC_IP', /공인 IP가 설정되어 있어/, /공인 IP를 해제한 뒤/],
-    [
-      'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
-      /내부 HTTP 로드밸런서용 서브넷/,
-      /PSC를 지원하는 서브넷으로/,
-    ],
-  ] as const)('explains %s as a PSC prerequisite with a remedy', (reason, cause, remedy) => {
+    ['GCP_CLOUD_SQL_HAS_PUBLIC_IP', /공인 IP가 설정되어 있어/],
+    ['GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET', /내부 HTTP 로드밸런서용 서브넷/],
+  ] as const)('explains %s as a PSC prerequisite', (reason, cause) => {
     open(reason);
     expect(screen.getByText(cause)).toBeTruthy();
-    expect(screen.getByText(remedy)).toBeTruthy();
     expect(screen.getByRole('link', { name: /Private Service Connect/ })).toBeTruthy();
     expect(screen.queryByText(/Private Endpoint/)).toBeNull();
+  });
+
+  // Clearing a public IP is a setting change; moving to a PSC-capable subnet means
+  // migrating the instance. Only the first is small enough to recommend in one line.
+  it('offers a remedy for the public IP', () => {
+    open('GCP_CLOUD_SQL_HAS_PUBLIC_IP');
+    expect(screen.getByText('조치 방법')).toBeTruthy();
+    expect(screen.getByText(/공인 IP를 해제한 뒤/)).toBeTruthy();
+  });
+
+  it('states the subnet constraint without prescribing a migration', () => {
+    open('GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET');
+    expect(screen.queryByText('조치 방법')).toBeNull();
+    // The constraint and where to ask about it still stand.
+    expect(screen.getByRole('link', { name: /Private Service Connect/ })).toBeTruthy();
+    expect(screen.getByText('협업 채널')).toBeTruthy();
   });
 
   it('falls back to the classification alone when no reason code was sent (AWS·IDC)', () => {
