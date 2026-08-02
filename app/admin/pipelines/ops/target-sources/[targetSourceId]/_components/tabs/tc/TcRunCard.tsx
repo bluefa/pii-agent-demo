@@ -1,17 +1,22 @@
 'use client';
 
 /**
- * Test Connection 실행 card — 지금 상태 · 직접 실행 · 수행 기록.
+ * Test Connection 실행 card — 지금 상태 · 직접 실행 · 실행 기록.
  *
- * The two "이력" here are different things and are deliberately kept apart:
- *  - 수행 기록 (inline table)  = the RUNS (GET …/test-connection/execution-history)
- *  - 처리 이력 (modal)          = who confirmed / who asked for a re-run
- *                               (GET …/test-connection/history)
+ * The two "기록" here are different things, and are now named after what they
+ * actually list rather than the near-synonymous 수행/처리 pair:
+ *  - 실행 기록 (inline table)     = the RUNS (GET …/test-connection/execution-history)
+ *  - 승인·반려 이력 (modal)        = who confirmed / who asked for a re-run
+ *                                 (GET …/test-connection/history)
+ *
+ * A run is asynchronous, so the table polls itself while any listed run is still
+ * PENDING/RUNNING — without it the operator triggers a run and stares at a table
+ * that only moves if they reload the page.
  *
  * 연동 승인 / 재실행 요청 do NOT live here — they are the operator's decision on the
  * result and belong next to the result table (TcDecisionCard).
  */
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { useApiAction } from '@/app/hooks/useApiMutation';
@@ -34,6 +39,8 @@ import {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 
 const PAGE_SIZE = 5;
+/** Same cadence as the user-side Step 5 poll (useTestConnectionPolling). */
+const POLL_MS = 4_000;
 const COMPLETED = 'TEST_CONNECTION_COMPLETED';
 const REJECTED = 'TEST_CONNECTION_REJECTED';
 
@@ -70,9 +77,12 @@ export function TcRunCard({
   const [failed, setFailed] = useState(false);
   const [page, setPage] = useState(0);
 
-  const loadKey = `${targetSourceId}:${reloadKey}:${page}`;
+  // `viewKey` drives the skeleton, `tick` only refetches: a poll swaps the rows
+  // in place instead of blanking the table every 4 seconds.
+  const viewKey = `${targetSourceId}:${reloadKey}:${page}`;
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const loading = loadedKey !== loadKey;
+  const [tick, setTick] = useState(0);
+  const loading = loadedKey !== viewKey;
 
   useEffect(() => {
     let cancelled = false;
@@ -89,12 +99,28 @@ export function TcRunCard({
         setTotalPages(1);
         setFailed(true);
       }
-      if (!cancelled) setLoadedKey(loadKey);
+      if (!cancelled) setLoadedKey(viewKey);
     })();
     return () => {
       cancelled = true;
     };
-  }, [targetSourceId, page, loadKey]);
+  }, [targetSourceId, page, viewKey, tick]);
+
+  // Poll only while an unsettled run is on screen; the interval clears itself the
+  // moment that run reaches SUCCESS/FAIL, so an idle tab makes no requests.
+  const running = rows.some((row) => row.status === 'PENDING' || row.status === 'RUNNING');
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setTick((n) => n + 1), POLL_MS);
+    return () => clearInterval(id);
+  }, [running]);
+
+  // A finished run rewrites the result table below, so settling refreshes the tab.
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !running) onReload();
+    wasRunning.current = running;
+  }, [running, onReload]);
 
   // Direct run (POST …/test-connection/async) — the server owns eligibility
   // (409 while running / 4xx before install), so the button just reports.
@@ -132,15 +158,17 @@ export function TcRunCard({
           <p className={opsStyles.cardDesc}>{desc}</p>
         </div>
         <div className="flex flex-none gap-2">
+          {/* The server still owns eligibility (409 while running); disabling here
+              only spares the operator a request that can only be refused. */}
           <PlButton
             variant="secondary"
             onClick={() => void runTc.execute()}
-            disabled={runTc.loading}
+            disabled={runTc.loading || running}
           >
-            연결 테스트 실행
+            {running ? '실행 중' : '연결 테스트 실행'}
           </PlButton>
           <PlButton variant="secondary" onClick={onOpenHistory}>
-            처리 이력
+            승인·반려 이력
           </PlButton>
         </div>
       </div>
@@ -152,12 +180,12 @@ export function TcRunCard({
         </div>
       )}
 
-      <h3 className={cn(text.subsectionTitle, 'mt-5')}>수행 기록</h3>
+      <h3 className={cn(text.subsectionTitle, 'mt-5')}>실행 기록</h3>
       {loading ? (
         <div className="min-h-[160px]" aria-busy />
       ) : failed ? (
         <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
-          <p>수행 기록을 불러오지 못했습니다.</p>
+          <p>실행 기록을 불러오지 못했습니다.</p>
           <PlButton variant="secondary" size="sm" className="mt-3" onClick={onReload}>
             다시 시도
           </PlButton>

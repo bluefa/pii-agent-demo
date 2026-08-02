@@ -18,6 +18,7 @@
  */
 import { useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import { fmtDateTime } from '@/lib/pipeline/format';
 import { isMissingConfirmedIntegrationError } from '@/lib/errors';
 import {
   getConfirmedIntegration,
@@ -29,7 +30,7 @@ import type { SecretKey } from '@/lib/types';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
+import { PlCombobox, type PlComboboxOption } from '@/app/admin/pipelines/_components/PlCombobox';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
@@ -38,6 +39,7 @@ import {
   Dash,
   ResourceId,
   TcPill,
+  TC_TONE_FILL,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import { LdbManageModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/LdbManageModal';
 import { ldbCount } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
@@ -111,6 +113,16 @@ export function ConfirmedInfoCard({
   }, [targetSourceId, loadKey]);
 
   const tcByResourceId = new Map(tcResults.map((row) => [row.resourceId, row]));
+
+  // 생성 시각 rides along as the option's second line: with 20+ credentials the
+  // name alone rarely settles "which one is this", and it is the only other
+  // field the contract gives us (SecretResponse).
+  const credentialOptions: PlComboboxOption[] = secrets.map((secret) => ({
+    value: secret.name,
+    label: secret.name,
+    meta: secret.createTimeStr ? `생성 ${fmtDateTime(secret.createTimeStr)}` : undefined,
+  }));
+  const knownCredential = new Set(secrets.map((secret) => secret.name));
 
   const assignCredential = async (
     row: ConfirmedIntegrationResourceItem,
@@ -198,25 +210,25 @@ export function ConfirmedInfoCard({
                       <td className={table.cell}>
                         {/* Credential is addressed by resource id — no id, no assignment. */}
                         {row.resource_id ? (
-                          <PlSelect
-                            aria-label="Credential"
-                            className="min-w-[150px]"
-                            value={row.credential_id ?? ''}
-                            disabled={savingId === row.resource_id}
-                            onChange={(event) => void assignCredential(row, event.target.value)}
-                          >
-                            <option value="">연결 안 함</option>
-                            {/* The assigned value may predate the list — keep it selectable. */}
-                            {row.credential_id &&
-                              !secrets.some((secret) => secret.name === row.credential_id) && (
-                                <option value={row.credential_id}>{row.credential_id}</option>
-                              )}
-                            {secrets.map((secret) => (
-                              <option key={secret.name} value={secret.name}>
-                                {secret.name}
-                              </option>
-                            ))}
-                          </PlSelect>
+                          <div className="w-[190px]">
+                            <PlCombobox
+                              aria-label="Credential"
+                              value={row.credential_id ?? ''}
+                              options={credentialOptions}
+                              emptyLabel="연결 안 함"
+                              placeholder="연결 안 함"
+                              searchPlaceholder="Credential 검색"
+                              disabled={savingId === row.resource_id}
+                              onChange={(next) => void assignCredential(row, next)}
+                            />
+                            {/* An assignment the list no longer carries is stated, not
+                                quietly folded in as one more selectable option. */}
+                            {row.credential_id && !knownCredential.has(row.credential_id) && (
+                              <span className={cn(opsStyles.statusTag, TC_TONE_FILL.warn, 'mt-1')}>
+                                목록에 없음
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <Dash />
                         )}

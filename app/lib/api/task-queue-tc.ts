@@ -191,7 +191,7 @@ export interface TcHistoryPage {
 }
 
 // ---------------------------------------------------------------------------
-// TC 수행 기록 — the runs themselves (swagger getTestConnectionExecutionHistory).
+// TC 실행 기록 — the runs themselves (swagger getTestConnectionExecutionHistory).
 // Sibling to the trail below: this is "언제 돌렸고 결과가 무엇이었나", that one is
 // "누가 완료를 확인했고 누가 재실행을 요청했나".
 // ---------------------------------------------------------------------------

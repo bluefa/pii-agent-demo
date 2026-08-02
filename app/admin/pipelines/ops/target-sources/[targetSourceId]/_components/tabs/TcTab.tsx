@@ -13,7 +13,7 @@
  *
  * One shared `reloadKey` is the tab's refresh signal: every write in the tab
  * (실행 / 재실행 요청 / 설치 완료 / 논리 DB 정책 / Credential) bumps it, because each of
- * them changes at least one other card. The 처리 이력 modal mounts per open, so it
+ * them changes at least one other card. The 승인·반려 이력 modal mounts per open, so it
  * always fetches the fresh trail and needs no reload plumbing.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
