@@ -294,6 +294,16 @@ const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
   );
 };
 
+/** 조회 시각 한 줄 — 요약에서는 지표 카드 안, 단계 표에서는 표 아래에 선다. */
+const LastCheckLine = ({ lastCheck }: { lastCheck: InstallLastCheck }) => (
+  <div className={cn(textStyles.caption, textColors.tertiary)}>
+    {lastCheck.checkedAt && <>마지막 확인 {formatDateTime(lastCheck.checkedAt)}</>}
+    {lastCheck.status === 'FAILED' && (
+      <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
+    )}
+  </div>
+);
+
 /** 요약의 지표 한 칸 — 숫자가 라벨보다 크다(숫자가 내용, 라벨은 주석). */
 const RollupStat = ({
   label,
@@ -322,11 +332,13 @@ const RollupStat = ({
 const InstallSummaryPanel = ({
   views,
   rollup,
+  lastCheck,
   onOpen,
 }: {
   views: readonly StepView[];
   /** 리소스별 전체 상태(installation_status) 집계. */
   rollup: { total: number; done: number; running: number; failed: number };
+  lastCheck: InstallLastCheck;
   onOpen: (stepId: string) => void;
 }) => {
   const action = views.filter((v) => v.actionable);
@@ -334,6 +346,22 @@ const InstallSummaryPanel = ({
   return (
     // 그룹(섹션) 사이 = section 32px, 그룹 제목↔본문 = related 8px (비대칭 규칙)
     <div className={cn('flex flex-col', stackGap.section)}>
+      {/* 현황 카드 — 숫자와 그 숫자가 언제 기준인지는 한 덩어리다. 이 패널에서 판을
+          가진 유일한 블록이고, 조치 항목은 아래에서 인용 룰이 대신 묶는다. */}
+      <div className={cn('rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.light)}>
+        <div className="flex items-start gap-8">
+          <RollupStat label="전체 리소스" value={rollup.total} />
+          <RollupStat label="완료" value={rollup.done} />
+          <RollupStat label="진행중" value={rollup.running} tone={statusColors.info.textDark} />
+          <RollupStat
+            label="실패"
+            value={rollup.failed}
+            {...(rollup.failed > 0 && { tone: statusColors.error.textDark })}
+          />
+        </div>
+        <LastCheckLine lastCheck={lastCheck} />
+      </div>
+
       {/* 제목은 조건부다 — 확인할 게 없는데 "확인이 필요합니다"를 띄워놓고 그 아래에서
           "없어요"라고 하면 한 섹션이 서로 반대말을 한다. */}
       {action.length === 0 ? (
@@ -359,18 +387,6 @@ const InstallSummaryPanel = ({
           </ul>
         </section>
       )}
-
-      {/* 지표는 아래로 — 참고용 현황이지 첫 시선이 갈 자리가 아니다. 판은 위 카드 하나뿐. */}
-      <div className="flex items-start gap-8">
-        <RollupStat label="전체 리소스" value={rollup.total} />
-        <RollupStat label="완료" value={rollup.done} />
-        <RollupStat label="진행중" value={rollup.running} tone={statusColors.info.textDark} />
-        <RollupStat
-          label="실패"
-          value={rollup.failed}
-          {...(rollup.failed > 0 && { tone: statusColors.error.textDark })}
-        />
-      </div>
     </div>
   );
 };
@@ -587,21 +603,17 @@ export const InstallStatusDetail = ({
           {activePanel ? (
             activePanel.panel
           ) : isSummary ? (
-            <InstallSummaryPanel views={views} rollup={rollup} onOpen={setSelected} />
+            <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
           ) : (
             // key resets pagination when switching steps
             <StepResourceTable key={active.id} rows={rows} />
           )}
         </div>
 
-        {/* 조회 시각은 내용 아래 — 무엇을 보고 있는지가 먼저고, 그게 언제 기준인지는
-            읽고 나서 궁금해지는 것이다. */}
-        {!activePanel && (
-          <div className={cn('mt-4', textStyles.caption, textColors.tertiary)}>
-            {lastCheck.checkedAt && <>마지막 확인 {formatDateTime(lastCheck.checkedAt)}</>}
-            {lastCheck.status === 'FAILED' && (
-              <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
-            )}
+        {/* 표 아래 조회 시각 — 요약에서는 지표 카드가 이미 갖고 있으므로 여기서는 뺀다. */}
+        {!activePanel && !isSummary && (
+          <div className="mt-4">
+            <LastCheckLine lastCheck={lastCheck} />
           </div>
         )}
       </div>
