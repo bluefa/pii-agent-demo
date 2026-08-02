@@ -168,23 +168,19 @@ export const TargetPill = ({
   );
 };
 
-// Install status wears the same pill geometry as the verdict it replaces, so the column reads
-// as one family across steps 2·3·4. Only the tint changes, and it comes from the status tokens.
-const INSTALL_STATUS_BOX: Record<InstallStepValue, string> = {
-  COMPLETED: cn(statusColors.success.bg, statusColors.success.border, statusColors.success.textDark),
-  IN_PROGRESS: cn(statusColors.info.bg, statusColors.info.border, statusColors.info.textDark),
-  FAIL: cn(statusColors.error.bg, statusColors.error.border, statusColors.error.textDark),
-  BDC_INSTALL_REQUIRED: cn(
-    statusColors.warning.bg,
-    statusColors.warning.border,
-    statusColors.warning.textDark,
-  ),
-  SKIP: cn(statusColors.pending.bg, statusColors.pending.border, statusColors.pending.textDark),
-  UNKNOWN: cn(statusColors.pending.bg, statusColors.pending.border, statusColors.pending.textDark),
+// 상태는 태그가 아니라 글자다 — 행마다 반복되는 값이라 채운 배지를 두면 색이 먼저
+// 읽힌다. 색은 "아직 손댈 일이 남았는가"만 말한다: 끝난 것과 해당 없는 것은 회색.
+const INSTALL_STATUS_TEXT: Record<InstallStepValue, string> = {
+  COMPLETED: textColors.tertiary,
+  IN_PROGRESS: statusColors.info.textDark,
+  FAIL: statusColors.error.textDark,
+  BDC_INSTALL_REQUIRED: statusColors.warning.textDark,
+  SKIP: textColors.tertiary,
+  UNKNOWN: textColors.tertiary,
 };
 
-const InstallStatusPill = ({ cell }: { cell: InstallStepCell }) => (
-  <span className={cn(idcStyles.targetPill.base, INSTALL_STATUS_BOX[cell.status])}>
+const InstallStatusText = ({ cell }: { cell: InstallStepCell }) => (
+  <span className={cn('whitespace-nowrap font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
     {cell.label ?? INSTALL_STATUS_LABEL[cell.status]}
   </span>
 );
@@ -359,7 +355,7 @@ export const WaitingApprovalTable = memo(
                     ) : installVariant ? (
                       <>
                         <td className={idcStyles.table.approvalCell}>
-                          {resource.installCell && <InstallStatusPill cell={resource.installCell} />}
+                          {resource.installCell && <InstallStatusText cell={resource.installCell} />}
                         </td>
                         {/* 안내 없음은 빈 칸 — 대시는 시각적 노이즈만 남긴다. */}
                         <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>

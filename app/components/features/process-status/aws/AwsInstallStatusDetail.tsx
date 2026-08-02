@@ -74,13 +74,13 @@ const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
     id: 'bdcService',
     title: 'BDC 서비스 영역',
     side: 'BDC측 리소스 생성',
-    desc: '리소스별 BDC 계정 측 Private Endpoint Service / IAM Role 설정을 자동 배포합니다.',
+    desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
   },
   {
     id: 'bdcCommon',
     title: 'BDC 공통 영역',
     side: 'BDC측 리소스 생성',
-    desc: '대상 소스 공통 BDC 인프라 설정을 자동 배포합니다.',
+    desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
   },
 ];
 

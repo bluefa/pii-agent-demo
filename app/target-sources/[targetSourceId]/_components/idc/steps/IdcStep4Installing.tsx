@@ -130,13 +130,13 @@ export const IdcStep4Installing = ({
       id: 'cx',
       title: 'BDC CX 영역',
       side: 'BDC측 리소스 생성',
-      desc: 'BDC망 CX 영역에 PII Agent 수집 모듈과 네트워크 경로를 구성합니다.',
+      desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
     },
     {
       id: 'bdp',
       title: 'BDC BDP 영역',
       side: 'BDC측 리소스 생성',
-      desc: 'BDC망 BDP 영역 리소스를 구성합니다.',
+      desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
     },
     {
       id: 'firewall',

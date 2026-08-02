@@ -298,6 +298,16 @@ export const buttonStyles = {
 /**
  * 카드 스타일
  */
+/**
+ * 설치 단계의 주체(서비스측 / BDC측) — 태그가 아니라 글자색으로만 가른다.
+ * 목차·표에서 항목마다 반복되는 값이라 채운 배지를 두면 색이 내용을 이긴다.
+ * 두 값 모두 흰 바닥에서 AA 를 넘는 800 단계다.
+ */
+export const sideTextColors = {
+  service: 'text-blue-800',
+  bdc: 'text-indigo-800',
+} as const;
+
 export const cardStyles = {
   /** v15 Toss card — radius 20 + 2-layer toss-shadow-sm. */
   base: 'bg-white rounded-[20px] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',

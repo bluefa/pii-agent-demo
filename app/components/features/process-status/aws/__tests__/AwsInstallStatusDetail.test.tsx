@@ -65,9 +65,10 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(nav).getByText('Terraform 자동 적용')).toBeTruthy();
     expect(within(nav).getByText('BDC 서비스 영역')).toBeTruthy();
     expect(within(nav).getByText('BDC 공통 영역')).toBeTruthy();
-    // 주체 태그: 서비스측 1 + BDC측 2 (요약 스텝은 태그 없음).
-    expect(within(nav).getByText('서비스측 리소스 생성')).toBeTruthy();
-    expect(within(nav).getAllByText('BDC측 리소스 생성').length).toBe(2);
+    // 주체는 앞머리 한 단어에만 색이 붙으므로 그 토큰으로 센다:
+    // 서비스측 확인 1 + 서비스측 리소스 생성 1 = 2, BDC측 2 (요약 스텝은 주체 없음).
+    expect(within(nav).getAllByText('서비스측').length).toBe(2);
+    expect(within(nav).getAllByText('BDC측').length).toBe(2);
 
     // A failed step makes the summary the default view, and the action card there is
     // the single place the failure reason is stated (no duplicate banner above it).

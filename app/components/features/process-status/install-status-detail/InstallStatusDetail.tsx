@@ -6,6 +6,7 @@ import {
   borderColors,
   cn,
   primaryColors,
+  sideTextColors,
   stackGap,
   shadows,
   statusColors,
@@ -115,6 +116,22 @@ const SideTag = ({ side }: { side: string }) => (
   </span>
 );
 
+/**
+ * 주체를 글자로 — 정보는 앞머리 한 단어(서비스측 / BDC측)에 있으므로 거기에만 색이
+ * 붙고, 뒤따르는 설명("리소스 생성", "승인")은 회색으로 남는다.
+ */
+const SideText = ({ side }: { side: string }) => {
+  const [owner, ...rest] = side.split(' ');
+  return (
+    <span className={textColors.tertiary}>
+      <span className={cn('font-semibold', side.startsWith('BDC') ? sideTextColors.bdc : sideTextColors.service)}>
+        {owner}
+      </span>
+      {rest.length > 0 && ` ${rest.join(' ')}`}
+    </span>
+  );
+};
+
 interface ResourceRow {
   resourceId: string;
   resourceName: string | null;
@@ -220,7 +237,10 @@ const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
       <div className="flex items-baseline gap-2 flex-wrap">
         <span className={cn(textStyles.bodyStrong, textColors.primary)}>{view.step.title}</span>
         {view.step.side && (
-          <span className={cn(textStyles.caption, textColors.tertiary)}>· {view.step.side}</span>
+          <span className={textStyles.caption}>
+            <span className={textColors.tertiary}>· </span>
+            <SideText side={view.step.side} />
+          </span>
         )}
       </div>
 
@@ -247,12 +267,18 @@ const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
         </ul>
       )}
 
+      {/* 이동 문자는 링크처럼 — 밑줄이 "누를 수 있다"를 말한다. 어느 단계로 가는지
+          문장 안에 넣어, 링크만 읽어도 목적지를 안다. */}
       <button
         type="button"
         onClick={onOpen}
-        className={cn('self-start', textStyles.captionStrong, primaryColors.text)}
+        className={cn(
+          'self-start underline underline-offset-2 decoration-1',
+          textStyles.captionStrong,
+          primaryColors.text,
+        )}
       >
-        해당 단계 열기 →
+        {view.step.title} 단계로 이동
       </button>
     </div>
   );
@@ -311,23 +337,30 @@ const InstallSummaryPanel = ({
         />
       </div>
 
-      <section className={cn('flex flex-col', stackGap.related)}>
-        {/* 섹션 라벨은 한 단 내려 쓴다 — 항목 제목과 같은 14/700 이면 둘 중 무엇이
-            상위인지 화면이 답하지 못한다(인접 계층은 크기·색 두 축이 달라야 한다). */}
-        <h4 className={cn(textStyles.captionStrong, textColors.tertiary)}>
-          지금 서비스 측에서 확인이 필요합니다
-        </h4>
-        {action.length === 0 ? (
-          <p className={cn(textStyles.body, textColors.secondary)}>
-            확인이 필요한 항목이 없어요. 나머지 단계는 BDC가 처리 중이며, 왼쪽 목록에서 진행
-            상황을 볼 수 있어요.
-          </p>
-        ) : (
-          action.map((view) => (
-            <ActionItem key={view.step.id} view={view} onOpen={() => onOpen(view.step.id)} />
-          ))
-        )}
-      </section>
+      {/* 제목은 조건부다 — 확인할 게 없는데 "확인이 필요합니다"를 띄워놓고 그 아래에서
+          "없어요"라고 하면 한 섹션이 서로 반대말을 한다. */}
+      {action.length === 0 ? (
+        <p className={cn(textStyles.body, textColors.secondary)}>
+          지금 서비스 측에서 확인할 항목은 없어요. 나머지 단계는 BDC가 처리 중이며, 왼쪽
+          목록에서 진행 상황을 볼 수 있어요.
+        </p>
+      ) : (
+        <section className={cn('flex flex-col', stackGap.related)}>
+          {/* 섹션 라벨은 한 단 내려 쓴다 — 항목 제목과 같은 14/700 이면 둘 중 무엇이
+              상위인지 화면이 답하지 못한다(인접 계층은 크기·색 두 축이 달라야 한다). */}
+          <h4 className={cn(textStyles.captionStrong, textColors.tertiary)}>
+            지금 서비스 측에서 확인이 필요합니다
+          </h4>
+          {/* 여러 건일 수 있으므로 목록이다 — 스크린리더도 "N개 항목"으로 읽는다. */}
+          <ul className={cn('flex flex-col', stackGap.section)}>
+            {action.map((view) => (
+              <li key={view.step.id}>
+                <ActionItem view={view} onOpen={() => onOpen(view.step.id)} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 };
@@ -507,9 +540,9 @@ export const InstallStatusDetail = ({
                   <span className={cn('tabular-nums', textColors.tertiary)}>{aggregate.count}</span>
                 )}
                 {step.side && (
-                  <span className={cn('flex items-center gap-1.5', textColors.tertiary)}>
-                    <span aria-hidden>·</span>
-                    <span className="truncate">{step.side}</span>
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span aria-hidden className={textColors.tertiary}>·</span>
+                    <SideText side={step.side} />
                   </span>
                 )}
               </span>

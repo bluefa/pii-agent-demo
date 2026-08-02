@@ -52,7 +52,7 @@ const AZURE_STEPS: InstallTableStep[] = [
     id: 'bdc',
     title: 'BDC측 Terraform 적용',
     side: 'BDC측 리소스 생성',
-    desc: 'BDC 계정 측 리소스를 Terraform으로 자동 배포합니다.',
+    desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
   },
   {
     id: 'pe',
