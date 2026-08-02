@@ -91,6 +91,45 @@ describe('ApprovalRequestDetailModal', () => {
     expect(screen.getAllByText('반려됨')).toHaveLength(1);
   });
 
+  /**
+   * A host-based resource has no region, so reading only `metadata.region` left the
+   * column empty and the endpoint that was actually approved went unrecorded.
+   */
+  it('shows the endpoint as 위치 for a host-based resource', async () => {
+    getApprovalRequestDetail.mockResolvedValue({
+      resources: [
+        {
+          resource_id: 'idc-1',
+          resource_name: 'oracle-order-prod',
+          resource_type: 'IDC',
+          selected: true,
+          metadata: { database_type: 'ORACLE', host: '10.20.1.11', port: 1521 },
+        },
+      ],
+    });
+    open();
+
+    expect(await screen.findByText('10.20.1.11:1521')).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: '위치' })).toBeTruthy();
+  });
+
+  /** ADR-006: a null processor means the request was approved automatically. */
+  it('names the processor 시스템 when the result carries no user', async () => {
+    render(
+      <ApprovalRequestDetailModal
+        isOpen
+        onClose={() => {}}
+        item={{
+          ...item,
+          result: { result: 'APPROVED', processed_at: '2026-07-31T09:00:00Z', process_info: {} },
+        }}
+        targetSourceId={2002}
+      />,
+    );
+
+    expect(await screen.findByText('시스템')).toBeTruthy();
+  });
+
   it('falls back to the summary counts when the resource fetch fails', async () => {
     getApprovalRequestDetail.mockRejectedValueOnce(new Error('boom'));
     open();

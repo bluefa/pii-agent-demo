@@ -121,6 +121,22 @@ describe('RequestTab 요청 리소스', () => {
     expect(screen.queryByText('idc-r-8f21')).toBeNull();
   });
 
+  /**
+   * The shared table has no Port column, so an IDC row's port would vanish unless it
+   * rides with the host — the endpoint is what the operator has to verify.
+   */
+  it('keeps an IDC row\'s port on its endpoint', async () => {
+    getApprovalRequestLatest.mockResolvedValue({
+      request: { requestId: 1, status: 'PENDING', requestedBy: 'ops', requestedAt: '2026-07-31T05:00:00Z' },
+      resources: [
+        { ...row(0), resourceId: 'idc-r-1', resourceName: null, connectTargets: ['10.20.1.11'], port: 1521 },
+      ],
+    });
+    render(<RequestTab targetSourceId={1031} detail={{ cloud_provider: 'IDC' }} />);
+
+    expect(await screen.findByText('10.20.1.11:1521')).toBeTruthy();
+  });
+
   it('filters the table when a tile is picked', async () => {
     mountWith(23, 5);
     await screen.findByText('resource-1');

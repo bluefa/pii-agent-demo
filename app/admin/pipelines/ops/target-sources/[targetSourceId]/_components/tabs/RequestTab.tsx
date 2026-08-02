@@ -95,18 +95,28 @@ const NOTE_WARN =
  * One request, one presentation, wherever an operator opens it — this tab had its
  * own hand-rolled table with a different column order and no filtering at all.
  *
- * IDC carries no scan-assigned name, so its host/IP takes that seat — and its
+ * IDC carries no scan-assigned name, so its endpoint takes that seat — as `host:port`,
+ * the same shape the queue's IDC table uses, so the port survives a table that has no
+ * column of its own for it. IDC has no region either, so 위치 stays blank rather than
+ * asserting one.
+ *
  * resource_id is NEVER surfaced: the adapter documents it as an internal NLB-PUT key
- * (app/lib/api/task-queue-requests.ts, design-spec §8), so feeding it to a table with
- * a Resource ID column would publish an id the IDC operator has no use for. The wider
- * IDC column set (구분 · Port · Oracle SID · Source IP) is the same gap this list has
- * in the modal, tracked separately.
+ * (app/lib/api/task-queue-requests.ts, design-spec §8), so feeding it to a table with a
+ * Resource ID column would publish an id the IDC operator has no use for. It still keys
+ * the row via `rowKey`, which is never rendered — without it every IDC row would fall
+ * back to its list index and per-row tooltip state would follow a slot.
+ *
+ * Oracle SID and Source IP have no seat here. That is the gap the 승인 요청 상세 modal
+ * has always had, and matching the modal is precisely what this tab was asked to do.
  */
 const toApprovalRow = (row: RequestResourceRow, isIdc: boolean): WaitingApprovalResource => ({
   resourceId: isIdc ? '' : row.resourceId ?? '',
+  rowKey: row.resourceId ?? undefined,
   resourceType: row.databaseType ?? '',
-  region: row.region ?? '',
-  resourceName: isIdc ? row.connectTargets.join(' · ') : row.resourceName ?? '',
+  region: isIdc ? '' : row.region ?? '',
+  resourceName: isIdc
+    ? row.connectTargets.map((host) => (row.port == null ? host : `${host}:${row.port}`)).join(' · ')
+    : row.resourceName ?? '',
   selected: row.selected,
   displayDbType: row.databaseType ?? undefined,
   exclusionReason: row.exclusionReason ?? undefined,
@@ -171,6 +181,9 @@ function ResourceList({
       <WaitingApprovalTable
         resources={table.visibleResources}
         connected
+        // Same header as the modal: this tab serves IDC too, whose rows have an
+        // endpoint rather than a region.
+        regionLabel="위치"
         emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
       />
       {table.filteredCount > 0 && (
@@ -324,10 +337,17 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
             {rows.length === 0 ? (
               <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-4" />
             ) : (
-              /* Keyed by request: the filter/search/page state below belongs to ONE
-                 request, and this tab is not guaranteed to remount when the route's
-                 target source changes under a soft navigation. */
-              <ResourceList key={summary.requestId ?? 'none'} rows={rows} isIdc={isIdc} />
+              /* Keyed per request so the filter/search/page state below belongs to ONE
+                 request — this tab is not guaranteed to remount when the route's target
+                 source changes under a soft navigation. requestId is contractually
+                 nullable, so the target id joins the key: two id-less requests on
+                 different targets would otherwise share a key and inherit each other's
+                 query. */
+              <ResourceList
+                key={`${targetSourceId}:${summary.requestId ?? 'latest'}`}
+                rows={rows}
+                isIdc={isIdc}
+              />
             )}
           </>
         )}

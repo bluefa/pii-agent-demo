@@ -47,6 +47,13 @@ export interface WaitingApprovalResource {
    * picks which cell lands here, so the same row renders a different status per step.
    */
   installCell?: InstallStepCell;
+  /**
+   * Stable React key, never rendered. A consumer whose rows carry an identifier it must
+   * NOT display (IDC's `resource_id` is an internal NLB key — design-spec §8) would
+   * otherwise fall back to the list index, which makes per-row Tooltip and copy state
+   * follow a slot rather than a resource as the list filters and pages.
+   */
+  rowKey?: string;
 }
 
 /**
@@ -71,6 +78,12 @@ interface WaitingApprovalTableProps {
    * to the standalone framed table (rounded-xl + border + shadow).
    */
   connected?: boolean;
+  /**
+   * Header for the location column. Defaults to Region; a consumer whose rows can be
+   * host-based (an IDC endpoint has no region) passes 위치, since the cell then carries
+   * `host:port`.
+   */
+  regionLabel?: string;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -225,6 +238,7 @@ export const WaitingApprovalTable = memo(
     onLogicalDbOpen,
     emptyMessage,
     connected = false,
+    regionLabel = 'Region',
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
@@ -413,7 +427,7 @@ export const WaitingApprovalTable = memo(
                 {!installVariant && (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>{regionLabel}</th>
                   </>
                 )}
                 {confirmedVariant ? (

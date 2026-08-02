@@ -129,6 +129,17 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 /**
+ * 위치 — host:port when the resource carries one, else the region. An IDC or
+ * host-based row has no region at all, so reading only `region` would drop the
+ * endpoint that was actually approved. Hence the column is 위치, not Region.
+ */
+const locationOf = (item: ApprovalResourceItem): string => {
+  const host = item.metadata?.host ?? null;
+  if (host) return item.metadata?.port != null ? `${host}:${item.metadata.port}` : host;
+  return item.metadata?.region ?? '';
+};
+
+/**
  * Wire → the row shape the step-2 table reads. Same mapping as
  * WaitingApprovalCard.toResourceRow, plus the category fallback this modal has
  * always applied to a 비대상 row that carries no explicit reason.
@@ -136,7 +147,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 const toResourceRow = (item: ApprovalResourceItem): WaitingApprovalResource => ({
   resourceId: item.resource_id ?? '',
   resourceType: item.resource_type ?? item.metadata?.database_type ?? '',
-  region: item.metadata?.region ?? '',
+  region: locationOf(item),
   resourceName: item.resource_name ?? '',
   selected: item.selected ?? false,
   displayDbType: item.metadata?.database_type ?? item.resource_type ?? undefined,
@@ -234,7 +245,9 @@ export const ApprovalRequestDetailModal = ({
         {data.requestedAt && (
           <MetaField label="요청일시" value={formatDate(data.requestedAt, 'datetime')} />
         )}
-        {data.processedBy && <MetaField label="처리자" value={data.processedBy} />}
+        {/* A null processor means the request was approved automatically (ADR-006),
+            which is a fact worth stating — hiding the field reads as "not processed". */}
+        {data.processedAt && <MetaField label="처리자" value={data.processedBy ?? '시스템'} />}
         {data.processedAt && (
           <MetaField label="처리일시" value={formatDate(data.processedAt, 'datetime')} />
         )}
@@ -282,6 +295,9 @@ export const ApprovalRequestDetailModal = ({
             <WaitingApprovalTable
               resources={table.visibleResources}
               connected
+              // This modal serves every provider, and an IDC row's location is its
+              // endpoint, not a region — see locationOf.
+              regionLabel="위치"
               emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
             />
             {table.filteredCount > 0 && (
