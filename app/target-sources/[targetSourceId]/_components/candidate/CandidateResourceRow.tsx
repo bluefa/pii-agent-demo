@@ -262,7 +262,6 @@ export const CandidateResourceRow = ({
         <InstallIneligibleGuideModal
           isOpen={ineligibleModal.isOpen}
           onClose={ineligibleModal.close}
-          resourceId={candidate.resourceId}
           recommendFailReason={candidate.recommendFailReason}
         />,
         document.body,

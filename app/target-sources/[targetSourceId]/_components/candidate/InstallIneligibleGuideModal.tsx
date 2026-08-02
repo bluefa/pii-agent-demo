@@ -1,7 +1,6 @@
 'use client';
 
 import { Modal } from '@/app/components/ui/Modal';
-import { Button } from '@/app/components/ui/Button';
 import { cn, textColors, textStyles } from '@/lib/theme';
 import { AZURE_GUIDE_URLS, AZURE_NETWORKING_MODE_LABELS } from '@/lib/constants/azure';
 import type { RecommendFailReason } from '@/lib/types';
@@ -9,17 +8,16 @@ import type { RecommendFailReason } from '@/lib/types';
 interface InstallIneligibleGuideModalProps {
   isOpen: boolean;
   onClose: () => void;
-  resourceId: string;
   /** The scan's verdict code; null for the ineligible cases the enum does not cover. */
   recommendFailReason: RecommendFailReason | null;
 }
 
 interface Guide {
-  /** What the scan found — the modal's subtitle, so it stays one sentence. */
+  /** 왜 실패했는지 — 부제 자리에 놓이는 한 문장. 이 모달의 첫 번째 강조. */
   cause: string;
-  /** Background that makes the cause actionable. Omitted where we would be guessing. */
+  /** 원인을 이해하게 만드는 배경. 추측이 될 자리에서는 비워 둔다. */
   detail?: string;
-  /** Only where the CSP documents a concrete fix. */
+  /** CSP 문서에 근거가 있을 때만. */
   remedy?: string;
   doc?: { href: string; label: string };
 }
@@ -31,8 +29,8 @@ interface Guide {
 const GUIDES: Record<RecommendFailReason, Guide> = {
   AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED: {
     cause: 'Private Endpoint 연결에 실패해 Agent를 설치할 수 없어요.',
-    detail: `Azure MySQL/PostgreSQL Flexible Server가 ${AZURE_NETWORKING_MODE_LABELS.VNET_INTEGRATION} 모드로 생성된 경우 Private Endpoint로 연결할 수 없어요. 네트워킹 모드는 서버 생성 시 정해지며 이후 변경할 수 없어요.`,
-    remedy: `${AZURE_NETWORKING_MODE_LABELS.PUBLIC_ACCESS} 모드로 새 서버를 생성한 뒤 데이터를 마이그레이션하세요.`,
+    detail: `Azure MySQL·PostgreSQL Flexible Server는 ${AZURE_NETWORKING_MODE_LABELS.VNET_INTEGRATION} 모드로 만들어진 경우 Private Endpoint를 연결할 수 없어요. 네트워킹 모드는 서버를 만들 때 정해지고 이후에는 바꿀 수 없어서, 지금 서버 그대로는 연동할 방법이 없어요.`,
+    remedy: `${AZURE_NETWORKING_MODE_LABELS.PUBLIC_ACCESS} 모드로 새 서버를 만든 뒤 데이터를 옮기면 연동할 수 있어요. 자세한 절차는 아래 문서를 참고해 주세요.`,
     doc: { href: AZURE_GUIDE_URLS.VNET_NETWORKING, label: 'Azure VNet 네트워킹 문서' },
   },
   GCP_CLOUD_SQL_HAS_PUBLIC_IP: {
@@ -48,16 +46,14 @@ const UNKNOWN_GUIDE: Guide = {
   cause: '네트워크 구성 제약으로 Agent를 설치할 수 없는 리소스예요.',
 };
 
-const DEFAULT_REMEDY = '설치 가능한 구성으로 변경하려면 우측 협업 채널로 문의해 주세요.';
-
 /**
- * 읽기 전용 안내라 확인 모달과 같은 뼈대로 세운다 — 제목 + 부제 + 본문 + 닫기.
- * 본문 안에 카드를 두지 않는다: 강조는 보조 텍스트 안의 굵기로만 준다.
+ * 읽기 전용 안내라 확인 모달과 같은 뼈대로 세운다 — 제목 + 부제 + 본문, 닫기는 헤더의 ✕.
+ * 강조는 두 곳뿐이다: 부제의 실패 원인과 본문 끝의 협업 채널. 그 사이의 배경·조치는
+ * 보조 텍스트 그대로 두어 아는 것을 줄이지 않는다. 카드는 두지 않는다.
  */
 export const InstallIneligibleGuideModal = ({
   isOpen,
   onClose,
-  resourceId,
   recommendFailReason,
 }: InstallIneligibleGuideModalProps) => {
   const guide = recommendFailReason ? GUIDES[recommendFailReason] : UNKNOWN_GUIDE;
@@ -70,36 +66,29 @@ export const InstallIneligibleGuideModal = ({
       size="lg"
       title="설치 불가 사유"
       subtitle={guide.cause}
-      footer={<Button variant="secondary" onClick={onClose}>닫기</Button>}
     >
-      <div className={cn('flex flex-col gap-3', textStyles.body)}>
-        <p className={cn('font-mono break-all', textColors.tertiary)}>{resourceId}</p>
-
-        {guide.detail && <p className={textColors.secondary}>{guide.detail}</p>}
-
-        <p className={textColors.secondary}>
-          <strong className={cn('font-semibold', textColors.primary)}>해결 방법</strong>
-          {' · '}
-          {guide.remedy ?? DEFAULT_REMEDY}
-        </p>
-
-        {/* 사유 코드 — 담당자와 같은 말로 검색할 수 있게 원문 그대로 남긴다. */}
-        {recommendFailReason && (
-          <p className={cn(textStyles.caption, 'font-mono break-all', textColors.tertiary)}>
-            {recommendFailReason}
-          </p>
-        )}
+      {/* 푸터가 없으니 아래 여백은 본문이 갖는다 — 헤더의 ✕ 하나로 닫는다. */}
+      <div className={cn('flex flex-col gap-3 pb-8', textStyles.body, textColors.secondary)}>
+        {guide.detail && <p>{guide.detail}</p>}
+        {guide.remedy && <p>{guide.remedy}</p>}
 
         {guide.doc && (
           <a
             href={guide.doc.href}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn('self-start font-semibold underline underline-offset-2', textColors.secondary)}
+            /* 밑줄만으로 링크임을 말한다 — 굵기까지 주면 강조가 셋이 된다. */
+            className="self-start underline underline-offset-2"
           >
             {guide.doc.label}
           </a>
         )}
+
+        <p>
+          추가적인 문의사항이 있으면{' '}
+          <strong className={cn('font-semibold', textColors.primary)}>협업 채널</strong>
+          에 문의해주세요.
+        </p>
       </div>
     </Modal>
   );

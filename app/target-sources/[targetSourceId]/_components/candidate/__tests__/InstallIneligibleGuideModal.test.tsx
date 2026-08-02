@@ -6,22 +6,19 @@ import type { RecommendFailReason } from '@/lib/types';
 
 const open = (recommendFailReason: RecommendFailReason | null) =>
   render(
-    <InstallIneligibleGuideModal
-      isOpen
-      onClose={() => {}}
-      resourceId="res-1"
-      recommendFailReason={recommendFailReason}
-    />,
+    <InstallIneligibleGuideModal isOpen onClose={() => {}} recommendFailReason={recommendFailReason} />,
   );
 
 // The guide used to hardcode Azure's Private Endpoint story for every provider, so a
 // GCP Cloud SQL row was told to migrate an Azure Flexible Server. Each reason gets its
 // own copy, and only Azure's names Private Endpoint.
 describe('InstallIneligibleGuideModal', () => {
-  it('explains the Azure Private Endpoint failure with a concrete remedy', () => {
+  it('keeps the Azure background and remedy, not just the one-line cause', () => {
     open('AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED');
     expect(screen.getByText(/Private Endpoint 연결에 실패/)).toBeTruthy();
-    expect(screen.getByText(/새 서버를 생성한 뒤 데이터를 마이그레이션/)).toBeTruthy();
+    expect(screen.getByText(/네트워킹 모드는 서버를 만들 때 정해지고/)).toBeTruthy();
+    expect(screen.getByText(/새 서버를 만든 뒤 데이터를 옮기면/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Azure VNet 네트워킹 문서' })).toBeTruthy();
   });
 
   it.each([
@@ -33,7 +30,8 @@ describe('InstallIneligibleGuideModal', () => {
     expect(screen.queryByText(/Private Endpoint/)).toBeNull();
     // No CSP-documented fix exists for these, so the guide routes to a human
     // rather than inventing remediation for production infrastructure.
-    expect(screen.getByText(/협업 채널로 문의/)).toBeTruthy();
+    expect(screen.getByText('협업 채널')).toBeTruthy();
+    expect(screen.getByText(/문의해주세요/)).toBeTruthy();
   });
 
   it('falls back to the classification alone when no reason code was sent (AWS·IDC)', () => {
