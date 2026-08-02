@@ -148,7 +148,11 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
     });
 
-    it('sums the logical-DB columns in the confirmed variant, not the resource split', () => {
+    // Steps 6·7. The spec makes the region the resource from step 4 on, so those steps want one
+    // folded Athena row per region — not a parent with database children. Until that fold lands
+    // they stay flat: a tree here would assert a shape the step does not have, and would put a
+    // logical-DB aggregate on Athena, which has no logical-DB management at all.
+    it('does not group in the confirmed variant', () => {
       render(
         <WaitingApprovalTable
           variant="confirmed"
@@ -158,23 +162,14 @@ describe('WaitingApprovalTable', () => {
           ]}
         />,
       );
-      expect(screen.getByText('20 개')).toBeTruthy();
-      expect(screen.getByText('3 개')).toBeTruthy();
-      expect(screen.queryByText(/대상 ·/)).toBeNull();
-    });
 
-    it('rolls up to — rather than a fabricated 0 when no row has a count', () => {
-      render(
-        <WaitingApprovalTable
-          variant="confirmed"
-          resources={[
-            athena('db_a', 'ap-northeast-1', true),
-            athena('db_b', 'ap-northeast-1', true),
-          ]}
-        />,
-      );
-      // Parent + 2 children, two logical-DB columns each, none with a count available.
-      expect(screen.getAllByText('—')).toHaveLength(6);
+      expect(screen.queryAllByRole('button', { name: /그룹 (펼치기|접기)$/ })).toHaveLength(0);
+      // Header + the two resource rows, with no parent row inserted between them.
+      expect(screen.getAllByRole('row')).toHaveLength(3);
+      // Each row keeps its own count cell; nothing is rolled up into an aggregate.
+      expect(screen.getByRole('button', { name: 'db_a 연동 논리 DB 목록 보기' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'db_b 연동 논리 DB 목록 보기' })).toBeTruthy();
+      expect(screen.queryByText(/대상 ·/)).toBeNull();
     });
   });
 });

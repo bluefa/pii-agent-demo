@@ -39,6 +39,15 @@ export const useApprovalTableState = (
    * SQL Server), so it passes its label instead of letting the option disagree with the cell.
    */
   labelOfDbType: (resource: WaitingApprovalResource) => string = dbTypeLabel,
+  /**
+   * Whether Athena rows fold into one group per region for pagination (LIN-85).
+   *
+   * True for the DB-level steps 1·2·3, where a group is one pageable resource carrying its
+   * databases. False for steps 6·7: there Athena is supposed to be ONE region row rather than a
+   * parent with database children, and that fold is a separate change — see the spec note on
+   * `ResourceGroupRow`. Pretending to group there would page a shape the table never renders.
+   */
+  groupRows = true,
 ) => {
   const [searchValue, setSearchValue] = useState('');
   const [filter, setFilter] = useState<ApprovalFilter>('all');
@@ -89,14 +98,16 @@ export const useApprovalTableState = (
   // exactly the flat behaviour this hook had before.
   const units = useMemo(
     () =>
-      toPaginationUnits(
-        groupResourceRows(filteredResources, (resource) => ({
-          type: resource.resourceType,
-          region: resource.region,
-          selected: resource.selected,
-        })),
-      ),
-    [filteredResources],
+      groupRows
+        ? toPaginationUnits(
+            groupResourceRows(filteredResources, (resource) => ({
+              type: resource.resourceType,
+              region: resource.region,
+              selected: resource.selected,
+            })),
+          )
+        : filteredResources.map((resource) => [resource]),
+    [filteredResources, groupRows],
   );
 
   // Counted in UNITS, not rows — the footer range and the page slice have to describe the same

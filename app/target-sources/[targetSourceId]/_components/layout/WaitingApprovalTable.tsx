@@ -118,29 +118,6 @@ const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
 const PLACEHOLDER = '—';
 
-/**
- * Group total for one of the `confirmed` variant's logical-DB columns.
- *
- * Returns null when NO row in the group has a count, so the parent renders "—" like its
- * children do — a group of rows that all render "—" must not roll up into a fabricated 0.
- * Rows that do have counts are summed; a null among them contributes nothing.
- */
-const sumLogicalDbCounts = (
-  rows: readonly WaitingApprovalResource[],
-  pick: (row: WaitingApprovalResource) => number | null | undefined,
-): number | null => {
-  let total: number | null = null;
-  for (const row of rows) {
-    const value = pick(row);
-    if (typeof value === 'number') total = (total ?? 0) + value;
-  }
-  return total;
-};
-
-/** Matches the child cells' "N 개" wording so the column reads as one unit. */
-const formatLogicalDbTotal = (total: number | null): string =>
-  total === null ? PLACEHOLDER : `${total} 개`;
-
 // No status dot: the label already says 대상 / 제외, so the dot repeats it in a weaker channel.
 //
 // Ineligible is its own verdict, not a flavour of excluded. The two answer different
@@ -221,16 +198,26 @@ export const WaitingApprovalTable = memo(
     connected = false,
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
-    // parent it belongs to (LIN-85). Groups start OPEN — this table is the "review everything
-    // before you approve" surface, so nothing may be hidden by default.
+    // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
+    // everything before you approve" surface, so nothing may be hidden by default.
+    //
+    // `confirmed` (steps 6·7) deliberately does NOT group. From step 4 on, the spec says the
+    // region IS the resource — one Athena row per region, its databases behind a reference
+    // detail panel rather than as sibling rows, and no logical-DB or credential columns for it
+    // at all (Athena and DynamoDB are IAM-based). Folding step 6·7's database-level rows onto
+    // `athena_region_resource_id` is that separate change; a parent-with-children tree here
+    // would assert a shape those steps do not have.
+    const grouped = variant !== 'confirmed';
     const sections = useMemo(
       () =>
-        groupResourceRows(resources, (resource) => ({
-          type: resource.resourceType,
-          region: resource.region,
-          selected: resource.selected,
-        })),
-      [resources],
+        grouped
+          ? groupResourceRows(resources, (resource) => ({
+              type: resource.resourceType,
+              region: resource.region,
+              selected: resource.selected,
+            }))
+          : [{ kind: 'rows' as const, key: 'rows-0', rows: resources }],
+      [resources, grouped],
     );
     const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
 
@@ -396,36 +383,18 @@ export const WaitingApprovalTable = memo(
                     >
                       {/* ID · DB Type · Region stay blank — the parent's label and chip already
                           say Athena × region, and repeating them would read as one more resource. */}
+                      {/* Only the approval variant reaches here, so the aggregate always lands
+                          in the verdict column — the question that column asks. */}
                       <td className={idcStyles.table.approvalCell} />
                       <td className={idcStyles.table.approvalCell} />
                       <td className={idcStyles.table.approvalCell} />
-                      {confirmedVariant ? (
-                        // Each aggregate answers the question ITS column asks. Here the last two
-                        // columns count logical DBs, not resources, so the group sums those —
-                        // a 대상/제외 resource split would be read as a logical-DB count.
-                        <>
-                          <td className={cn(idcStyles.table.approvalCell, idcStyles.table.group.meta)}>
-                            {formatLogicalDbTotal(
-                              sumLogicalDbCounts(group.rows, (r) => r.logicalDbCount),
-                            )}
-                          </td>
-                          <td className={cn(idcStyles.table.approvalCell, idcStyles.table.group.meta)}>
-                            {formatLogicalDbTotal(
-                              sumLogicalDbCounts(group.rows, (r) => r.excludedLogicalDbCount),
-                            )}
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className={idcStyles.table.approvalCell}>
-                            <ResourceGroupCount
-                              targetCount={group.targetCount}
-                              excludedCount={group.excludedCount}
-                            />
-                          </td>
-                          <td className={idcStyles.table.approvalCell} />
-                        </>
-                      )}
+                      <td className={idcStyles.table.approvalCell}>
+                        <ResourceGroupCount
+                          targetCount={group.targetCount}
+                          excludedCount={group.excludedCount}
+                        />
+                      </td>
+                      <td className={idcStyles.table.approvalCell} />
                     </ResourceGroupRow>
                   </tbody>
                   {/* Kept mounted while collapsed so `aria-controls` always resolves. */}

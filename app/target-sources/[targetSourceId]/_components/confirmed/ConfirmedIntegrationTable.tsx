@@ -80,7 +80,10 @@ export const ConfirmedIntegrationTable = ({
       }),
     [confirmed, logicalDbCounts],
   );
-  const table = useApprovalTableState(approvalRows);
+  // No Athena grouping here (LIN-85): from step 4 on the region IS the resource, so steps 6·7
+  // want one folded region row rather than a parent with database children. Until that fold
+  // lands, page these flat — one row, one unit.
+  const table = useApprovalTableState(approvalRows, undefined, false);
 
   // The resource whose logical-DB list is open. null = closed.
   const [logicalDbTarget, setLogicalDbTarget] = useState<WaitingApprovalResource | null>(null);
