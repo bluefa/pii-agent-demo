@@ -1071,6 +1071,37 @@ const makeTcQueueProject = (args: {
   ...args.extra,
 });
 
+/**
+ * 대규모 대상(1801)의 리소스 30개. 리소스 그룹 4개에 나눠 담아 이름이 한 덩어리로
+ * 보이지 않게 한다 — 30줄이 같은 접두사로 시작하면 목록이 한 줄도 구분되지 않는다.
+ */
+const LGS_SUBSCRIPTION = 'b1d4e77c-90a2-4f38-8c15-6e2f0a9b3d41';
+
+const lgsResources: MockResource[] = (
+  [
+    ['order', 'MYSQL', 8],
+    ['wms', 'MYSQL', 6],
+    ['track', 'POSTGRESQL', 9],
+    ['analytics', 'POSTGRESQL', 7],
+  ] as const
+).flatMap(([group, databaseType, count]) =>
+  Array.from({ length: count }, (_, index): MockResource => {
+    const mysql = databaseType === 'MYSQL';
+    const name = `${mysql ? 'mysql' : 'pg'}-lgs-${group}-${String(index + 1).padStart(2, '0')}`;
+    return {
+      id: `lgs-res-${group}-${index + 1}`,
+      type: mysql ? 'AZURE_MYSQL' : 'AZURE_POSTGRESQL',
+      resourceId: `/subscriptions/${LGS_SUBSCRIPTION}/resourceGroups/rg-lgs-${group}/providers/Microsoft.DBfor${mysql ? 'MySQL' : 'PostgreSQL'}/servers/${name}`,
+      databaseType,
+      selectedCredentialId: mysql ? '운영DB-MySQL' : '분석DB-PostgreSQL',
+      connectionStatus: 'CONNECTED',
+      isSelected: true,
+      integrationCategory: 'TARGET',
+      azureNetworkingMode: 'VNET_INTEGRATION',
+    };
+  }),
+);
+
 mockProjects.push(
   makeTcQueueProject({
     targetSourceId: 1799,
@@ -1114,6 +1145,22 @@ mockProjects.push(
       { id: 'rvw-res-1', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-main', databaseType: 'POSTGRESQL', selectedCredentialId: '분석DB-PostgreSQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
       { id: 'rvw-res-2', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-log', databaseType: 'MYSQL', selectedCredentialId: '운영DB-MySQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
     ],
+  }),
+  // 30개 규모 대상 — 연결 테스트 카드·확정 정보 표가 리소스 수에 흔들리지 않는지
+  // 눈으로 확인하려면 실제로 그 크기의 대상이 하나 있어야 한다. Azure ARM id 는 목에
+  // 있는 리소스 식별자 중 가장 길어, Resource ID 절단이 가장 먼저 깨지는 자리이기도 하다.
+  makeTcQueueProject({
+    targetSourceId: 1801,
+    serviceCode: 'LGS',
+    name: '물류서비스 PII Agent - 대규모 대상',
+    cloudProvider: 'Azure',
+    processStatus: ProcessStatus.CONNECTION_VERIFIED,
+    updatedAt: '2026-08-01T11:05:00Z',
+    extra: {
+      subscriptionId: 'b1d4e77c-90a2-4f38-8c15-6e2f0a9b3d41',
+      tenantId: '7f9c1b30-52d4-4a11-9d63-0c1e5a8b7742',
+    },
+    resources: lgsResources,
   }),
   // 재실행 요청 상태 — 반려로 되돌아가 어떤 상태 필터에도 걸리지 않는 케이스.
   makeTcQueueProject({
@@ -1219,6 +1266,39 @@ export const mockCredentials: DBCredential[] = [
     createdAt: '2024-01-15T11:00:00Z',
     createdBy: 'admin-1',
   },
+  // 데모: 실 운영 규모(20+)를 재현해 검색·목록 폭이 개수에 흔들리지 않는지 확인한다.
+  // 이름이 서로 닮아 있어야 "생성 시각 / 배정 건수"가 실제로 구분에 쓰이는지도 보인다.
+  ...(
+    [
+      ['운영DB-MySQL-replica', 'MYSQL', '2024-01-10T09:04:00Z'],
+      ['분석DB-PostgreSQL-readonly', 'POSTGRESQL', '2024-01-12T10:06:00Z'],
+      ['결제DB-MSSQL', 'MSSQL', '2024-02-01T00:12:00Z'],
+      ['결제DB-MSSQL-stg', 'MSSQL', '2024-02-01T00:20:00Z'],
+      ['주문DB-MySQL', 'MYSQL', '2024-02-03T02:40:00Z'],
+      ['주문DB-MySQL-stg', 'MYSQL', '2024-02-03T02:44:00Z'],
+      ['쿠폰DB-MySQL', 'MYSQL', '2024-02-11T05:05:00Z'],
+      ['알림DB-CosmosDB', 'MYSQL', '2024-02-14T07:31:00Z'],
+      ['재고DB-Oracle', 'ORACLE', '2024-03-02T00:50:00Z'],
+      ['재고DB-Oracle-dr', 'ORACLE', '2024-03-02T00:57:00Z'],
+      ['리뷰DB-PostgreSQL', 'POSTGRESQL', '2024-03-08T04:22:00Z'],
+      ['배송DB-MySQL', 'MYSQL', '2024-03-15T01:11:00Z'],
+      ['배송DB-MySQL-stg', 'MYSQL', '2024-03-15T01:18:00Z'],
+      ['정산DB-MSSQL', 'MSSQL', '2024-04-01T00:00:00Z'],
+      ['회원DB-MySQL', 'MYSQL', '2024-04-22T03:03:00Z'],
+      ['회원DB-MySQL-readonly', 'MYSQL', '2024-04-22T03:09:00Z'],
+      ['로그DB-Athena', 'ATHENA', '2024-06-02T00:38:00Z'],
+    ] as const
+  ).map(([name, databaseType, createdAt], index) => ({
+    id: `cred-${index + 4}`,
+    name,
+    databaseType: databaseType as DBCredential['databaseType'],
+    host: `${name.toLowerCase()}.example.com`,
+    port: 3306,
+    username: 'pii_agent',
+    maskedPassword: '********',
+    createdAt,
+    createdBy: 'admin-1',
+  })),
 ];
 
 // ===== Connection Test Simulation =====

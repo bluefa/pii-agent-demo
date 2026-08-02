@@ -5,7 +5,7 @@
  * shell + 진행 상태 tab. Other tabs are visible but disabled until their
  * contents ship (design/pipeline/ops-target-source-app-plan.md §1).
  */
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import {
   OPS_TAB_SLUGS,
@@ -14,9 +14,17 @@ import {
   type OpsTargetTabLabel,
 } from '@/lib/routes';
 import { getRawTargetSourceDetail, type RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
-import { getProcessStatus } from '@/app/lib/api';
+import { getProcessStatus, type TestConnectionVersionResult } from '@/app/lib/api';
+import { fetchLatestTest } from '@/app/hooks/useTestConnectionPolling';
 import { getAwsRoleVerification, type AwsRoleVerification } from '@/app/lib/api/aws';
 import { getCollaborationChannel, type CollaborationChannel } from '@/app/lib/api/ops';
+import {
+  getTestConnectionDetail,
+  getTestConnectionResults,
+  type TcResultRow,
+} from '@/app/lib/api/task-queue-tc';
+import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
+import { tcResultStats } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsHeader } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsHeader';
@@ -33,6 +41,7 @@ import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceI
 import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
 import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
 import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/TcTab';
+import { ApprovalTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ApprovalTab';
 
 const TABS = Object.values(OPS_TAB_SLUGS);
 type TabLabel = OpsTargetTabLabel;
@@ -57,6 +66,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const [roles, setRoles] = useState<Partial<Record<RoleKind, AwsRoleVerification | null>>>({});
   const [grantTfExecution, setGrantTfExecution] = useState(false);
   const [channel, setChannel] = useState<CollaborationChannel | null>(null);
+  // Test Connection state lives here, not in TcTab: 관리자 승인 탭도 같은 상태·판정
+  // 위에서 결정을 내리므로, 한 번 받아 두 탭에 내려보낸다.
+  //   status   서비스의 완료 확인 (승인 게이트)
+  //   latest   최신 실행 — 회차·상태·시각 + 리소스별 판정 (404 = 실행 없음 → null)
+  //   results  리소스별 논리 DB 건수 (최신 성공 실행에만 존재)
+  const [tcStatus, setTcStatus] = useState<TestConnectionStatusRow | null>(null);
+  const [tcLatest, setTcLatest] = useState<TestConnectionVersionResult | null>(null);
+  const [tcResults, setTcResults] = useState<TcResultRow[]>([]);
+  const [tcLoaded, setTcLoaded] = useState(false);
+  const [tcLatestFailed, setTcLatestFailed] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const [activeTab, setActiveTab] = useState<TabLabel>(initialTab);
 
@@ -85,6 +104,31 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const [reloadKey, setReloadKey] = useState(0);
   const retry = useCallback(() => setReloadKey((key) => key + 1), []);
 
+  // TC 전용 새로고침 — 실행 중 폴링이 이걸 4초마다 부르므로, 페이지 전체(detail·process·
+  // channel·role) 를 다시 받지 않고 TC 세 건만 다시 받는다. Latest-request-wins: 대상이
+  // 바뀌거나 폴링이 겹쳐도 오래된 응답이 새 응답을 덮지 않는다.
+  const tcSeq = useRef(0);
+  const loadTc = useCallback(async (): Promise<void> => {
+    const seq = ++tcSeq.current;
+    const [statusRow, latest, resultRows] = await Promise.allSettled([
+      getTestConnectionDetail(targetSourceId),
+      // 404 = 연결 테스트 이력 없음 → null (오류가 아니다).
+      fetchLatestTest(targetSourceId),
+      getTestConnectionResults(targetSourceId),
+    ]);
+    if (seq !== tcSeq.current) return;
+    setTcStatus(statusRow.status === 'fulfilled' ? statusRow.value : null);
+    setTcLatest(latest.status === 'fulfilled' ? latest.value : null);
+    setTcLatestFailed(latest.status !== 'fulfilled');
+    setTcResults(resultRows.status === 'fulfilled' ? resultRows.value : []);
+    setTcLoaded(true);
+  }, [targetSourceId]);
+  // Stable identity — TcTab's poll interval depends on it, so a fresh arrow per
+  // render would tear down and restart the interval on every state change.
+  const reloadTc = useCallback((): void => {
+    void loadTc();
+  }, [loadTc]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -111,6 +155,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
       void getCollaborationChannel(targetSourceId)
         .then((loadedChannel) => !cancelled && setChannel(loadedChannel))
         .catch(() => !cancelled && setChannel(null));
+      void loadTc();
       if (loaded.cloud_provider === 'AWS') {
         (['scan', 'execution'] as const).forEach((kind) => {
           void getAwsRoleVerification(targetSourceId, kind)
@@ -122,7 +167,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
     return () => {
       cancelled = true;
     };
-  }, [targetSourceId, reloadKey]);
+  }, [targetSourceId, reloadKey, loadTc]);
 
   if (detailFailed) {
     return (
@@ -211,7 +256,26 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             onOpenRequest={() => selectTab('연동 요청 정보')}
           />
         )}
-        {activeTab === 'Test Connection' && <TcTab targetSourceId={targetSourceId} detail={detail} />}
+        {activeTab === 'Test Connection' && (
+          <TcTab
+            targetSourceId={targetSourceId}
+            status={tcStatus}
+            latest={tcLatest}
+            results={tcResults}
+            statusLoaded={tcLoaded}
+            latestFailed={tcLatestFailed}
+            onStatusReload={reloadTc}
+          />
+        )}
+        {activeTab === '관리자 승인' && (
+          <ApprovalTab
+            targetSourceId={targetSourceId}
+            detail={detail}
+            status={tcStatus}
+            stats={tcResultStats(tcResults, tcLatest)}
+            onDecided={retry}
+          />
+        )}
       </div>
 
       <InstallModeModal
