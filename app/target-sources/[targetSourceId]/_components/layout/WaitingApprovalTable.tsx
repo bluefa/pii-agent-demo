@@ -245,8 +245,16 @@ export const WaitingApprovalTable = memo(
               <tr className="whitespace-nowrap">
                 <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
-                <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
-                <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                {/* Step 4 drops the two attribute columns: the engine was settled back on
+                    steps 1·2 and the install runs the same either way, and the region is a
+                    constant within one target source (and already inside the resource id).
+                    What they cost — 250px — is what 상태/안내 need to stay on screen. */}
+                {!installVariant && (
+                  <>
+                    <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                  </>
+                )}
                 {confirmedVariant ? (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>연동 논리 DB</th>
@@ -307,26 +315,30 @@ export const WaitingApprovalTable = memo(
                     </td>
                     {/* DB Type is a repeating attribute, not a status — one badge per row (the
                         verdict) is enough; a second pill would compete with it. */}
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        'text-[12px]',
-                        excluded ? DIM_TEXT : textColors.secondary,
-                        CELL_LIFT,
-                      )}
-                    >
-                      {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
-                    </td>
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        monoCell,
-                        excluded ? DIM_TEXT : textColors.secondary,
-                        CELL_LIFT,
-                      )}
-                    >
-                      {resource.region || PLACEHOLDER}
-                    </td>
+                    {!installVariant && (
+                      <>
+                        <td
+                          className={cn(
+                            idcStyles.table.approvalCell,
+                            'text-[12px]',
+                            excluded ? DIM_TEXT : textColors.secondary,
+                            CELL_LIFT,
+                          )}
+                        >
+                          {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
+                        </td>
+                        <td
+                          className={cn(
+                            idcStyles.table.approvalCell,
+                            monoCell,
+                            excluded ? DIM_TEXT : textColors.secondary,
+                            CELL_LIFT,
+                          )}
+                        >
+                          {resource.region || PLACEHOLDER}
+                        </td>
+                      </>
+                    )}
                     {confirmedVariant ? (
                       <>
                         <td className={idcStyles.table.approvalCell}>

@@ -507,8 +507,10 @@ export const InstallStatusDetail = ({
       {actionViews.length > 0 && (
         <ActionBanner views={actionViews} onOpen={() => setSelected(SUMMARY_ID)} />
       )}
-      <div className={cn('grid grid-cols-[320px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.default)}>
-      <nav className={cn('border-r p-2.5 flex flex-col gap-1 bg-white', borderColors.default)} aria-label="설치 단계">
+      {/* 레일은 목차다 — 넓을 이유가 없다. 224px 로 좁히고 감싸던 프레임을 구분선 하나로
+          바꿔, 남은 폭은 전부 리소스 테이블이 쓴다(카드 속 카드도 한 겹 사라진다). */}
+      <div className="grid grid-cols-[224px_minmax(0,1fr)]">
+      <nav className={cn('border-r pr-3 flex flex-col gap-0.5', borderColors.light)} aria-label="설치 단계">
         {navSteps.map((step, index) => {
           const aggregate = aggregates.get(step.id)!;
           const isActive = step.id === activeId;
@@ -519,10 +521,8 @@ export const InstallStatusDetail = ({
               onClick={() => setSelected(step.id)}
               aria-current={isActive}
               className={cn(
-                'flex flex-col gap-1.5 w-full text-left px-2.5 py-2.5 rounded-lg border',
-                isActive
-                  ? cn(bgColors.muted, borderColors.default)
-                  : cn('border-transparent', bgColors.mutedHover),
+                'flex flex-col gap-1 w-full text-left px-2.5 py-2 rounded-lg',
+                isActive ? bgColors.muted : bgColors.mutedHover,
               )}
             >
               <span className="flex items-start gap-2.5 w-full">
@@ -539,9 +539,9 @@ export const InstallStatusDetail = ({
                 <span className={cn('flex-1 min-w-0', textStyles.bodyStrong, textColors.primary)}>
                   {step.title}
                 </span>
-                {step.side && <SideTag side={step.side} />}
               </span>
-              {/* 34px = 24px index circle + 10px gap — aligns with the title. */}
+              {/* 34px = 24px index circle + 10px gap — aligns with the title.
+                  주체 태그는 제목 옆이 아니라 이 줄로 — 좁은 레일에서 제목을 밀어내지 않는다. */}
               <span className="flex items-center gap-1.5 flex-wrap pl-[34px]">
                 <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', aggregate.tag)}>{aggregate.label}</span>
                 {aggregate.count && (
@@ -549,13 +549,14 @@ export const InstallStatusDetail = ({
                     {aggregate.count}
                   </span>
                 )}
+                {step.side && <SideTag side={step.side} />}
               </span>
             </button>
           );
         })}
       </nav>
 
-      <div className="p-5 bg-white min-w-0">
+      <div className="pl-6 min-w-0">
         <div className="flex items-start justify-between gap-3">
           {/* 제목↔부제 = tight 4px */}
           <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
