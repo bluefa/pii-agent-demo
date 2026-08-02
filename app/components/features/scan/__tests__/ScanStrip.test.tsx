@@ -140,8 +140,21 @@ describe('ScanStrip funnel row', () => {
     expect(screen.queryByText(/신규 2/)).toBeNull();
   });
 
-  it('renders a scan with no successful result as an em dash, not a zero', () => {
+  // A funnel needs a scan behind it. With no scan on record the cells would
+  // report a result that does not exist, and would push the one true fact —
+  // "아직 스캔한 적이 없어요" — below them.
+  it('suppresses the funnel entirely when no scan is on record', () => {
     render(<ScanStrip {...baseProps} job={null} funnel={{ ...baseFunnel, discovered: 0 }} />);
+    expect(screen.getByText('아직 스캔한 적이 없어요')).toBeTruthy();
+    expect(screen.queryByText('스캔이 조회한 전체 리소스')).toBeNull();
+    expect(screen.queryByRole('button', { name: /선택함/ })).toBeNull();
+    expect(screen.getByRole('button', { name: '스캔 시작' })).toBeTruthy();
+  });
+
+  // A finished-but-failed scan keeps the funnel (the list below is the previous
+  // scan's) and says this run found nothing with an em dash, not a zero.
+  it('renders a finished scan with no counts as an em dash, not a zero', () => {
+    render(<ScanStrip {...baseProps} job={permissionFailJob} funnel={{ ...baseFunnel, discovered: 0 }} />);
     expect(screen.getByText('—')).toBeTruthy();
   });
 

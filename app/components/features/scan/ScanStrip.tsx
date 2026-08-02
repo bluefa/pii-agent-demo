@@ -176,6 +176,10 @@ export const ScanStrip = ({
   starting,
   funnel,
 }: ScanStripProps) => {
+  // 깔때기는 스캔이 있어야 성립한다 — 스캔 기록이 없는데 "발견 —" 옆에 세 칸을
+  // 세우면 없는 결과를 있는 것처럼 읽히게 만들고, 정작 이 화면의 진짜 사실
+  // ("아직 스캔한 적이 없어요")를 아래 줄로 밀어낸다. 그때 밴드는 그 한 줄이 전부다.
+  const showFunnel = funnel != null && job != null;
   const succeeded = job?.scan_status === 'SUCCESS';
   const failedByPermission = job != null && !succeeded && job.scan_error === 'AUTH_PERMISSION_ERROR';
   const scannedAt = job?.updated_at ?? job?.created_at ?? null;
@@ -199,7 +203,7 @@ export const ScanStrip = ({
     if (succeeded) {
       if (typeof job.duration_seconds === 'number') metaParts.push(`${Math.round(job.duration_seconds)}초 소요`);
       // 발견 수·신규는 깔때기 셀이 가져간다 — 같은 숫자를 두 곳에서 세지 않는다.
-      if (funnel == null) {
+      if (!showFunnel) {
         metaParts.push(`${foundCount}개 발견`);
         if (newCount > 0) metaParts.push(`신규 ${newCount}`);
       }
@@ -219,7 +223,7 @@ export const ScanStrip = ({
         borderColors.default,
       )}
     >
-      {funnel && (
+      {showFunnel && funnel && (
         <div className={cn('grid grid-cols-2 divide-x divide-y sm:grid-cols-4 sm:divide-y-0', borderColors.light)}>
           <FunnelCell
             label="스캔 발견"
@@ -253,7 +257,7 @@ export const ScanStrip = ({
       <div
         className={cn(
           'flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3',
-          funnel && cn('border-t', borderColors.light, bgColors.muted),
+          showFunnel && cn('border-t', borderColors.light, bgColors.muted),
         )}
       >
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
