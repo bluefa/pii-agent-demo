@@ -1071,6 +1071,37 @@ const makeTcQueueProject = (args: {
   ...args.extra,
 });
 
+/**
+ * 대규모 대상(1801)의 리소스 30개. 리소스 그룹 4개에 나눠 담아 이름이 한 덩어리로
+ * 보이지 않게 한다 — 30줄이 같은 접두사로 시작하면 목록이 한 줄도 구분되지 않는다.
+ */
+const LGS_SUBSCRIPTION = 'b1d4e77c-90a2-4f38-8c15-6e2f0a9b3d41';
+
+const lgsResources: MockResource[] = (
+  [
+    ['order', 'MYSQL', 8],
+    ['wms', 'MYSQL', 6],
+    ['track', 'POSTGRESQL', 9],
+    ['analytics', 'POSTGRESQL', 7],
+  ] as const
+).flatMap(([group, databaseType, count]) =>
+  Array.from({ length: count }, (_, index): MockResource => {
+    const mysql = databaseType === 'MYSQL';
+    const name = `${mysql ? 'mysql' : 'pg'}-lgs-${group}-${String(index + 1).padStart(2, '0')}`;
+    return {
+      id: `lgs-res-${group}-${index + 1}`,
+      type: mysql ? 'AZURE_MYSQL' : 'AZURE_POSTGRESQL',
+      resourceId: `/subscriptions/${LGS_SUBSCRIPTION}/resourceGroups/rg-lgs-${group}/providers/Microsoft.DBfor${mysql ? 'MySQL' : 'PostgreSQL'}/servers/${name}`,
+      databaseType,
+      selectedCredentialId: mysql ? '운영DB-MySQL' : '분석DB-PostgreSQL',
+      connectionStatus: 'CONNECTED',
+      isSelected: true,
+      integrationCategory: 'TARGET',
+      azureNetworkingMode: 'VNET_INTEGRATION',
+    };
+  }),
+);
+
 mockProjects.push(
   makeTcQueueProject({
     targetSourceId: 1799,
@@ -1114,6 +1145,22 @@ mockProjects.push(
       { id: 'rvw-res-1', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-main', databaseType: 'POSTGRESQL', selectedCredentialId: '분석DB-PostgreSQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
       { id: 'rvw-res-2', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-log', databaseType: 'MYSQL', selectedCredentialId: '운영DB-MySQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
     ],
+  }),
+  // 30개 규모 대상 — 연결 테스트 카드·확정 정보 표가 리소스 수에 흔들리지 않는지
+  // 눈으로 확인하려면 실제로 그 크기의 대상이 하나 있어야 한다. Azure ARM id 는 목에
+  // 있는 리소스 식별자 중 가장 길어, Resource ID 절단이 가장 먼저 깨지는 자리이기도 하다.
+  makeTcQueueProject({
+    targetSourceId: 1801,
+    serviceCode: 'LGS',
+    name: '물류서비스 PII Agent - 대규모 대상',
+    cloudProvider: 'Azure',
+    processStatus: ProcessStatus.CONNECTION_VERIFIED,
+    updatedAt: '2026-08-01T11:05:00Z',
+    extra: {
+      subscriptionId: 'b1d4e77c-90a2-4f38-8c15-6e2f0a9b3d41',
+      tenantId: '7f9c1b30-52d4-4a11-9d63-0c1e5a8b7742',
+    },
+    resources: lgsResources,
   }),
   // 재실행 요청 상태 — 반려로 되돌아가 어떤 상태 필터에도 걸리지 않는 케이스.
   makeTcQueueProject({
