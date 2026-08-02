@@ -11,7 +11,10 @@ import {
   tcResultStats,
   verdictByResource,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
-import { shortResourceId } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
+import {
+  resourceIdTail,
+  shortResourceId,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 
 const row = (over: Partial<TcResultRow> = {}): TcResultRow => ({
   resourceId: 'r-1',
@@ -272,6 +275,28 @@ describe('ldbCount', () => {
   it('returns null for a SUCCESS resource whose count the wire omitted', () => {
     expect(ldbCount(row({ includedCount: null }), 'inc', 'SUCCESS')).toBeNull();
     expect(ldbCount(row({ excludedCount: null }), 'exc', 'SUCCESS')).toBeNull();
+  });
+});
+
+describe('resourceIdTail', () => {
+  it('keeps only the last segment of a path id — the part 30 rows differ by', () => {
+    expect(
+      resourceIdTail(
+        '/subscriptions/b1d4e77c/resourceGroups/rg-lgs-order/providers/Microsoft.DBforMySQL/servers/mysql-lgs-order-01',
+      ),
+    ).toBe('mysql-lgs-order-01');
+    expect(resourceIdTail('projects/sea-rvw-prd/instances/cloudsql-rvw-main')).toBe(
+      'cloudsql-rvw-main',
+    );
+  });
+
+  it('leaves a non-path id (AWS/IDC) alone — it is already its own last segment', () => {
+    expect(resourceIdTail('rds-cpn-main')).toBe('rds-cpn-main');
+    expect(resourceIdTail('idc-ivt-9a01')).toBe('idc-ivt-9a01');
+  });
+
+  it('does not collapse an empty id to something that looks like a value', () => {
+    expect(resourceIdTail('')).toBe('');
   });
 });
 
