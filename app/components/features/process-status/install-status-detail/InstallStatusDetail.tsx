@@ -507,9 +507,13 @@ export const InstallStatusDetail = ({
       {actionViews.length > 0 && (
         <ActionBanner views={actionViews} onOpen={() => setSelected(SUMMARY_ID)} />
       )}
-      <div className={cn('grid grid-cols-[320px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.default)}>
-      <nav className={cn('border-r p-2.5 flex flex-col gap-1 bg-white', borderColors.default)} aria-label="설치 단계">
-        {navSteps.map((step, index) => {
+      {/* 단계 선택 — 가로 탭. 좌측 레일이던 것을 카드 상단으로 눕혀, 리소스 테이블이
+          Step 1·2·3 과 같은 전체 폭을 쓰게 한다(6컬럼이 레일 옆에서는 잘렸다). */}
+      <nav
+        className={cn('flex items-stretch gap-1 overflow-x-auto border-b', borderColors.light)}
+        aria-label="설치 단계"
+      >
+        {navSteps.map((step) => {
           const aggregate = aggregates.get(step.id)!;
           const isActive = step.id === activeId;
           return (
@@ -519,43 +523,33 @@ export const InstallStatusDetail = ({
               onClick={() => setSelected(step.id)}
               aria-current={isActive}
               className={cn(
-                'flex flex-col gap-1.5 w-full text-left px-2.5 py-2.5 rounded-lg border',
+                'flex flex-col gap-1 whitespace-nowrap px-3.5 pb-2.5 pt-1.5 border-b-2 -mb-px',
                 isActive
-                  ? cn(bgColors.muted, borderColors.default)
-                  : cn('border-transparent', bgColors.mutedHover),
+                  ? cn('border-b-[#0064FF]', textColors.primary)
+                  : cn('border-b-transparent', textColors.tertiary, bgColors.mutedHover),
               )}
             >
-              <span className="flex items-start gap-2.5 w-full">
-                <span
-                  className={cn(
-                    'w-6 h-6 rounded-full grid place-items-center flex-shrink-0',
-                    textStyles.captionStrong,
-                    bgColors.muted,
-                    textColors.secondary,
-                  )}
-                >
-                  {step.id === SUMMARY_ID ? '≡' : index}
-                </span>
-                <span className={cn('flex-1 min-w-0', textStyles.bodyStrong, textColors.primary)}>
-                  {step.title}
-                </span>
-                {step.side && <SideTag side={step.side} />}
+              <span className={cn(textStyles.bodyStrong, isActive ? textColors.primary : textColors.secondary)}>
+                {step.title}
               </span>
-              {/* 34px = 24px index circle + 10px gap — aligns with the title. */}
-              <span className="flex items-center gap-1.5 flex-wrap pl-[34px]">
-                <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', aggregate.tag)}>{aggregate.label}</span>
+              <span className="flex items-center gap-1.5">
+                <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', aggregate.tag)}>
+                  {aggregate.label}
+                </span>
                 {aggregate.count && (
                   <span className={cn(textStyles.caption, 'tabular-nums', textColors.tertiary)}>
                     {aggregate.count}
                   </span>
                 )}
+                {/* 주체는 탭에서도 유지 — "이게 내 일인가"를 단계를 열기 전에 답한다. */}
+                {step.side && <SideTag side={step.side} />}
               </span>
             </button>
           );
         })}
       </nav>
 
-      <div className="p-5 bg-white min-w-0">
+      <div className="min-w-0 pt-4">
         <div className="flex items-start justify-between gap-3">
           {/* 제목↔부제 = tight 4px */}
           <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
@@ -596,7 +590,6 @@ export const InstallStatusDetail = ({
             <StepResourceTable key={active.id} rows={rows} />
           )}
         </div>
-      </div>
       </div>
     </div>
   );
