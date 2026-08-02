@@ -142,6 +142,28 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByText('1 대상 · 0 제외 · 총 1')).toBeTruthy();
     });
 
+    // The pair the group is keyed on is stated once, on the parent. Children repeating it made
+    // the parent indistinguishable from its own rows and left it blank across four columns.
+    it('states Database Type and Region on the parent, and blanks them on the children', () => {
+      render(
+        <WaitingApprovalTable
+          resources={[athena('db_a', 'ap-northeast-1', true), athena('db_b', 'ap-northeast-1', false)]}
+        />,
+      );
+
+      const rows = screen.getAllByRole('row');
+      // Column order: Name(0) · ID(1) · DB Type(2) · Region(3) · 요청 대상 여부(4) · 제외 사유(5).
+      const parent = within(rows[1]).getAllByRole('cell');
+      expect(parent[2].textContent).toBe('Athena');
+      expect(parent[3].textContent).toBe('ap-northeast-1');
+
+      for (const row of rows.slice(2)) {
+        const cells = within(row).getAllByRole('cell');
+        expect(cells[2].textContent).toBe('');
+        expect(cells[3].textContent).toBe('');
+      }
+    });
+
     it('keeps ungrouped rows out of any group', () => {
       render(<WaitingApprovalTable resources={[...fixture, athena('db_a', 'ap-northeast-1', true)]} />);
       expect(screen.getAllByRole('button', { name: /그룹 (펼치기|접기)$/ })).toHaveLength(1);

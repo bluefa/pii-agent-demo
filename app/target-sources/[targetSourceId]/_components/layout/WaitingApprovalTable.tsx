@@ -278,7 +278,10 @@ export const WaitingApprovalTable = memo(
             />
           </td>
           {/* DB Type is a repeating attribute, not a status — one badge per row (the
-              verdict) is enough; a second pill would compete with it. */}
+              verdict) is enough; a second pill would compete with it.
+              Inside a group both of these are on the parent row instead: they are what the
+              group is keyed on, so repeating them per child says nothing and turned the tree
+              into a block of identical text. */}
           <td
             className={cn(
               idcStyles.table.approvalCell,
@@ -287,7 +290,7 @@ export const WaitingApprovalTable = memo(
               CELL_LIFT,
             )}
           >
-            {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
+            {grouped ? null : getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
           </td>
           <td
             className={cn(
@@ -297,7 +300,7 @@ export const WaitingApprovalTable = memo(
               CELL_LIFT,
             )}
           >
-            {resource.region || PLACEHOLDER}
+            {grouped ? null : resource.region || PLACEHOLDER}
           </td>
           {confirmedVariant ? (
             <>
@@ -381,13 +384,27 @@ export const WaitingApprovalTable = memo(
                       onToggle={() => toggleGroup(group.key)}
                       controls={rowsId}
                     >
-                      {/* ID · DB Type · Region stay blank — the parent's label and chip already
-                          say Athena × region, and repeating them would read as one more resource. */}
+                      {/* Resource ID stays blank: the catalog id lives only inside each child's
+                          resource_id string, which we do not parse. Database Type and Region are
+                          the pair the group is keyed on, so they are the parent's own values and
+                          the children below leave those two cells empty. */}
+                      <td className={idcStyles.table.approvalCell} />
+                      <td
+                        className={cn(
+                          idcStyles.table.approvalCell,
+                          'text-[12px]',
+                          textColors.secondary,
+                        )}
+                      >
+                        {getDatabaseShortLabel(group.type)}
+                      </td>
+                      <td
+                        className={cn(idcStyles.table.approvalCell, monoCell, textColors.secondary)}
+                      >
+                        {group.region}
+                      </td>
                       {/* Only the approval variant reaches here, so the aggregate always lands
                           in the verdict column — the question that column asks. */}
-                      <td className={idcStyles.table.approvalCell} />
-                      <td className={idcStyles.table.approvalCell} />
-                      <td className={idcStyles.table.approvalCell} />
                       <td className={idcStyles.table.approvalCell}>
                         <ResourceGroupCount
                           targetCount={group.targetCount}

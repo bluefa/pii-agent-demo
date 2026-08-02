@@ -21,6 +21,10 @@ interface ResourceGroupRowProps {
    * The parent's remaining `<td>`s, one per column after the identity cell. The parent is a real
    * row, not a colspan band (시안 §04), so the caller decides which columns carry the aggregate —
    * Step 1 answers in 설치 구분, the approval table answers in 요청 대상 여부.
+   *
+   * Database Type and Region belong here, filled with the group's own values: the group is keyed
+   * on exactly that pair, so they are its attributes, and the children inherit rather than repeat
+   * them. A parent left blank across four columns read as a broken row, not as a summary.
    */
   children: ReactNode;
 }
@@ -64,10 +68,9 @@ export const ResourceGroupRow = ({
               primaryColors.focusRing,
             )}
           >
-            <ChevronRightIcon className="h-3 w-3" />
+            <ChevronRightIcon className="h-3.5 w-3.5" />
           </button>
           <span className={idcStyles.table.group.label}>{label}</span>
-          <span className={idcStyles.table.group.chip}>{region}</span>
           {inlineMeta}
         </span>
       </td>

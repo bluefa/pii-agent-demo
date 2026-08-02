@@ -107,9 +107,10 @@
   .app td.sel{width:52px}
   .app td.name{position:relative}
 
-  /* 캐럿 — 부모 행의 유일한 컨트롤. 색 없음. */
+  /* 캐럿 — 부모 행의 유일한 컨트롤. 색 없음.
+     테두리·바탕 없음: 흰 상자에 테두리를 두르면 바로 옆 라벨과 경쟁하는 칩으로 읽힌다. */
   .app .caret{width:22px;height:22px;display:inline-grid;place-items:center;border-radius:6px;
-    border:1px solid var(--line);background:#fff;color:var(--fg2);cursor:pointer}
+    border:0;background:transparent;color:var(--fg3);cursor:pointer}
   .app .caret svg{transform:rotate(90deg)}
   .app .caret:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
 
@@ -119,22 +120,24 @@
   .app .pid{display:flex;align-items:center;gap:8px}
   .app .pname{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:14px;
     font-weight:600;color:var(--fg2)}
-  .app .preg{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11.5px;font-weight:600;
-    color:var(--fg3);border:1px solid var(--line);border-radius:5px;padding:1px 7px;
-    white-space:nowrap;flex-shrink:0}
+  /* 리전 칩은 없앴다 — 리전은 Region 컬럼에 들어간다. 라벨 옆 칩은 열을 비워 둔 채
+     같은 사실을 다른 자리에 중복해 놓는 것이었다. */
   .app .agg{font-size:12px;color:var(--fg3);font-variant-numeric:tabular-nums;white-space:nowrap}
   .app .agg b{font-weight:700;color:var(--fg2)}
   .app .agg .sep{color:var(--fg4);margin:0 6px}
 
   /* ---------- A · 트리 엘보 : 자식마다 개별로 잇는다 ---------- */
-  /* 레일 x = 셀 padding-left(18) + 12 = 30px */
-  .A .prow td.name::after{content:"";position:absolute;left:30px;top:50%;bottom:-1px;width:1px;
+  /* 셀 padding-left 18 기준 —  18..38 캐럿 → 레일 x = 28(캐럿 중심)
+                                46      부모 라벨
+                                70      자식 이름 (46 + 24 = 티어 간격이자 엘보 길이)
+     처음 쓴 58px 은 부모 라벨과 12px 차이라 티어가 아니라 살짝 밀린 것처럼 보였다. */
+  .A .prow td.name::after{content:"";position:absolute;left:28px;top:50%;bottom:-1px;width:1px;
     background:var(--rail)}
-  .A .crow td.name{padding-left:58px}
-  .A .crow td.name::before{content:"";position:absolute;left:30px;top:-1px;bottom:0;width:1px;
+  .A .crow td.name{padding-left:70px}
+  .A .crow td.name::before{content:"";position:absolute;left:28px;top:-1px;bottom:0;width:1px;
     background:var(--rail)}
   .A .crow.last td.name::before{bottom:50%}
-  .A .crow td.name::after{content:"";position:absolute;left:30px;top:50%;width:16px;height:1px;
+  .A .crow td.name::after{content:"";position:absolute;left:28px;top:50%;width:26px;height:1px;
     background:var(--rail)}
 
   /* ---------- B · 브래킷 : 자식 전체를 한 덩어리로 감싼다 ---------- */
@@ -173,6 +176,8 @@
     RDS 콘솔이 주는 <b>“이것들은 실제로 이어져 있다”</b>는 감각은 아니었습니다.
     확인해 보니 지적이 맞았습니다 — 콘솔은 색으로 묶지 않습니다.
     <b>A안으로 확정</b>했고, 아래 A 목업이 실제 구현과 같은 스펙입니다.
+    구현 뒤 “아직 계층이 안 읽힌다”는 지적을 받아 <b>부모가 채우는 열</b>과 <b>들여쓰기 간격</b>을
+    다시 잡았습니다 — A 카드의 평가란에 무엇이 왜 바뀌었는지 적어 두었습니다.
   </p>
 
   <div class="finding">
@@ -232,18 +237,15 @@ const otherRow = o => `
     <td>${o.on?'':'<span class="link">사유 입력</span>'}</td>
   </tr>`;
 
-// 부모 행 — 배경 없음. 위계는 eyebrow 라벨 + 굵기 + 캐럿으로만.
+// 부모 행 — 배경 없음. 위계는 캐럿 + 들여쓰기, 그리고 「부모만 채우는 열」로 만든다.
+// Database Type · Region 은 그룹을 묶는 키 그 자체이므로 부모의 값이다 — 자식은 비운다.
 const parentRow = () => `
   <tr class="prow">
-    <td class="sel"><button class="caret" type="button" aria-expanded="true" aria-label="${CATALOG} ${REGION} 그룹 접기">${CV}</button></td>
-    <td class="name">
-      <span class="pid">
-        <span class="pname">Athena</span><span class="preg">${REGION}</span>
-      </span>
-    </td>
+    <td class="sel"><button class="caret" type="button" aria-expanded="true" aria-label="Athena ${REGION} 그룹 접기">${CV}</button></td>
+    <td class="name"><span class="pid"><span class="pname">Athena</span></span></td>
     <td></td>
-    <td></td>
-    <td></td>
+    <td><span class="c2">Athena</span></td>
+    <td><span class="mono c2 nowrap">${REGION}</span></td>
     <td></td>
     <td><span class="agg"><b>${T}</b> 대상<span class="sep">·</span><b>${X}</b> 제외<span class="sep">·</span>총 ${DBS.length}</span></td>
   </tr>`;
@@ -253,8 +255,8 @@ const childRow = (d,i) => `
     <td class="sel"><span class="cb${d.on?' on':''}"></span></td>
     <td class="name"><span class="nm">${d.n}</span></td>
     <td><span class="mono c2">${d.id}</span></td>
-    <td><span class="c2">Athena</span></td>
-    <td><span class="mono c2 nowrap">${REGION}</span></td>
+    <td></td>
+    <td></td>
     <td><span class="c2">설치 대상</span></td>
     <td>${d.on?'':'<span class="link">사유 입력</span>'}</td>
   </tr>`;
@@ -269,7 +271,7 @@ const OPTIONS = [
 {
   k:'A', t:'트리 엘보', s:'채택 · RDS Databases 목록',
   d:'레일이 부모의 캐럿 아래에서 시작해 자식들을 지나 내려가고, <b>자식마다 짧은 가로 획(엘보)이 이름 쪽으로 뻗습니다.</b> 마지막 자식에서 레일이 끊깁니다 — 그래서 “여기까지가 이 카탈로그”라는 경계가 선 자체로 읽힙니다. 파일 트리와 같은 문법이라 학습이 필요 없습니다.',
-  v:'<b>채택됨.</b> 각 자식이 개별적으로 부모에 매달린 관계를 그리므로, 행 하나하나를 체크박스로 고르는 Step 1의 작업 방식과 정확히 맞는다.<br><br>구현하며 확정한 세 가지 — <b>① 설치 구분은 빈 값.</b> 스캔이 리소스 단위로 내리는 판정인데, 그룹은 스캔이 판정한 리소스가 아니다. 값을 넣으면 없는 사실을 만드는 것이다. <b>② 부모 이름은 “Athena”.</b> 앞선 목업의 AwsDataCatalog 는 계약에 필드가 없고 resource_id 문자열 안에만 있다 — id 파싱은 하지 않는다. <b>③ 묶인 그룹은 하나의 리소스로 페이징.</b> 평면 slice 는 그룹을 페이지 경계에서 잘라 부모 행을 두 번 그린다. 그룹은 1건으로 세고, 자식 데이터베이스는 항상 함께 나온다.',
+  v:'<b>채택됨.</b> 각 자식이 개별적으로 부모에 매달린 관계를 그리므로, 행 하나하나를 체크박스로 고르는 Step 1의 작업 방식과 정확히 맞는다.<br><br>구현하며 확정한 세 가지 — <b>① 설치 구분은 빈 값.</b> 스캔이 리소스 단위로 내리는 판정인데, 그룹은 스캔이 판정한 리소스가 아니다. 값을 넣으면 없는 사실을 만드는 것이다. <b>② 부모 이름은 “Athena”.</b> 앞선 목업의 AwsDataCatalog 는 계약에 필드가 없고 resource_id 문자열 안에만 있다 — id 파싱은 하지 않는다. <b>③ 묶인 그룹은 하나의 리소스로 페이징.</b> 평면 slice 는 그룹을 페이지 경계에서 잘라 부모 행을 두 번 그린다. 그룹은 1건으로 세고, 자식 데이터베이스는 항상 함께 나온다.<br><br><b>2차 수정 — 계층이 안 읽힌다는 지적.</b> 원인은 두 가지였다. <b>㉮ 부모가 여섯 열 중 넷이 빈 행</b>이라 요약이 아니라 깨진 행으로 읽혔다. Database Type · Region 은 그룹을 묶는 키 <em>그 자체</em>이므로 부모의 값이다 — 부모가 한 번 말하고 자식은 비운다. 리전 칩도 없앴다(값이 Region 열로 갔다). <b>㉯ 부모 라벨 46px, 자식 이름 58px</b> — 12px 은 티어가 아니라 살짝 밀린 것이다. 자식을 70px 로 내려 24px 간격을 만들고, 엘보를 16→26px 로 늘려 그 간격을 선이 실제로 잇게 했다. 캐럿의 테두리·흰 바탕도 뺐다 — 바로 옆 라벨과 경쟁하는 칩으로 읽히고 있었다.',
   c:'A',
 },
 {

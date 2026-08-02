@@ -911,9 +911,13 @@ export const idcStyles = {
       row: 'hover:bg-[#F7F8FA] focus-within:bg-[#F7F8FA] transition-colors duration-150 motion-reduce:transition-none',
       /** Identity cluster inside the parent's first cell. */
       lead: 'flex items-center gap-2',
-      /** Chevron toggle — 20px box, v16 `.athena-expand-btn` size in the neutral palette. */
+      /**
+       * Chevron toggle — 20px box, v16 `.athena-expand-btn` size in the neutral palette.
+       * No border/fill at rest: a bordered white box reads as a chip and competed with the
+       * label right beside it. The hit area stays 20px; hover paints it.
+       */
       toggle:
-        'inline-grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border border-[#EBEEF2] bg-white text-[#4E5968] transition-transform duration-150 motion-reduce:transition-none',
+        'inline-grid h-5 w-5 shrink-0 place-items-center rounded-[5px] text-[#8B95A1] hover:bg-[#EBEEF2] hover:text-[#4E5968] transition-[transform,background-color,color] duration-150 motion-reduce:transition-none',
       /** Applied to `toggle` while the group is open — chevron-right → chevron-down. */
       toggleOpen: 'rotate-90',
       /**
@@ -923,8 +927,6 @@ export const idcStyles = {
        * children's 500, and no second line.
        */
       label: 'whitespace-nowrap font-mono text-[14px] font-semibold text-[#4E5968]',
-      /** Region chip — mono like the Region column it summarises. */
-      chip: 'inline-flex items-center rounded-md border border-[#EBEEF2] bg-white px-[7px] py-px font-mono text-[11.5px] font-semibold text-[#8B95A1]',
       /** Aggregate cells — tabular so counts stay aligned down the column. */
       meta: 'whitespace-nowrap text-[12px] tabular-nums text-[#8B95A1]',
       /**
@@ -932,15 +934,19 @@ export const idcStyles = {
        * under the parent's chevron and an elbow reaches into the name; `childCellLast` cuts
        * the rail at the elbow so the group's end is drawn, not merely implied.
        *
-       * Rail x = the cell's own 18px padding + 12 = 30px, which lands under the chevron.
+       * Geometry, all measured off the cell's own 18px padding:
+       *   18..38  parent chevron   → rail x = 28 (its centre)
+       *   46      parent label     (18 + 20 chevron + 8 gap)
+       *   70      child name       (46 + 24 indent — the tier gap, and the elbow's length)
+       * The 12px the child used to sit from the label was not a tier, it was a nudge.
        */
       childCell:
-        "relative pl-[58px] before:absolute before:bottom-0 before:left-[30px] before:top-0 before:w-px before:bg-[#C4CEDA] before:content-[''] after:absolute after:left-[30px] after:top-1/2 after:h-px after:w-4 after:bg-[#C4CEDA] after:content-['']",
+        "relative pl-[70px] before:absolute before:bottom-0 before:left-[28px] before:top-0 before:w-px before:bg-[#C4CEDA] before:content-[''] after:absolute after:left-[28px] after:top-1/2 after:h-px after:w-[26px] after:bg-[#C4CEDA] after:content-['']",
       /** Last child — the rail stops at its elbow, closing the group. */
       childCellLast: 'before:bottom-1/2',
       /** Parent's own name cell — carries the rail's first segment down to the first child. */
       parentCell:
-        "relative after:absolute after:-bottom-px after:left-[30px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
+        "relative after:absolute after:-bottom-px after:left-[28px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
     },
   },
 } as const;

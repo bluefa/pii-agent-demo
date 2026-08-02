@@ -177,7 +177,9 @@ export const CandidateResourceRow = ({
         </td>
 
         {/* DB Type is a repeating attribute, not a status — plain text, no badge; the
-            config-needed warning is the one exception because it names an action. */}
+            config-needed warning is the one exception because it names an action.
+            Inside a group these two cells are empty: type × region is what the group is keyed
+            on, so the parent row states them once and the children inherit. */}
         <td
           className={cn(
             idcStyles.table.approvalCell,
@@ -186,12 +188,14 @@ export const CandidateResourceRow = ({
             CELL_LIFT,
           )}
         >
-          <span className="flex items-center gap-1.5 whitespace-nowrap">
-            {effectiveDbType ? getDatabaseShortLabel(effectiveDbType) : '—'}
-            {showConfigNeeded && (
-              <span className={cn('text-xs', statusColors.warning.textDark)}>(DB 설정 필요)</span>
-            )}
-          </span>
+          {!grouped && (
+            <span className="flex items-center gap-1.5 whitespace-nowrap">
+              {effectiveDbType ? getDatabaseShortLabel(effectiveDbType) : '—'}
+              {showConfigNeeded && (
+                <span className={cn('text-xs', statusColors.warning.textDark)}>(DB 설정 필요)</span>
+              )}
+            </span>
+          )}
         </td>
 
         <td
@@ -202,7 +206,7 @@ export const CandidateResourceRow = ({
             CELL_LIFT,
           )}
         >
-          {region}
+          {grouped ? null : region}
         </td>
 
         {/* 시스템 분류는 조용한 사실 티어 — 행동을 막는 설치 불가만 주황 + 안내
