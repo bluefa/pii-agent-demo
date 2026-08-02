@@ -1,19 +1,15 @@
 'use client';
 
 import { cardStyles, cn, textColors } from '@/lib/theme';
-import {
-  ConfirmedIntegrationTable,
-  type ConfirmedIntegrationTableVariant,
-} from '@/app/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable';
+import { ConfirmedIntegrationTable } from '@/app/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable';
 import { ErrorRow, ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 
 interface ConfirmedResourcesSlotProps {
-  variant?: ConfirmedIntegrationTableVariant;
   bare?: boolean;
 }
 
-export const ConfirmedResourcesSlot = ({ variant, bare }: ConfirmedResourcesSlotProps = {}) => {
+export const ConfirmedResourcesSlot = ({ bare }: ConfirmedResourcesSlotProps = {}) => {
   const { state, retry, targetSourceId } = useConfirmedIntegration();
 
   const body =
@@ -22,11 +18,7 @@ export const ConfirmedResourcesSlot = ({ variant, bare }: ConfirmedResourcesSlot
     ) : state.status === 'error' ? (
       <ErrorRow message={state.message} onRetry={retry} />
     ) : (
-      <ConfirmedIntegrationTable
-        confirmed={state.data}
-        variant={variant}
-        targetSourceId={targetSourceId}
-      />
+      <ConfirmedIntegrationTable confirmed={state.data} targetSourceId={targetSourceId} />
     );
 
   if (bare) {

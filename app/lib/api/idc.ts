@@ -17,7 +17,13 @@
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import { fetchInfraJson } from '@/app/lib/api/infra';
-import { getApprovedIntegration, getConfirmedIntegration } from '@/app/lib/api';
+import {
+  getApprovalRequestLatest,
+  getApprovedIntegration,
+  getConfirmedIntegration,
+  type ApprovalRequestLatestResponse,
+} from '@/app/lib/api';
+import { AppError } from '@/lib/errors';
 import type {
   ApprovedIntegrationExcludedResourceItem,
 } from '@/app/lib/api';
@@ -280,9 +286,14 @@ export const toIdcResourceViewFromConfirmed = (
 };
 
 /**
- * Shared `ResourceSnapshot` (approved-integration, Step 3) → domain view. IDC
+ * Shared `ResourceSnapshot` (approved-integration, Steps 2·3) → domain view. IDC
  * rows carry idc_* fields passed through by the approved-integration normalizer;
  * non-IDC rows fall back to endpoint_config host/port.
+ *
+ * `endpoint_config` is the VM path and is null for every IDC row, so each scalar falls back to
+ * `metadata`, which is where TargetSourceResourceMetadataDto declares host / port /
+ * database_type / oracle_service_id. Reading endpoint_config alone left steps 2·3 showing an
+ * empty Database Type and a fabricated port 0 on every row.
  */
 export const toIdcResourceViewFromSnapshot = (
   wire: ResourceSnapshot,
@@ -296,16 +307,18 @@ export const toIdcResourceViewFromSnapshot = (
     idc_source_ips: wire.idc_source_ips,
   };
   const hasIdcFields = !!wire.idc_host_format;
-  const dbWire = toDbTypeWire(ec?.db_type);
+  const md = wire.metadata;
+  const dbWire = toDbTypeWire(ec?.db_type ?? md?.database_type ?? undefined);
+  const host = ec?.host || md?.host || '';
   return {
     resourceId: wire.resource_id || `idc-approved-${index}`,
     persisted: !!wire.resource_id,
     kind: hasIdcFields ? deriveKindFromIdcFields(idcFields) : 'SINGLE',
-    hosts: hasIdcFields ? hostsFromIdcFields(idcFields) : ec?.host ? [ec.host] : [],
-    port: ec?.port ?? 0,
-    databaseTypeLabel: idcDbTypeByWire(dbWire)?.label ?? ec?.db_type ?? '',
+    hosts: hasIdcFields ? hostsFromIdcFields(idcFields) : host ? [host] : [],
+    port: ec?.port ?? md?.port ?? 0,
+    databaseTypeLabel: idcDbTypeByWire(dbWire)?.label ?? ec?.db_type ?? md?.database_type ?? '',
     databaseTypeWire: dbWire,
-    oracleSid: ec?.oracleServiceId,
+    oracleSid: ec?.oracleServiceId ?? md?.oracle_service_id ?? undefined,
     credentialId: wire.credential_id ?? undefined,
     sourceIps: wire.idc_source_ips ?? [],
     firewallOpen: false,
@@ -326,18 +339,29 @@ export const toIdcResourceViewFromExcluded = (
   wire: ApprovedIntegrationExcludedResourceItem,
   index = 0,
 ): IdcResourceView => {
-  const dbWire = toDbTypeWire(wire.database_type ?? undefined);
+  const md = wire.metadata;
+  const dbWire = toDbTypeWire(wire.database_type ?? md?.database_type ?? undefined);
+  // A 제외 row is the same wire object as a 대상 one, so its endpoint rides along when the
+  // backend sends it. Absent (older payloads) → empty hosts, which the table renders as —.
+  const idcFields: IdcWireFields = {
+    idc_host_format: wire.idc_host_format,
+    idc_ips: wire.idc_ips,
+    idc_host: wire.idc_host,
+    idc_source_ips: wire.idc_source_ips,
+  };
+  const hasIdcFields = !!wire.idc_host_format;
+  const host = md?.host ?? '';
   return {
     resourceId: wire.resource_id || `idc-excluded-${index}`,
     persisted: !!wire.resource_id,
-    kind: 'SINGLE',
-    hosts: [],
-    port: 0,
-    databaseTypeLabel: idcDbTypeByWire(dbWire)?.label ?? wire.database_type ?? '',
+    kind: hasIdcFields ? deriveKindFromIdcFields(idcFields) : 'SINGLE',
+    hosts: hasIdcFields ? hostsFromIdcFields(idcFields) : host ? [host] : [],
+    port: md?.port ?? 0,
+    databaseTypeLabel: idcDbTypeByWire(dbWire)?.label ?? wire.database_type ?? md?.database_type ?? '',
     databaseTypeWire: dbWire,
-    oracleSid: undefined,
+    oracleSid: md?.oracle_service_id ?? undefined,
     credentialId: undefined,
-    sourceIps: [],
+    sourceIps: wire.idc_source_ips ?? [],
     firewallOpen: false,
     connection: 'PENDING',
     health: null,
@@ -431,22 +455,131 @@ export const getIdcPreviousRequest = async (
  *  (비대상 rows with their reasons, shown in the `excl` column). Mirrors the cloud
  *  WaitingApprovalCard, whose rows come from getApprovedIntegration (approval-latest
  *  carries only the summary). */
-const getIdcApprovedView = async (
+export interface IdcApprovedIntegrationView {
+  resources: IdcResourceView[];
+  /** Both null when the response carries no approval signature. */
+  approvedAt: string | null;
+  approver: string | null;
+}
+
+const EMPTY_APPROVED: IdcApprovedIntegrationView = {
+  resources: [],
+  approvedAt: null,
+  approver: null,
+};
+
+/**
+ * The whole approved-integration payload: the rows AND who approved them when. Step 3 shows the
+ * signature in its header, and it arrives on the same response as the rows — the project payload
+ * carries no approver, which is why that field used to be a hardcoded name in the step.
+ */
+export const getIdcApprovedIntegration = async (
   targetSourceId: number,
   opts?: { signal?: AbortSignal },
-): Promise<IdcResourceView[]> => {
+): Promise<IdcApprovedIntegrationView> => {
   const res = await getApprovedIntegration(targetSourceId, opts);
   const approved = res.approved_integration;
-  if (!approved) return [];
+  if (!approved) return EMPTY_APPROVED;
   const targets = approved.resource_infos.map((r, i) => toIdcResourceViewFromSnapshot(r, i));
   const excluded = approved.excluded_resource_infos.map((r, i) =>
     toIdcResourceViewFromExcluded(r, i),
   );
-  return [...targets, ...excluded];
+  return {
+    resources: [...targets, ...excluded],
+    approvedAt: approved.approved_at || null,
+    approver: approved.approved_by || null,
+  };
 };
 
-/** Step 2 source — the requested list (targets + excluded), via approved-integration. */
-export const getIdcApprovalRequestResources = getIdcApprovedView;
+const getIdcApprovedView = async (
+  targetSourceId: number,
+  opts?: { signal?: AbortSignal },
+): Promise<IdcResourceView[]> => (await getIdcApprovedIntegration(targetSourceId, opts)).resources;
+
+/** One row of `approval-requests/latest.resources` — the request as submitted. */
+type ApprovalRequestLatestItem = NonNullable<ApprovalRequestLatestResponse['resources']>[number];
+
+/** The generated schemas are LOOSE, so every array element is nullable — drop the holes. */
+const nonEmptyStrings = (values: ReadonlyArray<string | null> | null | undefined): string[] =>
+  (values ?? []).filter((value): value is string => !!value);
+
+/**
+ * `approval-requests/latest` row → domain view. This response echoes back what Step 1 sent, so
+ * `metadata` still carries the manually-entered connection info — for EXCLUDED rows too, which is
+ * why step 2 reads it rather than approved-integration (whose ExcludedResourceInfoDto has no
+ * endpoint fields at all, leaving 연동 대상 / Port blank on every 제외 row).
+ */
+const toIdcResourceViewFromApprovalRequest = (
+  item: ApprovalRequestLatestItem,
+  index = 0,
+): IdcResourceView => {
+  const md = item.metadata;
+  const idcFields: IdcWireFields = {
+    idc_host_format: md?.idc_host_format === 'HOST' ? 'HOST' : md?.idc_host_format === 'IP' ? 'IP' : undefined,
+    idc_ips: nonEmptyStrings(md?.idc_ips),
+    idc_host: md?.idc_host ?? undefined,
+    idc_source_ips: nonEmptyStrings(md?.idc_source_ips),
+  };
+  const hasIdcFields = !!idcFields.idc_host_format;
+  const dbWire = toDbTypeWire(md?.database_type ?? item.resource_type ?? undefined);
+  const host = md?.host ?? '';
+  return {
+    resourceId: item.resource_id || `idc-requested-${index}`,
+    persisted: !!item.resource_id,
+    kind: hasIdcFields ? deriveKindFromIdcFields(idcFields) : 'SINGLE',
+    hosts: hasIdcFields ? hostsFromIdcFields(idcFields) : host ? [host] : [],
+    port: md?.port ?? 0,
+    databaseTypeLabel: idcDbTypeByWire(dbWire)?.label ?? md?.database_type ?? '',
+    databaseTypeWire: dbWire,
+    oracleSid: md?.oracle_service_id ?? undefined,
+    credentialId: md?.credential_id ?? undefined,
+    sourceIps: nonEmptyStrings(md?.idc_source_ips),
+    firewallOpen: false,
+    connection: 'PENDING',
+    health: null,
+    done: null,
+    excluded: item.selected === false,
+    exclusionReason: item.exclusion_reason ?? undefined,
+  };
+};
+
+export interface IdcApprovalRequestView {
+  resources: IdcResourceView[];
+  /** Set only on the UNAVAILABLE verdict — the reason replaces the whole waiting card. */
+  unavailableReason: string | null;
+  requestedAt: string | null;
+  requestedBy: string | null;
+}
+
+const EMPTY_REQUEST: IdcApprovalRequestView = {
+  resources: [],
+  unavailableReason: null,
+  requestedAt: null,
+  requestedBy: null,
+};
+
+/**
+ * Step 2 source — the submitted request itself: its rows, its verdict and its signature, all off
+ * one response. Mirrors the cloud WaitingApprovalCard, which moved to this endpoint for the same
+ * reason. A missing request is not an error here: the step renders its empty table.
+ */
+export const getIdcApprovalRequestLatest = async (
+  targetSourceId: number,
+  opts?: { signal?: AbortSignal },
+): Promise<IdcApprovalRequestView> => {
+  try {
+    const res = await getApprovalRequestLatest(targetSourceId, opts);
+    return {
+      resources: (res.resources ?? []).map(toIdcResourceViewFromApprovalRequest),
+      unavailableReason: res.result?.status === 'UNAVAILABLE' ? (res.result?.reason ?? '') : null,
+      requestedAt: res.request?.requested_at ?? null,
+      requestedBy: res.request?.requested_by?.user_id ?? null,
+    };
+  } catch (error) {
+    if (error instanceof AppError && error.code === 'NOT_FOUND') return EMPTY_REQUEST;
+    throw error;
+  }
+};
 
 /** Step 3 source — the approved list (targets + excluded), via approved-integration. */
 export const getIdcApprovedResources = getIdcApprovedView;

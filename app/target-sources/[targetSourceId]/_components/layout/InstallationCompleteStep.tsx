@@ -4,8 +4,9 @@ import { useState, type ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
-import { cardStyles, cn, textColors } from '@/lib/theme';
+import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
 import {
+  CardActionBar,
   ProjectPageMeta,
   RejectionAlert,
   type ProjectIdentity,
@@ -15,12 +16,7 @@ import {
   ConfirmRewindModal,
   type ConfirmRewindKind,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
-import { HealthBadge } from '@/app/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
-import { aggregateHealth } from '@/app/target-sources/[targetSourceId]/_components/confirmed/health-status';
-import {
-  ConfirmedIntegrationDataProvider,
-  useConfirmedIntegration,
-} from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
+import { ConfirmedIntegrationDataProvider } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { ConfirmedResourcesSlot } from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot';
 
 interface InstallationCompleteStepProps {
@@ -31,13 +27,12 @@ interface InstallationCompleteStepProps {
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
-const InstallationCompleteHeaderRight = () => {
-  const { state } = useConfirmedIntegration();
-  if (state.status !== 'ready') return null;
-  return <HealthBadge status={aggregateHealth(state.data)} />;
-};
-
-const InstallationCompleteActions = () => {
+/**
+ * 인프라 변경 / 연결 테스트 재실행 — the C-2 action zone at the card bottom
+ * (CardActionBar, same grammar as the step-5 완료 승인 요청 bar), with the
+ * rewind consequences spelled out in the hint.
+ */
+const InstallationCompleteActionBar = () => {
   const toast = useToast();
   const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
 
@@ -53,7 +48,7 @@ const InstallationCompleteActions = () => {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <CardActionBar hint="※ 인프라 변경은 1단계, 연결 테스트 재실행은 5단계로 되돌아가 프로세스를 다시 진행해요.">
       <button
         type="button"
         className={WARNING_OUTLINE_BUTTON_CLASS}
@@ -75,10 +70,17 @@ const InstallationCompleteActions = () => {
         onClose={() => setConfirmKind(null)}
         onConfirm={handleConfirm}
       />
-    </div>
+    </CardActionBar>
   );
 };
 
+/**
+ * Cloud Step 7 — PII 모니터링 모듈 연동 (연동 완료, read-only).
+ * Same header stack as steps 2·3·6: step tag, title + success badge, guidance copy.
+ * The rewind CTAs dock in the bottom CardActionBar. No header health badge — the
+ * per-row Status column left the table (live review), so its aggregate goes with it
+ * until a proper health surface is designed.
+ */
 export const InstallationCompleteStep = ({
   project,
   identity,
@@ -94,25 +96,43 @@ export const InstallationCompleteStep = ({
         identity={identity}
         action={action}
       />
-      <section className={cn(cardStyles.base, 'overflow-hidden')}>
-        <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
-          <div>
-            <h2 className={cardStyles.cardTitle}>
-              PII 모니터링 모듈 연동 완료
-            </h2>
-            <p className={cn('mt-2.5', cardStyles.subtitle)}>
-              PII가 사용되어 있을 가능성이 있어요. 사용 단어 빈도가 표시되며, 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.
-            </p>
+      {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
+      <section className={cardStyles.base}>
+        <header className={cardStyles.header}>
+          <span className={cardStyles.stepTag}>7번째 단계</span>
+          <div className="flex items-center gap-2">
+            <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동</h2>
+            <span
+              className={cn(
+                cardStyles.stepBadge,
+                statusColors.success.bg,
+                statusColors.success.textDark,
+              )}
+            >
+              연동 완료
+            </span>
           </div>
-          {/* C-3: auxiliary rewind actions pinned to the header right, health badge outermost. */}
-          <div className="flex shrink-0 items-center gap-2.5">
-            <InstallationCompleteActions />
-            <InstallationCompleteHeaderRight />
-          </div>
+          <p className={cn('mt-3', cardStyles.guidance)}>
+            <strong className={cn('font-semibold', primaryColors.text)}>
+              모든 연동 절차가 완료되었어요.
+            </strong>{' '}
+            연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요.
+          </p>
+          {/* One sentence for the rewind CTAs (step-6 grammar); the step each one lands on
+              is the action bar hint's job. */}
+          <p className={cardStyles.guidance}>
+            인프라 구성이 바뀌었다면 하단{' '}
+            <strong className={cn('font-semibold', textColors.secondary)}>인프라 변경</strong>을,
+            연결 상태를 다시 점검하고 싶다면{' '}
+            <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>
+            을 눌러주세요.
+          </p>
         </header>
         <div className={cardStyles.body}>
-          <ConfirmedResourcesSlot variant="complete" bare />
+          <ConfirmedResourcesSlot bare />
         </div>
+        {/* C-2 action zone: the rewind CTAs dock (sticky) at the card bottom. */}
+        <InstallationCompleteActionBar />
       </section>
       <RejectionAlert project={project} />
     </ConfirmedIntegrationDataProvider>

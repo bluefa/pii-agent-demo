@@ -207,6 +207,10 @@ const resolvePort = (
   provider: Project['cloudProvider'],
   resource: MockResource,
 ): number | null => {
+  // A stored port wins — IDC rows keep the one the user typed in Step 1, so it must not be
+  // replaced by the conventional port for its engine. (AWS captures store `null` on purpose and
+  // fall through to the wire-seeded branch, which returns null.)
+  if (resource.port != null) return resource.port;
   if (isWireSeeded(provider)) return resource.port ?? null;
   const db = resource.vmDatabaseConfig?.databaseType ?? resource.databaseType ?? '';
   return DEMO_PORT_BY_DB[db] ?? 3306;
@@ -319,7 +323,9 @@ function toApprovalResourceItems(project: Project): Array<Record<string, unknown
       ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
       // Task Queue P3 table reads port/oracle_service_id (the domain store has
       // no per-resource port, so derive the conventional one per DB engine).
-      ...(idc ? { port: DEFAULT_PORT_BY_DB[String(r.databaseType).toUpperCase()] ?? null } : {}),
+      ...(idc
+        ? { port: r.port ?? DEFAULT_PORT_BY_DB[String(r.databaseType).toUpperCase()] ?? null }
+        : {}),
       ...(idc?.oracleSid ? { oracle_service_id: idc.oracleSid } : {}),
     };
     return {
@@ -372,11 +378,16 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
     resource_type: r.type,
     endpoint_config,
     credential_id: resolveCredential(project.cloudProvider, r),
-    // Contract metadata (TargetSourceResourceMetadataDto) — Step3 reads region/database_type here.
+    // Contract metadata (TargetSourceResourceMetadataDto) — Steps 2·3 read the connection facts
+    // here, since endpoint_config stays null for everything but VM rows. Port and Oracle SID come
+    // from the same derive the confirmed serializer uses, so a row does not change its port
+    // between step 3 and step 4.
     metadata: {
       provider: cloudProviderToWireProvider(project.cloudProvider),
       region: demoRegion(project.cloudProvider, r),
       database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
+      port: r.vmDatabaseConfig?.port ?? resolvePort(project.cloudProvider, r),
+      oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
     },
     database_region: demoRegion(project.cloudProvider, r),
     resource_name: demoResourceName(project.cloudProvider, r),
@@ -591,7 +602,7 @@ export const mockConfirm = {
     const now = new Date().toISOString();
     const excludedBy = { id: user.id, name: user.name };
 
-    const updatedResources: MockResource[] = project.resources.map((r) => {
+    const existingResources: MockResource[] = project.resources.map((r) => {
       const isSelected = selectedSet.has(r.id);
 
       let exclusion: ResourceExclusion | undefined = r.exclusion;
@@ -605,6 +616,56 @@ export const mockConfirm = {
 
       return { ...r, isSelected, exclusion, vmDatabaseConfig, selectedCredentialId };
     });
+
+    // IDC has no scan, so Step 1 is manual entry held in component state and the request is the
+    // FIRST time the backend hears about these rows — their resource_ids match nothing in
+    // project.resources. Mapping over the existing list alone dropped the whole submission, and
+    // every later read (approval-requests/latest, approved-integration) derives from that list,
+    // so steps 2·3 came up empty for any target seeded without resources.
+    const knownIds = new Set(project.resources.flatMap((r) => [r.id, r.resourceId]));
+    const newResources: MockResource[] = resources
+      .filter((item) => !!item.resource_id && !knownIds.has(item.resource_id))
+      .map((item) => {
+        const meta = item.metadata ?? {};
+        const reason = typeof item.exclusion_reason === 'string' ? item.exclusion_reason : undefined;
+        const ips = Array.isArray(meta.idc_ips)
+          ? meta.idc_ips.filter((ip): ip is string => typeof ip === 'string')
+          : [];
+        const sourceIps = Array.isArray(meta.idc_source_ips)
+          ? meta.idc_source_ips.filter((ip): ip is string => typeof ip === 'string')
+          : [];
+        const isDomain = meta.idc_host_format === 'HOST';
+        return {
+          id: item.resource_id!,
+          type: item.resource_type ?? 'IDC_RESOURCE',
+          resourceId: item.resource_id!,
+          connectionStatus: 'PENDING',
+          isSelected: item.selected !== false,
+          // The request sends database_type lowercase; the mock domain keys off UPPERCASE.
+          databaseType: String(meta.database_type ?? '').toUpperCase(),
+          integrationCategory: 'TARGET',
+          ...(typeof meta.port === 'number' ? { port: meta.port } : {}),
+          ...(meta.idc_host_format
+            ? {
+                idcConfig: {
+                  inputFormat: isDomain ? ('HOST' as const) : ('IP' as const),
+                  ips,
+                  domain: isDomain && typeof meta.idc_host === 'string' ? meta.idc_host : '',
+                  ...(typeof meta.oracle_service_id === 'string'
+                    ? { oracleSid: meta.oracle_service_id }
+                    : {}),
+                  sourceIps,
+                  firewallOpen: false,
+                },
+              }
+            : {}),
+          ...(item.selected === false && reason
+            ? { exclusion: { reason, excludedAt: now, excludedBy } }
+            : {}),
+        } satisfies MockResource;
+      });
+
+    const updatedResources: MockResource[] = [...existingResources, ...newResources];
 
     const selectedCount = selectedItems.length;
     const excludedCount = excludedItems.length;
@@ -792,7 +853,15 @@ export const mockConfirm = {
         approved_by: { user_id: '김보안 (kim.security)' },
         resources: [
           ...selectedResources.map((r) => ({ ...toResourceSnapshot(r, project), selected: true })),
-          ...excludedResources.map((r) => ({ ...toExcludedResourceInfo(r, project), selected: false })),
+          // Excluded rows ride the SAME flat `resources` array, so they carry the same snapshot
+          // fields — the exclusion payload only adds the reason on top. Emitting the reduced
+          // shape alone dropped metadata/idc_* and left steps 2·3 rendering an em-dash for the
+          // host and port the user had actually submitted.
+          ...excludedResources.map((r) => ({
+            ...toResourceSnapshot(r, project),
+            ...toExcludedResourceInfo(r, project),
+            selected: false,
+          })),
         ],
       });
     }

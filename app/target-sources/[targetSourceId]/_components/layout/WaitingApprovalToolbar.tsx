@@ -20,13 +20,20 @@ interface WaitingApprovalToolbarProps {
   onRegionChange: (next: string) => void;
   dbTypeOptions: ReadonlyArray<SelectOption>;
   regionOptions: ReadonlyArray<SelectOption>;
+  /** What the search box actually matches. IDC rows have no scan-assigned name/id pair — they
+   *  are identified by host — so the placeholder must not promise a field the table never shows. */
+  searchPlaceholder?: string;
 }
 
 export const WaitingApprovalToolbar = (props: WaitingApprovalToolbarProps) => (
   // .table-toolbar — #F7F8FA surface, radius 12 12 0 0 (attached to table top),
   // 14/16 padding, gap 10, no bottom border (v15 lines 2583–2591).
   <div className="flex flex-wrap items-center gap-[10px] rounded-t-[12px] bg-[#F7F8FA] px-[16px] py-[14px]">
-    <SearchBox value={props.searchValue} onChange={props.onSearchChange} />
+    <SearchBox
+      value={props.searchValue}
+      onChange={props.onSearchChange}
+      placeholder={props.searchPlaceholder}
+    />
     {/* One filter icon instead of a row of selects — the conditions show only once opened. */}
     <FilterMenu
       groups={[
@@ -178,10 +185,15 @@ const FilterOption = ({
 interface SearchBoxProps {
   value: string;
   onChange: (next: string) => void;
+  placeholder?: string;
 }
 
 // .tt-search — relative wrapper, flex 1 1 260px, min 220 / max 360 (v15 lines 2592–2611).
-const SearchBox = ({ value, onChange }: SearchBoxProps) => (
+const SearchBox = ({
+  value,
+  onChange,
+  placeholder = 'Resource ID 또는 Resource Name 검색',
+}: SearchBoxProps) => (
   <div className="relative min-w-[220px] max-w-[360px] flex-[1_1_260px]">
     {/* icon — absolute left 10, #9CA3AF, no pointer events. */}
     <SearchIcon
@@ -193,7 +205,7 @@ const SearchBox = ({ value, onChange }: SearchBoxProps) => (
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      placeholder="Resource ID 또는 Resource Name 검색"
+      placeholder={placeholder}
       className="h-8 w-full rounded-[8px] border border-[#E5E7EB] bg-white pl-[32px] pr-[12px] text-[14px] text-[#111827] outline-none focus:border-[#0064FF] focus:shadow-[0_0_0_3px_rgba(0,100,255,0.08)]"
       aria-label="리소스 검색"
     />

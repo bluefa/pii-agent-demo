@@ -423,6 +423,10 @@ export const getConfirmedIntegration = async (
 // ADR-019: route emits flat ApprovedIntegrationResponseDto (snake, no envelope).
 // Reshape to the UI shape: wrap in approved_integration, rename resources→resource_infos,
 // excluded fields not in the new schema default to empty.
+// The split above is over ONE flat `resources` array, so an excluded row is the same wire object
+// as a selected one — it just carries `selected: false`. The endpoint fields are therefore
+// optional here rather than absent: a 제외 row that reported its host/port keeps them, and the
+// IDC steps show what was requested instead of an em-dash.
 export type ApprovedIntegrationExcludedResourceItem = {
   resource_id?: string;
   exclusion_reason?: string;
@@ -431,6 +435,11 @@ export type ApprovedIntegrationExcludedResourceItem = {
   database_region?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
+  metadata?: ResourceSnapshot['metadata'];
+  idc_host_format?: 'IP' | 'HOST';
+  idc_ips?: string[];
+  idc_host?: string;
+  idc_source_ips?: string[];
 };
 
 export interface ApprovedIntegrationResponse {

@@ -1,14 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { Pagination } from '@/app/components/ui/Pagination';
-import { usePagination } from '@/app/hooks/usePagination';
-import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
-import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
+import { cn, textColors } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
-import { HealthBadge } from '@/app/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
 import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
@@ -22,47 +17,29 @@ import {
   type LogicalDbCountMap,
 } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
-export type ConfirmedIntegrationTableVariant = 'pre-install' | 'complete';
-
 interface ConfirmedIntegrationTableProps {
   confirmed: readonly ConfirmedResource[];
-  variant?: ConfirmedIntegrationTableVariant;
   targetSourceId: number;
 }
 
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 const EMPTY_COUNTS: LogicalDbCountMap = new Map();
 
-
-const STATUS_TOOLTIP_CONTENT = (
-  <div className="space-y-2 text-[12px] leading-[1.5]">
-    <div className="font-semibold">Status 안내</div>
-    <div className="flex items-start gap-2">
-      <HealthBadge status="healthy" />
-      <span>모든 DB가 정상이에요.</span>
-    </div>
-    <div className="flex items-start gap-2">
-      <HealthBadge status="unhealthy" />
-      <span>DB가 비정상이에요. Agent 또는 Credential 상태를 확인해주세요.</span>
-    </div>
-  </div>
-);
-
+/**
+ * Confirmed-integration table shared by cloud Steps 6·7 — the step-2·3 approval
+ * table, minus the verdict pair (every confirmed row is a target) and minus
+ * Connection Status / DB Credential: neither is part of the confirmed-integration
+ * contract review; the credential pick is a step-5 decision whose evidence is the
+ * passing test itself. (The step-7-only "complete" variant with its DB Credential
+ * and placeholder Status columns was a v15 leftover and is gone.)
+ */
 export const ConfirmedIntegrationTable = ({
   confirmed,
-  variant = 'pre-install',
   targetSourceId,
 }: ConfirmedIntegrationTableProps) => {
-  // Display-only pagination, mirroring IdcResourceTable. Hooks run before the
-  // empty-state early return so hook order stays stable across renders.
-  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(confirmed, {
-    initialPageSize: 10,
-  });
-
   // Real per-resource logical-DB counts (연동 대상 / 연동 제외) from the latest
-  // test-connection result summaries. Both variants render them: step 7 as plain cells,
-  // step 6 as the links into the read-only list. A resource with no summary entry
-  // renders "—" rather than a fabricated 0.
+  // test-connection result summaries, rendered as links into the read-only list.
+  // A resource with no summary entry renders "—" rather than a fabricated 0.
   const [fetched, setFetched] = useState<{ targetSourceId: number; counts: LogicalDbCountMap }>({
     targetSourceId,
     counts: EMPTY_COUNTS,
@@ -84,8 +61,8 @@ export const ConfirmedIntegrationTable = ({
   // attribute one target's counts to another's rows.
   const logicalDbCounts = fetched.targetSourceId === targetSourceId ? fetched.counts : EMPTY_COUNTS;
 
-  // Step 6 renders the step-2·3 approval table: every confirmed row is a target, so the
-  // verdict/reason pair is swapped for the Step 5 logical-DB counts (`confirmed` variant).
+  // Every confirmed row is a target, so the verdict/reason pair is swapped for the
+  // Step 5 logical-DB counts (`confirmed` variant).
   const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
     () =>
       confirmed.map((resource) => {
@@ -105,7 +82,7 @@ export const ConfirmedIntegrationTable = ({
   );
   const table = useApprovalTableState(approvalRows);
 
-  // The resource whose logical-DB list is open (step 6). null = closed.
+  // The resource whose logical-DB list is open. null = closed.
   const [logicalDbTarget, setLogicalDbTarget] = useState<WaitingApprovalResource | null>(null);
 
   if (confirmed.length === 0) {
@@ -116,70 +93,6 @@ export const ConfirmedIntegrationTable = ({
     );
   }
 
-  const cellClass = cn(tableStyles.cell, 'text-xs', textColors.tertiary);
-  const monoCellClass = cn(tableStyles.cell, 'font-mono text-xs', textColors.secondary);
-
-  if (variant === 'complete') {
-    return (
-      <>
-      <div className={idcStyles.table.frame}>
-      <table className="w-full text-sm">
-        <thead className={idcStyles.table.header}>
-          <tr>
-            <th className={idcStyles.table.headerCell}>Database Type</th>
-            <th className={idcStyles.table.headerCell}>Resource ID</th>
-            <th className={idcStyles.table.headerCell}>Region</th>
-            <th className={idcStyles.table.headerCell}>Resource Name</th>
-            <th className={idcStyles.table.headerCell}>DB Credential</th>
-            <th className={idcStyles.table.headerCell}>연동 대상 논리 DB</th>
-            <th className={idcStyles.table.headerCell}>연동 제외 논리 DB</th>
-            <th className={idcStyles.table.headerCell}>
-              <span className="inline-flex items-center gap-1">
-                Status
-                {/* 17px — same table-header (?) size as CSP step 1 and the IDC Source IP header. */}
-                <InfoTooltip content={STATUS_TOOLTIP_CONTENT} position="top" size="md" iconSize={17} />
-              </span>
-            </th>
-          </tr>
-        </thead>
-        <tbody className={tableStyles.body}>
-          {pageRows.map((resource) => {
-            const counts = logicalDbCounts.get(resource.resourceId);
-            return (
-              <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-                <td className={cellClass}>{resource.databaseType ? <span className={textColors.secondary}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
-                <td className={cellClass}>
-                  <ResourceIdCell value={resource.resourceId} label="Resource ID" />
-                </td>
-                <td className={monoCellClass}>{resource.region ?? '-'}</td>
-                <td className={monoCellClass}>{resource.resourceName ?? '-'}</td>
-                <td className={cellClass}>{resource.credentialId ?? '-'}</td>
-                <td className={cellClass}>{counts ? counts.target : '—'}</td>
-                <td className={cellClass}>{counts ? counts.excluded : '—'}</td>
-                {/* No per-resource health field in the confirmed-integration contract — render "—". */}
-                <td className={cn(tableStyles.cell, textColors.tertiary)}>—</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      </div>
-      <Pagination
-        page={page}
-        pageSize={pageSize}
-        totalCount={confirmed.length}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-        pageSizeOptions={[10, 20, 50, 100]}
-      />
-      </>
-    );
-  }
-
-  // Step 6 — the step-2·3 approval table, minus the verdict pair (every confirmed row is a
-  // target) and minus Connection Status: that field is NOT part of the confirmed-integration
-  // contract (it only exists once a Step-5 test-connection run is fetched), so the column
-  // could never render anything but a placeholder here.
   // Toolbar (top-rounded) + table + pagination join as one card, same as steps 2·3.
   // No margin of its own — the card body's top padding (cardStyles.body) is the gap, so the
   // table's left edge lines up with the header copy above it.

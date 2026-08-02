@@ -10,9 +10,9 @@ import {
   type IdcResourceView,
 } from '@/app/lib/api/idc';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
-import { bgColors, cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { Pagination } from '@/app/components/ui/Pagination';
-import { usePagination } from '@/app/hooks/usePagination';
+import { Tooltip } from '@/app/components/ui/Tooltip';
 import { EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
 import {
@@ -20,6 +20,12 @@ import {
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
+import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import { useIdcApprovalTable } from '@/app/target-sources/[targetSourceId]/_components/idc/approval-table';
+import {
+  IDC_FILTER_EMPTY_MESSAGE,
+  IDC_SEARCH_PLACEHOLDER,
+} from '@/app/target-sources/[targetSourceId]/_components/idc/steps/step-copy';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import {
   IdcTargetListTable,
@@ -33,8 +39,6 @@ import {
 import { IdcLoadRequestModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcLoadRequestModal';
 import { IdcSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 import { IdcExclusionReasonModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcExclusionReasonModal';
-
-const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
 const toRow = (view: IdcResourceView): IdcStep1Row => ({
   ...view,
@@ -120,9 +124,8 @@ export const IdcStep1TargetInput = ({
   // the user either adds targets directly or loads a prior request on demand via
   // "기존 연동 요청 정보 불러오기" (IdcLoadRequestModal). No previous-request fetch on mount.
   const [rows, setRows] = useState<IdcStep1Row[]>([]);
-  const { page, pageSize, setPage, setPageSize, pageItems: pagedRows } = usePagination(rows, {
-    initialPageSize: PAGE_SIZE_OPTIONS[0],
-  });
+  // Search / DB-type filter / paging, the same derivation the cloud step-1 candidate table uses.
+  const { table, visibleResources: pagedRows } = useIdcApprovalTable(rows);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -141,6 +144,13 @@ export const IdcStep1TargetInput = ({
 
   const editingRow = editId ? rows.find((r) => r.resourceId === editId) ?? null : null;
   const popoverRow = popover ? rows.find((r) => r.resourceId === popover.resourceId) ?? null : null;
+
+  // The exclusion popover is anchored to a row element. A search / filter / page change can take
+  // that row out of the DOM, leaving the popover pinned to nothing — every view change closes it.
+  const onViewChange = <T,>(apply: (next: T) => void) => (next: T) => {
+    apply(next);
+    setPopover(null);
+  };
 
   const total = rows.length;
   const excludedCount = rows.filter((r) => r.excluded).length;
@@ -240,12 +250,21 @@ export const IdcStep1TargetInput = ({
     <>
       <ProjectPageMeta project={project} providerLabel={providerLabel} identity={identity} action={action} />
 
-      <div className={cn('rounded-xl shadow-sm', bgColors.surface)}>
-        <div className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>
+      {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
+      <section className={cardStyles.base}>
+        {/* Cloud step-1 header grammar: 단계 태그 → 고정 제목 → 안내 문장. The two input entry
+            points stay pinned to the header right — IDC has no scan strip to carry them. */}
+        <header className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>
           <div>
+            <span className={cardStyles.stepTag}>1번째 단계</span>
             <h2 className={cardStyles.cardTitle}>연동 대상 DB 입력</h2>
-            <p className={cn('mt-1', cardStyles.subtitle)}>
-              IDC 인프라는 자동 스캔이 지원되지 않아요. 연동할 DB 접속 정보를 직접 입력해주세요.
+            {/* Blue marks only what the user has to do by hand (입력·사유) — 승인 is the system's
+                part, so it stays plain. break-keep wraps by word, not by syllable. */}
+            <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
+              IDC 인프라는 자동 스캔이 지원되지 않아요.{' '}
+              <span className={primaryColors.text}>연동할 DB 접속 정보를 직접 입력</span>하고,
+              제외하는 DB에는 <span className={primaryColors.text}>사유를 남겨주세요</span>. 결과는
+              관리자 승인을 거쳐 확정돼요.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
@@ -265,18 +284,44 @@ export const IdcStep1TargetInput = ({
               연동 대상 추가
             </button>
           </div>
-        </div>
+        </header>
 
         <div className={cardStyles.body}>
           {rows.length === 0 ? (
+            // Nothing entered yet — the empty state owns the one action this screen has, the way
+            // the cloud scan hero does before a first scan.
             <EmptyState
               variant="block"
               icon={<DatabaseIcon className="h-7 w-7" aria-hidden="true" />}
               title="연동 대상을 추가해주세요"
-              description="‘연동 대상 추가’ 버튼으로 IP 또는 Domain 기반의 DB 접속 정보를 등록할 수 있어요"
+              description="IP 또는 Domain 기반의 DB 접속 정보를 등록할 수 있어요"
+              action={
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditId(null);
+                    setFormOpen(true);
+                  }}
+                  className={idcStyles.triggerBtn.primary}
+                >
+                  연동 대상 추가
+                </button>
+              }
             />
           ) : (
             <>
+              {/* Toolbar (top-rounded) + table + pagination (bottom-rounded): one card, no gaps. */}
+              <WaitingApprovalToolbar
+                searchValue={table.searchValue}
+                onSearchChange={onViewChange(table.onSearchChange)}
+                dbType={table.dbType}
+                onDbTypeChange={onViewChange(table.onDbTypeChange)}
+                region={table.region}
+                onRegionChange={onViewChange(table.onRegionChange)}
+                dbTypeOptions={table.dbTypeOptions}
+                regionOptions={table.regionOptions}
+                searchPlaceholder={IDC_SEARCH_PLACEHOLDER}
+              />
               <IdcTargetListTable
                 rows={pagedRows}
                 onToggle={handleToggle}
@@ -286,19 +331,23 @@ export const IdcStep1TargetInput = ({
                   setFormOpen(true);
                 }}
                 onDelete={(resourceId) => setRows((prev) => prev.filter((r) => r.resourceId !== resourceId))}
+                emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
               />
-              <Pagination
-                page={page}
-                pageSize={pageSize}
-                totalCount={total}
-                onPageChange={setPage}
-                onPageSizeChange={setPageSize}
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
-              />
+              {table.filteredCount > 0 && (
+                <Pagination
+                  page={table.safePage}
+                  pageSize={table.pageSize}
+                  totalCount={table.filteredCount}
+                  onPageChange={onViewChange(table.onPageChange)}
+                  onPageSizeChange={onViewChange(table.onPageSizeChange)}
+                  pageSizeOptions={[10, 20, 50, 100]}
+                />
+              )}
             </>
           )}
         </div>
-        {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. */}
+        {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. The counts
+            stay whole-list — the toolbar filters the view, not what gets submitted. */}
         {rows.length > 0 && (
           <CardActionBar
             hint={
@@ -313,17 +362,40 @@ export const IdcStep1TargetInput = ({
               </>
             }
           >
-            <button
-              type="button"
-              disabled={liveCount === 0}
-              onClick={() => setSubmitOpen(true)}
-              className={idcStyles.triggerBtn.primary}
-            >
-              연동 대상 승인 요청
-            </button>
+            {(() => {
+              // A disabled button swallows its own pointer events, so the explanation hangs off
+              // the Tooltip wrapper — and only while the button is actually blocked.
+              const submitButton = (
+                <button
+                  type="button"
+                  disabled={liveCount === 0}
+                  onClick={() => setSubmitOpen(true)}
+                  className={cn(idcStyles.triggerBtn.primary, 'disabled:pointer-events-none')}
+                >
+                  연동 대상 승인 요청
+                </button>
+              );
+              return liveCount === 0 ? (
+                <Tooltip
+                  variant="status"
+                  position="top"
+                  triggerClassName="cursor-not-allowed"
+                  content={
+                    <div>
+                      <p className="font-semibold">연동할 DB가 없어요</p>
+                      <p className="mt-1">1건 이상을 연동 대상으로 남기면 승인을 요청할 수 있어요.</p>
+                    </div>
+                  }
+                >
+                  {submitButton}
+                </Tooltip>
+              ) : (
+                submitButton
+              );
+            })()}
           </CardActionBar>
         )}
-      </div>
+      </section>
 
       <RejectionAlert project={project} />
 
@@ -355,7 +427,9 @@ export const IdcStep1TargetInput = ({
           targetSourceId={targetSourceId}
           onConfirm={(resources) => {
             setRows(resources.map(toRow));
-            setPage(0);
+            // The list is replaced wholesale — a page offset from the old one would land on a
+            // page that no longer exists.
+            table.onPageChange(0);
             setLoadOpen(false);
           }}
           onClose={() => setLoadOpen(false)}
