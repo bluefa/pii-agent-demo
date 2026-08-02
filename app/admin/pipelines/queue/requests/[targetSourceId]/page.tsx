@@ -22,7 +22,11 @@ import { Card } from '@/app/admin/pipelines/_components/Card';
 import { SectionHeader } from '@/app/admin/pipelines/_components/SectionHeader';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
+import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
+import { TqSegLg } from '@/app/admin/pipelines/queue/_components/TqSegLg';
+import { TqSelectLg } from '@/app/admin/pipelines/queue/_components/TqSelectLg';
+import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 
 import { RequestDetailHeader } from '@/app/admin/pipelines/queue/requests/_components/RequestDetailHeader';
 import { CloudResourceTable } from '@/app/admin/pipelines/queue/requests/_components/CloudResourceTable';
@@ -38,6 +42,16 @@ import {
   setNlbDraft,
   type NlbDraft,
 } from '@/app/admin/pipelines/queue/requests/_logic';
+import {
+  axisOptions,
+  databaseTypeOptions,
+  EMPTY_RESOURCE_QUERY,
+  pageResources,
+  queryResources,
+  resourceCounts,
+  type ResourceFilter,
+  type ResourceQuery,
+} from '@/app/admin/pipelines/queue/requests/_resourceQuery';
 import {
   approveRequest,
   getApprovalRequestLatest,
@@ -84,6 +98,16 @@ export default function RequestDetailPage(): ReactElement {
   // reopening for another row shows that row's data (fresh mount via key prop).
   const [nlbInfoResource, setNlbInfoResource] = useState<RequestResourceRow | null>(null);
 
+  // 리소스 목록 질의 — 탭/검색/축 필터 + 10행 페이지. Every query change resets the
+  // page: narrowing the result while on page 3 would otherwise land on an empty
+  // table with no hint that the rows are simply elsewhere.
+  const [query, setQuery] = useState<ResourceQuery>(EMPTY_RESOURCE_QUERY);
+  const [resourcePage, setResourcePage] = useState(0);
+  const patchQuery = (patch: Partial<ResourceQuery>): void => {
+    setQuery((prev) => ({ ...prev, ...patch }));
+    setResourcePage(0);
+  };
+
   // Gates the post-save toast/refetch: the section-level toast provider outlives
   // this page, so a save resolving after navigation must not fire a toast there.
   const aliveRef = useRef(true);
@@ -113,6 +137,8 @@ export default function RequestDetailPage(): ReactElement {
           setNlbTable(nlb);
           setNlbMappings(mappings);
           setDraft({});
+          setQuery(EMPTY_RESOURCE_QUERY);
+          setResourcePage(0);
           setLoading(false);
         })
         .catch((err) => {
@@ -131,9 +157,14 @@ export default function RequestDetailPage(): ReactElement {
   const selectedCount =
     detail?.request.resourceSelectedCount ?? resources.filter((r) => r.selected).length;
   const totalCount = detail?.request.resourceTotalCount ?? resources.length;
-  const excludedCount = Math.max(0, totalCount - selectedCount);
   // Cheap filter over the (small) resource set — recomputed each render on purpose.
   const unsavedNlbCount = dirtyCount(resources, draft);
+  // Counts stay whole-request (the tabs are the split); only the table pages.
+  const counts = resourceCounts(resources);
+  const dbTypeValues = databaseTypeOptions(resources);
+  const axisValues = axisOptions(resources, isIdc);
+  const filteredResources = queryResources(resources, query, isIdc);
+  const pagedResources = pageResources(filteredResources, resourcePage);
 
   const onSelectNlb = (row: RequestResourceRow, nlbIndex: number): void => {
     setDraft((prev) => setNlbDraft(prev, row, nlbIndex));
@@ -246,10 +277,67 @@ export default function RequestDetailPage(): ReactElement {
           <SectionHeader
             first
             title={isIdc ? '연동 대상 리소스 · NLB 배정' : '연동 대상 리소스'}
-            desc={`연동 대상 ${selectedCount}개 · 제외 ${excludedCount}개`}
           />
           <Card>
-            {isIdc ? (
+            {/* 대상/제외 카운트는 읽기 전용 문구가 아니라 필터 자체입니다 — 40건짜리
+                요청에서 "제외 9건이 왜 빠졌는지"를 페이지를 넘겨가며 찾지 않도록. */}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <TqSegLg<ResourceFilter>
+                ariaLabel="연동 대상 필터"
+                value={query.filter}
+                onChange={(next) => {
+                  if (next !== query.filter) patchQuery({ filter: next });
+                }}
+                options={[
+                  { label: '전체', value: 'all', count: counts.all },
+                  { label: '연동 대상', value: 'target', count: counts.target },
+                  { label: '제외', value: 'excluded', count: counts.excluded },
+                ]}
+              />
+              {/* A one-value axis is not a filter — the select only earns its place
+                  when the request actually spans more than one value. */}
+              {dbTypeValues.length > 1 && (
+                <TqSelectLg
+                  aria-label="Database Type 필터"
+                  value={query.databaseType}
+                  onChange={(event) => patchQuery({ databaseType: event.target.value })}
+                >
+                  <option value="">Database Type 전체</option>
+                  {dbTypeValues.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </TqSelectLg>
+              )}
+              {axisValues.length > 1 && (
+                <TqSelectLg
+                  aria-label={isIdc ? '구분 필터' : 'Region 필터'}
+                  value={query.axis}
+                  onChange={(event) => patchQuery({ axis: event.target.value })}
+                >
+                  <option value="">{isIdc ? '구분 전체' : 'Region 전체'}</option>
+                  {axisValues.map((value) => (
+                    <option key={value} value={value}>
+                      {isIdc ? (value === 'HOST' ? 'Host' : 'IP') : value}
+                    </option>
+                  ))}
+                </TqSelectLg>
+              )}
+              <SearchBox
+                lg
+                wrapClassName="ml-auto w-[260px]"
+                className="h-[46px]"
+                aria-label="리소스 검색"
+                placeholder={isIdc ? '호스트 · IP · SID 검색' : '리소스 이름 · ID 검색'}
+                value={query.search}
+                onChange={(event) => patchQuery({ search: event.target.value })}
+              />
+            </div>
+
+            {filteredResources.length === 0 ? (
+              <PlEmptyState icon="inbox" message="조건에 맞는 리소스가 없어요." />
+            ) : isIdc ? (
               <>
                 <div className="flex items-center justify-between mb-2.5">
                   <span className={text.subsectionTitle}>리소스별 NLB Index</span>
@@ -258,7 +346,7 @@ export default function RequestDetailPage(): ReactElement {
                   </PlButton>
                 </div>
                 <IdcResourceTable
-                  rows={resources}
+                  rows={pagedResources.rows}
                   nlbTable={nlbTable}
                   draft={draft}
                   savingResourceId={savingResourceId}
@@ -272,8 +360,14 @@ export default function RequestDetailPage(): ReactElement {
                 </p>
               </>
             ) : (
-              <CloudResourceTable rows={resources} />
+              <CloudResourceTable rows={pagedResources.rows} />
             )}
+
+            <OpsPagination
+              page={pagedResources.page}
+              totalPages={pagedResources.totalPages}
+              onChange={setResourcePage}
+            />
           </Card>
 
           <NlbListenerModal

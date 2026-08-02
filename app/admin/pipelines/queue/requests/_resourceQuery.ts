@@ -1,0 +1,93 @@
+/**
+ * P3 연동 대상 리소스 list query (pure) — 대상/제외 tabs, search, one provider axis
+ * and 10-row paging (LIN-82). `…/approval-requests/latest` returns every resource
+ * inline, so a request with 40+ of them rendered one unbounded table and pushed
+ * the 승인/반려 controls three screens above the row being judged.
+ *
+ * The provider decides the second axis and what the search matches: an IDC row's
+ * visible identity is its host/IP + Oracle SID (resource_id is NEVER rendered —
+ * design-spec §8), a cloud row's is its name + Resource ID.
+ */
+import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
+
+export const RESOURCE_PAGE_SIZE = 10;
+
+export type ResourceFilter = 'all' | 'target' | 'excluded';
+
+export interface ResourceQuery {
+  filter: ResourceFilter;
+  search: string;
+  /** '' = 전체. Matched against `databaseType` verbatim (wire casing). */
+  databaseType: string;
+  /** '' = 전체. Region for cloud, 구분 (IP/HOST) for IDC. */
+  axis: string;
+}
+
+export const EMPTY_RESOURCE_QUERY: ResourceQuery = {
+  filter: 'all',
+  search: '',
+  databaseType: '',
+  axis: '',
+};
+
+export interface ResourceCounts {
+  all: number;
+  target: number;
+  excluded: number;
+}
+
+/** Tab counts — always the whole request, never the filtered view. */
+export function resourceCounts(rows: readonly RequestResourceRow[]): ResourceCounts {
+  const target = rows.filter((row) => row.selected).length;
+  return { all: rows.length, target, excluded: rows.length - target };
+}
+
+const uniqueSorted = (values: ReadonlyArray<string | null>): string[] =>
+  [...new Set(values.filter((v): v is string => v != null && v !== ''))].sort();
+
+export function databaseTypeOptions(rows: readonly RequestResourceRow[]): string[] {
+  return uniqueSorted(rows.map((row) => row.databaseType));
+}
+
+/** Region (cloud) or 구분 (IDC) — only the values this request actually has. */
+export function axisOptions(rows: readonly RequestResourceRow[], isIdc: boolean): string[] {
+  return uniqueSorted(rows.map((row) => (isIdc ? row.idcKind : row.region)));
+}
+
+/** The searchable text of a row — exactly what that provider's table renders. */
+function haystack(row: RequestResourceRow, isIdc: boolean): string {
+  const parts = isIdc
+    ? [...row.connectTargets, row.oracleSid, ...row.sourceIps]
+    : [row.resourceName, row.resourceId];
+  return parts.filter((v): v is string => v != null && v !== '').join(' ').toLowerCase();
+}
+
+export function queryResources(
+  rows: readonly RequestResourceRow[],
+  query: ResourceQuery,
+  isIdc: boolean,
+): RequestResourceRow[] {
+  const search = query.search.trim().toLowerCase();
+  return rows.filter((row) => {
+    if (query.filter === 'target' && !row.selected) return false;
+    if (query.filter === 'excluded' && row.selected) return false;
+    if (query.databaseType !== '' && row.databaseType !== query.databaseType) return false;
+    if (query.axis !== '' && (isIdc ? row.idcKind : row.region) !== query.axis) return false;
+    if (search !== '' && !haystack(row, isIdc).includes(search)) return false;
+    return true;
+  });
+}
+
+export interface ResourcePage<T> {
+  /** Clamped page — a shorter result must not leave the pager past its end. */
+  page: number;
+  totalPages: number;
+  rows: T[];
+}
+
+export function pageResources<T>(rows: readonly T[], page: number): ResourcePage<T> {
+  const totalPages = Math.max(1, Math.ceil(rows.length / RESOURCE_PAGE_SIZE));
+  const safePage = Math.min(Math.max(page, 0), totalPages - 1);
+  const start = safePage * RESOURCE_PAGE_SIZE;
+  return { page: safePage, totalPages, rows: rows.slice(start, start + RESOURCE_PAGE_SIZE) };
+}
