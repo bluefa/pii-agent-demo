@@ -72,10 +72,12 @@ describe('AzureInstallationInline — master-detail step nav', () => {
   it('renders the four Azure steps with 서비스측/BDC측 side tags', () => {
     render(<AzureInstallationInline targetSourceId={1003} confirmed={confirmed} />);
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    // 설치 순서대로. 제목은 계약 필드가 말하는 만큼만 — 특정 리소스(KeyVault,
+    // Load Balancer)를 지목하던 프로토타입 문구는 계약에 근거가 없어 걷어냈다.
+    expect(within(nav).getByText('VM Subnet 생성')).toBeTruthy();
+    expect(within(nav).getByText('VM Terraform 적용')).toBeTruthy();
+    expect(within(nav).getByText('BDC측 Terraform 적용')).toBeTruthy();
     expect(within(nav).getByText('Private Endpoint 승인')).toBeTruthy();
-    expect(within(nav).getByText('VM Subnet')).toBeTruthy();
-    expect(within(nav).getByText('VM Load Balancer')).toBeTruthy();
-    expect(within(nav).getByText('PII Agent VM · KeyVault')).toBeTruthy();
     // 주체 태그: 서비스측 승인 1 + 서비스측 리소스 생성 2 + BDC측 리소스 생성 1.
     expect(within(nav).getAllByText('서비스측 리소스 생성').length).toBe(2);
     expect(within(nav).getByText('BDC측 리소스 생성')).toBeTruthy();

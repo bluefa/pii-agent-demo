@@ -71,15 +71,25 @@ export const mockAzure = {
 
     const resources = (dbResult.data?.resources ?? []).map((r) => {
       const vm = vmById.get(r.resourceId);
-      const allDone =
-        r.privateEndpoint?.status === 'APPROVED' && vm?.subnetExists && vm?.loadBalancer.installed;
+      // 설치 순서: VM Subnet → VM Terraform → BDC측 Terraform → PE 승인.
+      // 앞 단계가 끝나야 뒤 단계가 시작하므로, 목도 그 인과를 그대로 따른다
+      // (bdc 를 항상 COMPLETED 로 두면 순서가 화면에서 드러나지 않는다).
+      // VM 이 아닌 리소스는 VM 두 단계가 아예 없으므로(SKIP) 곧바로 BDC 차례다.
+      const serviceSideReady = vm ? vm.subnetExists && vm.loadBalancer.installed : true;
+      const peStatus = r.privateEndpoint
+        ? PE_TO_STEP[r.privateEndpoint.status] ?? 'SKIP'
+        : 'SKIP';
+      const allDone = serviceSideReady && peStatus === 'COMPLETED';
       return {
         resource_id: r.resourceId,
         // Demo: legacy names are full ARM paths — surface the trailing segment.
         resource_name: r.resourceName?.split('/').pop() ?? r.resourceName,
         resource_type: r.resourceType,
         installation_status: allDone ? 'COMPLETED' : 'IN_PROGRESS',
-        bdc_side_terraform_apply: { status: 'COMPLETED' },
+        bdc_side_terraform_apply: {
+          status: serviceSideReady ? 'COMPLETED' : 'IN_PROGRESS',
+          ...(serviceSideReady ? {} : { guide: '서비스 측 VM 리소스 생성이 끝나면 이어서 배포됩니다.' }),
+        },
         // Object-typed wire fields are optional but NOT nullable (swagger $ref,
         // no `nullable: true`) — omit when absent rather than emit null.
         ...(r.privateEndpoint
@@ -87,7 +97,7 @@ export const mockAzure = {
               service_side_private_endpoint_approval: {
                 id: r.privateEndpoint.id,
                 name: r.privateEndpoint.name,
-                status: PE_TO_STEP[r.privateEndpoint.status] ?? 'SKIP',
+                status: peStatus,
               },
             }
           : {}),
