@@ -91,7 +91,7 @@ export const IdcStep7Complete = ({
               stays a neutral em-dash — no per-target health API source (B.6). */}
           <div className="flex shrink-0 items-center gap-2.5">
             <CompleteActions />
-            <span className={cn('text-[12px]', textColors.quaternary)}>—</span>
+            <span className={cn('text-[12px]', textColors.tertiary)}>—</span>
           </div>
         </header>
         <div className="p-6">

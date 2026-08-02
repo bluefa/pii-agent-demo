@@ -77,7 +77,7 @@ export const IdcFirewallModal = ({
                     <td className={idcStyles.table.cell}>
                       <IdcSourceIpCell sourceIps={r.sourceIps} />
                     </td>
-                    <td className={cn(idcStyles.table.cell, 'text-center', textColors.quaternary)}>
+                    <td className={cn(idcStyles.table.cell, 'text-center', textColors.tertiary)}>
                       →
                     </td>
                     <td className={idcStyles.table.cell}>

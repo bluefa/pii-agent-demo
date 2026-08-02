@@ -134,7 +134,7 @@ export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
 );
 
 export const IdcSourceIpCell = ({ sourceIps }: { sourceIps: string[] }) => {
-  if (sourceIps.length === 0) return <span className={textColors.quaternary}>—</span>;
+  if (sourceIps.length === 0) return <span className={textColors.tertiary}>—</span>;
   return (
     <span className="flex flex-col gap-0.5">
       {sourceIps.map((ip) => (
@@ -176,7 +176,7 @@ export const IdcConnBadge = ({ state }: { state: IdcConnState }) =>
  * instead of a fabricated Healthy/Unhealthy state.
  */
 export const IdcHealthBadge = ({ health }: { health: IdcHealth | null }) => {
-  if (health === null) return <span className={textColors.quaternary}>—</span>;
+  if (health === null) return <span className={textColors.tertiary}>—</span>;
   const healthy = health !== 'UNHEALTHY';
   const tone = healthy ? idcStyles.status.healthy : idcStyles.status.unhealthy;
   return (

@@ -188,7 +188,7 @@ export const IdcResourceTable = ({
                 <td className={cn(skin.cell, dim)}><IdcDbTypeCell resource={r} /></td>
                 {has('src') && (
                   <td className={cn(skin.cell, dim)}>
-                    {r.excluded ? <span className={textColors.quaternary}>—</span> : <IdcSourceIpCell sourceIps={r.sourceIps} />}
+                    {r.excluded ? <span className={textColors.tertiary}>—</span> : <IdcSourceIpCell sourceIps={r.sourceIps} />}
                   </td>
                 )}
                 {has('excl') && (
@@ -207,7 +207,7 @@ export const IdcResourceTable = ({
                 {has('cred') && (
                   <td className={skin.cell}>
                     {r.excluded ? (
-                      <span className={textColors.quaternary}>—</span>
+                      <span className={textColors.tertiary}>—</span>
                     ) : (
                       <IdcCredSelectCell
                         value={r.credentialId ?? ''}
@@ -232,7 +232,7 @@ export const IdcResourceTable = ({
                 {has('logical') && (
                   <td className={skin.cell}>
                     {r.excluded ? (
-                      <span className={textColors.quaternary}>—</span>
+                      <span className={textColors.tertiary}>—</span>
                     ) : (
                       <IdcLogicalButtonCell resource={r} onOpen={() => onLogicalOpen?.(r)} />
                     )}

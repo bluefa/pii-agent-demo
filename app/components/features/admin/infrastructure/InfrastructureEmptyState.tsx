@@ -19,7 +19,7 @@ export const InfrastructureEmptyState = ({ onAddInfra }: InfrastructureEmptyStat
         {EMPTY_ICON}
       </div>
       <p className={textColors.tertiary}>등록된 인프라가 없어요</p>
-      <p className={cn('text-sm mt-1', textColors.quaternary)}>
+      <p className={cn('text-sm mt-1', textColors.tertiary)}>
         상단의 인프라 추가 버튼으로 새 대상을 등록하세요
       </p>
       <button

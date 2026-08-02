@@ -157,7 +157,7 @@ export const ConfirmedIntegrationTable = ({
                 <td className={cellClass}>{counts ? counts.target : '—'}</td>
                 <td className={cellClass}>{counts ? counts.excluded : '—'}</td>
                 {/* No per-resource health field in the confirmed-integration contract — render "—". */}
-                <td className={cn(tableStyles.cell, textColors.quaternary)}>—</td>
+                <td className={cn(tableStyles.cell, textColors.tertiary)}>—</td>
               </tr>
             );
           })}

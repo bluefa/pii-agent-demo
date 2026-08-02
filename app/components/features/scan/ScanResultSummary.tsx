@@ -24,7 +24,7 @@ export const ScanResultSummary = ({ result, completedAt, onClose }: ScanResultSu
       {onClose && (
         <button
           onClick={onClose}
-          className={cn('transition-colors', textColors.quaternary, 'hover:text-gray-600')}
+          className={cn('transition-colors', textColors.tertiary, 'hover:text-gray-600')}
           aria-label="닫기"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

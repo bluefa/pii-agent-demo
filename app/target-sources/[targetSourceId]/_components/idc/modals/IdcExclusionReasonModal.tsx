@@ -74,7 +74,7 @@ export const IdcExclusionReasonModal = ({
           <span className={cn('font-semibold', atLimit ? statusColors.error.text : textColors.secondary)}>
             {text.length.toLocaleString()}
           </span>
-          <span className={textColors.quaternary}> / {maxLen.toLocaleString()}자</span>
+          <span className={textColors.tertiary}> / {maxLen.toLocaleString()}자</span>
         </div>
       </div>
     </ConfirmStepModal>

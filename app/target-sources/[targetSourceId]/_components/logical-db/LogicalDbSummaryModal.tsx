@@ -164,7 +164,7 @@ const Panel = ({ label, items, reasons, emptyMessage }: PanelProps) => (
     </header>
     <div className="flex-1 overflow-y-auto">
       {items.length === 0 ? (
-        <p className={cn('px-3 py-12 text-center text-[12.5px]', textColors.quaternary)}>
+        <p className={cn('px-3 py-12 text-center text-[12.5px]', textColors.tertiary)}>
           {emptyMessage}
         </p>
       ) : (

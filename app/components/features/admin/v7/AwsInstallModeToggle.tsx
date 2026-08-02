@@ -41,7 +41,7 @@ export const AwsInstallModeToggle = ({ value, onChange }: AwsInstallModeTogglePr
           )}
         >
           <span className="text-sm font-semibold leading-tight">{option.title}</span>
-          <span className={cn('text-[11px] leading-tight', isSelected ? textColors.tertiary : textColors.quaternary)}>
+          <span className={cn('text-[11px] leading-tight', textColors.tertiary)}>
             {option.description}
           </span>
         </button>

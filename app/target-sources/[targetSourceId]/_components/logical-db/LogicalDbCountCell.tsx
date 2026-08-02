@@ -22,7 +22,7 @@ export const LogicalDbCountCell = ({
   label: string;
   onOpen?: () => void;
 }) => {
-  if (count == null) return <span className={textColors.quaternary}>—</span>;
+  if (count == null) return <span className={textColors.tertiary}>—</span>;
   if (count === 0) {
     // tertiary, not the quaternary used for the — placeholder: a reported 0 is content, and 13px
     // normal text needs 4.5:1 (gray-400 is 2.8:1 on white). Quieter than a link, still readable.
