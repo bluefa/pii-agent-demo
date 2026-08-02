@@ -12,6 +12,8 @@ interface ReasonChipInlineProps {
   summary?: string;
   /** Secondary line inside the floating tip — typically the registrant and date as a single pre-formatted string. */
   meta?: string;
+  /** Tip heading. Step 4 reuses the chip for install guidance, which is not an exclusion reason. */
+  label?: string;
 }
 
 const DEFAULT_SUMMARY_LIMIT = 40;
@@ -57,7 +59,12 @@ const tipStyle = (
   pointerEvents: 'none',
 });
 
-export const ReasonChipInline = ({ reason, summary, meta }: ReasonChipInlineProps) => {
+export const ReasonChipInline = ({
+  reason,
+  summary,
+  meta,
+  label = '제외 사유',
+}: ReasonChipInlineProps) => {
   const displaySummary = summary ?? deriveSummary(reason);
   const chipRef = useRef<HTMLSpanElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -129,7 +136,7 @@ export const ReasonChipInline = ({ reason, summary, meta }: ReasonChipInlineProp
             {/* rft-label: uppercase, orange, leading 4px dot */}
             <span className="mb-2 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[#C2410C]">
               <span className="h-1 w-1 rounded-full bg-[#C2410C]" aria-hidden="true" />
-              제외 사유
+              {label}
             </span>
             {/* break-words, because a reason is not always prose. `recommend_fail_reason`
                 arrives as one unbroken token (AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED)

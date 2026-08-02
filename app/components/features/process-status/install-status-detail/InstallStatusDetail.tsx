@@ -12,16 +12,14 @@ import {
   textColors,
   textStyles,
 } from '@/lib/theme';
-import {
-  TABLE_BODY_CELL,
-  TABLE_HEADER_CELL,
-  TABLE_MONO_CELL,
-  TABLE_TAG_PILL,
-} from '@/app/components/features/process-status/install-task-pipeline/table-styles';
-import { CopyButton } from '@/app/components/ui/CopyButton';
-import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { TABLE_TAG_PILL } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
 import { Pagination } from '@/app/components/ui/Pagination';
-import { usePagination } from '@/app/hooks/usePagination';
+import {
+  WaitingApprovalTable,
+  type WaitingApprovalResource,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import { formatDateTime } from '@/lib/utils/date';
 import {
   INSTALL_STATUS_LABEL,
@@ -119,8 +117,29 @@ interface ResourceRow {
   cell: InstallStepCell;
 }
 
+const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
+
+/**
+ * Per-resource table for the selected step — the steps 2·3 approval table with the
+ * verdict/reason pair swapped for install status + guidance (`install` variant). Every
+ * install row is a confirmed target, so the search / filter / pagination grammar is the
+ * one the user already learned on the earlier steps.
+ */
 const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
-  const { page, pageSize, setPage, setPageSize, pageItems } = usePagination(rows);
+  const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
+    () =>
+      rows.map((row) => ({
+        resourceId: row.resourceId,
+        resourceType: row.databaseType ?? '',
+        region: row.region ?? '',
+        resourceName: row.resourceName ?? '',
+        selected: true,
+        displayDbType: row.databaseType ?? undefined,
+        installCell: row.cell,
+      })),
+    [rows],
+  );
+  const table = useApprovalTableState(approvalRows);
 
   if (rows.length === 0) {
     return (
@@ -130,90 +149,35 @@ const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
     );
   }
 
+  // Toolbar (top-rounded) + table + pagination join as one card, same as steps 2·3.
   return (
-    <div className={cn('flex flex-col', stackGap.related)}>
-      <div className={cn(idcStyles.table.frame, 'overflow-x-auto')}>
-        <table className={cn('w-full', textStyles.body)}>
-          <thead className={bgColors.muted}>
-            <tr>
-              <th className={TABLE_HEADER_CELL}>Database Type</th>
-              <th className={TABLE_HEADER_CELL}>Resource Name</th>
-              <th className={TABLE_HEADER_CELL}>Resource ID</th>
-              <th className={TABLE_HEADER_CELL}>Region</th>
-              <th className={TABLE_HEADER_CELL}>상태</th>
-              <th className={TABLE_HEADER_CELL}>안내</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageItems.map((row) => (
-              <tr
-                key={row.resourceId}
-                className={cn('border-t border-[#EBEEF2] group', row.cell.status === 'FAIL' && statusColors.error.bg)}
-              >
-                <td className={TABLE_BODY_CELL}>
-                  {row.databaseType ? (
-                    <span className={cn(TABLE_TAG_PILL, tagStyles.info)}>
-                      {getDatabaseShortLabel(row.databaseType)}
-                    </span>
-                  ) : (
-                    <span className={textColors.tertiary}>—</span>
-                  )}
-                </td>
-                <td className={TABLE_MONO_CELL}>
-                  {row.resourceName ? (
-                    <span
-                      className="block max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap"
-                      title={row.resourceName}
-                    >
-                      {row.resourceName}
-                    </span>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td className={TABLE_MONO_CELL}>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap [direction:rtl] text-left">
-                      {row.resourceId}
-                    </span>
-                    <CopyButton
-                      value={row.resourceId}
-                      label={`${row.resourceId} 복사`}
-                      className="opacity-0 group-hover:opacity-100"
-                    />
-                  </span>
-                </td>
-                <td className={TABLE_MONO_CELL}>{row.region ?? '—'}</td>
-                <td className={TABLE_BODY_CELL}>
-                  <StatusPill cell={row.cell} />
-                </td>
-                {/* 안내 없음은 빈 칸 — 대시는 시각적 노이즈만 남긴다. */}
-                <td className={TABLE_BODY_CELL}>
-                  {row.cell.guide ? (
-                    <span
-                      className={cn(
-                        'block max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap',
-                        row.cell.status === 'FAIL' ? statusColors.error.textDark : textColors.secondary,
-                      )}
-                      title={row.cell.guide}
-                    >
-                      {row.cell.guide}
-                    </span>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <Pagination
-        page={page}
-        pageSize={pageSize}
-        totalCount={rows.length}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-        pageSizeOptions={[10, 20, 50]}
+    <div>
+      <WaitingApprovalToolbar
+        searchValue={table.searchValue}
+        onSearchChange={table.onSearchChange}
+        dbType={table.dbType}
+        onDbTypeChange={table.onDbTypeChange}
+        region={table.region}
+        onRegionChange={table.onRegionChange}
+        dbTypeOptions={table.dbTypeOptions}
+        regionOptions={table.regionOptions}
       />
+      <WaitingApprovalTable
+        resources={table.visibleResources}
+        variant="install"
+        connected
+        emptyMessage={FILTER_EMPTY_MESSAGE}
+      />
+      {table.filteredCount > 0 && (
+        <Pagination
+          page={table.safePage}
+          pageSize={table.pageSize}
+          totalCount={table.filteredCount}
+          onPageChange={table.onPageChange}
+          onPageSizeChange={table.onPageSizeChange}
+          pageSizeOptions={[10, 20, 50, 100]}
+        />
+      )}
     </div>
   );
 };

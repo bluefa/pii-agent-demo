@@ -108,7 +108,8 @@ describe('AwsInstallStatusDetail', () => {
 
     // default selection = service step (IN_PROGRESS present) → SKIP row visible.
     expect(screen.getAllByText('해당 없음').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('설치 대상이 아닌 리소스입니다.')).toBeTruthy();
+    // 안내 is the steps-2·3 reason chip, which clamps its summary — the full guide is in the tip.
+    expect(screen.getByText(/설치 대상이 아닌/)).toBeTruthy();
 
     // SKIP counts as settled in the step aggregate (1/2).
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
@@ -143,7 +144,8 @@ describe('AwsInstallStatusDetail', () => {
       />,
     );
 
-    const row = screen.getByTitle('us-east-1').closest('tr')!;
+    // Resource Name cell — truncation lives in the shared table's tooltip, so match on text.
+    const row = screen.getAllByText('us-east-1')[0]!.closest('tr')!;
     expect(within(row).getByText('Athena')).toBeTruthy();
     // Region cell — the wire row carries no region of its own.
     expect(within(row).getAllByText('us-east-1').length).toBeGreaterThanOrEqual(2);

@@ -8,6 +8,11 @@ import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
+import {
+  INSTALL_STATUS_LABEL,
+  type InstallStepCell,
+  type InstallStepValue,
+} from '@/app/components/features/process-status/install-status-detail/model';
 import { idcStyles, primaryColors, statusColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
@@ -32,14 +37,21 @@ export interface WaitingApprovalResource {
    */
   logicalDbCount?: number | null;
   excludedLogicalDbCount?: number | null;
+  /**
+   * `install` variant only — the selected install step's state for this resource. The step nav
+   * picks which cell lands here, so the same row renders a different status per step.
+   */
+  installCell?: InstallStepCell;
 }
 
 /**
  * `approval` (steps 2·3): verdict + exclusion reason as the last two columns.
  * `confirmed` (step 6): every row is a confirmed target, so the verdict pair is replaced by
  * the Step 5 logical-DB counts — what the user actually reviews before the final approval.
+ * `install` (step 4): every row is a confirmed target too, so the pair becomes the per-step
+ * install status and its contract guidance — the same last-two-columns slot, install vocabulary.
  */
-type WaitingApprovalTableVariant = 'approval' | 'confirmed';
+type WaitingApprovalTableVariant = 'approval' | 'confirmed' | 'install';
 
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
@@ -156,6 +168,27 @@ export const TargetPill = ({
   );
 };
 
+// Install status wears the same pill geometry as the verdict it replaces, so the column reads
+// as one family across steps 2·3·4. Only the tint changes, and it comes from the status tokens.
+const INSTALL_STATUS_BOX: Record<InstallStepValue, string> = {
+  COMPLETED: cn(statusColors.success.bg, statusColors.success.border, statusColors.success.textDark),
+  IN_PROGRESS: cn(statusColors.info.bg, statusColors.info.border, statusColors.info.textDark),
+  FAIL: cn(statusColors.error.bg, statusColors.error.border, statusColors.error.textDark),
+  BDC_INSTALL_REQUIRED: cn(
+    statusColors.warning.bg,
+    statusColors.warning.border,
+    statusColors.warning.textDark,
+  ),
+  SKIP: cn(statusColors.pending.bg, statusColors.pending.border, statusColors.pending.textDark),
+  UNKNOWN: cn(statusColors.pending.bg, statusColors.pending.border, statusColors.pending.textDark),
+};
+
+const InstallStatusPill = ({ cell }: { cell: InstallStepCell }) => (
+  <span className={cn(idcStyles.targetPill.base, INSTALL_STATUS_BOX[cell.status])}>
+    {cell.label ?? INSTALL_STATUS_LABEL[cell.status]}
+  </span>
+);
+
 // The chip's own 40-char default overruns this six-column table and forces horizontal
 // scroll (Azure step 3 reasons run past it). Clamp here — the full text is in the hover tip.
 const SUMMARY_LIMIT = 15;
@@ -197,6 +230,7 @@ export const WaitingApprovalTable = memo(
     }
 
     const confirmedVariant = variant === 'confirmed';
+    const installVariant = variant === 'install';
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[12px]';
@@ -217,6 +251,11 @@ export const WaitingApprovalTable = memo(
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>연동 논리 DB</th>
                     <th className={idcStyles.table.approvalHeaderCell}>연동 제외</th>
+                  </>
+                ) : installVariant ? (
+                  <>
+                    <th className={idcStyles.table.approvalHeaderCell}>상태</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>안내</th>
                   </>
                 ) : (
                   <>
@@ -303,6 +342,22 @@ export const WaitingApprovalTable = memo(
                             label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
                             onOpen={() => onLogicalDbOpen?.(resource)}
                           />
+                        </td>
+                      </>
+                    ) : installVariant ? (
+                      <>
+                        <td className={idcStyles.table.approvalCell}>
+                          {resource.installCell && <InstallStatusPill cell={resource.installCell} />}
+                        </td>
+                        {/* 안내 없음은 빈 칸 — 대시는 시각적 노이즈만 남긴다. */}
+                        <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
+                          {resource.installCell?.guide ? (
+                            <ReasonChipInline
+                              reason={resource.installCell.guide}
+                              summary={clampReason(resource.installCell.guide)}
+                              label="안내"
+                            />
+                          ) : null}
                         </td>
                       </>
                     ) : (
