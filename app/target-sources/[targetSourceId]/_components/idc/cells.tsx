@@ -78,7 +78,7 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
   // Steps 2·3 read excluded rows from ExcludedResourceInfoDto, which carries no endpoint fields
   // at all — an em-dash says "the contract does not report this", where a blank cell read as a
   // rendering bug. See toIdcResourceViewFromExcluded.
-  if (hosts.length === 0) return <span className={textColors.quaternary}>—</span>;
+  if (hosts.length === 0) return <span className={textColors.tertiary}>—</span>;
 
   if (kind !== 'MULTIPLE_IP') {
     return <HostCell value={hosts[0] ?? ''} label="Host" />;

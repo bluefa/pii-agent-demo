@@ -126,7 +126,7 @@ export const IdcTargetListTable = ({
                       dim,
                     )}
                   >
-                    {row.port || <span className={textColors.quaternary}>—</span>}
+                    {row.port || <span className={textColors.tertiary}>—</span>}
                   </td>
                   <td className={cn(idcStyles.table.approvalCell, dim)}>
                     <IdcDbTypeCell resource={row} />

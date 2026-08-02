@@ -203,14 +203,14 @@ export const IdcResourceTable = ({
                   {r.hosts.length > 0 ? (
                     <IdcKindBadge kind={r.kind} />
                   ) : (
-                    <span className={textColors.quaternary}>—</span>
+                    <span className={textColors.tertiary}>—</span>
                   )}
                 </td>
                 <td className={cn(skin.cell, dim)}><IdcEndpointCell resource={r} /></td>
                 {/* 0 is the adapter's "no port in the payload" value, not a port — an em-dash
                     says the field is missing instead of asserting a nonsense one. */}
                 <td className={cn(skin.cell, 'font-mono text-[12px]', textColors.secondary, CELL_LIFT, dim)}>
-                  {r.port || <span className={textColors.quaternary}>—</span>}
+                  {r.port || <span className={textColors.tertiary}>—</span>}
                 </td>
                 <td className={cn(skin.cell, dim)}><IdcDbTypeCell resource={r} /></td>
                 {has('src') && (
