@@ -30,9 +30,7 @@ vi.mock(
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot',
   () => ({
-    ConfirmedResourcesSlot: ({ variant }: { variant?: string }) => (
-      <div data-testid="confirmed-resources-slot" data-variant={variant ?? 'pre-install'} />
-    ),
+    ConfirmedResourcesSlot: () => <div data-testid="confirmed-resources-slot" />,
   }),
 );
 
@@ -101,17 +99,20 @@ const renderStep = () =>
   );
 
 describe('InstallationCompleteStep', () => {
-  it('renders the Step 7 title', () => {
+  it('renders the step tag, the title, the 연동 완료 badge and the guidance pair', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
-    expect(screen.getByText('PII 모니터링 모듈 연동 완료')).toBeTruthy();
+    expect(screen.getByText('7번째 단계')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'PII 모니터링 모듈 연동' })).toBeTruthy();
+    expect(screen.getByText('연동 완료')).toBeTruthy();
+    expect(screen.getByText(/연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요/)).toBeTruthy();
+    expect(screen.getByText(/인프라 구성이 바뀌었다면 하단/)).toBeTruthy();
   });
 
-  it('mounts the ConfirmedResourcesSlot with complete variant', () => {
+  it('mounts the ConfirmedResourcesSlot (steps 6·7 shared table)', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
-    const slot = screen.getByTestId('confirmed-resources-slot');
-    expect(slot.getAttribute('data-variant')).toBe('complete');
+    expect(screen.getByTestId('confirmed-resources-slot')).toBeTruthy();
   });
 
   it('does not render the 승인 대기 pill (that is Step 6)', () => {
@@ -120,20 +121,9 @@ describe('InstallationCompleteStep', () => {
     expect(screen.queryByText('승인 대기')).toBeNull();
   });
 
-  it('shows Healthy in the header when every confirmed resource is CONNECTED', () => {
-    providerState = {
-      status: 'ready',
-      data: [
-        makeResource({ resourceId: 'r1', connectionStatus: 'CONNECTED' }),
-        makeResource({ resourceId: 'r2', connectionStatus: 'CONNECTED' }),
-      ],
-    };
-    renderStep();
-    expect(screen.getByText('Healthy')).toBeTruthy();
-    expect(screen.queryByText('Unhealthy')).toBeNull();
-  });
-
-  it('shows Unhealthy in the header when any confirmed resource is DISCONNECTED', () => {
+  // The per-row Status column left the table (live review), so its header aggregate
+  // goes with it — no lone Healthy pill next to the 연동 완료 badge.
+  it('renders no header health badge even when resources are CONNECTED', () => {
     providerState = {
       status: 'ready',
       data: [
@@ -141,13 +131,6 @@ describe('InstallationCompleteStep', () => {
         makeResource({ resourceId: 'r2', connectionStatus: 'DISCONNECTED' }),
       ],
     };
-    renderStep();
-    expect(screen.getByText('Unhealthy')).toBeTruthy();
-    expect(screen.queryByText('Healthy')).toBeNull();
-  });
-
-  it('omits the header badge while loading', () => {
-    providerState = { status: 'loading' };
     renderStep();
     expect(screen.queryByText('Healthy')).toBeNull();
     expect(screen.queryByText('Unhealthy')).toBeNull();
@@ -178,7 +161,7 @@ describe('InstallationCompleteStep', () => {
   it('renders the card title with the cardTitle token (v15 26px / font-extrabold)', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
-    const h2 = screen.getByRole('heading', { level: 2, name: /PII 모니터링 모듈 연동 완료/ });
+    const h2 = screen.getByRole('heading', { level: 2, name: /PII 모니터링 모듈 연동/ });
     expect(h2.className).toContain('text-[22px]');
     expect(h2.className).toContain('font-extrabold');
   });

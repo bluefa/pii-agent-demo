@@ -408,10 +408,10 @@ export const mockProjects: Project[] = [
     updatedAt: '2026-02-09T10:00:00Z',
     isRejected: false,
   },
-  // Step 2·3 에 연동 불가(INSTALL_INELIGIBLE) 리소스가 섞인 케이스. 다른 픽스처는 연동 불가를
-  // Step 1 에서만 들고 있어, 승인 요청 이후 화면에서 어떻게 보이는지 확인할 데이터가 없었다.
-  // 한 프로젝트에 네 갈래를 모두 담는다 — 대상 / 사용자 제외(사유 있음) / 연동 불가(enum 사유
-  // 있음) / 연동 불가(사유 없음, AWS·IDC 처럼 enum 이 커버하지 않는 경우).
+  // Steps 2 and 3 carrying INSTALL_INELIGIBLE resources. Every other fixture holds them at
+  // step 1 only, so there was no data to see how they render once the request is submitted.
+  // One project covers all four branches: target / user-excluded (with reason) / ineligible
+  // (with an enum reason) / ineligible (without one, as AWS and IDC always are).
   ...([
     [1013, ProcessStatus.WAITING_APPROVAL, 'AZURE-004', 'Azure PII Agent - 승인 대기 (연동 불가 포함)'],
     [1014, ProcessStatus.APPLYING_APPROVED, 'AZURE-005', 'Azure PII Agent - 반영 중 (연동 불가 포함)'],

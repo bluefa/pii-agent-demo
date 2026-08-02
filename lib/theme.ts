@@ -324,6 +324,21 @@ export const cardStyles = {
   // Tracking is -0.01em, not the -0.03em latin display type takes: Korean glyphs are already dense,
   // so tighter tracking reads as cramped instead of as a tightened headline.
   cardTitle: 'text-[22px] font-extrabold tracking-[-0.01em] leading-[1.2] text-[#191F28]',
+  /**
+   * "N번째 단계" tag above a step-card title, matching INSTALL_STEPS order in
+   * InstallationProcessProgressBar. Was copy-pasted into every step card with a "keep the two in
+   * sync" note; six cards (cloud 1·2·3, IDC 1·2·3 + 6) is where that stops being a note.
+   */
+  stepTag: `mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold ${primaryColors.bgLight} ${primaryColors.textOnLight}`,
+  /** State pill beside a step title (승인 대기 / 반영중). Shape only — the caller owns the tone. */
+  stepBadge: 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
+  /**
+   * Step-card guidance paragraph — what happened and what to do next, one tier under the title.
+   * 16px rather than the 13.5px `subtitle`: this copy is read, not skimmed. Declared as its own
+   * token because `cn` is a plain join, so layering a size over `subtitle` left the winner to CSS
+   * order — every step card had re-declared the size inline to dodge that.
+   */
+  guidance: `text-[16px] font-medium leading-[1.55] ${textColors.tertiary}`,
   /** Paragraph beneath a display title (ADR-014 card-subtitle) — v15 13.5/500/#8B95A1. */
   subtitle: 'text-[13.5px] font-medium text-[#8B95A1] leading-[1.55]',
   /** Inline "Provider: X" indicator in a card header — weak label + strong name. */

@@ -2,6 +2,7 @@ import type {
   ConfirmResourceMetadata,
   DatabaseType,
   IntegrationCategory,
+  RecommendFailReason,
   ResourceScanStatus,
   VmDatabaseConfig,
 } from '@/lib/types';
@@ -29,7 +30,7 @@ export interface CandidateResource {
    * Null unless `integrationCategory === 'INSTALL_INELIGIBLE'`, and null for the
    * ineligible cases the enum does not cover (AWS, IDC).
    */
-  recommendFailReason: string | null;
+  recommendFailReason: RecommendFailReason | null;
   endpointConfig?: EndpointConfigDraft;
   /** Step-1 scan-status tag — 직전 스캔 대비 본 리소스의 발견 상태 (신규/변경). */
   scanStatus?: ResourceScanStatus;

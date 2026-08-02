@@ -4,6 +4,7 @@ import {
   type ConfirmResourceMetadata,
   type DatabaseType,
   type IntegrationCategory,
+  type RecommendFailReason,
   type ResourceScanStatus,
   type ResourceSnapshot,
   type VmDatabaseConfig,
@@ -32,7 +33,7 @@ export interface CatalogItem {
   integrationCategory: IntegrationCategory;
   selected: boolean;
   exclusionReason: string | null;
-  recommendFailReason: string | null;
+  recommendFailReason: RecommendFailReason | null;
   host: string | null;
   port: number | null;
   oracleServiceId: string | null;

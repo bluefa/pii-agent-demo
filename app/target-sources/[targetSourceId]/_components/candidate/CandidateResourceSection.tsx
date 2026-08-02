@@ -60,14 +60,6 @@ const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
  *  운영 정책으로 1000자로 조인다 — 계약의 부분집합이라 wire엔 영향 없다. */
 const CLOUD_EXCL_REASON_MAXLEN = 1000;
 
-// Step tag — same classes as WaitingApprovalCard's "2번째 단계" tag (keep the two in
-// sync; tokenize when a third step card adopts the grammar).
-const STEP_TAG = cn(
-  'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
-  primaryColors.bgLight,
-  primaryColors.textOnLight,
-);
-
 /** Skeleton frame shown while candidate resources load — mirrors the candidate table shape. */
 const CandidateTableSkeleton = () => (
   <div className="space-y-3" aria-busy="true" aria-live="polite">
@@ -420,12 +412,12 @@ export const CandidateResourceSection = ({
                   헤더가 아니라 스트립/히어로가 소유한다 — 목록이 있을 때 이 카드의
                   primary CTA는 하단 승인 요청 하나뿐이고, 스캔은 보조 밴드로 물러난다. */}
               <header className={cardStyles.header}>
-                <span className={STEP_TAG}>1번째 단계</span>
+                <span className={cardStyles.stepTag}>1번째 단계</span>
                 <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
                 {/* 2호흡: 스캔→선택 / 사유→승인. 강조는 사용자가 직접 해야 하는
                     행동 두 가지(선택·사유 입력)만 파랑 — 승인은 시스템 몫이라 평문.
                     break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
-                <p className={cn('mt-2.5 break-keep text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+                <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
                   인프라 스캔으로 {provider} 계정의 리소스를 조회하고,{' '}
                   <span className={primaryColors.text}>연동할 리소스를 선택</span>해요. 제외하는
                   리소스에는 <span className={primaryColors.text}>사유가 필요</span>하고, 결과는
@@ -433,7 +425,7 @@ export const CandidateResourceSection = ({
                 </p>
               </header>
 
-              <div className="px-6 py-6">
+              <div className={cardStyles.body}>
                 {showStrip && (
                   // 스캔 밴드는 리소스 테이블과 명시적으로 분리된 영역 — 항상 독립
                   // 밴드로 서고, 표 그룹과는 간격으로 구분한다.

@@ -12,7 +12,9 @@ import {
   ResourceIntegrationStatus,
   ResourceSnapshot,
   normalizeCloudProvider,
+  normalizeRecommendFailReason,
 } from '@/lib/types';
+import type { RecommendFailReason } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
@@ -296,7 +298,7 @@ export interface ConfirmResourceItem {
    * enum covers GCP (2) + Azure (1) only, so null is the common case even for ineligible
    * resources.
    */
-  recommendFailReason: string | null;
+  recommendFailReason: RecommendFailReason | null;
   /** Top-level `exclusion_reason` — a reason attached to an already-excluded resource. */
   exclusionReason: string | null;
   host: string | null;
@@ -377,7 +379,7 @@ const toConfirmResourceItem = (item: Record<string, unknown>): ConfirmResourceIt
     integrationCategory: normalizeIntegrationCategory(item.integration_category),
     selected: item.selected === true,
     exclusionReason: str(item.exclusion_reason) ?? null,
-    recommendFailReason: str(item.recommend_fail_reason) ?? null,
+    recommendFailReason: normalizeRecommendFailReason(item.recommend_fail_reason),
     host: str(meta.host) ?? null,
     port: num(meta.port) ?? null,
     oracleServiceId: str(meta.oracle_service_id) ?? null,
@@ -431,10 +433,16 @@ export const getConfirmedIntegration = async (
 // ADR-019: route emits flat ApprovedIntegrationResponseDto (snake, no envelope).
 // Reshape to the UI shape: wrap in approved_integration, rename resources→resource_infos,
 // excluded fields not in the new schema default to empty.
+// The split above is over ONE flat `resources` array, so an excluded row is the same wire object
+// as a selected one — it just carries `selected: false`. The endpoint fields are therefore
+// optional here rather than absent: a 제외 row that reported its host/port keeps them, and the
+// IDC steps show what was requested instead of an em-dash.
 export type ApprovedIntegrationExcludedResourceItem = {
   resource_id?: string;
   exclusion_reason?: string;
   resource_name?: string | null;
+  /** Top-level on the contract; `database_type`/`database_region` below are the legacy pair. */
+  resource_type?: string | null;
   database_type?: string | null;
   database_region?: string | null;
   scan_status?: ResourceScanStatus | null;
@@ -445,7 +453,12 @@ export type ApprovedIntegrationExcludedResourceItem = {
    * used to declare a narrower shape than the split below actually produces.
    */
   integration_category?: string | null;
-  recommend_fail_reason?: string | null;
+  recommend_fail_reason?: RecommendFailReason | null;
+  metadata?: ResourceSnapshot['metadata'];
+  idc_host_format?: 'IP' | 'HOST';
+  idc_ips?: string[];
+  idc_host?: string;
+  idc_source_ips?: string[];
 };
 
 export interface ApprovedIntegrationResponse {

@@ -75,6 +75,11 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
   const [expanded, setExpanded] = useState(false);
   const { hosts, kind } = resource;
 
+  // Steps 2·3 read excluded rows from ExcludedResourceInfoDto, which carries no endpoint fields
+  // at all — an em-dash says "the contract does not report this", where a blank cell read as a
+  // rendering bug. See toIdcResourceViewFromExcluded.
+  if (hosts.length === 0) return <span className={textColors.tertiary}>—</span>;
+
   if (kind !== 'MULTIPLE_IP') {
     return <HostCell value={hosts[0] ?? ''} label="Host" />;
   }
@@ -134,7 +139,10 @@ export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
 );
 
 export const IdcSourceIpCell = ({ sourceIps }: { sourceIps: string[] }) => {
-  if (sourceIps.length === 0) return <span className={textColors.tertiary}>—</span>;
+  // Blank, not an em-dash. The BDC assigns source IPs to integration targets only, so an empty
+  // value means the row is not one — the same reason the 제외 사유 cell of a 대상 row is blank.
+  // An em-dash would read as "this row should have had one and it is missing".
+  if (sourceIps.length === 0) return null;
   return (
     <span className="flex flex-col gap-0.5">
       {sourceIps.map((ip) => (

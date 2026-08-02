@@ -218,16 +218,7 @@ export const WaitingApprovalCard = ({
       <div className={cardStyles.header}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            {/* Step position, matching INSTALL_STEPS order in InstallationProcessProgressBar. */}
-            <span
-              className={cn(
-                'mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold',
-                primaryColors.bgLight,
-                primaryColors.textOnLight,
-              )}
-            >
-              2번째 단계
-            </span>
+            <span className={cardStyles.stepTag}>2번째 단계</span>
             <div className="flex items-center gap-2">
             {/* The verdict arrives with the fetch, so title and badge stay unresolved until then —
                 rendering the pending copy first makes every rejected load flash 승인 대기 → 반려. */}
@@ -237,12 +228,11 @@ export const WaitingApprovalCard = ({
                 <h2 className={cn(cardStyles.cardTitle)}>연동 대상 승인 대기</h2>
                 <span
                   className={cn(
-                    'inline-flex items-center font-medium',
                     // Rejected matches the 반려 사유 tag in the quote below, so the two marks read
                     // as one pair on this screen; pending keeps the rounded-full state badge.
                     rejected
-                      ? 'rounded-md px-1.5 py-0.5 text-[12px]'
-                      : 'rounded-full px-2.5 py-1 text-xs',
+                      ? 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[12px] font-medium'
+                      : cardStyles.stepBadge,
                     statusColors.warning.bg,
                     statusColors.warning.textDark,
                   )}
@@ -280,14 +270,14 @@ export const WaitingApprovalCard = ({
           />
         ) : (
           <>
-            <p className={cn('mt-3 text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+            <p className={cn('mt-3', cardStyles.guidance)}>
               <strong className={cn('font-semibold', primaryColors.text)}>
                 관리자 승인을 기다리고 있어요.
               </strong>{' '}
               평균 1영업일 내 검토되며, 결과는 이 화면에서 확인할 수 있어요.
             </p>
             {/* mt 없음 — 행간 여백(leading 1.55)만으로 문단을 가른다 (기존 mt-1에서 −4px). */}
-            <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+            <p className={cardStyles.guidance}>
               연동 대상을 다시 고르고 싶다면 우측 상단{' '}
               <strong className={cn('font-semibold', textColors.secondary)}>다시 요청하기</strong>를
               눌러주세요.
@@ -308,8 +298,7 @@ export const WaitingApprovalCard = ({
         )}
       </div>
 
-      {/* No body top padding, so the header's 12px bottom padding IS the meta-to-table gap. */}
-      <div className="px-6 pb-6">
+      <div className={cardStyles.body}>
         {state.status === 'loading' ? (
           <ResourceTableSkeleton />
         ) : state.status === 'error' ? (
@@ -324,7 +313,7 @@ export const WaitingApprovalCard = ({
             {listBlock}
           </RejectedTargetRecord>
         ) : (
-          <div className="mt-4">{listBlock}</div>
+          <div>{listBlock}</div>
         )}
       </div>
       {/* C-2 action zone: reselect dock (sticky) at the card bottom. cancelSlot moved to the header. */}

@@ -121,10 +121,7 @@ const buildResourceInputs = (
       selected: false,
       integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
       ...(candidate.recommendFailReason
-        ? {
-            recommend_fail_reason:
-              candidate.recommendFailReason as ResourceItem['recommend_fail_reason'],
-          }
+        ? { recommend_fail_reason: candidate.recommendFailReason }
         : {}),
       ...(reason ? { exclusion_reason: reason } : {}),
       metadata: intrinsicMetadata,

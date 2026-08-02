@@ -221,6 +221,34 @@ export interface ResourceExclusion {
 
 export type IntegrationCategory = 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
 
+/**
+ * swagger `recommend_fail_reason` — the scan's verdict on why a resource cannot take an
+ * agent. Accompanies INSTALL_INELIGIBLE only. The enum names three network conditions and
+ * covers GCP + Azure alone, so an ineligible AWS or IDC resource carries none.
+ */
+export type RecommendFailReason =
+  | 'GCP_CLOUD_SQL_HAS_PUBLIC_IP'
+  | 'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET'
+  | 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED';
+
+const RECOMMEND_FAIL_REASONS: readonly string[] = [
+  'GCP_CLOUD_SQL_HAS_PUBLIC_IP',
+  'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
+  'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
+];
+
+/**
+ * Wire → domain guard. The generated zod schema types this as a plain string (codegen
+ * strips enums), so the boundary is the only place that can hold the contract. An
+ * unrecognised value is dropped rather than passed through: this text is shown to the user
+ * as the reason their resource cannot be installed, and echoed back on the approval
+ * request — a value neither side agrees on is worse than none.
+ */
+export const normalizeRecommendFailReason = (value: unknown): RecommendFailReason | null =>
+  typeof value === 'string' && RECOMMEND_FAIL_REASONS.includes(value)
+    ? (value as RecommendFailReason)
+    : null;
+
 export interface MockResource {
   id: string;
   type: string;
@@ -230,10 +258,11 @@ export interface MockResource {
   databaseType: DatabaseType;             // DB 종류 (필수)
   integrationCategory: IntegrationCategory; // 연동 분류
   /**
-   * 스캔이 판정한 연동 불가 사유 (swagger recommend_fail_reason enum). INSTALL_INELIGIBLE
-   * 일 때만 붙고, enum 이 GCP 2종·Azure 1종만 정의돼 있어 AWS·IDC 연동 불가에는 없다.
+   * The scan's reason for judging a resource ineligible (swagger `recommend_fail_reason`).
+   * Present only with INSTALL_INELIGIBLE, and the enum covers GCP (2) + Azure (1) only, so
+   * AWS and IDC ineligible resources carry none.
    */
-  recommendFailReason?: string;
+  recommendFailReason?: RecommendFailReason;
 
   // --- AWS 전용 ---
   awsType?: AwsResourceType;              // AWS일 때만
@@ -850,6 +879,13 @@ export interface ResourceSnapshot {
     provider?: string | null;
     region?: string | null;
     database_type?: string | null;
+    // `endpoint_config` is the VM path only (it is null for every non-VM row). For IDC the
+    // connection facts arrive here — TargetSourceResourceMetadataDto declares host/port/
+    // oracle_service_id — and reading only endpoint_config left steps 2·3 rendering an empty
+    // Database Type and a fabricated port 0.
+    host?: string | null;
+    port?: number | null;
+    oracle_service_id?: string | null;
   } | null;
   // ResourceConfigDto extension fields — preserved through the approved-integration mapping.
   database_region?: string | null;
@@ -872,9 +908,12 @@ export interface BffExcludedResourceInfo {
   database_region?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
-  /** 비대상 사유의 두 축 — 시스템 판정(연동 불가)과 그 사유. @see TargetSourceResourceItemDto */
+  /** The two axes of a non-target row: the scan's verdict and its reason. @see TargetSourceResourceItemDto */
   integration_category?: string | null;
   recommend_fail_reason?: string | null;
+  /** Contract shape: `resource_type` top-level, region/database_type under metadata. */
+  resource_type?: string | null;
+  metadata?: { region?: string | null; database_type?: string | null };
 }
 
 /** 연동 확정 리소스 정보 (Swagger ResourceConfigDto) */

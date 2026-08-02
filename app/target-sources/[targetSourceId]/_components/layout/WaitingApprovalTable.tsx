@@ -18,9 +18,9 @@ export interface WaitingApprovalResource {
   selected: boolean;
   /** Exclusion reason text from `excluded_resource_infos[].exclusion_reason`. Only meaningful when `selected === false`. */
   exclusionReason?: string;
-  /** `integration_category` — separates a system verdict (연동 불가) from a user's 제외. */
+  /** `integration_category` — separates the scan's ineligible verdict from a user's exclusion. */
   integrationCategory?: string;
-  /** `recommend_fail_reason` — the scan's reason for 연동 불가; absent for AWS/IDC. */
+  /** `recommend_fail_reason` — why the scan judged it ineligible; absent for AWS/IDC. */
   recommendFailReason?: string;
   /** Optional metadata line shown beneath the reason text in the tooltip — typically registrant and date. */
   exclusionMeta?: string;
@@ -115,24 +115,27 @@ const PLACEHOLDER = '—';
 
 // No status dot: the label already says 대상 / 제외, so the dot repeats it in a weaker channel.
 //
-// 연동 불가 is its own verdict, not a flavour of 제외. The two answer different questions —
-// 제외 means a person chose to leave it out and can put it back by re-selecting; 연동 불가
-// means the scan found the resource unreachable and no amount of re-selecting changes that.
-// Step 1 already draws that line (the row's checkbox is disabled there); collapsing it back
-// into 제외 here made a system verdict look like a revisable human decision.
-const TargetPill = ({
+// Ineligible is its own verdict, not a flavour of excluded. The two answer different
+// questions: excluded means a person chose to leave the resource out and can put it back by
+// re-selecting, while ineligible means the scan found it unreachable and no amount of
+// re-selecting changes that. Step 1 already draws that line (the row's checkbox is disabled
+// there); collapsing it back into excluded made a system verdict look revisable.
+//
+// Exported for the IDC steps 2·3 table, which asks the same question in the same column.
+// `ineligible` is optional so that caller keeps its current two-state behaviour.
+export const TargetPill = ({
   excluded,
-  ineligible,
+  ineligible = false,
 }: {
   excluded: boolean;
-  ineligible: boolean;
+  ineligible?: boolean;
 }) => {
   if (ineligible) {
-    // Step 1's grammar for the same fact: warning-dark + ⚠, not a pill. A pill would put
-    // it in the same visual class as 대상/제외 — two revisable verdicts — when this one is
-    // the scan telling you the resource cannot be reached at all. No underline and no
-    // button here: step 1 links to the guidance modal because that is where you act, and
-    // by this step there is nothing left to act on.
+    // Step 1's grammar for the same fact: warning-dark + a warning glyph, not a pill. A pill
+    // would put it in the same visual class as the two revisable verdicts, when this one is
+    // the scan saying the resource cannot be reached at all. No underline and no button:
+    // step 1 links to the guidance modal because that is where you act, and by this step
+    // there is nothing left to act on.
     return (
       <span
         className={cn(
@@ -157,7 +160,7 @@ const TargetPill = ({
 // scroll (Azure step 3 reasons run past it). Clamp here — the full text is in the hover tip.
 const SUMMARY_LIMIT = 15;
 
-const clampReason = (reason: string): string =>
+export const clampReason = (reason: string): string =>
   reason.length <= SUMMARY_LIMIT ? reason : reason.slice(0, SUMMARY_LIMIT).trimEnd() + '…';
 
 // Blank when there is no reason — target rows can never have one, so an em-dash is noise.

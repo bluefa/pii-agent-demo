@@ -1,17 +1,28 @@
 // @vitest-environment jsdom
+import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
 
 // Stub the heavy chrome / fetching children so only IdcStep7Complete's own card renders.
+// CardActionBar keeps a passthrough render so the rewind CTAs stay queryable.
 vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
   ProjectPageMeta: () => null,
   RejectionAlert: () => null,
+  CardActionBar: ({ hint, children }: { hint?: ReactNode; children: ReactNode }) => (
+    <div>
+      {hint}
+      {children}
+    </div>
+  ),
 }));
-vi.mock('@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable', () => ({
-  IdcResourceTable: () => null,
-}));
+vi.mock(
+  '@/app/target-sources/[targetSourceId]/_components/idc/IdcConfirmedResourcesPanel',
+  () => ({
+    IdcConfirmedResourcesPanel: () => null,
+  }),
+);
 vi.mock('@/app/hooks/useIdcResources', () => ({
   useIdcResources: () => ({ state: { status: 'ready', resources: [] } }),
 }));
@@ -42,22 +53,37 @@ const identity: ProjectIdentity = {
   identifiers: [],
 };
 
-describe('IdcStep7Complete subtitle copy', () => {
-  it('uses the IDC subtitle variant (no "사용 단어 빈도" cloud clause)', () => {
-    render(
-      <IdcStep7Complete
-        project={project}
-        identity={identity}
-        providerLabel="IDC Infrastructure"
-        action={null}
-        onProjectUpdate={() => {}}
-      />,
-    );
+const renderStep = () =>
+  render(
+    <IdcStep7Complete
+      project={project}
+      identity={identity}
+      providerLabel="IDC Infrastructure"
+      action={null}
+      onProjectUpdate={() => {}}
+    />,
+  );
+
+describe('IdcStep7Complete', () => {
+  it('renders the step tag, the title and the 연동 완료 badge', () => {
+    renderStep();
+    expect(screen.getByText('7번째 단계')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'PII 모니터링 모듈 연동' })).toBeTruthy();
+    expect(screen.getByText('연동 완료')).toBeTruthy();
+  });
+
+  it('renders the status line and the one-sentence CTA guidance (step-6 grammar)', () => {
+    renderStep();
     expect(
-      screen.getByText(
-        'PII가 사용되어 있을 가능성이 있어요. 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.',
-      ),
+      screen.getByText(/연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요/),
     ).toBeTruthy();
-    expect(screen.queryByText(/사용 단어 빈도가 표시되며/)).toBeNull();
+    expect(screen.getByText(/인프라 구성이 바뀌었다면 하단/)).toBeTruthy();
+  });
+
+  it('docks both rewind CTAs in the bottom action bar', () => {
+    renderStep();
+    expect(screen.getByRole('button', { name: /인프라 변경/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /연결 테스트 재실행/ })).toBeTruthy();
+    expect(screen.getByText(/1단계, 연결 테스트 재실행은 5단계로 되돌아가/)).toBeTruthy();
   });
 });
