@@ -52,9 +52,9 @@ const UNKNOWN_GUIDE: Guide = {
   cause: '네트워크 구성 제약으로 Agent를 설치할 수 없는 리소스예요.',
 };
 
-/** 묶음 이름 — 값보다 한 단계 작고 조용해서, 읽는 순서를 방해하지 않고 구조만 그린다. */
+/** 묶음 이름 — 본문보다 한 단계 큰 소제목. 구조를 눈으로 먼저 잡게 한다. */
 const GroupLabel = ({ children }: { children: string }) => (
-  <span className={cn(textStyles.captionStrong, textColors.tertiary)}>{children}</span>
+  <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{children}</h3>
 );
 
 /**
@@ -78,25 +78,25 @@ export const InstallIneligibleGuideModal = ({
       title="설치 불가 사유"
     >
       {/* 사용자가 던지는 질문 순서대로 네 묶음 — 왜 안 되는지 / 뭘 해야 하는지 /
-          어디서 확인하는지 / 누구에게 묻는지. 라벨↔본문은 한 쌍이라 4px, 묶음 사이는
+          어디서 확인하는지 / 누구에게 묻는지. 소제목↔본문 8px, 묶음 사이
           16px. 계층을 글자 크기로만 주면 14px 문장들이 평평해져 보이지 않는다.
           푸터도 ✕도 없다 — 배경 클릭 / ESC 로 닫는다. */}
       <div className={cn('flex flex-col pb-7', stackGap.group, textStyles.body, textColors.secondary)}>
-        <section className={cn('flex flex-col', stackGap.tight)}>
+        <section className={cn('flex flex-col', stackGap.related)}>
           <GroupLabel>원인</GroupLabel>
-          <p className={cn(textStyles.bodyStrong, textColors.primary)}>{guide.cause}</p>
+          <p className={textColors.primary}>{guide.cause}</p>
           {guide.detail && <p>{guide.detail}</p>}
         </section>
 
         {guide.remedy && (
-          <section className={cn('flex flex-col', stackGap.tight)}>
+          <section className={cn('flex flex-col', stackGap.related)}>
             <GroupLabel>조치 방법</GroupLabel>
             <p>{guide.remedy}</p>
           </section>
         )}
 
         {guide.doc && (
-          <section className={cn('flex flex-col', stackGap.tight)}>
+          <section className={cn('flex flex-col', stackGap.related)}>
             <GroupLabel>공식 문서</GroupLabel>
             <a
               href={guide.doc.href}
@@ -109,7 +109,7 @@ export const InstallIneligibleGuideModal = ({
           </section>
         )}
 
-        <section className={cn('flex flex-col', stackGap.tight)}>
+        <section className={cn('flex flex-col', stackGap.related)}>
           <GroupLabel>문의</GroupLabel>
           <p>
             추가적인 문의사항이 있으면{' '}
