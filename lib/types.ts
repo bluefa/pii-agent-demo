@@ -221,6 +221,34 @@ export interface ResourceExclusion {
 
 export type IntegrationCategory = 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
 
+/**
+ * swagger `recommend_fail_reason` — the scan's verdict on why a resource cannot take an
+ * agent. Accompanies INSTALL_INELIGIBLE only. The enum names three network conditions and
+ * covers GCP + Azure alone, so an ineligible AWS or IDC resource carries none.
+ */
+export type RecommendFailReason =
+  | 'GCP_CLOUD_SQL_HAS_PUBLIC_IP'
+  | 'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET'
+  | 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED';
+
+const RECOMMEND_FAIL_REASONS: readonly string[] = [
+  'GCP_CLOUD_SQL_HAS_PUBLIC_IP',
+  'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
+  'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
+];
+
+/**
+ * Wire → domain guard. The generated zod schema types this as a plain string (codegen
+ * strips enums), so the boundary is the only place that can hold the contract. An
+ * unrecognised value is dropped rather than passed through: this text is shown to the user
+ * as the reason their resource cannot be installed, and echoed back on the approval
+ * request — a value neither side agrees on is worse than none.
+ */
+export const normalizeRecommendFailReason = (value: unknown): RecommendFailReason | null =>
+  typeof value === 'string' && RECOMMEND_FAIL_REASONS.includes(value)
+    ? (value as RecommendFailReason)
+    : null;
+
 export interface MockResource {
   id: string;
   type: string;
@@ -229,6 +257,12 @@ export interface MockResource {
   isSelected: boolean;
   databaseType: DatabaseType;             // DB 종류 (필수)
   integrationCategory: IntegrationCategory; // 연동 분류
+  /**
+   * The scan's reason for judging a resource ineligible (swagger `recommend_fail_reason`).
+   * Present only with INSTALL_INELIGIBLE, and the enum covers GCP (2) + Azure (1) only, so
+   * AWS and IDC ineligible resources carry none.
+   */
+  recommendFailReason?: RecommendFailReason;
 
   // --- AWS 전용 ---
   awsType?: AwsResourceType;              // AWS일 때만
@@ -874,6 +908,12 @@ export interface BffExcludedResourceInfo {
   database_region?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
+  /** The two axes of a non-target row: the scan's verdict and its reason. @see TargetSourceResourceItemDto */
+  integration_category?: string | null;
+  recommend_fail_reason?: string | null;
+  /** Contract shape: `resource_type` top-level, region/database_type under metadata. */
+  resource_type?: string | null;
+  metadata?: { region?: string | null; database_type?: string | null };
 }
 
 /** 연동 확정 리소스 정보 (Swagger ResourceConfigDto) */

@@ -12,7 +12,9 @@ import {
   ResourceIntegrationStatus,
   ResourceSnapshot,
   normalizeCloudProvider,
+  normalizeRecommendFailReason,
 } from '@/lib/types';
+import type { RecommendFailReason } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
@@ -290,6 +292,13 @@ export interface ConfirmResourceItem {
   integrationCategory: IntegrationCategory;
   /** Top-level `selected` from the response — the backend's default target choice. */
   selected: boolean;
+  /**
+   * Top-level `recommend_fail_reason` — the scan's verdict on *why* this resource cannot
+   * be installed. Only present with `integration_category: INSTALL_INELIGIBLE`, and the
+   * enum covers GCP (2) + Azure (1) only, so null is the common case even for ineligible
+   * resources.
+   */
+  recommendFailReason: RecommendFailReason | null;
   /** Top-level `exclusion_reason` — a reason attached to an already-excluded resource. */
   exclusionReason: string | null;
   host: string | null;
@@ -370,6 +379,7 @@ const toConfirmResourceItem = (item: Record<string, unknown>): ConfirmResourceIt
     integrationCategory: normalizeIntegrationCategory(item.integration_category),
     selected: item.selected === true,
     exclusionReason: str(item.exclusion_reason) ?? null,
+    recommendFailReason: normalizeRecommendFailReason(item.recommend_fail_reason),
     host: str(meta.host) ?? null,
     port: num(meta.port) ?? null,
     oracleServiceId: str(meta.oracle_service_id) ?? null,
@@ -431,10 +441,19 @@ export type ApprovedIntegrationExcludedResourceItem = {
   resource_id?: string;
   exclusion_reason?: string;
   resource_name?: string | null;
+  /** Top-level on the contract; `database_type`/`database_region` below are the legacy pair. */
+  resource_type?: string | null;
   database_type?: string | null;
   database_region?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
+  /**
+   * Carried through from `ApprovedIntegrationResponseDto.resources`, which is a
+   * `TargetSourceResourceItemDto` — these two were always on the wire; this type just
+   * used to declare a narrower shape than the split below actually produces.
+   */
+  integration_category?: string | null;
+  recommend_fail_reason?: RecommendFailReason | null;
   metadata?: ResourceSnapshot['metadata'];
   idc_host_format?: 'IP' | 'HOST';
   idc_ips?: string[];

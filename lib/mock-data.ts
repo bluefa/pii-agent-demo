@@ -408,6 +408,65 @@ export const mockProjects: Project[] = [
     updatedAt: '2026-02-09T10:00:00Z',
     isRejected: false,
   },
+  // Steps 2 and 3 carrying INSTALL_INELIGIBLE resources. Every other fixture holds them at
+  // step 1 only, so there was no data to see how they render once the request is submitted.
+  // One project covers all four branches: target / user-excluded (with reason) / ineligible
+  // (with an enum reason) / ineligible (without one, as AWS and IDC always are).
+  ...([
+    [1013, ProcessStatus.WAITING_APPROVAL, 'AZURE-004', 'Azure PII Agent - 승인 대기 (연동 불가 포함)'],
+    [1014, ProcessStatus.APPLYING_APPROVED, 'AZURE-005', 'Azure PII Agent - 반영 중 (연동 불가 포함)'],
+  ] as const).map(([targetSourceId, processStatus, projectCode, name]): Project => ({
+    id: `azure-proj-${targetSourceId}`,
+    targetSourceId,
+    projectCode,
+    name,
+    description: '연동 대상 2건, 사용자 제외 1건, 연동 불가 2건',
+    serviceCode: 'azure',
+    cloudProvider: 'Azure',
+    tenantId: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
+    subscriptionId: '34567890-cdef-0123-4567-89abcdef0123',
+    processStatus,
+    status: createStatusForProcessStatus(processStatus, { selectedCount: 2, excludedCount: 3 }),
+    resources: [
+      {
+        id: `azure-inel-${targetSourceId}-1`, type: 'AZURE_MYSQL', resourceId: 'mysql-prod-010',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: true,
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: `azure-inel-${targetSourceId}-2`, type: 'AZURE_POSTGRESQL', resourceId: 'psql-prod-011',
+        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: true,
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: `azure-inel-${targetSourceId}-3`, type: 'AZURE_MYSQL', resourceId: 'mysql-stg-012',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'TARGET',
+        exclusion: {
+          reason: '스테이징 DB라 연동 대상에서 제외합니다.',
+          excludedBy: { id: 'admin-1', name: '관리자' },
+          excludedAt: '2026-03-01T09:00:00Z',
+        },
+      },
+      {
+        id: `azure-inel-${targetSourceId}-4`, type: 'AZURE_MYSQL', resourceId: 'mysql-vnet-013',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'INSTALL_INELIGIBLE',
+        azureNetworkingMode: 'VNET_INTEGRATION',
+        recommendFailReason: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
+      },
+      {
+        id: `azure-inel-${targetSourceId}-5`, type: 'AZURE_POSTGRESQL', resourceId: 'psql-vnet-014',
+        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'INSTALL_INELIGIBLE',
+        azureNetworkingMode: 'VNET_INTEGRATION',
+      },
+    ],
+    terraformState: { bdcTf: 'PENDING' },
+    createdAt: '2026-03-01T09:00:00Z',
+    updatedAt: '2026-03-02T10:00:00Z',
+    isRejected: false,
+  })),
   // ===== AWS 프로젝트 =====
   {
     id: 'proj-1',

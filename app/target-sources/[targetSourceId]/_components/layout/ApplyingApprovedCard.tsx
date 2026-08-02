@@ -46,11 +46,19 @@ const toExcludedRow = (
   item: ApprovedIntegrationExcludedResourceItem,
 ): WaitingApprovalResource => ({
   resourceId: item.resource_id ?? '',
-  resourceType: item.database_type ?? '',
-  region: item.database_region ?? '',
+  // Same contract shape as a selected row — the split that produces these items reads
+  // `ApprovedIntegrationResponseDto.resources`, so both halves are TargetSourceResourceItemDto:
+  // `resource_type` is top-level and region/database_type live under metadata. The legacy
+  // top-level `database_type` / `database_region` remain as the fallback because older
+  // snapshots (and the IDC mock) still carry them there.
+  resourceType: item.resource_type ?? item.database_type ?? '',
+  region: item.metadata?.region ?? item.database_region ?? '',
+  displayDbType: item.metadata?.database_type ?? item.database_type ?? undefined,
   resourceName: item.resource_name ?? '',
   selected: false,
   exclusionReason: item.exclusion_reason ?? undefined,
+  integrationCategory: item.integration_category ?? undefined,
+  recommendFailReason: item.recommend_fail_reason ?? undefined,
 });
 
 interface ApplyingView {

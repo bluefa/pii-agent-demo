@@ -2,6 +2,7 @@ import type {
   ConfirmResourceMetadata,
   DatabaseType,
   IntegrationCategory,
+  RecommendFailReason,
   ResourceScanStatus,
   VmDatabaseConfig,
 } from '@/lib/types';
@@ -24,6 +25,12 @@ export interface CandidateResource {
   selected: boolean;
   /** Reason attached to an already-excluded resource by the backend (null when none). */
   exclusionReason: string | null;
+  /**
+   * Why the scan judged this resource install-ineligible (`recommend_fail_reason`).
+   * Null unless `integrationCategory === 'INSTALL_INELIGIBLE'`, and null for the
+   * ineligible cases the enum does not cover (AWS, IDC).
+   */
+  recommendFailReason: RecommendFailReason | null;
   endpointConfig?: EndpointConfigDraft;
   /** Step-1 scan-status tag — 직전 스캔 대비 본 리소스의 발견 상태 (신규/변경). */
   scanStatus?: ResourceScanStatus;

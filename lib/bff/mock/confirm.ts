@@ -301,6 +301,9 @@ function toResourceCatalogItem(
     // database_type intentionally NOT top-level — it lives under metadata
     // (buildMetadata), matching TargetSourceResourceItemDto.
     integration_category: resource.integrationCategory,
+    ...(resource.recommendFailReason
+      ? { recommend_fail_reason: resource.recommendFailReason }
+      : {}),
     scan_status: deriveCandidateScanStatus(resource),
     metadata: buildMetadata(resource, project),
   };
@@ -334,7 +337,12 @@ function toApprovalResourceItems(project: Project): Array<Record<string, unknown
       resource_type: r.type,
       selected: r.isSelected,
       integration_category: r.integrationCategory,
-      ...(r.exclusion?.reason ? { exclusion_reason: r.exclusion.reason } : {}),
+      ...(r.recommendFailReason ? { recommend_fail_reason: r.recommendFailReason } : {}),
+      // Mirrors what the request adapter submits: an ineligible row carries no user reason
+      // (its checkbox is disabled), so the scan's verdict is what lands in exclusion_reason.
+      ...(r.exclusion?.reason ?? r.recommendFailReason
+        ? { exclusion_reason: r.exclusion?.reason ?? r.recommendFailReason }
+        : {}),
       // database_type lives under metadata (swagger TargetSourceResourceMetadataDto),
       // not top-level — TargetSourceResourceItemDto does not declare it there.
       metadata,
@@ -404,12 +412,20 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
 function toExcludedResourceInfo(r: MockResource, project: Project): BffExcludedResourceInfo {
   return {
     resource_id: r.resourceId,
-    exclusion_reason: r.exclusion?.reason ?? '',
+    // An ineligible row has no user reason, so the scan's verdict stands in — the same
+    // substitution the request adapter makes when the payload is submitted.
+    exclusion_reason: r.exclusion?.reason ?? r.recommendFailReason ?? '',
     resource_name: demoResourceName(project.cloudProvider, r),
+    // Contract shape (TargetSourceResourceItemDto): resource_type top-level, region and
+    // database_type under metadata. The legacy top-level pair stays for older consumers.
+    resource_type: r.type,
+    metadata: { region: demoRegion(project.cloudProvider, r), database_type: r.databaseType },
     database_type: r.databaseType ?? null,
     database_region: demoRegion(project.cloudProvider, r),
     scan_status: deriveScanStatus(r),
     integration_status: deriveIntegrationStatus(r),
+    integration_category: r.integrationCategory,
+    ...(r.recommendFailReason ? { recommend_fail_reason: r.recommendFailReason } : {}),
   };
 }
 
@@ -607,7 +623,13 @@ export const mockConfirm = {
 
       let exclusion: ResourceExclusion | undefined = r.exclusion;
       const exclusionReason = excludedMap.get(r.id);
-      if (excludedMap.has(r.id) && exclusionReason) {
+      // An install-ineligible row's `exclusion_reason` is the scan's own verdict, which the
+      // request adapter substitutes because every reader of that column expects it. It must
+      // not become a `ResourceExclusion`, though: that record names a person and a time, and
+      // attributing a network fact to whoever happened to submit the request would put a
+      // false statement in the audit trail. `integrationCategory` stays the only source for it.
+      const isIneligible = r.integrationCategory === 'INSTALL_INELIGIBLE';
+      if (excludedMap.has(r.id) && exclusionReason && !isIneligible) {
         exclusion = { reason: exclusionReason, excludedAt: now, excludedBy };
       }
 
@@ -847,7 +869,11 @@ export const mockConfirm = {
       const approvedAt = project.status.approval.approvedAt ?? project.updatedAt;
       // ADR-019: emit flat ApprovedIntegrationResponseDto (snake wire).
       // The route validates with schemas.ApprovedIntegrationResponseDto.parse(raw).
-      const excludedResources = project.resources.filter((r) => !!r.exclusion);
+      // Not-selected, not "has a user exclusion object" — an install-ineligible resource is
+      // excluded by the scan and carries no such object, so keying off it dropped those rows
+      // from the approved view entirely. The contract splits on `selected` (see the
+      // ApprovedIntegrationResponseDto reshape in app/lib/api), so mirror that.
+      const excludedResources = project.resources.filter((r) => !r.isSelected);
       return NextResponse.json({
         approved_at: approvedAt,
         approved_by: { user_id: '김보안 (kim.security)' },

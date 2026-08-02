@@ -22,6 +22,7 @@ const cloudCandidate: CandidateResource = {
   behaviorKey: 'default',
   selected: true,
   exclusionReason: null,
+  recommendFailReason: null,
   metadata: { provider: 'AWS', resourceType: 'RDS', region: 'ap-northeast-1' },
 };
 
@@ -87,6 +88,56 @@ describe('approval-payload', () => {
     expect(
       listMissingExclusionReasons([cloudCandidate], new Set(['res-1']), {}),
     ).toEqual([]);
+  });
+
+  // An install-ineligible row cannot carry a user reason (its checkbox is disabled), so the
+  // scan's verdict is submitted in its place — every downstream reader keys off
+  // exclusion_reason and would otherwise show a blank cell. The verdict also rides along in
+  // its own field so the fact stays machine-readable.
+  it('submits the scan verdict as both recommend_fail_reason and exclusion_reason', () => {
+    const ineligible: CandidateResource = {
+      ...cloudCandidate,
+      id: 'res-inel',
+      integrationCategory: 'INSTALL_INELIGIBLE',
+      selected: false,
+      recommendFailReason: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
+    };
+    const [item] = toApprovalRequestInput([ineligible], new Set<string>(), drafts, {}).resources!;
+    expect(item.selected).toBe(false);
+    expect(item.integration_category).toBe('INSTALL_INELIGIBLE');
+    expect(item.recommend_fail_reason).toBe('AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED');
+    expect(item.exclusion_reason).toBe('AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED');
+    expect(() => schemas.ApprovalRequestInputDto.parse({ resources: [item] })).not.toThrow();
+  });
+
+  // The enum covers GCP (2) + Azure (1); an ineligible AWS or IDC resource has no reason at
+  // all, and inventing one would be worse than the blank.
+  it('omits both reason fields when the scan gave no verdict', () => {
+    const ineligible: CandidateResource = {
+      ...cloudCandidate,
+      id: 'res-inel-2',
+      integrationCategory: 'INSTALL_INELIGIBLE',
+      selected: false,
+    };
+    const [item] = toApprovalRequestInput([ineligible], new Set<string>(), drafts, {}).resources!;
+    expect(item.recommend_fail_reason).toBeUndefined();
+    expect(item.exclusion_reason).toBeUndefined();
+  });
+
+  // A user reason must win: the substitution exists only to fill an empty cell.
+  it('keeps a user reason ahead of the scan verdict', () => {
+    const ineligible: CandidateResource = {
+      ...cloudCandidate,
+      id: 'res-inel-3',
+      integrationCategory: 'INSTALL_INELIGIBLE',
+      selected: false,
+      recommendFailReason: 'GCP_CLOUD_SQL_HAS_PUBLIC_IP',
+    };
+    const [item] = toApprovalRequestInput([ineligible], new Set<string>(), drafts, {
+      'res-inel-3': '운영팀 요청으로 제외',
+    }).resources!;
+    expect(item.exclusion_reason).toBe('운영팀 요청으로 제외');
+    expect(item.recommend_fail_reason).toBe('GCP_CLOUD_SQL_HAS_PUBLIC_IP');
   });
 
   // The list now gates (disables) the approval CTA, so a blank that slipped in —

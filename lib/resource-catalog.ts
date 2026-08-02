@@ -4,6 +4,7 @@ import {
   type ConfirmResourceMetadata,
   type DatabaseType,
   type IntegrationCategory,
+  type RecommendFailReason,
   type ResourceScanStatus,
   type ResourceSnapshot,
   type VmDatabaseConfig,
@@ -32,6 +33,7 @@ export interface CatalogItem {
   integrationCategory: IntegrationCategory;
   selected: boolean;
   exclusionReason: string | null;
+  recommendFailReason: RecommendFailReason | null;
   host: string | null;
   port: number | null;
   oracleServiceId: string | null;
@@ -95,6 +97,7 @@ export const catalogToCandidates = (
       behaviorKey: pickBehaviorKey(item),
       selected: item.selected,
       exclusionReason: item.exclusionReason,
+      recommendFailReason: item.recommendFailReason,
       ...(endpointConfig ? { endpointConfig } : {}),
       ...(item.scanStatus ? { scanStatus: item.scanStatus } : {}),
       metadata: item.metadata,

@@ -131,7 +131,12 @@ export const ReasonChipInline = ({ reason, summary, meta }: ReasonChipInlineProp
               <span className="h-1 w-1 rounded-full bg-[#C2410C]" aria-hidden="true" />
               제외 사유
             </span>
-            <span className="block">{reason}</span>
+            {/* break-words, because a reason is not always prose. `recommend_fail_reason`
+                arrives as one unbroken token (AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED)
+                and browsers do not wrap at underscores, so with the default `normal` the
+                glyphs painted 50px past this span's box — outside the 340px card, since the
+                tip does not clip. Breaking the token keeps it inside the card. */}
+            <span className="block break-words">{reason}</span>
             {meta && (
               <span className="mt-2.5 block border-t border-[#E5E7EB] pt-2.5 text-[11.5px] text-[#6B7280]">
                 {meta}
