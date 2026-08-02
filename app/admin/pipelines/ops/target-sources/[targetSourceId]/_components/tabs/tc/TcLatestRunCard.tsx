@@ -79,6 +79,8 @@ export function TcLatestRunCard({
   /** Resources the run actually judged — 0 means it reported none. */
   const scored = stats.successCount + stats.failedCount;
   const agentRows = runAgentRows(latest);
+  /** 집계 계층이 내용을 갖는가 — 실행 중이면 목록이 그 자리를 대신한다. */
+  const showSummary = !running || agentRows.length === 0;
 
   return (
     // flex-col — mt-auto pins the time row to the card floor (no dead air when the sibling card is taller).
@@ -139,9 +141,14 @@ export function TcLatestRunCard({
       ) : (
         <>
           <div className="mt-5">
-            <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">연결 테스트 결과</p>
-            {/* 실행 중에는 집계 대신 아래 Agent 목록이 진행 사항을 맡는다. 아직 agent 가
-                한 건도 안 올라왔을 때만 그 사실을 말한다. */}
+            {/* 실행 중에 집계 계층은 존재하지 않는다 — 아직 집계할 게 없으니 제목만
+                남기면 빈 머리글이 된다. 그때는 아래 Agent 목록이 카드의 본문이 되고,
+                agent 가 한 건도 안 올라온 순간에만 그 사실을 말한다. */}
+            {showSummary && (
+              <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">
+                연결 테스트 결과
+              </p>
+            )}
             {running ? (
               agentRows.length === 0 && (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>
@@ -183,14 +190,25 @@ export function TcLatestRunCard({
                     개가 연결에 성공했어요.
                   </p>
                 )}
+                {/* 타일은 이 실행의 판정만 — 셋을 합하면 항상 리소스 수가 된다. */}
                 <div className="mt-2.5 grid grid-cols-3 gap-2">
                   <TcStatTile label="성공" count={stats.successCount} tone="ok" />
                   <TcStatTile label="실패" count={stats.failedCount} tone="err" />
-                  {/* 판정되지 않은 나머지 — 합이 항상 리소스 수와 맞는다. */}
                   <TcStatTile label="미확인" count={stats.resourceCount - scored} />
-                  <TcStatTile label="연동 대상 논리 DB" count={stats.includedTotal} />
-                  <TcStatTile label="연동 제외 논리 DB" count={stats.excludedTotal} />
                 </div>
+                {/* 논리 DB 는 연결 성패가 아니라 그 결과로 알게 된 규모 — 같은 크기의
+                    타일로 올리면 5칸이 한 덩어리로 읽혀 무엇이 판정인지 흐려진다. */}
+                <p className={cn(pipelineStyles.text.meta, 'mt-2.5')}>
+                  연동 대상 논리 DB{' '}
+                  <b className="font-semibold tabular-nums text-[var(--pl-text-medium)]">
+                    {stats.includedTotal.toLocaleString('ko-KR')}
+                  </b>
+                  개 · 연동 제외{' '}
+                  <b className="font-semibold tabular-nums text-[var(--pl-text-medium)]">
+                    {stats.excludedTotal.toLocaleString('ko-KR')}
+                  </b>
+                  개
+                </p>
               </>
             )}
             {/* 어느 리소스를 어느 agent 가 맡아 어떻게 됐는지 — 타일이 "몇 건"이라면
@@ -199,6 +217,7 @@ export function TcLatestRunCard({
               rows={agentRows}
               running={running}
               expectedTotal={confirmedResourceCount}
+              separated={showSummary}
             />
           </div>
 
