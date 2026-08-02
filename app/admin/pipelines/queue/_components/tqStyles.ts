@@ -164,15 +164,6 @@ export const tqStyles = {
     },
     num: 'font-semibold text-[var(--pl-text-strong)] tabular-nums',
     den: 'font-medium text-[var(--pl-text-faint)]',
-    /** Inline occupancy note under the NLB select (P3). The bar + badge belong to
-     *  the NLB 리스너 현황 modal, which is ABOUT occupancy; here it is a footnote on
-     *  a choice, so it is text and only the over-threshold tiers take a color. */
-    note: 'text-[11.5px] tabular-nums',
-    noteTone: {
-      ok: 'text-[var(--pl-text-faint)]',
-      warn: 'text-[var(--pl-warn-text)]',
-      err: 'text-[var(--pl-err-text)]',
-    },
   },
 
   /** NLB free-capacity tag (`.ftag`) — 여유 / 주의 / Hard Limit. */

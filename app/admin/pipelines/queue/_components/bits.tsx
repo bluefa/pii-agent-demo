@@ -63,28 +63,6 @@ export function FtagBadge({
   return <span className={cn(tqStyles.ftag.base, FTAG_TONE[tone], className)}>{FTAG_LABEL[tone]}</span>;
 }
 
-/**
- * Occupancy as a footnote under the NLB select (P3), where a bar + badge made the
- * assigned NLB's load louder than the assignment itself. 여유 is left unsaid — it is
- * the default state, and naming it would put every row's normal case into words.
- */
-export function NlbOccupancyNote({
-  occupied,
-  capacity = NLB_CAPACITY,
-}: {
-  occupied: number;
-  capacity?: number;
-}): ReactElement {
-  const { occ } = tqStyles;
-  const tone = occTone(occupied, capacity);
-  return (
-    <span className={cn(occ.note, occ.noteTone[tone])}>
-      점유 {occupied}/{capacity}
-      {tone !== 'ok' && ` · ${FTAG_LABEL[tone]}`}
-    </span>
-  );
-}
-
 export interface RejectReasonCellProps {
   /** Full rejection reason — truncated inline, revealed on hover. */
   reason: string;

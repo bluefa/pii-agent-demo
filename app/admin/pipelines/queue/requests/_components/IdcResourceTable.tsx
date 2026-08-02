@@ -1,9 +1,9 @@
 /**
  * IdcResourceTable — P3 IDC 연동 대상 리소스 + NLB 배정 (design-spec §3), rendered
- * rendered with the app-side IDC step-1 table itself — `idcStyles.table` chrome, the
- * shared ROW_* hover/lift tokens, ReasonChipInline — so the admin reads the request
- * the service owner submitted through the same design, plus the admin-only NLB Index
- * select (with the assigned NLB's load as a footnote under it) and a 저장 button.
+ * with the app-side IDC step-1 table itself — `idcStyles.table` chrome, the shared
+ * ROW_* hover/lift tokens, ReasonChipInline — so the admin reads the request the
+ * service owner submitted through the same design, plus the admin-only NLB column
+ * (select carrying each index's load, its detail affordance, and its 저장).
  *
  * No 구분 column: IP-vs-Host is already legible from the value itself (an address or
  * a hostname), and a multi-IP endpoint says so by collapsing behind its own toggle.
@@ -27,14 +27,16 @@ import {
   ROW_TARGET,
   clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
-import { NlbOccupancyNote } from '@/app/admin/pipelines/queue/_components/bits';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import {
   IdcDbTypeCell,
   IdcEndpointCell,
   IdcSourceIpCell,
 } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import {
+  NLB_CAPACITY,
+  NLB_WARN_THRESHOLD,
   effectiveNlbIndex,
   isNlbDirty,
   nlbOptionDisabled,
@@ -65,9 +67,20 @@ const SELECT_BASE =
 /** Excluded rows REST one tier dimmer; the hover lift restores full contrast. */
 const DIM = 'text-[#6B7280]';
 
-/** Dropdown label is index-only — occupancy is the note under the select. */
-function optionLabel(index: number): string {
-  return `NLB #${index}`;
+const NLB_INFO_BTN =
+  'inline-grid h-7 w-7 flex-none place-items-center rounded-md text-[var(--pl-text-faint)] transition-colors hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)]';
+
+/**
+ * Occupancy rides IN the option label. It used to appear as a note UNDER the select —
+ * i.e. only after the admin had already committed to an index — so the choice was made
+ * blind and then annotated. The tier is spelled out rather than colored: a disabled
+ * option that only looked different gave no reason for being unpickable.
+ */
+function optionLabel(row: NlbTableRow): string {
+  const { nlbIndex, occupiedListenerCount: occupied } = row;
+  const tier =
+    occupied >= NLB_CAPACITY ? ' 한도 초과' : occupied >= NLB_WARN_THRESHOLD ? ' 주의' : '';
+  return `NLB #${nlbIndex} · ${occupied}/${NLB_CAPACITY}${tier}`;
 }
 
 export function IdcResourceTable({
@@ -82,7 +95,6 @@ export function IdcResourceTable({
   wrapClassName,
 }: IdcResourceTableProps): ReactElement {
   const { table } = idcStyles;
-  const occupancyByIndex = new Map(nlbTable.map((n) => [n.nlbIndex, n.occupiedListenerCount]));
 
   return (
     <div className={cn(table.frame, wrapClassName)}>
@@ -96,13 +108,14 @@ export function IdcResourceTable({
             <th className={cn(table.headerCell, 'w-[172px]')}>Database Type</th>
             <th className={cn(table.headerCell, 'w-[80px]')}>Port</th>
             <th className={cn(table.headerCell, 'w-[144px]')}>Source IP</th>
-            {/* One column, not two: the assigned NLB's load is a footnote on the choice,
-                so it sits under the select instead of claiming its own 210px. */}
-            <th className={cn(table.headerCell, 'w-[170px]')}>NLB Index</th>
-            {/* The freed column. A row is either assignable or excluded, never both, so
-                the two never collide — and the reason gets the width it needs. */}
+            {/* One column carries the whole NLB decision: the choice, its detail link and
+                its save. The trailing unnamed 170px action column that used to hold 정보 /
+                저장 is gone — it repeated one identical ghost button down every row, and
+                저장 appearing there shifted the layout of a row mid-edit. */}
+            <th className={cn(table.headerCell, 'w-[280px]')}>NLB Index</th>
+            {/* A row is either assignable or excluded, never both, so the NLB cell and the
+                verdict never collide — and the reason gets a column of its own. */}
             <th className={cn(table.headerCell, 'w-[220px]')}>제외 사유</th>
-            <th className={cn(table.headerCell, 'w-[170px]')} />
           </tr>
         </thead>
         <tbody className={table.body}>
@@ -126,7 +139,7 @@ export function IdcResourceTable({
                   <td className={cn(table.cell, 'whitespace-nowrap text-[12px]', DIM, CELL_LIFT)}>
                     제외
                   </td>
-                  <td className={table.cell} colSpan={2}>
+                  <td className={table.cell}>
                     {row.exclusionReason && (
                       <ReasonChipInline
                         reason={row.exclusionReason}
@@ -141,7 +154,6 @@ export function IdcResourceTable({
             const current = effectiveNlbIndex(row, draft);
             const dirty = isNlbDirty(row, draft);
             const saving = savingResourceId != null && savingResourceId === row.resourceId;
-            const currentOcc = current != null ? occupancyByIndex.get(current) : undefined;
             const canSave = row.resourceId != null && !disabled;
 
             return (
@@ -166,7 +178,7 @@ export function IdcResourceTable({
                   <IdcSourceIpCell sourceIps={row.sourceIps} />
                 </td>
                 <td className={table.cell}>
-                  <span className="flex flex-col items-start gap-1">
+                  <span className="flex items-center gap-1.5">
                     <select
                       className={cn(
                         SELECT_BASE,
@@ -186,27 +198,39 @@ export function IdcResourceTable({
                           value={n.nlbIndex}
                           disabled={nlbOptionDisabled(n.occupiedListenerCount, n.nlbIndex, current)}
                         >
-                          {optionLabel(n.nlbIndex)}
+                          {optionLabel(n)}
                         </option>
                       ))}
                     </select>
-                    {currentOcc != null && <NlbOccupancyNote occupied={currentOcc} />}
+                    {/* Sits beside the value it explains. Icon-only, so it carries its own
+                        name (§aria-labels) and a 28px box around a 14px glyph. */}
+                    <button
+                      type="button"
+                      onClick={() => onShowNlbInfo(row)}
+                      aria-label="배정된 NLB 정보"
+                      title="배정된 NLB 정보"
+                      className={NLB_INFO_BTN}
+                    >
+                      <Icon name="info" size="sm" />
+                    </button>
+                    {/* 저장 keeps a reserved slot: appearing/disappearing used to shift the
+                        row's layout the moment an admin touched the select. */}
+                    <span className="inline-flex w-[46px] flex-none justify-start">
+                      {dirty && !disabled && (
+                        <PlButton
+                          variant="primary"
+                          size="sm"
+                          disabled={saving}
+                          onClick={() => onSave(row)}
+                        >
+                          저장
+                        </PlButton>
+                      )}
+                    </span>
                   </span>
                 </td>
                 {/* 제외 사유 — a target row has none, so the cell stays empty. */}
                 <td className={table.cell} />
-                <td className={table.cell}>
-                  <span className="inline-flex items-center justify-end gap-1.5 w-full">
-                    <PlButton variant="ghost" size="sm" onClick={() => onShowNlbInfo(row)}>
-                      NLB 정보
-                    </PlButton>
-                    {dirty && !disabled && (
-                      <PlButton variant="primary" size="sm" disabled={saving} onClick={() => onSave(row)}>
-                        저장
-                      </PlButton>
-                    )}
-                  </span>
-                </td>
               </tr>
             );
           })}
