@@ -215,7 +215,7 @@ export const IdcResourceTable = ({
                 <td className={cn(skin.cell, dim)}><IdcDbTypeCell resource={r} /></td>
                 {has('src') && (
                   <td className={cn(skin.cell, dim)}>
-                    {r.excluded ? <span className={textColors.tertiary}>—</span> : <IdcSourceIpCell sourceIps={r.sourceIps} />}
+                    <IdcSourceIpCell sourceIps={r.sourceIps} />
                   </td>
                 )}
                 {has('excl') && (
