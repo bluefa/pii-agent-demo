@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { groupResourceRows, toPaginationUnits } from '@/lib/resource-grouping';
 import type { WaitingApprovalResource } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { ApprovalFilter } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 
@@ -83,14 +84,31 @@ export const useApprovalTableState = (
     });
   }, [resources, dbType, region, filter, searchValue, labelOfDbType]);
 
-  const filteredCount = filteredResources.length;
+  // A grouped resource (Athena × region) pages as ONE unit carrying all of its databases —
+  // see `toPaginationUnits`. Ungrouped rows are one unit each, so a list with no groups keeps
+  // exactly the flat behaviour this hook had before.
+  const units = useMemo(
+    () =>
+      toPaginationUnits(
+        groupResourceRows(filteredResources, (resource) => ({
+          type: resource.resourceType,
+          region: resource.region,
+          selected: resource.selected,
+        })),
+      ),
+    [filteredResources],
+  );
+
+  // Counted in UNITS, not rows — the footer range and the page slice have to describe the same
+  // thing, and a group is one resource here. How many databases it holds is on the group's row.
+  const filteredCount = units.length;
   const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
   const safePage = Math.min(page, totalPages - 1);
   const sliceStart = safePage * pageSize;
   const sliceEnd = Math.min(filteredCount, sliceStart + pageSize);
   const visibleResources = useMemo(
-    () => filteredResources.slice(sliceStart, sliceEnd),
-    [filteredResources, sliceStart, sliceEnd],
+    () => units.slice(sliceStart, sliceEnd).flat(),
+    [units, sliceStart, sliceEnd],
   );
   const visibleStart = filteredCount === 0 ? 0 : sliceStart + 1;
   const visibleEnd = sliceEnd;

@@ -114,16 +114,16 @@
   .app .caret:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
 
   /* 부모 아이덴티티 — 색이 아니라 활자 위계로 */
-  .app .pid{display:flex;flex-direction:column;gap:2px}
-  .app .prole{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--fg3)}
-  .app .pname{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:14.5px;
-    font-weight:700;color:var(--fg1);display:flex;align-items:center;gap:9px}
+  /* 부모는 맥락이지 표제가 아니다 — 자식 이름보다 한 티어 아래로 둔다.
+     Resource Name 컬럼과 같은 14px mono, 굵기만 600, 두 번째 줄 없음. */
+  .app .pid{display:flex;align-items:center;gap:8px}
+  .app .pname{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:14px;
+    font-weight:600;color:var(--fg2)}
   .app .preg{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11.5px;font-weight:600;
-    color:var(--fg2);border:1px solid var(--line);border-radius:5px;padding:1px 7px;
+    color:var(--fg3);border:1px solid var(--line);border-radius:5px;padding:1px 7px;
     white-space:nowrap;flex-shrink:0}
-  .app .agg{font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums;white-space:nowrap}
-  .app .agg b{font-weight:700;color:var(--fg1)}
+  .app .agg{font-size:12px;color:var(--fg3);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .app .agg b{font-weight:700;color:var(--fg2)}
   .app .agg .sep{color:var(--fg4);margin:0 6px}
 
   /* ---------- A · 트리 엘보 : 자식마다 개별로 잇는다 ---------- */
@@ -172,6 +172,7 @@
     앞선 시안은 보라색 밴드로 그룹을 표시했습니다. 그건 <b>“여기 그룹이 있다”</b>는 표시일 뿐,
     RDS 콘솔이 주는 <b>“이것들은 실제로 이어져 있다”</b>는 감각은 아니었습니다.
     확인해 보니 지적이 맞았습니다 — 콘솔은 색으로 묶지 않습니다.
+    <b>A안으로 확정</b>했고, 아래 A 목업이 실제 구현과 같은 스펙입니다.
   </p>
 
   <div class="finding">
@@ -237,14 +238,13 @@ const parentRow = () => `
     <td class="sel"><button class="caret" type="button" aria-expanded="true" aria-label="${CATALOG} ${REGION} 그룹 접기">${CV}</button></td>
     <td class="name">
       <span class="pid">
-        <span class="prole">Athena 카탈로그</span>
-        <span class="pname">${CATALOG}<span class="preg">${REGION}</span></span>
+        <span class="pname">Athena</span><span class="preg">${REGION}</span>
       </span>
     </td>
-    <td><span class="mono c3">athena:${ACCT}:${REGION}/${CATALOG}</span></td>
-    <td><span class="c2">Athena</span></td>
-    <td><span class="mono c2 nowrap">${REGION}</span></td>
-    <td><span class="c3">—</span></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
     <td><span class="agg"><b>${T}</b> 대상<span class="sep">·</span><b>${X}</b> 제외<span class="sep">·</span>총 ${DBS.length}</span></td>
   </tr>`;
 
@@ -267,21 +267,21 @@ const shot = cls => `<div class="shot"><div class="app ${cls}"><table>${HEAD}<tb
 
 const OPTIONS = [
 {
-  k:'A', t:'트리 엘보', s:'RDS Databases 목록',
+  k:'A', t:'트리 엘보', s:'채택 · RDS Databases 목록',
   d:'레일이 부모의 캐럿 아래에서 시작해 자식들을 지나 내려가고, <b>자식마다 짧은 가로 획(엘보)이 이름 쪽으로 뻗습니다.</b> 마지막 자식에서 레일이 끊깁니다 — 그래서 “여기까지가 이 카탈로그”라는 경계가 선 자체로 읽힙니다. 파일 트리와 같은 문법이라 학습이 필요 없습니다.',
-  v:'<b>가장 익숙하고 가장 정확하다.</b> 각 자식이 개별적으로 부모에 매달린 관계를 그리므로, 행 하나하나를 체크박스로 고르는 Step 1의 작업 방식과 정확히 맞는다.',
+  v:'<b>채택됨.</b> 각 자식이 개별적으로 부모에 매달린 관계를 그리므로, 행 하나하나를 체크박스로 고르는 Step 1의 작업 방식과 정확히 맞는다.<br><br>구현하며 확정한 세 가지 — <b>① 설치 구분은 빈 값.</b> 스캔이 리소스 단위로 내리는 판정인데, 그룹은 스캔이 판정한 리소스가 아니다. 값을 넣으면 없는 사실을 만드는 것이다. <b>② 부모 이름은 “Athena”.</b> 앞선 목업의 AwsDataCatalog 는 계약에 필드가 없고 resource_id 문자열 안에만 있다 — id 파싱은 하지 않는다. <b>③ 묶인 그룹은 하나의 리소스로 페이징.</b> 평면 slice 는 그룹을 페이지 경계에서 잘라 부모 행을 두 번 그린다. 그룹은 1건으로 세고, 자식 데이터베이스는 항상 함께 나온다.',
   c:'A',
 },
 {
   k:'B', t:'브래킷', s:'코드 폴딩 · 스코프 표기',
   d:'엘보 없이 <b>세로선의 위·아래 끝을 안쪽으로 꺾어</b> 자식 전체를 하나의 대괄호로 감쌉니다. 개별 연결선이 없으므로 자식들은 낱개가 아니라 <b>하나의 묶음</b>으로 읽힙니다.',
-  v:'<b>“하나의 덩어리” 인상이 가장 강하다.</b> 다만 개별 행과 부모의 연결은 A보다 약해서, 승인 검토(Step 2·3)처럼 묶음 단위로 확인하는 화면에 더 맞는다.',
+  v:'<b>미채택.</b> “하나의 덩어리” 인상은 가장 강하다. 다만 개별 행과 부모의 연결은 A보다 약해서, 승인 검토(Step 2·3)처럼 묶음 단위로 확인하는 화면에 더 맞는다.',
   c:'B',
 },
 {
   k:'C', t:'노드 레일', s:'커밋 그래프 · 타임라인',
   d:'레일 위에 <b>정거장을 세웁니다</b> — 부모는 채워진 마름모, 자식은 빈 원. 선이 지나가는 게 아니라 각 행이 <b>레일 위의 지점</b>이 되어, 구성원이라는 사실이 점으로 명시됩니다.',
-  v:'<b>가장 눈에 띄지만 가장 비싸다.</b> 노드가 Step 1의 체크박스와 같은 시선 높이에서 경쟁하고, “이 동그라미도 누르는 건가”라는 오해를 부를 수 있다. 읽기 전용 화면(Step 6·7)에서는 훌륭하다.',
+  v:'<b>미채택.</b> 가장 눈에 띄지만 가장 비싸다. 노드가 Step 1의 체크박스와 같은 시선 높이에서 경쟁하고, “이 동그라미도 누르는 건가”라는 오해를 부를 수 있다. 읽기 전용 화면(Step 6·7)에서는 훌륭하다.',
   c:'C',
 },
 ];

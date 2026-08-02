@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { groupResourceRows, isGroupedResourceType } from '@/lib/resource-grouping';
+import {
+  groupResourceRows,
+  isGroupedResourceType,
+  toPaginationUnits,
+} from '@/lib/resource-grouping';
 
 interface Row {
   id: string;
@@ -102,5 +106,55 @@ describe('groupResourceRows', () => {
     const [section] = sections;
     if (section.kind !== 'group') throw new Error('expected a group section');
     expect(section.group.region).toBe('—');
+  });
+});
+
+describe('toPaginationUnits', () => {
+  const units = (rows: Row[]) => toPaginationUnits(groupResourceRows(rows, read));
+
+  it('counts a group as one unit carrying all of its rows', () => {
+    const result = units([
+      row('r1', 'RDS', 'ap-northeast-2'),
+      row('a1', 'ATHENA', 'ap-northeast-1'),
+      row('a2', 'ATHENA', 'ap-northeast-1'),
+      row('a3', 'ATHENA', 'ap-northeast-1'),
+    ]);
+
+    // 1 plain resource + 1 Athena group = 2 units, not 4 rows.
+    expect(result).toHaveLength(2);
+    expect(result[0].map((r) => r.id)).toEqual(['r1']);
+    expect(result[1].map((r) => r.id)).toEqual(['a1', 'a2', 'a3']);
+  });
+
+  it('gives every ungrouped row its own unit', () => {
+    const rows = [row('r1', 'RDS', 'a'), row('r2', 'RDS', 'a'), row('r3', 'DYNAMODB', 'b')];
+    expect(units(rows)).toEqual([[rows[0]], [rows[1]], [rows[2]]]);
+  });
+
+  it('never splits a group across a page boundary', () => {
+    const rows = [
+      row('r1', 'RDS', 'ap-northeast-2'),
+      row('a1', 'ATHENA', 'ap-northeast-1'),
+      row('a2', 'ATHENA', 'ap-northeast-1'),
+      row('a3', 'ATHENA', 'ap-northeast-1'),
+      row('r2', 'RDS', 'ap-northeast-2'),
+    ];
+    const pageSize = 2;
+    const all = units(rows);
+
+    // Page 1 = [r1] + the whole Athena group. A flat slice(0, 2) would have cut the group
+    // after its first database and left the other two stranded on page 2.
+    const page1 = all.slice(0, pageSize).flat();
+    expect(page1.map((r) => r.id)).toEqual(['r1', 'a1', 'a2', 'a3']);
+    expect(all.slice(pageSize).flat().map((r) => r.id)).toEqual(['r2']);
+  });
+
+  it('flattens back to the original order', () => {
+    const rows = [
+      row('a1', 'ATHENA', 'ap-northeast-1'),
+      row('r1', 'RDS', 'ap-northeast-2'),
+      row('a2', 'ATHENA', 'us-east-1'),
+    ];
+    expect(units(rows).flat().map((r) => r.id)).toEqual(['a1', 'r1', 'a2']);
   });
 });

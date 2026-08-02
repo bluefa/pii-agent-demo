@@ -15,6 +15,8 @@ interface ResourceGroupRowProps {
   controls: string;
   /** Leading spacer cell — pass the checkbox column's `<td>` when the table has one. */
   leadingCell?: ReactNode;
+  /** Aggregate rendered beside the identity, for tables with no spare column to put it in. */
+  inlineMeta?: ReactNode;
   /**
    * The parent's remaining `<td>`s, one per column after the identity cell. The parent is a real
    * row, not a colspan band (시안 §04), so the caller decides which columns carry the aggregate —
@@ -37,6 +39,7 @@ export const ResourceGroupRow = ({
   onToggle,
   controls,
   leadingCell,
+  inlineMeta,
   children,
 }: ResourceGroupRowProps) => {
   const label = getDatabaseShortLabel(type);
@@ -44,7 +47,7 @@ export const ResourceGroupRow = ({
   return (
     <tr className={cn(idcStyles.table.group.row, 'cursor-pointer')} onClick={onToggle}>
       {leadingCell}
-      <td className={idcStyles.table.approvalCell}>
+      <td className={cn(idcStyles.table.approvalCell, idcStyles.table.group.parentCell)}>
         <span className={idcStyles.table.group.lead}>
           <button
             type="button"
@@ -65,6 +68,7 @@ export const ResourceGroupRow = ({
           </button>
           <span className={idcStyles.table.group.label}>{label}</span>
           <span className={idcStyles.table.group.chip}>{region}</span>
+          {inlineMeta}
         </span>
       </td>
       {children}

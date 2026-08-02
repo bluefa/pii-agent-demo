@@ -63,8 +63,10 @@ interface CandidateResourceRowProps {
   readonly: boolean;
   drafts: CandidateDraftState;
   actions: CandidateRowActions;
-  /** True when the row hangs under a group parent — indents the identity cell only (LIN-85). */
+  /** True when the row hangs under a group parent — draws the tree rail on the identity cell (LIN-85). */
   grouped?: boolean;
+  /** Last child of its group — the rail stops at this row's elbow, closing the group. */
+  lastInGroup?: boolean;
 }
 
 export const CandidateResourceRow = ({
@@ -76,6 +78,7 @@ export const CandidateResourceRow = ({
   drafts,
   actions,
   grouped = false,
+  lastInGroup = false,
 }: CandidateResourceRowProps) => {
   const vnetModal = useModal();
   const behavior = getCandidateBehavior(candidate);
@@ -146,6 +149,7 @@ export const CandidateResourceRow = ({
             dimmed ? DIM_TEXT : textColors.primary,
             NAME_LIFT,
             grouped && idcStyles.table.group.childCell,
+            grouped && lastInGroup && idcStyles.table.group.childCellLast,
           )}
         >
           <Tooltip

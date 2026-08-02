@@ -252,7 +252,7 @@ export const WaitingApprovalTable = memo(
 
     // `grouped` only indents the identity cell — every other cell is identical whether the row
     // stands alone or hangs under a parent, so a group never changes what a row says.
-    const renderRow = (resource: WaitingApprovalResource, grouped = false) => {
+    const renderRow = (resource: WaitingApprovalResource, grouped = false, lastInGroup = false) => {
       const excluded = !resource.selected;
       return (
         <tr
@@ -268,6 +268,7 @@ export const WaitingApprovalTable = memo(
               excluded ? DIM_TEXT : textColors.primary,
               NAME_LIFT,
               grouped && idcStyles.table.group.childCell,
+              grouped && lastInGroup && idcStyles.table.group.childCellLast,
             )}
           >
             <Tooltip
@@ -429,7 +430,9 @@ export const WaitingApprovalTable = memo(
                   </tbody>
                   {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
                   <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
-                    {group.rows.map((resource) => renderRow(resource, true))}
+                    {group.rows.map((resource, index) =>
+                      renderRow(resource, true, index === group.rows.length - 1),
+                    )}
                   </tbody>
                 </Fragment>
               );

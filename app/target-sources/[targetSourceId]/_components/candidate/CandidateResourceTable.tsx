@@ -146,7 +146,7 @@ export const CandidateResourceTable = ({
             </tr>
           </thead>
           {sections.map((section) => {
-            const renderRow = (candidate: CandidateResource, grouped = false) => (
+            const renderRow = (candidate: CandidateResource, grouped = false, lastInGroup = false) => (
               <CandidateResourceRow
                 key={candidate.id}
                 candidate={candidate}
@@ -157,6 +157,7 @@ export const CandidateResourceTable = ({
                 drafts={drafts}
                 actions={actions}
                 grouped={grouped}
+                lastInGroup={lastInGroup}
               />
             );
 
@@ -180,6 +181,16 @@ export const CandidateResourceTable = ({
                     expanded={!collapsed}
                     onToggle={() => toggleGroup(group.key)}
                     controls={rowsId}
+                    // Read-only drops the 제외 사유 column, so the aggregate has no cell to sit
+                    // in — it rides along with the identity instead of vanishing.
+                    inlineMeta={
+                      showCheckboxColumn ? undefined : (
+                        <ResourceGroupCount
+                          targetCount={group.targetCount}
+                          excludedCount={group.excludedCount}
+                        />
+                      )
+                    }
                     leadingCell={
                       showCheckboxColumn ? (
                         // No group-level checkbox: selecting a whole Athena family is a bulk
@@ -189,23 +200,30 @@ export const CandidateResourceTable = ({
                     }
                   >
                     {/* ID · DB Type · Region stay blank — the parent's label and chip already say
-                        Athena × region. The aggregate lands in 설치 구분, the column that asks
-                        how much of this group is a target. */}
+                        Athena × region, and the catalog id lives only inside each child's
+                        resource_id string, which we do not parse.
+                        설치 구분 stays EMPTY: it is the scan's per-resource verdict, and a group
+                        is not a resource the scan judged — a value there would be invented.
+                        The aggregate goes in the trailing column, the only one with room. */}
                     <td className={idcStyles.table.approvalCell} />
                     <td className={idcStyles.table.approvalCell} />
                     <td className={idcStyles.table.approvalCell} />
-                    <td className={idcStyles.table.approvalCell}>
-                      <ResourceGroupCount
-                        targetCount={group.targetCount}
-                        excludedCount={group.excludedCount}
-                      />
-                    </td>
-                    {showCheckboxColumn && <td className={idcStyles.table.approvalCell} />}
+                    <td className={idcStyles.table.approvalCell} />
+                    {showCheckboxColumn && (
+                      <td className={idcStyles.table.approvalCell}>
+                        <ResourceGroupCount
+                          targetCount={group.targetCount}
+                          excludedCount={group.excludedCount}
+                        />
+                      </td>
+                    )}
                   </ResourceGroupRow>
                 </tbody>
                 {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
                 <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
-                  {group.rows.map((candidate) => renderRow(candidate, true))}
+                  {group.rows.map((candidate, index) =>
+                    renderRow(candidate, true, index === group.rows.length - 1),
+                  )}
                 </tbody>
               </Fragment>
             );

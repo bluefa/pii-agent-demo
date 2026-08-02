@@ -901,28 +901,46 @@ export const idcStyles = {
      */
     group: {
       /**
-       * Parent row tint — the shared neutral surface #F7F8FA (`approvalHeader`, `tag.gray`).
-       * It has to sit ABOVE the excluded-row tint #F9FAFB, not below it: a parent lighter
-       * than its own excluded children inverts the hierarchy, which is what #FAFBFC did.
-       * Hover/focus steps to the divider value #EBEEF2 — the next established stop up.
+       * Parent row — NO tint.
+       *
+       * Cloudscape's nested-resource pattern specifies indentation and the expand toggle and
+       * says nothing about a parent background; grouping by colour reads as "a group exists"
+       * where the console's rail reads as "these are connected". Hover/focus still lifts, so
+       * the row stays visibly interactive.
        */
-      row: 'bg-[#F7F8FA] hover:bg-[#EBEEF2] focus-within:bg-[#EBEEF2] transition-colors duration-150 motion-reduce:transition-none',
+      row: 'hover:bg-[#F7F8FA] focus-within:bg-[#F7F8FA] transition-colors duration-150 motion-reduce:transition-none',
       /** Identity cluster inside the parent's first cell. */
-      lead: 'flex items-center gap-2.5',
+      lead: 'flex items-center gap-2',
       /** Chevron toggle — 20px box, v16 `.athena-expand-btn` size in the neutral palette. */
       toggle:
         'inline-grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border border-[#EBEEF2] bg-white text-[#4E5968] transition-transform duration-150 motion-reduce:transition-none',
       /** Applied to `toggle` while the group is open — chevron-right → chevron-down. */
       toggleOpen: 'rotate-90',
-      /** Service label — the db-list-table header pair (13px / 700) at full text contrast. */
-      label: 'whitespace-nowrap text-[13px] font-bold text-[#191F28]',
+      /**
+       * Service label — one tier BELOW the child rows' name, not above it. The parent is
+       * context, not the headline: the rows a user acts on are the databases. Same 14px mono
+       * as the Resource Name column so it stays in that column's voice, weight 600 vs the
+       * children's 500, and no second line.
+       */
+      label: 'whitespace-nowrap font-mono text-[14px] font-semibold text-[#4E5968]',
       /** Region chip — mono like the Region column it summarises. */
-      chip: 'inline-flex items-center rounded-md border border-[#EBEEF2] bg-white px-[7px] py-px font-mono text-[11.5px] font-semibold text-[#4E5968]',
+      chip: 'inline-flex items-center rounded-md border border-[#EBEEF2] bg-white px-[7px] py-px font-mono text-[11.5px] font-semibold text-[#8B95A1]',
       /** Aggregate cells — tabular so counts stay aligned down the column. */
-      meta: 'whitespace-nowrap text-[12px] tabular-nums text-[#4E5968]',
-      /** Child row's first cell — indent + tree connector back up to the parent's chevron. */
+      meta: 'whitespace-nowrap text-[12px] tabular-nums text-[#8B95A1]',
+      /**
+       * Child row's first cell — the tree rail. A vertical hairline runs the full row height
+       * under the parent's chevron and an elbow reaches into the name; `childCellLast` cuts
+       * the rail at the elbow so the group's end is drawn, not merely implied.
+       *
+       * Rail x = the cell's own 18px padding + 12 = 30px, which lands under the chevron.
+       */
       childCell:
-        "relative pl-[46px] before:absolute before:bottom-1/2 before:left-[26px] before:top-0 before:w-[11px] before:rounded-bl-[5px] before:border-b before:border-l before:border-[#EBEEF2] before:content-['']",
+        "relative pl-[58px] before:absolute before:bottom-0 before:left-[30px] before:top-0 before:w-px before:bg-[#C4CEDA] before:content-[''] after:absolute after:left-[30px] after:top-1/2 after:h-px after:w-4 after:bg-[#C4CEDA] after:content-['']",
+      /** Last child — the rail stops at its elbow, closing the group. */
+      childCellLast: 'before:bottom-1/2',
+      /** Parent's own name cell — carries the rail's first segment down to the first child. */
+      parentCell:
+        "relative after:absolute after:-bottom-px after:left-[30px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
     },
   },
 } as const;

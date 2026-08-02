@@ -121,3 +121,18 @@ export const groupResourceRows = <T>(
 
   return sections;
 };
+
+/**
+ * Pagination units — a grouped resource counts as ONE, carrying all of its children.
+ *
+ * Slicing the flat row list would cut a group across a page boundary: half its databases on
+ * page 1, the rest on page 2, with the parent row rendered twice. A group is managed as one
+ * resource, so it pages as one and its databases always appear together.
+ *
+ * This is also the Cloudscape rule for nested-resource tables — pagination applies to
+ * top-level rows only, regardless of how many children they hold.
+ */
+export const toPaginationUnits = <T>(sections: readonly ResourceSection<T>[]): (readonly T[])[] =>
+  sections.flatMap((section) =>
+    section.kind === 'group' ? [section.group.rows] : section.rows.map((row) => [row]),
+  );
