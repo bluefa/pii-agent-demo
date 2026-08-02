@@ -30,24 +30,33 @@ interface GcpInstallationInlineProps {
   onInstallComplete?: () => void;
 }
 
+/**
+ * 제목은 계약 필드(`service_side_subnet_creation` / `service_side_terraform_apply` /
+ * `bdc_side_terraform_apply`)가 말하는 만큼만 쓴다. 이전 제목들("모니터링용 Subnet",
+ * "VPC Peering · 권한 위임", "PII Agent 인스턴스")과 그 설명에 있던 대역
+ * (10.30.0.0/22)·Peering·Service Account·GCE 인스턴스는 계약 어디에도 없었다.
+ * 특히 CIDR 은 실제와 다르면 사용자가 잘못된 대역으로 방화벽을 여는 값이라 빼둔다.
+ *
+ * subnet 단계만은 오너 확인으로 무엇을 만드는지 알고 있다 — PSC 용 Subnet, 리전당 하나.
+ */
 const GCP_STEPS: InstallTableStep[] = [
   {
     id: 'subnet',
-    title: '모니터링용 Subnet',
+    title: 'PSC용 Subnet 생성',
     side: '서비스측 리소스 생성',
-    desc: 'Project 내 모니터링용 Subnet (10.30.0.0/22)을 생성합니다.',
+    desc: 'PSC(Private Service Connect) 연결에 사용할 Subnet을 생성합니다. Region마다 하나가 필요합니다.',
   },
   {
     id: 'service',
-    title: 'VPC Peering · 권한 위임',
+    title: '서비스측 Terraform 적용',
     side: '서비스측 리소스 생성',
-    desc: 'VPC Peering / Firewall / Service Account 권한 위임을 구성합니다.',
+    desc: '서비스 프로젝트 측 리소스를 Terraform으로 적용합니다.',
   },
   {
     id: 'bdc',
-    title: 'PII Agent 인스턴스',
+    title: 'BDC측 Terraform 적용',
     side: 'BDC측 리소스 생성',
-    desc: 'PII Agent GCE 인스턴스 + Service Account + IAM Role을 자동 배포합니다.',
+    desc: 'BDC 계정 측 리소스를 Terraform으로 자동 배포합니다.',
   },
 ];
 
