@@ -9,20 +9,21 @@
  * matching TC row renders — for those columns; nothing is inferred from the
  * snapshot alone (an installed resource is not a tested one).
  *
- * Per-row controls: Credential 배정 (inline dropdown over GET …/secrets — the
- * contract's credential list) and 논리 DB 관리 (skip policy).
+ * Per-row controls: Credential 배정 (searchable combobox over GET …/secrets — the
+ * contract's credential list, whose card sits at the top of the tab) and
+ * 논리 DB 관리 (skip policy).
+ *
+ * Rows/secrets are fetched by TcTab and passed in, because the credential card
+ * needs the same two datasets to answer "이 자격 증명이 몇 건에 배정됐나".
  *
  * An absent snapshot (404 before 연동 확정) is an empty state, not an error; a real
  * fetch failure adds a 다시 시도 affordance to that same empty state so the two are
  * never confused with "확정된 리소스가 0건".
  */
-import { useEffect, useState, type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
-import { isMissingConfirmedIntegrationError } from '@/lib/errors';
 import {
-  getConfirmedIntegration,
-  getSecrets,
   updateResourceCredential,
   type ConfirmedIntegrationResourceItem,
 } from '@/app/lib/api';
@@ -61,56 +62,31 @@ function CountCell({ row, tab }: { row: TcResultRow | undefined; tab: 'inc' | 'e
 
 export interface ConfirmedInfoCardProps {
   targetSourceId: number;
+  /** Confirmed snapshot resources (fetched by TcTab). */
+  rows: readonly ConfirmedIntegrationResourceItem[];
+  /** Contract credential list (fetched by TcTab). */
+  secrets: readonly SecretKey[];
   /** Latest Test Connection rows, joined by resource_id. */
   tcResults: readonly TcResultRow[];
-  /** Bumped by the tab to refetch after any action anywhere in the tab. */
-  reloadKey: number;
+  /** First tab load still in flight. */
+  loading: boolean;
+  /** Real snapshot fetch failure — a 404 "not confirmed yet" is not one. */
+  failed: boolean;
   onReload: () => void;
 }
 
 export function ConfirmedInfoCard({
   targetSourceId,
+  rows,
+  secrets,
   tcResults,
-  reloadKey,
+  loading,
+  failed,
   onReload,
 }: ConfirmedInfoCardProps): ReactElement {
   const toast = usePlToast();
-  const [rows, setRows] = useState<ConfirmedIntegrationResourceItem[]>([]);
-  const [secrets, setSecrets] = useState<SecretKey[]>([]);
-  const [failed, setFailed] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [ldbRow, setLdbRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
-
-  const loadKey = `${targetSourceId}:${reloadKey}`;
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  // First paint only — a reload after a write keeps the table rendered.
-  const loading = loadedKey === null;
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      // The credential list is best-effort: losing it must not blank the table,
-      // it only leaves the dropdown with the currently assigned value.
-      const [confirmed, secretList] = await Promise.allSettled([
-        getConfirmedIntegration(targetSourceId),
-        getSecrets(targetSourceId),
-      ]);
-      if (cancelled) return;
-      if (confirmed.status === 'fulfilled') {
-        setRows(confirmed.value.resource_infos ?? []);
-        setFailed(false);
-      } else {
-        setRows([]);
-        // The route encodes "not confirmed yet" as a 404 problem — empty state, not failure.
-        setFailed(!isMissingConfirmedIntegrationError(confirmed.reason));
-      }
-      setSecrets(secretList.status === 'fulfilled' ? secretList.value : []);
-      setLoadedKey(loadKey);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [targetSourceId, loadKey]);
 
   const tcByResourceId = new Map(tcResults.map((row) => [row.resourceId, row]));
 
@@ -144,13 +120,26 @@ export function ConfirmedInfoCard({
 
   return (
     <section className={pipelineStyles.card.base} aria-label="확정 정보">
-      <h2 className={opsStyles.cardTitle}>확정 정보</h2>
+      <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+        <Icon name="install" size={18} className="text-[var(--pl-primary)]" />
+        확정 정보
+      </h2>
       <p className={opsStyles.cardDesc}>
-        연동이 확정된 리소스와 최근 Test Connection 결과 · Credential · 논리 DB 정책
+        연동이 확정된{' '}
+        <b className="font-semibold text-[var(--pl-text-medium)]">리소스별 연결 결과와 Credential 배정</b>
+        입니다.
       </p>
 
       {loading ? (
-        <div className="min-h-[160px]" aria-busy />
+        <div className="mt-3" aria-busy>
+          {Array.from({ length: 4 }, (_, index) => (
+            <div
+              key={index}
+              className={cn(opsStyles.skeleton, 'mt-2 h-10 first:mt-0')}
+              aria-hidden="true"
+            />
+          ))}
+        </div>
       ) : rows.length === 0 ? (
         <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
           <span className={pipelineStyles.empty.icon}>

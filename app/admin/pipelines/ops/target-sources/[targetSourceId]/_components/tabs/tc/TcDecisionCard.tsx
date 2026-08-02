@@ -20,6 +20,7 @@ import { rejectTestConnection, confirmInstallation } from '@/app/lib/api/task-qu
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
@@ -76,7 +77,10 @@ export function TcDecisionCard({
     <section className={pipelineStyles.card.base} aria-label="관리자 처리">
       <div className="flex items-center justify-between gap-6">
         <div>
-          <h2 className={opsStyles.cardTitle}>관리자 처리</h2>
+          <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+            <Icon name="check" size={18} className="text-[var(--pl-primary)]" />
+            관리자 처리
+          </h2>
           <p className={opsStyles.cardDesc}>
             {decidable
               ? 'Test Connection 결과를 확인한 뒤 재실행을 요청하거나 설치를 완료 처리하세요.'

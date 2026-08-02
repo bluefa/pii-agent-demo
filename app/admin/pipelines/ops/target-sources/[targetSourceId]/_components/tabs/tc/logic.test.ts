@@ -3,6 +3,7 @@ import { toTcResultRow, type TcResultRow } from '@/app/lib/api/task-queue-tc';
 import {
   tcResultStats,
   ldbCount,
+  runDurationSeconds,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import { shortResourceId } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 
@@ -78,11 +79,53 @@ describe('tcResultStats', () => {
         row({ includedCount: 5, excludedCount: 2 }),
         row({ includedCount: 3, excludedCount: 1 }),
       ]),
-    ).toEqual({ resourceCount: 2, includedTotal: 8, excludedTotal: 3 });
+    ).toEqual({
+      resourceCount: 2,
+      includedTotal: 8,
+      excludedTotal: 3,
+      successCount: 2,
+      failedCount: 0,
+      unknownCount: 0,
+    });
   });
 
   it('is empty for no rows', () => {
-    expect(tcResultStats([])).toEqual({ resourceCount: 0, includedTotal: 0, excludedTotal: 0 });
+    expect(tcResultStats([])).toEqual({
+      resourceCount: 0,
+      includedTotal: 0,
+      excludedTotal: 0,
+      successCount: 0,
+      failedCount: 0,
+      unknownCount: 0,
+    });
+  });
+
+  it('counts each connection status separately — UNKNOWN is neither success nor failure', () => {
+    const stats = tcResultStats([
+      row({ connectionStatus: 'SUCCESS' }),
+      row({ connectionStatus: 'FAILED' }),
+      row({ connectionStatus: 'UNKNOWN' }),
+      row({ connectionStatus: 'UNKNOWN' }),
+    ]);
+    expect(stats.successCount).toBe(1);
+    expect(stats.failedCount).toBe(1);
+    expect(stats.unknownCount).toBe(2);
+    expect(stats.resourceCount).toBe(4);
+  });
+});
+
+describe('runDurationSeconds', () => {
+  it('measures the gap between request and completion', () => {
+    expect(runDurationSeconds('2026-08-02T09:30:00.000Z', '2026-08-02T09:30:36.000Z')).toBe(36);
+  });
+
+  it('is null while the run is still open (no completion time)', () => {
+    expect(runDurationSeconds('2026-08-02T09:30:00.000Z', null)).toBeNull();
+  });
+
+  it('is null for an unparsable or reversed pair — never a negative duration', () => {
+    expect(runDurationSeconds('nonsense', '2026-08-02T09:30:36.000Z')).toBeNull();
+    expect(runDurationSeconds('2026-08-02T09:30:36.000Z', '2026-08-02T09:30:00.000Z')).toBeNull();
   });
 });
 
