@@ -23,6 +23,7 @@ import {
 } from '@/app/components/features/process-status/install-status-detail/model';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
+import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 
 interface GcpInstallationInlineProps {
   targetSourceId: number;
@@ -88,18 +89,7 @@ export const GcpInstallationInline = ({
   // 나타나 스켈레톤의 목적(레이아웃 유지)이 깨진다.
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
-      <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
-        <div>
-          <h2 className={cardStyles.cardTitle}>Agent 설치</h2>
-          <p className={cn('mt-2.5', cardStyles.subtitle)}>
-            승인된 인프라에 PII Agent를 배포하기 위한 설치 작업을 진행합니다.
-          </p>
-        </div>
-        {/* v16 L6606 — provider indicator (not a control), short provider name. */}
-        <span className="text-[11.5px] text-[#8B95A1]">
-          Provider: <strong className="text-[#191F28]">GCP</strong>
-        </span>
-      </header>
+      <InstallCardHeader />
       <div className={cn(cardStyles.body, 'space-y-3')}>
         {status?.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>

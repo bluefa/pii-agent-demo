@@ -5,8 +5,8 @@ import {
   bgColors,
   borderColors,
   cn,
-  idcStyles,
   stackGap,
+  shadows,
   statusColors,
   tagStyles,
   textColors,
@@ -48,12 +48,6 @@ const STATUS_TAG: Record<InstallStepValue, string> = {
   BDC_INSTALL_REQUIRED: tagStyles.amber,
   UNKNOWN: tagStyles.neutral,
 };
-
-const StatusPill = ({ cell }: { cell: InstallStepCell }) => (
-  <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', STATUS_TAG[cell.status])}>
-    {cell.label ?? INSTALL_STATUS_LABEL[cell.status]}
-  </span>
-);
 
 /** A nav step whose right panel is custom content (e.g. AWS role verify). */
 export interface InstallPanelStep extends InstallTableStep {
@@ -199,7 +193,7 @@ const SUMMARY_STEP: InstallTableStep = {
   id: SUMMARY_ID,
   title: '설치 현황 요약',
   side: null,
-  desc: '서비스 측에서 확인해야 할 항목과 BDC가 자동 처리 중인 단계를 구분해 보여줍니다.',
+  desc: '전체 진행 상황과, 서비스 측에서 확인해야 할 항목을 모아 보여줍니다.',
 };
 
 /** 한 단계의 요약 표시에 필요한 것 전부. */
@@ -212,30 +206,6 @@ interface StepView {
   /** 서비스 측이 지금 손대야 하는가 — serviceAction 이 있거나 실패한 단계. */
   actionable: boolean;
 }
-
-const StepLine = ({ view, onOpen }: { view: StepView; onOpen: () => void }) => (
-  <button
-    type="button"
-    onClick={onOpen}
-    className={cn(
-      'flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg border border-transparent',
-      bgColors.mutedHover,
-    )}
-  >
-    <span className={cn(textStyles.bodyStrong, 'flex-1 min-w-0 truncate', textColors.primary)}>
-      {view.step.title}
-    </span>
-    <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', view.aggregate.tag)}>
-      {view.aggregate.label}
-    </span>
-    {view.aggregate.count && (
-      <span className={cn(textStyles.caption, 'tabular-nums', textColors.tertiary)}>
-        {view.aggregate.count}
-      </span>
-    )}
-    {view.step.side && <SideTag side={view.step.side} />}
-  </button>
-);
 
 const ActionCard = ({ view, onOpen }: { view: StepView; onOpen: () => void }) => {
   const failed = view.aggregate.kind === 'failed';
@@ -294,9 +264,30 @@ const ActionCard = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
   );
 };
 
+/** 요약의 지표 한 칸 — 숫자가 라벨보다 크다(숫자가 내용, 라벨은 주석). */
+const RollupStat = ({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: string;
+}) => (
+  <div className="flex flex-col gap-0.5">
+    <span className={cn('text-[20px] font-bold leading-[1.2] tabular-nums', tone ?? textColors.primary)}>
+      {value}
+    </span>
+    <span className={cn(textStyles.caption, textColors.tertiary)}>{label}</span>
+  </div>
+);
+
 /**
- * 요약 패널 — 리소스 테이블이 아니라 "지금 서비스 측이 볼 것 / BDC가 처리
- * 중인 것 / 끝난 것" 세 묶음으로 단계를 재배치한다.
+ * 요약 패널 — 좌측 레일이 이미 단계 목록을 갖고 있으므로, 여기서는 레일이 못 하는
+ * 두 가지만 한다: ① 전체 진척을 숫자로 ② 지금 해야 할 일.
+ *
+ * 예전에는 "진행 중·대기 / 완료된 단계" 묶음까지 나열했는데, 그건 레일과 같은 목록을
+ * 같은 모양으로 한 번 더 그린 것이라 좌우가 구분되지 않았다(오너 지적).
  */
 const InstallSummaryPanel = ({
   views,
@@ -309,18 +300,22 @@ const InstallSummaryPanel = ({
   onOpen: (stepId: string) => void;
 }) => {
   const action = views.filter((v) => v.actionable);
-  const waiting = views.filter((v) => !v.actionable && v.aggregate.kind !== 'done');
-  const done = views.filter((v) => !v.actionable && v.aggregate.kind === 'done');
 
   return (
     // 그룹(섹션) 사이 = section 32px, 그룹 제목↔본문 = related 8px (비대칭 규칙)
     <div className={cn('flex flex-col', stackGap.section)}>
-      <div className={cn('flex items-center gap-3 tabular-nums', textStyles.caption, textColors.secondary)}>
-        <span>리소스 {rollup.total}개</span>
-        <span className={statusColors.success.textDark}>완료 {rollup.done}</span>
-        <span className={statusColors.info.textDark}>진행중 {rollup.running}</span>
-        <span className={statusColors.error.textDark}>실패 {rollup.failed}</span>
+      {/* 지표 행 — 요약 패널의 본문. 숫자 20px 이 이 패널에서 가장 큰 글자다. */}
+      <div className={cn('flex items-start gap-8 rounded-xl px-5 py-4', bgColors.muted)}>
+        <RollupStat label="전체 리소스" value={rollup.total} />
+        <RollupStat label="완료" value={rollup.done} />
+        <RollupStat label="진행중" value={rollup.running} tone={statusColors.info.textDark} />
+        <RollupStat
+          label="실패"
+          value={rollup.failed}
+          {...(rollup.failed > 0 && { tone: statusColors.error.textDark })}
+        />
       </div>
+
       <section className={cn('flex flex-col', stackGap.related)}>
         <h4 className={cn(textStyles.bodyStrong, textColors.primary)}>
           지금 서비스 측에서 확인이 필요합니다
@@ -329,13 +324,14 @@ const InstallSummaryPanel = ({
           <div
             className={cn(
               'px-4 py-3 rounded-xl border',
-              textStyles.bodyStrong,
+              textStyles.body,
               statusColors.success.border,
               statusColors.success.bg,
               statusColors.success.textDark,
             )}
           >
-            확인이 필요한 항목이 없습니다.
+            확인이 필요한 항목이 없어요. 나머지 단계는 BDC가 처리 중이며, 왼쪽 목록에서 진행
+            상황을 볼 수 있어요.
           </div>
         ) : (
           action.map((view) => (
@@ -343,26 +339,6 @@ const InstallSummaryPanel = ({
           ))
         )}
       </section>
-
-      {waiting.length > 0 && (
-        <section className={cn('flex flex-col', stackGap.related)}>
-          <h4 className={cn(textStyles.bodyStrong, textColors.primary)}>
-            진행 중 · 대기 — 서비스 측 조치 불필요
-          </h4>
-          {waiting.map((view) => (
-            <StepLine key={view.step.id} view={view} onOpen={() => onOpen(view.step.id)} />
-          ))}
-        </section>
-      )}
-
-      {done.length > 0 && (
-        <section className={cn('flex flex-col', stackGap.related)}>
-          <h4 className={cn(textStyles.bodyStrong, textColors.tertiary)}>완료된 단계</h4>
-          {done.map((view) => (
-            <StepLine key={view.step.id} view={view} onOpen={() => onOpen(view.step.id)} />
-          ))}
-        </section>
-      )}
     </div>
   );
 };
@@ -484,10 +460,15 @@ export const InstallStatusDetail = ({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 레일은 목차다 — 넓을 이유가 없다. 224px 로 좁히고 감싸던 프레임을 구분선 하나로
-          바꿔, 남은 폭은 전부 리소스 테이블이 쓴다(카드 속 카드도 한 겹 사라진다). */}
-      <div className="grid grid-cols-[224px_minmax(0,1fr)]">
-      <nav className={cn('border-r pr-3 flex flex-col gap-0.5', borderColors.light)} aria-label="설치 단계">
+      {/* 레일은 목차, 우측은 내용 — 둘을 표면으로 가른다. 레일은 가라앉은 회색 판
+          위에 앉고 우측은 카드의 흰 바닥을 그대로 쓴다. 구분선 하나로는 "같은 종류의
+          정보가 두 단 있다"로 읽혔다(오너 지적). 폭은 224px — 목차가 넓을 이유는 없고,
+          남는 폭은 전부 리소스 테이블이 쓴다. */}
+      <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-6">
+      <nav
+        className={cn('flex flex-col gap-0.5 rounded-xl p-2 self-start', bgColors.muted)}
+        aria-label="설치 단계"
+      >
         {navSteps.map((step, index) => {
           const aggregate = aggregates.get(step.id)!;
           const isActive = step.id === activeId;
@@ -498,8 +479,9 @@ export const InstallStatusDetail = ({
               onClick={() => setSelected(step.id)}
               aria-current={isActive}
               className={cn(
-                'flex flex-col gap-1 w-full text-left px-2.5 py-2 rounded-lg',
-                isActive ? bgColors.muted : bgColors.mutedHover,
+                'flex flex-col gap-1 w-full text-left px-2.5 py-2 rounded-lg transition-colors',
+                // 레일 자체가 회색이므로 선택 항목은 흰 카드로 떠오른다(반대 방향의 대비).
+                isActive ? cn('bg-white', shadows.pill) : 'hover:bg-white/60',
               )}
             >
               <span className="flex items-start gap-2.5 w-full">
@@ -547,7 +529,7 @@ export const InstallStatusDetail = ({
         })}
       </nav>
 
-      <div className="pl-6 min-w-0">
+      <div className="min-w-0">
         <div className="flex items-start justify-between gap-3">
           {/* 제목↔부제 = tight 4px */}
           <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>

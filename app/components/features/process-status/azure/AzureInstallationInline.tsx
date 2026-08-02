@@ -17,6 +17,7 @@ import {
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { cardStyles, statusColors, cn } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
+import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 
 interface AzureInstallationInlineProps {
   targetSourceId: number;
@@ -103,18 +104,7 @@ export const AzureInstallationInline = ({
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
-      <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
-        <div>
-          <h2 className={cardStyles.cardTitle}>Agent 설치</h2>
-          <p className={cn('mt-2.5', cardStyles.subtitle)}>
-            승인된 인프라에 PII Agent를 배포하기 위한 설치 작업을 진행합니다.
-          </p>
-        </div>
-        {/* v16 L6606 — provider indicator (not a control), short provider name. */}
-        <span className={cardStyles.providerTag}>
-          Provider: <strong className={cardStyles.providerTagName}>Azure</strong>
-        </span>
-      </header>
+      <InstallCardHeader />
       <div className={cn(cardStyles.body, 'space-y-3')}>
         {hasSyncFailure && status && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
