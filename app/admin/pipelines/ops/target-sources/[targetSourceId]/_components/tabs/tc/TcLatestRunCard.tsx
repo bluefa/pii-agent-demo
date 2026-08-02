@@ -5,9 +5,9 @@
  * Connection: verdict pill beside the title, the result the star of the card,
  * time fields pinned to the floor.
  *
- * Hierarchy: 회차 + 결과 (title row) > 리소스별 성패 집계 (tiles) > 실행 시각 (floor).
- * The per-resource detail lives in 확정 정보 below; this card answers "did the
- * latest run pass, and when".
+ * Hierarchy: 회차 + 결과 (title row) > 한 줄 요약 > agent 별 결과(필터·페이지) > 실행 시각
+ * (floor). 판정별 건수는 그 목록의 필터 칩이 세므로 카드에 집계 타일을 따로 두지
+ * 않는다 — 같은 수를 두 번 세면 중복이고, 어긋나면 어느 쪽이 맞는지 알 수 없다.
  *
  * Source is `GET …/test-connection/latest_version` (TestConnectionVersionResult)
  * — 회차·상태·시각·리소스별 성패가 전부 계약에 선언된 하나의 응답이다. 404 는 오류가
@@ -27,10 +27,7 @@ import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { TimeField, fmtDuration } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/scanShared';
 import { TcPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
-import {
-  TcRunPill,
-  TcStatTile,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/tcShared';
+import { TcRunPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/tcShared';
 import { TcAgentResultList } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcAgentResultList';
 import {
   runAgentRows,
@@ -121,15 +118,12 @@ export function TcLatestRunCard({
       )}
 
       {loading && !latest ? (
-        // Skeleton drawing the final layout (heading + sentence + tiles) — no jump on load.
+        // Skeleton drawing the final layout (heading + sentence + 필터 + 목록) — no jump on load.
         <div className="mt-5" aria-busy>
           <div className={cn(opsStyles.skeleton, 'h-5 w-24')} aria-hidden="true" />
           <div className={cn(opsStyles.skeleton, 'mt-2.5 h-5 w-72')} aria-hidden="true" />
-          <div className="mt-2.5 grid grid-cols-3 gap-2">
-            {Array.from({ length: 3 }, (_, index) => (
-              <div key={index} className={cn(opsStyles.skeleton, 'h-[52px]')} aria-hidden="true" />
-            ))}
-          </div>
+          <div className={cn(opsStyles.skeleton, 'mt-5 h-8 w-[300px]')} aria-hidden="true" />
+          <div className={cn(opsStyles.skeleton, 'mt-2 h-[232px]')} aria-hidden="true" />
         </div>
       ) : !latest ? (
         failed ? (
@@ -190,15 +184,11 @@ export function TcLatestRunCard({
                     개가 연결에 성공했어요.
                   </p>
                 )}
-                {/* 타일은 이 실행의 판정만 — 셋을 합하면 항상 리소스 수가 된다. */}
-                <div className="mt-2.5 grid grid-cols-3 gap-2">
-                  <TcStatTile label="성공" count={stats.successCount} tone="ok" />
-                  <TcStatTile label="실패" count={stats.failedCount} tone="err" />
-                  <TcStatTile label="미확인" count={stats.resourceCount - scored} />
-                </div>
-                {/* 논리 DB 는 연결 성패가 아니라 그 결과로 알게 된 규모 — 같은 크기의
-                    타일로 올리면 5칸이 한 덩어리로 읽혀 무엇이 판정인지 흐려진다. */}
-                <p className={cn(pipelineStyles.text.meta, 'mt-2.5')}>
+                {/* 판정별 건수는 아래 Agent별 결과의 필터 칩이 말한다. 여기에 성공/실패
+                    타일을 또 두면 같은 수를 두 번 세는 셈이고, 둘이 리소스 단위와 agent
+                    단위라 언젠가 어긋나면 그때는 어느 쪽이 맞는지도 알 수 없다. */}
+                {/* 논리 DB 는 연결 성패가 아니라 그 결과로 알게 된 규모. */}
+                <p className={cn(pipelineStyles.text.meta, 'mt-2')}>
                   연동 대상 논리 DB{' '}
                   <b className="font-semibold tabular-nums text-[var(--pl-text-medium)]">
                     {stats.includedTotal.toLocaleString('ko-KR')}
@@ -211,8 +201,8 @@ export function TcLatestRunCard({
                 </p>
               </>
             )}
-            {/* 어느 리소스를 어느 agent 가 맡아 어떻게 됐는지 — 타일이 "몇 건"이라면
-                이쪽이 "어느 것"이다. 실행 중에는 이 목록이 곧 진행 사항. */}
+            {/* 어느 리소스를 어느 agent 가 맡아 어떻게 됐는지 — 위 문장이 "얼마나"라면
+                이쪽이 "몇 건이고 어느 것"이다. 실행 중에는 이 목록이 곧 진행 사항. */}
             <TcAgentResultList
               rows={agentRows}
               running={running}
