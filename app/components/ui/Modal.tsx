@@ -13,8 +13,11 @@ export interface ModalProps {
    * caller supplies its own title block in `children`; `title` may be omitted.
    */
   title?: string;
-  /** 모달 부제목 (선택) */
-  subtitle?: string;
+  /**
+   * 모달 부제목 (선택). ReactNode — 보조 텍스트가 여러 문장이거나 그 안에서 한 조각만
+   * 강조해야 할 때 인라인 마크업을 넣는다. `<p>` 안에 놓이므로 블록 요소는 쓸 수 없다.
+   */
+  subtitle?: ReactNode;
   /** 헤더 아이콘 (선택) */
   icon?: ReactNode;
   /** 모달 크기 */
@@ -37,6 +40,11 @@ export interface ModalProps {
    */
   ariaLabel?: string;
   children: ReactNode;
+  /**
+   * Header close ✕. Set false for a read-only notice that carries no footer either —
+   * backdrop click and ESC still close it. Every other caller keeps the default.
+   */
+  closeButton?: boolean;
   /** 푸터 영역 (버튼 등) */
   footer?: ReactNode;
   /** 배경 클릭으로 닫기 허용 여부 */
@@ -85,6 +93,7 @@ export const Modal = ({
   tone = 'info',
   ariaLabel,
   children,
+  closeButton = true,
   footer,
   closeOnBackdropClick = true,
   closeOnEscape = true,
@@ -177,15 +186,17 @@ export const Modal = ({
                 {subtitle && <p className={subtitleCls}>{subtitle}</p>}
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className={cn('p-2', interactiveColors.closeButton, 'rounded-lg transition-colors')}
-              aria-label="닫기"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            {closeButton && (
+              <button
+                onClick={onClose}
+                className={cn('p-2', interactiveColors.closeButton, 'rounded-lg transition-colors')}
+                aria-label="닫기"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
         )}
 

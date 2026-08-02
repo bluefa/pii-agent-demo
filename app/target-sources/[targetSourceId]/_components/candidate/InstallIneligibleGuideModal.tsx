@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal } from '@/app/components/ui/Modal';
-import { cn, textColors, textStyles } from '@/lib/theme';
+import { cn, textColors } from '@/lib/theme';
 import { AZURE_GUIDE_URLS, AZURE_NETWORKING_MODE_LABELS } from '@/lib/constants/azure';
 import type { RecommendFailReason } from '@/lib/types';
 
@@ -64,32 +64,37 @@ export const InstallIneligibleGuideModal = ({
       onClose={onClose}
       chrome="toss"
       size="lg"
+      closeButton={false}
       title="설치 불가 사유"
-      subtitle={guide.cause}
+      subtitle={
+        // 보조 텍스트는 전부 이 한 덩어리다 — 문장 사이는 형제 간격 8px, 제목과는 16px.
+        // 본문(body)으로 내려보내면 그 사이가 28px로 벌어져 두 그룹처럼 읽힌다.
+        <>
+          {guide.cause}
+          {guide.detail && <span className="mt-2 block">{guide.detail}</span>}
+          {guide.remedy && <span className="mt-2 block">{guide.remedy}</span>}
+          {guide.doc && (
+            <a
+              href={guide.doc.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              /* 밑줄만으로 링크임을 말한다 — 굵기까지 주면 강조가 셋이 된다. */
+              className="mt-2 inline-block underline underline-offset-2"
+            >
+              {guide.doc.label}
+            </a>
+          )}
+          <span className="mt-2 block">
+            추가적인 문의사항이 있으면{' '}
+            <strong className={cn('font-semibold', textColors.primary)}>협업 채널</strong>
+            에 문의해주세요.
+          </span>
+        </>
+      }
     >
-      {/* 푸터가 없으니 아래 여백은 본문이 갖는다 — 헤더의 ✕ 하나로 닫는다. */}
-      <div className={cn('flex flex-col gap-3 pb-8', textStyles.body, textColors.secondary)}>
-        {guide.detail && <p>{guide.detail}</p>}
-        {guide.remedy && <p>{guide.remedy}</p>}
-
-        {guide.doc && (
-          <a
-            href={guide.doc.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            /* 밑줄만으로 링크임을 말한다 — 굵기까지 주면 강조가 셋이 된다. */
-            className="self-start underline underline-offset-2"
-          >
-            {guide.doc.label}
-          </a>
-        )}
-
-        <p>
-          추가적인 문의사항이 있으면{' '}
-          <strong className={cn('font-semibold', textColors.primary)}>협업 채널</strong>
-          에 문의해주세요.
-        </p>
-      </div>
+      {/* 푸터도 ✕도 없다. 빈 본문의 pt-7+pb-2 = 36px 가 아래 여백이 되어 헤더의 pt-9 와
+          맞는다. 닫기는 배경 클릭 / ESC. */}
+      <div />
     </Modal>
   );
 };
