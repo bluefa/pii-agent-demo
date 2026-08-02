@@ -31,6 +31,7 @@ import {
   type RequestResourceRow,
 } from '@/app/lib/api/task-queue-requests';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
+import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
 /** `data: null` = the snapshot does not exist yet (404), not a failure. */
@@ -79,6 +80,10 @@ const KV_GRID = 'grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-2.5 mt-3.
 
 const NOTE_WARN =
   'flex gap-2.5 rounded-lg px-3.5 py-3 mt-4 text-[13px] leading-[1.5] bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]';
+
+/** …/approval-requests/latest returns every resource inline, so a target with
+ *  hundreds of them rendered one unbounded table. Page client-side. */
+const RESOURCE_PAGE_SIZE = 10;
 
 const CLOUD_COLUMNS = [
   'Database Type',
@@ -192,6 +197,7 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
   const [request, setRequest] = useState<Load<ApprovalRequestDetail>>({ state: 'loading' });
   const [confirmed, setConfirmed] = useState<Load<ConfirmedRows>>({ state: 'loading' });
   const [processed, setProcessed] = useState<ProcessedInfo | null>(null);
+  const [resourcePage, setResourcePage] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
   const retry = useCallback(() => setReloadKey((key) => key + 1), []);
 
@@ -201,6 +207,7 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
     // 최근 승인 요청 + 요청 리소스.
     void (async () => {
       setRequest({ state: 'loading' });
+      setResourcePage(0);
       try {
         const loaded = await getApprovalRequestLatest(targetSourceId);
         if (!cancelled) setRequest({ state: 'ready', data: loaded });
@@ -273,6 +280,14 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
   const selectedCount = summary?.resourceSelectedCount ?? rows.filter((row) => row.selected).length;
   const totalCount = summary?.resourceTotalCount ?? rows.length;
   const excludedCount = Math.max(0, totalCount - selectedCount);
+
+  const resourceTotalPages = Math.max(1, Math.ceil(rows.length / RESOURCE_PAGE_SIZE));
+  // Clamp rather than reset: a shorter result must not leave the pager past its end.
+  const resourceSafePage = Math.min(resourcePage, resourceTotalPages - 1);
+  const pagedRows = rows.slice(
+    resourceSafePage * RESOURCE_PAGE_SIZE,
+    resourceSafePage * RESOURCE_PAGE_SIZE + RESOURCE_PAGE_SIZE,
+  );
 
   // The 처리 row belongs to the latest request only — drop a stale history record.
   const processedRow =
@@ -395,26 +410,33 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
         ) : rows.length === 0 ? (
           <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-2" />
         ) : (
-          <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
-            <table className={opsStyles.table.base}>
-              <thead>
-                <tr>
-                  {columns.map((column) => (
-                    <th key={column} className={opsStyles.table.headCell}>
-                      {column}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="[&>tr:last-child>td]:border-b-0">
-                {rows.map((row, index) => (
-                  <tr key={row.resourceId ?? index} className={opsStyles.table.rowHover}>
-                    <ResourceCells row={row} isIdc={isIdc} />
+          <>
+            <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
+              <table className={opsStyles.table.base}>
+                <thead>
+                  <tr>
+                    {columns.map((column) => (
+                      <th key={column} className={opsStyles.table.headCell}>
+                        {column}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="[&>tr:last-child>td]:border-b-0">
+                  {pagedRows.map((row, index) => (
+                    <tr key={row.resourceId ?? index} className={opsStyles.table.rowHover}>
+                      <ResourceCells row={row} isIdc={isIdc} />
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <OpsPagination
+              page={resourceSafePage}
+              totalPages={resourceTotalPages}
+              onChange={setResourcePage}
+            />
+          </>
         )}
       </section>
     </>

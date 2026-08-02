@@ -140,16 +140,22 @@ export const Modal = ({
   if (!isOpen) return null;
 
   // Default (non-toss) branch reproduces the original byte-for-byte class strings
-  // (tokens compose in the original order) so AWS/Azure/GCP modals are unchanged.
+  // (tokens compose in the original order) so AWS/Azure/GCP modals are unchanged,
+  // apart from the viewport cap below which every chrome shares.
   // 'toss-compact' shares every toss token except the three it tightens.
   const isCompact = chrome === 'toss-compact';
   const isToss = chrome === 'toss' || isCompact;
   // 'bare' suppresses the shared header (title bar + close-X); the caller renders
   // its own title block in `children`. Container/body keep the default styling.
   const isBare = chrome === 'bare';
+  // The overlay centers the box and cannot scroll, so a body taller than the
+  // viewport pushes the header (닫기 X) and the footer off-screen for good.
+  // Cap the box and let the body scroll instead — same pattern as
+  // ProjectCreateModal.
+  const viewportCap = 'max-h-[90vh] flex flex-col';
   const containerCls = isToss
-    ? cn('bg-white shadow-xl w-full mx-4 overflow-hidden', modalStyles.toss.container, SIZE_CLASSES[size])
-    : cn('bg-white rounded-xl shadow-xl w-full', SIZE_CLASSES[size], 'mx-4 overflow-hidden');
+    ? cn('bg-white shadow-xl w-full mx-4 overflow-hidden', viewportCap, modalStyles.toss.container, SIZE_CLASSES[size])
+    : cn('bg-white rounded-xl shadow-xl w-full', SIZE_CLASSES[size], 'mx-4 overflow-hidden', viewportCap);
   const headerCls = isCompact
     ? modalStyles.toss.compact.header
     : isToss
@@ -182,7 +188,7 @@ export const Modal = ({
       >
         {/* Header — omitted entirely for 'bare' chrome (no title bar, no close-X). */}
         {!isBare && (
-          <div className={headerCls}>
+          <div className={cn(headerCls, 'flex-none')}>
             <div className={iconGroupCls}>
               {icon && <div className={iconCls}>{icon}</div>}
               <div>
@@ -206,11 +212,12 @@ export const Modal = ({
           </div>
         )}
 
-        {/* Content */}
-        <div className={bodyCls}>{children}</div>
+        {/* Content — min-h-0 lets this flex child shrink below its content so
+            overflow-y-auto actually scrolls instead of growing the box. */}
+        <div className={cn(bodyCls, 'min-h-0 overflow-y-auto')}>{children}</div>
 
         {/* Footer */}
-        {footer && <div className={footerCls}>{footer}</div>}
+        {footer && <div className={cn(footerCls, 'flex-none')}>{footer}</div>}
       </div>
     </div>
   );
