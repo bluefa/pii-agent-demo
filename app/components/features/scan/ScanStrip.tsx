@@ -6,7 +6,7 @@ import {
   ScanPermissionResult,
   type ScanPermissionState,
 } from '@/app/components/features/scan/scan-permission';
-import { bgColors, borderColors, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { bgColors, borderColors, buttonStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { formatDate, formatRelativeTime } from '@/lib/utils/date';
 import type { ApprovalFilter } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import type { z } from 'zod';
@@ -61,10 +61,8 @@ export interface ScanStripProps {
 
 // 텍스트 버튼(이력·권한 확인) — 스트립의 보조 행동은 버튼 크롬 없이 밑줄 링크
 // 문법으로 물러난다. 유일한 버튼 크롬은 스캔 시작(secondary) 하나.
-const GHOST_BUTTON = cn(
-  'text-[13px] font-semibold underline underline-offset-[3px] decoration-[#D1D6DB] transition-colors',
-  'hover:text-[#191F28] disabled:cursor-not-allowed disabled:opacity-60',
-);
+// 색은 buttonStyles.ghostText 토큰이 소유한다 (CLAUDE.md ④ raw 색상 금지).
+const GHOST_BUTTON = buttonStyles.ghostText;
 
 const CELL_BASE = 'min-w-0 px-4 py-3 text-center';
 
@@ -192,7 +190,8 @@ export const ScanStrip = ({
     ? '아직 스캔한 적이 없어요'
     : `${succeeded ? '마지막 스캔' : '마지막 스캔 실패'}${scannedAt ? ` ${formatRelativeTime(scannedAt)}` : ''}`;
   const dotClass = job == null
-    ? 'bg-[#8B95A1]'
+    // 기록 없음은 상태가 아니라 부재 — pending(대기) 도트 토큰을 그대로 쓴다.
+    ? statusColors.pending.dot
     : succeeded
       ? statusColors.success.dot
       : statusColors.error.dot;
