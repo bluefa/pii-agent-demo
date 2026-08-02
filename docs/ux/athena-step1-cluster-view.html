@@ -1,0 +1,304 @@
+<meta charset="utf-8">
+<title>Step 1 · Athena 그룹 — 선으로 잇는 3안</title>
+<style>
+  :root{
+    /* 페이지 크롬 — 쿨한 방향으로 살짝 치우친 중립. 레포 primary #0064FF 와 같은 계열. */
+    --paper:#FBFCFD;
+    --panel:#FFFFFF;
+    --ink:#0F1419;
+    --ink-2:#3D4A57;
+    --muted:#5B6875;
+    --faint:#8B98A5;
+    --hair:#E3E8EE;
+    --accent:#0064FF;
+    --shadow:0 1px 2px rgba(15,20,25,.04), 0 12px 32px -20px rgba(15,20,25,.28);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#0E1216; --panel:#151B21; --ink:#E9EDF1; --ink-2:#BAC5D0;
+      --muted:#93A0AC; --faint:#6C7A87; --hair:#232C35; --accent:#5B9DFF;
+      --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 32px -20px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1216; --panel:#151B21; --ink:#E9EDF1; --ink-2:#BAC5D0;
+    --muted:#93A0AC; --faint:#6C7A87; --hair:#232C35; --accent:#5B9DFF;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 32px -20px rgba(0,0,0,.8);
+  }
+  :root[data-theme="light"]{
+    --paper:#FBFCFD; --panel:#FFFFFF; --ink:#0F1419; --ink-2:#3D4A57;
+    --muted:#5B6875; --faint:#8B98A5; --hair:#E3E8EE; --accent:#0064FF;
+    --shadow:0 1px 2px rgba(15,20,25,.04), 0 12px 32px -20px rgba(15,20,25,.28);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Segoe UI',sans-serif;
+    font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:1200px;margin:0 auto;padding:56px 32px 140px;
+    display:flex;flex-direction:column;gap:0}
+
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);margin:0 0 10px}
+  h1{font-size:30px;line-height:1.25;font-weight:700;letter-spacing:-0.025em;margin:0 0 14px;
+    text-wrap:balance;max-width:22ch}
+  .lede{color:var(--ink-2);font-size:16px;margin:0;max-width:64ch}
+  .lede b{color:var(--ink);font-weight:600}
+
+  .finding{margin:32px 0 0;padding:18px 22px;background:var(--panel);border:1px solid var(--hair);
+    border-radius:10px;box-shadow:var(--shadow);max-width:72ch}
+  .finding p{margin:0;font-size:14px;color:var(--ink-2)}
+  .finding p + p{margin-top:9px}
+  .finding q{color:var(--ink);font-style:italic}
+  .finding cite{display:block;margin-top:10px;font-size:12px;color:var(--faint);font-style:normal}
+  .finding a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+  .finding a:hover,.finding a:focus-visible{border-bottom-color:currentColor}
+
+  .specs{margin:20px 0 0;font-size:12.5px;color:var(--faint);max-width:80ch}
+  .specs code{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:11.5px;
+    background:var(--panel);border:1px solid var(--hair);border-radius:5px;padding:1px 5px;color:var(--muted)}
+
+  section.opt{margin:64px 0 0}
+  .ohead{display:flex;align-items:baseline;gap:14px;margin:0 0 6px;flex-wrap:wrap}
+  .okey{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px;font-weight:700;
+    color:var(--faint)}
+  .otitle{font-size:21px;font-weight:700;letter-spacing:-0.02em;color:var(--ink)}
+  .osrc{font-size:11.5px;color:var(--muted);border:1px solid var(--hair);background:var(--panel);
+    border-radius:999px;padding:3px 11px;font-weight:600}
+  .odesc{color:var(--ink-2);font-size:14px;margin:0 0 18px;max-width:76ch}
+  .odesc b{color:var(--ink);font-weight:600}
+  .overdict{font-size:13px;margin:14px 0 0;color:var(--muted);max-width:76ch}
+  .overdict b{color:var(--ink-2);font-weight:600}
+
+  /* ============================================================
+     목업 프레임 — 이 안쪽은 라이트 고정.
+     대상 앱이 데스크톱 라이트 전용이라 의도적으로 한 세계에 고정한다.
+     ============================================================ */
+  .shot{overflow-x:auto;border-radius:14px;padding:22px;background:#EEF1F5;
+    border:1px solid var(--hair);box-shadow:var(--shadow)}
+  .app{
+    --fg1:#191F28; --fg2:#4E5968; --fg3:#8B95A1; --fg4:#B0B8C1;
+    --line:#EBEEF2; --head:#F7F8FA; --exbg:#F9FAFB; --pri:#0064FF;
+    /* 커넥터 — 푸른 기가 아주 옅게 도는 중립. 순회색은 "안 고른 색"으로 읽힌다. */
+    --rail:#C4CEDA;
+    min-width:940px;border-radius:12px;border:1px solid var(--line);background:#fff;overflow:hidden;
+    font-size:14px;color:var(--fg1)
+  }
+  .app table{width:100%;border-collapse:collapse}
+  .app thead th{background:var(--head);text-align:left;font-size:12px;font-weight:600;
+    color:var(--fg2);padding:12px 18px;white-space:nowrap}
+  .app tbody td{padding:16px 18px;border-top:1px solid var(--line);vertical-align:middle}
+  .app .mono{font-family:ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:-0.01em}
+  .app .nowrap{white-space:nowrap}
+  .app .nm{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:14px;color:var(--fg1)}
+  .app .c2{font-size:12px;color:var(--fg2)}
+  .app .c3{font-size:12px;color:var(--fg3)}
+  .app .ex td{background:var(--exbg)}
+  .app .ex .nm,.app .ex .c2{color:#6B7280}
+  .app .cb{width:16px;height:16px;border:1.5px solid #B0B8C1;border-radius:4px;
+    display:inline-block;vertical-align:middle;background:#fff}
+  .app .cb.on{background:var(--pri);border-color:var(--pri);position:relative}
+  .app .cb.on::after{content:"";position:absolute;left:5px;top:1.5px;width:4px;height:8px;
+    border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .app .link{color:#B45309;font-size:12px;text-decoration:underline;
+    text-decoration-style:dotted;text-underline-offset:2px}
+  .app td.sel{width:52px}
+  .app td.name{position:relative}
+
+  /* 캐럿 — 부모 행의 유일한 컨트롤. 색 없음.
+     테두리·바탕 없음: 흰 상자에 테두리를 두르면 바로 옆 라벨과 경쟁하는 칩으로 읽힌다. */
+  .app .caret{width:22px;height:22px;display:inline-grid;place-items:center;border-radius:6px;
+    border:0;background:transparent;color:var(--fg3);cursor:pointer}
+  .app .caret svg{transform:rotate(90deg)}
+  .app .caret:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
+
+  /* 부모 아이덴티티 — 색이 아니라 활자 위계로 */
+  /* 부모는 맥락이지 표제가 아니다 — 자식 이름보다 한 티어 아래로 둔다.
+     Resource Name 컬럼과 같은 14px mono, 굵기만 600, 두 번째 줄 없음. */
+  .app .pid{display:flex;align-items:center;gap:8px}
+  .app .pname{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:14px;
+    font-weight:600;color:var(--fg2)}
+  /* 리전 칩은 없앴다 — 리전은 Region 컬럼에 들어간다. 라벨 옆 칩은 열을 비워 둔 채
+     같은 사실을 다른 자리에 중복해 놓는 것이었다. */
+  .app .agg{font-size:12px;color:var(--fg3);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .app .agg b{font-weight:700;color:var(--fg2)}
+  .app .agg .sep{color:var(--fg4);margin:0 6px}
+
+  /* ---------- A · 트리 엘보 : 자식마다 개별로 잇는다 ---------- */
+  /* 셀 padding-left 18 기준 —  18..38 캐럿 → 레일 x = 28(캐럿 중심)
+                                46      부모 라벨
+                                70      자식 이름 (46 + 24 = 티어 간격이자 엘보 길이)
+     처음 쓴 58px 은 부모 라벨과 12px 차이라 티어가 아니라 살짝 밀린 것처럼 보였다. */
+  .A .prow td.name::after{content:"";position:absolute;left:28px;top:50%;bottom:-1px;width:1px;
+    background:var(--rail)}
+  .A .crow td.name{padding-left:70px}
+  .A .crow td.name::before{content:"";position:absolute;left:28px;top:-1px;bottom:0;width:1px;
+    background:var(--rail)}
+  .A .crow.last td.name::before{bottom:50%}
+  .A .crow td.name::after{content:"";position:absolute;left:28px;top:50%;width:26px;height:1px;
+    background:var(--rail)}
+
+  /* ---------- B · 브래킷 : 자식 전체를 한 덩어리로 감싼다 ---------- */
+  .B .crow td.name{padding-left:52px}
+  .B .crow td.name::before{content:"";position:absolute;left:30px;top:-1px;bottom:0;width:1px;
+    background:var(--rail)}
+  .B .crow.first td.name::before{top:0}
+  .B .crow.first td.name::after,
+  .B .crow.last td.name::after{content:"";position:absolute;left:30px;width:9px;height:1px;
+    background:var(--rail)}
+  .B .crow.first td.name::after{top:0}
+  .B .crow.last td.name::before{bottom:50%}
+  .B .crow.last td.name::after{top:50%}
+  .B .prow td.sel{position:relative}
+
+  /* ---------- C · 노드 레일 : 레일 위의 정거장 ---------- */
+  .C .prow td.name::after{content:"";position:absolute;left:30px;top:50%;bottom:-1px;width:1px;
+    background:var(--rail)}
+  .C .prow td.name{padding-left:46px}
+  .C .prow td.name::before{content:"";position:absolute;left:26px;top:50%;width:9px;height:9px;
+    margin-top:-4px;border-radius:2px;background:#8B95A1;transform:rotate(45deg)}
+  .C .crow td.name{padding-left:58px}
+  .C .crow td.name::before{content:"";position:absolute;left:30px;top:-1px;bottom:0;width:1px;
+    background:var(--rail)}
+  .C .crow.last td.name::before{bottom:50%}
+  .C .crow td.name::after{content:"";position:absolute;left:27px;top:50%;width:7px;height:7px;
+    margin-top:-3px;border-radius:50%;background:#fff;border:1.5px solid var(--rail)}
+  .C .crow.ex td.name::after{background:var(--exbg)}
+</style>
+
+<div class="page">
+  <p class="eyebrow">LIN-85 · Step 1 재설계</p>
+  <h1>Athena 그룹을 색이 아니라 선으로 묶기</h1>
+  <p class="lede">
+    앞선 시안은 보라색 밴드로 그룹을 표시했습니다. 그건 <b>“여기 그룹이 있다”</b>는 표시일 뿐,
+    RDS 콘솔이 주는 <b>“이것들은 실제로 이어져 있다”</b>는 감각은 아니었습니다.
+    확인해 보니 지적이 맞았습니다 — 콘솔은 색으로 묶지 않습니다.
+    <b>A안으로 확정</b>했고, 아래 A 목업이 실제 구현과 같은 스펙입니다.
+    구현 뒤 “아직 계층이 안 읽힌다”는 지적을 받아 <b>부모가 채우는 열</b>과 <b>들여쓰기 간격</b>을
+    다시 잡았습니다 — A 카드의 평가란에 무엇이 왜 바뀌었는지 적어 두었습니다.
+  </p>
+
+  <div class="finding">
+    <p>Cloudscape(AWS 공식 디자인 시스템)의 중첩 리소스 테이블 규정은 시각 처리를 <q>자식 행은 들여쓰기된다</q>,
+      <q>펼쳐진 행은 들여쓰기로 자식을 표시한다</q>로만 서술합니다.</p>
+    <p>부모 행 배경색, 색 기반 그룹핑에 대한 언급은 <b>한 줄도 없습니다.</b>
+      계층은 장식이 아니라 들여쓰기와 인터랙션으로 만든다는 것이 원칙입니다.</p>
+    <cite>출처 — <a href="https://cloudscape.design/patterns/resource-management/view/table-with-expandable-rows/">Cloudscape · Table with nested resources</a></cite>
+  </div>
+
+  <p class="specs">
+    아래 3안은 전부 <b style="color:var(--muted)">무채색</b>입니다. 차이는 오직 <b style="color:var(--muted)">선의 기하학</b> —
+    자식을 개별로 잇는가(A), 한 덩어리로 감싸는가(B), 레일 위 정거장으로 세우는가(C).
+    표 크롬은 Step 1 실값 그대로 — <code>approvalHeaderCell</code> 12/18 · <code>approvalCell</code> 16/18 ·
+    구분선 <code>#EBEEF2</code> · 이름 mono 14px. 커넥터 <code>#C4CEDA</code> 하나만 새로 들어옵니다.
+    목업 안쪽은 대상 앱이 데스크톱 라이트 전용이라 라이트로 고정했습니다.
+  </p>
+
+  <div id="out"></div>
+</div>
+
+<script>
+const ACCT = '451814760281';
+const REGION = 'ap-northeast-1';
+const CATALOG = 'AwsDataCatalog';
+const CV = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+
+const OTHERS = [
+  { n:'raw-e2e-test-mysql-cluster', id:'…ql-cluster-cluster', t:'MySQL', r:'ap-northeast-2', on:true },
+  { n:'e2e-test-mssql', id:'…:db:e2e-test-mssql', t:'SQL Server', r:'ap-northeast-2', on:false },
+];
+const DBS = [
+  { n:'sampledb',     id:'…-1:AwsDataCatalog/sampledb',    on:true },
+  { n:'integration',  id:'…AwsDataCatalog/integration',    on:true },
+  { n:'6lb_fulldump', id:'…sDataCatalog/6lb_fulldump',     on:true },
+  { n:'test_raw_tmp', id:'…AwsDataCatalog/test_raw_tmp',   on:false },
+];
+const T = DBS.filter(d=>d.on).length, X = DBS.length - T;
+
+const HEAD = `<thead><tr>
+  <th style="width:52px"></th>
+  <th style="width:27%">Resource Name</th>
+  <th style="width:20%">Resource ID</th>
+  <th style="width:12%">Database Type</th>
+  <th style="width:15%">Region</th>
+  <th style="width:11%">설치 구분</th>
+  <th>제외 사유</th></tr></thead>`;
+
+const otherRow = o => `
+  <tr class="${o.on?'':'ex'}">
+    <td class="sel"><span class="cb${o.on?' on':''}"></span></td>
+    <td class="name"><span class="nm">${o.n}</span></td>
+    <td><span class="mono c2">${o.id}</span></td>
+    <td><span class="c2">${o.t}</span></td>
+    <td><span class="mono c2 nowrap">${o.r}</span></td>
+    <td><span class="c2">설치 대상</span></td>
+    <td>${o.on?'':'<span class="link">사유 입력</span>'}</td>
+  </tr>`;
+
+// 부모 행 — 배경 없음. 위계는 캐럿 + 들여쓰기, 그리고 「부모만 채우는 열」로 만든다.
+// Database Type · Region 은 그룹을 묶는 키 그 자체이므로 부모의 값이다 — 자식은 비운다.
+const parentRow = () => `
+  <tr class="prow">
+    <td class="sel"><button class="caret" type="button" aria-expanded="true" aria-label="Athena ${REGION} 그룹 접기">${CV}</button></td>
+    <td class="name"><span class="pid"><span class="pname">Athena</span></span></td>
+    <td></td>
+    <td><span class="c2">Athena</span></td>
+    <td><span class="mono c2 nowrap">${REGION}</span></td>
+    <td></td>
+    <td><span class="agg"><b>${T}</b> 대상<span class="sep">·</span><b>${X}</b> 제외<span class="sep">·</span>총 ${DBS.length}</span></td>
+  </tr>`;
+
+// 자식의 Resource ID 는 부모 경로에 자기 이름을 덧붙인 문자열이라 지웠다.
+// 대신 Database Type 열이 「이 행이 무엇인가」를 말한다 — 위에서 아래로 Athena → Database.
+const childRow = (d,i) => `
+  <tr class="crow${d.on?'':' ex'}${i===0?' first':''}${i===DBS.length-1?' last':''}">
+    <td class="sel"><span class="cb${d.on?' on':''}"></span></td>
+    <td class="name"><span class="nm">${d.n}</span></td>
+    <td></td>
+    <td><span class="c2">Database</span></td>
+    <td></td>
+    <td><span class="c2">설치 대상</span></td>
+    <td>${d.on?'':'<span class="link">사유 입력</span>'}</td>
+  </tr>`;
+
+const shot = cls => `<div class="shot"><div class="app ${cls}"><table>${HEAD}<tbody>
+  ${OTHERS.map(otherRow).join('')}
+  ${parentRow()}
+  ${DBS.map(childRow).join('')}
+</tbody></table></div></div>`;
+
+const OPTIONS = [
+{
+  k:'A', t:'트리 엘보', s:'채택 · RDS Databases 목록',
+  d:'레일이 부모의 캐럿 아래에서 시작해 자식들을 지나 내려가고, <b>자식마다 짧은 가로 획(엘보)이 이름 쪽으로 뻗습니다.</b> 마지막 자식에서 레일이 끊깁니다 — 그래서 “여기까지가 이 카탈로그”라는 경계가 선 자체로 읽힙니다. 파일 트리와 같은 문법이라 학습이 필요 없습니다.',
+  v:'<b>채택됨.</b> 각 자식이 개별적으로 부모에 매달린 관계를 그리므로, 행 하나하나를 체크박스로 고르는 Step 1의 작업 방식과 정확히 맞는다.<br><br>구현하며 확정한 세 가지 — <b>① 설치 구분은 빈 값.</b> 스캔이 리소스 단위로 내리는 판정인데, 그룹은 스캔이 판정한 리소스가 아니다. 값을 넣으면 없는 사실을 만드는 것이다. <b>② 부모 이름은 “Athena”.</b> 앞선 목업의 AwsDataCatalog 는 계약에 필드가 없고 resource_id 문자열 안에만 있다 — id 파싱은 하지 않는다. <b>③ 묶인 그룹은 하나의 리소스로 페이징.</b> 평면 slice 는 그룹을 페이지 경계에서 잘라 부모 행을 두 번 그린다. 그룹은 1건으로 세고, 자식 데이터베이스는 항상 함께 나온다.<br><br><b>2차 수정 — 계층이 안 읽힌다는 지적.</b> 원인은 두 가지였다. <b>㉮ 부모가 여섯 열 중 넷이 빈 행</b>이라 요약이 아니라 깨진 행으로 읽혔다. Database Type · Region 은 그룹을 묶는 키 <em>그 자체</em>이므로 부모의 값이다 — 부모가 한 번 말하고 자식은 비운다. 리전 칩도 없앴다(값이 Region 열로 갔다). <b>㉯ 부모 라벨 46px, 자식 이름 58px</b> — 12px 은 티어가 아니라 살짝 밀린 것이다. 자식을 70px 로 내려 24px 간격을 만들고, 엘보를 16→26px 로 늘려 그 간격을 선이 실제로 잇게 했다. 캐럿의 테두리·흰 바탕도 뺐다 — 바로 옆 라벨과 경쟁하는 칩으로 읽히고 있었다.<br><br><b>3차 수정 — <code>test_raw</code> 가 무엇인지 행에 안 적혀 있다.</b> 이름만으론 그냥 문자열이다. Database Type 열이 「이 행이 무엇인가」를 답하게 했다 — 위에서 아래로 읽으면 <b>Athena → Database</b>. 근거는 캡처가 실제로 보내는 wire type <code>AWS_ATHENA_DATABASE</code> 다. 동시에 자식의 <b>Resource ID 는 지웠다</b>: <code>athena:&lt;acct&gt;:&lt;region&gt;/&lt;catalog&gt;/test_raw</code> 는 부모의 경로에 자기 이름을 덧붙인 것이라, 자식마다 그룹의 정체를 되풀이하고 자기 이름을 한 번 더 말하고 있었다.',
+  c:'A',
+},
+{
+  k:'B', t:'브래킷', s:'코드 폴딩 · 스코프 표기',
+  d:'엘보 없이 <b>세로선의 위·아래 끝을 안쪽으로 꺾어</b> 자식 전체를 하나의 대괄호로 감쌉니다. 개별 연결선이 없으므로 자식들은 낱개가 아니라 <b>하나의 묶음</b>으로 읽힙니다.',
+  v:'<b>미채택.</b> “하나의 덩어리” 인상은 가장 강하다. 다만 개별 행과 부모의 연결은 A보다 약해서, 승인 검토(Step 2·3)처럼 묶음 단위로 확인하는 화면에 더 맞는다.',
+  c:'B',
+},
+{
+  k:'C', t:'노드 레일', s:'커밋 그래프 · 타임라인',
+  d:'레일 위에 <b>정거장을 세웁니다</b> — 부모는 채워진 마름모, 자식은 빈 원. 선이 지나가는 게 아니라 각 행이 <b>레일 위의 지점</b>이 되어, 구성원이라는 사실이 점으로 명시됩니다.',
+  v:'<b>미채택.</b> 가장 눈에 띄지만 가장 비싸다. 노드가 Step 1의 체크박스와 같은 시선 높이에서 경쟁하고, “이 동그라미도 누르는 건가”라는 오해를 부를 수 있다. 읽기 전용 화면(Step 6·7)에서는 훌륭하다.',
+  c:'C',
+},
+];
+
+document.getElementById('out').innerHTML = OPTIONS.map(o=>`
+  <section class="opt">
+    <div class="ohead">
+      <span class="okey">${o.k}</span>
+      <span class="otitle">${o.t}</span>
+      <span class="osrc">${o.s}</span>
+    </div>
+    <p class="odesc">${o.d}</p>
+    ${shot(o.c)}
+    <p class="overdict">${o.v}</p>
+  </section>`).join('');
+</script>

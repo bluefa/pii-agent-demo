@@ -1,6 +1,9 @@
 'use client';
 
-import { cn, idcStyles } from '@/lib/theme';
+import { Fragment, useMemo, useState } from 'react';
+import { cn, idcStyles, textColors } from '@/lib/theme';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { groupResourceRows } from '@/lib/resource-grouping';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import {
@@ -8,6 +11,10 @@ import {
   type CandidateRowActions,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
+import {
+  ResourceGroupCount,
+  ResourceGroupRow,
+} from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 
 // 설치 구분 = 스캔이 판정한 시스템 사실(사용자 변경 불가). 값의 뜻만이 아니라
 // 각 값이 선택에 거는 규칙(대상 제외 시 사유 필수, 불가는 선택 자체 불가)까지가
@@ -79,6 +86,27 @@ export const CandidateResourceTable = ({
   const totalCount = candidates.length;
   const showCheckboxColumn = !readonly;
 
+  // Athena arrives as many rows of one catalog family per region; grouping restores the parent
+  // they belong to (LIN-85). Groups start OPEN — Step 1 is where each row is individually
+  // selected, so a collapsed group would hide the very checkboxes the step exists for.
+  const sections = useMemo(
+    () =>
+      groupResourceRows(candidates, (candidate) => ({
+        type: candidate.type,
+        region: candidate.metadata.region,
+        selected: selectedIds.has(candidate.id),
+      })),
+    [candidates, selectedIds],
+  );
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
+
+  const toggleGroup = (key: string) =>
+    setCollapsedGroups((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+
   if (totalCount === 0) {
     return <TableEmptyState message={emptyMessage ?? '발견된 리소스가 없습니다'} />;
   }
@@ -118,8 +146,8 @@ export const CandidateResourceTable = ({
               {showCheckboxColumn && <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>}
             </tr>
           </thead>
-          <tbody className={idcStyles.table.body}>
-            {candidates.map((candidate) => (
+          {sections.map((section) => {
+            const renderRow = (candidate: CandidateResource, grouped = false, lastInGroup = false) => (
               <CandidateResourceRow
                 key={candidate.id}
                 candidate={candidate}
@@ -129,9 +157,96 @@ export const CandidateResourceTable = ({
                 readonly={readonly}
                 drafts={drafts}
                 actions={actions}
+                grouped={grouped}
+                lastInGroup={lastInGroup}
               />
-            ))}
-          </tbody>
+            );
+
+            if (section.kind === 'rows') {
+              return (
+                <tbody key={section.key} className={idcStyles.table.body}>
+                  {section.rows.map((candidate) => renderRow(candidate))}
+                </tbody>
+              );
+            }
+
+            const { group } = section;
+            const rowsId = `candidate-group-${group.key.replace('|', '-')}`;
+            const collapsed = collapsedGroups.has(group.key);
+            return (
+              <Fragment key={group.key}>
+                <tbody className={idcStyles.table.body}>
+                  <ResourceGroupRow
+                    type={group.type}
+                    region={group.region}
+                    expanded={!collapsed}
+                    onToggle={() => toggleGroup(group.key)}
+                    controls={rowsId}
+                    // Read-only drops the 제외 사유 column, so the aggregate has no cell to sit
+                    // in — it rides along with the identity instead of vanishing.
+                    inlineMeta={
+                      showCheckboxColumn ? undefined : (
+                        <ResourceGroupCount
+                          targetCount={group.targetCount}
+                          excludedCount={group.excludedCount}
+                        />
+                      )
+                    }
+                    leadingCell={
+                      showCheckboxColumn ? (
+                        // No group-level checkbox: selecting a whole Athena family is a bulk
+                        // action nobody asked for, and 제외 사유 is required per resource.
+                        <td className={cn(idcStyles.table.approvalCell, 'w-10')} />
+                      ) : undefined
+                    }
+                  >
+                    {/* Resource ID stays blank — the catalog id lives only inside each child's
+                        resource_id string, which we do not parse.
+                        Database Type and Region ARE the pair the group is keyed on, so they are
+                        the parent's own values; the children below leave those two cells empty
+                        rather than repeat them.
+                        설치 구분 stays EMPTY: it is the scan's per-resource verdict, and a group
+                        is not a resource the scan judged — a value there would be invented.
+                        The aggregate goes in the trailing column, the only one with room. */}
+                    <td className={idcStyles.table.approvalCell} />
+                    <td
+                      className={cn(
+                        idcStyles.table.approvalCell,
+                        'whitespace-nowrap text-[12px]',
+                        textColors.secondary,
+                      )}
+                    >
+                      {getDatabaseShortLabel(group.type)}
+                    </td>
+                    <td
+                      className={cn(
+                        idcStyles.table.approvalCell,
+                        'whitespace-nowrap font-mono text-[12px]',
+                        textColors.secondary,
+                      )}
+                    >
+                      {group.region}
+                    </td>
+                    <td className={idcStyles.table.approvalCell} />
+                    {showCheckboxColumn && (
+                      <td className={idcStyles.table.approvalCell}>
+                        <ResourceGroupCount
+                          targetCount={group.targetCount}
+                          excludedCount={group.excludedCount}
+                        />
+                      </td>
+                    )}
+                  </ResourceGroupRow>
+                </tbody>
+                {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
+                <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
+                  {group.rows.map((candidate, index) =>
+                    renderRow(candidate, true, index === group.rows.length - 1),
+                  )}
+                </tbody>
+              </Fragment>
+            );
+          })}
         </table>
       </div>
     </div>

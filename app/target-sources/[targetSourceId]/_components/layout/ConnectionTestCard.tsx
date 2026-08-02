@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { cardStyles, cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
+import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { useModal } from '@/app/hooks/useModal';
@@ -25,6 +26,7 @@ import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_com
 import { CloudReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudReqApprovalModal';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { needsCredential } from '@/lib/types';
+import { resultUnitId } from '@/lib/resource-grouping';
 
 interface LogicalModalTarget {
   resourceId: string;
@@ -40,8 +42,51 @@ const seedCreds = (confirmed: readonly ConfirmedResource[]): CredMap =>
 
 // Athena / DynamoDB 등은 DB Credential 없이 연결한다. 이런 행까지 Credential 을
 // 요구하면 Run Test 가 열리지 않고, 진행 요약도 "성공 0 · 완료 100%" 로 어긋난다.
-const requiresCredential = (resource: ConfirmedResource): boolean =>
-  !!resource.databaseType && needsCredential(resource.databaseType);
+const requiresCredential = (databaseType: string | null): boolean =>
+  !!databaseType && needsCredential(databaseType);
+
+/**
+ * One row of this table = one thing the connection test actually reports on.
+ *
+ * For Athena that is the REGION, not the database: the result comes back keyed on
+ * `athena_region_resource_id` (`athena:<acct>:<region>/<catalog>`), so every database of one
+ * region shares a single verdict. Listing them separately printed that one verdict four times,
+ * implied four tests had run, and counted four units in the progress strip — and each of those
+ * rows looked its status up by its own database id, which no result is ever keyed on.
+ */
+interface TestUnit {
+  /** The id the result is keyed on — see `resultUnitId`. */
+  unitId: string;
+  region: string | null;
+  databaseType: string | null;
+  /** The confirmed rows this unit covers: one, or every database of an Athena region. */
+  members: ConfirmedResource[];
+  /** True when this row stands for a region rather than for a single resource. */
+  folded: boolean;
+}
+
+const toTestUnits = (confirmed: readonly ConfirmedResource[]): TestUnit[] => {
+  const units: TestUnit[] = [];
+  const byUnitId = new Map<string, TestUnit>();
+  for (const resource of confirmed) {
+    const unitId = resultUnitId(resource);
+    const existing = byUnitId.get(unitId);
+    if (existing) {
+      existing.members.push(resource);
+      continue;
+    }
+    const unit: TestUnit = {
+      unitId,
+      region: resource.region ?? null,
+      databaseType: resource.databaseType ?? null,
+      members: [resource],
+      folded: !!resource.athenaRegionResourceId,
+    };
+    byUnitId.set(unitId, unit);
+    units.push(unit);
+  }
+  return units;
+};
 
 interface ConnectionTestCardProps {
   targetSourceId: number;
@@ -71,7 +116,20 @@ export const ConnectionTestCard = ({
   const { latestJob, uiState, trigger, triggerError, fetchError } = useTestConnectionPolling(targetSourceId);
   const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
   const [approvalOpen, setApprovalOpen] = useState(false);
-  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(confirmed, {
+  // The table, the progress strip and the Run Test gate all run on units — one row per thing
+  // the test reports on. Only the completion-approval summary still lists databases.
+  const units = useMemo(() => toTestUnits(confirmed), [confirmed]);
+  // Which folded regions are open. Collapsed by default: the databases are reference here —
+  // nothing on those rows is acted on, and the row the user works with is the region.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleUnit = useCallback((unitId: string) => {
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(unitId)) next.add(unitId);
+      return next;
+    });
+  }, []);
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(units, {
     initialPageSize: 10,
   });
   const logicalModal = useModal<LogicalModalTarget>();
@@ -116,12 +174,13 @@ export const ConnectionTestCard = ({
   }, [latestJob]);
 
   // A row is connected (for the approval gate) when the latest poll returned
-  // SUCCESS for this resource and it has a credential — where one is required.
+  // SUCCESS for this unit and it has a credential — where one is required.
+  const unitCred = useCallback((unit: TestUnit) => creds[unit.members[0].resourceId] ?? '', [creds]);
   const rowConnected = useCallback(
-    (resource: ConfirmedResource): boolean =>
-      statusByResource[resource.resourceId] === 'SUCCESS' &&
-      (!requiresCredential(resource) || !!creds[resource.resourceId]),
-    [creds, statusByResource],
+    (unit: TestUnit): boolean =>
+      statusByResource[unit.unitId] === 'SUCCESS' &&
+      (!requiresCredential(unit.databaseType) || !!unitCred(unit)),
+    [statusByResource, unitCred],
   );
 
   // Gate the 완료 승인 요청 CTA directly on the latest_version poll result:
@@ -129,9 +188,9 @@ export const ConnectionTestCard = ({
   const approvalEnabled = uiState === 'SUCCESS';
 
   // Run Test gate (v16 updateConnRunBtn): every row that needs a credential has one.
-  const total = confirmed.length;
+  const total = units.length;
   const allCredsSet =
-    total > 0 && confirmed.every((r) => !requiresCredential(r) || !!creds[r.resourceId]);
+    total > 0 && units.every((u) => !requiresCredential(u.databaseType) || !!unitCred(u));
 
   const runTest = useCallback(async () => {
     if (testing || !allCredsSet) return;
@@ -170,10 +229,8 @@ export const ConnectionTestCard = ({
   // Progress counts a row as done when it is connected or failed. A row still
   // missing a required credential renders "자격 증명 필요" in the table, so counting
   // its poll result as done would claim 완료 100% for a target nobody tested yet.
-  const okCount = confirmed.filter((r) => rowConnected(r)).length;
-  const failCount = confirmed.filter(
-    (r) => statusByResource[r.resourceId] === 'FAIL',
-  ).length;
+  const okCount = units.filter((u) => rowConnected(u)).length;
+  const failCount = units.filter((u) => statusByResource[u.unitId] === 'FAIL').length;
   const doneCount = okCount + failCount;
   const pendingCount = total - doneCount;
   const progressPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
@@ -261,36 +318,74 @@ export const ConnectionTestCard = ({
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
-              {pageRows.map((resource) => {
-                const cred = creds[resource.resourceId] ?? '';
-                const status = statusByResource[resource.resourceId];
-                const connected = rowConnected(resource);
-                const credRequired = requiresCredential(resource);
+              {pageRows.map((unit) => {
+                const cred = unitCred(unit);
+                const status = statusByResource[unit.unitId];
+                const connected = rowConnected(unit);
+                const credRequired = requiresCredential(unit.databaseType);
+                const [first] = unit.members;
+                const open = expanded.has(unit.unitId);
+                const rowsId = `conn-unit-${unit.unitId}`;
                 return (
-                  <tr key={resource.resourceId} className={idcStyles.table.row}>
+                  <Fragment key={unit.unitId}>
+                  <tr
+                    className={cn(idcStyles.table.row, unit.folded && 'cursor-pointer')}
+                    onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
+                  >
                     <td className={idcStyles.table.cell}>
-                      {resource.databaseType ? (
+                      {unit.databaseType ? (
                         <span className={cn('text-[12px]', textColors.secondary)}>
-                          {getDatabaseShortLabel(resource.databaseType)}
+                          {getDatabaseShortLabel(unit.databaseType)}
                         </span>
                       ) : (
                         '-'
                       )}
                     </td>
                     <td className={idcStyles.table.cell}>
-                      <ResourceIdCell value={resource.resourceId} label="Resource ID" />
+                      <ResourceIdCell value={unit.unitId} label="Resource ID" />
                     </td>
                     <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary)}>
-                      {resource.region ?? '-'}
+                      {unit.region ?? '-'}
                     </td>
-                    <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary)}>
-                      {resource.resourceName ?? '-'}
+                    {/* A region has no resource name, so a folded row spends this cell on the
+                        disclosure instead: opening it lists the databases underneath, in the
+                        column their names belong to. They are reference only — nothing on this
+                        step is done per database — so the group starts closed. */}
+                    <td
+                      className={cn(
+                        idcStyles.table.cell,
+                        'font-mono text-[12px]',
+                        textColors.secondary,
+                        unit.folded && open && idcStyles.table.group.parentCellSm,
+                      )}
+                    >
+                      {unit.folded ? (
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          aria-controls={rowsId}
+                          aria-label={`${unit.region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleUnit(unit.unitId);
+                          }}
+                          className={cn(
+                            idcStyles.table.group.toggle,
+                            open && idcStyles.table.group.toggleOpen,
+                            primaryColors.focusRing,
+                          )}
+                        >
+                          <ChevronRightIcon className="h-3.5 w-3.5" />
+                        </button>
+                      ) : (
+                        (first.resourceName ?? '-')
+                      )}
                     </td>
                     <td className={idcStyles.table.cell}>
                       {credRequired ? (
                         <IdcCredSelectCell
                           value={cred}
-                          onChange={(next) => handleCredChange(resource.resourceId, next)}
+                          onChange={(next) => handleCredChange(first.resourceId, next)}
                           options={credOptions}
                         />
                       ) : (
@@ -310,22 +405,58 @@ export const ConnectionTestCard = ({
                         <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
                       )}
                     </td>
+                    {/* Athena is IAM-based and has no logical-DB management at all, so a folded
+                        region row has nothing to configure — the button used to open anyway
+                        (it was gated on `connected` alone) onto a screen for a concept that
+                        does not exist here. DynamoDB shares the trait but has no region fold to
+                        key off; it is tracked in LIN-86 with the rest of that rule. */}
                     <td className={idcStyles.table.cell}>
-                      <button
-                        type="button"
-                        disabled={!connected}
-                        onClick={() =>
-                          logicalModal.open({
-                            resourceId: resource.resourceId,
-                            resourceName: resource.resourceName ?? resource.resourceId,
-                          })
-                        }
-                        className={idcStyles.triggerBtn.ghostSm}
-                      >
-                        설정
-                      </button>
+                      {unit.folded ? (
+                        <span className={cn('text-[12px]', textColors.tertiary)}>설정 불필요</span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!connected}
+                          onClick={() =>
+                            logicalModal.open({
+                              resourceId: first.resourceId,
+                              resourceName: first.resourceName ?? first.resourceId,
+                            })
+                          }
+                          className={idcStyles.triggerBtn.ghostSm}
+                        >
+                          설정
+                        </button>
+                      )}
                     </td>
                   </tr>
+                  {/* Database list. Only the name — the region row above already answers
+                      everything else, and none of it varies per database. */}
+                  {unit.folded &&
+                    open &&
+                    unit.members.map((db, index) => (
+                      <tr key={db.resourceId} id={rowsId}>
+                        <td className={idcStyles.table.cell} />
+                        <td className={idcStyles.table.cell} />
+                        <td className={idcStyles.table.cell} />
+                        <td
+                          className={cn(
+                            idcStyles.table.cell,
+                            'font-mono text-[12px]',
+                            textColors.secondary,
+                            idcStyles.table.group.childCellSm,
+                            index === unit.members.length - 1 &&
+                              idcStyles.table.group.childCellLast,
+                          )}
+                        >
+                          {db.resourceName ?? db.resourceId}
+                        </td>
+                        <td className={idcStyles.table.cell} />
+                        <td className={idcStyles.table.cell} />
+                        <td className={idcStyles.table.cell} />
+                      </tr>
+                    ))}
+                  </Fragment>
                 );
               })}
             </tbody>

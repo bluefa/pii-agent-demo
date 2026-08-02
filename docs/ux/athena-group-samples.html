@@ -1,0 +1,374 @@
+<meta charset="utf-8">
+<title>Athena 그룹 표현 — 10개 샘플</title>
+<style>
+  :root{
+    --fg-1:#191F28; --fg-2:#4E5968; --fg-3:#8B95A1; --fg-4:#B0B8C1;
+    --line:#EBEEF2; --line-2:#F2F4F6; --bg:#F7F8FA;
+    --primary:#0064FF;
+    --athena:#C2410C; --athena-soft:#E8A063; --athena-deep:#7A2E05;
+    --athena-band:#FFE6CF; --athena-edge:#D9A86A; --athena-sub:#FFFAF3; --athena-sub-edge:#F0E1CB;
+    --ok:#15803D;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg-1);
+    font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Segoe UI',sans-serif;
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .page{max-width:1180px;margin:0 auto;padding:40px 32px 120px}
+  h1{font-size:28px;font-weight:700;letter-spacing:-0.02em;margin:0 0 8px}
+  .lede{color:var(--fg-2);font-size:15px;margin:0 0 12px;max-width:760px}
+  .note{color:var(--fg-3);font-size:13px;margin:0 0 40px}
+  .note code{background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
+
+  .sample{margin:0 0 52px}
+  .sample-head{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+  .sample-num{font-size:12px;font-weight:700;color:var(--fg-4);
+    font-variant-numeric:tabular-nums;letter-spacing:.04em}
+  .sample-title{font-size:18px;font-weight:700;letter-spacing:-0.01em}
+  .sample-src{font-size:11.5px;color:var(--fg-3);border:1px solid var(--line);
+    background:#fff;border-radius:20px;padding:2px 9px;font-weight:600}
+  .sample-desc{color:var(--fg-2);font-size:13.5px;margin:0 0 14px;max-width:820px}
+  .verdict{font-size:12.5px;margin:10px 0 0;color:var(--fg-3)}
+  .verdict b{color:var(--fg-2)}
+
+  /* ---- shared table chrome (repo tableStyles / db-list-table) ---- */
+  .frame{overflow:hidden;border-radius:12px;border:1px solid var(--line);background:#fff;
+    box-shadow:0 1px 2px rgba(17,24,39,.04),0 6px 16px -8px rgba(17,24,39,.08)}
+  table{width:100%;border-collapse:collapse}
+  thead th{background:#FAFBFC;text-align:left;font-size:13px;font-weight:700;color:var(--fg-2);
+    padding:14px 16px;border-bottom:1px solid var(--line)}
+  tbody td{padding:14px 16px;font-size:14px;border-top:1px solid var(--line)}
+  tbody tr:first-child td{border-top:0}
+  .mono{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12.5px;letter-spacing:-0.01em}
+  .sub{color:var(--fg-3);font-size:12px}
+  .tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;
+    font-size:11.5px;font-weight:600;line-height:18px}
+  .tag.green{background:#E8F7EE;color:#15803D}
+  .tag.gray{background:#F2F4F6;color:#8B95A1}
+  .cnt{font-variant-numeric:tabular-nums}
+  .dot{color:var(--fg-4);margin:0 5px}
+  .chev{width:20px;height:20px;display:inline-grid;place-items:center;border-radius:5px;
+    border:1px solid rgba(122,46,5,.16);background:rgba(255,255,255,.6);color:var(--athena-deep);
+    cursor:pointer;flex-shrink:0;transition:transform .18s}
+  .row-ex td{background:#F9FAFB;color:var(--fg-3)}
+
+  /* ---- 01 brand band (v16 원본) ---- */
+  .gh-band>td{padding:0;position:relative;border-top:1px solid var(--athena-edge);
+    border-bottom:1px solid var(--athena-edge);
+    background:radial-gradient(120% 200% at 0% 50%,rgba(255,255,255,.55) 0%,rgba(255,255,255,0) 60%),
+      linear-gradient(180deg,#FFE9D2 0%,#FFD3A3 100%)}
+  .gh-band.gap>td{border-top:10px solid #fff;box-shadow:inset 0 1px 0 var(--athena-edge)}
+  .gh-band>td::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--athena)}
+  .gh-in{display:flex;align-items:center;gap:12px;padding:8px 16px 8px 20px}
+  .gh-logo{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;flex-shrink:0;
+    background:linear-gradient(135deg,#C25E0B 0%,#7A2E05 100%);color:#FFE9D2;
+    box-shadow:0 1px 2px rgba(122,46,5,.25),inset 0 0 0 1px rgba(255,255,255,.14)}
+  .gh-logo svg{width:13px;height:13px}
+  .gh-name{font-size:14px;font-weight:700;color:var(--athena-deep);letter-spacing:-0.01em}
+  .gh-chip{font-family:'SF Mono',ui-monospace,monospace;font-size:11.5px;font-weight:700;
+    color:var(--athena-deep);background:rgba(255,255,255,.55);border:1px solid rgba(122,46,5,.18);
+    border-radius:5px;padding:1px 7px}
+  .gh-meta{margin-left:auto;font-size:12px;color:var(--athena-deep);font-variant-numeric:tabular-nums}
+  .gh-meta b{font-weight:700}
+  .spine>td:first-child{box-shadow:inset 4px 0 0 var(--athena)}
+  .spine.row-ex>td:first-child{box-shadow:inset 4px 0 0 var(--athena-soft)}
+
+  /* ---- 02 neutral band ---- */
+  .gh-neutral>td{padding:10px 16px;background:#F7F8FA;border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line)}
+  .gh-neutral.gap>td{border-top:8px solid #fff}
+  .gh-neutral .gh-in{padding:0}
+  .gh-neutral .gh-logo{background:#4E5968;box-shadow:none;color:#fff;border-radius:6px;width:22px;height:22px}
+  .gh-neutral .gh-name{color:var(--fg-1)}
+  .gh-neutral .gh-chip{color:var(--fg-2);background:#fff;border-color:var(--line)}
+  .gh-neutral .gh-meta{color:var(--fg-3)}
+
+  /* ---- 03 spine only ---- */
+  .gh-spine>td{padding:9px 16px 9px 20px;background:#fff;position:relative;
+    border-top:1px solid var(--line)}
+  .gh-spine>td::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--athena)}
+  .gh-spine .gh-name{font-size:13px}
+  .rail>td:first-child{position:relative}
+  .rail>td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:rgba(194,65,12,.28)}
+
+  /* ---- 04 expandable parent row ---- */
+  .parent-row>td{background:#FFFDFA;font-weight:600}
+  .child-row>td:first-child{padding-left:46px;position:relative}
+  .child-row>td:first-child::before{content:"";position:absolute;left:26px;top:-14px;bottom:50%;
+    width:11px;border-left:1.5px solid var(--line);border-bottom:1.5px solid var(--line);
+    border-bottom-left-radius:5px}
+
+  /* ---- 05 tree indent ---- */
+  .tree-g>td:first-child{padding-left:16px;font-weight:700;color:var(--athena-deep)}
+  .tree-c>td:first-child{padding-left:52px;position:relative}
+  .tree-c>td:first-child::before{content:"";position:absolute;left:28px;top:-14px;bottom:50%;
+    width:14px;border-left:1.5px solid var(--athena-sub-edge);
+    border-bottom:1.5px solid var(--athena-sub-edge);border-bottom-left-radius:6px}
+
+  /* ---- 06 section cards ---- */
+  .panel{border:1px solid var(--athena-edge);border-radius:12px;background:#fff;overflow:hidden;
+    position:relative;box-shadow:0 1px 2px rgba(122,46,5,.04);margin-bottom:12px}
+  .panel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--athena);z-index:1}
+  .panel-head{display:flex;align-items:center;gap:11px;padding:12px 18px 12px 22px;
+    background:var(--athena-sub);border-bottom:1px solid var(--athena-sub-edge)}
+  .panel .frame{border:0;border-radius:0;box-shadow:none}
+
+  /* ---- 07 sticky ---- */
+  .scroller{max-height:290px;overflow:auto;border-radius:12px;border:1px solid var(--line);background:#fff}
+  .scroller .frame{border:0;border-radius:0;box-shadow:none}
+  .scroller thead th{position:sticky;top:0;z-index:3}
+  .scroller .gh-band>td{position:sticky;top:45px;z-index:2}
+
+  /* ---- 08 tabs ---- */
+  .tabs{display:flex;gap:4px;padding:6px;background:#fff;border:1px solid var(--line);
+    border-radius:12px 12px 0 0;border-bottom:0}
+  .tab{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--fg-3);
+    cursor:pointer;display:flex;align-items:center;gap:7px;border:0;background:transparent}
+  .tab.on{background:rgba(194,65,12,.08);color:var(--athena-deep)}
+  .tab .n{font-size:11px;font-variant-numeric:tabular-nums;background:#F2F4F6;border-radius:20px;
+    padding:0 6px;color:var(--fg-3)}
+  .tab.on .n{background:rgba(194,65,12,.14);color:var(--athena-deep)}
+  .tabs+.frame{border-radius:0 0 12px 12px}
+
+  /* ---- 09 summary rows ---- */
+  .sum-row>td{background:#fff;cursor:pointer}
+  .sum-row.open>td{background:#FFFAF3}
+  .sum-name{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--athena-deep)}
+  .bar{display:inline-block;height:6px;border-radius:3px;background:#F2F4F6;overflow:hidden;
+    width:120px;vertical-align:middle}
+  .bar i{display:block;height:100%;background:var(--ok)}
+  .detail-row>td{background:#FFFDFA;padding:0}
+  .detail-row .frame{border:1px solid var(--athena-sub-edge);border-radius:10px;
+    box-shadow:none;margin:0 16px 14px;overflow:hidden}
+
+  /* ---- 10 master-detail ---- */
+  .md{display:grid;grid-template-columns:246px 1fr;border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;background:#fff}
+  .md-list{border-right:1px solid var(--line);background:#FAFBFC;padding:8px}
+  .md-item{padding:10px 12px;border-radius:9px;cursor:pointer;display:flex;
+    align-items:center;gap:9px;margin-bottom:2px;border:1px solid transparent}
+  .md-item.on{background:#fff;box-shadow:0 1px 2px rgba(17,24,39,.06);border-color:var(--athena-edge)}
+  .md-item .md-t{font-size:13px;font-weight:600;color:var(--fg-1)}
+  .md-item .md-s{font-size:11px;color:var(--fg-3);font-variant-numeric:tabular-nums}
+  .md-body .frame{border:0;border-radius:0;box-shadow:none}
+  .md-hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;gap:10px}
+</style>
+
+<div class="page">
+  <h1>Athena 그룹 단위 표현 — 10개 샘플</h1>
+  <p class="lede">
+    LIN-85. Step1~7 에서 공통으로 쓸 “부모 리소스 1 : 자식 DB N” 그룹 표현 후보 10종.
+    전부 <b>동일한 데이터</b>(Athena 2개 리전 · 계정 <span class="mono">123456789012</span> · 대상 5 / 제외 2)로 렌더링해서
+    표현 문법만 비교할 수 있게 했습니다.
+  </p>
+  <p class="note">
+    표 크롬 수치는 레포 실값 재사용 — <code>tableStyles</code> / <code>v16 .db-list-table</code>:
+    헤더 13px/700 #4E5968 · 셀 14px · 구분선 #EBEEF2 · radius 12 · 셀 패딩 14/16.
+    그룹 표현부만 샘플별로 다릅니다.
+  </p>
+  <div id="out"></div>
+</div>
+
+<script>
+// ===== 공통 데이터 =====
+const ACCT = '123456789012';
+const GROUPS = [
+  { region:'ap-northeast-2', catalog:'AwsDataCatalog', wg:'primary', dbs:[
+      { name:'pii_customer_prod',  target:true,  reason:'' },
+      { name:'pii_order_prod',     target:true,  reason:'' },
+      { name:'pii_payment_prod',   target:true,  reason:'' },
+      { name:'analytics_dev',      target:false, reason:'Dev 환경' },
+  ]},
+  { region:'us-east-1', catalog:'AwsDataCatalog', wg:'analytics', dbs:[
+      { name:'pii_member_us',      target:true,  reason:'' },
+      { name:'pii_billing_us',     target:true,  reason:'' },
+      { name:'legacy_archive',     target:false, reason:'Legacy' },
+  ]},
+];
+const stat = g => ({ t:g.dbs.filter(d=>d.target).length, x:g.dbs.filter(d=>!d.target).length, n:g.dbs.length });
+
+const DB_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>';
+const CHEV = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+const CHEV_R = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+
+const HEAD = '<thead><tr><th style="width:38%">데이터베이스</th><th style="width:20%">카탈로그</th><th style="width:16%">대상 여부</th><th>상태</th></tr></thead>';
+const meta = s => `<b style="color:#15803D">${s.t}</b>개 대상<span class="dot">·</span><b>${s.x}</b>개 제외<span class="dot">·</span>총 ${s.n} DB`;
+
+const dbRow = (db,g,cls='') => `
+  <tr class="${cls}${db.target?'':' row-ex'}">
+    <td><span class="mono" style="font-weight:600">${db.name}</span></td>
+    <td class="sub mono">${g.catalog}</td>
+    <td>${db.target?'<span class="tag green">대상</span>':'<span class="tag gray">제외</span>'}</td>
+    <td class="sub">${db.target?'연동 진행중':db.reason}</td>
+  </tr>`;
+
+// ===== 샘플 정의 =====
+const SAMPLES = [
+{
+ n:'01', t:'브랜드 밴드 헤더 (v16 원본 복원)', src:'v16 .athena-group-header',
+ d:'사라진 원본 그대로. 오렌지 그라데이션 밴드 + 좌측 4px 스파인이 그룹 전체를 관통해 “하나의 덩어리”로 읽히게 한다. 헤더 우측에 대상/제외/총계.',
+ v:'<b>가장 강한 소속감.</b> 다만 오렌지가 레포 중립 팔레트에서 튀고, Step2 승인 테이블처럼 밀도 높은 화면에서는 무겁다.',
+ r:()=>'<div class="frame"><table>'+HEAD+'<tbody>' +
+   GROUPS.map((g,i)=>{const s=stat(g);return `
+     <tr class="gh-band${i?' gap':''}"><td colspan="4"><div class="gh-in">
+       <span class="gh-logo">${DB_SVG}</span>
+       <span class="gh-name">Athena</span>
+       <span class="gh-chip">${g.region}</span>
+       <span class="gh-meta">${meta(s)}</span>
+       <span class="chev">${CHEV}</span>
+     </div></td></tr>` + g.dbs.map(d=>dbRow(d,g,'spine')).join('');}).join('') +
+   '</tbody></table></div>'
+},
+{
+ n:'02', t:'중립 밴드 헤더', src:'Cloudscape grouped resources',
+ d:'01과 구조는 같고 색만 레포 중립 토큰(#F7F8FA / #4E5968)으로. 서비스 아이덴티티는 로고 배지 하나로만 표현.',
+ v:'<b>레포 팔레트와 충돌 없음.</b> Step1~7 어디에 넣어도 기존 표와 같은 톤. 대신 그룹 경계가 약해 스크롤 중 소속을 놓칠 수 있다.',
+ r:()=>'<div class="frame"><table>'+HEAD+'<tbody>' +
+   GROUPS.map((g,i)=>{const s=stat(g);return `
+     <tr class="gh-neutral${i?' gap':''}"><td colspan="4"><div class="gh-in">
+       <span class="gh-logo">${DB_SVG}</span>
+       <span class="gh-name">Athena</span>
+       <span class="gh-chip mono">${g.region}</span>
+       <span class="gh-meta">${meta(s)}</span>
+       <span class="chev" style="border-color:var(--line);color:var(--fg-3)">${CHEV}</span>
+     </div></td></tr>` + g.dbs.map(d=>dbRow(d,g)).join('');}).join('') +
+   '</tbody></table></div>'
+},
+{
+ n:'03', t:'좌측 레일만 (밴드 없음)', src:'GCP Console resource rail',
+ d:'배경 밴드를 없애고 3px 컬러 레일 + 얇은 인라인 헤더만 남긴 최소 표현. 행 높이 변화 없음.',
+ v:'<b>가장 가볍다.</b> 표 밀도를 전혀 해치지 않아 Step2/Step5 대량 목록에 적합. 그룹이 3개 이상 되면 구분이 흐려진다.',
+ r:()=>'<div class="frame"><table>'+HEAD+'<tbody>' +
+   GROUPS.map(g=>{const s=stat(g);return `
+     <tr class="gh-spine"><td colspan="4"><div class="gh-in" style="padding:0">
+       <span class="gh-name">Athena</span>
+       <span class="gh-chip mono">${g.region}</span>
+       <span class="gh-meta">${meta(s)}</span>
+     </div></td></tr>` + g.dbs.map(d=>dbRow(d,g,'rail')).join('');}).join('') +
+   '</tbody></table></div>'
+},
+{
+ n:'04', t:'확장형 부모 행', src:'Cloudscape table with nested resources',
+ d:'그룹이 별도 밴드가 아니라 <b>진짜 테이블 행</b>. 부모 행도 같은 컬럼을 쓰고(집계값 표시), chevron 으로 자식 DB 를 펼친다. 페이지네이션은 부모 기준.',
+ v:'<b>AWS 공식 패턴.</b> 정렬·필터·선택이 부모/자식 각각 자연스럽게 동작. 부모 행이 컬럼을 공유해야 해서 집계 가능한 컬럼 설계가 필요.',
+ r:()=>'<div class="frame"><table>'+HEAD+'<tbody>' +
+   GROUPS.map(g=>{const s=stat(g);return `
+     <tr class="parent-row"><td>
+       <span style="display:inline-flex;align-items:center;gap:9px">
+         <span class="chev" style="transform:rotate(90deg)">${CHEV_R}</span>
+         <span class="gh-logo" style="width:20px;height:20px;border-radius:6px">${DB_SVG}</span>
+         Athena <span class="gh-chip mono">${g.region}</span>
+       </span></td>
+       <td class="sub mono">${g.catalog}</td>
+       <td><span class="tag green">${s.t} 대상</span></td>
+       <td class="sub cnt">${s.x} 제외 <span class="dot">·</span> 총 ${s.n}</td>
+     </tr>` + g.dbs.map(d=>dbRow(d,g,'child-row')).join('');}).join('') +
+   '</tbody></table></div>'
+},
+{
+ n:'05', t:'트리 인덴트', src:'Azure Portal resource tree',
+ d:'헤더 밴드 없이 └ 커넥터 인덴트만으로 계층을 표현. 그룹 행은 굵은 텍스트 한 줄.',
+ v:'<b>구현 비용 최저.</b> 다만 대상/제외 집계를 놓을 자리가 마땅치 않고, 인덴트가 첫 컬럼 폭을 잡아먹는다.',
+ r:()=>'<div class="frame"><table>'+HEAD+'<tbody>' +
+   GROUPS.map(g=>{const s=stat(g);return `
+     <tr class="tree-g"><td colspan="4">
+       Athena <span class="gh-chip mono">${g.region}</span>
+       <span class="sub cnt" style="margin-left:8px">${meta(s)}</span>
+     </td></tr>` + g.dbs.map(d=>dbRow(d,g,'tree-c')).join('');}).join('') +
+   '</tbody></table></div>'
+},
+{
+ n:'06', t:'그룹별 독립 카드', src:'v16 .athena-region-panel',
+ d:'그룹마다 완전히 분리된 카드. 각 카드가 자체 헤더 + 자체 표 + (필요시) 자체 페이지네이션을 갖는다.',
+ v:'<b>그룹 경계가 가장 명확.</b> 그룹별 액션(전체 선택·일괄 제외)을 붙이기 좋다. 그룹 수가 많아지면 세로가 길어지고 컬럼 정렬이 카드마다 끊긴다.',
+ r:()=>GROUPS.map(g=>{const s=stat(g);return `
+     <div class="panel">
+       <div class="panel-head">
+         <span class="gh-logo">${DB_SVG}</span>
+         <span class="gh-name">Athena</span>
+         <span class="gh-chip mono">${g.region}</span>
+         <span class="gh-meta">${meta(s)}</span>
+         <span class="chev">${CHEV}</span>
+       </div>
+       <div class="frame"><table>${HEAD}<tbody>${g.dbs.map(d=>dbRow(d,g)).join('')}</tbody></table></div>
+     </div>`;}).join('')
+},
+{
+ n:'07', t:'스티키 그룹 헤더', src:'Stripe / Linear list',
+ d:'01 밴드를 그대로 쓰되 스크롤 시 컬럼 헤더 아래에 그룹 헤더가 고정된다. 아래 영역을 실제로 스크롤해 보세요.',
+ v:'<b>긴 목록에서 소속을 절대 잃지 않는다.</b> Step5 처럼 수십~수백 행이 나오는 화면의 정답. sticky 2단(컬럼헤더+그룹헤더)이라 z-index 관리 필요.',
+ r:()=>'<div class="scroller"><div class="frame"><table>'+HEAD+'<tbody>' +
+   GROUPS.map((g,i)=>{const s=stat(g);return `
+     <tr class="gh-band${i?' gap':''}"><td colspan="4"><div class="gh-in">
+       <span class="gh-logo">${DB_SVG}</span>
+       <span class="gh-name">Athena</span>
+       <span class="gh-chip">${g.region}</span>
+       <span class="gh-meta">${meta(s)}</span>
+     </div></td></tr>` +
+     g.dbs.concat(g.dbs).map(d=>dbRow(d,g,'spine')).join('');}).join('') +
+   '</tbody></table></div></div>'
+},
+{
+ n:'08', t:'리전 탭 분할', src:'AWS Console region switcher',
+ d:'그룹을 탭으로 올리고 표는 항상 하나. 한 번에 한 그룹만 본다.',
+ v:'<b>표가 가장 단순.</b> 그룹 개념이 표 밖으로 나가서 기존 평면 테이블을 그대로 재사용 가능. 대신 <b>전체 합계를 한눈에 못 본다</b> — Step2 승인처럼 “전부 확인 후 제출”하는 화면에는 부적합.',
+ r:()=>{const g=GROUPS[0];return `
+   <div class="tabs">${GROUPS.map((x,i)=>`<button class="tab${i?'':' on'}">${x.region}<span class="n">${stat(x).n}</span></button>`).join('')}</div>
+   <div class="frame"><table>${HEAD}<tbody>${g.dbs.map(d=>dbRow(d,g)).join('')}</tbody></table></div>`;}
+},
+{
+ n:'09', t:'요약 행 + 드릴다운', src:'Datadog / CloudWatch rollup',
+ d:'기본은 그룹당 <b>한 줄</b>(집계 + 진행 바)만 보여주고, 클릭하면 그 자리에 상세 표가 펼쳐진다. 첫 번째 그룹만 펼친 상태.',
+ v:'<b>스캔 결과가 수백 건일 때 최선.</b> 초기 화면이 그룹 수만큼만 길어진다. 개별 DB 를 하나씩 토글해야 하는 Step1 선택 화면에는 클릭이 한 단계 늘어 불리.',
+ r:()=>{
+   const rows = GROUPS.map((g,i)=>{
+     const s=stat(g), pct=Math.round(s.t/s.n*100), open=i===0;
+     return `<tr class="sum-row${open?' open':''}">
+       <td><span class="sum-name">
+         <span class="chev"${open?' style="transform:rotate(90deg)"':''}>${CHEV_R}</span>
+         <span class="gh-logo" style="width:20px;height:20px;border-radius:6px">${DB_SVG}</span>
+         Athena <span class="gh-chip mono">${g.region}</span></span></td>
+       <td class="sub mono">${ACCT}</td>
+       <td><span class="bar"><i style="width:${pct}%"></i></span></td>
+       <td class="sub cnt">${meta(s)}</td></tr>` +
+     (open?`<tr class="detail-row"><td colspan="4">
+       <div class="frame"><table><tbody>${g.dbs.map(d=>dbRow(d,g)).join('')}</tbody></table></div></td></tr>`:'');
+   }).join('');
+   return `<div class="frame"><table>
+     <thead><tr><th style="width:38%">그룹</th><th style="width:20%">계정</th><th style="width:16%">대상 비율</th><th>집계</th></tr></thead>
+     <tbody>${rows}</tbody></table></div>`;
+ }
+},
+{
+ n:'10', t:'마스터-디테일 2단', src:'GCP Console / Azure blade',
+ d:'좌측에 그룹 목록, 우측에 선택된 그룹의 표. 그룹이 많아도 좌측만 스크롤된다.',
+ v:'<b>그룹 수가 10개 이상일 때 유일하게 견딘다.</b> 다만 Step 화면은 이미 우측 레일이 있어 3단이 되고, 가로 폭을 크게 먹는다.',
+ r:()=>{const g=GROUPS[0];const s=stat(g);return `
+   <div class="md">
+     <div class="md-list">${GROUPS.map((x,i)=>{const xs=stat(x);return `
+       <div class="md-item${i?'':' on'}">
+         <span class="gh-logo" style="width:20px;height:20px;border-radius:6px">${DB_SVG}</span>
+         <span><span class="md-t">${x.region}</span><br><span class="md-s">${xs.t} 대상 · ${xs.n} DB</span></span>
+       </div>`;}).join('')}</div>
+     <div class="md-body">
+       <div class="md-hd"><span class="gh-name">Athena</span><span class="gh-chip mono">${g.region}</span>
+         <span class="gh-meta">${meta(s)}</span></div>
+       <div class="frame"><table>${HEAD}<tbody>${g.dbs.map(d=>dbRow(d,g)).join('')}</tbody></table></div>
+     </div>
+   </div>`;}
+},
+];
+
+document.getElementById('out').innerHTML = SAMPLES.map(s=>`
+  <section class="sample">
+    <div class="sample-head">
+      <span class="sample-num">${s.n}</span>
+      <span class="sample-title">${s.t}</span>
+      <span class="sample-src">${s.src}</span>
+    </div>
+    <p class="sample-desc">${s.d}</p>
+    ${s.r()}
+    <p class="verdict">${s.v}</p>
+  </section>`).join('');
+</script>

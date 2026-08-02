@@ -106,4 +106,94 @@ describe('WaitingApprovalTable', () => {
     expect(copy.className).toContain('opacity-0');
     expect(copy.className).toContain('group-hover/resid:opacity-100');
   });
+
+  // LIN-85 — Athena rows regroup under one parent row per region.
+  describe('Athena grouping', () => {
+    const athena = (
+      id: string,
+      region: string,
+      selected: boolean,
+      counts?: [number, number],
+    ): WaitingApprovalResource => ({
+      resourceId: id,
+      // The spelling the captured BFF response actually uses.
+      resourceType: 'AWS_ATHENA_DATABASE',
+      region,
+      resourceName: id,
+      selected,
+      ...(counts ? { logicalDbCount: counts[0], excludedLogicalDbCount: counts[1] } : {}),
+    });
+
+    it('renders one parent row per region with the target/excluded aggregate', () => {
+      render(
+        <WaitingApprovalTable
+          resources={[
+            athena('db_a', 'ap-northeast-1', true),
+            athena('db_b', 'ap-northeast-1', false),
+            athena('db_c', 'us-east-1', true),
+          ]}
+        />,
+      );
+
+      const toggles = screen.getAllByRole('button', { name: /그룹 (펼치기|접기)$/ });
+      expect(toggles).toHaveLength(2);
+      expect(toggles[0].getAttribute('aria-expanded')).toBe('true');
+      expect(screen.getByText('1 대상 · 1 제외 · 총 2')).toBeTruthy();
+      expect(screen.getByText('1 대상 · 0 제외 · 총 1')).toBeTruthy();
+    });
+
+    // Read down the tree the Database Type column says Athena → Database, so a child name like
+    // `db_a` is identified as a database rather than left as a bare string. Region is the
+    // parent's alone, and the child's id is dropped — it is the parent's path plus that name.
+    it('says Athena on the parent and Database on each child, with Region only on the parent', () => {
+      render(
+        <WaitingApprovalTable
+          resources={[athena('db_a', 'ap-northeast-1', true), athena('db_b', 'ap-northeast-1', false)]}
+        />,
+      );
+
+      const rows = screen.getAllByRole('row');
+      // Column order: Name(0) · ID(1) · DB Type(2) · Region(3) · 요청 대상 여부(4) · 제외 사유(5).
+      const parent = within(rows[1]).getAllByRole('cell');
+      expect(parent[2].textContent).toBe('Athena');
+      expect(parent[3].textContent).toBe('ap-northeast-1');
+
+      for (const row of rows.slice(2)) {
+        const cells = within(row).getAllByRole('cell');
+        expect(cells[1].textContent).toBe('');
+        expect(cells[2].textContent).toBe('Database');
+        expect(cells[3].textContent).toBe('');
+      }
+    });
+
+    it('keeps ungrouped rows out of any group', () => {
+      render(<WaitingApprovalTable resources={[...fixture, athena('db_a', 'ap-northeast-1', true)]} />);
+      expect(screen.getAllByRole('button', { name: /그룹 (펼치기|접기)$/ })).toHaveLength(1);
+      expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
+    });
+
+    // Steps 6·7. The spec makes the region the resource from step 4 on, so those steps want one
+    // folded Athena row per region — not a parent with database children. Until that fold lands
+    // they stay flat: a tree here would assert a shape the step does not have, and would put a
+    // logical-DB aggregate on Athena, which has no logical-DB management at all.
+    it('does not group in the confirmed variant', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            athena('db_a', 'ap-northeast-1', true, [8, 2]),
+            athena('db_b', 'ap-northeast-1', true, [12, 1]),
+          ]}
+        />,
+      );
+
+      expect(screen.queryAllByRole('button', { name: /그룹 (펼치기|접기)$/ })).toHaveLength(0);
+      // Header + the two resource rows, with no parent row inserted between them.
+      expect(screen.getAllByRole('row')).toHaveLength(3);
+      // Each row keeps its own count cell; nothing is rolled up into an aggregate.
+      expect(screen.getByRole('button', { name: 'db_a 연동 논리 DB 목록 보기' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'db_b 연동 논리 DB 목록 보기' })).toBeTruthy();
+      expect(screen.queryByText(/대상 ·/)).toBeNull();
+    });
+  });
 });

@@ -924,6 +924,76 @@ export const idcStyles = {
     approvalHeaderCell: 'px-[18px] py-3',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
+    /**
+     * Grouped parent row (Athena × Region) — Cloudscape "nested resources" 시안.
+     * Chosen in `docs/ux/athena-group-samples.html` §04 over the v16 orange band: the
+     * parent stays a REAL row sharing the table's columns, so sorting, pagination and
+     * selection remain row-based and no colspan breaks the column rhythm.
+     *
+     * Every value is copied from a metric this table family already uses — the row tint
+     * is `table.header`'s #FAFBFC, the chip/connector borders are the #EBEEF2 divider,
+     * the label is the db-list-table 13/700 header pair. Nothing new was invented.
+     */
+    group: {
+      /**
+       * Parent row — NO tint.
+       *
+       * Cloudscape's nested-resource pattern specifies indentation and the expand toggle and
+       * says nothing about a parent background; grouping by colour reads as "a group exists"
+       * where the console's rail reads as "these are connected". Hover/focus still lifts, so
+       * the row stays visibly interactive.
+       */
+      row: 'hover:bg-[#F7F8FA] focus-within:bg-[#F7F8FA] transition-colors duration-150 motion-reduce:transition-none',
+      /** Identity cluster inside the parent's first cell. */
+      lead: 'flex items-center gap-2',
+      /**
+       * Chevron toggle — 20px box, v16 `.athena-expand-btn` size in the neutral palette.
+       * No border/fill at rest: a bordered white box reads as a chip and competed with the
+       * label right beside it. The hit area stays 20px; hover paints it.
+       */
+      toggle:
+        'inline-grid h-5 w-5 shrink-0 place-items-center rounded-[5px] text-[#8B95A1] hover:bg-[#EBEEF2] hover:text-[#4E5968] transition-[transform,background-color,color] duration-150 motion-reduce:transition-none',
+      /** Applied to `toggle` while the group is open — chevron-right → chevron-down. */
+      toggleOpen: 'rotate-90',
+      /**
+       * Service label — one tier BELOW the child rows' name, not above it. The parent is
+       * context, not the headline: the rows a user acts on are the databases. Same 14px mono
+       * as the Resource Name column so it stays in that column's voice, weight 600 vs the
+       * children's 500, and no second line.
+       */
+      label: 'whitespace-nowrap font-mono text-[14px] font-semibold text-[#4E5968]',
+      /** Aggregate cells — tabular so counts stay aligned down the column. */
+      meta: 'whitespace-nowrap text-[12px] tabular-nums text-[#8B95A1]',
+      /**
+       * Child row's first cell — the tree rail. A vertical hairline runs the full row height
+       * under the parent's chevron and an elbow reaches into the name; `childCellLast` cuts
+       * the rail at the elbow so the group's end is drawn, not merely implied.
+       *
+       * Geometry, all measured off the cell's own 18px padding:
+       *   18..38  parent chevron   → rail x = 28 (its centre)
+       *   46      parent label     (18 + 20 chevron + 8 gap)
+       *   70      child name       (46 + 24 indent — the tier gap, and the elbow's length)
+       * The 12px the child used to sit from the label was not a tier, it was a nudge.
+       */
+      childCell:
+        "relative pl-[70px] before:absolute before:bottom-0 before:left-[28px] before:top-0 before:w-px before:bg-[#C4CEDA] before:content-[''] after:absolute after:left-[28px] after:top-1/2 after:h-px after:w-[26px] after:bg-[#C4CEDA] after:content-['']",
+      /** Last child — the rail stops at its elbow, closing the group. */
+      childCellLast: 'before:bottom-1/2',
+      /**
+       * Same rail for the db-list table (`table.cell`), whose cells pad 16px, not 18px.
+       *   16..36 chevron → rail x = 26 · 56 child name (26 + 18 elbow + 12)
+       * Tighter than the approval table's 24px tier because Resource Name is 180px wide here
+       * and the children only carry a database name.
+       */
+      childCellSm:
+        "relative pl-[56px] before:absolute before:bottom-0 before:left-[26px] before:top-0 before:w-px before:bg-[#C4CEDA] before:content-[''] after:absolute after:left-[26px] after:top-1/2 after:h-px after:w-[18px] after:bg-[#C4CEDA] after:content-['']",
+      /** Parent's disclosure cell in that same table. */
+      parentCellSm:
+        "relative after:absolute after:-bottom-px after:left-[26px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
+      /** Parent's own name cell — carries the rail's first segment down to the first child. */
+      parentCell:
+        "relative after:absolute after:-bottom-px after:left-[28px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
+    },
   },
 } as const;
 

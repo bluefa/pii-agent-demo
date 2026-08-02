@@ -1,5 +1,6 @@
 import { getStore } from '@/lib/mock-store';
 import { getCurrentStep } from '@/lib/process';
+import { resultUnitId } from '@/lib/resource-grouping';
 import { ProcessStatus } from '@/lib/types';
 import type { Project, MockResource, ConnectionErrorType } from '@/lib/types';
 
@@ -69,7 +70,7 @@ export const createTestConnectionJob = (
   requestedBy: string,
 ): TestConnectionJob => {
   const now = new Date();
-  const selectedResources = project.resources.filter((r) => r.isSelected);
+  const selectedResources = testConnectionUnits(project);
 
   // 리소스별 5초 간격 스케줄링
   const schedule: ResourceScheduleItem[] = selectedResources.map((r, index) => ({
@@ -171,7 +172,11 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
       if (existing) {
         completedResults.push(existing);
       } else {
-        const resource = project.resources.find((r) => r.resourceId === scheduleItem.resource_id);
+        // Matched against the units, not the raw resources — a folded Athena region id
+        // belongs to no single resource row.
+        const resource = testConnectionUnits(project).find(
+          (r) => r.resourceId === scheduleItem.resource_id,
+        );
         if (resource) {
           completedResults.push(simulateResourceResult(resource));
         }
@@ -222,6 +227,27 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
   };
   updateJobInStore(updated);
   return updated;
+};
+
+/**
+ * What one run reports on, one entry per id the BFF keys a result by.
+ *
+ * Athena is tested per REGION, not per database: the result carries
+ * `athena_region_resource_id` (`athena:<acct>:<region>/<catalog>`), so a region's databases
+ * collapse into a single entry wearing that id. Emitting one result per database would hand the
+ * UI four verdicts for one test and none of them under a key it looks up.
+ */
+export const testConnectionUnits = (project: Project): MockResource[] => {
+  const seen = new Set<string>();
+  const units: MockResource[] = [];
+  for (const resource of project.resources) {
+    if (!resource.isSelected) continue;
+    const unitId = resultUnitId(resource);
+    if (seen.has(unitId)) continue;
+    seen.add(unitId);
+    units.push(unitId === resource.resourceId ? resource : { ...resource, resourceId: unitId });
+  }
+  return units;
 };
 
 const simulateResourceResult = (resource: MockResource): TestConnectionResourceResult => {
@@ -433,7 +459,7 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
   projects
     .filter((p) => p.targetSourceId !== undefined && TESTED_STEPS.has(p.processStatus))
     .flatMap((project) => {
-      const selected = project.resources.filter((r) => r.isSelected);
+      const selected = testConnectionUnits(project);
       const results = (failedIndexes: readonly number[]): TestConnectionResourceResult[] =>
         selected.map((r, index) => {
           const failed = failedIndexes.includes(index);
