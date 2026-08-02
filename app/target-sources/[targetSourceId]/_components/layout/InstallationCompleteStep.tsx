@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
-import { cardStyles, cn, primaryColors, statusColors } from '@/lib/theme';
+import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
 import {
   CardActionBar,
   ProjectPageMeta,
@@ -16,12 +16,7 @@ import {
   ConfirmRewindModal,
   type ConfirmRewindKind,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
-import { HealthBadge } from '@/app/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
-import { aggregateHealth } from '@/app/target-sources/[targetSourceId]/_components/confirmed/health-status';
-import {
-  ConfirmedIntegrationDataProvider,
-  useConfirmedIntegration,
-} from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
+import { ConfirmedIntegrationDataProvider } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { ConfirmedResourcesSlot } from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot';
 
 interface InstallationCompleteStepProps {
@@ -31,12 +26,6 @@ interface InstallationCompleteStepProps {
   action?: ReactNode;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
-
-const InstallationCompleteHeaderRight = () => {
-  const { state } = useConfirmedIntegration();
-  if (state.status !== 'ready') return null;
-  return <HealthBadge status={aggregateHealth(state.data)} />;
-};
 
 /**
  * 인프라 변경 / 연결 테스트 재실행 — the C-2 action zone at the card bottom
@@ -87,8 +76,10 @@ const InstallationCompleteActionBar = () => {
 
 /**
  * Cloud Step 7 — PII 모니터링 모듈 연동 (연동 완료, read-only).
- * Same header stack as steps 2·3·6: step tag, title + success badge (health badge
- * outermost), guidance copy. The rewind CTAs dock in the bottom CardActionBar.
+ * Same header stack as steps 2·3·6: step tag, title + success badge, guidance copy.
+ * The rewind CTAs dock in the bottom CardActionBar. No header health badge — the
+ * per-row Status column left the table (live review), so its aggregate goes with it
+ * until a proper health surface is designed.
  */
 export const InstallationCompleteStep = ({
   project,
@@ -109,30 +100,32 @@ export const InstallationCompleteStep = ({
       <section className={cardStyles.base}>
         <header className={cardStyles.header}>
           <span className={cardStyles.stepTag}>7번째 단계</span>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동</h2>
-              <span
-                className={cn(
-                  cardStyles.stepBadge,
-                  statusColors.success.bg,
-                  statusColors.success.textDark,
-                )}
-              >
-                연동 완료
-              </span>
-            </div>
-            {/* C-3: the aggregate health badge stays pinned to the header right. */}
-            <div className="shrink-0">
-              <InstallationCompleteHeaderRight />
-            </div>
+          <div className="flex items-center gap-2">
+            <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동</h2>
+            <span
+              className={cn(
+                cardStyles.stepBadge,
+                statusColors.success.bg,
+                statusColors.success.textDark,
+              )}
+            >
+              연동 완료
+            </span>
           </div>
-          {/* One short line — when to use the rewind CTAs is the action bar hint's job. */}
           <p className={cn('mt-3', cardStyles.guidance)}>
             <strong className={cn('font-semibold', primaryColors.text)}>
               모든 연동 절차가 완료되었어요.
             </strong>{' '}
             연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요.
+          </p>
+          {/* One sentence for the rewind CTAs (step-6 grammar); the step each one lands on
+              is the action bar hint's job. */}
+          <p className={cardStyles.guidance}>
+            DB 구성이 바뀌었다면 하단{' '}
+            <strong className={cn('font-semibold', textColors.secondary)}>인프라 변경</strong>을,
+            연결 상태를 다시 점검하고 싶다면{' '}
+            <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>
+            을 눌러주세요.
           </p>
         </header>
         <div className={cardStyles.body}>

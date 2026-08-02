@@ -99,14 +99,14 @@ const renderStep = () =>
   );
 
 describe('InstallationCompleteStep', () => {
-  it('renders the step tag, the title, the 연동 완료 badge and the one-line guidance', () => {
+  it('renders the step tag, the title, the 연동 완료 badge and the guidance pair', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
     expect(screen.getByText('7번째 단계')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'PII 모니터링 모듈 연동' })).toBeTruthy();
     expect(screen.getByText('연동 완료')).toBeTruthy();
     expect(screen.getByText(/연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요/)).toBeTruthy();
-    expect(screen.queryByText(/DB가 변경·추가되었다면/)).toBeNull();
+    expect(screen.getByText(/DB 구성이 바뀌었다면 하단/)).toBeTruthy();
   });
 
   it('mounts the ConfirmedResourcesSlot (steps 6·7 shared table)', () => {
@@ -121,20 +121,9 @@ describe('InstallationCompleteStep', () => {
     expect(screen.queryByText('승인 대기')).toBeNull();
   });
 
-  it('shows Healthy in the header when every confirmed resource is CONNECTED', () => {
-    providerState = {
-      status: 'ready',
-      data: [
-        makeResource({ resourceId: 'r1', connectionStatus: 'CONNECTED' }),
-        makeResource({ resourceId: 'r2', connectionStatus: 'CONNECTED' }),
-      ],
-    };
-    renderStep();
-    expect(screen.getByText('Healthy')).toBeTruthy();
-    expect(screen.queryByText('Unhealthy')).toBeNull();
-  });
-
-  it('shows Unhealthy in the header when any confirmed resource is DISCONNECTED', () => {
+  // The per-row Status column left the table (live review), so its header aggregate
+  // goes with it — no lone Healthy pill next to the 연동 완료 badge.
+  it('renders no header health badge even when resources are CONNECTED', () => {
     providerState = {
       status: 'ready',
       data: [
@@ -142,13 +131,6 @@ describe('InstallationCompleteStep', () => {
         makeResource({ resourceId: 'r2', connectionStatus: 'DISCONNECTED' }),
       ],
     };
-    renderStep();
-    expect(screen.getByText('Unhealthy')).toBeTruthy();
-    expect(screen.queryByText('Healthy')).toBeNull();
-  });
-
-  it('omits the header badge while loading', () => {
-    providerState = { status: 'loading' };
     renderStep();
     expect(screen.queryByText('Healthy')).toBeNull();
     expect(screen.queryByText('Unhealthy')).toBeNull();

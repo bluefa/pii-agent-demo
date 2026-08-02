@@ -72,12 +72,12 @@ describe('IdcStep7Complete', () => {
     expect(screen.getByText('연동 완료')).toBeTruthy();
   });
 
-  it('renders the single-line guidance (no second CTA paragraph — that is the bar hint)', () => {
+  it('renders the status line and the one-sentence CTA guidance (step-6 grammar)', () => {
     renderStep();
     expect(
       screen.getByText(/연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요/),
     ).toBeTruthy();
-    expect(screen.queryByText(/DB가 변경·추가되었다면/)).toBeNull();
+    expect(screen.getByText(/DB 구성이 바뀌었다면 하단/)).toBeTruthy();
   });
 
   it('docks both rewind CTAs in the bottom action bar', () => {
