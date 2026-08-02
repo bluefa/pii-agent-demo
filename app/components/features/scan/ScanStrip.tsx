@@ -66,12 +66,15 @@ const GHOST_BUTTON = cn(
   'hover:text-[#191F28] disabled:cursor-not-allowed disabled:opacity-60',
 );
 
-const CELL_BASE = 'min-w-0 px-4 py-3 text-left';
+const CELL_BASE = 'min-w-0 px-4 py-3 text-center';
 
 /**
- * One funnel cell — label over number, delta beside it, one quiet line under.
- * The numbers line up in a vertical column because comparison is the whole point
- * (admin scan-tab lesson: a number meant for comparison gets alignment first).
+ * One funnel cell — label over number, delta beside it, one quiet line under,
+ * all centred on the cell's axis. Equal-width cells put the numbers on a shared
+ * vertical line, which is the point: comparison needs alignment first (admin
+ * scan-tab lesson). Weight stays medium like the admin resource tiles — size
+ * and colour already carry the hierarchy, so bold here only adds noise
+ * (owner call in live review).
  *
  * A cell that filters the table is a real <button> with aria-pressed; the two
  * that only report (discovered / eligible) render as plain text, so "looks
@@ -106,10 +109,10 @@ const FunnelCell = ({
       >
         {label}
       </p>
-      <p className="mt-0.5 flex items-baseline gap-1.5">
+      <p className="mt-0.5 flex items-baseline justify-center gap-1.5">
         <span
           className={cn(
-            'text-[22px] font-extrabold leading-[1.15] tracking-[-0.02em] tabular-nums',
+            'text-[22px] font-medium leading-[1.15] tracking-[-0.02em] tabular-nums',
             emphasis ? primaryColors.text : textColors.primary,
           )}
         >
