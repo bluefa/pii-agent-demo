@@ -330,7 +330,7 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(wire.test_connection_agent_results).toHaveLength(selectedCount);
       wire.test_connection_agent_results.forEach((agent) => {
         expect(agent.connection_status).toBe('SUCCESS');
-        expect(agent.agent_id).toMatch(/^agent-/);
+        expect(agent.agent_id).toMatch(/^tc-agent-\d\d$/);
         expect(agent.resource_id).toBeTruthy();
         expect(agent.gcp_region).toBe('');
         expect(agent.database_uri_list.length).toBeGreaterThan(0);
@@ -357,7 +357,7 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(summaries).toHaveLength(selectedCount);
       summaries.forEach((s) => {
         expect(s.resource_id).toBeTruthy();
-        expect(s.agent_id).toMatch(/^agent-/);
+        expect(s.agent_id).toMatch(/^tc-agent-\d\d$/);
         expect(s.logical_database_count).toBeGreaterThanOrEqual(0);
         expect(s.excluded_logical_database_count).toBeGreaterThanOrEqual(0);
       });

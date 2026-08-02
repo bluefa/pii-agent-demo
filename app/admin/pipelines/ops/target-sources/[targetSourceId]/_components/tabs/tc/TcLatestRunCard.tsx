@@ -31,7 +31,9 @@ import {
   TcRunPill,
   TcStatTile,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/tcShared';
+import { TcAgentResultList } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcAgentResultList';
 import {
+  runAgentRows,
   runDurationSeconds,
   runStatus,
   type TcResultStats,
@@ -47,6 +49,8 @@ export interface TcLatestRunCardProps {
   status: TestConnectionStatusRow | null;
   /** Per-resource verdict counts + 논리 DB 합계. */
   stats: TcResultStats;
+  /** 확정 리소스 수 — 실행 중 진행률의 분모 (아직 모르면 0). */
+  confirmedResourceCount: number;
   /** latest_version fetch still in flight. */
   loading: boolean;
   /** latest_version fetch failed (404 는 실패가 아니다). */
@@ -61,6 +65,7 @@ export function TcLatestRunCard({
   latest,
   status,
   stats,
+  confirmedResourceCount,
   loading,
   failed,
   running,
@@ -73,6 +78,7 @@ export function TcLatestRunCard({
   const settled = latest != null && !running;
   /** Resources the run actually judged — 0 means it reported none. */
   const scored = stats.successCount + stats.failedCount;
+  const agentRows = runAgentRows(latest);
 
   return (
     // flex-col — mt-auto pins the time row to the card floor (no dead air when the sibling card is taller).
@@ -134,8 +140,14 @@ export function TcLatestRunCard({
         <>
           <div className="mt-5">
             <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">연결 테스트 결과</p>
+            {/* 실행 중에는 집계 대신 아래 Agent 목록이 진행 사항을 맡는다. 아직 agent 가
+                한 건도 안 올라왔을 때만 그 사실을 말한다. */}
             {running ? (
-              <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>실행이 끝나면 집계돼요.</p>
+              agentRows.length === 0 && (
+                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>
+                  실행이 시작됐어요. 결과가 들어오는 대로 표시됩니다.
+                </p>
+              )
             ) : stats.resourceCount === 0 ? (
               // 실행은 있는데 agent 결과가 비었다 — 0개 성공이 아니라 "결과가 없다".
               <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>
@@ -181,6 +193,13 @@ export function TcLatestRunCard({
                 </div>
               </>
             )}
+            {/* 어느 리소스를 어느 agent 가 맡아 어떻게 됐는지 — 타일이 "몇 건"이라면
+                이쪽이 "어느 것"이다. 실행 중에는 이 목록이 곧 진행 사항. */}
+            <TcAgentResultList
+              rows={agentRows}
+              running={running}
+              expectedTotal={confirmedResourceCount}
+            />
           </div>
 
           {/* 서비스 측 완료 확인 / 재실행 요청 — the run's own verdict is the pill above;

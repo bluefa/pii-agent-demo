@@ -296,6 +296,15 @@ type WireConnectionStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAIL';
 // nondeterminism in tests.
 const WIRE_DATE_PLACEHOLDER = '1970-01-01T00:00:00.000Z';
 
+/**
+ * Fallback agent id for a result the simulation left `agent_id: null` on. Was
+ * `agent-${resource_id}`, which just restated the resource id — an ARM id twice on
+ * one row. A real collector agent has a short identity of its own, so the mock uses
+ * a positional one; deterministic, and short enough to read next to the resource.
+ */
+const fallbackAgentId = (index: number): string =>
+  `tc-agent-${String(index + 1).padStart(2, '0')}`;
+
 /** Monotonic run cursor for a target source (one job == one run). */
 const versionForTarget = (targetSourceId: number): number =>
   getStore().testConnectionJobs.filter((j) => j.target_source_id === targetSourceId).length;
@@ -309,8 +318,8 @@ export const toVersionResultResponse = (job: TestConnectionJob) => {
     connection_status: topStatus,
     requested_at: job.requested_at,
     completed_at: job.completed_at ?? WIRE_DATE_PLACEHOLDER,
-    test_connection_agent_results: job.resource_results.map((r) => ({
-      agent_id: r.agent_id ?? `agent-${r.resource_id}`,
+    test_connection_agent_results: job.resource_results.map((r, index) => ({
+      agent_id: r.agent_id ?? fallbackAgentId(index),
       gcp_region: '',
       resource_id: r.resource_id,
       connection_status: r.status,
@@ -331,13 +340,13 @@ export const toLatestResultSummaries = (targetSourceId: number) => {
   if (!job || job.status !== 'SUCCESS') return [];
   return job.resource_results
     .filter((r) => r.status === 'SUCCESS')
-    .map((r) => {
+    .map((r, index) => {
       const seed = r.resource_id.length;
       const total = 8 + (seed % 8);
       const excluded = seed % 4;
       return {
         resource_id: r.resource_id,
-        agent_id: r.agent_id ?? `agent-${r.resource_id}`,
+        agent_id: r.agent_id ?? fallbackAgentId(index),
         logical_database_count: total - excluded,
         excluded_logical_database_count: excluded,
       };
@@ -411,7 +420,7 @@ export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnection
             status: failed ? 'FAIL' : 'SUCCESS',
             error_status: failed ? 'AUTH_FAIL' : null,
             guide: failed ? ERROR_GUIDES.AUTH_FAIL : null,
-            agent_id: `agent-${r.resourceId}`,
+            agent_id: fallbackAgentId(index),
           };
         });
 

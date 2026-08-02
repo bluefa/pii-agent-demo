@@ -241,6 +241,7 @@ export function TcTab({
           latest={latest}
           status={statusLoaded ? status : null}
           stats={tcResultStats(results, latest)}
+          confirmedResourceCount={orderedRows.length}
           loading={!statusLoaded}
           failed={latestFailed}
           running={running}

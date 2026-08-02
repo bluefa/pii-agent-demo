@@ -53,6 +53,55 @@ export function verdictByResource(
   return verdicts;
 }
 
+/** 실행이 보고한 agent 결과 한 줄 — 접기 전의 원문 순서 그대로. */
+export interface TcAgentRow {
+  resourceId: string;
+  /** 계약상 optional — 응답이 주지 않으면 null. */
+  agentId: string | null;
+  /** 이 agent 한 건의 판정 (리소스 단위 fold 가 아니다). */
+  verdict: TcVerdict;
+}
+
+/**
+ * agent 결과를 화면 순서대로 편다. `verdictByResource` 가 접기 전의 원재료 —
+ * 한 리소스를 여러 agent 가 나눠 맡을 수 있어서, 어느 agent 가 어디서 걸렸는지는
+ * 접힌 판정으로는 알 수 없다.
+ */
+export function runAgentRows(latest: TestConnectionVersionResult | null): TcAgentRow[] {
+  return (latest?.test_connection_agent_results ?? [])
+    .filter((agent) => Boolean(agent?.resource_id))
+    .map((agent) => {
+      const status = (agent.connection_status ?? '').toUpperCase();
+      return {
+        resourceId: agent.resource_id ?? '',
+        agentId: agent.agent_id || null,
+        verdict:
+          status === 'SUCCESS' ? 'SUCCESS'
+            : status === 'FAIL' ? 'FAIL'
+              : status === 'PENDING' || status === 'RUNNING' ? 'RUNNING'
+                : 'UNKNOWN',
+      };
+    });
+}
+
+/**
+ * 진행 사항 — 판정이 끝난 agent / 전체.
+ *
+ * 분모를 `rows.length` 로 잡으면 안 된다: 응답은 아직 보고하지 않은 agent 를 아예
+ * 빼고 오기 때문에, 3건 중 2건만 끝난 실행이 "2/2 완료"(100%) 로 보인다. 분모는
+ * 확정 리소스 수 — 실행이 대상으로 삼는 집합 — 로 잡고, 한 리소스를 여러 agent 가
+ * 맡아 행이 그보다 많아지면 그때는 받은 행 수를 쓴다(100% 를 넘지 않도록).
+ */
+export function runProgress(
+  rows: readonly TcAgentRow[],
+  expectedTotal: number,
+): { done: number; total: number } {
+  return {
+    done: rows.filter((row) => row.verdict === 'SUCCESS' || row.verdict === 'FAIL').length,
+    total: Math.max(expectedTotal, rows.length),
+  };
+}
+
 /**
  * 실행 한 건의 상태. `latest_version.connection_status` 는 loose codegen 이라 `string`
  * 이므로 계약 enum 밖의 값은 UNKNOWN 으로 떨어뜨린다 — 실행 기록 표와 같은 어휘.

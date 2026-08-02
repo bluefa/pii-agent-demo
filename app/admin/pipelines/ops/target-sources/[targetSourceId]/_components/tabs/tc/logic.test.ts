@@ -4,7 +4,9 @@ import type { TestConnectionVersionResult } from '@/app/lib/api';
 import {
   isRunOpen,
   ldbCount,
+  runAgentRows,
   runDurationSeconds,
+  runProgress,
   runStatus,
   tcResultStats,
   verdictByResource,
@@ -96,6 +98,49 @@ describe('verdictByResource', () => {
 
   it('skips an agent row with no resource_id instead of keying it on ""', () => {
     expect(verdictByResource(version([['', 'SUCCESS']])).size).toBe(0);
+  });
+});
+
+describe('runAgentRows', () => {
+  it('keeps one row per agent in wire order — folding hides which agent failed', () => {
+    const rows = runAgentRows(
+      version([['r-1', 'SUCCESS'], ['r-1', 'FAIL'], ['r-2', 'RUNNING']]),
+    );
+    expect(rows.map((r) => [r.resourceId, r.agentId, r.verdict])).toEqual([
+      ['r-1', 'agent-r-1', 'SUCCESS'],
+      ['r-1', 'agent-r-1', 'FAIL'],
+      ['r-2', 'agent-r-2', 'RUNNING'],
+    ]);
+  });
+
+  it('carries a missing agent_id through as null rather than an empty string', () => {
+    const latest = version([['r-1', 'SUCCESS']]);
+    const [agent] = latest.test_connection_agent_results ?? [];
+    expect(runAgentRows({ ...latest, test_connection_agent_results: [{ ...agent, agent_id: '' }] })[0]
+      ?.agentId).toBeNull();
+  });
+
+  it('is empty for no run', () => {
+    expect(runAgentRows(null)).toEqual([]);
+  });
+});
+
+describe('runProgress', () => {
+  const rows = runAgentRows(version([['r-1', 'SUCCESS'], ['r-2', 'FAIL']]));
+
+  it('counts settled agents against the confirmed resource count, not the rows received', () => {
+    // 3건짜리 실행에서 2건만 보고된 상태 — 분모가 rows.length 면 "2/2 완료"(100%)가 된다.
+    expect(runProgress(rows, 3)).toEqual({ done: 2, total: 3 });
+  });
+
+  it('never lets the denominator fall below the rows already received', () => {
+    // 한 리소스를 여러 agent 가 맡으면 행이 확정 리소스 수보다 많아진다.
+    expect(runProgress(rows, 1)).toEqual({ done: 2, total: 2 });
+  });
+
+  it('does not count an unsettled agent as done', () => {
+    const open = runAgentRows(version([['r-1', 'RUNNING'], ['r-2', 'SUCCESS']]));
+    expect(runProgress(open, 2).done).toBe(1);
   });
 });
 
