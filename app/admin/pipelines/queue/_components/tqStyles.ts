@@ -126,9 +126,13 @@ export const tqStyles = {
     /** Excluded rows REST one tier dimmer — the 1.05:1 background tint carries nothing on
      *  its own. The lifts above restore full contrast the moment the row is engaged. */
     cellDim: 'text-[var(--pl-text-weak)]',
-    /** 연동 대상 여부 (`.target-yes` / `.target-no`). */
-    targetYes: 'font-semibold whitespace-nowrap text-[var(--pl-ok-text)]',
-    targetNo: 'font-semibold whitespace-nowrap text-[var(--pl-text-weak)]',
+    /**
+     * 연동 대상 여부 — plain 12px text on the row's own tone, the same as every other
+     * value cell. It was bold 14px "연동 대상 제외" in its own color, which on an
+     * already-dimmed row was the loudest thing in it: the row is excluded, not
+     * alarming. The column header supplies 연동 대상, so the cell only names the side.
+     */
+    targetText: 'text-[12px] whitespace-nowrap',
     /** Resource-id cell w/ copy (`.res-id-cell`) — non-IDC tables (P3/P5). */
     resId: {
       cell: 'inline-flex items-center gap-1.5 max-w-full',

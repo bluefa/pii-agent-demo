@@ -105,12 +105,15 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                 >
                   {row.region ?? '—'}
                 </td>
-                <td className={resTable.td}>
-                  {excluded ? (
-                    <span className={appTable.targetNo}>연동 대상 제외</span>
-                  ) : (
-                    <span className={appTable.targetYes}>연동 대상</span>
+                <td
+                  className={cn(
+                    resTable.td,
+                    appTable.targetText,
+                    restTone ?? 'text-[var(--pl-text-medium)]',
+                    appTable.cellLift,
                   )}
+                >
+                  {excluded ? '제외' : '대상'}
                 </td>
                 <td
                   className={cn(

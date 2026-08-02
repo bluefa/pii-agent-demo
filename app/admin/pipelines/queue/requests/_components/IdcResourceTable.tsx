@@ -117,8 +117,15 @@ export function IdcResourceTable({
                   {/* Excluded rows come from ExcludedResourceInfoDto, which carries no
                       source IPs — blank rather than an em-dash asserting a missing value. */}
                   <td className={resTable.td} />
-                  <td className={resTable.td}>
-                    <span className={appTable.targetNo}>연동 대상 제외</span>
+                  <td
+                    className={cn(
+                      resTable.td,
+                      appTable.targetText,
+                      appTable.cellDim,
+                      appTable.cellLift,
+                    )}
+                  >
+                    제외
                   </td>
                   <td
                     className={cn(
