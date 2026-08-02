@@ -21,22 +21,29 @@ describe('InstallIneligibleGuideModal', () => {
     expect(screen.getByRole('link', { name: 'Azure VNet 네트워킹 문서' })).toBeTruthy();
   });
 
+  // Both GCP values are PSC prerequisites the instance fails, so each one names PSC,
+  // says what to change, and links Google's own doc — never Azure's story.
   it.each([
-    ['GCP_CLOUD_SQL_HAS_PUBLIC_IP', /공인 IP가 설정되어 있어/],
-    ['GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET', /내부 HTTP 로드밸런서용 서브넷/],
-  ] as const)('states the GCP fact for %s without Azure copy', (reason, cause) => {
+    ['GCP_CLOUD_SQL_HAS_PUBLIC_IP', /공인 IP가 설정되어 있어/, /공인 IP를 해제한 뒤/],
+    [
+      'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
+      /내부 HTTP 로드밸런서용 서브넷/,
+      /PSC를 지원하는 서브넷으로/,
+    ],
+  ] as const)('explains %s as a PSC prerequisite with a remedy', (reason, cause, remedy) => {
     open(reason);
     expect(screen.getByText(cause)).toBeTruthy();
+    expect(screen.getByText(remedy)).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Private Service Connect/ })).toBeTruthy();
     expect(screen.queryByText(/Private Endpoint/)).toBeNull();
-    // No CSP-documented fix exists for these, so the guide routes to a human
-    // rather than inventing remediation for production infrastructure.
-    expect(screen.getByText('협업 채널')).toBeTruthy();
-    expect(screen.getByText(/문의해주세요/)).toBeTruthy();
   });
 
   it('falls back to the classification alone when no reason code was sent (AWS·IDC)', () => {
     open(null);
     expect(screen.getByText(/네트워크 구성 제약으로 Agent를 설치할 수 없는/)).toBeTruthy();
     expect(screen.queryByText(/Private Endpoint/)).toBeNull();
+    // Nothing is known beyond the verdict, so the only next step is a person.
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText('협업 채널')).toBeTruthy();
   });
 });
