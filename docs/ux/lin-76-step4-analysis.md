@@ -59,7 +59,7 @@ Agent 설치                                    Provider: AWS
 
 ---
 
-## 2. 레퍼런스 10개
+## 2. 내부 레퍼런스 10개
 
 | # | 레퍼런스 | 왜 보는가 |
 |---|---|---|
@@ -76,7 +76,27 @@ Agent 설치                                    Provider: AWS
 
 ---
 
-## 3. 해소 방향 (제안)
+## 3. 외부 레퍼런스 10개
+
+Step4의 본질 = "내가 시작시킨 자동 프로비저닝 파이프라인을 지켜보다가, 내 차례가 오면 조치한다".
+같은 문제를 푸는 외부 제품·가이드라인 10개와, 각각 어느 문제(P)·방향(D)에 대응되는지.
+
+| # | 레퍼런스 | 무엇을 빌리는가 | 대응 |
+|---|---|---|---|
+| 1 | [HCP Terraform — Run states](https://developer.hashicorp.com/terraform/cloud-docs/run/states) | 도메인이 동일(TF plan/apply). 파이프라인 상태를 `Pending → Planning → **Needs Confirmation** → Applying → Applied`처럼 "사용자 차례"를 별도 상태명으로 분리해 부른다. 우리 상태 배지 어휘(진행중/서비스 확인 필요/완료 대기) 설계의 직접 참고 | P1·P3 / D1 |
+| 2 | [AWS CloudFormation — 스택 리소스/이벤트 뷰](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-view-stack-data-resources.html) | 리소스별 상태 테이블(CREATE_IN_PROGRESS…) + **Status reason 컬럼**으로 실패 사유를 행 단위 노출. 우리 마스터-디테일 테이블의 상태/안내 컬럼과 같은 구조 — 이벤트 타임스탬프 병기 방식 참고 | P2 / D2 |
+| 3 | [GitHub — PR status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks) | 자동 체크 목록의 worst-wins 롤업 한 줄("All checks have passed / 1 failing") + 항목별 펼침. 헤더 한 줄에서 전체 판정 → 상세는 아래, 라는 계층 문법 | P2·P5 / D2 |
+| 4 | [Vercel — Deployments](https://vercel.com/docs/deployments) | 완전 자동 파이프라인(Queued → Building → Ready)의 상태 표시. 사용자 조치가 없는 구간에서도 현재 단계·로그를 상시 노출해 "기다리면 된다"를 화면이 말한다 | P3 / D1·D5 |
+| 5 | [GOV.UK Design System — Task list pattern](https://design-system.service.gov.uk/patterns/task-list-pages/) | "해야 할 일 목록 + 태스크별 상태 태그(Completed / In progress / **Cannot start yet**)" 패턴. 우리 요약 패널의 세 묶음(조치 필요/진행 중/완료)과 동형 — 상태 태그 문구·순서 검증에 사용 | P1·P3 / D1 |
+| 6 | [Stripe 등 SaaS 온보딩 체크리스트 사례](https://www.appcues.com/blog/saas-user-onboarding) | 셋업 체크리스트는 진행률을 외재화하고, 이탈 후 복귀해도 위치가 유지된다. "가치가 나오는 스텝을 먼저" — TF Script 박스보다 상태/할 일이 먼저라는 D3 순서 근거 | P4 / D3 |
+| 7 | [NN/g — Wizards: Definition and Design Recommendations](https://www.nngroup.com/articles/wizards/) | 위저드 스텝 표기 원칙: 현재 위치·전체 단계 수·각 스텝 라벨을 항상 노출. `4번째 단계` 태그가 왜 카드 레벨에 있어야 하는지의 원론 | P1 / D1 |
+| 8 | [NN/g — Progress Indicators](https://www.nngroup.com/articles/progress-indicators/) ([복잡 앱의 대기 설계](https://www.nngroup.com/articles/designing-for-waits-and-interruptions/)) | 10초 이상 대기에는 루프 애니메이션이 아니라 "몇 개 완료/몇 개 남음" 단위의 정량 피드백이 필요. 롤업 카운트를 헤더로 승격하는 D2의 근거 | P2 / D2 |
+| 9 | [Carbon Design System — Progress indicator](https://carbondesignsystem.com/components/progress-indicator/usage/) | 세로 스테퍼 권장 조건, 스텝 라벨 작성법, error/disabled 상태 표기. 좌측 내비(설치 서브스텝)의 마커·상태 표기 정비 기준 | P5 / D4 |
+| 10 | [Material UI — Stepper](https://mui.com/material-ui/react-stepper/) | 숫자 원형 마커는 "순서가 의미 있는 단계"에만 쓰는 문법. 서브스텝 번호가 페이지 7단계 번호와 충돌할 때 비번호 마커/소제목으로 바꾸는 판단 기준 | P5 / D4 |
+
+---
+
+## 4. 해소 방향 (제안)
 
 우선순위 순. 상세 범위는 이슈 본문대로 착수 시 라이브 리뷰로 확정.
 
