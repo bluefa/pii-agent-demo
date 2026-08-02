@@ -21,10 +21,8 @@ import {
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
-import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
-import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
@@ -65,7 +63,7 @@ export const IdcStep4Installing = ({
   action,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
-  const { status, loading } = useIdcInstallationStatus(targetSourceId);
+  const { status } = useIdcInstallationStatus(targetSourceId);
 
   const [resources, setResources] = useState<IdcResourceView[]>([]);
   const [firewallOpen, setFirewallOpen] = useState(false);
@@ -184,18 +182,6 @@ export const IdcStep4Installing = ({
             steps={steps}
             meta={detailMeta}
           />
-
-          <div className="mt-6">
-            {loading && resources.length === 0 ? (
-              <ResourceTableSkeleton />
-            ) : (
-              <IdcResourceTable
-                resources={resources}
-                cols={['src', 'fw']}
-                firewallStatusByResource={firewallStatusByResource}
-              />
-            )}
-          </div>
         </div>
       </section>
 
