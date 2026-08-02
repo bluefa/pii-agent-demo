@@ -154,7 +154,9 @@ export const IdcStep2WaitingApproval = ({
                 />
                 <IdcResourceTable
                   resources={visibleResources}
-                  cols={['src', 'excl']}
+                  // No Source IP: the BDC assigns it while the request is being reviewed, so at
+                  // 승인 대기 the column would be empty on every row. Step 3 onward shows it.
+                  cols={['excl']}
                   connected
                   emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
                 />
