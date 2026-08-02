@@ -141,6 +141,38 @@ export const tqStyles = {
     ldbLink: 'font-semibold text-[var(--pl-primary)] cursor-pointer hover:underline',
   },
 
+  /** IDC endpoint / Oracle SID cell grammar, ported from the app-side IDC step 1
+   *  (`idcStyles` HostCell / IdcDbTypeCell) onto admin tokens. A host is the row's
+   *  identity, so it gets the mono 12.5 treatment; the SID rides under Database Type
+   *  rather than claiming a column of its own — only Oracle rows have one, so as a
+   *  column it was an em-dash on four rows out of five. */
+  idcCell: {
+    host: 'block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] [font-family:var(--pl-font-mono)]',
+    /** "IP n개 더보기 ▾" — collapses a multi-IP endpoint to its first address. */
+    epToggle: 'text-[11.5px] font-semibold text-[var(--pl-primary)] hover:underline',
+    sidKey: 'text-[10px] font-bold tracking-[0.02em] text-[var(--pl-text-faint)]',
+    sidValue:
+      'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] [font-family:var(--pl-font-mono)]',
+  },
+
+  /**
+   * P3 연동 대상 리소스 table chrome — the app-side IDC step-1 `.db-table` outline
+   * ported to admin tokens (r12 framed card + shadow, 13/700 header on gray-50, 14px
+   * cell rhythm, hairline dividers instead of per-cell top borders). Separate from
+   * `appTable`, whose 12/600 header and 13px rhythm the NLB/TC modals still use — the
+   * admin and the service owner should read the SAME request through the same table,
+   * and those modals are a different object.
+   */
+  resTable: {
+    wrap: 'overflow-hidden rounded-xl border border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]',
+    root: 'w-full',
+    thead: 'bg-[var(--pl-gray-50)] text-left text-[13px] font-bold text-[var(--pl-text-medium)]',
+    th: 'px-4 py-3.5',
+    body: 'divide-y divide-[var(--pl-gray-200)]',
+    /** Colorless — every cell picks its own resting tier and hover lift. */
+    td: 'px-4 py-3.5 align-middle tabular-nums',
+  },
+
   /** App-modal anatomy (`.modal.app` header/body/footer) — layered on ModalShell
    *  variant='app' (r20/p0/scroll shell). Width is passed by TqModal. */
   modal: {

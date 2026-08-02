@@ -23,26 +23,26 @@ export interface CloudResourceTableProps {
 }
 
 export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTableProps): ReactElement {
-  const { appTable } = tqStyles;
+  const { appTable, resTable } = tqStyles;
   return (
-    <div className={cn(appTable.wrap, wrapClassName)}>
-      <table className={appTable.root}>
-        <thead className={appTable.thead}>
+    <div className={cn(resTable.wrap, wrapClassName)}>
+      <table className={resTable.root}>
+        <thead className={resTable.thead}>
           <tr>
             {/* Resource ID's text caps at 300px (resId.text), so its column was sitting
                 on ~150px it could not use. Spent here: names differ in their TAIL
                 (…-cluster-001 / -002), which is exactly what truncation eats first. */}
-            <th className={`${appTable.th} w-[340px]`}>Resource Name</th>
-            <th className={appTable.th}>Resource ID</th>
-            <th className={`${appTable.th} w-[120px] whitespace-nowrap`}>Database Type</th>
-            <th className={`${appTable.th} w-[130px]`}>Region</th>
-            <th className={`${appTable.th} w-[110px]`}>연동 대상</th>
+            <th className={`${resTable.th} w-[340px]`}>Resource Name</th>
+            <th className={resTable.th}>Resource ID</th>
+            <th className={`${resTable.th} w-[120px] whitespace-nowrap`}>Database Type</th>
+            <th className={`${resTable.th} w-[130px]`}>Region</th>
+            <th className={`${resTable.th} w-[110px]`}>연동 대상</th>
             {/* Reasons are sentences ("스테이징 전용 인스턴스로 …"). 220px wrapped every
                 one of them to three lines and left row heights ragged. */}
-            <th className={`${appTable.th} w-[300px]`}>제외 사유</th>
+            <th className={`${resTable.th} w-[300px]`}>제외 사유</th>
           </tr>
         </thead>
-        <tbody className={appTable.body}>
+        <tbody className={resTable.body}>
           {rows.map((row, index) => {
             const excluded = !row.selected;
             // Resting tier is per cell, not per row: a row-level override would win over
@@ -55,7 +55,7 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
               >
                 <td
                   className={cn(
-                    appTable.tdBare,
+                    resTable.td,
                     appTable.tdMonoBare,
                     restTone ?? 'text-[var(--pl-text-strong)]',
                     appTable.cellLiftName,
@@ -68,7 +68,7 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                     {row.resourceName ?? '—'}
                   </span>
                 </td>
-                <td className={appTable.tdBare}>
+                <td className={resTable.td}>
                   {row.resourceId ? (
                     <ResIdCell
                       value={row.resourceId}
@@ -83,7 +83,7 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                 </td>
                 <td
                   className={cn(
-                    appTable.tdBare,
+                    resTable.td,
                     'text-[12px]',
                     restTone ?? 'text-[var(--pl-text-medium)]',
                     appTable.cellLift,
@@ -94,15 +94,18 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                 </td>
                 <td
                   className={cn(
-                    appTable.tdBare,
+                    resTable.td,
                     appTable.tdMonoBare,
+                    // A region is one token — wrapping it to "ap-northeast-" / "2" reads
+                    // as two values.
+                    'whitespace-nowrap',
                     restTone ?? 'text-[var(--pl-text-medium)]',
                     appTable.cellLift,
                   )}
                 >
                   {row.region ?? '—'}
                 </td>
-                <td className={appTable.tdBare}>
+                <td className={resTable.td}>
                   {excluded ? (
                     <span className={appTable.targetNo}>연동 대상 제외</span>
                   ) : (
@@ -111,7 +114,7 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                 </td>
                 <td
                   className={cn(
-                    appTable.tdBare,
+                    resTable.td,
                     'text-[12px] font-normal',
                     excluded ? appTable.cellDim : 'text-[var(--pl-text-faint)]',
                     excluded && appTable.cellLift,
