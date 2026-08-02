@@ -69,9 +69,9 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(nav).getByText('서비스측 리소스 생성')).toBeTruthy();
     expect(within(nav).getAllByText('BDC측 리소스 생성').length).toBe(2);
 
-    // A failed step makes the summary the default view: the banner and the
-    // action card both surface the failure reason.
-    expect(screen.getAllByText('서브넷 IP 부족').length).toBeGreaterThanOrEqual(2);
+    // A failed step makes the summary the default view, and the action card there is
+    // the single place the failure reason is stated (no duplicate banner above it).
+    expect(screen.getAllByText('서브넷 IP 부족')).toHaveLength(1);
   });
 
   it('joins region / DB type / name from the confirmed integration', () => {

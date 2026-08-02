@@ -356,37 +356,6 @@ const InstallSummaryPanel = ({
   );
 };
 
-/** 상단 상시 배너 — 요약 스텝을 열지 않아도 조치 필요를 알린다. */
-const ActionBanner = ({ views, onOpen }: { views: readonly StepView[]; onOpen: () => void }) => {
-  const [first, ...rest] = views;
-  const failed = first.aggregate.kind === 'failed';
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn(
-        'flex items-center gap-2 w-full text-left px-4 py-2.5 rounded-xl border',
-        textStyles.body,
-        failed ? cn(statusColors.error.border, statusColors.error.bg) : cn(statusColors.warning.border, statusColors.warning.bg),
-      )}
-    >
-      <span className={cn(textStyles.bodyStrong, failed ? statusColors.error.textDark : statusColors.warning.textDark)}>
-        서비스 측 확인 필요
-      </span>
-      <span className={cn(textStyles.bodyStrong, textColors.primary)}>{first.step.title}</span>
-      <span className={textColors.secondary}>
-        {first.step.serviceAction ?? first.reasons[0]?.text ?? first.aggregate.label}
-      </span>
-      {rest.length > 0 && (
-        <span className={cn(textStyles.captionStrong, textColors.tertiary)}>외 {rest.length}건</span>
-      )}
-      <span className={cn(textStyles.captionStrong, 'ml-auto whitespace-nowrap', textColors.secondary)}>
-        요약 보기 →
-      </span>
-    </button>
-  );
-};
-
 export interface InstallStatusDetailProps {
   lastCheck: InstallLastCheck;
   resources: readonly InstallDetailResource[];
@@ -504,9 +473,6 @@ export const InstallStatusDetail = ({
 
   return (
     <div className="flex flex-col gap-3">
-      {actionViews.length > 0 && (
-        <ActionBanner views={actionViews} onOpen={() => setSelected(SUMMARY_ID)} />
-      )}
       {/* 레일은 목차다 — 넓을 이유가 없다. 224px 로 좁히고 감싸던 프레임을 구분선 하나로
           바꿔, 남은 폭은 전부 리소스 테이블이 쓴다(카드 속 카드도 한 겹 사라진다). */}
       <div className="grid grid-cols-[224px_minmax(0,1fr)]">
