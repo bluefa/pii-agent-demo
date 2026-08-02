@@ -72,12 +72,12 @@ describe('IdcStep7Complete', () => {
     expect(screen.getByText('연동 완료')).toBeTruthy();
   });
 
-  it('uses the IDC guidance variant (no "사용 단어 빈도" cloud clause)', () => {
+  it('renders the single-line guidance (no second CTA paragraph — that is the bar hint)', () => {
     renderStep();
     expect(
-      screen.getByText(/연동된 리소스에서 PII 사용 가능성을 모니터링하고 있어요/),
+      screen.getByText(/연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요/),
     ).toBeTruthy();
-    expect(screen.queryByText(/사용 단어 빈도가 표시되며|사용 단어 빈도가 표시돼요/)).toBeNull();
+    expect(screen.queryByText(/DB가 변경·추가되었다면/)).toBeNull();
   });
 
   it('docks both rewind CTAs in the bottom action bar', () => {
