@@ -15,10 +15,12 @@
  */
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type {
+  AlertTargetKind,
   DashboardSummary,
   DelayFilter,
   Paged,
   ProcessStatusRow,
+  RequestListRow,
 } from '@/lib/types/task-queue';
 
 /** GET /admin/queue/dashboard-summary — the 4 operator KPI counts (camel domain). */
@@ -64,3 +66,15 @@ export const getProcessStatuses = (
     options?.signal ? { signal: options.signal } : undefined,
   );
 };
+
+/** GET /admin/queue/alert-target-sources — 운영 알림 drill-down for one kind. */
+export const getAlertTargetSources = (
+  kind: AlertTargetKind,
+  page = 0,
+  size = 10,
+  options?: { signal?: AbortSignal },
+): Promise<Paged<RequestListRow>> =>
+  fetchInfraJson<Paged<RequestListRow>>(
+    `/admin/queue/alert-target-sources?kind=${kind}&page=${page}&size=${size}`,
+    options?.signal ? { signal: options.signal } : undefined,
+  );

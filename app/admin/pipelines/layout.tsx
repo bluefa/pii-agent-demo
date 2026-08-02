@@ -47,8 +47,10 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   const { layout } = pipelineStyles;
 
   // 연동 요청 nav alarm — pending approval requests light a red dot on the menu.
+  // 운영 알림 carries a count badge instead (the four Step 3~6 action buckets).
   // Best-effort (errors ignored): the nav badge must never break the shell.
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [alertCount, setAlertCount] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     const load = (): void => {
@@ -56,6 +58,12 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
         .then((summary) => {
           if (controller.signal.aborted) return;
           setPendingApprovals(summary.pendingApprovalCount ?? 0);
+          setAlertCount(
+            (summary.confirmingCount ?? 0) +
+              (summary.needInstallCount ?? 0) +
+              (summary.needTestConnectionCount ?? 0) +
+              (summary.needPiiAgentConfirmCount ?? 0),
+          );
         })
         .catch(() => undefined);
     };
@@ -92,12 +100,18 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
               const alarm =
                 item.href === passRoutes.pipelines.queue.requests && pendingApprovals > 0;
+              const badge = item.href === passRoutes.pipelines.ops.alerts && alertCount > 0;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className={cn(layout.sidebarItem, active ? layout.sidebarItemActive : layout.sidebarItemIdle)}
+                  className={cn(
+                    layout.sidebarItem,
+                    active ? layout.sidebarItemActive : layout.sidebarItemIdle,
+                    // The count badge docks right; every other item stays a plain block.
+                    badge && 'flex items-center justify-between gap-2',
+                  )}
                 >
                   {item.label}
                   {alarm && (
@@ -106,6 +120,15 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
                       role="status"
                       aria-label={`승인 대기 연동 요청 ${pendingApprovals}건`}
                     />
+                  )}
+                  {badge && (
+                    <span
+                      className="inline-block min-w-[18px] flex-none rounded-full bg-[var(--pl-err)] px-1.5 py-px text-center text-[11px] font-bold tabular-nums text-[var(--pl-white)]"
+                      role="status"
+                      aria-label={`조치가 필요한 대상 ${alertCount}건`}
+                    >
+                      {alertCount > 9 ? '9+' : alertCount}
+                    </span>
                   )}
                 </Link>
               );

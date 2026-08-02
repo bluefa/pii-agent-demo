@@ -111,51 +111,19 @@ body     { user_id: string }
 → 200   updated jira ticket
 ```
 
-## 7. Ops alerts (운영 알림)
+## 7. Ops alerts (운영 알림) — SHIPPED, no longer assumed
 
-Powers 운영 알림. The page is a cross-service aggregation: it needs exact counts, a
-total ordering by elapsed time, and rows drawn from *two* populations (target sources
-by `process_status`, plus Test Connection re-run requests). None of that can be done
-correctly in the browser — filtering a single page of §5 caps the counts at the fetched
-window, silently drops rows past it, and sorts only within it. So the aggregation is
-the server's job.
+Superseded by the real contract. 운영 알림 now runs on `GET /install/v1/dashboard/summary`
+(`confirming_count` / `need_install_count` / `need_test_connection_count` /
+`need_pii_agent_confirm_count`) plus the four sibling drill-downs
+`GET /install/v1/dashboard/target-sources/{confirming|need-install|need-test-connection|need-pii-agent-confirm}`,
+all declared in `docs/swagger/install-v1.yaml`.
 
-```
-GET /install/v1/admin/ops/alerts?kind={kind}&page={0}&size={20}
-→ 200 {
-     counts: {                       // whole population, independent of kind/paging
-       PENDING:     number,          // 연동 대상 승인·반려 대기
-       CONFIRMED:   number,          // Agent 설치 필요
-       CONNECTED:   number,          // 연결 테스트 완료 승인 대기
-       TC_REJECTED: number,          // 연결 테스트 재실행 요청됨
-       STALE:       number,          // last_changed_at 이 STALE_DAYS 이상 경과
-     },
-     alerts: Page<OpsAlertRow>
-   }
-
-OpsAlertRow {
-  target_source_id: number
-  service_code:     string
-  service_name:     string
-  cloud_provider:   string           // AWS | GCP | AZURE | IDC
-  is_sdu_type:      boolean
-  process_status:   IDLE|PENDING|CONFIRMING|CONFIRMED|INSTALLED|CONNECTED|COMPLETED
-  last_changed_at:  ISO-8601         // what 경과 is measured from
-  alert_kinds:      AlertKind[]      // every kind that applies; never empty
-}
-```
-
-- `kind` omitted → every row with at least one alert kind (the default view).
-- Rows are sorted by `last_changed_at` **ascending** (longest elapsed first) and paged.
-- `alert_kinds` is a list because a row can be several at once (a CONNECTED target that
-  has also sat for 8 days is both `CONNECTED` and `STALE`). The server decides which
-  kinds apply; the client must not re-derive them from `process_status`.
-- `STALE_DAYS` is server policy (currently 7). The client renders the threshold it is
-  told about, it does not own it.
-- `TC_REJECTED` is not a process status. Rejecting a Test Connection rolls the target
-  back to its pre-test step, so these rows match no status filter — the server joins the
-  test-connection queue to find them. That join is only sound because every queue row is
-  a real target source (see the invariant below).
+The assumed `GET /admin/ops/alerts` aggregation was removed with its route, mock and
+wire types. Three kinds it carried have no upstream equivalent: `PENDING` (still served
+by `pending_approval_count` on the 연동 요청 menu), `TC_REJECTED`, and `STALE` (장기 정체).
+Elapsed time is likewise gone — `TargetSourceInfo` carries no per-row "last changed"
+field. Re-adding any of them needs a real contract, not a client-side derivation.
 
 ### Invariant: a Test Connection queue row is always a target source
 
