@@ -1256,6 +1256,10 @@ const DashboardSummaryResponse = z
     rejected_approval_count: Num,
     test_connection_completed_count: Num,
     test_connection_rejection_count: Num,
+    confirming_count: Num,
+    need_install_count: Num,
+    need_test_connection_count: Num,
+    need_pii_agent_confirm_count: Num,
     evaluated_at: Str,
   })
   .partial().passthrough();

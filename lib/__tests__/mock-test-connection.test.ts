@@ -314,7 +314,12 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(wire.requested_at).toBe(FIXED_ISO);
       // incomplete job → deterministic date-time placeholder (valid format:date-time, not '')
       expect(wire.completed_at).toBe('1970-01-01T00:00:00.000Z');
-      expect(wire.test_connection_agent_results).toEqual([]);
+      // 결과가 없는 agent 도 싣는다 — 다음 차례 하나가 RUNNING, 그 뒤는 전부 PENDING.
+      // 끝난 것만 실으면 진행 중인 실행에서 "대기 중"과 "정보 없음"이 구분되지 않는다.
+      const statuses = wire.test_connection_agent_results.map((r) => r.connection_status);
+      expect(statuses).toHaveLength(project.resources.filter((r) => r.isSelected).length);
+      expect(statuses[0]).toBe('RUNNING');
+      expect(statuses.slice(1).every((s) => s === 'PENDING')).toBe(true);
     });
 
     it('SUCCESS job → per-agent results in wire shape', () => {
@@ -331,7 +336,7 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(wire.test_connection_agent_results).toHaveLength(selectedCount);
       wire.test_connection_agent_results.forEach((agent) => {
         expect(agent.connection_status).toBe('SUCCESS');
-        expect(agent.agent_id).toMatch(/^agent-/);
+        expect(agent.agent_id).toMatch(/^tc-agent-\d\d$/);
         expect(agent.resource_id).toBeTruthy();
         expect(agent.gcp_region).toBe('');
         expect(agent.database_uri_list.length).toBeGreaterThan(0);
@@ -358,7 +363,7 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(summaries).toHaveLength(selectedCount);
       summaries.forEach((s) => {
         expect(s.resource_id).toBeTruthy();
-        expect(s.agent_id).toMatch(/^agent-/);
+        expect(s.agent_id).toMatch(/^tc-agent-\d\d$/);
         expect(s.logical_database_count).toBeGreaterThanOrEqual(0);
         expect(s.excluded_logical_database_count).toBeGreaterThanOrEqual(0);
       });

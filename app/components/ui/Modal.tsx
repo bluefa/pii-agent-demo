@@ -22,11 +22,12 @@ export interface ModalProps {
   /**
    * Modal chrome. 'default' keeps the shared app styling — byte-identical for
    * existing callers (AWS/Azure/GCP). 'toss' opts into the IDC-only prototype
-   * styling (radius 24, 26px title, white footer). 'bare' renders no header at
-   * all (no title bar, no close-X); the caller owns the title block inside
-   * `children`. ESC / backdrop close still work.
+   * styling (radius 24, 26px title, white footer); 'toss-compact' is the same
+   * chrome tightened 8px with a 20px title, for read-only notices that carry no
+   * footer. 'bare' renders no header at all (no title bar, no close-X); the caller
+   * owns the title block inside `children`. ESC / backdrop close still work.
    */
-  chrome?: 'default' | 'toss' | 'bare';
+  chrome?: 'default' | 'toss' | 'toss-compact' | 'bare';
   /** Header icon-circle tone (meaningful with toss chrome). 'warn' is the amber warning color. */
   tone?: 'info' | 'warn';
   /** 모달 본문 */
@@ -37,6 +38,11 @@ export interface ModalProps {
    */
   ariaLabel?: string;
   children: ReactNode;
+  /**
+   * Header close ✕. Set false for a read-only notice that carries no footer either —
+   * backdrop click and ESC still close it. Every other caller keeps the default.
+   */
+  closeButton?: boolean;
   /** 푸터 영역 (버튼 등) */
   footer?: ReactNode;
   /** 배경 클릭으로 닫기 허용 여부 */
@@ -85,6 +91,7 @@ export const Modal = ({
   tone = 'info',
   ariaLabel,
   children,
+  closeButton = true,
   footer,
   closeOnBackdropClick = true,
   closeOnEscape = true,
@@ -134,23 +141,31 @@ export const Modal = ({
 
   // Default (non-toss) branch reproduces the original byte-for-byte class strings
   // (tokens compose in the original order) so AWS/Azure/GCP modals are unchanged.
-  const isToss = chrome === 'toss';
+  // 'toss-compact' shares every toss token except the three it tightens.
+  const isCompact = chrome === 'toss-compact';
+  const isToss = chrome === 'toss' || isCompact;
   // 'bare' suppresses the shared header (title bar + close-X); the caller renders
   // its own title block in `children`. Container/body keep the default styling.
   const isBare = chrome === 'bare';
   const containerCls = isToss
     ? cn('bg-white shadow-xl w-full mx-4 overflow-hidden', modalStyles.toss.container, SIZE_CLASSES[size])
     : cn('bg-white rounded-xl shadow-xl w-full', SIZE_CLASSES[size], 'mx-4 overflow-hidden');
-  const headerCls = isToss
-    ? modalStyles.toss.header
-    : cn('flex items-center justify-between px-6 py-4 border-b', borderColors.light);
+  const headerCls = isCompact
+    ? modalStyles.toss.compact.header
+    : isToss
+      ? modalStyles.toss.header
+      : cn('flex items-center justify-between px-6 py-4 border-b', borderColors.light);
   const iconGroupCls = isToss ? 'flex gap-3 items-start' : 'flex items-center gap-3';
   const iconCls = isToss
     ? cn(modalStyles.toss.iconBase, tone === 'warn' ? modalStyles.toss.iconWarn : modalStyles.toss.iconInfo)
     : cn('w-10 h-10', statusColors.info.bg, 'rounded-lg flex items-center justify-center flex-shrink-0');
-  const titleCls = isToss ? modalStyles.toss.title : cn('text-base font-bold', textColors.primary);
+  const titleCls = isCompact
+    ? modalStyles.toss.compact.title
+    : isToss
+      ? modalStyles.toss.title
+      : cn('text-base font-bold', textColors.primary);
   const subtitleCls = isToss ? modalStyles.toss.subtitle : cn('text-sm', textColors.tertiary);
-  const bodyCls = isToss ? modalStyles.toss.body : 'p-6';
+  const bodyCls = isCompact ? modalStyles.toss.compact.body : isToss ? modalStyles.toss.body : 'p-6';
   const footerCls = isToss
     ? modalStyles.toss.footer
     : cn('px-6 py-4 border-t', borderColors.light, bgColors.muted, 'flex justify-end gap-3');
@@ -177,15 +192,17 @@ export const Modal = ({
                 {subtitle && <p className={subtitleCls}>{subtitle}</p>}
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className={cn('p-2', interactiveColors.closeButton, 'rounded-lg transition-colors')}
-              aria-label="닫기"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            {closeButton && (
+              <button
+                onClick={onClose}
+                className={cn('p-2', interactiveColors.closeButton, 'rounded-lg transition-colors')}
+                aria-label="닫기"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
         )}
 

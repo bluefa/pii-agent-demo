@@ -10,6 +10,7 @@ import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { bgColors, borderColors, cardStyles, cn, getButtonClass, stackGap, statusColors, textColors, textStyles } from '@/lib/theme';
 import type { AwsInstallationStatus } from '@/lib/types';
+import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 
 interface AwsInstallationInlineProps {
   targetSourceId: number;
@@ -81,18 +82,7 @@ export const AwsInstallationInline = ({
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
-      <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
-        <div>
-          <h2 className={cardStyles.cardTitle}>Agent 설치</h2>
-          <p className={cn('mt-2.5', cardStyles.subtitle)}>
-            승인된 인프라에 PII Agent를 배포하기 위한 설치 작업을 진행합니다.
-          </p>
-        </div>
-        {/* v16 L6606 — provider indicator (not a control), short provider name. */}
-        <span className={cn(textStyles.caption, 'text-[#8B95A1]')}>
-          Provider: <strong className="font-semibold text-[#191F28]">AWS</strong>
-        </span>
-      </header>
+      <InstallCardHeader />
       {/* 카드 내 블록 경계 = group 16px */}
       <div className={cn(cardStyles.body, 'flex flex-col', stackGap.group)}>
         {/* TF script download is available in BOTH install modes (owner requirement). */}

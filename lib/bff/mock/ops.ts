@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
-import { getTcRejectedTargetSourceIds } from '@/lib/bff/mock/task-queue';
 import type {
-  OpsAlertKindWire,
-  OpsAlertRowWire,
-  OpsAlertsResponseWire,
   OpsCollabChannelWire,
   OpsJiraTicketWire,
   OpsProcessStatusWire,
@@ -172,47 +168,6 @@ const toListItem = (project: (typeof mockData.mockProjects)[number]): OpsTargetS
   last_changed_at: project.updatedAt,
 });
 
-/* ── 운영 알림 taxonomy (assumed §7) — server-owned, see the contract doc ── */
-
-/** Rows idle this long are 장기 정체 whatever their status. Server policy. */
-const STALE_DAYS = 7;
-
-const OPS_ALERT_KINDS: readonly OpsAlertKindWire[] = [
-  'PENDING',
-  'CONFIRMED',
-  'CONNECTED',
-  'TC_REJECTED',
-  'STALE',
-];
-
-/** The statuses that are themselves an alert (each is someone's queue). */
-const ALERT_STATUSES: readonly OpsProcessStatusWire[] = ['PENDING', 'CONFIRMED', 'CONNECTED'];
-
-/** Every kind that applies — a row can be both CONNECTED and STALE. */
-const toAlertRow = (
-  row: OpsTargetSourceListItemWire,
-  isTcRejected: boolean,
-  now: number,
-): OpsAlertRowWire => {
-  const kinds: OpsAlertKindWire[] = [];
-  if (ALERT_STATUSES.includes(row.process_status)) {
-    kinds.push(row.process_status as OpsAlertKindWire);
-  }
-  if (isTcRejected) kinds.push('TC_REJECTED');
-  const changed = new Date(row.last_changed_at).getTime();
-  if (!Number.isNaN(changed) && now - changed >= STALE_DAYS * 86_400_000) kinds.push('STALE');
-  return {
-    target_source_id: row.target_source_id,
-    service_code: row.service_code,
-    service_name: row.service_name,
-    cloud_provider: row.cloud_provider,
-    is_sdu_type: row.is_sdu_type,
-    process_status: row.process_status,
-    last_changed_at: row.last_changed_at,
-    alert_kinds: kinds,
-  };
-};
-
 const serviceSummary = (code: string): OpsServiceSummaryWire => {
   const projects = mockData.mockProjects.filter((p) => p.serviceCode === code);
   const state = serviceState(code);
@@ -302,38 +257,6 @@ export const mockOps = {
     });
   },
 
-  // GET /admin/ops/alerts?kind&page&size (assumed §7).
-  getAlerts: async (kind: string | undefined, page: number, size: number) => {
-    const rejected = new Set(getTcRejectedTargetSourceIds());
-    const now = Date.now();
-
-    const rows = mockData.mockProjects
-      .map(toListItem)
-      .map((row) => toAlertRow(row, rejected.has(row.target_source_id), now))
-      .filter((row) => row.alert_kinds.length > 0);
-
-    const counts = Object.fromEntries(
-      OPS_ALERT_KINDS.map((k) => [k, rows.filter((row) => row.alert_kinds.includes(k)).length]),
-    ) as Record<OpsAlertKindWire, number>;
-
-    // Oldest first — the longest-waiting alert is the most urgent.
-    const filtered = (
-      kind ? rows.filter((row) => row.alert_kinds.includes(kind as OpsAlertKindWire)) : rows
-    ).sort((a, b) => a.last_changed_at.localeCompare(b.last_changed_at));
-
-    const start = page * size;
-    const body: OpsAlertsResponseWire = {
-      counts,
-      alerts: {
-        totalElements: filtered.length,
-        totalPages: Math.max(1, Math.ceil(filtered.length / size)),
-        size,
-        number: page,
-        content: filtered.slice(start, start + size),
-      },
-    };
-    return NextResponse.json(body);
-  },
 
   // GET /admin/ops/services (assumed §6).
   getServices: async () =>

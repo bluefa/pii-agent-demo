@@ -21,10 +21,9 @@ import {
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
-import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
-import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
+import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
 
@@ -64,7 +63,7 @@ export const IdcStep4Installing = ({
   action,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
-  const { status, loading } = useIdcInstallationStatus(targetSourceId);
+  const { status } = useIdcInstallationStatus(targetSourceId);
 
   const [resources, setResources] = useState<IdcResourceView[]>([]);
   const [firewallOpen, setFirewallOpen] = useState(false);
@@ -129,13 +128,13 @@ export const IdcStep4Installing = ({
       id: 'cx',
       title: 'BDC CX 영역',
       side: 'BDC측 리소스 생성',
-      desc: 'BDC망 CX 영역에 PII Agent 수집 모듈과 네트워크 경로를 구성합니다.',
+      desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
     },
     {
       id: 'bdp',
       title: 'BDC BDP 영역',
       side: 'BDC측 리소스 생성',
-      desc: 'BDC망 BDP 영역 리소스를 구성합니다.',
+      desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
     },
     {
       id: 'firewall',
@@ -170,18 +169,7 @@ export const IdcStep4Installing = ({
       />
 
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
-        <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
-          <div>
-            <h2 className={cardStyles.cardTitle}>Agent 설치</h2>
-            <p className={cn('mt-2.5', cardStyles.subtitle)}>
-              승인된 인프라에 PII Agent를 배포하기 위한 설치 작업을 진행합니다.
-            </p>
-          </div>
-          {/* v16 L6588 — provider indicator (not a control), short provider name. */}
-          <span className="text-[11.5px] text-[#8B95A1]">
-            Provider: <strong className="text-[#191F28]">IDC</strong>
-          </span>
-        </header>
+        <InstallCardHeader />
         <div className={cardStyles.body}>
           {status?.lastCheck?.status === 'FAIL' && status.lastCheck.failReason && (
             <div className={cn('mb-3 px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
@@ -194,18 +182,6 @@ export const IdcStep4Installing = ({
             steps={steps}
             meta={detailMeta}
           />
-
-          <div className="mt-6">
-            {loading && resources.length === 0 ? (
-              <ResourceTableSkeleton />
-            ) : (
-              <IdcResourceTable
-                resources={resources}
-                cols={['src', 'fw']}
-                firewallStatusByResource={firewallStatusByResource}
-              />
-            )}
-          </div>
         </div>
       </section>
 

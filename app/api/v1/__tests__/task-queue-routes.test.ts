@@ -6,6 +6,7 @@ vi.mock('@/lib/bff/client', () => ({
       getDashboardSummary: vi.fn(),
       getProcessStatuses: vi.fn(),
       getTargetSourcesPage: vi.fn(),
+      getAlertTargetSources: vi.fn(),
       putNlbIndex: vi.fn(),
       getTestConnectionPage: vi.fn(),
       getTestConnectionStatus: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('@/lib/bff/client', () => ({
 import { GET as getDashboard } from '@/app/api/v1/admin/queue/dashboard-summary/route';
 import { GET as getProcessStatuses } from '@/app/api/v1/admin/queue/process-statuses/route';
 import { GET as getTargetSources } from '@/app/api/v1/admin/queue/target-sources/route';
+import { GET as getAlertTargets } from '@/app/api/v1/admin/queue/alert-target-sources/route';
 import { GET as getTestConnections } from '@/app/api/v1/admin/queue/test-connections/route';
 import { PUT as putNlbIndex } from '@/app/api/v1/target-sources/[targetSourceId]/approval-requests/nlb-indices/route';
 import { GET as getTcStatus } from '@/app/api/v1/target-sources/[targetSourceId]/test-connection/status/route';
@@ -36,6 +38,10 @@ describe('Admin Task Queue routes', () => {
       rejected_approval_count: 2,
       test_connection_completed_count: 3,
       test_connection_rejection_count: 1,
+      confirming_count: 5,
+      need_install_count: 6,
+      need_test_connection_count: 7,
+      // absent need_pii_agent_confirm_count → 0 (loose codegen)
       evaluated_at: '2026-07-20T00:00:00Z',
     });
 
@@ -46,6 +52,10 @@ describe('Admin Task Queue routes', () => {
       rejectedApprovalCount: 2,
       testConnectionCompletedCount: 3,
       testConnectionRejectionCount: 1,
+      confirmingCount: 5,
+      needInstallCount: 6,
+      needTestConnectionCount: 7,
+      needPiiAgentConfirmCount: 0,
       evaluatedAt: '2026-07-20T00:00:00Z',
     });
   });
@@ -141,6 +151,50 @@ describe('Admin Task Queue routes', () => {
       confirmStatus: 'REJECTED',
       latestApprovalRequest: { reason: 'stg 리소스 포함', processedAt: '2026-07-18T11:02:00Z' },
     });
+  });
+
+  it('alert-target-sources forwards the kind and reuses the request-list reshape', async () => {
+    tq.getAlertTargetSources.mockResolvedValue({
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 20,
+      first: true,
+      last: true,
+      numberOfElements: 1,
+      empty: false,
+      content: [
+        {
+          targetSourceId: 1861,
+          serviceName: '정산서비스',
+          serviceCode: 'STL',
+          cloudProvider: 'AWS',
+          confirmStatus: 'CONFIRMED',
+        },
+      ],
+    });
+
+    const res = await getAlertTargets(
+      new Request('http://localhost/admin/queue/alert-target-sources?kind=need-install&size=20'),
+      noParams,
+    );
+    expect(res.status).toBe(200);
+    expect(tq.getAlertTargetSources).toHaveBeenCalledWith({
+      kind: 'need-install',
+      page: 0,
+      size: 20,
+    });
+    const body = await res.json();
+    expect(body.content[0]).toMatchObject({ targetSourceId: 1861, confirmStatus: 'CONFIRMED' });
+  });
+
+  it('alert-target-sources rejects an unknown kind with 400', async () => {
+    const res = await getAlertTargets(
+      new Request('http://localhost/admin/queue/alert-target-sources?kind=need-coffee'),
+      noParams,
+    );
+    expect(res.status).toBe(400);
+    expect(tq.getAlertTargetSources).not.toHaveBeenCalled();
   });
 
   it('test-connections rejects an out-of-contract status with 400', async () => {

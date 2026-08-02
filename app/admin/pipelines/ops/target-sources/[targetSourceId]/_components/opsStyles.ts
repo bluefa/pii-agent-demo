@@ -54,8 +54,9 @@ export const opsStyles = {
     'text-[14px] font-semibold text-[var(--pl-primary)] underline underline-offset-2 cursor-pointer',
 
   /** Tab rail (admin-ops.html .tabbar) — tinted band; only the active tab turns
-      white so it visually connects to the body below. */
-  tabStrip: 'flex gap-0.5 px-8 bg-[var(--pl-gray-100)] border-b border-[var(--pl-border)]',
+      white so it visually connects to the body below. `items-center` centers the
+      trailing 관리자 처리 actions (h32) against the taller tabs. */
+  tabStrip: 'flex items-center gap-0.5 px-8 bg-[var(--pl-gray-100)] border-b border-[var(--pl-border)]',
   tab: 'px-4 py-3 text-[14px] cursor-pointer whitespace-nowrap rounded-t-[6px] border-b-2 -mb-px',
   tabActive: 'font-semibold text-[var(--pl-primary)] border-[var(--pl-primary)] bg-[var(--pl-bg-card)]',
   tabIdle: 'font-medium text-[var(--pl-text-weak)] border-transparent hover:text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)]',
@@ -76,6 +77,47 @@ export const opsStyles = {
       one row (or none) does not shrink below its sibling. `flex-1` then absorbs
       any extra height the taller sibling forces on this one. */
   pagedCardBody: 'mt-3 min-h-[266px] flex-1',
+
+  /** In-cell count link — the user-side Step 6/7 grammar (LogicalDbCountCell
+      `linkNeutral`): the underline carries the affordance so color stays free to
+      mean state, because this link repeats once per row. */
+  countLink:
+    'inline-flex cursor-pointer items-center border-b border-current pb-px text-[14px] font-semibold tabular-nums text-[var(--pl-text-medium)] transition-colors hover:text-[var(--pl-text-strong)]',
+  /** A reported 0 has nothing to open — content, not a link, and not the — placeholder. */
+  countZero: 'text-[14px] tabular-nums text-[var(--pl-text-weak)]',
+
+  /** In-cell text action that opens an editor — the Credential cell. A select box
+      per row turns the table into a toolbar and buries the value inside a control,
+      so the value IS the trigger. The hint's slot is reserved (opacity, not
+      display) so revealing it never shifts the column, and focus-visible reveals
+      it too: hover is never the only cue. */
+  cellAction:
+    'group inline-flex max-w-full items-baseline gap-2 rounded py-0.5 text-left text-[13px] text-[var(--pl-text-medium)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--pl-primary)]',
+  cellActionValue:
+    'truncate border-b border-transparent group-hover:border-current group-hover:text-[var(--pl-text-strong)] group-focus-visible:border-current group-focus-visible:text-[var(--pl-text-strong)]',
+  cellActionEmpty:
+    'truncate border-b border-transparent text-[var(--pl-text-faint)] group-hover:border-current group-hover:text-[var(--pl-text-medium)] group-focus-visible:border-current group-focus-visible:text-[var(--pl-text-medium)]',
+  cellActionHint:
+    'flex-none text-[12px] font-semibold text-[var(--pl-primary)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100',
+
+  /** Credential 배정 modal — a scrolling radio group built on the resource table's
+      grammar: hairline row dividers, no box, no fill. A credential is a value in a
+      list, not a card; boxing and bolding each one made 3 rows look important and
+      would make 20 unreadable. Only the checked row is tinted (state). */
+  credModal: {
+    search:
+      'mt-1 h-9 w-full rounded-lg border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] px-3 text-[14px] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-faint)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]',
+    /** Fixed height, not max-height: the list must not resize as the query filters
+        it, and 3 credentials must occupy the same box as 30. */
+    list: 'h-[300px] overflow-y-auto border-t border-[var(--pl-border)]',
+    row: 'flex w-full cursor-pointer items-center gap-3 border-b border-[var(--pl-gray-100)] px-1 py-2.5 hover:bg-[var(--pl-gray-50)]',
+    rowOn: 'bg-[var(--pl-primary-bg)] hover:bg-[var(--pl-primary-bg)]',
+    radio: 'h-4 w-4 flex-none accent-[var(--pl-primary)] cursor-pointer',
+    name: 'block truncate text-[14px] text-[var(--pl-text-strong)]',
+    meta: 'block truncate text-[12px] tabular-nums text-[var(--pl-text-faint)]',
+    used: 'flex-none whitespace-nowrap text-[13px] tabular-nums text-[var(--pl-text-weak)]',
+    empty: 'px-1 py-8 text-center text-[13px] text-[var(--pl-text-weak)]',
+  },
 
   /** 상세 보기 → text button (Figma 40:21). */
   detailLink: 'inline-flex items-center gap-1 text-[14px] font-medium text-[var(--pl-primary)] cursor-pointer hover:underline whitespace-nowrap',

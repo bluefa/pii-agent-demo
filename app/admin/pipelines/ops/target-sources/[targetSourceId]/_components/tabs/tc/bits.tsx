@@ -51,6 +51,16 @@ export function shortResourceId(value: string): string {
   return `${value.slice(0, 12)}…${value.slice(-16)}`;
 }
 
+/**
+ * 경로형 id 의 마지막 세그먼트. 한 대상의 리소스 30개는 앞부분이 글자 단위로 같아서
+ * (…/rg-lgs-order/providers/Microsoft.DBforMySQL/servers/) 줄과 줄을 실제로 구별하는
+ * 것은 이 조각뿐이다. 경로가 아닌 id(AWS·IDC)는 그 자체가 이미 마지막 세그먼트다.
+ */
+export function resourceIdTail(value: string): string {
+  const segments = value.split('/').filter(Boolean);
+  return segments.length > 1 ? segments[segments.length - 1] : value;
+}
+
 /** Mono resource id cell — abbreviated, full value in the native tooltip. */
 export function ResourceId({ value }: { value: string }): ReactElement {
   if (!value) return <Dash />;

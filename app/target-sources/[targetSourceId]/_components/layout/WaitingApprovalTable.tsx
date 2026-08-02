@@ -13,6 +13,11 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
 import { GROUPED_CHILD_KIND_LABEL, groupResourceRows } from '@/lib/resource-grouping';
+import {
+  INSTALL_STATUS_LABEL,
+  type InstallStepCell,
+  type InstallStepValue,
+} from '@/app/components/features/process-status/install-status-detail/model';
 import { idcStyles, primaryColors, statusColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
@@ -37,14 +42,21 @@ export interface WaitingApprovalResource {
    */
   logicalDbCount?: number | null;
   excludedLogicalDbCount?: number | null;
+  /**
+   * `install` variant only — the selected install step's state for this resource. The step nav
+   * picks which cell lands here, so the same row renders a different status per step.
+   */
+  installCell?: InstallStepCell;
 }
 
 /**
  * `approval` (steps 2·3): verdict + exclusion reason as the last two columns.
  * `confirmed` (step 6): every row is a confirmed target, so the verdict pair is replaced by
  * the Step 5 logical-DB counts — what the user actually reviews before the final approval.
+ * `install` (step 4): every row is a confirmed target too, so the pair becomes the per-step
+ * install status and its contract guidance — the same last-two-columns slot, install vocabulary.
  */
-type WaitingApprovalTableVariant = 'approval' | 'confirmed';
+type WaitingApprovalTableVariant = 'approval' | 'confirmed' | 'install';
 
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
@@ -161,6 +173,23 @@ export const TargetPill = ({
   );
 };
 
+// 상태는 태그가 아니라 글자다 — 행마다 반복되는 값이라 채운 배지를 두면 색이 먼저
+// 읽힌다. 색은 "아직 손댈 일이 남았는가"만 말한다: 끝난 것과 해당 없는 것은 회색.
+const INSTALL_STATUS_TEXT: Record<InstallStepValue, string> = {
+  COMPLETED: textColors.tertiary,
+  IN_PROGRESS: statusColors.info.textDark,
+  FAIL: statusColors.error.textDark,
+  BDC_INSTALL_REQUIRED: statusColors.warning.textDark,
+  SKIP: textColors.tertiary,
+  UNKNOWN: textColors.tertiary,
+};
+
+const InstallStatusText = ({ cell }: { cell: InstallStepCell }) => (
+  <span className={cn('whitespace-nowrap font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
+    {cell.label ?? INSTALL_STATUS_LABEL[cell.status]}
+  </span>
+);
+
 // The chip's own 40-char default overruns this six-column table and forces horizontal
 // scroll (Azure step 3 reasons run past it). Clamp here — the full text is in the hover tip.
 const SUMMARY_LIMIT = 15;
@@ -201,13 +230,14 @@ export const WaitingApprovalTable = memo(
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
     // everything before you approve" surface, so nothing may be hidden by default.
     //
-    // `confirmed` (steps 6·7) deliberately does NOT group. From step 4 on, the spec says the
-    // region IS the resource — one Athena row per region, its databases behind a reference
-    // detail panel rather than as sibling rows, and no logical-DB or credential columns for it
-    // at all (Athena and DynamoDB are IAM-based). Folding step 6·7's database-level rows onto
-    // `athena_region_resource_id` is that separate change; a parent-with-children tree here
-    // would assert a shape those steps do not have.
-    const grouped = variant !== 'confirmed';
+    // ONLY the `approval` variant groups. From step 4 on the region IS the resource — step 4
+    // (`install`) already receives one Athena row per region, keyed on
+    // `athena_region_resource_id`, and step 5 folds onto the same key; steps 6·7 (`confirmed`)
+    // still list databases but a parent-with-children tree would assert a shape they do not
+    // have, and Athena has no logical-DB or credential column to aggregate anyway (it is
+    // IAM-based). Written as an allow-list, not `!== 'confirmed'`: that phrasing opted the
+    // install variant in the moment it was added, and drew a second Region cell on step 4.
+    const grouped = variant === 'approval';
     const sections = useMemo(
       () =>
         grouped
@@ -233,6 +263,7 @@ export const WaitingApprovalTable = memo(
     }
 
     const confirmedVariant = variant === 'confirmed';
+    const installVariant = variant === 'install';
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[12px]';
@@ -286,28 +317,32 @@ export const WaitingApprovalTable = memo(
               verdict) is enough; a second pill would compete with it.
               Inside a group this column carries what the row IS: the parent says `Athena`,
               each child says `Database`. Region belongs to the parent alone. */}
-          <td
-            className={cn(
-              idcStyles.table.approvalCell,
-              'text-[12px]',
-              excluded ? DIM_TEXT : textColors.secondary,
-              CELL_LIFT,
-            )}
-          >
-            {grouped
-              ? GROUPED_CHILD_KIND_LABEL
-              : getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
-          </td>
-          <td
-            className={cn(
-              idcStyles.table.approvalCell,
-              monoCell,
-              excluded ? DIM_TEXT : textColors.secondary,
-              CELL_LIFT,
-            )}
-          >
-            {grouped ? null : resource.region || PLACEHOLDER}
-          </td>
+          {!installVariant && (
+            <>
+              <td
+                className={cn(
+                  idcStyles.table.approvalCell,
+                  'text-[12px]',
+                  excluded ? DIM_TEXT : textColors.secondary,
+                  CELL_LIFT,
+                )}
+              >
+                {grouped
+                  ? GROUPED_CHILD_KIND_LABEL
+                  : getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
+              </td>
+              <td
+                className={cn(
+                  idcStyles.table.approvalCell,
+                  monoCell,
+                  excluded ? DIM_TEXT : textColors.secondary,
+                  CELL_LIFT,
+                )}
+              >
+                {grouped ? null : resource.region || PLACEHOLDER}
+              </td>
+            </>
+          )}
           {confirmedVariant ? (
             <>
               <td className={idcStyles.table.approvalCell}>
@@ -323,6 +358,22 @@ export const WaitingApprovalTable = memo(
                   label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
                   onOpen={() => onLogicalDbOpen?.(resource)}
                 />
+              </td>
+            </>
+          ) : installVariant ? (
+            <>
+              <td className={idcStyles.table.approvalCell}>
+                {resource.installCell && <InstallStatusText cell={resource.installCell} />}
+              </td>
+              {/* 안내 없음은 빈 칸 — 대시는 시각적 노이즈만 남긴다. */}
+              <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
+                {resource.installCell?.guide ? (
+                  <ReasonChipInline
+                    reason={resource.installCell.guide}
+                    summary={clampReason(resource.installCell.guide)}
+                    label="안내"
+                  />
+                ) : null}
               </td>
             </>
           ) : (
@@ -352,12 +403,25 @@ export const WaitingApprovalTable = memo(
               <tr className="whitespace-nowrap">
                 <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
-                <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
-                <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                {/* Step 4 drops the two attribute columns: the engine was settled back on
+                    steps 1·2 and the install runs the same either way, and the region is a
+                    constant within one target source (and already inside the resource id).
+                    What they cost — 250px — is what 상태/안내 need to stay on screen. */}
+                {!installVariant && (
+                  <>
+                    <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                  </>
+                )}
                 {confirmedVariant ? (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>연동 논리 DB</th>
                     <th className={idcStyles.table.approvalHeaderCell}>연동 제외</th>
+                  </>
+                ) : installVariant ? (
+                  <>
+                    <th className={idcStyles.table.approvalHeaderCell}>상태</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>안내</th>
                   </>
                 ) : (
                   <>
