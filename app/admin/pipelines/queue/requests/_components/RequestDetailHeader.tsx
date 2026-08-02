@@ -2,13 +2,8 @@
  * RequestDetailHeader — P3 page head (design-spec §3, updated: NO "요청 정보"
  * card; the static request context lives in the header). Primer PageHeader +
  * Helios kv≤4 grammar: h1 + actions, head-sub (ProvTag · mono code · 상태),
- * head-meta (요청 시각 · 요청자), a bottom border separating it from the first
- * section.
- *
- * The meta pairs stack label over value and stand apart on a wide gap — the
- * step-2 request-summary grammar (MetaField), rather than a dot-separated run.
- * 리소스 선택 n/m is NOT here: the resource section below already leads with
- * "연동 대상 n개 · 제외 m개", and the count belongs to the list it describes.
+ * head-meta (요청자 · 요청 시각 · 리소스 선택 n/m), a bottom border separating it
+ * from the first section.
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -21,7 +16,7 @@ const { text } = pipelineStyles;
 
 interface MetaItem {
   key: string;
-  value: string;
+  value: ReactElement | string;
 }
 
 export interface RequestDetailHeaderProps {
@@ -33,6 +28,8 @@ export interface RequestDetailHeaderProps {
   confirmStatus: string | null;
   requestedBy: string | null;
   requestedAt: string | null;
+  selectedCount: number | null;
+  totalCount: number | null;
   onApprove: () => void;
   onReject: () => void;
   actionsDisabled?: boolean;
@@ -47,14 +44,24 @@ export function RequestDetailHeader({
   confirmStatus,
   requestedBy,
   requestedAt,
+  selectedCount,
+  totalCount,
   onApprove,
   onReject,
   actionsDisabled,
 }: RequestDetailHeaderProps): ReactElement {
-  // 시각이 먼저 — 언제 들어온 요청인지가 대기열에서 먼저 읽혀야 한다.
   const meta: MetaItem[] = [
-    { key: '요청 시각', value: fmtDateTime(requestedAt) },
     { key: '요청자', value: requestedBy ?? '—' },
+    { key: '요청 시각', value: fmtDateTime(requestedAt) },
+    {
+      key: '리소스 선택',
+      value: (
+        <>
+          {selectedCount ?? '—'}
+          <span className={text.muted}> / {totalCount ?? '—'}</span>
+        </>
+      ),
+    },
   ];
 
   return (
@@ -68,12 +75,13 @@ export function RequestDetailHeader({
           {serviceCode != null && <span className={text.mono}>{serviceCode}</span>}
           <ConfirmStatusPill status={confirmStatus} />
         </div>
-        <div className="flex flex-wrap gap-8 mt-4">
-          {meta.map((item) => (
-            <div key={item.key} className="flex min-w-0 flex-col gap-1">
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          {meta.map((item, index) => (
+            <span key={item.key} className="inline-flex items-center gap-2">
+              {index > 0 && <span className="text-[var(--pl-text-faint)]">·</span>}
               <span className={text.kvKey}>{item.key}</span>
-              <span className={cn(text.kvValue, 'min-w-0 truncate tabular-nums')}>{item.value}</span>
-            </div>
+              <span className={cn(text.kvValue, 'tabular-nums')}>{item.value}</span>
+            </span>
           ))}
         </div>
       </div>

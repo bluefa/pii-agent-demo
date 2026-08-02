@@ -237,6 +237,8 @@ export default function RequestDetailPage(): ReactElement {
             confirmStatus={detail.request.status ?? header?.confirmStatus ?? null}
             requestedBy={detail.request.requestedBy}
             requestedAt={detail.request.requestedAt}
+            selectedCount={selectedCount}
+            totalCount={totalCount}
             onApprove={() => setModal('approve')}
             onReject={() => setModal('reject')}
           />
