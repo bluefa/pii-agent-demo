@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ScanStrip, type ScanStripProps } from '@/app/components/features/scan/ScanStrip';
+import { ScanStrip, type ScanFunnelCounts, type ScanStripProps } from '@/app/components/features/scan/ScanStrip';
 
 const successJob: ScanStripProps['job'] = {
   id: 1,
@@ -96,5 +96,100 @@ describe('ScanStrip', () => {
     expect(onOpenHistory).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: '권한 확인' }));
     expect(onCheckPermission).toHaveBeenCalledTimes(1);
+  });
+});
+
+const baseFunnel: ScanFunnelCounts = {
+  discovered: 107873,
+  eligible: 12,
+  selected: 5,
+  excluded: 7,
+  missingReasons: 0,
+  filter: 'all',
+  onFilterChange: () => {},
+};
+
+describe('ScanStrip funnel row', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-31T05:03:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // The whole point of the row: discovered (every resource type) and eligible
+  // (DB candidates in the table) are DIFFERENT numbers, and the gap is explained
+  // rather than hidden. Collapsing them to one value would undo the feature.
+  it('shows the discovery-to-selection funnel with the discovered/eligible gap intact', () => {
+    render(<ScanStrip {...baseProps} job={successJob} newCount={3} funnel={baseFunnel} />);
+    expect(screen.getByText('107,873')).toBeTruthy();
+    expect(screen.getByText('스캔이 조회한 전체 리소스')).toBeTruthy();
+    expect(screen.getByText('12')).toBeTruthy();
+    expect(screen.getByText('+3')).toBeTruthy();
+    expect(screen.getByText('5')).toBeTruthy();
+    expect(screen.getByText('7')).toBeTruthy();
+  });
+
+  // The counts now live in the cells; repeating them in the meta line would make
+  // the band state the same number twice.
+  it('drops the found/new counts from the meta line when the funnel carries them', () => {
+    render(<ScanStrip {...baseProps} job={successJob} newCount={2} funnel={baseFunnel} />);
+    expect(screen.getByText(/32초 소요/)).toBeTruthy();
+    expect(screen.queryByText(/개 발견/)).toBeNull();
+    expect(screen.queryByText(/신규 2/)).toBeNull();
+  });
+
+  // A funnel needs a scan behind it. With no scan on record the cells would
+  // report a result that does not exist, and would push the one true fact —
+  // "아직 스캔한 적이 없어요" — below them.
+  it('suppresses the funnel entirely when no scan is on record', () => {
+    render(<ScanStrip {...baseProps} job={null} funnel={{ ...baseFunnel, discovered: 0 }} />);
+    expect(screen.getByText('아직 스캔한 적이 없어요')).toBeTruthy();
+    expect(screen.queryByText('스캔이 조회한 전체 리소스')).toBeNull();
+    expect(screen.queryByRole('button', { name: /선택함/ })).toBeNull();
+    expect(screen.getByRole('button', { name: '스캔 시작' })).toBeTruthy();
+  });
+
+  // A finished-but-failed scan keeps the funnel (the list below is the previous
+  // scan's) and says this run found nothing with an em dash, not a zero.
+  it('renders a finished scan with no counts as an em dash, not a zero', () => {
+    render(<ScanStrip {...baseProps} job={permissionFailJob} funnel={{ ...baseFunnel, discovered: 0 }} />);
+    expect(screen.getByText('—')).toBeTruthy();
+  });
+
+  it('surfaces the blocking missing-reason count on the excluded cell', () => {
+    const { rerender } = render(<ScanStrip {...baseProps} job={successJob} funnel={baseFunnel} />);
+    expect(screen.queryByText(/사유 .*건 미입력/)).toBeNull();
+    rerender(<ScanStrip {...baseProps} job={successJob} funnel={{ ...baseFunnel, missingReasons: 3 }} />);
+    expect(screen.getByText('사유 3건 미입력')).toBeTruthy();
+  });
+
+  it('filters the table from the selected/excluded cells and toggles back off', () => {
+    const onFilterChange = vi.fn();
+    const { rerender } = render(
+      <ScanStrip {...baseProps} job={successJob} funnel={{ ...baseFunnel, onFilterChange }} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /선택함/ }));
+    expect(onFilterChange).toHaveBeenLastCalledWith('target');
+    fireEvent.click(screen.getByRole('button', { name: /제외함/ }));
+    expect(onFilterChange).toHaveBeenLastCalledWith('excluded');
+
+    // Pressing the active cell clears the filter — the only way back to 전체.
+    rerender(
+      <ScanStrip {...baseProps} job={successJob} funnel={{ ...baseFunnel, filter: 'target', onFilterChange }} />,
+    );
+    const selectedCell = screen.getByRole('button', { name: /선택함/ });
+    expect(selectedCell.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(selectedCell);
+    expect(onFilterChange).toHaveBeenLastCalledWith('all');
+  });
+
+  // Reporting cells must not look interactive: discovered/eligible are derived
+  // facts with no filter behind them.
+  it('keeps the two reporting cells out of the tab order', () => {
+    render(<ScanStrip {...baseProps} job={successJob} funnel={baseFunnel} />);
+    expect(screen.queryByRole('button', { name: /스캔 발견/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /연동 가능 DB/ })).toBeNull();
   });
 });

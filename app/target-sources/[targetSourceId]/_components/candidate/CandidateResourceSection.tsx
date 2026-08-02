@@ -31,7 +31,10 @@ import type { CloudProvider } from '@/lib/types';
 import type { CandidateDraftState, CandidateResource, EndpointConfigDraft } from '@/lib/types/resources';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
-import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import {
+  WaitingApprovalToolbar,
+  type ApprovalFilter,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
 import type { CandidateRowActions } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
@@ -193,6 +196,7 @@ export const CandidateResourceSection = ({
   // 화면에서 사라진다 — 죽은 앵커를 남기지 않게 모든 뷰 변경 핸들러가 함께 닫는다.
   const {
     onSearchChange: tableSearchChange,
+    onFilterChange: tableFilterChange,
     onDbTypeChange: tableDbTypeChange,
     onRegionChange: tableRegionChange,
     onPageChange: tablePageChange,
@@ -206,6 +210,10 @@ export const CandidateResourceSection = ({
     tableSearchChange(next);
     closeRowUi();
   }, [tableSearchChange, closeRowUi]);
+  const handleFilterChange = useCallback((next: ApprovalFilter) => {
+    tableFilterChange(next);
+    closeRowUi();
+  }, [tableFilterChange, closeRowUi]);
   const handleDbTypeChange = useCallback((next: string) => {
     tableDbTypeChange(next);
     closeRowUi();
@@ -286,13 +294,14 @@ export const CandidateResourceSection = ({
     setExpandedResourceId(null);
     // 재스캔이면 목록이 통째로 바뀐다 — 이전 검색·필터가 새 결과를 가리지 않게 초기화.
     tableSearchChange('');
+    tableFilterChange('all');
     tableDbTypeChange('');
     tableRegionChange('');
     tablePageChange(0);
     closePicker();
     refetchAfterScan();
     await refreshProject();
-  }, [tableSearchChange, tableDbTypeChange, tableRegionChange, tablePageChange, closePicker, refetchAfterScan, refreshProject]);
+  }, [tableSearchChange, tableFilterChange, tableDbTypeChange, tableRegionChange, tablePageChange, closePicker, refetchAfterScan, refreshProject]);
 
   const handleApprovalConfirm = useCallback(() => {
     void approval.execute();
@@ -326,6 +335,22 @@ export const CandidateResourceSection = ({
           const showStrip = phase === 'list'
             || (finishedJob != null && (phase === 'empty' || phase === 'scanFailed'));
           const scanDisabled = initialLoading || !canStart || readonly;
+          // 깔때기는 목록이 서 있을 때만 — 후보가 없으면 네 칸이 전부 0이라
+          // 정보가 아니라 소음이고, 그때 밴드는 예전처럼 한 줄로만 선다.
+          // 발견 수는 잡의 전체 리소스 합계라서 아래 표의 후보 수와 다르다 —
+          // 그 격차를 설명하는 게 이 줄의 목적이므로 같은 값으로 맞추지 않는다.
+          const funnel = phase === 'list'
+            ? {
+              discovered: Object.values(finishedJob?.resource_count_by_resource_type ?? {})
+                .reduce<number>((sum, count) => sum + (count ?? 0), 0),
+              eligible: candidates.length,
+              selected: selectedIds.size,
+              excluded: Math.max(0, candidates.length - selectedIds.size),
+              missingReasons: missingReasonResources.length,
+              filter: table.filter,
+              onFilterChange: handleFilterChange,
+            }
+            : undefined;
 
           const renderBody = (): React.ReactNode => {
             switch (phase) {
@@ -441,6 +466,7 @@ export const CandidateResourceSection = ({
                       showScanButton={phase !== 'scanFailed'}
                       scanDisabled={scanDisabled}
                       starting={starting}
+                      funnel={funnel}
                     />
                   </div>
                 )}

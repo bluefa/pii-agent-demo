@@ -300,6 +300,13 @@ export const buttonStyles = {
     md: 'px-4 py-2',
     lg: 'px-6 py-3 text-lg',
   },
+  /**
+   * Ghost text action — a secondary action that steps back from button chrome
+   * into underlined-link syntax, so the only button chrome on a band belongs to
+   * its one real CTA. Pair with a `textColors` tier for the resting colour.
+   */
+  ghostText:
+    'text-[13px] font-semibold underline underline-offset-[3px] decoration-[#D1D6DB] transition-colors hover:text-[#191F28] disabled:cursor-not-allowed disabled:opacity-60',
 } as const;
 
 /**
