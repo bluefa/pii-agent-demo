@@ -106,7 +106,7 @@ describe('InstallationCompleteStep', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'PII 모니터링 모듈 연동' })).toBeTruthy();
     expect(screen.getByText('연동 완료')).toBeTruthy();
     expect(screen.getByText(/연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요/)).toBeTruthy();
-    expect(screen.getByText(/DB 구성이 바뀌었다면 하단/)).toBeTruthy();
+    expect(screen.getByText(/인프라 구성이 바뀌었다면 하단/)).toBeTruthy();
   });
 
   it('mounts the ConfirmedResourcesSlot (steps 6·7 shared table)', () => {

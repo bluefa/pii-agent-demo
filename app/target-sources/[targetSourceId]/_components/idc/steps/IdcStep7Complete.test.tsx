@@ -77,7 +77,7 @@ describe('IdcStep7Complete', () => {
     expect(
       screen.getByText(/연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요/),
     ).toBeTruthy();
-    expect(screen.getByText(/DB 구성이 바뀌었다면 하단/)).toBeTruthy();
+    expect(screen.getByText(/인프라 구성이 바뀌었다면 하단/)).toBeTruthy();
   });
 
   it('docks both rewind CTAs in the bottom action bar', () => {

@@ -121,7 +121,7 @@ export const InstallationCompleteStep = ({
           {/* One sentence for the rewind CTAs (step-6 grammar); the step each one lands on
               is the action bar hint's job. */}
           <p className={cardStyles.guidance}>
-            DB 구성이 바뀌었다면 하단{' '}
+            인프라 구성이 바뀌었다면 하단{' '}
             <strong className={cn('font-semibold', textColors.secondary)}>인프라 변경</strong>을,
             연결 상태를 다시 점검하고 싶다면{' '}
             <strong className={cn('font-semibold', textColors.secondary)}>연결 테스트 재실행</strong>
