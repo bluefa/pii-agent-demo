@@ -12,7 +12,7 @@ import {
   ResourceGroupRow,
 } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
-import { groupResourceRows } from '@/lib/resource-grouping';
+import { GROUPED_CHILD_KIND_LABEL, groupResourceRows } from '@/lib/resource-grouping';
 import { idcStyles, primaryColors, statusColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
@@ -268,20 +268,24 @@ export const WaitingApprovalTable = memo(
               <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
             </Tooltip>
           </td>
+          {/* Inside a group the id is dropped: it is the parent's own path with the child's name
+              tacked on (`athena:<acct>:<region>/<catalog>/test_raw`), so every child repeated the
+              group's identity and then said its name a second time. */}
           <td className={idcStyles.table.approvalCell}>
-            {/* 260px (the cell default) plus a non-wrapping Region overran the card. */}
-            <ResourceIdCell
-              value={resource.resourceId}
-              label="Resource ID"
-              maxWidthClass="max-w-[220px]"
-              textClassName={cn(excluded ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
-            />
+            {grouped ? null : (
+              // 260px (the cell default) plus a non-wrapping Region overran the card.
+              <ResourceIdCell
+                value={resource.resourceId}
+                label="Resource ID"
+                maxWidthClass="max-w-[220px]"
+                textClassName={cn(excluded ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
+              />
+            )}
           </td>
           {/* DB Type is a repeating attribute, not a status — one badge per row (the
               verdict) is enough; a second pill would compete with it.
-              Inside a group both of these are on the parent row instead: they are what the
-              group is keyed on, so repeating them per child says nothing and turned the tree
-              into a block of identical text. */}
+              Inside a group this column carries what the row IS: the parent says `Athena`,
+              each child says `Database`. Region belongs to the parent alone. */}
           <td
             className={cn(
               idcStyles.table.approvalCell,
@@ -290,7 +294,9 @@ export const WaitingApprovalTable = memo(
               CELL_LIFT,
             )}
           >
-            {grouped ? null : getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
+            {grouped
+              ? GROUPED_CHILD_KIND_LABEL
+              : getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
           </td>
           <td
             className={cn(

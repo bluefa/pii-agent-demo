@@ -34,6 +34,16 @@ const GROUPED_TYPES: ReadonlySet<string> = new Set(['ATHENA', 'AWS_ATHENA_DATABA
 /** Label/key the parent row is rendered under, whichever spelling arrived. */
 export const GROUPED_TYPE_LABEL_KEY = 'ATHENA';
 
+/**
+ * What one child row IS, said in the Database Type column.
+ *
+ * Read down the tree the column says `Athena` → `Database`: the parent is the service in a
+ * region, each child is one database inside it. Without this a name like `test_raw` is just a
+ * string — nothing on the row said which kind of thing it names. Grounded in the wire type the
+ * captured response actually sends for these rows, `AWS_ATHENA_DATABASE`.
+ */
+export const GROUPED_CHILD_KIND_LABEL = 'Database';
+
 export const isGroupedResourceType = (type: string | null | undefined): boolean => {
   const normalized = normalizeResourceType(type);
   return normalized != null && GROUPED_TYPES.has(normalized);

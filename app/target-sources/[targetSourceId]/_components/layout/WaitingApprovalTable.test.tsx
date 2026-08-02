@@ -142,9 +142,10 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByText('1 대상 · 0 제외 · 총 1')).toBeTruthy();
     });
 
-    // The pair the group is keyed on is stated once, on the parent. Children repeating it made
-    // the parent indistinguishable from its own rows and left it blank across four columns.
-    it('states Database Type and Region on the parent, and blanks them on the children', () => {
+    // Read down the tree the Database Type column says Athena → Database, so a child name like
+    // `db_a` is identified as a database rather than left as a bare string. Region is the
+    // parent's alone, and the child's id is dropped — it is the parent's path plus that name.
+    it('says Athena on the parent and Database on each child, with Region only on the parent', () => {
       render(
         <WaitingApprovalTable
           resources={[athena('db_a', 'ap-northeast-1', true), athena('db_b', 'ap-northeast-1', false)]}
@@ -159,7 +160,8 @@ describe('WaitingApprovalTable', () => {
 
       for (const row of rows.slice(2)) {
         const cells = within(row).getAllByRole('cell');
-        expect(cells[2].textContent).toBe('');
+        expect(cells[1].textContent).toBe('');
+        expect(cells[2].textContent).toBe('Database');
         expect(cells[3].textContent).toBe('');
       }
     });

@@ -10,6 +10,7 @@ import { VmDatabaseConfigPanel } from '@/app/target-sources/[targetSourceId]/_co
 import { VnetIntegrationGuideModal } from '@/app/target-sources/[targetSourceId]/_components/candidate/VnetIntegrationGuideModal';
 import { useModal } from '@/app/hooks/useModal';
 import { getResourceDisplayName } from '@/lib/resource';
+import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
 import {
   cn,
   idcStyles,
@@ -163,23 +164,28 @@ export const CandidateResourceRow = ({
           </Tooltip>
         </td>
 
+        {/* Inside a group the id is dropped: it is the parent's own path with the child's name
+            tacked on (`athena:<acct>:<region>/<catalog>/test_raw`), so every child repeated the
+            group's identity and then said its name a second time. */}
         <td className={idcStyles.table.approvalCell}>
-          <span onClick={(event) => event.stopPropagation()}>
-            <ResourceIdCell
-              value={candidate.resourceId}
-              label="Resource ID"
-              // 220px(승인 테이블 기본)에서 축소: 이 테이블은 체크박스+설치 구분이
-              // 더 있어 220이면 제외 사유 열이 가로 스크롤 뒤로 밀린다. 전문은 팁·복사에.
-              maxWidthClass="max-w-[160px]"
-              textClassName={cn(dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
-            />
-          </span>
+          {grouped ? null : (
+            <span onClick={(event) => event.stopPropagation()}>
+              <ResourceIdCell
+                value={candidate.resourceId}
+                label="Resource ID"
+                // 220px(승인 테이블 기본)에서 축소: 이 테이블은 체크박스+설치 구분이
+                // 더 있어 220이면 제외 사유 열이 가로 스크롤 뒤로 밀린다. 전문은 팁·복사에.
+                maxWidthClass="max-w-[160px]"
+                textClassName={cn(dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
+              />
+            </span>
+          )}
         </td>
 
         {/* DB Type is a repeating attribute, not a status — plain text, no badge; the
             config-needed warning is the one exception because it names an action.
-            Inside a group these two cells are empty: type × region is what the group is keyed
-            on, so the parent row states them once and the children inherit. */}
+            Inside a group this column carries what the row IS: the parent says `Athena`,
+            each child says `Database`. Region belongs to the parent alone. */}
         <td
           className={cn(
             idcStyles.table.approvalCell,
@@ -188,7 +194,9 @@ export const CandidateResourceRow = ({
             CELL_LIFT,
           )}
         >
-          {!grouped && (
+          {grouped ? (
+            GROUPED_CHILD_KIND_LABEL
+          ) : (
             <span className="flex items-center gap-1.5 whitespace-nowrap">
               {effectiveDbType ? getDatabaseShortLabel(effectiveDbType) : '—'}
               {showConfigNeeded && (
