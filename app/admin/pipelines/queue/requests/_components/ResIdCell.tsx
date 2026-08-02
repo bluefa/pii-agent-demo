@@ -6,15 +6,18 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import { cn } from '@/lib/theme';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 
 export interface ResIdCellProps {
   value: string;
+  /** Resting tone + row-hover lift, when the caller's row owns those states (P3). */
+  textClassName?: string;
 }
 
-export function ResIdCell({ value }: ResIdCellProps): ReactElement {
+export function ResIdCell({ value, textClassName }: ResIdCellProps): ReactElement {
   const toast = usePlToast();
   const { resId } = tqStyles.appTable;
   const copy = (): void => {
@@ -23,7 +26,7 @@ export function ResIdCell({ value }: ResIdCellProps): ReactElement {
   };
   return (
     <span className={resId.cell}>
-      <span className={resId.text} title={value}>
+      <span className={cn(textClassName ? resId.textBare : resId.text, textClassName)} title={value}>
         {value}
       </span>
       <button type="button" className={resId.copy} onClick={copy} title="복사" aria-label="Resource ID 복사">

@@ -156,7 +156,6 @@ export default function RequestDetailPage(): ReactElement {
   const resources = detail?.resources ?? [];
   const selectedCount =
     detail?.request.resourceSelectedCount ?? resources.filter((r) => r.selected).length;
-  const totalCount = detail?.request.resourceTotalCount ?? resources.length;
   // Cheap filter over the (small) resource set — recomputed each render on purpose.
   const unsavedNlbCount = dirtyCount(resources, draft);
   // Counts stay whole-request (the tabs are the split); only the table pages.
@@ -268,8 +267,6 @@ export default function RequestDetailPage(): ReactElement {
             confirmStatus={detail.request.status ?? header?.confirmStatus ?? null}
             requestedBy={detail.request.requestedBy}
             requestedAt={detail.request.requestedAt}
-            selectedCount={selectedCount}
-            totalCount={totalCount}
             onApprove={() => setModal('approve')}
             onReject={() => setModal('reject')}
           />

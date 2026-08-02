@@ -12,6 +12,12 @@ import { cn, pipelineStyles } from '@/lib/theme';
 
 const { text } = pipelineStyles;
 
+// Colorless cell bases — see `appTable.tdBare` for why the color is split out.
+const APP_TD_BASE = 'px-4 py-[13px] align-middle tabular-nums border-t border-[var(--pl-gray-100)]';
+const APP_TD_MONO_BASE = 'text-[12px] [font-family:var(--pl-font-mono)]';
+const RES_ID_TEXT_BASE =
+  'max-w-[300px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] [font-family:var(--pl-font-mono)]';
+
 export const tqStyles = {
   /**
    * seg.lg — the large tab/filter control (`.seg.lg`): gray-100 track, p-3px,
@@ -93,18 +99,42 @@ export const tqStyles = {
     th: 'text-left px-4 py-3 text-[12px] font-semibold text-[var(--pl-text-weak)] border-b border-[var(--pl-border)]',
     /** tbody — drops the first row's top border (seam under thead). */
     body: '[&>tr:first-child>td]:border-t-0',
-    td: 'px-4 py-[13px] align-middle tabular-nums border-t border-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
-    tdMono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+    td: `${APP_TD_BASE} text-[var(--pl-text-medium)]`,
+    tdMono: `${APP_TD_MONO_BASE} text-[var(--pl-text-strong)]`,
+    /** Colorless cell bases — the P3 approval tables pick a resting tier AND a hover
+     *  lift per cell, and `cn` is a plain join with no cascade authority, so a base
+     *  color would collide with both. Every other table keeps `td` / `tdMono`. */
+    tdBare: APP_TD_BASE,
+    tdMonoBare: APP_TD_MONO_BASE,
     row: 'transition-colors hover:bg-[var(--pl-bg-inner)]',
+    /** Step-2 approval-table row grammar (P3 리소스 테이블). `group` is what lets each
+     *  cell declare its own hover lift — `cn` is a plain join with no cascade authority,
+     *  so a row-level color would lose to the cell's own resting color. `focus-within`
+     *  mirrors hover: these rows carry copy buttons and selects, so a keyboard user gets
+     *  the same row highlight a mouse user gets. */
+    rowApproval:
+      'group transition-colors duration-150 motion-reduce:transition-none hover:bg-[var(--pl-row-hover)] focus-within:bg-[var(--pl-row-hover)]',
     rowExcluded:
-      'bg-[var(--pl-gray-100)] hover:bg-[var(--pl-gray-200)] [&>td]:text-[var(--pl-text-weak)]',
+      'group bg-[var(--pl-gray-50)] transition-colors duration-150 motion-reduce:transition-none hover:bg-[var(--pl-row-hover-excluded)] focus-within:bg-[var(--pl-row-hover-excluded)]',
+    /** Secondary cells lift to full strength on row hover — a background alone marks
+     *  position, it does not make the row easier to READ. */
+    cellLift: 'group-hover:text-[var(--pl-text-strong)] group-focus-within:text-[var(--pl-text-strong)]',
+    /** The row's anchor (Resource Name / IDC 연동 대상) lifts to brand instead, marking
+     *  which cell identifies the row. One axis per column — color, never weight too. */
+    cellLiftName:
+      'group-hover:text-[var(--pl-primary-hover)] group-focus-within:text-[var(--pl-primary-hover)]',
+    /** Excluded rows REST one tier dimmer — the 1.05:1 background tint carries nothing on
+     *  its own. The lifts above restore full contrast the moment the row is engaged. */
+    cellDim: 'text-[var(--pl-text-weak)]',
     /** 연동 대상 여부 (`.target-yes` / `.target-no`). */
     targetYes: 'font-semibold whitespace-nowrap text-[var(--pl-ok-text)]',
     targetNo: 'font-semibold whitespace-nowrap text-[var(--pl-text-weak)]',
     /** Resource-id cell w/ copy (`.res-id-cell`) — non-IDC tables (P3/P5). */
     resId: {
       cell: 'inline-flex items-center gap-1.5 max-w-full',
-      text: 'max-w-[300px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
+      text: `${RES_ID_TEXT_BASE} text-[var(--pl-text-strong)]`,
+      /** Colorless — the caller supplies the tone (see `tdBare`). */
+      textBare: RES_ID_TEXT_BASE,
       copy: 'inline-grid place-items-center w-[22px] h-[22px] flex-none rounded-[5px] border-0 bg-transparent text-[var(--pl-text-faint)] cursor-pointer hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]',
     },
     /** 논리 DB drill-down link (`.ldb-link`) — P5. */

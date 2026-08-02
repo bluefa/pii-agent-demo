@@ -71,10 +71,13 @@ export function IdcResourceTable({
     <div className={cn(appTable.wrap, wrapClassName)}>
       <table className={appTable.root}>
         <thead className={appTable.thead}>
+          {/* Identity first, then its attributes, then the decision — the same reading
+              order as the cloud table and Step 2. An IDC row's identity is its host/IP,
+              so 연동 대상 leads and 구분 qualifies the value it just showed. */}
           <tr>
+            <th className={appTable.th}>연동 대상</th>
             <th className={`${appTable.th} w-[70px]`}>구분</th>
             <th className={`${appTable.th} w-[110px]`}>Database Type</th>
-            <th className={appTable.th}>연동 대상</th>
             <th className={`${appTable.th} w-[64px]`}>Port</th>
             <th className={`${appTable.th} w-[100px]`}>Oracle SID</th>
             <th className={`${appTable.th} w-[150px]`}>Source IP</th>
@@ -88,28 +91,50 @@ export function IdcResourceTable({
             const connect = row.connectTargets.join(' · ') || '—';
             if (!row.selected) {
               return (
-                <tr key={row.resourceId ?? index} className={cn(appTable.row, appTable.rowExcluded)}>
-                  <td className={appTable.td}>
+                <tr key={row.resourceId ?? index} className={appTable.rowExcluded}>
+                  <td
+                    className={cn(
+                      appTable.tdBare,
+                      appTable.tdMonoBare,
+                      appTable.cellDim,
+                      appTable.cellLiftName,
+                    )}
+                  >
+                    <span className="block max-w-[280px] truncate" title={connect}>
+                      {connect}
+                    </span>
+                  </td>
+                  <td className={appTable.tdBare}>
                     <span className={cn(tag.base, tag.gray)}>{kindTag(row.idcKind)}</span>
                   </td>
-                  <td className={appTable.td}>
-                    <span className={cn(tag.base, tag.grayStrong)}>{row.databaseType ? getDatabaseShortLabel(row.databaseType) : '—'}</span>
+                  <td className={cn(appTable.tdBare, 'text-[12px]', appTable.cellDim, appTable.cellLift)}>
+                    {row.databaseType ? getDatabaseShortLabel(row.databaseType) : '—'}
                   </td>
-                  <td className={`${appTable.td} ${appTable.tdMono}`}>{connect}</td>
-                  <td className={`${appTable.td} ${appTable.tdMono}`}>{row.port ?? '—'}</td>
-                  <td className={appTable.td}>
-                    <span className="text-[var(--pl-text-weak)]">—</span>
+                  <td
+                    className={cn(
+                      appTable.tdBare,
+                      appTable.tdMonoBare,
+                      appTable.cellDim,
+                      appTable.cellLift,
+                    )}
+                  >
+                    {row.port ?? '—'}
                   </td>
-                  <td className={appTable.td}>
-                    <span className="text-[var(--pl-text-weak)]">—</span>
-                  </td>
-                  <td className={appTable.td}>
+                  <td className={cn(appTable.tdBare, appTable.cellDim)}>—</td>
+                  <td className={cn(appTable.tdBare, appTable.cellDim)}>—</td>
+                  <td className={appTable.tdBare}>
                     <span className={appTable.targetNo}>연동 대상 제외</span>
                   </td>
-                  <td className={appTable.td} colSpan={2}>
-                    <span className="text-[12px] font-normal text-[var(--pl-text-weak)]">
-                      {row.exclusionReason ?? '—'}
-                    </span>
+                  <td
+                    className={cn(
+                      appTable.tdBare,
+                      'text-[12px] font-normal',
+                      appTable.cellDim,
+                      appTable.cellLift,
+                    )}
+                    colSpan={2}
+                  >
+                    {row.exclusionReason ?? '—'}
                   </td>
                 </tr>
               );
@@ -122,30 +147,63 @@ export function IdcResourceTable({
             const canSave = row.resourceId != null && !disabled;
 
             return (
-              <tr key={row.resourceId ?? index} className={appTable.row}>
-                <td className={appTable.td}>
+              <tr key={row.resourceId ?? index} className={appTable.rowApproval}>
+                <td
+                  className={cn(
+                    appTable.tdBare,
+                    appTable.tdMonoBare,
+                    'text-[var(--pl-text-strong)]',
+                    appTable.cellLiftName,
+                  )}
+                >
+                  {/* One line, always — a wrapped host left row heights ragged. */}
+                  <span className="block max-w-[280px] truncate" title={connect}>
+                    {connect}
+                  </span>
+                </td>
+                <td className={appTable.tdBare}>
                   <span className={cn(tag.base, tag.gray)}>{kindTag(row.idcKind)}</span>
                 </td>
-                <td className={appTable.td}>
-                  <span className={cn(tag.base, tag.blue)}>{row.databaseType ? getDatabaseShortLabel(row.databaseType) : '—'}</span>
-                </td>
-                <td className={`${appTable.td} ${appTable.tdMono}`}>{connect}</td>
-                <td className={`${appTable.td} ${appTable.tdMono}`}>{row.port ?? '—'}</td>
-                <td className={appTable.td}>
-                  {row.oracleSid ? (
-                    <span className={appTable.tdMono}>{row.oracleSid}</span>
-                  ) : (
-                    <span className="text-[var(--pl-text-weak)]">—</span>
+                <td
+                  className={cn(
+                    appTable.tdBare,
+                    'text-[12px] text-[var(--pl-text-medium)]',
+                    appTable.cellLift,
                   )}
+                >
+                  {row.databaseType ? getDatabaseShortLabel(row.databaseType) : '—'}
                 </td>
-                <td className={appTable.td}>
-                  {row.sourceIps.length > 0 ? (
-                    <span className={appTable.tdMono}>{row.sourceIps.join(' · ')}</span>
-                  ) : (
-                    <span className="text-[var(--pl-text-weak)]">—</span>
+                <td
+                  className={cn(
+                    appTable.tdBare,
+                    appTable.tdMonoBare,
+                    'text-[var(--pl-text-medium)]',
+                    appTable.cellLift,
                   )}
+                >
+                  {row.port ?? '—'}
                 </td>
-                <td className={appTable.td}>
+                <td
+                  className={cn(
+                    appTable.tdBare,
+                    appTable.tdMonoBare,
+                    row.oracleSid ? 'text-[var(--pl-text-medium)]' : appTable.cellDim,
+                    appTable.cellLift,
+                  )}
+                >
+                  {row.oracleSid ?? '—'}
+                </td>
+                <td
+                  className={cn(
+                    appTable.tdBare,
+                    appTable.tdMonoBare,
+                    row.sourceIps.length > 0 ? 'text-[var(--pl-text-medium)]' : appTable.cellDim,
+                    appTable.cellLift,
+                  )}
+                >
+                  {row.sourceIps.length > 0 ? row.sourceIps.join(' · ') : '—'}
+                </td>
+                <td className={appTable.tdBare}>
                   <select
                     className={cn(
                       SELECT_BASE,
@@ -170,7 +228,7 @@ export function IdcResourceTable({
                     ))}
                   </select>
                 </td>
-                <td className={appTable.td}>
+                <td className={appTable.tdBare}>
                   {currentOcc != null ? (
                     <span className="inline-flex items-center gap-2">
                       <OccBar occupied={currentOcc} />
@@ -181,10 +239,10 @@ export function IdcResourceTable({
                       <FtagBadge occupied={currentOcc} />
                     </span>
                   ) : (
-                    <span className="text-[var(--pl-text-weak)]">—</span>
+                    <span className={appTable.cellDim}>—</span>
                   )}
                 </td>
-                <td className={appTable.td}>
+                <td className={appTable.tdBare}>
                   <span className="inline-flex items-center justify-end gap-1.5 w-full">
                     <PlButton variant="ghost" size="sm" onClick={() => onShowNlbInfo(row)}>
                       NLB 정보
