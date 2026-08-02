@@ -14,7 +14,6 @@ import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import Link from 'next/link';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
-import { formatDateTime } from '@/lib/utils/date';
 import { getAlertTargetSources, getDashboardSummary } from '@/app/lib/api/task-queue';
 import type { AlertTargetKind, DashboardSummary, RequestListRow } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -33,8 +32,6 @@ type AlertCounts = Pick<
 interface AlertCardMeta {
   kind: AlertTargetKind;
   label: string;
-  /** Step number as stated by the contract; `confirming` has none. */
-  step: string | null;
   /** 필요한 작업 — what the operator has to do next. */
   need: string;
   count: (counts: AlertCounts) => number;
@@ -44,28 +41,24 @@ const ALERT_CARDS: readonly AlertCardMeta[] = [
   {
     kind: 'confirming',
     label: '리소스 확정 진행 중',
-    step: null,
     need: '확정 완료 여부 확인',
     count: (s) => s.confirmingCount,
   },
   {
     kind: 'need-install',
     label: '설치 필요',
-    step: 'Step 4',
     need: 'Agent 설치 수행',
     count: (s) => s.needInstallCount,
   },
   {
     kind: 'need-test-connection',
     label: '연결 테스트 필요',
-    step: 'Step 5',
     need: '연결 테스트 실행',
     count: (s) => s.needTestConnectionCount,
   },
   {
     kind: 'need-pii-agent-confirm',
     label: 'PII Agent 확인 필요',
-    step: 'Step 6',
     need: '완료 승인',
     count: (s) => s.needPiiAgentConfirmCount,
   },
@@ -73,13 +66,12 @@ const ALERT_CARDS: readonly AlertCardMeta[] = [
 
 const statCard = {
   row: 'grid grid-cols-4 gap-3 mt-4',
-  base: 'text-left rounded-[10px] border px-5 py-4 cursor-pointer transition-colors',
+  base: 'text-center rounded-[10px] border px-5 py-4 cursor-pointer transition-colors',
   idle: 'bg-[var(--pl-gray-100)] border-[var(--pl-border)] hover:border-[var(--pl-border-strong)]',
   active:
     'bg-[var(--pl-bg-card)] border-[var(--pl-primary)] shadow-[0_0_0_3px_var(--pl-primary-ring)]',
-  step: 'inline-flex items-center rounded-md border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--pl-text-weak)]',
   label: 'text-[14px] font-semibold text-[var(--pl-text-medium)]',
-  value: 'mt-3 text-[32px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums',
+  value: 'mt-3 text-[36px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums',
   need: 'mt-1 text-[12px] text-[var(--pl-text-weak)]',
 } as const;
 
@@ -92,7 +84,6 @@ const EMPTY_SUMMARY_COUNTS: AlertCounts = {
 
 export function AlertsView(): ReactElement {
   const [counts, setCounts] = useState(EMPTY_SUMMARY_COUNTS);
-  const [evaluatedAt, setEvaluatedAt] = useState<string | null>(null);
   const [rows, setRows] = useState<RequestListRow[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -119,7 +110,6 @@ export function AlertsView(): ReactElement {
         ]);
         if (controller.signal.aborted) return;
         setCounts(summary);
-        setEvaluatedAt(summary.evaluatedAt);
         setRows(list.content);
         setTotalElements(list.totalElements);
         setTotalPages(Math.max(1, list.totalPages));
@@ -159,11 +149,6 @@ export function AlertsView(): ReactElement {
           아래 카드를 선택하면 해당 단계의 대상 목록이 표시되고, 각 행에서 Target Source 운영 화면으로
           이동할 수 있습니다.
         </p>
-        {evaluatedAt && (
-          <p className={cn(pipelineStyles.text.meta, 'mt-2')}>
-            집계 시각 {formatDateTime(evaluatedAt)}
-          </p>
-        )}
 
         <div className={statCard.row}>
           {ALERT_CARDS.map((card) => {
@@ -177,10 +162,7 @@ export function AlertsView(): ReactElement {
                 onClick={() => selectKind(card.kind)}
                 className={cn(statCard.base, active ? statCard.active : statCard.idle)}
               >
-                <span className="flex items-center gap-1.5">
-                  {card.step && <span className={statCard.step}>{card.step}</span>}
-                  <span className={statCard.label}>{card.label}</span>
-                </span>
+                <span className={cn(statCard.label, 'block')}>{card.label}</span>
                 <span
                   className={cn(
                     statCard.value,
