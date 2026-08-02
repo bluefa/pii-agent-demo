@@ -5,23 +5,23 @@ import {
   bgColors,
   borderColors,
   cn,
-  idcStyles,
+  primaryColors,
+  sideTextColors,
   stackGap,
+  shadows,
   statusColors,
   tagStyles,
   textColors,
   textStyles,
 } from '@/lib/theme';
-import {
-  TABLE_BODY_CELL,
-  TABLE_HEADER_CELL,
-  TABLE_MONO_CELL,
-  TABLE_TAG_PILL,
-} from '@/app/components/features/process-status/install-task-pipeline/table-styles';
-import { CopyButton } from '@/app/components/ui/CopyButton';
-import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { TABLE_TAG_PILL } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
 import { Pagination } from '@/app/components/ui/Pagination';
-import { usePagination } from '@/app/hooks/usePagination';
+import {
+  WaitingApprovalTable,
+  type WaitingApprovalResource,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import { formatDateTime } from '@/lib/utils/date';
 import {
   INSTALL_STATUS_LABEL,
@@ -51,12 +51,6 @@ const STATUS_TAG: Record<InstallStepValue, string> = {
   UNKNOWN: tagStyles.neutral,
 };
 
-const StatusPill = ({ cell }: { cell: InstallStepCell }) => (
-  <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', STATUS_TAG[cell.status])}>
-    {cell.label ?? INSTALL_STATUS_LABEL[cell.status]}
-  </span>
-);
-
 /** A nav step whose right panel is custom content (e.g. AWS role verify). */
 export interface InstallPanelStep extends InstallTableStep {
   status: InstallStepValue;
@@ -72,6 +66,17 @@ interface StepAggregate {
   count: string | null;
   kind: AggregateKind;
 }
+
+/**
+ * 레일 상태 글자색 — 태그를 걷어낸 자리. 손댈 단계(실패·진행중)만 색을 갖고,
+ * 끝났거나 남의 차례인 단계(완료·대기)는 회색으로 가라앉는다.
+ */
+const NAV_STATUS_TEXT: Record<AggregateKind, string> = {
+  failed: statusColors.error.textDark,
+  running: statusColors.info.textDark,
+  done: textColors.tertiary,
+  waiting: textColors.tertiary,
+};
 
 const kindOfValue = (value: InstallStepValue): AggregateKind =>
   value === 'FAIL' ? 'failed'
@@ -111,6 +116,22 @@ const SideTag = ({ side }: { side: string }) => (
   </span>
 );
 
+/**
+ * 주체를 글자로 — 정보는 앞머리 한 단어(서비스측 / BDC측)에 있으므로 거기에만 색이
+ * 붙고, 뒤따르는 설명("리소스 생성", "승인")은 회색으로 남는다.
+ */
+const SideText = ({ side }: { side: string }) => {
+  const [owner, ...rest] = side.split(' ');
+  return (
+    <span className={textColors.tertiary}>
+      <span className={cn('font-semibold', side.startsWith('BDC') ? sideTextColors.bdc : sideTextColors.service)}>
+        {owner}
+      </span>
+      {rest.length > 0 && ` ${rest.join(' ')}`}
+    </span>
+  );
+};
+
 interface ResourceRow {
   resourceId: string;
   resourceName: string | null;
@@ -119,8 +140,29 @@ interface ResourceRow {
   cell: InstallStepCell;
 }
 
+const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
+
+/**
+ * Per-resource table for the selected step — the steps 2·3 approval table with the
+ * verdict/reason pair swapped for install status + guidance (`install` variant). Every
+ * install row is a confirmed target, so the search / filter / pagination grammar is the
+ * one the user already learned on the earlier steps.
+ */
 const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
-  const { page, pageSize, setPage, setPageSize, pageItems } = usePagination(rows);
+  const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
+    () =>
+      rows.map((row) => ({
+        resourceId: row.resourceId,
+        resourceType: row.databaseType ?? '',
+        region: row.region ?? '',
+        resourceName: row.resourceName ?? '',
+        selected: true,
+        displayDbType: row.databaseType ?? undefined,
+        installCell: row.cell,
+      })),
+    [rows],
+  );
+  const table = useApprovalTableState(approvalRows);
 
   if (rows.length === 0) {
     return (
@@ -130,90 +172,35 @@ const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
     );
   }
 
+  // Toolbar (top-rounded) + table + pagination join as one card, same as steps 2·3.
   return (
-    <div className={cn('flex flex-col', stackGap.related)}>
-      <div className={cn(idcStyles.table.frame, 'overflow-x-auto')}>
-        <table className={cn('w-full', textStyles.body)}>
-          <thead className={bgColors.muted}>
-            <tr>
-              <th className={TABLE_HEADER_CELL}>Database Type</th>
-              <th className={TABLE_HEADER_CELL}>Resource Name</th>
-              <th className={TABLE_HEADER_CELL}>Resource ID</th>
-              <th className={TABLE_HEADER_CELL}>Region</th>
-              <th className={TABLE_HEADER_CELL}>상태</th>
-              <th className={TABLE_HEADER_CELL}>안내</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageItems.map((row) => (
-              <tr
-                key={row.resourceId}
-                className={cn('border-t border-[#EBEEF2] group', row.cell.status === 'FAIL' && statusColors.error.bg)}
-              >
-                <td className={TABLE_BODY_CELL}>
-                  {row.databaseType ? (
-                    <span className={cn(TABLE_TAG_PILL, tagStyles.info)}>
-                      {getDatabaseShortLabel(row.databaseType)}
-                    </span>
-                  ) : (
-                    <span className={textColors.tertiary}>—</span>
-                  )}
-                </td>
-                <td className={TABLE_MONO_CELL}>
-                  {row.resourceName ? (
-                    <span
-                      className="block max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap"
-                      title={row.resourceName}
-                    >
-                      {row.resourceName}
-                    </span>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td className={TABLE_MONO_CELL}>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap [direction:rtl] text-left">
-                      {row.resourceId}
-                    </span>
-                    <CopyButton
-                      value={row.resourceId}
-                      label={`${row.resourceId} 복사`}
-                      className="opacity-0 group-hover:opacity-100"
-                    />
-                  </span>
-                </td>
-                <td className={TABLE_MONO_CELL}>{row.region ?? '—'}</td>
-                <td className={TABLE_BODY_CELL}>
-                  <StatusPill cell={row.cell} />
-                </td>
-                {/* 안내 없음은 빈 칸 — 대시는 시각적 노이즈만 남긴다. */}
-                <td className={TABLE_BODY_CELL}>
-                  {row.cell.guide ? (
-                    <span
-                      className={cn(
-                        'block max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap',
-                        row.cell.status === 'FAIL' ? statusColors.error.textDark : textColors.secondary,
-                      )}
-                      title={row.cell.guide}
-                    >
-                      {row.cell.guide}
-                    </span>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <Pagination
-        page={page}
-        pageSize={pageSize}
-        totalCount={rows.length}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-        pageSizeOptions={[10, 20, 50]}
+    <div>
+      <WaitingApprovalToolbar
+        searchValue={table.searchValue}
+        onSearchChange={table.onSearchChange}
+        dbType={table.dbType}
+        onDbTypeChange={table.onDbTypeChange}
+        region={table.region}
+        onRegionChange={table.onRegionChange}
+        dbTypeOptions={table.dbTypeOptions}
+        regionOptions={table.regionOptions}
       />
+      <WaitingApprovalTable
+        resources={table.visibleResources}
+        variant="install"
+        connected
+        emptyMessage={FILTER_EMPTY_MESSAGE}
+      />
+      {table.filteredCount > 0 && (
+        <Pagination
+          page={table.safePage}
+          pageSize={table.pageSize}
+          totalCount={table.filteredCount}
+          onPageChange={table.onPageChange}
+          onPageSizeChange={table.onPageSizeChange}
+          pageSizeOptions={[10, 20, 50, 100]}
+        />
+      )}
     </div>
   );
 };
@@ -224,7 +211,7 @@ const SUMMARY_STEP: InstallTableStep = {
   id: SUMMARY_ID,
   title: '설치 현황 요약',
   side: null,
-  desc: '서비스 측에서 확인해야 할 항목과 BDC가 자동 처리 중인 단계를 구분해 보여줍니다.',
+  desc: '전체 진행 상황과, 서비스 측에서 확인해야 할 항목을 모아 보여줍니다.',
 };
 
 /** 한 단계의 요약 표시에 필요한 것 전부. */
@@ -238,58 +225,44 @@ interface StepView {
   actionable: boolean;
 }
 
-const StepLine = ({ view, onOpen }: { view: StepView; onOpen: () => void }) => (
-  <button
-    type="button"
-    onClick={onOpen}
-    className={cn(
-      'flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg border border-transparent',
-      bgColors.mutedHover,
-    )}
-  >
-    <span className={cn(textStyles.bodyStrong, 'flex-1 min-w-0 truncate', textColors.primary)}>
-      {view.step.title}
-    </span>
-    <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', view.aggregate.tag)}>
-      {view.aggregate.label}
-    </span>
-    {view.aggregate.count && (
-      <span className={cn(textStyles.caption, 'tabular-nums', textColors.tertiary)}>
-        {view.aggregate.count}
-      </span>
-    )}
-    {view.step.side && <SideTag side={view.step.side} />}
-  </button>
-);
-
-const ActionCard = ({ view, onOpen }: { view: StepView; onOpen: () => void }) => {
+/**
+ * 조치 항목 — Step 2 의 반려 사유와 같은 인용 룰 문법.
+ *
+ * 채운 블록은 카드 폭 그대로 서서 "두 번째 카드"로 읽히지만, 3px 룰에 걸어두면 같은
+ * 상태를 색면 ~800px² 로 말한다. 크기 계층도 Step 2 와 같다: 12px 태그가 블록의 이름,
+ * 17px 문장이 payload — 사용자가 실제로 해야 하는 일이 이 블록에서 가장 큰 글자다.
+ */
+const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) => {
   const failed = view.aggregate.kind === 'failed';
+  const tone = failed ? statusColors.error : statusColors.warning;
+  // 조치 문구가 없는 단계(자동 진행 중 실패 등)는 계약이 준 사유 첫 줄이 payload 다.
+  // 그 경우 아래 목록은 나머지만 — 같은 문장을 크게 한 번, 작게 또 한 번 쓰지 않는다.
+  const payload = view.step.serviceAction ?? view.reasons[0]?.text ?? view.aggregate.label;
+  const payloadCount = view.step.serviceAction ? null : view.reasons[0]?.count ?? null;
+  const restReasons = view.step.serviceAction ? view.reasons : view.reasons.slice(1);
   return (
-    <div
-      className={cn(
-        'rounded-xl border px-4 py-3.5 flex flex-col',
-        stackGap.related,
-        failed ? cn(statusColors.error.border, statusColors.error.bg) : cn(statusColors.warning.border, statusColors.warning.bg),
-      )}
-    >
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className={cn(textStyles.bodyStrong, textColors.primary)}>{view.step.title}</span>
-        <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', view.aggregate.tag)}>
-          {view.aggregate.count ? `${view.aggregate.label} ${view.aggregate.count}` : view.aggregate.label}
-        </span>
-        {view.step.side && <SideTag side={view.step.side} />}
-      </div>
+    <div className={cn('border-l-[3px] pl-4', tone.borderStrong)}>
+      {/* 제목이 아니라 태그 — 이 블록이 무엇에 대한 것인지만 말하고, payload 아래로 내려간다. */}
+      <p className={cn('text-[12px] font-bold tracking-[0.02em]', tone.textDark)}>
+        {view.step.title}
+        {view.step.side && (
+          <span className={cn('ml-1.5 font-semibold', textColors.tertiary)}>· {view.step.side}</span>
+        )}
+      </p>
 
-      {/* 조치 문구는 제목과 같은 14px — 계층은 크기가 아니라 색으로 가른다. */}
-      {view.step.serviceAction && (
-        <p className={cn(textStyles.body, failed ? statusColors.error.textDark : statusColors.warning.textDark)}>
-          {view.step.serviceAction}
-        </p>
-      )}
+      {/* payload = 해야 하는 일. 이 블록에서 가장 큰 글자이자 가장 진한 톤. */}
+      <p className={cn('mt-1.5 text-[17px] font-semibold leading-[1.5]', textColors.primary)}>
+        {payload}
+        {payloadCount !== null && (
+          <span className={cn('ml-2 font-semibold tabular-nums', textStyles.caption, textColors.tertiary)}>
+            {payloadCount}건
+          </span>
+        )}
+      </p>
 
-      {view.reasons.length > 0 && (
-        <ul className={cn('flex flex-col', stackGap.tight, textStyles.caption, textColors.secondary)}>
-          {view.reasons.map((reason) => (
+      {restReasons.length > 0 && (
+        <ul className={cn('mt-2 flex flex-col', stackGap.tight, textStyles.caption, textColors.secondary)}>
+          {restReasons.map((reason) => (
             <li key={reason.text} className="flex gap-1.5">
               <span aria-hidden>·</span>
               <span className="min-w-0">
@@ -303,123 +276,118 @@ const ActionCard = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
         </ul>
       )}
 
-      <button
-        type="button"
-        onClick={onOpen}
-        className={cn(
-          'self-start px-3 py-1.5 rounded-lg border bg-white',
-          textStyles.captionStrong,
-          borderColors.default,
-          textColors.secondary,
-        )}
-      >
-        해당 단계 열기 →
-      </button>
+      {/* 나가는 길은 룰 안에 둔다 — 밖으로 빼면 별개 블록으로 읽힌다(Step 2 서명행 규칙). */}
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={onOpen}
+          className={cn(
+            'underline underline-offset-2 decoration-1',
+            textStyles.captionStrong,
+            primaryColors.text,
+          )}
+        >
+          {view.step.title} 단계로 이동
+        </button>
+      </div>
     </div>
   );
 };
 
+/** 조회 시각 한 줄 — 요약에서는 지표 카드 안, 단계 표에서는 표 아래에 선다. */
+const LastCheckLine = ({ lastCheck }: { lastCheck: InstallLastCheck }) => (
+  <div className={cn(textStyles.caption, textColors.tertiary)}>
+    {lastCheck.checkedAt && <>마지막 확인 {formatDateTime(lastCheck.checkedAt)}</>}
+    {lastCheck.status === 'FAILED' && (
+      <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
+    )}
+  </div>
+);
+
+/** 요약의 지표 한 칸 — 숫자가 라벨보다 크다(숫자가 내용, 라벨은 주석). */
+const RollupStat = ({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: string;
+}) => (
+  <div className="flex flex-col gap-0.5">
+    <span className={cn('text-[20px] font-bold leading-[1.2] tabular-nums', tone ?? textColors.primary)}>
+      {value}
+    </span>
+    <span className={cn(textStyles.caption, textColors.tertiary)}>{label}</span>
+  </div>
+);
+
 /**
- * 요약 패널 — 리소스 테이블이 아니라 "지금 서비스 측이 볼 것 / BDC가 처리
- * 중인 것 / 끝난 것" 세 묶음으로 단계를 재배치한다.
+ * 요약 패널 — 좌측 레일이 이미 단계 목록을 갖고 있으므로, 여기서는 레일이 못 하는
+ * 두 가지만 한다: ① 전체 진척을 숫자로 ② 지금 해야 할 일.
+ *
+ * 예전에는 "진행 중·대기 / 완료된 단계" 묶음까지 나열했는데, 그건 레일과 같은 목록을
+ * 같은 모양으로 한 번 더 그린 것이라 좌우가 구분되지 않았다(오너 지적).
  */
 const InstallSummaryPanel = ({
   views,
   rollup,
+  lastCheck,
   onOpen,
 }: {
   views: readonly StepView[];
   /** 리소스별 전체 상태(installation_status) 집계. */
   rollup: { total: number; done: number; running: number; failed: number };
+  lastCheck: InstallLastCheck;
   onOpen: (stepId: string) => void;
 }) => {
   const action = views.filter((v) => v.actionable);
-  const waiting = views.filter((v) => !v.actionable && v.aggregate.kind !== 'done');
-  const done = views.filter((v) => !v.actionable && v.aggregate.kind === 'done');
 
   return (
     // 그룹(섹션) 사이 = section 32px, 그룹 제목↔본문 = related 8px (비대칭 규칙)
     <div className={cn('flex flex-col', stackGap.section)}>
-      <div className={cn('flex items-center gap-3 tabular-nums', textStyles.caption, textColors.secondary)}>
-        <span>리소스 {rollup.total}개</span>
-        <span className={statusColors.success.textDark}>완료 {rollup.done}</span>
-        <span className={statusColors.info.textDark}>진행중 {rollup.running}</span>
-        <span className={statusColors.error.textDark}>실패 {rollup.failed}</span>
+      {/* 현황 카드 — 숫자와 그 숫자가 언제 기준인지는 한 덩어리다. 이 패널에서 판을
+          가진 유일한 블록이고, 조치 항목은 아래에서 인용 룰이 대신 묶는다. */}
+      <div className={cn('rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.light)}>
+        <div className="flex items-start gap-8">
+          <RollupStat label="전체 리소스" value={rollup.total} />
+          <RollupStat label="완료" value={rollup.done} />
+          <RollupStat label="진행중" value={rollup.running} tone={statusColors.info.textDark} />
+          <RollupStat
+            label="실패"
+            value={rollup.failed}
+            {...(rollup.failed > 0 && { tone: statusColors.error.textDark })}
+          />
+        </div>
+        <LastCheckLine lastCheck={lastCheck} />
       </div>
-      <section className={cn('flex flex-col', stackGap.related)}>
-        <h4 className={cn(textStyles.bodyStrong, textColors.primary)}>
-          지금 서비스 측에서 확인이 필요합니다
-        </h4>
-        {action.length === 0 ? (
-          <div
-            className={cn(
-              'px-4 py-3 rounded-xl border',
-              textStyles.bodyStrong,
-              statusColors.success.border,
-              statusColors.success.bg,
-              statusColors.success.textDark,
-            )}
-          >
-            확인이 필요한 항목이 없습니다.
-          </div>
-        ) : (
-          action.map((view) => (
-            <ActionCard key={view.step.id} view={view} onOpen={() => onOpen(view.step.id)} />
-          ))
-        )}
-      </section>
 
-      {waiting.length > 0 && (
+      {/* 제목은 조건부다 — 확인할 게 없는데 "확인이 필요합니다"를 띄워놓고 그 아래에서
+          "없어요"라고 하면 한 섹션이 서로 반대말을 한다. */}
+      {action.length === 0 ? (
+        <p className={cn(textStyles.body, textColors.secondary)}>
+          지금 서비스 측에서 확인할 항목은 없어요. 나머지 단계는 BDC가 처리 중이며, 왼쪽
+          목록에서 진행 상황을 볼 수 있어요.
+        </p>
+      ) : (
+        // 판을 두르지 않는다 — 묶음은 각 항목의 인용 룰이 말한다(Step 2 문법).
         <section className={cn('flex flex-col', stackGap.related)}>
-          <h4 className={cn(textStyles.bodyStrong, textColors.primary)}>
-            진행 중 · 대기 — 서비스 측 조치 불필요
+          {/* 섹션 라벨은 한 단 내려 쓴다 — 항목 제목과 같은 14/700 이면 둘 중 무엇이
+              상위인지 화면이 답하지 못한다(인접 계층은 크기·색 두 축이 달라야 한다). */}
+          <h4 className={cn(textStyles.captionStrong, textColors.tertiary)}>
+            지금 서비스 측에서 확인이 필요합니다
           </h4>
-          {waiting.map((view) => (
-            <StepLine key={view.step.id} view={view} onOpen={() => onOpen(view.step.id)} />
-          ))}
-        </section>
-      )}
-
-      {done.length > 0 && (
-        <section className={cn('flex flex-col', stackGap.related)}>
-          <h4 className={cn(textStyles.bodyStrong, textColors.tertiary)}>완료된 단계</h4>
-          {done.map((view) => (
-            <StepLine key={view.step.id} view={view} onOpen={() => onOpen(view.step.id)} />
-          ))}
+          {/* 여러 건일 수 있으므로 목록이다 — 스크린리더도 "N개 항목"으로 읽는다. */}
+          <ul className={cn('flex flex-col', stackGap.section)}>
+            {action.map((view) => (
+              <li key={view.step.id}>
+                <ActionItem view={view} onOpen={() => onOpen(view.step.id)} />
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </div>
-  );
-};
-
-/** 상단 상시 배너 — 요약 스텝을 열지 않아도 조치 필요를 알린다. */
-const ActionBanner = ({ views, onOpen }: { views: readonly StepView[]; onOpen: () => void }) => {
-  const [first, ...rest] = views;
-  const failed = first.aggregate.kind === 'failed';
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn(
-        'flex items-center gap-2 w-full text-left px-4 py-2.5 rounded-xl border',
-        textStyles.body,
-        failed ? cn(statusColors.error.border, statusColors.error.bg) : cn(statusColors.warning.border, statusColors.warning.bg),
-      )}
-    >
-      <span className={cn(textStyles.bodyStrong, failed ? statusColors.error.textDark : statusColors.warning.textDark)}>
-        서비스 측 확인 필요
-      </span>
-      <span className={cn(textStyles.bodyStrong, textColors.primary)}>{first.step.title}</span>
-      <span className={textColors.secondary}>
-        {first.step.serviceAction ?? first.reasons[0]?.text ?? first.aggregate.label}
-      </span>
-      {rest.length > 0 && (
-        <span className={cn(textStyles.captionStrong, textColors.tertiary)}>외 {rest.length}건</span>
-      )}
-      <span className={cn(textStyles.captionStrong, 'ml-auto whitespace-nowrap', textColors.secondary)}>
-        요약 보기 →
-      </span>
-    </button>
   );
 };
 
@@ -540,11 +508,15 @@ export const InstallStatusDetail = ({
 
   return (
     <div className="flex flex-col gap-3">
-      {actionViews.length > 0 && (
-        <ActionBanner views={actionViews} onOpen={() => setSelected(SUMMARY_ID)} />
-      )}
-      <div className={cn('grid grid-cols-[320px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.default)}>
-      <nav className={cn('border-r p-2.5 flex flex-col gap-1 bg-white', borderColors.default)} aria-label="설치 단계">
+      {/* 레일은 목차, 우측은 내용 — 둘을 표면으로 가른다. 레일은 가라앉은 회색 판
+          위에 앉고 우측은 카드의 흰 바닥을 그대로 쓴다. 구분선 하나로는 "같은 종류의
+          정보가 두 단 있다"로 읽혔다(오너 지적). 폭은 224px — 목차가 넓을 이유는 없고,
+          남는 폭은 전부 리소스 테이블이 쓴다. */}
+      <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-6">
+      <nav
+        className={cn('flex flex-col gap-0.5 rounded-xl p-2 self-start', bgColors.muted)}
+        aria-label="설치 단계"
+      >
         {navSteps.map((step, index) => {
           const aggregate = aggregates.get(step.id)!;
           const isActive = step.id === activeId;
@@ -555,10 +527,9 @@ export const InstallStatusDetail = ({
               onClick={() => setSelected(step.id)}
               aria-current={isActive}
               className={cn(
-                'flex flex-col gap-1.5 w-full text-left px-2.5 py-2.5 rounded-lg border',
-                isActive
-                  ? cn(bgColors.muted, borderColors.default)
-                  : cn('border-transparent', bgColors.mutedHover),
+                'flex flex-col gap-1 w-full text-left px-2.5 py-2 rounded-lg transition-colors',
+                // 레일 자체가 회색이므로 선택 항목은 흰 카드로 떠오른다(반대 방향의 대비).
+                isActive ? cn('bg-white', shadows.pill) : 'hover:bg-white/60',
               )}
             >
               <span className="flex items-start gap-2.5 w-full">
@@ -575,14 +546,29 @@ export const InstallStatusDetail = ({
                 <span className={cn('flex-1 min-w-0', textStyles.bodyStrong, textColors.primary)}>
                   {step.title}
                 </span>
-                {step.side && <SideTag side={step.side} />}
               </span>
-              {/* 34px = 24px index circle + 10px gap — aligns with the title. */}
-              <span className="flex items-center gap-1.5 flex-wrap pl-[34px]">
-                <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', aggregate.tag)}>{aggregate.label}</span>
+              {/* 34px = 24px index circle + 10px gap — aligns with the title.
+                  목차 한 줄에 채운 태그가 둘씩 반복되면 색이 내용을 이긴다. 여기서는 상태도
+                  주체도 글자로 쓰고, 색은 "봐야 하는가"(실패·진행중)에만 남긴다. */}
+              <span className={cn('flex items-center gap-1.5 flex-wrap pl-[34px]', textStyles.caption)}>
+                <span
+                  className={cn(
+                    NAV_STATUS_TEXT[aggregate.kind],
+                    // 끝난 단계는 굵기까지 내려놓는다 — 남은 일만 눈에 걸리게.
+                    aggregate.kind === 'done' || aggregate.kind === 'waiting'
+                      ? 'font-normal'
+                      : 'font-semibold',
+                  )}
+                >
+                  {aggregate.label}
+                </span>
                 {aggregate.count && (
-                  <span className={cn(textStyles.caption, 'tabular-nums', textColors.tertiary)}>
-                    {aggregate.count}
+                  <span className={cn('tabular-nums', textColors.tertiary)}>{aggregate.count}</span>
+                )}
+                {step.side && (
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span aria-hidden className={textColors.tertiary}>·</span>
+                    <SideText side={step.side} />
                   </span>
                 )}
               </span>
@@ -591,7 +577,7 @@ export const InstallStatusDetail = ({
         })}
       </nav>
 
-      <div className="p-5 bg-white min-w-0">
+      <div className="min-w-0">
         <div className="flex items-start justify-between gap-3">
           {/* 제목↔부제 = tight 4px */}
           <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
@@ -613,25 +599,23 @@ export const InstallStatusDetail = ({
           </span>
         </div>
 
-        {!activePanel && (
-          <div className={cn('mt-4 mb-2', textStyles.caption, textColors.tertiary)}>
-            {lastCheck.checkedAt && <>마지막 확인 {formatDateTime(lastCheck.checkedAt)}</>}
-            {lastCheck.status === 'FAILED' && (
-              <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
-            )}
-          </div>
-        )}
-
-        <div className={activePanel ? 'mt-4' : ''}>
+        <div className="mt-4">
           {activePanel ? (
             activePanel.panel
           ) : isSummary ? (
-            <InstallSummaryPanel views={views} rollup={rollup} onOpen={setSelected} />
+            <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
           ) : (
             // key resets pagination when switching steps
             <StepResourceTable key={active.id} rows={rows} />
           )}
         </div>
+
+        {/* 표 아래 조회 시각 — 요약에서는 지표 카드가 이미 갖고 있으므로 여기서는 뺀다. */}
+        {!activePanel && !isSummary && (
+          <div className="mt-4">
+            <LastCheckLine lastCheck={lastCheck} />
+          </div>
+        )}
       </div>
       </div>
     </div>

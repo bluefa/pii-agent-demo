@@ -65,13 +65,14 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(nav).getByText('Terraform 자동 적용')).toBeTruthy();
     expect(within(nav).getByText('BDC 서비스 영역')).toBeTruthy();
     expect(within(nav).getByText('BDC 공통 영역')).toBeTruthy();
-    // 주체 태그: 서비스측 1 + BDC측 2 (요약 스텝은 태그 없음).
-    expect(within(nav).getByText('서비스측 리소스 생성')).toBeTruthy();
-    expect(within(nav).getAllByText('BDC측 리소스 생성').length).toBe(2);
+    // 주체는 앞머리 한 단어에만 색이 붙으므로 그 토큰으로 센다:
+    // 서비스측 확인 1 + 서비스측 리소스 생성 1 = 2, BDC측 2 (요약 스텝은 주체 없음).
+    expect(within(nav).getAllByText('서비스측').length).toBe(2);
+    expect(within(nav).getAllByText('BDC측').length).toBe(2);
 
-    // A failed step makes the summary the default view: the banner and the
-    // action card both surface the failure reason.
-    expect(screen.getAllByText('서브넷 IP 부족').length).toBeGreaterThanOrEqual(2);
+    // A failed step makes the summary the default view, and the action card there is
+    // the single place the failure reason is stated (no duplicate banner above it).
+    expect(screen.getAllByText('서브넷 IP 부족')).toHaveLength(1);
   });
 
   it('joins region / DB type / name from the confirmed integration', () => {
@@ -85,8 +86,12 @@ describe('AwsInstallStatusDetail', () => {
 
     expect(screen.getByText('r-1')).toBeTruthy();
     expect(screen.getByText('name-of-r-1')).toBeTruthy();
-    expect(screen.getByText('ap-northeast-2')).toBeTruthy();
-    expect(screen.getByText('MySQL')).toBeTruthy();
+    // Step 4 drops the Region / Database Type columns, so the joined attributes
+    // surface through the toolbar filter rather than as cells.
+    fireEvent.click(screen.getByRole('button', { name: '필터' }));
+    const filters = screen.getByRole('group', { name: '필터 옵션' });
+    expect(within(filters).getByText('ap-northeast-2')).toBeTruthy();
+    expect(within(filters).getByText('MySQL')).toBeTruthy();
   });
 
   it('renders SKIP as 해당 없음 (both in rows and in the summary rollup)', () => {
@@ -108,7 +113,8 @@ describe('AwsInstallStatusDetail', () => {
 
     // default selection = service step (IN_PROGRESS present) → SKIP row visible.
     expect(screen.getAllByText('해당 없음').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('설치 대상이 아닌 리소스입니다.')).toBeTruthy();
+    // 안내 is the steps-2·3 reason chip, which clamps its summary — the full guide is in the tip.
+    expect(screen.getByText(/설치 대상이 아닌/)).toBeTruthy();
 
     // SKIP counts as settled in the step aggregate (1/2).
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
@@ -143,10 +149,13 @@ describe('AwsInstallStatusDetail', () => {
       />,
     );
 
-    const row = screen.getByTitle('us-east-1').closest('tr')!;
-    expect(within(row).getByText('Athena')).toBeTruthy();
-    // Region cell — the wire row carries no region of its own.
-    expect(within(row).getAllByText('us-east-1').length).toBeGreaterThanOrEqual(2);
+    // The region row takes its name from the wire row; the confirmed DB it joins to
+    // supplies the attributes, which step 4 exposes through the filter (no columns).
+    expect(screen.getByText('us-east-1')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '필터' }));
+    const filters = screen.getByRole('group', { name: '필터 옵션' });
+    expect(within(filters).getByText('Athena')).toBeTruthy();
+    expect(within(filters).getByText('us-east-1')).toBeTruthy();
   });
 
   it('shows the role-verify panel (Role ARN, no resource table) when selected', () => {

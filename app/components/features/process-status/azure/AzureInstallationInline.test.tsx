@@ -72,13 +72,16 @@ describe('AzureInstallationInline — master-detail step nav', () => {
   it('renders the four Azure steps with 서비스측/BDC측 side tags', () => {
     render(<AzureInstallationInline targetSourceId={1003} confirmed={confirmed} />);
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    // 설치 순서대로. 제목은 계약 필드가 말하는 만큼만 — 특정 리소스(KeyVault,
+    // Load Balancer)를 지목하던 프로토타입 문구는 계약에 근거가 없어 걷어냈다.
+    expect(within(nav).getByText('VM Subnet 생성')).toBeTruthy();
+    expect(within(nav).getByText('VM Terraform 적용')).toBeTruthy();
+    expect(within(nav).getByText('BDC측 Terraform 적용')).toBeTruthy();
     expect(within(nav).getByText('Private Endpoint 승인')).toBeTruthy();
-    expect(within(nav).getByText('VM Subnet')).toBeTruthy();
-    expect(within(nav).getByText('VM Load Balancer')).toBeTruthy();
-    expect(within(nav).getByText('PII Agent VM · KeyVault')).toBeTruthy();
-    // 주체 태그: 서비스측 승인 1 + 서비스측 리소스 생성 2 + BDC측 리소스 생성 1.
-    expect(within(nav).getAllByText('서비스측 리소스 생성').length).toBe(2);
-    expect(within(nav).getByText('BDC측 리소스 생성')).toBeTruthy();
+    // 주체는 앞머리 한 단어에만 색이 붙으므로 그 토큰으로 센다:
+    // 서비스측 승인 1 + 서비스측 리소스 생성 2 = 3, BDC측 리소스 생성 1.
+    expect(within(nav).getAllByText('서비스측').length).toBe(3);
+    expect(within(nav).getByText('BDC측')).toBeTruthy();
   });
 
   it('opens the summary with the PE step as the service-side action item', () => {
@@ -91,7 +94,7 @@ describe('AzureInstallationInline — master-detail step nav', () => {
 
   it('opening the PE step from the summary renders the domain pill labels', () => {
     render(<AzureInstallationInline targetSourceId={1003} confirmed={confirmed} />);
-    fireEvent.click(screen.getByRole('button', { name: '해당 단계 열기 →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Private Endpoint 승인 단계로 이동' }));
     // The pending VM row shows the PE wording, the DB row shows 승인 완료.
     expect(screen.getByText('Azure Portal에서 승인 필요')).toBeTruthy();
     expect(screen.getByText('승인 완료')).toBeTruthy();

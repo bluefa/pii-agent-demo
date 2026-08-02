@@ -8,6 +8,11 @@ import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
+import {
+  INSTALL_STATUS_LABEL,
+  type InstallStepCell,
+  type InstallStepValue,
+} from '@/app/components/features/process-status/install-status-detail/model';
 import { idcStyles, primaryColors, statusColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
@@ -32,14 +37,21 @@ export interface WaitingApprovalResource {
    */
   logicalDbCount?: number | null;
   excludedLogicalDbCount?: number | null;
+  /**
+   * `install` variant only — the selected install step's state for this resource. The step nav
+   * picks which cell lands here, so the same row renders a different status per step.
+   */
+  installCell?: InstallStepCell;
 }
 
 /**
  * `approval` (steps 2·3): verdict + exclusion reason as the last two columns.
  * `confirmed` (step 6): every row is a confirmed target, so the verdict pair is replaced by
  * the Step 5 logical-DB counts — what the user actually reviews before the final approval.
+ * `install` (step 4): every row is a confirmed target too, so the pair becomes the per-step
+ * install status and its contract guidance — the same last-two-columns slot, install vocabulary.
  */
-type WaitingApprovalTableVariant = 'approval' | 'confirmed';
+type WaitingApprovalTableVariant = 'approval' | 'confirmed' | 'install';
 
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
@@ -156,6 +168,23 @@ export const TargetPill = ({
   );
 };
 
+// 상태는 태그가 아니라 글자다 — 행마다 반복되는 값이라 채운 배지를 두면 색이 먼저
+// 읽힌다. 색은 "아직 손댈 일이 남았는가"만 말한다: 끝난 것과 해당 없는 것은 회색.
+const INSTALL_STATUS_TEXT: Record<InstallStepValue, string> = {
+  COMPLETED: textColors.tertiary,
+  IN_PROGRESS: statusColors.info.textDark,
+  FAIL: statusColors.error.textDark,
+  BDC_INSTALL_REQUIRED: statusColors.warning.textDark,
+  SKIP: textColors.tertiary,
+  UNKNOWN: textColors.tertiary,
+};
+
+const InstallStatusText = ({ cell }: { cell: InstallStepCell }) => (
+  <span className={cn('whitespace-nowrap font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
+    {cell.label ?? INSTALL_STATUS_LABEL[cell.status]}
+  </span>
+);
+
 // The chip's own 40-char default overruns this six-column table and forces horizontal
 // scroll (Azure step 3 reasons run past it). Clamp here — the full text is in the hover tip.
 const SUMMARY_LIMIT = 15;
@@ -197,6 +226,7 @@ export const WaitingApprovalTable = memo(
     }
 
     const confirmedVariant = variant === 'confirmed';
+    const installVariant = variant === 'install';
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[12px]';
@@ -211,12 +241,25 @@ export const WaitingApprovalTable = memo(
               <tr className="whitespace-nowrap">
                 <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
-                <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
-                <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                {/* Step 4 drops the two attribute columns: the engine was settled back on
+                    steps 1·2 and the install runs the same either way, and the region is a
+                    constant within one target source (and already inside the resource id).
+                    What they cost — 250px — is what 상태/안내 need to stay on screen. */}
+                {!installVariant && (
+                  <>
+                    <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                  </>
+                )}
                 {confirmedVariant ? (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>연동 논리 DB</th>
                     <th className={idcStyles.table.approvalHeaderCell}>연동 제외</th>
+                  </>
+                ) : installVariant ? (
+                  <>
+                    <th className={idcStyles.table.approvalHeaderCell}>상태</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>안내</th>
                   </>
                 ) : (
                   <>
@@ -268,26 +311,30 @@ export const WaitingApprovalTable = memo(
                     </td>
                     {/* DB Type is a repeating attribute, not a status — one badge per row (the
                         verdict) is enough; a second pill would compete with it. */}
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        'text-[12px]',
-                        excluded ? DIM_TEXT : textColors.secondary,
-                        CELL_LIFT,
-                      )}
-                    >
-                      {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
-                    </td>
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        monoCell,
-                        excluded ? DIM_TEXT : textColors.secondary,
-                        CELL_LIFT,
-                      )}
-                    >
-                      {resource.region || PLACEHOLDER}
-                    </td>
+                    {!installVariant && (
+                      <>
+                        <td
+                          className={cn(
+                            idcStyles.table.approvalCell,
+                            'text-[12px]',
+                            excluded ? DIM_TEXT : textColors.secondary,
+                            CELL_LIFT,
+                          )}
+                        >
+                          {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
+                        </td>
+                        <td
+                          className={cn(
+                            idcStyles.table.approvalCell,
+                            monoCell,
+                            excluded ? DIM_TEXT : textColors.secondary,
+                            CELL_LIFT,
+                          )}
+                        >
+                          {resource.region || PLACEHOLDER}
+                        </td>
+                      </>
+                    )}
                     {confirmedVariant ? (
                       <>
                         <td className={idcStyles.table.approvalCell}>
@@ -303,6 +350,22 @@ export const WaitingApprovalTable = memo(
                             label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
                             onOpen={() => onLogicalDbOpen?.(resource)}
                           />
+                        </td>
+                      </>
+                    ) : installVariant ? (
+                      <>
+                        <td className={idcStyles.table.approvalCell}>
+                          {resource.installCell && <InstallStatusText cell={resource.installCell} />}
+                        </td>
+                        {/* 안내 없음은 빈 칸 — 대시는 시각적 노이즈만 남긴다. */}
+                        <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
+                          {resource.installCell?.guide ? (
+                            <ReasonChipInline
+                              reason={resource.installCell.guide}
+                              summary={clampReason(resource.installCell.guide)}
+                              label="안내"
+                            />
+                          ) : null}
                         </td>
                       </>
                     ) : (
