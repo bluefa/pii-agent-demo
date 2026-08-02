@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIN-76 — Step4 (Agent 설치) 디자인 제안</title>
+<style>
+  /* Tokens traced from lib/theme.ts — primary #0064FF, card radius 20, header pad 28,
+     cardTitle 22/800/#191F28, subtitle 13.5/500/#8B95A1, status: success #45CB85 /
+     info blue / warning amber / error red. Spacing: design-guide 8-grid. */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #F2F4F6; color: #191F28; letter-spacing: -0.01em;
+    padding: 40px 24px 80px;
+  }
+  .canvas { max-width: 1080px; margin: 0 auto; }
+
+  /* ---------- proposal chrome (not part of the product UI) ---------- */
+  .doc-head { margin-bottom: 40px; }
+  .doc-head h1 { font-size: 24px; font-weight: 800; line-height: 1.2; }
+  .doc-head p { margin-top: 8px; font-size: 14px; line-height: 1.4; color: #6B7684; }
+  .variant { margin-bottom: 64px; }
+  .variant-label {
+    display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px;
+  }
+  .variant-label h2 { font-size: 18px; font-weight: 800; }
+  .variant-label span { font-size: 13px; color: #6B7684; }
+  .notes {
+    margin-top: 16px; padding: 16px 20px; background: #FFFBEB;
+    border: 1px solid #FDE68A; border-radius: 12px;
+    font-size: 13px; line-height: 1.55; color: #78350F;
+  }
+  .notes b { color: #92400E; }
+  .notes li { margin-left: 18px; margin-top: 4px; }
+  .mark {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #B45309; color: #fff; font-size: 11px; font-weight: 700;
+    vertical-align: 2px; margin: 0 2px;
+  }
+
+  /* ---------- product card ---------- */
+  .card {
+    background: #fff; border-radius: 20px;
+    box-shadow: 0 1px 2px rgba(17,24,39,.04), 0 4px 16px -8px rgba(17,24,39,.06);
+    overflow: hidden;
+  }
+  .card-header { padding: 28px 28px 12px; }
+  .card-body { padding: 16px 28px 28px; }
+
+  .step-tag {
+    display: inline-flex; align-items: center; border-radius: 6px;
+    padding: 2px 8px; font-size: 12px; font-weight: 700;
+    background: #E8F3FF; color: #0064FF; margin-bottom: 6px;
+  }
+  .title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .title-group { display: flex; align-items: center; gap: 8px; }
+  .card-title { font-size: 22px; font-weight: 800; line-height: 1.2; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;
+    padding: 4px 10px; font-size: 12px; font-weight: 600;
+  }
+  .badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .badge.info    { background: #DBEAFE; color: #1E40AF; }
+  .badge.info    .dot { background: #3B82F6; }
+  .badge.warning { background: #FEF3C7; color: #92400E; }
+  .badge.warning .dot { background: #F59E0B; }
+  .badge.error   { background: #FEE2E2; color: #991B1B; }
+  .badge.error   .dot { background: #EF4444; }
+  .aux-btn {
+    height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid #E5E8EB;
+    background: #F9FAFB; font-size: 13px; font-weight: 700; color: #4E5968;
+    cursor: pointer; white-space: nowrap;
+  }
+  .guidance { margin-top: 12px; font-size: 16px; font-weight: 500; line-height: 1.55; color: #8B95A1; }
+  .guidance b.state-info  { font-weight: 600; color: #0064FF; }
+  .guidance b.state-warn  { font-weight: 600; color: #B45309; }
+  .guidance b.state-error { font-weight: 600; color: #DC2626; }
+  .guidance b.plain { font-weight: 600; color: #4E5968; }
+
+  /* progress strip — status meter (state palette, not categorical) */
+  .progress-strip { margin-top: 16px; }
+  .meter { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; background: #fff; }
+  .meter i { display: block; height: 100%; }
+  .meter .seg-done    { background: #45CB85; }
+  .meter .seg-running { background: #3B82F6; }
+  .meter .seg-failed  { background: #EF4444; }
+  .meter .seg-waiting { background: #E5E8EB; }
+  .meter-legend {
+    display: flex; align-items: center; gap: 16px; margin-top: 8px;
+    font-size: 12px; color: #6B7684; font-variant-numeric: tabular-nums;
+  }
+  .meter-legend .k { display: inline-flex; align-items: center; gap: 5px; }
+  .meter-legend .k i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .meter-legend .total { font-weight: 700; color: #191F28; }
+  .meter-legend .when { margin-left: auto; color: #8B95A1; }
+
+  /* master-detail frame */
+  .md-frame {
+    display: grid; grid-template-columns: 300px minmax(0,1fr);
+    border: 1px solid #E5E8EB; border-radius: 12px; overflow: hidden;
+  }
+  .md-nav { border-right: 1px solid #E5E8EB; background: #fff; padding: 10px; }
+  .nav-eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: #8B95A1; padding: 8px 10px 4px;
+  }
+  .nav-item {
+    width: 100%; text-align: left; border: 1px solid transparent; background: none;
+    border-radius: 10px; padding: 10px; cursor: pointer; display: block;
+  }
+  .nav-item.active { background: #F4F6F8; border-color: #E5E8EB; }
+  .nav-item .row1 { display: flex; align-items: center; gap: 8px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .status-dot.done    { background: #45CB85; }
+  .status-dot.running { background: #3B82F6; }
+  .status-dot.failed  { background: #EF4444; }
+  .status-dot.waiting { background: #D1D6DB; }
+  .nav-item .name { font-size: 14px; font-weight: 600; color: #191F28; flex: 1; min-width: 0; }
+  .owner-tag {
+    font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+  }
+  .owner-tag.bdc { background: #E0E7FF; color: #3730A3; }
+  .owner-tag.svc { background: #DBEAFE; color: #1E40AF; }
+  .nav-item .row2 {
+    display: flex; align-items: center; gap: 6px; margin-top: 5px; padding-left: 16px;
+    font-size: 12px; color: #8B95A1; font-variant-numeric: tabular-nums;
+  }
+  .pill { border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+  .pill.success { background: #D1FAE5; color: #065F46; }
+  .pill.info    { background: #DBEAFE; color: #1E40AF; }
+  .pill.error   { background: #FEE2E2; color: #991B1B; }
+  .pill.neutral { background: #F2F4F6; color: #6B7684; }
+  .pill.amber   { background: #FEF3C7; color: #92400E; }
+
+  .md-panel { padding: 20px; background: #fff; min-width: 0; }
+  .panel-title { font-size: 16px; font-weight: 700; }
+  .panel-sub { margin-top: 4px; font-size: 12px; color: #8B95A1; line-height: 1.4; }
+
+  /* task list (summary) */
+  .group-h { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .group-h.muted { color: #8B95A1; }
+  .task-section + .task-section { margin-top: 32px; }
+  .action-card {
+    border: 1px solid #FDE68A; background: #FFFBEB; border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .action-card.failed { border-color: #FECACA; background: #FEF2F2; }
+  .action-card .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .action-card .head .t { font-size: 14px; font-weight: 700; }
+  .action-card p { margin-top: 8px; font-size: 14px; line-height: 1.4; color: #92400E; }
+  .action-card.failed p { color: #991B1B; }
+  .action-card .reasons { margin-top: 8px; font-size: 12px; color: #6B7684; line-height: 1.5; }
+  .action-card .go {
+    margin-top: 10px; display: inline-block; border: 1px solid #E5E8EB; background: #fff;
+    border-radius: 10px; padding: 6px 12px; font-size: 12px; font-weight: 700; color: #4E5968; cursor: pointer;
+  }
+  .quiet-row {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px;
+    font-size: 14px;
+  }
+  .quiet-row:hover { background: #F9FAFB; }
+  .quiet-row .name { font-weight: 600; flex: 1; }
+  .allclear {
+    border: 1px solid #A7F3D0; background: #ECFDF5; color: #065F46;
+    border-radius: 12px; padding: 12px 16px; font-size: 14px; font-weight: 600;
+  }
+
+  /* resource table (detail view) */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead { background: #F9FAFB; }
+  th { text-align: left; padding: 10px 12px; font-size: 12px; font-weight: 700; color: #6B7684; }
+  td { padding: 10px 12px; border-top: 1px solid #EBEEF2; }
+  td.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: #4E5968; }
+  .tbl-frame { border: 1px solid #E5E8EB; border-radius: 10px; overflow: hidden; margin-top: 16px; }
+  tr.fail-row td { background: #FEF2F2; }
+  .last-check { margin-top: 12px; font-size: 12px; color: #8B95A1; }
+
+  /* collapsed secondary section (IDC 연동 대상 목록) */
+  .collapse-row {
+    margin-top: 16px; border: 1px solid #E5E8EB; border-radius: 12px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 8px;
+    font-size: 14px; color: #4E5968; cursor: pointer; background: #F9FAFB;
+  }
+  .collapse-row .chev { margin-left: auto; color: #8B95A1; font-size: 12px; }
+
+  .notice {
+    margin-bottom: 12px; border: 1px solid #FECACA; background: #FEF2F2; color: #991B1B;
+    border-radius: 10px; padding: 8px 14px; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+
+  <div class="doc-head">
+    <h1>LIN-76 — Step4 (Agent 설치) 디자인 제안</h1>
+    <p>스텝 카드 문법(LIN-74) 정렬 + 외부 레퍼런스 10종 반영. 상태별 3변형 — 카드 상단 3줄(태그·제목+배지·guidance)만으로
+    "지금 어디 / 뭘 해야 / 얼마나 진행"이 답해지는 것이 목표. 주석 번호는 docs/ux/lin-76-step4-analysis.md의 레퍼런스 번호.</p>
+  </div>
+
+  <!-- ========================= VARIANT A ========================= -->
+  <section class="variant">
+    <div class="variant-label"><h2>A. 자동 진행 중</h2><span>서비스 측 조치 없음 — Step4 체류 시간의 대부분</span></div>
+    <div class="card">
+      <div class="card-header">
+        <span class="step-tag">4번째 단계</span>
+        <div class="title-row">
+          <div class="title-group">
+            <h3 class="card-title">Agent 설치</h3>
+            <span class="badge info"><i class="dot"></i>설치 진행중</span>
+          </div>
+          <button class="aux-btn">Terraform Script 다운로드</button>
+        </div>
+        <p class="guidance">
+          <b class="state-info">BDC가 Agent를 자동으로 설치하고 있어요.</b>
+          지금 서비스 측에서 하실 일은 없으며, 설치가 완료되면 다음 단계로 자동 이동합니다.
+        </p>
+        <div class="progress-strip">
+          <div class="meter">
+            <i class="seg-done" style="width:58%"></i><i class="seg-running" style="width:34%"></i><i class="seg-waiting" style="width:8%"></i>
+          </div>
+          <div class="meter-legend">
+            <span class="total">리소스 12개</span>
+            <span class="k"><i style="background:#45CB85"></i>완료 7</span>
+            <span class="k"><i style="background:#3B82F6"></i>진행중 4</span>
+            <span class="k"><i style="background:#E5E8EB"></i>대기 1</span>
+            <span class="when">마지막 확인 14:32 · 30초마다 자동 갱신</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="md-frame">
+          <nav class="md-nav">
+            <button class="nav-item"><span class="row1"><span class="status-dot running"></span><span class="name">요약</span></span></button>
+            <div class="nav-eyebrow">설치 작업</div>
+            <button class="nav-item"><span class="row1"><span class="status-dot done"></span><span class="name">Terraform 자동 적용</span><span class="owner-tag svc">서비스측</span></span>
+              <span class="row2"><span class="pill success">완료</span>12/12</span></button>
+            <button class="nav-item active"><span class="row1"><span class="status-dot running"></span><span class="name">BDC 서비스 영역</span><span class="owner-tag bdc">BDC측</span></span>
+              <span class="row2"><span class="pill info">진행중</span>7/12</span></button>
+            <button class="nav-item"><span class="row1"><span class="status-dot waiting"></span><span class="name">BDC 공통 영역</span><span class="owner-tag bdc">BDC측</span></span>
+              <span class="row2"><span class="pill neutral">대기</span>0/12</span></button>
+          </nav>
+          <div class="md-panel">
+            <div class="panel-title">BDC 서비스 영역</div>
+            <p class="panel-sub">리소스별 BDC 계정 측 Private Endpoint Service / IAM Role 설정을 자동 배포합니다.</p>
+            <div class="tbl-frame">
+              <table>
+                <thead><tr><th>DB</th><th>Resource Name</th><th>Region</th><th>상태</th><th>안내</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="pill info">Aurora</span></td><td class="mono">svc-orders-prod</td><td class="mono">ap-northeast-2</td><td><span class="pill success">완료</span></td><td></td></tr>
+                  <tr><td><span class="pill info">RDS</span></td><td class="mono">svc-billing-prod</td><td class="mono">ap-northeast-2</td><td><span class="pill info">진행중</span></td><td></td></tr>
+                  <tr><td><span class="pill info">RDS</span></td><td class="mono">svc-member-prod</td><td class="mono">ap-northeast-2</td><td><span class="pill info">진행중</span></td><td></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="last-check">마지막 확인 2026-08-02 14:32</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <b>디자인 결정 ↔ 레퍼런스</b>
+      <li><span class="mark">7</span> 단계 태그 + 제목 + 상태 배지 — NN/g Wizards: 현재 위치는 카드가 직접 말한다. 배지 어휘는 <span class="mark">1</span> HCP Terraform 상태명 방식(사용자 차례를 별도 상태로).</li>
+      <li><span class="mark">4</span> guidance가 "할 일 없음"을 명시 — Vercel처럼 자동 구간에서도 화면이 상태를 말한다(P3 해소). "완료 시 자동 이동"으로 CTA 부재가 의도임을 설명(D5).</li>
+      <li><span class="mark">8</span> 진행 스트립 — NN/g: 10초+ 대기는 정량 피드백. 상태 미터(2px 갭) + 라벨·카운트(색만으로 전달 금지) + 마지막 확인 시각. <span class="mark">3</span> GitHub checks의 "한 줄 롤업 → 상세는 아래" 계층.</li>
+      <li><span class="mark">10</span> 좌측 내비 숫자 원 제거 → 상태 도트 + "설치 작업" 소제목 — 순서 의미가 약하므로 번호 마커를 쓰지 않는다(P5 해소). 상태 표기는 <span class="mark">9</span> Carbon 문법.</li>
+      <li>TF Script 다운로드는 C-3 보조 액션(헤더 우측)으로 이동 — <span class="mark">6</span> "가치 나오는 정보 먼저"(P4 해소).</li>
+    </div>
+  </section>
+
+  <!-- ========================= VARIANT B ========================= -->
+  <section class="variant">
+    <div class="variant-label"><h2>B. 서비스 확인 필요</h2><span>IDC 방화벽 / AWS 수동 설치 — 사용자 차례</span></div>
+    <div class="card">
+      <div class="card-header">
+        <span class="step-tag">4번째 단계</span>
+        <div class="title-row">
+          <div class="title-group">
+            <h3 class="card-title">Agent 설치</h3>
+            <span class="badge warning"><i class="dot"></i>서비스 확인 필요</span>
+          </div>
+          <button class="aux-btn">방화벽 확인</button>
+        </div>
+        <p class="guidance">
+          <b class="state-warn">서비스 측에서 확인해야 할 작업 1건이 있어요.</b>
+          아래 목록에서 방화벽 오픈을 진행해 주시면 나머지는 BDC가 이어서 처리합니다.
+        </p>
+        <div class="progress-strip">
+          <div class="meter">
+            <i class="seg-done" style="width:50%"></i><i class="seg-running" style="width:25%"></i><i class="seg-waiting" style="width:25%"></i>
+          </div>
+          <div class="meter-legend">
+            <span class="total">리소스 8개</span>
+            <span class="k"><i style="background:#45CB85"></i>완료 4</span>
+            <span class="k"><i style="background:#3B82F6"></i>진행중 2</span>
+            <span class="k"><i style="background:#E5E8EB"></i>대기 2</span>
+            <span class="when">마지막 확인 14:29</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="md-frame">
+          <nav class="md-nav">
+            <button class="nav-item active"><span class="row1"><span class="status-dot running"></span><span class="name">요약</span></span></button>
+            <div class="nav-eyebrow">설치 작업</div>
+            <button class="nav-item"><span class="row1"><span class="status-dot done"></span><span class="name">BDC CX 영역</span><span class="owner-tag bdc">BDC측</span></span>
+              <span class="row2"><span class="pill success">완료</span>8/8</span></button>
+            <button class="nav-item"><span class="row1"><span class="status-dot running"></span><span class="name">BDC BDP 영역</span><span class="owner-tag bdc">BDC측</span></span>
+              <span class="row2"><span class="pill info">진행중</span>6/8</span></button>
+            <button class="nav-item"><span class="row1"><span class="status-dot waiting"></span><span class="name">방화벽</span><span class="owner-tag svc">서비스측</span></span>
+              <span class="row2"><span class="pill amber">확인 필요</span>4/8</span></button>
+          </nav>
+          <div class="md-panel">
+            <div class="task-section">
+              <div class="group-h">지금 서비스 측에서 확인이 필요합니다</div>
+              <div class="action-card">
+                <div class="head">
+                  <span class="t">방화벽</span>
+                  <span class="pill amber">확인 필요 4/8</span>
+                  <span class="owner-tag svc">서비스측</span>
+                </div>
+                <p>Source IP에서 연동 대상으로의 방화벽을 오픈한 뒤 확인해 주세요.</p>
+                <div class="reasons">· 10.20.0.0/16 → svc-db-01:3306 오픈 대기 <b>3건</b><br>· 10.20.0.0/16 → svc-db-02:5432 오픈 대기 <b>1건</b></div>
+                <span class="go">해당 단계 열기 →</span>
+              </div>
+            </div>
+            <div class="task-section">
+              <div class="group-h">진행 중 · 대기 — 서비스 측 조치 불필요</div>
+              <div class="quiet-row"><span class="status-dot running"></span><span class="name">BDC BDP 영역</span><span class="pill info">진행중</span><span class="owner-tag bdc">BDC측</span></div>
+            </div>
+            <div class="task-section">
+              <div class="group-h muted">완료된 단계</div>
+              <div class="quiet-row"><span class="status-dot done"></span><span class="name">BDC CX 영역</span><span class="pill success">완료</span><span class="owner-tag bdc">BDC측</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="collapse-row">연동 대상 목록 (8) — Source IP · 방화벽 상태<span class="chev">펼치기 ▾</span></div>
+      </div>
+    </div>
+    <div class="notes">
+      <b>디자인 결정 ↔ 레퍼런스</b>
+      <li><span class="mark">5</span> 요약 = GOV.UK Task list — "조치 필요 / 진행 중(조치 불필요) / 완료" 세 묶음, 태스크별 상태 태그. 기존 InstallSummaryPanel 구조 유지 + 문법만 정렬.</li>
+      <li><span class="mark">1</span> 배지 "서비스 확인 필요" — Needs Confirmation처럼 사용자 차례를 독립 상태로 승격. 헤더 배지 ↔ 요약 첫 그룹이 같은 말을 해서 상단 배너(ActionBanner) 별도 줄이 불필요해짐 — 겹 하나 제거.</li>
+      <li><span class="mark">2</span> 조치 카드의 사유 목록 — CloudFormation Status reason처럼 계약 데이터(guide)를 건수와 함께 행 단위로. 발명 금지 원칙 유지.</li>
+      <li><span class="mark">6</span> IDC 연동 대상 목록은 접힘(collapse)으로 강등 — 이중 테이블 제거(P4), Step2 #598 선례.</li>
+      <li>보조 액션(방화벽 확인 모달)은 C-3 헤더 우측 — 반복 액션의 고정 위치.</li>
+    </div>
+  </section>
+
+  <!-- ========================= VARIANT C ========================= -->
+  <section class="variant">
+    <div class="variant-label"><h2>C. 설치 실패</h2><span>재시도·문의가 필요한 상태</span></div>
+    <div class="card">
+      <div class="card-header">
+        <span class="step-tag">4번째 단계</span>
+        <div class="title-row">
+          <div class="title-group">
+            <h3 class="card-title">Agent 설치</h3>
+            <span class="badge error"><i class="dot"></i>설치 실패</span>
+          </div>
+          <button class="aux-btn">Terraform Script 다운로드</button>
+        </div>
+        <p class="guidance">
+          <b class="state-error">리소스 2개의 설치가 실패했어요.</b>
+          아래 실패 사유를 확인해 주세요. 서비스 측 권한 문제라면 조치 후 자동으로 재시도됩니다.
+        </p>
+        <div class="progress-strip">
+          <div class="meter">
+            <i class="seg-done" style="width:66%"></i><i class="seg-failed" style="width:17%"></i><i class="seg-running" style="width:17%"></i>
+          </div>
+          <div class="meter-legend">
+            <span class="total">리소스 12개</span>
+            <span class="k"><i style="background:#45CB85"></i>완료 8</span>
+            <span class="k"><i style="background:#3B82F6"></i>진행중 2</span>
+            <span class="k"><i style="background:#EF4444"></i>실패 2</span>
+            <span class="when">마지막 확인 14:35</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="notice">상태 확인 실패: 설치 상태 조회 중 오류가 발생했습니다. 30초 후 자동 재시도합니다.</div>
+        <div class="md-frame">
+          <nav class="md-nav">
+            <button class="nav-item active"><span class="row1"><span class="status-dot failed"></span><span class="name">요약</span></span></button>
+            <div class="nav-eyebrow">설치 작업</div>
+            <button class="nav-item"><span class="row1"><span class="status-dot failed"></span><span class="name">Terraform 자동 적용</span><span class="owner-tag svc">서비스측</span></span>
+              <span class="row2"><span class="pill error">실패</span>10/12</span></button>
+            <button class="nav-item"><span class="row1"><span class="status-dot running"></span><span class="name">BDC 서비스 영역</span><span class="owner-tag bdc">BDC측</span></span>
+              <span class="row2"><span class="pill info">진행중</span>8/12</span></button>
+          </nav>
+          <div class="md-panel">
+            <div class="task-section">
+              <div class="group-h">지금 서비스 측에서 확인이 필요합니다</div>
+              <div class="action-card failed">
+                <div class="head">
+                  <span class="t">Terraform 자동 적용</span>
+                  <span class="pill error">실패 2건</span>
+                  <span class="owner-tag svc">서비스측</span>
+                </div>
+                <p>실패한 리소스의 IAM 권한을 확인해 주세요.</p>
+                <div class="reasons">· AccessDenied: iam:CreateRole 권한 없음 <b>2건</b></div>
+                <span class="go">해당 단계 열기 →</span>
+              </div>
+            </div>
+            <div class="task-section">
+              <div class="group-h">진행 중 · 대기 — 서비스 측 조치 불필요</div>
+              <div class="quiet-row"><span class="status-dot running"></span><span class="name">BDC 서비스 영역</span><span class="pill info">진행중</span><span class="owner-tag bdc">BDC측</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <b>디자인 결정 ↔ 레퍼런스</b>
+      <li>실패는 배지·guidance·미터·요약 4곳이 같은 사실을 다른 해상도로 말한다 — <span class="mark">3</span> GitHub checks의 "1 failing" 롤업 문법. 상태색은 상태 전용(카테고리 재사용 금지) + 라벨 동반.</li>
+      <li>에러 스트립은 카드 body 최상단 한 자리로 통일(P4) — 시스템 오류(조회 실패)와 도메인 실패(설치 실패)를 자리로 구분.</li>
+      <li><span class="mark">2</span> 실패 사유는 계약의 guide 문자열을 그대로 건수 집계 — CloudFormation Status reason 방식.</li>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
