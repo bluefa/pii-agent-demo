@@ -6,7 +6,7 @@
  * Uses the app-side approval table itself — `idcStyles.table` chrome, the shared
  * ROW_* hover/lift tokens and ReasonChipInline — so the admin and the service owner
  * read one request through one design. Column order is Step 2's: identity (name →
- * id) → attributes (type · region) → the decision, which is only ever a reason.
+ * id) → attributes (type · region) → decision (verdict → reason).
  *
  * Database Type carries no chip: it is a repeating attribute, not a status.
  */
@@ -48,9 +48,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             <th className={table.approvalHeaderCell}>Resource ID</th>
             <th className={cn(table.approvalHeaderCell, 'w-[120px] whitespace-nowrap')}>Database Type</th>
             <th className={cn(table.approvalHeaderCell, 'w-[130px]')}>Region</th>
-            {/* No 연동 대상 verdict column: the tiles above are the filter, the row is
-                dimmed, and 제외 사유 is right beside it — three statements of one fact.
-                The excluded rows keep it on the non-visual channel (sr-only). */}
+            <th className={cn(table.approvalHeaderCell, 'w-[100px]')}>연동 대상</th>
             <th className={cn(table.approvalHeaderCell, 'w-[240px]')}>제외 사유</th>
           </tr>
         </thead>
@@ -77,7 +75,6 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     primaryColors.textGroupHover,
                   )}
                 >
-                  {excluded && <span className="sr-only">제외 대상</span>}
                   {/* One line, always — wrapping left row heights ragged. The full value
                       opens in the same tip card the rest of the app uses, and only when
                       the name is actually clipped (`truncatedOnly`). */}
@@ -116,6 +113,9 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                   )}
                 >
                   {row.region}
+                </td>
+                <td className={cn(table.approvalCell, 'whitespace-nowrap text-[12px]', tone, CELL_LIFT)}>
+                  {excluded ? '제외' : '대상'}
                 </td>
                 <td className={table.approvalCell}>
                   {/* A 대상 row has no reason to give — blank, not an em-dash, which

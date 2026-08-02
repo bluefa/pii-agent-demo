@@ -5,15 +5,11 @@
  * service owner submitted through the same design, plus the admin-only NLB column
  * (select carrying each index's load, its detail affordance, and its 저장).
  *
- * Four columns, because the other three said nothing a fourth did not already say:
+ * Six columns. Two of the original nine are gone for good, because a column each
+ * said nothing the value beside it did not already say:
  *   - 구분 — IP-vs-Host is legible from the value itself (an address or a hostname).
  *   - Oracle SID — rides under Database Type; only Oracle rows carry one.
  *   - Port — rides with the host as `host:port`; a target IS an endpoint.
- *   - 요청 대상 여부 — the tiles above are the filter, the row is dimmed, and the
- *     reason is right there; a fourth restatement only cost width (sr-only keeps it
- *     on the non-visual channel).
- * NLB 배정 and 제외 사유 share one column: a row is one or the other, never both, so
- * two columns meant every row rendering one of them empty.
  *
  * resource_id is NEVER rendered — the row identity is 연동 대상 (IP/Host) + Port +
  * DB type + SID. Presentational: draft/save state is owned by the page; a select
@@ -22,10 +18,11 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { cn, idcStyles } from '@/lib/theme';
+import { cn, idcStyles, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import {
+  CELL_LIFT,
   CONNECTED_FRAME,
   DIM_TEXT,
   ROW_BASE,
@@ -33,6 +30,7 @@ import {
   ROW_TARGET,
   clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import {
   IdcDbTypeCell,
@@ -65,8 +63,11 @@ export interface IdcResourceTableProps {
   onShowNlbInfo: (row: RequestResourceRow) => void;
 }
 
+// `min-w-0 flex-1` so the control fills its (elastic) column instead of leaving a
+// gutter to its right — the option labels carry occupancy, which is what that width
+// is for.
 const SELECT_BASE =
-  'h-7 rounded-md border px-2.5 text-[12px] text-[var(--pl-text-strong)] bg-[var(--pl-bg-card)] cursor-pointer focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]';
+  'h-7 min-w-0 flex-1 rounded-md border px-2.5 text-[12px] text-[var(--pl-text-strong)] bg-[var(--pl-bg-card)] cursor-pointer focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]';
 
 const NLB_INFO_BTN =
   'inline-grid h-7 w-7 flex-none place-items-center rounded-md text-[var(--pl-text-faint)] transition-colors hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)]';
@@ -109,14 +110,34 @@ export function IdcResourceTable({
               order as the cloud table and step 1. An IDC row's identity is its host/IP,
               so 연동 대상 leads; Database Type carries the SID underneath. */}
           <tr>
-            <th className={table.approvalHeaderCell}>연동 대상</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[190px]')}>Database Type</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[160px]')}>Source IP</th>
+            {/* Each column is sized to its longest real value; only 제외 사유 is elastic,
+                because a sentence is the one cell that can spend leftover width. The page
+                is layout.contentFluid (no max-width), so the table gets viewport − 328px:
+                these five fixed columns total 988, leaving ~196px for the reason at 1512
+                and ~600px at 1920. 연동 대상 caps its text at 220px — a long FQDN
+                truncates to its tip either way, and the tip carries the full value. */}
+            <th className={cn(table.approvalHeaderCell, 'w-[280px]')}>연동 대상</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[170px]')}>Database Type</th>
+            {/* Step 1's own header, imported rather than restated: the column needs the
+                "방화벽 등록 필요" note here too — the admin approving the request is the
+                one who has to know the rule the service owner was shown. */}
+            <th className={cn(table.approvalHeaderCell, 'w-[160px]')}>
+              <SourceIpHeader />
+            </th>
             {/* A row is either assignable or excluded, never both — so one column holds
                 whichever applies: the NLB choice (+ detail, + save) or the reason it was
                 left out. Two mutually exclusive columns meant every row rendered one of
                 them empty. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[300px]')}>NLB 배정 / 제외 사유</th>
+            {/* Back as a real column: with the row's other cells sized to their content
+                there was width to spare, and the verdict is the one thing the admin is
+                actually deciding — worth a header rather than an sr-only aside. */}
+            <th className={cn(table.approvalHeaderCell, 'w-[88px] whitespace-nowrap')}>요청 대상 여부</th>
+            {/* NLB 배정 and 제외 사유 are separate columns again: they never co-occur in a
+                row, but they answer different questions, and one shared header could only
+                name both. The select fills its column, so the empty half of each row is
+                just white space, not a gap in the grid. */}
+            <th className={cn(table.approvalHeaderCell, 'w-[290px]')}>NLB 배정</th>
+            <th className={table.approvalHeaderCell}>제외 사유</th>
           </tr>
         </thead>
         <tbody className={table.body}>
@@ -129,10 +150,6 @@ export function IdcResourceTable({
               return (
                 <tr key={rowKey} className={cn(ROW_BASE, ROW_EXCLUDED)}>
                   <td className={table.approvalCell}>
-                    {/* The 요청 대상 여부 column is gone — the dim row and the reason say it
-                        visually. Restated here for assistive tech, at the row's identity so
-                        it is heard before the values it qualifies. */}
-                    <span className="sr-only">제외 대상</span>
                     <IdcEndpointCell hosts={row.connectTargets} port={row.port} tone={DIM_TEXT} />
                   </td>
                   <td className={table.approvalCell}>
@@ -140,6 +157,11 @@ export function IdcResourceTable({
                   </td>
                   {/* Excluded rows come from ExcludedResourceInfoDto, which carries no
                       source IPs — blank rather than asserting a missing value. */}
+                  <td className={table.approvalCell} />
+                  <td className={cn(table.approvalCell, 'whitespace-nowrap text-[12px]', DIM_TEXT, CELL_LIFT)}>
+                    제외
+                  </td>
+                  {/* An excluded row is never assignable. */}
                   <td className={table.approvalCell} />
                   <td className={table.approvalCell}>
                     {row.exclusionReason && (
@@ -169,6 +191,16 @@ export function IdcResourceTable({
                 <td className={table.approvalCell}>
                   <IdcSourceIpCell sourceIps={row.sourceIps} />
                 </td>
+                <td
+                  className={cn(
+                    table.approvalCell,
+                    'whitespace-nowrap text-[12px]',
+                    textColors.secondary,
+                    CELL_LIFT,
+                  )}
+                >
+                  대상
+                </td>
                 <td className={table.approvalCell}>
                   <span className="flex items-center gap-1.5">
                     <select
@@ -195,7 +227,9 @@ export function IdcResourceTable({
                       ))}
                     </select>
                     {/* Sits beside the value it explains. Icon-only, so it carries its own
-                        name (§aria-labels) and a 28px box around a 14px glyph. */}
+                        name (§aria-labels) and a 28px box around the glyph. 18px matches
+                        the header ⓘ next to it (17px) — at 14 it read as a stray mark
+                        rather than the same affordance. */}
                     <button
                       type="button"
                       onClick={() => onShowNlbInfo(row)}
@@ -203,7 +237,7 @@ export function IdcResourceTable({
                       title="배정된 NLB 정보"
                       className={NLB_INFO_BTN}
                     >
-                      <Icon name="info" size="sm" />
+                      <Icon name="info" size={18} />
                     </button>
                     {/* 저장 keeps a reserved slot: appearing/disappearing used to shift the
                         row's layout the moment an admin touched the select. */}
@@ -221,6 +255,8 @@ export function IdcResourceTable({
                     </span>
                   </span>
                 </td>
+                {/* 제외 사유 — a target row has none. */}
+                <td className={table.approvalCell} />
               </tr>
             );
           })}

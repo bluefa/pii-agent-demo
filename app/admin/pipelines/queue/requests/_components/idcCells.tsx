@@ -90,7 +90,7 @@ export function IdcEndpointCell({
           value={endpoint(host)}
           label="연동 대상"
           tone={tone}
-          maxWidthClass="max-w-[340px]"
+          maxWidthClass="max-w-[220px]"
         />
       ))}
     </span>
