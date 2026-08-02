@@ -8,15 +8,11 @@ import { cn, idcStyles, textColors } from '@/lib/theme';
 import { IDC_SOURCE_IP_TOOLTIP } from '@/lib/constants/idc';
 import type { IdcInstallStatus, IdcResourceView } from '@/app/lib/api/idc';
 import {
-  IdcConnBadge,
-  IdcConnStatusCell,
-  IdcCredSelectCell,
   IdcDbTypeCell,
   IdcEndpointCell,
   IdcFirewallBadge,
   IdcHealthBadge,
   IdcKindBadge,
-  IdcLogicalButtonCell,
   IdcSourceIpCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
@@ -35,11 +31,8 @@ export type IdcTableCol =
   | 'src'
   | 'excl'
   | 'fw'
-  | 'conn'
   | 'health'
-  | 'cred'
-  | 'logical'
-  /** Step 6 — the Step 5 logical-DB result as two read-only count columns (연동 논리 DB / 연동 제외). */
+  /** Steps 5·6·7 — the Step 5 logical-DB result as two count columns (연동 논리 DB / 연동 제외). */
   | 'logicalro';
 
 interface IdcResourceTableProps {
@@ -47,11 +40,7 @@ interface IdcResourceTableProps {
   /** Column set per step (v15 `data-idc-cols`). `excl` also includes excluded rows. */
   cols: readonly IdcTableCol[];
   emptyMessage?: string;
-  /** Step-5: DB Credential select change (resourceId, credential). */
-  onCredChange?: (resourceId: string, cred: string) => void;
-  /** Step-5: credential options loaded from `GET .../secrets`. */
-  credOptions?: readonly string[];
-  /** Step-5/6: open the per-resource logical-DB modal. */
+  /** Steps 5·6·7: open the per-resource logical-DB modal. */
   onLogicalOpen?: (resource: IdcResourceView) => void;
   /**
    * `logicalro` column only — per-resource Step 5 counts from the test-connection
@@ -100,8 +89,6 @@ export const IdcResourceTable = ({
   resources,
   cols,
   emptyMessage,
-  onCredChange,
-  credOptions = [],
   onLogicalOpen,
   logicalDbCounts,
   connected = false,
@@ -172,9 +159,6 @@ export const IdcResourceTable = ({
               </>
             )}
             {has('fw') && <th className={skin.headerCell}>방화벽 상태</th>}
-            {has('cred') && <th className={cn(skin.headerCell, 'w-[150px]')}>DB Credential</th>}
-            {has('conn') && <th className={cn(skin.headerCell, 'w-[150px]')}>Connection Status</th>}
-            {has('logical') && <th className={cn(skin.headerCell, 'w-[110px]')}>논리 DB 관리</th>}
             {has('logicalro') && (
               <>
                 <th className={cn(skin.headerCell, 'w-[120px]')}>연동 논리 DB</th>
@@ -237,40 +221,6 @@ export const IdcResourceTable = ({
                   </>
                 )}
                 {has('fw') && <td className={cn(skin.cell, dim)}><IdcFirewallBadge status={firewallStatusByResource?.[r.resourceId]} /></td>}
-                {has('cred') && (
-                  <td className={skin.cell}>
-                    {r.excluded ? (
-                      <span className={textColors.tertiary}>—</span>
-                    ) : (
-                      <IdcCredSelectCell
-                        value={r.credentialId ?? ''}
-                        onChange={(cred) => onCredChange?.(r.resourceId, cred)}
-                        options={[...credOptions]}
-                      />
-                    )}
-                  </td>
-                )}
-                {has('conn') && (
-                  <td className={cn(skin.cell, dim)}>
-                    {/* Credential-aware status whenever the credential column is present (step-5
-                        `cred`): no cred -> '자격 증명 필요', cred+SUCCESS -> Success, else Pending
-                        (v16 idcConnBadge). Steps without a credential column keep the plain badge. */}
-                    {has('cred') ? (
-                      <IdcConnStatusCell resource={r} />
-                    ) : (
-                      <IdcConnBadge state={r.connection} />
-                    )}
-                  </td>
-                )}
-                {has('logical') && (
-                  <td className={skin.cell}>
-                    {r.excluded ? (
-                      <span className={textColors.tertiary}>—</span>
-                    ) : (
-                      <IdcLogicalButtonCell resource={r} onOpen={() => onLogicalOpen?.(r)} />
-                    )}
-                  </td>
-                )}
                 {has('logicalro') && (
                   <>
                     <td className={skin.cell}>

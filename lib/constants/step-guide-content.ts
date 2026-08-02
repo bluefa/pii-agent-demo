@@ -139,11 +139,11 @@ const STEP_5_CLOUD_HTML =
 
 const STEP_5_IDC_HTML =
   '<h4>DB 연결을 테스트해 주세요</h4>' +
-  '<p>각 연동 대상의 <strong>DB Credential</strong>을 선택한 뒤 <strong>Run Test</strong>를 눌러 주세요. 모든 대상이 Success가 되면 <strong>완료 승인 요청</strong>으로 다음 단계로 넘어가요.</p>' +
+  '<p><strong>DB Credential 설정</strong>에서 각 연동 대상의 자격 증명을 지정한 뒤 <strong>Run Test</strong>를 눌러 주세요. 모든 대상이 Success가 되면 <strong>완료 승인 요청</strong>으로 다음 단계로 넘어가요.</p>' +
   '<ul>' +
-  '<li>Credential이 비어 있는 대상이 있으면 Run Test가 비활성화돼요. 먼저 전부 선택해 주세요.</li>' +
+  '<li>자격 증명이 비어 있는 대상이 있으면 Run Test를 눌렀을 때 설정 창이 먼저 열려요.</li>' +
   '<li>테스트 결과는 자동으로 갱신돼요. 실패하면 Credential과 <strong>Source IP → 연동 대상(IP:Port)</strong> 방화벽을 점검한 뒤 다시 실행하면 돼요.</li>' +
-  '<li>Success인 대상은 <strong>논리 DB 관리</strong>에서 모니터링에서 제외할 논리 DB를 정리할 수 있어요.</li>' +
+  '<li><strong>연동 논리 DB</strong> 건수를 누르면 모니터링에서 제외할 논리 DB를 정리할 수 있어요.</li>' +
   '</ul>';
 
 // ---------------------------------------------------------------------------

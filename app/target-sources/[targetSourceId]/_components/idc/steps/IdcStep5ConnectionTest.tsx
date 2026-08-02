@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppError } from '@/lib/errors';
 import { cardStyles, cn, idcStyles } from '@/lib/theme';
-import { ErrorState } from '@/app/components/ui/state';
-import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import {
   ConnProgressStrip,
   type ConnProgressState,
@@ -16,7 +14,6 @@ import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
   getSecrets,
   getTestConnectionCompletionStatus,
-  updateResourceCredential,
   updateTestConnectionConfirmation,
   type TestConnectionStatus,
 } from '@/app/lib/api';
@@ -25,17 +22,16 @@ import {
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
-import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
+import { IdcConfirmedResourcesPanel } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcConfirmedResourcesPanel';
+import { IdcCredentialModal } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcCredentialModal';
 import { IdcReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcReqApprovalModal';
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { getProject } from '@/app/lib/api';
 import { getIdcConfirmedResources, type IdcConnState, type IdcResourceView } from '@/app/lib/api/idc';
+import type { ResourcesState } from '@/app/hooks/useIdcResources';
 
-type ResourcesState =
-  | { status: 'loading' }
-  | { status: 'ready'; resources: IdcResourceView[] }
-  | { status: 'error' };
+const EMPTY_RESOURCES: readonly IdcResourceView[] = [];
 
 interface LogicalModalTarget {
   resourceId: string;
@@ -48,8 +44,13 @@ const IDC_CONN_STATES: readonly IdcConnState[] = ['PENDING', 'RUNNING', 'SUCCESS
 
 /**
  * IDC Step 5 — 연결 테스트.
- * Chrome + read-only IdcResourceTable (cols `src`, `cred`, `conn`, `logical`) + a
- * "Run Test" action, preserving the v15 IDC design.
+ * Chrome + the shared IdcConfirmedResourcesPanel (cols `src`, `logicalro`) + a
+ * "Run Test" action, so steps 5·6·7 render one table instead of three.
+ *
+ * DB Credential and Connection Status are no longer columns. The credential is a
+ * decision, not an attribute of the row, so it moved into IdcCredentialModal (the
+ * cloud connection test does the same); per-row status is carried by the progress
+ * strip's 성공/실패/대기 counts, and the table shows the Step-5 logical-DB result.
  *
  * Live wiring (ADR-019) — reuses the SHARED connection-test flow exactly like the
  * cloud ConnectionTestCard (no reimplementation): Run Test persists any changed
@@ -74,12 +75,9 @@ export const IdcStep5ConnectionTest = ({
   const [creds, setCreds] = useState<Record<string, string>>({});
   // DB Credential options from GET .../secrets (not a hardcoded list).
   const [credOptions, setCredOptions] = useState<string[]>([]);
-  // In-flight credential PUT count — stays > 0 until every concurrent save settles,
-  // so Run Test cannot fire against a half-persisted credential set.
-  const [savingCount, setSavingCount] = useState(0);
-  const savingCreds = savingCount > 0;
   const [approvalEnabled, setApprovalEnabled] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
+  const [credModalOpen, setCredModalOpen] = useState(false);
 
   const { latestJob, uiState, trigger, triggerError, fetchError } = useTestConnectionPolling(targetSourceId);
   const toast = useToast();
@@ -125,7 +123,12 @@ export const IdcStep5ConnectionTest = ({
   }, [targetSourceId]);
 
   const ready = state.status === 'ready';
-  const liveResources = ready ? state.resources.filter((r) => !r.excluded) : [];
+  // Memoized: it is the credential modal's row list, and a new array identity on every
+  // render would re-seed the modal's picks mid-edit.
+  const liveResources = useMemo(
+    () => (state.status === 'ready' ? state.resources.filter((r) => !r.excluded) : EMPTY_RESOURCES),
+    [state],
+  );
   const testing = uiState === 'PENDING';
 
   // Per-resource connection status from the latest poll, keyed by resource_id.
@@ -194,27 +197,26 @@ export const IdcStep5ConnectionTest = ({
     };
   }, [uiState, targetSourceId, latestJob]);
 
-  // Credentials are persisted on change (handleCredChange), so Run Test only
-  // resets the approval gate and triggers the run.
+  // Run Test with a credential missing opens the picker instead of failing the run —
+  // the same detour the cloud connection test takes.
   const runTest = useCallback(async () => {
-    if (!ready || testing || savingCreds || !allCredsSet) return;
+    if (!ready || testing) return;
+    if (!allCredsSet) {
+      setCredModalOpen(true);
+      return;
+    }
     setApprovalEnabled(false);
     await trigger();
-  }, [ready, testing, savingCreds, allCredsSet, trigger]);
+  }, [ready, testing, allCredsSet, trigger]);
 
-  // Changing a credential fires a PUT immediately (parity with the cloud card);
-  // local state updates only on success.
-  const handleCredChange = useCallback(async (resourceId: string, cred: string) => {
-    setSavingCount((c) => c + 1);
-    try {
-      await updateResourceCredential(targetSourceId, resourceId, cred);
-      setCreds((prev) => ({ ...prev, [resourceId]: cred }));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
-    } finally {
-      setSavingCount((c) => c - 1);
-    }
-  }, [targetSourceId, toast]);
+  // The modal persisted every changed credential before calling back, so the local map
+  // can take its picks wholesale and the run starts against a fully saved set.
+  const handleCredentialsSaved = useCallback(async (credentials: Record<string, string>) => {
+    setCreds(credentials);
+    setCredModalOpen(false);
+    setApprovalEnabled(false);
+    await trigger();
+  }, [trigger]);
 
   const progressState: ConnProgressState = testing
     ? 'running'
@@ -224,7 +226,7 @@ export const IdcStep5ConnectionTest = ({
         ? 'success'
         : 'idle';
   const progressLabel = testing
-    ? '연결 테스트 진행 중 — 각 대상의 Connection Status를 확인하고 있어요'
+    ? '연결 테스트 진행 중 — 각 대상의 연결 상태를 확인하고 있어요'
     : progressState === 'success'
       ? '연결 테스트 완료 — 모든 대상이 연결되었어요'
       : progressState === 'fail'
@@ -280,14 +282,25 @@ export const IdcStep5ConnectionTest = ({
               DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
             </p>
           </div>
-          {/* C-1: repeatable action demoted to soft — 완료 승인 요청 keeps the only primary. */}
-          <button
-            type="button"
-            onClick={runTest}
-            disabled={!ready || testing || savingCreds || !allCredsSet}
-            className={cn(idcStyles.triggerBtn.soft, 'disabled:cursor-not-allowed disabled:opacity-45')}
-          >
-            {testing || savingCreds ? (
+          <div className="flex shrink-0 items-center gap-2">
+            {/* The credential is a decision, not a row attribute, so it gets its own entry
+                point here — Run Test also detours through it when one is missing. */}
+            <button
+              type="button"
+              onClick={() => setCredModalOpen(true)}
+              disabled={!ready || testing}
+              className={cn(idcStyles.triggerBtn.linkNeutral, 'disabled:cursor-not-allowed disabled:opacity-45')}
+            >
+              DB Credential 설정
+            </button>
+            {/* C-1: repeatable action demoted to soft — 완료 승인 요청 keeps the only primary. */}
+            <button
+              type="button"
+              onClick={runTest}
+              disabled={!ready || testing}
+              className={cn(idcStyles.triggerBtn.soft, 'disabled:cursor-not-allowed disabled:opacity-45')}
+            >
+              {testing ? (
               '연결 테스트 진행 중...'
             ) : (
               <>
@@ -303,13 +316,10 @@ export const IdcStep5ConnectionTest = ({
                 Run Test
               </>
             )}
-          </button>
+            </button>
+          </div>
         </header>
         <div className={cn(cardStyles.body, 'space-y-4')}>
-          {state.status === 'loading' && <ResourceTableSkeleton />}
-          {state.status === 'error' && (
-            <ErrorState message="연동 대상을 불러오지 못했습니다." />
-          )}
           {ready && (
             <>
               <ConnProgressStrip
@@ -328,42 +338,48 @@ export const IdcStep5ConnectionTest = ({
                   {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
                 </p>
               )}
-              {/* Keep the table frame flush with its attached footer pagination
-                  (Pagination is a border-t-0 / rounded-b table footer). Without this
-                  wrapper the section's space-y-4 inserts a 16px gap between them and
-                  the footer bar visibly detaches from the table. */}
-              <div>
-                <IdcResourceTable
-                  resources={viewResources}
-                  cols={['src', 'cred', 'conn', 'logical']}
-                  onCredChange={handleCredChange}
-                  credOptions={credOptions}
-                  onLogicalOpen={handleLogicalOpen}
-                />
-              </div>
-              <IdcReqApprovalModal
-                isOpen={approvalOpen}
-                onClose={() => setApprovalOpen(false)}
-                resources={viewResources}
-                onSubmit={handleSubmitApproval}
-              />
-              {logicalModal.data && (
-                <LogicalDbModalLoader
-                  open={logicalModal.isOpen}
-                  targetSourceId={targetSourceId}
-                  resourceId={logicalModal.data.resourceId}
-                  resourceName={logicalModal.data.resourceName}
-                  onSaved={handleLogicalSaved}
-                  onError={handleLogicalError}
-                  onClose={logicalModal.close}
-                />
-              )}
             </>
+          )}
+          {/* Toolbar, table and pagination are one card, so the section's space-y-4 must not
+              get between them — the wrapper absorbs it. */}
+          <div>
+            <IdcConfirmedResourcesPanel
+              targetSourceId={targetSourceId}
+              state={state}
+              onLogicalOpen={handleLogicalOpen}
+            />
+          </div>
+          <IdcCredentialModal
+            isOpen={credModalOpen}
+            onClose={() => setCredModalOpen(false)}
+            resources={liveResources}
+            credOptions={credOptions}
+            targetSourceId={targetSourceId}
+            onComplete={handleCredentialsSaved}
+          />
+          {ready && (
+            <IdcReqApprovalModal
+              isOpen={approvalOpen}
+              onClose={() => setApprovalOpen(false)}
+              resources={viewResources}
+              onSubmit={handleSubmitApproval}
+            />
+          )}
+          {logicalModal.data && (
+            <LogicalDbModalLoader
+              open={logicalModal.isOpen}
+              targetSourceId={targetSourceId}
+              resourceId={logicalModal.data.resourceId}
+              resourceName={logicalModal.data.resourceName}
+              onSaved={handleLogicalSaved}
+              onError={handleLogicalError}
+              onClose={logicalModal.close}
+            />
           )}
         </div>
         {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. */}
         {ready && (
-          <CardActionBar hint="※ 모든 DB의 Connection Status가 Success여야 다음 단계로 진행할 수 있어요.">
+          <CardActionBar hint="※ 모든 DB의 연결 테스트가 Success여야 다음 단계로 진행할 수 있어요.">
             <button
               type="button"
               onClick={() => setApprovalOpen(true)}

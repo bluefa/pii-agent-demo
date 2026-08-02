@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { toIdcResourceView, type IdcResourceView } from '@/app/lib/api/idc';
 
-// Stub the heavy chrome so only the connection-test card (strip + IdcResourceTable) renders.
+// Stub the heavy chrome so only the connection-test card (strip + resource panel) renders.
 // CardActionBar passes through so the 완료 승인 요청 CTA stays queryable.
 vi.mock('@/app/target-sources/[targetSourceId]/_components/common', () => ({
   ProjectPageMeta: () => null,
@@ -96,17 +96,27 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
     getIdcConfirmedResources.mockResolvedValue(seededRows);
   });
 
-  it('opens the credentialed row as Pending, ignoring the seeded SUCCESS', async () => {
+  it('opens pre-test: no row claims Success from the seeded status', async () => {
     renderStep();
 
-    // Row1 (host 10.20.30.40) keeps its pre-selected credential but reads Pending,
-    // not Success — the seeded connection_status must not be carried into step5.
-    const credRow = (await screen.findByText('10.20.30.40')).closest('tr')!;
-    expect(within(credRow).getByRole('combobox')).toHaveProperty('value', 'idc_svc_mysql');
-    expect(within(credRow).getByText('Pending')).toBeTruthy();
-    expect(within(credRow).queryByText('Success')).toBeNull();
-    // No row anywhere should render Success on load (pre-test).
+    // Row1 (host 10.20.30.40) carries a seeded connection_status; step 5 is pre-test, so
+    // nothing may read Success until a run settles. The per-row badge is gone, so the
+    // strip's counts are where this is now visible.
+    await screen.findByText('10.20.30.40');
     expect(screen.queryByText('Success')).toBeNull();
+  });
+
+  it('seeds the credential picker from the credential already stored on the row', async () => {
+    renderStep();
+
+    await screen.findByText('10.20.30.40');
+    // DB Credential left the table; the select now lives in the modal, and it must open on
+    // what the row already has rather than blank out a stored pick.
+    fireEvent.click(screen.getByRole('button', { name: 'DB Credential 설정' }));
+    const credRow = (await screen.findAllByText('10.20.30.40'))
+      .map((node) => node.closest('tr')!)
+      .find((row) => within(row).queryByRole('combobox'))!;
+    expect(within(credRow).getByRole('combobox')).toHaveProperty('value', 'idc_svc_mysql');
   });
 
   it('shows the idle conn-progress strip at 0% (nothing connected yet)', async () => {
@@ -119,20 +129,17 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
     expect(screen.getByText('0%')).toBeTruthy();
   });
 
-  it('keeps Run Test gated while any live row lacks a credential', async () => {
+  it('sends Run Test to the credential picker while a live row lacks one', async () => {
     renderStep();
 
     await screen.findByText('10.20.30.40');
-    expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
-  });
-
-  it('renders the IDC prev/next-only pager (no first/last double-chevrons)', async () => {
-    renderStep();
-
-    await screen.findByText('10.20.30.40');
-    expect(screen.getByLabelText('이전 페이지')).toBeTruthy();
-    expect(screen.getByLabelText('다음 페이지')).toBeTruthy();
-    expect(screen.queryByLabelText('처음 페이지')).toBeNull();
-    expect(screen.queryByLabelText('끝 페이지')).toBeNull();
+    // Row2 has no credential. Run Test used to sit disabled with nothing on screen to fix
+    // it — now it opens the picker, which is the only place a credential can be set.
+    const runTest = screen.getByRole('button', { name: /Run Test/ });
+    expect(runTest).toHaveProperty('disabled', false);
+    fireEvent.click(runTest);
+    expect(
+      await screen.findByText(/아직 DB Credential이 미선택되었습니다 \(1\/2\)/),
+    ).toBeTruthy();
   });
 });
