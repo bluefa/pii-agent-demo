@@ -8,10 +8,7 @@ vi.mock('@/app/lib/api', () => ({
   getLatestTestConnectionResultSummaries: (...args: unknown[]) => getSummariesMock(...args),
 }));
 
-import {
-  ConfirmedIntegrationTable,
-  type ConfirmedIntegrationTableVariant,
-} from '@/app/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable';
+import { ConfirmedIntegrationTable } from '@/app/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable';
 
 const makeResource = (
   overrides: Partial<ConfirmedResource> = {},
@@ -43,7 +40,7 @@ describe('ConfirmedIntegrationTable', () => {
     expect(screen.getByText('확정된 연동 대상 DB 가 없습니다.')).toBeTruthy();
   });
 
-  describe('variant=pre-install (default)', () => {
+  describe('steps 6·7 shared grammar', () => {
     it('renders the step-2·3 approval columns plus the Step 5 logical-DB counts', () => {
       const { container } = render(
         <ConfirmedIntegrationTable confirmed={[makeResource()]} targetSourceId={42} />,
@@ -60,7 +57,7 @@ describe('ConfirmedIntegrationTable', () => {
     });
 
     // Which credential was picked is a step-5 decision; a successful connection is the
-    // evidence it was right, so step 6 spends the column on what is actually reviewed.
+    // evidence it was right, so steps 6·7 spend the column on what is actually reviewed.
     it('drops the DB Credential column', () => {
       render(
         <ConfirmedIntegrationTable
@@ -145,115 +142,10 @@ describe('ConfirmedIntegrationTable', () => {
     });
   });
 
-  describe('variant=complete', () => {
-    it('renders the v15 columns incl. Region + Resource Name + logical DB + Status', () => {
-      render(
-        <ConfirmedIntegrationTable
-          confirmed={[makeResource()]}
-          variant="complete"
-          targetSourceId={42}
-        />,
-      );
-      expect(screen.getByRole('columnheader', { name: 'Database Type' })).toBeTruthy();
-      expect(screen.getByRole('columnheader', { name: 'Resource ID' })).toBeTruthy();
-      expect(screen.getByRole('columnheader', { name: 'Region' })).toBeTruthy();
-      expect(screen.getByRole('columnheader', { name: 'Resource Name' })).toBeTruthy();
-      expect(screen.getByRole('columnheader', { name: 'DB Credential' })).toBeTruthy();
-      expect(screen.getByText('연동 대상 논리 DB')).toBeTruthy();
-      expect(screen.getByText('연동 제외 논리 DB')).toBeTruthy();
-      expect(screen.getByText('Status')).toBeTruthy();
-    });
-
-    it('does not render the pre-install-only 유형 column', () => {
-      render(
-        <ConfirmedIntegrationTable
-          confirmed={[makeResource()]}
-          variant="complete"
-          targetSourceId={42}
-        />,
-      );
-      expect(screen.queryByText('유형')).toBeNull();
-    });
-
-    it('renders the per-row Status cell as "—" (no per-resource health in the contract)', () => {
-      const { container } = render(
-        <ConfirmedIntegrationTable
-          confirmed={[makeResource()]}
-          variant="complete"
-          targetSourceId={42}
-        />,
-      );
-      // No fabricated Healthy/Unhealthy badge — the contract has no per-resource health.
-      expect(screen.queryByText('Healthy')).toBeNull();
-      expect(screen.queryByText('Unhealthy')).toBeNull();
-      const dataRow = container.querySelector('tbody tr');
-      if (!(dataRow instanceof HTMLElement)) throw new Error('expected data row');
-      const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map((c) => c.textContent);
-      // cells: Database Type / Resource ID / Region / Resource Name / DB Credential
-      //        / target logical DB / excluded logical DB / Status
-      expect(cellTexts[7]).toBe('—');
-    });
-
-    it('renders real logical DB counts from the latest test-connection result summaries', async () => {
-      getSummariesMock.mockResolvedValue([
-        {
-          resource_id: 'res-1',
-          agent_id: 'agent-1',
-          logical_database_count: 9,
-          excluded_logical_database_count: 2,
-        },
-      ]);
-      const { container } = render(
-        <ConfirmedIntegrationTable
-          confirmed={[makeResource({ resourceId: 'res-1' })]}
-          variant="complete"
-          targetSourceId={42}
-        />,
-      );
-      await waitFor(() => {
-        const dataRow = container.querySelector('tbody tr');
-        if (!(dataRow instanceof HTMLElement)) throw new Error('expected data row');
-        const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map((c) => c.textContent);
-        // cells[5] = 연동 대상 논리 DB, cells[6] = 연동 제외 논리 DB
-        expect(cellTexts[5]).toBe('9');
-        expect(cellTexts[6]).toBe('2');
-      });
-    });
-
-    it('renders "—" for logical DB counts when a resource has no summary entry', async () => {
-      getSummariesMock.mockResolvedValue([
-        {
-          resource_id: 'other-res',
-          agent_id: 'agent-1',
-          logical_database_count: 5,
-          excluded_logical_database_count: 1,
-        },
-      ]);
-      const { container } = render(
-        <ConfirmedIntegrationTable
-          confirmed={[makeResource({ resourceId: 'res-1' })]}
-          variant="complete"
-          targetSourceId={42}
-        />,
-      );
-      // Give the fetch a tick; the missing-entry resource keeps its "—" placeholder.
-      await waitFor(() => expect(getSummariesMock).toHaveBeenCalled());
-      const dataRow = container.querySelector('tbody tr');
-      if (!(dataRow instanceof HTMLElement)) throw new Error('expected data row');
-      const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map((c) => c.textContent);
-      expect(cellTexts[5]).toBe('—');
-      expect(cellTexts[6]).toBe('—');
-    });
-  });
-
-  it.each<[ConfirmedIntegrationTableVariant]>([
-    ['pre-install'],
-    ['complete'],
-  ])('mounts a hover-revealed CopyButton on Resource ID in %s variant', (variant) => {
+  it('mounts a hover-revealed CopyButton on Resource ID', () => {
     render(
       <ConfirmedIntegrationTable
         confirmed={[makeResource({ resourceId: 'conf-x' })]}
-        variant={variant}
         targetSourceId={42}
       />,
     );

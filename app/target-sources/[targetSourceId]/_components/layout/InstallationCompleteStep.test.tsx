@@ -30,9 +30,7 @@ vi.mock(
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot',
   () => ({
-    ConfirmedResourcesSlot: ({ variant }: { variant?: string }) => (
-      <div data-testid="confirmed-resources-slot" data-variant={variant ?? 'pre-install'} />
-    ),
+    ConfirmedResourcesSlot: () => <div data-testid="confirmed-resources-slot" />,
   }),
 );
 
@@ -110,11 +108,10 @@ describe('InstallationCompleteStep', () => {
     expect(screen.getByText(/사용 단어 빈도가 표시돼요/)).toBeTruthy();
   });
 
-  it('mounts the ConfirmedResourcesSlot with complete variant', () => {
+  it('mounts the ConfirmedResourcesSlot (steps 6·7 shared table)', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
-    const slot = screen.getByTestId('confirmed-resources-slot');
-    expect(slot.getAttribute('data-variant')).toBe('complete');
+    expect(screen.getByTestId('confirmed-resources-slot')).toBeTruthy();
   });
 
   it('does not render the 승인 대기 pill (that is Step 6)', () => {

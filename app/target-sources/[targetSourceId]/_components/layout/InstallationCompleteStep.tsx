@@ -143,7 +143,7 @@ export const InstallationCompleteStep = ({
           </p>
         </header>
         <div className={cardStyles.body}>
-          <ConfirmedResourcesSlot variant="complete" bare />
+          <ConfirmedResourcesSlot bare />
         </div>
         {/* C-2 action zone: the rewind CTAs dock (sticky) at the card bottom. */}
         <InstallationCompleteActionBar />
