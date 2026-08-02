@@ -889,6 +889,41 @@ export const idcStyles = {
     approvalHeaderCell: 'px-[18px] py-3',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
+    /**
+     * Grouped parent row (Athena × Region) — Cloudscape "nested resources" 시안.
+     * Chosen in `docs/ux/athena-group-samples.html` §04 over the v16 orange band: the
+     * parent stays a REAL row sharing the table's columns, so sorting, pagination and
+     * selection remain row-based and no colspan breaks the column rhythm.
+     *
+     * Every value is copied from a metric this table family already uses — the row tint
+     * is `table.header`'s #FAFBFC, the chip/connector borders are the #EBEEF2 divider,
+     * the label is the db-list-table 13/700 header pair. Nothing new was invented.
+     */
+    group: {
+      /**
+       * Parent row tint — the shared neutral surface #F7F8FA (`approvalHeader`, `tag.gray`).
+       * It has to sit ABOVE the excluded-row tint #F9FAFB, not below it: a parent lighter
+       * than its own excluded children inverts the hierarchy, which is what #FAFBFC did.
+       * Hover/focus steps to the divider value #EBEEF2 — the next established stop up.
+       */
+      row: 'bg-[#F7F8FA] hover:bg-[#EBEEF2] focus-within:bg-[#EBEEF2] transition-colors duration-150 motion-reduce:transition-none',
+      /** Identity cluster inside the parent's first cell. */
+      lead: 'flex items-center gap-2.5',
+      /** Chevron toggle — 20px box, v16 `.athena-expand-btn` size in the neutral palette. */
+      toggle:
+        'inline-grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border border-[#EBEEF2] bg-white text-[#4E5968] transition-transform duration-150 motion-reduce:transition-none',
+      /** Applied to `toggle` while the group is open — chevron-right → chevron-down. */
+      toggleOpen: 'rotate-90',
+      /** Service label — the db-list-table header pair (13px / 700) at full text contrast. */
+      label: 'whitespace-nowrap text-[13px] font-bold text-[#191F28]',
+      /** Region chip — mono like the Region column it summarises. */
+      chip: 'inline-flex items-center rounded-md border border-[#EBEEF2] bg-white px-[7px] py-px font-mono text-[11.5px] font-semibold text-[#4E5968]',
+      /** Aggregate cells — tabular so counts stay aligned down the column. */
+      meta: 'whitespace-nowrap text-[12px] tabular-nums text-[#4E5968]',
+      /** Child row's first cell — indent + tree connector back up to the parent's chevron. */
+      childCell:
+        "relative pl-[46px] before:absolute before:bottom-1/2 before:left-[26px] before:top-0 before:w-[11px] before:rounded-bl-[5px] before:border-b before:border-l before:border-[#EBEEF2] before:content-['']",
+    },
   },
 } as const;
 

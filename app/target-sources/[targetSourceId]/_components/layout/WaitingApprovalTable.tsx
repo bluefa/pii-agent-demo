@@ -1,13 +1,18 @@
 'use client';
 
-import { memo } from 'react';
+import { Fragment, memo, useMemo, useState } from 'react';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
+import {
+  ResourceGroupCount,
+  ResourceGroupRow,
+} from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
+import { groupResourceRows } from '@/lib/resource-grouping';
 import { idcStyles, primaryColors, statusColors, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
@@ -113,6 +118,29 @@ const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
 const PLACEHOLDER = '—';
 
+/**
+ * Group total for one of the `confirmed` variant's logical-DB columns.
+ *
+ * Returns null when NO row in the group has a count, so the parent renders "—" like its
+ * children do — a group of rows that all render "—" must not roll up into a fabricated 0.
+ * Rows that do have counts are summed; a null among them contributes nothing.
+ */
+const sumLogicalDbCounts = (
+  rows: readonly WaitingApprovalResource[],
+  pick: (row: WaitingApprovalResource) => number | null | undefined,
+): number | null => {
+  let total: number | null = null;
+  for (const row of rows) {
+    const value = pick(row);
+    if (typeof value === 'number') total = (total ?? 0) + value;
+  }
+  return total;
+};
+
+/** Matches the child cells' "N 개" wording so the column reads as one unit. */
+const formatLogicalDbTotal = (total: number | null): string =>
+  total === null ? PLACEHOLDER : `${total} 개`;
+
 // No status dot: the label already says 대상 / 제외, so the dot repeats it in a weaker channel.
 //
 // Ineligible is its own verdict, not a flavour of excluded. The two answer different
@@ -192,6 +220,27 @@ export const WaitingApprovalTable = memo(
     emptyMessage,
     connected = false,
   }: WaitingApprovalTableProps) => {
+    // Athena arrives as many rows of one catalog family per region; grouping restores the
+    // parent it belongs to (LIN-85). Groups start OPEN — this table is the "review everything
+    // before you approve" surface, so nothing may be hidden by default.
+    const sections = useMemo(
+      () =>
+        groupResourceRows(resources, (resource) => ({
+          type: resource.resourceType,
+          region: resource.region,
+          selected: resource.selected,
+        })),
+      [resources],
+    );
+    const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
+
+    const toggleGroup = (key: string) =>
+      setCollapsedGroups((previous) => {
+        const next = new Set(previous);
+        if (!next.delete(key)) next.add(key);
+        return next;
+      });
+
     if (resources.length === 0) {
       return <TableEmptyState message={emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />;
     }
@@ -200,6 +249,101 @@ export const WaitingApprovalTable = memo(
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
     const monoCell = 'whitespace-nowrap font-mono text-[12px]';
+
+    // `grouped` only indents the identity cell — every other cell is identical whether the row
+    // stands alone or hangs under a parent, so a group never changes what a row says.
+    const renderRow = (resource: WaitingApprovalResource, grouped = false) => {
+      const excluded = !resource.selected;
+      return (
+        <tr
+          key={resource.resourceId}
+          className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
+        >
+          {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
+              block and left row heights ragged (59/69/75px); the full name is in the tip. */}
+          <td
+            className={cn(
+              idcStyles.table.approvalCell,
+              'font-mono text-[14px]',
+              excluded ? DIM_TEXT : textColors.primary,
+              NAME_LIFT,
+              grouped && idcStyles.table.group.childCell,
+            )}
+          >
+            <Tooltip
+              content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
+              variant="value"
+              size="md"
+              triggerClassName="min-w-0 max-w-[200px] block"
+              truncatedOnly
+            >
+              <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+            </Tooltip>
+          </td>
+          <td className={idcStyles.table.approvalCell}>
+            {/* 260px (the cell default) plus a non-wrapping Region overran the card. */}
+            <ResourceIdCell
+              value={resource.resourceId}
+              label="Resource ID"
+              maxWidthClass="max-w-[220px]"
+              textClassName={cn(excluded ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
+            />
+          </td>
+          {/* DB Type is a repeating attribute, not a status — one badge per row (the
+              verdict) is enough; a second pill would compete with it. */}
+          <td
+            className={cn(
+              idcStyles.table.approvalCell,
+              'text-[12px]',
+              excluded ? DIM_TEXT : textColors.secondary,
+              CELL_LIFT,
+            )}
+          >
+            {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
+          </td>
+          <td
+            className={cn(
+              idcStyles.table.approvalCell,
+              monoCell,
+              excluded ? DIM_TEXT : textColors.secondary,
+              CELL_LIFT,
+            )}
+          >
+            {resource.region || PLACEHOLDER}
+          </td>
+          {confirmedVariant ? (
+            <>
+              <td className={idcStyles.table.approvalCell}>
+                <LogicalDbCountCell
+                  count={resource.logicalDbCount}
+                  label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
+                  onOpen={() => onLogicalDbOpen?.(resource)}
+                />
+              </td>
+              <td className={idcStyles.table.approvalCell}>
+                <LogicalDbCountCell
+                  count={resource.excludedLogicalDbCount}
+                  label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
+                  onOpen={() => onLogicalDbOpen?.(resource)}
+                />
+              </td>
+            </>
+          ) : (
+            <>
+              <td className={idcStyles.table.approvalCell}>
+                <TargetPill
+                  excluded={excluded}
+                  ineligible={resource.integrationCategory === 'INSTALL_INELIGIBLE'}
+                />
+              </td>
+              <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
+                <ReasonCell resource={resource} />
+              </td>
+            </>
+          )}
+        </tr>
+      );
+    };
 
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
@@ -227,101 +371,69 @@ export const WaitingApprovalTable = memo(
                 )}
               </tr>
             </thead>
-            <tbody className={idcStyles.table.body}>
-              {resources.map((resource) => {
-                const excluded = !resource.selected;
+            {sections.map((section) => {
+              if (section.kind === 'rows') {
                 return (
-                  <tr
-                    key={resource.resourceId}
-                    className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
-                  >
-                    {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
-                        block and left row heights ragged (59/69/75px); the full name is in the tip. */}
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        'font-mono text-[14px]',
-                        excluded ? DIM_TEXT : textColors.primary,
-                        NAME_LIFT,
-                      )}
-                    >
-                      <Tooltip
-                        content={
-                          <IdentifierTip label="Resource Name" value={resource.resourceName} />
-                        }
-                        variant="value"
-                        size="md"
-                        triggerClassName="min-w-0 max-w-[200px] block"
-                        truncatedOnly
-                      >
-                        <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
-                      </Tooltip>
-                    </td>
-                    <td className={idcStyles.table.approvalCell}>
-                      {/* 260px (the cell default) plus a non-wrapping Region overran the card. */}
-                      <ResourceIdCell
-                        value={resource.resourceId}
-                        label="Resource ID"
-                        maxWidthClass="max-w-[220px]"
-                        textClassName={cn(excluded ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
-                      />
-                    </td>
-                    {/* DB Type is a repeating attribute, not a status — one badge per row (the
-                        verdict) is enough; a second pill would compete with it. */}
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        'text-[12px]',
-                        excluded ? DIM_TEXT : textColors.secondary,
-                        CELL_LIFT,
-                      )}
-                    >
-                      {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
-                    </td>
-                    <td
-                      className={cn(
-                        idcStyles.table.approvalCell,
-                        monoCell,
-                        excluded ? DIM_TEXT : textColors.secondary,
-                        CELL_LIFT,
-                      )}
-                    >
-                      {resource.region || PLACEHOLDER}
-                    </td>
-                    {confirmedVariant ? (
-                      <>
-                        <td className={idcStyles.table.approvalCell}>
-                          <LogicalDbCountCell
-                            count={resource.logicalDbCount}
-                            label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
-                            onOpen={() => onLogicalDbOpen?.(resource)}
-                          />
-                        </td>
-                        <td className={idcStyles.table.approvalCell}>
-                          <LogicalDbCountCell
-                            count={resource.excludedLogicalDbCount}
-                            label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
-                            onOpen={() => onLogicalDbOpen?.(resource)}
-                          />
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className={idcStyles.table.approvalCell}>
-                          <TargetPill
-                            excluded={excluded}
-                            ineligible={resource.integrationCategory === 'INSTALL_INELIGIBLE'}
-                          />
-                        </td>
-                        <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
-                          <ReasonCell resource={resource} />
-                        </td>
-                      </>
-                    )}
-                  </tr>
+                  <tbody key={section.key} className={idcStyles.table.body}>
+                    {section.rows.map((resource) => renderRow(resource))}
+                  </tbody>
                 );
-              })}
-            </tbody>
+              }
+
+              const { group } = section;
+              const rowsId = `approval-group-${group.key.replace('|', '-')}`;
+              const collapsed = collapsedGroups.has(group.key);
+              return (
+                <Fragment key={group.key}>
+                  <tbody className={idcStyles.table.body}>
+                    <ResourceGroupRow
+                      type={group.type}
+                      region={group.region}
+                      expanded={!collapsed}
+                      onToggle={() => toggleGroup(group.key)}
+                      controls={rowsId}
+                    >
+                      {/* ID · DB Type · Region stay blank — the parent's label and chip already
+                          say Athena × region, and repeating them would read as one more resource. */}
+                      <td className={idcStyles.table.approvalCell} />
+                      <td className={idcStyles.table.approvalCell} />
+                      <td className={idcStyles.table.approvalCell} />
+                      {confirmedVariant ? (
+                        // Each aggregate answers the question ITS column asks. Here the last two
+                        // columns count logical DBs, not resources, so the group sums those —
+                        // a 대상/제외 resource split would be read as a logical-DB count.
+                        <>
+                          <td className={cn(idcStyles.table.approvalCell, idcStyles.table.group.meta)}>
+                            {formatLogicalDbTotal(
+                              sumLogicalDbCounts(group.rows, (r) => r.logicalDbCount),
+                            )}
+                          </td>
+                          <td className={cn(idcStyles.table.approvalCell, idcStyles.table.group.meta)}>
+                            {formatLogicalDbTotal(
+                              sumLogicalDbCounts(group.rows, (r) => r.excludedLogicalDbCount),
+                            )}
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className={idcStyles.table.approvalCell}>
+                            <ResourceGroupCount
+                              targetCount={group.targetCount}
+                              excludedCount={group.excludedCount}
+                            />
+                          </td>
+                          <td className={idcStyles.table.approvalCell} />
+                        </>
+                      )}
+                    </ResourceGroupRow>
+                  </tbody>
+                  {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
+                  <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
+                    {group.rows.map((resource) => renderRow(resource, true))}
+                  </tbody>
+                </Fragment>
+              );
+            })}
           </table>
         </div>
       </div>

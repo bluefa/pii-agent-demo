@@ -1,6 +1,8 @@
 'use client';
 
+import { Fragment, useMemo, useState } from 'react';
 import { cn, idcStyles } from '@/lib/theme';
+import { groupResourceRows } from '@/lib/resource-grouping';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import {
@@ -8,6 +10,10 @@ import {
   type CandidateRowActions,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
+import {
+  ResourceGroupCount,
+  ResourceGroupRow,
+} from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 
 // 설치 구분 = 스캔이 판정한 시스템 사실(사용자 변경 불가). 값의 뜻만이 아니라
 // 각 값이 선택에 거는 규칙(대상 제외 시 사유 필수, 불가는 선택 자체 불가)까지가
@@ -79,6 +85,27 @@ export const CandidateResourceTable = ({
   const totalCount = candidates.length;
   const showCheckboxColumn = !readonly;
 
+  // Athena arrives as many rows of one catalog family per region; grouping restores the parent
+  // they belong to (LIN-85). Groups start OPEN — Step 1 is where each row is individually
+  // selected, so a collapsed group would hide the very checkboxes the step exists for.
+  const sections = useMemo(
+    () =>
+      groupResourceRows(candidates, (candidate) => ({
+        type: candidate.type,
+        region: candidate.metadata.region,
+        selected: selectedIds.has(candidate.id),
+      })),
+    [candidates, selectedIds],
+  );
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
+
+  const toggleGroup = (key: string) =>
+    setCollapsedGroups((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+
   if (totalCount === 0) {
     return <TableEmptyState message={emptyMessage ?? '발견된 리소스가 없습니다'} />;
   }
@@ -118,8 +145,8 @@ export const CandidateResourceTable = ({
               {showCheckboxColumn && <th className={idcStyles.table.approvalHeaderCell}>제외 사유</th>}
             </tr>
           </thead>
-          <tbody className={idcStyles.table.body}>
-            {candidates.map((candidate) => (
+          {sections.map((section) => {
+            const renderRow = (candidate: CandidateResource, grouped = false) => (
               <CandidateResourceRow
                 key={candidate.id}
                 candidate={candidate}
@@ -129,9 +156,60 @@ export const CandidateResourceTable = ({
                 readonly={readonly}
                 drafts={drafts}
                 actions={actions}
+                grouped={grouped}
               />
-            ))}
-          </tbody>
+            );
+
+            if (section.kind === 'rows') {
+              return (
+                <tbody key={section.key} className={idcStyles.table.body}>
+                  {section.rows.map((candidate) => renderRow(candidate))}
+                </tbody>
+              );
+            }
+
+            const { group } = section;
+            const rowsId = `candidate-group-${group.key.replace('|', '-')}`;
+            const collapsed = collapsedGroups.has(group.key);
+            return (
+              <Fragment key={group.key}>
+                <tbody className={idcStyles.table.body}>
+                  <ResourceGroupRow
+                    type={group.type}
+                    region={group.region}
+                    expanded={!collapsed}
+                    onToggle={() => toggleGroup(group.key)}
+                    controls={rowsId}
+                    leadingCell={
+                      showCheckboxColumn ? (
+                        // No group-level checkbox: selecting a whole Athena family is a bulk
+                        // action nobody asked for, and 제외 사유 is required per resource.
+                        <td className={cn(idcStyles.table.approvalCell, 'w-10')} />
+                      ) : undefined
+                    }
+                  >
+                    {/* ID · DB Type · Region stay blank — the parent's label and chip already say
+                        Athena × region. The aggregate lands in 설치 구분, the column that asks
+                        how much of this group is a target. */}
+                    <td className={idcStyles.table.approvalCell} />
+                    <td className={idcStyles.table.approvalCell} />
+                    <td className={idcStyles.table.approvalCell} />
+                    <td className={idcStyles.table.approvalCell}>
+                      <ResourceGroupCount
+                        targetCount={group.targetCount}
+                        excludedCount={group.excludedCount}
+                      />
+                    </td>
+                    {showCheckboxColumn && <td className={idcStyles.table.approvalCell} />}
+                  </ResourceGroupRow>
+                </tbody>
+                {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
+                <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
+                  {group.rows.map((candidate) => renderRow(candidate, true))}
+                </tbody>
+              </Fragment>
+            );
+          })}
         </table>
       </div>
     </div>

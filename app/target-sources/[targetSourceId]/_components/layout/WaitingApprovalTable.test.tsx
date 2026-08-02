@@ -106,4 +106,75 @@ describe('WaitingApprovalTable', () => {
     expect(copy.className).toContain('opacity-0');
     expect(copy.className).toContain('group-hover/resid:opacity-100');
   });
+
+  // LIN-85 — Athena rows regroup under one parent row per region.
+  describe('Athena grouping', () => {
+    const athena = (
+      id: string,
+      region: string,
+      selected: boolean,
+      counts?: [number, number],
+    ): WaitingApprovalResource => ({
+      resourceId: id,
+      // The spelling the captured BFF response actually uses.
+      resourceType: 'AWS_ATHENA_DATABASE',
+      region,
+      resourceName: id,
+      selected,
+      ...(counts ? { logicalDbCount: counts[0], excludedLogicalDbCount: counts[1] } : {}),
+    });
+
+    it('renders one parent row per region with the target/excluded aggregate', () => {
+      render(
+        <WaitingApprovalTable
+          resources={[
+            athena('db_a', 'ap-northeast-1', true),
+            athena('db_b', 'ap-northeast-1', false),
+            athena('db_c', 'us-east-1', true),
+          ]}
+        />,
+      );
+
+      const toggles = screen.getAllByRole('button', { name: /그룹 (펼치기|접기)$/ });
+      expect(toggles).toHaveLength(2);
+      expect(toggles[0].getAttribute('aria-expanded')).toBe('true');
+      expect(screen.getByText('1 대상 · 1 제외 · 총 2')).toBeTruthy();
+      expect(screen.getByText('1 대상 · 0 제외 · 총 1')).toBeTruthy();
+    });
+
+    it('keeps ungrouped rows out of any group', () => {
+      render(<WaitingApprovalTable resources={[...fixture, athena('db_a', 'ap-northeast-1', true)]} />);
+      expect(screen.getAllByRole('button', { name: /그룹 (펼치기|접기)$/ })).toHaveLength(1);
+      expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
+    });
+
+    it('sums the logical-DB columns in the confirmed variant, not the resource split', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            athena('db_a', 'ap-northeast-1', true, [8, 2]),
+            athena('db_b', 'ap-northeast-1', true, [12, 1]),
+          ]}
+        />,
+      );
+      expect(screen.getByText('20 개')).toBeTruthy();
+      expect(screen.getByText('3 개')).toBeTruthy();
+      expect(screen.queryByText(/대상 ·/)).toBeNull();
+    });
+
+    it('rolls up to — rather than a fabricated 0 when no row has a count', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            athena('db_a', 'ap-northeast-1', true),
+            athena('db_b', 'ap-northeast-1', true),
+          ]}
+        />,
+      );
+      // Parent + 2 children, two logical-DB columns each, none with a count available.
+      expect(screen.getAllByText('—')).toHaveLength(6);
+    });
+  });
 });

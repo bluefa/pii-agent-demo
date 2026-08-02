@@ -63,6 +63,8 @@ interface CandidateResourceRowProps {
   readonly: boolean;
   drafts: CandidateDraftState;
   actions: CandidateRowActions;
+  /** True when the row hangs under a group parent — indents the identity cell only (LIN-85). */
+  grouped?: boolean;
 }
 
 export const CandidateResourceRow = ({
@@ -73,6 +75,7 @@ export const CandidateResourceRow = ({
   readonly,
   drafts,
   actions,
+  grouped = false,
 }: CandidateResourceRowProps) => {
   const vnetModal = useModal();
   const behavior = getCandidateBehavior(candidate);
@@ -142,6 +145,7 @@ export const CandidateResourceRow = ({
             'font-mono text-[14px]',
             dimmed ? DIM_TEXT : textColors.primary,
             NAME_LIFT,
+            grouped && idcStyles.table.group.childCell,
           )}
         >
           <Tooltip
