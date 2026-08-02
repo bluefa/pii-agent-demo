@@ -5,6 +5,7 @@ import {
   bgColors,
   borderColors,
   cn,
+  primaryColors,
   stackGap,
   shadows,
   statusColors,
@@ -207,22 +208,20 @@ interface StepView {
   actionable: boolean;
 }
 
-const ActionCard = ({ view, onOpen }: { view: StepView; onOpen: () => void }) => {
+/**
+ * 조치 항목 — 박스가 아니다. 요약 자체가 이미 카드 안이고, 그 안에 또 채운 카드를
+ * 두면 "설치 현황 요약 > 카드"로 한 겹이 더 생긴다(오너 지적). 여백으로 묶고,
+ * 색은 조치 문구 한 줄에만 남긴다.
+ */
+const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) => {
   const failed = view.aggregate.kind === 'failed';
   return (
-    <div
-      className={cn(
-        'rounded-xl border px-4 py-3.5 flex flex-col',
-        stackGap.related,
-        failed ? cn(statusColors.error.border, statusColors.error.bg) : cn(statusColors.warning.border, statusColors.warning.bg),
-      )}
-    >
-      <div className="flex items-center gap-2 flex-wrap">
+    <div className={cn('flex flex-col', stackGap.related)}>
+      <div className="flex items-baseline gap-2 flex-wrap">
         <span className={cn(textStyles.bodyStrong, textColors.primary)}>{view.step.title}</span>
-        <span className={cn(TABLE_TAG_PILL, 'whitespace-nowrap', view.aggregate.tag)}>
-          {view.aggregate.count ? `${view.aggregate.label} ${view.aggregate.count}` : view.aggregate.label}
-        </span>
-        {view.step.side && <SideTag side={view.step.side} />}
+        {view.step.side && (
+          <span className={cn(textStyles.caption, textColors.tertiary)}>· {view.step.side}</span>
+        )}
       </div>
 
       {/* 조치 문구는 제목과 같은 14px — 계층은 크기가 아니라 색으로 가른다. */}
@@ -251,12 +250,7 @@ const ActionCard = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
       <button
         type="button"
         onClick={onOpen}
-        className={cn(
-          'self-start px-3 py-1.5 rounded-lg border bg-white',
-          textStyles.captionStrong,
-          borderColors.default,
-          textColors.secondary,
-        )}
+        className={cn('self-start', textStyles.captionStrong, primaryColors.text)}
       >
         해당 단계 열기 →
       </button>
@@ -304,8 +298,9 @@ const InstallSummaryPanel = ({
   return (
     // 그룹(섹션) 사이 = section 32px, 그룹 제목↔본문 = related 8px (비대칭 규칙)
     <div className={cn('flex flex-col', stackGap.section)}>
-      {/* 지표 행 — 요약 패널의 본문. 숫자 20px 이 이 패널에서 가장 큰 글자다. */}
-      <div className={cn('flex items-start gap-8 rounded-xl px-5 py-4', bgColors.muted)}>
+      {/* 지표 행 — 요약 패널의 본문. 숫자 20px 이 이 패널에서 가장 큰 글자다.
+          판을 깔지 않는다: 카드 안에 또 카드를 두지 않는 것이 이 화면의 규칙. */}
+      <div className="flex items-start gap-8">
         <RollupStat label="전체 리소스" value={rollup.total} />
         <RollupStat label="완료" value={rollup.done} />
         <RollupStat label="진행중" value={rollup.running} tone={statusColors.info.textDark} />
@@ -317,25 +312,19 @@ const InstallSummaryPanel = ({
       </div>
 
       <section className={cn('flex flex-col', stackGap.related)}>
-        <h4 className={cn(textStyles.bodyStrong, textColors.primary)}>
+        {/* 섹션 라벨은 한 단 내려 쓴다 — 항목 제목과 같은 14/700 이면 둘 중 무엇이
+            상위인지 화면이 답하지 못한다(인접 계층은 크기·색 두 축이 달라야 한다). */}
+        <h4 className={cn(textStyles.captionStrong, textColors.tertiary)}>
           지금 서비스 측에서 확인이 필요합니다
         </h4>
         {action.length === 0 ? (
-          <div
-            className={cn(
-              'px-4 py-3 rounded-xl border',
-              textStyles.body,
-              statusColors.success.border,
-              statusColors.success.bg,
-              statusColors.success.textDark,
-            )}
-          >
+          <p className={cn(textStyles.body, textColors.secondary)}>
             확인이 필요한 항목이 없어요. 나머지 단계는 BDC가 처리 중이며, 왼쪽 목록에서 진행
             상황을 볼 수 있어요.
-          </div>
+          </p>
         ) : (
           action.map((view) => (
-            <ActionCard key={view.step.id} view={view} onOpen={() => onOpen(view.step.id)} />
+            <ActionItem key={view.step.id} view={view} onOpen={() => onOpen(view.step.id)} />
           ))
         )}
       </section>
