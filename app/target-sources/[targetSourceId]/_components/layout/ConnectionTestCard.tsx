@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { cardStyles, cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
+import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { useModal } from '@/app/hooks/useModal';
@@ -118,6 +119,16 @@ export const ConnectionTestCard = ({
   // The table, the progress strip and the Run Test gate all run on units — one row per thing
   // the test reports on. Only the completion-approval summary still lists databases.
   const units = useMemo(() => toTestUnits(confirmed), [confirmed]);
+  // Which folded regions are open. Collapsed by default: the databases are reference here —
+  // nothing on those rows is acted on, and the row the user works with is the region.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleUnit = useCallback((unitId: string) => {
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(unitId)) next.add(unitId);
+      return next;
+    });
+  }, []);
   const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(units, {
     initialPageSize: 10,
   });
@@ -313,8 +324,14 @@ export const ConnectionTestCard = ({
                 const connected = rowConnected(unit);
                 const credRequired = requiresCredential(unit.databaseType);
                 const [first] = unit.members;
+                const open = expanded.has(unit.unitId);
+                const rowsId = `conn-unit-${unit.unitId}`;
                 return (
-                  <tr key={unit.unitId} className={idcStyles.table.row}>
+                  <Fragment key={unit.unitId}>
+                  <tr
+                    className={cn(idcStyles.table.row, unit.folded && 'cursor-pointer')}
+                    onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
+                  >
                     <td className={idcStyles.table.cell}>
                       {unit.databaseType ? (
                         <span className={cn('text-[12px]', textColors.secondary)}>
@@ -330,20 +347,39 @@ export const ConnectionTestCard = ({
                     <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary)}>
                       {unit.region ?? '-'}
                     </td>
-                    {/* A folded row stands for a region, which has no resource name. Saying how
-                        many databases it covers keeps them traceable — they were picked one by
-                        one in step 1 and would otherwise vanish here without a trace. */}
+                    {/* A region has no resource name, so a folded row spends this cell on the
+                        disclosure instead: opening it lists the databases underneath, in the
+                        column their names belong to. They are reference only — nothing on this
+                        step is done per database — so the group starts closed. */}
                     <td
                       className={cn(
                         idcStyles.table.cell,
-                        'text-[12px]',
+                        'font-mono text-[12px]',
                         textColors.secondary,
-                        !unit.folded && 'font-mono',
+                        unit.folded && open && idcStyles.table.group.parentCellSm,
                       )}
                     >
-                      {unit.folded
-                        ? `데이터베이스 ${unit.members.length}개`
-                        : (first.resourceName ?? '-')}
+                      {unit.folded ? (
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          aria-controls={rowsId}
+                          aria-label={`${unit.region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleUnit(unit.unitId);
+                          }}
+                          className={cn(
+                            idcStyles.table.group.toggle,
+                            open && idcStyles.table.group.toggleOpen,
+                            primaryColors.focusRing,
+                          )}
+                        >
+                          <ChevronRightIcon className="h-3.5 w-3.5" />
+                        </button>
+                      ) : (
+                        (first.resourceName ?? '-')
+                      )}
                     </td>
                     <td className={idcStyles.table.cell}>
                       {credRequired ? (
@@ -394,6 +430,33 @@ export const ConnectionTestCard = ({
                       )}
                     </td>
                   </tr>
+                  {/* Database list. Only the name — the region row above already answers
+                      everything else, and none of it varies per database. */}
+                  {unit.folded &&
+                    open &&
+                    unit.members.map((db, index) => (
+                      <tr key={db.resourceId} id={rowsId}>
+                        <td className={idcStyles.table.cell} />
+                        <td className={idcStyles.table.cell} />
+                        <td className={idcStyles.table.cell} />
+                        <td
+                          className={cn(
+                            idcStyles.table.cell,
+                            'font-mono text-[12px]',
+                            textColors.secondary,
+                            idcStyles.table.group.childCellSm,
+                            index === unit.members.length - 1 &&
+                              idcStyles.table.group.childCellLast,
+                          )}
+                        >
+                          {db.resourceName ?? db.resourceId}
+                        </td>
+                        <td className={idcStyles.table.cell} />
+                        <td className={idcStyles.table.cell} />
+                        <td className={idcStyles.table.cell} />
+                      </tr>
+                    ))}
+                  </Fragment>
                 );
               })}
             </tbody>

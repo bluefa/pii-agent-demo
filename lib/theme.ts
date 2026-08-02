@@ -944,6 +944,17 @@ export const idcStyles = {
         "relative pl-[70px] before:absolute before:bottom-0 before:left-[28px] before:top-0 before:w-px before:bg-[#C4CEDA] before:content-[''] after:absolute after:left-[28px] after:top-1/2 after:h-px after:w-[26px] after:bg-[#C4CEDA] after:content-['']",
       /** Last child — the rail stops at its elbow, closing the group. */
       childCellLast: 'before:bottom-1/2',
+      /**
+       * Same rail for the db-list table (`table.cell`), whose cells pad 16px, not 18px.
+       *   16..36 chevron → rail x = 26 · 56 child name (26 + 18 elbow + 12)
+       * Tighter than the approval table's 24px tier because Resource Name is 180px wide here
+       * and the children only carry a database name.
+       */
+      childCellSm:
+        "relative pl-[56px] before:absolute before:bottom-0 before:left-[26px] before:top-0 before:w-px before:bg-[#C4CEDA] before:content-[''] after:absolute after:left-[26px] after:top-1/2 after:h-px after:w-[18px] after:bg-[#C4CEDA] after:content-['']",
+      /** Parent's disclosure cell in that same table. */
+      parentCellSm:
+        "relative after:absolute after:-bottom-px after:left-[26px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
       /** Parent's own name cell — carries the rail's first segment down to the first child. */
       parentCell:
         "relative after:absolute after:-bottom-px after:left-[28px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
