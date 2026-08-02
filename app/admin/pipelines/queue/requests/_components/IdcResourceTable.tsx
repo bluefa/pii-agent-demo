@@ -22,6 +22,7 @@ import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import {
   CELL_LIFT,
+  CONNECTED_FRAME,
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
@@ -57,8 +58,6 @@ export interface IdcResourceTableProps {
   /** Open the "현재 배정된 NLB" modal for this resource (read-only, always
    *  available — not gated by `disabled`). */
   onShowNlbInfo: (row: RequestResourceRow) => void;
-  /** Squares the top corners when a toolbar is attached above (P3). */
-  wrapClassName?: string;
 }
 
 const SELECT_BASE =
@@ -92,30 +91,32 @@ export function IdcResourceTable({
   onSelect,
   onSave,
   onShowNlbInfo,
-  wrapClassName,
 }: IdcResourceTableProps): ReactElement {
   const { table } = idcStyles;
 
   return (
-    <div className={cn(table.frame, wrapClassName)}>
-      <table className="w-full">
-        <thead className={table.header}>
+    // No frame of its own — the toolbar above owns the rounded top and the pager below
+    // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
+    <div className={CONNECTED_FRAME}>
+      <div className="overflow-x-auto">
+      <table className="w-full text-[13px]">
+        <thead className={table.approvalHeader}>
           {/* Identity first, then its attributes, then the decision — the same reading
               order as the cloud table and step 1. An IDC row's identity is its host/IP,
               so 연동 대상 leads; Database Type carries the SID underneath. */}
           <tr>
-            <th className={table.headerCell}>연동 대상</th>
-            <th className={cn(table.headerCell, 'w-[172px]')}>Database Type</th>
-            <th className={cn(table.headerCell, 'w-[80px]')}>Port</th>
-            <th className={cn(table.headerCell, 'w-[144px]')}>Source IP</th>
+            <th className={table.approvalHeaderCell}>연동 대상</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[172px]')}>Database Type</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[80px]')}>Port</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[144px]')}>Source IP</th>
             {/* One column carries the whole NLB decision: the choice, its detail link and
                 its save. The trailing unnamed 170px action column that used to hold 정보 /
                 저장 is gone — it repeated one identical ghost button down every row, and
                 저장 appearing there shifted the layout of a row mid-edit. */}
-            <th className={cn(table.headerCell, 'w-[280px]')}>NLB Index</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[280px]')}>NLB Index</th>
             {/* A row is either assignable or excluded, never both, so the NLB cell and the
                 verdict never collide — and the reason gets a column of its own. */}
-            <th className={cn(table.headerCell, 'w-[220px]')}>제외 사유</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[220px]')}>제외 사유</th>
           </tr>
         </thead>
         <tbody className={table.body}>
@@ -124,22 +125,22 @@ export function IdcResourceTable({
             if (!row.selected) {
               return (
                 <tr key={row.resourceId ?? index} className={cn(ROW_BASE, ROW_EXCLUDED)}>
-                  <td className={table.cell}>
+                  <td className={table.approvalCell}>
                     <IdcEndpointCell hosts={row.connectTargets} tone={DIM} />
                   </td>
-                  <td className={table.cell}>
+                  <td className={table.approvalCell}>
                     <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} tone={DIM} />
                   </td>
-                  <td className={cn(table.cell, 'font-mono text-[12px]', DIM, CELL_LIFT)}>
+                  <td className={cn(table.approvalCell, 'font-mono text-[12px]', DIM, CELL_LIFT)}>
                     {row.port}
                   </td>
                   {/* Excluded rows come from ExcludedResourceInfoDto, which carries no
                       source IPs — blank rather than asserting a missing value. */}
-                  <td className={table.cell} />
-                  <td className={cn(table.cell, 'whitespace-nowrap text-[12px]', DIM, CELL_LIFT)}>
+                  <td className={table.approvalCell} />
+                  <td className={cn(table.approvalCell, 'whitespace-nowrap text-[12px]', DIM, CELL_LIFT)}>
                     제외
                   </td>
-                  <td className={table.cell}>
+                  <td className={table.approvalCell}>
                     {row.exclusionReason && (
                       <ReasonChipInline
                         reason={row.exclusionReason}
@@ -158,15 +159,15 @@ export function IdcResourceTable({
 
             return (
               <tr key={row.resourceId ?? index} className={cn(ROW_BASE, ROW_TARGET)}>
-                <td className={table.cell}>
+                <td className={table.approvalCell}>
                   <IdcEndpointCell hosts={row.connectTargets} />
                 </td>
-                <td className={table.cell}>
+                <td className={table.approvalCell}>
                   <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} />
                 </td>
                 <td
                   className={cn(
-                    table.cell,
+                    table.approvalCell,
                     'font-mono text-[12px]',
                     textColors.secondary,
                     CELL_LIFT,
@@ -174,10 +175,10 @@ export function IdcResourceTable({
                 >
                   {row.port}
                 </td>
-                <td className={table.cell}>
+                <td className={table.approvalCell}>
                   <IdcSourceIpCell sourceIps={row.sourceIps} />
                 </td>
-                <td className={table.cell}>
+                <td className={table.approvalCell}>
                   <span className="flex items-center gap-1.5">
                     <select
                       className={cn(
@@ -230,12 +231,13 @@ export function IdcResourceTable({
                   </span>
                 </td>
                 {/* 제외 사유 — a target row has none, so the cell stays empty. */}
-                <td className={table.cell} />
+                <td className={table.approvalCell} />
               </tr>
             );
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

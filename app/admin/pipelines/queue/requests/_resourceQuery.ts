@@ -10,6 +10,7 @@
  */
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
+/** Default rows per page; the pager footer lets the admin raise it. */
 export const RESOURCE_PAGE_SIZE = 10;
 
 export type ResourceFilter = 'all' | 'target' | 'excluded';
@@ -85,9 +86,13 @@ export interface ResourcePage<T> {
   rows: T[];
 }
 
-export function pageResources<T>(rows: readonly T[], page: number): ResourcePage<T> {
-  const totalPages = Math.max(1, Math.ceil(rows.length / RESOURCE_PAGE_SIZE));
+export function pageResources<T>(
+  rows: readonly T[],
+  page: number,
+  pageSize: number = RESOURCE_PAGE_SIZE,
+): ResourcePage<T> {
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const safePage = Math.min(Math.max(page, 0), totalPages - 1);
-  const start = safePage * RESOURCE_PAGE_SIZE;
-  return { page: safePage, totalPages, rows: rows.slice(start, start + RESOURCE_PAGE_SIZE) };
+  const start = safePage * pageSize;
+  return { page: safePage, totalPages, rows: rows.slice(start, start + pageSize) };
 }

@@ -89,8 +89,8 @@ export interface ResourceToolbarProps {
   actions?: ReactNode;
 }
 
-/** Attaches to the table top (radius 12/12/0/0, no bottom border) — the toolbar and
- *  the rows it governs read as one object. */
+/** Attaches to the table top (radius 12/12/0/0, no border of its own) — toolbar +
+ *  borderless table + bordered pager footer are one card, as in step 1. */
 export function ResourceToolbar({
   searchValue,
   onSearchChange,
@@ -99,7 +99,7 @@ export function ResourceToolbar({
   actions,
 }: ResourceToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-[10px] rounded-t-[12px] border border-b-0 border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-4 py-[14px]">
+    <div className="flex flex-wrap items-center gap-[10px] rounded-t-[12px] bg-[var(--pl-gray-50)] px-4 py-[14px]">
       <SearchBox
         wrapClassName="min-w-[220px] max-w-[360px] flex-[1_1_260px]"
         aria-label="리소스 검색"

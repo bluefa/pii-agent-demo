@@ -14,41 +14,44 @@ import type { ReactElement } from 'react';
 import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
+import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import {
   CELL_LIFT,
+  CONNECTED_FRAME,
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
   clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
-import { ResIdCell } from '@/app/admin/pipelines/queue/requests/_components/ResIdCell';
+import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 export interface CloudResourceTableProps {
   rows: RequestResourceRow[];
-  /** Squares the top corners when a toolbar is attached above (P3). */
-  wrapClassName?: string;
 }
 
 /** Excluded rows REST one tier dimmer; the hover lift restores full contrast. */
 const DIM = 'text-[#6B7280]';
 
-export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTableProps): ReactElement {
+export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElement {
   const { table } = idcStyles;
   return (
-    <div className={cn(table.frame, wrapClassName)}>
-      <table className="w-full">
-        <thead className={table.header}>
+    // No frame of its own — the toolbar above owns the rounded top and the pager below
+    // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
+    <div className={CONNECTED_FRAME}>
+      <div className="overflow-x-auto">
+      <table className="w-full text-[13px]">
+        <thead className={table.approvalHeader}>
           <tr>
             {/* Resource ID's text caps at 300px (resId.text), so its column was sitting
                 on ~150px it could not use. Spent here: names differ in their TAIL
                 (…-cluster-001 / -002), which is exactly what truncation eats first. */}
-            <th className={cn(table.headerCell, 'w-[360px]')}>Resource Name</th>
-            <th className={table.headerCell}>Resource ID</th>
-            <th className={cn(table.headerCell, 'w-[120px] whitespace-nowrap')}>Database Type</th>
-            <th className={cn(table.headerCell, 'w-[130px]')}>Region</th>
-            <th className={cn(table.headerCell, 'w-[110px]')}>연동 대상</th>
-            <th className={cn(table.headerCell, 'w-[220px]')}>제외 사유</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[360px]')}>Resource Name</th>
+            <th className={table.approvalHeaderCell}>Resource ID</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[120px] whitespace-nowrap')}>Database Type</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[130px]')}>Region</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>연동 대상</th>
+            <th className={cn(table.approvalHeaderCell, 'w-[220px]')}>제외 사유</th>
           </tr>
         </thead>
         <tbody className={table.body}>
@@ -64,32 +67,43 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
               >
                 <td
                   className={cn(
-                    table.cell,
+                    table.approvalCell,
                     'font-mono text-[13px]',
                     excluded ? DIM : textColors.primary,
                     // The row's anchor lifts to brand, marking which cell identifies it.
                     primaryColors.textGroupHover,
                   )}
                 >
-                  {/* One line, always. Wrapping turned the row's anchor column into a
-                      2–3 line block and left row heights ragged; the full name is in
-                      the title tip. */}
-                  <span className="block max-w-[360px] truncate" title={row.resourceName ?? undefined}>
-                    {row.resourceName}
-                  </span>
+                  {/* One line, always — wrapping left row heights ragged. The full value
+                      opens in the same tip card the rest of the app uses, and only when
+                      the name is actually clipped (`truncatedOnly`). */}
+                  <Tooltip
+                    content={<IdentifierTip label="Resource Name" value={row.resourceName ?? ''} />}
+                    variant="value"
+                    size="md"
+                    triggerClassName="block min-w-0 max-w-[360px]"
+                    truncatedOnly
+                  >
+                    <span className="block truncate">{row.resourceName}</span>
+                  </Tooltip>
                 </td>
-                <td className={table.cell}>
+                <td className={table.approvalCell}>
                   {row.resourceId && (
-                    <ResIdCell value={row.resourceId} textClassName={cn(tone, CELL_LIFT)} />
+                    <ResourceIdCell
+                      value={row.resourceId}
+                      label="Resource ID"
+                      maxWidthClass="max-w-[300px]"
+                      textClassName={cn(tone, CELL_LIFT)}
+                    />
                   )}
                 </td>
-                <td className={cn(table.cell, 'text-[12px]', tone, CELL_LIFT)}>
+                <td className={cn(table.approvalCell, 'text-[12px]', tone, CELL_LIFT)}>
                   {/* wire 는 소문자 원문(mysql·athena)이라 사용자 화면과 같은 표기로 맞춘다. */}
                   {row.databaseType ? getDatabaseShortLabel(row.databaseType) : ''}
                 </td>
                 <td
                   className={cn(
-                    table.cell,
+                    table.approvalCell,
                     // A region is one token — wrapping it to "ap-northeast-" / "2" reads
                     // as two values.
                     'whitespace-nowrap font-mono text-[12px]',
@@ -99,10 +113,10 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
                 >
                   {row.region}
                 </td>
-                <td className={cn(table.cell, 'whitespace-nowrap text-[12px]', tone, CELL_LIFT)}>
+                <td className={cn(table.approvalCell, 'whitespace-nowrap text-[12px]', tone, CELL_LIFT)}>
                   {excluded ? '제외' : '대상'}
                 </td>
-                <td className={table.cell}>
+                <td className={table.approvalCell}>
                   {/* A 대상 row has no reason to give — blank, not an em-dash, which
                       would read as "this should have had one and it is missing". The
                       chip clamps and the full sentence lives in its floating tip. */}
@@ -118,6 +132,7 @@ export function CloudResourceTable({ rows, wrapClassName }: CloudResourceTablePr
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

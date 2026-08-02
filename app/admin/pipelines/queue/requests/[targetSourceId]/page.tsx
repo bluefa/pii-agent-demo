@@ -27,7 +27,7 @@ import {
   ResourceStatTiles,
   ResourceToolbar,
 } from '@/app/admin/pipelines/queue/requests/_components/ResourceFilterBar';
-import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
+import { Pagination } from '@/app/components/ui/Pagination';
 
 import { RequestDetailHeader } from '@/app/admin/pipelines/queue/requests/_components/RequestDetailHeader';
 import { CloudResourceTable } from '@/app/admin/pipelines/queue/requests/_components/CloudResourceTable';
@@ -49,6 +49,7 @@ import {
   EMPTY_RESOURCE_QUERY,
   pageResources,
   queryResources,
+  RESOURCE_PAGE_SIZE,
   resourceCounts,
   type ResourceQuery,
 } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
@@ -103,6 +104,7 @@ export default function RequestDetailPage(): ReactElement {
   // table with no hint that the rows are simply elsewhere.
   const [query, setQuery] = useState<ResourceQuery>(EMPTY_RESOURCE_QUERY);
   const [resourcePage, setResourcePage] = useState(0);
+  const [resourcePageSize, setResourcePageSize] = useState(RESOURCE_PAGE_SIZE);
   const patchQuery = (patch: Partial<ResourceQuery>): void => {
     setQuery((prev) => ({ ...prev, ...patch }));
     setResourcePage(0);
@@ -163,7 +165,7 @@ export default function RequestDetailPage(): ReactElement {
   const dbTypeValues = databaseTypeOptions(resources);
   const axisValues = axisOptions(resources, isIdc);
   const filteredResources = queryResources(resources, query, isIdc);
-  const pagedResources = pageResources(filteredResources, resourcePage);
+  const pagedResources = pageResources(filteredResources, resourcePage, resourcePageSize);
 
   const onSelectNlb = (row: RequestResourceRow, nlbIndex: number): void => {
     setDraft((prev) => setNlbDraft(prev, row, nlbIndex));
@@ -317,11 +319,7 @@ export default function RequestDetailPage(): ReactElement {
             />
 
             {filteredResources.length === 0 ? (
-              <PlEmptyState
-                icon="inbox"
-                message="조건에 맞는 리소스가 없어요."
-                className="rounded-b-[10px] border border-t-0 border-[var(--pl-border)]"
-              />
+              <PlEmptyState icon="inbox" message="조건에 맞는 리소스가 없어요." />
             ) : isIdc ? (
               <>
                 <IdcResourceTable
@@ -333,21 +331,29 @@ export default function RequestDetailPage(): ReactElement {
                   onSelect={onSelectNlb}
                   onSave={(row) => void onSaveNlb(row)}
                   onShowNlbInfo={setNlbInfoResource}
-                  wrapClassName="rounded-t-none"
                 />
                 <p className={`${text.meta} mt-4`}>
                   점유 리스너가 30개를 넘으면 주의, 50개에 이르면 새로 배정할 수 없어요
                 </p>
               </>
             ) : (
-              <CloudResourceTable rows={pagedResources.rows} wrapClassName="rounded-t-none" />
+              <CloudResourceTable rows={pagedResources.rows} />
             )}
 
-            <OpsPagination
-              page={pagedResources.page}
-              totalPages={pagedResources.totalPages}
-              onChange={setResourcePage}
-            />
+            {/* The pager footer closes the card the toolbar opened — bordered on three
+                sides, bottom-rounded (step 1's composition). */}
+            {filteredResources.length > 0 && (
+              <Pagination
+                page={pagedResources.page}
+                pageSize={resourcePageSize}
+                totalCount={filteredResources.length}
+                onPageChange={setResourcePage}
+                onPageSizeChange={(next) => {
+                  setResourcePageSize(next);
+                  setResourcePage(0);
+                }}
+              />
+            )}
           </Card>
 
           <NlbListenerModal

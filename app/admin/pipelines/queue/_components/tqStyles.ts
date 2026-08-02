@@ -15,8 +15,6 @@ const { text } = pipelineStyles;
 // Cell bases, split from their color so  can take the caller's tone.
 const APP_TD_BASE = 'px-4 py-[13px] align-middle tabular-nums border-t border-[var(--pl-gray-100)]';
 const APP_TD_MONO_BASE = 'text-[12px] [font-family:var(--pl-font-mono)]';
-const RES_ID_TEXT_BASE =
-  'max-w-[300px] overflow-hidden text-ellipsis whitespace-nowrap text-[12px] [font-family:var(--pl-font-mono)]';
 
 export const tqStyles = {
   /**
@@ -102,14 +100,6 @@ export const tqStyles = {
     td: `${APP_TD_BASE} text-[var(--pl-text-medium)]`,
     tdMono: `${APP_TD_MONO_BASE} text-[var(--pl-text-strong)]`,
     row: 'transition-colors hover:bg-[var(--pl-bg-inner)]',
-    /** Resource-id cell w/ copy (`.res-id-cell`) — non-IDC tables (P3/P5). */
-    resId: {
-      cell: 'inline-flex items-center gap-1.5 max-w-full',
-      text: `${RES_ID_TEXT_BASE} text-[var(--pl-text-strong)]`,
-      /** Colorless — the caller supplies the tone and the row's hover lift. */
-      textBare: RES_ID_TEXT_BASE,
-      copy: 'inline-grid place-items-center w-[22px] h-[22px] flex-none rounded-[5px] border-0 bg-transparent text-[var(--pl-text-faint)] cursor-pointer hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]',
-    },
     /** 논리 DB drill-down link (`.ldb-link`) — P5. */
     ldbLink: 'font-semibold text-[var(--pl-primary)] cursor-pointer hover:underline',
   },
