@@ -7,7 +7,7 @@ import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { VmDatabaseConfigPanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
-import { VnetIntegrationGuideModal } from '@/app/target-sources/[targetSourceId]/_components/candidate/VnetIntegrationGuideModal';
+import { InstallIneligibleGuideModal } from '@/app/target-sources/[targetSourceId]/_components/candidate/InstallIneligibleGuideModal';
 import { useModal } from '@/app/hooks/useModal';
 import { getResourceDisplayName } from '@/lib/resource';
 import {
@@ -74,7 +74,7 @@ export const CandidateResourceRow = ({
   drafts,
   actions,
 }: CandidateResourceRowProps) => {
-  const vnetModal = useModal();
+  const ineligibleModal = useModal();
   const behavior = getCandidateBehavior(candidate);
   const requiresEndpointConfig = behavior.configKind === 'endpoint';
   const isIneligible = candidate.integrationCategory === 'INSTALL_INELIGIBLE';
@@ -203,7 +203,7 @@ export const CandidateResourceRow = ({
           {isIneligible ? (
             <button
               type="button"
-              onClick={(event) => { event.stopPropagation(); vnetModal.open(); }}
+              onClick={(event) => { event.stopPropagation(); ineligibleModal.open(); }}
               className={cn(
                 'inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold underline decoration-dotted underline-offset-2',
                 statusColors.warning.textDark,
@@ -259,7 +259,11 @@ export const CandidateResourceRow = ({
       )}
 
       {isIneligible && typeof document !== 'undefined' && createPortal(
-        <VnetIntegrationGuideModal isOpen={vnetModal.isOpen} onClose={vnetModal.close} resourceId={candidate.resourceId} />,
+        <InstallIneligibleGuideModal
+          isOpen={ineligibleModal.isOpen}
+          onClose={ineligibleModal.close}
+          recommendFailReason={candidate.recommendFailReason}
+        />,
         document.body,
       )}
     </>

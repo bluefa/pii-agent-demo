@@ -48,4 +48,6 @@ export const GCP_GUIDE_URLS = {
   HOST_PROJECT_PERMISSION: 'https://docs.example.com/gcp/host-project-permission',
   SUBNET_CREATION: 'https://docs.example.com/gcp/subnet-creation',
   PSC_APPROVAL: 'https://docs.example.com/gcp/psc-approval',
+  /** Google's own doc — the PSC prerequisites are theirs, not ours (cf. AZURE_GUIDE_URLS.VNET_NETWORKING). */
+  CLOUD_SQL_PSC: 'https://cloud.google.com/sql/docs/mysql/configure-private-service-connect',
 } as const;

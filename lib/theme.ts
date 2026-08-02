@@ -508,6 +508,17 @@ export const modalStyles = {
     iconBase: 'w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0',
     iconInfo: 'bg-[#E8F1FF] text-[#0064FF]',
     iconWarn: 'bg-[#FEF3C7] text-[#B45309]',
+    /**
+     * Toss chrome for a read-only notice — no footer, no ✕, so the 40/36 padding that
+     * frames a two-button dialog leaves the text floating. Every edge comes in 8px and
+     * the title drops 26 → 20px, since nothing here is a decision. Header owns no bottom
+     * padding: the body's pt-6 alone is the 24px between title and the first group.
+     */
+    compact: {
+      header: 'px-8 pt-7 flex items-start justify-between',
+      title: 'text-[20px] font-extrabold tracking-[-0.03em] leading-[1.3] text-[#191F28]',
+      body: 'px-8 pt-6 pb-7',
+    },
   },
   sizes: {
     sm: 'max-w-sm',

@@ -201,6 +201,56 @@ export const mockProjects: Project[] = [
     updatedAt: '2026-02-01T09:00:00Z',
     isRejected: false,
   },
+  {
+    // Step 1 carrying both GCP reason codes. The 설치 불가 guide opens only from this
+    // step and every other GCP fixture is already past it, so without this project the
+    // guide has no reachable case. Separate from 1002, which mock-gcp locks in as the
+    // resource-less GCP project.
+    id: 'gcp-proj-2',
+    targetSourceId: 1017,
+    projectCode: 'GCP-002',
+    name: 'GCP PII Agent - 대상 선택 (설치 불가 포함)',
+    description: '연동 대상 2건, 설치 불가 2건 (공인 IP / 내부 LB 서브넷)',
+    serviceCode: 'gcp',
+    cloudProvider: 'GCP',
+    gcpProjectId: 'pii-agent-prod-12345',
+    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    resources: [
+      {
+        id: 'gcp-res-1', type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-001',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: true,
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: 'gcp-res-2', type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-002',
+        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: 'gcp-res-3', type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-pubip-003',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'INSTALL_INELIGIBLE',
+        recommendFailReason: 'GCP_CLOUD_SQL_HAS_PUBLIC_IP',
+      },
+      {
+        id: 'gcp-res-4', type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-ilb-004',
+        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'INSTALL_INELIGIBLE',
+        recommendFailReason: 'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
+      },
+    ],
+    terraformState: {
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-02-01T09:00:00Z',
+    updatedAt: '2026-02-01T09:00:00Z',
+    isRejected: false,
+  },
   // ===== Azure 프로젝트 =====
   {
     id: 'azure-proj-1',
@@ -389,6 +439,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
+        recommendFailReason: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
       },
       {
         id: 'azure-res-vnet-2',
@@ -399,6 +450,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
+        recommendFailReason: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
       },
     ],
     terraformState: {
@@ -460,6 +512,67 @@ export const mockProjects: Project[] = [
         databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
         integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
+      },
+    ],
+    terraformState: { bdcTf: 'PENDING' },
+    createdAt: '2026-03-01T09:00:00Z',
+    updatedAt: '2026-03-02T10:00:00Z',
+    isRejected: false,
+  })),
+  // The same shape on GCP, where both of the CSP's `recommend_fail_reason` values appear in
+  // one table. They share their first 18 characters, so the reason column's clamp renders
+  // them identically — the two rows below are the case that makes that visible.
+  ...([
+    [1015, ProcessStatus.WAITING_APPROVAL, 'GCP-004', 'GCP PII Agent - 승인 대기 (연동 불가 포함)'],
+    [1016, ProcessStatus.APPLYING_APPROVED, 'GCP-005', 'GCP PII Agent - 반영 중 (연동 불가 포함)'],
+  ] as const).map(([targetSourceId, processStatus, projectCode, name]): Project => ({
+    id: `gcp-proj-${targetSourceId}`,
+    targetSourceId,
+    projectCode,
+    name,
+    description: '연동 대상 2건, 사용자 제외 1건, 연동 불가 2건 (공인 IP / 내부 LB 서브넷)',
+    serviceCode: 'gcp',
+    cloudProvider: 'GCP',
+    gcpProjectId: 'pii-agent-prod-12345',
+    processStatus,
+    status: createStatusForProcessStatus(processStatus, { selectedCount: 2, excludedCount: 3 }),
+    resources: [
+      {
+        id: `gcp-inel-${targetSourceId}-1`, type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-020',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: true,
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: `gcp-inel-${targetSourceId}-2`, type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-021',
+        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: true,
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: `gcp-inel-${targetSourceId}-3`, type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-stg-022',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'TARGET',
+        exclusion: {
+          reason: '스테이징 DB라 연동 대상에서 제외합니다.',
+          excludedBy: { id: 'admin-1', name: '관리자' },
+          excludedAt: '2026-03-01T09:00:00Z',
+        },
+      },
+      {
+        id: `gcp-inel-${targetSourceId}-4`, type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-pubip-023',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'INSTALL_INELIGIBLE',
+        recommendFailReason: 'GCP_CLOUD_SQL_HAS_PUBLIC_IP',
+      },
+      {
+        id: `gcp-inel-${targetSourceId}-5`, type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-ilb-024',
+        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'INSTALL_INELIGIBLE',
+        recommendFailReason: 'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
       },
     ],
     terraformState: { bdcTf: 'PENDING' },
