@@ -27,16 +27,16 @@
   .variant-label h2 { font-size: 18px; font-weight: 800; }
   .variant-label span { font-size: 13px; color: #6B7684; }
   .notes {
-    margin-top: 16px; padding: 16px 20px; background: #FFFBEB;
-    border: 1px solid #FDE68A; border-radius: 12px;
-    font-size: 13px; line-height: 1.55; color: #78350F;
+    margin-top: 16px; padding: 16px 20px; background: #F9FAFB;
+    border: 1px solid #E5E8EB; border-radius: 12px;
+    font-size: 13px; line-height: 1.55; color: #4E5968;
   }
-  .notes b { color: #92400E; }
+  .notes b { color: #191F28; }
   .notes li { margin-left: 18px; margin-top: 4px; }
   .mark {
     display: inline-flex; align-items: center; justify-content: center;
     width: 18px; height: 18px; border-radius: 50%;
-    background: #B45309; color: #fff; font-size: 11px; font-weight: 700;
+    background: #6B7684; color: #fff; font-size: 11px; font-weight: 700;
     vertical-align: 2px; margin: 0 2px;
   }
 
@@ -62,8 +62,8 @@
     padding: 4px 10px; font-size: 12px; font-weight: 600;
   }
   .badge .dot { width: 6px; height: 6px; border-radius: 50%; }
-  .badge.info    { background: #DBEAFE; color: #1E40AF; }
-  .badge.info    .dot { background: #3B82F6; }
+  .badge.info    { background: #F2F4F6; color: #4E5968; }
+  .badge.info    .dot { background: #6AA6F8; }
   .badge.warning { background: #FEF3C7; color: #92400E; }
   .badge.warning .dot { background: #F59E0B; }
   .badge.error   { background: #FEE2E2; color: #991B1B; }
@@ -74,19 +74,19 @@
     cursor: pointer; white-space: nowrap;
   }
   .guidance { margin-top: 12px; font-size: 16px; font-weight: 500; line-height: 1.55; color: #8B95A1; }
-  .guidance b.state-info  { font-weight: 600; color: #0064FF; }
+  .guidance b.state-info  { font-weight: 600; color: #4E5968; }
   .guidance b.state-warn  { font-weight: 600; color: #B45309; }
   .guidance b.state-error { font-weight: 600; color: #DC2626; }
   .guidance b.plain { font-weight: 600; color: #4E5968; }
 
   /* progress strip — status meter (state palette, not categorical) */
   .progress-strip { margin-top: 16px; }
-  .meter { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; background: #fff; }
+  .meter { display: flex; height: 6px; border-radius: 4px; overflow: hidden; gap: 2px; background: #fff; }
   .meter i { display: block; height: 100%; }
-  .meter .seg-done    { background: #45CB85; }
-  .meter .seg-running { background: #3B82F6; }
+  .meter .seg-done    { background: #B7C2CC; }
+  .meter .seg-running { background: #9EC5FB; }
   .meter .seg-failed  { background: #EF4444; }
-  .meter .seg-waiting { background: #E5E8EB; }
+  .meter .seg-waiting { background: #EDF0F3; }
   .meter-legend {
     display: flex; align-items: center; gap: 16px; margin-top: 8px;
     font-size: 12px; color: #6B7684; font-variant-numeric: tabular-nums;
@@ -113,23 +113,23 @@
   .nav-item.active { background: #F4F6F8; border-color: #E5E8EB; }
   .nav-item .row1 { display: flex; align-items: center; gap: 8px; }
   .status-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-  .status-dot.done    { background: #45CB85; }
-  .status-dot.running { background: #3B82F6; }
+  .status-dot.done    { background: #B7C2CC; }
+  .status-dot.running { background: #6AA6F8; }
   .status-dot.failed  { background: #EF4444; }
-  .status-dot.waiting { background: #D1D6DB; }
+  .status-dot.waiting { background: #E1E5E9; }
   .nav-item .name { font-size: 14px; font-weight: 600; color: #191F28; flex: 1; min-width: 0; }
   .owner-tag {
     font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 8px; white-space: nowrap;
   }
-  .owner-tag.bdc { background: #E0E7FF; color: #3730A3; }
-  .owner-tag.svc { background: #DBEAFE; color: #1E40AF; }
+  .owner-tag.bdc { background: #fff; border: 1px solid #E5E8EB; color: #8B95A1; }
+  .owner-tag.svc { background: #fff; border: 1px solid #E5E8EB; color: #6B7684; }
   .nav-item .row2 {
     display: flex; align-items: center; gap: 6px; margin-top: 5px; padding-left: 16px;
     font-size: 12px; color: #8B95A1; font-variant-numeric: tabular-nums;
   }
   .pill { border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
-  .pill.success { background: #D1FAE5; color: #065F46; }
-  .pill.info    { background: #DBEAFE; color: #1E40AF; }
+  .pill.success { background: #F2F4F6; color: #6B7684; }
+  .pill.info    { background: #EFF6FF; color: #3172D9; }
   .pill.error   { background: #FEE2E2; color: #991B1B; }
   .pill.neutral { background: #F2F4F6; color: #6B7684; }
   .pill.amber   { background: #FEF3C7; color: #92400E; }
@@ -223,9 +223,9 @@
           </div>
           <div class="meter-legend">
             <span class="total">리소스 12개</span>
-            <span class="k"><i style="background:#45CB85"></i>완료 7</span>
-            <span class="k"><i style="background:#3B82F6"></i>진행중 4</span>
-            <span class="k"><i style="background:#E5E8EB"></i>대기 1</span>
+            <span class="k"><i style="background:#B7C2CC"></i>완료 7</span>
+            <span class="k"><i style="background:#9EC5FB"></i>진행중 4</span>
+            <span class="k"><i style="background:#EDF0F3"></i>대기 1</span>
             <span class="when">마지막 확인 14:32 · 30초마다 자동 갱신</span>
           </div>
         </div>
@@ -249,9 +249,9 @@
               <table>
                 <thead><tr><th>DB</th><th>Resource Name</th><th>Region</th><th>상태</th><th>안내</th></tr></thead>
                 <tbody>
-                  <tr><td><span class="pill info">Aurora</span></td><td class="mono">svc-orders-prod</td><td class="mono">ap-northeast-2</td><td><span class="pill success">완료</span></td><td></td></tr>
-                  <tr><td><span class="pill info">RDS</span></td><td class="mono">svc-billing-prod</td><td class="mono">ap-northeast-2</td><td><span class="pill info">진행중</span></td><td></td></tr>
-                  <tr><td><span class="pill info">RDS</span></td><td class="mono">svc-member-prod</td><td class="mono">ap-northeast-2</td><td><span class="pill info">진행중</span></td><td></td></tr>
+                  <tr><td><span class="pill neutral">Aurora</span></td><td class="mono">svc-orders-prod</td><td class="mono">ap-northeast-2</td><td><span class="pill success">완료</span></td><td></td></tr>
+                  <tr><td><span class="pill neutral">RDS</span></td><td class="mono">svc-billing-prod</td><td class="mono">ap-northeast-2</td><td><span class="pill info">진행중</span></td><td></td></tr>
+                  <tr><td><span class="pill neutral">RDS</span></td><td class="mono">svc-member-prod</td><td class="mono">ap-northeast-2</td><td><span class="pill info">진행중</span></td><td></td></tr>
                 </tbody>
               </table>
             </div>
@@ -293,9 +293,9 @@
           </div>
           <div class="meter-legend">
             <span class="total">리소스 8개</span>
-            <span class="k"><i style="background:#45CB85"></i>완료 4</span>
-            <span class="k"><i style="background:#3B82F6"></i>진행중 2</span>
-            <span class="k"><i style="background:#E5E8EB"></i>대기 2</span>
+            <span class="k"><i style="background:#B7C2CC"></i>완료 4</span>
+            <span class="k"><i style="background:#9EC5FB"></i>진행중 2</span>
+            <span class="k"><i style="background:#EDF0F3"></i>대기 2</span>
             <span class="when">마지막 확인 14:29</span>
           </div>
         </div>
@@ -372,8 +372,8 @@
           </div>
           <div class="meter-legend">
             <span class="total">리소스 12개</span>
-            <span class="k"><i style="background:#45CB85"></i>완료 8</span>
-            <span class="k"><i style="background:#3B82F6"></i>진행중 2</span>
+            <span class="k"><i style="background:#B7C2CC"></i>완료 8</span>
+            <span class="k"><i style="background:#9EC5FB"></i>진행중 2</span>
             <span class="k"><i style="background:#EF4444"></i>실패 2</span>
             <span class="when">마지막 확인 14:35</span>
           </div>
