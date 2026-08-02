@@ -2,9 +2,9 @@
 
 /**
  * 연동 요청 정보 tab — mirrors the approved mockup
- * (design/pipeline/ops-target-source-tabs.html `tabRequest`): 최근 승인 요청 +
- * 확정 정보 side by side, then the requested-resource table (cloud and IDC
- * column sets).
+ * (design/pipeline/ops-target-source-tabs.html `tabRequest`), with 최근 승인 요청
+ * folded into ONE card — the request's facts as a header row over the resource
+ * list itself, the same shape the 승인 요청 상세 modal uses — and 확정 정보 below it.
  *
  * Reads are independent and best-effort so a failing card never blanks its
  * sibling:
@@ -39,6 +39,7 @@ import {
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
+import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
 /** `data: null` = the snapshot does not exist yet (404), not a failure. */
@@ -111,9 +112,6 @@ const toApprovalRow = (row: RequestResourceRow, isIdc: boolean): WaitingApproval
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 
 const dash = (): ReactElement => <span className={pipelineStyles.text.muted}>—</span>;
-
-const orDash = (value: string | number | null | undefined): ReactNode =>
-  value == null || value === '' ? dash() : value;
 
 function KvRow({ label, children }: { label: string; children: ReactNode }): ReactElement {
   return (
@@ -242,93 +240,13 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
 
   return (
     <>
-      <div className={opsStyles.cardsRow}>
-        <section className={pipelineStyles.card.base} aria-label="최근 승인 요청">
-          <h2 className={opsStyles.cardTitle}>최근 승인 요청</h2>
-          <p className={opsStyles.cardDesc}>서비스가 제출한 연동 요청의 승인 정보입니다.</p>
-
-          {request.state === 'loading' ? (
-            <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
-              불러오는 중…
-            </p>
-          ) : request.state === 'failed' ? (
-            <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
-              <p>승인 요청 정보를 불러오지 못했습니다.</p>
-              {retryButton}
-            </div>
-          ) : summary == null ? (
-            <PlEmptyState icon="inbox" message="승인 요청 이력이 없습니다." className="mt-2" />
-          ) : (
-            <dl className={KV_GRID}>
-              <KvRow label="요청 ID">
-                <span className={pipelineStyles.text.kvValueMono}>
-                  {summary.requestId != null ? `#${summary.requestId}` : '—'}
-                </span>
-              </KvRow>
-              <KvRow label="상태">
-                <StatusTag status={summary.status} />
-              </KvRow>
-              <KvRow label="요청자">{orDash(summary.requestedBy)}</KvRow>
-              {/* 리소스 선택 n/m is deliberately absent: the 요청 리소스 card directly
-                  below opens with those counts as 40px tiles that are also its filter,
-                  so stating them here put an unactionable number above an actionable one. */}
-              <KvRow label="요청 일시">{fmtDateTime(summary.requestedAt)}</KvRow>
-              {processedRow && (
-                <KvRow label="처리">
-                  {[processedRow.by, processedRow.at ? fmtDateTime(processedRow.at) : null]
-                    .filter((part): part is string => part != null)
-                    .join(' · ') || '—'}
-                </KvRow>
-              )}
-            </dl>
-          )}
-        </section>
-
-        <section className={pipelineStyles.card.base} aria-label="확정 정보">
-          <h2 className={opsStyles.cardTitle}>확정 정보</h2>
-          <p className={opsStyles.cardDesc}>
-            승인 후 확정된 연동 대상입니다. 설치 파이프라인의 입력이 됩니다.
-          </p>
-
-          {confirmed.state === 'loading' ? (
-            <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
-              불러오는 중…
-            </p>
-          ) : confirmed.state === 'failed' ? (
-            <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
-              <p>확정 정보를 불러오지 못했습니다.</p>
-              {retryButton}
-            </div>
-          ) : confirmed.data == null ? (
-            <PlEmptyState icon="install" message="확정된 연동 정보가 없습니다." className="mt-2" />
-          ) : (
-            <>
-              <dl className={KV_GRID}>
-                <KvRow label="확정 리소스">{confirmed.data.length}개</KvRow>
-                <KvRow label="Database Type">
-                  {confirmedDbTypes.length > 0 ? (
-                    <span className="inline-flex flex-wrap gap-1.5">
-                      {confirmedDbTypes.map((type) => (
-                        <span key={type} className={DB_TAG}>
-                          {type}
-                        </span>
-                      ))}
-                    </span>
-                  ) : (
-                    dash()
-                  )}
-                </KvRow>
-              </dl>
-              <p className={NOTE_WARN}>
-                확정 정보를 삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다.
-              </p>
-            </>
-          )}
-        </section>
-      </div>
-
-      <section className={pipelineStyles.card.base} aria-label="요청 리소스">
-        <h2 className={opsStyles.cardTitle}>요청 리소스</h2>
+      <section className={pipelineStyles.card.base} aria-label="최근 승인 요청">
+        <h2 className={opsStyles.cardTitle}>최근 승인 요청</h2>
+        <p className={opsStyles.cardDesc}>
+          {summary?.requestId != null
+            ? `요청 ID #${summary.requestId}`
+            : '서비스가 제출한 연동 요청의 승인 정보입니다.'}
+        </p>
 
         {request.state === 'loading' ? (
           <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
@@ -336,13 +254,29 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
           </p>
         ) : request.state === 'failed' ? (
           <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
-            <p>요청 리소스를 불러오지 못했습니다.</p>
+            <p>승인 요청 정보를 불러오지 못했습니다.</p>
             {retryButton}
           </div>
-        ) : rows.length === 0 ? (
-          <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-2" />
+        ) : summary == null ? (
+          <PlEmptyState icon="inbox" message="승인 요청 이력이 없습니다." className="mt-2" />
         ) : (
-          <div className="mt-3">
+          <>
+            {/* One card, one request. The KV table that used to state these same facts
+                in its own card above meant the operator read a summary and then
+                scrolled to the thing it summarised. Same header row as the 승인 요청
+                상세 modal: the verdict once as a tag, the rest as label-over-value. */}
+            <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+              <StatusTag status={summary.status} />
+              <MetaField label="요청자" value={summary.requestedBy ?? '—'} />
+              <MetaField label="요청일시" value={fmtDateTime(summary.requestedAt)} />
+              {processedRow?.by && <MetaField label="처리자" value={processedRow.by} />}
+              {processedRow?.at && <MetaField label="처리일시" value={fmtDateTime(processedRow.at)} />}
+            </div>
+
+            {rows.length === 0 ? (
+              <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-4" />
+            ) : (
+          <div className="mt-6">
             {/* The counts ARE the 전체/대상/제외 filter — the read-only
                 "연동 대상 n개 · 제외 m개" line they replace could not be acted on. */}
             <WaitingApprovalStats
@@ -377,6 +311,50 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
               />
             )}
           </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className={pipelineStyles.card.base} aria-label="확정 정보">
+        <h2 className={opsStyles.cardTitle}>확정 정보</h2>
+        <p className={opsStyles.cardDesc}>
+          승인 후 확정된 연동 대상입니다. 설치 파이프라인의 입력이 됩니다.
+        </p>
+
+        {confirmed.state === 'loading' ? (
+          <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
+            불러오는 중…
+          </p>
+        ) : confirmed.state === 'failed' ? (
+          <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
+            <p>확정 정보를 불러오지 못했습니다.</p>
+            {retryButton}
+          </div>
+        ) : confirmed.data == null ? (
+          <PlEmptyState icon="install" message="확정된 연동 정보가 없습니다." className="mt-2" />
+        ) : (
+          <>
+            <dl className={KV_GRID}>
+              <KvRow label="확정 리소스">{confirmed.data.length}개</KvRow>
+              <KvRow label="Database Type">
+                {confirmedDbTypes.length > 0 ? (
+                  <span className="inline-flex flex-wrap gap-1.5">
+                    {confirmedDbTypes.map((type) => (
+                      <span key={type} className={DB_TAG}>
+                        {type}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  dash()
+                )}
+              </KvRow>
+            </dl>
+            <p className={NOTE_WARN}>
+              확정 정보를 삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다.
+            </p>
+          </>
         )}
       </section>
     </>
