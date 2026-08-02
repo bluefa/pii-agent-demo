@@ -1219,6 +1219,39 @@ export const mockCredentials: DBCredential[] = [
     createdAt: '2024-01-15T11:00:00Z',
     createdBy: 'admin-1',
   },
+  // 데모: 실 운영 규모(20+)를 재현해 검색·목록 폭이 개수에 흔들리지 않는지 확인한다.
+  // 이름이 서로 닮아 있어야 "생성 시각 / 배정 건수"가 실제로 구분에 쓰이는지도 보인다.
+  ...(
+    [
+      ['운영DB-MySQL-replica', 'MYSQL', '2024-01-10T09:04:00Z'],
+      ['분석DB-PostgreSQL-readonly', 'POSTGRESQL', '2024-01-12T10:06:00Z'],
+      ['결제DB-MSSQL', 'MSSQL', '2024-02-01T00:12:00Z'],
+      ['결제DB-MSSQL-stg', 'MSSQL', '2024-02-01T00:20:00Z'],
+      ['주문DB-MySQL', 'MYSQL', '2024-02-03T02:40:00Z'],
+      ['주문DB-MySQL-stg', 'MYSQL', '2024-02-03T02:44:00Z'],
+      ['쿠폰DB-MySQL', 'MYSQL', '2024-02-11T05:05:00Z'],
+      ['알림DB-CosmosDB', 'MYSQL', '2024-02-14T07:31:00Z'],
+      ['재고DB-Oracle', 'ORACLE', '2024-03-02T00:50:00Z'],
+      ['재고DB-Oracle-dr', 'ORACLE', '2024-03-02T00:57:00Z'],
+      ['리뷰DB-PostgreSQL', 'POSTGRESQL', '2024-03-08T04:22:00Z'],
+      ['배송DB-MySQL', 'MYSQL', '2024-03-15T01:11:00Z'],
+      ['배송DB-MySQL-stg', 'MYSQL', '2024-03-15T01:18:00Z'],
+      ['정산DB-MSSQL', 'MSSQL', '2024-04-01T00:00:00Z'],
+      ['회원DB-MySQL', 'MYSQL', '2024-04-22T03:03:00Z'],
+      ['회원DB-MySQL-readonly', 'MYSQL', '2024-04-22T03:09:00Z'],
+      ['로그DB-Athena', 'ATHENA', '2024-06-02T00:38:00Z'],
+    ] as const
+  ).map(([name, databaseType, createdAt], index) => ({
+    id: `cred-${index + 4}`,
+    name,
+    databaseType: databaseType as DBCredential['databaseType'],
+    host: `${name.toLowerCase()}.example.com`,
+    port: 3306,
+    username: 'pii_agent',
+    maskedPassword: '********',
+    createdAt,
+    createdBy: 'admin-1',
+  })),
 ];
 
 // ===== Connection Test Simulation =====

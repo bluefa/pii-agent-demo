@@ -78,60 +78,35 @@ export const getTestConnectionDetail = (
   );
 
 /**
- * SUCCESS / FAILED are the two explicit contract states; UNKNOWN is the honest
- * fallback when the wire omits `connection_status` (a thin summary / real
- * upstream that does not enrich the row) — the UI must NOT claim Success then.
+ * One row of the 논리 DB 건수 join (camel domain) — exactly what
+ * `TestConnectionLatestResultSummaryResponse` declares.
+ *
+ * This endpoint answers "리소스별 논리 DB 몇 개" for the latest SUCCESS run and
+ * nothing else. 연결 성패는 `latest_version`(TestConnectionAgentResult)에서 읽는다 —
+ * 예전엔 이 응답의 `connection_status` 를 passthrough 로 주워 썼는데, 계약이 선언하지
+ * 않는 필드라 실 BFF 에서는 사라질 수 있다.
  */
-export type TcConnectionStatus = 'SUCCESS' | 'FAILED' | 'UNKNOWN';
-
-/** One row of the P5 연결 테스트 결과 table (camel domain). */
 export interface TcResultRow {
   resourceId: string;
-  /** DB type tag (blue). `null` when the wire omits it — renders "—". */
-  databaseType: string | null;
-  /** 연동 대상 label (mono host/uri). `null` → "—". */
-  connectionTarget: string | null;
   /** 연동 대상 논리 DB count. `null` when the wire omits it — renders "—". */
   includedCount: number | null;
   /** 연동 제외 논리 DB count. `null` when the wire omits it. */
   excludedCount: number | null;
-  connectionStatus: TcConnectionStatus;
 }
 
-/**
- * The `latest-results` wire row. `resource_id` + the two counts are the formal
- * `TestConnectionLatestResultSummaryResponse` contract fields. `database_type` /
- * `connection_target` / `connection_status` are NOT declared by that schema; the
- * ADR-019 codegen is `.passthrough()`, so an enriched BFF row surfaces them here.
- * Absent (thin mock / real upstream summary) → the column falls back to "—" and
- * the status to UNKNOWN (never a fabricated Success). See the P5 mock-gap note.
- */
+/** The `latest-results` wire row — contract fields only. */
 interface TcResultWire {
   resource_id?: string | null;
   logical_database_count?: number | null;
   excluded_logical_database_count?: number | null;
-  database_type?: string | null;
-  connection_target?: string | null;
-  connection_status?: string | null;
 }
 
-/** Only an explicit wire value maps to a claim; anything absent/unknown → UNKNOWN. */
-function toConnectionStatus(raw: string | null | undefined): TcConnectionStatus {
-  const status = (raw ?? '').toUpperCase();
-  if (status === 'SUCCESS') return 'SUCCESS';
-  if (status === 'FAIL' || status === 'FAILED') return 'FAILED';
-  return 'UNKNOWN';
-}
-
-/** snake results wire → camel row. Absent status → UNKNOWN, absent counts → null. */
+/** snake results wire → camel row. Absent counts → null (never a false 0). */
 export function toTcResultRow(wire: TcResultWire): TcResultRow {
   return {
     resourceId: wire.resource_id ?? '',
-    databaseType: wire.database_type ?? null,
-    connectionTarget: wire.connection_target ?? null,
     includedCount: wire.logical_database_count ?? null,
     excludedCount: wire.excluded_logical_database_count ?? null,
-    connectionStatus: toConnectionStatus(wire.connection_status),
   };
 }
 

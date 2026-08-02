@@ -1,116 +1,191 @@
 import { describe, it, expect } from 'vitest';
 import { toTcResultRow, type TcResultRow } from '@/app/lib/api/task-queue-tc';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
 import {
-  tcResultStats,
+  isRunOpen,
   ldbCount,
   runDurationSeconds,
+  runStatus,
+  tcResultStats,
+  verdictByResource,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import { shortResourceId } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 
 const row = (over: Partial<TcResultRow> = {}): TcResultRow => ({
   resourceId: 'r-1',
-  databaseType: 'MYSQL',
-  connectionTarget: 'db-1',
   includedCount: 5,
   excludedCount: 2,
-  connectionStatus: 'SUCCESS',
+  ...over,
+});
+
+/** latest_version 응답 — agent 결과는 [resource_id, connection_status] 쌍으로 준다. */
+const version = (
+  agents: readonly (readonly [string, string])[],
+  over: Partial<TestConnectionVersionResult> = {},
+): TestConnectionVersionResult => ({
+  target_source_id: 1,
+  test_connection_version: 4,
+  connection_status: 'SUCCESS',
+  test_connection_agent_results: agents.map(([resource_id, connection_status]) => ({
+    agent_id: `agent-${resource_id}`,
+    resource_id,
+    connection_status,
+  })),
   ...over,
 });
 
 describe('toTcResultRow', () => {
-  it('reads contract fields and enriched passthrough fields', () => {
+  it('reads the contract fields — resource id and the two logical-DB counts', () => {
     expect(
       toTcResultRow({
         resource_id: 'idc-r-1',
         logical_database_count: 6,
         excluded_logical_database_count: 1,
-        database_type: 'ORACLE',
-        connection_target: '10.20.4.18',
-        connection_status: 'SUCCESS',
       }),
-    ).toEqual({
-      resourceId: 'idc-r-1',
-      databaseType: 'ORACLE',
-      connectionTarget: '10.20.4.18',
-      includedCount: 6,
-      excludedCount: 1,
-      connectionStatus: 'SUCCESS',
-    });
+    ).toEqual({ resourceId: 'idc-r-1', includedCount: 6, excludedCount: 1 });
   });
 
-  it('keeps counts but maps an absent status to UNKNOWN (no fabricated Success)', () => {
-    expect(
-      toTcResultRow({ resource_id: 'r', logical_database_count: 3, excluded_logical_database_count: 0 }),
-    ).toEqual({
-      resourceId: 'r',
-      databaseType: null,
-      connectionTarget: null,
-      includedCount: 3,
-      excludedCount: 0,
-      connectionStatus: 'UNKNOWN',
-    });
-  });
-
-  it('maps FAIL / FAILED (any case) to FAILED', () => {
-    expect(toTcResultRow({ connection_status: 'FAIL' }).connectionStatus).toBe('FAILED');
-    expect(toTcResultRow({ connection_status: 'failed' }).connectionStatus).toBe('FAILED');
-  });
-
-  it('maps an unrecognized status value to UNKNOWN', () => {
-    expect(toTcResultRow({ connection_status: 'PENDING' }).connectionStatus).toBe('UNKNOWN');
-  });
-
-  it('coalesces absent counts to null, absent id to empty, absent status to UNKNOWN', () => {
+  it('coalesces absent counts to null (never a false 0) and an absent id to empty', () => {
     expect(toTcResultRow({})).toEqual({
       resourceId: '',
-      databaseType: null,
-      connectionTarget: null,
       includedCount: null,
       excludedCount: null,
-      connectionStatus: 'UNKNOWN',
     });
   });
 });
 
-describe('tcResultStats', () => {
-  it('sums counts and rows', () => {
+describe('verdictByResource', () => {
+  it('folds one agent per resource straight through', () => {
+    const verdicts = verdictByResource(version([['r-1', 'SUCCESS'], ['r-2', 'FAIL']]));
+    expect(verdicts.get('r-1')).toBe('SUCCESS');
+    expect(verdicts.get('r-2')).toBe('FAIL');
+  });
+
+  it('calls a resource SUCCESS only when every one of its agents succeeded', () => {
     expect(
-      tcResultStats([
-        row({ includedCount: 5, excludedCount: 2 }),
-        row({ includedCount: 3, excludedCount: 1 }),
-      ]),
+      verdictByResource(version([['r-1', 'SUCCESS'], ['r-1', 'SUCCESS']])).get('r-1'),
+    ).toBe('SUCCESS');
+  });
+
+  it('lets a single FAIL decide — 부분 성공을 성공으로 올리지 않는다', () => {
+    expect(
+      verdictByResource(version([['r-1', 'SUCCESS'], ['r-1', 'FAIL']])).get('r-1'),
+    ).toBe('FAIL');
+  });
+
+  it('reports RUNNING while any agent is still open, but FAIL still wins', () => {
+    expect(
+      verdictByResource(version([['r-1', 'SUCCESS'], ['r-1', 'PENDING']])).get('r-1'),
+    ).toBe('RUNNING');
+    expect(
+      verdictByResource(version([['r-1', 'RUNNING'], ['r-1', 'FAIL']])).get('r-1'),
+    ).toBe('FAIL');
+  });
+
+  it('maps a value outside the contract enum to UNKNOWN, never to success', () => {
+    expect(verdictByResource(version([['r-1', 'WEIRD']])).get('r-1')).toBe('UNKNOWN');
+    expect(
+      verdictByResource(version([['r-1', 'SUCCESS'], ['r-1', 'WEIRD']])).get('r-1'),
+    ).toBe('UNKNOWN');
+  });
+
+  it('is empty when there is no run at all (404) or no agent results', () => {
+    expect(verdictByResource(null).size).toBe(0);
+    expect(verdictByResource(version([])).size).toBe(0);
+  });
+
+  it('skips an agent row with no resource_id instead of keying it on ""', () => {
+    expect(verdictByResource(version([['', 'SUCCESS']])).size).toBe(0);
+  });
+});
+
+describe('runStatus / isRunOpen', () => {
+  it('passes the four contract states through', () => {
+    expect(runStatus(version([], { connection_status: 'RUNNING' }))).toBe('RUNNING');
+    expect(runStatus(version([], { connection_status: 'FAIL' }))).toBe('FAIL');
+  });
+
+  it('is UNKNOWN for no run or a value outside the enum', () => {
+    expect(runStatus(null)).toBe('UNKNOWN');
+    expect(runStatus(version([], { connection_status: 'WEIRD' }))).toBe('UNKNOWN');
+  });
+
+  it('treats PENDING and RUNNING as open, everything else as settled', () => {
+    expect(isRunOpen(version([], { connection_status: 'PENDING' }))).toBe(true);
+    expect(isRunOpen(version([], { connection_status: 'RUNNING' }))).toBe(true);
+    expect(isRunOpen(version([], { connection_status: 'SUCCESS' }))).toBe(false);
+    expect(isRunOpen(null)).toBe(false);
+  });
+});
+
+describe('tcResultStats', () => {
+  it('sums 논리 DB from latest-results and counts verdicts from latest_version', () => {
+    expect(
+      tcResultStats(
+        [
+          row({ resourceId: 'r-1', includedCount: 5, excludedCount: 2 }),
+          row({ resourceId: 'r-2', includedCount: 3, excludedCount: 1 }),
+        ],
+        version([['r-1', 'SUCCESS'], ['r-2', 'SUCCESS']]),
+      ),
     ).toEqual({
       resourceCount: 2,
       includedTotal: 8,
       excludedTotal: 3,
       successCount: 2,
       failedCount: 0,
+      runningCount: 0,
       unknownCount: 0,
     });
   });
 
-  it('is empty for no rows', () => {
-    expect(tcResultStats([])).toEqual({
+  it('is empty with no rows and no run', () => {
+    expect(tcResultStats([], null)).toEqual({
       resourceCount: 0,
       includedTotal: 0,
       excludedTotal: 0,
       successCount: 0,
       failedCount: 0,
+      runningCount: 0,
       unknownCount: 0,
     });
   });
 
-  it('counts each connection status separately — UNKNOWN is neither success nor failure', () => {
-    const stats = tcResultStats([
-      row({ connectionStatus: 'SUCCESS' }),
-      row({ connectionStatus: 'FAILED' }),
-      row({ connectionStatus: 'UNKNOWN' }),
-      row({ connectionStatus: 'UNKNOWN' }),
-    ]);
-    expect(stats.successCount).toBe(1);
-    expect(stats.failedCount).toBe(1);
-    expect(stats.unknownCount).toBe(2);
-    expect(stats.resourceCount).toBe(4);
+  it('counts each verdict separately — 미판정은 성공도 실패도 아니다', () => {
+    const stats = tcResultStats(
+      [],
+      version([
+        ['r-1', 'SUCCESS'],
+        ['r-2', 'FAIL'],
+        ['r-3', 'RUNNING'],
+        ['r-4', 'WEIRD'],
+      ]),
+    );
+    expect(stats).toMatchObject({
+      resourceCount: 4,
+      successCount: 1,
+      failedCount: 1,
+      runningCount: 1,
+      unknownCount: 1,
+    });
+  });
+
+  it('totals 논리 DB only for resources the run judged SUCCESS — the table cell gate', () => {
+    const stats = tcResultStats(
+      [
+        row({ resourceId: 'r-1', includedCount: 12, excludedCount: 3 }),
+        row({ resourceId: 'r-2', includedCount: 8, excludedCount: 1 }),
+      ],
+      version([['r-1', 'FAIL'], ['r-2', 'SUCCESS']]),
+    );
+    expect(stats.includedTotal).toBe(8);
+    expect(stats.excludedTotal).toBe(1);
+  });
+
+  it('totals nothing when the run reported no per-resource verdicts', () => {
+    const stats = tcResultStats([row({ includedCount: 4, excludedCount: 1 })], version([]));
+    expect(stats.includedTotal).toBe(0);
+    expect(stats.resourceCount).toBe(0);
   });
 });
 
@@ -130,24 +205,28 @@ describe('runDurationSeconds', () => {
 });
 
 describe('ldbCount', () => {
-  it('returns the tab count for a SUCCESS row', () => {
-    expect(ldbCount(row(), 'inc')).toBe(5);
-    expect(ldbCount(row(), 'exc')).toBe(2);
+  it('returns the tab count when the resource verdict is SUCCESS', () => {
+    expect(ldbCount(row(), 'inc', 'SUCCESS')).toBe(5);
+    expect(ldbCount(row(), 'exc', 'SUCCESS')).toBe(2);
   });
 
-  it('returns null (renders "—", no link) for a FAILED row', () => {
-    expect(ldbCount(row({ connectionStatus: 'FAILED' }), 'inc')).toBeNull();
-    expect(ldbCount(row({ connectionStatus: 'FAILED' }), 'exc')).toBeNull();
+  it('returns null (renders "—", no link) for any non-success verdict', () => {
+    expect(ldbCount(row(), 'inc', 'FAIL')).toBeNull();
+    expect(ldbCount(row(), 'inc', 'RUNNING')).toBeNull();
+    expect(ldbCount(row(), 'inc', 'UNKNOWN')).toBeNull();
   });
 
-  it('returns null for an UNKNOWN row (never a false 0)', () => {
-    expect(ldbCount(row({ connectionStatus: 'UNKNOWN' }), 'inc')).toBeNull();
-    expect(ldbCount(row({ connectionStatus: 'UNKNOWN' }), 'exc')).toBeNull();
+  it('returns null when the run said nothing about this resource', () => {
+    expect(ldbCount(row(), 'inc', undefined)).toBeNull();
   });
 
-  it('returns null for a SUCCESS row whose count the wire omitted', () => {
-    expect(ldbCount(row({ includedCount: null }), 'inc')).toBeNull();
-    expect(ldbCount(row({ excludedCount: null }), 'exc')).toBeNull();
+  it('returns null when there is no results row for the resource', () => {
+    expect(ldbCount(undefined, 'inc', 'SUCCESS')).toBeNull();
+  });
+
+  it('returns null for a SUCCESS resource whose count the wire omitted', () => {
+    expect(ldbCount(row({ includedCount: null }), 'inc', 'SUCCESS')).toBeNull();
+    expect(ldbCount(row({ excludedCount: null }), 'exc', 'SUCCESS')).toBeNull();
   });
 });
 

@@ -26,7 +26,16 @@ const RUN_META: Record<TcExecutionStatus, { tone: TcTone; label: string }> = {
 export function TcRunPill({ status }: { status: TcExecutionStatus }): ReactElement {
   const meta = RUN_META[status];
   return (
-    <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, TC_TONE_FILL[meta.tone])}>
+    <span
+      className={cn(
+        pipelineStyles.pill.base,
+        pipelineStyles.pill.md,
+        // The run table lives in a half-width card — without this the two-syllable
+        // labels wrap to two lines inside the pill.
+        'whitespace-nowrap',
+        TC_TONE_FILL[meta.tone],
+      )}
+    >
       {meta.label}
     </span>
   );

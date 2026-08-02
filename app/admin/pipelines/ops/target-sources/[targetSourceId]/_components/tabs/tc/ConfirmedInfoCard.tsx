@@ -4,10 +4,12 @@
  * 확정 정보 card — the single per-resource table of this tab.
  *
  * Rows come from the confirmed snapshot (GET …/confirmed-integration, snake
- * passthrough per ADR-019); the 논리 DB 건수 / Connection Status columns are joined
- * in from the latest Test Connection results by `resource_id`. A resource with no
- * matching TC row renders — for those columns; nothing is inferred from the
- * snapshot alone (an installed resource is not a tested one).
+ * passthrough per ADR-019). Two joins by `resource_id` fill the trailing columns,
+ * each from the endpoint whose contract actually declares it —
+ *   Connection Status  latest_version.test_connection_agent_results[] (verdicts)
+ *   논리 DB 건수        latest-results (logical_database_count / excluded_…)
+ * A resource neither reports on renders — for those columns; nothing is inferred
+ * from the snapshot alone (an installed resource is not a tested one).
  *
  * Per-row controls: Credential 배정 (searchable combobox over GET …/secrets — the
  * contract's credential list, whose card sits at the top of the tab) and
@@ -22,7 +24,6 @@
  */
 import { useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { fmtDateTime } from '@/lib/pipeline/format';
 import {
   updateResourceCredential,
   type ConfirmedIntegrationResourceItem,
@@ -30,34 +31,88 @@ import {
 import type { SecretKey } from '@/lib/types';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
+import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { PlCombobox, type PlComboboxOption } from '@/app/admin/pipelines/_components/PlCombobox';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
-import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
   Dash,
-  ResourceId,
   TcPill,
   TC_TONE_FILL,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import { LdbManageModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/LdbManageModal';
-import { ldbCount } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
+import { TcCredentialModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcCredentialModal';
+import { CredentialAssignModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/CredentialAssignModal';
+import {
+  credentialEntries,
+  ldbCount,
+  type TcVerdict,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
-/** Connection Status cell — only an explicit wire value claims Success/Failed. */
-function ConnCell({ row }: { row: TcResultRow | undefined }): ReactElement {
-  if (!row) return <Dash />;
-  if (row.connectionStatus === 'SUCCESS') return <TcPill tone="ok" label="Success" />;
-  if (row.connectionStatus === 'FAILED') return <TcPill tone="err" label="Failed" />;
+/** Connection Status cell — the run's own verdict for this resource, or — if it had none. */
+function ConnCell({ verdict }: { verdict: TcVerdict | undefined }): ReactElement {
+  if (!verdict) return <Dash />;
+  if (verdict === 'SUCCESS') return <TcPill tone="ok" label="Success" />;
+  if (verdict === 'FAIL') return <TcPill tone="err" label="Failed" />;
+  if (verdict === 'RUNNING') return <TcPill tone="warn" label="진행 중" />;
   return <TcPill tone="off" label="Unknown" />;
 }
 
-/** Contract-declared count — absent (no TC row / not a success) renders —, never 0. */
-function CountCell({ row, tab }: { row: TcResultRow | undefined; tab: 'inc' | 'exc' }): ReactElement {
-  const count = row ? ldbCount(row, tab) : null;
+/**
+ * Contract-declared count — absent (no TC row / not a success) renders —, never 0.
+ * A non-zero count opens the 논리 DB 관리 modal, so it renders as the underlined
+ * in-cell link the app uses at Step 6/7 (LogicalDbCountCell): the underline
+ * carries the affordance, which lets the row drop its trailing 관리 link entirely.
+ * A reported 0 has nothing to open and stays plain text.
+ */
+function CountCell({
+  row,
+  tab,
+  verdict,
+  onOpen,
+}: {
+  row: TcResultRow | undefined;
+  tab: 'inc' | 'exc';
+  verdict: TcVerdict | undefined;
+  onOpen: () => void;
+}): ReactElement {
+  const count = ldbCount(row, tab, verdict);
   if (count == null) return <Dash />;
-  return <span className="tabular-nums">{count}개</span>;
+  if (count === 0) return <span className={opsStyles.countZero}>0개</span>;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`${tab === 'inc' ? '연동 대상' : '연동 제외'} 논리 DB ${count}개 보기`}
+      className={opsStyles.countLink}
+    >
+      {count}
+      <span className="text-[12px] font-medium">개</span>
+    </button>
+  );
+}
+
+/**
+ * Resource Name — the Step 1·2·3 resource-table grammar (CandidateResourceRow):
+ * one line always, mono, and the full value in the tip, which only appears when
+ * the text is actually cut. A native `title` was not it — no delay control, no
+ * styling, and it fires on values that already fit.
+ */
+function ResourceNameCell({ value }: { value: string | null }): ReactElement {
+  if (!value) return <Dash />;
+  return (
+    <Tooltip
+      content={<IdentifierTip label="Resource Name" value={value} />}
+      variant="value"
+      size="md"
+      triggerClassName="min-w-0 max-w-[200px] block"
+      truncatedOnly
+    >
+      <span className="block truncate font-mono text-[13px]">{value}</span>
+    </Tooltip>
+  );
 }
 
 export interface ConfirmedInfoCardProps {
@@ -66,12 +121,16 @@ export interface ConfirmedInfoCardProps {
   rows: readonly ConfirmedIntegrationResourceItem[];
   /** Contract credential list (fetched by TcTab). */
   secrets: readonly SecretKey[];
-  /** Latest Test Connection rows, joined by resource_id. */
+  /** 논리 DB 건수 rows (latest-results), joined by resource_id. */
   tcResults: readonly TcResultRow[];
+  /** 리소스별 연결 판정 (latest_version), joined by resource_id. */
+  verdicts: ReadonlyMap<string, TcVerdict>;
   /** First tab load still in flight. */
   loading: boolean;
   /** Real snapshot fetch failure — a 404 "not confirmed yet" is not one. */
   failed: boolean;
+  /** GET …/secrets failed — the credential modal says so instead of showing "0개". */
+  secretsFailed: boolean;
   onReload: () => void;
 }
 
@@ -80,24 +139,24 @@ export function ConfirmedInfoCard({
   rows,
   secrets,
   tcResults,
+  verdicts,
   loading,
   failed,
+  secretsFailed,
   onReload,
 }: ConfirmedInfoCardProps): ReactElement {
   const toast = usePlToast();
   const [savingId, setSavingId] = useState<string | null>(null);
   const [ldbRow, setLdbRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
+  const [credRow, setCredRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
+  const [credentialsOpen, setCredentialsOpen] = useState(false);
 
   const tcByResourceId = new Map(tcResults.map((row) => [row.resourceId, row]));
 
-  // 생성 시각 rides along as the option's second line: with 20+ credentials the
-  // name alone rarely settles "which one is this", and it is the only other
-  // field the contract gives us (SecretResponse).
-  const credentialOptions: PlComboboxOption[] = secrets.map((secret) => ({
-    value: secret.name,
-    label: secret.name,
-    meta: secret.createTimeStr ? `생성 ${fmtDateTime(secret.createTimeStr)}` : undefined,
-  }));
+  // 생성 시각 + 배정 건수 ride along in the assign modal: with 20+ credentials the
+  // name alone rarely settles "which one is this", and those are the only other
+  // facts available (SecretResponse + the confirmed snapshot join).
+  const entries = credentialEntries(secrets, rows);
   const knownCredential = new Set(secrets.map((secret) => secret.name));
 
   const assignCredential = async (
@@ -108,8 +167,10 @@ export function ConfirmedInfoCard({
     try {
       await updateResourceCredential(targetSourceId, row.resource_id, credentialId || null);
       toast.show(credentialId ? 'Credential을 변경했습니다.' : 'Credential 연결을 해제했습니다.');
+      setCredRow(null);
       onReload();
     } catch {
+      // The modal stays open on failure so the choice is not lost.
       toast.show('Credential 변경에 실패했습니다.');
     } finally {
       setSavingId(null);
@@ -120,15 +181,30 @@ export function ConfirmedInfoCard({
 
   return (
     <section className={pipelineStyles.card.base} aria-label="확정 정보">
-      <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
-        <Icon name="install" size={18} className="text-[var(--pl-primary)]" />
-        확정 정보
-      </h2>
-      <p className={opsStyles.cardDesc}>
-        연동이 확정된{' '}
-        <b className="font-semibold text-[var(--pl-text-medium)]">리소스별 연결 결과와 Credential 배정</b>
-        입니다.
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
+            <Icon name="install" size={18} className="text-[var(--pl-primary)]" />
+            확정 정보
+          </h2>
+          {/* The cell affordance only appears on hover/focus, so the card says up
+              front that the column is editable — otherwise the table reads as a
+              read-only report and nobody hovers it. Primary color marks the one
+              action in this sentence, not the whole sentence. */}
+          <p className={opsStyles.cardDesc}>
+            연동이 확정된 리소스별 연결 결과입니다. 순서는 연동 요청(Step 2) 표와 같으며,{' '}
+            <b className="font-semibold text-[var(--pl-primary)]">
+              Credential 값을 클릭하면 배정을 수정
+            </b>
+            할 수 있습니다.
+          </p>
+        </div>
+        {/* The credential list is a lookup, not a status — it opens from here,
+            where credentials are actually assigned. */}
+        <PlButton variant="secondary" className="flex-none" onClick={() => setCredentialsOpen(true)}>
+          Credential 목록
+        </PlButton>
+      </div>
 
       {loading ? (
         <div className="mt-3" aria-busy>
@@ -165,72 +241,80 @@ export function ConfirmedInfoCard({
                   <th className={table.headCell}>연동 제외 논리 DB</th>
                   <th className={table.headCell}>Connection Status</th>
                   <th className={table.headCell}>Credential</th>
-                  <th className={table.headCell} aria-label="관리" />
                 </tr>
               </thead>
               <tbody className="[&>tr:last-child>td]:border-b-0">
                 {rows.map((row, index) => {
                   const tc = tcByResourceId.get(row.resource_id);
+                  const verdict = verdicts.get(row.resource_id);
                   return (
                     <tr key={`${row.resource_id}-${index}`} className={table.rowHover}>
+                      <td className={cn(table.cell, 'whitespace-nowrap')}>
+                        {/* wire 는 소문자 원문(mysql·athena) — 사용자 화면과 같은 표기.
+                            타입은 상태가 아니라 분류라 칩(색면)을 쓰지 않는다. */}
+                        {row.database_type ? getDatabaseShortLabel(row.database_type) : <Dash />}
+                      </td>
                       <td className={table.cell}>
-                        {row.database_type ? (
-                          <span className={cn(tqStyles.tag.base, tqStyles.tag.blue)}>
-                            {/* wire 는 소문자 원문(mysql·athena) — 사용자 화면과 같은 표기. */}
-                            {getDatabaseShortLabel(row.database_type)}
-                          </span>
+                        {/* Step 1·2·3 grammar: RTL-truncated (the distinguishing tail
+                            stays visible), tip on hover, copy button on row hover. */}
+                        {row.resource_id ? (
+                          <ResourceIdCell
+                            value={row.resource_id}
+                            label="Resource ID"
+                            maxWidthClass="max-w-[200px]"
+                          />
                         ) : (
                           <Dash />
                         )}
                       </td>
                       <td className={table.cell}>
-                        <ResourceId value={row.resource_id} />
-                      </td>
-                      <td className={table.cell}>{row.resource_name || <Dash />}</td>
-                      <td className={table.cell}>
-                        <CountCell row={tc} tab="inc" />
+                        <ResourceNameCell value={row.resource_name || null} />
                       </td>
                       <td className={table.cell}>
-                        <CountCell row={tc} tab="exc" />
+                        <CountCell row={tc} tab="inc" verdict={verdict} onOpen={() => setLdbRow(row)} />
                       </td>
                       <td className={table.cell}>
-                        <ConnCell row={tc} />
+                        <CountCell row={tc} tab="exc" verdict={verdict} onOpen={() => setLdbRow(row)} />
+                      </td>
+                      <td className={table.cell}>
+                        <ConnCell verdict={verdict} />
                       </td>
                       <td className={table.cell}>
                         {/* Credential is addressed by resource id — no id, no assignment. */}
                         {row.resource_id ? (
                           <div className="w-[190px]">
-                            <PlCombobox
-                              aria-label="Credential"
-                              value={row.credential_id ?? ''}
-                              options={credentialOptions}
-                              emptyLabel="연결 안 함"
-                              placeholder="연결 안 함"
-                              searchPlaceholder="Credential 검색"
+                            <button
+                              type="button"
+                              aria-haspopup="dialog"
+                              aria-label={`${row.resource_name || row.resource_id} Credential 수정 — 현재 ${row.credential_id || '연결 안 함'}`}
                               disabled={savingId === row.resource_id}
-                              onChange={(next) => void assignCredential(row, next)}
-                            />
+                              onClick={() => setCredRow(row)}
+                              className={opsStyles.cellAction}
+                            >
+                              <span
+                                className={
+                                  row.credential_id
+                                    ? opsStyles.cellActionValue
+                                    : opsStyles.cellActionEmpty
+                                }
+                              >
+                                {row.credential_id || '연결 안 함'}
+                              </span>
+                              {/* aria-hidden — the button's own label already says it edits. */}
+                              <span aria-hidden className={opsStyles.cellActionHint}>
+                                수정
+                              </span>
+                            </button>
                             {/* An assignment the list no longer carries is stated, not
                                 quietly folded in as one more selectable option. */}
                             {row.credential_id && !knownCredential.has(row.credential_id) && (
-                              <span className={cn(opsStyles.statusTag, TC_TONE_FILL.warn, 'mt-1')}>
+                              <span
+                                className={cn(opsStyles.statusTag, TC_TONE_FILL.warn, 'mt-1 block w-fit')}
+                              >
                                 목록에 없음
                               </span>
                             )}
                           </div>
-                        ) : (
-                          <Dash />
-                        )}
-                      </td>
-                      <td className={cn(table.cell, 'text-right whitespace-nowrap')}>
-                        {row.resource_id ? (
-                          <button
-                            type="button"
-                            className={opsStyles.detailLink}
-                            onClick={() => setLdbRow(row)}
-                          >
-                            논리 DB 관리
-                          </button>
                         ) : (
                           <Dash />
                         )}
@@ -242,10 +326,33 @@ export function ConfirmedInfoCard({
             </table>
           </div>
           <p className={cn(pipelineStyles.text.meta, 'mt-3.5')}>
-            논리 DB 건수와 Connection Status는 최근 Test Connection 결과에서 가져옵니다. 해당 결과가
-            없거나 성공하지 않은 리소스는 —(값 없음)으로 표기하며, 임의로 성공 처리하지 않습니다.
+            Connection Status는 최근 연결 테스트가 리소스별로 보고한 판정이고, 논리 DB 건수는 그중
+            성공한 리소스에만 표기합니다. 실행 결과가 없거나 성공하지 않은 리소스는 —(값 없음)으로
+            두며, 임의로 성공 처리하지 않습니다. 논리 DB 건수를 누르면 대상·제외 정책을 관리할 수
+            있습니다.
           </p>
         </>
+      )}
+
+      {credRow && (
+        <CredentialAssignModal
+          key={`cred-${credRow.resource_id}`}
+          resourceLabel={credRow.resource_name || credRow.resource_id}
+          value={credRow.credential_id ?? ''}
+          entries={entries}
+          saving={savingId === credRow.resource_id}
+          onSubmit={(next) => void assignCredential(credRow, next)}
+          onClose={() => setCredRow(null)}
+        />
+      )}
+
+      {credentialsOpen && (
+        <TcCredentialModal
+          secrets={secrets}
+          rows={rows}
+          failed={secretsFailed}
+          onClose={() => setCredentialsOpen(false)}
+        />
       )}
 
       {ldbRow && (

@@ -4,22 +4,26 @@
  * Test Connection 탭 — the scan tab's hierarchy applied to connection testing.
  *
  * Reading order (top to bottom): 이 대상이 쓰는 자격 증명 / 최근 실행이 통과했는가
- * → 리소스별 상세 → 회차 이력 → 관리자 결정. The pair on top shares one row so
- * "credential 이 배정돼 있는가" and "그래서 붙었는가" are read side by side; the
- * decision card stays last because it is made BY READING everything above it.
+ * → 리소스별 상세 → 회차 이력. The pair on top shares one row so "credential 이
+ * 배정돼 있는가" and "그래서 붙었는가" are read side by side.
+ *
+ * 관리자 처리 is NOT here — it is a process branch (Step 6 → 7 / → 5), so it lives
+ * on the tab rail (TcDecisionActions) where it is visible from every tab instead
+ * of buried under four cards inside this one.
  *
  * This file owns data flow only (fetching, paging, polling, the run trigger);
- * every card is a pure view.
+ * every card is a pure view. TC status/results/latest come from the page, which
+ * needs the same three for the 관리자 승인 tab.
  *
- * Execution history is fetched HERE rather than in the history card, because the
- * newest run drives three things at once — the latest-run card, the run button's
- * enabled state, and when to stop polling. `firstPageRows` snapshots page 0 so
- * paging through the history table cannot change what "the latest run" means.
+ * 두 개의 실행 엔드포인트를 각자 선언한 것만 쓴다 —
+ *   latest_version      최신 실행(회차·상태·시각) + 리소스별 판정. 404 = 실행 없음.
+ *   execution-history   회차 목록(표). 여기서 "최신"을 유추하지 않는다.
+ * 폴링도 latest_version 의 connection_status 로 판단한다: 그것이 계약이 말하는
+ * "진행 중"이고, 실행 기록 표의 첫 행을 최신으로 추정하는 것보다 정확하다.
  *
- * One shared `reloadKey` is the refresh signal for the status/results/confirmed
- * fetch: every write in the tab (실행 / 재실행 요청 / 설치 완료 / 논리 DB 정책 /
- * Credential) bumps it, because each of them changes at least one other card.
- * The 승인·반려 이력 modal mounts per open, so it always fetches fresh.
+ * `reloadKey` refreshes the confirmed snapshot + credential list after a write in
+ * the tab (논리 DB 정책 / Credential 배정). The 승인·반려 이력 modal mounts per open,
+ * so it always fetches fresh.
  */
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { isMissingConfirmedIntegrationError } from '@/lib/errors';
@@ -28,47 +32,69 @@ import {
   getSecrets,
   triggerTestConnection,
   type ConfirmedIntegrationResourceItem,
+  type TestConnectionVersionResult,
 } from '@/app/lib/api';
 import type { SecretKey } from '@/lib/types';
-import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import {
-  getTestConnectionDetail,
   getTestConnectionExecutionHistory,
-  getTestConnectionResults,
   type TcExecutionRow,
   type TcResultRow,
 } from '@/app/lib/api/task-queue-tc';
+import { getApprovalRequestLatest } from '@/app/lib/api/task-queue-requests';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import { TcCredentialCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcCredentialCard';
 import { TcLatestRunCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcLatestRunCard';
 import {
   TcRunHistoryCard,
   TC_RUN_HISTORY_PAGE_SIZE,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcRunHistoryCard';
 import { ConfirmedInfoCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard';
-import { TcDecisionCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcDecisionCard';
 import { TcHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcHistoryModal';
-import { tcResultStats } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
+import {
+  isRunOpen,
+  orderByRequest,
+  tcResultStats,
+  verdictByResource,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
 /** Same cadence as the user-side Step 5 poll (useTestConnectionPolling). */
 const POLL_MS = 4_000;
 
 export interface TcTabProps {
   targetSourceId: number;
-  detail: RawTargetSourceDetail;
+  /** Service acknowledgment row — fetched by the page (관리자 승인 탭이 여기에 게이트). */
+  status: TestConnectionStatusRow | null;
+  /** 최신 실행 (latest_version) — 실행 이력이 없으면 null. Fetched by the page. */
+  latest: TestConnectionVersionResult | null;
+  /** 리소스별 논리 DB 건수 (latest-results) — fetched by the page. */
+  results: readonly TcResultRow[];
+  /** Page-level TC fetch has settled at least once. */
+  statusLoaded: boolean;
+  /** latest_version 조회가 404 가 아닌 이유로 실패했다. */
+  latestFailed: boolean;
+  /** Reload the page-level TC fetch (status + latest + results). */
+  onStatusReload: () => void;
 }
 
-export function TcTab({ targetSourceId, detail }: TcTabProps): ReactElement {
+export function TcTab({
+  targetSourceId,
+  status,
+  latest,
+  results,
+  statusLoaded,
+  latestFailed,
+  onStatusReload,
+}: TcTabProps): ReactElement {
   const toast = usePlToast();
   const [reloadKey, setReloadKey] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
-  const [status, setStatus] = useState<TestConnectionStatusRow | null>(null);
-  const [results, setResults] = useState<TcResultRow[]>([]);
   const [confirmedRows, setConfirmedRows] = useState<ConfirmedIntegrationResourceItem[]>([]);
+  // Step 2(연동 요청) 표의 리소스 순서 — 확정 정보를 같은 순서로 세워 두 화면을 행 단위로
+  // 대조할 수 있게 한다.
+  const [requestOrder, setRequestOrder] = useState<string[]>([]);
   const [secrets, setSecrets] = useState<SecretKey[]>([]);
   const [confirmedFailed, setConfirmedFailed] = useState(false);
   const [secretsFailed, setSecretsFailed] = useState(false);
@@ -81,17 +107,20 @@ export function TcTab({ targetSourceId, detail }: TcTabProps): ReactElement {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // Best-effort across the board: one failed fetch must not blank the cards
-      // that the other three feed.
-      const [statusRow, resultRows, confirmed, secretList] = await Promise.allSettled([
-        getTestConnectionDetail(targetSourceId),
-        getTestConnectionResults(targetSourceId),
+      // Best-effort: a failed credential list must not blank the resource table,
+      // and vice versa. The approval request is fetched only for its row ORDER —
+      // losing it leaves the confirmed order, never an empty table.
+      const [confirmed, secretList, request] = await Promise.allSettled([
         getConfirmedIntegration(targetSourceId),
         getSecrets(targetSourceId),
+        getApprovalRequestLatest(targetSourceId),
       ]);
       if (cancelled) return;
-      setStatus(statusRow.status === 'fulfilled' ? statusRow.value : null);
-      setResults(resultRows.status === 'fulfilled' ? resultRows.value : []);
+      setRequestOrder(
+        request.status === 'fulfilled'
+          ? request.value.resources.map((resource) => resource.resourceId ?? '').filter(Boolean)
+          : [],
+      );
       if (confirmed.status === 'fulfilled') {
         setConfirmedRows(confirmed.value.resource_infos ?? []);
         setConfirmedFailed(false);
@@ -113,12 +142,10 @@ export function TcTab({ targetSourceId, detail }: TcTabProps): ReactElement {
   // triggered by a write in the tab keeps the current values on screen instead of
   // blanking every card until the refetch lands.
   const settled = loadedKey !== null;
+  const orderedRows = orderByRequest(confirmedRows, requestOrder);
 
-  // --- 실행 기록 -------------------------------------------------------------
+  // --- 실행 기록 (표 전용) ----------------------------------------------------
   const [runRows, setRunRows] = useState<TcExecutionRow[]>([]);
-  // Page-0 snapshot — "the latest run" must not change while the operator pages
-  // through the history table below.
-  const [firstPageRuns, setFirstPageRuns] = useState<TcExecutionRow[]>([]);
   const [runPage, setRunPage] = useState(0);
   const [runTotalPages, setRunTotalPages] = useState(1);
   const [runsLoading, setRunsLoading] = useState(true);
@@ -139,7 +166,6 @@ export function TcTab({ targetSourceId, detail }: TcTabProps): ReactElement {
         );
         if (seq !== runSeq.current) return;
         setRunRows(data.content);
-        if (nextPage === 0) setFirstPageRuns(data.content);
         setRunTotalPages(Math.max(1, data.totalPages));
         setRunPage(nextPage);
         setRunsFailed(false);
@@ -157,25 +183,34 @@ export function TcTab({ targetSourceId, detail }: TcTabProps): ReactElement {
     void loadRuns(0);
   }, [loadRuns]);
 
-  const latestRun = firstPageRuns[0] ?? null;
-  const running = latestRun?.status === 'PENDING' || latestRun?.status === 'RUNNING';
+  const running = isRunOpen(latest);
 
-  // Poll only while the newest run is unsettled; the interval clears itself the
-  // moment it reaches SUCCESS/FAIL, so an idle tab makes no requests. `quiet` so
-  // a poll swaps rows in place instead of flashing the skeleton every 4 seconds.
+  // Poll only while the run is unsettled; the interval clears itself the moment
+  // connection_status reaches SUCCESS/FAIL, so an idle tab makes no requests.
+  // `quiet` so a poll swaps history rows in place instead of flashing the
+  // skeleton every 4 seconds.
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => void loadRuns(runPage, { quiet: true }), POLL_MS);
+    const id = setInterval(() => {
+      onStatusReload();
+      void loadRuns(runPage, { quiet: true });
+    }, POLL_MS);
     return () => clearInterval(id);
-  }, [running, runPage, loadRuns]);
+  }, [running, runPage, loadRuns, onStatusReload]);
 
-  // A finished run rewrites the result table, so reload the tab on the settle edge.
-  // The ref starts false, so mounting on an already-settled run does not double-fetch.
+  // A finished run rewrites the 논리 DB 결과 and can change the confirmed snapshot,
+  // so the settle edge reloads both — the poll tick that observed SUCCESS can race
+  // the results write. The ref starts false, so mounting on an already-settled run
+  // does not double-fetch.
   const wasRunning = useRef(false);
   useEffect(() => {
-    if (wasRunning.current && !running) reload();
+    if (wasRunning.current && !running) {
+      reload();
+      onStatusReload();
+      void loadRuns(0);
+    }
     wasRunning.current = running;
-  }, [running, reload]);
+  }, [running, reload, onStatusReload, loadRuns]);
 
   const [triggering, setTriggering] = useState(false);
   const [triggerFailed, setTriggerFailed] = useState(false);
@@ -188,61 +223,51 @@ export function TcTab({ targetSourceId, detail }: TcTabProps): ReactElement {
     try {
       await triggerTestConnection(targetSourceId);
       toast.show('연결 테스트 실행을 요청했습니다.');
+      // latest_version 이 새 회차를 RUNNING 으로 보고해야 폴링이 시작된다.
+      onStatusReload();
       await loadRuns(0);
     } catch {
       setTriggerFailed(true);
     } finally {
       setTriggering(false);
     }
-  }, [targetSourceId, loadRuns, toast]);
+  }, [targetSourceId, loadRuns, onStatusReload, toast]);
 
   return (
     <>
+      {/* 실행(좌) ↔ 그 실행의 이력(우) — 같은 대상을 현재/과거로 읽는 한 쌍. */}
       <div className={opsStyles.cardsRow}>
-        <TcCredentialCard
-          secrets={secrets}
-          rows={confirmedRows}
-          loading={!settled}
-          failed={secretsFailed}
-        />
         <TcLatestRunCard
-          latestRun={latestRun}
-          status={settled ? status : null}
-          stats={tcResultStats(results)}
-          loading={runsLoading}
-          failed={runsFailed}
+          latest={latest}
+          status={statusLoaded ? status : null}
+          stats={tcResultStats(results, latest)}
+          loading={!statusLoaded}
+          failed={latestFailed}
           running={running}
           triggering={triggering}
           triggerFailed={triggerFailed}
           onRunTest={() => void runTest()}
         />
+        <TcRunHistoryCard
+          rows={runRows}
+          page={runPage}
+          totalPages={runTotalPages}
+          loading={runsLoading}
+          failed={runsFailed}
+          onPage={(next) => void loadRuns(next)}
+          onOpenDecisionHistory={() => setHistoryOpen(true)}
+        />
       </div>
 
       <ConfirmedInfoCard
         targetSourceId={targetSourceId}
-        rows={confirmedRows}
+        rows={orderedRows}
         secrets={secrets}
-        tcResults={settled ? results : []}
+        tcResults={statusLoaded ? results : []}
+        verdicts={verdictByResource(statusLoaded ? latest : null)}
         loading={!settled}
         failed={confirmedFailed}
-        onReload={reload}
-      />
-
-      <TcRunHistoryCard
-        rows={runRows}
-        page={runPage}
-        totalPages={runTotalPages}
-        loading={runsLoading}
-        failed={runsFailed}
-        onPage={(next) => void loadRuns(next)}
-        onOpenDecisionHistory={() => setHistoryOpen(true)}
-      />
-
-      <TcDecisionCard
-        targetSourceId={targetSourceId}
-        detail={detail}
-        status={settled ? status : null}
-        stats={tcResultStats(results)}
+        secretsFailed={secretsFailed}
         onReload={reload}
       />
 

@@ -16,7 +16,6 @@ export type IconName =
   | 'arrow-right'
   | 'arrow-up-right'
   | 'chev-r'
-  | 'chev-d'
   | 'plus'
   | 'check'
   | 'x'
@@ -65,7 +64,6 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   check: <path d="m4.5 12.5 5 5L19.5 7" />,
-  'chev-d': <path d="M5.5 9 12 15.5 18.5 9" />,
   x: <path d="M6 6l12 12M18 6 6 18" />,
   ban: (
     <>

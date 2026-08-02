@@ -89,11 +89,11 @@ export function TcRunHistoryCard({
           <table className={table.base}>
             <thead>
               <tr>
-                <th className={cn(table.headCell, 'w-[90px]')}>회차</th>
-                <th className={cn(table.headCell, 'w-[180px]')}>요청 시각</th>
-                <th className={cn(table.headCell, 'w-[180px]')}>완료 시각</th>
-                <th className={cn(table.headCell, 'w-[120px]')}>소요 시간</th>
-                <th className={table.headCell}>결과</th>
+                <th className={cn(table.headCell, 'w-[60px]')}>회차</th>
+                <th className={table.headCell}>요청 시각</th>
+                <th className={table.headCell}>완료 시각</th>
+                <th className={cn(table.headCell, 'w-[90px]')}>소요</th>
+                <th className={cn(table.headCell, 'w-[76px]')}>결과</th>
               </tr>
             </thead>
             <tbody>

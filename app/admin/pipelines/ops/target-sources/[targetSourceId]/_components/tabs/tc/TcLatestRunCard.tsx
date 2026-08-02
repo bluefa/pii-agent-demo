@@ -9,12 +9,17 @@
  * The per-resource detail lives in 확정 정보 below; this card answers "did the
  * latest run pass, and when".
  *
+ * Source is `GET …/test-connection/latest_version` (TestConnectionVersionResult)
+ * — 회차·상태·시각·리소스별 성패가 전부 계약에 선언된 하나의 응답이다. 404 는 오류가
+ * 아니라 "최신 연결 테스트 없음" 이라 `latest === null` 로 들어온다. 실행 기록 표는
+ * 별도 엔드포인트(execution-history)로, 옆 카드가 담당한다.
+ *
  * Pure view — polling, paging and the run trigger live in TcTab.
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
-import type { TcExecutionRow } from '@/app/lib/api/task-queue-tc';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
@@ -28,6 +33,7 @@ import {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/tcShared';
 import {
   runDurationSeconds,
+  runStatus,
   type TcResultStats,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
@@ -35,15 +41,15 @@ const COMPLETED = 'TEST_CONNECTION_COMPLETED';
 const REJECTED = 'TEST_CONNECTION_REJECTED';
 
 export interface TcLatestRunCardProps {
-  /** Newest run — null when the target was never tested. */
-  latestRun: TcExecutionRow | null;
+  /** 최신 실행 — 404(연결 테스트 이력 없음)면 null. */
+  latest: TestConnectionVersionResult | null;
   /** Service-side acknowledgment row — null when the target has no TC status yet. */
   status: TestConnectionStatusRow | null;
-  /** Per-resource result counts from the latest results. */
+  /** Per-resource verdict counts + 논리 DB 합계. */
   stats: TcResultStats;
-  /** Execution-history page 0 still in flight. */
+  /** latest_version fetch still in flight. */
   loading: boolean;
-  /** Execution-history fetch failed. */
+  /** latest_version fetch failed (404 는 실패가 아니다). */
   failed: boolean;
   running: boolean;
   triggering: boolean;
@@ -52,7 +58,7 @@ export interface TcLatestRunCardProps {
 }
 
 export function TcLatestRunCard({
-  latestRun,
+  latest,
   status,
   stats,
   loading,
@@ -64,8 +70,8 @@ export function TcLatestRunCard({
 }: TcLatestRunCardProps): ReactElement {
   const isCompleted = status?.status === COMPLETED;
   const isRejected = status?.status === REJECTED;
-  const settled = latestRun != null && !running;
-  /** Rows the wire actually scored — 0 means every row came back UNKNOWN. */
+  const settled = latest != null && !running;
+  /** Resources the run actually judged — 0 means it reported none. */
   const scored = stats.successCount + stats.failedCount;
 
   return (
@@ -77,20 +83,21 @@ export function TcLatestRunCard({
             <Icon name="flow" size={18} className="text-[var(--pl-primary)]" />
             최근 연결 테스트
             {/* Identifier (#N) first, verdict pill after — the scan card's order. */}
-            {latestRun?.version != null && (
+            {latest?.test_connection_version != null && (
               <span className="text-[12px] font-medium text-[var(--pl-text-weak)]">
-                #{latestRun.version}
+                #{latest.test_connection_version}
               </span>
             )}
-            {latestRun && <TcRunPill status={latestRun.status} />}
+            {latest && <TcRunPill status={runStatus(latest)} />}
           </h2>
           <p className={opsStyles.cardDesc}>
             확정된 리소스에 실제로 접속해 연동 가능 여부를 검증합니다.
           </p>
         </div>
-        {/* outline (brand stroke) — the scan card's 실행 button weight. */}
+        {/* primary — with 관리자 처리 moved to the rail, running the test is the
+            loudest thing this tab still does. */}
         <PlButton
-          variant="outline"
+          variant="primary"
           className="flex-none"
           disabled={running || triggering}
           onClick={onRunTest}
@@ -105,7 +112,7 @@ export function TcLatestRunCard({
         </p>
       )}
 
-      {loading && !latestRun ? (
+      {loading && !latest ? (
         // Skeleton drawing the final layout (heading + sentence + tiles) — no jump on load.
         <div className="mt-5" aria-busy>
           <div className={cn(opsStyles.skeleton, 'h-5 w-24')} aria-hidden="true" />
@@ -116,11 +123,12 @@ export function TcLatestRunCard({
             ))}
           </div>
         </div>
-      ) : !latestRun ? (
+      ) : !latest ? (
         failed ? (
           <p className={cn(pipelineStyles.text.meta, 'mt-4')}>실행 정보를 불러오지 못했습니다.</p>
         ) : (
-          <PlEmptyState icon="flow" message="연결 테스트 실행 기록이 없습니다." className="mt-2" />
+          // 404 = 아직 한 번도 실행하지 않은 대상. 오류가 아니라 빈 상태로 말한다.
+          <PlEmptyState icon="flow" message="아직 실행한 연결 테스트가 없습니다." className="mt-2" />
         )
       ) : (
         <>
@@ -129,22 +137,23 @@ export function TcLatestRunCard({
             {running ? (
               <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>실행이 끝나면 집계돼요.</p>
             ) : stats.resourceCount === 0 ? (
+              // 실행은 있는데 agent 결과가 비었다 — 0개 성공이 아니라 "결과가 없다".
               <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>
-                집계된 리소스 결과가 없습니다.
+                이 실행이 보고한 리소스별 결과가 없습니다.
               </p>
             ) : (
               <>
                 {/* One sentence, the scan card's shape: only the headline number takes
-                    display size. When NO row carried a connection_status, "0개 성공"
-                    would read as a failed run — the truth is that the wire never
-                    said, so the silence is reported instead of scored. */}
+                    display size. When no resource reached SUCCESS/FAIL, "0개 성공"
+                    would read as a failed run — the truth is that nothing was judged
+                    yet, so that is what it says. */}
                 {scored === 0 ? (
                   <p className="mt-1 text-[14px] text-[var(--pl-text-weak)]">
                     리소스{' '}
                     <b className="text-[20px] font-bold tabular-nums text-[var(--pl-text-strong)]">
                       {stats.resourceCount}
                     </b>
-                    개의 개별 연결 상태가 응답에 없어요.
+                    개가 아직 성공·실패로 판정되지 않았어요.
                   </p>
                 ) : (
                   <p className="mt-1 text-[14px] text-[var(--pl-text-weak)]">
@@ -165,7 +174,8 @@ export function TcLatestRunCard({
                 <div className="mt-2.5 grid grid-cols-3 gap-2">
                   <TcStatTile label="성공" count={stats.successCount} tone="ok" />
                   <TcStatTile label="실패" count={stats.failedCount} tone="err" />
-                  <TcStatTile label="미확인" count={stats.unknownCount} />
+                  {/* 판정되지 않은 나머지 — 합이 항상 리소스 수와 맞는다. */}
+                  <TcStatTile label="미확인" count={stats.resourceCount - scored} />
                   <TcStatTile label="연동 대상 논리 DB" count={stats.includedTotal} />
                   <TcStatTile label="연동 제외 논리 DB" count={stats.excludedTotal} />
                 </div>
@@ -203,15 +213,17 @@ export function TcLatestRunCard({
           <div className="mt-auto">
             <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
               <TimeField label="실행시간">
-                {latestRun.requestedAt ? fmtDateTimeSec(latestRun.requestedAt) : '—'}
+                {latest.requested_at ? fmtDateTimeSec(latest.requested_at) : '—'}
               </TimeField>
               {settled && (
                 <>
                   <TimeField label="완료시간">
-                    {latestRun.completedAt ? fmtDateTimeSec(latestRun.completedAt) : '—'}
+                    {latest.completed_at ? fmtDateTimeSec(latest.completed_at) : '—'}
                   </TimeField>
                   <TimeField label="소요 시간">
-                    {fmtDuration(runDurationSeconds(latestRun.requestedAt, latestRun.completedAt))}
+                    {fmtDuration(
+                      runDurationSeconds(latest.requested_at ?? null, latest.completed_at ?? null),
+                    )}
                   </TimeField>
                 </>
               )}

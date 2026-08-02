@@ -1416,30 +1416,6 @@ export const pipelineStyles = {
   selectLg:
     'h-9 rounded-lg border border-[var(--pl-border)] text-[14px] bg-[var(--pl-bg-card)] text-[var(--pl-text-medium)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] px-3 cursor-pointer',
 
-  /** PlCombobox — the searchable select. Trigger reuses the h32 input shell; the
-   *  list is a fixed layer (escapes table scroll clipping). Color is state only:
-   *  the primary tint marks the keyboard-active row, nothing else is tinted. */
-  combobox: {
-    trigger: cn(
-      pipelineInputBase,
-      'inline-flex w-full items-center justify-between gap-2 pl-2.5 pr-2 text-left cursor-pointer disabled:cursor-not-allowed disabled:bg-[var(--pl-gray-50)] disabled:text-[var(--pl-text-faint)]',
-    ),
-    triggerValue: 'truncate',
-    triggerPlaceholder: 'truncate text-[var(--pl-text-faint)]',
-    chevron: 'flex-none text-[var(--pl-text-weak)]',
-    pop: 'fixed z-50 rounded-lg border border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)] p-1.5',
-    searchWrap: 'px-0.5 pb-1.5',
-    search:
-      'h-8 w-full rounded-md border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] px-2.5 text-[14px] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-faint)] focus:outline-none focus:border-[var(--pl-primary)]',
-    list: 'max-h-[240px] overflow-y-auto',
-    option:
-      'flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left cursor-pointer',
-    optionActive: 'bg-[var(--pl-primary-bg)]',
-    optionLabel: 'block truncate text-[14px] text-[var(--pl-text-strong)]',
-    optionMeta: 'block truncate text-[12px] text-[var(--pl-text-weak)]',
-    empty: 'px-2.5 py-3 text-[13px] text-[var(--pl-text-weak)]',
-  },
-
   /** PlButton — h32 pad 0 14 14/600 (sm h28 pad 0 10 12/600; round 28×28).
    *  Base = interaction only; one geometry (md/sm/round) + one variant compose so
    *  every property is set at most once. Each variant owns its 1px border. */
