@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal } from '@/app/components/ui/Modal';
-import { cn, stackGap, textColors, textStyles } from '@/lib/theme';
+import { cn, primaryColors, stackGap, textColors, textStyles } from '@/lib/theme';
 import { AZURE_GUIDE_URLS, AZURE_NETWORKING_MODE_LABELS } from '@/lib/constants/azure';
 import { GCP_GUIDE_URLS } from '@/lib/constants/gcp';
 import type { RecommendFailReason } from '@/lib/types';
@@ -14,9 +14,9 @@ interface InstallIneligibleGuideModalProps {
 }
 
 interface Guide {
-  /** 왜 실패했는지 — 부제 자리에 놓이는 한 문장. 이 모달의 첫 번째 강조. */
+  /** 왜 실패했는지 — 본문 첫 문장이자 이 모달의 유일한 색 강조. */
   cause: string;
-  /** 원인을 이해하게 만드는 배경. 추측이 될 자리에서는 비워 둔다. */
+  /** 원인을 이해하게 만드는 배경. 같은 문단으로 이어 붙인다. 추측이 될 자리에서는 비워 둔다. */
   detail?: string;
   /** CSP 문서에 근거가 있을 때만. */
   remedy?: string;
@@ -52,13 +52,22 @@ const UNKNOWN_GUIDE: Guide = {
   cause: '네트워크 구성 제약으로 Agent를 설치할 수 없는 리소스예요.',
 };
 
-/** 묶음 이름 — 본문보다 한 단계 큰 소제목. 구조를 눈으로 먼저 잡게 한다. */
-const GroupLabel = ({ children }: { children: string }) => (
-  <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{children}</h3>
+/**
+ * 보조 묶음 이름 — 본문(13px)보다 작고 옅은 12px. 리드 문단이 계층의 꼭대기라
+ * 라벨은 위치만 알려주고 물러선다.
+ */
+const SupportLabel = ({ children }: { children: string }) => (
+  <h3 className={cn(textStyles.captionStrong, textColors.tertiary)}>{children}</h3>
 );
 
 /**
- * 읽기 전용 안내 — 제목 아래로 원인 / 조치 방법 / 공식 문서 / 문의 네 묶음.
+ * 보조 묶음 본문 — 13/18. 램프(14/12) 밖 값이지만 Figma 가 의도한 중간 단계다:
+ * 14 로 올리면 리드 문단과 같아져 강등이 사라지고, 12 로 내리면 라벨과 같아진다.
+ */
+const supportText = 'text-[13px] font-normal leading-[18px] tracking-[-0.01em]';
+
+/**
+ * 읽기 전용 안내 — 리드 문단(원인+배경) 하나, 그 아래 조치 방법 / 공식 문서 / 문의.
  * 카드도, 푸터도, ✕도 없다.
  */
 export const InstallIneligibleGuideModal = ({
@@ -72,51 +81,50 @@ export const InstallIneligibleGuideModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      chrome="toss"
+      chrome="toss-compact"
       size="lg"
       closeButton={false}
       title="설치 불가 사유"
     >
-      {/* 사용자가 던지는 질문 순서대로 네 묶음 — 왜 안 되는지 / 뭘 해야 하는지 /
-          어디서 확인하는지 / 누구에게 묻는지. 소제목↔본문 8px, 묶음 사이
-          16px. 계층을 글자 크기로만 주면 14px 문장들이 평평해져 보이지 않는다.
+      {/* 계층은 두 겹이다. 리드 문단이 "왜 안 되는지"를 혼자 들고 있고 — 첫 문장만
+          파란색이라 라벨 없이도 판정문으로 읽힌다 — 나머지는 12px 라벨을 단 보조
+          묶음으로 내려간다. 리드↔보조 20px, 보조 내부는 라벨·본문 구분 없이 8px.
           푸터도 ✕도 없다 — 배경 클릭 / ESC 로 닫는다. */}
-      <div className={cn('flex flex-col pb-7', stackGap.group, textStyles.body, textColors.secondary)}>
-        <section className={cn('flex flex-col', stackGap.related)}>
-          <GroupLabel>원인</GroupLabel>
-          <p className={textColors.primary}>{guide.cause}</p>
-          {guide.detail && <p>{guide.detail}</p>}
-        </section>
+      <div className="flex flex-col gap-5">
+        <p className={cn(textStyles.body, textColors.primary)}>
+          <span className={primaryColors.text}>{guide.cause}</span>
+          {guide.detail && ` ${guide.detail}`}
+        </p>
 
-        {guide.remedy && (
-          <section className={cn('flex flex-col', stackGap.related)}>
-            <GroupLabel>조치 방법</GroupLabel>
-            <p>{guide.remedy}</p>
-          </section>
-        )}
+        <div className={cn('flex flex-col', stackGap.related, supportText, textColors.secondary)}>
+          {guide.remedy && (
+            <>
+              <SupportLabel>조치 방법</SupportLabel>
+              <p>{guide.remedy}</p>
+            </>
+          )}
 
-        {guide.doc && (
-          <section className={cn('flex flex-col', stackGap.related)}>
-            <GroupLabel>공식 문서</GroupLabel>
-            <a
-              href={guide.doc.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="self-start underline underline-offset-2"
-            >
-              {guide.doc.label}
-            </a>
-          </section>
-        )}
+          {guide.doc && (
+            <>
+              <SupportLabel>공식 문서</SupportLabel>
+              <a
+                href={guide.doc.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="self-start underline underline-offset-2"
+              >
+                {guide.doc.label}
+              </a>
+            </>
+          )}
 
-        <section className={cn('flex flex-col', stackGap.related)}>
-          <GroupLabel>문의</GroupLabel>
+          <SupportLabel>문의</SupportLabel>
           <p>
             추가적인 문의사항이 있으면{' '}
             <strong className={cn('font-semibold', textColors.primary)}>협업 채널</strong>
             에 문의해주세요.
           </p>
-        </section>
+        </div>
       </div>
     </Modal>
   );
