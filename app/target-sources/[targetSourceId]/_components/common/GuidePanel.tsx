@@ -51,7 +51,9 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
       <p className={cn('text-[16px] font-bold leading-[1.4]', textColors.primary)}>
         도움이 필요하신가요?
       </p>
-      <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.tertiary)}>
+      {/* secondary, not tertiary: gray-500 is calibrated against white (4.83:1) and drops
+          to 4.25:1 on the primary tint — under AA at this size. gray-700 holds 9.06:1. */}
+      <p className={cn('mt-1 text-[12px] leading-[1.55]', textColors.secondary)}>
         진행 중 막히는 부분은 협업 채널에서 담당자에게 바로 문의할 수 있어요.
       </p>
       {jiraTicket === 'error' ? (
@@ -61,7 +63,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
             'border-dashed font-medium',
             primaryColors.borderLight,
             bgColors.surface,
-            textColors.quaternary,
+            textColors.tertiary,
           )}
         >
           <ChatIcon className="h-3.5 w-3.5 shrink-0" />
@@ -74,7 +76,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
             'border-dashed font-medium',
             primaryColors.borderLight,
             bgColors.surface,
-            textColors.quaternary,
+            textColors.tertiary,
           )}
         >
           <ChatIcon className="h-3.5 w-3.5 shrink-0" />
@@ -152,7 +154,7 @@ const HistoryTimeline = ({ items }: { items: typeof MOCK_HISTORY }) => (
           <p className={cn('mt-0.5 text-[12px] leading-[1.5]', textColors.tertiary)}>
             {item.detail}
           </p>
-          <p className={cn('mt-1 text-[11px]', textColors.quaternary)}>{item.at}</p>
+          <p className={cn('mt-1 text-[11px]', textColors.tertiary)}>{item.at}</p>
         </div>
       </li>
     ))}
@@ -293,7 +295,7 @@ export const GuidePanel = ({
           >
             ‹ 이전
           </button>
-          <span className={cn('text-[11.5px] tabular-nums', textColors.quaternary)}>
+          <span className={cn('text-[11.5px] tabular-nums', textColors.tertiary)}>
             {page + 1} / {pageCount}
           </span>
           <button

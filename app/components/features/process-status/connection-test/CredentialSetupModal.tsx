@@ -113,7 +113,7 @@ export const CredentialSetupModal = ({
           'w-2 h-2 rounded-full',
           allSelected ? statusColors.success.dot : 'bg-gray-300',
         )} />
-        <span className={allSelected ? statusColors.success.text : textColors.quaternary}>
+        <span className={allSelected ? statusColors.success.text : textColors.tertiary}>
           {allSelected
             ? `DB Credential 선택 완료되었습니다 (${missingResources.length}건)`
             : `아직 DB Credential이 미선택되었습니다 (${Object.keys(selections).filter((k) => selections[k]).length}/${missingResources.length})`}
@@ -138,7 +138,7 @@ export const CredentialSetupModal = ({
                 <tr key={resource.resourceId} className="border-b border-gray-100 last:border-b-0">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <span className={cn('text-xs font-medium uppercase', textColors.quaternary)}>{resource.type}</span>
+                      <span className={cn('text-xs font-medium uppercase', textColors.tertiary)}>{resource.type}</span>
                       <span className={cn('text-sm font-mono truncate', textColors.secondary)}>{resource.resourceId}</span>
                     </div>
                   </td>
@@ -171,7 +171,7 @@ export const CredentialSetupModal = ({
                     {isSelected ? (
                       <span className={cn('text-xs font-medium', statusColors.success.text)}>선택 완료</span>
                     ) : (
-                      <span className={cn('text-xs', textColors.quaternary)}>미선택</span>
+                      <span className={cn('text-xs', textColors.tertiary)}>미선택</span>
                     )}
                   </td>
                 </tr>

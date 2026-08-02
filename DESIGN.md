@@ -143,7 +143,9 @@ The palette has four roles: brand, status, neutral (text/surface/border), and pr
 
 - **`{colors.primary}`** (`#0064FF`) — the only colour authorised to drive primary actions, focus rings, and active states. Every "do this" affordance reads in this blue.
 - **`{colors.primary-hover}`** (`#0050D6`) — the hover/pressed shade. The contrast step is intentionally small; the affordance is the elevation/cursor change, not the colour shift.
-- **`{colors.primary-light}`** (`#E8F1FF`) — used for selected-row backgrounds and information-blue tinted surfaces. Keep the foreground at `{colors.text-primary}`.
+- **`{colors.primary-light}`** (`#E8F1FF`) — selected/hovered rows, badge fills, and information-blue tinted surfaces. It carries two roles, and the foreground rule differs by role:
+  - **As a badge or chip fill** — step tags, numbered markers, a row under hover or focus — the label is `#0050D6` (`primaryColors.textOnLight`). `{colors.primary}` is not available here: `#0064FF` measures 4.33:1 on the tint, under AA for the small text these badges carry, where `#0050D6` gives 5.92:1.
+  - **As a panel surface** — help cards, callouts — the text is neutral, but only down to `{colors.text-secondary}` (9.06:1). `{colors.text-tertiary}` is calibrated against white: it drops from 4.83:1 to 4.25:1 on the tint and fails AA there.
 - **`{colors.primary-accent}`** (`#4F46E5`) — appears only as the right-hand stop of the brand gradient on the top navigation. Do not use it as a standalone fill.
 
 ### Status
@@ -164,6 +166,8 @@ Status colours pair a base value with a darker readable variant. Use the dark va
 ### Neutral
 
 Surfaces, borders, and text together carry most of the page. The progression follows Tailwind's slate ramp at `gray-50 / 100 / 200 / 300 / 400 / 500 / 700 / 900` — don't reach for in-between shades. Five surface levels (white, `surface-secondary`, `surface-tertiary`) and three border weights (`light`, `default`, `strong`) cover every layout pattern this product needs.
+
+The four text tiers are not four ranks of text. `{colors.text-quaternary}` (`#9CA3AF`) measures 2.54:1 on white — under AA's 4.5:1 for text, and under WCAG 1.4.11's 3:1 for a meaningful graphic — so it is reserved for decoration: empty-state glyphs, the icon inside a labelled input, a `·` between meta groups. Anything a reader would miss if it vanished belongs on `{colors.text-tertiary}` (`#6B7280`, 4.83:1 on white, 4.63:1 on gray-50), which is the quietest tier text may use. That includes `—` placeholders in table cells, timestamps, counters, and the unselected half of a toggle — an unselected option is still an operable control, not an inactive one.
 
 `border-emphasis` (`#6B7280`) is the exception, and it is not a fourth layout weight: it exists because `light` / `default` / `strong` all fail WCAG 1.4.11 on light grounds (`strong` manages 1.4:1), so none of them may carry meaning on their own. Use it only where the border *is* the state indicator — the selected page in a paginator, for instance — never to separate.
 

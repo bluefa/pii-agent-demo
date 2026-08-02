@@ -16,7 +16,7 @@ export const getResourceIntegrationStatus = (
 const INTEGRATION_STATUS_TEXT_CLASS: Record<ResourceIntegrationStatus, string> = {
   '연동 완료': statusColors.success.textDark,
   '연동 진행중': statusColors.info.textDark,
-  '—': textColors.quaternary,
+  '—': textColors.tertiary,
 };
 
 export const getIntegrationStatusTextClass = (status: ResourceIntegrationStatus): string =>

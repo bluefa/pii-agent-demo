@@ -139,7 +139,7 @@ export const ConnectionTestPanel = ({
         <p className={cn('text-sm', textColors.tertiary)}>
           설치가 완료되었습니다. DB 연결을 테스트하세요.
         </p>
-        <ol className={cn('text-xs list-decimal list-inside space-y-0.5', textColors.quaternary)}>
+        <ol className={cn('text-xs list-decimal list-inside space-y-0.5', textColors.tertiary)}>
           <li>[연결 테스트 수행] 버튼 클릭</li>
           <li>연결 결과 확인 (성공/실패)</li>
           <li>실패 시 Credential 확인 또는 네트워크 점검</li>

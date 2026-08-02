@@ -20,7 +20,7 @@ export const ResourceResultRow = ({ result }: ResourceResultRowProps) => {
       )} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={cn('text-xs font-medium uppercase', textColors.quaternary)}>{result.agent_id}</span>
+          <span className={cn('text-xs font-medium uppercase', textColors.tertiary)}>{result.agent_id}</span>
           <span className={cn('text-sm font-mono truncate', textColors.secondary)}>{result.resource_id}</span>
         </div>
       </div>

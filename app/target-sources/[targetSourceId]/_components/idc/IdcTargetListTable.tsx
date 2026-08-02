@@ -104,12 +104,12 @@ export const IdcTargetListTable = ({
                     <ReasonChipInline reason={row.exclusionReason} />
                   </button>
                 ) : (
-                  <span className={cn('text-[12px]', textColors.quaternary)}>—</span>
+                  <span className={cn('text-[12px]', textColors.tertiary)}>—</span>
                 )}
               </td>
               {/* "연동 완료 여부" has no API source — render a neutral em-dash when
                   null instead of a fabricated value (B.5). */}
-              <td className={cn('px-4 py-3.5 text-[12.5px]', textColors.quaternary, dim)}>
+              <td className={cn('px-4 py-3.5 text-[12.5px]', textColors.tertiary, dim)}>
                 {row.done ?? '—'}
               </td>
               <td className="px-4 py-3.5">

@@ -32,7 +32,7 @@ export const ResultSummary = ({ job, isShaking, onShowDetail }: ResultSummaryPro
             ? `${successCount}개 성공`
             : `${successCount}개 성공, ${failCount}개 실패`}
           <span className="mx-1.5 opacity-50">·</span>
-          <span className={textColors.quaternary}>{dateStr}</span>
+          <span className={textColors.tertiary}>{dateStr}</span>
         </span>
         <button onClick={onShowDetail} className={TEXT_LINK_CLASS}>
           상세 보기 →
