@@ -1,0 +1,298 @@
+<meta charset="utf-8">
+<title>Step1 Athena — AWS Console Cluster View 3안</title>
+<style>
+  :root{
+    --fg-1:#191F28; --fg-2:#4E5968; --fg-3:#8B95A1; --fg-4:#B0B8C1;
+    --line:#EBEEF2; --line-2:#F2F4F6; --bg:#F7F8FA; --primary:#0064FF;
+    /* Athena 브랜드 — AwsServiceIcon.tsx ATHENA: '#8C4FFF' (레포 실값) */
+    --ath:#8C4FFF; --ath-deep:#5B21B6; --ath-tint:#F6F2FF; --ath-edge:#E3D8FF;
+    --ok:#15803D; --ok-bg:#E8F7EE;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg-1);
+    font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Segoe UI',sans-serif;
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .page{max-width:1240px;margin:0 auto;padding:40px 32px 120px}
+  h1{font-size:28px;font-weight:700;letter-spacing:-0.02em;margin:0 0 8px}
+  .lede{color:var(--fg-2);font-size:15px;margin:0 0 8px;max-width:820px}
+  .note{color:var(--fg-3);font-size:13px;margin:0 0 44px;max-width:900px}
+  .note code{background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
+
+  .sample{margin:0 0 60px}
+  .sh{display:flex;align-items:baseline;gap:12px;margin:0 0 5px}
+  .sn{font-size:12px;font-weight:700;color:var(--fg-4);letter-spacing:.06em}
+  .st{font-size:19px;font-weight:700;letter-spacing:-0.015em}
+  .ss{font-size:11.5px;color:var(--fg-3);border:1px solid var(--line);background:#fff;
+    border-radius:20px;padding:2px 10px;font-weight:600}
+  .sd{color:var(--fg-2);font-size:13.5px;margin:0 0 16px;max-width:900px}
+  .sv{font-size:12.5px;margin:12px 0 0;color:var(--fg-3);max-width:900px}
+  .sv b{color:var(--fg-2)}
+
+  /* ---- table chrome: Step1 실제 값 (idcStyles.table.approval*) ---- */
+  .frame{overflow:hidden;border-radius:12px;border:1px solid var(--line);background:#fff;
+    box-shadow:0 1px 2px rgba(17,24,39,.04),0 6px 16px -8px rgba(17,24,39,.08)}
+  table{width:100%;border-collapse:collapse}
+  thead th{background:#F7F8FA;text-align:left;font-size:12px;font-weight:600;color:var(--fg-2);
+    padding:12px 18px;white-space:nowrap}
+  tbody td{padding:16px 18px;font-size:14px;border-top:1px solid var(--line);vertical-align:middle}
+  .mono{font-family:'SF Mono',ui-monospace,Menlo,monospace;letter-spacing:-0.01em}
+  .nm{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:14px;color:var(--fg-1)}
+  .c2{font-size:12px;color:var(--fg-2)}
+  .c3{font-size:12px;color:var(--fg-3)}
+  .ex td{background:#F9FAFB}
+  .ex .nm,.ex .c2{color:#6B7280}
+  .cb{width:16px;height:16px;border:1.5px solid #B0B8C1;border-radius:4px;display:inline-block;
+    vertical-align:middle;background:#fff}
+  .cb.on{background:var(--primary);border-color:var(--primary);position:relative}
+  .cb.on::after{content:"";position:absolute;left:5px;top:1.5px;width:4px;height:8px;
+    border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .link{color:#B45309;font-size:12px;text-decoration:underline;text-decoration-style:dotted;
+    text-underline-offset:2px}
+
+  /* ---- Athena identity tile (공통) ---- */
+  .tile{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex-shrink:0;
+    background:linear-gradient(140deg,#A46BFF 0%,#6D28D9 100%);color:#fff;
+    box-shadow:0 1px 2px rgba(91,33,182,.28),inset 0 0 0 1px rgba(255,255,255,.18)}
+  .tile svg{width:14px;height:14px}
+  .tile.sm{width:20px;height:20px;border-radius:6px}
+  .tile.sm svg{width:11px;height:11px}
+  .rolechip{display:inline-flex;align-items:center;height:19px;padding:0 7px;border-radius:5px;
+    font-size:10.5px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+  .rolechip.cat{background:#EDE4FF;color:var(--ath-deep)}
+  .rolechip.db{background:#F2F4F6;color:var(--fg-3)}
+  .regchip{display:inline-flex;align-items:center;border:1px solid var(--line);background:#fff;
+    border-radius:6px;padding:1px 7px;font-family:'SF Mono',ui-monospace,monospace;
+    font-size:11.5px;font-weight:600;color:var(--fg-2)}
+  .stat{display:inline-flex;align-items:baseline;gap:4px;font-size:12px;color:var(--fg-2);
+    font-variant-numeric:tabular-nums}
+  .stat b{font-size:13px;font-weight:700;color:var(--fg-1)}
+  .stat.good b{color:var(--ok)}
+  .dot{color:var(--fg-4);margin:0 7px}
+  .caret{width:22px;height:22px;display:inline-grid;place-items:center;border-radius:6px;
+    border:1px solid var(--line);background:#fff;color:var(--fg-2);cursor:pointer;flex-shrink:0;
+    transition:transform .18s}
+  .caret.open{transform:rotate(90deg);border-color:var(--ath-edge);color:var(--ath-deep);
+    background:var(--ath-tint)}
+
+  /* ===== A. 클러스터 행 + 역할 라벨 ===== */
+  .A .prow>td{background:var(--ath-tint);border-top:1px solid var(--ath-edge);
+    border-bottom:1px solid var(--ath-edge)}
+  .A .prow>td:first-child{box-shadow:inset 3px 0 0 var(--ath)}
+  .A .plead{display:flex;align-items:center;gap:10px}
+  .A .ptitle{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .A .pname{font-size:14px;font-weight:700;color:var(--ath-deep);letter-spacing:-0.01em}
+  .A .psub{font-family:'SF Mono',ui-monospace,monospace;font-size:10.5px;color:#8B7BA8}
+  .A .crow>td:first-child{position:relative}
+  .A .crow>td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:#E3D8FF}
+  .A .cname{display:flex;align-items:center;gap:9px;padding-left:34px;position:relative}
+  .A .cname::before{content:"";position:absolute;left:14px;top:50%;width:12px;height:1.5px;
+    background:#DCD3F0}
+  .A .last>td:first-child::before{bottom:50%}
+
+  /* ===== B. 클러스터 패널 ===== */
+  .B .panel{margin:0;border-top:1px solid var(--line)}
+  .B .phead{display:flex;align-items:center;gap:12px;padding:14px 18px;
+    background:linear-gradient(180deg,#FBF9FF 0%,#F4EEFF 100%);
+    border-top:1px solid var(--ath-edge);border-bottom:1px solid var(--ath-edge);
+    box-shadow:inset 3px 0 0 var(--ath)}
+  .B .ptitle{display:flex;flex-direction:column;gap:2px}
+  .B .pname{font-size:15px;font-weight:700;color:var(--ath-deep);letter-spacing:-0.015em;
+    display:flex;align-items:center;gap:8px}
+  .B .psub{font-family:'SF Mono',ui-monospace,monospace;font-size:11px;color:#8B7BA8}
+  .B .pstats{margin-left:auto;display:flex;align-items:center;gap:0}
+  .B .pdiv{width:1px;height:22px;background:var(--ath-edge);margin:0 14px}
+  .B .sublabel{font-size:10px;font-weight:700;letter-spacing:.06em;color:#9A8AB8;
+    text-transform:uppercase;padding:8px 18px 6px 46px;background:#FCFBFF;
+    border-bottom:1px solid #F0EBFA}
+  .B .crow>td{background:#FCFBFF}
+  .B .crow.ex>td{background:#F8F6FC}
+  .B .crow>td:first-child{padding-left:46px;position:relative}
+  .B .crow>td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:#EDE4FF}
+
+  /* ===== C. 역할 컬럼 ===== */
+  .C .prow>td{background:#FBFAFE;border-top:1px solid var(--line)}
+  .C .prow>td:first-child{box-shadow:inset 3px 0 0 var(--ath)}
+  .C .crow>td:first-child{box-shadow:inset 3px 0 0 #EDE4FF}
+  .C .plead{display:flex;align-items:center;gap:10px}
+  .C .pname{font-size:14px;font-weight:700;color:var(--fg-1)}
+  .C .indent{padding-left:22px;display:inline-block}
+  .C .rolecell{white-space:nowrap}
+  .C .barwrap{display:flex;align-items:center;gap:8px}
+  .C .bar{width:64px;height:5px;border-radius:3px;background:#EDE9F5;overflow:hidden}
+  .C .bar i{display:block;height:100%;background:var(--ath)}
+</style>
+
+<div class="page">
+  <h1>Step 1 — Athena를 AWS 콘솔 클러스터 뷰처럼</h1>
+  <p class="lede">
+    현재 구현(회색 밴드 한 줄)은 “그룹이 있다”는 사실만 알릴 뿐, <b>Athena 카탈로그가 하나의 리소스이고 DB는 그 구성요소</b>라는 관계를 전달하지 못합니다.
+    AWS 콘솔의 RDS 클러스터 뷰가 그걸 어떻게 하는지 — 서비스 아이덴티티 타일 · 부모의 2줄 제목 · 자식의 <i>역할 라벨</i> · 연결 레일 — 를 Step 1 컬럼에 적용한 3안입니다.
+  </p>
+  <p class="note">
+    표 크롬은 Step 1 실값 그대로 — <code>idcStyles.table.approvalHeaderCell</code> 12/18 · <code>approvalCell</code> 16/18 · 구분선 <code>#EBEEF2</code> · 이름 mono 14px.
+    새로 들어온 값은 Athena 브랜드색 <code>#8C4FFF</code> 하나뿐이고, 이것도 레포 <code>AwsServiceIcon.tsx</code>에 이미 있는 값입니다.
+    데이터는 실제 캡처(<code>athena:…:ap-northeast-1:AwsDataCatalog/…</code>) 기준입니다.
+  </p>
+  <div id="out"></div>
+</div>
+
+<script>
+const ACCT = '451814760281';
+const ATHENA_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>';
+const CV = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+
+// Step 1 컬럼: [체크박스] Resource Name / Resource ID / Database Type / Region / 설치 구분 / 제외 사유
+const OTHERS = [
+  { n:'raw-e2e-test-mysql-cluster', id:'…ql-cluster-cluster', t:'MySQL', r:'ap-northeast-2', on:true },
+  { n:'e2e-test-mssql', id:'…:db:e2e-test-mssql', t:'SQL Server', r:'ap-northeast-2', on:false },
+];
+const GROUP = {
+  region:'ap-northeast-1', catalog:'AwsDataCatalog',
+  dbs:[
+    { n:'sampledb',      id:'…-1:AwsDataCatalog/sampledb',     on:true },
+    { n:'integration',   id:'…AwsDataCatalog/integration',     on:true },
+    { n:'6lb_fulldump',  id:'…sDataCatalog/6lb_fulldump',      on:true },
+    { n:'test_raw_tmp',  id:'…AwsDataCatalog/test_raw_tmp',    on:false },
+  ],
+};
+const T = GROUP.dbs.filter(d=>d.on).length;
+const X = GROUP.dbs.length - T;
+const ARN = `athena:${ACCT}:${GROUP.region}/${GROUP.catalog}`;
+
+const HEAD = `<thead><tr>
+  <th style="width:44px"></th>
+  <th style="width:26%">Resource Name</th>
+  <th style="width:20%">Resource ID</th>
+  <th style="width:13%">Database Type</th>
+  <th style="width:15%">Region</th>
+  <th style="width:12%">설치 구분</th>
+  <th>제외 사유</th></tr></thead>`;
+
+const otherRow = o => `
+  <tr class="${o.on?'':'ex'}">
+    <td><span class="cb${o.on?' on':''}"></span></td>
+    <td><span class="nm">${o.n}</span></td>
+    <td><span class="mono c2">${o.id}</span></td>
+    <td><span class="c2">${o.t}</span></td>
+    <td><span class="mono c2">${o.r}</span></td>
+    <td><span class="c2">설치 대상</span></td>
+    <td>${o.on?'':'<span class="link">사유 입력</span>'}</td>
+  </tr>`;
+
+const SAMPLES = [
+{
+ n:'A', t:'클러스터 행 + 역할 라벨', s:'RDS Databases 목록',
+ d:'AWS 콘솔이 클러스터를 다루는 바로 그 방식. 부모 행은 <b>아이콘 타일 + 2줄 제목</b>(카탈로그명 / 전체 ARN)을 갖고, 자식은 이름 앞에 <b>역할 칩</b>(Writer/Reader 자리에 “Database”)을 달고 연결 레일로 묶입니다. 부모는 선택 대상이 아니라 체크박스가 없습니다.',
+ v:'<b>관계가 가장 또렷하다.</b> 부모가 “리소스”로 보이고 자식이 “그 구성”으로 보임 — 지금 구현이 못 하던 바로 그 지점. 부모 행이 2줄이라 세로가 늘지만, 그룹당 한 번뿐이라 비용은 낮다.',
+ r:()=>`<div class="frame A"><table>${HEAD}<tbody>
+   ${OTHERS.map(otherRow).join('')}
+   <tr class="prow">
+     <td><span class="caret open">${CV}</span></td>
+     <td><span class="plead">
+       <span class="tile">${ATHENA_SVG}</span>
+       <span class="ptitle">
+         <span class="pname">${GROUP.catalog}</span>
+         <span class="psub">${ARN}</span>
+       </span></span></td>
+     <td><span class="mono c3">—</span></td>
+     <td><span class="c2">Athena</span></td>
+     <td><span class="regchip">${GROUP.region}</span></td>
+     <td><span class="rolechip cat">카탈로그</span></td>
+     <td><span class="stat good"><b>${T}</b> 대상</span><span class="dot">·</span><span class="stat"><b>${X}</b> 제외</span></td>
+   </tr>
+   ${GROUP.dbs.map((d,i)=>`
+     <tr class="crow${d.on?'':' ex'}${i===GROUP.dbs.length-1?' last':''}">
+       <td><span class="cb${d.on?' on':''}" style="margin-left:18px"></span></td>
+       <td><span class="cname">
+         <span class="rolechip db">Database</span>
+         <span class="nm">${d.n}</span></span></td>
+       <td><span class="mono c2">${d.id}</span></td>
+       <td><span class="c2">Athena</span></td>
+       <td><span class="mono c2">${GROUP.region}</span></td>
+       <td><span class="c2">설치 대상</span></td>
+       <td>${d.on?'':'<span class="link">사유 입력</span>'}</td>
+     </tr>`).join('')}
+ </tbody></table></div>`
+},
+{
+ n:'B', t:'클러스터 패널 (상세 뷰 그대로)', s:'RDS 클러스터 상세 페이지',
+ d:'요청하신 “상세 view”를 가장 문자 그대로 옮긴 안. 그룹이 표 안에서 <b>자체 헤더 스트립을 가진 구획</b>으로 승격되고, 우측에 집계 지표가 콘솔의 요약 통계처럼 붙습니다. 자식 구역에는 <b>“DATABASES (4)”</b> 섹션 라벨이 들어갑니다.',
+ v:'<b>가장 화려하고, 가장 무겁다.</b> 그룹 1~2개일 땐 근사하지만 리전이 5개면 화면이 구획으로 잘게 쪼개져 “목록”이 아니라 “보고서”가 된다. 컬럼 정렬은 전체 표와 공유하므로 유지됨.',
+ r:()=>`<div class="frame B"><table>${HEAD}<tbody>
+   ${OTHERS.map(otherRow).join('')}
+   <tr><td colspan="7" style="padding:0;border-top:0">
+     <div class="phead">
+       <span class="caret open">${CV}</span>
+       <span class="tile">${ATHENA_SVG}</span>
+       <span class="ptitle">
+         <span class="pname">${GROUP.catalog}<span class="regchip">${GROUP.region}</span></span>
+         <span class="psub">${ARN}</span>
+       </span>
+       <span class="pstats">
+         <span class="stat good"><b>${T}</b> 대상</span>
+         <span class="pdiv"></span>
+         <span class="stat"><b>${X}</b> 제외</span>
+         <span class="pdiv"></span>
+         <span class="stat"><b>${GROUP.dbs.length}</b> 총 DB</span>
+       </span>
+     </div>
+   </td></tr>
+   <tr><td colspan="7" style="padding:0;border-top:0">
+     <div class="sublabel">Databases (${GROUP.dbs.length})</div>
+   </td></tr>
+   ${GROUP.dbs.map(d=>`
+     <tr class="crow${d.on?'':' ex'}">
+       <td style="padding-left:0"><span class="cb${d.on?' on':''}" style="margin-left:18px"></span></td>
+       <td><span class="nm">${d.n}</span></td>
+       <td><span class="mono c2">${d.id}</span></td>
+       <td><span class="c2">Athena</span></td>
+       <td><span class="mono c2">${GROUP.region}</span></td>
+       <td><span class="c2">설치 대상</span></td>
+       <td>${d.on?'':'<span class="link">사유 입력</span>'}</td>
+     </tr>`).join('')}
+ </tbody></table></div>`
+},
+{
+ n:'C', t:'역할 컬럼 + 진행 바', s:'RDS Role 컬럼',
+ d:'표 구조는 전혀 건드리지 않고, <b>설치 구분 컬럼을 콘솔의 Role 컬럼처럼</b> 씁니다 — 부모는 “카탈로그”, 자식은 “Database”. 부모의 제외 사유 자리에는 선택 비율 바가 들어가 그룹 상태를 한눈에 보여줍니다.',
+ v:'<b>가장 조용하고 가장 싸다.</b> 행 높이·컬럼 폭이 그대로라 Step 2·3·6·7에 그대로 이식됨. 다만 A/B가 주는 “이건 하나의 리소스다”라는 인상은 절반 정도만 나온다.',
+ r:()=>`<div class="frame C"><table>${HEAD}<tbody>
+   ${OTHERS.map(otherRow).join('')}
+   <tr class="prow">
+     <td><span class="caret open">${CV}</span></td>
+     <td><span class="plead">
+       <span class="tile sm">${ATHENA_SVG}</span>
+       <span class="pname">${GROUP.catalog}</span>
+       <span class="regchip">${GROUP.region}</span></span></td>
+     <td><span class="mono c3">${ARN.slice(0,18)}…</span></td>
+     <td><span class="c2">Athena</span></td>
+     <td><span class="mono c2">${GROUP.region}</span></td>
+     <td class="rolecell"><span class="rolechip cat">카탈로그</span></td>
+     <td><span class="barwrap">
+       <span class="bar"><i style="width:${Math.round(T/GROUP.dbs.length*100)}%"></i></span>
+       <span class="stat"><b>${T}</b>/${GROUP.dbs.length} 대상</span></span></td>
+   </tr>
+   ${GROUP.dbs.map(d=>`
+     <tr class="crow${d.on?'':' ex'}">
+       <td><span class="cb${d.on?' on':''}" style="margin-left:18px"></span></td>
+       <td><span class="indent"><span class="nm">${d.n}</span></span></td>
+       <td><span class="mono c2">${d.id}</span></td>
+       <td><span class="c2">Athena</span></td>
+       <td><span class="mono c2">${GROUP.region}</span></td>
+       <td class="rolecell"><span class="rolechip db">Database</span></td>
+       <td>${d.on?'':'<span class="link">사유 입력</span>'}</td>
+     </tr>`).join('')}
+ </tbody></table></div>`
+},
+];
+
+document.getElementById('out').innerHTML = SAMPLES.map(s=>`
+  <section class="sample">
+    <div class="sh"><span class="sn">${s.n}</span><span class="st">${s.t}</span><span class="ss">${s.s}</span></div>
+    <p class="sd">${s.d}</p>
+    ${s.r()}
+    <p class="sv">${s.v}</p>
+  </section>`).join('');
+</script>
