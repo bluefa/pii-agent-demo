@@ -2,7 +2,7 @@
 
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
-import { cn, statusColors, textColors } from '@/lib/theme';
+import { cn, textColors, textStyles } from '@/lib/theme';
 import { AZURE_GUIDE_URLS, AZURE_NETWORKING_MODE_LABELS } from '@/lib/constants/azure';
 import type { RecommendFailReason } from '@/lib/types';
 
@@ -15,7 +15,7 @@ interface InstallIneligibleGuideModalProps {
 }
 
 interface Guide {
-  /** What the scan found, in the user's words. */
+  /** What the scan found — the modal's subtitle, so it stays one sentence. */
   cause: string;
   /** Background that makes the cause actionable. Omitted where we would be guessing. */
   detail?: string;
@@ -48,12 +48,12 @@ const UNKNOWN_GUIDE: Guide = {
   cause: '네트워크 구성 제약으로 Agent를 설치할 수 없는 리소스예요.',
 };
 
-const WarningIcon = () => (
-  <svg className={cn('w-5 h-5', statusColors.warning.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-  </svg>
-);
+const DEFAULT_REMEDY = '설치 가능한 구성으로 변경하려면 우측 협업 채널로 문의해 주세요.';
 
+/**
+ * 읽기 전용 안내라 확인 모달과 같은 뼈대로 세운다 — 제목 + 부제 + 본문 + 닫기.
+ * 본문 안에 카드를 두지 않는다: 강조는 보조 텍스트 안의 굵기로만 준다.
+ */
 export const InstallIneligibleGuideModal = ({
   isOpen,
   onClose,
@@ -66,36 +66,28 @@ export const InstallIneligibleGuideModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      chrome="toss"
+      size="lg"
       title="설치 불가 사유"
-      size="md"
+      subtitle={guide.cause}
       footer={<Button variant="secondary" onClick={onClose}>닫기</Button>}
     >
-      <div className="space-y-4">
-        {/* 경고 아이콘 + 리소스 ID */}
-        <div className={cn('flex items-center gap-3 px-3 py-2.5 rounded-lg', statusColors.warning.bg)}>
-          <WarningIcon />
-          <span className={cn('text-sm font-mono break-all', textColors.tertiary)}>{resourceId}</span>
-        </div>
+      <div className={cn('flex flex-col gap-3', textStyles.body)}>
+        <p className={cn('font-mono break-all', textColors.tertiary)}>{resourceId}</p>
 
-        {/* 원인 설명 */}
-        <div className="space-y-2">
-          <p className={cn('text-sm leading-relaxed', textColors.primary)}>{guide.cause}</p>
-          {guide.detail && (
-            <p className={cn('text-sm leading-relaxed', textColors.tertiary)}>{guide.detail}</p>
-          )}
-        </div>
+        {guide.detail && <p className={textColors.secondary}>{guide.detail}</p>}
 
-        {/* 해결 방법 — 없으면 사람에게 넘긴다 */}
-        <div className={cn('p-3 rounded-lg border', statusColors.info.bg, statusColors.info.border)}>
-          <p className={cn('text-sm font-medium mb-1', statusColors.info.textDark)}>해결 방법</p>
-          <p className={cn('text-sm', textColors.secondary)}>
-            {guide.remedy ?? '설치 가능한 구성으로 변경하려면 우측 협업 채널로 문의해 주세요.'}
-          </p>
-        </div>
+        <p className={textColors.secondary}>
+          <strong className={cn('font-semibold', textColors.primary)}>해결 방법</strong>
+          {' · '}
+          {guide.remedy ?? DEFAULT_REMEDY}
+        </p>
 
         {/* 사유 코드 — 담당자와 같은 말로 검색할 수 있게 원문 그대로 남긴다. */}
         {recommendFailReason && (
-          <p className={cn('text-xs font-mono break-all', textColors.tertiary)}>{recommendFailReason}</p>
+          <p className={cn(textStyles.caption, 'font-mono break-all', textColors.tertiary)}>
+            {recommendFailReason}
+          </p>
         )}
 
         {guide.doc && (
@@ -103,11 +95,8 @@ export const InstallIneligibleGuideModal = ({
             href={guide.doc.href}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn('inline-flex items-center gap-1.5 text-sm font-medium', statusColors.info.text, 'hover:underline')}
+            className={cn('self-start font-semibold underline underline-offset-2', textColors.secondary)}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
             {guide.doc.label}
           </a>
         )}

@@ -201,6 +201,56 @@ export const mockProjects: Project[] = [
     updatedAt: '2026-02-01T09:00:00Z',
     isRejected: false,
   },
+  {
+    // Step 1 carrying both GCP reason codes. The 설치 불가 guide opens only from this
+    // step and every other GCP fixture is already past it, so without this project the
+    // guide has no reachable case. Separate from 1002, which mock-gcp locks in as the
+    // resource-less GCP project.
+    id: 'gcp-proj-2',
+    targetSourceId: 1017,
+    projectCode: 'GCP-002',
+    name: 'GCP PII Agent - 대상 선택 (설치 불가 포함)',
+    description: '연동 대상 2건, 설치 불가 2건 (공인 IP / 내부 LB 서브넷)',
+    serviceCode: 'gcp',
+    cloudProvider: 'GCP',
+    gcpProjectId: 'pii-agent-prod-12345',
+    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    resources: [
+      {
+        id: 'gcp-res-1', type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-001',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: true,
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: 'gcp-res-2', type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-prod-002',
+        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'TARGET',
+      },
+      {
+        id: 'gcp-res-3', type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-pubip-003',
+        databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'INSTALL_INELIGIBLE',
+        recommendFailReason: 'GCP_CLOUD_SQL_HAS_PUBLIC_IP',
+      },
+      {
+        id: 'gcp-res-4', type: 'GCP_SQL',
+        resourceId: 'projects/pii-agent-prod-12345/instances/cloudsql-ilb-004',
+        databaseType: 'POSTGRESQL', connectionStatus: 'PENDING', isSelected: false,
+        integrationCategory: 'INSTALL_INELIGIBLE',
+        recommendFailReason: 'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
+      },
+    ],
+    terraformState: {
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-02-01T09:00:00Z',
+    updatedAt: '2026-02-01T09:00:00Z',
+    isRejected: false,
+  },
   // ===== Azure 프로젝트 =====
   {
     id: 'azure-proj-1',
