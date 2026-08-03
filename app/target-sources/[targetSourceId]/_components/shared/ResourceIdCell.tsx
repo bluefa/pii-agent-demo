@@ -38,13 +38,19 @@ export const ResourceIdCell = ({
       {/* Truncates from the RIGHT, like the Resource Name cell next to it (`truncate`):
           one abbreviation grammar per table — `Prefix…` — instead of an id that starts
           with `…` while the name beside it ends with one (owner call). The full value
-          is one hover away, and the copy button hands over the exact string. */}
-      <span className="block min-w-0 truncate text-left">
-        {/* Styling lives HERE, on the node that owns the text, so class assertions and
-            the truncation box do not fight over one element. */}
-        <span className={cn('font-mono text-[12px]', textClassName ?? textColors.secondary)}>
-          {value}
-        </span>
+          is one hover away, and the copy button hands over the exact string.
+
+          The truncation box and the text are ONE element on purpose: the browser draws
+          the ellipsis in the box's own font and colour, so a wrapper around a styled
+          child rendered `/subscriptions/34 ..` — an inherited 14px grey `…` detached
+          from the mono id it belongs to. */}
+      <span
+        className={cn(
+          'block min-w-0 truncate text-left font-mono text-[12px]',
+          textClassName ?? textColors.secondary,
+        )}
+      >
+        {value}
       </span>
     </Tooltip>
     <CopyButton
