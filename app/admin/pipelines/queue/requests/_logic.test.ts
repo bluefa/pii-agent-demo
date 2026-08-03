@@ -16,6 +16,8 @@ const row = (over: Partial<RequestResourceRow> = {}): RequestResourceRow => ({
   resourceName: null,
   selected: true,
   exclusionReason: null,
+  integrationCategory: null,
+  recommendFailReason: null,
   databaseType: 'Oracle',
   region: null,
   idcKind: 'IP',

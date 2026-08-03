@@ -144,16 +144,30 @@ const locationOf = (item: ApprovalResourceItem): string => {
  * WaitingApprovalCard.toResourceRow, plus the category fallback this modal has
  * always applied to a 비대상 row that carries no explicit reason.
  */
-const toResourceRow = (item: ApprovalResourceItem): WaitingApprovalResource => ({
-  resourceId: item.resource_id ?? '',
-  resourceType: item.resource_type ?? item.metadata?.database_type ?? '',
-  region: locationOf(item),
-  resourceName: item.resource_name ?? '',
-  selected: item.selected ?? false,
-  displayDbType: item.metadata?.database_type ?? item.resource_type ?? undefined,
-  exclusionReason:
-    item.exclusion_reason || CATEGORY_LABEL[item.integration_category ?? ''] || undefined,
-});
+const toResourceRow = (item: ApprovalResourceItem): WaitingApprovalResource => {
+  // `idc_host_format` (IP | HOST) is the wire's own IDC marker — present only on an IDC
+  // resource, so it settles the provider without the modal being told which one it serves.
+  const isIdc = item.metadata?.idc_host_format != null;
+  return {
+    // An IDC resource_id is an internal NLB-PUT key (design-spec §8). The queue's tab
+    // blanks it for this very table; this modal feeds the same one.
+    resourceId: isIdc ? '' : item.resource_id ?? '',
+    // …it still keys the row, since blanked ids would collide with each other.
+    rowKey: item.resource_id ?? undefined,
+    resourceType: item.resource_type ?? item.metadata?.database_type ?? '',
+    region: locationOf(item),
+    // An IDC row carries no scan-assigned name; its endpoint is its identity.
+    resourceName: item.resource_name ?? (isIdc ? locationOf(item) : ''),
+    selected: item.selected ?? false,
+    displayDbType: item.metadata?.database_type ?? item.resource_type ?? undefined,
+    exclusionReason:
+      item.exclusion_reason || CATEGORY_LABEL[item.integration_category ?? ''] || undefined,
+    // The scan's INSTALL_INELIGIBLE verdict is not a user's exclusion — the table reads
+    // this to render 연동 불가 instead of a revisable 제외 pill.
+    integrationCategory: item.integration_category ?? undefined,
+    recommendFailReason: item.recommend_fail_reason ?? undefined,
+  };
+};
 
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 

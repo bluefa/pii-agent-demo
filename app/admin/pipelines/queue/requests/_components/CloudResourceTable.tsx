@@ -85,7 +85,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     triggerClassName="block min-w-0 max-w-[360px]"
                     truncatedOnly
                   >
-                    <span className="block truncate">{row.resourceName}</span>
+                    <span className="block truncate">{row.resourceName || '—'}</span>
                   </Tooltip>
                 </td>
                 <td className={table.approvalCell}>
