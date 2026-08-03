@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { Modal } from '@/app/components/ui/Modal';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { SCAN_ERROR_LABELS, SCAN_STATUS_LABELS } from '@/app/components/features/scan/scan-labels';
 import { getScanHistory } from '@/app/lib/api/scan';
-import { cn, idcStyles, textColors } from '@/lib/theme';
+import { borderColors, cn, idcStyles, textColors } from '@/lib/theme';
 import { formatDate } from '@/lib/utils/date';
 import type { AsyncState } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state';
 import type { z } from 'zod';
@@ -13,9 +14,23 @@ import type { schemas } from '@/lib/generated/install-v1';
 
 type ScanJob = z.infer<typeof schemas.ScanJobResponse>;
 
-// 계약은 페이지네이션(PageScanJobResponse)을 제공하지만 v1은 최근 1페이지만
-// 보여준다 — 이력은 "요즘 왜 실패하지"를 답하는 창이지 아카이브 뷰가 아니다.
-const HISTORY_PAGE_SIZE = 10;
+/** 서버 페이지네이션(PageScanJobResponse) 그대로 — 오래된 스캔도 끝까지 볼 수 있다. */
+const DEFAULT_PAGE_SIZE = 10;
+
+/** 이력 페이지 — 목록과 전체 건수(페이저가 쓰는 값)는 같은 응답에서 온다. */
+interface HistoryPage {
+  jobs: ScanJob[];
+  total: number;
+}
+
+// 카드 없는 목록 — 모달 본문이 이미 여백을 가지므로 바깥 열의 좌우 인셋만 걷어내고
+// (first/last), 열 사이 간격은 승인 테이블과 같은 18px 를 그대로 쓴다.
+const HEAD_CELL = cn(
+  idcStyles.table.approvalHeaderCell,
+  'first:pl-0 last:pr-0 text-left text-[12px] font-semibold',
+  textColors.secondary,
+);
+const BODY_CELL = cn(idcStyles.table.approvalCell, 'first:pl-0 last:pr-0');
 
 interface ScanHistoryModalProps {
   targetSourceId: number;
@@ -48,16 +63,21 @@ const resultText = (job: ScanJob): string => {
 
 /** 스캔 이력 모달 — GET /scan/history 그대로: 시각 · 상태 · 소요 · 결과. */
 export const ScanHistoryModal = ({ targetSourceId, onClose }: ScanHistoryModalProps) => {
-  const [state, setState] = useState<AsyncState<ScanJob[]>>({ status: 'loading' });
+  const [state, setState] = useState<AsyncState<HistoryPage>>({ status: 'loading' });
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [retryNonce, setRetryNonce] = useState(0);
 
   // setState only inside the promise callbacks (WaitingApprovalCard's fetch
   // pattern) — the effect body itself stays setState-free.
   useEffect(() => {
     let cancelled = false;
-    void getScanHistory(targetSourceId, 0, HISTORY_PAGE_SIZE)
-      .then((page) => {
-        if (!cancelled) setState({ status: 'ready', data: page.content ?? [] });
+    void getScanHistory(targetSourceId, page, pageSize)
+      .then((result) => {
+        const jobs = result.content ?? [];
+        if (!cancelled) {
+          setState({ status: 'ready', data: { jobs, total: result.totalElements ?? jobs.length } });
+        }
       })
       .catch(() => {
         if (!cancelled) setState({ status: 'error', message: '스캔 이력을 불러오지 못했어요.' });
@@ -65,7 +85,7 @@ export const ScanHistoryModal = ({ targetSourceId, onClose }: ScanHistoryModalPr
     return () => {
       cancelled = true;
     };
-  }, [targetSourceId, retryNonce]);
+  }, [targetSourceId, page, pageSize, retryNonce]);
 
   const retry = () => {
     setState({ status: 'loading' });
@@ -99,45 +119,59 @@ export const ScanHistoryModal = ({ targetSourceId, onClose }: ScanHistoryModalPr
         </div>
       )}
 
-      {state.status === 'ready' && state.data.length === 0 && (
+      {state.status === 'ready' && state.data.total === 0 && (
         <p className={cn('py-8 text-center text-sm', textColors.tertiary)}>
           아직 실행된 스캔이 없어요.
         </p>
       )}
 
-      {state.status === 'ready' && state.data.length > 0 && (
-        <div className={idcStyles.table.frame}>
-          <table className="w-full">
-            <thead className={idcStyles.table.approvalHeader}>
-              <tr className="whitespace-nowrap">
-                <th className={idcStyles.table.approvalHeaderCell}>실행 시각</th>
-                <th className={idcStyles.table.approvalHeaderCell}>상태</th>
-                <th className={idcStyles.table.approvalHeaderCell}>소요</th>
-                <th className={idcStyles.table.approvalHeaderCell}>결과</th>
+      {/* 프레임(테두리·그림자) 없는 목록 — 모달 안에 카드를 한 겹 더 세우지 않고
+          헤더 한 줄 아래로 행이 쭉 이어진다. */}
+      {state.status === 'ready' && state.data.total > 0 && (
+        <>
+          {/* 마지막 행 아래 1px — 페이저 바(border-t-0)가 닫힌 상자로 읽히게 하는 윗변. */}
+          <table className={cn('w-full border-b', borderColors.default)}>
+            <thead>
+              <tr className={cn('whitespace-nowrap border-b', borderColors.default)}>
+                <th className={HEAD_CELL}>실행 시각</th>
+                <th className={HEAD_CELL}>상태</th>
+                <th className={HEAD_CELL}>소요</th>
+                <th className={HEAD_CELL}>결과</th>
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
-              {state.data.map((job, index) => (
+              {state.data.jobs.map((job, index) => (
                 <tr key={job.id ?? index}>
-                  <td className={cn(idcStyles.table.approvalCell, 'whitespace-nowrap text-[13px]', textColors.secondary)}>
+                  <td className={cn(BODY_CELL, 'whitespace-nowrap text-[13px]', textColors.secondary)}>
                     {job.created_at ? formatDate(job.created_at, 'datetime') : ''}
                   </td>
-                  <td className={idcStyles.table.approvalCell}>
+                  <td className={BODY_CELL}>
                     <span className={cn(idcStyles.tag.base, statusTagClass(job.scan_status))}>
                       {job.scan_status ? (SCAN_STATUS_LABELS[job.scan_status] ?? job.scan_status) : ''}
                     </span>
                   </td>
-                  <td className={cn(idcStyles.table.approvalCell, 'whitespace-nowrap font-mono text-[12px]', textColors.secondary)}>
+                  <td className={cn(BODY_CELL, 'whitespace-nowrap font-mono text-[12px]', textColors.secondary)}>
                     {typeof job.duration_seconds === 'number' ? `${Math.round(job.duration_seconds)}초` : ''}
                   </td>
-                  <td className={cn(idcStyles.table.approvalCell, 'text-[13px]', textColors.secondary)}>
+                  <td className={cn(BODY_CELL, 'text-[13px]', textColors.secondary)}>
                     {resultText(job)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={state.data.total}
+            onPageChange={setPage}
+            onPageSizeChange={(next) => {
+              setPageSize(next);
+              setPage(0);
+            }}
+            pageSizeOptions={[10, 20, 50]}
+          />
+        </>
       )}
     </Modal>
   );

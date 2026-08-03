@@ -126,7 +126,8 @@ describe('ScanStrip funnel row', () => {
     expect(screen.getByText('107,873')).toBeTruthy();
     expect(screen.getByText('스캔이 조회한 전체 리소스')).toBeTruthy();
     expect(screen.getByText('12')).toBeTruthy();
-    expect(screen.getByText('+3')).toBeTruthy();
+    // 연동 가능 DB 는 개수만 말한다 — 직전 스캔 대비 증감(+3)은 노출하지 않는다.
+    expect(screen.queryByText('+3')).toBeNull();
     expect(screen.getByText('5')).toBeTruthy();
     expect(screen.getByText('7')).toBeTruthy();
   });

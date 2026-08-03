@@ -67,8 +67,9 @@ const GHOST_BUTTON = buttonStyles.ghostText;
 const CELL_BASE = 'min-w-0 px-4 py-3 text-center';
 
 /**
- * One funnel cell — label over number, delta beside it, one quiet line under,
- * all centred on the cell's axis. Equal-width cells put the numbers on a shared
+ * One funnel cell — label over number, one quiet line under, all centred on the
+ * cell's axis. No change-since-last-scan delta: step 1 asks "얼마나 붙일 수 있나",
+ * and a `+9` next to that count answers a question nobody asked (owner call). Equal-width cells put the numbers on a shared
  * vertical line, which is the point: comparison needs alignment first (admin
  * scan-tab lesson). Weight stays medium like the admin resource tiles — size
  * and colour already carry the hierarchy, so bold here only adds noise
@@ -81,7 +82,6 @@ const CELL_BASE = 'min-w-0 px-4 py-3 text-center';
 const FunnelCell = ({
   label,
   value,
-  delta,
   sub,
   subWarn = false,
   emphasis = false,
@@ -90,7 +90,6 @@ const FunnelCell = ({
 }: {
   label: string;
   value: number | null;
-  delta?: number;
   sub?: string;
   subWarn?: boolean;
   emphasis?: boolean;
@@ -116,11 +115,6 @@ const FunnelCell = ({
         >
           {value === null ? '—' : value.toLocaleString()}
         </span>
-        {delta !== undefined && delta > 0 && (
-          <span className={cn('text-[12.5px] font-bold tabular-nums', statusColors.success.textDark)}>
-            +{delta.toLocaleString()}
-          </span>
-        )}
       </p>
       {/* Reserved line — the warning text appears and disappears with the data,
           and a cell that changes height on every re-select reads as a glitch. */}
@@ -201,7 +195,9 @@ export const ScanStrip = ({
     if (scannedAt) metaParts.push(formatDate(scannedAt, 'datetime'));
     if (succeeded) {
       if (typeof job.duration_seconds === 'number') metaParts.push(`${Math.round(job.duration_seconds)}초 소요`);
-      // 발견 수·신규는 깔때기 셀이 가져간다 — 같은 숫자를 두 곳에서 세지 않는다.
+      // 깔때기가 서면 발견 수는 그 셀이 가져간다(같은 숫자를 두 곳에서 세지 않는다).
+      // 신규 건수도 그때는 노출하지 않는다 — 깔때기 화면에서 뺀 표기를 아래 줄로
+      // 되돌리면 같은 것을 자리만 옮긴 셈이 된다.
       if (!showFunnel) {
         metaParts.push(`${foundCount}개 발견`);
         if (newCount > 0) metaParts.push(`신규 ${newCount}`);
@@ -232,7 +228,6 @@ export const ScanStrip = ({
           <FunnelCell
             label="연동 가능 DB"
             value={funnel.eligible}
-            delta={newCount}
             sub="아래 표에 보이는 대상"
             emphasis
           />
