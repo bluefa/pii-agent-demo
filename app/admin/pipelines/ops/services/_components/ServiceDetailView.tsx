@@ -12,11 +12,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { passRoutes } from '@/lib/routes';
 import { fmtDateTime } from '@/lib/pipeline/format';
+import { JiraLogo } from '@/app/admin/pipelines/_components/brandMarks';
+import { Card } from '@/app/admin/pipelines/_components/Card';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
+import {
+  PlChevCell,
+  PlRow,
+  PlTable,
+  PlTd,
+} from '@/app/admin/pipelines/_components/PlTable';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -32,18 +40,25 @@ import {
   type OpsTargetSourceListItem,
 } from '@/app/lib/api/ops';
 
-const TS_COLUMNS = ['ID', 'Provider', '계정', 'DB', '현재 단계', '마지막 변경'] as const;
+const TS_COLUMNS = ['ID', 'Provider', '계정', '현재 단계', '마지막 변경'] as const;
+/** 섹션 제목 — 18px 마크 + 8px + 제목(Figma Heading 2). */
+const sectionHead = 'flex items-center gap-2 mb-3';
+const PAGE_SIZE = 10;
 
 /**
- * Step 1 리소스 테이블 문법(idcStyles.table.approval*)을 운영 콘솔 토큰으로 옮긴 것 —
- * 채운 헤더 밴드 + 18/12 · 18/16 셀. 계정 셀이 2줄이라 기본 ops 테이블(12/10)에서는
- * 행이 붙어 보인다.
+ * JiraTicketResponse 에는 티켓 URL 이 없다(issueKey 만 온다) — 계약이 url 을 싣기 전까지
+ * 브라우즈 주소는 여기서 조립한다. 배포 환경이 다르면 env 로 덮는다.
  */
-const resTable = {
-  head: 'bg-[var(--pl-gray-50)] px-[18px] py-3 text-left text-[12px] font-semibold text-[var(--pl-text-medium)] whitespace-nowrap',
-  cell: 'px-[18px] py-4 align-middle text-[var(--pl-text-strong)]',
-  body: 'divide-y divide-[var(--pl-gray-100)]',
-} as const;
+const JIRA_BROWSE_BASE = process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? 'https://jira.example.com/browse';
+
+/**
+ * 머리글 셀 — PlTh(=table.th) 와 같은 밴드지만 대문자 변환만 뺐다. 시안의 머리글은
+ * "Provider", "계정" 처럼 원문 그대로고, 한글에는 대문자가 없어 한 표 안에서 영문 열만
+ * 커진다. PlTh 에 클래스로 덮으면 uppercase 와 같은 속성끼리 캐스케이드 싸움이 되므로
+ * 아예 th 를 직접 쓴다.
+ */
+const TH =
+  'text-left h-[34px] px-3 text-[12px] font-semibold text-[var(--pl-text-weak)] bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)] whitespace-nowrap';
 
 /**
  * Jira 타일 — provider 5개는 열이 2개뿐인 표를 채우기엔 너무 짧고, 서로 비교할 값도
@@ -51,14 +66,17 @@ const resTable = {
  * 표의 1/3 높이에 들어간다.
  */
 const tileStyles = {
-  /* 748 = 244*3 + 8*2. 폭을 묶지 않으면 3열이 화면 폭을 따라 늘어나 타일 하나가 400px
-     이 되고, 표를 걷어낸 이유(휑함)가 그대로 돌아온다. */
+  /* 748 = 244*3 + 8*2 (Figma Row1). 폭을 묶지 않으면 3열이 화면 폭을 따라 늘어나 타일
+     하나가 400px 이 되고, 표를 걷어낸 이유(휑함)가 그대로 돌아온다. */
   grid: 'grid grid-cols-3 gap-2 max-w-[748px]',
-  base: 'flex items-start justify-between gap-2 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3.5',
-  value: 'mt-1 block text-[13px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)]',
-  empty: 'mt-1 block text-[13px] text-[var(--pl-text-weak)]',
+  base: 'flex items-center gap-2 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3.5',
+  name: 'block text-[12px] font-medium text-[var(--pl-text-medium)]',
+  /** 티켓 키 — 12 mono/600, primary, 밑줄. ↗ 까지 밑줄이 이어지도록 inline 한 덩어리. */
+  value:
+    'mt-1 block truncate text-[12px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-primary)] underline underline-offset-2 hover:opacity-80',
+  empty: 'mt-1 block text-[11px] font-medium text-[var(--pl-text-faint)]',
   kebab:
-    'flex-none -mr-1.5 -mt-1 grid h-7 w-7 place-items-center rounded-md text-[var(--pl-text-faint)] cursor-pointer hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]',
+    'flex-none -mr-1.5 grid h-7 w-7 place-items-center rounded-md text-[var(--pl-text-faint)] cursor-pointer hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]',
 } as const;
 
 /** 운영중 / EOS — ok vs err tones (목록과 같은 문법). */
@@ -128,6 +146,8 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
   const [failed, setFailed] = useState(false);
   const [eosOpen, setEosOpen] = useState(false);
   const [jiraTarget, setJiraTarget] = useState<JiraCloudProvider | null>(null);
+  // 목록은 한 번에 다 온다(assumed 계약에 page 파라미터가 없다) — 자르는 건 화면 몫.
+  const [page, setPage] = useState(1);
 
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -176,9 +196,12 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
   }
 
   const { breadcrumb, section, text } = pipelineStyles;
-  const { table } = opsStyles;
   const isEos = detail.status === 'EOS';
   const targetCount = detail.target_sources.length;
+  const pages = Math.max(1, Math.ceil(targetCount / PAGE_SIZE));
+  // 다시 읽어 대상이 줄면 마지막 페이지 밖에 머물 수 있다 — 빈 표 대신 마지막 장으로.
+  const current = Math.min(page, pages);
+  const pageRows = detail.target_sources.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
   const ticketOf = (provider: JiraCloudProvider): JiraTicket | undefined =>
     tickets.find((ticket) => ticket.cloudProvider.toUpperCase() === provider);
 
@@ -226,110 +249,94 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
       </div>
 
       {/* First section sits 24px under the header (design override of the 64px default). */}
-      <h2 className={cn(text.sectionTitle, 'mt-6 mb-3')}>Target Source 목록</h2>
-      <section className={pipelineStyles.card.base} aria-label="Target Source 목록">
-        <div className={pipelineStyles.card.tableWrap}>
-          <table className={table.base}>
-            <thead>
-              <tr>
-                {TS_COLUMNS.map((column) => (
-                  <th key={column} className={resTable.head}>
-                    {column}
-                  </th>
-                ))}
-                <th className={cn(resTable.head, 'w-10')} aria-label="이동" />
-              </tr>
-            </thead>
-            <tbody className={resTable.body}>
-              {targetCount === 0 ? (
-                <tr>
-                  <td colSpan={TS_COLUMNS.length + 1}>
-                    <p className={pipelineStyles.empty.base}>등록된 Target Source가 없습니다.</p>
-                  </td>
-                </tr>
-              ) : (
-                detail.target_sources.map((target) => {
-                  const href = passRoutes.pipelines.ops.targetSource(target.target_source_id);
-                  return (
-                    // Mouse convenience only — the #id/chev anchors are the accessible
-                    // (keyboard, new-tab) control, so the row keeps no role.
-                    <tr
-                      key={target.target_source_id}
-                      className={cn(table.rowHover, 'cursor-pointer')}
-                      onClick={(event) => {
-                        if (event.target instanceof HTMLElement && event.target.closest('a')) return;
-                        router.push(href);
-                      }}
-                    >
-                      <td className={resTable.cell}>
-                        <Link
-                          href={href}
-                          className={cn(text.mono, 'font-semibold hover:underline')}
-                        >
-                          #{target.target_source_id}
-                        </Link>
-                      </td>
-                      <td className={resTable.cell}>
-                        <ProvTag provider={target.cloud_provider} isSdu={target.is_sdu_type} />
-                      </td>
-                      <td className={resTable.cell}>
-                        <AccountCell target={target} />
-                      </td>
-                      <td className={resTable.cell}>
-                        {target.database_type ? (
-                          <span
-                            className={cn(
-                              opsStyles.statusTag,
-                              'bg-[var(--pl-tag-blue-bg)] text-[var(--pl-tag-blue-text)]',
-                            )}
-                          >
-                            {getDatabaseShortLabel(target.database_type)}
-                          </span>
-                        ) : (
-                          <span className={text.muted}>—</span>
-                        )}
-                      </td>
-                      <td className={resTable.cell}>
-                        <StepPill status={target.process_status} />
-                      </td>
-                      <td className={cn(resTable.cell, 'whitespace-nowrap')}>
-                        <span className={text.muted}>{fmtDateTime(target.last_changed_at)}</span>
-                      </td>
-                      <td className={cn(resTable.cell, 'text-right')}>
-                        <Link
-                          href={href}
-                          aria-label={`Target Source #${target.target_source_id} 운영 상세로 이동`}
-                          className="inline-flex text-[var(--pl-text-faint)] hover:text-[var(--pl-primary)]"
-                        >
-                          <Icon name="chev-r" size="sm" />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <h2 className={cn(text.sectionTitle, sectionHead, 'mt-6')}>
+        <Icon name="table" size={18} className="text-[var(--pl-text-weak)]" />
+        Target Source 목록
+      </h2>
+      <Card>
+        <PlTable
+          head={
+            <>
+              {TS_COLUMNS.map((column) => (
+                <th key={column} className={TH}>
+                  {column}
+                </th>
+              ))}
+              <th className={cn(TH, 'w-12')} aria-label="이동" />
+            </>
+          }
+        >
+          {targetCount === 0 ? (
+            <tr>
+              <td colSpan={TS_COLUMNS.length + 1}>
+                <p className={pipelineStyles.empty.base}>등록된 Target Source가 없습니다.</p>
+              </td>
+            </tr>
+          ) : (
+            pageRows.map((target) => (
+              <PlRow
+                key={target.target_source_id}
+                onActivate={() =>
+                  router.push(passRoutes.pipelines.ops.targetSource(target.target_source_id))
+                }
+              >
+                <PlTd mono className="font-semibold">
+                  #{target.target_source_id}
+                </PlTd>
+                <PlTd>
+                  <ProvTag provider={target.cloud_provider} isSdu={target.is_sdu_type} />
+                </PlTd>
+                <PlTd>
+                  <AccountCell target={target} />
+                </PlTd>
+                <PlTd>
+                  <StepPill status={target.process_status} />
+                </PlTd>
+                <PlTd muted className="whitespace-nowrap">
+                  {fmtDateTime(target.last_changed_at)}
+                </PlTd>
+                <PlChevCell title={`Target Source #${target.target_source_id} 운영 상세로 이동`} />
+              </PlRow>
+            ))
+          )}
+        </PlTable>
+        {/* 대상이 1건이어도 자리를 지킨다 — 목록의 끝이 어디인지, 뒤에 더 있는지를
+            표 자체가 말해야 한다(Step 1 리소스 표와 같은 규칙). */}
+        <PlPagination
+          page={current}
+          pages={pages}
+          onPrev={() => setPage(Math.max(1, current - 1))}
+          onNext={() => setPage(Math.min(pages, current + 1))}
+        />
+      </Card>
 
-      <h2 className={section.title}>Jira Ticket 연결</h2>
+      {/* 시안 간격: 표 아래 32px (기본 64 는 두 섹션을 다른 페이지처럼 갈라 놓는다). */}
+      <h2 className={cn(text.sectionTitle, sectionHead, 'mt-8')}>
+        <JiraLogo />
+        Jira Ticket 연결
+      </h2>
       <p className={section.desc}>
         CloudProvider 마다 Jira 티켓을 1건씩 연결합니다. 연결·해제는 이 서비스와 티켓의 연결
         정보만 바꾸며, <b className="font-semibold text-[var(--pl-text-medium)]">Jira 의 티켓을
         만들거나 삭제하지 않습니다.</b>
       </p>
-      <section className={cn(tileStyles.grid, 'mt-3')} aria-label="Jira Ticket 연결">
+      <section className={tileStyles.grid} aria-label="Jira Ticket 연결">
         {JIRA_CLOUD_PROVIDERS.map((provider) => {
           const ticket = ticketOf(provider);
           return (
             <div key={provider} className={tileStyles.base}>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <ProvTag provider={provider} />
                 {ticket ? (
-                  <span className={cn(tileStyles.value, 'truncate')} title={ticket.issueKey}>
-                    {ticket.issueKey}
-                  </span>
+                  <a
+                    href={`${JIRA_BROWSE_BASE}/${encodeURIComponent(ticket.issueKey)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={tileStyles.value}
+                    title={`${ticket.issueKey} — Jira 에서 열기`}
+                  >
+                    {ticket.issueKey} ↗
+                  </a>
                 ) : (
                   <span className={tileStyles.empty}>연결된 티켓 없음</span>
                 )}

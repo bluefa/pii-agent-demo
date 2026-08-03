@@ -21,6 +21,27 @@ export function TerraformLogo({ size = 16 }: { size?: number } = {}): ReactEleme
   );
 }
 
+/**
+ * Jira logomark — the diamond of chevrons, Atlassian blue. Simplified from the
+ * brand asset: the gradient "wings" are flattened to one lighter tone, which is
+ * all that survives at 18px anyway. Artwork, not UI text — hence the raw hex.
+ */
+export function JiraLogo({ size = 18 }: { size?: number } = {}): ReactElement {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      {/* evenodd — the centre diamond is a hole, not a second solid. */}
+      <path
+        fill="#2684FF"
+        fillRule="evenodd"
+        d="M30.7 15.2 16.8 1.3 15.4 0 4.9 10.5.1 15.2a1.1 1.1 0 0 0 0 1.6l9.6 9.6L15.4 32l10.5-10.5 3.2-3.2 1.6-1.5a1.1 1.1 0 0 0 0-1.6zM15.4 21.2l-4.9-4.8 4.9-4.9 4.9 4.9z"
+      />
+      {/* Brand asset's gradient "wings" dropped: at 18px they close over the centre
+          notch, and the notch is the only thing that separates the mark from a plain
+          blue diamond. */}
+    </svg>
+  );
+}
+
 /** Simplified provider logomark + its tile tooltip; null → text-chip fallback. */
 export function providerLogo(provider: CloudProvider): { title: string; svg: ReactElement } | null {
   switch (provider) {

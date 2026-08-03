@@ -44,7 +44,8 @@ export type IconName =
   | 'clipboard-check'
   | 'link'
   | 'shield-check'
-  | 'dots-v';
+  | 'dots-v'
+  | 'table';
 
 export type IconSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -201,6 +202,13 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
     <>
       <path d="M12 3.5 18.5 6v5.2c0 4.3-2.6 7.3-6.5 9.3-3.9-2-6.5-5-6.5-9.3V6Z" />
       <path d="m9.2 11.8 2.1 2.1 3.9-4.2" />
+    </>
+  ),
+  /* Rows in a frame — the 목록 section marker. */
+  table: (
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <path d="M3 9.5h18M3 14.5h18" />
     </>
   ),
   /* Kebab — filled dots, so it stays legible at 16px where a stroked ring would not. */

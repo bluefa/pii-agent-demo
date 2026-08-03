@@ -22,9 +22,9 @@ export function ProcessCard({ status }: ProcessCardProps): ReactElement {
       <p className={cn(pipelineStyles.text.meta, 'mt-3')}>
         현재{' '}
         <strong className="font-bold text-[var(--pl-text-medium)]">
-          Step {step.n} · {step.label}
+          {step.n}단계 · {step.label}
         </strong>{' '}
-        단계입니다.
+        입니다.
       </p>
     </section>
   );
