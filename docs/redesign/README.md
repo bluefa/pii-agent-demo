@@ -16,6 +16,7 @@ Documents may be written in Korean (this README must stay English — repo rule)
 | Step 3 · applying approved (`/pass/target-sources/{id}`) | [`step3-applying-approved.md`](step3-applying-approved.md) | shipped |
 | Text scale & spacing tokens | [`typography-and-spacing.md`](typography-and-spacing.md) | shipped (Step 4 applied) |
 | Admin · scan tab (`/pass/admin/pipelines/ops/target-sources/{id}?tab=scan`) | [`admin-scan-tab.md`](admin-scan-tab.md) | shipped (feat/admin-scan-tab · codex-gated) |
+| Admin · 운영 알림 (`/pass/admin/pipelines/ops/alerts`) | [`admin-alerts-cards.md`](admin-alerts-cards.md) | shipped (feat/alerts-stage-cards · Figma `1:123`) |
 
 Step 3 (`ApplyingApprovedCard`) shares the toolbar, table and pagination with Step 2, so the Step 2
 document also covers part of what changed there. Step 3's own pass then deleted every control that

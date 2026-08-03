@@ -39,7 +39,11 @@ export type IconName =
   | 'loader'
   | 'calendar'
   | 'info'
-  | 'copy';
+  | 'copy'
+  | 'refresh'
+  | 'clipboard-check'
+  | 'link'
+  | 'shield-check';
 
 export type IconSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -169,6 +173,33 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
     <>
       <rect x="3.5" y="5" width="17" height="15" rx="2" />
       <path d="M3.5 9.5h17M8 3v3M16 3v3" />
+    </>
+  ),
+  // 운영 알림 (ZL0Y0okL8lReCrbf7JaVAp 1:123) — the four bucket glyphs plus the
+  // refresh mark the prototype had omitted.
+  refresh: (
+    <>
+      <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6" />
+      <path d="M20.5 4.5V10H15" />
+    </>
+  ),
+  'clipboard-check': (
+    <>
+      <rect x="5" y="4.5" width="14" height="16" rx="2" />
+      <path d="M9 4.5V3h6v1.5" />
+      <path d="m9.2 12.8 2.3 2.3 4.3-4.6" />
+    </>
+  ),
+  link: (
+    <>
+      <path d="M10 13.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1" />
+      <path d="M14 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1" />
+    </>
+  ),
+  'shield-check': (
+    <>
+      <path d="M12 3.5 18.5 6v5.2c0 4.3-2.6 7.3-6.5 9.3-3.9-2-6.5-5-6.5-9.3V6Z" />
+      <path d="m9.2 11.8 2.1 2.1 3.9-4.2" />
     </>
   ),
 };

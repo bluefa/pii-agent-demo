@@ -10,9 +10,9 @@ import type { ReactElement } from 'react';
 import type { CloudProvider } from '@/lib/pipeline/types';
 
 /** Terraform logomark — three isometric blocks, brand purple (artwork, not UI text). */
-export function TerraformLogo(): ReactElement {
+export function TerraformLogo({ size = 16 }: { size?: number } = {}): ReactElement {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--pl-brand-tf)" aria-hidden="true" focusable="false">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="var(--pl-brand-tf)" aria-hidden="true" focusable="false">
       <path d="M8.7 4.3 15 7.9v7.2L8.7 11.5Z" />
       <path d="M15.8 8.4 22 4.8v7.2l-6.2 3.6Z" opacity=".75" />
       <path d="M2 8.2l6 3.4v7L2 15.2Z" opacity=".55" />
