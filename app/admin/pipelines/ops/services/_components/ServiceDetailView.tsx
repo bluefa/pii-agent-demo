@@ -11,20 +11,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { cn, idcStyles, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { fmtDateTime } from '@/lib/pipeline/format';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { JiraLogo } from '@/app/admin/pipelines/_components/brandMarks';
-import { Card } from '@/app/admin/pipelines/_components/Card';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
-import {
-  PlChevCell,
-  PlRow,
-  PlTable,
-  PlTd,
-} from '@/app/admin/pipelines/_components/PlTable';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -52,13 +45,16 @@ const PAGE_SIZE = 10;
 const JIRA_BROWSE_BASE = process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? 'https://jira.example.com/browse';
 
 /**
- * 머리글 셀 — PlTh(=table.th) 와 같은 밴드지만 대문자 변환만 뺐다. 시안의 머리글은
- * "Provider", "계정" 처럼 원문 그대로고, 한글에는 대문자가 없어 한 표 안에서 영문 열만
- * 커진다. PlTh 에 클래스로 덮으면 uppercase 와 같은 속성끼리 캐스케이드 싸움이 되므로
- * 아예 th 를 직접 쓴다.
+ * Step 1 리소스 표(idcStyles.table.approval*)를 그대로 쓰고, 이 화면에만 필요한 것만
+ * 얹는다. frame 은 Pagination 마감 바가 아래 테두리·라운드를 맡으므로 위쪽 반쪽만
+ * 그린다 — Step 1 에서 툴바가 하던 역할을 여기선 표 머리가 한다.
  */
-const TH =
-  'text-left h-[34px] px-3 text-[12px] font-semibold text-[var(--pl-text-weak)] bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)] whitespace-nowrap';
+const tsTable = {
+  frame: 'overflow-hidden rounded-t-[10px] border border-b-0 border-[#E5E7EB] bg-white',
+  id: 'text-[13px] font-semibold [font-family:var(--pl-font-mono)] text-[#191F28] whitespace-nowrap',
+  time: 'text-[14px] text-[#8B95A1] whitespace-nowrap',
+  go: 'inline-flex text-[#3182F6] hover:opacity-70',
+} as const;
 
 /**
  * Jira 타일 — provider 5개는 열이 2개뿐인 표를 채우기엔 너무 짧고, 서로 비교할 값도
@@ -147,7 +143,9 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
   const [eosOpen, setEosOpen] = useState(false);
   const [jiraTarget, setJiraTarget] = useState<JiraCloudProvider | null>(null);
   // 목록은 한 번에 다 온다(assumed 계약에 page 파라미터가 없다) — 자르는 건 화면 몫.
-  const [page, setPage] = useState(1);
+  // Pagination 은 0-based.
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -198,10 +196,9 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
   const { breadcrumb, section, text } = pipelineStyles;
   const isEos = detail.status === 'EOS';
   const targetCount = detail.target_sources.length;
-  const pages = Math.max(1, Math.ceil(targetCount / PAGE_SIZE));
   // 다시 읽어 대상이 줄면 마지막 페이지 밖에 머물 수 있다 — 빈 표 대신 마지막 장으로.
-  const current = Math.min(page, pages);
-  const pageRows = detail.target_sources.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+  const safePage = Math.min(page, Math.max(0, Math.ceil(targetCount / pageSize) - 1));
+  const pageRows = detail.target_sources.slice(safePage * pageSize, (safePage + 1) * pageSize);
   const ticketOf = (provider: JiraCloudProvider): JiraTicket | undefined =>
     tickets.find((ticket) => ticket.cloudProvider.toUpperCase() === provider);
 
@@ -253,62 +250,83 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
         <Icon name="table" size={18} className="text-[var(--pl-text-weak)]" />
         Target Source 목록
       </h2>
-      <Card>
-        <PlTable
-          head={
-            <>
-              {TS_COLUMNS.map((column) => (
-                <th key={column} className={TH}>
-                  {column}
-                </th>
-              ))}
-              <th className={cn(TH, 'w-12')} aria-label="이동" />
-            </>
-          }
-        >
-          {targetCount === 0 ? (
-            <tr>
-              <td colSpan={TS_COLUMNS.length + 1}>
-                <p className={pipelineStyles.empty.base}>등록된 Target Source가 없습니다.</p>
-              </td>
-            </tr>
-          ) : (
-            pageRows.map((target) => (
-              <PlRow
-                key={target.target_source_id}
-                onActivate={() =>
-                  router.push(passRoutes.pipelines.ops.targetSource(target.target_source_id))
-                }
-              >
-                <PlTd mono className="font-semibold">
-                  #{target.target_source_id}
-                </PlTd>
-                <PlTd>
-                  <ProvTag provider={target.cloud_provider} isSdu={target.is_sdu_type} />
-                </PlTd>
-                <PlTd>
-                  <AccountCell target={target} />
-                </PlTd>
-                <PlTd>
-                  <StepPill status={target.process_status} />
-                </PlTd>
-                <PlTd muted className="whitespace-nowrap">
-                  {fmtDateTime(target.last_changed_at)}
-                </PlTd>
-                <PlChevCell title={`Target Source #${target.target_source_id} 운영 상세로 이동`} />
-              </PlRow>
-            ))
-          )}
-        </PlTable>
-        {/* 대상이 1건이어도 자리를 지킨다 — 목록의 끝이 어디인지, 뒤에 더 있는지를
-            표 자체가 말해야 한다(Step 1 리소스 표와 같은 규칙). */}
-        <PlPagination
-          page={current}
-          pages={pages}
-          onPrev={() => setPage(Math.max(1, current - 1))}
-          onNext={() => setPage(Math.min(pages, current + 1))}
+      {/* Step 1 리소스 표 스택 그대로: 무카드 · 표 세그먼트(상단 라운드) + Pagination
+          마감 바(하단 라운드). 카드에 넣으면 카드 패딩이 표를 안쪽으로 밀어 머리글
+          밴드가 컨테이너에서 떨어지고, 페이저도 표에 붙지 못한다. */}
+      <div>
+        <div className={tsTable.frame}>
+          <table className="w-full">
+            <thead className={idcStyles.table.approvalHeader}>
+              <tr className="whitespace-nowrap">
+                {TS_COLUMNS.map((column) => (
+                  <th key={column} className={idcStyles.table.approvalHeaderCell}>
+                    {column}
+                  </th>
+                ))}
+                <th className={cn(idcStyles.table.approvalHeaderCell, 'w-12')} aria-label="이동" />
+              </tr>
+            </thead>
+            <tbody className={idcStyles.table.body}>
+              {targetCount === 0 ? (
+                <tr>
+                  <td colSpan={TS_COLUMNS.length + 1} className={idcStyles.table.approvalCell}>
+                    <p className={pipelineStyles.empty.base}>등록된 Target Source가 없습니다.</p>
+                  </td>
+                </tr>
+              ) : (
+                pageRows.map((target) => {
+                  const href = passRoutes.pipelines.ops.targetSource(target.target_source_id);
+                  return (
+                    <tr
+                      key={target.target_source_id}
+                      className={cn(idcStyles.table.row, 'cursor-pointer')}
+                      onClick={(event) => {
+                        if (event.target instanceof HTMLElement && event.target.closest('a')) return;
+                        router.push(href);
+                      }}
+                    >
+                      <td className={cn(idcStyles.table.approvalCell, tsTable.id)}>
+                        #{target.target_source_id}
+                      </td>
+                      <td className={idcStyles.table.approvalCell}>
+                        <ProvTag provider={target.cloud_provider} isSdu={target.is_sdu_type} />
+                      </td>
+                      <td className={idcStyles.table.approvalCell}>
+                        <AccountCell target={target} />
+                      </td>
+                      <td className={idcStyles.table.approvalCell}>
+                        <StepPill status={target.process_status} />
+                      </td>
+                      <td className={cn(idcStyles.table.approvalCell, tsTable.time)}>
+                        {fmtDateTime(target.last_changed_at)}
+                      </td>
+                      <td className={cn(idcStyles.table.approvalCell, 'text-right')}>
+                        <Link
+                          href={href}
+                          aria-label={`Target Source #${target.target_source_id} 운영 상세로 이동`}
+                          className={tsTable.go}
+                        >
+                          <Icon name="arrow-ur" size="sm" strokeWidth={2.75} />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        <Pagination
+          page={safePage}
+          pageSize={pageSize}
+          totalCount={targetCount}
+          onPageChange={setPage}
+          onPageSizeChange={(next) => {
+            setPageSize(next);
+            setPage(0);
+          }}
         />
-      </Card>
+      </div>
 
       {/* 시안 간격: 표 아래 32px (기본 64 는 두 섹션을 다른 페이지처럼 갈라 놓는다). */}
       <h2 className={cn(text.sectionTitle, sectionHead, 'mt-8')}>
