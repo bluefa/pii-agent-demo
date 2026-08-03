@@ -133,7 +133,8 @@ export function AlertsView(): ReactElement {
             <strong className={alertsView.contextTotal}>{total}</strong>개 있어요
           </p>
         </div>
-        <PlButton variant="secondary" onClick={reload} className="gap-2">
+        {/* 새로고침은 상시 노출 도구 CTA — 회색 chrome 대신 브랜드 스트로크(outline)로 낮춘다. */}
+        <PlButton variant="outline" onClick={reload} className="gap-2">
           <Icon name="refresh" size="md" />
           새로고침
         </PlButton>
