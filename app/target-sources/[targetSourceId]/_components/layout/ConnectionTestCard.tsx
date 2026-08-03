@@ -29,6 +29,7 @@ import { CloudReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_co
 // make a wide row scannable. Admin's request tables already borrow these for the same reason.
 import {
   CELL_LIFT,
+  CONNECTED_FRAME,
   NAME_LIFT,
   ROW_BASE,
   ROW_TARGET,
@@ -317,8 +318,15 @@ export const ConnectionTestCard = ({
             {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
           </p>
         )}
-        <div className={idcStyles.table.frame}>
-          <div className="overflow-x-auto">
+        {/* Table + pagination are ONE stack, exactly as steps 2·3 and 6·7 compose them: the
+            table itself carries no border or shadow, and the pagination bar below supplies the
+            only stroke and the bottom radius. The framed `table.frame` this used to sit in drew
+            a second box inside the card — a card inside a card, at a heavier weight than any
+            border on those steps.
+            Those steps cap the stack with the filter toolbar (top-rounded, #F7F8FA); this step
+            has no filters, so the header row — same fill — is the cap and takes the radius. */}
+        <div>
+          <div className={cn(CONNECTED_FRAME, 'rounded-t-[12px] overflow-x-auto')}>
             <table className="w-full">
               <thead className={idcStyles.table.approvalHeader}>
                 {/* Steps 1·2·3 order, verbatim: identity (name → id) → attributes (type ·
@@ -516,17 +524,17 @@ export const ConnectionTestCard = ({
               </tbody>
             </table>
           </div>
+          {total > 0 && (
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              totalCount={total}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[10, 20, 50, 100]}
+            />
+          )}
         </div>
-        {total > 0 && (
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            totalCount={total}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-            pageSizeOptions={[10, 20, 50, 100]}
-          />
-        )}
         <CloudReqApprovalModal
           isOpen={approvalOpen}
           onClose={() => setApprovalOpen(false)}
