@@ -74,6 +74,14 @@ export const saveCollaborationChannel = (
 
 /* ── 운영 콘솔 목록/서비스 (assumed §5–6) ── */
 
+/** CSP 계정 식별자 — provider 마다 채워지는 필드가 다르고, IDC·SDU 는 전부 null. */
+export interface OpsTargetSourceAccount {
+  aws_account_id: string | null;
+  aws_region_type: 'global' | 'china' | null;
+  subscription_id: string | null;
+  gcp_project_id: string | null;
+}
+
 export interface OpsTargetSourceListItem {
   target_source_id: number;
   service_code: string;
@@ -83,6 +91,7 @@ export interface OpsTargetSourceListItem {
   database_type: string | null;
   process_status: BffProcessStatus;
   last_changed_at: string;
+  metadata: OpsTargetSourceAccount;
 }
 
 export interface OpsTargetSourceListPage {
@@ -91,15 +100,6 @@ export interface OpsTargetSourceListPage {
   size: number;
   number: number;
   content: OpsTargetSourceListItem[];
-}
-
-export type OpsJiraTicketStatus = 'TO_DO' | 'IN_PROGRESS' | 'DONE';
-
-export interface OpsJiraTicket {
-  ticket_key: string;
-  summary: string;
-  status: OpsJiraTicketStatus;
-  users: string[];
 }
 
 export interface OpsServiceSummary {
@@ -116,7 +116,6 @@ export interface OpsServiceDetail {
   service_name: string;
   owner: string;
   status: 'OPERATING' | 'EOS';
-  jira_tickets: OpsJiraTicket[];
   target_sources: OpsTargetSourceListItem[];
 }
 
@@ -145,12 +144,40 @@ export const requestServiceEos = (
     body: { force },
   });
 
-export const addJiraTicketUser = (
+/* ── Jira Ticket 연결 — REAL contract (docs/api/jira-tickets.md §1) ── */
+
+/** Jira ticket 연결 키. 서비스 1건은 provider 마다 티켓을 최대 1개 갖는다. */
+export const JIRA_CLOUD_PROVIDERS = ['AWS', 'GCP', 'AZURE', 'IDC', 'SDU'] as const;
+export type JiraCloudProvider = (typeof JIRA_CLOUD_PROVIDERS)[number];
+
+/** JiraTicketResponse — 이 도메인만 camel wire (install-v1). */
+export interface JiraTicket {
+  id: number;
+  targetSourceId: number;
+  serviceCode: string;
+  issueKey: string;
+  cloudProvider: string;
+}
+
+export const getServiceJiraTickets = (serviceCode: string): Promise<JiraTicket[]> =>
+  fetchInfraJson<JiraTicket[]>(`/services/${encodeURIComponent(serviceCode)}/jira-tickets`);
+
+/** 이미 존재하는 Jira 티켓을 이 서비스·provider 에 매핑한다. 티켓을 만들지 않는다. */
+export const attachJiraTicket = (
   serviceCode: string,
-  ticketKey: string,
-  userId: string,
-): Promise<OpsJiraTicket> =>
+  cloudProvider: JiraCloudProvider,
+  issueKey: string,
+): Promise<void> =>
   fetchInfraJson(
-    `/admin/ops/services/${encodeURIComponent(serviceCode)}/jira-tickets/${encodeURIComponent(ticketKey)}/users`,
-    { method: 'POST', body: { user_id: userId } },
+    `/services/${encodeURIComponent(serviceCode)}/jira-tickets/${cloudProvider}`,
+    { method: 'POST', body: { issueKey } },
   );
+
+/** 매핑만 끊는다 — Jira 의 티켓은 삭제되지 않는다. 응답은 끊긴 issueKey. */
+export const detachJiraTicket = (
+  serviceCode: string,
+  cloudProvider: JiraCloudProvider,
+): Promise<{ issueKey: string }> =>
+  fetchInfraJson(`/services/${encodeURIComponent(serviceCode)}/jira-tickets/${cloudProvider}`, {
+    method: 'DELETE',
+  });

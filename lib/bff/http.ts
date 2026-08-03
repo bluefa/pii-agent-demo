@@ -265,6 +265,15 @@ export const httpBff: BffClient = {
     permissions: {
       list: (serviceCode) => getSnakeRaw(`/services/${serviceCode}/authorized-users`),
     },
+    // JiraTicketResponse is a camel wire like the target-source one — raw
+    // passthrough, route parses. detach unmaps only; the Jira issue survives.
+    jiraTickets: {
+      list: (serviceCode) => getSnakeRaw(`/services/${enc(serviceCode)}/jira-tickets`),
+      attach: (serviceCode, cloudProvider, issueKey) =>
+        post(`/services/${enc(serviceCode)}/jira-tickets/${enc(cloudProvider)}`, { issueKey }),
+      detach: (serviceCode, cloudProvider) =>
+        send('DELETE', `/services/${enc(serviceCode)}/jira-tickets/${enc(cloudProvider)}`),
+    },
   },
 
   // SCAN: raw snake passthrough — routes validate with schemas.X.parse(raw).
@@ -305,11 +314,6 @@ export const httpBff: BffClient = {
     getService: (code) => getSnakeRaw(`/admin/ops/services/${encodeURIComponent(code)}`),
     postServiceEos: (code, force) =>
       post(`/admin/ops/services/${encodeURIComponent(code)}/eos`, { force }),
-    postJiraUser: (code, ticketKey, userId) =>
-      post(
-        `/admin/ops/services/${encodeURIComponent(code)}/jira-tickets/${encodeURIComponent(ticketKey)}/users`,
-        { user_id: userId },
-      ),
   },
 
   // Azure responses are raw snake passthrough — the route validates with

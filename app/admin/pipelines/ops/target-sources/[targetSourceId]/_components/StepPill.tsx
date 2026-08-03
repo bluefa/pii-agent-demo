@@ -1,5 +1,5 @@
 /**
- * StepPill — "Step n · label" dot pill for process statuses (Figma 4:91 grammar).
+ * StepPill — "n단계 · label" dot pill for process statuses (Figma 4:91 grammar).
  * Tone maps the Figma per-step hues onto semantic tokens: waiting states read
  * warn, in-flight states read primary, terminal reads ok, initial reads off.
  */
@@ -38,7 +38,7 @@ export function StepPill({ status, className }: StepPillProps): ReactElement {
   return (
     <span className={cn(pill.base, pill.md, tone.pill, className)}>
       <span className={cn('h-1.5 w-1.5 rounded-full flex-none', tone.dot)} aria-hidden />
-      Step {step.n} · {step.label}
+      {step.n}단계 · {step.label}
     </span>
   );
 }
