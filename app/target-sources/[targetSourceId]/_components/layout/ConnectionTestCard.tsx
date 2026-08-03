@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { cardStyles, cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
+import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { useModal } from '@/app/hooks/useModal';
@@ -21,9 +22,17 @@ import {
 import type { TestConnectionStatus } from '@/app/lib/api';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { IdcCredSelectCell } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
-import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import { CloudReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudReqApprovalModal';
+// This table shows the SAME resources steps 1·2·3 just showed, so it reads in their grammar
+// rather than the db-list one: identity first, one line per cell, and the row-hover lifts that
+// make a wide row scannable. Admin's request tables already borrow these for the same reason.
+import {
+  CELL_LIFT,
+  NAME_LIFT,
+  ROW_BASE,
+  ROW_TARGET,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { needsCredential } from '@/lib/types';
 import { resultUnitId } from '@/lib/resource-grouping';
@@ -36,6 +45,10 @@ interface LogicalModalTarget {
 // Local credential edits — the confirmed list from the BFF seeds these, and Run Test
 // persists any change via updateResourceCredential before triggering the async test.
 type CredMap = Record<string, string>;
+
+// Both copied from the steps 1·2·3 table so the two read as one surface.
+const MONO_CELL = 'whitespace-nowrap font-mono text-[12px]';
+const PLACEHOLDER = '—';
 
 const seedCreds = (confirmed: readonly ConfirmedResource[]): CredMap =>
   Object.fromEntries(confirmed.map((r) => [r.resourceId, r.credentialId ?? '']));
@@ -305,164 +318,204 @@ export const ConnectionTestCard = ({
           </p>
         )}
         <div className={idcStyles.table.frame}>
-          <table className="w-full">
-            <thead className={idcStyles.table.header}>
-              <tr>
-                <th className={idcStyles.table.headerCell}>Database Type</th>
-                <th className={idcStyles.table.headerCell}>Resource ID</th>
-                <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Region</th>
-                <th className={cn(idcStyles.table.headerCell, 'w-[180px]')}>Resource Name</th>
-                <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>DB Credential</th>
-                <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Connection Status</th>
-                <th className={cn(idcStyles.table.headerCell, 'w-[100px]')}>논리 DB 확인</th>
-              </tr>
-            </thead>
-            <tbody className={idcStyles.table.body}>
-              {pageRows.map((unit) => {
-                const cred = unitCred(unit);
-                const status = statusByResource[unit.unitId];
-                const connected = rowConnected(unit);
-                const credRequired = requiresCredential(unit.databaseType);
-                const [first] = unit.members;
-                const open = expanded.has(unit.unitId);
-                const rowsId = `conn-unit-${unit.unitId}`;
-                return (
-                  <Fragment key={unit.unitId}>
-                  <tr
-                    className={cn(idcStyles.table.row, unit.folded && 'cursor-pointer')}
-                    onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
-                  >
-                    <td className={idcStyles.table.cell}>
-                      {unit.databaseType ? (
-                        <span className={cn('text-[12px]', textColors.secondary)}>
-                          {getDatabaseShortLabel(unit.databaseType)}
-                        </span>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                    <td className={idcStyles.table.cell}>
-                      <ResourceIdCell value={unit.unitId} label="Resource ID" />
-                    </td>
-                    <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary)}>
-                      {unit.region ?? '-'}
-                    </td>
-                    {/* A region has no resource name, so a folded row spends this cell on the
-                        disclosure instead: opening it lists the databases underneath, in the
-                        column their names belong to. They are reference only — nothing on this
-                        step is done per database — so the group starts closed. */}
-                    <td
-                      className={cn(
-                        idcStyles.table.cell,
-                        'font-mono text-[12px]',
-                        textColors.secondary,
-                        unit.folded && open && idcStyles.table.group.parentCellSm,
-                      )}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className={idcStyles.table.approvalHeader}>
+                {/* Steps 1·2·3 order, verbatim: identity (name → id) → attributes (type ·
+                    region) → what this step asks of the row. A user arrives here having read
+                    the same rows three times already; leading with Database Type made them
+                    re-find the anchor they had been scanning by. */}
+                {/* Resource ID is the one column steps 1·2·3 carry that this step drops. Seven
+                    columns at the approval table's 18px gutters want 1160px in a 948px card, so
+                    one had to go, and this is the only one nothing here is decided by: the row is
+                    already named, typed and located by the three columns around it, while every
+                    other column is either that anchor or an action. Step 4 drops the same class of
+                    column for the same reason. */}
+                <tr className="whitespace-nowrap">
+                  <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
+                  <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
+                  <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                  <th className={idcStyles.table.approvalHeaderCell}>DB Credential</th>
+                  <th className={idcStyles.table.approvalHeaderCell}>Connection Status</th>
+                  <th className={idcStyles.table.approvalHeaderCell}>논리 DB 확인</th>
+                </tr>
+              </thead>
+              <tbody className={idcStyles.table.body}>
+                {pageRows.map((unit) => {
+                  const cred = unitCred(unit);
+                  const status = statusByResource[unit.unitId];
+                  const connected = rowConnected(unit);
+                  const credRequired = requiresCredential(unit.databaseType);
+                  const [first] = unit.members;
+                  const open = expanded.has(unit.unitId);
+                  return (
+                    <Fragment key={unit.unitId}>
+                    <tr
+                      className={cn(ROW_BASE, ROW_TARGET, unit.folded && 'cursor-pointer')}
+                      onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
                     >
-                      {unit.folded ? (
-                        <button
-                          type="button"
-                          aria-expanded={open}
-                          aria-controls={rowsId}
-                          aria-label={`${unit.region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            toggleUnit(unit.unitId);
-                          }}
-                          className={cn(
-                            idcStyles.table.group.toggle,
-                            open
-                              ? idcStyles.table.group.toggleOpen
-                              : idcStyles.table.group.toggleClosed,
-                            primaryColors.focusRing,
-                          )}
-                        >
-                          <ChevronRightIcon className="h-3.5 w-3.5" />
-                        </button>
-                      ) : (
-                        (first.resourceName ?? '-')
-                      )}
-                    </td>
-                    <td className={idcStyles.table.cell}>
-                      {credRequired ? (
-                        <IdcCredSelectCell
-                          value={cred}
-                          onChange={(next) => handleCredChange(first.resourceId, next)}
-                          options={credOptions}
-                        />
-                      ) : (
-                        <span className={cn('text-[12px]', textColors.tertiary)}>불필요</span>
-                      )}
-                    </td>
-                    <td className={idcStyles.table.cell}>
-                      {credRequired && !cred ? (
-                        <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>
-                      ) : status === 'SUCCESS' ? (
-                        <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
-                      ) : status === 'FAIL' ? (
-                        <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>Fail</span>
-                      ) : status === 'RUNNING' ? (
-                        <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Running</span>
-                      ) : (
-                        <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
-                      )}
-                    </td>
-                    {/* Athena is IAM-based and has no logical-DB management at all, so a folded
-                        region row has nothing to configure — the button used to open anyway
-                        (it was gated on `connected` alone) onto a screen for a concept that
-                        does not exist here. DynamoDB shares the trait but has no region fold to
-                        key off; it is tracked in LIN-86 with the rest of that rule. */}
-                    <td className={idcStyles.table.cell}>
-                      {unit.folded ? (
-                        <span className={cn('text-[12px]', textColors.tertiary)}>설정 불필요</span>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={!connected}
-                          onClick={() =>
-                            logicalModal.open({
-                              resourceId: first.resourceId,
-                              resourceName: first.resourceName ?? first.resourceId,
-                            })
-                          }
-                          className={idcStyles.triggerBtn.ghostSm}
-                        >
-                          설정
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                  {/* Database list. Only the name — the region row above already answers
-                      everything else, and none of it varies per database. */}
-                  {unit.folded &&
-                    open &&
-                    unit.members.map((db, index) => (
-                      <tr key={db.resourceId} id={rowsId}>
-                        <td className={idcStyles.table.cell} />
-                        <td className={idcStyles.table.cell} />
-                        <td className={idcStyles.table.cell} />
-                        <td
-                          className={cn(
-                            idcStyles.table.cell,
-                            'font-mono text-[12px]',
-                            textColors.secondary,
-                            idcStyles.table.group.childCellSm,
-                            index === unit.members.length - 1 &&
-                              idcStyles.table.group.childCellLast,
-                          )}
-                        >
-                          {db.resourceName ?? db.resourceId}
-                        </td>
-                        <td className={idcStyles.table.cell} />
-                        <td className={idcStyles.table.cell} />
-                        <td className={idcStyles.table.cell} />
-                      </tr>
-                    ))}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                      {/* A folded row stands for a REGION, which has no resource name, so this
+                          cell carries the disclosure and the group's label — the same identity
+                          cluster steps 1·2·3 put on a group parent. Opening it lists the
+                          databases below, in the column their names belong to. */}
+                      <td
+                        className={cn(
+                          idcStyles.table.approvalCell,
+                          unit.folded
+                            ? open && idcStyles.table.group.parentCell
+                            : cn('font-mono text-[14px]', textColors.primary, NAME_LIFT),
+                        )}
+                      >
+                        {unit.folded ? (
+                          <span className={idcStyles.table.group.lead}>
+                            <button
+                              type="button"
+                              aria-expanded={open}
+                              aria-label={`${unit.region ?? ''} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleUnit(unit.unitId);
+                              }}
+                              className={cn(
+                                idcStyles.table.group.toggle,
+                                open
+                                  ? idcStyles.table.group.toggleOpen
+                                  : idcStyles.table.group.toggleClosed,
+                                primaryColors.focusRing,
+                              )}
+                            >
+                              <ChevronRightIcon className="h-3.5 w-3.5" />
+                            </button>
+                            <span className={idcStyles.table.group.label}>
+                              {getDatabaseShortLabel(unit.databaseType ?? '')}
+                            </span>
+                          </span>
+                        ) : (
+                          // One line, always — the widest names here ran to four lines and left
+                          // row heights ragged. Full value in the tip, as on steps 1·2·3.
+                          <Tooltip
+                            content={
+                              <IdentifierTip label="Resource Name" value={first.resourceName ?? ''} />
+                            }
+                            variant="value"
+                            size="md"
+                            triggerClassName="min-w-0 max-w-[200px] block"
+                            truncatedOnly
+                          >
+                            <span className="block truncate">
+                              {first.resourceName || PLACEHOLDER}
+                            </span>
+                          </Tooltip>
+                        )}
+                      </td>
+                      <td
+                        className={cn(
+                          idcStyles.table.approvalCell,
+                          'text-[12px]',
+                          textColors.secondary,
+                          CELL_LIFT,
+                        )}
+                      >
+                        {unit.databaseType ? getDatabaseShortLabel(unit.databaseType) : PLACEHOLDER}
+                      </td>
+                      <td
+                        className={cn(
+                          idcStyles.table.approvalCell,
+                          MONO_CELL,
+                          textColors.secondary,
+                          CELL_LIFT,
+                        )}
+                      >
+                        {unit.region || PLACEHOLDER}
+                      </td>
+                      <td className={idcStyles.table.approvalCell}>
+                        {credRequired ? (
+                          <IdcCredSelectCell
+                            value={cred}
+                            onChange={(next) => handleCredChange(first.resourceId, next)}
+                            options={credOptions}
+                          />
+                        ) : (
+                          <span
+                            className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
+                          >
+                            불필요
+                          </span>
+                        )}
+                      </td>
+                      <td className={idcStyles.table.approvalCell}>
+                        {credRequired && !cred ? (
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>
+                        ) : status === 'SUCCESS' ? (
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
+                        ) : status === 'FAIL' ? (
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>Fail</span>
+                        ) : status === 'RUNNING' ? (
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Running</span>
+                        ) : (
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
+                        )}
+                      </td>
+                      {/* Athena is IAM-based and has no logical-DB management at all, so a folded
+                          region row has nothing to configure — the button used to open anyway
+                          (it was gated on `connected` alone) onto a screen for a concept that
+                          does not exist here. DynamoDB shares the trait but has no region fold to
+                          key off; it is tracked in LIN-86 with the rest of that rule. */}
+                      <td className={idcStyles.table.approvalCell}>
+                        {unit.folded ? (
+                          <span
+                            className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
+                          >
+                            설정 불필요
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!connected}
+                            onClick={() =>
+                              logicalModal.open({
+                                resourceId: first.resourceId,
+                                resourceName: first.resourceName ?? first.resourceId,
+                              })
+                            }
+                            className={cn(idcStyles.triggerBtn.ghostSm, 'whitespace-nowrap')}
+                          >
+                            설정
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {/* Database list. Only the name — the region row above already answers
+                        everything else, and none of it varies per database. */}
+                    {unit.folded &&
+                      open &&
+                      unit.members.map((db, index) => (
+                        <tr key={db.resourceId}>
+                          <td
+                            className={cn(
+                              idcStyles.table.approvalCell,
+                              'font-mono text-[14px]',
+                              textColors.primary,
+                              idcStyles.table.group.childCell,
+                              index === unit.members.length - 1 &&
+                                idcStyles.table.group.childCellLast,
+                            )}
+                          >
+                            {db.resourceName ?? db.resourceId}
+                          </td>
+                          <td className={idcStyles.table.approvalCell} />
+                          <td className={idcStyles.table.approvalCell} />
+                          <td className={idcStyles.table.approvalCell} />
+                          <td className={idcStyles.table.approvalCell} />
+                          <td className={idcStyles.table.approvalCell} />
+                        </tr>
+                      ))}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
         {total > 0 && (
           <Pagination

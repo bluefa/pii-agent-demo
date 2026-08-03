@@ -128,7 +128,7 @@ export const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E
 export const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
 // The DARK primary, not #0064FF — see primaryColors.textGroupHover for why (contrast under the
 // row's hover background). Lighter is not available: #0064FF is already below AA there.
-const NAME_LIFT = primaryColors.textGroupHover;
+export const NAME_LIFT = primaryColors.textGroupHover;
 
 // Excluded rows REST one tier dimmer: all four text cells drop to #6B7280 — 4.63:1 on the
 // #F9FAFB tint, AA with margin, where the full-strength text made 제외 rows read identical to
