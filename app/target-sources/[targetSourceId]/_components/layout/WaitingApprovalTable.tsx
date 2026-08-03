@@ -342,8 +342,10 @@ export const WaitingApprovalTable = memo(
             )}
           >
             {folded ? (
-              // A region has no resource name, so the cell carries the group's identity
-              // instead — the same cluster steps 1·2·3 put on a group parent.
+              // A region has no resource name, so the cell carries the engine's label instead.
+              // It reads in the SAME type as every other name in this column, NOT in the group
+              // parent's heavier weight above: that weight separates a parent from the children
+              // right under it, and here the row's neighbours are ordinary resources.
               <span className={idcStyles.table.group.lead}>
                 <button
                   type="button"
@@ -363,7 +365,7 @@ export const WaitingApprovalTable = memo(
                 >
                   <ChevronRightIcon className="h-3.5 w-3.5" />
                 </button>
-                <span className={idcStyles.table.group.label}>
+                <span className="whitespace-nowrap">
                   {getDatabaseShortLabel(resource.resourceType)}
                 </span>
               </span>

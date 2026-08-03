@@ -364,15 +364,19 @@ export const ConnectionTestCard = ({
                       onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
                     >
                       {/* A folded row stands for a REGION, which has no resource name, so this
-                          cell carries the disclosure and the group's label — the same identity
-                          cluster steps 1·2·3 put on a group parent. Opening it lists the
-                          databases below, in the column their names belong to. */}
+                          cell carries the disclosure and the engine's label instead. Opening it
+                          lists the databases below, in the column their names belong to.
+                          The label reads in the SAME type as every other name in this column,
+                          not in the steps 1·2·3 group-parent weight: there a heavier parent
+                          separates itself from the children right under it, here the row's
+                          neighbours are ordinary resources and a bolder one would just shout. */}
                       <td
                         className={cn(
                           idcStyles.table.approvalCell,
-                          unit.folded
-                            ? open && idcStyles.table.group.parentCell
-                            : cn('font-mono text-[14px]', textColors.primary, NAME_LIFT),
+                          'font-mono text-[14px]',
+                          textColors.primary,
+                          NAME_LIFT,
+                          unit.folded && open && idcStyles.table.group.parentCell,
                         )}
                       >
                         {unit.folded ? (
@@ -395,7 +399,7 @@ export const ConnectionTestCard = ({
                             >
                               <ChevronRightIcon className="h-3.5 w-3.5" />
                             </button>
-                            <span className={idcStyles.table.group.label}>
+                            <span className="whitespace-nowrap">
                               {getDatabaseShortLabel(unit.databaseType ?? '')}
                             </span>
                           </span>
