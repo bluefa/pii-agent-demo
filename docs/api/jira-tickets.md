@@ -10,6 +10,13 @@
 CloudProvider 는 `AWS · GCP · AZURE · IDC · SDU` 5종. 서비스 1건은 provider 마다
 Jira ticket 을 **최대 1개** 연결한다(경로에 provider 가 들어가므로 provider 가 키다).
 
+> swagger enum 에는 `UNKNOWN` 이 하나 더 있다. 운영 화면은 이 5종만 타일로 그리므로,
+> `cloudProvider: "UNKNOWN"` 으로 돌아온 매핑은 화면에서 보이지도, 해제되지도 않는다.
+> `UNKNOWN` 은 provider 를 특정하지 못한 상태를 나타내는 방어값이지 연결 대상이 아니라고
+> 보고 노출하지 않는다 — 실제로 그런 티켓이 생긴다면 그건 데이터 문제이고, 5종 중 하나로
+> 정정되어야 한다. 이 전제가 깨지면 UI 는 5종 목록이 아니라 응답이 준 provider 를 그리도록
+> 바꿔야 한다.
+
 | Method | Path | operationId | 응답 |
 |---|---|---|---|
 | `GET` | `/install/v1/services/{serviceCode}/jira-tickets` | `getJiraTickets` | `JiraTicketResponse[]` |

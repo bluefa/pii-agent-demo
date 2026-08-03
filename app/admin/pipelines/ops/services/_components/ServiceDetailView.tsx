@@ -40,9 +40,11 @@ const PAGE_SIZE = 10;
 
 /**
  * JiraTicketResponse 에는 티켓 URL 이 없다(issueKey 만 온다) — 계약이 url 을 싣기 전까지
- * 브라우즈 주소는 여기서 조립한다. 배포 환경이 다르면 env 로 덮는다.
+ * 브라우즈 주소는 env 로 받는다. 기본값을 두지 않는 이유: NEXT_PUBLIC_* 는 빌드 시점에
+ * 박히므로, 안 넣고 배포하면 남의 도메인으로 가는 링크가 그대로 굳는다. 없으면 링크가
+ * 아니라 글자로 보여준다.
  */
-const JIRA_BROWSE_BASE = process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? 'https://jira.example.com/browse';
+const JIRA_BROWSE_BASE = process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? null;
 
 /**
  * Step 1 리소스 표(idcStyles.table.approval*)를 그대로 쓰고, 이 화면에만 필요한 것만
@@ -66,8 +68,9 @@ const tileStyles = {
      하나가 400px 이 되고, 표를 걷어낸 이유(휑함)가 그대로 돌아온다. */
   grid: 'grid grid-cols-3 gap-2 max-w-[748px]',
   base: 'flex items-center gap-2 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3.5',
-  name: 'block text-[12px] font-medium text-[var(--pl-text-medium)]',
-  /** 티켓 키 — 12 mono/600, primary, 밑줄. ↗ 까지 밑줄이 이어지도록 inline 한 덩어리. */
+  /** 티켓 키 — 12 mono/600. 열 곳이 없으면 파랑·밑줄 없이 글자로만. */
+  key: 'mt-1 block truncate text-[12px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)]',
+  /** 열 수 있을 때 — primary + 밑줄. ↗ 까지 밑줄이 이어지도록 inline 한 덩어리. */
   value:
     'mt-1 block truncate text-[12px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-primary)] underline underline-offset-2 hover:opacity-80',
   empty: 'mt-1 block text-[11px] font-medium text-[var(--pl-text-faint)]',
@@ -143,8 +146,11 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
   const [eosOpen, setEosOpen] = useState(false);
   const [jiraTarget, setJiraTarget] = useState<JiraCloudProvider | null>(null);
   // 목록은 한 번에 다 온다(assumed 계약에 page 파라미터가 없다) — 자르는 건 화면 몫.
-  // Pagination 은 0-based.
-  const [page, setPage] = useState(0);
+  // Pagination 은 0-based. 페이지는 serviceCode 에 매여 있다: 다른 서비스로 이동하면
+  // 남아 있던 3페이지가 되살아나면 안 되고, 그 초기화를 effect 로 하면 렌더가 한 번 더 돈다.
+  const [pageAt, setPageAt] = useState({ code: serviceCode, page: 0 });
+  const page = pageAt.code === serviceCode ? pageAt.page : 0;
+  const setPage = (next: number): void => setPageAt({ code: serviceCode, page: next });
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   const [reloadKey, setReloadKey] = useState(0);
@@ -346,15 +352,19 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
               <div className="min-w-0 flex-1">
                 <ProvTag provider={provider} />
                 {ticket ? (
-                  <a
-                    href={`${JIRA_BROWSE_BASE}/${encodeURIComponent(ticket.issueKey)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={tileStyles.value}
-                    title={`${ticket.issueKey} — Jira 에서 열기`}
-                  >
-                    {ticket.issueKey} ↗
-                  </a>
+                  JIRA_BROWSE_BASE ? (
+                    <a
+                      href={`${JIRA_BROWSE_BASE}/${encodeURIComponent(ticket.issueKey)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={tileStyles.value}
+                      title={`${ticket.issueKey} — Jira 에서 열기`}
+                    >
+                      {ticket.issueKey} ↗
+                    </a>
+                  ) : (
+                    <span className={tileStyles.key}>{ticket.issueKey}</span>
+                  )
                 ) : (
                   <span className={tileStyles.empty}>연결된 티켓 없음</span>
                 )}
