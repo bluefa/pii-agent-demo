@@ -371,7 +371,9 @@ export const ConnectionTestCard = ({
                           }}
                           className={cn(
                             idcStyles.table.group.toggle,
-                            open && idcStyles.table.group.toggleOpen,
+                            open
+                              ? idcStyles.table.group.toggleOpen
+                              : idcStyles.table.group.toggleClosed,
                             primaryColors.focusRing,
                           )}
                         >
