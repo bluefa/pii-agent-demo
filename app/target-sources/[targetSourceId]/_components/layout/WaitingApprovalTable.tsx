@@ -46,7 +46,7 @@ export interface WaitingApprovalResource {
   /**
    * `confirmed` variant only — the database names this row stands for when it is a folded
    * Athena region. Present means the row IS the region: the identity cell carries the
-   * disclosure and the group label instead of a resource name, and opening it lists these
+   * disclosure and the engine's label instead of a resource name, and opening it lists these
    * names underneath. Absent (the normal case) leaves the row exactly as it was.
    */
   foldedMembers?: readonly string[];
