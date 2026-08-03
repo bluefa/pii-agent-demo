@@ -51,7 +51,12 @@ export const ResourceGroupRow = ({
   return (
     <tr className={cn(idcStyles.table.group.row, 'cursor-pointer')} onClick={onToggle}>
       {leadingCell}
-      <td className={cn(idcStyles.table.approvalCell, idcStyles.table.group.parentCell)}>
+      <td
+        className={cn(
+          idcStyles.table.approvalCell,
+          expanded && idcStyles.table.group.parentCell,
+        )}
+      >
         <span className={idcStyles.table.group.lead}>
           <button
             type="button"
@@ -64,7 +69,7 @@ export const ResourceGroupRow = ({
             }}
             className={cn(
               idcStyles.table.group.toggle,
-              expanded && idcStyles.table.group.toggleOpen,
+              expanded ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
               primaryColors.focusRing,
             )}
           >
