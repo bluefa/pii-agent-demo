@@ -44,12 +44,22 @@ export interface WaitingApprovalResource {
   logicalDbCount?: number | null;
   excludedLogicalDbCount?: number | null;
   /**
-   * `confirmed` variant only — the database names this row stands for when it is a folded
-   * Athena region. Present means the row IS the region: the identity cell carries the
-   * disclosure and the engine's label instead of a resource name, and opening it lists these
-   * names underneath. Absent (the normal case) leaves the row exactly as it was.
+   * `confirmed` variant only — the databases this row stands for when it is a folded Athena
+   * region. Present means the row IS the region: the identity cell carries the disclosure and
+   * the engine's label instead of a resource name, and opening it lists these underneath.
+   * Absent (the normal case) leaves the row exactly as it was.
+   *
+   * Carries the id, not just the name: `resource_name` is optional in the contract, so two
+   * unnamed databases in one region would collide on a '' React key — the same hazard the row
+   * key below already guards against.
    */
-  foldedMembers?: readonly string[];
+  foldedMembers?: readonly { resourceId: string; resourceName: string }[];
+  /**
+   * Extra text the caller's search should match, never rendered. A folded row is named by the
+   * engine, so its databases would otherwise become unfindable the moment they are collapsed
+   * behind the disclosure.
+   */
+  searchText?: string;
   /**
    * `install` variant only — the selected install step's state for this resource. The step nav
    * picks which cell lands here, so the same row renders a different status per step.
@@ -92,6 +102,12 @@ interface WaitingApprovalTableProps {
    * `host:port`.
    */
   regionLabel?: string;
+  /**
+   * Force every folded region open. Pass this while a search or filter is narrowing the list:
+   * a row can match on a database that is collapsed behind the disclosure, and leaving it shut
+   * shows the user a region that does not visibly contain what they typed.
+   */
+  expandFolds?: boolean;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -256,18 +272,18 @@ export const WaitingApprovalTable = memo(
     emptyMessage,
     connected = false,
     regionLabel = 'Region',
+    expandFolds = false,
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
     // everything before you approve" surface, so nothing may be hidden by default.
     //
-    // ONLY the `approval` variant groups. From step 4 on the region IS the resource — step 4
-    // (`install`) already receives one Athena row per region, keyed on
-    // `athena_region_resource_id`, and step 5 folds onto the same key; steps 6·7 (`confirmed`)
-    // still list databases but a parent-with-children tree would assert a shape they do not
-    // have, and Athena has no logical-DB or credential column to aggregate anyway (it is
-    // IAM-based). Written as an allow-list, not `!== 'confirmed'`: that phrasing opted the
-    // install variant in the moment it was added, and drew a second Region cell on step 4.
+    // ONLY the `approval` variant builds a TREE. From step 4 on the region IS the resource —
+    // step 4 (`install`) already receives one Athena row per region keyed on
+    // `athena_region_resource_id`, and steps 5·6·7 fold onto that same key, which is a row that
+    // STANDS FOR the region rather than a parent above its children (see `foldedMembers`).
+    // Written as an allow-list, not `!== 'confirmed'`: that phrasing opted the install variant
+    // in the moment it was added, and drew a second Region cell on step 4.
     const grouped = variant === 'approval';
     const sections = useMemo(
       () =>
@@ -318,7 +334,7 @@ export const WaitingApprovalTable = memo(
       // A folded row STANDS FOR an Athena region (steps 6·7) — see `foldedMembers`.
       const members = resource.foldedMembers;
       const folded = !!members?.length;
-      const open = folded && expandedFolds.has(rowKey);
+      const open = folded && (expandFolds || expandedFolds.has(rowKey));
       const row = (
         <tr
           // `resource_id` is optional in the contract, so two id-less rows would collide on
@@ -384,7 +400,13 @@ export const WaitingApprovalTable = memo(
           {/* Inside a group the id is dropped: it is the parent's own path with the child's name
               tacked on (`athena:<acct>:<region>/<catalog>/test_raw`), so every child repeated the
               group's identity and then said its name a second time. */}
-          <td className={idcStyles.table.approvalCell}>
+          {/* A folded row toggles on click, and this cell holds a copy button — without the
+              guard, copying the region id also opened the fold. The chevron above stops its
+              own propagation for the same reason. */}
+          <td
+            className={idcStyles.table.approvalCell}
+            onClick={folded ? (event) => event.stopPropagation() : undefined}
+          >
             {/* An absent id renders nothing rather than a bare control: a consumer that
                 withholds it (IDC's resource_id is internal) would otherwise get a
                 focusable "Resource ID 복사" on every row, copying ''. */}
@@ -500,8 +522,8 @@ export const WaitingApprovalTable = memo(
               says Athena → Database, as on steps 1·2·3. Everything else is the region's own
               answer and does not vary per database, so those cells stay empty. */}
           {open &&
-            members.map((name, index) => (
-              <tr key={name}>
+            members.map((member, index) => (
+              <tr key={member.resourceId}>
                 <td
                   className={cn(
                     idcStyles.table.approvalCell,
@@ -511,7 +533,7 @@ export const WaitingApprovalTable = memo(
                     index === members.length - 1 && idcStyles.table.group.childCellLast,
                   )}
                 >
-                  {name || PLACEHOLDER}
+                  {member.resourceName || PLACEHOLDER}
                 </td>
                 <td className={idcStyles.table.approvalCell} />
                 <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary)}>

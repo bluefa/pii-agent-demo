@@ -229,6 +229,31 @@ describe('WaitingApprovalTable', () => {
       ]);
     });
 
+    // An engine we were not told is not an engine without logical DBs. `database_type` is
+    // optional in the contract, and claiming 설정 불필요 there hid three real target databases
+    // on the final-approval screen and removed the 설정 button that reaches them.
+    it('keeps the counts when the engine is missing, rather than claiming 설정 불필요', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              resourceId: 'unknown-engine-1',
+              resourceType: '',
+              region: 'ap-northeast-1',
+              resourceName: 'unknown-engine-1',
+              selected: true,
+              logicalDbCount: 3,
+              excludedLogicalDbCount: 0,
+            },
+          ]}
+        />,
+      );
+
+      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell').slice(4);
+      expect(cells.map((td) => td.textContent)).toEqual(['3개', '0개']);
+    });
+
     it('folds a region row to its databases, closed by default (steps 6·7)', () => {
       render(
         <WaitingApprovalTable
@@ -240,7 +265,10 @@ describe('WaitingApprovalTable', () => {
               // Steps 6·7 read `database_type` off the confirmed-integration contract, not the
               // scan's `resource_type` the fixture above carries.
               resourceType: 'athena',
-              foldedMembers: ['sampledb', 'integration'],
+              foldedMembers: [
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/integration', resourceName: 'integration' },
+              ],
             },
           ]}
         />,
@@ -263,6 +291,80 @@ describe('WaitingApprovalTable', () => {
       }
       expect(screen.getByText('sampledb')).toBeTruthy();
       expect(screen.getByText('integration')).toBeTruthy();
+    });
+
+    // `resource_name` is optional, so two unnamed databases in one region would collide on a ''
+    // React key and one of them would be dropped. The id is what is unique.
+    it('keys folded children on the id, so unnamed databases do not collide', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              ...athena('unused', 'ap-northeast-1', true),
+              resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
+              resourceType: 'athena',
+              foldedMembers: [
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/a', resourceName: '' },
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/b', resourceName: '' },
+              ],
+            },
+          ]}
+          expandFolds
+        />,
+      );
+
+      // Both survive — header + region + two children.
+      expect(screen.getAllByRole('row')).toHaveLength(4);
+      expect(screen.getAllByText('—')).toHaveLength(2);
+    });
+
+    // The row toggles on click and this cell holds a copy button; without the guard, copying
+    // the region id also opened the fold.
+    it('does not toggle the fold when the Resource ID copy button is clicked', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              ...athena('unused', 'ap-northeast-1', true),
+              resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
+              resourceType: 'athena',
+              foldedMembers: [
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
+              ],
+            },
+          ]}
+        />,
+      );
+
+      expect(screen.getAllByRole('row')).toHaveLength(2);
+      fireEvent.click(screen.getByRole('button', { name: /Resource ID/ }));
+      expect(screen.getAllByRole('row')).toHaveLength(2);
+      expect(screen.queryByText('sampledb')).toBeNull();
+    });
+
+    // A row can be in the filtered list because of a database inside its fold. Leaving it shut
+    // shows a region that does not visibly contain what the user typed.
+    it('opens every fold while the list is narrowed', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              ...athena('unused', 'ap-northeast-1', true),
+              resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
+              resourceType: 'athena',
+              foldedMembers: [
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
+              ],
+            },
+          ]}
+          expandFolds
+        />,
+      );
+
+      expect(screen.getByText('sampledb')).toBeTruthy();
     });
   });
 });

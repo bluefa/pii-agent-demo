@@ -327,7 +327,12 @@ export const ConnectionTestCard = ({
             Those steps cap the stack with the filter toolbar (top-rounded, #F7F8FA); this step
             has no filters, so the header row — same fill — is the cap and takes the radius. */}
         <div>
-          <div className={cn(CONNECTED_FRAME, 'rounded-t-[12px] overflow-x-auto')}>
+          {/* CONNECTED_FRAME's own `overflow-hidden` and an `overflow-x-auto` would be two
+              values of one property on one element, and `cn` is a plain join — which of them
+              wins would be decided by Tailwind's emit order. Separate elements: the frame clips
+              to the radius, the inner box scrolls. */}
+          <div className={cn(CONNECTED_FRAME, 'rounded-t-[12px]')}>
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead className={idcStyles.table.approvalHeader}>
                 {/* Steps 1·2·3 order, verbatim: identity (name → id) → attributes (type ·
@@ -537,7 +542,8 @@ export const ConnectionTestCard = ({
                   );
                 })}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
           {total > 0 && (
             <Pagination

@@ -75,6 +75,13 @@ export const ConfirmedIntegrationTable = ({
     const byUnit = new Map<string, WaitingApprovalResource>();
     const addCount = (a: number | null, b: number | null | undefined): number | null =>
       a === null && (b === null || b === undefined) ? null : (a ?? 0) + (b ?? 0);
+    // A folded row is named by its engine, so its databases would go unfindable once collapsed.
+    // Kept OFF `resourceName`: that field feeds the count cells' aria-labels and the modal, and
+    // a row whose engine is unknown renders those — it would then read "db_a db_b 연동 논리 DB
+    // 목록 보기".
+    const addSearchText = (row: WaitingApprovalResource, name: string) => {
+      row.searchText = row.searchText ? `${row.searchText} ${name}` : name;
+    };
 
     for (const resource of confirmed) {
       const counts = logicalDbCounts.get(resource.resourceId);
@@ -82,10 +89,11 @@ export const ConfirmedIntegrationTable = ({
       const unitId = resultUnitId(resource);
       const existing = byUnit.get(unitId);
       if (existing) {
-        existing.foldedMembers = [...(existing.foldedMembers ?? []), name];
-        // Never rendered on a folded row — the fold shows the group label there. This is the
-        // search haystack, so a database stays findable by name from the collapsed row.
-        existing.resourceName = `${existing.resourceName} ${name}`.trim();
+        existing.foldedMembers = [
+          ...(existing.foldedMembers ?? []),
+          { resourceId: resource.resourceId, resourceName: name },
+        ];
+        addSearchText(existing, name);
         existing.logicalDbCount = addCount(existing.logicalDbCount ?? null, counts?.target);
         existing.excludedLogicalDbCount = addCount(
           existing.excludedLogicalDbCount ?? null,
@@ -103,7 +111,12 @@ export const ConfirmedIntegrationTable = ({
         logicalDbCount: counts?.target ?? null,
         excludedLogicalDbCount: counts?.excluded ?? null,
       };
-      if (resource.athenaRegionResourceId) row.foldedMembers = [name];
+      if (resource.athenaRegionResourceId) {
+        row.foldedMembers = [{ resourceId: resource.resourceId, resourceName: name }];
+        // The fold prints the engine, not this name, so it moves to the haystack.
+        row.resourceName = '';
+        addSearchText(row, name);
+      }
       rows.push(row);
       byUnit.set(unitId, row);
     }
@@ -144,6 +157,9 @@ export const ConfirmedIntegrationTable = ({
         onLogicalDbOpen={setLogicalDbTarget}
         connected
         emptyMessage={FILTER_EMPTY_MESSAGE}
+        // While the list is narrowed, a region may be here because of a database inside its
+        // fold. Leaving it shut shows a row that does not visibly contain what was typed.
+        expandFolds={!!table.searchValue.trim() || !!table.dbType || !!table.region}
       />
       {table.filteredCount > 0 && (
         <Pagination
