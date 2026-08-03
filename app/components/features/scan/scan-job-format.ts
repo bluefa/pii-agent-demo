@@ -48,17 +48,24 @@ export const trimProviderPrefix = (type: string, provider: CloudProvider): strin
   return type.startsWith(prefix) ? type.slice(prefix.length) : type;
 };
 
-/** 214.6s → '3분 35초', 44s → '44초'. Absent duration renders as an empty cell. */
+/**
+ * 214.6s → '3분 34초', 44s → '44초'. Same truncation and zero-padding as the admin
+ * scan tab's `fmtDuration`, so one scan never reads as two different durations
+ * across the two surfaces. Absent duration renders as an empty cell.
+ */
 export const scanDurationText = (job: ScanJob): string => {
-  if (typeof job.duration_seconds !== 'number') return '';
-  const total = Math.max(0, Math.round(job.duration_seconds));
+  if (typeof job.duration_seconds !== 'number' || !Number.isFinite(job.duration_seconds)) return '';
+  const total = Math.max(0, Math.floor(job.duration_seconds));
   const minutes = Math.floor(total / 60);
-  return minutes > 0 ? `${minutes}분 ${total % 60}초` : `${total}초`;
+  return minutes > 0 ? `${minutes}분 ${String(total % 60).padStart(2, '0')}초` : `${total}초`;
 };
+
+/** Thousands separators, locale pinned — an unpinned format can differ across SSR/CSR. */
+export const fmtScanCount = (n: number): string => n.toLocaleString('ko-KR');
 
 /** History-row outcome column: what a finished scan produced, or why it did not. */
 export const scanResultText = (job: ScanJob): string => {
-  if (job.scan_status === 'SUCCESS') return `${discoveredTotal(job)}개 발견`;
+  if (job.scan_status === 'SUCCESS') return `${fmtScanCount(discoveredTotal(job))}개 발견`;
   if (job.scan_error) return SCAN_ERROR_LABELS[job.scan_error] ?? job.scan_error;
   return '';
 };

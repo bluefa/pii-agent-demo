@@ -13,8 +13,10 @@ export const GET = withV1(async (request, { requestId, params }) => {
   const { searchParams } = new URL(request.url);
   const page = Number(searchParams.get('page') ?? '0');
   const size = Number(searchParams.get('size') ?? '10');
-  const offset = page * size;
 
-  const raw = await bff.scan.getHistory(parsed.value, { limit: size, offset });
+  // Forwarded as the swagger's own `page`/`size`. The former limit/offset pair came
+  // from a superseded mock-era doc; upstream binds a Pageable, which ignores unknown
+  // params and would answer every page with page 0.
+  const raw = await bff.scan.getHistory(parsed.value, { page, size });
   return NextResponse.json(schemas.PageScanJobResponse.parse(raw));
 });

@@ -2,6 +2,7 @@
 
 import { SCAN_ERROR_LABELS } from '@/app/components/features/scan/scan-labels';
 import {
+  fmtScanCount,
   scanDurationText,
   scanStatusLabel,
   scanStatusTagClass,
@@ -60,7 +61,7 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
               <p className={cn('text-[14px]', textColors.tertiary)}>
                 총{' '}
                 <b className={cn('text-[20px] font-bold tabular-nums', primaryColors.text)}>
-                  {total.toLocaleString()}
+                  {fmtScanCount(total)}
                 </b>
                 개를 발견했어요.
               </p>
@@ -94,7 +95,7 @@ export const ScanDetail = ({ job, provider }: { job: ScanJob; provider: CloudPro
                             textColors.primary,
                           )}
                         >
-                          {count.toLocaleString()}
+                          {fmtScanCount(count)}
                         </td>
                       </tr>
                     ))}

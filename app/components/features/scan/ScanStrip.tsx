@@ -16,10 +16,9 @@ type ScanJob = z.infer<typeof schemas.ScanJobResponse>;
 
 /**
  * The band's three counts — all in ONE unit (candidate DBs), and `selected +
- * excluded === eligible`. The scan's raw discovery total (every resource type,
- * ~90k) stays out: a number in another unit next to a 10 only invites a
- * comparison with no answer. What the scan looked at is a scan-job fact, not a
- * step-1 decision.
+ * excluded === eligible`. Any number in another unit (e.g. the scan's raw
+ * discovery total across every resource type) belongs to the scan job, not to
+ * this row: side by side the two only invite a comparison with no answer.
  */
 export interface ScanFunnelCounts {
   /** Candidate DBs the table lists. */
@@ -191,9 +190,8 @@ export const ScanStrip = ({
     if (scannedAt) metaParts.push(formatDate(scannedAt, 'datetime'));
     if (succeeded) {
       if (typeof job.duration_seconds === 'number') metaParts.push(`${Math.round(job.duration_seconds)}초 소요`);
-      // The scanned-resource total (~90k) appears nowhere: next to a DB count it
-      // only creates a gap no one can act on, in a cell or in this line. The
-      // new-since-last-scan count is off the cells too, so it does not come back here.
+      // Meta carries the scan's own facts only (time, duration). Counts belong to
+      // the cells above, in the candidate-DB unit.
       if (!showFunnel && newCount > 0) metaParts.push(`신규 ${newCount}`);
     } else if (!failedByPermission && job.scan_error) {
       // 권한 오류는 아래 배지가 전담 — 그 외 실패 사유만 메타로 흘린다.

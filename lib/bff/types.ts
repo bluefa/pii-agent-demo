@@ -117,7 +117,9 @@ export interface BffClient {
   scan: {
     // swagger: GET/POST routes validate with schemas.X.parse(raw); methods return raw snake wire.
     get: (id: number, scanId: string) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
-    getHistory: (id: number, query: { limit: number; offset: number }) => Promise<z.infer<typeof schemas.PageScanJobResponse>>;
+    // swagger declares `page` (0-based) + `size`; a Spring Pageable binds those names
+    // and ignores anything else, so limit/offset would pin every request to page 0.
+    getHistory: (id: number, query: { page: number; size: number }) => Promise<z.infer<typeof schemas.PageScanJobResponse>>;
     create: (id: number, body: unknown) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
     getStatus: (id: number) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
   };

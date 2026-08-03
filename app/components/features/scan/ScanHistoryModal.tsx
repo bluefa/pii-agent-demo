@@ -27,10 +27,16 @@ import type { CloudProvider } from '@/lib/types';
 const DEFAULT_PAGE_SIZE = 5;
 const PAGE_SIZE_OPTIONS = [5, 10];
 
-/** One page of history: the rows and the total the pager needs, from one response. */
+/**
+ * One page of history: the rows and the total the pager needs, from one response,
+ * plus the page/size those rows answer for — the pager repaints on click, so the
+ * rows on screen have to say which request they belong to.
+ */
 interface HistoryPage {
   jobs: ScanJob[];
   total: number;
+  page: number;
+  size: number;
 }
 
 // Card-less list: the modal body already insets the content, so only the outer
@@ -73,7 +79,10 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
       .then((result) => {
         const jobs = result.content ?? [];
         if (!cancelled) {
-          setState({ status: 'ready', data: { jobs, total: result.totalElements ?? jobs.length } });
+          setState({
+            status: 'ready',
+            data: { jobs, total: result.totalElements ?? jobs.length, page, size: pageSize },
+          });
         }
       })
       .catch(() => {
@@ -83,6 +92,12 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
       cancelled = true;
     };
   }, [targetSourceId, page, pageSize, retryNonce]);
+
+  // Derived, not synced: the rows on screen are stale while they answer for a
+  // different page than the pager now shows. They dim instead of unmounting —
+  // unmounting takes the pager with them and the modal jumps.
+  const pending =
+    state.status === 'ready' && (state.data.page !== page || state.data.size !== pageSize);
 
   const retry = () => {
     setState({ status: 'loading' });
@@ -130,16 +145,19 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
             </div>
           )}
 
-          {state.status === 'ready' && state.data.total === 0 && (
+          {/* Keyed on the rows, not on the total: a page past the end answers with a
+              positive total and an empty list, and a header-only table with a pager
+              reading past the total is not a state to render. */}
+          {state.status === 'ready' && state.data.jobs.length === 0 && (
             <p className={cn('py-8 text-center text-sm', textColors.tertiary)}>
-              아직 실행된 스캔이 없어요.
+              {state.data.total === 0 ? '아직 실행된 스캔이 없어요.' : '이 페이지에는 기록이 없어요.'}
             </p>
           )}
 
           {/* No frame (border/shadow) around the list — a modal should not carry a
               card inside it; a header rule and the rows are the whole grammar. */}
-          {state.status === 'ready' && state.data.total > 0 && (
-            <>
+          {state.status === 'ready' && state.data.jobs.length > 0 && (
+            <div className={cn(pending && 'opacity-50 transition-opacity')} aria-busy={pending}>
               {/* Bottom rule = the top edge the pager bar (border-t-0) needs to read as closed. */}
               <table className={cn('w-full border-b', borderColors.default)}>
                 <thead>
@@ -169,7 +187,7 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
                         }}
                         role="button"
                         tabIndex={0}
-                        aria-label={`${scannedAt} 스캔 상세 보기`}
+                        aria-label={scannedAt ? `${scannedAt} 스캔 상세 보기` : '스캔 상세 보기'}
                         onClick={() => {
                           pendingFocusKey.current = rowKey;
                           setDetail(job);
@@ -225,7 +243,7 @@ export const ScanHistoryModal = ({ targetSourceId, provider, onClose }: ScanHist
                 }}
                 pageSizeOptions={PAGE_SIZE_OPTIONS}
               />
-            </>
+            </div>
           )}
         </>
       )}

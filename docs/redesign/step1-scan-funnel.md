@@ -113,3 +113,16 @@ Admin 스캔 탭의 문법을 Step1로 가져오되, **카드가 아니라 문�
 `설치 불가` 행(`integrationCategory === 'INSTALL_INELIGIBLE'`)이 유일한 답이고,
 지금은 `제외함`에 사용자 제외와 함께 뭉쳐 있다. 갈라 세우는 안(4번째 칸
 `설치 불가`)은 검토 후 보류 — 필요해지면 추가 fetch 없이 `candidates`에서 센다.
+
+### 9-1. 함께 뒤집은 결정 — Resource ID 축약 방향
+
+`ResourceIdCell` 이 좌측 절단(`direction: rtl`, 꼬리를 남김)에서 **우측 절단**
+(`Prefix…`)으로 바뀌었다. v16 정렬 리뷰(`docs/v16-alignment/03-review-r1-findings.md`
+azure-s2)는 정반대를 결함으로 적었다 — "우측 절단이면 모든 행이 동일한 접두어만
+보인다". 그때 근거는 여전히 사실이지만, **행을 식별하는 책임이 Resource Name 열에
+있다**는 점이 결정을 바꿨다: 축약 문법이 한 표 안에서 두 개(이름은 `Prefix…`,
+id 는 `…tail`)일 이유가 없고, 전체 값은 툴팁과 복사 버튼이 이미 보장한다.
+
+소비처 6곳 중 이름 열이 없는 곳은 `ConnectionTestCard` 의 접힌 Athena/리전 행뿐이고,
+그 값은 짧은 그룹 키라 잘리지 않는다. **v16 감사에서 azure-s2 를 재발행하지 말 것** —
+되돌리려면 이 항목부터 뒤집어야 한다.
