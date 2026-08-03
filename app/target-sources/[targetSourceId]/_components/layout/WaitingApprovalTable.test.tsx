@@ -196,6 +196,39 @@ describe('WaitingApprovalTable', () => {
       expect(screen.queryByText(/대상 ·/)).toBeNull();
     });
 
+    // — is where a value we do not have goes. Athena·DynamoDB have no logical-DB management at
+    // all, so a dash there reads as missing data and sends the user looking for it.
+    it('answers 설정 불필요, not —, where logical DBs do not exist', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            { ...athena('db_a', 'ap-northeast-1', true), resourceType: 'athena' },
+            {
+              resourceId: 'rds-1',
+              resourceType: 'mysql',
+              region: 'ap-northeast-1',
+              resourceName: 'rds-1',
+              selected: true,
+              // Counts not loaded yet — this one genuinely IS unknown, so it keeps the dash.
+              logicalDbCount: null,
+              excludedLogicalDbCount: null,
+            },
+          ]}
+        />,
+      );
+
+      const rows = screen.getAllByRole('row');
+      expect(within(rows[1]).getAllByRole('cell').slice(4).map((td) => td.textContent)).toEqual([
+        '설정 불필요',
+        '설정 불필요',
+      ]);
+      expect(within(rows[2]).getAllByRole('cell').slice(4).map((td) => td.textContent)).toEqual([
+        '—',
+        '—',
+      ]);
+    });
+
     it('folds a region row to its databases, closed by default (steps 6·7)', () => {
       render(
         <WaitingApprovalTable

@@ -31,11 +31,12 @@ import {
   CELL_LIFT,
   CONNECTED_FRAME,
   NAME_LIFT,
+  NO_LOGICAL_DB_TEXT,
   ROW_BASE,
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { ConfirmedResource } from '@/lib/types/resources';
-import { needsCredential } from '@/lib/types';
+import { hasLogicalDatabases, needsCredential } from '@/lib/types';
 import { GROUPED_CHILD_KIND_LABEL, resultUnitId } from '@/lib/resource-grouping';
 
 interface LogicalModalTarget {
@@ -464,17 +465,17 @@ export const ConnectionTestCard = ({
                           <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
                         )}
                       </td>
-                      {/* Athena is IAM-based and has no logical-DB management at all, so a folded
-                          region row has nothing to configure — the button used to open anyway
+                      {/* Athena·DynamoDB are IAM-based and have no logical-DB management at all,
+                          so there is nothing here to configure — the button used to open anyway
                           (it was gated on `connected` alone) onto a screen for a concept that
-                          does not exist here. DynamoDB shares the trait but has no region fold to
-                          key off; it is tracked in LIN-86 with the rest of that rule. */}
+                          does not exist. Keyed on the engine, not on the Athena fold: DynamoDB
+                          has no region fold to read off. */}
                       <td className={idcStyles.table.approvalCell}>
-                        {unit.folded ? (
+                        {!hasLogicalDatabases(unit.databaseType) ? (
                           <span
                             className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
                           >
-                            설정 불필요
+                            {NO_LOGICAL_DB_TEXT}
                           </span>
                         ) : (
                           <button

@@ -13,6 +13,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
 import { GROUPED_CHILD_KIND_LABEL, groupResourceRows } from '@/lib/resource-grouping';
+import { hasLogicalDatabases } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
   type InstallStepCell,
@@ -147,6 +148,15 @@ export const NAME_LIFT = primaryColors.textGroupHover;
 export const DIM_TEXT = 'text-[#6B7280]';
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
+
+/** 논리 DB 라는 개념이 없는 엔진의 답 — see `hasLogicalDatabases`. */
+export const NO_LOGICAL_DB_TEXT = '설정 불필요';
+
+const NoLogicalDbCell = () => (
+  <span className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}>
+    {NO_LOGICAL_DB_TEXT}
+  </span>
+);
 
 const PLACEHOLDER = '—';
 
@@ -417,22 +427,37 @@ export const WaitingApprovalTable = memo(
             </>
           )}
           {confirmedVariant ? (
-            <>
-              <td className={idcStyles.table.approvalCell}>
-                <LogicalDbCountCell
-                  count={resource.logicalDbCount}
-                  label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
-                  onOpen={() => onLogicalDbOpen?.(resource)}
-                />
-              </td>
-              <td className={idcStyles.table.approvalCell}>
-                <LogicalDbCountCell
-                  count={resource.excludedLogicalDbCount}
-                  label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
-                  onOpen={() => onLogicalDbOpen?.(resource)}
-                />
-              </td>
-            </>
+            /* Athena·DynamoDB have no logical-DB management at all, so both columns answer
+               설정 불필요 rather than —. The dash is where a value we do not have goes; on a
+               concept that does not exist it reads as missing data and sends the user looking
+               for it. Step 5's 논리 DB 확인 says the same words for the same reason. */
+            hasLogicalDatabases(resource.displayDbType ?? resource.resourceType) ? (
+              <>
+                <td className={idcStyles.table.approvalCell}>
+                  <LogicalDbCountCell
+                    count={resource.logicalDbCount}
+                    label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
+                    onOpen={() => onLogicalDbOpen?.(resource)}
+                  />
+                </td>
+                <td className={idcStyles.table.approvalCell}>
+                  <LogicalDbCountCell
+                    count={resource.excludedLogicalDbCount}
+                    label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
+                    onOpen={() => onLogicalDbOpen?.(resource)}
+                  />
+                </td>
+              </>
+            ) : (
+              <>
+                <td className={idcStyles.table.approvalCell}>
+                  <NoLogicalDbCell />
+                </td>
+                <td className={idcStyles.table.approvalCell}>
+                  <NoLogicalDbCell />
+                </td>
+              </>
+            )
           ) : installVariant ? (
             <>
               <td className={idcStyles.table.approvalCell}>
