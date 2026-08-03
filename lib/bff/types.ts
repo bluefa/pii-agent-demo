@@ -112,6 +112,19 @@ export interface BffClient {
     permissions: {
       list: (serviceCode: string) => Promise<z.infer<typeof schemas.AuthorizedUsersResponse>>;
     };
+    /**
+     * Jira Tickets tag — CAMEL wire (JiraTicketResponse), keyed by cloudProvider.
+     * `detach` removes the service↔ticket MAPPING only; the Jira issue itself is
+     * untouched (docs/api/jira-tickets.md §1).
+     */
+    jiraTickets: {
+      list: (serviceCode: string) => Promise<z.infer<typeof schemas.JiraTicketResponse>[]>;
+      attach: (serviceCode: string, cloudProvider: string, issueKey: string) => Promise<void>;
+      detach: (
+        serviceCode: string,
+        cloudProvider: string,
+      ) => Promise<z.infer<typeof schemas.JiraTicketDetachResponse>>;
+    };
   };
 
   scan: {
@@ -287,7 +300,6 @@ export interface BffClient {
     getServices: () => Promise<OpsServiceSummaryWire[]>;
     getService: (code: string) => Promise<OpsServiceDetailWire>;
     postServiceEos: (code: string, force: boolean) => Promise<OpsServiceSummaryWire>;
-    postJiraUser: (code: string, ticketKey: string, userId: string) => Promise<OpsJiraTicketWire>;
   };
 }
 
@@ -325,6 +337,17 @@ export interface OpsCollabChannelWire {
   url: string;
 }
 
+/**
+ * CSP 계정 식별자 (assumed §5). Provider 마다 채워지는 필드가 다르고, IDC·SDU 는
+ * CSP 계정 자체가 없어 전 필드 null 이 정상 — 목록은 그때 아무것도 그리지 않는다.
+ */
+export interface OpsTargetSourceAccountWire {
+  aws_account_id: string | null;
+  aws_region_type: 'global' | 'china' | null;
+  subscription_id: string | null;
+  gcp_project_id: string | null;
+}
+
 /** Ops console list row (assumed §5) — powers the Target Source 운영 목록. */
 export interface OpsTargetSourceListItemWire {
   target_source_id: number;
@@ -335,6 +358,7 @@ export interface OpsTargetSourceListItemWire {
   database_type: string | null;
   process_status: OpsProcessStatusWire;
   last_changed_at: string;
+  metadata: OpsTargetSourceAccountWire;
 }
 
 export interface OpsTargetSourceListPageWire {
@@ -345,16 +369,7 @@ export interface OpsTargetSourceListPageWire {
   content: OpsTargetSourceListItemWire[];
 }
 
-/** 서비스 운영 (assumed §6). */
-export type OpsJiraTicketStatusWire = 'TO_DO' | 'IN_PROGRESS' | 'DONE';
-
-export interface OpsJiraTicketWire {
-  ticket_key: string;
-  summary: string;
-  status: OpsJiraTicketStatusWire;
-  users: string[];
-}
-
+/** 서비스 운영 (assumed §6). Jira 티켓 자체는 실계약(services.jiraTickets)이 준다. */
 export interface OpsServiceSummaryWire {
   service_code: string;
   service_name: string;
@@ -369,6 +384,5 @@ export interface OpsServiceDetailWire {
   service_name: string;
   owner: string;
   status: 'OPERATING' | 'EOS';
-  jira_tickets: OpsJiraTicketWire[];
   target_sources: OpsTargetSourceListItemWire[];
 }

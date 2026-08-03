@@ -3,7 +3,6 @@ import * as mockData from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
 import type {
   OpsCollabChannelWire,
-  OpsJiraTicketWire,
   OpsProcessStatusWire,
   OpsServiceDetailWire,
   OpsServiceSummaryWire,
@@ -120,7 +119,8 @@ export const opsInstallModeOverride = (targetSourceId: number): boolean | null =
 interface OpsServiceState {
   owner: string;
   status: 'OPERATING' | 'EOS';
-  jira: OpsJiraTicketWire[];
+  /** cloudProvider → issueKey. Provider 가 키이므로 provider 당 최대 1건 (실계약). */
+  jira: Partial<Record<string, string>>;
 }
 
 const serviceGlobal = globalThis as typeof globalThis & {
@@ -140,17 +140,18 @@ const serviceState = (code: string): OpsServiceState => {
     state = {
       owner: SEED_OWNERS[Math.max(0, index) % SEED_OWNERS.length],
       status: 'OPERATING',
-      jira: (index === 0
-        ? [
-            { ticket_key: 'INFRA-2211', summary: 'PII Agent 설치 요청', status: 'IN_PROGRESS', users: ['김유진'] },
-            { ticket_key: 'INFRA-2103', summary: 'ScanRole 권한 재검토', status: 'DONE', users: [] },
-          ]
-        : []),
+      // 첫 서비스만 일부 provider 가 연결된 상태로 시작 — 연결/미연결 두 행 모양을
+      // 동시에 볼 수 있어야 한다.
+      jira: index === 0 ? { AWS: 'INFRA-2211', IDC: 'INFRA-2103' } : {},
     };
     store.set(code, state);
   }
   return state;
 };
+
+/** SDU 는 하위 CSP 가 있어도 계정을 노출하지 않는다 — IDC 와 같이 전 필드 null. */
+const isAccountless = (project: (typeof mockData.mockProjects)[number]): boolean =>
+  project.isSduType === true || project.cloudProvider === 'IDC';
 
 const toListItem = (project: (typeof mockData.mockProjects)[number]): OpsTargetSourceListItemWire => ({
   target_source_id: project.targetSourceId,
@@ -166,6 +167,20 @@ const toListItem = (project: (typeof mockData.mockProjects)[number]): OpsTargetS
     project.dbType ?? project.resources.find((r) => r.databaseType)?.databaseType ?? null,
   process_status: STATUS_ORDER[wireStatusIndex(project.processStatus)],
   last_changed_at: project.updatedAt,
+  // IDC·SDU 는 CSP 계정이 없어 전 필드 null — 목록이 계정 열을 비운다.
+  metadata: isAccountless(project)
+    ? { aws_account_id: null, aws_region_type: null, subscription_id: null, gcp_project_id: null }
+    : {
+        aws_account_id: project.cloudProvider === 'AWS' ? accountId(project) : null,
+        aws_region_type:
+          project.cloudProvider !== 'AWS'
+            ? null
+            : (project.isChinaRegion ?? project.awsRegionType === 'china')
+              ? 'china'
+              : 'global',
+        subscription_id: project.subscriptionId ?? null,
+        gcp_project_id: project.gcpProjectId ?? null,
+      },
 });
 
 const serviceSummary = (code: string): OpsServiceSummaryWire => {
@@ -177,7 +192,7 @@ const serviceSummary = (code: string): OpsServiceSummaryWire => {
     owner: state.owner,
     status: state.status,
     target_source_count: projects.length,
-    jira_ticket_count: state.jira.length,
+    jira_ticket_count: Object.keys(state.jira).length,
   };
 };
 
@@ -265,14 +280,12 @@ export const mockOps = {
   // GET /admin/ops/services/{code} (assumed §6).
   getService: async (code: string) => {
     if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
-    const state = serviceState(code);
     const summary = serviceSummary(code);
     const detail: OpsServiceDetailWire = {
       service_code: summary.service_code,
       service_name: summary.service_name,
       owner: summary.owner,
       status: summary.status,
-      jira_tickets: state.jira,
       target_sources: mockData.mockProjects
         .filter((p) => p.serviceCode === code)
         .map(toListItem)
@@ -301,12 +314,53 @@ export const mockOps = {
     return NextResponse.json(serviceSummary(code));
   },
 
-  // POST /admin/ops/services/{code}/jira-tickets/{key}/users (assumed §6).
-  postJiraUser: async (code: string, ticketKey: string, userId: string) => {
+};
+
+/* ── Jira Tickets tag — REAL contract (install-v1.yaml, docs/api/jira-tickets.md §1) ── */
+
+/** JiraTicketResponse.targetSourceId: 그 provider 의 첫 target source (없으면 0). */
+const providerTargetSourceId = (code: string, provider: string): number =>
+  mockData.mockProjects.find(
+    (p) => p.serviceCode === code && p.cloudProvider.toUpperCase() === provider,
+  )?.targetSourceId ?? 0;
+
+/** CAMEL wire — JiraTicketResponse 는 서비스 목록 wire 와 달리 camelCase 다. */
+const toJiraTicketResponse = (code: string, provider: string, issueKey: string) => ({
+  id: providerTargetSourceId(code, provider),
+  targetSourceId: providerTargetSourceId(code, provider),
+  serviceCode: code,
+  issueKey,
+  cloudProvider: provider,
+});
+
+export const mockServiceJiraTickets = {
+  // GET /services/{code}/jira-tickets → JiraTicketResponse[].
+  list: async (code: string) => {
     if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
-    const ticket = serviceState(code).jira.find((j) => j.ticket_key === ticketKey);
-    if (!ticket) return notFound('Jira 티켓을 찾을 수 없습니다.');
-    if (!ticket.users.includes(userId)) ticket.users.push(userId);
-    return NextResponse.json(ticket);
+    const { jira } = serviceState(code);
+    return NextResponse.json(
+      Object.entries(jira)
+        .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+        .map(([provider, issueKey]) => toJiraTicketResponse(code, provider, issueKey)),
+    );
+  },
+
+  // POST /services/{code}/jira-tickets/{provider} { issueKey } → 204.
+  // 티켓을 만들지 않는다 — 이미 있는 issueKey 를 이 서비스·provider 에 매핑할 뿐.
+  attach: async (code: string, provider: string, issueKey: string) => {
+    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    serviceState(code).jira[provider] = issueKey;
+    return new NextResponse(null, { status: 204 });
+  },
+
+  // DELETE /services/{code}/jira-tickets/{provider} → { issueKey }.
+  // 매핑만 끊는다 — Jira 의 티켓은 그대로 남는다.
+  detach: async (code: string, provider: string) => {
+    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    const state = serviceState(code);
+    const issueKey = state.jira[provider];
+    if (!issueKey) return notFound('연결된 Jira 티켓이 없습니다.');
+    delete state.jira[provider];
+    return NextResponse.json({ issueKey });
   },
 };

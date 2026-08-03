@@ -19,7 +19,7 @@ import { mockUsers } from '@/lib/bff/mock/users';
 import { mockServices } from '@/lib/bff/mock/services';
 import { mockScan } from '@/lib/bff/mock/scan';
 import { mockAws } from '@/lib/bff/mock/aws';
-import { mockOps } from '@/lib/bff/mock/ops';
+import { mockOps, mockServiceJiraTickets } from '@/lib/bff/mock/ops';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
 import { mockIdc } from '@/lib/bff/mock/idc';
@@ -86,6 +86,16 @@ export const mockBff: BffClient = {
     permissions: {
       list: async (serviceCode) => unwrap(await mockServices.permissions.list(serviceCode)),
     },
+    jiraTickets: {
+      list: async (serviceCode) => unwrap(await mockServiceJiraTickets.list(serviceCode)),
+      attach: async (serviceCode, cloudProvider, issueKey) => {
+        // 204 — unwrap() would choke on the empty body, so only surface errors.
+        const response = await mockServiceJiraTickets.attach(serviceCode, cloudProvider, issueKey);
+        if (!response.ok) await unwrap(response);
+      },
+      detach: async (serviceCode, cloudProvider) =>
+        unwrap(await mockServiceJiraTickets.detach(serviceCode, cloudProvider)),
+    },
   },
 
   scan: {
@@ -119,8 +129,6 @@ export const mockBff: BffClient = {
     getServices: async () => unwrap(await mockOps.getServices()),
     getService: async (code) => unwrap(await mockOps.getService(code)),
     postServiceEos: async (code, force) => unwrap(await mockOps.postServiceEos(code, force)),
-    postJiraUser: async (code, ticketKey, userId) =>
-      unwrap(await mockOps.postJiraUser(code, ticketKey, userId)),
   },
 
   // Azure mock returns raw snake wire; the route validates with schemas.X.parse().

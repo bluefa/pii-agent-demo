@@ -82,14 +82,24 @@ GET /install/v1/admin/ops/target-sources?query={q}&page={n}&size={n}
           database_type: string | null,
           process_status: IDLE|PENDING|CONFIRMING|CONFIRMED|INSTALLED|CONNECTED|COMPLETED,
           last_changed_at: ISO-8601,
+          metadata: {                    // CSP account identifiers
+            aws_account_id:  string | null,
+            aws_region_type: "global" | "china" | null,
+            subscription_id: string | null,   // Azure
+            gcp_project_id:  string | null,
+          },
         }>
 // query matches target_source_id / service_code / service_name (contains).
+// metadata: only the owning provider's field is populated. IDC and SDU targets
+// have no CSP account at all — every field is null and the list renders nothing.
 ```
 
 ## 6. Service operations
 
-ServiceCode-level operations: owner/status summary, Jira ticket registry with
-notification users, and EOS processing.
+ServiceCode-level operations: owner/status summary and EOS processing. Jira tickets
+are NOT here — they are a real contract (`docs/api/jira-tickets.md` §1), fetched
+separately per service and keyed by cloudProvider. `jira_ticket_count` stays on the
+summary so the index list can show a count without a second round trip.
 
 ```
 GET /install/v1/admin/ops/services
@@ -98,17 +108,12 @@ GET /install/v1/admin/ops/services
 
 GET /install/v1/admin/ops/services/{serviceCode}
 → 200   { service_code, service_name, owner, status,
-          jira_tickets: [{ ticket_key, summary, status: TO_DO|IN_PROGRESS|DONE, users: string[] }],
           target_sources: <§5 row>[] }
 
 POST /install/v1/admin/ops/services/{serviceCode}/eos
 body     { force: boolean }
 → 200   service summary (status becomes EOS)
 → 409   ErrorMessage        // running pipeline exists and force=false
-
-POST /install/v1/admin/ops/services/{serviceCode}/jira-tickets/{ticketKey}/users
-body     { user_id: string }
-→ 200   updated jira ticket
 ```
 
 ## 7. Ops alerts (운영 알림) — SHIPPED, no longer assumed
