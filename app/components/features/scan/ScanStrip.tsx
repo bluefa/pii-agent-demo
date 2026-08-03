@@ -213,12 +213,7 @@ export const ScanStrip = ({
     >
       {showFunnel && funnel && (
         <div className={cn('grid grid-cols-3 divide-x', borderColors.light)}>
-          <FunnelCell
-            label="연동 가능 DB"
-            value={funnel.eligible}
-            sub="아래 표에 보이는 대상"
-            emphasis
-          />
+          <FunnelCell label="연동 가능 DB" value={funnel.eligible} emphasis />
           <FunnelCell
             label="선택함"
             value={funnel.selected}

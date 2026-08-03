@@ -149,7 +149,7 @@ describe('ScanStrip funnel row', () => {
   it('suppresses the funnel entirely when no scan is on record', () => {
     render(<ScanStrip {...baseProps} job={null} funnel={baseFunnel} />);
     expect(screen.getByText('아직 스캔한 적이 없어요')).toBeTruthy();
-    expect(screen.queryByText('아래 표에 보이는 대상')).toBeNull();
+    expect(screen.queryByText('연동 가능 DB')).toBeNull();
     expect(screen.queryByRole('button', { name: /선택함/ })).toBeNull();
     expect(screen.getByRole('button', { name: '스캔 시작' })).toBeTruthy();
   });
