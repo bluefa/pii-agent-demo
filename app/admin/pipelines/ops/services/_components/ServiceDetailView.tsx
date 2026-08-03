@@ -33,7 +33,33 @@ import {
 } from '@/app/lib/api/ops';
 
 const TS_COLUMNS = ['ID', 'Provider', '계정', 'DB', '현재 단계', '마지막 변경'] as const;
-const JIRA_COLUMNS = ['CloudProvider', 'Ticket'] as const;
+
+/**
+ * Step 1 리소스 테이블 문법(idcStyles.table.approval*)을 운영 콘솔 토큰으로 옮긴 것 —
+ * 채운 헤더 밴드 + 18/12 · 18/16 셀. 계정 셀이 2줄이라 기본 ops 테이블(12/10)에서는
+ * 행이 붙어 보인다.
+ */
+const resTable = {
+  head: 'bg-[var(--pl-gray-50)] px-[18px] py-3 text-left text-[12px] font-semibold text-[var(--pl-text-medium)] whitespace-nowrap',
+  cell: 'px-[18px] py-4 align-middle text-[var(--pl-text-strong)]',
+  body: 'divide-y divide-[var(--pl-gray-100)]',
+} as const;
+
+/**
+ * Jira 타일 — provider 5개는 열이 2개뿐인 표를 채우기엔 너무 짧고, 서로 비교할 값도
+ * 없다. 244px 타일 3열(Figma 8VvnhFuRfLUniXG0SP4YSJ 6:6)로 접으면 같은 정보가
+ * 표의 1/3 높이에 들어간다.
+ */
+const tileStyles = {
+  /* 748 = 244*3 + 8*2. 폭을 묶지 않으면 3열이 화면 폭을 따라 늘어나 타일 하나가 400px
+     이 되고, 표를 걷어낸 이유(휑함)가 그대로 돌아온다. */
+  grid: 'grid grid-cols-3 gap-2 max-w-[748px]',
+  base: 'flex items-start justify-between gap-2 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3.5',
+  value: 'mt-1 block text-[13px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)]',
+  empty: 'mt-1 block text-[13px] text-[var(--pl-text-weak)]',
+  kebab:
+    'flex-none -mr-1.5 -mt-1 grid h-7 w-7 place-items-center rounded-md text-[var(--pl-text-faint)] cursor-pointer hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]',
+} as const;
 
 /** 운영중 / EOS — ok vs err tones (목록과 같은 문법). */
 function ServiceStatusTag({ status }: { status: OpsServiceDetail['status'] }): ReactElement {
@@ -207,14 +233,14 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
             <thead>
               <tr>
                 {TS_COLUMNS.map((column) => (
-                  <th key={column} className={table.headCell}>
+                  <th key={column} className={resTable.head}>
                     {column}
                   </th>
                 ))}
-                <th className={cn(table.headCell, 'w-10')} aria-label="이동" />
+                <th className={cn(resTable.head, 'w-10')} aria-label="이동" />
               </tr>
             </thead>
-            <tbody className="[&>tr:last-child>td]:border-b-0">
+            <tbody className={resTable.body}>
               {targetCount === 0 ? (
                 <tr>
                   <td colSpan={TS_COLUMNS.length + 1}>
@@ -235,7 +261,7 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                         router.push(href);
                       }}
                     >
-                      <td className={table.cell}>
+                      <td className={resTable.cell}>
                         <Link
                           href={href}
                           className={cn(text.mono, 'font-semibold hover:underline')}
@@ -243,13 +269,13 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                           #{target.target_source_id}
                         </Link>
                       </td>
-                      <td className={table.cell}>
+                      <td className={resTable.cell}>
                         <ProvTag provider={target.cloud_provider} isSdu={target.is_sdu_type} />
                       </td>
-                      <td className={table.cell}>
+                      <td className={resTable.cell}>
                         <AccountCell target={target} />
                       </td>
-                      <td className={table.cell}>
+                      <td className={resTable.cell}>
                         {target.database_type ? (
                           <span
                             className={cn(
@@ -263,13 +289,13 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                           <span className={text.muted}>—</span>
                         )}
                       </td>
-                      <td className={table.cell}>
+                      <td className={resTable.cell}>
                         <StepPill status={target.process_status} />
                       </td>
-                      <td className={cn(table.cell, 'whitespace-nowrap')}>
+                      <td className={cn(resTable.cell, 'whitespace-nowrap')}>
                         <span className={text.muted}>{fmtDateTime(target.last_changed_at)}</span>
                       </td>
-                      <td className={cn(table.cell, 'text-right')}>
+                      <td className={cn(resTable.cell, 'text-right')}>
                         <Link
                           href={href}
                           aria-label={`Target Source #${target.target_source_id} 운영 상세로 이동`}
@@ -293,56 +319,32 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
         정보만 바꾸며, <b className="font-semibold text-[var(--pl-text-medium)]">Jira 의 티켓을
         만들거나 삭제하지 않습니다.</b>
       </p>
-      <section className={pipelineStyles.card.base} aria-label="Jira Ticket 연결">
-        <div className={pipelineStyles.card.tableWrap}>
-          <table className={table.base}>
-            <thead>
-              <tr>
-                {JIRA_COLUMNS.map((column) => (
-                  <th key={column} className={table.headCell}>
-                    {column}
-                  </th>
-                ))}
-                <th className={cn(table.headCell, 'w-[130px]')} aria-label="연결 관리" />
-              </tr>
-            </thead>
-            <tbody className="[&>tr:last-child>td]:border-b-0">
-              {JIRA_CLOUD_PROVIDERS.map((provider) => {
-                const ticket = ticketOf(provider);
-                return (
-                  <tr key={provider}>
-                    <td className={cn(table.cell, 'w-[160px]')}>
-                      <ProvTag provider={provider} />
-                    </td>
-                    <td className={table.cell}>
-                      {ticket ? (
-                        <span className={cn(text.mono, 'font-semibold')}>{ticket.issueKey}</span>
-                      ) : (
-                        <span className={text.muted}>연결된 티켓 없음</span>
-                      )}
-                    </td>
-                    <td className={cn(table.cell, 'text-right')}>
-                      <PlButton
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setJiraTarget(provider)}
-                      >
-                        {ticket ? (
-                          '연결 해제'
-                        ) : (
-                          <>
-                            <Icon name="plus" size="sm" />
-                            연결
-                          </>
-                        )}
-                      </PlButton>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      <section className={cn(tileStyles.grid, 'mt-3')} aria-label="Jira Ticket 연결">
+        {JIRA_CLOUD_PROVIDERS.map((provider) => {
+          const ticket = ticketOf(provider);
+          return (
+            <div key={provider} className={tileStyles.base}>
+              <div className="min-w-0">
+                <ProvTag provider={provider} />
+                {ticket ? (
+                  <span className={cn(tileStyles.value, 'truncate')} title={ticket.issueKey}>
+                    {ticket.issueKey}
+                  </span>
+                ) : (
+                  <span className={tileStyles.empty}>연결된 티켓 없음</span>
+                )}
+              </div>
+              <button
+                type="button"
+                className={tileStyles.kebab}
+                aria-label={`${provider} Jira Ticket 연결 관리`}
+                onClick={() => setJiraTarget(provider)}
+              >
+                <Icon name="dots-v" />
+              </button>
+            </div>
+          );
+        })}
       </section>
 
       <EosModal
