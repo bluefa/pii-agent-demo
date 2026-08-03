@@ -18,7 +18,7 @@ export interface ModalProps {
   /** 헤더 아이콘 (선택) */
   icon?: ReactNode;
   /** 모달 크기 */
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'logical';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'logical';
   /**
    * Modal chrome. 'default' keeps the shared app styling — byte-identical for
    * existing callers (AWS/Azure/GCP). 'toss' opts into the IDC-only prototype
@@ -57,6 +57,9 @@ const SIZE_CLASSES: Record<string, string> = {
   lg: 'max-w-lg',
   xl: 'max-w-xl',
   '2xl': 'max-w-2xl',
+  // 승인 요청 상세 — carries the step-2 approval table. Its six columns need ~1055px,
+  // so 1040 (the `logical` width) still clipped 제외 사유 behind a horizontal scroll.
+  '3xl': 'max-w-[1160px]',
   // v16 `.logical-modal` — 1040px wide (논리 DB 확인). Additive: no existing size changes.
   logical: 'max-w-[1040px]',
 };
@@ -140,16 +143,22 @@ export const Modal = ({
   if (!isOpen) return null;
 
   // Default (non-toss) branch reproduces the original byte-for-byte class strings
-  // (tokens compose in the original order) so AWS/Azure/GCP modals are unchanged.
+  // (tokens compose in the original order) so AWS/Azure/GCP modals are unchanged,
+  // apart from the viewport cap below which every chrome shares.
   // 'toss-compact' shares every toss token except the three it tightens.
   const isCompact = chrome === 'toss-compact';
   const isToss = chrome === 'toss' || isCompact;
   // 'bare' suppresses the shared header (title bar + close-X); the caller renders
   // its own title block in `children`. Container/body keep the default styling.
   const isBare = chrome === 'bare';
+  // The overlay centers the box and cannot scroll, so a body taller than the
+  // viewport pushes the header (닫기 X) and the footer off-screen for good.
+  // Cap the box and let the body scroll instead — same pattern as
+  // ProjectCreateModal.
+  const viewportCap = 'max-h-[90vh] flex flex-col';
   const containerCls = isToss
-    ? cn('bg-white shadow-xl w-full mx-4 overflow-hidden', modalStyles.toss.container, SIZE_CLASSES[size])
-    : cn('bg-white rounded-xl shadow-xl w-full', SIZE_CLASSES[size], 'mx-4 overflow-hidden');
+    ? cn('bg-white shadow-xl w-full mx-4 overflow-hidden', viewportCap, modalStyles.toss.container, SIZE_CLASSES[size])
+    : cn('bg-white rounded-xl shadow-xl w-full', SIZE_CLASSES[size], 'mx-4 overflow-hidden', viewportCap);
   const headerCls = isCompact
     ? modalStyles.toss.compact.header
     : isToss
@@ -182,7 +191,7 @@ export const Modal = ({
       >
         {/* Header — omitted entirely for 'bare' chrome (no title bar, no close-X). */}
         {!isBare && (
-          <div className={headerCls}>
+          <div className={cn(headerCls, 'flex-none')}>
             <div className={iconGroupCls}>
               {icon && <div className={iconCls}>{icon}</div>}
               <div>
@@ -206,11 +215,12 @@ export const Modal = ({
           </div>
         )}
 
-        {/* Content */}
-        <div className={bodyCls}>{children}</div>
+        {/* Content — min-h-0 lets this flex child shrink below its content so
+            overflow-y-auto actually scrolls instead of growing the box. */}
+        <div className={cn(bodyCls, 'min-h-0 overflow-y-auto')}>{children}</div>
 
         {/* Footer */}
-        {footer && <div className={footerCls}>{footer}</div>}
+        {footer && <div className={cn(footerCls, 'flex-none')}>{footer}</div>}
       </div>
     </div>
   );

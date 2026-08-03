@@ -5,16 +5,13 @@
  *
  * Header identity comes from the P2 wire (getRequestHeader — service name/code/
  * provider/confirmStatus); the request summary + resources come from
- * getApprovalRequestLatest. The IDC variant edits each resource's NLB index
- * (local draft → per-row PUT; a successful save refetches the NLB table so
- * occupancy moves), and its 배정 NLB 상태 / listener modal read the same NLB table.
- * The non-IDC variant is a read-only resource table. 승인/반려 post to the approval
- * endpoints, then return to the list.
+ * getApprovalRequestLatest. The list itself lives in ResourceSection and the IDC NLB
+ * editing in useNlbAssignment; this page owns the fetch, the approval actions and the
+ * modals. 승인/반려 post to the approval endpoints, then return to the list.
  */
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useState, type ReactElement } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { passRoutes } from '@/lib/routes';
-import { pipelineStyles } from '@/lib/theme';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 
 import { PlBreadcrumb } from '@/app/admin/pipelines/_components/PlBreadcrumb';
@@ -25,26 +22,20 @@ import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 
 import { RequestDetailHeader } from '@/app/admin/pipelines/queue/requests/_components/RequestDetailHeader';
-import { CloudResourceTable } from '@/app/admin/pipelines/queue/requests/_components/CloudResourceTable';
-import { IdcResourceTable } from '@/app/admin/pipelines/queue/requests/_components/IdcResourceTable';
+import { ResourceSection } from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
 import { NlbListenerModal } from '@/app/admin/pipelines/queue/requests/_components/NlbListenerModal';
 import { NlbMappingModal } from '@/app/admin/pipelines/queue/requests/_components/NlbMappingModal';
 import { ApproveModal } from '@/app/admin/pipelines/queue/requests/_components/ApproveModal';
 import { RejectModal } from '@/app/admin/pipelines/queue/requests/_components/RejectModal';
-import {
-  clearNlbDraft,
-  dirtyCount,
-  effectiveNlbIndex,
-  setNlbDraft,
-  type NlbDraft,
-} from '@/app/admin/pipelines/queue/requests/_logic';
+import { dirtyCount } from '@/app/admin/pipelines/queue/requests/_logic';
+import { useResourceListState } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
+import { useNlbAssignment } from '@/app/admin/pipelines/queue/requests/_useNlbAssignment';
 import {
   approveRequest,
   getApprovalRequestLatest,
   getNlbIndexMappings,
   getNlbTable,
   getRequestHeader,
-  putNlbIndex,
   rejectRequest,
   type ApprovalRequestDetail,
   type NlbTableRow,
@@ -52,8 +43,6 @@ import {
   type ResourceNlbMappings,
 } from '@/app/lib/api/task-queue-requests';
 import type { RequestListRow } from '@/lib/types/task-queue';
-
-const { text } = pipelineStyles;
 
 type ModalKind = 'approve' | 'reject' | 'nlb' | null;
 
@@ -69,30 +58,43 @@ export default function RequestDetailPage(): ReactElement {
   const [header, setHeader] = useState<RequestListRow | null>(null);
   const [detail, setDetail] = useState<ApprovalRequestDetail | null>(null);
   const [nlbTable, setNlbTable] = useState<NlbTableRow[]>([]);
-  // null = the per-resource NLB mappings fetch failed (modal shows a fallback,
-  // not a false "배정 없음"). Resolved before `loading` clears, so a row's "NLB
-  // 정보" control never opens onto a still-loading state.
+  // null = the per-resource NLB mappings fetch failed (modal shows a fallback, not a
+  // false "배정 없음"). Resolved before `loading` clears, so a row's "NLB 정보" control
+  // never opens onto a still-loading state.
   const [nlbMappings, setNlbMappings] = useState<ResourceNlbMappings[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [retry, setRetry] = useState(0);
 
-  const [draft, setDraft] = useState<NlbDraft>({});
-  const [savingResourceId, setSavingResourceId] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalKind>(null);
   // The resource whose "현재 배정된 NLB" modal is open — keyed per resource so
   // reopening for another row shows that row's data (fresh mount via key prop).
   const [nlbInfoResource, setNlbInfoResource] = useState<RequestResourceRow | null>(null);
 
-  // Gates the post-save toast/refetch: the section-level toast provider outlives
-  // this page, so a save resolving after navigation must not fire a toast there.
-  const aliveRef = useRef(true);
-  useEffect(() => {
-    aliveRef.current = true;
-    return () => {
-      aliveRef.current = false;
-    };
+  const list = useResourceListState();
+  const { reset: resetList } = list;
+
+  // Rebase the saved row's index so the select stops reading as dirty.
+  const onNlbSaved = useCallback((resourceId: string, nlbIndex: number): void => {
+    setDetail((prev) =>
+      prev
+        ? {
+            ...prev,
+            resources: prev.resources.map((r) =>
+              r.resourceId === resourceId ? { ...r, nlbIndex } : r,
+            ),
+          }
+        : prev,
+    );
   }, []);
+
+  const nlb = useNlbAssignment({
+    targetSourceId,
+    onSaved: onNlbSaved,
+    onNlbTable: setNlbTable,
+    showToast: toast.show,
+  });
+  const { reset: resetNlbDraft } = nlb;
 
   useAbortableEffect(
     (signal) => {
@@ -102,17 +104,18 @@ export default function RequestDetailPage(): ReactElement {
         getRequestHeader(targetSourceId, { signal }),
         getApprovalRequestLatest(targetSourceId, { signal }),
         getNlbTable({ signal }),
-        // Consumed only by the IDC "NLB 정보" modal — its failure must not break
-        // the detail, so it resolves to null (→ modal fallback) on its own.
+        // Consumed only by the IDC "NLB 정보" modal — its failure must not break the
+        // detail, so it resolves to null (→ modal fallback) on its own.
         getNlbIndexMappings(targetSourceId, { signal }).catch(() => null),
       ])
-        .then(([headerRow, detailData, nlb, mappings]) => {
+        .then(([headerRow, detailData, nlbRows, mappings]) => {
           if (signal.aborted) return;
           setHeader(headerRow);
           setDetail(detailData);
-          setNlbTable(nlb);
+          setNlbTable(nlbRows);
           setNlbMappings(mappings);
-          setDraft({});
+          resetNlbDraft();
+          resetList();
           setLoading(false);
         })
         .catch((err) => {
@@ -121,7 +124,7 @@ export default function RequestDetailPage(): ReactElement {
           setLoading(false);
         });
     },
-    [targetSourceId, retry],
+    [targetSourceId, retry, resetList, resetNlbDraft],
   );
 
   const provider = header?.cloudProvider ?? '';
@@ -130,55 +133,13 @@ export default function RequestDetailPage(): ReactElement {
   const resources = detail?.resources ?? [];
   const selectedCount =
     detail?.request.resourceSelectedCount ?? resources.filter((r) => r.selected).length;
-  const totalCount = detail?.request.resourceTotalCount ?? resources.length;
-  const excludedCount = Math.max(0, totalCount - selectedCount);
   // Cheap filter over the (small) resource set — recomputed each render on purpose.
-  const unsavedNlbCount = dirtyCount(resources, draft);
-
-  const onSelectNlb = (row: RequestResourceRow, nlbIndex: number): void => {
-    setDraft((prev) => setNlbDraft(prev, row, nlbIndex));
-  };
-
-  const onSaveNlb = async (row: RequestResourceRow): Promise<void> => {
-    if (row.resourceId == null) return;
-    const nextIndex = effectiveNlbIndex(row, draft);
-    if (nextIndex == null) return;
-    const fromIndex = row.nlbIndex;
-    setSavingResourceId(row.resourceId);
-    try {
-      await putNlbIndex(targetSourceId, row.resourceId, nextIndex);
-      // Baseline the row's original index to the saved value, drop its draft, and
-      // refetch occupancy (the save moved a listener across NLB rows).
-      setDetail((prev) =>
-        prev
-          ? {
-              ...prev,
-              resources: prev.resources.map((r) =>
-                r.resourceId === row.resourceId ? { ...r, nlbIndex: nextIndex } : r,
-              ),
-            }
-          : prev,
-      );
-      setDraft((prev) => clearNlbDraft(prev, row.resourceId as string));
-      const nlb = await getNlbTable();
-      if (!aliveRef.current) return;
-      setNlbTable(nlb);
-      toast.show(
-        fromIndex != null && fromIndex !== nextIndex
-          ? `NLB #${fromIndex} → #${nextIndex} 변경을 저장했어요`
-          : `NLB #${nextIndex} 배정을 저장했어요`,
-      );
-    } catch (err) {
-      if (aliveRef.current) toast.show(errorMessage(err));
-    } finally {
-      setSavingResourceId(null);
-    }
-  };
+  const unsavedNlbCount = dirtyCount(resources, nlb.draft);
 
   const backToList = (): void => router.push(passRoutes.pipelines.queue.requests);
 
   // A failed submit keeps the modal open (it resets its own submitting flag) and
-  // surfaces the reason via the section toast — the same grammar as onSaveNlb.
+  // surfaces the reason via the section toast — the same grammar as the NLB save.
   const onApprove = async (comment: string): Promise<void> => {
     try {
       await approveRequest(targetSourceId, comment);
@@ -237,8 +198,6 @@ export default function RequestDetailPage(): ReactElement {
             confirmStatus={detail.request.status ?? header?.confirmStatus ?? null}
             requestedBy={detail.request.requestedBy}
             requestedAt={detail.request.requestedAt}
-            selectedCount={selectedCount}
-            totalCount={totalCount}
             onApprove={() => setModal('approve')}
             onReject={() => setModal('reject')}
           />
@@ -246,34 +205,18 @@ export default function RequestDetailPage(): ReactElement {
           <SectionHeader
             first
             title={isIdc ? '연동 대상 리소스 · NLB 배정' : '연동 대상 리소스'}
-            desc={`연동 대상 ${selectedCount}개 · 제외 ${excludedCount}개`}
           />
           <Card>
-            {isIdc ? (
-              <>
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className={text.subsectionTitle}>리소스별 NLB Index</span>
-                  <PlButton variant="secondary" size="sm" onClick={() => setModal('nlb')}>
-                    NLB 리스너 현황
-                  </PlButton>
-                </div>
-                <IdcResourceTable
-                  rows={resources}
-                  nlbTable={nlbTable}
-                  draft={draft}
-                  savingResourceId={savingResourceId}
-                  disabled={detail.request.status !== 'PENDING'}
-                  onSelect={onSelectNlb}
-                  onSave={(row) => void onSaveNlb(row)}
-                  onShowNlbInfo={setNlbInfoResource}
-                />
-                <p className={`${text.meta} mt-4`}>
-                  점유 리스너가 30개를 넘으면 주의, 50개에 이르면 새로 배정할 수 없어요
-                </p>
-              </>
-            ) : (
-              <CloudResourceTable rows={resources} />
-            )}
+            <ResourceSection
+              resources={resources}
+              isIdc={isIdc}
+              list={list}
+              nlbTable={nlbTable}
+              nlb={nlb}
+              nlbLocked={detail.request.status !== 'PENDING'}
+              onShowNlbInfo={setNlbInfoResource}
+              onOpenNlbListeners={() => setModal('nlb')}
+            />
           </Card>
 
           <NlbListenerModal

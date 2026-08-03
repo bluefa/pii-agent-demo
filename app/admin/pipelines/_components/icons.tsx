@@ -38,6 +38,7 @@ export type IconName =
   | 'warn-tri'
   | 'loader'
   | 'calendar'
+  | 'info'
   | 'copy';
 
 export type IconSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -56,6 +57,13 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
   'arrow-right': <path d="M5 12h14M12 5l7 7-7 7" />,
   'arrow-up-right': <path d="M7 17 17 7M7 7h10v10" />,
   'chev-r': <path d="m9 5.5 6.5 6.5L9 18.5" />,
+  /** `i-info` — the omitted prototype symbol, added for the P3 row-level detail affordance. */
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11.5v4.5M12 8h.01" />
+    </>
+  ),
   copy: (
     <>
       <rect x="9" y="9" width="12" height="12" rx="2" />

@@ -2,9 +2,9 @@
 
 /**
  * 연동 요청 정보 tab — mirrors the approved mockup
- * (design/pipeline/ops-target-source-tabs.html `tabRequest`): 최근 승인 요청 +
- * 확정 정보 side by side, then the requested-resource table (cloud and IDC
- * column sets).
+ * (design/pipeline/ops-target-source-tabs.html `tabRequest`), with 최근 승인 요청
+ * folded into ONE card — the request's facts as a header row over the resource
+ * list itself, the same shape the 승인 요청 상세 modal uses — and 확정 정보 below it.
  *
  * Reads are independent and best-effort so a failing card never blanks its
  * sibling:
@@ -13,7 +13,7 @@
  *   - 처리 (처리자 · 처리 일시)     → …/approval-history (latest page item)
  * A missing snapshot (404) is an empty state, not a failure.
  */
-import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { fmtDateTime } from '@/lib/pipeline/format';
@@ -31,6 +31,15 @@ import {
   type RequestResourceRow,
 } from '@/app/lib/api/task-queue-requests';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
+import { Pagination } from '@/app/components/ui/Pagination';
+import { WaitingApprovalStats } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
+import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import {
+  WaitingApprovalTable,
+  type WaitingApprovalResource,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
+import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
 /** `data: null` = the snapshot does not exist yet (404), not a failure. */
@@ -80,30 +89,42 @@ const KV_GRID = 'grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-2.5 mt-3.
 const NOTE_WARN =
   'flex gap-2.5 rounded-lg px-3.5 py-3 mt-4 text-[13px] leading-[1.5] bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]';
 
-const CLOUD_COLUMNS = [
-  'Database Type',
-  'Resource ID',
-  'Region',
-  'Resource Name',
-  '연동 대상',
-  '제외 사유',
-] as const;
+/**
+ * 요청 리소스 → the same list the 승인 요청 상세 modal renders: stat tiles that ARE
+ * the filter, search + condition popover, the shared approval table, pager footer.
+ * One request, one presentation, wherever an operator opens it — this tab had its
+ * own hand-rolled table with a different column order and no filtering at all.
+ *
+ * IDC carries no scan-assigned name, so its endpoint takes that seat — as `host:port`,
+ * the same shape the queue's IDC table uses, so the port survives a table that has no
+ * column of its own for it. IDC has no region either, so 위치 stays blank rather than
+ * asserting one.
+ *
+ * resource_id is NEVER surfaced: the adapter documents it as an internal NLB-PUT key
+ * (app/lib/api/task-queue-requests.ts, design-spec §8), so feeding it to a table with a
+ * Resource ID column would publish an id the IDC operator has no use for. It still keys
+ * the row via `rowKey`, which is never rendered — without it every IDC row would fall
+ * back to its list index and per-row tooltip state would follow a slot.
+ *
+ * Oracle SID and Source IP have no seat here. That is the gap the 승인 요청 상세 modal
+ * has always had, and matching the modal is precisely what this tab was asked to do.
+ */
+const toApprovalRow = (row: RequestResourceRow, isIdc: boolean): WaitingApprovalResource => ({
+  resourceId: isIdc ? '' : row.resourceId ?? '',
+  rowKey: row.resourceId ?? undefined,
+  resourceType: row.databaseType ?? '',
+  region: isIdc ? '' : row.region ?? '',
+  resourceName: isIdc
+    ? row.connectTargets.map((host) => (row.port == null ? host : `${host}:${row.port}`)).join(' · ')
+    : row.resourceName ?? '',
+  selected: row.selected,
+  displayDbType: row.databaseType ?? undefined,
+  exclusionReason: row.exclusionReason ?? undefined,
+});
 
-const IDC_COLUMNS = [
-  '구분',
-  'Database Type',
-  '호스트 · IP',
-  'Port',
-  'Oracle SID',
-  'Source IP',
-  '연동 대상',
-  '제외 사유',
-] as const;
+const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 
 const dash = (): ReactElement => <span className={pipelineStyles.text.muted}>—</span>;
-
-const orDash = (value: string | number | null | undefined): ReactNode =>
-  value == null || value === '' ? dash() : value;
 
 function KvRow({ label, children }: { label: string; children: ReactNode }): ReactElement {
   return (
@@ -120,66 +141,61 @@ function StatusTag({ status }: { status: string | null }): ReactElement {
   return <span className={cn(opsStyles.statusTag, tone.fill)}>{status}</span>;
 }
 
-/** 연동 대상 / 제외 dot pill. */
-function TargetPill({ selected }: { selected: boolean }): ReactElement {
-  const tone = TONE[selected ? 'ok' : 'off'];
-  const { pill } = pipelineStyles;
-  return (
-    <span className={cn(pill.base, pill.md, tone.fill)}>
-      <span className={cn('h-1.5 w-1.5 rounded-full flex-none', tone.dot)} aria-hidden />
-      {selected ? '대상' : '제외'}
-    </span>
+/** 요청 리소스 목록 — owns the list's own filter/search/page state, so mounting it
+ *  under a per-request `key` is what resets that state between requests. */
+function ResourceList({
+  rows,
+  isIdc,
+}: {
+  rows: readonly RequestResourceRow[];
+  isIdc: boolean;
+}): ReactElement {
+  const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
+    () => rows.map((row) => toApprovalRow(row, isIdc)),
+    [rows, isIdc],
   );
-}
-
-function ResourceCells({ row, isIdc }: { row: RequestResourceRow; isIdc: boolean }): ReactElement {
-  const { cell } = opsStyles.table;
-  const mono = pipelineStyles.text.mono;
-  // wire 는 소문자 원문(mysql·athena)이라 사용자 화면과 같은 표기로 맞춘다.
-  const dbTag = (
-    <span className={DB_TAG}>
-      {row.databaseType ? getDatabaseShortLabel(row.databaseType) : '—'}
-    </span>
-  );
-  const target = (
-    <>
-      <td className={cell}>
-        <TargetPill selected={row.selected} />
-      </td>
-      <td className={cell}>{orDash(row.selected ? null : row.exclusionReason)}</td>
-    </>
-  );
-
-  if (isIdc) {
-    return (
-      <>
-        <td className={cell}>{orDash(row.idcKind === 'HOST' ? 'Host' : row.idcKind)}</td>
-        <td className={cell}>{dbTag}</td>
-        <td className={cell}>
-          <span className={mono}>{row.connectTargets.join(' · ') || '—'}</span>
-        </td>
-        <td className={cell}>
-          <span className={mono}>{row.port ?? '—'}</span>
-        </td>
-        <td className={cell}>{orDash(row.oracleSid)}</td>
-        <td className={cell}>
-          <span className={mono}>{row.sourceIps.join(' · ') || '—'}</span>
-        </td>
-        {target}
-      </>
-    );
-  }
+  const table = useApprovalTableState(approvalRows);
+  const showFilterEmpty = approvalRows.length > 0 && table.filteredCount === 0;
 
   return (
-    <>
-      <td className={cell}>{dbTag}</td>
-      <td className={cell}>
-        <span className={mono}>{row.resourceId ?? '—'}</span>
-      </td>
-      <td className={cell}>{orDash(row.region)}</td>
-      <td className={cell}>{orDash(row.resourceName)}</td>
-      {target}
-    </>
+    <div className="mt-6">
+      {/* The counts ARE the 전체/대상/제외 filter — the read-only
+          "연동 대상 n개 · 제외 m개" line they replace could not be acted on. */}
+      <WaitingApprovalStats
+        totalCount={table.countsByFilter.all}
+        selectedCount={table.countsByFilter.target}
+        excludedCount={table.countsByFilter.excluded}
+        filter={table.filter}
+        onFilterChange={table.onFilterChange}
+      />
+      <WaitingApprovalToolbar
+        searchValue={table.searchValue}
+        onSearchChange={table.onSearchChange}
+        dbType={table.dbType}
+        onDbTypeChange={table.onDbTypeChange}
+        region={table.region}
+        onRegionChange={table.onRegionChange}
+        dbTypeOptions={table.dbTypeOptions}
+        regionOptions={table.regionOptions}
+      />
+      <WaitingApprovalTable
+        resources={table.visibleResources}
+        connected
+        // Same header as the modal: this tab serves IDC too, whose rows have an
+        // endpoint rather than a region.
+        regionLabel="위치"
+        emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+      />
+      {table.filteredCount > 0 && (
+        <Pagination
+          page={table.safePage}
+          pageSize={table.pageSize}
+          totalCount={table.filteredCount}
+          onPageChange={table.onPageChange}
+          onPageSizeChange={table.onPageSizeChange}
+        />
+      )}
+    </div>
   );
 }
 
@@ -254,7 +270,6 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
   }, [targetSourceId, reloadKey]);
 
   const isIdc = detail.cloud_provider === 'IDC';
-  const columns = isIdc ? IDC_COLUMNS : CLOUD_COLUMNS;
 
   const confirmedDbTypes =
     confirmed.state === 'ready' && confirmed.data
@@ -270,9 +285,6 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
 
   const summary = request.state === 'ready' ? request.data?.request ?? null : null;
   const rows = request.state === 'ready' ? request.data?.resources ?? [] : [];
-  const selectedCount = summary?.resourceSelectedCount ?? rows.filter((row) => row.selected).length;
-  const totalCount = summary?.resourceTotalCount ?? rows.length;
-  const excludedCount = Math.max(0, totalCount - selectedCount);
 
   // The 처리 row belongs to the latest request only — drop a stale history record.
   const processedRow =
@@ -289,99 +301,13 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
 
   return (
     <>
-      <div className={opsStyles.cardsRow}>
-        <section className={pipelineStyles.card.base} aria-label="최근 승인 요청">
-          <h2 className={opsStyles.cardTitle}>최근 승인 요청</h2>
-          <p className={opsStyles.cardDesc}>서비스가 제출한 연동 요청의 승인 정보입니다.</p>
-
-          {request.state === 'loading' ? (
-            <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
-              불러오는 중…
-            </p>
-          ) : request.state === 'failed' ? (
-            <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
-              <p>승인 요청 정보를 불러오지 못했습니다.</p>
-              {retryButton}
-            </div>
-          ) : summary == null ? (
-            <PlEmptyState icon="inbox" message="승인 요청 이력이 없습니다." className="mt-2" />
-          ) : (
-            <dl className={KV_GRID}>
-              <KvRow label="요청 ID">
-                <span className={pipelineStyles.text.kvValueMono}>
-                  {summary.requestId != null ? `#${summary.requestId}` : '—'}
-                </span>
-              </KvRow>
-              <KvRow label="상태">
-                <StatusTag status={summary.status} />
-              </KvRow>
-              <KvRow label="요청자">{orDash(summary.requestedBy)}</KvRow>
-              <KvRow label="요청 일시">{fmtDateTime(summary.requestedAt)}</KvRow>
-              <KvRow label="리소스 선택">
-                {selectedCount} / {totalCount}
-              </KvRow>
-              {processedRow && (
-                <KvRow label="처리">
-                  {[processedRow.by, processedRow.at ? fmtDateTime(processedRow.at) : null]
-                    .filter((part): part is string => part != null)
-                    .join(' · ') || '—'}
-                </KvRow>
-              )}
-            </dl>
-          )}
-        </section>
-
-        <section className={pipelineStyles.card.base} aria-label="확정 정보">
-          <h2 className={opsStyles.cardTitle}>확정 정보</h2>
-          <p className={opsStyles.cardDesc}>
-            승인 후 확정된 연동 대상입니다. 설치 파이프라인의 입력이 됩니다.
-          </p>
-
-          {confirmed.state === 'loading' ? (
-            <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
-              불러오는 중…
-            </p>
-          ) : confirmed.state === 'failed' ? (
-            <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
-              <p>확정 정보를 불러오지 못했습니다.</p>
-              {retryButton}
-            </div>
-          ) : confirmed.data == null ? (
-            <PlEmptyState icon="install" message="확정된 연동 정보가 없습니다." className="mt-2" />
-          ) : (
-            <>
-              <dl className={KV_GRID}>
-                <KvRow label="확정 리소스">{confirmed.data.length}개</KvRow>
-                <KvRow label="Database Type">
-                  {confirmedDbTypes.length > 0 ? (
-                    <span className="inline-flex flex-wrap gap-1.5">
-                      {confirmedDbTypes.map((type) => (
-                        <span key={type} className={DB_TAG}>
-                          {type}
-                        </span>
-                      ))}
-                    </span>
-                  ) : (
-                    dash()
-                  )}
-                </KvRow>
-              </dl>
-              <p className={NOTE_WARN}>
-                확정 정보를 삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다.
-              </p>
-            </>
-          )}
-        </section>
-      </div>
-
-      <section className={pipelineStyles.card.base} aria-label="요청 리소스">
-        <h2 className={opsStyles.cardTitle}>요청 리소스</h2>
-        {/* Counts are only meaningful once the request loaded. */}
-        {request.state === 'ready' && (
-          <p className={opsStyles.cardDesc}>
-            연동 대상 {selectedCount}개 · 제외 {excludedCount}개
-          </p>
-        )}
+      <section className={pipelineStyles.card.base} aria-label="최근 승인 요청">
+        <h2 className={opsStyles.cardTitle}>최근 승인 요청</h2>
+        <p className={opsStyles.cardDesc}>
+          {summary?.requestId != null
+            ? `요청 ID #${summary.requestId}`
+            : '서비스가 제출한 연동 요청의 승인 정보입니다.'}
+        </p>
 
         {request.state === 'loading' ? (
           <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
@@ -389,32 +315,83 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
           </p>
         ) : request.state === 'failed' ? (
           <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
-            <p>요청 리소스를 불러오지 못했습니다.</p>
+            <p>승인 요청 정보를 불러오지 못했습니다.</p>
             {retryButton}
           </div>
-        ) : rows.length === 0 ? (
-          <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-2" />
+        ) : summary == null ? (
+          <PlEmptyState icon="inbox" message="승인 요청 이력이 없습니다." className="mt-2" />
         ) : (
-          <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
-            <table className={opsStyles.table.base}>
-              <thead>
-                <tr>
-                  {columns.map((column) => (
-                    <th key={column} className={opsStyles.table.headCell}>
-                      {column}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="[&>tr:last-child>td]:border-b-0">
-                {rows.map((row, index) => (
-                  <tr key={row.resourceId ?? index} className={opsStyles.table.rowHover}>
-                    <ResourceCells row={row} isIdc={isIdc} />
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <>
+            {/* One card, one request. The KV table that used to state these same facts
+                in its own card above meant the operator read a summary and then
+                scrolled to the thing it summarised. Same header row as the 승인 요청
+                상세 modal: the verdict once as a tag, the rest as label-over-value. */}
+            <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+              <StatusTag status={summary.status} />
+              <MetaField label="요청자" value={summary.requestedBy ?? '—'} />
+              <MetaField label="요청일시" value={fmtDateTime(summary.requestedAt)} />
+              {processedRow?.by && <MetaField label="처리자" value={processedRow.by} />}
+              {processedRow?.at && <MetaField label="처리일시" value={fmtDateTime(processedRow.at)} />}
+            </div>
+
+            {rows.length === 0 ? (
+              <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="mt-4" />
+            ) : (
+              /* Keyed per request so the filter/search/page state below belongs to ONE
+                 request — this tab is not guaranteed to remount when the route's target
+                 source changes under a soft navigation. requestId is contractually
+                 nullable, so the target id joins the key: two id-less requests on
+                 different targets would otherwise share a key and inherit each other's
+                 query. */
+              <ResourceList
+                key={`${targetSourceId}:${summary.requestId ?? 'latest'}`}
+                rows={rows}
+                isIdc={isIdc}
+              />
+            )}
+          </>
+        )}
+      </section>
+
+      <section className={pipelineStyles.card.base} aria-label="확정 정보">
+        <h2 className={opsStyles.cardTitle}>확정 정보</h2>
+        <p className={opsStyles.cardDesc}>
+          승인 후 확정된 연동 대상입니다. 설치 파이프라인의 입력이 됩니다.
+        </p>
+
+        {confirmed.state === 'loading' ? (
+          <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
+            불러오는 중…
+          </p>
+        ) : confirmed.state === 'failed' ? (
+          <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
+            <p>확정 정보를 불러오지 못했습니다.</p>
+            {retryButton}
           </div>
+        ) : confirmed.data == null ? (
+          <PlEmptyState icon="install" message="확정된 연동 정보가 없습니다." className="mt-2" />
+        ) : (
+          <>
+            <dl className={KV_GRID}>
+              <KvRow label="확정 리소스">{confirmed.data.length}개</KvRow>
+              <KvRow label="Database Type">
+                {confirmedDbTypes.length > 0 ? (
+                  <span className="inline-flex flex-wrap gap-1.5">
+                    {confirmedDbTypes.map((type) => (
+                      <span key={type} className={DB_TAG}>
+                        {type}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  dash()
+                )}
+              </KvRow>
+            </dl>
+            <p className={NOTE_WARN}>
+              확정 정보를 삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다.
+            </p>
+          </>
         )}
       </section>
     </>

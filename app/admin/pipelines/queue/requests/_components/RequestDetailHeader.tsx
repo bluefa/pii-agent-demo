@@ -1,12 +1,21 @@
 /**
  * RequestDetailHeader — P3 page head (design-spec §3, updated: NO "요청 정보"
- * card; the static request context lives in the header). Primer PageHeader +
- * Helios kv≤4 grammar: h1 + actions, head-sub (ProvTag · mono code · 상태),
- * head-meta (요청자 · 요청 시각 · 리소스 선택 n/m), a bottom border separating it
- * from the first section.
+ * card; the static request context lives in the header). h1 + actions, head-sub
+ * (ProvTag · mono code · 상태), then the request facts as label-over-value pairs
+ * (Step 2's MetaField grammar), and a bottom border separating it from the first
+ * section.
+ *
+ * Request time leads: the queue is triaged by age (the list ranks by delay), so the
+ * arrival time is the fact the admin already holds when they open this page — the
+ * requester is the second question, not the first.
+ *
+ * Resource counts deliberately absent: the section below opens with the all / target /
+ * excluded counts as 40px tiles that are also the list filter. Repeating "35 / 44" here
+ * made the header state a number the reader cannot act on, two lines above the one they
+ * can.
  */
 import type { ReactElement } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -16,7 +25,7 @@ const { text } = pipelineStyles;
 
 interface MetaItem {
   key: string;
-  value: ReactElement | string;
+  value: string;
 }
 
 export interface RequestDetailHeaderProps {
@@ -28,8 +37,6 @@ export interface RequestDetailHeaderProps {
   confirmStatus: string | null;
   requestedBy: string | null;
   requestedAt: string | null;
-  selectedCount: number | null;
-  totalCount: number | null;
   onApprove: () => void;
   onReject: () => void;
   actionsDisabled?: boolean;
@@ -44,24 +51,13 @@ export function RequestDetailHeader({
   confirmStatus,
   requestedBy,
   requestedAt,
-  selectedCount,
-  totalCount,
   onApprove,
   onReject,
   actionsDisabled,
 }: RequestDetailHeaderProps): ReactElement {
   const meta: MetaItem[] = [
-    { key: '요청자', value: requestedBy ?? '—' },
     { key: '요청 시각', value: fmtDateTime(requestedAt) },
-    {
-      key: '리소스 선택',
-      value: (
-        <>
-          {selectedCount ?? '—'}
-          <span className={text.muted}> / {totalCount ?? '—'}</span>
-        </>
-      ),
-    },
+    { key: '요청자', value: requestedBy ?? '—' },
   ];
 
   return (
@@ -75,12 +71,16 @@ export function RequestDetailHeader({
           {serviceCode != null && <span className={text.mono}>{serviceCode}</span>}
           <ConfirmStatusPill status={confirmStatus} />
         </div>
-        <div className="flex items-center gap-2 mt-3 flex-wrap">
-          {meta.map((item, index) => (
-            <span key={item.key} className="inline-flex items-center gap-2">
-              {index > 0 && <span className="text-[var(--pl-text-faint)]">·</span>}
-              <span className={text.kvKey}>{item.key}</span>
-              <span className={cn(text.kvValue, 'tabular-nums')}>{item.value}</span>
+        {/* Label over value, both 12px — only weight and color separate the tiers
+            (Step 2's MetaField). The dot-separated inline run it replaces read as one
+            sentence; stacked pairs let the eye land on a single fact. */}
+        <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2 mt-4">
+          {meta.map((item) => (
+            <span key={item.key} className="flex min-w-0 flex-col gap-1">
+              <span className="text-[12px] font-normal text-[var(--pl-text-weak)]">{item.key}</span>
+              <span className="min-w-0 truncate text-[12px] font-semibold leading-[1.3] tabular-nums text-[var(--pl-text-medium)]">
+                {item.value}
+              </span>
             </span>
           ))}
         </div>

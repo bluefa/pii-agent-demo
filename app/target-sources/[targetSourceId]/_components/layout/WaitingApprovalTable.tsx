@@ -47,6 +47,13 @@ export interface WaitingApprovalResource {
    * picks which cell lands here, so the same row renders a different status per step.
    */
   installCell?: InstallStepCell;
+  /**
+   * Stable React key, never rendered. A consumer whose rows carry an identifier it must
+   * NOT display (IDC's `resource_id` is an internal NLB key — design-spec §8) would
+   * otherwise fall back to the list index, which makes per-row Tooltip and copy state
+   * follow a slot rather than a resource as the list filters and pages.
+   */
+  rowKey?: string;
 }
 
 /**
@@ -71,6 +78,12 @@ interface WaitingApprovalTableProps {
    * to the standalone framed table (rounded-xl + border + shadow).
    */
   connected?: boolean;
+  /**
+   * Header for the location column. Defaults to Region; a consumer whose rows can be
+   * host-based (an IDC endpoint has no region) passes 위치, since the cell then carries
+   * `host:port`.
+   */
+  regionLabel?: string;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -124,7 +137,7 @@ const NAME_LIFT = primaryColors.textGroupHover;
 // Chips and the reason chip keep full contrast: the verdict and the why must survive the fade.
 // 3:1-grade dimming (#8B95A1, 2.9:1) was considered and rejected — 13px body text is normal-size
 // text under WCAG, and the reason column is content, not an inactive control.
-const DIM_TEXT = 'text-[#6B7280]';
+export const DIM_TEXT = 'text-[#6B7280]';
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
@@ -225,6 +238,7 @@ export const WaitingApprovalTable = memo(
     onLogicalDbOpen,
     emptyMessage,
     connected = false,
+    regionLabel = 'Region',
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
@@ -274,7 +288,10 @@ export const WaitingApprovalTable = memo(
       const excluded = !resource.selected;
       return (
         <tr
-          key={resource.resourceId}
+          // `resource_id` is optional in the contract, so two id-less rows would collide on
+          // one '' key and React would drop a row. `rowKey` is for consumers that HAVE an
+          // identity they may not render (IDC's internal NLB key — design-spec §8).
+          key={resource.rowKey || resource.resourceId || resource.resourceName}
           className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
         >
           {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
@@ -410,7 +427,7 @@ export const WaitingApprovalTable = memo(
                 {!installVariant && (
                   <>
                     <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
-                    <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                    <th className={idcStyles.table.approvalHeaderCell}>{regionLabel}</th>
                   </>
                 )}
                 {confirmedVariant ? (

@@ -65,7 +65,9 @@ interface IdcResourceTableProps {
 
 const [TIP_TITLE, ...TIP_REST] = IDC_SOURCE_IP_TOOLTIP.split('\n');
 
-const SourceIpHeader = () => (
+/** Exported so the admin's P3 request table heads the column identically — the
+ *  "방화벽 등록 필요" note answers the same question on both surfaces. */
+export const SourceIpHeader = () => (
   <span className="inline-flex items-center gap-1">
     Source IP
     <InfoTooltip
