@@ -15,13 +15,13 @@ import type { schemas } from '@/lib/generated/install-v1';
 type ScanJob = z.infer<typeof schemas.ScanJobResponse>;
 
 /**
- * The funnel row's four counts. Passing it turns the band from "when did we scan"
- * into "how did 100k resources become the 12 rows below" — the step-1 user's own
- * question, which the admin scan tab never has to answer.
+ * The band's three counts — all in ONE unit (candidate DBs), and `selected +
+ * excluded === eligible`. The scan's raw discovery total (every resource type,
+ * ~90k) used to lead this row; side by side with a 10 it read as a 9000× gap
+ * nobody could act on, so it is gone from the band entirely (owner call). What
+ * the scan looked at is a scan-job fact, not a step-1 decision.
  */
 export interface ScanFunnelCounts {
-  /** Everything the scan discovered — every resource type, not just DB candidates. */
-  discovered: number;
   /** Candidate DBs the table lists. */
   eligible: number;
   selected: number;
@@ -67,16 +67,16 @@ const GHOST_BUTTON = buttonStyles.ghostText;
 const CELL_BASE = 'min-w-0 px-4 py-3 text-center';
 
 /**
- * One funnel cell — label over number, one quiet line under, all centred on the
+ * One count cell — label over number, one quiet line under, all centred on the
  * cell's axis. No change-since-last-scan delta: step 1 asks "얼마나 붙일 수 있나",
- * and a `+9` next to that count answers a question nobody asked (owner call). Equal-width cells put the numbers on a shared
- * vertical line, which is the point: comparison needs alignment first (admin
- * scan-tab lesson). Weight stays medium like the admin resource tiles — size
- * and colour already carry the hierarchy, so bold here only adds noise
- * (owner call in live review).
+ * and a `+9` next to that count answers a question nobody asked (owner call).
+ * Equal-width cells put the numbers on a shared vertical line, which is the
+ * point: comparison needs alignment first (admin scan-tab lesson). Weight stays
+ * medium like the admin resource tiles — size and colour already carry the
+ * hierarchy, so bold here only adds noise (owner call in live review).
  *
- * A cell that filters the table is a real <button> with aria-pressed; the two
- * that only report (discovered / eligible) render as plain text, so "looks
+ * A cell that filters the table is a real <button> with aria-pressed; 연동 가능 DB
+ * only reports (it IS the 'all' state), so it renders as plain text and "looks
  * interactive" and "is interactive" never disagree.
  */
 const FunnelCell = ({
@@ -89,7 +89,7 @@ const FunnelCell = ({
   onPress,
 }: {
   label: string;
-  value: number | null;
+  value: number;
   sub?: string;
   subWarn?: boolean;
   emphasis?: boolean;
@@ -113,7 +113,7 @@ const FunnelCell = ({
             emphasis ? primaryColors.text : textColors.primary,
           )}
         >
-          {value === null ? '—' : value.toLocaleString()}
+          {value.toLocaleString()}
         </span>
       </p>
       {/* Reserved line — the warning text appears and disappears with the data,
@@ -151,8 +151,8 @@ const FunnelCell = ({
 };
 
 /**
- * 스캔 상태 밴드 — 헤더와 테이블 사이. `funnel`이 있으면 위에 깔때기 4칸
- * (발견 → 연동 가능 → 선택 → 제외)이 서고, 아래 줄이 마지막 스캔 요약(시점은
+ * 스캔 상태 밴드 — 헤더와 테이블 사이. `funnel`이 있으면 위에 세 칸
+ * (연동 가능 DB = 선택함 + 제외함)이 서고, 아래 줄이 마지막 스캔 요약(시점은
  * 상대시간이 곧 낡음 신호)과 이력·권한 확인·재스캔을 잡는다.
  * 권한의 상시 초록 배지는 없다 — ScanPermissionResult 규칙을 따른다.
  */
@@ -168,17 +168,13 @@ export const ScanStrip = ({
   starting,
   funnel,
 }: ScanStripProps) => {
-  // 깔때기는 스캔이 있어야 성립한다 — 스캔 기록이 없는데 "발견 —" 옆에 세 칸을
-  // 세우면 없는 결과를 있는 것처럼 읽히게 만들고, 정작 이 화면의 진짜 사실
+  // 세 칸은 스캔이 있어야 성립한다 — 스캔 기록이 없는데 숫자 칸을 세우면 없는
+  // 결과를 있는 것처럼 읽히게 만들고, 정작 이 화면의 진짜 사실
   // ("아직 스캔한 적이 없어요")를 아래 줄로 밀어낸다. 그때 밴드는 그 한 줄이 전부다.
   const showFunnel = funnel != null && job != null;
   const succeeded = job?.scan_status === 'SUCCESS';
   const failedByPermission = job != null && !succeeded && job.scan_error === 'AUTH_PERMISSION_ERROR';
   const scannedAt = job?.updated_at ?? job?.created_at ?? null;
-  const foundCount = Object.values(job?.resource_count_by_resource_type ?? {}).reduce<number>(
-    (sum, count) => sum + (count ?? 0),
-    0,
-  );
 
   const mainText = job == null
     ? '아직 스캔한 적이 없어요'
@@ -195,13 +191,10 @@ export const ScanStrip = ({
     if (scannedAt) metaParts.push(formatDate(scannedAt, 'datetime'));
     if (succeeded) {
       if (typeof job.duration_seconds === 'number') metaParts.push(`${Math.round(job.duration_seconds)}초 소요`);
-      // 깔때기가 서면 발견 수는 그 셀이 가져간다(같은 숫자를 두 곳에서 세지 않는다).
-      // 신규 건수도 그때는 노출하지 않는다 — 깔때기 화면에서 뺀 표기를 아래 줄로
-      // 되돌리면 같은 것을 자리만 옮긴 셈이 된다.
-      if (!showFunnel) {
-        metaParts.push(`${foundCount}개 발견`);
-        if (newCount > 0) metaParts.push(`신규 ${newCount}`);
-      }
+      // 스캔이 조회한 전체 리소스 수(≈9만)는 어디에도 쓰지 않는다 — DB 10개 옆에
+      // 두면 셀이든 메타 줄이든 답할 수 없는 격차만 만든다. 신규 건수도 세 칸에서
+      // 뺀 표기라 아래 줄로 되돌리지 않는다.
+      if (!showFunnel && newCount > 0) metaParts.push(`신규 ${newCount}`);
     } else if (!failedByPermission && job.scan_error) {
       // 권한 오류는 아래 배지가 전담 — 그 외 실패 사유만 메타로 흘린다.
       metaParts.push(SCAN_ERROR_LABELS[job.scan_error] ?? job.scan_error);
@@ -219,12 +212,7 @@ export const ScanStrip = ({
       )}
     >
       {showFunnel && funnel && (
-        <div className={cn('grid grid-cols-2 divide-x divide-y sm:grid-cols-4 sm:divide-y-0', borderColors.light)}>
-          <FunnelCell
-            label="스캔 발견"
-            value={funnel.discovered > 0 ? funnel.discovered : null}
-            sub="스캔이 조회한 전체 리소스"
-          />
+        <div className={cn('grid grid-cols-3 divide-x', borderColors.light)}>
           <FunnelCell
             label="연동 가능 DB"
             value={funnel.eligible}
