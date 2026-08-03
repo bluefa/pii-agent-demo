@@ -520,7 +520,11 @@ export const CandidateResourceSection = ({
       </ScanController>
 
       {historyModal.isOpen && (
-        <ScanHistoryModal targetSourceId={targetSourceId} onClose={historyModal.close} />
+        <ScanHistoryModal
+          targetSourceId={targetSourceId}
+          provider={provider}
+          onClose={historyModal.close}
+        />
       )}
 
       {!readonly && (
