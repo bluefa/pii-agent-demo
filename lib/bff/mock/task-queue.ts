@@ -562,6 +562,21 @@ const ALERT_KIND_STATUS: Record<AlertTargetKind, string> = {
 const alertRows = (kind: AlertTargetKind): ProcRow[] =>
   PROC.filter((p) => p.st === ALERT_KIND_STATUS[kind]);
 
+/**
+ * TargetSourceInfo.description — the owner's own line about what the target source
+ * holds. Keyed by target source, not by service: one service can register several.
+ * Unlisted ids return undefined, which is the honest shape of an optional field.
+ */
+const TS_DESCRIPTION: Record<number, string> = {
+  1031: '주문/결제 원장 Oracle · MySQL 운영 DB. 개인정보 스캔 대상 등록 건',
+  2113: '결제 승인 이력 Aurora 클러스터 (PCI 범위)',
+  2044: '포인트 적립·소멸 이력 Cloud SQL',
+  2051: '알림 발송 로그 Azure SQL',
+  1861: '정산 마감 배치 RDS',
+  1027: '쿠폰 발급 이력 RDS — 연동 불가 회신 건',
+  1583: '통합 인증 세션 저장소 (IDC)',
+};
+
 function toTargetSourceInfoWire(r: RequestRow) {
   const isRejected = r.cs === 'REJECTED';
   const rejected = tq().reasonByTs.get(r.ts) ?? r;
@@ -569,6 +584,7 @@ function toTargetSourceInfoWire(r: RequestRow) {
   return {
     targetSourceId: r.ts,
     serviceName: r.svc,
+    description: TS_DESCRIPTION[r.ts],
     serviceCode: r.code,
     cloudProvider: r.pv,
     confirmStatus: r.cs,

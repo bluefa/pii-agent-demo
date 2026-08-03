@@ -69,7 +69,7 @@ const HostCell = ({
   </span>
 );
 
-/** 연동 대상 cell — host(s) only (no port). Multiple IP collapses behind a toggle. */
+/** 접속 주소 cell — host(s) only (no port). Multiple IP collapses behind a toggle. */
 export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => {
   const [expanded, setExpanded] = useState(false);
   const { hosts, kind } = resource;

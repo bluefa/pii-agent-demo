@@ -22,6 +22,7 @@ import {
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
+  TargetPill,
   clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
@@ -39,7 +40,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
     <div className={CONNECTED_FRAME}>
       <div className="overflow-x-auto">
       <table className="w-full text-[13px]">
-        <thead className={table.approvalHeader}>
+        <thead className={table.approvalHeaderChrome}>
           <tr>
             {/* Resource ID's text caps at 300px (resId.text), so its column was sitting
                 on ~150px it could not use. Spent here: names differ in their TAIL
@@ -48,7 +49,10 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             <th className={table.approvalHeaderCell}>Resource ID</th>
             <th className={cn(table.approvalHeaderCell, 'w-[120px] whitespace-nowrap')}>Database Type</th>
             <th className={cn(table.approvalHeaderCell, 'w-[130px]')}>Region</th>
-            <th className={cn(table.approvalHeaderCell, 'w-[100px]')}>연동 대상</th>
+            {/* The IDC table's wording and width for the same question. "연동 대상" named
+                the verdict here while it named the address column there — one table used
+                the word for a row, the other for a cell. 112 is what the pill needs. */}
+            <th className={cn(table.approvalHeaderCell, 'w-[112px] whitespace-nowrap')}>요청 대상 여부</th>
             <th className={cn(table.approvalHeaderCell, 'w-[240px]')}>제외 사유</th>
           </tr>
         </thead>
@@ -69,7 +73,9 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                 <td
                   className={cn(
                     table.approvalCell,
-                    'font-mono text-[13px]',
+                    // 14, the size WaitingApprovalTable and the IDC table give their own
+                    // identity column — it was rendering at the attribute tier.
+                    'font-mono text-[14px]',
                     excluded ? DIM_TEXT : textColors.primary,
                     // The row's anchor lifts to brand, marking which cell identifies it.
                     primaryColors.textGroupHover,
@@ -114,10 +120,16 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                 >
                   {row.region}
                 </td>
-                <td className={cn(table.approvalCell, 'whitespace-nowrap text-[12px]', tone, CELL_LIFT)}>
-                  {excluded ? '제외' : '대상'}
-                </td>
+                {/* The pill the IDC table and step 1 use, not a text label: the verdict
+                    is the same fact on every surface, and INSTALL_INELIGIBLE (the scan's
+                    judgement) must not read as a revisable 제외. */}
                 <td className={table.approvalCell}>
+                  <TargetPill
+                    excluded={excluded}
+                    ineligible={excluded && row.integrationCategory === 'INSTALL_INELIGIBLE'}
+                  />
+                </td>
+                <td className={cn(table.approvalCell, 'text-sm')}>
                   {/* A 대상 row has no reason to give — blank, not an em-dash, which
                       would read as "this should have had one and it is missing". The
                       chip clamps and the full sentence lives in its floating tip. */}

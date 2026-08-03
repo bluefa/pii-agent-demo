@@ -28,7 +28,7 @@ interface IdcFirewallModalProps {
  * IDC 방화벽 확인 모달 (v15 L8151~8178, `openIdcFirewallModal` L10333).
  *
  * One row per integration target (excluded rows dropped, #39). Each row reads
- * Source IP → 연동 대상 → Port → 오픈 여부. The 오픈 여부 badge is driven by the
+ * Source IP → 접속 주소 → Port → 오픈 여부. The 오픈 여부 badge is driven by the
  * installation-status firewall_check.status of the SAME resource (joined by
  * resource_id); the confirmed-integration rows carry no firewall field.
  */
@@ -49,7 +49,7 @@ export const IdcFirewallModal = ({
       isOpen={isOpen}
       onClose={onClose}
       title="방화벽 확인"
-      subtitle="Source IP → 연동 대상 방화벽 오픈 여부를 확인합니다."
+      subtitle="Source IP → 접속 주소 방화벽 오픈 여부를 확인합니다."
       size="2xl"
       chrome="toss"
       footer={<button type="button" className={idcStyles.modalBtn.primary} onClick={onClose}>확인</button>}
@@ -66,7 +66,7 @@ export const IdcFirewallModal = ({
                 <tr>
                   <th className={cn(idcStyles.table.headerCell, 'w-[160px]')}>Source IP</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[30px]')} aria-hidden="true" />
-                  <th className={cn(idcStyles.table.headerCell, 'w-[220px]')}>연동 대상</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[220px]')}>접속 주소</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[70px]')}>Port</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>오픈 여부</th>
                 </tr>

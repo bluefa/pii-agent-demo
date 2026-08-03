@@ -1,47 +1,35 @@
 'use client';
 
 /**
- * Per-row NLB index editing for the P3 IDC detail: a local draft the row's select
- * writes to, and a save that PUTs one resource then refetches the NLB table so
- * occupancy moves for every other row's option list.
+ * Committing one IDC resource's NLB index: PUT the pick, then refetch the NLB table so
+ * every other row's occupancy moves with it.
  *
- * Split out of the page (AP-B1): the draft, the in-flight row, the optimistic
- * baseline and the toast copy are one concern, and the page only needs to hand it a
- * setter for the resource list it owns.
+ * There is no draft layer. The choice is made inside NlbAssignModal and committed by its
+ * 저장 — one act — so a request can never sit holding an unsaved assignment, and nothing
+ * downstream has to warn about one.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  clearNlbDraft,
-  effectiveNlbIndex,
-  setNlbDraft,
-  type NlbDraft,
-} from '@/app/admin/pipelines/queue/requests/_logic';
-import {
-  getNlbTable,
-  putNlbIndex,
-  type NlbTableRow,
-  type RequestResourceRow,
-} from '@/app/lib/api/task-queue-requests';
+import { getNlbTable, putNlbIndex, type NlbTableRow } from '@/app/lib/api/task-queue-requests';
 
 const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : String(err);
 
 export interface NlbAssignment {
-  draft: NlbDraft;
+  /** The resource_id whose PUT is in flight, or null. */
   savingResourceId: string | null;
-  select: (row: RequestResourceRow, nlbIndex: number) => void;
-  save: (row: RequestResourceRow) => void;
-  /** Drop every pending edit — the page calls this when it refetches the request. */
-  reset: () => void;
+  save: (resourceId: string, fromIndex: number | null, nlbIndex: number) => void;
 }
 
 export interface UseNlbAssignmentArgs {
   targetSourceId: number;
-  /** Rebase one row's saved index after a successful PUT. */
+  /** Rebase the saved row's index in the page's resource list. */
   onSaved: (resourceId: string, nlbIndex: number) => void;
-  /** Refreshed occupancy after a save — the option labels carry it. */
+  /** Refreshed occupancy after a save — the assignment modal reads it. */
   onNlbTable: (rows: NlbTableRow[]) => void;
   showToast: (message: string) => void;
+  /** Ran only on a landed PUT — the page closes the modal there. A failure leaves it
+   *  open, so the admin can retry against the toast's reason. */
+  onSuccess?: () => void;
 }
 
 export function useNlbAssignment({
@@ -49,8 +37,8 @@ export function useNlbAssignment({
   onSaved,
   onNlbTable,
   showToast,
+  onSuccess,
 }: UseNlbAssignmentArgs): NlbAssignment {
-  const [draft, setDraft] = useState<NlbDraft>({});
   const [savingResourceId, setSavingResourceId] = useState<string | null>(null);
 
   // Gates the post-save toast/refetch: the section-level toast provider outlives this
@@ -63,33 +51,21 @@ export function useNlbAssignment({
     };
   }, []);
 
-  const select = useCallback((row: RequestResourceRow, nlbIndex: number): void => {
-    setDraft((prev) => setNlbDraft(prev, row, nlbIndex));
-  }, []);
-
-  const reset = useCallback((): void => setDraft({}), []);
-
   const save = useCallback(
-    (row: RequestResourceRow): void => {
-      const resourceId = row.resourceId;
-      if (resourceId == null) return;
-      const nextIndex = effectiveNlbIndex(row, draft);
-      if (nextIndex == null) return;
-      const fromIndex = row.nlbIndex;
-
+    (resourceId: string, fromIndex: number | null, nlbIndex: number): void => {
       setSavingResourceId(resourceId);
       void (async () => {
         try {
-          await putNlbIndex(targetSourceId, resourceId, nextIndex);
-          onSaved(resourceId, nextIndex);
-          setDraft((prev) => clearNlbDraft(prev, resourceId));
+          await putNlbIndex(targetSourceId, resourceId, nlbIndex);
+          onSaved(resourceId, nlbIndex);
           const nlb = await getNlbTable();
           if (!aliveRef.current) return;
           onNlbTable(nlb);
+          onSuccess?.();
           showToast(
-            fromIndex != null && fromIndex !== nextIndex
-              ? `NLB #${fromIndex} → #${nextIndex} 변경을 저장했어요`
-              : `NLB #${nextIndex} 배정을 저장했어요`,
+            fromIndex != null && fromIndex !== nlbIndex
+              ? `NLB #${fromIndex} → #${nlbIndex} 변경을 저장했어요`
+              : `NLB #${nlbIndex} 배정을 저장했어요`,
           );
         } catch (err) {
           if (aliveRef.current) showToast(errorMessage(err));
@@ -98,8 +74,8 @@ export function useNlbAssignment({
         }
       })();
     },
-    [draft, targetSourceId, onSaved, onNlbTable, showToast],
+    [targetSourceId, onSaved, onNlbTable, showToast, onSuccess],
   );
 
-  return { draft, savingResourceId, select, save, reset };
+  return { savingResourceId, save };
 }

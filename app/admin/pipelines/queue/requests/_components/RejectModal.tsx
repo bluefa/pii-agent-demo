@@ -17,7 +17,6 @@ const MAX = 1000;
 export interface RejectModalProps {
   open: boolean;
   onClose: () => void;
-  targetSourceId: number;
   serviceName: string;
   onSubmit: (reason: string) => Promise<void>;
 }
@@ -25,7 +24,6 @@ export interface RejectModalProps {
 export function RejectModal({
   open,
   onClose,
-  targetSourceId,
   serviceName,
   onSubmit,
 }: RejectModalProps): ReactElement {
@@ -47,8 +45,6 @@ export function RejectModal({
     <TqModal
       open={open}
       onClose={onClose}
-      eyebrowCtx="연동 요청"
-      eyebrowId={`#${targetSourceId}`}
       title="연동 요청 반려"
       sub={`${serviceName}의 요청을 반려해요. 사유는 서비스 오너에게 그대로 전달돼요.`}
       footer={

@@ -1,67 +1,52 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clearNlbDraft,
-  dirtyCount,
-  effectiveNlbIndex,
-  isNlbDirty,
+  findResourceMappings,
   nlbOptionDisabled,
-  setNlbDraft,
-  type NlbDraft,
 } from '@/app/admin/pipelines/queue/requests/_logic';
 import { toRequestResourceRow } from '@/app/lib/api/task-queue-requests';
-import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
+import type { ResourceNlbMappings } from '@/app/lib/api/task-queue-requests';
 
-const row = (over: Partial<RequestResourceRow> = {}): RequestResourceRow => ({
-  resourceId: 'r-1',
-  resourceName: null,
-  selected: true,
-  exclusionReason: null,
-  integrationCategory: null,
-  recommendFailReason: null,
-  databaseType: 'Oracle',
-  region: null,
-  idcKind: 'IP',
-  connectTargets: ['10.20.1.11'],
-  port: 1521,
-  oracleSid: 'ORCLPDB1',
-  sourceIps: ['10.20.9.1'],
-  nlbIndex: 3,
-  ...over,
-});
-
-describe('NLB draft reducer', () => {
-  it('effectiveNlbIndex prefers the draft over the original index', () => {
-    const draft: NlbDraft = { 'r-1': 5 };
-    expect(effectiveNlbIndex(row(), draft)).toBe(5);
-    expect(effectiveNlbIndex(row(), {})).toBe(3);
-  });
-
-  it('setNlbDraft records a change and clears it when chosen === original', () => {
-    const changed = setNlbDraft({}, row(), 5);
-    expect(changed).toEqual({ 'r-1': 5 });
-    // Choosing the original index back removes the draft entry (not dirty).
-    expect(setNlbDraft(changed, row(), 3)).toEqual({});
-  });
-
-  it('isNlbDirty only when the draft differs from the original', () => {
-    expect(isNlbDirty(row(), { 'r-1': 5 })).toBe(true);
-    expect(isNlbDirty(row(), { 'r-1': 3 })).toBe(false);
-    expect(isNlbDirty(row(), {})).toBe(false);
-  });
-
-  it('clearNlbDraft drops one row after a successful save', () => {
-    expect(clearNlbDraft({ 'r-1': 5, 'r-2': 2 }, 'r-1')).toEqual({ 'r-2': 2 });
-  });
-
-  it('dirtyCount counts only rows whose draft differs from original', () => {
-    const rows = [row({ resourceId: 'r-1', nlbIndex: 3 }), row({ resourceId: 'r-2', nlbIndex: 2 })];
-    expect(dirtyCount(rows, { 'r-1': 5, 'r-2': 2 })).toBe(1);
-  });
-
+describe('NLB assignment rules', () => {
   it('nlbOptionDisabled blocks Hard-Limit indices except the current one', () => {
     expect(nlbOptionDisabled(55, 4, 3)).toBe(true); // full, not current
     expect(nlbOptionDisabled(55, 4, 4)).toBe(false); // full but current → selectable
     expect(nlbOptionDisabled(28, 2, 3)).toBe(false); // under capacity
+  });
+});
+
+const mappings: ResourceNlbMappings[] = [
+  {
+    resourceId: 'idc-r-8f21',
+    mappings: [
+      { serviceCode: 'ORD', nlbIndex: 3 },
+      { serviceCode: 'PAY', nlbIndex: 5 },
+    ],
+  },
+  { resourceId: 'idc-r-8f24', mappings: [] },
+];
+
+describe('findResourceMappings', () => {
+  it('returns null when the fetch failed (mappings === null)', () => {
+    expect(findResourceMappings(null, 'idc-r-8f21')).toBeNull();
+  });
+
+  it('returns null when the row has no resource_id key', () => {
+    expect(findResourceMappings(mappings, null)).toBeNull();
+  });
+
+  it('returns the resource entry mappings when found', () => {
+    expect(findResourceMappings(mappings, 'idc-r-8f21')).toEqual([
+      { serviceCode: 'ORD', nlbIndex: 3 },
+      { serviceCode: 'PAY', nlbIndex: 5 },
+    ]);
+  });
+
+  it('returns [] for a found-but-empty entry (배정 없음, not a failure)', () => {
+    expect(findResourceMappings(mappings, 'idc-r-8f24')).toEqual([]);
+  });
+
+  it('returns [] when the resource is absent from a successful fetch', () => {
+    expect(findResourceMappings(mappings, 'idc-r-9999')).toEqual([]);
   });
 });
 

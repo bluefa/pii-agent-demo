@@ -6,7 +6,6 @@
  * state the list needs.
  */
 import type { ReactElement } from 'react';
-import { pipelineStyles } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -25,21 +24,18 @@ import {
   resourceCounts,
   type ResourceListState,
 } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
-import type { NlbAssignment } from '@/app/admin/pipelines/queue/requests/_useNlbAssignment';
-import type { NlbTableRow, RequestResourceRow } from '@/app/lib/api/task-queue-requests';
-
-const { text } = pipelineStyles;
+import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 export interface ResourceSectionProps {
   resources: readonly RequestResourceRow[];
   isIdc: boolean;
   list: ResourceListState;
-  /** IDC only — the NLB table feeding each row's option list, and the edit state. */
-  nlbTable: NlbTableRow[];
-  nlb: NlbAssignment;
   /** Lock NLB editing: the request is no longer PENDING, so a save would 409. */
   nlbLocked: boolean;
-  onShowNlbInfo: (row: RequestResourceRow) => void;
+  /** IDC only — open the NLB assignment modal over one resource. */
+  onAssignNlb: (row: RequestResourceRow) => void;
+  /** IDC only — open that resource's 서비스별 NLB 배정 list. */
+  onShowServices: (row: RequestResourceRow) => void;
   onOpenNlbListeners: () => void;
 }
 
@@ -47,10 +43,9 @@ export function ResourceSection({
   resources,
   isIdc,
   list,
-  nlbTable,
-  nlb,
   nlbLocked,
-  onShowNlbInfo,
+  onAssignNlb,
+  onShowServices,
   onOpenNlbListeners,
 }: ResourceSectionProps): ReactElement {
   const { query, patchQuery } = list;
@@ -104,30 +99,27 @@ export function ResourceSection({
         }
       />
 
-      {resources.length === 0 ? (
-        // No condition was set, so "조건에 맞는" would blame a filter for an empty request.
-        <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." />
-      ) : filtered.length === 0 ? (
-        <PlEmptyState icon="inbox" message="조건에 맞는 리소스가 없어요." />
-      ) : isIdc ? (
-        <>
+      {/* The section carries no card, so the toolbar → content → pager stack draws its
+          own edges: the toolbar owns the top, the pager the bottom, this the sides.
+          The tables' CONNECTED_FRAME is deliberately borderless (it is shared with step
+          1, which does sit in a card), so the side borders belong here. */}
+      <div className="border-x border-[var(--pl-border)] bg-[var(--pl-bg-card)]">
+        {resources.length === 0 ? (
+          // No condition was set, so "조건에 맞는" would blame a filter for an empty request.
+          <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." />
+        ) : filtered.length === 0 ? (
+          <PlEmptyState icon="inbox" message="조건에 맞는 리소스가 없어요." />
+        ) : isIdc ? (
           <IdcResourceTable
             rows={paged.rows}
-            nlbTable={nlbTable}
-            draft={nlb.draft}
-            savingResourceId={nlb.savingResourceId}
             disabled={nlbLocked}
-            onSelect={nlb.select}
-            onSave={nlb.save}
-            onShowNlbInfo={onShowNlbInfo}
+            onAssignNlb={onAssignNlb}
+            onShowServices={onShowServices}
           />
-          <p className={`${text.meta} mt-4`}>
-            점유 리스너가 30개를 넘으면 주의, 50개에 이르면 새로 배정할 수 없어요
-          </p>
-        </>
-      ) : (
-        <CloudResourceTable rows={paged.rows} />
-      )}
+        ) : (
+          <CloudResourceTable rows={paged.rows} />
+        )}
+      </div>
 
       {/* The pager footer closes the card the toolbar opened — bordered on three sides,
           bottom-rounded (step 1's composition). */}

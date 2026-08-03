@@ -41,7 +41,7 @@ interface IdcTargetListTableProps {
   emptyMessage?: string;
 }
 
-// Checkbox → identity (구분 · 연동 대상 · Port) → attribute (Database Type) → decision (제외 사유)
+// Checkbox → identity (구분 · 접속 주소 · Port) → attribute (Database Type) → decision (제외 사유)
 // → row actions, the cloud step-1 order. The 연동 완료 여부 column is gone: every IDC adapter
 // sets `done: null`, so it rendered an em-dash on every row of every list.
 // Widths are declared for the approval skin's 18px horizontal cell padding — the old set was
@@ -52,7 +52,7 @@ interface IdcTargetListTableProps {
 const HEADERS: ReadonlyArray<{ label: string; className?: string }> = [
   { label: '', className: 'w-[52px]' },
   { label: '구분', className: 'w-[110px]' },
-  { label: '연동 대상' },
+  { label: '접속 주소' },
   { label: 'Port', className: 'w-[80px]' },
   { label: 'Database Type', className: 'w-[140px]' },
   { label: '제외 사유', className: 'w-[190px]' },

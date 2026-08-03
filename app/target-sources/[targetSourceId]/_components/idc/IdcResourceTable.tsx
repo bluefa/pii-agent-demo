@@ -71,7 +71,7 @@ export const SourceIpHeader = () => (
   <span className="inline-flex items-center gap-1">
     Source IP
     <InfoTooltip
-      // Light `value` box, the same one the 연동 대상 cell tooltip uses — one table should not
+      // Light `value` box, the same one the 접속 주소 cell tooltip uses — one table should not
       // answer a hover with a dark popover in one column and a light one in another.
       variant="value"
       // 17px — the table-header (?) size set by CSP step 1 (CandidateResourceTable). The
@@ -138,7 +138,7 @@ export const IdcResourceTable = ({
         <thead className={skin.header}>
           <tr>
             <th className={cn(skin.headerCell, 'w-[110px]')}>구분</th>
-            <th className={cn(skin.headerCell, 'w-[168px]')}>연동 대상</th>
+            <th className={cn(skin.headerCell, 'w-[168px]')}>접속 주소</th>
             <th className={cn(skin.headerCell, 'w-[80px]')}>Port</th>
             {/* Declared, not auto. As the only un-widthed column it was the slack sink: with the
                 six columns of steps 2·3 it rendered 306px against the 172px it takes on step 6,

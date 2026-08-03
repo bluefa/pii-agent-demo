@@ -24,10 +24,10 @@ import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { RequestDetailHeader } from '@/app/admin/pipelines/queue/requests/_components/RequestDetailHeader';
 import { ResourceSection } from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
 import { NlbListenerModal } from '@/app/admin/pipelines/queue/requests/_components/NlbListenerModal';
-import { NlbMappingModal } from '@/app/admin/pipelines/queue/requests/_components/NlbMappingModal';
+import { NlbAssignModal } from '@/app/admin/pipelines/queue/requests/_components/NlbAssignModal';
+import { ServiceAssignmentModal } from '@/app/admin/pipelines/queue/requests/_components/ServiceAssignmentModal';
 import { ApproveModal } from '@/app/admin/pipelines/queue/requests/_components/ApproveModal';
 import { RejectModal } from '@/app/admin/pipelines/queue/requests/_components/RejectModal';
-import { dirtyCount } from '@/app/admin/pipelines/queue/requests/_logic';
 import { useResourceListState } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
 import { useNlbAssignment } from '@/app/admin/pipelines/queue/requests/_useNlbAssignment';
 import {
@@ -58,18 +58,19 @@ export default function RequestDetailPage(): ReactElement {
   const [header, setHeader] = useState<RequestListRow | null>(null);
   const [detail, setDetail] = useState<ApprovalRequestDetail | null>(null);
   const [nlbTable, setNlbTable] = useState<NlbTableRow[]>([]);
-  // null = the per-resource NLB mappings fetch failed (modal shows a fallback, not a
-  // false "배정 없음"). Resolved before `loading` clears, so a row's "NLB 정보" control
-  // never opens onto a still-loading state.
+  // null = the per-service NLB mappings fetch failed, so ServiceAssignmentModal says so
+  // rather than showing a false "배정 없음".
   const [nlbMappings, setNlbMappings] = useState<ResourceNlbMappings[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [retry, setRetry] = useState(0);
 
   const [modal, setModal] = useState<ModalKind>(null);
-  // The resource whose "현재 배정된 NLB" modal is open — keyed per resource so
-  // reopening for another row shows that row's data (fresh mount via key prop).
-  const [nlbInfoResource, setNlbInfoResource] = useState<RequestResourceRow | null>(null);
+  // The resource whose NLB assignment modal is open — keyed per resource so reopening
+  // for another row seeds from THAT row's index (fresh mount via key prop).
+  const [assigning, setAssigning] = useState<RequestResourceRow | null>(null);
+  // The resource whose 서비스별 NLB 배정 list is open (read-only, never locked).
+  const [showingServices, setShowingServices] = useState<RequestResourceRow | null>(null);
 
   const list = useResourceListState();
   const { reset: resetList } = list;
@@ -88,13 +89,14 @@ export default function RequestDetailPage(): ReactElement {
     );
   }, []);
 
+  const closeAssign = useCallback((): void => setAssigning(null), []);
   const nlb = useNlbAssignment({
     targetSourceId,
     onSaved: onNlbSaved,
     onNlbTable: setNlbTable,
     showToast: toast.show,
+    onSuccess: closeAssign,
   });
-  const { reset: resetNlbDraft } = nlb;
 
   useAbortableEffect(
     (signal) => {
@@ -104,8 +106,8 @@ export default function RequestDetailPage(): ReactElement {
         getRequestHeader(targetSourceId, { signal }),
         getApprovalRequestLatest(targetSourceId, { signal }),
         getNlbTable({ signal }),
-        // Consumed only by the IDC "NLB 정보" modal — its failure must not break the
-        // detail, so it resolves to null (→ modal fallback) on its own.
+        // Feeds ServiceAssignmentModal only — its failure must not break the detail, so
+        // it resolves to null on its own.
         getNlbIndexMappings(targetSourceId, { signal }).catch(() => null),
       ])
         .then(([headerRow, detailData, nlbRows, mappings]) => {
@@ -114,7 +116,8 @@ export default function RequestDetailPage(): ReactElement {
           setDetail(detailData);
           setNlbTable(nlbRows);
           setNlbMappings(mappings);
-          resetNlbDraft();
+          setAssigning(null);
+          setShowingServices(null);
           resetList();
           setLoading(false);
         })
@@ -124,7 +127,7 @@ export default function RequestDetailPage(): ReactElement {
           setLoading(false);
         });
     },
-    [targetSourceId, retry, resetList, resetNlbDraft],
+    [targetSourceId, retry, resetList],
   );
 
   const provider = header?.cloudProvider ?? '';
@@ -133,9 +136,6 @@ export default function RequestDetailPage(): ReactElement {
   const resources = detail?.resources ?? [];
   const selectedCount =
     detail?.request.resourceSelectedCount ?? resources.filter((r) => r.selected).length;
-  // Cheap filter over the (small) resource set — recomputed each render on purpose.
-  const unsavedNlbCount = dirtyCount(resources, nlb.draft);
-
   const backToList = (): void => router.push(passRoutes.pipelines.queue.requests);
 
   // A failed submit keeps the modal open (it resets its own submitting flag) and
@@ -193,62 +193,93 @@ export default function RequestDetailPage(): ReactElement {
           <RequestDetailHeader
             serviceName={serviceName}
             targetSourceId={targetSourceId}
+            description={header?.description ?? null}
             provider={provider}
             serviceCode={header?.serviceCode ?? null}
-            confirmStatus={detail.request.status ?? header?.confirmStatus ?? null}
             requestedBy={detail.request.requestedBy}
             requestedAt={detail.request.requestedAt}
             onApprove={() => setModal('approve')}
             onReject={() => setModal('reject')}
           />
 
+          {/* One title for both providers: what the section holds is the request, and
+              naming its IDC-only parts made the heading grow a clause per provider.
+              The provider split moves to the desc, where a sentence can carry it —
+              only IDC has an NLB Index the admin can still change here. */}
           <SectionHeader
             first
-            title={isIdc ? '연동 대상 리소스 · NLB 배정' : '연동 대상 리소스'}
+            title="연동 요청 조회"
+            desc={
+              isIdc ? (
+                <>
+                  서비스 담당자가 요청한 연동 대상을 확인하고 승인해요.{' '}
+                  {/* Primary, because this clause is the one thing on the page that is
+                      still editable and it expires at 승인 — the rest of the sentence
+                      describes what the section shows. The cloud variant gets no
+                      highlight: nothing there can be changed. */}
+                  <span className="font-medium text-[var(--pl-primary)]">
+                    승인 전에는 접속 주소마다 NLB Index를 바꿀 수 있어요.
+                  </span>
+                </>
+              ) : (
+                '서비스 담당자가 요청한 연동 대상을 확인하고 승인해요. 제외된 리소스는 사유와 함께 표시돼요.'
+              )
+            }
           />
-          <Card>
-            <ResourceSection
-              resources={resources}
-              isIdc={isIdc}
-              list={list}
-              nlbTable={nlbTable}
-              nlb={nlb}
-              nlbLocked={detail.request.status !== 'PENDING'}
-              onShowNlbInfo={setNlbInfoResource}
-              onOpenNlbListeners={() => setModal('nlb')}
-            />
-          </Card>
+          {/* No card around it. The tiles are cards and the toolbar·table·pager carry
+              their own connected frame, so an outer surface only nested a card in a card
+              and spent 48px of table width on doubled padding. */}
+          <ResourceSection
+            resources={resources}
+            isIdc={isIdc}
+            list={list}
+            nlbLocked={detail.request.status !== 'PENDING'}
+            onAssignNlb={setAssigning}
+            onShowServices={setShowingServices}
+            onOpenNlbListeners={() => setModal('nlb')}
+          />
 
           <NlbListenerModal
             open={modal === 'nlb'}
             onClose={() => setModal(null)}
-            targetSourceId={targetSourceId}
             rows={nlbTable}
           />
-          {nlbInfoResource != null && (
-            <NlbMappingModal
-              key={nlbInfoResource.resourceId ?? 'nlb-info'}
+          {assigning != null && (
+            <NlbAssignModal
+              key={assigning.resourceId ?? 'nlb-assign'}
               open
-              onClose={() => setNlbInfoResource(null)}
-              resource={nlbInfoResource}
+              onClose={closeAssign}
+              resource={assigning}
+              rows={nlbTable}
+              saving={nlb.savingResourceId != null}
+              onSave={(nlbIndex) =>
+                assigning.resourceId != null &&
+                nlb.save(assigning.resourceId, assigning.nlbIndex, nlbIndex)
+              }
+            />
+          )}
+          {showingServices != null && (
+            <ServiceAssignmentModal
+              key={showingServices.resourceId ?? 'services'}
+              open
+              onClose={() => setShowingServices(null)}
+              resource={showingServices}
               mappings={nlbMappings}
+              nlbRows={nlbTable}
             />
           )}
           <ApproveModal
             key={`approve-${modal === 'approve'}`}
             open={modal === 'approve'}
             onClose={() => setModal(null)}
-            targetSourceId={targetSourceId}
             serviceName={serviceName}
             selectedCount={selectedCount}
-            unsavedNlbCount={unsavedNlbCount}
             onSubmit={onApprove}
           />
           <RejectModal
             key={`reject-${modal === 'reject'}`}
             open={modal === 'reject'}
             onClose={() => setModal(null)}
-            targetSourceId={targetSourceId}
             serviceName={serviceName}
             onSubmit={onReject}
           />
