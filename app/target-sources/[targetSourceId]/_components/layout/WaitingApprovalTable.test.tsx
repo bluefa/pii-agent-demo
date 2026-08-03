@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import {
   WaitingApprovalTable,
@@ -172,10 +172,10 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
     });
 
-    // Steps 6·7. The spec makes the region the resource from step 4 on, so those steps want one
-    // folded Athena row per region — not a parent with database children. Until that fold lands
-    // they stay flat: a tree here would assert a shape the step does not have, and would put a
-    // logical-DB aggregate on Athena, which has no logical-DB management at all.
+    // Steps 6·7 never build a TREE. The spec makes the region the resource from step 4 on, so
+    // those steps FOLD instead — one row per region, its databases behind a disclosure — and the
+    // caller builds that fold off `athena_region_resource_id`, passing `foldedMembers` (below).
+    // Rows that arrive without it stay exactly as they came.
     it('does not group in the confirmed variant', () => {
       render(
         <WaitingApprovalTable
@@ -194,6 +194,42 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByRole('button', { name: 'db_a 연동 논리 DB 목록 보기' })).toBeTruthy();
       expect(screen.getByRole('button', { name: 'db_b 연동 논리 DB 목록 보기' })).toBeTruthy();
       expect(screen.queryByText(/대상 ·/)).toBeNull();
+    });
+
+    it('folds a region row to its databases, closed by default (steps 6·7)', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              ...athena('unused', 'ap-northeast-1', true),
+              resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
+              // Steps 6·7 read `database_type` off the confirmed-integration contract, not the
+              // scan's `resource_type` the fixture above carries.
+              resourceType: 'athena',
+              foldedMembers: ['sampledb', 'integration'],
+            },
+          ]}
+        />,
+      );
+
+      // Closed: the region is one row and says what it is, not what a database is called.
+      expect(screen.getAllByRole('row')).toHaveLength(2);
+      expect(screen.queryByText('sampledb')).toBeNull();
+      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+      expect(cells[0].textContent).toBe('Athena');
+      expect(cells[3].textContent).toBe('ap-northeast-1');
+
+      fireEvent.click(screen.getByRole('button', { name: /데이터베이스 목록 펼치기$/ }));
+
+      const rows = screen.getAllByRole('row');
+      expect(rows).toHaveLength(4);
+      // Read down the tree: Athena → Database. The name alone is just a string.
+      for (const row of rows.slice(2)) {
+        expect(within(row).getAllByRole('cell')[2].textContent).toBe('Database');
+      }
+      expect(screen.getByText('sampledb')).toBeTruthy();
+      expect(screen.getByText('integration')).toBeTruthy();
     });
   });
 });

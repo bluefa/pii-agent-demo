@@ -2,7 +2,7 @@
 
 import { Fragment, memo, useMemo, useState } from 'react';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { ChevronRightIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
@@ -42,6 +42,13 @@ export interface WaitingApprovalResource {
    */
   logicalDbCount?: number | null;
   excludedLogicalDbCount?: number | null;
+  /**
+   * `confirmed` variant only — the database names this row stands for when it is a folded
+   * Athena region. Present means the row IS the region: the identity cell carries the
+   * disclosure and the group label instead of a resource name, and opening it lists these
+   * names underneath. Absent (the normal case) leaves the row exactly as it was.
+   */
+  foldedMembers?: readonly string[];
   /**
    * `install` variant only — the selected install step's state for this resource. The step nav
    * picks which cell lands here, so the same row renders a different status per step.
@@ -264,9 +271,20 @@ export const WaitingApprovalTable = memo(
       [resources, grouped],
     );
     const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
+    const [expandedFolds, setExpandedFolds] = useState<ReadonlySet<string>>(() => new Set());
 
     const toggleGroup = (key: string) =>
       setCollapsedGroups((previous) => {
+        const next = new Set(previous);
+        if (!next.delete(key)) next.add(key);
+        return next;
+      });
+
+    // Which folded Athena regions are open (steps 6·7). CLOSED by default, the opposite of the
+    // approval groups above: there the user is reviewing every database before approving, here
+    // the region is the unit and its databases are reference.
+    const toggleFold = (key: string) =>
+      setExpandedFolds((previous) => {
         const next = new Set(previous);
         if (!next.delete(key)) next.add(key);
         return next;
@@ -286,13 +304,19 @@ export const WaitingApprovalTable = memo(
     // stands alone or hangs under a parent, so a group never changes what a row says.
     const renderRow = (resource: WaitingApprovalResource, grouped = false, lastInGroup = false) => {
       const excluded = !resource.selected;
-      return (
+      const rowKey = resource.rowKey || resource.resourceId || resource.resourceName;
+      // A folded row STANDS FOR an Athena region (steps 6·7) — see `foldedMembers`.
+      const members = resource.foldedMembers;
+      const folded = !!members?.length;
+      const open = folded && expandedFolds.has(rowKey);
+      const row = (
         <tr
           // `resource_id` is optional in the contract, so two id-less rows would collide on
           // one '' key and React would drop a row. `rowKey` is for consumers that HAVE an
           // identity they may not render (IDC's internal NLB key — design-spec §8).
-          key={resource.rowKey || resource.resourceId || resource.resourceName}
-          className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
+          key={rowKey}
+          className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, folded && 'cursor-pointer')}
+          onClick={folded ? () => toggleFold(rowKey) : undefined}
         >
           {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
               block and left row heights ragged (59/69/75px); the full name is in the tip. */}
@@ -304,17 +328,46 @@ export const WaitingApprovalTable = memo(
               NAME_LIFT,
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
+              folded && open && idcStyles.table.group.parentCell,
             )}
           >
-            <Tooltip
-              content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
-              variant="value"
-              size="md"
-              triggerClassName="min-w-0 max-w-[200px] block"
-              truncatedOnly
-            >
-              <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
-            </Tooltip>
+            {folded ? (
+              // A region has no resource name, so the cell carries the group's identity
+              // instead — the same cluster steps 1·2·3 put on a group parent.
+              <span className={idcStyles.table.group.lead}>
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-label={`${getDatabaseShortLabel(resource.resourceType)} ${resource.region} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleFold(rowKey);
+                  }}
+                  className={cn(
+                    idcStyles.table.group.toggle,
+                    open
+                      ? idcStyles.table.group.toggleOpen
+                      : idcStyles.table.group.toggleClosed,
+                    primaryColors.focusRing,
+                  )}
+                >
+                  <ChevronRightIcon className="h-3.5 w-3.5" />
+                </button>
+                <span className={idcStyles.table.group.label}>
+                  {getDatabaseShortLabel(resource.resourceType)}
+                </span>
+              </span>
+            ) : (
+              <Tooltip
+                content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
+                variant="value"
+                size="md"
+                triggerClassName="min-w-0 max-w-[200px] block"
+                truncatedOnly
+              >
+                <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+              </Tooltip>
+            )}
           </td>
           {/* Inside a group the id is dropped: it is the parent's own path with the child's name
               tacked on (`athena:<acct>:<region>/<catalog>/test_raw`), so every child repeated the
@@ -410,6 +463,39 @@ export const WaitingApprovalTable = memo(
             </>
           )}
         </tr>
+      );
+
+      if (!folded) return row;
+      return (
+        <Fragment key={rowKey}>
+          {row}
+          {/* The region's databases. Name, and what the name IS — read down the column it
+              says Athena → Database, as on steps 1·2·3. Everything else is the region's own
+              answer and does not vary per database, so those cells stay empty. */}
+          {open &&
+            members.map((name, index) => (
+              <tr key={name}>
+                <td
+                  className={cn(
+                    idcStyles.table.approvalCell,
+                    'font-mono text-[14px]',
+                    textColors.primary,
+                    idcStyles.table.group.childCell,
+                    index === members.length - 1 && idcStyles.table.group.childCellLast,
+                  )}
+                >
+                  {name || PLACEHOLDER}
+                </td>
+                <td className={idcStyles.table.approvalCell} />
+                <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary)}>
+                  {GROUPED_CHILD_KIND_LABEL}
+                </td>
+                <td className={idcStyles.table.approvalCell} />
+                <td className={idcStyles.table.approvalCell} />
+                <td className={idcStyles.table.approvalCell} />
+              </tr>
+            ))}
+        </Fragment>
       );
     };
 

@@ -12,6 +12,7 @@ import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_c
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import { LogicalDbSummaryModal } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbSummaryModal';
 import { getLatestTestConnectionResultSummaries } from '@/app/lib/api';
+import { resultUnitId } from '@/lib/resource-grouping';
 import {
   buildLogicalDbCountMap,
   type LogicalDbCountMap,
@@ -63,26 +64,52 @@ export const ConfirmedIntegrationTable = ({
 
   // Every confirmed row is a target, so the verdict/reason pair is swapped for the
   // Step 5 logical-DB counts (`confirmed` variant).
-  const approvalRows = useMemo<readonly WaitingApprovalResource[]>(
-    () =>
-      confirmed.map((resource) => {
-        const counts = logicalDbCounts.get(resource.resourceId);
-        return {
-          resourceId: resource.resourceId,
-          resourceType: resource.databaseType ?? '',
-          region: resource.region ?? '',
-          resourceName: resource.resourceName ?? '',
-          selected: true,
-          displayDbType: resource.databaseType ?? undefined,
-          logicalDbCount: counts?.target ?? null,
-          excludedLogicalDbCount: counts?.excluded ?? null,
-        };
-      }),
-    [confirmed, logicalDbCounts],
-  );
-  // No Athena grouping here (LIN-85): from step 4 on the region IS the resource, so steps 6·7
-  // want one folded region row rather than a parent with database children. Until that fold
-  // lands, page these flat — one row, one unit.
+  //
+  // Athena folds to ONE row per region, the same unit steps 4·5 operate on: from step 4 on the
+  // region IS the resource. The confirmed-integration contract still answers per database
+  // (`…:AwsDataCatalog/<db>`), so the fold happens here, keyed on `athena_region_resource_id`
+  // through `resultUnitId` — nothing parses an id. Counts add across the region and stay null
+  // while no member has one, so the cell renders — rather than a fabricated 0.
+  const approvalRows = useMemo<readonly WaitingApprovalResource[]>(() => {
+    const rows: WaitingApprovalResource[] = [];
+    const byUnit = new Map<string, WaitingApprovalResource>();
+    const addCount = (a: number | null, b: number | null | undefined): number | null =>
+      a === null && (b === null || b === undefined) ? null : (a ?? 0) + (b ?? 0);
+
+    for (const resource of confirmed) {
+      const counts = logicalDbCounts.get(resource.resourceId);
+      const name = resource.resourceName ?? '';
+      const unitId = resultUnitId(resource);
+      const existing = byUnit.get(unitId);
+      if (existing) {
+        existing.foldedMembers = [...(existing.foldedMembers ?? []), name];
+        // Never rendered on a folded row — the fold shows the group label there. This is the
+        // search haystack, so a database stays findable by name from the collapsed row.
+        existing.resourceName = `${existing.resourceName} ${name}`.trim();
+        existing.logicalDbCount = addCount(existing.logicalDbCount ?? null, counts?.target);
+        existing.excludedLogicalDbCount = addCount(
+          existing.excludedLogicalDbCount ?? null,
+          counts?.excluded,
+        );
+        continue;
+      }
+      const row: WaitingApprovalResource = {
+        resourceId: unitId,
+        resourceType: resource.databaseType ?? '',
+        region: resource.region ?? '',
+        resourceName: name,
+        selected: true,
+        displayDbType: resource.databaseType ?? undefined,
+        logicalDbCount: counts?.target ?? null,
+        excludedLogicalDbCount: counts?.excluded ?? null,
+      };
+      if (resource.athenaRegionResourceId) row.foldedMembers = [name];
+      rows.push(row);
+      byUnit.set(unitId, row);
+    }
+    return rows;
+  }, [confirmed, logicalDbCounts]);
+  // Each row — a folded region or a single resource — is already one unit, so page them flat.
   const table = useApprovalTableState(approvalRows, undefined, false);
 
   // The resource whose logical-DB list is open. null = closed.
