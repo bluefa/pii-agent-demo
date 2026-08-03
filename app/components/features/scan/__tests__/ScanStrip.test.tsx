@@ -41,8 +41,8 @@ describe('ScanStrip', () => {
   it('summarizes the last successful scan with relative age and duration', () => {
     render(<ScanStrip {...baseProps} job={successJob} newCount={2} />);
     expect(screen.getByText('마지막 스캔 3분 전')).toBeTruthy();
-    // 조회한 전체 리소스 수는 어디에도 실리지 않는다 — 아래 표의 DB 수와 단위가 달라
-    // 나란히 놓이면 답할 수 없는 격차만 만든다.
+    // The scanned-resource total appears nowhere: it is in a different unit from the
+    // DB count below, so side by side it only creates an unanswerable gap.
     expect(screen.getByText(/32초 소요 · 신규 2/)).toBeTruthy();
     expect(screen.queryByText(/개 발견/)).toBeNull();
     expect(screen.getByRole('button', { name: '다시 스캔' })).toBeTruthy();
@@ -120,9 +120,9 @@ describe('ScanStrip funnel row', () => {
     vi.useRealTimers();
   });
 
-  // 세 칸은 한 단위(후보 DB)로만 말하고 selected + excluded === eligible 이다.
-  // 스캔이 조회한 전체 리소스(≈10만)는 이 행에서 완전히 빠졌다 — 단위가 다른 숫자를
-  // 같은 크기로 나란히 두면 답할 수 없는 격차를 만든다(운영 피드백).
+  // The three cells speak one unit (candidate DBs) and selected + excluded ===
+  // eligible. The scan's discovery total (~100k) is out of this row entirely: two
+  // units at the same size on one line read as a comparison that has no answer.
   it('reports the three same-unit counts and no discovery total', () => {
     render(<ScanStrip {...baseProps} job={successJob} newCount={3} funnel={baseFunnel} />);
     expect(screen.getByText('12')).toBeTruthy();
@@ -130,7 +130,7 @@ describe('ScanStrip funnel row', () => {
     expect(screen.getByText('7')).toBeTruthy();
     expect(screen.queryByText('107,873')).toBeNull();
     expect(screen.queryByText(/스캔 발견/)).toBeNull();
-    // 연동 가능 DB 는 개수만 말한다 — 직전 스캔 대비 증감(+3)도 노출하지 않는다.
+    // The eligible cell reports a count only — no delta against the previous scan.
     expect(screen.queryByText('+3')).toBeNull();
   });
 
@@ -179,7 +179,7 @@ describe('ScanStrip funnel row', () => {
     fireEvent.click(screen.getByRole('button', { name: /제외함/ }));
     expect(onFilterChange).toHaveBeenLastCalledWith('excluded');
 
-    // Pressing the active cell clears the filter — the only way back to 전체.
+    // Pressing the active cell clears the filter — the only way back to 'all'.
     rerender(
       <ScanStrip {...baseProps} job={successJob} funnel={{ ...baseFunnel, filter: 'target', onFilterChange }} />,
     );
@@ -189,7 +189,7 @@ describe('ScanStrip funnel row', () => {
     expect(onFilterChange).toHaveBeenLastCalledWith('all');
   });
 
-  // The reporting cell must not look interactive: 연동 가능 DB is the table's
+  // The reporting cell must not look interactive: the eligible count is the table's
   // total (= the 'all' state), not a filter of its own.
   it('keeps the reporting cell out of the tab order', () => {
     render(<ScanStrip {...baseProps} job={successJob} funnel={baseFunnel} />);

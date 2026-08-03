@@ -35,15 +35,13 @@ export const ResourceIdCell = ({
       triggerClassName="min-w-0 overflow-hidden"
       truncatedOnly
     >
-      {/* Truncates from the RIGHT, like the Resource Name cell next to it (`truncate`):
-          one abbreviation grammar per table — `Prefix…` — instead of an id that starts
-          with `…` while the name beside it ends with one (owner call). The full value
-          is one hover away, and the copy button hands over the exact string.
+      {/* Truncates from the RIGHT, like the Resource Name cell beside it: one
+          abbreviation grammar per table (`Prefix…`). The full value is one hover
+          away and the copy button hands over the exact string.
 
-          The truncation box and the text are ONE element on purpose: the browser draws
-          the ellipsis in the box's own font and colour, so a wrapper around a styled
-          child rendered `/subscriptions/34 ..` — an inherited 14px grey `…` detached
-          from the mono id it belongs to. */}
+          Truncation box and text are ONE element on purpose — the browser draws the
+          ellipsis in the box's own font and colour, so a styled child under a plain
+          wrapper gets an inherited grey `…` detached from the mono id. */}
       <span
         className={cn(
           'block min-w-0 truncate text-left font-mono text-[12px]',

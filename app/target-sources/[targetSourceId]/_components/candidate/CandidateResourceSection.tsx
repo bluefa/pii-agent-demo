@@ -335,9 +335,9 @@ export const CandidateResourceSection = ({
           const showStrip = phase === 'list'
             || (finishedJob != null && (phase === 'empty' || phase === 'scanFailed'));
           const scanDisabled = initialLoading || !canStart || readonly;
-          // 세 칸은 목록이 서 있을 때만 — 후보가 없으면 전부 0이라 정보가 아니라
-          // 소음이고, 그때 밴드는 예전처럼 한 줄로만 선다. 세 값은 모두 후보 DB
-          // 단위이고 selected + excluded === eligible 이다.
+          // Counts only when the list is up: with no candidates they are all zero,
+          // which is noise rather than information, and the band collapses to one
+          // line. All three are in the candidate-DB unit (selected + excluded = eligible).
           const funnel = phase === 'list'
             ? {
               eligible: candidates.length,

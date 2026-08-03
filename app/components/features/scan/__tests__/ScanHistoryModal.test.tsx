@@ -39,11 +39,11 @@ describe('ScanHistoryModal', () => {
     expect(screen.getByText('실패')).toBeTruthy();
     expect(screen.getByText('스캔 권한 오류')).toBeTruthy();
     expect(screen.getByText('32초')).toBeTruthy();
-    expect(getScanHistory).toHaveBeenCalledWith(7, 0, 10);
+    expect(getScanHistory).toHaveBeenCalledWith(7, 0, 5);
   });
 
-  // 행을 누르면 같은 모달이 그 스캔의 상세로 바뀐다 — 타입별 개수는 이력 응답에
-  // 이미 실려 오므로 추가 조회가 없다.
+  // Clicking a row swaps the same modal to that scan's detail; the per-type counts
+  // ride along on the history response, so no extra request is made.
   it('opens the per-scan detail in place and returns to the list', async () => {
     getScanHistory.mockResolvedValueOnce({
       content: [
@@ -61,23 +61,48 @@ describe('ScanHistoryModal', () => {
     });
     renderModal();
     await screen.findByText('9개 발견');
-    // 모듈 스코프 vi.fn() 은 테스트 간에 리셋되지 않는다 — 절대 횟수가 아니라
-    // 이 클릭이 요청을 더 만들었는지만 본다.
+    // The module-scope vi.fn() is not reset between tests, so assert that this click
+    // added no request rather than an absolute call count.
     const callsBeforeOpen = getScanHistory.mock.calls.length;
 
-    fireEvent.click(screen.getByText('9개 발견'));
+    // The row is exposed as a control, not just a table row, so assistive tech
+    // announces it as actionable.
+    const row = screen.getByRole('button', { name: /스캔 상세 보기/ });
+    fireEvent.click(row);
 
     expect(screen.getByText('스캔 결과 #7')).toBeTruthy();
-    // 프로바이더 접두어는 표시에서만 떨어진다 (한 대상 안에서 상수라 정보가 없다).
+    // The provider prefix is dropped for display only (it is constant per target).
     expect(screen.getByText('SQL_SERVER')).toBeTruthy();
     expect(screen.getByText('MARIADB')).toBeTruthy();
     expect(screen.getByText('실행 시각')).toBeTruthy();
-    // 상세는 한 번 받아온 행으로 그린다 — 추가 요청 없음.
+    // The detail renders from the row already fetched — no extra request.
     expect(getScanHistory.mock.calls.length).toBe(callsBeforeOpen);
 
     fireEvent.click(screen.getByRole('button', { name: '목록으로' }));
     expect(screen.getByText('스캔 이력')).toBeTruthy();
     expect(screen.queryByText('SQL_SERVER')).toBeNull();
+    // Coming back restores focus to the row that opened the detail, so keyboard
+    // users do not land at the top of the list again.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /스캔 상세 보기/ }));
+  });
+
+  it('opens the detail from the keyboard (Enter)', async () => {
+    getScanHistory.mockResolvedValueOnce({
+      content: [
+        {
+          id: 11,
+          scan_status: 'SUCCESS',
+          scan_version: 7,
+          created_at: '2026-07-31T05:00:00Z',
+          resource_count_by_resource_type: { AZURE_SQL_SERVER: 8 },
+        },
+      ],
+      totalElements: 1,
+    });
+    renderModal();
+
+    fireEvent.keyDown(await screen.findByRole('button', { name: /스캔 상세 보기/ }), { key: 'Enter' });
+    expect(screen.getByText('스캔 결과 #7')).toBeTruthy();
   });
 
   it('shows the empty message when no scans ran yet', async () => {

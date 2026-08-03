@@ -17,9 +17,9 @@ type ScanJob = z.infer<typeof schemas.ScanJobResponse>;
 /**
  * The band's three counts — all in ONE unit (candidate DBs), and `selected +
  * excluded === eligible`. The scan's raw discovery total (every resource type,
- * ~90k) used to lead this row; side by side with a 10 it read as a 9000× gap
- * nobody could act on, so it is gone from the band entirely (owner call). What
- * the scan looked at is a scan-job fact, not a step-1 decision.
+ * ~90k) stays out: a number in another unit next to a 10 only invites a
+ * comparison with no answer. What the scan looked at is a scan-job fact, not a
+ * step-1 decision.
  */
 export interface ScanFunnelCounts {
   /** Candidate DBs the table lists. */
@@ -68,16 +68,15 @@ const CELL_BASE = 'min-w-0 px-4 py-3 text-center';
 
 /**
  * One count cell — label over number, one quiet line under, all centred on the
- * cell's axis. No change-since-last-scan delta: step 1 asks "얼마나 붙일 수 있나",
- * and a `+9` next to that count answers a question nobody asked (owner call).
+ * cell's axis. No change-since-last-scan delta: step 1 asks how many DBs can be
+ * connected, and a `+9` beside that count answers a different question.
  * Equal-width cells put the numbers on a shared vertical line, which is the
- * point: comparison needs alignment first (admin scan-tab lesson). Weight stays
- * medium like the admin resource tiles — size and colour already carry the
- * hierarchy, so bold here only adds noise (owner call in live review).
+ * point: comparison needs alignment first. Weight stays medium like the admin
+ * resource tiles — size and colour already carry the hierarchy.
  *
- * A cell that filters the table is a real <button> with aria-pressed; 연동 가능 DB
- * only reports (it IS the 'all' state), so it renders as plain text and "looks
- * interactive" and "is interactive" never disagree.
+ * A cell that filters the table is a real <button> with aria-pressed; the
+ * eligible cell only reports (it IS the 'all' state), so it renders as plain
+ * text and "looks interactive" and "is interactive" never disagree.
  */
 const FunnelCell = ({
   label,
@@ -151,10 +150,11 @@ const FunnelCell = ({
 };
 
 /**
- * 스캔 상태 밴드 — 헤더와 테이블 사이. `funnel`이 있으면 위에 세 칸
- * (연동 가능 DB = 선택함 + 제외함)이 서고, 아래 줄이 마지막 스캔 요약(시점은
- * 상대시간이 곧 낡음 신호)과 이력·권한 확인·재스캔을 잡는다.
- * 권한의 상시 초록 배지는 없다 — ScanPermissionResult 규칙을 따른다.
+ * Scan status band, between the header and the table. With `funnel` it carries
+ * three cells on top (eligible = selected + excluded); the line below holds the
+ * last-scan summary (relative time, because staleness is the signal) plus
+ * history / permission check / rescan. There is no standing green permission
+ * badge — that rule belongs to ScanPermissionResult.
  */
 export const ScanStrip = ({
   job,
@@ -168,9 +168,9 @@ export const ScanStrip = ({
   starting,
   funnel,
 }: ScanStripProps) => {
-  // 세 칸은 스캔이 있어야 성립한다 — 스캔 기록이 없는데 숫자 칸을 세우면 없는
-  // 결과를 있는 것처럼 읽히게 만들고, 정작 이 화면의 진짜 사실
-  // ("아직 스캔한 적이 없어요")를 아래 줄로 밀어낸다. 그때 밴드는 그 한 줄이 전부다.
+  // The counts need a scan behind them: with none on record, number cells make an
+  // absent result read like a result and push the one true fact ("no scan yet")
+  // below them. The band is that single line instead.
   const showFunnel = funnel != null && job != null;
   const succeeded = job?.scan_status === 'SUCCESS';
   const failedByPermission = job != null && !succeeded && job.scan_error === 'AUTH_PERMISSION_ERROR';
@@ -191,9 +191,9 @@ export const ScanStrip = ({
     if (scannedAt) metaParts.push(formatDate(scannedAt, 'datetime'));
     if (succeeded) {
       if (typeof job.duration_seconds === 'number') metaParts.push(`${Math.round(job.duration_seconds)}초 소요`);
-      // 스캔이 조회한 전체 리소스 수(≈9만)는 어디에도 쓰지 않는다 — DB 10개 옆에
-      // 두면 셀이든 메타 줄이든 답할 수 없는 격차만 만든다. 신규 건수도 세 칸에서
-      // 뺀 표기라 아래 줄로 되돌리지 않는다.
+      // The scanned-resource total (~90k) appears nowhere: next to a DB count it
+      // only creates a gap no one can act on, in a cell or in this line. The
+      // new-since-last-scan count is off the cells too, so it does not come back here.
       if (!showFunnel && newCount > 0) metaParts.push(`신규 ${newCount}`);
     } else if (!failedByPermission && job.scan_error) {
       // 권한 오류는 아래 배지가 전담 — 그 외 실패 사유만 메타로 흘린다.
