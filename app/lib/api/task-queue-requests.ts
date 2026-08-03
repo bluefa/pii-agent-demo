@@ -49,6 +49,13 @@ export interface RequestResourceRow {
   resourceName: string | null;
   selected: boolean;
   exclusionReason: string | null;
+  /**
+   * `integration_category` — separates the scan's INSTALL_INELIGIBLE verdict from a
+   * user's exclusion. Dropping it makes a system verdict render as a revisable 제외.
+   */
+  integrationCategory: string | null;
+  /** `recommend_fail_reason` — why the scan judged it ineligible; absent for AWS/IDC. */
+  recommendFailReason: string | null;
   databaseType: string | null;
   region: string | null;
   // IDC-only (present when the target source is IDC).
@@ -99,6 +106,8 @@ export function toRequestResourceRow(wire: ResourceItemWire): RequestResourceRow
     // absent — an item on the request without an exclusion reason is a target).
     selected: wire.selected ?? wire.exclusion_reason == null,
     exclusionReason: wire.exclusion_reason ?? null,
+    integrationCategory: wire.integration_category ?? null,
+    recommendFailReason: wire.recommend_fail_reason ?? null,
     databaseType: meta.database_type ?? null,
     region: meta.region ?? null,
     idcKind: kind,

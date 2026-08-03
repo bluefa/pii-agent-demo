@@ -24,6 +24,8 @@ const row = (index: number, selected = true): RequestResourceRow => ({
   resourceName: `resource-${index}`,
   selected,
   exclusionReason: selected ? null : '스테이징 전용',
+  integrationCategory: null,
+  recommendFailReason: null,
   databaseType: 'mysql',
   region: 'ap-northeast-2',
   idcKind: null,

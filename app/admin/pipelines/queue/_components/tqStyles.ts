@@ -12,7 +12,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 
 const { text } = pipelineStyles;
 
-// Cell bases, split from their color so  can take the caller's tone.
+// Cell bases, split from their color so a cell can take the caller's tone.
 const APP_TD_BASE = 'px-4 py-[13px] align-middle tabular-nums border-t border-[var(--pl-gray-100)]';
 const APP_TD_MONO_BASE = 'text-[12px] [font-family:var(--pl-font-mono)]';
 

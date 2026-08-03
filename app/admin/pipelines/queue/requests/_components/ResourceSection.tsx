@@ -104,7 +104,10 @@ export function ResourceSection({
         }
       />
 
-      {filtered.length === 0 ? (
+      {resources.length === 0 ? (
+        // No condition was set, so "조건에 맞는" would blame a filter for an empty request.
+        <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." />
+      ) : filtered.length === 0 ? (
         <PlEmptyState icon="inbox" message="조건에 맞는 리소스가 없어요." />
       ) : isIdc ? (
         <>

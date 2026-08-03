@@ -141,10 +141,16 @@ export function IdcResourceTable({
           </tr>
         </thead>
         <tbody className={table.body}>
-          {rows.map((row) => {
-            // Keyed by identity, never by index: the list filters and pages, and
-            // IdcEndpointCell owns per-row expand state that must not follow a slot.
-            const rowKey = row.resourceId ?? row.connectTargets.join('|');
+          {rows.map((row, index) => {
+            // Identity first: the list filters and pages, so a positional key would let
+            // per-row tooltip and copy state follow a slot rather than a resource.
+            // resource_id is optional in the contract, and the endpoint alone is not
+            // unique — one host can carry MySQL:3306 and Oracle:1521 — so the fallback
+            // spells out the whole identity, with the index as the last resort for a row
+            // that has none (an excluded row carries no connect targets).
+            const rowKey =
+              row.resourceId ??
+              `${row.connectTargets.join('|')}|${row.port ?? ''}|${row.databaseType ?? ''}|${index}`;
             const dbLabel = row.databaseType ? getDatabaseShortLabel(row.databaseType) : '';
             if (!row.selected) {
               return (
