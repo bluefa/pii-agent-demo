@@ -36,7 +36,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { needsCredential } from '@/lib/types';
-import { resultUnitId } from '@/lib/resource-grouping';
+import { GROUPED_CHILD_KIND_LABEL, resultUnitId } from '@/lib/resource-grouping';
 
 interface LogicalModalTarget {
   resourceId: string;
@@ -493,8 +493,10 @@ export const ConnectionTestCard = ({
                         )}
                       </td>
                     </tr>
-                    {/* Database list. Only the name — the region row above already answers
-                        everything else, and none of it varies per database. */}
+                    {/* Database list. The name, and what the name IS — read down the tree the
+                        Database Type column says Athena → Database, exactly as on steps 1·2·3.
+                        Without it `default` is just a string. Every other cell stays empty: the
+                        region row above already answers them and none of it varies per database. */}
                     {unit.folded &&
                       open &&
                       unit.members.map((db, index) => (
@@ -511,7 +513,15 @@ export const ConnectionTestCard = ({
                           >
                             {db.resourceName ?? db.resourceId}
                           </td>
-                          <td className={idcStyles.table.approvalCell} />
+                          <td
+                            className={cn(
+                              idcStyles.table.approvalCell,
+                              'text-[12px]',
+                              textColors.secondary,
+                            )}
+                          >
+                            {GROUPED_CHILD_KIND_LABEL}
+                          </td>
                           <td className={idcStyles.table.approvalCell} />
                           <td className={idcStyles.table.approvalCell} />
                           <td className={idcStyles.table.approvalCell} />
