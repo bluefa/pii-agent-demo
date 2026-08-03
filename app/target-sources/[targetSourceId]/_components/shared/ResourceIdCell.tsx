@@ -35,23 +35,20 @@ export const ResourceIdCell = ({
       triggerClassName="min-w-0 overflow-hidden"
       truncatedOnly
     >
-      {/* v16 .res-id-text: the rtl box truncates from the LEFT, keeping the
-          distinguishing tail (…/servers/mysql-prod-01) instead of the common prefix. */}
-      <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-left [direction:rtl]">
-        {/* The rtl base direction placed a leading neutral at the visual end, so an
-            Azure ARM id read `…L/servers/mysql-01/`. An LTR isolate restores the
-            character order without changing which end overflows — `plaintext` would
-            also have flipped the truncation back to the right. Styling lives HERE, on
-            the node that owns the text, so class assertions and the truncation box
-            do not fight over one element. */}
-        <span
-          className={cn(
-            'font-mono text-[12px] [direction:ltr] [unicode-bidi:isolate]',
-            textClassName ?? textColors.secondary,
-          )}
-        >
-          {value}
-        </span>
+      {/* Truncates from the RIGHT, like the Resource Name cell beside it: one
+          abbreviation grammar per table (`Prefix…`). The full value is one hover
+          away and the copy button hands over the exact string.
+
+          Truncation box and text are ONE element on purpose — the browser draws the
+          ellipsis in the box's own font and colour, so a styled child under a plain
+          wrapper gets an inherited grey `…` detached from the mono id. */}
+      <span
+        className={cn(
+          'block min-w-0 truncate text-left font-mono text-[12px]',
+          textClassName ?? textColors.secondary,
+        )}
+      >
+        {value}
       </span>
     </Tooltip>
     <CopyButton

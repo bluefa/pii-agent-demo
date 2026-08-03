@@ -255,8 +255,8 @@ export function ConfirmedInfoCard({
                         {row.database_type ? getDatabaseShortLabel(row.database_type) : <Dash />}
                       </td>
                       <td className={table.cell}>
-                        {/* Step 1·2·3 grammar: RTL-truncated (the distinguishing tail
-                            stays visible), tip on hover, copy button on row hover. */}
+                        {/* Step 1·2·3 grammar: truncated to `Prefix…` like the name
+                            column, tip on hover, copy button on row hover. */}
                         {row.resource_id ? (
                           <ResourceIdCell
                             value={row.resource_id}

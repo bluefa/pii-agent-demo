@@ -335,14 +335,11 @@ export const CandidateResourceSection = ({
           const showStrip = phase === 'list'
             || (finishedJob != null && (phase === 'empty' || phase === 'scanFailed'));
           const scanDisabled = initialLoading || !canStart || readonly;
-          // 깔때기는 목록이 서 있을 때만 — 후보가 없으면 네 칸이 전부 0이라
-          // 정보가 아니라 소음이고, 그때 밴드는 예전처럼 한 줄로만 선다.
-          // 발견 수는 잡의 전체 리소스 합계라서 아래 표의 후보 수와 다르다 —
-          // 그 격차를 설명하는 게 이 줄의 목적이므로 같은 값으로 맞추지 않는다.
+          // Counts only when the list is up: with no candidates they are all zero,
+          // which is noise rather than information, and the band collapses to one
+          // line. All three are in the candidate-DB unit (selected + excluded = eligible).
           const funnel = phase === 'list'
             ? {
-              discovered: Object.values(finishedJob?.resource_count_by_resource_type ?? {})
-                .reduce<number>((sum, count) => sum + (count ?? 0), 0),
               eligible: candidates.length,
               selected: selectedIds.size,
               excluded: Math.max(0, candidates.length - selectedIds.size),
@@ -523,7 +520,11 @@ export const CandidateResourceSection = ({
       </ScanController>
 
       {historyModal.isOpen && (
-        <ScanHistoryModal targetSourceId={targetSourceId} onClose={historyModal.close} />
+        <ScanHistoryModal
+          targetSourceId={targetSourceId}
+          provider={provider}
+          onClose={historyModal.close}
+        />
       )}
 
       {!readonly && (

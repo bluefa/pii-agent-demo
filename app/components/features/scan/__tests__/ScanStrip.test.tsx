@@ -38,10 +38,13 @@ describe('ScanStrip', () => {
     vi.useRealTimers();
   });
 
-  it('summarizes the last successful scan with relative age, duration and found count', () => {
+  it('summarizes the last successful scan with relative age and duration', () => {
     render(<ScanStrip {...baseProps} job={successJob} newCount={2} />);
     expect(screen.getByText('마지막 스캔 3분 전')).toBeTruthy();
-    expect(screen.getByText(/32초 소요 · 9개 발견 · 신규 2/)).toBeTruthy();
+    // The scanned-resource total appears nowhere: it is in a different unit from the
+    // DB count below, so side by side it only creates an unanswerable gap.
+    expect(screen.getByText(/32초 소요 · 신규 2/)).toBeTruthy();
+    expect(screen.queryByText(/개 발견/)).toBeNull();
     expect(screen.getByRole('button', { name: '다시 스캔' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '스캔 이력' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '권한 확인' })).toBeTruthy();
@@ -100,7 +103,6 @@ describe('ScanStrip', () => {
 });
 
 const baseFunnel: ScanFunnelCounts = {
-  discovered: 107873,
   eligible: 12,
   selected: 5,
   excluded: 7,
@@ -118,17 +120,18 @@ describe('ScanStrip funnel row', () => {
     vi.useRealTimers();
   });
 
-  // The whole point of the row: discovered (every resource type) and eligible
-  // (DB candidates in the table) are DIFFERENT numbers, and the gap is explained
-  // rather than hidden. Collapsing them to one value would undo the feature.
-  it('shows the discovery-to-selection funnel with the discovered/eligible gap intact', () => {
+  // The three cells speak one unit (candidate DBs) and selected + excluded ===
+  // eligible. The scan's discovery total (~100k) is out of this row entirely: two
+  // units at the same size on one line read as a comparison that has no answer.
+  it('reports the three same-unit counts and no discovery total', () => {
     render(<ScanStrip {...baseProps} job={successJob} newCount={3} funnel={baseFunnel} />);
-    expect(screen.getByText('107,873')).toBeTruthy();
-    expect(screen.getByText('스캔이 조회한 전체 리소스')).toBeTruthy();
     expect(screen.getByText('12')).toBeTruthy();
-    expect(screen.getByText('+3')).toBeTruthy();
     expect(screen.getByText('5')).toBeTruthy();
     expect(screen.getByText('7')).toBeTruthy();
+    expect(screen.queryByText('107,873')).toBeNull();
+    expect(screen.queryByText(/스캔 발견/)).toBeNull();
+    // The eligible cell reports a count only — no delta against the previous scan.
+    expect(screen.queryByText('+3')).toBeNull();
   });
 
   // The counts now live in the cells; repeating them in the meta line would make
@@ -144,18 +147,19 @@ describe('ScanStrip funnel row', () => {
   // report a result that does not exist, and would push the one true fact —
   // "아직 스캔한 적이 없어요" — below them.
   it('suppresses the funnel entirely when no scan is on record', () => {
-    render(<ScanStrip {...baseProps} job={null} funnel={{ ...baseFunnel, discovered: 0 }} />);
+    render(<ScanStrip {...baseProps} job={null} funnel={baseFunnel} />);
     expect(screen.getByText('아직 스캔한 적이 없어요')).toBeTruthy();
-    expect(screen.queryByText('스캔이 조회한 전체 리소스')).toBeNull();
+    expect(screen.queryByText('연동 가능 DB')).toBeNull();
     expect(screen.queryByRole('button', { name: /선택함/ })).toBeNull();
     expect(screen.getByRole('button', { name: '스캔 시작' })).toBeTruthy();
   });
 
-  // A finished-but-failed scan keeps the funnel (the list below is the previous
-  // scan's) and says this run found nothing with an em dash, not a zero.
-  it('renders a finished scan with no counts as an em dash, not a zero', () => {
-    render(<ScanStrip {...baseProps} job={permissionFailJob} funnel={{ ...baseFunnel, discovered: 0 }} />);
-    expect(screen.getByText('—')).toBeTruthy();
+  // A finished-but-failed scan keeps the three counts — the list below is the
+  // previous scan's, so those rows (and their numbers) are still real.
+  it('keeps the counts on a finished-but-failed scan', () => {
+    render(<ScanStrip {...baseProps} job={permissionFailJob} funnel={baseFunnel} />);
+    expect(screen.getByText('12')).toBeTruthy();
+    expect(screen.getByText('스캔 권한 오류 — 설정 확인 필요')).toBeTruthy();
   });
 
   it('surfaces the blocking missing-reason count on the excluded cell', () => {
@@ -175,7 +179,7 @@ describe('ScanStrip funnel row', () => {
     fireEvent.click(screen.getByRole('button', { name: /제외함/ }));
     expect(onFilterChange).toHaveBeenLastCalledWith('excluded');
 
-    // Pressing the active cell clears the filter — the only way back to 전체.
+    // Pressing the active cell clears the filter — the only way back to 'all'.
     rerender(
       <ScanStrip {...baseProps} job={successJob} funnel={{ ...baseFunnel, filter: 'target', onFilterChange }} />,
     );
@@ -185,11 +189,10 @@ describe('ScanStrip funnel row', () => {
     expect(onFilterChange).toHaveBeenLastCalledWith('all');
   });
 
-  // Reporting cells must not look interactive: discovered/eligible are derived
-  // facts with no filter behind them.
-  it('keeps the two reporting cells out of the tab order', () => {
+  // The reporting cell must not look interactive: the eligible count is the table's
+  // total (= the 'all' state), not a filter of its own.
+  it('keeps the reporting cell out of the tab order', () => {
     render(<ScanStrip {...baseProps} job={successJob} funnel={baseFunnel} />);
-    expect(screen.queryByRole('button', { name: /스캔 발견/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /연동 가능 DB/ })).toBeNull();
   });
 });

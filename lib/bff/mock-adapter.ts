@@ -100,7 +100,9 @@ export const mockBff: BffClient = {
 
   scan: {
     get: async (id, scanId) => unwrap(await mockScan.get(String(id), scanId)),
-    getHistory: async (id, query) => unwrap(await mockScan.getHistory(String(id), query)),
+    // The mock module slices with limit/offset; the boundary speaks the swagger's page/size.
+    getHistory: async (id, query) =>
+      unwrap(await mockScan.getHistory(String(id), { limit: query.size, offset: query.page * query.size })),
     create: async (id, body) => unwrap(await mockScan.create(String(id), body)),
     getStatus: async (id) => unwrap(await mockScan.getStatus(String(id))),
   },
