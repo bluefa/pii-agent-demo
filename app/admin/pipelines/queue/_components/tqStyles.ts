@@ -12,7 +12,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 
 const { text } = pipelineStyles;
 
-// Cell bases, split from their color so  can take the caller's tone.
+// Cell bases, split from their color so a cell can take the caller's tone.
 const APP_TD_BASE = 'px-4 py-[13px] align-middle tabular-nums border-t border-[var(--pl-gray-100)]';
 const APP_TD_MONO_BASE = 'text-[12px] [font-family:var(--pl-font-mono)]';
 
@@ -125,11 +125,22 @@ export const tqStyles = {
       'flex justify-end gap-2 mt-6 pt-4 px-10 pb-5 border-t border-[var(--pl-border)]',
     /** am-label — 12/700 uppercase weak. */
     label: 'mb-2.5 text-[12px] font-bold uppercase tracking-[0.06em] text-[var(--pl-text-weak)]',
-    /** am-body textarea — min-h 120, r8 border-strong, focus ring. */
+    /**
+     * am-body textarea — min-h 120, r8 border-strong, focus ring.
+     *
+     * BOTH colours are declared, because neither had been. Tailwind preflight gives
+     * form controls `color: inherit`, so the typed value took `body { color:
+     * var(--foreground) }` — and globals.css flips --foreground to #ededed under
+     * prefers-color-scheme: dark. On a dark-appearance machine the typed text was
+     * #ededed on a white card: 1.07:1. The placeholder had no rule at all and fell to
+     * the UA grey. text-strong is 17.75:1, text-weak 4.97:1 (WCAG counts placeholder
+     * text as text).
+     */
     textarea:
-      'w-full min-h-[120px] rounded-lg border border-[var(--pl-border-strong)] px-2.5 py-2 text-[14px] leading-[1.4] resize-y focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]',
-    /** am-count — n/limit, 12 faint right tabular (shared by CharCount). */
-    count: 'mt-1.5 text-right text-[12px] text-[var(--pl-text-faint)] tabular-nums',
+      'w-full min-h-[120px] rounded-lg border border-[var(--pl-border-strong)] px-2.5 py-2 text-[14px] leading-[1.4] resize-y text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-weak)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]',
+    /** am-count — n/limit, 12 right tabular (shared by CharCount). text-weak, not
+     *  faint: faint is 2.58:1 on white, and a character count is text a user reads. */
+    count: 'mt-1.5 text-right text-[12px] text-[var(--pl-text-weak)] tabular-nums',
     /** am-note — warn box (unsaved-NLB warning). */
     note: 'flex items-start gap-2 mb-4 rounded-lg border border-[var(--pl-warn-border)] bg-[var(--pl-warn-bg)] px-3 py-2.5 text-[14px] leading-[1.4] text-[var(--pl-text-medium)]',
     noteIcon: 'flex-none mt-px text-[var(--pl-warn-text)]',
@@ -153,7 +164,8 @@ export const tqStyles = {
       err: 'bg-[var(--pl-err)]',
     },
     num: 'font-semibold text-[var(--pl-text-strong)] tabular-nums',
-    den: 'font-medium text-[var(--pl-text-faint)]',
+    // weak, not faint: the denominator is read ("12 of 50"), so 4.5:1 applies.
+    den: 'font-medium text-[var(--pl-text-weak)]',
   },
 
   /** NLB free-capacity tag (`.ftag`) — 여유 / 주의 / Hard Limit. */

@@ -14,6 +14,8 @@ const row = (over: Partial<RequestResourceRow>): RequestResourceRow => ({
   resourceName: 'aurora-pay-prod',
   selected: true,
   exclusionReason: null,
+  integrationCategory: null,
+  recommendFailReason: null,
   databaseType: 'MySQL',
   region: 'ap-northeast-2',
   idcKind: null,

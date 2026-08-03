@@ -113,6 +113,54 @@ describe('ApprovalRequestDetailModal', () => {
     expect(screen.getByRole('columnheader', { name: '위치' })).toBeTruthy();
   });
 
+  /**
+   * INSTALL_INELIGIBLE is the scan's verdict, not a user's choice. Dropping
+   * integration_category from the adapter rendered it as a revisable 제외 pill.
+   */
+  it('keeps the scan verdict distinct from a user exclusion', async () => {
+    getApprovalRequestDetail.mockResolvedValue({
+      resources: [
+        {
+          resource_id: 'res-x',
+          resource_name: 'ineligible-db',
+          resource_type: 'AZURE_MYSQL',
+          selected: false,
+          integration_category: 'INSTALL_INELIGIBLE',
+          metadata: { database_type: 'MYSQL', region: 'ap-northeast-2' },
+        },
+      ],
+    });
+    open();
+
+    expect(await screen.findByText('ineligible-db')).toBeTruthy();
+    expect(screen.getByText('연동 불가')).toBeTruthy();
+    expect(screen.queryByText('제외')).toBeNull();
+  });
+
+  /** An IDC resource_id is an internal NLB-PUT key (design-spec §8). */
+  it('never surfaces an IDC resource_id', async () => {
+    getApprovalRequestDetail.mockResolvedValue({
+      resources: [
+        {
+          resource_id: 'idc-r-8f21',
+          resource_type: 'IDC',
+          selected: true,
+          metadata: {
+            database_type: 'ORACLE',
+            host: '10.20.1.11',
+            port: 1521,
+            idc_host_format: 'IP',
+          },
+        },
+      ],
+    });
+    open();
+
+    // The endpoint stands in for the name; the internal id appears nowhere.
+    expect((await screen.findAllByText('10.20.1.11:1521')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('idc-r-8f21')).toBeNull();
+  });
+
   /** ADR-006: a null processor means the request was approved automatically. */
   it('names the processor 시스템 when the result carries no user', async () => {
     render(

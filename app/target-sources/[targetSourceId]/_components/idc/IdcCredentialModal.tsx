@@ -135,7 +135,7 @@ export const IdcCredentialModal = ({
         <table className="w-full">
           <thead className={idcStyles.table.header}>
             <tr>
-              <th className={idcStyles.table.headerCell}>연동 대상</th>
+              <th className={idcStyles.table.headerCell}>접속 주소</th>
               <th className={cn(idcStyles.table.headerCell, 'w-[72px]')}>Port</th>
               <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Database Type</th>
               <th className={cn(idcStyles.table.headerCell, 'w-[190px]')}>DB Credential</th>

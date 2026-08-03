@@ -95,6 +95,11 @@ const NOTE_WARN =
  * One request, one presentation, wherever an operator opens it — this tab had its
  * own hand-rolled table with a different column order and no filtering at all.
  *
+ * Accepted tradeoff: these are the app-side components, so their #0064FF lands next to
+ * the console's --pl-primary #2563EB on this page. The queue's P3 list re-states the
+ * same grammar on --pl tokens instead (ResourceFilterBar); here the requirement was to
+ * match the 승인 요청 상세 modal exactly, and two blues is the price of that.
+ *
  * IDC carries no scan-assigned name, so its endpoint takes that seat — as `host:port`,
  * the same shape the queue's IDC table uses, so the port survives a table that has no
  * column of its own for it. IDC has no region either, so 위치 stays blank rather than
@@ -120,6 +125,10 @@ const toApprovalRow = (row: RequestResourceRow, isIdc: boolean): WaitingApproval
   selected: row.selected,
   displayDbType: row.databaseType ?? undefined,
   exclusionReason: row.exclusionReason ?? undefined,
+  // The scan's INSTALL_INELIGIBLE verdict is not a user's exclusion. Dropping it made
+  // the table render a system judgement as a revisable 제외 pill.
+  integrationCategory: row.integrationCategory ?? undefined,
+  recommendFailReason: row.recommendFailReason ?? undefined,
 });
 
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
@@ -177,6 +186,8 @@ function ResourceList({
         onRegionChange={table.onRegionChange}
         dbTypeOptions={table.dbTypeOptions}
         regionOptions={table.regionOptions}
+        // The default promises a Resource ID, which an IDC row never shows.
+        searchPlaceholder={isIdc ? '연동 대상 검색' : undefined}
       />
       <WaitingApprovalTable
         resources={table.visibleResources}

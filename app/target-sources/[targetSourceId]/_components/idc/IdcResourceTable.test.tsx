@@ -89,7 +89,7 @@ describe('IdcResourceTable — step-6 logicalro', () => {
       />,
     );
     const cells = Array.from(container.querySelectorAll('tbody td')).map((td) => td.textContent);
-    // 구분 / 연동 대상 / Port / Database Type / Source IP / 연동 논리 DB / 연동 제외
+    // 구분 / 접속 주소 / Port / Database Type / Source IP / 연동 논리 DB / 연동 제외
     expect(cells[5]).toBe('—');
     expect(cells[6]).toBe('—');
   });

@@ -13,7 +13,7 @@
 import type { ReactElement } from 'react';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
-import { cn, idcStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
 
 /**
  * Long host/SID/IP: ellipsis + copy-on-hover + full-value tooltip (res-id-cell pattern).
@@ -62,35 +62,38 @@ function HostCell({
 }
 
 /**
- * 연동 대상 — one endpoint per line, `host:port`, every address always visible.
+ * 접속 주소 — one address per line, all of them always visible.
  *
- * The port used to be a column of its own and the extra IPs sat behind a "n개 더보기"
- * toggle. Both were undone by the same fact: a target is an endpoint, so an admin
- * reading "which addresses am I about to open" needs all of them at once, and needs
- * each one paired with the port it answers on. Row height grows with the address
- * count — that is the honest shape of a multi-IP target.
+ * The extra IPs used to sit behind a "n개 더보기" toggle: an admin reading "which
+ * addresses am I about to open" needs all of them at once, so row height grows with the
+ * address count — the honest shape of a multi-IP target. The port has a column of its
+ * own; every address on a row answers on the same one, so pinning it to each line only
+ * repeated it down the cell.
+ *
+ * 14px + the hover lift, the two things WaitingApprovalTable gives its Resource Name —
+ * this is the same thing, the row's identity, and at 12.5px it was rendering SMALLER
+ * than the attributes beside it. Weight is deliberately left at 400: the sibling table
+ * tried 600 on its identity column and removed it, because colour plus weight on one
+ * cell reads as shouting. One axis per column, and the hover lift is it.
  */
 export function IdcEndpointCell({
   hosts,
-  port,
   tone,
 }: {
   hosts: readonly string[];
-  port: number | null;
   tone?: string;
 }): ReactElement | null {
   if (hosts.length === 0) return null;
-  const endpoint = (host: string): string => (port == null ? host : `${host}:${port}`);
-
   return (
     <span className="flex flex-col items-start gap-0.5">
       {hosts.map((host) => (
         <HostCell
           key={host}
-          value={endpoint(host)}
-          label="연동 대상"
-          tone={tone}
-          maxWidthClass="max-w-[220px]"
+          value={host}
+          label="접속 주소"
+          tone={cn(tone ?? textColors.primary, primaryColors.textGroupHover)}
+          textClassName="text-[14px]"
+          maxWidthClass="max-w-[200px]"
         />
       ))}
     </span>
@@ -117,7 +120,10 @@ export function IdcDbTypeCell({
             value={oracleSid}
             label="Oracle SID"
             tone={tone ?? textColors.tertiary}
-            textClassName="text-[11.5px]"
+            // 500, one step over the 400 the other mono values rest at: the SID is an
+            // identifier the admin matches against, and at 11.5px tertiary it was the
+            // faintest text in the row.
+            textClassName="text-[11.5px] font-medium"
             maxWidthClass="max-w-[150px]"
           />
         </span>

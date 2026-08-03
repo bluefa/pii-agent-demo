@@ -772,7 +772,9 @@ export const idcStyles = {
   /** Multi-IP endpoint toggle — `.idc-ep-toggle` (11.5px / 600 / primary). */
   epToggle: 'text-[11.5px] font-semibold text-[#0064FF] hover:underline',
   /** Oracle SID key — `.idc-sid-k` (10px / 700 / fg-4 / ls .02em; bare, no bg/pad/radius). */
-  sidKey: 'text-[10px] font-bold text-gray-400 tracking-[0.02em]',
+  // gray-500, not gray-400: this is text, and 10px bold is NOT WCAG 'large text'
+  // (that starts at 18.66px bold). gray-400 measured 2.54:1 on white; gray-500 is 4.83:1.
+  sidKey: 'text-[10px] font-bold text-gray-500 tracking-[0.02em]',
   /** Field-level warning under an input — `.idc-field-warn` (#B45309 / 11.5px). */
   fieldWarn: 'mt-1 text-[11.5px] text-[#B45309]',
   /** Field-level error under an input — `.idc-field-err` (#DC2626 / 11.5px). */
@@ -920,6 +922,23 @@ export const idcStyles = {
      * which measures 2.86:1 here — see `tableStyles.header` for the full reasoning.
      */
     approvalHeader: 'bg-[#F7F8FA] text-left text-[12px] font-semibold text-[#4E5968]',
+    /**
+     * Approval-table header, chrome variant — admin P3 only (both provider tables).
+     *
+     * Takes --pl-gray-100 from the filter toolbar directly above it, so the two read
+     * as one band of chrome over the data instead of two greys that are close enough
+     * to look like a mistake. The shared #F7F8FA is 1.03:1 from it — near enough to
+     * be seen as an error, far enough to be seen.
+     *
+     * Sized down from 3:1 (#7E8FAE) through #C9D4E8 and #E9EEF6: every step that
+     * bounded the band better also made it compete with the rows it labels. Column
+     * labels are the quietest thing in a table, and contrast bounds a surface rather
+     * than ranking it — the section's own border is what carries the edge here.
+     *
+     * Text stays the shared #4E5968 — 6.45:1 on gray-100.
+     */
+    approvalHeaderChrome:
+      'bg-[var(--pl-gray-100)] text-left text-[12px] font-semibold text-[#4E5968]',
     /** Approval-table header cell padding — v16 12px V / 18px H. */
     approvalHeaderCell: 'px-[18px] py-3',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
@@ -1258,7 +1277,7 @@ const PIPELINE_PROVIDER_DOT: Record<string, string> = {
 /** Shared input/select chrome WITHOUT horizontal padding (callers add px so the
  *  search variant's pl-30 never collides with a base px in the join). */
 const pipelineInputBase =
-  'h-8 rounded-lg border border-[var(--pl-border-strong)] text-[14px] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-faint)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]';
+  'h-8 rounded-lg border border-[var(--pl-border-strong)] text-[14px] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-weak)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]';
 
 export const pipelineStyles = {
   text: pipelineText,
@@ -1499,7 +1518,7 @@ export const pipelineStyles = {
      *  16px inset icon, blue focus ring. */
     iconLg: 'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--pl-text-faint)] pointer-events-none',
     inputLg:
-      'h-9 rounded-lg border border-[var(--pl-border)] text-[14px] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-faint)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] w-full pr-3 pl-9',
+      'h-9 rounded-lg border border-[var(--pl-border)] text-[14px] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-weak)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] w-full pr-3 pl-9',
   },
 
   /** Text input / select — h32, border-strong, focus ring. */

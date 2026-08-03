@@ -16,14 +16,12 @@ import type { NlbTableRow } from '@/app/lib/api/task-queue-requests';
 export interface NlbListenerModalProps {
   open: boolean;
   onClose: () => void;
-  targetSourceId: number;
   rows: NlbTableRow[];
 }
 
 export function NlbListenerModal({
   open,
   onClose,
-  targetSourceId,
   rows,
 }: NlbListenerModalProps): ReactElement {
   const { appTable, occ } = tqStyles;
@@ -32,8 +30,6 @@ export function NlbListenerModal({
       open={open}
       onClose={onClose}
       wide
-      eyebrowCtx="연동 요청"
-      eyebrowId={`#${targetSourceId}`}
       title="NLB 리스너 현황"
       sub="NLB별 리스너 점유량이에요. 여유 있는 NLB로 배정하면 부하를 나눌 수 있어요."
       footer={

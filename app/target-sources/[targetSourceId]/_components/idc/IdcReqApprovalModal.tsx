@@ -99,7 +99,7 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
               <thead className={idcStyles.reqModal.thHeader}>
                 <tr>
                   <th className={cn(idcStyles.table.headerCell, 'w-[96px]')}>구분</th>
-                  <th className={idcStyles.table.headerCell}>연동 대상</th>
+                  <th className={idcStyles.table.headerCell}>접속 주소</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[72px]')}>Port</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[130px]')}>Database Type</th>
                   <th className={cn(idcStyles.table.headerCell, 'w-[120px]')}>상태</th>

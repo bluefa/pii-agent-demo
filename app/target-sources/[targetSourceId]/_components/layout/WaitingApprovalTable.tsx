@@ -320,7 +320,10 @@ export const WaitingApprovalTable = memo(
               tacked on (`athena:<acct>:<region>/<catalog>/test_raw`), so every child repeated the
               group's identity and then said its name a second time. */}
           <td className={idcStyles.table.approvalCell}>
-            {grouped ? null : (
+            {/* An absent id renders nothing rather than a bare control: a consumer that
+                withholds it (IDC's resource_id is internal) would otherwise get a
+                focusable "Resource ID 복사" on every row, copying ''. */}
+            {grouped || !resource.resourceId ? null : (
               // 260px (the cell default) plus a non-wrapping Region overran the card.
               <ResourceIdCell
                 value={resource.resourceId}

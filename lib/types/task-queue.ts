@@ -70,6 +70,8 @@ export interface ProcessStatusRow {
 export interface RequestListRow {
   targetSourceId: number | null;
   serviceName: string | null;
+  /** TargetSourceInfo.description — what this target source is, in the owner's words. */
+  description: string | null;
   serviceCode: string | null;
   cloudProvider: string | null;
   confirmStatus: string | null;
@@ -231,6 +233,7 @@ function toRequestListRow(row: z.infer<typeof schemas.TargetSourceInfo>): Reques
   return {
     targetSourceId: row.targetSourceId ?? null,
     serviceName: row.serviceName ?? null,
+    description: row.description ?? null,
     serviceCode: row.serviceCode ?? null,
     cloudProvider: row.cloudProvider ?? null,
     confirmStatus: row.confirmStatus ?? null,
