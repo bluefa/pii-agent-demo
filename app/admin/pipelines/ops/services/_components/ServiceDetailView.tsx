@@ -52,7 +52,9 @@ const JIRA_BROWSE_BASE = process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? null;
  * 그린다 — Step 1 에서 툴바가 하던 역할을 여기선 표 머리가 한다.
  */
 const tsTable = {
-  frame: 'overflow-hidden rounded-t-[10px] border border-b-0 border-[#E5E7EB] bg-white',
+  /* 레일이 폭을 280px 가져가므로 nowrap 열이 좁은 창에서 넘칠 수 있다 — 잘라내지 말고
+     가로 스크롤로 넘긴다(잘리면 이동 링크가 화면 밖으로 사라진다). */
+  frame: 'overflow-x-auto rounded-t-[10px] border border-b-0 border-[#E5E7EB] bg-white',
   id: 'text-[13px] font-semibold [font-family:var(--pl-font-mono)] text-[#191F28] whitespace-nowrap',
   time: 'text-[14px] text-[#6B7684] whitespace-nowrap',
   go: 'inline-flex text-[#3182F6] hover:opacity-70',
@@ -136,9 +138,14 @@ function AccountCell({ target }: { target: OpsTargetSourceListItem }): ReactElem
 
 export interface ServiceDetailViewProps {
   serviceCode: string;
+  /** EOS 처리로 서비스 상태가 바뀌었을 때 — 좌측 레일도 같이 다시 읽는다. */
+  onServiceChanged?: () => void;
 }
 
-export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): ReactElement {
+export function ServiceDetailView({
+  serviceCode,
+  onServiceChanged,
+}: ServiceDetailViewProps): ReactElement {
   const router = useRouter();
   const [detail, setDetail] = useState<OpsServiceDetail | null>(null);
   const [tickets, setTickets] = useState<JiraTicket[]>([]);
@@ -199,7 +206,7 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
     );
   }
 
-  const { breadcrumb, section, text } = pipelineStyles;
+  const { section, text } = pipelineStyles;
   const isEos = detail.status === 'EOS';
   const targetCount = detail.target_sources.length;
   // 다시 읽어 대상이 줄면 마지막 페이지 밖에 머물 수 있다 — 빈 표 대신 마지막 장으로.
@@ -221,14 +228,7 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
 
   return (
     <div>
-      <nav aria-label="현재 위치" className={breadcrumb.base}>
-        <Link href={passRoutes.pipelines.ops.services} className={breadcrumb.crumb}>
-          서비스 운영
-        </Link>
-        <span className={breadcrumb.sep}>/</span>
-        <span className={breadcrumb.cur}>{detail.service_name}</span>
-      </nav>
-
+      {/* 좌측 레일이 곧 현재 위치라 breadcrumb 은 두지 않는다. */}
       <div className="flex items-start justify-between gap-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -388,7 +388,10 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
         serviceCode={detail.service_code}
         serviceName={detail.service_name}
         targetSourceCount={targetCount}
-        onDone={reload}
+        onDone={() => {
+          reload();
+          onServiceChanged?.();
+        }}
       />
       {jiraTarget && (
         <JiraTicketModal
