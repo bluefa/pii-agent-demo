@@ -6,7 +6,6 @@ import {
   type IntegrationCategory,
   type RecommendFailReason,
   type ResourceScanStatus,
-  type ResourceSnapshot,
   type VmDatabaseConfig,
   type VmDatabaseType,
 } from '@/lib/types';
