@@ -291,6 +291,8 @@ interface ApprovalDemo {
   requested_by: string;
   requested_at: string;
   processed_at: string | null;
+  /** 결정한 관리자 — 반려 사유 아래 '처리자'로 나온다. */
+  processed_by: string | null;
   reason: string | null;
   resources: ApprovalDemoResource[];
 }
@@ -298,7 +300,7 @@ interface ApprovalDemo {
 const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
   [1031, {
     ts: 1031, status: 'PENDING', requested_by: 'jun.park', requested_at: '2026-07-19T16:08:00Z',
-    processed_at: null, reason: null,
+    processed_at: null, processed_by: null, reason: null,
     resources: [
       { resource_id: 'idc-r-8f21', resource_name: 'oracle-order-prod', resource_type: 'IDC', selected: true,
         metadata: { provider: 'IDC', database_type: 'Oracle', port: 1521, oracle_service_id: 'ORCLPDB1', idc_host_format: 'IP', idc_ips: ['10.20.1.11', '10.20.1.12'], idc_source_ips: ['10.20.9.1', '10.20.9.2'] } },
@@ -313,7 +315,7 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
   }],
   [2113, {
     ts: 2113, status: 'PENDING', requested_by: 'mina.choi', requested_at: '2026-07-20T18:09:00Z',
-    processed_at: null, reason: null,
+    processed_at: null, processed_by: null, reason: null,
     resources: [
       { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-pay-prod', resource_name: 'aurora-pay-prod', resource_type: 'RDS_CLUSTER', selected: true,
         metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
@@ -328,7 +330,7 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
   // 있어야 wire 에 result(판정)가 실리고, 화면이 반려 사유 블록을 그린다.
   [1907, {
     ts: 1907, status: 'REJECTED', requested_by: 'sora.han', requested_at: '2026-07-17T09:31:00Z',
-    processed_at: ADS_REJECTED_AT, reason: ADS_REJECT_REASON,
+    processed_at: ADS_REJECTED_AT, processed_by: '관리자', reason: ADS_REJECT_REASON,
     resources: [
       { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-ads-prod', resource_name: 'aurora-ads-prod', resource_type: 'RDS_CLUSTER', selected: true,
         metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
@@ -346,7 +348,7 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
   // 해당 리소스의 oracle_service_id 는 비워 둔다.
   [1873, {
     ts: 1873, status: 'REJECTED', requested_by: 'dohee.kim', requested_at: '2026-07-14T13:20:00Z',
-    processed_at: CHT_REJECTED_AT, reason: CHT_REJECT_REASON,
+    processed_at: CHT_REJECTED_AT, processed_by: '관리자', reason: CHT_REJECT_REASON,
     resources: [
       { resource_id: 'idc-r-4c11', resource_name: 'oracle-chat-prod', resource_type: 'IDC', selected: true,
         metadata: { provider: 'IDC', database_type: 'Oracle', port: 1521, idc_host_format: 'IP', idc_ips: ['10.30.1.21', '10.30.1.22'], idc_source_ips: ['10.30.9.1'], nlb_index: 2 } },
@@ -384,7 +386,15 @@ export function getTqApprovalLatest(ts: number): Record<string, unknown> | null 
       },
     })),
     ...(demo.processed_at
-      ? { result: { request_id: demo.ts, status: demo.status, processed_at: demo.processed_at, reason: demo.reason } }
+      ? {
+          result: {
+            request_id: demo.ts,
+            status: demo.status,
+            processed_by: demo.processed_by ? { user_id: demo.processed_by } : null,
+            processed_at: demo.processed_at,
+            reason: demo.reason,
+          },
+        }
       : {}),
   };
 }
@@ -401,6 +411,7 @@ export function applyTqApprovalDecision(
   const now = new Date().toISOString();
   demo.status = decision;
   demo.processed_at = now;
+  demo.processed_by = '관리자';
   demo.reason = reason;
 
   const pIdx = state.requestsPending.findIndex((r) => r.ts === ts);
@@ -415,7 +426,7 @@ export function applyTqApprovalDecision(
     state.reasonByTs.set(ts, rejected);
   }
   if (allRow) allRow.cs = decision === 'APPROVED' ? 'CONFIRMING' : 'REJECTED';
-  return { request_id: ts, status: decision, processed_at: now, reason };
+  return { request_id: ts, status: decision, processed_by: { user_id: '관리자' }, processed_at: now, reason };
 }
 
 // ── Test-connection per-resource results + logical DBs (P5 demo fixture) ────

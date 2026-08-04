@@ -49,10 +49,19 @@ export function RequestVerdictNotice({ verdict }: RequestVerdictNoticeProps): Re
   const rule = isRejection(status) ? 'border-[var(--pl-warn)]' : 'border-[var(--pl-border-strong)]';
   const tagTone = isRejection(status) ? 'text-[var(--pl-warn-text)]' : 'text-[var(--pl-text-weak)]';
 
+  // Step 2 와 같은 라벨·순서(일시 → 사람). 반려면 '반려일시'라고 부른다 —
+  // 이 화면엔 요청일시도 함께 있어서 '처리 일시'로는 어느 날짜인지 되묻게 된다.
   const meta = (
     <div className="mt-3 flex flex-wrap gap-8">
-      {processedAt && <MetaPair label="처리 일시" value={fmtDateTime(processedAt)} />}
-      {processedBy && <MetaPair label="처리자" value={processedBy} />}
+      {processedAt && (
+        <MetaPair
+          label={status === 'REJECTED' ? '반려일시' : '처리일시'}
+          value={fmtDateTime(processedAt)}
+        />
+      )}
+      {processedBy && (
+        <MetaPair label={status === 'REJECTED' ? '반려자' : '처리자'} value={processedBy} />
+      )}
     </div>
   );
 
