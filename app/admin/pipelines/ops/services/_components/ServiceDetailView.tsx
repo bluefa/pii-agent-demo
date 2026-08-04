@@ -56,7 +56,7 @@ const tsTable = {
   id: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] whitespace-nowrap',
   /** 설명 — 길이를 알 수 없는 유일한 값이라 폭을 묶어 자르고 전문은 title 로 남긴다. */
   desc: 'block max-w-[360px] truncate text-[14px] text-[var(--pl-text-medium)]',
-  dash: 'text-[14px] text-[var(--pl-text-faint)]',
+  dash: 'text-[14px] text-[var(--pl-text-weak)]',
   /** 건수 배지 — 제목 옆에서 바로 읽혀야 하는 값이라 회색이 아니라 primary 톤. */
   badge:
     'inline-flex items-center rounded-full bg-[var(--pl-primary-bg)] px-2 py-[3px] text-[12px] font-semibold text-[var(--pl-primary)] tabular-nums',
@@ -90,9 +90,9 @@ const tileStyles = {
   /** 열 수 있을 때 — primary + 밑줄. ↗ 까지 밑줄이 이어지도록 inline 한 덩어리. */
   value:
     'mt-1 block truncate text-[12px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-primary)] underline underline-offset-2 hover:opacity-80',
-  empty: 'mt-1 block text-[12px] font-medium text-[var(--pl-text-faint)]',
+  empty: 'mt-1 block text-[12px] font-medium text-[var(--pl-text-weak)]',
   kebab:
-    'flex-none -mr-1.5 grid h-7 w-7 place-items-center rounded-md text-[var(--pl-text-faint)] cursor-pointer hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]',
+    'flex-none -mr-1.5 grid h-7 w-7 place-items-center rounded-md text-[var(--pl-text-weak)] cursor-pointer hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]',
 } as const;
 
 /** metadata → 그 provider 가 실제로 갖는 계정 식별자 1건. 없으면 null. */

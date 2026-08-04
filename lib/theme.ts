@@ -1467,7 +1467,8 @@ export const pipelineStyles = {
   empty: {
     base: 'text-center p-8 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
     center: 'flex flex-col justify-center items-center min-h-[240px]',
-    icon: 'flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--pl-gray-100)] text-[var(--pl-text-faint)]',
+    /** 아이콘은 비텍스트 3:1 — faint 는 gray-100 면 위에서 2.34 라 weak(4.51). */
+    icon: 'flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
     meta: cn(pipelineText.meta),
   },
 
@@ -1527,11 +1528,11 @@ export const pipelineStyles = {
   /** SearchBox — relative wrapper + inset icon + full input (pl-30 for the icon). */
   searchBox: {
     wrap: 'relative inline-block',
-    icon: 'absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--pl-text-faint)] pointer-events-none',
+    icon: 'absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--pl-text-weak)] pointer-events-none',
     input: cn(pipelineInputBase, 'w-full pr-2.5 pl-[30px]'),
     /** Dashboard filter-bar variant (Figma Make) — h9, white fill, r8 border,
      *  16px inset icon, blue focus ring. */
-    iconLg: 'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--pl-text-faint)] pointer-events-none',
+    iconLg: 'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--pl-text-weak)] pointer-events-none',
     inputLg:
       'h-9 rounded-lg border border-[var(--pl-border)] text-[14px] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-weak)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] w-full pr-3 pl-9',
   },
