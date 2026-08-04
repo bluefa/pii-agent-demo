@@ -110,4 +110,38 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
     });
     expect(screen.getByText('pg-pending-01')).toBeTruthy();
   });
+
+  /**
+   * `resource_type` is absent whenever the response echoes the step-1 payload — the request
+   * adapter (approval-payload.ts) sends only metadata.{provider,region,database_type}. The
+   * selected-row mapper has to fall back to metadata the same way its excluded-row sibling
+   * does, because that field is the GROUPING key.
+   */
+  it('folds selected Athena rows by region when resource_type is absent', async () => {
+    const athena = (db: string) => ({
+      resource_id: `athena:804656952396:ap-northeast-1:AwsDataCatalog/${db}`,
+      resource_name: db,
+      endpoint_config: null,
+      credential_id: null,
+      metadata: { provider: 'AWS', region: 'ap-northeast-1', database_type: 'athena' },
+    });
+    getApprovedIntegrationMock.mockResolvedValueOnce({
+      approved_integration: {
+        id: 'ai-2',
+        request_id: 'req-2',
+        approved_at: '2026-04-30T00:00:00Z',
+        approved_by: 'admin',
+        resource_infos: [athena('sampledb'), athena('integration')],
+        excluded_resource_ids: [],
+        excluded_resource_infos: [],
+      },
+    });
+    render(<ApplyingApprovedCard targetSourceId={1003} />);
+
+    // The parent row exists only once the grouping key resolved; an empty resourceType
+    // renders the two databases flat, with no toggle anywhere in the table.
+    expect(
+      await screen.findByRole('button', { name: /^Athena ap-northeast-1 그룹/ }),
+    ).toBeTruthy();
+  });
 });
