@@ -986,6 +986,13 @@ export const idcStyles = {
        */
       toggleOpen: 'rotate-90 text-[#8B95A1] hover:bg-[#EBEEF2] hover:text-[#4E5968]',
       /**
+       * Open, and NOT a control — for when something else owns the open state (a filter that
+       * forces every fold open while it narrows the list). Same 20px box so the label beside it
+       * does not shift, but no hover and no button: a chevron that answers to nothing must not
+       * offer to be pressed.
+       */
+      toggleStatic: 'rotate-90 text-[#8B95A1]',
+      /**
        * Service label — one tier BELOW the child rows' name, not above it. The parent is
        * context, not the headline: the rows a user acts on are the databases. Same 14px mono
        * as the Resource Name column so it stays in that column's voice, weight 600 vs the
