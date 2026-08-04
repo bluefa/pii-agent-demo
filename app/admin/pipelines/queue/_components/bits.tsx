@@ -1,7 +1,7 @@
 /**
  * Task Queue leaf pieces (design spec §7/§8) — small stateless bits shared across
- * the NLB / reject-reason / modal surfaces. Grouped in one file since each is a
- * few lines; every color routes through tqStyles → --pl-* tokens.
+ * the NLB / modal surfaces. Grouped in one file since each is a few lines; every
+ * color routes through tqStyles → --pl-* tokens.
  */
 import type { ReactElement, ReactNode } from 'react';
 import { cn } from '@/lib/theme';
@@ -61,30 +61,6 @@ export function FtagBadge({
 }: FtagBadgeProps): ReactElement {
   const tone = occTone(occupied, capacity);
   return <span className={cn(tqStyles.ftag.base, FTAG_TONE[tone], className)}>{FTAG_LABEL[tone]}</span>;
-}
-
-export interface RejectReasonCellProps {
-  /** Full rejection reason — truncated inline, revealed on hover. */
-  reason: string;
-  /** Which edge the 320px tooltip anchors to. 'right' grows leftward — use it
-   *  where the cell sits near the right edge of its container. Default 'left'. */
-  align?: 'left' | 'right';
-  className?: string;
-}
-
-/** 반려 사유 cell (`.rr`) — 260px truncated text + gray-900 hover tooltip. */
-export function RejectReasonCell({
-  reason,
-  align = 'left',
-  className,
-}: RejectReasonCellProps): ReactElement {
-  const { rr } = tqStyles;
-  return (
-    <span className={cn(rr.wrap, className)}>
-      <span className={rr.text}>{reason}</span>
-      <span className={cn(rr.tip, align === 'right' ? rr.tipRight : rr.tipLeft)}>{reason}</span>
-    </span>
-  );
 }
 
 export interface CharCountProps {

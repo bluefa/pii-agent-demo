@@ -148,7 +148,7 @@ export function AlertStageCard({
           </div>
           {failed ? (
             <div role="row">
-              <p role="cell" className={stageCard.state}>
+              <p role="cell" aria-colspan={COLUMNS.length} className={stageCard.state}>
                 목록을 불러오지 못했습니다.
               </p>
             </div>
@@ -170,19 +170,22 @@ export function AlertStageCard({
             </div>
           ) : rows.length === 0 ? (
             <div role="row">
-              <p role="cell" className={stageCard.state}>
+              <p role="cell" aria-colspan={COLUMNS.length} className={stageCard.state}>
                 해당 단계의 대상이 없습니다.
               </p>
             </div>
           ) : (
             rows.map((row) => (
               <div key={row.targetSourceId} role="row" className={stageCard.row}>
-                <Link
-                  href={passRoutes.pipelines.ops.targetSource(String(row.targetSourceId))}
-                  aria-label={`Target Source ${row.targetSourceId} 운영 화면으로 이동`}
-                  className="absolute inset-0"
-                />
+                {/* 링크는 첫 셀 안에 — role=row 는 셀만 자식으로 가져야 해서 행
+                    직속 <a> 는 스크린리더 순회에서 지워질 수 있다. absolute
+                    inset-0 이라 덮는 범위는 그대로 행 전체다. */}
                 <span role="cell" className={cn(stageCard.service, stageCard.serviceText)}>
+                  <Link
+                    href={passRoutes.pipelines.ops.targetSource(String(row.targetSourceId))}
+                    aria-label={`Target Source ${row.targetSourceId} 운영 화면으로 이동`}
+                    className="absolute inset-0"
+                  />
                   {row.serviceName ?? '—'}
                 </span>
                 <span role="cell" className={cn(stageCard.code, pipelineStyles.table.mono)}>

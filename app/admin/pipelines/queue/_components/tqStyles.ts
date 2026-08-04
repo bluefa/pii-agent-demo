@@ -173,21 +173,6 @@ export const tqStyles = {
     ok: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
   },
 
-  /** 반려 사유 hover 툴팁 (`.rr`) — truncated text + gray-900 tooltip above.
-   *  Named group so only the cell (not the row) triggers the tip.
-   *
-   *  The 320px tip anchors to one edge of its cell: `tipLeft` grows rightward
-   *  (the default), `tipRight` grows leftward — needed wherever the cell sits
-   *  near the right edge of its container, e.g. the right-hand card of a 2-up
-   *  grid, where the default would hang outside the card. */
-  rr: {
-    wrap: 'group/rr relative inline-flex items-center gap-1.5 max-w-full',
-    text: 'max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap text-[var(--pl-text-medium)]',
-    tip: 'hidden group-hover/rr:block absolute bottom-[calc(100%+8px)] z-30 w-[320px] whitespace-normal rounded-lg bg-[var(--pl-gray-900)] px-3 py-2.5 text-[12px] font-normal leading-[1.4] text-[var(--pl-white)] shadow-[var(--pl-shadow-lg)]',
-    tipLeft: 'left-0',
-    tipRight: 'right-0',
-  },
-
   /** Large empty state (`.empty-state`) — 44px inbox circle + 16/600 title +
    *  14 caption. Distinct metrics from PlEmptyState (40 circle / 22 icon). */
   empty: {

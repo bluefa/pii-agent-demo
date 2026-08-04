@@ -12,8 +12,9 @@
  * at py-2.5, a fixed page of rows, and an always-rendered pager pinned to the
  * card bottom so the two top cards keep the same height whatever they hold.
  * Each section reads its own source and paginates independently (server page
- * param, 0-based). Only the PENDING rows navigate — the rejected list keeps its
- * 반려 사유 hover cell, and the history log is not clickable.
+ * param, 0-based). Both action cards' rows navigate to the same request detail
+ * — that page carries the full 반려 사유 and the requested resources, so the
+ * list only previews them. The history log is a record and is not clickable.
  */
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
@@ -26,7 +27,6 @@ import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
-import { RejectReasonCell } from '@/app/admin/pipelines/queue/_components/bits';
 import { HistoryStatusPill } from '@/app/admin/pipelines/queue/requests/_components/HistoryStatusPill';
 import { getApprovalHistory, getRequestList } from '@/app/lib/api/task-queue-requests';
 import type { ApprovalHistoryRow, Paged, RequestListRow } from '@/lib/types/task-queue';
@@ -122,27 +122,37 @@ const rq = {
   /**
    * Column widths — shared by a section's header row and its data rows.
    *
-   * The two top cards run the SAME skeleton (service · code · target · cloud ·
-   * note · when · tail) so their columns line up across the grid gutter. That
-   * means the same COUNT of flex-1 columns too: `service` and `note` both grow,
-   * so each card splits its slack the same way. Give one card an extra flexible
-   * column and its 서비스 이름 silently shrinks to half the other's.
+   * The two top cards run the SAME skeleton (service · code · cloud · note ·
+   * when · tail) so their columns line up across the grid gutter. That means the
+   * same COUNT of flex-1 columns too: `service` and `note` both grow, so each
+   * card splits its slack the same way. Give one card an extra flexible column
+   * and its 서비스 이름 silently shrinks to half the other's.
+   *
+   * WIDTH BUDGET — a 2-up card is not a full-width table. At 1440 the card's
+   * inner width is 536 (viewport − 216 sidebar − 64 content padding − 24 gutter,
+   * halved, − 32 card padding), and it drops to 356 at the shell's 1080 floor.
+   * Every fixed column is therefore both TIGHT (sized to its actual values, not
+   * to a round number) and SHRINKABLE — no `flex-none` here, so when the budget
+   * runs out the fixed cells give way instead of painting outside the card.
+   * Target #id is deliberately absent: the row already links to that id's page,
+   * and its 56px bought nothing the 서비스 이름 column could not use.
    */
   service: 'min-w-0 flex-1 truncate',
   serviceName: 'font-medium text-[var(--pl-text-strong)]',
-  code: 'w-[96px] flex-none truncate',
+  code: 'w-[72px] min-w-0 shrink truncate',
   mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
-  target: 'w-[56px] flex-none',
-  cloud: 'w-[76px] flex-none',
-  note: 'min-w-0 flex-1 truncate',
-  // overflow-hidden(truncate) 필수 — 상태 pill 라벨 중 'UNAVAILABLE_ACKNOWLEDGED'
-  // 는 25자라 어떤 컬럼 폭도 넘긴다. flex-none 셀은 넘친 내용이 옆 컬럼을 밀지
-  // 않고 그 위에 겹쳐 그려지므로, 잘라서 행을 지킨다.
-  status: 'w-[104px] flex-none min-w-0 truncate',
-  actor: 'w-[120px] flex-none truncate',
-  // 124 = 'YYYY-MM-DD HH:mm' at 13px tabular + slack; narrower and the nowrap
-  // timestamp pushes the row wider than its card.
-  when: 'w-[124px] flex-none whitespace-nowrap tabular-nums text-[var(--pl-text-weak)]',
+  target: 'w-[56px] min-w-0 shrink truncate',
+  cloud: 'w-[64px] min-w-0 shrink truncate',
+  // 잘린 전문은 행을 눌러 상세에서 읽는다 — pointer-events-none 이라야 이 셀이
+  // 행 링크 오버레이의 클릭을 가로채지 않는다.
+  note: 'min-w-0 flex-1 truncate pointer-events-none',
+  // truncate 필수 — 상태 pill 라벨은 컬럼보다 길 수 있고, 넘친 내용은 옆 컬럼을
+  // 밀지 않고 그 위에 겹쳐 그려진다.
+  status: 'w-[104px] min-w-0 shrink truncate',
+  actor: 'w-[120px] min-w-0 shrink truncate',
+  // 116 = 'YYYY-MM-DD HH:mm' at 13px tabular. nowrap 이라 좁아지면 넘치므로
+  // truncate 로 잘라 행을 지킨다.
+  when: 'w-[116px] min-w-0 shrink truncate whitespace-nowrap tabular-nums text-[var(--pl-text-weak)]',
   chev: 'w-3.5 flex-none text-[var(--pl-text-faint)] group-hover:text-[var(--pl-primary)]',
 
   /** Loading bar inside a skeleton cell — same grammar as opsStyles.skeleton
@@ -170,7 +180,6 @@ interface Column {
 const actionColumns = (note: string, when: string): readonly Column[] => [
   { label: '서비스 이름', className: rq.service },
   { label: '서비스 코드', className: rq.code },
-  { label: 'Target', className: rq.target },
   { label: 'Cloud', className: rq.cloud },
   { label: note, className: rq.note },
   { label: when, className: rq.when },
@@ -227,9 +236,13 @@ function SectionCard<T>({
           <Icon name={icon} size={20} className={rq.titleIcon} />
           <h2 className={rq.title}>{title}</h2>
         </div>
-        <span className={cn(rq.badge, TONE_BADGE[tone])}>
-          {(paged?.totalElements ?? 0).toLocaleString()}건
-        </span>
+        {/* 로딩 중에는 숨긴다 — 스켈레톤 다섯 줄 옆에서 '0건'은 아직 모르는
+            수를 아는 척 단언하는 것이다. */}
+        {paged != null && (
+          <span className={cn(rq.badge, TONE_BADGE[tone])}>
+            {paged.totalElements.toLocaleString()}건
+          </span>
+        )}
       </div>
       <p className={rq.desc}>{desc}</p>
 
@@ -247,7 +260,7 @@ function SectionCard<T>({
         </div>
         {error != null ? (
           <div role="row">
-            <div role="cell" className={rq.state}>
+            <div role="cell" aria-colspan={columns.length} className={rq.state}>
               <span className="min-w-0 truncate">{errorMessage(error)}</span>
               <PlButton variant="secondary" size="sm" onClick={reload}>
                 재시도
@@ -272,7 +285,7 @@ function SectionCard<T>({
           </div>
         ) : rows.length === 0 ? (
           <div role="row">
-            <div role="cell" className={rq.empty}>
+            <div role="cell" aria-colspan={columns.length} className={rq.empty}>
               <span className={rq.emptyTitle}>{empty.title}</span>
               <span className={rq.emptyCaption}>{empty.caption}</span>
             </div>
@@ -331,21 +344,21 @@ export default function RequestsPage(): ReactElement {
                   role="row"
                   className={cn(rq.row, id != null && rq.rowLink)}
                 >
-                  {id != null && (
-                    <Link
-                      href={passRoutes.pipelines.queue.request(id)}
-                      aria-label={`${row.serviceName ?? `Target Source ${id}`} 연동 요청 상세 보기`}
-                      className="absolute inset-0"
-                    />
-                  )}
+                  {/* 링크는 첫 셀 안에 둔다 — role=row 는 셀만 자식으로 가져야
+                      해서, 행 직속 <a> 는 스크린리더 순회에서 지워질 수 있다.
+                      absolute inset-0 이라 위치는 그대로 행 전체를 덮는다. */}
                   <span role="cell" className={cn(rq.service, rq.serviceName)}>
+                    {id != null && (
+                      <Link
+                        href={passRoutes.pipelines.queue.request(id)}
+                        aria-label={`${row.serviceName ?? `Target Source ${id}`} 연동 요청 상세 보기`}
+                        className="absolute inset-0"
+                      />
+                    )}
                     {row.serviceName ?? '—'}
                   </span>
                   <span role="cell" className={cn(rq.code, rq.mono)}>
                     {row.serviceCode ?? '—'}
-                  </span>
-                  <span role="cell" className={cn(rq.target, rq.mono)}>
-                    {id != null ? `#${id}` : '—'}
                   </span>
                   <span role="cell" className={rq.cloud}>
                     <ProvTag provider={row.cloudProvider ?? ''} />
@@ -366,9 +379,8 @@ export default function RequestsPage(): ReactElement {
         </SectionCard>
 
         {/* 연동 요청 반려 확인 (반려) — 위 카드와 같은 컬럼 골격. 반려 사유가
-            설명 자리(유일한 두 번째 flex 컬럼)에 들어가고, 잘린 전문은 기존
-            hover 셀(tqStyles.rr)이 그대로 보여준다. 행은 위 카드와 같은 상세로
-            가고, 그곳에서 사유 전문과 요청 내역(리소스)을 함께 읽는다. */}
+            설명 자리(유일한 두 번째 flex 컬럼)에 들어간다. 행은 위 카드와 같은
+            상세로 가고, 사유 전문과 요청 내역(리소스)은 그곳에서 읽는다. */}
         <SectionCard
           title="연동 요청 반려 확인"
           desc="반려했으나 서비스 측 담당자가 아직 확인하지 않았어요 — 행을 눌러 사유와 요청 내역을 볼 수 있어요"
@@ -387,31 +399,27 @@ export default function RequestsPage(): ReactElement {
                   role="row"
                   className={cn(rq.row, id != null && rq.rowLink)}
                 >
-                  {id != null && (
-                    <Link
-                      href={passRoutes.pipelines.queue.request(id)}
-                      aria-label={`${row.serviceName ?? `Target Source ${id}`} 반려 내역 상세 보기`}
-                      className="absolute inset-0"
-                    />
-                  )}
                   <span role="cell" className={cn(rq.service, rq.serviceName)}>
+                    {id != null && (
+                      <Link
+                        href={passRoutes.pipelines.queue.request(id)}
+                        aria-label={`${row.serviceName ?? `Target Source ${id}`} 반려 내역 상세 보기`}
+                        className="absolute inset-0"
+                      />
+                    )}
                     {row.serviceName ?? '—'}
                   </span>
                   <span role="cell" className={cn(rq.code, rq.mono)}>
                     {row.serviceCode ?? '—'}
                   </span>
-                  <span role="cell" className={cn(rq.target, rq.mono)}>
-                    {id != null ? `#${id}` : '—'}
-                  </span>
                   <span role="cell" className={rq.cloud}>
                     <ProvTag provider={row.cloudProvider ?? ''} />
                   </span>
+                  {/* 미리보기 한 줄. 전문은 행을 눌러 상세에서 — hover 툴팁은
+                      두지 않는다: 툴팁을 띄우려면 이 셀이 포인터를 받아야 하고,
+                      그러면 같은 자리에서 행 링크 클릭이 죽는다. */}
                   <span role="cell" className={rq.note}>
-                    {/* 오른쪽 카드라 툴팁은 왼쪽으로 펼친다 — 기본(left)이면 카드 밖. */}
-                    <RejectReasonCell
-                      reason={row.latestApprovalRequest?.reason ?? '—'}
-                      align="right"
-                    />
+                    {row.latestApprovalRequest?.reason ?? '—'}
                   </span>
                   <span role="cell" className={rq.when}>
                     {fmtDateTime(row.latestApprovalRequest?.processedAt)}

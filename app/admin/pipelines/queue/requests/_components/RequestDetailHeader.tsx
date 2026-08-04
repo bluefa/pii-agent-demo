@@ -41,7 +41,6 @@ export interface RequestDetailHeaderProps {
   /** Omitted once the request is decided — a settled request has no 승인/반려. */
   onApprove?: () => void;
   onReject?: () => void;
-  actionsDisabled?: boolean;
 }
 
 export function RequestDetailHeader({
@@ -55,7 +54,6 @@ export function RequestDetailHeader({
   requestedAt,
   onApprove,
   onReject,
-  actionsDisabled,
 }: RequestDetailHeaderProps): ReactElement {
   // Provider joins the label-over-value run instead of standing above it as a dotted
   // tag. It is a fact about the target source, exactly like 요청 시각 and 요청자, and a
@@ -118,10 +116,10 @@ export function RequestDetailHeader({
           없다. 상태는 위쪽 verdict 블록이 말한다. */}
       {onApprove && onReject && (
         <div className="flex gap-2 flex-none">
-          <PlButton variant="danger" onClick={onReject} disabled={actionsDisabled}>
+          <PlButton variant="danger" onClick={onReject}>
             반려
           </PlButton>
-          <PlButton variant="primary" onClick={onApprove} disabled={actionsDisabled}>
+          <PlButton variant="primary" onClick={onApprove}>
             승인
           </PlButton>
         </div>

@@ -12,10 +12,21 @@ type Tone = 'off' | 'warn' | 'ok' | 'err';
 
 interface ToneSpec {
   label: string;
+  /** Full wording when the label is an abbreviation — surfaced as the title. */
+  title?: string;
   tone: Tone;
 }
 
-/** Approval-history status enum → Korean label + tone. */
+/**
+ * Approval-history status enum → Korean label + tone.
+ *
+ * `title` carries the long form when the label had to be short enough to fit a
+ * table cell. UNAVAILABLE_ACKNOWLEDGED's old label ran 25 characters (~285px at
+ * 12px) — wider than any column this pill appears in, so it was hard-cut
+ * mid-word with no way to recover the text (a pill is an atomic inline-flex box,
+ * so `text-overflow: ellipsis` never applies to it). Who confirmed it moves to
+ * the hover title; the label keeps what the row is.
+ */
 const HISTORY_TONE: Record<string, ToneSpec> = {
   PENDING: { label: '승인 대기', tone: 'warn' },
   APPROVED: { label: '승인', tone: 'ok' },
@@ -23,7 +34,11 @@ const HISTORY_TONE: Record<string, ToneSpec> = {
   REJECTED: { label: '반려', tone: 'err' },
   CANCELLED: { label: '취소', tone: 'off' },
   UNAVAILABLE: { label: '연동 불가', tone: 'err' },
-  UNAVAILABLE_ACKNOWLEDGED: { label: '연동 불가 확인 (서비스 측 담당자 확인)', tone: 'off' },
+  UNAVAILABLE_ACKNOWLEDGED: {
+    label: '연동 불가 확인',
+    title: '연동 불가 확인 (서비스 측 담당자 확인)',
+    tone: 'off',
+  },
 };
 
 const TONE_CLASS: Record<Tone, { pill: string; dot: string }> = {
@@ -44,6 +59,7 @@ export function HistoryStatusPill({ status, className }: HistoryStatusPillProps)
   const tone = TONE_CLASS[spec.tone];
   return (
     <span
+      title={spec.title}
       className={cn(
         'inline-flex items-center gap-1.5 h-5 pr-[9px] pl-2 rounded-full text-[12px] font-semibold tracking-[0.02em]',
         tone.pill,
