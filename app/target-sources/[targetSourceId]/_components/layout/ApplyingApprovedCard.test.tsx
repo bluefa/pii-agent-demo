@@ -21,7 +21,6 @@ const buildResponse = () => ({
       {
         resource_id: 'mysql-integrated-01',
         resource_type: 'MySQL',
-        endpoint_config: null,
         credential_id: null,
         database_region: 'ap-northeast-1',
         resource_name: 'sea-integrated-01',
@@ -30,7 +29,6 @@ const buildResponse = () => ({
       {
         resource_id: 'mysql-integrated-02',
         resource_type: 'MySQL',
-        endpoint_config: null,
         credential_id: null,
         database_region: 'ap-northeast-1',
         resource_name: 'sea-integrated-02',
@@ -39,7 +37,6 @@ const buildResponse = () => ({
       {
         resource_id: 'pg-pending-01',
         resource_type: 'PostgreSQL',
-        endpoint_config: null,
         credential_id: null,
         database_region: 'ap-northeast-2',
         resource_name: 'sea-pending-01',
@@ -121,7 +118,6 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
     const athena = (db: string) => ({
       resource_id: `athena:804656952396:ap-northeast-1:AwsDataCatalog/${db}`,
       resource_name: db,
-      endpoint_config: null,
       credential_id: null,
       metadata: { provider: 'AWS', region: 'ap-northeast-1', database_type: 'athena' },
     });

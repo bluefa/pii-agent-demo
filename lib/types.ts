@@ -62,18 +62,6 @@ export interface VmDatabaseConfig {
   selectedNicId?: string;    // Azure VM 전용: 선택된 NIC ID
 }
 
-export interface EndpointConfigInputData {
-  db_type: VmDatabaseType;
-  port: number;
-  host: string;
-  oracleServiceId?: string;
-  selectedNicId?: string;
-}
-
-export interface EndpointConfigSnapshot extends EndpointConfigInputData {
-  resource_id: string;
-}
-
 // ===== IDC Provider (mock domain) =====
 
 export type IdcInputFormat = 'IP' | 'HOST';
@@ -889,22 +877,24 @@ export type ResourceScanStatus = 'UNCHANGED' | 'NEW_SCAN';
 /** Swagger ResourceConfigDto.integration_status — confirmed-integration 등록 여부 */
 export type ResourceIntegrationStatus = 'INTEGRATED' | 'NOT_INTEGRATED';
 
-/** 리소스 스냅샷 (Swagger ResourceSnapshot) */
+/**
+ * One row of the approval/approved-integration responses.
+ *
+ * Contract shape is `TargetSourceResourceItemDto` — `ApprovedIntegrationResponseDto.resources`
+ * and `ApprovalRequestLatestDto.resources` both point at it. This interface is hand-written
+ * rather than generated, so it is only as true as the last person to edit it: keep every field
+ * traceable to that DTO (or to `ResourceConfigDto`, noted below).
+ */
 export interface ResourceSnapshot {
   resource_id: string;
   resource_type: string;
-  endpoint_config: EndpointConfigSnapshot | null;
   credential_id: string | null;
-  // Contract metadata (TargetSourceResourceMetadataDto) — the approval response carries
-  // region/database_type/provider here; Step3 reads them from metadata (with fallback).
+  // Contract metadata (TargetSourceResourceMetadataDto). The connection facts live HERE and
+  // nowhere else — host / port / database_type / oracle_service_id are declared on that DTO.
   metadata?: {
     provider?: string | null;
     region?: string | null;
     database_type?: string | null;
-    // `endpoint_config` is the VM path only (it is null for every non-VM row). For IDC the
-    // connection facts arrive here — TargetSourceResourceMetadataDto declares host/port/
-    // oracle_service_id — and reading only endpoint_config left steps 2·3 rendering an empty
-    // Database Type and a fabricated port 0.
     host?: string | null;
     port?: number | null;
     oracle_service_id?: string | null;

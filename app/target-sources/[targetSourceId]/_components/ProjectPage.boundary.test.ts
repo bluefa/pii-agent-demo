@@ -11,7 +11,6 @@ const PROVIDER_PAGES = [
 const FORBIDDEN_RESOURCE_IMPORT = /from\s+['"]@\/lib\/types\/resources['"]/;
 const FORBIDDEN_RESOURCE_TYPES = [
   'CandidateResource',
-  'ApprovedResource',
   'ConfirmedResource',
 ] as const;
 

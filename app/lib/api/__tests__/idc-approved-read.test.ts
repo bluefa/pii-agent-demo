@@ -8,15 +8,14 @@ import type { ResourceSnapshot } from '@/lib/types';
 /**
  * The read-back half of the LIN-52 round-trip: Step 1 sends every row's connection info under
  * `metadata` (idc-approval-input.test.ts covers the request), and steps 2·3 have to show it again.
- * Both adapters used to read `endpoint_config`, which is the VM path and is null for IDC — so the
+ * Both adapters used to read an `endpoint_config` object that no contract declares, so the
  * request was fine and the screen was blank.
  */
 describe('IDC approved-integration read adapters', () => {
-  it('reads the connection info from metadata when endpoint_config is null', () => {
+  it('reads the connection info from metadata', () => {
     const wire = {
       resource_id: 'idc-res-001',
       resource_type: 'IDC_RESOURCE',
-      endpoint_config: null,
       credential_id: 'Key2',
       metadata: {
         provider: 'IDC',
