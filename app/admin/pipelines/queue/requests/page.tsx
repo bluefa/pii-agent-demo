@@ -138,6 +138,10 @@ const rq = {
   when: 'w-[124px] flex-none whitespace-nowrap tabular-nums text-[var(--pl-text-weak)]',
   chev: 'w-3.5 flex-none text-[var(--pl-text-faint)] group-hover:text-[var(--pl-primary)]',
 
+  /** Loading bar inside a skeleton cell — same grammar as opsStyles.skeleton
+   *  (task detail / 스캔 이력), sized down to a text line. */
+  skeletonBar: 'h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
+
   state: 'flex items-center gap-2 py-2.5 text-[13px] text-[var(--pl-text-weak)]',
   empty: 'flex flex-col items-center justify-center gap-0.5 py-9 text-center',
   emptyTitle: 'text-[13px] font-semibold text-[var(--pl-text-strong)]',
@@ -145,14 +149,49 @@ const rq = {
   footer: 'mt-auto',
 } as const;
 
+/** One column of a section — its label and the width class its cells share.
+ *  A column with no label is a tail slot (the › chevron): no header text, and
+ *  no skeleton bar while loading. */
+interface Column {
+  label?: string;
+  className: string;
+}
+
+/** The two action cards share one skeleton — same widths, same flex-1 count —
+ *  so their columns line up across the grid gutter. Only the note/date labels
+ *  differ. */
+const actionColumns = (note: string, when: string): readonly Column[] => [
+  { label: '서비스 이름', className: rq.service },
+  { label: '서비스 코드', className: rq.code },
+  { label: 'Target', className: rq.target },
+  { label: 'Cloud', className: rq.cloud },
+  { label: note, className: rq.note },
+  { label: when, className: rq.when },
+  { className: rq.chev },
+];
+
+const PENDING_COLUMNS = actionColumns('설명', '요청 일자');
+const REJECTED_COLUMNS = actionColumns('반려 사유', '반려 일자');
+
+const HISTORY_COLUMNS: readonly Column[] = [
+  { label: '서비스 이름', className: rq.service },
+  { label: '서비스 코드', className: rq.code },
+  { label: 'Target', className: rq.target },
+  { label: 'Cloud', className: rq.cloud },
+  { label: '상태', className: rq.status },
+  { label: '수행자', className: rq.actor },
+  { label: '일시', className: rq.when },
+];
+
 interface SectionCardProps<T> {
   title: string;
   desc: string;
   icon: IconName;
   tone: SectionTone;
   state: PagedSection<T>;
-  /** Column header row — always rendered, so loading never shifts the layout. */
-  head: ReactNode;
+  /** Drives BOTH the header row and the loading skeleton, so the two can never
+   *  drift from the widths the data rows use. */
+  columns: readonly Column[];
   empty: { title: string; caption: string };
   children: (rows: T[]) => ReactNode;
   className?: string;
@@ -166,7 +205,7 @@ function SectionCard<T>({
   icon,
   tone,
   state,
-  head,
+  columns,
   empty,
   children,
   className,
@@ -188,7 +227,13 @@ function SectionCard<T>({
       <p className={rq.desc}>{desc}</p>
 
       <div>
-        <div className={rq.headRow}>{head}</div>
+        <div className={rq.headRow}>
+          {columns.map((col) => (
+            <span key={col.label ?? 'tail'} className={col.className}>
+              {col.label}
+            </span>
+          ))}
+        </div>
         {error != null ? (
           <div className={rq.state}>
             <span className="min-w-0 truncate">{errorMessage(error)}</span>
@@ -197,9 +242,20 @@ function SectionCard<T>({
             </PlButton>
           </div>
         ) : loading ? (
-          <p className={rq.state} aria-busy>
-            불러오는 중…
-          </p>
+          // Skeleton drawing the table's own footprint (PAGE_SIZE rows in the
+          // real column widths) — the card holds its size through the load.
+          <div aria-busy="true" aria-label="목록을 불러오는 중">
+            {Array.from({ length: PAGE_SIZE }, (_, row) => (
+              <div key={row} className={rq.row} aria-hidden="true">
+                {columns.map((col) => (
+                  <span
+                    key={col.label ?? 'tail'}
+                    className={cn(col.className, col.label != null && rq.skeletonBar)}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         ) : rows.length === 0 ? (
           <div className={rq.empty}>
             <span className={rq.emptyTitle}>{empty.title}</span>
@@ -248,17 +304,7 @@ export default function RequestsPage(): ReactElement {
           tone="primary"
           state={pending}
           empty={{ title: '승인을 기다리는 요청이 없어요', caption: '새 연동 요청이 들어오면 여기에 표시돼요' }}
-          head={
-            <>
-              <span className={rq.service}>서비스 이름</span>
-              <span className={rq.code}>서비스 코드</span>
-              <span className={rq.target}>Target</span>
-              <span className={rq.cloud}>Cloud</span>
-              <span className={rq.note}>설명</span>
-              <span className={rq.when}>요청 일자</span>
-              <span className={rq.chev} />
-            </>
-          }
+          columns={PENDING_COLUMNS}
         >
           {(rows) =>
             rows.map((row) => {
@@ -301,17 +347,7 @@ export default function RequestsPage(): ReactElement {
           tone="danger"
           state={rejected}
           empty={{ title: '확인 대기 중인 반려 건이 없어요', caption: '반려 처리한 요청이 여기에 모여요' }}
-          head={
-            <>
-              <span className={rq.service}>서비스 이름</span>
-              <span className={rq.code}>서비스 코드</span>
-              <span className={rq.target}>Target</span>
-              <span className={rq.cloud}>Cloud</span>
-              <span className={rq.note}>반려 사유</span>
-              <span className={rq.when}>반려 일자</span>
-              <span className={rq.chev} />
-            </>
-          }
+          columns={REJECTED_COLUMNS}
         >
           {(rows) =>
             rows.map((row) => {
@@ -350,17 +386,7 @@ export default function RequestsPage(): ReactElement {
         tone="muted"
         state={history}
         empty={{ title: '표시할 승인 이력이 없어요', caption: '연동 요청이 처리되면 이력이 여기에 쌓여요' }}
-        head={
-          <>
-            <span className={rq.service}>서비스 이름</span>
-            <span className={rq.code}>서비스 코드</span>
-            <span className={rq.target}>Target</span>
-            <span className={rq.cloud}>Cloud</span>
-            <span className={rq.status}>상태</span>
-            <span className={rq.actor}>수행자</span>
-            <span className={rq.when}>일시</span>
-          </>
-        }
+        columns={HISTORY_COLUMNS}
       >
         {(rows) =>
           rows.map((row) => (
