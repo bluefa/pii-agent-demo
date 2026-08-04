@@ -358,12 +358,12 @@ export const cardStyles = {
   stepBadge: 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
   /**
    * Step-card guidance paragraph — what happened and what to do next, one tier under the title.
-   * 16px rather than the 13.5px `subtitle`: this copy is read, not skimmed. Declared as its own
+   * 16px rather than the 14px `subtitle`: this copy is read, not skimmed. Declared as its own
    * token because `cn` is a plain join, so layering a size over `subtitle` left the winner to CSS
    * order — every step card had re-declared the size inline to dodge that.
    */
   guidance: `text-[16px] font-medium leading-[1.55] ${textColors.tertiary}`,
-  /** Paragraph beneath a display title (ADR-014 card-subtitle) — v15 13.5/500/#8B95A1. */
+  /** Paragraph beneath a display title (ADR-014 card-subtitle) — 14/500/#6B7684. */
   subtitle: 'text-[14px] font-medium text-[#6B7684] leading-[1.55]',
   /** Inline "Provider: X" indicator in a card header — weak label + strong name. */
   providerTag: 'text-[12px] text-[#6B7684]',
