@@ -288,7 +288,7 @@ export const buttonStyles = {
     success: 'bg-[#45CB85] text-white hover:bg-[#3AB574] shadow-sm hover:shadow',
     ghost: 'bg-transparent text-gray-600 hover:bg-gray-100',
     /** Soft Primary — light blue fill + primary text (결정 #58, secondary CTA). */
-    soft: 'bg-blue-50 text-[#0064FF] hover:bg-blue-100',
+    soft: 'bg-blue-50 text-[#0050D6] hover:bg-blue-100',
     /** Warn outline — amber outline for overwrite/reload actions (결정 #42). */
     warnOutline: 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100',
     /** v15 danger-outline — soft red fill, no border (#FEF2F2 / #991B1B / 600). */
@@ -780,7 +780,7 @@ export const idcStyles = {
   /** Field-level error under an input — `.idc-field-err` (#DC2626 / 11.5px). */
   fieldError: 'mt-1 text-[11.5px] text-[#DC2626]',
   /** Add-IP button — `.idc-add-ip` (12.5px / 600 / primary / no border / radius 6 / mt 10). */
-  addIp: 'mt-2.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12.5px] font-semibold text-[#0064FF] hover:bg-[#E8F1FF] disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-transparent',
+  addIp: 'mt-2.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-semibold text-[#0064FF] hover:bg-[#E8F1FF] hover:text-[#0050D6] disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-transparent',
   /** Remove-IP icon button — `.rm-ip` (30×30 / radius 7 / fg-3 / red hover). */
   removeIp: 'inline-flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[7px] text-gray-500 transition-colors hover:bg-[#FEECEC] hover:text-[#B42318]',
   /** Row hover action (edit) — `.idc-row-actions button` (26×26 / radius 6 / fg-3). */
@@ -800,7 +800,7 @@ export const idcStyles = {
     chipRow: 'flex flex-wrap gap-1.5 px-2.5 pb-1.5',
     chip: `rounded-[6px] border px-3 py-1.5 text-[13px] transition-colors ${tossShadow.lg}`,
     chipRest: 'border-gray-200 bg-white font-medium text-gray-700 hover:border-[#0064FF] hover:text-[#0064FF]',
-    chipSelected: 'border-[#0064FF] bg-[#E8F1FF] font-semibold text-[#0064FF]',
+    chipSelected: 'border-[#0064FF] bg-[#E8F1FF] font-semibold text-[#0050D6]',
     // 직접 입력은 텍스트 버튼(언더라인) — 칩(값)과 형태를 달리해 행동으로 읽히게.
     // 구분선 없이 여백만으로 칩 구역과 가른다. hover는 색 다크닝만으로는 약해서
     // 브랜드 틴트 필을 깔아 "눌러서 입력/수정한다"는 신호를 준다.
@@ -820,7 +820,7 @@ export const idcStyles = {
   /** In-card / step CTA buttons — `.btn` base (h40 / radius12 / 14px / 700) + variants. */
   triggerBtn: {
     primary: 'inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0064FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
-    soft: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#E8F1FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-[#0064FF] transition-colors hover:bg-[#D6E7FF]',
+    soft: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#E8F1FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-[#0050D6] transition-colors hover:bg-[#D6E7FF]',
     warnOutline: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#FEF3C7] px-[18px] text-[14px] font-semibold tracking-[-0.01em] text-[#92400E] transition-colors hover:bg-[#FDE68A]',
     /** Small blue ghost — v16 `.btn.sm.ghost` (the in-table "set" action). Disabled = opacity-45. */
     ghostSm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] px-3 text-[13px] font-bold text-[#0064FF] transition-colors hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
@@ -979,7 +979,7 @@ export const idcStyles = {
        * single interactive colour, over its own tint on hover. Both values are the palette's
        * existing primary pair (#0064FF on #E8F1FF) — the selected-chip pair, not a new blue.
        */
-      toggleClosed: 'text-[#0064FF] hover:bg-[#E8F1FF]',
+      toggleClosed: 'text-[#0064FF] hover:bg-[#E8F1FF] hover:text-[#0050D6]',
       /**
        * Open — chevron-right → chevron-down, and the colour recedes to neutral. The rail
        * below now draws the group; keeping the control blue would say it a second time.

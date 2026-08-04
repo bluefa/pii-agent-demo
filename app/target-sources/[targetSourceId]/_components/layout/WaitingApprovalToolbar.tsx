@@ -123,7 +123,7 @@ const FilterMenu = ({ groups: allGroups }: { groups: ReadonlyArray<FilterGroup> 
               <div key={group.key} aria-label={`${group.label} 필터`} role="radiogroup">
                 {/* Header sits on a tinted strip with rules above and below: options are a level
                     below it, which same-surface text alone did not convey. */}
-                <p className="sticky top-0 z-10 border-y border-[#F1F3F5] bg-[#F9FAFB] px-3 py-[5px] text-[12px] font-bold tracking-[0.02em] text-[#6B7684] first:border-t-0">
+                <p className="sticky top-0 z-10 border-y border-[#F1F3F5] bg-[#F9FAFB] px-3 py-[5px] text-[12px] font-bold tracking-[0.02em] text-[#6B7280] first:border-t-0">
                   {group.label}
                 </p>
                 <div className="py-1">

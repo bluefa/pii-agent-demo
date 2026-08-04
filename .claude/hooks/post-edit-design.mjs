@@ -74,12 +74,21 @@ for (const line of added) {
   );
   const min = isLarge ? AA_LARGE : AA;
 
-  for (const m of line.matchAll(/text-\[(#[0-9A-Fa-f]{6})\]/g)) {
-    const ratio = contrast(m[1], SURFACE);
-    if (ratio < min) {
-      warnings.push(
-        `[CONTRAST] ${m[1]} on ${SURFACE} = ${ratio.toFixed(2)}:1 (need ${min}:1) — ${line.trim().slice(0, 110)}`,
-      );
+  // Surfaces: rest-state bg declared on the same line (tinted chips/buttons), else the page surface.
+  // ponytail: rest-state only — hover:text/hover:bg pairing is not associated, audit hover manually.
+  const bgs = [...line.matchAll(/(?<!hover:)(?<!disabled:)bg-\[(#[0-9A-Fa-f]{6})\](?!\/)/g)].map(
+    (m) => m[1],
+  );
+  const surfaces = bgs.length ? bgs : [SURFACE];
+
+  for (const m of line.matchAll(/(?<!hover:)(?<!disabled:)text-\[(#[0-9A-Fa-f]{6})\]/g)) {
+    for (const bg of surfaces) {
+      const ratio = contrast(m[1], bg);
+      if (ratio < min) {
+        warnings.push(
+          `[CONTRAST] ${m[1]} on ${bg} = ${ratio.toFixed(2)}:1 (need ${min}:1) — ${line.trim().slice(0, 110)}`,
+        );
+      }
     }
   }
 }
