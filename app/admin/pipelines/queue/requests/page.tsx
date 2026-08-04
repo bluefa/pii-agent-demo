@@ -233,30 +233,37 @@ function SectionCard<T>({
       </div>
       <p className={rq.desc}>{desc}</p>
 
-      <div>
-        <div className={rq.headRow}>
+      {/* The rows are flex divs (a <tr> can't host the absolutely positioned
+          row-link overlay reliably), so the table semantics are declared: a
+          screen reader reads "서비스 코드: STL", not a bare "STL". Every branch
+          below stays a row inside this table — including the message states. */}
+      <div role="table" aria-label={`${title} 목록`}>
+        <div className={rq.headRow} role="row">
           {columns.map((col) => (
-            <span key={col.label ?? 'tail'} className={col.className}>
+            <span key={col.label ?? 'tail'} role="columnheader" className={col.className}>
               {col.label}
             </span>
           ))}
         </div>
         {error != null ? (
-          <div className={rq.state}>
-            <span className="min-w-0 truncate">{errorMessage(error)}</span>
-            <PlButton variant="secondary" size="sm" onClick={reload}>
-              재시도
-            </PlButton>
+          <div role="row">
+            <div role="cell" className={rq.state}>
+              <span className="min-w-0 truncate">{errorMessage(error)}</span>
+              <PlButton variant="secondary" size="sm" onClick={reload}>
+                재시도
+              </PlButton>
+            </div>
           </div>
         ) : loading ? (
           // Skeleton drawing the table's own footprint (PAGE_SIZE rows in the
           // real column widths) — the card holds its size through the load.
-          <div aria-busy="true" aria-label="목록을 불러오는 중">
+          <div role="rowgroup" aria-busy="true" aria-label="목록을 불러오는 중">
             {Array.from({ length: PAGE_SIZE }, (_, row) => (
-              <div key={row} className={rq.row} aria-hidden="true">
+              <div key={row} className={rq.row} role="row" aria-hidden="true">
                 {columns.map((col) => (
                   <span
                     key={col.label ?? 'tail'}
+                    role="cell"
                     className={cn(col.className, col.label != null && rq.skeletonBar)}
                   />
                 ))}
@@ -264,9 +271,11 @@ function SectionCard<T>({
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <div className={rq.empty}>
-            <span className={rq.emptyTitle}>{empty.title}</span>
-            <span className={rq.emptyCaption}>{empty.caption}</span>
+          <div role="row">
+            <div role="cell" className={rq.empty}>
+              <span className={rq.emptyTitle}>{empty.title}</span>
+              <span className={rq.emptyCaption}>{empty.caption}</span>
+            </div>
           </div>
         ) : (
           children(rows)
@@ -317,7 +326,11 @@ export default function RequestsPage(): ReactElement {
             rows.map((row) => {
               const id = row.targetSourceId;
               return (
-                <div key={id ?? row.serviceCode} className={cn(rq.row, id != null && rq.rowLink)}>
+                <div
+                  key={id ?? row.serviceCode}
+                  role="row"
+                  className={cn(rq.row, id != null && rq.rowLink)}
+                >
                   {id != null && (
                     <Link
                       href={passRoutes.pipelines.queue.request(id)}
@@ -325,17 +338,25 @@ export default function RequestsPage(): ReactElement {
                       className="absolute inset-0"
                     />
                   )}
-                  <span className={cn(rq.service, rq.serviceName)}>{row.serviceName ?? '—'}</span>
-                  <span className={cn(rq.code, rq.mono)}>{row.serviceCode ?? '—'}</span>
-                  <span className={cn(rq.target, rq.mono)}>{id != null ? `#${id}` : '—'}</span>
-                  <span className={rq.cloud}>
+                  <span role="cell" className={cn(rq.service, rq.serviceName)}>
+                    {row.serviceName ?? '—'}
+                  </span>
+                  <span role="cell" className={cn(rq.code, rq.mono)}>
+                    {row.serviceCode ?? '—'}
+                  </span>
+                  <span role="cell" className={cn(rq.target, rq.mono)}>
+                    {id != null ? `#${id}` : '—'}
+                  </span>
+                  <span role="cell" className={rq.cloud}>
                     <ProvTag provider={row.cloudProvider ?? ''} />
                   </span>
-                  <span className={rq.note}>{row.description ?? '—'}</span>
-                  <span className={rq.when}>
+                  <span role="cell" className={rq.note}>
+                    {row.description ?? '—'}
+                  </span>
+                  <span role="cell" className={rq.when}>
                     {fmtDateTime(row.latestApprovalRequest?.requestedAt)}
                   </span>
-                  <span className={rq.chev}>
+                  <span role="cell" className={rq.chev}>
                     <Icon name="chev-r" size="sm" />
                   </span>
                 </div>
@@ -360,21 +381,31 @@ export default function RequestsPage(): ReactElement {
             rows.map((row) => {
               const id = row.targetSourceId;
               return (
-                <div key={id ?? row.serviceCode} className={rq.row}>
-                  <span className={cn(rq.service, rq.serviceName)}>{row.serviceName ?? '—'}</span>
-                  <span className={cn(rq.code, rq.mono)}>{row.serviceCode ?? '—'}</span>
-                  <span className={cn(rq.target, rq.mono)}>{id != null ? `#${id}` : '—'}</span>
-                  <span className={rq.cloud}>
+                <div key={id ?? row.serviceCode} role="row" className={rq.row}>
+                  <span role="cell" className={cn(rq.service, rq.serviceName)}>
+                    {row.serviceName ?? '—'}
+                  </span>
+                  <span role="cell" className={cn(rq.code, rq.mono)}>
+                    {row.serviceCode ?? '—'}
+                  </span>
+                  <span role="cell" className={cn(rq.target, rq.mono)}>
+                    {id != null ? `#${id}` : '—'}
+                  </span>
+                  <span role="cell" className={rq.cloud}>
                     <ProvTag provider={row.cloudProvider ?? ''} />
                   </span>
-                  <span className={rq.note}>
-                    <RejectReasonCell reason={row.latestApprovalRequest?.reason ?? '—'} />
+                  <span role="cell" className={rq.note}>
+                    {/* 오른쪽 카드라 툴팁은 왼쪽으로 펼친다 — 기본(left)이면 카드 밖. */}
+                    <RejectReasonCell
+                      reason={row.latestApprovalRequest?.reason ?? '—'}
+                      align="right"
+                    />
                   </span>
-                  <span className={rq.when}>
+                  <span role="cell" className={rq.when}>
                     {fmtDateTime(row.latestApprovalRequest?.processedAt)}
                   </span>
                   {/* 반려 행은 상세로 가지 않는다 — 위 카드의 › 자리를 비워 폭만 맞춘다. */}
-                  <span className={rq.chev} />
+                  <span role="cell" className={rq.chev} />
                 </div>
               );
             })
@@ -399,21 +430,30 @@ export default function RequestsPage(): ReactElement {
           rows.map((row) => (
             <div
               key={row.historyRecordId ?? `${row.targetSourceId}:${row.requestId}`}
+              role="row"
               className={rq.row}
             >
-              <span className={cn(rq.service, rq.serviceName)}>{row.serviceName ?? '—'}</span>
-              <span className={cn(rq.code, rq.mono)}>{row.serviceCode ?? '—'}</span>
-              <span className={cn(rq.target, rq.mono)}>
+              <span role="cell" className={cn(rq.service, rq.serviceName)}>
+                {row.serviceName ?? '—'}
+              </span>
+              <span role="cell" className={cn(rq.code, rq.mono)}>
+                {row.serviceCode ?? '—'}
+              </span>
+              <span role="cell" className={cn(rq.target, rq.mono)}>
                 {row.targetSourceId != null ? `#${row.targetSourceId}` : '—'}
               </span>
-              <span className={rq.cloud}>
+              <span role="cell" className={rq.cloud}>
                 <ProvTag provider={row.cloudProvider ?? ''} />
               </span>
-              <span className={rq.status}>
+              <span role="cell" className={rq.status}>
                 <HistoryStatusPill status={row.status} />
               </span>
-              <span className={rq.actor}>{row.actorId ?? '—'}</span>
-              <span className={rq.when}>{fmtDateTime(row.createdAt)}</span>
+              <span role="cell" className={rq.actor}>
+                {row.actorId ?? '—'}
+              </span>
+              <span role="cell" className={rq.when}>
+                {fmtDateTime(row.createdAt)}
+              </span>
             </div>
           ))
         }

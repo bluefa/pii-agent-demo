@@ -66,16 +66,23 @@ export function FtagBadge({
 export interface RejectReasonCellProps {
   /** Full rejection reason — truncated inline, revealed on hover. */
   reason: string;
+  /** Which edge the 320px tooltip anchors to. 'right' grows leftward — use it
+   *  where the cell sits near the right edge of its container. Default 'left'. */
+  align?: 'left' | 'right';
   className?: string;
 }
 
 /** 반려 사유 cell (`.rr`) — 260px truncated text + gray-900 hover tooltip. */
-export function RejectReasonCell({ reason, className }: RejectReasonCellProps): ReactElement {
+export function RejectReasonCell({
+  reason,
+  align = 'left',
+  className,
+}: RejectReasonCellProps): ReactElement {
   const { rr } = tqStyles;
   return (
     <span className={cn(rr.wrap, className)}>
       <span className={rr.text}>{reason}</span>
-      <span className={rr.tip}>{reason}</span>
+      <span className={cn(rr.tip, align === 'right' ? rr.tipRight : rr.tipLeft)}>{reason}</span>
     </span>
   );
 }

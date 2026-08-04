@@ -135,48 +135,63 @@ export function AlertStageCard({
 
         <p className={stageCard.desc}>{description}</p>
 
-        <div>
-          <div className={stageCard.headRow}>
+        {/* Flex divs, not a <table> — a <tr> can't host the absolutely
+            positioned row-link overlay reliably — so the table semantics are
+            declared. Every branch below stays a row inside this table. */}
+        <div role="table" aria-label={`${label} 대상 표`}>
+          <div className={stageCard.headRow} role="row">
             {COLUMNS.map((col) => (
-              <span key={col.label} className={col.className}>
+              <span key={col.label} role="columnheader" className={col.className}>
                 {col.label}
               </span>
             ))}
           </div>
           {failed ? (
-            <p className={stageCard.state}>목록을 불러오지 못했습니다.</p>
+            <div role="row">
+              <p role="cell" className={stageCard.state}>
+                목록을 불러오지 못했습니다.
+              </p>
+            </div>
           ) : loading ? (
             // Skeleton drawing the card's own footprint — PAGE_SIZE rows in the
             // real column widths, so nothing shifts when the rows arrive.
-            <div aria-busy="true" aria-label={`${label} 목록을 불러오는 중`}>
+            <div role="rowgroup" aria-busy="true" aria-label={`${label} 목록을 불러오는 중`}>
               {Array.from({ length: PAGE_SIZE }, (_, row) => (
-                <div key={row} className={stageCard.row} aria-hidden="true">
+                <div key={row} className={stageCard.row} role="row" aria-hidden="true">
                   {COLUMNS.map((col) => (
-                    <span key={col.label} className={cn(col.className, stageCard.skeletonBar)} />
+                    <span
+                      key={col.label}
+                      role="cell"
+                      className={cn(col.className, stageCard.skeletonBar)}
+                    />
                   ))}
                 </div>
               ))}
             </div>
           ) : rows.length === 0 ? (
-            <p className={stageCard.state}>해당 단계의 대상이 없습니다.</p>
+            <div role="row">
+              <p role="cell" className={stageCard.state}>
+                해당 단계의 대상이 없습니다.
+              </p>
+            </div>
           ) : (
             rows.map((row) => (
-              <div key={row.targetSourceId} className={stageCard.row}>
+              <div key={row.targetSourceId} role="row" className={stageCard.row}>
                 <Link
                   href={passRoutes.pipelines.ops.targetSource(String(row.targetSourceId))}
                   aria-label={`Target Source ${row.targetSourceId} 운영 화면으로 이동`}
                   className="absolute inset-0"
                 />
-                <span className={cn(stageCard.service, stageCard.serviceText)}>
+                <span role="cell" className={cn(stageCard.service, stageCard.serviceText)}>
                   {row.serviceName ?? '—'}
                 </span>
-                <span className={cn(stageCard.code, pipelineStyles.table.mono)}>
+                <span role="cell" className={cn(stageCard.code, pipelineStyles.table.mono)}>
                   {row.serviceCode ?? '—'}
                 </span>
-                <span className={cn(stageCard.target, pipelineStyles.table.mono)}>
+                <span role="cell" className={cn(stageCard.target, pipelineStyles.table.mono)}>
                   #{row.targetSourceId}
                 </span>
-                <span className={stageCard.cloud}>
+                <span role="cell" className={stageCard.cloud}>
                   <ProvTag provider={row.cloudProvider ?? 'UNKNOWN'} />
                 </span>
               </div>

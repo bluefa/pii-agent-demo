@@ -77,8 +77,11 @@ const REQUESTS_PENDING: RequestRow[] = [
 
 const REQUESTS_REJECTED: RequestRow[] = [
   {
+    // 100자 반려 사유 — 목록 셀에서 잘리고 hover 툴팁에서만 전문이 보이는 경로를
+    // 실제로 밟게 하는 표본. 짧은 사유만 있으면 잘림·툴팁이 검증되지 않는다.
     ts: 1907, svc: '광고서비스', code: 'ADS', pv: 'AWS', cs: 'REJECTED',
-    reason: '선택된 리소스 중 stg 계정 리소스가 포함되어 있습니다. 운영 계정 리소스만 선택 후 재요청해 주세요.',
+    reason:
+      '선택된 리소스 중 stg 계정 리소스가 포함되어 있고, 운영 계정 태그 규칙(env=prod)도 지켜지지 않았습니다. 태그를 정리한 뒤 운영 계정 리소스만 다시 선택해 재요청해 주세요.',
     at: '2026-07-18T11:02:00Z',
   },
   {
