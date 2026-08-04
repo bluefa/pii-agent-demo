@@ -11,12 +11,12 @@
  * cross-service and one page of it is not the whole truth.
  *
  * Layout: Figma ZL0Y0okL8lReCrbf7JaVAp 1:123 — summary counts on top, then all
- * four buckets side by side (2×2), each with its own page of rows. Selecting a
- * summary card marks its bucket (accent bar) rather than filtering, since every
- * bucket is already on screen.
+ * four buckets side by side (2×2), each with its own page of rows. The summary
+ * tiles are read-only counts: every bucket is already on screen, so selecting
+ * one had nothing to reveal.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { pipelineStyles } from '@/lib/theme';
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
 import type { AlertTargetKind, DashboardSummary } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -86,8 +86,7 @@ const alertsView = {
   contextTotal: 'mx-0.5 align-baseline text-[32px] font-bold leading-none text-[var(--pl-primary)]',
   summaryRow: 'mt-6 grid grid-cols-4 gap-4',
   summary:
-    'flex h-[120px] flex-col items-center justify-center gap-1.5 rounded-[8px] bg-[var(--pl-gray-100)] border-b-2 border-transparent transition-colors hover:bg-[var(--pl-gray-200)]',
-  summaryActive: 'border-[var(--pl-primary)]',
+    'flex h-[120px] flex-col items-center justify-center gap-1.5 rounded-[8px] bg-[var(--pl-gray-100)]',
   summaryLabel: 'text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
   summaryValue: 'text-[40px] font-bold leading-[1.2] tracking-[-0.02em] tabular-nums text-[var(--pl-text-strong)]',
   summaryNeed: 'text-[12px] leading-[1.4] text-[var(--pl-text-faint)]',
@@ -103,8 +102,6 @@ const EMPTY_SUMMARY_COUNTS: AlertCounts = {
 
 export function AlertsView(): ReactElement {
   const [counts, setCounts] = useState(EMPTY_SUMMARY_COUNTS);
-  const [kind, setKind] = useState<AlertTargetKind>(ALERT_CARDS[0].kind);
-
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
@@ -141,22 +138,13 @@ export function AlertsView(): ReactElement {
       </div>
 
       <div className={alertsView.summaryRow}>
-        {ALERT_CARDS.map((card) => {
-          const active = card.kind === kind;
-          return (
-            <button
-              key={card.kind}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setKind(card.kind)}
-              className={cn(alertsView.summary, active && alertsView.summaryActive)}
-            >
-              <span className={alertsView.summaryLabel}>{card.label}</span>
-              <span className={alertsView.summaryValue}>{card.count(counts) ?? 0}</span>
-              <span className={alertsView.summaryNeed}>{card.need}</span>
-            </button>
-          );
-        })}
+        {ALERT_CARDS.map((card) => (
+          <div key={card.kind} className={alertsView.summary}>
+            <span className={alertsView.summaryLabel}>{card.label}</span>
+            <span className={alertsView.summaryValue}>{card.count(counts) ?? 0}</span>
+            <span className={alertsView.summaryNeed}>{card.need}</span>
+          </div>
+        ))}
       </div>
 
       <div className={alertsView.grid}>
@@ -167,7 +155,6 @@ export function AlertsView(): ReactElement {
             label={card.label}
             description={card.description}
             icon={card.icon}
-            selected={card.kind === kind}
             reloadKey={reloadKey}
           />
         ))}

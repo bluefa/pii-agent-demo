@@ -20,13 +20,14 @@ import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetS
 /** 3 rows is the Figma card body (h320) — a 4th row would push the pager out. */
 const PAGE_SIZE = 3;
 
+/** Skeleton bar width per column (Target · 서비스 · 클라우드). */
+const SKELETON_WIDTHS = ['w-[44px]', 'w-[72%]', 'w-[52px]'] as const;
+
 /** 설치 필요 is the Terraform-driven bucket, so it wears the Terraform mark. */
 export type AlertStageIcon = IconName | 'terraform';
 
 const stageCard = {
-  accent: 'h-1 w-full',
-  accentIdle: 'bg-[var(--pl-gray-50)]',
-  accentActive: 'bg-[var(--pl-primary)]',
+  accent: 'h-1 w-full bg-[var(--pl-gray-50)]',
   body: 'flex flex-1 flex-col gap-3 p-4',
   header: 'flex items-center justify-between gap-3',
   title: 'flex items-center gap-2',
@@ -40,6 +41,9 @@ const stageCard = {
   cell: 'flex-1 min-w-0 truncate',
   service: 'font-medium text-[var(--pl-text-strong)]',
   state: 'text-[13px] text-[var(--pl-text-weak)] py-2.5',
+  /** Loading bar inside a skeleton cell — opsStyles.skeleton grammar (animate-
+   *  pulse · rounded · gray-100) at one text line's height. */
+  skeletonBar: 'block h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
   footer: 'mt-auto',
 } as const;
 
@@ -48,7 +52,6 @@ export interface AlertStageCardProps {
   label: string;
   description: string;
   icon: AlertStageIcon;
-  selected: boolean;
   /** Bumped by the parent's 새로고침. */
   reloadKey: number;
 }
@@ -58,7 +61,6 @@ export function AlertStageCard({
   label,
   description,
   icon,
-  selected,
   reloadKey,
 }: AlertStageCardProps): ReactElement {
   const [rows, setRows] = useState<RequestListRow[]>([]);
@@ -99,7 +101,7 @@ export function AlertStageCard({
       className={cn(pipelineStyles.card.flush, 'flex min-h-[320px] flex-col')}
       aria-label={`${label} 대상 목록`}
     >
-      <div className={cn(stageCard.accent, selected ? stageCard.accentActive : stageCard.accentIdle)} />
+      <div className={stageCard.accent} />
       <div className={stageCard.body}>
         <div className={stageCard.header}>
           <div className={stageCard.title}>
@@ -124,9 +126,22 @@ export function AlertStageCard({
           {failed ? (
             <p className={stageCard.state}>목록을 불러오지 못했습니다.</p>
           ) : loading ? (
-            <p className={stageCard.state} aria-busy>
-              불러오는 중…
-            </p>
+            // Skeleton drawing the card's own footprint — PAGE_SIZE rows in the
+            // real column widths, so nothing shifts when the rows arrive.
+            <div aria-busy="true" aria-label={`${label} 목록을 불러오는 중`}>
+              {Array.from({ length: PAGE_SIZE }, (_, row) => (
+                <div key={row} className={stageCard.row} aria-hidden="true">
+                  {/* The cells sit edge to edge (no row gap), so the bar is an
+                      inner block narrower than its cell — three full-width bars
+                      would read as one. */}
+                  {SKELETON_WIDTHS.map((width) => (
+                    <span key={width} className={stageCard.cell}>
+                      <span className={cn(stageCard.skeletonBar, width)} />
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
           ) : rows.length === 0 ? (
             <p className={stageCard.state}>해당 단계의 대상이 없습니다.</p>
           ) : (
