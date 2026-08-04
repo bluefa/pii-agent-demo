@@ -35,6 +35,10 @@ import {
   ROW_BASE,
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import {
+  CredFilterCards,
+  type CredFilter,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/CredFilterCards';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { hasLogicalDatabases, needsCredential } from '@/lib/types';
 import { GROUPED_CHILD_KIND_LABEL, resultUnitId } from '@/lib/resource-grouping';
@@ -144,9 +148,7 @@ export const ConnectionTestCard = ({
       return next;
     });
   }, []);
-  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(units, {
-    initialPageSize: 10,
-  });
+  const [credFilter, setCredFilter] = useState<CredFilter>('all');
   const logicalModal = useModal<LogicalModalTarget>();
   const toast = useToast();
 
@@ -196,6 +198,38 @@ export const ConnectionTestCard = ({
       statusByResource[unit.unitId] === 'SUCCESS' &&
       (!requiresCredential(unit.databaseType) || !!unitCred(unit)),
     [statusByResource, unitCred],
+  );
+
+  // Credential 상태 분류 — 카드 집계와 표 필터가 같은 판정을 쓴다. `none` 은 카드가 아니라
+  // 분류값: Athena / DynamoDB / CosmosDB 처럼 Credential 없이 연결하는 행("불필요")은
+  // 지정에도 미등록에도 잡히지 않는다.
+  const credState = useCallback(
+    (unit: TestUnit): CredFilter | 'none' =>
+      !requiresCredential(unit.databaseType) ? 'none' : unitCred(unit) ? 'assigned' : 'missing',
+    [unitCred],
+  );
+  const credCounts = useMemo(
+    () => ({
+      all: units.length,
+      assigned: units.filter((u) => credState(u) === 'assigned').length,
+      missing: units.filter((u) => credState(u) === 'missing').length,
+    }),
+    [units, credState],
+  );
+  const filteredUnits = useMemo(
+    () => (credFilter === 'all' ? units : units.filter((u) => credState(u) === credFilter)),
+    [units, credFilter, credState],
+  );
+
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(filteredUnits, {
+    initialPageSize: 10,
+  });
+  const handleCredFilter = useCallback(
+    (next: CredFilter) => {
+      setCredFilter(next);
+      setPage(0);
+    },
+    [setPage],
   );
 
   // Gate the 완료 승인 요청 CTA directly on the latest_version poll result:
@@ -325,7 +359,9 @@ export const ConnectionTestCard = ({
             a second box inside the card — a card inside a card, at a heavier weight than any
             border on those steps.
             Those steps cap the stack with the filter toolbar (top-rounded, #F7F8FA); this step
-            has no filters, so the header row — same fill — is the cap and takes the radius. */}
+            keeps its Credential 필터 카드 as a separate row above the stack rather than a toolbar
+            attached to it, so the header row — same fill — is the cap and takes the radius. */}
+        <CredFilterCards filter={credFilter} onChange={handleCredFilter} counts={credCounts} />
         <div>
           {/* CONNECTED_FRAME's own `overflow-hidden` and an `overflow-x-auto` would be two
               values of one property on one element, and `cn` is a plain join — which of them
@@ -541,15 +577,29 @@ export const ConnectionTestCard = ({
                     </Fragment>
                   );
                 })}
+                {pageRows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className={cn(
+                        idcStyles.table.approvalCell,
+                        'py-8 text-center text-[12px]',
+                        textColors.tertiary,
+                      )}
+                    >
+                      조건에 맞는 결과가 없어요.
+                    </td>
+                  </tr>
+                )}
               </tbody>
               </table>
             </div>
           </div>
-          {total > 0 && (
+          {filteredUnits.length > 0 && (
             <Pagination
               page={page}
               pageSize={pageSize}
-              totalCount={total}
+              totalCount={filteredUnits.length}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
               pageSizeOptions={[10, 20, 50, 100]}

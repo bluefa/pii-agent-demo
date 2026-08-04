@@ -19,6 +19,10 @@ import {
   IdcDbTypeCell,
   IdcEndpointCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
+import {
+  CredFilterCards,
+  type CredFilter,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/CredFilterCards';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 
 interface IdcCredentialModalProps {
@@ -54,16 +58,30 @@ export const IdcCredentialModal = ({
   const toast = useToast();
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState<CredFilter>('all');
 
   // Seed from what is already stored on each row. `resources` is memoized by the step, so
   // this does not stamp over the user's picks on an unrelated re-render.
   useEffect(() => {
     if (!isOpen) return;
     setSelections(Object.fromEntries(resources.map((r) => [r.resourceId, r.credentialId ?? ''])));
+    setFilter('all');
   }, [isOpen, resources]);
 
   const selectedCount = resources.filter((r) => !!selections[r.resourceId]).length;
   const allSelected = resources.length > 0 && selectedCount === resources.length;
+
+  // IDC 는 모든 연동 대상이 자격 증명을 요구한다(클라우드의 "불필요" 엔진이 없다) —
+  // 그래서 미등록은 곧 "아직 고르지 않은 행"이고, 지정 + 미등록 = 전체다.
+  const counts = {
+    all: resources.length,
+    assigned: selectedCount,
+    missing: resources.length - selectedCount,
+  };
+  const rows =
+    filter === 'all'
+      ? resources
+      : resources.filter((r) => !!selections[r.resourceId] === (filter === 'assigned'));
 
   const handleSave = async () => {
     setSaving(true);
@@ -124,11 +142,16 @@ export const IdcCredentialModal = ({
             allSelected ? statusColors.success.dot : statusColors.pending.dot,
           )}
         />
+        {/* 건수는 바로 아래 필터 카드가 센다 — 배너는 완료/미완료 판정만 말한다. */}
         <span className={allSelected ? statusColors.success.text : textColors.tertiary}>
           {allSelected
-            ? `DB Credential 선택 완료되었습니다 (${resources.length}건)`
-            : `아직 DB Credential이 미선택되었습니다 (${selectedCount}/${resources.length})`}
+            ? 'DB Credential 선택 완료되었습니다'
+            : '아직 DB Credential이 미선택되었습니다'}
         </span>
+      </div>
+
+      <div className="mb-4">
+        <CredFilterCards filter={filter} onChange={setFilter} counts={counts} />
       </div>
 
       <div className={idcStyles.table.frame}>
@@ -142,7 +165,17 @@ export const IdcCredentialModal = ({
             </tr>
           </thead>
           <tbody className={idcStyles.table.body}>
-            {resources.map((resource) => (
+            {rows.length === 0 && (
+              <tr>
+                <td
+                  colSpan={4}
+                  className={cn(idcStyles.table.cell, 'py-8 text-center text-[12px]', textColors.tertiary)}
+                >
+                  조건에 맞는 결과가 없어요.
+                </td>
+              </tr>
+            )}
+            {rows.map((resource) => (
               <tr key={resource.resourceId} className={idcStyles.table.row}>
                 <td className={idcStyles.table.cell}>
                   <IdcEndpointCell resource={resource} />

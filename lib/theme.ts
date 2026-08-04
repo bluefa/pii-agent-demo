@@ -357,6 +357,11 @@ export const cardStyles = {
     default: 'p-6',
     lg: 'p-8',
   },
+  /** 선택 가능한 카드(필터 타일)의 링 — rest / selected. selected 는 step 2 필터 세그먼트
+   *  active 와 같은 Toss black(`tossColors.strongText`). 링 색은 한쪽만 소유해야
+   *  Tailwind 출력 순서에 승패가 걸리지 않는다. */
+  ringRest: 'ring-2 ring-transparent',
+  ringSelected: 'ring-2 ring-[#191F28]',
   /** v15 header — 28/28/12 padding, no base border. */
   header: 'pt-[28px] px-[28px] pb-[12px]',
   /** v15 card body — 16/28/28 padding. */

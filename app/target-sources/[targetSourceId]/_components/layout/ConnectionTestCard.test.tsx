@@ -160,6 +160,37 @@ describe('ConnectionTestCard', () => {
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', false);
   });
 
+  it('filter cards count Credential-free engines as neither 지정 nor 미등록, and filter the table', () => {
+    // The table names rows by Resource Name (Resource ID is not a column here).
+    renderCard([
+      makeResource({ resourceId: 'res-1', resourceName: 'named-cred', credentialId: 'Key1' }),
+      makeResource({ resourceId: 'res-2', resourceName: 'named-missing', credentialId: null }),
+      makeResource({
+        resourceId: 'athena-1',
+        resourceName: 'named-athena',
+        databaseType: 'athena',
+        credentialId: null,
+      }),
+      makeResource({
+        resourceId: 'dynamo-1',
+        resourceName: 'named-dynamo',
+        databaseType: 'dynamodb',
+        credentialId: null,
+      }),
+    ]);
+    const cardValue = (label: string) =>
+      screen.getByRole('button', { name: new RegExp(`^${label}`) }).textContent;
+    expect(cardValue('전체 리소스')).toContain('4');
+    expect(cardValue('Credential 지정한 리소스')).toContain('1');
+    // Athena / DynamoDB stay out of 미등록 — only the credential-requiring res-2 counts.
+    expect(cardValue('Credential 미등록 리소스')).toContain('1');
+
+    fireEvent.click(screen.getByRole('button', { name: /^Credential 미등록 리소스/ }));
+    expect(screen.getByText('named-missing')).toBeTruthy();
+    expect(screen.queryByText('named-athena')).toBeNull();
+    expect(screen.queryByText('named-cred')).toBeNull();
+  });
+
   it('counts a credential-less row as 대기 instead of a finished test', () => {
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     renderCard([makeResource({ resourceId: 'res-1', credentialId: null })]);

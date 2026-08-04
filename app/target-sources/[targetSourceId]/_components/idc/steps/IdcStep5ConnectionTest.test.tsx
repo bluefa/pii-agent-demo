@@ -138,8 +138,10 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
     const runTest = screen.getByRole('button', { name: /Run Test/ });
     expect(runTest).toHaveProperty('disabled', false);
     fireEvent.click(runTest);
+    expect(await screen.findByText('아직 DB Credential이 미선택되었습니다')).toBeTruthy();
+    // 건수는 배너가 아니라 필터 카드가 센다 — row2 하나가 미등록.
     expect(
-      await screen.findByText(/아직 DB Credential이 미선택되었습니다 \(1\/2\)/),
-    ).toBeTruthy();
+      screen.getByRole('button', { name: /^Credential 미등록 리소스/ }).textContent,
+    ).toContain('1');
   });
 });
