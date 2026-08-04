@@ -346,7 +346,34 @@ describe('WaitingApprovalTable', () => {
 
     // A row can be in the filtered list because of a database inside its fold. Leaving it shut
     // shows a region that does not visibly contain what the user typed.
-    it('opens every fold while the list is narrowed', () => {
+    it('opens every fold while the list is narrowed, with no toggle to press', () => {
+      const folded = [
+        {
+          ...athena('unused', 'ap-northeast-1', true),
+          resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
+          resourceType: 'athena',
+          foldedMembers: [
+            { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
+          ],
+        },
+      ];
+      const { rerender } = render(
+        <WaitingApprovalTable variant="confirmed" resources={folded} expandFolds />,
+      );
+
+      expect(screen.getByText('sampledb')).toBeTruthy();
+      // The filter owns the state, so the chevron must NOT be a control: as a live toggle it
+      // did nothing visible and recorded the press as an EXPAND, so clearing the filter left
+      // the fold open — the opposite of what was pressed.
+      expect(screen.queryByRole('button', { name: /데이터베이스 목록/ })).toBeNull();
+
+      rerender(<WaitingApprovalTable variant="confirmed" resources={folded} />);
+      expect(screen.queryByText('sampledb')).toBeNull();
+    });
+
+    // The count is a SUM across the fold's databases; the drill-in queries one resource id, so
+    // opening the region id would answer with a list that cannot match the number clicked.
+    it('renders a folded row’s counts as text, not a drill-in link', () => {
       render(
         <WaitingApprovalTable
           variant="confirmed"
@@ -354,17 +381,25 @@ describe('WaitingApprovalTable', () => {
             {
               ...athena('unused', 'ap-northeast-1', true),
               resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
-              resourceType: 'athena',
+              // No engine — the contract allows it, and this is the only path on which a folded
+              // row reaches the count columns at all.
+              resourceType: '',
+              logicalDbCount: 7,
+              excludedLogicalDbCount: 2,
               foldedMembers: [
-                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/a', resourceName: 'a' },
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/b', resourceName: 'b' },
               ],
             },
           ]}
-          expandFolds
         />,
       );
 
-      expect(screen.getByText('sampledb')).toBeTruthy();
+      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+      expect(cells.slice(4).map((td) => td.textContent)).toEqual(['7개', '2개']);
+      expect(screen.queryByRole('button', { name: /연동 논리 DB 목록 보기/ })).toBeNull();
+      // An unlabelled row would otherwise be a bare chevron with nothing beside it.
+      expect(cells[0].textContent).toBe('—');
     });
   });
 });

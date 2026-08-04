@@ -335,6 +335,7 @@ export const WaitingApprovalTable = memo(
       const members = resource.foldedMembers;
       const folded = !!members?.length;
       const open = folded && (expandFolds || expandedFolds.has(rowKey));
+      const foldLabel = getDatabaseShortLabel(resource.resourceType) || PLACEHOLDER;
       const row = (
         <tr
           // `resource_id` is optional in the contract, so two id-less rows would collide on
@@ -363,27 +364,43 @@ export const WaitingApprovalTable = memo(
               // parent's heavier weight above: that weight separates a parent from the children
               // right under it, and here the row's neighbours are ordinary resources.
               <span className={idcStyles.table.group.lead}>
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  aria-label={`${getDatabaseShortLabel(resource.resourceType)} ${resource.region} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    toggleFold(rowKey);
-                  }}
-                  className={cn(
-                    idcStyles.table.group.toggle,
-                    open
-                      ? idcStyles.table.group.toggleOpen
-                      : idcStyles.table.group.toggleClosed,
-                    primaryColors.focusRing,
-                  )}
-                >
-                  <ChevronRightIcon className="h-3.5 w-3.5" />
-                </button>
-                <span className="whitespace-nowrap">
-                  {getDatabaseShortLabel(resource.resourceType)}
-                </span>
+                {expandFolds ? (
+                  /* The filter owns the open state while it narrows the list, so this is an
+                     indicator, not a control. Left as a live toggle it did nothing visible AND
+                     recorded the press as an EXPAND — clearing the filter then left the fold
+                     open, the opposite of what was pressed, a step after the press. */
+                  <span
+                    aria-hidden
+                    className={cn(
+                      idcStyles.table.group.toggle,
+                      idcStyles.table.group.toggleStatic,
+                    )}
+                  >
+                    <ChevronRightIcon className="h-3.5 w-3.5" />
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    aria-label={`${foldLabel} ${resource.region} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleFold(rowKey);
+                    }}
+                    className={cn(
+                      idcStyles.table.group.toggle,
+                      open
+                        ? idcStyles.table.group.toggleOpen
+                        : idcStyles.table.group.toggleClosed,
+                      primaryColors.focusRing,
+                    )}
+                  >
+                    <ChevronRightIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {/* `database_type` is optional in the contract, and an unlabelled row is a bare
+                    chevron with nothing beside it. */}
+                <span className="whitespace-nowrap">{foldLabel}</span>
               </span>
             ) : (
               <Tooltip
@@ -456,19 +473,22 @@ export const WaitingApprovalTable = memo(
                concept that does not exist it reads as missing data and sends the user looking
                for it. Step 5's 논리 DB 확인 says the same words for the same reason. */
             hasLogicalDatabases(resource.displayDbType ?? resource.resourceType) ? (
+              /* A folded row's counts are a SUM across its databases, and the drill-in queries
+                 one resource id. Opening the region id would answer with a list that cannot
+                 match the number it was clicked from, so the aggregate is text, not a link. */
               <>
                 <td className={idcStyles.table.approvalCell}>
                   <LogicalDbCountCell
                     count={resource.logicalDbCount}
                     label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
-                    onOpen={() => onLogicalDbOpen?.(resource)}
+                    onOpen={folded ? undefined : () => onLogicalDbOpen?.(resource)}
                   />
                 </td>
                 <td className={idcStyles.table.approvalCell}>
                   <LogicalDbCountCell
                     count={resource.excludedLogicalDbCount}
                     label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
-                    onOpen={() => onLogicalDbOpen?.(resource)}
+                    onOpen={folded ? undefined : () => onLogicalDbOpen?.(resource)}
                   />
                 </td>
               </>
