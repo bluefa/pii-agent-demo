@@ -251,7 +251,7 @@ const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
       </p>
 
       {/* payload = 해야 하는 일. 이 블록에서 가장 큰 글자이자 가장 진한 톤. */}
-      <p className={cn('mt-1.5 text-[17px] font-semibold leading-[1.5]', textColors.primary)}>
+      <p className={cn('mt-1.5 text-[18px] font-semibold leading-[1.5]', textColors.primary)}>
         {payload}
         {payloadCount !== null && (
           <span className={cn('ml-2 font-semibold tabular-nums', textStyles.caption, textColors.tertiary)}>
@@ -511,10 +511,13 @@ export const InstallStatusDetail = ({
       {/* 레일은 목차, 우측은 내용 — 둘을 표면으로 가른다. 레일은 가라앉은 회색 판
           위에 앉고 우측은 카드의 흰 바닥을 그대로 쓴다. 구분선 하나로는 "같은 종류의
           정보가 두 단 있다"로 읽혔다(오너 지적). 폭은 224px — 목차가 넓을 이유는 없고,
-          남는 폭은 전부 리소스 테이블이 쓴다. */}
-      <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-6">
+          남는 폭은 전부 리소스 테이블이 쓴다.
+          둘은 하나의 테두리 컨테이너로 묶는다 — 레일을 self-start 로 띄워두면 리소스가
+          많은 단계에서 우측 테이블이 레일보다 길어져 그룹 밖으로 흘러나온 것처럼
+          보였다(오너 지적). 레일 회색면은 컨테이너 높이를 그대로 따라 늘어난다. */}
+      <div className={cn('grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.light)}>
       <nav
-        className={cn('flex flex-col gap-0.5 rounded-xl p-2 self-start', bgColors.muted)}
+        className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.muted, borderColors.light)}
         aria-label="설치 단계"
       >
         {navSteps.map((step, index) => {
@@ -577,7 +580,8 @@ export const InstallStatusDetail = ({
         })}
       </nav>
 
-      <div className="min-w-0">
+      {/* 컨테이너에 갇힌 뒤로는 내용이 테두리에 닿으므로 안쪽 여백이 gap-6 을 대신한다. */}
+      <div className="min-w-0 px-5 py-4">
         <div className="flex items-start justify-between gap-3">
           {/* 제목↔부제 = tight 4px */}
           <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
