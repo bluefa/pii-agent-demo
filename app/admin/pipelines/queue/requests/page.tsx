@@ -103,9 +103,9 @@ const rq = {
   contextTotal: 'mx-0.5 align-baseline text-[32px] font-bold leading-none text-[var(--pl-primary)]',
   grid: 'mt-6 grid grid-cols-2 gap-6',
 
-  // shadow-sm (한 단계 위): 카드가 3장뿐이고 2단으로 붙어 있어 xs 로는 카드
-  // 경계가 배경에 묻는다.
-  card: 'flex min-h-[360px] flex-col rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-4 shadow-[var(--pl-shadow-sm)]',
+  // shadow-md: 카드가 3장뿐이고 2단으로 붙어 있어 xs/sm 으로는 경계가 배경에
+  // 묻는다. lg 는 모달/툴팁 높이라 얹혀 있는 카드가 떠 보인다.
+  card: 'flex min-h-[360px] flex-col rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-4 shadow-[var(--pl-shadow-md)]',
   head: 'flex items-center justify-between gap-3',
   titleWrap: 'flex items-center gap-2',
   titleIcon: 'text-[var(--pl-text-medium)]',
