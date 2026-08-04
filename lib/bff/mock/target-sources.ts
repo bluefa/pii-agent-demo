@@ -419,7 +419,9 @@ export const mockTargetSources = {
       id: project.targetSourceId,
       targetSourceId: project.targetSourceId,
       serviceCode: project.serviceCode,
-      issueKey: `BDCDIP-${project.targetSourceId}`,
+      // 실 BFF 는 issueKey 에 티켓 주소를 싣는다 — 화면이 마지막 조각만 보여주는 경로가
+      // 데모에서도 돌아야 한다 (서비스 운영의 jira-tickets 목과 같은 형태).
+      issueKey: `https://jira.example.com/browse/BDCDIP-${project.targetSourceId}`,
       cloudProvider: project.cloudProvider.toUpperCase(),
     });
   },

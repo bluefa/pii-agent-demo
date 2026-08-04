@@ -355,6 +355,8 @@ export interface OpsTargetSourceListItemWire {
   target_source_id: number;
   service_code: string;
   service_name: string;
+  /** TargetSourceInfo.description (install-v1) — 대상이 무엇인지 오너가 적은 한 줄. */
+  description: string | null;
   cloud_provider: string;
   is_sdu_type: boolean;
   database_type: string | null;

@@ -18,6 +18,7 @@ import {
 } from '@/lib/theme';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
+import { jiraTicketLink } from '@/lib/jira-ticket';
 
 type PanelTab = 'guide' | 'history';
 
@@ -28,10 +29,9 @@ type PanelTab = 'guide' | 'history';
 export type JiraTicketState = { issueKey: string } | null | 'error';
 
 /**
- * Jira base URL for ticket links — the wire (JiraTicketResponse) carries only
- * `issueKey`, no URL. Deployment overrides via NEXT_PUBLIC_JIRA_BROWSE_BASE;
- * the fallback keeps the key navigable in mock/demo (owner ask: the issue key
- * must render as a clickable link).
+ * Jira base URL — 조회 응답의 `issueKey` 가 티켓 주소로 올 때는 쓰지 않는다(그 값을 그대로
+ * 연다). 키만 올 때만 이 주소로 링크를 만든다. Deployment 는 NEXT_PUBLIC_JIRA_BROWSE_BASE
+ * 로 덮고, 기본값은 mock/demo 에서 키가 눌리게 하기 위한 것이다.
  */
 const JIRA_BROWSE_BASE =
   process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? 'https://jira.example.com/browse/';
@@ -84,7 +84,11 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
         </div>
       ) : (
         <a
-          href={`${JIRA_BROWSE_BASE}${encodeURIComponent(jiraTicket.issueKey)}`}
+          href={
+            // 응답이 티켓 주소면 그 값으로 연다 — 화면엔 마지막 `/` 뒤 조각만 보여준다.
+            jiraTicketLink(jiraTicket.issueKey).href
+            ?? `${JIRA_BROWSE_BASE}${encodeURIComponent(jiraTicket.issueKey)}`
+          }
           target="_blank"
           rel="noopener noreferrer"
           title="협업 채널 — Jira에서 논의하기"
@@ -101,7 +105,7 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           협업 채널 링크
           {/* Owner ask: the issue key reads as a classic hyperlink — blue + underline. */}
           <span className={cn('ml-auto font-mono text-[12px] underline', primaryColors.text)}>
-            {jiraTicket.issueKey}
+            {jiraTicketLink(jiraTicket.issueKey).label}
           </span>
           <OpenExternalIcon className="h-[11px] w-[11px] shrink-0 opacity-50" />
         </a>

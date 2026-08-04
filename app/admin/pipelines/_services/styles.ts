@@ -27,7 +27,8 @@ export const serviceListStyles = {
   name: 'text-[14px] font-semibold',
   nameActive: 'text-[var(--pl-primary)]',
   nameIdle: 'text-[var(--pl-text-strong)]',
-  code: 'text-[12px] text-[var(--pl-text-faint)]',
+  /** 코드 — faint(#98A2B3)는 흰 배경에서 2.58 로 AA 미달이라 weak(4.97). */
+  code: 'text-[12px] text-[var(--pl-text-weak)]',
 
   /** Selected-service identity block (Figma "pipeline-services-improved"):
    *  eyebrow + service_name(hero) + service_code chip, a summary stat row, then
