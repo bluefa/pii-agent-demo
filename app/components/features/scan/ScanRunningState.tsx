@@ -11,7 +11,7 @@ export const ScanRunningState = ({ progress }: ScanRunningStateProps) => {
 
   return (
     <div className="py-[60px] px-5 text-center">
-      <div className="w-16 h-16 mx-auto mb-5 rounded-2xl grid place-items-center bg-[#F9FAFB] text-[#9CA3AF]">
+      <div className="w-16 h-16 mx-auto mb-5 rounded-2xl grid place-items-center bg-[#F9FAFB] text-[#6B7280]">
         <div className="animate-spin">
           <svg
             className="w-8 h-8"

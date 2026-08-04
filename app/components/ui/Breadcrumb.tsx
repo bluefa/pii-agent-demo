@@ -15,7 +15,7 @@ export const Breadcrumb = ({ crumbs }: BreadcrumbProps) => {
       aria-label="breadcrumb"
       // v15 `.breadcrumb` — 13/500/#8B95A1 (toss weak), mb 16. Literal hexes are
       // Toss greys Tailwind's palette can't hit; see tossColors SSOT in lib/theme.ts.
-      className="mb-4 text-[13px] font-medium text-[#8B95A1]"
+      className="mb-4 text-[14px] font-medium text-[#6B7684]"
     >
       <ol className="flex flex-wrap items-center">
         {crumbs.map((crumb, index) => {

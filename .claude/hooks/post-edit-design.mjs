@@ -2,7 +2,9 @@
 // PostToolUse hook for Edit|Write: design constraints on NEWLY ADDED lines only.
 //   1. font-size px must be even
 //   2. text color contrast vs the page surface must be >= 4.5:1 (WCAG AA; 3:1 for large text)
-// Warn-only (exit 0). Pre-existing values are not re-flagged: the file is diffed against HEAD.
+// Blocks (exit 2). Pre-existing values are not re-flagged: the file is diffed against HEAD.
+// Escape hatch: a line carrying `design-exempt:` plus a reason is skipped. Legitimate cases are
+// the WCAG 1.4.3/1.4.11 exemptions only — brand logotypes, disabled controls, dark-surface text.
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
@@ -54,6 +56,8 @@ const contrast = (a, b) => {
 const warnings = [];
 
 for (const line of added) {
+  if (line.includes('design-exempt:')) continue;
+
   const sizes = [...line.matchAll(/(?:text-\[|font-size:\s*|fontSize:\s*['"])([0-9.]+)px/g)].map(
     (m) => Number(m[1]),
   );
@@ -81,7 +85,13 @@ for (const line of added) {
 }
 
 if (warnings.length) {
-  console.error(`⚠️  ${file}`);
+  console.error(`⛔  ${file}`);
+  console.error('BLOCKED — design constraint violation. Fix before continuing.');
   console.error([...new Set(warnings)].slice(0, 8).join('\n'));
+  console.error(
+    'Round font sizes to the nearest even px (ties round up). Darken the color, or append ' +
+      '`design-exempt: <reason>` on the line if it is a brand logotype, a disabled control, or text on a dark surface.',
+  );
+  process.exit(2);
 }
 process.exit(0);

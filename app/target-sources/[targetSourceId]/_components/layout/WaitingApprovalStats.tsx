@@ -100,7 +100,7 @@ export const StatTile = ({
       className={cn(
         'flex items-center gap-1.5',
         variant === 'modal'
-          ? 'text-[12px] font-semibold text-[#8B95A1]'
+          ? 'text-[12px] font-semibold text-[#6B7684]'
           : cn('text-[14px] font-semibold', textColors.tertiary),
       )}
     >

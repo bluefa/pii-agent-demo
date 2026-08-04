@@ -123,7 +123,7 @@ const FilterMenu = ({ groups: allGroups }: { groups: ReadonlyArray<FilterGroup> 
               <div key={group.key} aria-label={`${group.label} 필터`} role="radiogroup">
                 {/* Header sits on a tinted strip with rules above and below: options are a level
                     below it, which same-surface text alone did not convey. */}
-                <p className="sticky top-0 z-10 border-y border-[#F1F3F5] bg-[#F9FAFB] px-3 py-[5px] text-[11px] font-bold tracking-[0.02em] text-[#8B95A1] first:border-t-0">
+                <p className="sticky top-0 z-10 border-y border-[#F1F3F5] bg-[#F9FAFB] px-3 py-[5px] text-[12px] font-bold tracking-[0.02em] text-[#6B7684] first:border-t-0">
                   {group.label}
                 </p>
                 <div className="py-1">
@@ -197,7 +197,7 @@ const SearchBox = ({
   <div className="relative min-w-[220px] max-w-[360px] flex-[1_1_260px]">
     {/* icon — absolute left 10, #9CA3AF, no pointer events. */}
     <SearchIcon
-      className="pointer-events-none absolute left-[10px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9CA3AF]"
+      className="pointer-events-none absolute left-[10px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6B7280]"
       aria-hidden="true"
     />
     {/* input — h32, 1px #E5E7EB, radius 8, white bg, focus ring #0064FF + 3px halo. */}
