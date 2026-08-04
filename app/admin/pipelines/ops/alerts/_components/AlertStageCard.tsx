@@ -33,7 +33,7 @@ const stageCard = {
    * 테이블 카드까지 따라 올라가므로 여기서만 선언한다. overflow-hidden 은
    * accent 바의 상단 모서리를 카드 radius 로 깎기 위해 필요하다.
    */
-  card: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[12px] shadow-[var(--pl-shadow-md)] overflow-hidden',
+  card: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border-strong)] rounded-[12px] shadow-[var(--pl-shadow-md)] overflow-hidden',
   accent: 'h-1 w-full bg-[var(--pl-gray-50)]',
   body: 'flex flex-1 flex-col gap-3 p-4',
   header: 'flex items-center justify-between gap-3',

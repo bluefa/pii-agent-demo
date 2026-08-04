@@ -105,7 +105,9 @@ const rq = {
 
   // shadow-md: 카드가 3장뿐이고 2단으로 붙어 있어 xs/sm 으로는 경계가 배경에
   // 묻는다. lg 는 모달/툴팁 높이라 얹혀 있는 카드가 떠 보인다.
-  card: 'flex min-h-[360px] flex-col rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-4 shadow-[var(--pl-shadow-md)]',
+  // 외곽선만 border-strong — 내부 행 구분선은 --pl-border 를 유지해야 카드
+  // 경계와 행 경계가 같은 굵기로 읽히지 않는다.
+  card: 'flex min-h-[360px] flex-col rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] p-4 shadow-[var(--pl-shadow-md)]',
   head: 'flex items-center justify-between gap-3',
   titleWrap: 'flex items-center gap-2',
   titleIcon: 'text-[var(--pl-text-medium)]',
