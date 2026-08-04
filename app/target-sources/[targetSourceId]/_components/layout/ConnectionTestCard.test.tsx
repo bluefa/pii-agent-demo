@@ -213,15 +213,29 @@ describe('ConnectionTestCard', () => {
     expect(updateResourceCredentialMock).not.toHaveBeenCalled();
   });
 
-  it('fires updateResourceCredential immediately on credential selection, before Run Test', async () => {
-    renderCard([makeResource({ resourceId: 'res-9', credentialId: 'Key1' })]);
-    // Wait for the secrets-backed options to load so 'Key2' is selectable.
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Key2' })).toBeTruthy());
-    // The PUT fires on the change event itself, not on Run Test click.
+  // The cell reads the assignment and opens the picker; the write happens on 저장 there,
+  // so nothing is committed by merely looking at the options.
+  const openCredModal = async (currentLabel: string) => {
     await act(async () => {
-      fireEvent.change(screen.getByLabelText('DB Credential 선택'), { target: { value: 'Key2' } });
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`DB Credential 수정 — 현재 ${currentLabel}`) }));
+    });
+    // Wait for the secrets-backed options to load so 'Key2' is pickable.
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Key2' })).toBeTruthy());
+  };
+
+  it('writes the credential on 저장 in the picker, not on opening it', async () => {
+    renderCard([makeResource({ resourceId: 'res-9', credentialId: 'Key1' })]);
+    await openCredModal('Key1');
+    expect(updateResourceCredentialMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name: 'Key2' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '저장' }));
     });
     expect(updateResourceCredentialMock).toHaveBeenCalledWith(1, 'res-9', 'Key2');
+
     // Run Test then triggers the test without a second PUT.
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
@@ -233,11 +247,25 @@ describe('ConnectionTestCard', () => {
   it('does not update local credential state when the PUT fails', async () => {
     updateResourceCredentialMock.mockRejectedValueOnce(new Error('서버 오류'));
     renderCard([makeResource({ resourceId: 'res-9', credentialId: 'Key1' })]);
+    await openCredModal('Key1');
     await act(async () => {
-      fireEvent.change(screen.getByLabelText('DB Credential 선택'), { target: { value: 'Key2' } });
+      fireEvent.click(screen.getByRole('radio', { name: 'Key2' }));
     });
-    // Local state did not flip — row still shows Pending (cred still seeded as Key1).
-    expect(screen.getByText('Pending')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '저장' }));
+    });
+    // Local state did not flip — the cell still reads Key1.
+    expect(
+      screen.getByRole('button', { name: /DB Credential 수정 — 현재 Key1/ }),
+    ).toBeTruthy();
+  });
+
+  it('renders Credential-free engines as plain text, with nothing to edit', () => {
+    renderCard([
+      makeResource({ resourceId: 'athena-1', databaseType: 'athena', credentialId: null }),
+    ]);
+    expect(screen.getByText('불필요')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /DB Credential 수정/ })).toBeNull();
   });
 
   // The card re-seeds local credential state whenever the `confirmed` reference

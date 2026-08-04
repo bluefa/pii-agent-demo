@@ -21,7 +21,7 @@ import {
 } from '@/app/lib/api';
 import type { TestConnectionStatus } from '@/app/lib/api';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
-import { IdcCredSelectCell } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
+import { CredentialPickModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CredentialPickModal';
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import { CloudReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudReqApprovalModal';
 // This table shows the SAME resources steps 1·2·3 just showed, so it reads in their grammar
@@ -46,6 +46,13 @@ import { GROUPED_CHILD_KIND_LABEL, resultUnitId } from '@/lib/resource-grouping'
 interface LogicalModalTarget {
   resourceId: string;
   resourceName: string;
+}
+
+/** Credential 수정 모달이 여는 행 — 쓰는 대상(resourceId)과 읽는 값(현재 배정). */
+interface CredModalTarget {
+  resourceId: string;
+  resourceLabel: string;
+  current: string;
 }
 
 // Local credential edits — the confirmed list from the BFF seeds these, and Run Test
@@ -150,6 +157,8 @@ export const ConnectionTestCard = ({
   }, []);
   const [credFilter, setCredFilter] = useState<CredFilter>('all');
   const logicalModal = useModal<LogicalModalTarget>();
+  const credModal = useModal<CredModalTarget>();
+  const [savingCred, setSavingCred] = useState(false);
   const toast = useToast();
 
   // DB Credential options from GET .../secrets (not a hardcoded list).
@@ -247,16 +256,22 @@ export const ConnectionTestCard = ({
     await trigger();
   }, [testing, allCredsSet, trigger]);
 
-  // Changing a credential fires a PUT immediately; local state updates only on success.
-  const handleCredChange = useCallback(async (resourceId: string, cred: string) => {
+  // 모달의 저장이 PUT 을 쏘고, 성공했을 때만 로컬 값이 바뀐다.
+  const handleCredSubmit = useCallback(async (next: string) => {
+    const target = credModal.data;
+    if (!target) return;
+    setSavingCred(true);
     try {
-      await updateResourceCredential(targetSourceId, resourceId, cred);
+      await updateResourceCredential(targetSourceId, target.resourceId, next);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
       return;
+    } finally {
+      setSavingCred(false);
     }
-    setCreds((prev) => ({ ...prev, [resourceId]: cred }));
-  }, [targetSourceId, toast]);
+    setCreds((prev) => ({ ...prev, [target.resourceId]: next }));
+    credModal.close();
+  }, [targetSourceId, toast, credModal]);
 
   // On save the skip policy persists, which flips completion-status
   // (LATEST_TEST_CONNECTION_SUCCESS → LOGICAL_DATABASE_RECENTLY_UPDATED, spec §7);
@@ -483,13 +498,27 @@ export const ConnectionTestCard = ({
                       >
                         {unit.region || PLACEHOLDER}
                       </td>
+                      {/* 값은 밑줄 텍스트로 읽고 수정은 모달에서 — 관리자 화면의 Credential
+                          배정과 같은 문법이다. 행마다 select 를 놓으면 표가 컨트롤 판이 되고,
+                          고르는 순간 저장돼 두 후보를 비교할 수도 없었다.
+                          Athena·DynamoDB 처럼 Credential 없이 연결하는 엔진은 고칠 것이 없으므로
+                          버튼이 아니라 평문이다. */}
                       <td className={idcStyles.table.approvalCell}>
                         {credRequired ? (
-                          <IdcCredSelectCell
-                            value={cred}
-                            onChange={(next) => handleCredChange(first.resourceId, next)}
-                            options={credOptions}
-                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              credModal.open({
+                                resourceId: first.resourceId,
+                                resourceLabel: first.resourceName ?? first.resourceId,
+                                current: cred,
+                              })
+                            }
+                            aria-label={`${first.resourceName ?? first.resourceId} DB Credential 수정 — 현재 ${cred || '미설정'}`}
+                            className={cn(idcStyles.triggerBtn.linkNeutral, 'font-mono')}
+                          >
+                            {cred || <span className="font-sans">미설정</span>}
+                          </button>
                         ) : (
                           <span
                             className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
@@ -616,6 +645,17 @@ export const ConnectionTestCard = ({
           targetSourceId={targetSourceId}
           onSubmit={handleSubmitApproval}
         />
+        {credModal.data && (
+          <CredentialPickModal
+            isOpen={credModal.isOpen}
+            onClose={credModal.close}
+            resourceLabel={credModal.data.resourceLabel}
+            value={credModal.data.current}
+            options={credOptions}
+            saving={savingCred}
+            onSubmit={handleCredSubmit}
+          />
+        )}
         {logicalModal.data && (
           <LogicalDbModalLoader
             open={logicalModal.isOpen}
