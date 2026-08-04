@@ -11,7 +11,6 @@ import {
   type VmDatabaseType,
 } from '@/lib/types';
 import type {
-  ApprovedResource,
   CandidateBehaviorKey,
   CandidateResource,
   ConfirmedResource,
@@ -101,20 +100,6 @@ export const catalogToCandidates = (
       ...(endpointConfig ? { endpointConfig } : {}),
       ...(item.scanStatus ? { scanStatus: item.scanStatus } : {}),
       metadata: item.metadata,
-    };
-  });
-
-export const approvedIntegrationToApproved = (
-  items: readonly ResourceSnapshot[],
-): ApprovedResource[] =>
-  items.map((item) => {
-    const endpoint = item.endpoint_config;
-    return {
-      resourceId: item.resource_id,
-      type: item.resource_type,
-      databaseType: (endpoint?.db_type ?? null) as DatabaseType | null,
-      endpointConfig: endpoint,
-      credentialId: item.credential_id ?? null,
     };
   });
 

@@ -35,7 +35,11 @@ export interface WaitingApprovalResource {
   recommendFailReason?: string;
   /** Optional metadata line shown beneath the reason text in the tooltip — typically registrant and date. */
   exclusionMeta?: string;
-  /** Display db-engine source — prefer endpoint_config.db_type over resource_type (e.g. VM rows). */
+  /**
+   * What the Database Type column PRINTS — `metadata.database_type`, and on step 1 the user's
+   * unsaved VM endpoint draft on top of it. It is a display value, not an identity: do not key
+   * grouping or lookups on it (that is `resourceType`).
+   */
   displayDbType?: string;
   /**
    * `confirmed` variant only — Step 5 connection-test counts (latest-results). `null` when the

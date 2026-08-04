@@ -365,35 +365,20 @@ const deriveIntegrationStatus = (r: MockResource): ResourceIntegrationStatus | n
 };
 
 function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot {
-  let endpoint_config = null;
-  if (r.vmDatabaseConfig) {
-    endpoint_config = {
-      resource_id: r.resourceId,
-      db_type: r.vmDatabaseConfig.databaseType,
-      port: r.vmDatabaseConfig.port,
-      host: r.vmDatabaseConfig.host ?? '',
-      ...(r.vmDatabaseConfig.oracleServiceId && {
-        oracleServiceId: r.vmDatabaseConfig.oracleServiceId,
-      }),
-      ...(r.vmDatabaseConfig.selectedNicId && {
-        selectedNicId: r.vmDatabaseConfig.selectedNicId,
-      }),
-    };
-  }
   const idc = r.idcConfig;
   return {
     resource_id: r.resourceId,
     resource_type: r.type,
-    endpoint_config,
     credential_id: resolveCredential(project.cloudProvider, r),
-    // Contract metadata (TargetSourceResourceMetadataDto) — Steps 2·3 read the connection facts
-    // here, since endpoint_config stays null for everything but VM rows. Port and Oracle SID come
-    // from the same derive the confirmed serializer uses, so a row does not change its port
-    // between step 3 and step 4.
+    // Contract metadata (TargetSourceResourceMetadataDto) — the ONLY place the connection facts
+    // live. A VM row's user-declared endpoint lands here too; there is no separate object for it.
+    // Port and Oracle SID come from the same derive the confirmed serializer uses, so a row does
+    // not change its port between step 3 and step 4.
     metadata: {
       provider: cloudProviderToWireProvider(project.cloudProvider),
       region: demoRegion(project.cloudProvider, r),
       database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
+      host: r.vmDatabaseConfig?.host ?? r.host ?? null,
       port: r.vmDatabaseConfig?.port ?? resolvePort(project.cloudProvider, r),
       oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
     },

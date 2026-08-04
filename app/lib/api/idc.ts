@@ -288,18 +288,18 @@ export const toIdcResourceViewFromConfirmed = (
 /**
  * Shared `ResourceSnapshot` (approved-integration, Steps 2·3) → domain view. IDC
  * rows carry idc_* fields passed through by the approved-integration normalizer;
- * non-IDC rows fall back to endpoint_config host/port.
+ * non-IDC rows read their connection facts from `metadata`.
  *
- * `endpoint_config` is the VM path and is null for every IDC row, so each scalar falls back to
- * `metadata`, which is where TargetSourceResourceMetadataDto declares host / port /
- * database_type / oracle_service_id. Reading endpoint_config alone left steps 2·3 showing an
- * empty Database Type and a fabricated port 0 on every row.
+ * `metadata` is the ONLY source — TargetSourceResourceMetadataDto declares host / port /
+ * database_type / oracle_service_id there. Each scalar used to prefer an `endpoint_config`
+ * object that no contract has ever declared, so it was always absent and steps 2·3 rendered an
+ * empty Database Type and a fabricated port 0 until this fallback was put underneath it. The
+ * dead preference is gone; the fallback is the read.
  */
 export const toIdcResourceViewFromSnapshot = (
   wire: ResourceSnapshot,
   index = 0,
 ): IdcResourceView => {
-  const ec = wire.endpoint_config;
   const idcFields: IdcWireFields = {
     idc_host_format: wire.idc_host_format,
     idc_ips: wire.idc_ips,
@@ -308,17 +308,17 @@ export const toIdcResourceViewFromSnapshot = (
   };
   const hasIdcFields = !!wire.idc_host_format;
   const md = wire.metadata;
-  const dbWire = toDbTypeWire(ec?.db_type ?? md?.database_type ?? undefined);
-  const host = ec?.host || md?.host || '';
+  const dbWire = toDbTypeWire(md?.database_type ?? undefined);
+  const host = md?.host || '';
   return {
     resourceId: wire.resource_id || `idc-approved-${index}`,
     persisted: !!wire.resource_id,
     kind: hasIdcFields ? deriveKindFromIdcFields(idcFields) : 'SINGLE',
     hosts: hasIdcFields ? hostsFromIdcFields(idcFields) : host ? [host] : [],
-    port: ec?.port ?? md?.port ?? 0,
-    databaseTypeLabel: idcDbTypeByWire(dbWire)?.label ?? ec?.db_type ?? md?.database_type ?? '',
+    port: md?.port ?? 0,
+    databaseTypeLabel: idcDbTypeByWire(dbWire)?.label ?? md?.database_type ?? '',
     databaseTypeWire: dbWire,
-    oracleSid: ec?.oracleServiceId ?? md?.oracle_service_id ?? undefined,
+    oracleSid: md?.oracle_service_id ?? undefined,
     credentialId: wire.credential_id ?? undefined,
     sourceIps: wire.idc_source_ips ?? [],
     firewallOpen: false,
