@@ -362,10 +362,12 @@ describe('WaitingApprovalTable', () => {
       );
 
       expect(screen.getByText('sampledb')).toBeTruthy();
-      // The filter owns the state, so the chevron must NOT be a control: as a live toggle it
-      // did nothing visible and recorded the press as an EXPAND, so clearing the filter left
-      // the fold open — the opposite of what was pressed.
+      // The filter owns the state, so nothing may offer to change it: as a live toggle the
+      // press did nothing visible and recorded an EXPAND, so clearing the filter left the fold
+      // open — the opposite of what was pressed. The fold has TWO entry points and both have
+      // to go quiet; gating only the chevron left the row itself still writing the state.
       expect(screen.queryByRole('button', { name: /데이터베이스 목록/ })).toBeNull();
+      fireEvent.click(within(screen.getAllByRole('row')[1]).getAllByRole('cell')[3]);
 
       rerender(<WaitingApprovalTable variant="confirmed" resources={folded} />);
       expect(screen.queryByText('sampledb')).toBeNull();
