@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import {
   WaitingApprovalTable,
@@ -172,10 +172,10 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
     });
 
-    // Steps 6·7. The spec makes the region the resource from step 4 on, so those steps want one
-    // folded Athena row per region — not a parent with database children. Until that fold lands
-    // they stay flat: a tree here would assert a shape the step does not have, and would put a
-    // logical-DB aggregate on Athena, which has no logical-DB management at all.
+    // Steps 6·7 never build a TREE. The spec makes the region the resource from step 4 on, so
+    // those steps FOLD instead — one row per region, its databases behind a disclosure — and the
+    // caller builds that fold off `athena_region_resource_id`, passing `foldedMembers` (below).
+    // Rows that arrive without it stay exactly as they came.
     it('does not group in the confirmed variant', () => {
       render(
         <WaitingApprovalTable
@@ -194,6 +194,177 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByRole('button', { name: 'db_a 연동 논리 DB 목록 보기' })).toBeTruthy();
       expect(screen.getByRole('button', { name: 'db_b 연동 논리 DB 목록 보기' })).toBeTruthy();
       expect(screen.queryByText(/대상 ·/)).toBeNull();
+    });
+
+    // — is where a value we do not have goes. Athena·DynamoDB have no logical-DB management at
+    // all, so a dash there reads as missing data and sends the user looking for it.
+    it('answers 설정 불필요, not —, where logical DBs do not exist', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            { ...athena('db_a', 'ap-northeast-1', true), resourceType: 'athena' },
+            {
+              resourceId: 'rds-1',
+              resourceType: 'mysql',
+              region: 'ap-northeast-1',
+              resourceName: 'rds-1',
+              selected: true,
+              // Counts not loaded yet — this one genuinely IS unknown, so it keeps the dash.
+              logicalDbCount: null,
+              excludedLogicalDbCount: null,
+            },
+          ]}
+        />,
+      );
+
+      const rows = screen.getAllByRole('row');
+      expect(within(rows[1]).getAllByRole('cell').slice(4).map((td) => td.textContent)).toEqual([
+        '설정 불필요',
+        '설정 불필요',
+      ]);
+      expect(within(rows[2]).getAllByRole('cell').slice(4).map((td) => td.textContent)).toEqual([
+        '—',
+        '—',
+      ]);
+    });
+
+    // An engine we were not told is not an engine without logical DBs. `database_type` is
+    // optional in the contract, and claiming 설정 불필요 there hid three real target databases
+    // on the final-approval screen and removed the 설정 button that reaches them.
+    it('keeps the counts when the engine is missing, rather than claiming 설정 불필요', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              resourceId: 'unknown-engine-1',
+              resourceType: '',
+              region: 'ap-northeast-1',
+              resourceName: 'unknown-engine-1',
+              selected: true,
+              logicalDbCount: 3,
+              excludedLogicalDbCount: 0,
+            },
+          ]}
+        />,
+      );
+
+      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell').slice(4);
+      expect(cells.map((td) => td.textContent)).toEqual(['3개', '0개']);
+    });
+
+    it('folds a region row to its databases, closed by default (steps 6·7)', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              ...athena('unused', 'ap-northeast-1', true),
+              resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
+              // Steps 6·7 read `database_type` off the confirmed-integration contract, not the
+              // scan's `resource_type` the fixture above carries.
+              resourceType: 'athena',
+              foldedMembers: [
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/integration', resourceName: 'integration' },
+              ],
+            },
+          ]}
+        />,
+      );
+
+      // Closed: the region is one row and says what it is, not what a database is called.
+      expect(screen.getAllByRole('row')).toHaveLength(2);
+      expect(screen.queryByText('sampledb')).toBeNull();
+      const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+      expect(cells[0].textContent).toBe('Athena');
+      expect(cells[3].textContent).toBe('ap-northeast-1');
+
+      fireEvent.click(screen.getByRole('button', { name: /데이터베이스 목록 펼치기$/ }));
+
+      const rows = screen.getAllByRole('row');
+      expect(rows).toHaveLength(4);
+      // Read down the tree: Athena → Database. The name alone is just a string.
+      for (const row of rows.slice(2)) {
+        expect(within(row).getAllByRole('cell')[2].textContent).toBe('Database');
+      }
+      expect(screen.getByText('sampledb')).toBeTruthy();
+      expect(screen.getByText('integration')).toBeTruthy();
+    });
+
+    // `resource_name` is optional, so two unnamed databases in one region would collide on a ''
+    // React key and one of them would be dropped. The id is what is unique.
+    it('keys folded children on the id, so unnamed databases do not collide', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              ...athena('unused', 'ap-northeast-1', true),
+              resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
+              resourceType: 'athena',
+              foldedMembers: [
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/a', resourceName: '' },
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/b', resourceName: '' },
+              ],
+            },
+          ]}
+          expandFolds
+        />,
+      );
+
+      // Both survive — header + region + two children.
+      expect(screen.getAllByRole('row')).toHaveLength(4);
+      expect(screen.getAllByText('—')).toHaveLength(2);
+    });
+
+    // The row toggles on click and this cell holds a copy button; without the guard, copying
+    // the region id also opened the fold.
+    it('does not toggle the fold when the Resource ID copy button is clicked', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              ...athena('unused', 'ap-northeast-1', true),
+              resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
+              resourceType: 'athena',
+              foldedMembers: [
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
+              ],
+            },
+          ]}
+        />,
+      );
+
+      expect(screen.getAllByRole('row')).toHaveLength(2);
+      fireEvent.click(screen.getByRole('button', { name: /Resource ID/ }));
+      expect(screen.getAllByRole('row')).toHaveLength(2);
+      expect(screen.queryByText('sampledb')).toBeNull();
+    });
+
+    // A row can be in the filtered list because of a database inside its fold. Leaving it shut
+    // shows a region that does not visibly contain what the user typed.
+    it('opens every fold while the list is narrowed', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            {
+              ...athena('unused', 'ap-northeast-1', true),
+              resourceId: 'athena:1:ap-northeast-1/AwsDataCatalog',
+              resourceType: 'athena',
+              foldedMembers: [
+                { resourceId: 'athena:1:ap-northeast-1:AwsDataCatalog/sampledb', resourceName: 'sampledb' },
+              ],
+            },
+          ]}
+          expandFolds
+        />,
+      );
+
+      expect(screen.getByText('sampledb')).toBeTruthy();
     });
   });
 });

@@ -466,6 +466,28 @@ export const needsCredential = (databaseType: DatabaseType): boolean => {
   return ['mysql', 'postgresql', 'redshift'].includes(databaseType.toLowerCase());
 };
 
+/**
+ * 이 엔진이 논리 DB 라는 개념을 갖는가.
+ *
+ * Athena·DynamoDB 는 IAM 기반이라 논리 DB 관리 자체가 없다 — 값이 아직 안 온 것이 아니라
+ * 물어볼 것이 없다. 그래서 빈 값(—)이 아니라 "설정 불필요"로 답해야 한다. — 는 "모른다"고
+ * 말하는 자리이므로, 없는 개념에 쓰면 없는 데이터처럼 읽힌다.
+ *
+ * `needsCredential` 을 이 판정에 재사용하면 안 된다: mssql·oracle·mongodb 도 false 지만
+ * 논리 DB 는 있다.
+ *
+ * 목록은 "없는 쪽"을 나열한다. 나중에 엔진이 추가되면 "논리 DB 가 있다"로 떨어지는 것이
+ * 안전한 기본값이기 때문이다 — 반대로 두면 새 관계형 엔진이 조용히 설정 불필요라고 말한다.
+ *
+ * 엔진을 모를 때(null·빈 문자열)도 같은 이유로 true 다. database_type 은 계약상 optional 인데
+ * (install-v1.yaml ResourceConfigDto), 비었다고 "설정 불필요"라고 답하면 없는 사실을 단정하면서
+ * 실제로 있는 논리 DB 수를 숨기고 설정 버튼까지 없앤다 — 모르는 것과 없는 것은 다르다.
+ */
+const NO_LOGICAL_DATABASES = ['athena', 'dynamodb'];
+
+export const hasLogicalDatabases = (databaseType: string | null | undefined): boolean =>
+  !databaseType || !NO_LOGICAL_DATABASES.includes(databaseType.toLowerCase());
+
 /** 설치 불가 리소스 판별 (integrationCategory 기반) */
 export const isInstallIneligible = (resource: MockResource): boolean =>
   resource.integrationCategory === 'INSTALL_INELIGIBLE';

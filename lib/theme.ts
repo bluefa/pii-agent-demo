@@ -966,14 +966,25 @@ export const idcStyles = {
       /** Identity cluster inside the parent's first cell. */
       lead: 'flex items-center gap-2',
       /**
-       * Chevron toggle — 20px box, v16 `.athena-expand-btn` size in the neutral palette.
-       * No border/fill at rest: a bordered white box reads as a chip and competed with the
-       * label right beside it. The hit area stays 20px; hover paints it.
+       * Chevron toggle — 20px box, v16 `.athena-expand-btn` size. No border/fill at rest: a
+       * bordered white box reads as a chip and competed with the label right beside it. The
+       * hit area stays 20px; hover paints it. Colour belongs to the state tokens below —
+       * closed and open are not the same job.
        */
       toggle:
-        'inline-grid h-5 w-5 shrink-0 place-items-center rounded-[5px] text-[#8B95A1] hover:bg-[#EBEEF2] hover:text-[#4E5968] transition-[transform,background-color,color] duration-150 motion-reduce:transition-none',
-      /** Applied to `toggle` while the group is open — chevron-right → chevron-down. */
-      toggleOpen: 'rotate-90',
+        'inline-grid h-5 w-5 shrink-0 place-items-center rounded-[5px] transition-[transform,background-color,color] duration-150 motion-reduce:transition-none',
+      /**
+       * Closed — the one state that has to advertise itself. A collapsed row is otherwise
+       * indistinguishable from a plain row, so the chevron carries the primary hue, the app's
+       * single interactive colour, over its own tint on hover. Both values are the palette's
+       * existing primary pair (#0064FF on #E8F1FF) — the selected-chip pair, not a new blue.
+       */
+      toggleClosed: 'text-[#0064FF] hover:bg-[#E8F1FF]',
+      /**
+       * Open — chevron-right → chevron-down, and the colour recedes to neutral. The rail
+       * below now draws the group; keeping the control blue would say it a second time.
+       */
+      toggleOpen: 'rotate-90 text-[#8B95A1] hover:bg-[#EBEEF2] hover:text-[#4E5968]',
       /**
        * Service label — one tier BELOW the child rows' name, not above it. The parent is
        * context, not the headline: the rows a user acts on are the databases. Same 14px mono
@@ -999,17 +1010,12 @@ export const idcStyles = {
       /** Last child — the rail stops at its elbow, closing the group. */
       childCellLast: 'before:bottom-1/2',
       /**
-       * Same rail for the db-list table (`table.cell`), whose cells pad 16px, not 18px.
-       *   16..36 chevron → rail x = 26 · 56 child name (26 + 18 elbow + 12)
-       * Tighter than the approval table's 24px tier because Resource Name is 180px wide here
-       * and the children only carry a database name.
+       * Parent's own name cell — carries the rail's first segment down to the first child.
+       *
+       * Apply ONLY while the group is open. A closed group has nothing below it, so the segment
+       * dangled off the chevron pointing at an unrelated row and read as a rendering fault. Closed
+       * state is the chevron alone.
        */
-      childCellSm:
-        "relative pl-[56px] before:absolute before:bottom-0 before:left-[26px] before:top-0 before:w-px before:bg-[#C4CEDA] before:content-[''] after:absolute after:left-[26px] after:top-1/2 after:h-px after:w-[18px] after:bg-[#C4CEDA] after:content-['']",
-      /** Parent's disclosure cell in that same table. */
-      parentCellSm:
-        "relative after:absolute after:-bottom-px after:left-[26px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
-      /** Parent's own name cell — carries the rail's first segment down to the first child. */
       parentCell:
         "relative after:absolute after:-bottom-px after:left-[28px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
     },

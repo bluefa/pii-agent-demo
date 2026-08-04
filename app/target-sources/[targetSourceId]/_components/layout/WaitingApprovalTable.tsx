@@ -2,7 +2,7 @@
 
 import { Fragment, memo, useMemo, useState } from 'react';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { ChevronRightIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
@@ -13,6 +13,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
 import { GROUPED_CHILD_KIND_LABEL, groupResourceRows } from '@/lib/resource-grouping';
+import { hasLogicalDatabases } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
   type InstallStepCell,
@@ -42,6 +43,23 @@ export interface WaitingApprovalResource {
    */
   logicalDbCount?: number | null;
   excludedLogicalDbCount?: number | null;
+  /**
+   * `confirmed` variant only — the databases this row stands for when it is a folded Athena
+   * region. Present means the row IS the region: the identity cell carries the disclosure and
+   * the engine's label instead of a resource name, and opening it lists these underneath.
+   * Absent (the normal case) leaves the row exactly as it was.
+   *
+   * Carries the id, not just the name: `resource_name` is optional in the contract, so two
+   * unnamed databases in one region would collide on a '' React key — the same hazard the row
+   * key below already guards against.
+   */
+  foldedMembers?: readonly { resourceId: string; resourceName: string }[];
+  /**
+   * Extra text the caller's search should match, never rendered. A folded row is named by the
+   * engine, so its databases would otherwise become unfindable the moment they are collapsed
+   * behind the disclosure.
+   */
+  searchText?: string;
   /**
    * `install` variant only — the selected install step's state for this resource. The step nav
    * picks which cell lands here, so the same row renders a different status per step.
@@ -84,6 +102,12 @@ interface WaitingApprovalTableProps {
    * `host:port`.
    */
   regionLabel?: string;
+  /**
+   * Force every folded region open. Pass this while a search or filter is narrowing the list:
+   * a row can match on a database that is collapsed behind the disclosure, and leaving it shut
+   * shows the user a region that does not visibly contain what they typed.
+   */
+  expandFolds?: boolean;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -128,7 +152,7 @@ export const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E
 export const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
 // The DARK primary, not #0064FF — see primaryColors.textGroupHover for why (contrast under the
 // row's hover background). Lighter is not available: #0064FF is already below AA there.
-const NAME_LIFT = primaryColors.textGroupHover;
+export const NAME_LIFT = primaryColors.textGroupHover;
 
 // Excluded rows REST one tier dimmer: all four text cells drop to #6B7280 — 4.63:1 on the
 // #F9FAFB tint, AA with margin, where the full-strength text made 제외 rows read identical to
@@ -140,6 +164,15 @@ const NAME_LIFT = primaryColors.textGroupHover;
 export const DIM_TEXT = 'text-[#6B7280]';
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
+
+/** 논리 DB 라는 개념이 없는 엔진의 답 — see `hasLogicalDatabases`. */
+export const NO_LOGICAL_DB_TEXT = '설정 불필요';
+
+const NoLogicalDbCell = () => (
+  <span className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}>
+    {NO_LOGICAL_DB_TEXT}
+  </span>
+);
 
 const PLACEHOLDER = '—';
 
@@ -239,18 +272,18 @@ export const WaitingApprovalTable = memo(
     emptyMessage,
     connected = false,
     regionLabel = 'Region',
+    expandFolds = false,
   }: WaitingApprovalTableProps) => {
     // Athena arrives as many rows of one catalog family per region; grouping restores the
     // parent it belongs to (LIN-85). Groups start OPEN — the approval table is the "review
     // everything before you approve" surface, so nothing may be hidden by default.
     //
-    // ONLY the `approval` variant groups. From step 4 on the region IS the resource — step 4
-    // (`install`) already receives one Athena row per region, keyed on
-    // `athena_region_resource_id`, and step 5 folds onto the same key; steps 6·7 (`confirmed`)
-    // still list databases but a parent-with-children tree would assert a shape they do not
-    // have, and Athena has no logical-DB or credential column to aggregate anyway (it is
-    // IAM-based). Written as an allow-list, not `!== 'confirmed'`: that phrasing opted the
-    // install variant in the moment it was added, and drew a second Region cell on step 4.
+    // ONLY the `approval` variant builds a TREE. From step 4 on the region IS the resource —
+    // step 4 (`install`) already receives one Athena row per region keyed on
+    // `athena_region_resource_id`, and steps 5·6·7 fold onto that same key, which is a row that
+    // STANDS FOR the region rather than a parent above its children (see `foldedMembers`).
+    // Written as an allow-list, not `!== 'confirmed'`: that phrasing opted the install variant
+    // in the moment it was added, and drew a second Region cell on step 4.
     const grouped = variant === 'approval';
     const sections = useMemo(
       () =>
@@ -264,9 +297,20 @@ export const WaitingApprovalTable = memo(
       [resources, grouped],
     );
     const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
+    const [expandedFolds, setExpandedFolds] = useState<ReadonlySet<string>>(() => new Set());
 
     const toggleGroup = (key: string) =>
       setCollapsedGroups((previous) => {
+        const next = new Set(previous);
+        if (!next.delete(key)) next.add(key);
+        return next;
+      });
+
+    // Which folded Athena regions are open (steps 6·7). CLOSED by default, the opposite of the
+    // approval groups above: there the user is reviewing every database before approving, here
+    // the region is the unit and its databases are reference.
+    const toggleFold = (key: string) =>
+      setExpandedFolds((previous) => {
         const next = new Set(previous);
         if (!next.delete(key)) next.add(key);
         return next;
@@ -286,13 +330,19 @@ export const WaitingApprovalTable = memo(
     // stands alone or hangs under a parent, so a group never changes what a row says.
     const renderRow = (resource: WaitingApprovalResource, grouped = false, lastInGroup = false) => {
       const excluded = !resource.selected;
-      return (
+      const rowKey = resource.rowKey || resource.resourceId || resource.resourceName;
+      // A folded row STANDS FOR an Athena region (steps 6·7) — see `foldedMembers`.
+      const members = resource.foldedMembers;
+      const folded = !!members?.length;
+      const open = folded && (expandFolds || expandedFolds.has(rowKey));
+      const row = (
         <tr
           // `resource_id` is optional in the contract, so two id-less rows would collide on
           // one '' key and React would drop a row. `rowKey` is for consumers that HAVE an
           // identity they may not render (IDC's internal NLB key — design-spec §8).
-          key={resource.rowKey || resource.resourceId || resource.resourceName}
-          className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
+          key={rowKey}
+          className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, folded && 'cursor-pointer')}
+          onClick={folded ? () => toggleFold(rowKey) : undefined}
         >
           {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
               block and left row heights ragged (59/69/75px); the full name is in the tip. */}
@@ -304,22 +354,59 @@ export const WaitingApprovalTable = memo(
               NAME_LIFT,
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
+              folded && open && idcStyles.table.group.parentCell,
             )}
           >
-            <Tooltip
-              content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
-              variant="value"
-              size="md"
-              triggerClassName="min-w-0 max-w-[200px] block"
-              truncatedOnly
-            >
-              <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
-            </Tooltip>
+            {folded ? (
+              // A region has no resource name, so the cell carries the engine's label instead.
+              // It reads in the SAME type as every other name in this column, NOT in the group
+              // parent's heavier weight above: that weight separates a parent from the children
+              // right under it, and here the row's neighbours are ordinary resources.
+              <span className={idcStyles.table.group.lead}>
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-label={`${getDatabaseShortLabel(resource.resourceType)} ${resource.region} 데이터베이스 목록 ${open ? '접기' : '펼치기'}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleFold(rowKey);
+                  }}
+                  className={cn(
+                    idcStyles.table.group.toggle,
+                    open
+                      ? idcStyles.table.group.toggleOpen
+                      : idcStyles.table.group.toggleClosed,
+                    primaryColors.focusRing,
+                  )}
+                >
+                  <ChevronRightIcon className="h-3.5 w-3.5" />
+                </button>
+                <span className="whitespace-nowrap">
+                  {getDatabaseShortLabel(resource.resourceType)}
+                </span>
+              </span>
+            ) : (
+              <Tooltip
+                content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
+                variant="value"
+                size="md"
+                triggerClassName="min-w-0 max-w-[200px] block"
+                truncatedOnly
+              >
+                <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+              </Tooltip>
+            )}
           </td>
           {/* Inside a group the id is dropped: it is the parent's own path with the child's name
               tacked on (`athena:<acct>:<region>/<catalog>/test_raw`), so every child repeated the
               group's identity and then said its name a second time. */}
-          <td className={idcStyles.table.approvalCell}>
+          {/* A folded row toggles on click, and this cell holds a copy button — without the
+              guard, copying the region id also opened the fold. The chevron above stops its
+              own propagation for the same reason. */}
+          <td
+            className={idcStyles.table.approvalCell}
+            onClick={folded ? (event) => event.stopPropagation() : undefined}
+          >
             {/* An absent id renders nothing rather than a bare control: a consumer that
                 withholds it (IDC's resource_id is internal) would otherwise get a
                 focusable "Resource ID 복사" on every row, copying ''. */}
@@ -364,22 +451,37 @@ export const WaitingApprovalTable = memo(
             </>
           )}
           {confirmedVariant ? (
-            <>
-              <td className={idcStyles.table.approvalCell}>
-                <LogicalDbCountCell
-                  count={resource.logicalDbCount}
-                  label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
-                  onOpen={() => onLogicalDbOpen?.(resource)}
-                />
-              </td>
-              <td className={idcStyles.table.approvalCell}>
-                <LogicalDbCountCell
-                  count={resource.excludedLogicalDbCount}
-                  label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
-                  onOpen={() => onLogicalDbOpen?.(resource)}
-                />
-              </td>
-            </>
+            /* Athena·DynamoDB have no logical-DB management at all, so both columns answer
+               설정 불필요 rather than —. The dash is where a value we do not have goes; on a
+               concept that does not exist it reads as missing data and sends the user looking
+               for it. Step 5's 논리 DB 확인 says the same words for the same reason. */
+            hasLogicalDatabases(resource.displayDbType ?? resource.resourceType) ? (
+              <>
+                <td className={idcStyles.table.approvalCell}>
+                  <LogicalDbCountCell
+                    count={resource.logicalDbCount}
+                    label={`${resource.resourceName || resource.resourceId} 연동 논리 DB 목록 보기`}
+                    onOpen={() => onLogicalDbOpen?.(resource)}
+                  />
+                </td>
+                <td className={idcStyles.table.approvalCell}>
+                  <LogicalDbCountCell
+                    count={resource.excludedLogicalDbCount}
+                    label={`${resource.resourceName || resource.resourceId} 연동 제외 대상 보기`}
+                    onOpen={() => onLogicalDbOpen?.(resource)}
+                  />
+                </td>
+              </>
+            ) : (
+              <>
+                <td className={idcStyles.table.approvalCell}>
+                  <NoLogicalDbCell />
+                </td>
+                <td className={idcStyles.table.approvalCell}>
+                  <NoLogicalDbCell />
+                </td>
+              </>
+            )
           ) : installVariant ? (
             <>
               <td className={idcStyles.table.approvalCell}>
@@ -410,6 +512,39 @@ export const WaitingApprovalTable = memo(
             </>
           )}
         </tr>
+      );
+
+      if (!folded) return row;
+      return (
+        <Fragment key={rowKey}>
+          {row}
+          {/* The region's databases. Name, and what the name IS — read down the column it
+              says Athena → Database, as on steps 1·2·3. Everything else is the region's own
+              answer and does not vary per database, so those cells stay empty. */}
+          {open &&
+            members.map((member, index) => (
+              <tr key={member.resourceId}>
+                <td
+                  className={cn(
+                    idcStyles.table.approvalCell,
+                    'font-mono text-[14px]',
+                    textColors.primary,
+                    idcStyles.table.group.childCell,
+                    index === members.length - 1 && idcStyles.table.group.childCellLast,
+                  )}
+                >
+                  {member.resourceName || PLACEHOLDER}
+                </td>
+                <td className={idcStyles.table.approvalCell} />
+                <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary)}>
+                  {GROUPED_CHILD_KIND_LABEL}
+                </td>
+                <td className={idcStyles.table.approvalCell} />
+                <td className={idcStyles.table.approvalCell} />
+                <td className={idcStyles.table.approvalCell} />
+              </tr>
+            ))}
+        </Fragment>
       );
     };
 

@@ -40,12 +40,12 @@ export const useApprovalTableState = (
    */
   labelOfDbType: (resource: WaitingApprovalResource) => string = dbTypeLabel,
   /**
-   * Whether Athena rows fold into one group per region for pagination (LIN-85).
+   * Whether Athena rows group into one parent per region for pagination (LIN-85).
    *
    * True for the DB-level steps 1·2·3, where a group is one pageable resource carrying its
-   * databases. False for steps 6·7: there Athena is supposed to be ONE region row rather than a
-   * parent with database children, and that fold is a separate change — see the spec note on
-   * `ResourceGroupRow`. Pretending to group there would page a shape the table never renders.
+   * databases. False for steps 6·7: there the caller has already folded Athena into ONE region
+   * row before handing the list over, so every row is a unit and grouping again would page a
+   * shape the table never renders.
    */
   groupRows = true,
 ) => {
@@ -87,7 +87,11 @@ export const useApprovalTableState = (
       if (search) {
         const hayId = resource.resourceId.toLowerCase();
         const hayName = resource.resourceName.toLowerCase();
-        if (!hayId.includes(search) && !hayName.includes(search)) return false;
+        // `searchText` carries what a row represents but does not print — a folded Athena region
+        // is named by its engine, so without it its databases go unfindable once collapsed.
+        const hayExtra = resource.searchText?.toLowerCase() ?? '';
+        if (!hayId.includes(search) && !hayName.includes(search) && !hayExtra.includes(search))
+          return false;
       }
       return true;
     });

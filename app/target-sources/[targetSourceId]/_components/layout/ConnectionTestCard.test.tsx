@@ -116,19 +116,21 @@ describe('ConnectionTestCard', () => {
     approvalModalProps.mockClear();
   });
 
-  it('renders the 7 v16 connection-test columns', () => {
+  // ORDER is the assertion, not just presence: this table shows the same resources steps
+  // 1·2·3 just showed, so it opens on the same anchor (name → attributes → what this step
+  // asks). Resource ID is the one column those steps carry that this one drops — seven
+  // columns at the approval gutters overflow the card, and it is the only one nothing here
+  // is decided by.
+  it('reads in the steps 1·2·3 column order, without their Resource ID', () => {
     renderCard([makeResource()]);
-    for (const header of [
-      'Database Type',
-      'Resource ID',
-      'Region',
+    expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
       'Resource Name',
+      'Database Type',
+      'Region',
       'DB Credential',
       'Connection Status',
       '논리 DB 확인',
-    ]) {
-      expect(screen.getByRole('columnheader', { name: header })).toBeTruthy();
-    }
+    ]);
   });
 
   it('opens every credentialed row as Pending (step5 is pre-test)', () => {
