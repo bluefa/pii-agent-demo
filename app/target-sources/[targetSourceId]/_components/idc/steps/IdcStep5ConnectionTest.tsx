@@ -277,6 +277,7 @@ export const IdcStep5ConnectionTest = ({
       <section className={cardStyles.base}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
+            <span className={cardStyles.stepTag}>5번째 단계</span>
             <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
             <p className={cn('mt-2.5', cardStyles.subtitle)}>
               DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.

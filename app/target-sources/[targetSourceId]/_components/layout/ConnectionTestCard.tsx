@@ -306,6 +306,7 @@ export const ConnectionTestCard = ({
     <section className={cardStyles.base}>
       <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
         <div>
+          <span className={cardStyles.stepTag}>5번째 단계</span>
           <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
           <p className={cn('mt-2.5', cardStyles.subtitle)}>
             DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
@@ -628,8 +629,11 @@ export const ConnectionTestCard = ({
         )}
       </div>
       {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. */}
+      {/* 실제 게이트만 말한다: canRequestApproval = 모든 대상 Success + 이번 실행이 settled.
+          논리 DB 확인은 이 버튼을 막지 않는데 "완료되어야"라고 적혀 있어, 설정할 것이 없는
+          대상(Athena·DynamoDB)만 남은 화면에서는 끝낼 수 없는 조건처럼 읽혔다. */}
       <CardActionBar
-        hint="※ 모든 DB의 Connection Status가 Success이고 논리 DB 확인 설정이 완료되어야 다음 단계로 진행할 수 있어요."
+        hint="※ 모든 대상의 Connection Status가 Success여야 완료 승인을 요청할 수 있어요. 논리 DB 확인은 제외할 논리 DB가 있는 대상만 설정하면 돼요."
       >
         <button
           type="button"
