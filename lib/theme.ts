@@ -117,7 +117,7 @@ export const primaryColors = {
 export const statusColors = {
   success: {
     bg: 'bg-[#45CB85]/10',
-    text: 'text-[#45CB85]',
+    text: 'text-[#2A7D52]',
     textDark: 'text-[#2A7D52]',
     border: 'border-[#45CB85]/30',
     dot: 'bg-[#45CB85]',
@@ -178,7 +178,7 @@ export const providerColors = {
   AWS: {
     border: 'border-[#FF9900]',
     bg: 'bg-[#FF9900]/5',
-    text: 'text-[#FF9900]',
+    text: 'text-[#FF9900]', // design-exempt: brand logotype (WCAG 1.4.11)
     bar: 'bg-[#FF9900]',
     gradient: 'bg-gradient-to-r from-[#FF9900] via-[#FFA936] to-[#FFC266]',
   },
@@ -192,7 +192,7 @@ export const providerColors = {
   GCP: {
     border: 'border-[#4285F4]',
     bg: 'bg-[#4285F4]/5',
-    text: 'text-[#4285F4]',
+    text: 'text-[#4285F4]', // design-exempt: brand logotype (WCAG 1.4.11)
     bar: 'bg-[#4285F4]',
     gradient: 'bg-gradient-to-r from-[#4285F4] via-[#34A853] to-[#FBBC04]',
   },
@@ -288,7 +288,7 @@ export const buttonStyles = {
     success: 'bg-[#45CB85] text-white hover:bg-[#3AB574] shadow-sm hover:shadow',
     ghost: 'bg-transparent text-gray-600 hover:bg-gray-100',
     /** Soft Primary — light blue fill + primary text (결정 #58, secondary CTA). */
-    soft: 'bg-blue-50 text-[#0064FF] hover:bg-blue-100',
+    soft: 'bg-blue-50 text-[#0050D6] hover:bg-blue-100',
     /** Warn outline — amber outline for overwrite/reload actions (결정 #42). */
     warnOutline: 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100',
     /** v15 danger-outline — soft red fill, no border (#FEF2F2 / #991B1B / 600). */
@@ -358,15 +358,15 @@ export const cardStyles = {
   stepBadge: 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
   /**
    * Step-card guidance paragraph — what happened and what to do next, one tier under the title.
-   * 16px rather than the 13.5px `subtitle`: this copy is read, not skimmed. Declared as its own
+   * 16px rather than the 14px `subtitle`: this copy is read, not skimmed. Declared as its own
    * token because `cn` is a plain join, so layering a size over `subtitle` left the winner to CSS
    * order — every step card had re-declared the size inline to dodge that.
    */
   guidance: `text-[16px] font-medium leading-[1.55] ${textColors.tertiary}`,
-  /** Paragraph beneath a display title (ADR-014 card-subtitle) — v15 13.5/500/#8B95A1. */
-  subtitle: 'text-[13.5px] font-medium text-[#8B95A1] leading-[1.55]',
+  /** Paragraph beneath a display title (ADR-014 card-subtitle) — 14/500/#6B7684. */
+  subtitle: 'text-[14px] font-medium text-[#6B7684] leading-[1.55]',
   /** Inline "Provider: X" indicator in a card header — weak label + strong name. */
-  providerTag: 'text-[11.5px] text-[#8B95A1]',
+  providerTag: 'text-[12px] text-[#6B7684]',
   providerTagName: 'text-[#191F28]',
   /** Guide CMS editor wrapper — single border + radius-8 + overflow-hidden */
   editorFrame: 'border border-gray-200 rounded-lg bg-white overflow-hidden',
@@ -426,7 +426,7 @@ export const pageHeaderTitleStyle =
   'text-[24px] font-extrabold leading-[1.2] tracking-[-0.03em] text-[#191F28]';
 
 /** Muted suffix inside the page H1 (e.g. the "(serviceCode)" parens) — inherits the H1 size, weak Toss gray. */
-export const pageHeaderTitleMutedStyle = 'font-medium text-[#8B95A1]';
+export const pageHeaderTitleMutedStyle = 'font-medium text-[#6B7684]';
 
 /** "인프라 삭제" chip — quiet danger-outline (red-50 fill, red-200 border, red-800 text). */
 export const deleteInfraButtonStyle =
@@ -468,18 +468,18 @@ export const identityBarStyles = {
   providerIcon:
     'grid place-items-center w-[38px] h-[38px] rounded-[10px] flex-shrink-0 bg-[color-mix(in_srgb,var(--ib-accent)_12%,transparent)] text-[var(--ib-accent)]',
   providerName: 'text-[17px] font-bold tracking-[-0.025em] leading-[1.2] text-[#191F28]',
-  providerSub: 'mt-[3px] text-[12px] font-semibold tracking-normal text-[#8B95A1]',
+  providerSub: 'mt-[3px] text-[12px] font-semibold tracking-normal text-[#6B7684]',
   divider: 'self-stretch w-px my-1 flex-shrink-0 bg-[#EBEEF2]',
   field: 'flex flex-col gap-1 min-w-0',
-  key: 'text-[12px] font-semibold tracking-normal text-[#8B95A1]',
+  key: 'text-[12px] font-semibold tracking-normal text-[#6B7684]',
   idRow: 'inline-flex items-center gap-1.5',
   mono: 'font-mono text-[13px] font-semibold tracking-normal leading-[1.3] text-[#191F28]',
   /** Non-mono field value — same weight/color as `mono` so plain values (e.g. TF 실행 권한) don't render in the inherited faint gray. */
   value: 'min-w-0 truncate text-[13px] font-semibold tracking-[-0.005em] leading-[1.3] text-[#191F28]',
   copyBase:
     'inline-grid place-items-center w-6 h-6 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,color] duration-[120ms]',
-  copyIdle: 'text-[#8B95A1] hover:bg-[#F7F8FA] hover:text-[#191F28]',
-  copyCopied: 'text-[#14B96E]',
+  copyIdle: 'text-[#6B7684] hover:bg-[#F7F8FA] hover:text-[#191F28]',
+  copyCopied: 'text-[#2A7D52]',
   spacer: 'flex-1',
   agent:
     'inline-flex items-center gap-[7px] flex-shrink-0 px-[13px] py-[7px] rounded-full leading-none text-[13px] font-bold tracking-[-0.005em] bg-[color-mix(in_srgb,var(--ib-accent)_10%,transparent)] text-[var(--ib-accent)]',
@@ -594,8 +594,8 @@ export const navStyles = {
   /** Thin vertical separator between nav clusters on the dark bar. */
   divider: 'h-5 w-px shrink-0 bg-white/15',
   brand: {
-    wordmark: 'text-[#C5C6C7]',
-    tagline: 'text-[#66FCF1]',
+    wordmark: 'text-[#C5C6C7]', // design-exempt: sits on navStyles.bg (slate-900)
+    tagline: 'text-[#66FCF1]', // design-exempt: sits on navStyles.bg (slate-900)
   },
   link: {
     inactive: 'text-slate-300 hover:bg-white/5 hover:text-white',
@@ -780,7 +780,7 @@ export const idcStyles = {
   /** Field-level error under an input — `.idc-field-err` (#DC2626 / 11.5px). */
   fieldError: 'mt-1 text-[11.5px] text-[#DC2626]',
   /** Add-IP button — `.idc-add-ip` (12.5px / 600 / primary / no border / radius 6 / mt 10). */
-  addIp: 'mt-2.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12.5px] font-semibold text-[#0064FF] hover:bg-[#E8F1FF] disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-transparent',
+  addIp: 'mt-2.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-semibold text-[#0064FF] hover:bg-[#E8F1FF] hover:text-[#0050D6] disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-transparent',
   /** Remove-IP icon button — `.rm-ip` (30×30 / radius 7 / fg-3 / red hover). */
   removeIp: 'inline-flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[7px] text-gray-500 transition-colors hover:bg-[#FEECEC] hover:text-[#B42318]',
   /** Row hover action (edit) — `.idc-row-actions button` (26×26 / radius 6 / fg-3). */
@@ -800,7 +800,7 @@ export const idcStyles = {
     chipRow: 'flex flex-wrap gap-1.5 px-2.5 pb-1.5',
     chip: `rounded-[6px] border px-3 py-1.5 text-[13px] transition-colors ${tossShadow.lg}`,
     chipRest: 'border-gray-200 bg-white font-medium text-gray-700 hover:border-[#0064FF] hover:text-[#0064FF]',
-    chipSelected: 'border-[#0064FF] bg-[#E8F1FF] font-semibold text-[#0064FF]',
+    chipSelected: 'border-[#0064FF] bg-[#E8F1FF] font-semibold text-[#0050D6]',
     // 직접 입력은 텍스트 버튼(언더라인) — 칩(값)과 형태를 달리해 행동으로 읽히게.
     // 구분선 없이 여백만으로 칩 구역과 가른다. hover는 색 다크닝만으로는 약해서
     // 브랜드 틴트 필을 깔아 "눌러서 입력/수정한다"는 신호를 준다.
@@ -820,7 +820,7 @@ export const idcStyles = {
   /** In-card / step CTA buttons — `.btn` base (h40 / radius12 / 14px / 700) + variants. */
   triggerBtn: {
     primary: 'inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0064FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
-    soft: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#E8F1FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-[#0064FF] transition-colors hover:bg-[#D6E7FF]',
+    soft: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#E8F1FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-[#0050D6] transition-colors hover:bg-[#D6E7FF]',
     warnOutline: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#FEF3C7] px-[18px] text-[14px] font-semibold tracking-[-0.01em] text-[#92400E] transition-colors hover:bg-[#FDE68A]',
     /** Small blue ghost — v16 `.btn.sm.ghost` (the in-table "set" action). Disabled = opacity-45. */
     ghostSm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] px-3 text-[13px] font-bold text-[#0064FF] transition-colors hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
@@ -854,7 +854,7 @@ export const idcStyles = {
     sub: 'mt-4 max-w-[60ch] text-[13px] font-medium leading-[1.6] text-[#6B7280]',
     warn: 'mt-3 rounded-[10px] border border-[#F8D2D0] bg-[#FEF1F1] px-3.5 py-[11px] text-[12.5px] leading-[1.5] text-[#B42318]',
     /** `.req-modal .db-list-table th` override — 11px uppercase #9CA3AF (v16 2682). */
-    thHeader: 'bg-[#FAFBFC] text-left text-[11px] font-bold uppercase tracking-[0.05em] text-[#9CA3AF]',
+    thHeader: 'bg-[#FAFBFC] text-left text-[12px] font-bold uppercase tracking-[0.05em] text-[#6B7280]',
     /** `.req-modal .approval-stat .lbl` — 11.5px (v16 req override). */
     statLabel: 'text-[11.5px]',
     /** `.rm-num` excluded logical-DB count — amber (v16 raRender exclCell #B45309). */
@@ -880,7 +880,7 @@ export const idcStyles = {
       fail: 'text-[#B42318]',
     },
     accent: {
-      idle: 'text-[#8B95A1]',
+      idle: 'text-[#6B7684]',
       running: 'text-[#0064FF]',
       pending: 'text-[#B45309]',
       success: 'text-[#197A3F]',
@@ -888,7 +888,7 @@ export const idcStyles = {
     },
     icon: 'inline-grid place-items-center w-[18px] h-[18px] flex-shrink-0',
     meta: 'flex items-center gap-3.5',
-    counts: 'text-[12px] font-medium text-[#8B95A1] [font-variant-numeric:tabular-nums]',
+    counts: 'text-[12px] font-medium text-[#6B7684] [font-variant-numeric:tabular-nums]',
     pct: 'min-w-[46px] text-right text-[16px] font-extrabold tracking-[-0.02em] [font-variant-numeric:tabular-nums]',
     track: 'relative h-2 overflow-hidden rounded-full bg-[#E4E7EC]',
     fill: 'relative h-full rounded-full transition-[width] duration-500',
@@ -979,19 +979,19 @@ export const idcStyles = {
        * single interactive colour, over its own tint on hover. Both values are the palette's
        * existing primary pair (#0064FF on #E8F1FF) — the selected-chip pair, not a new blue.
        */
-      toggleClosed: 'text-[#0064FF] hover:bg-[#E8F1FF]',
+      toggleClosed: 'text-[#0064FF] hover:bg-[#E8F1FF] hover:text-[#0050D6]',
       /**
        * Open — chevron-right → chevron-down, and the colour recedes to neutral. The rail
        * below now draws the group; keeping the control blue would say it a second time.
        */
-      toggleOpen: 'rotate-90 text-[#8B95A1] hover:bg-[#EBEEF2] hover:text-[#4E5968]',
+      toggleOpen: 'rotate-90 text-[#6B7684] hover:bg-[#EBEEF2] hover:text-[#4E5968]',
       /**
        * Open, and NOT a control — for when something else owns the open state (a filter that
        * forces every fold open while it narrows the list). Same 20px box so the label beside it
        * does not shift, but no hover and no button: a chevron that answers to nothing must not
        * offer to be pressed.
        */
-      toggleStatic: 'rotate-90 text-[#8B95A1]',
+      toggleStatic: 'rotate-90 text-[#6B7684]',
       /**
        * Service label — one tier BELOW the child rows' name, not above it. The parent is
        * context, not the headline: the rows a user acts on are the databases. Same 14px mono
@@ -1000,7 +1000,7 @@ export const idcStyles = {
        */
       label: 'whitespace-nowrap font-mono text-[14px] font-semibold text-[#4E5968]',
       /** Aggregate cells — tabular so counts stay aligned down the column. */
-      meta: 'whitespace-nowrap text-[12px] tabular-nums text-[#8B95A1]',
+      meta: 'whitespace-nowrap text-[12px] tabular-nums text-[#6B7684]',
       /**
        * Child row's first cell — the tree rail. A vertical hairline runs the full row height
        * under the parent's chevron and an elbow reaches into the name; `childCellLast` cuts

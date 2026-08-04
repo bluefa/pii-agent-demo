@@ -54,7 +54,7 @@ const JIRA_BROWSE_BASE = process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? null;
 const tsTable = {
   frame: 'overflow-hidden rounded-t-[10px] border border-b-0 border-[#E5E7EB] bg-white',
   id: 'text-[13px] font-semibold [font-family:var(--pl-font-mono)] text-[#191F28] whitespace-nowrap',
-  time: 'text-[14px] text-[#8B95A1] whitespace-nowrap',
+  time: 'text-[14px] text-[#6B7684] whitespace-nowrap',
   go: 'inline-flex text-[#3182F6] hover:opacity-70',
 } as const;
 

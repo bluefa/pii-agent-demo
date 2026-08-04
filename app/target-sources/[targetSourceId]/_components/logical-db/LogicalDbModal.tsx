@@ -143,7 +143,7 @@ export const LogicalDbModal = ({
         </span>
       </div>
       {/* v16 `.logical-modal .modal-sub` — 12px / line-height 1.5 / weak text */}
-      <p className={cn('mb-3.5 text-[12px] font-medium leading-[1.5] text-[#8B95A1]')}>
+      <p className={cn('mb-3.5 text-[12px] font-medium leading-[1.5] text-[#6B7684]')}>
         Test Connection으로 발견된 논리 DB와 제외 정책을 한 화면에서 관리해요.
       </p>
       <div className="grid grid-cols-2 gap-3">

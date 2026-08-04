@@ -113,7 +113,7 @@ export const Pagination = ({
           entry === '…' ? (
             <span
               key={`ellipsis-${index}`}
-              className="inline-flex min-w-[20px] items-center justify-center self-center text-center text-[12px] text-[#9CA3AF]"
+              className="inline-flex min-w-[20px] items-center justify-center self-center text-center text-[12px] text-[#6B7280]"
               aria-hidden="true"
             >
               …

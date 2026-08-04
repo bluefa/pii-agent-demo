@@ -298,7 +298,7 @@ export const InfoTooltip = ({ content, position = 'top', size = 'lg', variant = 
         type="button"
         tabIndex={0}
         aria-label={label}
-        className={cn('inline-flex items-center justify-center text-[#9CA3AF] transition-colors', primaryColors.textHoverBase)}
+        className={cn('inline-flex items-center justify-center text-[#6B7280] transition-colors', primaryColors.textHoverBase)}
       >
         <svg
           width={iconSize}

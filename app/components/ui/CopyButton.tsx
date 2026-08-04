@@ -33,8 +33,8 @@ export const CopyButton = ({ value, label, className }: CopyButtonProps) => {
         'inline-grid h-[22px] w-[22px] place-items-center rounded-[5px]',
         'transition-opacity transition-colors',
         copied
-          ? 'text-[#45CB85]'
-          : 'text-[#9CA3AF] hover:bg-[#F9FAFB] hover:text-[#111827]',
+          ? 'text-[#2A7D52]'
+          : 'text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#111827]',
         className,
       )}
     >

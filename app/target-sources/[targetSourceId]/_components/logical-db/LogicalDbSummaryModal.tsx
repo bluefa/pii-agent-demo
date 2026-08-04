@@ -100,7 +100,7 @@ export const LogicalDbSummaryModal = ({
           {resourceName}
         </span>
       </div>
-      <p className="mb-3.5 text-[12px] font-medium leading-[1.5] text-[#8B95A1]">
+      <p className="mb-3.5 text-[12px] font-medium leading-[1.5] text-[#6B7684]">
         5단계 연결 테스트가 확인한 결과예요. 제외 대상은 관리자가 설정한 정책이라, 이번 테스트에서
         발견되지 않은 이름이 포함될 수 있어요.
       </p>
