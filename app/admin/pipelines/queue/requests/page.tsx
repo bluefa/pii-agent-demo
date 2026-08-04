@@ -146,13 +146,14 @@ const rq = {
   // 잘린 전문은 행을 눌러 상세에서 읽는다 — pointer-events-none 이라야 이 셀이
   // 행 링크 오버레이의 클릭을 가로채지 않는다.
   note: 'min-w-0 flex-1 truncate pointer-events-none',
-  // truncate 필수 — 상태 pill 라벨은 컬럼보다 길 수 있고, 넘친 내용은 옆 컬럼을
-  // 밀지 않고 그 위에 겹쳐 그려진다.
-  status: 'w-[104px] min-w-0 shrink truncate',
+  // 116 = 가장 긴 pill('연동 불가 확인': 6 한글 72 + 점 6 + gap 6 + 좌우 패딩 17)
+  // 에 여유를 더한 값. truncate 는 그래도 남겨 둔다 — pill 은 원자적 박스라
+  // 넘치면 옆 컬럼을 밀지 않고 그 위에 겹쳐 그려진다.
+  status: 'w-[116px] min-w-0 shrink truncate',
   actor: 'w-[120px] min-w-0 shrink truncate',
-  // 116 = 'YYYY-MM-DD HH:mm' at 13px tabular. nowrap 이라 좁아지면 넘치므로
-  // truncate 로 잘라 행을 지킨다.
-  when: 'w-[116px] min-w-0 shrink truncate whitespace-nowrap tabular-nums text-[var(--pl-text-weak)]',
+  // 124 = 'YYYY-MM-DD HH:mm' at 13px tabular(≈110)에 여유. 좁히면 분 단위가
+  // 조용히 잘려 나가므로 여유를 둔다. nowrap 이라 truncate 로 행을 지킨다.
+  when: 'w-[124px] min-w-0 shrink truncate whitespace-nowrap tabular-nums text-[var(--pl-text-weak)]',
   chev: 'w-3.5 flex-none text-[var(--pl-text-faint)] group-hover:text-[var(--pl-primary)]',
 
   /** Loading bar inside a skeleton cell — same grammar as opsStyles.skeleton
@@ -312,6 +313,9 @@ export default function RequestsPage(): ReactElement {
   const rejected = usePagedSection(fetchRejected);
   const history = usePagedSection(fetchHistory);
 
+  // 두 섹션이 모두 도착해야 합이 사실이다 — 하나라도 로딩 중이면 수를 말하지
+  // 않는다(스켈레톤 옆에서 32px 볼드로 '0건'은 모르는 값을 아는 척하는 것).
+  const counted = pending.paged != null && rejected.paged != null;
   const todo = (pending.paged?.totalElements ?? 0) + (rejected.paged?.totalElements ?? 0);
 
   return (
@@ -321,7 +325,12 @@ export default function RequestsPage(): ReactElement {
       </h1>
       <p className={rq.context}>
         서비스가 보낸 연동 승인 요청 중 확인이 필요한 건이 총
-        <strong className={rq.contextTotal}>{todo}</strong>건 있어요
+        {counted ? (
+          <strong className={rq.contextTotal}>{todo}</strong>
+        ) : (
+          <span className={cn(rq.skeletonBar, 'mx-1 inline-block h-6 w-7 align-baseline')} />
+        )}
+        건 있어요
       </p>
 
       <div className={rq.grid}>

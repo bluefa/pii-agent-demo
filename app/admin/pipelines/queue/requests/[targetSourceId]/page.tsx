@@ -265,8 +265,9 @@ export default function RequestDetailPage(): ReactElement {
                   <span className="text-[14px] font-semibold text-[var(--pl-text-medium)]">
                     이 요청에 포함된 연동 대상
                   </span>
-                  {/* 12px: 14px 요약 제목보다 한 단 아래. Step 2 는 13px 이지만
-                      admin 램프는 짝수 px 이라 한 칸 내린다. */}
+                  {/* 12px: 14px 요약 제목보다 한 단 아래. Step 2 는 같은 자리에
+                      13px 를 쓰지만, 이 레포의 design hook 이 새로 추가되는 JSX
+                      폰트 크기를 짝수로 강제해서 한 칸 내렸다. */}
                   <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--pl-primary)]">
                     <span className="group-open:hidden">목록 보기</span>
                     <span className="hidden group-open:inline">접기</span>
@@ -328,7 +329,10 @@ export default function RequestDetailPage(): ReactElement {
                 resources={resources}
                 isIdc={isIdc}
                 list={list}
-                nlbLocked={false}
+                // decided 는 허용 목록이라 '모르는 상태'는 대기로 떨어진다.
+                // 그 경우 CTA 는 남기되(막다른 화면 방지) NLB 편집은 잠근다 —
+                // 상태를 모르는 요청에 리소스 변경을 열어 줄 이유는 없다.
+                nlbLocked={detail.request.status !== 'PENDING'}
                 onAssignNlb={setAssigning}
                 onShowServices={setShowingServices}
                 onOpenNlbListeners={() => setModal('nlb')}
