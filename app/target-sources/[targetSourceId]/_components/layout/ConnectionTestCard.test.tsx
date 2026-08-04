@@ -139,9 +139,11 @@ describe('ConnectionTestCard', () => {
     expect(screen.queryByText('Success')).toBeNull();
   });
 
-  it('shows 자격 증명 필요 and disables Run Test + 설정 when a row has no credential', () => {
+  it('disables Run Test when a row has no credential, without touching Connection Status', () => {
     renderCard([makeResource({ credentialId: null })]);
-    expect(screen.getByText('자격 증명 필요')).toBeTruthy();
+    // Connection Status only ever says what the agent reported — nothing ran, so Pending.
+    expect(screen.getByText('Pending')).toBeTruthy();
+    expect(screen.queryByText('자격 증명 필요')).toBeNull();
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
     expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', true);
   });
@@ -191,11 +193,15 @@ describe('ConnectionTestCard', () => {
     expect(screen.queryByText('named-cred')).toBeNull();
   });
 
-  it('counts a credential-less row as 대기 instead of a finished test', () => {
+  // Regression: a healthy target used to read 대기 / 0% purely because no credential was
+  // picked locally, so a fully passed run showed "성공 0 · 대기 1 · 0%". The strip counts
+  // the reported result; the credential gates Run Test, not the verdict.
+  it('reports a SUCCESS unit as connected even with no credential selected', () => {
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     renderCard([makeResource({ resourceId: 'res-1', credentialId: null })]);
-    expect(screen.getByText(/연결 테스트 대기 중/)).toBeTruthy();
-    expect(screen.getByText('0%')).toBeTruthy();
+    expect(screen.getByText('Success')).toBeTruthy();
+    expect(screen.getByText(/연결 테스트 완료/)).toBeTruthy();
+    expect(screen.getByText('100%')).toBeTruthy();
   });
 
   it('Run Test triggers the async test (no local credential change → no credential PUT)', async () => {

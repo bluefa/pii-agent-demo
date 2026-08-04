@@ -143,12 +143,12 @@ export const IdcStep5ConnectionTest = ({
     return map;
   }, [latestJob]);
 
-  // A row counts as connected (for the approval gate) only with a credential AND a
-  // SUCCESS result from the latest poll.
+  // A row counts as connected on the SUCCESS the agent reported, and on nothing else —
+  // the same rule the cloud card runs on. Folding "is a credential picked locally" into
+  // the verdict made a healthy target read 대기 in the progress strip.
   const rowConnected = useCallback(
-    (resourceId: string): boolean =>
-      !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
-    [creds, statusByResource],
+    (resourceId: string): boolean => statusByResource[resourceId] === 'SUCCESS',
+    [statusByResource],
   );
 
   // Project the live poll status onto the rows the table renders. The status flows

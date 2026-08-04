@@ -12,14 +12,11 @@ export interface CredFilterCounts {
   missing: number;
 }
 
-const CARDS: ReadonlyArray<{
-  value: CredFilter;
-  label: string;
-  swatch?: 'target' | 'exclude';
-}> = [
+// 색 스와치 없음: 세 장이 한 축(Credential 유무)을 나누고 라벨이 이미 그것을 말한다.
+const CARDS: ReadonlyArray<{ value: CredFilter; label: string }> = [
   { value: 'all', label: '전체 리소스' },
-  { value: 'assigned', label: 'Credential 지정한 리소스', swatch: 'target' },
-  { value: 'missing', label: 'Credential 미등록 리소스', swatch: 'exclude' },
+  { value: 'assigned', label: 'Credential 지정한 리소스' },
+  { value: 'missing', label: 'Credential 미등록 리소스' },
 ];
 
 interface CredFilterCardsProps {
@@ -46,7 +43,7 @@ export const CredFilterCards = ({ filter, onChange, counts }: CredFilterCardsPro
             primaryColors.focusRing,
           )}
         >
-          <StatTile label={card.label} value={counts[card.value]} unit="건" swatch={card.swatch} />
+          <StatTile label={card.label} value={counts[card.value]} unit="건" />
         </button>
       );
     })}

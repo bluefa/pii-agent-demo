@@ -190,14 +190,15 @@ export const ConnectionTestCard = ({
     return map;
   }, [latestJob]);
 
-  // A row is connected (for the approval gate) when the latest poll returned
-  // SUCCESS for this unit and it has a credential — where one is required.
+  // A row is connected when the latest poll returned SUCCESS for this unit. The credential
+  // is NOT part of this: the test result is what the agent actually reported, and folding a
+  // local "is a credential picked" check into it made a healthy target read 대기 — the strip
+  // said "성공 2 · 대기 3 · 40%" for a run every unit had passed. A missing credential is
+  // shown where it is fixed (the DB Credential column) and gates Run Test, nothing else.
   const unitCred = useCallback((unit: TestUnit) => creds[unit.members[0].resourceId] ?? '', [creds]);
   const rowConnected = useCallback(
-    (unit: TestUnit): boolean =>
-      statusByResource[unit.unitId] === 'SUCCESS' &&
-      (!requiresCredential(unit.databaseType) || !!unitCred(unit)),
-    [statusByResource, unitCred],
+    (unit: TestUnit): boolean => statusByResource[unit.unitId] === 'SUCCESS',
+    [statusByResource],
   );
 
   // Credential 상태 분류 — 카드 집계와 표 필터가 같은 판정을 쓴다. `none` 은 카드가 아니라
@@ -275,9 +276,8 @@ export const ConnectionTestCard = ({
     refreshProject();
   }, [refreshProject]);
 
-  // Progress counts a row as done when it is connected or failed. A row still
-  // missing a required credential renders "자격 증명 필요" in the table, so counting
-  // its poll result as done would claim 완료 100% for a target nobody tested yet.
+  // Progress counts a row as done when it is connected or failed — the reported result,
+  // nothing else. 대기 must mean "the agent has not answered for this unit yet".
   const okCount = units.filter((u) => rowConnected(u)).length;
   const failCount = units.filter((u) => statusByResource[u.unitId] === 'FAIL').length;
   const doneCount = okCount + failCount;
@@ -497,10 +497,11 @@ export const ConnectionTestCard = ({
                           </span>
                         )}
                       </td>
+                      {/* 이 칸은 에이전트가 보고한 결과만 말한다. Credential 미설정을 여기에
+                          겹쳐 쓰면 실제로 연결된 대상이 "자격 증명 필요"로 가려졌다 — 그 사실은
+                          바로 왼쪽 DB Credential 칸이 이미 말하고 있고, Run Test 가 막는다. */}
                       <td className={idcStyles.table.approvalCell}>
-                        {credRequired && !cred ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>
-                        ) : status === 'SUCCESS' ? (
+                        {status === 'SUCCESS' ? (
                           <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
                         ) : status === 'FAIL' ? (
                           <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>Fail</span>
