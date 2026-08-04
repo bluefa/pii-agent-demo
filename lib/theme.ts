@@ -1432,6 +1432,8 @@ export const pipelineStyles = {
   /** ProvTag — neutral text + 8×8 r2.5 brand dot; 12/500 medium. */
   provTag: {
     base: 'inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--pl-text-medium)]',
+    /** provider 가 라벨이 아니라 그 블록의 제목일 때 (Jira 타일) — 16/600. */
+    baseLg: 'inline-flex items-center gap-1.5 text-[16px] font-semibold text-[var(--pl-text-strong)]',
     dot: 'w-2 h-2 rounded-[2.5px]',
     dotTone: PIPELINE_PROVIDER_DOT,
   },

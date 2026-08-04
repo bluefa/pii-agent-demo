@@ -7,10 +7,10 @@
  */
 import { useEffect, useState, type ReactElement } from 'react';
 import { pipelineStyles } from '@/lib/theme';
-import { AppError } from '@/lib/errors';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { userErrorText } from '@/app/admin/pipelines/ops/services/_components/errorText';
 import { requestServiceEos } from '@/app/lib/api/ops';
 
 const TITLE_ID = 'ops-eos-title';
@@ -53,11 +53,7 @@ export function EosModal({
       onClose();
     } catch (err) {
       // 409 등 서버가 준 detail을 그대로 노출 — 진행 중 작업 목록은 서버만 안다.
-      setError(
-        err instanceof AppError && err.isUserFacing
-          ? err.message
-          : 'EOS 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-      );
+      setError(userErrorText(err, 'EOS 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setSubmitting(false);
     }

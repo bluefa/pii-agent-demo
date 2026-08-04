@@ -6,7 +6,7 @@ import { cn } from '@/lib/theme';
 
 export type ApprovalFilter = 'all' | 'target' | 'excluded';
 
-interface SelectOption {
+export interface SelectOption {
   value: string;
   label: string;
 }
@@ -25,38 +25,63 @@ interface WaitingApprovalToolbarProps {
   searchPlaceholder?: string;
 }
 
-export const WaitingApprovalToolbar = (props: WaitingApprovalToolbarProps) => (
+/**
+ * The toolbar shell itself: search + one filter icon, no knowledge of WHICH filters.
+ * Exported so other tables can wear the same Step-1 silhouette with their own filter
+ * groups instead of copying these class strings (admin 서비스 운영 목록 uses it).
+ */
+export const TableToolbar = ({
+  searchValue,
+  onSearchChange,
+  searchPlaceholder,
+  searchLabel,
+  groups,
+}: {
+  searchValue: string;
+  onSearchChange: (next: string) => void;
+  searchPlaceholder?: string;
+  searchLabel?: string;
+  groups: ReadonlyArray<FilterGroup>;
+}) => (
   // .table-toolbar — #F7F8FA surface, radius 12 12 0 0 (attached to table top),
   // 14/16 padding, gap 10, no bottom border (v15 lines 2583–2591).
   <div className="flex flex-wrap items-center gap-[10px] rounded-t-[12px] bg-[#F7F8FA] px-[16px] py-[14px]">
     <SearchBox
-      value={props.searchValue}
-      onChange={props.onSearchChange}
-      placeholder={props.searchPlaceholder}
+      value={searchValue}
+      onChange={onSearchChange}
+      placeholder={searchPlaceholder}
+      label={searchLabel}
     />
     {/* One filter icon instead of a row of selects — the conditions show only once opened. */}
-    <FilterMenu
-      groups={[
-        {
-          key: 'dbType',
-          label: 'Database Type',
-          value: props.dbType,
-          onChange: props.onDbTypeChange,
-          options: props.dbTypeOptions,
-        },
-        {
-          key: 'region',
-          label: 'Region',
-          value: props.region,
-          onChange: props.onRegionChange,
-          options: props.regionOptions,
-        },
-      ]}
-    />
+    <FilterMenu groups={groups} />
   </div>
 );
 
-interface FilterGroup {
+export const WaitingApprovalToolbar = (props: WaitingApprovalToolbarProps) => (
+  <TableToolbar
+    searchValue={props.searchValue}
+    onSearchChange={props.onSearchChange}
+    searchPlaceholder={props.searchPlaceholder}
+    groups={[
+      {
+        key: 'dbType',
+        label: 'Database Type',
+        value: props.dbType,
+        onChange: props.onDbTypeChange,
+        options: props.dbTypeOptions,
+      },
+      {
+        key: 'region',
+        label: 'Region',
+        value: props.region,
+        onChange: props.onRegionChange,
+        options: props.regionOptions,
+      },
+    ]}
+  />
+);
+
+export interface FilterGroup {
   key: string;
   label: string;
   value: string;
@@ -186,6 +211,8 @@ interface SearchBoxProps {
   value: string;
   onChange: (next: string) => void;
   placeholder?: string;
+  /** 검색 대상이 리소스가 아닌 표에서 이 라벨을 바꾼다. */
+  label?: string;
 }
 
 // .tt-search — relative wrapper, flex 1 1 260px, min 220 / max 360 (v15 lines 2592–2611).
@@ -193,6 +220,7 @@ const SearchBox = ({
   value,
   onChange,
   placeholder = 'Resource ID 또는 Resource Name 검색',
+  label = '리소스 검색',
 }: SearchBoxProps) => (
   <div className="relative min-w-[220px] max-w-[360px] flex-[1_1_260px]">
     {/* icon — absolute left 10, #9CA3AF, no pointer events. */}
@@ -207,7 +235,7 @@ const SearchBox = ({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className="h-8 w-full rounded-[8px] border border-[#E5E7EB] bg-white pl-[32px] pr-[12px] text-[14px] text-[#111827] outline-none focus:border-[#0064FF] focus:shadow-[0_0_0_3px_rgba(0,100,255,0.08)]"
-      aria-label="리소스 검색"
+      aria-label={label}
     />
   </div>
 );

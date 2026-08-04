@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { jiraTicketLink } from '@/app/admin/pipelines/ops/services/_components/jiraLink';
+import { jiraTicketLink } from '@/lib/jira-ticket';
 
 describe('jiraTicketLink', () => {
   it('티켓 주소는 마지막 조각만 보여주고 값 그대로 연다', () => {

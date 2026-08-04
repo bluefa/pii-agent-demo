@@ -13,17 +13,23 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, idcStyles, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
-import { fmtDateTime } from '@/lib/pipeline/format';
+import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { TableToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { JiraLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
+import { STEP } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { EosModal } from '@/app/admin/pipelines/ops/services/_components/EosModal';
-import { jiraTicketLink } from '@/app/admin/pipelines/ops/services/_components/jiraLink';
-import { JiraTicketModal } from '@/app/admin/pipelines/ops/services/_components/JiraTicketModal';
+import { jiraTicketLink } from '@/lib/jira-ticket';
+import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
+import {
+  JiraTicketModal,
+  type JiraTicketAction,
+} from '@/app/admin/pipelines/ops/services/_components/JiraTicketModal';
 import {
   getOpsService,
   getServiceJiraTickets,
@@ -34,25 +40,40 @@ import {
   type OpsTargetSourceListItem,
 } from '@/app/lib/api/ops';
 
-const TS_COLUMNS = ['ID', 'Provider', '계정', '현재 단계', '마지막 변경'] as const;
-/** 섹션 제목 — 18px 마크 + 8px + 제목(Figma Heading 2). */
-const sectionHead = 'flex items-center gap-2 mb-3';
-const PAGE_SIZE = 10;
+/** Step 1 리소스 표와 같은 열 구성 — 헤더 밴드 + 행, 값 길이가 정해진 열만 폭을 묶는다. */
+const TS_COLUMNS = ['Target', '클라우드', '계정', '설명', '현재 단계'] as const;
 
+const tsTable = {
+  /** 이동 화살표 — Step 1 표의 마지막 열과 같은 자리(우측 끝). */
+  go: 'inline-flex text-[var(--pl-primary)] hover:opacity-70',
+  /**
+   * Step 1 은 흰 페이지 위라 툴바(#F7F8FA)·헤더 밴드만으로 표가 떠 보였다. admin 은 배경이
+   * 이미 #F9FAFB 라 같은 회색끼리 붙어 면이 사라진다 — 표 블록 전체를 흰 면 + 테두리로
+   * 감싸 배경에서 떼어 놓는다. 안쪽 요소들은 Step 1 값 그대로.
+   */
+  block: 'overflow-hidden rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]',
+  scroll: 'overflow-x-auto',
+  id: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] whitespace-nowrap',
+  /** 설명 — 길이를 알 수 없는 유일한 값이라 폭을 묶어 자르고 전문은 title 로 남긴다. */
+  desc: 'block max-w-[360px] truncate text-[14px] text-[var(--pl-text-medium)]',
+  dash: 'text-[14px] text-[var(--pl-text-faint)]',
+  /** 건수 배지 — 제목 옆에서 바로 읽혀야 하는 값이라 회색이 아니라 primary 톤. */
+  badge:
+    'inline-flex items-center rounded-full bg-[var(--pl-primary-bg)] px-2 py-[3px] text-[12px] font-semibold text-[var(--pl-primary)] tabular-nums',
+} as const;
 
 /**
- * Step 1 리소스 표(idcStyles.table.approval*)를 그대로 쓰고, 이 화면에만 필요한 것만
- * 얹는다. frame 은 Pagination 마감 바가 아래 테두리·라운드를 맡으므로 위쪽 반쪽만
- * 그린다 — Step 1 에서 툴바가 하던 역할을 여기선 표 머리가 한다.
+ * 제목 옆 ServiceCode 칩 — 좌측 레일에서 선택된 서비스와 같은 primary 톤이라 "지금 보고
+ * 있는 서비스"가 두 곳에서 같은 색으로 읽힌다. opsStyles.tag 에 색만 덧칠하지 않는 이유:
+ * cn 은 단순 join 이라 bg 클래스가 겹치면 어느 쪽이 이기는지 CSS 순서에 달린다.
  */
-const tsTable = {
-  /* 레일이 폭을 280px 가져가므로 nowrap 열이 좁은 창에서 넘칠 수 있다 — 잘라내지 말고
-     가로 스크롤로 넘긴다(잘리면 이동 링크가 화면 밖으로 사라진다). */
-  frame: 'overflow-x-auto rounded-t-[10px] border border-b-0 border-[#E5E7EB] bg-white',
-  id: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)] text-[#191F28] whitespace-nowrap',
-  time: 'text-[14px] text-[#6B7684] whitespace-nowrap',
-  go: 'inline-flex text-[#3182F6] hover:opacity-70',
-} as const;
+const codeChip =
+  'inline-flex items-center whitespace-nowrap rounded px-2 py-1 text-[12px] font-semibold '
+  + 'bg-[var(--pl-primary-bg)] text-[var(--pl-primary)] [font-family:var(--pl-font-mono)]';
+/** 섹션 제목 — 18px 마크 + 8px + 제목(Figma Heading 2). */
+const sectionHead = 'flex items-center gap-2 mb-3';
+/** 기본 표시 개수 — 서비스당 대상은 대개 한 자릿수라 5줄이면 한눈에 들어온다. */
+const PAGE_SIZE = 5;
 
 /**
  * Jira 타일 — provider 5개는 열이 2개뿐인 표를 채우기엔 너무 짧고, 서로 비교할 값도
@@ -73,23 +94,6 @@ const tileStyles = {
   kebab:
     'flex-none -mr-1.5 grid h-7 w-7 place-items-center rounded-md text-[var(--pl-text-faint)] cursor-pointer hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]',
 } as const;
-
-/** 운영중 / EOS — ok vs err tones (목록과 같은 문법). */
-function ServiceStatusTag({ status }: { status: OpsServiceDetail['status'] }): ReactElement {
-  const eos = status === 'EOS';
-  return (
-    <span
-      className={cn(
-        opsStyles.statusTag,
-        eos
-          ? 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]'
-          : 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
-      )}
-    >
-      {eos ? 'EOS' : '운영중'}
-    </span>
-  );
-}
 
 /** metadata → 그 provider 가 실제로 갖는 계정 식별자 1건. 없으면 null. */
 function accountOf(
@@ -113,9 +117,9 @@ function AccountCell({ target }: { target: OpsTargetSourceListItem }): ReactElem
   const account = accountOf(target);
   if (!account) return <span className={pipelineStyles.text.muted}>—</span>;
   return (
-    // 320px = Azure subscription UUID(36자) 가 14px mono 로 잘리지 않는 폭. 가장 긴
-    // 식별자에 맞춘다 — 여기서 줄이면 UUID 앞부분이 같은 행들이 서로 구분되지 않는다.
-    <span className="block max-w-[320px]">
+    // 열 폭(320px)은 Azure subscription UUID(36자)가 14px mono 로 잘리지 않는 값이다 —
+    // 여기서 줄이면 UUID 앞부분이 같은 행들이 서로 구분되지 않는다.
+    <span className="block min-w-0">
       <span className="flex items-center gap-1.5">
         <span className="text-[12px] text-[var(--pl-text-weak)]">{account.label}</span>
         {account.china && <span className={opsStyles.regionTag}>중국</span>}
@@ -145,7 +149,11 @@ export function ServiceDetailView({
   const [tickets, setTickets] = useState<JiraTicket[]>([]);
   const [failed, setFailed] = useState(false);
   const [eosOpen, setEosOpen] = useState(false);
-  const [jiraTarget, setJiraTarget] = useState<JiraCloudProvider | null>(null);
+  // ⋮ 는 드롭다운을 열고, 고른 동작만 모달로 간다 (메뉴 단계를 모달에서 뺐다).
+  const [menuFor, setMenuFor] = useState<JiraCloudProvider | null>(null);
+  const [jiraAction, setJiraAction] = useState<
+    { provider: JiraCloudProvider; action: JiraTicketAction } | null
+  >(null);
   // 목록은 한 번에 다 온다(assumed 계약에 page 파라미터가 없다) — 자르는 건 화면 몫.
   // Pagination 은 0-based. 페이지는 serviceCode 에 매여 있다: 다른 서비스로 이동하면
   // 남아 있던 3페이지가 되살아나면 안 되고, 그 초기화를 effect 로 하면 렌더가 한 번 더 돈다.
@@ -153,6 +161,9 @@ export function ServiceDetailView({
   const page = pageAt.code === serviceCode ? pageAt.page : 0;
   const setPage = (next: number): void => setPageAt({ code: serviceCode, page: next });
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [query, setQuery] = useState('');
+  const [providerFilter, setProviderFilter] = useState('');
+  const [step, setStep] = useState('');
 
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -203,9 +214,38 @@ export function ServiceDetailView({
   const { section, text } = pipelineStyles;
   const isEos = detail.status === 'EOS';
   const targetCount = detail.target_sources.length;
-  // 다시 읽어 대상이 줄면 마지막 페이지 밖에 머물 수 있다 — 빈 표 대신 마지막 장으로.
-  const safePage = Math.min(page, Math.max(0, Math.ceil(targetCount / pageSize) - 1));
-  const pageRows = detail.target_sources.slice(safePage * pageSize, (safePage + 1) * pageSize);
+
+  // 검색·필터는 화면 몫이다 — assumed 계약이 목록을 한 번에 다 주고 query 파라미터도 없다.
+  // 검색은 사람이 표에서 눈으로 찾는 값(대상 번호·설명·계정)만 훑는다.
+  const needle = query.trim().toLowerCase();
+  const rows = detail.target_sources.filter((target) => {
+    if (
+      providerFilter
+      && displayProvider(target.cloud_provider, target.is_sdu_type) !== providerFilter
+    ) {
+      return false;
+    }
+    if (step && target.process_status !== step) return false;
+    if (!needle) return true;
+    return [
+      `#${target.target_source_id}`,
+      target.description ?? '',
+      accountOf(target)?.value ?? '',
+    ].some((value) => value.toLowerCase().includes(needle));
+  });
+
+  // 옵션은 이 서비스가 실제로 가진 값만 — 고를 수 없는 조건을 열어두면 빈 표만 나온다.
+  const providerOptions = [...new Set(
+    detail.target_sources.map((t) => displayProvider(t.cloud_provider, t.is_sdu_type)),
+  )].map((value) => ({ value, label: providerLabel(value) }));
+  const stepOptions = [...new Set(detail.target_sources.map((t) => t.process_status))]
+    .sort((a, b) => STEP[a].n - STEP[b].n)
+    .map((value) => ({ value, label: `${STEP[value].n}단계 · ${STEP[value].label}` }));
+
+  // 다시 읽거나 필터를 걸어 행이 줄면 마지막 페이지 밖에 머물 수 있다 — 마지막 장으로.
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = rows.slice(safePage * pageSize, (safePage + 1) * pageSize);
   const ticketOf = (provider: JiraCloudProvider): JiraTicket | undefined =>
     tickets.find((ticket) => ticket.cloudProvider.toUpperCase() === provider);
 
@@ -228,62 +268,90 @@ export function ServiceDetailView({
           <div className="flex items-center gap-2">
             {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
             <h2 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h2>
-            <span className={cn(opsStyles.tag, '[font-family:var(--pl-font-mono)]')}>
-              {detail.service_code}
-            </span>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className={text.kvKey}>담당</span>
-            <span className={text.kvValue}>{detail.owner}</span>
-            <span className={opsStyles.cloudSep}>·</span>
-            <span className={text.kvKey}>상태</span>
-            <ServiceStatusTag status={detail.status} />
-            <span className={opsStyles.cloudSep}>·</span>
-            <span className={text.kvKey}>Target Source</span>
-            <span className={cn(text.kvValue, 'tabular-nums')}>{targetCount}건</span>
+            <span className={codeChip}>{detail.service_code}</span>
           </div>
         </div>
         <div className="flex-none">{eosButton}</div>
       </div>
 
-      {/* First section sits 24px under the header (design override of the 64px default). */}
+      {/* 제목·건수·설명은 카드 밖 섹션 머리 — 아래 Jira 섹션과 같은 문법이라 두 섹션이
+          같은 높이에서 읽힌다. Target Source = 이 서비스가 가진 인프라라 표시는 CSP 아이콘. */}
       <h2 className={cn(text.sectionTitle, sectionHead, 'mt-6')}>
-        <Icon name="table" size={18} className="text-[var(--pl-text-weak)]" />
+        <Icon name="cloud" size={18} className="text-[var(--pl-text-weak)]" />
         Target Source 목록
+        <span className={tsTable.badge}>{targetCount}건</span>
       </h2>
-      {/* Step 1 리소스 표 스택 그대로: 무카드 · 표 세그먼트(상단 라운드) + Pagination
-          마감 바(하단 라운드). 카드에 넣으면 카드 패딩이 표를 안쪽으로 밀어 머리글
-          밴드가 컨테이너에서 떨어지고, 페이저도 표에 붙지 못한다. */}
-      <div>
-        <div className={tsTable.frame}>
-          <table className="w-full">
-            <thead className={idcStyles.table.approvalHeader}>
-              <tr className="whitespace-nowrap">
-                {TS_COLUMNS.map((column) => (
-                  <th key={column} className={idcStyles.table.approvalHeaderCell}>
-                    {column}
-                  </th>
-                ))}
-                <th className={cn(idcStyles.table.approvalHeaderCell, 'w-12')} aria-label="이동" />
-              </tr>
-            </thead>
-            <tbody className={idcStyles.table.body}>
-              {targetCount === 0 ? (
-                <tr>
-                  <td colSpan={TS_COLUMNS.length + 1} className={idcStyles.table.approvalCell}>
-                    <p className={pipelineStyles.empty.base}>등록된 Target Source가 없습니다.</p>
-                  </td>
+      <p className={section.desc}>
+        이 서비스가 보유한 인프라입니다. 행을 누르면 해당 Target Source 운영 화면으로 이동합니다.
+      </p>
+
+      {/* Step 1 리소스 표와 같은 실루엣: 툴바(검색·필터) → 헤더 밴드 표 → Pagination 마감 바. */}
+      <section aria-label="Target Source 목록">
+        <div className={tsTable.block}>
+          <TableToolbar
+            searchValue={query}
+            onSearchChange={(next) => {
+              setQuery(next);
+              setPage(0);
+            }}
+            searchPlaceholder="대상 번호·설명·계정 검색"
+            searchLabel="Target Source 검색"
+            groups={[
+              {
+                key: 'provider',
+                label: '클라우드',
+                value: providerFilter,
+                onChange: (next) => {
+                  setProviderFilter(next);
+                  setPage(0);
+                },
+                options: providerOptions,
+              },
+              {
+                key: 'step',
+                label: '현재 단계',
+                value: step,
+                onChange: (next) => {
+                  setStep(next);
+                  setPage(0);
+                },
+                options: stepOptions,
+              },
+            ]}
+          />
+          <div className={tsTable.scroll}>
+            <table className="w-full">
+              <thead className={idcStyles.table.approvalHeader}>
+                <tr className="whitespace-nowrap">
+                  {TS_COLUMNS.map((column) => (
+                    <th key={column} className={idcStyles.table.approvalHeaderCell}>
+                      {column}
+                    </th>
+                  ))}
+                  <th className={cn(idcStyles.table.approvalHeaderCell, 'w-12')} aria-label="이동" />
                 </tr>
-              ) : (
-                pageRows.map((target) => {
-                  const href = passRoutes.pipelines.ops.targetSource(target.target_source_id);
-                  return (
+              </thead>
+              <tbody className={idcStyles.table.body}>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={TS_COLUMNS.length + 1} className={idcStyles.table.approvalCell}>
+                      <p className={pipelineStyles.empty.base}>
+                        {targetCount === 0
+                          ? '등록된 Target Source가 없습니다.'
+                          : '조건에 맞는 Target Source가 없습니다.'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  pageRows.map((target) => (
                     <tr
                       key={target.target_source_id}
                       className={cn(idcStyles.table.row, 'cursor-pointer')}
+                      // 행 아무 데나 눌러도 이동한다(마우스 편의). 키보드·새 탭은 아래 링크가
+                      // 맡으므로, 링크 위 클릭은 여기서 흘려보내 이동이 두 번 일어나지 않게 한다.
                       onClick={(event) => {
                         if (event.target instanceof HTMLElement && event.target.closest('a')) return;
-                        router.push(href);
+                        router.push(passRoutes.pipelines.ops.targetSource(target.target_source_id));
                       }}
                     >
                       <td className={cn(idcStyles.table.approvalCell, tsTable.id)}>
@@ -296,38 +364,46 @@ export function ServiceDetailView({
                         <AccountCell target={target} />
                       </td>
                       <td className={idcStyles.table.approvalCell}>
-                        <StepPill status={target.process_status} />
+                        {target.description ? (
+                          <span className={tsTable.desc} title={target.description}>
+                            {target.description}
+                          </span>
+                        ) : (
+                          <span className={tsTable.dash}>—</span>
+                        )}
                       </td>
-                      <td className={cn(idcStyles.table.approvalCell, tsTable.time)}>
-                        {fmtDateTime(target.last_changed_at)}
+                      <td className={cn(idcStyles.table.approvalCell, 'whitespace-nowrap')}>
+                        <StepPill status={target.process_status} />
                       </td>
                       <td className={cn(idcStyles.table.approvalCell, 'text-right')}>
                         <Link
-                          href={href}
-                          aria-label={`Target Source #${target.target_source_id} 운영 상세로 이동`}
+                          href={passRoutes.pipelines.ops.targetSource(target.target_source_id)}
+                          aria-label={`Target Source #${target.target_source_id} 운영 화면으로 이동`}
                           className={tsTable.go}
                         >
                           <Icon name="arrow-ur" size="sm" strokeWidth={2.75} />
                         </Link>
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Pagination
+            page={safePage}
+            pageSize={pageSize}
+            totalCount={rows.length}
+            // 기본 5 가 선택지에 없으면 셀렉트가 다른 값을 가리킨다(표는 5줄, 컨트롤은 10).
+            pageSizeOptions={[5, 10, 20, 50]}
+            onPageChange={setPage}
+            onPageSizeChange={(next) => {
+              setPageSize(next);
+              setPage(0);
+            }}
+          />
         </div>
-        <Pagination
-          page={safePage}
-          pageSize={pageSize}
-          totalCount={targetCount}
-          onPageChange={setPage}
-          onPageSizeChange={(next) => {
-            setPageSize(next);
-            setPage(0);
-          }}
-        />
-      </div>
+      </section>
 
       {/* 시안 간격: 표 아래 32px (기본 64 는 두 섹션을 다른 페이지처럼 갈라 놓는다). */}
       <h2 className={cn(text.sectionTitle, sectionHead, 'mt-8')}>
@@ -346,7 +422,8 @@ export function ServiceDetailView({
           return (
             <div key={provider} className={tileStyles.base}>
               <div className="min-w-0 flex-1">
-                <ProvTag provider={provider} />
+                {/* 타일에서는 provider 가 라벨이 아니라 제목이다 — 16/600. */}
+                <ProvTag provider={provider} size="lg" />
                 {link ? (
                   link.href ? (
                     <a
@@ -365,14 +442,42 @@ export function ServiceDetailView({
                   <span className={tileStyles.empty}>연결된 티켓 없음</span>
                 )}
               </div>
-              <button
-                type="button"
-                className={tileStyles.kebab}
-                aria-label={`${provider} Jira Ticket 연결 관리`}
-                onClick={() => setJiraTarget(provider)}
-              >
-                <Icon name="dots-v" />
-              </button>
+              <div className="relative flex-none">
+                <button
+                  type="button"
+                  className={tileStyles.kebab}
+                  aria-label={`${provider} Jira Ticket 연결 관리`}
+                  aria-haspopup="menu"
+                  aria-expanded={menuFor === provider}
+                  onClick={() => setMenuFor((cur) => (cur === provider ? null : provider))}
+                >
+                  <Icon name="dots-v" />
+                </button>
+                {menuFor === provider && (
+                  <JiraTicketMenu
+                    label={`${provider} Jira Ticket 연결 관리`}
+                    onClose={() => setMenuFor(null)}
+                    items={[
+                      {
+                        icon: 'link',
+                        label: ticket ? '티켓 변경' : '티켓 연결',
+                        onSelect: () => setJiraAction({ provider, action: 'attach' }),
+                      },
+                      ...(ticket
+                        ? [
+                            {
+                              icon: 'ban' as const,
+                              label: '연결 해제',
+                              danger: true,
+                              onSelect: () =>
+                                setJiraAction({ provider, action: 'detach' }),
+                            },
+                          ]
+                        : []),
+                    ]}
+                  />
+                )}
+              </div>
             </div>
           );
         })}
@@ -389,12 +494,13 @@ export function ServiceDetailView({
           onServiceChanged?.();
         }}
       />
-      {jiraTarget && (
+      {jiraAction && (
         <JiraTicketModal
-          onClose={() => setJiraTarget(null)}
+          onClose={() => setJiraAction(null)}
           serviceCode={detail.service_code}
-          provider={jiraTarget}
-          issueKey={ticketOf(jiraTarget)?.issueKey ?? null}
+          provider={jiraAction.provider}
+          action={jiraAction.action}
+          issueKey={ticketOf(jiraAction.provider)?.issueKey ?? null}
           onDone={reload}
         />
       )}

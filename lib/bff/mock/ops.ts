@@ -171,6 +171,7 @@ const toListItem = (project: (typeof mockData.mockProjects)[number]): OpsTargetS
   service_name:
     mockData.mockServiceCodes.find((s) => s.code === project.serviceCode)?.name
       ?? project.serviceCode,
+  description: project.description ?? null,
   cloud_provider: project.cloudProvider,
   is_sdu_type: project.isSduType === true,
   // 어떤 fixture 도 dbType 을 세팅하지 않아 운영 목록의 DB 열이 전부 — 로 보였다.
