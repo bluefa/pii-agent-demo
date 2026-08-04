@@ -40,7 +40,7 @@ import {
   type CredFilter,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/CredFilterCards';
 import type { ConfirmedResource } from '@/lib/types/resources';
-import { hasLogicalDatabases, needsCredential } from '@/lib/types';
+import { hasLogicalDatabases, needsCredential, type SecretKey } from '@/lib/types';
 import { GROUPED_CHILD_KIND_LABEL, resultUnitId } from '@/lib/resource-grouping';
 
 interface LogicalModalTarget {
@@ -161,13 +161,15 @@ export const ConnectionTestCard = ({
   const [savingCred, setSavingCred] = useState(false);
   const toast = useToast();
 
-  // DB Credential options from GET .../secrets (not a hardcoded list).
-  const [credOptions, setCredOptions] = useState<string[]>([]);
+  // DB Credential options from GET .../secrets (not a hardcoded list). 이름만 뽑지 않고
+  // 레코드를 그대로 들고 있는다 — 이름이 비슷한 후보를 가르는 것은 생성 시각이라, 고르는
+  // 모달이 그 값을 같이 보여준다.
+  const [credOptions, setCredOptions] = useState<SecretKey[]>([]);
   useEffect(() => {
     let active = true;
     void getSecrets(targetSourceId)
       .then((secrets) => {
-        if (active) setCredOptions(secrets.map((s) => s.name));
+        if (active) setCredOptions(secrets);
       })
       .catch(() => {
         if (active) setCredOptions([]);

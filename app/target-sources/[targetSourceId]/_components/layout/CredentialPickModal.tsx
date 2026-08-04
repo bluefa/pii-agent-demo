@@ -3,11 +3,15 @@
 import { useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { formatDate } from '@/lib/utils/date';
+import type { SecretKey } from '@/lib/types';
 import {
+  bgColors,
   borderColors,
   cn,
   getButtonClass,
   getInputClass,
+  numericFeatures,
   primaryColors,
   textColors,
 } from '@/lib/theme';
@@ -19,8 +23,8 @@ interface CredentialPickModalProps {
   resourceLabel: string;
   /** 현재 배정값 ('' = 미설정). */
   value: string;
-  /** GET …/secrets 의 이름 목록. */
-  options: readonly string[];
+  /** GET …/secrets 레코드 — 이름과 생성 시각. */
+  options: readonly SecretKey[];
   saving: boolean;
   onSubmit: (next: string) => void;
 }
@@ -53,9 +57,13 @@ export const CredentialPickModal = ({
   }
 
   const needle = query.trim().toLowerCase();
-  const hits = needle ? options.filter((name) => name.toLowerCase().includes(needle)) : options;
+  const hits = needle
+    ? options.filter((secret) => secret.name.toLowerCase().includes(needle))
+    : options;
   // 검색어에 걸리지 않아도 현재 값은 남는다 — 검색했더니 아무것도 배정 안 된 것처럼 보이면 안 된다.
-  const shown = picked && !hits.includes(picked) ? [picked, ...hits] : hits;
+  const current = options.find((secret) => secret.name === picked);
+  const shown =
+    current && !hits.some((secret) => secret.name === picked) ? [current, ...hits] : hits;
 
   return (
     <Modal
@@ -100,24 +108,24 @@ export const CredentialPickModal = ({
               검색 결과가 없어요.
             </p>
           )}
-          {shown.map((name) => {
-            const checked = picked === name;
+          {shown.map((secret) => {
+            const checked = picked === secret.name;
             return (
               <label
-                key={name}
+                key={secret.name}
                 className={cn(
                   'flex cursor-pointer items-center gap-2.5 rounded-xl border px-4 py-3 transition-colors',
                   checked
                     ? cn(primaryColors.border, primaryColors.bgLight)
-                    : cn(borderColors.default, 'hover:bg-[#F7F8FA]'),
+                    : cn(borderColors.default, bgColors.mutedHover),
                 )}
               >
                 <input
                   type="radio"
                   name="db-credential"
-                  value={name}
+                  value={secret.name}
                   checked={checked}
-                  onChange={() => setPicked(name)}
+                  onChange={() => setPicked(secret.name)}
                   className="h-4 w-4 accent-[#0064FF]"
                 />
                 {/* Credential 이름은 표의 셀과 같은 mono — 같은 값이 두 화면에서 같게 읽힌다. */}
@@ -128,8 +136,22 @@ export const CredentialPickModal = ({
                     checked ? 'font-semibold' : 'font-medium',
                   )}
                 >
-                  {name}
+                  {secret.name}
                 </span>
+                {/* 생성 시각(계약이 주는 유일한 시각 — 수정 시각은 없다). 이름이 비슷한 후보를
+                    가르는 값이지만 고르는 대상은 아니므로, 오른쪽 끝에서 한 단계 낮은 계층으로
+                    읽힌다. */}
+                {secret.createTimeStr && (
+                  <span
+                    className={cn(
+                      'ml-auto shrink-0 text-[12px] font-normal',
+                      numericFeatures.tabular,
+                      textColors.tertiary,
+                    )}
+                  >
+                    {formatDate(secret.createTimeStr, 'datetime')} 생성
+                  </span>
+                )}
               </label>
             );
           })}
