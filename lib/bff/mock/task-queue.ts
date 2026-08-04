@@ -75,14 +75,19 @@ const REQUESTS_PENDING: RequestRow[] = [
   { ts: 2051, svc: '알림서비스', code: 'NTF', pv: 'AZURE', cs: 'PENDING' },
 ];
 
+// 100자 반려 사유 — 목록 셀에서 잘리고 hover 툴팁에서만 전문이 보이는 경로를
+// 실제로 밟게 하는 표본. 짧은 사유만 있으면 잘림·툴팁이 검증되지 않는다.
+// P2 목록(REQUESTS_REJECTED)과 P3 상세(SEED_APPROVAL_DEMO)가 같은 문장을
+// 들어야 하므로 한 곳에서 선언한다.
+const ADS_REJECT_REASON =
+  '선택된 리소스 중 stg 계정 리소스가 포함되어 있고, 운영 계정 태그 규칙(env=prod)도 지켜지지 않았습니다. 태그를 정리한 뒤 운영 계정 리소스만 다시 선택해 재요청해 주세요.';
+const ADS_REJECTED_AT = '2026-07-18T11:02:00Z';
+
 const REQUESTS_REJECTED: RequestRow[] = [
   {
-    // 100자 반려 사유 — 목록 셀에서 잘리고 hover 툴팁에서만 전문이 보이는 경로를
-    // 실제로 밟게 하는 표본. 짧은 사유만 있으면 잘림·툴팁이 검증되지 않는다.
     ts: 1907, svc: '광고서비스', code: 'ADS', pv: 'AWS', cs: 'REJECTED',
-    reason:
-      '선택된 리소스 중 stg 계정 리소스가 포함되어 있고, 운영 계정 태그 규칙(env=prod)도 지켜지지 않았습니다. 태그를 정리한 뒤 운영 계정 리소스만 다시 선택해 재요청해 주세요.',
-    at: '2026-07-18T11:02:00Z',
+    reason: ADS_REJECT_REASON,
+    at: ADS_REJECTED_AT,
   },
   {
     ts: 1873, svc: '채팅서비스', code: 'CHT', pv: 'IDC', cs: 'REJECTED',
@@ -312,6 +317,23 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
         metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'Redshift' } },
       { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:db-proxy:prx-pay', resource_name: 'pay-rds-proxy', resource_type: 'RDS', selected: false,
         exclusion_reason: 'RDS Proxy — 설치 불필요 리소스',
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
+    ],
+  }],
+  // 반려된 요청 — P2 '연동 요청 반려 확인' 행에서 들어오는 상세. processed_at 이
+  // 있어야 wire 에 result(판정)가 실리고, 화면이 반려 사유 블록을 그린다.
+  [1907, {
+    ts: 1907, status: 'REJECTED', requested_by: 'sora.han', requested_at: '2026-07-17T09:31:00Z',
+    processed_at: ADS_REJECTED_AT, reason: ADS_REJECT_REASON,
+    resources: [
+      { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-ads-prod', resource_name: 'aurora-ads-prod', resource_type: 'RDS_CLUSTER', selected: true,
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
+      { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-ads-stg', resource_name: 'aurora-ads-stg', resource_type: 'RDS_CLUSTER', selected: true,
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
+      { resource_id: 'arn:aws:redshift:ap-northeast-2:558712049371:cluster:ads-redshift-main', resource_name: 'ads-redshift-main', resource_type: 'REDSHIFT', selected: true,
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'Redshift' } },
+      { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:db:ads-mysql-dev', resource_name: 'ads-mysql-dev', resource_type: 'RDS', selected: false,
+        exclusion_reason: '개발(dev) 인스턴스 — 서비스 오너 제외',
         metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
     ],
   }],

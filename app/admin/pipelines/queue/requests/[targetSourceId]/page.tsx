@@ -22,6 +22,7 @@ import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 
 import { RequestDetailHeader } from '@/app/admin/pipelines/queue/requests/_components/RequestDetailHeader';
+import { RequestVerdictNotice } from '@/app/admin/pipelines/queue/requests/_components/RequestVerdictNotice';
 import { ResourceSection } from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
 import { NlbListenerModal } from '@/app/admin/pipelines/queue/requests/_components/NlbListenerModal';
 import { NlbAssignModal } from '@/app/admin/pipelines/queue/requests/_components/NlbAssignModal';
@@ -136,6 +137,10 @@ export default function RequestDetailPage(): ReactElement {
   const resources = detail?.resources ?? [];
   const selectedCount =
     detail?.request.resourceSelectedCount ?? resources.filter((r) => r.selected).length;
+  // 이미 처리된 요청 — 반려 목록에서 들어온 경로가 여기다. 상태를 wire 의 result
+  // 유무가 아니라 request.status 로 판정한다: result 는 결정을 '설명'하는 필드고,
+  // 결정 여부 자체는 요청 상태가 말한다.
+  const decided = detail != null && detail.request.status !== 'PENDING';
   const backToList = (): void => router.push(passRoutes.pipelines.queue.requests);
 
   // A failed submit keeps the modal open (it resets its own submitting flag) and
@@ -198,9 +203,15 @@ export default function RequestDetailPage(): ReactElement {
             serviceCode={header?.serviceCode ?? null}
             requestedBy={detail.request.requestedBy}
             requestedAt={detail.request.requestedAt}
-            onApprove={() => setModal('approve')}
-            onReject={() => setModal('reject')}
+            // 결정이 끝난 요청에는 CTA 를 넘기지 않는다 — 아래 verdict 가 상태를
+            // 말하고, 재처리는 계약상 불가능하다.
+            onApprove={decided ? undefined : () => setModal('approve')}
+            onReject={decided ? undefined : () => setModal('reject')}
           />
+
+          {/* 관리자가 이미 답을 준 요청이면, 서비스 담당자가 Step 2 에서 읽는
+              그 문장을 여기서도 같은 문법(3px 룰 인용)으로 먼저 보여준다. */}
+          {detail.verdict != null && <RequestVerdictNotice verdict={detail.verdict} />}
 
           {/* One title for both providers: what the section holds is the request, and
               naming its IDC-only parts made the heading grow a clause per provider.

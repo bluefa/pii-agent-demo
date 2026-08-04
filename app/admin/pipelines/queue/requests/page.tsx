@@ -357,7 +357,7 @@ export default function RequestsPage(): ReactElement {
                     {fmtDateTime(row.latestApprovalRequest?.requestedAt)}
                   </span>
                   <span role="cell" className={rq.chev}>
-                    <Icon name="chev-r" size="sm" />
+                    <Icon name="arrow-up-right" size="sm" />
                   </span>
                 </div>
               );
@@ -367,10 +367,11 @@ export default function RequestsPage(): ReactElement {
 
         {/* 연동 요청 반려 확인 (반려) — 위 카드와 같은 컬럼 골격. 반려 사유가
             설명 자리(유일한 두 번째 flex 컬럼)에 들어가고, 잘린 전문은 기존
-            hover 셀(tqStyles.rr)이 그대로 보여준다. */}
+            hover 셀(tqStyles.rr)이 그대로 보여준다. 행은 위 카드와 같은 상세로
+            가고, 그곳에서 사유 전문과 요청 내역(리소스)을 함께 읽는다. */}
         <SectionCard
           title="연동 요청 반려 확인"
-          desc="반려했으나 서비스 측 담당자가 아직 확인하지 않았어요"
+          desc="반려했으나 서비스 측 담당자가 아직 확인하지 않았어요 — 행을 눌러 사유와 요청 내역을 볼 수 있어요"
           icon="warn-tri"
           tone="danger"
           state={rejected}
@@ -381,7 +382,18 @@ export default function RequestsPage(): ReactElement {
             rows.map((row) => {
               const id = row.targetSourceId;
               return (
-                <div key={id ?? row.serviceCode} role="row" className={rq.row}>
+                <div
+                  key={id ?? row.serviceCode}
+                  role="row"
+                  className={cn(rq.row, id != null && rq.rowLink)}
+                >
+                  {id != null && (
+                    <Link
+                      href={passRoutes.pipelines.queue.request(id)}
+                      aria-label={`${row.serviceName ?? `Target Source ${id}`} 반려 내역 상세 보기`}
+                      className="absolute inset-0"
+                    />
+                  )}
                   <span role="cell" className={cn(rq.service, rq.serviceName)}>
                     {row.serviceName ?? '—'}
                   </span>
@@ -404,8 +416,9 @@ export default function RequestsPage(): ReactElement {
                   <span role="cell" className={rq.when}>
                     {fmtDateTime(row.latestApprovalRequest?.processedAt)}
                   </span>
-                  {/* 반려 행은 상세로 가지 않는다 — 위 카드의 › 자리를 비워 폭만 맞춘다. */}
-                  <span role="cell" className={rq.chev} />
+                  <span role="cell" className={rq.chev}>
+                    <Icon name="arrow-up-right" size="sm" />
+                  </span>
                 </div>
               );
             })

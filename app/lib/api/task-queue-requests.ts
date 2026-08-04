@@ -38,6 +38,19 @@ export interface ApprovalRequestSummary {
   resourceSelectedCount: number | null;
 }
 
+/**
+ * How the request was decided (`ApprovalRequestLatestDto.result`) — the admin's
+ * verdict, absent while the request is still pending. Carries the 반려 사유 the
+ * requester sees in Step 2, so the admin surface can quote the same words.
+ */
+export interface ApprovalVerdict {
+  requestId: number | null;
+  status: string | null;
+  processedBy: string | null;
+  processedAt: string | null;
+  reason: string | null;
+}
+
 export type IdcHostKind = 'IP' | 'HOST';
 
 /** One resource of an approval request (P3 연동 대상 리소스 table row). */
@@ -72,6 +85,8 @@ export interface RequestResourceRow {
 export interface ApprovalRequestDetail {
   request: ApprovalRequestSummary;
   resources: RequestResourceRow[];
+  /** null while the request is still pending (the wire omits `result`). */
+  verdict: ApprovalVerdict | null;
 }
 
 // ── Wire aliases + mappers (the ONLY wire↔domain conversion site) ────────────
@@ -131,6 +146,15 @@ function toApprovalRequestDetail(wire: ApprovalRequestLatestWire): ApprovalReque
       resourceSelectedCount: req.resource_selected_count ?? null,
     },
     resources: (wire.resources ?? []).map(toRequestResourceRow),
+    verdict: wire.result
+      ? {
+          requestId: wire.result.request_id ?? null,
+          status: wire.result.status ?? null,
+          processedBy: wire.result.processed_by?.user_id ?? null,
+          processedAt: wire.result.processed_at ?? null,
+          reason: wire.result.reason ?? null,
+        }
+      : null,
   };
 }
 
