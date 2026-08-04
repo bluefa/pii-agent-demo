@@ -67,10 +67,6 @@ export const tqStyles = {
       'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
   },
 
-  /** detail-link — "상세보기" + ↗ (`.detail-link`), reused in P2/P4/P3. */
-  detailLink:
-    'inline-flex items-center gap-1 whitespace-nowrap text-[14px] font-semibold text-[var(--pl-primary)]',
-
   /** App db-list-table tag palette (`.tag.*`) — 12/600 r6 pad 2/8. No existing
    *  `pipelineStyles` group covers this grammar (idcStyles.tag is IDC-scoped raw
    *  hex, r8/px2.5). */
@@ -177,14 +173,6 @@ export const tqStyles = {
     ok: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
   },
 
-  /** 반려 사유 hover 툴팁 (`.rr`) — truncated text + gray-900 tooltip above.
-   *  Named group so only the cell (not the row) triggers the tip. */
-  rr: {
-    wrap: 'group/rr relative inline-flex items-center gap-1.5 max-w-full',
-    text: 'max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap text-[var(--pl-text-medium)]',
-    tip: 'hidden group-hover/rr:block absolute bottom-[calc(100%+8px)] left-0 z-30 w-[320px] whitespace-normal rounded-lg bg-[var(--pl-gray-900)] px-3 py-2.5 text-[12px] font-normal leading-[1.4] text-[var(--pl-white)] shadow-[var(--pl-shadow-lg)]',
-  },
-
   /** Large empty state (`.empty-state`) — 44px inbox circle + 16/600 title +
    *  14 caption. Distinct metrics from PlEmptyState (40 circle / 22 icon). */
   empty: {
@@ -203,11 +191,10 @@ export const tqStyles = {
     meta: cn(text.meta, 'mt-1.5'),
   },
 
-  /** List table (`.tbl`) — flat prototype header: 12/600 weak, NO uppercase,
-   *  NO gray-50 fill; tbody without the Figma-dashboard zebra tint. */
+  /** List table header (`.tbl thead th`) — flat prototype header: 12/600 weak,
+   *  NO uppercase, NO gray-50 fill. Consumed by the 운영 대시보드 table. */
   listTable: {
     th: 'text-left h-[34px] px-3 text-[12px] font-semibold tracking-[0.03em] text-[var(--pl-text-weak)] border-b border-[var(--pl-border)]',
-    body: '[&>tr:last-child>td]:border-b-0',
   },
 
   /** Stat tile (`.stat`) — gray-100 centered read-only summary; label over value.

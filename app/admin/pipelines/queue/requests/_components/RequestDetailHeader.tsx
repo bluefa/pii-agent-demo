@@ -38,9 +38,9 @@ export interface RequestDetailHeaderProps {
   serviceCode: string | null;
   requestedBy: string | null;
   requestedAt: string | null;
-  onApprove: () => void;
-  onReject: () => void;
-  actionsDisabled?: boolean;
+  /** Omitted once the request is decided — a settled request has no 승인/반려. */
+  onApprove?: () => void;
+  onReject?: () => void;
 }
 
 export function RequestDetailHeader({
@@ -54,7 +54,6 @@ export function RequestDetailHeader({
   requestedAt,
   onApprove,
   onReject,
-  actionsDisabled,
 }: RequestDetailHeaderProps): ReactElement {
   // Provider joins the label-over-value run instead of standing above it as a dotted
   // tag. It is a fact about the target source, exactly like 요청 시각 and 요청자, and a
@@ -112,14 +111,19 @@ export function RequestDetailHeader({
           ))}
         </div>
       </div>
-      <div className="flex gap-2 flex-none">
-        <PlButton variant="danger" onClick={onReject} disabled={actionsDisabled}>
-          반려
-        </PlButton>
-        <PlButton variant="primary" onClick={onApprove} disabled={actionsDisabled}>
-          승인
-        </PlButton>
-      </div>
+      {/* 결정이 끝난 요청에는 CTA 자체가 없다 — disabled 로 남겨두면 '지금은 못
+          누른다(나중엔 될 수도)'로 읽히지만, 반려·승인된 요청은 다시 처리할 수
+          없다. 상태는 위쪽 verdict 블록이 말한다. */}
+      {onApprove && onReject && (
+        <div className="flex gap-2 flex-none">
+          <PlButton variant="danger" onClick={onReject}>
+            반려
+          </PlButton>
+          <PlButton variant="primary" onClick={onApprove}>
+            승인
+          </PlButton>
+        </div>
+      )}
     </div>
   );
 }

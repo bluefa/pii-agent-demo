@@ -75,16 +75,28 @@ const REQUESTS_PENDING: RequestRow[] = [
   { ts: 2051, svc: '알림서비스', code: 'NTF', pv: 'AZURE', cs: 'PENDING' },
 ];
 
+// 100자 반려 사유 — 목록 셀에서 잘리고 hover 툴팁에서만 전문이 보이는 경로를
+// 실제로 밟게 하는 표본. 짧은 사유만 있으면 잘림·툴팁이 검증되지 않는다.
+// P2 목록(REQUESTS_REJECTED)과 P3 상세(SEED_APPROVAL_DEMO)가 같은 문장을
+// 들어야 하므로 한 곳에서 선언한다.
+const ADS_REJECT_REASON =
+  '선택된 리소스 중 stg 계정 리소스가 포함되어 있고, 운영 계정 태그 규칙(env=prod)도 지켜지지 않았습니다. 태그를 정리한 뒤 운영 계정 리소스만 다시 선택해 재요청해 주세요.';
+const ADS_REJECTED_AT = '2026-07-18T11:02:00Z';
+
+// 짧은 사유 쪽 표본(IDC) — 같은 블록이 한 줄짜리 사유에서도 성립하는지 본다.
+const CHT_REJECT_REASON = 'Oracle SID 미기입 — 접속 정보를 채워 다시 요청해 주세요.';
+const CHT_REJECTED_AT = '2026-07-15T09:47:00Z';
+
 const REQUESTS_REJECTED: RequestRow[] = [
   {
     ts: 1907, svc: '광고서비스', code: 'ADS', pv: 'AWS', cs: 'REJECTED',
-    reason: '선택된 리소스 중 stg 계정 리소스가 포함되어 있습니다. 운영 계정 리소스만 선택 후 재요청해 주세요.',
-    at: '2026-07-18T11:02:00Z',
+    reason: ADS_REJECT_REASON,
+    at: ADS_REJECTED_AT,
   },
   {
     ts: 1873, svc: '채팅서비스', code: 'CHT', pv: 'IDC', cs: 'REJECTED',
-    reason: 'Oracle SID 미기입 — 접속 정보를 채워 다시 요청해 주세요.',
-    at: '2026-07-15T09:47:00Z',
+    reason: CHT_REJECT_REASON,
+    at: CHT_REJECTED_AT,
   },
 ];
 
@@ -279,6 +291,8 @@ interface ApprovalDemo {
   requested_by: string;
   requested_at: string;
   processed_at: string | null;
+  /** 결정한 관리자 — 반려 사유 아래 '처리자'로 나온다. */
+  processed_by: string | null;
   reason: string | null;
   resources: ApprovalDemoResource[];
 }
@@ -286,7 +300,7 @@ interface ApprovalDemo {
 const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
   [1031, {
     ts: 1031, status: 'PENDING', requested_by: 'jun.park', requested_at: '2026-07-19T16:08:00Z',
-    processed_at: null, reason: null,
+    processed_at: null, processed_by: null, reason: null,
     resources: [
       { resource_id: 'idc-r-8f21', resource_name: 'oracle-order-prod', resource_type: 'IDC', selected: true,
         metadata: { provider: 'IDC', database_type: 'Oracle', port: 1521, oracle_service_id: 'ORCLPDB1', idc_host_format: 'IP', idc_ips: ['10.20.1.11', '10.20.1.12'], idc_source_ips: ['10.20.9.1', '10.20.9.2'] } },
@@ -301,7 +315,7 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
   }],
   [2113, {
     ts: 2113, status: 'PENDING', requested_by: 'mina.choi', requested_at: '2026-07-20T18:09:00Z',
-    processed_at: null, reason: null,
+    processed_at: null, processed_by: null, reason: null,
     resources: [
       { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-pay-prod', resource_name: 'aurora-pay-prod', resource_type: 'RDS_CLUSTER', selected: true,
         metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
@@ -310,6 +324,39 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
       { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:db-proxy:prx-pay', resource_name: 'pay-rds-proxy', resource_type: 'RDS', selected: false,
         exclusion_reason: 'RDS Proxy — 설치 불필요 리소스',
         metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
+    ],
+  }],
+  // 반려된 요청 — P2 '연동 요청 반려 확인' 행에서 들어오는 상세. processed_at 이
+  // 있어야 wire 에 result(판정)가 실리고, 화면이 반려 사유 블록을 그린다.
+  [1907, {
+    ts: 1907, status: 'REJECTED', requested_by: 'sora.han', requested_at: '2026-07-17T09:31:00Z',
+    processed_at: ADS_REJECTED_AT, processed_by: '관리자', reason: ADS_REJECT_REASON,
+    resources: [
+      { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-ads-prod', resource_name: 'aurora-ads-prod', resource_type: 'RDS_CLUSTER', selected: true,
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
+      { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-ads-stg', resource_name: 'aurora-ads-stg', resource_type: 'RDS_CLUSTER', selected: true,
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
+      { resource_id: 'arn:aws:redshift:ap-northeast-2:558712049371:cluster:ads-redshift-main', resource_name: 'ads-redshift-main', resource_type: 'REDSHIFT', selected: true,
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'Redshift' } },
+      { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:db:ads-mysql-dev', resource_name: 'ads-mysql-dev', resource_type: 'RDS', selected: false,
+        exclusion_reason: '개발(dev) 인스턴스 — 서비스 오너 제외',
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
+    ],
+  }],
+  // 반려된 IDC 요청 — 반려 상세의 IDC 경로(접속 주소·포트·SID·출발지 IP 컬럼과
+  // 잠긴 NLB Index)를 밟는다. 사유가 반려 원인(Oracle SID 미기입)을 가리키므로
+  // 해당 리소스의 oracle_service_id 는 비워 둔다.
+  [1873, {
+    ts: 1873, status: 'REJECTED', requested_by: 'dohee.kim', requested_at: '2026-07-14T13:20:00Z',
+    processed_at: CHT_REJECTED_AT, processed_by: '관리자', reason: CHT_REJECT_REASON,
+    resources: [
+      { resource_id: 'idc-r-4c11', resource_name: 'oracle-chat-prod', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'Oracle', port: 1521, idc_host_format: 'IP', idc_ips: ['10.30.1.21', '10.30.1.22'], idc_source_ips: ['10.30.9.1'], nlb_index: 2 } },
+      { resource_id: 'idc-r-4c12', resource_name: 'mysql-chat-prod', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'MySQL', port: 3306, idc_host_format: 'HOST', idc_host: 'db-mysql.chat.prod.internal', idc_source_ips: ['10.30.9.1', '10.30.9.2'], nlb_index: 3 } },
+      { resource_id: 'idc-r-4c13', resource_name: 'mysql-chat-stg', resource_type: 'IDC', selected: false,
+        exclusion_reason: 'STG 인스턴스 — 서비스 오너 제외',
+        metadata: { provider: 'IDC', database_type: 'MySQL', port: 3306, idc_host_format: 'HOST', idc_host: 'db-mysql.chat.stg.internal' } },
     ],
   }],
 ]);
@@ -339,7 +386,15 @@ export function getTqApprovalLatest(ts: number): Record<string, unknown> | null 
       },
     })),
     ...(demo.processed_at
-      ? { result: { request_id: demo.ts, status: demo.status, processed_at: demo.processed_at, reason: demo.reason } }
+      ? {
+          result: {
+            request_id: demo.ts,
+            status: demo.status,
+            processed_by: demo.processed_by ? { user_id: demo.processed_by } : null,
+            processed_at: demo.processed_at,
+            reason: demo.reason,
+          },
+        }
       : {}),
   };
 }
@@ -356,6 +411,7 @@ export function applyTqApprovalDecision(
   const now = new Date().toISOString();
   demo.status = decision;
   demo.processed_at = now;
+  demo.processed_by = '관리자';
   demo.reason = reason;
 
   const pIdx = state.requestsPending.findIndex((r) => r.ts === ts);
@@ -370,7 +426,7 @@ export function applyTqApprovalDecision(
     state.reasonByTs.set(ts, rejected);
   }
   if (allRow) allRow.cs = decision === 'APPROVED' ? 'CONFIRMING' : 'REJECTED';
-  return { request_id: ts, status: decision, processed_at: now, reason };
+  return { request_id: ts, status: decision, processed_by: { user_id: '관리자' }, processed_at: now, reason };
 }
 
 // ── Test-connection per-resource results + logical DBs (P5 demo fixture) ────
