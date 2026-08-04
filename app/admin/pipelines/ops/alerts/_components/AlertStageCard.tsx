@@ -20,9 +20,6 @@ import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetS
 /** 3 rows is the Figma card body (h320) — a 4th row would push the pager out. */
 const PAGE_SIZE = 3;
 
-/** Skeleton bar width per column (Target · 서비스 · 클라우드). */
-const SKELETON_WIDTHS = ['w-[44px]', 'w-[72%]', 'w-[52px]'] as const;
-
 /** 설치 필요 is the Terraform-driven bucket, so it wears the Terraform mark. */
 export type AlertStageIcon = IconName | 'terraform';
 
@@ -43,16 +40,30 @@ const stageCard = {
   badge:
     'inline-flex items-center rounded-full bg-[var(--pl-gray-100)] px-2 py-[3px] text-[11px] font-medium text-[var(--pl-text-medium)] tabular-nums',
   desc: 'text-[13px] leading-[1.5] text-[var(--pl-gray-600)]',
-  headRow: 'flex items-center py-2 text-[12px] font-medium text-[var(--pl-text-faint)]',
-  row: 'relative flex items-center py-2.5 border-t border-[var(--pl-border)] text-[13px] hover:bg-[var(--pl-gray-50)] transition-colors',
-  cell: 'flex-1 min-w-0 truncate',
-  service: 'font-medium text-[var(--pl-text-strong)]',
+  headRow: 'flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-faint)]',
+  row: 'relative flex items-center gap-3 py-2.5 border-t border-[var(--pl-border)] text-[13px] hover:bg-[var(--pl-gray-50)] transition-colors',
+  // Column widths — the 연동 요청 목록 (queue/requests) card's, so the two
+  // surfaces read as the same table at the same width.
+  service: 'min-w-0 flex-1 truncate',
+  code: 'w-[96px] flex-none truncate',
+  target: 'w-[56px] flex-none',
+  cloud: 'w-[76px] flex-none',
+  serviceText: 'font-medium text-[var(--pl-text-strong)]',
   state: 'text-[13px] text-[var(--pl-text-weak)] py-2.5',
   /** Loading bar inside a skeleton cell — opsStyles.skeleton grammar (animate-
    *  pulse · rounded · gray-100) at one text line's height. */
   skeletonBar: 'block h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
   footer: 'mt-auto',
 } as const;
+
+/** Column order is the 연동 요청 목록's: 서비스 이름 · 서비스 코드 · Target ·
+ *  Cloud. Drives the header row and the loading skeleton together. */
+const COLUMNS = [
+  { label: '서비스 이름', className: stageCard.service },
+  { label: '서비스 코드', className: stageCard.code },
+  { label: 'Target', className: stageCard.target },
+  { label: 'Cloud', className: stageCard.cloud },
+] as const;
 
 export interface AlertStageCardProps {
   kind: AlertTargetKind;
@@ -126,9 +137,11 @@ export function AlertStageCard({
 
         <div>
           <div className={stageCard.headRow}>
-            <span className={stageCard.cell}>Target</span>
-            <span className={stageCard.cell}>서비스</span>
-            <span className={stageCard.cell}>클라우드</span>
+            {COLUMNS.map((col) => (
+              <span key={col.label} className={col.className}>
+                {col.label}
+              </span>
+            ))}
           </div>
           {failed ? (
             <p className={stageCard.state}>목록을 불러오지 못했습니다.</p>
@@ -138,13 +151,8 @@ export function AlertStageCard({
             <div aria-busy="true" aria-label={`${label} 목록을 불러오는 중`}>
               {Array.from({ length: PAGE_SIZE }, (_, row) => (
                 <div key={row} className={stageCard.row} aria-hidden="true">
-                  {/* The cells sit edge to edge (no row gap), so the bar is an
-                      inner block narrower than its cell — three full-width bars
-                      would read as one. */}
-                  {SKELETON_WIDTHS.map((width) => (
-                    <span key={width} className={stageCard.cell}>
-                      <span className={cn(stageCard.skeletonBar, width)} />
-                    </span>
+                  {COLUMNS.map((col) => (
+                    <span key={col.label} className={cn(col.className, stageCard.skeletonBar)} />
                   ))}
                 </div>
               ))}
@@ -159,11 +167,16 @@ export function AlertStageCard({
                   aria-label={`Target Source ${row.targetSourceId} 운영 화면으로 이동`}
                   className="absolute inset-0"
                 />
-                <span className={cn(stageCard.cell, pipelineStyles.table.mono)}>
+                <span className={cn(stageCard.service, stageCard.serviceText)}>
+                  {row.serviceName ?? '—'}
+                </span>
+                <span className={cn(stageCard.code, pipelineStyles.table.mono)}>
+                  {row.serviceCode ?? '—'}
+                </span>
+                <span className={cn(stageCard.target, pipelineStyles.table.mono)}>
                   #{row.targetSourceId}
                 </span>
-                <span className={cn(stageCard.cell, stageCard.service)}>{row.serviceName}</span>
-                <span className={stageCard.cell}>
+                <span className={stageCard.cloud}>
                   <ProvTag provider={row.cloudProvider ?? 'UNKNOWN'} />
                 </span>
               </div>
