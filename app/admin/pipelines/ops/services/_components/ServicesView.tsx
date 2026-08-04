@@ -76,8 +76,13 @@ export function ServicesView(): ReactElement {
 
   return (
     <div className={s.split}>
-      {/* 좌 — 서비스 레일 */}
-      <aside className={s.rail} aria-label="서비스 목록">
+      {/* 좌 — 서비스 레일. 우측 상세는 표·타일로 길어지므로 레일이 같이 늘어나면
+          페이지 이동 버튼이 화면 밖으로 밀린다 — 뷰포트 높이에 고정하고 목록만 스크롤. */}
+      <aside
+        // top-14 = sticky TopNav(h-14) 아래. top-0 이면 레일 제목이 TopNav 밑으로 들어간다.
+        className={cn(s.rail, 'sticky top-14 self-start h-[calc(100vh_-_56px)]')}
+        aria-label="서비스 목록"
+      >
         <h1 className={s.railTitle}>서비스 운영</h1>
         <SearchBox
           wrapClassName="block mb-3"
@@ -162,12 +167,19 @@ export function ServicesView(): ReactElement {
             onServiceChanged={reload}
           />
         ) : (
-          <PlEmptyState
-            icon="cursor"
-            center
-            message="좌측에서 서비스를 선택해 주세요."
-            meta="ServiceCode 단위로 Target Source 목록과 Jira Ticket을 확인하고 EOS를 처리합니다."
-          />
+          // 빈 화면은 카드도 표도 없어 기준선이 없다 — 패널 한가운데에 놓고, 다음 행동
+          // ("서비스를 고르세요")만 primary 로 키워 시선이 좌측 레일로 가게 한다.
+          <div className="flex h-full items-center justify-center">
+            <PlEmptyState
+              icon="cursor"
+              message={
+                <span className="text-[20px] font-bold text-[var(--pl-primary)]">
+                  좌측에서 서비스를 선택해 주세요.
+                </span>
+              }
+              meta={<span className="text-[16px]">서비스 현황을 상세 확인합니다.</span>}
+            />
+          </div>
         )}
       </section>
     </div>

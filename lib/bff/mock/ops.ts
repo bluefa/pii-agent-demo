@@ -129,6 +129,20 @@ const serviceGlobal = globalThis as typeof globalThis & {
 
 const SEED_OWNERS = ['김유진', '이도현', '정하늘', '최민서', '한지우', '오세라'];
 
+/**
+ * 앞 두 서비스만 일부 provider 를 연결된 상태로 둔다 — 연결/미연결 두 타일 모양이 한
+ * 화면에 같이 보여야 한다. 값은 실 BFF 처럼 티켓 주소를 싣는다(계약은 issueKey 문자열
+ * 하나뿐이고 형식을 정하지 않는다): 키만 주면 화면의 "주소 뒤 조각만 표시" 경로가
+ * 데모에서 한 번도 돌지 않는다.
+ */
+const SEED_JIRA: ReadonlyArray<Record<string, string>> = [
+  {
+    AWS: 'https://jira.example.com/some/path/BDCDIP-2211',
+    IDC: 'https://jira.example.com/some/path/BDCDIP-2103',
+  },
+  { AZURE: 'https://jira.example.com/some/path/BDCDIP-1799' },
+];
+
 const serviceCodes = (): string[] =>
   [...new Set(mockData.mockProjects.map((p) => p.serviceCode))].sort();
 
@@ -140,9 +154,7 @@ const serviceState = (code: string): OpsServiceState => {
     state = {
       owner: SEED_OWNERS[Math.max(0, index) % SEED_OWNERS.length],
       status: 'OPERATING',
-      // 첫 서비스만 일부 provider 가 연결된 상태로 시작 — 연결/미연결 두 행 모양을
-      // 동시에 볼 수 있어야 한다.
-      jira: index === 0 ? { AWS: 'INFRA-2211', IDC: 'INFRA-2103' } : {},
+      jira: { ...(SEED_JIRA[index] ?? {}) },
     };
     store.set(code, state);
   }
@@ -349,7 +361,9 @@ export const mockServiceJiraTickets = {
   // 티켓을 만들지 않는다 — 이미 있는 issueKey 를 이 서비스·provider 에 매핑할 뿐.
   attach: async (code: string, provider: string, issueKey: string) => {
     if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
-    serviceState(code).jira[provider] = issueKey;
+    // 넣는 값은 티켓 키지만 조회 응답에는 티켓 주소가 실려 온다 — 목도 같은 변환을 해야
+    // 연결 직후 화면이 실제(파란 링크)와 같아진다.
+    serviceState(code).jira[provider] = `https://jira.example.com/browse/${issueKey}`;
     return new NextResponse(null, { status: 204 });
   },
 

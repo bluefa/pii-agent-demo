@@ -19,6 +19,7 @@ import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { jiraTicketLink } from '@/app/admin/pipelines/ops/services/_components/jiraLink';
 import {
   attachJiraTicket,
   detachJiraTicket,
@@ -45,7 +46,7 @@ const menuStyles = {
   chev: 'flex-none text-[var(--pl-text-faint)]',
   /** 되돌릴 수 있다는 사실이 핵심 — 경고(err)가 아니라 정보(info) 톤. */
   note:
-    'flex items-start gap-2 rounded-lg border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-3.5 py-3 text-[13px] leading-[1.6] text-[var(--pl-text-medium)]',
+    'flex items-start gap-2 rounded-lg border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-3.5 py-3 text-[14px] leading-[1.6] text-[var(--pl-text-medium)]',
 } as const;
 
 export interface JiraTicketModalProps {
@@ -128,11 +129,13 @@ export function JiraTicketModal({
           <div className={menuStyles.state}>
             <ProvTag provider={provider} />
             {issueKey ? (
-              <span className={cn(pipelineStyles.text.mono, 'font-semibold text-[13px]')}>
-                {issueKey}
+              // 값이 티켓 주소로 오면 그대로 찍을 수 없다(모달 폭을 넘긴다) — 타일과 같은
+              // 표시값(티켓 키)으로 줄인다. 입력창에는 원본을 그대로 둔다.
+              <span className={cn(pipelineStyles.text.mono, 'font-semibold text-[14px]')}>
+                {jiraTicketLink(issueKey).label}
               </span>
             ) : (
-              <span className="text-[13px] text-[var(--pl-text-weak)]">연결된 티켓 없음</span>
+              <span className="text-[14px] text-[var(--pl-text-weak)]">연결된 티켓 없음</span>
             )}
           </div>
           <div className={menuStyles.list}>
@@ -179,7 +182,8 @@ export function JiraTicketModal({
             id={INPUT_ID}
             type="text"
             className={opsStyles.credModal.search}
-            placeholder="예: INFRA-2211"
+            // 입력하는 값은 티켓 키 문자열이다 — 주소는 넣지 않는다(조회 응답에만 실린다).
+            placeholder="예: BDCDIP-12312"
             autoComplete="off"
             autoFocus
             value={value}
@@ -191,8 +195,10 @@ export function JiraTicketModal({
       {view === 'detach' && (
         <>
           <p className={pipelineStyles.modal.desc}>
-            <span className={pipelineStyles.text.mono}>{issueKey}</span> 와(과) {serviceCode} ·{' '}
-            {providerLabel(provider)} 의 연결을 끊습니다.
+            <span className={pipelineStyles.text.mono}>
+              {issueKey ? jiraTicketLink(issueKey).label : ''}
+            </span>{' '}
+            와(과) {serviceCode} · {providerLabel(provider)} 의 연결을 끊습니다.
           </p>
           <div className={menuStyles.note}>
             <span className="mt-0.5 flex-none text-[var(--pl-text-weak)]">

@@ -22,6 +22,7 @@ import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { EosModal } from '@/app/admin/pipelines/ops/services/_components/EosModal';
+import { jiraTicketLink } from '@/app/admin/pipelines/ops/services/_components/jiraLink';
 import { JiraTicketModal } from '@/app/admin/pipelines/ops/services/_components/JiraTicketModal';
 import {
   getOpsService,
@@ -38,13 +39,6 @@ const TS_COLUMNS = ['ID', 'Provider', '계정', '현재 단계', '마지막 변�
 const sectionHead = 'flex items-center gap-2 mb-3';
 const PAGE_SIZE = 10;
 
-/**
- * JiraTicketResponse 에는 티켓 URL 이 없다(issueKey 만 온다) — 계약이 url 을 싣기 전까지
- * 브라우즈 주소는 env 로 받는다. 기본값을 두지 않는 이유: NEXT_PUBLIC_* 는 빌드 시점에
- * 박히므로, 안 넣고 배포하면 남의 도메인으로 가는 링크가 그대로 굳는다. 없으면 링크가
- * 아니라 글자로 보여준다.
- */
-const JIRA_BROWSE_BASE = process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? null;
 
 /**
  * Step 1 리소스 표(idcStyles.table.approval*)를 그대로 쓰고, 이 화면에만 필요한 것만
@@ -55,7 +49,7 @@ const tsTable = {
   /* 레일이 폭을 280px 가져가므로 nowrap 열이 좁은 창에서 넘칠 수 있다 — 잘라내지 말고
      가로 스크롤로 넘긴다(잘리면 이동 링크가 화면 밖으로 사라진다). */
   frame: 'overflow-x-auto rounded-t-[10px] border border-b-0 border-[#E5E7EB] bg-white',
-  id: 'text-[13px] font-semibold [font-family:var(--pl-font-mono)] text-[#191F28] whitespace-nowrap',
+  id: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)] text-[#191F28] whitespace-nowrap',
   time: 'text-[14px] text-[#6B7684] whitespace-nowrap',
   go: 'inline-flex text-[#3182F6] hover:opacity-70',
 } as const;
@@ -75,7 +69,7 @@ const tileStyles = {
   /** 열 수 있을 때 — primary + 밑줄. ↗ 까지 밑줄이 이어지도록 inline 한 덩어리. */
   value:
     'mt-1 block truncate text-[12px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-primary)] underline underline-offset-2 hover:opacity-80',
-  empty: 'mt-1 block text-[11px] font-medium text-[var(--pl-text-faint)]',
+  empty: 'mt-1 block text-[12px] font-medium text-[var(--pl-text-faint)]',
   kebab:
     'flex-none -mr-1.5 grid h-7 w-7 place-items-center rounded-md text-[var(--pl-text-faint)] cursor-pointer hover:bg-[var(--pl-gray-100)] hover:text-[var(--pl-text-medium)]',
 } as const;
@@ -119,16 +113,16 @@ function AccountCell({ target }: { target: OpsTargetSourceListItem }): ReactElem
   const account = accountOf(target);
   if (!account) return <span className={pipelineStyles.text.muted}>—</span>;
   return (
-    // 300px = Azure subscription UUID(36자) 가 13px mono 로 잘리지 않는 폭. 가장 긴
+    // 320px = Azure subscription UUID(36자) 가 14px mono 로 잘리지 않는 폭. 가장 긴
     // 식별자에 맞춘다 — 여기서 줄이면 UUID 앞부분이 같은 행들이 서로 구분되지 않는다.
-    <span className="block max-w-[300px]">
+    <span className="block max-w-[320px]">
       <span className="flex items-center gap-1.5">
         <span className="text-[12px] text-[var(--pl-text-weak)]">{account.label}</span>
         {account.china && <span className={opsStyles.regionTag}>중국</span>}
       </span>
       <span
         title={account.value}
-        className="mt-0.5 block truncate text-[13px] [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)]"
+        className="mt-0.5 block truncate text-[14px] [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)]"
       >
         {account.value}
       </span>
@@ -232,7 +226,8 @@ export function ServiceDetailView({
       <div className="flex items-start justify-between gap-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h1>
+            {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
+            <h2 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h2>
             <span className={cn(opsStyles.tag, '[font-family:var(--pl-font-mono)]')}>
               {detail.service_code}
             </span>
@@ -347,23 +342,24 @@ export function ServiceDetailView({
       <section className={tileStyles.grid} aria-label="Jira Ticket 연결">
         {JIRA_CLOUD_PROVIDERS.map((provider) => {
           const ticket = ticketOf(provider);
+          const link = ticket ? jiraTicketLink(ticket.issueKey) : null;
           return (
             <div key={provider} className={tileStyles.base}>
               <div className="min-w-0 flex-1">
                 <ProvTag provider={provider} />
-                {ticket ? (
-                  JIRA_BROWSE_BASE ? (
+                {link ? (
+                  link.href ? (
                     <a
-                      href={`${JIRA_BROWSE_BASE}/${encodeURIComponent(ticket.issueKey)}`}
+                      href={link.href}
                       target="_blank"
                       rel="noreferrer"
                       className={tileStyles.value}
-                      title={`${ticket.issueKey} — Jira 에서 열기`}
+                      title={`${link.label} — Jira 에서 열기`}
                     >
-                      {ticket.issueKey} ↗
+                      {link.label} ↗
                     </a>
                   ) : (
-                    <span className={tileStyles.key}>{ticket.issueKey}</span>
+                    <span className={tileStyles.key}>{link.label}</span>
                   )
                 ) : (
                   <span className={tileStyles.empty}>연결된 티켓 없음</span>

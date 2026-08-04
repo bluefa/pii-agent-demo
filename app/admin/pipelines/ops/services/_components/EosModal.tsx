@@ -81,7 +81,7 @@ export function EosModal({
           disabled={submitting}
           className="mt-0.5 h-4 w-4 flex-none accent-[var(--pl-primary)]"
         />
-        <span className="text-[13px] leading-[1.5] text-[var(--pl-text-medium)]">
+        <span className="text-[14px] leading-[1.5] text-[var(--pl-text-medium)]">
           <b className="font-semibold text-[var(--pl-text-strong)]">Force 강제 처리</b>는 진행 중인
           파이프라인·승인 절차를 무시하고 즉시 EOS 처리합니다.
         </span>
@@ -90,7 +90,7 @@ export function EosModal({
       {error && (
         <div
           role="alert"
-          className="mt-3 flex items-start gap-2 rounded-lg border border-[var(--pl-err-border)] bg-[var(--pl-err-bg)] px-3.5 py-3 text-[13px] leading-[1.5] text-[var(--pl-err-text)]"
+          className="mt-3 flex items-start gap-2 rounded-lg border border-[var(--pl-err-border)] bg-[var(--pl-err-bg)] px-3.5 py-3 text-[14px] leading-[1.5] text-[var(--pl-err-text)]"
         >
           <span className="mt-0.5 flex-none">
             <Icon name="warn-tri" size="sm" />
