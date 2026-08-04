@@ -33,7 +33,13 @@ const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 
 const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalResource => ({
   resourceId: item.resource_id,
-  resourceType: item.resource_type ?? '',
+  // Same fallback as `toExcludedRow` below and as step 2 (WaitingApprovalCard): the approval
+  // request this echoes never carries `resource_type` — the step-1 payload adapter sends only
+  // metadata.{provider,region,database_type} — so a row that reaches here without it is the
+  // normal case, not a broken one. This is the GROUPING key (useApprovalTableState reads it as
+  // `type`), so leaving it empty un-folds the Athena regions on the selected half of the table
+  // while the 제외 half, which does fall back, keeps folding — one table, two grammars.
+  resourceType: item.resource_type ?? item.metadata?.database_type ?? '',
   // Contract: region/database_type live under metadata (TargetSourceResourceItemDto);
   // resource_type is the declared placeholder.
   region: item.metadata?.region ?? '',
