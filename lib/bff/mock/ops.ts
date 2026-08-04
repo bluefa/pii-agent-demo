@@ -363,8 +363,11 @@ export const mockServiceJiraTickets = {
   attach: async (code: string, provider: string, issueKey: string) => {
     if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
     // 넣는 값은 티켓 키지만 조회 응답에는 티켓 주소가 실려 온다 — 목도 같은 변환을 해야
-    // 연결 직후 화면이 실제(파란 링크)와 같아진다.
-    serviceState(code).jira[provider] = `https://jira.example.com/browse/${issueKey}`;
+    // 연결 직후 화면이 실제(파란 링크)와 같아진다. 주소를 그대로 붙여넣은 경우는
+    // 두 번 감싸지 않는다(계약이 형태를 강제하지 않아 어느 쪽도 들어올 수 있다).
+    serviceState(code).jira[provider] = /^https?:\/\//i.test(issueKey)
+      ? issueKey
+      : `https://jira.example.com/browse/${issueKey}`;
     return new NextResponse(null, { status: 204 });
   },
 

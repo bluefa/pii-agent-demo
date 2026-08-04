@@ -28,6 +28,18 @@ export interface JiraTicketMenuProps {
 export function JiraTicketMenu({ label, onClose, items }: JiraTicketMenuProps): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
 
+  // 열리면 첫 항목으로, 닫히면 ⋮ 로 포커스를 돌려준다 — 키보드 사용자가 Escape 를 눌렀을 때
+  // 포커스가 body 로 떨어지면 타일 격자에서 있던 자리를 잃는다.
+  useEffect(() => {
+    const trigger = ref.current?.parentElement?.querySelector('button');
+    ref.current?.querySelector('button')?.focus();
+    return () => {
+      if (trigger instanceof HTMLElement && document.activeElement === document.body) {
+        trigger.focus();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const onPointerDown = (event: PointerEvent): void => {
       // 트리거(⋮)까지 포함해서 바깥이면 닫는다 — 트리거 자신이 토글을 맡는다.

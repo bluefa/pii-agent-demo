@@ -155,11 +155,10 @@ export function ServiceDetailView({
     { provider: JiraCloudProvider; action: JiraTicketAction } | null
   >(null);
   // 목록은 한 번에 다 온다(assumed 계약에 page 파라미터가 없다) — 자르는 건 화면 몫.
-  // Pagination 은 0-based. 페이지는 serviceCode 에 매여 있다: 다른 서비스로 이동하면
-  // 남아 있던 3페이지가 되살아나면 안 되고, 그 초기화를 effect 로 하면 렌더가 한 번 더 돈다.
-  const [pageAt, setPageAt] = useState({ code: serviceCode, page: 0 });
-  const page = pageAt.code === serviceCode ? pageAt.page : 0;
-  const setPage = (next: number): void => setPageAt({ code: serviceCode, page: next });
+  // Pagination 은 0-based. 서비스를 옮기면 부모(ServicesView)가 key={serviceCode} 로 이
+  // 컴포넌트를 갈아끼우므로 여기 상태는 전부 초기값에서 다시 시작한다 — 페이지만 따로
+  // serviceCode 에 매어두면 검색어·필터는 그대로 남아 규칙이 둘로 갈린다.
+  const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [query, setQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('');

@@ -77,6 +77,7 @@ GET /install/v1/admin/ops/target-sources?query={q}&page={n}&size={n}
           target_source_id: number,
           service_code: string,
           service_name: string,
+          description: string | null,    // = TargetSourceInfo.description (install-v1)
           cloud_provider: string,        // AWS | GCP | AZURE | IDC
           is_sdu_type: boolean,
           database_type: string | null,
