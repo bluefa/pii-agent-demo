@@ -115,17 +115,27 @@ const rq = {
   row: 'group relative flex items-center gap-3 border-t border-[var(--pl-border)] py-2.5 text-[13px] text-[var(--pl-text-medium)] transition-colors',
   rowLink: 'hover:bg-[var(--pl-gray-50)]',
 
-  // Column widths — shared by a section's header row and its data rows.
+  /**
+   * Column widths — shared by a section's header row and its data rows.
+   *
+   * The two top cards run the SAME skeleton (service · code · target · cloud ·
+   * note · when · tail) so their columns line up across the grid gutter. That
+   * means the same COUNT of flex-1 columns too: `service` and `note` both grow,
+   * so each card splits its slack the same way. Give one card an extra flexible
+   * column and its 서비스 이름 silently shrinks to half the other's.
+   */
   service: 'min-w-0 flex-1 truncate',
   serviceName: 'font-medium text-[var(--pl-text-strong)]',
   code: 'w-[96px] flex-none truncate',
   mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   target: 'w-[56px] flex-none',
   cloud: 'w-[76px] flex-none',
-  reason: 'min-w-0 flex-1',
+  note: 'min-w-0 flex-1 truncate',
   status: 'w-[104px] flex-none',
   actor: 'w-[120px] flex-none truncate',
-  when: 'w-[116px] flex-none whitespace-nowrap tabular-nums text-[var(--pl-text-weak)]',
+  // 124 = 'YYYY-MM-DD HH:mm' at 13px tabular + slack; narrower and the nowrap
+  // timestamp pushes the row wider than its card.
+  when: 'w-[124px] flex-none whitespace-nowrap tabular-nums text-[var(--pl-text-weak)]',
   chev: 'w-3.5 flex-none text-[var(--pl-text-faint)] group-hover:text-[var(--pl-primary)]',
 
   state: 'flex items-center gap-2 py-2.5 text-[13px] text-[var(--pl-text-weak)]',
@@ -244,6 +254,8 @@ export default function RequestsPage(): ReactElement {
               <span className={rq.code}>서비스 코드</span>
               <span className={rq.target}>Target</span>
               <span className={rq.cloud}>Cloud</span>
+              <span className={rq.note}>설명</span>
+              <span className={rq.when}>요청 일자</span>
               <span className={rq.chev} />
             </>
           }
@@ -266,6 +278,10 @@ export default function RequestsPage(): ReactElement {
                   <span className={rq.cloud}>
                     <ProvTag provider={row.cloudProvider ?? ''} />
                   </span>
+                  <span className={rq.note}>{row.description ?? '—'}</span>
+                  <span className={rq.when}>
+                    {fmtDateTime(row.latestApprovalRequest?.requestedAt)}
+                  </span>
                   <span className={rq.chev}>
                     <Icon name="chev-r" size="sm" />
                   </span>
@@ -275,8 +291,9 @@ export default function RequestsPage(): ReactElement {
           }
         </SectionCard>
 
-        {/* 연동 요청 반려 확인 (반려) — Target #id 는 반폭에서 우선순위가 낮아
-            빼고, 반려 사유는 기존 hover 셀(tqStyles.rr)로 접어 둔다. */}
+        {/* 연동 요청 반려 확인 (반려) — 위 카드와 같은 컬럼 골격. 반려 사유가
+            설명 자리(유일한 두 번째 flex 컬럼)에 들어가고, 잘린 전문은 기존
+            hover 셀(tqStyles.rr)이 그대로 보여준다. */}
         <SectionCard
           title="연동 요청 반려 확인"
           desc="반려했으나 서비스 측 담당자가 아직 확인하지 않았어요"
@@ -288,26 +305,36 @@ export default function RequestsPage(): ReactElement {
             <>
               <span className={rq.service}>서비스 이름</span>
               <span className={rq.code}>서비스 코드</span>
+              <span className={rq.target}>Target</span>
               <span className={rq.cloud}>Cloud</span>
-              <span className={rq.reason}>반려 사유</span>
+              <span className={rq.note}>반려 사유</span>
               <span className={rq.when}>반려 일자</span>
+              <span className={rq.chev} />
             </>
           }
         >
           {(rows) =>
-            rows.map((row) => (
-              <div key={row.targetSourceId ?? row.serviceCode} className={rq.row}>
-                <span className={cn(rq.service, rq.serviceName)}>{row.serviceName ?? '—'}</span>
-                <span className={cn(rq.code, rq.mono)}>{row.serviceCode ?? '—'}</span>
-                <span className={rq.cloud}>
-                  <ProvTag provider={row.cloudProvider ?? ''} />
-                </span>
-                <span className={rq.reason}>
-                  <RejectReasonCell reason={row.latestApprovalRequest?.reason ?? '—'} />
-                </span>
-                <span className={rq.when}>{fmtDateTime(row.latestApprovalRequest?.processedAt)}</span>
-              </div>
-            ))
+            rows.map((row) => {
+              const id = row.targetSourceId;
+              return (
+                <div key={id ?? row.serviceCode} className={rq.row}>
+                  <span className={cn(rq.service, rq.serviceName)}>{row.serviceName ?? '—'}</span>
+                  <span className={cn(rq.code, rq.mono)}>{row.serviceCode ?? '—'}</span>
+                  <span className={cn(rq.target, rq.mono)}>{id != null ? `#${id}` : '—'}</span>
+                  <span className={rq.cloud}>
+                    <ProvTag provider={row.cloudProvider ?? ''} />
+                  </span>
+                  <span className={rq.note}>
+                    <RejectReasonCell reason={row.latestApprovalRequest?.reason ?? '—'} />
+                  </span>
+                  <span className={rq.when}>
+                    {fmtDateTime(row.latestApprovalRequest?.processedAt)}
+                  </span>
+                  {/* 반려 행은 상세로 가지 않는다 — 위 카드의 › 자리를 비워 폭만 맞춘다. */}
+                  <span className={rq.chev} />
+                </div>
+              );
+            })
           }
         </SectionCard>
       </div>
