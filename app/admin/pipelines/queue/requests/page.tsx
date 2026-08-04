@@ -135,7 +135,10 @@ const rq = {
   target: 'w-[56px] flex-none',
   cloud: 'w-[76px] flex-none',
   note: 'min-w-0 flex-1 truncate',
-  status: 'w-[104px] flex-none',
+  // overflow-hidden(truncate) 필수 — 상태 pill 라벨 중 'UNAVAILABLE_ACKNOWLEDGED'
+  // 는 25자라 어떤 컬럼 폭도 넘긴다. flex-none 셀은 넘친 내용이 옆 컬럼을 밀지
+  // 않고 그 위에 겹쳐 그려지므로, 잘라서 행을 지킨다.
+  status: 'w-[104px] flex-none min-w-0 truncate',
   actor: 'w-[120px] flex-none truncate',
   // 124 = 'YYYY-MM-DD HH:mm' at 13px tabular + slack; narrower and the nowrap
   // timestamp pushes the row wider than its card.
