@@ -27,6 +27,13 @@ const SKELETON_WIDTHS = ['w-[44px]', 'w-[72%]', 'w-[52px]'] as const;
 export type AlertStageIcon = IconName | 'terraform';
 
 const stageCard = {
+  /**
+   * card.flush 와 같은 표면이되 그림자만 md — 4장이 2×2 로 붙어 있어 xs 로는
+   * 카드 경계가 배경에 묻는다. 공유 토큰(card.flush)을 건드리면 대시보드
+   * 테이블 카드까지 따라 올라가므로 여기서만 선언한다. overflow-hidden 은
+   * accent 바의 상단 모서리를 카드 radius 로 깎기 위해 필요하다.
+   */
+  card: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border)] rounded-[12px] shadow-[var(--pl-shadow-md)] overflow-hidden',
   accent: 'h-1 w-full bg-[var(--pl-gray-50)]',
   body: 'flex flex-1 flex-col gap-3 p-4',
   header: 'flex items-center justify-between gap-3',
@@ -98,7 +105,7 @@ export function AlertStageCard({
 
   return (
     <section
-      className={cn(pipelineStyles.card.flush, 'flex min-h-[320px] flex-col')}
+      className={cn(stageCard.card, 'flex min-h-[320px] flex-col')}
       aria-label={`${label} 대상 목록`}
     >
       <div className={stageCard.accent} />
