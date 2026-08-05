@@ -173,6 +173,21 @@
   .v0 .card { border: 1px solid #F0F2F5; box-shadow: 0 2px 8px rgba(25, 31, 40, 0.07); }
   .v0 .rail { background: #FFFFFF; border: 1px solid #F0F2F5; border-radius: 12px; box-shadow: 0 2px 8px rgba(25, 31, 40, 0.07); }
 
+  /* 압축 헤더(시안 A~E 적용): 블록 라벨 3종 제거, 제목 강등, 행 병합 — 세로 약 1/3 절감 */
+  .hd-c { padding: 12px 20px 10px; }
+  .hd-c .crow1 { display: flex; align-items: baseline; gap: 10px; }
+  .hd-c .cttl { font-size: 14px; font-weight: 700; }
+  .hd-c .ctgt { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; color: #6B7684; }
+  .hd-c .ctgt b { font-size: 12px; font-weight: 600; color: #191F28; }
+  .hd-c .cdesc { margin-top: 2px; max-width: 560px; font-size: 10px; color: #6B7684; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hd-c .crow2 { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .hd-c .mark { width: 16px; height: 16px; border-radius: 5px; }
+  .hd-c .mark svg { width: 10px; height: 10px; }
+  .hd-c .cid { font-size: 10px; color: #191F28; }
+  .hd-c .cid small { color: #6B7684; margin-right: 4px; }
+  .hd-c .cnote { font-style: normal; font-size: 10px; color: #6B7684; }
+  .hd-c .stepper { margin-top: 10px; }
+
   /* ---- 제목 옵션 ---- */
   .topt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   .topt { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
@@ -410,6 +425,13 @@
     </div>
   </section>
 
+  <!-- ============ 헤더 압축 ============ -->
+  <section class="variant">
+    <div class="v-eyebrow">헤더 압축</div>
+    <div class="v-name">세로 길이 약 1/3 절감 — 아래 5개 시안에 공통 적용</div>
+    <p class="v-strategy">헤더가 공간을 너무 차지하고 제목이 시선을 끈다는 지적을 반영해, 시안 A~E의 헤더를 압축했습니다: ① 블록 라벨 3종(설명·클라우드 정보·설치 진행) 삭제 — 회색 1줄이면 설명이고, 브랜드 마크가 붙으면 클라우드 정보이고, 점·선 형태면 진행입니다. 내용이 스스로 말하면 라벨은 세로만 먹습니다. ② 제목 16→14px로 강등하고 설치 대상을 제목 옆 인라인으로. ③ Account ID 라벨을 값 앞 인라인으로 붙여 2줄 kv를 1줄로. ④ 패딩·행간 축소. 구현 후 프레임(위)과 비교하면 헤더 높이가 약 150→100px입니다.</p>
+  </section>
+
   <!-- ============ 시안 A ============ -->
   <section class="variant vA">
     <div class="v-eyebrow">시안 A</div>
@@ -420,13 +442,10 @@
       <div class="cols">
         <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
         <div class="bodyz">
-          <div class="hd">
-            <div class="ttl"><b>PII Agent 설치</b></div>
-            <div class="target"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></div>
-            <div class="lbl">설명</div><div class="desc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
-            <div class="lbl">클라우드 정보</div>
-            <div class="cloud"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="kv"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="kv"><small>설치 모드</small><span><span class="mode">수동 설치</span><em>설치 스크립트 직접 실행</em></span></span></div>
-            <div class="lbl">설치 진행</div>
+          <div class="hd hd-c">
+            <div class="crow1"><b class="cttl">PII Agent 설치</b><span class="ctgt"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></span></div>
+            <div class="cdesc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
+            <div class="crow2"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="cid"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="mode">수동 설치</span><em class="cnote">설치 스크립트 직접 실행</em></div>
             <div class="stepper"><s class="cur"></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s></div>
             <div class="steplbl"><b>연동 대상 DB 선택</b><span>승인 대기</span><span>반영중</span><span>Agent 설치</span><span>연결 테스트</span><span>승인 대기</span><span>완료</span></div>
           </div>
@@ -468,13 +487,10 @@
       <div class="cols">
         <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
         <div class="bodyz">
-          <div class="hd">
-            <div class="ttl"><b>PII Agent 설치</b></div>
-            <div class="target"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></div>
-            <div class="lbl">설명</div><div class="desc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
-            <div class="lbl">클라우드 정보</div>
-            <div class="cloud"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="kv"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="kv"><small>설치 모드</small><span><span class="mode">수동 설치</span><em>설치 스크립트 직접 실행</em></span></span></div>
-            <div class="lbl">설치 진행</div>
+          <div class="hd hd-c">
+            <div class="crow1"><b class="cttl">PII Agent 설치</b><span class="ctgt"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></span></div>
+            <div class="cdesc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
+            <div class="crow2"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="cid"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="mode">수동 설치</span><em class="cnote">설치 스크립트 직접 실행</em></div>
             <div class="stepper"><s class="cur"></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s></div>
             <div class="steplbl"><b>연동 대상 DB 선택</b><span>승인 대기</span><span>반영중</span><span>Agent 설치</span><span>연결 테스트</span><span>승인 대기</span><span>완료</span></div>
           </div>
@@ -516,13 +532,10 @@
       <div class="cols">
         <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
         <div class="bodyz">
-          <div class="hd">
-            <div class="ttl"><b>PII Agent 설치</b></div>
-            <div class="target"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></div>
-            <div class="lbl">설명</div><div class="desc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
-            <div class="lbl">클라우드 정보</div>
-            <div class="cloud"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="kv"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="kv"><small>설치 모드</small><span><span class="mode">수동 설치</span><em>설치 스크립트 직접 실행</em></span></span></div>
-            <div class="lbl">설치 진행</div>
+          <div class="hd hd-c">
+            <div class="crow1"><b class="cttl">PII Agent 설치</b><span class="ctgt"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></span></div>
+            <div class="cdesc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
+            <div class="crow2"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="cid"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="mode">수동 설치</span><em class="cnote">설치 스크립트 직접 실행</em></div>
             <div class="stepper"><s class="cur"></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s></div>
             <div class="steplbl"><b>연동 대상 DB 선택</b><span>승인 대기</span><span>반영중</span><span>Agent 설치</span><span>연결 테스트</span><span>승인 대기</span><span>완료</span></div>
           </div>
@@ -565,13 +578,10 @@
       <div class="cols">
         <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
         <div class="bodyz">
-          <div class="hd">
-            <div class="ttl"><b>PII Agent 설치</b></div>
-            <div class="target"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></div>
-            <div class="lbl">설명</div><div class="desc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
-            <div class="lbl">클라우드 정보</div>
-            <div class="cloud"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="kv"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="kv"><small>설치 모드</small><span><span class="mode">수동 설치</span><em>설치 스크립트 직접 실행</em></span></span></div>
-            <div class="lbl">설치 진행</div>
+          <div class="hd hd-c">
+            <div class="crow1"><b class="cttl">PII Agent 설치</b><span class="ctgt"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></span></div>
+            <div class="cdesc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
+            <div class="crow2"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="cid"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="mode">수동 설치</span><em class="cnote">설치 스크립트 직접 실행</em></div>
             <div class="stepper"><s class="cur"></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s></div>
             <div class="steplbl"><b>연동 대상 DB 선택</b><span>승인 대기</span><span>반영중</span><span>Agent 설치</span><span>연결 테스트</span><span>승인 대기</span><span>완료</span></div>
           </div>
@@ -613,13 +623,10 @@
       <div class="cols">
         <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
         <div class="sheet">
-          <div class="hd">
-            <div class="ttl"><b>PII Agent 설치</b></div>
-            <div class="target"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></div>
-            <div class="lbl">설명</div><div class="desc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
-            <div class="lbl">클라우드 정보</div>
-            <div class="cloud"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="kv"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="kv"><small>설치 모드</small><span><span class="mode">수동 설치</span><em>설치 스크립트 직접 실행</em></span></span></div>
-            <div class="lbl">설치 진행</div>
+          <div class="hd hd-c">
+            <div class="crow1"><b class="cttl">PII Agent 설치</b><span class="ctgt"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></span></div>
+            <div class="cdesc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
+            <div class="crow2"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="cid"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="mode">수동 설치</span><em class="cnote">설치 스크립트 직접 실행</em></div>
             <div class="stepper"><s class="cur"></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s></div>
             <div class="steplbl"><b>연동 대상 DB 선택</b><span>승인 대기</span><span>반영중</span><span>Agent 설치</span><span>연결 테스트</span><span>승인 대기</span><span>완료</span></div>
           </div>
