@@ -13,7 +13,6 @@ import {
   getButtonClass,
   getInputClass,
   idcStyles,
-  interactiveColors,
   numericFeatures,
   primaryColors,
   statusColors,
@@ -28,20 +27,14 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/layout/credential-rows';
 
 /**
- * 한 화면에 5줄. 목록이 20개든 3개든 모달의 높이가 같아야 한다 — 열 때마다 크기가 달라지는
- * 대화상자는 그 자체로 읽는 비용이고, 스크롤로 늘리면 아래쪽 후보는 존재를 모른 채 지나간다.
+ * 목록의 높이는 후보 수와 무관하게 이 값이다 — 20개든 3개든 모달이 같은 크기로 열린다.
+ * 4줄 반이 보이는 높이라, 잘린 줄 자체가 "아래 더 있다"는 표시가 된다(페이저는 그 사실을
+ * 숫자로 한 번 더 말해야 했다).
  */
-const PAGE_SIZE = 5;
+const LIST_MAX_H = 'max-h-[236px]';
 
 /** 표의 모든 값이 쓰는 한 단 — 세 열 사이에 계층을 두지 않는다. */
 const cellClass = cn('text-[14px] font-normal', textColors.secondary);
-
-/** 우측 레일 페이저와 같은 조용한 톤 — 이동 컨트롤은 내용이 아니다. */
-const pagerBtnClass = cn(
-  'rounded-md px-2 py-1 text-[12px] font-medium transition-colors',
-  interactiveColors.underlineTab,
-  'disabled:cursor-default disabled:opacity-40',
-);
 
 interface CredentialPickModalProps {
   isOpen: boolean;
@@ -62,7 +55,7 @@ interface CredentialPickModalProps {
  *
  * 라디오 목록이 아니라 표인 이유: 이름이 `{userId}-{name}` 이라 사실이 세 개(누구의 것인지,
  * 무엇인지, 언제 등록됐는지)고, 비슷한 이름을 가르는 것은 그 셋의 비교다. 열이 있으니 정렬도
- * 열이 하고, 페이지는 고정 크기라 후보가 몇 개든 모달은 같은 크기로 열린다.
+ * 열이 한다. 목록은 고정 높이 스크롤이라 후보가 몇 개든 모달은 같은 크기로 열린다.
  *
  * 저장 전에는 아무것도 쓰지 않으므로 열어서 보기만 하는 것은 공짜다.
  */
@@ -80,14 +73,12 @@ export const CredentialPickModal = ({
   // 기본 정렬은 등록 시각 최신순 — 방금 만든 Credential 을 쓰러 오는 경우가 가장 흔하다.
   const [sortKey, setSortKey] = useState<CredentialSortKey>('createdAt');
   const [sortDir, setSortDir] = useState<SortDirection>('desc');
-  const [page, setPage] = useState(0);
 
   const rows = options.map(toCredentialRow);
   const filtered = rows.filter((row) => matchesQuery(row, query));
   const sorted = sortCredentialRows(filtered, sortKey, sortDir);
 
-  // 열릴 때마다 현재 값에서 다시 시작하고, 그 값이 있는 페이지를 편다 — 3페이지에 있는 배정을
-  // 1페이지만 보여주면 "아무것도 안 걸려 있다"로 읽힌다.
+  // 열릴 때마다 현재 값에서 다시 시작한다.
   const [seededFrom, setSeededFrom] = useState({ isOpen, value });
   if (seededFrom.isOpen !== isOpen || seededFrom.value !== value) {
     setSeededFrom({ isOpen, value });
@@ -95,15 +86,7 @@ export const CredentialPickModal = ({
     setQuery('');
     setSortKey('createdAt');
     setSortDir('desc');
-    const index = sortCredentialRows(rows, 'createdAt', 'desc').findIndex((row) => row.name === value);
-    setPage(index < 0 ? 0 : Math.floor(index / PAGE_SIZE));
   }
-
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageRows = sorted.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  // 마지막 페이지가 비어도 표의 높이는 그대로다.
-  const filler = Array.from({ length: PAGE_SIZE - pageRows.length });
 
   const sortBy = (key: CredentialSortKey) => {
     if (key === sortKey) {
@@ -113,12 +96,6 @@ export const CredentialPickModal = ({
       // 시각은 최신순, 글자는 가나다순이 각자의 기본값이다.
       setSortDir(key === 'createdAt' ? 'desc' : 'asc');
     }
-    setPage(0);
-  };
-
-  const onQueryChange = (next: string) => {
-    setQuery(next);
-    setPage(0);
   };
 
   return (
@@ -144,7 +121,7 @@ export const CredentialPickModal = ({
         </>
       }
       chrome="toss"
-      size="2xl"
+      size="xl"
       // 닫는 길은 푸터의 취소(그리고 ESC / 배경)뿐 — 헤더의 X 와 취소는 같은 일을 두 번 말한다.
       closeButton={false}
       footer={
@@ -193,7 +170,7 @@ export const CredentialPickModal = ({
               <input
                 type="text"
                 value={query}
-                onChange={(event) => onQueryChange(event.target.value)}
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder="User ID 또는 Credential 이름 검색"
                 aria-label="Credential 검색"
                 className={cn(getInputClass(), 'h-8 bg-white py-0 pl-[32px] pr-3 text-[14px]')}
@@ -206,11 +183,12 @@ export const CredentialPickModal = ({
             </span>
           </div>
 
-          <div className={cn(idcStyles.table.frame, 'rounded-t-none')}>
+          {/* 목록만 스크롤한다 — 헤더는 sticky 라 정렬 컨트롤이 스크롤 뒤로 사라지지 않는다. */}
+          <div className={cn(idcStyles.table.frame, 'rounded-t-none overflow-y-auto', LIST_MAX_H)}>
             <table className="w-full table-fixed">
-              <thead className={idcStyles.table.header}>
+              <thead className={cn(idcStyles.table.header, 'sticky top-0 z-10')}>
                 <tr>
-                  <th className={cn(idcStyles.table.headerCell, 'w-[44px]')}>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[40px]')}>
                     <span className="sr-only">선택</span>
                   </th>
                   <SortHeader
@@ -219,7 +197,7 @@ export const CredentialPickModal = ({
                     sortKey={sortKey}
                     sortDir={sortDir}
                     onSort={sortBy}
-                    className="w-[150px]"
+                    className="w-[112px]"
                   />
                   <SortHeader
                     label="Credential 이름"
@@ -228,18 +206,30 @@ export const CredentialPickModal = ({
                     sortDir={sortDir}
                     onSort={sortBy}
                   />
+                  {/* 날짜만 — 비슷한 이름을 가르는 데 분·초까지는 필요 없었고, 시각을 다 적으면
+                      두 줄로 접혀 행 높이가 열마다 달라졌다. */}
                   <SortHeader
-                    label="등록 시각"
+                    label="등록일"
                     columnKey="createdAt"
                     sortKey={sortKey}
                     sortDir={sortDir}
                     onSort={sortBy}
-                    className="w-[168px]"
+                    className="w-[128px]"
                   />
                 </tr>
               </thead>
               <tbody className={idcStyles.table.body}>
-                {pageRows.map((row) => {
+                {sorted.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className={cn(idcStyles.table.cell, 'py-8 text-center text-[12px]', textColors.tertiary)}
+                    >
+                      검색 결과가 없어요.
+                    </td>
+                  </tr>
+                )}
+                {sorted.map((row) => {
                   const checked = picked === row.name;
                   return (
                     <tr
@@ -274,59 +264,25 @@ export const CredentialPickModal = ({
                         {row.label}
                       </td>
                       <td className={cn(idcStyles.table.cell, cellClass, numericFeatures.tabular)}>
-                        {row.createdAt ? formatDate(row.createdAt, 'datetime') : '—'}
+                        {row.createdAt ? formatDate(row.createdAt, 'date') : '—'}
                       </td>
                     </tr>
                   );
                 })}
-                {/* 빈 줄로 높이를 맞춘다 — 한 건만 걸린 검색에서 모달이 접히지 않게. */}
-                {filler.map((_, index) => (
-                  <tr key={`filler-${index}`} aria-hidden="true">
-                    <td className={idcStyles.table.cell}>&nbsp;</td>
-                    <td className={idcStyles.table.cell} />
-                    <td className={idcStyles.table.cell} />
-                    <td className={idcStyles.table.cell} />
-                  </tr>
-                ))}
               </tbody>
             </table>
           </div>
 
-          <div className="flex items-center justify-between">
-            {/* 검색이 현재 값을 걸러내도 무엇이 걸려 있는지는 계속 보인다. */}
-            <span className={cn('text-[12px]', textColors.tertiary)}>
-              {picked ? (
-                <>
-                  선택 <strong className={cn('font-semibold', textColors.secondary)}>{picked}</strong>
-                </>
-              ) : (
-                '선택된 Credential이 없어요'
-              )}
-            </span>
-            <div className="inline-flex items-center gap-2">
-              {/* 파랑은 이 모달에서 저장 CTA 와 선택된 행에만 쓴다 — 페이지 이동은 강조할
-                  내용이 아니라 이동 수단이므로 우측 레일 페이저와 같은 조용한 톤이다. */}
-              <button
-                type="button"
-                onClick={() => setPage(safePage - 1)}
-                disabled={safePage <= 0}
-                className={pagerBtnClass}
-              >
-                ‹ 이전
-              </button>
-              <span className={cn('text-[12px]', numericFeatures.tabular, textColors.tertiary)}>
-                {safePage + 1} / {pageCount}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPage(safePage + 1)}
-                disabled={safePage >= pageCount - 1}
-                className={pagerBtnClass}
-              >
-                다음 ›
-              </button>
-            </div>
-          </div>
+          {/* 검색이 현재 값을 걸러내도 무엇이 걸려 있는지는 계속 보인다. */}
+          <span className={cn('mt-2 block truncate text-[12px]', textColors.tertiary)}>
+            {picked ? (
+              <>
+                선택 <strong className={cn('font-semibold', textColors.secondary)}>{picked}</strong>
+              </>
+            ) : (
+              '선택된 Credential이 없어요'
+            )}
+          </span>
         </div>
       )}
     </Modal>
