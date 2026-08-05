@@ -67,7 +67,7 @@ export const IdcStep4Installing = ({
   action,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
-  const { status, loading, error, refresh } = useIdcInstallationStatus(targetSourceId);
+  const { status, error, refresh } = useIdcInstallationStatus(targetSourceId);
 
   // Rows carry the id they were fetched for, so "loading" is `id mismatch` —
   // no separate flag to reset on switch (a setState in the effect would cascade).
@@ -182,12 +182,18 @@ export const IdcStep4Installing = ({
         <div className={cardStyles.body}>
           {/* 두 조회(설치 상태 + 확정 연동)가 모두 도착할 때까지 스켈레톤을 유지한다.
               빈 배열을 그대로 그리면 "전체 리소스 0 · 대기 0/0"에 방화벽 조치 배너까지
-              붙어, 아직 모르는 것을 확정된 사실로 말하게 된다. */}
-          {/* 에러가 먼저다 — 실패한 조회를 아직 안 온 다른 조회 뒤에 숨기면
+              붙어, 아직 모르는 것을 확정된 사실로 말하게 된다.
+
+              게이트는 훅의 loading 이 아니라 `status` 유무로 판정한다 — 재시도는
+              loading 이 아니라 refreshing 을 세우므로(useIdcInstallationStatus.refresh),
+              loading 으로 재면 재시도하는 동안 바로 그 거짓 화면으로 되돌아간다.
+              status 는 대상 전환 시 훅이 비우므로(DR4) "그릴 데이터 없음"과 동치다.
+
+              에러가 먼저다 — 실패한 조회를 아직 안 온 다른 조회 뒤에 숨기면
               스켈레톤이 영영 돌아간다. */}
           {error ? (
             <InstallationErrorView message={error} onRetry={refresh} />
-          ) : loading || resourcesLoading ? (
+          ) : !status || resourcesLoading ? (
             <InstallationLoadingView provider="IDC" railRows={steps.length + 1} />
           ) : (
             <>

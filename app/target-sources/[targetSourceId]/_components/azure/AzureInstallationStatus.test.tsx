@@ -7,7 +7,8 @@ import type { ConfirmedResource } from '@/lib/types/resources';
 let confirmedState: AsyncState<readonly ConfirmedResource[]> = { status: 'loading' };
 
 vi.mock('@/app/components/features/process-status/azure/AzureInstallationInline', () => ({
-  AzureInstallationInline: ({ confirmedLoading }: { confirmedLoading?: boolean }) => (
+  // Default mirrors the real component's, so an omitted prop reads as false here too.
+  AzureInstallationInline: ({ confirmedLoading = false }: { confirmedLoading?: boolean }) => (
     <div data-testid="azure-install-inline" data-confirmed-loading={String(confirmedLoading)} />
   ),
 }));
@@ -37,6 +38,8 @@ describe('AzureInstallationStatus', () => {
     expect(screen.getByTestId('azure-install-inline').dataset.confirmedLoading).toBe('false');
   });
 
+  // Unchanged behavior — this pins the allowlist so a future AsyncState member
+  // cannot silently inherit the settled branch. It passes on the old code too.
   it('renders nothing when the confirmed fetch failed', () => {
     confirmedState = { status: 'error', message: 'boom' };
     renderStatus();

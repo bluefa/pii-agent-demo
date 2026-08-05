@@ -17,17 +17,31 @@ export const AzureInstallationStatus = ({
 }: AzureInstallationStatusProps) => {
   const { state } = useConfirmedIntegration();
 
-  if (state.status === 'error') return null;
-
+  // Allowlist, not `!== 'error'` — a future AsyncState member must opt IN to
+  // rendering, not silently inherit the settled branch with an empty meta.
   // Mount while 확정 연동 is still loading so the card shows its skeleton (and
   // starts the installation-status fetch in parallel) instead of rendering
   // nothing; meta fills in once the confirmed rows land.
-  return (
-    <AzureInstallationInline
-      targetSourceId={targetSourceId}
-      confirmed={state.status === 'ready' ? state.data : NO_CONFIRMED}
-      confirmedLoading={state.status === 'loading'}
-      onInstallComplete={refreshProject}
-    />
-  );
+  if (state.status === 'loading') {
+    return (
+      <AzureInstallationInline
+        targetSourceId={targetSourceId}
+        confirmed={NO_CONFIRMED}
+        confirmedLoading
+        onInstallComplete={refreshProject}
+      />
+    );
+  }
+
+  if (state.status === 'ready') {
+    return (
+      <AzureInstallationInline
+        targetSourceId={targetSourceId}
+        confirmed={state.data}
+        onInstallComplete={refreshProject}
+      />
+    );
+  }
+
+  return null;
 };

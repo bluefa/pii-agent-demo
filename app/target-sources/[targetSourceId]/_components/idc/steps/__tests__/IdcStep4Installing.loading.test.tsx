@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
 import type { UseIdcInstallationStatusResult } from '@/app/hooks/useIdcInstallationStatus';
-import type { IdcResourceView } from '@/app/lib/api/idc';
+import type { IdcResourceInstallView, IdcResourceView } from '@/app/lib/api/idc';
 
 let installStatus: UseIdcInstallationStatusResult;
 let confirmedResources: Promise<IdcResourceView[]>;
@@ -70,9 +70,41 @@ const settled: UseIdcInstallationStatusResult = {
  */
 const FALSE_CLAIMS = ['전체 리소스', '지금 서비스 측에서 확인이 필요합니다'];
 
+const installed: IdcResourceInstallView = {
+  resourceId: 'idc-res-1',
+  installationStatus: 'IN_PROGRESS',
+  cxTerraform: { status: 'COMPLETED' },
+  bdpTerraform: { status: 'IN_PROGRESS' },
+  firewallCheck: { status: 'UNKNOWN' },
+};
+
 describe('IdcStep4Installing loading gate', () => {
   beforeEach(() => {
     confirmedResources = new Promise(() => {}); // never settles
+  });
+
+  it('opens once both fetches settle', async () => {
+    confirmedResources = Promise.resolve([]);
+    installStatus = { ...settled, status: { resources: [installed] } };
+    const { container } = renderStep();
+
+    // The gate is three conditions deep; without this the whole component could
+    // regress to a permanent skeleton and every other case here would still pass.
+    expect(await screen.findByText('전체 리소스')).toBeTruthy();
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+  });
+
+  it('keeps the skeleton while a retry is in flight', async () => {
+    confirmedResources = Promise.resolve([]);
+    // refresh() sets `refreshing`, never `loading`, and leaves status null. Gating
+    // on `loading` would drop the user straight back onto the 0-resource card the
+    // retry button exists to escape.
+    installStatus = { ...settled, status: null, refreshing: true };
+    const { container } = renderStep();
+
+    await screen.findByLabelText('IDC 설치 상태 확인 중');
+    expect(container.querySelector('[aria-busy="true"]')).toBeTruthy();
+    for (const claim of FALSE_CLAIMS) expect(screen.queryByText(claim)).toBeNull();
   });
 
   it('holds the skeleton while the installation status loads', () => {
