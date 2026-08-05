@@ -154,35 +154,48 @@ interface NlbIndexMappingFixture {
   nlb_index_mapping_list: { service_code: string; nlb_index: number }[];
 }
 
+/**
+ * Worst-case fan-out for the 서비스·NLB 조합 modal: 30 NLB indexes × 20 services = 600
+ * combinations on ONE IP Set (오너 확인: NLB 30, NLB당 서비스 ~20). The old 24-entry
+ * fixture hid every layout question this surface actually has.
+ *
+ * The 24 hand-written codes stay at the front so the demo still reads as real service
+ * codes; the remaining 576 are generated as unique base-26 triples, strided by 389 so
+ * they scatter instead of running AAA, AAB, AAC. 389 is coprime with 26³, so the stride
+ * visits every triple once and the codes cannot collide.
+ */
+const NAMED_SERVICE_CODES = [
+  'ORD', 'PAY', 'MBR', 'DLV', 'STL', 'CHT', 'ADS', 'SRC', 'PNT', 'NTF', 'CPN', 'ATH',
+  'RVW', 'INV', 'FLT', 'CRM', 'BIL', 'LOG', 'RCM', 'EVT', 'QNA', 'VOC', 'TAG', 'GFT',
+] as const;
+
+const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/** 600 distinct codes: the 24 named ones, then strided triples, skipping any that
+ *  collide with a named code (the stride reaches ORD and PNT on its own). */
+function serviceCodes(count: number): string[] {
+  const out: string[] = [...NAMED_SERVICE_CODES];
+  const used = new Set(out);
+  for (let n = 0; out.length < count; n += 1) {
+    const k = (n * 389) % 17576;
+    const code =
+      ALPHA[Math.floor(k / 676) % 26]! + ALPHA[Math.floor(k / 26) % 26]! + ALPHA[k % 26]!;
+    if (used.has(code)) continue;
+    used.add(code);
+    out.push(code);
+  }
+  return out;
+}
+
+/** 600 combinations: NLB #1…#30, 20 services each. */
+const WIDE_FAN_OUT = serviceCodes(600).map((service_code, i) => ({
+  service_code,
+  nlb_index: (i % 30) + 1,
+}));
+
 const NLB_INDEX_MAPPINGS = new Map<number, NlbIndexMappingFixture[]>([
   [1031, [
-    // 24 entries — exercises the modal's in-modal pagination (10/page).
-    { resource_id: 'idc-r-8f21', nlb_index_mapping_list: [
-      { service_code: 'ORD', nlb_index: 3 },
-      { service_code: 'PAY', nlb_index: 3 },
-      { service_code: 'MBR', nlb_index: 1 },
-      { service_code: 'DLV', nlb_index: 1 },
-      { service_code: 'STL', nlb_index: 2 },
-      { service_code: 'CHT', nlb_index: 6 },
-      { service_code: 'ADS', nlb_index: 6 },
-      { service_code: 'SRC', nlb_index: 5 },
-      { service_code: 'PNT', nlb_index: 2 },
-      { service_code: 'NTF', nlb_index: 4 },
-      { service_code: 'CPN', nlb_index: 1 },
-      { service_code: 'ATH', nlb_index: 5 },
-      { service_code: 'RVW', nlb_index: 2 },
-      { service_code: 'INV', nlb_index: 3 },
-      { service_code: 'FLT', nlb_index: 6 },
-      { service_code: 'CRM', nlb_index: 4 },
-      { service_code: 'BIL', nlb_index: 1 },
-      { service_code: 'LOG', nlb_index: 5 },
-      { service_code: 'RCM', nlb_index: 2 },
-      { service_code: 'EVT', nlb_index: 6 },
-      { service_code: 'QNA', nlb_index: 4 },
-      { service_code: 'VOC', nlb_index: 3 },
-      { service_code: 'TAG', nlb_index: 5 },
-      { service_code: 'GFT', nlb_index: 1 },
-    ] },
+    { resource_id: 'idc-r-8f21', nlb_index_mapping_list: WIDE_FAN_OUT },
     { resource_id: 'idc-r-8f22', nlb_index_mapping_list: [
       { service_code: 'ORD', nlb_index: 3 },
     ] },
@@ -318,7 +331,9 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
     processed_at: null, processed_by: null, reason: null,
     resources: [
       { resource_id: 'idc-r-8f21', resource_name: 'oracle-order-prod', resource_type: 'IDC', selected: true,
-        metadata: { provider: 'IDC', database_type: 'Oracle', port: 1521, oracle_service_id: 'ORCLPDB1', idc_host_format: 'IP', idc_ips: ['10.20.1.11', '10.20.1.12'], idc_source_ips: ['10.20.9.1', '10.20.9.2'] } },
+        // 8 IPs — the ceiling an IP Set can carry (오너 확인). Two never showed what the
+        // 접속 주소 cell or the 조합 modal's key block do when the set is full.
+        metadata: { provider: 'IDC', database_type: 'Oracle', port: 1521, oracle_service_id: 'ORCLPDB1', idc_host_format: 'IP', idc_ips: ['10.20.1.11', '10.20.1.12', '10.20.1.13', '10.20.1.14', '10.20.1.15', '10.20.1.16', '10.20.1.17', '10.20.1.18'], idc_source_ips: ['10.20.9.1', '10.20.9.2'] } },
       { resource_id: 'idc-r-8f22', resource_name: 'mysql-order-prod', resource_type: 'IDC', selected: true,
         metadata: { provider: 'IDC', database_type: 'MySQL', port: 3306, idc_host_format: 'HOST', idc_host: 'db-mysql.order.prod.internal', idc_source_ips: ['10.20.9.1'] } },
       { resource_id: 'idc-r-8f23', resource_name: 'pg-order-prod', resource_type: 'IDC', selected: true,
