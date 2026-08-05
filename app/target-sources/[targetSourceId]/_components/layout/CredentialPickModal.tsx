@@ -11,10 +11,24 @@ import {
   cn,
   getButtonClass,
   getInputClass,
+  idcStyles,
   numericFeatures,
   primaryColors,
   textColors,
 } from '@/lib/theme';
+import {
+  matchesQuery,
+  sortCredentialRows,
+  toCredentialRow,
+  type CredentialSortKey,
+  type SortDirection,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/credential-rows';
+
+/**
+ * 한 화면에 5줄. 목록이 20개든 3개든 모달의 높이가 같아야 한다 — 열 때마다 크기가 달라지는
+ * 대화상자는 그 자체로 읽는 비용이고, 스크롤로 늘리면 아래쪽 후보는 존재를 모른 채 지나간다.
+ */
+const PAGE_SIZE = 5;
 
 interface CredentialPickModalProps {
   isOpen: boolean;
@@ -30,11 +44,14 @@ interface CredentialPickModalProps {
 }
 
 /**
- * 한 리소스의 DB Credential 을 고르는 모달 — 관리자 화면의 Credential 배정과 같은 모양이다
+ * 한 리소스의 DB Credential 을 고르는 모달 — 관리자 화면의 Credential 배정과 같은 문법이다
  * (값은 표에서 밑줄 텍스트로 읽고, 수정은 여기서 한 번에 커밋).
  *
- * 라디오인 이유: 답이 하나뿐이고, 현재 값이 아무것도 hover 하지 않아도 보이며, 위/아래 키
- * 이동을 플랫폼이 준다. 저장 전에는 아무것도 쓰지 않으므로 열어서 보기만 하는 것은 공짜다.
+ * 라디오 목록이 아니라 표인 이유: 이름이 `{userId}-{name}` 이라 사실이 세 개(누구의 것인지,
+ * 무엇인지, 언제 등록됐는지)고, 비슷한 이름을 가르는 것은 그 셋의 비교다. 열이 있으니 정렬도
+ * 열이 하고, 페이지는 고정 크기라 후보가 몇 개든 모달은 같은 크기로 열린다.
+ *
+ * 저장 전에는 아무것도 쓰지 않으므로 열어서 보기만 하는 것은 공짜다.
  */
 export const CredentialPickModal = ({
   isOpen,
@@ -47,23 +64,49 @@ export const CredentialPickModal = ({
 }: CredentialPickModalProps) => {
   const [picked, setPicked] = useState(value);
   const [query, setQuery] = useState('');
-  // 열릴 때마다 현재 값에서 다시 시작한다 — 다른 행을 열었는데 앞 행의 선택이 남아 있으면
-  // 저장 버튼이 이미 활성인 채로 뜬다.
+  // 기본 정렬은 등록 시각 최신순 — 방금 만든 Credential 을 쓰러 오는 경우가 가장 흔하다.
+  const [sortKey, setSortKey] = useState<CredentialSortKey>('createdAt');
+  const [sortDir, setSortDir] = useState<SortDirection>('desc');
+  const [page, setPage] = useState(0);
+
+  const rows = options.map(toCredentialRow);
+  const filtered = rows.filter((row) => matchesQuery(row, query));
+  const sorted = sortCredentialRows(filtered, sortKey, sortDir);
+
+  // 열릴 때마다 현재 값에서 다시 시작하고, 그 값이 있는 페이지를 편다 — 3페이지에 있는 배정을
+  // 1페이지만 보여주면 "아무것도 안 걸려 있다"로 읽힌다.
   const [seededFrom, setSeededFrom] = useState({ isOpen, value });
   if (seededFrom.isOpen !== isOpen || seededFrom.value !== value) {
     setSeededFrom({ isOpen, value });
     setPicked(value);
     setQuery('');
+    setSortKey('createdAt');
+    setSortDir('desc');
+    const index = sortCredentialRows(rows, 'createdAt', 'desc').findIndex((row) => row.name === value);
+    setPage(index < 0 ? 0 : Math.floor(index / PAGE_SIZE));
   }
 
-  const needle = query.trim().toLowerCase();
-  const hits = needle
-    ? options.filter((secret) => secret.name.toLowerCase().includes(needle))
-    : options;
-  // 검색어에 걸리지 않아도 현재 값은 남는다 — 검색했더니 아무것도 배정 안 된 것처럼 보이면 안 된다.
-  const current = options.find((secret) => secret.name === picked);
-  const shown =
-    current && !hits.some((secret) => secret.name === picked) ? [current, ...hits] : hits;
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = sorted.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  // 마지막 페이지가 비어도 표의 높이는 그대로다.
+  const filler = Array.from({ length: PAGE_SIZE - pageRows.length });
+
+  const sortBy = (key: CredentialSortKey) => {
+    if (key === sortKey) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      // 시각은 최신순, 글자는 가나다순이 각자의 기본값이다.
+      setSortDir(key === 'createdAt' ? 'desc' : 'asc');
+    }
+    setPage(0);
+  };
+
+  const onQueryChange = (next: string) => {
+    setQuery(next);
+    setPage(0);
+  };
 
   return (
     <Modal
@@ -71,7 +114,7 @@ export const CredentialPickModal = ({
       onClose={onClose}
       title="DB Credential 설정"
       subtitle={`${resourceLabel}에 사용할 DB 접속 자격 증명을 선택하세요.`}
-      size="md"
+      size="2xl"
       footer={
         <>
           <button onClick={onClose} className={getButtonClass('secondary')}>
@@ -93,70 +136,188 @@ export const CredentialPickModal = ({
           등록된 Credential이 없어요. 관리자에게 등록을 요청해 주세요.
         </p>
       ) : (
-        <div className="flex flex-col gap-2" role="radiogroup" aria-label="DB Credential 선택">
-          {/* 목록이 20~30개까지 가는 계약이라 검색이 있어야 이름이 비슷한 후보를 좁힐 수 있다. */}
+        <div className="flex flex-col gap-3">
           <input
             type="text"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={`Credential 검색 (${options.length}개)`}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder={`User ID 또는 Credential 이름 검색 (${options.length}개)`}
             aria-label="Credential 검색"
-            className={cn(getInputClass(), 'mb-1')}
+            className={getInputClass()}
           />
-          {shown.length === 0 && (
-            <p className={cn('py-6 text-center text-[14px]', textColors.tertiary)}>
-              검색 결과가 없어요.
-            </p>
-          )}
-          {shown.map((secret) => {
-            const checked = picked === secret.name;
-            return (
-              <label
-                key={secret.name}
-                className={cn(
-                  'flex cursor-pointer items-center gap-2.5 rounded-xl border px-4 py-3 transition-colors',
-                  checked
-                    ? cn(primaryColors.border, primaryColors.bgLight)
-                    : cn(borderColors.default, bgColors.mutedHover),
-                )}
+
+          <div className={idcStyles.table.frame}>
+            <table className="w-full table-fixed">
+              <thead className={idcStyles.table.header}>
+                <tr>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[44px]')}>
+                    <span className="sr-only">선택</span>
+                  </th>
+                  <SortHeader
+                    label="User ID"
+                    columnKey="userId"
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onSort={sortBy}
+                    className="w-[150px]"
+                  />
+                  <SortHeader
+                    label="Credential 이름"
+                    columnKey="label"
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onSort={sortBy}
+                  />
+                  <SortHeader
+                    label="등록 시각"
+                    columnKey="createdAt"
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onSort={sortBy}
+                    className="w-[168px]"
+                  />
+                </tr>
+              </thead>
+              <tbody className={idcStyles.table.body}>
+                {pageRows.map((row) => {
+                  const checked = picked === row.name;
+                  return (
+                    <tr
+                      key={row.name}
+                      onClick={() => setPicked(row.name)}
+                      className={cn(
+                        idcStyles.table.row,
+                        'cursor-pointer',
+                        checked ? primaryColors.bgLight : bgColors.mutedHover,
+                      )}
+                    >
+                      <td className={cn(idcStyles.table.cell, 'text-center')}>
+                        <input
+                          type="radio"
+                          name="db-credential"
+                          value={row.name}
+                          checked={checked}
+                          onChange={() => setPicked(row.name)}
+                          aria-label={`${row.userId ? `${row.userId} ` : ''}${row.label}`}
+                          className="h-4 w-4 accent-[#0064FF]"
+                        />
+                      </td>
+                      <td
+                        className={cn(
+                          idcStyles.table.cell,
+                          'truncate font-mono text-[12px]',
+                          textColors.secondary,
+                        )}
+                      >
+                        {row.userId || '—'}
+                      </td>
+                      <td
+                        className={cn(
+                          idcStyles.table.cell,
+                          'truncate font-mono text-[14px]',
+                          textColors.primary,
+                          checked ? 'font-semibold' : 'font-medium',
+                        )}
+                      >
+                        {row.label}
+                      </td>
+                      {/* 고르는 대상은 이름이므로 시각은 한 단계 아래에서 읽힌다. */}
+                      <td
+                        className={cn(
+                          idcStyles.table.cell,
+                          'text-[12px] font-normal',
+                          numericFeatures.tabular,
+                          textColors.tertiary,
+                        )}
+                      >
+                        {row.createdAt ? formatDate(row.createdAt, 'datetime') : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {/* 빈 줄로 높이를 맞춘다 — 한 건만 걸린 검색에서 모달이 접히지 않게. */}
+                {filler.map((_, index) => (
+                  <tr key={`filler-${index}`} aria-hidden="true">
+                    <td className={idcStyles.table.cell}>&nbsp;</td>
+                    <td className={idcStyles.table.cell} />
+                    <td className={idcStyles.table.cell} />
+                    <td className={idcStyles.table.cell} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between">
+            {/* 검색이 현재 값을 걸러내도 무엇이 걸려 있는지는 계속 보인다. */}
+            <span className={cn('text-[12px]', textColors.tertiary)}>
+              {picked ? (
+                <>
+                  선택 <strong className={cn('font-semibold', textColors.secondary)}>{picked}</strong>
+                </>
+              ) : (
+                '선택된 Credential이 없어요'
+              )}
+            </span>
+            <div className="inline-flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage(safePage - 1)}
+                disabled={safePage <= 0}
+                className={idcStyles.triggerBtn.ghostSm}
               >
-                <input
-                  type="radio"
-                  name="db-credential"
-                  value={secret.name}
-                  checked={checked}
-                  onChange={() => setPicked(secret.name)}
-                  className="h-4 w-4 accent-[#0064FF]"
-                />
-                {/* Credential 이름은 표의 셀과 같은 mono — 같은 값이 두 화면에서 같게 읽힌다. */}
-                <span
-                  className={cn(
-                    'font-mono text-[14px]',
-                    textColors.primary,
-                    checked ? 'font-semibold' : 'font-medium',
-                  )}
-                >
-                  {secret.name}
-                </span>
-                {/* 생성 시각(계약이 주는 유일한 시각 — 수정 시각은 없다). 이름이 비슷한 후보를
-                    가르는 값이지만 고르는 대상은 아니므로, 오른쪽 끝에서 한 단계 낮은 계층으로
-                    읽힌다. */}
-                {secret.createTimeStr && (
-                  <span
-                    className={cn(
-                      'ml-auto shrink-0 text-[12px] font-normal',
-                      numericFeatures.tabular,
-                      textColors.tertiary,
-                    )}
-                  >
-                    {formatDate(secret.createTimeStr, 'datetime')} 생성
-                  </span>
-                )}
-              </label>
-            );
-          })}
+                ‹ 이전
+              </button>
+              <span className={cn('text-[12px]', numericFeatures.tabular, textColors.tertiary)}>
+                {safePage + 1} / {pageCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(safePage + 1)}
+                disabled={safePage >= pageCount - 1}
+                className={idcStyles.triggerBtn.ghostSm}
+              >
+                다음 ›
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </Modal>
+  );
+};
+
+interface SortHeaderProps {
+  label: string;
+  columnKey: CredentialSortKey;
+  sortKey: CredentialSortKey;
+  sortDir: SortDirection;
+  onSort: (key: CredentialSortKey) => void;
+  className?: string;
+}
+
+/** 정렬은 열이 한다 — 헤더 자체가 버튼이고, 현재 정렬은 aria-sort 와 화살표 둘 다로 말한다. */
+const SortHeader = ({ label, columnKey, sortKey, sortDir, onSort, className }: SortHeaderProps) => {
+  const active = sortKey === columnKey;
+  return (
+    <th
+      className={cn(idcStyles.table.headerCell, className)}
+      aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(columnKey)}
+        className={cn(
+          'inline-flex cursor-pointer items-center gap-1',
+          active ? textColors.primary : undefined,
+          primaryColors.focusRing,
+        )}
+      >
+        {label}
+        <span aria-hidden="true" className={active ? undefined : textColors.quaternary}>
+          {active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+        </span>
+      </button>
+    </th>
   );
 };
