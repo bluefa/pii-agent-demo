@@ -106,6 +106,10 @@ export const IdcCredentialModal = ({
       // 2xl, not lg: four columns plus a 190px select overflow the lg frame and clip the
       // select's chevron at the right edge.
       size="2xl"
+      // 클라우드의 Credential 모달과 같은 chrome — 두 화면이 같은 결정을 다루는데 한쪽만
+      // 16px 제목에 헤더 ✕ 를 달고 있었다. 닫는 길은 푸터의 취소(그리고 ESC / 배경)뿐이다.
+      chrome="toss"
+      closeButton={false}
       footer={
         <>
           <button onClick={onClose} className={getButtonClass('secondary')}>
@@ -155,9 +159,11 @@ export const IdcCredentialModal = ({
         )}
       </div>
 
-      <div className={idcStyles.table.frame}>
+      {/* 목록만 스크롤한다 — 대상이 5개든 30개든 모달은 같은 크기로 열리고, 헤더는 sticky 라
+          열 이름이 스크롤 뒤로 사라지지 않는다. */}
+      <div className={cn(idcStyles.table.frame, 'max-h-[280px] overflow-y-auto')}>
         <table className="w-full">
-          <thead className={idcStyles.table.header}>
+          <thead className={cn(idcStyles.table.header, 'sticky top-0 z-10')}>
             <tr>
               <th className={idcStyles.table.headerCell}>접속 주소</th>
               <th className={cn(idcStyles.table.headerCell, 'w-[72px]')}>Port</th>
