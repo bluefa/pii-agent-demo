@@ -166,10 +166,13 @@ export const mockServiceCodes: ServiceCode[] = [
     description: 'SDU 계정 PII Agent 연동',
   },
   // Test Connection 큐 대상의 서비스 (mockProjects 하단 참조).
-  { code: 'DLV', name: '배송서비스', description: '배송 도메인 PII Agent 연동' },
-  { code: 'CPN', name: '쿠폰서비스', description: '쿠폰/프로모션 도메인 PII Agent 연동' },
-  { code: 'RVW', name: '리뷰서비스', description: '리뷰 도메인 PII Agent 연동' },
-  { code: 'IVT', name: '재고서비스', description: '재고 도메인 PII Agent 연동' },
+  // 이름 길이를 일부러 흩어 둔다 — 전부 "OO서비스" 로 맞추면 목록이 실제보다
+  // 균질해 보여, 긴 이름이 레일에서 어떻게 접히는지 화면으로 확인할 수 없다.
+  // DLV 는 계약상 상한인 30자 (줄바꿈 3줄 케이스).
+  { code: 'DLV', name: '배송 물류 거점 통합 관제 및 실시간 배차 운영 플랫폼', description: '배송 도메인 PII Agent 연동' },
+  { code: 'CPN', name: '쿠폰·프로모션 발급 정산', description: '쿠폰/프로모션 도메인 PII Agent 연동' },
+  { code: 'RVW', name: '고객 리뷰 및 평점 운영', description: '리뷰 도메인 PII Agent 연동' },
+  { code: 'IVT', name: '재고 실시간 동기화 관리', description: '재고 도메인 PII Agent 연동' },
 ];
 
 // Step 6/7 의 확정 정보 표는 CONNECTED 리소스만 노출한다. 캡처 seed 는 PENDING 이라

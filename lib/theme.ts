@@ -1088,29 +1088,29 @@ export const serviceSidebarStyles = {
   count: 'text-[12px] font-medium tabular-nums text-[#6B7280]',
   /** Section label above the rows — desktop nav section header, not a table column head. */
   sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#6B7280]',
-  /**
-   * Current-service band — full-bleed tint + 2px accent bar, the rail's only
-   * accent. A bar-and-tint band is how a desktop rail marks "you are here";
-   * the same job done as a rounded elevated card is what made this read mobile.
-   */
-  currentBand:
-    'relative w-full px-3 py-2 text-left transition-colors bg-[#E8F1FF] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[#0064FF] before:content-[""] hover:bg-[#D6E7FF]',
-  currentLabel: 'text-[12px] font-medium text-[#0050D6]',
-  currentName: 'text-[14px] font-semibold text-[#191F28]',
-  /** Code beside the current service — pairs with the band tint (see primaryColors.textOnLight). */
-  currentCode: 'font-mono text-[12px] font-semibold text-[#0050D6]',
-  /** Row name — wraps to a second line (service names run to ~30 characters) rather than riding off the rail's edge. */
+  /** Row name — wraps rather than riding off the rail's edge; service names run to ~30 characters. */
   rowName: 'text-[14px] font-medium leading-5 text-[#191F28]',
   /**
-   * Row code — a Toss tag in its own right-hand column. Names vary in length, so
-   * a code packed against the name lands at a different x on every row and never
-   * becomes scannable; the column is also what keeps a 30-character name from
-   * pushing the code out of the row.
+   * Row code — a Toss tag in its own right-hand column. Service codes are always
+   * three characters, so `min-w` sizes the column to exactly that and every code
+   * lands on one x down the list; a longer code would still grow rather than
+   * clip. Packed against the name instead, it would sit at a different x on
+   * every row, and a 30-character name would push it out of the row.
    */
   rowCode:
-    'inline-flex shrink-0 items-center rounded-[6px] bg-[#F2F4F6] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
-  /** Row fill under pointer hover or keyboard focus — full-bleed and square, the way a web list row highlights. The accent stays with the current-service band. */
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[#F2F4F6] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
+  /** Row fill under pointer hover or keyboard focus — full-bleed and square, the way a web list row highlights. */
   rowActive: 'hover:bg-[#F7F8FA] focus-visible:bg-[#F7F8FA]',
+  /**
+   * The row for the service the page is about — tint + 2px accent bar, the way a
+   * desktop rail marks "you are here". It replaced a pinned band above the list:
+   * the page header already names the service, so the band only repeated it.
+   */
+  rowCurrent:
+    'relative bg-[#E8F1FF] hover:bg-[#D6E7FF] focus-visible:bg-[#D6E7FF] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[#0064FF] before:content-[""]',
+  /** Code tag on the current row — primary pair on the row's tint (see primaryColors.textOnLight). */
+  rowCodeCurrent:
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#0050D6]',
   /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
   rowDivide: 'divide-y divide-[#EBEEF2]',
   /** 28px square icon tile — the row's scan anchor, sized up for the taller row. */

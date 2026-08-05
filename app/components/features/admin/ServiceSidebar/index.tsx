@@ -1,6 +1,5 @@
 'use client';
 
-import { CurrentServiceCard } from '@/app/components/features/admin/ServiceSidebar/CurrentServiceCard';
 import { ServiceRow } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
 import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
 import { CloseIcon, SearchIcon } from '@/app/components/ui/icons';
@@ -36,7 +35,7 @@ const ROW_MAX_PX = 88;
 /** Skeleton row count — matches SERVICE_PAGE_SIZE so the list doesn't reflow when data lands. */
 const SKELETON_ROWS = 8;
 
-/** The service the surrounding page is about — pinned above the list and highlighted. */
+/** The service the surrounding page is about — marked in the list, not pinned above it. */
 interface CurrentService {
   code: string;
   /** Absent while the name is still being resolved; the row falls back to the code. */
@@ -67,21 +66,16 @@ export const ServiceSidebar = ({
 }: ServiceSidebarProps) => {
   const { totalElements } = pageInfo;
 
-  // The current service lives in the header, so browsing the list would show it twice.
-  // A search is different: the results are the results, and hiding a match would lie.
-  const listed = !searchQuery && currentService
-    ? services.filter((s) => s.service_code !== currentService.code)
-    : services;
+  // Every service the page returned is listed, including the current one — it is
+  // marked in place rather than lifted out. Filtering it out only made sense while
+  // a pinned band above the list repeated it.
+  const listed = services;
 
   // Rows the ul will actually lay out — drives the height cap below.
   const rowCount = loading ? SKELETON_ROWS : listed.length;
 
-  // One label per list mode, so the card always says what its rows are.
-  const sectionLabel = searchQuery
-    ? '검색 결과'
-    : currentService
-      ? '다른 서비스로 이동'
-      : '전체 서비스';
+  // One label per list mode, so the list always says what its rows are.
+  const sectionLabel = searchQuery ? '검색 결과' : '전체 서비스';
 
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
@@ -105,14 +99,6 @@ export const ServiceSidebar = ({
           <span className={serviceSidebarStyles.count}>{totalElements}</span>
         )}
       </div>
-
-      {currentService && (
-        <CurrentServiceCard
-          code={currentService.code}
-          name={currentService.name}
-          onSelect={onSelectService}
-        />
-      )}
 
       {/* Search closes the rail's chrome block; the hairline under it opens the list. */}
       <div className={cn('px-3 py-2.5 border-b', serviceSidebarStyles.divider)}>
@@ -216,9 +202,7 @@ export const ServiceSidebar = ({
               <p className={cn('text-sm', textColors.tertiary)}>
                 {searchQuery
                   ? `‘${searchQuery}’와 일치하는 서비스가 없습니다`
-                  : currentService
-                    ? '이 페이지에 다른 서비스가 없습니다'
-                    : '서비스가 없습니다'}
+                  : '서비스가 없습니다'}
               </p>
               {searchQuery && (
                 <button
@@ -243,6 +227,7 @@ export const ServiceSidebar = ({
                   code={code}
                   name={service.service_name ?? undefined}
                   onSelect={onSelectService}
+                  current={code === currentService?.code}
                 />
               );
             })
