@@ -7,7 +7,6 @@ import type { PageServiceItem } from '@/app/lib/api';
 import {
   borderColors,
   bgColors,
-  idcStyles,
   primaryColors,
   serviceSidebarStyles,
   textColors,
@@ -91,8 +90,12 @@ export const ServiceSidebar = ({
       aria-label="서비스 목록"
     >
       {/* Title + total. The pill is the rail's only count — during a search it is
-          the hit count, which is why it is no longer hidden then. */}
-      <div className="flex items-center gap-2 px-3 pt-4 pb-2.5">
+          the hit count, which is why it is no longer hidden then.
+
+          pt-6 matches the content column's `p-6`, so the rail's first line and
+          the page's first line start on the same y. At pt-4 they sat 8px apart:
+          near enough to read as a misalignment rather than as two zones. */}
+      <div className="flex items-center gap-2 px-3 pt-6 pb-2.5">
         <h2 className={serviceSidebarStyles.title}>서비스 목록</h2>
         {!loading && totalElements > 0 && (
           <span className={serviceSidebarStyles.count}>{totalElements}</span>
@@ -180,9 +183,9 @@ export const ServiceSidebar = ({
                 className="flex flex-1 min-h-[48px] items-center gap-2.5 px-3"
                 aria-hidden="true"
               >
-                <div className={cn(idcStyles.skeletonBar, 'h-7 w-7 shrink-0 rounded-[6px]')} />
-                <div className={cn(idcStyles.skeletonBar, 'h-3 flex-1 rounded')} />
-                <div className={cn(idcStyles.skeletonBar, 'h-5 w-10 shrink-0 rounded-[6px]')} />
+                <div className={cn(serviceSidebarStyles.skeletonBar, 'h-7 w-7 shrink-0 rounded-[6px]')} />
+                <div className={cn(serviceSidebarStyles.skeletonBar, 'h-3 flex-1 rounded')} />
+                <div className={cn(serviceSidebarStyles.skeletonBar, 'h-5 w-10 shrink-0 rounded-[6px]')} />
               </li>
             ))
           ) : listed.length === 0 ? (
