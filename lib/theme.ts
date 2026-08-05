@@ -769,8 +769,12 @@ export const idcStyles = {
   },
   /** Header status pill (mirrors cloud sibling pill; combine with statusColors.{warning,success}). */
   statusPill: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-  /** Multi-IP endpoint toggle — `.idc-ep-toggle` (11.5px / 600 / primary). */
-  epToggle: 'text-[11.5px] font-semibold text-[#0064FF] hover:underline',
+  /** Multi-IP endpoint toggle — `.idc-ep-toggle` (11.5px / 600 / gray-500).
+   *  Was primary. It sits directly beside the address it belongs to, and blue there
+   *  read as loud as the identity it was captioning; the row already spends its one
+   *  colour on the kind badge. gray-500, not gray-400 — 11.5px semibold is not WCAG
+   *  'large text', and gray-400 measures 2.54:1 on white against gray-500's 4.83:1. */
+  epToggle: 'text-[11.5px] font-semibold text-gray-500 hover:underline hover:text-gray-700',
   /** Oracle SID key — `.idc-sid-k` (10px / 700 / fg-4 / ls .02em; bare, no bg/pad/radius). */
   // gray-500, not gray-400: this is text, and 10px bold is NOT WCAG 'large text'
   // (that starts at 18.66px bold). gray-400 measured 2.54:1 on white; gray-500 is 4.83:1.
