@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Target Source 상세 — 존닝·색감 시안 5종</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<style>
+  :root {
+    --bg: #FFFFFF;
+    --ink: #191F28;
+    --sub: #4E5968;
+    --faint: #6B7684;
+    --line: #E5E8EB;
+    --panel: #F7F8FA;
+    --accent: #0064FF;
+    --good: #1B7A3D;
+    --bad: #B43D3D;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17191F;
+      --ink: #ECEEF2;
+      --sub: #B4BAC6;
+      --faint: #98A0AE;
+      --line: #33363F;
+      --panel: #1F222A;
+      --good: #6FCF8E;
+      --bad: #E08D8D;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17191F; --ink: #ECEEF2; --sub: #B4BAC6; --faint: #98A0AE;
+    --line: #33363F; --panel: #1F222A; --good: #6FCF8E; --bad: #E08D8D;
+  }
+  :root[data-theme="light"] {
+    --bg: #FFFFFF; --ink: #191F28; --sub: #4E5968; --faint: #6B7684;
+    --line: #E5E8EB; --panel: #F7F8FA; --good: #1B7A3D; --bad: #B43D3D;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 56px 32px 96px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; text-wrap: balance; }
+  .lede { font-size: 14px; color: var(--sub); margin: 0 0 40px; max-width: 720px; }
+
+  /* ---- 진단 ---- */
+  .diag { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .diag div { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .diag b { display: block; font-size: 12px; font-weight: 700; color: var(--bad); margin-bottom: 4px; letter-spacing: 0.02em; }
+  .diag p { margin: 0; font-size: 12px; color: var(--sub); }
+  .root-cause { border-left: 3px solid var(--accent); background: var(--panel); border-radius: 0 10px 10px 0; padding: 14px 18px; font-size: 14px; color: var(--ink); margin-bottom: 56px; }
+  .root-cause b { color: var(--accent); }
+
+  /* ---- 시안 블록 ---- */
+  .variant { margin-bottom: 72px; }
+  .v-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); text-transform: uppercase; }
+  .v-name { font-size: 20px; font-weight: 700; margin: 4px 0 6px; letter-spacing: -0.01em; }
+  .v-strategy { font-size: 14px; color: var(--sub); margin: 0 0 18px; max-width: 780px; }
+  .v-pick { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 700; color: #FFFFFF; background: var(--accent); border-radius: 999px; padding: 2px 10px; vertical-align: 3px; }
+
+  /* 프레임 공통 — 목업은 라이트 고정(앱 화면 묘사) */
+  .frame {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #FFFFFF;
+    color: #191F28;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    font-size: 10px;
+  }
+  .frame * { box-sizing: border-box; }
+  .tn { height: 38px; background: #17171C; color: #FFFFFF; display: flex; align-items: center; gap: 18px; padding: 0 18px; }
+  .tn .logo { font-weight: 800; font-size: 12px; letter-spacing: 0.06em; }
+  .tn .logo span { color: #7B8DB8; font-weight: 500; font-size: 10px; margin-left: 6px; letter-spacing: 0.04em; }
+  .tn nav { display: flex; gap: 14px; font-size: 10px; color: #C3C8D4; }
+  .tn nav .on { color: #FFFFFF; font-weight: 700; }
+  .cols { display: flex; align-items: stretch; min-height: 560px; }
+
+  /* 사이드바 */
+  .sb { width: 186px; flex: none; padding: 14px 12px; }
+  .sb h4 { margin: 0 0 10px; font-size: 12px; font-weight: 700; }
+  .sb .search { height: 24px; border-radius: 6px; border: 1px solid #DDE1E8; background: #FFFFFF; margin-bottom: 10px; display: flex; align-items: center; padding: 0 8px; color: #8A94A6; font-size: 10px; } /* design-exempt: placeholder text in miniature mockup */
+  .sb ul { list-style: none; margin: 0; padding: 0; }
+  .sb li { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: 6px; color: #333D4B; }
+  .sb li code { font-size: 10px; color: #6B7684; }
+  .sb li.on { background: #E8F0FE; color: #0064FF; font-weight: 700; }
+  .sb li.on code { color: #4C82D8; }
+
+  /* 헤더 존 */
+  .hd { padding: 14px 20px 12px; }
+  .hd .ttl { display: flex; align-items: center; gap: 8px; }
+  .hd .ttl b { font-size: 16px; font-weight: 700; }
+  .hd .target { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 10px; color: #6B7684; }
+  .hd .target b { font-size: 12px; font-weight: 600; color: #191F28; }
+  .hd .code { font-size: 10px; font-family: ui-monospace, monospace; background: #E9EEF9; color: #55617A; border-radius: 5px; padding: 1px 6px; }
+  .hd .pname { font-size: 12px; font-weight: 500; color: #191F28; }
+  .hd .mark svg { width: 14px; height: 14px; color: #333D4B; }
+  .hd .kv em { font-style: normal; font-size: 10px; color: #6B7684; margin-left: 4px; }
+  .hd .lbl { font-size: 10px; font-weight: 700; color: #4E5968; margin: 10px 0 2px; }
+  .hd .desc { font-size: 10px; color: #4E5968; max-width: 480px; }
+  .hd .cloud { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  .hd .mark { width: 20px; height: 20px; border-radius: 6px; background: #F1F3F7; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #333D4B; }
+  .hd .kv { font-size: 10px; color: #191F28; }
+  .hd .kv small { display: block; font-size: 10px; color: #6B7684; }
+  .hd .mode { font-size: 10px; background: #FDF3E4; border: 1px solid #EDD9B5; color: #9A6B1F; border-radius: 5px; padding: 1px 6px; font-weight: 700; }
+  .hd .sep { width: 1px; height: 18px; background: #E5E8EB; }
+  .stepper { display: flex; align-items: center; margin-top: 12px; max-width: 500px; }
+  .stepper i { flex: 1; height: 2px; background: #EDEFF3; }
+  .stepper i.w { background: #CFE0FF; }
+  .stepper s { width: 8px; height: 8px; border-radius: 50%; background: #DFE3EA; flex: none; text-decoration: none; }
+  .stepper s.cur { background: #0064FF; outline: 3px solid rgba(0, 100, 255, 0.15); }
+  .steplbl { display: flex; justify-content: space-between; max-width: 500px; font-size: 10px; color: #8B95A1; margin-top: 4px; } /* design-exempt: walked-step tier color from installStepperStyles */
+  .steplbl b { color: #1B64DA; font-weight: 700; }
+
+  /* 본문/카드/레일 */
+  .bodyz { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .card { border-radius: 12px; padding: 14px 16px; background: #FFFFFF; }
+  .card .stage { display: inline-block; font-size: 10px; font-weight: 700; color: #0064FF; background: #E8F0FE; border-radius: 5px; padding: 1px 6px; margin-bottom: 6px; }
+  .card h5 { margin: 0 0 4px; font-size: 14px; font-weight: 700; }
+  .card .sub { font-size: 10px; color: #4E5968; margin: 0 0 10px; }
+  .tbl { border: 1px solid #EDEFF3; border-radius: 8px; overflow: hidden; }
+  .tbl .th { display: flex; background: #F7F8FA; font-weight: 700; color: #4E5968; }
+  .tbl .tr { display: flex; border-top: 1px solid #F0F2F5; }
+  .tbl span { flex: 1; padding: 5px 10px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tbl span:first-child { flex: 1.6; }
+  .rail { width: 218px; flex: none; padding: 12px; font-size: 10px; }
+  .rail .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; color: #6B7684; font-weight: 500; }
+  .rail .agent { background: #FFF4E5; color: #B25E09; border-radius: 999px; padding: 1px 8px; font-weight: 700; }
+  .rail .help { background: #EFF4FE; border: 1px solid #D8E4FB; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+  .rail .help b { display: block; font-size: 10px; color: #191F28; margin-bottom: 2px; }
+  .rail .help p { margin: 0; color: #4E5968; }
+  .rail .tabs { display: flex; border: 1px solid #E5E8EB; border-radius: 6px; overflow: hidden; margin-bottom: 8px; background: #FFFFFF; }
+  .rail .tabs span { flex: 1; text-align: center; padding: 4px 0; color: #6B7684; }
+  .rail .tabs .on { background: #F1F3F7; color: #191F28; font-weight: 700; }
+  .rail .guide { color: #4E5968; }
+  .rail .guide b { color: #191F28; }
+  .rail .del { margin-top: 12px; border: 1px solid #F1D4D4; color: #C43E3E; border-radius: 6px; text-align: center; padding: 4px 0; font-weight: 700; background: #FFFFFF; }
+
+  /* ---- 제목 옵션 ---- */
+  .topt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .topt { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .topt-tag { font-size: 12px; font-weight: 700; color: var(--sub); margin-bottom: 10px; }
+  .pick-mini { color: #FFFFFF; background: var(--accent); border-radius: 999px; padding: 1px 8px; font-size: 10px; margin-left: 4px; }
+  .topt-frame { background: #FFFFFF; color: #191F28; border: 1px solid #E5E8EB; border-radius: 8px; padding: 12px 14px; min-height: 58px; }
+  .topt-frame .t0 { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #4E6EB0; margin-bottom: 2px; }
+  .topt-frame .t1 { font-size: 16px; font-weight: 700; }
+  .topt-frame .t2 { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: #6B7684; }
+  .topt-frame .t2 b { font-size: 12px; font-weight: 600; color: #191F28; }
+  .topt-frame .tcode { font-size: 10px; font-family: ui-monospace, monospace; background: #E9EEF9; color: #55617A; border-radius: 5px; padding: 1px 6px; font-weight: 400; }
+  .topt-note { font-size: 12px; color: var(--sub); margin: 10px 0 0; }
+  @media (max-width: 900px) { .topt-grid { grid-template-columns: 1fr; } }
+
+  /* ---- 표면 지도 + 평가 ---- */
+  .smap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .smap span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sub); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px 3px 5px; }
+  .smap i { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.12); }
+  .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; margin-top: 12px; font-size: 12px; }
+  .verdict .p::before { content: "+ "; color: var(--good); font-weight: 800; }
+  .verdict .c::before { content: "− "; color: var(--bad); font-weight: 800; }
+  .verdict div { color: var(--sub); }
+
+  /* ---- 변형별 표면 배정 ---- */
+  /* A. 헤어라인 워크벤치: 전부 근백색, 구조는 전부 1px 선이 잡는다 */
+  .vA .sb { background: #FAFAFB; border-right: 1px solid #E1E4E9; }
+  .vA .hd { background: #FFFFFF; border-bottom: 1px solid #E1E4E9; }
+  .vA .step-area { padding: 16px 20px; background: #FFFFFF; }
+  .vA .card { border: 1px solid #E1E4E9; }
+  .vA .rail { border-left: 1px solid #E1E4E9; background: #FFFFFF; }
+
+  /* B. 다크 네이비 사이드바 */
+  .vB .tn { background: #1B2130; }
+  .vB .sb { background: #1B2130; color: #C7CEDD; }
+  .vB .sb h4 { color: #FFFFFF; }
+  .vB .sb .search { background: #262E42; border-color: #37405A; color: #97A2BC; } /* design-exempt: placeholder text in miniature mockup */
+  .vB .sb li { color: #AEB7CB; }
+  .vB .sb li code { color: #7C87A3; }
+  .vB .sb li.on { background: #2A3757; color: #FFFFFF; }
+  .vB .sb li.on code { color: #9FB6E8; }
+  .vB .hd { background: #FAFBFC; border-bottom: 1px solid #EAECF0; }
+  .vB .step-area { padding: 16px 20px; background: #F1F3F6; flex: 1; }
+  .vB .card { box-shadow: 0 1px 2px rgba(25, 31, 40, 0.05); }
+  .vB .rail { background: #F1F3F6; border-left: 1px solid #E3E6EB; }
+  .vB .rail .tabs { background: #FFFFFF; }
+
+  /* C. 투톤 프레임 (추천): 좌우 레일 동일 회색, 중앙만 흰 캔버스 */
+  .vC .sb { background: #F1F3F7; border-right: 1px solid #E4E7EE; }
+  .vC .sb .search { background: #FFFFFF; }
+  .vC .sb li.on { background: #FFFFFF; box-shadow: 0 1px 2px rgba(25, 31, 40, 0.06); }
+  .vC .hd { background: #FFFFFF; }
+  .vC .hd-divider { height: 1px; background: #EEF0F4; margin: 0 20px; }
+  .vC .step-area { padding: 16px 20px; background: #FFFFFF; flex: 1; }
+  .vC .card { border: 1px solid #E8EBF0; }
+  .vC .rail { background: #F1F3F7; border-left: 1px solid #E4E7EE; }
+  .vC .rail .tabs { background: #FFFFFF; }
+  .vC .rail .tabs .on { background: #E3E8F0; }
+
+  /* D. 틴트 크롬 역전: 헤더+우측 레일이 진한 틴트 'ㄱ'자, 나머지 백지 */
+  .vD .sb { background: #FFFFFF; border-right: 1px solid #E5E8EB; }
+  .vD .hd { background: #EDF0F5; border-bottom: 1px solid #E0E4EB; }
+  .vD .hd .mark { background: #FFFFFF; }
+  .vD .hd .sep { background: #D9DEE7; }
+  .vD .stepper i { background: #DEE3EB; }
+  .vD .stepper i.w { background: #BFD5FA; }
+  .vD .stepper s { background: #C9D0DC; }
+  .vD .stepper s.cur { background: #0064FF; }
+  .vD .step-area { padding: 16px 20px; background: #FFFFFF; flex: 1; }
+  .vD .card { border: 1px solid #E5E8EB; }
+  .vD .rail { background: #EDF0F5; border-left: 1px solid #E0E4EB; }
+  .vD .rail .tabs { background: #FFFFFF; }
+
+  /* E. 단일 시트: 워시 유지, 콘텐츠+헤더+레일이 한 장의 흰 시트 */
+  .vE .cols { background: #F4F4FB; }
+  .vE .sb { background: #FFFFFF; border-right: 1px solid #E9EAF2; }
+  .vE .sheet { flex: 1; min-width: 0; margin: 14px 16px; background: #FFFFFF; border: 1px solid #E9EAF2; border-radius: 14px; box-shadow: 0 2px 8px rgba(25, 31, 40, 0.05); display: flex; flex-direction: column; overflow: hidden; }
+  .vE .sheet-cols { display: flex; flex: 1; }
+  .vE .hd { border-bottom: 1px solid #EEF0F4; }
+  .vE .step-area { padding: 16px 20px; flex: 1; }
+  .vE .card { border: 1px solid #F0F2F5; background: #FBFCFD; }
+  .vE .rail { border-left: 1px solid #EEF0F4; }
+  .vE .rail .tabs .on { background: #EEF1F6; }
+
+  /* ---- 비교 표 ---- */
+  table.cmp { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 8px; }
+  .cmp th, .cmp td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; color: var(--sub); }
+  .cmp th { background: var(--panel); color: var(--ink); font-weight: 700; }
+  .cmp td:first-child { font-weight: 700; color: var(--ink); white-space: nowrap; }
+  .cmp .y { color: var(--good); font-weight: 700; }
+  .cmp .n { color: var(--bad); }
+  .reco { margin-top: 28px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0; padding: 16px 20px; font-size: 14px; }
+  .reco b { color: var(--accent); }
+  @media (max-width: 900px) { .diag { grid-template-columns: 1fr; } .verdict { grid-template-columns: 1fr; } }
+  .frame-scroll { overflow-x: auto; }
+  .frame-scroll .frame { min-width: 980px; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="awsic" viewBox="0 0 24 24"><path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.063.056.127.056.183 0 .08-.048.16-.152.24l-.503.335a.383.383 0 0 1-.208.072c-.08 0-.16-.04-.239-.112a2.47 2.47 0 0 1-.287-.375 6.18 6.18 0 0 1-.248-.471c-.622.734-1.405 1.101-2.347 1.101-.67 0-1.205-.191-1.596-.574-.391-.384-.59-.894-.59-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.846.064.296.04.6.104.918.176v-.583c0-.607-.127-1.03-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.295.072-.583.16-.862.272a2.287 2.287 0 0 1-.28.104.488.488 0 0 1-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 0 1 .224-.167c.279-.144.614-.264 1.005-.36a4.84 4.84 0 0 1 1.246-.151c.95 0 1.644.216 2.091.647.439.43.662 1.085.662 1.963v2.586zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 0 0-.735-.136 6.02 6.02 0 0 0-.75-.048c-.535 0-.926.104-1.19.32-.263.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.838.296zm6.41.862c-.144 0-.24-.024-.304-.08-.064-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 0 1-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.245-5.284c.04-.16.088-.264.151-.312a.549.549 0 0 1 .32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 0 1 .311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 0 1-.056.2l-1.923 6.17c-.048.16-.104.263-.168.311a.51.51 0 0 1-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.32l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.32-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 0 1-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 0 0 .415-.758.777.777 0 0 0-.215-.559c-.144-.151-.416-.287-.807-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 0 1-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.83-.415.32-.096.655-.136 1.006-.136.175 0 .359.008.535.032.183.024.35.056.518.088.16.04.312.08.455.127.144.048.256.096.336.144a.69.69 0 0 1 .24.2.43.43 0 0 1 .071.263v.375c0 .168-.064.256-.184.256a.83.83 0 0 1-.303-.096 3.652 3.652 0 0 0-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.159.152.454.304.877.44l1.134.358c.574.184.99.44 1.237.767.247.327.367.702.367 1.117 0 .343-.072.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.734.167-1.142.167zM21.698 16.207c-2.626 1.94-6.442 2.969-9.722 2.969-4.598 0-8.74-1.7-11.87-4.526-.247-.223-.024-.527.272-.351 3.384 1.963 7.559 3.153 11.877 3.153 2.914 0 6.114-.607 9.06-1.852.439-.2.814.287.383.607zM22.792 14.961c-.336-.43-2.22-.207-3.074-.103-.255.032-.295-.192-.063-.36 1.5-1.053 3.967-.75 4.254-.399.287.36-.08 2.826-1.485 4.007-.215.184-.423.088-.327-.151.32-.79 1.03-2.57.695-2.994z"/></symbol></defs></svg>
+<div class="wrap">
+  <h1>Target Source 상세 — 존닝·색감 시안 5종</h1>
+  <p class="lede">"화면이 붕 떠 보인다 · 서비스 목록과 헤더가 안 갈린다 · 우측이 패널이 아니라 카드다" — 세 지적은 결국 하나의 문제입니다. 표면 배정을 다시 짠 5가지 방향을 실제 화면 비율의 미니 목업으로 그렸습니다.</p>
+
+  <div class="diag">
+    <div><b>붕 뜸</b><p>라벤더 워시 위에 흰 면(헤더·스텝 카드·가이드 카드)이 3장 이상 떠 있고, 전부 그림자로만 구분되어 어디에도 "바닥"이 없습니다.</p></div>
+    <div><b>사이드바 ↔ 헤더</b><p>서비스 목록 #FFFFFF와 헤더 #F8F9FC의 명도차가 약 2%뿐 — 경계선이 감지 한계에 걸려 눈이 계속 초점을 다시 잡습니다.</p></div>
+    <div><b>패널이 카드가 됨</b><p>가이드가 둥근 모서리+그림자를 얻는 순간 "콘텐츠"로 읽힙니다. 패널은 화면 구조의 일부여야 하므로 가장자리에 앵커되고 바닥까지 닿아야 합니다.</p></div>
+  </div>
+  <div class="root-cause">근본 원인: <b>근백색 표면 4개가 전부 '떠 있는 카드' 문법 하나로 표현</b>되고 있습니다. 해법은 색을 더하는 게 아니라 문법을 나누는 것 — <b>구조(네비·헤더·패널)는 앵커</b>하고, <b>콘텐츠(스텝)만 카드</b>로 남기고, 구역 간 명도차를 감지 가능한 수준(6% 이상)으로 벌립니다.</div>
+
+  <!-- ============ 본문 제목 ============ -->
+  <section class="variant">
+    <div class="v-eyebrow">제목 구조</div>
+    <div class="v-name">본문 제목 — "서비스 이름"이 아니라 "PII Agent를 설치한다"</div>
+    <p class="v-strategy">지금 제목은 서비스 이름(AWS)이라 이 페이지의 일이 안 보입니다. 페이지의 일은 <b>PII Agent 설치</b>이고, 서비스 이름·코드는 <b>설치 대상(계정) 설명</b>입니다. 작업을 제목으로 올리고 대상을 그 아래 식별 라인으로 내리는 3가지 방식입니다.</p>
+    <div class="topt-grid">
+      <div class="topt">
+        <div class="topt-tag">옵션 1 · 작업 제목 + 대상 라인 <b class="pick-mini">적용</b></div>
+        <div class="topt-frame">
+          <div class="t1">PII Agent 설치</div>
+          <div class="t2"><span class="t2l">설치 대상</span><b>AWS</b><span class="tcode">서비스 코드 aws</span></div>
+        </div>
+        <p class="topt-note">작업이 가장 크고, 대상은 라벨 붙은 식별 라인. 어떤 서비스에서 열어도 "지금 뭘 하는 페이지인지"가 첫 줄에서 확정됩니다. 아래 5개 시안에 이 방식을 적용했습니다.</p>
+      </div>
+      <div class="topt">
+        <div class="topt-tag">옵션 2 · 아이브로우 반전</div>
+        <div class="topt-frame">
+          <div class="t0">PII AGENT 설치</div>
+          <div class="t1">AWS <span class="tcode">서비스 코드 aws</span></div>
+        </div>
+        <p class="topt-note">서비스 이름이 여전히 주인공. 목록에서 "내 서비스"를 찾아 들어오는 흐름과는 맞지만, "설치한다"는 느낌은 약합니다.</p>
+      </div>
+      <div class="topt">
+        <div class="topt-tag">옵션 3 · 문장형</div>
+        <div class="topt-frame">
+          <div class="t1">AWS에 PII Agent 설치 <span class="tcode">aws</span></div>
+        </div>
+        <p class="topt-note">한 줄로 작업+대상이 다 읽히지만, 서비스 이름이 길면 제목이 흔들리고 코드 칩의 자리가 애매해집니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 시안 A ============ -->
+  <section class="variant vA">
+    <div class="v-eyebrow">시안 A</div>
+    <div class="v-name">헤어라인 워크벤치</div>
+    <p class="v-strategy">그림자 전면 제거. 모든 구역을 1px 선으로 용접해 "떠 있는 것"을 0개로 만듭니다. 톤은 거의 단일(사이드바만 반 톤 어둡게)이지만 선이 구조를 확정하므로 경계 스트레스가 없습니다. Linear·GitHub 계열 문법.</p>
+    <div class="frame-scroll"><div class="frame">
+      <div class="tn"><span class="logo">PASS<span>PII AGENT SELF SERVICE</span></span><nav><span class="on">서비스 목록</span><span>관리자</span><span>Guide</span><span>FAQ</span></nav></div>
+      <div class="cols">
+        <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
+        <div class="bodyz">
+          <div class="hd">
+            <div class="ttl"><b>PII Agent 설치</b></div>
+            <div class="target"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></div>
+            <div class="lbl">설명</div><div class="desc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
+            <div class="lbl">클라우드 정보</div>
+            <div class="cloud"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="kv"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="kv"><small>설치 모드</small><span><span class="mode">수동 설치</span><em>설치 스크립트 직접 실행</em></span></span></div>
+            <div class="lbl">설치 진행</div>
+            <div class="stepper"><s class="cur"></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s></div>
+            <div class="steplbl"><b>연동 대상 DB 선택</b><span>승인 대기</span><span>반영중</span><span>Agent 설치</span><span>연결 테스트</span><span>승인 대기</span><span>완료</span></div>
+          </div>
+          <div class="step-area">
+            <div class="card"><span class="stage">1번째 단계</span><h5>연동 대상 DB 선택</h5><p class="sub">인프라 스캔으로 AWS 계정의 리소스를 조회하고, 연동할 리소스를 선택해 주세요.</p>
+              <div class="tbl"><div class="th"><span>Resource Name</span><span>Database Type</span><span>Region</span><span>설치 구분</span></div>
+                <div class="tr"><span>raw-mongo-deq-test-1</span><span>MongoDB</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                <div class="tr"><span>raw-e2e-test-mysql-clus</span><span>MySQL</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                <div class="tr"><span>svc-orders-aurora</span><span>Aurora</span><span>ap-northeast-2</span><span>제외</span></div></div></div>
+          </div>
+        </div>
+        <div class="rail">
+          <div class="row"><span>모니터링</span><span class="agent">AWS Agent</span></div>
+          <div class="help"><b>도움이 필요하신가요?</b><p>협업 채널에서 담당자에게 바로 문의할 수 있어요. · BDCDIP-1006</p></div>
+          <div class="tabs"><span class="on">가이드</span><span>진행 내역</span></div>
+          <p class="guide"><b>연동 대상 DB를 선택해 주세요</b><br>스캔 시작으로 리소스를 조회한 뒤, 필요한 DB를 선택하고 승인 요청을 눌러 주세요.</p>
+          <div class="del">인프라 삭제</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="smap">
+      <span><i style="background:#17171C"></i>탑바 #17171C</span><span><i style="background:#FAFAFB"></i>사이드바 #FAFAFB</span><span><i style="background:#FFFFFF"></i>헤더 #FFFFFF</span><span><i style="background:#FFFFFF"></i>본문 #FFFFFF</span><span><i style="background:#FFFFFF"></i>레일 #FFFFFF + 좌측선</span><span><i style="background:#E1E4E9"></i>구조선 #E1E4E9</span>
+    </div>
+    <div class="verdict">
+      <div class="p">붕 뜸 완전 해소 — 떠 있는 면 0개, 전부 용접</div>
+      <div class="p">밀도 높은 운영 화면과 가장 잘 맞는 문법</div>
+      <div class="c">톤 대비가 아닌 선 대비라, 색감 변화 요구에는 소극적인 답</div>
+      <div class="c">기존 Toss형 카드 그림자 언어를 사실상 폐기 — 다른 화면과 이질감</div>
+    </div>
+  </section>
+
+  <!-- ============ 시안 B ============ -->
+  <section class="variant vB">
+    <div class="v-eyebrow">시안 B</div>
+    <div class="v-name">다크 네이비 사이드바</div>
+    <p class="v-strategy">탑바와 사이드바를 하나의 다크 'ㄱ'자 프레임(#1B2130)으로 묶습니다. 네비게이션 존과 콘텐츠 존이 명도로 즉시 갈라져 "사이드바 ↔ 헤더" 문제는 원천 소멸. 콘텐츠 쪽은 옅은 회색 바닥 + 흰 카드 1장으로 정리하고, 가이드는 바닥색 그대로 두어 패널로 읽힙니다.</p>
+    <div class="frame-scroll"><div class="frame">
+      <div class="tn"><span class="logo">PASS<span>PII AGENT SELF SERVICE</span></span><nav><span class="on">서비스 목록</span><span>관리자</span><span>Guide</span><span>FAQ</span></nav></div>
+      <div class="cols">
+        <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
+        <div class="bodyz">
+          <div class="hd">
+            <div class="ttl"><b>PII Agent 설치</b></div>
+            <div class="target"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></div>
+            <div class="lbl">설명</div><div class="desc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
+            <div class="lbl">클라우드 정보</div>
+            <div class="cloud"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="kv"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="kv"><small>설치 모드</small><span><span class="mode">수동 설치</span><em>설치 스크립트 직접 실행</em></span></span></div>
+            <div class="lbl">설치 진행</div>
+            <div class="stepper"><s class="cur"></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s></div>
+            <div class="steplbl"><b>연동 대상 DB 선택</b><span>승인 대기</span><span>반영중</span><span>Agent 설치</span><span>연결 테스트</span><span>승인 대기</span><span>완료</span></div>
+          </div>
+          <div class="step-area">
+            <div class="card"><span class="stage">1번째 단계</span><h5>연동 대상 DB 선택</h5><p class="sub">인프라 스캔으로 AWS 계정의 리소스를 조회하고, 연동할 리소스를 선택해 주세요.</p>
+              <div class="tbl"><div class="th"><span>Resource Name</span><span>Database Type</span><span>Region</span><span>설치 구분</span></div>
+                <div class="tr"><span>raw-mongo-deq-test-1</span><span>MongoDB</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                <div class="tr"><span>raw-e2e-test-mysql-clus</span><span>MySQL</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                <div class="tr"><span>svc-orders-aurora</span><span>Aurora</span><span>ap-northeast-2</span><span>제외</span></div></div></div>
+          </div>
+        </div>
+        <div class="rail">
+          <div class="row"><span>모니터링</span><span class="agent">AWS Agent</span></div>
+          <div class="help"><b>도움이 필요하신가요?</b><p>협업 채널에서 담당자에게 바로 문의할 수 있어요. · BDCDIP-1006</p></div>
+          <div class="tabs"><span class="on">가이드</span><span>진행 내역</span></div>
+          <p class="guide"><b>연동 대상 DB를 선택해 주세요</b><br>스캔 시작으로 리소스를 조회한 뒤, 필요한 DB를 선택하고 승인 요청을 눌러 주세요.</p>
+          <div class="del">인프라 삭제</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="smap">
+      <span><i style="background:#1B2130"></i>탑바+사이드바 #1B2130</span><span><i style="background:#FAFBFC"></i>헤더 #FAFBFC</span><span><i style="background:#F1F3F6"></i>본문 바닥 #F1F3F6</span><span><i style="background:#FFFFFF"></i>스텝 카드 #FFFFFF</span><span><i style="background:#F1F3F6"></i>레일 = 바닥색 + 좌측선</span>
+    </div>
+    <div class="verdict">
+      <div class="p">네비 ↔ 콘텐츠 분리가 5안 중 가장 확실 — 눈 피로 즉시 해소</div>
+      <div class="p">흰 카드가 1장뿐이라 "떠 있는 것"이 곧 "작업할 것"</div>
+      <div class="c">변화 폭이 가장 큼 — 서비스 목록 UI 전체 재도색 필요</div>
+      <div class="c">라이트 톤 중심의 기존 브랜드 인상과 거리가 있음</div>
+    </div>
+  </section>
+
+  <!-- ============ 시안 C ============ -->
+  <section class="variant vC">
+    <div class="v-eyebrow">시안 C</div>
+    <div class="v-name">투톤 프레임 <span class="v-pick">추천</span></div>
+    <p class="v-strategy">사이드바와 가이드 레일을 같은 회색(#F1F3F7)으로 칠해 좌우 대칭 프레임을 만들고, 가운데 콘텐츠 기둥만 순백 캔버스로 남깁니다. 도구는 회색, 작업물은 흰색 — Figma·IDE의 존 문법입니다. 헤더는 흰 캔버스의 상단 존이 되어(면 분리 없이 거리+헤어라인) 사이드바와 6% 이상 명도차가 확보되고, 가이드는 회색 면이 바닥까지 닿아 명백한 패널이 됩니다.</p>
+    <div class="frame-scroll"><div class="frame">
+      <div class="tn"><span class="logo">PASS<span>PII AGENT SELF SERVICE</span></span><nav><span class="on">서비스 목록</span><span>관리자</span><span>Guide</span><span>FAQ</span></nav></div>
+      <div class="cols">
+        <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
+        <div class="bodyz">
+          <div class="hd">
+            <div class="ttl"><b>PII Agent 설치</b></div>
+            <div class="target"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></div>
+            <div class="lbl">설명</div><div class="desc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
+            <div class="lbl">클라우드 정보</div>
+            <div class="cloud"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="kv"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="kv"><small>설치 모드</small><span><span class="mode">수동 설치</span><em>설치 스크립트 직접 실행</em></span></span></div>
+            <div class="lbl">설치 진행</div>
+            <div class="stepper"><s class="cur"></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s></div>
+            <div class="steplbl"><b>연동 대상 DB 선택</b><span>승인 대기</span><span>반영중</span><span>Agent 설치</span><span>연결 테스트</span><span>승인 대기</span><span>완료</span></div>
+          </div>
+          <div class="hd-divider"></div>
+          <div class="step-area">
+            <div class="card"><span class="stage">1번째 단계</span><h5>연동 대상 DB 선택</h5><p class="sub">인프라 스캔으로 AWS 계정의 리소스를 조회하고, 연동할 리소스를 선택해 주세요.</p>
+              <div class="tbl"><div class="th"><span>Resource Name</span><span>Database Type</span><span>Region</span><span>설치 구분</span></div>
+                <div class="tr"><span>raw-mongo-deq-test-1</span><span>MongoDB</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                <div class="tr"><span>raw-e2e-test-mysql-clus</span><span>MySQL</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                <div class="tr"><span>svc-orders-aurora</span><span>Aurora</span><span>ap-northeast-2</span><span>제외</span></div></div></div>
+          </div>
+        </div>
+        <div class="rail">
+          <div class="row"><span>모니터링</span><span class="agent">AWS Agent</span></div>
+          <div class="help"><b>도움이 필요하신가요?</b><p>협업 채널에서 담당자에게 바로 문의할 수 있어요. · BDCDIP-1006</p></div>
+          <div class="tabs"><span class="on">가이드</span><span>진행 내역</span></div>
+          <p class="guide"><b>연동 대상 DB를 선택해 주세요</b><br>스캔 시작으로 리소스를 조회한 뒤, 필요한 DB를 선택하고 승인 요청을 눌러 주세요.</p>
+          <div class="del">인프라 삭제</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="smap">
+      <span><i style="background:#17171C"></i>탑바 #17171C</span><span><i style="background:#F1F3F7"></i>사이드바 #F1F3F7</span><span><i style="background:#FFFFFF"></i>헤더+본문 캔버스 #FFFFFF</span><span><i style="background:#F1F3F7"></i>가이드 레일 #F1F3F7</span><span><i style="background:#E8EBF0"></i>카드 보더 #E8EBF0</span>
+    </div>
+    <div class="verdict">
+      <div class="p">세 문제를 전부 해결하면서 변경 반경이 가장 작음 — 표면 색만 재배정</div>
+      <div class="p">좌우 대칭이라 "패널은 회색, 작업은 흰색" 규칙이 즉시 학습됨</div>
+      <div class="c">헤더의 면(#F8F9FC) 결정을 되돌림 — 확정 사항 1건 재론 필요</div>
+      <div class="c">회색 면적이 넓어져 화사함은 다소 줄어듦</div>
+    </div>
+  </section>
+
+  <!-- ============ 시안 D ============ -->
+  <section class="variant vD">
+    <div class="v-eyebrow">시안 D</div>
+    <div class="v-name">틴트 크롬 역전</div>
+    <p class="v-strategy">현재 배정을 반전합니다. 사이드바를 순백으로 되돌리고, 헤더와 가이드 레일에 확실히 진한 틴트(#EDF0F5)를 줍니다. 헤더+레일이 'ㄱ'자 크롬을 이루어 콘텐츠(사이드바 목록·스텝 카드)는 전부 흰 바탕 — "크롬은 틴트, 콘텐츠는 백색" 규칙. 명도차가 6~7%로 벌어져 경계 스트레스가 사라집니다.</p>
+    <div class="frame-scroll"><div class="frame">
+      <div class="tn"><span class="logo">PASS<span>PII AGENT SELF SERVICE</span></span><nav><span class="on">서비스 목록</span><span>관리자</span><span>Guide</span><span>FAQ</span></nav></div>
+      <div class="cols">
+        <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
+        <div class="bodyz">
+          <div class="hd">
+            <div class="ttl"><b>PII Agent 설치</b></div>
+            <div class="target"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></div>
+            <div class="lbl">설명</div><div class="desc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
+            <div class="lbl">클라우드 정보</div>
+            <div class="cloud"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="kv"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="kv"><small>설치 모드</small><span><span class="mode">수동 설치</span><em>설치 스크립트 직접 실행</em></span></span></div>
+            <div class="lbl">설치 진행</div>
+            <div class="stepper"><s class="cur"></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s></div>
+            <div class="steplbl"><b>연동 대상 DB 선택</b><span>승인 대기</span><span>반영중</span><span>Agent 설치</span><span>연결 테스트</span><span>승인 대기</span><span>완료</span></div>
+          </div>
+          <div class="step-area">
+            <div class="card"><span class="stage">1번째 단계</span><h5>연동 대상 DB 선택</h5><p class="sub">인프라 스캔으로 AWS 계정의 리소스를 조회하고, 연동할 리소스를 선택해 주세요.</p>
+              <div class="tbl"><div class="th"><span>Resource Name</span><span>Database Type</span><span>Region</span><span>설치 구분</span></div>
+                <div class="tr"><span>raw-mongo-deq-test-1</span><span>MongoDB</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                <div class="tr"><span>raw-e2e-test-mysql-clus</span><span>MySQL</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                <div class="tr"><span>svc-orders-aurora</span><span>Aurora</span><span>ap-northeast-2</span><span>제외</span></div></div></div>
+          </div>
+        </div>
+        <div class="rail">
+          <div class="row"><span>모니터링</span><span class="agent">AWS Agent</span></div>
+          <div class="help"><b>도움이 필요하신가요?</b><p>협업 채널에서 담당자에게 바로 문의할 수 있어요. · BDCDIP-1006</p></div>
+          <div class="tabs"><span class="on">가이드</span><span>진행 내역</span></div>
+          <p class="guide"><b>연동 대상 DB를 선택해 주세요</b><br>스캔 시작으로 리소스를 조회한 뒤, 필요한 DB를 선택하고 승인 요청을 눌러 주세요.</p>
+          <div class="del">인프라 삭제</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="smap">
+      <span><i style="background:#FFFFFF"></i>사이드바 #FFFFFF</span><span><i style="background:#EDF0F5"></i>헤더 #EDF0F5</span><span><i style="background:#FFFFFF"></i>본문 #FFFFFF</span><span><i style="background:#EDF0F5"></i>가이드 레일 #EDF0F5</span><span><i style="background:#E0E4EB"></i>경계선 #E0E4EB</span>
+    </div>
+    <div class="verdict">
+      <div class="p">헤더가 "페이지의 지붕"으로 확실히 읽힘 — 정체성 존 강조에 유리</div>
+      <div class="p">사이드바 변경 없음(원래 흰색) — 서비스 목록 코드 무수정</div>
+      <div class="c">틴트 면적이 커서 헤더가 다시 무거워 보일 위험(이전 지적 재발 소지)</div>
+      <div class="c">헤더 면 위 요소들의 대비 재검증 필요(칩·라벨 전부)</div>
+    </div>
+  </section>
+
+  <!-- ============ 시안 E ============ -->
+  <section class="variant vE">
+    <div class="v-eyebrow">시안 E</div>
+    <div class="v-name">단일 시트</div>
+    <p class="v-strategy">라벤더 워시는 유지하되, 떠 있는 면을 딱 한 장으로 줄입니다. 헤더+스텝+가이드가 한 장의 흰 시트 안에 들어가고, 내부는 헤어라인으로만 분할됩니다. 가이드는 시트 안의 우측 컬럼(border-l)이라 카드가 아니라 시트의 구획으로 읽힙니다. "붕 뜸"의 원인이던 다중 부유가 단일 부유로 정리됩니다.</p>
+    <div class="frame-scroll"><div class="frame">
+      <div class="tn"><span class="logo">PASS<span>PII AGENT SELF SERVICE</span></span><nav><span class="on">서비스 목록</span><span>관리자</span><span>Guide</span><span>FAQ</span></nav></div>
+      <div class="cols">
+        <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
+        <div class="sheet">
+          <div class="hd">
+            <div class="ttl"><b>PII Agent 설치</b></div>
+            <div class="target"><span>설치 대상</span><b>AWS</b><span class="code">서비스 코드 aws</span></div>
+            <div class="lbl">설명</div><div class="desc">Step 1. 연동 대상 확정 — 스캔 후보 9건에서 1건만 선택된 상태입니다.</div>
+            <div class="lbl">클라우드 정보</div>
+            <div class="cloud"><span class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span><span class="pname">AWS Cloud</span><span class="sep"></span><span class="kv"><small>Account ID</small>451814760281</span><span class="sep"></span><span class="kv"><small>설치 모드</small><span><span class="mode">수동 설치</span><em>설치 스크립트 직접 실행</em></span></span></div>
+            <div class="lbl">설치 진행</div>
+            <div class="stepper"><s class="cur"></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s><i></i><s></s></div>
+            <div class="steplbl"><b>연동 대상 DB 선택</b><span>승인 대기</span><span>반영중</span><span>Agent 설치</span><span>연결 테스트</span><span>승인 대기</span><span>완료</span></div>
+          </div>
+          <div class="sheet-cols">
+            <div class="step-area">
+              <div class="card"><span class="stage">1번째 단계</span><h5>연동 대상 DB 선택</h5><p class="sub">인프라 스캔으로 AWS 계정의 리소스를 조회하고, 연동할 리소스를 선택해 주세요.</p>
+                <div class="tbl"><div class="th"><span>Resource Name</span><span>Database Type</span><span>Region</span><span>설치 구분</span></div>
+                  <div class="tr"><span>raw-mongo-deq-test-1</span><span>MongoDB</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                  <div class="tr"><span>raw-e2e-test-mysql-clus</span><span>MySQL</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                  <div class="tr"><span>svc-orders-aurora</span><span>Aurora</span><span>ap-northeast-2</span><span>제외</span></div></div></div>
+            </div>
+            <div class="rail">
+              <div class="row"><span>모니터링</span><span class="agent">AWS Agent</span></div>
+              <div class="help"><b>도움이 필요하신가요?</b><p>협업 채널에서 담당자에게 바로 문의할 수 있어요. · BDCDIP-1006</p></div>
+              <div class="tabs"><span class="on">가이드</span><span>진행 내역</span></div>
+              <p class="guide"><b>연동 대상 DB를 선택해 주세요</b><br>스캔 시작으로 리소스를 조회한 뒤, 필요한 DB를 선택하고 승인 요청을 눌러 주세요.</p>
+              <div class="del">인프라 삭제</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="smap">
+      <span><i style="background:#F4F4FB"></i>워시 #F4F4FB (유지)</span><span><i style="background:#FFFFFF"></i>사이드바 #FFFFFF</span><span><i style="background:#FFFFFF"></i>시트(헤더+본문+가이드) #FFFFFF</span><span><i style="background:#FBFCFD"></i>스텝 내부 존 #FBFCFD</span><span><i style="background:#EEF0F4"></i>내부 분할선 #EEF0F4</span>
+    </div>
+    <div class="verdict">
+      <div class="p">현재 워시·브랜드 인상을 유지하면서 부유물만 1장으로 정리</div>
+      <div class="p">가이드가 "시트의 구획"이 되어 카드 오독 소멸</div>
+      <div class="c">사이드바 ↔ 시트가 둘 다 흰색 — 두 번째 지적이 절반만 해결됨</div>
+      <div class="c">시트가 거대해져 스크롤 시 헤더·가이드 처리(sticky) 설계 필요</div>
+    </div>
+  </section>
+
+  <!-- ============ 비교 ============ -->
+  <h1 style="font-size:20px; margin-top:8px;">한눈 비교</h1>
+  <div style="overflow-x:auto;">
+  <table class="cmp">
+    <tr><th>시안</th><th>붕 뜸 해소</th><th>사이드바↔헤더 구분</th><th>가이드=패널</th><th>변경 반경</th><th>기존 카드 언어 유지</th></tr>
+    <tr><td>A. 헤어라인 워크벤치</td><td class="y">완전</td><td>선으로 해결</td><td class="y">레일 복원</td><td>중</td><td class="n">폐기</td></tr>
+    <tr><td>B. 다크 사이드바</td><td class="y">해소</td><td class="y">가장 확실</td><td class="y">바닥색 패널</td><td class="n">대</td><td>유지</td></tr>
+    <tr><td>C. 투톤 프레임</td><td class="y">해소</td><td class="y">6%+ 명도차</td><td class="y">대칭 프레임</td><td class="y">소</td><td>유지(보더형)</td></tr>
+    <tr><td>D. 틴트 크롬 역전</td><td class="y">해소</td><td class="y">역전으로 확실</td><td class="y">ㄱ자 크롬</td><td class="y">소</td><td>유지</td></tr>
+    <tr><td>E. 단일 시트</td><td class="y">1장으로 정리</td><td class="n">절반만</td><td class="y">시트 구획</td><td>중</td><td>유지</td></tr>
+  </table>
+  </div>
+
+  <div class="reco"><b>추천: C 투톤 프레임.</b> 세 지적을 모두 해결하면서 코드 변경이 표면 색 재배정 수준으로 가장 작고, "도구 존은 회색·작업 존은 흰색"이라는 규칙 하나로 이후 화면(관리자·Admin)에도 그대로 확장됩니다. 차선은 B(다크 사이드바) — 분리가 가장 확실하지만 서비스 목록 전면 재도색이 필요합니다. D는 헤더가 다시 무거워질 위험이 있어(이전 지적 재발) 보류를 권합니다.</div>
+</div>
+
+</body>
+</html>
