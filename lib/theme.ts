@@ -328,6 +328,26 @@ export const sideTextColors = {
   bdc: 'text-indigo-800',
 } as const;
 
+/**
+ * 리소스 테이블 행 상태(hover/제외) — WaitingApprovalTable 이 재수출해 여러 테이블이 공유.
+ * 값의 근거 (PR #593):
+ * - 틴트는 중립 회색이 아니라 옅은 파랑. hover 시 Resource Name 이 브랜드 블루로 바뀌는데,
+ *   중립 회색 위에서는 그 셀 하나만 변한 것으로 읽히고, 옅게 파란 행은 하나의 활성 객체로
+ *   읽힌다. 깊이는 중립 팔레트 단계 #EBEEF2 와 동일(1.16:1 vs white) — 추가 값은 어둡기가
+ *   아니라 색상(hue)을 사고, 텍스트 대비 비용은 거의 없다(#0050D6 5.79:1, #191F28 14.25:1).
+ * - 채도는 의도적으로 낮다: primary 틴트 #E8F1FF 와 같은 휘도(1.01:1 차이)에 앉아 있어,
+ *   "hovered"와 "primary"를 가르는 것은 채도뿐이다. 따라서 미래의 `selected` 상태는
+ *   파란 틴트를 쓰면 안 된다 — hover 가 이미 그 축을 점유했다.
+ * - 각 상태가 자기 색 두 벌(기본/hover)을 모두 소유한다: base 는 색을 갖지 않는다.
+ */
+export const tableRowLift = {
+  base: 'group transition-colors duration-150 motion-reduce:transition-none',
+  target: 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]',
+  excluded: 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]',
+  /** hover 행의 셀 텍스트 승격 — #4E5968 → #191F28 (6.12:1 → 14.25:1 on the hover tint). */
+  cellText: 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]',
+} as const;
+
 export const cardStyles = {
   /** v15 Toss card — radius 20 + 2-layer toss-shadow-sm. */
   base: 'bg-white rounded-[20px] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',

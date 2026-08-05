@@ -81,12 +81,12 @@ describe('WaitingApprovalTable', () => {
     const rows = screen.getAllByRole('row').slice(1);
     const selectedCells = within(rows[0]).getAllByRole('cell');
     const excludedCells = within(rows[2]).getAllByRole('cell');
-    expect(selectedCells[0].className).not.toContain('text-[#6B7280]');
-    // Excluded: every text cell rests on #6B7280 (4.63:1 on the row tint — AA floor with margin).
-    expect(excludedCells[0].className).toContain('text-[#6B7280]');
-    expect(within(excludedCells[1]).getByText('pg-analytics-03').className).toContain('text-[#6B7280]');
-    expect(excludedCells[2].className).toContain('text-[#6B7280]');
-    expect(excludedCells[3].className).toContain('text-[#6B7280]');
+    expect(selectedCells[0].className).not.toContain('text-gray-500');
+    // Excluded: every text cell rests on gray-500 (6B7280) (4.63:1 on the row tint — AA floor with margin).
+    expect(excludedCells[0].className).toContain('text-gray-500');
+    expect(within(excludedCells[1]).getByText('pg-analytics-03').className).toContain('text-gray-500');
+    expect(excludedCells[2].className).toContain('text-gray-500');
+    expect(excludedCells[3].className).toContain('text-gray-500');
   });
 
   it('mounts a single hover-revealed CopyButton on the Resource ID cell only (v15)', () => {
