@@ -13,12 +13,12 @@ interface SidebarPaginationProps {
 }
 
 /**
- * Rule + range summary ("1–8 / 100") plus prev/next, closing the list right
- * under its last row. Numbered page buttons are data-table chrome — in a 296px
- * rail the summary carries more information ("how many, where am I") in less
- * space, and search is the primary lookup path anyway. Arrows render only when
- * there is a second page, so a single page shows a quiet count line instead of
- * dead controls.
+ * Rule + range summary ("1–12 / 100") plus prev/next, docked to the rail's
+ * bottom edge. Numbered page buttons are data-table chrome — in a 296px rail the
+ * summary carries more information ("how many, where am I") in less space, and
+ * it is the only place the count appears, so the search box does not repeat it.
+ * Arrows render only when there is a second page, so a single page shows a quiet
+ * count line instead of dead controls.
  */
 export const SidebarPagination = ({ pageInfo, onPageChange }: SidebarPaginationProps) => {
   const { totalElements, totalPages, number: currentPage, size } = pageInfo;

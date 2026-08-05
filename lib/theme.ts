@@ -1124,8 +1124,14 @@ export const serviceSidebarStyles = {
     'bg-[#FEECEC] text-[#B42318]',
     'bg-[#F7F8FA] text-[#4E5968]',
   ],
-  /** Footer — full-bleed rule + range summary, sitting directly under the last row rather than docked to the rail's bottom. */
-  footer: 'flex shrink-0 items-center justify-between border-t px-3 py-2',
+  /**
+   * Footer — full-bleed rule + range summary, and the rail's only count now that
+   * the search box no longer repeats it. `mt-auto` docks it to the rail's bottom:
+   * a full page leaves no free space so it already sits under the last row, and a
+   * short result (a two-row search) keeps the bar on the bottom edge instead of
+   * floating mid-rail.
+   */
+  footer: 'mt-auto flex shrink-0 items-center justify-between border-t px-3 py-2',
   footerRange: 'text-[12px] font-medium tabular-nums text-[#6B7280]',
   /** Borderless ghost pager — a bordered button pair floats like a card control on a flush rail. */
   pagerBtn:

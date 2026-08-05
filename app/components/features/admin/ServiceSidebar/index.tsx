@@ -25,19 +25,14 @@ interface ServicePageInfo {
 type ServiceItem = NonNullable<PageServiceItem['content']>[number];
 
 /**
- * Ceiling for one stretched row. It only binds on a short page — a full page of
- * 20 overflows the rail, so rows sit at their own `min-h` and the list scrolls.
- * The cap is what keeps a two- or three-row search result from stretching each
+ * Ceiling for one stretched row. A full page divides the rail's height evenly, so
+ * without a cap a tall monitor — or a two-row search result — would stretch each
  * row down the whole rail.
  */
 const ROW_MAX_PX = 88;
 
-/**
- * Skeleton row count. Deliberately under a full page: 20 rows overflow the rail,
- * and skeletons below the fold are never seen. Enough to cover the tallest rail
- * we target, no more.
- */
-const SKELETON_ROWS = 14;
+/** Skeleton row count — matches SERVICE_PAGE_SIZE so the list doesn't reflow when data lands. */
+const SKELETON_ROWS = 12;
 
 /** The service the surrounding page is about — marked in the list, not pinned above it. */
 interface CurrentService {
@@ -148,11 +143,6 @@ export const ServiceSidebar = ({
             </button>
           )}
         </div>
-        {searchQuery && (
-          <p className={cn('mt-2 text-xs tabular-nums', textColors.tertiary)}>
-            {totalElements}건
-          </p>
-        )}
       </div>
 
       {/* The list takes the rail's remaining height and its rows divide it evenly,
@@ -169,13 +159,12 @@ export const ServiceSidebar = ({
 
         <ul
           className={cn('flex-1 min-h-0 flex flex-col overflow-auto', serviceSidebarStyles.rowDivide)}
-          // Rows divide the list's height, so on a tall window they would keep
-          // growing — 8 rows across a 1440px viewport is a 144px row, which
-          // reads as a stretched placeholder rather than a list. Capping the
-          // list at `rows × ROW_MAX_PX` stops the growth at a sane density; the
-          // footer stays directly under the last row (it is the next sibling,
-          // not bottom-docked), so any leftover height falls below the footer
-          // rather than between it and the list.
+          // Rows divide the list's height, so a short page — or a tall monitor —
+          // would stretch each row down the rail. Capping the list at
+          // `rows × ROW_MAX_PX` stops the growth at a sane density; the footer
+          // stays directly under the last row (it is the next sibling, not
+          // bottom-docked), so any leftover height falls below the footer rather
+          // than between it and the list.
           //
           // No cap with zero rows: the ul then holds the empty-state message,
           // and a `0` cap collapses it to nothing.
@@ -188,7 +177,7 @@ export const ServiceSidebar = ({
               // reflow when the skeleton is replaced.
               <li
                 key={i}
-                className="flex flex-1 min-h-[52px] items-center gap-2.5 px-3"
+                className="flex flex-1 min-h-[48px] items-center gap-2.5 px-3"
                 aria-hidden="true"
               >
                 <div className={cn(idcStyles.skeletonBar, 'h-7 w-7 shrink-0 rounded-[6px]')} />

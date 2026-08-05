@@ -37,7 +37,7 @@ const tileClassFor = (code: string): string => {
  * matches exactly).
  */
 export const ServiceRow = ({ code, name, onSelect, current = false }: ServiceRowProps) => (
-  <li className="flex flex-1 min-h-[52px]">
+  <li className="flex flex-1 min-h-[48px]">
     <button
       type="button"
       onClick={() => onSelect(code)}
