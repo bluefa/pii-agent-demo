@@ -1,6 +1,6 @@
 'use client';
 
-import { cn, primaryColors, textColors } from '@/lib/theme';
+import { cn, serviceSidebarStyles } from '@/lib/theme';
 
 interface ServiceRowProps {
   code: string;
@@ -8,23 +8,25 @@ interface ServiceRowProps {
   onSelect: (code: string) => void;
 }
 
-// Tailwind v4 preflight gives buttons `cursor: default`, so clickable rows have to ask
-// for the pointer explicitly — same as Pagination and Table do.
-const rowLayoutClass =
-  'w-full flex items-start gap-3 rounded-lg px-3 py-2 text-left cursor-pointer transition-colors';
-// Service names run up to 30 characters — wrap to a second line instead of cutting
-// them off at the panel's 296px. The full name stays in the row's title attribute.
-const nameClass = 'flex-1 min-w-0 text-sm font-normal line-clamp-2 break-words';
-// leading-5 matches the name's line box so the code sits on the first line's baseline
-// even when the name wraps — the code column keeps one horizontal rhythm down the list.
-const codeClass = 'shrink-0 font-mono text-xs leading-5 text-right';
+/**
+ * Stable tint per service: a simple code hash into the tile palette, so a
+ * service keeps its color across pages and re-fetches. The tile is a scan
+ * anchor, not a status — the palette carries no meaning.
+ */
+const tileClassFor = (code: string): string => {
+  let hash = 0;
+  for (let i = 0; i < code.length; i += 1) hash = (hash * 31 + code.charCodeAt(i)) | 0;
+  const palette = serviceSidebarStyles.tilePalette;
+  return palette[Math.abs(hash) % palette.length];
+};
 
 /**
- * Name at the left edge where scanning starts, code right-aligned into its own column.
- *
- * Names vary in length, so an inline code lands at a different x on every row and never
- * becomes scannable; pushed right it stacks into the column the list header labels. The
- * code is shown verbatim and case-sensitively — `/services/{code}` matches exactly.
+ * Initial tile + name + code chip on one line. The chip sits beside the name
+ * (not at the far edge): with short names a right-aligned code left the row's
+ * middle empty and the two columns never read as one item. Names longer than
+ * the row truncate — a single-line rhythm is what makes a 15-row rail
+ * scannable — and the full name stays in the row's title attribute; the code
+ * is shown verbatim and case-sensitively (`/services/{code}` matches exactly).
  */
 export const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
   <li>
@@ -32,17 +34,18 @@ export const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
       type="button"
       onClick={() => onSelect(code)}
       title={name ? `${name} (${code})` : code}
-      className={cn('group', rowLayoutClass, primaryColors.bgLightActive)}
+      className={cn(
+        'w-full flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-left cursor-pointer transition-colors',
+        serviceSidebarStyles.rowActive,
+      )}
     >
-      <span className={cn(nameClass, textColors.primary, primaryColors.groupTextOnLight)}>
+      <span className={cn(serviceSidebarStyles.tile, tileClassFor(code))} aria-hidden="true">
+        {(name || code).charAt(0).toUpperCase()}
+      </span>
+      <span className={cn('flex-1 min-w-0 truncate', serviceSidebarStyles.rowName)}>
         {name || code}
       </span>
-      {name && (
-        // tertiary, not quaternary: gray-400 sits at 2.5:1 on white, under AA for 12px.
-        <span className={cn(codeClass, textColors.tertiary, primaryColors.groupTextOnLight)}>
-          {code}
-        </span>
-      )}
+      {name && <span className={cn('shrink-0', serviceSidebarStyles.chip)}>{code}</span>}
     </button>
   </li>
 );

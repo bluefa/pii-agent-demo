@@ -14,7 +14,7 @@ import {
 import { useModal } from '@/app/hooks/useModal';
 import { getServicesPage } from '@/app/lib/api';
 import { passRoutes } from '@/lib/routes';
-import { bgColors, borderColors, cn, textColors } from '@/lib/theme';
+import { bgColors, borderColors, cn, serviceSidebarStyles, textColors } from '@/lib/theme';
 
 const ServiceMoveConfirmModal = dynamic(
   () =>
@@ -62,7 +62,13 @@ interface ConfirmModalData {
   name: string;
 }
 
-const SERVICE_PAGE_SIZE = 10;
+// 15, sized against the rail's geometry rather than a round number: the list
+// card's viewport share is panel height (100vh − 56px TopNav) minus ~250px of
+// fixed chrome (title, current-service card, search, section label, footer),
+// and rows are 40px — so a 900px-tall window fits ~15 rows with no inner
+// scroll and 1080p leaves headroom. At ~100 services that is 7 pages; search
+// stays the primary lookup path, paging is the browse fallback.
+const SERVICE_PAGE_SIZE = 15;
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface ServiceListPanelProps {
@@ -196,12 +202,12 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
 
   if (fetchState.status === 'error') {
     return (
-      // Same recessed plane as ServiceSidebar — a failed fetch must not hand back a
-      // white elevated rail the successful path no longer uses.
+      // Same canvas plane as ServiceSidebar — a failed fetch must not hand back a
+      // differently-grounded rail than the successful path uses.
       <aside
         className={cn(
           'w-[296px] shrink-0 flex flex-col items-center justify-center border-r px-4 gap-3',
-          bgColors.muted,
+          serviceSidebarStyles.ground,
           borderColors.default,
         )}
       >
