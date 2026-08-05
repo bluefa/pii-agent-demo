@@ -46,21 +46,17 @@ describe('IdcCredentialModal Credential 필터', () => {
       />,
     );
 
-  // IDC 는 모든 대상이 자격 증명을 요구하므로 지정 + 미등록 = 전체.
-  it('counts every credential-less target as 미등록 and filters the table', () => {
+  // IDC 는 모든 대상이 자격 증명을 요구하므로 미등록은 곧 "아직 고르지 않은 행"이다.
+  it('counts every credential-less target as 미선택 and filters the table', () => {
     renderModal();
-    const cardValue = (label: string) =>
-      screen.getByRole('button', { name: new RegExp(`^${label}`) }).textContent;
-    expect(cardValue('전체 리소스')).toContain('3');
-    expect(cardValue('Credential 지정한 리소스')).toContain('1');
-    expect(cardValue('Credential 미등록 리소스')).toContain('2');
+    expect(screen.getByText(/DB Credential 미선택/).textContent).toContain('2건');
 
-    fireEvent.click(screen.getByRole('button', { name: /^Credential 미등록 리소스/ }));
+    fireEvent.click(screen.getByRole('button', { name: '미선택만 보기' }));
     expect(screen.queryByText('10.0.0.1')).toBeNull();
     expect(screen.getByText('10.0.0.2')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /^Credential 지정한 리소스/ }));
+    fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
     expect(screen.getByText('10.0.0.1')).toBeTruthy();
-    expect(screen.queryByText('10.0.0.2')).toBeNull();
+    expect(screen.getByText('10.0.0.2')).toBeTruthy();
   });
 });

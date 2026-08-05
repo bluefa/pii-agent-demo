@@ -1,8 +1,8 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { cardStyles, cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
-import { ChevronRightIcon, InfoCircleIcon } from '@/app/components/ui/icons';
+import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { ChevronRightIcon, InfoCircleIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -35,10 +35,6 @@ import {
   ROW_BASE,
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
-import {
-  CredFilterCards,
-  type CredFilter,
-} from '@/app/target-sources/[targetSourceId]/_components/layout/CredFilterCards';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { hasLogicalDatabases, needsCredential, type SecretKey } from '@/lib/types';
 import { GROUPED_CHILD_KIND_LABEL, resultUnitId } from '@/lib/resource-grouping';
@@ -47,6 +43,9 @@ interface LogicalModalTarget {
   resourceId: string;
   resourceName: string;
 }
+
+/** 표의 Credential 조회 필터. 판정 규칙은 이 화면이 소유한다 — `credState` 참고. */
+type CredFilter = 'all' | 'assigned' | 'missing';
 
 /** Credential 수정 모달이 여는 행 — 쓰는 대상(resourceId)과 읽는 값(현재 배정). */
 interface CredModalTarget {
@@ -211,20 +210,15 @@ export const ConnectionTestCard = ({
     [statusByResource],
   );
 
-  // Credential 상태 분류 — 카드 집계와 표 필터가 같은 판정을 쓴다. `none` 은 카드가 아니라
-  // 분류값: Athena / DynamoDB / CosmosDB 처럼 Credential 없이 연결하는 행("불필요")은
-  // 지정에도 미등록에도 잡히지 않는다.
+  // Credential 상태 분류 — 경고 줄과 표 필터가 같은 판정을 쓴다. `none` 은 Athena / DynamoDB /
+  // CosmosDB 처럼 Credential 없이 연결하는 행("불필요")이고, 지정에도 미등록에도 잡히지 않는다.
   const credState = useCallback(
     (unit: TestUnit): CredFilter | 'none' =>
       !requiresCredential(unit.databaseType) ? 'none' : unitCred(unit) ? 'assigned' : 'missing',
     [unitCred],
   );
-  const credCounts = useMemo(
-    () => ({
-      all: units.length,
-      assigned: units.filter((u) => credState(u) === 'assigned').length,
-      missing: units.filter((u) => credState(u) === 'missing').length,
-    }),
+  const missingCount = useMemo(
+    () => units.filter((u) => credState(u) === 'missing').length,
     [units, credState],
   );
   const filteredUnits = useMemo(
@@ -242,6 +236,12 @@ export const ConnectionTestCard = ({
     },
     [setPage],
   );
+  // 미등록만 보는 중에 마지막 하나를 지정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가
+  // 빈 화면이 되고, 그것을 되돌릴 컨트롤도 같이 사라진 뒤다. 사라질 때 같이 푼다.
+  if (credFilter === 'missing' && missingCount === 0) {
+    setCredFilter('all');
+    setPage(0);
+  }
 
   // Gate the 완료 승인 요청 CTA directly on the latest_version poll result:
   // only open it when latest_version.connectionStatus === 'SUCCESS' (B2).
@@ -376,10 +376,40 @@ export const ConnectionTestCard = ({
             only stroke and the bottom radius. The framed `table.frame` this used to sit in drew
             a second box inside the card — a card inside a card, at a heavier weight than any
             border on those steps.
-            Those steps cap the stack with the filter toolbar (top-rounded, #F7F8FA); this step
-            keeps its Credential 필터 카드 as a separate row above the stack rather than a toolbar
-            attached to it, so the header row — same fill — is the cap and takes the radius. */}
-        <CredFilterCards filter={credFilter} onChange={handleCredFilter} counts={credCounts} />
+            Those steps cap the stack with the filter toolbar (top-rounded, #F7F8FA); here the
+            header row — same fill — is the cap and takes the radius. */}
+        {/* 미등록이 0 인 것이 정상 상태다. 그 사실을 말하려고 상시 카드 세 장을 두었더니, 아무 할
+            일이 없다는 말이 화면의 90px 을 차지했고 (전체 = 지정 + 미등록) 도 성립하지 않았다 —
+            Athena·DynamoDB 처럼 Credential 이 "불필요" 한 행은 어느 카드에도 안 잡히기 때문이다.
+            조치가 필요할 때만 한 줄이 생긴다. 그 줄의 링크가 곧 필터이므로 요약과 도달 수단이 한
+            물건이고, 분류를 세지 않으니 합계가 어긋날 수도 없다. */}
+        {missingCount > 0 && (
+          <div
+            className={cn(
+              'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-[14px]',
+              statusColors.warning.bgSoft,
+              statusColors.warning.border,
+              statusColors.warning.textDark,
+            )}
+          >
+            {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
+            <StatusWarningIcon className="h-4 w-4 shrink-0" />
+            <span className="break-keep">
+              Credential 미등록 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결
+              테스트를 실행할 수 있어요
+            </span>
+            <button
+              type="button"
+              onClick={() => handleCredFilter(credFilter === 'missing' ? 'all' : 'missing')}
+              className={cn(
+                'ml-auto shrink-0 whitespace-nowrap font-semibold underline underline-offset-2',
+                primaryColors.focusRing,
+              )}
+            >
+              {credFilter === 'missing' ? '전체 보기' : '미등록만 보기'}
+            </button>
+          </div>
+        )}
         <div>
           {/* CONNECTED_FRAME's own `overflow-hidden` and an `overflow-x-auto` would be two
               values of one property on one element, and `cn` is a plain join — which of them

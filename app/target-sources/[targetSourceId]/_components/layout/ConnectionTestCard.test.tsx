@@ -162,7 +162,7 @@ describe('ConnectionTestCard', () => {
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', false);
   });
 
-  it('filter cards count Credential-free engines as neither 지정 nor 미등록, and filter the table', () => {
+  it('counts Credential-free engines as neither, and the warning line filters the table', () => {
     // The table names rows by Resource Name (Resource ID is not a column here).
     renderCard([
       makeResource({ resourceId: 'res-1', resourceName: 'named-cred', credentialId: 'Key1' }),
@@ -180,17 +180,31 @@ describe('ConnectionTestCard', () => {
         credentialId: null,
       }),
     ]);
-    const cardValue = (label: string) =>
-      screen.getByRole('button', { name: new RegExp(`^${label}`) }).textContent;
-    expect(cardValue('전체 리소스')).toContain('4');
-    expect(cardValue('Credential 지정한 리소스')).toContain('1');
-    // Athena / DynamoDB stay out of 미등록 — only the credential-requiring res-2 counts.
-    expect(cardValue('Credential 미등록 리소스')).toContain('1');
+    // Athena / DynamoDB are not counted — only the credential-requiring res-2 is missing one.
+    expect(screen.getByText(/Credential 미등록/).textContent).toContain('1건');
 
-    fireEvent.click(screen.getByRole('button', { name: /^Credential 미등록 리소스/ }));
+    fireEvent.click(screen.getByRole('button', { name: '미등록만 보기' }));
     expect(screen.getByText('named-missing')).toBeTruthy();
     expect(screen.queryByText('named-athena')).toBeNull();
     expect(screen.queryByText('named-cred')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
+    expect(screen.getByText('named-athena')).toBeTruthy();
+  });
+
+  // 0 미등록은 정상 상태다 — 그때 경고 줄이 남아 있으면 "할 일 없음"을 상시로 말하게 된다.
+  it('draws no warning line when every credential-requiring row has one', () => {
+    renderCard([
+      makeResource({ resourceId: 'res-1', resourceName: 'named-cred', credentialId: 'Key1' }),
+      makeResource({
+        resourceId: 'athena-1',
+        resourceName: 'named-athena',
+        databaseType: 'athena',
+        credentialId: null,
+      }),
+    ]);
+    expect(screen.queryByText(/Credential 미등록/)).toBeNull();
+    expect(screen.queryByRole('button', { name: '미등록만 보기' })).toBeNull();
   });
 
   // Regression: a healthy target used to read 대기 / 0% purely because no credential was

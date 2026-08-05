@@ -19,11 +19,10 @@ import {
   IdcDbTypeCell,
   IdcEndpointCell,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
-import {
-  CredFilterCards,
-  type CredFilter,
-} from '@/app/target-sources/[targetSourceId]/_components/layout/CredFilterCards';
 import type { IdcResourceView } from '@/app/lib/api/idc';
+
+/** 모달 표의 Credential 조회 필터. IDC 는 모든 행이 자격 증명을 요구한다. */
+type CredFilter = 'all' | 'assigned' | 'missing';
 
 interface IdcCredentialModalProps {
   isOpen: boolean;
@@ -72,12 +71,8 @@ export const IdcCredentialModal = ({
   const allSelected = resources.length > 0 && selectedCount === resources.length;
 
   // IDC 는 모든 연동 대상이 자격 증명을 요구한다(클라우드의 "불필요" 엔진이 없다) —
-  // 그래서 미등록은 곧 "아직 고르지 않은 행"이고, 지정 + 미등록 = 전체다.
-  const counts = {
-    all: resources.length,
-    assigned: selectedCount,
-    missing: resources.length - selectedCount,
-  };
+  // 그래서 미등록은 곧 "아직 고르지 않은 행"이다.
+  const missingCount = resources.length - selectedCount;
   const rows =
     filter === 'all'
       ? resources
@@ -142,16 +137,22 @@ export const IdcCredentialModal = ({
             allSelected ? statusColors.success.dot : statusColors.pending.dot,
           )}
         />
-        {/* 건수는 바로 아래 필터 카드가 센다 — 배너는 완료/미완료 판정만 말한다. */}
+        {/* 건수와 도달 수단을 이 한 줄이 함께 진다 — 필터 카드 세 장은 0건(=정상)일 때도
+            같은 말을 하려고 자리를 차지했고, 미선택 건수는 이미 이 배너가 말하고 있었다. */}
         <span className={allSelected ? statusColors.success.text : textColors.tertiary}>
           {allSelected
             ? 'DB Credential 선택 완료되었습니다'
-            : '아직 DB Credential이 미선택되었습니다'}
+            : `DB Credential 미선택 ${missingCount}건이 남았어요`}
         </span>
-      </div>
-
-      <div className="mb-4">
-        <CredFilterCards filter={filter} onChange={setFilter} counts={counts} />
+        {!allSelected && (
+          <button
+            type="button"
+            onClick={() => setFilter(filter === 'missing' ? 'all' : 'missing')}
+            className={cn('ml-auto shrink-0 font-semibold underline underline-offset-2', textColors.secondary)}
+          >
+            {filter === 'missing' ? '전체 보기' : '미선택만 보기'}
+          </button>
+        )}
       </div>
 
       <div className={idcStyles.table.frame}>
