@@ -309,7 +309,10 @@ export default function ServicesPage(): ReactElement {
               <span className={s.eyebrow}>서비스</span>
               <div className={s.titleRow}>
                 <h2 className={s.svcTitle}>{selectedName}</h2>
-                <span className={s.svcCodeChip}>{selectedCode}</span>
+                <span className={s.svcCodeChip}>
+                  <span className={s.svcCodeChipLabel}>서비스코드</span>
+                  <span className="[font-family:var(--pl-font-mono)]">{selectedCode}</span>
+                </span>
               </div>
               <div className={s.statRow}>
                 <div className={s.stat}>

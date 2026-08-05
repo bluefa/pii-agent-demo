@@ -95,7 +95,9 @@ export const serviceListStyles = {
   titleRow: 'flex items-center gap-3 flex-wrap',
   svcTitle: 'text-[26px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[var(--pl-text-strong)]',
   svcCodeChip:
-    'inline-flex items-center rounded-full bg-[var(--pl-gray-100)] px-2.5 py-1 text-[13px] font-medium text-[var(--pl-text-medium)]',
+    'inline-flex items-center gap-1.5 rounded-full bg-[var(--pl-gray-100)] px-2.5 py-1 text-[12px] font-semibold text-[var(--pl-text-medium)]',
+  /** 칩 안의 라벨 — 값이 아니라 값의 이름이라 한 단 여리게. */
+  svcCodeChipLabel: 'font-medium text-[var(--pl-text-weak)]',
   statRow: 'flex items-center gap-10',
   stat: 'flex flex-col gap-1.5',
   statLabel: 'text-[12px] font-medium text-[var(--pl-flow-meta-label)]',

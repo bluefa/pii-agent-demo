@@ -64,13 +64,16 @@ const tsTable = {
 } as const;
 
 /**
- * 제목 옆 ServiceCode 칩 — 좌측 레일에서 선택된 서비스와 같은 primary 톤이라 "지금 보고
- * 있는 서비스"가 두 곳에서 같은 색으로 읽힌다. opsStyles.tag 에 색만 덧칠하지 않는 이유:
- * cn 은 단순 join 이라 bg 클래스가 겹치면 어느 쪽이 이기는지 CSS 순서에 달린다.
+ * 제목 옆 ServiceCode 칩 — 회색. 이름 위 분류 태그가 파랑을 쓰므로 여기까지 primary 면
+ * 머리에 파란 것이 둘이라 어느 쪽이 분류인지 흐려진다. 값을 읽는 칩은 한 단 낮춘다
+ * (#344054 on #F2F4F7 = 9.49:1). opsStyles.tag 에 색만 덧칠하지 않는 이유: cn 은 단순
+ * join 이라 bg 클래스가 겹치면 어느 쪽이 이기는지 CSS 순서에 달린다.
  */
 const codeChip =
-  'inline-flex items-center whitespace-nowrap rounded px-2 py-1 text-[12px] font-semibold '
-  + 'bg-[var(--pl-primary-bg)] text-[var(--pl-primary)] [font-family:var(--pl-font-mono)]';
+  'inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-1 text-[12px] font-semibold '
+  + 'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]';
+/** 칩 안의 라벨 — 값이 아니라 값의 이름이라 한 단 여리게, mono 도 쓰지 않는다. */
+const codeChipLabel = 'font-medium text-[var(--pl-text-weak)]';
 /** 섹션 제목 — 18px 마크 + 8px + 제목(Figma Heading 2). */
 const sectionHead = 'flex items-center gap-2 mb-3';
 /** 기본 표시 개수 — 서비스당 대상은 대개 한 자릿수라 5줄이면 한눈에 들어온다. */
@@ -280,7 +283,10 @@ export function ServiceDetailView({
           <div className="flex items-center gap-2">
             {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
             <h2 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h2>
-            <span className={codeChip}>{detail.service_code}</span>
+            <span className={codeChip}>
+              <span className={codeChipLabel}>서비스코드</span>
+              <span className="[font-family:var(--pl-font-mono)]">{detail.service_code}</span>
+            </span>
           </div>
         </div>
         <div className="flex-none">{eosButton}</div>
