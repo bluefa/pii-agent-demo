@@ -4,7 +4,10 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
-import { ServiceSidebar } from '@/app/components/features/admin/ServiceSidebar';
+import {
+  ServiceSidebar,
+  SERVICE_RAIL_PAGE_SIZE,
+} from '@/app/components/features/admin/ServiceSidebar';
 import {
   buildInitialServiceListState,
   serviceListReducer,
@@ -62,12 +65,8 @@ interface ConfirmModalData {
   name: string;
 }
 
-// 8 per page. One page stays one screenful — the rail never scrolls *and* pages
-// for the same job, which is what a page size of 20 did — and eight rows sit at
-// the top of the 7±2 range a user takes in as one group. Rows divide the rail's
-// height between them (ROW_MAX_PX caps how far), so the list still reaches the
-// bottom; ~100 services are 13 pages. Search stays the primary lookup path.
-const SERVICE_PAGE_SIZE = 8;
+// Page size belongs to the rail, not to this page — see SERVICE_RAIL_PAGE_SIZE.
+const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface ServiceListPanelProps {

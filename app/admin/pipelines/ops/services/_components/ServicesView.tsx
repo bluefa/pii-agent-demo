@@ -13,6 +13,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
 import { cn, serviceSidebarStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
+import { SERVICE_RAIL_PAGE_SIZE } from '@/app/components/features/admin/ServiceSidebar';
 import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
 import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -23,7 +24,8 @@ import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 import { ServiceDetailView } from '@/app/admin/pipelines/ops/services/_components/ServiceDetailView';
 import { getOpsServices, type OpsServiceSummary } from '@/app/lib/api/ops';
 
-const RAIL_PAGE_SIZE = 10;
+// The rail pages the same everywhere it appears — see SERVICE_RAIL_PAGE_SIZE.
+const RAIL_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 
 /**
  * Ceiling for one stretched row. A full page divides the rail's height evenly, so
@@ -132,6 +134,8 @@ export function ServicesView(): ReactElement {
               <PlEmptyState icon="search" message="검색 결과가 없습니다." />
             </div>
           ) : (
+            <>
+            <div className={s.railSection}>{query ? '검색 결과' : '전체 서비스'}</div>
             <div
               className={s.railList}
               // 행이 남은 높이를 나눠 가지므로 상한이 없으면 한 장이 짧을 때 행이
@@ -183,6 +187,7 @@ export function ServicesView(): ReactElement {
                 );
               })}
             </div>
+            </>
           )}
           {/* 한 장뿐이면 아무것도 그리지 않는다 — 갈 곳 없는 "1 / 1" 은 컨트롤이 아니다. */}
           <div className={s.railFoot}>

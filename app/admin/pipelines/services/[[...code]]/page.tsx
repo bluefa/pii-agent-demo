@@ -45,6 +45,7 @@ import {
   PlTh,
 } from '@/app/admin/pipelines/_components/PlTable';
 import { LatestCell } from '@/app/admin/pipelines/_services/LatestCell';
+import { SERVICE_RAIL_PAGE_SIZE } from '@/app/components/features/admin/ServiceSidebar';
 import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
 import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
 import {
@@ -55,7 +56,8 @@ import {
 } from '@/app/admin/pipelines/_services/logic';
 import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
 
-const SERVICE_PAGE_SIZE = 10;
+// The rail pages the same everywhere it appears — see SERVICE_RAIL_PAGE_SIZE.
+const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 /** Ceiling for one stretched rail row — see serviceListStyles.item. */
 const ROW_MAX_PX = 88;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -243,6 +245,8 @@ export default function ServicesPage(): ReactElement {
               <PlEmptyState icon="search" message="검색 결과가 없습니다." />
             </div>
           ) : (
+            <>
+            <div className={s.railSection}>{svcQuery ? '검색 결과' : '전체 서비스'}</div>
             <div className={s.railList} style={{ maxHeight: services.length * ROW_MAX_PX }}>
               {services.map((service) => {
                 const code = service.service_code ?? '';
@@ -277,6 +281,7 @@ export default function ServicesPage(): ReactElement {
                 );
               })}
             </div>
+            </>
           )}
           <div className={s.railFoot}>
             <SidebarPagination
@@ -300,7 +305,8 @@ export default function ServicesPage(): ReactElement {
           </Card>
         ) : (
           <>
-            <div className={s.identity}>
+            {/* 바닥에 그냥 놓인 제목·수치는 크롬으로 읽힌다 — 본문은 흰 시트 위에서만 본문이다. */}
+            <div className={cn(s.sheet, 'flex flex-col gap-4 mb-4')}>
               <span className={s.eyebrow}>서비스</span>
               <div className={s.titleRow}>
                 <h2 className={s.svcTitle}>{selectedName}</h2>

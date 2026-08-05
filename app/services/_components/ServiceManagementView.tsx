@@ -14,14 +14,18 @@ import { AppError } from '@/lib/errors';
 import type { ProjectSummary } from '@/lib/types';
 import { passRoutes } from '@/lib/routes';
 import { bgColors, cn, textColors } from '@/lib/theme';
-import { ServiceSidebar } from '@/app/components/features/admin/ServiceSidebar';
+import {
+  ServiceSidebar,
+  SERVICE_RAIL_PAGE_SIZE,
+} from '@/app/components/features/admin/ServiceSidebar';
 import { InfraRowList, ServiceHeaderV7 } from '@/app/components/features/admin/v7';
 import {
   buildInitialServiceListState,
   serviceListReducer,
 } from '@/app/components/features/admin-dashboard/serviceListReducer';
 
-const SERVICE_PAGE_SIZE = 10;
+// Page size belongs to the rail, not to this page — see SERVICE_RAIL_PAGE_SIZE.
+const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 const SEARCH_DEBOUNCE_MS = 300;
 
 // Selection is URL-driven: the `?service_code=` query is the single source of

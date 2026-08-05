@@ -13,15 +13,25 @@ export const serviceListStyles = {
   /** Split layout — rail | content. Negative margins undo layout.content's
    *  left/top/bottom padding so the rail bleeds to the content edges. */
   split: 'flex items-stretch -ml-8 -mt-6 -mb-12 min-h-[calc(100vh_-_56px)]',
-  /** The rail owns no padding — each zone sets its own, so row fills run edge to edge. */
-  rail: 'w-[296px] flex-none flex flex-col bg-[var(--pl-bg-card)] border-r border-[var(--pl-border)]',
+  /**
+   * The rail owns no padding — each zone sets its own, so row fills run edge to edge.
+   *
+   * It sits on the page ground rather than on its own white plane, and carries no
+   * seam: nav and ground are one continuous back surface, and the content's white
+   * sheets are the only thing in front. White made the rail the brightest surface
+   * on screen while the work area sat lower, which read as two pages butted
+   * together — a 1px line was the only thing claiming otherwise.
+   */
+  rail: 'w-[296px] flex-none flex flex-col bg-[var(--pl-bg-page)]',
   railHead: 'flex shrink-0 items-center gap-2 px-3 pt-6 pb-2.5',
   railTitle: 'text-[16px] font-bold text-[var(--pl-text-strong)]',
   /** Total beside the title — round, unlike the square code tags: a quantity, not an identifier. */
   railCount:
-    'inline-flex items-center rounded-full bg-[var(--pl-gray-100)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-text-weak)]',
+    'inline-flex items-center rounded-full bg-[var(--pl-gray-200)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-text-weak)]',
   /** Search closes the rail's chrome block; the hairline under it opens the list. */
   railSearch: 'shrink-0 px-3 pb-3 border-b border-[var(--pl-border)]',
+  /** 목록 위 구역 라벨 — 지금 보고 있는 게 전체인지 검색 결과인지. ServiceSidebar 와 같은 자리. */
+  railSection: 'shrink-0 px-3 pt-3 pb-1.5 text-[12px] font-medium tracking-[0.02em] text-[var(--pl-text-weak)]',
   railBody: 'flex flex-col flex-1 min-h-0',
   /** Rows divide the remaining height between them, so a page reaches the rail's bottom. */
   railList: 'flex flex-col flex-1 min-h-0 overflow-y-auto divide-y divide-[var(--pl-border)]',
@@ -35,7 +45,8 @@ export const serviceListStyles = {
   /** Tint + 2px accent bar — how a desktop rail marks "you are here". */
   itemActive:
     'relative bg-[var(--pl-primary-bg)] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[var(--pl-primary)] before:content-[""]',
-  itemIdle: 'hover:bg-[var(--pl-gray-50)]',
+  /** White, not a deeper grey — on a recessed rail the row under the cursor lifts. */
+  itemIdle: 'hover:bg-[var(--pl-bg-card)]',
   /** Service names run to ~30 characters — wrap rather than clip at the rail's edge. */
   name: 'flex-1 min-w-0 line-clamp-3 break-words text-[14px] font-medium leading-5',
   nameActive: 'text-[var(--pl-primary)]',
@@ -43,9 +54,20 @@ export const serviceListStyles = {
   /** 코드 태그 — codes are 3 characters, so `min-w` fixes the column and every code
    *  lands on one x down the list; packed against a wrapping name it would not.
    *  faint(#98A2B3)는 흰 배경에서 2.58 로 AA 미달이라 weak(4.97). */
-  code: 'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-gray-100)] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[var(--pl-text-weak)]',
+  code: 'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-gray-200)] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[var(--pl-text-weak)]',
   codeActive:
     'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-white)] px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[var(--pl-primary)]',
+
+  /**
+   * Content sheet — the page's one raised plane. The rail and the ground behind
+   * it are a single recessed surface, so a section only reads as content once it
+   * is on a sheet; anything sitting bare on the ground reads as chrome.
+   */
+  sheet: 'rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-6 py-5',
+  /** Sheets stack with a gap — the ground between them is the section break. */
+  sheetStack: 'flex flex-col gap-4',
+  /** A block nested inside a sheet steps DOWN, not up — white on white is not a boundary. */
+  sheetInner: 'rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)]',
 
   /** Selected-service identity block (Figma "pipeline-services-improved"):
    *  eyebrow + service_name(hero) + service_code chip, a summary stat row, then

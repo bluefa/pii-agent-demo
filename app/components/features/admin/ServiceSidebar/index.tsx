@@ -30,8 +30,24 @@ type ServiceItem = NonNullable<PageServiceItem['content']>[number];
  */
 const ROW_MAX_PX = 88;
 
-/** Skeleton row count — matches SERVICE_PAGE_SIZE so the list doesn't reflow when data lands. */
-const SKELETON_ROWS = 8;
+/**
+ * Rows per rail page — owned here, not by each caller.
+ *
+ * One page stays one screenful: the rail never scrolls *and* pages for the same
+ * job, and eight rows sit at the top of the 7±2 range a user takes in as one
+ * group. Rows divide the rail's height between them (ROW_MAX_PX caps how far),
+ * so a page still reaches the bottom; ~100 services are 13 pages, and search
+ * stays the primary lookup path.
+ *
+ * It lives with the sidebar because the number is a property of this rail, not
+ * of the page hosting it — as two private copies it had already drifted to 10
+ * on /services and 8 on /target-sources, giving the same rail different row
+ * heights and page counts on two screens.
+ */
+export const SERVICE_RAIL_PAGE_SIZE = 8;
+
+/** Skeleton row count — matches the page size so the list doesn't reflow when data lands. */
+const SKELETON_ROWS = SERVICE_RAIL_PAGE_SIZE;
 
 /** The service the surrounding page is about — marked in the list, not pinned above it. */
 interface CurrentService {

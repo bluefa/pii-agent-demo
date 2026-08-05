@@ -23,6 +23,7 @@ import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { STEP } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
 import { EosModal } from '@/app/admin/pipelines/ops/services/_components/EosModal';
 import { jiraTicketLink } from '@/lib/jira-ticket';
 import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
@@ -47,11 +48,11 @@ const tsTable = {
   /** 이동 화살표 — Step 1 표의 마지막 열과 같은 자리(우측 끝). */
   go: 'inline-flex text-[var(--pl-primary)] hover:opacity-70',
   /**
-   * Step 1 은 흰 페이지 위라 툴바(#F7F8FA)·헤더 밴드만으로 표가 떠 보였다. admin 은 배경이
-   * 이미 #F9FAFB 라 같은 회색끼리 붙어 면이 사라진다 — 표 블록 전체를 흰 면 + 테두리로
-   * 감싸 배경에서 떼어 놓는다. 안쪽 요소들은 Step 1 값 그대로.
+   * 표 블록은 이제 흰 시트 안에 있다 — 흰 면으로 감싸면 흰 위에 흰이라 경계가 사라진다.
+   * 한 단 내려서(--pl-bg-inner) 시트 안의 안쪽 면으로 읽히게 한다. 안쪽 요소들은
+   * Step 1 값 그대로.
    */
-  block: 'overflow-hidden rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]',
+  block: 'overflow-hidden rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)]',
   scroll: 'overflow-x-auto',
   id: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] whitespace-nowrap',
   /** 설명 — 길이를 알 수 없는 유일한 값이라 폭을 묶어 자르고 전문은 title 로 남긴다. */
@@ -84,7 +85,8 @@ const tileStyles = {
   /* 748 = 244*3 + 8*2 (Figma Row1). 폭을 묶지 않으면 3열이 화면 폭을 따라 늘어나 타일
      하나가 400px 이 되고, 표를 걷어낸 이유(휑함)가 그대로 돌아온다. */
   grid: 'grid grid-cols-3 gap-2 max-w-[748px]',
-  base: 'flex items-center gap-2 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3.5',
+  /** 시트 안의 타일이라 흰색이 아니라 한 단 내려간 면 — 표 블록과 같은 깊이. */
+  base: 'flex items-center gap-2 rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)] px-4 py-3.5',
   /** 티켓 키 — 12 mono/600. 열 곳이 없으면 파랑·밑줄 없이 글자로만. */
   key: 'mt-1 block truncate text-[12px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)]',
   /** 열 수 있을 때 — primary + 밑줄. ↗ 까지 밑줄이 이어지도록 inline 한 덩어리. */
@@ -260,9 +262,11 @@ export function ServiceDetailView({
   );
 
   return (
-    <div>
+    // 레일과 그 뒤 바닥이 하나의 뒤쪽 면이라, 내용은 흰 시트 위에 올라야 본문으로 읽힌다.
+    // 바닥에 그냥 놓인 제목·설명은 크롬으로 읽혀 섹션이 화면에서 떠 있지 않았다.
+    <div className={s.sheetStack}>
       {/* 좌측 레일이 곧 현재 위치라 breadcrumb 은 두지 않는다. */}
-      <div className="flex items-start justify-between gap-6">
+      <div className={cn(s.sheet, 'flex items-start justify-between gap-6')}>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
@@ -273,19 +277,20 @@ export function ServiceDetailView({
         <div className="flex-none">{eosButton}</div>
       </div>
 
-      {/* 제목·건수·설명은 카드 밖 섹션 머리 — 아래 Jira 섹션과 같은 문법이라 두 섹션이
-          같은 높이에서 읽힌다. Target Source = 이 서비스가 가진 인프라라 표시는 CSP 아이콘. */}
-      <h2 className={cn(text.sectionTitle, sectionHead, 'mt-6')}>
-        <Icon name="cloud" size={18} className="text-[var(--pl-text-weak)]" />
-        Target Source 목록
-        <span className={tsTable.badge}>{targetCount}건</span>
-      </h2>
-      <p className={section.desc}>
-        이 서비스가 보유한 인프라입니다. 행을 누르면 해당 Target Source 운영 화면으로 이동합니다.
-      </p>
+      {/* 제목·건수·설명은 시트 머리 — 아래 Jira 섹션과 같은 문법이라 두 섹션이 같은
+          높이에서 읽힌다. Target Source = 이 서비스가 가진 인프라라 표시는 CSP 아이콘. */}
+      <section className={s.sheet} aria-label="Target Source 목록">
+        <h2 className={cn(text.sectionTitle, sectionHead)}>
+          <Icon name="cloud" size={18} className="text-[var(--pl-text-weak)]" />
+          Target Source 목록
+          <span className={tsTable.badge}>{targetCount}건</span>
+        </h2>
+        <p className={cn(section.desc, 'mt-0')}>
+          이 서비스가 보유한 인프라입니다. 행을 누르면 해당 Target Source 운영 화면으로
+          이동합니다.
+        </p>
 
-      {/* Step 1 리소스 표와 같은 실루엣: 툴바(검색·필터) → 헤더 밴드 표 → Pagination 마감 바. */}
-      <section aria-label="Target Source 목록">
+        {/* Step 1 리소스 표와 같은 실루엣: 툴바(검색·필터) → 헤더 밴드 표 → Pagination 마감 바. */}
         <div className={tsTable.block}>
           <TableToolbar
             searchValue={query}
@@ -404,17 +409,18 @@ export function ServiceDetailView({
         </div>
       </section>
 
-      {/* 시안 간격: 표 아래 32px (기본 64 는 두 섹션을 다른 페이지처럼 갈라 놓는다). */}
-      <h2 className={cn(text.sectionTitle, sectionHead, 'mt-8')}>
-        <JiraLogo />
-        Jira Ticket 연결
-      </h2>
-      <p className={section.desc}>
-        CloudProvider 마다 Jira 티켓을 1건씩 연결합니다. 연결·해제는 이 서비스와 티켓의 연결
-        정보만 바꾸며, <b className="font-semibold text-[var(--pl-text-medium)]">Jira 의 티켓을
-        만들거나 삭제하지 않습니다.</b>
-      </p>
-      <section className={tileStyles.grid} aria-label="Jira Ticket 연결">
+      {/* 두 섹션 사이 간격은 sheetStack 의 gap — 시트 사이로 보이는 바닥이 섹션 구분이다. */}
+      <section className={s.sheet} aria-label="Jira Ticket 연결">
+        <h2 className={cn(text.sectionTitle, sectionHead)}>
+          <JiraLogo />
+          Jira Ticket 연결
+        </h2>
+        <p className={cn(section.desc, 'mt-0')}>
+          CloudProvider 마다 Jira 티켓을 1건씩 연결합니다. 연결·해제는 이 서비스와 티켓의 연결
+          정보만 바꾸며, <b className="font-semibold text-[var(--pl-text-medium)]">Jira 의 티켓을
+          만들거나 삭제하지 않습니다.</b>
+        </p>
+        <div className={tileStyles.grid}>
         {JIRA_CLOUD_PROVIDERS.map((provider) => {
           const ticket = ticketOf(provider);
           const link = ticket ? jiraTicketLink(ticket.issueKey) : null;
@@ -480,6 +486,7 @@ export function ServiceDetailView({
             </div>
           );
         })}
+        </div>
       </section>
 
       <EosModal
