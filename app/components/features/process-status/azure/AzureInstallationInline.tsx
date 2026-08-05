@@ -22,6 +22,8 @@ import { InstallCardHeader } from '@/app/components/features/process-status/inst
 interface AzureInstallationInlineProps {
   targetSourceId: number;
   confirmed: readonly ConfirmedResource[];
+  /** 확정 연동 목록이 아직 로딩 중 — 스켈레톤을 유지한다. */
+  confirmedLoading?: boolean;
   onInstallComplete?: () => void;
 }
 
@@ -66,6 +68,7 @@ const AZURE_STEPS: InstallTableStep[] = [
 export const AzureInstallationInline = ({
   targetSourceId,
   confirmed,
+  confirmedLoading = false,
   onInstallComplete,
 }: AzureInstallationInlineProps) => {
   // Must be stable: useInstallationStatus re-runs its fetch effect whenever
@@ -111,7 +114,7 @@ export const AzureInstallationInline = ({
             상태 확인 실패: {status.lastCheck.failReason ?? '최근 설치 상태 확인에 실패했습니다.'}
           </div>
         )}
-        {loading ? (
+        {loading || confirmedLoading ? (
           <InstallationLoadingView provider="Azure" />
         ) : error ? (
           <InstallationErrorView message={error} onRetry={fetchStatus} />
