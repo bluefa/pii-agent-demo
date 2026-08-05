@@ -27,7 +27,7 @@ export const serviceListStyles = {
   railTitle: 'text-[16px] font-bold text-[var(--pl-text-strong)]',
   /** Total beside the title — round, unlike the square code tags: a quantity, not an identifier. */
   railCount:
-    'inline-flex items-center rounded-full bg-[var(--pl-gray-200)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-text-weak)]',
+    'inline-flex items-center rounded-full bg-[var(--pl-gray-200)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-text-medium)]',
   /** Search closes the rail's chrome block; the hairline under it opens the list. */
   railSearch: 'shrink-0 px-3 pb-3 border-b border-[var(--pl-border)]',
   /** 목록 위 구역 라벨 — 지금 보고 있는 게 전체인지 검색 결과인지. ServiceSidebar 와 같은 자리. */
@@ -57,8 +57,9 @@ export const serviceListStyles = {
   nameIdle: 'text-[var(--pl-text-strong)]',
   /** 코드 태그 — codes are 3 characters, so `min-w` fixes the column and every code
    *  lands on one x down the list; packed against a wrapping name it would not.
-   *  faint(#98A2B3)는 흰 배경에서 2.58 로 AA 미달이라 weak(4.97). */
-  code: 'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-gray-200)] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[var(--pl-text-weak)]',
+   *  태그 면이 흰색에서 gray-200 으로 내려갔으므로 글자도 한 단 내린다 — weak(#667085)
+   *  는 #E4E7EC 위에서 4.01 로 AA 미달이고, medium(#344054)이 8.44. */
+  code: 'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-gray-200)] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[var(--pl-text-medium)]',
   codeActive:
     'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-white)] px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[var(--pl-primary)]',
 
@@ -76,6 +77,12 @@ export const serviceListStyles = {
     'flex-1 min-h-0 flex flex-col gap-7 rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-7 py-6',
   /** Section break inside the sheet — a rule, so the group never comes apart. */
   sheetRule: 'border-t border-[var(--pl-border)] -mx-7',
+  /**
+   * 시트 머리의 분류 태그 — 서비스 이름 위에서 "지금 무엇을 하는 화면인지"를 먼저 말한다.
+   * primary 쌍(#2563EB on #EFF4FF)은 흰 시트 위에서 4.69:1.
+   */
+  pageTag:
+    'inline-flex w-fit items-center rounded-[6px] bg-[var(--pl-primary-bg)] px-2 py-1 text-[12px] font-semibold text-[var(--pl-primary)]',
   /** A block nested inside the sheet steps DOWN, not up — white on white is not a boundary. */
   sheetInner: 'rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)]',
 

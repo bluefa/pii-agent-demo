@@ -48,11 +48,11 @@ const tsTable = {
   /** 이동 화살표 — Step 1 표의 마지막 열과 같은 자리(우측 끝). */
   go: 'inline-flex text-[var(--pl-primary)] hover:opacity-70',
   /**
-   * 표 블록은 이제 흰 시트 안에 있다 — 흰 면으로 감싸면 흰 위에 흰이라 경계가 사라진다.
-   * 한 단 내려서(--pl-bg-inner) 시트 안의 안쪽 면으로 읽히게 한다. 안쪽 요소들은
-   * Step 1 값 그대로.
+   * 표 블록은 이제 흰 시트 안에 있다 — 배경은 시트의 흰색을 그대로 쓰고 테두리로만
+   * 구획한다. 안쪽 툴바·헤더 밴드가 #F7F8FA 라, 블록에 면을 깔면(#F9FAFB) 밴드와
+   * 1.5% 차이가 되어 표의 머리와 몸이 한 덩어리로 뭉개진다.
    */
-  block: 'overflow-hidden rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)]',
+  block: 'overflow-hidden rounded-[8px] border border-[var(--pl-border)]',
   scroll: 'overflow-x-auto',
   id: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] whitespace-nowrap',
   /** 설명 — 길이를 알 수 없는 유일한 값이라 폭을 묶어 자르고 전문은 title 로 남긴다. */
@@ -274,7 +274,9 @@ export function ServiceDetailView({
     <div className={s.sheet}>
       {/* 좌측 레일이 곧 현재 위치라 breadcrumb 은 두지 않는다. */}
       <div className="flex items-start justify-between gap-6">
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col gap-2">
+          {/* 이름보다 먼저 읽히는 분류 — 이 시트가 무엇을 다루는 화면인지. */}
+          <span className={s.pageTag}>서비스 관리</span>
           <div className="flex items-center gap-2">
             {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
             <h2 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h2>
