@@ -218,7 +218,8 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
           className={cn(
             'text-xs px-3 py-1.5 rounded-md border transition-colors',
             borderColors.strong,
-            bgColors.mutedHover,
+            // 흰색 hover — mutedHover(gray-50)는 틴트 레일 위에서 1.03 이라 안 보인다.
+            bgColors.surfaceHover,
             textColors.secondary,
           )}
         >

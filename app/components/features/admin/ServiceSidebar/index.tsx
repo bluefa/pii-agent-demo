@@ -94,9 +94,10 @@ export const ServiceSidebar = ({
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
     //
-    // Desktop rail grammar: one flush white plane, zones divided by full-bleed
-    // hairlines. The rail owns no padding — each zone sets its own, so the
-    // current-service band and the row hover fills can run edge to edge.
+    // Desktop rail grammar: one flush TINTED plane, zones divided by full-bleed
+    // hairlines. The rail owns no padding — each zone sets its own, so the row
+    // hover fills can run edge to edge. Tinted, not white: the rail is the back
+    // plane and the content column is in front of it (see serviceSidebarStyles).
     <aside
       className={cn(
         'w-[296px] shrink-0 flex flex-col border-r',

@@ -1066,12 +1066,17 @@ export const mgmtGroupStyles = {
 } as const;
 
 /**
- * ServiceListPanel / ServiceSidebar — Toss-admin grouping grammar for the
- * target-source left rail: the rail sits on the page canvas (#F4F4FB, v16
- * measured body background) and white cards are the group boundaries, with the
- * single blue accent reserved for the current-service card. Raw hexes live
- * here per the no-raw-color rule; grays reuse the Toss ramp (tossColors SSOT)
- * and tile tints reuse the idcStyles.tag hex family.
+ * ServiceListPanel / ServiceSidebar — the target-source left rail.
+ *
+ * The rail is the page's BACK plane: a tinted, flush surface with full-bleed
+ * hairlines between zones, carrying the content column (#F9FAFB ground, white
+ * cards) in front of it. Anything that has to read as raised on the rail —
+ * row hover, the search field, the current row's code tag — is white; the
+ * single blue accent is reserved for the current-service row.
+ *
+ * Raw hexes live here per the no-raw-color rule; grays reuse the Toss ramp
+ * (tossColors SSOT) and tile tints reuse the idcStyles.tag hex family. Every
+ * pair below is measured against the RAIL's tint, not against white.
  */
 export const serviceSidebarStyles = {
   /**
@@ -1483,6 +1488,9 @@ export const pipelineStyles = {
     title: cn(pipelineText.sectionTitle, 'mt-16 mb-3'),
     titleFirst: cn(pipelineText.sectionTitle, 'mt-0 mb-3'),
     desc: cn(pipelineText.sectionDesc, 'mt-4 mb-4'),
+    /** 섹션 머리 바로 아래에 오는 설명 — `cn` 은 단순 join 이라 desc 에 mt-0 을 덧붙여도
+     *  CSS 순서상 mt-4 가 이긴다. titleFirst 와 같은 이유로 변형을 따로 둔다. */
+    descFirst: cn(pipelineText.sectionDesc, 'mt-0 mb-4'),
   },
 
   /** StatusPill — h20 pad 0 9 0 8 (lg h28 pad 0 12 0 10), icon 12/14. Size lives

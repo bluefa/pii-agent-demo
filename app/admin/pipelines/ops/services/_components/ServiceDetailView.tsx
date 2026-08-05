@@ -302,7 +302,7 @@ export function ServiceDetailView({
           Target Source 목록
           <span className={tsTable.badge}>{targetCount}건</span>
         </h2>
-        <p className={cn(section.desc, 'mt-0')}>
+        <p className={section.descFirst}>
           이 서비스가 보유한 인프라입니다. 행을 누르면 해당 Target Source 운영 화면으로
           이동합니다.
         </p>
@@ -434,7 +434,7 @@ export function ServiceDetailView({
           <JiraLogo />
           Jira Ticket 연결
         </h2>
-        <p className={cn(section.desc, 'mt-0')}>
+        <p className={section.descFirst}>
           CloudProvider 마다 Jira 티켓을 1건씩 연결합니다. 연결·해제는 이 서비스와 티켓의 연결
           정보만 바꾸며, <b className="font-semibold text-[var(--pl-text-medium)]">Jira 의 티켓을
           만들거나 삭제하지 않습니다.</b>

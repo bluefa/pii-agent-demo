@@ -11,18 +11,26 @@
  */
 export const serviceListStyles = {
   /** Split layout — rail | content. Negative margins undo layout.content's
-   *  left/top/bottom padding so the rail bleeds to the content edges. */
-  split: 'flex items-stretch -ml-8 -mt-6 -mb-12 min-h-[calc(100vh_-_56px)]',
+   *  padding so the recessed ground bleeds to the content edges on all four sides.
+   *
+   *  The ground is painted HERE, not on `--pl-bg-page`. Tinting the global token
+   *  made it byte-identical to `--pl-gray-100`, which is what tiles sitting
+   *  straight on the page ground use — the ops-alerts summary tiles
+   *  (`bg-[var(--pl-gray-100)]`, no border) went to 1.000 contrast and vanished.
+   *  Scoping the tint to this split keeps the layered treatment on the two
+   *  service screens and leaves every other admin page alone. */
+  split:
+    'flex items-stretch -ml-8 -mr-8 -mt-6 -mb-12 min-h-[calc(100vh_-_56px)] bg-[var(--pl-gray-100)]',
   /**
    * The rail owns no padding — each zone sets its own, so row fills run edge to edge.
    *
-   * It sits on the page ground rather than on its own white plane, and carries no
-   * seam: nav and ground are one continuous back surface, and the content's white
-   * sheets are the only thing in front. White made the rail the brightest surface
-   * on screen while the work area sat lower, which read as two pages butted
-   * together — a 1px line was the only thing claiming otherwise.
+   * It carries no background and no seam of its own — `split` paints the ground
+   * under both columns, so nav and ground are literally one surface and cannot
+   * drift apart. White made the rail the brightest surface on screen while the
+   * work area sat lower, which read as two pages butted together; a 1px line was
+   * the only thing claiming otherwise.
    */
-  rail: 'w-[296px] flex-none flex flex-col bg-[var(--pl-bg-page)]',
+  rail: 'w-[296px] flex-none flex flex-col',
   railHead: 'flex shrink-0 items-center gap-2 px-3 pt-6 pb-2.5',
   railTitle: 'text-[16px] font-bold text-[var(--pl-text-strong)]',
   /** Total beside the title — round, unlike the square code tags: a quantity, not an identifier. */
@@ -41,7 +49,7 @@ export const serviceListStyles = {
    * the sheet inside can fill the remaining height. The padding here is the grey
    * that frames the sheet on every side; the parent layout supplies the right.
    */
-  main: 'flex-1 min-w-0 flex flex-col pl-8 pt-6 pb-6',
+  main: 'flex-1 min-w-0 flex flex-col pl-8 pr-8 pt-6 pb-6',
   /** 1-line picker row — tile, name (wraps), then the code in its own right column.
    *  `flex-1` stretches it to fill the rail; `min-h` keeps it readable when a short
    *  viewport makes the list scroll instead. State variants own bg + name color. */
@@ -77,20 +85,20 @@ export const serviceListStyles = {
     'flex-1 min-h-0 flex flex-col gap-7 rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-7 py-6',
   /** Section break inside the sheet — a rule, so the group never comes apart. */
   sheetRule: 'border-t border-[var(--pl-border)] -mx-7',
+  /** Sticky rail geometry — top-14 clears the h-14 TopNav; at top-0 the title slides under it. */
+  railSticky: 'sticky top-14 self-start h-[calc(100vh_-_56px)]',
   /**
    * 시트 머리의 분류 태그 — 서비스 이름 위에서 "지금 무엇을 하는 화면인지"를 먼저 말한다.
    * primary 쌍(#2563EB on #EFF4FF)은 흰 시트 위에서 4.69:1.
    */
   pageTag:
     'inline-flex w-fit items-center rounded-[6px] bg-[var(--pl-primary-bg)] px-2 py-1 text-[12px] font-semibold text-[var(--pl-primary)]',
-  /** A block nested inside the sheet steps DOWN, not up — white on white is not a boundary. */
-  sheetInner: 'rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)]',
 
   /** Selected-service identity block (Figma "pipeline-services-improved"):
    *  eyebrow + service_name(hero) + service_code chip, a summary stat row, then
    *  a scope line — replaces the old "…의 Target Source" section header so the
    *  right pane leads with WHAT is selected before the target table. */
-  identity: 'flex flex-col gap-4 mb-6',
+  identity: 'flex flex-col gap-4',
   eyebrow: 'text-[13px] font-medium text-[var(--pl-flow-meta-label)]',
   titleRow: 'flex items-center gap-3 flex-wrap',
   svcTitle: 'text-[26px] font-extrabold tracking-[-0.03em] leading-[1.2] text-[var(--pl-text-strong)]',

@@ -91,7 +91,7 @@ export function ServicesView(): ReactElement {
           페이지 이동 버튼이 화면 밖으로 밀린다 — 뷰포트 높이에 고정하고 목록만 스크롤. */}
       <aside
         // top-14 = sticky TopNav(h-14) 아래. top-0 이면 레일 제목이 TopNav 밑으로 들어간다.
-        className={cn(s.rail, 'sticky top-14 self-start h-[calc(100vh_-_56px)]')}
+        className={cn(s.rail, s.railSticky)}
         aria-label="서비스 목록"
       >
         {/* 제목 + 개수. 검색 중에는 걸린 건수라 그대로 둔다. */}
@@ -139,7 +139,8 @@ export function ServicesView(): ReactElement {
             <div
               className={s.railList}
               // 행이 남은 높이를 나눠 가지므로 상한이 없으면 한 장이 짧을 때 행이
-              // 레일 끝까지 늘어난다. 상한을 걸면 남는 높이는 페이지 표시 아래로 빠진다.
+              // 레일 끝까지 늘어난다. 상한을 걸면 남는 높이는 마지막 행과 페이지 표시
+              // 사이로 빠진다 — railFoot 의 mt-auto 가 표시를 바닥에 붙여 두기 때문.
               style={{ maxHeight: pageRows.length * ROW_MAX_PX }}
             >
               {pageRows.map((service) => {

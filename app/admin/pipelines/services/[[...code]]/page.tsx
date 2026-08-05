@@ -120,6 +120,8 @@ export default function ServicesPage(): ReactElement {
         .catch((err) => {
           if (signal.aborted) return;
           setServicesError(err);
+          // 이전 질의의 총계가 "불러오지 못했습니다" 옆에 남지 않게 같이 비운다.
+          setSvcTotal(0);
           setServicesLoading(false);
         });
     },
@@ -205,7 +207,7 @@ export default function ServicesPage(): ReactElement {
   return (
     <div className={s.split}>
       {/* Left — full-height service rail (R20.5: flush at the content edge, not a card) */}
-      <aside className={s.rail} aria-label="서비스 목록">
+      <aside className={cn(s.rail, s.railSticky)} aria-label="서비스 목록">
         <div className={s.railHead}>
           <h1 className={s.railTitle}>서비스·대상 검색</h1>
           {!servicesLoading && svcTotal > 0 && <span className={s.railCount}>{svcTotal}</span>}
@@ -305,7 +307,7 @@ export default function ServicesPage(): ReactElement {
         ) : (
           // 본문은 시트 한 장 — 정체 블록과 표 사이는 가로줄로 나누고, 시트는 끊지 않는다.
           <div className={s.sheet}>
-            <div className="flex flex-col gap-4">
+            <div className={s.identity}>
               <span className={s.eyebrow}>서비스</span>
               <div className={s.titleRow}>
                 <h2 className={s.svcTitle}>{selectedName}</h2>
