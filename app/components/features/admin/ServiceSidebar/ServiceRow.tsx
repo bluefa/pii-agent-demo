@@ -21,12 +21,13 @@ const tileClassFor = (code: string): string => {
 };
 
 /**
- * Initial tile + name + code chip on one line. The chip sits beside the name
- * (not at the far edge): with short names a right-aligned code left the row's
- * middle empty and the two columns never read as one item. Names longer than
- * the row truncate — a single-line rhythm is what makes a 15-row rail
- * scannable — and the full name stays in the row's title attribute; the code
- * is shown verbatim and case-sensitively (`/services/{code}` matches exactly).
+ * Icon tile, name, then the code trailing the name — 32px tall, the density a
+ * desktop rail is read at. The code is packed against the name rather than
+ * right-aligned to the rail edge: pushed to the edge it rebuilds the two-column
+ * table this redesign removed, and short names leave the row's middle empty.
+ * Long names truncate (single-line rhythm is what makes the rail scannable) and
+ * the full name stays in the row's title attribute; the code is shown verbatim
+ * and case-sensitively (`/services/{code}` matches exactly).
  */
 export const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
   <li>
@@ -35,17 +36,17 @@ export const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
       onClick={() => onSelect(code)}
       title={name ? `${name} (${code})` : code}
       className={cn(
-        'w-full flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-left cursor-pointer transition-colors',
+        'w-full flex items-center gap-2 rounded-[4px] px-2 py-1.5 text-left cursor-pointer transition-colors',
         serviceSidebarStyles.rowActive,
       )}
     >
       <span className={cn(serviceSidebarStyles.tile, tileClassFor(code))} aria-hidden="true">
         {(name || code).charAt(0).toUpperCase()}
       </span>
-      <span className={cn('flex-1 min-w-0 truncate', serviceSidebarStyles.rowName)}>
+      <span className={cn('min-w-0 truncate', serviceSidebarStyles.rowName)}>
         {name || code}
       </span>
-      {name && <span className={cn('shrink-0', serviceSidebarStyles.chip)}>{code}</span>}
+      {name && <span className={cn('shrink-0', serviceSidebarStyles.rowCode)}>{code}</span>}
     </button>
   </li>
 );

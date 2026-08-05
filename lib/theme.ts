@@ -1074,28 +1074,42 @@ export const mgmtGroupStyles = {
  * and tile tints reuse the idcStyles.tag hex family.
  */
 export const serviceSidebarStyles = {
-  /** Rail ground — same plane as the target-source canvas; cards do the separating. */
-  ground: 'bg-[#F4F4FB]',
-  /** White group card — one radius step under cardStyles.base: the rail is chrome, not content. */
-  card: `bg-white rounded-[14px] ${tossShadow.sm}`,
-  /** Panel title — cardTitle tier; the page H1 belongs to the content column, not the rail. */
-  title: 'text-[16px] font-bold leading-[24px] tracking-[-0.01em] text-[#191F28]',
-  /** Total count beside the title — #6B7280, not the Toss weak gray: #8B95A1 is 3.04:1 on white, under AA. */
-  count: 'text-[12px] font-semibold tabular-nums text-[#6B7280]',
-  /** Current-service eyebrow — the rail's only accent use (card-eyebrow geometry). */
-  eyebrow: 'text-[12px] font-bold tracking-[0.02em] text-[#0064FF]',
-  currentName: 'text-[14px] font-bold text-[#191F28]',
-  /** Section label inside the list card — same AA note as `count`. */
-  sectionLabel: 'text-[12px] font-semibold text-[#6B7280]',
-  rowName: 'text-[14px] font-medium text-[#191F28]',
-  /** Row fill under pointer hover or keyboard focus — Toss inner surface, not the blue tint: rows open a confirm modal, and the accent stays reserved for the current-service card. */
-  rowActive: 'hover:bg-[#F7F8FA] focus-visible:bg-[#F7F8FA]',
-  /** Code chip — mono identifier token beside the name. */
-  chip: 'inline-flex items-center rounded-[6px] bg-[#F2F4F6] px-1.5 py-0.5 font-mono text-[12px] font-medium text-[#4E5968]',
-  /** Code chip on the current-service card — primary tint pair (AA: see primaryColors.textOnLight). */
-  chipCurrent: 'inline-flex items-center rounded-[6px] bg-[#E8F1FF] px-1.5 py-0.5 font-mono text-[12px] font-semibold text-[#0050D6]',
-  /** Initial tile — the row's scan anchor; pair with one `tilePalette` entry. */
-  tile: 'flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] text-[12px] font-bold',
+  /**
+   * Rail surface — white and flush to its own edges. Desktop nav chrome is a
+   * plane with hairlines, not cards floating on a canvas: the card-stack
+   * grammar (gap + radius + shadow per group) reads as a mobile screen at this
+   * width. Zones here are separated by full-bleed rules instead.
+   */
+  surface: 'bg-white',
+  /** Full-bleed hairline between rail zones (Toss divider ramp). */
+  divider: 'border-[#EBEEF2]',
+  /** Rail heading — nav-chrome tier, deliberately under the content column's page title. */
+  title: 'text-[14px] font-semibold tracking-[-0.01em] text-[#191F28]',
+  count: 'text-[12px] font-medium tabular-nums text-[#6B7280]',
+  /** Section label above the rows — desktop nav section header, not a table column head. */
+  sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#6B7280]',
+  /**
+   * Current-service band — full-bleed tint + 2px accent bar, the rail's only
+   * accent. A bar-and-tint band is how a desktop rail marks "you are here";
+   * the same job done as a rounded elevated card is what made this read mobile.
+   */
+  currentBand:
+    'relative w-full px-3 py-2 text-left transition-colors bg-[#E8F1FF] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[#0064FF] before:content-[""] hover:bg-[#D6E7FF]',
+  currentLabel: 'text-[12px] font-medium text-[#0050D6]',
+  currentName: 'text-[14px] font-semibold text-[#191F28]',
+  /** Code beside the current service — pairs with the band tint (see primaryColors.textOnLight). */
+  currentCode: 'font-mono text-[12px] font-semibold text-[#0050D6]',
+  rowName: 'text-[14px] text-[#191F28]',
+  /**
+   * Row code — quiet mono packed right after the name, with no fill. A filled
+   * pill per row is app-store chrome, and right-aligning it to the rail edge is
+   * the table grammar this redesign removed; left-packed it just trails the name.
+   */
+  rowCode: 'font-mono text-[12px] text-[#6B7280]',
+  /** Row fill under pointer hover or keyboard focus — a step that reads on white, and the accent stays with the current-service band. */
+  rowActive: 'hover:bg-[#F2F4F6] focus-visible:bg-[#F2F4F6]',
+  /** 20px square icon tile — the row's scan anchor. Square-ish and small: a 24px rounded tile reads as a mobile avatar. */
+  tile: 'flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] text-[12px] font-semibold leading-none',
   /** Tinted tile pairs, picked by a stable code hash so a service keeps its color across pages. */
   tilePalette: [
     'bg-[#E8F1FF] text-[#1747B5]',
@@ -1105,11 +1119,12 @@ export const serviceSidebarStyles = {
     'bg-[#FEECEC] text-[#B42318]',
     'bg-[#F7F8FA] text-[#4E5968]',
   ],
-  /** List-card footer — range summary + prev/next, replacing numbered pagination. shrink-0: the card shrinks on short viewports and the ul, not the footer, gives way. */
-  footer: 'flex shrink-0 items-center justify-between border-t border-[#EBEEF2] px-3 py-2',
+  /** Footer — full-bleed rule + range summary, sitting directly under the last row rather than docked to the rail's bottom. */
+  footer: 'flex shrink-0 items-center justify-between border-t px-3 py-2',
   footerRange: 'text-[12px] font-medium tabular-nums text-[#6B7280]',
+  /** Borderless ghost pager — a bordered button pair floats like a card control on a flush rail. */
   pagerBtn:
-    'flex h-6 w-6 items-center justify-center rounded-[6px] border border-[#EBEEF2] bg-white text-[#4E5968] transition-colors hover:bg-[#F7F8FA] disabled:cursor-not-allowed disabled:border-[#F2F4F6] disabled:text-[#B0B8C1]',
+    'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-[#F2F4F6] disabled:cursor-not-allowed disabled:text-[#B0B8C1] disabled:hover:bg-transparent',
 } as const;
 
 // =============================================================================

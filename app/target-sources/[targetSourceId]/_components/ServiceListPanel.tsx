@@ -63,10 +63,10 @@ interface ConfirmModalData {
 }
 
 // 8 per page — a scan chunk, not a viewport fill. Filling the rail's height
-// (~15 rows) read as noise next to the content column; eight rows is the top
-// of the 7±2 range a user takes in as one group, the list card hugs its
-// content so no dead space builds under the rows, and ~100 services stay
-// reachable in 13 pages. Search is the primary lookup path; paging browses.
+// read as noise next to the content column; eight rows is the top of the 7±2
+// range a user takes in as one group, the list ends where its rows end so no
+// dead space builds under them, and ~100 services stay reachable in 13 pages.
+// Search is the primary lookup path; paging browses.
 const SERVICE_PAGE_SIZE = 8;
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -201,12 +201,12 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
 
   if (fetchState.status === 'error') {
     return (
-      // Same canvas plane as ServiceSidebar — a failed fetch must not hand back a
+      // Same flush plane as ServiceSidebar — a failed fetch must not hand back a
       // differently-grounded rail than the successful path uses.
       <aside
         className={cn(
           'w-[296px] shrink-0 flex flex-col items-center justify-center border-r px-4 gap-3',
-          serviceSidebarStyles.ground,
+          serviceSidebarStyles.surface,
           borderColors.default,
         )}
       >

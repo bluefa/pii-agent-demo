@@ -13,11 +13,12 @@ interface SidebarPaginationProps {
 }
 
 /**
- * List-card footer: a range summary ("1–15 / 100") plus prev/next. Numbered
- * page buttons are data-table chrome — in a 296px rail the summary carries
- * more information ("how many, where am I") in less space, and search is the
- * primary lookup path anyway. Arrows render only when there is a second page,
- * so a single page shows a quiet count line instead of dead controls.
+ * Rule + range summary ("1–8 / 100") plus prev/next, closing the list right
+ * under its last row. Numbered page buttons are data-table chrome — in a 296px
+ * rail the summary carries more information ("how many, where am I") in less
+ * space, and search is the primary lookup path anyway. Arrows render only when
+ * there is a second page, so a single page shows a quiet count line instead of
+ * dead controls.
  */
 export const SidebarPagination = ({ pageInfo, onPageChange }: SidebarPaginationProps) => {
   const { totalElements, totalPages, number: currentPage, size } = pageInfo;
@@ -26,7 +27,7 @@ export const SidebarPagination = ({ pageInfo, onPageChange }: SidebarPaginationP
   const range = start === end ? `${end}` : `${start}–${end}`;
 
   return (
-    <div className={serviceSidebarStyles.footer}>
+    <div className={cn(serviceSidebarStyles.footer, serviceSidebarStyles.divider)}>
       <span className={serviceSidebarStyles.footerRange}>
         {range} / {totalElements}
       </span>

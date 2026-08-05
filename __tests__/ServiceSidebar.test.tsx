@@ -2,10 +2,13 @@
  * Tests for `ServiceSidebar`'s list/empty branching.
  *
  * The list renders `listed` — services minus the pinned current one — while the empty
- * state and the column header used to key off the unfiltered `services`. That gap left
- * a page holding nothing but the current service rendering column headings over a blank
+ * state and the list's own heading used to key off the unfiltered `services`. That gap
+ * left a page holding nothing but the current service rendering a heading over a blank
  * body, which no fixture in the app reproduces (9 services fit one page). These lock the
  * three empty reasons and the filtering to `listed`.
+ *
+ * The heading is the section label ('다른 서비스로 이동' / '검색 결과'); it replaced the
+ * '서비스 이름 / 서비스 코드' column header when the rail moved off table grammar.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -39,8 +42,8 @@ describe('ServiceSidebar — empty list', () => {
     });
     // Page-scoped, because the filter is: earlier pages may hold services this one doesn't.
     expect(html).toContain('이 페이지에 다른 서비스가 없습니다');
-    // Column headings over a blank body read as a broken table.
-    expect(html).not.toContain('서비스 코드');
+    // A section heading over a blank body reads as a list that failed to load.
+    expect(html).not.toContain('다른 서비스로 이동');
     expect(html).not.toContain('검색어 지우기');
   });
 
@@ -78,7 +81,7 @@ describe('ServiceSidebar — populated list', () => {
       ],
       currentService: { code: 'AWS', name: 'AWS' },
     });
-    expect(html).toContain('서비스 코드');
+    expect(html).toContain('다른 서비스로 이동');
     // One row, and it is the service that is *not* pinned. Counting raw occurrences
     // would over-count: each row repeats its code in the title attribute.
     const rows = html.split('<li').slice(1);
@@ -93,7 +96,7 @@ describe('ServiceSidebar — populated list', () => {
       currentService: { code: 'AWS', name: 'AWS' },
       searchQuery: 'aws',
     });
-    expect(html).toContain('서비스 코드');
+    expect(html).toContain('검색 결과');
     expect(html).not.toContain('다른 서비스가 없습니다');
   });
 });

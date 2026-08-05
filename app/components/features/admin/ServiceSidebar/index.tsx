@@ -72,20 +72,20 @@ export const ServiceSidebar = ({
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
     //
-    // Toss grouping grammar: the rail sits on the page canvas (#F4F4FB) and the
-    // white cards — current service, list — do the separating. No hairline zones
-    // inside the rail; the surfaces are the group boundaries.
+    // Desktop rail grammar: one flush white plane, zones divided by full-bleed
+    // hairlines. The rail owns no padding — each zone sets its own, so the
+    // current-service band and the row hover fills can run edge to edge.
     <aside
       className={cn(
-        'w-[296px] shrink-0 flex flex-col gap-3 border-r px-3 pt-4 pb-3',
-        serviceSidebarStyles.ground,
+        'w-[296px] shrink-0 flex flex-col border-r',
+        serviceSidebarStyles.surface,
         borderColors.default,
       )}
       aria-label="서비스 목록"
     >
       {/* Title + total. The count renders only outside a search: during one,
           totalElements is the hit count and the line under the input owns it. */}
-      <div className="flex items-baseline gap-2 px-1">
+      <div className="flex items-baseline gap-2 px-3 pt-4 pb-2.5">
         <h2 className={serviceSidebarStyles.title}>서비스 목록</h2>
         {!searchQuery && !loading && totalElements > 0 && (
           <span className={serviceSidebarStyles.count}>{totalElements}</span>
@@ -100,13 +100,14 @@ export const ServiceSidebar = ({
         />
       )}
 
-      {/* The relative box is the input itself, so the icons center on it — no
-          offset math against the wrapper's padding. */}
-      <div>
+      {/* Search closes the rail's chrome block; the hairline under it opens the list. */}
+      <div className={cn('px-3 py-2.5 border-b', serviceSidebarStyles.divider)}>
+        {/* The relative box is the input itself, so the icons center on it — no
+            offset math against the wrapper's padding. */}
         <div className="relative">
           <SearchIcon
             className={cn(
-              'pointer-events-none absolute left-3 top-1/2 -translate-y-1/2',
+              'pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2',
               textColors.quaternary,
             )}
           />
@@ -118,8 +119,11 @@ export const ServiceSidebar = ({
             aria-label="서비스 검색"
             className={cn(
               getInputClass(),
-              // Explicit white: on the canvas ground a field has to be the lifted surface.
-              '!py-2 !pl-9 !pr-9 text-sm [&::-webkit-search-cancel-button]:appearance-none',
+              // 32px control on a 6px radius: the shared input's 48px pill is form
+              // geometry, and at rail width it reads as a mobile search bar. The
+              // field keeps a visible edge instead of a fill — on a white plane the
+              // border is what separates it, not elevation.
+              '!h-8 !py-0 !pl-8 !pr-8 !rounded-[6px] text-sm [&::-webkit-search-cancel-button]:appearance-none',
               bgColors.surface,
             )}
           />
@@ -141,32 +145,33 @@ export const ServiceSidebar = ({
           )}
         </div>
         {searchQuery && (
-          <p className={cn('mt-2 px-1 text-xs tabular-nums', textColors.tertiary)}>
+          <p className={cn('mt-2 text-xs tabular-nums', textColors.tertiary)}>
             {totalElements}건
           </p>
         )}
       </div>
 
-      {/* List card. It hugs its rows instead of stretching to the rail's bottom —
-          a page of 8 with a stretched card rebuilt the dead-space-over-footer the
-          redesign removed. No flex-1: the card only shrinks (min-h-0 + default
-          flex-shrink) when the viewport is too short, and the ul scrolls then. */}
-      <div className={cn('min-h-0 flex flex-col', serviceSidebarStyles.card)}>
+      {/* The list block ends where its rows end — it does not stretch to the
+          rail's bottom. A stretched list docks the footer far below the last row,
+          which is the dead-space-over-pagination this redesign set out to remove.
+          No flex-1: the block only shrinks (min-h-0 + default flex-shrink) when
+          the viewport is too short, and the ul scrolls then. */}
+      <div className="min-h-0 flex flex-col">
         {(loading || listed.length > 0) && (
-          <div className={cn('px-3 pt-3 pb-1 shrink-0', serviceSidebarStyles.sectionLabel)}>
+          <div className={cn('px-3 pt-3 pb-1.5 shrink-0', serviceSidebarStyles.sectionLabel)}>
             {sectionLabel}
           </div>
         )}
 
-        <ul className="min-h-0 overflow-auto px-1.5 pb-1.5" aria-busy={loading}>
+        <ul className="min-h-0 overflow-auto px-2 pb-2" aria-busy={loading}>
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => (
-              // h-10 matches a real row (24px tile + py-2) so the list doesn't
+              // h-8 matches a real row (20px tile + py-1.5) so the list doesn't
               // jump height when the skeleton is replaced.
-              <li key={i} className="flex h-10 items-center gap-2.5 px-2.5" aria-hidden="true">
-                <div className={cn(idcStyles.skeletonBar, 'h-6 w-6 shrink-0 rounded-[7px]')} />
-                <div className={cn(idcStyles.skeletonBar, 'h-3.5 flex-1 rounded')} />
-                <div className={cn(idcStyles.skeletonBar, 'h-4 w-10 shrink-0 rounded-[6px]')} />
+              <li key={i} className="flex h-8 items-center gap-2 px-2" aria-hidden="true">
+                <div className={cn(idcStyles.skeletonBar, 'h-5 w-5 shrink-0 rounded-[4px]')} />
+                <div className={cn(idcStyles.skeletonBar, 'h-3 flex-1 rounded')} />
+                <div className={cn(idcStyles.skeletonBar, 'h-3 w-8 shrink-0 rounded-[4px]')} />
               </li>
             ))
           ) : listed.length === 0 ? (

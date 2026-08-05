@@ -9,31 +9,27 @@ interface CurrentServiceCardProps {
 }
 
 /**
- * The service the page is about — a real white card on the rail's canvas
- * ground (Toss grouping: surfaces separate, not hairlines), so "where am I"
- * reads at rest instead of only on hover. The eyebrow + code chip are the
- * rail's only accent use. It is a destination like any row, so it stays a
- * button; the code chip appears only once a name exists, otherwise the name
- * slot already shows the code.
+ * The service the page is about — a full-bleed tinted band with a 2px accent
+ * bar, the way a desktop rail marks the current location. It runs edge to edge
+ * with the rail (no inset, no radius, no shadow) so it reads as part of the
+ * chrome rather than as a card sitting on it. Still a destination like any row,
+ * so it stays a button; the code shows only once a name exists, since otherwise
+ * the name slot already carries it.
  */
 export const CurrentServiceCard = ({ code, name, onSelect }: CurrentServiceCardProps) => (
   <button
     type="button"
     onClick={() => onSelect(code)}
     title={name ? `${name} (${code})` : code}
-    className={cn(
-      'w-full px-4 py-3 text-left cursor-pointer transition-colors',
-      serviceSidebarStyles.card,
-      serviceSidebarStyles.rowActive,
-    )}
+    className={cn('cursor-pointer', serviceSidebarStyles.currentBand)}
   >
-    <span className={cn('block', serviceSidebarStyles.eyebrow)}>현재 서비스</span>
-    <span className="mt-1.5 flex items-center gap-2">
+    <span className={cn('block', serviceSidebarStyles.currentLabel)}>현재 서비스</span>
+    <span className="mt-0.5 flex items-baseline gap-1.5">
       <span className={cn('min-w-0 truncate', serviceSidebarStyles.currentName)}>
         {name || code}
       </span>
       {name && (
-        <span className={cn('shrink-0', serviceSidebarStyles.chipCurrent)}>{code}</span>
+        <span className={cn('shrink-0', serviceSidebarStyles.currentCode)}>{code}</span>
       )}
     </span>
   </button>
