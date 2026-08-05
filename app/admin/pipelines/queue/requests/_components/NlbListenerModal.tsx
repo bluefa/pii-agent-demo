@@ -6,6 +6,7 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import { cn } from '@/lib/theme';
 import { TqModal } from '@/app/admin/pipelines/queue/_components/TqModal';
 import { OccBar, FtagBadge } from '@/app/admin/pipelines/queue/_components/bits';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -38,9 +39,12 @@ export function NlbListenerModal({
         </PlButton>
       }
     >
+      {/* Same 40 rows as NlbAssignModal, so the same cap: without it the modal shell scrolls
+          as one and the title, the column names and the 닫기 button all leave the screen. */}
       <div className={appTable.wrap}>
+        <div className="max-h-[44vh] overflow-y-auto">
         <table className={appTable.root}>
-          <thead className={appTable.thead}>
+          <thead className={cn(appTable.thead, 'sticky top-0 z-10')}>
             <tr>
               <th className={`${appTable.th} w-[100px]`}>NLB Index</th>
               <th className={appTable.th}>NLB IP</th>
@@ -69,6 +73,7 @@ export function NlbListenerModal({
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </TqModal>
   );

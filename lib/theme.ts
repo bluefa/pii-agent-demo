@@ -795,8 +795,12 @@ export const idcStyles = {
   },
   /** Header status pill (mirrors cloud sibling pill; combine with statusColors.{warning,success}). */
   statusPill: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-  /** Multi-IP endpoint toggle — `.idc-ep-toggle` (11.5px / 600 / primary). */
-  epToggle: 'text-[11.5px] font-semibold text-[#0064FF] hover:underline',
+  /** Multi-IP endpoint toggle — `.idc-ep-toggle` (11.5px / 600 / gray-500).
+   *  Was primary. It sits directly beside the address it belongs to, and blue there
+   *  read as loud as the identity it was captioning; the row already spends its one
+   *  colour on the kind badge. gray-500, not gray-400 — 11.5px semibold is not WCAG
+   *  'large text', and gray-400 measures 2.54:1 on white against gray-500's 4.83:1. */
+  epToggle: 'text-[11.5px] font-semibold text-gray-500 hover:underline hover:text-gray-700',
   /** Oracle SID key — `.idc-sid-k` (10px / 700 / fg-4 / ls .02em; bare, no bg/pad/radius). */
   // gray-500, not gray-400: this is text, and 10px bold is NOT WCAG 'large text'
   // (that starts at 18.66px bold). gray-400 measured 2.54:1 on white; gray-500 is 4.83:1.
@@ -1189,8 +1193,11 @@ const pipelineText = {
   sectionTitle: 'text-[20px] font-semibold leading-[1.2] text-[var(--pl-text-strong)]',
   /** dashboard "작업 목록" list-header title (Figma Make redesign) — 16 / 600 / strong. */
   dashboardListTitle: 'text-[16px] font-semibold leading-[1.2] text-[var(--pl-text-strong)]',
-  /** section-desc — 12 / 400 / 1.4 / weak. */
-  sectionDesc: 'text-[12px] font-normal leading-[1.4] text-[var(--pl-text-weak)]',
+  /** section-desc — 14 / 400 / 1.4 / weak. Was 12: at that size the sentence under a
+   *  20px title read as fine print, and on 연동 요청 조회 it carries the one rule an
+   *  admin has to know before approving (NLB Index is editable until 승인). Shared by
+   *  every SectionHeader, so the role keeps one size. */
+  sectionDesc: 'text-[14px] font-normal leading-[1.4] text-[var(--pl-text-weak)]',
   /** subsection-title — 14 / 600 / medium. */
   subsectionTitle: 'text-[14px] font-semibold text-[var(--pl-text-medium)]',
   /** modal h3 — 16 / 700 / 1.2 / strong. */

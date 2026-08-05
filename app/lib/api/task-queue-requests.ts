@@ -25,6 +25,7 @@ import type { ApprovalHistoryRow, Paged, RequestListRow } from '@/lib/types/task
 // Re-export the NLB capacity read from the IDC adapter — one occupancy source.
 export { getNlbTable } from '@/app/lib/api/idc';
 export type { NlbTableRow } from '@/app/lib/api/idc';
+import type { IdcKind } from '@/app/lib/api/idc';
 
 // ── Domain models (UI contract — stable across wire changes) ─────────────────
 
@@ -81,6 +82,23 @@ export interface RequestResourceRow {
   /** Assigned NLB index (metadata.nlb_index) — the select's current value. */
   nlbIndex: number | null;
 }
+
+/**
+ * The row's addressing shape, for the 접속 주소 cell's badge.
+ *
+ * The contract carries no such field — only `idc_host_format` (IP|HOST) and the
+ * cardinality of `idc_ips` — so this is the SAME derivation step 1 makes in
+ * `deriveKindFromIdcFields` (app/lib/api/idc.ts), applied to the row instead of
+ * the wire. Kept here, at the admin surface's wire↔domain file, rather than in
+ * the cell: the rule is domain, the badge is presentation.
+ *
+ * null for non-IDC rows (no host format ⇒ nothing to classify).
+ */
+export const idcAddressKind = (row: RequestResourceRow): IdcKind | null => {
+  if (row.idcKind == null) return null;
+  if (row.idcKind === 'HOST') return 'DOMAIN';
+  return row.connectTargets.length > 1 ? 'MULTIPLE_IP' : 'SINGLE';
+};
 
 export interface ApprovalRequestDetail {
   request: ApprovalRequestSummary;

@@ -366,7 +366,6 @@ export default function RequestDetailPage(): ReactElement {
               onClose={() => setShowingServices(null)}
               resource={showingServices}
               mappings={nlbMappings}
-              nlbRows={nlbTable}
             />
           )}
           <ApproveModal
