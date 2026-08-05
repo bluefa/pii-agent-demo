@@ -131,10 +131,10 @@ export const CredentialPickModal = ({
       subtitle={
         <>
           <span className={cn('block text-[12px] font-medium', textColors.tertiary)}>Resource ID</span>
-          {/* ARN 은 길어서 두 줄을 넘기기 쉽다 — 14px 로 눕히고 leading 을 좁혀, 값이 헤더를
+          {/* ARN 은 길어서 두 줄을 넘기기 쉽다 — 12px 로 눕히고 leading 을 좁혀, 값이 헤더를
               차지해 표가 스크롤 뒤로 밀려나지 않게 한다. 단은 mono·굵기·명도로 구분된다. */}
           <span
-            className={cn('mt-1 block break-all font-mono text-[14px] font-semibold leading-[1.4]', textColors.primary)}
+            className={cn('mt-1 block break-all font-mono text-[12px] font-semibold leading-[1.4]', textColors.primary)}
           >
             {resourceId}
           </span>
