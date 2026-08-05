@@ -142,7 +142,29 @@
   .rail .guide b { color: #191F28; }
   .rail .del { margin-top: 12px; border: 1px solid #F1D4D4; color: #C43E3E; border-radius: 6px; text-align: center; padding: 4px 0; font-weight: 700; background: #FFFFFF; }
 
-  /* Before — 현재 화면: 근백색 표면들 + 워시 위에 카드 2장이 떠 있는 상태 그대로 */
+  /* 구현 전 — 운영(main) 화면: 액센트 스트라이프 메타 카드 + 스텝 카드 2장 스택, 우측은 플랫 레일 */
+  .vPre .sb { background: #FFFFFF; border-right: 1px solid #EDEFF3; }
+  .vPre .pre-main { flex: 1; min-width: 0; background: #F4F4FB; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .vPre .meta { background: #FFFFFF; border: 1px solid #F0F2F5; border-left: 4px solid #FF9900; border-radius: 12px; box-shadow: 0 2px 8px rgba(25, 31, 40, 0.07); padding: 14px 16px; }
+  .vPre .meta .mttl { display: flex; align-items: center; justify-content: space-between; font-size: 16px; font-weight: 700; }
+  .vPre .meta .mttl small { font-size: 14px; font-weight: 500; color: #6B7684; }
+  .vPre .chip { font-size: 10px; font-weight: 700; background: #E8F0FE; color: #1B64DA; border-radius: 999px; padding: 2px 8px; }
+  .vPre .idrow { display: flex; align-items: center; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #F0F2F5; font-size: 10px; }
+  .vPre .cloudico { width: 22px; height: 22px; border-radius: 6px; background: #FFF4E5; color: #B25E09; display: inline-flex; align-items: center; justify-content: center; }
+  .vPre .cloudico svg { width: 12px; height: 12px; }
+  .vPre .idrow .pv b { display: block; font-size: 12px; color: #191F28; }
+  .vPre .idrow .pv small { color: #6B7684; }
+  .vPre .idrow .fld small { display: block; color: #6B7684; }
+  .vPre .idrow .fld { color: #191F28; }
+  .vPre .idrow .jira { color: #0064FF; font-weight: 700; }
+  .vPre .pbar { margin-top: 10px; padding-top: 12px; border-top: 1px solid #F0F2F5; }
+  .vPre .pbar .track { position: relative; height: 4px; border-radius: 2px; background: #EDEFF3; }
+  .vPre .pbar .fill { position: absolute; top: 0; bottom: 0; left: 0; width: 14%; border-radius: 2px; background: #0064FF; }
+  .vPre .pbar p { margin: 6px 0 0; font-size: 10px; color: #4E5968; }
+  .vPre .card { border: 1px solid #F0F2F5; box-shadow: 0 2px 8px rgba(25, 31, 40, 0.07); }
+  .vPre .rail { background: #FFFFFF; border-left: 1px solid #EDEFF3; }
+
+  /* 구현 후 — 이 브랜치(플랫 헤더): 근백색 표면들 + 워시 위에 카드 2장이 떠 있는 상태 그대로 */
   .v0 .sb { background: #FFFFFF; border-right: 1px solid #EDEFF3; }
   .v0 .v0-main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #F4F4FB; }
   .v0 .hd { background: #F8F9FC; border-bottom: 1px solid #EAECF2; }
@@ -260,11 +282,58 @@
   </div>
   <div class="root-cause">근본 원인: <b>근백색 표면 4개가 전부 '떠 있는 카드' 문법 하나로 표현</b>되고 있습니다. 해법은 색을 더하는 게 아니라 문법을 나누는 것 — <b>구조(네비·헤더·패널)는 앵커</b>하고, <b>콘텐츠(스텝)만 카드</b>로 남기고, 구역 간 명도차를 감지 가능한 수준(6% 이상)으로 벌립니다.</div>
 
-  <!-- ============ Before ============ -->
+  <!-- ============ 구현 전 (운영 main) ============ -->
+  <section class="variant vPre">
+    <div class="v-eyebrow">구현 전 · 현재 운영 화면</div>
+    <div class="v-name">두 카드 스택 (main)</div>
+    <p class="v-strategy">헤더 개편 전, 지금 운영에 있는 화면입니다. 서비스 정보가 액센트 스트라이프 달린 메타 카드(제목·상태 칩·IdentityBar·진행바)로 묶여 스텝 카드 위에 얹혀 있습니다 — 카드 2장이 같은 위계로 쌓여 이번 개편이 시작된 출발점입니다. 우측 가이드는 화면 끝에 붙은 플랫 레일이었습니다.</p>
+    <div class="frame-scroll"><div class="frame">
+      <div class="tn"><span class="logo">PASS<span>PII AGENT SELF SERVICE</span></span><nav><span class="on">서비스 목록</span><span>관리자</span><span>Guide</span><span>FAQ</span></nav></div>
+      <div class="cols">
+        <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
+        <div class="pre-main">
+          <div class="meta">
+            <div class="mttl"><span>AWS <small>(aws)</small></span><span class="chip">연동 대상 승인 대기</span></div>
+            <div class="idrow">
+              <span class="cloudico"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg></span>
+              <span class="pv"><b>AWS</b><small>Cloud Provider</small></span>
+              <span class="fld"><small>Account ID</small>451814760281</span>
+              <span class="fld"><small>TF 실행 권한</small>미허용</span>
+              <span class="fld"><small>Jira</small><span class="jira">BDCDIP-1006</span></span>
+            </div>
+            <div class="pbar"><div class="track"><div class="fill"></div></div><p>1 / 7 단계 · 연동 대상 DB 선택</p></div>
+          </div>
+          <div class="card"><span class="stage">1번째 단계</span><h5>연동 대상 DB 선택</h5><p class="sub">인프라 스캔으로 AWS 계정의 리소스를 조회하고, 연동할 리소스를 선택해 주세요.</p>
+            <div class="tbl"><div class="th"><span>Resource Name</span><span>Database Type</span><span>Region</span><span>설치 구분</span></div>
+              <div class="tr"><span>raw-mongo-deq-test-1</span><span>MongoDB</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+              <div class="tr"><span>raw-e2e-test-mysql-clus</span><span>MySQL</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+              <div class="tr"><span>svc-orders-aurora</span><span>Aurora</span><span>ap-northeast-2</span><span>제외</span></div></div></div>
+        </div>
+        <div class="rail">
+          <div class="row"><span>모니터링</span><span class="agent">AWS Agent</span></div>
+          <div class="help"><b>도움이 필요하신가요?</b><p>협업 채널에서 담당자에게 바로 문의할 수 있어요. · BDCDIP-1006</p></div>
+          <div class="tabs"><span class="on">가이드</span><span>진행 내역</span></div>
+          <p class="guide"><b>연동 대상 DB를 선택해 주세요</b><br>스캔 시작으로 리소스를 조회한 뒤, 필요한 DB를 선택하고 승인 요청을 눌러 주세요.</p>
+          <div class="del">인프라 삭제</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="smap">
+      <span><i style="background:#FFFFFF"></i>사이드바 #FFFFFF</span><span><i style="background:#F4F4FB"></i>본문 워시 #F4F4FB</span><span><i style="background:#FFFFFF"></i>메타 카드 #FFFFFF + 그림자</span><span><i style="background:#FF9900"></i>액센트 스트라이프 #FF9900</span><span><i style="background:#FFFFFF"></i>가이드 레일 #FFFFFF + 좌측선</span>
+    </div>
+    <div class="verdict">
+      <div class="c">메타 정보와 스텝이 같은 카드 위계로 쌓임 — 정체성이 콘텐츠처럼 보임 (개편의 출발점)</div>
+      <div class="c">"TF 실행 권한" 축약어·괄호 코드 등 이후 라운드에서 손본 표기들이 그대로</div>
+      <div class="p">가이드 레일은 화면 끝에 앵커된 플랫 패널 — 패널로는 바르게 읽혔음</div>
+      <div class="p">워시 위 부유가 문제였지만, 카드가 세로 1열이라 지금보다 덜 어지러움</div>
+    </div>
+  </section>
+
+  <!-- ============ 구현 후 (이 브랜치) ============ -->
   <section class="variant v0">
-    <div class="v-eyebrow">Before</div>
-    <div class="v-name">현재 화면</div>
-    <p class="v-strategy">지금 배포된 상태 그대로입니다. 사이드바 #FFFFFF와 헤더 #F8F9FC가 거의 같은 밝기로 맞닿아 있고, 라벤더 워시 위에 스텝 카드와 가이드 카드가 같은 그림자 문법으로 떠 있습니다. 제목은 서비스 이름(AWS)이라 페이지의 일이 드러나지 않습니다.</p>
+    <div class="v-eyebrow">구현 후 · 이 브랜치 (PR #627)</div>
+    <div class="v-name">플랫 헤더 (배포 전)</div>
+    <p class="v-strategy">이번 브랜치에서 구현된 상태입니다. 사이드바 #FFFFFF와 헤더 #F8F9FC가 거의 같은 밝기로 맞닿아 있고, 라벤더 워시 위에 스텝 카드와 가이드 카드가 같은 그림자 문법으로 떠 있습니다. 제목은 서비스 이름(AWS)이라 페이지의 일이 드러나지 않습니다.</p>
     <div class="frame-scroll"><div class="frame">
       <div class="tn"><span class="logo">PASS<span>PII AGENT SELF SERVICE</span></span><nav><span class="on">서비스 목록</span><span>관리자</span><span>Guide</span><span>FAQ</span></nav></div>
       <div class="cols">
