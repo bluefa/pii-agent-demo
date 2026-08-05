@@ -9,7 +9,6 @@ import { formatDate } from '@/lib/utils/date';
 import type { SecretKey } from '@/lib/types';
 import {
   bgColors,
-  borderColors,
   cn,
   getButtonClass,
   getInputClass,
@@ -34,6 +33,9 @@ import {
  */
 const PAGE_SIZE = 5;
 
+/** 표의 모든 값이 쓰는 한 단 — 세 열 사이에 계층을 두지 않는다. */
+const cellClass = cn('text-[14px] font-normal', textColors.secondary);
+
 /** 우측 레일 페이저와 같은 조용한 톤 — 이동 컨트롤은 내용이 아니다. */
 const pagerBtnClass = cn(
   'rounded-md px-2 py-1 text-[12px] font-medium transition-colors',
@@ -44,8 +46,8 @@ const pagerBtnClass = cn(
 interface CredentialPickModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** 무엇을 바꾸는지 — 리소스 이름을 제목 아래에 그대로 적는다. */
-  resourceLabel: string;
+  /** 무엇을 바꾸는지 — 대상 리소스의 ResourceId. 이름이 아니라 쓰기 대상 그 자체다. */
+  resourceId: string;
   /** 현재 배정값 ('' = 미설정). */
   value: string;
   /** GET …/secrets 레코드 — 이름과 생성 시각. */
@@ -67,7 +69,7 @@ interface CredentialPickModalProps {
 export const CredentialPickModal = ({
   isOpen,
   onClose,
-  resourceLabel,
+  resourceId,
   value,
   options,
   saving,
@@ -123,15 +125,25 @@ export const CredentialPickModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="DB Credential 설정"
-      // 보조 텍스트는 조용한 한 줄이고, 그 안에서 강조되는 것은 "무엇을 바꾸는가"(대상 리소스)
-      // 하나뿐이다. 색이 아니라 굵기와 명도로만 올린다 — 파랑은 저장 CTA 와 선택 행의 몫이다.
+      title="DB Credential 지정"
+      // 대상을 문장 안에 끼워 넣으면 리소스 이름이 조사와 붙어 한 덩어리로 읽힌다. 라벨·값·안내
+      // 세 단으로 갈라 둔다 — 무엇에 거는지(값)가 안내 문장보다 위에 있어야 한다.
       subtitle={
         <>
-          <strong className={cn('font-semibold', textColors.primary)}>{resourceLabel}</strong>
-          에 사용할 DB 접속 자격 증명을 선택하세요.
+          <span className={cn('block text-[12px] font-medium', textColors.tertiary)}>Resource ID</span>
+          {/* ARN 은 길어서 두 줄을 넘기기 쉽다 — 14px 로 눕히고 leading 을 좁혀, 값이 헤더를
+              차지해 표가 스크롤 뒤로 밀려나지 않게 한다. 단은 mono·굵기·명도로 구분된다. */}
+          <span
+            className={cn('mt-1 block break-all font-mono text-[14px] font-semibold leading-[1.4]', textColors.primary)}
+          >
+            {resourceId}
+          </span>
+          <span className={cn('mt-2 block text-[14px] font-normal', textColors.secondary)}>
+            사용할 DB 접속 자격 증명을 선택하세요.
+          </span>
         </>
       }
+      chrome="toss"
       size="2xl"
       // 닫는 길은 푸터의 취소(그리고 ESC / 배경)뿐 — 헤더의 X 와 취소는 같은 일을 두 번 말한다.
       closeButton={false}
@@ -253,36 +265,15 @@ export const CredentialPickModal = ({
                           className="h-4 w-4 accent-[#0064FF]"
                         />
                       </td>
-                      {/* 행에서 고르는 값은 이름이다. User ID 는 그 이름이 누구 것인지 말하는
-                          속성이므로 시각과 같은 보조 단(12/tertiary)에 둔다. */}
-                      <td
-                        className={cn(
-                          idcStyles.table.cell,
-                          'truncate font-mono text-[12px]',
-                          textColors.tertiary,
-                        )}
-                      >
+                      {/* 세 칸은 같은 단이다. 어느 행이 골라졌는지는 라디오와 행 배경이 이미
+                          말하므로, 굵기까지 얹으면 이름 열만 혼자 떠서 표가 기울어 읽힌다. */}
+                      <td className={cn(idcStyles.table.cell, cellClass, 'truncate font-mono')}>
                         {row.userId || '—'}
                       </td>
-                      <td
-                        className={cn(
-                          idcStyles.table.cell,
-                          'truncate font-mono text-[14px]',
-                          textColors.primary,
-                          checked ? 'font-semibold' : 'font-medium',
-                        )}
-                      >
+                      <td className={cn(idcStyles.table.cell, cellClass, 'truncate font-mono')}>
                         {row.label}
                       </td>
-                      {/* 고르는 대상은 이름이므로 시각은 한 단계 아래에서 읽힌다. */}
-                      <td
-                        className={cn(
-                          idcStyles.table.cell,
-                          'text-[12px] font-normal',
-                          numericFeatures.tabular,
-                          textColors.tertiary,
-                        )}
-                      >
+                      <td className={cn(idcStyles.table.cell, cellClass, numericFeatures.tabular)}>
                         {row.createdAt ? formatDate(row.createdAt, 'datetime') : '—'}
                       </td>
                     </tr>

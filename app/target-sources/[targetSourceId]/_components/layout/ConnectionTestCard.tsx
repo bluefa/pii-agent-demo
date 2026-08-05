@@ -51,7 +51,6 @@ interface LogicalModalTarget {
 /** Credential 수정 모달이 여는 행 — 쓰는 대상(resourceId)과 읽는 값(현재 배정). */
 interface CredModalTarget {
   resourceId: string;
-  resourceLabel: string;
   current: string;
 }
 
@@ -512,7 +511,6 @@ export const ConnectionTestCard = ({
                             onClick={() =>
                               credModal.open({
                                 resourceId: first.resourceId,
-                                resourceLabel: first.resourceName ?? first.resourceId,
                                 current: cred,
                               })
                             }
@@ -651,7 +649,7 @@ export const ConnectionTestCard = ({
           <CredentialPickModal
             isOpen={credModal.isOpen}
             onClose={credModal.close}
-            resourceLabel={credModal.data.resourceLabel}
+            resourceId={credModal.data.resourceId}
             value={credModal.data.current}
             options={credOptions}
             saving={savingCred}
