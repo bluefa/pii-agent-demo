@@ -62,13 +62,12 @@ interface ConfirmModalData {
   name: string;
 }
 
-// 15, sized against the rail's geometry rather than a round number: the list
-// card's viewport share is panel height (100vh − 56px TopNav) minus ~250px of
-// fixed chrome (title, current-service card, search, section label, footer),
-// and rows are 40px — so a 900px-tall window fits ~15 rows with no inner
-// scroll and 1080p leaves headroom. At ~100 services that is 7 pages; search
-// stays the primary lookup path, paging is the browse fallback.
-const SERVICE_PAGE_SIZE = 15;
+// 8 per page — a scan chunk, not a viewport fill. Filling the rail's height
+// (~15 rows) read as noise next to the content column; eight rows is the top
+// of the 7±2 range a user takes in as one group, the list card hugs its
+// content so no dead space builds under the rows, and ~100 services stay
+// reachable in 13 pages. Search is the primary lookup path; paging browses.
+const SERVICE_PAGE_SIZE = 8;
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface ServiceListPanelProps {

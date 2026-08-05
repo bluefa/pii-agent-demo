@@ -147,15 +147,18 @@ export const ServiceSidebar = ({
         )}
       </div>
 
-      {/* List card. min-h-0 so the ul scrolls inside the card instead of growing the rail. */}
-      <div className={cn('flex-1 min-h-0 flex flex-col', serviceSidebarStyles.card)}>
+      {/* List card. It hugs its rows instead of stretching to the rail's bottom —
+          a page of 8 with a stretched card rebuilt the dead-space-over-footer the
+          redesign removed. No flex-1: the card only shrinks (min-h-0 + default
+          flex-shrink) when the viewport is too short, and the ul scrolls then. */}
+      <div className={cn('min-h-0 flex flex-col', serviceSidebarStyles.card)}>
         {(loading || listed.length > 0) && (
-          <div className={cn('px-3 pt-3 pb-1', serviceSidebarStyles.sectionLabel)}>
+          <div className={cn('px-3 pt-3 pb-1 shrink-0', serviceSidebarStyles.sectionLabel)}>
             {sectionLabel}
           </div>
         )}
 
-        <ul className="flex-1 overflow-auto px-1.5 pb-1.5" aria-busy={loading}>
+        <ul className="min-h-0 overflow-auto px-1.5 pb-1.5" aria-busy={loading}>
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => (
               // h-10 matches a real row (24px tile + py-2) so the list doesn't

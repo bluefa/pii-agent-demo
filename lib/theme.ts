@@ -1105,8 +1105,8 @@ export const serviceSidebarStyles = {
     'bg-[#FEECEC] text-[#B42318]',
     'bg-[#F7F8FA] text-[#4E5968]',
   ],
-  /** List-card footer — range summary + prev/next, replacing numbered pagination. */
-  footer: 'flex items-center justify-between border-t border-[#EBEEF2] px-3 py-2',
+  /** List-card footer — range summary + prev/next, replacing numbered pagination. shrink-0: the card shrinks on short viewports and the ul, not the footer, gives way. */
+  footer: 'flex shrink-0 items-center justify-between border-t border-[#EBEEF2] px-3 py-2',
   footerRange: 'text-[12px] font-medium tabular-nums text-[#6B7280]',
   pagerBtn:
     'flex h-6 w-6 items-center justify-center rounded-[6px] border border-[#EBEEF2] bg-white text-[#4E5968] transition-colors hover:bg-[#F7F8FA] disabled:cursor-not-allowed disabled:border-[#F2F4F6] disabled:text-[#B0B8C1]',
