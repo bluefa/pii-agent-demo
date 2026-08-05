@@ -90,7 +90,7 @@ export function TcCredentialModal({
                         </span>
                       )}
                     </td>
-                    <td className={cn(table.cell, 'whitespace-nowrap tabular-nums text-[13px]')}>
+                    <td className={cn(table.cell, 'whitespace-nowrap tabular-nums text-[14px]')}>
                       {entry.createdAt ? fmtDateTime(entry.createdAt) : <Dash />}
                     </td>
                     {/* 배정 0 은 "쓰이지 않는 자격 증명" — 지워지지 않게 faint 로 남긴다. */}

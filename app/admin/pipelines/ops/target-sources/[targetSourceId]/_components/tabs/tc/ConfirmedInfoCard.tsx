@@ -114,7 +114,7 @@ function ResourceNameCell({ value }: { value: string | null }): ReactElement {
       triggerClassName="min-w-0 max-w-[200px] block"
       truncatedOnly
     >
-      <span className="block truncate font-mono text-[13px]">{value}</span>
+      <span className="block truncate font-mono text-[14px]">{value}</span>
     </Tooltip>
   );
 }

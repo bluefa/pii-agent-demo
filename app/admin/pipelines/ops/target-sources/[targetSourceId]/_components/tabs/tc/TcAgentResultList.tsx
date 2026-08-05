@@ -109,7 +109,7 @@ export function TcAgentResultList({
     // 구분선 + 넉넉한 여백이 "집계 → 목록" 의 단 경계다.
     <div className={separated ? 'mt-5 border-t border-[var(--pl-border)] pt-4' : 'mt-5'}>
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[13px] font-semibold text-[var(--pl-text-strong)]">Agent별 결과</p>
+        <p className="text-[14px] font-semibold text-[var(--pl-text-strong)]">Agent별 결과</p>
         <p className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
           {running ? `${done}/${total} 완료` : `총 ${rows.length}건`}
         </p>
@@ -163,7 +163,7 @@ export function TcAgentResultList({
               </span>
               {/* 같은 리소스가 여러 줄일 때 둘을 가르는 유일한 값 — 폭을 고정해
                   이름 쪽 절단 위치가 행마다 흔들리지 않게 한다. */}
-              <span className="w-[86px] flex-none truncate text-right font-mono text-[11px] text-[var(--pl-text-faint)]">
+              <span className="w-[86px] flex-none truncate text-right font-mono text-[12px] text-[var(--pl-text-faint)]">
                 {row.agentId ?? <Dash />}
               </span>
               {filter === 'ALL' && (

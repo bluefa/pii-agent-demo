@@ -104,7 +104,7 @@ export function TcHistoryModal({ targetSourceId, onClose }: TcHistoryModalProps)
                 const meta = STATUS_META[row.status];
                 return (
                   <tr key={`${row.createdAt ?? 'row'}-${index}`}>
-                    <td className={cn(appTable.td, 'whitespace-nowrap text-[13px]')}>
+                    <td className={cn(appTable.td, 'whitespace-nowrap text-[14px]')}>
                       {fmtDateTime(row.createdAt)}
                     </td>
                     <td className={appTable.td}>
@@ -117,7 +117,7 @@ export function TcHistoryModal({ targetSourceId, onClose }: TcHistoryModalProps)
                         {meta ? meta.label : row.status}
                       </span>
                     </td>
-                    <td className={cn(appTable.td, 'text-[13px] break-keep')}>
+                    <td className={cn(appTable.td, 'text-[14px] break-keep')}>
                       {row.reason || <Dash />}
                     </td>
                   </tr>

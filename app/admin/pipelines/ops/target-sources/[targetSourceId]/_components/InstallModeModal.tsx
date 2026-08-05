@@ -88,7 +88,7 @@ export function InstallModeModal({
               </span>
               <span className="flex flex-col gap-1">
                 <span className="text-[16px] font-semibold text-[var(--pl-text-strong)]">{option.title}</span>
-                <span className="text-[13px] leading-[1.4] text-[var(--pl-text-weak)]">{option.desc}</span>
+                <span className="text-[14px] leading-[1.4] text-[var(--pl-text-weak)]">{option.desc}</span>
               </span>
             </button>
           );
