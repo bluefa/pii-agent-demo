@@ -21,32 +21,35 @@ const tileClassFor = (code: string): string => {
 };
 
 /**
- * Icon tile, name, then the code trailing the name — 32px tall, the density a
- * desktop rail is read at. The code is packed against the name rather than
- * right-aligned to the rail edge: pushed to the edge it rebuilds the two-column
- * table this redesign removed, and short names leave the row's middle empty.
- * Long names truncate (single-line rhythm is what makes the rail scannable) and
- * the full name stays in the row's title attribute; the code is shown verbatim
- * and case-sensitively (`/services/{code}` matches exactly).
+ * Icon tile plus a stacked name/code cell, filling an equal share of the list's
+ * height (`flex-1`) so a page of rows reaches the bottom of the rail instead of
+ * ending halfway down it. `min-h` keeps the row readable when the viewport is
+ * short enough that the list scrolls instead.
+ *
+ * The code sits under the name, not right-aligned to the rail edge: pushed to
+ * the edge it rebuilds the two-column table this redesign removed, and short
+ * names left the row's middle empty. Long names truncate and the full name
+ * stays in the row's title attribute; the code is shown verbatim and
+ * case-sensitively (`/services/{code}` matches exactly).
  */
 export const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
-  <li>
+  <li className="flex flex-1 min-h-[52px]">
     <button
       type="button"
       onClick={() => onSelect(code)}
       title={name ? `${name} (${code})` : code}
       className={cn(
-        'w-full flex items-center gap-2 rounded-[4px] px-2 py-1.5 text-left cursor-pointer transition-colors',
+        'w-full flex items-center gap-3 px-3 text-left cursor-pointer transition-colors',
         serviceSidebarStyles.rowActive,
       )}
     >
       <span className={cn(serviceSidebarStyles.tile, tileClassFor(code))} aria-hidden="true">
         {(name || code).charAt(0).toUpperCase()}
       </span>
-      <span className={cn('min-w-0 truncate', serviceSidebarStyles.rowName)}>
-        {name || code}
+      <span className="min-w-0 flex flex-col gap-0.5">
+        <span className={cn('truncate', serviceSidebarStyles.rowName)}>{name || code}</span>
+        {name && <span className={serviceSidebarStyles.rowCode}>{code}</span>}
       </span>
-      {name && <span className={cn('shrink-0', serviceSidebarStyles.rowCode)}>{code}</span>}
     </button>
   </li>
 );

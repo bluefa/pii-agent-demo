@@ -1099,17 +1099,19 @@ export const serviceSidebarStyles = {
   currentName: 'text-[14px] font-semibold text-[#191F28]',
   /** Code beside the current service — pairs with the band tint (see primaryColors.textOnLight). */
   currentCode: 'font-mono text-[12px] font-semibold text-[#0050D6]',
-  rowName: 'text-[14px] text-[#191F28]',
+  rowName: 'text-[14px] font-medium text-[#191F28]',
   /**
-   * Row code — quiet mono packed right after the name, with no fill. A filled
-   * pill per row is app-store chrome, and right-aligning it to the rail edge is
-   * the table grammar this redesign removed; left-packed it just trails the name.
+   * Row code — quiet mono on its own line under the name. Stacked rather than
+   * right-aligned: pushed to the rail edge it rebuilds the two-column table this
+   * redesign removed, and a stacked pair is what gives a full-height row content.
    */
   rowCode: 'font-mono text-[12px] text-[#6B7280]',
-  /** Row fill under pointer hover or keyboard focus — a step that reads on white, and the accent stays with the current-service band. */
-  rowActive: 'hover:bg-[#F2F4F6] focus-visible:bg-[#F2F4F6]',
-  /** 20px square icon tile — the row's scan anchor. Square-ish and small: a 24px rounded tile reads as a mobile avatar. */
-  tile: 'flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] text-[12px] font-semibold leading-none',
+  /** Row fill under pointer hover or keyboard focus — full-bleed and square, the way a web list row highlights. The accent stays with the current-service band. */
+  rowActive: 'hover:bg-[#F7F8FA] focus-visible:bg-[#F7F8FA]',
+  /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
+  rowDivide: 'divide-y divide-[#EBEEF2]',
+  /** 28px square icon tile — the row's scan anchor, sized up for the taller row. */
+  tile: 'flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[12px] font-semibold leading-none',
   /** Tinted tile pairs, picked by a stable code hash so a service keeps its color across pages. */
   tilePalette: [
     'bg-[#E8F1FF] text-[#1747B5]',

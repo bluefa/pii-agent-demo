@@ -25,6 +25,17 @@ interface ServicePageInfo {
 
 type ServiceItem = NonNullable<PageServiceItem['content']>[number];
 
+/**
+ * Ceiling for one stretched row. A page of 8 fills the rail on a laptop-height
+ * window (~76px each at 900px tall) and stops here instead of running away on a
+ * tall monitor. Pairs with the row's own `min-h`, which takes over when the
+ * viewport is short enough that the list scrolls.
+ */
+const ROW_MAX_PX = 88;
+
+/** Skeleton row count — matches SERVICE_PAGE_SIZE so the list doesn't reflow when data lands. */
+const SKELETON_ROWS = 8;
+
 /** The service the surrounding page is about — pinned above the list and highlighted. */
 interface CurrentService {
   code: string;
@@ -61,6 +72,9 @@ export const ServiceSidebar = ({
   const listed = !searchQuery && currentService
     ? services.filter((s) => s.service_code !== currentService.code)
     : services;
+
+  // Rows the ul will actually lay out — drives the height cap below.
+  const rowCount = loading ? SKELETON_ROWS : listed.length;
 
   // One label per list mode, so the card always says what its rows are.
   const sectionLabel = searchQuery
@@ -151,27 +165,47 @@ export const ServiceSidebar = ({
         )}
       </div>
 
-      {/* The list block ends where its rows end — it does not stretch to the
-          rail's bottom. A stretched list docks the footer far below the last row,
-          which is the dead-space-over-pagination this redesign set out to remove.
-          No flex-1: the block only shrinks (min-h-0 + default flex-shrink) when
-          the viewport is too short, and the ul scrolls then. */}
-      <div className="min-h-0 flex flex-col">
+      {/* The list takes the rail's remaining height and its rows divide it evenly,
+          so a page reaches the bottom rather than stopping halfway down. The
+          footer rides directly under the last row, so nothing floats over dead
+          space. On a short viewport the rows hold their min-height and the ul
+          scrolls instead. */}
+      <div className="flex-1 min-h-0 flex flex-col">
         {(loading || listed.length > 0) && (
           <div className={cn('px-3 pt-3 pb-1.5 shrink-0', serviceSidebarStyles.sectionLabel)}>
             {sectionLabel}
           </div>
         )}
 
-        <ul className="min-h-0 overflow-auto px-2 pb-2" aria-busy={loading}>
+        <ul
+          className={cn('flex-1 min-h-0 flex flex-col overflow-auto', serviceSidebarStyles.rowDivide)}
+          // Rows divide the list's height, so on a tall window they would keep
+          // growing — 8 rows across a 1440px viewport is a 144px row, which
+          // reads as a stretched placeholder rather than a list. Capping the
+          // list at `rows × ROW_MAX_PX` stops the growth at a sane density; the
+          // footer stays directly under the last row (it is the next sibling,
+          // not bottom-docked), so any leftover height falls below the footer
+          // rather than between it and the list.
+          //
+          // No cap with zero rows: the ul then holds the empty-state message,
+          // and a `0` cap collapses it to nothing.
+          style={rowCount > 0 ? { maxHeight: rowCount * ROW_MAX_PX } : undefined}
+          aria-busy={loading}
+        >
           {loading ? (
-            Array.from({ length: 8 }).map((_, i) => (
-              // h-8 matches a real row (20px tile + py-1.5) so the list doesn't
-              // jump height when the skeleton is replaced.
-              <li key={i} className="flex h-8 items-center gap-2 px-2" aria-hidden="true">
-                <div className={cn(idcStyles.skeletonBar, 'h-5 w-5 shrink-0 rounded-[4px]')} />
-                <div className={cn(idcStyles.skeletonBar, 'h-3 flex-1 rounded')} />
-                <div className={cn(idcStyles.skeletonBar, 'h-3 w-8 shrink-0 rounded-[4px]')} />
+            Array.from({ length: SKELETON_ROWS }).map((_, i) => (
+              // Same flex-1 + min-height as a real row, so the list doesn't
+              // reflow when the skeleton is replaced.
+              <li
+                key={i}
+                className="flex flex-1 min-h-[52px] items-center gap-3 px-3"
+                aria-hidden="true"
+              >
+                <div className={cn(idcStyles.skeletonBar, 'h-7 w-7 shrink-0 rounded-[6px]')} />
+                <div className="flex flex-col gap-1.5">
+                  <div className={cn(idcStyles.skeletonBar, 'h-3 w-24 rounded')} />
+                  <div className={cn(idcStyles.skeletonBar, 'h-2.5 w-10 rounded')} />
+                </div>
               </li>
             ))
           ) : listed.length === 0 ? (
@@ -180,7 +214,7 @@ export const ServiceSidebar = ({
             // a search term when there is one, only say "other services" when there is a
             // current service to be other than, and keep that sentence page-scoped, since
             // the filter is.
-            <li className="px-4 py-10 text-center">
+            <li className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
               <p className={cn('text-sm', textColors.tertiary)}>
                 {searchQuery
                   ? `‘${searchQuery}’와 일치하는 서비스가 없습니다`
