@@ -24,13 +24,15 @@ const Bar = ({ className, tone }: { className: string; tone?: string }) => (
  *
  * Every frame value here is copied from InstallStatusDetail's own markup —
  * 224px rail on bgColors.panel, borderColors.light container, px-5 py-4 right
- * pane, one bordered stats card — so the card does not resize or repaint when
- * the data lands. A skeleton that only approximates the frame reintroduces the
- * reflow it exists to prevent.
+ * pane, one bordered stats card, bar heights = the real tokens' line-heights —
+ * so nothing shifts horizontally and the stats card keeps its y. A skeleton
+ * that only approximates the frame reintroduces the reflow it exists to prevent.
  *
- * The action banner is deliberately NOT drawn: it only appears when the service
- * side has something to do, and a skeleton must not promise an alert that may
- * never materialize.
+ * The card's total HEIGHT still changes on arrival, deliberately: the action
+ * banner is not drawn, because it only appears when the service side has
+ * something to do, and a skeleton must not promise an alert that may never
+ * materialize. Nor is the step description's second line, which wraps or not
+ * depending on the provider's copy.
  */
 export const InstallationLoadingView = ({ provider, railRows }: InstallationLoadingViewProps) => (
   <div aria-busy="true" aria-live="polite" aria-label={`${provider} 설치 상태 확인 중`}>
@@ -43,16 +45,19 @@ export const InstallationLoadingView = ({ provider, railRows }: InstallationLoad
               <Bar tone={RAIL_BAR} className="h-6 w-6 flex-shrink-0 rounded-full" />
               <Bar tone={RAIL_BAR} className="mt-1 h-3.5 flex-1 rounded" />
             </div>
-            <Bar tone={RAIL_BAR} className="ml-[34px] h-3 w-24 rounded" />
+            {/* 상태·주체 한 줄 = caption 16px */}
+            <Bar tone={RAIL_BAR} className="ml-[34px] h-4 w-24 rounded" />
           </div>
         ))}
       </div>
 
       {/* 우측 — 제목/부제(tight 4px) 뒤 mt-4 지표 카드 하나 */}
       <div className="min-w-0 px-5 py-4">
+        {/* 바 높이는 자리 채우는 값이 아니라 실제 토큰의 line-height다 —
+            cardTitle 24px, caption 16px. 어긋나면 아래 지표 카드가 위아래로 뛴다. */}
         <div className={cn('flex flex-col', stackGap.tight)}>
-          <Bar className="h-5 w-40 rounded" />
-          <Bar className="h-3.5 w-[68%] rounded" />
+          <Bar className="h-6 w-40 rounded" />
+          <Bar className="h-4 w-[68%] rounded" />
         </div>
         <div className={cn('mt-4 rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.light)}>
           <div className="flex items-start gap-8">
@@ -63,7 +68,8 @@ export const InstallationLoadingView = ({ provider, railRows }: InstallationLoad
               </div>
             ))}
           </div>
-          <Bar className="h-3 w-52 rounded" />
+          {/* 마지막 확인 시각 = caption 16px */}
+          <Bar className="h-4 w-52 rounded" />
         </div>
       </div>
     </div>

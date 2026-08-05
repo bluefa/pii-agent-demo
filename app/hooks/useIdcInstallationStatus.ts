@@ -45,6 +45,10 @@ export function useIdcInstallationStatus(targetSourceId: number): UseIdcInstalla
     setActiveId(targetSourceId);
     setStatus(null);
     setError(null);
+    // `loading` too — leaving it stale-false reports "settled with nothing",
+    // which is the very shape this reset exists to remove. IdcStep4Installing
+    // gates on `status` and would not notice; the next consumer would.
+    setLoading(true);
   }
 
   useEffect(() => {

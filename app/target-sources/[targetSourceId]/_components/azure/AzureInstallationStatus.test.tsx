@@ -32,6 +32,8 @@ describe('AzureInstallationStatus', () => {
     expect(screen.getByTestId('azure-install-inline').dataset.confirmedLoading).toBe('true');
   });
 
+  // Also a pin, not a fix test: the old code rendered the ready branch too, so
+  // this passes on both sides. The 'loading' case above is what covers the fix.
   it('drops the skeleton once the confirmed rows land', () => {
     confirmedState = { status: 'ready', data: [] };
     renderStatus();
