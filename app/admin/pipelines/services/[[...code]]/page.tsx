@@ -22,7 +22,7 @@ import { useParams, useRouter } from 'next/navigation';
 import type { ReactElement } from 'react';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
-import { cn } from '@/lib/theme';
+import { cn, serviceSidebarStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { getProjects, getServicesPage } from '@/app/lib/api';
 import {
@@ -45,7 +45,8 @@ import {
   PlTh,
 } from '@/app/admin/pipelines/_components/PlTable';
 import { LatestCell } from '@/app/admin/pipelines/_services/LatestCell';
-import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
+import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
+import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
 import {
   type ServiceItem,
   latestCellState,
@@ -55,6 +56,8 @@ import {
 import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
 
 const SERVICE_PAGE_SIZE = 10;
+/** Ceiling for one stretched rail row — see serviceListStyles.item. */
+const ROW_MAX_PX = 88;
 const SEARCH_DEBOUNCE_MS = 300;
 const LATEST_CONCURRENCY = 6;
 
@@ -79,6 +82,8 @@ export default function ServicesPage(): ReactElement {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [svcPage, setSvcPage] = useState(1);
   const [svcPages, setSvcPages] = useState(1);
+  /** Total behind the rail title — during a search it is the hit count. */
+  const [svcTotal, setSvcTotal] = useState(0);
   // Deep-link name resolution — on a direct `/services/{code}` hit the service
   // may sit on another list page, so its name is fetched once by search.
   const [resolvedName, setResolvedName] = useState<{ code: string; name: string } | null>(null);
@@ -108,6 +113,7 @@ export default function ServicesPage(): ReactElement {
           if (signal.aborted) return;
           setServices(serviceItemsFrom(page));
           setSvcPages(Math.max(1, page.totalPages ?? 1));
+          setSvcTotal(page.totalElements ?? 0);
           setServicesLoading(false);
         })
         .catch((err) => {
@@ -199,72 +205,90 @@ export default function ServicesPage(): ReactElement {
     <div className={s.split}>
       {/* Left — full-height service rail (R20.5: flush at the content edge, not a card) */}
       <aside className={s.rail} aria-label="서비스 목록">
-        <h1 className={s.railTitle}>서비스·대상 검색</h1>
-        <SearchBox
-          wrapClassName="block mb-3"
-          placeholder="서비스 코드/이름 검색"
-          value={svcQuery}
-          onChange={(event) => setSvcQuery(event.target.value)}
-          aria-label="서비스 코드/이름 검색"
-        />
-        {servicesLoading ? (
-          <div className="min-h-[240px] flex-1" aria-busy="true" />
-        ) : servicesError != null ? (
-          <div className="flex-1">
-            <PlEmptyState
-              icon="search"
-              message={errorMessage(servicesError)}
-              meta={
-                <PlButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setServicesRetry((n) => n + 1)}
-                >
-                  재시도
-                </PlButton>
-              }
+        <div className={s.railHead}>
+          <h1 className={s.railTitle}>서비스·대상 검색</h1>
+          {!servicesLoading && svcTotal > 0 && <span className={s.railCount}>{svcTotal}</span>}
+        </div>
+        <div className={s.railSearch}>
+          <SearchBox
+            // `block` alone leaves SearchBox's `inline-block` shrink-to-fit width.
+            wrapClassName="block w-full"
+            placeholder="서비스 코드/이름 검색"
+            value={svcQuery}
+            onChange={(event) => setSvcQuery(event.target.value)}
+            aria-label="서비스 코드/이름 검색"
+          />
+        </div>
+        <div className={s.railBody}>
+          {servicesLoading ? (
+            <div className="min-h-[240px] flex-1" aria-busy="true" />
+          ) : servicesError != null ? (
+            <div className="flex-1">
+              <PlEmptyState
+                icon="search"
+                message={errorMessage(servicesError)}
+                meta={
+                  <PlButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setServicesRetry((n) => n + 1)}
+                  >
+                    재시도
+                  </PlButton>
+                }
+              />
+            </div>
+          ) : services.length === 0 ? (
+            <div className="flex-1">
+              <PlEmptyState icon="search" message="검색 결과가 없습니다." />
+            </div>
+          ) : (
+            <div className={s.railList} style={{ maxHeight: services.length * ROW_MAX_PX }}>
+              {services.map((service) => {
+                const code = service.service_code ?? '';
+                const name = service.service_name ?? code;
+                const active = code === selectedCode;
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => {
+                      if (code === selectedCode) return;
+                      // Clear the previous service's rows synchronously so the
+                      // next render shows the loading placeholder — never the
+                      // prior table or a false "없음" before the fetch starts.
+                      setTargets(null);
+                      setLatest({});
+                      router.push(passRoutes.pipelines.service(code));
+                    }}
+                    title={`${name} (${code})`}
+                    aria-current={active ? 'true' : undefined}
+                    className={cn(s.item, active ? s.itemActive : s.itemIdle)}
+                  >
+                    <span
+                      className={cn(serviceSidebarStyles.tile, serviceTileClass(code))}
+                      aria-hidden="true"
+                    >
+                      {name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className={cn(s.name, active ? s.nameActive : s.nameIdle)}>{name}</span>
+                    <span className={active ? s.codeActive : s.code}>{code}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className={s.railFoot}>
+            <SidebarPagination
+              pageInfo={{
+                totalElements: svcTotal,
+                totalPages: svcPages,
+                number: svcPage - 1,
+                size: SERVICE_PAGE_SIZE,
+              }}
+              onPageChange={(next) => setSvcPage(next + 1)}
             />
           </div>
-        ) : services.length === 0 ? (
-          <div className="flex-1">
-            <PlEmptyState icon="search" message="검색 결과가 없습니다." />
-          </div>
-        ) : (
-          <div className={s.railList}>
-            {services.map((service) => {
-              const code = service.service_code ?? '';
-              const active = code === selectedCode;
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => {
-                    if (code === selectedCode) return;
-                    // Clear the previous service's rows synchronously so the
-                    // next render shows the loading placeholder — never the
-                    // prior table or a false "없음" before the fetch starts.
-                    setTargets(null);
-                    setLatest({});
-                    router.push(passRoutes.pipelines.service(code));
-                  }}
-                  className={cn(s.item, active ? s.itemActive : s.itemIdle)}
-                >
-                  <span className={cn(s.name, active ? s.nameActive : s.nameIdle)}>
-                    {service.service_name ?? code}
-                  </span>
-                  <span className={s.code}>{code}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <div className={s.railFoot}>
-          <PlPagination
-            page={svcPage}
-            pages={svcPages}
-            onPrev={() => setSvcPage((n) => Math.max(1, n - 1))}
-            onNext={() => setSvcPage((n) => Math.min(svcPages, n + 1))}
-          />
         </div>
       </aside>
 

@@ -11,11 +11,12 @@
  */
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
-import { cn } from '@/lib/theme';
+import { cn, serviceSidebarStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
+import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
+import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
-import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -23,6 +24,13 @@ import { ServiceDetailView } from '@/app/admin/pipelines/ops/services/_component
 import { getOpsServices, type OpsServiceSummary } from '@/app/lib/api/ops';
 
 const RAIL_PAGE_SIZE = 10;
+
+/**
+ * Ceiling for one stretched row. A full page divides the rail's height evenly, so
+ * without a cap a tall monitor — or a two-row search result — would stretch each
+ * row down the whole rail.
+ */
+const ROW_MAX_PX = 88;
 
 export function ServicesView(): ReactElement {
   const router = useRouter();
@@ -84,78 +92,110 @@ export function ServicesView(): ReactElement {
         className={cn(s.rail, 'sticky top-14 self-start h-[calc(100vh_-_56px)]')}
         aria-label="서비스 목록"
       >
-        <h1 className={s.railTitle}>서비스 운영</h1>
-        <SearchBox
-          wrapClassName="block mb-3"
-          placeholder="ServiceCode·서비스명 검색"
-          aria-label="ServiceCode·서비스명 검색"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setPage(1);
-          }}
-        />
-        {failed ? (
-          <div className="flex-1">
-            <PlEmptyState
-              icon="search"
-              message="서비스 목록을 불러오지 못했습니다."
-              meta={
-                <PlButton variant="secondary" size="sm" onClick={reload}>
-                  다시 시도
-                </PlButton>
-              }
-            />
-          </div>
-        ) : !services ? (
-          <div className="min-h-[240px] flex-1" aria-busy="true" />
-        ) : pageRows.length === 0 ? (
-          <div className="flex-1">
-            <PlEmptyState icon="search" message="검색 결과가 없습니다." />
-          </div>
-        ) : (
-          <div className={s.railList}>
-            {pageRows.map((service) => {
-              const active = service.service_code === selectedCode;
-              return (
-                <button
-                  key={service.service_code}
-                  type="button"
-                  onClick={() => {
-                    if (active) return;
-                    router.push(passRoutes.pipelines.ops.service(service.service_code));
-                  }}
-                  className={cn(s.item, active ? s.itemActive : s.itemIdle)}
-                >
-                  <span className={cn(s.name, active ? s.nameActive : s.nameIdle)}>
-                    {service.service_name}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className={s.code}>{service.service_code}</span>
-                    {/* 운영중은 기본값이라 적지 않는다 — EOS 만 레일에서 읽혀야 한다. */}
+        {/* 제목 + 개수. 검색 중에는 걸린 건수라 그대로 둔다. */}
+        <div className={s.railHead}>
+          <h1 className={s.railTitle}>서비스 운영</h1>
+          {services != null && rows.length > 0 && (
+            <span className={s.railCount}>{rows.length}</span>
+          )}
+        </div>
+        <div className={s.railSearch}>
+          <SearchBox
+            // `block` alone leaves SearchBox's `inline-block` shrink-to-fit width.
+            wrapClassName="block w-full"
+            placeholder="ServiceCode·서비스명 검색"
+            aria-label="ServiceCode·서비스명 검색"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+        <div className={s.railBody}>
+          {failed ? (
+            <div className="flex-1">
+              <PlEmptyState
+                icon="search"
+                message="서비스 목록을 불러오지 못했습니다."
+                meta={
+                  <PlButton variant="secondary" size="sm" onClick={reload}>
+                    다시 시도
+                  </PlButton>
+                }
+              />
+            </div>
+          ) : !services ? (
+            <div className="min-h-[240px] flex-1" aria-busy="true" />
+          ) : pageRows.length === 0 ? (
+            <div className="flex-1">
+              <PlEmptyState icon="search" message="검색 결과가 없습니다." />
+            </div>
+          ) : (
+            <div
+              className={s.railList}
+              // 행이 남은 높이를 나눠 가지므로 상한이 없으면 한 장이 짧을 때 행이
+              // 레일 끝까지 늘어난다. 상한을 걸면 남는 높이는 페이지 표시 아래로 빠진다.
+              style={{ maxHeight: pageRows.length * ROW_MAX_PX }}
+            >
+              {pageRows.map((service) => {
+                const active = service.service_code === selectedCode;
+                return (
+                  <button
+                    key={service.service_code}
+                    type="button"
+                    onClick={() => {
+                      if (active) return;
+                      router.push(passRoutes.pipelines.ops.service(service.service_code));
+                    }}
+                    title={`${service.service_name} (${service.service_code})`}
+                    aria-current={active ? 'true' : undefined}
+                    className={cn(s.item, active ? s.itemActive : s.itemIdle)}
+                  >
+                    <span
+                      className={cn(
+                        serviceSidebarStyles.tile,
+                        serviceTileClass(service.service_code),
+                      )}
+                      aria-hidden="true"
+                    >
+                      {service.service_name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className={cn(s.name, active ? s.nameActive : s.nameIdle)}>
+                      {service.service_name}
+                    </span>
+                    {/* 운영중은 기본값이라 적지 않는다 — EOS 만 레일에서 읽혀야 한다.
+                        코드 태그 왼쪽에 둬서 코드 열의 x 는 그대로 유지된다. */}
                     {service.status === 'EOS' && (
                       <span
                         className={cn(
                           opsStyles.statusTag,
-                          'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+                          'shrink-0 bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
                         )}
                       >
                         EOS
                       </span>
                     )}
-                  </span>
-                </button>
-              );
-            })}
+                    <span className={active ? s.codeActive : s.code}>
+                      {service.service_code}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {/* 한 장뿐이면 아무것도 그리지 않는다 — 갈 곳 없는 "1 / 1" 은 컨트롤이 아니다. */}
+          <div className={s.railFoot}>
+            <SidebarPagination
+              pageInfo={{
+                totalElements: rows.length,
+                totalPages: pages,
+                number: safePage - 1,
+                size: RAIL_PAGE_SIZE,
+              }}
+              onPageChange={(next) => setPage(next + 1)}
+            />
           </div>
-        )}
-        <div className={s.railFoot}>
-          <PlPagination
-            page={safePage}
-            pages={pages}
-            onPrev={() => setPage((n) => Math.max(1, n - 1))}
-            onNext={() => setPage((n) => Math.min(pages, n + 1))}
-          />
         </div>
       </aside>
 

@@ -13,22 +13,39 @@ export const serviceListStyles = {
   /** Split layout — rail | content. Negative margins undo layout.content's
    *  left/top/bottom padding so the rail bleeds to the content edges. */
   split: 'flex items-stretch -ml-8 -mt-6 -mb-12 min-h-[calc(100vh_-_56px)]',
-  rail: 'w-[280px] flex-none flex flex-col bg-[var(--pl-bg-card)] border-r border-[var(--pl-border)] px-4 pt-6 pb-4',
-  railTitle: 'text-[16px] font-bold text-[var(--pl-text-strong)] mb-4 px-1',
-  railList: 'flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto',
-  railFoot: 'pt-3',
+  /** The rail owns no padding — each zone sets its own, so row fills run edge to edge. */
+  rail: 'w-[296px] flex-none flex flex-col bg-[var(--pl-bg-card)] border-r border-[var(--pl-border)]',
+  railHead: 'flex shrink-0 items-center gap-2 px-3 pt-6 pb-2.5',
+  railTitle: 'text-[16px] font-bold text-[var(--pl-text-strong)]',
+  /** Total beside the title — round, unlike the square code tags: a quantity, not an identifier. */
+  railCount:
+    'inline-flex items-center rounded-full bg-[var(--pl-gray-100)] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--pl-text-weak)]',
+  /** Search closes the rail's chrome block; the hairline under it opens the list. */
+  railSearch: 'shrink-0 px-3 pb-3 border-b border-[var(--pl-border)]',
+  railBody: 'flex flex-col flex-1 min-h-0',
+  /** Rows divide the remaining height between them, so a page reaches the rail's bottom. */
+  railList: 'flex flex-col flex-1 min-h-0 overflow-y-auto divide-y divide-[var(--pl-border)]',
+  railFoot: 'mt-auto',
   /** Right pane — restores the escaped content padding. */
   main: 'flex-1 min-w-0 pl-8 pt-6 pb-12',
-  /** 2-line picker item — service_name(14/semibold) over service_code(12/faint);
-   *  the state variants own bg + name color/weight. */
-  item: 'flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left cursor-pointer',
-  itemActive: 'bg-[var(--pl-primary-bg)]',
-  itemIdle: 'hover:bg-[var(--pl-gray-100)]',
-  name: 'text-[14px] font-semibold',
+  /** 1-line picker row — tile, name (wraps), then the code in its own right column.
+   *  `flex-1` stretches it to fill the rail; `min-h` keeps it readable when a short
+   *  viewport makes the list scroll instead. State variants own bg + name color. */
+  item: 'flex w-full flex-1 min-h-[48px] items-center gap-2.5 px-3 text-left cursor-pointer transition-colors',
+  /** Tint + 2px accent bar — how a desktop rail marks "you are here". */
+  itemActive:
+    'relative bg-[var(--pl-primary-bg)] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[var(--pl-primary)] before:content-[""]',
+  itemIdle: 'hover:bg-[var(--pl-gray-50)]',
+  /** Service names run to ~30 characters — wrap rather than clip at the rail's edge. */
+  name: 'flex-1 min-w-0 line-clamp-3 break-words text-[14px] font-medium leading-5',
   nameActive: 'text-[var(--pl-primary)]',
   nameIdle: 'text-[var(--pl-text-strong)]',
-  /** 코드 — faint(#98A2B3)는 흰 배경에서 2.58 로 AA 미달이라 weak(4.97). */
-  code: 'text-[12px] text-[var(--pl-text-weak)]',
+  /** 코드 태그 — codes are 3 characters, so `min-w` fixes the column and every code
+   *  lands on one x down the list; packed against a wrapping name it would not.
+   *  faint(#98A2B3)는 흰 배경에서 2.58 로 AA 미달이라 weak(4.97). */
+  code: 'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-gray-100)] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[var(--pl-text-weak)]',
+  codeActive:
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-white)] px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[var(--pl-primary)]',
 
   /** Selected-service identity block (Figma "pipeline-services-improved"):
    *  eyebrow + service_name(hero) + service_code chip, a summary stat row, then

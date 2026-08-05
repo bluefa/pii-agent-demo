@@ -14,8 +14,11 @@ interface ServiceRowProps {
  * Stable tint per service: a simple code hash into the tile palette, so a
  * service keeps its color across pages and re-fetches. The tile is a scan
  * anchor, not a status — the palette carries no meaning.
+ *
+ * Exported because the admin pipeline console's service rails draw the same
+ * tile: sharing the hash is what makes one service the same color app-wide.
  */
-const tileClassFor = (code: string): string => {
+export const serviceTileClass = (code: string): string => {
   let hash = 0;
   for (let i = 0; i < code.length; i += 1) hash = (hash * 31 + code.charCodeAt(i)) | 0;
   const palette = serviceSidebarStyles.tilePalette;
@@ -48,7 +51,7 @@ export const ServiceRow = ({ code, name, onSelect, current = false }: ServiceRow
         current ? serviceSidebarStyles.rowCurrent : serviceSidebarStyles.rowActive,
       )}
     >
-      <span className={cn(serviceSidebarStyles.tile, tileClassFor(code))} aria-hidden="true">
+      <span className={cn(serviceSidebarStyles.tile, serviceTileClass(code))} aria-hidden="true">
         {(name || code).charAt(0).toUpperCase()}
       </span>
       <span className={cn('flex-1 min-w-0 line-clamp-3 break-words', serviceSidebarStyles.rowName)}>
