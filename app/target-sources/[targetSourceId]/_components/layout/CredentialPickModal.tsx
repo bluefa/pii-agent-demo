@@ -14,6 +14,7 @@ import {
   getButtonClass,
   getInputClass,
   idcStyles,
+  interactiveColors,
   numericFeatures,
   primaryColors,
   statusColors,
@@ -32,6 +33,13 @@ import {
  * 대화상자는 그 자체로 읽는 비용이고, 스크롤로 늘리면 아래쪽 후보는 존재를 모른 채 지나간다.
  */
 const PAGE_SIZE = 5;
+
+/** 우측 레일 페이저와 같은 조용한 톤 — 이동 컨트롤은 내용이 아니다. */
+const pagerBtnClass = cn(
+  'rounded-md px-2 py-1 text-[12px] font-medium transition-colors',
+  interactiveColors.underlineTab,
+  'disabled:cursor-default disabled:opacity-40',
+);
 
 interface CredentialPickModalProps {
   isOpen: boolean;
@@ -116,7 +124,14 @@ export const CredentialPickModal = ({
       isOpen={isOpen}
       onClose={onClose}
       title="DB Credential 설정"
-      subtitle={`${resourceLabel}에 사용할 DB 접속 자격 증명을 선택하세요.`}
+      // 보조 텍스트는 조용한 한 줄이고, 그 안에서 강조되는 것은 "무엇을 바꾸는가"(대상 리소스)
+      // 하나뿐이다. 색이 아니라 굵기와 명도로만 올린다 — 파랑은 저장 CTA 와 선택 행의 몫이다.
+      subtitle={
+        <>
+          <strong className={cn('font-semibold', textColors.primary)}>{resourceLabel}</strong>
+          에 사용할 DB 접속 자격 증명을 선택하세요.
+        </>
+      }
       size="2xl"
       // 닫는 길은 푸터의 취소(그리고 ESC / 배경)뿐 — 헤더의 X 와 취소는 같은 일을 두 번 말한다.
       closeButton={false}
@@ -238,11 +253,13 @@ export const CredentialPickModal = ({
                           className="h-4 w-4 accent-[#0064FF]"
                         />
                       </td>
+                      {/* 행에서 고르는 값은 이름이다. User ID 는 그 이름이 누구 것인지 말하는
+                          속성이므로 시각과 같은 보조 단(12/tertiary)에 둔다. */}
                       <td
                         className={cn(
                           idcStyles.table.cell,
                           'truncate font-mono text-[12px]',
-                          textColors.secondary,
+                          textColors.tertiary,
                         )}
                       >
                         {row.userId || '—'}
@@ -296,11 +313,13 @@ export const CredentialPickModal = ({
               )}
             </span>
             <div className="inline-flex items-center gap-2">
+              {/* 파랑은 이 모달에서 저장 CTA 와 선택된 행에만 쓴다 — 페이지 이동은 강조할
+                  내용이 아니라 이동 수단이므로 우측 레일 페이저와 같은 조용한 톤이다. */}
               <button
                 type="button"
                 onClick={() => setPage(safePage - 1)}
                 disabled={safePage <= 0}
-                className={idcStyles.triggerBtn.ghostSm}
+                className={pagerBtnClass}
               >
                 ‹ 이전
               </button>
@@ -311,7 +330,7 @@ export const CredentialPickModal = ({
                 type="button"
                 onClick={() => setPage(safePage + 1)}
                 disabled={safePage >= pageCount - 1}
-                className={idcStyles.triggerBtn.ghostSm}
+                className={pagerBtnClass}
               >
                 다음 ›
               </button>
