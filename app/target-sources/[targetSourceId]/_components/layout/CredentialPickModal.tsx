@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { SearchIcon } from '@/app/components/ui/icons';
 import { formatDate } from '@/lib/utils/date';
 import type { SecretKey } from '@/lib/types';
 import {
@@ -136,17 +137,40 @@ export const CredentialPickModal = ({
           등록된 Credential이 없어요. 관리자에게 등록을 요청해 주세요.
         </p>
       ) : (
-        <div className="flex flex-col gap-3">
-          <input
-            type="text"
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder={`User ID 또는 Credential 이름 검색 (${options.length}개)`}
-            aria-label="Credential 검색"
-            className={getInputClass()}
-          />
+        <div className="flex flex-col">
+          {/* 검색은 표에 붙은 툴바다 — 리소스 표(step 2·3)와 같은 문법: 옅은 면, 위쪽만
+              라운드, 아래 간격 없음. 떠 있는 입력창은 자기가 무엇을 거르는지 말하지 못한다. */}
+          <div
+            className={cn(
+              'flex flex-wrap items-center gap-[10px] rounded-t-xl px-4 py-3.5',
+              bgColors.muted,
+            )}
+          >
+            <div className="relative min-w-[220px] max-w-[360px] flex-[1_1_260px]">
+              <SearchIcon
+                className={cn(
+                  'pointer-events-none absolute left-[10px] top-1/2 h-3.5 w-3.5 -translate-y-1/2',
+                  textColors.tertiary,
+                )}
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                value={query}
+                onChange={(event) => onQueryChange(event.target.value)}
+                placeholder="User ID 또는 Credential 이름 검색"
+                aria-label="Credential 검색"
+                className={cn(getInputClass(), 'h-8 bg-white py-0 pl-[32px] pr-3 text-[14px]')}
+              />
+            </div>
+            <span className={cn('ml-auto text-[12px]', numericFeatures.tabular, textColors.tertiary)}>
+              <strong className={cn('font-semibold', textColors.secondary)}>{sorted.length}</strong>
+              {' / '}
+              {options.length}개
+            </span>
+          </div>
 
-          <div className={idcStyles.table.frame}>
+          <div className={cn(idcStyles.table.frame, 'rounded-t-none')}>
             <table className="w-full table-fixed">
               <thead className={idcStyles.table.header}>
                 <tr>
@@ -185,6 +209,9 @@ export const CredentialPickModal = ({
                     <tr
                       key={row.name}
                       onClick={() => setPicked(row.name)}
+                      // 갈라 놓은 두 칸이 아니라 저장되는 값 그대로를 툴팁으로 단다. 규칙에 맞지
+                      // 않는 이름이 섞여 들어와도 실제 값이 무엇인지는 언제나 한 번에 확인된다.
+                      title={row.name}
                       className={cn(
                         idcStyles.table.row,
                         'cursor-pointer',
