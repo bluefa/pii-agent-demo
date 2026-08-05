@@ -532,13 +532,13 @@ export const ConnectionTestCard = ({
                           바로 왼쪽 DB Credential 칸이 이미 말하고 있고, Run Test 가 막는다. */}
                       <td className={idcStyles.table.approvalCell}>
                         {status === 'SUCCESS' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>성공</span>
                         ) : status === 'FAIL' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>Fail</span>
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>실패</span>
                         ) : status === 'RUNNING' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Running</span>
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>진행 중</span>
                         ) : (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>대기</span>
                         )}
                       </td>
                       {/* Athena·DynamoDB are IAM-based and have no logical-DB management at all,
@@ -673,7 +673,7 @@ export const ConnectionTestCard = ({
           논리 DB 확인은 이 버튼을 막지 않는데 "완료되어야"라고 적혀 있어, 설정할 것이 없는
           대상(Athena·DynamoDB)만 남은 화면에서는 끝낼 수 없는 조건처럼 읽혔다. */}
       <CardActionBar
-        hint="※ 모든 대상의 Connection Status가 Success여야 완료 승인을 요청할 수 있어요. 논리 DB 확인은 제외할 논리 DB가 있는 대상만 설정하면 돼요."
+        hint="※ 모든 대상의 Connection Status가 성공이어야 완료 승인을 요청할 수 있어요. 논리 DB 확인은 제외할 논리 DB가 있는 대상만 설정하면 돼요."
       >
         <button
           type="button"

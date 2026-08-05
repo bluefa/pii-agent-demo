@@ -135,14 +135,14 @@ describe('ConnectionTestCard', () => {
 
   it('opens every credentialed row as Pending (step5 is pre-test)', () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
-    expect(screen.getByText('Pending')).toBeTruthy();
-    expect(screen.queryByText('Success')).toBeNull();
+    expect(screen.getByText('대기')).toBeTruthy();
+    expect(screen.queryByText('성공')).toBeNull();
   });
 
   it('disables Run Test when a row has no credential, without touching Connection Status', () => {
     renderCard([makeResource({ credentialId: null })]);
     // Connection Status only ever says what the agent reported — nothing ran, so Pending.
-    expect(screen.getByText('Pending')).toBeTruthy();
+    expect(screen.getByText('대기')).toBeTruthy();
     expect(screen.queryByText('자격 증명 필요')).toBeNull();
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
     expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', true);
@@ -199,7 +199,7 @@ describe('ConnectionTestCard', () => {
   it('reports a SUCCESS unit as connected even with no credential selected', () => {
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     renderCard([makeResource({ resourceId: 'res-1', credentialId: null })]);
-    expect(screen.getByText('Success')).toBeTruthy();
+    expect(screen.getByText('성공')).toBeTruthy();
     expect(screen.getByText(/연결 테스트 완료/)).toBeTruthy();
     expect(screen.getByText('100%')).toBeTruthy();
   });
@@ -293,7 +293,7 @@ describe('ConnectionTestCard', () => {
     const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
     renderCard(confirmed);
     // Row must show Success and CTA must be enabled — no Run Test click.
-    expect(await screen.findByText('Success')).toBeTruthy();
+    expect(await screen.findByText('성공')).toBeTruthy();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
     );
@@ -312,7 +312,7 @@ describe('ConnectionTestCard', () => {
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     act(() => rerender());
 
-    expect(await screen.findByText('Success')).toBeTruthy();
+    expect(await screen.findByText('성공')).toBeTruthy();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
     );
@@ -327,7 +327,7 @@ describe('ConnectionTestCard', () => {
     pollingState.uiState = 'FAIL';
     pollingState.latestJob = makeJob('FAIL', [agentResult('res-1', 'FAIL')]);
     act(() => rerender());
-    expect(await screen.findByText('Fail')).toBeTruthy();
+    expect(await screen.findByText('실패')).toBeTruthy();
     expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
   });
 });

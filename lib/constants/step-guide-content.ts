@@ -130,11 +130,11 @@ const IDC_INSTALLING_HTML =
 
 const STEP_5_CLOUD_HTML =
   '<h4>DB 연결을 테스트해 주세요</h4>' +
-  '<p>각 리소스의 <strong>DB Credential</strong>을 선택한 뒤 <strong>Run Test</strong>를 눌러 주세요. 모든 대상이 Success가 되면 <strong>완료 승인 요청</strong>으로 다음 단계로 넘어가요.</p>' +
+  '<p>각 리소스의 <strong>DB Credential</strong>을 선택한 뒤 <strong>Run Test</strong>를 눌러 주세요. 모든 대상이 성공이 되면 <strong>완료 승인 요청</strong>으로 다음 단계로 넘어가요.</p>' +
   '<ul>' +
   '<li>Credential이 비어 있는 리소스가 있으면 Run Test가 비활성화돼요. 먼저 전부 선택해 주세요.</li>' +
   '<li>테스트 결과는 자동으로 갱신돼요. 실패한 대상은 Credential과 네트워크(방화벽·보안 그룹)를 점검한 뒤 다시 실행하면 돼요. 횟수 제한은 없어요.</li>' +
-  '<li>Success인 대상은 <strong>논리 DB 확인</strong>에서 모니터링에서 제외할 논리 DB를 정리할 수 있어요.</li>' +
+  '<li>성공한 대상은 <strong>논리 DB 확인</strong>에서 모니터링에서 제외할 논리 DB를 정리할 수 있어요.</li>' +
   '</ul>';
 
 const STEP_5_IDC_HTML =
