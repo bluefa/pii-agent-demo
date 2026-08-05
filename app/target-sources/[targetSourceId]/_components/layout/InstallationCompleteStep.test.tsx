@@ -95,9 +95,10 @@ const renderStep = () =>
   );
 
 describe('InstallationCompleteStep', () => {
-  it('renders the title, the 연동 완료 badge and the guidance pair', () => {
+  it('renders the step tag, the title, the 연동 완료 badge and the guidance pair', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
+    expect(screen.getByText('7번째 단계')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'PII 모니터링 모듈 연동' })).toBeTruthy();
     expect(screen.getByText('연동 완료')).toBeTruthy();
     expect(screen.getByText(/연동된 리소스의 PII 사용 가능성을 모니터링하고 있어요/)).toBeTruthy();

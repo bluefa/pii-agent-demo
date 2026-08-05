@@ -103,7 +103,7 @@ describe('CandidateResourceSection', () => {
 
   // Step 2·3 header grammar ported to step 1: step tag above the fixed title,
   // then the guidance sentence naming the whole flow (scan → select → approval).
-  it('renders the detailed guidance sentence', async () => {
+  it('renders the 1번째 단계 tag and the detailed guidance sentence', async () => {
     render(
       <CandidateResourceSection
         targetSourceId={1}
@@ -113,6 +113,7 @@ describe('CandidateResourceSection', () => {
       />,
     );
     await screen.findByRole('heading', { level: 2, name: '연동 대상 DB 선택' });
+    expect(screen.getByText('1번째 단계')).toBeTruthy();
     expect(screen.getByText(/인프라 스캔으로 AWS 계정의 리소스를 조회하고/)).toBeTruthy();
   });
 

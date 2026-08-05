@@ -374,6 +374,12 @@ export const cardStyles = {
   // Tracking is -0.01em, not the -0.03em latin display type takes: Korean glyphs are already dense,
   // so tighter tracking reads as cramped instead of as a tightened headline.
   cardTitle: 'text-[22px] font-extrabold tracking-[-0.01em] leading-[1.2] text-[#191F28]',
+  /**
+   * "N번째 단계" tag above a step-card title, matching INSTALL_STEPS order in
+   * InstallationProcessProgressBar. Was copy-pasted into every step card with a "keep the two in
+   * sync" note; six cards (cloud 1·2·3, IDC 1·2·3 + 6) is where that stops being a note.
+   */
+  stepTag: `mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold ${primaryColors.bgLight} ${primaryColors.textOnLight}`,
   /** State pill beside a step title (승인 대기 / 반영중). Shape only — the caller owns the tone. */
   stepBadge: 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
   /**
@@ -575,9 +581,6 @@ export const projectHeaderStyles = {
  */
 export const installStepperStyles = {
   wrap: 'mt-[18px] pb-[18px]',
-  headRow: 'flex items-baseline gap-2',
-  count: 'ml-auto text-[12px] font-semibold tabular-nums text-[#4E5968]',
-  countTotal: 'font-medium text-[#6B7684]',
   list: 'mt-1.5 grid list-none p-0',
   item: 'flex min-w-0 flex-col items-center gap-1.5',
   track: 'relative flex h-[10px] w-full items-center justify-center',

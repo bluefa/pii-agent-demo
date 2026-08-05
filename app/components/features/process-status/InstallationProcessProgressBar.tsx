@@ -19,27 +19,15 @@ interface InstallationProcessProgressBarProps {
  * 설치 진행 — the flat page header's quiet stepper. Every step stays visible by
  * name (a first-time reader must see the whole road), but nothing shouts: 8px
  * dots, tinted-not-primary walked segments, labels separated by color only.
- * This is the SINGLE surface that states the current step — step cards carry
- * no "N번째 단계" tag of their own.
  */
 export const InstallationProcessProgressBar = ({
   currentStep,
 }: InstallationProcessProgressBarProps) => {
   const currentIndex = INSTALL_STEPS.findIndex((it) => it.step === currentStep);
-  // Out-of-flow statuses render the road with nothing lit and no count.
-  const position = currentIndex >= 0 ? currentIndex + 1 : 0;
 
   return (
     <nav aria-label="설치 진행 단계" className={s.wrap}>
-      <div className={s.headRow}>
-        <span className={projectHeaderStyles.blockLabel}>설치 진행</span>
-        {position > 0 && (
-          <span className={s.count}>
-            {position}
-            <span className={s.countTotal}> / {INSTALL_STEPS.length} 단계</span>
-          </span>
-        )}
-      </div>
+      <span className={projectHeaderStyles.blockLabel}>설치 진행</span>
       <ol
         role="list"
         className={s.list}

@@ -95,9 +95,9 @@ describe('ConnectionVerifiedStep', () => {
     expect(screen.getByText('승인 대기')).toBeTruthy();
   });
 
-  it('renders no step-position tag (the header stepper owns it)', () => {
+  it('renders the 6번째 단계 step tag', () => {
     renderStep();
-    expect(screen.queryByText('6번째 단계')).toBeNull();
+    expect(screen.getByText('6번째 단계')).toBeTruthy();
   });
 
   it('renders the merged guidance sentence (header subtitle + banner copy were one message)', () => {
