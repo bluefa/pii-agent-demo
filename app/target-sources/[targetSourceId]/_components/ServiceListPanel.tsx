@@ -62,13 +62,12 @@ interface ConfirmModalData {
   name: string;
 }
 
-// 12 per page — sized so one page is one screenful. A page taller than the rail
-// makes the user scroll *and* page for the same job, which is what a page size
-// of 20 did; a page much shorter leaves each row stretched and sparse, which is
-// what 8 did. Twelve rows fit the rail without an inner scrollbar from ~900px
-// of window height up, so the arrows are the only way to browse, and ~100
-// services are 9 pages. Search stays the primary lookup path; paging browses.
-const SERVICE_PAGE_SIZE = 12;
+// 8 per page. One page stays one screenful — the rail never scrolls *and* pages
+// for the same job, which is what a page size of 20 did — and eight rows sit at
+// the top of the 7±2 range a user takes in as one group. Rows divide the rail's
+// height between them (ROW_MAX_PX caps how far), so the list still reaches the
+// bottom; ~100 services are 13 pages. Search stays the primary lookup path.
+const SERVICE_PAGE_SIZE = 8;
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface ServiceListPanelProps {

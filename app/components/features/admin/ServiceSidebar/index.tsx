@@ -32,7 +32,7 @@ type ServiceItem = NonNullable<PageServiceItem['content']>[number];
 const ROW_MAX_PX = 88;
 
 /** Skeleton row count — matches SERVICE_PAGE_SIZE so the list doesn't reflow when data lands. */
-const SKELETON_ROWS = 12;
+const SKELETON_ROWS = 8;
 
 /** The service the surrounding page is about — marked in the list, not pinned above it. */
 interface CurrentService {
