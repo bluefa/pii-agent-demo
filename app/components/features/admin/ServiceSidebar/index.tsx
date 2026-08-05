@@ -25,15 +25,19 @@ interface ServicePageInfo {
 type ServiceItem = NonNullable<PageServiceItem['content']>[number];
 
 /**
- * Ceiling for one stretched row. A page of 8 fills the rail on a laptop-height
- * window (~76px each at 900px tall) and stops here instead of running away on a
- * tall monitor. Pairs with the row's own `min-h`, which takes over when the
- * viewport is short enough that the list scrolls.
+ * Ceiling for one stretched row. It only binds on a short page — a full page of
+ * 20 overflows the rail, so rows sit at their own `min-h` and the list scrolls.
+ * The cap is what keeps a two- or three-row search result from stretching each
+ * row down the whole rail.
  */
 const ROW_MAX_PX = 88;
 
-/** Skeleton row count — matches SERVICE_PAGE_SIZE so the list doesn't reflow when data lands. */
-const SKELETON_ROWS = 8;
+/**
+ * Skeleton row count. Deliberately under a full page: 20 rows overflow the rail,
+ * and skeletons below the fold are never seen. Enough to cover the tallest rail
+ * we target, no more.
+ */
+const SKELETON_ROWS = 14;
 
 /** The service the surrounding page is about — marked in the list, not pinned above it. */
 interface CurrentService {

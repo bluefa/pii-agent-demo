@@ -173,6 +173,20 @@ export const mockServiceCodes: ServiceCode[] = [
   { code: 'CPN', name: '쿠폰·프로모션 발급 정산', description: '쿠폰/프로모션 도메인 PII Agent 연동' },
   { code: 'RVW', name: '고객 리뷰 및 평점 운영', description: '리뷰 도메인 PII Agent 연동' },
   { code: 'IVT', name: '재고 실시간 동기화 관리', description: '재고 도메인 PII Agent 연동' },
+  // 레일이 한 화면에 여러 서비스를 담았을 때를 보기 위한 카탈로그 — 연동 과제
+  // (mockProjects)는 없고 서비스 목록·검색·페이지네이션에만 등장한다.
+  // 코드는 실제 계약과 같이 3글자로 맞춘다.
+  { code: 'PAY', name: '결제 승인 및 정산', description: '결제 도메인 PII Agent 연동' },
+  { code: 'MBR', name: '회원 통합 인증', description: '회원 도메인 PII Agent 연동' },
+  { code: 'SRC', name: '통합 검색 랭킹', description: '검색 도메인 PII Agent 연동' },
+  { code: 'ADS', name: '광고 노출 및 정산 리포팅', description: '광고 도메인 PII Agent 연동' },
+  { code: 'NTF', name: '알림 발송 허브', description: '알림 도메인 PII Agent 연동' },
+  { code: 'CSC', name: '고객센터 상담 이력', description: 'CS 도메인 PII Agent 연동' },
+  { code: 'SEL', name: '셀러 정산 및 입점 심사', description: '셀러 도메인 PII Agent 연동' },
+  { code: 'PRD', name: '상품 마스터', description: '상품 도메인 PII Agent 연동' },
+  { code: 'ORD', name: '주문 접수 및 취소·반품 처리', description: '주문 도메인 PII Agent 연동' },
+  { code: 'MKT', name: '마케팅 캠페인 타겟팅', description: '마케팅 도메인 PII Agent 연동' },
+  { code: 'LOG', name: '통합 로그 수집', description: '로그 도메인 PII Agent 연동' },
 ];
 
 // Step 6/7 의 확정 정보 표는 CONNECTED 리소스만 노출한다. 캡처 seed 는 PENDING 이라

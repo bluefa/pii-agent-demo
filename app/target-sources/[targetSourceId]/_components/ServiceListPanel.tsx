@@ -62,12 +62,13 @@ interface ConfirmModalData {
   name: string;
 }
 
-// 8 per page — a scan chunk, not a viewport fill. Filling the rail's height
-// read as noise next to the content column; eight rows is the top of the 7±2
-// range a user takes in as one group, the list ends where its rows end so no
-// dead space builds under them, and ~100 services stay reachable in 13 pages.
-// Search is the primary lookup path; paging browses.
-const SERVICE_PAGE_SIZE = 8;
+// 20 per page. A page of 8 left each row stretched to ~88px, and a row holding
+// only a name and a code reads sparse at that height — the list has two fields
+// to show, so density is what makes it look intentional. Twenty rows overflow
+// the rail on any normal window, so rows settle at their min height and the
+// list scrolls: it reaches the bottom at every viewport size, and ~100 services
+// are 5 pages. Search stays the primary lookup path; paging browses.
+const SERVICE_PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface ServiceListPanelProps {
