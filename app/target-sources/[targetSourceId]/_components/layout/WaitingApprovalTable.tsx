@@ -119,8 +119,8 @@ interface WaitingApprovalTableProps {
 export const CONNECTED_FRAME = 'overflow-hidden bg-white';
 
 // Row hover, declared here rather than via idcStyles.table.row — that token is shared with six
-// other tables, and its #F7F8FA tint measures 1.06:1 against white (invisible). Excluded rows had
-// no hover at all: `rowExcluded` REPLACED `row`, and #F9FAFB -> #F7F8FA would be 1.02:1 anyway.
+// other tables, and its F7F8FA tint measures 1.06:1 against white (invisible). Excluded rows had
+// no hover at all: `rowExcluded` REPLACED `row`, and F9FAFB -> F7F8FA would be 1.02:1 anyway.
 // Each state keeps its own lift so the excluded tint survives hover (1.10:1 each).
 // `focus-within` mirrors hover: the row carries a copy button and tooltip triggers, so a keyboard
 // user tabbing through gets the same row highlight a mouse user gets.
