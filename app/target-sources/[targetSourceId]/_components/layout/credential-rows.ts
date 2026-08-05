@@ -1,10 +1,8 @@
+import { splitCredentialName } from '@/lib/credentials';
 import type { SecretKey } from '@/lib/types';
 
-/**
- * Credential 이름은 `{userId}-{credential name}` 이다. 한 칸에 붙여 두면 "운영DB-MySQL"과
- * "운영DB-MySQL-replica" 처럼 앞부분이 같은 후보들이 한 덩어리 문자열로만 읽혀, 무엇이 다른지
- * 눈으로 찾아야 했다. 두 값으로 갈라 각자의 열에 둔다.
- */
+/** 갈라 놓은 이름 + 원본 + 생성 시각. 가르는 규칙 자체는 `lib/credentials` 가 소유한다 —
+ *  관리자 화면의 Credential 배정도 같은 규칙으로 갈라야 하기 때문이다. */
 export interface CredentialRow {
   /** 원본 이름 — 저장/비교는 항상 이 값으로 한다. */
   name: string;
@@ -13,22 +11,13 @@ export interface CredentialRow {
   createdAt: string;
 }
 
-/**
- * 첫 하이픈에서만 자른다: 뒤쪽 하이픈은 이름의 일부다(`운영DB-MySQL-replica` →
- * `운영DB` + `MySQL-replica`). 하이픈이 없거나 맨 앞에 있으면 userId 를 지어내지 않고
- * 전체를 이름으로 둔다 — 규칙에 맞지 않는 값을 규칙에 맞는 것처럼 보이게 하는 편이 더 나쁘다.
- */
-export const toCredentialRow = (secret: SecretKey): CredentialRow => {
-  const cut = secret.name.indexOf('-');
-  return {
-    name: secret.name,
-    userId: cut > 0 ? secret.name.slice(0, cut) : '',
-    label: cut > 0 ? secret.name.slice(cut + 1) : secret.name,
-    // 계약은 loose 라 시각이 비어 올 수 있다. 여기서 '' 로 눕혀 두면 정렬은 그 행을
-    // 맨 끝으로 보내고, 셀은 — 를 찍는다.
-    createdAt: secret.createTimeStr ?? '',
-  };
-};
+export const toCredentialRow = (secret: SecretKey): CredentialRow => ({
+  name: secret.name,
+  ...splitCredentialName(secret.name),
+  // 계약은 loose 라 시각이 비어 올 수 있다. 여기서 '' 로 눕혀 두면 정렬은 그 행을
+  // 맨 끝으로 보내고, 셀은 — 를 찍는다.
+  createdAt: secret.createTimeStr ?? '',
+});
 
 export type CredentialSortKey = 'userId' | 'label' | 'createdAt';
 export type SortDirection = 'asc' | 'desc';
