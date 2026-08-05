@@ -1085,7 +1085,13 @@ export const serviceSidebarStyles = {
   divider: 'border-[#EBEEF2]',
   /** Rail heading — nav-chrome tier, deliberately under the content column's page title. */
   title: 'text-[14px] font-semibold tracking-[-0.01em] text-[#191F28]',
-  count: 'text-[12px] font-medium tabular-nums text-[#6B7280]',
+  /**
+   * Total beside the rail title — a pill, so it reads as a count attached to the
+   * heading rather than as a second word in it. Round, unlike the square code
+   * tags: one is a quantity, the other an identifier.
+   */
+  count:
+    'inline-flex items-center rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[#4E5968]',
   /** Section label above the rows — desktop nav section header, not a table column head. */
   sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#6B7280]',
   /** Row name — wraps rather than riding off the rail's edge; service names run to ~30 characters. */
@@ -1125,14 +1131,15 @@ export const serviceSidebarStyles = {
     'bg-[#F7F8FA] text-[#4E5968]',
   ],
   /**
-   * Footer — full-bleed rule + range summary, and the rail's only count now that
-   * the search box no longer repeats it. `mt-auto` docks it to the rail's bottom:
-   * a full page leaves no free space so it already sits under the last row, and a
-   * short result (a two-row search) keeps the bar on the bottom edge instead of
-   * floating mid-rail.
+   * Page indicator docked to the rail's bottom. No rule above it: a full-bleed
+   * border made the bar read as a second section closing the list, when all it
+   * carries is "which page". `mt-auto` keeps it on the bottom edge even when a
+   * short result leaves the list ending mid-rail. The total moved to the title
+   * pill, so nothing here counts rows.
    */
-  footer: 'mt-auto flex shrink-0 items-center justify-between border-t px-3 py-2',
-  footerRange: 'text-[12px] font-medium tabular-nums text-[#6B7280]',
+  footer: 'mt-auto flex shrink-0 items-center justify-center gap-1 px-3 py-2.5',
+  /** "1 / 2 페이지" — tabular so the digits do not jitter as pages change. */
+  footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#6B7280]',
   /** Borderless ghost pager — a bordered button pair floats like a card control on a flush rail. */
   pagerBtn:
     'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-[#F2F4F6] disabled:cursor-not-allowed disabled:text-[#B0B8C1] disabled:hover:bg-transparent',

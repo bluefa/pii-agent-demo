@@ -90,11 +90,11 @@ export const ServiceSidebar = ({
       )}
       aria-label="서비스 목록"
     >
-      {/* Title + total. The count renders only outside a search: during one,
-          totalElements is the hit count and the line under the input owns it. */}
-      <div className="flex items-baseline gap-2 px-3 pt-4 pb-2.5">
+      {/* Title + total. The pill is the rail's only count — during a search it is
+          the hit count, which is why it is no longer hidden then. */}
+      <div className="flex items-center gap-2 px-3 pt-4 pb-2.5">
         <h2 className={serviceSidebarStyles.title}>서비스 목록</h2>
-        {!searchQuery && !loading && totalElements > 0 && (
+        {!loading && totalElements > 0 && (
           <span className={serviceSidebarStyles.count}>{totalElements}</span>
         )}
       </div>
@@ -227,12 +227,9 @@ export const ServiceSidebar = ({
           )}
         </ul>
 
-        {/* Gated on `totalElements`, not `totalPages` — the API reports one page for an
-            empty result, so `totalPages` alone can't tell "one page of hits" from
-            "nothing to page through". */}
-        {totalElements > 0 && (
-          <SidebarPagination pageInfo={pageInfo} onPageChange={onPageChange} />
-        )}
+        {/* The component decides: it renders nothing at one page, so an empty result
+            (which the API still reports as one page) shows no control either. */}
+        <SidebarPagination pageInfo={pageInfo} onPageChange={onPageChange} />
       </div>
     </aside>
   );
