@@ -235,8 +235,9 @@ const INSTALL_STATUS_TEXT: Record<InstallStepValue, string> = {
 };
 
 const InstallStatusText = ({ cell }: { cell: InstallStepCell }) => (
-  // text-sm — 크기 미지정이면 16px 로 상속돼 상태만 이름 셀(14px)보다 커진다.
-  <span className={cn('whitespace-nowrap text-sm font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
+  // 12px — 크기 미지정이면 16px 로 상속돼 상태만 커진다. DB Type·Region 등
+  // 반복 속성 셀과 같은 단(12px)으로 내려 이름(14px)이 행의 주인공으로 남는다.
+  <span className={cn('whitespace-nowrap text-[12px] font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
     {cell.label ?? INSTALL_STATUS_LABEL[cell.status]}
   </span>
 );

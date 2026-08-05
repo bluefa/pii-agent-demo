@@ -71,11 +71,13 @@ interface StepAggregate {
  * 레일 상태 글자색 — 태그를 걷어낸 자리. 손댈 단계(실패·진행중)만 색을 갖고,
  * 끝났거나 남의 차례인 단계(완료·대기)는 회색으로 가라앉는다.
  */
+// 조용한 톤이 secondary(gray-700)인 이유: 레일 표면이 bgColors.panel(gray-100)이라
+// tertiary(gray-500)는 4.37:1 로 AA 미달 (theme.ts panel 토큰 주석 참조).
 const NAV_STATUS_TEXT: Record<AggregateKind, string> = {
   failed: statusColors.error.textDark,
   running: statusColors.info.textDark,
-  done: textColors.tertiary,
-  waiting: textColors.tertiary,
+  done: textColors.secondary,
+  waiting: textColors.secondary,
 };
 
 const kindOfValue = (value: InstallStepValue): AggregateKind =>
@@ -123,7 +125,8 @@ const SideTag = ({ side }: { side: string }) => (
 const SideText = ({ side }: { side: string }) => {
   const [owner, ...rest] = side.split(' ');
   return (
-    <span className={textColors.tertiary}>
+    // secondary — panel(gray-100) 표면 위라 tertiary 는 AA 미달.
+    <span className={textColors.secondary}>
       <span className={cn('font-semibold', side.startsWith('BDC') ? sideTextColors.bdc : sideTextColors.service)}>
         {owner}
       </span>
@@ -517,7 +520,7 @@ export const InstallStatusDetail = ({
           보였다(오너 지적). 레일 회색면은 컨테이너 높이를 그대로 따라 늘어난다. */}
       <div className={cn('grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.light)}>
       <nav
-        className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.muted, borderColors.light)}
+        className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.panel, borderColors.light)}
         aria-label="설치 단계"
       >
         {navSteps.map((step, index) => {
@@ -540,7 +543,9 @@ export const InstallStatusDetail = ({
                   className={cn(
                     'w-6 h-6 rounded-full grid place-items-center flex-shrink-0',
                     textStyles.captionStrong,
-                    bgColors.muted,
+                    // divider(gray-200) — 레일이 panel(gray-100)로 어두워져 muted 원은
+                    // 바탕보다 밝아 구멍처럼 읽힌다.
+                    bgColors.divider,
                     textColors.secondary,
                   )}
                 >
@@ -566,7 +571,7 @@ export const InstallStatusDetail = ({
                   {aggregate.label}
                 </span>
                 {aggregate.count && (
-                  <span className={cn('tabular-nums', textColors.tertiary)}>{aggregate.count}</span>
+                  <span className={cn('tabular-nums', textColors.secondary)}>{aggregate.count}</span>
                 )}
                 {step.side && (
                   <span className="flex items-center gap-1.5 min-w-0">

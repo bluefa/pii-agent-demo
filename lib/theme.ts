@@ -236,6 +236,12 @@ export const textColors = {
  */
 export const bgColors = {
   muted: 'bg-gray-50',
+  /**
+   * 카드 안에 앉는 레일·사이드 패널 — muted 보다 한 단계 가라앉은 표면.
+   * gray-100 위에서 gray-500(tertiary)은 4.37:1 로 AA 미달: 이 표면 위의
+   * 텍스트는 secondary(gray-700) 이상을 쓴다.
+   */
+  panel: 'bg-gray-100',
   mutedHover: 'hover:bg-gray-50',
   primary: 'bg-[#0064FF]',
   surface: 'bg-white',
