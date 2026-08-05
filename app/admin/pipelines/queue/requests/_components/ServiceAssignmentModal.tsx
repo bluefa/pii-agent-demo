@@ -16,6 +16,12 @@
  * resource_id is NEVER rendered — the resource is named by its endpoint + DB type
  * (design-spec §8). `mappings === null` means the fetch failed, which the body says
  * outright instead of passing for 배정 없음.
+ *
+ * The contract gives exactly two things per row — `service_code` and `nlb_index` — so
+ * that is what the table shows. An NLB IP column used to sit beside the index, joined
+ * from the NLB table: with the index and its IPs 1:1, it restated the index on every row,
+ * and a target on six NLBs printed the same six IP pairs thirty times. The sub line now
+ * spends that space on the two counts the list could only be counted for by hand.
  */
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
@@ -25,7 +31,6 @@ import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import { findResourceMappings } from '@/app/admin/pipelines/queue/requests/_logic';
 import type {
-  NlbTableRow,
   RequestResourceRow,
   ResourceNlbMappings,
 } from '@/app/lib/api/task-queue-requests';
@@ -44,8 +49,6 @@ export interface ServiceAssignmentModalProps {
   resource: RequestResourceRow;
   /** All resources' mappings, or null when the fetch failed. */
   mappings: ResourceNlbMappings[] | null;
-  /** The NLB table, joined by index to name each mapping's IPs. */
-  nlbRows: NlbTableRow[];
 }
 
 export function ServiceAssignmentModal({
@@ -53,16 +56,17 @@ export function ServiceAssignmentModal({
   onClose,
   resource,
   mappings,
-  nlbRows,
 }: ServiceAssignmentModalProps): ReactElement {
   const { appTable, tag } = tqStyles;
   // Fresh mount per resource (the page keys this modal) — page seeds at 1.
   const [page, setPage] = useState(1);
-  // nlb_index → its IPs. A declared join: the NLB table names the IPs of each index,
-  // so this says "NLB #3's IPs are …", not "these are the target's source IPs".
-  const ipsByIndex = new Map(nlbRows.map((r) => [r.nlbIndex, r.nlbIpList]));
   const rows = findResourceMappings(mappings, resource.resourceId);
   const total = rows?.length ?? 0;
+  // Distinct indexes, not rows: "NLB 6개" answers how many listeners this one target is
+  // spread across, which the paged list can otherwise only be counted for by hand.
+  const nlbCount = new Set(
+    (rows ?? []).map((m) => m.nlbIndex).filter((i): i is number => i != null),
+  ).size;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const slice = (rows ?? []).slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const endpoints = resource.connectTargets
@@ -82,7 +86,11 @@ export function ServiceAssignmentModal({
           <span className={appTable.tdMono}>{endpoints || '—'}</span>
         </>
       }
-      sub="이 연동 대상을 사용하는 서비스별 NLB 배정 현황이에요."
+      // The old sentence restated the title ("서비스별 NLB 배정" / "…서비스별 NLB 배정
+      // 현황이에요") and so was invisible in the way that costs nothing to miss. The two
+      // counts are what the reader actually came for. Omitted when there is nothing to
+      // count — the body already says whether that is "없음" or "못 불러옴".
+      sub={total > 0 ? `서비스 ${total}개 · NLB ${nlbCount}개` : undefined}
     >
       {/* ScanDetailModal's grammar, not appTable's: no frame, no header band, one rule
           under the header and nothing else. A modal opened to answer one lookup should
@@ -93,22 +101,19 @@ export function ServiceAssignmentModal({
         <thead>
           <tr>
             <th className={`${TH} w-[140px]`}>Service Code</th>
-            <th className={`${TH} w-[110px]`}>NLB Index</th>
-            {/* Right of the index it belongs to, the same order NlbAssignModal
-                heads its own picker with. */}
-            <th className={TH}>NLB IP</th>
+            <th className={TH}>NLB Index</th>
           </tr>
         </thead>
         <tbody>
           {rows === null ? (
             <tr>
-              <td className={`${TD} text-[var(--pl-text-weak)]`} colSpan={3}>
+              <td className={`${TD} text-[var(--pl-text-weak)]`} colSpan={2}>
                 NLB 정보를 불러오지 못했어요
               </td>
             </tr>
           ) : total === 0 ? (
             <tr>
-              <td className={`${TD} text-[var(--pl-text-weak)]`} colSpan={3}>
+              <td className={`${TD} text-[var(--pl-text-weak)]`} colSpan={2}>
                 배정된 NLB가 없어요
               </td>
             </tr>
@@ -120,11 +125,6 @@ export function ServiceAssignmentModal({
               >
                 <td className={TD}>{m.serviceCode ?? '—'}</td>
                 <td className={TD}>{m.nlbIndex != null ? `NLB #${m.nlbIndex}` : '—'}</td>
-                {/* Em-dash on an index the NLB table does not carry: the mapping named
-                    an NLB, so a blank would read as "no IPs" rather than "not found". */}
-                <td className={TD}>
-                  {(m.nlbIndex != null && ipsByIndex.get(m.nlbIndex)?.join(' · ')) || '—'}
-                </td>
               </tr>
             ))
           )}
