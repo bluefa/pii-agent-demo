@@ -11,7 +11,11 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/aws', () => ({
   AwsProjectPage: () => <div data-testid="aws-page" />,
 }));
 vi.mock('@/app/target-sources/[targetSourceId]/_components/azure', () => ({
-  AzureProjectPage: () => <div data-testid="azure-page" />,
+  // The real page hands guideSlot to its layout, which slots it under the
+  // header — the mock mirrors that contract.
+  AzureProjectPage: ({ guideSlot }: { guideSlot?: React.ReactNode }) => (
+    <div data-testid="azure-page">{guideSlot}</div>
+  ),
 }));
 vi.mock('@/app/target-sources/[targetSourceId]/_components/gcp', () => ({
   GcpProjectPage: () => <div data-testid="gcp-page" />,
@@ -59,10 +63,10 @@ const azureFixture: TargetSource = {
   subscriptionId: '12345678-abcd-ef01-2345-6789abcdef01',
 };
 
-// Lifted from the per-step guide-card tests: the guide mounts once as the
-// full-height right rail (GuidePanel) with the slot key resolved from the project.
-describe('ProjectDetail guide rail', () => {
-  it('renders the GuidePanel rail next to the provider page with the resolved slot key', () => {
+// The guide mounts once as the band under the page header (guideSlot), with
+// the slot key resolved from the project.
+describe('ProjectDetail guide band', () => {
+  it('hands the GuidePanel band to the provider page with the resolved slot key', () => {
     render(<ProjectDetail initialProject={azureFixture} jiraTicket={null} />);
 
     expect(screen.getByTestId('azure-page')).toBeTruthy();

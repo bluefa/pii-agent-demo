@@ -19,8 +19,10 @@ interface CloudTargetSourceLayoutProps {
   project: CloudTargetSource;
   identity: ProjectIdentity;
   providerLabel: string;
-  /** Optional page-header action slot (none by default — destructive actions live in the guide rail). */
+  /** Optional page-header action slot (none by default — destructive actions live in the guide band). */
   action?: ReactNode;
+  /** Guide band (가이드/진행 내역 + 모니터링·협업채널·인프라 삭제), slotted under the header. */
+  guideSlot?: ReactNode;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
@@ -54,6 +56,8 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
           body, so the lavender wash starts where content cards do. The layout owns
           it — steps render cards only, matching IdcTargetSourceLayout. */}
       <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
+      {/* Guide band — chrome strip between header and body (was the right rail). */}
+      {props.guideSlot}
       {/* v16 `.main`: full-width, padding 32/40/80 (top/x/bottom), flush to the 296px
           sidebar so content begins at 336px — matches IdcTargetSourceLayout.
           The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}

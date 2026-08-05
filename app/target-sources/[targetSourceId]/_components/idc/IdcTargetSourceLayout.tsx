@@ -42,6 +42,8 @@ export const IdcTargetSourceLayout = (props: IdcStepProps) => {
       {/* Flat page header (chrome) spans the column edge-to-edge above the padded
           body — the layout owns it; steps render cards only (cloud layout parity). */}
       <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
+      {/* Guide band — chrome strip between header and body (was the right rail). */}
+      {props.guideSlot}
       {/* v16 `.main` — full-width flex column, padding 32px 40px 80px (top/x/bottom). The 40px
           left padding sits flush against the 296px sidebar so content begins at 336px, matching v16.
           The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}

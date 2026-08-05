@@ -175,11 +175,11 @@ interface GuidePanelProps {
 }
 
 /**
- * Full-height right rail for the step screens — mirrors the left ServiceListPanel:
- * flat surface, left border, [가이드 | 진행 내역] tab header, scrollable body,
- * bottom pager on the history tab. Deliberately quiet (auxiliary) chrome so the
- * working column keeps the visual weight. Replaces the inline amber guide card
- * (UX report P2/P3).
+ * Guide band under the flat page header (was the full-height right rail).
+ * Same content, reflowed horizontally: [가이드 | 진행 내역] tabs + panel on the
+ * left, the auxiliary stack (모니터링 · 협업 채널 · 인프라 삭제) as a fixed-width
+ * right column. A white chrome strip — no card radius/shadow — so step cards
+ * below keep the only card chrome and get the full column width.
  */
 export const GuidePanel = ({
   slotKey,
@@ -204,7 +204,7 @@ export const GuidePanel = ({
   const tabClass = (active: boolean) =>
     cn(
       segmentedControlStyles.item,
-      'flex-1 justify-center',
+      'justify-center px-4',
       active && segmentedControlStyles.itemActive,
     );
 
@@ -215,110 +215,93 @@ export const GuidePanel = ({
   );
 
   return (
-    <aside
+    <section
       aria-label="단계 가이드 및 진행 내역"
-      className={cn(
-        'hidden w-[320px] shrink-0 flex-col border-l min-[1360px]:flex',
-        borderColors.light,
-        bgColors.surface,
-      )}
+      className={cn('border-b', borderColors.light, bgColors.surface)}
     >
-      {/* Monitoring method leads the rail (owner ask) — identity-level fact,
-          read before any step work. */}
-      <div
-        className={cn(
-          'flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3',
-          borderColors.light,
-        )}
-      >
-        <span className={cn('text-[12px] font-medium', textColors.tertiary)}>모니터링</span>
-        <span
-          className={identityBarStyles.agent}
-          style={{ ['--ib-accent']: monitoringAccent } as CSSProperties}
-        >
-          <ShieldCheckIcon className={identityBarStyles.agentIcon} />
-          {monitoringLabel}
-        </span>
-      </div>
+      <div className="flex items-start gap-8 px-10 py-5">
+        <div className="min-w-0 flex-1">
+          <div role="tablist" className={segmentedControlStyles.container}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'guide'}
+              onClick={() => selectTab('guide')}
+              className={tabClass(tab === 'guide')}
+            >
+              가이드
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'history'}
+              onClick={() => selectTab('history')}
+              className={tabClass(tab === 'history')}
+            >
+              진행 내역
+            </button>
+          </div>
 
-      {/* Jira ticket next — the collab channel is the escape hatch for every
-          step, so it stays above the fold. */}
-      <div className={cn('shrink-0 border-b p-4', borderColors.light)}>
-        <CollabChannelCard jiraTicket={jiraTicket} />
-      </div>
+          <div role="tabpanel" className="mt-4">
+            {tab === 'guide' ? (
+              slotKey ? (
+                <GuideCardContainer slotKey={slotKey} bare />
+              ) : (
+                <p className={cn('py-4 text-[12px]', textColors.tertiary)}>
+                  이 단계에는 표시할 가이드가 없습니다.
+                </p>
+              )
+            ) : (
+              <HistoryTimeline items={pageItems} />
+            )}
+          </div>
 
-      <div className={cn('shrink-0 border-b p-3', borderColors.light)}>
-        <div role="tablist" className={cn(segmentedControlStyles.container, 'w-full')}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'guide'}
-            onClick={() => selectTab('guide')}
-            className={tabClass(tab === 'guide')}
-          >
-            가이드
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'history'}
-            onClick={() => selectTab('history')}
-            className={tabClass(tab === 'history')}
-          >
-            진행 내역
-          </button>
-        </div>
-      </div>
-
-      <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto p-5">
-        {tab === 'guide' ? (
-          slotKey ? (
-            <GuideCardContainer slotKey={slotKey} bare />
-          ) : (
-            <p className={cn('py-4 text-center text-[12.5px]', textColors.tertiary)}>
-              이 단계에는 표시할 가이드가 없습니다.
-            </p>
-          )
-        ) : (
-          <HistoryTimeline items={pageItems} />
-        )}
-      </div>
-
-      {tab === 'history' && pageCount > 1 && (
-        <div
-          className={cn(
-            'flex shrink-0 items-center justify-between border-t px-4 py-2.5',
-            borderColors.light,
+          {tab === 'history' && pageCount > 1 && (
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                type="button"
+                className={pagerBtnClass}
+                disabled={page === 0}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                ‹ 이전
+              </button>
+              <span className={cn('text-[12px] tabular-nums', textColors.tertiary)}>
+                {page + 1} / {pageCount}
+              </span>
+              <button
+                type="button"
+                className={pagerBtnClass}
+                disabled={page === pageCount - 1}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                다음 ›
+              </button>
+            </div>
           )}
-        >
-          <button
-            type="button"
-            className={pagerBtnClass}
-            disabled={page === 0}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            ‹ 이전
-          </button>
-          <span className={cn('text-[11.5px] tabular-nums', textColors.tertiary)}>
-            {page + 1} / {pageCount}
-          </span>
-          <button
-            type="button"
-            className={pagerBtnClass}
-            disabled={page === pageCount - 1}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            다음 ›
-          </button>
         </div>
-      )}
 
-      {/* Danger zone — the destructive infra action stays pinned to the rail's
-          bottom edge across both tabs: one predictable, visually isolated spot
-          instead of competing with the page header's primary CTA. */}
-      <div className={cn('shrink-0 border-t p-4', borderColors.light)}>
-        <DeleteInfrastructureButton className="w-full justify-center" />
+        {/* Auxiliary stack keeps the rail's reading order: monitoring fact,
+            collab-channel escape hatch, then the isolated destructive action. */}
+        <aside className="w-[320px] flex-none">
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn('text-[12px] font-medium', textColors.tertiary)}>모니터링</span>
+            <span
+              className={identityBarStyles.agent}
+              style={{ ['--ib-accent']: monitoringAccent } as CSSProperties}
+            >
+              <ShieldCheckIcon className={identityBarStyles.agentIcon} />
+              {monitoringLabel}
+            </span>
+          </div>
+          <div className="mt-3">
+            <CollabChannelCard jiraTicket={jiraTicket} />
+          </div>
+          <div className="mt-3">
+            <DeleteInfrastructureButton className="w-full justify-center" />
+          </div>
+        </aside>
       </div>
-    </aside>
+    </section>
   );
 };
