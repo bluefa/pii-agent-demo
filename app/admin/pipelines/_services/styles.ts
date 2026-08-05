@@ -36,8 +36,12 @@ export const serviceListStyles = {
   /** Rows divide the remaining height between them, so a page reaches the rail's bottom. */
   railList: 'flex flex-col flex-1 min-h-0 overflow-y-auto divide-y divide-[var(--pl-border)]',
   railFoot: 'mt-auto',
-  /** Right pane — restores the escaped content padding. */
-  main: 'flex-1 min-w-0 pl-8 pt-6 pb-12',
+  /**
+   * Right pane — restores the escaped content padding, and is itself a column so
+   * the sheet inside can fill the remaining height. The padding here is the grey
+   * that frames the sheet on every side; the parent layout supplies the right.
+   */
+  main: 'flex-1 min-w-0 flex flex-col pl-8 pt-6 pb-6',
   /** 1-line picker row — tile, name (wraps), then the code in its own right column.
    *  `flex-1` stretches it to fill the rail; `min-h` keeps it readable when a short
    *  viewport makes the list scroll instead. State variants own bg + name color. */
@@ -59,14 +63,20 @@ export const serviceListStyles = {
     'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[var(--pl-white)] px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[var(--pl-primary)]',
 
   /**
-   * Content sheet — the page's one raised plane. The rail and the ground behind
-   * it are a single recessed surface, so a section only reads as content once it
-   * is on a sheet; anything sitting bare on the ground reads as chrome.
+   * Content sheet — the page's ONE raised plane, filling the pane so the grey
+   * frames it on all four sides. The rail and the ground behind it are a single
+   * recessed surface; the sheet is the only thing in front of it.
+   *
+   * One sheet, not one per section. Stacked sheets let the ground show through
+   * between them, which cuts the content back into separate islands — the very
+   * thing the layered treatment is meant to fix. Sections are separated inside
+   * the sheet by space and a hairline, never by a gap in the sheet itself.
    */
-  sheet: 'rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-6 py-5',
-  /** Sheets stack with a gap — the ground between them is the section break. */
-  sheetStack: 'flex flex-col gap-4',
-  /** A block nested inside a sheet steps DOWN, not up — white on white is not a boundary. */
+  sheet:
+    'flex-1 min-h-0 flex flex-col gap-7 rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-7 py-6',
+  /** Section break inside the sheet — a rule, so the group never comes apart. */
+  sheetRule: 'border-t border-[var(--pl-border)] -mx-7',
+  /** A block nested inside the sheet steps DOWN, not up — white on white is not a boundary. */
   sheetInner: 'rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-inner)]',
 
   /** Selected-service identity block (Figma "pipeline-services-improved"):

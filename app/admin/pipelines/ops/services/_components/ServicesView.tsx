@@ -213,9 +213,9 @@ export function ServicesView(): ReactElement {
             onServiceChanged={reload}
           />
         ) : (
-          // 빈 화면은 카드도 표도 없어 기준선이 없다 — 패널 한가운데에 놓고, 다음 행동
+          // 선택 전에도 같은 시트가 서 있어야 화면의 틀이 흔들리지 않는다. 다음 행동
           // ("서비스를 고르세요")만 primary 로 키워 시선이 좌측 레일로 가게 한다.
-          <div className="flex h-full items-center justify-center">
+          <div className={cn(s.sheet, 'items-center justify-center')}>
             <PlEmptyState
               icon="cursor"
               message={

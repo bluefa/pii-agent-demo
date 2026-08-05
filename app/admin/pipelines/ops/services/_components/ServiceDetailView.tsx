@@ -193,21 +193,27 @@ export function ServiceDetailView({
     };
   }, [serviceCode, reloadKey]);
 
+  // 실패·로딩도 같은 시트 안에서 — 상태가 바뀔 때마다 본문의 면이 나타났다 사라지면
+  // 화면의 틀 자체가 깜빡인다.
   if (failed) {
     return (
-      <div className={cn(pipelineStyles.empty.base, pipelineStyles.empty.center)}>
-        <p>서비스 {serviceCode} 정보를 불러오지 못했습니다.</p>
-        <PlButton variant="secondary" className="mt-3" onClick={reload}>
-          다시 시도
-        </PlButton>
+      <div className={cn(s.sheet, 'items-center justify-center')}>
+        <div className={cn(pipelineStyles.empty.base, pipelineStyles.empty.center)}>
+          <p>서비스 {serviceCode} 정보를 불러오지 못했습니다.</p>
+          <PlButton variant="secondary" className="mt-3" onClick={reload}>
+            다시 시도
+          </PlButton>
+        </div>
       </div>
     );
   }
 
   if (!detail) {
     return (
-      <div className={cn(pipelineStyles.empty.base, pipelineStyles.empty.center)} aria-busy>
-        불러오는 중…
+      <div className={cn(s.sheet, 'items-center justify-center')} aria-busy>
+        <div className={cn(pipelineStyles.empty.base, pipelineStyles.empty.center)}>
+          불러오는 중…
+        </div>
       </div>
     );
   }
@@ -262,11 +268,12 @@ export function ServiceDetailView({
   );
 
   return (
-    // 레일과 그 뒤 바닥이 하나의 뒤쪽 면이라, 내용은 흰 시트 위에 올라야 본문으로 읽힌다.
-    // 바닥에 그냥 놓인 제목·설명은 크롬으로 읽혀 섹션이 화면에서 떠 있지 않았다.
-    <div className={s.sheetStack}>
+    // 레일과 그 뒤 바닥이 하나의 뒤쪽 면이고, 본문은 그 위에 뜬 시트 한 장이다.
+    // 섹션마다 시트를 따로 두면 그 사이로 바닥이 비쳐 본문이 다시 조각난다 —
+    // 구분은 시트 안에서 여백과 가로줄로만 한다.
+    <div className={s.sheet}>
       {/* 좌측 레일이 곧 현재 위치라 breadcrumb 은 두지 않는다. */}
-      <div className={cn(s.sheet, 'flex items-start justify-between gap-6')}>
+      <div className="flex items-start justify-between gap-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
@@ -277,9 +284,11 @@ export function ServiceDetailView({
         <div className="flex-none">{eosButton}</div>
       </div>
 
-      {/* 제목·건수·설명은 시트 머리 — 아래 Jira 섹션과 같은 문법이라 두 섹션이 같은
+      <hr className={s.sheetRule} />
+
+      {/* 제목·건수·설명은 섹션 머리 — 아래 Jira 섹션과 같은 문법이라 두 섹션이 같은
           높이에서 읽힌다. Target Source = 이 서비스가 가진 인프라라 표시는 CSP 아이콘. */}
-      <section className={s.sheet} aria-label="Target Source 목록">
+      <section aria-label="Target Source 목록">
         <h2 className={cn(text.sectionTitle, sectionHead)}>
           <Icon name="cloud" size={18} className="text-[var(--pl-text-weak)]" />
           Target Source 목록
@@ -409,8 +418,10 @@ export function ServiceDetailView({
         </div>
       </section>
 
-      {/* 두 섹션 사이 간격은 sheetStack 의 gap — 시트 사이로 보이는 바닥이 섹션 구분이다. */}
-      <section className={s.sheet} aria-label="Jira Ticket 연결">
+      <hr className={s.sheetRule} />
+
+      {/* 같은 시트 안의 두 번째 섹션 — 가로줄이 구분이고, 시트는 끊기지 않는다. */}
+      <section aria-label="Jira Ticket 연결">
         <h2 className={cn(text.sectionTitle, sectionHead)}>
           <JiraLogo />
           Jira Ticket 연결

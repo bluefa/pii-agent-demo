@@ -33,7 +33,6 @@ import type { PipelineSummary } from '@/lib/pipeline/types';
 import type { ProjectSummary } from '@/lib/types';
 
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
-import { Card } from '@/app/admin/pipelines/_components/Card';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
@@ -300,13 +299,13 @@ export default function ServicesPage(): ReactElement {
       {/* Right — target sources for the selected service */}
       <section className={s.main}>
         {!selectedCode ? (
-          <Card className="min-h-[420px]">
+          <div className={cn(s.sheet, 'items-center justify-center')}>
             <PlEmptyState icon="cursor" center message="좌측에서 서비스를 선택해 주세요." />
-          </Card>
+          </div>
         ) : (
-          <>
-            {/* 바닥에 그냥 놓인 제목·수치는 크롬으로 읽힌다 — 본문은 흰 시트 위에서만 본문이다. */}
-            <div className={cn(s.sheet, 'flex flex-col gap-4 mb-4')}>
+          // 본문은 시트 한 장 — 정체 블록과 표 사이는 가로줄로 나누고, 시트는 끊지 않는다.
+          <div className={s.sheet}>
+            <div className="flex flex-col gap-4">
               <span className={s.eyebrow}>서비스</span>
               <div className={s.titleRow}>
                 <h2 className={s.svcTitle}>{selectedName}</h2>
@@ -324,7 +323,10 @@ export default function ServicesPage(): ReactElement {
               </div>
               <p className={s.identityDesc}>대상을 선택하면 상세에서 설치·삭제를 시작할 수 있어요</p>
             </div>
-            <Card className="min-h-[420px]">
+
+            <hr className={s.sheetRule} />
+
+            <div className="flex-1 min-h-0">
               {targetsError != null ? (
                 <PlEmptyState
                   icon="inbox"
@@ -375,8 +377,8 @@ export default function ServicesPage(): ReactElement {
                   ))}
                 </PlTable>
               )}
-            </Card>
-          </>
+            </div>
+          </div>
         )}
       </section>
     </div>
