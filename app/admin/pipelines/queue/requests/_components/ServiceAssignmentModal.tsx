@@ -7,8 +7,8 @@
  *
  * A modal rather than a column: the fan-out reaches 20–30 services on a shared target,
  * which no cell can hold, and it is a lookup the admin makes occasionally rather than
- * something to be read down the whole page. That same size is why the list pages
- * instead of growing the modal to its cap and handing the rest to a scrollbar.
+ * something to be read down the whole page. That same size is why the list scrolls as
+ * one rather than paging: "who uses this" answered three times is not an answer.
  *
  * No footer: the modal is read-only, so its only action would have been 닫기, which the
  * header X already is.
@@ -34,10 +34,13 @@ import type {
   ResourceNlbMappings,
 } from '@/app/lib/api/task-queue-requests';
 
-// 12px mono at 500, ScanDetailModal's value ink. One pair per cell, on a hairline.
-const CELL =
-  'flex items-baseline justify-between gap-3 border-b border-[var(--pl-border)] py-2 text-[12px] font-medium [font-family:var(--pl-font-mono)]';
-const EMPTY = 'py-2 text-[12px] text-[var(--pl-text-weak)]';
+// Copied from ScanDetailModal's per-type table — 12/500 weak header over one rule,
+// 12px mono values at 400. Nothing but data ink. The header carries the modal's own
+// surface colour because it sticks: without it the rows scroll through it.
+const TH =
+  'sticky top-0 z-10 bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)] py-2 pr-3 text-left text-[12px] font-medium text-[var(--pl-text-weak)]';
+const TD =
+  'py-2 pr-3 text-[12px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]';
 
 export interface ServiceAssignmentModalProps {
   open: boolean;
@@ -87,32 +90,51 @@ export function ServiceAssignmentModal({
       // count — the body already says whether that is "없음" or "못 불러옴".
       sub={total > 0 ? `서비스 ${total}개 · NLB ${nlbCount}개` : undefined}
     >
-      {/* Three across, not one column down. The contract gives two short fields per row,
-          and a 24-row two-column table left most of a 720px modal empty while still making
-          the reader scroll for the thing the modal exists to show. Three pairs to a line
-          fits 24 in eight rows — the fan-out is the point, and now it is one look.
+      {/* ScanDetailModal's grammar, not appTable's: no frame, no header band, one rule
+          under the header and nothing else. A modal opened to answer one lookup should
+          not put a bordered, banded table inside a bordered card — the chrome ends up
+          louder than the three columns it holds. Rows are built by spacing and
+          alignment; hover aids tracking.
 
-          No column header: "ORD" beside "NLB #3" says what it is, and a header could only
-          be repeated three times or aligned to none of them. The cap stays as a guard for
-          a target with far more consumers than the 20–30 seen so far; grid rather than CSS
-          columns because multi-column inside a fixed height flows sideways instead. */}
+          The list scrolls rather than pages. A target is consumed by 20–30 services and
+          the whole point of opening this is to see how many and where they land — cutting
+          that into 10-row pages answered "who uses this" three times instead of once.
+          Same treatment as the NLB modals, and the sticky header keeps the two column
+          names attached to the rows. */}
       <div className="max-h-[44vh] overflow-y-auto">
-        {rows === null ? (
-          <p className={EMPTY}>NLB 정보를 불러오지 못했어요</p>
-        ) : total === 0 ? (
-          <p className={EMPTY}>배정된 NLB가 없어요</p>
-        ) : (
-          <div className="grid grid-cols-3 gap-x-8">
-            {rows.map((m, index) => (
-              <div key={`${m.serviceCode ?? '—'}-${m.nlbIndex ?? '—'}-${index}`} className={CELL}>
-                <span className="text-[var(--pl-text-strong)]">{m.serviceCode ?? '—'}</span>
-                <span className="text-[var(--pl-text-medium)]">
-                  {m.nlbIndex != null ? `NLB #${m.nlbIndex}` : '—'}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+      <table className="w-full">
+        <thead>
+          <tr>
+            <th className={`${TH} w-[140px]`}>Service Code</th>
+            <th className={TH}>NLB Index</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows === null ? (
+            <tr>
+              <td className={`${TD} text-[var(--pl-text-weak)]`} colSpan={2}>
+                NLB 정보를 불러오지 못했어요
+              </td>
+            </tr>
+          ) : total === 0 ? (
+            <tr>
+              <td className={`${TD} text-[var(--pl-text-weak)]`} colSpan={2}>
+                배정된 NLB가 없어요
+              </td>
+            </tr>
+          ) : (
+            rows.map((m, index) => (
+              <tr
+                key={`${m.serviceCode ?? '—'}-${m.nlbIndex ?? '—'}-${index}`}
+                className="hover:bg-[var(--pl-gray-50)]"
+              >
+                <td className={TD}>{m.serviceCode ?? '—'}</td>
+                <td className={TD}>{m.nlbIndex != null ? `NLB #${m.nlbIndex}` : '—'}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
       </div>
     </TqModal>
   );
