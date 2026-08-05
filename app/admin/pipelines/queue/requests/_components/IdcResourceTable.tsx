@@ -37,6 +37,7 @@ import {
   IdcEndpointCell,
   IdcSourceIpCell,
 } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
+import { idcAddressKind } from '@/app/lib/api/task-queue-requests';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 export interface IdcResourceTableProps {
@@ -132,7 +133,12 @@ export function IdcResourceTable({
               return (
                 <tr key={rowKey} className={cn(ROW_BASE, ROW_EXCLUDED)}>
                   <td className={table.approvalCell}>
-                    <IdcEndpointCell hosts={row.connectTargets} tone={DIM_TEXT} />
+                    <IdcEndpointCell
+                      hosts={row.connectTargets}
+                      kind={idcAddressKind(row)}
+                      dimmed
+                      tone={DIM_TEXT}
+                    />
                   </td>
                   <td className={table.approvalCell}>
                     <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} tone={DIM_TEXT} />
@@ -173,7 +179,7 @@ export function IdcResourceTable({
             return (
               <tr key={rowKey} className={cn(ROW_BASE, ROW_TARGET)}>
                 <td className={table.approvalCell}>
-                  <IdcEndpointCell hosts={row.connectTargets} />
+                  <IdcEndpointCell hosts={row.connectTargets} kind={idcAddressKind(row)} />
                 </td>
                 <td className={table.approvalCell}>
                   <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} />

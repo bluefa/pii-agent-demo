@@ -14,6 +14,10 @@ import type { ReactElement } from 'react';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
+// The badge itself IS shared — it takes only a kind, so none of the model mismatch
+// above applies to it, and the two surfaces must not drift on what "Multi" looks like.
+import { IdcKindBadge } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
+import type { IdcKind } from '@/app/lib/api/idc';
 
 /**
  * Long host/SID/IP: ellipsis + copy-on-hover + full-value tooltip (res-id-cell pattern).
@@ -75,17 +79,38 @@ function HostCell({
  * than the attributes beside it. Weight is deliberately left at 400: the sibling table
  * tried 600 on its identity column and removed it, because colour plus weight on one
  * cell reads as shouting. One axis per column, and the hover lift is it.
+ *
+ * The Single/Multi/Domain badge sits above the addresses rather than in a 구분 column of
+ * its own — the column was deleted for saying what the value already said, and as a
+ * caption it labels the block it describes instead of re-stating it a column away. Same
+ * badge step 1 shows the service owner, so both sides read one classification.
  */
 export function IdcEndpointCell({
   hosts,
+  kind,
+  dimmed = false,
   tone,
 }: {
   hosts: readonly string[];
+  /** null for non-IDC rows — the badge is simply omitted. */
+  kind?: IdcKind | null;
+  /**
+   * Excluded row. Stated by the caller rather than inferred from `tone` being set:
+   * a filled badge is the loudest thing in a muted row, and the row's own dimming is
+   * a text colour that a background-coloured badge does not inherit. opacity-50 is
+   * step 1's own value for the same excluded cell.
+   */
+  dimmed?: boolean;
   tone?: string;
 }): ReactElement | null {
   if (hosts.length === 0) return null;
   return (
-    <span className="flex flex-col items-start gap-0.5">
+    <span className="flex flex-col items-start gap-1">
+      {kind && (
+        <span className={cn(dimmed && 'opacity-50')}>
+          <IdcKindBadge kind={kind} />
+        </span>
+      )}
       {hosts.map((host) => (
         <HostCell
           key={host}
