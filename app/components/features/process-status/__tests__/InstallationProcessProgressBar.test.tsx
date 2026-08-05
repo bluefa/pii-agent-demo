@@ -5,14 +5,6 @@ import { render } from '@testing-library/react';
 import { ProcessStatus } from '@/lib/types';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status/InstallationProcessProgressBar';
 
-vi.mock(
-  '@/app/components/features/process-status/motion/stepperMotionEngine',
-  () => ({
-    runStepperMotion: vi.fn(() => () => undefined),
-    resetStepperToStates: vi.fn(),
-  }),
-);
-
 vi.stubGlobal('matchMedia', () => ({
   matches: false,
   media: '',
@@ -48,14 +40,24 @@ describe('InstallationProcessProgressBar', () => {
     expect(items[3]).toBe(currentLi);
   });
 
-  it('treats final INSTALLATION_COMPLETE as completed (not current)', () => {
-    const { container } = render(
+  it('keeps final INSTALLATION_COMPLETE as the current step at 7 / 7', () => {
+    const { container, getByText } = render(
       <InstallationProcessProgressBar
         currentStep={ProcessStatus.INSTALLATION_COMPLETE}
       />,
     );
-    const currentLi = container.querySelector('li[aria-current="step"]');
-    expect(currentLi).toBeNull();
+    const items = container.querySelectorAll('li');
+    expect(container.querySelector('li[aria-current="step"]')).toBe(items[6]);
+    expect(getByText('/ 7 단계')).toBeTruthy();
+  });
+
+  it('shows the position count with its 설치 진행 title', () => {
+    const { getByText } = render(
+      <InstallationProcessProgressBar currentStep={ProcessStatus.WAITING_APPROVAL} />,
+    );
+    expect(getByText('설치 진행')).toBeTruthy();
+    expect(getByText('2')).toBeTruthy();
+    expect(getByText('/ 7 단계')).toBeTruthy();
   });
 
   it('renders Korean install labels', () => {

@@ -6,7 +6,6 @@ import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import {
   CardActionBar,
-  ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import {
@@ -75,9 +74,6 @@ const CompleteActionBar = () => {
  */
 export const IdcStep7Complete = ({
   project,
-  identity,
-  providerLabel,
-  action,
 }: IdcStepProps) => {
 
   // Step 7 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
@@ -85,16 +81,9 @@ export const IdcStep7Complete = ({
 
   return (
     <>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
       <section className={cardStyles.base}>
         <header className={cardStyles.header}>
-          <span className={cardStyles.stepTag}>7번째 단계</span>
           <div className="flex items-center gap-2">
             <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동</h2>
             <span

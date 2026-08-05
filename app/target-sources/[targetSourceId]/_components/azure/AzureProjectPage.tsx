@@ -15,11 +15,12 @@ export const AzureProjectPage = ({
 }: AzureProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'Azure',
-    jiraLink: null,
     identifiers: [
-      // v16 identity bar carries only Subscription ID (HTML 5778-5786 / setProvider meta
-      // HTML 9426). Tenant ID lives solely in the credential-registration modal (f1, HTML 8895).
       { label: 'Subscription ID', value: project.subscriptionId ?? null, mono: true },
+      // tenant_id is a declared TargetSourceMetadata field the normalizer already
+      // maps — the old "credential modal only" placement was a v16 display call,
+      // not a contract limit, so the header shows it beside the subscription.
+      { label: 'Tenant ID', value: project.tenantId ?? null, mono: true },
     ],
   };
 

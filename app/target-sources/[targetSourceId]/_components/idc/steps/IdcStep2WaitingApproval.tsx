@@ -7,7 +7,6 @@ import { formatDate } from '@/lib/utils/date';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import {
-  ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalCancelButton } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCancelButton';
@@ -48,9 +47,6 @@ const EMPTY_VIEW: IdcApprovalRequestView = {
  */
 export const IdcStep2WaitingApproval = ({
   project,
-  identity,
-  providerLabel,
-  action,
   onProjectUpdate,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
@@ -67,12 +63,6 @@ export const IdcStep2WaitingApproval = ({
 
   return (
     <>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
       {view.unavailableReason != null ? (
         <ApprovalUnavailableCard
           targetSourceId={targetSourceId}
@@ -82,7 +72,6 @@ export const IdcStep2WaitingApproval = ({
       ) : (
         <section className={cn(cardStyles.base, 'overflow-hidden')}>
           <header className={cardStyles.header}>
-            <span className={cardStyles.stepTag}>2번째 단계</span>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-2">
                 <h2 className={cardStyles.cardTitle}>연동 대상 승인 대기</h2>

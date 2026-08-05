@@ -374,12 +374,6 @@ export const cardStyles = {
   // Tracking is -0.01em, not the -0.03em latin display type takes: Korean glyphs are already dense,
   // so tighter tracking reads as cramped instead of as a tightened headline.
   cardTitle: 'text-[22px] font-extrabold tracking-[-0.01em] leading-[1.2] text-[#191F28]',
-  /**
-   * "N번째 단계" tag above a step-card title, matching INSTALL_STEPS order in
-   * InstallationProcessProgressBar. Was copy-pasted into every step card with a "keep the two in
-   * sync" note; six cards (cloud 1·2·3, IDC 1·2·3 + 6) is where that stops being a note.
-   */
-  stepTag: `mb-1.5 inline-flex items-center rounded-[6px] px-2 py-0.5 text-[12px] font-bold ${primaryColors.bgLight} ${primaryColors.textOnLight}`,
   /** State pill beside a step title (승인 대기 / 반영중). Shape only — the caller owns the tone. */
   stepBadge: 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
   /**
@@ -517,6 +511,87 @@ export const identityBarStyles = {
  */
 export const numericFeatures = {
   tabular: 'tabular-nums',
+} as const;
+
+/**
+ * Target-source detail flat page header — chrome, not a card. Replaces the v16
+ * meta card (rounded-20 + shadow) so only step content keeps card chrome.
+ *
+ * Rules this group encodes:
+ * - Surface sits BETWEEN the body wash (#F4F4FB, L97) and white cards (L100):
+ *   #F8F9FC (L98) gives the page a floor < header < card depth order.
+ * - Grouping is distance-only (no rules inside the header): labels bind to
+ *   their content at 6px, blocks separate at 18px — the 1:3 ratio reads as
+ *   grouping without lines.
+ * - Weight ceiling is 600. The 24px page title is the header's only 800; a
+ *   provider name and its sibling values share one weight (500) — hierarchy
+ *   comes from size (12→14px) and color (#6B7684→#191F28) only.
+ */
+export const projectHeaderStyles = {
+  /** Header plane + bottom hairline that hands over to the body wash. */
+  surface: 'bg-[#F8F9FC] border-b border-[#EAECF2]',
+  /** Horizontal padding tracks the step-card column (px-10) so edges align. */
+  inner: 'px-10 pt-[18px]',
+  titleRow: 'flex items-start justify-between gap-4',
+  titleGroup: 'flex min-w-0 flex-wrap items-baseline gap-2.5',
+  /**
+   * Service-code chip — slate, not primary: in this palette blue means
+   * "clickable" and amber/green mean state; an identifier gets the neutral
+   * that still reads as chosen (blue-leaning, hue-matched to the surface).
+   */
+  codeChip: 'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] bg-[#E9EEF9] px-2 py-[3px]',
+  codeChipLabel: 'text-[12px] font-medium text-[#55617A]',
+  codeChipValue: 'font-mono text-[12px] font-semibold text-[#2C3A55]',
+  /** Block eyebrow (설명 / 클라우드 정보 / 설치 진행) — small but darker than kv labels. */
+  blockLabel: 'text-[12px] font-semibold tracking-[0.02em] text-[#4E5968]',
+  block: 'mt-[18px]',
+  /** Description body — 2-line clamp; the whole block is skipped when empty. */
+  descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#6B7684] line-clamp-2',
+  groupRow: 'mt-1.5 flex flex-wrap items-stretch gap-x-5 gap-y-2',
+  provider: 'flex flex-none items-center gap-2 pr-1',
+  providerIcon: 'grid h-[30px] w-[30px] flex-none place-items-center rounded-[8px] bg-[#F1F3F7] text-[#4E5968]',
+  providerName: 'text-[14px] font-medium tracking-[-0.01em] text-[#191F28]',
+  /** Plain-language gloss after a bare token (IDC → 사내망). */
+  providerGloss: 'text-[#6B7684]',
+  providerGlossBar: 'mx-1.5 text-[#C6CCD6]', // design-exempt: decorative separator glyph, not text
+  divider: 'w-px flex-none self-stretch bg-[#EDEFF3]',
+  kv: 'group/kv flex min-w-0 flex-col justify-center gap-0.5',
+  kvLabel: 'whitespace-nowrap text-[12px] font-medium text-[#6B7684]',
+  kvValue: 'flex items-center text-[14px] font-medium leading-[1.35] text-[#191F28]',
+  kvValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
+  /** Copy affordance — hover/focus reveal, so idle rows show only the value. */
+  copyReveal: 'opacity-0 transition-opacity duration-[120ms] group-hover/kv:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none',
+  /** 설치 모드 값 칩 — auto is the quiet default (no action needed)… */
+  modeChipAuto: 'inline-flex items-center rounded-[6px] bg-[#F0F4FA] px-2 py-0.5 text-[12px] font-semibold text-[#4B6284]',
+  /** …manual keeps the amber outline: the customer must run the script themselves. */
+  modeChipManual: 'inline-flex items-center rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[12px] font-semibold text-amber-800',
+  modeNote: 'ml-2 whitespace-nowrap text-[12px] font-medium text-[#6B7684]',
+} as const;
+
+/**
+ * Quiet install stepper inside the flat header — every step named, none loud.
+ * The 8px dots ring in the header surface color so the connector reads as
+ * passing behind them; done segments tint toward primary without reaching it.
+ */
+export const installStepperStyles = {
+  wrap: 'mt-[18px] pb-[18px]',
+  headRow: 'flex items-baseline gap-2',
+  count: 'ml-auto text-[12px] font-semibold tabular-nums text-[#4E5968]',
+  countTotal: 'font-medium text-[#6B7684]',
+  list: 'mt-1.5 grid list-none p-0',
+  item: 'flex min-w-0 flex-col items-center gap-1.5',
+  track: 'relative flex h-[10px] w-full items-center justify-center',
+  lineBase: 'absolute top-1/2 -mt-px h-[2px]',
+  line: 'bg-[#EDEFF3]',
+  lineDone: 'bg-[#CFE0FF]',
+  dotBase: 'relative z-[1] h-2 w-2 flex-none rounded-full ring-[3px] ring-[#F8F9FC]',
+  dotPending: 'bg-[#DFE3EA]',
+  dotDone: 'bg-[#A8C8FF]',
+  dotCurrent: 'bg-[#0064FF]',
+  labelBase: 'px-1 text-center text-[12px] leading-[1.35]',
+  labelPending: 'font-medium text-[#8B95A1]', // design-exempt: future steps are the disabled tier; dots carry state
+  labelDone: 'font-medium text-[#6B7684]',
+  labelCurrent: 'font-semibold text-[#1B64DA]',
 } as const;
 
 /**

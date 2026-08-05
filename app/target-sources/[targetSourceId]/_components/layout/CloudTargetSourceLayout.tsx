@@ -3,7 +3,10 @@
 import type { ReactNode } from 'react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import { cn } from '@/lib/theme';
-import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
+import {
+  ProjectPageMeta,
+  type ProjectIdentity,
+} from '@/app/target-sources/[targetSourceId]/_components/common';
 import { InstallingStep } from '@/app/target-sources/[targetSourceId]/_components/layout/InstallingStep';
 import { WaitingConnectionTestStep } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingConnectionTestStep';
 import { ConnectionVerifiedStep } from '@/app/target-sources/[targetSourceId]/_components/layout/ConnectionVerifiedStep';
@@ -47,9 +50,12 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
   if (!step) return null;
   return (
     <main className={cn('bg-[#F4F4FB]', 'min-h-screen')}>
+      {/* Flat page header (chrome) spans the column edge-to-edge ABOVE the padded
+          body, so the lavender wash starts where content cards do. The layout owns
+          it — steps render cards only, matching IdcTargetSourceLayout. */}
+      <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
       {/* v16 `.main`: full-width, padding 32/40/80 (top/x/bottom), flush to the 296px
-          sidebar so content begins at 336px — matches IdcTargetSourceLayout. (Was
-          max-w-[1200px] mx-auto p-7 — centered + 28px, which diverged from IDC/v16.)
+          sidebar so content begins at 336px — matches IdcTargetSourceLayout.
           The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
       <div className="px-10 pt-8 pb-20 space-y-6">{step}</div>
     </main>

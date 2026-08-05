@@ -49,7 +49,6 @@ const project: CloudTargetSource = {
 
 const identity: ProjectIdentity = {
   cloudProvider: 'IDC',
-  jiraLink: null,
   identifiers: [],
 };
 
@@ -65,9 +64,8 @@ const renderStep = () =>
   );
 
 describe('IdcStep7Complete', () => {
-  it('renders the step tag, the title and the 연동 완료 badge', () => {
+  it('renders the title and the 연동 완료 badge', () => {
     renderStep();
-    expect(screen.getByText('7번째 단계')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'PII 모니터링 모듈 연동' })).toBeTruthy();
     expect(screen.getByText('연동 완료')).toBeTruthy();
   });

@@ -17,7 +17,6 @@ import { EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
 import {
   CardActionBar,
-  ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
@@ -113,9 +112,6 @@ interface PopoverState {
  *  flow, and the four modals. Working list lives in component state (DR1). */
 export const IdcStep1TargetInput = ({
   project,
-  identity,
-  providerLabel,
-  action,
   onProjectUpdate,
 }: IdcStepProps) => {
   const targetSourceId = project.targetSourceId;
@@ -248,15 +244,12 @@ export const IdcStep1TargetInput = ({
 
   return (
     <>
-      <ProjectPageMeta project={project} providerLabel={providerLabel} identity={identity} action={action} />
-
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
       <section className={cardStyles.base}>
         {/* Cloud step-1 header grammar: 단계 태그 → 고정 제목 → 안내 문장. The two input entry
             points stay pinned to the header right — IDC has no scan strip to carry them. */}
         <header className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>
           <div>
-            <span className={cardStyles.stepTag}>1번째 단계</span>
             <h2 className={cardStyles.cardTitle}>연동 대상 DB 입력</h2>
             {/* Blue marks only what the user has to do by hand (입력·사유) — 승인 is the system's
                 part, so it stays plain. break-keep wraps by word, not by syllable. */}

@@ -218,7 +218,6 @@ export const WaitingApprovalCard = ({
       <div className={cardStyles.header}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <span className={cardStyles.stepTag}>2번째 단계</span>
             <div className="flex items-center gap-2">
             {/* The verdict arrives with the fetch, so title and badge stay unresolved until then —
                 rendering the pending copy first makes every rejected load flash 승인 대기 → 반려. */}

@@ -66,7 +66,6 @@ const projectFixture: CloudTargetSource = {
 
 const identityFixture: ProjectIdentity = {
   cloudProvider: 'Azure',
-  jiraLink: null,
   identifiers: [],
 };
 
@@ -82,9 +81,6 @@ describe('ConnectionVerifiedStep', () => {
     render(
       <ConnectionVerifiedStep
         project={projectFixture}
-        identity={identityFixture}
-        providerLabel="Azure Infrastructure"
-        action={null}
         onProjectUpdate={onProjectUpdate}
       />,
     );
@@ -99,9 +95,9 @@ describe('ConnectionVerifiedStep', () => {
     expect(screen.getByText('승인 대기')).toBeTruthy();
   });
 
-  it('renders the 6번째 단계 step tag', () => {
+  it('renders no step-position tag (the header stepper owns it)', () => {
     renderStep();
-    expect(screen.getByText('6번째 단계')).toBeTruthy();
+    expect(screen.queryByText('6번째 단계')).toBeNull();
   });
 
   it('renders the merged guidance sentence (header subtitle + banner copy were one message)', () => {

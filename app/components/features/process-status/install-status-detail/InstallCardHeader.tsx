@@ -12,7 +12,6 @@ import { cardStyles, cn, primaryColors } from '@/lib/theme';
  */
 export const InstallCardHeader = ({ action }: { action?: ReactNode }) => (
   <header className={cardStyles.header}>
-    <span className={cardStyles.stepTag}>4번째 단계</span>
     {/* 단계 태그가 윗줄을 차지하므로, 제목과 보조 액션이 한 줄을 나눠 갖는다. */}
     <div className="flex items-center justify-between gap-4">
       <h2 className={cardStyles.cardTitle}>Agent 설치</h2>
