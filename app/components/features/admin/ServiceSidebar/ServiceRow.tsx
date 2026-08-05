@@ -21,14 +21,15 @@ const tileClassFor = (code: string): string => {
 };
 
 /**
- * Icon tile plus a stacked name/code cell, filling an equal share of the list's
- * height (`flex-1`) so a page of rows reaches the bottom of the rail instead of
- * ending halfway down it. `min-h` keeps the row readable when the viewport is
- * short enough that the list scrolls instead.
+ * Icon tile, name, and the code in its own right-hand column — filling an equal
+ * share of the list's height (`flex-1`) so a page of rows reaches the bottom of
+ * the rail instead of ending halfway down it. `min-h` keeps the row readable
+ * when the viewport is short enough that the list scrolls instead.
  *
- * The code sits under the name, not right-aligned to the rail edge: pushed to
- * the edge it rebuilds the two-column table this redesign removed, and short
- * names left the row's middle empty. Long names truncate and the full name
+ * Service names run to about 30 characters, so the name wraps to a second line
+ * rather than being cut at the rail's 296px, and the code keeps a fixed column
+ * at the row's end: packed against the name it would land at a different x on
+ * every row, and a long name would push it off the row entirely. The full name
  * stays in the row's title attribute; the code is shown verbatim and
  * case-sensitively (`/services/{code}` matches exactly).
  */
@@ -39,17 +40,17 @@ export const ServiceRow = ({ code, name, onSelect }: ServiceRowProps) => (
       onClick={() => onSelect(code)}
       title={name ? `${name} (${code})` : code}
       className={cn(
-        'w-full flex items-center gap-3 px-3 text-left cursor-pointer transition-colors',
+        'w-full flex items-center gap-2.5 px-3 text-left cursor-pointer transition-colors',
         serviceSidebarStyles.rowActive,
       )}
     >
       <span className={cn(serviceSidebarStyles.tile, tileClassFor(code))} aria-hidden="true">
         {(name || code).charAt(0).toUpperCase()}
       </span>
-      <span className="min-w-0 flex flex-col gap-0.5">
-        <span className={cn('truncate', serviceSidebarStyles.rowName)}>{name || code}</span>
-        {name && <span className={serviceSidebarStyles.rowCode}>{code}</span>}
+      <span className={cn('flex-1 min-w-0 line-clamp-2 break-words', serviceSidebarStyles.rowName)}>
+        {name || code}
       </span>
+      {name && <span className={serviceSidebarStyles.rowCode}>{code}</span>}
     </button>
   </li>
 );

@@ -198,14 +198,12 @@ export const ServiceSidebar = ({
               // reflow when the skeleton is replaced.
               <li
                 key={i}
-                className="flex flex-1 min-h-[52px] items-center gap-3 px-3"
+                className="flex flex-1 min-h-[52px] items-center gap-2.5 px-3"
                 aria-hidden="true"
               >
                 <div className={cn(idcStyles.skeletonBar, 'h-7 w-7 shrink-0 rounded-[6px]')} />
-                <div className="flex flex-col gap-1.5">
-                  <div className={cn(idcStyles.skeletonBar, 'h-3 w-24 rounded')} />
-                  <div className={cn(idcStyles.skeletonBar, 'h-2.5 w-10 rounded')} />
-                </div>
+                <div className={cn(idcStyles.skeletonBar, 'h-3 flex-1 rounded')} />
+                <div className={cn(idcStyles.skeletonBar, 'h-5 w-10 shrink-0 rounded-[6px]')} />
               </li>
             ))
           ) : listed.length === 0 ? (

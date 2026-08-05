@@ -1099,13 +1099,16 @@ export const serviceSidebarStyles = {
   currentName: 'text-[14px] font-semibold text-[#191F28]',
   /** Code beside the current service — pairs with the band tint (see primaryColors.textOnLight). */
   currentCode: 'font-mono text-[12px] font-semibold text-[#0050D6]',
-  rowName: 'text-[14px] font-medium text-[#191F28]',
+  /** Row name — wraps to a second line (service names run to ~30 characters) rather than riding off the rail's edge. */
+  rowName: 'text-[14px] font-medium leading-5 text-[#191F28]',
   /**
-   * Row code — quiet mono on its own line under the name. Stacked rather than
-   * right-aligned: pushed to the rail edge it rebuilds the two-column table this
-   * redesign removed, and a stacked pair is what gives a full-height row content.
+   * Row code — a Toss tag in its own right-hand column. Names vary in length, so
+   * a code packed against the name lands at a different x on every row and never
+   * becomes scannable; the column is also what keeps a 30-character name from
+   * pushing the code out of the row.
    */
-  rowCode: 'font-mono text-[12px] text-[#6B7280]',
+  rowCode:
+    'inline-flex shrink-0 items-center rounded-[6px] bg-[#F2F4F6] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
   /** Row fill under pointer hover or keyboard focus — full-bleed and square, the way a web list row highlights. The accent stays with the current-service band. */
   rowActive: 'hover:bg-[#F7F8FA] focus-visible:bg-[#F7F8FA]',
   /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
