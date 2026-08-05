@@ -17,7 +17,7 @@
  * resource table instead — it is a standing fact about the resource, not something to
  * open a modal for.
  */
-import { useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { TqModal } from '@/app/admin/pipelines/queue/_components/TqModal';
@@ -50,6 +50,19 @@ export function NlbAssignModal({
   // is the seed rather than a value carried over from whichever row opened last.
   const [chosen, setChosen] = useState<number | null>(resource.nlbIndex);
   const dirty = chosen != null && chosen !== resource.nlbIndex;
+  // The list runs to 40. Bring the row the resource is already on into view once the rows
+  // land, or an admin opening #37's modal starts at #1 and scrolls to find where they are.
+  // Once only: a save refetches occupancy, and re-scrolling then would yank the list out
+  // from under whoever is mid-pick.
+  const currentRowRef = useRef<HTMLTableRowElement>(null);
+  const anchored = useRef(false);
+  useEffect(() => {
+    if (!open || anchored.current || currentRowRef.current == null) return;
+    anchored.current = true;
+    // Optional call: jsdom does not implement scrollIntoView, and anchoring is an
+    // affordance — a missing implementation must not take the modal down with it.
+    currentRowRef.current.scrollIntoView?.({ block: 'center' });
+  }, [open, rows.length]);
   const endpoints = resource.connectTargets
     .map((host) => (resource.port == null ? host : `${host}:${resource.port}`))
     .join(' · ');
@@ -84,9 +97,17 @@ export function NlbAssignModal({
         </>
       }
     >
+      {/* The scroller is this inner div, not the modal shell. With 40 rows the shell's own
+          max-h-[88vh] overflow-y-auto took over: the header, the target being assigned and
+          the column names all scrolled away with the list, and the focus trap landing on a
+          footer button opened the modal scrolled to the very bottom. Capping the list here
+          leaves the shell shorter than its own limit, so nothing outside the list moves. */}
       <div className={appTable.wrap}>
+        <div className="max-h-[44vh] overflow-y-auto">
         <table className={appTable.root}>
-          <thead className={appTable.thead}>
+          {/* Sticky against the div above — 40 rows means most of the list is read with the
+              header off the top of the box otherwise. */}
+          <thead className={cn(appTable.thead, 'sticky top-0 z-10')}>
             <tr>
               <th className={`${appTable.th} w-[64px]`}>선택</th>
               <th className={`${appTable.th} w-[100px]`}>NLB Index</th>
@@ -108,6 +129,7 @@ export function NlbAssignModal({
               return (
                 <tr
                   key={row.nlbIndex}
+                  ref={row.nlbIndex === resource.nlbIndex ? currentRowRef : undefined}
                   className={cn(
                     appTable.row,
                     blocked
@@ -150,6 +172,7 @@ export function NlbAssignModal({
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
     </TqModal>

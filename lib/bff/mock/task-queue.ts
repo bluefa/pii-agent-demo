@@ -221,6 +221,18 @@ const SEED_NLB: readonly NlbRow[] = [
   { nlbIndex: 4, nlbIpList: ['10.30.0.41', '10.30.0.42'], occupiedListenerCount: 55 },
   { nlbIndex: 5, nlbIpList: ['10.30.0.51', '10.30.0.52'], occupiedListenerCount: 8 },
   { nlbIndex: 6, nlbIpList: ['10.30.0.61', '10.30.0.62'], occupiedListenerCount: 31 },
+  // #7–#40. 40 is the ceiling an operator actually sees, and the picker has to hold up at
+  // it — six rows never showed what the list does once it stops fitting the modal.
+  // Occupancy cycles through 여유 / 주의 / Hard Limit instead of running in order, so the
+  // unpickable rows are scattered through the list the way they are in practice.
+  ...Array.from({ length: 34 }, (_, i): NlbRow => {
+    const nlbIndex = i + 7;
+    return {
+      nlbIndex,
+      nlbIpList: [`10.30.1.${nlbIndex * 2}`, `10.30.1.${nlbIndex * 2 + 1}`],
+      occupiedListenerCount: [7, 33, 51, 19, 45, 26, 58, 3][i % 8]!,
+    };
+  }),
 ];
 
 // Current NLB assignment per (targetSourceId:resourceId), seeded from DETAILS[1031]
@@ -228,7 +240,10 @@ const SEED_NLB: readonly NlbRow[] = [
 const SEED_NLB_ASSIGNMENT = new Map<string, number>([
   ['1031:idc-r-8f21', 3],
   ['1031:idc-r-8f22', 3],
-  ['1031:idc-r-8f23', 5],
+  // Deliberately deep in the 40-row list, and on a Hard Limit NLB: opening this row's
+  // picker has to land on #33 rather than at #1, and #33 has to stay selectable because
+  // it is where the resource already is (nlbOptionDisabled's current-index exemption).
+  ['1031:idc-r-8f23', 33],
 ]);
 
 /** Shared with the reused `idc.getNlbTable` mock so both read one occupancy source. */
