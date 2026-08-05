@@ -23,11 +23,10 @@
  * and a target on six NLBs printed the same six IP pairs thirty times. The sub line now
  * spends that space on the two counts the list could only be counted for by hand.
  */
-import { useState, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { TqModal } from '@/app/admin/pipelines/queue/_components/TqModal';
-import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 import { findResourceMappings } from '@/app/admin/pipelines/queue/requests/_logic';
 import type {
@@ -35,11 +34,11 @@ import type {
   ResourceNlbMappings,
 } from '@/app/lib/api/task-queue-requests';
 
-const PAGE_SIZE = 10;
-
 // Copied from ScanDetailModal's per-type table — 12/500 weak header over one rule,
-// 12px mono values at 400. Nothing but data ink.
-const TH = 'border-b border-[var(--pl-border)] py-2 pr-3 text-left text-[12px] font-medium text-[var(--pl-text-weak)]';
+// 12px mono values at 400. Nothing but data ink. The header carries the modal's own
+// surface colour because it sticks: without it the rows scroll through it.
+const TH =
+  'sticky top-0 z-10 bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)] py-2 pr-3 text-left text-[12px] font-medium text-[var(--pl-text-weak)]';
 const TD =
   'py-2 pr-3 text-[12px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]';
 
@@ -58,8 +57,6 @@ export function ServiceAssignmentModal({
   mappings,
 }: ServiceAssignmentModalProps): ReactElement {
   const { appTable, tag } = tqStyles;
-  // Fresh mount per resource (the page keys this modal) — page seeds at 1.
-  const [page, setPage] = useState(1);
   const rows = findResourceMappings(mappings, resource.resourceId);
   const total = rows?.length ?? 0;
   // Distinct indexes, not rows: "NLB 6개" answers how many listeners this one target is
@@ -67,8 +64,6 @@ export function ServiceAssignmentModal({
   const nlbCount = new Set(
     (rows ?? []).map((m) => m.nlbIndex).filter((i): i is number => i != null),
   ).size;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const slice = (rows ?? []).slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const endpoints = resource.connectTargets
     .map((host) => (resource.port == null ? host : `${host}:${resource.port}`))
     .join(' · ');
@@ -77,7 +72,10 @@ export function ServiceAssignmentModal({
     <TqModal
       open={open}
       onClose={onClose}
-      title="서비스별 NLB 배정"
+      // Not "서비스별 NLB 배정": 배정 is what the admin CHANGES in the row's own NLB 배정
+      // column, and this modal changes nothing. The question it answers is who consumes
+      // this target — the NLB each one lands on is the attribute, and it is the column.
+      title="이 대상을 사용하는 서비스"
       meta={
         <>
           <span className={cn(tag.base, tag.blue)}>
@@ -96,7 +94,14 @@ export function ServiceAssignmentModal({
           under the header and nothing else. A modal opened to answer one lookup should
           not put a bordered, banded table inside a bordered card — the chrome ends up
           louder than the three columns it holds. Rows are built by spacing and
-          alignment; hover aids tracking. */}
+          alignment; hover aids tracking.
+
+          The list scrolls rather than pages. A target is consumed by 20–30 services and
+          the whole point of opening this is to see how many and where they land — cutting
+          that into 10-row pages answered "who uses this" three times instead of once.
+          Same treatment as the NLB modals, and the sticky header keeps the two column
+          names attached to the rows. */}
+      <div className="max-h-[44vh] overflow-y-auto">
       <table className="w-full">
         <thead>
           <tr>
@@ -118,7 +123,7 @@ export function ServiceAssignmentModal({
               </td>
             </tr>
           ) : (
-            slice.map((m, index) => (
+            rows.map((m, index) => (
               <tr
                 key={`${m.serviceCode ?? '—'}-${m.nlbIndex ?? '—'}-${index}`}
                 className="hover:bg-[var(--pl-gray-50)]"
@@ -130,16 +135,7 @@ export function ServiceAssignmentModal({
           )}
         </tbody>
       </table>
-
-      {total > PAGE_SIZE && (
-        <PlPagination
-          className="mt-4"
-          page={page}
-          pages={pages}
-          onPrev={() => setPage((n) => Math.max(1, n - 1))}
-          onNext={() => setPage((n) => Math.min(pages, n + 1))}
-        />
-      )}
+      </div>
     </TqModal>
   );
 }

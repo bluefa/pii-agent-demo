@@ -13,7 +13,7 @@
  * Picking and saving are one act: the modal commits on 저장 and closes, so there is no
  * such thing as an unsaved assignment to warn about later.
  *
- * Picker only. The 서비스별 배정 that the row's ⓘ used to open is a column on the
+ * Picker only. The 사용 서비스 list that the row's ⓘ used to open is a column on the
  * resource table instead — it is a standing fact about the resource, not something to
  * open a modal for.
  */

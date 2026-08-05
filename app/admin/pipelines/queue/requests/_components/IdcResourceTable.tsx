@@ -112,8 +112,10 @@ export function IdcResourceTable({
               <SourceIpHeader />
             </th>
             {/* The same 연동 대상 can be consumed by 20–30 services, each on its own NLB
-                — a fan-out no cell can hold. The column carries the way in, not the list. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>서비스별 배정</th>
+                — a fan-out no cell can hold. The column carries the way in, not the list.
+                Named for what is behind it (the consuming services), not 배정: that word
+                belongs to the NLB 배정 column, which is the one the admin can change. */}
+            <th className={cn(table.approvalHeaderCell, 'w-[110px]')}>사용 서비스</th>
             <th className={table.approvalHeaderCell}>제외 사유</th>
           </tr>
         </thead>
