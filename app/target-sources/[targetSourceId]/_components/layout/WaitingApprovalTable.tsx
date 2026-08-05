@@ -19,7 +19,7 @@ import {
   type InstallStepCell,
   type InstallStepValue,
 } from '@/app/components/features/process-status/install-status-detail/model';
-import { idcStyles, primaryColors, statusColors, textColors, cn } from '@/lib/theme';
+import { idcStyles, primaryColors, statusColors, tableRowLift, textColors, cn } from '@/lib/theme';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -118,54 +118,47 @@ interface WaitingApprovalTableProps {
 // under the top-rounded toolbar. The bottom radius belongs to the pagination footer stacked below.
 export const CONNECTED_FRAME = 'overflow-hidden bg-white';
 
-// Row hover, declared here rather than via idcStyles.table.row — that token is shared with six
-// other tables, and its #F7F8FA tint measures 1.06:1 against white (invisible). Excluded rows had
-// no hover at all: `rowExcluded` REPLACED `row`, and #F9FAFB -> #F7F8FA would be 1.02:1 anyway.
+// Row hover, declared as a theme token rather than via idcStyles.table.row — that token is shared
+// with six other tables, and its tint (F7F8FA) measures 1.06:1 against white (invisible). Excluded
+// rows had no hover at all: `rowExcluded` REPLACED `row`.
 // Each state keeps its own lift so the excluded tint survives hover (1.10:1 each).
 // `focus-within` mirrors hover: the row carries a copy button and tooltip triggers, so a keyboard
 // user tabbing through gets the same row highlight a mouse user gets.
 // The two hover values must never land on the same element: `cn` is a plain join, so two
 // `focus-within:bg-*` classes would let CSS order pick the winner. Each branch owns both of its
 // state colors; ROW_BASE carries no color at all.
-// The tints lean blue rather than neutral. On hover the Resource Name turns brand blue, and over a
-// neutral gray that one cell reads as the only thing that changed; a faintly blue row reads as one
-// active object. Depth is the same as the neutral palette step #EBEEF2 would have given (1.16:1 vs
-// white) — the extra value buys hue, not darkness, and costs almost nothing in text contrast
-// (#0050D6 5.79:1, #191F28 14.25:1).
-// Chroma stays deliberately low: this family sits at the SAME luminance as the primary tint
-// #E8F1FF (1.01:1 apart), so saturation is the only thing separating "hovered" from "primary".
-// A future `selected` state must therefore not be a blue tint — hover already owns that.
-export const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-none';
-export const ROW_TARGET = 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]';
-export const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]';
+// Why the tints lean blue (and what that reserves): see tableRowLift in lib/theme.ts.
+export const ROW_BASE = tableRowLift.base;
+export const ROW_TARGET = tableRowLift.target;
+export const ROW_EXCLUDED = tableRowLift.excluded;
 
 // Background alone marks position; it does not make a row easier to READ. Each column lifts on
 // whichever axis still has headroom:
 //
-//   secondary columns  color  #4E5968 -> #191F28 (6.12:1 -> 14.25:1 on the hover tint)
-//   Resource Name      color  #191F28 -> the primary hover blue, marking the row's anchor
+//   secondary columns  color  4E5968 -> 191F28 (6.12:1 -> 14.25:1 on the hover tint)
+//   Resource Name      color  191F28 -> the primary hover blue, marking the row's anchor
 //
 // Weight was tried on the name (400 -> 600, safe from reflow because Geist Mono's advance width is
 // weight-invariant) and removed: color plus weight on the one blue cell in the row read as shouting.
 // One axis per column is the rule; the name already gets the loudest one.
-// Dimming the OTHER rows was rejected: #4E5968 at opacity .75 is 4.0:1, under WCAG AA, and it
+// Dimming the OTHER rows was rejected: 4E5968 at opacity .75 is 4.0:1, under WCAG AA, and it
 // would apply to most of the screen the whole time the pointer is in the table.
 //
 // Declared per cell: `cn` is a plain join, so a group-hover value must sit on the element that
 // owns the resting value, not be layered over it from the row.
-export const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
-// The DARK primary, not #0064FF — see primaryColors.textGroupHover for why (contrast under the
-// row's hover background). Lighter is not available: #0064FF is already below AA there.
+export const CELL_LIFT = tableRowLift.cellText;
+// The DARK primary, not the base primary — see primaryColors.textGroupHover for why (contrast
+// under the row's hover background). Lighter is not available: it is already below AA there.
 export const NAME_LIFT = primaryColors.textGroupHover;
 
-// Excluded rows REST one tier dimmer: all four text cells drop to #6B7280 — 4.63:1 on the
-// #F9FAFB tint, AA with margin, where the full-strength text made 제외 rows read identical to
+// Excluded rows REST one tier dimmer: all four text cells drop to gray-500 — 4.63:1 on the
+// excluded tint, AA with margin, where the full-strength text made 제외 rows read identical to
 // 대상 rows (the 1.05:1 background tint carries nothing). The hover/focus lifts above restore
 // full contrast the moment the row is engaged, so the dim tier is never the reading surface.
 // Chips and the reason chip keep full contrast: the verdict and the why must survive the fade.
-// 3:1-grade dimming (#8B95A1, 2.9:1) was considered and rejected — 13px body text is normal-size
+// 3:1-grade dimming (8B95A1, 2.9:1) was considered and rejected — 13px body text is normal-size
 // text under WCAG, and the reason column is content, not an inactive control.
-export const DIM_TEXT = 'text-[#6B7280]';
+export const DIM_TEXT = textColors.tertiary;
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
@@ -235,7 +228,9 @@ const INSTALL_STATUS_TEXT: Record<InstallStepValue, string> = {
 };
 
 const InstallStatusText = ({ cell }: { cell: InstallStepCell }) => (
-  <span className={cn('whitespace-nowrap font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
+  // 12px — 크기 미지정이면 16px 로 상속돼 상태만 커진다. DB Type·Region 등
+  // 반복 속성 셀과 같은 단(12px)으로 내려 이름(14px)이 행의 주인공으로 남는다.
+  <span className={cn('whitespace-nowrap text-[12px] font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
     {cell.label ?? INSTALL_STATUS_LABEL[cell.status]}
   </span>
 );

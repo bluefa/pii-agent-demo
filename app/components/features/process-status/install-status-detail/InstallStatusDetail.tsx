@@ -71,11 +71,13 @@ interface StepAggregate {
  * 레일 상태 글자색 — 태그를 걷어낸 자리. 손댈 단계(실패·진행중)만 색을 갖고,
  * 끝났거나 남의 차례인 단계(완료·대기)는 회색으로 가라앉는다.
  */
+// 조용한 톤이 secondary(gray-700)인 이유: 레일 표면이 bgColors.panel(gray-100)이라
+// tertiary(gray-500)는 4.37:1 로 AA 미달 (theme.ts panel 토큰 주석 참조).
 const NAV_STATUS_TEXT: Record<AggregateKind, string> = {
   failed: statusColors.error.textDark,
   running: statusColors.info.textDark,
-  done: textColors.tertiary,
-  waiting: textColors.tertiary,
+  done: textColors.secondary,
+  waiting: textColors.secondary,
 };
 
 const kindOfValue = (value: InstallStepValue): AggregateKind =>
@@ -123,7 +125,8 @@ const SideTag = ({ side }: { side: string }) => (
 const SideText = ({ side }: { side: string }) => {
   const [owner, ...rest] = side.split(' ');
   return (
-    <span className={textColors.tertiary}>
+    // secondary — panel(gray-100) 표면 위라 tertiary 는 AA 미달.
+    <span className={textColors.secondary}>
       <span className={cn('font-semibold', side.startsWith('BDC') ? sideTextColors.bdc : sideTextColors.service)}>
         {owner}
       </span>
@@ -251,7 +254,7 @@ const ActionItem = ({ view, onOpen }: { view: StepView; onOpen: () => void }) =>
       </p>
 
       {/* payload = 해야 하는 일. 이 블록에서 가장 큰 글자이자 가장 진한 톤. */}
-      <p className={cn('mt-1.5 text-[17px] font-semibold leading-[1.5]', textColors.primary)}>
+      <p className={cn('mt-1.5 text-[18px] font-semibold leading-[1.5]', textColors.primary)}>
         {payload}
         {payloadCount !== null && (
           <span className={cn('ml-2 font-semibold tabular-nums', textStyles.caption, textColors.tertiary)}>
@@ -511,10 +514,13 @@ export const InstallStatusDetail = ({
       {/* 레일은 목차, 우측은 내용 — 둘을 표면으로 가른다. 레일은 가라앉은 회색 판
           위에 앉고 우측은 카드의 흰 바닥을 그대로 쓴다. 구분선 하나로는 "같은 종류의
           정보가 두 단 있다"로 읽혔다(오너 지적). 폭은 224px — 목차가 넓을 이유는 없고,
-          남는 폭은 전부 리소스 테이블이 쓴다. */}
-      <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-6">
+          남는 폭은 전부 리소스 테이블이 쓴다.
+          둘은 하나의 테두리 컨테이너로 묶는다 — 레일을 self-start 로 띄워두면 리소스가
+          많은 단계에서 우측 테이블이 레일보다 길어져 그룹 밖으로 흘러나온 것처럼
+          보였다(오너 지적). 레일 회색면은 컨테이너 높이를 그대로 따라 늘어난다. */}
+      <div className={cn('grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.light)}>
       <nav
-        className={cn('flex flex-col gap-0.5 rounded-xl p-2 self-start', bgColors.muted)}
+        className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.panel, borderColors.light)}
         aria-label="설치 단계"
       >
         {navSteps.map((step, index) => {
@@ -537,7 +543,9 @@ export const InstallStatusDetail = ({
                   className={cn(
                     'w-6 h-6 rounded-full grid place-items-center flex-shrink-0',
                     textStyles.captionStrong,
-                    bgColors.muted,
+                    // divider(gray-200) — 레일이 panel(gray-100)로 어두워져 muted 원은
+                    // 바탕보다 밝아 구멍처럼 읽힌다.
+                    bgColors.divider,
                     textColors.secondary,
                   )}
                 >
@@ -563,7 +571,7 @@ export const InstallStatusDetail = ({
                   {aggregate.label}
                 </span>
                 {aggregate.count && (
-                  <span className={cn('tabular-nums', textColors.tertiary)}>{aggregate.count}</span>
+                  <span className={cn('tabular-nums', textColors.secondary)}>{aggregate.count}</span>
                 )}
                 {step.side && (
                   <span className="flex items-center gap-1.5 min-w-0">
@@ -577,7 +585,8 @@ export const InstallStatusDetail = ({
         })}
       </nav>
 
-      <div className="min-w-0">
+      {/* 컨테이너에 갇힌 뒤로는 내용이 테두리에 닿으므로 안쪽 여백이 gap-6 을 대신한다. */}
+      <div className="min-w-0 px-5 py-4">
         <div className="flex items-start justify-between gap-3">
           {/* 제목↔부제 = tight 4px */}
           <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>

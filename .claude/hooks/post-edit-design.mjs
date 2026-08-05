@@ -7,6 +7,7 @@
 // the WCAG 1.4.3/1.4.11 exemptions only — brand logotypes, disabled controls, dark-surface text.
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 const SURFACE = '#FFFFFF'; // ponytail: dominant page surface; #F7F8FA is ~5% darker, add if it bites
 const AA = 4.5;
@@ -21,7 +22,10 @@ try {
 const file = input?.tool_input?.file_path;
 if (!file || !/\.(tsx|ts|css|html)$/.test(file)) process.exit(0);
 
-const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+// Anchor git at the edited file's own directory, not CLAUDE_PROJECT_DIR: an edit in a
+// linked worktree is outside the main checkout, so a project-dir diff throws and the
+// fallback scanned the WHOLE file — re-flagging every pre-existing value as "added".
+const root = dirname(file);
 let added;
 try {
   const git = (cmd) => execSync(cmd, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
