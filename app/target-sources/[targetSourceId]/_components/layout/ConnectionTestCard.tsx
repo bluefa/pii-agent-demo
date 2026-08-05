@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { cardStyles, cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
-import { ChevronRightIcon } from '@/app/components/ui/icons';
+import { ChevronRightIcon, InfoCircleIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -125,10 +125,10 @@ interface ConnectionTestCardProps {
  * Cloud Step 5 — connection test (v16 `data-prov-view="azure gcp aws"` card). Collapses
  * the former confirmed-resources + connection-test panel + logical-DB-check slots into one
  * card that mirrors the IDC step5 layout: conn-progress strip + a single table (cred select +
- * Connection Status + logical-DB-check) + a gated completion-approval request → CloudReqApprovalModal.
+ * connection status + logical-DB-check) + a gated completion-approval request → CloudReqApprovalModal.
  *
  * Live wiring (ADR-019): Run Test persists changed credentials then triggers the async
- * connection test (`useTestConnectionPolling`); per-resource Connection Status is read from
+ * connection test (`useTestConnectionPolling`); per-resource connection status is read from
  * the latest poll's agent results. Once the run settles SUCCESS the completion-status is
  * fetched and the 완료 승인 요청 CTA opens only when it reads LATEST_TEST_CONNECTION_SUCCESS.
  */
@@ -310,7 +310,7 @@ export const ConnectionTestCard = ({
         ? 'success'
         : 'idle';
   const progressLabel = testing
-    ? '연결 테스트 진행 중 — 각 대상의 Connection Status를 확인하고 있어요'
+    ? '연결 테스트 진행 중 — 각 대상의 연결 상태를 확인하고 있어요'
     : progressState === 'success'
       ? '연결 테스트 완료 — 모든 대상이 연결되었어요'
       : progressState === 'fail'
@@ -403,8 +403,27 @@ export const ConnectionTestCard = ({
                   <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
                   <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
                   <th className={idcStyles.table.approvalHeaderCell}>Region</th>
-                  <th className={idcStyles.table.approvalHeaderCell}>DB Credential</th>
-                  <th className={idcStyles.table.approvalHeaderCell}>Connection Status</th>
+                  <th className={idcStyles.table.approvalHeaderCell}>
+                    {/* "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을
+                        고르는 것인지는 이름만으로 안 읽히므로 (i) 로 한 번 설명한다. 밝은 variant:
+                        흰 표 위의 검은 상자는 다른 시스템의 UI 처럼 보인다. */}
+                    <span className="inline-flex items-center gap-1">
+                      Credential
+                      <Tooltip
+                        variant="value"
+                        size="lg"
+                        content={
+                          <span className="block text-[12px] leading-[1.6] text-[#4E5968]">
+                            해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
+                            Athena·DynamoDB처럼 IAM으로 접속하는 엔진은 지정하지 않아요.
+                          </span>
+                        }
+                      >
+                        <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="Credential 설명" />
+                      </Tooltip>
+                    </span>
+                  </th>
+                  <th className={idcStyles.table.approvalHeaderCell}>연결 상태</th>
                   <th className={idcStyles.table.approvalHeaderCell}>논리 DB 확인</th>
                 </tr>
               </thead>
@@ -515,7 +534,7 @@ export const ConnectionTestCard = ({
                                 current: cred,
                               })
                             }
-                            aria-label={`${first.resourceName ?? first.resourceId} DB Credential 수정 — 현재 ${cred || '미설정'}`}
+                            aria-label={`${first.resourceName ?? first.resourceId} Credential 수정 — 현재 ${cred || '미설정'}`}
                             className={cn(idcStyles.triggerBtn.linkNeutral, 'font-mono')}
                           >
                             {cred || <span className="font-sans">미설정</span>}
@@ -674,7 +693,7 @@ export const ConnectionTestCard = ({
           논리 DB 확인은 이 버튼을 막지 않는데 "완료되어야"라고 적혀 있어, 설정할 것이 없는
           대상(Athena·DynamoDB)만 남은 화면에서는 끝낼 수 없는 조건처럼 읽혔다. */}
       <CardActionBar
-        hint="※ 모든 대상의 Connection Status가 성공이어야 완료 승인을 요청할 수 있어요. 논리 DB 확인은 제외할 논리 DB가 있는 대상만 설정하면 돼요."
+        hint="※ 모든 대상의 연결 상태가 성공이어야 완료 승인을 요청할 수 있어요. 논리 DB 확인은 제외할 논리 DB가 있는 대상만 설정하면 돼요."
       >
         <button
           type="button"

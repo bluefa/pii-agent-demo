@@ -127,8 +127,8 @@ describe('ConnectionTestCard', () => {
       'Resource Name',
       'Database Type',
       'Region',
-      'DB Credential',
-      'Connection Status',
+      'Credential',
+      '연결 상태',
       '논리 DB 확인',
     ]);
   });
@@ -217,7 +217,7 @@ describe('ConnectionTestCard', () => {
   // so nothing is committed by merely looking at the options.
   const openCredModal = async (currentLabel: string) => {
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(`DB Credential 수정 — 현재 ${currentLabel}`) }));
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`Credential 수정 — 현재 ${currentLabel}`) }));
     });
     // Wait for the secrets-backed options to load so 'Key2' is pickable.
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Key2' })).toBeTruthy());
@@ -256,7 +256,7 @@ describe('ConnectionTestCard', () => {
     });
     // Local state did not flip — the cell still reads Key1.
     expect(
-      screen.getByRole('button', { name: /DB Credential 수정 — 현재 Key1/ }),
+      screen.getByRole('button', { name: /Credential 수정 — 현재 Key1/ }),
     ).toBeTruthy();
   });
 
@@ -265,7 +265,7 @@ describe('ConnectionTestCard', () => {
       makeResource({ resourceId: 'athena-1', databaseType: 'athena', credentialId: null }),
     ]);
     expect(screen.getByText('불필요')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /DB Credential 수정/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Credential 수정/ })).toBeNull();
   });
 
   // The card re-seeds local credential state whenever the `confirmed` reference
