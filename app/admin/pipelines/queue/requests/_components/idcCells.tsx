@@ -10,7 +10,7 @@
  * a step-1 form model with a dozen fields (persisted, connection, firewallOpen …)
  * that a queue row does not have and must not fabricate.
  */
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
@@ -66,13 +66,19 @@ function HostCell({
 }
 
 /**
- * 접속 주소 — one address per line, all of them always visible.
+ * 접속 주소 — the first address, with the rest of a multi-IP target behind step 1's own
+ * "IP n개 더보기" toggle (idcStyles.epToggle, same label and caret).
  *
- * The extra IPs used to sit behind a "n개 더보기" toggle: an admin reading "which
- * addresses am I about to open" needs all of them at once, so row height grows with the
- * address count — the honest shape of a multi-IP target. The port has a column of its
- * own; every address on a row answers on the same one, so pinning it to each line only
+ * This cell previously listed every address unconditionally, on the argument that an
+ * admin approving a request needs to see every address at once. Collapsing them again is
+ * a deliberate reversal: a 30-row table where a handful of rows are six lines tall loses
+ * the scan down the column, and the count in the toggle already states that more exist —
+ * what it costs is one click on the rows that matter. The port has a column of its own;
+ * every address on a row answers on the same one, so pinning it to each line only
  * repeated it down the cell.
+ *
+ * Only MULTIPLE_IP collapses. A DOMAIN row has one hostname and a SINGLE row one IP, so
+ * there is nothing to hide and no toggle is drawn.
  *
  * 14px + the hover lift, the two things WaitingApprovalTable gives its Resource Name —
  * this is the same thing, the row's identity, and at 12.5px it was rendering SMALLER
@@ -103,7 +109,10 @@ export function IdcEndpointCell({
   dimmed?: boolean;
   tone?: string;
 }): ReactElement | null {
+  const [expanded, setExpanded] = useState(false);
   if (hosts.length === 0) return null;
+  const collapsible = kind === 'MULTIPLE_IP' && hosts.length > 1;
+  const shown = collapsible && !expanded ? hosts.slice(0, 1) : hosts;
   return (
     <span className="flex flex-col items-start gap-1">
       {kind && (
@@ -111,16 +120,35 @@ export function IdcEndpointCell({
           <IdcKindBadge kind={kind} />
         </span>
       )}
-      {hosts.map((host) => (
-        <HostCell
-          key={host}
-          value={host}
-          label="접속 주소"
-          tone={cn(tone ?? textColors.primary, primaryColors.textGroupHover)}
-          textClassName="text-[14px]"
-          maxWidthClass="max-w-[200px]"
-        />
-      ))}
+      {/* The addresses keep their own tighter rhythm; gap-1 above separates the caption
+          from the block it captions. */}
+      <span className="flex flex-col items-start gap-0.5">
+        {shown.map((host, i) => (
+          // The toggle rides on the LAST visible address rather than sitting under the
+          // block. On its own line it added 18px to multi-IP rows and nothing to the
+          // others, so a table of otherwise uniform 81px rows got one 99px row per
+          // multi-IP target — the jaggedness the collapse was supposed to remove. An IP
+          // is short enough that both fit the 224px the column leaves.
+          <span key={host} className="inline-flex min-w-0 max-w-full items-center gap-2">
+            <HostCell
+              value={host}
+              label="접속 주소"
+              tone={cn(tone ?? textColors.primary, primaryColors.textGroupHover)}
+              textClassName="text-[14px]"
+              maxWidthClass="max-w-[200px]"
+            />
+            {collapsible && i === shown.length - 1 && (
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className={cn(idcStyles.epToggle, 'shrink-0 whitespace-nowrap')}
+              >
+                {expanded ? '접기 ▴' : `IP ${hosts.length - 1}개 더보기 ▾`}
+              </button>
+            )}
+          </span>
+        ))}
+      </span>
     </span>
   );
 }
