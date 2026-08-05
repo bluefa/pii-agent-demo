@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { SearchIcon } from '@/app/components/ui/icons';
+import { SearchIcon, StatusWarningIcon } from '@/app/components/ui/icons';
+import { EmptyState } from '@/app/components/ui/state';
 import { formatDate } from '@/lib/utils/date';
 import type { SecretKey } from '@/lib/types';
 import {
@@ -15,6 +16,7 @@ import {
   idcStyles,
   numericFeatures,
   primaryColors,
+  statusColors,
   textColors,
 } from '@/lib/theme';
 import {
@@ -116,6 +118,8 @@ export const CredentialPickModal = ({
       title="DB Credential 설정"
       subtitle={`${resourceLabel}에 사용할 DB 접속 자격 증명을 선택하세요.`}
       size="2xl"
+      // 닫는 길은 푸터의 취소(그리고 ESC / 배경)뿐 — 헤더의 X 와 취소는 같은 일을 두 번 말한다.
+      closeButton={false}
       footer={
         <>
           <button onClick={onClose} className={getButtonClass('secondary')}>
@@ -133,9 +137,14 @@ export const CredentialPickModal = ({
       }
     >
       {options.length === 0 ? (
-        <p className={cn('py-6 text-center text-[14px]', textColors.tertiary)}>
-          등록된 Credential이 없어요. 관리자에게 등록을 요청해 주세요.
-        </p>
+        // 고를 것이 하나도 없는 화면은 표(헤더 + 빈 줄)로 두면 "지금 못 찾은 것"처럼 읽힌다.
+        // 조치가 필요한 상태이므로 경고 마크를 달고, 무엇을 해야 하는지까지 적는다.
+        <EmptyState
+          variant="card"
+          icon={<StatusWarningIcon className={cn('h-7 w-7', statusColors.warning.textDark)} />}
+          title="등록된 Credential이 없어요"
+          description="DB 접속 자격 증명이 아직 하나도 등록되지 않았어요. 관리자에게 등록을 요청해 주세요."
+        />
       ) : (
         <div className="flex flex-col">
           {/* 검색은 표에 붙은 툴바다 — 리소스 표(step 2·3)와 같은 문법: 옅은 면, 위쪽만
