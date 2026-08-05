@@ -115,7 +115,7 @@ export const AzureInstallationInline = ({
           </div>
         )}
         {loading || confirmedLoading ? (
-          <InstallationLoadingView provider="Azure" />
+          <InstallationLoadingView provider="Azure" railRows={AZURE_STEPS.length + 1} />
         ) : error ? (
           <InstallationErrorView message={error} onRetry={fetchStatus} />
         ) : status ? (

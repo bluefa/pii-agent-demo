@@ -136,7 +136,7 @@ export const GcpInstallationInline = ({
           </div>
         )}
         {loading ? (
-          <InstallationLoadingView provider="GCP" />
+          <InstallationLoadingView provider="GCP" railRows={GCP_STEPS.length + 1} />
         ) : error ? (
           <InstallationErrorView message={error} onRetry={fetchStatus} />
         ) : status ? (

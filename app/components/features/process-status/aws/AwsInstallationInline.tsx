@@ -146,7 +146,8 @@ export const AwsInstallationInline = ({
           </div>
         )}
         {loading ? (
-          <InstallationLoadingView provider="AWS" />
+          // 요약 + 3 steps, 자동 설치는 Terraform 권한 확인 패널이 하나 더 붙는다.
+          <InstallationLoadingView provider="AWS" railRows={isManualInstall ? 4 : 5} />
         ) : error ? (
           <InstallationErrorView message={error} onRetry={fetchStatus} />
         ) : status ? (

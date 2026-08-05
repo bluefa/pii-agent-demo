@@ -4,6 +4,11 @@ import { borderColors, cn, idcStyles, stackGap } from '@/lib/theme';
 
 interface InstallationLoadingViewProps {
   provider: string;
+  /**
+   * Rail rows to draw = 설치 현황 요약 + the provider's steps. A hardcoded count
+   * reflows the card on data arrival — exactly what the skeleton exists to stop.
+   */
+  railRows: number;
 }
 
 const Bar = ({ className }: { className: string }) => (
@@ -19,12 +24,12 @@ const Bar = ({ className }: { className: string }) => (
  * side has something to do, and a skeleton must not promise an alert that may
  * never materialize.
  */
-export const InstallationLoadingView = ({ provider }: InstallationLoadingViewProps) => (
+export const InstallationLoadingView = ({ provider, railRows }: InstallationLoadingViewProps) => (
   <div aria-busy="true" aria-live="polite" aria-label={`${provider} 설치 상태 확인 중`}>
     <div className={cn('grid grid-cols-[320px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.default)}>
       {/* step rail — index circle + title + side tag, status pill on the second line */}
       <div className={cn('border-r p-2.5 flex flex-col gap-1 bg-white', borderColors.default)}>
-        {Array.from({ length: 5 }).map((_, i) => (
+        {Array.from({ length: railRows }).map((_, i) => (
           <div key={i} className="flex flex-col gap-1.5 px-2.5 py-2.5">
             <div className="flex items-start gap-2.5">
               <Bar className="h-6 w-6 flex-shrink-0 rounded-full" />
