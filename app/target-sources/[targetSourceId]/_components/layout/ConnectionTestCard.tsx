@@ -325,7 +325,8 @@ export const ConnectionTestCard = ({
           <span className={cardStyles.stepTag}>5번째 단계</span>
           <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
           <p className={cn('mt-2.5', cardStyles.subtitle)}>
-            DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
+            지정한 Credential로 각 대상에 실제 접속해 자격 증명, 네트워크(방화벽·보안 그룹), Agent 연결을 한 번에
+            확인합니다.
           </p>
         </div>
         {/* C-1: repeatable action demoted to soft — 완료 승인 요청 keeps the only primary. */}
