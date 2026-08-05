@@ -699,7 +699,7 @@ export const ConnectionTestCard = ({
           <CredentialPickModal
             isOpen={credModal.isOpen}
             onClose={credModal.close}
-            resourceId={credModal.data.resourceId}
+            target={{ label: 'Resource ID', value: credModal.data.resourceId }}
             value={credModal.data.current}
             options={credOptions}
             saving={savingCred}

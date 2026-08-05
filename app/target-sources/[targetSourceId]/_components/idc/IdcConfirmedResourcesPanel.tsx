@@ -33,6 +33,12 @@ interface IdcConfirmedResourcesPanelProps {
    * Steps 6·7 omit it and get the read-only summary rendered below.
    */
   onLogicalOpen?: (resource: IdcResourceView) => void;
+  /**
+   * Step 5 only, and the two travel together: the credential column exists exactly when the
+   * step can write one. Steps 6·7 pass neither and get the same table without the column.
+   */
+  credentials?: Readonly<Record<string, string>>;
+  onCredentialOpen?: (resource: IdcResourceView) => void;
 }
 
 /**
@@ -45,6 +51,8 @@ export const IdcConfirmedResourcesPanel = ({
   targetSourceId,
   state,
   onLogicalOpen,
+  credentials,
+  onCredentialOpen,
 }: IdcConfirmedResourcesPanelProps) => {
   // Step 5 counts for the whole table in one call; the per-resource lists load only on open.
   const [fetched, setFetched] = useState<{ targetSourceId: number; counts: LogicalDbCountMap }>({
@@ -95,9 +103,11 @@ export const IdcConfirmedResourcesPanel = ({
           />
           <IdcResourceTable
             resources={visibleResources}
-            cols={['src', 'logicalro']}
+            cols={onCredentialOpen ? ['src', 'cred', 'logicalro'] : ['src', 'logicalro']}
             logicalDbCounts={logicalDbCounts}
             onLogicalOpen={onLogicalOpen ?? setLogicalTarget}
+            credentials={credentials}
+            onCredentialOpen={onCredentialOpen}
             connected
             emptyMessage={IDC_FILTER_EMPTY_MESSAGE}
           />

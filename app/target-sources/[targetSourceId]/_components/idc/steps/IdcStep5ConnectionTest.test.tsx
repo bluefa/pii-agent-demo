@@ -106,17 +106,17 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
     expect(screen.queryByText('Success')).toBeNull();
   });
 
-  it('seeds the credential picker from the credential already stored on the row', async () => {
+  it('reads the stored credential in the row and opens the picker on it', async () => {
     renderStep();
 
     await screen.findByText('10.20.30.40');
-    // DB Credential left the table; the select now lives in the modal, and it must open on
-    // what the row already has rather than blank out a stored pick.
-    fireEvent.click(screen.getByRole('button', { name: 'DB Credential 설정' }));
-    const credRow = (await screen.findAllByText('10.20.30.40'))
-      .map((node) => node.closest('tr')!)
-      .find((row) => within(row).queryByRole('combobox'))!;
-    expect(within(credRow).getByRole('combobox')).toHaveProperty('value', 'idc_svc_mysql');
+    // 값은 행에서 읽는다 — 무엇이 걸려 있는지 보려고 모달을 열 필요가 없다.
+    const trigger = screen.getByRole('button', { name: /10\.20\.30\.40 Credential 수정 — 현재 idc_svc_mysql/ });
+    fireEvent.click(trigger);
+    // 대상은 IDC 가 부르는 이름(접속 주소)으로 적힌다 — ARN 을 쓰는 클라우드와 라벨이 다르다.
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('접속 주소')).toBeTruthy();
+    expect(within(dialog).getByText('10.20.30.40:3306')).toBeTruthy();
   });
 
   it('shows the idle conn-progress strip at 0% (nothing connected yet)', async () => {
@@ -129,16 +129,14 @@ describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
     expect(screen.getByText('0%')).toBeTruthy();
   });
 
-  it('sends Run Test to the credential picker while a live row lacks one', async () => {
+  it('blocks Run Test while a live row lacks a credential, and says so above the table', async () => {
     renderStep();
 
     await screen.findByText('10.20.30.40');
-    // Row2 has no credential. Run Test used to sit disabled with nothing on screen to fix
-    // it — now it opens the picker, which is the only place a credential can be set.
-    const runTest = screen.getByRole('button', { name: /Run Test/ });
-    expect(runTest).toHaveProperty('disabled', false);
-    fireEvent.click(runTest);
-    // 판정과 건수를 배너 한 줄이 함께 진다 — row2 하나가 미선택.
-    expect((await screen.findByText(/DB Credential 미선택/)).textContent).toContain('1건');
+    // Row2 has no credential. The warning line names the count and the row's own cell is
+    // where it gets fixed — Run Test does not detour through a bulk dialog.
+    expect((await screen.findByText(/Credential 미설정/)).textContent).toContain('1건');
+    expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: '미설정만 보기' })).toBeTruthy();
   });
 });

@@ -39,8 +39,12 @@ const cellClass = cn('text-[14px] font-normal', textColors.secondary);
 interface CredentialPickModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** 무엇을 바꾸는지 — 대상 리소스의 ResourceId. 이름이 아니라 쓰기 대상 그 자체다. */
-  resourceId: string;
+  /**
+   * 무엇을 바꾸는지 — 화면이 그 대상을 부르는 이름과 값. 클라우드는 ResourceId(ARN)로,
+   * IDC 는 접속 주소로 대상을 식별한다. 두 화면에 같은 라벨을 강요하면 한쪽은 자기 표에
+   * 없는 말로 자기 행을 가리키게 된다.
+   */
+  target: { label: string; value: string };
   /** 현재 배정값 ('' = 미설정). */
   value: string;
   /** GET …/secrets 레코드 — 이름과 생성 시각. */
@@ -62,7 +66,7 @@ interface CredentialPickModalProps {
 export const CredentialPickModal = ({
   isOpen,
   onClose,
-  resourceId,
+  target,
   value,
   options,
   saving,
@@ -107,13 +111,13 @@ export const CredentialPickModal = ({
       // 세 단으로 갈라 둔다 — 무엇에 거는지(값)가 안내 문장보다 위에 있어야 한다.
       subtitle={
         <>
-          <span className={cn('block text-[12px] font-medium', textColors.tertiary)}>Resource ID</span>
+          <span className={cn('block text-[12px] font-medium', textColors.tertiary)}>{target.label}</span>
           {/* ARN 은 길어서 두 줄을 넘기기 쉽다 — 14px 로 눕히고 leading 을 좁혀, 값이 헤더를
               차지해 표가 스크롤 뒤로 밀려나지 않게 한다. 단은 mono·굵기·명도로 구분된다. */}
           <span
             className={cn('mt-1 block break-all font-mono text-[14px] font-semibold leading-[1.4]', textColors.primary)}
           >
-            {resourceId}
+            {target.value}
           </span>
           {/* 파랑은 누를 수 있는 것에만 쓴다 — 지시문에 칠하면 링크로 읽히고, 이 모달에서 파랑은
               이미 선택된 행과 저장 CTA 의 뜻이다. */}
