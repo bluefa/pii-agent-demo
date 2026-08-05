@@ -581,7 +581,9 @@ export const projectHeaderStyles = {
  */
 export const installStepperStyles = {
   wrap: 'mt-[18px] pb-[18px]',
-  list: 'mt-1.5 grid list-none p-0',
+  /** Left-anchored, capped width — 7 steps don't need the full column; ~120px
+      per step keeps the road compact while the longest label still fits. */
+  list: 'mt-1.5 grid w-full max-w-[860px] list-none p-0',
   item: 'flex min-w-0 flex-col items-center gap-1.5',
   track: 'relative flex h-[10px] w-full items-center justify-center',
   lineBase: 'absolute top-1/2 -mt-px h-[2px]',

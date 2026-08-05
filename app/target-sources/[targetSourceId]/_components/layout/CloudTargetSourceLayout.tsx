@@ -56,12 +56,13 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
           body, so the lavender wash starts where content cards do. The layout owns
           it — steps render cards only, matching IdcTargetSourceLayout. */}
       <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
-      {/* Guide band — chrome strip between header and body (was the right rail). */}
-      {props.guideSlot}
       {/* v16 `.main`: full-width, padding 32/40/80 (top/x/bottom), flush to the 296px
           sidebar so content begins at 336px — matches IdcTargetSourceLayout.
-          The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
-      <div className="px-10 pt-8 pb-20 space-y-6">{step}</div>
+          The guide band (was the right rail) leads the body as its first card. */}
+      <div className="px-10 pt-8 pb-20 space-y-6">
+        {props.guideSlot}
+        {step}
+      </div>
     </main>
   );
 };

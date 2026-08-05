@@ -7,7 +7,7 @@ import { ChatIcon, OpenExternalIcon, ShieldCheckIcon } from '@/app/components/ui
 import { DeleteInfrastructureButton } from '@/app/target-sources/[targetSourceId]/_components/common/DeleteInfrastructureButton';
 import {
   bgColors,
-  borderColors,
+  cardStyles,
   cn,
   identityBarStyles,
   interactiveColors,
@@ -175,11 +175,12 @@ interface GuidePanelProps {
 }
 
 /**
- * Guide band under the flat page header (was the full-height right rail).
- * Same content, reflowed horizontally: [가이드 | 진행 내역] tabs + panel on the
- * left, the auxiliary stack (모니터링 · 협업 채널 · 인프라 삭제) as a fixed-width
- * right column. A white chrome strip — no card radius/shadow — so step cards
- * below keep the only card chrome and get the full column width.
+ * Guide band (was the full-height right rail) — the body's leading card, NOT
+ * part of the header chrome: it sits on the lavender wash with the same card
+ * chrome as the step cards, clearly separated from the flat header above.
+ * Content reflows horizontally: [가이드 | 진행 내역] tabs + panel on the left,
+ * the auxiliary stack (모니터링 · 협업 채널 · 인프라 삭제) as a fixed-width
+ * right column.
  */
 export const GuidePanel = ({
   slotKey,
@@ -217,9 +218,9 @@ export const GuidePanel = ({
   return (
     <section
       aria-label="단계 가이드 및 진행 내역"
-      className={cn('border-b', borderColors.light, bgColors.surface)}
+      className={cardStyles.base}
     >
-      <div className="flex items-start gap-8 px-10 py-5">
+      <div className="flex items-start gap-8 px-7 py-6">
         <div className="min-w-0 flex-1">
           <div role="tablist" className={segmentedControlStyles.container}>
             <button
