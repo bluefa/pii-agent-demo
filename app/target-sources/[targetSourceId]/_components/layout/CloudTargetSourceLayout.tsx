@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
-import { cn } from '@/lib/theme';
 import {
   ProjectPageMeta,
   type ProjectIdentity,
@@ -51,7 +50,7 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
   const step = renderStep(props);
   if (!step) return null;
   return (
-    <main className={cn('bg-[#F4F4FB]', 'min-h-screen')}>
+    <main className="min-h-screen">
       {/* Flat page header (chrome) spans the column edge-to-edge ABOVE the padded
           body, so the lavender wash starts where content cards do. The layout owns
           it — steps render cards only, matching IdcTargetSourceLayout. */}

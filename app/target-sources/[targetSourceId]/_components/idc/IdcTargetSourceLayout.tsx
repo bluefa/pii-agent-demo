@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
-import { cn } from '@/lib/theme';
 import { ProjectPageMeta } from '@/app/target-sources/[targetSourceId]/_components/common';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { IdcStep1TargetInput } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/IdcStep1TargetInput';
@@ -38,7 +37,7 @@ export const IdcTargetSourceLayout = (props: IdcStepProps) => {
   const step = renderStep(props);
   if (!step) return null;
   return (
-    <main className={cn('bg-[#F4F4FB]', 'min-h-screen')}>
+    <main className="min-h-screen">
       {/* Flat page header (chrome) spans the column edge-to-edge above the padded
           body — the layout owns it; steps render cards only (cloud layout parity). */}
       <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
