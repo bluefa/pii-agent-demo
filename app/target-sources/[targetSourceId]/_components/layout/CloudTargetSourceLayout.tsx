@@ -58,10 +58,11 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
       <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
       {/* v16 `.main`: full-width, padding 32/40/80 (top/x/bottom), flush to the 296px
           sidebar so content begins at 336px — matches IdcTargetSourceLayout.
-          The guide band (was the right rail) leads the body as its first card. */}
-      <div className="px-10 pt-8 pb-20 space-y-6">
+          Body is a two-column row: step cards left, the 320px guide panel CARD
+          standing beside them — clearly a panel, not header chrome. */}
+      <div className="flex items-start gap-6 px-10 pt-8 pb-20">
+        <div className="min-w-0 flex-1 space-y-6">{step}</div>
         {props.guideSlot}
-        {step}
       </div>
     </main>
   );

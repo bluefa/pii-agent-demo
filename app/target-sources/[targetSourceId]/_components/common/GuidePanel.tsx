@@ -7,6 +7,7 @@ import { ChatIcon, OpenExternalIcon, ShieldCheckIcon } from '@/app/components/ui
 import { DeleteInfrastructureButton } from '@/app/target-sources/[targetSourceId]/_components/common/DeleteInfrastructureButton';
 import {
   bgColors,
+  borderColors,
   cardStyles,
   cn,
   identityBarStyles,
@@ -44,7 +45,7 @@ const JIRA_BROWSE_BASE =
  * is not misread as "no channel".
  */
 const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
-  const rowBase = 'mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px]';
+  const rowBase = 'mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px]';
 
   return (
     <div className={cn('rounded-xl border p-4', primaryColors.bgLight, primaryColors.borderLight)}>
@@ -152,13 +153,13 @@ const HistoryTimeline = ({ items }: { items: typeof MOCK_HISTORY }) => (
           className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', statusColors[item.tone].dot)}
         />
         <div className="min-w-0">
-          <p className={cn('text-[12.5px] font-semibold leading-[1.4]', textColors.secondary)}>
+          <p className={cn('text-[12px] font-semibold leading-[1.4]', textColors.secondary)}>
             {item.title}
           </p>
           <p className={cn('mt-0.5 text-[12px] leading-[1.5]', textColors.tertiary)}>
             {item.detail}
           </p>
-          <p className={cn('mt-1 text-[11px]', textColors.tertiary)}>{item.at}</p>
+          <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>{item.at}</p>
         </div>
       </li>
     ))}
@@ -175,12 +176,10 @@ interface GuidePanelProps {
 }
 
 /**
- * Guide band (was the full-height right rail) — the body's leading card, NOT
- * part of the header chrome: it sits on the lavender wash with the same card
- * chrome as the step cards, clearly separated from the flat header above.
- * Content reflows horizontally: [가이드 | 진행 내역] tabs + panel on the left,
- * the auxiliary stack (모니터링 · 협업 채널 · 인프라 삭제) as a fixed-width
- * right column.
+ * Right-hand guide panel — a 320px vertical CARD standing beside the step
+ * cards inside the body (under the flat header), not a band welded to the
+ * header chrome. Reading order mirrors the original rail: 모니터링 →
+ * 협업 채널 → [가이드 | 진행 내역] tabs → panel → pager → 인프라 삭제.
  */
 export const GuidePanel = ({
   slotKey,
@@ -205,7 +204,7 @@ export const GuidePanel = ({
   const tabClass = (active: boolean) =>
     cn(
       segmentedControlStyles.item,
-      'justify-center px-4',
+      'flex-1 justify-center',
       active && segmentedControlStyles.itemActive,
     );
 
@@ -216,93 +215,104 @@ export const GuidePanel = ({
   );
 
   return (
-    <section
+    <aside
       aria-label="단계 가이드 및 진행 내역"
-      className={cardStyles.base}
+      className={cn(cardStyles.base, 'w-[320px] shrink-0 overflow-hidden')}
     >
-      <div className="flex items-start gap-8 px-7 py-6">
-        <div className="min-w-0 flex-1">
-          <div role="tablist" className={segmentedControlStyles.container}>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'guide'}
-              onClick={() => selectTab('guide')}
-              className={tabClass(tab === 'guide')}
-            >
-              가이드
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'history'}
-              onClick={() => selectTab('history')}
-              className={tabClass(tab === 'history')}
-            >
-              진행 내역
-            </button>
-          </div>
-
-          <div role="tabpanel" className="mt-4">
-            {tab === 'guide' ? (
-              slotKey ? (
-                <GuideCardContainer slotKey={slotKey} bare />
-              ) : (
-                <p className={cn('py-4 text-[12px]', textColors.tertiary)}>
-                  이 단계에는 표시할 가이드가 없습니다.
-                </p>
-              )
-            ) : (
-              <HistoryTimeline items={pageItems} />
-            )}
-          </div>
-
-          {tab === 'history' && pageCount > 1 && (
-            <div className="mt-3 flex items-center gap-3">
-              <button
-                type="button"
-                className={pagerBtnClass}
-                disabled={page === 0}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                ‹ 이전
-              </button>
-              <span className={cn('text-[12px] tabular-nums', textColors.tertiary)}>
-                {page + 1} / {pageCount}
-              </span>
-              <button
-                type="button"
-                className={pagerBtnClass}
-                disabled={page === pageCount - 1}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                다음 ›
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Auxiliary stack keeps the rail's reading order: monitoring fact,
-            collab-channel escape hatch, then the isolated destructive action. */}
-        <aside className="w-[320px] flex-none">
-          <div className="flex items-center justify-between gap-2">
-            <span className={cn('text-[12px] font-medium', textColors.tertiary)}>모니터링</span>
-            <span
-              className={identityBarStyles.agent}
-              style={{ ['--ib-accent']: monitoringAccent } as CSSProperties}
-            >
-              <ShieldCheckIcon className={identityBarStyles.agentIcon} />
-              {monitoringLabel}
-            </span>
-          </div>
-          <div className="mt-3">
-            <CollabChannelCard jiraTicket={jiraTicket} />
-          </div>
-          <div className="mt-3">
-            <DeleteInfrastructureButton className="w-full justify-center" />
-          </div>
-        </aside>
+      {/* Monitoring method leads the panel — identity-level fact, read before
+          any step work. */}
+      <div
+        className={cn(
+          'flex items-center justify-between gap-2 border-b px-4 py-3',
+          borderColors.light,
+        )}
+      >
+        <span className={cn('text-[12px] font-medium', textColors.tertiary)}>모니터링</span>
+        <span
+          className={identityBarStyles.agent}
+          style={{ ['--ib-accent']: monitoringAccent } as CSSProperties}
+        >
+          <ShieldCheckIcon className={identityBarStyles.agentIcon} />
+          {monitoringLabel}
+        </span>
       </div>
-    </section>
+
+      {/* Collab channel next — the escape hatch for every step. */}
+      <div className={cn('border-b p-4', borderColors.light)}>
+        <CollabChannelCard jiraTicket={jiraTicket} />
+      </div>
+
+      <div className={cn('border-b p-3', borderColors.light)}>
+        <div role="tablist" className={cn(segmentedControlStyles.container, 'w-full')}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'guide'}
+            onClick={() => selectTab('guide')}
+            className={tabClass(tab === 'guide')}
+          >
+            가이드
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'history'}
+            onClick={() => selectTab('history')}
+            className={tabClass(tab === 'history')}
+          >
+            진행 내역
+          </button>
+        </div>
+      </div>
+
+      <div role="tabpanel" className="p-5">
+        {tab === 'guide' ? (
+          slotKey ? (
+            <GuideCardContainer slotKey={slotKey} bare />
+          ) : (
+            <p className={cn('py-4 text-center text-[12px]', textColors.tertiary)}>
+              이 단계에는 표시할 가이드가 없습니다.
+            </p>
+          )
+        ) : (
+          <HistoryTimeline items={pageItems} />
+        )}
+      </div>
+
+      {tab === 'history' && pageCount > 1 && (
+        <div
+          className={cn(
+            'flex items-center justify-between border-t px-4 py-2.5',
+            borderColors.light,
+          )}
+        >
+          <button
+            type="button"
+            className={pagerBtnClass}
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            ‹ 이전
+          </button>
+          <span className={cn('text-[12px] tabular-nums', textColors.tertiary)}>
+            {page + 1} / {pageCount}
+          </span>
+          <button
+            type="button"
+            className={pagerBtnClass}
+            disabled={page === pageCount - 1}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            다음 ›
+          </button>
+        </div>
+      )}
+
+      {/* Danger zone — the destructive infra action stays at the panel's
+          bottom edge across both tabs: one predictable, visually isolated spot. */}
+      <div className={cn('border-t p-4', borderColors.light)}>
+        <DeleteInfrastructureButton className="w-full justify-center" />
+      </div>
+    </aside>
   );
 };
