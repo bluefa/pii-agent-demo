@@ -734,28 +734,28 @@ export const tagStyles = {
  * 논리 DB 목록 모달 (Step 5) — Database ▸ Schema 트리 전용 토큰.
  *
  * The rails/guides are ORIENTATION channels (which region an exclusion covers), so they
- * run at ~40% tone; full-saturation red stays on the content channels (제외 chip, reason
- * sub-line). Saved exclusions rail red, staged (unsaved) ones rail the primary blue.
+ * run at ~40% tone; full-saturation amber stays on the content channels (제외 chip, reason
+ * sub-line). Saved exclusions rail amber, staged (unsaved) ones rail the primary blue.
  */
 export const logicalDbStyles = {
   /** Database 그룹 행 밴드 — 카드 위 한 단계 가라앉은 표면. 텍스트는 secondary 이상. */
   dbRow: 'bg-gray-50',
   /** staged(저장 전) 행 틴트 — 파랑 계열, 확정 제외의 빨강과 구분. */
   stagedRow: 'bg-blue-50',
-  /** 확정 제외 레일 — 부모~자식을 잇는 3px 인셋 스트라이프 (red-600 @ 40%). */
-  railDeny: 'shadow-[inset_3px_0_0_0_rgba(220,38,38,0.4)]',
+  /** 확정 제외 레일 — 부모~자식을 잇는 3px 인셋 스트라이프 (amber-600 @ 40%). */
+  railDeny: 'shadow-[inset_3px_0_0_0_rgba(217,119,6,0.4)]',
   /** 저장 전 제외 레일 — primary @ 40%. */
   railStaged: 'shadow-[inset_3px_0_0_0_rgba(0,100,255,0.4)]',
   /** 트리 세로 가이드선 (중립 / 제외 영역 / staged 영역). */
   guide: 'bg-gray-200',
-  guideDeny: 'bg-red-600/30',
+  guideDeny: 'bg-amber-600/30',
   guideStaged: 'bg-[#0064FF]/30',
   /** `└` 커넥터 — 상속 제외 시 레일과 같은 계열로 물든다. */
   branch: 'text-gray-400',
-  branchDeny: 'text-red-600/60',
+  branchDeny: 'text-amber-600/60',
   branchStaged: 'text-[#0064FF]/60',
-  /** 이름 아래 한 줄 사유 문장 — 확정(red-800, AA on white/blue-50) / 예정(primary dark). */
-  subDeny: 'text-red-800',
+  /** 이름 아래 한 줄 사유 문장 — 확정(amber-800, AA on white/blue-50) / 예정(primary dark). */
+  subDeny: 'text-amber-800',
   subPending: 'text-[#0050D6]',
 } as const;
 

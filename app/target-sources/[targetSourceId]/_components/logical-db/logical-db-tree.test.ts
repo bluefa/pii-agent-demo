@@ -5,6 +5,7 @@ import {
   isDenyish,
   listStagedChanges,
   logicalDbRowStatus,
+  logicalDbUnit,
 } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-tree';
 import type { LogicalDatabase } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
 
@@ -55,6 +56,27 @@ describe('buildLogicalDbTree', () => {
     const tree = buildLogicalDbTree([db('live'), db('stg')]);
     expect(tree.hasSchemaUnit).toBe(false);
     expect(tree.nodes.every((n) => n.children.length === 0)).toBe(true);
+  });
+});
+
+describe('logicalDbUnit', () => {
+  it('judges schema unit from a tested schema row', () => {
+    expect(logicalDbUnit([db('live', { virtual: true }), sch('live', 'public')])).toBe('schema');
+  });
+
+  it('judges database unit from tested DATABASE rows only', () => {
+    expect(logicalDbUnit([db('live'), db('stg')])).toBe('database');
+  });
+
+  it('ignores policy-only (untested) rows — the skip list must never drive the unit', () => {
+    // Untested schema row must not flip a DATABASE-unit target to schema.
+    expect(logicalDbUnit([db('live'), sch('legacy', 'old', { untested: true })])).toBe('database');
+    // Nothing tested at all → no judgment, even with policy rows present.
+    expect(logicalDbUnit([db('legacy', { untested: true })])).toBe(null);
+  });
+
+  it('returns null for an empty list', () => {
+    expect(logicalDbUnit([])).toBe(null);
   });
 });
 

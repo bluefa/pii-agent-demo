@@ -177,6 +177,34 @@ describe('LogicalDbModal (tree redesign)', () => {
     expect(within(rowOf('live.public')).getByRole('button', { name: '제외' })).toBeTruthy();
   });
 
+  it('policy-only data (nothing tested) shows no unit chip and no tooltip', () => {
+    // Everything was excluded, so the next test collected nothing: only policy
+    // rows remain. The unit must not be judged from them.
+    renderModal({
+      databases: [
+        { id: 'analytics_archive', name: 'analytics_archive', type: 'db', database: 'analytics_archive', existingDenyReason: 'TEMP', untested: true },
+      ],
+      initialDraft: {
+        excludedIds: new Set(['analytics_archive']),
+        reasons: { analytics_archive: 'TEMP' },
+      },
+    });
+    expect(screen.queryByText(/단위 조회/)).toBeNull();
+    expect(screen.queryByLabelText('논리 DB 설명')).toBeNull();
+    expect(screen.getByText('조회된 논리 DB 없음')).toBeTruthy();
+    expect(screen.getByText(/제외 목록만 남아 있어요/)).toBeTruthy();
+    // The policy row itself stays listed and restorable.
+    expect(within(rowOf('analytics_archive')).getByRole('button', { name: '복원' })).toBeTruthy();
+  });
+
+  it('a fully empty result renders the empty state without chip or tooltip', () => {
+    renderModal({ databases: [], initialDraft: undefined });
+    expect(screen.queryByText(/단위 조회/)).toBeNull();
+    expect(screen.queryByLabelText('논리 DB 설명')).toBeNull();
+    expect(screen.getByText('조회된 논리 DB 없음')).toBeTruthy();
+    expect(screen.getByText('조회된 논리 DB가 없어요.')).toBeTruthy();
+  });
+
   it('collapsing a database hides its schema rows', () => {
     renderModal();
     fireEvent.click(screen.getByRole('button', { name: 'live 접기' }));

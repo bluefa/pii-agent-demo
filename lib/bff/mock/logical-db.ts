@@ -94,6 +94,54 @@ const SEED_SKIP: readonly SkipLogicalDatabaseItemWire[] = [
   { database_name: 'legacy', skip_reason: 'TEMP', type: 'DATABASE' },
 ];
 
+/**
+ * Per-resource scenario seeds (target 1010's MySQL clusters — real-wire ids,
+ * matched by suffix so the mock stays independent of the account id). MySQL
+ * discovers DATABASE rows only, so these also demo the unit judgment:
+ *  - …:cluster:rds-aurora-dip-stg-ap-northeast   → DATABASE-unit flat list
+ *  - …:cluster:database-1                        → everything excluded: tested
+ *    is EMPTY (the feedback loop collected nothing), only policy rows remain —
+ *    the unit chip must NOT appear (judging it from the skip list is forbidden)
+ *  - …:cluster:rds-aurora-dip-stg-ap-northeast-2 → both lists empty
+ */
+const SEED_TESTED_MYSQL: readonly TestedLogicalDatabaseItemWire[] = [
+  { database_name: 'live', type: 'DATABASE' },
+  { database_name: 'prd', type: 'DATABASE' },
+  { database_name: 'stg', type: 'DATABASE' },
+  { database_name: 'dev', type: 'DATABASE' },
+  { database_name: 'reporting', type: 'DATABASE' },
+];
+
+const SEED_SKIP_MYSQL: readonly SkipLogicalDatabaseItemWire[] = [
+  { database_name: 'stg', skip_reason: 'STG', type: 'DATABASE' },
+  { database_name: 'dev', skip_reason: 'DEV', type: 'DATABASE' },
+  { database_name: 'legacy', skip_reason: 'TEMP', type: 'DATABASE' },
+];
+
+const RESOURCE_SEEDS: ReadonlyArray<{
+  suffix: string;
+  tested: readonly TestedLogicalDatabaseItemWire[];
+  skip: readonly SkipLogicalDatabaseItemWire[];
+}> = [
+  {
+    suffix: ':cluster:rds-aurora-dip-stg-ap-northeast',
+    tested: SEED_TESTED_MYSQL,
+    skip: SEED_SKIP_MYSQL,
+  },
+  {
+    suffix: ':cluster:database-1',
+    tested: [],
+    skip: [
+      { database_name: 'analytics_archive', skip_reason: 'TEMP', type: 'DATABASE' },
+      { database_name: 'reporting_stg', skip_reason: 'STG', type: 'DATABASE' },
+    ],
+  },
+  { suffix: ':cluster:rds-aurora-dip-stg-ap-northeast-2', tested: [], skip: [] },
+];
+
+const resourceSeed = (resourceId: string) =>
+  RESOURCE_SEEDS.find((s) => resourceId.endsWith(s.suffix));
+
 const cloneTested = (items: readonly TestedLogicalDatabaseItemWire[]) =>
   items.map((i) => ({ ...i }));
 
@@ -116,13 +164,13 @@ const getSkipList = (targetSourceId: number, resourceId: string): SkipLogicalDat
   const key = stateKey(targetSourceId, resourceId);
   const existing = skipState.get(key);
   if (existing) return existing;
-  const seeded = cloneSkip(SEED_SKIP);
+  const seeded = cloneSkip(resourceSeed(resourceId)?.skip ?? SEED_SKIP);
   skipState.set(key, seeded);
   return seeded;
 };
 
-const getTestedList = (targetSourceId: number): TestedLogicalDatabaseItemWire[] =>
-  isTested(targetSourceId) ? cloneTested(SEED_TESTED) : [];
+const getTestedList = (targetSourceId: number, resourceId: string): TestedLogicalDatabaseItemWire[] =>
+  isTested(targetSourceId) ? cloneTested(resourceSeed(resourceId)?.tested ?? SEED_TESTED) : [];
 
 // ===== Handlers (resourceId is the modal's only key) =====
 
@@ -135,12 +183,12 @@ export const mockLogicalDb = {
       const demoBody: TestedLogicalDatabasesResponseWire = { logical_database_list: demo.tested };
       return NextResponse.json(demoBody);
     }
-    // Tested topology is shared across connection-test-phase targets (it is the
-    // discovered DB list, not per-resource state), so resourceId is unused here.
+    // Tested topology: per-resource scenario seeds where declared (RESOURCE_SEEDS),
+    // shared default otherwise.
     const auth = authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
     const body: TestedLogicalDatabasesResponseWire = {
-      logical_database_list: getTestedList(Number(targetSourceId)),
+      logical_database_list: getTestedList(Number(targetSourceId), resourceId),
     };
     return NextResponse.json(body);
   },

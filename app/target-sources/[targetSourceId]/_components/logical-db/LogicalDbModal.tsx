@@ -25,6 +25,7 @@ import {
   isDenyish,
   listStagedChanges,
   logicalDbRowStatus,
+  logicalDbUnit,
   type LogicalDbNode,
   type LogicalDbRowStatus,
 } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-tree';
@@ -85,6 +86,8 @@ export const LogicalDbModal = ({
   const popRef = useRef<HTMLDivElement>(null);
 
   const tree = useMemo(() => buildLogicalDbTree(databases), [databases]);
+  /** Judged from tested rows only — null (nothing tested) hides the unit chip. */
+  const unit = useMemo(() => logicalDbUnit(databases), [databases]);
 
   const statusOf = (id: string, parentId?: string): LogicalDbRowStatus =>
     logicalDbRowStatus(id, parentId, excludedIds, initialDraft.excludedIds);
@@ -226,9 +229,14 @@ export const LogicalDbModal = ({
     setSchemaPages({});
   };
 
-  const unitDesc = tree.hasSchemaUnit
-    ? 'Test Connection으로 조회된 논리 DB와 제외 목록이에요. Database 행에서 제외하면 하위 Schema까지, Schema 행에서 제외하면 그 스키마만 빠져요.'
-    : 'Test Connection으로 조회된 논리 DB와 제외 목록이에요. 이 대상은 Database 단위로 조회·제외돼요.';
+  const unitDesc =
+    unit === 'schema'
+      ? 'Test Connection으로 조회된 논리 DB와 제외 목록이에요. Database 행에서 제외하면 하위 Schema까지, Schema 행에서 제외하면 그 스키마만 빠져요.'
+      : unit === 'database'
+        ? 'Test Connection으로 조회된 논리 DB와 제외 목록이에요. 이 대상은 Database 단위로 조회·제외돼요.'
+        : databases.length > 0
+          ? '이번 Test Connection에서 조회된 논리 DB가 없어요. 아래 제외 목록만 남아 있어요 — 복원하면 다음 테스트부터 다시 조회돼요.'
+          : '이번 Test Connection에서 조회된 논리 DB가 없어요.';
 
   return (
     <Modal
@@ -289,21 +297,27 @@ export const LogicalDbModal = ({
         </span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className={cn(chipCls, tagStyles.gray)}>
-          {tree.hasSchemaUnit ? 'Schema 단위 조회' : 'Database 단위 조회'}
-          <Tooltip
-            variant="value"
-            size="lg"
-            content={
-              <span className={cn('block text-[12px] leading-[1.6]', textColors.secondary)}>
-                물리 DB 클러스터 안의 논리적 데이터베이스예요. MySQL은 Database 단위,
-                PostgreSQL은 Database 아래 Schema 단위로 조회돼요.
-              </span>
-            }
-          >
-            <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="논리 DB 설명" />
-          </Tooltip>
-        </span>
+        {/* Unit is judged from tested rows only (never the excluded policy). When
+            nothing was tested there is no judgment — plain state text, no tooltip. */}
+        {unit ? (
+          <span className={cn(chipCls, tagStyles.gray)}>
+            {unit === 'schema' ? 'Schema 단위 조회' : 'Database 단위 조회'}
+            <Tooltip
+              variant="value"
+              size="lg"
+              content={
+                <span className={cn('block text-[12px] leading-[1.6]', textColors.secondary)}>
+                  물리 DB 클러스터 안의 논리적 데이터베이스예요. MySQL은 Database 단위,
+                  PostgreSQL은 Database 아래 Schema 단위로 조회돼요.
+                </span>
+              }
+            >
+              <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="논리 DB 설명" />
+            </Tooltip>
+          </span>
+        ) : (
+          <span className={cn(chipCls, tagStyles.gray)}>조회된 논리 DB 없음</span>
+        )}
         {/* Entry is gated on a successful run (설정 buttons disable until connected). */}
         <span className={cn(chipCls, statusColors.success.bg, statusColors.success.text)}>
           연결 테스트 성공
@@ -347,7 +361,7 @@ export const LogicalDbModal = ({
       <div className={cn('mt-3 h-[380px] overflow-y-auto rounded-lg border', borderColors.default)}>
         {windowNodes.length === 0 ? (
           <p className={cn('px-3 py-8 text-center text-[14px]', textColors.tertiary)}>
-            조건에 맞는 결과가 없어요.
+            {databases.length === 0 ? '조회된 논리 DB가 없어요.' : '조건에 맞는 결과가 없어요.'}
           </p>
         ) : (
           windowNodes.map(({ node, children }) => (
@@ -619,7 +633,7 @@ interface RowProps {
   schemaCount: number;
   chevron: React.ReactNode;
   reason: SkipReason | undefined;
-  /** For inherited children: whether the excluding parent is itself staged (blue rail) or saved (red). */
+  /** For inherited children: whether the excluding parent is itself staged (blue rail) or saved (amber). */
   parentStaged: boolean;
   onOpenPick: (id: string) => void;
   onRestore: (id: string) => void;
@@ -719,10 +733,10 @@ const Row = ({
         </span>
       )}
       <span className="flex shrink-0 items-center gap-1">
-        {status === 'deny' && <span className={cn(chipCls, tagStyles.red)}>제외</span>}
+        {status === 'deny' && <span className={cn(chipCls, tagStyles.amber)}>제외</span>}
         {status === 'staged-exclude' && (
           <>
-            <span className={cn(chipCls, tagStyles.red)}>제외</span>
+            <span className={cn(chipCls, tagStyles.amber)}>제외</span>
             <span className={cn(chipCls, tagStyles.info)}>저장 전</span>
           </>
         )}

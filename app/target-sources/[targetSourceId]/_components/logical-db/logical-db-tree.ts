@@ -67,6 +67,22 @@ export const buildLogicalDbTree = (
   };
 };
 
+/**
+ * Query unit, judged from TESTED rows only. The excluded policy must never
+ * drive this: a skip list can outlive the topology it was written against and
+ * says nothing about what the engine reports. Returns null when nothing was
+ * tested — no judgment, so callers hide the unit chip and its tooltip instead
+ * of guessing. (Distinct from `hasSchemaUnit`, which is a LAYOUT signal over
+ * the whole union — a policy-only schema row still needs schema grammar.)
+ */
+export const logicalDbUnit = (
+  databases: ReadonlyArray<LogicalDatabase>,
+): 'schema' | 'database' | null => {
+  const tested = databases.filter((d) => !d.untested && !d.virtual);
+  if (tested.some((d) => d.type === 'schema')) return 'schema';
+  return tested.length > 0 ? 'database' : null;
+};
+
 export type LogicalDbRowStatus =
   | 'allow'
   | 'deny'
