@@ -196,6 +196,49 @@ const connectedWireResources: MockResource[] = awsWireSampleResources.map((r) =>
   connectionStatus: 'CONNECTED',
 }));
 
+// Step 1 의 RDS 클러스터 인스턴스 선택 데모용 합성 리소스. 실 BFF 응답 캡처
+// (awsWireApprovalResources) 에는 rds_instance_list 가 없어서 — 캡처는 그대로 두고 —
+// 이 한 건만 따로 붙인다. 인스턴스는 wire 순서를 일부러 어긋나게(Writer 먼저,
+// Reader 는 -3 → -2) 두어 화면의 Reader 우선 정렬과 기본 선택(-2)이 눈에 보이게 한다.
+// selected_rds_instance_arn 은 목이 내리지 않는다: 서버 선택값이 없을 때 클라이언트
+// 기본 선택이 도는지가 이 데모의 핵심이다.
+const RDS_CLUSTER_DEMO_ARN =
+  `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:cluster:demo-aurora-mysql-cluster`;
+const rdsClusterDemoResource: MockResource = {
+  id: 'res-wire-cand-rds-cluster',
+  type: 'AWS_DB_CLUSTER',
+  awsType: 'RDS_CLUSTER',
+  resourceId: RDS_CLUSTER_DEMO_ARN,
+  resourceName: 'demo-aurora-mysql-cluster',
+  databaseType: 'MYSQL',
+  connectionStatus: 'PENDING',
+  isSelected: true,
+  region: 'ap-northeast-2',
+  integrationCategory: 'TARGET',
+  host: null,
+  port: null,
+  rdsInstanceList: [
+    {
+      rds_instance_arn: `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:db:demo-aurora-mysql-1`,
+      rds_instance_identifier: 'demo-aurora-mysql-1',
+      region: 'ap-northeast-2',
+      member: 'Writer',
+    },
+    {
+      rds_instance_arn: `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:db:demo-aurora-mysql-3`,
+      rds_instance_identifier: 'demo-aurora-mysql-3',
+      region: 'ap-northeast-2',
+      member: 'Reader',
+    },
+    {
+      rds_instance_arn: `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:db:demo-aurora-mysql-2`,
+      rds_instance_identifier: 'demo-aurora-mysql-2',
+      region: 'ap-northeast-2',
+      member: 'Reader',
+    },
+  ],
+};
+
 // ===== Mock Projects (각 단계별 1개씩) =====
 export const mockProjects: Project[] = [
   // ===== GCP 프로젝트 =====
@@ -612,7 +655,7 @@ export const mockProjects: Project[] = [
     isTerraformExecutionGranted: false,
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
-    resources: awsWireApprovalResources,
+    resources: [...awsWireApprovalResources, rdsClusterDemoResource],
     terraformState: {
       serviceTf: 'PENDING',
       bdcTf: 'PENDING',

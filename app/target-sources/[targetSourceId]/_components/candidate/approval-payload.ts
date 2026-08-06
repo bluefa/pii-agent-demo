@@ -6,7 +6,11 @@ import type {
   CandidateResource,
 } from '@/lib/types/resources';
 import { cloudProviderToWireProvider, toWireDatabaseType } from '@/lib/types';
-import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
+import { rdsInstanceLabel } from '@/lib/rds-instances';
+import {
+  getCandidateBehavior,
+  resolveRdsInstanceArn,
+} from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 
 type ResourceItem = z.infer<typeof schemas.TargetSourceResourceItemDto>;
 type ApprovalRequestInput = z.infer<typeof schemas.ApprovalRequestInputDto>;
@@ -18,6 +22,11 @@ export const toModalResources = (
 ): ApprovalRequestResource[] =>
   candidates.map((candidate) => {
     const endpoint = drafts.endpointDrafts[candidate.id] ?? candidate.endpointConfig;
+    // A cluster row approves ONE member instance — the approver has to see which.
+    const instanceArn = candidate.rdsInstanceList
+      ? resolveRdsInstanceArn(candidate, drafts)
+      : undefined;
+    const instance = candidate.rdsInstanceList?.find((i) => i.rds_instance_arn === instanceArn);
     return {
       id: candidate.id,
       resourceId: candidate.resourceId,
@@ -32,6 +41,14 @@ export const toModalResources = (
               databaseType: endpoint.databaseType,
               port: endpoint.port,
               ...(endpoint.host ? { host: endpoint.host } : {}),
+            },
+          }
+        : {}),
+      ...(instance
+        ? {
+            rdsInstance: {
+              identifier: rdsInstanceLabel(instance),
+              ...(instance.member ? { member: instance.member } : {}),
             },
           }
         : {}),
@@ -61,7 +78,7 @@ export const listMissingExclusionReasons = (
  * Input adapter: UI selection (candidates + selected set + endpoint drafts +
  * per-resource exclusion reasons) → contract `ApprovalRequestInputDto`
  * ({ resources: TargetSourceResourceItemDto[] }). Every item carries its identity
- * (resource_name, integration_category) and the candidate's intrinsic metadata
+ * (resource_name, resource_type, integration_category) and the candidate's intrinsic metadata
  * (provider/region/database_type); selected items additionally carry the behavior's
  * endpoint fields (VM db_type/host/port) from user drafts; excluded items carry the
  * reason the user picked. This is the ONLY shape sent on the wire.
@@ -91,6 +108,11 @@ const buildResourceInputs = (
         : {}),
       ...(candidate.metadata.region ? { region: candidate.metadata.region } : {}),
       ...(candidate.databaseType ? { database_type: toWireDatabaseType(candidate.databaseType) } : {}),
+      // An RDS cluster's member list travels with the resource whether or not it was
+      // selected: it describes what the cluster IS, and the backend joins the echoed
+      // array. Only the CHOICE (selected_rds_instance_arn) is selection-scoped, and the
+      // behavior adds that on the selected branch.
+      ...(candidate.rdsInstanceList ? { rds_instance_list: candidate.rdsInstanceList } : {}),
     };
 
     if (selectedIds.has(candidate.id)) {
@@ -98,6 +120,7 @@ const buildResourceInputs = (
       return {
         resource_id: candidate.id,
         resource_name: candidate.resourceName,
+        resource_type: candidate.type,
         selected: true,
         integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
         // The behavior's endpoint fields (VM db_type/host/port) override on top.
@@ -118,6 +141,7 @@ const buildResourceInputs = (
     return {
       resource_id: candidate.id,
       resource_name: candidate.resourceName,
+      resource_type: candidate.type,
       selected: false,
       integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
       ...(candidate.recommendFailReason

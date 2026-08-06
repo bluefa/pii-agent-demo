@@ -1,5 +1,6 @@
 import type { OpaqueKeys } from '@/lib/object-case';
 import type { AzureVmNic } from '@/lib/types/azure';
+import type { RdsInstanceWire } from '@/lib/rds-instances';
 
 // ===== Enums & Constants =====
 
@@ -287,6 +288,11 @@ export interface MockResource {
   // --- RDS_CLUSTER 전용 ---
   clusterType?: RdsClusterType;
   clusterInstances?: ClusterInstance[];
+  /**
+   * `metadata.rds_instance_list` 원문 — 클러스터 멤버 인스턴스 목록. 정렬·기본 선택은
+   * 클라이언트가 하므로 시드는 wire 순서 그대로 둔다. @see lib/rds-instances.ts
+   */
+  rdsInstanceList?: RdsInstanceWire[];
 }
 
 export interface TerraformState {

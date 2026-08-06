@@ -256,6 +256,10 @@ function buildMetadata(resource: MockResource, project: Project): Record<string,
         resource_type: resource.awsType ?? resource.type,
         region,
         ...(resource.vpcId && { vpc_id: resource.vpcId }),
+        // RDS 클러스터 멤버 인스턴스 — selected_rds_instance_arn 은 일부러 비운다.
+        // 서버 선택값이 없을 때 클라이언트 기본 선택(Reader 우선)이 도는지 보려면
+        // 목이 그 값을 채우면 안 된다.
+        ...(resource.rdsInstanceList ? { rds_instance_list: resource.rdsInstanceList } : {}),
         ...vmFields,
       };
     case 'Azure':

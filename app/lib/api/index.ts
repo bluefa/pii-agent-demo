@@ -16,6 +16,7 @@ import {
 } from '@/lib/types';
 import type { RecommendFailReason } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
+import { parseRdsInstanceList, type RdsInstanceWire } from '@/lib/rds-instances';
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
 // Re-export TargetSourceCloudType so consumers keep importing from one place.
@@ -307,6 +308,13 @@ export interface ConfirmResourceItem {
   networkInterfaceId: string | null;
   ipConfigurationName: string | null;
   scanStatus: ResourceScanStatus | null;
+  /**
+   * `metadata.rds_instance_list` — an RDS cluster's member instances, verbatim and in wire
+   * order. Empty for every other resource type. @see lib/rds-instances.ts
+   */
+  rdsInstanceList: RdsInstanceWire[];
+  /** `metadata.selected_rds_instance_arn` — the cluster's server-side instance choice. */
+  selectedRdsInstanceArn: string | null;
   metadata: ConfirmResourceMetadata;
 }
 
@@ -386,6 +394,8 @@ const toConfirmResourceItem = (item: Record<string, unknown>): ConfirmResourceIt
     networkInterfaceId: str(meta.network_interface_id) ?? null,
     ipConfigurationName: null,
     scanStatus: normalizeCandidateScanStatus(item.scan_status),
+    rdsInstanceList: parseRdsInstanceList(meta.rds_instance_list),
+    selectedRdsInstanceArn: str(meta.selected_rds_instance_arn) ?? null,
     metadata: toConfirmResourceMetadata(meta, resourceType),
   };
 };

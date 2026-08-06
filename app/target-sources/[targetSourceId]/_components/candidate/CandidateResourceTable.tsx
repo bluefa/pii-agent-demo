@@ -100,6 +100,13 @@ export const CandidateResourceTable = ({
   );
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
 
+  // RDS cluster instance rows follow the cluster's checkbox — open once it is a target, closed
+  // while it is not — until the user says otherwise on that one cluster. Stored as an override
+  // rather than mirrored state, so checking a cluster can never leave the fold out of sync.
+  const [instanceFoldOverrides, setInstanceFoldOverrides] = useState<Record<string, boolean>>({});
+  const toggleInstanceFold = (resourceId: string, currentlyExpanded: boolean) =>
+    setInstanceFoldOverrides((previous) => ({ ...previous, [resourceId]: !currentlyExpanded }));
+
   const toggleGroup = (key: string) =>
     setCollapsedGroups((previous) => {
       const next = new Set(previous);
@@ -147,20 +154,26 @@ export const CandidateResourceTable = ({
             </tr>
           </thead>
           {sections.map((section) => {
-            const renderRow = (candidate: CandidateResource, grouped = false, lastInGroup = false) => (
-              <CandidateResourceRow
-                key={candidate.id}
-                candidate={candidate}
-                isSelected={selectedIds.has(candidate.id)}
-                exclusionReason={exclusionReasons[candidate.id]}
-                isExpanded={expandedResourceId === candidate.id}
-                readonly={readonly}
-                drafts={drafts}
-                actions={actions}
-                grouped={grouped}
-                lastInGroup={lastInGroup}
-              />
-            );
+            const renderRow = (candidate: CandidateResource, grouped = false, lastInGroup = false) => {
+              const isSelected = selectedIds.has(candidate.id);
+              const instancesExpanded = instanceFoldOverrides[candidate.id] ?? isSelected;
+              return (
+                <CandidateResourceRow
+                  key={candidate.id}
+                  candidate={candidate}
+                  isSelected={isSelected}
+                  exclusionReason={exclusionReasons[candidate.id]}
+                  isExpanded={expandedResourceId === candidate.id}
+                  readonly={readonly}
+                  drafts={drafts}
+                  actions={actions}
+                  grouped={grouped}
+                  lastInGroup={lastInGroup}
+                  rdsInstancesExpanded={instancesExpanded}
+                  onRdsInstancesToggle={() => toggleInstanceFold(candidate.id, instancesExpanded)}
+                />
+              );
+            };
 
             if (section.kind === 'rows') {
               return (

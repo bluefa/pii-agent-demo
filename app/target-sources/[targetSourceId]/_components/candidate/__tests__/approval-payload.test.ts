@@ -8,7 +8,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
 
-const drafts: CandidateDraftState = { endpointDrafts: {} };
+const drafts: CandidateDraftState = { endpointDrafts: {}, rdsInstanceDrafts: {} };
 
 // A plain (credential/default behavior) cloud candidate: no endpoint fields, so the
 // submitted metadata must come from the candidate itself (the regression path).
@@ -140,6 +140,21 @@ describe('approval-payload', () => {
     expect(item.recommend_fail_reason).toBe('GCP_CLOUD_SQL_HAS_PUBLIC_IP');
   });
 
+  // The contract declares resource_type on the item and the backend keys off it, so it
+  // must ride on EVERY row — dropping it from excluded rows lost the type downstream.
+  it('sends resource_type on selected and excluded items alike', () => {
+    const { resources } = toApprovalRequestInput(
+      [cloudCandidate, { ...cloudCandidate, id: 'res-2', type: 'AWS_DB_CLUSTER' }],
+      new Set(['res-1']),
+      drafts,
+      { 'res-2': '미사용' },
+    );
+    expect(resources!.map((item) => item.resource_type)).toEqual(['RDS', 'AWS_DB_CLUSTER']);
+    resources!.forEach((item) => {
+      expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
+    });
+  });
+
   // The list now gates (disables) the approval CTA, so a blank that slipped in —
   // empty string or whitespace-only — must count as missing, not as a reason.
   it('treats empty and whitespace-only reasons as missing', () => {
@@ -149,5 +164,87 @@ describe('approval-payload', () => {
     expect(
       listMissingExclusionReasons([cloudCandidate], new Set<string>(), { 'res-1': '   ' }),
     ).toEqual([cloudCandidate]);
+  });
+});
+
+// An RDS cluster connects through exactly ONE member instance. The member list describes
+// what the cluster IS (it travels either way); the chosen ARN is the user's decision and
+// only means something on a row that was actually selected.
+describe('approval-payload — RDS cluster instances', () => {
+  const writer = {
+    rds_instance_arn: 'arn:aws:rds:ap-northeast-2:acct:db:demo-1',
+    rds_instance_identifier: 'demo-1',
+    region: 'ap-northeast-2',
+    member: 'Writer',
+  };
+  const readerHigh = {
+    rds_instance_arn: 'arn:aws:rds:ap-northeast-2:acct:db:demo-3',
+    rds_instance_identifier: 'demo-3',
+    region: 'ap-northeast-2',
+    member: 'Reader',
+  };
+  const readerLow = {
+    rds_instance_arn: 'arn:aws:rds:ap-northeast-2:acct:db:demo-2',
+    rds_instance_identifier: 'demo-2',
+    region: 'ap-northeast-2',
+    member: 'Reader',
+  };
+  // Deliberately unsorted, as the wire sends it: Writer first, readers out of ARN order.
+  const wireOrder = [writer, readerHigh, readerLow];
+
+  const cluster: CandidateResource = {
+    id: 'cluster-1',
+    resourceId: 'arn:aws:rds:ap-northeast-2:acct:cluster:demo',
+    resourceName: 'demo-cluster',
+    type: 'AWS_DB_CLUSTER',
+    databaseType: 'MYSQL',
+    integrationCategory: 'TARGET',
+    behaviorKey: 'rdsInstance',
+    selected: true,
+    exclusionReason: null,
+    recommendFailReason: null,
+    rdsInstanceList: wireOrder,
+    metadata: { provider: 'AWS', resourceType: 'AWS_DB_CLUSTER', region: 'ap-northeast-2' },
+  };
+
+  it('selects the sorted-top Reader by default and echoes the list in wire order', () => {
+    const [item] = toApprovalRequestInput([cluster], new Set(['cluster-1']), drafts, {}).resources!;
+    expect(item.metadata?.selected_rds_instance_arn).toBe(readerLow.rds_instance_arn);
+    // Verbatim, unsorted: the backend joins on the array we were given, not on our view of it.
+    expect(item.metadata?.rds_instance_list).toEqual(wireOrder);
+    expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
+  });
+
+  it("honours the server's selection over the sorted-top default", () => {
+    const seeded: CandidateResource = { ...cluster, selectedRdsInstanceArn: writer.rds_instance_arn };
+    const [item] = toApprovalRequestInput([seeded], new Set(['cluster-1']), drafts, {}).resources!;
+    expect(item.metadata?.selected_rds_instance_arn).toBe(writer.rds_instance_arn);
+  });
+
+  it("honours the user's draft over both", () => {
+    const withDraft = { ...drafts, rdsInstanceDrafts: { 'cluster-1': readerHigh.rds_instance_arn } };
+    const seeded: CandidateResource = { ...cluster, selectedRdsInstanceArn: writer.rds_instance_arn };
+    const [item] = toApprovalRequestInput([seeded], new Set(['cluster-1']), withDraft, {}).resources!;
+    expect(item.metadata?.selected_rds_instance_arn).toBe(readerHigh.rds_instance_arn);
+  });
+
+  it('keeps the list but sends no chosen ARN on an excluded cluster', () => {
+    const [item] = toApprovalRequestInput([cluster], new Set<string>(), drafts, {
+      'cluster-1': '미사용 클러스터',
+    }).resources!;
+    expect(item.selected).toBe(false);
+    expect(item.metadata?.rds_instance_list).toEqual(wireOrder);
+    expect(item.metadata?.selected_rds_instance_arn).toBeUndefined();
+  });
+
+  it('leaves both fields off a resource that is not a cluster', () => {
+    const [item] = toApprovalRequestInput([cloudCandidate], new Set(['res-1']), drafts, {}).resources!;
+    expect(item.metadata?.rds_instance_list).toBeUndefined();
+    expect(item.metadata?.selected_rds_instance_arn).toBeUndefined();
+  });
+
+  it('shows the approver which instance the cluster connects through', () => {
+    const [row] = toModalResources([cluster], new Set(['cluster-1']), drafts);
+    expect(row.rdsInstance).toEqual({ identifier: 'demo-2', member: 'Reader' });
   });
 });

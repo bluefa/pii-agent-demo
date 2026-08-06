@@ -23,6 +23,8 @@ export interface ApprovalRequestResource {
   /** Actual DB type (rendered as `—` when absent). Lets the approver see what they approve. */
   databaseType?: string;
   endpoint?: { databaseType: VmDatabaseType; host?: string; port: number };
+  /** RDS cluster only — the member instance the agent connects through. */
+  rdsInstance?: { identifier: string; member?: string };
 }
 
 interface ApprovalRequestModalProps {
@@ -164,6 +166,14 @@ export const ApprovalRequestModal = ({
                     <tr key={r.id} className={tableStyles.row}>
                       <td className={cn(tableStyles.cell, textColors.primary, 'font-mono text-xs')}>
                         {r.resourceId}
+                        {/* A cluster is approved together with the ONE instance the agent
+                            connects through — the identity cell has to say which. */}
+                        {r.rdsInstance && (
+                          <span className={cn('mt-1 block text-xs font-sans', textColors.tertiary)}>
+                            접속 인스턴스: {r.rdsInstance.identifier}
+                            {r.rdsInstance.member ? ` (${r.rdsInstance.member})` : ''}
+                          </span>
+                        )}
                       </td>
                       <td className={cn(tableStyles.cell, textColors.secondary)}>
                         {r.type}

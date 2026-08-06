@@ -57,7 +57,7 @@ interface CandidateResourceSectionProps {
   refreshProject: () => Promise<void>;
 }
 
-const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
+const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {}, rdsInstanceDrafts: {} };
 
 /** Cloud exclusion reason UI cap. Contract allows 3000 (docs/cloud-provider-states.md);
  *  운영 정책으로 1000자로 조인다 — 계약의 부분집합이라 wire엔 영향 없다. */
@@ -258,12 +258,23 @@ export const CandidateResourceSection = ({
     }));
   }, []);
 
+  // No seeding on check: the effective instance is DERIVED (draft → server value → sorted-top
+  // default), so a cluster is never in a state where the payload has no instance to send.
+  // A seeded copy of that default would be a second source of truth that could drift from it.
+  const handleSelectRdsInstance = useCallback((resourceId: string, instanceArn: string) => {
+    setDrafts((previous) => ({
+      ...previous,
+      rdsInstanceDrafts: { ...previous.rdsInstanceDrafts, [resourceId]: instanceArn },
+    }));
+  }, []);
+
   const rowActions = useMemo<CandidateRowActions>(() => ({
     toggleSelected: picker.handleToggleSelected,
     reasonChipClick: picker.handleReasonChipClick,
     expandToggle: handleExpandToggle,
     endpointSave: handleEndpointSave,
-  }), [picker.handleToggleSelected, picker.handleReasonChipClick, handleExpandToggle, handleEndpointSave]);
+    selectRdsInstance: handleSelectRdsInstance,
+  }), [picker.handleToggleSelected, picker.handleReasonChipClick, handleExpandToggle, handleEndpointSave, handleSelectRdsInstance]);
 
   const handleRequestApproval = useCallback(() => {
     if (selectedIds.size === 0) return;
