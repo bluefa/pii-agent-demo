@@ -19,6 +19,7 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 | [worktree-cleanup](./worktree-cleanup/SKILL.md) | `/worktree-cleanup` | merge 후 worktree/로컬 브랜치 정리 | O | code-implementer |
 | [ux-audit](./ux-audit/SKILL.md) | `/ux-audit` | 기존 UX를 코드에서 분석하여 현황 문서 생성 | - | team-lead |
 | [ux-requirements](./ux-requirements/SKILL.md) | `/ux-requirements` | UI/UX 요구사항 도출 및 명세서 생성 | - | team-lead |
+| [wave-spec](./wave-spec/SKILL.md) | `/wave-spec` | 한국어 요구사항 draft → wave-task spec md 변환 (7단계 템플릿) | - | code-implementer |
 | [wave-task](./wave-task/SKILL.md) | `/wave-task` | Spec markdown 1개 → 구현/self-audit/PR/auto-fix 루프/머지 대기 파이프라인 | - | code-implementer |
 | [sit-recurring-checks](./sit-recurring-checks/SKILL.md) | `/sit-recurring-checks` | PR #274-288 리뷰에서 반복된 findings 사전 차단 | O | 전체 |
 | [anti-patterns](./anti-patterns/SKILL.md) | `/anti-patterns` | Frontend Clean Code 안티패턴 카탈로그 (40 patterns) | O | 전체 |
