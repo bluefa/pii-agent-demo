@@ -1179,13 +1179,18 @@ export const serviceSidebarStyles = {
     'bg-[#F7F8FA] text-[#4E5968]',
   ],
   /**
-   * Page indicator docked to the rail's bottom. No rule above it: a full-bleed
-   * border made the bar read as a second section closing the list, when all it
-   * carries is "which page". `mt-auto` keeps it on the bottom edge even when a
-   * short result leaves the list ending mid-rail. The total moved to the title
-   * pill, so nothing here counts rows.
+   * Page indicator riding directly under the last row. No rule above it: a
+   * full-bleed border made the bar read as a second section closing the list,
+   * when all it carries is "which page". The total moved to the title pill, so
+   * nothing here counts rows.
+   *
+   * It is NOT bottom-docked. `mt-auto` pinned it to the rail's bottom edge while
+   * the list above stayed capped at `rows × ROW_MAX_PX`, so the two were pushed
+   * apart by whatever height was left over — a measured 104px of empty rail
+   * between the last row and the pager, which read as a list cut short. Leftover
+   * height now falls BELOW the pager, where an unfilled nav rail is ordinary.
    */
-  footer: 'mt-auto flex shrink-0 items-center justify-center gap-1 px-3 py-2.5',
+  footer: 'flex shrink-0 items-center justify-center gap-1 px-3 py-2.5',
   /** "1 / 2 페이지" — tabular so the digits do not jitter as pages change. */
   footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#666D7B]',
   /** Borderless ghost pager — a bordered button pair floats like a card control on a flush rail. */

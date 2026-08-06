@@ -27,8 +27,14 @@ type ServiceItem = NonNullable<PageServiceItem['content']>[number];
  * Ceiling for one stretched row. A full page divides the rail's height evenly, so
  * without a cap a tall monitor — or a two-row search result — would stretch each
  * row down the whole rail.
+ *
+ * 56, not 88: at 88 a one-line service name floated in the middle of a row two
+ * and a half lines tall, and eight of those read as a sparse mobile list rather
+ * than a dense desktop rail. 56 still holds a two-line name (2 × 20px leading
+ * plus padding); the rare three-line name grows past the cap and the list
+ * scrolls, which is the same fallback a short viewport already uses.
  */
-const ROW_MAX_PX = 88;
+const ROW_MAX_PX = 56;
 
 /**
  * Rows per rail page — owned here, not by each caller.
