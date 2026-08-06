@@ -259,26 +259,47 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(screen.queryByText('기본')).toBeNull();
   });
 
-  it('summarises count and choice on the cluster row, so collapsing hides nothing', () => {
+  // The parent carries the COUNT only. Naming the chosen instance here too gave the row two
+  // places to state one fact, which could disagree; the 기본/선택됨 chip owns it.
+  it('counts instances on the cluster row without naming the chosen one', () => {
     renderCluster();
-    expect(screen.getByText(/인스턴스 3/)).toBeTruthy();
-    // The chosen identifier appears twice: the parent summary and the child row.
-    expect(screen.getAllByText('demo-2').length).toBeGreaterThan(1);
+    expect(screen.getByText('인스턴스 3')).toBeTruthy();
+    expect(screen.queryByText(/선택$/)).toBeNull();
+    // demo-2 appears once — on its own instance row, not in a parent summary.
+    expect(screen.getAllByText('demo-2')).toHaveLength(1);
+  });
+
+  it('tags the cluster row RDS Cluster, before the name', () => {
+    renderCluster();
+    const tag = screen.getByText('RDS Cluster');
+    const nameCell = tag.closest('td');
+    expect(nameCell?.textContent?.indexOf('RDS Cluster')).toBeLessThan(
+      nameCell?.textContent?.indexOf('demo-cluster') ?? -1,
+    );
+    // Instance rows are not clusters — exactly one tag for the one cluster.
+    expect(screen.getAllByText('RDS Cluster')).toHaveLength(1);
   });
 
   // Radios promise a choice the payload would not carry for an unchecked cluster, so they
-  // are ABSENT rather than disabled; the fold also closes with the checkbox.
-  it('renders no radios for an unchecked cluster, and collapses its instances', () => {
+  // are ABSENT rather than disabled. The list itself still shows: it is what the user is
+  // deciding about, and it is the evidence for leaving the cluster out.
+  it('lists an unchecked cluster’s instances, with no radios and nothing marked', () => {
     renderCluster({ selectedIds: new Set<string>() });
-    expect(screen.queryAllByRole('radio')).toHaveLength(0);
-    expect(screen.queryByText('demo-2')).toBeNull();
-  });
-
-  it('expands an unchecked cluster into an informational list with no radios', () => {
-    renderCluster({ selectedIds: new Set<string>() });
-    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
     expect(screen.getByText('demo-2')).toBeTruthy();
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.queryByText('기본')).toBeNull();
+  });
+
+  // Owner request: clusters start open whether or not they are checked.
+  it('starts expanded and collapses from the chevron', () => {
+    renderCluster({ selectedIds: new Set<string>() });
+    expect(screen.getByText('demo-2')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
+    expect(screen.queryByText('demo-2')).toBeNull();
+    // The count and the tag survive the collapse.
+    expect(screen.getByText('인스턴스 3')).toBeTruthy();
+    expect(screen.getByText('RDS Cluster')).toBeTruthy();
   });
 
   it('marks the chosen instance with a 선택됨 chip instead of radios when read-only', () => {

@@ -10,6 +10,7 @@ import {
   type ApprovalResourceItem,
 } from '@/app/lib/api';
 import { formatDate } from '@/lib/utils/date';
+import { readRdsInstanceMetadata } from '@/lib/rds-instances';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import {
   StatTile,
@@ -166,6 +167,9 @@ const toResourceRow = (item: ApprovalResourceItem): WaitingApprovalResource => {
     // this to render 연동 불가 instead of a revisable 제외 pill.
     integrationCategory: item.integration_category ?? undefined,
     recommendFailReason: item.recommend_fail_reason ?? undefined,
+    // An RDS cluster lists its member instances under the row and marks the one the agent
+    // connects through. Any other resource gets neither key back and is unchanged.
+    ...readRdsInstanceMetadata(item.metadata),
   };
 };
 

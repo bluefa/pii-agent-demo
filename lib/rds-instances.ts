@@ -59,6 +59,25 @@ export const parseRdsInstanceList = (value: unknown): RdsInstanceWire[] => {
   return instances;
 };
 
+/**
+ * The cluster pair a read-only approval row needs, read straight off a wire item's `metadata`.
+ * The generated metadata schema is loose (partial + passthrough), so both keys arrive typed as
+ * `unknown` and every display adapter would otherwise re-derive the same two guards. Spreads
+ * into the row: absent keys mean "not a cluster", which leaves the row exactly as it was.
+ */
+export const readRdsInstanceMetadata = (
+  metadata: unknown,
+): { rdsInstances?: RdsInstanceWire[]; selectedRdsInstanceArn?: string } => {
+  if (typeof metadata !== 'object' || metadata === null) return {};
+  const record = metadata as Record<string, unknown>;
+  const rdsInstances = parseRdsInstanceList(record.rds_instance_list);
+  const selected = record.selected_rds_instance_arn;
+  return {
+    ...(rdsInstances.length > 0 ? { rdsInstances } : {}),
+    ...(typeof selected === 'string' && selected ? { selectedRdsInstanceArn: selected } : {}),
+  };
+};
+
 // Readers first: connecting the agent to a reader keeps scan load off the writer. An
 // instance whose member the contract left blank sorts last — it is not known to be safe.
 const MEMBER_RANK: Record<'reader' | 'writer', number> = { reader: 0, writer: 1 };

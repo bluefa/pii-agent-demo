@@ -12,11 +12,15 @@ import { useModal } from '@/app/hooks/useModal';
 import { getResourceDisplayName } from '@/lib/resource';
 import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
 import {
-  memberRole,
   rdsInstanceLabel,
   sortRdsInstances,
   type RdsInstanceWire,
 } from '@/lib/rds-instances';
+import {
+  RdsClusterTag,
+  RdsMemberChip,
+  RdsSelectionChip,
+} from '@/app/components/ui/RdsInstanceChips';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import {
   cn,
@@ -87,19 +91,6 @@ interface CandidateResourceRowProps {
 }
 
 // ===== RDS cluster member instances =====
-
-// Member chip: the pair a reader/writer choice turns on. Warm = Writer (the instance the
-// service writes through — picking it puts scan load on the primary), cool = Reader. Same
-// chip grammar as the approval modal's category badges; the neutral tier covers a member
-// value the contract left blank, which must not borrow either signal's colour.
-const MEMBER_CHIP_BASE = 'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium';
-const memberChipClass = (member: string | undefined): string => {
-  switch (memberRole(member)) {
-    case 'writer': return cn(MEMBER_CHIP_BASE, statusColors.warning.bg, statusColors.warning.textDark);
-    case 'reader': return cn(MEMBER_CHIP_BASE, statusColors.info.bg, statusColors.info.textDark);
-    default: return cn(MEMBER_CHIP_BASE, statusColors.pending.bg, statusColors.pending.textDark);
-  }
-};
 
 interface RdsInstanceRowProps {
   clusterId: string;
@@ -173,20 +164,12 @@ const RdsInstanceRow = ({
           >
             {identifier}
           </span>
-          <span className={memberChipClass(instance.member)}>{instance.member ?? '—'}</span>
+          <RdsMemberChip member={instance.member} />
           {/* 기본 marks the choice the table made for the user; it disappears the moment
               they pick something else, so it never contradicts the checked radio. */}
-          {isDefault && isChosen && (
-            <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs', primaryColors.bgLight, primaryColors.textOnLight)}>
-              기본
-            </span>
-          )}
+          {isDefault && isChosen && <RdsSelectionChip label="기본" />}
           {/* Step 1 read-only: the radios are gone, so the chosen instance says so itself. */}
-          {readonly && isChosen && (
-            <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs', primaryColors.bgLight, primaryColors.textOnLight)}>
-              선택됨
-            </span>
-          )}
+          {readonly && isChosen && <RdsSelectionChip label="선택됨" />}
         </span>
       </td>
 
@@ -247,7 +230,6 @@ export const CandidateResourceRow = ({
   const chosenInstanceArn = isRdsClusterRow && isSelected
     ? resolveRdsInstanceArn(candidate, drafts)
     : undefined;
-  const chosenInstance = sortedInstances.find((i) => i.rds_instance_arn === chosenInstanceArn);
 
   // Ineligible rows share the dim tier with excluded ones — the ⚠ 설치 불가 entry
   // point beside the ID (full contrast) carries the distinction, not a badge column.
@@ -332,6 +314,7 @@ export const CandidateResourceRow = ({
               >
                 <ChevronRightIcon className="h-3.5 w-3.5" />
               </button>
+              <RdsClusterTag />
               <Tooltip
                 content={<IdentifierTip label="Resource Name" value={displayName} />}
                 variant="value"
@@ -341,17 +324,11 @@ export const CandidateResourceRow = ({
               >
                 <span className="block truncate">{displayName || '—'}</span>
               </Tooltip>
-              {/* The cluster row answers "how many, and which one" without being expanded —
-                  collapsing the instances must not hide the choice being submitted. */}
-              <span className={cn('whitespace-nowrap text-[12px] font-sans', textColors.tertiary)}>
+              {/* Count only. Which instance is chosen is said once, by the 기본/선택됨 chip on
+                  the instance row itself — repeating it here made the parent argue with the
+                  radio whenever the two rendered from different state. */}
+              <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
                 인스턴스 {sortedInstances.length}
-                {chosenInstance && (
-                  <>
-                    {' · '}
-                    <span className={primaryColors.text}>{rdsInstanceLabel(chosenInstance)}</span>
-                    {' 선택'}
-                  </>
-                )}
               </span>
             </span>
           ) : (

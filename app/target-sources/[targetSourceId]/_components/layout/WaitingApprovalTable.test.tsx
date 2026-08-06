@@ -405,4 +405,142 @@ describe('WaitingApprovalTable', () => {
       expect(cells[0].textContent).toBe('—');
     });
   });
+
+  // An RDS cluster connects through ONE member instance. Steps 2·3 are review surfaces, so the
+  // list is read-only: it shows what the cluster holds and which one step 1 chose.
+  describe('RDS cluster instances', () => {
+    const WRITER = {
+      rds_instance_arn: 'arn:db:demo-1',
+      rds_instance_identifier: 'demo-1',
+      region: 'ap-northeast-2',
+      member: 'Writer',
+    };
+    const READER_HIGH = {
+      rds_instance_arn: 'arn:db:demo-3',
+      rds_instance_identifier: 'demo-3',
+      region: 'ap-northeast-2',
+      member: 'Reader',
+    };
+    const READER_LOW = {
+      rds_instance_arn: 'arn:db:demo-2',
+      rds_instance_identifier: 'demo-2',
+      region: 'ap-northeast-2',
+      member: 'Reader',
+    };
+    // Writer-first, readers out of ARN order — as the wire sends it.
+    const WIRE_ORDER = [WRITER, READER_HIGH, READER_LOW];
+
+    const cluster = (
+      overrides: Partial<WaitingApprovalResource> = {},
+    ): WaitingApprovalResource => ({
+      resourceId: 'arn:cluster:demo',
+      resourceType: 'AWS_DB_CLUSTER',
+      region: 'ap-northeast-2',
+      resourceName: 'demo-cluster',
+      selected: true,
+      rdsInstances: WIRE_ORDER,
+      selectedRdsInstanceArn: READER_LOW.rds_instance_arn,
+      ...overrides,
+    });
+
+    const instanceNames = () =>
+      screen
+        .getAllByRole('row')
+        .map((row) => row.querySelector('td')?.textContent ?? '')
+        .filter((text) => text.includes('demo-'))
+        .filter((text) => !text.includes('demo-cluster'));
+
+    it('lists instances Reader-first then by ARN, regardless of wire order', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      expect(instanceNames().map((text) => text.slice(0, 6))).toEqual([
+        'demo-2',
+        'demo-3',
+        'demo-1',
+      ]);
+    });
+
+    it('marks only the chosen instance 선택됨, and never offers a radio', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      expect(screen.getAllByText('선택됨')).toHaveLength(1);
+      expect(screen.queryAllByRole('radio')).toHaveLength(0);
+      // The chip sits on the chosen INSTANCE row — the cluster row's summary names demo-2
+      // too, so the lookup has to skip the parent.
+      const chosenRow = screen
+        .getAllByRole('row')
+        .find(
+          (row) =>
+            row.textContent?.includes('demo-2') && !row.textContent.includes('demo-cluster'),
+        );
+      expect(chosenRow?.textContent).toContain('선택됨');
+    });
+
+    it('shows the member role on every instance row', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      expect(screen.getAllByText('Reader')).toHaveLength(2);
+      expect(screen.getAllByText('Writer')).toHaveLength(1);
+    });
+
+    it('says Instance in the type column and gives each instance its own region', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      expect(screen.getAllByText('Instance')).toHaveLength(3);
+      // Cluster row region + one per instance row.
+      expect(screen.getAllByText('ap-northeast-2')).toHaveLength(4);
+    });
+
+    // The parent carries the COUNT only — the 선택됨 chip is the single statement of the choice.
+    it('counts instances on the cluster row without naming the chosen one', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      expect(screen.getByText('인스턴스 3')).toBeTruthy();
+      expect(screen.queryByText(/선택$/)).toBeNull();
+      // demo-2 appears once — on its own instance row, not in a parent summary.
+      expect(instanceNames().filter((text) => text.includes('demo-2'))).toHaveLength(1);
+    });
+
+    it('tags the cluster row RDS Cluster, before the name', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      const nameCell = screen.getByText('RDS Cluster').closest('td');
+      expect(nameCell?.textContent?.indexOf('RDS Cluster')).toBeLessThan(
+        nameCell?.textContent?.indexOf('demo-cluster') ?? -1,
+      );
+      // Instance rows are not clusters — one tag for the one cluster.
+      expect(screen.getAllByText('RDS Cluster')).toHaveLength(1);
+    });
+
+    it('starts expanded and collapses from the chevron', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      expect(instanceNames()).toHaveLength(3);
+
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
+      expect(instanceNames()).toHaveLength(0);
+      // The count and the tag survive the collapse.
+      expect(screen.getByText('인스턴스 3')).toBeTruthy();
+      expect(screen.getByText('RDS Cluster')).toBeTruthy();
+    });
+
+    // An excluded cluster chose nothing, so nothing is marked; the list is still the evidence.
+    it('lists an excluded cluster’s instances with no 선택됨 chip', () => {
+      render(
+        <WaitingApprovalTable
+          resources={[cluster({ selected: false, selectedRdsInstanceArn: undefined })]}
+        />,
+      );
+      expect(instanceNames()).toHaveLength(3);
+      expect(screen.queryByText('선택됨')).toBeNull();
+      expect(screen.getByText('인스턴스 3')).toBeTruthy();
+    });
+
+    // Every other row shape, and every other variant, must be untouched by this addition.
+    it('leaves a row without instances exactly as it was', () => {
+      render(<WaitingApprovalTable resources={fixture} />);
+      expect(screen.queryByText(/인스턴스 /)).toBeNull();
+      expect(screen.queryByText('Instance')).toBeNull();
+      expect(screen.queryByText('RDS Cluster')).toBeNull();
+    });
+
+    it('does not list instances on the confirmed variant', () => {
+      render(<WaitingApprovalTable variant="confirmed" resources={[cluster()]} />);
+      expect(instanceNames()).toHaveLength(0);
+      expect(screen.queryByText('선택됨')).toBeNull();
+    });
+  });
 });

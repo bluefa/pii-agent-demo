@@ -100,9 +100,9 @@ export const CandidateResourceTable = ({
   );
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
 
-  // RDS cluster instance rows follow the cluster's checkbox — open once it is a target, closed
-  // while it is not — until the user says otherwise on that one cluster. Stored as an override
-  // rather than mirrored state, so checking a cluster can never leave the fold out of sync.
+  // RDS cluster instance rows start OPEN whether or not the cluster is checked: which instance
+  // a cluster connects through is part of reviewing it, and an unchecked cluster's list is the
+  // evidence for leaving it out. The chevron closes one cluster at a time.
   const [instanceFoldOverrides, setInstanceFoldOverrides] = useState<Record<string, boolean>>({});
   const toggleInstanceFold = (resourceId: string, currentlyExpanded: boolean) =>
     setInstanceFoldOverrides((previous) => ({ ...previous, [resourceId]: !currentlyExpanded }));
@@ -156,7 +156,7 @@ export const CandidateResourceTable = ({
           {sections.map((section) => {
             const renderRow = (candidate: CandidateResource, grouped = false, lastInGroup = false) => {
               const isSelected = selectedIds.has(candidate.id);
-              const instancesExpanded = instanceFoldOverrides[candidate.id] ?? isSelected;
+              const instancesExpanded = instanceFoldOverrides[candidate.id] ?? true;
               return (
                 <CandidateResourceRow
                   key={candidate.id}

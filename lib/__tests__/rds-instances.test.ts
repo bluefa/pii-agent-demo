@@ -6,6 +6,7 @@ import {
   memberRole,
   parseRdsInstanceList,
   rdsInstanceLabel,
+  readRdsInstanceMetadata,
   sortRdsInstances,
   type RdsInstanceWire,
 } from '@/lib/rds-instances';
@@ -134,6 +135,50 @@ describe('defaultRdsInstanceArn', () => {
 
   it('returns undefined for a cluster with no instances', () => {
     expect(defaultRdsInstanceArn([])).toBeUndefined();
+  });
+});
+
+// The one adapter step 2 (latest), step 3 (approved-integration) and the history detail modal
+// all spread. It has to yield NOTHING for a non-cluster, or every row would grow the keys.
+describe('readRdsInstanceMetadata', () => {
+  const instances = [instance('1', 'Writer'), instance('2', 'Reader')];
+
+  it('surfaces the list and the chosen ARN from wire metadata', () => {
+    expect(
+      readRdsInstanceMetadata({
+        region: 'ap-northeast-2',
+        rds_instance_list: instances,
+        selected_rds_instance_arn: instances[1].rds_instance_arn,
+      }),
+    ).toEqual({ rdsInstances: instances, selectedRdsInstanceArn: instances[1].rds_instance_arn });
+  });
+
+  // Writer-first in, Writer-first out: sorting belongs to the view, not the adapter.
+  it('keeps the list in wire order', () => {
+    expect(readRdsInstanceMetadata({ rds_instance_list: instances }).rdsInstances).toEqual(
+      instances,
+    );
+  });
+
+  it('returns the list alone when nothing was chosen (an excluded cluster)', () => {
+    expect(readRdsInstanceMetadata({ rds_instance_list: instances })).toEqual({
+      rdsInstances: instances,
+    });
+  });
+
+  it('returns nothing for a non-cluster, or absent/malformed metadata', () => {
+    expect(readRdsInstanceMetadata({ region: 'ap-northeast-2' })).toEqual({});
+    expect(readRdsInstanceMetadata(undefined)).toEqual({});
+    expect(readRdsInstanceMetadata(null)).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_list: 'nonsense' })).toEqual({});
+    // An empty list is not a cluster worth listing.
+    expect(readRdsInstanceMetadata({ rds_instance_list: [] })).toEqual({});
+  });
+
+  it('drops a non-string chosen ARN rather than passing it through', () => {
+    expect(
+      readRdsInstanceMetadata({ rds_instance_list: instances, selected_rds_instance_arn: 42 }),
+    ).toEqual({ rdsInstances: instances });
   });
 });
 

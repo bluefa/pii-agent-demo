@@ -7,6 +7,7 @@ import {
   type ApprovedIntegrationResourceItem,
 } from '@/app/lib/api';
 import { AppError, isMissingApprovedIntegrationError } from '@/lib/errors';
+import { readRdsInstanceMetadata } from '@/lib/rds-instances';
 import { formatDate } from '@/lib/utils/date';
 import { Pagination } from '@/app/components/ui/Pagination';
 import {
@@ -46,6 +47,9 @@ const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalRe
   resourceName: item.resource_name ?? '',
   selected: true,
   displayDbType: item.metadata?.database_type ?? item.resource_type,
+  // An RDS cluster lists its member instances under the row and marks the one the agent
+  // connects through. Any other resource gets neither key back and is unchanged.
+  ...readRdsInstanceMetadata(item.metadata),
 });
 
 const toExcludedRow = (
@@ -65,6 +69,9 @@ const toExcludedRow = (
   exclusionReason: item.exclusion_reason ?? undefined,
   integrationCategory: item.integration_category ?? undefined,
   recommendFailReason: item.recommend_fail_reason ?? undefined,
+  // An excluded cluster still lists what it contains — that list is the evidence for the
+  // exclusion. No instance is marked, because none was chosen.
+  ...readRdsInstanceMetadata(item.metadata),
 });
 
 interface ApplyingView {
