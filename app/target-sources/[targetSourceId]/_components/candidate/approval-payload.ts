@@ -115,12 +115,20 @@ const buildResourceInputs = (
       ...(candidate.rdsInstanceList ? { rds_instance_list: candidate.rdsInstanceList } : {}),
     };
 
+    // `candidate.type` is 'UNKNOWN' when the upstream row omitted resource_type — a local
+    // sentinel, not one of the contract's enum values. Omitting the key (yesterday's shape)
+    // is valid; sending the sentinel could make a strict BFF reject the whole request.
+    const resourceTypeField =
+      candidate.type && candidate.type !== 'UNKNOWN'
+        ? { resource_type: candidate.type }
+        : {};
+
     if (selectedIds.has(candidate.id)) {
       const behavior = getCandidateBehavior(candidate);
       return {
         resource_id: candidate.id,
         resource_name: candidate.resourceName,
-        resource_type: candidate.type,
+        ...resourceTypeField,
         selected: true,
         integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
         // The behavior's endpoint fields (VM db_type/host/port) override on top.
@@ -141,7 +149,7 @@ const buildResourceInputs = (
     return {
       resource_id: candidate.id,
       resource_name: candidate.resourceName,
-      resource_type: candidate.type,
+      ...resourceTypeField,
       selected: false,
       integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
       ...(candidate.recommendFailReason

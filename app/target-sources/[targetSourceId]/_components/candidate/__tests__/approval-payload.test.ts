@@ -155,6 +155,19 @@ describe('approval-payload', () => {
     });
   });
 
+  // 'UNKNOWN' is the adapter's local sentinel for an upstream row that omitted
+  // resource_type — not a contract enum value, so the key must be omitted
+  // (yesterday's shape) rather than sent with an invalid value.
+  it('omits resource_type when the candidate type is the UNKNOWN sentinel', () => {
+    const { resources } = toApprovalRequestInput(
+      [{ ...cloudCandidate, type: 'UNKNOWN' }],
+      new Set(['res-1']),
+      drafts,
+      {},
+    );
+    expect('resource_type' in resources![0]).toBe(false);
+  });
+
   // The list now gates (disables) the approval CTA, so a blank that slipped in —
   // empty string or whitespace-only — must count as missing, not as a reason.
   it('treats empty and whitespace-only reasons as missing', () => {

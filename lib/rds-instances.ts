@@ -18,9 +18,11 @@ export interface RdsInstanceWire {
 }
 
 /**
- * Cluster spellings seen on the wire (`AWS_DB_CLUSTER`) plus the alias the demo seed and
- * `normalizeResourceType` canonicalise to (`RDS_CLUSTER`). `AWS_RDS_CLUSTER` is the third
- * spelling the contract may send; all three mean the same resource.
+ * Cluster spellings: `AWS_DB_CLUSTER` is the current contract enum, `RDS_CLUSTER` is the
+ * alias the demo seed and `normalizeResourceType` canonicalise to, and `AWS_RDS_CLUSTER`
+ * is the spelling the owner named for the incoming contract revision (2026-08-06) — kept so
+ * the UI survives whichever the backend lands. Exact match only: the near-miss
+ * `AWS_RDS_GLOBAL_CLUSTER` is a different resource and must stay excluded.
  */
 export const RDS_CLUSTER_TYPES: readonly string[] = [
   'AWS_DB_CLUSTER',

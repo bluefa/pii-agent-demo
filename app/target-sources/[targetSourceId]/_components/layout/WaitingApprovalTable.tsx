@@ -738,8 +738,9 @@ export const WaitingApprovalTable = memo(
         <div className="overflow-x-auto">
           {/* approval rows raised one step over approvalCell's py-4 (owner request, step-1
               table matches). Variant-scoped: the install/confirmed tables (steps 4·6) keep
-              the shared token's rhythm. */}
-          <table className={cn('w-full', variant === 'approval' && '[&_td]:py-5')}>
+              the shared token's rhythm. :not([colspan]) keeps spanning cells (panel-style
+              tds zero their own padding) out of the override — see CandidateResourceTable. */}
+          <table className={cn('w-full', variant === 'approval' && '[&_td:not([colspan])]:py-5')}>
             <thead className={idcStyles.table.approvalHeader}>
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}

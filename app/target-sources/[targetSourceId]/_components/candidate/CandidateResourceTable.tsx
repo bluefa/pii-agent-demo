@@ -125,8 +125,10 @@ export const CandidateResourceTable = ({
     <div className="overflow-hidden bg-white">
       <div className="overflow-x-auto">
         {/* Row height raised one step over approvalCell's py-4 (owner request) — table-scoped
-            so the shared token keeps every other table family at its current rhythm. */}
-        <table className="w-full [&_td]:py-5">
+            so the shared token keeps every other table family at its current rhythm. The
+            :not([colspan]) guard keeps it off spanning cells: VmDatabaseConfigPanel's td is
+            deliberately py-0 and would lose to this selector's higher specificity. */}
+        <table className="w-full [&_td:not([colspan])]:py-5">
           <thead className={idcStyles.table.approvalHeader}>
             {/* Identity (name → id) → attributes (type · region) → system verdict
                 (설치 구분 = integration_category, a FACT the user cannot change) →
