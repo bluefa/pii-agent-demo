@@ -120,8 +120,11 @@ export default function ServicesPage(): ReactElement {
         .catch((err) => {
           if (signal.aborted) return;
           setServicesError(err);
-          // 이전 질의의 총계가 "불러오지 못했습니다" 옆에 남지 않게 같이 비운다.
+          // 이전 질의의 총계·페이지 수가 "불러오지 못했습니다" 옆에 남지 않게 같이
+          // 비운다. 총계만 비우면 개수 태그는 사라져도 페이저는 "1 / 3 페이지"를
+          // 계속 그린다 — 페이저는 한 장이면 스스로 사라진다.
           setSvcTotal(0);
+          setSvcPages(1);
           setServicesLoading(false);
         });
     },
@@ -228,6 +231,7 @@ export default function ServicesPage(): ReactElement {
           ) : servicesError != null ? (
             <div className="flex-1">
               <PlEmptyState
+                onGround
                 icon="search"
                 message={errorMessage(servicesError)}
                 meta={
@@ -243,7 +247,7 @@ export default function ServicesPage(): ReactElement {
             </div>
           ) : services.length === 0 ? (
             <div className="flex-1">
-              <PlEmptyState icon="search" message="검색 결과가 없습니다." />
+              <PlEmptyState onGround icon="search" message="검색 결과가 없습니다." />
             </div>
           ) : (
             <>

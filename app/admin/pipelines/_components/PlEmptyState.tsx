@@ -11,14 +11,23 @@ export interface PlEmptyStateProps {
   message: ReactNode;
   meta?: ReactNode;
   center?: boolean;
+  /** 흰 카드가 아니라 회색 바닥 위에 놓일 때 — 아이콘 판을 한 단 내린다(gray-100 은 바닥과 같은 값). */
+  onGround?: boolean;
   className?: string;
 }
 
-export function PlEmptyState({ icon, message, meta, center, className }: PlEmptyStateProps): ReactElement {
+export function PlEmptyState({
+  icon,
+  message,
+  meta,
+  center,
+  onGround,
+  className,
+}: PlEmptyStateProps): ReactElement {
   const { empty } = pipelineStyles;
   return (
     <div className={cn(empty.base, center && empty.center, className)}>
-      <span className={empty.icon}>
+      <span className={onGround ? empty.iconOnGround : empty.icon}>
         <Icon name={icon} size="xl" />
       </span>
       {message}

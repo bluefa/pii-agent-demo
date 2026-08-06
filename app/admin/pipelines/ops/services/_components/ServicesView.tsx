@@ -118,6 +118,7 @@ export function ServicesView(): ReactElement {
           {failed ? (
             <div className="flex-1">
               <PlEmptyState
+                onGround
                 icon="search"
                 message="서비스 목록을 불러오지 못했습니다."
                 meta={
@@ -131,7 +132,7 @@ export function ServicesView(): ReactElement {
             <div className="min-h-[240px] flex-1" aria-busy="true" />
           ) : pageRows.length === 0 ? (
             <div className="flex-1">
-              <PlEmptyState icon="search" message="검색 결과가 없습니다." />
+              <PlEmptyState onGround icon="search" message="검색 결과가 없습니다." />
             </div>
           ) : (
             <>

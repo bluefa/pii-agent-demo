@@ -1603,6 +1603,10 @@ export const pipelineStyles = {
     center: 'flex flex-col justify-center items-center min-h-[240px]',
     /** 아이콘은 비텍스트 3:1 — faint 는 gray-100 면 위에서 2.34 라 weak(4.51). */
     icon: 'flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
+    /** 흰 카드가 아니라 회색 바닥 위에 놓일 때 — gray-100 판은 바닥과 같은 값이라
+     *  사라진다. 한 단 내려 gray-200(바닥 대비 1.13, 아이콘 4.01 로 비텍스트 3:1 통과). */
+    iconOnGround:
+      'flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--pl-gray-200)] text-[var(--pl-text-weak)]',
     meta: cn(pipelineText.meta),
   },
 
