@@ -80,7 +80,7 @@ export const LogicalDbModalLoader = ({
       isOpen={open}
       onClose={onClose}
       size="2xl"
-      title={`논리 DB 확인 · ${resourceName}`}
+      title={`논리 DB 목록 · ${resourceName}`}
     >
       {state.status === 'loading' ? (
         <ResourceTableSkeleton />

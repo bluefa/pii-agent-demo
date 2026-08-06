@@ -284,7 +284,7 @@ export const ConnectionTestCard = ({
   // (LATEST_TEST_CONNECTION_SUCCESS → LOGICAL_DATABASE_RECENTLY_UPDATED, spec §7);
   // refreshProject re-reads so the badge updates.
   const handleSaved = useCallback(() => {
-    toast.success('논리 DB 제외 정책을 저장했습니다.');
+    toast.success('논리 DB 제외 정책을 저장했습니다. 연결 테스트를 다시 실행해야 반영됩니다.');
     logicalModal.close();
     refreshProject();
   }, [logicalModal, toast, refreshProject]);

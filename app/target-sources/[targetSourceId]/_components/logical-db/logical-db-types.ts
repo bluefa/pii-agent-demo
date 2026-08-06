@@ -28,6 +28,18 @@ export interface LogicalDatabase {
   schema?: string;
   /** when present, an existing skip policy already excludes this entry */
   existingDenyReason?: SkipReason;
+  /**
+   * Policy-only entry: in the skip list but absent from this run's Tested list.
+   * Expected state, not an anomaly — an excluded DB is simply not collected by
+   * the next Test Connection, so it keeps living here as policy.
+   */
+  untested?: boolean;
+  /**
+   * Synthesized DATABASE parent for a database that appears only through its
+   * SCHEMA rows (real PG targets report schemas only). Not a Tested entry
+   * itself, but a valid DATABASE-scope exclusion target.
+   */
+  virtual?: boolean;
 }
 
 export interface LogicalDbModalDraft {
