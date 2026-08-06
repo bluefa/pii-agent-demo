@@ -276,6 +276,46 @@
   .vE .rail { border-left: 1px solid #EEF0F4; }
   .vE .rail .tabs .on { background: #EEF1F6; }
 
+  /* ---- 구조 레퍼런스 타일 ---- */
+  .refgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .ref { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .ref h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+  .ref h3 span { font-weight: 500; color: var(--faint); font-size: 12px; margin-left: 6px; }
+  .wf { display: flex; gap: 6px; height: 96px; padding: 8px; background: #FFFFFF; border: 1px solid #E5E8EB; border-radius: 8px; }
+  .wf.col { flex-direction: column; }
+  .wf .blk { background: #EEF0F4; border-radius: 4px; }
+  .wf .hl { background: #D6E4FF; border: 1px solid #A8C8FF; border-radius: 4px; }
+  .ref .why { margin: 10px 0 0; font-size: 12px; color: var(--sub); }
+  .ref .take { margin: 4px 0 0; font-size: 12px; color: var(--ink); }
+  .ref .take b { color: var(--accent); }
+  @media (max-width: 900px) { .refgrid { grid-template-columns: 1fr; } }
+
+  /* ---- 추천 종합안 (구조 1+3 × 존닝 C) ---- */
+  .vR .sb { background: #F1F3F7; border-right: 1px solid #E4E7EE; }
+  .vR .sb .search { background: #FFFFFF; }
+  .vR .sb li.on { background: #FFFFFF; box-shadow: 0 1px 2px rgba(25, 31, 40, 0.06); }
+  .vR .hd1 { display: flex; align-items: baseline; gap: 12px; padding: 12px 20px; background: #FFFFFF; border-bottom: 1px solid #EEF0F4; }
+  .vR .hd1 b { font-size: 14px; font-weight: 700; }
+  .vR .h1svc { font-size: 10px; color: #6B7684; }
+  .vR .h1svc strong { color: #191F28; font-weight: 600; }
+  .vR .h1prog { margin-left: auto; font-size: 10px; font-weight: 700; color: #1B64DA; }
+  .vR .step-area { padding: 16px 20px; background: #FFFFFF; flex: 1; }
+  .vR .card { border: 1px solid #E8EBF0; }
+  .vR .rail { background: #F1F3F7; border-left: 1px solid #E4E7EE; }
+  .vR .rbox { background: #FFFFFF; border: 1px solid #E8EBF0; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+  .vR .rbox h6 { margin: 0 0 6px; font-size: 10px; font-weight: 700; color: #4E5968; }
+  .vR .prow { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 10px; color: #191F28; }
+  .vR .prow small { color: #6B7684; flex: none; }
+  .vR .prow .pv2 { display: inline-flex; align-items: center; gap: 4px; min-width: 0; text-align: right; }
+  .vR .prow .pv2 svg { width: 10px; height: 10px; color: #333D4B; }
+  .vR .chk { list-style: none; margin: 0; padding: 0; font-size: 10px; }
+  .vR .chk li { display: flex; gap: 8px; padding: 4px 0; align-items: flex-start; color: #6B7684; }
+  .vR .chk li.cur { color: #191F28; font-weight: 700; }
+  .vR .dot { width: 10px; height: 10px; flex: none; margin-top: 1px; border-radius: 50%; border: 1px solid #C9D0DC; background: #FFFFFF; }
+  .vR .dot.on { background: #0064FF; border-color: #0064FF; }
+  .vR .gexp { margin: 2px 0 2px 18px; padding: 6px 8px; font-weight: 400; background: #F4F7FE; border: 1px solid #DCE7FB; border-radius: 6px; color: #4E5968; }
+  .vR .del2 { background: #FFFFFF; border: 1px solid #F1D4D4; border-radius: 6px; color: #C43E3E; text-align: center; padding: 4px 0; font-size: 10px; font-weight: 700; }
+
   /* ---- 비교 표 ---- */
   table.cmp { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 8px; }
   .cmp th, .cmp td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; color: var(--sub); }
@@ -719,6 +759,117 @@
   </div>
 
   <div class="reco"><b>추천: C 투톤 프레임.</b> 세 지적을 모두 해결하면서 코드 변경이 표면 색 재배정 수준으로 가장 작고, "도구 존은 회색·작업 존은 흰색"이라는 규칙 하나로 이후 화면(관리자·Admin)에도 그대로 확장됩니다. 차선은 B(다크 사이드바) — 분리가 가장 확실하지만 서비스 목록 전면 재도색이 필요합니다. D는 헤더가 다시 무거워질 위험이 있어(이전 지적 재발) 보류를 권합니다.</div>
+
+  <!-- ============ 구조 레퍼런스 10 ============ -->
+  <h1 style="font-size:20px; margin-top:64px;">구조 레퍼런스 10 — 헤더 밖의 해법</h1>
+  <p class="lede" style="margin-bottom:24px;">"헤더 계층이 여전히 강하다"의 근본 원인은 메타·진행·가이드를 전부 본문 위/옆 크롬에 두는 구조입니다. 장기 프로세스 상태 페이지를 운영하는 서비스들이 이 세 정보를 어디에 두는지 — 파란 면이 각 레퍼런스에서 배울 자리입니다.</p>
+  <div class="refgrid">
+    <div class="ref"><h3>1 · Linear 이슈 상세<span>Properties 레일</span></h3>
+      <div class="wf"><div class="blk" style="width:14%"></div><div class="blk" style="flex:1"></div><div class="hl" style="width:24%"></div></div>
+      <p class="why">장점: 메타(담당·라벨·상태)를 전부 우측 속성 레일로 — 본문은 콘텐츠 전용이라 헤더가 제목 한 줄로 끝납니다. "항상 보이지만 시선은 안 뺏는" 메타 배치의 정석.</p>
+      <p class="take"><b>가져올 것</b> — 서비스·클라우드·설치모드를 헤더에서 우측 레일 속성 블록으로 이동.</p>
+    </div>
+    <div class="ref"><h3>2 · GitHub Actions 실행<span>프로세스 = 내비</span></h3>
+      <div class="wf"><div class="hl" style="width:26%"></div><div class="blk" style="flex:1"></div></div>
+      <p class="why">장점: 잡/스텝 목록이 좌측 내비이자 진행 표시. 단계를 클릭하면 그 단계의 화면 — 진행 상태가 크롬이 아니라 구조 그 자체입니다.</p>
+      <p class="take"><b>가져올 것</b> — 7단계를 세로 목록으로 승격해 내비+진행을 겸하게 하는 발상.</p>
+    </div>
+    <div class="ref"><h3>3 · Vercel 배포 상세<span>아코디언 단계</span></h3>
+      <div class="wf col"><div class="blk" style="height:22%"></div><div class="blk" style="height:16%"></div><div class="hl" style="flex:1"></div><div class="blk" style="height:16%"></div></div>
+      <p class="why">장점: 상태칩+메타 그리드로 요약한 뒤, 빌드·체크 등 무거운 내용은 아코디언. 진행 중인 것만 펼쳐져 화면이 항상 "지금"에 집중합니다.</p>
+      <p class="take"><b>가져올 것</b> — 완료 단계 접기, 진행 단계만 펼침.</p>
+    </div>
+    <div class="ref"><h3>4 · Shopify Setup Guide<span>가이드 = 체크리스트</span></h3>
+      <div class="wf col"><div class="blk" style="height:18%"></div><div class="blk" style="height:14%"></div><div class="hl" style="flex:1"></div><div class="blk" style="height:14%"></div><div class="blk" style="height:14%"></div></div>
+      <p class="why">장점: 가이드가 별도 문서가 아니라 진행 체크리스트와 한 몸 — 완료 체크가 쌓이고 현재 항목이 펼쳐져 할 일을 안내합니다. 공식 패턴 문서가 있어 검증된 문법.</p>
+      <p class="take"><b>가져올 것</b> — 가이드 패널 + 스텝퍼 → 하나의 진행 가이드 카드로 통합.</p>
+    </div>
+    <div class="ref"><h3>5 · Stripe 계정 상세<span>할 일 우선</span></h3>
+      <div class="wf col"><div class="hl" style="height:24%"></div><div class="blk" style="flex:1"></div><div class="blk" style="height:20%"></div></div>
+      <p class="why">장점: 화면 최상단이 메타가 아니라 "Actions required". 사용자가 온 이유(막힌 것 해소)를 첫 시선에 배치하고, 계정 정보는 그 아래로.</p>
+      <p class="take"><b>가져올 것</b> — "지금 해야 할 일"이 항상 메타보다 위라는 우선순위 원칙.</p>
+    </div>
+    <div class="ref"><h3>6 · NN/g Status Tracker<span>16 가이드라인</span></h3>
+      <div class="wf col"><div class="blk" style="height:12%; width:70%"></div><div class="blk" style="height:12%; width:85%"></div><div class="hl" style="height:12%; width:78%"></div><div class="blk" style="height:12%; width:60%"></div><div class="blk" style="height:12%; width:82%"></div></div>
+      <p class="why">장점: 상태 추적 UI의 리서치 기반 체크리스트 — 다음 단계 예고, 예상 시간, 내부 용어 금지(평문 라벨), 마지막 갱신 시각 표시 등.</p>
+      <p class="take"><b>가져올 것</b> — 설계안 검증 기준. 특히 "다음 단계에 무슨 일이 일어나는지"를 항상 알려줄 것.</p>
+    </div>
+    <div class="ref"><h3>7 · 배송/주문 추적<span>세로 타임라인</span></h3>
+      <div class="wf"><div class="hl" style="width:8%"></div><div class="wf col" style="flex:1; border:0; padding:0; height:auto"><div class="blk" style="height:22%"></div><div class="blk" style="height:22%"></div><div class="blk" style="height:22%"></div><div class="blk" style="height:22%"></div></div></div>
+      <p class="why">장점: 장기 프로세스의 대중적 원형. 단계마다 내용·시각이 붙어야 하면 수평 스텝퍼가 아니라 세로 타임라인이 맞습니다(스텝퍼 연구들의 공통 결론).</p>
+      <p class="take"><b>가져올 것</b> — 진행 내역·단계 설명이 커지면 수평 스텝퍼를 세로 타임라인으로 전환.</p>
+    </div>
+    <div class="ref"><h3>8 · Notion 페이지 속성<span>접히는 메타</span></h3>
+      <div class="wf col"><div class="blk" style="height:20%; width:50%"></div><div class="hl" style="height:14%"></div><div class="blk" style="flex:1"></div></div>
+      <p class="why">장점: 제목 아래 속성 블록이 기본 접힘 — 메타는 "필요할 때 펼치는 것"이라는 태도. 콘텐츠가 즉시 주인공이 됩니다.</p>
+      <p class="take"><b>가져올 것</b> — 메타의 progressive disclosure. 자주 안 보는 값은 접어도 됩니다.</p>
+    </div>
+    <div class="ref"><h3>9 · Argo CD · Temporal<span>상태 중심 뷰</span></h3>
+      <div class="wf col"><div class="blk" style="height:14%; width:40%"></div><div class="hl" style="flex:1"></div></div>
+      <p class="why">장점: 장기 실행 워크플로 도구의 극단 — 헤더가 거의 없고 상태 그래프가 화면 전체. 프로세스 자체가 콘텐츠일 때 어디까지 갈 수 있는지 보여줍니다.</p>
+      <p class="take"><b>가져올 것</b> — 관리자(Admin) 화면의 장기 지향점.</p>
+    </div>
+    <div class="ref"><h3>10 · 토스 심사 플로우<span>단일 초점</span></h3>
+      <div class="wf"><div class="blk" style="flex:1; background:transparent"></div><div class="hl" style="width:34%"></div><div class="blk" style="flex:1; background:transparent"></div></div>
+      <p class="why">장점: 화면에는 "지금 할 일" 하나만. 나머지 정보는 접근 가능하되 숨김. 우리 디자인 시스템의 뿌리이기도 한 단일 초점 원칙.</p>
+      <p class="take"><b>가져올 것</b> — 본문에 카드 1장(현재 단계)만 두는 현재 방향의 근거이자, 헤더 다이어트의 최종 논거.</p>
+    </div>
+  </div>
+
+  <!-- ============ 추천 종합안 ============ -->
+  <section class="variant vR" style="margin-top:64px; margin-bottom:24px;">
+    <div class="v-eyebrow">추천 종합안</div>
+    <div class="v-name">구조 1+3 혼합 × 존닝 C — 헤더를 줄이지 않고 없앤다</div>
+    <p class="v-strategy">Linear(1)의 속성 레일 + Shopify(4)·Stripe(5)의 진행 가이드 통합을 존닝 C 위에 얹은 안입니다. 헤더는 <b>제목 한 줄 + 현재 단계 표시</b>로 끝나고, 메타는 우측 레일 상단의 속성 블록으로, 스텝퍼와 가이드는 하나의 진행 가이드 체크리스트로 합쳐집니다. 본문은 스텝 카드가 첫 시선입니다 — 헤더 계층 문제가 "줄이기"가 아니라 "옮기기"로 소멸합니다.</p>
+    <div class="frame-scroll"><div class="frame">
+      <div class="tn"><span class="logo">PASS<span>PII AGENT SELF SERVICE</span></span><nav><span class="on">서비스 목록</span><span>관리자</span><span>Guide</span><span>FAQ</span></nav></div>
+      <div class="cols">
+        <div class="sb"><h4>서비스 목록</h4><div class="search">서비스 이름 또는 코드</div><ul><li class="on">AWS <code>aws</code></li><li>Azure <code>azure</code></li><li>IDC <code>idc</code></li><li>GCP <code>gcp</code></li><li>SDU <code>SDU</code></li><li>배송서비스 <code>DLV</code></li></ul></div>
+        <div class="bodyz">
+          <div class="hd1"><b>PII Agent 설치</b><span class="h1svc">서비스 이름 <strong>AWS</strong> · 서비스 코드 <strong>aws</strong></span><span class="h1prog">1 / 7 · 연동 대상 DB 선택</span></div>
+          <div class="step-area">
+            <div class="card"><span class="stage">1번째 단계</span><h5>연동 대상 DB 선택</h5><p class="sub">인프라 스캔으로 AWS 계정의 리소스를 조회하고, 연동할 리소스를 선택해 주세요.</p>
+              <div class="tbl"><div class="th"><span>Resource Name</span><span>Database Type</span><span>Region</span><span>설치 구분</span></div>
+                <div class="tr"><span>raw-mongo-deq-test-1</span><span>MongoDB</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                <div class="tr"><span>raw-e2e-test-mysql-clus</span><span>MySQL</span><span>ap-northeast-2</span><span>설치 대상</span></div>
+                <div class="tr"><span>svc-orders-aurora</span><span>Aurora</span><span>ap-northeast-2</span><span>제외</span></div></div></div>
+          </div>
+        </div>
+        <div class="rail">
+          <div class="rbox">
+            <h6>속성</h6>
+            <div class="prow"><small>클라우드</small><span class="pv2"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#awsic"></use></svg>AWS Cloud</span></div>
+            <div class="prow"><small>Account ID</small><span class="pv2">451814760281</span></div>
+            <div class="prow"><small>설치 모드</small><span class="pv2"><span class="mode">수동 설치</span></span></div>
+            <div class="prow"><small>모니터링</small><span class="pv2">AWS Agent</span></div>
+            <div class="prow"><small>설명</small><span class="pv2" style="color:#6B7684">연동 대상 확정 — 후보 9건 중 1건 선택</span></div>
+          </div>
+          <div class="rbox">
+            <h6>설치 진행 가이드</h6>
+            <ul class="chk">
+              <li class="cur"><span class="dot on"></span><span>연동 대상 DB 선택<span class="gexp" style="display:block">스캔 시작으로 리소스를 조회한 뒤, 필요한 DB를 선택하고 승인 요청을 눌러 주세요. 미선택 리소스에는 제외 사유가 필요해요.</span></span></li>
+              <li><span class="dot"></span>연동 대상 승인 대기</li>
+              <li><span class="dot"></span>연동 대상 반영중</li>
+              <li><span class="dot"></span>Agent 설치</li>
+              <li><span class="dot"></span>연결 테스트</li>
+              <li><span class="dot"></span>관리자 승인 대기</li>
+              <li><span class="dot"></span>완료</li>
+            </ul>
+          </div>
+          <div class="del2">인프라 삭제</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="smap">
+      <span><i style="background:#FFFFFF"></i>헤더 1줄 #FFFFFF</span><span><i style="background:#F1F3F7"></i>사이드바·레일 #F1F3F7</span><span><i style="background:#FFFFFF"></i>본문 캔버스 #FFFFFF</span><span><i style="background:#D6E4FF"></i>현재 단계 가이드 확장</span>
+    </div>
+    <div class="verdict">
+      <div class="p">헤더가 44px 한 줄 — 계층 문제 자체가 소멸, 스텝 카드가 첫 시선</div>
+      <div class="p">스텝퍼+가이드 중복이 사라지고 "진행 가이드" 하나로 — 완료가 쌓이는 체크리스트</div>
+      <div class="p">메타는 항상 보이되(레일 속성) 시선 비용 0 — Linear 문법</div>
+      <div class="c">변경 폭이 존닝 교체보다 큼 — 헤더·가이드 패널·스텝퍼 3개 컴포넌트 재배선</div>
+    </div>
+  </section>
 </div>
 
 </body>
