@@ -67,6 +67,9 @@ const resolveVar = (name) => {
 };
 const COLOR = '(?:(#[0-9A-Fa-f]{6})|var\\((--pl-[\\w-]+)\\))';
 const asHex = (m) => m[1] ?? resolveVar(m[2]);
+// Rest-state only: hover/disabled are other states, before: is a decorative pseudo-element
+// (accent bars), focus-visible: is a state — none of them is the line's resting surface.
+const REST = '(?<!hover:)(?<!disabled:)(?<!before:)(?<!focus-visible:)';
 
 const luminance = (hex) => {
   const c = hex
@@ -103,12 +106,14 @@ for (const line of added) {
 
   // Surfaces: rest-state bg declared on the same line (tinted chips/buttons), else the page surface.
   // ponytail: rest-state only — hover:text/hover:bg pairing is not associated, audit hover manually.
-  const bgs = [...line.matchAll(new RegExp(`(?<!hover:)(?<!disabled:)bg-\\[${COLOR}\\](?!/)`, 'g'))]
-    .map(asHex)
-    .filter(Boolean);
+  const bgMatches = [...line.matchAll(new RegExp(`${REST}bg-\\[${COLOR}\\](?!/)`, 'g'))];
+  const bgs = bgMatches.map(asHex).filter(Boolean);
+  // A declared-but-unresolvable bg (unknown token, rgba token) must not degrade into a
+  // white guess — the real surface is simply unknown, so skip this line's contrast checks.
+  if (bgMatches.length && !bgs.length) continue;
   const surfaces = bgs.length ? bgs : [SURFACE];
 
-  for (const m of line.matchAll(new RegExp(`(?<!hover:)(?<!disabled:)text-\\[${COLOR}\\]`, 'g'))) {
+  for (const m of line.matchAll(new RegExp(`${REST}text-\\[${COLOR}\\]`, 'g'))) {
     const fg = asHex(m);
     if (!fg) continue;
     for (const bg of surfaces) {
