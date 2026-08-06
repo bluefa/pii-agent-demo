@@ -403,9 +403,10 @@ export const WaitingApprovalTable = memo(
             )}
           >
             {hasInstances ? (
-              // A cluster keeps its own name — the tag, chevron and count join it rather than
-              // replacing it, so the row reads the same as it does on step 1.
-              <span className={idcStyles.table.group.lead}>
+              // A cluster keeps its own name — two-line identity (owner request): the tag sits
+              // at the row's top-left ABOVE the name, chevron top-aligned to the tag line.
+              // Same stack as the step-1 cluster row so the three steps read identically.
+              <span className="flex items-start gap-2">
                 <button
                   type="button"
                   // No aria-controls: the instance rows are `<tr>` siblings with no single
@@ -422,24 +423,29 @@ export const WaitingApprovalTable = memo(
                       ? idcStyles.table.group.toggleOpen
                       : idcStyles.table.group.toggleClosed,
                     primaryColors.focusRing,
+                    'mt-0.5',
                   )}
                 >
                   <ChevronRightIcon className="h-3.5 w-3.5" />
                 </button>
-                <RdsClusterTag />
-                <Tooltip
-                  content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
-                  variant="value"
-                  size="md"
-                  triggerClassName="min-w-0 max-w-[200px] block"
-                  truncatedOnly
-                >
-                  <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
-                </Tooltip>
-                {/* Count only — the 선택됨 chip on the instance row is the single place the
-                    choice is stated, so the parent can never contradict it. */}
-                <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
-                  인스턴스 {instances.length}
+                <span className="flex min-w-0 flex-col items-start gap-1">
+                  <RdsClusterTag />
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Tooltip
+                      content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
+                      variant="value"
+                      size="md"
+                      triggerClassName="min-w-0 max-w-[200px] block"
+                      truncatedOnly
+                    >
+                      <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+                    </Tooltip>
+                    {/* Count only — the 선택됨 chip on the instance row is the single place the
+                        choice is stated, so the parent can never contradict it. */}
+                    <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
+                      인스턴스 {instances.length}
+                    </span>
+                  </span>
                 </span>
               </span>
             ) : folded ? (
@@ -697,7 +703,10 @@ export const WaitingApprovalTable = memo(
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          {/* approval rows raised one step over approvalCell's py-4 (owner request, step-1
+              table matches). Variant-scoped: the install/confirmed tables (steps 4·6) keep
+              the shared token's rhythm. */}
+          <table className={cn('w-full', variant === 'approval' && '[&_td]:py-5')}>
             <thead className={idcStyles.table.approvalHeader}>
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}

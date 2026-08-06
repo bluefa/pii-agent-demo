@@ -239,6 +239,16 @@ const rdsClusterDemoResource: MockResource = {
   ],
 };
 
+// Step 3(승인 반영 중, 2001) 시드용 클러스터. 시드 타깃은 승인 요청 POST 이력이 없어
+// confirm.ts 가 `r.selectedRdsInstanceArn` 을 그대로 되돌려주므로, 승인이 고른 접속
+// 인스턴스(-2 Reader = 정렬 최상단)를 여기 명시해야 2·3단계 '선택됨' 칩이 선다.
+// id 는 1006 데모 리소스와 store 에서 충돌하지 않게 분리한다.
+const rdsClusterApplyingResource: MockResource = {
+  ...rdsClusterDemoResource,
+  id: 'res-wire-applying-rds-cluster',
+  selectedRdsInstanceArn: `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:db:demo-aurora-mysql-2`,
+};
+
 // ===== Mock Projects (각 단계별 1개씩) =====
 export const mockProjects: Project[] = [
   // ===== GCP 프로젝트 =====
@@ -988,6 +998,8 @@ mockProjects.push(
     name: 'AWS PII Agent - 반영 중',
     status: ProcessStatus.APPLYING_APPROVED,
     description: 'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면을 검증합니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인할 수 있습니다.',
+    // RDS 클러스터 인스턴스 목록(선택됨 칩 포함)이 3단계 승인 정보에 그대로 보이는지 검증.
+    resources: [...awsWireSampleResources, rdsClusterApplyingResource],
   }),
   // Azure — fills steps 2/3/5/6/7 (base azure-proj-1 carries full resources)
   cloneForStep('azure-proj-1', { id: 'azure-proj-approval', targetSourceId: 2002, projectCode: 'AZURE-APPROVAL', name: 'Azure PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL }),

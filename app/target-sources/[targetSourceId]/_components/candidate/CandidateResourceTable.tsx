@@ -124,7 +124,9 @@ export const CandidateResourceTable = ({
     // rounded bottom, and everything between stays bare (step-2 table silhouette).
     <div className="overflow-hidden bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full">
+        {/* Row height raised one step over approvalCell's py-4 (owner request) — table-scoped
+            so the shared token keeps every other table family at its current rhythm. */}
+        <table className="w-full [&_td]:py-5">
           <thead className={idcStyles.table.approvalHeader}>
             {/* Identity (name → id) → attributes (type · region) → system verdict
                 (설치 구분 = integration_category, a FACT the user cannot change) →

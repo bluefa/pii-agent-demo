@@ -292,7 +292,9 @@ export const CandidateResourceRow = ({
           )}
         >
           {isRdsClusterRow ? (
-            <span className={idcStyles.table.group.lead}>
+            // Two-line identity (owner request): the tag sits at the row's top-left ABOVE the
+            // name, not beside it, so the chevron top-aligns to the tag line.
+            <span className="flex items-start gap-2">
               <button
                 type="button"
                 // No aria-controls: the instance rows are `<tr>` siblings with no single
@@ -310,25 +312,30 @@ export const CandidateResourceRow = ({
                     ? idcStyles.table.group.toggleOpen
                     : idcStyles.table.group.toggleClosed,
                   primaryColors.focusRing,
+                  'mt-0.5',
                 )}
               >
                 <ChevronRightIcon className="h-3.5 w-3.5" />
               </button>
-              <RdsClusterTag />
-              <Tooltip
-                content={<IdentifierTip label="Resource Name" value={displayName} />}
-                variant="value"
-                size="md"
-                triggerClassName="min-w-0 max-w-[200px] block"
-                truncatedOnly
-              >
-                <span className="block truncate">{displayName || '—'}</span>
-              </Tooltip>
-              {/* Count only. Which instance is chosen is said once, by the 기본/선택됨 chip on
-                  the instance row itself — repeating it here made the parent argue with the
-                  radio whenever the two rendered from different state. */}
-              <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
-                인스턴스 {sortedInstances.length}
+              <span className="flex min-w-0 flex-col items-start gap-1">
+                <RdsClusterTag />
+                <span className="flex min-w-0 items-center gap-2">
+                  <Tooltip
+                    content={<IdentifierTip label="Resource Name" value={displayName} />}
+                    variant="value"
+                    size="md"
+                    triggerClassName="min-w-0 max-w-[200px] block"
+                    truncatedOnly
+                  >
+                    <span className="block truncate">{displayName || '—'}</span>
+                  </Tooltip>
+                  {/* Count only. Which instance is chosen is said once, by the 기본/선택됨 chip on
+                      the instance row itself — repeating it here made the parent argue with the
+                      radio whenever the two rendered from different state. */}
+                  <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
+                    인스턴스 {sortedInstances.length}
+                  </span>
+                </span>
               </span>
             </span>
           ) : (
