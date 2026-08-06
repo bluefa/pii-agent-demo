@@ -3,6 +3,8 @@
 //   1. font-size px must be even
 //   2. text color contrast vs the page surface must be >= 4.5:1 (WCAG AA; 3:1 for large text)
 // Blocks (exit 2). Pre-existing values are not re-flagged: the file is diffed against HEAD.
+// Colors may be literal hex or var(--pl-*) — the latter resolve via app/globals.css.
+// Static blind spot (surface-vs-surface, parent backgrounds): lib/design-guard.test.ts.
 // Escape hatch: a line carrying `design-exempt:` plus a reason is skipped. Legitimate cases are
 // the WCAG 1.4.3/1.4.11 exemptions only — brand logotypes, disabled controls, dark-surface text.
 import { execSync } from 'node:child_process';
@@ -45,6 +47,27 @@ try {
   }
 }
 
+// `--pl-*` tokens resolve to their literal in app/globals.css (LIN-91): a line like
+// `bg-[var(--pl-gray-200)] text-[var(--pl-text-weak)]` is a checkable pair — falling back
+// to white silently passed a 4.01:1 AA failure. Unknown vars stay unchecked (null).
+let tokens;
+const resolveVar = (name) => {
+  if (!tokens) {
+    tokens = {};
+    try {
+      const top = execSync(`git -C "${root}" rev-parse --show-toplevel`, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
+      const css = readFileSync(`${top}/app/globals.css`, 'utf8');
+      for (const m of css.matchAll(/(--pl-[\w-]+):\s*(#[0-9A-Fa-f]{6})\b/g)) tokens[m[1]] = m[2];
+    } catch {}
+  }
+  return tokens[name] ?? null;
+};
+const COLOR = '(?:(#[0-9A-Fa-f]{6})|var\\((--pl-[\\w-]+)\\))';
+const asHex = (m) => m[1] ?? resolveVar(m[2]);
+
 const luminance = (hex) => {
   const c = hex
     .match(/[0-9a-f]{2}/gi)
@@ -80,17 +103,19 @@ for (const line of added) {
 
   // Surfaces: rest-state bg declared on the same line (tinted chips/buttons), else the page surface.
   // ponytail: rest-state only — hover:text/hover:bg pairing is not associated, audit hover manually.
-  const bgs = [...line.matchAll(/(?<!hover:)(?<!disabled:)bg-\[(#[0-9A-Fa-f]{6})\](?!\/)/g)].map(
-    (m) => m[1],
-  );
+  const bgs = [...line.matchAll(new RegExp(`(?<!hover:)(?<!disabled:)bg-\\[${COLOR}\\](?!/)`, 'g'))]
+    .map(asHex)
+    .filter(Boolean);
   const surfaces = bgs.length ? bgs : [SURFACE];
 
-  for (const m of line.matchAll(/(?<!hover:)(?<!disabled:)text-\[(#[0-9A-Fa-f]{6})\]/g)) {
+  for (const m of line.matchAll(new RegExp(`(?<!hover:)(?<!disabled:)text-\\[${COLOR}\\]`, 'g'))) {
+    const fg = asHex(m);
+    if (!fg) continue;
     for (const bg of surfaces) {
-      const ratio = contrast(m[1], bg);
+      const ratio = contrast(fg, bg);
       if (ratio < min) {
         warnings.push(
-          `[CONTRAST] ${m[1]} on ${bg} = ${ratio.toFixed(2)}:1 (need ${min}:1) — ${line.trim().slice(0, 110)}`,
+          `[CONTRAST] ${fg} on ${bg} = ${ratio.toFixed(2)}:1 (need ${min}:1) — ${line.trim().slice(0, 110)}`,
         );
       }
     }
