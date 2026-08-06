@@ -127,21 +127,23 @@ describe('ConnectionTestCard', () => {
       'Resource Name',
       'Database Type',
       'Region',
-      'DB Credential',
-      'Connection Status',
+      'Credential',
+      '연결 상태',
       '논리 DB 확인',
     ]);
   });
 
   it('opens every credentialed row as Pending (step5 is pre-test)', () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
-    expect(screen.getByText('Pending')).toBeTruthy();
-    expect(screen.queryByText('Success')).toBeNull();
+    expect(screen.getByText('대기')).toBeTruthy();
+    expect(screen.queryByText('성공')).toBeNull();
   });
 
-  it('shows 자격 증명 필요 and disables Run Test + 설정 when a row has no credential', () => {
+  it('disables Run Test when a row has no credential, without touching Connection Status', () => {
     renderCard([makeResource({ credentialId: null })]);
-    expect(screen.getByText('자격 증명 필요')).toBeTruthy();
+    // Connection Status only ever says what the agent reported — nothing ran, so Pending.
+    expect(screen.getByText('대기')).toBeTruthy();
+    expect(screen.queryByText('자격 증명 필요')).toBeNull();
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
     expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', true);
   });
@@ -160,11 +162,60 @@ describe('ConnectionTestCard', () => {
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', false);
   });
 
-  it('counts a credential-less row as 대기 instead of a finished test', () => {
+  it('counts Credential-free engines as neither, and the warning line filters the table', () => {
+    // The table names rows by Resource Name (Resource ID is not a column here).
+    renderCard([
+      makeResource({ resourceId: 'res-1', resourceName: 'named-cred', credentialId: 'Key1' }),
+      makeResource({ resourceId: 'res-2', resourceName: 'named-missing', credentialId: null }),
+      makeResource({
+        resourceId: 'athena-1',
+        resourceName: 'named-athena',
+        databaseType: 'athena',
+        credentialId: null,
+      }),
+      makeResource({
+        resourceId: 'dynamo-1',
+        resourceName: 'named-dynamo',
+        databaseType: 'dynamodb',
+        credentialId: null,
+      }),
+    ]);
+    // Athena / DynamoDB are not counted — only the credential-requiring res-2 is missing one.
+    expect(screen.getByText(/Credential 미등록/).textContent).toContain('1건');
+
+    fireEvent.click(screen.getByRole('button', { name: '미등록만 보기' }));
+    expect(screen.getByText('named-missing')).toBeTruthy();
+    expect(screen.queryByText('named-athena')).toBeNull();
+    expect(screen.queryByText('named-cred')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '전체 보기' }));
+    expect(screen.getByText('named-athena')).toBeTruthy();
+  });
+
+  // 0 미등록은 정상 상태다 — 그때 경고 줄이 남아 있으면 "할 일 없음"을 상시로 말하게 된다.
+  it('draws no warning line when every credential-requiring row has one', () => {
+    renderCard([
+      makeResource({ resourceId: 'res-1', resourceName: 'named-cred', credentialId: 'Key1' }),
+      makeResource({
+        resourceId: 'athena-1',
+        resourceName: 'named-athena',
+        databaseType: 'athena',
+        credentialId: null,
+      }),
+    ]);
+    expect(screen.queryByText(/Credential 미등록/)).toBeNull();
+    expect(screen.queryByRole('button', { name: '미등록만 보기' })).toBeNull();
+  });
+
+  // Regression: a healthy target used to read 대기 / 0% purely because no credential was
+  // picked locally, so a fully passed run showed "성공 0 · 대기 1 · 0%". The strip counts
+  // the reported result; the credential gates Run Test, not the verdict.
+  it('reports a SUCCESS unit as connected even with no credential selected', () => {
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     renderCard([makeResource({ resourceId: 'res-1', credentialId: null })]);
-    expect(screen.getByText(/연결 테스트 대기 중/)).toBeTruthy();
-    expect(screen.getByText('0%')).toBeTruthy();
+    expect(screen.getByText('성공')).toBeTruthy();
+    expect(screen.getByText(/연결 테스트 완료/)).toBeTruthy();
+    expect(screen.getByText('100%')).toBeTruthy();
   });
 
   it('Run Test triggers the async test (no local credential change → no credential PUT)', async () => {
@@ -176,15 +227,29 @@ describe('ConnectionTestCard', () => {
     expect(updateResourceCredentialMock).not.toHaveBeenCalled();
   });
 
-  it('fires updateResourceCredential immediately on credential selection, before Run Test', async () => {
-    renderCard([makeResource({ resourceId: 'res-9', credentialId: 'Key1' })]);
-    // Wait for the secrets-backed options to load so 'Key2' is selectable.
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Key2' })).toBeTruthy());
-    // The PUT fires on the change event itself, not on Run Test click.
+  // The cell reads the assignment and opens the picker; the write happens on 저장 there,
+  // so nothing is committed by merely looking at the options.
+  const openCredModal = async (currentLabel: string) => {
     await act(async () => {
-      fireEvent.change(screen.getByLabelText('DB Credential 선택'), { target: { value: 'Key2' } });
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`Credential 수정 — 현재 ${currentLabel}`) }));
+    });
+    // Wait for the secrets-backed options to load so 'Key2' is pickable.
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Key2' })).toBeTruthy());
+  };
+
+  it('writes the credential on 저장 in the picker, not on opening it', async () => {
+    renderCard([makeResource({ resourceId: 'res-9', credentialId: 'Key1' })]);
+    await openCredModal('Key1');
+    expect(updateResourceCredentialMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name: 'Key2' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '저장' }));
     });
     expect(updateResourceCredentialMock).toHaveBeenCalledWith(1, 'res-9', 'Key2');
+
     // Run Test then triggers the test without a second PUT.
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
@@ -196,11 +261,25 @@ describe('ConnectionTestCard', () => {
   it('does not update local credential state when the PUT fails', async () => {
     updateResourceCredentialMock.mockRejectedValueOnce(new Error('서버 오류'));
     renderCard([makeResource({ resourceId: 'res-9', credentialId: 'Key1' })]);
+    await openCredModal('Key1');
     await act(async () => {
-      fireEvent.change(screen.getByLabelText('DB Credential 선택'), { target: { value: 'Key2' } });
+      fireEvent.click(screen.getByRole('radio', { name: 'Key2' }));
     });
-    // Local state did not flip — row still shows Pending (cred still seeded as Key1).
-    expect(screen.getByText('Pending')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '저장' }));
+    });
+    // Local state did not flip — the cell still reads Key1.
+    expect(
+      screen.getByRole('button', { name: /Credential 수정 — 현재 Key1/ }),
+    ).toBeTruthy();
+  });
+
+  it('renders Credential-free engines as plain text, with nothing to edit', () => {
+    renderCard([
+      makeResource({ resourceId: 'athena-1', databaseType: 'athena', credentialId: null }),
+    ]);
+    expect(screen.getByText('불필요')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Credential 수정/ })).toBeNull();
   });
 
   // The card re-seeds local credential state whenever the `confirmed` reference
@@ -228,7 +307,7 @@ describe('ConnectionTestCard', () => {
     const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
     renderCard(confirmed);
     // Row must show Success and CTA must be enabled — no Run Test click.
-    expect(await screen.findByText('Success')).toBeTruthy();
+    expect(await screen.findByText('성공')).toBeTruthy();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
     );
@@ -247,7 +326,7 @@ describe('ConnectionTestCard', () => {
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     act(() => rerender());
 
-    expect(await screen.findByText('Success')).toBeTruthy();
+    expect(await screen.findByText('성공')).toBeTruthy();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
     );
@@ -262,7 +341,7 @@ describe('ConnectionTestCard', () => {
     pollingState.uiState = 'FAIL';
     pollingState.latestJob = makeJob('FAIL', [agentResult('res-1', 'FAIL')]);
     act(() => rerender());
-    expect(await screen.findByText('Fail')).toBeTruthy();
+    expect(await screen.findByText('실패')).toBeTruthy();
     expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
   });
 });

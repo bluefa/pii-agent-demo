@@ -94,7 +94,7 @@ describe('IdcResourceTable — step-6 logicalro', () => {
     expect(cells[6]).toBe('—');
   });
 
-  it('drops the DB Credential and Connection Status columns', () => {
+  it('drops the Credential and Connection Status columns without the `cred` col (steps 6·7)', () => {
     render(
       <IdcResourceTable
         resources={[view({ resourceId: 'r1', credentialId: 'idc_svc_mysql' })]}
@@ -102,8 +102,37 @@ describe('IdcResourceTable — step-6 logicalro', () => {
         logicalDbCounts={counts}
       />,
     );
-    expect(screen.queryByText('DB Credential')).toBeNull();
+    expect(screen.queryByText('Credential')).toBeNull();
     expect(screen.queryByText('Connection Status')).toBeNull();
     expect(screen.queryByText('idc_svc_mysql')).toBeNull();
+  });
+
+  // Step 5 is the only step that can write a credential, so it is the only one that shows it.
+  it('shows the Credential as an editable value with the `cred` col (step 5)', () => {
+    const onCredentialOpen = vi.fn();
+    render(
+      <IdcResourceTable
+        resources={[view({ resourceId: 'r1' })]}
+        cols={['src', 'cred', 'logicalro']}
+        credentials={{ r1: 'idc_svc_mysql' }}
+        onCredentialOpen={onCredentialOpen}
+        logicalDbCounts={counts}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Credential 수정 — 현재 idc_svc_mysql/ }));
+    expect(onCredentialOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads a missing credential as 미설정, not as an empty cell', () => {
+    render(
+      <IdcResourceTable
+        resources={[view({ resourceId: 'r1' })]}
+        cols={['src', 'cred', 'logicalro']}
+        credentials={{}}
+        onCredentialOpen={() => {}}
+        logicalDbCounts={counts}
+      />,
+    );
+    expect(screen.getByText('미설정')).toBeTruthy();
   });
 });

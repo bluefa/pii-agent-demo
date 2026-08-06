@@ -51,13 +51,17 @@ import {
   type TcVerdict,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
-/** Connection Status cell — the run's own verdict for this resource, or — if it had none. */
+/**
+ * 연결 상태 cell — the run's own verdict for this resource, or — if it had none.
+ * 네 값 중 하나만 한국어였다(Success / Failed / 진행 중 / Unknown): 같은 열이 같은 질문에
+ * 두 언어로 답하고 있었으므로, 사용자 화면 Step 5 가 쓰는 말로 맞춘다.
+ */
 function ConnCell({ verdict }: { verdict: TcVerdict | undefined }): ReactElement {
   if (!verdict) return <Dash />;
-  if (verdict === 'SUCCESS') return <TcPill tone="ok" label="Success" />;
-  if (verdict === 'FAIL') return <TcPill tone="err" label="Failed" />;
+  if (verdict === 'SUCCESS') return <TcPill tone="ok" label="성공" />;
+  if (verdict === 'FAIL') return <TcPill tone="err" label="실패" />;
   if (verdict === 'RUNNING') return <TcPill tone="warn" label="진행 중" />;
-  return <TcPill tone="off" label="Unknown" />;
+  return <TcPill tone="off" label="알 수 없음" />;
 }
 
 /**
@@ -110,7 +114,7 @@ function ResourceNameCell({ value }: { value: string | null }): ReactElement {
       triggerClassName="min-w-0 max-w-[200px] block"
       truncatedOnly
     >
-      <span className="block truncate font-mono text-[13px]">{value}</span>
+      <span className="block truncate font-mono text-[14px]">{value}</span>
     </Tooltip>
   );
 }
@@ -239,7 +243,7 @@ export function ConfirmedInfoCard({
                   <th className={table.headCell}>Resource Name</th>
                   <th className={table.headCell}>연동 대상 논리 DB</th>
                   <th className={table.headCell}>연동 제외 논리 DB</th>
-                  <th className={table.headCell}>Connection Status</th>
+                  <th className={table.headCell}>연결 상태</th>
                   <th className={table.headCell}>Credential</th>
                 </tr>
               </thead>
@@ -326,7 +330,7 @@ export function ConfirmedInfoCard({
             </table>
           </div>
           <p className={cn(pipelineStyles.text.meta, 'mt-3.5')}>
-            Connection Status는 최근 연결 테스트가 리소스별로 보고한 판정이고, 논리 DB 건수는 그중
+            연결 상태는 최근 연결 테스트가 리소스별로 보고한 판정이고, 논리 DB 건수는 그중
             성공한 리소스에만 표기합니다. 실행 결과가 없거나 성공하지 않은 리소스는 —(값 없음)으로
             두며, 임의로 성공 처리하지 않습니다. 논리 DB 건수를 누르면 대상·제외 정책을 관리할 수
             있습니다.

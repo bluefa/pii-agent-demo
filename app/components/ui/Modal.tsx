@@ -13,8 +13,11 @@ export interface ModalProps {
    * caller supplies its own title block in `children`; `title` may be omitted.
    */
   title?: string;
-  /** 모달 부제목 (선택) */
-  subtitle?: string;
+  /**
+   * 모달 부제목 (선택). ReactNode 인 이유: 부제목에서 딱 한 낱말(무엇을 바꾸는지)만
+   * 강조하는 화면이 있고, 문자열이면 그 강조를 색으로 칠하는 수밖에 없다.
+   */
+  subtitle?: ReactNode;
   /** 헤더 아이콘 (선택) */
   icon?: ReactNode;
   /** 모달 크기 */

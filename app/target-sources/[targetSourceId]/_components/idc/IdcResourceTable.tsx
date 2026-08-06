@@ -32,6 +32,8 @@ export type IdcTableCol =
   | 'excl'
   | 'fw'
   | 'health'
+  /** Step 5 only — the DB Credential, edited in place the way the cloud step 5 edits it. */
+  | 'cred'
   /** Steps 5·6·7 — the Step 5 logical-DB result as two count columns (연동 논리 DB / 연동 제외). */
   | 'logicalro';
 
@@ -42,6 +44,10 @@ interface IdcResourceTableProps {
   emptyMessage?: string;
   /** Steps 5·6·7: open the per-resource logical-DB modal. */
   onLogicalOpen?: (resource: IdcResourceView) => void;
+  /** `cred` column only — the step's live credential map (local edits included). */
+  credentials?: Readonly<Record<string, string>>;
+  /** `cred` column only: open the per-resource credential picker. */
+  onCredentialOpen?: (resource: IdcResourceView) => void;
   /**
    * `logicalro` column only — per-resource Step 5 counts from the test-connection
    * latest-results. A resource absent from the map renders "—", never a fabricated 0.
@@ -92,6 +98,8 @@ export const IdcResourceTable = ({
   cols,
   emptyMessage,
   onLogicalOpen,
+  credentials,
+  onCredentialOpen,
   logicalDbCounts,
   connected = false,
   firewallStatusByResource,
@@ -161,6 +169,7 @@ export const IdcResourceTable = ({
               </>
             )}
             {has('fw') && <th className={skin.headerCell}>방화벽 상태</th>}
+            {has('cred') && <th className={cn(skin.headerCell, 'w-[180px]')}>Credential</th>}
             {has('logicalro') && (
               <>
                 <th className={cn(skin.headerCell, 'w-[120px]')}>연동 논리 DB</th>
@@ -223,6 +232,21 @@ export const IdcResourceTable = ({
                   </>
                 )}
                 {has('fw') && <td className={cn(skin.cell, dim)}><IdcFirewallBadge status={firewallStatusByResource?.[r.resourceId]} /></td>}
+                {/* 값은 밑줄 텍스트로 읽고 수정은 모달에서 — 클라우드 step 5 와 같은 문법이다.
+                    행마다 select 를 놓으면 표가 컨트롤 판이 되고, 고르는 순간 저장돼 두 후보를
+                    비교할 수도 없다. IDC 는 모든 대상이 자격 증명을 요구하므로 "불필요" 는 없다. */}
+                {has('cred') && (
+                  <td className={cn(skin.cell, dim)}>
+                    <button
+                      type="button"
+                      onClick={() => onCredentialOpen?.(r)}
+                      aria-label={`${r.hosts[0] ?? r.resourceId} Credential 수정 — 현재 ${credentials?.[r.resourceId] || '미설정'}`}
+                      className={cn(idcStyles.triggerBtn.linkNeutral, 'font-mono')}
+                    >
+                      {credentials?.[r.resourceId] || <span className="font-sans">미설정</span>}
+                    </button>
+                  </td>
+                )}
                 {has('logicalro') && (
                   <>
                     <td className={skin.cell}>

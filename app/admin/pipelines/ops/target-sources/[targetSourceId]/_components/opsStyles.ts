@@ -92,7 +92,7 @@ export const opsStyles = {
       display) so revealing it never shifts the column, and focus-visible reveals
       it too: hover is never the only cue. */
   cellAction:
-    'group inline-flex max-w-full items-baseline gap-2 rounded py-0.5 text-left text-[13px] text-[var(--pl-text-medium)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--pl-primary)]',
+    'group inline-flex max-w-full items-baseline gap-2 rounded py-0.5 text-left text-[14px] text-[var(--pl-text-medium)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--pl-primary)]',
   cellActionValue:
     'truncate border-b border-transparent group-hover:border-current group-hover:text-[var(--pl-text-strong)] group-focus-visible:border-current group-focus-visible:text-[var(--pl-text-strong)]',
   cellActionEmpty:
@@ -110,13 +110,23 @@ export const opsStyles = {
     /** Fixed height, not max-height: the list must not resize as the query filters
         it, and 3 credentials must occupy the same box as 30. */
     list: 'h-[300px] overflow-y-auto border-t border-[var(--pl-border)]',
-    row: 'flex w-full cursor-pointer items-center gap-3 border-b border-[var(--pl-gray-100)] px-1 py-2.5 hover:bg-[var(--pl-gray-50)]',
+    row: 'cursor-pointer border-b border-[var(--pl-gray-100)] hover:bg-[var(--pl-gray-50)]',
     rowOn: 'bg-[var(--pl-primary-bg)] hover:bg-[var(--pl-primary-bg)]',
     radio: 'h-4 w-4 flex-none accent-[var(--pl-primary)] cursor-pointer',
-    name: 'block truncate text-[14px] text-[var(--pl-text-strong)]',
-    meta: 'block truncate text-[12px] tabular-nums text-[var(--pl-text-faint)]',
-    used: 'flex-none whitespace-nowrap text-[13px] tabular-nums text-[var(--pl-text-weak)]',
-    empty: 'px-1 py-8 text-center text-[13px] text-[var(--pl-text-weak)]',
+    /** 값 칸은 한 단이다 — 어느 행이 골라졌는지는 라디오와 행 배경이 이미 말하므로, 굵기까지
+     *  얹으면 이름 열만 혼자 떠서 표가 기울어 읽힌다. */
+    cell: 'truncate px-2 py-2.5 align-middle text-[14px] text-[var(--pl-text-medium)]',
+    /** 열 이름이 곧 정렬 버튼. sticky 라 300px 를 스크롤해도 컨트롤이 사라지지 않는다. */
+    headCell:
+      'sticky top-0 z-10 whitespace-nowrap border-b border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-2 py-2 text-left text-[12px] font-medium text-[var(--pl-text-weak)]',
+    sortBtn: 'inline-flex cursor-pointer items-center gap-1 hover:text-[var(--pl-text-strong)]',
+    sortOn: 'text-[var(--pl-text-strong)]',
+    used: 'whitespace-nowrap px-2 py-2.5 text-right align-middle text-[14px] tabular-nums text-[var(--pl-text-weak)]',
+    empty: 'px-1 py-8 text-center text-[14px] text-[var(--pl-text-weak)]',
+    /** 대상 3단 머리 — 라벨 / 값 / 안내. 값은 mono: Resource ID 는 읽는 값이 아니라 대조하는 값이다. */
+    targetLabel: 'text-[12px] font-medium text-[var(--pl-text-faint)]',
+    targetValue:
+      'mb-2 mt-0.5 break-all font-mono text-[14px] font-semibold leading-[1.4] text-[var(--pl-text-strong)]',
   },
 
   /** 상세 보기 → text button (Figma 40:21). */

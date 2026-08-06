@@ -82,12 +82,12 @@ const TONE: Record<Tone, { fill: string; dot: string }> = {
 
 /** Database Type tag — mockup `.tag.blue` (opsStyles.tag in primary tones). */
 const DB_TAG =
-  'inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)] whitespace-nowrap';
+  'inline-flex items-center rounded px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)] whitespace-nowrap';
 
 const KV_GRID = 'grid grid-cols-[140px_1fr] items-center gap-x-4 gap-y-2.5 mt-3.5';
 
 const NOTE_WARN =
-  'flex gap-2.5 rounded-lg px-3.5 py-3 mt-4 text-[13px] leading-[1.5] bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]';
+  'flex gap-2.5 rounded-lg px-3.5 py-3 mt-4 text-[14px] leading-[1.5] bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]';
 
 /**
  * 요청 리소스 → the same list the 승인 요청 상세 modal renders: stat tiles that ARE

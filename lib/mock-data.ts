@@ -1093,7 +1093,7 @@ const lgsResources: MockResource[] = (
       type: mysql ? 'AZURE_MYSQL' : 'AZURE_POSTGRESQL',
       resourceId: `/subscriptions/${LGS_SUBSCRIPTION}/resourceGroups/rg-lgs-${group}/providers/Microsoft.DBfor${mysql ? 'MySQL' : 'PostgreSQL'}/servers/${name}`,
       databaseType,
-      selectedCredentialId: mysql ? '운영DB-MySQL' : '분석DB-PostgreSQL',
+      selectedCredentialId: mysql ? 'hgildong-mysql-prod' : 'kimcs-postgres-analytics',
       connectionStatus: 'CONNECTED',
       isSelected: true,
       integrationCategory: 'TARGET',
@@ -1115,9 +1115,9 @@ mockProjects.push(
       tenantId: '7f9c1b30-52d4-4a11-9d63-0c1e5a8b7742',
     },
     resources: [
-      { id: 'dlv-res-1', type: 'AZURE_MYSQL', resourceId: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-01', databaseType: 'MYSQL', selectedCredentialId: '운영DB-MySQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
-      { id: 'dlv-res-2', type: 'AZURE_MYSQL', resourceId: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-02', databaseType: 'MYSQL', selectedCredentialId: '운영DB-MySQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
-      { id: 'dlv-res-3', type: 'AZURE_POSTGRESQL', resourceId: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforPostgreSQL/servers/pg-dlv-main', databaseType: 'POSTGRESQL', selectedCredentialId: '분석DB-PostgreSQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
+      { id: 'dlv-res-1', type: 'AZURE_MYSQL', resourceId: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-01', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
+      { id: 'dlv-res-2', type: 'AZURE_MYSQL', resourceId: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforMySQL/servers/mysql-dlv-02', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
+      { id: 'dlv-res-3', type: 'AZURE_POSTGRESQL', resourceId: '/subscriptions/2867a4f9-1e3a-4c8f-bf0a-91c5dd7e2188/resourceGroups/rg-dlv-prod/providers/Microsoft.DBforPostgreSQL/servers/pg-dlv-main', databaseType: 'POSTGRESQL', selectedCredentialId: 'kimcs-postgres-analytics', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', azureNetworkingMode: 'VNET_INTEGRATION' },
     ],
   }),
   makeTcQueueProject({
@@ -1129,8 +1129,8 @@ mockProjects.push(
     updatedAt: '2026-07-20T06:23:00Z',
     extra: { awsAccountId: '481920374655', awsRegionType: 'global' },
     resources: [
-      { id: 'cpn-res-1', type: 'RDS', resourceId: 'rds-cpn-main', databaseType: 'MYSQL', selectedCredentialId: '운영DB-MySQL', connectionStatus: 'CONNECTED', isSelected: true, awsType: 'RDS', region: 'ap-northeast-2', vpcId: 'vpc-cpn-001', integrationCategory: 'TARGET' },
-      { id: 'cpn-res-2', type: 'DYNAMODB', resourceId: 'ddb-cpn-issue', databaseType: 'DYNAMODB', selectedCredentialId: 'DW-Redshift', connectionStatus: 'CONNECTED', isSelected: true, awsType: 'DYNAMODB', region: 'ap-northeast-2', integrationCategory: 'TARGET' },
+      { id: 'cpn-res-1', type: 'RDS', resourceId: 'rds-cpn-main', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, awsType: 'RDS', region: 'ap-northeast-2', vpcId: 'vpc-cpn-001', integrationCategory: 'TARGET' },
+      { id: 'cpn-res-2', type: 'DYNAMODB', resourceId: 'ddb-cpn-issue', databaseType: 'DYNAMODB', selectedCredentialId: 'kimcs-redshift-dw', connectionStatus: 'CONNECTED', isSelected: true, awsType: 'DYNAMODB', region: 'ap-northeast-2', integrationCategory: 'TARGET' },
     ],
   }),
   makeTcQueueProject({
@@ -1142,8 +1142,8 @@ mockProjects.push(
     updatedAt: '2026-07-13T19:40:00Z',
     extra: { gcpProjectId: 'sea-rvw-prd' },
     resources: [
-      { id: 'rvw-res-1', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-main', databaseType: 'POSTGRESQL', selectedCredentialId: '분석DB-PostgreSQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
-      { id: 'rvw-res-2', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-log', databaseType: 'MYSQL', selectedCredentialId: '운영DB-MySQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
+      { id: 'rvw-res-1', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-main', databaseType: 'POSTGRESQL', selectedCredentialId: 'kimcs-postgres-analytics', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
+      { id: 'rvw-res-2', type: 'GCP_SQL', resourceId: 'projects/sea-rvw-prd/instances/cloudsql-rvw-log', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET' },
     ],
   }),
   // 30개 규모 대상 — 연결 테스트 카드·확정 정보 표가 리소스 수에 흔들리지 않는지
@@ -1171,9 +1171,9 @@ mockProjects.push(
     processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
     updatedAt: '2026-07-19T14:52:00Z',
     resources: [
-      { id: 'ivt-res-1', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a01', databaseType: 'MYSQL', selectedCredentialId: '운영DB-MySQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'HOST', ips: [], domain: 'db-mysql.ivt.prod.internal', sourceIps: ['10.20.9.11'], firewallOpen: true } },
-      { id: 'ivt-res-2', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a02', databaseType: 'MYSQL', selectedCredentialId: '운영DB-MySQL', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.11'], domain: '', sourceIps: ['10.20.9.11'], firewallOpen: true } },
-      { id: 'ivt-res-3', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a03', databaseType: 'ORACLE', selectedCredentialId: 'DW-Redshift', connectionStatus: 'DISCONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.18'], domain: '', oracleSid: 'IVTPDB', sourceIps: ['10.20.9.12'], firewallOpen: false } },
+      { id: 'ivt-res-1', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a01', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'HOST', ips: [], domain: 'db-mysql.ivt.prod.internal', sourceIps: ['10.20.9.11'], firewallOpen: true } },
+      { id: 'ivt-res-2', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a02', databaseType: 'MYSQL', selectedCredentialId: 'hgildong-mysql-prod', connectionStatus: 'CONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.11'], domain: '', sourceIps: ['10.20.9.11'], firewallOpen: true } },
+      { id: 'ivt-res-3', type: 'IDC_RESOURCE', resourceId: 'idc-ivt-9a03', databaseType: 'ORACLE', selectedCredentialId: 'kimcs-redshift-dw', connectionStatus: 'DISCONNECTED', isSelected: true, integrationCategory: 'TARGET', idcConfig: { inputFormat: 'IP', ips: ['10.20.4.18'], domain: '', oracleSid: 'IVTPDB', sourceIps: ['10.20.9.12'], firewallOpen: false } },
     ],
   }),
 );
@@ -1235,7 +1235,7 @@ export const getProjectByTargetSourceId = (targetSourceId: number): Project | un
 export const mockCredentials: DBCredential[] = [
   {
     id: 'cred-1',
-    name: '운영DB-MySQL',
+    name: 'hgildong-mysql-prod',
     databaseType: 'MYSQL',
     host: 'prod-mysql.example.com',
     port: 3306,
@@ -1246,7 +1246,7 @@ export const mockCredentials: DBCredential[] = [
   },
   {
     id: 'cred-2',
-    name: '분석DB-PostgreSQL',
+    name: 'kimcs-postgres-analytics',
     databaseType: 'POSTGRESQL',
     host: 'analytics-pg.example.com',
     port: 5432,
@@ -1257,7 +1257,7 @@ export const mockCredentials: DBCredential[] = [
   },
   {
     id: 'cred-3',
-    name: 'DW-Redshift',
+    name: 'kimcs-redshift-dw',
     databaseType: 'REDSHIFT',
     host: 'dw-cluster.example.com',
     port: 5439,
@@ -1270,23 +1270,26 @@ export const mockCredentials: DBCredential[] = [
   // 이름이 서로 닮아 있어야 "생성 시각 / 배정 건수"가 실제로 구분에 쓰이는지도 보인다.
   ...(
     [
-      ['운영DB-MySQL-replica', 'MYSQL', '2024-01-10T09:04:00Z'],
-      ['분석DB-PostgreSQL-readonly', 'POSTGRESQL', '2024-01-12T10:06:00Z'],
-      ['결제DB-MSSQL', 'MSSQL', '2024-02-01T00:12:00Z'],
-      ['결제DB-MSSQL-stg', 'MSSQL', '2024-02-01T00:20:00Z'],
-      ['주문DB-MySQL', 'MYSQL', '2024-02-03T02:40:00Z'],
-      ['주문DB-MySQL-stg', 'MYSQL', '2024-02-03T02:44:00Z'],
-      ['쿠폰DB-MySQL', 'MYSQL', '2024-02-11T05:05:00Z'],
-      ['알림DB-CosmosDB', 'MYSQL', '2024-02-14T07:31:00Z'],
-      ['재고DB-Oracle', 'ORACLE', '2024-03-02T00:50:00Z'],
-      ['재고DB-Oracle-dr', 'ORACLE', '2024-03-02T00:57:00Z'],
-      ['리뷰DB-PostgreSQL', 'POSTGRESQL', '2024-03-08T04:22:00Z'],
-      ['배송DB-MySQL', 'MYSQL', '2024-03-15T01:11:00Z'],
-      ['배송DB-MySQL-stg', 'MYSQL', '2024-03-15T01:18:00Z'],
-      ['정산DB-MSSQL', 'MSSQL', '2024-04-01T00:00:00Z'],
-      ['회원DB-MySQL', 'MYSQL', '2024-04-22T03:03:00Z'],
-      ['회원DB-MySQL-readonly', 'MYSQL', '2024-04-22T03:09:00Z'],
-      ['로그DB-Athena', 'ATHENA', '2024-06-02T00:38:00Z'],
+      ['hgildong-mysql-prod-replica', 'MYSQL', '2024-01-10T09:04:00Z'],
+      ['kimcs-postgres-analytics-readonly', 'POSTGRESQL', '2024-01-12T10:06:00Z'],
+      ['jhpark-mssql-payments', 'MSSQL', '2024-02-01T00:12:00Z'],
+      ['jhpark-mssql-payments-stg', 'MSSQL', '2024-02-01T00:20:00Z'],
+      ['swlee-mysql-orders', 'MYSQL', '2024-02-03T02:40:00Z'],
+      ['swlee-mysql-orders-stg', 'MYSQL', '2024-02-03T02:44:00Z'],
+      ['swlee-mysql-coupons', 'MYSQL', '2024-02-11T05:05:00Z'],
+      ['yjkim-cosmos-notifications', 'MYSQL', '2024-02-14T07:31:00Z'],
+      ['yjkim-oracle-inventory', 'ORACLE', '2024-03-02T00:50:00Z'],
+      ['yjkim-oracle-inventory-dr', 'ORACLE', '2024-03-02T00:57:00Z'],
+      ['mjshin-postgres-reviews', 'POSTGRESQL', '2024-03-08T04:22:00Z'],
+      ['mjshin-mysql-delivery', 'MYSQL', '2024-03-15T01:11:00Z'],
+      ['mjshin-mysql-delivery-stg', 'MYSQL', '2024-03-15T01:18:00Z'],
+      ['dwjung-mssql-settlement', 'MSSQL', '2024-04-01T00:00:00Z'],
+      ['dwjung-mysql-members', 'MYSQL', '2024-04-22T03:03:00Z'],
+      ['dwjung-mysql-members-readonly', 'MYSQL', '2024-04-22T03:09:00Z'],
+      ['sysadmin-athena-logs', 'ATHENA', '2024-06-02T00:38:00Z'],
+      // 규칙(`{userId}-{name}`)에 맞지 않는 값 — 하이픈이 없다. 이런 이름이 섞여도 화면이
+      // userId 를 지어내지 않고 이름 전체를 그대로 보여주는지 데모에서 바로 보인다.
+      ['legacy_shared_account', 'MYSQL', '2023-11-02T02:10:00Z'],
     ] as const
   ).map(([name, databaseType, createdAt], index) => ({
     id: `cred-${index + 4}`,

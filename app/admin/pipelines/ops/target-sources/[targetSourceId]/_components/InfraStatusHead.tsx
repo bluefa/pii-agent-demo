@@ -81,7 +81,7 @@ const SIDE_LABEL: Record<string, string> = { SERVICE: '서비스', BDC: 'BDC' };
 function TaskLine({ task }: { task: TerraformTaskStatus }): ReactElement {
   const { tone, icon, label } = metaOf(task.state);
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-dashed border-[var(--pl-gray-200)] px-1 py-2.5 text-[12.5px]">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-dashed border-[var(--pl-gray-200)] px-1 py-2.5 text-[12px]">
       <span className={cn('flex-none', TONE[tone].text)}>
         <Icon name={icon} size="sm" className={icon === 'loader' ? 'animate-spin' : undefined} />
       </span>
@@ -134,10 +134,10 @@ function GateBanner({ onOpenRequest }: { onOpenRequest: () => void }): ReactElem
         <Icon name="warn-tri" size="xl" strokeWidth={2.2} />
       </span>
       <div className="min-w-0 flex-1">
-        <h2 className="mt-0.5 text-[21px] font-bold leading-[1.25] tracking-[-0.018em] text-[var(--pl-warn-text)]">
+        <h2 className="mt-0.5 text-[22px] font-bold leading-[1.25] tracking-[-0.018em] text-[var(--pl-warn-text)]">
           확정된 연동 정보가 없습니다
         </h2>
-        <p className="mt-2 max-w-[62ch] text-[14.5px] leading-[1.6] text-[var(--pl-text-medium)]">
+        <p className="mt-2 max-w-[62ch] text-[14px] leading-[1.6] text-[var(--pl-text-medium)]">
           연동 요청이 승인되고 확정되어야 인프라 작업을 시작할 수 있습니다. 확정 정보가 없으면
           Terraform이 무엇을 만들어야 하는지 알 수 없습니다.
         </p>
@@ -236,7 +236,7 @@ export function InfraStatusHead({
       {open && (
         <div className="border-b border-[var(--pl-border)]">
           {tasks.length === 0 ? (
-            <p className="border-t border-dashed border-[var(--pl-gray-200)] px-1 py-3 text-[12.5px] text-[var(--pl-text-faint)]">
+            <p className="border-t border-dashed border-[var(--pl-gray-200)] px-1 py-3 text-[12px] text-[var(--pl-text-faint)]">
               Terraform 작업 기록이 없습니다.
             </p>
           ) : (

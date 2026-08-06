@@ -49,14 +49,14 @@ const signature = (items: readonly ExcludedLogicalDatabase[]): string =>
 const panel = {
   wrap: 'flex min-h-[280px] flex-col rounded-lg border border-[var(--pl-border)]',
   head: 'flex items-center justify-between gap-2 border-b border-[var(--pl-border)] px-3.5 py-2.5',
-  title: 'text-[13px] font-semibold text-[var(--pl-text-strong)]',
+  title: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
   count: 'text-[12px] text-[var(--pl-text-weak)] tabular-nums',
   body: 'max-h-[260px] flex-1 overflow-y-auto px-3.5 py-1',
   row: 'flex items-center justify-between gap-2 border-b border-[var(--pl-gray-100)] py-2 last:border-b-0',
   name: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] break-all',
   action: 'text-[12px] font-semibold text-[var(--pl-primary)] hover:underline whitespace-nowrap',
   remove: 'text-[12px] font-semibold text-[var(--pl-err-text)] hover:underline whitespace-nowrap',
-  placeholder: 'py-6 text-center text-[13px] text-[var(--pl-text-faint)]',
+  placeholder: 'py-6 text-center text-[14px] text-[var(--pl-text-faint)]',
 } as const;
 
 export interface LdbManageModalProps {
@@ -223,7 +223,7 @@ export function LdbManageModal({
                   <div key={`${key}-${index}`} className={panel.row}>
                     <span className="min-w-0">
                       <span className={panel.name}>{key || '—'}</span>
-                      <span className="ml-2 text-[11px] text-[var(--pl-text-faint)]">
+                      <span className="ml-2 text-[12px] text-[var(--pl-text-faint)]">
                         {item.type ?? (item.schemaName ? 'SCHEMA' : 'DATABASE')}
                       </span>
                     </span>
@@ -337,7 +337,7 @@ export function LdbManageModal({
       {saveError && (
         <div
           role="alert"
-          className="mt-3 rounded-lg border border-[var(--pl-err-border)] bg-[var(--pl-err-bg)] px-3.5 py-2.5 text-[13px] font-medium text-[var(--pl-err-text)]"
+          className="mt-3 rounded-lg border border-[var(--pl-err-border)] bg-[var(--pl-err-bg)] px-3.5 py-2.5 text-[14px] font-medium text-[var(--pl-err-text)]"
         >
           {saveError}
         </div>

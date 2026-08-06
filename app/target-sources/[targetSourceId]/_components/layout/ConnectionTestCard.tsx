@@ -1,8 +1,8 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { cardStyles, cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
-import { ChevronRightIcon } from '@/app/components/ui/icons';
+import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { ChevronRightIcon, InfoCircleIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -21,7 +21,7 @@ import {
 } from '@/app/lib/api';
 import type { TestConnectionStatus } from '@/app/lib/api';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
-import { IdcCredSelectCell } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
+import { CredentialPickModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CredentialPickModal';
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import { CloudReqApprovalModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudReqApprovalModal';
 // This table shows the SAME resources steps 1·2·3 just showed, so it reads in their grammar
@@ -36,12 +36,24 @@ import {
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { ConfirmedResource } from '@/lib/types/resources';
-import { hasLogicalDatabases, needsCredential } from '@/lib/types';
+import { hasLogicalDatabases, needsCredential, type SecretKey } from '@/lib/types';
 import { GROUPED_CHILD_KIND_LABEL, resultUnitId } from '@/lib/resource-grouping';
 
 interface LogicalModalTarget {
   resourceId: string;
   resourceName: string;
+}
+
+/**
+ * 표의 Credential 조회 필터. 경고 줄이 유일한 진입점이라 'assigned' 로는 갈 수 없다 —
+ * 분류값('assigned')은 `credState` 가 계속 쓰지만, 필터가 가질 수 있는 값은 이 둘뿐이다.
+ */
+type CredFilter = 'all' | 'missing';
+
+/** Credential 수정 모달이 여는 행 — 쓰는 대상(resourceId)과 읽는 값(현재 배정). */
+interface CredModalTarget {
+  resourceId: string;
+  current: string;
 }
 
 // Local credential edits — the confirmed list from the BFF seeds these, and Run Test
@@ -55,8 +67,11 @@ const PLACEHOLDER = '—';
 const seedCreds = (confirmed: readonly ConfirmedResource[]): CredMap =>
   Object.fromEntries(confirmed.map((r) => [r.resourceId, r.credentialId ?? '']));
 
-// Athena / DynamoDB 등은 DB Credential 없이 연결한다. 이런 행까지 Credential 을
-// 요구하면 Run Test 가 열리지 않고, 진행 요약도 "성공 0 · 완료 100%" 로 어긋난다.
+// ⚠️ `needsCredential` 은 mysql·postgresql·redshift 만 참인 허용 목록이다(lib/types.ts).
+// 그래서 여기서 "불필요" 로 떨어지는 것은 IAM 기반 엔진(Athena·DynamoDB)만이 아니라
+// mssql·oracle·mongodb 도 포함된다 — 그 엔진들은 실제로는 자격 증명이 필요하고, IDC step 5 는
+// 같은 엔진에 요구한다. 판정 자체를 고치는 것은 Run Test 게이트를 전 프로바이더에서 바꾸므로
+// 별도 작업으로 뺐다(LIN-90). 이 화면의 문구는 그때까지 엔진을 단정하지 않는다.
 const requiresCredential = (databaseType: string | null): boolean =>
   !!databaseType && needsCredential(databaseType);
 
@@ -115,10 +130,10 @@ interface ConnectionTestCardProps {
  * Cloud Step 5 — connection test (v16 `data-prov-view="azure gcp aws"` card). Collapses
  * the former confirmed-resources + connection-test panel + logical-DB-check slots into one
  * card that mirrors the IDC step5 layout: conn-progress strip + a single table (cred select +
- * Connection Status + logical-DB-check) + a gated completion-approval request → CloudReqApprovalModal.
+ * connection status + logical-DB-check) + a gated completion-approval request → CloudReqApprovalModal.
  *
  * Live wiring (ADR-019): Run Test persists changed credentials then triggers the async
- * connection test (`useTestConnectionPolling`); per-resource Connection Status is read from
+ * connection test (`useTestConnectionPolling`); per-resource connection status is read from
  * the latest poll's agent results. Once the run settles SUCCESS the completion-status is
  * fetched and the 완료 승인 요청 CTA opens only when it reads LATEST_TEST_CONNECTION_SUCCESS.
  */
@@ -144,19 +159,21 @@ export const ConnectionTestCard = ({
       return next;
     });
   }, []);
-  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(units, {
-    initialPageSize: 10,
-  });
+  const [credFilter, setCredFilter] = useState<CredFilter>('all');
   const logicalModal = useModal<LogicalModalTarget>();
+  const credModal = useModal<CredModalTarget>();
+  const [savingCred, setSavingCred] = useState(false);
   const toast = useToast();
 
-  // DB Credential options from GET .../secrets (not a hardcoded list).
-  const [credOptions, setCredOptions] = useState<string[]>([]);
+  // DB Credential options from GET .../secrets (not a hardcoded list). 이름만 뽑지 않고
+  // 레코드를 그대로 들고 있는다 — 이름이 비슷한 후보를 가르는 것은 생성 시각이라, 고르는
+  // 모달이 그 값을 같이 보여준다.
+  const [credOptions, setCredOptions] = useState<SecretKey[]>([]);
   useEffect(() => {
     let active = true;
     void getSecrets(targetSourceId)
       .then((secrets) => {
-        if (active) setCredOptions(secrets.map((s) => s.name));
+        if (active) setCredOptions(secrets);
       })
       .catch(() => {
         if (active) setCredOptions([]);
@@ -188,15 +205,49 @@ export const ConnectionTestCard = ({
     return map;
   }, [latestJob]);
 
-  // A row is connected (for the approval gate) when the latest poll returned
-  // SUCCESS for this unit and it has a credential — where one is required.
+  // A row is connected when the latest poll returned SUCCESS for this unit. The credential
+  // is NOT part of this: the test result is what the agent actually reported, and folding a
+  // local "is a credential picked" check into it made a healthy target read 대기 — the strip
+  // said "성공 2 · 대기 3 · 40%" for a run every unit had passed. A missing credential is
+  // shown where it is fixed (the DB Credential column) and gates Run Test, nothing else.
   const unitCred = useCallback((unit: TestUnit) => creds[unit.members[0].resourceId] ?? '', [creds]);
   const rowConnected = useCallback(
-    (unit: TestUnit): boolean =>
-      statusByResource[unit.unitId] === 'SUCCESS' &&
-      (!requiresCredential(unit.databaseType) || !!unitCred(unit)),
-    [statusByResource, unitCred],
+    (unit: TestUnit): boolean => statusByResource[unit.unitId] === 'SUCCESS',
+    [statusByResource],
   );
+
+  // Credential 상태 분류 — 경고 줄과 표 필터가 같은 판정을 쓴다. `none` 은 Athena / DynamoDB /
+  // CosmosDB 처럼 Credential 없이 연결하는 행("불필요")이고, 지정에도 미등록에도 잡히지 않는다.
+  const credState = useCallback(
+    (unit: TestUnit): 'all' | 'assigned' | 'missing' | 'none' =>
+      !requiresCredential(unit.databaseType) ? 'none' : unitCred(unit) ? 'assigned' : 'missing',
+    [unitCred],
+  );
+  const missingCount = useMemo(
+    () => units.filter((u) => credState(u) === 'missing').length,
+    [units, credState],
+  );
+  const filteredUnits = useMemo(
+    () => (credFilter === 'all' ? units : units.filter((u) => credState(u) === credFilter)),
+    [units, credFilter, credState],
+  );
+
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(filteredUnits, {
+    initialPageSize: 10,
+  });
+  const handleCredFilter = useCallback(
+    (next: CredFilter) => {
+      setCredFilter(next);
+      setPage(0);
+    },
+    [setPage],
+  );
+  // 미등록만 보는 중에 마지막 하나를 지정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가
+  // 빈 화면이 되고, 그것을 되돌릴 컨트롤도 같이 사라진 뒤다. 사라질 때 같이 푼다.
+  if (credFilter === 'missing' && missingCount === 0) {
+    setCredFilter('all');
+    setPage(0);
+  }
 
   // Gate the 완료 승인 요청 CTA directly on the latest_version poll result:
   // only open it when latest_version.connectionStatus === 'SUCCESS' (B2).
@@ -212,16 +263,22 @@ export const ConnectionTestCard = ({
     await trigger();
   }, [testing, allCredsSet, trigger]);
 
-  // Changing a credential fires a PUT immediately; local state updates only on success.
-  const handleCredChange = useCallback(async (resourceId: string, cred: string) => {
+  // 모달의 저장이 PUT 을 쏘고, 성공했을 때만 로컬 값이 바뀐다.
+  const handleCredSubmit = useCallback(async (next: string) => {
+    const target = credModal.data;
+    if (!target) return;
+    setSavingCred(true);
     try {
-      await updateResourceCredential(targetSourceId, resourceId, cred);
+      await updateResourceCredential(targetSourceId, target.resourceId, next);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
       return;
+    } finally {
+      setSavingCred(false);
     }
-    setCreds((prev) => ({ ...prev, [resourceId]: cred }));
-  }, [targetSourceId, toast]);
+    setCreds((prev) => ({ ...prev, [target.resourceId]: next }));
+    credModal.close();
+  }, [targetSourceId, toast, credModal]);
 
   // On save the skip policy persists, which flips completion-status
   // (LATEST_TEST_CONNECTION_SUCCESS → LOGICAL_DATABASE_RECENTLY_UPDATED, spec §7);
@@ -241,9 +298,8 @@ export const ConnectionTestCard = ({
     refreshProject();
   }, [refreshProject]);
 
-  // Progress counts a row as done when it is connected or failed. A row still
-  // missing a required credential renders "자격 증명 필요" in the table, so counting
-  // its poll result as done would claim 완료 100% for a target nobody tested yet.
+  // Progress counts a row as done when it is connected or failed — the reported result,
+  // nothing else. 대기 must mean "the agent has not answered for this unit yet".
   const okCount = units.filter((u) => rowConnected(u)).length;
   const failCount = units.filter((u) => statusByResource[u.unitId] === 'FAIL').length;
   const doneCount = okCount + failCount;
@@ -260,7 +316,7 @@ export const ConnectionTestCard = ({
         ? 'success'
         : 'idle';
   const progressLabel = testing
-    ? '연결 테스트 진행 중 — 각 대상의 Connection Status를 확인하고 있어요'
+    ? '연결 테스트 진행 중 — 각 대상의 연결 상태를 확인하고 있어요'
     : progressState === 'success'
       ? '연결 테스트 완료 — 모든 대상이 연결되었어요'
       : progressState === 'fail'
@@ -272,9 +328,11 @@ export const ConnectionTestCard = ({
     <section className={cardStyles.base}>
       <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
         <div>
+          <span className={cardStyles.stepTag}>5번째 단계</span>
           <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
           <p className={cn('mt-2.5', cardStyles.subtitle)}>
-            DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
+            지정한 Credential로 각 대상에 실제 접속해 자격 증명, 네트워크(방화벽·보안 그룹), Agent 연결을 한 번에
+            확인합니다.
           </p>
         </div>
         {/* C-1: repeatable action demoted to soft — 완료 승인 요청 keeps the only primary. */}
@@ -324,8 +382,41 @@ export const ConnectionTestCard = ({
             only stroke and the bottom radius. The framed `table.frame` this used to sit in drew
             a second box inside the card — a card inside a card, at a heavier weight than any
             border on those steps.
-            Those steps cap the stack with the filter toolbar (top-rounded, #F7F8FA); this step
-            has no filters, so the header row — same fill — is the cap and takes the radius. */}
+            Those steps cap the stack with the filter toolbar (top-rounded, #F7F8FA); here the
+            header row — same fill — is the cap and takes the radius. */}
+        {/* 미등록이 0 인 것이 정상 상태다. 그 사실을 말하려고 상시 카드 세 장을 두었더니, 아무 할
+            일이 없다는 말이 화면의 90px 을 차지했고 (전체 = 지정 + 미등록) 도 성립하지 않았다 —
+            Athena·DynamoDB 처럼 Credential 이 "불필요" 한 행은 어느 카드에도 안 잡히기 때문이다.
+            조치가 필요할 때만 한 줄이 생긴다. 그 줄의 링크가 곧 필터이므로 요약과 도달 수단이 한
+            물건이고, 분류를 세지 않으니 합계가 어긋날 수도 없다. */}
+        {missingCount > 0 && (
+          <div
+            className={cn(
+              'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-[14px]',
+              statusColors.warning.bgSoft,
+              statusColors.warning.border,
+              statusColors.warning.textDark,
+            )}
+          >
+            {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
+            <StatusWarningIcon className="h-4 w-4 shrink-0" />
+            <span className="break-keep">
+              Credential 미등록 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결
+              테스트를 실행할 수 있어요
+            </span>
+            <button
+              type="button"
+              onClick={() => handleCredFilter(credFilter === 'missing' ? 'all' : 'missing')}
+              aria-pressed={credFilter === 'missing'}
+              className={cn(
+                'ml-auto shrink-0 whitespace-nowrap font-semibold underline underline-offset-2',
+                primaryColors.focusRing,
+              )}
+            >
+              {credFilter === 'missing' ? '전체 보기' : '미등록만 보기'}
+            </button>
+          </div>
+        )}
         <div>
           {/* CONNECTED_FRAME's own `overflow-hidden` and an `overflow-x-auto` would be two
               values of one property on one element, and `cn` is a plain join — which of them
@@ -349,8 +440,30 @@ export const ConnectionTestCard = ({
                   <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
                   <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
                   <th className={idcStyles.table.approvalHeaderCell}>Region</th>
-                  <th className={idcStyles.table.approvalHeaderCell}>DB Credential</th>
-                  <th className={idcStyles.table.approvalHeaderCell}>Connection Status</th>
+                  <th className={idcStyles.table.approvalHeaderCell}>
+                    {/* "DB" 는 표 전체가 이미 DB 얘기라 붙일 필요가 없었다. 대신 이 열이 무엇을
+                        고르는 것인지는 이름만으로 안 읽히므로 (i) 로 한 번 설명한다. 밝은 variant:
+                        흰 표 위의 검은 상자는 다른 시스템의 UI 처럼 보인다. */}
+                    <span className="inline-flex items-center gap-1">
+                      Credential
+                      {/* 엔진을 열거하지 않는다 — "불필요" 로 떨어지는 집합은 IAM 엔진만이 아니라서
+                          (위 requiresCredential 주석), 예시를 들면 화면이 거짓을 말한다. 표가 이미
+                          찍은 값을 가리키는 편이 언제나 참이다. */}
+                      <Tooltip
+                        variant="value"
+                        size="lg"
+                        content={
+                          <span className="block text-[12px] leading-[1.6] text-[#4E5968]">
+                            해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
+                            불필요로 표시된 대상은 이 단계에서 지정하지 않아요.
+                          </span>
+                        }
+                      >
+                        <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="Credential 설명" />
+                      </Tooltip>
+                    </span>
+                  </th>
+                  <th className={idcStyles.table.approvalHeaderCell}>연결 상태</th>
                   <th className={idcStyles.table.approvalHeaderCell}>논리 DB 확인</th>
                 </tr>
               </thead>
@@ -446,13 +559,26 @@ export const ConnectionTestCard = ({
                       >
                         {unit.region || PLACEHOLDER}
                       </td>
+                      {/* 값은 밑줄 텍스트로 읽고 수정은 모달에서 — 관리자 화면의 Credential
+                          배정과 같은 문법이다. 행마다 select 를 놓으면 표가 컨트롤 판이 되고,
+                          고르는 순간 저장돼 두 후보를 비교할 수도 없었다.
+                          Athena·DynamoDB 처럼 Credential 없이 연결하는 엔진은 고칠 것이 없으므로
+                          버튼이 아니라 평문이다. */}
                       <td className={idcStyles.table.approvalCell}>
                         {credRequired ? (
-                          <IdcCredSelectCell
-                            value={cred}
-                            onChange={(next) => handleCredChange(first.resourceId, next)}
-                            options={credOptions}
-                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              credModal.open({
+                                resourceId: first.resourceId,
+                                current: cred,
+                              })
+                            }
+                            aria-label={`${first.resourceName ?? first.resourceId} Credential 수정 — 현재 ${cred || '미설정'}`}
+                            className={cn(idcStyles.triggerBtn.linkNeutral, 'font-mono')}
+                          >
+                            {cred || <span className="font-sans">미설정</span>}
+                          </button>
                         ) : (
                           <span
                             className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}
@@ -461,17 +587,18 @@ export const ConnectionTestCard = ({
                           </span>
                         )}
                       </td>
+                      {/* 이 칸은 에이전트가 보고한 결과만 말한다. Credential 미설정을 여기에
+                          겹쳐 쓰면 실제로 연결된 대상이 "자격 증명 필요"로 가려졌다 — 그 사실은
+                          바로 왼쪽 DB Credential 칸이 이미 말하고 있고, Run Test 가 막는다. */}
                       <td className={idcStyles.table.approvalCell}>
-                        {credRequired && !cred ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>
-                        ) : status === 'SUCCESS' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
+                        {status === 'SUCCESS' ? (
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>성공</span>
                         ) : status === 'FAIL' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>Fail</span>
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>실패</span>
                         ) : status === 'RUNNING' ? (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Running</span>
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>진행 중</span>
                         ) : (
-                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>대기</span>
                         )}
                       </td>
                       {/* Athena·DynamoDB are IAM-based and have no logical-DB management at all,
@@ -541,15 +668,29 @@ export const ConnectionTestCard = ({
                     </Fragment>
                   );
                 })}
+                {pageRows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className={cn(
+                        idcStyles.table.approvalCell,
+                        'py-8 text-center text-[12px]',
+                        textColors.tertiary,
+                      )}
+                    >
+                      조건에 맞는 결과가 없어요.
+                    </td>
+                  </tr>
+                )}
               </tbody>
               </table>
             </div>
           </div>
-          {total > 0 && (
+          {filteredUnits.length > 0 && (
             <Pagination
               page={page}
               pageSize={pageSize}
-              totalCount={total}
+              totalCount={filteredUnits.length}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
               pageSizeOptions={[10, 20, 50, 100]}
@@ -564,6 +705,17 @@ export const ConnectionTestCard = ({
           targetSourceId={targetSourceId}
           onSubmit={handleSubmitApproval}
         />
+        {credModal.data && (
+          <CredentialPickModal
+            isOpen={credModal.isOpen}
+            onClose={credModal.close}
+            target={{ label: 'Resource ID', value: credModal.data.resourceId }}
+            value={credModal.data.current}
+            options={credOptions}
+            saving={savingCred}
+            onSubmit={handleCredSubmit}
+          />
+        )}
         {logicalModal.data && (
           <LogicalDbModalLoader
             open={logicalModal.isOpen}
@@ -577,8 +729,11 @@ export const ConnectionTestCard = ({
         )}
       </div>
       {/* C-2 action zone: the step-transition CTA docks (sticky) at the card bottom. */}
+      {/* 실제 게이트만 말한다: canRequestApproval = 모든 대상 Success + 이번 실행이 settled.
+          논리 DB 확인은 이 버튼을 막지 않는데 "완료되어야"라고 적혀 있어, 설정할 것이 없는
+          대상(Athena·DynamoDB)만 남은 화면에서는 끝낼 수 없는 조건처럼 읽혔다. */}
       <CardActionBar
-        hint="※ 모든 DB의 Connection Status가 Success이고 논리 DB 확인 설정이 완료되어야 다음 단계로 진행할 수 있어요."
+        hint="※ 모든 대상의 연결 상태가 성공이어야 완료 승인을 요청할 수 있어요. 논리 DB 확인은 제외할 논리 DB가 있는 대상만 설정하면 돼요."
       >
         <button
           type="button"
