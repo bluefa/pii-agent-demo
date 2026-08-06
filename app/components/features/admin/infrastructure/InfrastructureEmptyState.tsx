@@ -18,16 +18,16 @@ export const InfrastructureEmptyState = ({ onAddInfra }: InfrastructureEmptyStat
       <div className={cn('w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4', bgColors.muted)}>
         {EMPTY_ICON}
       </div>
-      <p className={textColors.tertiary}>등록된 인프라가 없어요</p>
+      <p className={textColors.tertiary}>등록된 계정이 없어요</p>
       <p className={cn('text-sm mt-1', textColors.tertiary)}>
-        상단의 인프라 추가 버튼으로 새 대상을 등록하세요
+        상단의 계정 등록 버튼으로 PII Agent를 설치할 계정을 등록하세요
       </p>
       <button
         type="button"
         onClick={onAddInfra}
         className={cn('mt-4 px-4 py-2 bg-[var(--color-primary)] text-sm font-medium rounded-lg hover:opacity-90 transition-opacity', textColors.inverse)}
       >
-        인프라 추가
+        계정 등록
       </button>
     </div>
   );

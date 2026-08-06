@@ -1,6 +1,6 @@
 import type { FC } from 'react';
 import { AwsIcon, AzureIcon, GcpIcon, IdcIcon } from '@/app/components/ui/CloudProviderIcon';
-import { cn, providerColors } from '@/lib/theme';
+import { bgColors, cn, providerColors, textColors } from '@/lib/theme';
 import type { CloudProvider } from '@/lib/types';
 
 const PROVIDER_ICON: Record<CloudProvider, FC<{ className?: string }>> = {
@@ -30,36 +30,27 @@ const SduIcon: FC<{ className?: string }> = ({ className }) => (
 interface ProviderLogoProps {
   provider: CloudProvider;
   isSdu?: boolean;
+  /**
+   * Drop the brand hue and render the mark on a neutral tile. Where the provider
+   * repeats down every row of a list, five brand colours make that column the
+   * loudest thing on the page while carrying the least information — the mark's
+   * shape already says which provider it is.
+   */
+  neutral?: boolean;
   className?: string;
 }
 
-export const ProviderLogo = ({ provider, isSdu, className }: ProviderLogoProps) => {
-  if (isSdu) {
-    return (
-      <span
-        className={cn(
-          'inline-flex items-center justify-center w-10 h-10 rounded-lg',
-          providerColors.SDU.bg,
-          providerColors.SDU.text,
-          className,
-        )}
-        aria-label="SDU"
-      >
-        <SduIcon className="w-5 h-5" />
-      </span>
-    );
-  }
-  const colors = providerColors[provider];
-  const Icon = PROVIDER_ICON[provider];
+export const ProviderLogo = ({ provider, isSdu, neutral, className }: ProviderLogoProps) => {
+  const Icon = isSdu ? SduIcon : PROVIDER_ICON[provider];
+  const colors = providerColors[isSdu ? 'SDU' : provider];
   return (
     <span
       className={cn(
         'inline-flex items-center justify-center w-10 h-10 rounded-lg',
-        colors.bg,
-        colors.text,
+        neutral ? cn(bgColors.panel, textColors.secondary) : cn(colors.bg, colors.text),
         className,
       )}
-      aria-label={provider}
+      aria-label={isSdu ? 'SDU' : provider}
     >
       <Icon className="w-5 h-5" />
     </span>

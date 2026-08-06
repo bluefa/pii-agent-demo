@@ -299,6 +299,12 @@ export const buttonStyles = {
     warnOutline: 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100',
     /** v15 danger-outline — soft red fill, no border (#FEF2F2 / #991B1B / 600). */
     dangerOutline: 'bg-[#FEF2F2] text-[#991B1B] font-semibold border-0 hover:bg-[#FEE2E2]',
+    /**
+     * Ink CTA — for a page where blue is already load-bearing elsewhere (rail selection,
+     * per-row detail links). A blue button on such a page reads as more background blue;
+     * ink is the only value on screen that nothing else is using.
+     */
+    ink: 'bg-[#191F28] text-white hover:bg-[#333D4B] shadow-sm hover:shadow',
   },
   sizes: {
     /** v15 .btn.sm — radius 10, h32, 13px. */
@@ -1086,12 +1092,13 @@ export const idcStyles = {
 } as const;
 
 /**
- * "관리" split 버튼 — primary 색상 CSS 변수 경유 (--color-primary)
+ * 행 우측 ⋮ 드롭다운 — 버튼 크롬 없이 흩뿌린 kebab 이 여는 패널.
+ * 행마다 반복되는 보조 동작이라 chrome 은 패널에만 있고 트리거에는 없다.
  */
-export const mgmtGroupStyles = {
-  primary: 'bg-[var(--color-primary)] text-white rounded-l-md',
-  more: 'bg-[var(--color-primary)] text-white rounded-r-md border-l border-white/20',
-  menu: 'absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[160px]',
+export const rowMenuStyles = {
+  panel:
+    'absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-lg border border-gray-200 bg-white p-1 shadow-lg',
+  item: 'block w-full rounded-md px-3 py-2 text-left text-[12px] font-medium',
 } as const;
 
 /**

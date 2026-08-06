@@ -18,7 +18,11 @@ import {
   ServiceSidebar,
   SERVICE_RAIL_PAGE_SIZE,
 } from '@/app/components/features/admin/ServiceSidebar';
-import { InfraRowList, ServiceHeaderV7 } from '@/app/components/features/admin/v7';
+import {
+  InfraRowList,
+  ServiceHeaderV7,
+  type InfraRowAction,
+} from '@/app/components/features/admin/v7';
 import {
   buildInitialServiceListState,
   serviceListReducer,
@@ -194,9 +198,17 @@ export const ServiceManagementView = () => {
   );
 
   const handleManageAction = useCallback(
-    (action: 'view' | 'delete', targetSourceId: number) => {
+    (action: InfraRowAction, targetSourceId: number) => {
       if (action === 'view') {
         router.push(passRoutes.targetSource(targetSourceId));
+        return;
+      }
+      if (action === 'copyId') {
+        // Support asks for this id; the owner never needs to read it off the screen.
+        void navigator.clipboard
+          .writeText(String(targetSourceId))
+          .then(() => toast.success(`Target Source ID ${targetSourceId} 복사됨`))
+          .catch(() => toast.error('클립보드 복사 실패'));
         return;
       }
       toast.info('삭제 미구현');
@@ -259,7 +271,10 @@ export const ServiceManagementView = () => {
               </div>
             </div>
           ) : (
-            <div>
+            // Rows carry a fixed 40px mark, three text layers and a right-hand action
+            // pair — past ~880px the middle column stretches and the eye loses the
+            // line it is reading. The cap is the row's, not the viewport's.
+            <div className="max-w-[880px]">
               <Breadcrumb
                 crumbs={[
                   { label: 'SIT Home', href: '/' },
@@ -269,8 +284,6 @@ export const ServiceManagementView = () => {
               <ServiceHeaderV7
                 serviceCode={selectedService}
                 serviceName={selectedName}
-                totalInfraCount={projects.length}
-                lastUpdatedAt={null}
                 onAddInfra={openCreateModal}
               />
 

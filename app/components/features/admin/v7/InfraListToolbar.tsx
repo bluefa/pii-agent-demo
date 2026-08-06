@@ -1,12 +1,13 @@
 'use client';
 
 import {
-  cn,
-  textColors,
   bgColors,
   borderColors,
+  cn,
   interactiveColors,
   numericFeatures,
+  primaryColors,
+  textColors,
 } from '@/lib/theme';
 
 interface InfraListToolbarProps {
@@ -16,31 +17,48 @@ interface InfraListToolbarProps {
   onFilterClick?: () => void;
 }
 
+/**
+ * Sheet header — the list's title bar, sitting inside the same border as the rows
+ * and the pager rather than floating above them. The count belongs here, not in the
+ * page header: it describes this list, not the service.
+ */
 export const InfraListToolbar = ({
   totalCount,
   query,
   onQueryChange,
   onFilterClick,
 }: InfraListToolbarProps) => (
-  <div className="flex items-center justify-between mb-3">
-    <div className={cn('text-sm', textColors.secondary)}>
-      전체{' '}
-      <strong className={cn('font-semibold', textColors.primary, numericFeatures.tabular)}>
-        {totalCount}
-      </strong>
-      개 인프라
+  <div
+    className={cn(
+      'flex h-12 items-center justify-between gap-4 px-5 border-b rounded-t-[10px]',
+      bgColors.muted,
+      borderColors.light,
+    )}
+  >
+    <div className={cn('flex items-center gap-2 text-[14px] font-bold', textColors.primary)}>
+      연동 대상 계정
+      <span
+        className={cn(
+          'rounded-full px-2.5 py-0.5 text-[12px] font-bold',
+          primaryColors.bgLight,
+          primaryColors.textOnLight,
+          numericFeatures.tabular,
+        )}
+      >
+        {totalCount}건
+      </span>
     </div>
     <div className="flex items-center gap-2">
       <div
         className={cn(
-          'flex items-center gap-2 px-3 h-9 rounded-lg border w-[280px]',
+          'flex items-center gap-2 px-2.5 h-8 rounded-lg border w-[240px]',
           borderColors.default,
           bgColors.surface,
         )}
       >
         <svg
-          width="14"
-          height="14"
+          width="12"
+          height="12"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -55,9 +73,9 @@ export const InfraListToolbar = ({
         <input
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Provider, 계정, DB 이름으로 검색"
+          placeholder="계정, 설명으로 검색"
           className={cn(
-            'flex-1 bg-transparent outline-none text-sm placeholder:font-normal',
+            'flex-1 min-w-0 bg-transparent outline-none text-[12px] placeholder:font-normal',
             textColors.primary,
           )}
         />
@@ -66,15 +84,15 @@ export const InfraListToolbar = ({
         type="button"
         onClick={onFilterClick}
         className={cn(
-          'flex items-center gap-1.5 h-9 px-3 rounded-lg border text-xs font-medium transition-colors',
+          'flex items-center gap-1.5 h-8 px-3 rounded-lg border text-[12px] font-semibold transition-colors',
           interactiveColors.unselectedBorder,
           bgColors.surface,
           textColors.secondary,
         )}
       >
         <svg
-          width="13"
-          height="13"
+          width="12"
+          height="12"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
