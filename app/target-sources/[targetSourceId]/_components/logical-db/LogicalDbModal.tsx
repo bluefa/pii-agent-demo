@@ -3,8 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
-import { Tooltip } from '@/app/components/ui/Tooltip';
-import { ChevronDownIcon, InfoCircleIcon, SearchIcon } from '@/app/components/ui/icons';
+import { ChevronDownIcon, SearchIcon } from '@/app/components/ui/icons';
 import {
   bgColors,
   borderColors,
@@ -298,26 +297,18 @@ export const LogicalDbModal = ({
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {/* Unit is judged from tested rows only (never the excluded policy). When
-            nothing was tested there is no judgment — plain state text, no tooltip. */}
-        {unit ? (
-          <span className={cn(chipCls, tagStyles.gray)}>
-            {unit === 'schema' ? 'Schema 단위 조회' : 'Database 단위 조회'}
-            <Tooltip
-              variant="value"
-              size="lg"
-              content={
-                <span className={cn('block text-[12px] leading-[1.6]', textColors.secondary)}>
-                  물리 DB 클러스터 안의 논리적 데이터베이스예요. MySQL은 Database 단위,
-                  PostgreSQL은 Database 아래 Schema 단위로 조회돼요.
-                </span>
-              }
-            >
-              <InfoCircleIcon className={cn('h-3.5 w-3.5', textColors.tertiary)} aria-label="논리 DB 설명" />
-            </Tooltip>
-          </span>
-        ) : (
-          <span className={cn(chipCls, tagStyles.gray)}>조회된 논리 DB 없음</span>
-        )}
+            nothing was tested there is no judgment — plain state text.
+            TODO(contract): once the backend declares the unit per resource
+            (e.g. `logical_database_unit`), promote the judgment to that field
+            and reinstate an explanatory tooltip — until then a frontend
+            engine→unit mapping would be invented, off-contract knowledge. */}
+        <span className={cn(chipCls, tagStyles.gray)}>
+          {unit === 'schema'
+            ? 'Schema 단위 조회'
+            : unit === 'database'
+              ? 'Database 단위 조회'
+              : '조회된 논리 DB 없음'}
+        </span>
         {/* Entry is gated on a successful run (설정 buttons disable until connected). */}
         <span className={cn(chipCls, statusColors.success.bg, statusColors.success.text)}>
           연결 테스트 성공
