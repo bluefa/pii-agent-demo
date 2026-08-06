@@ -1,12 +1,10 @@
 'use client';
 
-import { useCallback, type ReactNode } from 'react';
+import { useCallback } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import {
-  ProjectPageMeta,
   RejectionAlert,
-  type ProjectIdentity,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import {
   ConfirmedIntegrationDataProvider,
@@ -17,9 +15,7 @@ import { ErrorRow, ResourceTableSkeleton } from '@/app/target-sources/[targetSou
 
 interface WaitingConnectionTestStepProps {
   project: CloudTargetSource;
-  identity: ProjectIdentity;
   providerLabel: string;
-  action?: ReactNode;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
@@ -52,9 +48,7 @@ const ConnectionTestSection = ({
  */
 export const WaitingConnectionTestStep = ({
   project,
-  identity,
   providerLabel,
-  action,
   onProjectUpdate,
 }: WaitingConnectionTestStepProps) => {
 
@@ -65,12 +59,6 @@ export const WaitingConnectionTestStep = ({
 
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
       <ConnectionTestSection providerLabel={providerLabel} refreshProject={refreshProject} />
       <RejectionAlert project={project} />
     </ConfirmedIntegrationDataProvider>

@@ -66,7 +66,6 @@ const projectFixture: CloudTargetSource = {
 
 const identityFixture: ProjectIdentity = {
   cloudProvider: 'Azure',
-  jiraLink: null,
   identifiers: [],
 };
 
@@ -82,9 +81,6 @@ describe('ConnectionVerifiedStep', () => {
     render(
       <ConnectionVerifiedStep
         project={projectFixture}
-        identity={identityFixture}
-        providerLabel="Azure Infrastructure"
-        action={null}
         onProjectUpdate={onProjectUpdate}
       />,
     );
@@ -130,7 +126,8 @@ describe('ConnectionVerifiedStep', () => {
     fireEvent.click(screen.getByRole('button', { name: /연결 재확인/ }));
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByText('연결을 다시 확인할까요?')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '확인' }).className).toContain('bg-[#B45309]');
+    // amber fill (#-less substring: raw hex literals are banned outside theme.ts)
+    expect(screen.getByRole('button', { name: '확인' }).className).toContain('B45309');
     // A rewind by one step, not a loss — no second line here (the infra rewind keeps one).
     expect(screen.queryByText(/초기화|사라져요/)).toBeNull();
   });

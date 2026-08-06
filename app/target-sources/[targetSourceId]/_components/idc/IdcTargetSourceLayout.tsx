@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
-import { cn } from '@/lib/theme';
+import { ProjectPageMeta } from '@/app/target-sources/[targetSourceId]/_components/common';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { IdcStep1TargetInput } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/IdcStep1TargetInput';
 import { IdcStep2WaitingApproval } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/IdcStep2WaitingApproval';
@@ -37,11 +37,18 @@ export const IdcTargetSourceLayout = (props: IdcStepProps) => {
   const step = renderStep(props);
   if (!step) return null;
   return (
-    <main className={cn('bg-[#F4F4FB]', 'min-h-screen')}>
+    <main className="min-h-screen">
+      {/* Flat page header (chrome) spans the column edge-to-edge above the padded
+          body — the layout owns it; steps render cards only (cloud layout parity). */}
+      <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
       {/* v16 `.main` — full-width flex column, padding 32px 40px 80px (top/x/bottom). The 40px
           left padding sits flush against the 296px sidebar so content begins at 336px, matching v16.
-          The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
-      <div className="px-10 pt-8 pb-20 space-y-6">{step}</div>
+          Body is a two-column row: step cards left, the 320px guide panel CARD
+          standing beside them — clearly a panel, not header chrome. */}
+      <div className="flex items-start gap-6 px-10 pt-8 pb-20">
+        <div className="min-w-0 flex-1 space-y-6">{step}</div>
+        {props.guideSlot}
+      </div>
     </main>
   );
 };

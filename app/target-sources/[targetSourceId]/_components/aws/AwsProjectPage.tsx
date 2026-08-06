@@ -1,38 +1,35 @@
 'use client';
 
 import { CloudTargetSource } from '@/lib/types';
-import {
-  ProjectPageMeta,
-  type ProjectIdentity,
-} from '@/app/target-sources/[targetSourceId]/_components/common';
+import { type ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { CloudTargetSourceLayout } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout';
 
 interface AwsProjectPageProps {
   project: CloudTargetSource;
   onProjectUpdate: (project: CloudTargetSource) => void;
+  /** Guide band (가이드/진행 내역) rendered under the page header (ProjectDetail). */
+  guideSlot?: React.ReactNode;
 }
 
 export const AwsProjectPage = ({
   project,
   onProjectUpdate,
+  guideSlot,
 }: AwsProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'AWS',
-    jiraLink: null,
     identifiers: [
       { label: 'Account ID', value: project.awsAccountId ?? null, mono: true },
-      // metadata.grant_service_terraform_execution_permission — stays visible so the
-      // auto(허용)/manual(미허용) install mode is always readable from the metadata bar.
-      {
-        label: 'TF 실행 권한',
-        value:
-          project.isTerraformExecutionGranted === undefined
-            ? null
-            : project.isTerraformExecutionGranted
-              ? '허용 · 자동 설치'
-              : '미허용 · 수동 설치',
-      },
     ],
+    // metadata.grant_service_terraform_execution_permission → 설치 모드. The
+    // header renders it as the InstallModeModal vocabulary (자동/수동 설치) —
+    // "TF 실행 권한" was internal jargon, not a user-facing name.
+    installMode:
+      project.isTerraformExecutionGranted === undefined
+        ? undefined
+        : project.isTerraformExecutionGranted
+          ? 'auto'
+          : 'manual',
   };
 
   return (
@@ -41,6 +38,7 @@ export const AwsProjectPage = ({
       identity={identity}
       providerLabel="AWS Infrastructure"
       onProjectUpdate={onProjectUpdate}
+      guideSlot={guideSlot}
     />
   );
 };

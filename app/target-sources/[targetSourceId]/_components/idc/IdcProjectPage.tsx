@@ -7,14 +7,15 @@ import { IdcTargetSourceLayout } from '@/app/target-sources/[targetSourceId]/_co
 interface IdcProjectPageProps {
   project: CloudTargetSource;
   onProjectUpdate: (project: CloudTargetSource) => void;
+  /** Guide band (가이드/진행 내역) rendered under the page header (ProjectDetail). */
+  guideSlot?: React.ReactNode;
 }
 
-export const IdcProjectPage = ({ project, onProjectUpdate }: IdcProjectPageProps) => {
+export const IdcProjectPage = ({ project, onProjectUpdate, guideSlot }: IdcProjectPageProps) => {
   // IDC identity is intentionally minimal (결정 #49): name only, no
   // Datacenter ID / cloud-account identifiers.
   const identity: ProjectIdentity = {
     cloudProvider: 'IDC',
-    jiraLink: null,
     identifiers: [],
   };
 
@@ -24,6 +25,7 @@ export const IdcProjectPage = ({ project, onProjectUpdate }: IdcProjectPageProps
       identity={identity}
       providerLabel="IDC Infrastructure"
       onProjectUpdate={onProjectUpdate}
+      guideSlot={guideSlot}
     />
   );
 };

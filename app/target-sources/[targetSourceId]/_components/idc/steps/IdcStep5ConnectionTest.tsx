@@ -21,7 +21,6 @@ import {
 } from '@/app/lib/api';
 import {
   CardActionBar,
-  ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { IdcConfirmedResourcesPanel } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcConfirmedResourcesPanel';
@@ -75,9 +74,6 @@ const IDC_CONN_STATES: readonly IdcConnState[] = ['PENDING', 'RUNNING', 'SUCCESS
  */
 export const IdcStep5ConnectionTest = ({
   project,
-  identity,
-  providerLabel,
-  action,
   onProjectUpdate,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
@@ -315,12 +311,6 @@ export const IdcStep5ConnectionTest = ({
 
   return (
     <>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
       <section className={cardStyles.base}>
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>

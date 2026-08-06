@@ -14,8 +14,13 @@ export interface TargetSourceIdentifier {
 
 export interface ProjectIdentity {
   cloudProvider: CloudProvider;
-  /** Jira ticket URL. The chip is not rendered when null or undefined. */
-  jiraLink?: string | null;
   /** Provider-specific public identifiers (account id, subscription id, tenant id, project id, ...). */
   identifiers: TargetSourceIdentifier[];
+  /**
+   * AWS 설치 모드 (metadata.grant_service_terraform_execution_permission).
+   * auto = BDC installs via delegated Terraform, manual = the customer runs the
+   * install script. Omitted when the provider has no such concept — the header
+   * hides the row entirely.
+   */
+  installMode?: 'auto' | 'manual';
 }

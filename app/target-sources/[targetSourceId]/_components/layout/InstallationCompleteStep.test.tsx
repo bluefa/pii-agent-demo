@@ -83,7 +83,6 @@ const projectFixture: CloudTargetSource = {
 
 const identityFixture: ProjectIdentity = {
   cloudProvider: 'Azure',
-  jiraLink: null,
   identifiers: [],
 };
 
@@ -91,9 +90,6 @@ const renderStep = () =>
   render(
     <InstallationCompleteStep
       project={projectFixture}
-      identity={identityFixture}
-      providerLabel="Azure Infrastructure"
-      action={null}
       onProjectUpdate={() => {}}
     />,
   );

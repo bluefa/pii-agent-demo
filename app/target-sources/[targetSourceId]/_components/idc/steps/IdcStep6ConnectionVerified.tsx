@@ -5,7 +5,6 @@ import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } fr
 import { ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import {
-  ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import {
@@ -73,9 +72,6 @@ const ConnectionVerifiedRetestButton = ({
  */
 export const IdcStep6ConnectionVerified = ({
   project,
-  identity,
-  providerLabel,
-  action,
   onProjectUpdate,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
@@ -85,12 +81,6 @@ export const IdcStep6ConnectionVerified = ({
 
   return (
     <>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         {/* Same left-aligned stack as the cloud step: step tag, title + status, guidance copy. */}
         <header className={cardStyles.header}>
