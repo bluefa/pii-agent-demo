@@ -344,4 +344,21 @@ describe('ConnectionTestCard', () => {
     expect(await screen.findByText('실패')).toBeTruthy();
     expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
   });
+
+  // Step 5 has its own table (not WaitingApprovalTable), so the cluster tag had to be added
+  // here separately — the type comes from the confirmed row, never from the engine.
+  describe('RDS cluster tag', () => {
+    it('tags a cluster row above its name, keeping the engine in the type column', () => {
+      renderCard([
+        makeResource({ type: 'AWS_DB_CLUSTER', resourceName: 'demo-cluster', credentialId: 'Key1' }),
+      ]);
+      expect(screen.getByText('RDS Cluster')).toBeTruthy();
+      expect(screen.getByText('demo-cluster')).toBeTruthy();
+    });
+
+    it('leaves a single-instance row untagged', () => {
+      renderCard([makeResource({ type: 'AWS_DB_INSTANCE', credentialId: 'Key1' })]);
+      expect(screen.queryByText('RDS Cluster')).toBeNull();
+    });
+  });
 });

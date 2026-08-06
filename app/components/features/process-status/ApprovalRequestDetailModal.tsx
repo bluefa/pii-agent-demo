@@ -167,6 +167,9 @@ const toResourceRow = (item: ApprovalResourceItem): WaitingApprovalResource => {
     // this to render 연동 불가 instead of a revisable 제외 pill.
     integrationCategory: item.integration_category ?? undefined,
     recommendFailReason: item.recommend_fail_reason ?? undefined,
+    // Top-level type, no metadata fallback: this drives the RDS Cluster tag, and
+    // `resourceType` above falls back to an engine name.
+    declaredResourceType: item.resource_type ?? undefined,
     // An RDS cluster lists its member instances under the row and marks the one the agent
     // connects through. Any other resource gets neither key back and is unchanged.
     ...readRdsInstanceMetadata(item.metadata),

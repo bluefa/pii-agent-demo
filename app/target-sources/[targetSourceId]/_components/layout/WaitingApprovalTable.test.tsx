@@ -543,4 +543,56 @@ describe('WaitingApprovalTable', () => {
       expect(screen.queryByText('선택됨')).toBeNull();
     });
   });
+
+  // Steps 4·6·7 show the cluster FACT but not the member instances — those stay a steps 1–3
+  // concern. The tag has to key off the declared top-level type, because `resourceType` is an
+  // engine name on exactly these two variants.
+  describe('RDS cluster tag without an instance list (steps 4·6·7)', () => {
+    const clusterRow = (
+      overrides: Partial<WaitingApprovalResource> = {},
+    ): WaitingApprovalResource => ({
+      resourceId: 'arn:cluster:demo',
+      // The engine, as steps 4·6·7 set it — it can never answer "is this a cluster".
+      resourceType: 'MYSQL',
+      declaredResourceType: 'AWS_DB_CLUSTER',
+      region: 'ap-northeast-2',
+      resourceName: 'demo-cluster',
+      selected: true,
+      displayDbType: 'MYSQL',
+      ...overrides,
+    });
+
+    it.each([['confirmed'], ['install']] as const)(
+      'tags the cluster row on the %s variant, above the name and with no instances',
+      (variant) => {
+        render(<WaitingApprovalTable variant={variant} resources={[clusterRow()]} />);
+        const nameCell = screen.getByText('RDS Cluster').closest('td');
+        expect(nameCell?.textContent?.indexOf('RDS Cluster')).toBeLessThan(
+          nameCell?.textContent?.indexOf('demo-cluster') ?? -1,
+        );
+        expect(screen.queryByText('선택됨')).toBeNull();
+        expect(screen.queryByText(/인스턴스 /)).toBeNull();
+      },
+    );
+
+    it('keeps printing the engine in the type column', () => {
+      render(<WaitingApprovalTable variant="confirmed" resources={[clusterRow()]} />);
+      expect(screen.getByText('MySQL')).toBeTruthy();
+    });
+
+    // The whole reason for the separate field: an engine name in `resourceType` must not be
+    // mistaken for a type, and a row with no declared type must not sprout a tag.
+    it('does not tag a row whose declared type is absent or not a cluster', () => {
+      render(
+        <WaitingApprovalTable
+          variant="confirmed"
+          resources={[
+            clusterRow({ resourceId: 'a', declaredResourceType: undefined }),
+            clusterRow({ resourceId: 'b', declaredResourceType: 'AWS_DB_INSTANCE' }),
+          ]}
+        />,
+      );
+      expect(screen.queryByText('RDS Cluster')).toBeNull();
+    });
+  });
 });

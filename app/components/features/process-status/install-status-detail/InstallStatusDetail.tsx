@@ -140,6 +140,8 @@ interface ResourceRow {
   resourceName: string | null;
   region: string | null;
   databaseType: string | null;
+  /** Top-level resource type, joined via `meta` — drives the RDS-cluster tag only. */
+  resourceType: string | null;
   cell: InstallStepCell;
 }
 
@@ -156,7 +158,10 @@ const StepResourceTable = ({ rows }: { rows: ResourceRow[] }) => {
     () =>
       rows.map((row) => ({
         resourceId: row.resourceId,
+        // The engine, as this table has always printed it; the real type rides
+        // `declaredResourceType` so the cluster tag can key off it.
         resourceType: row.databaseType ?? '',
+        declaredResourceType: row.resourceType ?? undefined,
         region: row.region ?? '',
         resourceName: row.resourceName ?? '',
         selected: true,
@@ -504,6 +509,7 @@ export const InstallStatusDetail = ({
         resourceName: r.resourceName ?? m?.resourceName ?? null,
         region: m?.region ?? null,
         databaseType: m?.databaseType ?? null,
+        resourceType: m?.resourceType ?? null,
         cell: cellOf(r, active.id),
       };
     });

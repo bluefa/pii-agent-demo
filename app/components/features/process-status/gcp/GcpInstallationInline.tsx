@@ -88,7 +88,12 @@ export const GcpInstallationInline = ({
       new Map<string, InstallResourceMeta>(
         confirmedResources.map((c) => [
           c.resourceId,
-          { resourceName: c.resourceName, region: c.region, databaseType: c.databaseType },
+          {
+            resourceName: c.resourceName,
+            region: c.region,
+            databaseType: c.databaseType,
+            resourceType: c.type,
+          },
         ]),
       ),
     [confirmedResources],

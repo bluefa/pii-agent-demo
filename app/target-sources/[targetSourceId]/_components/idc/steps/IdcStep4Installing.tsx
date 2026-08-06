@@ -119,6 +119,8 @@ export const IdcStep4Installing = ({
         resourceName: r.hosts[0] ?? null,
         region: null,
         databaseType: r.databaseTypeWire ?? null,
+        // IDC has no cloud resource type — the tag never applies here.
+        resourceType: null,
       },
     ]),
   );

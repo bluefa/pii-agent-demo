@@ -13,7 +13,12 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
 import { GROUPED_CHILD_KIND_LABEL, groupResourceRows } from '@/lib/resource-grouping';
-import { rdsInstanceLabel, sortRdsInstances, type RdsInstanceWire } from '@/lib/rds-instances';
+import {
+  isRdsCluster,
+  rdsInstanceLabel,
+  sortRdsInstances,
+  type RdsInstanceWire,
+} from '@/lib/rds-instances';
 import {
   RdsClusterTag,
   RdsMemberChip,
@@ -75,6 +80,16 @@ export interface WaitingApprovalResource {
    * picks which cell lands here, so the same row renders a different status per step.
    */
   installCell?: InstallStepCell;
+  /**
+   * The contract's top-level `resource_type`, carried verbatim for TYPE PREDICATES only —
+   * currently the RDS-cluster tag. Never rendered and never used for grouping.
+   *
+   * It cannot be folded into `resourceType`: two consumers deliberately set that field to an
+   * engine name (`ConfirmedIntegrationTable`, the step-4 install table) because it doubles as
+   * the grouping key and the fold's label, so `resourceType` cannot answer "what KIND of
+   * resource is this". Absent on rows whose source has no top-level type.
+   */
+  declaredResourceType?: string;
   /**
    * `approval` variant only — an RDS cluster's member instances, listed read-only beneath the
    * cluster row so an approver sees which instance the agent will connect through. Absent (the
@@ -376,6 +391,8 @@ export const WaitingApprovalTable = memo(
         : [];
       const hasInstances = instances.length > 0;
       const instancesOpen = hasInstances && !collapsedInstances.has(rowKey);
+      // Keyed on the declared top-level type, never on `resourceType` — see the field's note.
+      const isCluster = isRdsCluster(resource.declaredResourceType ?? '');
       const row = (
         <tr
           // `resource_id` is optional in the contract, so two id-less rows would collide on
@@ -491,6 +508,22 @@ export const WaitingApprovalTable = memo(
                 {/* `database_type` is optional in the contract, and an unlabelled row is a bare
                     chevron with nothing beside it. */}
                 <span className="whitespace-nowrap">{foldLabel}</span>
+              </span>
+            ) : isCluster ? (
+              // Steps 4·6·7: the tag alone. Those steps list what is being installed and
+              // connected, not what is being chosen, so the member instances stay a steps 1–3
+              // concern — but the row still has to say it is a cluster, in the same stack.
+              <span className="flex min-w-0 flex-col items-start gap-1">
+                <RdsClusterTag />
+                <Tooltip
+                  content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
+                  variant="value"
+                  size="md"
+                  triggerClassName="min-w-0 max-w-[200px] block"
+                  truncatedOnly
+                >
+                  <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+                </Tooltip>
               </span>
             ) : (
               <Tooltip
