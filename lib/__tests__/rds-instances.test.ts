@@ -142,42 +142,63 @@ describe('defaultRdsInstanceArn', () => {
 // all spread. It has to yield NOTHING for a non-cluster, or every row would grow the keys.
 describe('readRdsInstanceMetadata', () => {
   const instances = [instance('1', 'Writer'), instance('2', 'Reader')];
+  const CLUSTER = 'AWS_DB_CLUSTER';
 
   it('surfaces the list and the chosen ARN from wire metadata', () => {
     expect(
-      readRdsInstanceMetadata({
-        region: 'ap-northeast-2',
-        rds_instance_list: instances,
-        selected_rds_instance_arn: instances[1].rds_instance_arn,
-      }),
+      readRdsInstanceMetadata(
+        {
+          region: 'ap-northeast-2',
+          rds_instance_list: instances,
+          selected_rds_instance_arn: instances[1].rds_instance_arn,
+        },
+        CLUSTER,
+      ),
     ).toEqual({ rdsInstances: instances, selectedRdsInstanceArn: instances[1].rds_instance_arn });
   });
 
   // Writer-first in, Writer-first out: sorting belongs to the view, not the adapter.
   it('keeps the list in wire order', () => {
-    expect(readRdsInstanceMetadata({ rds_instance_list: instances }).rdsInstances).toEqual(
-      instances,
-    );
+    expect(
+      readRdsInstanceMetadata({ rds_instance_list: instances }, CLUSTER).rdsInstances,
+    ).toEqual(instances);
   });
 
   it('returns the list alone when nothing was chosen (an excluded cluster)', () => {
-    expect(readRdsInstanceMetadata({ rds_instance_list: instances })).toEqual({
+    expect(readRdsInstanceMetadata({ rds_instance_list: instances }, CLUSTER)).toEqual({
       rdsInstances: instances,
     });
   });
 
-  it('returns nothing for a non-cluster, or absent/malformed metadata', () => {
-    expect(readRdsInstanceMetadata({ region: 'ap-northeast-2' })).toEqual({});
-    expect(readRdsInstanceMetadata(undefined)).toEqual({});
-    expect(readRdsInstanceMetadata(null)).toEqual({});
-    expect(readRdsInstanceMetadata({ rds_instance_list: 'nonsense' })).toEqual({});
+  // The TYPE decides, not the list. A sibling type that also ships members must not inherit
+  // the cluster grammar (tag + expandable instance rows) by accident.
+  it('ignores a list on a type that is not a cluster', () => {
+    expect(
+      readRdsInstanceMetadata(
+        { rds_instance_list: instances, selected_rds_instance_arn: instances[1].rds_instance_arn },
+        'AWS_RDS_GLOBAL_CLUSTER',
+      ),
+    ).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_list: instances }, 'AWS_DB_INSTANCE')).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_list: instances }, null)).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_list: instances }, undefined)).toEqual({});
+  });
+
+  it('returns nothing for absent or malformed metadata on a cluster', () => {
+    expect(readRdsInstanceMetadata({ region: 'ap-northeast-2' }, CLUSTER)).toEqual({});
+    expect(readRdsInstanceMetadata(undefined, CLUSTER)).toEqual({});
+    expect(readRdsInstanceMetadata(null, CLUSTER)).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_list: 'nonsense' }, CLUSTER)).toEqual({});
     // An empty list is not a cluster worth listing.
-    expect(readRdsInstanceMetadata({ rds_instance_list: [] })).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_list: [] }, CLUSTER)).toEqual({});
   });
 
   it('drops a non-string chosen ARN rather than passing it through', () => {
     expect(
-      readRdsInstanceMetadata({ rds_instance_list: instances, selected_rds_instance_arn: 42 }),
+      readRdsInstanceMetadata(
+        { rds_instance_list: instances, selected_rds_instance_arn: 42 },
+        CLUSTER,
+      ),
     ).toEqual({ rdsInstances: instances });
   });
 });

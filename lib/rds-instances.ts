@@ -64,12 +64,19 @@ export const parseRdsInstanceList = (value: unknown): RdsInstanceWire[] => {
 /**
  * The cluster pair a read-only approval row needs, read straight off a wire item's `metadata`.
  * The generated metadata schema is loose (partial + passthrough), so both keys arrive typed as
- * `unknown` and every display adapter would otherwise re-derive the same two guards. Spreads
- * into the row: absent keys mean "not a cluster", which leaves the row exactly as it was.
+ * `unknown` and every display adapter would otherwise re-derive the same guards. Spreads into
+ * the row: an empty result means "not a cluster", which leaves the row exactly as it was.
+ *
+ * Gated on the TYPE as well as the list, matching step 1's predicate. Carrying an
+ * `rds_instance_list` is not what makes a row a cluster — a future sibling type (a global
+ * cluster, say) could carry one too and would otherwise be tagged and expanded as if the
+ * step-1 radio grammar applied to it.
  */
 export const readRdsInstanceMetadata = (
   metadata: unknown,
+  resourceType: string | null | undefined,
 ): { rdsInstances?: RdsInstanceWire[]; selectedRdsInstanceArn?: string } => {
+  if (!isRdsCluster(resourceType ?? '')) return {};
   if (typeof metadata !== 'object' || metadata === null) return {};
   const record = metadata as Record<string, unknown>;
   const rdsInstances = parseRdsInstanceList(record.rds_instance_list);

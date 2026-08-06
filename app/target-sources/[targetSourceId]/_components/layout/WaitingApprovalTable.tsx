@@ -131,6 +131,14 @@ interface WaitingApprovalTableProps {
    */
   connected?: boolean;
   /**
+   * Raise the row height (py-4 → py-5) for the two-line cluster identity.
+   *
+   * Opt-in per consumer rather than derived from the variant: the `approval` variant also
+   * serves the request-history modal (a 60vh scroll box) and the admin ops request tab, and
+   * neither asked to give up a row of density. Only the step-2 and step-3 cards pass it.
+   */
+  raisedRows?: boolean;
+  /**
    * Header for the location column. Defaults to Region; a consumer whose rows can be
    * host-based (an IDC endpoint has no region) passes 위치, since the cell then carries
    * `host:port`.
@@ -300,6 +308,7 @@ export const WaitingApprovalTable = memo(
     onLogicalDbOpen,
     emptyMessage,
     connected = false,
+    raisedRows = false,
     regionLabel = 'Region',
     expandFolds = false,
   }: WaitingApprovalTableProps) => {
@@ -740,7 +749,7 @@ export const WaitingApprovalTable = memo(
               table matches). Variant-scoped: the install/confirmed tables (steps 4·6) keep
               the shared token's rhythm. :not([colspan]) keeps spanning cells (panel-style
               tds zero their own padding) out of the override — see CandidateResourceTable. */}
-          <table className={cn('w-full', variant === 'approval' && '[&_td:not([colspan])]:py-5')}>
+          <table className={cn('w-full', raisedRows && '[&_td:not([colspan])]:py-5')}>
             <thead className={idcStyles.table.approvalHeader}>
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}

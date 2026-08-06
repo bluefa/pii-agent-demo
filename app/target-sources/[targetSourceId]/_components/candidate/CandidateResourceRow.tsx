@@ -165,10 +165,10 @@ const RdsInstanceRow = ({
             {identifier}
           </span>
           <RdsMemberChip member={instance.member} />
-          {/* 기본 marks the choice the table made for the user; it disappears the moment
-              they pick something else, so it never contradicts the checked radio. */}
-          {isDefault && isChosen && <RdsSelectionChip label="기본" />}
-          {/* Step 1 read-only: the radios are gone, so the chosen instance says so itself. */}
+          {/* Exactly one of these, never both. 기본 says "the table chose this for you, and
+              you can still change it" — a statement only the editable table can make, so it
+              goes quiet in read-only, where 선택됨 states the settled choice instead. */}
+          {!readonly && isDefault && isChosen && <RdsSelectionChip label="기본" />}
           {readonly && isChosen && <RdsSelectionChip label="선택됨" />}
         </span>
       </td>

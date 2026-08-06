@@ -52,7 +52,7 @@ const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalRe
   declaredResourceType: item.resource_type ?? undefined,
   // An RDS cluster lists its member instances under the row and marks the one the agent
   // connects through. Any other resource gets neither key back and is unchanged.
-  ...readRdsInstanceMetadata(item.metadata),
+  ...readRdsInstanceMetadata(item.metadata, item.resource_type),
 });
 
 const toExcludedRow = (
@@ -75,7 +75,7 @@ const toExcludedRow = (
   declaredResourceType: item.resource_type ?? undefined,
   // An excluded cluster still lists what it contains — that list is the evidence for the
   // exclusion. No instance is marked, because none was chosen.
-  ...readRdsInstanceMetadata(item.metadata),
+  ...readRdsInstanceMetadata(item.metadata, item.resource_type),
 });
 
 interface ApplyingView {
@@ -216,6 +216,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
             <WaitingApprovalTable
               resources={table.visibleResources}
               connected
+              raisedRows
               emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
             />
             {table.filteredCount > 0 && (

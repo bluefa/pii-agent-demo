@@ -92,6 +92,13 @@ const latestClusterItem = async (): Promise<WireItem | undefined> => {
   return body.resources?.find((item) => item.resource_id === CLUSTER_ARN);
 };
 
+/** The step-1 catalog read — where a rejected target lands when the user is sent back. */
+const catalogClusterItem = async (): Promise<WireItem | undefined> => {
+  const response = await mockConfirm.getResources(TARGET_SOURCE_ID_STR);
+  const body = (await response.json()) as { resources?: WireItem[] };
+  return body.resources?.find((item) => item.resource_id === CLUSTER_ARN);
+};
+
 describe('RDS cluster metadata round trip (step 1 → steps 2·3)', () => {
   beforeEach(() => {
     const store = getStore();
@@ -149,5 +156,38 @@ describe('RDS cluster metadata round trip (step 1 → steps 2·3)', () => {
     expect(item?.selected).toBe(false);
     expect(item?.metadata?.rds_instance_list).toEqual(WIRE_ORDER);
     expect(item?.metadata?.selected_rds_instance_arn).toBeUndefined();
+  });
+
+  // Reject → back to step 1. The catalog read has to hand the choice back, or the user's pick
+  // silently reverts to the client default and they re-submit something they never chose.
+  // This is also the only path on which defaultRdsInstanceArn's server-wins branch runs.
+  it('hands the recorded choice back on the step-1 /resources read', async () => {
+    // Before any request the server knows nothing — the client default is what applies.
+    expect((await catalogClusterItem())?.metadata?.selected_rds_instance_arn).toBeUndefined();
+
+    await postApproval(WRITER.rds_instance_arn);
+
+    const item = await catalogClusterItem();
+    expect(item?.metadata?.selected_rds_instance_arn).toBe(WRITER.rds_instance_arn);
+    expect(item?.metadata?.rds_instance_list).toEqual(WIRE_ORDER);
+  });
+
+  // An excluded cluster recorded no choice, so step 1 must not resurrect one.
+  it('hands back no choice when the cluster was excluded', async () => {
+    await mockConfirm.createApprovalRequest(TARGET_SOURCE_ID_STR, {
+      resources: [
+        {
+          resource_id: CLUSTER_ARN,
+          resource_name: 'demo-cluster',
+          resource_type: 'AWS_DB_CLUSTER',
+          selected: false,
+          integration_category: 'TARGET',
+          exclusion_reason: '미사용 클러스터',
+          metadata: { rds_instance_list: WIRE_ORDER },
+        },
+      ],
+    });
+
+    expect((await catalogClusterItem())?.metadata?.selected_rds_instance_arn).toBeUndefined();
   });
 });

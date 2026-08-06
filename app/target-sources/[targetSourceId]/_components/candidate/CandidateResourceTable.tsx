@@ -104,8 +104,11 @@ export const CandidateResourceTable = ({
   // a cluster connects through is part of reviewing it, and an unchecked cluster's list is the
   // evidence for leaving it out. The chevron closes one cluster at a time.
   const [instanceFoldOverrides, setInstanceFoldOverrides] = useState<Record<string, boolean>>({});
-  const toggleInstanceFold = (resourceId: string, currentlyExpanded: boolean) =>
-    setInstanceFoldOverrides((previous) => ({ ...previous, [resourceId]: !currentlyExpanded }));
+  const toggleInstanceFold = (resourceId: string) =>
+    setInstanceFoldOverrides((previous) => ({
+      ...previous,
+      [resourceId]: !(previous[resourceId] ?? true),
+    }));
 
   const toggleGroup = (key: string) =>
     setCollapsedGroups((previous) => {
@@ -174,7 +177,7 @@ export const CandidateResourceTable = ({
                   grouped={grouped}
                   lastInGroup={lastInGroup}
                   rdsInstancesExpanded={instancesExpanded}
-                  onRdsInstancesToggle={() => toggleInstanceFold(candidate.id, instancesExpanded)}
+                  onRdsInstancesToggle={() => toggleInstanceFold(candidate.id)}
                 />
               );
             };

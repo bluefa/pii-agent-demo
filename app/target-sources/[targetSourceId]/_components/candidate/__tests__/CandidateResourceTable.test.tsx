@@ -264,7 +264,6 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   it('counts instances on the cluster row without naming the chosen one', () => {
     renderCluster();
     expect(screen.getByText('인스턴스 3')).toBeTruthy();
-    expect(screen.queryByText(/선택$/)).toBeNull();
     // demo-2 appears once — on its own instance row, not in a parent summary.
     expect(screen.getAllByText('demo-2')).toHaveLength(1);
   });
@@ -306,6 +305,9 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     renderCluster({ readonly: true });
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
     expect(screen.getByText('선택됨')).toBeTruthy();
+    // Exactly one chip: 기본 means "we chose this, you can change it", which read-only cannot
+    // offer. The default instance is also the chosen one here, so both would otherwise show.
+    expect(screen.queryByText('기본')).toBeNull();
   });
 
   // A cluster the backend sent no instance list for is old data — it must stay a flat row.

@@ -256,10 +256,16 @@ function buildMetadata(resource: MockResource, project: Project): Record<string,
         resource_type: resource.awsType ?? resource.type,
         region,
         ...(resource.vpcId && { vpc_id: resource.vpcId }),
-        // RDS 클러스터 멤버 인스턴스 — selected_rds_instance_arn 은 일부러 비운다.
-        // 서버 선택값이 없을 때 클라이언트 기본 선택(Reader 우선)이 도는지 보려면
-        // 목이 그 값을 채우면 안 된다.
+        // RDS 클러스터 멤버 인스턴스 + 서버가 기억하는 접속 인스턴스 선택.
+        //
+        // 선택값은 승인 요청 POST 가 기록했을 때만 실린다(시드에는 없다): 1006 데모는
+        // 값이 비어 있어 클라이언트 기본 선택(Reader 우선)이 도는 것을 보여주고, 반려
+        // 후 1단계로 돌아온 대상은 사용자가 골랐던 인스턴스를 그대로 되찾는다 —
+        // defaultRdsInstanceArn 의 '서버 선택 우선' 분기가 실제로 도는 유일한 경로다.
         ...(resource.rdsInstanceList ? { rds_instance_list: resource.rdsInstanceList } : {}),
+        ...(resource.selectedRdsInstanceArn
+          ? { selected_rds_instance_arn: resource.selectedRdsInstanceArn }
+          : {}),
         ...vmFields,
       };
     case 'Azure':

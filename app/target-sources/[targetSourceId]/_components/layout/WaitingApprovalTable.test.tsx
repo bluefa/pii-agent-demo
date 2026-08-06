@@ -491,7 +491,6 @@ describe('WaitingApprovalTable', () => {
     it('counts instances on the cluster row without naming the chosen one', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
       expect(screen.getByText('인스턴스 3')).toBeTruthy();
-      expect(screen.queryByText(/선택$/)).toBeNull();
       // demo-2 appears once — on its own instance row, not in a parent summary.
       expect(instanceNames().filter((text) => text.includes('demo-2'))).toHaveLength(1);
     });

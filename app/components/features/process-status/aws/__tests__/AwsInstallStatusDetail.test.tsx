@@ -94,6 +94,48 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(filters).getByText('MySQL')).toBeTruthy();
   });
 
+  // The cluster tag rides the SAME join as region / DB type / name: the install status knows
+  // only resource_id, and the type comes from the confirmed integration via InstallResourceMeta.
+  it('tags an install row whose confirmed row is an RDS cluster', () => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-cluster', 'IN_PROGRESS')])}
+        confirmed={[{ ...confirmedResource('r-cluster'), type: 'AWS_DB_CLUSTER' }]}
+        manualInstall={false}
+      />,
+    );
+
+    expect(screen.getByText('RDS Cluster')).toBeTruthy();
+    expect(screen.getByText('name-of-r-cluster')).toBeTruthy();
+  });
+
+  it('leaves a single-instance install row untagged', () => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
+        confirmed={[confirmedResource('r-1')]}
+        manualInstall={false}
+      />,
+    );
+
+    expect(screen.queryByText('RDS Cluster')).toBeNull();
+  });
+
+  // A join MISS is normal here (region-level Athena ids never match a DB-level confirmed row).
+  // The row must still render — without a name, region or tag, but not blank and not thrown.
+  it('renders a row with no confirmed match, and does not tag it', () => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-unjoined', 'IN_PROGRESS')])}
+        confirmed={[]}
+        manualInstall={false}
+      />,
+    );
+
+    expect(screen.getByText('r-unjoined')).toBeTruthy();
+    expect(screen.queryByText('RDS Cluster')).toBeNull();
+  });
+
   it('renders SKIP as 해당 없음 (both in rows and in the summary rollup)', () => {
     render(
       <AwsInstallStatusDetail

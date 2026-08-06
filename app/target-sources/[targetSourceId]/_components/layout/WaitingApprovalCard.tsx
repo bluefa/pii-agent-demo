@@ -90,7 +90,7 @@ const toResourceRow = (item: LatestResourceItem): WaitingApprovalResource => ({
   declaredResourceType: item.resource_type ?? undefined,
   // An RDS cluster lists its member instances under the row and marks the one the agent
   // connects through. Any other resource gets neither key back and is unchanged.
-  ...readRdsInstanceMetadata(item.metadata),
+  ...readRdsInstanceMetadata(item.metadata, item.resource_type),
 });
 
 interface RequestSummary {
@@ -203,6 +203,7 @@ export const WaitingApprovalCard = ({
       <WaitingApprovalTable
         resources={table.visibleResources}
         connected
+        raisedRows
         emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
       />
       {table.filteredCount > 0 && (
