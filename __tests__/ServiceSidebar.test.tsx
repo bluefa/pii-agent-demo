@@ -1,11 +1,13 @@
 /**
  * Tests for `ServiceSidebar`'s list/empty branching.
  *
- * The list renders `listed` — services minus the pinned current one — while the empty
- * state and the column header used to key off the unfiltered `services`. That gap left
- * a page holding nothing but the current service rendering column headings over a blank
- * body, which no fixture in the app reproduces (9 services fit one page). These lock the
- * three empty reasons and the filtering to `listed`.
+ * The rail lists every service the page returned, including the one the page is about —
+ * that row is marked in place (`aria-current`) rather than lifted into a pinned band
+ * above the list, so nothing is filtered out and nothing is shown twice. The empty state
+ * therefore has two reasons, not three: a search that matched nothing, and no services
+ * at all. The section heading ('전체 서비스' / '검색 결과') replaced the
+ * '서비스 이름 / 서비스 코드' column header when the rail moved off table grammar; it must
+ * never render over a blank body.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -32,19 +34,18 @@ const render = (props: Partial<Parameters<typeof ServiceSidebar>[0]>) =>
   );
 
 describe('ServiceSidebar — empty list', () => {
-  it('says the page holds nothing else when only the current service is on it', () => {
+  it('lists the current service instead of emptying the rail for it', () => {
     const html = render({
       services: [{ service_code: 'AWS', service_name: 'AWS' }],
       currentService: { code: 'AWS', name: 'AWS' },
     });
-    // Page-scoped, because the filter is: earlier pages may hold services this one doesn't.
-    expect(html).toContain('이 페이지에 다른 서비스가 없습니다');
-    // Column headings over a blank body read as a broken table.
-    expect(html).not.toContain('서비스 코드');
-    expect(html).not.toContain('검색어 지우기');
+    // Lifting it out used to leave "이 페이지에 다른 서비스가 없습니다" over an empty rail.
+    expect(html).toContain('AWS');
+    expect(html).toContain('aria-current="true"');
+    expect(html).not.toContain('서비스가 없습니다');
   });
 
-  it('says there are no services at all when nothing is pinned', () => {
+  it('says there are no services at all when the page is empty', () => {
     const html = render({ services: [] });
     expect(html).toContain('서비스가 없습니다');
     expect(html).not.toContain('다른 서비스가 없습니다');
@@ -70,7 +71,7 @@ describe('ServiceSidebar — empty list', () => {
 });
 
 describe('ServiceSidebar — populated list', () => {
-  it('hides the pinned current service from the list but keeps the rest', () => {
+  it('marks the current service in place and keeps every other row', () => {
     const html = render({
       services: [
         { service_code: 'AWS', service_name: 'AWS' },
@@ -78,13 +79,14 @@ describe('ServiceSidebar — populated list', () => {
       ],
       currentService: { code: 'AWS', name: 'AWS' },
     });
-    expect(html).toContain('서비스 코드');
-    // One row, and it is the service that is *not* pinned. Counting raw occurrences
-    // would over-count: each row repeats its code in the title attribute.
+    expect(html).toContain('전체 서비스');
+    // Both rows render; only the current one carries the marker.
     const rows = html.split('<li').slice(1);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toContain('배송서비스');
-    expect(rows[0]).not.toContain('AWS');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain('AWS');
+    expect(rows[0]).toContain('aria-current="true"');
+    expect(rows[1]).toContain('배송서비스');
+    expect(rows[1]).not.toContain('aria-current');
   });
 
   it('keeps a matching current service visible during a search', () => {
@@ -93,7 +95,7 @@ describe('ServiceSidebar — populated list', () => {
       currentService: { code: 'AWS', name: 'AWS' },
       searchQuery: 'aws',
     });
-    expect(html).toContain('서비스 코드');
-    expect(html).not.toContain('다른 서비스가 없습니다');
+    expect(html).toContain('검색 결과');
+    expect(html).toContain('aria-current="true"');
   });
 });

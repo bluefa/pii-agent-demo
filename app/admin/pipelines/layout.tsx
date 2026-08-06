@@ -100,8 +100,20 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   // Task Queue pages are fluid like the dashboard — they must grow/shrink with
   // the viewport instead of capping at layout.content's max-width.
   const isQueue = rest === 'queue' || rest.startsWith('queue/');
+  // Split-layout pages (rail | content sheet) are fluid for the same reason: the
+  // rail and its recessed ground are one surface painted on the split, and that
+  // surface has to reach the viewport's right edge. Under layout.content's cap
+  // it stops at 1440px and the lighter page ground shows past it — a hard
+  // vertical seam on wide monitors, which is the exact thing the layered
+  // treatment exists to remove.
+  const isSplit =
+    rest === 'services' || rest.startsWith('services/') || rest.startsWith('ops/services');
   const mainClass =
-    isDashboard || isQueue ? layout.contentFluid : isDetail ? layout.contentDetail : layout.content;
+    isDashboard || isQueue || isSplit
+      ? layout.contentFluid
+      : isDetail
+        ? layout.contentDetail
+        : layout.content;
 
   return (
     <div className={layout.shell}>

@@ -4,7 +4,10 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
-import { ServiceSidebar } from '@/app/components/features/admin/ServiceSidebar';
+import {
+  ServiceSidebar,
+  SERVICE_RAIL_PAGE_SIZE,
+} from '@/app/components/features/admin/ServiceSidebar';
 import {
   buildInitialServiceListState,
   serviceListReducer,
@@ -14,7 +17,7 @@ import {
 import { useModal } from '@/app/hooks/useModal';
 import { getServicesPage } from '@/app/lib/api';
 import { passRoutes } from '@/lib/routes';
-import { bgColors, borderColors, cn, textColors } from '@/lib/theme';
+import { bgColors, borderColors, cn, serviceSidebarStyles, textColors } from '@/lib/theme';
 
 const ServiceMoveConfirmModal = dynamic(
   () =>
@@ -62,7 +65,8 @@ interface ConfirmModalData {
   name: string;
 }
 
-const SERVICE_PAGE_SIZE = 10;
+// Page size belongs to the rail, not to this page — see SERVICE_RAIL_PAGE_SIZE.
+const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface ServiceListPanelProps {
@@ -196,12 +200,12 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
 
   if (fetchState.status === 'error') {
     return (
-      // Same recessed plane as ServiceSidebar — a failed fetch must not hand back a
-      // white elevated rail the successful path no longer uses.
+      // Same flush plane as ServiceSidebar — a failed fetch must not hand back a
+      // differently-grounded rail than the successful path uses.
       <aside
         className={cn(
           'w-[296px] shrink-0 flex flex-col items-center justify-center border-r px-4 gap-3',
-          bgColors.muted,
+          serviceSidebarStyles.surface,
           borderColors.default,
         )}
       >
@@ -214,7 +218,8 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
           className={cn(
             'text-xs px-3 py-1.5 rounded-md border transition-colors',
             borderColors.strong,
-            bgColors.mutedHover,
+            // 흰색 hover — mutedHover(gray-50)는 틴트 레일 위에서 1.03 이라 안 보인다.
+            bgColors.surfaceHover,
             textColors.secondary,
           )}
         >

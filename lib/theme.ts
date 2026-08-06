@@ -1065,6 +1065,134 @@ export const mgmtGroupStyles = {
   menu: 'absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[160px]',
 } as const;
 
+/**
+ * ServiceListPanel / ServiceSidebar — the target-source left rail.
+ *
+ * The rail is the page's BACK plane: a tinted, flush surface with full-bleed
+ * hairlines between zones, carrying the content column (#F9FAFB ground, white
+ * cards) in front of it. Anything that has to read as raised on the rail —
+ * row hover, the search field, the current row's code tag — is white; the
+ * single blue accent is reserved for the current-service row.
+ *
+ * Raw hexes live here per the no-raw-color rule; grays reuse the Toss ramp
+ * (tossColors SSOT) and tile tints reuse the idcStyles.tag hex family. Every
+ * pair below is measured against the RAIL's tint, not against white.
+ */
+export const serviceSidebarStyles = {
+  /**
+   * Rail surface — tinted and flush to its own edges. Two things are going on:
+   *
+   * Desktop nav chrome is a plane with hairlines, not cards floating on a
+   * canvas — the card-stack grammar (gap + radius + shadow per group) reads as
+   * a mobile screen at this width, so zones here are separated by full-bleed
+   * rules instead.
+   *
+   * And the rail is the page's BACK plane, not its front. White made it the
+   * brightest surface on screen while the content column — where the work
+   * happens — sat lower at #F9FAFB, so the eye read the rail as the subject and
+   * the content as leftover space; the two halves stopped looking like one
+   * page. Tinting the rail puts the ladder back in order: rail → content
+   * ground → white cards. Everything that must read as raised (row hover, the
+   * search field, the current row's code tag) is white against this.
+   *
+   * The rail separates from the ground by CHROMA as much as by luminance.
+   * Near-neutral #F2F4F6 on the old #F9FAFB ground measured ΔE00 1.39 — barely
+   * past the just-noticeable threshold, so the 1px border was doing all the
+   * work. Buying separation with luminance alone was not available either:
+   * sectionLabel had 0.2 of headroom over AA, so a darker rail fails text.
+   *
+   * The ground is now `canvas` (#F4F4FB, the app's own blue-leaning surface) on
+   * both pages that mount this rail, so the rail goes the other way — toward
+   * neutral — and the pair reads on hue as well as level.
+   *
+   *   rail vs ground   ΔE00 1.39 → 3.79
+   *   rail vs white    ΔE00 2.59 → 3.10
+   *   L* 96.1 → 95.3, under the ground's 96.4 — the ladder holds
+   *   worst text pair (#666D7B) 4.72 → 4.62, still AA
+   *   worst plate (#F7F8FA tile) ΔE00 0.99 → 1.82 — it was invisible before
+   */
+  surface: 'bg-[#EFF2F3]',
+  /**
+   * The ground this rail sits beside — the app canvas, not gray-50.
+   *
+   * The two pages mounting the rail had different grounds: /services used
+   * gray-50 (#F9FAFB) and /target-sources inherited the body canvas (#F4F4FB).
+   * One rail on two grounds cannot be tuned against both. Unifying on the
+   * canvas also fixes the weaker of the two: white cards on #F9FAFB measured
+   * ΔE00 1.20 — under the JND, so the cards were carried entirely by their
+   * borders — and read at 4.12 on the canvas.
+   */
+  canvas: 'bg-[#F4F4FB]',
+  /** Full-bleed hairline between rail zones — darker than the rail, or it inverts. */
+  divider: 'border-[#E1E5EA]',
+  /** Rail heading — nav-chrome tier, deliberately under the content column's page title. */
+  title: 'text-[14px] font-semibold tracking-[-0.01em] text-[#191F28]',
+  /**
+   * Total beside the rail title — a pill, so it reads as a count attached to the
+   * heading rather than as a second word in it. Round, unlike the square code
+   * tags: one is a quantity, the other an identifier.
+   */
+  count:
+    'inline-flex items-center rounded-full bg-[#E7EAEE] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[#4E5968]',
+  /** Section label above the rows — desktop nav section header, not a table column head. */
+  sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#666D7B]',
+  /** Row name — wraps rather than riding off the rail's edge; service names run to ~30 characters. */
+  rowName: 'text-[14px] font-medium leading-5 text-[#191F28]',
+  /**
+   * Row code — a Toss tag in its own right-hand column. Service codes are always
+   * three characters, so `min-w` sizes the column to exactly that and every code
+   * lands on one x down the list; a longer code would still grow rather than
+   * clip. Packed against the name instead, it would sit at a different x on
+   * every row, and a 30-character name would push it out of the row.
+   */
+  rowCode:
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[#E7EAEE] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
+  /**
+   * Row fill under pointer hover or keyboard focus — full-bleed and square, the
+   * way a web list row highlights. White, not a deeper grey: on a tinted rail
+   * the row under the cursor is the one that lifts toward the reader.
+   */
+  rowActive: 'hover:bg-white focus-visible:bg-white',
+  /**
+   * The row for the service the page is about — tint + 2px accent bar, the way a
+   * desktop rail marks "you are here". It replaced a pinned band above the list:
+   * the page header already names the service, so the band only repeated it.
+   */
+  rowCurrent:
+    'relative bg-[#E8F1FF] hover:bg-[#D6E7FF] focus-visible:bg-[#D6E7FF] before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[#0064FF] before:content-[""]',
+  /** Code tag on the current row — primary pair on the row's tint (see primaryColors.textOnLight). */
+  rowCodeCurrent:
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#0050D6]',
+  /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
+  rowDivide: 'divide-y divide-[#E1E5EA]',
+  /** Skeleton bar for the rail — one step darker than idcStyles' #F3F4F6, which vanishes on the tinted surface. */
+  skeletonBar: 'animate-pulse bg-[#E3E7EC]',
+  /** 28px square icon tile — the row's scan anchor, sized up for the taller row. */
+  tile: 'flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[12px] font-semibold leading-none',
+  /** Tinted tile pairs, picked by a stable code hash so a service keeps its color across pages. */
+  tilePalette: [
+    'bg-[#E8F1FF] text-[#1747B5]',
+    'bg-[#E5F8EE] text-[#197A3F]',
+    'bg-[#FEF0E1] text-[#7A3F0E]',
+    'bg-[#EEF2FF] text-[#4338CA]',
+    'bg-[#FEECEC] text-[#B42318]',
+    'bg-[#F7F8FA] text-[#4E5968]',
+  ],
+  /**
+   * Page indicator docked to the rail's bottom. No rule above it: a full-bleed
+   * border made the bar read as a second section closing the list, when all it
+   * carries is "which page". `mt-auto` keeps it on the bottom edge even when a
+   * short result leaves the list ending mid-rail. The total moved to the title
+   * pill, so nothing here counts rows.
+   */
+  footer: 'mt-auto flex shrink-0 items-center justify-center gap-1 px-3 py-2.5',
+  /** "1 / 2 페이지" — tabular so the digits do not jitter as pages change. */
+  footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#666D7B]',
+  /** Borderless ghost pager — a bordered button pair floats like a card control on a flush rail. */
+  pagerBtn:
+    'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#B0B8C1] disabled:hover:bg-transparent',
+} as const;
+
 // =============================================================================
 // 레이아웃 (Layout)
 // =============================================================================
@@ -1387,6 +1515,9 @@ export const pipelineStyles = {
     title: cn(pipelineText.sectionTitle, 'mt-16 mb-3'),
     titleFirst: cn(pipelineText.sectionTitle, 'mt-0 mb-3'),
     desc: cn(pipelineText.sectionDesc, 'mt-4 mb-4'),
+    /** 섹션 머리 바로 아래에 오는 설명 — `cn` 은 단순 join 이라 desc 에 mt-0 을 덧붙여도
+     *  CSS 순서상 mt-4 가 이긴다. titleFirst 와 같은 이유로 변형을 따로 둔다. */
+    descFirst: cn(pipelineText.sectionDesc, 'mt-0 mb-4'),
   },
 
   /** StatusPill — h20 pad 0 9 0 8 (lg h28 pad 0 12 0 10), icon 12/14. Size lives
@@ -1499,6 +1630,10 @@ export const pipelineStyles = {
     center: 'flex flex-col justify-center items-center min-h-[240px]',
     /** 아이콘은 비텍스트 3:1 — faint 는 gray-100 면 위에서 2.34 라 weak(4.51). */
     icon: 'flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--pl-gray-100)] text-[var(--pl-text-weak)]',
+    /** 흰 카드가 아니라 회색 바닥 위에 놓일 때 — gray-100 판은 바닥과 같은 값이라
+     *  사라진다. 한 단 내려 gray-200(바닥 대비 1.13, 아이콘 4.01 로 비텍스트 3:1 통과). */
+    iconOnGround:
+      'flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--pl-gray-200)] text-[var(--pl-text-weak)]',
     meta: cn(pipelineText.meta),
   },
 

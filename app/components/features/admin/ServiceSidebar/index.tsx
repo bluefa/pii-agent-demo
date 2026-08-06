@@ -1,6 +1,5 @@
 'use client';
 
-import { CurrentServiceCard } from '@/app/components/features/admin/ServiceSidebar/CurrentServiceCard';
 import { ServiceRow } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
 import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
 import { CloseIcon, SearchIcon } from '@/app/components/ui/icons';
@@ -8,8 +7,8 @@ import type { PageServiceItem } from '@/app/lib/api';
 import {
   borderColors,
   bgColors,
-  idcStyles,
   primaryColors,
+  serviceSidebarStyles,
   textColors,
   cn,
   getInputClass,
@@ -24,7 +23,33 @@ interface ServicePageInfo {
 
 type ServiceItem = NonNullable<PageServiceItem['content']>[number];
 
-/** The service the surrounding page is about — pinned above the list and highlighted. */
+/**
+ * Ceiling for one stretched row. A full page divides the rail's height evenly, so
+ * without a cap a tall monitor — or a two-row search result — would stretch each
+ * row down the whole rail.
+ */
+const ROW_MAX_PX = 88;
+
+/**
+ * Rows per rail page — owned here, not by each caller.
+ *
+ * One page stays one screenful: the rail never scrolls *and* pages for the same
+ * job, and eight rows sit at the top of the 7±2 range a user takes in as one
+ * group. Rows divide the rail's height between them (ROW_MAX_PX caps how far),
+ * so a page still reaches the bottom; ~100 services are 13 pages, and search
+ * stays the primary lookup path.
+ *
+ * It lives with the sidebar because the number is a property of this rail, not
+ * of the page hosting it — as two private copies it had already drifted to 10
+ * on /services and 8 on /target-sources, giving the same rail different row
+ * heights and page counts on two screens.
+ */
+export const SERVICE_RAIL_PAGE_SIZE = 8;
+
+/** Skeleton row count — matches the page size so the list doesn't reflow when data lands. */
+const SKELETON_ROWS = SERVICE_RAIL_PAGE_SIZE;
+
+/** The service the surrounding page is about — marked in the list, not pinned above it. */
 interface CurrentService {
   code: string;
   /** Absent while the name is still being resolved; the row falls back to the code. */
@@ -43,10 +68,6 @@ interface ServiceSidebarProps {
   loading?: boolean;
 }
 
-// Rows sit at ul(px-2) + button(px-3); the column header matches that 20px inset on
-// both edges so its labels line up with the name and the code column.
-const listInsetClass = 'px-5';
-
 export const ServiceSidebar = ({
   services,
   currentService,
@@ -57,57 +78,55 @@ export const ServiceSidebar = ({
   onPageChange,
   loading = false,
 }: ServiceSidebarProps) => {
-  const { totalElements, totalPages, number: currentPage } = pageInfo;
+  const { totalElements } = pageInfo;
 
-  // The current service lives in the header, so browsing the list would show it twice.
-  // A search is different: the results are the results, and hiding a match would lie.
-  const listed = !searchQuery && currentService
-    ? services.filter((s) => s.service_code !== currentService.code)
-    : services;
+  // Every service the page returned is listed, including the current one — it is
+  // marked in place rather than lifted out. Filtering it out only made sense while
+  // a pinned band above the list repeated it.
+  const listed = services;
+
+  // Rows the ul will actually lay out — drives the height cap below.
+  const rowCount = loading ? SKELETON_ROWS : listed.length;
+
+  // One label per list mode, so the list always says what its rows are.
+  const sectionLabel = searchQuery ? '검색 결과' : '전체 서비스';
 
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
     //
-    // Recessed, not elevated: the right-hand rail — the same kind of thing — sits on the
-    // canvas tint with white cards on top, so nav chrome does not get to float above it.
-    // A hairline does the separating.
-    //
-    // gray-50 rather than the page's own tint: the target-source canvas is #F4F4FB, and
-    // gray-500 measures 4.41:1 on it — under AA. On gray-50 the same text holds 4.63:1,
-    // and the two grounds are within 1% of each other, so it still reads as one plane.
+    // Desktop rail grammar: one flush TINTED plane, zones divided by full-bleed
+    // hairlines. The rail owns no padding — each zone sets its own, so the row
+    // hover fills can run edge to edge. Tinted, not white: the rail is the back
+    // plane and the content column is in front of it (see serviceSidebarStyles).
     <aside
       className={cn(
         'w-[296px] shrink-0 flex flex-col border-r',
-        bgColors.muted,
+        serviceSidebarStyles.surface,
         borderColors.default,
       )}
+      aria-label="서비스 목록"
     >
-      {/* Header zone: what this panel is, and where you currently are. */}
-      <div className="px-3 pt-4 pb-4">
-        {/* 18/700 against the card name's 14/600 — two levers apart, so the two never
-            read as peers. px-2 inside the zone's px-3 puts the title on the same 20px
-            left edge as the column header and the rows, so every text in the panel
-            starts on one axis. */}
-        <h2 className={cn('px-2 text-lg font-bold', textColors.primary)}>서비스 목록</h2>
-        {currentService && (
-          <CurrentServiceCard
-            code={currentService.code}
-            name={currentService.name}
-            onSelect={onSelectService}
-          />
+      {/* Title + total. The pill is the rail's only count — during a search it is
+          the hit count, which is why it is no longer hidden then.
+
+          pt-6 matches the content column's `p-6`, so the rail's first line and
+          the page's first line start on the same y. At pt-4 they sat 8px apart:
+          near enough to read as a misalignment rather than as two zones. */}
+      <div className="flex items-center gap-2 px-3 pt-6 pb-2.5">
+        <h2 className={serviceSidebarStyles.title}>서비스 목록</h2>
+        {!loading && totalElements > 0 && (
+          <span className={serviceSidebarStyles.count}>{totalElements}</span>
         )}
       </div>
 
-      {/* List zone: search is the list's control, so it sits with the list, not under the title. */}
-      {/* gray-200 dividers, not gray-100: on the gray-50 ground gray-100 is a 1.5%
-          step and effectively disappears. */}
-      <div className={cn('px-3 py-3 border-t', borderColors.default)}>
+      {/* Search closes the rail's chrome block; the hairline under it opens the list. */}
+      <div className={cn('px-3 py-2.5 border-b', serviceSidebarStyles.divider)}>
         {/* The relative box is the input itself, so the icons center on it — no
             offset math against the wrapper's padding. */}
         <div className="relative">
           <SearchIcon
             className={cn(
-              'pointer-events-none absolute left-3 top-1/2 -translate-y-1/2',
+              'pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2',
               textColors.quaternary,
             )}
           />
@@ -119,8 +138,11 @@ export const ServiceSidebar = ({
             aria-label="서비스 검색"
             className={cn(
               getInputClass(),
-              // Explicit white: on the recessed panel a field has to be the lifted surface.
-              '!py-2 !pl-9 !pr-9 text-sm [&::-webkit-search-cancel-button]:appearance-none',
+              // 32px control on a 6px radius: the shared input's 48px pill is form
+              // geometry, and at rail width it reads as a mobile search bar. The
+              // field keeps a visible edge instead of a fill — on a white plane the
+              // border is what separates it, not elevation.
+              '!h-8 !py-0 !pl-8 !pr-8 !rounded-[6px] text-sm [&::-webkit-search-cancel-button]:appearance-none',
               bgColors.surface,
             )}
           />
@@ -141,103 +163,94 @@ export const ServiceSidebar = ({
             </button>
           )}
         </div>
-        {searchQuery && (
-          <p className={cn('mt-2 px-1 text-xs tabular-nums', textColors.tertiary)}>
-            {totalElements}건
-          </p>
-        )}
       </div>
 
-      {/* Column header. A right-aligned mono token is unreadable without a label, so
-          pushing the code into its own column requires naming the columns. 12px tertiary
-          — table chrome, a clear tier below the panel title. Not quaternary: gray-400 is
-          2.5:1 on white, and a label nobody can read defeats the column it names. Keyed
-          off `listed`, the rows actually rendered, so headings never sit over an empty
-          body. */}
-      {(loading || listed.length > 0) && (
-        <div
-          className={cn(
-            'flex items-baseline justify-between pb-1.5 border-b',
-            listInsetClass,
-            borderColors.default,
-          )}
-        >
-          {/* medium + tracking, against the code column's 12/400/gray-500. Identical
-              specs made the heading read as the column's first entry instead of its
-              label; 12px is the scale floor, so weight and tracking do the separating. */}
-          <span className={cn('text-xs font-medium tracking-wide', textColors.tertiary)}>
-            서비스 이름
-          </span>
-          <span className={cn('text-xs font-medium tracking-wide', textColors.tertiary)}>
-            서비스 코드
-          </span>
-        </div>
-      )}
-
-      <ul className="flex-1 overflow-auto px-2 py-2" aria-busy={loading}>
-        {loading ? (
-          Array.from({ length: 7 }).map((_, i) => (
-            // h-9 matches a real single-line row (20px text + py-2) so the list
-            // doesn't jump height when the skeleton is replaced.
-            <li key={i} className="flex h-9 items-center justify-between px-3" aria-hidden="true">
-              <div className={cn(idcStyles.skeletonBar, 'h-3.5 w-2/3 rounded')} />
-              <div className={cn(idcStyles.skeletonBar, 'h-3 w-8 rounded')} />
-            </li>
-          ))
-        ) : listed.length === 0 ? (
-          // Keyed off `listed`, not `services` — a page holding nothing but the current
-          // service filters down to empty. Each reason gets its own sentence: only quote
-          // a search term when there is one, only say "other services" when there is a
-          // current service to be other than, and keep that sentence page-scoped, since
-          // the filter is.
-          <li className="px-4 py-10 text-center">
-            <p className={cn('text-sm', textColors.tertiary)}>
-              {searchQuery
-                ? `‘${searchQuery}’와 일치하는 서비스가 없습니다`
-                : currentService
-                  ? '이 페이지에 다른 서비스가 없습니다'
-                  : '서비스가 없습니다'}
-            </p>
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => onSearchChange('')}
-                className={cn(
-                  'mt-2 text-xs cursor-pointer',
-                  primaryColors.text,
-                  primaryColors.textHover,
-                )}
-              >
-                검색어 지우기
-              </button>
-            )}
-          </li>
-        ) : (
-          listed.map((service) => {
-            const code = service.service_code ?? '';
-            return (
-              <ServiceRow
-                key={code}
-                code={code}
-                name={service.service_name ?? undefined}
-                onSelect={onSelectService}
-              />
-            );
-          })
+      {/* The list takes the rail's remaining height and its rows divide it evenly,
+          so a page reaches the bottom rather than stopping halfway down. The
+          footer rides directly under the last row, so nothing floats over dead
+          space. On a short viewport the rows hold their min-height and the ul
+          scrolls instead. */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {(loading || listed.length > 0) && (
+          <div className={cn('px-3 pt-3 pb-1.5 shrink-0', serviceSidebarStyles.sectionLabel)}>
+            {sectionLabel}
+          </div>
         )}
-      </ul>
 
-      {/* Shown from the first page on so the control doesn't appear and disappear as the
-          result count crosses one page. Gated on `totalElements`, not `totalPages` — the
-          API reports one page for an empty result, so `totalPages` alone can't tell
-          "one page of hits" from "nothing to page through". */}
-      {totalElements > 0 && totalPages > 0 && (
-        <SidebarPagination
-          totalPages={totalPages}
-          currentPage={currentPage}
-          onPageChange={onPageChange}
-        />
-      )}
+        <ul
+          className={cn('flex-1 min-h-0 flex flex-col overflow-auto', serviceSidebarStyles.rowDivide)}
+          // Rows divide the list's height, so a short page — or a tall monitor —
+          // would stretch each row down the rail. Capping the list at
+          // `rows × ROW_MAX_PX` stops the growth at a sane density; the footer
+          // stays directly under the last row (it is the next sibling, not
+          // bottom-docked), so any leftover height falls below the footer rather
+          // than between it and the list.
+          //
+          // No cap with zero rows: the ul then holds the empty-state message,
+          // and a `0` cap collapses it to nothing.
+          style={rowCount > 0 ? { maxHeight: rowCount * ROW_MAX_PX } : undefined}
+          aria-busy={loading}
+        >
+          {loading ? (
+            Array.from({ length: SKELETON_ROWS }).map((_, i) => (
+              // Same flex-1 + min-height as a real row, so the list doesn't
+              // reflow when the skeleton is replaced.
+              <li
+                key={i}
+                className="flex flex-1 min-h-[48px] items-center gap-2.5 px-3"
+                aria-hidden="true"
+              >
+                <div className={cn(serviceSidebarStyles.skeletonBar, 'h-7 w-7 shrink-0 rounded-[6px]')} />
+                <div className={cn(serviceSidebarStyles.skeletonBar, 'h-3 flex-1 rounded')} />
+                <div className={cn(serviceSidebarStyles.skeletonBar, 'h-5 w-10 shrink-0 rounded-[6px]')} />
+              </li>
+            ))
+          ) : listed.length === 0 ? (
+            // Keyed off `listed`, not `services` — a page holding nothing but the current
+            // service filters down to empty. Each reason gets its own sentence: only quote
+            // a search term when there is one, only say "other services" when there is a
+            // current service to be other than, and keep that sentence page-scoped, since
+            // the filter is.
+            <li className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
+              <p className={cn('text-sm', textColors.tertiary)}>
+                {searchQuery
+                  ? `‘${searchQuery}’와 일치하는 서비스가 없습니다`
+                  : '서비스가 없습니다'}
+              </p>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => onSearchChange('')}
+                  className={cn(
+                    'mt-2 text-xs cursor-pointer',
+                    primaryColors.text,
+                    primaryColors.textHover,
+                  )}
+                >
+                  검색어 지우기
+                </button>
+              )}
+            </li>
+          ) : (
+            listed.map((service) => {
+              const code = service.service_code ?? '';
+              return (
+                <ServiceRow
+                  key={code}
+                  code={code}
+                  name={service.service_name ?? undefined}
+                  onSelect={onSelectService}
+                  current={code === currentService?.code}
+                />
+              );
+            })
+          )}
+        </ul>
+
+        {/* The component decides: it renders nothing at one page, so an empty result
+            (which the API still reports as one page) shows no control either. */}
+        <SidebarPagination pageInfo={pageInfo} onPageChange={onPageChange} />
+      </div>
     </aside>
   );
 };
