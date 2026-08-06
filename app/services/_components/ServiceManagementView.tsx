@@ -13,7 +13,7 @@ import {
 import { AppError } from '@/lib/errors';
 import type { ProjectSummary } from '@/lib/types';
 import { passRoutes } from '@/lib/routes';
-import { bgColors, cn, textColors } from '@/lib/theme';
+import { bgColors, cn, serviceSidebarStyles, textColors } from '@/lib/theme';
 import {
   ServiceSidebar,
   SERVICE_RAIL_PAGE_SIZE,
@@ -216,7 +216,10 @@ export const ServiceManagementView = () => {
     // Exact viewport minus the sticky 56px TopNav — `min-h-screen` here stacked a
     // full 100vh under the nav, so the page scrolled 56px and the left panel ended
     // short of the bottom edge.
-    <div className={cn('h-[calc(100vh-56px)]', bgColors.muted)}>
+    // 바닥은 gray-50 이 아니라 앱 캔버스 — /target-sources 가 쓰는 바닥과 같아야
+    // 같은 레일이 두 화면에서 같은 대비를 갖는다. gray-50 위에서는 흰 카드가
+    // ΔE00 1.20(식별 한계 아래)이라 테두리에만 기대고 있었다.
+    <div className={cn('h-[calc(100vh-56px)]', serviceSidebarStyles.canvas)}>
       <div className="flex h-full">
         <ServiceSidebar
           services={services}
@@ -228,7 +231,7 @@ export const ServiceManagementView = () => {
           onPageChange={handlePageChange}
         />
 
-        <main className={cn('flex-1 p-6 overflow-auto', bgColors.muted)}>
+        <main className={cn('flex-1 p-6 overflow-auto', serviceSidebarStyles.canvas)}>
           {!selectedService ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">

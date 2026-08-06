@@ -1094,8 +1094,35 @@ export const serviceSidebarStyles = {
    * page. Tinting the rail puts the ladder back in order: rail → content
    * ground → white cards. Everything that must read as raised (row hover, the
    * search field, the current row's code tag) is white against this.
+   *
+   * The rail separates from the ground by CHROMA as much as by luminance.
+   * Near-neutral #F2F4F6 on the old #F9FAFB ground measured ΔE00 1.39 — barely
+   * past the just-noticeable threshold, so the 1px border was doing all the
+   * work. Buying separation with luminance alone was not available either:
+   * sectionLabel had 0.2 of headroom over AA, so a darker rail fails text.
+   *
+   * The ground is now `canvas` (#F4F4FB, the app's own blue-leaning surface) on
+   * both pages that mount this rail, so the rail goes the other way — toward
+   * neutral — and the pair reads on hue as well as level.
+   *
+   *   rail vs ground   ΔE00 1.39 → 3.79
+   *   rail vs white    ΔE00 2.59 → 3.10
+   *   L* 96.1 → 95.3, under the ground's 96.4 — the ladder holds
+   *   worst text pair (#666D7B) 4.72 → 4.62, still AA
+   *   worst plate (#F7F8FA tile) ΔE00 0.99 → 1.82 — it was invisible before
    */
-  surface: 'bg-[#F2F4F6]',
+  surface: 'bg-[#EFF2F3]',
+  /**
+   * The ground this rail sits beside — the app canvas, not gray-50.
+   *
+   * The two pages mounting the rail had different grounds: /services used
+   * gray-50 (#F9FAFB) and /target-sources inherited the body canvas (#F4F4FB).
+   * One rail on two grounds cannot be tuned against both. Unifying on the
+   * canvas also fixes the weaker of the two: white cards on #F9FAFB measured
+   * ΔE00 1.20 — under the JND, so the cards were carried entirely by their
+   * borders — and read at 4.12 on the canvas.
+   */
+  canvas: 'bg-[#F4F4FB]',
   /** Full-bleed hairline between rail zones — darker than the rail, or it inverts. */
   divider: 'border-[#E1E5EA]',
   /** Rail heading — nav-chrome tier, deliberately under the content column's page title. */
