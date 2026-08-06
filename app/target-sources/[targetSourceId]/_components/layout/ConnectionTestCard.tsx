@@ -44,8 +44,11 @@ interface LogicalModalTarget {
   resourceName: string;
 }
 
-/** 표의 Credential 조회 필터. 판정 규칙은 이 화면이 소유한다 — `credState` 참고. */
-type CredFilter = 'all' | 'assigned' | 'missing';
+/**
+ * 표의 Credential 조회 필터. 경고 줄이 유일한 진입점이라 'assigned' 로는 갈 수 없다 —
+ * 분류값('assigned')은 `credState` 가 계속 쓰지만, 필터가 가질 수 있는 값은 이 둘뿐이다.
+ */
+type CredFilter = 'all' | 'missing';
 
 /** Credential 수정 모달이 여는 행 — 쓰는 대상(resourceId)과 읽는 값(현재 배정). */
 interface CredModalTarget {
@@ -64,8 +67,11 @@ const PLACEHOLDER = '—';
 const seedCreds = (confirmed: readonly ConfirmedResource[]): CredMap =>
   Object.fromEntries(confirmed.map((r) => [r.resourceId, r.credentialId ?? '']));
 
-// Athena / DynamoDB 등은 DB Credential 없이 연결한다. 이런 행까지 Credential 을
-// 요구하면 Run Test 가 열리지 않고, 진행 요약도 "성공 0 · 완료 100%" 로 어긋난다.
+// ⚠️ `needsCredential` 은 mysql·postgresql·redshift 만 참인 허용 목록이다(lib/types.ts).
+// 그래서 여기서 "불필요" 로 떨어지는 것은 IAM 기반 엔진(Athena·DynamoDB)만이 아니라
+// mssql·oracle·mongodb 도 포함된다 — 그 엔진들은 실제로는 자격 증명이 필요하고, IDC step 5 는
+// 같은 엔진에 요구한다. 판정 자체를 고치는 것은 Run Test 게이트를 전 프로바이더에서 바꾸므로
+// 별도 작업으로 뺐다(LIN-90). 이 화면의 문구는 그때까지 엔진을 단정하지 않는다.
 const requiresCredential = (databaseType: string | null): boolean =>
   !!databaseType && needsCredential(databaseType);
 
@@ -213,7 +219,7 @@ export const ConnectionTestCard = ({
   // Credential 상태 분류 — 경고 줄과 표 필터가 같은 판정을 쓴다. `none` 은 Athena / DynamoDB /
   // CosmosDB 처럼 Credential 없이 연결하는 행("불필요")이고, 지정에도 미등록에도 잡히지 않는다.
   const credState = useCallback(
-    (unit: TestUnit): CredFilter | 'none' =>
+    (unit: TestUnit): 'all' | 'assigned' | 'missing' | 'none' =>
       !requiresCredential(unit.databaseType) ? 'none' : unitCred(unit) ? 'assigned' : 'missing',
     [unitCred],
   );
@@ -401,6 +407,7 @@ export const ConnectionTestCard = ({
             <button
               type="button"
               onClick={() => handleCredFilter(credFilter === 'missing' ? 'all' : 'missing')}
+              aria-pressed={credFilter === 'missing'}
               className={cn(
                 'ml-auto shrink-0 whitespace-nowrap font-semibold underline underline-offset-2',
                 primaryColors.focusRing,
@@ -439,13 +446,16 @@ export const ConnectionTestCard = ({
                         흰 표 위의 검은 상자는 다른 시스템의 UI 처럼 보인다. */}
                     <span className="inline-flex items-center gap-1">
                       Credential
+                      {/* 엔진을 열거하지 않는다 — "불필요" 로 떨어지는 집합은 IAM 엔진만이 아니라서
+                          (위 requiresCredential 주석), 예시를 들면 화면이 거짓을 말한다. 표가 이미
+                          찍은 값을 가리키는 편이 언제나 참이다. */}
                       <Tooltip
                         variant="value"
                         size="lg"
                         content={
                           <span className="block text-[12px] leading-[1.6] text-[#4E5968]">
                             해당 DB에 접속할 때 사용할 계정 정보예요. Credentials 메뉴에서 등록한 것 중에서 고르고,
-                            Athena·DynamoDB처럼 IAM으로 접속하는 엔진은 지정하지 않아요.
+                            불필요로 표시된 대상은 이 단계에서 지정하지 않아요.
                           </span>
                         }
                       >

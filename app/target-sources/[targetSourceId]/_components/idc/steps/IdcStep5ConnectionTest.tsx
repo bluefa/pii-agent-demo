@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppError } from '@/lib/errors';
-import { cardStyles, cn, idcStyles, primaryColors, statusColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import {
   ConnProgressStrip,
   type ConnProgressState,
@@ -180,7 +180,10 @@ export const IdcStep5ConnectionTest = ({
   // Run Test gate: every live target must have a credential selected first. IDC 는
   // 클라우드와 달리 Credential 없이 연결하는 엔진이 없으므로 "불필요" 분류가 없다.
   const missingCount = liveResources.filter((r) => !creds[r.resourceId]).length;
-  const allCredsSet = liveResources.length > 0 && missingCount === 0;
+  // 대상이 0건이면 테스트할 것이 없어 Run Test 는 여전히 닫혀 있지만, 그 이유는 자격 증명이
+  // 아니다 — 경고 줄(미설정 ≥ 1 일 때만 뜬다)로는 설명되지 않으므로 따로 말한다.
+  const noTargets = liveResources.length === 0;
+  const allCredsSet = !noTargets && missingCount === 0;
   // 마지막 하나를 지정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 비고, 그것을 되돌릴
   // 컨트롤도 같이 사라진 뒤다.
   if (credFilterOn && missingCount === 0) setCredFilterOn(false);
@@ -379,6 +382,11 @@ export const IdcStep5ConnectionTest = ({
           )}
           {/* 미설정 0 이 정상 상태다 — 그때는 아무것도 그리지 않는다. 조치가 필요할 때만 한 줄이
               생기고, 그 줄의 링크가 곧 필터라 요약과 도달 수단이 한 물건이다. */}
+          {ready && noTargets && (
+            <p className={cn('text-[14px]', textColors.tertiary)}>
+              연동 대상이 없어 연결 테스트를 실행할 수 없어요. 2단계에서 대상을 확정해 주세요.
+            </p>
+          )}
           {ready && missingCount > 0 && (
             <div
               className={cn(
@@ -396,6 +404,7 @@ export const IdcStep5ConnectionTest = ({
               <button
                 type="button"
                 onClick={() => setCredFilterOn((on) => !on)}
+              aria-pressed={credFilterOn}
                 className={cn(
                   'ml-auto shrink-0 whitespace-nowrap font-semibold underline underline-offset-2',
                   primaryColors.focusRing,

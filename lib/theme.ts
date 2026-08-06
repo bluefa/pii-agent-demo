@@ -871,10 +871,7 @@ export const idcStyles = {
   },
   /** Toss form input — `.field input/select` (52px / borderless #F7F8FA fill / radius 12 / 15px). */
   input: 'w-full h-[52px] rounded-xl border-0 bg-[#F7F8FA] px-3.5 text-[15px] font-medium text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
-  /** In-cell DB Credential select — v16 `.idc-cred-select` (h32 / #E5E7EB / mono 12 / chevron via style prop). */
-  credSelect: 'h-8 max-w-[150px] cursor-pointer appearance-none rounded-lg border border-[#E5E7EB] bg-white pl-[11px] pr-7 font-mono text-[12px] font-semibold text-[#111827] transition-colors hover:border-[#0064FF] focus:border-[#0064FF] focus:outline-none',
   /** `.idc-cred-select` unselected/placeholder state — non-mono, muted. */
-  credSelectEmpty: 'font-sans font-medium text-[#6B7280]',
   /** Completion-approval modal (`.req-modal`) header + warn — v16 2647–2698 / 8202. */
   reqModal: {
     eyebrow: 'inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.09em] text-[#0064FF]',

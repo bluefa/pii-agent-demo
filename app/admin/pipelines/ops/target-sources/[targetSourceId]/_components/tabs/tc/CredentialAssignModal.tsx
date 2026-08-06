@@ -164,7 +164,7 @@ export function CredentialAssignModal({
           개(누구의 것인지, 무엇인지, 언제 만들었는지, 어디에 이미 쓰이는지)고, 비슷한 이름을
           가르는 것은 그 넷의 비교다. 열이 있으니 정렬도 열이 한다. */}
       <div className={cn(opsStyles.credModal.list, 'mt-3')}>
-        <table className="w-full table-fixed border-collapse">
+        <table className="w-full table-fixed border-separate border-spacing-0" role="radiogroup" aria-label="Credential">
           <thead>
             <tr>
               <th className={cn(opsStyles.credModal.headCell, 'w-[36px]')}>

@@ -1,14 +1,5 @@
-import type { ReactNode } from 'react';
 import type { ApprovalFilter } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
-import {
-  borderColors,
-  cn,
-  numericFeatures,
-  primaryColors,
-  statusColors,
-  textColors,
-  tossShadow,
-} from '@/lib/theme';
+import { borderColors, cn, numericFeatures, primaryColors, textColors, tossShadow } from '@/lib/theme';
 
 interface WaitingApprovalStatsProps {
   totalCount: number;
@@ -61,13 +52,6 @@ export interface StatTileProps {
   /** Set on the filter tiles only — renders a button with a selected state. */
   onClick?: () => void;
   active?: boolean;
-  /** 값 아래 한 줄 보조 텍스트. 색은 호출자가 소유한다(경고 / 중립). */
-  note?: ReactNode;
-  /**
-   * 타일 자신이 경고를 지는 상태 — 선택되지 않았을 때 테두리가 경고색이 된다. 선택 시에는
-   * 브랜드 경계가 이깁니다: 선택은 오직 경계로만 말하기 때문에(위 주석), 경고는 note 가 잇는다.
-   */
-  tone?: 'warning';
 }
 
 /** Single approval-stat tile — v16 `.approval-stat` (reused by the completion-approval modals). */
@@ -79,8 +63,6 @@ export const StatTile = ({
   variant = 'card',
   onClick,
   active,
-  note,
-  tone,
 }: StatTileProps) => {
   const Tag = onClick ? 'button' : 'div';
   return (
@@ -104,11 +86,7 @@ export const StatTile = ({
             tossShadow.lg,
             active
               ? 'border-[#0064FF] ring-1 ring-inset ring-[#0064FF]'
-              // 경고 테두리는 흰 면 위에서 그 자체가 신호이므로 orange-600 (3.56:1,
-              // WCAG 1.4.11 비텍스트 3:1) — statusColors.warning.borderStrong 과 같은 근거.
-              : tone === 'warning'
-                ? statusColors.warning.borderStrong
-                : cn(borderColors.default, primaryColors.borderHoverBase),
+              : cn(borderColors.default, primaryColors.borderHoverBase),
           )
         : active
           ? 'bg-white ring-2 ring-inset ring-[#191F28]'
@@ -155,8 +133,6 @@ export const StatTile = ({
         {unit}
       </span>
     </div>
-    {/* 라벨과 같은 12.5/500 한 줄. 색은 호출자가 정한다 — 경고인지 중립인지는 타일이 모른다. */}
-    {note && <div className="text-[12.5px] font-medium leading-[1.4]">{note}</div>}
   </Tag>
   );
 };
