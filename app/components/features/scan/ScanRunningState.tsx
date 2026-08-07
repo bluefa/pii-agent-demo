@@ -57,9 +57,12 @@ export const ScanRunningState = ({ progress, stage }: ScanRunningStateProps) => 
       <div
         className={cn(
           'w-16 h-16 mx-auto mb-5 rounded-2xl grid place-items-center',
+          // 세 프레임이 색으로 이어진다: 진행·마무리는 브랜드 파랑, 완료는 초록.
+          // 회색 타일은 이 순간 화면에서 유일하게 움직이는 요소를 가장 무채색으로
+          // 만들었다 — 아래 진행바가 이미 브랜드 그라디언트로 같은 일을 말하고 있다.
           done
             ? cn(statusColors.success.bg, statusColors.success.text)
-            : cn(bgColors.muted, textColors.tertiary),
+            : cn(primaryColors.bgLight, primaryColors.textOnLight),
         )}
       >
         {done ? (
@@ -78,18 +81,21 @@ export const ScanRunningState = ({ progress, stage }: ScanRunningStateProps) => 
             <path d="M4.5 12.5l5 5 10-11" strokeDasharray={30} className={scanTransition.checkDraw} />
           </svg>
         ) : (
-          <div className="animate-spin">
+          <div className="animate-spin motion-reduce:animate-none">
             <svg
               className="w-8 h-8"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth={1.6}
+              strokeWidth={2.2}
               strokeLinecap="round"
-              strokeLinejoin="round"
               aria-hidden="true"
             >
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              {/* 트랙 + 아크 — 아래 진행바와 같은 문법이다. 거의 한 바퀴짜리
+                  아크는 제 꼬리와 구분되지 않아 도는 게 잘 안 읽혔다. 트랙은
+                  같은 색의 투명도라 토큰을 하나 더 만들지 않는다. */}
+              <circle cx="12" cy="12" r="9" className="opacity-20" />
+              <path d="M12 3a9 9 0 0 1 9 9" />
             </svg>
           </div>
         )}
