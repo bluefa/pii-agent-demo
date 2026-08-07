@@ -128,6 +128,12 @@ export interface OpsServiceTargetRow {
 export interface OpsServiceDetail {
   service_code: string;
   service_name: string;
+  /**
+   * 업스트림이 보고한 총 대상 수. `target_sources.length` 와 다를 수 있다 — 라우트가
+   * 페이지 집계 상한에 걸리면 목록만 잘리고 이 값은 진짜 총계를 유지한다. 건수 표기는
+   * 목록 길이가 아니라 이 값을 쓴다.
+   */
+  total_count: number;
   target_sources: OpsServiceTargetRow[];
 }
 

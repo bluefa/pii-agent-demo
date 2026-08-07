@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import { holdFor, SKELETON_MIN_MS } from '@/lib/min-duration';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -151,7 +152,7 @@ function DetailSkeleton(): ReactElement {
       <div className="flex min-w-0 flex-col gap-2">
         {bar('h-[22px] w-[68px] rounded-[6px]')}
         <div className="flex items-center gap-2">
-          {bar(cn(text.pageTitle, 'h-7 w-[220px]'))}
+          {bar(cn(text.pageTitle, 'h-7 w-[220px] rounded'))}
           {bar('h-[26px] w-[112px] rounded')}
         </div>
       </div>
@@ -162,10 +163,10 @@ function DetailSkeleton(): ReactElement {
       <section aria-label="Target Source 목록 불러오는 중">
         <div className={cn(sectionHead, 'items-center')}>
           {bar('h-[18px] w-[18px] rounded')}
-          {bar('h-5 w-[150px]')}
+          {bar('h-5 w-[150px] rounded')}
           {bar('h-[22px] w-11 rounded-full')}
         </div>
-        {bar('mb-3 h-4 w-[420px] max-w-full')}
+        {bar('mb-3 h-4 w-[420px] max-w-full rounded')}
         <div className={tsTable.block}>
           {/* 툴바 자리 — 검색창과 필터 버튼이 실제로 앉는 높이 */}
           <div className="flex items-center justify-between gap-3 px-3 py-2.5">
@@ -179,13 +180,13 @@ function DetailSkeleton(): ReactElement {
                 {bar('h-8 w-8 shrink-0 rounded')}
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
                   <div className="flex items-center gap-2">
-                    {bar('h-5 w-16')}
-                    {bar('h-4 w-12')}
+                    {bar('h-5 w-16 rounded')}
+                    {bar('h-4 w-12 rounded')}
                   </div>
-                  {bar('h-4 w-[240px] max-w-full')}
-                  {bar('h-4 w-[320px] max-w-full')}
+                  {bar('h-4 w-[240px] max-w-full rounded')}
+                  {bar('h-4 w-[320px] max-w-full rounded')}
                 </div>
-                {bar('h-4 w-20 shrink-0')}
+                {bar('h-4 w-20 shrink-0 rounded')}
               </div>
             ))}
           </div>
@@ -198,15 +199,15 @@ function DetailSkeleton(): ReactElement {
       <section aria-label="Jira Ticket 연결 불러오는 중">
         <div className={cn(sectionHead, 'items-center')}>
           {bar('h-[18px] w-[18px] rounded')}
-          {bar('h-5 w-[130px]')}
+          {bar('h-5 w-[130px] rounded')}
         </div>
-        {bar('mb-3 h-4 w-[520px] max-w-full')}
+        {bar('mb-3 h-4 w-[520px] max-w-full rounded')}
         <div className={tileStyles.grid}>
           {JIRA_CLOUD_PROVIDERS.map((provider) => (
             <div key={provider} className={tileStyles.base} aria-hidden="true">
               <div className="min-w-0 flex-1">
-                {bar('h-5 w-20')}
-                {bar('mt-1 h-4 w-24')}
+                {bar('h-5 w-20 rounded')}
+                {bar('mt-1 h-4 w-24 rounded')}
               </div>
               {bar('h-7 w-7 shrink-0 rounded-md')}
             </div>
@@ -245,6 +246,9 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
 
   useEffect(() => {
     let cancelled = false;
+    // 레일과 같은 최소 노출 — 서비스를 옮겨 다닐 때 우측 시트가 매번 번쩍이지 않게,
+    // 로딩 상태를 붙잡는 대신 데이터 반영을 최소 시간까지 미룬다.
+    const startedAt = Date.now();
     (async () => {
       try {
         // 티켓은 별도 계약 — 티켓 조회가 실패해도 서비스 화면은 서야 한다.
@@ -252,11 +256,13 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
           getOpsService(serviceCode),
           getServiceJiraTickets(serviceCode).catch(() => [] as JiraTicket[]),
         ]);
+        await holdFor(startedAt, SKELETON_MIN_MS);
         if (cancelled) return;
         setFailed(false);
         setDetail(loaded);
         setTickets(jira);
       } catch {
+        await holdFor(startedAt, SKELETON_MIN_MS);
         if (cancelled) return;
         setDetail(null);
         setFailed(true);
@@ -285,7 +291,10 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
   if (!detail) return <DetailSkeleton />;
 
   const { section, text } = pipelineStyles;
-  const targetCount = detail.target_sources.length;
+  // 건수는 업스트림 총계로 적는다 — 라우트가 집계 상한에 걸려 목록이 잘려도, 잘린 길이를
+  // 총계로 그리면 화면이 "이게 전부"라고 사실처럼 말하게 된다.
+  const targetCount = detail.total_count;
+  const loadedCount = detail.target_sources.length;
 
   // 라우트가 이 서비스의 대상을 한 번에 다 주므로(계약에 대상 검색어 파라미터가 없다)
   // 검색·필터 자르기는 화면 몫이다. 검색은 사람이 목록에서 눈으로 찾는 값
@@ -350,6 +359,15 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
         <p className={section.descFirst}>
           이 서비스가 보유한 인프라입니다. 행을 누르면 해당 Target Source 운영 화면으로
           이동합니다.
+          {loadedCount < targetCount && (
+            // 조용히 자르지 않는다 — 목록이 총계보다 짧으면 그 사실을 문장으로 말한다.
+            <>
+              {' '}
+              <b className="font-semibold text-[var(--pl-warn-text)]">
+                대상이 많아 {loadedCount}건까지만 표시합니다.
+              </b>
+            </>
+          )}
         </p>
 
         {/* Step 1 리소스 표와 같은 실루엣: 툴바(검색·필터) → 헤더 밴드 표 → Pagination 마감 바. */}

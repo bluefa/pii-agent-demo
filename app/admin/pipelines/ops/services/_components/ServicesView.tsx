@@ -18,6 +18,7 @@ import { useCallback, useState, type ReactElement } from 'react';
 import { cn, serviceSidebarStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { useDebounce } from '@/app/hooks/useDebounce';
+import { holdFor, SKELETON_MIN_MS } from '@/lib/min-duration';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { SERVICE_RAIL_PAGE_SIZE } from '@/app/components/features/admin/ServiceSidebar';
 import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
@@ -96,28 +97,40 @@ export function ServicesView(): ReactElement {
   // 콜백은 동기로 두고 promise 를 돌려준다 — 서비스·대상 검색 레일과 같은 형태
   // (async 콜백은 useAbortableEffect 의 레이스 가드를 우회할 수 있어 lint 가 막는다).
   useAbortableEffect(
-    (signal) =>
-      getServicesPage(page, RAIL_PAGE_SIZE, debouncedQuery || undefined, { signal })
-        .then((loaded) => {
+    (signal) => {
+      // 스켈레톤이 한 번 떴으면 최소 시간을 채운 뒤에 데이터를 반영한다 — 목이 20ms 만에
+      // 답하는 화면에서 한 프레임 번쩍이고 사라지면 읽히지도 않고 화면만 불안해 보인다.
+      const startedAt = Date.now();
+      return getServicesPage(page, RAIL_PAGE_SIZE, debouncedQuery || undefined, { signal })
+        .then(async (loaded) => {
+          await holdFor(startedAt, SKELETON_MIN_MS, signal);
           if (signal.aborted) return;
+          const nextPages = Math.max(1, loaded.totalPages ?? 1);
+          // 목록이 줄어 요청한 페이지가 범위를 벗어났으면 상태를 되감아 다시 부른다.
+          // 라벨만 클램프하면 요청은 계속 빈 페이지를 향하고, 화면은 "3 / 3 페이지"에
+          // 빈 목록을 띄운 채 굳는다 — 페이지 버튼도 이미 그 값이라 눌러도 안 움직인다.
+          if (page > nextPages - 1) {
+            setPage(nextPages - 1);
+            return;
+          }
           setFailed(false);
           setServices(serviceItemsFrom(loaded));
-          setPages(Math.max(1, loaded.totalPages ?? 1));
+          setPages(nextPages);
           setTotal(loaded.totalElements ?? 0);
         })
-        .catch(() => {
+        .catch(async () => {
+          await holdFor(startedAt, SKELETON_MIN_MS, signal);
           if (signal.aborted) return;
           setServices(null);
           setFailed(true);
           // 앞선 질의의 총계·장수가 "불러오지 못했습니다" 옆에 남지 않게 같이 비운다.
           setTotal(0);
           setPages(1);
-        }),
+        });
+    },
     [reloadKey, page, debouncedQuery],
   );
 
-  // 검색어가 바뀌면 onChange 에서 첫 장으로 되감지만, 재조회로 목록이 줄면 마지막
-  // 페이지 밖에 남을 수 있다 — 빈 레일 대신 마지막 장으로.
   const safePage = Math.min(page, pages - 1);
   const pageRows = services ?? [];
 
@@ -160,7 +173,16 @@ export function ServicesView(): ReactElement {
                 icon="search"
                 message="서비스 목록을 불러오지 못했습니다."
                 meta={
-                  <PlButton variant="secondary" size="sm" onClick={reload}>
+                  <PlButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      // 첫 장으로 되감고 다시 부른다. 범위를 벗어난 페이지가 실패의
+                      // 원인이었다면, 같은 페이지로 재시도해봐야 같은 실패만 반복된다.
+                      setPage(0);
+                      reload();
+                    }}
+                  >
                     다시 시도
                   </PlButton>
                 }

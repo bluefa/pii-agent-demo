@@ -684,15 +684,25 @@ const TS_DESCRIPTION: Record<number, string> = {
  * 차고, IDC·SDU 는 전부 빈다. 서비스 운영 카드가 계정 줄을 이 값으로 그린다. 값은 ts 에서
  * 결정적으로 만들어 새로고침해도 같은 계정이 나온다.
  */
+/**
+ * 소유하지 않은 provider 필드는 `undefined` 가 아니라 **명시적 null** 이다.
+ * `NextResponse.json()` 이 undefined 키를 통째로 지워버리므로, undefined 로 두면 실 BFF 가
+ * 보내는 `{"aws_account_id": null}` 모양을 목이 한 번도 재현하지 못한다 — 소비자가 언젠가
+ * `!== undefined` 로 재는 순간 목은 그 회귀를 못 잡는다.
+ *
+ * 중국 리전은 마지막 한 자리로 가른다. 전부 false 로 두면 화면의 `중국` 태그와 라우트의
+ * `aws_region_type: 'china'` 분기가 목에서 한 번도 안 돈다.
+ */
 function toMetadataWire(r: RequestRow) {
   const digits = String(r.ts).padStart(4, '0');
+  const isAws = r.pv === 'AWS';
   return {
-    tenant_id: r.pv === 'AZURE' ? `t-${digits}-0000-0000-0000-000000000000` : undefined,
-    subscription_id: r.pv === 'AZURE' ? `s-${digits}-1111-2222-3333-444444444444` : undefined,
-    gcp_project_id: r.pv === 'GCP' ? `gcp-demo-${digits}` : undefined,
-    aws_account_id: r.pv === 'AWS' ? `9${digits}`.padEnd(12, '0') : undefined,
+    tenant_id: r.pv === 'AZURE' ? `t-${digits}-0000-0000-0000-000000000000` : null,
+    subscription_id: r.pv === 'AZURE' ? `s-${digits}-1111-2222-3333-444444444444` : null,
+    gcp_project_id: r.pv === 'GCP' ? `gcp-demo-${digits}` : null,
+    aws_account_id: isAws ? `9${digits}`.padEnd(12, '0') : null,
     is_sdu_type: r.pv === 'SDU',
-    is_china_region: false,
+    is_china_region: isAws && r.ts % 2 === 1,
   };
 }
 

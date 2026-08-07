@@ -34,9 +34,15 @@ import type {
  *   - `owner`. No field anywhere in install-v1.yaml.
  */
 
-// Contract max page size is 100. A service's targets are bounded in practice; the
-// page cap only guards a pathological account, and it logs rather than silently
-// truncating — a cut list would read as "이 서비스엔 대상이 없다", a different claim.
+/**
+ * `size` 에 계약 상한은 없다 — `/target-sources/page` 의 size 는 int32, default 10,
+ * `maximum` 선언 없음. 100 은 우리가 고른 값이지 계약 한계가 아니다. 업스트림이 이보다
+ * 작게 클램프하면 실질 상한은 MAX_PAGES × 클램프값이 된다.
+ *
+ * 페이지 상한은 비정상적으로 큰 계정만 막는 안전장치다. 걸리면 로그를 남기고, 진짜 총계는
+ * `total_count` 로 따로 실어 보낸다 — 잘린 목록의 길이를 총계로 그리면 화면이
+ * "이 서비스는 1000건이 전부"라고 사실처럼 말하게 된다.
+ */
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 
@@ -64,12 +70,14 @@ export const GET = withV1(async (_request, { params }) => {
   const targets: TargetSourceInfoWire[] = [];
   let page = 0;
   let totalPages = 1;
+  let totalElements: number | null = null;
   do {
     const wire = schemas.PageTargetSourceInfo.parse(
       await bff.taskQueue.getTargetSourcesPage({ serviceCode, page, size: PAGE_SIZE }),
     );
     targets.push(...(wire.content ?? []).filter((row): row is TargetSourceInfoWire => row != null));
     totalPages = wire.totalPages ?? 1;
+    if (totalElements === null) totalElements = wire.totalElements ?? null;
     page += 1;
   } while (page < totalPages && page < MAX_PAGES);
 
@@ -95,6 +103,8 @@ export const GET = withV1(async (_request, { params }) => {
     service_code: serviceCode,
     // 서비스 이름은 대상 행에만 실린다 (ServiceItem 은 레일이 따로 받는다).
     service_name: targets.find((row) => row.serviceName)?.serviceName ?? serviceCode,
+    // 업스트림이 말하는 총계. 상한에 걸려 목록이 잘려도 이 값은 줄지 않는다.
+    total_count: totalElements ?? targetSources.length,
     target_sources: targetSources,
   };
   return NextResponse.json(detail);
