@@ -12,11 +12,11 @@
  *
  * Layout: Figma ZL0Y0okL8lReCrbf7JaVAp 1:123 — summary counts on top, then all
  * four buckets side by side (2×2), each with its own page of rows. The summary
- * tiles are read-only counts: every bucket is already on screen, so selecting
- * one had nothing to reveal.
+ * tiles are selectable one at a time — 강조 표시일 뿐, 카드 목록은 걸러내지
+ * 않는다(네 버킷이 이미 모두 화면에 있다).
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import { pipelineStyles } from '@/lib/theme';
+import { cn, pipelineStyles } from '@/lib/theme';
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
 import type { AlertTargetKind, DashboardSummary } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -85,8 +85,10 @@ const alertsView = {
   context: 'mt-1 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
   contextTotal: 'mx-0.5 align-baseline text-[32px] font-bold leading-none text-[var(--pl-primary)]',
   summaryRow: 'mt-6 grid grid-cols-4 gap-4',
+  /** border 는 비활성일 때도 자리를 차지해야 선택 시 타일 크기가 흔들리지 않는다. */
   summary:
-    'flex h-[120px] flex-col items-center justify-center gap-1.5 rounded-[8px] bg-[var(--pl-gray-100)]',
+    'flex h-[120px] flex-col items-center justify-center gap-1.5 rounded-[8px] border border-transparent bg-[var(--pl-gray-100)] transition-colors',
+  summaryActive: 'border-[var(--pl-primary)]',
   summaryLabel: 'text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
   summaryValue: 'text-[40px] font-bold leading-[1.2] tracking-[-0.02em] tabular-nums text-[var(--pl-text-strong)]',
   summaryNeed: 'text-[12px] leading-[1.4] text-[var(--pl-text-faint)]',
@@ -102,6 +104,7 @@ const EMPTY_SUMMARY_COUNTS: AlertCounts = {
 
 export function AlertsView(): ReactElement {
   const [counts, setCounts] = useState(EMPTY_SUMMARY_COUNTS);
+  const [selected, setSelected] = useState<AlertTargetKind | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
@@ -139,11 +142,17 @@ export function AlertsView(): ReactElement {
 
       <div className={alertsView.summaryRow}>
         {ALERT_CARDS.map((card) => (
-          <div key={card.kind} className={alertsView.summary}>
+          <button
+            key={card.kind}
+            type="button"
+            aria-pressed={selected === card.kind}
+            onClick={() => setSelected((prev) => (prev === card.kind ? null : card.kind))}
+            className={cn(alertsView.summary, selected === card.kind && alertsView.summaryActive)}
+          >
             <span className={alertsView.summaryLabel}>{card.label}</span>
             <span className={alertsView.summaryValue}>{card.count(counts) ?? 0}</span>
             <span className={alertsView.summaryNeed}>{card.need}</span>
-          </div>
+          </button>
         ))}
       </div>
 
