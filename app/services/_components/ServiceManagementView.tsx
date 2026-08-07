@@ -48,8 +48,17 @@ export const ServiceManagementView = () => {
   );
   const { services, query: serviceQuery, pageInfo: servicePageInfo } = serviceList;
 
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  // `null` is "not resolved yet", distinct from `[]` = "resolved, and there are none".
+  // A `[]` start made the first paint of every service claim 등록된 계정이 없어요 before
+  // the request had even been made — the gate cannot be the `loading` flag, because that
+  // flag is false on the frame that matters (see the effect below: it is set from an
+  // effect, which runs after the paint).
+  const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [loading, setLoading] = useState(false);
+  // Same idea for the rail, which owns a skeleton it was never being handed the cue for.
+  // Only the first page counts: later searches keep the rows on screen rather than
+  // blinking the whole rail to skeleton on every keystroke.
+  const [servicesLoaded, setServicesLoaded] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   // Keyed to the code it belongs to. Clearing it in an effect instead would still let
   // one render pair the new code with the previous service's name — the effect runs
@@ -85,6 +94,10 @@ export const ServiceManagementView = () => {
       if (controller.signal.aborted) return;
       if (err instanceof AppError && err.code === 'ABORTED') return;
       toast.error(err instanceof Error ? err.message : '서비스 목록 조회 실패');
+    } finally {
+      // Also on failure: a rail stuck in skeleton forever tells the user less than
+      // the empty state does, and the toast already carried the error.
+      if (!controller.signal.aborted) setServicesLoaded(true);
     }
   }, [toast]);
 
@@ -129,18 +142,23 @@ export const ServiceManagementView = () => {
   // response for a previously-selected service must not overwrite the panel.
   useEffect(() => {
     if (!selectedService) {
-      setProjects([]);
+      setProjects(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
-    setProjects([]);
+    setProjects(null);
     getProjects(selectedService)
       .then((data) => {
         if (!cancelled) setProjects(data);
       })
       .catch((err) => {
-        if (!cancelled) toast.error(err instanceof Error ? err.message : '타겟소스 목록 조회 실패');
+        // Land on the empty state rather than an endless skeleton — the toast is what
+        // says this failed; the list only has to stop pretending it is still working.
+        if (!cancelled) {
+          setProjects([]);
+          toast.error(err instanceof Error ? err.message : '타겟소스 목록 조회 실패');
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -244,6 +262,7 @@ export const ServiceManagementView = () => {
       <div className="flex h-full">
         <ServiceSidebar
           services={services}
+          loading={!servicesLoaded}
           currentService={selectedService ? { code: selectedService, name: selectedName } : null}
           onSelectService={handleSelectService}
           searchQuery={serviceQuery}

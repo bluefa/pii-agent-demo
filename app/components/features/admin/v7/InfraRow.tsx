@@ -193,27 +193,17 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         )}
       </div>
 
+      {/* One control, not two. "상세 보기 ↗" was the fourth way to reach the same screen —
+          the card's own onClick, the title going blue under the cursor, and the ⋮ menu's
+          first item all already go there — so it spent 66px and a second mark per row
+          saying what the row was saying anyway. Keyboard access does not depend on it:
+          the ⋮ opens a real button list whose first entry is 상세 보기.
+          `self-center` because the card is `items-start` — the ⋮ used to hang 21px above
+          the card's middle, tied to the title's line rather than to the card. */}
       <div
-        className="flex-none flex items-center gap-3.5 pt-0.5"
+        className="flex-none self-center flex items-center"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Words at rest, blue on hover. A bare ↗ did not read as "go somewhere", but a
-            permanently blue link repeated once per row is what this redesign spent its
-            effort removing — so the words stay in meta-grey until the cursor is on the
-            card, and only then do they take the primary colour and an underline. */}
-        <button
-          type="button"
-          onClick={() => onOpenDetail(project.targetSourceId)}
-          aria-label={`${rowName} 상세 정보 확인`}
-          className={cn(
-            'whitespace-nowrap text-[14px] font-semibold transition-colors',
-            'underline-offset-[3px] group-hover:underline',
-            textColors.tertiary,
-            primaryColors.textGroupHover,
-          )}
-        >
-          상세 보기 ↗
-        </button>
         <RowMenu
           rowName={rowName}
           onViewDetail={() => onManageAction('view', project.targetSourceId)}
