@@ -3,7 +3,6 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
-import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
 import { ProjectCreateModal } from '@/app/components/features/ProjectCreateModal';
 import { useToast } from '@/app/components/ui/toast';
 import {
@@ -286,12 +285,11 @@ export const ServiceManagementView = () => {
             // 1440 cap left 520px of dead canvas and froze the layout against every
             // resize. `main` already holds the column off the edges with its own p-6.
             <div className="w-full">
-              <Breadcrumb
-                crumbs={[
-                  { label: 'SIT Home', href: '/' },
-                  { label: '서비스 목록' },
-                ]}
-              />
+              {/* No breadcrumb. It read "SIT Home › 서비스 목록" directly above an h1
+                  that says the same thing, so it spent 37px of the first screen
+                  repeating the title rather than locating the page. On a 100% zoom
+                  laptop the chrome above the first account was 30% of the viewport;
+                  this is the part of it that was not earning its height. */}
               <ServiceHeaderV7
                 serviceCode={selectedService}
                 serviceName={selectedName}
