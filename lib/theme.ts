@@ -1335,7 +1335,7 @@ export const motion = {
  * pipelines/**) must carry no raw color classes (repo hard gate). Every color
  * references a `--pl-*` custom property declared in app/globals.css via Tailwind
  * v4 arbitrary-var syntax `…-[var(--pl-*)]` (the form this setup compiles — see
- * existing `mgmtGroupStyles`/`identityBarStyles`). Sizes/letter-spacing/line-
+ * existing `identityBarStyles`). Sizes/letter-spacing/line-
  * heights are copied VERBATIM from design-inventory §4/§5 (do NOT snap to the
  * spacing ladder). SSOT: design/pipeline/admin-pipeline.html.
  *

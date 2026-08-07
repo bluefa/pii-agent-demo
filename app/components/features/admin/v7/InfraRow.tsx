@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 import {
   bgColors,
@@ -77,6 +77,9 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
   const showChinaRegion = project.isChinaRegion && !project.isSduType;
   const hasSecondLayer =
     showTenant || showInstallMode || Boolean(identity.gloss) || Boolean(identity.secondValue);
+  // Both controls repeat once per card, so their labels have to carry which card they
+  // belong to — otherwise a screen reader's button list is five identical entries.
+  const rowName = [identity.name, identity.value ?? identity.secondValue].filter(Boolean).join(' ');
 
   // The card is a click target but not a focusable button — WAI-ARIA forbids
   // interactive descendants (the ↗ link, the ⋮ menu) inside a role="button"
@@ -200,7 +203,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         <button
           type="button"
           onClick={() => onOpenDetail(project.targetSourceId)}
-          aria-label={`${identity.name} 상세 정보 확인`}
+          aria-label={`${rowName} 상세 정보 확인`}
           className={cn(
             'whitespace-nowrap text-[14px] font-semibold transition-colors',
             'underline-offset-[3px] group-hover:underline',
@@ -211,6 +214,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
           상세 보기 ↗
         </button>
         <RowMenu
+          rowName={rowName}
           onViewDetail={() => onManageAction('view', project.targetSourceId)}
           onCopyId={() => onManageAction('copyId', project.targetSourceId)}
           onDelete={() => onManageAction('delete', project.targetSourceId)}
@@ -255,6 +259,8 @@ const KEBAB_ICON = (
 );
 
 interface RowMenuProps {
+  /** Distinguishes this row's controls in a screen reader's button list. */
+  rowName: string;
   onViewDetail: () => void;
   onCopyId: () => void;
   onDelete: () => void;
@@ -265,19 +271,14 @@ interface RowMenuProps {
  * put five identical frames down the list and outrank the one CTA on the page.
  * Target Source ID lives in here rather than on the row: a service owner never needs
  * it, but support asks for it, so it is one click away instead of on screen.
+ *
+ * Deliberately NOT `role="menu"`. That role puts screen readers into application mode
+ * and promises arrow-key navigation and Escape; implementing the full APG pattern buys
+ * nothing here, because the three items are already tab stops as plain buttons. The
+ * roles are dropped rather than half-kept, so what AT is told matches what works.
  */
-const RowMenu = ({ onViewDetail, onCopyId, onDelete }: RowMenuProps) => {
+const RowMenu = ({ rowName, onViewDetail, onCopyId, onDelete }: RowMenuProps) => {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleOutside = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [open]);
 
   const run = (action: () => void) => () => {
     setOpen(false);
@@ -285,12 +286,20 @@ const RowMenu = ({ onViewDetail, onCopyId, onDelete }: RowMenuProps) => {
   };
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div
+      className="relative"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) {
+          e.stopPropagation();
+          setOpen(false);
+        }
+      }}
+    >
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        aria-label="추가 작업"
-        aria-haspopup="menu"
+        aria-label={`${rowName} 추가 작업`}
+        aria-haspopup="true"
         aria-expanded={open}
         className={cn(
           'inline-grid place-items-center p-1 transition-colors',
@@ -301,33 +310,38 @@ const RowMenu = ({ onViewDetail, onCopyId, onDelete }: RowMenuProps) => {
         {KEBAB_ICON}
       </button>
       {open && (
-        <div role="menu" className={rowMenuStyles.panel}>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={run(onViewDetail)}
-            className={cn(rowMenuStyles.item, textColors.secondary, bgColors.mutedHover)}
-          >
-            상세 보기
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={run(onCopyId)}
-            className={cn(rowMenuStyles.item, textColors.secondary, bgColors.mutedHover)}
-          >
-            Target Source ID 복사
-          </button>
-          <div className={cn('h-px my-1', bgColors.divider)} />
-          <button
-            type="button"
-            role="menuitem"
-            onClick={run(onDelete)}
-            className={cn(rowMenuStyles.item, statusColors.error.textDark, bgColors.mutedHover)}
-          >
-            계정 삭제
-          </button>
-        </div>
+        <>
+          {/* A backdrop, not a document mousedown listener. The listener only closed
+              the panel; the click that followed still reached the card underneath and
+              navigated away, so dismissing the menu lost you the screen. This swallows
+              that click — and it sits inside the card's stopPropagation wrapper, so
+              the card never sees it either. */}
+          <div className="fixed inset-0" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div className={rowMenuStyles.panel}>
+            <button
+              type="button"
+              onClick={run(onViewDetail)}
+              className={cn(rowMenuStyles.item, textColors.secondary, bgColors.mutedHover)}
+            >
+              상세 보기
+            </button>
+            <button
+              type="button"
+              onClick={run(onCopyId)}
+              className={cn(rowMenuStyles.item, textColors.secondary, bgColors.mutedHover)}
+            >
+              Target Source ID 복사
+            </button>
+            <div className={cn('h-px my-1', bgColors.divider)} />
+            <button
+              type="button"
+              onClick={run(onDelete)}
+              className={cn(rowMenuStyles.item, statusColors.error.textDark, bgColors.mutedHover)}
+            >
+              계정 삭제
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

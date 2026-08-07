@@ -351,11 +351,6 @@ export function ServiceDetailView({
                       router.push(passRoutes.pipelines.ops.targetSource(target.target_source_id));
                     }}
                   >
-                    <Link
-                      href={passRoutes.pipelines.ops.targetSource(target.target_source_id)}
-                      aria-label={`Target Source #${target.target_source_id} 운영 화면으로 이동`}
-                      className="absolute inset-0"
-                    />
                     <ProviderLogo
                       provider={target.cloud_provider as CloudProvider}
                       isSdu={target.is_sdu_type}
@@ -395,7 +390,18 @@ export function ServiceDetailView({
                       )}
                     </div>
 
-                    <span className={cn(tsTable.go, 'flex-none pt-0.5')}>운영 화면 ↗</span>
+                    {/* The link is this element, not a stretched overlay over the whole
+                        card. An overlay is the only positioned child, so it paints above
+                        everything: it swallowed the 설명 tooltip and made the account id
+                        unselectable — a value that exists to be compared and copied. The
+                        card keeps its own onClick for the mouse shortcut. */}
+                    <Link
+                      href={passRoutes.pipelines.ops.targetSource(target.target_source_id)}
+                      aria-label={`Target Source #${target.target_source_id} 운영 화면으로 이동`}
+                      className={cn(tsTable.go, 'flex-none pt-0.5')}
+                    >
+                      운영 화면 ↗
+                    </Link>
                   </div>
                 );
               })

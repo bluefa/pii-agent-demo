@@ -298,6 +298,10 @@ export const ServiceManagementView = () => {
               />
 
               <InfraRowList
+                // Remount per service: the list owns its page number, and without a key
+                // that number survives the switch — pick service A, page to 3, click
+                // service B, and B opens on its third page having never been paged.
+                key={selectedService}
                 projects={projects}
                 loading={loading}
                 onAddInfra={openCreateModal}

@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { getOpsTargetSources, type OpsTargetSourceListItem } from '@/app/lib/api/ops';
@@ -19,7 +20,6 @@ import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import { ProviderLogo } from '@/app/components/features/admin/v7';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
-import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { CloudProvider } from '@/lib/types';
 
 // A card is roughly three table rows tall, so the page holds fewer of them —
@@ -62,6 +62,7 @@ function MetaPair({ label, children }: { label: string; children: ReactNode }): 
 }
 
 export function TargetSourceListView(): ReactElement {
+  const router = useRouter();
   const [input, setInput] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -147,14 +148,16 @@ export function TargetSourceListView(): ReactElement {
               {rows.map((row) => {
                 const account = accountOf(row);
                 return (
-                  <div key={row.target_source_id} className={card}>
-                    {/* The stretched link makes the whole card the click target while
-                        keeping a real anchor for keyboard and middle-click. */}
-                    <Link
-                      href={passRoutes.pipelines.ops.targetSource(String(row.target_source_id))}
-                      aria-label={`Target Source #${row.target_source_id} 운영 화면으로 이동`}
-                      className="absolute inset-0"
-                    />
+                  <div
+                    key={row.target_source_id}
+                    className={card}
+                    // 카드 아무 데나 눌러도 이동한다(마우스 편의). 링크 위 클릭은 흘려보내
+                    // 이동이 두 번 일어나지 않게 한다.
+                    onClick={(event) => {
+                      if (event.target instanceof HTMLElement && event.target.closest('a')) return;
+                      router.push(passRoutes.pipelines.ops.targetSource(String(row.target_source_id)));
+                    }}
+                  >
                     <ProviderLogo
                       provider={row.cloud_provider as CloudProvider}
                       isSdu={row.is_sdu_type}
@@ -203,7 +206,17 @@ export function TargetSourceListView(): ReactElement {
                       )}
                     </div>
 
-                    <span className={cn(goLink, 'flex-none pt-0.5')}>운영 화면 ↗</span>
+                    {/* The link is this element, not a stretched overlay. An overlay is
+                        the only positioned child, so it paints above everything and made
+                        the account id — a value that exists to be compared and copied —
+                        unselectable. */}
+                    <Link
+                      href={passRoutes.pipelines.ops.targetSource(String(row.target_source_id))}
+                      aria-label={`Target Source #${row.target_source_id} 운영 화면으로 이동`}
+                      className={cn(goLink, 'flex-none pt-0.5')}
+                    >
+                      운영 화면 ↗
+                    </Link>
                   </div>
                 );
               })}
