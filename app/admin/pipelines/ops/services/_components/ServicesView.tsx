@@ -43,6 +43,37 @@ const SEARCH_DEBOUNCE_MS = 300;
  */
 const ROW_MAX_PX = 88;
 
+/**
+ * Skeleton frame for the rail's list — mirrors the row shape (타일 · 이름 · 코드) so
+ * the layout does not shift when the services land. Row count is the page size for
+ * the same reason: a shorter skeleton would reflow the moment a full page arrives.
+ *
+ * The section label is real text, not a bar. It is local state (검색 중인가), known
+ * before the request resolves, so blanking it would hide something we already have.
+ */
+function RailSkeleton({ section }: { section: string }): ReactElement {
+  return (
+    <>
+      <div className={serviceListStyles.railSection}>{section}</div>
+      <div
+        className={serviceListStyles.railList}
+        style={{ maxHeight: RAIL_PAGE_SIZE * ROW_MAX_PX }}
+        aria-busy="true"
+        aria-live="polite"
+      >
+        {Array.from({ length: RAIL_PAGE_SIZE }).map((_, i) => (
+          // 진짜 행과 같은 flex-1 + min-h-[48px] — 스켈레톤이 걷힐 때 목록이 튀지 않는다.
+          <div key={i} className="flex flex-1 min-h-[48px] items-center gap-2.5 px-3" aria-hidden="true">
+            <div className={cn(serviceSidebarStyles.skeletonBar, 'h-7 w-7 shrink-0 rounded-[6px]')} />
+            <div className={cn(serviceSidebarStyles.skeletonBar, 'h-3 flex-1 rounded')} />
+            <div className={cn(serviceSidebarStyles.skeletonBar, 'h-5 w-10 shrink-0 rounded-[6px]')} />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function ServicesView(): ReactElement {
   const router = useRouter();
   // Optional catch-all: `/ops/services` → 선택 없음, `/ops/services/{code}` → params[0].
@@ -62,29 +93,26 @@ export function ServicesView(): ReactElement {
   // 타이핑 한 글자마다 질의를 보내지 않는다 — 서비스·대상 검색 레일과 같은 300ms.
   const debouncedQuery = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
 
+  // 콜백은 동기로 두고 promise 를 돌려준다 — 서비스·대상 검색 레일과 같은 형태
+  // (async 콜백은 useAbortableEffect 의 레이스 가드를 우회할 수 있어 lint 가 막는다).
   useAbortableEffect(
-    async (signal) => {
-      try {
-        const loaded = await getServicesPage(
-          page,
-          RAIL_PAGE_SIZE,
-          debouncedQuery || undefined,
-          { signal },
-        );
-        if (signal.aborted) return;
-        setFailed(false);
-        setServices(serviceItemsFrom(loaded));
-        setPages(Math.max(1, loaded.totalPages ?? 1));
-        setTotal(loaded.totalElements ?? 0);
-      } catch {
-        if (signal.aborted) return;
-        setServices(null);
-        setFailed(true);
-        // 앞선 질의의 총계·장수가 "불러오지 못했습니다" 옆에 남지 않게 같이 비운다.
-        setTotal(0);
-        setPages(1);
-      }
-    },
+    (signal) =>
+      getServicesPage(page, RAIL_PAGE_SIZE, debouncedQuery || undefined, { signal })
+        .then((loaded) => {
+          if (signal.aborted) return;
+          setFailed(false);
+          setServices(serviceItemsFrom(loaded));
+          setPages(Math.max(1, loaded.totalPages ?? 1));
+          setTotal(loaded.totalElements ?? 0);
+        })
+        .catch(() => {
+          if (signal.aborted) return;
+          setServices(null);
+          setFailed(true);
+          // 앞선 질의의 총계·장수가 "불러오지 못했습니다" 옆에 남지 않게 같이 비운다.
+          setTotal(0);
+          setPages(1);
+        }),
     [reloadKey, page, debouncedQuery],
   );
 
@@ -139,7 +167,7 @@ export function ServicesView(): ReactElement {
               />
             </div>
           ) : !services ? (
-            <div className="min-h-[240px] flex-1" aria-busy="true" />
+            <RailSkeleton section={query ? '검색 결과' : '전체 서비스'} />
           ) : pageRows.length === 0 ? (
             <div className="flex-1">
               <PlEmptyState onGround icon="search" message="검색 결과가 없습니다." />
