@@ -461,23 +461,24 @@ export const WaitingApprovalTable = memo(
                   <ChevronRightIcon className="h-3.5 w-3.5" />
                 </button>
                 <span className="flex min-w-0 flex-col items-start gap-1">
-                  <RdsClusterTag />
-                  <span className="flex min-w-0 items-center gap-2">
-                    <Tooltip
-                      content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
-                      variant="value"
-                      size="md"
-                      triggerClassName="min-w-0 max-w-[200px] block"
-                      truncatedOnly
-                    >
-                      <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
-                    </Tooltip>
-                    {/* Count only — the 선택됨 chip on the instance row is the single place the
-                        choice is stated, so the parent can never contradict it. */}
+                  {/* Count only, on the tag line — same stack as the step-1 cluster row. The
+                      선택됨 chip on the instance row is the single place the choice is stated,
+                      so the parent can never contradict it. */}
+                  <span className="flex items-center gap-2">
+                    <RdsClusterTag />
                     <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
                       인스턴스 {instances.length}
                     </span>
                   </span>
+                  <Tooltip
+                    content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
+                    variant="value"
+                    size="md"
+                    triggerClassName="min-w-0 max-w-[200px] block"
+                    truncatedOnly
+                  >
+                    <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+                  </Tooltip>
                 </span>
               </span>
             ) : folded ? (

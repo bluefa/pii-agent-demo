@@ -102,8 +102,6 @@ interface RdsInstanceRowProps {
   instance: RdsInstanceCandidate;
   /** The cluster's effective selection — the checked radio / the 선택됨 chip. */
   isChosen: boolean;
-  /** Sorted-top instance. Earns the 기본 badge only while it is still the effective choice. */
-  isDefault: boolean;
   /** Radios exist only inside a checked cluster in the editable table (spec: absent, not disabled). */
   selectable: boolean;
   readonly: boolean;
@@ -129,7 +127,6 @@ const RdsInstanceRow = ({
   clusterId,
   instance,
   isChosen,
-  isDefault,
   selectable,
   readonly,
   lastInGroup,
@@ -184,10 +181,8 @@ const RdsInstanceRow = ({
             {identifier}
           </span>
           <RdsMemberChip role={instance.cluster_member_role} />
-          {/* Exactly one of these, never both. 기본 says "the table chose this for you, and
-              you can still change it" — a statement only the editable table can make, so it
-              goes quiet in read-only, where 선택됨 states the settled choice instead. */}
-          {!readonly && isDefault && isChosen && <RdsSelectionChip label="기본" />}
+          {/* Editable: the checked radio already says which member is chosen, so no chip.
+              Read-only has no radio, so 선택됨 is the only thing left to say it. */}
           {readonly && isChosen && <RdsSelectionChip label="선택됨" />}
         </span>
       </td>
@@ -352,24 +347,26 @@ export const CandidateResourceRow = ({
                 <ChevronRightIcon className="h-3.5 w-3.5" />
               </button>
               <span className="flex min-w-0 flex-col items-start gap-1">
-                <RdsClusterTag />
-                <span className="flex min-w-0 items-center gap-2">
-                  <Tooltip
-                    content={<IdentifierTip label="Resource Name" value={displayName} />}
-                    variant="value"
-                    size="md"
-                    triggerClassName="min-w-0 max-w-[200px] block"
-                    truncatedOnly
-                  >
-                    <span className="block truncate">{displayName || '—'}</span>
-                  </Tooltip>
-                  {/* Count only. Which instance is chosen is said once, by the 기본/선택됨 chip on
-                      the instance row itself — repeating it here made the parent argue with the
-                      radio whenever the two rendered from different state. */}
+                {/* Count only, and it rides the tag line rather than the name: it is the
+                    quietest thing here, so it stays out of the name's line and out of chip
+                    chrome. WHICH instance is chosen is said once, by the radio on the member
+                    row — repeating it here made the parent argue with the radio whenever the
+                    two rendered from different state. */}
+                <span className="flex items-center gap-2">
+                  <RdsClusterTag />
                   <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
                     인스턴스 {sortedInstances.length}
                   </span>
                 </span>
+                <Tooltip
+                  content={<IdentifierTip label="Resource Name" value={displayName} />}
+                  variant="value"
+                  size="md"
+                  triggerClassName="min-w-0 max-w-[200px] block"
+                  truncatedOnly
+                >
+                  <span className="block truncate">{displayName || '—'}</span>
+                </Tooltip>
               </span>
             </span>
           ) : (
@@ -494,7 +491,6 @@ export const CandidateResourceRow = ({
           clusterId={candidate.id}
           instance={instance}
           isChosen={instance.resource_id === chosenInstanceResourceId}
-          isDefault={index === 0}
           // Radios exist only inside a checked cluster: an unchecked cluster submits no
           // instance, so offering the choice would promise something the payload never sends.
           selectable={isSelected && !readonly}

@@ -239,10 +239,11 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
       .find((radio) => radio.checked)
       ?.value;
 
-  it('checks the sorted-top instance by default and marks it 기본', () => {
+  // The checked radio is the whole statement — no 기본 chip beside it (owner request).
+  it('checks the sorted-top instance by default', () => {
     renderCluster();
     expect(checkedInstanceValue()).toBe('arn:db:demo-2');
-    expect(screen.getByText('기본')).toBeTruthy();
+    expect(screen.queryByText('기본')).toBeNull();
   });
 
   it('reports the picked instance back to the caller', () => {
@@ -252,16 +253,15 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(selectRdsInstance).toHaveBeenCalledWith('cluster-1', 'arn:db:demo-1');
   });
 
-  it('honours the draft over the default, and drops 기본 once the user has moved off it', () => {
+  it('honours the draft over the default', () => {
     renderCluster({
       drafts: { endpointDrafts: {}, rdsInstanceDrafts: { 'cluster-1': 'arn:db:demo-1' } },
     });
     expect(checkedInstanceValue()).toBe('arn:db:demo-1');
-    expect(screen.queryByText('기본')).toBeNull();
   });
 
   // The parent carries the COUNT only. Naming the chosen instance here too gave the row two
-  // places to state one fact, which could disagree; the 기본/선택됨 chip owns it.
+  // places to state one fact, which could disagree; the radio (선택됨 in read-only) owns it.
   it('counts instances on the cluster row without naming the chosen one', () => {
     renderCluster();
     expect(screen.getByText('인스턴스 3')).toBeTruthy();
