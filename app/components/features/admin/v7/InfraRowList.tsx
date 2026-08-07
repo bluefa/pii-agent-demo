@@ -8,6 +8,7 @@ import {
   idcStyles,
   numericFeatures,
   primaryColors,
+  serviceSidebarStyles,
   textColors,
 } from '@/lib/theme';
 import type { ProjectSummary } from '@/lib/types';
@@ -146,10 +147,21 @@ export const InfraRowList = ({
         />
       ))}
 
+      {/* Sticky, not merely last. `mt-auto` puts the pager on the column's bottom edge,
+          which is the bottom of the CONTENT — once the cards outrun the viewport it
+          scrolled away with them, so the page you were on and the way to the next one
+          were only readable after scrolling to the end. Pinned to the scrollport
+          instead, it is on screen whether the list fits or not.
+
+          It needs the canvas under it (`-mx-*` + the page ground) because cards now
+          pass beneath it; a transparent bar would let them show through, and white
+          would read as a card of its own. */}
       <div
         className={cn(
-          'mt-auto flex shrink-0 items-center justify-center gap-5 h-[52px] border-t',
+          'sticky bottom-0 z-10 mt-auto -mx-6 -mb-6 flex shrink-0 items-center',
+          'justify-center gap-5 h-[52px] border-t px-6',
           borderColors.light,
+          serviceSidebarStyles.canvas,
         )}
       >
         <PageArrow

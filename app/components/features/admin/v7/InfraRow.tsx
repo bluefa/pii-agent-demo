@@ -93,11 +93,16 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         bgColors.mutedHover,
       )}
     >
+      {/* `self-center`, like the ⋮ opposite it. The card is `items-start` so the text
+          column can stack from the top, but the mark is one 64px block against three
+          text layers — top-aligned it sat high and left the card bottom-heavy. Both
+          ends of the row now hang off the card's middle; only the text starts at the
+          top, which is the one thing that should. */}
       <ProviderLogo
         provider={project.cloudProvider}
         isSdu={project.isSduType}
         variant="bare"
-        className="flex-none"
+        className="flex-none self-center"
       />
 
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
