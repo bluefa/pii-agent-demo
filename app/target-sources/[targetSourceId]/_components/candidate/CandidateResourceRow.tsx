@@ -355,7 +355,7 @@ export const CandidateResourceRow = ({
                 <span className="flex items-center gap-2">
                   <RdsClusterTag />
                   <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
-                    인스턴스 {sortedInstances.length}
+                    {sortedInstances.length}개 인스턴스
                   </span>
                 </span>
                 <Tooltip

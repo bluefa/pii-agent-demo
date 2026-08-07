@@ -467,7 +467,7 @@ export const WaitingApprovalTable = memo(
                   <span className="flex items-center gap-2">
                     <RdsClusterTag />
                     <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
-                      인스턴스 {instances.length}
+                      {instances.length}개 인스턴스
                     </span>
                   </span>
                   <Tooltip

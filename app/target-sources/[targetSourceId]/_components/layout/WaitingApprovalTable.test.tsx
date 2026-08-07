@@ -494,7 +494,7 @@ describe('WaitingApprovalTable', () => {
     // The parent carries the COUNT only — the 선택됨 chip is the single statement of the choice.
     it('counts instances on the cluster row without naming the chosen one', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
-      expect(screen.getByText('인스턴스 3')).toBeTruthy();
+      expect(screen.getByText('3개 인스턴스')).toBeTruthy();
       // demo-2 appears once — on its own instance row, not in a parent summary.
       expect(instanceNames().filter((text) => text.includes('demo-2'))).toHaveLength(1);
     });
@@ -516,7 +516,7 @@ describe('WaitingApprovalTable', () => {
       fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
       expect(instanceNames()).toHaveLength(0);
       // The count and the tag survive the collapse.
-      expect(screen.getByText('인스턴스 3')).toBeTruthy();
+      expect(screen.getByText('3개 인스턴스')).toBeTruthy();
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
     });
 
@@ -555,7 +555,7 @@ describe('WaitingApprovalTable', () => {
       );
       expect(instanceNames()).toHaveLength(3);
       expect(screen.queryByText('선택됨')).toBeNull();
-      expect(screen.getByText('인스턴스 3')).toBeTruthy();
+      expect(screen.getByText('3개 인스턴스')).toBeTruthy();
     });
 
     // Every other row shape, and every other variant, must be untouched by this addition.

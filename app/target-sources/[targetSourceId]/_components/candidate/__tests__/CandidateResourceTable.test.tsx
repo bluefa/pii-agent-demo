@@ -264,7 +264,7 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   // places to state one fact, which could disagree; the radio (선택됨 in read-only) owns it.
   it('counts instances on the cluster row without naming the chosen one', () => {
     renderCluster();
-    expect(screen.getByText('인스턴스 3')).toBeTruthy();
+    expect(screen.getByText('3개 인스턴스')).toBeTruthy();
     // demo-2 appears once — on its own instance row, not in a parent summary.
     expect(screen.getAllByText('demo-2')).toHaveLength(1);
   });
@@ -307,7 +307,7 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
     expect(screen.queryByText('demo-2')).toBeNull();
     // The count and the tag survive the collapse.
-    expect(screen.getByText('인스턴스 3')).toBeTruthy();
+    expect(screen.getByText('3개 인스턴스')).toBeTruthy();
     expect(screen.getByText('RDS Cluster')).toBeTruthy();
   });
 
