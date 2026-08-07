@@ -439,7 +439,12 @@ export const cardStyles = {
  * Variant chip — small label inline with row text (AUTO / MANUAL / 준비 중).
  */
 export const chipStyles = {
-  base: 'inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-semibold',
+  /**
+   * 12px, not 11: 이 칩(설치 모드·중국 리전)은 옆의 12px 라벨과 한 줄에 서는데
+   * 11px 이면 라벨보다 한 눈금 작아 값이 이름보다 작아 보였다. 11 은 홀수라
+   * 디자인 규칙에도 어긋난다.
+   */
+  base: 'inline-flex items-center px-1.5 py-0.5 rounded-md text-[12px] font-semibold',
   variant: {
     auto: 'bg-blue-50 text-blue-700 border border-blue-200',
     manual: 'bg-amber-50 text-amber-800 border border-amber-200',
@@ -1136,22 +1141,22 @@ export const idcStyles = {
 } as const;
 
 /**
- * 목록 행의 12px 라벨 두 종류. 전부 tertiary 한 색이었더니, 옆의 id 를 **이름 짓는**
- * 라벨과 한 줄짜리 **산문을 여는** 라벨이 같은 층으로 읽혔다. 둘은 하는 일이 다르니
- * 색도 달라야 한다.
+ * 목록 행의 12px 라벨 — `Account` · `Subscription` · `Project` · `Tenant` ·
+ * `설치 모드` · `설명`. 한 색이다.
+ *
+ * 처음엔 id 를 **이름 짓는** 라벨과 산문을 **여는** 라벨을 두 색으로 갈랐는데,
+ * 그 구분은 읽는 사람에게 아무 일도 해 주지 않았다. 라벨은 전부 "옆에 오는 것이
+ * 무엇인지" 한 마디로 말하는 같은 종류의 물건이고, 계층은 이미 크기(12 vs 14/16)와
+ * 굵기가 세우고 있다. 색까지 나누면 없는 구분을 있는 것처럼 만든다.
+ *
+ * 브랜드 파랑(#0064FF)이 아니라 한 단 죽인 파랑인 이유: 12px 에서 브랜드 파랑은
+ * 링크로 읽히고, 카드 hover 시 제목이 파래지는 것과 충돌한다.
  *
  * 대비는 흰 카드와 카드 hover 틴트(gray-50) 양쪽에서 잰다 — 행은 커서 아래에서 배경이
- * 바뀌므로 흰색만 통과하는 값은 hover 에서 AA 를 잃는다.
+ * 바뀌므로 흰색만 통과하는 값은 hover 에서 AA 를 잃는다. 5.31:1 / 5.08:1 로 양쪽 AA.
+ * 12px 본문이라 4.5:1 아래로는 더 못 내려간다.
  */
-export const rowLabelColors = {
-  /** `Account` · `Subscription` · `Project` · `Tenant` — 뒤따르는 id 의 이름. 5.43:1 / 5.20:1 */
-  kind: 'text-[#5C6B7F]',
-  /**
-   * `설명` — id 가 아니라 문장을 연다. 브랜드 파랑(#0064FF)은 링크로 읽히므로 한 단
-   * 죽인 파랑을 쓴다. 4.5:1 아래로는 더 못 내려간다(12px 본문). 5.31:1 / 5.08:1
-   */
-  description: 'text-[#3B6BB5]',
-} as const;
+export const rowLabelColor = 'text-[#3B6BB5]';
 
 /**
  * 행 우측 ⋮ 드롭다운 — 버튼 크롬 없이 흩뿌린 kebab 이 여는 패널.

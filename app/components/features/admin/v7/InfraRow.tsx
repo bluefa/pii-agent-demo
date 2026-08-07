@@ -9,7 +9,7 @@ import {
   cn,
   numericFeatures,
   primaryColors,
-  rowLabelColors,
+  rowLabelColor,
   rowMenuStyles,
   statusColors,
   tableRowLift,
@@ -115,7 +115,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
               no resting blue and the page's one CTA keeps its loudness. */}
           <span
             className={cn(
-              'text-[16px] font-semibold tracking-[-0.01em] transition-colors',
+              'text-[16px] font-medium tracking-[-0.01em] transition-colors',
               textColors.primary,
               primaryColors.textGroupHover,
             )}
@@ -191,7 +191,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
 
         {project.description && (
           <div className="flex gap-1.5 min-w-0 pl-0.5">
-            <span className={cn('flex-none pt-0.5 text-[12px]', rowLabelColors.description)}>
+            <span className={cn('flex-none pt-0.5 text-[12px]', rowLabelColor)}>
               설명
             </span>
             <span className={cn('truncate text-[14px]', textColors.secondary)}>
@@ -225,7 +225,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
 
 /** The word naming the kind of id that follows it — "Account", "Subscription", "Project". */
 const KindWord = ({ children }: { children: React.ReactNode }) => (
-  <span className={cn('text-[12px]', rowLabelColors.kind)}>{children}</span>
+  <span className={cn('text-[12px]', rowLabelColor)}>{children}</span>
 );
 
 /**
@@ -249,7 +249,7 @@ const IdValue = ({ children }: { children: React.ReactNode }) => (
 
 const MetaPair = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <span className="flex items-center gap-1.5">
-    <span className={cn('text-[12px]', rowLabelColors.kind)}>{label}</span>
+    <span className={cn('text-[12px]', rowLabelColor)}>{label}</span>
     {children}
   </span>
 );
