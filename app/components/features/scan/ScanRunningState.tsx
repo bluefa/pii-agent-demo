@@ -28,7 +28,9 @@ const COPY: Record<ScanHeroStage, { title: string; description: React.ReactNode 
     description: '리소스 탐색은 끝났고 결과를 집계하고 있어요. 잠시만 기다려 주세요.',
   },
   complete: {
-    title: '스캔 완료',
+    // 형제 프레임들이 해요체다(ScanErrorState "인프라 스캔에 실패하였어요",
+    // 빈 상태 "발견된 리소스가 없어요") — 명사형 "스캔 완료"만 튀었다.
+    title: '인프라 스캔이 끝났어요',
     /*
      * 건수를 말하지 않는다. 이 프레임이 댈 수 있는 숫자는 스캔 잡의 발견 총계
      * (리소스 타입 전체 합)인데, 바로 다음 화면의 깔때기는 연동 가능 DB 수를
@@ -36,7 +38,12 @@ const COPY: Record<ScanHeroStage, { title: string; description: React.ReactNode 
      * 없다(ScanStrip 의 같은 규칙). 올바른 단위의 숫자는 목록이 도착해야 알 수
      * 있으므로, 확인 프레임은 "끝났다"까지만 말하고 수치는 깔때기에 넘긴다.
      */
-    description: '결과를 정리하고 있어요. 잠시 후 연동할 대상이 표시돼요.',
+    /*
+     * "정리하고 있어요"는 제목이 닫은 프로세스를 본문이 다시 여는 말이었고, 직전
+     * 프레임이 이미 "집계하고 있어요"라고 말한 뒤였다. "연동할 대상이 표시돼요"도
+     * 0건으로 끝나는 스캔에는 지키지 못할 약속이라 결과로 바꾼다.
+     */
+    description: '잠시 후 결과를 보여드릴게요.',
   },
 };
 
@@ -100,17 +107,28 @@ export const ScanRunningState = ({ progress, stage }: ScanRunningStateProps) => 
           </div>
         )}
       </div>
-      {/* 완료는 모션이 아니라 문구로도 전달돼야 한다 — 세 프레임을 통틀어 제목만
-          바뀌므로 여기에만 라이브 리전을 건다(진행률은 읽어주지 않는다). */}
-      <h3 className={cn('text-base font-semibold mb-1.5', textColors.primary)} aria-live="polite">
+      {/* 라이브 리전은 여기가 아니라 카드 본문에 상주한다(CandidateResourceSection).
+          이 제목은 페이즈가 바뀌면 노드째 사라지므로, 정작 마지막 사건인 "목록 도착"을
+          알릴 수가 없다 — 리전은 알릴 내용보다 오래 살아 있어야 한다. */}
+      <h3 className={cn('text-base font-semibold mb-1.5', textColors.primary)}>
         {title}
       </h3>
       <p className={cn('text-[13px]', textColors.tertiary)}>
         {description}
       </p>
-      <div className={cn('mx-auto mt-6 max-w-[520px] rounded-full h-[10px] overflow-hidden', bgColors.panel)}>
+      <div
+        className={cn('mx-auto mt-6 max-w-[520px] rounded-full h-[10px] overflow-hidden', bgColors.panel)}
+        role="progressbar"
+        aria-label="인프라 스캔 진행률"
+        aria-valuenow={clamped}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        {/* 250ms — settling(400ms)보다 짧아야 한다. 둘이 같으면 바가 100%에 닿는
+            프레임이 곧 확인 프레임으로 넘어가는 프레임이라, 정착한 100%를 아무도
+            보지 못한다(이 구간이 존재하는 이유가 그것이다). */}
         <div
-          className={cn('h-full rounded-full transition-[width] duration-[400ms] ease-out', primaryColors.barGradient)}
+          className={cn('h-full rounded-full transition-[width] duration-[250ms] ease-out', primaryColors.barGradient)}
           style={{ width: `${clamped}%` }}
         />
       </div>

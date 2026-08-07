@@ -65,6 +65,13 @@ const detail = { cloud_provider: 'AZURE' } as unknown as RawTargetSourceDetail;
 
 const progressBar = (): HTMLElement | null => document.querySelector('[role="progressbar"]');
 
+/**
+ * 같은 문장이 화면용과 낭독용(sr-only) 두 벌로 존재한다 — 시각 단언은 보이는
+ * 쪽만 세고, 낭독은 아래에서 라이브 리전을 직접 읽어 따로 확인한다.
+ */
+const visible = (pattern: RegExp): HTMLElement[] =>
+  screen.queryAllByText(pattern).filter((el) => !el.className.includes('sr-only'));
+
 describe('ScanTab — 완료 확인 전환', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -80,7 +87,7 @@ describe('ScanTab — 완료 확인 전환', () => {
 
     // 완료된 잡 위에 그냥 마운트한 상태 — 전환은 재생되지 않고 결과가 서 있다.
     expect(progressBar()).toBeNull();
-    expect(screen.getByText(/개를 발견했어요/)).toBeTruthy();
+    expect(visible(/개를 발견했어요/)).toHaveLength(1);
     expect(capturedOnScanComplete).toBeTypeOf('function');
 
     // useScanPolling 이 새 완료를 알린다.
@@ -96,14 +103,17 @@ describe('ScanTab — 완료 확인 전환', () => {
 
     // confirming: 바는 물러나고 같은 자리를 체크가 1.2초 쓴다 — 타일은 아직이다.
     expect(progressBar()).toBeNull();
-    expect(screen.getByText('결과를 정리했어요.')).toBeTruthy();
-    expect(screen.queryByText(/개를 발견했어요/)).toBeNull();
+    expect(visible(/^스캔이 끝났어요\.$/)).toHaveLength(1);
+    expect(visible(/개를 발견했어요/)).toHaveLength(0);
 
     act(() => { vi.advanceTimersByTime(1200); });
 
     // 확인 프레임이 물러난 자리로 결과가 들어온다.
-    expect(screen.queryByText('결과를 정리했어요.')).toBeNull();
-    expect(screen.getByText(/개를 발견했어요/)).toBeTruthy();
+    expect(visible(/^스캔이 끝났어요\.$/)).toHaveLength(0);
+    expect(visible(/개를 발견했어요/)).toHaveLength(1);
+    // 총계 도착이 낭독된다 — 확인 프레임이 물러나도 리전은 살아 있어야 가능하다.
+    expect(document.querySelector('[aria-live="polite"]')?.textContent)
+      .toMatch(/총 .*개를 발견했어요/);
 
     // 전환이 끝나며 걸린 이력 리로드를 흘려보낸다 — 남기면 act 경고가 뜬다.
     await act(async () => {});

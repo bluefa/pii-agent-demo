@@ -315,4 +315,37 @@ describe('CandidateResourceSection', () => {
       vi.useRealTimers();
     }
   });
+
+  // 라이브 리전이 프레임보다 오래 살아야 마지막 사건(목록 도착)을 알릴 수 있다 —
+  // 각 프레임의 제목에 걸면 그 시점엔 노드가 이미 사라지고 없다.
+  it('완료부터 목록 도착까지 같은 라이브 리전이 이어서 알린다', async () => {
+    render(
+      <CandidateResourceSection
+        targetSourceId={1}
+        provider="AWS"
+        readonly={false}
+        refreshProject={async () => {}}
+      />,
+    );
+    await screen.findByRole('button', { name: '연동 대상 승인 요청' });
+
+    const live = document.querySelector('[aria-live="polite"]');
+    expect(live).not.toBeNull();
+    expect(live?.textContent).toBe('연동 대상 2건을 불러왔어요.');
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => { capturedOnScanComplete?.(); });
+      await act(async () => { vi.advanceTimersByTime(400); });
+      // 확인 프레임: 리전은 같은 노드 그대로, 문장만 바뀐다.
+      expect(document.querySelector('[aria-live="polite"]')).toBe(live);
+      expect(live?.textContent).toBe('인프라 스캔이 끝났어요.');
+
+      await act(async () => { vi.advanceTimersByTime(1200); });
+      expect(document.querySelector('[aria-live="polite"]')).toBe(live);
+      expect(live?.textContent).toBe('연동 대상 2건을 불러왔어요.');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

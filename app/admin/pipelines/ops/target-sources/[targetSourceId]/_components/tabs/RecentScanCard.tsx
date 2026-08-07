@@ -46,7 +46,10 @@ const fmtPercent = (progress: number | null | undefined): number => {
  */
 function ScanBeat({ done, caption }: { done: boolean; caption: string }): ReactElement {
   return (
-    <div className="flex flex-col items-center justify-center py-6">
+    // 결과가 들어왔을 때와 같은 높이를 미리 차지한다 — 229px 는 총계 문장 + 간격 +
+    // h-[196px] 그리드의 실측값이다. 같은 파일의 로딩 스켈레톤이 이미 최종 레이아웃을
+    // 그대로 그려 두는 규칙이고, 지키지 않으면 확인 프레임이 물러나며 카드가 뛴다.
+    <div className="flex h-[229px] flex-col items-center justify-center">
       <div
         className={cn(
           'grid h-10 w-10 place-items-center rounded-[10px]',
@@ -85,9 +88,9 @@ function ScanBeat({ done, caption }: { done: boolean; caption: string }): ReactE
           </div>
         )}
       </div>
-      <p className={cn(pipelineStyles.text.meta, 'mt-2.5')} aria-live="polite">
-        {caption}
-      </p>
+      {/* 라이브 리전은 이 노드가 아니라 결과 블록에 상주한다 — 여기 걸면 확인
+          프레임이 물러날 때 리전째 사라져, 정작 총계 도착이 낭독되지 않는다. */}
+      <p className={cn(pipelineStyles.text.meta, 'mt-2.5')}>{caption}</p>
     </div>
   );
 }
@@ -277,14 +280,17 @@ export function RecentScanCard({
                 <div
                   className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--pl-gray-100)]"
                   role="progressbar"
+                  aria-label="스캔 진행률"
                   aria-valuenow={percent}
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
-                  {/* 폭 전환 — 없으면 폴링 틱마다 바가 뚝뚝 끊겨 뛴다
-                      (사용자 플로우의 진행바와 같은 400ms). */}
+                  {/* 폭 전환 — 없으면 폴링 틱마다 바가 뚝뚝 끊겨 뛴다. 250ms 는
+                      settling(400ms)보다 짧아야 정착한 100%가 실제로 보인다.
+                      motion-reduce 로 끄지 않는다: 바의 폭은 장식이 아니라 상태
+                      피드백이고, 끄면 settling 이 전달하는 정보가 0이 된다. */}
                   <div
-                    className="h-full rounded-full bg-[var(--pl-primary)] transition-[width] duration-[400ms] ease-out motion-reduce:transition-none"
+                    className="h-full rounded-full bg-[var(--pl-primary)] transition-[width] duration-[250ms] ease-out"
                     style={{ width: `${percent}%` }}
                   />
                 </div>
@@ -301,10 +307,23 @@ export function RecentScanCard({
           {(running || confirming || latestJob.scan_status === 'SUCCESS') && (
             <div className="mt-5">
               <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">스캔 결과</p>
+              {/* 이 블록은 진행·확인·결과 내내 마운트를 유지하므로 라이브 리전을 여기
+                  둔다. 컨테이너 자체에 걸면 타일 그리드가 통째로 낭독된다. */}
+              <p className="sr-only" aria-live="polite">
+                {running
+                  ? '스캔을 진행하고 있어요.'
+                  : confirming
+                    ? '스캔이 끝났어요.'
+                    : latestJob.scan_status === 'SUCCESS'
+                      ? `스캔 완료. 총 ${fmtCount(latestTotal)}개를 발견했어요.`
+                      : ''}
+              </p>
               {running ? (
                 <ScanBeat done={false} caption="스캔 완료 후 집계돼요." />
               ) : confirming ? (
-                <ScanBeat done caption="결과를 정리했어요." />
+                // admin 은 건수를 이미 손에 쥐고 있어 "정리"할 게 없다 — 히어로가
+                // 현재진행으로, 여기가 과거로 같은 순간을 말하던 시제 충돌도 없앤다.
+                <ScanBeat done caption="스캔이 끝났어요." />
               ) : typeEntries.length === 0 ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
               ) : (

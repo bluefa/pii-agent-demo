@@ -372,6 +372,31 @@ export const CandidateResourceSection = ({
             }
             : undefined;
 
+          // 화면이 스스로 바뀌는 흐름(스캔 → 확인 → 목록)을 소리로도 잇는다. 각
+          // 프레임의 제목에 리전을 걸면 마지막 사건인 "목록 도착"만 영영 낭독되지
+          // 않는다 — 그 시점엔 제목이 이미 언마운트됐기 때문이다. 리전은 페이즈보다
+          // 오래 살아야 하므로 renderBody 바깥에 상주하고, 텍스트만 갈아끼운다.
+          // settling 은 직전 구간과 같은 문장을 유지해 안내를 한 번 덜 쌓는다.
+          const liveMessage = ((): string => {
+            switch (phase) {
+              case 'scanning':
+                return finalizing ? '스캔 결과를 집계하고 있어요.' : '인프라 스캔을 진행하고 있어요.';
+              case 'completing':
+                return completion.stage === 'settling'
+                  ? '스캔 결과를 집계하고 있어요.'
+                  : '인프라 스캔이 끝났어요.';
+              case 'list':
+                return `연동 대상 ${candidates.length}건을 불러왔어요.`;
+              case 'empty':
+                return neverScanned ? '' : '발견된 리소스가 없어요.';
+              case 'scanFailed':
+                return '인프라 스캔에 실패했어요.';
+              default:
+                // fetching·fetchError 는 스켈레톤과 에러 박스가 스스로 말한다.
+                return '';
+            }
+          })();
+
           const renderBody = (): React.ReactNode => {
             switch (phase) {
               case 'fetching':
@@ -412,9 +437,9 @@ export const CandidateResourceSection = ({
                 //
                 // 목록이 다른 프레임(확인·스켈레톤·러닝)을 밀어내고 들어올 때마다
                 // 같은 방식으로 등장한다 — 페이즈가 바뀌면 이 노드가 새로 마운트되고,
-                // 검색·필터·페이지 변경은 마운트를 유지하므로 다시 재생되지 않는다.
+                // 검색·필터·페이지 변경은 이 노드의 마운트를 유지하므로 재생되지 않는다.
                 return (
-                  <div className={cn(scanTransition.reveal, scanTransition.revealRows)}>
+                  <div className={scanTransition.reveal}>
                     <WaitingApprovalToolbar
                       searchValue={table.searchValue}
                       onSearchChange={handleSearchChange}
@@ -490,6 +515,7 @@ export const CandidateResourceSection = ({
               </header>
 
               <div className={cardStyles.body}>
+                <p className="sr-only" aria-live="polite">{liveMessage}</p>
                 {showStrip && (
                   // 스캔 밴드는 리소스 테이블과 명시적으로 분리된 영역 — 항상 독립
                   // 밴드로 서고, 표 그룹과는 간격으로 구분한다.

@@ -26,17 +26,22 @@ describe('ScanRunningState', () => {
 
     // 넘겨받은 progress 와 무관하게 가득 — 이 시점의 진행률은 정보가 아니다.
     expect(bar()?.style.width).toBe('100%');
-    expect(screen.getByText('스캔 완료')).toBeTruthy();
+    expect(screen.getByText('인프라 스캔이 끝났어요')).toBeTruthy();
     // 체크는 dasharray 를 갖고 offset 은 기본값 0 — 모션이 꺼져도 그려진 채 남는다.
     const check = container.querySelector('path[stroke-dasharray="30"]');
     expect(check).not.toBeNull();
     expect((check as SVGPathElement).style.strokeDashoffset).toBe('');
   });
 
-  it('완료를 라이브 리전으로도 알린다', () => {
-    render(<ScanRunningState progress={100} stage="complete" />);
-    const title = screen.getByText('스캔 완료');
-    expect(title.getAttribute('aria-live')).toBe('polite');
+  // 라이브 리전은 이 컴포넌트가 아니라 카드 본문에 상주한다(프레임보다 오래 살아야
+  // 목록 도착을 알릴 수 있다) — 여기서는 진행률이 보조기술에 노출되는지만 본다.
+  it('진행률을 progressbar 로 노출한다', () => {
+    render(<ScanRunningState progress={72} stage="scanning" />);
+    const track = screen.getByRole('progressbar', { name: '인프라 스캔 진행률' });
+    expect(track.getAttribute('aria-valuenow')).toBe('72');
+
+    // 라이브 리전을 이 안에 다시 들이면 카드 본문의 리전과 이중으로 낭독된다.
+    expect(document.querySelector('[aria-live]')).toBeNull();
   });
 
   it('발견 건수를 말하지 않는다 — 다음 화면의 깔때기와 단위가 다르다', () => {
@@ -44,7 +49,8 @@ describe('ScanRunningState', () => {
     // 금지 대상은 "숫자"가 아니라 "발견 건수"다 — 백분율 라벨을 빼는 건 얼마든지
     // 있을 수 있는 디자인 변경이므로, 세는 게 아니라 건수 표기 자체를 짚는다.
     expect(container.textContent).not.toMatch(/\d[\d,]*\s*개/);
-    expect(screen.getByText('결과를 정리하고 있어요. 잠시 후 연동할 대상이 표시돼요.')).toBeTruthy();
+    // 0건으로 끝나는 스캔에도 지킬 수 있는 약속만 한다.
+    expect(screen.getByText('잠시 후 결과를 보여드릴게요.')).toBeTruthy();
   });
 
   it('집계 구간은 아직 체크가 아니라 휠이다', () => {

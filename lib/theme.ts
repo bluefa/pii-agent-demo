@@ -110,7 +110,7 @@ export const primaryColors = {
 
 /**
  * 스캔 완료 전환 (app/globals.css @keyframes scan-*). 진행 UI가 결과로 바뀌는
- * 순간을 확인 프레임 → fade-through → 행 캐스케이드의 세 박자로 늘린다.
+ * 순간을 확인 프레임 → fade-through 의 두 박자로 늘린다.
  * 타이밍의 주인은 useScanCompletionTransition, 표현의 주인은 이 토큰들이다.
  */
 export const scanTransition = {
@@ -118,11 +118,6 @@ export const scanTransition = {
   reveal: 'motion-safe:animate-[scan-reveal_200ms_ease-out]',
   /** 완료 체크 드로우. stroke-dasharray 를 가진 path 에만 건다. */
   checkDraw: 'motion-safe:animate-[scan-check-draw_300ms_ease-out]',
-  /**
-   * 표 행 캐스케이드. 지연은 globals.css 의 nth-child 가 주므로 여기서는
-   * 스코프 클래스만 얹는다 (motion-reduce 도 그쪽에서 처리).
-   */
-  revealRows: 'scan-reveal-rows',
 } as const;
 
 /**
