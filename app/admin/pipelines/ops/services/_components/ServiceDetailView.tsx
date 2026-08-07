@@ -4,13 +4,15 @@
  * 서비스 운영 상세 — Target Source 목록 · Jira Ticket 연결.
  *
  * 두 데이터 소스가 섞여 있다: 서비스/대상은 GET /admin/ops/services/{code} (라우트가
- * 실계약 `/target-sources/page` + `/process-statuses` 를 조합한다), Jira 티켓은 실계약
+ * 실계약 `/target-sources/page?serviceCode` 로 만든다), Jira 티켓은 실계약
  * GET /services/{code}/jira-tickets. 후자는 CloudProvider 가 키라 5개 provider 를 항상
  * 전부 그린다 — 빈 표가 아니라 "무엇을 연결할 수 있는지"를 보여야 연결 지점이 화면에서
  * 읽힌다.
  *
- * EOS 는 표시만 한다. install-v1.yaml 에 EOS 처리(쓰기) 엔드포인트가 없어 — 읽기 전용
- * `service_info.is_eos_service` 뿐이다 — 실행할 수 없는 버튼을 두지 않는다.
+ * 이 화면은 대상의 설치 진행 단계를 보여주지 않는다 (오너 결정). 단계는 카드의
+ * "운영 화면 ↗" 한 번이면 닿는 Target Source 운영 화면이 맡는다. 여기서 빼면서
+ * `/process-statuses` 집계도 라우트에서 사라졌다 — 그 엔드포인트는 serviceCode 로
+ * 거를 수 없어 서비스 하나를 그리려고 전체를 페이징해야 했다.
  */
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -26,8 +28,6 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { ProviderLogo } from '@/app/components/features/admin/v7';
 import type { CloudProvider } from '@/lib/types';
-import { STEP } from '@/app/admin/pipelines/queue/_components/StepStack';
-import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
 import { jiraTicketLink } from '@/lib/jira-ticket';
@@ -43,7 +43,7 @@ import {
   type JiraCloudProvider,
   type JiraTicket,
   type OpsServiceDetail,
-  type OpsTargetSourceListItem,
+  type OpsServiceTargetRow,
 } from '@/app/lib/api/ops';
 
 const tsTable = {
@@ -117,7 +117,7 @@ const tileStyles = {
 
 /** metadata → 그 provider 가 실제로 갖는 계정 식별자 1건. 없으면 null. */
 function accountOf(
-  target: OpsTargetSourceListItem,
+  target: OpsServiceTargetRow,
 ): { label: string; value: string; china: boolean } | null {
   const { aws_account_id, aws_region_type, subscription_id, gcp_project_id } = target.metadata;
   if (aws_account_id) {
@@ -150,7 +150,6 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [query, setQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('');
-  const [step, setStep] = useState('');
 
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -205,11 +204,11 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
   }
 
   const { section, text } = pipelineStyles;
-  const isEos = detail.status === 'EOS';
   const targetCount = detail.target_sources.length;
 
-  // 검색·필터는 화면 몫이다 — assumed 계약이 목록을 한 번에 다 주고 query 파라미터도 없다.
-  // 검색은 사람이 표에서 눈으로 찾는 값(대상 번호·설명·계정)만 훑는다.
+  // 라우트가 이 서비스의 대상을 한 번에 다 주므로(계약에 대상 검색어 파라미터가 없다)
+  // 검색·필터 자르기는 화면 몫이다. 검색은 사람이 목록에서 눈으로 찾는 값
+  // (대상 번호·설명·계정)만 훑는다.
   const needle = query.trim().toLowerCase();
   const rows = detail.target_sources.filter((target) => {
     if (
@@ -218,7 +217,6 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
     ) {
       return false;
     }
-    if (step && target.process_status !== step) return false;
     if (!needle) return true;
     return [
       `#${target.target_source_id}`,
@@ -231,9 +229,6 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
   const providerOptions = [...new Set(
     detail.target_sources.map((t) => displayProvider(t.cloud_provider, t.is_sdu_type)),
   )].map((value) => ({ value, label: providerLabel(value) }));
-  const stepOptions = [...new Set(detail.target_sources.map((t) => t.process_status))]
-    .sort((a, b) => STEP[a].n - STEP[b].n)
-    .map((value) => ({ value, label: `${STEP[value].n}단계 · ${STEP[value].label}` }));
 
   // 다시 읽거나 필터를 걸어 행이 줄면 마지막 페이지 밖에 머물 수 있다 — 마지막 장으로.
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -248,31 +243,17 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
     // 구분은 시트 안에서 여백과 가로줄로만 한다.
     <div className={s.sheet}>
       {/* 좌측 레일이 곧 현재 위치라 breadcrumb 은 두지 않는다. */}
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-2">
-          {/* 이름보다 먼저 읽히는 분류 — 이 시트가 무엇을 다루는 화면인지. */}
-          <span className={s.pageTag}>서비스 관리</span>
-          <div className="flex items-center gap-2">
-            {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
-            <h2 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h2>
-            <span className={codeChip}>
-              <span className={codeChipLabel}>서비스코드</span>
-              <span className="[font-family:var(--pl-font-mono)]">{detail.service_code}</span>
-            </span>
-          </div>
-        </div>
-        {/* 운영중은 기본값이라 적지 않는다 — EOS 만 읽혀야 한다. 계약에 EOS 처리
-            엔드포인트가 없어 상태 표시로만 남는다. */}
-        {isEos && (
-          <span
-            className={cn(
-              opsStyles.statusTag,
-              'flex-none bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
-            )}
-          >
-            EOS
+      <div className="flex min-w-0 flex-col gap-2">
+        {/* 이름보다 먼저 읽히는 분류 — 이 시트가 무엇을 다루는 화면인지. */}
+        <span className={s.pageTag}>서비스 관리</span>
+        <div className="flex items-center gap-2">
+          {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
+          <h2 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h2>
+          <span className={codeChip}>
+            <span className={codeChipLabel}>서비스코드</span>
+            <span className="[font-family:var(--pl-font-mono)]">{detail.service_code}</span>
           </span>
-        )}
+        </div>
       </div>
 
       <hr className={s.sheetRule} />
@@ -310,16 +291,6 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                   setPage(0);
                 },
                 options: providerOptions,
-              },
-              {
-                key: 'step',
-                label: '현재 단계',
-                value: step,
-                onChange: (next) => {
-                  setStep(next);
-                  setPage(0);
-                },
-                options: stepOptions,
               },
             ]}
           />
@@ -366,7 +337,6 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                         <span className="text-[14px] font-medium text-[var(--pl-text-medium)]">
                           {providerLabel(displayProvider(target.cloud_provider, target.is_sdu_type))}
                         </span>
-                        <StepPill status={target.process_status} />
                         {account?.china && <span className={opsStyles.regionTag}>중국</span>}
                       </div>
 

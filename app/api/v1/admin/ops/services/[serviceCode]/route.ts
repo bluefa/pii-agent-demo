@@ -4,54 +4,43 @@ import { bff } from '@/lib/bff/client';
 import { schemas } from '@/lib/generated/install-v1';
 import type {
   OpsServiceDetail,
+  OpsServiceTargetRow,
   OpsTargetSourceAccount,
-  OpsTargetSourceListItem,
 } from '@/app/lib/api/ops';
-import type { BffProcessStatus } from '@/app/lib/api';
 
 /**
  * GET /admin/ops/services/{serviceCode} → OpsServiceDetail.
  *
- * REAL CONTRACTS ONLY. The upstream `/admin/ops/services/{code}` this route used
- * to proxy is absent from install-v1.yaml, so every call 404'd against the real
- * BFF and the screen never loaded. The detail is now composed from two declared
- * endpoints:
+ * ONE declared endpoint:
  *
  *   GET /target-sources/page?serviceCode=&page=&size=  → PageTargetSourceInfo
- *       rows + CSP account metadata. `serviceCode` is a declared query param.
- *   GET /process-statuses?page=&size=                  → PageProcessStatusCurrentResponse
- *       the 7-step process_status, and service_info.is_eos_service.
  *
- * The join exists because neither endpoint carries the other's fields:
- * `TargetSourceInfo.confirmStatus` is the confirm sub-state enum, NOT the 7-step
- * lifecycle the UI's StepPill reads, and `/process-statuses` has no serviceCode
- * filter (only processStatus / targetSourceId), so its pages are aggregated and
- * indexed by target_source_id — the same pattern the delay filter already uses in
- * app/api/v1/admin/queue/process-statuses/route.ts.
+ * The upstream `/admin/ops/services/{code}` this route used to proxy is absent
+ * from install-v1.yaml, so every call 404'd against the real BFF and the screen
+ * never loaded. `serviceCode` is a declared query param on `/target-sources/page`,
+ * which carries everything the 서비스 운영 detail draws: 대상 번호, provider,
+ * 설명, and the CSP account identifiers in `metadata`.
  *
- * Dropped with the assumed contract, because no declared endpoint carries them:
- * `owner` (no field anywhere in install-v1.yaml) and EOS *processing* (read-only
- * `is_eos_service` exists; there is no writer).
+ * Deliberately NOT joined here:
+ *   - 설치 진행 단계 (process_status). Owner's call — the detail no longer shows a
+ *     step pill or a 단계 filter, so the `/process-statuses` aggregate that fed
+ *     them is gone. That endpoint has no serviceCode filter, so serving one
+ *     service meant paging the whole table on every detail view. Per-target step
+ *     lives on the Target Source 운영 screen, one click away from each card.
+ *   - EOS. The flag (`is_eos_service`) rides only on a target's `service_info`,
+ *     reachable via `/process-statuses` or `GET /target-sources?serviceCode=`;
+ *     it is not worth a second round trip for a header badge. Re-adding it means
+ *     wiring `GET /target-sources?serviceCode=` (declared, service-scoped).
+ *   - `owner`. No field anywhere in install-v1.yaml.
  */
 
-// Contract max page size is 100; the cap bounds a pathological aggregate. Both
-// loops log when they stop early — a silently truncated join would render as
-// "이 서비스엔 대상이 없음", which is a different (and wrong) statement.
-const AGG_PAGE_SIZE = 100;
-const AGG_MAX_PAGES = 10;
+// Contract max page size is 100. A service's targets are bounded in practice; the
+// page cap only guards a pathological account, and it logs rather than silently
+// truncating — a cut list would read as "이 서비스엔 대상이 없다", a different claim.
+const PAGE_SIZE = 100;
+const MAX_PAGES = 10;
 
 type TargetSourceInfoWire = ReturnType<typeof schemas.TargetSourceInfo.parse>;
-type ProcessStatusWire = ReturnType<typeof schemas.ProcessStatusCurrentResponse.parse>;
-
-/** 7-step lifecycle enum. A target with no process-status row has not started. */
-const DEFAULT_PROCESS_STATUS: BffProcessStatus = 'IDLE';
-
-const PROCESS_STATUSES: readonly BffProcessStatus[] = [
-  'IDLE', 'PENDING', 'CONFIRMING', 'CONFIRMED', 'INSTALLED', 'CONNECTED', 'COMPLETED',
-];
-
-const toProcessStatus = (value: string | null | undefined): BffProcessStatus =>
-  PROCESS_STATUSES.find((status) => status === value) ?? DEFAULT_PROCESS_STATUS;
 
 /**
  * TargetSourceMetadata → the account identifiers the card reads. Only the owning
@@ -69,83 +58,43 @@ function toAccount(meta: TargetSourceInfoWire['metadata']): OpsTargetSourceAccou
   };
 }
 
-/** Aggregate every page of a Spring `Page` endpoint, up to the cap. */
-async function collect<T>(
-  label: string,
-  fetchPage: (page: number) => Promise<{ content?: (T | null)[] | null; totalPages?: number | null }>,
-): Promise<T[]> {
-  const rows: T[] = [];
-  let page = 0;
-  let totalPages = 1;
-  do {
-    const wire = await fetchPage(page);
-    rows.push(...((wire.content ?? []).filter((row): row is T => row != null)));
-    totalPages = wire.totalPages ?? 1;
-    page += 1;
-  } while (page < totalPages && page < AGG_MAX_PAGES);
-
-  if (page < totalPages) {
-    console.warn(`[ops/services] ${label}: ${totalPages}페이지 중 ${page}페이지에서 집계를 멈췄습니다.`);
-  }
-  return rows;
-}
-
 export const GET = withV1(async (_request, { params }) => {
   const serviceCode = String(params.serviceCode);
 
-  const [targets, statuses] = await Promise.all([
-    collect<TargetSourceInfoWire>('target-sources', async (page) =>
-      schemas.PageTargetSourceInfo.parse(
-        await bff.taskQueue.getTargetSourcesPage({ serviceCode, page, size: AGG_PAGE_SIZE }),
-      ),
-    ),
-    collect<ProcessStatusWire>('process-statuses', async (page) =>
-      schemas.PageProcessStatusCurrentResponse.parse(
-        await bff.taskQueue.getProcessStatuses({ page, size: AGG_PAGE_SIZE }),
-      ),
-    ),
-  ]);
+  const targets: TargetSourceInfoWire[] = [];
+  let page = 0;
+  let totalPages = 1;
+  do {
+    const wire = schemas.PageTargetSourceInfo.parse(
+      await bff.taskQueue.getTargetSourcesPage({ serviceCode, page, size: PAGE_SIZE }),
+    );
+    targets.push(...(wire.content ?? []).filter((row): row is TargetSourceInfoWire => row != null));
+    totalPages = wire.totalPages ?? 1;
+    page += 1;
+  } while (page < totalPages && page < MAX_PAGES);
 
-  const statusById = new Map(
-    statuses
-      .filter((row) => row.target_source_id != null)
-      .map((row) => [row.target_source_id as number, row]),
-  );
+  if (page < totalPages) {
+    console.warn(
+      `[ops/services] ${serviceCode}: ${totalPages}페이지 중 ${page}페이지에서 집계를 멈췄습니다.`,
+    );
+  }
 
-  // EOS 는 서비스 단위 플래그지만 계약상 대상의 service_info 에만 실린다 — 이 서비스의
-  // 행 아무 곳에서나 읽으면 된다. 대상이 하나도 없으면 알 길이 없어 운영중으로 둔다.
-  const isEos = statuses.some(
-    (row) =>
-      row.target_source?.service_info?.code === serviceCode
-      && row.target_source.service_info.is_eos_service === true,
-  );
-
-  const targetSources: OpsTargetSourceListItem[] = targets
+  const targetSources: OpsServiceTargetRow[] = targets
     .filter((row) => row.targetSourceId != null)
-    .map((row) => {
-      const targetSourceId = row.targetSourceId as number;
-      const status = statusById.get(targetSourceId);
-      return {
-        target_source_id: targetSourceId,
-        service_code: row.serviceCode ?? serviceCode,
-        service_name: row.serviceName ?? serviceCode,
-        description: row.description ?? null,
-        cloud_provider: row.cloudProvider ?? 'UNKNOWN',
-        is_sdu_type: row.metadata?.is_sdu_type === true,
-        // 계약 어디에도 대상별 DB 종류가 없다 — 카드도 읽지 않으므로 비워 둔다.
-        database_type: null,
-        process_status: toProcessStatus(status?.process_status),
-        last_changed_at: status?.status_changed_at ?? row.updatedAt ?? row.createdAt ?? '',
-        metadata: toAccount(row.metadata),
-      };
-    })
+    .map((row) => ({
+      target_source_id: row.targetSourceId as number,
+      description: row.description ?? null,
+      cloud_provider: row.cloudProvider ?? 'UNKNOWN',
+      is_sdu_type: row.metadata?.is_sdu_type === true,
+      last_changed_at: row.updatedAt ?? row.createdAt ?? '',
+      metadata: toAccount(row.metadata),
+    }))
     .sort((a, b) => b.last_changed_at.localeCompare(a.last_changed_at));
 
   const detail: OpsServiceDetail = {
     service_code: serviceCode,
-    // ServiceItem/TargetSourceInfo 어느 쪽이든 이름은 대상 행에만 실린다.
+    // 서비스 이름은 대상 행에만 실린다 (ServiceItem 은 레일이 따로 받는다).
     service_name: targets.find((row) => row.serviceName)?.serviceName ?? serviceCode,
-    status: isEos ? 'EOS' : 'OPERATING',
     target_sources: targetSources,
   };
   return NextResponse.json(detail);

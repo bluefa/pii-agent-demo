@@ -114,32 +114,45 @@ mock hid the gap because the mock adapter answered paths the upstream never had.
 |---|---|
 | 서비스 레일 (목록·검색·페이징) | `GET /install/v1/user/services/page?page&size&query` → `PageServiceItem` |
 | 상세의 Target Source 행 + CSP 계정 | `GET /install/v1/target-sources/page?serviceCode&page&size` → `PageTargetSourceInfo` |
-| 7단계 `process_status`, EOS 플래그 | `GET /install/v1/process-statuses?page&size` → `PageProcessStatusCurrentResponse` |
 | Jira Ticket 연결 | `GET·PUT·DELETE /install/v1/services/{serviceCode}/jira-tickets[/{cloudProvider}]` (unchanged, `docs/api/jira-tickets.md` §1) |
 
-`app/api/v1/admin/ops/services/[serviceCode]/route.ts` owns the join. Two reasons it
-has to exist rather than proxying one endpoint:
+Two endpoints, no join. `serviceCode` is a declared query param on
+`/target-sources/page`, and that one response carries every field the detail draws.
 
-- `TargetSourceInfo.confirmStatus` is the *confirm* sub-state enum
-  (`IDLE|PENDING|UNAVAILABLE|CONFIRMING|RESOURCE_CLEANING|RESOURCE_CLEAN_FAILED|CONFIRMED`),
-  NOT the 7-step lifecycle `StepPill` renders. Only `/process-statuses` carries that.
-- `/process-statuses` has no `serviceCode` filter (only `processStatus` /
-  `targetSourceId`), so its pages are aggregated and indexed by `target_source_id` —
-  the same capped-aggregate pattern the delay filter uses in
-  `app/api/v1/admin/queue/process-statuses/route.ts`.
+### 설치 진행 단계는 이 화면에 없다 (owner's call)
+
+An earlier revision showed a per-target step pill and a "현재 단계" filter here, fed by
+a `/process-statuses` aggregate. Both were removed on the owner's call, and the
+aggregate went with them.
+
+Anyone re-adding a step here should know the cost first.
+`TargetSourceInfo.confirmStatus` is the *confirm* sub-state enum
+(`IDLE|PENDING|UNAVAILABLE|CONFIRMING|RESOURCE_CLEANING|RESOURCE_CLEAN_FAILED|CONFIRMED`),
+NOT the 7-step lifecycle `StepPill` renders — only `/process-statuses` carries that,
+and it has no `serviceCode` filter (`processStatus` / `targetSourceId` only). Serving
+one service therefore means paging the whole table on every detail view. Per-target
+step already lives on the Target Source 운영 screen, one click from each card.
+
+`OpsServiceTargetRow` (`app/lib/api/ops.ts`) is deliberately separate from
+`OpsTargetSourceListItem` for this reason: §5's list still renders a step, and sharing
+one type would force this screen to fetch a field it does not show.
 
 ### What no declared endpoint carries
 
 - **`owner`** — no such field anywhere in install-v1.yaml. Dropped from the screen.
   `GET /services/{serviceCode}/authorized-users` returns *authorized users*, which is
   a different thing; do not substitute it for 담당자 without a product decision.
-- **EOS processing (write)** — read-only `is_eos_service` /`isEosService` exist
+- **EOS processing (write)** — read-only `is_eos_service` / `isEosService` exist
   (`TargetSourceServiceInfoResponse`, `ServiceInfoRefinedResponse`); there is no
   writer. The EOS 처리 button and its modal were removed rather than left as a
-  control that cannot fire. EOS is shown as a badge on the detail header.
-- **EOS on the service *list*** — `ServiceItem` is `{service_code, service_name}`
-  only, and the flag lives on a target's `service_info`, so the rail cannot show it
-  without a per-service round trip. The badge is detail-only.
+  control that cannot fire.
+- **EOS display** — the flag rides only on a target's `service_info`, reachable via
+  `/process-statuses` (global, no serviceCode filter) or `GET /target-sources?serviceCode=`
+  (declared, service-scoped, returns `TargetSourceResponse[]`). The 단계 removal took
+  the `/process-statuses` call with it, so the header badge is gone too. Re-adding it
+  means wiring the service-scoped `GET /target-sources?serviceCode=` — one extra round
+  trip, not a global aggregate. `ServiceItem` is `{service_code, service_name}` only,
+  so the rail can never show it without such a call.
 - **`database_type`** — absent from both `TargetSourceInfo` and
   `TargetSourceResponse`. The ops card never rendered it, so nothing was lost.
 

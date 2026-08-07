@@ -105,15 +105,30 @@ export interface OpsTargetSourceListPage {
 }
 
 /**
- * 서비스 운영 상세. 라우트가 실계약 `/target-sources/page` + `/process-statuses` 를
- * 조합해 만든다 — `owner` 는 install-v1.yaml 어디에도 없어 뺐고, `status` 는
- * service_info.is_eos_service 에서 읽는 읽기 전용 값이다 (EOS 처리 계약 없음).
+ * 서비스 운영 상세의 대상 행. 위 `OpsTargetSourceListItem`(Target Source 운영,
+ * assumed §5)과 일부러 분리했다 — 그쪽은 단계(process_status)를 계속 그리지만
+ * 이 화면은 단계를 보여주지 않으므로, 한 타입을 공유하면 쓰지도 않는 필드를
+ * 채우려고 `/process-statuses` 를 다시 불러야 한다.
+ */
+export interface OpsServiceTargetRow {
+  target_source_id: number;
+  /** TargetSourceInfo.description — 대상이 무엇인지 오너가 적은 한 줄. */
+  description: string | null;
+  cloud_provider: string;
+  is_sdu_type: boolean;
+  /** 정렬 키 (updatedAt ?? createdAt). */
+  last_changed_at: string;
+  metadata: OpsTargetSourceAccount;
+}
+
+/**
+ * 서비스 운영 상세. 라우트가 실계약 `/target-sources/page?serviceCode` 하나로 만든다.
+ * `owner`(계약에 필드 없음), 설치 진행 단계, EOS 는 담지 않는다 — 근거는 라우트 주석.
  */
 export interface OpsServiceDetail {
   service_code: string;
   service_name: string;
-  status: 'OPERATING' | 'EOS';
-  target_sources: OpsTargetSourceListItem[];
+  target_sources: OpsServiceTargetRow[];
 }
 
 export const getOpsTargetSources = (
