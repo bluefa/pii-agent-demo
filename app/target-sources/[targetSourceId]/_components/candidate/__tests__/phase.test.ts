@@ -23,6 +23,9 @@ describe('selectPhase', () => {
     // 조회 실패도 프레임이 끝난 뒤에 알린다 — 완료 연출 중간에 에러가 끼어들지 않는다.
     [{ fetchStatus: 'error', scanState: 'SUCCESS', hasCandidates: false, completing: true }, 'completing'],
     [{ fetchStatus: 'error', scanState: 'SUCCESS', hasCandidates: false, completing: false }, 'fetchError'],
+    // 확인 프레임 중에 새 스캔이 시작된 경우 — 프레임이 이긴다. 남은 dwell(최대
+    // 1.6초)만큼 늦게 러닝 화면으로 넘어가지만, 프레임을 중간에 끊는 편이 더 튄다.
+    [{ fetchStatus: 'ready', scanState: 'IN_PROGRESS', hasCandidates: false, completing: true }, 'completing'],
   ];
 
   it.each(cases)('returns %j -> %s', (input, expected) => {

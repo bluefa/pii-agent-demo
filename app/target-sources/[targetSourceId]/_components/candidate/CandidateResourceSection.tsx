@@ -308,8 +308,9 @@ export const CandidateResourceSection = ({
 
   const beginCompletion = completion.begin;
   const handleScanComplete = useCallback(async () => {
-    // 확인 프레임을 먼저 세운다 — 아래 refetch 가 곧바로 loading 을 켜므로, 순서가
-    // 바뀌면 프레임이 서기 전에 스켈레톤이 한 프레임 지나간다.
+    // 확인 프레임을 먼저 세운다. 아래 refetch 가 곧바로 loading 을 켜지만, 이 함수의
+    // setState 들은 한 배치로 묶이므로(React 18) 스켈레톤을 막는 건 순서가 아니라
+    // selectPhase 의 completing 우선순위다 — 여기서 순서는 읽는 사람을 위한 것이다.
     beginCompletion();
     setDrafts(EMPTY_DRAFTS);
     setExpandedResourceId(null);
@@ -396,7 +397,7 @@ export const CandidateResourceSection = ({
               case 'completing':
                 // 같은 히어로 블록의 마지막 두 프레임. settling 은 바가 100%에
                 // 닿는 걸 보여주고(집계 꼬리를 거쳐 왔다면 이미 가득 차 있다),
-                // confirming 이 체크와 발견 건수를 세운다.
+                // confirming 이 완료 체크를 세운다.
                 return (
                   <ScanRunningState
                     progress={100}

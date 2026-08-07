@@ -2,6 +2,7 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
+import type { UseScanPollingOptions, UseScanPollingReturn } from '@/app/hooks/useScanPolling';
 
 /**
  * 스캔 완료 확인 전환이 admin 스캔 탭까지 실제로 배선돼 있는지 — useScanPolling 이
@@ -12,7 +13,9 @@ const scanJob = {
   id: 42,
   scan_status: 'SUCCESS' as const,
   scan_version: 3,
-  scan_progress: 100,
+  // 100 이 아니라 72 — 폴링이 마지막으로 본 값이 여기 남는다. 이 값이 100 이면
+  // "settling 이 바를 100%로 고정한다"는 아래 단언이 픽스처를 되읽는 것에 그친다.
+  scan_progress: 72,
   scan_error: null,
   created_at: '2026-08-07T10:00:00Z',
   updated_at: '2026-08-07T10:00:08Z',
@@ -22,23 +25,28 @@ const scanJob = {
 
 let capturedOnScanComplete: (() => void) | undefined;
 
-vi.mock('@/app/hooks/useScanPolling', () => ({
-  isScanFinalizing: () => false,
-  useScanPolling: (_id: number, options?: { onScanComplete?: () => void }) => {
-    capturedOnScanComplete = options?.onScanComplete;
-    return {
-      latestJob: scanJob,
-      uiState: 'COMPLETED',
-      isPolling: false,
-      loading: false,
-      error: null,
-      refresh: vi.fn(),
-      startPolling: vi.fn(),
-      stopPolling: vi.fn(),
-      expectCompletion: vi.fn(),
-    };
-  },
-}));
+// 폴링 훅만 대역으로 세우고 isScanFinalizing 은 실물을 그대로 쓴다 — 상수로 박으면
+// 집계 구간이 통합 경로에서 사라져, settling 의 100% 고정이 그 상수에 가려진다.
+vi.mock('@/app/hooks/useScanPolling', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/app/hooks/useScanPolling')>();
+  return {
+    ...actual,
+    useScanPolling: (_id: number, options?: UseScanPollingOptions): UseScanPollingReturn => {
+      capturedOnScanComplete = options?.onScanComplete;
+      return {
+        latestJob: scanJob,
+        uiState: 'COMPLETED',
+        isPolling: false,
+        loading: false,
+        error: null,
+        refresh: vi.fn().mockResolvedValue(undefined),
+        startPolling: vi.fn(),
+        stopPolling: vi.fn(),
+        expectCompletion: vi.fn(),
+      };
+    },
+  };
+});
 
 const getScanHistory = vi.fn().mockResolvedValue({ content: [], totalPages: 1 });
 vi.mock('@/app/lib/api/scan', () => ({
@@ -66,6 +74,9 @@ describe('ScanTab — 완료 확인 전환', () => {
 
   it('완료 신호를 받으면 진행 → 확인 → 결과 순으로 넘어간다', async () => {
     render(<ScanTab targetSourceId={1005} detail={detail} />);
+    // 마운트 이펙트의 이력 조회를 흘려보낸다 — 큐에 남은 상태 업데이트 위에서
+    // 단언하지 않도록(같은 디렉터리 useScanPolling.test.ts 와 같은 문법).
+    await act(async () => {});
 
     // 완료된 잡 위에 그냥 마운트한 상태 — 전환은 재생되지 않고 결과가 서 있다.
     expect(progressBar()).toBeNull();
@@ -93,10 +104,14 @@ describe('ScanTab — 완료 확인 전환', () => {
     // 확인 프레임이 물러난 자리로 결과가 들어온다.
     expect(screen.queryByText('결과를 정리했어요.')).toBeNull();
     expect(screen.getByText(/개를 발견했어요/)).toBeTruthy();
+
+    // 전환이 끝나며 걸린 이력 리로드를 흘려보낸다 — 남기면 act 경고가 뜬다.
+    await act(async () => {});
   });
 
-  it('이력 리로드를 전환이 끝난 뒤로 미룬다', () => {
+  it('이력 리로드를 전환이 끝난 뒤로 미룬다', async () => {
     render(<ScanTab targetSourceId={1005} detail={detail} />);
+    await act(async () => {});
     getScanHistory.mockClear();
 
     act(() => { capturedOnScanComplete?.(); });
@@ -106,5 +121,7 @@ describe('ScanTab — 완료 확인 전환', () => {
 
     act(() => { vi.advanceTimersByTime(50); });
     expect(getScanHistory).toHaveBeenCalledTimes(1);
+
+    await act(async () => {});
   });
 });

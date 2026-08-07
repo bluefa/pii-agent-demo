@@ -164,7 +164,8 @@ export interface RecentScanCardProps {
   finalizing: boolean;
   /**
    * 완료 확인 전환의 단계. `settling` 동안은 진행 처리를 유지해 바가 100%에 닿는
-   * 걸 보여주고, 그 뒤 결과가 fade-through 로 들어오며 총계가 차오른다.
+   * 걸 보여주고, `confirming` 동안은 결과 자리를 체크가 쓴다. 그 뒤 결과가
+   * fade-through 로 들어온다.
    */
   completionStage: ScanCompletionStage;
   starting: boolean;

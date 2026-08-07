@@ -60,7 +60,9 @@ describe('useScanCompletionTransition', () => {
     act(() => { result.current.begin(); });
 
     unmount();
-    // 언마운트 뒤 타이머가 남아 있으면 여기서 setState 경고가 난다.
-    expect(() => { vi.advanceTimersByTime(SETTLE_MS + CONFIRM_MS); }).not.toThrow();
+    // 타이머가 실제로 회수됐는지를 센다 — advanceTimersByTime 은 살아남은 타이머가
+    // setState 를 때려도 throw 하지 않으므로, "안 터진다"는 정리 여부를 증명하지 못한다.
+    // renderHook 아래 타이머 소유자는 이 훅뿐이라 0 이 정확한 기대값이다.
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

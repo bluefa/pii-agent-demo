@@ -6,7 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * 완료 확인 프레임의 단계.
  * - `settling`: 진행바가 100%에 닿는 걸 보여주는 구간. 폴링은 마지막으로 본
  *   값(예: 72%)에서 끝나므로, 이 구간이 없으면 100%를 아무도 보지 못한다.
- * - `confirming`: 체크와 발견 건수가 서 있는 구간.
+ * - `confirming`: 완료 체크가 서 있는 구간. 건수는 말하지 않는다 — 이 시점에
+ *   댈 수 있는 숫자는 다음 화면과 단위가 다르다(ScanRunningState 의 COPY 참고).
  */
 export type ScanCompletionStage = 'idle' | 'settling' | 'confirming';
 
