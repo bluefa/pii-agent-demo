@@ -36,10 +36,12 @@ const stageCard = {
   header: 'flex items-center justify-between gap-3',
   title: 'flex items-center gap-2',
   titleIcon: 'text-[var(--pl-text-medium)]',
-  titleText: 'text-[17px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]',
+  titleText: 'text-[20px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]',
   badge:
-    'inline-flex items-center rounded-full bg-[var(--pl-gray-100)] px-2 py-[3px] text-[11px] font-medium text-[var(--pl-text-medium)] tabular-nums',
-  desc: 'text-[13px] leading-[1.5] text-[var(--pl-gray-600)]',
+    'inline-flex items-baseline gap-0.5 rounded-full bg-[var(--pl-gray-100)] px-2 py-[3px] text-[12px] font-medium text-[var(--pl-text-medium)] tabular-nums',
+  /** 건수가 배지의 주어라 단위(건)보다 크고 진하게. */
+  badgeCount: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
+  desc: 'text-[14px] leading-[1.5] text-[var(--pl-gray-600)]',
   headRow: 'flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-faint)]',
   row: 'relative flex items-center gap-3 py-2.5 border-t border-[var(--pl-border)] text-[13px] hover:bg-[var(--pl-gray-50)] transition-colors',
   // Column widths — the 연동 요청 목록 (queue/requests) card's, so the two
@@ -130,7 +132,9 @@ export function AlertStageCard({
             )}
             <h2 className={stageCard.titleText}>{label}</h2>
           </div>
-          <span className={stageCard.badge}>{totalElements}건</span>
+          <span className={stageCard.badge}>
+            <strong className={stageCard.badgeCount}>{totalElements}</strong>건
+          </span>
         </div>
 
         <p className={stageCard.desc}>{description}</p>
