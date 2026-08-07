@@ -235,6 +235,26 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Scan completion transition. The confirm frame's check draws over the same hero
+   block the running state used, then the result view fades through (Material's
+   fast-exit / emphasized-entrance pair).
+   Consumed via lib/theme.ts scanTransition, motion-safe at the call site.
+
+   A staggered row cascade used to follow. It could not be aimed: the scope class
+   sits on a wrapper that survives paging, but the animation was on the <tr>s, and
+   rows are keyed by candidate id — so every page change and every filter keystroke
+   remounted them and replayed the stagger, blinking the table during ordinary
+   navigation. The wrapper's own fade-through already carries the entrance. */
+@keyframes scan-check-draw {
+  from { stroke-dashoffset: 30; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes scan-reveal {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
 /* =============================================================================
    Global Styles
    ============================================================================= */
