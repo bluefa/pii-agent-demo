@@ -11,9 +11,9 @@ import {
   primaryColors,
   rowMenuStyles,
   statusColors,
+  tableRowLift,
   textColors,
 } from '@/lib/theme';
-import { formatRelativeTime } from '@/lib/utils/date';
 import type { ProjectSummary } from '@/lib/types';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
 
@@ -70,7 +70,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
   // 다른 CSP 행에 칩을 달면 없는 선택지를 있는 것처럼 보이게 한다.
   const showInstallMode = project.cloudProvider === 'AWS' && !project.isSduType;
   const showTenant = project.cloudProvider === 'Azure' && Boolean(project.tenantId);
-  const registeredAt = project.createdAt ? formatRelativeTime(project.createdAt) : '';
+  const hasMeta = showTenant || showInstallMode;
 
   // The row is a click target but not a focusable button — WAI-ARIA forbids
   // interactive descendants (the detail link, the ⋮ menu) inside a role="button"
@@ -94,10 +94,14 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
               {identity.label}
             </span>
           )}
+          {/* The row's own title is what turns blue under the cursor — the affordance
+              rides the content instead of a repeated link beside it, so the list holds
+              no resting blue at all and the page's one CTA keeps its loudness. */}
           <span
             className={cn(
-              'text-[16px] font-bold tracking-[-0.01em]',
+              'text-[16px] font-bold tracking-[-0.01em] transition-colors',
               textColors.primary,
+              primaryColors.textGroupHover,
               identity.mono && `font-mono ${numericFeatures.tabular}`,
             )}
           >
@@ -123,28 +127,31 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-y-1 gap-x-5">
-          {showTenant && (
-            <MetaPair label="Tenant">
-              <span className="font-mono">{shortenId(project.tenantId ?? '')}</span>
-            </MetaPair>
-          )}
-          {showInstallMode && (
-            <MetaPair label="설치 모드">
-              <span
-                className={cn(
-                  chipStyles.base,
-                  project.isTerraformExecutionGranted
-                    ? chipStyles.variant.auto
-                    : chipStyles.variant.manual,
-                )}
-              >
-                {project.isTerraformExecutionGranted ? '자동 설치' : '수동 설치'}
-              </span>
-            </MetaPair>
-          )}
-          {registeredAt && <MetaPair label="등록">{registeredAt}</MetaPair>}
-        </div>
+        {/* GCP·IDC·SDU have nothing to put here — render no layer at all rather than an
+            empty flex row, which would still spend the column's gap. */}
+        {hasMeta && (
+          <div className="flex flex-wrap items-center gap-y-1 gap-x-5">
+            {showTenant && (
+              <MetaPair label="Tenant">
+                <span className="font-mono">{shortenId(project.tenantId ?? '')}</span>
+              </MetaPair>
+            )}
+            {showInstallMode && (
+              <MetaPair label="설치 모드">
+                <span
+                  className={cn(
+                    chipStyles.base,
+                    project.isTerraformExecutionGranted
+                      ? chipStyles.variant.auto
+                      : chipStyles.variant.manual,
+                  )}
+                >
+                  {project.isTerraformExecutionGranted ? '자동 설치' : '수동 설치'}
+                </span>
+              </MetaPair>
+            )}
+          </div>
+        )}
 
         {project.description && (
           <div className="flex gap-1.5 min-w-0">
@@ -160,18 +167,33 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         className="flex-none flex items-center gap-3.5 pt-0.5"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Chevron, not a labelled link: the whole row already opens the detail, so a
+            worded control here was a second button for an action the row performs —
+            repeated once per row, it outshouted the page's only CTA. The label lives
+            in aria-label so keyboard and screen-reader users still get the words. */}
         <button
           type="button"
           onClick={() => onOpenDetail(project.targetSourceId)}
+          aria-label={`${identity.value} 상세 정보 확인`}
           className={cn(
-            'whitespace-nowrap text-[14px] font-semibold underline underline-offset-[3px]',
-            // The row tints on hover, and #0064FF drops under AA on that tint — the
-            // group-hover token swaps to #0050D6 exactly when the tint appears.
-            primaryColors.text,
-            primaryColors.textGroupHover,
+            'inline-grid place-items-center p-1 transition-colors',
+            textColors.tertiary,
+            tableRowLift.cellText,
           )}
         >
-          상세 정보 확인 →
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="9 6 15 12 9 18" />
+          </svg>
         </button>
         <RowMenu
           onViewDetail={() => onManageAction('view', project.targetSourceId)}

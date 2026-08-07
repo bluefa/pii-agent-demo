@@ -385,8 +385,6 @@ export interface ProjectSummary {
   isChinaRegion?: boolean;
   /** AWS only — false means the service installs by hand (수동 설치). */
   isTerraformExecutionGranted?: boolean;
-  /** ISO 8601 registration time (`created_at`). */
-  createdAt?: string;
   resourceCount: number;
   hasDisconnected: boolean;
   hasNew: boolean;

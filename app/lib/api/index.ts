@@ -100,7 +100,6 @@ const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
     isChinaRegion: metadata?.is_china_region === true,
     isTerraformExecutionGranted:
       metadata?.grant_service_terraform_execution_permission === true,
-    createdAt: item.created_at ?? undefined,
     resourceCount: 0,
     hasDisconnected: false,
     hasNew: false,
