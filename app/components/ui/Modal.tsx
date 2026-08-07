@@ -21,7 +21,7 @@ export interface ModalProps {
   /** 헤더 아이콘 (선택) */
   icon?: ReactNode;
   /** 모달 크기 */
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'logical';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'logical' | 'logical-tree';
   /**
    * Modal chrome. 'default' keeps the shared app styling — byte-identical for
    * existing callers (AWS/Azure/GCP). 'toss' opts into the IDC-only prototype
@@ -65,6 +65,9 @@ const SIZE_CLASSES: Record<string, string> = {
   '3xl': 'max-w-[1160px]',
   // v16 `.logical-modal` — 1040px wide (논리 DB 확인). Additive: no existing size changes.
   logical: 'max-w-[1040px]',
+  // 논리 DB 목록 (tree redesign) — 720px: one tree column instead of two panels,
+  // so the v16 1040 width would just stretch the name column. Additive.
+  'logical-tree': 'max-w-[720px]',
 };
 
 /**

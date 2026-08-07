@@ -56,7 +56,12 @@ export const toRenderRow = (item: TestedLogicalDatabase): LogicalDatabase | unde
   };
 };
 
-/** Map an Excluded item to a render row (right-panel / excluded-only items). */
+/**
+ * Map an Excluded item to a render row (excluded-only items). `untested` marks it
+ * as policy-only: absent from this run's Tested list, which is the *expected*
+ * consequence of an exclusion (the next Test Connection simply does not collect
+ * an excluded DB) — the UI renders it neutrally, never as a warning.
+ */
 const excludedToRenderRow = (item: ExcludedLogicalDatabase): LogicalDatabase => {
   const id = denyId({ database: item.databaseName, schema: item.schemaName });
   return {
@@ -66,6 +71,7 @@ const excludedToRenderRow = (item: ExcludedLogicalDatabase): LogicalDatabase => 
     database: item.databaseName,
     ...(item.schemaName ? { schema: item.schemaName } : {}),
     existingDenyReason: item.skipReason,
+    untested: true,
   };
 };
 
@@ -137,7 +143,7 @@ export const buildModalData = (
     testedRows.push(reason ? { ...row, existingDenyReason: reason } : row);
   }
 
-  // The left panel must also surface excluded-only items (in the policy but not
+  // The list must also surface excluded-only items (in the policy but not
   // discovered) so they can be restored; merge them in once.
   const seen = new Set(testedRows.map((r) => r.id));
   for (const item of excluded) {
@@ -145,6 +151,26 @@ export const buildModalData = (
     if (seen.has(id)) continue;
     testedRows.push(excludedToRenderRow(item));
     seen.add(id);
+  }
+
+  // Real PG targets report SCHEMA rows only, so the DATABASE that contains them
+  // has no row of its own. Synthesize a `virtual` DATABASE parent per such
+  // database: the tree needs a group header, and DATABASE-scope exclusion needs
+  // a row for `draftToExcludedItems` to serialize (its id must be in `databases`).
+  for (const row of [...testedRows]) {
+    if (row.type !== 'schema') continue;
+    const parentId = denyId({ database: row.database });
+    if (seen.has(parentId)) continue;
+    const parentReason = reasons[parentId];
+    testedRows.push({
+      id: parentId,
+      name: row.database,
+      type: 'db',
+      database: row.database,
+      virtual: true,
+      ...(parentReason ? { existingDenyReason: parentReason } : {}),
+    });
+    seen.add(parentId);
   }
 
   return { databases: testedRows, initialDraft: { excludedIds, reasons } };

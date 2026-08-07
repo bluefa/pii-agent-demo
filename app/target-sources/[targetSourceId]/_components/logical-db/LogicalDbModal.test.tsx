@@ -7,16 +7,27 @@ import type {
   LogicalDbModalDraft,
 } from '@/app/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
 
-const databases: LogicalDatabase[] = [
-  { id: 'srv.db_alpha', name: 'db_alpha', type: 'db', database: 'db_alpha' },
-  {
-    id: 'srv.db_bravo',
-    name: 'db_bravo.public',
-    type: 'schema',
-    database: 'db_bravo',
-    schema: 'public',
-  },
-  { id: 'srv.db_charlie', name: 'db_charlie', type: 'db', database: 'db_charlie' },
+/**
+ * PG-shaped fixture (Schema-unit): schemas grouped under `live` (virtual parent),
+ * `prd` saved-excluded at DATABASE scope, `legacy` policy-only (untested).
+ */
+const pgDatabases: LogicalDatabase[] = [
+  { id: 'live', name: 'live', type: 'db', database: 'live', virtual: true },
+  { id: 'live.public', name: 'live.public', type: 'schema', database: 'live', schema: 'public' },
+  { id: 'live.analytics', name: 'live.analytics', type: 'schema', database: 'live', schema: 'analytics' },
+  { id: 'prd', name: 'prd', type: 'db', database: 'prd', existingDenyReason: 'TEMP' },
+  { id: 'prd.main', name: 'prd.main', type: 'schema', database: 'prd', schema: 'main' },
+  { id: 'legacy', name: 'legacy', type: 'db', database: 'legacy', existingDenyReason: 'TEMP', untested: true },
+];
+
+const pgDraft: LogicalDbModalDraft = {
+  excludedIds: new Set(['prd', 'legacy']),
+  reasons: { prd: 'TEMP', legacy: 'TEMP' },
+};
+
+const mysqlDatabases: LogicalDatabase[] = [
+  { id: 'live', name: 'live', type: 'db', database: 'live' },
+  { id: 'reporting', name: 'reporting', type: 'db', database: 'reporting' },
 ];
 
 const renderModal = (overrides: Partial<React.ComponentProps<typeof LogicalDbModal>> = {}) => {
@@ -25,8 +36,9 @@ const renderModal = (overrides: Partial<React.ComponentProps<typeof LogicalDbMod
   const result = render(
     <LogicalDbModal
       open
-      resourceName="srv-prod-01"
-      databases={databases}
+      resourceName="pg-cluster-prod-01"
+      databases={pgDatabases}
+      initialDraft={pgDraft}
       onSave={onSave}
       onClose={onClose}
       {...overrides}
@@ -35,148 +47,169 @@ const renderModal = (overrides: Partial<React.ComponentProps<typeof LogicalDbMod
   return { ...result, onSave, onClose };
 };
 
-const getPanel = (label: string): HTMLElement => {
-  // Each panel header text uniquely identifies its container.
-  const heading = screen.getByText(label);
-  const panel = heading.closest('div.flex.flex-col');
-  if (!panel) throw new Error(`Panel container not found for ${label}`);
-  return panel as HTMLElement;
+const rowOf = (name: string): HTMLElement => {
+  const el = screen.getByTitle(name);
+  const row = el.closest('div.relative');
+  if (!row) throw new Error(`row not found for ${name}`);
+  return row as HTMLElement;
 };
 
-describe('LogicalDbModal', () => {
-  it('renders both panel labels with counts', () => {
+describe('LogicalDbModal (tree redesign)', () => {
+  it('renders the title, unit chip, and full-set counts', () => {
     renderModal();
-    expect(screen.getByText('연동 대상 후보')).toBeTruthy();
-    expect(screen.getByText('연동 제외 후보')).toBeTruthy();
-    const panelA = getPanel('연동 대상 후보');
-    expect(within(panelA).getByText('3개')).toBeTruthy();
-    const panelB = getPanel('연동 제외 후보');
-    expect(within(panelB).getByText('0개')).toBeTruthy();
+    expect(screen.getByText('논리 DB 목록')).toBeTruthy();
+    expect(screen.getByText('Schema 단위 조회')).toBeTruthy();
+    // 6 entries total; prd(deny) + prd.main(inherited) + legacy(deny) are 제외.
+    expect(screen.getByRole('button', { name: '전체 6' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '수집 대상 3' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '제외 3' })).toBeTruthy();
   });
 
-  it('renders Type / Database / Schema columns for each logical DB', () => {
-    renderModal();
-    const panelA = getPanel('연동 대상 후보');
-    // column headers
-    expect(within(panelA).getAllByText('Type').length).toBeGreaterThan(0);
-    expect(within(panelA).getAllByText('Database').length).toBeGreaterThan(0);
-    expect(within(panelA).getAllByText('Schema').length).toBeGreaterThan(0);
-    // a database row shows its type pill + database name
-    const dbRow = within(panelA).getByText('db_alpha').closest('tr') as HTMLElement;
-    expect(within(dbRow).getByText('Database')).toBeTruthy();
-    // a schema row shows the Schema pill, database, and schema name
-    const schemaRow = within(panelA).getByText('db_bravo').closest('tr') as HTMLElement;
-    expect(within(schemaRow).getByText('Schema')).toBeTruthy();
-    expect(within(schemaRow).getByText('public')).toBeTruthy();
+  it('flat MySQL list shows the Database-unit chip and no chevrons', () => {
+    renderModal({ databases: mysqlDatabases, initialDraft: undefined });
+    expect(screen.getByText('Database 단위 조회')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /펼치기|접기/ })).toBeNull();
   });
 
-  it('moves an item from Panel A to Panel B when 제외 is clicked', () => {
-    renderModal();
-    const panelA = getPanel('연동 대상 후보');
-    const excludeButtons = within(panelA).getAllByRole('button', { name: '제외' });
-    fireEvent.click(excludeButtons[0]);
-
-    const updatedPanelA = getPanel('연동 대상 후보');
-    expect(within(updatedPanelA).getByText('2개')).toBeTruthy();
-    const updatedPanelB = getPanel('연동 제외 후보');
-    expect(within(updatedPanelB).getByText('1개')).toBeTruthy();
-    expect(within(updatedPanelB).getByText('db_alpha')).toBeTruthy();
-  });
-
-  it('moves an item back from Panel B to Panel A when 복원 is clicked', () => {
-    const initialDraft: LogicalDbModalDraft = {
-      excludedIds: new Set(['srv.db_alpha']),
-      reasons: {},
-    };
-    renderModal({ initialDraft });
-
-    const panelB = getPanel('연동 제외 후보');
-    expect(within(panelB).getByText('db_alpha')).toBeTruthy();
-    const restoreButton = within(panelB).getByRole('button', { name: '복원' });
-    fireEvent.click(restoreButton);
-
-    const updatedPanelA = getPanel('연동 대상 후보');
-    expect(within(updatedPanelA).getByText('db_alpha')).toBeTruthy();
-    const updatedPanelB = getPanel('연동 제외 후보');
-    expect(within(updatedPanelB).getByText('0개')).toBeTruthy();
-  });
-
-  it('filters items in the targeted panel using the search input', () => {
-    renderModal();
-    const panelA = getPanel('연동 대상 후보');
-    const searchInput = within(panelA).getByPlaceholderText('Database / Schema 검색');
-    fireEvent.change(searchInput, { target: { value: 'bravo' } });
-
-    expect(within(panelA).getByText('db_bravo')).toBeTruthy();
-    expect(within(panelA).queryByText('db_alpha')).toBeNull();
-    expect(within(panelA).queryByText('db_charlie')).toBeNull();
-  });
-
-  it('disables save when there are no pending changes', () => {
-    renderModal();
-    const saveButton = screen.getByRole('button', { name: '저장' }) as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(true);
-  });
-
-  it('calls onSave with the final draft when 저장 is clicked', () => {
+  it('excluding a schema asks for a reason, then stages the change', () => {
     const { onSave } = renderModal();
-    const panelA = getPanel('연동 대상 후보');
-    const excludeButtons = within(panelA).getAllByRole('button', { name: '제외' });
-    fireEvent.click(excludeButtons[0]);
+    const row = rowOf('live.public');
+    fireEvent.click(within(row).getByRole('button', { name: '제외' }));
 
-    const saveButton = screen.getByRole('button', { name: '저장' });
-    fireEvent.click(saveButton);
+    // Reason popover with Korean labels + enum.
+    expect(screen.getByText('제외 사유')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: /개발용/ }));
+    fireEvent.click(screen.getByRole('button', { name: '제외 (저장 전에 추가)' }));
 
-    expect(onSave).toHaveBeenCalledTimes(1);
+    const stagedRow = rowOf('live.public');
+    expect(within(stagedRow).getByText('저장 전')).toBeTruthy();
+    expect(within(stagedRow).getByText(/Schema 제외 예정 · 사유: 개발용/)).toBeTruthy();
+    // Footer diff names the change; save becomes possible.
+    expect(screen.getByText(/저장 전 변경 1건/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '저장' }));
     const draft = onSave.mock.calls[0][0] as LogicalDbModalDraft;
-    expect(Array.from(draft.excludedIds)).toEqual(['srv.db_alpha']);
+    expect(draft.excludedIds.has('live.public')).toBe(true);
+    expect(draft.reasons['live.public']).toBe('DEV');
   });
 
-  it('respects the initial draft on mount', () => {
-    const initialDraft: LogicalDbModalDraft = {
-      excludedIds: new Set(['srv.db_bravo', 'srv.db_charlie']),
-      reasons: {},
-    };
-    renderModal({ initialDraft });
-    const panelA = getPanel('연동 대상 후보');
-    expect(within(panelA).getByText('1개')).toBeTruthy();
-    expect(within(panelA).getByText('db_alpha')).toBeTruthy();
-    const panelB = getPanel('연동 제외 후보');
-    expect(within(panelB).getByText('2개')).toBeTruthy();
+  it('a DATABASE exclusion absorbs schema-level entries and renders children inherited', () => {
+    const { onSave } = renderModal({
+      initialDraft: {
+        excludedIds: new Set(['live.analytics']),
+        reasons: { 'live.analytics': 'DEV' },
+      },
+    });
+    const liveRow = rowOf('live');
+    fireEvent.click(within(liveRow).getByRole('button', { name: '제외' }));
+    // The popover warns about the merge before it happens.
+    expect(screen.getByText(/기존 Schema 제외 1건은 Database 제외로 합쳐져요/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '제외 (저장 전에 추가)' }));
+
+    // Children are inherited, with no per-row action.
+    const childRow = rowOf('live.public');
+    expect(within(childRow).getByText('↳ 상위 Database 제외에 포함')).toBeTruthy();
+    expect(within(childRow).queryByRole('button')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '저장' }));
+    const draft = onSave.mock.calls[0][0] as LogicalDbModalDraft;
+    expect(draft.excludedIds.has('live')).toBe(true);
+    expect(draft.excludedIds.has('live.analytics')).toBe(false);
+    expect(draft.reasons['live.analytics']).toBeUndefined();
   });
 
-  it('shows the pending-change footer values for added and removed items', () => {
-    const initialDraft: LogicalDbModalDraft = {
-      excludedIds: new Set(['srv.db_alpha']),
-      reasons: {},
-    };
-    renderModal({ initialDraft });
+  it('restore stages, undo returns to the saved exclusion', () => {
+    renderModal();
+    const prdRow = rowOf('prd');
+    expect(within(prdRow).getByText(/Database 제외 · 하위 Schema 포함 · 사유: 임시/)).toBeTruthy();
+    fireEvent.click(within(prdRow).getByRole('button', { name: '복원' }));
 
-    // restore db_alpha → removed=1
-    const panelB = getPanel('연동 제외 후보');
-    fireEvent.click(within(panelB).getByRole('button', { name: '복원' }));
-
-    // exclude db_bravo → added=1
-    const panelA = getPanel('연동 대상 후보');
-    const bravoRow = within(panelA).getByText('db_bravo').closest('tr');
-    if (!bravoRow) throw new Error('bravo row missing');
-    fireEvent.click(within(bravoRow as HTMLElement).getByRole('button', { name: '제외' }));
-
-    // Footer should render exact literals: 변경사항 2건 · 추가 1 · 제거 1.
-    // Assert each segment explicitly so a regression to approximate
-    // set-math (e.g. |added - removed| or added * removed) cannot pass.
-    const footerText = (
-      screen.getByText(/변경사항/).textContent ?? ''
-    ).replace(/\s+/g, ' ').trim();
-    expect(footerText).toContain('변경사항 2건');
-    expect(footerText).toContain('추가 1');
-    expect(footerText).toContain('제거 1');
+    const stagedRow = rowOf('prd');
+    expect(within(stagedRow).getByText(/복원 예정/)).toBeTruthy();
+    fireEvent.click(within(stagedRow).getByRole('button', { name: '실행 취소' }));
+    expect(within(rowOf('prd')).getByRole('button', { name: '복원' })).toBeTruthy();
   });
 
-  it('does not crash when databases is empty', () => {
-    renderModal({ databases: [] });
-    const panelA = getPanel('연동 대상 후보');
-    expect(within(panelA).getByText('0개')).toBeTruthy();
-    expect(within(panelA).getByText('조건에 맞는 결과가 없어요.')).toBeTruthy();
+  it('policy-only entries read as 미조회, neutrally, and stay restorable', () => {
+    renderModal();
+    const legacyRow = rowOf('legacy');
+    expect(within(legacyRow).getByText(/이번 테스트 미조회/)).toBeTruthy();
+    expect(within(legacyRow).getByRole('button', { name: '복원' })).toBeTruthy();
+  });
+
+  it('the 제외 filter narrows to denyish rows only', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: '제외 3' }));
+    expect(screen.queryByTitle('live.public')).toBeNull();
+    expect(screen.getByTitle('prd')).toBeTruthy();
+    expect(screen.getByTitle('legacy')).toBeTruthy();
+  });
+
+  it('search matches schema names and keeps the group header visible', () => {
+    renderModal();
+    fireEvent.change(screen.getByRole('textbox', { name: '논리 DB 검색' }), {
+      target: { value: 'analytics' },
+    });
+    expect(screen.getByTitle('live')).toBeTruthy();
+    expect(screen.getByTitle('live.analytics')).toBeTruthy();
+    expect(screen.queryByTitle('live.public')).toBeNull();
+    expect(screen.queryByTitle('prd')).toBeNull();
+  });
+
+  it('staged changes surface the re-test warning; a clean draft disables save', () => {
+    renderModal();
+    expect(screen.queryByText(/저장하면 연결 테스트를 다시 실행해야 해요/)).toBeNull();
+    expect((screen.getByRole('button', { name: '저장' }) as HTMLButtonElement).disabled).toBe(true);
+
+    const row = rowOf('live.public');
+    fireEvent.click(within(row).getByRole('button', { name: '제외' }));
+    fireEvent.click(screen.getByRole('button', { name: '제외 (저장 전에 추가)' }));
+    expect(screen.getByText(/저장하면 연결 테스트를 다시 실행해야 해요/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: '저장' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('되돌리기 resets every staged change', () => {
+    renderModal();
+    const row = rowOf('live.public');
+    fireEvent.click(within(row).getByRole('button', { name: '제외' }));
+    fireEvent.click(screen.getByRole('button', { name: '제외 (저장 전에 추가)' }));
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    expect(screen.getByText('변경 없음')).toBeTruthy();
+    expect(within(rowOf('live.public')).getByRole('button', { name: '제외' })).toBeTruthy();
+  });
+
+  it('policy-only data (nothing tested) shows no unit chip and no tooltip', () => {
+    // Everything was excluded, so the next test collected nothing: only policy
+    // rows remain. The unit must not be judged from them.
+    renderModal({
+      databases: [
+        { id: 'analytics_archive', name: 'analytics_archive', type: 'db', database: 'analytics_archive', existingDenyReason: 'TEMP', untested: true },
+      ],
+      initialDraft: {
+        excludedIds: new Set(['analytics_archive']),
+        reasons: { analytics_archive: 'TEMP' },
+      },
+    });
+    expect(screen.queryByText(/단위 조회/)).toBeNull();
+    expect(screen.queryByLabelText('논리 DB 설명')).toBeNull();
+    expect(screen.getByText('조회된 논리 DB 없음')).toBeTruthy();
+    expect(screen.getByText(/제외 목록만 남아 있어요/)).toBeTruthy();
+    // The policy row itself stays listed and restorable.
+    expect(within(rowOf('analytics_archive')).getByRole('button', { name: '복원' })).toBeTruthy();
+  });
+
+  it('a fully empty result renders the empty state without chip or tooltip', () => {
+    renderModal({ databases: [], initialDraft: undefined });
+    expect(screen.queryByText(/단위 조회/)).toBeNull();
+    expect(screen.queryByLabelText('논리 DB 설명')).toBeNull();
+    expect(screen.getByText('조회된 논리 DB 없음')).toBeTruthy();
+    expect(screen.getByText('조회된 논리 DB가 없어요.')).toBeTruthy();
+  });
+
+  it('collapsing a database hides its schema rows', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: 'live 접기' }));
+    expect(screen.queryByTitle('live.public')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'live 펼치기' }));
+    expect(screen.getByTitle('live.public')).toBeTruthy();
   });
 });
