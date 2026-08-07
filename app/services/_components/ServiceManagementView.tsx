@@ -281,10 +281,12 @@ export const ServiceManagementView = () => {
               </div>
             </div>
           ) : (
-            // Rows carry a fixed 40px mark, three text layers and a right-hand action
-            // pair — past ~880px the middle column stretches and the eye loses the
-            // line it is reading. The cap is the row's, not the viewport's.
-            <div className="max-w-[880px]">
+            // The column grows with the window and stops at 1440px. A hard 880 froze
+            // the page: on a 1920 screen it left 720px of empty canvas beside a
+            // description that was still being clipped to one line. The ceiling exists
+            // so the row never runs edge-to-edge — the eye has to get from the mark on
+            // the left to the action on the right — but a ceiling is not a fixed width.
+            <div className="w-full max-w-[1440px]">
               <Breadcrumb
                 crumbs={[
                   { label: 'SIT Home', href: '/' },
