@@ -9,6 +9,7 @@ import {
   cn,
   numericFeatures,
   primaryColors,
+  rowLabelColors,
   rowMenuStyles,
   statusColors,
   tableRowLift,
@@ -106,7 +107,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
               no resting blue and the page's one CTA keeps its loudness. */}
           <span
             className={cn(
-              'text-[16px] font-bold tracking-[-0.01em] transition-colors',
+              'text-[16px] font-semibold tracking-[-0.01em] transition-colors',
               textColors.primary,
               primaryColors.textGroupHover,
             )}
@@ -150,7 +151,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
                 <KindWord>{identity.secondKind}</KindWord>
                 <span
                   className={cn(
-                    'text-[16px] font-semibold tracking-[-0.01em]',
+                    'text-[16px] font-medium tracking-[-0.01em]',
                     textColors.primary,
                   )}
                 >
@@ -182,7 +183,9 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
 
         {project.description && (
           <div className="flex gap-1.5 min-w-0 pl-0.5">
-            <span className={cn('flex-none pt-0.5 text-[12px]', textColors.tertiary)}>설명</span>
+            <span className={cn('flex-none pt-0.5 text-[12px]', rowLabelColors.description)}>
+              설명
+            </span>
             <span className={cn('truncate text-[14px]', textColors.secondary)}>
               {project.description}
             </span>
@@ -224,14 +227,20 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
 
 /** The word naming the kind of id that follows it — "Account", "Subscription", "Project". */
 const KindWord = ({ children }: { children: React.ReactNode }) => (
-  <span className={cn('text-[12px]', textColors.tertiary)}>{children}</span>
+  <span className={cn('text-[12px]', rowLabelColors.kind)}>{children}</span>
 );
 
-/** An account id or GUID — shown whole; a truncated id is not an id. */
+/**
+ * An account id or GUID — shown whole; a truncated id is not an id.
+ *
+ * `medium`, not `semibold`: the provider name is the row's subject and the id is
+ * what qualifies it. At the same weight the two competed, and a 20-character GUID
+ * won on sheer length.
+ */
 const IdValue = ({ children }: { children: React.ReactNode }) => (
   <span
     className={cn(
-      'text-[14px] font-semibold tracking-[-0.01em]',
+      'text-[14px] font-medium tracking-[-0.01em]',
       textColors.primary,
       numericFeatures.tabular,
     )}
@@ -242,7 +251,7 @@ const IdValue = ({ children }: { children: React.ReactNode }) => (
 
 const MetaPair = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <span className="flex items-center gap-1.5">
-    <span className={cn('text-[12px]', textColors.tertiary)}>{label}</span>
+    <span className={cn('text-[12px]', rowLabelColors.kind)}>{label}</span>
     {children}
   </span>
 );

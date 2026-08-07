@@ -284,7 +284,10 @@ export const ServiceManagementView = () => {
             // reads as a fixed width to anyone whose monitor is past it — at 2280px a
             // 1440 cap left 520px of dead canvas and froze the layout against every
             // resize. `main` already holds the column off the edges with its own p-6.
-            <div className="w-full">
+            // `min-h-full` so the column always fills `main`, which is what gives the
+            // list's `flex-1` a bottom edge to push the pager against. Without it the
+            // column is only as tall as its content and there is nothing to fill.
+            <div className="flex w-full min-h-full flex-col">
               {/* No breadcrumb. It read "SIT Home › 서비스 목록" directly above an h1
                   that says the same thing, so it spent 37px of the first screen
                   repeating the title rather than locating the page. On a 100% zoom

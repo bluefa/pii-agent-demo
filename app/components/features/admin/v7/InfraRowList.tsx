@@ -62,7 +62,10 @@ export const InfraRowList = ({
   }
 
   return (
-    <div className="flex flex-col gap-3.5" aria-busy={loading}>
+    // `flex-1` + the pager's `mt-auto`: the pager sits on the bottom edge of the
+    // column instead of trailing the last card. On a 1/1 page it was floating in
+    // the middle of the screen with the rule under it cutting the canvas in half.
+    <div className="flex flex-1 flex-col gap-3.5" aria-busy={loading}>
       {/* No bar chrome: the cards below already own every edge on this column, so a
           bordered toolbar would draw a frame around nothing. The count describes this
           list, not the service, which is why it lives here and not in the page header. */}
@@ -91,7 +94,7 @@ export const InfraRowList = ({
 
       <div
         className={cn(
-          'flex items-center justify-center gap-5 h-[52px] border-t',
+          'mt-auto flex shrink-0 items-center justify-center gap-5 h-[52px] border-t',
           borderColors.light,
         )}
       >
