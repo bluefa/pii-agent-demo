@@ -483,14 +483,16 @@ export const ConnectionTestCard = ({
                   const credRequired = requiresCredential(unit.databaseType);
                   const [first] = unit.members;
                   const open = expanded.has(unit.unitId);
-                  const rail = railRow(unit.unitId);
+                  // Only a folded region draws a rail; a flat unit gets no handlers so a
+                  // pointer move down the list does not re-render the table for nothing.
+                  const rail = unit.folded ? railRow(unit.unitId) : undefined;
                   return (
                     <Fragment key={unit.unitId}>
                     <tr
-                      className={cn(ROW_BASE, ROW_TARGET, unit.folded && 'cursor-pointer', rail.className)}
+                      className={cn(ROW_BASE, ROW_TARGET, unit.folded && 'cursor-pointer', rail?.className)}
                       onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
-                      onMouseEnter={rail.onMouseEnter}
-                      onMouseLeave={rail.onMouseLeave}
+                      onMouseEnter={rail?.onMouseEnter}
+                      onMouseLeave={rail?.onMouseLeave}
                     >
                       {/* A folded row stands for a REGION, which has no resource name, so this
                           cell carries the disclosure and the engine's label instead. Opening it
@@ -655,9 +657,9 @@ export const ConnectionTestCard = ({
                       unit.members.map((db, index) => (
                         <tr
                           key={db.resourceId}
-                          className={cn(ROW_BASE, rail.className)}
-                          onMouseEnter={rail.onMouseEnter}
-                          onMouseLeave={rail.onMouseLeave}
+                          className={cn(ROW_BASE, rail?.className)}
+                          onMouseEnter={rail?.onMouseEnter}
+                          onMouseLeave={rail?.onMouseLeave}
                         >
                           <td
                             className={cn(

@@ -1015,7 +1015,9 @@ export const idcStyles = {
      * the one under its parent and the one under its last child: three rows in a row with
      * no rhythm, which reads as the tree being torn rather than nested. A collapsed
      * (hidden) children tbody is still an element, so `+` lands the seam on the next
-     * visible tbody in both fold states.
+     * visible tbody in both fold states. A `<tr>` border paints because these tables inherit
+     * preflight's `border-collapse: collapse`; a table that opts into `border-separate` would
+     * need the seam on its cells instead.
      */
     tbodySeam:
       '[&_tbody+tbody>tr:first-child]:border-t [&_tbody+tbody>tr:first-child]:border-[#EBEEF2]',

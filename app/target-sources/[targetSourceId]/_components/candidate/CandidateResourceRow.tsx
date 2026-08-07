@@ -174,7 +174,7 @@ const RdsInstanceRow = ({
           <RdsMemberChip role={instance.cluster_member_role} />
           {/* Editable: the checked radio already says which member is chosen, so no chip.
               Read-only has no radio, so 선택됨 is the only thing left to say it. */}
-          {readonly && isChosen && <RdsSelectionChip label="선택됨" />}
+          {readonly && isChosen && <RdsSelectionChip />}
         </span>
       </td>
 

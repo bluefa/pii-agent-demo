@@ -92,13 +92,15 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             const hasInstances = instances.length > 0;
             const fold = clusterFold(rowKey, row.selected);
             const instancesOpen = hasInstances && fold.open;
-            const rail = railRow(rowKey);
+            // Only a cluster draws a rail; other rows get no handlers so a pointer move down
+            // the list does not re-render the table for a class with nothing to colour.
+            const rail = hasInstances ? railRow(rowKey) : undefined;
             return (
               <Fragment key={rowKey}>
               <tr
-                className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail.className)}
-                onMouseEnter={rail.onMouseEnter}
-                onMouseLeave={rail.onMouseLeave}
+                className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
+                onMouseEnter={rail?.onMouseEnter}
+                onMouseLeave={rail?.onMouseLeave}
               >
                 <td
                   className={cn(
@@ -202,9 +204,9 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
               {instancesOpen && instances.map((instance, instanceIndex) => (
                 <tr
                   key={instance.resource_id}
-                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail.className)}
-                  onMouseEnter={rail.onMouseEnter}
-                  onMouseLeave={rail.onMouseLeave}
+                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
+                  onMouseEnter={rail?.onMouseEnter}
+                  onMouseLeave={rail?.onMouseLeave}
                 >
                   <td
                     className={cn(
@@ -219,7 +221,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                       <span className="truncate">{rdsInstanceLabel(instance)}</span>
                       <RdsMemberChip role={instance.cluster_member_role} />
                       {instance.resource_id === row.selectedRdsInstanceResourceId && (
-                        <RdsSelectionChip label="선택됨" />
+                        <RdsSelectionChip />
                       )}
                     </span>
                   </td>

@@ -26,11 +26,11 @@ export interface ClusterFold {
 export const useClusterFold = () => {
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
 
-  return (key: string, included: boolean): ClusterFold => {
-    const open = overrides[key] ?? included;
-    return {
-      open,
-      toggle: () => setOverrides((previous) => ({ ...previous, [key]: !open })),
-    };
-  };
+  return (key: string, included: boolean): ClusterFold => ({
+    open: overrides[key] ?? included,
+    // Flips what the UPDATER holds, not what this render closed over: two presses batched into
+    // one commit would otherwise both write the same value and the second would be a no-op.
+    toggle: () =>
+      setOverrides((previous) => ({ ...previous, [key]: !(previous[key] ?? included) })),
+  });
 };

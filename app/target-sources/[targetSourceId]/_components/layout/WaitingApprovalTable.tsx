@@ -405,8 +405,10 @@ export const WaitingApprovalTable = memo(
       // Keyed on the declared top-level type, never on `resourceType` — see the field's note.
       const isCluster = isRdsCluster(resource.declaredResourceType ?? '');
       // Every row of one rail shares a key: a group's children take the group's (passed in by
-      // the caller), a cluster or a folded region and its members take the row's own.
-      const rail = railRow(railKey ?? rowKey);
+      // the caller), a cluster or a folded region and its members take the row's own. Rows that
+      // draw NO rail get no handlers: this table is memo()'d and paginated, and lighting nothing
+      // on every pointer move would re-render the whole list for a class with no effect.
+      const rail = grouped || instancesOpen || (folded && open) ? railRow(railKey ?? rowKey) : undefined;
       const row = (
         <tr
           // `resource_id` is optional in the contract, so two id-less rows would collide on
@@ -417,11 +419,11 @@ export const WaitingApprovalTable = memo(
             ROW_BASE,
             excluded ? ROW_EXCLUDED : ROW_TARGET,
             foldToggleable && 'cursor-pointer',
-            rail.className,
+            rail?.className,
           )}
           onClick={foldToggleable ? () => toggleFold(rowKey) : undefined}
-          onMouseEnter={rail.onMouseEnter}
-          onMouseLeave={rail.onMouseLeave}
+          onMouseEnter={rail?.onMouseEnter}
+          onMouseLeave={rail?.onMouseLeave}
         >
           {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
               block and left row heights ragged (59/69/75px); the full name is in the tip. */}
@@ -688,9 +690,9 @@ export const WaitingApprovalTable = memo(
                 // contrast made a dimmed parent read as a rendering fault.
                 <tr
                   key={instance.resource_id}
-                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail.className)}
-                  onMouseEnter={rail.onMouseEnter}
-                  onMouseLeave={rail.onMouseLeave}
+                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
+                  onMouseEnter={rail?.onMouseEnter}
+                  onMouseLeave={rail?.onMouseLeave}
                 >
                   <td
                     className={cn(
@@ -705,7 +707,7 @@ export const WaitingApprovalTable = memo(
                       <span className="truncate">{rdsInstanceLabel(instance)}</span>
                       <RdsMemberChip role={instance.cluster_member_role} />
                       {instance.resource_id === resource.selectedRdsInstanceResourceId && (
-                        <RdsSelectionChip label="선택됨" />
+                        <RdsSelectionChip />
                       )}
                     </span>
                   </td>
@@ -747,9 +749,9 @@ export const WaitingApprovalTable = memo(
             members.map((member, index) => (
               <tr
                 key={member.resourceId}
-                className={cn(ROW_BASE, rail.className)}
-                onMouseEnter={rail.onMouseEnter}
-                onMouseLeave={rail.onMouseLeave}
+                className={cn(ROW_BASE, rail?.className)}
+                onMouseEnter={rail?.onMouseEnter}
+                onMouseLeave={rail?.onMouseLeave}
               >
                 <td
                   className={cn(
