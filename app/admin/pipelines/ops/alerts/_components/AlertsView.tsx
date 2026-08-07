@@ -12,8 +12,9 @@
  *
  * Layout: Figma ZL0Y0okL8lReCrbf7JaVAp 1:123 — summary counts on top, then all
  * four buckets side by side (2×2), each with its own page of rows. The summary
- * tiles are selectable one at a time — 강조 표시일 뿐, 카드 목록은 걸러내지
- * 않는다(네 버킷이 이미 모두 화면에 있다).
+ * tiles are selectable one at a time — 선택하면 같은 버킷의 아래 카드까지 함께
+ * 강조된다. 강조 표시일 뿐, 카드 목록은 걸러내지 않는다(네 버킷이 이미 모두
+ * 화면에 있다).
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -164,6 +165,7 @@ export function AlertsView(): ReactElement {
             label={card.label}
             description={card.description}
             icon={card.icon}
+            active={selected === card.kind}
             reloadKey={reloadKey}
           />
         ))}

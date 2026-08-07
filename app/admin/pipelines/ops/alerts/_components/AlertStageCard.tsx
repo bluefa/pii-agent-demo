@@ -31,6 +31,8 @@ const stageCard = {
    * accent 바의 상단 모서리를 카드 radius 로 깎기 위해 필요하다.
    */
   card: 'bg-[var(--pl-bg-card)] border border-[var(--pl-border-strong)] rounded-[12px] shadow-[var(--pl-shadow-md)] overflow-hidden',
+  /** 상단 요약 타일에서 선택된 버킷 — 타일과 같은 브랜드 스트로크로 짝을 보여준다. */
+  cardActive: 'border-[var(--pl-primary)]',
   accent: 'h-1 w-full bg-[var(--pl-gray-50)]',
   body: 'flex flex-1 flex-col gap-3 p-4',
   header: 'flex items-center justify-between gap-3',
@@ -72,6 +74,8 @@ export interface AlertStageCardProps {
   label: string;
   description: string;
   icon: AlertStageIcon;
+  /** 상단 요약 타일에서 이 버킷이 선택된 상태. */
+  active: boolean;
   /** Bumped by the parent's 새로고침. */
   reloadKey: number;
 }
@@ -81,6 +85,7 @@ export function AlertStageCard({
   label,
   description,
   icon,
+  active,
   reloadKey,
 }: AlertStageCardProps): ReactElement {
   const [rows, setRows] = useState<RequestListRow[]>([]);
@@ -118,7 +123,11 @@ export function AlertStageCard({
 
   return (
     <section
-      className={cn(stageCard.card, 'flex min-h-[320px] flex-col')}
+      className={cn(
+        stageCard.card,
+        'flex min-h-[320px] flex-col transition-colors',
+        active && stageCard.cardActive,
+      )}
       aria-label={`${label} 대상 목록`}
     >
       <div className={stageCard.accent} />
