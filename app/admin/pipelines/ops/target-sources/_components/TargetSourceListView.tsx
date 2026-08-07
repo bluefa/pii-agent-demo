@@ -15,7 +15,7 @@ import { passRoutes } from '@/lib/routes';
 import { getOpsTargetSources, type OpsTargetSourceListItem } from '@/app/lib/api/ops';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
-import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
+import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import { ProviderLogo } from '@/app/components/features/admin/v7';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
@@ -168,7 +168,12 @@ export function TargetSourceListView(): ReactElement {
                           <span className={idHash}>#</span>
                           {row.target_source_id}
                         </span>
-                        <ProvTag provider={row.cloud_provider} isSdu={row.is_sdu_type} />
+                        {/* Plain label, not ProvTag: its brand dot would be the third
+                            thing on this card saying "Azure" after the mark and the
+                            account label, and the only one saying it in colour. */}
+                        <span className="text-[14px] font-medium text-[var(--pl-text-medium)]">
+                          {providerLabel(displayProvider(row.cloud_provider, row.is_sdu_type))}
+                        </span>
                         <StepPill status={row.process_status} />
                       </div>
 
