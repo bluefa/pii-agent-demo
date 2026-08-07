@@ -72,7 +72,7 @@ export const saveCollaborationChannel = (
     body: channel,
   });
 
-/* ── 운영 콘솔 목록/서비스 (assumed §5–6) ── */
+/* ── 운영 콘솔 목록 (assumed §5) / 서비스 상세 (실계약 조합) ── */
 
 /** CSP 계정 식별자 — provider 마다 채워지는 필드가 다르고, IDC·SDU 는 전부 null. */
 export interface OpsTargetSourceAccount {
@@ -104,21 +104,37 @@ export interface OpsTargetSourceListPage {
   content: OpsTargetSourceListItem[];
 }
 
-export interface OpsServiceSummary {
-  service_code: string;
-  service_name: string;
-  owner: string;
-  status: 'OPERATING' | 'EOS';
-  target_source_count: number;
-  jira_ticket_count: number;
+/**
+ * 서비스 운영 상세의 대상 행. 위 `OpsTargetSourceListItem`(Target Source 운영,
+ * assumed §5)과 일부러 분리했다 — 그쪽은 단계(process_status)를 계속 그리지만
+ * 이 화면은 단계를 보여주지 않으므로, 한 타입을 공유하면 쓰지도 않는 필드를
+ * 채우려고 `/process-statuses` 를 다시 불러야 한다.
+ */
+export interface OpsServiceTargetRow {
+  target_source_id: number;
+  /** TargetSourceInfo.description — 대상이 무엇인지 오너가 적은 한 줄. */
+  description: string | null;
+  cloud_provider: string;
+  is_sdu_type: boolean;
+  /** 정렬 키 (updatedAt ?? createdAt). */
+  last_changed_at: string;
+  metadata: OpsTargetSourceAccount;
 }
 
+/**
+ * 서비스 운영 상세. 라우트가 실계약 `/target-sources/page?serviceCode` 하나로 만든다.
+ * `owner`(계약에 필드 없음), 설치 진행 단계, EOS 는 담지 않는다 — 근거는 라우트 주석.
+ */
 export interface OpsServiceDetail {
   service_code: string;
   service_name: string;
-  owner: string;
-  status: 'OPERATING' | 'EOS';
-  target_sources: OpsTargetSourceListItem[];
+  /**
+   * 업스트림이 보고한 총 대상 수. `target_sources.length` 와 다를 수 있다 — 라우트가
+   * 페이지 집계 상한에 걸리면 목록만 잘리고 이 값은 진짜 총계를 유지한다. 건수 표기는
+   * 목록 길이가 아니라 이 값을 쓴다.
+   */
+  total_count: number;
+  target_sources: OpsServiceTargetRow[];
 }
 
 export const getOpsTargetSources = (
@@ -131,20 +147,8 @@ export const getOpsTargetSources = (
   return fetchInfraJson<OpsTargetSourceListPage>(`/admin/ops/target-sources?${params}`);
 };
 
-export const getOpsServices = (): Promise<OpsServiceSummary[]> =>
-  fetchInfraJson<OpsServiceSummary[]>('/admin/ops/services');
-
 export const getOpsService = (serviceCode: string): Promise<OpsServiceDetail> =>
   fetchInfraJson<OpsServiceDetail>(`/admin/ops/services/${encodeURIComponent(serviceCode)}`);
-
-export const requestServiceEos = (
-  serviceCode: string,
-  force: boolean,
-): Promise<OpsServiceSummary> =>
-  fetchInfraJson(`/admin/ops/services/${encodeURIComponent(serviceCode)}/eos`, {
-    method: 'POST',
-    body: { force },
-  });
 
 /* ── Jira Ticket 연결 — REAL contract (docs/api/jira-tickets.md §1) ── */
 

@@ -190,6 +190,7 @@ export interface BffClient {
     getTargetSourcesPage: (query: {
       confirmStatus?: string;
       targetSourceId?: number;
+      serviceCode?: string;
       page: number;
       size: number;
     }) => Promise<z.infer<typeof schemas.PageTargetSourceInfo>>;
@@ -299,9 +300,6 @@ export interface BffClient {
     getCollabChannel: (id: number) => Promise<OpsCollabChannelWire | null>;
     putCollabChannel: (id: number, channel: OpsCollabChannelWire) => Promise<OpsCollabChannelWire>;
     getTargetSourceList: (query: string | undefined, page: number, size: number) => Promise<OpsTargetSourceListPageWire>;
-    getServices: () => Promise<OpsServiceSummaryWire[]>;
-    getService: (code: string) => Promise<OpsServiceDetailWire>;
-    postServiceEos: (code: string, force: boolean) => Promise<OpsServiceSummaryWire>;
   };
 }
 
@@ -373,20 +371,9 @@ export interface OpsTargetSourceListPageWire {
   content: OpsTargetSourceListItemWire[];
 }
 
-/** 서비스 운영 (assumed §6). Jira 티켓 자체는 실계약(services.jiraTickets)이 준다. */
-export interface OpsServiceSummaryWire {
-  service_code: string;
-  service_name: string;
-  owner: string;
-  status: 'OPERATING' | 'EOS';
-  target_source_count: number;
-  jira_ticket_count: number;
-}
-
-export interface OpsServiceDetailWire {
-  service_code: string;
-  service_name: string;
-  owner: string;
-  status: 'OPERATING' | 'EOS';
-  target_sources: OpsTargetSourceListItemWire[];
-}
+/**
+ * 서비스 운영은 assumed 계약을 쓰지 않는다 — `/admin/ops/services*` 는 install-v1.yaml
+ * 에 없어 실 BFF 에서 전부 404 였다. 라우트가 실계약(`/target-sources/page` +
+ * `/process-statuses`)을 조합하므로 이 도메인에는 전용 wire 타입도, 전용 client
+ * 메서드도 없다.
+ */

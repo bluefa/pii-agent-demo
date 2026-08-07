@@ -1697,6 +1697,17 @@ export const pipelineStyles = {
     meta: cn(pipelineText.meta),
   },
 
+  /**
+   * Skeleton bar for the admin surface. gray-200, not gray-100: the same bar has to
+   * read on the white sheet AND inside the recessed bg-inner block, and gray-100 is
+   * close enough to that block's own value that the bar disappears there.
+   *
+   * 반경은 일부러 빼 뒀다 — `cn` 은 단순 join 이라 호출부가 다른 반경을 얹으면
+   * `rounded rounded-full` 처럼 둘 다 남고 어느 쪽이 이길지는 CSS 순서가 정한다.
+   * 흉내낼 요소마다 반경이 다르므로 반경은 호출부가 명시한다.
+   */
+  skeletonBar: 'animate-pulse bg-[var(--pl-gray-200)]',
+
   /** PlBreadcrumb — 12/weak, sep ›, clickable vs inert vs cur. */
   breadcrumb: {
     base: 'text-[12px] text-[var(--pl-text-weak)] mb-3',

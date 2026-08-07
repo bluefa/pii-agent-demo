@@ -4,8 +4,6 @@ import { ProcessStatus } from '@/lib/types';
 import type {
   OpsCollabChannelWire,
   OpsProcessStatusWire,
-  OpsServiceDetailWire,
-  OpsServiceSummaryWire,
   OpsStatusHistoryItemWire,
   OpsTargetSourceListItemWire,
 } from '@/lib/bff/types';
@@ -114,11 +112,9 @@ export const consumeOpsRoleOverride = (
 export const opsInstallModeOverride = (targetSourceId: number): boolean | null =>
   globalStore.__opsConsoleMockStore?.get(targetSourceId)?.grantTfExecution ?? null;
 
-/* ── 서비스 운영 store (assumed §6) ── */
+/* ── 서비스별 Jira 티켓 연결 store (실계약 services.jiraTickets) ── */
 
 interface OpsServiceState {
-  owner: string;
-  status: 'OPERATING' | 'EOS';
   /** cloudProvider → issueKey. Provider 가 키이므로 provider 당 최대 1건 (실계약). */
   jira: Partial<Record<string, string>>;
 }
@@ -126,8 +122,6 @@ interface OpsServiceState {
 const serviceGlobal = globalThis as typeof globalThis & {
   __opsConsoleServiceStore?: Map<string, OpsServiceState>;
 };
-
-const SEED_OWNERS = ['김유진', '이도현', '정하늘', '최민서', '한지우', '오세라'];
 
 /**
  * 앞 두 서비스만 일부 provider 를 연결된 상태로 둔다 — 연결/미연결 두 타일 모양이 한
@@ -151,11 +145,7 @@ const serviceState = (code: string): OpsServiceState => {
   let state = store.get(code);
   if (!state) {
     const index = serviceCodes().indexOf(code);
-    state = {
-      owner: SEED_OWNERS[Math.max(0, index) % SEED_OWNERS.length],
-      status: 'OPERATING',
-      jira: { ...(SEED_JIRA[index] ?? {}) },
-    };
+    state = { jira: { ...(SEED_JIRA[index] ?? {}) } };
     store.set(code, state);
   }
   return state;
@@ -196,18 +186,6 @@ const toListItem = (project: (typeof mockData.mockProjects)[number]): OpsTargetS
       },
 });
 
-const serviceSummary = (code: string): OpsServiceSummaryWire => {
-  const projects = mockData.mockProjects.filter((p) => p.serviceCode === code);
-  const state = serviceState(code);
-  return {
-    service_code: code,
-    service_name: mockData.mockServiceCodes.find((s) => s.code === code)?.name ?? code,
-    owner: state.owner,
-    status: state.status,
-    target_source_count: projects.length,
-    jira_ticket_count: Object.keys(state.jira).length,
-  };
-};
 
 export const mockOps = {
   // GET …/status-history?page&size → Page<OpsStatusHistoryItemWire> (assumed §1).
@@ -283,48 +261,6 @@ export const mockOps = {
       number: page,
       content: rows.slice(start, start + size),
     });
-  },
-
-
-  // GET /admin/ops/services (assumed §6).
-  getServices: async () =>
-    NextResponse.json(serviceCodes().map(serviceSummary)),
-
-  // GET /admin/ops/services/{code} (assumed §6).
-  getService: async (code: string) => {
-    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
-    const summary = serviceSummary(code);
-    const detail: OpsServiceDetailWire = {
-      service_code: summary.service_code,
-      service_name: summary.service_name,
-      owner: summary.owner,
-      status: summary.status,
-      target_sources: mockData.mockProjects
-        .filter((p) => p.serviceCode === code)
-        .map(toListItem)
-        .sort((a, b) => b.last_changed_at.localeCompare(a.last_changed_at)),
-    };
-    return NextResponse.json(detail);
-  },
-
-  // POST /admin/ops/services/{code}/eos (assumed §6) — non-force fails while a
-  // target source is still mid-pipeline (INSTALLING = install running here).
-  postServiceEos: async (code: string, force: boolean) => {
-    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
-    const running = mockData.mockProjects.filter(
-      (p) => p.serviceCode === code && p.processStatus === ProcessStatus.INSTALLING,
-    ).length;
-    if (running > 0 && !force) {
-      return NextResponse.json(
-        {
-          error: 'EOS_BLOCKED',
-          message: `진행 중인 파이프라인이 있는 Target Source가 ${running}건 있습니다. Force 옵션을 사용하세요.`,
-        },
-        { status: 409 },
-      );
-    }
-    serviceState(code).status = 'EOS';
-    return NextResponse.json(serviceSummary(code));
   },
 
 };
