@@ -8,6 +8,7 @@ import { Pagination } from '@/app/components/ui/Pagination';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
+import { useScanCompletionTransition } from '@/app/hooks/useScanCompletionTransition';
 import { useToast } from '@/app/components/ui/toast';
 import { ScanController } from '@/app/components/features/scan/ScanPanel';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
@@ -24,6 +25,7 @@ import {
   getButtonClass,
   idcStyles,
   primaryColors,
+  scanTransition,
   statusColors,
   textColors,
 } from '@/lib/theme';
@@ -106,6 +108,10 @@ export const CandidateResourceSection = ({
 
   const [drafts, setDrafts] = useState<CandidateDraftState>(EMPTY_DRAFTS);
   const [expandedResourceId, setExpandedResourceId] = useState<string | null>(null);
+
+  // 스캔 완료 → 목록 사이의 확인 프레임. 결과 조회가 이 프레임 뒤에서 돌기 때문에
+  // 평범한 응답 시간은 프레임에 가려지고, 예전처럼 스켈레톤이 번쩍이지 않는다.
+  const completion = useScanCompletionTransition();
 
   // Plain id→reason map for the payload adapter and the table's reason chips.
   const exclusionReasons = useMemo(
@@ -300,7 +306,11 @@ export const CandidateResourceSection = ({
     approvalModal.open();
   }, [approval, approvalModal, candidates, drafts, exclusionReasons, selectedIds, toast]);
 
+  const beginCompletion = completion.begin;
   const handleScanComplete = useCallback(async () => {
+    // 확인 프레임을 먼저 세운다 — 아래 refetch 가 곧바로 loading 을 켜므로, 순서가
+    // 바뀌면 프레임이 서기 전에 스켈레톤이 한 프레임 지나간다.
+    beginCompletion();
     setDrafts(EMPTY_DRAFTS);
     setExpandedResourceId(null);
     // 재스캔이면 목록이 통째로 바뀐다 — 이전 검색·필터가 새 결과를 가리지 않게 초기화.
@@ -312,7 +322,7 @@ export const CandidateResourceSection = ({
     closePicker();
     refetchAfterScan();
     await refreshProject();
-  }, [tableSearchChange, tableFilterChange, tableDbTypeChange, tableRegionChange, tablePageChange, closePicker, refetchAfterScan, refreshProject]);
+  }, [beginCompletion, tableSearchChange, tableFilterChange, tableDbTypeChange, tableRegionChange, tablePageChange, closePicker, refetchAfterScan, refreshProject]);
 
   const handleApprovalConfirm = useCallback(() => {
     void approval.execute();
@@ -331,6 +341,7 @@ export const CandidateResourceSection = ({
             fetchStatus: state.status,
             scanState,
             hasCandidates: candidates.length > 0,
+            completing: completion.stage !== 'idle',
           });
           // 종료된 스캔만 "결과"다 — mock BFF는 이력이 없으면 NO_SCAN 센티널 잡을
           // 합성하므로(실 BFF는 404 → latestJob null) 상태 집합으로 걸러낸다.
@@ -376,14 +387,33 @@ export const CandidateResourceSection = ({
                   </div>
                 );
               case 'scanning':
-                return <ScanRunningState progress={progress} finalizing={finalizing} />;
+                return (
+                  <ScanRunningState
+                    progress={progress}
+                    stage={finalizing ? 'finalizing' : 'scanning'}
+                  />
+                );
+              case 'completing':
+                // 같은 히어로 블록의 마지막 두 프레임. settling 은 바가 100%에
+                // 닿는 걸 보여주고(집계 꼬리를 거쳐 왔다면 이미 가득 차 있다),
+                // confirming 이 체크와 발견 건수를 세운다.
+                return (
+                  <ScanRunningState
+                    progress={100}
+                    stage={completion.stage === 'settling' ? 'finalizing' : 'complete'}
+                  />
+                );
               case 'scanFailed':
                 return <ScanErrorState onRetry={startScan} />;
               case 'list':
                 // Step 2 표 스택 그대로: 툴바(검색+필터, 상단 라운드) → 무윤곽 표 →
                 // Pagination 마감 바(rounded-b). 윤곽은 Header/Footer 두 세그먼트뿐이다.
+                //
+                // 목록이 다른 프레임(확인·스켈레톤·러닝)을 밀어내고 들어올 때마다
+                // 같은 방식으로 등장한다 — 페이즈가 바뀌면 이 노드가 새로 마운트되고,
+                // 검색·필터·페이지 변경은 마운트를 유지하므로 다시 재생되지 않는다.
                 return (
-                  <div>
+                  <div className={cn(scanTransition.reveal, scanTransition.revealRows)}>
                     <WaitingApprovalToolbar
                       searchValue={table.searchValue}
                       onSearchChange={handleSearchChange}

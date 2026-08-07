@@ -235,6 +235,47 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Scan completion transition. The confirm frame's check draws over the same hero
+   block the running state used, then the result view fades through (Material's
+   fast-exit / emphasized-entrance pair) and its first rows cascade in.
+   Consumed via lib/theme.ts scanTransition, motion-safe at the call site. */
+@keyframes scan-check-draw {
+  from { stroke-dashoffset: 30; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes scan-reveal {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes scan-row-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Staggered entrance for the freshly revealed candidate rows. Only the first
+   rows cascade — past the fold a delay reads as lag, not rhythm. `backwards`
+   holds them hidden through their delay. nth-child restarts per <tbody>, which
+   is what grouped resources want: each group cascades under its own header.
+   Unlike the two classes above this one is NOT motion-safe at the call site
+   (the animation is on descendants, not the element itself), so it opts out here. */
+.scan-reveal-rows tbody > tr:nth-child(-n+8) {
+  animation: scan-row-in 240ms ease-out backwards;
+}
+.scan-reveal-rows tbody > tr:nth-child(1) { animation-delay: 60ms; }
+.scan-reveal-rows tbody > tr:nth-child(2) { animation-delay: 85ms; }
+.scan-reveal-rows tbody > tr:nth-child(3) { animation-delay: 110ms; }
+.scan-reveal-rows tbody > tr:nth-child(4) { animation-delay: 135ms; }
+.scan-reveal-rows tbody > tr:nth-child(5) { animation-delay: 160ms; }
+.scan-reveal-rows tbody > tr:nth-child(6) { animation-delay: 185ms; }
+.scan-reveal-rows tbody > tr:nth-child(7) { animation-delay: 210ms; }
+.scan-reveal-rows tbody > tr:nth-child(8) { animation-delay: 235ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-reveal-rows tbody > tr:nth-child(-n+8) { animation: none; }
+}
+
 /* =============================================================================
    Global Styles
    ============================================================================= */

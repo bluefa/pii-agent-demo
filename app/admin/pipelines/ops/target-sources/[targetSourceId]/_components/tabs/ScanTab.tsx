@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState, type ReactElement } from 'rea
 import { getScanHistory, startScan } from '@/app/lib/api/scan';
 import { isScanFinalizing, useScanPolling } from '@/app/hooks/useScanPolling';
 import { useModal } from '@/app/hooks/useModal';
+import { useScanCompletionTransition } from '@/app/hooks/useScanCompletionTransition';
 import { normalizeCloudProvider } from '@/lib/types';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -30,7 +31,13 @@ export interface ScanTabProps {
 
 export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement {
   const provider = normalizeCloudProvider(detail.cloud_provider);
-  const { latestJob: rawLatestJob, loading, error, refresh } = useScanPolling(targetSourceId);
+  // 카드는 결과를 이미 손에 쥐고 있으므로(같은 잡의 건수 맵) 대기할 데이터가 없다
+  // — dataPending 없이, settling 이 바를 100%로 정착시키고 남은 dwell 은 아래
+  // 이력 표의 리로드를 카드 전환 뒤로 미루는 데 쓰인다.
+  const completion = useScanCompletionTransition();
+  const { latestJob: rawLatestJob, loading, error, refresh } = useScanPolling(targetSourceId, {
+    onScanComplete: completion.begin,
+  });
   // The mock latest endpoint answers a NO_SCAN placeholder instead of 404 for a
   // never-scanned target — normalize it to "no scan yet" so the empty state wins.
   const latestJob = rawLatestJob?.scan_status === 'NO_SCAN' ? null : rawLatestJob;
@@ -84,11 +91,16 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
   // A finished scan adds a history row whatever its outcome, so reload on the
   // running→terminal edge (not only on success). The ref starts false, so
   // mounting on an already-terminal job does not double-fetch page 0.
-  const wasRunningRef = useRef(false);
+  //
+  // 확인 전환도 "아직 안 끝남"에 포함한다 — 카드가 결과로 넘어가는 순간 아래 표까지
+  // 같이 출렁이면 화면 두 곳이 동시에 바뀐다. 실패로 끝난 스캔은 전환을 타지 않으므로
+  // (onScanComplete 는 SUCCESS 에만 발화) 예전처럼 즉시 리로드된다.
+  const busy = running || completion.stage !== 'idle';
+  const wasBusyRef = useRef(false);
   useEffect(() => {
-    if (wasRunningRef.current && !running) void loadHistory(0);
-    wasRunningRef.current = running;
-  }, [running, loadHistory]);
+    if (wasBusyRef.current && !busy) void loadHistory(0);
+    wasBusyRef.current = busy;
+  }, [busy, loadHistory]);
 
   const runScan = useCallback(async (): Promise<void> => {
     setStarting(true);
@@ -147,6 +159,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
       failed={error !== null}
       scanning={scanning}
       finalizing={finalizing}
+      completionStage={completion.stage}
       starting={starting}
       startFailed={startFailed}
       typeEntries={typeEntries}

@@ -5,9 +5,10 @@
  * the main content, time fields pinned to the card floor. Pure view: polling,
  * run-scan and diff derivation live in ScanTab.
  */
-import type { ReactElement } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { useEffect, useState, type ReactElement } from 'react';
+import { cn, pipelineStyles, scanTransition } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
+import type { ScanCompletionStage } from '@/app/hooks/useScanCompletionTransition';
 import type { CloudProvider } from '@/lib/types';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
@@ -33,6 +34,44 @@ export interface TypeEntry {
 const fmtPercent = (progress: number | null | undefined): number => {
   if (progress === null || progress === undefined || !Number.isFinite(progress)) return 0;
   return Math.min(100, Math.max(0, Math.round(progress)));
+};
+
+/** 총계가 최종값까지 차오르는 시간 — 결과가 정착하는 한 박자. */
+const COUNT_UP_MS = 600;
+
+/** matchMedia 가 없는 실행 환경(테스트·구형 런타임)에서는 모션을 켜지 않는다. */
+const prefersReducedMotion = (): boolean =>
+  typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * 방금 끝난 스캔의 총계만 차오른다. 이미 서 있던 결과(탭 재진입·다른 잡)는
+ * 즉시 최종값이다 — 반복 운영 화면에서 볼 때마다 숫자가 구르면 피로가 된다.
+ * 동작 줄이기에서는 애니메이션 자체가 없다.
+ *
+ * 중간값은 "어느 목표를 향해 구르는 중인지"까지 들고 있다 — 그래야 애니메이션이
+ * 돌지 않는 모든 경우(비활성·동작 줄이기·목표 변경)에 최종값을 그대로 파생할 수
+ * 있고, 상태를 되돌리는 effect 가 필요 없다.
+ */
+const useCountUp = (target: number, enabled: boolean): number => {
+  const [rolling, setRolling] = useState<{ target: number; value: number } | null>(null);
+
+  useEffect(() => {
+    if (!enabled || prefersReducedMotion()) return;
+    let frame = 0;
+    const start = performance.now();
+    const tick = (now: number): void => {
+      const progress = Math.min(1, (now - start) / COUNT_UP_MS);
+      // ease-out cubic — 마지막 자리에서 천천히 멈춘다.
+      setRolling({ target, value: Math.round(target * (1 - Math.pow(1 - progress, 3))) });
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, enabled]);
+
+  return rolling?.target === target ? rolling.value : target;
 };
 
 /**
@@ -105,6 +144,11 @@ export interface RecentScanCardProps {
   scanning: boolean;
   /** SUCCESS but the count map has not landed — scanned, still aggregating. */
   finalizing: boolean;
+  /**
+   * 완료 확인 전환의 단계. `settling` 동안은 진행 처리를 유지해 바가 100%에 닿는
+   * 걸 보여주고, 그 뒤 결과가 fade-through 로 들어오며 총계가 차오른다.
+   */
+  completionStage: ScanCompletionStage;
   starting: boolean;
   startFailed: boolean;
   /** Per-type counts (+diff vs previous success) for the tile grid. */
@@ -122,6 +166,7 @@ export function RecentScanCard({
   failed,
   scanning,
   finalizing,
+  completionStage,
   starting,
   startFailed,
   typeEntries,
@@ -131,7 +176,12 @@ export function RecentScanCard({
 }: RecentScanCardProps): ReactElement {
   // Both phases are "the scan is not answerable yet" — one flag drives the
   // progress bar, the results placeholder and the withheld completion times.
-  const running = scanning || finalizing;
+  // settling 도 여기 붙는다: 잡은 이미 SUCCESS 지만, 바가 100%에 닿는 걸 보여주는
+  // 400ms 동안은 화면에 있던 진행 처리를 그대로 둔다.
+  const running = scanning || finalizing || completionStage === 'settling';
+  // 방금 끝난 스캔일 때만 결과가 fade-through 로 들어오고 총계가 차오른다.
+  const revealing = completionStage === 'confirming';
+  const animatedTotal = useCountUp(latestTotal, revealing);
   return (
     // flex-col — mt-auto pins the time row to the card floor (no dead air when the sibling card is taller).
     <section className={cn(pipelineStyles.card.base, 'flex flex-col')} aria-label="최근 스캔">
@@ -199,7 +249,11 @@ export function RecentScanCard({
               illusion, not information. Finalizing carries no scan_progress
               (discovery is over), so the bar sits full while the counts land. */}
           {running && (() => {
-            const percent = finalizing ? 100 : fmtPercent(latestJob.scan_progress);
+            // 집계 구간과 정착 구간에는 scan_progress 가 남은 일을 말하지 못한다 —
+            // 둘 다 바를 가득 채운다.
+            const percent = finalizing || completionStage === 'settling'
+              ? 100
+              : fmtPercent(latestJob.scan_progress);
             return (
               <div className="mt-4 flex items-center gap-3">
                 <div
@@ -209,8 +263,10 @@ export function RecentScanCard({
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
+                  {/* 폭 전환 — 없으면 폴링 틱마다 바가 뚝뚝 끊겨 뛴다
+                      (사용자 플로우의 진행바와 같은 400ms). */}
                   <div
-                    className="h-full rounded-full bg-[var(--pl-primary)]"
+                    className="h-full rounded-full bg-[var(--pl-primary)] transition-[width] duration-[400ms] ease-out motion-reduce:transition-none"
                     style={{ width: `${percent}%` }}
                   />
                 </div>
@@ -225,7 +281,10 @@ export function RecentScanCard({
               error box (cause), not results. Header (16/600), one helper sentence
               (values slightly emphasized), then the tiles carry the content. */}
           {(running || latestJob.scan_status === 'SUCCESS') && (
-            <div className="mt-5">
+            // 진행 처리가 물러난 자리로 결과가 들어온다. 클래스가 붙는 순간
+            // (running=false 로 넘어가는 프레임) 애니메이션이 시작되므로,
+            // 재마운트를 강제하는 key 없이도 전환이 한 번만 재생된다.
+            <div className={cn('mt-5', revealing && scanTransition.reveal)}>
               <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">스캔 결과</p>
               {running ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
@@ -254,7 +313,7 @@ export function RecentScanCard({
                     {countDiff === 0 && <>직전 스캔과 같은 </>}
                     총{' '}
                     <b className="text-[20px] font-bold tabular-nums text-[var(--pl-primary)]">
-                      {fmtCount(latestTotal)}
+                      {fmtCount(animatedTotal)}
                     </b>
                     개를 발견했어요.
                   </p>
