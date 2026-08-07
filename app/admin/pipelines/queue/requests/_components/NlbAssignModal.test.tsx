@@ -26,6 +26,9 @@ const resource: RequestResourceRow = {
   oracleSid: 'ORCLPDB1',
   sourceIps: [],
   nlbIndex: 3,
+  resourceType: null,
+  rdsInstanceCandidates: [],
+  selectedRdsInstanceResourceId: null,
 };
 
 const open = (over: Partial<Parameters<typeof NlbAssignModal>[0]> = {}) => {

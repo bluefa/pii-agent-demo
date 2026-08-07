@@ -21,6 +21,9 @@ const resource: RequestResourceRow = {
   oracleSid: null,
   sourceIps: [],
   nlbIndex: 1,
+  resourceType: null,
+  rdsInstanceCandidates: [],
+  selectedRdsInstanceResourceId: null,
 };
 
 /** 3 NLBs × 2 services — the same shape as the 30 × 20 the mock now serves. */

@@ -24,6 +24,9 @@ const row = (over: Partial<RequestResourceRow>): RequestResourceRow => ({
   oracleSid: null,
   sourceIps: [],
   nlbIndex: null,
+  resourceType: null,
+  rdsInstanceCandidates: [],
+  selectedRdsInstanceResourceId: null,
   ...over,
 });
 

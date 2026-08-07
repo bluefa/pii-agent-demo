@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mockConfirm, _resetApprovedIntegrationStore } from '@/lib/bff/mock/confirm';
+import { toRequestResourceRow } from '@/app/lib/api/task-queue-requests';
 import { setCurrentUser } from '@/lib/mock-data';
 import { getStore } from '@/lib/mock-store';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
@@ -193,5 +194,33 @@ describe('RDS cluster metadata round trip (step 1 → steps 2·3)', () => {
     });
 
     expect((await catalogClusterItem())?.metadata?.selected_rds_instance_resource_id).toBeUndefined();
+  });
+
+  // The admin queue and the ops request tab both read …/approval-requests/latest through
+  // `toRequestResourceRow`. They must see the same cluster the requester submitted — this is
+  // the wire→admin-row hop, which no step-1/2/3 test covers.
+  it('surfaces the cluster through the admin request adapter', async () => {
+    await postApproval(WRITER.resource_id);
+
+    const response = await mockConfirm.getApprovalRequestLatest(TARGET_SOURCE_ID_STR);
+    const body = (await response.json()) as { resources?: Record<string, unknown>[] };
+    const wire = body.resources?.find((item) => item.resource_id === CLUSTER_ARN);
+    const adminRow = toRequestResourceRow(wire as Parameters<typeof toRequestResourceRow>[0]);
+
+    expect(adminRow.resourceType).toBe('AWS_DB_CLUSTER');
+    expect(adminRow.rdsInstanceCandidates).toEqual(WIRE_ORDER);
+    expect(adminRow.selectedRdsInstanceResourceId).toBe(WRITER.resource_id);
+  });
+
+  // The type gate has to hold at this hop too: a non-cluster row must not grow the fields.
+  it('leaves a non-cluster admin row without cluster fields', async () => {
+    const adminRow = toRequestResourceRow({
+      resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:plain',
+      resource_type: 'AWS_DB_INSTANCE',
+      metadata: { region: 'ap-northeast-2', rds_instance_candidates: WIRE_ORDER },
+    } as Parameters<typeof toRequestResourceRow>[0]);
+
+    expect(adminRow.rdsInstanceCandidates).toEqual([]);
+    expect(adminRow.selectedRdsInstanceResourceId).toBeNull();
   });
 });
