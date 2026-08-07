@@ -4,5 +4,6 @@ export { LoadingState } from '@/app/target-sources/[targetSourceId]/_components/
 export { ErrorState } from '@/app/target-sources/[targetSourceId]/_components/common/ErrorState';
 export { RejectionAlert } from '@/app/target-sources/[targetSourceId]/_components/common/RejectionAlert';
 export { GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
+export { SduUnsupportedNotice } from '@/app/target-sources/[targetSourceId]/_components/common/SduUnsupportedNotice';
 export { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common/CardActionBar';
 export type { ProjectIdentity, TargetSourceIdentifier } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';

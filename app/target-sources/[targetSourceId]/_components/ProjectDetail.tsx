@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import type { TargetSource } from '@/lib/types';
 import { providerAccent, providerAccentDefault } from '@/lib/theme';
-import { ErrorState, GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common';
+import {
+  ErrorState,
+  GuidePanel,
+  SduUnsupportedNotice,
+} from '@/app/target-sources/[targetSourceId]/_components/common';
 import type { JiraTicketState } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
 import { resolveProjectStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import { AwsProjectPage } from '@/app/target-sources/[targetSourceId]/_components/aws';
@@ -51,6 +55,25 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
         return <ErrorState error="지원하지 않는 클라우드 프로바이더입니다." />;
     }
   };
+
+  // SDU is not an account we install into — the owner uploads the data themselves —
+  // so no step, no resource table and no install status on this page has anything to
+  // say about it. Gate here rather than inside each provider page: this way nothing
+  // downstream mounts and nothing is fetched, instead of a full screen loading itself
+  // only to come back empty. The rail goes too — it reports on install progress that
+  // does not exist. The service list stays, because it is how you leave.
+  if (project.isSduType) {
+    return (
+      <div className="flex h-[calc(100vh-56px)]">
+        <ServiceListPanel
+          currentService={{ code: project.serviceCode, name: project.serviceName }}
+        />
+        <div className="flex-1 min-w-0 overflow-auto">
+          <SduUnsupportedNotice />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-56px)]">
