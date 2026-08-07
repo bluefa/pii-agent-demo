@@ -6,7 +6,7 @@ import type {
   ResourceScanStatus,
   VmDatabaseConfig,
 } from '@/lib/types';
-import type { RdsInstanceWire } from '@/lib/rds-instances';
+import type { RdsInstanceCandidate } from '@/lib/rds-instances';
 
 export type CandidateConfigKind = 'none' | 'credential' | 'endpoint' | 'rdsInstance';
 export type CandidateBehaviorKey = 'default' | 'credential' | 'endpoint' | 'rdsInstance';
@@ -34,13 +34,13 @@ export interface CandidateResource {
   recommendFailReason: RecommendFailReason | null;
   endpointConfig?: EndpointConfigDraft;
   /**
-   * RDS cluster member instances (`metadata.rds_instance_list`), verbatim and in wire
+   * RDS cluster member instances (`metadata.rds_instance_candidates`), verbatim and in wire
    * order — the approval payload echoes this array unchanged. Absent for every other type,
    * and for a cluster the backend sent no list for (that cluster stays a flat row).
    */
-  rdsInstanceList?: RdsInstanceWire[];
-  /** The server's `metadata.selected_rds_instance_arn`; seeds the radio when the user has no draft. */
-  selectedRdsInstanceArn?: string;
+  rdsInstanceCandidates?: RdsInstanceCandidate[];
+  /** The server's `metadata.selected_rds_instance_resource_id`; seeds the radio when the user has no draft. */
+  selectedRdsInstanceResourceId?: string;
   /** Step-1 scan-status tag — 직전 스캔 대비 본 리소스의 발견 상태 (신규/변경). */
   scanStatus?: ResourceScanStatus;
   metadata: ConfirmResourceMetadata;

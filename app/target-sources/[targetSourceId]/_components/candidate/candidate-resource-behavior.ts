@@ -8,7 +8,7 @@ import type {
   EndpointConfigDraft,
 } from '@/lib/types/resources';
 import { toWireDatabaseType } from '@/lib/types';
-import { defaultRdsInstanceArn } from '@/lib/rds-instances';
+import { defaultRdsInstanceResourceId } from '@/lib/rds-instances';
 
 type MetadataFields = z.infer<typeof schemas.TargetSourceResourceMetadataDto>;
 
@@ -52,14 +52,14 @@ const endpointBehavior: CandidateResourceBehavior = {
  * choice, else the sorted-top instance. Undefined only when the cluster has no instances,
  * in which case it is not an `rdsInstance` candidate at all.
  */
-export const resolveRdsInstanceArn = (
+export const resolveRdsInstanceResourceId = (
   resource: CandidateResource,
   draft: CandidateDraftState,
 ): string | undefined => {
-  const instances = resource.rdsInstanceList ?? [];
+  const instances = resource.rdsInstanceCandidates ?? [];
   const drafted = draft.rdsInstanceDrafts[resource.id];
-  if (drafted && instances.some((instance) => instance.rds_instance_arn === drafted)) return drafted;
-  return defaultRdsInstanceArn(instances, resource.selectedRdsInstanceArn);
+  if (drafted && instances.some((instance) => instance.resource_id === drafted)) return drafted;
+  return defaultRdsInstanceResourceId(instances, resource.selectedRdsInstanceResourceId);
 };
 
 const rdsInstanceBehavior: CandidateResourceBehavior = {
@@ -68,14 +68,14 @@ const rdsInstanceBehavior: CandidateResourceBehavior = {
   // never be false: `pickBehaviorKey` only assigns this behavior when the instance list is
   // non-empty, and a non-empty list always resolves to an ARN (the sorted-top default when
   // neither a draft nor a server value applies). Said outright rather than re-derived through
-  // `resolveRdsInstanceArn`, which read like a gate that could fail.
+  // `resolveRdsInstanceResourceId`, which read like a gate that could fail.
   isConfigured: () => true,
-  // ONLY the chosen ARN. `rds_instance_list` belongs to the payload adapter's intrinsic
+  // ONLY the chosen ARN. `rds_instance_candidates` belongs to the payload adapter's intrinsic
   // metadata, which puts it on selected and excluded rows alike — emitting it here too gave
   // one field two owners, with the behavior silently winning the spread.
   buildMetadataFields: (resource, draft) => {
-    const arn = resolveRdsInstanceArn(resource, draft);
-    return arn ? { selected_rds_instance_arn: arn } : {};
+    const arn = resolveRdsInstanceResourceId(resource, draft);
+    return arn ? { selected_rds_instance_resource_id: arn } : {};
   },
 };
 

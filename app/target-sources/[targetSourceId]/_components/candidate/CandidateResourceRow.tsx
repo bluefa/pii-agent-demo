@@ -14,7 +14,7 @@ import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
 import {
   rdsInstanceLabel,
   sortRdsInstances,
-  type RdsInstanceWire,
+  type RdsInstanceCandidate,
 } from '@/lib/rds-instances';
 import {
   RdsClusterTag,
@@ -36,7 +36,7 @@ import type {
 } from '@/lib/types/resources';
 import {
   getCandidateBehavior,
-  resolveRdsInstanceArn,
+  resolveRdsInstanceResourceId,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 
 /** Row-level interaction callbacks, grouped so the table/row prop lists stay small. */
@@ -46,7 +46,7 @@ export interface CandidateRowActions {
   expandToggle: (resourceId: string | null) => void;
   endpointSave: (resourceId: string, draft: EndpointConfigDraft) => void;
   /** RDS cluster: the member instance the agent will connect through. */
-  selectRdsInstance: (resourceId: string, instanceArn: string) => void;
+  selectRdsInstance: (resourceId: string, instanceResourceId: string) => void;
 }
 
 // Row/cell state grammar — mirrors WaitingApprovalTable (step 2·3); keep the two
@@ -94,7 +94,7 @@ interface CandidateResourceRowProps {
 
 interface RdsInstanceRowProps {
   clusterId: string;
-  instance: RdsInstanceWire;
+  instance: RdsInstanceCandidate;
   /** The cluster's effective selection — the checked radio / the 선택됨 chip. */
   isChosen: boolean;
   /** Sorted-top instance. Earns the 기본 badge only while it is still the effective choice. */
@@ -104,7 +104,7 @@ interface RdsInstanceRowProps {
   readonly: boolean;
   lastInGroup: boolean;
   showCheckboxColumn: boolean;
-  onSelect: (instanceArn: string) => void;
+  onSelect: (instanceResourceId: string) => void;
 }
 
 /**
@@ -148,9 +148,9 @@ const RdsInstanceRow = ({
             <input
               type="radio"
               name={`rds-instance-${clusterId}`}
-              value={instance.rds_instance_arn}
+              value={instance.resource_id}
               checked={isChosen}
-              onChange={() => onSelect(instance.rds_instance_arn)}
+              onChange={() => onSelect(instance.resource_id)}
               aria-label={`접속 인스턴스 ${identifier} 선택`}
               className={cn('h-4 w-4', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
             />
@@ -164,7 +164,7 @@ const RdsInstanceRow = ({
           >
             {identifier}
           </span>
-          <RdsMemberChip member={instance.member} />
+          <RdsMemberChip role={instance.cluster_member_role} />
           {/* Exactly one of these, never both. 기본 says "the table chose this for you, and
               you can still change it" — a statement only the editable table can make, so it
               goes quiet in read-only, where 선택됨 states the settled choice instead. */}
@@ -186,7 +186,7 @@ const RdsInstanceRow = ({
           CELL_LIFT,
         )}
       >
-        {instance.region ?? ''}
+        {instance.availability_zone ?? ''}
       </td>
       <td className={idcStyles.table.approvalCell} />
       {showCheckboxColumn && <td className={idcStyles.table.approvalCell} />}
@@ -224,11 +224,11 @@ export const CandidateResourceRow = ({
   // RDS cluster: the member instances the user picks between. Display order is Reader-first
   // (the wire order is what the payload echoes, so sorting stays here).
   const isRdsClusterRow = behavior.configKind === 'rdsInstance';
-  const sortedInstances = isRdsClusterRow ? sortRdsInstances(candidate.rdsInstanceList ?? []) : [];
+  const sortedInstances = isRdsClusterRow ? sortRdsInstances(candidate.rdsInstanceCandidates ?? []) : [];
   // Only a selected cluster has a choice: an unchecked one submits no instance, so its rows
   // stay a flat informational list with nothing marked.
-  const chosenInstanceArn = isRdsClusterRow && isSelected
-    ? resolveRdsInstanceArn(candidate, drafts)
+  const chosenInstanceResourceId = isRdsClusterRow && isSelected
+    ? resolveRdsInstanceResourceId(candidate, drafts)
     : undefined;
 
   // Ineligible rows share the dim tier with excluded ones — the ⚠ 설치 불가 entry
@@ -456,10 +456,10 @@ export const CandidateResourceRow = ({
 
       {isRdsClusterRow && rdsInstancesExpanded && sortedInstances.map((instance, index) => (
         <RdsInstanceRow
-          key={instance.rds_instance_arn}
+          key={instance.resource_id}
           clusterId={candidate.id}
           instance={instance}
-          isChosen={instance.rds_instance_arn === chosenInstanceArn}
+          isChosen={instance.resource_id === chosenInstanceResourceId}
           isDefault={index === 0}
           // Radios exist only inside a checked cluster: an unchecked cluster submits no
           // instance, so offering the choice would promise something the payload never sends.
@@ -467,7 +467,7 @@ export const CandidateResourceRow = ({
           readonly={readonly}
           lastInGroup={index === sortedInstances.length - 1}
           showCheckboxColumn={showCheckboxColumn}
-          onSelect={(instanceArn) => actions.selectRdsInstance(candidate.id, instanceArn)}
+          onSelect={(instanceResourceId) => actions.selectRdsInstance(candidate.id, instanceResourceId)}
         />
       ))}
 

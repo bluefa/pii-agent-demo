@@ -17,7 +17,7 @@ import {
   isRdsCluster,
   rdsInstanceLabel,
   sortRdsInstances,
-  type RdsInstanceWire,
+  type RdsInstanceCandidate,
 } from '@/lib/rds-instances';
 import {
   RdsClusterTag,
@@ -96,9 +96,9 @@ export interface WaitingApprovalResource {
    * normal case) leaves the row exactly as it was. Display order is applied here, not by the
    * caller: the array the caller holds is the wire's, which the payload echoes verbatim.
    */
-  rdsInstances?: readonly RdsInstanceWire[];
-  /** The chosen member ARN (`metadata.selected_rds_instance_arn`) — marks one instance 선택됨. */
-  selectedRdsInstanceArn?: string;
+  rdsInstanceCandidates?: readonly RdsInstanceCandidate[];
+  /** The chosen member ARN (`metadata.selected_rds_instance_resource_id`) — marks one instance 선택됨. */
+  selectedRdsInstanceResourceId?: string;
   /**
    * Stable React key, never rendered. A consumer whose rows carry an identifier it must
    * NOT display (IDC's `resource_id` is an internal NLB key — design-spec §8) would
@@ -395,8 +395,8 @@ export const WaitingApprovalTable = memo(
       const foldSpokenLabel = getDatabaseShortLabel(resource.resourceType) || '유형 미상';
       // An RDS cluster's member instances (steps 2·3). Reader-first display order is applied
       // here; the caller holds the wire array, which the approval payload echoes verbatim.
-      const instances = variant === 'approval' && resource.rdsInstances?.length
-        ? sortRdsInstances(resource.rdsInstances)
+      const instances = variant === 'approval' && resource.rdsInstanceCandidates?.length
+        ? sortRdsInstances(resource.rdsInstanceCandidates)
         : [];
       const hasInstances = instances.length > 0;
       const instancesOpen = hasInstances && !collapsedInstances.has(rowKey);
@@ -675,7 +675,7 @@ export const WaitingApprovalTable = memo(
                 cluster answers for (id, verdict, reason) stays on the parent row. */}
             {instancesOpen &&
               instances.map((instance, index) => (
-                <tr key={instance.rds_instance_arn} className={cn(ROW_BASE, ROW_TARGET)}>
+                <tr key={instance.resource_id} className={cn(ROW_BASE, ROW_TARGET)}>
                   <td
                     className={cn(
                       idcStyles.table.approvalCell,
@@ -687,8 +687,8 @@ export const WaitingApprovalTable = memo(
                   >
                     <span className="flex items-center gap-2">
                       <span className="truncate">{rdsInstanceLabel(instance)}</span>
-                      <RdsMemberChip member={instance.member} />
-                      {instance.rds_instance_arn === resource.selectedRdsInstanceArn && (
+                      <RdsMemberChip role={instance.cluster_member_role} />
+                      {instance.resource_id === resource.selectedRdsInstanceResourceId && (
                         <RdsSelectionChip label="선택됨" />
                       )}
                     </span>
@@ -698,7 +698,7 @@ export const WaitingApprovalTable = memo(
                     Instance
                   </td>
                   <td className={cn(idcStyles.table.approvalCell, monoCell, textColors.secondary)}>
-                    {instance.region ?? ''}
+                    {instance.availability_zone ?? ''}
                   </td>
                   <td className={idcStyles.table.approvalCell} />
                   <td className={idcStyles.table.approvalCell} />

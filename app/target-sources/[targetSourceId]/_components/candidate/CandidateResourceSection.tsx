@@ -261,10 +261,10 @@ export const CandidateResourceSection = ({
   // No seeding on check: the effective instance is DERIVED (draft → server value → sorted-top
   // default), so a cluster is never in a state where the payload has no instance to send.
   // A seeded copy of that default would be a second source of truth that could drift from it.
-  const handleSelectRdsInstance = useCallback((resourceId: string, instanceArn: string) => {
+  const handleSelectRdsInstance = useCallback((resourceId: string, instanceResourceId: string) => {
     setDrafts((previous) => ({
       ...previous,
-      rdsInstanceDrafts: { ...previous.rdsInstanceDrafts, [resourceId]: instanceArn },
+      rdsInstanceDrafts: { ...previous.rdsInstanceDrafts, [resourceId]: instanceResourceId },
     }));
   }, []);
 

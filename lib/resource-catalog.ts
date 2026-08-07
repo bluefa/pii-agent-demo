@@ -9,7 +9,7 @@ import {
   type VmDatabaseConfig,
   type VmDatabaseType,
 } from '@/lib/types';
-import { isRdsCluster, type RdsInstanceWire } from '@/lib/rds-instances';
+import { isRdsCluster, type RdsInstanceCandidate } from '@/lib/rds-instances';
 import type {
   CandidateBehaviorKey,
   CandidateResource,
@@ -39,8 +39,8 @@ export interface CatalogItem {
   networkInterfaceId: string | null;
   ipConfigurationName: string | null;
   scanStatus: ResourceScanStatus | null;
-  rdsInstanceList: RdsInstanceWire[];
-  selectedRdsInstanceArn: string | null;
+  rdsInstanceCandidates: RdsInstanceCandidate[];
+  selectedRdsInstanceResourceId: string | null;
   metadata: ConfirmResourceMetadata;
 }
 
@@ -81,7 +81,7 @@ const pickBehaviorKey = (item: CatalogItem): CandidateBehaviorKey => {
   if (VM_RESOURCE_TYPES.has(item.resourceType)) return 'endpoint';
   // A cluster the backend sent no instance list for stays a flat row — there is nothing
   // to choose between, so it must not grow a radio group (old data keeps working).
-  if (isRdsCluster(item.resourceType) && item.rdsInstanceList.length > 0) return 'rdsInstance';
+  if (isRdsCluster(item.resourceType) && item.rdsInstanceCandidates.length > 0) return 'rdsInstance';
   if (needsCredential(item.databaseType)) return 'credential';
   return 'default';
 };
@@ -103,8 +103,8 @@ export const catalogToCandidates = (
       exclusionReason: item.exclusionReason,
       recommendFailReason: item.recommendFailReason,
       ...(endpointConfig ? { endpointConfig } : {}),
-      ...(item.rdsInstanceList.length > 0 ? { rdsInstanceList: item.rdsInstanceList } : {}),
-      ...(item.selectedRdsInstanceArn ? { selectedRdsInstanceArn: item.selectedRdsInstanceArn } : {}),
+      ...(item.rdsInstanceCandidates.length > 0 ? { rdsInstanceCandidates: item.rdsInstanceCandidates } : {}),
+      ...(item.selectedRdsInstanceResourceId ? { selectedRdsInstanceResourceId: item.selectedRdsInstanceResourceId } : {}),
       ...(item.scanStatus ? { scanStatus: item.scanStatus } : {}),
       metadata: item.metadata,
     };

@@ -1,25 +1,28 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import {
-  defaultRdsInstanceArn,
+  defaultRdsInstanceResourceId,
   isRdsCluster,
   memberRole,
-  parseRdsInstanceList,
+  memberRoleLabel,
+  parseRdsInstanceCandidates,
   rdsInstanceLabel,
   readRdsInstanceMetadata,
   sortRdsInstances,
-  type RdsInstanceWire,
+  type RdsInstanceCandidate,
 } from '@/lib/rds-instances';
 
 const instance = (
   suffix: string,
-  member?: string,
+  role?: string,
   region = 'ap-northeast-2',
-): RdsInstanceWire => ({
-  rds_instance_arn: `arn:aws:rds:${region}:123456789012:db:demo-${suffix}`,
-  rds_instance_identifier: `demo-${suffix}`,
-  region,
-  ...(member ? { member } : {}),
+): RdsInstanceCandidate => ({
+  resource_id: `arn:aws:rds:${region}:123456789012:db:demo-${suffix}`,
+  resource_name: `demo-${suffix}`,
+  host: `demo-${suffix}.abcdefghij.${region}.rds.amazonaws.com`,
+  port: 3306,
+  availability_zone: `${region}a`,
+  ...(role ? { cluster_member_role: role } : {}),
 });
 
 describe('isRdsCluster', () => {
@@ -53,31 +56,72 @@ describe('memberRole', () => {
   });
 });
 
-describe('parseRdsInstanceList', () => {
-  it('drops entries with no usable ARN — an instance nobody can select is not one', () => {
-    const parsed = parseRdsInstanceList([
-      { rds_instance_arn: 'arn:a', rds_instance_identifier: 'a', member: 'Reader' },
-      { rds_instance_identifier: 'no-arn' },
-      { rds_instance_arn: '' },
+// The contract's canonical values are uppercase; a chip that shouts WRITER reads as an alarm.
+describe('memberRoleLabel', () => {
+  it('prettifies the canonical uppercase values', () => {
+    expect(memberRoleLabel('WRITER')).toBe('Writer');
+    expect(memberRoleLabel('READER')).toBe('Reader');
+  });
+
+  it('accepts any casing the contract might send', () => {
+    expect(memberRoleLabel('writer')).toBe('Writer');
+    expect(memberRoleLabel(' Reader ')).toBe('Reader');
+  });
+
+  // An unrecognised role is shown as sent — inventing a label would hide what the server said.
+  it('prints an unrecognised role verbatim, and an absent one as a dash', () => {
+    expect(memberRoleLabel('PRIMARY')).toBe('PRIMARY');
+    expect(memberRoleLabel(undefined)).toBe('—');
+    expect(memberRoleLabel('')).toBe('—');
+  });
+});
+
+describe('parseRdsInstanceCandidates', () => {
+  it('drops entries with no resource_id — an instance nobody can select is not one', () => {
+    const parsed = parseRdsInstanceCandidates([
+      { resource_id: 'arn:a', resource_name: 'a', cluster_member_role: 'READER' },
+      { resource_name: 'no-id' },
+      { resource_id: '' },
       null,
       'nonsense',
     ]);
     expect(parsed).toEqual([
-      { rds_instance_arn: 'arn:a', rds_instance_identifier: 'a', member: 'Reader' },
+      { resource_id: 'arn:a', resource_name: 'a', cluster_member_role: 'READER' },
     ]);
   });
 
   it('returns an empty list for anything that is not an array', () => {
-    expect(parseRdsInstanceList(undefined)).toEqual([]);
-    expect(parseRdsInstanceList(null)).toEqual([]);
-    expect(parseRdsInstanceList({ rds_instance_arn: 'arn:a' })).toEqual([]);
+    expect(parseRdsInstanceCandidates(undefined)).toEqual([]);
+    expect(parseRdsInstanceCandidates(null)).toEqual([]);
+    expect(parseRdsInstanceCandidates({ resource_id: 'arn:a' })).toEqual([]);
   });
 
-  it('keeps only string-typed optional fields', () => {
-    const [parsed] = parseRdsInstanceList([
-      { rds_instance_arn: 'arn:a', rds_instance_identifier: 42, region: null, member: 'Writer' },
+  // host/port are never displayed, but the parsed array is what the approval payload echoes,
+  // so dropping them would make the echo differ from what the server sent.
+  it('preserves all six fields, host and port included', () => {
+    const wire = {
+      resource_id: 'arn:a',
+      resource_name: 'a',
+      host: 'a.cluster-abc.ap-northeast-2.rds.amazonaws.com',
+      port: 3306,
+      availability_zone: 'ap-northeast-2b',
+      cluster_member_role: 'WRITER',
+    };
+    expect(parseRdsInstanceCandidates([wire])).toEqual([wire]);
+  });
+
+  it('drops optional fields of the wrong type rather than passing them through', () => {
+    const [parsed] = parseRdsInstanceCandidates([
+      {
+        resource_id: 'arn:a',
+        resource_name: 42,
+        host: null,
+        port: '3306',
+        availability_zone: null,
+        cluster_member_role: 'WRITER',
+      },
     ]);
-    expect(parsed).toEqual({ rds_instance_arn: 'arn:a', member: 'Writer' });
+    expect(parsed).toEqual({ resource_id: 'arn:a', cluster_member_role: 'WRITER' });
   });
 });
 
@@ -109,32 +153,32 @@ describe('sortRdsInstances', () => {
   });
 });
 
-describe('defaultRdsInstanceArn', () => {
+describe('defaultRdsInstanceResourceId', () => {
   const instances = [instance('1', 'Writer'), instance('3', 'Reader'), instance('2', 'Reader')];
 
   it("honours the server's choice when the cluster actually has that instance", () => {
-    const writerArn = instances[0].rds_instance_arn;
-    expect(defaultRdsInstanceArn(instances, writerArn)).toBe(writerArn);
+    const writerResourceId = instances[0].resource_id;
+    expect(defaultRdsInstanceResourceId(instances, writerResourceId)).toBe(writerResourceId);
   });
 
   it('falls back to the sorted-top Reader when the server named none', () => {
-    expect(defaultRdsInstanceArn(instances)).toBe(instances[2].rds_instance_arn);
+    expect(defaultRdsInstanceResourceId(instances)).toBe(instances[2].resource_id);
   });
 
   // No radio could render an ARN that is not in the list, leaving the group unselected.
   it('ignores a server ARN the cluster does not have', () => {
-    expect(defaultRdsInstanceArn(instances, 'arn:aws:rds:elsewhere')).toBe(
-      instances[2].rds_instance_arn,
+    expect(defaultRdsInstanceResourceId(instances, 'arn:aws:rds:elsewhere')).toBe(
+      instances[2].resource_id,
     );
   });
 
   it('falls back to the top Writer when the cluster has no Reader', () => {
     const writersOnly = [instance('2', 'Writer'), instance('1', 'Writer')];
-    expect(defaultRdsInstanceArn(writersOnly)).toBe(writersOnly[1].rds_instance_arn);
+    expect(defaultRdsInstanceResourceId(writersOnly)).toBe(writersOnly[1].resource_id);
   });
 
   it('returns undefined for a cluster with no instances', () => {
-    expect(defaultRdsInstanceArn([])).toBeUndefined();
+    expect(defaultRdsInstanceResourceId([])).toBeUndefined();
   });
 });
 
@@ -148,25 +192,25 @@ describe('readRdsInstanceMetadata', () => {
     expect(
       readRdsInstanceMetadata(
         {
-          region: 'ap-northeast-2',
-          rds_instance_list: instances,
-          selected_rds_instance_arn: instances[1].rds_instance_arn,
+          availability_zone: 'ap-northeast-2',
+          rds_instance_candidates: instances,
+          selected_rds_instance_resource_id: instances[1].resource_id,
         },
         CLUSTER,
       ),
-    ).toEqual({ rdsInstances: instances, selectedRdsInstanceArn: instances[1].rds_instance_arn });
+    ).toEqual({ rdsInstanceCandidates: instances, selectedRdsInstanceResourceId: instances[1].resource_id });
   });
 
   // Writer-first in, Writer-first out: sorting belongs to the view, not the adapter.
   it('keeps the list in wire order', () => {
     expect(
-      readRdsInstanceMetadata({ rds_instance_list: instances }, CLUSTER).rdsInstances,
+      readRdsInstanceMetadata({ rds_instance_candidates: instances }, CLUSTER).rdsInstanceCandidates,
     ).toEqual(instances);
   });
 
   it('returns the list alone when nothing was chosen (an excluded cluster)', () => {
-    expect(readRdsInstanceMetadata({ rds_instance_list: instances }, CLUSTER)).toEqual({
-      rdsInstances: instances,
+    expect(readRdsInstanceMetadata({ rds_instance_candidates: instances }, CLUSTER)).toEqual({
+      rdsInstanceCandidates: instances,
     });
   });
 
@@ -175,38 +219,38 @@ describe('readRdsInstanceMetadata', () => {
   it('ignores a list on a type that is not a cluster', () => {
     expect(
       readRdsInstanceMetadata(
-        { rds_instance_list: instances, selected_rds_instance_arn: instances[1].rds_instance_arn },
+        { rds_instance_candidates: instances, selected_rds_instance_resource_id: instances[1].resource_id },
         'AWS_RDS_GLOBAL_CLUSTER',
       ),
     ).toEqual({});
-    expect(readRdsInstanceMetadata({ rds_instance_list: instances }, 'AWS_DB_INSTANCE')).toEqual({});
-    expect(readRdsInstanceMetadata({ rds_instance_list: instances }, null)).toEqual({});
-    expect(readRdsInstanceMetadata({ rds_instance_list: instances }, undefined)).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_candidates: instances }, 'AWS_DB_INSTANCE')).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_candidates: instances }, null)).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_candidates: instances }, undefined)).toEqual({});
   });
 
   it('returns nothing for absent or malformed metadata on a cluster', () => {
     expect(readRdsInstanceMetadata({ region: 'ap-northeast-2' }, CLUSTER)).toEqual({});
     expect(readRdsInstanceMetadata(undefined, CLUSTER)).toEqual({});
     expect(readRdsInstanceMetadata(null, CLUSTER)).toEqual({});
-    expect(readRdsInstanceMetadata({ rds_instance_list: 'nonsense' }, CLUSTER)).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_candidates: 'nonsense' }, CLUSTER)).toEqual({});
     // An empty list is not a cluster worth listing.
-    expect(readRdsInstanceMetadata({ rds_instance_list: [] }, CLUSTER)).toEqual({});
+    expect(readRdsInstanceMetadata({ rds_instance_candidates: [] }, CLUSTER)).toEqual({});
   });
 
   it('drops a non-string chosen ARN rather than passing it through', () => {
     expect(
       readRdsInstanceMetadata(
-        { rds_instance_list: instances, selected_rds_instance_arn: 42 },
+        { rds_instance_candidates: instances, selected_rds_instance_resource_id: 42 },
         CLUSTER,
       ),
-    ).toEqual({ rdsInstances: instances });
+    ).toEqual({ rdsInstanceCandidates: instances });
   });
 });
 
 describe('rdsInstanceLabel', () => {
   it('prefers the identifier, then the ARN tail', () => {
     expect(rdsInstanceLabel(instance('1', 'Reader'))).toBe('demo-1');
-    expect(rdsInstanceLabel({ rds_instance_arn: 'arn:aws:rds:r:acct:db:tail-only' })).toBe(
+    expect(rdsInstanceLabel({ resource_id: 'arn:aws:rds:r:acct:db:tail-only' })).toBe(
       'tail-only',
     );
   });

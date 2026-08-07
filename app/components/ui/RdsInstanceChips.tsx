@@ -1,4 +1,4 @@
-import { memberRole } from '@/lib/rds-instances';
+import { memberRole, memberRoleLabel } from '@/lib/rds-instances';
 import { cn, primaryColors, statusColors, tagStyles } from '@/lib/theme';
 
 const CHIP_BASE = 'shrink-0 rounded-full px-2 py-0.5 text-xs';
@@ -24,15 +24,16 @@ export const RdsClusterTag = () => (
  * blank, which must not borrow either signal's colour. Shared by step 1 and steps 2·3 so the
  * same instance is the same colour wherever it is reviewed.
  */
-export const RdsMemberChip = ({ member }: { member?: string }) => {
-  const role = memberRole(member);
+export const RdsMemberChip = ({ role }: { role?: string }) => {
+  const known = memberRole(role);
   const tone =
-    role === 'writer'
+    known === 'writer'
       ? cn(statusColors.warning.bg, statusColors.warning.textDark)
-      : role === 'reader'
+      : known === 'reader'
         ? cn(statusColors.info.bg, statusColors.info.textDark)
         : cn(statusColors.pending.bg, statusColors.pending.textDark);
-  return <span className={cn(CHIP_BASE, 'font-medium', tone)}>{member ?? '—'}</span>;
+  // The contract's canonical values are WRITER / READER; a chip does not shout.
+  return <span className={cn(CHIP_BASE, 'font-medium', tone)}>{memberRoleLabel(role)}</span>;
 };
 
 /**

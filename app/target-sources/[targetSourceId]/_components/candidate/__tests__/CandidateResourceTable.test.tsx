@@ -195,10 +195,11 @@ describe('CandidateResourceTable', () => {
 // An RDS cluster connects through ONE of its member instances, so the cluster row grows
 // a child row per instance and a radio to pick between them.
 describe('CandidateResourceTable — RDS cluster instances', () => {
+  // Uppercase WRITER / READER, as the contract sends them.
   const wireOrder = [
-    { rds_instance_arn: 'arn:db:demo-1', rds_instance_identifier: 'demo-1', region: 'ap-northeast-2', member: 'Writer' },
-    { rds_instance_arn: 'arn:db:demo-3', rds_instance_identifier: 'demo-3', region: 'ap-northeast-2', member: 'Reader' },
-    { rds_instance_arn: 'arn:db:demo-2', rds_instance_identifier: 'demo-2', region: 'ap-northeast-2', member: 'Reader' },
+    { resource_id: 'arn:db:demo-1', resource_name: 'demo-1', availability_zone: 'ap-northeast-2a', cluster_member_role: 'WRITER' },
+    { resource_id: 'arn:db:demo-3', resource_name: 'demo-3', availability_zone: 'ap-northeast-2c', cluster_member_role: 'READER' },
+    { resource_id: 'arn:db:demo-2', resource_name: 'demo-2', availability_zone: 'ap-northeast-2b', cluster_member_role: 'READER' },
   ];
 
   const clusterFixture = (overrides: Partial<CandidateResource> = {}): CandidateResource =>
@@ -208,7 +209,7 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
       resourceName: 'demo-cluster',
       type: 'AWS_DB_CLUSTER',
       behaviorKey: 'rdsInstance',
-      rdsInstanceList: wireOrder,
+      rdsInstanceCandidates: wireOrder,
       ...overrides,
     });
 
@@ -268,6 +269,15 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(screen.getAllByText('demo-2')).toHaveLength(1);
   });
 
+  // The wire sends WRITER / READER; the chip must not shout them back.
+  it('prettifies the member role on each instance chip', () => {
+    renderCluster();
+    expect(screen.getAllByText('Reader')).toHaveLength(2);
+    expect(screen.getAllByText('Writer')).toHaveLength(1);
+    expect(screen.queryByText('READER')).toBeNull();
+    expect(screen.queryByText('WRITER')).toBeNull();
+  });
+
   it('tags the cluster row RDS Cluster, before the name', () => {
     renderCluster();
     const tag = screen.getByText('RDS Cluster');
@@ -315,7 +325,7 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     render(
       <CandidateResourceTable
         {...defaultProps}
-        candidates={[clusterFixture({ behaviorKey: 'default', rdsInstanceList: undefined })]}
+        candidates={[clusterFixture({ behaviorKey: 'default', rdsInstanceCandidates: undefined })]}
         selectedIds={new Set(['cluster-1'])}
       />,
     );
@@ -326,7 +336,11 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   it('names each instance row Instance and shows its own region', () => {
     renderCluster();
     expect(screen.getAllByText('Instance')).toHaveLength(3);
-    // Cluster row region + one per instance row.
-    expect(screen.getAllByText('ap-northeast-2')).toHaveLength(4);
+    // The Region column carries the cluster's region on the parent and each instance's OWN
+    // availability zone on its child row — same column, one tier finer.
+    expect(screen.getAllByText('ap-northeast-2')).toHaveLength(1);
+    expect(screen.getByText('ap-northeast-2a')).toBeTruthy();
+    expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
+    expect(screen.getByText('ap-northeast-2c')).toBeTruthy();
   });
 });

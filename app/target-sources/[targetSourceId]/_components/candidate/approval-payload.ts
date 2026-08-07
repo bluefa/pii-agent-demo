@@ -6,10 +6,10 @@ import type {
   CandidateResource,
 } from '@/lib/types/resources';
 import { cloudProviderToWireProvider, toWireDatabaseType } from '@/lib/types';
-import { rdsInstanceLabel } from '@/lib/rds-instances';
+import { memberRoleLabel, rdsInstanceLabel } from '@/lib/rds-instances';
 import {
   getCandidateBehavior,
-  resolveRdsInstanceArn,
+  resolveRdsInstanceResourceId,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 
 type ResourceItem = z.infer<typeof schemas.TargetSourceResourceItemDto>;
@@ -23,10 +23,12 @@ export const toModalResources = (
   candidates.map((candidate) => {
     const endpoint = drafts.endpointDrafts[candidate.id] ?? candidate.endpointConfig;
     // A cluster row approves ONE member instance — the approver has to see which.
-    const instanceArn = candidate.rdsInstanceList
-      ? resolveRdsInstanceArn(candidate, drafts)
+    const instanceResourceId = candidate.rdsInstanceCandidates
+      ? resolveRdsInstanceResourceId(candidate, drafts)
       : undefined;
-    const instance = candidate.rdsInstanceList?.find((i) => i.rds_instance_arn === instanceArn);
+    const instance = candidate.rdsInstanceCandidates?.find(
+      (c) => c.resource_id === instanceResourceId,
+    );
     return {
       id: candidate.id,
       resourceId: candidate.resourceId,
@@ -48,7 +50,9 @@ export const toModalResources = (
         ? {
             rdsInstance: {
               identifier: rdsInstanceLabel(instance),
-              ...(instance.member ? { member: instance.member } : {}),
+              ...(instance.cluster_member_role
+                ? { member: memberRoleLabel(instance.cluster_member_role) }
+                : {}),
             },
           }
         : {}),
@@ -110,9 +114,9 @@ const buildResourceInputs = (
       ...(candidate.databaseType ? { database_type: toWireDatabaseType(candidate.databaseType) } : {}),
       // An RDS cluster's member list travels with the resource whether or not it was
       // selected: it describes what the cluster IS, and the backend joins the echoed
-      // array. Only the CHOICE (selected_rds_instance_arn) is selection-scoped, and the
+      // array. Only the CHOICE (selected_rds_instance_resource_id) is selection-scoped, and the
       // behavior adds that on the selected branch.
-      ...(candidate.rdsInstanceList ? { rds_instance_list: candidate.rdsInstanceList } : {}),
+      ...(candidate.rdsInstanceCandidates ? { rds_instance_candidates: candidate.rdsInstanceCandidates } : {}),
     };
 
     // `candidate.type` is 'UNKNOWN' when the upstream row omitted resource_type — a local

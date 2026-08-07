@@ -5,7 +5,7 @@ import { getStore } from '@/lib/mock-store';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
 import { ProcessStatus } from '@/lib/types';
 import type { Project } from '@/lib/types';
-import type { RdsInstanceWire } from '@/lib/rds-instances';
+import type { RdsInstanceCandidate } from '@/lib/rds-instances';
 
 // Steps 2·3 read the instance list and the chosen ARN back out of the approval request. That
 // only works if the mock ECHOES what step 1 posted — a store that drops the choice would show
@@ -15,17 +15,21 @@ const TARGET_SOURCE_ID = 3101;
 const TARGET_SOURCE_ID_STR = String(TARGET_SOURCE_ID);
 
 const CLUSTER_ARN = 'arn:aws:rds:ap-northeast-2:acct:cluster:demo';
-const WRITER: RdsInstanceWire = {
-  rds_instance_arn: 'arn:aws:rds:ap-northeast-2:acct:db:demo-1',
-  rds_instance_identifier: 'demo-1',
-  region: 'ap-northeast-2',
-  member: 'Writer',
+const WRITER: RdsInstanceCandidate = {
+  resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:demo-1',
+  resource_name: 'demo-1',
+  host: 'demo-1.cluster-abc.ap-northeast-2.rds.amazonaws.com',
+  port: 3306,
+  availability_zone: 'ap-northeast-2a',
+  cluster_member_role: 'WRITER',
 };
-const READER: RdsInstanceWire = {
-  rds_instance_arn: 'arn:aws:rds:ap-northeast-2:acct:db:demo-2',
-  rds_instance_identifier: 'demo-2',
-  region: 'ap-northeast-2',
-  member: 'Reader',
+const READER: RdsInstanceCandidate = {
+  resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:demo-2',
+  resource_name: 'demo-2',
+  host: 'demo-2.cluster-ro-abc.ap-northeast-2.rds.amazonaws.com',
+  port: 3306,
+  availability_zone: 'ap-northeast-2b',
+  cluster_member_role: 'READER',
 };
 // Wire order is Writer-first on purpose — nothing in the round trip may reorder it.
 const WIRE_ORDER = [WRITER, READER];
@@ -49,7 +53,7 @@ const createTestProject = (): Project => ({
       connectionStatus: 'PENDING',
       isSelected: false,
       integrationCategory: 'TARGET',
-      rdsInstanceList: WIRE_ORDER,
+      rdsInstanceCandidates: WIRE_ORDER,
     },
   ],
   terraformState: { serviceTf: 'PENDING', bdcTf: 'PENDING' },
@@ -66,7 +70,7 @@ interface WireItem {
   metadata?: Record<string, unknown>;
 }
 
-const postApproval = (selectedArn: string | undefined) =>
+const postApproval = (selectedResourceId: string | undefined) =>
   mockConfirm.createApprovalRequest(TARGET_SOURCE_ID_STR, {
     resources: [
       {
@@ -77,10 +81,10 @@ const postApproval = (selectedArn: string | undefined) =>
         integration_category: 'TARGET',
         metadata: {
           provider: 'AWS',
-          region: 'ap-northeast-2',
+          availability_zone: 'ap-northeast-2',
           database_type: 'mysql',
-          rds_instance_list: WIRE_ORDER,
-          ...(selectedArn ? { selected_rds_instance_arn: selectedArn } : {}),
+          rds_instance_candidates: WIRE_ORDER,
+          ...(selectedResourceId ? { selected_rds_instance_resource_id: selectedResourceId } : {}),
         },
       },
     ],
@@ -110,31 +114,31 @@ describe('RDS cluster metadata round trip (step 1 → steps 2·3)', () => {
   });
 
   it('echoes the posted instance choice back on approval-requests/latest', async () => {
-    await postApproval(READER.rds_instance_arn);
+    await postApproval(READER.resource_id);
 
     const item = await latestClusterItem();
     expect(item?.selected).toBe(true);
-    expect(item?.metadata?.selected_rds_instance_arn).toBe(READER.rds_instance_arn);
+    expect(item?.metadata?.selected_rds_instance_resource_id).toBe(READER.resource_id);
     // Verbatim and unsorted — the display layer sorts, the wire does not.
-    expect(item?.metadata?.rds_instance_list).toEqual(WIRE_ORDER);
+    expect(item?.metadata?.rds_instance_candidates).toEqual(WIRE_ORDER);
   });
 
   it('echoes the WRITER when that is what was picked, not the Reader default', async () => {
-    await postApproval(WRITER.rds_instance_arn);
+    await postApproval(WRITER.resource_id);
 
     const item = await latestClusterItem();
-    expect(item?.metadata?.selected_rds_instance_arn).toBe(WRITER.rds_instance_arn);
+    expect(item?.metadata?.selected_rds_instance_resource_id).toBe(WRITER.resource_id);
   });
 
   it('carries the list through approved-integration (step 3) with the choice', async () => {
-    await postApproval(READER.rds_instance_arn);
+    await postApproval(READER.resource_id);
 
     const response = await mockConfirm.getApprovedIntegration(TARGET_SOURCE_ID_STR);
     const body = (await response.json()) as { resources?: WireItem[] };
     const item = body.resources?.find((resource) => resource.resource_id === CLUSTER_ARN);
 
-    expect(item?.metadata?.rds_instance_list).toEqual(WIRE_ORDER);
-    expect(item?.metadata?.selected_rds_instance_arn).toBe(READER.rds_instance_arn);
+    expect(item?.metadata?.rds_instance_candidates).toEqual(WIRE_ORDER);
+    expect(item?.metadata?.selected_rds_instance_resource_id).toBe(READER.resource_id);
   });
 
   it('keeps the member list but no choice on an excluded cluster', async () => {
@@ -147,29 +151,29 @@ describe('RDS cluster metadata round trip (step 1 → steps 2·3)', () => {
           selected: false,
           integration_category: 'TARGET',
           exclusion_reason: '미사용 클러스터',
-          metadata: { rds_instance_list: WIRE_ORDER },
+          metadata: { rds_instance_candidates: WIRE_ORDER },
         },
       ],
     });
 
     const item = await latestClusterItem();
     expect(item?.selected).toBe(false);
-    expect(item?.metadata?.rds_instance_list).toEqual(WIRE_ORDER);
-    expect(item?.metadata?.selected_rds_instance_arn).toBeUndefined();
+    expect(item?.metadata?.rds_instance_candidates).toEqual(WIRE_ORDER);
+    expect(item?.metadata?.selected_rds_instance_resource_id).toBeUndefined();
   });
 
   // Reject → back to step 1. The catalog read has to hand the choice back, or the user's pick
   // silently reverts to the client default and they re-submit something they never chose.
-  // This is also the only path on which defaultRdsInstanceArn's server-wins branch runs.
+  // This is also the only path on which defaultRdsInstanceResourceId's server-wins branch runs.
   it('hands the recorded choice back on the step-1 /resources read', async () => {
     // Before any request the server knows nothing — the client default is what applies.
-    expect((await catalogClusterItem())?.metadata?.selected_rds_instance_arn).toBeUndefined();
+    expect((await catalogClusterItem())?.metadata?.selected_rds_instance_resource_id).toBeUndefined();
 
-    await postApproval(WRITER.rds_instance_arn);
+    await postApproval(WRITER.resource_id);
 
     const item = await catalogClusterItem();
-    expect(item?.metadata?.selected_rds_instance_arn).toBe(WRITER.rds_instance_arn);
-    expect(item?.metadata?.rds_instance_list).toEqual(WIRE_ORDER);
+    expect(item?.metadata?.selected_rds_instance_resource_id).toBe(WRITER.resource_id);
+    expect(item?.metadata?.rds_instance_candidates).toEqual(WIRE_ORDER);
   });
 
   // An excluded cluster recorded no choice, so step 1 must not resurrect one.
@@ -183,11 +187,11 @@ describe('RDS cluster metadata round trip (step 1 → steps 2·3)', () => {
           selected: false,
           integration_category: 'TARGET',
           exclusion_reason: '미사용 클러스터',
-          metadata: { rds_instance_list: WIRE_ORDER },
+          metadata: { rds_instance_candidates: WIRE_ORDER },
         },
       ],
     });
 
-    expect((await catalogClusterItem())?.metadata?.selected_rds_instance_arn).toBeUndefined();
+    expect((await catalogClusterItem())?.metadata?.selected_rds_instance_resource_id).toBeUndefined();
   });
 });

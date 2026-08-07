@@ -261,10 +261,10 @@ function buildMetadata(resource: MockResource, project: Project): Record<string,
         // 선택값은 승인 요청 POST 가 기록했을 때만 실린다(시드에는 없다): 1006 데모는
         // 값이 비어 있어 클라이언트 기본 선택(Reader 우선)이 도는 것을 보여주고, 반려
         // 후 1단계로 돌아온 대상은 사용자가 골랐던 인스턴스를 그대로 되찾는다 —
-        // defaultRdsInstanceArn 의 '서버 선택 우선' 분기가 실제로 도는 유일한 경로다.
-        ...(resource.rdsInstanceList ? { rds_instance_list: resource.rdsInstanceList } : {}),
-        ...(resource.selectedRdsInstanceArn
-          ? { selected_rds_instance_arn: resource.selectedRdsInstanceArn }
+        // defaultRdsInstanceResourceId 의 '서버 선택 우선' 분기가 실제로 도는 유일한 경로다.
+        ...(resource.rdsInstanceCandidates ? { rds_instance_candidates: resource.rdsInstanceCandidates } : {}),
+        ...(resource.selectedRdsInstanceResourceId
+          ? { selected_rds_instance_resource_id: resource.selectedRdsInstanceResourceId }
           : {}),
         ...vmFields,
       };
@@ -342,9 +342,9 @@ function toApprovalResourceItems(project: Project): Array<Record<string, unknown
       ...(idc?.oracleSid ? { oracle_service_id: idc.oracleSid } : {}),
       // RDS 클러스터: 멤버 목록은 사실이라 선택 여부와 무관하게 실리고, 접속 인스턴스
       // 선택은 요청이 실어 보낸 값(POST 가 기록)만 되돌려준다.
-      ...(r.rdsInstanceList ? { rds_instance_list: r.rdsInstanceList } : {}),
-      ...(r.isSelected && r.selectedRdsInstanceArn
-        ? { selected_rds_instance_arn: r.selectedRdsInstanceArn }
+      ...(r.rdsInstanceCandidates ? { rds_instance_candidates: r.rdsInstanceCandidates } : {}),
+      ...(r.isSelected && r.selectedRdsInstanceResourceId
+        ? { selected_rds_instance_resource_id: r.selectedRdsInstanceResourceId }
         : {}),
     };
     return {
@@ -398,9 +398,9 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
       port: r.vmDatabaseConfig?.port ?? resolvePort(project.cloudProvider, r),
       oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
       // RDS 클러스터 멤버 목록 + 승인 요청이 고른 접속 인스턴스 (3단계가 되읽는다).
-      ...(r.rdsInstanceList ? { rds_instance_list: r.rdsInstanceList } : {}),
-      ...(r.isSelected && r.selectedRdsInstanceArn
-        ? { selected_rds_instance_arn: r.selectedRdsInstanceArn }
+      ...(r.rdsInstanceCandidates ? { rds_instance_candidates: r.rdsInstanceCandidates } : {}),
+      ...(r.isSelected && r.selectedRdsInstanceResourceId
+        ? { selected_rds_instance_resource_id: r.selectedRdsInstanceResourceId }
         : {}),
     },
     database_region: demoRegion(project.cloudProvider, r),
@@ -431,7 +431,7 @@ function toExcludedResourceInfo(r: MockResource, project: Project): BffExcludedR
       // 이 metadata 는 approved-integration 에서 toResourceSnapshot 의 것을 덮어쓴다 —
       // 멤버 목록을 여기 다시 싣지 않으면 제외된 클러스터만 목록을 잃는다. 접속 인스턴스
       // 선택은 싣지 않는다: 제외된 클러스터는 아무것도 고르지 않았다.
-      ...(r.rdsInstanceList ? { rds_instance_list: r.rdsInstanceList } : {}),
+      ...(r.rdsInstanceCandidates ? { rds_instance_candidates: r.rdsInstanceCandidates } : {}),
     },
     database_type: r.databaseType ?? null,
     database_region: demoRegion(project.cloudProvider, r),
@@ -583,7 +583,7 @@ export const mockConfirm = {
     const endpointConfigMap = new Map<string, VmDatabaseConfig>();
     const credentialMap = new Map<string, string>();
     // RDS 클러스터의 접속 인스턴스 선택 — 2·3단계가 이 값을 되읽는다.
-    const rdsInstanceArnMap = new Map<string, string>();
+    const rdsInstanceResourceIdMap = new Map<string, string>();
     const resolveInternalResourceId = (resourceId: string): string => (
       project.resources.find((resource) => (
         resource.resourceId === resourceId || resource.id === resourceId
@@ -614,11 +614,11 @@ export const mockConfirm = {
       if (credentialId) {
         credentialMap.set(internalResourceId, credentialId);
       }
-      const selectedRdsInstanceArn = typeof meta.selected_rds_instance_arn === 'string'
-        ? meta.selected_rds_instance_arn
+      const selectedRdsInstanceResourceId = typeof meta.selected_rds_instance_resource_id === 'string'
+        ? meta.selected_rds_instance_resource_id
         : undefined;
-      if (selectedRdsInstanceArn) {
-        rdsInstanceArnMap.set(internalResourceId, selectedRdsInstanceArn);
+      if (selectedRdsInstanceResourceId) {
+        rdsInstanceResourceIdMap.set(internalResourceId, selectedRdsInstanceResourceId);
       }
     }
 
@@ -656,7 +656,7 @@ export const mockConfirm = {
 
       const vmDatabaseConfig = endpointConfigMap.get(r.id) ?? r.vmDatabaseConfig;
       const selectedCredentialId = credentialMap.get(r.id) ?? r.selectedCredentialId;
-      const selectedRdsInstanceArn = rdsInstanceArnMap.get(r.id) ?? r.selectedRdsInstanceArn;
+      const selectedRdsInstanceResourceId = rdsInstanceResourceIdMap.get(r.id) ?? r.selectedRdsInstanceResourceId;
 
       return {
         ...r,
@@ -664,7 +664,7 @@ export const mockConfirm = {
         exclusion,
         vmDatabaseConfig,
         selectedCredentialId,
-        selectedRdsInstanceArn,
+        selectedRdsInstanceResourceId,
       };
     });
 

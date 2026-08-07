@@ -410,22 +410,22 @@ describe('WaitingApprovalTable', () => {
   // list is read-only: it shows what the cluster holds and which one step 1 chose.
   describe('RDS cluster instances', () => {
     const WRITER = {
-      rds_instance_arn: 'arn:db:demo-1',
-      rds_instance_identifier: 'demo-1',
-      region: 'ap-northeast-2',
-      member: 'Writer',
+      resource_id: 'arn:db:demo-1',
+      resource_name: 'demo-1',
+      availability_zone: 'ap-northeast-2a',
+      cluster_member_role: 'WRITER',
     };
     const READER_HIGH = {
-      rds_instance_arn: 'arn:db:demo-3',
-      rds_instance_identifier: 'demo-3',
-      region: 'ap-northeast-2',
-      member: 'Reader',
+      resource_id: 'arn:db:demo-3',
+      resource_name: 'demo-3',
+      availability_zone: 'ap-northeast-2c',
+      cluster_member_role: 'READER',
     };
     const READER_LOW = {
-      rds_instance_arn: 'arn:db:demo-2',
-      rds_instance_identifier: 'demo-2',
-      region: 'ap-northeast-2',
-      member: 'Reader',
+      resource_id: 'arn:db:demo-2',
+      resource_name: 'demo-2',
+      availability_zone: 'ap-northeast-2b',
+      cluster_member_role: 'READER',
     };
     // Writer-first, readers out of ARN order — as the wire sends it.
     const WIRE_ORDER = [WRITER, READER_HIGH, READER_LOW];
@@ -438,8 +438,8 @@ describe('WaitingApprovalTable', () => {
       region: 'ap-northeast-2',
       resourceName: 'demo-cluster',
       selected: true,
-      rdsInstances: WIRE_ORDER,
-      selectedRdsInstanceArn: READER_LOW.rds_instance_arn,
+      rdsInstanceCandidates: WIRE_ORDER,
+      selectedRdsInstanceResourceId: READER_LOW.resource_id,
       ...overrides,
     });
 
@@ -483,8 +483,12 @@ describe('WaitingApprovalTable', () => {
     it('says Instance in the type column and gives each instance its own region', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
       expect(screen.getAllByText('Instance')).toHaveLength(3);
-      // Cluster row region + one per instance row.
-      expect(screen.getAllByText('ap-northeast-2')).toHaveLength(4);
+      // The Region column carries the cluster's region on the parent and each instance's OWN
+      // availability zone on its child row — same column, one tier finer.
+      expect(screen.getAllByText('ap-northeast-2')).toHaveLength(1);
+      expect(screen.getByText('ap-northeast-2a')).toBeTruthy();
+      expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
+      expect(screen.getByText('ap-northeast-2c')).toBeTruthy();
     });
 
     // The parent carries the COUNT only — the 선택됨 chip is the single statement of the choice.
@@ -520,7 +524,7 @@ describe('WaitingApprovalTable', () => {
     it('lists an excluded cluster’s instances with no 선택됨 chip', () => {
       render(
         <WaitingApprovalTable
-          resources={[cluster({ selected: false, selectedRdsInstanceArn: undefined })]}
+          resources={[cluster({ selected: false, selectedRdsInstanceResourceId: undefined })]}
         />,
       );
       expect(instanceNames()).toHaveLength(3);

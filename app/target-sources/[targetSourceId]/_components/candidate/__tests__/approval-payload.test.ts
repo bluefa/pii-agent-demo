@@ -185,22 +185,22 @@ describe('approval-payload', () => {
 // only means something on a row that was actually selected.
 describe('approval-payload — RDS cluster instances', () => {
   const writer = {
-    rds_instance_arn: 'arn:aws:rds:ap-northeast-2:acct:db:demo-1',
-    rds_instance_identifier: 'demo-1',
-    region: 'ap-northeast-2',
-    member: 'Writer',
+    resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:demo-1',
+    resource_name: 'demo-1',
+    availability_zone: 'ap-northeast-2',
+    cluster_member_role: 'Writer',
   };
   const readerHigh = {
-    rds_instance_arn: 'arn:aws:rds:ap-northeast-2:acct:db:demo-3',
-    rds_instance_identifier: 'demo-3',
-    region: 'ap-northeast-2',
-    member: 'Reader',
+    resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:demo-3',
+    resource_name: 'demo-3',
+    availability_zone: 'ap-northeast-2',
+    cluster_member_role: 'Reader',
   };
   const readerLow = {
-    rds_instance_arn: 'arn:aws:rds:ap-northeast-2:acct:db:demo-2',
-    rds_instance_identifier: 'demo-2',
-    region: 'ap-northeast-2',
-    member: 'Reader',
+    resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:demo-2',
+    resource_name: 'demo-2',
+    availability_zone: 'ap-northeast-2',
+    cluster_member_role: 'Reader',
   };
   // Deliberately unsorted, as the wire sends it: Writer first, readers out of ARN order.
   const wireOrder = [writer, readerHigh, readerLow];
@@ -216,29 +216,29 @@ describe('approval-payload — RDS cluster instances', () => {
     selected: true,
     exclusionReason: null,
     recommendFailReason: null,
-    rdsInstanceList: wireOrder,
+    rdsInstanceCandidates: wireOrder,
     metadata: { provider: 'AWS', resourceType: 'AWS_DB_CLUSTER', region: 'ap-northeast-2' },
   };
 
   it('selects the sorted-top Reader by default and echoes the list in wire order', () => {
     const [item] = toApprovalRequestInput([cluster], new Set(['cluster-1']), drafts, {}).resources!;
-    expect(item.metadata?.selected_rds_instance_arn).toBe(readerLow.rds_instance_arn);
+    expect(item.metadata?.selected_rds_instance_resource_id).toBe(readerLow.resource_id);
     // Verbatim, unsorted: the backend joins on the array we were given, not on our view of it.
-    expect(item.metadata?.rds_instance_list).toEqual(wireOrder);
+    expect(item.metadata?.rds_instance_candidates).toEqual(wireOrder);
     expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
   });
 
   it("honours the server's selection over the sorted-top default", () => {
-    const seeded: CandidateResource = { ...cluster, selectedRdsInstanceArn: writer.rds_instance_arn };
+    const seeded: CandidateResource = { ...cluster, selectedRdsInstanceResourceId: writer.resource_id };
     const [item] = toApprovalRequestInput([seeded], new Set(['cluster-1']), drafts, {}).resources!;
-    expect(item.metadata?.selected_rds_instance_arn).toBe(writer.rds_instance_arn);
+    expect(item.metadata?.selected_rds_instance_resource_id).toBe(writer.resource_id);
   });
 
   it("honours the user's draft over both", () => {
-    const withDraft = { ...drafts, rdsInstanceDrafts: { 'cluster-1': readerHigh.rds_instance_arn } };
-    const seeded: CandidateResource = { ...cluster, selectedRdsInstanceArn: writer.rds_instance_arn };
+    const withDraft = { ...drafts, rdsInstanceDrafts: { 'cluster-1': readerHigh.resource_id } };
+    const seeded: CandidateResource = { ...cluster, selectedRdsInstanceResourceId: writer.resource_id };
     const [item] = toApprovalRequestInput([seeded], new Set(['cluster-1']), withDraft, {}).resources!;
-    expect(item.metadata?.selected_rds_instance_arn).toBe(readerHigh.rds_instance_arn);
+    expect(item.metadata?.selected_rds_instance_resource_id).toBe(readerHigh.resource_id);
   });
 
   it('keeps the list but sends no chosen ARN on an excluded cluster', () => {
@@ -246,14 +246,14 @@ describe('approval-payload — RDS cluster instances', () => {
       'cluster-1': '미사용 클러스터',
     }).resources!;
     expect(item.selected).toBe(false);
-    expect(item.metadata?.rds_instance_list).toEqual(wireOrder);
-    expect(item.metadata?.selected_rds_instance_arn).toBeUndefined();
+    expect(item.metadata?.rds_instance_candidates).toEqual(wireOrder);
+    expect(item.metadata?.selected_rds_instance_resource_id).toBeUndefined();
   });
 
   it('leaves both fields off a resource that is not a cluster', () => {
     const [item] = toApprovalRequestInput([cloudCandidate], new Set(['res-1']), drafts, {}).resources!;
-    expect(item.metadata?.rds_instance_list).toBeUndefined();
-    expect(item.metadata?.selected_rds_instance_arn).toBeUndefined();
+    expect(item.metadata?.rds_instance_candidates).toBeUndefined();
+    expect(item.metadata?.selected_rds_instance_resource_id).toBeUndefined();
   });
 
   it('shows the approver which instance the cluster connects through', () => {

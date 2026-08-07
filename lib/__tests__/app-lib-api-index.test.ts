@@ -183,8 +183,8 @@ describe('app/lib/api/index', () => {
           ipConfigurationName: null,
           scanStatus: null,
           // RDS cluster fields — empty on every non-cluster resource.
-          rdsInstanceList: [],
-          selectedRdsInstanceArn: null,
+          rdsInstanceCandidates: [],
+          selectedRdsInstanceResourceId: null,
           metadata: {
             provider: 'Azure',
             resourceType: 'AZURE_VM',
