@@ -85,8 +85,11 @@ const codeChip =
 const codeChipLabel = 'font-medium text-[var(--pl-text-weak)]';
 /** 섹션 제목 — 18px 마크 + 8px + 제목(Figma Heading 2). */
 const sectionHead = 'flex items-center gap-2 mb-3';
-/** 기본 표시 개수 — 서비스당 대상은 대개 한 자릿수라 5줄이면 한눈에 들어온다. */
-const PAGE_SIZE = 5;
+/**
+ * 기본 표시 개수 — 카드는 표 행의 세 배 높이라, 이 섹션 아래 Jira 티켓 연결까지 한 화면에
+ * 들어오는 선이 3장이다. 더 보려면 페이지 크기를 올린다.
+ */
+const PAGE_SIZE = 3;
 
 /**
  * Jira 타일 — provider 5개는 열이 2개뿐인 표를 채우기엔 너무 짧고, 서로 비교할 값도
@@ -402,8 +405,8 @@ export function ServiceDetailView({
             page={safePage}
             pageSize={pageSize}
             totalCount={rows.length}
-            // 기본 5 가 선택지에 없으면 셀렉트가 다른 값을 가리킨다(표는 5줄, 컨트롤은 10).
-            pageSizeOptions={[5, 10, 20, 50]}
+            // 기본값이 선택지에 없으면 셀렉트가 다른 값을 가리킨다(목록은 3장, 컨트롤은 5).
+            pageSizeOptions={[3, 5, 10, 20, 50]}
             onPageChange={setPage}
             onPageSizeChange={(next) => {
               setPageSize(next);
