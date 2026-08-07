@@ -1,31 +1,6 @@
-import type { FC } from 'react';
-import { AwsIcon, AzureIcon, GcpIcon, IdcIcon } from '@/app/components/ui/CloudProviderIcon';
+import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
 import { cn, providerColors, textColors } from '@/lib/theme';
 import type { CloudProvider } from '@/lib/types';
-
-const PROVIDER_ICON: Record<CloudProvider, FC<{ className?: string }>> = {
-  AWS: AwsIcon,
-  Azure: AzureIcon,
-  GCP: GcpIcon,
-  IDC: IdcIcon,
-};
-
-const SduIcon: FC<{ className?: string }> = ({ className }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="4" width="18" height="6" rx="1.5" />
-    <rect x="3" y="14" width="18" height="6" rx="1.5" />
-    <line x1="7" y1="7" x2="7.01" y2="7" />
-    <line x1="7" y1="17" x2="7.01" y2="17" />
-  </svg>
-);
 
 interface ProviderLogoProps {
   provider: CloudProvider;
@@ -47,7 +22,6 @@ export const ProviderLogo = ({
   variant = 'tile',
   className,
 }: ProviderLogoProps) => {
-  const Icon = isSdu ? SduIcon : PROVIDER_ICON[provider];
   const colors = providerColors[isSdu ? 'SDU' : provider];
   const bare = variant === 'bare';
   return (
@@ -59,7 +33,11 @@ export const ProviderLogo = ({
       )}
       aria-label={isSdu ? 'SDU' : provider}
     >
-      <Icon className={bare ? 'w-9 h-9' : 'w-5 h-5'} />
+      <ProviderGlyph
+        provider={provider}
+        isSdu={isSdu}
+        className={bare ? 'w-9 h-9' : 'w-5 h-5'}
+      />
     </span>
   );
 };

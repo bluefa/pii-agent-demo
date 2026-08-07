@@ -1472,15 +1472,6 @@ const PIPELINE_PILL_ICON: Record<PipelineStatusToneKey, string> = {
   BLOCKED: 'ban',
 };
 
-/** Provider dot fill per lowercased provider key. */
-const PIPELINE_PROVIDER_DOT: Record<string, string> = {
-  aws: 'bg-[var(--pl-pv-aws)]',
-  azure: 'bg-[var(--pl-pv-azure)]',
-  gcp: 'bg-[var(--pl-pv-gcp)]',
-  idc: 'bg-[var(--pl-pv-idc)]',
-  sdu: 'bg-[var(--pl-pv-sdu)]',
-};
-
 /** Shared input/select chrome WITHOUT horizontal padding (callers add px so the
  *  search variant's pl-30 never collides with a base px in the join). */
 const pipelineInputBase =
@@ -1626,13 +1617,14 @@ export const pipelineStyles = {
       'inline-flex items-center h-7 rounded-full border border-[var(--pl-primary-ring)] bg-[var(--pl-primary-bg)] px-3 text-[12px] font-semibold text-[var(--pl-primary)]',
   },
 
-  /** ProvTag — neutral text + 8×8 r2.5 brand dot; 12/500 medium. */
+  /** ProvTag — provider glyph + neutral text; 12/500 medium. */
   provTag: {
     base: 'inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--pl-text-medium)]',
     /** provider 가 라벨이 아니라 그 블록의 제목일 때 (Jira 타일) — 16/600. */
     baseLg: 'inline-flex items-center gap-1.5 text-[16px] font-semibold text-[var(--pl-text-strong)]',
-    dot: 'w-2 h-2 rounded-[2.5px]',
-    dotTone: PIPELINE_PROVIDER_DOT,
+    /** 글리프는 라벨의 대문자 높이에 맞춘다 — 더 키우면 표에서 글자보다 아이콘이 먼저 읽힌다. */
+    glyph: 'w-3.5 h-3.5 flex-none',
+    glyphLg: 'w-[18px] h-[18px] flex-none',
   },
 
   /** PipelineProgressBar — track 110 (160 wide), h6; fill by state; N/M 12/600 tabular.

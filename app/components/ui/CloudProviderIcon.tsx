@@ -60,6 +60,25 @@ const IdcIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// SDU — data the service owner uploads, so an upload glyph. It must not be the IDC
+// rack: SDU used to reuse it, which left the two indistinguishable everywhere the
+// mark is the provider's only identification.
+const SduIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" />
+    <path d="M12 4.5V14" />
+    <path d="M8.2 8.3 12 4.5l3.8 3.8" />
+  </svg>
+);
+
 const IconMap: Record<CloudProvider, React.FC<{ className?: string }>> = {
   AWS: AwsIcon,
   Azure: AzureIcon,
@@ -67,7 +86,36 @@ const IconMap: Record<CloudProvider, React.FC<{ className?: string }>> = {
   IDC: IdcIcon,
 };
 
-export { AwsIcon, AzureIcon, GcpIcon, IdcIcon };
+/** Lowercased wire value → glyph. Admin passes raw wire strings ('AZURE', 'UNKNOWN'). */
+const GLYPH_BY_KEY: Record<string, React.FC<{ className?: string }>> = {
+  aws: AwsIcon,
+  azure: AzureIcon,
+  gcp: GcpIcon,
+  idc: IdcIcon,
+  sdu: SduIcon,
+};
+
+export { AwsIcon, AzureIcon, GcpIcon, IdcIcon, SduIcon };
+
+interface ProviderGlyphProps {
+  /** Wire or display value, any casing. */
+  provider: CloudProvider | string | null | undefined;
+  /** An SDU target reads as SDU over its underlying CSP. */
+  isSdu?: boolean;
+  className?: string;
+}
+
+/**
+ * The provider mark on its own — no tile, no brand fill, `currentColor`. This is the
+ * shared source for every place the provider is shown as a shape rather than a colour
+ * swatch: a coloured square carries no more information than the glyph and costs the
+ * page a hue, and a glyph survives being printed, greyed, or read at a glance.
+ * Returns null for values with no mark (UNKNOWN, empty) so callers render no gap.
+ */
+export const ProviderGlyph = ({ provider, isSdu, className }: ProviderGlyphProps) => {
+  const Icon = GLYPH_BY_KEY[isSdu ? 'sdu' : (provider ?? '').toLowerCase()];
+  return Icon ? <Icon className={className} /> : null;
+};
 
 export const CloudProviderIcon = ({
   provider,
