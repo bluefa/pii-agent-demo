@@ -281,12 +281,11 @@ export const ServiceManagementView = () => {
               </div>
             </div>
           ) : (
-            // The column grows with the window and stops at 1440px. A hard 880 froze
-            // the page: on a 1920 screen it left 720px of empty canvas beside a
-            // description that was still being clipped to one line. The ceiling exists
-            // so the row never runs edge-to-edge — the eye has to get from the mark on
-            // the left to the action on the right — but a ceiling is not a fixed width.
-            <div className="w-full max-w-[1440px]">
+            // No ceiling: the column is however wide the window is. A max-width here
+            // reads as a fixed width to anyone whose monitor is past it — at 2280px a
+            // 1440 cap left 520px of dead canvas and froze the layout against every
+            // resize. `main` already holds the column off the edges with its own p-6.
+            <div className="w-full">
               <Breadcrumb
                 crumbs={[
                   { label: 'SIT Home', href: '/' },
