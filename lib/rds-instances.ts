@@ -14,17 +14,26 @@
  * the approval payload, in its original order. Sorting here is a display concern only.
  */
 
-/** One member instance, exactly as the `/resources` response wrote it. */
+/**
+ * One member instance, exactly as the `/resources` response wrote it.
+ *
+ * The six named fields are what the contract promises and all the UI reads. The index
+ * signature is what makes the echo VERBATIM: a server that adds a seventh field gets it back
+ * unchanged instead of silently losing it on the round trip. For the same reason the parse
+ * does not coerce the optional fields — a `port` that arrives as a string rides through as a
+ * string, which is right for an echo, so the readers below guard their own types.
+ */
 export interface RdsInstanceCandidate {
   /** The instance's ARN. Identity — the selection is sent as this value. */
   resource_id: string;
   resource_name?: string;
-  /** Connection endpoint. Not displayed; carried so the echo stays verbatim-equivalent. */
+  /** Connection endpoint. Not displayed; carried so the echo stays verbatim. */
   host?: string;
   port?: number;
   availability_zone?: string;
   /** Canonically WRITER | READER, but casing is not guaranteed — read it through `memberRole`. */
   cluster_member_role?: string;
+  [key: string]: unknown;
 }
 
 /**
@@ -43,27 +52,35 @@ export const RDS_CLUSTER_TYPES: readonly string[] = [
 export const isRdsCluster = (type: string): boolean =>
   RDS_CLUSTER_TYPES.includes(type.trim().toUpperCase());
 
-/** Reads `cluster_member_role`. Canonically uppercase, but casing is not guaranteed. */
-export const memberRole = (role: string | undefined): 'reader' | 'writer' | null => {
-  const normalized = role?.trim().toLowerCase();
+/**
+ * Reads `cluster_member_role`. Canonically uppercase, but casing is not guaranteed — and the
+ * verbatim parse does not coerce, so a non-string is possible and must not throw here.
+ */
+export const memberRole = (role: unknown): 'reader' | 'writer' | null => {
+  if (typeof role !== 'string') return null;
+  const normalized = role.trim().toLowerCase();
   if (normalized === 'reader') return 'reader';
   if (normalized === 'writer') return 'writer';
   return null;
 };
 
 /** Chip text: WRITER shouts, Writer does not. An unrecognised role prints as sent. */
-export const memberRoleLabel = (role: string | undefined): string => {
+export const memberRoleLabel = (role: unknown): string => {
   switch (memberRole(role)) {
     case 'writer': return 'Writer';
     case 'reader': return 'Reader';
-    default: return role || '—';
+    default: return typeof role === 'string' && role ? role : '—';
   }
 };
 
 /**
- * Defensive parse of `metadata.rds_instance_candidates`. An entry with no `resource_id`
- * cannot be selected, so it is dropped; every other field rides along untouched, because
- * the array we hand back is the one the approval payload echoes.
+ * Parse of `metadata.rds_instance_candidates`. The ONLY thing that disqualifies an entry is a
+ * missing `resource_id` — without it nothing can be selected and nothing can be sent back.
+ *
+ * Everything else passes through untouched, including keys this build has never heard of:
+ * the array handed back here is the one the approval payload echoes, so dropping a field
+ * would make our echo differ from what the server sent. That is why the known fields are not
+ * coerced either; the readers in this file guard their own types instead.
  */
 export const parseRdsInstanceCandidates = (value: unknown): RdsInstanceCandidate[] => {
   if (!Array.isArray(value)) return [];
@@ -73,16 +90,9 @@ export const parseRdsInstanceCandidates = (value: unknown): RdsInstanceCandidate
     const record = entry as Record<string, unknown>;
     const resourceId = record.resource_id;
     if (typeof resourceId !== 'string' || resourceId === '') continue;
-    const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
-    const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
-    candidates.push({
-      resource_id: resourceId,
-      ...(str(record.resource_name) ? { resource_name: str(record.resource_name) } : {}),
-      ...(str(record.host) ? { host: str(record.host) } : {}),
-      ...(num(record.port) !== undefined ? { port: num(record.port) } : {}),
-      ...(str(record.availability_zone) ? { availability_zone: str(record.availability_zone) } : {}),
-      ...(str(record.cluster_member_role) ? { cluster_member_role: str(record.cluster_member_role) } : {}),
-    });
+    // The spread is `unknown`-typed per key; only `resource_id` is proven, and it is the only
+    // field any caller may rely on being a string.
+    candidates.push({ ...record, resource_id: resourceId } as RdsInstanceCandidate);
   }
   return candidates;
 };
@@ -157,6 +167,12 @@ export const defaultRdsInstanceResourceId = (
   return sortRdsInstances(candidates)[0]?.resource_id;
 };
 
-/** Display name; falls back to the ARN's trailing segment, then the whole ARN. */
-export const rdsInstanceLabel = (candidate: RdsInstanceCandidate): string =>
-  candidate.resource_name || candidate.resource_id.split(':').pop() || candidate.resource_id;
+/**
+ * Display name; falls back to the ARN's trailing segment, then the whole ARN. Type-guards
+ * `resource_name` because the verbatim parse does not coerce it.
+ */
+export const rdsInstanceLabel = (candidate: RdsInstanceCandidate): string => {
+  const name = candidate.resource_name;
+  if (typeof name === 'string' && name) return name;
+  return candidate.resource_id.split(':').pop() || candidate.resource_id;
+};

@@ -64,18 +64,19 @@ export const resolveRdsInstanceResourceId = (
 
 const rdsInstanceBehavior: CandidateResourceBehavior = {
   configKind: 'rdsInstance',
-  // The approval CTA DOES consult this for every selected candidate, but for a cluster it can
-  // never be false: `pickBehaviorKey` only assigns this behavior when the instance list is
-  // non-empty, and a non-empty list always resolves to an ARN (the sorted-top default when
-  // neither a draft nor a server value applies). Said outright rather than re-derived through
-  // `resolveRdsInstanceResourceId`, which read like a gate that could fail.
+  // The approval CTA DOES consult this for every selected candidate, but for a cluster it
+  // can never be false: `pickBehaviorKey` only assigns this behavior when the candidate list
+  // is non-empty, and a non-empty list always resolves to a candidate `resource_id` (the
+  // sorted-top default when neither a draft nor a server value applies). Said outright rather
+  // than re-derived through `resolveRdsInstanceResourceId`, which read like a gate that could
+  // fail.
   isConfigured: () => true,
-  // ONLY the chosen ARN. `rds_instance_candidates` belongs to the payload adapter's intrinsic
-  // metadata, which puts it on selected and excluded rows alike — emitting it here too gave
-  // one field two owners, with the behavior silently winning the spread.
+  // ONLY the chosen `resource_id`. `rds_instance_candidates` belongs to the payload adapter's
+  // intrinsic metadata, which puts it on selected and excluded rows alike — emitting it here
+  // too gave one field two owners, with the behavior silently winning the spread.
   buildMetadataFields: (resource, draft) => {
-    const arn = resolveRdsInstanceResourceId(resource, draft);
-    return arn ? { selected_rds_instance_resource_id: arn } : {};
+    const resourceId = resolveRdsInstanceResourceId(resource, draft);
+    return resourceId ? { selected_rds_instance_resource_id: resourceId } : {};
   },
 };
 

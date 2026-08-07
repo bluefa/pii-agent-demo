@@ -81,7 +81,7 @@ const postApproval = (selectedResourceId: string | undefined) =>
         integration_category: 'TARGET',
         metadata: {
           provider: 'AWS',
-          availability_zone: 'ap-northeast-2',
+          region: 'ap-northeast-2',
           database_type: 'mysql',
           rds_instance_candidates: WIRE_ORDER,
           ...(selectedResourceId ? { selected_rds_instance_resource_id: selectedResourceId } : {}),

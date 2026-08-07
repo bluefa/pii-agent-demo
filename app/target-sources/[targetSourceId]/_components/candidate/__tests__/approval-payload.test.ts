@@ -188,19 +188,19 @@ describe('approval-payload — RDS cluster instances', () => {
     resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:demo-1',
     resource_name: 'demo-1',
     availability_zone: 'ap-northeast-2',
-    cluster_member_role: 'Writer',
+    cluster_member_role: 'WRITER',
   };
   const readerHigh = {
     resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:demo-3',
     resource_name: 'demo-3',
     availability_zone: 'ap-northeast-2',
-    cluster_member_role: 'Reader',
+    cluster_member_role: 'READER',
   };
   const readerLow = {
     resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:demo-2',
     resource_name: 'demo-2',
     availability_zone: 'ap-northeast-2',
-    cluster_member_role: 'Reader',
+    cluster_member_role: 'READER',
   };
   // Deliberately unsorted, as the wire sends it: Writer first, readers out of ARN order.
   const wireOrder = [writer, readerHigh, readerLow];
@@ -254,10 +254,5 @@ describe('approval-payload — RDS cluster instances', () => {
     const [item] = toApprovalRequestInput([cloudCandidate], new Set(['res-1']), drafts, {}).resources!;
     expect(item.metadata?.rds_instance_candidates).toBeUndefined();
     expect(item.metadata?.selected_rds_instance_resource_id).toBeUndefined();
-  });
-
-  it('shows the approver which instance the cluster connects through', () => {
-    const [row] = toModalResources([cluster], new Set(['cluster-1']), drafts);
-    expect(row.rdsInstance).toEqual({ identifier: 'demo-2', member: 'Reader' });
   });
 });

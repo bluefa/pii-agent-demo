@@ -20,9 +20,9 @@ export const RdsClusterTag = () => (
  * An RDS cluster instance's Reader/Writer role.
  *
  * Warm = Writer (the instance the service writes through — pointing the agent at it puts scan
- * load on the primary), cool = Reader. The neutral tier covers a `member` the contract left
- * blank, which must not borrow either signal's colour. Shared by step 1 and steps 2·3 so the
- * same instance is the same colour wherever it is reviewed.
+ * load on the primary), cool = Reader. The neutral tier covers a `cluster_member_role` the
+ * contract left blank or sent unrecognised, which must not borrow either signal's colour.
+ * Shared by step 1 and steps 2·3 so the same instance is the same colour wherever reviewed.
  */
 export const RdsMemberChip = ({ role }: { role?: string }) => {
   const known = memberRole(role);

@@ -98,7 +98,7 @@ describe('parseRdsInstanceCandidates', () => {
 
   // host/port are never displayed, but the parsed array is what the approval payload echoes,
   // so dropping them would make the echo differ from what the server sent.
-  it('preserves all six fields, host and port included', () => {
+  it('preserves all six known fields, host and port included', () => {
     const wire = {
       resource_id: 'arn:a',
       resource_name: 'a',
@@ -110,24 +110,46 @@ describe('parseRdsInstanceCandidates', () => {
     expect(parseRdsInstanceCandidates([wire])).toEqual([wire]);
   });
 
-  it('drops optional fields of the wrong type rather than passing them through', () => {
+  // The echo has to survive a contract the frontend has not been rebuilt for: a field added
+  // server-side must come back unchanged rather than be silently dropped on the round trip.
+  it('passes unknown keys through untouched', () => {
+    const wire = {
+      resource_id: 'arn:a',
+      cluster_member_role: 'READER',
+      engine_version: '8.0.mysql_aurora.3.05.2',
+      promotion_tier: 1,
+      nested: { anything: ['at', 'all'] },
+    };
+    expect(parseRdsInstanceCandidates([wire])).toEqual([wire]);
+  });
+
+  // Not coerced either: an echo that "fixes" a value is no longer an echo. The readers guard
+  // their own types instead, so a wrong-typed field is inert rather than dangerous.
+  it('passes wrongly-typed known fields through rather than dropping them', () => {
+    const wire = {
+      resource_id: 'arn:a',
+      resource_name: 42,
+      host: null,
+      port: '3306',
+      availability_zone: null,
+      cluster_member_role: 'WRITER',
+    };
+    expect(parseRdsInstanceCandidates([wire])).toEqual([wire]);
+  });
+
+  // …and the display readers stay safe on exactly that input.
+  it('keeps the display readers safe on wrongly-typed fields', () => {
     const [parsed] = parseRdsInstanceCandidates([
-      {
-        resource_id: 'arn:a',
-        resource_name: 42,
-        host: null,
-        port: '3306',
-        availability_zone: null,
-        cluster_member_role: 'WRITER',
-      },
+      { resource_id: 'arn:aws:rds:r:acct:db:tail', resource_name: 42, cluster_member_role: 7 },
     ]);
-    expect(parsed).toEqual({ resource_id: 'arn:a', cluster_member_role: 'WRITER' });
+    expect(rdsInstanceLabel(parsed)).toBe('tail');
+    expect(memberRoleLabel(parsed.cluster_member_role)).toBe('—');
   });
 });
 
 describe('sortRdsInstances', () => {
   it('puts Readers first, then orders by ARN', () => {
-    const wireOrder = [instance('1', 'Writer'), instance('3', 'Reader'), instance('2', 'Reader')];
+    const wireOrder = [instance('1', 'WRITER'), instance('3', 'READER'), instance('2', 'READER')];
     expect(sortRdsInstances(wireOrder).map(rdsInstanceLabel)).toEqual([
       'demo-2',
       'demo-3',
@@ -136,7 +158,7 @@ describe('sortRdsInstances', () => {
   });
 
   it('sorts an instance with no member last — it is not known to be safe', () => {
-    const wireOrder = [instance('a'), instance('b', 'Writer'), instance('c', 'Reader')];
+    const wireOrder = [instance('a'), instance('b', 'WRITER'), instance('c', 'READER')];
     expect(sortRdsInstances(wireOrder).map(rdsInstanceLabel)).toEqual([
       'demo-c',
       'demo-b',
@@ -146,7 +168,7 @@ describe('sortRdsInstances', () => {
 
   // The wire array is echoed verbatim in the approval payload; sorting is display only.
   it('does not mutate its input', () => {
-    const wireOrder = [instance('1', 'Writer'), instance('2', 'Reader')];
+    const wireOrder = [instance('1', 'WRITER'), instance('2', 'READER')];
     const snapshot = [...wireOrder];
     sortRdsInstances(wireOrder);
     expect(wireOrder).toEqual(snapshot);
@@ -154,7 +176,7 @@ describe('sortRdsInstances', () => {
 });
 
 describe('defaultRdsInstanceResourceId', () => {
-  const instances = [instance('1', 'Writer'), instance('3', 'Reader'), instance('2', 'Reader')];
+  const instances = [instance('1', 'WRITER'), instance('3', 'READER'), instance('2', 'READER')];
 
   it("honours the server's choice when the cluster actually has that instance", () => {
     const writerResourceId = instances[0].resource_id;
@@ -173,7 +195,7 @@ describe('defaultRdsInstanceResourceId', () => {
   });
 
   it('falls back to the top Writer when the cluster has no Reader', () => {
-    const writersOnly = [instance('2', 'Writer'), instance('1', 'Writer')];
+    const writersOnly = [instance('2', 'WRITER'), instance('1', 'WRITER')];
     expect(defaultRdsInstanceResourceId(writersOnly)).toBe(writersOnly[1].resource_id);
   });
 
@@ -185,14 +207,14 @@ describe('defaultRdsInstanceResourceId', () => {
 // The one adapter step 2 (latest), step 3 (approved-integration) and the history detail modal
 // all spread. It has to yield NOTHING for a non-cluster, or every row would grow the keys.
 describe('readRdsInstanceMetadata', () => {
-  const instances = [instance('1', 'Writer'), instance('2', 'Reader')];
+  const instances = [instance('1', 'WRITER'), instance('2', 'READER')];
   const CLUSTER = 'AWS_DB_CLUSTER';
 
   it('surfaces the list and the chosen ARN from wire metadata', () => {
     expect(
       readRdsInstanceMetadata(
         {
-          availability_zone: 'ap-northeast-2',
+          region: 'ap-northeast-2',
           rds_instance_candidates: instances,
           selected_rds_instance_resource_id: instances[1].resource_id,
         },
@@ -249,7 +271,7 @@ describe('readRdsInstanceMetadata', () => {
 
 describe('rdsInstanceLabel', () => {
   it('prefers the identifier, then the ARN tail', () => {
-    expect(rdsInstanceLabel(instance('1', 'Reader'))).toBe('demo-1');
+    expect(rdsInstanceLabel(instance('1', 'READER'))).toBe('demo-1');
     expect(rdsInstanceLabel({ resource_id: 'arn:aws:rds:r:acct:db:tail-only' })).toBe(
       'tail-only',
     );

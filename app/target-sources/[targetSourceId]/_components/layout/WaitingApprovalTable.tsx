@@ -97,7 +97,7 @@ export interface WaitingApprovalResource {
    * caller: the array the caller holds is the wire's, which the payload echoes verbatim.
    */
   rdsInstanceCandidates?: readonly RdsInstanceCandidate[];
-  /** The chosen member ARN (`metadata.selected_rds_instance_resource_id`) — marks one instance 선택됨. */
+  /** The chosen member `resource_id`, an instance ARN (`metadata.selected_rds_instance_resource_id`) — marks one instance 선택됨. */
   selectedRdsInstanceResourceId?: string;
   /**
    * Stable React key, never rendered. A consumer whose rows carry an identifier it must

@@ -6,11 +6,7 @@ import type {
   CandidateResource,
 } from '@/lib/types/resources';
 import { cloudProviderToWireProvider, toWireDatabaseType } from '@/lib/types';
-import { memberRoleLabel, rdsInstanceLabel } from '@/lib/rds-instances';
-import {
-  getCandidateBehavior,
-  resolveRdsInstanceResourceId,
-} from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
+import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 
 type ResourceItem = z.infer<typeof schemas.TargetSourceResourceItemDto>;
 type ApprovalRequestInput = z.infer<typeof schemas.ApprovalRequestInputDto>;
@@ -22,13 +18,6 @@ export const toModalResources = (
 ): ApprovalRequestResource[] =>
   candidates.map((candidate) => {
     const endpoint = drafts.endpointDrafts[candidate.id] ?? candidate.endpointConfig;
-    // A cluster row approves ONE member instance — the approver has to see which.
-    const instanceResourceId = candidate.rdsInstanceCandidates
-      ? resolveRdsInstanceResourceId(candidate, drafts)
-      : undefined;
-    const instance = candidate.rdsInstanceCandidates?.find(
-      (c) => c.resource_id === instanceResourceId,
-    );
     return {
       id: candidate.id,
       resourceId: candidate.resourceId,
@@ -43,16 +32,6 @@ export const toModalResources = (
               databaseType: endpoint.databaseType,
               port: endpoint.port,
               ...(endpoint.host ? { host: endpoint.host } : {}),
-            },
-          }
-        : {}),
-      ...(instance
-        ? {
-            rdsInstance: {
-              identifier: rdsInstanceLabel(instance),
-              ...(instance.cluster_member_role
-                ? { member: memberRoleLabel(instance.cluster_member_role) }
-                : {}),
             },
           }
         : {}),
