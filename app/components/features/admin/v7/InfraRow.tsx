@@ -179,20 +179,22 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         className="flex-none flex items-center gap-3.5 pt-0.5"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* A bare glyph, not a worded control: the whole card already opens the detail,
-            so words here would repeat once per row and outshout the page's only CTA.
-            The label survives in aria-label for keyboard and screen-reader users. */}
+        {/* Words at rest, blue on hover. A bare ↗ did not read as "go somewhere", but a
+            permanently blue link repeated once per row is what this redesign spent its
+            effort removing — so the words stay in meta-grey until the cursor is on the
+            card, and only then do they take the primary colour and an underline. */}
         <button
           type="button"
           onClick={() => onOpenDetail(project.targetSourceId)}
           aria-label={`${identity.name} 상세 정보 확인`}
           className={cn(
-            'text-[18px] font-bold leading-none underline underline-offset-[3px] transition-colors',
-            primaryColors.text,
+            'whitespace-nowrap text-[14px] font-semibold transition-colors',
+            'underline-offset-[3px] group-hover:underline',
+            textColors.tertiary,
             primaryColors.textGroupHover,
           )}
         >
-          ↗
+          상세 보기 ↗
         </button>
         <RowMenu
           onViewDetail={() => onManageAction('view', project.targetSourceId)}
@@ -229,20 +231,12 @@ const MetaPair = ({ label, children }: { label: string; children: React.ReactNod
   </span>
 );
 
+/** 24px, filled dots — the Figma ⋮ is a 32px glyph, and a 16px icon read as a speck. */
 const KEBAB_ICON = (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="5" r="1" />
-    <circle cx="12" cy="12" r="1" />
-    <circle cx="12" cy="19" r="1" />
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <circle cx="12" cy="4.5" r="1.8" />
+    <circle cx="12" cy="12" r="1.8" />
+    <circle cx="12" cy="19.5" r="1.8" />
   </svg>
 );
 
