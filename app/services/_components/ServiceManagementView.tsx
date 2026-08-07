@@ -271,7 +271,15 @@ export const ServiceManagementView = () => {
           onPageChange={handlePageChange}
         />
 
-        <main className={cn('flex-1 p-6 overflow-auto', serviceSidebarStyles.canvas)}>
+        {/* `overflow-hidden`, not `auto`: the scroll belongs to the card band inside
+            the list, so that the pager below it can be a footer rather than something
+            that scrolls past. If this element scrolls too, the footer goes with it. */}
+        <main
+          className={cn(
+            'flex flex-1 min-w-0 flex-col overflow-hidden p-6',
+            serviceSidebarStyles.canvas,
+          )}
+        >
           {!selectedService ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
@@ -303,10 +311,11 @@ export const ServiceManagementView = () => {
             // reads as a fixed width to anyone whose monitor is past it — at 2280px a
             // 1440 cap left 520px of dead canvas and froze the layout against every
             // resize. `main` already holds the column off the edges with its own p-6.
-            // `min-h-full` so the column always fills `main`, which is what gives the
-            // list's `flex-1` a bottom edge to push the pager against. Without it the
-            // column is only as tall as its content and there is nothing to fill.
-            <div className="flex w-full min-h-full flex-col">
+            // `flex-1 min-h-0` so the column is exactly as tall as `main` — that fixed
+            // height is what lets the list hand its middle band the leftover space and
+            // keep the pager on the bottom edge. `min-h-full` sized it to its content
+            // instead, which on a short window pushed the pager off the screen.
+            <div className="flex w-full flex-1 min-h-0 flex-col">
               {/* No breadcrumb. It read "SIT Home › 서비스 목록" directly above an h1
                   that says the same thing, so it spent 37px of the first screen
                   repeating the title rather than locating the page. On a 100% zoom

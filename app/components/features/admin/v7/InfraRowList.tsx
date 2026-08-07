@@ -8,7 +8,6 @@ import {
   idcStyles,
   numericFeatures,
   primaryColors,
-  serviceSidebarStyles,
   textColors,
 } from '@/lib/theme';
 import type { ProjectSummary } from '@/lib/types';
@@ -47,33 +46,35 @@ const PAGE_SIZE = 5;
  * facts that are not known yet, and a skeleton must not answer a question.
  */
 const InfraRowListSkeleton = () => (
-  <div className="flex flex-1 flex-col gap-3.5" aria-busy="true">
-    <div className="flex items-center gap-2 pl-1 pb-3">
+  <div className="flex flex-1 min-h-0 flex-col" aria-busy="true">
+    <div className="flex shrink-0 items-center gap-2 pl-1 pb-3">
       <div className={cn(idcStyles.skeletonBar, 'h-5 w-[86px] rounded')} />
       <div className={cn(idcStyles.skeletonBar, 'h-[22px] w-[44px] rounded-full')} />
     </div>
 
-    {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-      <div
-        key={i}
-        aria-hidden="true"
-        className={cn(
-          'flex items-start gap-3.5 px-[21px] py-[19px] rounded-[12px] border',
-          bgColors.surface,
-          borderColors.default,
-        )}
-      >
-        <div className={cn(idcStyles.skeletonBar, 'h-16 w-16 shrink-0 rounded-[12px]')} />
-        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-          <div className={cn(idcStyles.skeletonBar, 'h-6 w-[300px] max-w-full rounded')} />
-          <div className={cn(idcStyles.skeletonBar, 'h-[21px] w-[240px] max-w-full rounded')} />
-          <div className={cn(idcStyles.skeletonBar, 'h-[21px] w-[440px] max-w-full rounded')} />
+    <div className="min-h-0 flex-1 overflow-y-auto -mx-1 flex flex-col gap-3.5 px-1 pb-1">
+      {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+        <div
+          key={i}
+          aria-hidden="true"
+          className={cn(
+            'flex shrink-0 items-center gap-3.5 px-[21px] py-[19px] rounded-[12px] border',
+            bgColors.surface,
+            borderColors.default,
+          )}
+        >
+          <div className={cn(idcStyles.skeletonBar, 'h-16 w-16 shrink-0 rounded-[12px]')} />
+          <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+            <div className={cn(idcStyles.skeletonBar, 'h-6 w-[300px] max-w-full rounded')} />
+            <div className={cn(idcStyles.skeletonBar, 'h-[21px] w-[240px] max-w-full rounded')} />
+            <div className={cn(idcStyles.skeletonBar, 'h-[21px] w-[440px] max-w-full rounded')} />
+          </div>
+          <div className={cn(idcStyles.skeletonBar, 'h-8 w-8 shrink-0 rounded')} />
         </div>
-        <div className={cn(idcStyles.skeletonBar, 'self-center h-8 w-8 shrink-0 rounded')} />
-      </div>
-    ))}
+      ))}
+    </div>
 
-    <div className={cn('mt-auto shrink-0 h-[52px] border-t', borderColors.light)} />
+    <div className={cn('shrink-0 h-[52px] border-t', borderColors.light)} />
   </div>
 );
 
@@ -117,14 +118,19 @@ export const InfraRowList = ({
   }
 
   return (
-    // `flex-1` + the pager's `mt-auto`: the pager sits on the bottom edge of the
-    // column instead of trailing the last card. On a 1/1 page it was floating in
-    // the middle of the screen with the rule under it cutting the canvas in half.
-    <div className="flex flex-1 flex-col gap-3.5" aria-busy={loading}>
+    // Three bands: a fixed heading, a scrolling middle, a fixed pager. Only the
+    // middle band scrolls, so the pager is a real footer — it never covers a card,
+    // which a `sticky` bar did by definition (the cards ran underneath it).
+    <div className="flex flex-1 min-h-0 flex-col" aria-busy={loading}>
       {/* No bar chrome: the cards below already own every edge on this column, so a
           bordered toolbar would draw a frame around nothing. The count describes this
           list, not the service, which is why it lives here and not in the page header. */}
-      <div className={cn('flex items-center gap-2 pl-1 pb-3 text-[14px]', textColors.secondary)}>
+      <div
+        className={cn(
+          'flex shrink-0 items-center gap-2 pl-1 pb-3 text-[14px]',
+          textColors.secondary,
+        )}
+      >
         연동 대상 계정
         <span
           className={cn(
@@ -138,30 +144,28 @@ export const InfraRowList = ({
         </span>
       </div>
 
-      {visible.map((project) => (
-        <InfraRow
-          key={project.id}
-          project={project}
-          onManageAction={onManageAction}
-          onOpenDetail={onOpenDetail}
-        />
-      ))}
+      {/* The only scrolling element on the page. `min-h-0` because a flex child's
+          default `min-height:auto` refuses to shrink below its content — without it
+          this band grows to fit all five cards and pushes the footer back off-screen,
+          which is the bug this replaced. `px-*`/`-mx-*` so a card's focus ring and
+          hover edge are not clipped by the scrollport. */}
+      <div className="min-h-0 flex-1 overflow-y-auto -mx-1 flex flex-col gap-3.5 px-1 pb-1">
+        {visible.map((project) => (
+          <InfraRow
+            key={project.id}
+            project={project}
+            onManageAction={onManageAction}
+            onOpenDetail={onOpenDetail}
+          />
+        ))}
+      </div>
 
-      {/* Sticky, not merely last. `mt-auto` puts the pager on the column's bottom edge,
-          which is the bottom of the CONTENT — once the cards outrun the viewport it
-          scrolled away with them, so the page you were on and the way to the next one
-          were only readable after scrolling to the end. Pinned to the scrollport
-          instead, it is on screen whether the list fits or not.
-
-          It needs the canvas under it (`-mx-*` + the page ground) because cards now
-          pass beneath it; a transparent bar would let them show through, and white
-          would read as a card of its own. */}
+      {/* Footer band — outside the scrollport, so it is always on screen and always
+          clear of the cards. It needs no background of its own for that reason. */}
       <div
         className={cn(
-          'sticky bottom-0 z-10 mt-auto -mx-6 -mb-6 flex shrink-0 items-center',
-          'justify-center gap-5 h-[52px] border-t px-6',
+          'flex shrink-0 items-center justify-center gap-5 h-[52px] border-t',
           borderColors.light,
-          serviceSidebarStyles.canvas,
         )}
       >
         <PageArrow

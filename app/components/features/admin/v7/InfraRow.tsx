@@ -87,7 +87,10 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
     <div
       onClick={() => onOpenDetail(project.targetSourceId)}
       className={cn(
-        'group flex items-start gap-3.5 px-[21px] py-[19px] cursor-pointer rounded-[12px] border transition-colors',
+        // `shrink-0`: the card is a flex child of the list's scrolling band, and a
+        // flex child shrinks by default — without this, five cards squeeze to fit a
+        // short window instead of scrolling, and the text crushes together.
+        'group flex shrink-0 items-start gap-3.5 px-[21px] py-[19px] cursor-pointer rounded-[12px] border transition-colors',
         bgColors.surface,
         borderColors.default,
         bgColors.mutedHover,
