@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { CloseIcon, LockIcon, PlusIcon, SearchIcon, StatusWarningIcon } from '@/app/components/ui/icons';
+import { CloseIcon, LockIcon, PlusIcon, SearchIcon } from '@/app/components/ui/icons';
 import { EC2_SEARCH_LIMIT, searchEc2Instances, type Ec2Instance } from '@/app/lib/api/ec2';
 import { VM_DATABASE_TYPES, vmDatabaseTypeByValue } from '@/lib/constants/vm-database';
 import { cn, ec2Styles, idcStyles, statusColors } from '@/lib/theme';
@@ -196,17 +196,15 @@ export const Ec2AddModal = ({
               aria-label="접속 주소 (Private IP)"
               className={cn(idcStyles.input, ec2Styles.lockedInput)}
             />
-            <span className={ec2Styles.lockNote}>
+            {/* 잠금이 주 정보, 이유는 보조 — 별도 배너 카드 없이 텍스트 위계로만 말한다. */}
+            <p className={ec2Styles.lockNote}>
               <LockIcon className="h-3.5 w-3.5" aria-hidden="true" />
               수정 불가
-            </span>
-            <div className={cn(idcStyles.warnBanner, 'mt-2.5')}>
-              <StatusWarningIcon className="mt-px h-4 w-4 flex-shrink-0" />
-              <span>
-                Private IP는 스캔에서 확인된 값으로 직접 수정할 수 없어요. Load Balancer를 구성해
-                접속하고 계시다면 담당자에게 연락 부탁드립니다.
-              </span>
-            </div>
+            </p>
+            <p className={ec2Styles.lockDesc}>
+              Private IP는 스캔에서 확인된 값으로 직접 수정할 수 없어요. Load Balancer를 구성해
+              접속하고 계시다면 담당자에게 연락 부탁드립니다.
+            </p>
           </section>
 
           <section>
@@ -399,11 +397,6 @@ const Ec2ResultRow = ({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {instance.scanVersion !== null && (
-          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>
-            scan v{instance.scanVersion}
-          </span>
-        )}
         {added ? (
           <span className={ec2Styles.addedBtn}>✓ 추가됨</span>
         ) : (

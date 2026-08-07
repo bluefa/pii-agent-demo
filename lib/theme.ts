@@ -1132,7 +1132,9 @@ export const ec2Styles = {
   fieldLabel: 'mb-1.5 block text-[12px] font-medium text-[#4E5968]',
   /** 수정 불가 필드 — 스캔이 확인한 값이라 입력이 아니라 표기다. */
   lockedInput: 'font-mono read-only:cursor-default read-only:bg-[#F2F4F6] read-only:text-[#4E5968]',
-  lockNote: 'mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-[#6B7280]',
+  lockNote: 'mt-2 flex items-center gap-1 text-[12px] font-bold text-[#191F28]',
+  /** 잠금 이유 설명 — 배너 카드 대신 보조 텍스트 한 줄. */
+  lockDesc: 'mt-1 text-[12px] leading-[1.6] text-[#6B7280]',
   /** 방금 드러난 종속 필드 — 왜 갑자기 나타났는지 보라 링으로 표시한다. */
   revealedField: 'ring-2 ring-[#DDD0FF]',
   /** Step1 행의 정체성 스택 (EC2 태그 → instance id → Private IP). */

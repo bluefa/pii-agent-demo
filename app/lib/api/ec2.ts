@@ -19,8 +19,6 @@ export interface Ec2Instance {
   instanceId: string;
   privateIpAddress: string;
   privateDnsName: string;
-  /** Which scan run reported the instance; null when the response omitted it. */
-  scanVersion: number | null;
 }
 
 interface Ec2SearchWire {
@@ -31,7 +29,6 @@ interface Ec2SearchWire {
     metadata?: {
       private_dns_name?: string | null;
       private_ip_address?: string | null;
-      scan_version?: number | null;
     } | null;
   }[] | null;
 }
@@ -65,7 +62,6 @@ export const searchEc2Instances = async (
       instanceId,
       privateIpAddress: item.metadata?.private_ip_address ?? '',
       privateDnsName: item.metadata?.private_dns_name ?? item.resource_name ?? '',
-      scanVersion: item.metadata?.scan_version ?? null,
     }];
   });
 };

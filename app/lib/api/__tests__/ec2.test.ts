@@ -41,7 +41,6 @@ describe('searchEc2Instances', () => {
       instanceId: 'i-0a1b2c3d4e5f67890',
       privateIpAddress: '10.10.1.24',
       privateDnsName: 'ip-10-10-1-24.ap-northeast-2.compute.internal',
-      scanVersion: 12,
     });
   });
 
@@ -58,7 +57,6 @@ describe('searchEc2Instances', () => {
     expect(results).toHaveLength(1);
     expect(results[0].instanceId).toBe('i-0b73d5a91e8c246f0');
     expect(results[0].privateIpAddress).toBe('');
-    expect(results[0].scanVersion).toBeNull();
   });
 
   it('asks for the requested prefix and page size', async () => {
