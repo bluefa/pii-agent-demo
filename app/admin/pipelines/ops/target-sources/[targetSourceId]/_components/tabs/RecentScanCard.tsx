@@ -103,6 +103,8 @@ export interface RecentScanCardProps {
   /** Latest-job fetch failed. */
   failed: boolean;
   scanning: boolean;
+  /** SUCCESS but the count map has not landed — scanned, still aggregating. */
+  finalizing: boolean;
   starting: boolean;
   startFailed: boolean;
   /** Per-type counts (+diff vs previous success) for the tile grid. */
@@ -119,6 +121,7 @@ export function RecentScanCard({
   loading,
   failed,
   scanning,
+  finalizing,
   starting,
   startFailed,
   typeEntries,
@@ -126,6 +129,9 @@ export function RecentScanCard({
   latestTotal,
   onRunScan,
 }: RecentScanCardProps): ReactElement {
+  // Both phases are "the scan is not answerable yet" — one flag drives the
+  // progress bar, the results placeholder and the withheld completion times.
+  const running = scanning || finalizing;
   return (
     // flex-col — mt-auto pins the time row to the card floor (no dead air when the sibling card is taller).
     <section className={cn(pipelineStyles.card.base, 'flex flex-col')} aria-label="최근 스캔">
@@ -140,7 +146,7 @@ export function RecentScanCard({
                 #{latestJob.scan_version}
               </span>
             )}
-            {latestJob && <ScanStatusPill status={latestJob.scan_status} />}
+            {latestJob && <ScanStatusPill status={finalizing ? 'FINALIZING' : latestJob.scan_status} />}
           </h2>
           <p className={opsStyles.cardDesc}>
             클라우드 리소스를 스캔해 연동 가능한 대상 목록을 갱신합니다.
@@ -154,10 +160,10 @@ export function RecentScanCard({
         <PlButton
           variant="outline"
           className="flex-none"
-          disabled={scanning || starting}
+          disabled={running || starting}
           onClick={onRunScan}
         >
-          {scanning ? '스캔 중…' : starting ? '시작 중…' : '스캔 실행'}
+          {finalizing ? '마무리 중…' : scanning ? '스캔 중…' : starting ? '시작 중…' : '스캔 실행'}
         </PlButton>
       </div>
 
@@ -189,34 +195,39 @@ export function RecentScanCard({
           {/* Hierarchy: verdict (pill by the title) > discovered resources (the star)
               > time fields (floor). A finished scan's answer is "what did it find" —
               time metadata retreats to the card bottom. */}
-          {/* Progress bar only while SCANNING — a finished scan's progress is an illusion, not information. */}
-          {scanning && (
-            <div className="mt-4 flex items-center gap-3">
-              <div
-                className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--pl-gray-100)]"
-                role="progressbar"
-                aria-valuenow={fmtPercent(latestJob.scan_progress)}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
+          {/* Progress bar only while running — a finished scan's progress is an
+              illusion, not information. Finalizing carries no scan_progress
+              (discovery is over), so the bar sits full while the counts land. */}
+          {running && (() => {
+            const percent = finalizing ? 100 : fmtPercent(latestJob.scan_progress);
+            return (
+              <div className="mt-4 flex items-center gap-3">
                 <div
-                  className="h-full rounded-full bg-[var(--pl-primary)]"
-                  style={{ width: `${fmtPercent(latestJob.scan_progress)}%` }}
-                />
+                  className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--pl-gray-100)]"
+                  role="progressbar"
+                  aria-valuenow={percent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="h-full rounded-full bg-[var(--pl-primary)]"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+                <span className="text-[12px] font-semibold tabular-nums text-[var(--pl-text-medium)]">
+                  {percent}%
+                </span>
               </div>
-              <span className="text-[12px] font-semibold tabular-nums text-[var(--pl-text-medium)]">
-                {fmtPercent(latestJob.scan_progress)}%
-              </span>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Scan results — success/in-progress only. Failure speaks through the
               error box (cause), not results. Header (16/600), one helper sentence
               (values slightly emphasized), then the tiles carry the content. */}
-          {(scanning || latestJob.scan_status === 'SUCCESS') && (
+          {(running || latestJob.scan_status === 'SUCCESS') && (
             <div className="mt-5">
               <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">스캔 결과</p>
-              {scanning ? (
+              {running ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
               ) : typeEntries.length === 0 ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
@@ -272,7 +283,7 @@ export function RecentScanCard({
           <div className="mt-auto">
             <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">
               <TimeField label="실행시간">{fmtDateTimeSec(latestJob.created_at)}</TimeField>
-              {!scanning && (
+              {!running && (
                 <>
                   {/* Same format as start time — the date is never omitted, even on the same day. */}
                   <TimeField label="완료시간">{fmtDateTimeSec(latestJob.updated_at)}</TimeField>

@@ -74,6 +74,21 @@ const demoCountMap = (provider: string, version: number | null | undefined): Rec
   return counts;
 };
 
+/**
+ * Aggregation tail: for a beat after a scan ends the BFF already answers
+ * SUCCESS while resource_count_by_resource_type is still null. The UI reads
+ * that combination as "마무리 중" (isScanFinalizing) rather than as a finished
+ * scan, so the mock has to reproduce the window or the state is unreachable in
+ * demo mode. 3s spans one or two 2s polls — long enough to see, short enough
+ * not to feel stuck. Latest-scan only; history rows report their final counts.
+ */
+const AGGREGATION_WINDOW_MS = 3_000;
+
+const isAggregating = (completedAt: string): boolean => {
+  const finishedAt = new Date(completedAt).getTime();
+  return Number.isFinite(finishedAt) && Date.now() - finishedAt < AGGREGATION_WINDOW_MS;
+};
+
 export const mockScan = {
   get: async (projectId: string, scanId: string) => {
     const user = await mockData.getCurrentUser();
@@ -299,6 +314,9 @@ export const mockScan = {
     const { history } = scanFns.getScanHistory(targetSourceId, 1, 0);
     if (history.length > 0) {
       const last = history[0];
+      // Withhold the counts for the first seconds after a success — the scan is
+      // over, its totals are not readable yet.
+      const aggregating = last.status === 'SUCCESS' && isAggregating(last.completedAt);
       return NextResponse.json({
         id: parseNumericId(last.scanId),
         scan_status: last.status,
@@ -308,7 +326,8 @@ export const mockScan = {
         scan_version: last.version,
         scan_progress: null,
         duration_seconds: last.duration,
-        resource_count_by_resource_type: last.result ? demoCountMap(last.provider, last.version) : null,
+        resource_count_by_resource_type:
+          last.result && !aggregating ? demoCountMap(last.provider, last.version) : null,
         scan_error: last.error ?? null,
       });
     }

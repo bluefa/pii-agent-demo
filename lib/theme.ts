@@ -104,6 +104,8 @@ export const primaryColors = {
    * for text under 18px. #0050D6 holds 5.79:1 on the table's hover tint.
    */
   textGroupHover: 'group-hover:text-[#0050D6] group-focus-within:text-[#0050D6]',
+  /** Progress-bar fill — brand blue drifting to indigo along the run. */
+  barGradient: 'bg-gradient-to-r from-[#0064FF] to-[#4F46E5]',
 } as const;
 
 /**

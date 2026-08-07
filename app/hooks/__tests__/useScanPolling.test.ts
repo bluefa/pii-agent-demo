@@ -10,6 +10,16 @@ vi.mock('@/app/lib/api/scan', () => ({ getLatestScanJob: vi.fn() }));
 
 type ScanJob = z.infer<typeof schemas.ScanJobResponse>;
 const scanningJob: ScanJob = { scan_status: 'SCANNING', target_source_id: 1 };
+/**
+ * A COMPLETE success: the count map is what makes the result readable. SUCCESS
+ * without it is the aggregation tail, which the hook reports as still running.
+ */
+const successJob = (id?: number): ScanJob => ({
+  scan_status: 'SUCCESS',
+  target_source_id: 1,
+  resource_count_by_resource_type: { AWS_RDS: 3 },
+  ...(id === undefined ? {} : { id }),
+});
 
 /**
  * The auto-restart effect (stale SCANNING job + not polling → start()) must
@@ -61,8 +71,8 @@ describe('useScanPolling', () => {
   it('fires onScanComplete on a new terminal job id, but not for a pre-existing one', async () => {
     const onScanComplete = vi.fn();
     vi.mocked(getLatestScanJob)
-      .mockResolvedValueOnce({ scan_status: 'SUCCESS', id: 1, target_source_id: 1 })
-      .mockResolvedValue({ scan_status: 'SUCCESS', id: 2, target_source_id: 1 });
+      .mockResolvedValueOnce(successJob(1))
+      .mockResolvedValue(successJob(2));
 
     const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
     await act(async () => {
@@ -82,7 +92,7 @@ describe('useScanPolling', () => {
     const onScanComplete = vi.fn();
     vi.mocked(getLatestScanJob)
       .mockResolvedValueOnce(scanningJob) // no id
-      .mockResolvedValue({ scan_status: 'SUCCESS', target_source_id: 1 }); // no id
+      .mockResolvedValue(successJob()); // no id
 
     renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
     await act(async () => {
@@ -101,8 +111,8 @@ describe('useScanPolling', () => {
   it('fires onScanComplete for a fast id-less scan after expectCompletion()', async () => {
     const onScanComplete = vi.fn();
     vi.mocked(getLatestScanJob)
-      .mockResolvedValueOnce({ scan_status: 'SUCCESS', target_source_id: 1 }) // mount: old terminal, no id
-      .mockResolvedValue({ scan_status: 'SUCCESS', target_source_id: 1 }); // post-start read, still no id
+      .mockResolvedValueOnce(successJob()) // mount: old terminal, no id
+      .mockResolvedValue(successJob()); // post-start read, still no id
 
     const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
     await act(async () => {
@@ -146,7 +156,7 @@ describe('useScanPolling', () => {
     const onScanComplete = vi.fn();
     vi.mocked(getLatestScanJob)
       .mockRejectedValueOnce(new Error('endpoint down'))
-      .mockResolvedValue({ scan_status: 'SUCCESS', id: 5, target_source_id: 1 });
+      .mockResolvedValue(successJob(5));
 
     const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
     await act(async () => {
@@ -172,8 +182,8 @@ describe('useScanPolling', () => {
     const onScanComplete = vi.fn();
     vi.mocked(getLatestScanJob)
       .mockRejectedValueOnce(new Error('endpoint down')) // old job never adopted
-      .mockResolvedValueOnce({ scan_status: 'SUCCESS', id: 3, target_source_id: 1 }) // stale pre-start read
-      .mockResolvedValue({ scan_status: 'SUCCESS', id: 7, target_source_id: 1 }); // the started scan
+      .mockResolvedValueOnce(successJob(3)) // stale pre-start read
+      .mockResolvedValue(successJob(7)); // the started scan
 
     const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
     await act(async () => {
@@ -198,8 +208,8 @@ describe('useScanPolling', () => {
     const onScanComplete = vi.fn();
     vi.mocked(getLatestScanJob)
       .mockResolvedValueOnce(scanningJob)
-      .mockResolvedValueOnce({ scan_status: 'SUCCESS', id: 7, target_source_id: 1 })
-      .mockResolvedValue({ scan_status: 'SUCCESS', id: 3, target_source_id: 1 }); // delayed stale
+      .mockResolvedValueOnce(successJob(7))
+      .mockResolvedValue(successJob(3)); // delayed stale
 
     const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
     await act(async () => {
@@ -212,6 +222,62 @@ describe('useScanPolling', () => {
 
     await act(async () => {
       await result.current.refresh(); // delayed SUCCESS id=3 → older than 7, no re-fire
+    });
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+  });
+
+  // SUCCESS with no count map is the aggregation tail: the scan ran but its
+  // numbers are not readable, so reporting it as COMPLETED would tell the user
+  // "no resources found" and refetch Step 1 against results that do not exist.
+  it('keeps a SUCCESS without counts in progress until the count map lands', async () => {
+    const onScanComplete = vi.fn();
+    vi.mocked(getLatestScanJob)
+      .mockResolvedValueOnce(scanningJob)
+      .mockResolvedValueOnce({ scan_status: 'SUCCESS', id: 9, target_source_id: 1, resource_count_by_resource_type: null })
+      .mockResolvedValue(successJob(9));
+
+    const { result } = renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // SCANNING
+    });
+    expect(result.current.uiState).toBe('IN_PROGRESS');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000); // SUCCESS, counts null → still finalizing
+    });
+    expect(result.current.uiState).toBe('IN_PROGRESS');
+    expect(result.current.isPolling).toBe(true);
+    expect(onScanComplete).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000); // counts land → really done
+    });
+    expect(result.current.uiState).toBe('COMPLETED');
+    expect(result.current.isPolling).toBe(false);
+    expect(onScanComplete).toHaveBeenCalledTimes(1);
+  });
+
+  // The id-less completion fallback watches a running→terminal edge. A job that
+  // passes through the finalizing tail shows no SCANNING→terminal edge, so the
+  // edge must be tracked as "was running", not as the raw SCANNING status.
+  it('fires the id-less completion after a finalizing tail', async () => {
+    const onScanComplete = vi.fn();
+    vi.mocked(getLatestScanJob)
+      .mockResolvedValueOnce(scanningJob) // no id
+      .mockResolvedValueOnce({ scan_status: 'SUCCESS', target_source_id: 1 }) // no id, no counts
+      .mockResolvedValue(successJob()); // no id, counts landed
+
+    renderHook(() => useScanPolling(1, { interval: 1000, onScanComplete }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // SCANNING observed
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000); // finalizing — not a completion
+    });
+    expect(onScanComplete).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000); // counts land → edge fallback fires
     });
     expect(onScanComplete).toHaveBeenCalledTimes(1);
   });
