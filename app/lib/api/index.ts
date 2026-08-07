@@ -99,11 +99,12 @@ const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
     tenantId: metadata?.tenant_id ?? undefined,
     gcpProjectId: metadata?.gcp_project_id ?? undefined,
     isChinaRegion: metadata?.is_china_region === true,
-    // Tri-state on purpose: TargetSourceMetadata is .partial(), so the key can be
-    // absent, and `=== true` would turn "we were not told" into "수동 설치" — an
-    // assertion the wire never made, and one the detail page leaves blank.
+    // Two-state by domain rule (owner's call): the permission is granted or it is
+    // not, and an absent key means it was never granted — so 수동 설치. Collapsing
+    // it here rather than at each screen is what keeps the list, the detail meta
+    // bar and the step guides from disagreeing about the same account.
     isTerraformExecutionGranted:
-      metadata?.grant_service_terraform_execution_permission ?? undefined,
+      metadata?.grant_service_terraform_execution_permission === true,
     resourceCount: 0,
     hasDisconnected: false,
     hasNew: false,
@@ -245,7 +246,9 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
   const awsAccountId = asStr(metadata?.aws_account_id);
   const gcpProjectId = asStr(metadata?.gcp_project_id);
   const isSduType = asBool(metadata?.is_sdu_type);
-  const isTerraformExecutionGranted = asBool(metadata?.grant_service_terraform_execution_permission);
+  // Same domain rule as toProjectSummary: absent = never granted = 수동 설치.
+  const isTerraformExecutionGranted =
+    metadata?.grant_service_terraform_execution_permission === true;
   const createdAt = asStr(item.created_at) ?? new Date().toISOString();
 
   return {
@@ -266,7 +269,7 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
     ...(awsAccountId ? { awsAccountId } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
     ...(isSduType !== undefined ? { isSduType } : {}),
-    ...(isTerraformExecutionGranted !== undefined ? { isTerraformExecutionGranted } : {}),
+    isTerraformExecutionGranted,
   };
 };
 

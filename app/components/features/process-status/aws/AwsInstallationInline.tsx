@@ -15,8 +15,9 @@ import { InstallCardHeader } from '@/app/components/features/process-status/inst
 interface AwsInstallationInlineProps {
   targetSourceId: number;
   /**
-   * metadata.grant_service_terraform_execution_permission — explicit false ⇒
-   * manual install (no role-verify step); true/undefined ⇒ auto.
+   * metadata.grant_service_terraform_execution_permission — only an explicit grant
+   * is an auto install. Anything else (false, or never told) ⇒ manual, no
+   * role-verify step. Same rule the meta bar and the list chip read.
    */
   terraformExecutionGranted?: boolean;
   onInstallComplete?: () => void;
@@ -27,7 +28,7 @@ export const AwsInstallationInline = ({
   terraformExecutionGranted,
   onInstallComplete,
 }: AwsInstallationInlineProps) => {
-  const isManualInstall = terraformExecutionGranted === false;
+  const isManualInstall = terraformExecutionGranted !== true;
   const completionNotifiedRef = useRef(false);
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
   const [downloading, setDownloading] = useState(false);

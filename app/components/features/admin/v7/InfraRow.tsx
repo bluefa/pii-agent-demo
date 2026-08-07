@@ -64,12 +64,10 @@ const identityOf = (project: ProjectSummary): RowIdentity => {
 export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProps) => {
   const identity = identityOf(project);
   // 설치 모드 is AWS-only — Terraform 실행 권한은 AWS 계정에만 존재하는 개념이라
-  // 다른 CSP 행에 칩을 달면 없는 선택지를 있는 것처럼 보이게 한다. 값이 아예 없으면
-  // 칩도 없다: 없는 값을 "수동 설치"로 적으면 화면이 계약에 없는 주장을 하게 된다.
-  const showInstallMode =
-    project.cloudProvider === 'AWS'
-    && !project.isSduType
-    && project.isTerraformExecutionGranted !== undefined;
+  // 다른 CSP 행에 칩을 달면 없는 선택지를 있는 것처럼 보이게 한다. AWS 행이면 항상
+  // 붙는다: 권한은 허용됐거나 아니거나 둘 중 하나이고, 안 붙어 있으면 허용된 적이
+  // 없다는 뜻 — 즉 수동 설치다.
+  const showInstallMode = project.cloudProvider === 'AWS' && !project.isSduType;
   // SDU 행은 밑에 깔린 CSP 를 숨기는 것이 규칙이다 — 제목이 "SDU"인데 Azure Tenant 가
   // 붙어 있으면 그 규칙이 이 한 줄에서만 깨진다.
   const showTenant =
