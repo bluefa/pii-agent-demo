@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
@@ -10,6 +9,7 @@ import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_component
 import { VmDatabaseConfigPanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
 import { InstallIneligibleGuideModal } from '@/app/target-sources/[targetSourceId]/_components/candidate/InstallIneligibleGuideModal';
 import { useModal } from '@/app/hooks/useModal';
+import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { getResourceDisplayName } from '@/lib/resource';
 import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
 import {
@@ -85,10 +85,8 @@ interface CandidateResourceRowProps {
   grouped?: boolean;
   /** Last child of its group — the rail stops at this row's elbow, closing the group. */
   lastInGroup?: boolean;
-  /** Group parent is hovered — this row's rail segment lights with the rest of the group. */
-  railActive?: boolean;
-  /** Grouped child: hovering it lights the whole group, same as hovering the parent. */
-  onRailHoverChange?: (active: boolean) => void;
+  /** Grouped child: its share of the group's rail, tagged with the group's key by the table. */
+  rail?: RailRowProps;
   /** RDS cluster only — whether its member instance rows are showing. The table owns the
    *  fold because the default follows the checkbox, which it already tracks. */
   rdsInstancesExpanded?: boolean;
@@ -107,10 +105,8 @@ interface RdsInstanceRowProps {
   readonly: boolean;
   lastInGroup: boolean;
   showCheckboxColumn: boolean;
-  /** Cluster row is hovered — this member's rail segment lights with the trunk. */
-  railActive: boolean;
-  /** Hovering a member lights the trunk too, so the rail answers from either end. */
-  onRailHoverChange: (active: boolean) => void;
+  /** This member's share of the cluster's rail — same key as the cluster row itself. */
+  rail: RailRowProps;
   onSelect: (instanceResourceId: string) => void;
 }
 
@@ -131,8 +127,7 @@ const RdsInstanceRow = ({
   readonly,
   lastInGroup,
   showCheckboxColumn,
-  railActive,
-  onRailHoverChange,
+  rail,
   onSelect,
 }: RdsInstanceRowProps) => {
   const identifier = rdsInstanceLabel(instance);
@@ -141,13 +136,9 @@ const RdsInstanceRow = ({
 
   return (
     <tr
-      className={cn(
-        ROW_BASE,
-        dimmed ? ROW_EXCLUDED : ROW_TARGET,
-        railActive && idcStyles.table.group.railActive,
-      )}
-      onMouseEnter={() => onRailHoverChange(true)}
-      onMouseLeave={() => onRailHoverChange(false)}
+      className={cn(ROW_BASE, dimmed ? ROW_EXCLUDED : ROW_TARGET, rail.className)}
+      onMouseEnter={rail.onMouseEnter}
+      onMouseLeave={rail.onMouseLeave}
     >
       {/* The leading column stays cluster-checkbox-only. */}
       {showCheckboxColumn && <td className={cn(idcStyles.table.approvalCell, 'w-10')} />}
@@ -218,15 +209,14 @@ export const CandidateResourceRow = ({
   actions,
   grouped = false,
   lastInGroup = false,
-  railActive = false,
-  onRailHoverChange,
+  rail,
   rdsInstancesExpanded = false,
   onRdsInstancesToggle,
 }: CandidateResourceRowProps) => {
   const ineligibleModal = useModal();
-  // A cluster owns its own member rows, so the hover that lights their rail lives here —
-  // unlike a group, whose children the table renders in a different tbody.
-  const [clusterRailActive, setClusterRailActive] = useState(false);
+  // A cluster owns its member rows, so its rail lives here; a group's rail is owned by the
+  // table, which renders the children in a different tbody, and arrives as the `rail` prop.
+  const clusterRailRow = useRailHover();
   const behavior = getCandidateBehavior(candidate);
   const requiresEndpointConfig = behavior.configKind === 'endpoint';
   const isIneligible = candidate.integrationCategory === 'INSTALL_INELIGIBLE';
@@ -265,6 +255,9 @@ export const CandidateResourceRow = ({
         ? ROW_EXCLUDED
         : ROW_TARGET;
 
+  // A row belongs to at most one rail: its group's (passed in) or its own cluster's.
+  const rowRail = isRdsClusterRow ? clusterRailRow(candidate.id) : rail;
+
   const handleRowClick = () => {
     if (canExpand) actions.expandToggle(isExpanded ? null : candidate.id);
   };
@@ -282,17 +275,10 @@ export const CandidateResourceRow = ({
   return (
     <>
       <tr
-        className={cn(
-          ROW_BASE,
-          rowStateClass,
-          canExpand && 'cursor-pointer',
-          (railActive || clusterRailActive) && idcStyles.table.group.railActive,
-        )}
+        className={cn(ROW_BASE, rowStateClass, canExpand && 'cursor-pointer', rowRail?.className)}
         onClick={handleRowClick}
-        // Either end of the rail lights the whole of it: the cluster row owns its members'
-        // state, a grouped child hands its hover up to the table that owns its group.
-        onMouseEnter={() => { if (isRdsClusterRow) setClusterRailActive(true); onRailHoverChange?.(true); }}
-        onMouseLeave={() => { if (isRdsClusterRow) setClusterRailActive(false); onRailHoverChange?.(false); }}
+        onMouseEnter={rowRail?.onMouseEnter}
+        onMouseLeave={rowRail?.onMouseLeave}
       >
         {showCheckboxColumn && (
           <td className={cn(idcStyles.table.approvalCell, 'w-10')} onClick={(event) => event.stopPropagation()}>
@@ -497,8 +483,7 @@ export const CandidateResourceRow = ({
           readonly={readonly}
           lastInGroup={index === sortedInstances.length - 1}
           showCheckboxColumn={showCheckboxColumn}
-          railActive={clusterRailActive}
-          onRailHoverChange={setClusterRailActive}
+          rail={clusterRailRow(candidate.id)}
           onSelect={(instanceResourceId) => actions.selectRdsInstance(candidate.id, instanceResourceId)}
         />
       ))}

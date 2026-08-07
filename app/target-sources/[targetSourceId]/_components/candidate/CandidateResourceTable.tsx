@@ -10,6 +10,7 @@ import {
   CandidateResourceRow,
   type CandidateRowActions,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
+import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import {
   ResourceGroupCount,
@@ -110,9 +111,9 @@ export const CandidateResourceTable = ({
       [resourceId]: !(previous[resourceId] ?? true),
     }));
 
-  // Hovering a group's parent lights that group's whole tree rail. The table owns the state
-  // because the parent and its children are separate tbodies — no selector spans them.
-  const [hoveredGroupKey, setHoveredGroupKey] = useState<string | null>(null);
+  // The group rails: parent and children carry the group's key, so hovering any of them
+  // lights the whole group. A cluster's rail is owned by its own row.
+  const railRow = useRailHover();
 
   const toggleGroup = (key: string) =>
     setCollapsedGroups((previous) => {
@@ -169,8 +170,7 @@ export const CandidateResourceTable = ({
               candidate: CandidateResource,
               grouped = false,
               lastInGroup = false,
-              railActive = false,
-              groupKey?: string,
+              rail?: RailRowProps,
             ) => {
               const isSelected = selectedIds.has(candidate.id);
               const instancesExpanded = instanceFoldOverrides[candidate.id] ?? true;
@@ -186,12 +186,7 @@ export const CandidateResourceTable = ({
                   actions={actions}
                   grouped={grouped}
                   lastInGroup={lastInGroup}
-                  railActive={railActive}
-                  onRailHoverChange={
-                    groupKey
-                      ? (active) => setHoveredGroupKey(active ? groupKey : null)
-                      : undefined
-                  }
+                  rail={rail}
                   rdsInstancesExpanded={instancesExpanded}
                   onRdsInstancesToggle={() => toggleInstanceFold(candidate.id)}
                 />
@@ -209,7 +204,7 @@ export const CandidateResourceTable = ({
             const { group } = section;
             const rowsId = `candidate-group-${group.key.replace('|', '-')}`;
             const collapsed = collapsedGroups.has(group.key);
-            const railActive = hoveredGroupKey === group.key;
+            const rail = railRow(group.key);
             return (
               <Fragment key={group.key}>
                 <tbody className={idcStyles.table.body}>
@@ -219,8 +214,7 @@ export const CandidateResourceTable = ({
                     expanded={!collapsed}
                     onToggle={() => toggleGroup(group.key)}
                     controls={rowsId}
-                    railActive={railActive}
-                    onRailHoverChange={(active) => setHoveredGroupKey(active ? group.key : null)}
+                    rail={rail}
                     // Read-only drops the 제외 사유 column, so the aggregate has no cell to sit
                     // in — it rides along with the identity instead of vanishing.
                     inlineMeta={
@@ -280,13 +274,7 @@ export const CandidateResourceTable = ({
                 {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
                 <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
                   {group.rows.map((candidate, index) =>
-                    renderRow(
-                      candidate,
-                      true,
-                      index === group.rows.length - 1,
-                      railActive,
-                      group.key,
-                    ),
+                    renderRow(candidate, true, index === group.rows.length - 1, rail),
                   )}
                 </tbody>
               </Fragment>

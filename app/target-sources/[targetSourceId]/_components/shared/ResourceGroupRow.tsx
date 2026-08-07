@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { cn, idcStyles, primaryColors } from '@/lib/theme';
+import type { RailRowProps } from '@/app/hooks/useRailHover';
 
 interface ResourceGroupRowProps {
   /** Resource type the group is keyed on — rendered through the shared short label (`ATHENA` → "Athena"). */
@@ -17,10 +18,8 @@ interface ResourceGroupRowProps {
   leadingCell?: ReactNode;
   /** Aggregate rendered beside the identity, for tables with no spare column to put it in. */
   inlineMeta?: ReactNode;
-  /** Tree rail lit — the caller lights this row's children in the same breath. */
-  railActive?: boolean;
-  /** Pointer entered/left this row. The caller owns the state: its children are separate rows. */
-  onRailHoverChange?: (active: boolean) => void;
+  /** This row's share of the group's tree rail (`useRailHover`), tagged with the group's key. */
+  rail?: RailRowProps;
   /**
    * The parent's remaining `<td>`s, one per column after the identity cell. The parent is a real
    * row, not a colspan band (시안 §04), so the caller decides which columns carry the aggregate —
@@ -48,22 +47,17 @@ export const ResourceGroupRow = ({
   controls,
   leadingCell,
   inlineMeta,
-  railActive = false,
-  onRailHoverChange,
+  rail,
   children,
 }: ResourceGroupRowProps) => {
   const label = getDatabaseShortLabel(type);
 
   return (
     <tr
-      className={cn(
-        idcStyles.table.group.row,
-        'cursor-pointer',
-        railActive && idcStyles.table.group.railActive,
-      )}
+      className={cn(idcStyles.table.group.row, 'cursor-pointer', rail?.className)}
       onClick={onToggle}
-      onMouseEnter={() => onRailHoverChange?.(true)}
-      onMouseLeave={() => onRailHoverChange?.(false)}
+      onMouseEnter={rail?.onMouseEnter}
+      onMouseLeave={rail?.onMouseLeave}
     >
       {leadingCell}
       <td
