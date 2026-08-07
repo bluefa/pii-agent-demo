@@ -65,9 +65,10 @@ export const VmDatabaseConfigPanel = ({
     setDatabaseType(newType);
 
     // 타입이 변경되면 기본 포트 설정 (기존 설정이 없거나 이전 기본 포트였던 경우)
-    const prevDefaultPort = prevType ? DEFAULT_PORTS[prevType].toString() : '';
+    // 기본 포트가 없는 엔진(DynamoDB·Athena)은 빈 값으로 두고 직접 입력받는다.
+    const prevDefaultPort = prevType ? (DEFAULT_PORTS[prevType]?.toString() ?? '') : '';
     if (!port || port === prevDefaultPort) {
-      setPort(DEFAULT_PORTS[newType].toString());
+      setPort(DEFAULT_PORTS[newType]?.toString() ?? '');
     }
   };
 

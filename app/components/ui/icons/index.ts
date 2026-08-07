@@ -22,6 +22,7 @@ export { ExpandIcon } from '@/app/components/ui/icons/ExpandIcon';
 export { FilterIcon } from '@/app/components/ui/icons/FilterIcon';
 export { GuideIcon } from '@/app/components/ui/icons/GuideIcon';
 export { InfoCircleIcon } from '@/app/components/ui/icons/InfoCircleIcon';
+export { LockIcon } from '@/app/components/ui/icons/LockIcon';
 export { OpenExternalIcon } from '@/app/components/ui/icons/OpenExternalIcon';
 export { PlayIcon } from '@/app/components/ui/icons/PlayIcon';
 export { PlusIcon } from '@/app/components/ui/icons/PlusIcon';

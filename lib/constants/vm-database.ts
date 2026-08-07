@@ -1,20 +1,47 @@
 import type { VmDatabaseType } from '@/lib/types';
 
-export const VM_DATABASE_TYPES: { value: VmDatabaseType; label: string; icon: string }[] = [
-  { value: 'MYSQL', label: 'MySQL', icon: '🐬' },
-  { value: 'POSTGRESQL', label: 'PostgreSQL', icon: '🐘' },
-  { value: 'MSSQL', label: 'SQL Server', icon: '🔷' },
-  { value: 'MONGODB', label: 'MongoDB', icon: '🍃' },
-  { value: 'ORACLE', label: 'Oracle', icon: '🔴' },
-];
+export interface VmDatabaseTypeDef {
+  /** Internal value; `toWireDatabaseType` lowercases it at the request boundary. */
+  value: VmDatabaseType;
+  label: string;
+  /** Absent for engines that expose no fixed listener port (DynamoDB, Athena). */
+  defaultPort?: number;
+  /** Oracle-family engines need a SID alongside host/port. */
+  requiresServiceId?: boolean;
+}
 
-export const DEFAULT_PORTS: Record<VmDatabaseType, number> = {
-  MYSQL: 3306,
-  POSTGRESQL: 5432,
-  MSSQL: 1433,
-  MONGODB: 27017,
-  ORACLE: 1521,
-};
+export const VM_DATABASE_TYPES: readonly VmDatabaseTypeDef[] = [
+  { value: 'MYSQL', label: 'MySQL', defaultPort: 3306 },
+  { value: 'POSTGRESQL', label: 'PostgreSQL', defaultPort: 5432 },
+  { value: 'MARIADB', label: 'MariaDB', defaultPort: 3306 },
+  { value: 'MSSQL', label: 'SQL Server', defaultPort: 1433 },
+  { value: 'DYNAMODB', label: 'DynamoDB' },
+  { value: 'MONGODB', label: 'MongoDB', defaultPort: 27017 },
+  { value: 'ORACLE', label: 'Oracle', defaultPort: 1521, requiresServiceId: true },
+  { value: 'CASSANDRA', label: 'Cassandra', defaultPort: 9042 },
+  { value: 'ELASTICSEARCH', label: 'Elasticsearch', defaultPort: 9200 },
+  { value: 'REDSHIFT', label: 'Redshift', defaultPort: 5439 },
+  { value: 'ATHENA', label: 'Athena' },
+  { value: 'HANADB', label: 'HanaDB', defaultPort: 30015 },
+  { value: 'DB2', label: 'DB2', defaultPort: 50000 },
+  { value: 'COCKROACHDB', label: 'CockroachDB', defaultPort: 26257 },
+  { value: 'TIBERO', label: 'Tibero', defaultPort: 8629, requiresServiceId: true },
+] as const;
+
+const BY_VALUE = new Map(VM_DATABASE_TYPES.map((type) => [type.value, type]));
+
+export const vmDatabaseTypeByValue = (value: string): VmDatabaseTypeDef | undefined =>
+  BY_VALUE.get(value);
+
+/**
+ * Default listener port per type. Derived from the catalog above so the two never drift;
+ * portless engines are simply absent, so every read must tolerate `undefined`.
+ */
+export const DEFAULT_PORTS: Record<string, number> = Object.fromEntries(
+  VM_DATABASE_TYPES.flatMap((type) =>
+    type.defaultPort === undefined ? [] : [[type.value, type.defaultPort] as const],
+  ),
+);
 
 /**
  * 포트 번호 유효성 검증 (1-65535)

@@ -117,6 +117,9 @@ export const mockBff: BffClient = {
       unwrap<z.infer<typeof schemas.AwsRoleVerificationResponse>>(await mockAws.verifyScanRole(String(id))),
     verifyExecutionRole: async (id) =>
       unwrap<z.infer<typeof schemas.AwsRoleVerificationResponse>>(await mockAws.verifyExecutionRole(String(id))),
+    // Contract gap (no generated schema) — the route validates with its own zod schema.
+    searchEc2Resources: async (id, query, limit) =>
+      unwrap<unknown>(await mockAws.searchEc2Resources(String(id), query, limit)),
   },
 
   // Ops console — ASSUMED contracts (docs/api/ops-assumed-contracts.md).

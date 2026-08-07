@@ -798,6 +798,9 @@ export const idcStyles = {
     single: 'bg-[#E8F1FF] text-[#1747B5]',
     multi: 'bg-[#FEF0E1] text-[#7A3F0E]',
     domain: 'bg-[#EEF2FF] text-[#4338CA]',
+    /** EC2 instance — the one compute-kind row in a table of managed DB services.
+     *  Violet, so it never reads as one of the blue/orange IDC host kinds. */
+    ec2: 'bg-[#F3EEFF] text-[#6D28D9]',
   },
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
   tag: {
@@ -1091,6 +1094,56 @@ export const idcStyles = {
         "relative after:absolute after:-bottom-px after:left-[28px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
     },
   },
+} as const;
+
+/**
+ * EC2 인스턴스 연동 대상 추가 — 검색 모달 · 접속 정보 폼 · Step1 행.
+ *
+ * 크기·간격은 IDC 연동 대상 추가 흐름에서 그대로 가져온다(같은 일을 하는 화면은
+ * 같은 수치로). 여기 있는 것은 그 문법에 없던 조각뿐 — 검색창 부속, 결과 행,
+ * 수정 불가 필드, 그리고 조금 큰(32px) 행 액션.
+ */
+export const ec2Styles = {
+  /** 검색 입력 — `idcStyles.input` 위에 아이콘·클리어 버튼 자리와 mono 를 얹는다. */
+  searchInput: 'pl-12 pr-12 font-mono',
+  searchIcon:
+    'pointer-events-none absolute left-4 top-1/2 h-[19px] w-[19px] -translate-y-1/2 text-[#6B7280]',
+  /** 입력값이 있을 때만 나오는 원형 ✕ — 질의와 결과를 함께 비운다. */
+  searchClear:
+    'absolute right-3.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-[#EBEEF2] text-[#4E5968] transition-colors hover:bg-[#DDE2E8] hover:text-[#191F28]',
+  /** 입력 아래 상시 안내 — placeholder 가 아니라 항상 보이는 캡션. */
+  helper: 'mt-2 text-[12px] leading-[1.6] text-[#6B7280]',
+  helperCode: 'font-mono font-semibold text-[#4E5968]',
+  /** 검색 결과 한 행. */
+  resultRow:
+    'flex items-center justify-between gap-3 rounded-xl border border-[#EBEEF2] bg-white px-3.5 py-3 transition-colors hover:border-[#D6E7FF] hover:bg-[#F8FAFF]',
+  resultId: 'font-mono text-[14px] font-semibold text-[#191F28]',
+  /** 질의와 일치한 앞부분 — 어디까지 입력해서 걸린 결과인지 보여준다. */
+  resultMatch: 'text-[#0064FF]',
+  resultSub: 'mt-1 text-[12px] text-[#6B7280]',
+  /** 이미 목록에 있는 결과의 비활성 버튼. */
+  addedBtn:
+    'inline-flex h-8 cursor-not-allowed items-center gap-1 rounded-[10px] bg-[#F2F4F6] px-3 text-[12px] font-bold text-[#4E5968]',
+  /** 초기·로딩·0건 안내 블록 (결과 목록과 같은 자리에 선다). */
+  stateBox: 'flex flex-col items-center justify-center gap-1 rounded-xl bg-[#F7F8FA] px-4 py-10 text-center',
+  stateTitle: 'text-[14px] font-semibold text-[#4E5968]',
+  stateDesc: 'text-[12px] text-[#6B7280]',
+  /** 폼 필드 라벨 (IDC 폼의 라벨과 같은 자리, 짝수 스케일). */
+  fieldLabel: 'mb-1.5 block text-[12px] font-medium text-[#4E5968]',
+  /** 수정 불가 필드 — 스캔이 확인한 값이라 입력이 아니라 표기다. */
+  lockedInput: 'font-mono read-only:cursor-default read-only:bg-[#F2F4F6] read-only:text-[#4E5968]',
+  lockNote: 'mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-[#6B7280]',
+  /** 방금 드러난 종속 필드 — 왜 갑자기 나타났는지 보라 링으로 표시한다. */
+  revealedField: 'ring-2 ring-[#DDD0FF]',
+  /** Step1 행의 정체성 스택 (EC2 태그 → instance id → Private IP). */
+  rowStack: 'flex flex-col items-start gap-1',
+  rowId: 'font-mono text-[12px] text-[#4E5968]',
+  rowSub: 'font-mono text-[12px] text-[#6B7280]',
+  /** 행 hover 액션 — idcStyles.rowAction 과 같은 문법의 32px 박스. */
+  rowAction:
+    'inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[#F7F8FA] hover:text-gray-900',
+  rowActionDelete:
+    'inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[#FEECEC] hover:text-[#B42318]',
 } as const;
 
 /**

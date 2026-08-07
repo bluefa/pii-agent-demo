@@ -63,7 +63,8 @@ interface IdcTargetFormModalProps {
 
 const modeFromKind = (kind: IdcKind): IdcInputMode => (kind === 'DOMAIN' ? 'domain' : 'ip');
 
-const SectionLabel = ({ num, children }: { num: number; children: React.ReactNode }) => (
+/** Numbered section heading — shared with the EC2 add flow so both forms count alike. */
+export const SectionLabel = ({ num, children }: { num: number; children: React.ReactNode }) => (
   <div className={cn('mb-2 flex items-center gap-2 text-[13px] font-semibold', textColors.secondary)}>
     <span
       className={cn(

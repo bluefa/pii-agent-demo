@@ -9,6 +9,8 @@ import { Tooltip } from '@/app/components/ui/Tooltip';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast';
+import { PlusIcon } from '@/app/components/ui/icons';
+import type { Ec2Instance } from '@/app/lib/api/ec2';
 import { ScanController } from '@/app/components/features/scan/ScanPanel';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
 import { ScanHeroState } from '@/app/components/features/scan/ScanHeroState';
@@ -45,6 +47,11 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
 import { useCandidateResources } from '@/app/target-sources/[targetSourceId]/_components/candidate/use-candidate-resources';
 import { useExclusionPicker } from '@/app/target-sources/[targetSourceId]/_components/candidate/use-exclusion-picker';
+import {
+  toManualEc2Candidate,
+  type Ec2ConnectionConfig,
+} from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
+import { Ec2AddModal } from '@/app/target-sources/[targetSourceId]/_components/aws/Ec2AddModal';
 import { IdcSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 import { IdcExclusionPopover } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcExclusionPopover';
 import { IdcExclusionReasonModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcExclusionReasonModal';
@@ -58,6 +65,16 @@ interface CandidateResourceSectionProps {
 }
 
 const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {}, rdsInstanceDrafts: {} };
+
+/**
+ * One EC2 instance the user searched for and added by hand, kept as what it is —
+ * the instance plus the connection info typed for it. The Step-1 row is derived from
+ * the pair, so reopening the form for an edit never has to reconstruct either half.
+ */
+interface ManualEc2Entry {
+  instance: Ec2Instance;
+  config: Ec2ConnectionConfig;
+}
 
 /** Cloud exclusion reason UI cap. Contract allows 3000 (docs/cloud-provider-states.md);
  *  운영 정책으로 1000자로 조인다 — 계약의 부분집합이라 wire엔 영향 없다. */
@@ -106,6 +123,29 @@ export const CandidateResourceSection = ({
 
   const [drafts, setDrafts] = useState<CandidateDraftState>(EMPTY_DRAFTS);
   const [expandedResourceId, setExpandedResourceId] = useState<string | null>(null);
+  const [manualEc2, setManualEc2] = useState<ManualEc2Entry[]>([]);
+  const [ec2AddOpen, setEc2AddOpen] = useState(false);
+  const [ec2EditingId, setEc2EditingId] = useState<string | null>(null);
+
+  // Manually added instances join the scanned candidates as ordinary rows, so the table,
+  // the counts, the filters and the approval payload need no second code path.
+  const allCandidates = useMemo(
+    () => [
+      ...candidates,
+      ...manualEc2.map((entry) => toManualEc2Candidate(entry.instance, entry.config)),
+    ],
+    [candidates, manualEc2],
+  );
+  // Every id already on the table, not just the manually added ones: the scan can surface an
+  // EC2 instance as a candidate on its own, and adding it a second time would duplicate the row
+  // and the payload item. The search marks those results 추가됨 instead of offering 추가.
+  const addedEc2InstanceIds = useMemo(
+    () => new Set(allCandidates.map((candidate) => candidate.resourceId)),
+    [allCandidates],
+  );
+  const editingEc2 = ec2EditingId === null
+    ? undefined
+    : manualEc2.find((entry) => entry.instance.instanceId === ec2EditingId);
 
   // Plain id→reason map for the payload adapter and the table's reason chips.
   const exclusionReasons = useMemo(
@@ -125,7 +165,7 @@ export const CandidateResourceSection = ({
   // metadata.region)를 넣는다. 선택·제외 사유·CTA 비활성 계산은 전부 필터와
   // 무관하게 전체 후보 기준을 유지한다.
   const approvalShaped = useMemo(
-    () => candidates.map((candidate) => ({
+    () => allCandidates.map((candidate) => ({
       resourceId: candidate.resourceId,
       resourceName: candidate.resourceName,
       resourceType: candidate.type,
@@ -136,21 +176,21 @@ export const CandidateResourceSection = ({
       region: candidate.metadata.region ?? '',
       selected: selectedIds.has(candidate.id),
     })),
-    [candidates, drafts, selectedIds],
+    [allCandidates, drafts, selectedIds],
   );
   const table = useApprovalTableState(approvalShaped);
   const visibleCandidates = useMemo(() => {
-    const byResourceId = new Map(candidates.map((candidate) => [candidate.resourceId, candidate]));
+    const byResourceId = new Map(allCandidates.map((candidate) => [candidate.resourceId, candidate]));
     return table.visibleResources
       .map((resource) => byResourceId.get(resource.resourceId))
       .filter((candidate): candidate is CandidateResource => candidate != null);
-  }, [candidates, table.visibleResources]);
+  }, [allCandidates, table.visibleResources]);
 
   // 승인 요청 CTA의 비활성 사유를 데이터로 명시 — 버튼 disabled 와 호버 설명이
   // 같은 원천을 읽는다. 빈 문자열·공백 사유는 미입력으로 취급(listMissing이 trim).
   const missingReasonResources = useMemo(
-    () => listMissingExclusionReasons(candidates, selectedIds, exclusionReasons),
-    [candidates, selectedIds, exclusionReasons],
+    () => listMissingExclusionReasons(allCandidates, selectedIds, exclusionReasons),
+    [allCandidates, selectedIds, exclusionReasons],
   );
   const approvalBlockReason = useMemo(() => {
     if (selectedIds.size === 0) {
@@ -233,7 +273,7 @@ export const CandidateResourceSection = ({
 
   const approval = useApiAction(
     async () => {
-      const input = toApprovalRequestInput(candidates, selectedIds, drafts, exclusionReasons);
+      const input = toApprovalRequestInput(allCandidates, selectedIds, drafts, exclusionReasons);
       await createApprovalRequest(targetSourceId, input);
       await refreshProject();
     },
@@ -268,17 +308,44 @@ export const CandidateResourceSection = ({
     }));
   }, []);
 
+  // The instance itself is the working-list key (an AWS instance id is unique), so adding an
+  // instance that is already in the list REPLACES its connection info rather than duplicating
+  // the row — which is also how the edit path saves.
+  const handleEc2Save = useCallback((instance: Ec2Instance, config: Ec2ConnectionConfig) => {
+    setManualEc2((previous) => {
+      const index = previous.findIndex((entry) => entry.instance.instanceId === instance.instanceId);
+      if (index < 0) return [...previous, { instance, config }];
+      const next = [...previous];
+      next[index] = { instance, config };
+      return next;
+    });
+    // Adding an instance IS choosing it — the user came to this modal to integrate it.
+    setSelectedIds((previous) => new Set(previous).add(instance.instanceId));
+    setEc2EditingId(null);
+  }, [setSelectedIds]);
+
+  const handleEc2Delete = useCallback((instanceId: string) => {
+    setManualEc2((previous) => previous.filter((entry) => entry.instance.instanceId !== instanceId));
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      next.delete(instanceId);
+      return next;
+    });
+  }, [setSelectedIds]);
+
   const rowActions = useMemo<CandidateRowActions>(() => ({
     toggleSelected: picker.handleToggleSelected,
     reasonChipClick: picker.handleReasonChipClick,
     expandToggle: handleExpandToggle,
     endpointSave: handleEndpointSave,
     selectRdsInstance: handleSelectRdsInstance,
-  }), [picker.handleToggleSelected, picker.handleReasonChipClick, handleExpandToggle, handleEndpointSave, handleSelectRdsInstance]);
+    editManualEc2: setEc2EditingId,
+    deleteManualEc2: handleEc2Delete,
+  }), [picker.handleToggleSelected, picker.handleReasonChipClick, handleExpandToggle, handleEndpointSave, handleSelectRdsInstance, handleEc2Delete]);
 
   const handleRequestApproval = useCallback(() => {
     if (selectedIds.size === 0) return;
-    const unconfigured = candidates.filter(
+    const unconfigured = allCandidates.filter(
       (candidate) => selectedIds.has(candidate.id)
         && !getCandidateBehavior(candidate).isConfigured(candidate, drafts),
     );
@@ -289,7 +356,7 @@ export const CandidateResourceSection = ({
       return;
     }
     // Exclusion reason is required (docs/cloud-provider-states.md) — every unselected TARGET needs one.
-    const missingReasons = listMissingExclusionReasons(candidates, selectedIds, exclusionReasons);
+    const missingReasons = listMissingExclusionReasons(allCandidates, selectedIds, exclusionReasons);
     if (missingReasons.length > 0) {
       toast.warning(
         `제외 사유 입력이 필요합니다: ${missingReasons.map((candidate) => candidate.resourceId).join(', ')}`,
@@ -298,11 +365,16 @@ export const CandidateResourceSection = ({
     }
     approval.reset();
     approvalModal.open();
-  }, [approval, approvalModal, candidates, drafts, exclusionReasons, selectedIds, toast]);
+  }, [approval, approvalModal, allCandidates, drafts, exclusionReasons, selectedIds, toast]);
 
   const handleScanComplete = useCallback(async () => {
     setDrafts(EMPTY_DRAFTS);
     setExpandedResourceId(null);
+    // A manually added instance was found by the scan that just got replaced — its scan
+    // version, and possibly the instance itself, no longer describe what is out there.
+    setManualEc2([]);
+    setEc2AddOpen(false);
+    setEc2EditingId(null);
     // 재스캔이면 목록이 통째로 바뀐다 — 이전 검색·필터가 새 결과를 가리지 않게 초기화.
     tableSearchChange('');
     tableFilterChange('all');
@@ -330,7 +402,9 @@ export const CandidateResourceSection = ({
           const phase = selectPhase({
             fetchStatus: state.status,
             scanState,
-            hasCandidates: candidates.length > 0,
+            // A manually added instance is a row on its own — a scan that proposed nothing
+            // must still show the table once the user has put something in it.
+            hasCandidates: allCandidates.length > 0,
           });
           // 종료된 스캔만 "결과"다 — mock BFF는 이력이 없으면 NO_SCAN 센티널 잡을
           // 합성하므로(실 BFF는 404 → latestJob null) 상태 집합으로 걸러낸다.
@@ -346,14 +420,17 @@ export const CandidateResourceSection = ({
           const showStrip = phase === 'list'
             || (finishedJob != null && (phase === 'empty' || phase === 'scanFailed'));
           const scanDisabled = initialLoading || !canStart || readonly;
+          // AWS 전용 입구, 그리고 스캔 결과 위에 서 있을 때만 — 검색이 조회하는 것은
+          // "최근 스캔에서 발견된 인스턴스"라, 스캔 전에는 열어도 빈 결과뿐이다.
+          const showEc2Add = provider === 'AWS' && !readonly && showStrip;
           // Counts only when the list is up: with no candidates they are all zero,
           // which is noise rather than information, and the band collapses to one
           // line. All three are in the candidate-DB unit (selected + excluded = eligible).
           const funnel = phase === 'list'
             ? {
-              eligible: candidates.length,
+              eligible: allCandidates.length,
               selected: selectedIds.size,
-              excluded: Math.max(0, candidates.length - selectedIds.size),
+              excluded: Math.max(0, allCandidates.length - selectedIds.size),
               missingReasons: missingReasonResources.length,
               filter: table.filter,
               onFilterChange: handleFilterChange,
@@ -444,18 +521,32 @@ export const CandidateResourceSection = ({
               {/* Step 2·3 헤더 문법: 단계 태그 → 고정 제목 → 안내 문장. 스캔 컨트롤은
                   헤더가 아니라 스트립/히어로가 소유한다 — 목록이 있을 때 이 카드의
                   primary CTA는 하단 승인 요청 하나뿐이고, 스캔은 보조 밴드로 물러난다. */}
-              <header className={cardStyles.header}>
-                <span className={cardStyles.stepTag}>1번째 단계</span>
-                <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
-                {/* 2호흡: 스캔→선택 / 사유→승인. 강조는 사용자가 직접 해야 하는
-                    행동 두 가지(선택·사유 입력)만 파랑 — 승인은 시스템 몫이라 평문.
-                    break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
-                <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
-                  인프라 스캔으로 {provider} 계정의 리소스를 조회하고,{' '}
-                  <span className={primaryColors.text}>연동할 리소스를 선택</span>해요. 제외하는
-                  리소스에는 <span className={primaryColors.text}>사유가 필요</span>하고, 결과는
-                  관리자 승인을 거쳐 확정돼요.
-                </p>
+              <header className={cn(cardStyles.header, showEc2Add && 'flex items-start justify-between gap-4')}>
+                <div>
+                  <span className={cardStyles.stepTag}>1번째 단계</span>
+                  <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
+                  {/* 2호흡: 스캔→선택 / 사유→승인. 강조는 사용자가 직접 해야 하는
+                      행동 두 가지(선택·사유 입력)만 파랑 — 승인은 시스템 몫이라 평문.
+                      break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
+                  <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
+                    인프라 스캔으로 {provider} 계정의 리소스를 조회하고,{' '}
+                    <span className={primaryColors.text}>연동할 리소스를 선택</span>해요. 제외하는
+                    리소스에는 <span className={primaryColors.text}>사유가 필요</span>하고, 결과는
+                    관리자 승인을 거쳐 확정돼요.
+                  </p>
+                </div>
+                {/* EC2는 스캔이 DB로 판정하지 못하는 호스트라 후보 목록에 없을 수 있다 —
+                    직접 찾아 담는 입구는 IDC "연동 대상 추가"와 같은 자리·같은 문법으로. */}
+                {showEc2Add && (
+                  <button
+                    type="button"
+                    onClick={() => setEc2AddOpen(true)}
+                    className={cn(idcStyles.triggerBtn.soft, 'shrink-0')}
+                  >
+                    <PlusIcon className="h-3.5 w-3.5" />
+                    EC2 인스턴스 추가
+                  </button>
+                )}
               </header>
 
               <div className={cardStyles.body}>
@@ -487,7 +578,7 @@ export const CandidateResourceSection = ({
                 <CardActionBar
                   hint={
                     <>
-                      총 <strong className={textColors.primary}>{candidates.length}</strong>건 ·{' '}
+                      총 <strong className={textColors.primary}>{allCandidates.length}</strong>건 ·{' '}
                       <strong className={primaryColors.text}>{selectedIds.size}</strong>건 선택됨
                     </>
                   }
@@ -541,9 +632,9 @@ export const CandidateResourceSection = ({
       {!readonly && (
         <IdcSubmitModal
           isOpen={approvalModal.isOpen}
-          total={candidates.length}
+          total={allCandidates.length}
           live={selectedIds.size}
-          excluded={Math.max(0, candidates.length - selectedIds.size)}
+          excluded={Math.max(0, allCandidates.length - selectedIds.size)}
           submitting={approval.loading}
           onSubmit={handleApprovalConfirm}
           onClose={approvalModal.close}
@@ -568,6 +659,21 @@ export const CandidateResourceSection = ({
           maxLen={CLOUD_EXCL_REASON_MAXLEN}
           onSave={picker.handleSaveReason}
           onClose={reasonModal.close}
+        />
+      )}
+
+      {/* Mounted per open so the search query, the results and the form start fresh; the
+          edit path passes the row's own pair, which selects the config step. */}
+      {(ec2AddOpen || editingEc2 !== undefined) && (
+        <Ec2AddModal
+          targetSourceId={targetSourceId}
+          addedInstanceIds={addedEc2InstanceIds}
+          editing={editingEc2}
+          onAdd={handleEc2Save}
+          onClose={() => {
+            setEc2AddOpen(false);
+            setEc2EditingId(null);
+          }}
         />
       )}
     </>

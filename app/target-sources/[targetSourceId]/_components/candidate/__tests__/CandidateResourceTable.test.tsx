@@ -37,6 +37,8 @@ const defaultProps = {
     expandToggle: () => {},
     endpointSave: () => {},
     selectRdsInstance: () => {},
+    editManualEc2: () => {},
+    deleteManualEc2: () => {},
   },
 };
 

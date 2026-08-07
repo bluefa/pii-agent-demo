@@ -2,7 +2,7 @@
 
 import { createPortal } from 'react-dom';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { DeleteIcon, EditIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
@@ -24,6 +24,7 @@ import {
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import {
   cn,
+  ec2Styles,
   idcStyles,
   primaryColors,
   statusColors,
@@ -38,6 +39,7 @@ import {
   getCandidateBehavior,
   resolveRdsInstanceResourceId,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
+import { isManualEc2Candidate } from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
 
 /** Row-level interaction callbacks, grouped so the table/row prop lists stay small. */
 export interface CandidateRowActions {
@@ -47,6 +49,9 @@ export interface CandidateRowActions {
   endpointSave: (resourceId: string, draft: EndpointConfigDraft) => void;
   /** RDS cluster: the member instance the agent will connect through. */
   selectRdsInstance: (resourceId: string, instanceResourceId: string) => void;
+  /** Manually added EC2 instance: reopen its connection form / drop it from the list. */
+  editManualEc2: (resourceId: string) => void;
+  deleteManualEc2: (resourceId: string) => void;
 }
 
 // Row/cell state grammar — mirrors WaitingApprovalTable (step 2·3); keep the two
@@ -210,6 +215,10 @@ export const CandidateResourceRow = ({
   const ineligibleModal = useModal();
   const behavior = getCandidateBehavior(candidate);
   const requiresEndpointConfig = behavior.configKind === 'endpoint';
+  // Manually added EC2: the user typed its connection info in a modal, so the row shows the
+  // identity it was added by and NOT the config — Database Type / Region / the expandable
+  // config panel all belong to rows the scan proposed.
+  const isManualEc2 = isManualEc2Candidate(candidate);
   const isIneligible = candidate.integrationCategory === 'INSTALL_INELIGIBLE';
   const hasEndpointConfig = behavior.isConfigured(candidate, drafts);
   const showConfigNeeded = requiresEndpointConfig && isSelected && !hasEndpointConfig;
@@ -355,7 +364,18 @@ export const CandidateResourceRow = ({
             tacked on (`athena:<acct>:<region>/<catalog>/test_raw`), so every child repeated the
             group's identity and then said its name a second time. */}
         <td className={idcStyles.table.approvalCell}>
-          {grouped ? null : (
+          {grouped ? null : isManualEc2 ? (
+            // EC2 태그 → instance id → 접속 주소. 이 열이 이 행의 정체성 전부다.
+            <span className={ec2Styles.rowStack}>
+              <span className={cn(idcStyles.kindBadge.base, idcStyles.kindBadge.ec2)}>EC2</span>
+              <span className={cn(ec2Styles.rowId, 'block max-w-[220px] truncate')}>
+                {candidate.resourceId}
+              </span>
+              <span className={cn(ec2Styles.rowSub, 'block max-w-[220px] truncate')}>
+                Private IP {candidate.endpointConfig?.host || '—'}
+              </span>
+            </span>
+          ) : (
             <span onClick={(event) => event.stopPropagation()}>
               <ResourceIdCell
                 value={candidate.resourceId}
@@ -383,7 +403,7 @@ export const CandidateResourceRow = ({
         >
           {grouped ? (
             GROUPED_CHILD_KIND_LABEL
-          ) : (
+          ) : isManualEc2 ? null : (
             <span className="flex items-center gap-1.5 whitespace-nowrap">
               {effectiveDbType ? getDatabaseShortLabel(effectiveDbType) : '—'}
               {showConfigNeeded && (
@@ -401,7 +421,9 @@ export const CandidateResourceRow = ({
             CELL_LIFT,
           )}
         >
-          {grouped ? null : region}
+          {/* A searched instance carries no region: the search response reports the private
+              address and the scan version, nothing else about where it sits. */}
+          {grouped || isManualEc2 ? null : region}
         </td>
 
         {/* 시스템 분류는 조용한 사실 티어 — 행동을 막는 설치 불가만 주황 + 안내
@@ -429,7 +451,29 @@ export const CandidateResourceRow = ({
 
         {showCheckboxColumn && (
           <td className={idcStyles.table.approvalCell} onClick={(event) => event.stopPropagation()}>
-            {!isSelected && exclusionReason ? (
+            {isManualEc2 ? (
+              // 사용자가 직접 담은 행이라 제외 사유를 물을 자리가 아니다 — 고치거나 뺀다.
+              <span className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                <button
+                  type="button"
+                  aria-label="접속 정보 수정"
+                  title="접속 정보 수정"
+                  onClick={() => actions.editManualEc2(candidate.id)}
+                  className={ec2Styles.rowAction}
+                >
+                  <EditIcon className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="연동 대상에서 삭제"
+                  title="연동 대상에서 삭제"
+                  onClick={() => actions.deleteManualEc2(candidate.id)}
+                  className={ec2Styles.rowActionDelete}
+                >
+                  <DeleteIcon className="h-4 w-4" />
+                </button>
+              </span>
+            ) : !isSelected && exclusionReason ? (
               <button
                 type="button"
                 aria-label="제외 사유 수정"

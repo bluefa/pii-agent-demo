@@ -8,8 +8,8 @@ import type {
 } from '@/lib/types';
 import type { RdsInstanceCandidate } from '@/lib/rds-instances';
 
-export type CandidateConfigKind = 'none' | 'credential' | 'endpoint' | 'rdsInstance';
-export type CandidateBehaviorKey = 'default' | 'credential' | 'endpoint' | 'rdsInstance';
+export type CandidateConfigKind = 'none' | 'credential' | 'endpoint' | 'rdsInstance' | 'manualEc2';
+export type CandidateBehaviorKey = 'default' | 'credential' | 'endpoint' | 'rdsInstance' | 'manualEc2';
 
 export type EndpointConfigDraft = VmDatabaseConfig;
 
