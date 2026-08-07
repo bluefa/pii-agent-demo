@@ -470,6 +470,19 @@ export const CandidateResourceSection = ({
                       onRegionChange={handleRegionChange}
                       dbTypeOptions={table.dbTypeOptions}
                       regionOptions={table.regionOptions}
+                      // EC2는 스캔이 DB로 판정하지 못하는 호스트라 후보 목록에 없을 수
+                      // 있다 — 직접 찾아 담는 입구는 결과 테이블에 최대한 붙여, 필터
+                      // 왼쪽의 컴팩트 액션으로 둔다.
+                      actions={showEc2Add ? (
+                        <button
+                          type="button"
+                          onClick={() => setEc2AddOpen(true)}
+                          className={idcStyles.triggerBtn.ghostSm}
+                        >
+                          <PlusIcon className="h-3 w-3" />
+                          EC2 추가
+                        </button>
+                      ) : undefined}
                     />
                     <CandidateResourceTable
                       candidates={visibleCandidates}
@@ -521,32 +534,18 @@ export const CandidateResourceSection = ({
               {/* Step 2·3 헤더 문법: 단계 태그 → 고정 제목 → 안내 문장. 스캔 컨트롤은
                   헤더가 아니라 스트립/히어로가 소유한다 — 목록이 있을 때 이 카드의
                   primary CTA는 하단 승인 요청 하나뿐이고, 스캔은 보조 밴드로 물러난다. */}
-              <header className={cn(cardStyles.header, showEc2Add && 'flex items-start justify-between gap-4')}>
-                <div>
-                  <span className={cardStyles.stepTag}>1번째 단계</span>
-                  <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
-                  {/* 2호흡: 스캔→선택 / 사유→승인. 강조는 사용자가 직접 해야 하는
-                      행동 두 가지(선택·사유 입력)만 파랑 — 승인은 시스템 몫이라 평문.
-                      break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
-                  <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
-                    인프라 스캔으로 {provider} 계정의 리소스를 조회하고,{' '}
-                    <span className={primaryColors.text}>연동할 리소스를 선택</span>해요. 제외하는
-                    리소스에는 <span className={primaryColors.text}>사유가 필요</span>하고, 결과는
-                    관리자 승인을 거쳐 확정돼요.
-                  </p>
-                </div>
-                {/* EC2는 스캔이 DB로 판정하지 못하는 호스트라 후보 목록에 없을 수 있다 —
-                    직접 찾아 담는 입구는 IDC "연동 대상 추가"와 같은 자리·같은 문법으로. */}
-                {showEc2Add && (
-                  <button
-                    type="button"
-                    onClick={() => setEc2AddOpen(true)}
-                    className={cn(idcStyles.triggerBtn.soft, 'shrink-0')}
-                  >
-                    <PlusIcon className="h-3.5 w-3.5" />
-                    EC2 인스턴스 추가
-                  </button>
-                )}
+              <header className={cardStyles.header}>
+                <span className={cardStyles.stepTag}>1번째 단계</span>
+                <h2 className={cn(cardStyles.cardTitle)}>연동 대상 DB 선택</h2>
+                {/* 2호흡: 스캔→선택 / 사유→승인. 강조는 사용자가 직접 해야 하는
+                    행동 두 가지(선택·사유 입력)만 파랑 — 승인은 시스템 몫이라 평문.
+                    break-keep: 음절 고아("요."만 다음 줄) 방지, 단어 단위로 감는다. */}
+                <p className={cn('mt-2.5 break-keep', cardStyles.guidance)}>
+                  인프라 스캔으로 {provider} 계정의 리소스를 조회하고,{' '}
+                  <span className={primaryColors.text}>연동할 리소스를 선택</span>해요. 제외하는
+                  리소스에는 <span className={primaryColors.text}>사유가 필요</span>하고, 결과는
+                  관리자 승인을 거쳐 확정돼요.
+                </p>
               </header>
 
               <div className={cardStyles.body}>

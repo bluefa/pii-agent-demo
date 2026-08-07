@@ -23,6 +23,8 @@ interface WaitingApprovalToolbarProps {
   /** What the search box actually matches. IDC rows have no scan-assigned name/id pair — they
    *  are identified by host — so the placeholder must not promise a field the table never shows. */
   searchPlaceholder?: string;
+  /** Table-scoped action docked right, left of the filter (e.g. Step-1's EC2 추가). */
+  actions?: ReactNode;
 }
 
 /**
@@ -36,12 +38,14 @@ export const TableToolbar = ({
   searchPlaceholder,
   searchLabel,
   groups,
+  actions,
 }: {
   searchValue: string;
   onSearchChange: (next: string) => void;
   searchPlaceholder?: string;
   searchLabel?: string;
   groups: ReadonlyArray<FilterGroup>;
+  actions?: ReactNode;
 }) => (
   // .table-toolbar — #F7F8FA surface, radius 12 12 0 0 (attached to table top),
   // 14/16 padding, gap 10, no bottom border (v15 lines 2583–2591).
@@ -52,8 +56,11 @@ export const TableToolbar = ({
       placeholder={searchPlaceholder}
       label={searchLabel}
     />
+    {/* ml-auto here so the action rides the same right-pinned group as the filter,
+        which then needs no auto margin of its own when actions are present. */}
+    {actions != null && <div className="ml-auto flex items-center gap-[6px]">{actions}</div>}
     {/* One filter icon instead of a row of selects — the conditions show only once opened. */}
-    <FilterMenu groups={groups} />
+    <FilterMenu groups={groups} pinRight={actions == null} />
   </div>
 );
 
@@ -62,6 +69,7 @@ export const WaitingApprovalToolbar = (props: WaitingApprovalToolbarProps) => (
     searchValue={props.searchValue}
     onSearchChange={props.onSearchChange}
     searchPlaceholder={props.searchPlaceholder}
+    actions={props.actions}
     groups={[
       {
         key: 'dbType',
@@ -91,7 +99,13 @@ export interface FilterGroup {
 
 // Filter trigger + popover. The trigger stays tinted while any condition is set, so the state
 // survives the popover being closed.
-const FilterMenu = ({ groups: allGroups }: { groups: ReadonlyArray<FilterGroup> }) => {
+const FilterMenu = ({
+  groups: allGroups,
+  pinRight = true,
+}: {
+  groups: ReadonlyArray<FilterGroup>;
+  pinRight?: boolean;
+}) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   // A group with nothing to choose from is dropped rather than rendered as a lone 전체 — IDC rows
@@ -118,7 +132,7 @@ const FilterMenu = ({ groups: allGroups }: { groups: ReadonlyArray<FilterGroup> 
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative ml-auto">
+    <div ref={rootRef} className={cn('relative', pinRight && 'ml-auto')}>
       {/* Icon only — no chip, no border. Turns primary blue while a condition is active. */}
       <button
         type="button"
