@@ -11,9 +11,7 @@
 import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import Link from 'next/link';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { passRoutes } from '@/lib/routes';
-import { fmtDateTime } from '@/lib/pipeline/format';
 import { getOpsTargetSources, type OpsTargetSourceListItem } from '@/app/lib/api/ops';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
@@ -29,15 +27,14 @@ import type { CloudProvider } from '@/lib/types';
 const PAGE_SIZE = 10;
 const DEBOUNCE_MS = 300;
 
-const dbTag =
-  'inline-flex items-center rounded px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-info-bg)] text-[var(--pl-info-text)] whitespace-nowrap';
-
 const card =
   'group relative flex items-start gap-3.5 rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-[21px] py-[19px] cursor-pointer transition-colors hover:bg-[var(--pl-gray-50)]';
 
 /** The operator's key — mono so ids of different lengths still line up down the list. */
 const idText =
   'text-[16px] font-bold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] transition-colors group-hover:text-[var(--pl-primary)]';
+/** The sigil is punctuation, not part of the number — it steps back and takes a gap. */
+const idHash = 'mr-0.5 font-normal text-[var(--pl-text-weak)] group-hover:text-[var(--pl-primary)]';
 
 const metaLabel = 'text-[12px] text-[var(--pl-text-weak)]';
 const metaValue = 'text-[14px] text-[var(--pl-text-medium)]';
@@ -167,7 +164,10 @@ export function TargetSourceListView(): ReactElement {
 
                     <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={idText}>#{row.target_source_id}</span>
+                        <span className={idText}>
+                          <span className={idHash}>#</span>
+                          {row.target_source_id}
+                        </span>
                         <ProvTag provider={row.cloud_provider} isSdu={row.is_sdu_type} />
                         <StepPill status={row.process_status} />
                       </div>
@@ -188,18 +188,6 @@ export function TargetSourceListView(): ReactElement {
                             </span>
                           </MetaPair>
                         )}
-                        {row.database_type && (
-                          <MetaPair label="DB">
-                            <span className={dbTag}>
-                              {getDatabaseShortLabel(row.database_type)}
-                            </span>
-                          </MetaPair>
-                        )}
-                        <MetaPair label="마지막 변경">
-                          <span className={cn(metaValue, 'tabular-nums')}>
-                            {fmtDateTime(row.last_changed_at)}
-                          </span>
-                        </MetaPair>
                       </div>
 
                       {row.description && (
