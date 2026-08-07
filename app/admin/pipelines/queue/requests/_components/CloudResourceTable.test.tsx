@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 import { CloudResourceTable } from '@/app/admin/pipelines/queue/requests/_components/CloudResourceTable';
@@ -75,6 +75,34 @@ describe('CloudResourceTable', () => {
   // The admin queue reviews a submitted request, so it has to show which member instance the
   // requester chose — the same three affordances steps 1·2·3 show.
   describe('RDS cluster rows', () => {
+    // The tag is a statement about the RESOURCE, not about the payload: a request submitted
+    // before the candidates field existed is still a cluster. Mock requests 1907's rows are
+    // exactly this shape.
+    it('tags a cluster whose request carried no candidates, with no instance rows', () => {
+      render(
+        <CloudResourceTable
+          rows={[clusterRow({ rdsInstanceCandidates: [], selectedRdsInstanceResourceId: null })]}
+        />,
+      );
+      expect(screen.getByText('RDS Cluster')).toBeTruthy();
+      expect(instanceNames()).toHaveLength(0);
+      expect(screen.queryByText('Instance')).toBeNull();
+      // Nothing to fold, so no control offered.
+      expect(screen.queryByRole('button', { name: /인스턴스 목록/ })).toBeNull();
+    });
+
+    // item 3: the rail hangs off the chevron, so the fold and the rail arrive together.
+    it('starts expanded and collapses from the chevron', () => {
+      render(<CloudResourceTable rows={[clusterRow()]} />);
+      expect(instanceNames()).toHaveLength(3);
+
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
+      expect(instanceNames()).toHaveLength(0);
+      // The cluster itself is still there, still tagged.
+      expect(screen.getByText('demo-cluster')).toBeTruthy();
+      expect(screen.getByText('RDS Cluster')).toBeTruthy();
+    });
+
     it('tags the cluster row above its name', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
       const nameCell = screen.getByText('RDS Cluster').closest('td');

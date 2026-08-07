@@ -675,12 +675,18 @@ export const WaitingApprovalTable = memo(
                 cluster answers for (id, verdict, reason) stays on the parent row. */}
             {instancesOpen &&
               instances.map((instance, index) => (
-                <tr key={instance.resource_id} className={cn(ROW_BASE, ROW_TARGET)}>
+                // The instances inherit their cluster's tier: an excluded cluster is not
+                // being installed, so its members are not either, and leaving them at full
+                // contrast made a dimmed parent read as a rendering fault.
+                <tr
+                  key={instance.resource_id}
+                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
+                >
                   <td
                     className={cn(
                       idcStyles.table.approvalCell,
                       'font-mono text-[14px]',
-                      textColors.primary,
+                      excluded ? DIM_TEXT : textColors.primary,
                       idcStyles.table.group.childCell,
                       index === instances.length - 1 && idcStyles.table.group.childCellLast,
                     )}
@@ -694,10 +700,22 @@ export const WaitingApprovalTable = memo(
                     </span>
                   </td>
                   <td className={idcStyles.table.approvalCell} />
-                  <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary)}>
+                  <td
+                    className={cn(
+                      idcStyles.table.approvalCell,
+                      'text-[12px]',
+                      excluded ? DIM_TEXT : textColors.secondary,
+                    )}
+                  >
                     Instance
                   </td>
-                  <td className={cn(idcStyles.table.approvalCell, monoCell, textColors.secondary)}>
+                  <td
+                    className={cn(
+                      idcStyles.table.approvalCell,
+                      monoCell,
+                      excluded ? DIM_TEXT : textColors.secondary,
+                    )}
+                  >
                     {instance.availability_zone ?? ''}
                   </td>
                   <td className={idcStyles.table.approvalCell} />

@@ -57,26 +57,31 @@ const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalRe
 
 const toExcludedRow = (
   item: ApprovedIntegrationExcludedResourceItem,
-): WaitingApprovalResource => ({
-  resourceId: item.resource_id ?? '',
-  // Same contract shape as a selected row — the split that produces these items reads
-  // `ApprovedIntegrationResponseDto.resources`, so both halves are TargetSourceResourceItemDto:
-  // `resource_type` is top-level and region/database_type live under metadata. The legacy
-  // top-level `database_type` / `database_region` remain as the fallback because older
-  // snapshots (and the IDC mock) still carry them there.
-  resourceType: item.resource_type ?? item.database_type ?? '',
-  region: item.metadata?.region ?? item.database_region ?? '',
-  displayDbType: item.metadata?.database_type ?? item.database_type ?? undefined,
-  resourceName: item.resource_name ?? '',
-  selected: false,
-  exclusionReason: item.exclusion_reason ?? undefined,
-  integrationCategory: item.integration_category ?? undefined,
-  recommendFailReason: item.recommend_fail_reason ?? undefined,
-  declaredResourceType: item.resource_type ?? undefined,
-  // An excluded cluster still lists what it contains — that list is the evidence for the
-  // exclusion. No instance is marked, because none was chosen.
-  ...readRdsInstanceMetadata(item.metadata, item.resource_type),
-});
+): WaitingApprovalResource => {
+  // Only the member list, never the choice: nothing was chosen for a row that is not being
+  // installed, so a wire that echoed a selection anyway must not raise a 선택됨 chip here.
+  // Dropped explicitly rather than assumed absent.
+  const { rdsInstanceCandidates } = readRdsInstanceMetadata(item.metadata, item.resource_type);
+  return {
+    resourceId: item.resource_id ?? '',
+    // Same contract shape as a selected row — the split that produces these items reads
+    // `ApprovedIntegrationResponseDto.resources`, so both halves are TargetSourceResourceItemDto:
+    // `resource_type` is top-level and region/database_type live under metadata. The legacy
+    // top-level `database_type` / `database_region` remain as the fallback because older
+    // snapshots (and the IDC mock) still carry them there.
+    resourceType: item.resource_type ?? item.database_type ?? '',
+    region: item.metadata?.region ?? item.database_region ?? '',
+    displayDbType: item.metadata?.database_type ?? item.database_type ?? undefined,
+    resourceName: item.resource_name ?? '',
+    selected: false,
+    exclusionReason: item.exclusion_reason ?? undefined,
+    integrationCategory: item.integration_category ?? undefined,
+    recommendFailReason: item.recommend_fail_reason ?? undefined,
+    declaredResourceType: item.resource_type ?? undefined,
+    // The list is the evidence for the exclusion, so it stays.
+    ...(rdsInstanceCandidates ? { rdsInstanceCandidates } : {}),
+  };
+};
 
 interface ApplyingView {
   resources: WaitingApprovalResource[];

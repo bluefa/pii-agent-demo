@@ -91,6 +91,11 @@ export const catalogToCandidates = (
 ): CandidateResource[] =>
   catalog.map((item) => {
     const endpointConfig = toEndpointConfigDraft(item);
+    // The TYPE decides, not the presence of the array — same gate as `pickBehaviorKey` above
+    // and as `readRdsInstanceMetadata` on the approval surfaces. A sibling type that also
+    // ships members must not reach the candidate (and from there the payload) carrying the
+    // cluster fields, which `CandidateResource` documents as cluster-only.
+    const isCluster = isRdsCluster(item.resourceType);
     return {
       id: item.id,
       resourceId: item.resourceId,
@@ -103,8 +108,12 @@ export const catalogToCandidates = (
       exclusionReason: item.exclusionReason,
       recommendFailReason: item.recommendFailReason,
       ...(endpointConfig ? { endpointConfig } : {}),
-      ...(item.rdsInstanceCandidates.length > 0 ? { rdsInstanceCandidates: item.rdsInstanceCandidates } : {}),
-      ...(item.selectedRdsInstanceResourceId ? { selectedRdsInstanceResourceId: item.selectedRdsInstanceResourceId } : {}),
+      ...(isCluster && item.rdsInstanceCandidates.length > 0
+        ? { rdsInstanceCandidates: item.rdsInstanceCandidates }
+        : {}),
+      ...(isCluster && item.selectedRdsInstanceResourceId
+        ? { selectedRdsInstanceResourceId: item.selectedRdsInstanceResourceId }
+        : {}),
       ...(item.scanStatus ? { scanStatus: item.scanStatus } : {}),
       metadata: item.metadata,
     };

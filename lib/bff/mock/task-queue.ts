@@ -325,6 +325,10 @@ interface ApprovalDemo {
   resources: ApprovalDemoResource[];
 }
 
+/** 2113 요청의 Aurora 멤버 인스턴스 ARN 공통 앞부분. */
+const PAY_AURORA_INSTANCE_ARN_BASE =
+  'arn:aws:rds:ap-northeast-2:558712049371:db:aurora-pay-prod';
+
 const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
   [1031, {
     ts: 1031, status: 'PENDING', requested_by: 'jun.park', requested_at: '2026-07-19T16:08:00Z',
@@ -347,8 +351,20 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
     ts: 2113, status: 'PENDING', requested_by: 'mina.choi', requested_at: '2026-07-20T18:09:00Z',
     processed_at: null, processed_by: null, reason: null,
     resources: [
+      // 큐에서 인스턴스 목록이 실제로 그려지는 유일한 요청. wire 순서를 일부러
+      // 어긋나게(Writer 먼저, Reader 는 -3 → -2) 두어 화면의 Reader 우선 정렬이
+      // 눈에 보이게 하고, 선택은 Reader(-2)를 가리켜 '선택됨' 칩을 검증한다.
+      // 1907 의 클러스터 행들은 candidates 없이 남겨 태그만 뜨는 상태를 데모한다.
       { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:cluster:aurora-pay-prod', resource_name: 'aurora-pay-prod', resource_type: 'RDS_CLUSTER', selected: true,
-        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
+        metadata: {
+          provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL',
+          rds_instance_candidates: [
+            { resource_id: `${PAY_AURORA_INSTANCE_ARN_BASE}-1`, resource_name: 'aurora-pay-prod-1', host: 'aurora-pay-prod-1.cluster-c9x2plq7.ap-northeast-2.rds.amazonaws.com', port: 3306, availability_zone: 'ap-northeast-2a', cluster_member_role: 'WRITER' },
+            { resource_id: `${PAY_AURORA_INSTANCE_ARN_BASE}-3`, resource_name: 'aurora-pay-prod-3', host: 'aurora-pay-prod-3.cluster-ro-c9x2plq7.ap-northeast-2.rds.amazonaws.com', port: 3306, availability_zone: 'ap-northeast-2c', cluster_member_role: 'READER' },
+            { resource_id: `${PAY_AURORA_INSTANCE_ARN_BASE}-2`, resource_name: 'aurora-pay-prod-2', host: 'aurora-pay-prod-2.cluster-ro-c9x2plq7.ap-northeast-2.rds.amazonaws.com', port: 3306, availability_zone: 'ap-northeast-2b', cluster_member_role: 'READER' },
+          ],
+          selected_rds_instance_resource_id: `${PAY_AURORA_INSTANCE_ARN_BASE}-2`,
+        } },
       { resource_id: 'arn:aws:redshift:ap-northeast-2:558712049371:cluster:pay-redshift-main', resource_name: 'pay-redshift-main', resource_type: 'REDSHIFT', selected: true,
         metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'Redshift' } },
       { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:db-proxy:prx-pay', resource_name: 'pay-rds-proxy', resource_type: 'RDS', selected: false,

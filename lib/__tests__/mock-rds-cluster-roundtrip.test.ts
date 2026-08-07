@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mockConfirm, _resetApprovedIntegrationStore } from '@/lib/bff/mock/confirm';
 import { toRequestResourceRow } from '@/app/lib/api/task-queue-requests';
+import { getTqApprovalLatest } from '@/lib/bff/mock/task-queue';
 import { setCurrentUser } from '@/lib/mock-data';
 import { getStore } from '@/lib/mock-store';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
@@ -222,5 +223,43 @@ describe('RDS cluster metadata round trip (step 1 → steps 2·3)', () => {
 
     expect(adminRow.rdsInstanceCandidates).toEqual([]);
     expect(adminRow.selectedRdsInstanceResourceId).toBeNull();
+  });
+});
+
+// The admin queue's demo targets are NOT store projects — they come from a separate seed
+// (SEED_APPROVAL_DEMO), so the step-1 POST flow above never reaches them. Without a seeded
+// cluster there, the queue's instance rows are unreachable in the demo.
+describe('admin queue demo seed (TS_INDEX-reachable requests)', () => {
+  it('serves request 2113 with a cluster the queue can expand', () => {
+    const wire = getTqApprovalLatest(2113);
+    const resources = (wire?.resources ?? []) as Record<string, unknown>[];
+    const cluster = resources.find((r) => r.resource_name === 'aurora-pay-prod');
+    const row = toRequestResourceRow(cluster as Parameters<typeof toRequestResourceRow>[0]);
+
+    expect(row.resourceType).toBe('RDS_CLUSTER');
+    expect(row.rdsInstanceCandidates).toHaveLength(3);
+    // The choice points at a Reader, and at one the cluster actually has.
+    expect(row.selectedRdsInstanceResourceId).toBeTruthy();
+    const chosen = row.rdsInstanceCandidates.find(
+      (c) => c.resource_id === row.selectedRdsInstanceResourceId,
+    );
+    expect(chosen?.cluster_member_role).toBe('READER');
+    // Wire order is deliberately unsorted so the Reader-first display order is visible.
+    expect(row.rdsInstanceCandidates[0].cluster_member_role).toBe('WRITER');
+  });
+
+  // Kept candidate-less on purpose: this is the tag-only state (a cluster whose request
+  // predates the candidates field), which the queue must still tag.
+  it('leaves request 1907 clusters candidate-less, typed as clusters', () => {
+    const wire = getTqApprovalLatest(1907);
+    const resources = (wire?.resources ?? []) as Record<string, unknown>[];
+    const rows = resources
+      .map((r) => toRequestResourceRow(r as Parameters<typeof toRequestResourceRow>[0]))
+      .filter((r) => r.resourceType === 'RDS_CLUSTER');
+
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.rdsInstanceCandidates).toEqual([]);
+    }
   });
 });

@@ -520,6 +520,32 @@ describe('WaitingApprovalTable', () => {
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
     });
 
+    // The children inherit the parent's tier: full-contrast instances under a dimmed cluster
+    // read as a rendering fault, and the queue table already dimmed them.
+    it('dims an excluded cluster’s instance rows to match the parent', () => {
+      render(
+        <WaitingApprovalTable
+          resources={[cluster({ selected: false, selectedRdsInstanceResourceId: undefined })]}
+        />,
+      );
+      const instanceRow = screen
+        .getAllByRole('row')
+        .find((r) => r.textContent?.includes('demo-2') && !r.textContent.includes('demo-cluster'));
+      const cells = instanceRow!.querySelectorAll('td');
+      // Name, kind and AZ all rest on the dim tier.
+      expect(cells[0].className).toContain(DIM_TEXT);
+      expect(cells[2].className).toContain(DIM_TEXT);
+      expect(cells[3].className).toContain(DIM_TEXT);
+    });
+
+    it('keeps a selected cluster’s instance rows at full contrast', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      const instanceRow = screen
+        .getAllByRole('row')
+        .find((r) => r.textContent?.includes('demo-2') && !r.textContent.includes('demo-cluster'));
+      expect(instanceRow!.querySelectorAll('td')[0].className).not.toContain(DIM_TEXT);
+    });
+
     // An excluded cluster chose nothing, so nothing is marked; the list is still the evidence.
     it('lists an excluded cluster’s instances with no 선택됨 chip', () => {
       render(
