@@ -5,7 +5,7 @@
  * the main content, time fields pinned to the card floor. Pure view: polling,
  * run-scan and diff derivation live in ScanTab.
  */
-import { useEffect, useState, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { cn, pipelineStyles, scanTransition } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
 import type { ScanCompletionStage } from '@/app/hooks/useScanCompletionTransition';
@@ -36,43 +36,61 @@ const fmtPercent = (progress: number | null | undefined): number => {
   return Math.min(100, Math.max(0, Math.round(progress)));
 };
 
-/** 총계가 최종값까지 차오르는 시간 — 결과가 정착하는 한 박자. */
-const COUNT_UP_MS = 600;
-
-/** matchMedia 가 없는 실행 환경(테스트·구형 런타임)에서는 모션을 켜지 않는다. */
-const prefersReducedMotion = (): boolean =>
-  typeof window !== 'undefined'
-  && typeof window.matchMedia === 'function'
-  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 /**
- * 방금 끝난 스캔의 총계만 차오른다. 이미 서 있던 결과(탭 재진입·다른 잡)는
- * 즉시 최종값이다 — 반복 운영 화면에서 볼 때마다 숫자가 구르면 피로가 된다.
- * 동작 줄이기에서는 애니메이션 자체가 없다.
+ * 결과 자리의 한 박자 — 스캔이 도는 동안은 휠, 끝난 직후 1.2초는 체크가 선다.
+ * 사용자 플로우의 히어로와 같은 문법(틴트 타일 · 트랙 위 아크 · 같은 체크
+ * 드로우)을 admin 스케일(40px)로 줄인 것이고, 색은 이 화면의 --pl-* 토큰만
+ * 쓴다 — 두 화면은 팔레트가 다르므로 컴포넌트가 아니라 문법을 공유한다.
  *
- * 중간값은 "어느 목표를 향해 구르는 중인지"까지 들고 있다 — 그래야 애니메이션이
- * 돌지 않는 모든 경우(비활성·동작 줄이기·목표 변경)에 최종값을 그대로 파생할 수
- * 있고, 상태를 되돌리는 effect 가 필요 없다.
+ * 새 지표를 더하는 게 아니라, 집계 전까지 비어 있던 자리를 채운다.
  */
-const useCountUp = (target: number, enabled: boolean): number => {
-  const [rolling, setRolling] = useState<{ target: number; value: number } | null>(null);
-
-  useEffect(() => {
-    if (!enabled || prefersReducedMotion()) return;
-    let frame = 0;
-    const start = performance.now();
-    const tick = (now: number): void => {
-      const progress = Math.min(1, (now - start) / COUNT_UP_MS);
-      // ease-out cubic — 마지막 자리에서 천천히 멈춘다.
-      setRolling({ target, value: Math.round(target * (1 - Math.pow(1 - progress, 3))) });
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [target, enabled]);
-
-  return rolling?.target === target ? rolling.value : target;
-};
+function ScanBeat({ done, caption }: { done: boolean; caption: string }): ReactElement {
+  return (
+    <div className="flex flex-col items-center justify-center py-6">
+      <div
+        className={cn(
+          'grid h-10 w-10 place-items-center rounded-[10px]',
+          done
+            ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
+            : 'bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
+        )}
+      >
+        {done ? (
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4.5 12.5l5 5 10-11" strokeDasharray={30} className={scanTransition.checkDraw} />
+          </svg>
+        ) : (
+          <div className="animate-spin motion-reduce:animate-none">
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" className="opacity-20" />
+              <path d="M12 3a9 9 0 0 1 9 9" />
+            </svg>
+          </div>
+        )}
+      </div>
+      <p className={cn(pipelineStyles.text.meta, 'mt-2.5')} aria-live="polite">
+        {caption}
+      </p>
+    </div>
+  );
+}
 
 /**
  * Resource stat tile — label (12/500 weak, mono) over number (16/500 strong).
@@ -179,9 +197,8 @@ export function RecentScanCard({
   // settling 도 여기 붙는다: 잡은 이미 SUCCESS 지만, 바가 100%에 닿는 걸 보여주는
   // 400ms 동안은 화면에 있던 진행 처리를 그대로 둔다.
   const running = scanning || finalizing || completionStage === 'settling';
-  // 방금 끝난 스캔일 때만 결과가 fade-through 로 들어오고 총계가 차오른다.
-  const revealing = completionStage === 'confirming';
-  const animatedTotal = useCountUp(latestTotal, revealing);
+  // 확인 프레임 — 결과 자리를 체크가 먼저 쓰고, 그 뒤에 타일이 들어온다.
+  const confirming = completionStage === 'confirming';
   return (
     // flex-col — mt-auto pins the time row to the card floor (no dead air when the sibling card is taller).
     <section className={cn(pipelineStyles.card.base, 'flex flex-col')} aria-label="최근 스캔">
@@ -280,18 +297,19 @@ export function RecentScanCard({
           {/* Scan results — success/in-progress only. Failure speaks through the
               error box (cause), not results. Header (16/600), one helper sentence
               (values slightly emphasized), then the tiles carry the content. */}
-          {(running || latestJob.scan_status === 'SUCCESS') && (
-            // 진행 처리가 물러난 자리로 결과가 들어온다. 클래스가 붙는 순간
-            // (running=false 로 넘어가는 프레임) 애니메이션이 시작되므로,
-            // 재마운트를 강제하는 key 없이도 전환이 한 번만 재생된다.
-            <div className={cn('mt-5', revealing && scanTransition.reveal)}>
+          {(running || confirming || latestJob.scan_status === 'SUCCESS') && (
+            <div className="mt-5">
               <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">스캔 결과</p>
               {running ? (
-                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
+                <ScanBeat done={false} caption="스캔 완료 후 집계돼요." />
+              ) : confirming ? (
+                <ScanBeat done caption="결과를 정리했어요." />
               ) : typeEntries.length === 0 ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
               ) : (
-                <>
+                // 확인 프레임이 물러난 자리로 결과가 들어온다 — 이 노드는 그때
+                // 처음 마운트되므로 입장 애니메이션이 한 번만 재생된다.
+                <div className={scanTransition.reveal}>
                   {/* One sentence — listing 'total N · +N vs previous' as fragments
                       read awkward (ops feedback). Only the total gets brand color at
                       display size; diff numbers stay ok/err. */}
@@ -313,7 +331,7 @@ export function RecentScanCard({
                     {countDiff === 0 && <>직전 스캔과 같은 </>}
                     총{' '}
                     <b className="text-[20px] font-bold tabular-nums text-[var(--pl-primary)]">
-                      {fmtCount(animatedTotal)}
+                      {fmtCount(latestTotal)}
                     </b>
                     개를 발견했어요.
                   </p>
@@ -325,7 +343,7 @@ export function RecentScanCard({
                       <ResourceTypeTile key={type} type={type} count={count} provider={provider} diff={diff} />
                     ))}
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}

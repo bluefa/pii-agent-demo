@@ -64,7 +64,7 @@ describe('ScanTab — 완료 확인 전환', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it('완료 신호를 받으면 진행 처리를 붙들었다가 결과로 넘어간다', async () => {
+  it('완료 신호를 받으면 진행 → 확인 → 결과 순으로 넘어간다', async () => {
     render(<ScanTab targetSourceId={1005} detail={detail} />);
 
     // 완료된 잡 위에 그냥 마운트한 상태 — 전환은 재생되지 않고 결과가 서 있다.
@@ -75,7 +75,7 @@ describe('ScanTab — 완료 확인 전환', () => {
     // useScanPolling 이 새 완료를 알린다.
     act(() => { capturedOnScanComplete?.(); });
 
-    // settling: 바가 100%에 닿는 걸 보여주는 400ms — 결과는 아직 자리를 비운다.
+    // settling: 바가 100%에 닿는 걸 보여주는 400ms — 결과 자리는 아직 휠이 쓴다.
     const bar = progressBar();
     expect(bar).not.toBeNull();
     expect(bar?.getAttribute('aria-valuenow')).toBe('100');
@@ -83,8 +83,15 @@ describe('ScanTab — 완료 확인 전환', () => {
 
     act(() => { vi.advanceTimersByTime(400); });
 
-    // confirming: 진행 처리가 물러나고 결과가 들어온다.
+    // confirming: 바는 물러나고 같은 자리를 체크가 1.2초 쓴다 — 타일은 아직이다.
     expect(progressBar()).toBeNull();
+    expect(screen.getByText('결과를 정리했어요.')).toBeTruthy();
+    expect(screen.queryByText(/개를 발견했어요/)).toBeNull();
+
+    act(() => { vi.advanceTimersByTime(1200); });
+
+    // 확인 프레임이 물러난 자리로 결과가 들어온다.
+    expect(screen.queryByText('결과를 정리했어요.')).toBeNull();
     expect(screen.getByText(/개를 발견했어요/)).toBeTruthy();
   });
 
