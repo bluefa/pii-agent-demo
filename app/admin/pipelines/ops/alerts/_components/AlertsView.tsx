@@ -86,9 +86,15 @@ const alertsView = {
   context: 'mt-1 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
   contextTotal: 'mx-0.5 align-baseline text-[32px] font-bold leading-none text-[var(--pl-primary)]',
   summaryRow: 'mt-6 grid grid-cols-4 gap-4',
-  /** border 는 비활성일 때도 자리를 차지해야 선택 시 타일 크기가 흔들리지 않는다. */
+  /**
+   * border 는 비활성일 때도 자리를 차지해야 선택 시 타일 크기가 흔들리지 않는다.
+   * 색은 idle/active 를 배타적으로 골라서 준다 — cn 은 단순 join 이라 같은
+   * 속성을 두 번 실으면 Tailwind 출력 순서가 승자를 정해버린다(투명이 이겼다).
+   */
   summary:
-    'flex h-[120px] flex-col items-center justify-center gap-1.5 rounded-[8px] border border-transparent bg-[var(--pl-gray-100)] transition-colors',
+    'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[8px] border bg-[var(--pl-gray-100)] transition-colors',
+  /** hover 는 idle 에만 — active 위에 얹으면 hover 가 브랜드 스트로크를 덮는다. */
+  summaryIdle: 'border-transparent hover:border-[var(--pl-gray-300)] hover:bg-[var(--pl-gray-200)]',
   summaryActive: 'border-[var(--pl-primary)]',
   summaryLabel: 'text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
   summaryValue: 'text-[40px] font-bold leading-[1.2] tracking-[-0.02em] tabular-nums text-[var(--pl-text-strong)]',
@@ -148,7 +154,10 @@ export function AlertsView(): ReactElement {
             type="button"
             aria-pressed={selected === card.kind}
             onClick={() => setSelected((prev) => (prev === card.kind ? null : card.kind))}
-            className={cn(alertsView.summary, selected === card.kind && alertsView.summaryActive)}
+            className={cn(
+              alertsView.summary,
+              selected === card.kind ? alertsView.summaryActive : alertsView.summaryIdle,
+            )}
           >
             <span className={alertsView.summaryLabel}>{card.label}</span>
             <span className={alertsView.summaryValue}>{card.count(counts) ?? 0}</span>
