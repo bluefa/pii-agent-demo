@@ -64,9 +64,17 @@ const identityOf = (project: ProjectSummary): RowIdentity => {
 export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProps) => {
   const identity = identityOf(project);
   // 설치 모드 is AWS-only — Terraform 실행 권한은 AWS 계정에만 존재하는 개념이라
-  // 다른 CSP 행에 칩을 달면 없는 선택지를 있는 것처럼 보이게 한다.
-  const showInstallMode = project.cloudProvider === 'AWS' && !project.isSduType;
-  const showTenant = project.cloudProvider === 'Azure' && Boolean(project.tenantId);
+  // 다른 CSP 행에 칩을 달면 없는 선택지를 있는 것처럼 보이게 한다. 값이 아예 없으면
+  // 칩도 없다: 없는 값을 "수동 설치"로 적으면 화면이 계약에 없는 주장을 하게 된다.
+  const showInstallMode =
+    project.cloudProvider === 'AWS'
+    && !project.isSduType
+    && project.isTerraformExecutionGranted !== undefined;
+  // SDU 행은 밑에 깔린 CSP 를 숨기는 것이 규칙이다 — 제목이 "SDU"인데 Azure Tenant 가
+  // 붙어 있으면 그 규칙이 이 한 줄에서만 깨진다.
+  const showTenant =
+    project.cloudProvider === 'Azure' && !project.isSduType && Boolean(project.tenantId);
+  const showChinaRegion = project.isChinaRegion && !project.isSduType;
   const hasSecondLayer =
     showTenant || showInstallMode || Boolean(identity.gloss) || Boolean(identity.secondValue);
 
@@ -104,9 +112,15 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
           >
             {identity.name}
           </span>
-          {identity.kind && <KindWord>{identity.kind}</KindWord>}
-          {identity.value && <IdValue>{identity.value}</IdValue>}
-          {project.isChinaRegion && (
+          {/* The kind word names the id that follows it, so with no id it names
+              nothing — a provider whose account is missing shows its name alone. */}
+          {identity.kind && identity.value && (
+            <>
+              <KindWord>{identity.kind}</KindWord>
+              <IdValue>{identity.value}</IdValue>
+            </>
+          )}
+          {showChinaRegion && (
             <span
               className={cn(
                 chipStyles.base,

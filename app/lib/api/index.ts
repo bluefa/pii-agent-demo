@@ -98,8 +98,11 @@ const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
     tenantId: metadata?.tenant_id ?? undefined,
     gcpProjectId: metadata?.gcp_project_id ?? undefined,
     isChinaRegion: metadata?.is_china_region === true,
+    // Tri-state on purpose: TargetSourceMetadata is .partial(), so the key can be
+    // absent, and `=== true` would turn "we were not told" into "수동 설치" — an
+    // assertion the wire never made, and one the detail page leaves blank.
     isTerraformExecutionGranted:
-      metadata?.grant_service_terraform_execution_permission === true,
+      metadata?.grant_service_terraform_execution_permission ?? undefined,
     resourceCount: 0,
     hasDisconnected: false,
     hasNew: false,

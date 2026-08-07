@@ -198,20 +198,30 @@ export const ServiceManagementView = () => {
   );
 
   const handleManageAction = useCallback(
+    // A switch, not an if-chain ending in `else → delete`: a fourth action added to
+    // InfraRowAction would otherwise fall silently into "삭제 미구현" with no type error.
     (action: InfraRowAction, targetSourceId: number) => {
-      if (action === 'view') {
-        router.push(passRoutes.targetSource(targetSourceId));
-        return;
+      switch (action) {
+        case 'view':
+          router.push(passRoutes.targetSource(targetSourceId));
+          return;
+        case 'copyId':
+          // Support asks for this id; the owner never needs to read it off the screen.
+          // The whole call is inside try/catch: on an insecure origin `navigator
+          // .clipboard` is undefined, and that throws synchronously — a .catch() on
+          // the promise never sees it, so the click would give no feedback at all.
+          void (async () => {
+            try {
+              await navigator.clipboard.writeText(String(targetSourceId));
+              toast.success(`Target Source ID ${targetSourceId} 복사됨`);
+            } catch {
+              toast.error('클립보드 복사 실패');
+            }
+          })();
+          return;
+        case 'delete':
+          toast.info('삭제 미구현');
       }
-      if (action === 'copyId') {
-        // Support asks for this id; the owner never needs to read it off the screen.
-        void navigator.clipboard
-          .writeText(String(targetSourceId))
-          .then(() => toast.success(`Target Source ID ${targetSourceId} 복사됨`))
-          .catch(() => toast.error('클립보드 복사 실패'));
-        return;
-      }
-      toast.info('삭제 미구현');
     },
     [router, toast],
   );
