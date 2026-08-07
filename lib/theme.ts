@@ -299,6 +299,12 @@ export const buttonStyles = {
     warnOutline: 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100',
     /** v15 danger-outline — soft red fill, no border (#FEF2F2 / #991B1B / 600). */
     dangerOutline: 'bg-[#FEF2F2] text-[#991B1B] font-semibold border-0 hover:bg-[#FEE2E2]',
+    /**
+     * Ink CTA — for a page where blue is already load-bearing elsewhere (rail selection,
+     * per-row detail links). A blue button on such a page reads as more background blue;
+     * ink is the only value on screen that nothing else is using.
+     */
+    ink: 'bg-[#191F28] text-white hover:bg-[#333D4B] shadow-sm hover:shadow',
   },
   sizes: {
     /** v15 .btn.sm — radius 10, h32, 13px. */
@@ -1086,12 +1092,13 @@ export const idcStyles = {
 } as const;
 
 /**
- * "관리" split 버튼 — primary 색상 CSS 변수 경유 (--color-primary)
+ * 행 우측 ⋮ 드롭다운 — 버튼 크롬 없이 흩뿌린 kebab 이 여는 패널.
+ * 행마다 반복되는 보조 동작이라 chrome 은 패널에만 있고 트리거에는 없다.
  */
-export const mgmtGroupStyles = {
-  primary: 'bg-[var(--color-primary)] text-white rounded-l-md',
-  more: 'bg-[var(--color-primary)] text-white rounded-r-md border-l border-white/20',
-  menu: 'absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[160px]',
+export const rowMenuStyles = {
+  panel:
+    'absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-lg border border-gray-200 bg-white p-1 shadow-lg',
+  item: 'block w-full rounded-md px-3 py-2 text-left text-[12px] font-medium',
 } as const;
 
 /**
@@ -1328,7 +1335,7 @@ export const motion = {
  * pipelines/**) must carry no raw color classes (repo hard gate). Every color
  * references a `--pl-*` custom property declared in app/globals.css via Tailwind
  * v4 arbitrary-var syntax `…-[var(--pl-*)]` (the form this setup compiles — see
- * existing `mgmtGroupStyles`/`identityBarStyles`). Sizes/letter-spacing/line-
+ * existing `identityBarStyles`). Sizes/letter-spacing/line-
  * heights are copied VERBATIM from design-inventory §4/§5 (do NOT snap to the
  * spacing ladder). SSOT: design/pipeline/admin-pipeline.html.
  *
@@ -1463,15 +1470,6 @@ const PIPELINE_PILL_ICON: Record<PipelineStatusToneKey, string> = {
   FAILED: 'x-circle',
   CANCELLED: 'ban',
   BLOCKED: 'ban',
-};
-
-/** Provider dot fill per lowercased provider key. */
-const PIPELINE_PROVIDER_DOT: Record<string, string> = {
-  aws: 'bg-[var(--pl-pv-aws)]',
-  azure: 'bg-[var(--pl-pv-azure)]',
-  gcp: 'bg-[var(--pl-pv-gcp)]',
-  idc: 'bg-[var(--pl-pv-idc)]',
-  sdu: 'bg-[var(--pl-pv-sdu)]',
 };
 
 /** Shared input/select chrome WITHOUT horizontal padding (callers add px so the
@@ -1619,13 +1617,14 @@ export const pipelineStyles = {
       'inline-flex items-center h-7 rounded-full border border-[var(--pl-primary-ring)] bg-[var(--pl-primary-bg)] px-3 text-[12px] font-semibold text-[var(--pl-primary)]',
   },
 
-  /** ProvTag — neutral text + 8×8 r2.5 brand dot; 12/500 medium. */
+  /** ProvTag — provider glyph + neutral text; 12/500 medium. */
   provTag: {
     base: 'inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--pl-text-medium)]',
     /** provider 가 라벨이 아니라 그 블록의 제목일 때 (Jira 타일) — 16/600. */
     baseLg: 'inline-flex items-center gap-1.5 text-[16px] font-semibold text-[var(--pl-text-strong)]',
-    dot: 'w-2 h-2 rounded-[2.5px]',
-    dotTone: PIPELINE_PROVIDER_DOT,
+    /** 글리프는 라벨의 대문자 높이에 맞춘다 — 더 키우면 표에서 글자보다 아이콘이 먼저 읽힌다. */
+    glyph: 'w-3.5 h-3.5 flex-none',
+    glyphLg: 'w-[18px] h-[18px] flex-none',
   },
 
   /** PipelineProgressBar — track 110 (160 wide), h6; fill by state; N/M 12/600 tabular.

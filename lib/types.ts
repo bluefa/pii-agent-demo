@@ -387,6 +387,15 @@ export interface ProjectSummary {
   cloudProvider: CloudProvider;
   /** SDU account — surfaced as "SDU" over the underlying CSP (metadata passthrough). */
   isSduType?: boolean;
+  // ── TargetSourceMetadata passthrough — the account identity a row is about.
+  // At most one account id is populated per provider; IDC/SDU carry none.
+  awsAccountId?: string;
+  subscriptionId?: string;
+  tenantId?: string;
+  gcpProjectId?: string;
+  isChinaRegion?: boolean;
+  /** AWS only — false means the service installs by hand (수동 설치). */
+  isTerraformExecutionGranted?: boolean;
   resourceCount: number;
   hasDisconnected: boolean;
   hasNew: boolean;

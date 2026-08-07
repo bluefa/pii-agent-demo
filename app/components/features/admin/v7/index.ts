@@ -3,9 +3,8 @@ export {
   AwsInstallModeToggle,
   type AwsInstallMode,
 } from '@/app/components/features/admin/v7/AwsInstallModeToggle';
-export { InfraRow } from '@/app/components/features/admin/v7/InfraRow';
+export { InfraRow, type InfraRowAction } from '@/app/components/features/admin/v7/InfraRow';
 export { InfraRowList } from '@/app/components/features/admin/v7/InfraRowList';
-export { InfraListToolbar } from '@/app/components/features/admin/v7/InfraListToolbar';
 export { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
 export {
   RegistrationPreviewCardList,

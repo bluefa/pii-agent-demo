@@ -1,31 +1,68 @@
 'use client';
 
 /**
- * Target Source 운영 목록 — search a Target Source and jump to its ops screen
- * (design/pipeline/admin-ops.html `renderTsSearch()`, restyled to the ops
- * grammar). Search is server-side (query param); the pager is 0-based.
+ * Target Source 운영 목록 — search a Target Source and jump to its ops screen.
+ * Cards, not table rows: the user-side 연동 대상 계정 list moved to this grammar
+ * because a row of repeated provider names carries no discriminating power, and
+ * the same is true here. The operator's key is the Target Source ID, so unlike
+ * the user side it leads the card.
+ * Search is server-side (query param); the pager is 0-based.
  */
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { passRoutes } from '@/lib/routes';
-import { fmtDateTime } from '@/lib/pipeline/format';
 import { getOpsTargetSources, type OpsTargetSourceListItem } from '@/app/lib/api/ops';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
-import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
+import { displayProvider, providerLabel } from '@/lib/pipeline/format';
+import { ProviderLogo } from '@/app/components/features/admin/v7';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
-import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import type { CloudProvider } from '@/lib/types';
 
-const PAGE_SIZE = 20;
+// A card is roughly three table rows tall, so the page holds fewer of them —
+// twenty would be a 2500px scroll before the pager came into view.
+const PAGE_SIZE = 10;
 const DEBOUNCE_MS = 300;
 
-const dbTag =
-  'inline-flex items-center rounded px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-info-bg)] text-[var(--pl-info-text)] whitespace-nowrap';
+const card =
+  'group relative flex items-start gap-3.5 rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-[21px] py-[19px] cursor-pointer transition-colors hover:bg-[var(--pl-gray-50)]';
+
+/** The operator's key — mono so ids of different lengths still line up down the list. */
+const idText =
+  'text-[16px] font-bold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] transition-colors group-hover:text-[var(--pl-primary)]';
+/** The sigil is punctuation, not part of the number — it steps back and takes a gap. */
+const idHash = 'mr-0.5 font-normal text-[var(--pl-text-weak)] group-hover:text-[var(--pl-primary)]';
+
+const metaLabel = 'text-[12px] text-[var(--pl-text-weak)]';
+const metaValue = 'text-[14px] text-[var(--pl-text-medium)]';
+
+/** Grey until the cursor is on the card — one blue link per row would out-shout the page. */
+const goLink =
+  'whitespace-nowrap text-[14px] font-semibold text-[var(--pl-text-weak)] underline-offset-[3px] transition-colors group-hover:text-[var(--pl-primary)] group-hover:underline';
+
+/** metadata → the one account identifier this provider actually has. IDC·SDU have none. */
+function accountOf(target: OpsTargetSourceListItem): { label: string; value: string } | null {
+  const { aws_account_id, subscription_id, gcp_project_id } = target.metadata;
+  if (aws_account_id) return { label: 'AWS Account', value: aws_account_id };
+  if (subscription_id) return { label: 'Azure Subscription', value: subscription_id };
+  if (gcp_project_id) return { label: 'GCP Project', value: gcp_project_id };
+  return null;
+}
+
+function MetaPair({ label, children }: { label: string; children: ReactNode }): ReactElement {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={metaLabel}>{label}</span>
+      {children}
+    </span>
+  );
+}
 
 export function TargetSourceListView(): ReactElement {
+  const router = useRouter();
   const [input, setInput] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -107,62 +144,82 @@ export function TargetSourceListView(): ReactElement {
           <p className={cn(pipelineStyles.empty.base, 'mt-2')}>검색 결과가 없습니다.</p>
         ) : (
           <>
-            <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
-              <table className={opsStyles.table.base}>
-                <thead>
-                  <tr>
-                    <th className={opsStyles.table.headCell}>ID</th>
-                    <th className={opsStyles.table.headCell}>서비스</th>
-                    <th className={opsStyles.table.headCell}>Provider</th>
-                    <th className={opsStyles.table.headCell}>DB</th>
-                    <th className={opsStyles.table.headCell}>현재 단계</th>
-                    <th className={opsStyles.table.headCell}>마지막 변경</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr
-                      key={row.target_source_id}
-                      // `relative` carries the stretched row link below.
-                      className={cn(opsStyles.table.rowHover, 'relative cursor-pointer')}
-                    >
-                      <td className={cn(opsStyles.table.cell, 'whitespace-nowrap')}>
-                        <Link
-                          href={passRoutes.pipelines.ops.targetSource(String(row.target_source_id))}
-                          aria-label={`Target Source ${row.target_source_id} 운영 화면으로 이동`}
-                          className="absolute inset-0"
-                        />
-                        <span className={pipelineStyles.table.mono}>#{row.target_source_id}</span>
-                      </td>
-                      <td className={opsStyles.table.cell}>
-                        <span className="font-medium">{row.service_name}</span>{' '}
-                        <span className={pipelineStyles.text.meta}>{row.service_code}</span>
-                      </td>
-                      <td className={opsStyles.table.cell}>
-                        <ProvTag provider={row.cloud_provider} isSdu={row.is_sdu_type} />
-                      </td>
-                      <td className={opsStyles.table.cell}>
-                        {row.database_type ? (
-                          <span className={dbTag}>{getDatabaseShortLabel(row.database_type)}</span>
-                        ) : (
-                          <span className={pipelineStyles.text.muted}>—</span>
-                        )}
-                      </td>
-                      <td className={cn(opsStyles.table.cell, 'whitespace-nowrap')}>
+            <div className="mt-3 flex flex-col gap-3.5">
+              {rows.map((row) => {
+                const account = accountOf(row);
+                return (
+                  <div
+                    key={row.target_source_id}
+                    className={card}
+                    // 카드 아무 데나 눌러도 이동한다(마우스 편의). 링크 위 클릭은 흘려보내
+                    // 이동이 두 번 일어나지 않게 한다.
+                    onClick={(event) => {
+                      if (event.target instanceof HTMLElement && event.target.closest('a')) return;
+                      router.push(passRoutes.pipelines.ops.targetSource(String(row.target_source_id)));
+                    }}
+                  >
+                    <ProviderLogo
+                      provider={row.cloud_provider as CloudProvider}
+                      isSdu={row.is_sdu_type}
+                      variant="bare"
+                      className="flex-none"
+                    />
+
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={idText}>
+                          <span className={idHash}>#</span>
+                          {row.target_source_id}
+                        </span>
+                        {/* Plain label, not ProvTag: its brand dot would be the third
+                            thing on this card saying "Azure" after the mark and the
+                            account label, and the only one saying it in colour. */}
+                        <span className="text-[14px] font-medium text-[var(--pl-text-medium)]">
+                          {providerLabel(displayProvider(row.cloud_provider, row.is_sdu_type))}
+                        </span>
                         <StepPill status={row.process_status} />
-                      </td>
-                      <td
-                        className={cn(
-                          opsStyles.table.cell,
-                          'whitespace-nowrap text-[var(--pl-text-medium)] tabular-nums',
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pl-0.5">
+                        <MetaPair label="서비스">
+                          <span className="text-[14px] font-medium text-[var(--pl-text-strong)]">
+                            {row.service_name}
+                          </span>
+                          <span className={metaLabel}>{row.service_code}</span>
+                        </MetaPair>
+                        {account && (
+                          <MetaPair label={account.label}>
+                            <span
+                              className={cn(metaValue, '[font-family:var(--pl-font-mono)]')}
+                            >
+                              {account.value}
+                            </span>
+                          </MetaPair>
                         )}
-                      >
-                        {fmtDateTime(row.last_changed_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+
+                      {row.description && (
+                        <div className="flex min-w-0 gap-1.5 pl-0.5">
+                          <span className={cn(metaLabel, 'flex-none pt-0.5')}>설명</span>
+                          <span className={cn(metaValue, 'truncate')}>{row.description}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* The link is this element, not a stretched overlay. An overlay is
+                        the only positioned child, so it paints above everything and made
+                        the account id — a value that exists to be compared and copied —
+                        unselectable. */}
+                    <Link
+                      href={passRoutes.pipelines.ops.targetSource(String(row.target_source_id))}
+                      aria-label={`Target Source #${row.target_source_id} 운영 화면으로 이동`}
+                      className={cn(goLink, 'flex-none pt-0.5')}
+                    >
+                      운영 화면 ↗
+                    </Link>
+                  </div>
+                );
+              })}
             </div>
             <OpsPagination page={page} totalPages={totalPages} onChange={setPage} />
           </>

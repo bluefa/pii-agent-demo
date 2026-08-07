@@ -1,10 +1,16 @@
 /**
- * ProvTag — neutral provider label + brand-colored dot (design-inventory §3
- * `.ptag`). Dot color is keyed by the lowercased provider (wire is UPPERCASE).
+ * ProvTag — provider glyph + neutral label.
+ *
+ * The mark used to be a brand-coloured square. A swatch says nothing the label does
+ * not already say, and it spent a hue on every row of every admin table — so the
+ * provider's own glyph replaces it, monotone, inheriting the label's colour. Same
+ * shared source as the target-source cards (`ProviderGlyph`), so a provider looks
+ * the same everywhere it appears.
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { displayProvider, providerKey, providerLabel } from '@/lib/pipeline/format';
+import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
+import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import type { CloudProvider } from '@/lib/pipeline/types';
 
 export interface ProvTagProps {
@@ -23,10 +29,11 @@ export interface ProvTagProps {
 export function ProvTag({ provider, isSdu, size, className }: ProvTagProps): ReactElement {
   const { provTag } = pipelineStyles;
   const shown = displayProvider(provider, isSdu);
-  const key = providerKey(shown);
   return (
     <span className={cn(size === 'lg' ? provTag.baseLg : provTag.base, className)}>
-      <span className={cn(provTag.dot, provTag.dotTone[key] ?? 'bg-[var(--pl-gray-300)]')} />
+      {/* Nothing renders for UNKNOWN — the flex gap would otherwise indent the label
+          on exactly the rows that have the least to say. */}
+      <ProviderGlyph provider={shown} className={size === 'lg' ? provTag.glyphLg : provTag.glyph} />
       {providerLabel(shown)}
     </span>
   );

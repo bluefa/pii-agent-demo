@@ -84,6 +84,7 @@ const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
   if (targetSourceId === null) return null;
 
   const fallbackCode = `TS-${targetSourceId}`;
+  const metadata = item.metadata;
 
   return {
     id: fallbackCode,
@@ -91,7 +92,18 @@ const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
     projectCode: item.service_code ?? fallbackCode,
     cloudProvider: normalizeCloudProvider(item.cloud_provider),
     // SDU account → surfaced as "SDU" over the underlying CSP (ProvTag).
-    isSduType: item.metadata?.is_sdu_type === true,
+    isSduType: metadata?.is_sdu_type === true,
+    // The account the row is about — the list row's subject, not decoration.
+    awsAccountId: metadata?.aws_account_id ?? undefined,
+    subscriptionId: metadata?.subscription_id ?? undefined,
+    tenantId: metadata?.tenant_id ?? undefined,
+    gcpProjectId: metadata?.gcp_project_id ?? undefined,
+    isChinaRegion: metadata?.is_china_region === true,
+    // Tri-state on purpose: TargetSourceMetadata is .partial(), so the key can be
+    // absent, and `=== true` would turn "we were not told" into "수동 설치" — an
+    // assertion the wire never made, and one the detail page leaves blank.
+    isTerraformExecutionGranted:
+      metadata?.grant_service_terraform_execution_permission ?? undefined,
     resourceCount: 0,
     hasDisconnected: false,
     hasNew: false,

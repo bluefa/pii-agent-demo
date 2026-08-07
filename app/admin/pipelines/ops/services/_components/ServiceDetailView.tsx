@@ -11,7 +11,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import { cn, idcStyles, pipelineStyles } from '@/lib/theme';
+import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -20,6 +20,8 @@ import { JiraLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
+import { ProviderLogo } from '@/app/components/features/admin/v7';
+import type { CloudProvider } from '@/lib/types';
 import { STEP } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -41,23 +43,30 @@ import {
   type OpsTargetSourceListItem,
 } from '@/app/lib/api/ops';
 
-/** Step 1 리소스 표와 같은 열 구성 — 헤더 밴드 + 행, 값 길이가 정해진 열만 폭을 묶는다. */
-const TS_COLUMNS = ['Target', '클라우드', '계정', '설명', '현재 단계'] as const;
-
 const tsTable = {
-  /** 이동 화살표 — Step 1 표의 마지막 열과 같은 자리(우측 끝). */
-  go: 'inline-flex text-[var(--pl-primary)] hover:opacity-70',
   /**
-   * 표 블록은 이제 흰 시트 안에 있다 — 배경은 시트의 흰색을 그대로 쓰고 테두리로만
-   * 구획한다. 안쪽 툴바·헤더 밴드가 #F7F8FA 라, 블록에 면을 깔면(#F9FAFB) 밴드와
-   * 1.5% 차이가 되어 표의 머리와 몸이 한 덩어리로 뭉개진다.
+   * 커서가 카드 위에 올 때만 파랑 — 행마다 하나씩 있는 링크를 상시 파랑으로 두면
+   * 목록이 화면에서 가장 시끄러운 것이 된다.
+   */
+  go: 'whitespace-nowrap text-[14px] font-semibold text-[var(--pl-text-weak)] underline-offset-[3px] transition-colors group-hover:text-[var(--pl-primary)] group-hover:underline',
+  /**
+   * 블록은 흰 시트 안에 있다 — 테두리로 구획하고, 안쪽 카드 목록만 한 단 내려간 면을
+   * 깐다. 카드가 흰색이라 바닥이 흰 시트면 카드가 면이 아니라 테두리로만 남는다.
    */
   block: 'overflow-hidden rounded-[8px] border border-[var(--pl-border)]',
-  scroll: 'overflow-x-auto',
-  id: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] whitespace-nowrap',
-  /** 설명 — 길이를 알 수 없는 유일한 값이라 폭을 묶어 자르고 전문은 title 로 남긴다. */
-  desc: 'block max-w-[360px] truncate text-[14px] text-[var(--pl-text-medium)]',
-  dash: 'text-[14px] text-[var(--pl-text-weak)]',
+  list: 'flex flex-col gap-2.5 bg-[var(--pl-bg-inner)] p-3',
+  card:
+    'group relative flex items-start gap-3.5 rounded-[8px] border border-[var(--pl-border)] '
+    + 'bg-[var(--pl-bg-card)] px-[18px] py-4 cursor-pointer transition-colors hover:border-[var(--pl-border-strong)]',
+  id: 'text-[16px] font-bold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] whitespace-nowrap transition-colors group-hover:text-[var(--pl-primary)]',
+  /** 샾은 숫자가 아니라 문장부호다 — 한 단 여리게, 간격을 두고. */
+  idHash: 'mr-0.5 font-normal text-[var(--pl-text-weak)] group-hover:text-[var(--pl-primary)]',
+  metaLabel: 'text-[12px] text-[var(--pl-text-weak)]',
+  /** 계정 값 — 12자리 숫자와 36자 UUID 가 섞여 있어 대조하는 값이라 mono. */
+  account:
+    'truncate text-[14px] [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)]',
+  /** 설명 — 길이를 알 수 없는 유일한 값이라 잘리고 전문은 title 로 남긴다. */
+  desc: 'truncate text-[14px] text-[var(--pl-text-medium)]',
   /** 건수 배지 — 제목 옆에서 바로 읽혀야 하는 값이라 회색이 아니라 primary 톤. */
   badge:
     'inline-flex items-center rounded-full bg-[var(--pl-primary-bg)] px-2 py-[3px] text-[12px] font-semibold text-[var(--pl-primary)] tabular-nums',
@@ -76,8 +85,11 @@ const codeChip =
 const codeChipLabel = 'font-medium text-[var(--pl-text-weak)]';
 /** 섹션 제목 — 18px 마크 + 8px + 제목(Figma Heading 2). */
 const sectionHead = 'flex items-center gap-2 mb-3';
-/** 기본 표시 개수 — 서비스당 대상은 대개 한 자릿수라 5줄이면 한눈에 들어온다. */
-const PAGE_SIZE = 5;
+/**
+ * 기본 표시 개수 — 카드는 표 행의 세 배 높이라, 이 섹션 아래 Jira 티켓 연결까지 한 화면에
+ * 들어오는 선이 3장이다. 더 보려면 페이지 크기를 올린다.
+ */
+const PAGE_SIZE = 3;
 
 /**
  * Jira 타일 — provider 5개는 열이 2개뿐인 표를 채우기엔 너무 짧고, 서로 비교할 값도
@@ -111,32 +123,6 @@ function accountOf(
   if (gcp_project_id) return { label: 'GCP Project', value: gcp_project_id, china: false };
   if (subscription_id) return { label: 'Azure Subscription', value: subscription_id, china: false };
   return null;
-}
-
-/**
- * 계정 셀 — 라벨 위 / 값 아래 2줄. 값이 12자리 숫자, 30자 UUID, 20자 문자열로 제각각이라
- * 한 줄에 "라벨: 값"으로 붙이면 열 폭이 provider 마다 튀고 값이 라벨에 묻힌다.
- * IDC·SDU 는 CSP 계정이 없는 게 정상이므로 결측(—)이 아니라 조용히 비운다.
- */
-function AccountCell({ target }: { target: OpsTargetSourceListItem }): ReactElement {
-  const account = accountOf(target);
-  if (!account) return <span className={pipelineStyles.text.muted}>—</span>;
-  return (
-    // 열 폭(320px)은 Azure subscription UUID(36자)가 14px mono 로 잘리지 않는 값이다 —
-    // 여기서 줄이면 UUID 앞부분이 같은 행들이 서로 구분되지 않는다.
-    <span className="block min-w-0">
-      <span className="flex items-center gap-1.5">
-        <span className="text-[12px] text-[var(--pl-text-weak)]">{account.label}</span>
-        {account.china && <span className={opsStyles.regionTag}>중국</span>}
-      </span>
-      <span
-        title={account.value}
-        className="mt-0.5 block truncate text-[14px] [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)]"
-      >
-        {account.value}
-      </span>
-    </span>
-  );
 }
 
 export interface ServiceDetailViewProps {
@@ -340,83 +326,93 @@ export function ServiceDetailView({
               },
             ]}
           />
-          <div className={tsTable.scroll}>
-            <table className="w-full">
-              <thead className={idcStyles.table.approvalHeader}>
-                <tr className="whitespace-nowrap">
-                  {TS_COLUMNS.map((column) => (
-                    <th key={column} className={idcStyles.table.approvalHeaderCell}>
-                      {column}
-                    </th>
-                  ))}
-                  <th className={cn(idcStyles.table.approvalHeaderCell, 'w-12')} aria-label="이동" />
-                </tr>
-              </thead>
-              <tbody className={idcStyles.table.body}>
-                {rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={TS_COLUMNS.length + 1} className={idcStyles.table.approvalCell}>
-                      <p className={pipelineStyles.empty.base}>
-                        {targetCount === 0
-                          ? '등록된 Target Source가 없습니다.'
-                          : '조건에 맞는 Target Source가 없습니다.'}
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((target) => (
-                    <tr
-                      key={target.target_source_id}
-                      className={cn(idcStyles.table.row, 'cursor-pointer')}
-                      // 행 아무 데나 눌러도 이동한다(마우스 편의). 키보드·새 탭은 아래 링크가
-                      // 맡으므로, 링크 위 클릭은 여기서 흘려보내 이동이 두 번 일어나지 않게 한다.
-                      onClick={(event) => {
-                        if (event.target instanceof HTMLElement && event.target.closest('a')) return;
-                        router.push(passRoutes.pipelines.ops.targetSource(target.target_source_id));
-                      }}
-                    >
-                      <td className={cn(idcStyles.table.approvalCell, tsTable.id)}>
-                        #{target.target_source_id}
-                      </td>
-                      <td className={idcStyles.table.approvalCell}>
-                        <ProvTag provider={target.cloud_provider} isSdu={target.is_sdu_type} />
-                      </td>
-                      <td className={idcStyles.table.approvalCell}>
-                        <AccountCell target={target} />
-                      </td>
-                      <td className={idcStyles.table.approvalCell}>
-                        {target.description ? (
+          {/* Cards, not rows — same grammar as the Target Source 운영 list and the user
+              side. White cards on the block's tinted ground, so the block still reads as
+              one object and each target still reads as its own. */}
+          <div className={tsTable.list}>
+            {rows.length === 0 ? (
+              <p className={pipelineStyles.empty.base}>
+                {targetCount === 0
+                  ? '등록된 Target Source가 없습니다.'
+                  : '조건에 맞는 Target Source가 없습니다.'}
+              </p>
+            ) : (
+              pageRows.map((target) => {
+                const account = accountOf(target);
+                return (
+                  <div
+                    key={target.target_source_id}
+                    className={tsTable.card}
+                    // 행 아무 데나 눌러도 이동한다(마우스 편의). 키보드·새 탭은 stretched
+                    // 링크가 맡으므로, 링크 위 클릭은 여기서 흘려보내 이동이 두 번 일어나지
+                    // 않게 한다.
+                    onClick={(event) => {
+                      if (event.target instanceof HTMLElement && event.target.closest('a')) return;
+                      router.push(passRoutes.pipelines.ops.targetSource(target.target_source_id));
+                    }}
+                  >
+                    <ProviderLogo
+                      provider={target.cloud_provider as CloudProvider}
+                      isSdu={target.is_sdu_type}
+                      variant="bare"
+                      className="flex-none"
+                    />
+
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={tsTable.id}>
+                          <span className={tsTable.idHash}>#</span>
+                          {target.target_source_id}
+                        </span>
+                        {/* Plain label: the glyph on the left already names the provider,
+                            so ProvTag's own mark would say it a second time. */}
+                        <span className="text-[14px] font-medium text-[var(--pl-text-medium)]">
+                          {providerLabel(displayProvider(target.cloud_provider, target.is_sdu_type))}
+                        </span>
+                        <StepPill status={target.process_status} />
+                        {account?.china && <span className={opsStyles.regionTag}>중국</span>}
+                      </div>
+
+                      {account && (
+                        <div className="flex items-center gap-1.5 pl-0.5">
+                          <span className={tsTable.metaLabel}>{account.label}</span>
+                          <span className={tsTable.account}>{account.value}</span>
+                        </div>
+                      )}
+
+                      {target.description && (
+                        <div className="flex min-w-0 gap-1.5 pl-0.5">
+                          <span className={cn(tsTable.metaLabel, 'flex-none pt-0.5')}>설명</span>
                           <span className={tsTable.desc} title={target.description}>
                             {target.description}
                           </span>
-                        ) : (
-                          <span className={tsTable.dash}>—</span>
-                        )}
-                      </td>
-                      <td className={cn(idcStyles.table.approvalCell, 'whitespace-nowrap')}>
-                        <StepPill status={target.process_status} />
-                      </td>
-                      <td className={cn(idcStyles.table.approvalCell, 'text-right')}>
-                        <Link
-                          href={passRoutes.pipelines.ops.targetSource(target.target_source_id)}
-                          aria-label={`Target Source #${target.target_source_id} 운영 화면으로 이동`}
-                          className={tsTable.go}
-                        >
-                          <Icon name="arrow-ur" size="sm" strokeWidth={2.75} />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* The link is this element, not a stretched overlay over the whole
+                        card. An overlay is the only positioned child, so it paints above
+                        everything: it swallowed the 설명 tooltip and made the account id
+                        unselectable — a value that exists to be compared and copied. The
+                        card keeps its own onClick for the mouse shortcut. */}
+                    <Link
+                      href={passRoutes.pipelines.ops.targetSource(target.target_source_id)}
+                      aria-label={`Target Source #${target.target_source_id} 운영 화면으로 이동`}
+                      className={cn(tsTable.go, 'flex-none pt-0.5')}
+                    >
+                      운영 화면 ↗
+                    </Link>
+                  </div>
+                );
+              })
+            )}
           </div>
           <Pagination
             page={safePage}
             pageSize={pageSize}
             totalCount={rows.length}
-            // 기본 5 가 선택지에 없으면 셀렉트가 다른 값을 가리킨다(표는 5줄, 컨트롤은 10).
-            pageSizeOptions={[5, 10, 20, 50]}
+            // 기본값이 선택지에 없으면 셀렉트가 다른 값을 가리킨다(목록은 3장, 컨트롤은 5).
+            pageSizeOptions={[3, 5, 10, 20, 50]}
             onPageChange={setPage}
             onPageSizeChange={(next) => {
               setPageSize(next);
