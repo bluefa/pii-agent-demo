@@ -10,6 +10,7 @@ import {
   CandidateResourceRow,
   type CandidateRowActions,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
+import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import {
@@ -101,15 +102,9 @@ export const CandidateResourceTable = ({
   );
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
 
-  // RDS cluster instance rows start OPEN whether or not the cluster is checked: which instance
-  // a cluster connects through is part of reviewing it, and an unchecked cluster's list is the
-  // evidence for leaving it out. The chevron closes one cluster at a time.
-  const [instanceFoldOverrides, setInstanceFoldOverrides] = useState<Record<string, boolean>>({});
-  const toggleInstanceFold = (resourceId: string) =>
-    setInstanceFoldOverrides((previous) => ({
-      ...previous,
-      [resourceId]: !(previous[resourceId] ?? true),
-    }));
+  // RDS cluster instance rows — shared fold policy: open while the cluster is selected, folded
+  // once it is excluded (see `useClusterFold`). The chevron overrides one cluster at a time.
+  const clusterFold = useClusterFold();
 
   // The group rails: parent and children carry the group's key, so hovering any of them
   // lights the whole group. A cluster's rail is owned by its own row.
@@ -173,7 +168,7 @@ export const CandidateResourceTable = ({
               rail?: RailRowProps,
             ) => {
               const isSelected = selectedIds.has(candidate.id);
-              const instancesExpanded = instanceFoldOverrides[candidate.id] ?? true;
+              const fold = clusterFold(candidate.id, isSelected);
               return (
                 <CandidateResourceRow
                   key={candidate.id}
@@ -187,8 +182,8 @@ export const CandidateResourceTable = ({
                   grouped={grouped}
                   lastInGroup={lastInGroup}
                   rail={rail}
-                  rdsInstancesExpanded={instancesExpanded}
-                  onRdsInstancesToggle={() => toggleInstanceFold(candidate.id)}
+                  rdsInstancesExpanded={fold.open}
+                  onRdsInstancesToggle={fold.toggle}
                 />
               );
             };

@@ -218,6 +218,10 @@ describe('ApplyingApprovedCard — RDS cluster rows', () => {
 
     expect(await screen.findByText('demo-cluster')).toBeTruthy();
     expect(screen.getByText('RDS Cluster')).toBeTruthy();
+    // An excluded cluster starts folded (useClusterFold): its members are reference, not review.
+    expect(screen.queryByText('demo-1')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
     // The members are still listed — they are the evidence for the exclusion.
     expect(screen.getByText('demo-1')).toBeTruthy();
     expect(screen.getByText('demo-2')).toBeTruthy();

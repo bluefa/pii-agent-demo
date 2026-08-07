@@ -528,6 +528,8 @@ describe('WaitingApprovalTable', () => {
           resources={[cluster({ selected: false, selectedRdsInstanceResourceId: undefined })]}
         />,
       );
+      // An excluded cluster starts folded (useClusterFold) — open it to read the rows.
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
       const instanceRow = screen
         .getAllByRole('row')
         .find((r) => r.textContent?.includes('demo-2') && !r.textContent.includes('demo-cluster'));
@@ -546,13 +548,17 @@ describe('WaitingApprovalTable', () => {
       expect(instanceRow!.querySelectorAll('td')[0].className).not.toContain(DIM_TEXT);
     });
 
-    // An excluded cluster chose nothing, so nothing is marked; the list is still the evidence.
-    it('lists an excluded cluster’s instances with no 선택됨 chip', () => {
+    // An excluded cluster chose nothing, so nothing is marked; the list is still the evidence,
+    // and it starts folded because that evidence is reference rather than review.
+    it('folds an excluded cluster, and lists it with no 선택됨 chip once opened', () => {
       render(
         <WaitingApprovalTable
           resources={[cluster({ selected: false, selectedRdsInstanceResourceId: undefined })]}
         />,
       );
+      expect(instanceNames()).toHaveLength(0);
+
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
       expect(instanceNames()).toHaveLength(3);
       expect(screen.queryByText('선택됨')).toBeNull();
       expect(screen.getByText('3개 인스턴스')).toBeTruthy();

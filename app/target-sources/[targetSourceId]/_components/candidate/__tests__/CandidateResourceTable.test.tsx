@@ -292,16 +292,19 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   // Radios promise a choice the payload would not carry for an unchecked cluster, so they
   // are ABSENT rather than disabled. The list itself still shows: it is what the user is
   // deciding about, and it is the evidence for leaving the cluster out.
-  it('lists an unchecked cluster’s instances, with no radios and nothing marked', () => {
+  // Unchecked = left out of the request, so the list opens on demand (useClusterFold).
+  it('lists an unchecked cluster’s instances once opened, with no radios and nothing marked', () => {
     renderCluster({ selectedIds: new Set<string>() });
+    expect(screen.queryByText('demo-2')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
     expect(screen.getByText('demo-2')).toBeTruthy();
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
     expect(screen.queryByText('기본')).toBeNull();
   });
 
-  // Owner request: clusters start open whether or not they are checked.
-  it('starts expanded and collapses from the chevron', () => {
-    renderCluster({ selectedIds: new Set<string>() });
+  it('starts expanded for a checked cluster and collapses from the chevron', () => {
+    renderCluster();
     expect(screen.getByText('demo-2')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));

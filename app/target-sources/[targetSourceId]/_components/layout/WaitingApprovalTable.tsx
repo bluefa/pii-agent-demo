@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, memo, useMemo, useState } from 'react';
+import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { ChevronRightIcon, StatusWarningIcon } from '@/app/components/ui/icons';
@@ -337,10 +338,9 @@ export const WaitingApprovalTable = memo(
     );
     const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
     const [expandedFolds, setExpandedFolds] = useState<ReadonlySet<string>>(() => new Set());
-    // RDS cluster instance lists start OPEN — steps 2·3 are the review surfaces, and which
-    // instance the agent connects through is part of what is being approved. Tracked as the
-    // CLOSED set (the opposite of `expandedFolds` above) so open is the default.
-    const [collapsedInstances, setCollapsedInstances] = useState<ReadonlySet<string>>(() => new Set());
+    // RDS cluster instance lists — shared fold policy (`useClusterFold`): open while the
+    // cluster is part of the request, folded once it is excluded.
+    const clusterFold = useClusterFold();
     // Tree rails: hovering any row of a group / cluster / folded region lights the whole rail.
     const railRow = useRailHover();
 
@@ -356,13 +356,6 @@ export const WaitingApprovalTable = memo(
     // the region is the unit and its databases are reference.
     const toggleFold = (key: string) =>
       setExpandedFolds((previous) => {
-        const next = new Set(previous);
-        if (!next.delete(key)) next.add(key);
-        return next;
-      });
-
-    const toggleInstances = (key: string) =>
-      setCollapsedInstances((previous) => {
         const next = new Set(previous);
         if (!next.delete(key)) next.add(key);
         return next;
@@ -407,7 +400,8 @@ export const WaitingApprovalTable = memo(
         ? sortRdsInstances(resource.rdsInstanceCandidates)
         : [];
       const hasInstances = instances.length > 0;
-      const instancesOpen = hasInstances && !collapsedInstances.has(rowKey);
+      const instanceFold = clusterFold(rowKey, resource.selected);
+      const instancesOpen = hasInstances && instanceFold.open;
       // Keyed on the declared top-level type, never on `resourceType` — see the field's note.
       const isCluster = isRdsCluster(resource.declaredResourceType ?? '');
       // Every row of one rail shares a key: a group's children take the group's (passed in by
@@ -461,7 +455,7 @@ export const WaitingApprovalTable = memo(
                   aria-label={`${resource.resourceName} 인스턴스 목록 ${instancesOpen ? '접기' : '펼치기'}`}
                   onClick={(event) => {
                     event.stopPropagation();
-                    toggleInstances(rowKey);
+                    instanceFold.toggle();
                   }}
                   className={cn(
                     idcStyles.table.group.toggle,

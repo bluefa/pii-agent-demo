@@ -1109,10 +1109,13 @@ export const idcStyles = {
         "relative after:absolute after:-bottom-px after:left-[28px] after:top-[calc(50%_+_10px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /**
        * Parent whose chevron is top-aligned to a two-line identity (RDS cluster: tag over name).
-       * 42px = the cell's 20px top padding + the chevron's 2px nudge + its 20px box.
+       * The start is the chevron box's bottom = cell top padding + the chevron's 2px nudge + its
+       * 20px box, so it defaults to 42px for the py-5 tables. A table with different cell padding
+       * passes its own through `--rail-start` (`[--rail-start:38px]` for py-4) rather than
+       * stacking a second `after:top-*`, which would leave the winner to stylesheet order.
        */
       parentCellTopChevron:
-        "relative after:absolute after:-bottom-px after:left-[28px] after:top-[42px] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+        "relative after:absolute after:-bottom-px after:left-[28px] after:top-[var(--rail-start,42px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /**
        * Rail lit — put on every `<tr>` of ONE group while its parent row is hovered, so the
        * trunk and each elbow answer together and the group says which rows it owns. The rail
