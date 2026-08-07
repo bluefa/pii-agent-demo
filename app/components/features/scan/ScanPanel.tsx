@@ -1,6 +1,6 @@
 'use client';
 
-import { useScanPolling } from '@/app/hooks/useScanPolling';
+import { isScanFinalizing, useScanPolling } from '@/app/hooks/useScanPolling';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { startScan } from '@/app/lib/api/scan';
 import type { ScanResult, ResourceType } from '@/lib/types';
@@ -17,6 +17,8 @@ export interface ScanControllerRenderProps {
   lastResult: ScanResult | null;
   lastScanAt: string | undefined;
   progress: number;
+  /** 스캔은 끝났고 집계만 남은 구간 — IN_PROGRESS의 마지막 단계다. */
+  finalizing: boolean;
   starting: boolean;
   loading: boolean;
   isInProgress: boolean;
@@ -81,9 +83,14 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
   const lastResult = latestJob && latestJob.scan_status === 'SUCCESS' ? scanJobToResult(latestJob) : null;
   const lastScanAt = latestJob?.scan_status === 'SUCCESS' ? (latestJob.updated_at ?? undefined) : undefined;
   const state = uiStateToScanUiState(uiState);
-  const progress = isInProgress
-    ? (latestJob?.scan_progress ?? 0)
-    : state === 'SUCCESS' ? 100 : 0;
+  // 집계 대기 구간에는 scan_progress가 없다(스캔 자체는 끝났으므로) — 바는 가득 찬
+  // 채로 두고 문구가 남은 일을 말한다.
+  const finalizing = isScanFinalizing(latestJob);
+  const progress = finalizing
+    ? 100
+    : isInProgress
+      ? (latestJob?.scan_progress ?? 0)
+      : state === 'SUCCESS' ? 100 : 0;
 
   return <>{children({
     state,
@@ -91,6 +98,7 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
     lastResult,
     lastScanAt,
     progress,
+    finalizing,
     starting,
     loading,
     isInProgress,

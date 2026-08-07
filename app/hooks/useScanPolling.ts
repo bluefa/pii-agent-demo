@@ -37,8 +37,22 @@ export interface UseScanPollingReturn {
   expectCompletion: (expectedJobId?: number) => void;
 }
 
+/**
+ * A SUCCESS job with no count map has not finished: the resource discovery ran,
+ * but its totals are not aggregated yet. Reading that job as done makes every
+ * surface answer "no resources found" for a scan that has simply not reported
+ * its numbers, so it counts as still running until the map arrives.
+ */
+export const isScanFinalizing = (job: ScanJob | null): boolean =>
+  job?.scan_status === 'SUCCESS' && job.resource_count_by_resource_type == null;
+
+/** Still working — actively scanning, or scanned and aggregating. */
+const isScanRunning = (job: ScanJob | null): boolean =>
+  job?.scan_status === 'SCANNING' || isScanFinalizing(job);
+
 const computeUIState = (job: ScanJob | null): ScanUIState => {
   if (!job) return 'IDLE';
+  if (isScanFinalizing(job)) return 'IN_PROGRESS';
   switch (job.scan_status) {
     case 'SCANNING': return 'IN_PROGRESS';
     case 'SUCCESS': return 'COMPLETED';
@@ -76,7 +90,10 @@ export const useScanPolling = (
   // wipe Step-1 selection). `id` is optional on the contract (ScanJobResponse is
   // partial), so when it is absent we fall back to the SCANNING→terminal edge.
   const notifiedJobIdRef = useRef<number | null>(null);
-  const prevScanStatusRef = useRef<ScanJob['scan_status'] | null>(null);
+  // Tracks "was running" rather than the raw status: a job that passed through
+  // SUCCESS-without-counts on its way to a readable SUCCESS never shows a
+  // SCANNING→terminal edge, and the id-less fallback below depends on that edge.
+  const prevRunningRef = useRef(false);
   // Armed by expectCompletion() when this client starts a scan — covers a fast
   // no-id scan that is already terminal on the very next observation. When the
   // started job's id is known it is pinned here so stale responses for older
@@ -98,19 +115,16 @@ export const useScanPolling = (
     [targetSourceId],
   );
 
-  const shouldStop = useCallback(
-    (job: ScanJob | null) => !job || job.scan_status !== 'SCANNING',
-    [],
-  );
+  const shouldStop = useCallback((job: ScanJob | null) => !isScanRunning(job), []);
 
   const handleUpdate = useCallback((job: ScanJob | null) => {
     const id = job?.id ?? null;
-    const isTerminal = !!job && job.scan_status !== 'SCANNING';
+    const isTerminal = !!job && !isScanRunning(job);
     const isSuccess = job?.scan_status === 'SUCCESS';
     const isFirst = firstObservationRef.current;
-    const sawScanning = prevScanStatusRef.current === 'SCANNING';
+    const sawScanning = prevRunningRef.current;
     firstObservationRef.current = false;
-    prevScanStatusRef.current = job?.scan_status ?? null;
+    prevRunningRef.current = isScanRunning(job);
 
     if (isTerminal) {
       const armed = awaitingCompletionRef.current;
@@ -193,7 +207,7 @@ export const useScanPolling = (
   // consecutive fetch errors, baseError is set and a stale SCANNING job must
   // not immediately start a new session (that would defeat the error stop).
   useEffect(() => {
-    if (latestJob?.scan_status === 'SCANNING' && !isPolling && !baseError) {
+    if (isScanRunning(latestJob) && !isPolling && !baseError) {
       start();
     }
   }, [latestJob, isPolling, baseError, start]);

@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { getScanHistory, startScan } from '@/app/lib/api/scan';
-import { useScanPolling } from '@/app/hooks/useScanPolling';
+import { isScanFinalizing, useScanPolling } from '@/app/hooks/useScanPolling';
 import { useModal } from '@/app/hooks/useModal';
 import { normalizeCloudProvider } from '@/lib/types';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
@@ -76,15 +76,19 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
   }, [loadHistory]);
 
   const scanning = latestJob?.scan_status === 'SCANNING';
+  // SUCCESS without a count map is the aggregation tail, not an outcome — the
+  // card keeps its running treatment until the numbers are readable.
+  const finalizing = isScanFinalizing(latestJob);
+  const running = scanning || finalizing;
 
   // A finished scan adds a history row whatever its outcome, so reload on the
-  // SCANNING→terminal edge (not only on success). The ref starts false, so
+  // running→terminal edge (not only on success). The ref starts false, so
   // mounting on an already-terminal job does not double-fetch page 0.
-  const wasScanningRef = useRef(false);
+  const wasRunningRef = useRef(false);
   useEffect(() => {
-    if (wasScanningRef.current && !scanning) void loadHistory(0);
-    wasScanningRef.current = scanning;
-  }, [scanning, loadHistory]);
+    if (wasRunningRef.current && !running) void loadHistory(0);
+    wasRunningRef.current = running;
+  }, [running, loadHistory]);
 
   const runScan = useCallback(async (): Promise<void> => {
     setStarting(true);
@@ -142,6 +146,7 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
       loading={loading}
       failed={error !== null}
       scanning={scanning}
+      finalizing={finalizing}
       starting={starting}
       startFailed={startFailed}
       typeEntries={typeEntries}

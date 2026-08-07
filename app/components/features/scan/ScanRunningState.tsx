@@ -1,12 +1,17 @@
 'use client';
 
-import { cn, textColors } from '@/lib/theme';
+import { bgColors, cn, textColors } from '@/lib/theme';
 
 interface ScanRunningStateProps {
   progress: number;
+  /**
+   * 리소스 탐색은 끝났고 집계만 남은 구간. 바는 이미 가득 차 있으므로, 이때
+   * "진행중" 문구를 그대로 두면 다 끝났는데 멈춘 화면으로 읽힌다.
+   */
+  finalizing: boolean;
 }
 
-export const ScanRunningState = ({ progress }: ScanRunningStateProps) => {
+export const ScanRunningState = ({ progress, finalizing }: ScanRunningStateProps) => {
   const clamped = Math.min(100, Math.max(0, progress));
 
   return (
@@ -28,12 +33,16 @@ export const ScanRunningState = ({ progress }: ScanRunningStateProps) => {
         </div>
       </div>
       <h3 className={cn('text-base font-semibold mb-1.5', textColors.primary)}>
-        인프라 스캔 진행중입니다
+        {finalizing ? '스캔 마무리 중이에요' : '인프라 스캔 진행중입니다'}
       </h3>
       <p className={cn('text-[13px]', textColors.tertiary)}>
-        인프라 스캔은 약 <strong>5분</strong> 이내 소요되는 편이며, 리소스가 많을 경우 길어질 수 있어요.
+        {finalizing ? (
+          '리소스 탐색은 끝났고 결과를 집계하고 있어요. 잠시만 기다려 주세요.'
+        ) : (
+          <>인프라 스캔은 약 <strong>5분</strong> 이내 소요되는 편이며, 리소스가 많을 경우 길어질 수 있어요.</>
+        )}
       </p>
-      <div className="mx-auto mt-6 max-w-[520px] bg-slate-100 rounded-full h-[10px] overflow-hidden">
+      <div className={cn('mx-auto mt-6 max-w-[520px] rounded-full h-[10px] overflow-hidden', bgColors.panel)}>
         <div
           className="h-full rounded-full bg-gradient-to-r from-[#0064FF] to-[#4F46E5] transition-[width] duration-[400ms] ease-out"
           style={{ width: `${clamped}%` }}

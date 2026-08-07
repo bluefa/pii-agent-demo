@@ -325,7 +325,7 @@ export const CandidateResourceSection = ({
   return (
     <>
       <ScanController targetSourceId={targetSourceId} onScanComplete={handleScanComplete}>
-        {({ state: scanState, latestJob, progress, starting, canStart, loading: scanLoading, startScan }) => {
+        {({ state: scanState, latestJob, progress, finalizing, starting, canStart, loading: scanLoading, startScan }) => {
           const initialLoading = scanLoading || state.status === 'loading';
           const phase = selectPhase({
             fetchStatus: state.status,
@@ -376,7 +376,7 @@ export const CandidateResourceSection = ({
                   </div>
                 );
               case 'scanning':
-                return <ScanRunningState progress={progress} />;
+                return <ScanRunningState progress={progress} finalizing={finalizing} />;
               case 'scanFailed':
                 return <ScanErrorState onRetry={startScan} />;
               case 'list':

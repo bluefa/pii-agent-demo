@@ -47,6 +47,7 @@ const scanRenderProps: ScanControllerRenderProps = {
   lastResult: null,
   lastScanAt: undefined,
   progress: 0,
+  finalizing: false,
   starting: false,
   loading: false,
   isInProgress: false,
