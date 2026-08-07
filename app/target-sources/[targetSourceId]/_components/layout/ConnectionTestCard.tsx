@@ -5,6 +5,8 @@ import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } fr
 import { ChevronRightIcon, InfoCircleIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
+import { isRdsCluster } from '@/lib/rds-instances';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { useModal } from '@/app/hooks/useModal';
 import { usePagination } from '@/app/hooks/usePagination';
@@ -89,6 +91,8 @@ interface TestUnit {
   unitId: string;
   region: string | null;
   databaseType: string | null;
+  /** Top-level resource type of the unit's first row — drives the RDS-cluster tag only. */
+  resourceType: string | null;
   /** The confirmed rows this unit covers: one, or every database of an Athena region. */
   members: ConfirmedResource[];
   /** True when this row stands for a region rather than for a single resource. */
@@ -109,6 +113,7 @@ const toTestUnits = (confirmed: readonly ConfirmedResource[]): TestUnit[] => {
       unitId,
       region: resource.region ?? null,
       databaseType: resource.databaseType ?? null,
+      resourceType: resource.type ?? null,
       members: [resource],
       folded: !!resource.athenaRegionResourceId,
     };
@@ -524,19 +529,24 @@ export const ConnectionTestCard = ({
                         ) : (
                           // One line, always — the widest names here ran to four lines and left
                           // row heights ragged. Full value in the tip, as on steps 1·2·3.
-                          <Tooltip
-                            content={
-                              <IdentifierTip label="Resource Name" value={first.resourceName ?? ''} />
-                            }
-                            variant="value"
-                            size="md"
-                            triggerClassName="min-w-0 max-w-[200px] block"
-                            truncatedOnly
-                          >
-                            <span className="block truncate">
-                              {first.resourceName || PLACEHOLDER}
-                            </span>
-                          </Tooltip>
+                          // A cluster stacks the RDS Cluster tag above the name, the same
+                          // two-line identity steps 1·2·3·4·6·7 use.
+                          <span className="flex min-w-0 flex-col items-start gap-1">
+                            {isRdsCluster(unit.resourceType ?? '') && <RdsClusterTag />}
+                            <Tooltip
+                              content={
+                                <IdentifierTip label="Resource Name" value={first.resourceName ?? ''} />
+                              }
+                              variant="value"
+                              size="md"
+                              triggerClassName="min-w-0 max-w-[200px] block"
+                              truncatedOnly
+                            >
+                              <span className="block truncate">
+                                {first.resourceName || PLACEHOLDER}
+                              </span>
+                            </Tooltip>
+                          </span>
                         )}
                       </td>
                       <td

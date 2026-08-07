@@ -6,6 +6,7 @@ import {
   type ApprovalRequestLatestResponse,
 } from '@/app/lib/api';
 import { AppError } from '@/lib/errors';
+import { readRdsInstanceMetadata } from '@/lib/rds-instances';
 import { formatDate } from '@/lib/utils/date';
 import { Pagination } from '@/app/components/ui/Pagination';
 import {
@@ -84,6 +85,12 @@ const toResourceRow = (item: LatestResourceItem): WaitingApprovalResource => ({
   exclusionReason: item.exclusion_reason ?? undefined,
   integrationCategory: item.integration_category ?? undefined,
   recommendFailReason: item.recommend_fail_reason ?? undefined,
+  // Top-level type, no metadata fallback: this drives the RDS Cluster tag, and
+  // `resourceType` above falls back to an engine name.
+  declaredResourceType: item.resource_type ?? undefined,
+  // An RDS cluster lists its member instances under the row and marks the one the agent
+  // connects through. Any other resource gets neither key back and is unchanged.
+  ...readRdsInstanceMetadata(item.metadata, item.resource_type),
 });
 
 interface RequestSummary {
@@ -196,6 +203,7 @@ export const WaitingApprovalCard = ({
       <WaitingApprovalTable
         resources={table.visibleResources}
         connected
+        raisedRows
         emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
       />
       {table.filteredCount > 0 && (

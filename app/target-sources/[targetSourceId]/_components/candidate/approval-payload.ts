@@ -61,7 +61,7 @@ export const listMissingExclusionReasons = (
  * Input adapter: UI selection (candidates + selected set + endpoint drafts +
  * per-resource exclusion reasons) → contract `ApprovalRequestInputDto`
  * ({ resources: TargetSourceResourceItemDto[] }). Every item carries its identity
- * (resource_name, integration_category) and the candidate's intrinsic metadata
+ * (resource_name, resource_type, integration_category) and the candidate's intrinsic metadata
  * (provider/region/database_type); selected items additionally carry the behavior's
  * endpoint fields (VM db_type/host/port) from user drafts; excluded items carry the
  * reason the user picked. This is the ONLY shape sent on the wire.
@@ -91,13 +91,27 @@ const buildResourceInputs = (
         : {}),
       ...(candidate.metadata.region ? { region: candidate.metadata.region } : {}),
       ...(candidate.databaseType ? { database_type: toWireDatabaseType(candidate.databaseType) } : {}),
+      // An RDS cluster's member list travels with the resource whether or not it was
+      // selected: it describes what the cluster IS, and the backend joins the echoed
+      // array. Only the CHOICE (selected_rds_instance_resource_id) is selection-scoped, and the
+      // behavior adds that on the selected branch.
+      ...(candidate.rdsInstanceCandidates ? { rds_instance_candidates: candidate.rdsInstanceCandidates } : {}),
     };
+
+    // `candidate.type` is 'UNKNOWN' when the upstream row omitted resource_type — a local
+    // sentinel, not one of the contract's enum values. Omitting the key (yesterday's shape)
+    // is valid; sending the sentinel could make a strict BFF reject the whole request.
+    const resourceTypeField =
+      candidate.type && candidate.type !== 'UNKNOWN'
+        ? { resource_type: candidate.type }
+        : {};
 
     if (selectedIds.has(candidate.id)) {
       const behavior = getCandidateBehavior(candidate);
       return {
         resource_id: candidate.id,
         resource_name: candidate.resourceName,
+        ...resourceTypeField,
         selected: true,
         integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
         // The behavior's endpoint fields (VM db_type/host/port) override on top.
@@ -118,6 +132,7 @@ const buildResourceInputs = (
     return {
       resource_id: candidate.id,
       resource_name: candidate.resourceName,
+      ...resourceTypeField,
       selected: false,
       integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
       ...(candidate.recommendFailReason

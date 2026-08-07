@@ -10,8 +10,9 @@
  *
  * Database Type carries no chip: it is a repeating attribute, not a status.
  */
-import type { ReactElement } from 'react';
+import { Fragment, useState, type ReactElement } from 'react';
 import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
+import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
@@ -26,6 +27,12 @@ import {
   clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
+import {
+  RdsClusterTag,
+  RdsMemberChip,
+  RdsSelectionChip,
+} from '@/app/components/ui/RdsInstanceChips';
+import { isRdsCluster, rdsInstanceLabel, sortRdsInstances } from '@/lib/rds-instances';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 export interface CloudResourceTableProps {
@@ -34,6 +41,17 @@ export interface CloudResourceTableProps {
 
 export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElement {
   const { table } = idcStyles;
+  // Instance lists start OPEN — the queue exists to review what was requested — and the
+  // chevron closes one cluster at a time. Tracked as the CLOSED set so open is the default.
+  const [collapsedInstances, setCollapsedInstances] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const toggleInstances = (key: string) =>
+    setCollapsedInstances((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
   return (
     // No frame of its own — the toolbar above owns the rounded top and the pager below
     // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
@@ -65,11 +83,21 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             // Resting tier is per cell, not per row: a row-level override would win over
             // the cells' own hover lifts and freeze excluded rows at the dim tier.
             const tone = excluded ? DIM_TEXT : textColors.secondary;
+            // An RDS cluster connects through ONE member instance. Read-only here: the queue
+            // reviews a submitted request, so the list shows what the cluster holds and which
+            // instance the requester picked. Reader-first display order; the wire order is
+            // the request's.
+            //
+            // The TAG keys on the declared type, as on every other review surface — a cluster
+            // whose request predates the candidates field is still a cluster and must say so.
+            // The LIST keys on candidates, because there is nothing to list without them.
+            const isCluster = isRdsCluster(row.resourceType ?? '');
+            const instances = sortRdsInstances(row.rdsInstanceCandidates);
+            const hasInstances = instances.length > 0;
+            const instancesOpen = hasInstances && !collapsedInstances.has(rowKey);
             return (
-              <tr
-                key={rowKey}
-                className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
-              >
+              <Fragment key={rowKey}>
+              <tr className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}>
                 <td
                   className={cn(
                     table.approvalCell,
@@ -79,20 +107,47 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     excluded ? DIM_TEXT : textColors.primary,
                     // The row's anchor lifts to brand, marking which cell identifies it.
                     primaryColors.textGroupHover,
+                    // The rail's first segment runs from the chevron down to the first
+                    // instance row; without it the children's rail hangs off nothing.
+                    instancesOpen && table.group.parentCell,
                   )}
                 >
                   {/* One line, always — wrapping left row heights ragged. The full value
                       opens in the same tip card the rest of the app uses, and only when
                       the name is actually clipped (`truncatedOnly`). */}
-                  <Tooltip
-                    content={<IdentifierTip label="Resource Name" value={row.resourceName ?? ''} />}
-                    variant="value"
-                    size="md"
-                    triggerClassName="block min-w-0 max-w-[360px]"
-                    truncatedOnly
-                  >
-                    <span className="block truncate">{row.resourceName || '—'}</span>
-                  </Tooltip>
+                  <span className="flex items-start gap-2">
+                    {hasInstances && (
+                      <button
+                        type="button"
+                        // No aria-controls: the instance rows are `<tr>` siblings with no
+                        // single element to point at (APG disclosure: aria-expanded alone
+                        // is conforming).
+                        aria-expanded={instancesOpen}
+                        aria-label={`${row.resourceName ?? ''} 인스턴스 목록 ${instancesOpen ? '접기' : '펼치기'}`}
+                        onClick={() => toggleInstances(rowKey)}
+                        className={cn(
+                          table.group.toggle,
+                          instancesOpen ? table.group.toggleOpen : table.group.toggleClosed,
+                          primaryColors.focusRing,
+                          'mt-0.5',
+                        )}
+                      >
+                        <ChevronRightIcon className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <span className="flex min-w-0 flex-col items-start gap-1">
+                    {isCluster && <RdsClusterTag />}
+                    <Tooltip
+                      content={<IdentifierTip label="Resource Name" value={row.resourceName ?? ''} />}
+                      variant="value"
+                      size="md"
+                      triggerClassName="block min-w-0 max-w-[360px]"
+                      truncatedOnly
+                    >
+                      <span className="block truncate">{row.resourceName || '—'}</span>
+                    </Tooltip>
+                    </span>
+                  </span>
                 </td>
                 <td className={table.approvalCell}>
                   {row.resourceId && (
@@ -141,6 +196,49 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                   )}
                 </td>
               </tr>
+              {/* One row per member instance. Everything the cluster answers for (id, verdict,
+                  reason) stays on the parent; these carry identity, role and their own AZ. */}
+              {instancesOpen && instances.map((instance, instanceIndex) => (
+                <tr
+                  key={instance.resource_id}
+                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
+                >
+                  <td
+                    className={cn(
+                      table.approvalCell,
+                      'font-mono text-[14px]',
+                      excluded ? DIM_TEXT : textColors.primary,
+                      table.group.childCell,
+                      instanceIndex === instances.length - 1 && table.group.childCellLast,
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="truncate">{rdsInstanceLabel(instance)}</span>
+                      <RdsMemberChip role={instance.cluster_member_role} />
+                      {instance.resource_id === row.selectedRdsInstanceResourceId && (
+                        <RdsSelectionChip label="선택됨" />
+                      )}
+                    </span>
+                  </td>
+                  <td className={table.approvalCell} />
+                  <td className={cn(table.approvalCell, 'text-[12px]', tone, CELL_LIFT)}>
+                    Instance
+                  </td>
+                  <td
+                    className={cn(
+                      table.approvalCell,
+                      'whitespace-nowrap font-mono text-[12px]',
+                      tone,
+                      CELL_LIFT,
+                    )}
+                  >
+                    {instance.availability_zone ?? ''}
+                  </td>
+                  <td className={table.approvalCell} />
+                  <td className={table.approvalCell} />
+                </tr>
+              ))}
+              </Fragment>
             );
           })}
         </tbody>

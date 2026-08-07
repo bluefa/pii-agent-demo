@@ -1,5 +1,6 @@
 import type { OpaqueKeys } from '@/lib/object-case';
 import type { AzureVmNic } from '@/lib/types/azure';
+import type { RdsInstanceCandidate } from '@/lib/rds-instances';
 
 // ===== Enums & Constants =====
 
@@ -287,6 +288,16 @@ export interface MockResource {
   // --- RDS_CLUSTER 전용 ---
   clusterType?: RdsClusterType;
   clusterInstances?: ClusterInstance[];
+  /**
+   * `metadata.rds_instance_candidates` 원문 — 클러스터 멤버 인스턴스 목록. 정렬·기본 선택은
+   * 클라이언트가 하므로 시드는 wire 순서 그대로 둔다. @see lib/rds-instances.ts
+   */
+  rdsInstanceCandidates?: RdsInstanceCandidate[];
+  /**
+   * 승인 요청이 실어 보낸 접속 인스턴스 선택(`selected_rds_instance_resource_id`). 시드에는 없고
+   * POST 가 기록한다 — 2·3단계가 되읽는 값은 사용자가 1단계에서 고른 그 값이어야 한다.
+   */
+  selectedRdsInstanceResourceId?: string;
 }
 
 export interface TerraformState {
@@ -925,7 +936,12 @@ export interface BffExcludedResourceInfo {
   recommend_fail_reason?: string | null;
   /** Contract shape: `resource_type` top-level, region/database_type under metadata. */
   resource_type?: string | null;
-  metadata?: { region?: string | null; database_type?: string | null };
+  metadata?: {
+    region?: string | null;
+    database_type?: string | null;
+    /** RDS 클러스터 멤버 목록 — 제외된 클러스터도 무엇을 담고 있었는지는 남긴다. */
+    rds_instance_candidates?: RdsInstanceCandidate[];
+  };
 }
 
 /** 연동 확정 리소스 정보 (Swagger ResourceConfigDto) */

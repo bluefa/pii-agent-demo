@@ -100,6 +100,16 @@ export const CandidateResourceTable = ({
   );
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
 
+  // RDS cluster instance rows start OPEN whether or not the cluster is checked: which instance
+  // a cluster connects through is part of reviewing it, and an unchecked cluster's list is the
+  // evidence for leaving it out. The chevron closes one cluster at a time.
+  const [instanceFoldOverrides, setInstanceFoldOverrides] = useState<Record<string, boolean>>({});
+  const toggleInstanceFold = (resourceId: string) =>
+    setInstanceFoldOverrides((previous) => ({
+      ...previous,
+      [resourceId]: !(previous[resourceId] ?? true),
+    }));
+
   const toggleGroup = (key: string) =>
     setCollapsedGroups((previous) => {
       const next = new Set(previous);
@@ -117,7 +127,11 @@ export const CandidateResourceTable = ({
     // rounded bottom, and everything between stays bare (step-2 table silhouette).
     <div className="overflow-hidden bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full">
+        {/* Row height raised one step over approvalCell's py-4 (owner request) — table-scoped
+            so the shared token keeps every other table family at its current rhythm. The
+            :not([colspan]) guard keeps it off spanning cells: VmDatabaseConfigPanel's td is
+            deliberately py-0 and would lose to this selector's higher specificity. */}
+        <table className="w-full [&_td:not([colspan])]:py-5">
           <thead className={idcStyles.table.approvalHeader}>
             {/* Identity (name → id) → attributes (type · region) → system verdict
                 (설치 구분 = integration_category, a FACT the user cannot change) →
@@ -147,20 +161,26 @@ export const CandidateResourceTable = ({
             </tr>
           </thead>
           {sections.map((section) => {
-            const renderRow = (candidate: CandidateResource, grouped = false, lastInGroup = false) => (
-              <CandidateResourceRow
-                key={candidate.id}
-                candidate={candidate}
-                isSelected={selectedIds.has(candidate.id)}
-                exclusionReason={exclusionReasons[candidate.id]}
-                isExpanded={expandedResourceId === candidate.id}
-                readonly={readonly}
-                drafts={drafts}
-                actions={actions}
-                grouped={grouped}
-                lastInGroup={lastInGroup}
-              />
-            );
+            const renderRow = (candidate: CandidateResource, grouped = false, lastInGroup = false) => {
+              const isSelected = selectedIds.has(candidate.id);
+              const instancesExpanded = instanceFoldOverrides[candidate.id] ?? true;
+              return (
+                <CandidateResourceRow
+                  key={candidate.id}
+                  candidate={candidate}
+                  isSelected={isSelected}
+                  exclusionReason={exclusionReasons[candidate.id]}
+                  isExpanded={expandedResourceId === candidate.id}
+                  readonly={readonly}
+                  drafts={drafts}
+                  actions={actions}
+                  grouped={grouped}
+                  lastInGroup={lastInGroup}
+                  rdsInstancesExpanded={instancesExpanded}
+                  onRdsInstancesToggle={() => toggleInstanceFold(candidate.id)}
+                />
+              );
+            };
 
             if (section.kind === 'rows') {
               return (

@@ -8,6 +8,8 @@ import type {
 
 export interface CandidateDraftState {
   endpointDrafts: Record<string, EndpointConfigDraft>;
+  /** RDS cluster id → the member instance ARN the user picked. */
+  rdsInstanceDrafts: Record<string, string>;
 }
 
 type MetadataFields = z.infer<typeof schemas.TargetSourceResourceMetadataDto>;

@@ -129,6 +129,17 @@ const toApprovalRow = (row: RequestResourceRow, isIdc: boolean): WaitingApproval
   // the table render a system judgement as a revisable 제외 pill.
   integrationCategory: row.integrationCategory ?? undefined,
   recommendFailReason: row.recommendFailReason ?? undefined,
+  // An RDS cluster's member instances, read-only: the admin approves the requester's choice,
+  // so this tab has to show WHICH instance was chosen, not just that the cluster was. The
+  // table renders nothing extra for any other resource. IDC rows never reach here as a
+  // cluster — the wire helper's type gate already returned empty for them.
+  declaredResourceType: row.resourceType ?? undefined,
+  ...(row.rdsInstanceCandidates.length > 0
+    ? { rdsInstanceCandidates: row.rdsInstanceCandidates }
+    : {}),
+  ...(row.selectedRdsInstanceResourceId
+    ? { selectedRdsInstanceResourceId: row.selectedRdsInstanceResourceId }
+    : {}),
 });
 
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';

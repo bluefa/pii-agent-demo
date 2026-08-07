@@ -196,6 +196,67 @@ const connectedWireResources: MockResource[] = awsWireSampleResources.map((r) =>
   connectionStatus: 'CONNECTED',
 }));
 
+// Step 1 의 RDS 클러스터 인스턴스 선택 데모용 합성 리소스. 실 BFF 응답 캡처
+// (awsWireApprovalResources) 에는 rds_instance_candidates 가 없어서 — 캡처는 그대로 두고 —
+// 이 한 건만 따로 붙인다. 인스턴스는 wire 순서를 일부러 어긋나게(Writer 먼저,
+// Reader 는 -3 → -2) 두어 화면의 Reader 우선 정렬과 기본 선택(-2)이 눈에 보이게 한다.
+// selected_rds_instance_resource_id 은 목이 내리지 않는다: 서버 선택값이 없을 때 클라이언트
+// 기본 선택이 도는지가 이 데모의 핵심이다.
+const RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE =
+  `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:db:demo-aurora-mysql`;
+const RDS_CLUSTER_DEMO_ARN =
+  `arn:aws:rds:ap-northeast-2:${AWS_WIRE_APPROVAL_ACCOUNT_ID}:cluster:demo-aurora-mysql-cluster`;
+const rdsClusterDemoResource: MockResource = {
+  id: 'res-wire-cand-rds-cluster',
+  type: 'AWS_DB_CLUSTER',
+  awsType: 'RDS_CLUSTER',
+  resourceId: RDS_CLUSTER_DEMO_ARN,
+  resourceName: 'demo-aurora-mysql-cluster',
+  databaseType: 'MYSQL',
+  connectionStatus: 'PENDING',
+  isSelected: true,
+  region: 'ap-northeast-2',
+  integrationCategory: 'TARGET',
+  host: null,
+  port: null,
+  rdsInstanceCandidates: [
+    {
+      resource_id: `${RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE}-1`,
+      resource_name: 'demo-aurora-mysql-1',
+      host: 'demo-aurora-mysql-1.cluster-abcdefghij.ap-northeast-2.rds.amazonaws.com',
+      port: 3306,
+      availability_zone: 'ap-northeast-2a',
+      cluster_member_role: 'WRITER',
+    },
+    {
+      resource_id: `${RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE}-3`,
+      resource_name: 'demo-aurora-mysql-3',
+      host: 'demo-aurora-mysql-3.cluster-ro-abcdefghij.ap-northeast-2.rds.amazonaws.com',
+      port: 3306,
+      availability_zone: 'ap-northeast-2c',
+      cluster_member_role: 'READER',
+    },
+    {
+      resource_id: `${RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE}-2`,
+      resource_name: 'demo-aurora-mysql-2',
+      host: 'demo-aurora-mysql-2.cluster-ro-abcdefghij.ap-northeast-2.rds.amazonaws.com',
+      port: 3306,
+      availability_zone: 'ap-northeast-2b',
+      cluster_member_role: 'READER',
+    },
+  ],
+};
+
+// Step 3(승인 반영 중, 2001) 시드용 클러스터. 시드 타깃은 승인 요청 POST 이력이 없어
+// confirm.ts 가 `r.selectedRdsInstanceResourceId` 을 그대로 되돌려주므로, 승인이 고른 접속
+// 인스턴스(-2 Reader = 정렬 최상단)를 여기 명시해야 2·3단계 '선택됨' 칩이 선다.
+// id 는 1006 데모 리소스와 store 에서 충돌하지 않게 분리한다.
+const rdsClusterApplyingResource: MockResource = {
+  ...rdsClusterDemoResource,
+  id: 'res-wire-applying-rds-cluster',
+  selectedRdsInstanceResourceId: `${RDS_CLUSTER_DEMO_INSTANCE_ARN_BASE}-2`,
+};
+
 // ===== Mock Projects (각 단계별 1개씩) =====
 export const mockProjects: Project[] = [
   // ===== GCP 프로젝트 =====
@@ -612,7 +673,7 @@ export const mockProjects: Project[] = [
     isTerraformExecutionGranted: false,
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
-    resources: awsWireApprovalResources,
+    resources: [...awsWireApprovalResources, rdsClusterDemoResource],
     terraformState: {
       serviceTf: 'PENDING',
       bdcTf: 'PENDING',
@@ -945,6 +1006,8 @@ mockProjects.push(
     name: 'AWS PII Agent - 반영 중',
     status: ProcessStatus.APPLYING_APPROVED,
     description: 'Step 3. 승인 반영 중 — 승인 직후 확정 처리(APPLYING_APPROVED)를 기다리는 화면을 검증합니다. 폴링 중 안내 문구와 설치 진입 직전 상태를 확인할 수 있습니다.',
+    // RDS 클러스터 인스턴스 목록(선택됨 칩 포함)이 3단계 승인 정보에 그대로 보이는지 검증.
+    resources: [...awsWireSampleResources, rdsClusterApplyingResource],
   }),
   // Azure — fills steps 2/3/5/6/7 (base azure-proj-1 carries full resources)
   cloneForStep('azure-proj-1', { id: 'azure-proj-approval', targetSourceId: 2002, projectCode: 'AZURE-APPROVAL', name: 'Azure PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL }),

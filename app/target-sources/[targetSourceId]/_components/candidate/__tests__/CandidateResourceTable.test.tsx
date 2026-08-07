@@ -28,7 +28,7 @@ const defaultProps = {
   candidates: [candidateFixture()],
   selectedIds: new Set<string>(),
   exclusionReasons: {},
-  drafts: { endpointDrafts: {} },
+  drafts: { endpointDrafts: {}, rdsInstanceDrafts: {} },
   expandedResourceId: null,
   readonly: false,
   actions: {
@@ -36,6 +36,7 @@ const defaultProps = {
     reasonChipClick: () => {},
     expandToggle: () => {},
     endpointSave: () => {},
+    selectRdsInstance: () => {},
   },
 };
 
@@ -188,5 +189,158 @@ describe('CandidateResourceTable', () => {
     expect(screen.getAllByRole('button', { name: 'Resource ID 복사' })).toHaveLength(12);
     // The approve CTA lives in CandidateResourceSection's CardActionBar now (C-2).
     expect(screen.queryByRole('button', { name: '연동 대상 승인 요청' })).toBeNull();
+  });
+});
+
+// An RDS cluster connects through ONE of its member instances, so the cluster row grows
+// a child row per instance and a radio to pick between them.
+describe('CandidateResourceTable — RDS cluster instances', () => {
+  // Uppercase WRITER / READER, as the contract sends them.
+  const wireOrder = [
+    { resource_id: 'arn:db:demo-1', resource_name: 'demo-1', availability_zone: 'ap-northeast-2a', cluster_member_role: 'WRITER' },
+    { resource_id: 'arn:db:demo-3', resource_name: 'demo-3', availability_zone: 'ap-northeast-2c', cluster_member_role: 'READER' },
+    { resource_id: 'arn:db:demo-2', resource_name: 'demo-2', availability_zone: 'ap-northeast-2b', cluster_member_role: 'READER' },
+  ];
+
+  const clusterFixture = (overrides: Partial<CandidateResource> = {}): CandidateResource =>
+    candidateFixture({
+      id: 'cluster-1',
+      resourceId: 'arn:cluster:demo',
+      resourceName: 'demo-cluster',
+      type: 'AWS_DB_CLUSTER',
+      behaviorKey: 'rdsInstance',
+      rdsInstanceCandidates: wireOrder,
+      ...overrides,
+    });
+
+  const renderCluster = (props: Partial<typeof defaultProps> = {}) =>
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[clusterFixture()]}
+        selectedIds={new Set(['cluster-1'])}
+        {...props}
+      />,
+    );
+
+  it('lists instances Reader-first then by ARN, regardless of wire order', () => {
+    renderCluster();
+    const radios = screen.getAllByRole('radio');
+    expect(radios.map((radio) => radio.getAttribute('value'))).toEqual([
+      'arn:db:demo-2',
+      'arn:db:demo-3',
+      'arn:db:demo-1',
+    ]);
+  });
+
+  const checkedInstanceValue = (): string | undefined =>
+    screen
+      .getAllByRole<HTMLInputElement>('radio')
+      .find((radio) => radio.checked)
+      ?.value;
+
+  it('checks the sorted-top instance by default and marks it 기본', () => {
+    renderCluster();
+    expect(checkedInstanceValue()).toBe('arn:db:demo-2');
+    expect(screen.getByText('기본')).toBeTruthy();
+  });
+
+  it('reports the picked instance back to the caller', () => {
+    const selectRdsInstance = vi.fn();
+    renderCluster({ actions: { ...defaultProps.actions, selectRdsInstance } });
+    fireEvent.click(screen.getByRole('radio', { name: '접속 인스턴스 demo-1 선택' }));
+    expect(selectRdsInstance).toHaveBeenCalledWith('cluster-1', 'arn:db:demo-1');
+  });
+
+  it('honours the draft over the default, and drops 기본 once the user has moved off it', () => {
+    renderCluster({
+      drafts: { endpointDrafts: {}, rdsInstanceDrafts: { 'cluster-1': 'arn:db:demo-1' } },
+    });
+    expect(checkedInstanceValue()).toBe('arn:db:demo-1');
+    expect(screen.queryByText('기본')).toBeNull();
+  });
+
+  // The parent carries the COUNT only. Naming the chosen instance here too gave the row two
+  // places to state one fact, which could disagree; the 기본/선택됨 chip owns it.
+  it('counts instances on the cluster row without naming the chosen one', () => {
+    renderCluster();
+    expect(screen.getByText('인스턴스 3')).toBeTruthy();
+    // demo-2 appears once — on its own instance row, not in a parent summary.
+    expect(screen.getAllByText('demo-2')).toHaveLength(1);
+  });
+
+  // The wire sends WRITER / READER; the chip must not shout them back.
+  it('prettifies the member role on each instance chip', () => {
+    renderCluster();
+    expect(screen.getAllByText('Reader')).toHaveLength(2);
+    expect(screen.getAllByText('Writer')).toHaveLength(1);
+    expect(screen.queryByText('READER')).toBeNull();
+    expect(screen.queryByText('WRITER')).toBeNull();
+  });
+
+  it('tags the cluster row RDS Cluster, before the name', () => {
+    renderCluster();
+    const tag = screen.getByText('RDS Cluster');
+    const nameCell = tag.closest('td');
+    expect(nameCell?.textContent?.indexOf('RDS Cluster')).toBeLessThan(
+      nameCell?.textContent?.indexOf('demo-cluster') ?? -1,
+    );
+    // Instance rows are not clusters — exactly one tag for the one cluster.
+    expect(screen.getAllByText('RDS Cluster')).toHaveLength(1);
+  });
+
+  // Radios promise a choice the payload would not carry for an unchecked cluster, so they
+  // are ABSENT rather than disabled. The list itself still shows: it is what the user is
+  // deciding about, and it is the evidence for leaving the cluster out.
+  it('lists an unchecked cluster’s instances, with no radios and nothing marked', () => {
+    renderCluster({ selectedIds: new Set<string>() });
+    expect(screen.getByText('demo-2')).toBeTruthy();
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.queryByText('기본')).toBeNull();
+  });
+
+  // Owner request: clusters start open whether or not they are checked.
+  it('starts expanded and collapses from the chevron', () => {
+    renderCluster({ selectedIds: new Set<string>() });
+    expect(screen.getByText('demo-2')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
+    expect(screen.queryByText('demo-2')).toBeNull();
+    // The count and the tag survive the collapse.
+    expect(screen.getByText('인스턴스 3')).toBeTruthy();
+    expect(screen.getByText('RDS Cluster')).toBeTruthy();
+  });
+
+  it('marks the chosen instance with a 선택됨 chip instead of radios when read-only', () => {
+    renderCluster({ readonly: true });
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.getByText('선택됨')).toBeTruthy();
+    // Exactly one chip: 기본 means "we chose this, you can change it", which read-only cannot
+    // offer. The default instance is also the chosen one here, so both would otherwise show.
+    expect(screen.queryByText('기본')).toBeNull();
+  });
+
+  // A cluster the backend sent no instance list for is old data — it must stay a flat row.
+  it('leaves a cluster with no instance list exactly as it was', () => {
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[clusterFixture({ behaviorKey: 'default', rdsInstanceCandidates: undefined })]}
+        selectedIds={new Set(['cluster-1'])}
+      />,
+    );
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.queryByText(/인스턴스 /)).toBeNull();
+  });
+
+  it('names each instance row Instance and shows its own region', () => {
+    renderCluster();
+    expect(screen.getAllByText('Instance')).toHaveLength(3);
+    // The Region column carries the cluster's region on the parent and each instance's OWN
+    // availability zone on its child row — same column, one tier finer.
+    expect(screen.getAllByText('ap-northeast-2')).toHaveLength(1);
+    expect(screen.getByText('ap-northeast-2a')).toBeTruthy();
+    expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
+    expect(screen.getByText('ap-northeast-2c')).toBeTruthy();
   });
 });

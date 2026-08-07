@@ -9,6 +9,7 @@ import {
   type VmDatabaseConfig,
   type VmDatabaseType,
 } from '@/lib/types';
+import { isRdsCluster, type RdsInstanceCandidate } from '@/lib/rds-instances';
 import type {
   CandidateBehaviorKey,
   CandidateResource,
@@ -38,6 +39,8 @@ export interface CatalogItem {
   networkInterfaceId: string | null;
   ipConfigurationName: string | null;
   scanStatus: ResourceScanStatus | null;
+  rdsInstanceCandidates: RdsInstanceCandidate[];
+  selectedRdsInstanceResourceId: string | null;
   metadata: ConfirmResourceMetadata;
 }
 
@@ -76,6 +79,9 @@ const toEndpointConfigDraft = (item: CatalogItem): EndpointConfigDraft | undefin
 
 const pickBehaviorKey = (item: CatalogItem): CandidateBehaviorKey => {
   if (VM_RESOURCE_TYPES.has(item.resourceType)) return 'endpoint';
+  // A cluster the backend sent no instance list for stays a flat row — there is nothing
+  // to choose between, so it must not grow a radio group (old data keeps working).
+  if (isRdsCluster(item.resourceType) && item.rdsInstanceCandidates.length > 0) return 'rdsInstance';
   if (needsCredential(item.databaseType)) return 'credential';
   return 'default';
 };
@@ -85,6 +91,11 @@ export const catalogToCandidates = (
 ): CandidateResource[] =>
   catalog.map((item) => {
     const endpointConfig = toEndpointConfigDraft(item);
+    // The TYPE decides, not the presence of the array — same gate as `pickBehaviorKey` above
+    // and as `readRdsInstanceMetadata` on the approval surfaces. A sibling type that also
+    // ships members must not reach the candidate (and from there the payload) carrying the
+    // cluster fields, which `CandidateResource` documents as cluster-only.
+    const isCluster = isRdsCluster(item.resourceType);
     return {
       id: item.id,
       resourceId: item.resourceId,
@@ -97,6 +108,12 @@ export const catalogToCandidates = (
       exclusionReason: item.exclusionReason,
       recommendFailReason: item.recommendFailReason,
       ...(endpointConfig ? { endpointConfig } : {}),
+      ...(isCluster && item.rdsInstanceCandidates.length > 0
+        ? { rdsInstanceCandidates: item.rdsInstanceCandidates }
+        : {}),
+      ...(isCluster && item.selectedRdsInstanceResourceId
+        ? { selectedRdsInstanceResourceId: item.selectedRdsInstanceResourceId }
+        : {}),
       ...(item.scanStatus ? { scanStatus: item.scanStatus } : {}),
       metadata: item.metadata,
     };

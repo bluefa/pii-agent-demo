@@ -138,12 +138,18 @@ export const AwsInstallStatusDetail = ({
       // DB 행으로 리전 단위 키도 채워야 Database Type / Region 이 비지 않는다.
       const regionId = c.athenaRegionResourceId;
       if (regionId && !map.has(regionId)) {
-        map.set(regionId, { resourceName: null, region: c.region, databaseType: c.databaseType });
+        map.set(regionId, {
+          resourceName: null,
+          region: c.region,
+          databaseType: c.databaseType,
+          resourceType: c.type,
+        });
       }
       map.set(c.resourceId, {
         resourceName: c.resourceName,
         region: c.region,
         databaseType: c.databaseType,
+        resourceType: c.type,
       });
     }
     return map;

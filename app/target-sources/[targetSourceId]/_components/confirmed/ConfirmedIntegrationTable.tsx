@@ -103,7 +103,11 @@ export const ConfirmedIntegrationTable = ({
       }
       const row: WaitingApprovalResource = {
         resourceId: unitId,
+        // Stays the ENGINE: here this field doubles as the grouping key and the Athena fold's
+        // printed label. The real resource type rides `declaredResourceType` rather than
+        // overloading this one — see that field's note on WaitingApprovalResource.
         resourceType: resource.databaseType ?? '',
+        declaredResourceType: resource.type,
         region: resource.region ?? '',
         resourceName: name,
         selected: true,

@@ -34,6 +34,9 @@ const row = (index: number, selected = true): RequestResourceRow => ({
   oracleSid: null,
   sourceIps: [],
   nlbIndex: null,
+  resourceType: null,
+  rdsInstanceCandidates: [],
+  selectedRdsInstanceResourceId: null,
 });
 
 const CSP: RawTargetSourceDetail = { cloud_provider: 'AWS' };
@@ -147,5 +150,71 @@ describe('RequestTab 요청 리소스', () => {
     expect(screen.getByText('resource-0')).toBeTruthy();
     expect(screen.getByText('resource-5')).toBeTruthy();
     expect(screen.queryByText('resource-1')).toBeNull();
+  });
+
+  // The admin approves the requester's CHOICE, so the tab has to name the instance the
+  // cluster will connect through — not merely that a cluster was requested.
+  describe('RDS cluster rows', () => {
+    const CANDIDATES = [
+      { resource_id: 'arn:db:demo-1', resource_name: 'demo-1', availability_zone: 'ap-northeast-2a', cluster_member_role: 'WRITER' },
+      { resource_id: 'arn:db:demo-2', resource_name: 'demo-2', availability_zone: 'ap-northeast-2b', cluster_member_role: 'READER' },
+    ];
+
+    const mountCluster = (overrides: Partial<RequestResourceRow> = {}) => {
+      getApprovalRequestLatest.mockResolvedValue({
+        request: {
+          requestId: 1,
+          status: 'PENDING',
+          requestedBy: 'ops',
+          requestedAt: '2026-07-31T05:00:00Z',
+          resourceTotalCount: 1,
+          resourceSelectedCount: 1,
+        },
+        resources: [
+          {
+            ...row(0),
+            resourceName: 'demo-cluster',
+            resourceType: 'AWS_DB_CLUSTER',
+            rdsInstanceCandidates: CANDIDATES,
+            selectedRdsInstanceResourceId: 'arn:db:demo-2',
+            ...overrides,
+          },
+        ],
+      });
+      return render(<RequestTab targetSourceId={1642} detail={CSP} />);
+    };
+
+    it('tags the cluster row and lists its instances with the chosen one marked', async () => {
+      mountCluster();
+
+      expect(await screen.findByText('demo-cluster')).toBeTruthy();
+      expect(screen.getByText('RDS Cluster')).toBeTruthy();
+      expect(screen.getByText('demo-1')).toBeTruthy();
+      expect(screen.getByText('demo-2')).toBeTruthy();
+      // Prettified from the contract's uppercase WRITER / READER.
+      expect(screen.getByText('Writer')).toBeTruthy();
+      expect(screen.getByText('Reader')).toBeTruthy();
+      // Exactly one instance is the choice, and it is the one the request named.
+      const chips = screen.getAllByText('선택됨');
+      expect(chips).toHaveLength(1);
+      const chosenRow = screen
+        .getAllByRole('row')
+        .find((r) => r.textContent?.includes('demo-2') && !r.textContent.includes('demo-cluster'));
+      expect(chosenRow?.textContent).toContain('선택됨');
+    });
+
+    // Read-only surface: the admin reviews the choice, it does not re-make it.
+    it('offers no radio to change the instance', async () => {
+      mountCluster();
+      await screen.findByText('demo-cluster');
+      expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    });
+
+    it('leaves a non-cluster row untouched', async () => {
+      mountWith(1);
+      await screen.findByText('resource-0');
+      expect(screen.queryByText('RDS Cluster')).toBeNull();
+      expect(screen.queryByText('Instance')).toBeNull();
+    });
   });
 });

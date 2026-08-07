@@ -182,6 +182,9 @@ describe('app/lib/api/index', () => {
           networkInterfaceId: 'nic-1',
           ipConfigurationName: null,
           scanStatus: null,
+          // RDS cluster fields — empty on every non-cluster resource.
+          rdsInstanceCandidates: [],
+          selectedRdsInstanceResourceId: null,
           metadata: {
             provider: 'Azure',
             resourceType: 'AZURE_VM',

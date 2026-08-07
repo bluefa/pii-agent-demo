@@ -153,4 +153,33 @@ describe('ConfirmedIntegrationTable', () => {
     expect(button.className).toContain('opacity-0');
     expect(button.className).toContain('group-hover/resid:opacity-100');
   });
+
+  // Steps 6·7. This table sets `resourceType` to the ENGINE (it doubles as the fold label and
+  // the grouping key), so the cluster fact has to travel on `declaredResourceType` — carrying
+  // `type` was previously dropped here entirely.
+  describe('RDS cluster tag', () => {
+    it('tags a cluster row while still printing its engine', async () => {
+      render(
+        <ConfirmedIntegrationTable
+          confirmed={[makeResource({ type: 'AWS_DB_CLUSTER', resourceName: 'demo-cluster' })]}
+          targetSourceId={42}
+        />,
+      );
+      await waitFor(() => expect(screen.getByText('RDS Cluster')).toBeTruthy());
+      // The DB Type column is unaffected — the tag adds a fact, it does not replace one.
+      expect(screen.getByText('MySQL')).toBeTruthy();
+      expect(screen.getByText('demo-cluster')).toBeTruthy();
+    });
+
+    it('leaves a single-instance row untagged', async () => {
+      render(
+        <ConfirmedIntegrationTable
+          confirmed={[makeResource({ type: 'AWS_DB_INSTANCE' })]}
+          targetSourceId={42}
+        />,
+      );
+      await waitFor(() => expect(screen.getByText('MySQL')).toBeTruthy());
+      expect(screen.queryByText('RDS Cluster')).toBeNull();
+    });
+  });
 });

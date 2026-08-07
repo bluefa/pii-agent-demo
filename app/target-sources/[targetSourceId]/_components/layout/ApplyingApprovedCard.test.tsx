@@ -141,3 +141,87 @@ describe('ApplyingApprovedCard step-3 toolbar', () => {
     ).toBeTruthy();
   });
 });
+
+// Step 3 echoes the approved request. An EXCLUDED cluster chose no instance, so the row must
+// not raise a 선택됨 chip even if the wire hands one back — the list is evidence, the choice
+// is not. The selected half keeps both.
+describe('ApplyingApprovedCard — RDS cluster rows', () => {
+  const CANDIDATES = [
+    { resource_id: 'arn:db:demo-1', resource_name: 'demo-1', availability_zone: 'ap-northeast-2a', cluster_member_role: 'WRITER' },
+    { resource_id: 'arn:db:demo-2', resource_name: 'demo-2', availability_zone: 'ap-northeast-2b', cluster_member_role: 'READER' },
+  ];
+  const clusterMetadata = {
+    region: 'ap-northeast-2',
+    database_type: 'MySQL',
+    rds_instance_candidates: CANDIDATES,
+    selected_rds_instance_resource_id: 'arn:db:demo-2',
+  };
+
+  beforeEach(() => {
+    getApprovedIntegrationMock.mockReset();
+  });
+
+  it('marks the chosen instance on a SELECTED cluster', async () => {
+    getApprovedIntegrationMock.mockResolvedValueOnce({
+      approved_integration: {
+        id: 'ai-1',
+        request_id: 'req-1',
+        approved_at: '2026-04-30T00:00:00Z',
+        approved_by: 'admin',
+        resource_infos: [
+          {
+            resource_id: 'arn:cluster:demo',
+            resource_type: 'AWS_DB_CLUSTER',
+            credential_id: null,
+            database_region: 'ap-northeast-2',
+            resource_name: 'demo-cluster',
+            scan_status: 'NEW_SCAN' as const,
+            metadata: clusterMetadata,
+          },
+        ],
+        excluded_resource_ids: [],
+        excluded_resource_infos: [],
+      },
+    });
+    render(<ApplyingApprovedCard targetSourceId={1003} />);
+
+    expect(await screen.findByText('demo-cluster')).toBeTruthy();
+    expect(screen.getByText('RDS Cluster')).toBeTruthy();
+    expect(screen.getAllByText('선택됨')).toHaveLength(1);
+  });
+
+  // The wire echoes the selection here on purpose — the adapter has to drop it anyway.
+  it('lists an EXCLUDED cluster’s instances but never marks one', async () => {
+    getApprovedIntegrationMock.mockResolvedValueOnce({
+      approved_integration: {
+        id: 'ai-1',
+        request_id: 'req-1',
+        approved_at: '2026-04-30T00:00:00Z',
+        approved_by: 'admin',
+        resource_infos: [],
+        excluded_resource_ids: ['arn:cluster:demo'],
+        excluded_resource_infos: [
+          {
+            resource_id: 'arn:cluster:demo',
+            resource_type: 'AWS_DB_CLUSTER',
+            exclusion_reason: '미사용 클러스터',
+            resource_name: 'demo-cluster',
+            database_type: 'MySQL',
+            database_region: 'ap-northeast-2',
+            scan_status: 'UNCHANGED' as const,
+            metadata: clusterMetadata,
+          },
+        ],
+      },
+    });
+    render(<ApplyingApprovedCard targetSourceId={1003} />);
+
+    expect(await screen.findByText('demo-cluster')).toBeTruthy();
+    expect(screen.getByText('RDS Cluster')).toBeTruthy();
+    // The members are still listed — they are the evidence for the exclusion.
+    expect(screen.getByText('demo-1')).toBeTruthy();
+    expect(screen.getByText('demo-2')).toBeTruthy();
+    // …but nothing is marked, despite the wire naming a selection.
+    expect(screen.queryByText('선택됨')).toBeNull();
+  });
+});

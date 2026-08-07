@@ -92,7 +92,12 @@ export const AzureInstallationInline = ({
       new Map<string, InstallResourceMeta>(
         confirmed.map((c) => [
           c.resourceId,
-          { resourceName: c.resourceName, region: c.region, databaseType: c.databaseType },
+          {
+            resourceName: c.resourceName,
+            region: c.region,
+            databaseType: c.databaseType,
+            resourceType: c.type,
+          },
         ]),
       ),
     [confirmed],

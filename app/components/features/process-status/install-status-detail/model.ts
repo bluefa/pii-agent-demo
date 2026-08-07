@@ -71,6 +71,11 @@ export interface InstallResourceMeta {
   resourceName: string | null;
   region: string | null;
   databaseType: DatabaseType | null;
+  /**
+   * The confirmed row's top-level `resource_type`. Joined in only for TYPE PREDICATES (the
+   * RDS-cluster tag) — the install table prints `databaseType`, never this.
+   */
+  resourceType: string | null;
 }
 
 /** A step rendered as a per-resource table. */

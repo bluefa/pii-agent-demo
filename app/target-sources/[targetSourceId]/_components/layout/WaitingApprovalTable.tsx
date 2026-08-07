@@ -13,6 +13,17 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceGroupRow';
 import { LogicalDbCountCell } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbCountCell';
 import { GROUPED_CHILD_KIND_LABEL, groupResourceRows } from '@/lib/resource-grouping';
+import {
+  isRdsCluster,
+  rdsInstanceLabel,
+  sortRdsInstances,
+  type RdsInstanceCandidate,
+} from '@/lib/rds-instances';
+import {
+  RdsClusterTag,
+  RdsMemberChip,
+  RdsSelectionChip,
+} from '@/app/components/ui/RdsInstanceChips';
 import { hasLogicalDatabases } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
@@ -70,6 +81,25 @@ export interface WaitingApprovalResource {
    */
   installCell?: InstallStepCell;
   /**
+   * The contract's top-level `resource_type`, carried verbatim for TYPE PREDICATES only —
+   * currently the RDS-cluster tag. Never rendered and never used for grouping.
+   *
+   * It cannot be folded into `resourceType`: two consumers deliberately set that field to an
+   * engine name (`ConfirmedIntegrationTable`, the step-4 install table) because it doubles as
+   * the grouping key and the fold's label, so `resourceType` cannot answer "what KIND of
+   * resource is this". Absent on rows whose source has no top-level type.
+   */
+  declaredResourceType?: string;
+  /**
+   * `approval` variant only — an RDS cluster's member instances, listed read-only beneath the
+   * cluster row so an approver sees which instance the agent will connect through. Absent (the
+   * normal case) leaves the row exactly as it was. Display order is applied here, not by the
+   * caller: the array the caller holds is the wire's, which the payload echoes verbatim.
+   */
+  rdsInstanceCandidates?: readonly RdsInstanceCandidate[];
+  /** The chosen member `resource_id`, an instance ARN (`metadata.selected_rds_instance_resource_id`) — marks one instance 선택됨. */
+  selectedRdsInstanceResourceId?: string;
+  /**
    * Stable React key, never rendered. A consumer whose rows carry an identifier it must
    * NOT display (IDC's `resource_id` is an internal NLB key — design-spec §8) would
    * otherwise fall back to the list index, which makes per-row Tooltip and copy state
@@ -100,6 +130,14 @@ interface WaitingApprovalTableProps {
    * to the standalone framed table (rounded-xl + border + shadow).
    */
   connected?: boolean;
+  /**
+   * Raise the row height (py-4 → py-5) for the two-line cluster identity.
+   *
+   * Opt-in per consumer rather than derived from the variant: the `approval` variant also
+   * serves the request-history modal (a 60vh scroll box) and the admin ops request tab, and
+   * neither asked to give up a row of density. Only the step-2 and step-3 cards pass it.
+   */
+  raisedRows?: boolean;
   /**
    * Header for the location column. Defaults to Region; a consumer whose rows can be
    * host-based (an IDC endpoint has no region) passes 위치, since the cell then carries
@@ -270,6 +308,7 @@ export const WaitingApprovalTable = memo(
     onLogicalDbOpen,
     emptyMessage,
     connected = false,
+    raisedRows = false,
     regionLabel = 'Region',
     expandFolds = false,
   }: WaitingApprovalTableProps) => {
@@ -297,6 +336,10 @@ export const WaitingApprovalTable = memo(
     );
     const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
     const [expandedFolds, setExpandedFolds] = useState<ReadonlySet<string>>(() => new Set());
+    // RDS cluster instance lists start OPEN — steps 2·3 are the review surfaces, and which
+    // instance the agent connects through is part of what is being approved. Tracked as the
+    // CLOSED set (the opposite of `expandedFolds` above) so open is the default.
+    const [collapsedInstances, setCollapsedInstances] = useState<ReadonlySet<string>>(() => new Set());
 
     const toggleGroup = (key: string) =>
       setCollapsedGroups((previous) => {
@@ -310,6 +353,13 @@ export const WaitingApprovalTable = memo(
     // the region is the unit and its databases are reference.
     const toggleFold = (key: string) =>
       setExpandedFolds((previous) => {
+        const next = new Set(previous);
+        if (!next.delete(key)) next.add(key);
+        return next;
+      });
+
+    const toggleInstances = (key: string) =>
+      setCollapsedInstances((previous) => {
         const next = new Set(previous);
         if (!next.delete(key)) next.add(key);
         return next;
@@ -343,6 +393,15 @@ export const WaitingApprovalTable = memo(
       // The visible fallback is a glyph; speech gets a word. An em-dash read aloud in place of
       // an engine name says nothing a listener can use.
       const foldSpokenLabel = getDatabaseShortLabel(resource.resourceType) || '유형 미상';
+      // An RDS cluster's member instances (steps 2·3). Reader-first display order is applied
+      // here; the caller holds the wire array, which the approval payload echoes verbatim.
+      const instances = variant === 'approval' && resource.rdsInstanceCandidates?.length
+        ? sortRdsInstances(resource.rdsInstanceCandidates)
+        : [];
+      const hasInstances = instances.length > 0;
+      const instancesOpen = hasInstances && !collapsedInstances.has(rowKey);
+      // Keyed on the declared top-level type, never on `resourceType` — see the field's note.
+      const isCluster = isRdsCluster(resource.declaredResourceType ?? '');
       const row = (
         <tr
           // `resource_id` is optional in the contract, so two id-less rows would collide on
@@ -366,10 +425,56 @@ export const WaitingApprovalTable = memo(
               NAME_LIFT,
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
-              folded && open && idcStyles.table.group.parentCell,
+              (folded && open) || instancesOpen ? idcStyles.table.group.parentCell : undefined,
             )}
           >
-            {folded ? (
+            {hasInstances ? (
+              // A cluster keeps its own name — two-line identity (owner request): the tag sits
+              // at the row's top-left ABOVE the name, chevron top-aligned to the tag line.
+              // Same stack as the step-1 cluster row so the three steps read identically.
+              <span className="flex items-start gap-2">
+                <button
+                  type="button"
+                  // No aria-controls: the instance rows are `<tr>` siblings with no single
+                  // element to point at (APG disclosure: aria-expanded alone is conforming).
+                  aria-expanded={instancesOpen}
+                  aria-label={`${resource.resourceName} 인스턴스 목록 ${instancesOpen ? '접기' : '펼치기'}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleInstances(rowKey);
+                  }}
+                  className={cn(
+                    idcStyles.table.group.toggle,
+                    instancesOpen
+                      ? idcStyles.table.group.toggleOpen
+                      : idcStyles.table.group.toggleClosed,
+                    primaryColors.focusRing,
+                    'mt-0.5',
+                  )}
+                >
+                  <ChevronRightIcon className="h-3.5 w-3.5" />
+                </button>
+                <span className="flex min-w-0 flex-col items-start gap-1">
+                  <RdsClusterTag />
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Tooltip
+                      content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
+                      variant="value"
+                      size="md"
+                      triggerClassName="min-w-0 max-w-[200px] block"
+                      truncatedOnly
+                    >
+                      <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+                    </Tooltip>
+                    {/* Count only — the 선택됨 chip on the instance row is the single place the
+                        choice is stated, so the parent can never contradict it. */}
+                    <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
+                      인스턴스 {instances.length}
+                    </span>
+                  </span>
+                </span>
+              </span>
+            ) : folded ? (
               // A region has no resource name, so the cell carries the engine's label instead.
               // It reads in the SAME type as every other name in this column, NOT in the group
               // parent's heavier weight above: that weight separates a parent from the children
@@ -412,6 +517,22 @@ export const WaitingApprovalTable = memo(
                 {/* `database_type` is optional in the contract, and an unlabelled row is a bare
                     chevron with nothing beside it. */}
                 <span className="whitespace-nowrap">{foldLabel}</span>
+              </span>
+            ) : isCluster ? (
+              // Steps 4·6·7: the tag alone. Those steps list what is being installed and
+              // connected, not what is being chosen, so the member instances stay a steps 1–3
+              // concern — but the row still has to say it is a cluster, in the same stack.
+              <span className="flex min-w-0 flex-col items-start gap-1">
+                <RdsClusterTag />
+                <Tooltip
+                  content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
+                  variant="value"
+                  size="md"
+                  triggerClassName="min-w-0 max-w-[200px] block"
+                  truncatedOnly
+                >
+                  <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+                </Tooltip>
               </span>
             ) : (
               <Tooltip
@@ -545,6 +666,66 @@ export const WaitingApprovalTable = memo(
         </tr>
       );
 
+      if (hasInstances) {
+        return (
+          <Fragment key={rowKey}>
+            {row}
+            {/* The cluster's member instances — read-only here: the choice was made on step 1
+                and this surface exists to review it, so there are no radios. Everything the
+                cluster answers for (id, verdict, reason) stays on the parent row. */}
+            {instancesOpen &&
+              instances.map((instance, index) => (
+                // The instances inherit their cluster's tier: an excluded cluster is not
+                // being installed, so its members are not either, and leaving them at full
+                // contrast made a dimmed parent read as a rendering fault.
+                <tr
+                  key={instance.resource_id}
+                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
+                >
+                  <td
+                    className={cn(
+                      idcStyles.table.approvalCell,
+                      'font-mono text-[14px]',
+                      excluded ? DIM_TEXT : textColors.primary,
+                      idcStyles.table.group.childCell,
+                      index === instances.length - 1 && idcStyles.table.group.childCellLast,
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="truncate">{rdsInstanceLabel(instance)}</span>
+                      <RdsMemberChip role={instance.cluster_member_role} />
+                      {instance.resource_id === resource.selectedRdsInstanceResourceId && (
+                        <RdsSelectionChip label="선택됨" />
+                      )}
+                    </span>
+                  </td>
+                  <td className={idcStyles.table.approvalCell} />
+                  <td
+                    className={cn(
+                      idcStyles.table.approvalCell,
+                      'text-[12px]',
+                      excluded ? DIM_TEXT : textColors.secondary,
+                    )}
+                  >
+                    Instance
+                  </td>
+                  <td
+                    className={cn(
+                      idcStyles.table.approvalCell,
+                      monoCell,
+                      excluded ? DIM_TEXT : textColors.secondary,
+                    )}
+                  >
+                    {instance.availability_zone ?? ''}
+                  </td>
+                  <td className={idcStyles.table.approvalCell} />
+                  <td className={idcStyles.table.approvalCell} />
+                </tr>
+              ))}
+          </Fragment>
+        );
+      }
+
       if (!folded) return row;
       return (
         <Fragment key={rowKey}>
@@ -582,7 +763,11 @@ export const WaitingApprovalTable = memo(
     return (
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          {/* approval rows raised one step over approvalCell's py-4 (owner request, step-1
+              table matches). Variant-scoped: the install/confirmed tables (steps 4·6) keep
+              the shared token's rhythm. :not([colspan]) keeps spanning cells (panel-style
+              tds zero their own padding) out of the override — see CandidateResourceTable. */}
+          <table className={cn('w-full', raisedRows && '[&_td:not([colspan])]:py-5')}>
             <thead className={idcStyles.table.approvalHeader}>
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}

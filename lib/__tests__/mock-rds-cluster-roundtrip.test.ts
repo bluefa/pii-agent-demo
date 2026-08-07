@@ -1,0 +1,265 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { mockConfirm, _resetApprovedIntegrationStore } from '@/lib/bff/mock/confirm';
+import { toRequestResourceRow } from '@/app/lib/api/task-queue-requests';
+import { getTqApprovalLatest } from '@/lib/bff/mock/task-queue';
+import { setCurrentUser } from '@/lib/mock-data';
+import { getStore } from '@/lib/mock-store';
+import { createInitialProjectStatus } from '@/lib/process/calculator';
+import { ProcessStatus } from '@/lib/types';
+import type { Project } from '@/lib/types';
+import type { RdsInstanceCandidate } from '@/lib/rds-instances';
+
+// Steps 2·3 read the instance list and the chosen ARN back out of the approval request. That
+// only works if the mock ECHOES what step 1 posted — a store that drops the choice would show
+// the reviewer a different instance from the one the requester picked.
+const TEST_PROJECT_ID = 'test-rds-cluster-roundtrip';
+const TARGET_SOURCE_ID = 3101;
+const TARGET_SOURCE_ID_STR = String(TARGET_SOURCE_ID);
+
+const CLUSTER_ARN = 'arn:aws:rds:ap-northeast-2:acct:cluster:demo';
+const WRITER: RdsInstanceCandidate = {
+  resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:demo-1',
+  resource_name: 'demo-1',
+  host: 'demo-1.cluster-abc.ap-northeast-2.rds.amazonaws.com',
+  port: 3306,
+  availability_zone: 'ap-northeast-2a',
+  cluster_member_role: 'WRITER',
+};
+const READER: RdsInstanceCandidate = {
+  resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:demo-2',
+  resource_name: 'demo-2',
+  host: 'demo-2.cluster-ro-abc.ap-northeast-2.rds.amazonaws.com',
+  port: 3306,
+  availability_zone: 'ap-northeast-2b',
+  cluster_member_role: 'READER',
+};
+// Wire order is Writer-first on purpose — nothing in the round trip may reorder it.
+const WIRE_ORDER = [WRITER, READER];
+
+const createTestProject = (): Project => ({
+  id: TEST_PROJECT_ID,
+  targetSourceId: TARGET_SOURCE_ID,
+  projectCode: 'AWS-RDS-CLUSTER',
+  serviceCode: 'SERVICE-A',
+  cloudProvider: 'AWS',
+  processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+  status: createInitialProjectStatus(),
+  resources: [
+    {
+      id: CLUSTER_ARN,
+      type: 'AWS_DB_CLUSTER',
+      awsType: 'RDS_CLUSTER',
+      resourceId: CLUSTER_ARN,
+      resourceName: 'demo-cluster',
+      databaseType: 'MYSQL',
+      connectionStatus: 'PENDING',
+      isSelected: false,
+      integrationCategory: 'TARGET',
+      rdsInstanceCandidates: WIRE_ORDER,
+    },
+  ],
+  terraformState: { serviceTf: 'PENDING', bdcTf: 'PENDING' },
+  createdAt: '2026-03-01T00:00:00Z',
+  updatedAt: '2026-03-01T00:00:00Z',
+  name: 'RDS cluster round trip',
+  description: 'step 1 → step 2·3 echo',
+  isRejected: false,
+});
+
+interface WireItem {
+  resource_id?: string;
+  selected?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+const postApproval = (selectedResourceId: string | undefined) =>
+  mockConfirm.createApprovalRequest(TARGET_SOURCE_ID_STR, {
+    resources: [
+      {
+        resource_id: CLUSTER_ARN,
+        resource_name: 'demo-cluster',
+        resource_type: 'AWS_DB_CLUSTER',
+        selected: true,
+        integration_category: 'TARGET',
+        metadata: {
+          provider: 'AWS',
+          region: 'ap-northeast-2',
+          database_type: 'mysql',
+          rds_instance_candidates: WIRE_ORDER,
+          ...(selectedResourceId ? { selected_rds_instance_resource_id: selectedResourceId } : {}),
+        },
+      },
+    ],
+  });
+
+const latestClusterItem = async (): Promise<WireItem | undefined> => {
+  const response = await mockConfirm.getApprovalRequestLatest(TARGET_SOURCE_ID_STR);
+  const body = (await response.json()) as { resources?: WireItem[] };
+  return body.resources?.find((item) => item.resource_id === CLUSTER_ARN);
+};
+
+/** The step-1 catalog read — where a rejected target lands when the user is sent back. */
+const catalogClusterItem = async (): Promise<WireItem | undefined> => {
+  const response = await mockConfirm.getResources(TARGET_SOURCE_ID_STR);
+  const body = (await response.json()) as { resources?: WireItem[] };
+  return body.resources?.find((item) => item.resource_id === CLUSTER_ARN);
+};
+
+describe('RDS cluster metadata round trip (step 1 → steps 2·3)', () => {
+  beforeEach(() => {
+    const store = getStore();
+    store.projects = store.projects.filter((project) => project.id !== TEST_PROJECT_ID);
+    store.currentUserId = 'admin-1';
+    setCurrentUser('admin-1');
+    _resetApprovedIntegrationStore();
+    store.projects.push(createTestProject());
+  });
+
+  it('echoes the posted instance choice back on approval-requests/latest', async () => {
+    await postApproval(READER.resource_id);
+
+    const item = await latestClusterItem();
+    expect(item?.selected).toBe(true);
+    expect(item?.metadata?.selected_rds_instance_resource_id).toBe(READER.resource_id);
+    // Verbatim and unsorted — the display layer sorts, the wire does not.
+    expect(item?.metadata?.rds_instance_candidates).toEqual(WIRE_ORDER);
+  });
+
+  it('echoes the WRITER when that is what was picked, not the Reader default', async () => {
+    await postApproval(WRITER.resource_id);
+
+    const item = await latestClusterItem();
+    expect(item?.metadata?.selected_rds_instance_resource_id).toBe(WRITER.resource_id);
+  });
+
+  it('carries the list through approved-integration (step 3) with the choice', async () => {
+    await postApproval(READER.resource_id);
+
+    const response = await mockConfirm.getApprovedIntegration(TARGET_SOURCE_ID_STR);
+    const body = (await response.json()) as { resources?: WireItem[] };
+    const item = body.resources?.find((resource) => resource.resource_id === CLUSTER_ARN);
+
+    expect(item?.metadata?.rds_instance_candidates).toEqual(WIRE_ORDER);
+    expect(item?.metadata?.selected_rds_instance_resource_id).toBe(READER.resource_id);
+  });
+
+  it('keeps the member list but no choice on an excluded cluster', async () => {
+    await mockConfirm.createApprovalRequest(TARGET_SOURCE_ID_STR, {
+      resources: [
+        {
+          resource_id: CLUSTER_ARN,
+          resource_name: 'demo-cluster',
+          resource_type: 'AWS_DB_CLUSTER',
+          selected: false,
+          integration_category: 'TARGET',
+          exclusion_reason: '미사용 클러스터',
+          metadata: { rds_instance_candidates: WIRE_ORDER },
+        },
+      ],
+    });
+
+    const item = await latestClusterItem();
+    expect(item?.selected).toBe(false);
+    expect(item?.metadata?.rds_instance_candidates).toEqual(WIRE_ORDER);
+    expect(item?.metadata?.selected_rds_instance_resource_id).toBeUndefined();
+  });
+
+  // Reject → back to step 1. The catalog read has to hand the choice back, or the user's pick
+  // silently reverts to the client default and they re-submit something they never chose.
+  // This is also the only path on which defaultRdsInstanceResourceId's server-wins branch runs.
+  it('hands the recorded choice back on the step-1 /resources read', async () => {
+    // Before any request the server knows nothing — the client default is what applies.
+    expect((await catalogClusterItem())?.metadata?.selected_rds_instance_resource_id).toBeUndefined();
+
+    await postApproval(WRITER.resource_id);
+
+    const item = await catalogClusterItem();
+    expect(item?.metadata?.selected_rds_instance_resource_id).toBe(WRITER.resource_id);
+    expect(item?.metadata?.rds_instance_candidates).toEqual(WIRE_ORDER);
+  });
+
+  // An excluded cluster recorded no choice, so step 1 must not resurrect one.
+  it('hands back no choice when the cluster was excluded', async () => {
+    await mockConfirm.createApprovalRequest(TARGET_SOURCE_ID_STR, {
+      resources: [
+        {
+          resource_id: CLUSTER_ARN,
+          resource_name: 'demo-cluster',
+          resource_type: 'AWS_DB_CLUSTER',
+          selected: false,
+          integration_category: 'TARGET',
+          exclusion_reason: '미사용 클러스터',
+          metadata: { rds_instance_candidates: WIRE_ORDER },
+        },
+      ],
+    });
+
+    expect((await catalogClusterItem())?.metadata?.selected_rds_instance_resource_id).toBeUndefined();
+  });
+
+  // The admin queue and the ops request tab both read …/approval-requests/latest through
+  // `toRequestResourceRow`. They must see the same cluster the requester submitted — this is
+  // the wire→admin-row hop, which no step-1/2/3 test covers.
+  it('surfaces the cluster through the admin request adapter', async () => {
+    await postApproval(WRITER.resource_id);
+
+    const response = await mockConfirm.getApprovalRequestLatest(TARGET_SOURCE_ID_STR);
+    const body = (await response.json()) as { resources?: Record<string, unknown>[] };
+    const wire = body.resources?.find((item) => item.resource_id === CLUSTER_ARN);
+    const adminRow = toRequestResourceRow(wire as Parameters<typeof toRequestResourceRow>[0]);
+
+    expect(adminRow.resourceType).toBe('AWS_DB_CLUSTER');
+    expect(adminRow.rdsInstanceCandidates).toEqual(WIRE_ORDER);
+    expect(adminRow.selectedRdsInstanceResourceId).toBe(WRITER.resource_id);
+  });
+
+  // The type gate has to hold at this hop too: a non-cluster row must not grow the fields.
+  it('leaves a non-cluster admin row without cluster fields', async () => {
+    const adminRow = toRequestResourceRow({
+      resource_id: 'arn:aws:rds:ap-northeast-2:acct:db:plain',
+      resource_type: 'AWS_DB_INSTANCE',
+      metadata: { region: 'ap-northeast-2', rds_instance_candidates: WIRE_ORDER },
+    } as Parameters<typeof toRequestResourceRow>[0]);
+
+    expect(adminRow.rdsInstanceCandidates).toEqual([]);
+    expect(adminRow.selectedRdsInstanceResourceId).toBeNull();
+  });
+});
+
+// The admin queue's demo targets are NOT store projects — they come from a separate seed
+// (SEED_APPROVAL_DEMO), so the step-1 POST flow above never reaches them. Without a seeded
+// cluster there, the queue's instance rows are unreachable in the demo.
+describe('admin queue demo seed (TS_INDEX-reachable requests)', () => {
+  it('serves request 2113 with a cluster the queue can expand', () => {
+    const wire = getTqApprovalLatest(2113);
+    const resources = (wire?.resources ?? []) as Record<string, unknown>[];
+    const cluster = resources.find((r) => r.resource_name === 'aurora-pay-prod');
+    const row = toRequestResourceRow(cluster as Parameters<typeof toRequestResourceRow>[0]);
+
+    expect(row.resourceType).toBe('RDS_CLUSTER');
+    expect(row.rdsInstanceCandidates).toHaveLength(3);
+    // The choice points at a Reader, and at one the cluster actually has.
+    expect(row.selectedRdsInstanceResourceId).toBeTruthy();
+    const chosen = row.rdsInstanceCandidates.find(
+      (c) => c.resource_id === row.selectedRdsInstanceResourceId,
+    );
+    expect(chosen?.cluster_member_role).toBe('READER');
+    // Wire order is deliberately unsorted so the Reader-first display order is visible.
+    expect(row.rdsInstanceCandidates[0].cluster_member_role).toBe('WRITER');
+  });
+
+  // Kept candidate-less on purpose: this is the tag-only state (a cluster whose request
+  // predates the candidates field), which the queue must still tag.
+  it('leaves request 1907 clusters candidate-less, typed as clusters', () => {
+    const wire = getTqApprovalLatest(1907);
+    const resources = (wire?.resources ?? []) as Record<string, unknown>[];
+    const rows = resources
+      .map((r) => toRequestResourceRow(r as Parameters<typeof toRequestResourceRow>[0]))
+      .filter((r) => r.resourceType === 'RDS_CLUSTER');
+
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.rdsInstanceCandidates).toEqual([]);
+    }
+  });
+});

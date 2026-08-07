@@ -26,6 +26,10 @@ import type { ApprovalHistoryRow, Paged, RequestListRow } from '@/lib/types/task
 export { getNlbTable } from '@/app/lib/api/idc';
 export type { NlbTableRow } from '@/app/lib/api/idc';
 import type { IdcKind } from '@/app/lib/api/idc';
+import {
+  readRdsInstanceMetadata,
+  type RdsInstanceCandidate,
+} from '@/lib/rds-instances';
 
 // ── Domain models (UI contract — stable across wire changes) ─────────────────
 
@@ -81,6 +85,19 @@ export interface RequestResourceRow {
   sourceIps: string[];
   /** Assigned NLB index (metadata.nlb_index) — the select's current value. */
   nlbIndex: number | null;
+  /**
+   * Top-level `resource_type`, for TYPE PREDICATES only (the RDS-cluster tag). Kept separate
+   * from `databaseType`, which is the engine the tables print — an engine name can never
+   * answer "what kind of resource is this". Null when the wire omitted it.
+   */
+  resourceType: string | null;
+  /**
+   * RDS cluster member instances and the chosen one, from the request's own metadata.
+   * Empty / null for every other resource — the helper's type gate sees to that, so IDC
+   * rows are untouched. @see lib/rds-instances.ts
+   */
+  rdsInstanceCandidates: RdsInstanceCandidate[];
+  selectedRdsInstanceResourceId: string | null;
 }
 
 /**
@@ -132,6 +149,9 @@ const toConnectTargets = (kind: IdcHostKind | null, meta: {
 export function toRequestResourceRow(wire: ResourceItemWire): RequestResourceRow {
   const meta = wire.metadata ?? {};
   const kind = toIdcKind(meta.idc_host_format);
+  // Same helper steps 2·3 use, so the admin reads the request the requester actually sent.
+  // Its type gate returns {} for anything that is not an RDS cluster, IDC rows included.
+  const cluster = readRdsInstanceMetadata(meta, wire.resource_type);
   return {
     resourceId: wire.resource_id ?? null,
     resourceName: wire.resource_name ?? null,
@@ -149,6 +169,9 @@ export function toRequestResourceRow(wire: ResourceItemWire): RequestResourceRow
     oracleSid: meta.oracle_service_id ?? null,
     sourceIps: strArray(meta.idc_source_ips),
     nlbIndex: meta.nlb_index ?? null,
+    resourceType: wire.resource_type ?? null,
+    rdsInstanceCandidates: cluster.rdsInstanceCandidates ?? [],
+    selectedRdsInstanceResourceId: cluster.selectedRdsInstanceResourceId ?? null,
   };
 }
 
