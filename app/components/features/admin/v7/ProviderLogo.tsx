@@ -1,6 +1,6 @@
 import type { FC } from 'react';
 import { AwsIcon, AzureIcon, GcpIcon, IdcIcon } from '@/app/components/ui/CloudProviderIcon';
-import { bgColors, cn, providerColors, textColors } from '@/lib/theme';
+import { cn, providerColors, textColors } from '@/lib/theme';
 import type { CloudProvider } from '@/lib/types';
 
 const PROVIDER_ICON: Record<CloudProvider, FC<{ className?: string }>> = {
@@ -31,28 +31,35 @@ interface ProviderLogoProps {
   provider: CloudProvider;
   isSdu?: boolean;
   /**
-   * Drop the brand hue and render the mark on a neutral tile. Where the provider
-   * repeats down every row of a list, five brand colours make that column the
-   * loudest thing on the page while carrying the least information — the mark's
-   * shape already says which provider it is.
+   * `bare` drops both the brand hue and the tile: a large monotone mark on the card's
+   * own surface. Where the provider repeats down every row of a list, five brand
+   * colours make that column the loudest thing on the page while carrying the least
+   * information — the mark's shape already says which provider it is, and at 36px it
+   * says it without a tile to hold it.
    */
-  neutral?: boolean;
+  variant?: 'tile' | 'bare';
   className?: string;
 }
 
-export const ProviderLogo = ({ provider, isSdu, neutral, className }: ProviderLogoProps) => {
+export const ProviderLogo = ({
+  provider,
+  isSdu,
+  variant = 'tile',
+  className,
+}: ProviderLogoProps) => {
   const Icon = isSdu ? SduIcon : PROVIDER_ICON[provider];
   const colors = providerColors[isSdu ? 'SDU' : provider];
+  const bare = variant === 'bare';
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center w-10 h-10 rounded-lg',
-        neutral ? cn(bgColors.panel, textColors.secondary) : cn(colors.bg, colors.text),
+        'inline-flex items-center justify-center rounded-lg',
+        bare ? cn('w-16 h-16', textColors.secondary) : cn('w-10 h-10', colors.bg, colors.text),
         className,
       )}
       aria-label={isSdu ? 'SDU' : provider}
     >
-      <Icon className="w-5 h-5" />
+      <Icon className={bare ? 'w-9 h-9' : 'w-5 h-5'} />
     </span>
   );
 };

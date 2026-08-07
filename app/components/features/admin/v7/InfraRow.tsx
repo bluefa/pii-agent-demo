@@ -26,41 +26,38 @@ interface InfraRowProps {
 }
 
 /**
- * The row's subject line. A GUID or a 12-digit account number is what the service
- * owner recognises the row by, so it is the title; the label in front says which
- * kind of id it is. IDC and SDU have no cloud account at all — they get a plain
- * name plus a gloss, because inventing an id there would be a lie.
+ * Two text layers above the description. The provider name leads — it is what the
+ * eye lands on — followed by the word for the kind of id it owns and then the id
+ * itself. Where a provider has no account of its own (IDC, SDU) the second layer
+ * carries a plain gloss instead, and GCP puts its project there because the project
+ * id is long enough to want the whole line.
  */
 interface RowIdentity {
-  label?: string;
-  value: string;
-  mono: boolean;
+  /** Layer 1: the provider's own name. */
+  name: string;
+  /** Layer 1 continued — the word for the id ("Account", "Subscription"). */
+  kind?: string;
+  value?: string;
+  /** Layer 2 when the account id belongs on its own line (GCP). */
+  secondKind?: string;
+  secondValue?: string;
+  /** Layer 2 when there is no account at all (IDC, SDU). */
   gloss?: string;
 }
 
-/** Middle-elide: a 36-char GUID buries its distinguishing head and tail if truncated at one end. */
-const shortenId = (value: string): string =>
-  value.length <= 20 ? value : `${value.slice(0, 8)}…${value.slice(-8)}`;
-
 const identityOf = (project: ProjectSummary): RowIdentity => {
   if (project.isSduType) {
-    return { value: 'SDU', mono: false, gloss: '고객사가 데이터를 직접 업로드' };
+    return { name: 'SDU', gloss: '서비스 담당자가 데이터를 직접 업로드' };
   }
   switch (project.cloudProvider) {
     case 'AWS':
-      return project.awsAccountId
-        ? { label: 'AWS Account', value: project.awsAccountId, mono: true }
-        : { value: 'AWS 계정', mono: false };
+      return { name: 'AWS', kind: 'Account', value: project.awsAccountId };
     case 'Azure':
-      return project.subscriptionId
-        ? { label: 'Azure Subscription', value: shortenId(project.subscriptionId), mono: true }
-        : { value: 'Azure 구독', mono: false };
+      return { name: 'Azure', kind: 'Subscription', value: project.subscriptionId };
     case 'GCP':
-      return project.gcpProjectId
-        ? { label: 'GCP Project', value: project.gcpProjectId, mono: true }
-        : { value: 'GCP 프로젝트', mono: false };
+      return { name: 'GCP', secondKind: 'Project', secondValue: project.gcpProjectId };
     case 'IDC':
-      return { value: 'IDC 인프라', mono: false, gloss: '사내망' };
+      return { name: 'IDC 인프라', gloss: '사내망' };
   }
 };
 
@@ -70,48 +67,45 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
   // 다른 CSP 행에 칩을 달면 없는 선택지를 있는 것처럼 보이게 한다.
   const showInstallMode = project.cloudProvider === 'AWS' && !project.isSduType;
   const showTenant = project.cloudProvider === 'Azure' && Boolean(project.tenantId);
-  const hasMeta = showTenant || showInstallMode;
+  const hasSecondLayer =
+    showTenant || showInstallMode || Boolean(identity.gloss) || Boolean(identity.secondValue);
 
-  // The row is a click target but not a focusable button — WAI-ARIA forbids
-  // interactive descendants (the detail link, the ⋮ menu) inside a role="button"
-  // wrapper. Keyboard users reach the same destination through the detail link.
+  // The card is a click target but not a focusable button — WAI-ARIA forbids
+  // interactive descendants (the ↗ link, the ⋮ menu) inside a role="button"
+  // wrapper. Keyboard users reach the same destination through the ↗ button.
   return (
     <div
       onClick={() => onOpenDetail(project.targetSourceId)}
       className={cn(
-        'group flex items-start gap-3.5 px-5 py-[18px] cursor-pointer transition-colors',
-        'border-b last:border-b-0',
-        borderColors.light,
+        'group flex items-start gap-3.5 px-[21px] py-[19px] cursor-pointer rounded-[12px] border transition-colors',
+        bgColors.surface,
+        borderColors.default,
         bgColors.mutedHover,
       )}
     >
-      <ProviderLogo provider={project.cloudProvider} isSdu={project.isSduType} neutral />
+      <ProviderLogo
+        provider={project.cloudProvider}
+        isSdu={project.isSduType}
+        variant="bare"
+        className="flex-none"
+      />
 
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
         <div className="flex items-center gap-2 flex-wrap">
-          {identity.label && (
-            <span className={cn('text-[12px] font-semibold', textColors.tertiary)}>
-              {identity.label}
-            </span>
-          )}
-          {/* The row's own title is what turns blue under the cursor — the affordance
+          {/* The row's own title is what turns primary under the cursor — the affordance
               rides the content instead of a repeated link beside it, so the list holds
-              no resting blue at all and the page's one CTA keeps its loudness. */}
+              no resting blue and the page's one CTA keeps its loudness. */}
           <span
             className={cn(
               'text-[16px] font-bold tracking-[-0.01em] transition-colors',
               textColors.primary,
               primaryColors.textGroupHover,
-              identity.mono && `font-mono ${numericFeatures.tabular}`,
             )}
           >
-            {identity.value}
+            {identity.name}
           </span>
-          {identity.gloss && (
-            <span className={cn('text-[14px] font-medium', textColors.tertiary)}>
-              {identity.gloss}
-            </span>
-          )}
+          {identity.kind && <KindWord>{identity.kind}</KindWord>}
+          {identity.value && <IdValue>{identity.value}</IdValue>}
           {project.isChinaRegion && (
             <span
               className={cn(
@@ -127,13 +121,31 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
           )}
         </div>
 
-        {/* GCP·IDC·SDU have nothing to put here — render no layer at all rather than an
-            empty flex row, which would still spend the column's gap. */}
-        {hasMeta && (
-          <div className="flex flex-wrap items-center gap-y-1 gap-x-5">
+        {/* Rendered only when it has something in it — an empty flex row would still
+            spend the column's gap. */}
+        {hasSecondLayer && (
+          <div className="flex flex-wrap items-center gap-y-1 gap-x-5 pl-0.5">
+            {identity.gloss && (
+              <span className={cn('text-[14px] font-medium', textColors.tertiary)}>
+                {identity.gloss}
+              </span>
+            )}
+            {identity.secondValue && (
+              <span className="flex items-center gap-2">
+                <KindWord>{identity.secondKind}</KindWord>
+                <span
+                  className={cn(
+                    'text-[16px] font-semibold tracking-[-0.01em]',
+                    textColors.primary,
+                  )}
+                >
+                  {identity.secondValue}
+                </span>
+              </span>
+            )}
             {showTenant && (
               <MetaPair label="Tenant">
-                <span className="font-mono">{shortenId(project.tenantId ?? '')}</span>
+                <IdValue>{project.tenantId}</IdValue>
               </MetaPair>
             )}
             {showInstallMode && (
@@ -154,7 +166,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         )}
 
         {project.description && (
-          <div className="flex gap-1.5 min-w-0">
+          <div className="flex gap-1.5 min-w-0 pl-0.5">
             <span className={cn('flex-none pt-0.5 text-[12px]', textColors.tertiary)}>설명</span>
             <span className={cn('truncate text-[14px]', textColors.secondary)}>
               {project.description}
@@ -167,33 +179,20 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         className="flex-none flex items-center gap-3.5 pt-0.5"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Chevron, not a labelled link: the whole row already opens the detail, so a
-            worded control here was a second button for an action the row performs —
-            repeated once per row, it outshouted the page's only CTA. The label lives
-            in aria-label so keyboard and screen-reader users still get the words. */}
+        {/* A bare glyph, not a worded control: the whole card already opens the detail,
+            so words here would repeat once per row and outshout the page's only CTA.
+            The label survives in aria-label for keyboard and screen-reader users. */}
         <button
           type="button"
           onClick={() => onOpenDetail(project.targetSourceId)}
-          aria-label={`${identity.value} 상세 정보 확인`}
+          aria-label={`${identity.name} 상세 정보 확인`}
           className={cn(
-            'inline-grid place-items-center p-1 transition-colors',
-            textColors.tertiary,
-            tableRowLift.cellText,
+            'text-[18px] font-bold leading-none underline underline-offset-[3px] transition-colors',
+            primaryColors.text,
+            primaryColors.textGroupHover,
           )}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="9 6 15 12 9 18" />
-          </svg>
+          ↗
         </button>
         <RowMenu
           onViewDetail={() => onManageAction('view', project.targetSourceId)}
@@ -205,8 +204,26 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
   );
 };
 
+/** The word naming the kind of id that follows it — "Account", "Subscription", "Project". */
+const KindWord = ({ children }: { children: React.ReactNode }) => (
+  <span className={cn('text-[12px]', textColors.tertiary)}>{children}</span>
+);
+
+/** An account id or GUID — shown whole; a truncated id is not an id. */
+const IdValue = ({ children }: { children: React.ReactNode }) => (
+  <span
+    className={cn(
+      'text-[14px] font-semibold tracking-[-0.01em]',
+      textColors.primary,
+      numericFeatures.tabular,
+    )}
+  >
+    {children}
+  </span>
+);
+
 const MetaPair = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <span className={cn('flex items-center gap-1.5 text-[14px]', textColors.secondary)}>
+  <span className="flex items-center gap-1.5">
     <span className={cn('text-[12px]', textColors.tertiary)}>{label}</span>
     {children}
   </span>
@@ -267,7 +284,11 @@ const RowMenu = ({ onViewDetail, onCopyId, onDelete }: RowMenuProps) => {
         aria-label="추가 작업"
         aria-haspopup="menu"
         aria-expanded={open}
-        className={cn('inline-grid place-items-center p-1 transition-colors', textColors.tertiary)}
+        className={cn(
+          'inline-grid place-items-center p-1 transition-colors',
+          textColors.tertiary,
+          tableRowLift.cellText,
+        )}
       >
         {KEBAB_ICON}
       </button>
