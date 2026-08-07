@@ -1098,9 +1098,21 @@ export const idcStyles = {
        * Apply ONLY while the group is open. A closed group has nothing below it, so the segment
        * dangled off the chevron pointing at an unrelated row and read as a rendering fault. Closed
        * state is the chevron alone.
+       *
+       * The trunk starts at the chevron BOX's bottom edge, never at the row's centre: a centred
+       * 20px chevron ends 10px past the middle, so `top-1/2` drew the first 10px of the line
+       * straight through the glyph and the arrow read as snagged on it. Centred chevron →
+       * `50% + 10px`; a cluster's chevron is pinned to its first line instead, so that row takes
+       * `parentCellTopChevron`. Both land on the same rule, which is why the two now match.
        */
       parentCell:
-        "relative after:absolute after:-bottom-px after:left-[28px] after:top-1/2 after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+        "relative after:absolute after:-bottom-px after:left-[28px] after:top-[calc(50%_+_10px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+      /**
+       * Parent whose chevron is top-aligned to a two-line identity (RDS cluster: tag over name).
+       * 42px = the cell's 20px top padding + the chevron's 2px nudge + its 20px box.
+       */
+      parentCellTopChevron:
+        "relative after:absolute after:-bottom-px after:left-[28px] after:top-[42px] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /**
        * Rail lit — put on every `<tr>` of ONE group while its parent row is hovered, so the
        * trunk and each elbow answer together and the group says which rows it owns. The rail

@@ -170,6 +170,7 @@ export const CandidateResourceTable = ({
               grouped = false,
               lastInGroup = false,
               railActive = false,
+              groupKey?: string,
             ) => {
               const isSelected = selectedIds.has(candidate.id);
               const instancesExpanded = instanceFoldOverrides[candidate.id] ?? true;
@@ -186,6 +187,11 @@ export const CandidateResourceTable = ({
                   grouped={grouped}
                   lastInGroup={lastInGroup}
                   railActive={railActive}
+                  onRailHoverChange={
+                    groupKey
+                      ? (active) => setHoveredGroupKey(active ? groupKey : null)
+                      : undefined
+                  }
                   rdsInstancesExpanded={instancesExpanded}
                   onRdsInstancesToggle={() => toggleInstanceFold(candidate.id)}
                 />
@@ -274,7 +280,13 @@ export const CandidateResourceTable = ({
                 {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
                 <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
                   {group.rows.map((candidate, index) =>
-                    renderRow(candidate, true, index === group.rows.length - 1, railActive),
+                    renderRow(
+                      candidate,
+                      true,
+                      index === group.rows.length - 1,
+                      railActive,
+                      group.key,
+                    ),
                   )}
                 </tbody>
               </Fragment>

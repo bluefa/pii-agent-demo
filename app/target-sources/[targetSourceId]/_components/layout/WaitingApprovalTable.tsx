@@ -425,7 +425,13 @@ export const WaitingApprovalTable = memo(
               NAME_LIFT,
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
-              (folded && open) || instancesOpen ? idcStyles.table.group.parentCell : undefined,
+              // A cluster's chevron is top-aligned to its tag line, a group's is centred — the
+              // trunk starts at the chevron's bottom either way, which is two different offsets.
+              instancesOpen
+                ? idcStyles.table.group.parentCellTopChevron
+                : folded && open
+                  ? idcStyles.table.group.parentCell
+                  : undefined,
             )}
           >
             {hasInstances ? (
