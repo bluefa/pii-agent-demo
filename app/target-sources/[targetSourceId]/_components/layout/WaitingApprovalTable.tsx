@@ -433,20 +433,14 @@ export const WaitingApprovalTable = memo(
               NAME_LIFT,
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
-              // A cluster's chevron is top-aligned to its tag line, a group's is centred — the
-              // trunk starts at the chevron's bottom either way, which is two different offsets.
-              instancesOpen
-                ? idcStyles.table.group.parentCellTopChevron
-                : folded && open
-                  ? idcStyles.table.group.parentCell
-                  : undefined,
+              (instancesOpen || (folded && open)) && idcStyles.table.group.parentCell,
             )}
           >
             {hasInstances ? (
               // A cluster keeps its own name — two-line identity (owner request): the tag sits
-              // at the row's top-left ABOVE the name, chevron top-aligned to the tag line.
+              // ABOVE the name, and the chevron centres on the pair.
               // Same stack as the step-1 cluster row so the three steps read identically.
-              <span className="flex items-start gap-2">
+              <span className="flex items-center gap-2">
                 <button
                   type="button"
                   // No aria-controls: the instance rows are `<tr>` siblings with no single
@@ -463,7 +457,6 @@ export const WaitingApprovalTable = memo(
                       ? idcStyles.table.group.toggleOpen
                       : idcStyles.table.group.toggleClosed,
                     primaryColors.focusRing,
-                    'mt-0.5',
                   )}
                 >
                   <ChevronRightIcon className="h-3.5 w-3.5" />

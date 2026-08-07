@@ -111,15 +111,13 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     primaryColors.textGroupHover,
                     // The rail's first segment runs from the chevron down to the first
                     // instance row; without it the children's rail hangs off nothing.
-                    // Top-chevron variant: this chevron is pinned to the tag line, not centred.
-                    // These cells are py-4, so the chevron bottom is 4px above the token default.
-                    instancesOpen && cn(table.group.parentCellTopChevron, '[--rail-start:38px]'),
+                    instancesOpen && table.group.parentCell,
                   )}
                 >
                   {/* One line, always — wrapping left row heights ragged. The full value
                       opens in the same tip card the rest of the app uses, and only when
                       the name is actually clipped (`truncatedOnly`). */}
-                  <span className="flex items-start gap-2">
+                  <span className="flex items-center gap-2">
                     {hasInstances && (
                       <button
                         type="button"
@@ -133,7 +131,6 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                           table.group.toggle,
                           instancesOpen ? table.group.toggleOpen : table.group.toggleClosed,
                           primaryColors.focusRing,
-                          'mt-0.5',
                         )}
                       >
                         <ChevronRightIcon className="h-3.5 w-3.5" />

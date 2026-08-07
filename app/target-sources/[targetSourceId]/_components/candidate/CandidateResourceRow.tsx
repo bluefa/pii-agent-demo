@@ -302,14 +302,14 @@ export const CandidateResourceRow = ({
             grouped && idcStyles.table.group.childCell,
             grouped && lastInGroup && idcStyles.table.group.childCellLast,
             // Cluster parent: carry the rail's first segment down to its first instance row.
-            // Its chevron is top-aligned to the tag line, so the trunk starts from there.
-            isRdsClusterRow && rdsInstancesExpanded && idcStyles.table.group.parentCellTopChevron,
+            isRdsClusterRow && rdsInstancesExpanded && idcStyles.table.group.parentCell,
           )}
         >
           {isRdsClusterRow ? (
-            // Two-line identity (owner request): the tag sits at the row's top-left ABOVE the
-            // name, not beside it, so the chevron top-aligns to the tag line.
-            <span className="flex items-start gap-2">
+            // Two-line identity (owner request): the tag sits ABOVE the name, not beside it.
+            // The chevron centres on the pair — pinned to the tag line it read as misaligned
+            // against every other control in the row, which all sit on the row's middle.
+            <span className="flex items-center gap-2">
               <button
                 type="button"
                 // No aria-controls: the instance rows are `<tr>` siblings with no single
@@ -327,7 +327,6 @@ export const CandidateResourceRow = ({
                     ? idcStyles.table.group.toggleOpen
                     : idcStyles.table.group.toggleClosed,
                   primaryColors.focusRing,
-                  'mt-0.5',
                 )}
               >
                 <ChevronRightIcon className="h-3.5 w-3.5" />

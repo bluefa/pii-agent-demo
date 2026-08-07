@@ -1099,23 +1099,14 @@ export const idcStyles = {
        * dangled off the chevron pointing at an unrelated row and read as a rendering fault. Closed
        * state is the chevron alone.
        *
-       * The trunk starts at the chevron BOX's bottom edge, never at the row's centre: a centred
-       * 20px chevron ends 10px past the middle, so `top-1/2` drew the first 10px of the line
-       * straight through the glyph and the arrow read as snagged on it. Centred chevron →
-       * `50% + 10px`; a cluster's chevron is pinned to its first line instead, so that row takes
-       * `parentCellTopChevron`. Both land on the same rule, which is why the two now match.
+       * The trunk starts at the chevron BOX's bottom edge, never at the row's centre: a chevron
+       * is 20px and sits on the row's middle, so it ends 10px past it and `top-1/2` drew the
+       * line's first 10px straight through the glyph — the arrow read as snagged on it. Every
+       * parent chevron is vertically centred (including the two-line cluster identity), so
+       * `50% + 10px` is the one offset all of them need.
        */
       parentCell:
         "relative after:absolute after:-bottom-px after:left-[28px] after:top-[calc(50%_+_10px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
-      /**
-       * Parent whose chevron is top-aligned to a two-line identity (RDS cluster: tag over name).
-       * The start is the chevron box's bottom = cell top padding + the chevron's 2px nudge + its
-       * 20px box, so it defaults to 42px for the py-5 tables. A table with different cell padding
-       * passes its own through `--rail-start` (`[--rail-start:38px]` for py-4) rather than
-       * stacking a second `after:top-*`, which would leave the winner to stylesheet order.
-       */
-      parentCellTopChevron:
-        "relative after:absolute after:-bottom-px after:left-[28px] after:top-[var(--rail-start,42px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /**
        * Rail lit — put on every `<tr>` of ONE group while its parent row is hovered, so the
        * trunk and each elbow answer together and the group says which rows it owns. The rail
