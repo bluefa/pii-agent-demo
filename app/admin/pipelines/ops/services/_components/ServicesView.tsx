@@ -7,12 +7,18 @@
  * App Router 는 세그먼트가 바뀔 때 페이지를 다시 마운트해 처음 상태로 돌아가지만(/services
  * 레일과 같은 동작), 어느 쪽이든 화면이 성립하도록 초기값에 의존하는 로직은 두지 않았다.
  *
- * GET /admin/ops/services 는 배열 전체를 주므로 검색·페이지 자르기는 클라이언트 몫.
+ * 레일은 실계약 `GET /user/services/page` 하나로 선다 (서비스·대상 검색 레일과 같은
+ * 소스). 검색·페이지가 계약의 `query`/`page`/`size` 파라미터라 자르기는 서버 몫이고,
+ * 이 화면에는 클라이언트 필터가 없다. 레일이 EOS 배지를 달지 않는 이유도 여기 있다 —
+ * ServiceItem 은 code·name 두 필드뿐이고, EOS 는 대상의 service_info 에만 실려
+ * 상세에서만 읽을 수 있다.
  */
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useCallback, useState, type ReactElement } from 'react';
 import { cn, serviceSidebarStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
+import { useDebounce } from '@/app/hooks/useDebounce';
+import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { SERVICE_RAIL_PAGE_SIZE } from '@/app/components/features/admin/ServiceSidebar';
 import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
 import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
@@ -20,12 +26,15 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
-import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { serviceItemsFrom, type ServiceItem } from '@/app/admin/pipelines/_services/logic';
 import { ServiceDetailView } from '@/app/admin/pipelines/ops/services/_components/ServiceDetailView';
-import { getOpsServices, type OpsServiceSummary } from '@/app/lib/api/ops';
+import { getServicesPage } from '@/app/lib/api';
 
 // The rail pages the same everywhere it appears — see SERVICE_RAIL_PAGE_SIZE.
 const RAIL_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
+
+/** 서비스·대상 검색 레일과 같은 값 — 두 레일의 검색 감각이 갈리지 않게. */
+const SEARCH_DEBOUNCE_MS = 300;
 
 /**
  * Ceiling for one stretched row. A full page divides the rail's height evenly, so
@@ -40,48 +49,49 @@ export function ServicesView(): ReactElement {
   const params = useParams<{ serviceCode?: string[] }>();
   const selectedCode = params.serviceCode?.[0] ?? null;
 
-  const [services, setServices] = useState<OpsServiceSummary[] | null>(null);
+  const [services, setServices] = useState<ServiceItem[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState('');
-  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
+  /** 0-based — 계약의 `page` 파라미터이자 SidebarPagination 이 쓰는 값. */
+  const [page, setPage] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
+  // 타이핑 한 글자마다 질의를 보내지 않는다 — 서비스·대상 검색 레일과 같은 300ms.
+  const debouncedQuery = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
+
+  useAbortableEffect(
+    async (signal) => {
       try {
-        const loaded = await getOpsServices();
-        if (cancelled) return;
+        const loaded = await getServicesPage(
+          page,
+          RAIL_PAGE_SIZE,
+          debouncedQuery || undefined,
+          { signal },
+        );
+        if (signal.aborted) return;
         setFailed(false);
-        setServices(loaded);
+        setServices(serviceItemsFrom(loaded));
+        setPages(Math.max(1, loaded.totalPages ?? 1));
+        setTotal(loaded.totalElements ?? 0);
       } catch {
-        if (cancelled) return;
+        if (signal.aborted) return;
         setServices(null);
         setFailed(true);
+        // 앞선 질의의 총계·장수가 "불러오지 못했습니다" 옆에 남지 않게 같이 비운다.
+        setTotal(0);
+        setPages(1);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadKey]);
+    },
+    [reloadKey, page, debouncedQuery],
+  );
 
-  const rows = useMemo(() => {
-    if (!services) return [];
-    const needle = query.trim().toLowerCase();
-    if (!needle) return services;
-    return services.filter(
-      (service) =>
-        service.service_code.toLowerCase().includes(needle)
-        || service.service_name.toLowerCase().includes(needle),
-    );
-  }, [services, query]);
-
-  // 검색어가 바뀌면 onChange 에서 1페이지로 되감지만, 재조회로 목록이 줄면 마지막
+  // 검색어가 바뀌면 onChange 에서 첫 장으로 되감지만, 재조회로 목록이 줄면 마지막
   // 페이지 밖에 남을 수 있다 — 빈 레일 대신 마지막 장으로.
-  const pages = Math.max(1, Math.ceil(rows.length / RAIL_PAGE_SIZE));
-  const safePage = Math.min(page, pages);
-  const pageRows = rows.slice((safePage - 1) * RAIL_PAGE_SIZE, safePage * RAIL_PAGE_SIZE);
+  const safePage = Math.min(page, pages - 1);
+  const pageRows = services ?? [];
 
   const s = serviceListStyles;
 
@@ -97,8 +107,8 @@ export function ServicesView(): ReactElement {
         {/* 제목 + 개수. 검색 중에는 걸린 건수라 그대로 둔다. */}
         <div className={s.railHead}>
           <h1 className={s.railTitle}>서비스 운영</h1>
-          {services != null && rows.length > 0 && (
-            <span className={s.railCount}>{rows.length}</span>
+          {services != null && total > 0 && (
+            <span className={s.railCount}>{total}</span>
           )}
         </div>
         <div className={s.railSearch}>
@@ -110,7 +120,7 @@ export function ServicesView(): ReactElement {
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
-              setPage(1);
+              setPage(0);
             }}
           />
         </div>
@@ -144,47 +154,37 @@ export function ServicesView(): ReactElement {
               // 사이로 빠진다 — railFoot 의 mt-auto 가 표시를 바닥에 붙여 두기 때문.
               style={{ maxHeight: pageRows.length * ROW_MAX_PX }}
             >
+              {/* 계약 스키마가 두 필드 모두 optional 이라(zod 느슨한 codegen) code 가
+                  없는 행은 이동할 곳이 없다 — 그릴 수 없는 행이라 걸러 낸다. */}
               {pageRows.map((service) => {
-                const active = service.service_code === selectedCode;
+                const code = service.service_code;
+                if (!code) return null;
+                const name = service.service_name ?? code;
+                const active = code === selectedCode;
                 return (
                   <button
-                    key={service.service_code}
+                    key={code}
                     type="button"
                     onClick={() => {
                       if (active) return;
-                      router.push(passRoutes.pipelines.ops.service(service.service_code));
+                      router.push(passRoutes.pipelines.ops.service(code));
                     }}
-                    title={`${service.service_name} (${service.service_code})`}
+                    title={`${name} (${code})`}
                     aria-current={active ? 'true' : undefined}
                     className={cn(s.item, active ? s.itemActive : s.itemIdle)}
                   >
                     <span
-                      className={cn(
-                        serviceSidebarStyles.tile,
-                        serviceTileClass(service.service_code),
-                      )}
+                      className={cn(serviceSidebarStyles.tile, serviceTileClass(code))}
                       aria-hidden="true"
                     >
-                      {service.service_name.charAt(0).toUpperCase()}
+                      {name.charAt(0).toUpperCase()}
                     </span>
                     <span className={cn(s.name, active ? s.nameActive : s.nameIdle)}>
-                      {service.service_name}
+                      {name}
                     </span>
-                    {/* 운영중은 기본값이라 적지 않는다 — EOS 만 레일에서 읽혀야 한다.
-                        코드 태그 왼쪽에 둬서 코드 열의 x 는 그대로 유지된다. */}
-                    {service.status === 'EOS' && (
-                      <span
-                        className={cn(
-                          opsStyles.statusTag,
-                          'shrink-0 bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
-                        )}
-                      >
-                        EOS
-                      </span>
-                    )}
-                    <span className={active ? s.codeActive : s.code}>
-                      {service.service_code}
-                    </span>
+                    {/* EOS 배지는 여기 없다 — ServiceItem 에 그 필드가 없고, EOS 는
+                        대상의 service_info 를 거쳐야 읽히므로 상세에서만 표시한다. */}
+                    <span className={active ? s.codeActive : s.code}>{code}</span>
                   </button>
                 );
               })}
@@ -195,12 +195,12 @@ export function ServicesView(): ReactElement {
           <div className={s.railFoot}>
             <SidebarPagination
               pageInfo={{
-                totalElements: rows.length,
+                totalElements: total,
                 totalPages: pages,
-                number: safePage - 1,
+                number: safePage,
                 size: RAIL_PAGE_SIZE,
               }}
-              onPageChange={(next) => setPage(next + 1)}
+              onPageChange={setPage}
             />
           </div>
         </div>
@@ -209,11 +209,7 @@ export function ServicesView(): ReactElement {
       {/* 우 — 선택한 서비스의 운영 상세. key 로 갈아끼워 이전 서비스 데이터가 남지 않게 한다. */}
       <section className={s.main}>
         {selectedCode ? (
-          <ServiceDetailView
-            key={selectedCode}
-            serviceCode={selectedCode}
-            onServiceChanged={reload}
-          />
+          <ServiceDetailView key={selectedCode} serviceCode={selectedCode} />
         ) : (
           // 선택 전에도 같은 시트가 서 있어야 화면의 틀이 흔들리지 않는다. 다음 행동
           // ("서비스를 고르세요")만 primary 로 키워 시선이 좌측 레일로 가게 한다.

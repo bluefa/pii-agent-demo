@@ -679,6 +679,23 @@ const TS_DESCRIPTION: Record<number, string> = {
   1583: '통합 인증 세션 저장소 (IDC)',
 };
 
+/**
+ * TargetSourceMetadata — 계약이 선언한 CSP 계정 식별자. 소유한 provider 의 필드 하나만
+ * 차고, IDC·SDU 는 전부 빈다. 서비스 운영 카드가 계정 줄을 이 값으로 그린다. 값은 ts 에서
+ * 결정적으로 만들어 새로고침해도 같은 계정이 나온다.
+ */
+function toMetadataWire(r: RequestRow) {
+  const digits = String(r.ts).padStart(4, '0');
+  return {
+    tenant_id: r.pv === 'AZURE' ? `t-${digits}-0000-0000-0000-000000000000` : undefined,
+    subscription_id: r.pv === 'AZURE' ? `s-${digits}-1111-2222-3333-444444444444` : undefined,
+    gcp_project_id: r.pv === 'GCP' ? `gcp-demo-${digits}` : undefined,
+    aws_account_id: r.pv === 'AWS' ? `9${digits}`.padEnd(12, '0') : undefined,
+    is_sdu_type: r.pv === 'SDU',
+    is_china_region: false,
+  };
+}
+
 function toTargetSourceInfoWire(r: RequestRow) {
   const isRejected = r.cs === 'REJECTED';
   const rejected = tq().reasonByTs.get(r.ts) ?? r;
@@ -690,6 +707,7 @@ function toTargetSourceInfoWire(r: RequestRow) {
     serviceCode: r.code,
     cloudProvider: r.pv,
     confirmStatus: r.cs,
+    metadata: toMetadataWire(r),
     latest_approval_request: hasRequest
       ? {
           request_id: r.ts,
@@ -753,8 +771,8 @@ export const mockTaskQueue = {
     return NextResponse.json(wirePage(rows.map(toProcessWire), query.page, query.size));
   },
 
-  // GET /target-sources/page?confirmStatus=&targetSourceId=&page=&size=
-  getTargetSourcesPage: async (query: { confirmStatus?: string; targetSourceId?: number; page: number; size: number }) => {
+  // GET /target-sources/page?confirmStatus=&targetSourceId=&serviceCode=&page=&size=
+  getTargetSourcesPage: async (query: { confirmStatus?: string; targetSourceId?: number; serviceCode?: string; page: number; size: number }) => {
     // Single-target header lookup (api-spec P3) — resolve from the monitor index.
     if (query.targetSourceId !== undefined) {
       const p = TS_INDEX.get(query.targetSourceId);
@@ -768,12 +786,17 @@ export const mockTaskQueue = {
       return NextResponse.json(wirePage(content, query.page, query.size));
     }
 
-    const source =
+    const byStatus =
       query.confirmStatus === 'PENDING'
         ? tq().requestsPending
         : query.confirmStatus === 'REJECTED'
           ? tq().requestsRejected
           : tq().requestsAll;
+    // serviceCode 는 계약이 선언한 필터다 (install-v1.yaml /target-sources/page).
+    // 서비스 운영 상세가 이걸로 한 서비스의 대상만 받아 간다.
+    const source = query.serviceCode
+      ? byStatus.filter((r) => r.code === query.serviceCode)
+      : byStatus;
     return NextResponse.json(wirePage(source.map(toTargetSourceInfoWire), query.page, query.size));
   },
 

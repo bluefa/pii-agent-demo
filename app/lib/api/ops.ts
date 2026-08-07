@@ -72,7 +72,7 @@ export const saveCollaborationChannel = (
     body: channel,
   });
 
-/* ── 운영 콘솔 목록/서비스 (assumed §5–6) ── */
+/* ── 운영 콘솔 목록 (assumed §5) / 서비스 상세 (실계약 조합) ── */
 
 /** CSP 계정 식별자 — provider 마다 채워지는 필드가 다르고, IDC·SDU 는 전부 null. */
 export interface OpsTargetSourceAccount {
@@ -104,19 +104,14 @@ export interface OpsTargetSourceListPage {
   content: OpsTargetSourceListItem[];
 }
 
-export interface OpsServiceSummary {
-  service_code: string;
-  service_name: string;
-  owner: string;
-  status: 'OPERATING' | 'EOS';
-  target_source_count: number;
-  jira_ticket_count: number;
-}
-
+/**
+ * 서비스 운영 상세. 라우트가 실계약 `/target-sources/page` + `/process-statuses` 를
+ * 조합해 만든다 — `owner` 는 install-v1.yaml 어디에도 없어 뺐고, `status` 는
+ * service_info.is_eos_service 에서 읽는 읽기 전용 값이다 (EOS 처리 계약 없음).
+ */
 export interface OpsServiceDetail {
   service_code: string;
   service_name: string;
-  owner: string;
   status: 'OPERATING' | 'EOS';
   target_sources: OpsTargetSourceListItem[];
 }
@@ -131,20 +126,8 @@ export const getOpsTargetSources = (
   return fetchInfraJson<OpsTargetSourceListPage>(`/admin/ops/target-sources?${params}`);
 };
 
-export const getOpsServices = (): Promise<OpsServiceSummary[]> =>
-  fetchInfraJson<OpsServiceSummary[]>('/admin/ops/services');
-
 export const getOpsService = (serviceCode: string): Promise<OpsServiceDetail> =>
   fetchInfraJson<OpsServiceDetail>(`/admin/ops/services/${encodeURIComponent(serviceCode)}`);
-
-export const requestServiceEos = (
-  serviceCode: string,
-  force: boolean,
-): Promise<OpsServiceSummary> =>
-  fetchInfraJson(`/admin/ops/services/${encodeURIComponent(serviceCode)}/eos`, {
-    method: 'POST',
-    body: { force },
-  });
 
 /* ── Jira Ticket 연결 — REAL contract (docs/api/jira-tickets.md §1) ── */
 

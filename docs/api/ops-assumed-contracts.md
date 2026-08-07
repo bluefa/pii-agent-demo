@@ -8,6 +8,11 @@ real endpoints, replace the mock handlers and delete the corresponding section h
 Conventions follow install-v1: snake_case wire, Spring `Page` for pagination,
 `ErrorMessage` problem responses.
 
+Sections §6 (서비스 운영) and §7 (운영 알림) are no longer assumed — both now run on
+declared endpoints. They are kept as a record of what was withdrawn and why, so the
+same shapes are not re-invented. §1–§5 are still assumed and still 404 against the
+real BFF.
+
 ## 1. Status change history
 
 The 상태 변경 이력 card. `process-status` only returns the *current* snapshot; there is
@@ -95,27 +100,50 @@ GET /install/v1/admin/ops/target-sources?query={q}&page={n}&size={n}
 // have no CSP account at all — every field is null and the list renders nothing.
 ```
 
-## 6. Service operations
+## 6. Service operations — WITHDRAWN, rebuilt on real contracts
 
-ServiceCode-level operations: owner/status summary and EOS processing. Jira tickets
-are NOT here — they are a real contract (`docs/api/jira-tickets.md` §1), fetched
-separately per service and keyed by cloudProvider. `jira_ticket_count` stays on the
-summary so the index list can show a count without a second round trip.
+The assumed `GET /admin/ops/services`, `GET /admin/ops/services/{code}` and
+`POST /admin/ops/services/{code}/eos` are gone with their routes, mocks and wire
+types. They were never declared in install-v1.yaml, so against the real BFF every
+call 404'd and 서비스 운영 showed only "서비스 목록을 불러오지 못했습니다" — the
+mock hid the gap because the mock adapter answered paths the upstream never had.
 
-```
-GET /install/v1/admin/ops/services
-→ 200   [{ service_code, service_name, owner, status: OPERATING|EOS,
-           target_source_count, jira_ticket_count }]
+서비스 운영 now composes declared endpoints only:
 
-GET /install/v1/admin/ops/services/{serviceCode}
-→ 200   { service_code, service_name, owner, status,
-          target_sources: <§5 row>[] }
+| Screen part | Real contract |
+|---|---|
+| 서비스 레일 (목록·검색·페이징) | `GET /install/v1/user/services/page?page&size&query` → `PageServiceItem` |
+| 상세의 Target Source 행 + CSP 계정 | `GET /install/v1/target-sources/page?serviceCode&page&size` → `PageTargetSourceInfo` |
+| 7단계 `process_status`, EOS 플래그 | `GET /install/v1/process-statuses?page&size` → `PageProcessStatusCurrentResponse` |
+| Jira Ticket 연결 | `GET·PUT·DELETE /install/v1/services/{serviceCode}/jira-tickets[/{cloudProvider}]` (unchanged, `docs/api/jira-tickets.md` §1) |
 
-POST /install/v1/admin/ops/services/{serviceCode}/eos
-body     { force: boolean }
-→ 200   service summary (status becomes EOS)
-→ 409   ErrorMessage        // running pipeline exists and force=false
-```
+`app/api/v1/admin/ops/services/[serviceCode]/route.ts` owns the join. Two reasons it
+has to exist rather than proxying one endpoint:
+
+- `TargetSourceInfo.confirmStatus` is the *confirm* sub-state enum
+  (`IDLE|PENDING|UNAVAILABLE|CONFIRMING|RESOURCE_CLEANING|RESOURCE_CLEAN_FAILED|CONFIRMED`),
+  NOT the 7-step lifecycle `StepPill` renders. Only `/process-statuses` carries that.
+- `/process-statuses` has no `serviceCode` filter (only `processStatus` /
+  `targetSourceId`), so its pages are aggregated and indexed by `target_source_id` —
+  the same capped-aggregate pattern the delay filter uses in
+  `app/api/v1/admin/queue/process-statuses/route.ts`.
+
+### What no declared endpoint carries
+
+- **`owner`** — no such field anywhere in install-v1.yaml. Dropped from the screen.
+  `GET /services/{serviceCode}/authorized-users` returns *authorized users*, which is
+  a different thing; do not substitute it for 담당자 without a product decision.
+- **EOS processing (write)** — read-only `is_eos_service` /`isEosService` exist
+  (`TargetSourceServiceInfoResponse`, `ServiceInfoRefinedResponse`); there is no
+  writer. The EOS 처리 button and its modal were removed rather than left as a
+  control that cannot fire. EOS is shown as a badge on the detail header.
+- **EOS on the service *list*** — `ServiceItem` is `{service_code, service_name}`
+  only, and the flag lives on a target's `service_info`, so the rail cannot show it
+  without a per-service round trip. The badge is detail-only.
+- **`database_type`** — absent from both `TargetSourceInfo` and
+  `TargetSourceResponse`. The ops card never rendered it, so nothing was lost.
+
+Re-adding any of these needs a real contract, not a client-side derivation.
 
 ## 7. Ops alerts (운영 알림) — SHIPPED, no longer assumed
 

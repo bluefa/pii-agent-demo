@@ -1,12 +1,16 @@
 'use client';
 
 /**
- * 서비스 운영 상세 — Target Source 목록 · Jira Ticket 연결 · EOS 처리.
+ * 서비스 운영 상세 — Target Source 목록 · Jira Ticket 연결.
  *
- * 두 데이터 소스가 섞여 있다: 서비스/대상은 assumed GET /admin/ops/services/{code},
- * Jira 티켓은 실계약 GET /services/{code}/jira-tickets. 후자는 CloudProvider 가 키라
- * 5개 provider 를 항상 전부 그린다 — 빈 표가 아니라 "무엇을 연결할 수 있는지"를 보여야
- * 연결 지점이 화면에서 읽힌다.
+ * 두 데이터 소스가 섞여 있다: 서비스/대상은 GET /admin/ops/services/{code} (라우트가
+ * 실계약 `/target-sources/page` + `/process-statuses` 를 조합한다), Jira 티켓은 실계약
+ * GET /services/{code}/jira-tickets. 후자는 CloudProvider 가 키라 5개 provider 를 항상
+ * 전부 그린다 — 빈 표가 아니라 "무엇을 연결할 수 있는지"를 보여야 연결 지점이 화면에서
+ * 읽힌다.
+ *
+ * EOS 는 표시만 한다. install-v1.yaml 에 EOS 처리(쓰기) 엔드포인트가 없어 — 읽기 전용
+ * `service_info.is_eos_service` 뿐이다 — 실행할 수 없는 버튼을 두지 않는다.
  */
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -26,7 +30,6 @@ import { STEP } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
-import { EosModal } from '@/app/admin/pipelines/ops/services/_components/EosModal';
 import { jiraTicketLink } from '@/lib/jira-ticket';
 import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
 import {
@@ -127,19 +130,13 @@ function accountOf(
 
 export interface ServiceDetailViewProps {
   serviceCode: string;
-  /** EOS 처리로 서비스 상태가 바뀌었을 때 — 좌측 레일도 같이 다시 읽는다. */
-  onServiceChanged?: () => void;
 }
 
-export function ServiceDetailView({
-  serviceCode,
-  onServiceChanged,
-}: ServiceDetailViewProps): ReactElement {
+export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): ReactElement {
   const router = useRouter();
   const [detail, setDetail] = useState<OpsServiceDetail | null>(null);
   const [tickets, setTickets] = useState<JiraTicket[]>([]);
   const [failed, setFailed] = useState(false);
-  const [eosOpen, setEosOpen] = useState(false);
   // ⋮ 는 드롭다운을 열고, 고른 동작만 모달로 간다 (메뉴 단계를 모달에서 뺐다).
   const [menuFor, setMenuFor] = useState<JiraCloudProvider | null>(null);
   const [jiraAction, setJiraAction] = useState<
@@ -245,17 +242,6 @@ export function ServiceDetailView({
   const ticketOf = (provider: JiraCloudProvider): JiraTicket | undefined =>
     tickets.find((ticket) => ticket.cloudProvider.toUpperCase() === provider);
 
-  const eosButton = isEos ? (
-    <PlButton variant="secondary" disabled>
-      EOS 처리됨
-    </PlButton>
-  ) : (
-    <PlButton variant="danger" onClick={() => setEosOpen(true)}>
-      <Icon name="trash" size="sm" />
-      EOS 처리
-    </PlButton>
-  );
-
   return (
     // 레일과 그 뒤 바닥이 하나의 뒤쪽 면이고, 본문은 그 위에 뜬 시트 한 장이다.
     // 섹션마다 시트를 따로 두면 그 사이로 바닥이 비쳐 본문이 다시 조각난다 —
@@ -275,7 +261,18 @@ export function ServiceDetailView({
             </span>
           </div>
         </div>
-        <div className="flex-none">{eosButton}</div>
+        {/* 운영중은 기본값이라 적지 않는다 — EOS 만 읽혀야 한다. 계약에 EOS 처리
+            엔드포인트가 없어 상태 표시로만 남는다. */}
+        {isEos && (
+          <span
+            className={cn(
+              opsStyles.statusTag,
+              'flex-none bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+            )}
+          >
+            EOS
+          </span>
+        )}
       </div>
 
       <hr className={s.sheetRule} />
@@ -504,17 +501,6 @@ export function ServiceDetailView({
         </div>
       </section>
 
-      <EosModal
-        open={eosOpen}
-        onClose={() => setEosOpen(false)}
-        serviceCode={detail.service_code}
-        serviceName={detail.service_name}
-        targetSourceCount={targetCount}
-        onDone={() => {
-          reload();
-          onServiceChanged?.();
-        }}
-      />
       {jiraAction && (
         <JiraTicketModal
           onClose={() => setJiraAction(null)}
