@@ -17,6 +17,10 @@ interface ResourceGroupRowProps {
   leadingCell?: ReactNode;
   /** Aggregate rendered beside the identity, for tables with no spare column to put it in. */
   inlineMeta?: ReactNode;
+  /** Tree rail lit — the caller lights this row's children in the same breath. */
+  railActive?: boolean;
+  /** Pointer entered/left this row. The caller owns the state: its children are separate rows. */
+  onRailHoverChange?: (active: boolean) => void;
   /**
    * The parent's remaining `<td>`s, one per column after the identity cell. The parent is a real
    * row, not a colspan band (시안 §04), so the caller decides which columns carry the aggregate —
@@ -44,12 +48,23 @@ export const ResourceGroupRow = ({
   controls,
   leadingCell,
   inlineMeta,
+  railActive = false,
+  onRailHoverChange,
   children,
 }: ResourceGroupRowProps) => {
   const label = getDatabaseShortLabel(type);
 
   return (
-    <tr className={cn(idcStyles.table.group.row, 'cursor-pointer')} onClick={onToggle}>
+    <tr
+      className={cn(
+        idcStyles.table.group.row,
+        'cursor-pointer',
+        railActive && idcStyles.table.group.railActive,
+      )}
+      onClick={onToggle}
+      onMouseEnter={() => onRailHoverChange?.(true)}
+      onMouseLeave={() => onRailHoverChange?.(false)}
+    >
       {leadingCell}
       <td
         className={cn(

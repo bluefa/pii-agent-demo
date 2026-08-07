@@ -110,6 +110,10 @@ export const CandidateResourceTable = ({
       [resourceId]: !(previous[resourceId] ?? true),
     }));
 
+  // Hovering a group's parent lights that group's whole tree rail. The table owns the state
+  // because the parent and its children are separate tbodies — no selector spans them.
+  const [hoveredGroupKey, setHoveredGroupKey] = useState<string | null>(null);
+
   const toggleGroup = (key: string) =>
     setCollapsedGroups((previous) => {
       const next = new Set(previous);
@@ -131,7 +135,7 @@ export const CandidateResourceTable = ({
             so the shared token keeps every other table family at its current rhythm. The
             :not([colspan]) guard keeps it off spanning cells: VmDatabaseConfigPanel's td is
             deliberately py-0 and would lose to this selector's higher specificity. */}
-        <table className="w-full [&_td:not([colspan])]:py-5">
+        <table className={cn('w-full [&_td:not([colspan])]:py-5', idcStyles.table.tbodySeam)}>
           <thead className={idcStyles.table.approvalHeader}>
             {/* Identity (name → id) → attributes (type · region) → system verdict
                 (설치 구분 = integration_category, a FACT the user cannot change) →
@@ -161,7 +165,12 @@ export const CandidateResourceTable = ({
             </tr>
           </thead>
           {sections.map((section) => {
-            const renderRow = (candidate: CandidateResource, grouped = false, lastInGroup = false) => {
+            const renderRow = (
+              candidate: CandidateResource,
+              grouped = false,
+              lastInGroup = false,
+              railActive = false,
+            ) => {
               const isSelected = selectedIds.has(candidate.id);
               const instancesExpanded = instanceFoldOverrides[candidate.id] ?? true;
               return (
@@ -176,6 +185,7 @@ export const CandidateResourceTable = ({
                   actions={actions}
                   grouped={grouped}
                   lastInGroup={lastInGroup}
+                  railActive={railActive}
                   rdsInstancesExpanded={instancesExpanded}
                   onRdsInstancesToggle={() => toggleInstanceFold(candidate.id)}
                 />
@@ -193,6 +203,7 @@ export const CandidateResourceTable = ({
             const { group } = section;
             const rowsId = `candidate-group-${group.key.replace('|', '-')}`;
             const collapsed = collapsedGroups.has(group.key);
+            const railActive = hoveredGroupKey === group.key;
             return (
               <Fragment key={group.key}>
                 <tbody className={idcStyles.table.body}>
@@ -202,6 +213,8 @@ export const CandidateResourceTable = ({
                     expanded={!collapsed}
                     onToggle={() => toggleGroup(group.key)}
                     controls={rowsId}
+                    railActive={railActive}
+                    onRailHoverChange={(active) => setHoveredGroupKey(active ? group.key : null)}
                     // Read-only drops the 제외 사유 column, so the aggregate has no cell to sit
                     // in — it rides along with the identity instead of vanishing.
                     inlineMeta={
@@ -261,7 +274,7 @@ export const CandidateResourceTable = ({
                 {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
                 <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
                   {group.rows.map((candidate, index) =>
-                    renderRow(candidate, true, index === group.rows.length - 1),
+                    renderRow(candidate, true, index === group.rows.length - 1, railActive),
                   )}
                 </tbody>
               </Fragment>

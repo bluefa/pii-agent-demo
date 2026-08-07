@@ -1008,6 +1008,18 @@ export const idcStyles = {
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**
+     * Seam between adjacent `<tbody>`s — belongs on the `<table>`.
+     *
+     * `body`'s divide-y only draws BETWEEN the rows of ONE tbody, and a group is three
+     * tbodies (rows · parent · children). So the group block lost the hairline above it,
+     * the one under its parent and the one under its last child: three rows in a row with
+     * no rhythm, which reads as the tree being torn rather than nested. A collapsed
+     * (hidden) children tbody is still an element, so `+` lands the seam on the next
+     * visible tbody in both fold states.
+     */
+    tbodySeam:
+      '[&_tbody+tbody>tr:first-child]:border-t [&_tbody+tbody>tr:first-child]:border-[#EBEEF2]',
+    /**
      * Grouped parent row (Athena × Region) — Cloudscape "nested resources" 시안.
      * Chosen in `docs/ux/athena-group-samples.html` §04 over the v16 orange band: the
      * parent stays a REAL row sharing the table's columns, so sorting, pagination and
@@ -1077,7 +1089,7 @@ export const idcStyles = {
        * The 12px the child used to sit from the label was not a tier, it was a nudge.
        */
       childCell:
-        "relative pl-[70px] before:absolute before:bottom-0 before:left-[28px] before:top-0 before:w-px before:bg-[#C4CEDA] before:content-[''] after:absolute after:left-[28px] after:top-1/2 after:h-px after:w-[26px] after:bg-[#C4CEDA] after:content-['']",
+        "relative pl-[70px] before:absolute before:bottom-0 before:left-[28px] before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-[''] after:absolute after:left-[28px] after:top-1/2 after:h-px after:w-[26px] after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /** Last child — the rail stops at its elbow, closing the group. */
       childCellLast: 'before:bottom-1/2',
       /**
@@ -1088,7 +1100,17 @@ export const idcStyles = {
        * state is the chevron alone.
        */
       parentCell:
-        "relative after:absolute after:-bottom-px after:left-[28px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
+        "relative after:absolute after:-bottom-px after:left-[28px] after:top-1/2 after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+      /**
+       * Rail lit — put on every `<tr>` of ONE group while its parent row is hovered, so the
+       * trunk and each elbow answer together and the group says which rows it owns. The rail
+       * reads its colour from `--rail`, inherited through the row, because parent and children
+       * are separate rows (and, for a group, separate tbodies): no CSS combinator reaches from
+       * one to the others without also catching the rows in between.
+       *
+       * #0064FF is the app's single interactive hue — the same value the closed chevron uses.
+       */
+      railActive: '[--rail:#0064FF]',
     },
   },
 } as const;

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
@@ -84,6 +85,8 @@ interface CandidateResourceRowProps {
   grouped?: boolean;
   /** Last child of its group — the rail stops at this row's elbow, closing the group. */
   lastInGroup?: boolean;
+  /** Group parent is hovered — this row's rail segment lights with the rest of the group. */
+  railActive?: boolean;
   /** RDS cluster only — whether its member instance rows are showing. The table owns the
    *  fold because the default follows the checkbox, which it already tracks. */
   rdsInstancesExpanded?: boolean;
@@ -104,6 +107,8 @@ interface RdsInstanceRowProps {
   readonly: boolean;
   lastInGroup: boolean;
   showCheckboxColumn: boolean;
+  /** Cluster row is hovered — this member's rail segment lights with the trunk. */
+  railActive: boolean;
   onSelect: (instanceResourceId: string) => void;
 }
 
@@ -125,6 +130,7 @@ const RdsInstanceRow = ({
   readonly,
   lastInGroup,
   showCheckboxColumn,
+  railActive,
   onSelect,
 }: RdsInstanceRowProps) => {
   const identifier = rdsInstanceLabel(instance);
@@ -132,7 +138,13 @@ const RdsInstanceRow = ({
   const dimmed = !selectable && !isChosen;
 
   return (
-    <tr className={cn(ROW_BASE, dimmed ? ROW_EXCLUDED : ROW_TARGET)}>
+    <tr
+      className={cn(
+        ROW_BASE,
+        dimmed ? ROW_EXCLUDED : ROW_TARGET,
+        railActive && idcStyles.table.group.railActive,
+      )}
+    >
       {/* The leading column stays cluster-checkbox-only. */}
       {showCheckboxColumn && <td className={cn(idcStyles.table.approvalCell, 'w-10')} />}
 
@@ -204,10 +216,14 @@ export const CandidateResourceRow = ({
   actions,
   grouped = false,
   lastInGroup = false,
+  railActive = false,
   rdsInstancesExpanded = false,
   onRdsInstancesToggle,
 }: CandidateResourceRowProps) => {
   const ineligibleModal = useModal();
+  // A cluster owns its own member rows, so the hover that lights their rail lives here —
+  // unlike a group, whose children the table renders in a different tbody.
+  const [clusterRailActive, setClusterRailActive] = useState(false);
   const behavior = getCandidateBehavior(candidate);
   const requiresEndpointConfig = behavior.configKind === 'endpoint';
   const isIneligible = candidate.integrationCategory === 'INSTALL_INELIGIBLE';
@@ -263,8 +279,15 @@ export const CandidateResourceRow = ({
   return (
     <>
       <tr
-        className={cn(ROW_BASE, rowStateClass, canExpand && 'cursor-pointer')}
+        className={cn(
+          ROW_BASE,
+          rowStateClass,
+          canExpand && 'cursor-pointer',
+          (railActive || clusterRailActive) && idcStyles.table.group.railActive,
+        )}
         onClick={handleRowClick}
+        onMouseEnter={isRdsClusterRow ? () => setClusterRailActive(true) : undefined}
+        onMouseLeave={isRdsClusterRow ? () => setClusterRailActive(false) : undefined}
       >
         {showCheckboxColumn && (
           <td className={cn(idcStyles.table.approvalCell, 'w-10')} onClick={(event) => event.stopPropagation()}>
@@ -467,6 +490,7 @@ export const CandidateResourceRow = ({
           readonly={readonly}
           lastInGroup={index === sortedInstances.length - 1}
           showCheckboxColumn={showCheckboxColumn}
+          railActive={clusterRailActive}
           onSelect={(instanceResourceId) => actions.selectRdsInstance(candidate.id, instanceResourceId)}
         />
       ))}
