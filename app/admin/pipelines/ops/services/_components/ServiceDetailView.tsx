@@ -128,6 +128,95 @@ function accountOf(
   return null;
 }
 
+/** 스켈레톤 바 하나 — 실제 요소의 자리를 폭·높이로만 잡는다. */
+const bar = (className: string) => (
+  <div className={cn(pipelineStyles.skeletonBar, className)} />
+);
+
+/**
+ * Skeleton frame for the detail sheet — mirrors the loaded layout so the sheet does
+ * not change shape when the service lands: 머리(분류 태그 · 서비스명 · 코드칩) →
+ * 가로줄 → Target Source 목록(제목 · 설명 · 툴바를 낀 블록 · 카드 PAGE_SIZE 장) →
+ * 가로줄 → Jira Ticket 연결(제목 · 설명 · 3열 타일 5장).
+ *
+ * 카드가 PAGE_SIZE 장인 것도 같은 이유다. 목록의 기본 표시 개수라, 더 적게 깔면 데이터가
+ * 도착하는 순간 시트 아래쪽이 밀린다. Jira 타일이 5개인 건 provider 수가 고정이라
+ * (JIRA_CLOUD_PROVIDERS) 로딩 중에도 이미 아는 값이기 때문.
+ */
+function DetailSkeleton(): ReactElement {
+  const { text } = pipelineStyles;
+  return (
+    <div className={s.sheet} aria-busy="true" aria-live="polite">
+      {/* 머리 — 태그 / 제목 + 코드칩 */}
+      <div className="flex min-w-0 flex-col gap-2">
+        {bar('h-[22px] w-[68px] rounded-[6px]')}
+        <div className="flex items-center gap-2">
+          {bar(cn(text.pageTitle, 'h-7 w-[220px]'))}
+          {bar('h-[26px] w-[112px] rounded')}
+        </div>
+      </div>
+
+      <hr className={s.sheetRule} />
+
+      {/* Target Source 목록 — 제목·설명·블록 */}
+      <section aria-label="Target Source 목록 불러오는 중">
+        <div className={cn(sectionHead, 'items-center')}>
+          {bar('h-[18px] w-[18px] rounded')}
+          {bar('h-5 w-[150px]')}
+          {bar('h-[22px] w-11 rounded-full')}
+        </div>
+        {bar('mb-3 h-4 w-[420px] max-w-full')}
+        <div className={tsTable.block}>
+          {/* 툴바 자리 — 검색창과 필터 버튼이 실제로 앉는 높이 */}
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+            {bar('h-9 w-[280px] max-w-[60%] rounded-[8px]')}
+            {bar('h-9 w-9 rounded-[8px]')}
+          </div>
+          <div className={tsTable.list}>
+            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+              // 실제 카드와 같은 안쪽 여백·정렬 — 걷힐 때 목록이 튀지 않는다.
+              <div key={i} className={cn(tsTable.card, 'cursor-default')} aria-hidden="true">
+                {bar('h-8 w-8 shrink-0 rounded')}
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    {bar('h-5 w-16')}
+                    {bar('h-4 w-12')}
+                  </div>
+                  {bar('h-4 w-[240px] max-w-full')}
+                  {bar('h-4 w-[320px] max-w-full')}
+                </div>
+                {bar('h-4 w-20 shrink-0')}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <hr className={s.sheetRule} />
+
+      {/* Jira Ticket 연결 — provider 수는 고정이라 타일 수도 고정 */}
+      <section aria-label="Jira Ticket 연결 불러오는 중">
+        <div className={cn(sectionHead, 'items-center')}>
+          {bar('h-[18px] w-[18px] rounded')}
+          {bar('h-5 w-[130px]')}
+        </div>
+        {bar('mb-3 h-4 w-[520px] max-w-full')}
+        <div className={tileStyles.grid}>
+          {JIRA_CLOUD_PROVIDERS.map((provider) => (
+            <div key={provider} className={tileStyles.base} aria-hidden="true">
+              <div className="min-w-0 flex-1">
+                {bar('h-5 w-20')}
+                {bar('mt-1 h-4 w-24')}
+              </div>
+              {bar('h-7 w-7 shrink-0 rounded-md')}
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export interface ServiceDetailViewProps {
   serviceCode: string;
 }
@@ -193,15 +282,7 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
     );
   }
 
-  if (!detail) {
-    return (
-      <div className={cn(s.sheet, 'items-center justify-center')} aria-busy>
-        <div className={cn(pipelineStyles.empty.base, pipelineStyles.empty.center)}>
-          불러오는 중…
-        </div>
-      </div>
-    );
-  }
+  if (!detail) return <DetailSkeleton />;
 
   const { section, text } = pipelineStyles;
   const targetCount = detail.target_sources.length;

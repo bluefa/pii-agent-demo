@@ -1697,6 +1697,13 @@ export const pipelineStyles = {
     meta: cn(pipelineText.meta),
   },
 
+  /**
+   * Skeleton bar for the admin surface. gray-200, not gray-100: the same bar has to
+   * read on the white sheet AND inside the recessed bg-inner block, and gray-100 is
+   * close enough to that block's own value that the bar disappears there.
+   */
+  skeletonBar: 'animate-pulse rounded bg-[var(--pl-gray-200)]',
+
   /** PlBreadcrumb — 12/weak, sep ›, clickable vs inert vs cur. */
   breadcrumb: {
     base: 'text-[12px] text-[var(--pl-text-weak)] mb-3',
