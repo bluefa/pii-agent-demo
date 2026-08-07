@@ -37,10 +37,9 @@ export const RdsMemberChip = ({ role }: { role?: string }) => {
 };
 
 /**
- * Quiet primary-tint marker on the instance the cluster actually uses — `기본` while the
- * table's own default still stands (step 1), `선택됨` on a read-only surface where the radios
- * are gone (step 1 read-only, steps 2·3).
+ * Quiet primary-tint marker on the instance the cluster connects through. Read-only surfaces
+ * only (step 1 read-only, steps 2·3, admin): where radios exist, the checked radio says it.
  */
-export const RdsSelectionChip = ({ label }: { label: string }) => (
-  <span className={cn(CHIP_BASE, primaryColors.bgLight, primaryColors.textOnLight)}>{label}</span>
+export const RdsSelectionChip = () => (
+  <span className={cn(CHIP_BASE, primaryColors.bgLight, primaryColors.textOnLight)}>선택됨</span>
 );

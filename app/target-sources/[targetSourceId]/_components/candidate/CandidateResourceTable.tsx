@@ -10,6 +10,8 @@ import {
   CandidateResourceRow,
   type CandidateRowActions,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
+import { useClusterFold } from '@/app/hooks/useClusterFold';
+import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import {
   ResourceGroupCount,
@@ -100,15 +102,13 @@ export const CandidateResourceTable = ({
   );
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
 
-  // RDS cluster instance rows start OPEN whether or not the cluster is checked: which instance
-  // a cluster connects through is part of reviewing it, and an unchecked cluster's list is the
-  // evidence for leaving it out. The chevron closes one cluster at a time.
-  const [instanceFoldOverrides, setInstanceFoldOverrides] = useState<Record<string, boolean>>({});
-  const toggleInstanceFold = (resourceId: string) =>
-    setInstanceFoldOverrides((previous) => ({
-      ...previous,
-      [resourceId]: !(previous[resourceId] ?? true),
-    }));
+  // RDS cluster instance rows — shared fold policy: open while the cluster is selected, folded
+  // once it is excluded (see `useClusterFold`). The chevron overrides one cluster at a time.
+  const clusterFold = useClusterFold();
+
+  // The group rails: parent and children carry the group's key, so hovering any of them
+  // lights the whole group. A cluster's rail is owned by its own row.
+  const railRow = useRailHover();
 
   const toggleGroup = (key: string) =>
     setCollapsedGroups((previous) => {
@@ -131,7 +131,7 @@ export const CandidateResourceTable = ({
             so the shared token keeps every other table family at its current rhythm. The
             :not([colspan]) guard keeps it off spanning cells: VmDatabaseConfigPanel's td is
             deliberately py-0 and would lose to this selector's higher specificity. */}
-        <table className="w-full [&_td:not([colspan])]:py-5">
+        <table className={cn('w-full [&_td:not([colspan])]:py-5', idcStyles.table.tbodySeam)}>
           <thead className={idcStyles.table.approvalHeader}>
             {/* Identity (name → id) → attributes (type · region) → system verdict
                 (설치 구분 = integration_category, a FACT the user cannot change) →
@@ -161,9 +161,14 @@ export const CandidateResourceTable = ({
             </tr>
           </thead>
           {sections.map((section) => {
-            const renderRow = (candidate: CandidateResource, grouped = false, lastInGroup = false) => {
+            const renderRow = (
+              candidate: CandidateResource,
+              grouped = false,
+              lastInGroup = false,
+              rail?: RailRowProps,
+            ) => {
               const isSelected = selectedIds.has(candidate.id);
-              const instancesExpanded = instanceFoldOverrides[candidate.id] ?? true;
+              const fold = clusterFold(candidate.id, isSelected);
               return (
                 <CandidateResourceRow
                   key={candidate.id}
@@ -176,8 +181,9 @@ export const CandidateResourceTable = ({
                   actions={actions}
                   grouped={grouped}
                   lastInGroup={lastInGroup}
-                  rdsInstancesExpanded={instancesExpanded}
-                  onRdsInstancesToggle={() => toggleInstanceFold(candidate.id)}
+                  rail={rail}
+                  rdsInstancesExpanded={fold.open}
+                  onRdsInstancesToggle={fold.toggle}
                 />
               );
             };
@@ -193,6 +199,7 @@ export const CandidateResourceTable = ({
             const { group } = section;
             const rowsId = `candidate-group-${group.key.replace('|', '-')}`;
             const collapsed = collapsedGroups.has(group.key);
+            const rail = railRow(group.key);
             return (
               <Fragment key={group.key}>
                 <tbody className={idcStyles.table.body}>
@@ -202,6 +209,7 @@ export const CandidateResourceTable = ({
                     expanded={!collapsed}
                     onToggle={() => toggleGroup(group.key)}
                     controls={rowsId}
+                    rail={rail}
                     // Read-only drops the 제외 사유 column, so the aggregate has no cell to sit
                     // in — it rides along with the identity instead of vanishing.
                     inlineMeta={
@@ -261,7 +269,7 @@ export const CandidateResourceTable = ({
                 {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
                 <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
                   {group.rows.map((candidate, index) =>
-                    renderRow(candidate, true, index === group.rows.length - 1),
+                    renderRow(candidate, true, index === group.rows.length - 1, rail),
                   )}
                 </tbody>
               </Fragment>

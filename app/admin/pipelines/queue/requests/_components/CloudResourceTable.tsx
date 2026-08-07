@@ -10,8 +10,10 @@
  *
  * Database Type carries no chip: it is a repeating attribute, not a status.
  */
-import { Fragment, useState, type ReactElement } from 'react';
+import { Fragment, type ReactElement } from 'react';
 import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
+import { useClusterFold } from '@/app/hooks/useClusterFold';
+import { useRailHover } from '@/app/hooks/useRailHover';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
@@ -41,17 +43,11 @@ export interface CloudResourceTableProps {
 
 export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElement {
   const { table } = idcStyles;
-  // Instance lists start OPEN — the queue exists to review what was requested — and the
-  // chevron closes one cluster at a time. Tracked as the CLOSED set so open is the default.
-  const [collapsedInstances, setCollapsedInstances] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
-  const toggleInstances = (key: string) =>
-    setCollapsedInstances((previous) => {
-      const next = new Set(previous);
-      if (!next.delete(key)) next.add(key);
-      return next;
-    });
+  // Instance lists follow the shared fold policy (`useClusterFold`): open while the cluster is
+  // part of the request, folded once it is excluded. The chevron overrides one cluster.
+  const clusterFold = useClusterFold();
+  // …and the shared rail hover: the cluster row and its members light together.
+  const railRow = useRailHover();
   return (
     // No frame of its own — the toolbar above owns the rounded top and the pager below
     // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
@@ -94,10 +90,18 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             const isCluster = isRdsCluster(row.resourceType ?? '');
             const instances = sortRdsInstances(row.rdsInstanceCandidates);
             const hasInstances = instances.length > 0;
-            const instancesOpen = hasInstances && !collapsedInstances.has(rowKey);
+            const fold = clusterFold(rowKey, row.selected);
+            const instancesOpen = hasInstances && fold.open;
+            // Only a cluster draws a rail; other rows get no handlers so a pointer move down
+            // the list does not re-render the table for a class with nothing to colour.
+            const rail = hasInstances ? railRow(rowKey) : undefined;
             return (
               <Fragment key={rowKey}>
-              <tr className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}>
+              <tr
+                className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
+                onMouseEnter={rail?.onMouseEnter}
+                onMouseLeave={rail?.onMouseLeave}
+              >
                 <td
                   className={cn(
                     table.approvalCell,
@@ -115,7 +119,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                   {/* One line, always — wrapping left row heights ragged. The full value
                       opens in the same tip card the rest of the app uses, and only when
                       the name is actually clipped (`truncatedOnly`). */}
-                  <span className="flex items-start gap-2">
+                  <span className="flex items-center gap-2">
                     {hasInstances && (
                       <button
                         type="button"
@@ -124,12 +128,11 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                         // is conforming).
                         aria-expanded={instancesOpen}
                         aria-label={`${row.resourceName ?? ''} 인스턴스 목록 ${instancesOpen ? '접기' : '펼치기'}`}
-                        onClick={() => toggleInstances(rowKey)}
+                        onClick={fold.toggle}
                         className={cn(
                           table.group.toggle,
                           instancesOpen ? table.group.toggleOpen : table.group.toggleClosed,
                           primaryColors.focusRing,
-                          'mt-0.5',
                         )}
                       >
                         <ChevronRightIcon className="h-3.5 w-3.5" />
@@ -201,7 +204,9 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
               {instancesOpen && instances.map((instance, instanceIndex) => (
                 <tr
                   key={instance.resource_id}
-                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
+                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
+                  onMouseEnter={rail?.onMouseEnter}
+                  onMouseLeave={rail?.onMouseLeave}
                 >
                   <td
                     className={cn(
@@ -216,7 +221,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                       <span className="truncate">{rdsInstanceLabel(instance)}</span>
                       <RdsMemberChip role={instance.cluster_member_role} />
                       {instance.resource_id === row.selectedRdsInstanceResourceId && (
-                        <RdsSelectionChip label="선택됨" />
+                        <RdsSelectionChip />
                       )}
                     </span>
                   </td>

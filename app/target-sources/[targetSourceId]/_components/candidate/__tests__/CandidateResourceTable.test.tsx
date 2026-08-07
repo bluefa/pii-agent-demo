@@ -239,10 +239,11 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
       .find((radio) => radio.checked)
       ?.value;
 
-  it('checks the sorted-top instance by default and marks it 기본', () => {
+  // The checked radio is the whole statement — no 기본 chip beside it (owner request).
+  it('checks the sorted-top instance by default', () => {
     renderCluster();
     expect(checkedInstanceValue()).toBe('arn:db:demo-2');
-    expect(screen.getByText('기본')).toBeTruthy();
+    expect(screen.queryByText('기본')).toBeNull();
   });
 
   it('reports the picked instance back to the caller', () => {
@@ -252,19 +253,18 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(selectRdsInstance).toHaveBeenCalledWith('cluster-1', 'arn:db:demo-1');
   });
 
-  it('honours the draft over the default, and drops 기본 once the user has moved off it', () => {
+  it('honours the draft over the default', () => {
     renderCluster({
       drafts: { endpointDrafts: {}, rdsInstanceDrafts: { 'cluster-1': 'arn:db:demo-1' } },
     });
     expect(checkedInstanceValue()).toBe('arn:db:demo-1');
-    expect(screen.queryByText('기본')).toBeNull();
   });
 
   // The parent carries the COUNT only. Naming the chosen instance here too gave the row two
-  // places to state one fact, which could disagree; the 기본/선택됨 chip owns it.
+  // places to state one fact, which could disagree; the radio (선택됨 in read-only) owns it.
   it('counts instances on the cluster row without naming the chosen one', () => {
     renderCluster();
-    expect(screen.getByText('인스턴스 3')).toBeTruthy();
+    expect(screen.getByText('3개 인스턴스')).toBeTruthy();
     // demo-2 appears once — on its own instance row, not in a parent summary.
     expect(screen.getAllByText('demo-2')).toHaveLength(1);
   });
@@ -292,22 +292,25 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   // Radios promise a choice the payload would not carry for an unchecked cluster, so they
   // are ABSENT rather than disabled. The list itself still shows: it is what the user is
   // deciding about, and it is the evidence for leaving the cluster out.
-  it('lists an unchecked cluster’s instances, with no radios and nothing marked', () => {
+  // Unchecked = left out of the request, so the list opens on demand (useClusterFold).
+  it('lists an unchecked cluster’s instances once opened, with no radios and nothing marked', () => {
     renderCluster({ selectedIds: new Set<string>() });
+    expect(screen.queryByText('demo-2')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
     expect(screen.getByText('demo-2')).toBeTruthy();
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
     expect(screen.queryByText('기본')).toBeNull();
   });
 
-  // Owner request: clusters start open whether or not they are checked.
-  it('starts expanded and collapses from the chevron', () => {
-    renderCluster({ selectedIds: new Set<string>() });
+  it('starts expanded for a checked cluster and collapses from the chevron', () => {
+    renderCluster();
     expect(screen.getByText('demo-2')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
     expect(screen.queryByText('demo-2')).toBeNull();
     // The count and the tag survive the collapse.
-    expect(screen.getByText('인스턴스 3')).toBeTruthy();
+    expect(screen.getByText('3개 인스턴스')).toBeTruthy();
     expect(screen.getByText('RDS Cluster')).toBeTruthy();
   });
 

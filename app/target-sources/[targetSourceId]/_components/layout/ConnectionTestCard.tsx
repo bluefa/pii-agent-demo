@@ -10,6 +10,7 @@ import { isRdsCluster } from '@/lib/rds-instances';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { useModal } from '@/app/hooks/useModal';
 import { usePagination } from '@/app/hooks/usePagination';
+import { useRailHover } from '@/app/hooks/useRailHover';
 import { useToast } from '@/app/components/ui/toast';
 import {
   ConnProgressStrip,
@@ -157,6 +158,8 @@ export const ConnectionTestCard = ({
   // Which folded regions are open. Collapsed by default: the databases are reference here —
   // nothing on those rows is acted on, and the row the user works with is the region.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  // Tree rails: hovering a folded region or any of its databases lights the whole rail.
+  const railRow = useRailHover();
   const toggleUnit = useCallback((unitId: string) => {
     setExpanded((previous) => {
       const next = new Set(previous);
@@ -480,11 +483,16 @@ export const ConnectionTestCard = ({
                   const credRequired = requiresCredential(unit.databaseType);
                   const [first] = unit.members;
                   const open = expanded.has(unit.unitId);
+                  // Only a folded region draws a rail; a flat unit gets no handlers so a
+                  // pointer move down the list does not re-render the table for nothing.
+                  const rail = unit.folded ? railRow(unit.unitId) : undefined;
                   return (
                     <Fragment key={unit.unitId}>
                     <tr
-                      className={cn(ROW_BASE, ROW_TARGET, unit.folded && 'cursor-pointer')}
+                      className={cn(ROW_BASE, ROW_TARGET, unit.folded && 'cursor-pointer', rail?.className)}
                       onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
+                      onMouseEnter={rail?.onMouseEnter}
+                      onMouseLeave={rail?.onMouseLeave}
                     >
                       {/* A folded row stands for a REGION, which has no resource name, so this
                           cell carries the disclosure and the engine's label instead. Opening it
@@ -647,7 +655,12 @@ export const ConnectionTestCard = ({
                     {unit.folded &&
                       open &&
                       unit.members.map((db, index) => (
-                        <tr key={db.resourceId}>
+                        <tr
+                          key={db.resourceId}
+                          className={cn(ROW_BASE, rail?.className)}
+                          onMouseEnter={rail?.onMouseEnter}
+                          onMouseLeave={rail?.onMouseLeave}
+                        >
                           <td
                             className={cn(
                               idcStyles.table.approvalCell,
