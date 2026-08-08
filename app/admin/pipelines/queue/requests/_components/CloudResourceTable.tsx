@@ -34,11 +34,28 @@ import {
   RdsSelectionChip,
 } from '@/app/components/ui/RdsInstanceChips';
 import { isRdsCluster, rdsInstanceLabel, sortRdsInstances } from '@/lib/rds-instances';
+import { resolveExclusionReason } from '@/lib/types';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 export interface CloudResourceTableProps {
   rows: RequestResourceRow[];
 }
+
+/**
+ * 두 admin 표가 같은 행 타입을 쓰므로 사유 셀도 한 군데서 푼다 — 스캔 판정 코드는 한국어
+ * 한 줄로 서고 원문은 팁에만 남는다(`resolveExclusionReason`).
+ */
+export const ReasonChip = ({ row }: { row: RequestResourceRow }) => {
+  const resolved = resolveExclusionReason(row.exclusionReason, row.recommendFailReason);
+  if (!resolved) return null;
+  return (
+    <ReasonChipInline
+      reason={resolved.text}
+      summary={clampReason(resolved.text)}
+      code={resolved.code}
+    />
+  );
+};
 
 export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElement {
   const { table } = idcStyles;
@@ -192,12 +209,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                   {/* A 대상 row has no reason to give — blank, not an em-dash, which
                       would read as "this should have had one and it is missing". The
                       chip clamps and the full sentence lives in its floating tip. */}
-                  {excluded && row.exclusionReason && (
-                    <ReasonChipInline
-                      reason={row.exclusionReason}
-                      summary={clampReason(row.exclusionReason)}
-                    />
-                  )}
+                  {excluded && <ReasonChip row={row} />}
                 </td>
               </tr>
               {/* One row per member instance. Everything the cluster answers for (id, verdict,

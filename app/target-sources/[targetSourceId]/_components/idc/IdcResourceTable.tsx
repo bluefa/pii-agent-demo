@@ -229,6 +229,7 @@ export const IdcResourceTable = ({
                           summary={clampReason(r.exclusionReason)}
                         />
                       ) : null}
+                      {/* IDC 는 recommend_fail_reason 이 없다(계약: GCP·Azure 전용) — 사유는 늘 사람이 쓴 문장이다. */}
                     </td>
                   </>
                 )}

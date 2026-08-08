@@ -14,6 +14,14 @@ interface ReasonChipInlineProps {
   meta?: string;
   /** Tip heading. Step 4 reuses the chip for install guidance, which is not an exclusion reason. */
   label?: string;
+  /**
+   * Raw `recommend_fail_reason` enum, shown in the tip under the sentence.
+   *
+   * The chip prints the Korean condition name, which is what a reviewer reads; the code is what
+   * an engineer searches and quotes in a ticket. Keeping it in the tip means neither side has to
+   * give the other's version up, and the table column never has to carry a 50-character token.
+   */
+  code?: string;
 }
 
 const DEFAULT_SUMMARY_LIMIT = 40;
@@ -64,6 +72,7 @@ export const ReasonChipInline = ({
   summary,
   meta,
   label = '제외 사유',
+  code,
 }: ReasonChipInlineProps) => {
   const displaySummary = summary ?? deriveSummary(reason);
   const chipRef = useRef<HTMLSpanElement>(null);
@@ -133,9 +142,15 @@ export const ReasonChipInline = ({
               coords ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0',
             )}
           >
-            {/* rft-label: uppercase, orange, leading 4px dot */}
-            <span className="mb-2 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[#C2410C]">
-              <span className="h-1 w-1 rounded-full bg-[#C2410C]" aria-hidden="true" />
+            {/* rft-label: uppercase, leading 4px dot. 주황이었다 — 칩이 중립으로 내려온 뒤
+                팁 안에만 주황이 남으면 같은 정보의 두 표현이 서로 다른 색을 갖게 된다. */}
+            <span
+              className={cn(
+                'mb-2 flex items-center gap-1.5 font-bold uppercase tracking-[0.08em] text-[#4E5968]',
+                'text-[10.5px]', // design-exempt: v16 `.rft-label` 원문 값 — 짝수로 반올림하지 않는다
+              )}
+            >
+              <span className="h-1 w-1 rounded-full bg-[#4E5968]" aria-hidden="true" />
               {label}
             </span>
             {/* break-words, because a reason is not always prose. `recommend_fail_reason`
@@ -144,6 +159,13 @@ export const ReasonChipInline = ({
                 glyphs painted 50px past this span's box — outside the 340px card, since the
                 tip does not clip. Breaking the token keeps it inside the card. */}
             <span className="block break-words">{reason}</span>
+            {/* 원문 판정 코드 — 리뷰어는 위의 한 줄을 읽고, 엔지니어는 이 문자열로 검색하고
+                티켓에 인용한다. 표의 칩은 15자만 보여주므로 코드가 설 자리는 여기뿐이다. */}
+            {code && (
+              <span className="mt-2 block break-all font-mono text-[12px] text-[#6B7280]">
+                {code}
+              </span>
+            )}
             {meta && (
               <span className="mt-2.5 block border-t border-[#E5E7EB] pt-2.5 text-[11.5px] text-[#6B7280]">
                 {meta}

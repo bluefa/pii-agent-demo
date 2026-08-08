@@ -26,7 +26,7 @@ import {
   RdsMemberChip,
   RdsSelectionChip,
 } from '@/app/components/ui/RdsInstanceChips';
-import { hasLogicalDatabases } from '@/lib/types';
+import { hasLogicalDatabases, resolveExclusionReason } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
   type InstallStepCell,
@@ -288,12 +288,13 @@ export const clampReason = (reason: string): string =>
 // have `recommend_fail_reason`, so read both.
 const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
   if (resource.selected) return null;
-  const reason = resource.exclusionReason || resource.recommendFailReason;
-  if (!reason) return null;
+  const resolved = resolveExclusionReason(resource.exclusionReason, resource.recommendFailReason);
+  if (!resolved) return null;
   return (
     <ReasonChipInline
-      reason={reason}
-      summary={clampReason(reason)}
+      reason={resolved.text}
+      summary={clampReason(resolved.text)}
+      code={resolved.code}
       meta={resource.exclusionMeta}
     />
   );

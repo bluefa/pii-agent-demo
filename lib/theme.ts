@@ -885,11 +885,20 @@ export const idcStyles = {
     partial: { text: 'text-[#9A3412]', dot: 'bg-[#F97316]' },
   },
   /* targetPill 은 `verdictText` 로 대체됐다 — 판정은 태그가 아니라 글자다. 근거는 그 토큰의 주석. */
-  /** Exclusion-reason chip — `.reason-chip-inline` (3px 9px / radius 6 / 11.5px / 500 / cursor help). */
+  /**
+   * Exclusion-reason chip — `.reason-chip-inline` (3px 9px / radius 6 / 11.5px / 500 / cursor help).
+   *
+   * 중립이다. 원래 주황(#FFF7ED / #9A3412)이었는데, 그 계열은 `statusColors.warning` 이 이미
+   * 쓰고 있고 판정 열의 <연동 불가>(#B45309)가 바로 그 색이다. 그래서 사람이 뺀 행이
+   * 스캔이 막은 행처럼 읽혔다 — 한 행에서 색을 갖는 것은 판정 하나로 족하고, 사유는 내용만 나른다.
+   * 행 단위 표시는 `verdictRail` 이 이미 맡고 있어 칩이 존재감을 내려놓아도 잃는 것이 없다.
+   *
+   * #4E5968 on #F7F8FA = 6.9:1. 아이콘은 #6B7280 (4.5:1) — #98A2B3 는 2.5:1 로 1.4.11 미달이다.
+   */
   reasonChip: {
-    base: 'inline-flex min-w-0 max-w-full items-center gap-[5px] rounded-[6px] border border-[#FED7AA] bg-[#FFF7ED] px-[9px] py-[3px] text-[11.5px] font-medium text-[#9A3412] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#FFEDD5] hover:border-[#FDBA74]',
+    base: 'inline-flex min-w-0 max-w-full items-center gap-[5px] rounded-[6px] border border-[#E1E5EB] bg-[#F7F8FA] px-[9px] py-[3px] text-[11.5px] font-medium text-[#4E5968] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#EFF1F5] hover:border-[#C9CFD8]', // design-exempt: 11.5px 는 v16 `.reason-chip-inline` 원문 값 — 이번 변경은 색만 건드린다
     text: 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]',
-    icon: 'flex-shrink-0 text-[#C2410C] opacity-80',
+    icon: 'flex-shrink-0 text-[#6B7280]',
   },
   /** Header status pill (mirrors cloud sibling pill; combine with statusColors.{warning,success}). */
   statusPill: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
