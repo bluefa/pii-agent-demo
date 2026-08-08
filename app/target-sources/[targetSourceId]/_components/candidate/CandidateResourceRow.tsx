@@ -180,13 +180,13 @@ const RdsInstanceRow = ({
 
       {/* Resource ID / 설치 구분 / 제외 사유 belong to the cluster, not to its members. */}
       <td className={idcStyles.table.approvalCell} />
-      <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}>
+      <td className={cn(idcStyles.table.approvalCell, 'text-[14px]', dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}>
         Instance
       </td>
       <td
         className={cn(
           idcStyles.table.approvalCell,
-          'whitespace-nowrap font-mono text-[12px]',
+          'whitespace-nowrap font-mono text-[14px]',
           dimmed ? DIM_TEXT : textColors.secondary,
           CELL_LIFT,
         )}
@@ -379,6 +379,7 @@ export const CandidateResourceRow = ({
                 // 220px(승인 테이블 기본)에서 축소: 이 테이블은 체크박스+설치 구분이
                 // 더 있어 220이면 제외 사유 열이 가로 스크롤 뒤로 밀린다. 전문은 팁·복사에.
                 maxWidthClass="max-w-[160px]"
+                sizeClass="text-[14px]"
                 textClassName={cn(dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
               />
             </span>
@@ -392,7 +393,7 @@ export const CandidateResourceRow = ({
         <td
           className={cn(
             idcStyles.table.approvalCell,
-            'text-[12px]',
+            'text-[14px]',
             dimmed ? DIM_TEXT : textColors.secondary,
             CELL_LIFT,
           )}
@@ -403,7 +404,7 @@ export const CandidateResourceRow = ({
             <span className="flex items-center gap-1.5 whitespace-nowrap">
               {effectiveDbType ? getDatabaseShortLabel(effectiveDbType) : '—'}
               {showConfigNeeded && (
-                <span className={cn('text-xs', statusColors.warning.textDark)}>(DB 설정 필요)</span>
+                <span className={cn('text-[14px]', statusColors.warning.textDark)}>(DB 설정 필요)</span>
               )}
             </span>
           )}
@@ -412,7 +413,7 @@ export const CandidateResourceRow = ({
         <td
           className={cn(
             idcStyles.table.approvalCell,
-            'whitespace-nowrap font-mono text-[12px]',
+            'whitespace-nowrap font-mono text-[14px]',
             dimmed ? DIM_TEXT : textColors.secondary,
             CELL_LIFT,
           )}
@@ -422,13 +423,13 @@ export const CandidateResourceRow = ({
 
         {/* 시스템 분류는 조용한 사실 티어 — 행동을 막는 설치 불가만 주황 + 안내
             링크로 예외 강조(감광에서도 제외: 왜 못 고르는지는 살아 있어야 한다). */}
-        <td className={cn(idcStyles.table.approvalCell, 'text-[12px]')}>
+        <td className={cn(idcStyles.table.approvalCell, 'text-[14px]')}>
           {isIneligible ? (
             <button
               type="button"
               onClick={(event) => { event.stopPropagation(); ineligibleModal.open(); }}
               className={cn(
-                'inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold underline decoration-dotted underline-offset-2',
+                'inline-flex items-center gap-1 whitespace-nowrap text-[14px] font-semibold underline decoration-dotted underline-offset-2',
                 statusColors.warning.textDark,
               )}
               aria-label="설치 불가 사유 안내 보기"
@@ -461,7 +462,7 @@ export const CandidateResourceRow = ({
                 type="button"
                 aria-label="제외 사유 입력"
                 onClick={(event) => actions.reasonChipClick(candidate.id, event.currentTarget)}
-                className={cn('text-xs underline decoration-dotted underline-offset-2', statusColors.warning.textDark)}
+                className={cn('text-[14px] underline decoration-dotted underline-offset-2', statusColors.warning.textDark)}
               >
                 사유 입력
               </button>
