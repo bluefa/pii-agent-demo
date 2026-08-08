@@ -438,7 +438,7 @@ export const WaitingApprovalTable = memo(
                   excluded,
                   resource.integrationCategory === 'INSTALL_INELIGIBLE',
                 ),
-              // A grouped child's indent already carries the column's 22px — the two padding
+              // A grouped child's indent already carries the column's 26px — the two padding
               // tokens must never both land on one cell.
               !grouped && idcStyles.table.nameCell,
               grouped && idcStyles.table.group.childCell,

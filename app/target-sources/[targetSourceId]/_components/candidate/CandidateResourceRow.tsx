@@ -330,7 +330,7 @@ export const CandidateResourceRow = ({
             textColors.primary,
             !showCheckboxColumn && verdictRailClass(dimmed, isIneligible),
             NAME_LIFT,
-            // A grouped child's indent already carries the column's 22px — the two padding
+            // A grouped child's indent already carries the column's 26px — the two padding
             // tokens must never both land on one cell.
             !grouped && idcStyles.table.nameCell,
             grouped && idcStyles.table.group.childCell,

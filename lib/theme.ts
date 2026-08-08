@@ -393,8 +393,9 @@ export const verdictText = {
  *
  * 열이 아니라 첫 셀의 inset box-shadow 다. 전용 <td> 를 하나 세우면 여섯 개 테이블의 헤더·
  * 그룹 부모행·인스턴스행·접힌 멤버행이 전부 colSpan 을 다시 세어야 하고, 한 군데만 놓쳐도 열이
- * 어긋난다. inset 그림자는 레이아웃을 전혀 건드리지 않아 기존 셀 padding(18px) 안쪽에 그려지고,
- * 그룹 트리 레일(::before/::after, x=28)과도 겹치지 않는다.
+ * 어긋난다. inset 그림자는 레이아웃을 전혀 건드리지 않아 기존 셀 padding(18px, 이름 열은 26px)
+ * 안쪽에 그려지고, x 0..4 를 쓴다 — 이름 열에 걸린 셰브론(x 4..20)과도, 그룹 트리 레일
+ * (::before/::after, x=12)과도 겹치지 않는다.
  */
 export const verdictRail = {
   target: '',
@@ -1191,7 +1192,7 @@ export const idcStyles = {
       row: 'hover:bg-[#F7F8FA] focus-within:bg-[#F7F8FA] transition-colors duration-150 motion-reduce:transition-none',
       /**
        * Identity cluster inside the parent's first cell — the anchor the chevron hangs off,
-       * so it must stay the cell's first content (x = the cell's 18px padding).
+       * so it must stay the cell's first content (x = `nameCell`'s 26px padding).
        */
       lead: 'relative flex items-center gap-2',
       /**
@@ -1208,6 +1209,13 @@ export const idcStyles = {
        * from the name. At 18px the box had to start inside the rail; at 22 the arrow read as
        * stuck to the first letter. The pressable target stays 24px via the `after` halo —
        * shrinking the tint must not shrink the thing a pointer has to hit.
+       *
+       * ⚠️ PRECONDITION: the host cell carries `nameCell` (26px). `-left-[22px]` is 26 − 4,
+       * measured from a `lead` anchor sitting on that padding — in a `childCell` (50px) host
+       * the same offset lands the chevron at x 28..44, on top of that cell's own tree elbow
+       * (x 12..34). In the flow the old token was indent-independent; this one is not. No row
+       * pairs a fold with a group indent today (grouping is Athena-keyed, and Athena rows carry
+       * neither members nor RDS instances), and this is the reason it must stay that way.
        */
       toggle:
         "absolute -left-[22px] top-1/2 grid h-4 w-4 -translate-y-1/2 place-items-center rounded-[5px] transition-[transform,background-color,color] duration-150 after:absolute after:-inset-1 after:content-[''] motion-reduce:transition-none",
@@ -1249,6 +1257,13 @@ export const idcStyles = {
        *   26      parent label     (the column's left edge — the same one plain rows use)
        *   50      child name       (26 + 24 indent — the tier gap, and the elbow's length)
        * The 12px the child used to sit from the label was not a tier, it was a nudge.
+       *
+       * The elbow stays on `top-1/2` even though an RDS instance child is now a two-line stack
+       * (role chip over name), which puts the row's centre in the gap between its two lines.
+       * `parentCell`'s trunk offset IS re-derived from the chevron because it has one anchor;
+       * this cell has two kinds of child — single-line Athena databases and the two-line stack —
+       * and any offset that meets the stack's name line misses the single-line child. The row's
+       * middle is the only point both share, and it is what the elbow connects to.
        */
       childCell:
         "relative pl-[50px] before:absolute before:bottom-0 before:left-[12px] before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-[''] after:absolute after:left-[12px] after:top-1/2 after:h-px after:w-[22px] after:bg-[var(--rail,#C4CEDA)] after:content-['']",
