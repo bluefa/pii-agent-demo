@@ -210,9 +210,12 @@ export const ProjectCreateModal = ({
           role="dialog"
           aria-modal="true"
           aria-labelledby="infra-register-modal-title"
+          // Fixed height, not auto: the five steps differ by ~200px of content and a
+          // modal that resizes under the cursor moves the 다음 button between clicks.
+          // `max-h-[90vh]` is the short-window escape hatch — the pane scrolls instead.
           className={cn(
             modalStyles.container,
-            'flex max-h-[90vh] w-[920px] max-w-[calc(100vw-2rem)] flex-col shadow-2xl',
+            'flex h-[700px] max-h-[90vh] w-[920px] max-w-[calc(100vw-2rem)] flex-col shadow-2xl',
           )}
           onClick={(e) => e.stopPropagation()}
         >
@@ -225,67 +228,71 @@ export const ProjectCreateModal = ({
             </p>
           </div>
 
-          <div className="flex min-h-[460px] flex-1 overflow-hidden">
+          <div className="flex min-h-0 flex-1 overflow-hidden">
             <WizardRail current={step} onNavigate={step < 5 ? setStep : undefined} />
 
-            <div className="flex-1 overflow-y-auto px-[30px] py-[26px]">
-              {step === 1 && (
-                <Step1CloudAccount
-                  providerKey={providerKey}
-                  onProviderChange={handleProviderChange}
-                  region={region}
-                  onRegionChange={setRegion}
-                />
-              )}
-              {step === 2 && (
-                <Step2AccountInfo
-                  providerKey={providerKey}
-                  values={fields}
-                  onChange={setFields}
-                  showRequiredErrors={showCredErrors}
-                  installMode={installMode}
-                  onInstallModeChange={setInstallMode}
-                />
-              )}
-              {step === 3 && (
-                <Step3Databases
-                  providerKey={providerKey}
-                  selected={dbTypes}
-                  onToggle={(value) => {
-                    setShowDbError(false);
-                    setDbTypes((prev) =>
-                      prev.includes(value)
-                        ? prev.filter((item) => item !== value)
-                        : [...prev, value],
-                    );
-                  }}
-                  othersSelected={othersDb}
-                  onOthersToggle={() => {
-                    setShowDbError(false);
-                    setOthersDb((prev) => !prev);
-                  }}
-                  showError={showDbError}
-                />
-              )}
-              {step === 4 && (
-                <Step4Review
-                  candidates={candidates}
-                  installMode={installMode}
-                  busy={candidatesBusy}
-                  error={candidatesError}
-                />
-              )}
-              {step === 5 && (
-                <Step5Result
-                  rows={rows}
-                  installMode={installMode}
-                  complete={registrationComplete}
-                  failedCount={failedCount}
-                />
-              )}
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto px-[30px] pt-[26px] pb-4">
+                {step === 1 && (
+                  <Step1CloudAccount
+                    providerKey={providerKey}
+                    onProviderChange={handleProviderChange}
+                    region={region}
+                    onRegionChange={setRegion}
+                  />
+                )}
+                {step === 2 && (
+                  <Step2AccountInfo
+                    providerKey={providerKey}
+                    values={fields}
+                    onChange={setFields}
+                    showRequiredErrors={showCredErrors}
+                    installMode={installMode}
+                    onInstallModeChange={setInstallMode}
+                  />
+                )}
+                {step === 3 && (
+                  <Step3Databases
+                    providerKey={providerKey}
+                    selected={dbTypes}
+                    onToggle={(value) => {
+                      setShowDbError(false);
+                      setDbTypes((prev) =>
+                        prev.includes(value)
+                          ? prev.filter((item) => item !== value)
+                          : [...prev, value],
+                      );
+                    }}
+                    othersSelected={othersDb}
+                    onOthersToggle={() => {
+                      setShowDbError(false);
+                      setOthersDb((prev) => !prev);
+                    }}
+                    showError={showDbError}
+                  />
+                )}
+                {step === 4 && (
+                  <Step4Review
+                    candidates={candidates}
+                    installMode={installMode}
+                    busy={candidatesBusy}
+                    error={candidatesError}
+                  />
+                )}
+                {step === 5 && (
+                  <Step5Result
+                    rows={rows}
+                    installMode={installMode}
+                    complete={registrationComplete}
+                    failedCount={failedCount}
+                  />
+                )}
+              </div>
 
-              {/* Action row lives with the inputs it advances — no separated footer bar. */}
-              <div className="mt-8 flex max-w-[640px] justify-end gap-2">
+              {/* Pinned to the pane's bottom-right, outside the scroller — no divider,
+                  no footer bar. 700 = the 640px content column plus the pane's own
+                  30px gutters, so the buttons land on that column's right edge. */}
+              <div className="flex max-w-[700px] flex-none justify-end gap-2 px-[30px] pb-[26px]">
                 {step > 1 && step < 5 && (
                   <Button
                     variant="secondary"
