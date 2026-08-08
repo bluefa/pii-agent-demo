@@ -48,7 +48,7 @@ const buildStatus = (
 });
 
 describe('AwsInstallStatusDetail', () => {
-  it('renders the step nav with side tags and auto-selects the failed step', () => {
+  it('renders the grouped rail (내가 할 일 / BDC 자동 진행) and auto-selects the failed step', () => {
     render(
       <AwsInstallStatusDetail
         status={buildStatus([resource('r-1', 'COMPLETED'), resource('r-2', 'FAIL', {
@@ -65,13 +65,15 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(nav).getByText('Terraform 자동 적용')).toBeTruthy();
     expect(within(nav).getByText('BDC 서비스 영역')).toBeTruthy();
     expect(within(nav).getByText('BDC 공통 영역')).toBeTruthy();
-    // 주체는 앞머리 한 단어에만 색이 붙으므로 그 토큰으로 센다:
-    // 서비스측 확인 1 + 서비스측 리소스 생성 1 = 2, BDC측 2 (요약 스텝은 주체 없음).
-    expect(within(nav).getAllByText('서비스측').length).toBe(2);
-    expect(within(nav).getAllByText('BDC측').length).toBe(2);
+    // 그룹 레일 — 주체 구분은 헤더가 담당하고, 항목별 side 줄은 걷어냈다.
+    // 권한 부여(todo)가 COMPLETED 라 남은 할 일은 0.
+    expect(within(nav).getByText('내가 할 일 (0)')).toBeTruthy();
+    expect(within(nav).getByText('BDC 자동 진행')).toBeTruthy();
+    expect(within(nav).queryByText('서비스측')).toBeNull();
+    expect(within(nav).queryByText('BDC측')).toBeNull();
 
-    // A failed step makes the summary the default view, and the action card there is
-    // the single place the failure reason is stated (no duplicate banner above it).
+    // No open todo → the failed step is the default view, and its table's 안내
+    // chip is the single place the failure reason is stated.
     expect(screen.getAllByText('서브넷 IP 부족')).toHaveLength(1);
   });
 
@@ -158,9 +160,10 @@ describe('AwsInstallStatusDetail', () => {
     // 안내 is the steps-2·3 reason chip, which clamps its summary — the full guide is in the tip.
     expect(screen.getByText(/설치 대상이 아닌/)).toBeTruthy();
 
-    // SKIP counts as settled in the step aggregate (1/2).
+    // 그룹 레일은 n/m 카운트를 쓰지 않는다 — 상태 단어만 남는다(오너 요청).
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
-    expect(within(nav).getAllByText('1/2').length).toBeGreaterThanOrEqual(1);
+    expect(within(nav).queryByText('1/2')).toBeNull();
+    expect(within(nav).getAllByText('진행중').length).toBeGreaterThanOrEqual(1);
   });
 
   it('fills Athena region rows from the confirmed DB rows of that region', () => {

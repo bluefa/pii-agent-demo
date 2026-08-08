@@ -62,7 +62,9 @@ const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
     id: 'service',
     title: manualInstall ? 'Terraform 직접 적용' : 'Terraform 자동 적용',
     side: '서비스측 리소스 생성',
-    // 자동 모드는 BDC가 배포하므로 서비스 측 조치 문구를 달지 않는다.
+    // 수동 모드만 담당자가 직접 수행한다 — 자동 모드는 BDC가 배포하므로
+    // 조치 문구 없이 '자동 진행' 그룹으로 내려간다.
+    group: manualInstall ? 'todo' : 'auto',
     serviceAction: manualInstall
       ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용해 주세요.'
       : undefined,
@@ -74,12 +76,14 @@ const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
     id: 'bdcService',
     title: 'BDC 서비스 영역',
     side: 'BDC측 리소스 생성',
+    group: 'auto',
     desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
   },
   {
     id: 'bdcCommon',
     title: 'BDC 공통 영역',
     side: 'BDC측 리소스 생성',
+    group: 'auto',
     desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
   },
 ];
@@ -106,6 +110,7 @@ export const AwsInstallStatusDetail = ({
               id: 'perm',
               title: 'Terraform 권한 부여 확인',
               side: '서비스측 확인',
+              group: 'todo',
               serviceAction: '대상 AWS 계정에 Terraform 실행용 IAM Role / AssumeRole 권한을 부여해 주세요.',
               desc: '대상 AWS 계정에 Terraform 실행을 위한 IAM Role / AssumeRole 권한이 부여되었는지 검증합니다.',
               status: status.roleVerify.status,
