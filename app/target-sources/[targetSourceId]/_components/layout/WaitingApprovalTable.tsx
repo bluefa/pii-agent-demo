@@ -206,7 +206,7 @@ const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 export const NO_LOGICAL_DB_TEXT = '설정 불필요';
 
 const NoLogicalDbCell = () => (
-  <span className={cn('whitespace-nowrap text-[12px]', textColors.tertiary)}>
+  <span className={cn('whitespace-nowrap text-[14px]', textColors.tertiary)}>
     {NO_LOGICAL_DB_TEXT}
   </span>
 );
@@ -239,7 +239,7 @@ export const TargetPill = ({
     return (
       <span
         className={cn(
-          'inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold',
+          'inline-flex items-center gap-1 whitespace-nowrap text-[14px] font-semibold',
           statusColors.warning.textDark,
         )}
       >
@@ -268,9 +268,9 @@ const INSTALL_STATUS_TEXT: Record<InstallStepValue, string> = {
 };
 
 const InstallStatusText = ({ cell }: { cell: InstallStepCell }) => (
-  // 12px — 크기 미지정이면 16px 로 상속돼 상태만 커진다. DB Type·Region 등
-  // 반복 속성 셀과 같은 단(12px)으로 내려 이름(14px)이 행의 주인공으로 남는다.
-  <span className={cn('whitespace-nowrap text-[12px] font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
+  // Size stated, not inherited: unset, this lands on the 16px body size and the status
+  // outgrows the row. 14px is the single size every cell in this table now shares.
+  <span className={cn('whitespace-nowrap text-[14px] font-semibold', INSTALL_STATUS_TEXT[cell.status])}>
     {cell.label ?? INSTALL_STATUS_LABEL[cell.status]}
   </span>
 );
@@ -369,7 +369,7 @@ export const WaitingApprovalTable = memo(
     const installVariant = variant === 'install';
 
     // Colorless — each row picks its resting tier (dim vs secondary) at the cell.
-    const monoCell = 'whitespace-nowrap font-mono text-[12px]';
+    const monoCell = 'whitespace-nowrap font-mono text-[14px]';
 
     // `grouped` only indents the identity cell — every other cell is identical whether the row
     // stands alone or hangs under a parent, so a group never changes what a row says.
@@ -575,6 +575,7 @@ export const WaitingApprovalTable = memo(
                 value={resource.resourceId}
                 label="Resource ID"
                 maxWidthClass="max-w-[220px]"
+                sizeClass="text-[14px]"
                 textClassName={cn(excluded ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
               />
             )}
@@ -588,7 +589,7 @@ export const WaitingApprovalTable = memo(
               <td
                 className={cn(
                   idcStyles.table.approvalCell,
-                  'text-[12px]',
+                  'text-[14px]',
                   excluded ? DIM_TEXT : textColors.secondary,
                   CELL_LIFT,
                 )}
@@ -715,7 +716,7 @@ export const WaitingApprovalTable = memo(
                   <td
                     className={cn(
                       idcStyles.table.approvalCell,
-                      'text-[12px]',
+                      'text-[14px]',
                       excluded ? DIM_TEXT : textColors.secondary,
                     )}
                   >
@@ -765,7 +766,7 @@ export const WaitingApprovalTable = memo(
                   {member.resourceName || PLACEHOLDER}
                 </td>
                 <td className={idcStyles.table.approvalCell} />
-                <td className={cn(idcStyles.table.approvalCell, 'text-[12px]', textColors.secondary)}>
+                <td className={cn(idcStyles.table.approvalCell, 'text-[14px]', textColors.secondary)}>
                   {GROUPED_CHILD_KIND_LABEL}
                 </td>
                 <td className={idcStyles.table.approvalCell} />
@@ -858,7 +859,7 @@ export const WaitingApprovalTable = memo(
                       <td
                         className={cn(
                           idcStyles.table.approvalCell,
-                          'text-[12px]',
+                          'text-[14px]',
                           textColors.secondary,
                         )}
                       >

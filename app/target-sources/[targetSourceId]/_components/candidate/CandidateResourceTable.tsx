@@ -244,7 +244,7 @@ export const CandidateResourceTable = ({
                     <td
                       className={cn(
                         idcStyles.table.approvalCell,
-                        'whitespace-nowrap text-[12px]',
+                        'whitespace-nowrap text-[14px]',
                         textColors.secondary,
                       )}
                     >
@@ -253,7 +253,7 @@ export const CandidateResourceTable = ({
                     <td
                       className={cn(
                         idcStyles.table.approvalCell,
-                        'whitespace-nowrap font-mono text-[12px]',
+                        'whitespace-nowrap font-mono text-[14px]',
                         textColors.secondary,
                       )}
                     >
