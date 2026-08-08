@@ -1,38 +1,31 @@
-import { cn, navStyles } from '@/lib/theme';
+import { navStyles } from '@/lib/theme';
 
 /**
- * PASS wordmark — Outfit 900 letterforms as outlines, not live text.
+ * PASS lockup — both rows are Outfit outlines, not live text.
  *
  * Why outlines: a logo drawn from a webfont is only as reliable as the font
- * load. It also has to exist at a weight the app ships — and app/fonts carries
+ * load, and it has to exist at a weight the app ships — app/fonts carries
  * Pretendard 400-800 only, so the previous `font-black` (900) silently rendered
- * at 800. Outlines remove the load, the fallback, and the missing weight at once.
+ * at 800. Outfit is OFL, which permits logo use and recommends exactly this
+ * outline conversion.
  *
- * Why Outfit: it is OFL, which permits logo use and recommends exactly this
- * outline conversion. Measured against the outgoing Pretendard ExtraBold, its
- * stem is 20% thicker (0.281 vs 0.235 of cap height) at 1% less width, so the
- * mark gains weight without moving anything beside it.
+ * The descriptor was live text until it was not: at Pretendard 500 beside an
+ * Outfit 900 wordmark the two rows were literally different typefaces, and read
+ * as a logo with a UI label stuck under it rather than as one mark. It is now
+ * Outfit 500 from the same source.
+ *
+ * That trade is real and worth knowing: the descriptor no longer translates,
+ * reflows, or gets selected, and its accessible name lives in `aria-label`. If
+ * the wording ever has to localise, this row goes back to text.
  *
  * Ink follows the verdict reading: PA is ink, SS carries the brand blue, so the
- * result lands at the end of the name.
+ * result lands at the end of the name. The descriptor colours by WORD.
  *
- * The viewBox is the glyphs' real ink box, not the cap-height square they were
- * measured in. Two things depend on that: the S overshoots cap and baseline by
- * 1.7 units each way and would be clipped flat by the SVG root's default
- * overflow, and the P carries an 8.3-unit left side bearing that pushed the
- * wordmark 2px right of the descriptor's own left edge. Trimming to the ink box
- * fixes the clip and makes the two rows flush.
- *
- * `h-[40px]` is therefore the DRAWN height: 40 + 4 gap + 12 descriptor = a 56px
- * lockup, which is exactly the bar's content budget (72px less its py-2), so
- * the 8px of breathing room above and below survives the larger mark.
- *
- * That budget is why the bar went 56px → 72px, and the bar height is not local
- * — see the list of dependants in TopNav. The mark cannot grow again without
- * moving those with it.
- *
- * The width is not a free parameter: the drawn mark is 3.34:1, so height picks
- * width (40px tall → 134px wide). A target box of another ratio has to give.
+ * Both viewBoxes are the glyphs' real ink boxes, so `h-*` IS the drawn height
+ * and the two rows sit flush at the left with no side bearing between them.
+ * Geometry: 40 + 4 gap + 15 = a 59px lockup, which is the 76px bar less its
+ * py-2 and change. Neither row is free in width — the wordmark is 3.34:1 and
+ * the descriptor 9.86:1, so height picks width for both.
  */
 export const PassLogo = () => (
   <span className="inline-flex flex-col items-start gap-1">
@@ -48,20 +41,39 @@ export const PassLogo = () => (
       <path className={navStyles.brand.wordmarkAccent} d="M312.22 101.69Q299.44 101.69 289.96 97.96Q280.48 94.24 272.47 86.1L290.03 68.54Q295.51 73.74 301.54 76.47Q307.58 79.21 314.47 79.21Q320.22 79.21 323.17 77.46Q326.12 75.7 326.12 72.61Q326.12 69.52 323.6 67.49Q321.07 65.45 316.92 63.83Q312.78 62.22 307.79 60.53Q302.81 58.85 297.89 56.46Q292.98 54.07 288.83 50.63Q284.69 47.19 282.16 42.06Q279.63 36.94 279.63 29.49Q279.63 19.8 284.27 12.78Q288.9 5.76 297.33 2.04Q305.76 -1.69 317.13 -1.69Q328.37 -1.69 337.99 1.9Q347.61 5.48 353.93 12.08L336.24 29.63Q331.6 25.14 326.97 22.96Q322.33 20.79 316.85 20.79Q312.5 20.79 309.9 22.19Q307.3 23.6 307.3 26.4Q307.3 29.35 309.83 31.25Q312.36 33.15 316.5 34.69Q320.65 36.24 325.63 37.92Q330.62 39.61 335.53 41.92Q340.45 44.24 344.59 47.82Q348.74 51.4 351.26 56.74Q353.79 62.08 353.79 69.66Q353.79 84.97 342.91 93.33Q332.02 101.69 312.22 101.69Z" />
     </svg>
 
-    {/* Descriptor stays live text: it is a label that translates and reflows,
-        unlike the wordmark, which is a fixed asset. Colour lands on WORDS, not
-        letters — per-letter colour at this size destroys the word boundaries.
-        Still the first thing the bar gives back when it runs out of room (the
-        rule this replaces gave back 145px the same way); the wordmark alone
-        already identifies the product. */}
-    <span
-      className={cn(
-        'hidden xl:block text-[12px] font-medium leading-none tracking-[-0.005em]',
-        navStyles.brand.descriptorMuted,
-      )}
+    {/* First thing the bar gives back when it runs out of room; the wordmark
+        alone already identifies the product. */}
+    <svg
+      viewBox="10.86 -4.29 1323.43 134.29"
+      role="img"
+      aria-label="PII Agent Self Service"
+      className="hidden xl:block h-[15px] w-auto"
     >
-      <span className={navStyles.brand.descriptorSubject}>PII</span>{' '}
-      <span className={navStyles.brand.descriptorInk}>Agent</span> Self Service
-    </span>
+      <g className={navStyles.brand.descriptorSubject}>
+        <path d="M22.14 62.29V48H47.14Q52.29 48 56.21 45.93Q60.14 43.86 62.43 40.07Q64.71 36.29 64.71 31.14Q64.71 26 62.43 22.21Q60.14 18.43 56.21 16.36Q52.29 14.29 47.14 14.29H22.14V0H48Q57.43 0 64.93 3.86Q72.43 7.71 76.79 14.71Q81.14 21.71 81.14 31.14Q81.14 40.57 76.79 47.57Q72.43 54.57 64.93 58.43Q57.43 62.29 48 62.29ZM10.86 100V0H27.29V100Z" />
+        <path d="M96 100V0H112.43V100Z" />
+        <path d="M134.14 100V0H150.57V100Z" />
+      </g>
+      <g className={navStyles.brand.descriptorInk}>
+        <path d="M189.43 100 230.57 0H242L282.86 100H265.14L233.14 19H239.14L206.86 100ZM209.71 80.71V66.43H262.71V80.71Z" />
+        <path d="M319.57 130Q308.71 130 300.57 126.07Q292.43 122.14 287.43 115L297.71 104.71Q301.86 109.86 307.14 112.43Q312.43 115 319.86 115Q329.14 115 334.57 110.21Q340 105.43 340 97.14V80.29L342.71 65.14L340 49.86V31.43H355.71V97.14Q355.71 107 351.14 114.36Q346.57 121.71 338.43 125.86Q330.29 130 319.57 130ZM318.86 98.57Q309.71 98.57 302.36 94.07Q295 89.57 290.79 81.71Q286.57 73.86 286.57 64.14Q286.57 54.43 290.79 46.71Q295 39 302.36 34.5Q309.71 30 318.86 30Q327 30 333.14 33.29Q339.29 36.57 342.71 42.36Q346.14 48.14 346.14 55.86V72.71Q346.14 80.29 342.64 86.14Q339.14 92 333 95.29Q326.86 98.57 318.86 98.57ZM322 83.71Q327.71 83.71 332 81.29Q336.29 78.86 338.64 74.5Q341 70.14 341 64.29Q341 58.43 338.64 54.07Q336.29 49.71 332 47.29Q327.71 44.86 322 44.86Q316.29 44.86 311.93 47.29Q307.57 49.71 305.14 54.07Q302.71 58.43 302.71 64.29Q302.71 70 305.14 74.43Q307.57 78.86 311.93 81.29Q316.29 83.71 322 83.71Z" />
+        <path d="M405 101.43Q394.71 101.43 386.5 96.79Q378.29 92.14 373.5 84Q368.71 75.86 368.71 65.71Q368.71 55.57 373.43 47.5Q378.14 39.43 386.21 34.71Q394.29 30 404.14 30Q413.71 30 421.07 34.43Q428.43 38.86 432.64 46.57Q436.86 54.29 436.86 64.14Q436.86 65.86 436.64 67.64Q436.43 69.43 436 71.57H379.71V58.71H427.86L422 63.86Q421.71 57.57 419.57 53.29Q417.43 49 413.5 46.71Q409.57 44.43 403.86 44.43Q397.86 44.43 393.43 47Q389 49.57 386.57 54.21Q384.14 58.86 384.14 65.29Q384.14 71.71 386.71 76.57Q389.29 81.43 394 84.07Q398.71 86.71 404.86 86.71Q410.14 86.71 414.64 84.86Q419.14 83 422.29 79.43L432.29 89.57Q427.29 95.43 420.14 98.43Q413 101.43 405 101.43Z" />
+        <path d="M496.43 100V60.43Q496.43 53.57 492.07 49.14Q487.71 44.71 480.86 44.71Q476.29 44.71 472.71 46.71Q469.14 48.71 467.14 52.29Q465.14 55.86 465.14 60.43L459 57Q459 49.14 462.43 43.07Q465.86 37 471.93 33.5Q478 30 485.57 30Q493.29 30 499.29 33.93Q505.29 37.86 508.71 44.07Q512.14 50.29 512.14 57V100ZM449.43 100V31.43H465.14V100Z" />
+        <path d="M537.71 100V2.86H553.43V100ZM521.29 45.71V31.43H569.86V45.71Z" />
+      </g>
+      <g className={navStyles.brand.descriptorMuted}>
+        <path d="M639.86 101.43Q628 101.43 619.71 97.14Q611.43 92.86 604.86 84.57L616 73.43Q620.14 79.43 625.86 82.79Q631.57 86.14 640.43 86.14Q648.71 86.14 653.64 82.71Q658.57 79.29 658.57 73.29Q658.57 68.29 656 65.14Q653.43 62 649.21 59.93Q645 57.86 639.93 56.21Q634.86 54.57 629.79 52.5Q624.71 50.43 620.5 47.29Q616.29 44.14 613.71 39.14Q611.14 34.14 611.14 26.43Q611.14 17.57 615.5 11.36Q619.86 5.14 627.29 1.86Q634.71 -1.43 643.86 -1.43Q653.71 -1.43 661.5 2.43Q669.29 6.29 674.14 12.29L663 23.43Q658.71 18.57 654.07 16.21Q649.43 13.86 643.43 13.86Q636 13.86 631.79 16.86Q627.57 19.86 627.57 25.29Q627.57 29.86 630.14 32.64Q632.71 35.43 636.93 37.36Q641.14 39.29 646.21 41Q651.29 42.71 656.36 44.86Q661.43 47 665.64 50.36Q669.86 53.71 672.43 59Q675 64.29 675 72.29Q675 85.71 665.5 93.57Q656 101.43 639.86 101.43Z" />
+        <path d="M720.29 101.43Q710 101.43 701.79 96.79Q693.57 92.14 688.79 84Q684 75.86 684 65.71Q684 55.57 688.71 47.5Q693.43 39.43 701.5 34.71Q709.57 30 719.43 30Q729 30 736.36 34.43Q743.71 38.86 747.93 46.57Q752.14 54.29 752.14 64.14Q752.14 65.86 751.93 67.64Q751.71 69.43 751.29 71.57H695V58.71H743.14L737.29 63.86Q737 57.57 734.86 53.29Q732.71 49 728.79 46.71Q724.86 44.43 719.14 44.43Q713.14 44.43 708.71 47Q704.29 49.57 701.86 54.21Q699.43 58.86 699.43 65.29Q699.43 71.71 702 76.57Q704.57 81.43 709.29 84.07Q714 86.71 720.14 86.71Q725.43 86.71 729.93 84.86Q734.43 83 737.57 79.43L747.57 89.57Q742.57 95.43 735.43 98.43Q728.29 101.43 720.29 101.43Z" />
+        <path d="M764.71 100V-2.86H780.43V100Z" />
+        <path d="M807.29 100V22.43Q807.29 14.57 810.79 8.57Q814.29 2.57 820.5 -0.86Q826.71 -4.29 834.86 -4.29Q841.14 -4.29 845.57 -2.14Q850 0 853.86 4L843.71 14.14Q842 12.43 840 11.43Q838 10.43 834.86 10.43Q829.14 10.43 826.07 13.5Q823 16.57 823 22.29V100ZM790.86 45.71V31.43H843.71V45.71Z" />
+        <path d="M914 101.43Q902.14 101.43 893.86 97.14Q885.57 92.86 879 84.57L890.14 73.43Q894.29 79.43 900 82.79Q905.71 86.14 914.57 86.14Q922.86 86.14 927.79 82.71Q932.71 79.29 932.71 73.29Q932.71 68.29 930.14 65.14Q927.57 62 923.36 59.93Q919.14 57.86 914.07 56.21Q909 54.57 903.93 52.5Q898.86 50.43 894.64 47.29Q890.43 44.14 887.86 39.14Q885.29 34.14 885.29 26.43Q885.29 17.57 889.64 11.36Q894 5.14 901.43 1.86Q908.86 -1.43 918 -1.43Q927.86 -1.43 935.64 2.43Q943.43 6.29 948.29 12.29L937.14 23.43Q932.86 18.57 928.21 16.21Q923.57 13.86 917.57 13.86Q910.14 13.86 905.93 16.86Q901.71 19.86 901.71 25.29Q901.71 29.86 904.29 32.64Q906.86 35.43 911.07 37.36Q915.29 39.29 920.36 41Q925.43 42.71 930.5 44.86Q935.57 47 939.79 50.36Q944 53.71 946.57 59Q949.14 64.29 949.14 72.29Q949.14 85.71 939.64 93.57Q930.14 101.43 914 101.43Z" />
+        <path d="M994.43 101.43Q984.14 101.43 975.93 96.79Q967.71 92.14 962.93 84Q958.14 75.86 958.14 65.71Q958.14 55.57 962.86 47.5Q967.57 39.43 975.64 34.71Q983.71 30 993.57 30Q1003.14 30 1010.5 34.43Q1017.86 38.86 1022.07 46.57Q1026.29 54.29 1026.29 64.14Q1026.29 65.86 1026.07 67.64Q1025.86 69.43 1025.43 71.57H969.14V58.71H1017.29L1011.43 63.86Q1011.14 57.57 1009 53.29Q1006.86 49 1002.93 46.71Q999 44.43 993.29 44.43Q987.29 44.43 982.86 47Q978.43 49.57 976 54.21Q973.57 58.86 973.57 65.29Q973.57 71.71 976.14 76.57Q978.71 81.43 983.43 84.07Q988.14 86.71 994.29 86.71Q999.57 86.71 1004.07 84.86Q1008.57 83 1011.71 79.43L1021.71 89.57Q1016.71 95.43 1009.57 98.43Q1002.43 101.43 994.43 101.43Z" />
+        <path d="M1038.86 100V31.43H1054.57V100ZM1054.57 61.86 1049.14 59.14Q1049.14 46.14 1054.93 38.07Q1060.71 30 1072.43 30Q1077.57 30 1081.71 31.86Q1085.86 33.71 1089.43 37.86L1079.14 48.43Q1077.29 46.43 1075 45.57Q1072.71 44.71 1069.71 44.71Q1063.14 44.71 1058.86 48.86Q1054.57 53 1054.57 61.86Z" />
+        <path d="M1119.29 100 1088 31.43H1105.43L1129.29 87.29H1119L1143 31.43H1159.71L1128.43 100Z" />
+        <path d="M1169.14 100V31.43H1184.86V100ZM1177 18.86Q1173 18.86 1170.36 16.14Q1167.71 13.43 1167.71 9.43Q1167.71 5.43 1170.36 2.71Q1173 0 1177 0Q1181.14 0 1183.71 2.71Q1186.29 5.43 1186.29 9.43Q1186.29 13.43 1183.71 16.14Q1181.14 18.86 1177 18.86Z" />
+        <path d="M1234 101.43Q1223.86 101.43 1215.64 96.71Q1207.43 92 1202.71 83.86Q1198 75.71 1198 65.71Q1198 55.57 1202.71 47.5Q1207.43 39.43 1215.64 34.71Q1223.86 30 1234 30Q1242 30 1248.93 33.07Q1255.86 36.14 1260.71 41.86L1250.43 52.29Q1247.43 48.71 1243.21 46.93Q1239 45.14 1234 45.14Q1228.14 45.14 1223.64 47.79Q1219.14 50.43 1216.64 55Q1214.14 59.57 1214.14 65.71Q1214.14 71.71 1216.64 76.36Q1219.14 81 1223.64 83.64Q1228.14 86.29 1234 86.29Q1239 86.29 1243.21 84.5Q1247.43 82.71 1250.43 79.14L1260.71 89.57Q1255.86 95.29 1248.93 98.36Q1242 101.43 1234 101.43Z" />
+        <path d="M1302.43 101.43Q1292.14 101.43 1283.93 96.79Q1275.71 92.14 1270.93 84Q1266.14 75.86 1266.14 65.71Q1266.14 55.57 1270.86 47.5Q1275.57 39.43 1283.64 34.71Q1291.71 30 1301.57 30Q1311.14 30 1318.5 34.43Q1325.86 38.86 1330.07 46.57Q1334.29 54.29 1334.29 64.14Q1334.29 65.86 1334.07 67.64Q1333.86 69.43 1333.43 71.57H1277.14V58.71H1325.29L1319.43 63.86Q1319.14 57.57 1317 53.29Q1314.86 49 1310.93 46.71Q1307 44.43 1301.29 44.43Q1295.29 44.43 1290.86 47Q1286.43 49.57 1284 54.21Q1281.57 58.86 1281.57 65.29Q1281.57 71.71 1284.14 76.57Q1286.71 81.43 1291.43 84.07Q1296.14 86.71 1302.29 86.71Q1307.57 86.71 1312.07 84.86Q1316.57 83 1319.71 79.43L1329.71 89.57Q1324.71 95.43 1317.57 98.43Q1310.43 101.43 1302.43 101.43Z" />
+      </g>
+    </svg>
   </span>
 );

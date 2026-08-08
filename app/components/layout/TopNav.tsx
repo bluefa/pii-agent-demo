@@ -135,12 +135,12 @@ export const TopNav = () => {
           // sheds what it can spare (tagline, utility labels, half the gaps) and
           // keeps the primary items, which puts the floor at ~910px.
           // py-2 is the bar's own inset, not decoration: the height is fixed, so
-          // the padding declares a 56px content budget rather than letting the
+          // the padding declares a 60px content budget rather than letting the
           // 8px fall out of items-center as a leftover. Anything taller than
           // that now overflows visibly instead of silently eating its own
-          // breathing room — the logo lockup sits exactly at the budget.
+          // breathing room — the 59px logo lockup sits just inside the budget.
           //
-          // ⚠ 72px is not local. Everything that sits below this bar or fills
+          // ⚠ 76px is not local. Everything that sits below this bar or fills
           // the rest of the viewport hard-codes it, because Tailwind class
           // strings must stay complete literals (동적 조합 금지) and cannot read
           // a shared token. Change it here and all of these move with it:
@@ -148,7 +148,7 @@ export const TopNav = () => {
           //   app/admin/pipelines/_services/styles.ts        (split, railSticky)
           //   app/services/_components/ServiceManagementView.tsx
           //   app/target-sources/[targetSourceId]/_components/ProjectDetail.tsx  (×2)
-          'sticky top-0 z-40 h-[72px] flex items-center gap-4 xl:gap-8 px-6 py-2 text-white',
+          'sticky top-0 z-40 h-[76px] flex items-center gap-4 xl:gap-8 px-6 py-2 text-white',
           navStyles.bg,
         )}
       >

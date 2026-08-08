@@ -20,7 +20,7 @@ export const serviceListStyles = {
    *  Scoping the tint to this split keeps the layered treatment on the two
    *  service screens and leaves every other admin page alone. */
   split:
-    'flex items-stretch -ml-8 -mr-8 -mt-6 -mb-12 min-h-[calc(100vh_-_72px)] bg-[var(--pl-gray-100)]',
+    'flex items-stretch -ml-8 -mr-8 -mt-6 -mb-12 min-h-[calc(100vh_-_76px)] bg-[var(--pl-gray-100)]',
   /**
    * The rail owns no padding — each zone sets its own, so row fills run edge to edge.
    *
@@ -85,8 +85,8 @@ export const serviceListStyles = {
     'flex-1 min-h-0 flex flex-col gap-7 rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-7 py-6',
   /** Section break inside the sheet — a rule, so the group never comes apart. */
   sheetRule: 'border-t border-[var(--pl-border)] -mx-7',
-  /** Sticky rail geometry — top-[72px] clears the 72px TopNav; at top-0 the title slides under it. */
-  railSticky: 'sticky top-[72px] self-start h-[calc(100vh_-_72px)]',
+  /** Sticky rail geometry — top-[76px] clears the 76px TopNav; at top-0 the title slides under it. */
+  railSticky: 'sticky top-[76px] self-start h-[calc(100vh_-_76px)]',
   /**
    * 시트 머리의 분류 태그 — 서비스 이름 위에서 "지금 무엇을 하는 화면인지"를 먼저 말한다.
    * primary 쌍(#2563EB on #EFF4FF)은 흰 시트 위에서 4.69:1.

@@ -743,10 +743,10 @@ export const navStyles = {
     /** SS — the verdict half. Dark-surface form of the CTA blue #0064FF (3.63:1 → 5.41:1). */
     wordmarkAccent: 'fill-[#4D94FF]', // design-exempt: brand logotype on navStyles.bg (slate-900)
     /** "PII" — dark-surface form of the EC2 tag purple #6D28D9 (2.51:1 → 6.56:1). */
-    descriptorSubject: 'text-[#A78BFA]', // design-exempt: text on a dark surface (navStyles.bg)
-    descriptorInk: 'text-white',
+    descriptorSubject: 'fill-[#A78BFA]', // design-exempt: brand logotype on navStyles.bg (slate-900)
+    descriptorInk: 'fill-white',
     /** The rest of the descriptor — 6.97:1 on slate-900. */
-    descriptorMuted: 'text-slate-400',
+    descriptorMuted: 'fill-slate-400',
   },
   link: {
     inactive: 'text-slate-300 hover:bg-white/5 hover:text-white',
@@ -1797,10 +1797,10 @@ export const pipelineStyles = {
     // REAL app chrome, TopNav (app/components/layout/TopNav.tsx, `h-14` = 56px).
     // 56 here is a deliberate deviation from the prototype's 52 so the shell's
     // min-height matches the actual viewport remainder under the app's TopNav.
-    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_72px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
+    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_76px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
     sidebar:
       // Sticky under the 56px TopNav so the section nav never scrolls away.
-      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-[72px] self-start h-[calc(100vh_-_72px)] overflow-y-auto',
+      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-[76px] self-start h-[calc(100vh_-_76px)] overflow-y-auto',
     sidebarTitle: cn(pipelineText.sidebarTitle, 'block px-2.5 pt-2 pb-2.5'),
     // Item base carries no text color/weight — idle/active own it (plain `cn` join
     // has no tailwind-merge, so overlapping utilities must never co-occur).
