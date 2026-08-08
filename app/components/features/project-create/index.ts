@@ -14,11 +14,14 @@ export {
   type WizardStep,
 } from '@/app/components/features/project-create/wizard-model';
 export {
+  candidateDescriptionLine,
   candidateIdentifier,
-  candidateMetaLine,
+  candidateIdentity,
+  candidateInstallModeIsAuto,
   candidateProviderKey,
   candidateTitle,
   isSduCandidate,
+  type CandidateIdentity,
 } from '@/app/components/features/project-create/candidate-display';
 export { ProviderCredentialForm } from '@/app/components/features/project-create/ProviderCredentialForm';
 export {

@@ -31,7 +31,7 @@ import {
   type OperatingRegion,
   type WizardStep,
 } from '@/app/components/features/project-create/wizard-model';
-import { DB_TYPE_LABEL, type DbType } from '@/lib/constants/db-types';
+import type { DbType } from '@/lib/constants/db-types';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
 import { bgColors, borderColors, cn, modalStyles, textColors } from '@/lib/theme';
 
@@ -209,10 +209,6 @@ export const ProjectCreateModal = ({
         ? !registrationComplete
         : false;
 
-  const dbSummary =
-    [...dbTypes.map((value) => DB_TYPE_LABEL[value]), ...(othersDb ? ['Others'] : [])].join(', ') ||
-    '—';
-
   return (
     <>
       <div className={modalStyles.overlay} onClick={requestClose}>
@@ -280,7 +276,7 @@ export const ProjectCreateModal = ({
               {step === 4 && (
                 <Step4Review
                   candidates={candidates}
-                  dbSummary={dbSummary}
+                  installMode={installMode}
                   busy={candidatesBusy}
                   error={candidatesError}
                 />

@@ -2,20 +2,32 @@
 
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Tooltip } from '@/app/components/ui/Tooltip';
-import { ProviderGlyphTile } from '@/app/components/features/project-create/ProviderGlyphTile';
+import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
+import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
 import {
-  candidateMetaLine,
+  IdValue,
+  KindWord,
+  MetaPair,
+} from '@/app/components/features/admin/v7/RowIdentityText';
+import { OtherGlyph } from '@/app/components/features/project-create/ProviderGlyphTile';
+import {
+  candidateDescriptionLine,
+  candidateIdentity,
+  candidateInstallModeIsAuto,
   candidateProviderKey,
-  candidateTitle,
   isSduCandidate,
 } from '@/app/components/features/project-create/candidate-display';
-import { PROVIDER_CHIP_BY_KEY } from '@/lib/constants/provider-mapping';
+import type { AwsInstallMode } from '@/app/components/features/project-create/wizard-model';
+import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
 import type { TargetSourceCreationCandidateResponse } from '@/app/lib/api';
+import type { CloudProvider } from '@/lib/types';
 import {
   bgColors,
   borderColors,
+  chipStyles,
   cn,
   primaryColors,
+  rowLabelColor,
   statusColors,
   textColors,
 } from '@/lib/theme';
@@ -46,15 +58,59 @@ const SduBadge = () => (
   </>
 );
 
+const CANDIDATE_CLOUD_PROVIDER: Record<ProviderChipKey, CloudProvider | null> = {
+  aws: 'AWS',
+  azure: 'Azure',
+  gcp: 'GCP',
+  idc: 'IDC',
+  other: null,
+};
+
+/**
+ * The /services row mark (ProviderLogo `bare`: 64px block, 36px monotone glyph,
+ * self-centered). `CloudProvider` has no 기타 member, so that one case is drawn here
+ * at the same geometry instead of passing ProviderLogo a provider the card is not.
+ */
+const CandidateLogo = ({
+  providerKey,
+  isSdu,
+  className,
+}: {
+  providerKey: ProviderChipKey;
+  isSdu: boolean;
+  className?: string;
+}) => {
+  const provider = CANDIDATE_CLOUD_PROVIDER[providerKey];
+  if (provider === null) {
+    return (
+      <span
+        aria-label={isSdu ? 'SDU' : '기타'}
+        className={cn(
+          'inline-flex h-16 w-16 items-center justify-center rounded-lg',
+          textColors.secondary,
+          className,
+        )}
+      >
+        {isSdu ? (
+          <ProviderGlyph provider="sdu" isSdu className="h-9 w-9" />
+        ) : (
+          <OtherGlyph className="h-9 w-9" />
+        )}
+      </span>
+    );
+  }
+  return <ProviderLogo provider={provider} isSdu={isSdu} variant="bare" className={className} />;
+};
+
 interface Step4ReviewProps {
   candidates: TargetSourceCreationCandidateResponse[];
-  /** Labels of the databases picked in step 3, already joined for display. */
-  dbSummary: string;
+  /** Fallback for the 설치 모드 chip when the response does not echo the permission. */
+  installMode: AwsInstallMode;
   busy: boolean;
   error: string | null;
 }
 
-export const Step4Review = ({ candidates, dbSummary, busy, error }: Step4ReviewProps) => {
+export const Step4Review = ({ candidates, installMode, busy, error }: Step4ReviewProps) => {
   const addCount = candidates.filter((candidate) => candidate.status === 'ADD').length;
 
   return (
@@ -101,55 +157,137 @@ export const Step4Review = ({ candidates, dbSummary, busy, error }: Step4ReviewP
               const providerKey = candidateProviderKey(candidate.cloud_type);
               const isSdu = isSduCandidate(candidate);
               const isDuplicate = candidate.status !== 'ADD';
+              const identity = candidateIdentity(candidate);
+              const description = candidateDescriptionLine(candidate);
+
+              // Same three rules the /services row follows: 설치 모드 is AWS-only
+              // (Terraform 실행 권한 exists on no other CSP), and an SDU card hides the
+              // CSP underneath it — so neither the tenant nor the region rides along.
+              const showInstallMode = providerKey === 'aws' && !isSdu;
+              const showTenant =
+                providerKey === 'azure' && !isSdu && Boolean(candidate.metadata?.tenant_id);
+              const showChinaRegion = candidate.is_china_region === true && !isSdu;
+              const hasSecondLayer =
+                showTenant ||
+                showInstallMode ||
+                Boolean(identity.gloss) ||
+                Boolean(identity.secondValue);
+              const isAutoInstall = candidateInstallModeIsAuto(
+                candidate,
+                installMode === 'auto',
+              );
 
               return (
                 <div
                   key={`${candidate.cloud_type ?? 'candidate'}-${idx}`}
                   className={cn(
-                    'flex items-start gap-3 rounded-xl border p-4',
-                    borderColors.default,
+                    'flex items-start gap-3.5 rounded-[12px] border px-[21px] py-[19px]',
+                    borderColors.card,
                     isDuplicate ? bgColors.muted : bgColors.surface,
                   )}
                 >
-                  <ProviderGlyphTile
+                  {/* `self-center` like the /services row: the card is items-start so the
+                      text can stack from the top, but the mark is one 64px block against
+                      three text layers and top-aligning it left the card bottom-heavy. */}
+                  <CandidateLogo
                     providerKey={providerKey}
                     isSdu={isSdu}
-                    className={cn('h-[34px] w-[34px]', isDuplicate && 'opacity-60')}
-                    glyphClassName="h-[18px] w-[18px]"
+                    className={cn('flex-none self-center', isDuplicate && 'opacity-60')}
                   />
-                  <div className="min-w-0 flex-1">
+
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={cn(
-                          'text-sm font-bold',
+                          'text-[16px] font-medium tracking-[-0.01em]',
                           isDuplicate ? textColors.tertiary : textColors.primary,
                         )}
                       >
-                        {candidateTitle(candidate)}
+                        {identity.name}
                       </span>
-                      {isDuplicate ? null : isSdu ? (
-                        <SduBadge />
-                      ) : (
+                      {/* The kind word names the id that follows it, so with no id it
+                          names nothing — the provider shows its name alone. */}
+                      {identity.kind && identity.value && (
+                        <>
+                          <KindWord>{identity.kind}</KindWord>
+                          <IdValue>{identity.value}</IdValue>
+                        </>
+                      )}
+                      {showChinaRegion && (
                         <span
                           className={cn(
-                            'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold',
-                            primaryColors.bgLight,
-                            primaryColors.textOnLight,
+                            chipStyles.base,
+                            statusColors.error.bg,
+                            statusColors.error.textDark,
+                            statusColors.error.border,
+                            'border',
                           )}
                         >
-                          PII Agent 설치
+                          중국 리전
                         </span>
                       )}
+                      {isSdu && !isDuplicate && <SduBadge />}
                     </div>
-                    <div className={cn('mt-0.5 text-xs', textColors.tertiary)}>
-                      {isSdu
-                        ? `${PROVIDER_CHIP_BY_KEY[providerKey].label} 계정과 함께 등록돼요`
-                        : candidateMetaLine(candidate, dbSummary)}
-                    </div>
+
+                    {hasSecondLayer && (
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pl-0.5">
+                        {identity.gloss && (
+                          <span className={cn('text-[14px] font-medium', textColors.tertiary)}>
+                            {identity.gloss}
+                          </span>
+                        )}
+                        {identity.secondValue && (
+                          <span className="flex items-center gap-2">
+                            <KindWord>{identity.secondKind}</KindWord>
+                            <span
+                              className={cn(
+                                'text-[16px] font-medium tracking-[-0.01em]',
+                                textColors.primary,
+                              )}
+                            >
+                              {identity.secondValue}
+                            </span>
+                          </span>
+                        )}
+                        {showTenant && (
+                          <MetaPair label="Tenant">
+                            <IdValue>{candidate.metadata?.tenant_id}</IdValue>
+                          </MetaPair>
+                        )}
+                        {showInstallMode && (
+                          <MetaPair label="설치 모드">
+                            <span
+                              className={cn(
+                                chipStyles.base,
+                                isAutoInstall
+                                  ? chipStyles.variant.auto
+                                  : chipStyles.variant.manual,
+                              )}
+                            >
+                              {isAutoInstall ? '자동 설치' : '수동 설치'}
+                            </span>
+                          </MetaPair>
+                        )}
+                      </div>
+                    )}
+
+                    {description && (
+                      <div className="flex min-w-0 gap-1.5 pl-0.5">
+                        <span className={cn('flex-none pt-0.5 text-[12px]', rowLabelColor)}>
+                          설명
+                        </span>
+                        <span className={cn('truncate text-[14px]', textColors.secondary)}>
+                          {description}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* One step down from whatever the card is sitting on — on a muted
+                        duplicate card the gray-50 box would have vanished into it. */}
                     <div
                       className={cn(
-                        'mt-2 rounded-lg px-2.5 py-2 text-xs',
-                        bgColors.muted,
+                        'mt-0.5 rounded-lg px-2.5 py-2 text-xs',
+                        isDuplicate ? bgColors.panel : bgColors.muted,
                         textColors.secondary,
                       )}
                     >

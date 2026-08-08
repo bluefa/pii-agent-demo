@@ -4,7 +4,25 @@ import {
   isStepComplete,
   type WizardFormState,
 } from '@/app/components/features/project-create/wizard-model';
-import { candidateProviderKey, candidateTitle } from '@/app/components/features/project-create/candidate-display';
+import {
+  candidateDescriptionLine,
+  candidateIdentity,
+  candidateInstallModeIsAuto,
+  candidateProviderKey,
+  candidateTitle,
+} from '@/app/components/features/project-create/candidate-display';
+import type { TargetSourceCreationCandidateResponse } from '@/app/lib/api';
+
+const candidate = (
+  overrides: Partial<TargetSourceCreationCandidateResponse> = {},
+): TargetSourceCreationCandidateResponse => ({
+  status: 'ADD',
+  cloud_type: 'AWS',
+  is_sdu_type: false,
+  is_china_region: false,
+  metadata: {},
+  ...overrides,
+});
 
 const baseState = (overrides: Partial<WizardFormState> = {}): WizardFormState => ({
   providerKey: 'aws',
@@ -164,5 +182,97 @@ describe('candidate display mapping', () => {
         metadata: {},
       }),
     ).toBe('기타 계정');
+  });
+});
+
+describe('candidateIdentity — /services row anatomy, response-derived only', () => {
+  it('leads with the provider name and names the id that follows it', () => {
+    expect(
+      candidateIdentity(candidate({ metadata: { aws_account_id: '123456789012' } })),
+    ).toEqual({ name: 'AWS', kind: 'Account', value: '123456789012' });
+
+    expect(
+      candidateIdentity(
+        candidate({ cloud_type: 'AZURE', metadata: { subscription_id: 'sub-1' } }),
+      ),
+    ).toEqual({ name: 'Azure', kind: 'Subscription', value: 'sub-1' });
+  });
+
+  it('drops GCP onto its own second line, where a long project id has the width', () => {
+    expect(
+      candidateIdentity(candidate({ cloud_type: 'GCP', metadata: { project_id: 'proj-1' } })),
+    ).toEqual({ name: 'GCP', secondKind: 'Project', secondValue: 'proj-1' });
+  });
+
+  it('shows the provider name alone when the response carried no id', () => {
+    const identity = candidateIdentity(candidate({ metadata: {} }));
+    expect(identity.name).toBe('AWS');
+    expect(identity.value).toBeUndefined();
+  });
+
+  it('uses the description as the gloss for IDC and 기타 — they own no account id', () => {
+    expect(
+      candidateIdentity(candidate({ cloud_type: 'IDC', metadata: { description: '판교 IDC' } })),
+    ).toEqual({ name: 'IDC 인프라', gloss: '판교 IDC' });
+    expect(
+      candidateIdentity(candidate({ cloud_type: 'UNKNOWN', metadata: { description: '온프레미스' } })),
+    ).toEqual({ name: '기타 인프라', gloss: '온프레미스' });
+  });
+
+  it('hides the underlying CSP behind the SDU identity', () => {
+    expect(
+      candidateIdentity(
+        candidate({ is_sdu_type: true, metadata: { aws_account_id: '123456789012' } }),
+      ),
+    ).toEqual({ name: 'SDU', gloss: '서비스 담당자가 데이터를 직접 업로드' });
+  });
+});
+
+describe('candidateInstallModeIsAuto — response echo, wizard fallback', () => {
+  it('trusts the response when it echoes the permission', () => {
+    expect(
+      candidateInstallModeIsAuto(
+        candidate({ grant_service_terraform_execution_permission: true }),
+        false,
+      ),
+    ).toBe(true);
+    expect(
+      candidateInstallModeIsAuto(
+        candidate({ grant_service_terraform_execution_permission: false }),
+        true,
+      ),
+    ).toBe(false);
+  });
+
+  it('falls back to what the wizard asked when the key is absent', () => {
+    expect(candidateInstallModeIsAuto(candidate(), true)).toBe(true);
+    expect(candidateInstallModeIsAuto(candidate(), false)).toBe(false);
+  });
+});
+
+describe('candidateDescriptionLine', () => {
+  it('gives a CSP card its own 설명 layer', () => {
+    expect(candidateDescriptionLine(candidate({ metadata: { description: '결제 계정' } }))).toBe(
+      '결제 계정',
+    );
+  });
+
+  it('stays null where the description is already the identity gloss', () => {
+    expect(
+      candidateDescriptionLine(candidate({ cloud_type: 'IDC', metadata: { description: '판교' } })),
+    ).toBeNull();
+    expect(
+      candidateDescriptionLine(
+        candidate({ cloud_type: 'UNKNOWN', metadata: { description: '온프레미스' } }),
+      ),
+    ).toBeNull();
+  });
+
+  it('stays null on an SDU card, which shows no CSP detail at all', () => {
+    expect(
+      candidateDescriptionLine(
+        candidate({ is_sdu_type: true, metadata: { description: '결제 계정' } }),
+      ),
+    ).toBeNull();
   });
 });
