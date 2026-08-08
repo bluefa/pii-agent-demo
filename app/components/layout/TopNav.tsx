@@ -7,6 +7,7 @@ import { cn, navStyles, textColors } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { BellIcon, BookIcon, QuestionCircleIcon } from '@/app/components/ui/icons';
 import { UserChip } from '@/app/components/layout/UserChip';
+import { PassLogo } from '@/app/components/layout/PassLogo';
 
 type NavItem = {
   label: string;
@@ -137,25 +138,8 @@ export const TopNav = () => {
           navStyles.bg,
         )}
       >
-        <div className="flex items-baseline gap-2.5 px-1 whitespace-nowrap">
-          <span
-            className={cn(
-              'font-black text-xl tracking-tight',
-              navStyles.brand.wordmark,
-            )}
-          >
-            PASS
-          </span>
-          {/* The wordmark already identifies the product; the tagline is the first
-              145px to give back when the bar runs out of room. */}
-          <small
-            className={cn(
-              'hidden xl:inline font-medium text-[10px] uppercase tracking-[0.14em]',
-              navStyles.brand.tagline,
-            )}
-          >
-            PII Agent Self Service
-          </small>
+        <div className="px-1 whitespace-nowrap">
+          <PassLogo />
         </div>
 
         <nav className="flex gap-1">
