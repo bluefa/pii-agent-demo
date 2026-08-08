@@ -45,6 +45,19 @@ export const normalizeCloudProvider = (value: unknown): CloudProvider => {
 export const isSduProvider = (value: unknown): boolean =>
   typeof value === 'string' && value.trim().toUpperCase() === 'SDU';
 
+/**
+ * SDU 판정 하나. 계약이 SDU 를 두 자리에서 말하므로(위 주석) 두 값을 함께 본다 —
+ * `metadata.is_sdu_type` 과 `cloudProvider` enum 의 `SDU`.
+ *
+ * 호출부마다 손으로 옮겨 적으면 모양이 갈린다. 실제로 세 곳이 각각 truthiness /
+ * `=== true` / optional chaining 유무로 달라져 있었고, 그중 하나만 어긋나도 그 화면만
+ * 다른 규칙으로 그려진다. 판정은 여기 한 곳에만 둔다.
+ */
+export const isSduTarget = (target: {
+  is_sdu_type?: boolean | null;
+  cloud_provider?: string | null;
+}): boolean => target.is_sdu_type === true || isSduProvider(target.cloud_provider);
+
 // Internal CloudProvider → wire metadata.provider value. The contract
 // (TargetSourceResourceMetadataDto.provider) is uppercase — AWS | GCP | AZURE | IDC |
 // UNKNOWN — while the internal CloudProvider uses 'Azure'. Never send the internal casing.

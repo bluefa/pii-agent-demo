@@ -36,7 +36,9 @@ import { RoleVerifyModal } from '@/app/admin/pipelines/ops/target-sources/[targe
 import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleEditModal';
 import { ChannelModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ChannelModal';
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
+import { isSduTarget } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { SduOpsNotice } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduOpsNotice';
 import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
 import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
 import { PipelineTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
@@ -147,6 +149,14 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
       setDetail(loaded);
       setGrantTfExecution(loaded.metadata?.grant_service_terraform_execution_permission === true);
 
+      // SDU 는 여기서 멈춘다. 아래 부수 로드는 전부 탭이 그릴 것을 미리 받아 두는
+      // 것인데, SDU 는 그 탭들이 통째로 안내 한 장으로 대체되므로 받아도 그릴 곳이
+      // 없다. 진행 상태·협업 채널·연결 테스트·AWS role 네 갈래가 대상마다 헛돈다.
+      // 판정은 렌더 게이트와 같은 규칙이다 (계약이 SDU 를 말하는 두 자리).
+      if (isSduTarget({ is_sdu_type: loaded.metadata?.is_sdu_type, cloud_provider: loaded.cloud_provider })) {
+        return;
+      }
+
       // Secondary loads are independent and best-effort — each block renders its
       // own fallback, so one failure must not blank the page.
       void getProcessStatus(targetSourceId)
@@ -188,8 +198,31 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
     );
   }
 
-  const isAws = detail.cloud_provider === 'AWS';
   const meta = detail.metadata ?? {};
+
+  /**
+   * SDU 는 여기서 끊는다 — 아래 탭들이 마운트되기 전에.
+   *
+   * 스캔·연동 요청·설치 상태는 전부 "우리가 설치하는 계정"을 전제로 만든 화면인데,
+   * SDU 는 담당자가 데이터를 직접 올리는 대상이라 그 전제가 성립하지 않는다. 탭을
+   * 남겨 두면 눌러서 빈 화면을 여는 것이 동작처럼 보이고, 그 안에서 각 탭이 제 몫의
+   * 요청을 쏘고 나서야 할 말이 없다는 걸 알게 된다.
+   *
+   * 계약이 SDU 를 말하는 두 자리를 모두 본다 — metadata.is_sdu_type 과 cloudProvider
+   * enum 의 SDU. 플래그만 보면 provider 로 SDU 가 오는 대상이 이 게이트를 통과한다.
+   */
+  if (isSduTarget({ is_sdu_type: meta.is_sdu_type, cloud_provider: detail.cloud_provider })) {
+    return (
+      <SduOpsNotice
+        targetSourceId={targetSourceId}
+        serviceName={detail.service_name ?? '-'}
+        serviceCode={detail.service_code ?? null}
+        isChinaRegion={meta.is_china_region === true}
+      />
+    );
+  }
+
+  const isAws = detail.cloud_provider === 'AWS';
   const accountId = meta.aws_account_id ?? '';
   const isChina = meta.is_china_region === true;
   const regionLabel = isChina ? 'China' : 'Global';

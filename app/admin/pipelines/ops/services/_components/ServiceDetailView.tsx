@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { borderColors, cn, pipelineStyles, tableRowLift } from '@/lib/theme';
+import { isSduTarget } from '@/lib/types';
 import { holdFor, SKELETON_MIN_MS } from '@/lib/min-duration';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
@@ -113,6 +114,15 @@ const tsTable = {
    */
   pager: 'flex shrink-0 items-center justify-center gap-5 h-[52px] border-t border-[var(--pl-border)]',
   pagerLabel: 'text-[14px] font-medium text-[var(--pl-text-medium)] tabular-nums',
+  /**
+   * SDU 표기 — provider 이름 자리에 오는 분류 칩. 회색 provider 라벨과 같은 줄에서
+   * 구별되어야 하므로 면을 준다. SDU 는 "어느 CSP 냐"가 아니라 "어떻게 들어온
+   * 데이터냐"를 말하는 값이라, provider 이름처럼 평문으로 두면 AWS·GCP 와 같은 층으로
+   * 읽힌다.
+   */
+  sduChip:
+    'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold '
+    + 'bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
 } as const;
 
 /**
@@ -202,13 +212,13 @@ const PageArrow = ({
 /** metadata → 그 provider 가 실제로 갖는 계정 식별자 1건. 없으면 null. */
 function accountOf(
   target: OpsServiceTargetRow,
-): { label: string; value: string; china: boolean } | null {
-  const { aws_account_id, aws_region_type, subscription_id, gcp_project_id } = target.metadata;
+): { label: string; value: string } | null {
+  const { aws_account_id, subscription_id, gcp_project_id } = target.metadata;
   if (aws_account_id) {
-    return { label: 'AWS Account', value: aws_account_id, china: aws_region_type === 'china' };
+    return { label: 'AWS Account', value: aws_account_id };
   }
-  if (gcp_project_id) return { label: 'GCP Project', value: gcp_project_id, china: false };
-  if (subscription_id) return { label: 'Azure Subscription', value: subscription_id, china: false };
+  if (gcp_project_id) return { label: 'GCP Project', value: gcp_project_id };
+  if (subscription_id) return { label: 'Azure Subscription', value: subscription_id };
   return null;
 }
 
@@ -221,10 +231,11 @@ function accountOf(
  * metadata 가 비어서 생긴 문제를 화면이 사실인 것처럼 덮는다.
  */
 function glossOf(target: OpsServiceTargetRow): string {
-  if (target.is_sdu_type) return '서비스 담당자가 데이터를 직접 업로드';
+  if (isSduTarget(target)) return '서비스 담당자가 데이터를 직접 업로드';
   if (target.cloud_provider.toUpperCase() === 'IDC') return '사내망';
   return '계정 식별자 없음';
 }
+
 
 /** 스켈레톤 바 하나 — 실제 요소의 자리를 폭·높이로만 잡는다. */
 const bar = (className: string) => (
@@ -466,9 +477,12 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
             // SDU 행은 밑에 깔린 CSP 를 숨긴다 — /pass/services 와 같은 규칙이다.
             // 1층이 "SDU"라고 말하는데 2층이 "AWS Account …"를 내보이면 한 카드가 서로
             // 다른 말을 한다. metadata 에 계정이 실려 와도 여기서는 gloss 로 간다.
-            const account = target.is_sdu_type ? null : accountOf(target);
+            const account = isSduTarget(target) ? null : accountOf(target);
             // 같은 규칙 — SDU 는 하부 CSP 의 Tenant 도 내보이지 않는다.
-            const tenantId = target.is_sdu_type ? null : target.metadata.tenant_id;
+            const tenantId = isSduTarget(target) ? null : target.metadata.tenant_id;
+            // 중국은 계정과 무관하게 계약 필드로 판단한다. account 에 매달아 두면 SDU
+            // 행에서(account 를 비우므로) 중국이라는 사실이 통째로 사라진다.
+            const china = target.metadata.is_china_region;
             return (
               <div
                 key={target.target_source_id}
@@ -482,7 +496,7 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
               >
                 <ProviderLogo
                   provider={target.cloud_provider as CloudProvider}
-                  isSdu={target.is_sdu_type}
+                  isSdu={isSduTarget(target)}
                   variant="bare"
                   // 마크는 64px 한 덩어리고 글자는 3층이다 — 위로 맞추면 마크가 높이 뜨고
                   // 카드가 아래로 무거워진다. 위에서 시작해야 하는 건 글자뿐.
@@ -495,12 +509,19 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                       <span className={tsTable.idHash}>#</span>
                       {target.target_source_id}
                     </span>
-                    {/* Plain label: the glyph on the left already names the provider,
-                        so ProvTag's own mark would say it a second time. */}
-                    <span className="text-[14px] font-medium text-[var(--pl-text-medium)]">
-                      {providerLabel(displayProvider(target.cloud_provider, target.is_sdu_type))}
-                    </span>
-                    {account?.china && <span className={opsStyles.regionTag}>중국</span>}
+                    {/* SDU 는 provider 가 아니라 분류라 칩으로, 나머지는 평문으로.
+                        왼쪽 마크가 이미 provider 를 말하므로 ProvTag 를 또 쓰지 않는다. */}
+                    {isSduTarget(target) ? (
+                      <span className={tsTable.sduChip}>SDU</span>
+                    ) : (
+                      <span className="text-[14px] font-medium text-[var(--pl-text-medium)]">
+                        {providerLabel(displayProvider(target.cloud_provider, target.is_sdu_type))}
+                      </span>
+                    )}
+                    {/* is_china_region 이 참이면 언제나 — provider 가 무엇이든, 계정
+                        식별자가 있든 없든. 중국 리전은 계정의 성질이 아니라 대상의
+                        성질이고, 운영자가 먼저 알아야 하는 값이다. */}
+                    {china && <span className={opsStyles.regionTag}>중국</span>}
                   </div>
 
                   {/* 2층·3층은 값이 없어도 사라지지 않는다 — 조건부로 두면 대상마다 카드
