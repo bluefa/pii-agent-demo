@@ -153,6 +153,7 @@ function mapLegacyCode(legacyCode: string, status: number): KnownErrorCode {
   const mapped = LEGACY_CODE_MAP[legacyCode];
   if (mapped) return mapped;
 
+  if (status === 400) return 'VALIDATION_FAILED';
   if (status === 401) return 'UNAUTHORIZED';
   if (status === 403) return 'FORBIDDEN';
   if (status === 404) return 'TARGET_SOURCE_NOT_FOUND';

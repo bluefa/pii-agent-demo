@@ -52,5 +52,4 @@ export const SCAN_ERROR_CODES = {
   SCAN_NOT_SUPPORTED: { status: 400, message: '스캔을 지원하지 않는 Provider입니다.' },
   SCAN_IN_PROGRESS: { status: 409, message: '이미 스캔이 진행 중입니다.' },
   SCAN_TOO_RECENT: { status: 429, message: '최근 스캔 완료 후 5분이 지나지 않았습니다.' },
-  MAX_RESOURCES_REACHED: { status: 400, message: '리소스가 최대 개수(10개)에 도달했습니다.' },
 } as const;
