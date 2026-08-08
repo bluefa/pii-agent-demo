@@ -59,7 +59,7 @@ export const resolveProjectStepSlot = (project: {
   isTerraformExecutionGranted?: boolean;
 }): GuideSlotKey | null =>
   resolveStepSlot(project.cloudProvider, project.processStatus, {
-    // Same semantics as AwsInstallationInline: only an explicit `false`
-    // means manual install; undefined stays on the auto guide.
-    manualInstall: project.isTerraformExecutionGranted === false,
+    // Same semantics as AwsInstallationInline: only an explicit grant is auto.
+    // An account nobody granted the permission to installs manually.
+    manualInstall: project.isTerraformExecutionGranted !== true,
   });

@@ -60,6 +60,7 @@ const seededRows: IdcResourceView[] = [
 ];
 
 const project: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'idc-1',
   targetSourceId: 1020,
   projectCode: 'IDC-025',

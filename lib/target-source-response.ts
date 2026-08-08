@@ -9,7 +9,7 @@
  * fetches it from the process-status endpoint and passes the raw wire value in.
  */
 import type { TargetSource } from '@/lib/types';
-import { ProcessStatus, normalizeCloudProvider } from '@/lib/types';
+import { ProcessStatus, isSduProvider, normalizeCloudProvider } from '@/lib/types';
 import type { schemas } from '@/lib/generated/install-v1';
 import type { z } from 'zod';
 
@@ -63,8 +63,11 @@ export const extractTargetSourceFromSnake = (
   const subscriptionId = asStr(metadata?.subscription_id);
   const awsAccountId = asStr(metadata?.aws_account_id);
   const gcpProjectId = asStr(metadata?.gcp_project_id);
-  const isSduType = asBool(metadata?.is_sdu_type);
-  const isTerraformExecutionGranted = asBool(metadata?.grant_service_terraform_execution_permission);
+  // Both readings of SDU, and the same two-state collapse the CSR adapter makes —
+  // this is the SSR path for the detail page, and the two must not disagree.
+  const isSduType = asBool(metadata?.is_sdu_type) || isSduProvider(item.cloud_provider);
+  const isTerraformExecutionGranted =
+    metadata?.grant_service_terraform_execution_permission === true;
   const createdAt = asStr(item.created_at) ?? new Date().toISOString();
 
   return {
@@ -80,11 +83,13 @@ export const extractTargetSourceFromSnake = (
     name: fallbackCode,
     description: asStr(item.description) ?? '',
     isRejected: false,
+    // Unconditional, unlike the optional identity fields below it: the install mode is
+    // two-state, so there is no "absent" to preserve — omitting the key IS the false.
+    isTerraformExecutionGranted,
     ...(tenantId ? { tenantId } : {}),
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
     ...(isSduType !== undefined ? { isSduType } : {}),
-    ...(isTerraformExecutionGranted !== undefined ? { isTerraformExecutionGranted } : {}),
   };
 };

@@ -27,6 +27,7 @@ vi.mock(
 import { AwsProjectPage } from '@/app/target-sources/[targetSourceId]/_components/aws/AwsProjectPage';
 
 const awsBaseFixture: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'aws-proj-1',
   targetSourceId: 1008,
   projectCode: 'AWS-001',

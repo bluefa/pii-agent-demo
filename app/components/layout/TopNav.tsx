@@ -126,7 +126,14 @@ export const TopNav = () => {
       <header
         className={cn(
           // Sticky chrome — the admin nav must not scroll away with the page.
-          'sticky top-0 z-40 h-14 flex items-center gap-8 px-6 text-white',
+          //
+          // Everything in here is `whitespace-nowrap` and nothing shrinks, so the
+          // bar's intrinsic width — 1228px — was the whole app's minimum width: at
+          // any narrower window the PAGE scrolled sideways, and the list underneath
+          // looked broken for a reason that was never in the list. Below xl the bar
+          // sheds what it can spare (tagline, utility labels, half the gaps) and
+          // keeps the primary items, which puts the floor at ~910px.
+          'sticky top-0 z-40 h-14 flex items-center gap-4 xl:gap-8 px-6 text-white',
           navStyles.bg,
         )}
       >
@@ -139,9 +146,11 @@ export const TopNav = () => {
           >
             PASS
           </span>
+          {/* The wordmark already identifies the product; the tagline is the first
+              145px to give back when the bar runs out of room. */}
           <small
             className={cn(
-              'font-medium text-[10px] uppercase tracking-[0.14em]',
+              'hidden xl:inline font-medium text-[10px] uppercase tracking-[0.14em]',
               navStyles.brand.tagline,
             )}
           >
@@ -190,21 +199,29 @@ export const TopNav = () => {
         {/* Help/announcement group — sits right after the primary items,
             separated by a thin divider so it reads as a distinct-but-adjacent
             cluster. */}
-        <span aria-hidden="true" className={cn(navStyles.divider, '-mx-4')} />
+        {/* The negative margin tightens the rule against its neighbours, so it has to
+            track the header's gap — at -mx-4 on a gap-4 bar the two groups touch. */}
+        <span aria-hidden="true" className={cn(navStyles.divider, '-mx-2 xl:-mx-4')} />
 
         <nav aria-label="도움말" className="flex items-center gap-0.5">
           {UTILITY_ITEMS.map((item) => (
+            // Below xl these fall back to their icons. The label goes off the screen,
+            // not off the element: `aria-label` is unconditional so the accessible
+            // name never depends on the window, and `title` gives the same word back
+            // to a sighted user on hover.
             <a
               key={item.label}
               href="#"
               onClick={(e) => handleDisabledClick(e, item.label)}
+              aria-label={item.label}
+              title={item.label}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors',
                 navStyles.link.inactive,
               )}
             >
               {item.icon}
-              {item.label}
+              <span className="hidden xl:inline">{item.label}</span>
             </a>
           ))}
         </nav>

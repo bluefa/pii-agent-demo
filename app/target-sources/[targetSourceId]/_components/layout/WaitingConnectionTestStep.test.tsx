@@ -52,6 +52,7 @@ vi.mock(
 import { WaitingConnectionTestStep } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingConnectionTestStep';
 
 const azureWaitingConnectionTestFixture: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'proj-1',
   targetSourceId: 1010,
   projectCode: 'PROJ-001',

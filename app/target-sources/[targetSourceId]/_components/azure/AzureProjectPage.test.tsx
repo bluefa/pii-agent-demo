@@ -26,6 +26,7 @@ vi.mock(
 import { AzureProjectPage } from '@/app/target-sources/[targetSourceId]/_components/azure/AzureProjectPage';
 
 const azureBaseFixture: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'azure-proj-1',
   targetSourceId: 1003,
   projectCode: 'AZURE-001',

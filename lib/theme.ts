@@ -277,6 +277,14 @@ export const borderColors = {
    * border *is* the state indicator, not when it merely separates.
    */
   emphasis: 'border-gray-500',
+  /**
+   * Outline for a card that repeats down a list on the tinted canvas. `default`
+   * measures 1.13:1 against #F4F4FB — the eye separates those cards on their 4.1
+   * ΔE00 of fill alone, and the line contributes nothing. This one reads 1.27:1
+   * on the canvas and 1.39:1 on the card, roughly doubling the line's share of
+   * the edge without darkening it into a table rule.
+   */
+  card: 'border-[#D6DBE6]',
 } as const;
 
 /**
@@ -421,6 +429,20 @@ export const tableRowLift = {
   excluded: 'bg-[#FBFCFD] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]',
   /** hover 행의 셀 텍스트 승격 — #4E5968 → #191F28 (6.12:1 → 14.25:1 on the hover tint). */
   cellText: 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]',
+  /**
+   * Card-row hover on the tinted canvas — violet, borrowed from the EC2 tag pair
+   * (`#F3EEFF`/`#6D28D9`), so the two land in one family.
+   *
+   * `bg-gray-50` measured ΔE00 1.20 from the white card: under the ~2.3 threshold
+   * at which two colours are seen as different at all, so the whole card was a
+   * click target announcing nothing. Violet buys the separation on CHROMA rather
+   * than on level (ΔE00 8.92 from the card, 5.21 from the canvas, and only 5 L*
+   * of darkening), which is what keeps the text on the card legible.
+   *
+   * Pair it with `cellText` on anything at `textColors.tertiary`: gray-500 reads
+   * 4.26:1 on this tint, under AA.
+   */
+  card: 'hover:bg-[#F3EEFF] focus-within:bg-[#F3EEFF]',
 } as const;
 
 export const cardStyles = {
@@ -494,7 +516,12 @@ export const cardStyles = {
  * Variant chip — small label inline with row text (AUTO / MANUAL / 준비 중).
  */
 export const chipStyles = {
-  base: 'inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-semibold',
+  /**
+   * 12px, not 11: 이 칩(설치 모드·중국 리전)은 옆의 12px 라벨과 한 줄에 서는데
+   * 11px 이면 라벨보다 한 눈금 작아 값이 이름보다 작아 보였다. 11 은 홀수라
+   * 디자인 규칙에도 어긋난다.
+   */
+  base: 'inline-flex items-center px-1.5 py-0.5 rounded-md text-[12px] font-semibold',
   variant: {
     auto: 'bg-blue-50 text-blue-700 border border-blue-200',
     manual: 'bg-amber-50 text-amber-800 border border-amber-200',
@@ -1200,6 +1227,25 @@ export const idcStyles = {
 } as const;
 
 /**
+ * 목록 행의 12px 라벨 — `Account` · `Subscription` · `Project` · `Tenant` ·
+ * `설치 모드` · `설명`. 한 색이다.
+ *
+ * 처음엔 id 를 **이름 짓는** 라벨과 산문을 **여는** 라벨을 두 색으로 갈랐는데,
+ * 그 구분은 읽는 사람에게 아무 일도 해 주지 않았다. 라벨은 전부 "옆에 오는 것이
+ * 무엇인지" 한 마디로 말하는 같은 종류의 물건이고, 계층은 이미 크기(12 vs 14/16)와
+ * 굵기가 세우고 있다. 색까지 나누면 없는 구분을 있는 것처럼 만든다.
+ *
+ * 브랜드 파랑(#0064FF)이 아니라 한 단 죽인 파랑인 이유: 12px 에서 브랜드 파랑은
+ * 링크로 읽히고, 카드 hover 시 제목이 파래지는 것과 충돌한다.
+ *
+ * 대비는 흰 카드와 카드 hover 틴트 양쪽에서 잰다 — 행은 커서 아래에서 배경이 바뀌므로
+ * 흰색만 통과하는 값은 hover 에서 AA 를 잃는다. 흰 카드 5.31:1, hover 틴트(#F3EEFF)
+ * 4.67:1 로 양쪽 AA. 12px 본문이고 hover 쪽 여유가 0.17 뿐이라, 이 값도 hover 틴트도
+ * 더 내릴 수 없다 — 둘 중 하나를 바꾸면 다른 하나를 다시 재야 한다.
+ */
+export const rowLabelColor = 'text-[#3B6BB5]';
+
+/**
  * 행 우측 ⋮ 드롭다운 — 버튼 크롬 없이 흩뿌린 kebab 이 여는 패널.
  * 행마다 반복되는 보조 동작이라 chrome 은 패널에만 있고 트리거에는 없다.
  */
@@ -1242,20 +1288,27 @@ export const serviceSidebarStyles = {
    * The rail separates from the ground by CHROMA as much as by luminance.
    * Near-neutral #F2F4F6 on the old #F9FAFB ground measured ΔE00 1.39 — barely
    * past the just-noticeable threshold, so the 1px border was doing all the
-   * work. Buying separation with luminance alone was not available either:
-   * sectionLabel had 0.2 of headroom over AA, so a darker rail fails text.
+   * work. The ground is now `canvas` (#F4F4FB, the app's own blue-leaning
+   * surface) on both pages that mount this rail, so the rail goes the other way
+   * — toward neutral — and the pair reads on hue as well as level.
    *
-   * The ground is now `canvas` (#F4F4FB, the app's own blue-leaning surface) on
-   * both pages that mount this rail, so the rail goes the other way — toward
-   * neutral — and the pair reads on hue as well as level.
+   * At #EFF2F3 the three planes of the page (rail 95.3, ground 96.4, card 100)
+   * sat inside 4.7 L* of each other, so none of them read as raised; this drops
+   * the BACK plane far enough for the stack to read as a stack.
    *
-   *   rail vs ground   ΔE00 1.39 → 3.79
-   *   rail vs white    ΔE00 2.59 → 3.10
-   *   L* 96.1 → 95.3, under the ground's 96.4 — the ladder holds
-   *   worst text pair (#666D7B) 4.72 → 4.62, still AA
-   *   worst plate (#F7F8FA tile) ΔE00 0.99 → 1.82 — it was invisible before
+   *   rail vs ground   ΔE00 3.79 → 4.71
+   *   rail vs white    ΔE00 3.10 → 5.71   (rowActive lifts twice as far)
+   *   L* 95.3 → 91.4, under the ground's 96.4 — the ladder holds
+   *
+   * Everything printed ON the rail moves with it, or it disappears into the new
+   * surface — that is why `count`/`rowCode`/`divider`/`skeletonBar` carry their
+   * own numbers below, and why `sectionLabel` and `footerPage` had to leave
+   * #666D7B (4.17:1 here) for #4E5968 (5.71:1). `text-gray-500` is not usable on
+   * this surface at all (3.88:1), and neither is `primaryColors.text` (3.95:1) —
+   * see `emptyText`/`emptyAction`, which exist so those two pairs are declared
+   * next to the surface instead of being discovered on a consumer.
    */
-  surface: 'bg-[#EFF2F3]',
+  surface: 'bg-[#E2E7EA]',
   /**
    * The ground this rail sits beside — the app canvas, not gray-50.
    *
@@ -1267,19 +1320,27 @@ export const serviceSidebarStyles = {
    * borders — and read at 4.12 on the canvas.
    */
   canvas: 'bg-[#F4F4FB]',
-  /** Full-bleed hairline between rail zones — darker than the rail, or it inverts. */
-  divider: 'border-[#E1E5EA]',
+  /** Full-bleed hairline between rail zones — darker than the rail, or it inverts. ΔE00 3.45. */
+  divider: 'border-[#D2D8DC]',
   /** Rail heading — nav-chrome tier, deliberately under the content column's page title. */
   title: 'text-[14px] font-semibold tracking-[-0.01em] text-[#191F28]',
   /**
    * Total beside the rail title — a pill, so it reads as a count attached to the
    * heading rather than as a second word in it. Round, unlike the square code
    * tags: one is a quantity, the other an identifier.
+   *
+   * The plate is LIGHTER than the rail, not darker. It used to be #E7EAEE, a step
+   * down from a near-white surface; on the deeper rail that same value lands ΔE00
+   * 1.44 away and vanishes. Going up instead is also the truer reading — a plate
+   * with something printed on it sits on the rail, it is not a hole in it.
    */
   count:
-    'inline-flex items-center rounded-full bg-[#E7EAEE] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[#4E5968]',
-  /** Section label above the rows — desktop nav section header, not a table column head. */
-  sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#666D7B]',
+    'inline-flex items-center rounded-full bg-[#F1F4F5] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[#4E5968]',
+  /**
+   * Section label above the rows — desktop nav section header, not a table column
+   * head. #4E5968, not #666D7B: the latter reads 4.17:1 on this rail, under AA.
+   */
+  sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#4E5968]',
   /** Row name — wraps rather than riding off the rail's edge; service names run to ~30 characters. */
   rowName: 'text-[14px] font-medium leading-5 text-[#191F28]',
   /**
@@ -1290,7 +1351,7 @@ export const serviceSidebarStyles = {
    * every row, and a 30-character name would push it out of the row.
    */
   rowCode:
-    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[#E7EAEE] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[#F1F4F5] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
   /**
    * Row fill under pointer hover or keyboard focus — full-bleed and square, the
    * way a web list row highlights. White, not a deeper grey: on a tinted rail
@@ -1308,9 +1369,9 @@ export const serviceSidebarStyles = {
   rowCodeCurrent:
     'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#0050D6]',
   /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
-  rowDivide: 'divide-y divide-[#E1E5EA]',
-  /** Skeleton bar for the rail — one step darker than idcStyles' #F3F4F6, which vanishes on the tinted surface. */
-  skeletonBar: 'animate-pulse bg-[#E3E7EC]',
+  rowDivide: 'divide-y divide-[#D2D8DC]',
+  /** Skeleton bar for the rail — a step darker than the surface, or it vanishes into it. */
+  skeletonBar: 'animate-pulse bg-[#D6DCE0]',
   /** 28px square icon tile — the row's scan anchor, sized up for the taller row. */
   tile: 'flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[12px] font-semibold leading-none',
   /** Tinted tile pairs, picked by a stable code hash so a service keeps its color across pages. */
@@ -1330,11 +1391,27 @@ export const serviceSidebarStyles = {
    * pill, so nothing here counts rows.
    */
   footer: 'mt-auto flex shrink-0 items-center justify-center gap-1 px-3 py-2.5',
+  /**
+   * The rail's empty result. `textColors.tertiary` reads 3.88:1 here — and this is
+   * the one state where the message IS the rail's only content, so it cannot be the
+   * quietest tier available.
+   */
+  emptyText: 'text-[14px] text-[#4E5968]',
+  /**
+   * Its recovery control. `primaryColors.text` (#0064FF) is 3.95:1 on this surface;
+   * #0050D6 is 5.40:1 — the same substitution `rowCodeCurrent` already makes.
+   */
+  emptyAction: 'text-[12px] cursor-pointer text-[#0050D6] hover:text-[#003FA8]',
   /** "1 / 2 페이지" — tabular so the digits do not jitter as pages change. */
-  footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#666D7B]',
-  /** Borderless ghost pager — a bordered button pair floats like a card control on a flush rail. */
+  footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#4E5968]',
+  /**
+   * Borderless ghost pager — a bordered button pair floats like a card control on a
+   * flush rail. The disabled glyph is #8B95A1, not #B0B8C1: 1.4.11 exempts inactive
+   * controls, but at 1.61:1 on this surface the arrow was a smudge rather than a
+   * greyed-out arrow. 2.44:1 still reads as unavailable next to the live one at 5.71.
+   */
   pagerBtn:
-    'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#B0B8C1] disabled:hover:bg-transparent',
+    'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent',
 } as const;
 
 // =============================================================================

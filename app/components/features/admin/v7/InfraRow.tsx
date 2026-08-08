@@ -9,6 +9,7 @@ import {
   cn,
   numericFeatures,
   primaryColors,
+  rowLabelColor,
   rowMenuStyles,
   statusColors,
   tableRowLift,
@@ -64,12 +65,10 @@ const identityOf = (project: ProjectSummary): RowIdentity => {
 export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProps) => {
   const identity = identityOf(project);
   // 설치 모드 is AWS-only — Terraform 실행 권한은 AWS 계정에만 존재하는 개념이라
-  // 다른 CSP 행에 칩을 달면 없는 선택지를 있는 것처럼 보이게 한다. 값이 아예 없으면
-  // 칩도 없다: 없는 값을 "수동 설치"로 적으면 화면이 계약에 없는 주장을 하게 된다.
-  const showInstallMode =
-    project.cloudProvider === 'AWS'
-    && !project.isSduType
-    && project.isTerraformExecutionGranted !== undefined;
+  // 다른 CSP 행에 칩을 달면 없는 선택지를 있는 것처럼 보이게 한다. AWS 행이면 항상
+  // 붙는다: 권한은 허용됐거나 아니거나 둘 중 하나이고, 안 붙어 있으면 허용된 적이
+  // 없다는 뜻 — 즉 수동 설치다.
+  const showInstallMode = project.cloudProvider === 'AWS' && !project.isSduType;
   // SDU 행은 밑에 깔린 CSP 를 숨기는 것이 규칙이다 — 제목이 "SDU"인데 Azure Tenant 가
   // 붙어 있으면 그 규칙이 이 한 줄에서만 깨진다.
   const showTenant =
@@ -82,23 +81,31 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
   const rowName = [identity.name, identity.value ?? identity.secondValue].filter(Boolean).join(' ');
 
   // The card is a click target but not a focusable button — WAI-ARIA forbids
-  // interactive descendants (the ↗ link, the ⋮ menu) inside a role="button"
-  // wrapper. Keyboard users reach the same destination through the ↗ button.
+  // interactive descendants (the ⋮ menu) inside a role="button" wrapper. Keyboard
+  // users reach the same destination through 상세 보기, the ⋮ menu's first item.
   return (
     <div
       onClick={() => onOpenDetail(project.targetSourceId)}
       className={cn(
-        'group flex items-start gap-3.5 px-[21px] py-[19px] cursor-pointer rounded-[12px] border transition-colors',
+        // `shrink-0`: the card is a flex child of the list's scrolling band, and a
+        // flex child shrinks by default — without this, five cards squeeze to fit a
+        // short window instead of scrolling, and the text crushes together.
+        'group flex shrink-0 items-start gap-3.5 px-[21px] py-[19px] cursor-pointer rounded-[12px] border transition-colors',
         bgColors.surface,
-        borderColors.default,
-        bgColors.mutedHover,
+        borderColors.card,
+        tableRowLift.card,
       )}
     >
+      {/* `self-center`, like the ⋮ opposite it. The card is `items-start` so the text
+          column can stack from the top, but the mark is one 64px block against three
+          text layers — top-aligned it sat high and left the card bottom-heavy. Both
+          ends of the row now hang off the card's middle; only the text starts at the
+          top, which is the one thing that should. */}
       <ProviderLogo
         provider={project.cloudProvider}
         isSdu={project.isSduType}
         variant="bare"
-        className="flex-none"
+        className="flex-none self-center"
       />
 
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
@@ -108,7 +115,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
               no resting blue and the page's one CTA keeps its loudness. */}
           <span
             className={cn(
-              'text-[16px] font-bold tracking-[-0.01em] transition-colors',
+              'text-[16px] font-medium tracking-[-0.01em] transition-colors',
               textColors.primary,
               primaryColors.textGroupHover,
             )}
@@ -143,7 +150,11 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         {hasSecondLayer && (
           <div className="flex flex-wrap items-center gap-y-1 gap-x-5 pl-0.5">
             {identity.gloss && (
-              <span className={cn('text-[14px] font-medium', textColors.tertiary)}>
+              // `cellText`: tertiary is 4.83:1 on the white card but 4.26:1 on the
+              // hover tint — the promotion is what keeps this line AA under the cursor.
+              <span
+                className={cn('text-[14px] font-medium', textColors.tertiary, tableRowLift.cellText)}
+              >
                 {identity.gloss}
               </span>
             )}
@@ -152,7 +163,7 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
                 <KindWord>{identity.secondKind}</KindWord>
                 <span
                   className={cn(
-                    'text-[16px] font-semibold tracking-[-0.01em]',
+                    'text-[16px] font-medium tracking-[-0.01em]',
                     textColors.primary,
                   )}
                 >
@@ -184,7 +195,9 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
 
         {project.description && (
           <div className="flex gap-1.5 min-w-0 pl-0.5">
-            <span className={cn('flex-none pt-0.5 text-[12px]', textColors.tertiary)}>설명</span>
+            <span className={cn('flex-none pt-0.5 text-[12px]', rowLabelColor)}>
+              설명
+            </span>
             <span className={cn('truncate text-[14px]', textColors.secondary)}>
               {project.description}
             </span>
@@ -192,27 +205,17 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         )}
       </div>
 
+      {/* One control, not two. "상세 보기 ↗" was the fourth way to reach the same screen —
+          the card's own onClick, the title going blue under the cursor, and the ⋮ menu's
+          first item all already go there — so it spent 66px and a second mark per row
+          saying what the row was saying anyway. Keyboard access does not depend on it:
+          the ⋮ opens a real button list whose first entry is 상세 보기.
+          `self-center` because the card is `items-start` — the ⋮ used to hang 21px above
+          the card's middle, tied to the title's line rather than to the card. */}
       <div
-        className="flex-none flex items-center gap-3.5 pt-0.5"
+        className="flex-none self-center flex items-center"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Words at rest, blue on hover. A bare ↗ did not read as "go somewhere", but a
-            permanently blue link repeated once per row is what this redesign spent its
-            effort removing — so the words stay in meta-grey until the cursor is on the
-            card, and only then do they take the primary colour and an underline. */}
-        <button
-          type="button"
-          onClick={() => onOpenDetail(project.targetSourceId)}
-          aria-label={`${rowName} 상세 정보 확인`}
-          className={cn(
-            'whitespace-nowrap text-[14px] font-semibold transition-colors',
-            'underline-offset-[3px] group-hover:underline',
-            textColors.tertiary,
-            primaryColors.textGroupHover,
-          )}
-        >
-          상세 보기 ↗
-        </button>
         <RowMenu
           rowName={rowName}
           onViewDetail={() => onManageAction('view', project.targetSourceId)}
@@ -226,14 +229,20 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
 
 /** The word naming the kind of id that follows it — "Account", "Subscription", "Project". */
 const KindWord = ({ children }: { children: React.ReactNode }) => (
-  <span className={cn('text-[12px]', textColors.tertiary)}>{children}</span>
+  <span className={cn('text-[12px]', rowLabelColor)}>{children}</span>
 );
 
-/** An account id or GUID — shown whole; a truncated id is not an id. */
+/**
+ * An account id or GUID — shown whole; a truncated id is not an id.
+ *
+ * `medium`, not `semibold`: the provider name is the row's subject and the id is
+ * what qualifies it. At the same weight the two competed, and a 20-character GUID
+ * won on sheer length.
+ */
 const IdValue = ({ children }: { children: React.ReactNode }) => (
   <span
     className={cn(
-      'text-[14px] font-semibold tracking-[-0.01em]',
+      'text-[14px] font-medium tracking-[-0.01em]',
       textColors.primary,
       numericFeatures.tabular,
     )}
@@ -244,7 +253,7 @@ const IdValue = ({ children }: { children: React.ReactNode }) => (
 
 const MetaPair = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <span className="flex items-center gap-1.5">
-    <span className={cn('text-[12px]', textColors.tertiary)}>{label}</span>
+    <span className={cn('text-[12px]', rowLabelColor)}>{label}</span>
     {children}
   </span>
 );

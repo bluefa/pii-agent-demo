@@ -26,6 +26,7 @@ vi.mock(
 import { GcpProjectPage } from '@/app/target-sources/[targetSourceId]/_components/gcp/GcpProjectPage';
 
 const gcpBaseFixture: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'gcp-proj-1',
   targetSourceId: 1020,
   projectCode: 'GCP-001',
