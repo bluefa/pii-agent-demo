@@ -690,9 +690,10 @@ export const WaitingApprovalTable = memo(
                 cluster answers for (id, verdict, reason) stays on the parent row. */}
             {instancesOpen &&
               instances.map((instance, index) => (
-                // The instances inherit their cluster's tier: an excluded cluster is not
-                // being installed, so its members are not either, and leaving them at full
-                // contrast made a dimmed parent read as a rendering fault.
+                // 인스턴스 행은 클러스터의 틴트만 물려받고 레일은 그리지 않는다. 판정은
+                // 클러스터가 답하는 것이고(id·verdict·reason 이 전부 부모 행에 있다), 멤버마다
+                // 레일을 세우면 하나의 결정이 행 수만큼 반복돼 제외 건수를 세는 눈을 속인다.
+                // 부모의 레일과 트리 레일이 이 행들을 그 결정 아래로 묶는다.
                 <tr
                   key={instance.resource_id}
                   className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}

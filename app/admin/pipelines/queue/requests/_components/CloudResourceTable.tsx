@@ -213,7 +213,9 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                 </td>
               </tr>
               {/* One row per member instance. Everything the cluster answers for (id, verdict,
-                  reason) stays on the parent; these carry identity, role and their own AZ. */}
+                  reason) stays on the parent; these carry identity, role and their own AZ.
+                  레일도 부모의 것이다 — 멤버마다 세우면 하나의 결정이 행 수만큼 반복돼
+                  제외 건수를 세는 눈을 속인다. */}
               {instancesOpen && instances.map((instance, instanceIndex) => (
                 <tr
                   key={instance.resource_id}
