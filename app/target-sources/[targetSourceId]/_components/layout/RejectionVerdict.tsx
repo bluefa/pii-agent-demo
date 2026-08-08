@@ -69,7 +69,7 @@ export const RejectionVerdict = ({
       ) : (
         <>
           {/* No reason → nothing to quote, so the sentence carries the verdict on its own. */}
-          <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+          <p className={cn('text-[14px] font-medium leading-[1.55]', textColors.tertiary)}>
             관리자가 승인 요청을 반려했어요. 연동 대상을 다시 선택한 뒤 승인을 다시 요청해주세요.
           </p>
           {signature}

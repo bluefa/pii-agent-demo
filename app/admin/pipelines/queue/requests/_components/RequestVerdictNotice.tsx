@@ -78,7 +78,7 @@ export function RequestVerdictNotice({ verdict }: RequestVerdictNoticeProps): Re
         </div>
       ) : (
         <div className={cn('border-l-[3px] pl-4', rule)}>
-          <p className="text-[16px] font-medium leading-[1.55] text-[var(--pl-text-medium)]">
+          <p className="text-[14px] font-medium leading-[1.55] text-[var(--pl-text-medium)]">
             {sentence}
           </p>
           {meta}
