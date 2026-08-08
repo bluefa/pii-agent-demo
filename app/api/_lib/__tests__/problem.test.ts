@@ -162,3 +162,20 @@ describe('transformBffError parity with transformLegacyError (ADR-011 I-4)', () 
     });
   }
 });
+
+describe('mapLegacyCode status fallback', () => {
+  // 400 이 폴백에서 빠져 있어 LEGACY_CODE_MAP 에 없는 코드가 전부 500 으로
+  // 뒤바뀌었다. 400 은 클라이언트 입력 거부이므로 절대 500 이 되면 안 된다.
+  it('LEGACY_CODE_MAP 에 없는 400 코드는 VALIDATION_FAILED(400) 로 떨어진다', async () => {
+    const out = transformBffError(
+      new BffError(400, 'MAX_RESOURCES_REACHED', '리소스가 최대 개수에 도달했습니다.'),
+      'req-400',
+    );
+
+    expect(out.status).toBe(400);
+    await expect(out.json()).resolves.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      detail: '리소스가 최대 개수에 도달했습니다.',
+    });
+  });
+});

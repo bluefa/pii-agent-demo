@@ -68,23 +68,9 @@ describe('mock-scan', () => {
     });
 
     describe('리소스 최대 개수 검증', () => {
-      it('리소스가 10개 미만이면 스캔 가능', () => {
-        const project = createTestProject({
-          resources: Array(9).fill(null).map((_, i) => ({
-            id: `res-${i}`,
-            type: 'RDS',
-            resourceId: `arn:aws:rds:ap-northeast-2:123456789012:db:test-${i}`,
-            databaseType: 'MYSQL' as const,
-            connectionStatus: 'PENDING' as const,
-            isSelected: false,
-            integrationCategory: 'TARGET' as const,
-          })),
-        });
-        const result = validateScanRequest(project);
-        expect(result.valid).toBe(true);
-      });
-
-      it('리소스가 10개이면 스캔 불가 (MAX_RESOURCES_REACHED)', () => {
+      // MAX_RESOURCES 는 목이 새 리소스를 몇 개까지 지어낼지 정하는 상한이지
+      // 스캔 거부 조건이 아니다. 꽉 찬 대상도 "발견 0건"으로 정상 완료해야 한다.
+      it('리소스가 MAX_RESOURCES 만큼 차 있어도 스캔 가능', () => {
         const project = createTestProject({
           resources: Array(MAX_RESOURCES).fill(null).map((_, i) => ({
             id: `res-${i}`,
@@ -97,9 +83,7 @@ describe('mock-scan', () => {
           })),
         });
         const result = validateScanRequest(project);
-        expect(result.valid).toBe(false);
-        expect(result.errorCode).toBe('MAX_RESOURCES_REACHED');
-        expect(result.httpStatus).toBe(400);
+        expect(result.valid).toBe(true);
       });
     });
 
@@ -288,7 +272,7 @@ describe('mock-scan', () => {
       expect(result.reason).toBeUndefined();
     });
 
-    it('리소스 최대 개수 도달 시 스캔 불가', () => {
+    it('리소스 최대 개수에 도달해도 스캔 가능', () => {
       const project = createTestProject({
         resources: Array(MAX_RESOURCES).fill(null).map((_, i) => ({
           id: `res-${i}`,
@@ -301,8 +285,7 @@ describe('mock-scan', () => {
         })),
       });
       const result = canScan(project);
-      expect(result.canScan).toBe(false);
-      expect(result.reason).toContain('10개');
+      expect(result.canScan).toBe(true);
     });
   });
 

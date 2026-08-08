@@ -109,15 +109,9 @@ export const validateScanRequest = (
     };
   }
 
-  // 리소스 최대 개수 확인
-  if (project.resources.length >= MAX_RESOURCES) {
-    return {
-      valid: false,
-      errorCode: 'MAX_RESOURCES_REACHED',
-      errorMessage: `리소스가 최대 개수(${MAX_RESOURCES}개)에 도달했습니다.`,
-      httpStatus: 400,
-    };
-  }
+  // MAX_RESOURCES 는 목이 새 리소스를 몇 개까지 지어낼지 정하는 상한일 뿐이므로
+  // (generateResourceChanges 의 availableSlots) 스캔 거부 조건이 아니다. 이미
+  // 꽉 찬 대상은 "발견 0건"으로 정상 완료한다.
 
   const store = getStore();
 
@@ -602,10 +596,6 @@ export const canScan = (project: Project): { canScan: boolean; reason?: string; 
   const policy = SCAN_POLICY[project.cloudProvider];
   if (!policy.enabled) {
     return { canScan: false, reason: policy.reason };
-  }
-
-  if (project.resources.length >= MAX_RESOURCES) {
-    return { canScan: false, reason: `리소스가 최대 개수(${MAX_RESOURCES}개)에 도달했습니다.` };
   }
 
   const store = getStore();
