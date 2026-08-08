@@ -24,6 +24,8 @@ import {
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
+import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
+import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
 
@@ -63,7 +65,7 @@ export const IdcStep4Installing = ({
   action,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
-  const { status } = useIdcInstallationStatus(targetSourceId);
+  const { status, loading, error, refresh } = useIdcInstallationStatus(targetSourceId);
 
   const [resources, setResources] = useState<IdcResourceView[]>([]);
   const [firewallOpen, setFirewallOpen] = useState(false);
@@ -178,12 +180,18 @@ export const IdcStep4Installing = ({
               상태 확인 실패: {status.lastCheck.failReason}
             </div>
           )}
-          <InstallStatusDetail
-            lastCheck={toInstallLastCheck(status?.lastCheck)}
-            resources={detailResources}
-            steps={steps}
-            meta={detailMeta}
-          />
+          {loading ? (
+            <InstallationLoadingView provider="IDC" />
+          ) : error ? (
+            <InstallationErrorView message={error} onRetry={() => void refresh()} />
+          ) : status ? (
+            <InstallStatusDetail
+              lastCheck={toInstallLastCheck(status.lastCheck)}
+              resources={detailResources}
+              steps={steps}
+              meta={detailMeta}
+            />
+          ) : null}
         </div>
       </section>
 
