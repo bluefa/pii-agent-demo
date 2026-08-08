@@ -142,8 +142,9 @@ describe('CloudResourceTable', () => {
       expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
     });
 
-    // An excluded cluster chose nothing; the list is still the evidence for excluding it.
-    it('lists an excluded cluster’s instances with nothing marked', () => {
+    // An excluded cluster chose nothing; the list is still the evidence for excluding it, but
+    // it starts folded (useClusterFold) — reference rather than review.
+    it('folds an excluded cluster, and lists it with nothing marked once opened', () => {
       render(
         <CloudResourceTable
           rows={[
@@ -155,6 +156,9 @@ describe('CloudResourceTable', () => {
           ]}
         />,
       );
+      expect(instanceNames()).toHaveLength(0);
+
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
       expect(instanceNames()).toHaveLength(3);
       expect(screen.queryByText('선택됨')).toBeNull();
     });

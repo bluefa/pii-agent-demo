@@ -109,6 +109,18 @@ export const primaryColors = {
 } as const;
 
 /**
+ * 스캔 완료 전환 (app/globals.css @keyframes scan-*). 진행 UI가 결과로 바뀌는
+ * 순간을 확인 프레임 → fade-through 의 두 박자로 늘린다.
+ * 타이밍의 주인은 useScanCompletionTransition, 표현의 주인은 이 토큰들이다.
+ */
+export const scanTransition = {
+  /** 결과 뷰 입장 — 확인 프레임이 퇴장한 뒤 이어지는 200ms. */
+  reveal: 'motion-safe:animate-[scan-reveal_200ms_ease-out]',
+  /** 완료 체크 드로우. stroke-dasharray 를 가진 path 에만 건다. */
+  checkDraw: 'motion-safe:animate-[scan-check-draw_300ms_ease-out]',
+} as const;
+
+/**
  * 상태 색상 (CLAUDE.md 규칙 준수)
  * - success (#45CB85): 연결됨, 완료
  * - error (red-500): 끊김, 에러
@@ -1014,6 +1026,20 @@ export const idcStyles = {
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**
+     * Seam between adjacent `<tbody>`s — belongs on the `<table>`.
+     *
+     * `body`'s divide-y only draws BETWEEN the rows of ONE tbody, and a group is three
+     * tbodies (rows · parent · children). So the group block lost the hairline above it,
+     * the one under its parent and the one under its last child: three rows in a row with
+     * no rhythm, which reads as the tree being torn rather than nested. A collapsed
+     * (hidden) children tbody is still an element, so `+` lands the seam on the next
+     * visible tbody in both fold states. A `<tr>` border paints because these tables inherit
+     * preflight's `border-collapse: collapse`; a table that opts into `border-separate` would
+     * need the seam on its cells instead.
+     */
+    tbodySeam:
+      '[&_tbody+tbody>tr:first-child]:border-t [&_tbody+tbody>tr:first-child]:border-[#EBEEF2]',
+    /**
      * Grouped parent row (Athena × Region) — Cloudscape "nested resources" 시안.
      * Chosen in `docs/ux/athena-group-samples.html` §04 over the v16 orange band: the
      * parent stays a REAL row sharing the table's columns, so sorting, pagination and
@@ -1083,7 +1109,7 @@ export const idcStyles = {
        * The 12px the child used to sit from the label was not a tier, it was a nudge.
        */
       childCell:
-        "relative pl-[70px] before:absolute before:bottom-0 before:left-[28px] before:top-0 before:w-px before:bg-[#C4CEDA] before:content-[''] after:absolute after:left-[28px] after:top-1/2 after:h-px after:w-[26px] after:bg-[#C4CEDA] after:content-['']",
+        "relative pl-[70px] before:absolute before:bottom-0 before:left-[28px] before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-[''] after:absolute after:left-[28px] after:top-1/2 after:h-px after:w-[26px] after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /** Last child — the rail stops at its elbow, closing the group. */
       childCellLast: 'before:bottom-1/2',
       /**
@@ -1092,9 +1118,25 @@ export const idcStyles = {
        * Apply ONLY while the group is open. A closed group has nothing below it, so the segment
        * dangled off the chevron pointing at an unrelated row and read as a rendering fault. Closed
        * state is the chevron alone.
+       *
+       * The trunk starts at the chevron BOX's bottom edge, never at the row's centre: a chevron
+       * is 20px and sits on the row's middle, so it ends 10px past it and `top-1/2` drew the
+       * line's first 10px straight through the glyph — the arrow read as snagged on it. Every
+       * parent chevron is vertically centred (including the two-line cluster identity), so
+       * `50% + 10px` is the one offset all of them need.
        */
       parentCell:
-        "relative after:absolute after:-bottom-px after:left-[28px] after:top-1/2 after:w-px after:bg-[#C4CEDA] after:content-['']",
+        "relative after:absolute after:-bottom-px after:left-[28px] after:top-[calc(50%_+_10px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+      /**
+       * Rail lit — put on every `<tr>` of ONE group while its parent row is hovered, so the
+       * trunk and each elbow answer together and the group says which rows it owns. The rail
+       * reads its colour from `--rail`, inherited through the row, because parent and children
+       * are separate rows (and, for a group, separate tbodies): no CSS combinator reaches from
+       * one to the others without also catching the rows in between.
+       *
+       * #0064FF is the app's single interactive hue — the same value the closed chevron uses.
+       */
+      railActive: '[--rail:#0064FF]',
     },
   },
 } as const;
@@ -1740,6 +1782,17 @@ export const pipelineStyles = {
       'flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--pl-gray-200)] text-[var(--pl-text-weak)]',
     meta: cn(pipelineText.meta),
   },
+
+  /**
+   * Skeleton bar for the admin surface. gray-200, not gray-100: the same bar has to
+   * read on the white sheet AND inside the recessed bg-inner block, and gray-100 is
+   * close enough to that block's own value that the bar disappears there.
+   *
+   * 반경은 일부러 빼 뒀다 — `cn` 은 단순 join 이라 호출부가 다른 반경을 얹으면
+   * `rounded rounded-full` 처럼 둘 다 남고 어느 쪽이 이길지는 CSS 순서가 정한다.
+   * 흉내낼 요소마다 반경이 다르므로 반경은 호출부가 명시한다.
+   */
+  skeletonBar: 'animate-pulse bg-[var(--pl-gray-200)]',
 
   /** PlBreadcrumb — 12/weak, sep ›, clickable vs inert vs cur. */
   breadcrumb: {

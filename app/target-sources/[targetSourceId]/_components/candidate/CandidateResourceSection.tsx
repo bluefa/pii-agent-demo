@@ -8,6 +8,7 @@ import { Pagination } from '@/app/components/ui/Pagination';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
+import { useScanCompletionTransition } from '@/app/hooks/useScanCompletionTransition';
 import { useToast } from '@/app/components/ui/toast';
 import { PlusIcon } from '@/app/components/ui/icons';
 import type { Ec2Instance } from '@/app/lib/api/ec2';
@@ -26,6 +27,7 @@ import {
   getButtonClass,
   idcStyles,
   primaryColors,
+  scanTransition,
   statusColors,
   textColors,
 } from '@/lib/theme';
@@ -147,6 +149,10 @@ export const CandidateResourceSection = ({
   const editingEc2 = ec2EditingId === null
     ? undefined
     : manualEc2.find((entry) => entry.instance.instanceId === ec2EditingId);
+
+  // 스캔 완료 → 목록 사이의 확인 프레임. 결과 조회가 이 프레임 뒤에서 돌기 때문에
+  // 평범한 응답 시간은 프레임에 가려지고, 예전처럼 스켈레톤이 번쩍이지 않는다.
+  const completion = useScanCompletionTransition();
 
   // Plain id→reason map for the payload adapter and the table's reason chips.
   const exclusionReasons = useMemo(
@@ -370,7 +376,12 @@ export const CandidateResourceSection = ({
     approvalModal.open();
   }, [approval, approvalModal, allCandidates, drafts, exclusionReasons, selectedIds, toast]);
 
+  const beginCompletion = completion.begin;
   const handleScanComplete = useCallback(async () => {
+    // 확인 프레임을 먼저 세운다. 아래 refetch 가 곧바로 loading 을 켜지만, 이 함수의
+    // setState 들은 한 배치로 묶이므로(React 18) 스켈레톤을 막는 건 순서가 아니라
+    // selectPhase 의 completing 우선순위다 — 여기서 순서는 읽는 사람을 위한 것이다.
+    beginCompletion();
     setDrafts(EMPTY_DRAFTS);
     setExpandedResourceId(null);
     // A manually added instance was found by the scan that just got replaced — its scan
@@ -387,7 +398,7 @@ export const CandidateResourceSection = ({
     closePicker();
     refetchAfterScan();
     await refreshProject();
-  }, [tableSearchChange, tableFilterChange, tableDbTypeChange, tableRegionChange, tablePageChange, closePicker, refetchAfterScan, refreshProject]);
+  }, [beginCompletion, tableSearchChange, tableFilterChange, tableDbTypeChange, tableRegionChange, tablePageChange, closePicker, refetchAfterScan, refreshProject]);
 
   const handleApprovalConfirm = useCallback(() => {
     void approval.execute();
@@ -408,6 +419,7 @@ export const CandidateResourceSection = ({
             // A manually added instance is a row on its own — a scan that proposed nothing
             // must still show the table once the user has put something in it.
             hasCandidates: allCandidates.length > 0,
+            completing: completion.stage !== 'idle',
           });
           // 종료된 스캔만 "결과"다 — mock BFF는 이력이 없으면 NO_SCAN 센티널 잡을
           // 합성하므로(실 BFF는 404 → latestJob null) 상태 집합으로 걸러낸다.
@@ -440,6 +452,31 @@ export const CandidateResourceSection = ({
             }
             : undefined;
 
+          // 화면이 스스로 바뀌는 흐름(스캔 → 확인 → 목록)을 소리로도 잇는다. 각
+          // 프레임의 제목에 리전을 걸면 마지막 사건인 "목록 도착"만 영영 낭독되지
+          // 않는다 — 그 시점엔 제목이 이미 언마운트됐기 때문이다. 리전은 페이즈보다
+          // 오래 살아야 하므로 renderBody 바깥에 상주하고, 텍스트만 갈아끼운다.
+          // settling 은 직전 구간과 같은 문장을 유지해 안내를 한 번 덜 쌓는다.
+          const liveMessage = ((): string => {
+            switch (phase) {
+              case 'scanning':
+                return finalizing ? '스캔 결과를 집계하고 있어요.' : '인프라 스캔을 진행하고 있어요.';
+              case 'completing':
+                return completion.stage === 'settling'
+                  ? '스캔 결과를 집계하고 있어요.'
+                  : '인프라 스캔이 끝났어요.';
+              case 'list':
+                return `연동 대상 ${candidates.length}건을 불러왔어요.`;
+              case 'empty':
+                return neverScanned ? '' : '발견된 리소스가 없어요.';
+              case 'scanFailed':
+                return '인프라 스캔에 실패했어요.';
+              default:
+                // fetching·fetchError 는 스켈레톤과 에러 박스가 스스로 말한다.
+                return '';
+            }
+          })();
+
           const renderBody = (): React.ReactNode => {
             switch (phase) {
               case 'fetching':
@@ -456,14 +493,33 @@ export const CandidateResourceSection = ({
                   </div>
                 );
               case 'scanning':
-                return <ScanRunningState progress={progress} finalizing={finalizing} />;
+                return (
+                  <ScanRunningState
+                    progress={progress}
+                    stage={finalizing ? 'finalizing' : 'scanning'}
+                  />
+                );
+              case 'completing':
+                // 같은 히어로 블록의 마지막 두 프레임. settling 은 바가 100%에
+                // 닿는 걸 보여주고(집계 꼬리를 거쳐 왔다면 이미 가득 차 있다),
+                // confirming 이 완료 체크를 세운다.
+                return (
+                  <ScanRunningState
+                    progress={100}
+                    stage={completion.stage === 'settling' ? 'finalizing' : 'complete'}
+                  />
+                );
               case 'scanFailed':
                 return <ScanErrorState onRetry={startScan} />;
               case 'list':
                 // Step 2 표 스택 그대로: 툴바(검색+필터, 상단 라운드) → 무윤곽 표 →
                 // Pagination 마감 바(rounded-b). 윤곽은 Header/Footer 두 세그먼트뿐이다.
+                //
+                // 목록이 다른 프레임(확인·스켈레톤·러닝)을 밀어내고 들어올 때마다
+                // 같은 방식으로 등장한다 — 페이즈가 바뀌면 이 노드가 새로 마운트되고,
+                // 검색·필터·페이지 변경은 이 노드의 마운트를 유지하므로 재생되지 않는다.
                 return (
-                  <div>
+                  <div className={scanTransition.reveal}>
                     <WaitingApprovalToolbar
                       searchValue={table.searchValue}
                       onSearchChange={handleSearchChange}
@@ -552,6 +608,7 @@ export const CandidateResourceSection = ({
               </header>
 
               <div className={cardStyles.body}>
+                <p className="sr-only" aria-live="polite">{liveMessage}</p>
                 {showStrip && (
                   // 스캔 밴드는 리소스 테이블과 명시적으로 분리된 영역 — 항상 독립
                   // 밴드로 서고, 표 그룹과는 간격으로 구분한다.

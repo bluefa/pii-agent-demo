@@ -1,6 +1,8 @@
 'use client';
 
 import { Fragment, memo, useMemo, useState } from 'react';
+import { useClusterFold } from '@/app/hooks/useClusterFold';
+import { useRailHover } from '@/app/hooks/useRailHover';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { ChevronRightIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
@@ -336,10 +338,11 @@ export const WaitingApprovalTable = memo(
     );
     const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
     const [expandedFolds, setExpandedFolds] = useState<ReadonlySet<string>>(() => new Set());
-    // RDS cluster instance lists start OPEN — steps 2·3 are the review surfaces, and which
-    // instance the agent connects through is part of what is being approved. Tracked as the
-    // CLOSED set (the opposite of `expandedFolds` above) so open is the default.
-    const [collapsedInstances, setCollapsedInstances] = useState<ReadonlySet<string>>(() => new Set());
+    // RDS cluster instance lists — shared fold policy (`useClusterFold`): open while the
+    // cluster is part of the request, folded once it is excluded.
+    const clusterFold = useClusterFold();
+    // Tree rails: hovering any row of a group / cluster / folded region lights the whole rail.
+    const railRow = useRailHover();
 
     const toggleGroup = (key: string) =>
       setCollapsedGroups((previous) => {
@@ -358,13 +361,6 @@ export const WaitingApprovalTable = memo(
         return next;
       });
 
-    const toggleInstances = (key: string) =>
-      setCollapsedInstances((previous) => {
-        const next = new Set(previous);
-        if (!next.delete(key)) next.add(key);
-        return next;
-      });
-
     if (resources.length === 0) {
       return <TableEmptyState message={emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />;
     }
@@ -377,7 +373,12 @@ export const WaitingApprovalTable = memo(
 
     // `grouped` only indents the identity cell — every other cell is identical whether the row
     // stands alone or hangs under a parent, so a group never changes what a row says.
-    const renderRow = (resource: WaitingApprovalResource, grouped = false, lastInGroup = false) => {
+    const renderRow = (
+      resource: WaitingApprovalResource,
+      grouped = false,
+      lastInGroup = false,
+      railKey?: string,
+    ) => {
       const excluded = !resource.selected;
       const rowKey = resource.rowKey || resource.resourceId || resource.resourceName;
       // A folded row STANDS FOR an Athena region (steps 6·7) — see `foldedMembers`.
@@ -399,9 +400,15 @@ export const WaitingApprovalTable = memo(
         ? sortRdsInstances(resource.rdsInstanceCandidates)
         : [];
       const hasInstances = instances.length > 0;
-      const instancesOpen = hasInstances && !collapsedInstances.has(rowKey);
+      const instanceFold = clusterFold(rowKey, resource.selected);
+      const instancesOpen = hasInstances && instanceFold.open;
       // Keyed on the declared top-level type, never on `resourceType` — see the field's note.
       const isCluster = isRdsCluster(resource.declaredResourceType ?? '');
+      // Every row of one rail shares a key: a group's children take the group's (passed in by
+      // the caller), a cluster or a folded region and its members take the row's own. Rows that
+      // draw NO rail get no handlers: this table is memo()'d and paginated, and lighting nothing
+      // on every pointer move would re-render the whole list for a class with no effect.
+      const rail = grouped || instancesOpen || (folded && open) ? railRow(railKey ?? rowKey) : undefined;
       const row = (
         <tr
           // `resource_id` is optional in the contract, so two id-less rows would collide on
@@ -412,8 +419,11 @@ export const WaitingApprovalTable = memo(
             ROW_BASE,
             excluded ? ROW_EXCLUDED : ROW_TARGET,
             foldToggleable && 'cursor-pointer',
+            rail?.className,
           )}
           onClick={foldToggleable ? () => toggleFold(rowKey) : undefined}
+          onMouseEnter={rail?.onMouseEnter}
+          onMouseLeave={rail?.onMouseLeave}
         >
           {/* One line, always. Wrapping turned the row's darkest column into a 2–3 line
               block and left row heights ragged (59/69/75px); the full name is in the tip. */}
@@ -425,14 +435,14 @@ export const WaitingApprovalTable = memo(
               NAME_LIFT,
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
-              (folded && open) || instancesOpen ? idcStyles.table.group.parentCell : undefined,
+              (instancesOpen || (folded && open)) && idcStyles.table.group.parentCell,
             )}
           >
             {hasInstances ? (
               // A cluster keeps its own name — two-line identity (owner request): the tag sits
-              // at the row's top-left ABOVE the name, chevron top-aligned to the tag line.
+              // ABOVE the name, and the chevron centres on the pair.
               // Same stack as the step-1 cluster row so the three steps read identically.
-              <span className="flex items-start gap-2">
+              <span className="flex items-center gap-2">
                 <button
                   type="button"
                   // No aria-controls: the instance rows are `<tr>` siblings with no single
@@ -441,7 +451,7 @@ export const WaitingApprovalTable = memo(
                   aria-label={`${resource.resourceName} 인스턴스 목록 ${instancesOpen ? '접기' : '펼치기'}`}
                   onClick={(event) => {
                     event.stopPropagation();
-                    toggleInstances(rowKey);
+                    instanceFold.toggle();
                   }}
                   className={cn(
                     idcStyles.table.group.toggle,
@@ -449,29 +459,29 @@ export const WaitingApprovalTable = memo(
                       ? idcStyles.table.group.toggleOpen
                       : idcStyles.table.group.toggleClosed,
                     primaryColors.focusRing,
-                    'mt-0.5',
                   )}
                 >
                   <ChevronRightIcon className="h-3.5 w-3.5" />
                 </button>
                 <span className="flex min-w-0 flex-col items-start gap-1">
-                  <RdsClusterTag />
-                  <span className="flex min-w-0 items-center gap-2">
-                    <Tooltip
-                      content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
-                      variant="value"
-                      size="md"
-                      triggerClassName="min-w-0 max-w-[200px] block"
-                      truncatedOnly
-                    >
-                      <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
-                    </Tooltip>
-                    {/* Count only — the 선택됨 chip on the instance row is the single place the
-                        choice is stated, so the parent can never contradict it. */}
+                  {/* Count only, on the tag line — same stack as the step-1 cluster row. The
+                      선택됨 chip on the instance row is the single place the choice is stated,
+                      so the parent can never contradict it. */}
+                  <span className="flex items-center gap-2">
+                    <RdsClusterTag />
                     <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
-                      인스턴스 {instances.length}
+                      {instances.length}개 인스턴스
                     </span>
                   </span>
+                  <Tooltip
+                    content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
+                    variant="value"
+                    size="md"
+                    triggerClassName="min-w-0 max-w-[200px] block"
+                    truncatedOnly
+                  >
+                    <span className="block truncate">{resource.resourceName || PLACEHOLDER}</span>
+                  </Tooltip>
                 </span>
               </span>
             ) : folded ? (
@@ -680,7 +690,9 @@ export const WaitingApprovalTable = memo(
                 // contrast made a dimmed parent read as a rendering fault.
                 <tr
                   key={instance.resource_id}
-                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET)}
+                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
+                  onMouseEnter={rail?.onMouseEnter}
+                  onMouseLeave={rail?.onMouseLeave}
                 >
                   <td
                     className={cn(
@@ -695,7 +707,7 @@ export const WaitingApprovalTable = memo(
                       <span className="truncate">{rdsInstanceLabel(instance)}</span>
                       <RdsMemberChip role={instance.cluster_member_role} />
                       {instance.resource_id === resource.selectedRdsInstanceResourceId && (
-                        <RdsSelectionChip label="선택됨" />
+                        <RdsSelectionChip />
                       )}
                     </span>
                   </td>
@@ -735,7 +747,12 @@ export const WaitingApprovalTable = memo(
               answer and does not vary per database, so those cells stay empty. */}
           {open &&
             members.map((member, index) => (
-              <tr key={member.resourceId}>
+              <tr
+                key={member.resourceId}
+                className={cn(ROW_BASE, rail?.className)}
+                onMouseEnter={rail?.onMouseEnter}
+                onMouseLeave={rail?.onMouseLeave}
+              >
                 <td
                   className={cn(
                     idcStyles.table.approvalCell,
@@ -767,7 +784,14 @@ export const WaitingApprovalTable = memo(
               table matches). Variant-scoped: the install/confirmed tables (steps 4·6) keep
               the shared token's rhythm. :not([colspan]) keeps spanning cells (panel-style
               tds zero their own padding) out of the override — see CandidateResourceTable. */}
-          <table className={cn('w-full', raisedRows && '[&_td:not([colspan])]:py-5')}>
+          <table
+            className={cn(
+              'w-full',
+              raisedRows && '[&_td:not([colspan])]:py-5',
+              // A group is three tbodies, and `body`'s divide-y stops at each tbody's edge.
+              idcStyles.table.tbodySeam,
+            )}
+          >
             <thead className={idcStyles.table.approvalHeader}>
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}
@@ -824,6 +848,7 @@ export const WaitingApprovalTable = memo(
                       expanded={!collapsed}
                       onToggle={() => toggleGroup(group.key)}
                       controls={rowsId}
+                      rail={railRow(group.key)}
                     >
                       {/* Resource ID stays blank: the catalog id lives only inside each child's
                           resource_id string, which we do not parse. Database Type and Region are
@@ -858,7 +883,7 @@ export const WaitingApprovalTable = memo(
                   {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
                   <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>
                     {group.rows.map((resource, index) =>
-                      renderRow(resource, true, index === group.rows.length - 1),
+                      renderRow(resource, true, index === group.rows.length - 1, group.key),
                     )}
                   </tbody>
                 </Fragment>

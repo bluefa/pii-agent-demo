@@ -315,10 +315,6 @@ export const httpBff: BffClient = {
     putCollabChannel: (id, channel) => put(`/target-sources/${id}/collaboration-channel`, channel),
     getTargetSourceList: (query, page, size) =>
       getSnakeRaw(`/admin/ops/target-sources${buildQuery({ query, page, size })}`),
-    getServices: () => getSnakeRaw('/admin/ops/services'),
-    getService: (code) => getSnakeRaw(`/admin/ops/services/${encodeURIComponent(code)}`),
-    postServiceEos: (code, force) =>
-      post(`/admin/ops/services/${encodeURIComponent(code)}/eos`, { force }),
   },
 
   // Azure responses are raw snake passthrough — the route validates with
@@ -382,6 +378,7 @@ export const httpBff: BffClient = {
         `/target-sources/page${buildQuery({
           confirmStatus: query.confirmStatus,
           targetSourceId: query.targetSourceId,
+          serviceCode: query.serviceCode,
           page: query.page,
           size: query.size,
         })}`,

@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import type { ScanControllerRenderProps } from '@/app/components/features/scan/ScanPanel';
 
+// 조회를 테스트가 붙잡을 수 있어야 한다 — 즉시 resolve 하면 loading 구간이 아예
+// 존재하지 않아, "확인 프레임이 스켈레톤을 이긴다"는 단언이 이길 상대가 없어진다.
+const { getConfirmResources } = vi.hoisted(() => ({ getConfirmResources: vi.fn() }));
+
 vi.mock('@/app/lib/api', () => ({
-  getConfirmResources: vi.fn().mockResolvedValue({ resources: [] }),
+  getConfirmResources,
   createApprovalRequest: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -56,21 +60,30 @@ const scanRenderProps: ScanControllerRenderProps = {
   refresh: () => {},
 };
 
+/** 실 컨트롤러가 스캔 완료 시 부르는 콜백 — 완료 전환 테스트가 손으로 쏜다. */
+let capturedOnScanComplete: (() => void) | undefined;
+
 vi.mock('@/app/components/features/scan/ScanPanel', () => ({
   ScanController: ({
+    onScanComplete,
     children,
   }: {
     targetSourceId: number;
     onScanComplete?: () => void;
     children: (props: ScanControllerRenderProps) => React.ReactNode;
-  }) => children(scanRenderProps),
+  }) => {
+    capturedOnScanComplete = onScanComplete;
+    return children(scanRenderProps);
+  },
 }));
 
 vi.mock('@/app/components/features/scan/ScanErrorState', () => ({
   ScanErrorState: () => null,
 }));
+// 히어로는 stage 만 드러낸다 — 세 프레임의 내용은 ScanRunningState 자신의 테스트가
+// 보고, 여기서 보는 건 "어떤 프레임이 언제 서는가"뿐이다.
 vi.mock('@/app/components/features/scan/ScanRunningState', () => ({
-  ScanRunningState: () => null,
+  ScanRunningState: ({ stage }: { stage: string }) => <div data-testid="hero" data-stage={stage} />,
 }));
 
 vi.mock(
@@ -88,6 +101,11 @@ vi.mock('@/app/components/ui/toast', () => ({
 import { CandidateResourceSection } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceSection';
 
 describe('CandidateResourceSection', () => {
+  beforeEach(() => {
+    getConfirmResources.mockReset();
+    getConfirmResources.mockResolvedValue({ resources: [] });
+  });
+
   it('renders the card title with the cardTitle token', async () => {
     render(
       <CandidateResourceSection
@@ -242,6 +260,92 @@ describe('CandidateResourceSection', () => {
       expect(screen.getByRole('button', { name: '스캔 시작' })).toBeTruthy();
     } finally {
       scanRenderProps.latestJob = null;
+    }
+  });
+
+  // 완료 전환의 배선 — 훅 자체의 타이밍은 useScanCompletionTransition.test.ts 가
+  // 보고, 여기서는 이 화면이 그 단계를 실제로 소비하는지만 본다. 핵심은 스켈레톤
+  // 단언이다: 완료 직후 refetch 가 loading 을 켜는데도 화면은 확인 프레임이 쥔다
+  // (selectPhase 에서 completing 이 loading 을 이기는 것을 실제 렌더로 확인).
+  it('스캔 완료 뒤 확인 프레임이 스켈레톤 대신 화면을 쥔다', async () => {
+    render(
+      <CandidateResourceSection
+        targetSourceId={1}
+        provider="AWS"
+        readonly={false}
+        refreshProject={async () => {}}
+      />,
+    );
+    await screen.findByRole('button', { name: '연동 대상 승인 요청' });
+    expect(capturedOnScanComplete).toBeTypeOf('function');
+
+    const hero = () => screen.queryByTestId('hero');
+    const skeleton = () => document.querySelector('[aria-busy="true"]');
+
+    // 재조회를 전환보다 오래 붙잡는다 — 프레임이 서 있는 내내 fetchStatus 가
+    // loading 이어야 "completing 이 loading 을 이긴다"가 시험대에 오른다.
+    let releaseFetch: ((value: { resources: [] }) => void) | undefined;
+    getConfirmResources.mockReturnValueOnce(
+      new Promise<{ resources: [] }>((resolve) => { releaseFetch = resolve; }),
+    );
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => { capturedOnScanComplete?.(); });
+
+      // settling — 바가 100%에 닿는 구간은 집계 구간과 같은 프레임을 쓴다.
+      expect(hero()?.getAttribute('data-stage')).toBe('finalizing');
+      expect(skeleton()).toBeNull();
+      expect(screen.queryByTestId('table')).toBeNull();
+
+      await act(async () => { vi.advanceTimersByTime(400); });
+      expect(hero()?.getAttribute('data-stage')).toBe('complete');
+      expect(skeleton()).toBeNull();
+
+      // 프레임이 물러나도 조회가 아직이면 그때는 스켈레톤이 맞다 — 이 시점부터는
+      // 사용자가 실제로 기다리는 중이고, 프레임은 조회를 기다려주지 않는다.
+      await act(async () => { vi.advanceTimersByTime(1200); });
+      expect(hero()).toBeNull();
+      expect(skeleton()).not.toBeNull();
+
+      await act(async () => { releaseFetch?.({ resources: [] }); });
+      expect(skeleton()).toBeNull();
+      expect(screen.getByTestId('table')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // 라이브 리전이 프레임보다 오래 살아야 마지막 사건(목록 도착)을 알릴 수 있다 —
+  // 각 프레임의 제목에 걸면 그 시점엔 노드가 이미 사라지고 없다.
+  it('완료부터 목록 도착까지 같은 라이브 리전이 이어서 알린다', async () => {
+    render(
+      <CandidateResourceSection
+        targetSourceId={1}
+        provider="AWS"
+        readonly={false}
+        refreshProject={async () => {}}
+      />,
+    );
+    await screen.findByRole('button', { name: '연동 대상 승인 요청' });
+
+    const live = document.querySelector('[aria-live="polite"]');
+    expect(live).not.toBeNull();
+    expect(live?.textContent).toBe('연동 대상 2건을 불러왔어요.');
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => { capturedOnScanComplete?.(); });
+      await act(async () => { vi.advanceTimersByTime(400); });
+      // 확인 프레임: 리전은 같은 노드 그대로, 문장만 바뀐다.
+      expect(document.querySelector('[aria-live="polite"]')).toBe(live);
+      expect(live?.textContent).toBe('인프라 스캔이 끝났어요.');
+
+      await act(async () => { vi.advanceTimersByTime(1200); });
+      expect(document.querySelector('[aria-live="polite"]')).toBe(live);
+      expect(live?.textContent).toBe('연동 대상 2건을 불러왔어요.');
+    } finally {
+      vi.useRealTimers();
     }
   });
 });

@@ -131,9 +131,6 @@ export const mockBff: BffClient = {
     putCollabChannel: async (id, channel) => unwrap(await mockOps.putCollabChannel(id, channel)),
     getTargetSourceList: async (query, page, size) =>
       unwrap(await mockOps.getTargetSourceList(query, page, size)),
-    getServices: async () => unwrap(await mockOps.getServices()),
-    getService: async (code) => unwrap(await mockOps.getService(code)),
-    postServiceEos: async (code, force) => unwrap(await mockOps.postServiceEos(code, force)),
   },
 
   // Azure mock returns raw snake wire; the route validates with schemas.X.parse().

@@ -6,8 +6,9 @@
  * run-scan and diff derivation live in ScanTab.
  */
 import type { ReactElement } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { cn, pipelineStyles, scanTransition } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
+import type { ScanCompletionStage } from '@/app/hooks/useScanCompletionTransition';
 import type { CloudProvider } from '@/lib/types';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
@@ -34,6 +35,65 @@ const fmtPercent = (progress: number | null | undefined): number => {
   if (progress === null || progress === undefined || !Number.isFinite(progress)) return 0;
   return Math.min(100, Math.max(0, Math.round(progress)));
 };
+
+/**
+ * 결과 자리의 한 박자 — 스캔이 도는 동안은 휠, 끝난 직후 1.2초는 체크가 선다.
+ * 사용자 플로우의 히어로와 같은 문법(틴트 타일 · 트랙 위 아크 · 같은 체크
+ * 드로우)을 admin 스케일(40px)로 줄인 것이고, 색은 이 화면의 --pl-* 토큰만
+ * 쓴다 — 두 화면은 팔레트가 다르므로 컴포넌트가 아니라 문법을 공유한다.
+ *
+ * 새 지표를 더하는 게 아니라, 집계 전까지 비어 있던 자리를 채운다.
+ */
+function ScanBeat({ done, caption }: { done: boolean; caption: string }): ReactElement {
+  return (
+    // 결과가 들어왔을 때와 같은 높이를 미리 차지한다 — 229px 는 총계 문장 + 간격 +
+    // h-[196px] 그리드의 실측값이다. 같은 파일의 로딩 스켈레톤이 이미 최종 레이아웃을
+    // 그대로 그려 두는 규칙이고, 지키지 않으면 확인 프레임이 물러나며 카드가 뛴다.
+    <div className="flex h-[229px] flex-col items-center justify-center">
+      <div
+        className={cn(
+          'grid h-10 w-10 place-items-center rounded-[10px]',
+          done
+            ? 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]'
+            : 'bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
+        )}
+      >
+        {done ? (
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4.5 12.5l5 5 10-11" strokeDasharray={30} className={scanTransition.checkDraw} />
+          </svg>
+        ) : (
+          <div className="animate-spin motion-reduce:animate-none">
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" className="opacity-20" />
+              <path d="M12 3a9 9 0 0 1 9 9" />
+            </svg>
+          </div>
+        )}
+      </div>
+      {/* 라이브 리전은 이 노드가 아니라 결과 블록에 상주한다 — 여기 걸면 확인
+          프레임이 물러날 때 리전째 사라져, 정작 총계 도착이 낭독되지 않는다. */}
+      <p className={cn(pipelineStyles.text.meta, 'mt-2.5')}>{caption}</p>
+    </div>
+  );
+}
 
 /**
  * Resource stat tile — label (12/500 weak, mono) over number (16/500 strong).
@@ -105,6 +165,12 @@ export interface RecentScanCardProps {
   scanning: boolean;
   /** SUCCESS but the count map has not landed — scanned, still aggregating. */
   finalizing: boolean;
+  /**
+   * 완료 확인 전환의 단계. `settling` 동안은 진행 처리를 유지해 바가 100%에 닿는
+   * 걸 보여주고, `confirming` 동안은 결과 자리를 체크가 쓴다. 그 뒤 결과가
+   * fade-through 로 들어온다.
+   */
+  completionStage: ScanCompletionStage;
   starting: boolean;
   startFailed: boolean;
   /** Per-type counts (+diff vs previous success) for the tile grid. */
@@ -122,6 +188,7 @@ export function RecentScanCard({
   failed,
   scanning,
   finalizing,
+  completionStage,
   starting,
   startFailed,
   typeEntries,
@@ -131,7 +198,11 @@ export function RecentScanCard({
 }: RecentScanCardProps): ReactElement {
   // Both phases are "the scan is not answerable yet" — one flag drives the
   // progress bar, the results placeholder and the withheld completion times.
-  const running = scanning || finalizing;
+  // settling 도 여기 붙는다: 잡은 이미 SUCCESS 지만, 바가 100%에 닿는 걸 보여주는
+  // 400ms 동안은 화면에 있던 진행 처리를 그대로 둔다.
+  const running = scanning || finalizing || completionStage === 'settling';
+  // 확인 프레임 — 결과 자리를 체크가 먼저 쓰고, 그 뒤에 타일이 들어온다.
+  const confirming = completionStage === 'confirming';
   return (
     // flex-col — mt-auto pins the time row to the card floor (no dead air when the sibling card is taller).
     <section className={cn(pipelineStyles.card.base, 'flex flex-col')} aria-label="최근 스캔">
@@ -199,18 +270,27 @@ export function RecentScanCard({
               illusion, not information. Finalizing carries no scan_progress
               (discovery is over), so the bar sits full while the counts land. */}
           {running && (() => {
-            const percent = finalizing ? 100 : fmtPercent(latestJob.scan_progress);
+            // 집계 구간과 정착 구간에는 scan_progress 가 남은 일을 말하지 못한다 —
+            // 둘 다 바를 가득 채운다.
+            const percent = finalizing || completionStage === 'settling'
+              ? 100
+              : fmtPercent(latestJob.scan_progress);
             return (
               <div className="mt-4 flex items-center gap-3">
                 <div
                   className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--pl-gray-100)]"
                   role="progressbar"
+                  aria-label="스캔 진행률"
                   aria-valuenow={percent}
                   aria-valuemin={0}
                   aria-valuemax={100}
                 >
+                  {/* 폭 전환 — 없으면 폴링 틱마다 바가 뚝뚝 끊겨 뛴다. 250ms 는
+                      settling(400ms)보다 짧아야 정착한 100%가 실제로 보인다.
+                      motion-reduce 로 끄지 않는다: 바의 폭은 장식이 아니라 상태
+                      피드백이고, 끄면 settling 이 전달하는 정보가 0이 된다. */}
                   <div
-                    className="h-full rounded-full bg-[var(--pl-primary)]"
+                    className="h-full rounded-full bg-[var(--pl-primary)] transition-[width] duration-[250ms] ease-out"
                     style={{ width: `${percent}%` }}
                   />
                 </div>
@@ -224,15 +304,32 @@ export function RecentScanCard({
           {/* Scan results — success/in-progress only. Failure speaks through the
               error box (cause), not results. Header (16/600), one helper sentence
               (values slightly emphasized), then the tiles carry the content. */}
-          {(running || latestJob.scan_status === 'SUCCESS') && (
+          {(running || confirming || latestJob.scan_status === 'SUCCESS') && (
             <div className="mt-5">
               <p className="text-[16px] font-semibold text-[var(--pl-text-strong)]">스캔 결과</p>
+              {/* 이 블록은 진행·확인·결과 내내 마운트를 유지하므로 라이브 리전을 여기
+                  둔다. 컨테이너 자체에 걸면 타일 그리드가 통째로 낭독된다. */}
+              <p className="sr-only" aria-live="polite">
+                {running
+                  ? '스캔을 진행하고 있어요.'
+                  : confirming
+                    ? '스캔이 끝났어요.'
+                    : latestJob.scan_status === 'SUCCESS'
+                      ? `스캔 완료. 총 ${fmtCount(latestTotal)}개를 발견했어요.`
+                      : ''}
+              </p>
               {running ? (
-                <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>스캔 완료 후 집계돼요.</p>
+                <ScanBeat done={false} caption="스캔 완료 후 집계돼요." />
+              ) : confirming ? (
+                // admin 은 건수를 이미 손에 쥐고 있어 "정리"할 게 없다 — 히어로가
+                // 현재진행으로, 여기가 과거로 같은 순간을 말하던 시제 충돌도 없앤다.
+                <ScanBeat done caption="스캔이 끝났어요." />
               ) : typeEntries.length === 0 ? (
                 <p className={cn(pipelineStyles.text.meta, 'mt-1.5')}>발견된 리소스가 없습니다.</p>
               ) : (
-                <>
+                // 확인 프레임이 물러난 자리로 결과가 들어온다 — 이 노드는 그때
+                // 처음 마운트되므로 입장 애니메이션이 한 번만 재생된다.
+                <div className={scanTransition.reveal}>
                   {/* One sentence — listing 'total N · +N vs previous' as fragments
                       read awkward (ops feedback). Only the total gets brand color at
                       display size; diff numbers stay ok/err. */}
@@ -266,7 +363,7 @@ export function RecentScanCard({
                       <ResourceTypeTile key={type} type={type} count={count} provider={provider} diff={diff} />
                     ))}
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}

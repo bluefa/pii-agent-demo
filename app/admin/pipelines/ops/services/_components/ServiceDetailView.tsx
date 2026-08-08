@@ -1,17 +1,24 @@
 'use client';
 
 /**
- * 서비스 운영 상세 — Target Source 목록 · Jira Ticket 연결 · EOS 처리.
+ * 서비스 운영 상세 — Target Source 목록 · Jira Ticket 연결.
  *
- * 두 데이터 소스가 섞여 있다: 서비스/대상은 assumed GET /admin/ops/services/{code},
- * Jira 티켓은 실계약 GET /services/{code}/jira-tickets. 후자는 CloudProvider 가 키라
- * 5개 provider 를 항상 전부 그린다 — 빈 표가 아니라 "무엇을 연결할 수 있는지"를 보여야
- * 연결 지점이 화면에서 읽힌다.
+ * 두 데이터 소스가 섞여 있다: 서비스/대상은 GET /admin/ops/services/{code} (라우트가
+ * 실계약 `/target-sources/page?serviceCode` 로 만든다), Jira 티켓은 실계약
+ * GET /services/{code}/jira-tickets. 후자는 CloudProvider 가 키라 5개 provider 를 항상
+ * 전부 그린다 — 빈 표가 아니라 "무엇을 연결할 수 있는지"를 보여야 연결 지점이 화면에서
+ * 읽힌다.
+ *
+ * 이 화면은 대상의 설치 진행 단계를 보여주지 않는다 (오너 결정). 단계는 카드의
+ * "운영 화면 ↗" 한 번이면 닿는 Target Source 운영 화면이 맡는다. 여기서 빼면서
+ * `/process-statuses` 집계도 라우트에서 사라졌다 — 그 엔드포인트는 serviceCode 로
+ * 거를 수 없어 서비스 하나를 그리려고 전체를 페이징해야 했다.
  */
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import { holdFor, SKELETON_MIN_MS } from '@/lib/min-duration';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -22,11 +29,8 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { ProviderLogo } from '@/app/components/features/admin/v7';
 import type { CloudProvider } from '@/lib/types';
-import { STEP } from '@/app/admin/pipelines/queue/_components/StepStack';
-import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
-import { EosModal } from '@/app/admin/pipelines/ops/services/_components/EosModal';
 import { jiraTicketLink } from '@/lib/jira-ticket';
 import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
 import {
@@ -40,7 +44,7 @@ import {
   type JiraCloudProvider,
   type JiraTicket,
   type OpsServiceDetail,
-  type OpsTargetSourceListItem,
+  type OpsServiceTargetRow,
 } from '@/app/lib/api/ops';
 
 const tsTable = {
@@ -114,7 +118,7 @@ const tileStyles = {
 
 /** metadata → 그 provider 가 실제로 갖는 계정 식별자 1건. 없으면 null. */
 function accountOf(
-  target: OpsTargetSourceListItem,
+  target: OpsServiceTargetRow,
 ): { label: string; value: string; china: boolean } | null {
   const { aws_account_id, aws_region_type, subscription_id, gcp_project_id } = target.metadata;
   if (aws_account_id) {
@@ -125,21 +129,104 @@ function accountOf(
   return null;
 }
 
-export interface ServiceDetailViewProps {
-  serviceCode: string;
-  /** EOS 처리로 서비스 상태가 바뀌었을 때 — 좌측 레일도 같이 다시 읽는다. */
-  onServiceChanged?: () => void;
+/** 스켈레톤 바 하나 — 실제 요소의 자리를 폭·높이로만 잡는다. */
+const bar = (className: string) => (
+  <div className={cn(pipelineStyles.skeletonBar, className)} />
+);
+
+/**
+ * Skeleton frame for the detail sheet — mirrors the loaded layout so the sheet does
+ * not change shape when the service lands: 머리(분류 태그 · 서비스명 · 코드칩) →
+ * 가로줄 → Target Source 목록(제목 · 설명 · 툴바를 낀 블록 · 카드 PAGE_SIZE 장) →
+ * 가로줄 → Jira Ticket 연결(제목 · 설명 · 3열 타일 5장).
+ *
+ * 카드가 PAGE_SIZE 장인 것도 같은 이유다. 목록의 기본 표시 개수라, 더 적게 깔면 데이터가
+ * 도착하는 순간 시트 아래쪽이 밀린다. Jira 타일이 5개인 건 provider 수가 고정이라
+ * (JIRA_CLOUD_PROVIDERS) 로딩 중에도 이미 아는 값이기 때문.
+ */
+function DetailSkeleton(): ReactElement {
+  const { text } = pipelineStyles;
+  return (
+    <div className={s.sheet} aria-busy="true" aria-live="polite">
+      {/* 머리 — 태그 / 제목 + 코드칩 */}
+      <div className="flex min-w-0 flex-col gap-2">
+        {bar('h-[22px] w-[68px] rounded-[6px]')}
+        <div className="flex items-center gap-2">
+          {bar(cn(text.pageTitle, 'h-7 w-[220px] rounded'))}
+          {bar('h-[26px] w-[112px] rounded')}
+        </div>
+      </div>
+
+      <hr className={s.sheetRule} />
+
+      {/* Target Source 목록 — 제목·설명·블록 */}
+      <section aria-label="Target Source 목록 불러오는 중">
+        <div className={cn(sectionHead, 'items-center')}>
+          {bar('h-[18px] w-[18px] rounded')}
+          {bar('h-5 w-[150px] rounded')}
+          {bar('h-[22px] w-11 rounded-full')}
+        </div>
+        {bar('mb-3 h-4 w-[420px] max-w-full rounded')}
+        <div className={tsTable.block}>
+          {/* 툴바 자리 — 검색창과 필터 버튼이 실제로 앉는 높이 */}
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+            {bar('h-9 w-[280px] max-w-[60%] rounded-[8px]')}
+            {bar('h-9 w-9 rounded-[8px]')}
+          </div>
+          <div className={tsTable.list}>
+            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+              // 실제 카드와 같은 안쪽 여백·정렬 — 걷힐 때 목록이 튀지 않는다.
+              <div key={i} className={cn(tsTable.card, 'cursor-default')} aria-hidden="true">
+                {bar('h-8 w-8 shrink-0 rounded')}
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    {bar('h-5 w-16 rounded')}
+                    {bar('h-4 w-12 rounded')}
+                  </div>
+                  {bar('h-4 w-[240px] max-w-full rounded')}
+                  {bar('h-4 w-[320px] max-w-full rounded')}
+                </div>
+                {bar('h-4 w-20 shrink-0 rounded')}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <hr className={s.sheetRule} />
+
+      {/* Jira Ticket 연결 — provider 수는 고정이라 타일 수도 고정 */}
+      <section aria-label="Jira Ticket 연결 불러오는 중">
+        <div className={cn(sectionHead, 'items-center')}>
+          {bar('h-[18px] w-[18px] rounded')}
+          {bar('h-5 w-[130px] rounded')}
+        </div>
+        {bar('mb-3 h-4 w-[520px] max-w-full rounded')}
+        <div className={tileStyles.grid}>
+          {JIRA_CLOUD_PROVIDERS.map((provider) => (
+            <div key={provider} className={tileStyles.base} aria-hidden="true">
+              <div className="min-w-0 flex-1">
+                {bar('h-5 w-20 rounded')}
+                {bar('mt-1 h-4 w-24 rounded')}
+              </div>
+              {bar('h-7 w-7 shrink-0 rounded-md')}
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }
 
-export function ServiceDetailView({
-  serviceCode,
-  onServiceChanged,
-}: ServiceDetailViewProps): ReactElement {
+export interface ServiceDetailViewProps {
+  serviceCode: string;
+}
+
+export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): ReactElement {
   const router = useRouter();
   const [detail, setDetail] = useState<OpsServiceDetail | null>(null);
   const [tickets, setTickets] = useState<JiraTicket[]>([]);
   const [failed, setFailed] = useState(false);
-  const [eosOpen, setEosOpen] = useState(false);
   // ⋮ 는 드롭다운을 열고, 고른 동작만 모달로 간다 (메뉴 단계를 모달에서 뺐다).
   const [menuFor, setMenuFor] = useState<JiraCloudProvider | null>(null);
   const [jiraAction, setJiraAction] = useState<
@@ -153,13 +240,15 @@ export function ServiceDetailView({
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [query, setQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('');
-  const [step, setStep] = useState('');
 
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
   useEffect(() => {
     let cancelled = false;
+    // 레일과 같은 최소 노출 — 서비스를 옮겨 다닐 때 우측 시트가 매번 번쩍이지 않게,
+    // 로딩 상태를 붙잡는 대신 데이터 반영을 최소 시간까지 미룬다.
+    const startedAt = Date.now();
     (async () => {
       try {
         // 티켓은 별도 계약 — 티켓 조회가 실패해도 서비스 화면은 서야 한다.
@@ -167,11 +256,13 @@ export function ServiceDetailView({
           getOpsService(serviceCode),
           getServiceJiraTickets(serviceCode).catch(() => [] as JiraTicket[]),
         ]);
+        await holdFor(startedAt, SKELETON_MIN_MS);
         if (cancelled) return;
         setFailed(false);
         setDetail(loaded);
         setTickets(jira);
       } catch {
+        await holdFor(startedAt, SKELETON_MIN_MS);
         if (cancelled) return;
         setDetail(null);
         setFailed(true);
@@ -197,22 +288,17 @@ export function ServiceDetailView({
     );
   }
 
-  if (!detail) {
-    return (
-      <div className={cn(s.sheet, 'items-center justify-center')} aria-busy>
-        <div className={cn(pipelineStyles.empty.base, pipelineStyles.empty.center)}>
-          불러오는 중…
-        </div>
-      </div>
-    );
-  }
+  if (!detail) return <DetailSkeleton />;
 
   const { section, text } = pipelineStyles;
-  const isEos = detail.status === 'EOS';
-  const targetCount = detail.target_sources.length;
+  // 건수는 업스트림 총계로 적는다 — 라우트가 집계 상한에 걸려 목록이 잘려도, 잘린 길이를
+  // 총계로 그리면 화면이 "이게 전부"라고 사실처럼 말하게 된다.
+  const targetCount = detail.total_count;
+  const loadedCount = detail.target_sources.length;
 
-  // 검색·필터는 화면 몫이다 — assumed 계약이 목록을 한 번에 다 주고 query 파라미터도 없다.
-  // 검색은 사람이 표에서 눈으로 찾는 값(대상 번호·설명·계정)만 훑는다.
+  // 라우트가 이 서비스의 대상을 한 번에 다 주므로(계약에 대상 검색어 파라미터가 없다)
+  // 검색·필터 자르기는 화면 몫이다. 검색은 사람이 목록에서 눈으로 찾는 값
+  // (대상 번호·설명·계정)만 훑는다.
   const needle = query.trim().toLowerCase();
   const rows = detail.target_sources.filter((target) => {
     if (
@@ -221,7 +307,6 @@ export function ServiceDetailView({
     ) {
       return false;
     }
-    if (step && target.process_status !== step) return false;
     if (!needle) return true;
     return [
       `#${target.target_source_id}`,
@@ -234,9 +319,6 @@ export function ServiceDetailView({
   const providerOptions = [...new Set(
     detail.target_sources.map((t) => displayProvider(t.cloud_provider, t.is_sdu_type)),
   )].map((value) => ({ value, label: providerLabel(value) }));
-  const stepOptions = [...new Set(detail.target_sources.map((t) => t.process_status))]
-    .sort((a, b) => STEP[a].n - STEP[b].n)
-    .map((value) => ({ value, label: `${STEP[value].n}단계 · ${STEP[value].label}` }));
 
   // 다시 읽거나 필터를 걸어 행이 줄면 마지막 페이지 밖에 머물 수 있다 — 마지막 장으로.
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -245,37 +327,23 @@ export function ServiceDetailView({
   const ticketOf = (provider: JiraCloudProvider): JiraTicket | undefined =>
     tickets.find((ticket) => ticket.cloudProvider.toUpperCase() === provider);
 
-  const eosButton = isEos ? (
-    <PlButton variant="secondary" disabled>
-      EOS 처리됨
-    </PlButton>
-  ) : (
-    <PlButton variant="danger" onClick={() => setEosOpen(true)}>
-      <Icon name="trash" size="sm" />
-      EOS 처리
-    </PlButton>
-  );
-
   return (
     // 레일과 그 뒤 바닥이 하나의 뒤쪽 면이고, 본문은 그 위에 뜬 시트 한 장이다.
     // 섹션마다 시트를 따로 두면 그 사이로 바닥이 비쳐 본문이 다시 조각난다 —
     // 구분은 시트 안에서 여백과 가로줄로만 한다.
     <div className={s.sheet}>
       {/* 좌측 레일이 곧 현재 위치라 breadcrumb 은 두지 않는다. */}
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-2">
-          {/* 이름보다 먼저 읽히는 분류 — 이 시트가 무엇을 다루는 화면인지. */}
-          <span className={s.pageTag}>서비스 관리</span>
-          <div className="flex items-center gap-2">
-            {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
-            <h2 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h2>
-            <span className={codeChip}>
-              <span className={codeChipLabel}>서비스코드</span>
-              <span className="[font-family:var(--pl-font-mono)]">{detail.service_code}</span>
-            </span>
-          </div>
+      <div className="flex min-w-0 flex-col gap-2">
+        {/* 이름보다 먼저 읽히는 분류 — 이 시트가 무엇을 다루는 화면인지. */}
+        <span className={s.pageTag}>서비스 관리</span>
+        <div className="flex items-center gap-2">
+          {/* 페이지의 h1 은 좌측 레일 제목("서비스 운영") — 상세는 그 아래 h2 다. */}
+          <h2 className={cn(text.pageTitle, 'truncate')}>{detail.service_name}</h2>
+          <span className={codeChip}>
+            <span className={codeChipLabel}>서비스코드</span>
+            <span className="[font-family:var(--pl-font-mono)]">{detail.service_code}</span>
+          </span>
         </div>
-        <div className="flex-none">{eosButton}</div>
       </div>
 
       <hr className={s.sheetRule} />
@@ -291,6 +359,15 @@ export function ServiceDetailView({
         <p className={section.descFirst}>
           이 서비스가 보유한 인프라입니다. 행을 누르면 해당 Target Source 운영 화면으로
           이동합니다.
+          {loadedCount < targetCount && (
+            // 조용히 자르지 않는다 — 목록이 총계보다 짧으면 그 사실을 문장으로 말한다.
+            <>
+              {' '}
+              <b className="font-semibold text-[var(--pl-warn-text)]">
+                대상이 많아 {loadedCount}건까지만 표시합니다.
+              </b>
+            </>
+          )}
         </p>
 
         {/* Step 1 리소스 표와 같은 실루엣: 툴바(검색·필터) → 헤더 밴드 표 → Pagination 마감 바. */}
@@ -313,16 +390,6 @@ export function ServiceDetailView({
                   setPage(0);
                 },
                 options: providerOptions,
-              },
-              {
-                key: 'step',
-                label: '현재 단계',
-                value: step,
-                onChange: (next) => {
-                  setStep(next);
-                  setPage(0);
-                },
-                options: stepOptions,
               },
             ]}
           />
@@ -369,7 +436,6 @@ export function ServiceDetailView({
                         <span className="text-[14px] font-medium text-[var(--pl-text-medium)]">
                           {providerLabel(displayProvider(target.cloud_provider, target.is_sdu_type))}
                         </span>
-                        <StepPill status={target.process_status} />
                         {account?.china && <span className={opsStyles.regionTag}>중국</span>}
                       </div>
 
@@ -504,17 +570,6 @@ export function ServiceDetailView({
         </div>
       </section>
 
-      <EosModal
-        open={eosOpen}
-        onClose={() => setEosOpen(false)}
-        serviceCode={detail.service_code}
-        serviceName={detail.service_name}
-        targetSourceCount={targetCount}
-        onDone={() => {
-          reload();
-          onServiceChanged?.();
-        }}
-      />
       {jiraAction && (
         <JiraTicketModal
           onClose={() => setJiraAction(null)}

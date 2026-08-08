@@ -9,6 +9,7 @@ import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_component
 import { VmDatabaseConfigPanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
 import { InstallIneligibleGuideModal } from '@/app/target-sources/[targetSourceId]/_components/candidate/InstallIneligibleGuideModal';
 import { useModal } from '@/app/hooks/useModal';
+import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { getResourceDisplayName } from '@/lib/resource';
 import { GROUPED_CHILD_KIND_LABEL } from '@/lib/resource-grouping';
 import {
@@ -90,6 +91,8 @@ interface CandidateResourceRowProps {
   grouped?: boolean;
   /** Last child of its group — the rail stops at this row's elbow, closing the group. */
   lastInGroup?: boolean;
+  /** Grouped child: its share of the group's rail, tagged with the group's key by the table. */
+  rail?: RailRowProps;
   /** RDS cluster only — whether its member instance rows are showing. The table owns the
    *  fold because the default follows the checkbox, which it already tracks. */
   rdsInstancesExpanded?: boolean;
@@ -103,13 +106,13 @@ interface RdsInstanceRowProps {
   instance: RdsInstanceCandidate;
   /** The cluster's effective selection — the checked radio / the 선택됨 chip. */
   isChosen: boolean;
-  /** Sorted-top instance. Earns the 기본 badge only while it is still the effective choice. */
-  isDefault: boolean;
   /** Radios exist only inside a checked cluster in the editable table (spec: absent, not disabled). */
   selectable: boolean;
   readonly: boolean;
   lastInGroup: boolean;
   showCheckboxColumn: boolean;
+  /** This member's share of the cluster's rail — same key as the cluster row itself. */
+  rail: RailRowProps;
   onSelect: (instanceResourceId: string) => void;
 }
 
@@ -126,11 +129,11 @@ const RdsInstanceRow = ({
   clusterId,
   instance,
   isChosen,
-  isDefault,
   selectable,
   readonly,
   lastInGroup,
   showCheckboxColumn,
+  rail,
   onSelect,
 }: RdsInstanceRowProps) => {
   const identifier = rdsInstanceLabel(instance);
@@ -138,7 +141,11 @@ const RdsInstanceRow = ({
   const dimmed = !selectable && !isChosen;
 
   return (
-    <tr className={cn(ROW_BASE, dimmed ? ROW_EXCLUDED : ROW_TARGET)}>
+    <tr
+      className={cn(ROW_BASE, dimmed ? ROW_EXCLUDED : ROW_TARGET, rail.className)}
+      onMouseEnter={rail.onMouseEnter}
+      onMouseLeave={rail.onMouseLeave}
+    >
       {/* The leading column stays cluster-checkbox-only. */}
       {showCheckboxColumn && <td className={cn(idcStyles.table.approvalCell, 'w-10')} />}
 
@@ -171,11 +178,9 @@ const RdsInstanceRow = ({
             {identifier}
           </span>
           <RdsMemberChip role={instance.cluster_member_role} />
-          {/* Exactly one of these, never both. 기본 says "the table chose this for you, and
-              you can still change it" — a statement only the editable table can make, so it
-              goes quiet in read-only, where 선택됨 states the settled choice instead. */}
-          {!readonly && isDefault && isChosen && <RdsSelectionChip label="기본" />}
-          {readonly && isChosen && <RdsSelectionChip label="선택됨" />}
+          {/* Editable: the checked radio already says which member is chosen, so no chip.
+              Read-only has no radio, so 선택됨 is the only thing left to say it. */}
+          {readonly && isChosen && <RdsSelectionChip />}
         </span>
       </td>
 
@@ -210,10 +215,14 @@ export const CandidateResourceRow = ({
   actions,
   grouped = false,
   lastInGroup = false,
+  rail,
   rdsInstancesExpanded = false,
   onRdsInstancesToggle,
 }: CandidateResourceRowProps) => {
   const ineligibleModal = useModal();
+  // A cluster owns its member rows, so its rail lives here; a group's rail is owned by the
+  // table, which renders the children in a different tbody, and arrives as the `rail` prop.
+  const clusterRailRow = useRailHover();
   const behavior = getCandidateBehavior(candidate);
   const requiresEndpointConfig = behavior.configKind === 'endpoint';
   // Manually added EC2: the user typed its connection info in a modal, so the row shows the
@@ -256,6 +265,9 @@ export const CandidateResourceRow = ({
         ? ROW_EXCLUDED
         : ROW_TARGET;
 
+  // A row belongs to at most one rail: its group's (passed in) or its own cluster's.
+  const rowRail = isRdsClusterRow ? clusterRailRow(candidate.id) : rail;
+
   const handleRowClick = () => {
     if (canExpand) actions.expandToggle(isExpanded ? null : candidate.id);
   };
@@ -273,8 +285,10 @@ export const CandidateResourceRow = ({
   return (
     <>
       <tr
-        className={cn(ROW_BASE, rowStateClass, canExpand && 'cursor-pointer')}
+        className={cn(ROW_BASE, rowStateClass, canExpand && 'cursor-pointer', rowRail?.className)}
         onClick={handleRowClick}
+        onMouseEnter={rowRail?.onMouseEnter}
+        onMouseLeave={rowRail?.onMouseLeave}
       >
         {showCheckboxColumn && (
           <td className={cn(idcStyles.table.approvalCell, 'w-10')} onClick={(event) => event.stopPropagation()}>
@@ -302,9 +316,10 @@ export const CandidateResourceRow = ({
           )}
         >
           {isRdsClusterRow ? (
-            // Two-line identity (owner request): the tag sits at the row's top-left ABOVE the
-            // name, not beside it, so the chevron top-aligns to the tag line.
-            <span className="flex items-start gap-2">
+            // Two-line identity (owner request): the tag sits ABOVE the name, not beside it.
+            // The chevron centres on the pair — pinned to the tag line it read as misaligned
+            // against every other control in the row, which all sit on the row's middle.
+            <span className="flex items-center gap-2">
               <button
                 type="button"
                 // No aria-controls: the instance rows are `<tr>` siblings with no single
@@ -322,30 +337,31 @@ export const CandidateResourceRow = ({
                     ? idcStyles.table.group.toggleOpen
                     : idcStyles.table.group.toggleClosed,
                   primaryColors.focusRing,
-                  'mt-0.5',
                 )}
               >
                 <ChevronRightIcon className="h-3.5 w-3.5" />
               </button>
               <span className="flex min-w-0 flex-col items-start gap-1">
-                <RdsClusterTag />
-                <span className="flex min-w-0 items-center gap-2">
-                  <Tooltip
-                    content={<IdentifierTip label="Resource Name" value={displayName} />}
-                    variant="value"
-                    size="md"
-                    triggerClassName="min-w-0 max-w-[200px] block"
-                    truncatedOnly
-                  >
-                    <span className="block truncate">{displayName || '—'}</span>
-                  </Tooltip>
-                  {/* Count only. Which instance is chosen is said once, by the 기본/선택됨 chip on
-                      the instance row itself — repeating it here made the parent argue with the
-                      radio whenever the two rendered from different state. */}
+                {/* Count only, and it rides the tag line rather than the name: it is the
+                    quietest thing here, so it stays out of the name's line and out of chip
+                    chrome. WHICH instance is chosen is said once, by the radio on the member
+                    row — repeating it here made the parent argue with the radio whenever the
+                    two rendered from different state. */}
+                <span className="flex items-center gap-2">
+                  <RdsClusterTag />
                   <span className={cn('whitespace-nowrap font-sans text-[12px]', textColors.tertiary)}>
-                    인스턴스 {sortedInstances.length}
+                    {sortedInstances.length}개 인스턴스
                   </span>
                 </span>
+                <Tooltip
+                  content={<IdentifierTip label="Resource Name" value={displayName} />}
+                  variant="value"
+                  size="md"
+                  triggerClassName="min-w-0 max-w-[200px] block"
+                  truncatedOnly
+                >
+                  <span className="block truncate">{displayName || '—'}</span>
+                </Tooltip>
               </span>
             </span>
           ) : isManualEc2 ? (
@@ -526,13 +542,13 @@ export const CandidateResourceRow = ({
           clusterId={candidate.id}
           instance={instance}
           isChosen={instance.resource_id === chosenInstanceResourceId}
-          isDefault={index === 0}
           // Radios exist only inside a checked cluster: an unchecked cluster submits no
           // instance, so offering the choice would promise something the payload never sends.
           selectable={isSelected && !readonly}
           readonly={readonly}
           lastInGroup={index === sortedInstances.length - 1}
           showCheckboxColumn={showCheckboxColumn}
+          rail={clusterRailRow(candidate.id)}
           onSelect={(instanceResourceId) => actions.selectRdsInstance(candidate.id, instanceResourceId)}
         />
       ))}
