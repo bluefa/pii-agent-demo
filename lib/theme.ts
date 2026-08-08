@@ -1797,10 +1797,10 @@ export const pipelineStyles = {
     // REAL app chrome, TopNav (app/components/layout/TopNav.tsx, `h-14` = 56px).
     // 56 here is a deliberate deviation from the prototype's 52 so the shell's
     // min-height matches the actual viewport remainder under the app's TopNav.
-    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_56px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
+    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_72px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
     sidebar:
       // Sticky under the 56px TopNav so the section nav never scrolls away.
-      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-14 self-start h-[calc(100vh_-_56px)] overflow-y-auto',
+      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-[72px] self-start h-[calc(100vh_-_72px)] overflow-y-auto',
     sidebarTitle: cn(pipelineText.sidebarTitle, 'block px-2.5 pt-2 pb-2.5'),
     // Item base carries no text color/weight — idle/active own it (plain `cn` join
     // has no tailwind-merge, so overlapping utilities must never co-occur).
