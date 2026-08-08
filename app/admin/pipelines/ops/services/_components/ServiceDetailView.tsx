@@ -696,6 +696,12 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                       ...(ticket
                         ? [
                             {
+                              icon: 'plus' as const,
+                              label: 'Watcher 추가',
+                              onSelect: () =>
+                                setJiraAction({ provider, action: 'watcher' }),
+                            },
+                            {
                               icon: 'ban' as const,
                               label: '연결 해제',
                               danger: true,

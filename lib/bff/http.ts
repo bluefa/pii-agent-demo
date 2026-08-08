@@ -276,6 +276,8 @@ export const httpBff: BffClient = {
         }),
       detach: (serviceCode, cloudProvider) =>
         send('DELETE', `/services/${enc(serviceCode)}/jira-tickets/${enc(cloudProvider)}`),
+      addWatcher: (serviceCode, cloudProvider, userId) =>
+        post(`/services/${enc(serviceCode)}/jira-tickets/${enc(cloudProvider)}/watchers`, { userId }),
     },
   },
 

@@ -117,6 +117,8 @@ export const opsInstallModeOverride = (targetSourceId: number): boolean | null =
 interface OpsServiceState {
   /** cloudProvider → issueKey. Provider 가 키이므로 provider 당 최대 1건 (실계약). */
   jira: Partial<Record<string, string>>;
+  /** cloudProvider → watcher userId 목록 (실계약 watchers POST 의 누적분). */
+  watchers: Partial<Record<string, string[]>>;
 }
 
 const serviceGlobal = globalThis as typeof globalThis & {
@@ -141,7 +143,7 @@ const serviceState = (code: string): OpsServiceState => {
   let state = store.get(code);
   if (!state) {
     const index = serviceCodes().indexOf(code);
-    state = { jira: { ...(SEED_JIRA[index] ?? {}) } };
+    state = { jira: { ...(SEED_JIRA[index] ?? {}) }, watchers: {} };
     store.set(code, state);
   }
   return state;
@@ -314,5 +316,35 @@ export const mockServiceJiraTickets = {
     if (!issueKey) return notFound('연결된 Jira 티켓이 없습니다.');
     delete state.jira[provider];
     return NextResponse.json({ issueKey });
+  },
+
+  // POST /services/{code}/jira-tickets/{provider}/watchers { userId } → 204.
+  // 티켓이 연결돼 있어야 watcher 를 붙일 곳이 있다; 중복 등록은 409 로 거른다.
+  addWatcher: async (code: string, provider: string, userId: string) => {
+    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    const state = serviceState(code);
+    if (!state.jira[provider]) return notFound('연결된 Jira 티켓이 없습니다.');
+    // 실 BFF 는 Jira 를 왕복하느라 느리다 — 데모도 ~2초 기다려 submitting 상태가 보이게 한다.
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // 데모용 확률 실패(30%) — 실 BFF 의 Jira 연동 오류를 흉내낸다. 모달의 인라인 에러
+    // (fallback 문구) 경로가 데모에서 실제로 돌게 하기 위한 것으로, 판정 오류(404/409)와
+    // 달리 재시도하면 성공할 수 있다.
+    if (Math.random() < 0.3) {
+      return NextResponse.json(
+        { error: 'BAD_GATEWAY', message: 'Jira 연동 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.' },
+        { status: 502 },
+      );
+    }
+    // 핫리로드로 살아남은 구세대 store 엔 watchers 필드가 없다 — 여기서 붙인다.
+    state.watchers ??= {};
+    const list = (state.watchers[provider] ??= []);
+    if (list.includes(userId)) {
+      return NextResponse.json(
+        { error: 'CONFLICT', message: '이미 watcher로 등록된 사용자입니다.' },
+        { status: 409 },
+      );
+    }
+    list.push(userId);
+    return new NextResponse(null, { status: 204 });
   },
 };

@@ -42,7 +42,6 @@ export interface OpsHeaderProps {
   grantTfExecution: boolean;
   channel: CollaborationChannel | null;
   onOpenMode: () => void;
-  onOpenVerify: (kind: RoleKind) => void;
   onOpenEdit: (kind: RoleKind) => void;
   onOpenChannel: () => void;
 }
@@ -56,11 +55,9 @@ export function OpsHeader({
   grantTfExecution,
   channel,
   onOpenMode,
-  onOpenVerify,
   onOpenEdit,
   onOpenChannel,
 }: OpsHeaderProps): ReactElement {
-  const { breadcrumb } = pipelineStyles;
   const meta = detail.metadata ?? {};
   const isChina = meta.is_china_region === true;
   const provider = providerLabel(displayProvider(detail.cloud_provider, meta.is_sdu_type));
@@ -75,9 +72,13 @@ export function OpsHeader({
       <div className={opsStyles.roleRow}>
         <span className={opsStyles.roleLabel}>{ROLE_META[kind].short}</span>
         {arn ? (
-          <button type="button" className={opsStyles.roleArn} onClick={() => onOpenVerify(kind)}>
-            {arn}
-          </button>
+          <>
+            {/* ARN 은 값이지 동작이 아니다 — 링크로 그리지 않고, 동작(수정)은 옆 버튼이 맡는다. */}
+            <span className={opsStyles.roleValue}>{arn}</span>
+            <button type="button" className={opsStyles.roleRegister} onClick={() => onOpenEdit(kind)}>
+              수정
+            </button>
+          </>
         ) : (
           <>
             <span className={opsStyles.roleEmpty}>미등록</span>
@@ -104,14 +105,6 @@ export function OpsHeader({
 
   return (
     <div className={opsStyles.header}>
-      <nav aria-label="현재 위치" className={cn(breadcrumb.base, 'mb-0')}>
-        <Link href={passRoutes.pipelines.ops.targetSources} className={breadcrumb.crumb}>
-          Target Source 운영
-        </Link>
-        <span className={breadcrumb.sep}>/</span>
-        <span className={breadcrumb.cur}>#{targetSourceId}</span>
-      </nav>
-
       <div className={opsStyles.stageRow}>
         <span className={opsStyles.stageLabel}>현재 단계</span>
         {processStatus ? (

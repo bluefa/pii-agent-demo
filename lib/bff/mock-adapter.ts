@@ -95,6 +95,11 @@ export const mockBff: BffClient = {
       },
       detach: async (serviceCode, cloudProvider) =>
         unwrap(await mockServiceJiraTickets.detach(serviceCode, cloudProvider)),
+      addWatcher: async (serviceCode, cloudProvider, userId) => {
+        // 204 — unwrap() would choke on the empty body, so only surface errors.
+        const response = await mockServiceJiraTickets.addWatcher(serviceCode, cloudProvider, userId);
+        if (!response.ok) await unwrap(response);
+      },
     },
   },
 

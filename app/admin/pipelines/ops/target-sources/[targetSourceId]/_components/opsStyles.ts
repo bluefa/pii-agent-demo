@@ -26,10 +26,9 @@ export const opsStyles = {
   modeTagKey: 'text-[var(--pl-text-weak)]',
   modeTagValue: 'font-semibold text-[var(--pl-primary)] underline',
 
-  /** Role sub-rows — Figma 16:6/16:13 (label 72px + mono ARN link). */
+  /** Role sub-rows — Figma 16:6/16:13 (label 72px + mono value + 수정/등록 CTA). */
   roleRow: 'flex items-center gap-3 pl-3.5 mt-2',
   roleLabel: 'w-[72px] flex-none text-[12px] text-[var(--pl-text-weak)]',
-  roleArn: 'text-[12px] text-[var(--pl-primary)] underline cursor-pointer [font-family:var(--pl-font-mono)] break-all text-left',
   roleEmpty: 'text-[12px] text-[var(--pl-text-faint)]',
   roleRegister: 'text-[12px] font-semibold text-[var(--pl-primary)] underline cursor-pointer',
   /** Read-only 주체 값 (GCP SA·Azure App) — roleArn 과 같은 자리, 동작만 없다. */

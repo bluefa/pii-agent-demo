@@ -130,6 +130,8 @@ export interface BffClient {
         serviceCode: string,
         cloudProvider: string,
       ) => Promise<z.infer<typeof schemas.JiraTicketDetachResponse>>;
+      /** POST …/watchers (JiraTicketWatcherRequest { userId }) → 204 — Jira 티켓 watcher 등록. */
+      addWatcher: (serviceCode: string, cloudProvider: string, userId: string) => Promise<void>;
     };
   };
 

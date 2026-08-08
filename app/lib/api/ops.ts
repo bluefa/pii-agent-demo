@@ -228,6 +228,17 @@ export const attachJiraTicket = (
     { method: 'POST', body: { issueKey, validate } },
   );
 
+/** 연결된 티켓의 watcher 로 사용자를 등록한다 — Jira 알림을 받게 된다. 204. */
+export const addJiraTicketWatcher = (
+  serviceCode: string,
+  cloudProvider: JiraCloudProvider,
+  userId: string,
+): Promise<void> =>
+  fetchInfraJson(
+    `/services/${encodeURIComponent(serviceCode)}/jira-tickets/${cloudProvider}/watchers`,
+    { method: 'POST', body: { userId } },
+  );
+
 /** 매핑만 끊는다 — Jira 의 티켓은 삭제되지 않는다. 응답은 끊긴 issueKey. */
 export const detachJiraTicket = (
   serviceCode: string,

@@ -59,61 +59,33 @@ JiraTicketDetachResponse: { issueKey }              # 해제된 티켓 키를 �
 
 ---
 
-## 2. 알림 사용자 등록 (제안 — 아직 계약 없음)
+## 2. Watcher 등록 (실계약 — v5 랜딩)
 
-티켓 알림을 받을 사용자 등록. 등록 단위는 **target source** 이며,
-기존 `GET /install/v1/target-sources/{targetSourceId}/jira-ticket` 과 같은 키를 쓴다.
+§2 의 옛 제안(`/target-sources/{id}/jira-ticket/users`, 200 + 사용자 목록)은 다른 형태로
+실계약이 됐다: 등록 단위는 target source 가 아니라 **서비스 × cloudProvider** 고,
+응답은 목록이 아니라 `204 No Content` 다.
 
 ```
-POST /install/v1/target-sources/{targetSourceId}/jira-ticket/users
+POST /install/v1/services/{serviceCode}/jira-tickets/{cloudProvider}/watchers
+operationId: addWatcherToJiraTicket
+body   JiraTicketWatcherRequest { userId }   # required
+→ 204 No Content
 ```
 
-| 위치 | 이름 | 타입 | 필수 |
-|------|------|------|------|
-| path | `targetSourceId` | `integer(int64)` | ✅ |
-| body | `userId` | `string` | ✅ |
+에러는 전부 범용 `ErrorMessage`(timestamp/status/code/message/path) — **이 엔드포인트
+전용 error code enum 은 swagger 에 없다** (`code` 는 자유 문자열). 프론트는 HTTP status 로
+분기하지 않고 서버 `message` 를 그대로 보여준다 (`userErrorText` 경로).
 
-```json
-{ "userId": "kim.chulyong" }
-```
+### 해제 API 는 없다
 
-Response `200 OK` — 등록 후 사용자 목록
+등록만 제공한다. 잘못 등록한 사용자는 이 API 로 되돌릴 수 없다 — UI 문구가 이걸 말해야 한다.
 
-```json
-{
-  "targetSourceId": 1027,
-  "issueKey": "BDCDIP-1027",
-  "users": [{ "id": "kim.chulyong", "name": "김철용", "email": "chulyong@example.com" }]
-}
-```
+### 조회 계약은 여전히 없다 (write-only)
 
-| 코드 | 상황 |
-|------|------|
-| `404` | targetSourceId 에 매핑된 Jira ticket 없음 / userId 없음 |
-| `409` | 이미 등록된 사용자 |
-
-`userId` 는 `GET /install/v1/users/search` 의 `UserInfo.id`.
-
-### 해제 API 는 만들지 않는다 (오너 결정)
-
-등록만 제공한다. 잘못 등록한 사용자는 이 API 로 되돌릴 수 없다.
-
-### 조회는 기존 응답 확장 필요
-
-현재 `JiraTicketResponse` 에 `users` 가 없어 **등록해도 화면에 표시할 방법이 없다.**
-신규 엔드포인트 대신 필드 추가를 제안한다.
-
-```yaml
-JiraTicketResponse:
-  properties:
-    # …기존 5개…
-    users:                                    # 추가
-      type: array
-      items: { $ref: "#/components/schemas/UserInfo" }
-```
-
-**이 확장이 없는 동안 프론트는 사용자 등록 UI 를 붙이지 않는다.** 등록만 되고 결과를
-못 보여주는 화면은 사용자가 성공 여부를 알 수 없어 없느니만 못하다.
+`JiraTicketResponse` 에 watcher 목록 필드가 없어 **등록한 사용자를 화면에 보여줄 방법이
+없다.** 옛 §2 는 이 이유로 UI 를 붙이지 않기로 했으나, 오너 결정(2026-08-08)으로 등록
+UI(⋮ → Watcher 추가)를 write-only 로 먼저 붙였다 — 성공은 모달 닫힘으로, 중복은 서버
+409 message 로만 확인된다. 목록 조회 계약이 생기면 타일에 watcher 표시를 추가한다.
 
 ---
 
