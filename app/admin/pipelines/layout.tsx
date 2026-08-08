@@ -37,7 +37,9 @@ const SIDEBAR_GROUPS = [
     items: [
       { label: '운영 알림', href: passRoutes.pipelines.ops.alerts, exact: false },
       { label: '서비스 운영', href: passRoutes.pipelines.ops.services, exact: false },
-      { label: 'Target Source 운영', href: passRoutes.pipelines.ops.targetSources, exact: false },
+      // Target Source 운영 is deliberately absent from the nav. The screen still exists and
+      // is still routed to — 서비스 운영 sends you there from an infra row, and the pipeline
+      // detail breadcrumb links to it — it is simply not a place you start from.
     ],
   },
 ] as const;
