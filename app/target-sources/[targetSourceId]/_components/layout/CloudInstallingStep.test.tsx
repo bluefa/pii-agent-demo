@@ -42,6 +42,7 @@ vi.mock(
 import { CloudInstallingStep } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudInstallingStep';
 
 const azureInstallingFixture: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'azure-proj-1',
   targetSourceId: 1003,
   projectCode: 'AZURE-001',

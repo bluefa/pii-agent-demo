@@ -11,6 +11,7 @@ import {
   ResourceScanStatus,
   ResourceIntegrationStatus,
   ResourceSnapshot,
+  isSduProvider,
   normalizeCloudProvider,
   normalizeRecommendFailReason,
 } from '@/lib/types';
@@ -91,8 +92,9 @@ const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
     targetSourceId,
     projectCode: item.service_code ?? fallbackCode,
     cloudProvider: normalizeCloudProvider(item.cloud_provider),
-    // SDU account → surfaced as "SDU" over the underlying CSP (ProvTag).
-    isSduType: metadata?.is_sdu_type === true,
+    // SDU account → surfaced as "SDU" over the underlying CSP (ProvTag). Read from
+    // both places the contract carries it — see isSduProvider.
+    isSduType: metadata?.is_sdu_type === true || isSduProvider(item.cloud_provider),
     // The account the row is about — the list row's subject, not decoration.
     awsAccountId: metadata?.aws_account_id ?? undefined,
     subscriptionId: metadata?.subscription_id ?? undefined,
@@ -100,9 +102,9 @@ const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
     gcpProjectId: metadata?.gcp_project_id ?? undefined,
     isChinaRegion: metadata?.is_china_region === true,
     // Two-state by domain rule (owner's call): the permission is granted or it is
-    // not, and an absent key means it was never granted — so 수동 설치. Collapsing
-    // it here rather than at each screen is what keeps the list, the detail meta
-    // bar and the step guides from disagreeing about the same account.
+    // not, and an absent key means it was never granted — so 수동 설치. Both adapters
+    // collapse it (here and in lib/target-source-response.ts) and the type is
+    // non-optional, so no screen can reintroduce a third reading.
     isTerraformExecutionGranted:
       metadata?.grant_service_terraform_execution_permission === true,
     resourceCount: 0,
@@ -245,7 +247,7 @@ const toTargetSource = (raw: TargetSourceDetail, processStatusWire: unknown): Ta
   const subscriptionId = asStr(metadata?.subscription_id);
   const awsAccountId = asStr(metadata?.aws_account_id);
   const gcpProjectId = asStr(metadata?.gcp_project_id);
-  const isSduType = asBool(metadata?.is_sdu_type);
+  const isSduType = asBool(metadata?.is_sdu_type) || isSduProvider(asStr(item.cloud_provider));
   // Same domain rule as toProjectSummary: absent = never granted = 수동 설치.
   const isTerraformExecutionGranted =
     metadata?.grant_service_terraform_execution_permission === true;

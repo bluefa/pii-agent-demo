@@ -1174,9 +1174,10 @@ export const idcStyles = {
  * 브랜드 파랑(#0064FF)이 아니라 한 단 죽인 파랑인 이유: 12px 에서 브랜드 파랑은
  * 링크로 읽히고, 카드 hover 시 제목이 파래지는 것과 충돌한다.
  *
- * 대비는 흰 카드와 카드 hover 틴트(gray-50) 양쪽에서 잰다 — 행은 커서 아래에서 배경이
- * 바뀌므로 흰색만 통과하는 값은 hover 에서 AA 를 잃는다. 5.31:1 / 5.08:1 로 양쪽 AA.
- * 12px 본문이라 4.5:1 아래로는 더 못 내려간다.
+ * 대비는 흰 카드와 카드 hover 틴트 양쪽에서 잰다 — 행은 커서 아래에서 배경이 바뀌므로
+ * 흰색만 통과하는 값은 hover 에서 AA 를 잃는다. 흰 카드 5.31:1, hover 틴트(#F3EEFF)
+ * 4.67:1 로 양쪽 AA. 12px 본문이고 hover 쪽 여유가 0.17 뿐이라, 이 값도 hover 틴트도
+ * 더 내릴 수 없다 — 둘 중 하나를 바꾸면 다른 하나를 다시 재야 한다.
  */
 export const rowLabelColor = 'text-[#3B6BB5]';
 
@@ -1239,7 +1240,9 @@ export const serviceSidebarStyles = {
    * surface — that is why `count`/`rowCode`/`divider`/`skeletonBar` carry their
    * own numbers below, and why `sectionLabel` and `footerPage` had to leave
    * #666D7B (4.17:1 here) for #4E5968 (5.71:1). `text-gray-500` is not usable on
-   * this surface at all (4.07:1).
+   * this surface at all (3.88:1), and neither is `primaryColors.text` (3.95:1) —
+   * see `emptyText`/`emptyAction`, which exist so those two pairs are declared
+   * next to the surface instead of being discovered on a consumer.
    */
   surface: 'bg-[#E2E7EA]',
   /**
@@ -1324,11 +1327,27 @@ export const serviceSidebarStyles = {
    * pill, so nothing here counts rows.
    */
   footer: 'mt-auto flex shrink-0 items-center justify-center gap-1 px-3 py-2.5',
+  /**
+   * The rail's empty result. `textColors.tertiary` reads 3.88:1 here — and this is
+   * the one state where the message IS the rail's only content, so it cannot be the
+   * quietest tier available.
+   */
+  emptyText: 'text-[14px] text-[#4E5968]',
+  /**
+   * Its recovery control. `primaryColors.text` (#0064FF) is 3.95:1 on this surface;
+   * #0050D6 is 5.40:1 — the same substitution `rowCodeCurrent` already makes.
+   */
+  emptyAction: 'text-[12px] cursor-pointer text-[#0050D6] hover:text-[#003FA8]',
   /** "1 / 2 페이지" — tabular so the digits do not jitter as pages change. */
   footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#4E5968]',
-  /** Borderless ghost pager — a bordered button pair floats like a card control on a flush rail. */
+  /**
+   * Borderless ghost pager — a bordered button pair floats like a card control on a
+   * flush rail. The disabled glyph is #8B95A1, not #B0B8C1: 1.4.11 exempts inactive
+   * controls, but at 1.61:1 on this surface the arrow was a smudge rather than a
+   * greyed-out arrow. 2.44:1 still reads as unavailable next to the live one at 5.71.
+   */
   pagerBtn:
-    'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#B0B8C1] disabled:hover:bg-transparent',
+    'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent',
 } as const;
 
 // =============================================================================

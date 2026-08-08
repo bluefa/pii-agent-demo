@@ -5,6 +5,7 @@ import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import { TargetConfirmationInstructionCard } from '@/app/target-sources/[targetSourceId]/_components/layout/TargetConfirmationInstructionCard';
 
 const baseFixture: Omit<CloudTargetSource, 'cloudProvider'> = {
+  isTerraformExecutionGranted: false,
   id: 'proj-1',
   targetSourceId: 1001,
   projectCode: 'PROJ-001',

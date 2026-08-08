@@ -36,8 +36,10 @@ export const ServiceHeaderV7 = ({
       <h1 className={pageHeaderTitleStyle}>PII Agent 연동 대상 계정</h1>
       <p className={cn('mt-1.5', cardStyles.subtitle)}>
         {/* The product's name in the product's colour — it is the one proper noun in
-            the sentence, and bold-black made it a second heading under the h1. */}
-        <strong className={cn('font-semibold', primaryColors.text)}>PII Agent</strong>를 설치할
+            the sentence, and bold-black made it a second heading under the h1.
+            `textOnLight`, not `text`: this sentence sits on the canvas (#F4F4FB), not on
+            white, where #0064FF measures 4.4951:1 — under AA by half a hundredth. */}
+        <strong className={cn('font-semibold', primaryColors.textOnLight)}>PII Agent</strong>를 설치할
         계정을 등록하고, 계정별 설치 진행을 관리합니다.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">

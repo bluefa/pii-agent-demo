@@ -7,7 +7,6 @@ import type { PageServiceItem } from '@/app/lib/api';
 import {
   borderColors,
   bgColors,
-  primaryColors,
   serviceSidebarStyles,
   textColors,
   cn,
@@ -212,7 +211,9 @@ export const ServiceSidebar = ({
             // current service to be other than, and keep that sentence page-scoped, since
             // the filter is.
             <li className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
-              <p className={cn('text-sm', textColors.tertiary)}>
+              {/* Rail-scoped tokens, not the page-wide `tertiary`/`primary` pair: both of
+                  those are measured against white and read 3.88:1 / 3.95:1 on this rail. */}
+              <p className={serviceSidebarStyles.emptyText}>
                 {searchQuery
                   ? `‘${searchQuery}’와 일치하는 서비스가 없습니다`
                   : '서비스가 없습니다'}
@@ -221,11 +222,7 @@ export const ServiceSidebar = ({
                 <button
                   type="button"
                   onClick={() => onSearchChange('')}
-                  className={cn(
-                    'mt-2 text-xs cursor-pointer',
-                    primaryColors.text,
-                    primaryColors.textHover,
-                  )}
+                  className={cn('mt-2', serviceSidebarStyles.emptyAction)}
                 >
                   검색어 지우기
                 </button>

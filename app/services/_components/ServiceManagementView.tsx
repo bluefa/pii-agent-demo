@@ -31,6 +31,14 @@ import {
 const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 const SEARCH_DEBOUNCE_MS = 300;
 
+/**
+ * A resolved panel and the service it resolved for. Exactly one of `items`/`error`
+ * is set: a fetch either produced a list or a reason it could not.
+ */
+type ProjectsState =
+  | { code: string; items: ProjectSummary[]; error?: undefined }
+  | { code: string; items?: undefined; error: string };
+
 // Selection is URL-driven: the `?service_code=` query is the single source of
 // truth, replacing the old module-variable handoff. Sidebar search/pagination
 // stay in local state (not in the URL — only the selected service is shareable).
@@ -40,6 +48,10 @@ export const ServiceManagementView = () => {
   const toast = useToast();
 
   const selectedService = searchParams.get('service_code');
+  // Read by `loadProjects` when its request finally settles, which can be long after
+  // the render that started it — the closed-over value would be the old selection.
+  const selectedServiceRef = useRef(selectedService);
+  selectedServiceRef.current = selectedService;
 
   const [serviceList, dispatch] = useReducer(
     serviceListReducer,
@@ -48,12 +60,18 @@ export const ServiceManagementView = () => {
   );
   const { services, query: serviceQuery, pageInfo: servicePageInfo } = serviceList;
 
-  // `null` is "not resolved yet", distinct from `[]` = "resolved, and there are none".
-  // A `[]` start made the first paint of every service claim 등록된 계정이 없어요 before
-  // the request had even been made — the gate cannot be the `loading` flag, because that
-  // flag is false on the frame that matters (see the effect below: it is set from an
-  // effect, which runs after the paint).
-  const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
+  // Three states, and the value carries the code it belongs to — the same shape as
+  // `resolvedName` below, for the same reason. `null` is "not resolved yet", distinct
+  // from `{ items: [] }` = "resolved, and there are none"; a `[]` start made the first
+  // paint of every service claim 등록된 계정이 없어요 before the request had even been
+  // made. `error` is the third: a failed fetch must not render as "this service has no
+  // accounts", which is a claim we cannot make and whose only CTA is the wrong one.
+  //
+  // Keying to `code` is what makes a late response harmless. Both writers stamp their
+  // own code, and the render below discards anything that does not match the current
+  // selection, so neither a slow `refreshProjects` nor a slow effect can paint service
+  // A's rows under service B's header.
+  const [projects, setProjects] = useState<ProjectsState | null>(null);
   const [loading, setLoading] = useState(false);
   // Same idea for the rail, which owns a skeleton it was never being handed the cue for.
   // Only the first page counts: later searches keep the rows on screen rather than
@@ -65,6 +83,7 @@ export const ServiceManagementView = () => {
   // after that paint. Derived at render, the pair can never come apart.
   const [resolvedName, setResolvedName] = useState<{ code: string; name: string } | null>(null);
   const selectedName = resolvedName?.code === selectedService ? resolvedName.name : '';
+  const panel = projects?.code === selectedService ? projects : null;
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -138,47 +157,43 @@ export const ServiceManagementView = () => {
     };
   }, [selectedService]);
 
-  // Fetch the selected service's target sources. Race guard: a stale in-flight
-  // response for a previously-selected service must not overwrite the panel.
+  // The one loader both the effect and the manual refresh go through, so the race
+  // guard cannot be applied to one path and forgotten on the other — which is exactly
+  // what happened when `refreshProjects` was written separately. `getProjects` takes
+  // no AbortSignal, so a late response cannot be cancelled; stamping the code it was
+  // asked for is what makes arriving late harmless.
+  const loadProjects = useCallback(
+    async (code: string, failureMessage: string) => {
+      setLoading(true);
+      try {
+        const items = await getProjects(code);
+        setProjects({ code, items });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : failureMessage;
+        setProjects({ code, error: message });
+        toast.error(message);
+      } finally {
+        // Stale too: a response for a code the user has since left must not clear the
+        // flag belonging to the request that replaced it.
+        setLoading((prev) => (code === selectedServiceRef.current ? false : prev));
+      }
+    },
+    [toast],
+  );
+
   useEffect(() => {
     if (!selectedService) {
       setProjects(null);
       return;
     }
-    let cancelled = false;
-    setLoading(true);
     setProjects(null);
-    getProjects(selectedService)
-      .then((data) => {
-        if (!cancelled) setProjects(data);
-      })
-      .catch((err) => {
-        // Land on the empty state rather than an endless skeleton — the toast is what
-        // says this failed; the list only has to stop pretending it is still working.
-        if (!cancelled) {
-          setProjects([]);
-          toast.error(err instanceof Error ? err.message : '타겟소스 목록 조회 실패');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedService, toast]);
+    void loadProjects(selectedService, '타겟소스 목록 조회 실패');
+  }, [selectedService, loadProjects]);
 
   const refreshProjects = useCallback(async () => {
     if (!selectedService) return;
-    setLoading(true);
-    try {
-      setProjects(await getProjects(selectedService));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : '타겟소스 목록 새로고침 실패');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedService, toast]);
+    await loadProjects(selectedService, '타겟소스 목록 새로고침 실패');
+  }, [selectedService, loadProjects]);
 
   const handleSelectService = useCallback(
     (code: string) => {
@@ -271,12 +286,17 @@ export const ServiceManagementView = () => {
           onPageChange={handlePageChange}
         />
 
-        {/* `overflow-hidden`, not `auto`: the scroll belongs to the card band inside
-            the list, so that the pager below it can be a footer rather than something
-            that scrolls past. If this element scrolls too, the footer goes with it. */}
+        {/* The scroll belongs to the card band inside the list, so that the pager below
+            it can be a footer rather than something that scrolls past — if this element
+            scrolls too, the footer goes with it. But `overflow-hidden` alone left the
+            page with no escape hatch under its fixed-height root: below ~240px of column
+            (a 400%-zoom viewport, WCAG 1.4.10) the band has already collapsed to nothing
+            and the pager clips off the bottom with nothing to scroll. `overflow-y-auto`
+            plus a floor on the list restores page scroll exactly there and nowhere else —
+            above that height the content fits, so this never scrolls. */}
         <main
           className={cn(
-            'flex flex-1 min-w-0 flex-col overflow-hidden p-6',
+            'flex flex-1 min-w-0 flex-col overflow-y-auto p-6',
             serviceSidebarStyles.canvas,
           )}
         >
@@ -332,9 +352,14 @@ export const ServiceManagementView = () => {
                 // that number survives the switch — pick service A, page to 3, click
                 // service B, and B opens on its third page having never been paged.
                 key={selectedService}
-                projects={projects}
+                // Derived at render, so the panel can never come apart from its header:
+                // between clicking service B and B's effect running there is one commit
+                // still holding A's array, and this drops it back to the skeleton.
+                projects={panel?.items ?? null}
+                error={panel?.error ?? null}
                 loading={loading}
                 onAddInfra={openCreateModal}
+                onRetry={refreshProjects}
                 onOpenDetail={handleOpenDetail}
                 onManageAction={handleManageAction}
               />

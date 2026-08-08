@@ -27,6 +27,7 @@ vi.mock(
 import { InstallationStatusSlot } from '@/app/target-sources/[targetSourceId]/_components/layout/InstallationStatusSlot';
 
 const baseProject: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'proj-1',
   targetSourceId: 1003,
   projectCode: 'PROJ-001',

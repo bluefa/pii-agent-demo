@@ -56,6 +56,7 @@ vi.mock(
 import { CloudTargetSourceLayout } from '@/app/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout';
 
 const baseFixture: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'proj-1',
   targetSourceId: 1001,
   projectCode: 'TEST-001',

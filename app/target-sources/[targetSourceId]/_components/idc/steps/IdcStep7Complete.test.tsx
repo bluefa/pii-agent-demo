@@ -33,6 +33,7 @@ vi.mock('@/app/components/ui/toast', () => ({
 import { IdcStep7Complete } from '@/app/target-sources/[targetSourceId]/_components/idc/steps/IdcStep7Complete';
 
 const project: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'idc-1',
   targetSourceId: 1020,
   projectCode: 'IDC-025',

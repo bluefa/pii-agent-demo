@@ -81,8 +81,8 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
   const rowName = [identity.name, identity.value ?? identity.secondValue].filter(Boolean).join(' ');
 
   // The card is a click target but not a focusable button — WAI-ARIA forbids
-  // interactive descendants (the ↗ link, the ⋮ menu) inside a role="button"
-  // wrapper. Keyboard users reach the same destination through the ↗ button.
+  // interactive descendants (the ⋮ menu) inside a role="button" wrapper. Keyboard
+  // users reach the same destination through 상세 보기, the ⋮ menu's first item.
   return (
     <div
       onClick={() => onOpenDetail(project.targetSourceId)}

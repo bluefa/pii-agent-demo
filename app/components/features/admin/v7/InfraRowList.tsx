@@ -11,14 +11,18 @@ import {
   textColors,
 } from '@/lib/theme';
 import type { ProjectSummary } from '@/lib/types';
+import { Button } from '@/app/components/ui/Button';
 import { InfrastructureEmptyState } from '@/app/components/features/admin/infrastructure/InfrastructureEmptyState';
 import { InfraRow, type InfraRowAction } from '@/app/components/features/admin/v7/InfraRow';
 
 interface InfraRowListProps {
   /** `null` until the request resolves — `[]` is the answer "there are none". */
   projects: ProjectSummary[] | null;
+  /** Why the request failed, or `null`. Takes precedence: a failure is not an answer. */
+  error: string | null;
   loading: boolean;
   onAddInfra: () => void;
+  onRetry: () => void;
   onOpenDetail: (targetSourceId: number) => void;
   onManageAction: (action: InfraRowAction, targetSourceId: number) => void;
 }
@@ -46,7 +50,10 @@ const PAGE_SIZE = 5;
  * facts that are not known yet, and a skeleton must not answer a question.
  */
 const InfraRowListSkeleton = () => (
-  <div className="flex flex-1 min-h-0 flex-col" aria-busy="true">
+  // `role="status"` + a named region: `aria-busy` is a property, not a live region, and
+  // every bar below is aria-hidden — without this a screen reader hears nothing at all
+  // between picking a service and the rows arriving.
+  <div className="flex flex-1 min-h-0 flex-col" role="status" aria-busy="true" aria-label="연동 대상 계정 목록을 불러오는 중">
     <div className="flex shrink-0 items-center gap-2 pl-1 pb-3">
       <div className={cn(idcStyles.skeletonBar, 'h-5 w-[86px] rounded')} />
       <div className={cn(idcStyles.skeletonBar, 'h-[22px] w-[44px] rounded-full')} />
@@ -60,7 +67,9 @@ const InfraRowListSkeleton = () => (
           className={cn(
             'flex shrink-0 items-center gap-3.5 px-[21px] py-[19px] rounded-[12px] border',
             bgColors.surface,
-            borderColors.default,
+            // The settled card's border, not `default` — they are ΔE00 4.20 apart, so the
+            // outline visibly changed tone when the data landed.
+            borderColors.card,
           )}
         >
           <div className={cn(idcStyles.skeletonBar, 'h-16 w-16 shrink-0 rounded-[12px]')} />
@@ -78,10 +87,31 @@ const InfraRowListSkeleton = () => (
   </div>
 );
 
+/**
+ * A fetch that failed, which is NOT the same screen as a service with no accounts.
+ * The empty state asserts a fact about the service and offers 계정 등록 — after a 500
+ * that claim is unfounded and that action is the wrong one, since accounts we simply
+ * could not read may already exist. The toast that announced the failure is gone by
+ * the time the user reads this, so the recovery has to live here.
+ */
+const InfraRowListError = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+  <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+    <p className={cn('text-[16px] font-medium', textColors.primary)}>
+      연동 대상 계정을 불러오지 못했습니다
+    </p>
+    <p className={cn('text-[14px]', textColors.secondary)}>{message}</p>
+    <Button variant="secondary" onClick={onRetry} className="mt-2">
+      다시 시도
+    </Button>
+  </div>
+);
+
 export const InfraRowList = ({
   projects,
+  error,
   loading,
   onAddInfra,
+  onRetry,
   onOpenDetail,
   onManageAction,
 }: InfraRowListProps) => {
@@ -100,6 +130,8 @@ export const InfraRowList = ({
   // Gated on the data, not on `loading`: `loading` is set from an effect, so it is
   // still false on the first painted frame and this list would flash 등록된 계정이
   // 없어요 before the request was even in flight.
+  if (error !== null) return <InfraRowListError message={error} onRetry={onRetry} />;
+
   if (projects === null) return mounted ? <InfraRowListSkeleton /> : null;
 
   const totalPages = Math.max(1, Math.ceil(projects.length / PAGE_SIZE));
@@ -121,7 +153,15 @@ export const InfraRowList = ({
     // Three bands: a fixed heading, a scrolling middle, a fixed pager. Only the
     // middle band scrolls, so the pager is a real footer — it never covers a card,
     // which a `sticky` bar did by definition (the cards ran underneath it).
-    <div className="flex flex-1 min-h-0 flex-col" aria-busy={loading}>
+    //
+    // `min-h-[228px]` is the floor at which one whole card still shows between the two
+    // fixed bands. Without it the middle band, being the only `min-h-0` child, absorbs
+    // every pixel of a short window and the list becomes a heading over a pager with
+    // "1/2 페이지" under it and no card in sight. At the floor the column overflows
+    // instead, and `main`'s `overflow-y-auto` gives the page back its scroll.
+    // It replaces `min-h-0` rather than joining it: a floor above zero still lets this
+    // shrink below its content height, which is all `min-h-0` was buying.
+    <div className="flex flex-1 min-h-[228px] flex-col" aria-busy={loading}>
       {/* No bar chrome: the cards below already own every edge on this column, so a
           bordered toolbar would draw a frame around nothing. The count describes this
           list, not the service, which is why it lives here and not in the page header. */}

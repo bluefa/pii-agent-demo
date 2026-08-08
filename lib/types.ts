@@ -34,6 +34,17 @@ export const normalizeCloudProvider = (value: unknown): CloudProvider => {
   return CLOUD_PROVIDER_ALIASES[value.trim().toUpperCase()] ?? 'AWS';
 };
 
+/**
+ * The contract carries SDU in two independent places — `cloud_provider: "SDU"` (the
+ * enum at TargetSourceDto) and `metadata.is_sdu_type`, which is `.partial()` and so
+ * may be absent. SDU is not a `CloudProvider` (it names how data arrives, not where it
+ * lives), so `normalizeCloudProvider` falls back to 'AWS' on it — which means reading
+ * only the metadata flag hands an SDU record the full AWS install screen. Every adapter
+ * must OR the two.
+ */
+export const isSduProvider = (value: unknown): boolean =>
+  typeof value === 'string' && value.trim().toUpperCase() === 'SDU';
+
 // Internal CloudProvider → wire metadata.provider value. The contract
 // (TargetSourceResourceMetadataDto.provider) is uppercase — AWS | GCP | AZURE | IDC |
 // UNKNOWN — while the internal CloudProvider uses 'Azure'. Never send the internal casing.
@@ -342,7 +353,7 @@ export interface CloudTargetSource extends BaseTargetSource {
   awsLinkedAccountId?: string;
   awsRegionType?: 'global' | 'china';
   isChinaRegion?: boolean;
-  isTerraformExecutionGranted?: boolean;
+  isTerraformExecutionGranted: boolean;
   // swagger TargetSourceDetail.metadata.is_sdu_type — SDU accounts render "SDU"
   // instead of "{Provider} Agent" in the identity bar.
   isSduType?: boolean;
@@ -395,7 +406,7 @@ export interface ProjectSummary {
   gcpProjectId?: string;
   isChinaRegion?: boolean;
   /** AWS only — false means the service installs by hand (수동 설치). */
-  isTerraformExecutionGranted?: boolean;
+  isTerraformExecutionGranted: boolean;
   resourceCount: number;
   hasDisconnected: boolean;
   hasNew: boolean;
