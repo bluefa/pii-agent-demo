@@ -137,7 +137,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                   {/* One line, always — wrapping left row heights ragged. The full value
                       opens in the same tip card the rest of the app uses, and only when
                       the name is actually clipped (`truncatedOnly`). */}
-                  <span className="flex items-center gap-2">
+                  <span className={table.group.lead}>
                     {hasInstances && (
                       <button
                         type="button"

@@ -448,7 +448,7 @@ export const WaitingApprovalTable = memo(
               // A cluster keeps its own name — two-line identity (owner request): the tag sits
               // ABOVE the name, and the chevron centres on the pair.
               // Same stack as the step-1 cluster row so the three steps read identically.
-              <span className="flex items-center gap-2">
+              <span className={idcStyles.table.group.lead}>
                 <button
                   type="button"
                   // No aria-controls: the instance rows are `<tr>` siblings with no single

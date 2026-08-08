@@ -346,7 +346,7 @@ export const CandidateResourceRow = ({
             // Two-line identity (owner request): the tag sits ABOVE the name, not beside it.
             // The chevron centres on the pair — pinned to the tag line it read as misaligned
             // against every other control in the row, which all sit on the row's middle.
-            <span className="flex items-center gap-2">
+            <span className={idcStyles.table.group.lead}>
               <button
                 type="button"
                 // No aria-controls: the instance rows are `<tr>` siblings with no single
