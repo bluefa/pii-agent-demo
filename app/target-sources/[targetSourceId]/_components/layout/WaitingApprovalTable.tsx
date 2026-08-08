@@ -24,8 +24,7 @@ import {
 import {
   Ec2InstanceTag,
   RdsClusterTag,
-  RdsMemberChip,
-  RdsSelectionChip,
+  RdsInstanceIdentity,
 } from '@/app/components/ui/RdsInstanceChips';
 import { hasLogicalDatabases, isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
@@ -716,13 +715,11 @@ export const WaitingApprovalTable = memo(
                       index === instances.length - 1 && idcStyles.table.group.childCellLast,
                     )}
                   >
-                    <span className="flex items-center gap-2">
-                      <span className="truncate">{rdsInstanceLabel(instance)}</span>
-                      <RdsMemberChip role={instance.cluster_member_role} />
-                      {instance.resource_id === resource.selectedRdsInstanceResourceId && (
-                        <RdsSelectionChip />
-                      )}
-                    </span>
+                    <RdsInstanceIdentity
+                      identifier={rdsInstanceLabel(instance)}
+                      role={instance.cluster_member_role}
+                      selected={instance.resource_id === resource.selectedRdsInstanceResourceId}
+                    />
                   </td>
                   <td className={idcStyles.table.approvalCell} />
                   <td

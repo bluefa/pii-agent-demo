@@ -31,8 +31,7 @@ import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_component
 import {
   Ec2InstanceTag,
   RdsClusterTag,
-  RdsMemberChip,
-  RdsSelectionChip,
+  RdsInstanceIdentity,
 } from '@/app/components/ui/RdsInstanceChips';
 import { isRdsCluster, rdsInstanceLabel, sortRdsInstances } from '@/lib/rds-instances';
 import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
@@ -235,13 +234,11 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                       instanceIndex === instances.length - 1 && table.group.childCellLast,
                     )}
                   >
-                    <span className="flex items-center gap-2">
-                      <span className="truncate">{rdsInstanceLabel(instance)}</span>
-                      <RdsMemberChip role={instance.cluster_member_role} />
-                      {instance.resource_id === row.selectedRdsInstanceResourceId && (
-                        <RdsSelectionChip />
-                      )}
-                    </span>
+                    <RdsInstanceIdentity
+                      identifier={rdsInstanceLabel(instance)}
+                      role={instance.cluster_member_role}
+                      selected={instance.resource_id === row.selectedRdsInstanceResourceId}
+                    />
                   </td>
                   <td className={table.approvalCell} />
                   <td className={cn(table.approvalCell, 'text-[14px]', tone, CELL_LIFT)}>

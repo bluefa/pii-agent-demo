@@ -20,8 +20,7 @@ import {
 import {
   Ec2InstanceTag,
   RdsClusterTag,
-  RdsMemberChip,
-  RdsSelectionChip,
+  RdsInstanceIdentity,
 } from '@/app/components/ui/RdsInstanceChips';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { isEc2Instance } from '@/lib/types';
@@ -174,19 +173,14 @@ const RdsInstanceRow = ({
               className={cn('h-4 w-4', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
             />
           )}
-          <span
-            className={cn(
-              'truncate font-mono text-[14px]',
-              textColors.primary,
-              CELL_LIFT,
-            )}
-          >
-            {identifier}
-          </span>
-          <RdsMemberChip role={instance.cluster_member_role} />
           {/* Editable: the checked radio already says which member is chosen, so no chip.
               Read-only has no radio, so 선택됨 is the only thing left to say it. */}
-          {readonly && isChosen && <RdsSelectionChip />}
+          <RdsInstanceIdentity
+            identifier={identifier}
+            role={instance.cluster_member_role}
+            selected={readonly && isChosen}
+            nameClassName={cn('font-mono text-[14px]', textColors.primary, CELL_LIFT)}
+          />
         </span>
       </td>
 
