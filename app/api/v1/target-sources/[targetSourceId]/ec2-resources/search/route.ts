@@ -44,13 +44,17 @@ const Ec2SearchResponse = z
 
 const DEFAULT_LIMIT = 5;
 const MAX_LIMIT = 100;
+/** An instance id is `i-` + 17 hex = 19 chars; anything past this is not a prefix search. */
+const MAX_QUERY_LEN = 50;
 
 export const GET = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get('query') ?? '';
+  // Clamped here too, not only in the input: the field's maxLength is a typing aid,
+  // and this route is reachable without it.
+  const query = (searchParams.get('query') ?? '').slice(0, MAX_QUERY_LEN);
   const requested = Number(searchParams.get('limit'));
   const limit =
     Number.isFinite(requested) && requested >= 1

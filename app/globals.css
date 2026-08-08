@@ -296,6 +296,15 @@ body {
   outline-offset: 2px;
 }
 
+/* EC2 검색창 — 활성 표시는 테두리 색 하나뿐이다. 전역 아웃라인은 2px 떨어져 그려지므로
+   파란 테두리와 겹치면 굵기가 다른 파란 선 두 줄이 되어 필드가 깨져 보인다. 테두리가
+   같은 색·같은 굵기의 신호를 이미 주므로 이 입력에서만 아웃라인을 끈다.
+   Tailwind 의 focus:outline-none 으로는 못 끈다 — 유틸리티는 cascade layer 안이고
+   위 규칙은 레이어 밖이라, 특정도와 무관하게 레이어 밖 선언이 이긴다. */
+.ec2-search-field:focus-visible {
+  outline: none;
+}
+
 /* =============================================================================
    Guide CMS — prose-guide (no @tailwindcss/typography dependency)
    Guide CMS content rendered by renderGuideAst() lands inside a bare

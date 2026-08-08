@@ -1157,7 +1157,7 @@ export const ec2Styles = {
    * 활성 표시는 테두리 색 하나뿐 — 링을 더하면 굵기가 다른 선 두 줄이 겹쳐 보인다.
    */
   searchField:
-    'h-[52px] w-full rounded-xl border border-[#E5E8EB] bg-white pl-12 pr-12 font-mono text-[15px] font-medium text-[#191F28] transition-colors focus:border-[#0064FF] focus:outline-none', // design-exempt: mirrors idcStyles.input 15px token
+    'ec2-search-field h-[52px] w-full rounded-xl border border-[#E5E8EB] bg-white pl-12 pr-12 font-mono text-[15px] font-medium text-[#191F28] transition-colors focus:border-[#0064FF]', // design-exempt: mirrors idcStyles.input 15px token
   /** placeholder 는 값이 아니라 형식 예시 — 값과 같은 무게로 읽히면 안 된다. */
   searchPlaceholder: 'placeholder:font-sans placeholder:text-[#B0B8C1]', // design-exempt: placeholder hint, not content
   searchIcon:

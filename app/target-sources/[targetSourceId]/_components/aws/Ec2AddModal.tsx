@@ -13,6 +13,9 @@ import type { Ec2ConnectionConfig } from '@/app/target-sources/[targetSourceId]/
 /** Idle time after the last keystroke before the search fires. */
 const SEARCH_DEBOUNCE_MS = 500;
 
+/** 검색어 길이 상한. */
+const EC2_QUERY_MAXLEN = 50;
+
 type SearchStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 interface SearchState {
@@ -273,6 +276,9 @@ export const Ec2AddModal = ({
               autoFocus
               value={query}
               aria-label="Instance ID 검색"
+              // instance id 는 `i-` + 17 hex = 19자다. 50 은 그 위로 넉넉히 둔 상한 —
+              // 붙여넣기 사고로 긴 문자열이 그대로 질의에 실려 나가는 것만 막는다.
+              maxLength={EC2_QUERY_MAXLEN}
               placeholder="i-0a1b2c3d4e5f67890 형식의 Instance ID로 검색"
               onChange={(event) => handleQueryChange(event.target.value)}
               className={cn(ec2Styles.searchField, ec2Styles.searchPlaceholder)}
