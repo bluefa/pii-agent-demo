@@ -721,16 +721,32 @@ export const badgeStyles = {
 /**
  * TopNav 스타일 — PASS 프로토타입 전용 (slate-900 shell + PASS 워드마크 로고)
  *
- * brand 의 raw hex (#C5C6C7 워드마크 / #66FCF1 태그라인) 는 브랜드 색으로 예외 허용.
- * 소비 측에서 이 상수만 참조하고 문자열을 중복 정의하지 말 것.
+ * brand 의 raw hex 는 로고 색으로 예외 허용.
+ * 소비 측에서 이 상수만 참조하고 문자열을 중복 정의하지 말 것 — 유일한 소비자는 PassLogo.
+ *
+ * The previous pair (#C5C6C7 wordmark / #66FCF1 tagline) is gone: neither hex
+ * existed anywhere else in the product, and the tagline (14.3:1) outshone the
+ * wordmark (10.4:1), so the descriptor read louder than the brand name.
+ *
+ * Both brand hues need a DARK-SURFACE FORM here. The ink values fail on
+ * slate-900 — #0064FF scores 3.63:1 and #6D28D9 only 2.51:1 — so the logo uses
+ * the lifted pair below. Keep the two in sync: these are the same colours, not
+ * different ones.
  */
 export const navStyles = {
   bg: 'bg-slate-900',
   /** Thin vertical separator between nav clusters on the dark bar. */
   divider: 'h-5 w-px shrink-0 bg-white/15',
   brand: {
-    wordmark: 'text-[#C5C6C7]', // design-exempt: sits on navStyles.bg (slate-900)
-    tagline: 'text-[#66FCF1]', // design-exempt: sits on navStyles.bg (slate-900)
+    /** PA — the ink half of the wordmark. */
+    wordmarkInk: 'fill-white', // design-exempt: brand logotype on navStyles.bg (slate-900)
+    /** SS — the verdict half. Dark-surface form of the CTA blue #0064FF (3.63:1 → 5.41:1). */
+    wordmarkAccent: 'fill-[#4D94FF]', // design-exempt: brand logotype on navStyles.bg (slate-900)
+    /** "PII" — dark-surface form of the EC2 tag purple #6D28D9 (2.51:1 → 6.56:1). */
+    descriptorSubject: 'fill-[#A78BFA]', // design-exempt: brand logotype on navStyles.bg (slate-900)
+    descriptorInk: 'fill-white',
+    /** The rest of the descriptor — 6.97:1 on slate-900. */
+    descriptorMuted: 'fill-slate-400',
   },
   link: {
     inactive: 'text-slate-300 hover:bg-white/5 hover:text-white',
@@ -1781,10 +1797,10 @@ export const pipelineStyles = {
     // REAL app chrome, TopNav (app/components/layout/TopNav.tsx, `h-14` = 56px).
     // 56 here is a deliberate deviation from the prototype's 52 so the shell's
     // min-height matches the actual viewport remainder under the app's TopNav.
-    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_56px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
+    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_76px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
     sidebar:
       // Sticky under the 56px TopNav so the section nav never scrolls away.
-      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-14 self-start h-[calc(100vh_-_56px)] overflow-y-auto',
+      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-[76px] self-start h-[calc(100vh_-_76px)] overflow-y-auto',
     sidebarTitle: cn(pipelineText.sidebarTitle, 'block px-2.5 pt-2 pb-2.5'),
     // Item base carries no text color/weight — idle/active own it (plain `cn` join
     // has no tailwind-merge, so overlapping utilities must never co-occur).

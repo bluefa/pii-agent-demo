@@ -267,13 +267,13 @@ export const ServiceManagementView = () => {
   }, []);
 
   return (
-    // Exact viewport minus the sticky 56px TopNav — `min-h-screen` here stacked a
-    // full 100vh under the nav, so the page scrolled 56px and the left panel ended
+    // Exact viewport minus the sticky 76px TopNav — `min-h-screen` here stacked a
+    // full 100vh under the nav, so the page scrolled 76px and the left panel ended
     // short of the bottom edge.
     // 바닥은 gray-50 이 아니라 앱 캔버스 — /target-sources 가 쓰는 바닥과 같아야
     // 같은 레일이 두 화면에서 같은 대비를 갖는다. gray-50 위에서는 흰 카드가
     // ΔE00 1.20(식별 한계 아래)이라 테두리에만 기대고 있었다.
-    <div className={cn('h-[calc(100vh-56px)]', serviceSidebarStyles.canvas)}>
+    <div className={cn('h-[calc(100vh-76px)]', serviceSidebarStyles.canvas)}>
       <div className="flex h-full">
         <ServiceSidebar
           services={services}
