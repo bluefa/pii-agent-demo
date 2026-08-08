@@ -23,6 +23,12 @@ export interface RawTargetSourceMetadata {
   is_sdu_type?: boolean;
   is_china_region?: boolean;
   grant_service_terraform_execution_permission?: boolean;
+  /** Provider 별 scan/terraform 주체 식별자 (v5 계약) — 없으면 미등록. */
+  aws_scan_role_arn?: string | null;
+  aws_terraform_execution_role_arn?: string | null;
+  azure_scan_app_id?: string | null;
+  gcp_scan_service_account?: string | null;
+  gcp_terraform_service_account?: string | null;
 }
 
 /**

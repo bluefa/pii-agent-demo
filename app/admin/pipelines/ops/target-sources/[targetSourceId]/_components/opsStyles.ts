@@ -32,6 +32,8 @@ export const opsStyles = {
   roleArn: 'text-[12px] text-[var(--pl-primary)] underline cursor-pointer [font-family:var(--pl-font-mono)] break-all text-left',
   roleEmpty: 'text-[12px] text-[var(--pl-text-faint)]',
   roleRegister: 'text-[12px] font-semibold text-[var(--pl-primary)] underline cursor-pointer',
+  /** Read-only 주체 값 (GCP SA·Azure App) — roleArn 과 같은 자리, 동작만 없다. */
+  roleValue: 'text-[12px] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] break-all',
 
   /** 협업 채널 — popover-style callout (Radix/shadcn grammar: white surface +
       border + soft shadow + border-matched arrow), pinned to the masthead's

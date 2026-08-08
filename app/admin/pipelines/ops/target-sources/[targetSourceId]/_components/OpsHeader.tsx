@@ -67,7 +67,10 @@ export function OpsHeader({
 
   const roleRow = (kind: RoleKind): ReactElement => {
     const verification = roles[kind];
-    const arn = verification?.role_arn;
+    // Verify 응답이 우선(판정까지 담는다); 없으면 v5 metadata 의 등록값으로 표시한다.
+    const arn =
+      verification?.role_arn
+      ?? (kind === 'scan' ? meta.aws_scan_role_arn : meta.aws_terraform_execution_role_arn);
     return (
       <div className={opsStyles.roleRow}>
         <span className={opsStyles.roleLabel}>{ROLE_META[kind].short}</span>
@@ -86,6 +89,18 @@ export function OpsHeader({
       </div>
     );
   };
+
+  /** Read-only 주체 행 (GCP SA·Azure App) — 등록/수정 계약이 없어 표시만 한다. */
+  const infoRow = (label: string, value: string | null | undefined): ReactElement => (
+    <div className={opsStyles.roleRow}>
+      <span className={opsStyles.roleLabel}>{label}</span>
+      {value ? (
+        <span className={opsStyles.roleValue}>{value}</span>
+      ) : (
+        <span className={opsStyles.roleEmpty}>미등록</span>
+      )}
+    </div>
+  );
 
   return (
     <div className={opsStyles.header}>
@@ -137,6 +152,18 @@ export function OpsHeader({
               {roleRow('scan')}
               {grantTfExecution && roleRow('execution')}
             </div>
+          )}
+
+          {/* GCP·Azure scan/terraform 주체 — AWS role 행과 같은 문법의 read-only 행.
+              수정은 AWS 만 계약이 있다 (scan-role/terraform-execution-role upsert). */}
+          {detail.cloud_provider === 'GCP' && (
+            <div className="mt-1">
+              {infoRow('Scan SA', meta.gcp_scan_service_account)}
+              {infoRow('TF SA', meta.gcp_terraform_service_account)}
+            </div>
+          )}
+          {detail.cloud_provider === 'AZURE' && (
+            <div className="mt-1">{infoRow('Scan App', meta.azure_scan_app_id)}</div>
           )}
         </div>
       </div>

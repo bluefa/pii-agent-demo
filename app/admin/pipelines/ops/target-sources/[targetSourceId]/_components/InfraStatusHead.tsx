@@ -21,9 +21,9 @@
  * job records; no Cloud SDK call is made, so this can legitimately disagree
  * with the real infrastructure — the strip's caption says so.
  *
- * `scripts[]` from the wire DTO is not rendered — the TerraformTaskScriptResponse
- * schema has not been published yet, so it is absent from install-v1.yaml.
- * `completed_at` is an ASSUMED field (owner directive) pending the real spec.
+ * The published TerraformTaskStatusResponse carries only execution side, task
+ * name, and state — the formerly ASSUMED fields (terraform_target,
+ * destroy_required, completed_at) did not land in the real spec.
  */
 import { useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -91,28 +91,12 @@ function TaskLine({ task }: { task: TerraformTaskStatus }): ReactElement {
       <span className="min-w-[178px] font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]">
         {task.terraform_task_name ?? '-'}
       </span>
-      <span className="min-w-[130px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]">
-        {task.terraform_target ?? '-'}
-      </span>
       <span className={opsStyles.regionTag}>
         {SIDE_LABEL[task.terraform_execution_side ?? ''] ?? task.terraform_execution_side ?? '-'}
       </span>
       <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, TONE[tone].pill)}>
         {label}
       </span>
-      {task.destroy_required && (
-        <span className="inline-flex items-center gap-1 font-medium text-[var(--pl-err-text)]">
-          <Icon name="warn-tri" size="sm" />
-          삭제 필요
-        </span>
-      )}
-      {/* Only a finished job carries a completion time — an unfinished line
-          simply omits it rather than showing a placeholder dash. */}
-      {task.completed_at && (
-        <span className="ml-auto tabular-nums text-[var(--pl-text-weak)]">
-          {fmtDateTime(task.completed_at)}
-        </span>
-      )}
     </div>
   );
 }

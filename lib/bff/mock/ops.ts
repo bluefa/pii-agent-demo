@@ -125,16 +125,12 @@ const serviceGlobal = globalThis as typeof globalThis & {
 
 /**
  * 앞 두 서비스만 일부 provider 를 연결된 상태로 둔다 — 연결/미연결 두 타일 모양이 한
- * 화면에 같이 보여야 한다. 값은 실 BFF 처럼 티켓 주소를 싣는다(계약은 issueKey 문자열
- * 하나뿐이고 형식을 정하지 않는다): 키만 주면 화면의 "주소 뒤 조각만 표시" 경로가
- * 데모에서 한 번도 돌지 않는다.
+ * 화면에 같이 보여야 한다. store 는 티켓 키만 담는다 — 주소는 응답의 browseUrl 로
+ * BFF(여기서는 목)가 조립해 준다(v5 계약: issueKey 는 키, browseUrl 이 열 주소).
  */
 const SEED_JIRA: ReadonlyArray<Record<string, string>> = [
-  {
-    AWS: 'https://jira.example.com/some/path/BDCDIP-2211',
-    IDC: 'https://jira.example.com/some/path/BDCDIP-2103',
-  },
-  { AZURE: 'https://jira.example.com/some/path/BDCDIP-1799' },
+  { AWS: 'BDCDIP-2211', IDC: 'BDCDIP-2103' },
+  { AZURE: 'BDCDIP-1799' },
 ];
 
 const serviceCodes = (): string[] =>
@@ -214,17 +210,15 @@ export const mockOps = {
     });
   },
 
-  // PUT …/aws/scan-role | execution-role (assumed §3) — server composes the ARN.
-  putRole: async (targetSourceId: number, kind: 'scan' | 'execution', roleName: string) => {
+  // PUT …/aws/{scan-role|terraform-execution-role} — REAL upsert contract:
+  // AwsAssumeRoleUpsertRequest { roleArn } → AwsAssumeRoleUpsertResponse (camel).
+  putRole: async (targetSourceId: number, kind: 'scan' | 'execution', roleArn: string) => {
     const project = mockData.getProjectByTargetSourceId(targetSourceId);
     if (!project) return notFound();
     const state = getState(targetSourceId, project.processStatus);
-    const isChina = project.isChinaRegion ?? project.awsRegionType === 'china';
-    const partition = isChina ? 'aws-cn' : 'aws';
-    const roleArn = `arn:${partition}:iam::${accountId(project)}:role/${roleName}`;
     state.roleArns[kind] = roleArn;
     state.pendingVerify[kind] = true;
-    return NextResponse.json({ role_arn: roleArn });
+    return NextResponse.json({ targetSourceId, roleArn, readOnly: false });
   },
 
   // GET …/collaboration-channel (assumed §4) — 200 body is the channel or null.
@@ -280,7 +274,12 @@ const toJiraTicketResponse = (code: string, provider: string, issueKey: string) 
   serviceCode: code,
   issueKey,
   cloudProvider: provider,
+  // v5 계약 — 열 주소는 BFF 가 조립해 싣는다. 프론트는 이 값을 그대로 연다.
+  browseUrl: `https://jira.example.com/browse/${issueKey}`,
 });
+
+/** validate=true 로 흉내내는 Jira 존재 검증 — 키 형태가 아니면 없는 티켓으로 친다. */
+const JIRA_ISSUE_KEY_RE = /^[A-Z][A-Z0-9]*-\d+$/i;
 
 export const mockServiceJiraTickets = {
   // GET /services/{code}/jira-tickets → JiraTicketResponse[].
@@ -294,16 +293,15 @@ export const mockServiceJiraTickets = {
     );
   },
 
-  // POST /services/{code}/jira-tickets/{provider} { issueKey } → 204.
+  // POST /services/{code}/jira-tickets/{provider} { issueKey, validate } → 204.
   // 티켓을 만들지 않는다 — 이미 있는 issueKey 를 이 서비스·provider 에 매핑할 뿐.
-  attach: async (code: string, provider: string, issueKey: string) => {
+  attach: async (code: string, provider: string, issueKey: string, validate?: boolean) => {
     if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
-    // 넣는 값은 티켓 키지만 조회 응답에는 티켓 주소가 실려 온다 — 목도 같은 변환을 해야
-    // 연결 직후 화면이 실제(파란 링크)와 같아진다. 주소를 그대로 붙여넣은 경우는
-    // 두 번 감싸지 않는다(계약이 형태를 강제하지 않아 어느 쪽도 들어올 수 있다).
-    serviceState(code).jira[provider] = /^https?:\/\//i.test(issueKey)
-      ? issueKey
-      : `https://jira.example.com/browse/${issueKey}`;
+    // validate=true 면 실 BFF 가 Jira 에서 존재를 확인한다 — 목은 키 형태로 흉내낸다.
+    if (validate === true && !JIRA_ISSUE_KEY_RE.test(issueKey)) {
+      return notFound('Jira에서 티켓을 찾을 수 없습니다.');
+    }
+    serviceState(code).jira[provider] = issueKey;
     return new NextResponse(null, { status: 204 });
   },
 

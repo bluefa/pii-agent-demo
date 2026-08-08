@@ -3,7 +3,9 @@
 /**
  * Role 수정 modal (Figma 2:2). Name-only entry: the ARN is composed from the
  * account id + partition (China → aws-cn), so a whole class of ARN typos can't
- * happen. Saving resets the verification verdict (assumed contract §3).
+ * happen. The upsert contract takes the FULL ARN (AwsAssumeRoleUpsertRequest),
+ * so the composed value is what gets sent. Saving resets the verification
+ * verdict until the next verify.
  */
 import { useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -69,8 +71,10 @@ export function RoleEditModal({
     setSaving(true);
     setError(null);
     try {
-      const { role_arn: roleArn } = await updateAwsRole(targetSourceId, kind, trimmed);
-      onSaved(kind, roleArn);
+      const composedArn = `${prefix}${trimmed}`;
+      const saved = await updateAwsRole(targetSourceId, kind, composedArn);
+      // Loose schema — a null roleArn on the wire falls back to what we sent.
+      onSaved(kind, saved.roleArn ?? composedArn);
       onClose();
     } catch {
       setError('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');

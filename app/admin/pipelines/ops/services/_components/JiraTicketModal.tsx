@@ -19,7 +19,6 @@ import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { userErrorText } from '@/app/admin/pipelines/ops/services/_components/errorText';
-import { jiraTicketLink } from '@/lib/jira-ticket';
 import {
   attachJiraTicket,
   detachJiraTicket,
@@ -62,14 +61,17 @@ export function JiraTicketModal({
   issueKey,
   onDone,
 }: JiraTicketModalProps): ReactElement {
-  // 입력창의 초기값은 티켓 키다 — 조회 응답이 주소로 오더라도 사람이 넣는 값은 키다.
-  const initialValue = action === 'attach' && issueKey ? jiraTicketLink(issueKey).label : '';
+  // v5 계약 — issueKey 는 티켓 키 그대로다 (주소는 browseUrl 별도 필드).
+  const initialValue = action === 'attach' && issueKey ? issueKey : '';
   const [value, setValue] = useState(initialValue);
+  // JiraTicketAttachRequest.validate — 기본은 검증(존재하지 않는 키가 조용히 연결되지 않게).
+  const [validate, setValidate] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     setValue(initialValue);
+    setValidate(true);
     setError(null);
   }, [action, provider, initialValue]);
 
@@ -86,7 +88,7 @@ export function JiraTicketModal({
     setError(null);
     try {
       if (action === 'detach') await detachJiraTicket(serviceCode, provider);
-      else await attachJiraTicket(serviceCode, provider, value);
+      else await attachJiraTicket(serviceCode, provider, value, validate);
       onDone();
       onClose();
     } catch (err) {
@@ -103,7 +105,7 @@ export function JiraTicketModal({
   };
 
   const label = providerLabel(provider);
-  const ticketLabel = issueKey ? jiraTicketLink(issueKey).label : null;
+  const ticketLabel = issueKey;
 
   return (
     <ModalShell open onClose={onClose} labelledBy={TITLE_ID}>
@@ -150,6 +152,21 @@ export function JiraTicketModal({
               앞뒤에 공백이 있습니다. 공백을 지운 뒤 연결할 수 있습니다.
             </p>
           )}
+          {/* JiraTicketAttachRequest.validate — 계약이 제공하는 옵션을 그대로 노출한다. */}
+          <label className="mt-3 flex items-start gap-2 text-[14px] text-[var(--pl-text-medium)]">
+            <input
+              type="checkbox"
+              checked={validate}
+              onChange={(event) => setValidate(event.target.checked)}
+              className="mt-0.5 accent-[var(--pl-primary)]"
+            />
+            <span>
+              연결 전에 Jira 에서 티켓 존재를 확인
+              <span className="block text-[12px] text-[var(--pl-text-weak)]">
+                끄면 존재 확인 없이 입력한 키를 그대로 연결합니다.
+              </span>
+            </span>
+          </label>
         </>
       ) : (
         <>
