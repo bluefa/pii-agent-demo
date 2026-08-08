@@ -48,7 +48,8 @@ const ACCOUNT_ID = AWS_WIRE_CONFIRMED_ACCOUNT_ID;
  * 본 적이 없었다. 아래 두 응답의 배열 **맨 뒤에만** 이 한 건을 붙인다 — 캡처에서 온
  * 항목들은 한 글자도 바꾸지 않는다(이 파일이 존재하는 이유가 그것이다: 합성값을 섞으면
  * 실제로 비어 오는 칸을 가려 화면 검증을 못 하게 만든다).
- * `lib/mock-data.ts` 의 `ec2DemoResource` 와 같은 resource_id 로 조인된다.
+ * Admin 데모(`lib/bff/mock/task-queue.ts` 의 AWS 요청 2113)가 같은 resource_id 를 쓴다 —
+ * 서비스 화면과 관리자 화면이 같은 한 건을 두고 말하게 하려는 것이다.
  */
 const EC2_DEMO_RESOURCE_ID = 'i-0f39b7c15ad2e8046';
 const EC2_DEMO_RESOURCE_NAME = 'ip-10-30-2-71.ap-northeast-2.compute.internal';

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, render, screen } from '@testing-library/react';
-import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import type { Ec2Instance } from '@/app/lib/api/ec2';
 
 const { searchEc2Instances } = vi.hoisted(() => ({ searchEc2Instances: vi.fn() }));
@@ -38,7 +38,8 @@ const renderModal = (onAdd = vi.fn()) => {
 const search = async (value: string) => {
   const field = screen.getByLabelText('Instance ID 검색');
   await act(async () => {
-    field.dispatchEvent(new Event('input', { bubbles: true }));
+    // React 는 값이 실제로 달라졌을 때만 onChange 를 부르므로(input value tracking),
+    // 네이티브 setter 로 값을 먼저 바꾼 뒤 한 번만 알린다.
     Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!
       .set!.call(field, value);
     field.dispatchEvent(new Event('input', { bubbles: true }));
@@ -51,6 +52,12 @@ describe('Ec2AddModal — 검색 결과', () => {
   beforeEach(() => {
     searchEc2Instances.mockReset();
     vi.useFakeTimers();
+  });
+
+  // 가짜 타이머는 파일이 아니라 워커 단위로 남는다 — 되돌리지 않으면 뒤이어 도는 스위트가
+  // 이 파일 때문에 멈춘 시계 위에서 돌아간다.
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('접속 주소가 있는 결과는 추가할 수 있다', async () => {
