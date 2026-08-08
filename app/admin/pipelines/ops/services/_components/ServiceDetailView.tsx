@@ -436,19 +436,26 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
           Target Source 목록
           <span className={tsTable.badge}>{targetCount}건</span>
         </h2>
-        <p className={section.descFirst}>
+        {/* 한 줄로 못 박는다. 잘림 경고를 이 문단 안에 흘려 넣으면 경고가 붙는 순간
+            문단이 두 줄이 되어 아래 목록과 Jira 섹션이 통째로 내려간다 — 이 PR 이
+            없애려던 바로 그 증상이다. 경고는 아래 자기 줄에서 뜬다.
+            `truncate` 라 폭이 좁아도 두 줄로 번지지 않고, 전문은 title 에 남는다. */}
+        <p
+          className={cn(section.descFirst, 'truncate')}
+          title="이 서비스가 보유한 인프라입니다. 행을 누르면 해당 Target Source 운영 화면으로 이동합니다."
+        >
           이 서비스가 보유한 인프라입니다. 행을 누르면 해당 Target Source 운영 화면으로
           이동합니다.
-          {loadedCount < targetCount && (
-            // 조용히 자르지 않는다 — 목록이 총계보다 짧으면 그 사실을 문장으로 말한다.
-            <>
-              {' '}
-              <b className="font-semibold text-[var(--pl-warn-text)]">
-                대상이 많아 {loadedCount}건까지만 표시합니다.
-              </b>
-            </>
-          )}
         </p>
+        {/* 조용히 자르지 않는다 — 목록이 총계보다 짧으면 그 사실을 말한다. 다만 문장을
+            "대상이 많아"로 단정하지 않는다: 이 조건은 업스트림 페이지 상한뿐 아니라
+            대상 번호가 없는 행을 라우트가 걸러낼 때도 참이 되므로(route.ts), 원인을
+            지목하면 화면이 틀린 설명을 하게 된다. 건수만 사실대로 적는다. */}
+        {loadedCount < targetCount && (
+          <p className={cn(section.descFirst, 'truncate font-semibold text-[var(--pl-warn-text)]')}>
+            전체 {targetCount}건 중 {loadedCount}건만 표시합니다.
+          </p>
+        )}
 
         {/* 표 껍데기를 걷은 목록 — 테두리 블록도 툴바도 없다. 카드가 이 시트 위에 바로
             놓이고, 아래 가로줄 한 줄이 목록의 끝을 말한다. 검색·필터를 뺀 것도 같은
@@ -503,22 +510,24 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                    * flex-wrap 을 쓰지 않는 것이 중요하다 — GUID 두 개가 줄바꿈하면 카드가
                    * 120px 을 넘겨 잘린다. 좁아지면 줄이 늘어나는 대신 값이 잘린다. */}
                   <div className="flex min-w-0 items-center gap-x-5 pl-0.5">
-                    {account ? (
-                      <>
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <span className={cn(tsTable.metaLabel, 'flex-none')}>
-                            {account.label}
-                          </span>
-                          <span className={tsTable.account}>{account.value}</span>
-                        </span>
-                        {tenantId && (
-                          <span className="flex min-w-0 items-center gap-1.5">
-                            <span className={cn(tsTable.metaLabel, 'flex-none')}>Tenant</span>
-                            <span className={tsTable.account}>{tenantId}</span>
-                          </span>
-                        )}
-                      </>
-                    ) : (
+                    {account && (
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className={cn(tsTable.metaLabel, 'flex-none')}>{account.label}</span>
+                        <span className={tsTable.account}>{account.value}</span>
+                      </span>
+                    )}
+                    {/* Tenant 는 account 바깥에 둔다 — 계약이 두 필드를 각각 optional 로
+                        선언하므로 subscription_id 가 비고 tenant_id 만 오는 조합이 실제로
+                        가능하다. 안쪽에 두면 그 대상은 "계정 식별자 없음"이라고 말하면서
+                        이 줄이 실어 나르려던 값을 조용히 버린다. */}
+                    {tenantId && (
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className={cn(tsTable.metaLabel, 'flex-none')}>Tenant</span>
+                        <span className={tsTable.account}>{tenantId}</span>
+                      </span>
+                    )}
+                    {/* 둘 다 없을 때만 gloss — 2층은 어떤 경우에도 비지 않는다. */}
+                    {!account && !tenantId && (
                       <span className={tsTable.gloss}>{glossOf(target)}</span>
                     )}
                   </div>
@@ -631,7 +640,11 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                       {link.label} ↗
                     </a>
                   ) : (
-                    <span className={tileStyles.key}>{link.label}</span>
+                    // 열 곳이 없는 티켓 키도 truncate 된다 — 5열에서는 타일이 좁아져
+                    // 실제로 잘리므로, 링크 쪽과 같이 전문을 title 로 남긴다.
+                    <span className={tileStyles.key} title={link.label}>
+                      {link.label}
+                    </span>
                   )
                 ) : (
                   <span className={tileStyles.empty}>연결된 티켓 없음</span>

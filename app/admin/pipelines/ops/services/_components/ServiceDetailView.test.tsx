@@ -21,7 +21,11 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { ServiceDetailView } from '@/app/admin/pipelines/ops/services/_components/ServiceDetailView';
-import type { OpsServiceDetail, OpsServiceTargetRow } from '@/app/lib/api/ops';
+import type {
+  OpsServiceDetail,
+  OpsServiceTargetRow,
+  OpsTargetSourceAccount,
+} from '@/app/lib/api/ops';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -47,6 +51,20 @@ vi.mock('@/lib/min-duration', () => ({
 
 const PAGE_SIZE = 3;
 
+/**
+ * `as` 캐스트를 쓰지 않는다 — 캐스트가 있으면 계약에 필드가 늘어나도 픽스처가 그냥
+ * 통과해, 라우트가 그 필드 매핑을 빠뜨려도 테스트가 아무 말을 안 한다. 실제로
+ * `tenant_id` 가 그렇게 빠져 있었다. 타입을 그대로 맞춰 두면 컴파일이 먼저 잡는다.
+ */
+const meta = (over: Partial<OpsTargetSourceAccount> = {}): OpsTargetSourceAccount => ({
+  aws_account_id: null,
+  aws_region_type: null,
+  subscription_id: null,
+  tenant_id: null,
+  gcp_project_id: null,
+  ...over,
+});
+
 const target = (
   id: number,
   over: Partial<OpsServiceTargetRow> = {},
@@ -55,16 +73,17 @@ const target = (
   cloud_provider: 'AWS',
   is_sdu_type: false,
   description: `설명 ${id}`,
-  metadata: { aws_account_id: `00000000000${id % 10}` },
+  last_changed_at: '2026-08-01T00:00:00Z',
+  metadata: meta({ aws_account_id: `00000000000${id % 10}` }),
   ...over,
-} as OpsServiceTargetRow);
+});
 
 const detail = (rows: OpsServiceTargetRow[]): OpsServiceDetail => ({
   service_code: 'ORD',
   service_name: '주문서비스',
   total_count: rows.length,
   target_sources: rows,
-} as OpsServiceDetail);
+});
 
 /** Cards and ghosts alike — every child of the list that holds a slot. */
 const slotCount = () => {
@@ -113,6 +132,24 @@ describe('LIN-92 — 고정 높이 슬롯', () => {
     expect(screen.getByText('등록된 Target Source가 없습니다.')).toBeTruthy();
   });
 
+  it('카드와 빈 슬롯이 같은 높이 클래스를 쓴다', async () => {
+    // 슬롯 "개수"만 재는 테스트는 CARD_H 를 놓친다 — 빈 슬롯에서 높이를 빼도 개수는
+    // 그대로라 전부 green 이다. 그런데 카드와 빈 슬롯이 어긋난 것이 실제로 일어난 일이고
+    // (min-h 로 뒀을 때 1.6px), 높이를 한 값으로 묶는 것이 이 화면의 메커니즘이다.
+    await renderWith([target(4101), target(4102)]);
+    const section = screen.getByLabelText('Target Source 목록');
+    const slots = [
+      ...section.querySelectorAll('div.group'),
+      ...section.querySelectorAll('div[class*="border-dashed"]'),
+    ];
+    expect(slots).toHaveLength(PAGE_SIZE);
+    const heights = slots.map(
+      (s) => (s.className.match(/(?:^|\s)(h-\[\d+px\])/) ?? [])[1] ?? '(none)',
+    );
+    expect(new Set(heights).size).toBe(1);
+    expect(heights[0]).toMatch(/^h-\[\d+px\]$/);
+  });
+
   it('페이지가 하나뿐이어도 페이지 바는 자리를 지킨다', async () => {
     await renderWith([target(4101)]);
     expect(await screen.findByText('1/1 페이지')).toBeTruthy();
@@ -126,7 +163,7 @@ describe('LIN-92 — 카드는 언제나 3층', () => {
   it('계정도 설명도 없는 대상이 두 줄을 모두 채운다', async () => {
     // 이 카드가 2층으로 줄어들던 것이 높이가 흔들리던 진짜 원인이었다.
     await renderWith([
-      target(4104, { cloud_provider: 'IDC', metadata: {}, description: '' } as Partial<OpsServiceTargetRow>),
+      target(4104, { cloud_provider: 'IDC', metadata: meta(), description: '' }),
     ]);
     const card = screen.getByLabelText('Target Source 목록').querySelector('div.group');
     expect(card).not.toBeNull();
@@ -140,15 +177,55 @@ describe('LIN-92 — 카드는 언제나 3층', () => {
   it('SDU 행은 밑에 깔린 CSP 계정을 내보이지 않는다', async () => {
     // 1층이 SDU 라고 말하는데 2층이 AWS Account 를 적으면 한 카드가 두 말을 한다.
     await renderWith([
-      target(4107, { is_sdu_type: true, metadata: { aws_account_id: '000000000007' } } as Partial<OpsServiceTargetRow>),
+      target(4107, { is_sdu_type: true, metadata: meta({ aws_account_id: '000000000007' }) }),
     ]);
     const card = screen.getByLabelText('Target Source 목록').querySelector('div.group') as HTMLElement;
     expect(within(card).queryByText('000000000007')).toBeNull();
     expect(within(card).getByText('서비스 담당자가 데이터를 직접 업로드')).toBeTruthy();
   });
 
+  it('Azure 의 Tenant 를 구독 옆에 싣는다', async () => {
+    await renderWith([
+      target(4105, {
+        cloud_provider: 'AZURE',
+        metadata: {
+          aws_account_id: null,
+          aws_region_type: null,
+          subscription_id: 'sub-0001',
+          tenant_id: 'tnt-0001',
+          gcp_project_id: null,
+        },
+      }),
+    ]);
+    const card = screen.getByLabelText('Target Source 목록').querySelector('div.group') as HTMLElement;
+    expect(within(card).getByText('sub-0001')).toBeTruthy();
+    expect(within(card).getByText('Tenant')).toBeTruthy();
+    expect(within(card).getByText('tnt-0001')).toBeTruthy();
+  });
+
+  it('구독이 없고 Tenant 만 와도 그 값을 버리지 않는다', async () => {
+    // 계약이 두 필드를 각각 optional 로 선언하므로 실제로 가능한 조합이다. 예전에는
+    // Tenant 가 account 분기 안에 있어, 이 대상은 "계정 식별자 없음"이라고 말하면서
+    // 가진 값을 조용히 버렸다.
+    await renderWith([
+      target(4109, {
+        cloud_provider: 'AZURE',
+        metadata: {
+          aws_account_id: null,
+          aws_region_type: null,
+          subscription_id: null,
+          tenant_id: 'tnt-0009',
+          gcp_project_id: null,
+        },
+      }),
+    ]);
+    const card = screen.getByLabelText('Target Source 목록').querySelector('div.group') as HTMLElement;
+    expect(within(card).getByText('tnt-0009')).toBeTruthy();
+    expect(within(card).queryByText('계정 식별자 없음')).toBeNull();
+  });
+
   it('계정 식별자가 없는 비-IDC 대상은 사내망이라고 둘러대지 않는다', async () => {
-    await renderWith([target(4106, { metadata: {} } as Partial<OpsServiceTargetRow>)]);
+    await renderWith([target(4106, { metadata: meta() })]);
     const card = screen.getByLabelText('Target Source 목록').querySelector('div.group') as HTMLElement;
     expect(within(card).getByText('계정 식별자 없음')).toBeTruthy();
   });
