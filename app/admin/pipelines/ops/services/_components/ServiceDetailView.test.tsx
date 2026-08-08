@@ -62,6 +62,7 @@ const meta = (over: Partial<OpsTargetSourceAccount> = {}): OpsTargetSourceAccoun
   subscription_id: null,
   tenant_id: null,
   gcp_project_id: null,
+  is_china_region: false,
   ...over,
 });
 
@@ -194,6 +195,7 @@ describe('LIN-92 — 카드는 언제나 3층', () => {
           subscription_id: 'sub-0001',
           tenant_id: 'tnt-0001',
           gcp_project_id: null,
+          is_china_region: false,
         },
       }),
     ]);
@@ -216,6 +218,7 @@ describe('LIN-92 — 카드는 언제나 3층', () => {
           subscription_id: null,
           tenant_id: 'tnt-0009',
           gcp_project_id: null,
+          is_china_region: false,
         },
       }),
     ]);
@@ -228,6 +231,41 @@ describe('LIN-92 — 카드는 언제나 3층', () => {
     await renderWith([target(4106, { metadata: meta() })]);
     const card = screen.getByLabelText('Target Source 목록').querySelector('div.group') as HTMLElement;
     expect(within(card).getByText('계정 식별자 없음')).toBeTruthy();
+  });
+});
+
+describe('중국 리전 · SDU 표기', () => {
+  it('is_china_region 이 참이면 계정 식별자가 없어도 중국 칩을 단다', async () => {
+    // 칩이 account 에 매달려 있었다 — SDU 는 account 를 비우므로, 중국인 SDU 대상이
+    // 아무 표시 없이 그려졌다. 중국은 계정의 성질이 아니라 대상의 성질이다.
+    await renderWith([
+      target(4110, { is_sdu_type: true, metadata: meta({ is_china_region: true }) }),
+    ]);
+    const card = screen.getByLabelText('Target Source 목록').querySelector('div.group') as HTMLElement;
+    expect(within(card).getByText('중국')).toBeTruthy();
+    expect(within(card).getByText('SDU')).toBeTruthy();
+  });
+
+  it('is_china_region 이 거짓이면 칩을 달지 않는다', async () => {
+    await renderWith([target(4111, { metadata: meta({ aws_account_id: '000000000011' }) })]);
+    const card = screen.getByLabelText('Target Source 목록').querySelector('div.group') as HTMLElement;
+    expect(within(card).queryByText('중국')).toBeNull();
+  });
+
+  it('cloudProvider 가 SDU 로 와도 SDU 로 취급한다', async () => {
+    // 계약은 SDU 를 두 자리에서 말한다 — metadata.is_sdu_type 과 cloudProvider enum.
+    // 플래그만 보면 이 행만 다른 규칙으로 그려진다.
+    await renderWith([
+      target(4112, {
+        cloud_provider: 'SDU',
+        is_sdu_type: false,
+        metadata: meta({ aws_account_id: '000000000012' }),
+      }),
+    ]);
+    const card = screen.getByLabelText('Target Source 목록').querySelector('div.group') as HTMLElement;
+    expect(within(card).getByText('SDU')).toBeTruthy();
+    expect(within(card).getByText('서비스 담당자가 데이터를 직접 업로드')).toBeTruthy();
+    expect(within(card).queryByText('000000000012')).toBeNull();
   });
 });
 

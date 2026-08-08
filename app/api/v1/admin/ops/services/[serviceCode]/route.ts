@@ -63,6 +63,10 @@ function toAccount(meta: TargetSourceInfoWire['metadata']): OpsTargetSourceAccou
     // Azure 의 두 번째 식별자. 계약에 선언돼 있는데 여기서 추리며 빠져 있었다.
     tenant_id: meta?.tenant_id ?? null,
     gcp_project_id: meta?.gcp_project_id ?? null,
+    // 계약 값을 그대로. `aws_region_type` 처럼 `aws_account_id` 유무로 가르지 않는다 —
+    // SDU 대상은 계정 식별자 없이 오면서도 중국일 수 있고, 그 경우 중국이라는 사실이
+    // 파생 단계에서 조용히 사라졌다.
+    is_china_region: meta?.is_china_region === true,
   };
 }
 

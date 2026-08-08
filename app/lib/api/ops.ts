@@ -86,6 +86,14 @@ export interface OpsTargetSourceAccount {
    */
   tenant_id: string | null;
   gcp_project_id: string | null;
+  /**
+   * 계약 필드를 그대로 나른다 (TargetSourceMetadata.is_china_region).
+   *
+   * `aws_region_type` 에서 읽지 않는 이유: 그 값은 라우트가 `aws_account_id` 가 있을
+   * 때만 파생시키는데, SDU 대상은 계정 식별자 없이 오면서도 중국일 수 있다. 파생값을
+   * 거치면 그런 행에서 중국이라는 사실이 조용히 사라진다.
+   */
+  is_china_region: boolean;
 }
 
 export interface OpsTargetSourceListItem {

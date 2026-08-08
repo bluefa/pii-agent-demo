@@ -1033,11 +1033,14 @@ mockProjects.push({
   targetSourceId: 1099,
   projectCode: 'SDU-001',
   name: 'SDU PII Agent - 데모 대상',
-  description: 'SDU 계정 대상. 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.',
+  description: 'SDU 계정 대상(중국 리전). 하위 CSP(AWS)와 무관하게 SDU 로 표기됩니다.',
   serviceCode: 'SDU',
   cloudProvider: 'AWS',
   awsAccountId: '210987654321',
-  awsRegionType: 'global',
+  // 중국 리전 SDU — 두 표기가 겹치는 경우가 목에 하나도 없어, 중국 칩이 SDU 행에서
+  // 도는지 화면으로 볼 수가 없었다. 나머지 SDU 대상(1100)은 global 로 남긴다.
+  awsRegionType: 'china',
+  isChinaRegion: true,
   isSduType: true,
   processStatus: ProcessStatus.INSTALLATION_COMPLETE,
   status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, { selectedCount: 1 }),

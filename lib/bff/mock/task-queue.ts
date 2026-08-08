@@ -727,8 +727,12 @@ function toMetadataWire(r: RequestRow) {
  */
 function projectToTargetSourceInfoWire(project: (typeof mockData.mockProjects)[number]) {
   const isSdu = project.isSduType === true;
-  // IDC·SDU 는 CSP 계정이 없는 것이 정상 — 전 필드 null 이어야 카드가 gloss 로 간다.
-  const accountless = isSdu || project.cloudProvider === 'IDC';
+  /**
+   * IDC 만 계정이 없다. SDU 는 하부 CSP 의 식별자를 그대로 싣는다 — 그것을 가려서
+   * "SDU" 로만 보이게 하는 것은 화면의 판단이고, 목이 미리 비워 버리면 그 판단이
+   * 목에서는 한 번도 돌지 않는다. 가릴 것이 없으면 마스킹이 맞는지 볼 수 없다.
+   */
+  const accountless = project.cloudProvider === 'IDC';
   return {
     targetSourceId: project.targetSourceId,
     serviceName:
