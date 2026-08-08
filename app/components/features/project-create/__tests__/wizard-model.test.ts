@@ -126,14 +126,28 @@ describe('isStepComplete — step gating', () => {
   it('blocks step 2 until every required credential is present and well-formed', () => {
     expect(isStepComplete(2, baseState({ fields: {} }))).toBe(false);
     expect(isStepComplete(2, baseState({ fields: { payerAccount: '12345' } }))).toBe(false);
-    expect(isStepComplete(2, baseState({ fields: { payerAccount: '123456789012' } }))).toBe(true);
+    // The description is required everywhere — an account id alone no longer passes.
+    expect(isStepComplete(2, baseState({ fields: { payerAccount: '123456789012' } }))).toBe(false);
+    expect(
+      isStepComplete(
+        2,
+        baseState({ fields: { payerAccount: '123456789012', description: '결제 운영계' } }),
+      ),
+    ).toBe(true);
   });
 
   it('treats the optional AWS linked account as optional but still validates its format', () => {
-    const valid = baseState({ fields: { payerAccount: '123456789012' } });
+    const valid = baseState({
+      fields: { payerAccount: '123456789012', description: '결제 운영계' },
+    });
     expect(isStepComplete(2, valid)).toBe(true);
     expect(
-      isStepComplete(2, baseState({ fields: { payerAccount: '123456789012', linkedAccount: '99' } })),
+      isStepComplete(
+        2,
+        baseState({
+          fields: { payerAccount: '123456789012', description: '결제 운영계', linkedAccount: '99' },
+        }),
+      ),
     ).toBe(false);
   });
 

@@ -43,19 +43,10 @@ const azureGuidField = (name: string, label: string, helper: string): Credential
   validate: validateGuid,
 });
 
-const optionalDescriptionField = (): CredentialFieldDef => ({
+const descriptionField = (label: string): CredentialFieldDef => ({
   name: 'description',
-  label: '설명',
+  label,
   placeholder: '이 인프라를 알아볼 수 있는 짧은 설명',
-  helper: '선택 입력',
-  optional: true,
-  full: true,
-});
-
-const requiredDescriptionField = (placeholder: string): CredentialFieldDef => ({
-  name: 'description',
-  label: '인프라 설명',
-  placeholder,
   helper: '어떤 인프라인지 알아볼 수 있게 적어 주세요',
   full: true,
 });
@@ -73,12 +64,12 @@ export const CREDENTIAL_FIELDS: Record<ProviderChipKey, CredentialFieldDef[]> = 
       '선택 입력 — 연결된 하위 계정이 있다면 입력해 주세요',
       true,
     ),
-    optionalDescriptionField(),
+    descriptionField('설명'),
   ],
   azure: [
     azureGuidField('tenantId', 'Tenant ID', 'Microsoft Entra ID의 테넌트 식별자'),
     azureGuidField('subscriptionId', 'Subscription ID', '연결할 구독의 식별자'),
-    optionalDescriptionField(),
+    descriptionField('설명'),
   ],
   gcp: [
     {
@@ -88,10 +79,10 @@ export const CREDENTIAL_FIELDS: Record<ProviderChipKey, CredentialFieldDef[]> = 
       helper: 'Project Number가 아닌 Project ID를 입력해 주세요',
       full: true,
     },
-    optionalDescriptionField(),
+    descriptionField('설명'),
   ],
-  idc: [requiredDescriptionField('예: 판교 IDC 3층 결제 DB 존')],
-  other: [requiredDescriptionField('예: 온프레미스 Kubernetes 클러스터')],
+  idc: [descriptionField('인프라 설명')],
+  other: [descriptionField('인프라 설명')],
 };
 
 export const credentialFieldError = (

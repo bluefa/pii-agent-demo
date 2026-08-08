@@ -1,6 +1,5 @@
 'use client';
 
-import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
@@ -26,6 +25,7 @@ import {
   borderColors,
   chipStyles,
   cn,
+  idcStyles,
   primaryColors,
   rowLabelColor,
   statusColors,
@@ -121,9 +121,37 @@ export const Step4Review = ({ candidates, installMode, busy, error }: Step4Revie
       </p>
 
       {busy && (
-        <div className={cn('flex items-center gap-2 py-10 text-sm', textColors.tertiary)}>
-          <LoadingSpinner />
-          연동 구성을 확인하고 있어요.
+        // Mirrors the settled layout below — count line, then candidate cards at the
+        // /services row geometry — so nothing reflows when the response lands. Two
+        // frames because the outcome is at most two accounts; the skeleton must not
+        // answer how many, so both stay identical and unnumbered.
+        <div role="status" aria-busy="true" aria-label="연동 구성을 확인하는 중">
+          <div
+            className={cn(
+              idcStyles.skeletonBar,
+              'mb-3.5 h-[42px] max-w-[640px] rounded-[10px]',
+            )}
+          />
+          <div className="flex max-w-[640px] flex-col gap-2.5">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div
+                key={i}
+                aria-hidden="true"
+                className={cn(
+                  'flex items-center gap-3.5 rounded-[12px] border px-[21px] py-[19px]',
+                  bgColors.surface,
+                  borderColors.card,
+                )}
+              >
+                <div className={cn(idcStyles.skeletonBar, 'h-16 w-16 shrink-0 rounded-[12px]')} />
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <div className={cn(idcStyles.skeletonBar, 'h-6 w-[300px] max-w-full rounded')} />
+                  <div className={cn(idcStyles.skeletonBar, 'h-[21px] w-[240px] max-w-full rounded')} />
+                  <div className={cn(idcStyles.skeletonBar, 'h-8 w-full rounded-lg')} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
