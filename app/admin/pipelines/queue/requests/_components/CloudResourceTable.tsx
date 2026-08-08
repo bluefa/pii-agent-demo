@@ -76,7 +76,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             {/* Resource ID's text caps at 300px (resId.text), so its column was sitting
                 on ~150px it could not use. Spent here: names differ in their TAIL
                 (…-cluster-001 / -002), which is exactly what truncation eats first. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[360px]')}>Resource Name</th>
+            <th className={cn(table.approvalHeaderCell, table.nameCell, 'w-[360px]')}>Resource Name</th>
             <th className={table.approvalHeaderCell}>Resource ID</th>
             <th className={cn(table.approvalHeaderCell, 'w-[120px] whitespace-nowrap')}>Database Type</th>
             <th className={cn(table.approvalHeaderCell, 'w-[130px]')}>Region</th>
@@ -122,6 +122,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                 <td
                   className={cn(
                     table.approvalCell,
+                    table.nameCell,
                     // 14, the size WaitingApprovalTable and the IDC table give their own
                     // identity column — it was rendering at the attribute tier.
                     'font-mono text-[14px]',

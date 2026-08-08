@@ -445,7 +445,7 @@ export const ConnectionTestCard = ({
                     other column is either that anchor or an action. Step 4 drops the same class of
                     column for the same reason. */}
                 <tr className="whitespace-nowrap">
-                  <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
+                  <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
                   <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
                   <th className={idcStyles.table.approvalHeaderCell}>Region</th>
                   <th className={idcStyles.table.approvalHeaderCell}>
@@ -504,6 +504,7 @@ export const ConnectionTestCard = ({
                       <td
                         className={cn(
                           idcStyles.table.approvalCell,
+                          idcStyles.table.nameCell,
                           'font-mono text-[14px]',
                           textColors.primary,
                           NAME_LIFT,

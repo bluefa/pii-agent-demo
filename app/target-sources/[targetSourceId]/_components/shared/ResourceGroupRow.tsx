@@ -63,6 +63,7 @@ export const ResourceGroupRow = ({
       <td
         className={cn(
           idcStyles.table.approvalCell,
+          idcStyles.table.nameCell,
           expanded && idcStyles.table.group.parentCell,
         )}
       >

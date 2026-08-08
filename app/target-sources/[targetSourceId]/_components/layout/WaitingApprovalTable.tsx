@@ -439,6 +439,9 @@ export const WaitingApprovalTable = memo(
                   excluded,
                   resource.integrationCategory === 'INSTALL_INELIGIBLE',
                 ),
+              // A grouped child's indent already carries the column's 22px — the two padding
+              // tokens must never both land on one cell.
+              !grouped && idcStyles.table.nameCell,
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
               (instancesOpen || (folded && open)) && idcStyles.table.group.parentCell,
@@ -806,7 +809,7 @@ export const WaitingApprovalTable = memo(
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}
               <tr className="whitespace-nowrap">
-                <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
+                <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
                 {/* Step 4 drops the two attribute columns: the engine was settled back on
                     steps 1·2 and the install runs the same either way, and the region is a
