@@ -39,7 +39,10 @@ export const ExclusionReason = ({
   // enum 을 찾는다 — 어느 쪽으로 들어와도 코드가 아니라 한국어 한 줄이 보여야 한다.
   const code =
     normalizeRecommendFailReason(recommendFailReason) ?? normalizeRecommendFailReason(reason);
-  const text = code ? RECOMMEND_FAIL_REASON_LABEL[code] : reason;
+  // 계약에 없는 판정 코드는 라벨을 지어내지 않고 원문 그대로 세운다. `recommendFailReason` 까지
+  // 떨어지는 이 마지막 단계가 없으면, enum 이 늘어난 순간 그 행의 사유 칸이 통째로 비어
+  // "왜 빠졌는지 아무도 말해주지 않는" 상태가 된다.
+  const text = code ? RECOMMEND_FAIL_REASON_LABEL[code] : (reason ?? recommendFailReason);
   if (!text) return null;
 
   return (
