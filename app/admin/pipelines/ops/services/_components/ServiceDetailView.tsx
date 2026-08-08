@@ -17,7 +17,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { borderColors, cn, pipelineStyles, tableRowLift } from '@/lib/theme';
 import { holdFor, SKELETON_MIN_MS } from '@/lib/min-duration';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
@@ -73,14 +73,16 @@ const tsTable = {
    * 다르게 그릴 이유가 없고, 표 껍데기(테두리 블록 · 툴바 · 표 푸터 바)를 걷어내면
    * 남는 것이 곧 그 카드다.
    *
-   * 흰 시트 위의 흰 카드라 면이 아니라 테두리로 선다. borderColors.card 를 그대로
-   * 쓰는 이유: --pl-border(#E4E7EC)는 흰 바닥 위에서 카드를 거의 지우고, 저쪽 화면이
-   * 같은 문제를 풀며 고른 값이 이미 있다.
+   * 흰 시트 위의 흰 카드라 면이 아니라 테두리로 선다. `--pl-border` 는 흰 바닥 위에서
+   * 카드를 거의 지우므로, 저쪽 화면이 같은 문제를 풀며 고른 `borderColors.card` 를
+   * 그대로 쓴다. hover 도 같은 출처(`tableRowLift.card`, EC2 태그의 보라)다.
    */
-  card:
-    'group relative flex items-start gap-3.5 overflow-hidden rounded-[12px] border border-[#D6DBE6] '
-    + 'bg-[var(--pl-bg-card)] px-[21px] py-[19px] cursor-pointer transition-colors '
-    + 'hover:bg-[#F3EEFF] focus-within:bg-[#F3EEFF]',
+  card: cn(
+    'group relative flex items-start gap-3.5 overflow-hidden rounded-[12px] border',
+    'bg-[var(--pl-bg-card)] px-[21px] py-[19px] cursor-pointer transition-colors',
+    borderColors.card,
+    tableRowLift.card,
+  ),
   /** 빈 슬롯 — 카드가 아니라 카드가 놓일 자리다. 점선 한 겹으로만 말한다. */
   ghost: 'rounded-[12px] border border-dashed border-[var(--pl-border)]',
   /**
@@ -116,7 +118,7 @@ const tsTable = {
 /**
  * 제목 옆 ServiceCode 칩 — 회색. 이름 위 분류 태그가 파랑을 쓰므로 여기까지 primary 면
  * 머리에 파란 것이 둘이라 어느 쪽이 분류인지 흐려진다. 값을 읽는 칩은 한 단 낮춘다
- * (#344054 on #F2F4F7 = 9.49:1). opsStyles.tag 에 색만 덧칠하지 않는 이유: cn 은 단순
+ * (text-medium on gray-100 = 9.49:1). opsStyles.tag 에 색만 덧칠하지 않는 이유: cn 은 단순
  * join 이라 bg 클래스가 겹치면 어느 쪽이 이기는지 CSS 순서에 달린다.
  */
 const codeChip =
@@ -271,7 +273,8 @@ function DetailSkeleton(): ReactElement {
               key={i}
               aria-hidden="true"
               className={cn(
-                'flex items-start gap-3.5 rounded-[12px] border border-[#D6DBE6]',
+                'flex items-start gap-3.5 rounded-[12px] border',
+                borderColors.card,
                 'bg-[var(--pl-bg-card)] px-[21px] py-[19px]',
                 CARD_H,
               )}
