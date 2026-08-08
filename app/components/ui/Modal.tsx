@@ -46,6 +46,11 @@ export interface ModalProps {
    * backdrop click and ESC still close it. Every other caller keeps the default.
    */
   closeButton?: boolean;
+  /**
+   * Title→subtitle gap. 'tight' (12px) for a one-line subtitle that names the
+   * modal's subject rather than explaining it; default is the shared 16px.
+   */
+  subtitleGap?: 'default' | 'tight';
   /** 푸터 영역 (버튼 등) */
   footer?: ReactNode;
   /**
@@ -107,6 +112,7 @@ export const Modal = ({
   ariaLabel,
   children,
   closeButton = true,
+  subtitleGap = 'default',
   footer,
   footerDivider = true,
   closeOnBackdropClick = true,
@@ -186,7 +192,9 @@ export const Modal = ({
     : isToss
       ? modalStyles.toss.title
       : cn('text-base font-bold', textColors.primary);
-  const subtitleCls = isToss ? modalStyles.toss.subtitle : cn('text-sm', textColors.tertiary);
+  const subtitleCls = isToss
+    ? (subtitleGap === 'tight' ? modalStyles.toss.subtitleTight : modalStyles.toss.subtitle)
+    : cn('text-sm', textColors.tertiary);
   const bodyCls = isCompact ? modalStyles.toss.compact.body : isToss ? modalStyles.toss.body : 'p-6';
   const footerCls = isToss
     ? modalStyles.toss.footer

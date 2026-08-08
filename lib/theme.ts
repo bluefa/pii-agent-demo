@@ -573,6 +573,10 @@ export const modalStyles = {
        #8B95A1 measured 3.04:1 on white and read as washed out; #6B7280 is 4.83:1 on the
        same quiet tier. */
     subtitle: 'mt-4 text-[14px] font-medium leading-[1.6] text-[#6B7280]',
+    /* 한 줄짜리 부제를 쓰는 모달의 12px 변형. mt 만 다른 완전한 문자열로 둔다 —
+       cn 은 단순 join 이라 같은 속성을 겹쳐 쓰면 어느 쪽이 이길지 클래스 순서로
+       정해지지 않는다(Tailwind 가 CSS 에 찍는 순서가 결정한다). */
+    subtitleTight: 'mt-3 text-[14px] font-medium leading-[1.6] text-[#6B7280]',
     body: 'px-10 pt-7 pb-2',
     footer: 'px-10 pt-5 pb-6 border-t border-[#EBEEF2] bg-white flex justify-end gap-2.5',
     iconBase: 'w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0',
@@ -1171,9 +1175,10 @@ export const ec2Styles = {
    * 두 단계가 함께 서는 고정 높이 틀. 검색 결과 수(0~5건)나 SID 필드 유무로 모달이
    * 커졌다 작아지면 같은 자리의 버튼이 매번 다른 좌표에 서서 화면이 흔들린다 —
    * 가장 큰 상태(결과 5건 / Oracle 설정)에 맞춰 높이를 잠근다.
-   * -mt-3: 본문 기본 상단 여백 28px 를 부제와의 16px 로 당긴다.
+   * -mt-3.5: 본문 기본 상단 여백 28px 를 14px 로 당겨, 헤더 아래 여백 6px 과 합쳐
+   * 부제→검색창 20px 을 만든다.
    */
-  stepFrame: '-mt-3 h-[452px] overflow-y-auto',
+  stepFrame: '-mt-3.5 h-[452px] overflow-y-auto',
   /** 검색 결과 한 행. */
   resultRow:
     'flex items-center justify-between gap-3 rounded-xl border border-[#EBEEF2] bg-white px-3.5 py-2.5 transition-colors hover:border-[#D6E7FF] hover:bg-[#F8FAFF]',
@@ -1187,7 +1192,7 @@ export const ec2Styles = {
   /** 안내 블록 — 결과 목록이 쓰는 자리를 끝까지 채운다(h-full). 목록이 있을 때와
    *  없을 때 같은 면적이라야 결과가 오가도 모달 안이 뛰지 않는다. */
   stateBox: 'flex h-full flex-col items-center justify-center gap-1 rounded-xl bg-[#F7F8FA] px-4 text-center',
-  stateTitle: 'text-[14px] font-semibold text-[#4E5968]',
+  stateTitle: 'text-[16px] font-semibold text-[#4E5968]',
   stateDesc: 'text-[12px] text-[#6B7280]',
   /** 폼 필드 라벨 (IDC 폼의 라벨과 같은 자리, 짝수 스케일). */
   fieldLabel: 'mb-1.5 block text-[12px] font-medium text-[#4E5968]',

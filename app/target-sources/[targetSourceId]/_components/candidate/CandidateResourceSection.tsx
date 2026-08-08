@@ -462,6 +462,9 @@ export const CandidateResourceSection = ({
           // AWS 전용 입구, 그리고 스캔 결과 위에 서 있을 때만 — 검색이 조회하는 것은
           // "최근 스캔에서 발견된 인스턴스"라, 스캔 전에는 열어도 빈 결과뿐이다.
           const showEc2Add = provider === 'AWS' && !readonly && showStrip;
+          // 버튼은 표 위 툴바가 들고 있고, 툴바는 목록 화면에만 있다 — 안내 문구는
+          // 버튼이 실제로 보이는 이 조건을 그대로 따라간다.
+          const ec2AddVisible = showEc2Add && phase === 'list';
           // Counts only when the list is up: with no candidates they are all zero,
           // which is noise rather than information, and the band collapses to one
           // line. All three are in the candidate-DB unit (selected + excluded = eligible).
@@ -630,6 +633,17 @@ export const CandidateResourceSection = ({
                   리소스에는 <span className={primaryColors.text}>사유가 필요</span>하고, 결과는
                   관리자 승인을 거쳐 확정돼요.
                 </p>
+                {/* 스캔이 못 찾는 것을 먼저 말하고 그다음 어디를 누르는지 말한다 —
+                    버튼 이름만 알려주면 왜 눌러야 하는지는 여전히 모른다. 버튼이
+                    실제로 서 있는 목록 화면에서만 띄운다(가리킬 대상이 없으면 안내가
+                    아니라 오답이다). */}
+                {ec2AddVisible && (
+                  <p className={cn('mt-2 break-keep', cardStyles.subtitle)}>
+                    EC2에 직접 설치해 쓰는 데이터베이스는 스캔이 찾지 못해요. 아래 표 오른쪽 위{' '}
+                    <span className={cn(primaryColors.text, 'font-semibold')}>EC2 추가</span>에서
+                    Instance ID로 검색해 연동 대상에 넣을 수 있어요.
+                  </p>
+                )}
               </header>
 
               <div className={cardStyles.body}>

@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
-import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { CloseIcon, LockIcon, PlusIcon, SearchIcon } from '@/app/components/ui/icons';
 import { EC2_SEARCH_LIMIT, searchEc2Instances, type Ec2Instance } from '@/app/lib/api/ec2';
 import { VM_DATABASE_TYPES, vmDatabaseTypeByValue } from '@/lib/constants/vm-database';
-import { cn, ec2Styles, idcStyles, statusColors } from '@/lib/theme';
+import { cn, ec2Styles, idcStyles, primaryColors, statusColors } from '@/lib/theme';
 import { SectionLabel } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcTargetFormModal';
 import type { Ec2ConnectionConfig } from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
 
@@ -156,6 +155,8 @@ export const Ec2AddModal = ({
       chrome="toss"
       // 닫는 길은 푸터 버튼(닫기·이전·취소)이 이미 갖고 있다 — 헤더 ✕ 는 같은 말을 두 번.
       closeButton={false}
+      // 부제가 무엇을 하는 화면인지 한 줄로만 말하므로 제목에 붙여 둔다.
+      subtitleGap="tight"
       // 결과가 5건으로 묶여 있어 본문이 푸터 아래로 흐르지 않는다 — 구분선이 표시할
       // 경계 자체가 없다.
       footerDivider={false}
@@ -339,8 +340,23 @@ const Ec2SearchResults = ({
   if (search.status === 'loading') {
     return (
       <div className={ec2Styles.stateBox} aria-busy="true" aria-live="polite">
-        <LoadingSpinner />
-        <p className={ec2Styles.stateTitle}>검색하고 있어요</p>
+        {/* 스캔 러닝 화면(ScanRunningState)과 같은 휠 — 같은 앱에서 "기다리는 중"은
+            한 가지 모양이어야 한다. 트랙 + 아크, 같은 색의 투명도. */}
+        <div className={cn('animate-spin motion-reduce:animate-none', primaryColors.text)}>
+          <svg
+            className="h-8 w-8"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.2}
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="9" className="opacity-20" />
+            <path d="M12 3a9 9 0 0 1 9 9" />
+          </svg>
+        </div>
+        <p className={cn(ec2Styles.stateTitle, 'mt-3')}>검색하고 있어요</p>
       </div>
     );
   }
