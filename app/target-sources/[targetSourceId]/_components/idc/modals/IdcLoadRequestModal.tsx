@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal } from '@/app/components/ui/Modal';
-import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
+import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { useIdcPreviousRequest } from '@/app/hooks/useIdcPreviousRequest';
 import { usePagination } from '@/app/hooks/usePagination';
@@ -138,13 +138,12 @@ export const IdcLoadRequestModal = ({
                       </td>
                       <td className="w-[180px] px-4 py-3">
                         {r.excluded ? (
-                          // 판정 위, 사유 아래 — 180px 열에 두 값을 가로로 세우면 사유가 먼저 잘린다.
-                          <span className="flex min-w-0 flex-col items-start gap-1">
+                          // flex + min-w-0 bounds the reason chip to the column so a long
+                          // 제외 사유 truncates (with ellipsis) instead of spilling past the
+                          // row; the full text stays in the chip's hover tip.
+                          <span className="flex min-w-0 items-center gap-2">
                             <IdcTargetPill excluded />
-                            <ExclusionReason
-                              reason={r.exclusionReason}
-                              maxWidthClass="max-w-[160px]"
-                            />
+                            {r.exclusionReason ? <ReasonChipInline reason={r.exclusionReason} /> : null}
                           </span>
                         ) : (
                           <IdcTargetPill excluded={false} />

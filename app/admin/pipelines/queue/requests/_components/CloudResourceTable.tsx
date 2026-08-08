@@ -4,7 +4,7 @@
  * CloudResourceTable — P3 비-IDC (AWS 등) 연동 대상 리소스.
  *
  * Uses the app-side approval table itself — `idcStyles.table` chrome, the shared
- * ROW_* hover/lift tokens and ExclusionReason — so the admin and the service owner
+ * ROW_* hover/lift tokens and ReasonChipInline — so the admin and the service owner
  * read one request through one design. Column order is Step 2's: identity (name →
  * id) → attributes (type · region) → decision (verdict → reason).
  *
@@ -16,7 +16,7 @@ import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
+import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import {
   CELL_LIFT,
@@ -25,6 +25,7 @@ import {
   ROW_EXCLUDED,
   ROW_TARGET,
   TargetPill,
+  clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import {
@@ -189,12 +190,12 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                 </td>
                 <td className={cn(table.approvalCell, 'text-sm')}>
                   {/* A 대상 row has no reason to give — blank, not an em-dash, which
-                      would read as "this should have had one and it is missing". */}
-                  {excluded && (
-                    <ExclusionReason
-                      reason={row.exclusionReason ?? undefined}
-                      recommendFailReason={row.recommendFailReason ?? undefined}
-                      maxWidthClass="max-w-[220px]"
+                      would read as "this should have had one and it is missing". The
+                      chip clamps and the full sentence lives in its floating tip. */}
+                  {excluded && row.exclusionReason && (
+                    <ReasonChipInline
+                      reason={row.exclusionReason}
+                      summary={clampReason(row.exclusionReason)}
                     />
                   )}
                 </td>

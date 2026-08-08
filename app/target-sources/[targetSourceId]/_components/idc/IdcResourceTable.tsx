@@ -3,7 +3,7 @@
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
-import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
+import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
 import { IDC_SOURCE_IP_TOOLTIP } from '@/lib/constants/idc';
 import type { IdcInstallStatus, IdcResourceView } from '@/app/lib/api/idc';
@@ -23,6 +23,7 @@ import {
   ROW_EXCLUDED,
   ROW_TARGET,
   TargetPill,
+  clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { LogicalDbCountMap } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
@@ -222,8 +223,11 @@ export const IdcResourceTable = ({
                     </td>
                     {/* Blank, not an em-dash: a 대상 row can never carry a reason. */}
                     <td className={cn(skin.cell, 'text-sm')}>
-                      {r.excluded ? (
-                        <ExclusionReason reason={r.exclusionReason} maxWidthClass="max-w-[200px]" />
+                      {r.excluded && r.exclusionReason ? (
+                        <ReasonChipInline
+                          reason={r.exclusionReason}
+                          summary={clampReason(r.exclusionReason)}
+                        />
                       ) : null}
                     </td>
                   </>

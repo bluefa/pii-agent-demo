@@ -1,7 +1,7 @@
 /**
  * IdcResourceTable — P3 IDC 연동 대상 리소스 + NLB 배정 (design-spec §3), rendered
  * with the app-side IDC step-1 table itself — `idcStyles.table` chrome, the shared
- * ROW_* hover/lift tokens, ExclusionReason — so the admin reads the request the
+ * ROW_* hover/lift tokens, ReasonChipInline — so the admin reads the request the
  * service owner submitted through the same design, plus the admin-only NLB column.
  *
  * Eight columns. Two of the original nine are gone for good, because a column each said
@@ -20,7 +20,7 @@
 import type { ReactElement } from 'react';
 import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
+import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import {
   CELL_LIFT,
   CONNECTED_FRAME,
@@ -28,6 +28,7 @@ import {
   ROW_EXCLUDED,
   ROW_TARGET,
   TargetPill,
+  clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import {
@@ -179,11 +180,12 @@ export function IdcResourceTable({
                   <td className={table.approvalCell} />
                   <td className={table.approvalCell} />
                   <td className={cn(table.approvalCell, 'text-sm')}>
-                    <ExclusionReason
-                      reason={row.exclusionReason ?? undefined}
-                      recommendFailReason={row.recommendFailReason ?? undefined}
-                      maxWidthClass="max-w-[220px]"
-                    />
+                    {row.exclusionReason && (
+                      <ReasonChipInline
+                        reason={row.exclusionReason}
+                        summary={clampReason(row.exclusionReason)}
+                      />
+                    )}
                   </td>
                 </tr>
               );

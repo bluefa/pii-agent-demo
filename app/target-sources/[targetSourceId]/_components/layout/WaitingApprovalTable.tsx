@@ -4,7 +4,6 @@ import { Fragment, memo, useMemo, useState } from 'react';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
 import { ChevronRightIcon, ExcludedIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
@@ -277,7 +276,6 @@ const InstallStatusText = ({ cell }: { cell: InstallStepCell }) => (
 
 // The chip's own 40-char default overruns this six-column table and forces horizontal
 // scroll (Azure step 3 reasons run past it). Clamp here — the full text is in the hover tip.
-// Step 4 의 `안내` 칩만 남은 소비자다: 제외 사유는 더 이상 자르지 않는다(ExclusionReason).
 const SUMMARY_LIMIT = 15;
 
 export const clampReason = (reason: string): string =>
@@ -290,10 +288,13 @@ export const clampReason = (reason: string): string =>
 // have `recommend_fail_reason`, so read both.
 const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
   if (resource.selected) return null;
+  const reason = resource.exclusionReason || resource.recommendFailReason;
+  if (!reason) return null;
   return (
-    <ExclusionReason
-      reason={resource.exclusionReason}
-      recommendFailReason={resource.recommendFailReason}
+    <ReasonChipInline
+      reason={reason}
+      summary={clampReason(reason)}
+      meta={resource.exclusionMeta}
     />
   );
 };

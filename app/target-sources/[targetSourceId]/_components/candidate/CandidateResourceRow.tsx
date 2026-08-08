@@ -3,7 +3,7 @@
 import { createPortal } from 'react-dom';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
-import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
+import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { VmDatabaseConfigPanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
@@ -460,7 +460,7 @@ export const CandidateResourceRow = ({
                 onClick={(event) => actions.reasonChipClick(candidate.id, event.currentTarget)}
                 className="text-left"
               >
-                <ExclusionReason reason={exclusionReason} maxWidthClass="max-w-[200px]" />
+                <ReasonChipInline reason={exclusionReason} />
               </button>
             ) : !isSelected && candidate.integrationCategory === 'TARGET' ? (
               // Server-seeded unselected TARGET without a reason: approval is blocked

@@ -1,6 +1,6 @@
 'use client';
 
-import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
+import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { DeleteIcon, EditIcon } from '@/app/components/ui/icons';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
@@ -17,6 +17,7 @@ import {
   IdcKindBadge,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import {
+  clampReason,
   CONNECTED_FRAME,
   ROW_BASE,
   ROW_EXCLUDED,
@@ -144,9 +145,9 @@ export const IdcTargetListTable = ({
                         onClick={(e) => onReasonChipClick(row.resourceId, e.currentTarget)}
                         className="text-left"
                       >
-                        <ExclusionReason
+                        <ReasonChipInline
                           reason={row.exclusionReason}
-                          maxWidthClass="max-w-[200px]"
+                          summary={clampReason(row.exclusionReason)}
                         />
                       </button>
                     ) : null}
