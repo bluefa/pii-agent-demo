@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   triggerTestConnection,
   getTestConnectionLatest,
@@ -6,6 +6,7 @@ import {
 import type { TestConnectionVersionResult } from '@/app/lib/api';
 import { AppError } from '@/lib/errors';
 import { usePollingBase } from '@/app/hooks/usePollingBase';
+import { publishTcJob } from '@/app/hooks/useLiveTcJob';
 
 export type TestConnectionUIState = 'IDLE' | 'PENDING' | 'SUCCESS' | 'FAIL';
 
@@ -107,6 +108,12 @@ export const useTestConnectionPolling = (
     await baseRefresh();
     start();
   }, [targetSourceId, baseRefresh, start]);
+
+  // 헤더 태그(useLiveTcJob)와 관찰을 공유한다 — 이 화면에서 실행이 진행/정착하면
+  // 마운트 1회 조회였던 헤더도 같은 사실로 갱신된다.
+  useEffect(() => {
+    publishTcJob(targetSourceId, latestJob);
+  }, [targetSourceId, latestJob]);
 
   const uiState = computeUIState(latestJob);
 

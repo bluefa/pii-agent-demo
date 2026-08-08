@@ -350,7 +350,9 @@ export const toVersionResultResponse = (job: TestConnectionJob) => {
     test_connection_version: versionForTarget(job.target_source_id),
     connection_status: topStatus,
     requested_at: job.requested_at,
-    completed_at: job.completed_at ?? WIRE_DATE_PLACEHOLDER,
+    // 미완료 실행은 null — 계약(loose codegen)이 nullable 이고, epoch 플레이스홀더를
+    // 보내면 헤더 태그가 진행 중인 실행을 "20673일 전"으로 읽는다.
+    completed_at: job.completed_at,
     test_connection_agent_results: [...settled, ...unsettledAgentResults(job, settled.length)],
   };
 };
