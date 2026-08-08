@@ -1149,15 +1149,15 @@ export const idcStyles = {
  * 수정 불가 필드, 그리고 조금 큰(32px) 행 액션.
  */
 export const ec2Styles = {
-  /** 검색 입력 — `idcStyles.input` 위에 아이콘·클리어 버튼 자리와 mono 를 얹는다. */
   /**
    * 검색 입력 — idcStyles.input 을 덮어쓰지 않고 독립 토큰으로 둔다(cn 이 단순 join 이라
    * 같은 속성을 두 번 쓰면 어느 쪽이 이길지 클래스 순서로 정해지지 않는다).
    * 폼 필드(#F7F8FA)보다 밝은 흰 면 + 실선 — 검색은 값을 담는 칸이 아니라 여는 입구다.
    * 형식 안내는 placeholder 로 안에 들어가고, 한글이 섞이므로 mono 는 값에만 건다.
+   * 활성 표시는 테두리 색 하나뿐 — 링을 더하면 굵기가 다른 선 두 줄이 겹쳐 보인다.
    */
   searchField:
-    'h-[52px] w-full rounded-xl border border-[#E5E8EB] bg-white pl-12 pr-12 font-mono text-[15px] font-medium text-[#191F28] transition-colors focus:border-[#0064FF] focus:outline-none focus:ring-4 focus:ring-[#0064FF]/12', // design-exempt: mirrors idcStyles.input 15px token
+    'h-[52px] w-full rounded-xl border border-[#E5E8EB] bg-white pl-12 pr-12 font-mono text-[15px] font-medium text-[#191F28] transition-colors focus:border-[#0064FF] focus:outline-none', // design-exempt: mirrors idcStyles.input 15px token
   /** placeholder 는 값이 아니라 형식 예시 — 값과 같은 무게로 읽히면 안 된다. */
   searchPlaceholder: 'placeholder:font-sans placeholder:text-[#B0B8C1]', // design-exempt: placeholder hint, not content
   searchIcon:
@@ -1172,9 +1172,8 @@ export const ec2Styles = {
    * 커졌다 작아지면 같은 자리의 버튼이 매번 다른 좌표에 서서 화면이 흔들린다 —
    * 가장 큰 상태(결과 5건 / Oracle 설정)에 맞춰 높이를 잠근다.
    * -mt-3: 본문 기본 상단 여백 28px 를 부제와의 16px 로 당긴다.
-   * -mx-2 px-2: 고정 높이가 만드는 클립 박스에 focus ring 이 잘리지 않을 여유.
    */
-  stepFrame: '-mt-3 -mx-2 h-[452px] overflow-y-auto px-2',
+  stepFrame: '-mt-3 h-[452px] overflow-y-auto',
   /** 검색 결과 한 행. */
   resultRow:
     'flex items-center justify-between gap-3 rounded-xl border border-[#EBEEF2] bg-white px-3.5 py-2.5 transition-colors hover:border-[#D6E7FF] hover:bg-[#F8FAFF]',
@@ -1185,8 +1184,9 @@ export const ec2Styles = {
   /** 이미 목록에 있는 결과의 비활성 버튼. */
   addedBtn:
     'inline-flex h-8 cursor-not-allowed items-center gap-1 rounded-[10px] bg-[#F2F4F6] px-3 text-[12px] font-bold text-[#4E5968]',
-  /** 초기·로딩·0건 안내 블록 (결과 목록과 같은 자리에 선다). */
-  stateBox: 'flex flex-col items-center justify-center gap-1 rounded-xl bg-[#F7F8FA] px-4 py-10 text-center',
+  /** 안내 블록 — 결과 목록이 쓰는 자리를 끝까지 채운다(h-full). 목록이 있을 때와
+   *  없을 때 같은 면적이라야 결과가 오가도 모달 안이 뛰지 않는다. */
+  stateBox: 'flex h-full flex-col items-center justify-center gap-1 rounded-xl bg-[#F7F8FA] px-4 text-center',
   stateTitle: 'text-[14px] font-semibold text-[#4E5968]',
   stateDesc: 'text-[12px] text-[#6B7280]',
   /** 폼 필드 라벨 (IDC 폼의 라벨과 같은 자리, 짝수 스케일). */

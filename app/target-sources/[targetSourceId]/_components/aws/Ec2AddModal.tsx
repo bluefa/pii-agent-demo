@@ -23,6 +23,9 @@ interface SearchState {
 
 const IDLE: SearchState = { status: 'idle', results: [] };
 
+/** 왜 안 보이는지 — 이 검색이 뒤지는 것은 최근 스캔 결과뿐이다. */
+const NO_RESULT_HINT = '최근 스캔에서 발견된 인스턴스만 검색돼요';
+
 export interface Ec2AddModalProps {
   targetSourceId: number;
   /** Resource ids already on the Step-1 table (scanned or added) — those rows read 추가됨. */
@@ -262,7 +265,8 @@ export const Ec2AddModal = ({
           </section>
         </div>
       ) : (
-        <div>
+        // h-full + flex: 결과 영역이 남은 높이를 전부 가져가 안내 블록도 바닥까지 선다.
+        <div className="flex h-full flex-col">
           <div className="relative">
             <SearchIcon className={ec2Styles.searchIcon} aria-hidden="true" />
             <input
@@ -286,7 +290,7 @@ export const Ec2AddModal = ({
           </div>
           <p className={ec2Styles.helper}>최대 {EC2_SEARCH_LIMIT}건 표시</p>
 
-          <div className="mt-4">
+          <div className="mt-4 min-h-0 flex-1">
             <Ec2SearchResults
               query={query.trim()}
               search={search}
@@ -319,12 +323,11 @@ const Ec2SearchResults = ({
   addedInstanceIds: ReadonlySet<string>;
   onPick: (instance: Ec2Instance) => void;
 }) => {
+  // 입력 전과 0건은 화면에 같은 사실이다 — 보여줄 결과가 없다. 입력을 재촉하는
+  // 문구는 방금 입력하고 0건을 받은 사람에게는 틀린 말이 되므로 한 문장으로 합친다.
   if (search.status === 'idle') {
     return (
-      <StateBlock
-        title="Instance ID를 입력해주세요"
-        description="i- 로 시작하는 ID의 앞부분만 입력해도 검색돼요"
-      />
+      <StateBlock title="검색 결과가 없어요" description={NO_RESULT_HINT} />
     );
   }
   if (search.status === 'loading') {
@@ -341,12 +344,7 @@ const Ec2SearchResults = ({
     );
   }
   if (search.results.length === 0) {
-    return (
-      <StateBlock
-        title="검색 결과가 없어요"
-        description="최근 스캔에서 발견된 인스턴스만 검색됩니다"
-      />
-    );
+    return <StateBlock title="검색 결과가 없어요" description={NO_RESULT_HINT} />;
   }
 
   return (
