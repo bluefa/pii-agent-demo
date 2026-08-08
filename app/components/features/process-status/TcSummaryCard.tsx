@@ -70,8 +70,10 @@ export const TcSummaryCard = ({ phase, buckets, run, needsRerun, historyAction, 
 
   return (
     <div className={cn(s.base, s.state[phase])}>
-      <div className={s.head}>
-        <div className={cn(s.title, s.titleColor[phase])}>
+      {/* flex-wrap + break-keep: 메타 줄(whitespace-nowrap)이 길 때 좁은 카드에서
+          문장이 한 글자씩 세로로 부서지던 것을, 메타가 제 줄로 내려가는 것으로 바꾼다. */}
+      <div className={cn(s.head, 'flex-wrap')}>
+        <div className={cn(s.title, s.titleColor[phase], 'break-keep')}>
           <span className={cn(s.icon, s.accent[phase])}>
             {phase === 'success' ? (
               <svg
