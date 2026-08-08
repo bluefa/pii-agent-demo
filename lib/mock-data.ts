@@ -793,6 +793,37 @@ export const mockProjects: Project[] = [
     updatedAt: '2024-01-25T14:30:00Z',
     isRejected: false,
   },
+  {
+    /**
+     * 중국 리전 AWS 대상 — 중국 표기를 AWS 쪽에서도 화면으로 볼 수 있게 하는 것이
+     * 유일한 목적이다. 기존 aws 대상 7건은 전부 실 BFF 응답 캡처 계정
+     * (AWS_WIRE_*)에 묶여 있어, 그중 하나를 중국으로 돌리면 IAM ARN partition 이
+     * aws-cn 으로 바뀌어 role 등록 화면까지 함께 흔들린다. 그래서 뒤집지 않고 더한다.
+     *
+     * 계정 id 도 캡처 상수를 쓰지 않는다 — 같은 계정이 global 과 china 로 동시에
+     * 존재하는 모양이 되어, 캡처를 읽는 화면들이 서로 다른 partition 을 말하게 된다.
+     */
+    id: 'proj-8',
+    targetSourceId: 1018,
+    projectCode: 'DATA-008',
+    name: 'PII Agent 설치 - 중국 리전 계정',
+    description: '중국 리전 AWS 대상. 리전 표기와 aws-cn partition 처리를 검증합니다.',
+    serviceCode: 'aws',
+    cloudProvider: 'AWS',
+    awsAccountId: '918273645500',
+    awsRegionType: 'china',
+    isChinaRegion: true,
+    processStatus: ProcessStatus.INSTALLATION_COMPLETE,
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, { selectedCount: 1 }),
+    resources: [],
+    terraformState: {
+      serviceTf: 'COMPLETED',
+      bdcTf: 'COMPLETED',
+    },
+    createdAt: '2024-02-02T09:00:00Z',
+    updatedAt: '2024-02-02T15:00:00Z',
+    isRejected: false,
+  },
 ];
 
 // ===== IDC 데모 프로젝트 (Step 1~7) =====
