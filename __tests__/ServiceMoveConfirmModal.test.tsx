@@ -4,7 +4,8 @@
  * The component is presentational. We assert:
  *   - closed state renders nothing
  *   - open state renders title, body copy, both action buttons
- *   - body interpolates serviceCode / serviceName verbatim
+ *   - the destination block carries serviceName and serviceCode verbatim
+ *   - with no name the code becomes the name line and is not also tagged
  */
 
 import { describe, expect, it } from 'vitest';
@@ -47,5 +48,19 @@ describe('ServiceMoveConfirmModal — open state', () => {
     expect(html).toContain('인프라 목록으로 이동해요');
     expect(html).toContain('머무르기');
     expect(html).toContain('이동하기');
+  });
+
+  it('drops the code tag when there is no name — the code is then the name line', () => {
+    const html = renderToStaticMarkup(
+      <ServiceMoveConfirmModal
+        isOpen
+        onClose={noop}
+        onConfirm={noop}
+        serviceCode="SVC-001"
+        serviceName=""
+      />,
+    );
+    // Once as the name line, and not a second time as its own tag.
+    expect(html.match(/SVC-001/g)).toHaveLength(1);
   });
 });
