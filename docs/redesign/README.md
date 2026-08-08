@@ -11,6 +11,7 @@ Documents may be written in Korean (this README must stay English — repo rule)
 | Screen | Document | Status |
 |---|---|---|
 | Step 1 · scan + target selection (`/pass/target-sources/{id}`) | [`step1-scan-select.md`](step1-scan-select.md) | shipped |
+| Step 1 · EC2 add — search + config modals (AWS) | [`ec2-add-modal.md`](ec2-add-modal.md) | shipped (feat/ec2-instance-add) · §6 is the cross-screen modal ruleset |
 | Step 2 · approval waiting (`/pass/target-sources/{id}`) | [`step2-approval-waiting.md`](step2-approval-waiting.md) | shipped (PR #590 · #593 rejected state, modals, row dimming) · §16 reason-quote + collapsed target record supersedes §13 |
 | Step 2 · live review session log | [`step2-review-session-log.md`](step2-review-session-log.md) | reference |
 | Step 3 · applying approved (`/pass/target-sources/{id}`) | [`step3-applying-approved.md`](step3-applying-approved.md) | shipped |
