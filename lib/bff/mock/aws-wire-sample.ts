@@ -41,6 +41,21 @@ export const AWS_WIRE_APPROVAL_ACCOUNT_ID = '451814760281';
 
 const ACCOUNT_ID = AWS_WIRE_CONFIRMED_ACCOUNT_ID;
 
+/**
+ * EC2 데모 대상 — **캡처가 아니다**.
+ *
+ * 캡처를 뜬 계정에는 EC2 위에 올린 DB 가 없어서, 4~7단계 화면이 EC2 행을 한 번도 그려
+ * 본 적이 없었다. 아래 두 응답의 배열 **맨 뒤에만** 이 한 건을 붙인다 — 캡처에서 온
+ * 항목들은 한 글자도 바꾸지 않는다(이 파일이 존재하는 이유가 그것이다: 합성값을 섞으면
+ * 실제로 비어 오는 칸을 가려 화면 검증을 못 하게 만든다).
+ * Admin 데모(`lib/bff/mock/task-queue.ts` 의 AWS 요청 2113)가 같은 resource_id 를 쓴다 —
+ * 서비스 화면과 관리자 화면이 같은 한 건을 두고 말하게 하려는 것이다.
+ */
+const EC2_DEMO_RESOURCE_ID = 'i-0f39b7c15ad2e8046';
+const EC2_DEMO_RESOURCE_NAME = 'ip-10-30-2-71.ap-northeast-2.compute.internal';
+/** 사람이 적어 넣은 접속 주소 — 다른 AWS 리소스는 캡처가 host 를 빈 문자열로 준다. */
+const EC2_DEMO_HOST = '10.30.2.71';
+
 // GET …/aws/installation-status
 export const awsWireSampleInstallationStatus: z.infer<
   typeof schemas.AwsInstallationStatusResponse
@@ -87,6 +102,15 @@ export const awsWireSampleInstallationStatus: z.infer<
     {
       resource_id: `athena:${ACCOUNT_ID}:ap-northeast-1/AwsDataCatalog`,
       resource_name: 'ap-northeast-1',
+      installation_status: 'IN_PROGRESS',
+      service_terraform: { status: 'COMPLETED', guide: null },
+      bdc_service_terraform: { status: 'IN_PROGRESS', guide: null },
+      bdc_common_terraform: { status: 'IN_PROGRESS', guide: null },
+    },
+    // ↓ 캡처 아님 — EC2 데모 추가분. @see EC2_DEMO_RESOURCE_ID
+    {
+      resource_id: EC2_DEMO_RESOURCE_ID,
+      resource_name: EC2_DEMO_RESOURCE_NAME,
       installation_status: 'IN_PROGRESS',
       service_terraform: { status: 'COMPLETED', guide: null },
       bdc_service_terraform: { status: 'IN_PROGRESS', guide: null },
@@ -276,6 +300,33 @@ export const awsWireSampleConfirmedIntegration: z.infer<
       idc_source_ips: null,
       nlb_index: null,
     },
+    // ↓ 캡처 아님 — EC2 데모 추가분. @see EC2_DEMO_RESOURCE_ID
+    // 이 한 건만 host 가 채워져 있다: 스캔이 찾은 값이 아니라 사용자가 적어 넣은 Private IP 다.
+    {
+      resource_id: EC2_DEMO_RESOURCE_ID,
+      resource_type: 'AWS_EC2_INSTANCE',
+      database_type: 'postgresql',
+      port: 5432,
+      host: EC2_DEMO_HOST,
+      oracle_service_id: null,
+      network_interface_id: null,
+      ip_configuration: null,
+      credential_id: null,
+      database_region: 'ap-northeast-2',
+      resource_name: EC2_DEMO_RESOURCE_NAME,
+      agent_id: '9f2c1d84-6b30-4a77-9a12-7de0c4415ab3',
+      athena_region_resource_id: null,
+      protocol: null,
+      secret_info: null,
+      db_target_ip_list: null,
+      public_domain_name_list: null,
+      private_domain_name_list: null,
+      idc_host_format: null,
+      idc_ips: null,
+      idc_host: null,
+      idc_source_ips: null,
+      nlb_index: null,
+    },
   ],
 };
 
@@ -292,9 +343,14 @@ export const awsWireSampleResources: MockResource[] =
     databaseType: info.database_type!,
     connectionStatus: 'PENDING',
     isSelected: true,
-    awsType: info.resource_type === 'AWS_ATHENA_DATABASE' ? 'ATHENA' : 'RDS_CLUSTER',
+    awsType: info.resource_type === 'AWS_ATHENA_DATABASE'
+      ? 'ATHENA'
+      : info.resource_type === 'AWS_EC2_INSTANCE'
+        ? 'EC2'
+        : 'RDS_CLUSTER',
     region: info.database_region!,
-    integrationCategory: 'TARGET',
+    // 스캔이 EC2·VM 에 주는 판정 — DB 외 용도가 많아 필수 대상이 아니다.
+    integrationCategory: info.resource_type === 'AWS_EC2_INSTANCE' ? 'NO_INSTALL_NEEDED' : 'TARGET',
     host: info.host,
     port: info.port,
     athenaRegionResourceId: info.athena_region_resource_id,

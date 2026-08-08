@@ -25,6 +25,30 @@ const notAws = () =>
     { status: 400 },
   );
 
+/**
+ * EC2 instances the scan "found" — the search-add flow's only source. Fixed rather than
+ * derived from the project's resources: those are the DB services the scan proposes as
+ * candidates, while this flow exists precisely for hosts the candidate list does NOT carry.
+ */
+const EC2_SCAN_RESULTS: readonly { instanceId: string; ip: string; scanVersion: number }[] = [
+  { instanceId: 'i-0a1b2c3d4e5f67890', ip: '10.10.1.24', scanVersion: 12 },
+  { instanceId: 'i-0a1b2c3d4e5f67891', ip: '10.10.1.87', scanVersion: 12 },
+  { instanceId: 'i-0a4f8e2d1c9b70345', ip: '10.10.2.15', scanVersion: 12 },
+  { instanceId: 'i-0b73d5a91e8c246f0', ip: '10.10.2.201', scanVersion: 11 },
+  { instanceId: 'i-0c19f7be34d5a8021', ip: '10.20.0.33', scanVersion: 12 },
+  { instanceId: 'i-0d82c46a5f109e7b3', ip: '10.20.0.140', scanVersion: 12 },
+  { instanceId: 'i-0e5a90c17b4d32628', ip: '10.20.3.9', scanVersion: 10 },
+  { instanceId: 'i-0f3b8d26c750a91e4', ip: '10.30.1.61', scanVersion: 12 },
+  { instanceId: 'i-1a7c4e0938b2d65f1', ip: '10.30.1.118', scanVersion: 12 },
+  { instanceId: 'i-1b6d2f85a04c39e7d', ip: '10.30.4.77', scanVersion: 11 },
+];
+
+const EC2_SEARCH_MAX_LIMIT = 100;
+
+/** AWS's own naming: ip-10-20-0-33.ap-northeast-2.compute.internal. */
+const privateDnsName = (ip: string): string =>
+  `ip-${ip.replace(/\./g, '-')}.ap-northeast-2.compute.internal`;
+
 export const mockAws = {
   // GET …/aws/installation-status → AwsInstallationStatusResponse (snake wire).
   getInstallationStatus: async (targetSourceId: string) => {
@@ -135,6 +159,36 @@ export const mockAws = {
       fail_reason: null,
       fail_message: null,
       last_verified_at: override?.pending ? null : '2026-06-23T10:00:00Z',
+    });
+  },
+
+  // GET …/ec2-resources/search?query=&limit= → CloudResourceResponse-shaped (snake wire).
+  // Prefix match on the instance id; a blank query matches nothing (this is a search,
+  // not a listing). `limit` is clamped to the contract's 1..100.
+  searchEc2Resources: async (targetSourceId: string, query: string, limit: number) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) return notFound();
+    if (project.cloudProvider !== 'AWS') return notAws();
+
+    const prefix = query.trim().toLowerCase();
+    const size = Math.min(Math.max(Math.trunc(limit) || 1, 1), EC2_SEARCH_MAX_LIMIT);
+    const matched = prefix
+      ? EC2_SCAN_RESULTS.filter((instance) => instance.instanceId.toLowerCase().startsWith(prefix))
+      : [];
+
+    return NextResponse.json({
+      resources: matched.slice(0, size).map((instance) => ({
+        resource_id: instance.instanceId,
+        resource_name: privateDnsName(instance.ip),
+        resource_type: 'AWS_EC2_INSTANCE',
+        metadata: {
+          resource_type: 'AWS_EC2_INSTANCE',
+          private_dns_name: privateDnsName(instance.ip),
+          private_ip_address: instance.ip,
+          scan_version: instance.scanVersion,
+        },
+      })),
+      total_count: matched.length,
     });
   },
 

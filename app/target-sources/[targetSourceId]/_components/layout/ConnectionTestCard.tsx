@@ -5,7 +5,7 @@ import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } fr
 import { ChevronRightIcon, InfoCircleIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
+import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
 import { isRdsCluster } from '@/lib/rds-instances';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { useModal } from '@/app/hooks/useModal';
@@ -39,7 +39,7 @@ import {
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { ConfirmedResource } from '@/lib/types/resources';
-import { hasLogicalDatabases, needsCredential, type SecretKey } from '@/lib/types';
+import { hasLogicalDatabases, isEc2Instance, needsCredential, type SecretKey } from '@/lib/types';
 import { GROUPED_CHILD_KIND_LABEL, resultUnitId } from '@/lib/resource-grouping';
 
 interface LogicalModalTarget {
@@ -541,6 +541,7 @@ export const ConnectionTestCard = ({
                           // two-line identity steps 1·2·3·4·6·7 use.
                           <span className="flex min-w-0 flex-col items-start gap-1">
                             {isRdsCluster(unit.resourceType ?? '') && <RdsClusterTag />}
+                            {isEc2Instance(unit.resourceType) && <Ec2InstanceTag />}
                             <Tooltip
                               content={
                                 <IdentifierTip label="Resource Name" value={first.resourceName ?? ''} />

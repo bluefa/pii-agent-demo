@@ -2,7 +2,7 @@
 
 import { createPortal } from 'react-dom';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { DeleteIcon, EditIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
@@ -18,13 +18,16 @@ import {
   type RdsInstanceCandidate,
 } from '@/lib/rds-instances';
 import {
+  Ec2InstanceTag,
   RdsClusterTag,
   RdsMemberChip,
   RdsSelectionChip,
 } from '@/app/components/ui/RdsInstanceChips';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
+import { isEc2Instance } from '@/lib/types';
 import {
   cn,
+  ec2Styles,
   idcStyles,
   primaryColors,
   statusColors,
@@ -41,6 +44,7 @@ import {
   getCandidateBehavior,
   resolveRdsInstanceResourceId,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
+import { isManualEc2Candidate } from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
 
 /** Row-level interaction callbacks, grouped so the table/row prop lists stay small. */
 export interface CandidateRowActions {
@@ -50,6 +54,9 @@ export interface CandidateRowActions {
   endpointSave: (resourceId: string, draft: EndpointConfigDraft) => void;
   /** RDS cluster: the member instance the agent will connect through. */
   selectRdsInstance: (resourceId: string, instanceResourceId: string) => void;
+  /** Manually added EC2 instance: reopen its connection form / drop it from the list. */
+  editManualEc2: (resourceId: string) => void;
+  deleteManualEc2: (resourceId: string) => void;
 }
 
 // Row/cell state grammar — the SAME tokens the approval tables use, so the step-1
@@ -84,6 +91,8 @@ interface CandidateResourceRowProps {
   readonly: boolean;
   drafts: CandidateDraftState;
   actions: CandidateRowActions;
+  /** Just added by hand — tint sweep + a "방금 추가" badge that fades on its own. */
+  justAdded?: boolean;
   /** True when the row hangs under a group parent — draws the tree rail on the identity cell (LIN-85). */
   grouped?: boolean;
   /** Last child of its group — the rail stops at this row's elbow, closing the group. */
@@ -210,6 +219,7 @@ export const CandidateResourceRow = ({
   readonly,
   drafts,
   actions,
+  justAdded = false,
   grouped = false,
   lastInGroup = false,
   rail,
@@ -222,6 +232,14 @@ export const CandidateResourceRow = ({
   const clusterRailRow = useRailHover();
   const behavior = getCandidateBehavior(candidate);
   const requiresEndpointConfig = behavior.configKind === 'endpoint';
+  // Manually added EC2: the user typed its connection info in a modal, so the row shows the
+  // identity it was added by and NOT the config — Database Type / Region / the expandable
+  // config panel all belong to rows the scan proposed.
+  const isManualEc2 = isManualEc2Candidate(candidate);
+  // 태그는 종류로 묻고, 아래의 접속 주소 표기·hover 액션은 수동 추가로 묻는다 — 스캔이
+  // 스스로 찾은 EC2 도 같은 태그를 받아야 하지만, 그 행에는 사용자가 입력한 접속 정보도
+  // 지울 대상도 없다.
+  const isEc2 = isEc2Instance(candidate.type);
   const isIneligible = candidate.integrationCategory === 'INSTALL_INELIGIBLE';
   const hasEndpointConfig = behavior.isConfigured(candidate, drafts);
   const showConfigNeeded = requiresEndpointConfig && isSelected && !hasEndpointConfig;
@@ -278,7 +296,15 @@ export const CandidateResourceRow = ({
   return (
     <>
       <tr
-        className={cn(ROW_BASE, rowStateClass, canExpand && 'cursor-pointer', rowRail?.className)}
+        // data-just-added: 섹션이 이 행을 찾아 화면 안으로 스크롤하는 표식.
+        data-just-added={justAdded ? 'true' : undefined}
+        className={cn(
+          ROW_BASE,
+          rowStateClass,
+          justAdded && ec2Styles.rowJustAdded,
+          canExpand && 'cursor-pointer',
+          rowRail?.className,
+        )}
         onClick={handleRowClick}
         onMouseEnter={rowRail?.onMouseEnter}
         onMouseLeave={rowRail?.onMouseLeave}
@@ -365,6 +391,26 @@ export const CandidateResourceRow = ({
                 </Tooltip>
               </span>
             </span>
+          ) : isEc2 ? (
+            // 종류 태그는 이름 위 — RDS Cluster 와 같은 자리다. 이 열이 행의 정체성을
+            // 여는 자리이므로, "무엇인가"를 먼저 말하고 이름이 뒤따른다.
+            <span className={ec2Styles.rowStack}>
+              {/* 배지는 종류 태그 옆 — 모션을 못 본 사람도 읽어서 알 수 있는 층이고,
+                  이름은 잘릴 수 있으므로 배지를 밀어내지 않는 자리에 둔다. */}
+              <span className="flex items-center">
+                <Ec2InstanceTag />
+                {justAdded && <span className={ec2Styles.newBadge}>방금 추가</span>}
+              </span>
+              <Tooltip
+                content={<IdentifierTip label="Resource Name" value={displayName} />}
+                variant="value"
+                size="md"
+                triggerClassName="min-w-0 max-w-[200px] block"
+                truncatedOnly
+              >
+                <span className="block truncate">{displayName || '—'}</span>
+              </Tooltip>
+            </span>
           ) : (
             <Tooltip
               content={<IdentifierTip label="Resource Name" value={displayName} />}
@@ -382,7 +428,17 @@ export const CandidateResourceRow = ({
             tacked on (`athena:<acct>:<region>/<catalog>/test_raw`), so every child repeated the
             group's identity and then said its name a second time. */}
         <td className={idcStyles.table.approvalCell}>
-          {grouped ? null : (
+          {grouped ? null : isManualEc2 ? (
+            // 종류 태그는 이름 열이 가져갔다 — 여기는 instance id → 접속 주소.
+            <span className={ec2Styles.rowStack}>
+              <span className={cn(ec2Styles.rowId, 'block max-w-[220px] truncate')}>
+                {candidate.resourceId}
+              </span>
+              <span className={cn(ec2Styles.rowSub, 'block max-w-[220px] truncate')}>
+                Private IP {candidate.endpointConfig?.host || '—'}
+              </span>
+            </span>
+          ) : (
             <span onClick={(event) => event.stopPropagation()}>
               <ResourceIdCell
                 value={candidate.resourceId}
@@ -429,7 +485,9 @@ export const CandidateResourceRow = ({
             CELL_LIFT,
           )}
         >
-          {grouped ? null : region}
+          {/* A searched instance carries no region: the search response reports the private
+              address and the scan version, nothing else about where it sits. */}
+          {grouped || isManualEc2 ? null : region}
         </td>
 
         {/* 시스템 분류는 조용한 사실 티어 — 행동을 막는 설치 불가만 주황 + 안내
@@ -448,6 +506,13 @@ export const CandidateResourceRow = ({
               <StatusWarningIcon className="h-3.5 w-3.5" />
               설치 불가
             </button>
+          ) : candidate.integrationCategory === 'NO_INSTALL_NEEDED' ? (
+            // 설치가 선택인 행(VM·EC2)은 사용자의 판단이 필요한 예외라 태그로 세운다.
+            // 기본값인 설치 대상은 평문으로 남겨야 이 강조가 산다. 제외된 행에서도
+            // 흐리지 않는다 — 판단이 필요한 이유는 페이드를 견뎌야 한다.
+            <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>
+              {CATEGORY_LABELS.NO_INSTALL_NEEDED}
+            </span>
           ) : (
             <span className={cn('whitespace-nowrap', textColors.secondary, CELL_LIFT)}>
               {CATEGORY_LABELS[candidate.integrationCategory]}
@@ -457,7 +522,29 @@ export const CandidateResourceRow = ({
 
         {showCheckboxColumn && (
           <td className={idcStyles.table.approvalCell} onClick={(event) => event.stopPropagation()}>
-            {!isSelected && exclusionReason ? (
+            {isManualEc2 ? (
+              // 사용자가 직접 담은 행이라 제외 사유를 물을 자리가 아니다 — 고치거나 뺀다.
+              <span className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                <button
+                  type="button"
+                  aria-label="접속 정보 수정"
+                  title="접속 정보 수정"
+                  onClick={() => actions.editManualEc2(candidate.id)}
+                  className={ec2Styles.rowAction}
+                >
+                  <EditIcon className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="연동 대상에서 삭제"
+                  title="연동 대상에서 삭제"
+                  onClick={() => actions.deleteManualEc2(candidate.id)}
+                  className={ec2Styles.rowActionDelete}
+                >
+                  <DeleteIcon className="h-4 w-4" />
+                </button>
+              </span>
+            ) : !isSelected && exclusionReason ? (
               <button
                 type="button"
                 aria-label="제외 사유 수정"

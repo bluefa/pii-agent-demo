@@ -430,8 +430,11 @@ export const tableRowLift = {
   /** hover 행의 셀 텍스트 승격 — #4E5968 → #191F28 (6.12:1 → 14.25:1 on the hover tint). */
   cellText: 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]',
   /**
-   * Card-row hover on the tinted canvas — violet, borrowed from the EC2 tag pair
-   * (`#F3EEFF`/`#6D28D9`), so the two land in one family.
+   * Card-row hover on the tinted canvas — violet, borrowed from the EC2 tag's
+   * SURFACE (`tagStyles.resourceKind`, `#F3EEFF`), so the two land in one family.
+   * Only the fill is shared: the tag's own letters are grey (#4E5968), because a
+   * tag sits inside a row and must not out-shout the name beside it, while this
+   * tint covers a whole card and carries the row's normal text.
    *
    * `bg-gray-50` measured ΔE00 1.20 from the white card: under the ~2.3 threshold
    * at which two colours are seen as different at all, so the whole card was a
@@ -655,6 +658,10 @@ export const modalStyles = {
        #8B95A1 measured 3.04:1 on white and read as washed out; #6B7280 is 4.83:1 on the
        same quiet tier. */
     subtitle: 'mt-4 text-[14px] font-medium leading-[1.6] text-[#6B7280]',
+    /* 한 줄짜리 부제를 쓰는 모달의 12px 변형. mt 만 다른 완전한 문자열로 둔다 —
+       cn 은 단순 join 이라 같은 속성을 겹쳐 쓰면 어느 쪽이 이길지 클래스 순서로
+       정해지지 않는다(Tailwind 가 CSS 에 찍는 순서가 결정한다). */
+    subtitleTight: 'mt-3 text-[14px] font-medium leading-[1.6] text-[#6B7280]',
     body: 'px-10 pt-7 pb-2',
     footer: 'px-10 pt-5 pb-6 border-t border-[#EBEEF2] bg-white flex justify-end gap-2.5',
     iconBase: 'w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0',
@@ -830,6 +837,16 @@ export const tagStyles = {
   warning: 'bg-orange-100 text-orange-800',
   error: 'bg-red-100 text-red-800',
   neutral: 'bg-gray-100 text-gray-700',
+  /**
+   * 리소스 종류 태그(EC2 · RDS Cluster) — 이 행이 '무엇인가'를 말하는 사실.
+   *
+   * 면은 보라, 글자는 회색. 판정(파랑·주황·빨강)과 색 가족을 나눠 갖는 일은 면이 하고,
+   * 글자는 읽히기만 하면 된다 — 채도 있는 글자는 행 안에서 이름보다 먼저 눈에 들어와
+   * 사실을 판정처럼 외치게 만든다. 대비는 그대로다: #4E5968 이 이 면에서 6.26:1 로,
+   * 앞서 쓰던 #6D28D9(6.25:1)와 같다. 즉 이 변경으로 잃는 가독성은 없다.
+   * 회색 한 칸 아래(#6B7280)는 4.26:1 로 AA 미달이라 쓸 수 없다.
+   */
+  resourceKind: 'bg-[#F3EEFF] text-[#4E5968]',
 } as const;
 
 /**
@@ -1224,6 +1241,95 @@ export const idcStyles = {
       railActive: '[--rail:#0064FF]',
     },
   },
+} as const;
+
+/**
+ * EC2 인스턴스 연동 대상 추가 — 검색 모달 · 접속 정보 폼 · Step1 행.
+ *
+ * 크기·간격은 IDC 연동 대상 추가 흐름에서 그대로 가져온다(같은 일을 하는 화면은
+ * 같은 수치로). 여기 있는 것은 그 문법에 없던 조각뿐 — 검색창 부속, 결과 행,
+ * 수정 불가 필드, 그리고 조금 큰(32px) 행 액션.
+ */
+export const ec2Styles = {
+  /**
+   * 검색 입력 — idcStyles.input 을 덮어쓰지 않고 독립 토큰으로 둔다(cn 이 단순 join 이라
+   * 같은 속성을 두 번 쓰면 어느 쪽이 이길지 클래스 순서로 정해지지 않는다).
+   * 폼 필드(#F7F8FA)보다 밝은 흰 면 + 실선 — 검색은 값을 담는 칸이 아니라 여는 입구다.
+   * 형식 안내는 placeholder 로 안에 들어가고, 한글이 섞이므로 mono 는 값에만 건다.
+   * 활성 표시는 테두리 색 하나뿐 — 링을 더하면 굵기가 다른 선 두 줄이 겹쳐 보인다.
+   */
+  searchField:
+    'ec2-search-field h-[52px] w-full rounded-xl border border-[#E5E8EB] bg-white pl-12 pr-12 font-mono text-[15px] font-medium text-[#191F28] transition-colors focus:border-[#0064FF]', // design-exempt: mirrors idcStyles.input 15px token
+  /** placeholder 는 값이 아니라 형식 예시 — 값과 같은 무게로 읽히면 안 된다. */
+  searchPlaceholder: 'placeholder:font-sans placeholder:text-[#B0B8C1]', // design-exempt: placeholder hint, not content
+  /**
+   * 셀렉트 — OS 기본 화살표는 크기를 지정할 수 없어 11~13px 로 그려지고, 52px 필드
+   * 안에서는 눌러서 여는 컨트롤로 읽히지 않는다. 기본 화살표를 끄고 20px 글리프를
+   * 직접 세운다. pr-12 는 그 글리프가 값과 겹치지 않을 자리.
+   */
+  selectField: 'appearance-none pr-12',
+  selectChevron:
+    'pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#4E5968]',
+  searchIcon:
+    'pointer-events-none absolute left-4 top-1/2 h-[19px] w-[19px] -translate-y-1/2 text-[#8B95A1]', // design-exempt: decorative glyph beside its own input
+  /** 입력값이 있을 때만 나오는 원형 ✕ — 질의와 결과를 함께 비운다. */
+  searchClear:
+    'absolute right-3.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-[#EBEEF2] text-[#4E5968] transition-colors hover:bg-[#DDE2E8] hover:text-[#191F28]',
+  /** 입력 아래 남는 한 줄 — 형식은 placeholder 가 말하므로 여기엔 개수 상한만. */
+  helper: 'mt-2 text-[12px] leading-[1.6] text-[#6B7280]',
+  /**
+   * 두 단계가 함께 서는 고정 높이 틀. 검색 결과 수(0~5건)나 SID 필드 유무로 모달이
+   * 커졌다 작아지면 같은 자리의 버튼이 매번 다른 좌표에 서서 화면이 흔들린다 —
+   * 가장 큰 상태(결과 5건 / Oracle 설정)에 맞춰 높이를 잠근다.
+   * -mt-3.5: 본문 기본 상단 여백 28px 를 14px 로 당겨, 헤더 아래 여백 6px 과 합쳐
+   * 부제→검색창 20px 을 만든다.
+   * -mx-2 px-2: 고정 높이는 세로만 자르는 것이 아니다 — overflow-y 를 걸면 가로도
+   * 함께 클립되어 입력창의 focus ring 과 아웃라인이 잘려 나간다. 본문 좌우 여백
+   * 40px 안쪽으로 8px 을 빌려 링이 설 자리를 만든다(내용 위치는 그대로).
+   */
+  stepFrame: '-mt-3.5 -mx-2 h-[452px] overflow-y-auto px-2',
+  /** 검색 결과 한 행. */
+  resultRow:
+    'flex items-center justify-between gap-3 rounded-xl border border-[#EBEEF2] bg-white px-3.5 py-2.5 transition-colors hover:border-[#D6E7FF] hover:bg-[#F8FAFF]',
+  resultId: 'font-mono text-[14px] font-semibold text-[#191F28]',
+  /** 질의와 일치한 앞부분 — 어디까지 입력해서 걸린 결과인지 보여준다. */
+  resultMatch: 'text-[#0064FF]',
+  resultSub: 'mt-1 text-[12px] text-[#6B7280]',
+  /** 이미 목록에 있는 결과의 비활성 버튼. */
+  addedBtn:
+    'inline-flex h-8 cursor-not-allowed items-center gap-1 rounded-[10px] bg-[#F2F4F6] px-3 text-[12px] font-bold text-[#4E5968]',
+  /** 안내 블록 — 결과 목록이 쓰는 자리를 끝까지 채운다(h-full). 목록이 있을 때와
+   *  없을 때 같은 면적이라야 결과가 오가도 모달 안이 뛰지 않는다. */
+  stateBox: 'flex h-full flex-col items-center justify-center gap-1 rounded-xl bg-[#F7F8FA] px-4 text-center',
+  stateTitle: 'text-[16px] font-semibold text-[#4E5968]',
+  stateDesc: 'text-[12px] text-[#6B7280]',
+  /** 폼 필드 라벨 (IDC 폼의 라벨과 같은 자리, 짝수 스케일). */
+  fieldLabel: 'mb-1.5 block text-[12px] font-medium text-[#4E5968]',
+  /** 수정 불가 필드 — 스캔이 확인한 값이라 입력이 아니라 표기다. */
+  lockedInput: 'font-mono read-only:cursor-default read-only:bg-[#F2F4F6] read-only:text-[#4E5968]',
+  lockNote: 'mt-2 flex items-center gap-1 text-[12px] font-bold text-[#191F28]',
+  /** 잠금 이유 설명 — 배너 카드 대신 보조 텍스트 한 줄. */
+  lockDesc: 'mt-1 text-[12px] leading-[1.6] text-[#6B7280]',
+  /** 방금 드러난 종속 필드 — 왜 갑자기 나타났는지 보라 링으로 표시한다. */
+  revealedField: 'ring-2 ring-[#DDD0FF]',
+  /**
+   * 방금 담긴 행 — 모션과 글자 두 층. 틴트 스윕(1.1s)이 왼→오로 한 번 훑어 시선을
+   * 데려오고, 배지(4s)가 더 남아 늦게 온 시선에게 같은 사실을 읽게 한다. motion-reduce
+   * 에서는 애니메이션만 끄고 배지는 그대로 서 있으므로, 움직임을 끈 사용자도 정보를
+   * 잃지 않는다.
+   */
+  rowJustAdded: 'animate-[ec2-row-tint_1100ms_ease-in-out] motion-reduce:animate-none',
+  newBadge:
+    'ml-2 inline-flex shrink-0 items-center rounded-full bg-[#E8F1FF] px-2 py-px text-[11.5px] font-bold text-[#1747B5] animate-[ec2-new-badge_4000ms_ease-out_forwards] motion-reduce:animate-none', // design-exempt: mirrors idcStyles.kindBadge 11.5px token
+  /** Step1 행의 정체성 스택 (EC2 태그 → instance id → Private IP). */
+  rowStack: 'flex flex-col items-start gap-1',
+  rowId: 'font-mono text-[12px] text-[#4E5968]',
+  rowSub: 'font-mono text-[12px] text-[#6B7280]',
+  /** 행 hover 액션 — idcStyles.rowAction 과 같은 문법의 32px 박스. */
+  rowAction:
+    'inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[#F7F8FA] hover:text-gray-900',
+  rowActionDelete:
+    'inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[#FEECEC] hover:text-[#B42318]',
 } as const;
 
 /**

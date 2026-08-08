@@ -291,6 +291,11 @@ export const httpBff: BffClient = {
     getTerraformScript: (id) => getRaw(`/target-sources/${id}/aws/terraform-script/download`),
     verifyScanRole: (id) => getSnakeRaw(`/target-sources/${id}/aws/verify-scan-role`),
     verifyExecutionRole: (id) => getSnakeRaw(`/target-sources/${id}/aws/verify-execution-role`),
+    // Owner-provided endpoint, absent from install-v1.yaml — the route parses it.
+    searchEc2Resources: (id, query, limit) =>
+      getSnakeRaw(
+        `/target-sources/${id}/ec2-resources/search${buildQuery({ query, limit })}`,
+      ),
   },
 
   // OPS: ASSUMED contracts (docs/api/ops-assumed-contracts.md) — these paths do

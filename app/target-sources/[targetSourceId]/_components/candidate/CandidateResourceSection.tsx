@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createApprovalRequest } from '@/app/lib/api';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
@@ -10,6 +10,8 @@ import { useApiAction } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { useScanCompletionTransition } from '@/app/hooks/useScanCompletionTransition';
 import { useToast } from '@/app/components/ui/toast';
+import { PlusIcon } from '@/app/components/ui/icons';
+import type { Ec2Instance } from '@/app/lib/api/ec2';
 import { ScanController } from '@/app/components/features/scan/ScanPanel';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
 import { ScanHeroState } from '@/app/components/features/scan/ScanHeroState';
@@ -47,6 +49,11 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
 import { useCandidateResources } from '@/app/target-sources/[targetSourceId]/_components/candidate/use-candidate-resources';
 import { useExclusionPicker } from '@/app/target-sources/[targetSourceId]/_components/candidate/use-exclusion-picker';
+import {
+  toManualEc2Candidate,
+  type Ec2ConnectionConfig,
+} from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
+import { Ec2AddModal } from '@/app/target-sources/[targetSourceId]/_components/aws/Ec2AddModal';
 import { IdcSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 import { IdcExclusionPopover } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcExclusionPopover';
 import { IdcExclusionReasonModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcExclusionReasonModal';
@@ -60,6 +67,16 @@ interface CandidateResourceSectionProps {
 }
 
 const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {}, rdsInstanceDrafts: {} };
+
+/**
+ * One EC2 instance the user searched for and added by hand, kept as what it is —
+ * the instance plus the connection info typed for it. The Step-1 row is derived from
+ * the pair, so reopening the form for an edit never has to reconstruct either half.
+ */
+interface ManualEc2Entry {
+  instance: Ec2Instance;
+  config: Ec2ConnectionConfig;
+}
 
 /** Cloud exclusion reason UI cap. Contract allows 3000 (docs/cloud-provider-states.md);
  *  운영 정책으로 1000자로 조인다 — 계약의 부분집합이라 wire엔 영향 없다. */
@@ -108,6 +125,37 @@ export const CandidateResourceSection = ({
 
   const [drafts, setDrafts] = useState<CandidateDraftState>(EMPTY_DRAFTS);
   const [expandedResourceId, setExpandedResourceId] = useState<string | null>(null);
+  const [manualEc2, setManualEc2] = useState<ManualEc2Entry[]>([]);
+  const [ec2AddOpen, setEc2AddOpen] = useState(false);
+  const [ec2EditingId, setEc2EditingId] = useState<string | null>(null);
+  // 방금 담긴 한 건. 여러 대를 이어 담으면 마커는 언제나 마지막 하나에만 붙는다 —
+  // 신호가 둘이면 어느 쪽이 방금인지 말해주지 못한다.
+  const [justAddedEc2Id, setJustAddedEc2Id] = useState<string | null>(null);
+
+  // Manually added instances join the scanned candidates as ordinary rows, so the table,
+  // the counts, the filters and the approval payload need no second code path. They lead the
+  // list: the user just added them, and a row appended behind ten scanned ones reads as lost.
+  const allCandidates = useMemo(
+    () => [
+      ...manualEc2.map((entry) => toManualEc2Candidate(entry.instance, entry.config)),
+      ...candidates,
+    ],
+    [candidates, manualEc2],
+  );
+  // Every id already on the table, not just the manually added ones: the scan can surface an
+  // EC2 instance as a candidate on its own, and adding it a second time would duplicate the row
+  // and the payload item. The search marks those results 추가됨 instead of offering 추가.
+  const addedEc2InstanceIds = useMemo(
+    () => new Set(allCandidates.map((candidate) => candidate.resourceId)),
+    [allCandidates],
+  );
+  const manualEc2Ids = useMemo(
+    () => new Set(manualEc2.map((entry) => entry.instance.instanceId)),
+    [manualEc2],
+  );
+  const editingEc2 = ec2EditingId === null
+    ? undefined
+    : manualEc2.find((entry) => entry.instance.instanceId === ec2EditingId);
 
   // 스캔 완료 → 목록 사이의 확인 프레임. 결과 조회가 이 프레임 뒤에서 돌기 때문에
   // 평범한 응답 시간은 프레임에 가려지고, 예전처럼 스켈레톤이 번쩍이지 않는다.
@@ -131,7 +179,7 @@ export const CandidateResourceSection = ({
   // metadata.region)를 넣는다. 선택·제외 사유·CTA 비활성 계산은 전부 필터와
   // 무관하게 전체 후보 기준을 유지한다.
   const approvalShaped = useMemo(
-    () => candidates.map((candidate) => ({
+    () => allCandidates.map((candidate) => ({
       resourceId: candidate.resourceId,
       resourceName: candidate.resourceName,
       resourceType: candidate.type,
@@ -142,21 +190,21 @@ export const CandidateResourceSection = ({
       region: candidate.metadata.region ?? '',
       selected: selectedIds.has(candidate.id),
     })),
-    [candidates, drafts, selectedIds],
+    [allCandidates, drafts, selectedIds],
   );
   const table = useApprovalTableState(approvalShaped);
   const visibleCandidates = useMemo(() => {
-    const byResourceId = new Map(candidates.map((candidate) => [candidate.resourceId, candidate]));
+    const byResourceId = new Map(allCandidates.map((candidate) => [candidate.resourceId, candidate]));
     return table.visibleResources
       .map((resource) => byResourceId.get(resource.resourceId))
       .filter((candidate): candidate is CandidateResource => candidate != null);
-  }, [candidates, table.visibleResources]);
+  }, [allCandidates, table.visibleResources]);
 
   // 승인 요청 CTA의 비활성 사유를 데이터로 명시 — 버튼 disabled 와 호버 설명이
   // 같은 원천을 읽는다. 빈 문자열·공백 사유는 미입력으로 취급(listMissing이 trim).
   const missingReasonResources = useMemo(
-    () => listMissingExclusionReasons(candidates, selectedIds, exclusionReasons),
-    [candidates, selectedIds, exclusionReasons],
+    () => listMissingExclusionReasons(allCandidates, selectedIds, exclusionReasons),
+    [allCandidates, selectedIds, exclusionReasons],
   );
   const approvalBlockReason = useMemo(() => {
     if (selectedIds.size === 0) {
@@ -196,7 +244,7 @@ export const CandidateResourceSection = ({
   }, [setSelectedIds, setExclusions]);
 
   const picker = useExclusionPicker({ onSelect: select, onExclude: exclude });
-  const { popover, reasonModal, closeAll: closePicker } = picker;
+  const { popover, reasonModal, closeAll: closePicker, handleToggleSelected: pickerToggleSelected } = picker;
 
   // 검색·필터·페이지가 바뀌면 행에 앵커된 UI(확장 패널·제외 팝오버)의 대상 행이
   // 화면에서 사라진다 — 죽은 앵커를 남기지 않게 모든 뷰 변경 핸들러가 함께 닫는다.
@@ -239,7 +287,7 @@ export const CandidateResourceSection = ({
 
   const approval = useApiAction(
     async () => {
-      const input = toApprovalRequestInput(candidates, selectedIds, drafts, exclusionReasons);
+      const input = toApprovalRequestInput(allCandidates, selectedIds, drafts, exclusionReasons);
       await createApprovalRequest(targetSourceId, input);
       await refreshProject();
     },
@@ -274,17 +322,105 @@ export const CandidateResourceSection = ({
     }));
   }, []);
 
+  // The instance itself is the working-list key (an AWS instance id is unique), so adding an
+  // instance that is already in the list REPLACES its connection info rather than duplicating
+  // the row — which is also how the edit path saves.
+  const handleEc2Save = useCallback((instance: Ec2Instance, config: Ec2ConnectionConfig) => {
+    // 현재 목록에서 판정한다 — updater 안에서 플래그를 세우면 React 가 그 함수를 언제
+    // 실행할지 보장하지 않아(큐가 비었을 때만 즉시 계산한다), 바로 아래에서 읽는 값이
+    // 배치 상황에 따라 달라진다. 이 핸들러는 이벤트에서 불리므로 렌더 시점의 목록이
+    // 곧 현재 목록이다.
+    const added = !manualEc2Ids.has(instance.instanceId);
+    setManualEc2((previous) => {
+      const index = previous.findIndex((entry) => entry.instance.instanceId === instance.instanceId);
+      // 새로 담은 것이 맨 위 — 이어서 여러 대를 담는 흐름이라, 방금 담은 행이
+      // 앞서 담은 행 아래로 밀리면 추가됐다는 사실이 눈에서 사라진다.
+      if (index < 0) return [{ instance, config }, ...previous];
+      const next = [...previous];
+      next[index] = { instance, config };
+      return next;
+    });
+    setEc2EditingId(null);
+    // 수정 저장에는 마커도, 선택도 건드리지 않는다 — 수정은 접속 정보를 고치는 일이지
+    // 다시 담는 일이 아니고, "방금 추가"는 그때 틀린 말이 된다.
+    if (!added) return;
+    // Adding an instance IS choosing it — the user came to this modal to integrate it.
+    setSelectedIds((previous) => new Set(previous).add(instance.instanceId));
+    setJustAddedEc2Id(instance.instanceId);
+    // 담은 행이 현재 뷰에 안 걸리면 아무 일도 일어나지 않은 화면이 된다 — 수동 행에는
+    // region 이 없어 리전 필터에서 곧바로 탈락하고, 검색어·제외 필터·2페이지 이후도
+    // 같은 결과다. 재스캔과 같은 이유로 같은 초기화를 한다.
+    tableSearchChange('');
+    tableFilterChange('all');
+    tableDbTypeChange('');
+    tableRegionChange('');
+    tablePageChange(0);
+  }, [manualEc2Ids, setSelectedIds, tableSearchChange, tableFilterChange, tableDbTypeChange, tableRegionChange, tablePageChange]);
+
+  // 마커의 수명. 배지 애니메이션(4s)이 끝나면 상태에서도 걷어내, 이후의 정렬·필터
+  // 변경이 다 끝난 신호를 다시 그리지 않게 한다.
+  useEffect(() => {
+    if (justAddedEc2Id === null) return undefined;
+    const timer = setTimeout(() => setJustAddedEc2Id(null), 4200);
+    return () => clearTimeout(timer);
+  }, [justAddedEc2Id]);
+
+  // 화면 밖 행에 거는 신호는 아무 일도 하지 않는다 — 먼저 눈에 들어오게 한다.
+  // block:'nearest' 라 이미 보이는 행은 스크롤하지 않는다.
+  useEffect(() => {
+    if (justAddedEc2Id === null) return;
+    document.querySelector('[data-just-added="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [justAddedEc2Id]);
+
+  const handleEc2Delete = useCallback((instanceId: string) => {
+    setManualEc2((previous) => previous.filter((entry) => entry.instance.instanceId !== instanceId));
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      next.delete(instanceId);
+      return next;
+    });
+    // 제외 사유도 함께 지운다 — 인스턴스 id 가 키라서, 지운 인스턴스를 다시 담으면
+    // 예전 사유가 그대로 붙어 살아난다.
+    setExclusions((previous) => {
+      if (!(instanceId in previous)) return previous;
+      const next = { ...previous };
+      delete next[instanceId];
+      return next;
+    });
+  }, [setSelectedIds, setExclusions]);
+
+  // 수동으로 담은 행의 체크를 푸는 건 "제외"가 아니라 되돌리기다 — 스캔이 제안한 것을
+  // 안 쓰겠다고 말하는 게 아니라, 내가 넣은 것을 도로 빼는 것이라 사유가 없다(승인
+  // payload 도 NO_INSTALL_NEEDED 를 사유 검사에서 빼 둔다). 사유 팝오버를 거치면
+  // 닫는 순간 아무 일도 일어나지 않아 체크가 그대로 남는 막다른 길이 된다.
+  const handleToggleSelected = useCallback(
+    (resourceId: string, checked: boolean, anchor: HTMLElement) => {
+      if (checked || !manualEc2Ids.has(resourceId)) {
+        pickerToggleSelected(resourceId, checked, anchor);
+        return;
+      }
+      setSelectedIds((previous) => {
+        const next = new Set(previous);
+        next.delete(resourceId);
+        return next;
+      });
+    },
+    [manualEc2Ids, pickerToggleSelected, setSelectedIds],
+  );
+
   const rowActions = useMemo<CandidateRowActions>(() => ({
-    toggleSelected: picker.handleToggleSelected,
+    toggleSelected: handleToggleSelected,
     reasonChipClick: picker.handleReasonChipClick,
     expandToggle: handleExpandToggle,
     endpointSave: handleEndpointSave,
     selectRdsInstance: handleSelectRdsInstance,
-  }), [picker.handleToggleSelected, picker.handleReasonChipClick, handleExpandToggle, handleEndpointSave, handleSelectRdsInstance]);
+    editManualEc2: setEc2EditingId,
+    deleteManualEc2: handleEc2Delete,
+  }), [handleToggleSelected, picker.handleReasonChipClick, handleExpandToggle, handleEndpointSave, handleSelectRdsInstance, handleEc2Delete]);
 
   const handleRequestApproval = useCallback(() => {
     if (selectedIds.size === 0) return;
-    const unconfigured = candidates.filter(
+    const unconfigured = allCandidates.filter(
       (candidate) => selectedIds.has(candidate.id)
         && !getCandidateBehavior(candidate).isConfigured(candidate, drafts),
     );
@@ -295,7 +431,7 @@ export const CandidateResourceSection = ({
       return;
     }
     // Exclusion reason is required (docs/cloud-provider-states.md) — every unselected TARGET needs one.
-    const missingReasons = listMissingExclusionReasons(candidates, selectedIds, exclusionReasons);
+    const missingReasons = listMissingExclusionReasons(allCandidates, selectedIds, exclusionReasons);
     if (missingReasons.length > 0) {
       toast.warning(
         `제외 사유 입력이 필요합니다: ${missingReasons.map((candidate) => candidate.resourceId).join(', ')}`,
@@ -304,7 +440,7 @@ export const CandidateResourceSection = ({
     }
     approval.reset();
     approvalModal.open();
-  }, [approval, approvalModal, candidates, drafts, exclusionReasons, selectedIds, toast]);
+  }, [approval, approvalModal, allCandidates, drafts, exclusionReasons, selectedIds, toast]);
 
   const beginCompletion = completion.begin;
   const handleScanComplete = useCallback(async () => {
@@ -314,6 +450,11 @@ export const CandidateResourceSection = ({
     beginCompletion();
     setDrafts(EMPTY_DRAFTS);
     setExpandedResourceId(null);
+    // A manually added instance was found by the scan that just got replaced — its scan
+    // version, and possibly the instance itself, no longer describe what is out there.
+    setManualEc2([]);
+    setEc2AddOpen(false);
+    setEc2EditingId(null);
     // 재스캔이면 목록이 통째로 바뀐다 — 이전 검색·필터가 새 결과를 가리지 않게 초기화.
     tableSearchChange('');
     tableFilterChange('all');
@@ -341,7 +482,9 @@ export const CandidateResourceSection = ({
           const phase = selectPhase({
             fetchStatus: state.status,
             scanState,
-            hasCandidates: candidates.length > 0,
+            // A manually added instance is a row on its own — a scan that proposed nothing
+            // must still show the table once the user has put something in it.
+            hasCandidates: allCandidates.length > 0,
             completing: completion.stage !== 'idle',
           });
           // 종료된 스캔만 "결과"다 — mock BFF는 이력이 없으면 NO_SCAN 센티널 잡을
@@ -358,14 +501,20 @@ export const CandidateResourceSection = ({
           const showStrip = phase === 'list'
             || (finishedJob != null && (phase === 'empty' || phase === 'scanFailed'));
           const scanDisabled = initialLoading || !canStart || readonly;
+          // AWS 전용 입구, 그리고 스캔 결과 위에 서 있을 때만 — 검색이 조회하는 것은
+          // "최근 스캔에서 발견된 인스턴스"라, 스캔 전에는 열어도 빈 결과뿐이다.
+          const showEc2Add = provider === 'AWS' && !readonly && showStrip;
+          // 버튼은 표 위 툴바가 들고 있고, 툴바는 목록 화면에만 있다 — 안내 문구는
+          // 버튼이 실제로 보이는 이 조건을 그대로 따라간다.
+          const ec2AddVisible = showEc2Add && phase === 'list';
           // Counts only when the list is up: with no candidates they are all zero,
           // which is noise rather than information, and the band collapses to one
           // line. All three are in the candidate-DB unit (selected + excluded = eligible).
           const funnel = phase === 'list'
             ? {
-              eligible: candidates.length,
+              eligible: allCandidates.length,
               selected: selectedIds.size,
-              excluded: Math.max(0, candidates.length - selectedIds.size),
+              excluded: Math.max(0, allCandidates.length - selectedIds.size),
               missingReasons: missingReasonResources.length,
               filter: table.filter,
               onFilterChange: handleFilterChange,
@@ -449,6 +598,19 @@ export const CandidateResourceSection = ({
                       onRegionChange={handleRegionChange}
                       dbTypeOptions={table.dbTypeOptions}
                       regionOptions={table.regionOptions}
+                      // EC2는 스캔이 DB로 판정하지 못하는 호스트라 후보 목록에 없을 수
+                      // 있다 — 직접 찾아 담는 입구는 결과 테이블에 최대한 붙여, 필터
+                      // 왼쪽의 컴팩트 액션으로 둔다.
+                      actions={showEc2Add ? (
+                        <button
+                          type="button"
+                          onClick={() => setEc2AddOpen(true)}
+                          className={idcStyles.triggerBtn.ghostSm}
+                        >
+                          <PlusIcon className="h-3 w-3" />
+                          EC2 추가
+                        </button>
+                      ) : undefined}
                     />
                     <CandidateResourceTable
                       candidates={visibleCandidates}
@@ -458,6 +620,7 @@ export const CandidateResourceSection = ({
                       expandedResourceId={expandedResourceId}
                       readonly={readonly}
                       actions={rowActions}
+                      justAddedResourceId={justAddedEc2Id}
                       emptyMessage="조건에 맞는 결과가 없어요."
                     />
                     {table.filteredCount > 0 && (
@@ -512,6 +675,22 @@ export const CandidateResourceSection = ({
                   리소스에는 <span className={primaryColors.text}>사유가 필요</span>하고, 결과는
                   관리자 승인을 거쳐 확정돼요.
                 </p>
+                {/* 스캔이 못 찾는 것을 먼저 말하고 그다음 어디를 누르는지 말한다 —
+                    버튼 이름만 알려주면 왜 눌러야 하는지는 여전히 모른다. 버튼이
+                    실제로 서 있는 목록 화면에서만 띄운다(가리킬 대상이 없으면 안내가
+                    아니라 오답이다).
+                    위 문단과 같은 층이다 — 둘 다 "이 화면에서 무엇을 하는가"이므로
+                    토큰과 강조 문법을 공유한다. 한쪽만 작아지면 EC2 경로가 본문이
+                    아니라 각주로 읽힌다. 강조는 여기서도 파랑 하나.
+                    간격만 제목→문단(10px)보다 좁은 4px — 같은 층의 두 문단은 한
+                    덩어리로 읽혀야 하고, 같은 간격을 주면 별개의 블록으로 갈라진다. */}
+                {ec2AddVisible && (
+                  <p className={cn('mt-1 break-keep', cardStyles.guidance)}>
+                    EC2에 직접 설치해 쓰는 데이터베이스는 스캔이 찾지 못해요. 아래 표 오른쪽 위{' '}
+                    <span className={primaryColors.text}>EC2 추가</span>에서 Instance ID로 검색해
+                    연동 대상에 넣을 수 있어요.
+                  </p>
+                )}
               </header>
 
               <div className={cardStyles.body}>
@@ -544,7 +723,7 @@ export const CandidateResourceSection = ({
                 <CardActionBar
                   hint={
                     <>
-                      총 <strong className={textColors.primary}>{candidates.length}</strong>건 ·{' '}
+                      총 <strong className={textColors.primary}>{allCandidates.length}</strong>건 ·{' '}
                       <strong className={primaryColors.text}>{selectedIds.size}</strong>건 선택됨
                     </>
                   }
@@ -598,9 +777,9 @@ export const CandidateResourceSection = ({
       {!readonly && (
         <IdcSubmitModal
           isOpen={approvalModal.isOpen}
-          total={candidates.length}
+          total={allCandidates.length}
           live={selectedIds.size}
-          excluded={Math.max(0, candidates.length - selectedIds.size)}
+          excluded={Math.max(0, allCandidates.length - selectedIds.size)}
           submitting={approval.loading}
           onSubmit={handleApprovalConfirm}
           onClose={approvalModal.close}
@@ -625,6 +804,27 @@ export const CandidateResourceSection = ({
           maxLen={CLOUD_EXCL_REASON_MAXLEN}
           onSave={picker.handleSaveReason}
           onClose={reasonModal.close}
+        />
+      )}
+
+      {/* 틴트도 배지도 보지 못하는 사용자에게 같은 사실을 말한다 — 시각 신호와
+          같은 자리에서 한 번만. */}
+      <p aria-live="polite" className="sr-only">
+        {justAddedEc2Id === null ? '' : `EC2 인스턴스 ${justAddedEc2Id}을(를) 연동 대상 목록에 추가했어요.`}
+      </p>
+
+      {/* Mounted per open so the search query, the results and the form start fresh; the
+          edit path passes the row's own pair, which selects the config step. */}
+      {(ec2AddOpen || editingEc2 !== undefined) && (
+        <Ec2AddModal
+          targetSourceId={targetSourceId}
+          addedInstanceIds={addedEc2InstanceIds}
+          editing={editingEc2}
+          onAdd={handleEc2Save}
+          onClose={() => {
+            setEc2AddOpen(false);
+            setEc2EditingId(null);
+          }}
         />
       )}
     </>

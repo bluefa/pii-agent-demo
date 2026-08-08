@@ -86,19 +86,45 @@ vi.mock('@/app/components/features/scan/ScanRunningState', () => ({
   ScanRunningState: ({ stage }: { stage: string }) => <div data-testid="hero" data-stage={stage} />,
 }));
 
+/** 행 콜백은 표가 아니라 이 섹션이 만든다 — 목 표는 그것을 테스트에 넘겨주기만 한다. */
+let capturedRowActions: CandidateRowActions | undefined;
+
 vi.mock(
   '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable',
   () => ({
-    CandidateResourceTable: ({ candidates, emptyMessage }: { candidates: unknown[]; emptyMessage?: string }) =>
-      candidates.length === 0 ? <p>{emptyMessage}</p> : <div data-testid="table" data-count={candidates.length} />,
+    CandidateResourceTable: ({
+      candidates,
+      emptyMessage,
+      actions,
+    }: { candidates: unknown[]; emptyMessage?: string; actions: CandidateRowActions }) => {
+      capturedRowActions = actions;
+      return candidates.length === 0
+        ? <p>{emptyMessage}</p>
+        : <div data-testid="table" data-count={candidates.length} />;
+    },
   }),
 );
+
+/** 검색·조회는 모달 자신의 관심사다 — 여기서 보는 건 "담은 다음 표가 어떻게 되는가"뿐. */
+let capturedEc2Add: ((instance: Ec2Instance, config: Ec2ConnectionConfig) => void) | undefined;
+
+vi.mock('@/app/target-sources/[targetSourceId]/_components/aws/Ec2AddModal', () => ({
+  Ec2AddModal: ({
+    onAdd,
+  }: { onAdd: (instance: Ec2Instance, config: Ec2ConnectionConfig) => void }) => {
+    capturedEc2Add = onAdd;
+    return <div data-testid="ec2-modal" />;
+  },
+}));
 
 vi.mock('@/app/components/ui/toast', () => ({
   useToast: () => ({ warning: () => {}, success: () => {}, error: () => {}, info: () => {} }),
 }));
 
 import { CandidateResourceSection } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceSection';
+import type { CandidateRowActions } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
+import type { Ec2ConnectionConfig } from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
+import type { Ec2Instance } from '@/app/lib/api/ec2';
 
 describe('CandidateResourceSection', () => {
   beforeEach(() => {
@@ -347,5 +373,104 @@ describe('CandidateResourceSection', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// 수동으로 담은 EC2 행은 표의 다른 행과 같은 CandidateResource 다 — 특별 취급이 없다는 것이
+// 이 흐름의 전제이고, 아래는 그 전제가 실제로 무너졌던 자리들이다.
+describe('CandidateResourceSection — 수동 EC2 행', () => {
+  const INSTANCE: Ec2Instance = {
+    instanceId: 'i-0a1b2c3d4e5f67890',
+    privateIpAddress: '10.10.1.24',
+    privateDnsName: 'ip-10-10-1-24.ap-northeast-2.compute.internal',
+  };
+  const CONFIG: Ec2ConnectionConfig = { databaseType: 'mysql', port: 3306 };
+
+  beforeEach(() => {
+    getConfirmResources.mockReset();
+    getConfirmResources.mockResolvedValue({ resources: [] });
+    capturedRowActions = undefined;
+    capturedEc2Add = undefined;
+  });
+
+  const renderSection = () =>
+    render(
+      <CandidateResourceSection
+        targetSourceId={1}
+        provider="AWS"
+        readonly={false}
+        refreshProject={async () => {}}
+      />,
+    );
+
+  /** CardActionBar 힌트 — "총 N건 · M건 선택됨". */
+  const hint = () => screen.getByText(/건 선택됨/).textContent ?? '';
+
+  const openEc2Modal = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'EC2 추가' }));
+    expect(capturedEc2Add).toBeTypeOf('function');
+  };
+
+  // 수동 행에는 region 이 없다 — 리전 필터가 켜져 있으면 담자마자 탈락하고, 검색어나
+  // 2페이지도 같은 결과다. 그러면 담긴 행도, 틴트도, 배지도 화면에 없어 아무 일도
+  // 일어나지 않은 것처럼 보인다. 재스캔과 같은 이유로 같은 초기화를 한다.
+  it('담고 나면 담은 행이 보이도록 표의 검색·필터·페이지를 초기화한다', async () => {
+    renderSection();
+    await screen.findByRole('button', { name: '연동 대상 승인 요청' });
+    openEc2Modal();
+
+    const search = screen.getByLabelText('리소스 검색') as HTMLInputElement;
+    fireEvent.change(search, { target: { value: 'no-such-resource' } });
+    expect(screen.queryByTestId('table')).toBeNull();
+
+    act(() => capturedEc2Add?.(INSTANCE, CONFIG));
+
+    expect(screen.getByTestId('table').getAttribute('data-count')).toBe('3');
+    expect(search.value).toBe('');
+  });
+
+  // 내가 넣은 행의 체크를 푸는 건 "제외"가 아니라 되돌리기다. 사유 팝오버로 보내면
+  // 닫는 순간 아무 일도 일어나지 않아 체크가 그대로 남는 막다른 길이 되고, 사유를
+  // 고르면 내가 직접 넣은 리소스에 제외 사유가 붙어 전송된다.
+  it('수동 행의 체크 해제는 사유를 묻지 않고 바로 선택을 푼다', async () => {
+    renderSection();
+    await screen.findByRole('button', { name: '연동 대상 승인 요청' });
+    openEc2Modal();
+    act(() => capturedEc2Add?.(INSTANCE, CONFIG));
+    expect(hint()).toContain('2건 선택됨');
+
+    act(() =>
+      capturedRowActions?.toggleSelected(INSTANCE.instanceId, false, document.createElement('button')),
+    );
+    expect(hint()).toContain('1건 선택됨');
+  });
+
+  // 대조군 — 스캔이 제안한 행은 사유가 필요하므로 체크 해제가 즉시 반영되면 안 된다.
+  // 이게 같이 움직이면 위 테스트는 "그냥 다 바로 풀린다"를 확인한 것에 지나지 않는다.
+  it('스캔이 제안한 행은 사유를 받기 전까지 선택이 그대로다', async () => {
+    renderSection();
+    await screen.findByRole('button', { name: '연동 대상 승인 요청' });
+    expect(hint()).toContain('1건 선택됨');
+
+    act(() =>
+      capturedRowActions?.toggleSelected('res-1', false, document.createElement('button')),
+    );
+    expect(hint()).toContain('1건 선택됨');
+  });
+
+  // 수정은 접속 정보를 고치는 일이지 다시 담는 일이 아니다.
+  it('접속 정보 수정이 해제해 둔 행을 다시 선택하지 않는다', async () => {
+    renderSection();
+    await screen.findByRole('button', { name: '연동 대상 승인 요청' });
+    openEc2Modal();
+    act(() => capturedEc2Add?.(INSTANCE, CONFIG));
+    act(() =>
+      capturedRowActions?.toggleSelected(INSTANCE.instanceId, false, document.createElement('button')),
+    );
+    expect(hint()).toContain('1건 선택됨');
+
+    act(() => capturedEc2Add?.(INSTANCE, { ...CONFIG, port: 3307 }));
+    expect(screen.getByTestId('table').getAttribute('data-count')).toBe('3');
+    expect(hint()).toContain('1건 선택됨');
   });
 });

@@ -80,11 +80,26 @@ const rdsInstanceBehavior: CandidateResourceBehavior = {
   },
 };
 
+/**
+ * An EC2 instance the user searched for and added by hand (AWS Step 1). It never came from
+ * the scan's candidate list, so its connection info is not a draft to be filled in later —
+ * the add modal cannot produce a row without it, which is why `isConfigured` is unconditional.
+ * The row carries that info in `endpointConfig`, so the submitted metadata is the same
+ * host/port/database_type/oracle_service_id set the VM endpoint behavior sends.
+ */
+const manualEc2Behavior: CandidateResourceBehavior = {
+  configKind: 'manualEc2',
+  isConfigured: () => true,
+  buildMetadataFields: (resource) =>
+    resource.endpointConfig ? endpointMetadataFields(resource.endpointConfig) : {},
+};
+
 export const CANDIDATE_RESOURCE_BEHAVIORS: Record<CandidateBehaviorKey, CandidateResourceBehavior> = {
   default: defaultBehavior,
   credential: credentialBehavior,
   endpoint: endpointBehavior,
   rdsInstance: rdsInstanceBehavior,
+  manualEc2: manualEc2Behavior,
 };
 
 export const getCandidateBehavior = (resource: CandidateResource): CandidateResourceBehavior =>

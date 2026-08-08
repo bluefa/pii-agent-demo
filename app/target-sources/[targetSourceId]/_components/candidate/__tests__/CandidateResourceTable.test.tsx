@@ -38,6 +38,8 @@ const defaultProps = {
     expandToggle: () => {},
     endpointSave: () => {},
     selectRdsInstance: () => {},
+    editManualEc2: () => {},
+    deleteManualEc2: () => {},
   },
 };
 
@@ -190,6 +192,36 @@ describe('CandidateResourceTable', () => {
     expect(screen.getAllByRole('button', { name: 'Resource ID 복사' })).toHaveLength(12);
     // The approve CTA lives in CandidateResourceSection's CardActionBar now (C-2).
     expect(screen.queryByRole('button', { name: '연동 대상 승인 요청' })).toBeNull();
+  });
+});
+
+// The kind tag keys on the resource TYPE, not on `behaviorKey: 'manualEc2'`. That key exists
+// only in step 1's component state, so keying on it dropped the tag the moment the page
+// reloaded and never carried it to steps 2–7 or admin. A scan can also surface an EC2 instance
+// on its own, and that row has to say what it is too.
+describe('CandidateResourceTable — EC2 kind tag', () => {
+  it('tags an EC2 instance that carries no manual-add behavior key', () => {
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[
+          candidateFixture({
+            id: 'i-0a1b2c3d4e5f67890',
+            resourceId: 'i-0a1b2c3d4e5f67890',
+            resourceName: 'ip-10-10-1-24.ap-northeast-2.compute.internal',
+            type: 'AWS_EC2_INSTANCE',
+            integrationCategory: 'NO_INSTALL_NEEDED',
+            behaviorKey: 'default',
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByText('EC2')).toBeTruthy();
+  });
+
+  it('leaves every other resource type untagged', () => {
+    render(<CandidateResourceTable {...defaultProps} />);
+    expect(screen.queryByText('EC2')).toBeNull();
   });
 });
 

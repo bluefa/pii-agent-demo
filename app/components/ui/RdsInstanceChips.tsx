@@ -7,14 +7,24 @@ const CHIP_BASE = 'shrink-0 rounded-full px-2 py-0.5 text-xs';
  * Marks the row as an RDS cluster rather than a single instance — the distinction that explains
  * why this one row has instances hanging under it.
  *
- * A FACT tag, not a status: it rides the neutral `tagStyles` tier the resource tables already
- * use for repeating attributes, so it cannot be read as a verdict beside the row's real one.
- * Sits before the name in the identity cell and stays `shrink-0` + `text-xs` so it never eats
- * the name's width. Same component in steps 1·2·3 so the three read identically.
+ * A FACT tag, not a status: it rides the `resourceKind` tier shared with the EC2 tag — a violet
+ * surface carrying grey text, so "what this row IS" is one colour family that can never be read
+ * as a verdict beside the row's real one, while the letters stay quieter than the name they
+ * introduce. Sits before the name in the identity cell and stays `shrink-0` + `text-xs`
+ * so it never eats the name's width. Same component in steps 1·2·3 so the three read identically.
  */
-export const RdsClusterTag = () => (
-  <span className={cn(CHIP_BASE, 'font-sans font-medium', tagStyles.neutral)}>RDS Cluster</span>
+export const ResourceKindTag = ({ children }: { children: string }) => (
+  <span className={cn(CHIP_BASE, 'font-sans font-medium', tagStyles.resourceKind)}>{children}</span>
 );
+
+export const RdsClusterTag = () => <ResourceKindTag>RDS Cluster</ResourceKindTag>;
+
+/**
+ * EC2 인스턴스. RDS Cluster 와 같은 층의 사실 태그 — 그 행이 관리형 DB가 아니라 사용자가
+ * 직접 DB를 올려 쓰는 인스턴스임을 말한다. 판정은 `isEc2Instance(resourceType)` 으로,
+ * 1~7단계와 Admin 어디서든 같은 행에 같은 태그가 붙는다.
+ */
+export const Ec2InstanceTag = () => <ResourceKindTag>EC2</ResourceKindTag>;
 
 /**
  * An RDS cluster instance's Reader/Writer role.

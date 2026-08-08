@@ -243,6 +243,15 @@ const TEXT: TextPair[] = [
   // Row labels survive the card turning violet under the cursor.
   { what: 'row label on card hover tint', fg: resolve('#3B6BB5'), on: hoverBgOf(classOf(liftBlock, 'card')) },
   ...serviceTileGlyphs.map((t, i) => ({ what: `service tile ${i} glyph on its fill`, ...t })),
+  // The EC2 / RDS Cluster kind tag. Its letters were desaturated from #6D28D9 to a grey
+  // on the argument that contrast was unchanged (6.25 → 6.26:1) — that argument is only
+  // as good as a measurement, so it gets one. The next grey down (#6B7280) is 4.26:1 on
+  // this fill, i.e. the quiet-er value someone will reach for is already below AA.
+  {
+    what: 'resource kind tag label on its tag',
+    fg: textOf(classOf(themeSrc, 'resourceKind')),
+    on: bgOf(classOf(themeSrc, 'resourceKind')),
+  },
   { what: 'admin section label on ground', fg: textOf(classOf(adminSrc, 'railSection')), on: plGround },
   {
     what: 'service code chip label on its chip',

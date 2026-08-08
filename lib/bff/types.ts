@@ -149,6 +149,15 @@ export interface BffClient {
     getTerraformScript: (id: number) => Promise<Response>;
     verifyScanRole: (id: number) => Promise<z.infer<typeof schemas.AwsRoleVerificationResponse>>;
     verifyExecutionRole: (id: number) => Promise<z.infer<typeof schemas.AwsRoleVerificationResponse>>;
+    /**
+     * GET …/ec2-resources/search?query=&limit= — EC2 instances the latest scan found,
+     * matched on an instance-id prefix. Items are CloudResourceResponse-shaped.
+     *
+     * CONTRACT GAP: owner-provided controller, not yet in docs/swagger/install-v1.yaml,
+     * so there is no generated schema to type it with. The route owns a local zod schema
+     * until the swagger catches up; this method returns the raw snake wire.
+     */
+    searchEc2Resources: (id: number, query: string, limit: number) => Promise<unknown>;
   };
 
   azure: {
