@@ -40,11 +40,17 @@ interface TooltipProps {
 
 // True when the element (or the child it clips) overflows its box. The 1px slack absorbs
 // sub-pixel layout rounding, which otherwise reports a 1px overflow on exact-fit text.
+//
+// Height as well as width: a `line-clamp-N` block clips VERTICALLY and its scrollWidth never
+// exceeds clientWidth, so a width-only test reported "not truncated" for every clamped
+// paragraph and the tip never opened (ExclusionReason 의 2줄 제외 사유).
 const isClipped = (container: HTMLElement | null): boolean => {
   if (!container) return false;
   const candidates = [container, container.firstElementChild];
   return candidates.some(
-    (el) => el instanceof HTMLElement && el.scrollWidth > el.clientWidth + 1,
+    (el) =>
+      el instanceof HTMLElement &&
+      (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1),
   );
 };
 

@@ -349,6 +349,56 @@ export const sideTextColors = {
 } as const;
 
 /**
+ * 리소스 행의 판정(대상 / 제외 / 연동 불가) — sideTextColors 와 같은 규칙으로, 태그가 아니라 글자다.
+ * 행마다 반복되는 값이라 채운 배지를 두면 색 덩어리가 내용보다 먼저 읽힌다.
+ *
+ * 세 값이 대등할 필요는 없다:
+ * - `target` 은 기본값이라 목록의 대부분을 차지한다. 아이콘도 색도 주지 않고 본문 2차 색(7.1:1)에
+ *   무게만 500 으로 둔다 — 여기에 색을 쓰면 정상을 강조하느라 예외가 묻힌다.
+ * - 찾아내야 하는 두 값만 왼쪽 아이콘 + 색을 갖는다. **아이콘의 유무가 첫 번째 신호**이고,
+ *   두 값은 서로 다른 도형(원-사선 / 삼각)이라 색을 빼도 갈린다(WCAG 1.4.1).
+ *
+ * 색 선택 (제외 = 마젠타 #C11574, 5.8:1):
+ *   회색은 원래 문제였고(제외가 안 보인다), 남은 의미 축은 대부분 차 있다 —
+ *   초록=정상 / 앰버=연동 불가 / 빨강=실패 / #0064FF=누를 수 있는 것.
+ *   제외는 실패가 아니라 사람이 내린 결정이라 그 어느 칸에도 안 맞아, 앱에서 비어 있는 축을 쓴다.
+ *   `ineligible` 은 기존 statusColors.warning.textDark(#B45309, 5.0:1)를 그대로 잇는다.
+ */
+export const verdictText = {
+  base: 'inline-flex items-center gap-1.5 whitespace-nowrap text-[14px] font-semibold',
+  /** 기본값 — 아이콘 없음, 한 단 낮은 무게. */
+  target: 'text-[#4E5968] font-medium',
+  excluded: 'text-[#C11574]',
+  ineligible: 'text-[#B45309]',
+  icon: 'h-3.5 w-3.5 flex-shrink-0',
+} as const;
+
+/**
+ * 제외 행 왼쪽 끝 4px 상태 레일 — 배경 틴트가 못 하는 일을 대신한다.
+ *
+ * 틴트(#F9FAFB)는 흰 바탕과 1.05:1 이라 WCAG 1.4.11 의 3:1 근처에도 못 간다. 배경은 면적이 넓어서
+ * 신호로 쓸 만큼 진하게 하면 그 위 본문 글자의 대비를 갉아먹는다 — 4px 막대는 면적이 좁아
+ * 고채도 색을 대비 손실 없이 실을 수 있고, 스캔 시작점인 왼쪽 끝에 있어 눈이 행을 횡단하지 않아도 된다.
+ *
+ * `target` 은 색이 없다: 침묵이 곧 정상이다.
+ * 레일 색은 판정 글자색과 같은 축이되 채도를 낮춘 값 — 행 단위 신호는 훑기용이라 글자만큼 셀 필요가 없다.
+ *
+ * 열이 아니라 첫 셀의 inset box-shadow 다. 전용 <td> 를 하나 세우면 여섯 개 테이블의 헤더·
+ * 그룹 부모행·인스턴스행·접힌 멤버행이 전부 colSpan 을 다시 세어야 하고, 한 군데만 놓쳐도 열이
+ * 어긋난다. inset 그림자는 레이아웃을 전혀 건드리지 않아 기존 셀 padding(18px) 안쪽에 그려지고,
+ * 그룹 트리 레일(::before/::after, x=28)과도 겹치지 않는다.
+ */
+export const verdictRail = {
+  target: '',
+  excluded: 'shadow-[inset_4px_0_0_0_#D6409F]',
+  ineligible: 'shadow-[inset_4px_0_0_0_#D97706]',
+} as const;
+
+/** 행의 첫 셀에 얹을 레일 클래스. 대상 행은 빈 문자열 — 침묵이 곧 정상이다. */
+export const verdictRailClass = (excluded: boolean, ineligible = false): string =>
+  ineligible ? verdictRail.ineligible : excluded ? verdictRail.excluded : verdictRail.target;
+
+/**
  * 리소스 테이블 행 상태(hover/제외) — WaitingApprovalTable 이 재수출해 여러 테이블이 공유.
  * 값의 근거 (PR #593):
  * - 틴트는 중립 회색이 아니라 옅은 파랑. hover 시 Resource Name 이 브랜드 블루로 바뀌는데,
@@ -363,7 +413,12 @@ export const sideTextColors = {
 export const tableRowLift = {
   base: 'group transition-colors duration-150 motion-reduce:transition-none',
   target: 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]',
-  excluded: 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]',
+  // 틴트가 아니라 `verdictRail` 이 제외를 표시한다 — #F9FAFB 는 흰 바탕과 1.05:1 이라
+  // WCAG 1.4.11 의 3:1 근처에도 못 가서, 행 단위 신호로는 처음부터 작동한 적이 없다.
+  // 진하게 올리는 대신 오히려 낮췄다: 배경은 면적이 넓어 신호가 될 만큼 진해지면 그 위
+  // 본문 글자의 대비를 갉아먹고, 좁은 레일은 같은 일을 대비 손실 없이 한다.
+  // 남긴 이유는 행 묶기 — 연속된 제외 행이 하나의 덩어리로 읽힌다.
+  excluded: 'bg-[#FBFCFD] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]',
   /** hover 행의 셀 텍스트 승격 — #4E5968 → #191F28 (6.12:1 → 14.25:1 on the hover tint). */
   cellText: 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]',
 } as const;
@@ -829,13 +884,7 @@ export const idcStyles = {
     /** `.status.partial` — orange pending-approval inline label (03-status-tag-pill §2). */
     partial: { text: 'text-[#9A3412]', dot: 'bg-[#F97316]' },
   },
-  /** Target yes/no pill — `.target-pill` (3px 9px / radius 999 / 11.5px / 600 / dot 6px). */
-  targetPill: {
-    base: 'inline-flex items-center gap-1.5 rounded-full border px-[9px] py-[3px] text-[11.5px] font-semibold whitespace-nowrap',
-    dot: 'w-1.5 h-1.5 rounded-full',
-    yes: { box: 'bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0]', dot: 'bg-[#10B981]' },
-    no: { box: 'bg-white text-[#6B7280] border-[#E5E7EB]', dot: 'bg-[#9CA3AF]' },
-  },
+  /* targetPill 은 `verdictText` 로 대체됐다 — 판정은 태그가 아니라 글자다. 근거는 그 토큰의 주석. */
   /** Exclusion-reason chip — `.reason-chip-inline` (3px 9px / radius 6 / 11.5px / 500 / cursor help). */
   reasonChip: {
     base: 'inline-flex min-w-0 max-w-full items-center gap-[5px] rounded-[6px] border border-[#FED7AA] bg-[#FFF7ED] px-[9px] py-[3px] text-[11.5px] font-medium text-[#9A3412] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#FFEDD5] hover:border-[#FDBA74]',

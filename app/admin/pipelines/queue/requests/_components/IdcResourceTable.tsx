@@ -1,7 +1,7 @@
 /**
  * IdcResourceTable — P3 IDC 연동 대상 리소스 + NLB 배정 (design-spec §3), rendered
  * with the app-side IDC step-1 table itself — `idcStyles.table` chrome, the shared
- * ROW_* hover/lift tokens, ReasonChipInline — so the admin reads the request the
+ * ROW_* hover/lift tokens, ExclusionReason — so the admin reads the request the
  * service owner submitted through the same design, plus the admin-only NLB column.
  *
  * Eight columns. Two of the original nine are gone for good, because a column each said
@@ -18,18 +18,16 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { cn, idcStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
+import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
 import {
   CELL_LIFT,
   CONNECTED_FRAME,
-  DIM_TEXT,
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
   TargetPill,
-  clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import {
@@ -134,20 +132,35 @@ export function IdcResourceTable({
             if (!row.selected) {
               return (
                 <tr key={rowKey} className={cn(ROW_BASE, ROW_EXCLUDED)}>
-                  <td className={table.approvalCell}>
+                  <td
+                    className={cn(
+                      table.approvalCell,
+                      verdictRailClass(true, row.integrationCategory === 'INSTALL_INELIGIBLE'),
+                    )}
+                  >
                     <IdcEndpointCell
                       hosts={row.connectTargets}
                       kind={idcAddressKind(row)}
-                      dimmed
-                      tone={DIM_TEXT}
+                      tone={textColors.secondary}
                     />
                   </td>
                   <td className={table.approvalCell}>
-                    <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} tone={DIM_TEXT} />
+                    <IdcDbTypeCell
+                      label={dbLabel}
+                      oracleSid={row.oracleSid}
+                      tone={textColors.secondary}
+                    />
                   </td>
                   {/* 0 is the adapter's "no port in the payload" value, not a port — step
                       1's own guard, so the two tables answer a missing port the same way. */}
-                  <td className={cn(table.approvalCell, 'font-mono text-[14px]', DIM_TEXT, CELL_LIFT)}>
+                  <td
+                    className={cn(
+                      table.approvalCell,
+                      'font-mono text-[14px]',
+                      textColors.secondary,
+                      CELL_LIFT,
+                    )}
+                  >
                     {row.port || <span className={textColors.tertiary}>—</span>}
                   </td>
                   {/* The pill step 1 uses, not a text label: the verdict is the same fact
@@ -166,12 +179,11 @@ export function IdcResourceTable({
                   <td className={table.approvalCell} />
                   <td className={table.approvalCell} />
                   <td className={cn(table.approvalCell, 'text-sm')}>
-                    {row.exclusionReason && (
-                      <ReasonChipInline
-                        reason={row.exclusionReason}
-                        summary={clampReason(row.exclusionReason)}
-                      />
-                    )}
+                    <ExclusionReason
+                      reason={row.exclusionReason ?? undefined}
+                      recommendFailReason={row.recommendFailReason ?? undefined}
+                      maxWidthClass="max-w-[220px]"
+                    />
                   </td>
                 </tr>
               );

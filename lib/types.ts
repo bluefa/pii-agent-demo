@@ -227,6 +227,23 @@ const RECOMMEND_FAIL_REASONS: readonly string[] = [
 ];
 
 /**
+ * 표의 제외 사유 칸에 찍는 한 줄. 원문 enum 은 그 아래 코드 칩으로 남는다.
+ *
+ * 번역이 아니라 라벨링이다 — 세 값은 각각 구체적인 네트워크 조건을 가리키므로 조건의 이름만
+ * 옮기고, 왜 그 조건이 문제인지와 조치 방법은 InstallIneligibleGuideModal 의 GUIDES 가 계속 소유한다.
+ * (그 모달의 `cause` 문장을 표 폭에 맞게 줄인 것이라, 두 곳의 어휘가 갈라지지 않는다.)
+ *
+ * 잘라 쓰면 안 되는 이유: 세 값은 앞 15자가 `GCP_CLOUD_SQL_HAS_` 로 같거나 `AZURE_RESOURCE…` 로
+ * 끝나 서로 구별되지 않는다.
+ */
+export const RECOMMEND_FAIL_REASON_LABEL: Record<RecommendFailReason, string> = {
+  GCP_CLOUD_SQL_HAS_PUBLIC_IP: '공인 IP가 설정된 Cloud SQL 인스턴스',
+  GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET:
+    '내부 HTTP 로드밸런서용 서브넷을 쓰는 Cloud SQL 인스턴스',
+  AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED: 'Private Endpoint 연결 실패',
+};
+
+/**
  * Wire → domain guard. The generated zod schema types this as a plain string (codegen
  * strips enums), so the boundary is the only place that can hold the contract. An
  * unrecognised value is dropped rather than passed through: this text is shown to the user

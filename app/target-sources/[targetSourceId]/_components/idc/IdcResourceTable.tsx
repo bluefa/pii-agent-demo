@@ -3,8 +3,8 @@
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
-import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { cn, idcStyles, textColors } from '@/lib/theme';
+import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
+import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
 import { IDC_SOURCE_IP_TOOLTIP } from '@/lib/constants/idc';
 import type { IdcInstallStatus, IdcResourceView } from '@/app/lib/api/idc';
 import {
@@ -23,7 +23,6 @@ import {
   ROW_EXCLUDED,
   ROW_TARGET,
   TargetPill,
-  clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { LogicalDbCountMap } from '@/app/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
@@ -181,7 +180,8 @@ export const IdcResourceTable = ({
         </thead>
         <tbody className={idcStyles.table.body}>
           {pageRows.map((r) => {
-            const dim = r.excluded ? 'opacity-50' : '';
+            // 제외 행을 흐리게 하지 않는다: 승인 화면에서 제외 행은 가장 감사해야 하는 행이고,
+            // opacity-50 은 그 위 모든 텍스트의 대비를 AA 아래로 떨어뜨렸다. 표시는 레일이 맡는다.
             return (
               <tr
                 key={r.resourceId}
@@ -194,22 +194,24 @@ export const IdcResourceTable = ({
                 {/* Same rule as the host and port cells: rows from ExcludedResourceInfoDto carry
                     no endpoint at all, and the adapter's fallback 'SINGLE' would assert an
                     endpoint shape nobody reported. */}
-                <td className={cn(skin.cell, dim)}>
+                <td
+                  className={cn(skin.cell, verdictRailClass(r.excluded))}
+                >
                   {r.hosts.length > 0 ? (
                     <IdcKindBadge kind={r.kind} />
                   ) : (
                     <span className={textColors.tertiary}>—</span>
                   )}
                 </td>
-                <td className={cn(skin.cell, dim)}><IdcEndpointCell resource={r} /></td>
+                <td className={skin.cell}><IdcEndpointCell resource={r} /></td>
                 {/* 0 is the adapter's "no port in the payload" value, not a port — an em-dash
                     says the field is missing instead of asserting a nonsense one. */}
-                <td className={cn(skin.cell, 'font-mono text-[12px]', textColors.secondary, CELL_LIFT, dim)}>
+                <td className={cn(skin.cell, 'font-mono text-[12px]', textColors.secondary, CELL_LIFT)}>
                   {r.port || <span className={textColors.tertiary}>—</span>}
                 </td>
-                <td className={cn(skin.cell, dim)}><IdcDbTypeCell resource={r} /></td>
+                <td className={skin.cell}><IdcDbTypeCell resource={r} /></td>
                 {has('src') && (
-                  <td className={cn(skin.cell, dim)}>
+                  <td className={skin.cell}>
                     <IdcSourceIpCell sourceIps={r.sourceIps} />
                   </td>
                 )}
@@ -218,25 +220,20 @@ export const IdcResourceTable = ({
                     <td className={skin.cell}>
                       <TargetPill excluded={r.excluded} />
                     </td>
-                    {/* Blank, not an em-dash: a 대상 row can never carry a reason. The chip is
-                        clamped to the same 15 chars the cloud table uses — the full text is in
-                        its hover tip. */}
+                    {/* Blank, not an em-dash: a 대상 row can never carry a reason. */}
                     <td className={cn(skin.cell, 'text-sm')}>
-                      {r.excluded && r.exclusionReason ? (
-                        <ReasonChipInline
-                          reason={r.exclusionReason}
-                          summary={clampReason(r.exclusionReason)}
-                        />
+                      {r.excluded ? (
+                        <ExclusionReason reason={r.exclusionReason} maxWidthClass="max-w-[200px]" />
                       ) : null}
                     </td>
                   </>
                 )}
-                {has('fw') && <td className={cn(skin.cell, dim)}><IdcFirewallBadge status={firewallStatusByResource?.[r.resourceId]} /></td>}
+                {has('fw') && <td className={skin.cell}><IdcFirewallBadge status={firewallStatusByResource?.[r.resourceId]} /></td>}
                 {/* 값은 밑줄 텍스트로 읽고 수정은 모달에서 — 클라우드 step 5 와 같은 문법이다.
                     행마다 select 를 놓으면 표가 컨트롤 판이 되고, 고르는 순간 저장돼 두 후보를
                     비교할 수도 없다. IDC 는 모든 대상이 자격 증명을 요구하므로 "불필요" 는 없다. */}
                 {has('cred') && (
-                  <td className={cn(skin.cell, dim)}>
+                  <td className={skin.cell}>
                     <button
                       type="button"
                       onClick={() => onCredentialOpen?.(r)}
@@ -265,7 +262,7 @@ export const IdcResourceTable = ({
                     </td>
                   </>
                 )}
-                {has('health') && <td className={cn(skin.cell, dim)}><IdcHealthBadge health={r.health} /></td>}
+                {has('health') && <td className={skin.cell}><IdcHealthBadge health={r.health} /></td>}
               </tr>
             );
           })}

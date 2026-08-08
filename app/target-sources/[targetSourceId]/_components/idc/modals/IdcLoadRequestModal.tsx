@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal } from '@/app/components/ui/Modal';
-import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
+import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { useIdcPreviousRequest } from '@/app/hooks/useIdcPreviousRequest';
 import { usePagination } from '@/app/hooks/usePagination';
@@ -15,6 +15,7 @@ import {
   numericFeatures,
   statusColors,
   textColors,
+  verdictRailClass,
 } from '@/lib/theme';
 import {
   IdcDbTypeCell,
@@ -120,29 +121,30 @@ export const IdcLoadRequestModal = ({
             <table className="w-full">
               <tbody className={idcStyles.table.body}>
                 {pageRows.map((r) => {
-                  const dim = r.excluded ? 'opacity-50' : '';
+                  // 제외 행을 흐리게 하지 않는다 — 표시는 왼쪽 레일이 맡는다(verdictRail).
                   return (
                     <tr key={r.resourceId} className={cn(r.excluded && bgColors.muted)}>
-                      <td className={cn('w-[104px] px-4 py-3', dim)}>
+                      <td className={cn('w-[104px] px-4 py-3', verdictRailClass(r.excluded))}>
                         <IdcKindBadge kind={r.kind} />
                       </td>
-                      <td className={cn('px-4 py-3', dim)}>
+                      <td className={'px-4 py-3'}>
                         <IdcEndpointCell resource={r} />
                       </td>
-                      <td className={cn('w-[64px] px-4 py-3 font-mono text-[12px]', textColors.secondary, dim)}>
+                      <td className={cn('w-[64px] px-4 py-3 font-mono text-[12px]', textColors.secondary)}>
                         {r.port}
                       </td>
-                      <td className={cn('w-[140px] px-4 py-3', dim)}>
+                      <td className={'w-[140px] px-4 py-3'}>
                         <IdcDbTypeCell resource={r} />
                       </td>
                       <td className="w-[180px] px-4 py-3">
                         {r.excluded ? (
-                          // flex + min-w-0 bounds the reason chip to the column so a long
-                          // 제외 사유 truncates (with ellipsis) instead of spilling past the
-                          // row; the full text stays in the chip's hover tip.
-                          <span className="flex min-w-0 items-center gap-2">
+                          // 판정 위, 사유 아래 — 180px 열에 두 값을 가로로 세우면 사유가 먼저 잘린다.
+                          <span className="flex min-w-0 flex-col items-start gap-1">
                             <IdcTargetPill excluded />
-                            {r.exclusionReason ? <ReasonChipInline reason={r.exclusionReason} /> : null}
+                            <ExclusionReason
+                              reason={r.exclusionReason}
+                              maxWidthClass="max-w-[160px]"
+                            />
                           </span>
                         ) : (
                           <IdcTargetPill excluded={false} />

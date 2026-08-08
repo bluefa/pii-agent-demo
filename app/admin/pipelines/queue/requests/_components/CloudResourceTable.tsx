@@ -4,29 +4,27 @@
  * CloudResourceTable — P3 비-IDC (AWS 등) 연동 대상 리소스.
  *
  * Uses the app-side approval table itself — `idcStyles.table` chrome, the shared
- * ROW_* hover/lift tokens and ReasonChipInline — so the admin and the service owner
+ * ROW_* hover/lift tokens and ExclusionReason — so the admin and the service owner
  * read one request through one design. Column order is Step 2's: identity (name →
  * id) → attributes (type · region) → decision (verdict → reason).
  *
  * Database Type carries no chip: it is a repeating attribute, not a status.
  */
 import { Fragment, type ReactElement } from 'react';
-import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
+import { cn, idcStyles, primaryColors, textColors, verdictRailClass } from '@/lib/theme';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
+import { ExclusionReason } from '@/app/components/ui/ExclusionReason';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import {
   CELL_LIFT,
   CONNECTED_FRAME,
-  DIM_TEXT,
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
   TargetPill,
-  clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import {
@@ -78,7 +76,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             const rowKey = row.resourceId || `row-${index}`;
             // Resting tier is per cell, not per row: a row-level override would win over
             // the cells' own hover lifts and freeze excluded rows at the dim tier.
-            const tone = excluded ? DIM_TEXT : textColors.secondary;
+            const tone = textColors.secondary;
             // An RDS cluster connects through ONE member instance. Read-only here: the queue
             // reviews a submitted request, so the list shows what the cluster holds and which
             // instance the requester picked. Reader-first display order; the wire order is
@@ -108,7 +106,8 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     // 14, the size WaitingApprovalTable and the IDC table give their own
                     // identity column — it was rendering at the attribute tier.
                     'font-mono text-[14px]',
-                    excluded ? DIM_TEXT : textColors.primary,
+                    textColors.primary,
+                    verdictRailClass(excluded, excluded && row.integrationCategory === 'INSTALL_INELIGIBLE'),
                     // The row's anchor lifts to brand, marking which cell identifies it.
                     primaryColors.textGroupHover,
                     // The rail's first segment runs from the chevron down to the first
@@ -190,12 +189,12 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                 </td>
                 <td className={cn(table.approvalCell, 'text-sm')}>
                   {/* A 대상 row has no reason to give — blank, not an em-dash, which
-                      would read as "this should have had one and it is missing". The
-                      chip clamps and the full sentence lives in its floating tip. */}
-                  {excluded && row.exclusionReason && (
-                    <ReasonChipInline
-                      reason={row.exclusionReason}
-                      summary={clampReason(row.exclusionReason)}
+                      would read as "this should have had one and it is missing". */}
+                  {excluded && (
+                    <ExclusionReason
+                      reason={row.exclusionReason ?? undefined}
+                      recommendFailReason={row.recommendFailReason ?? undefined}
+                      maxWidthClass="max-w-[220px]"
                     />
                   )}
                 </td>
@@ -213,7 +212,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     className={cn(
                       table.approvalCell,
                       'font-mono text-[14px]',
-                      excluded ? DIM_TEXT : textColors.primary,
+                      textColors.primary,
                       table.group.childCell,
                       instanceIndex === instances.length - 1 && table.group.childCellLast,
                     )}
