@@ -28,6 +28,7 @@ import {
   idcStyles,
   primaryColors,
   statusColors,
+  tableRowLift,
   textColors,
   verdictRailClass,
 } from '@/lib/theme';
@@ -51,14 +52,17 @@ export interface CandidateRowActions {
   selectRdsInstance: (resourceId: string, instanceResourceId: string) => void;
 }
 
-// Row/cell state grammar — mirrors WaitingApprovalTable (step 2·3); keep the two
-// in sync so the step-1 selection table and the approval tables read as one family.
+// Row/cell state grammar — the SAME tokens the approval tables use, so the step-1
+// selection table and steps 2·3 read as one family.
+//
+// These four used to be copied literals here with a "keep the two in sync" note. Lowering
+// the excluded tint is what made that note fail: one copy moved and the other did not, and
+// nothing outside a screenshot would have caught it. The token is the sync.
 // 미선택 행도 본문은 선택 행과 같은 강도로 읽는다 — 표시는 왼쪽 레일이 맡는다(verdictRail).
-// 틴트는 행을 묶기만 하므로 흰 바탕과 거의 붙어 있다(#FBFCFD).
-const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-none';
-const ROW_TARGET = 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]';
-const ROW_EXCLUDED = 'bg-[#FBFCFD] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]';
-const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
+const ROW_BASE = tableRowLift.base;
+const ROW_TARGET = tableRowLift.target;
+const ROW_EXCLUDED = tableRowLift.excluded;
+const CELL_LIFT = tableRowLift.cellText;
 const NAME_LIFT = primaryColors.textGroupHover;
 
 // integration_category(시스템의 사실) → 설치-계열 표기. 선택(사용자의 결정)과

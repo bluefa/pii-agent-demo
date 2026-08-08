@@ -146,11 +146,11 @@ export const ReasonChipInline = ({
                 팁 안에만 주황이 남으면 같은 정보의 두 표현이 서로 다른 색을 갖게 된다. */}
             <span
               className={cn(
-                'mb-2 flex items-center gap-1.5 font-bold uppercase tracking-[0.08em] text-[#4E5968]',
+                cn('mb-2 flex items-center gap-1.5 font-bold uppercase tracking-[0.08em]', idcStyles.reasonChip.tipLabel),
                 'text-[10.5px]', // design-exempt: v16 `.rft-label` 원문 값 — 짝수로 반올림하지 않는다
               )}
             >
-              <span className="h-1 w-1 rounded-full bg-[#4E5968]" aria-hidden="true" />
+              <span className={cn('h-1 w-1 rounded-full', idcStyles.reasonChip.tipLabelDot)} aria-hidden="true" />
               {label}
             </span>
             {/* break-words, because a reason is not always prose. `recommend_fail_reason`
@@ -162,7 +162,7 @@ export const ReasonChipInline = ({
             {/* 원문 판정 코드 — 리뷰어는 위의 한 줄을 읽고, 엔지니어는 이 문자열로 검색하고
                 티켓에 인용한다. 표의 칩은 15자만 보여주므로 코드가 설 자리는 여기뿐이다. */}
             {code && (
-              <span className="mt-2 block break-all font-mono text-[12px] text-[#6B7280]">
+              <span className={cn('mt-2 block break-all font-mono text-[12px]', idcStyles.reasonChip.tipCode)}>
                 {code}
               </span>
             )}

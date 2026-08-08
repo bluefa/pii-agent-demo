@@ -899,6 +899,12 @@ export const idcStyles = {
     base: 'inline-flex min-w-0 max-w-full items-center gap-[5px] rounded-[6px] border border-[#E1E5EB] bg-[#F7F8FA] px-[9px] py-[3px] text-[11.5px] font-medium text-[#4E5968] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#EFF1F5] hover:border-[#C9CFD8]', // design-exempt: 11.5px 는 v16 `.reason-chip-inline` 원문 값 — 이번 변경은 색만 건드린다
     text: 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]',
     icon: 'flex-shrink-0 text-[#6B7280]',
+    /** 팁 헤딩(제외 사유 / 안내) + 그 앞 4px 점. 칩과 같은 중립 — 칩만 내리면 같은 정보의
+     *  두 표현이 서로 다른 색을 갖는다. */
+    tipLabel: 'text-[#4E5968]',
+    tipLabelDot: 'bg-[#4E5968]',
+    /** 팁 안의 원문 판정 코드 — 본문 문장보다 한 단 아래. #6B7280 on white = 4.8:1. */
+    tipCode: 'text-[#6B7280]',
   },
   /** Header status pill (mirrors cloud sibling pill; combine with statusColors.{warning,success}). */
   statusPill: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
