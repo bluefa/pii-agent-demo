@@ -12,11 +12,12 @@
  *
  * Layout: Figma ZL0Y0okL8lReCrbf7JaVAp 1:123 — summary counts on top, then all
  * four buckets side by side (2×2), each with its own page of rows. The summary
- * tiles are read-only counts: every bucket is already on screen, so selecting
- * one had nothing to reveal.
+ * tiles are selectable one at a time — 선택하면 같은 버킷의 아래 카드까지 함께
+ * 강조된다. 강조 표시일 뿐, 카드 목록은 걸러내지 않는다(네 버킷이 이미 모두
+ * 화면에 있다).
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import { pipelineStyles } from '@/lib/theme';
+import { cn, pipelineStyles } from '@/lib/theme';
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
 import type { AlertTargetKind, DashboardSummary } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -85,8 +86,16 @@ const alertsView = {
   context: 'mt-1 text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
   contextTotal: 'mx-0.5 align-baseline text-[32px] font-bold leading-none text-[var(--pl-primary)]',
   summaryRow: 'mt-6 grid grid-cols-4 gap-4',
+  /**
+   * border 는 비활성일 때도 자리를 차지해야 선택 시 타일 크기가 흔들리지 않는다.
+   * 색은 idle/active 를 배타적으로 골라서 준다 — cn 은 단순 join 이라 같은
+   * 속성을 두 번 실으면 Tailwind 출력 순서가 승자를 정해버린다(투명이 이겼다).
+   */
   summary:
-    'flex h-[120px] flex-col items-center justify-center gap-1.5 rounded-[8px] bg-[var(--pl-gray-100)]',
+    'flex h-[120px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[8px] border bg-[var(--pl-gray-100)] transition-colors',
+  /** hover 는 idle 에만 — active 위에 얹으면 hover 가 브랜드 스트로크를 덮는다. */
+  summaryIdle: 'border-transparent hover:border-[var(--pl-gray-300)] hover:bg-[var(--pl-gray-200)]',
+  summaryActive: 'border-[var(--pl-primary)]',
   summaryLabel: 'text-[14px] leading-[1.4] text-[var(--pl-text-weak)]',
   summaryValue: 'text-[40px] font-bold leading-[1.2] tracking-[-0.02em] tabular-nums text-[var(--pl-text-strong)]',
   summaryNeed: 'text-[12px] leading-[1.4] text-[var(--pl-text-faint)]',
@@ -102,6 +111,7 @@ const EMPTY_SUMMARY_COUNTS: AlertCounts = {
 
 export function AlertsView(): ReactElement {
   const [counts, setCounts] = useState(EMPTY_SUMMARY_COUNTS);
+  const [selected, setSelected] = useState<AlertTargetKind | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
@@ -139,11 +149,20 @@ export function AlertsView(): ReactElement {
 
       <div className={alertsView.summaryRow}>
         {ALERT_CARDS.map((card) => (
-          <div key={card.kind} className={alertsView.summary}>
+          <button
+            key={card.kind}
+            type="button"
+            aria-pressed={selected === card.kind}
+            onClick={() => setSelected((prev) => (prev === card.kind ? null : card.kind))}
+            className={cn(
+              alertsView.summary,
+              selected === card.kind ? alertsView.summaryActive : alertsView.summaryIdle,
+            )}
+          >
             <span className={alertsView.summaryLabel}>{card.label}</span>
             <span className={alertsView.summaryValue}>{card.count(counts) ?? 0}</span>
             <span className={alertsView.summaryNeed}>{card.need}</span>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -155,6 +174,7 @@ export function AlertsView(): ReactElement {
             label={card.label}
             description={card.description}
             icon={card.icon}
+            active={selected === card.kind}
             reloadKey={reloadKey}
           />
         ))}
