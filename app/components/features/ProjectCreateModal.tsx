@@ -28,7 +28,7 @@ import {
 } from '@/app/components/features/project-create/wizard-model';
 import type { DbType } from '@/lib/constants/db-types';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
-import { cn, modalStyles } from '@/lib/theme';
+import { bgColors, borderColors, cn, modalStyles } from '@/lib/theme';
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;
@@ -281,18 +281,28 @@ export const ProjectCreateModal = ({
           // `max-h-[90vh]` is the short-window escape hatch — the pane scrolls instead.
           className={cn(
             modalStyles.container,
-            'flex h-[700px] max-h-[90vh] w-[960px] max-w-[calc(100vw-2rem)] flex-col shadow-2xl',
+            'flex h-[700px] max-h-[90vh] w-[980px] max-w-[calc(100vw-2rem)] flex-col shadow-2xl',
           )}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* Grouping by surface, not by borders: a gray ground fills the dialog and the
+              content sits on it as its own white card. The step column sits directly on
+              the gray, so the 8px gutter is what separates the two — no rule to draw, and
+              nothing left to make a seam. Inner radius steps down from the shell's. */}
+          <div className={cn('flex min-h-0 flex-1 gap-2 overflow-hidden p-2', bgColors.panel)}>
             <WizardRail
               current={step}
               onNavigate={step < 5 ? setStep : undefined}
               titleId="infra-register-modal-title"
             />
 
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div
+              className={cn(
+                'flex min-h-0 flex-1 flex-col rounded-lg border',
+                borderColors.card,
+                bgColors.surface,
+              )}
+            >
               {/* pt-6 matches the rail's, so the step heading and the dialog title
                   start on the same line instead of stepping down from it. */}
               <div className="min-h-0 flex-1 overflow-y-auto px-[30px] pt-6 pb-4">

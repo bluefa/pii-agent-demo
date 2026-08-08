@@ -42,21 +42,18 @@ export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) =>
   // which put a hairline straight across the dialog and started the gray under it at a
   // T-junction. With the column running the whole way, the only division left is its
   // own edge — and the dialog's title stops competing with the step's heading opposite.
-  <div
-    className={cn(
-      // 256, not 216: at 216 the text column was 148px and 「사용하는 Database 확인」
-      // wrapped onto a second line with the rail's own right margin still empty.
-      // The modal grew by the same 40px so the content pane keeps its width.
-      'flex w-[256px] flex-shrink-0 flex-col border-r px-[18px] pb-[22px] pt-6',
-      borderColors.light,
-      bgColors.muted,
-    )}
-  >
+  // No surface and no border of its own: the column sits straight on the dialog's gray
+  // ground, and the 8px gutter to the content card is the whole separation. 248/px-14
+  // keeps the same 168px text column the old 256/px-18 had, now that the gutter and the
+  // card's own padding do the spacing the border used to.
+  <div className="flex w-[248px] flex-shrink-0 flex-col px-[14px] pb-[22px] pt-6">
     <div className="px-2.5 pb-5">
       <h2 id={titleId} className={cn('text-lg font-bold', textColors.primary)}>
         인프라 등록
       </h2>
-      <p className={cn('mt-1 text-xs leading-relaxed', textColors.tertiary)}>
+      {/* `break-keep`: at 14px this wraps in the 224px column, and the default rule
+          breaks mid-word ("등록해 / 요."). Korean wants word-level breaks. */}
+      <p className={cn('mt-1 break-keep text-sm leading-relaxed', textColors.tertiary)}>
         PII 모니터링을 시작할 인프라를 등록해요.
       </p>
     </div>
