@@ -31,16 +31,16 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 
 // Same column grammar as the step-1 list (IdcTargetListTable): 구분 → 접속 주소 → Port →
-// Database Type → 판정. Widths are the step-1 ones for every shared column; only the last is
-// narrower, because this preview has no checkbox column and lives inside a modal. The 판정
-// column carries the 대상/비대상 pill the checkbox carries on step 1, so its header names that
-// rather than 제외 사유 — the reason chip rides along inside it.
+// Database Type → 판정 → 제외 사유, at the step-1 widths. 연동 여부 is the one column step 1
+// does not have under that name — it carries the 대상/비대상 verdict the checkbox carries there,
+// which a read-only preview cannot show as a checkbox.
 const HEADERS: ReadonlyArray<{ label: string; className?: string }> = [
   { label: '구분', className: 'w-[110px]' },
   { label: '접속 주소' },
   { label: 'Port', className: 'w-[80px]' },
   { label: 'Database Type', className: 'w-[140px]' },
-  { label: '연동 여부', className: 'w-[170px]' },
+  { label: '연동 여부', className: 'w-[96px]' },
+  { label: '제외 사유', className: 'w-[190px]' },
 ];
 
 interface IdcLoadRequestModalProps {
@@ -86,9 +86,15 @@ export const IdcLoadRequestModal = ({
       isOpen={isOpen}
       onClose={onClose}
       title="기존 연동 정보를 불러올까요?"
-      subtitle="현재 입력한 정보는 모두 사라지고 아래 기존 연동 정보를 불러옵니다."
-      icon={<StatusWarningIcon className="h-5 w-5" />}
-      size="2xl"
+      // The warning belongs to the sentence that states what is lost, not to the question:
+      // beside the title it decorated the modal, in front of the subtitle it marks the risk.
+      subtitle={
+        <span className="inline-flex items-start gap-1.5">
+          <StatusWarningIcon className={cn('mt-0.5 h-4 w-4 shrink-0', statusColors.warning.text)} />
+          현재 입력한 정보는 모두 사라지고 아래 기존 연동 정보를 불러옵니다.
+        </span>
+      }
+      size="wide"
       chrome="toss"
       tone="warn"
       footer={
@@ -116,7 +122,7 @@ export const IdcLoadRequestModal = ({
       {!loading && !error && !hasRows && (
         <div
           className={cn(
-            'rounded-xl border border-dashed px-6 py-10 text-center text-[13px]',
+            'rounded-xl border border-dashed px-6 py-10 text-center text-[12px]',
             borderColors.default,
             textColors.tertiary,
           )}
@@ -130,7 +136,7 @@ export const IdcLoadRequestModal = ({
 
       {!loading && !error && hasRows && (
         <div className="space-y-3">
-          <div className={cn('text-[12.5px]', textColors.tertiary)}>
+          <div className={cn('text-[12px]', textColors.tertiary)}>
             불러올 연동 대상 <strong className={textColors.secondary}>{resources.length}건</strong> · 연동{' '}
             <strong className={textColors.secondary}>{liveCount}건</strong> · 제외{' '}
             <strong className={textColors.secondary}>{excludedCount}건</strong>
@@ -176,22 +182,16 @@ export const IdcLoadRequestModal = ({
                         <IdcDbTypeCell resource={r} />
                       </td>
                       <td className={idcStyles.table.approvalCell}>
-                        {r.excluded ? (
-                          // flex + min-w-0 bounds the reason chip to the column so a long
-                          // 제외 사유 truncates (with ellipsis) instead of spilling past the
-                          // row; the full text stays in the chip's hover tip.
-                          <span className="flex min-w-0 items-center gap-2">
-                            <IdcTargetPill excluded />
-                            {r.exclusionReason ? (
-                              <ReasonChipInline
-                                reason={r.exclusionReason}
-                                summary={clampReason(r.exclusionReason)}
-                              />
-                            ) : null}
-                          </span>
-                        ) : (
-                          <IdcTargetPill excluded={false} />
-                        )}
+                        <IdcTargetPill excluded={r.excluded} />
+                      </td>
+                      {/* Blank, not an em-dash: a 대상 row can never carry a reason (step 1). */}
+                      <td className={idcStyles.table.approvalCell}>
+                        {r.excluded && r.exclusionReason ? (
+                          <ReasonChipInline
+                            reason={r.exclusionReason}
+                            summary={clampReason(r.exclusionReason)}
+                          />
+                        ) : null}
                       </td>
                     </tr>
                   );
@@ -259,7 +259,10 @@ const LoadPreviewSkeleton = () => (
                 <div className={cn(idcStyles.skeletonBar, 'h-4 w-20 rounded')} />
               </td>
               <td className={idcStyles.table.approvalCell}>
-                <div className={cn(idcStyles.skeletonBar, 'h-5 w-24 rounded-full')} />
+                <div className={cn(idcStyles.skeletonBar, 'h-4 w-10 rounded')} />
+              </td>
+              <td className={idcStyles.table.approvalCell}>
+                <div className={cn(idcStyles.skeletonBar, 'h-6 w-24 rounded-full')} />
               </td>
             </tr>
           ))}
