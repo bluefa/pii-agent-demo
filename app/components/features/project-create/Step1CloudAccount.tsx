@@ -17,7 +17,7 @@ import {
   textColors,
 } from '@/lib/theme';
 
-// China 먼저, Global 뒤 — 두 장이 한 줄에 서고 기본값(Global)이 오른쪽에 온다.
+// China first, Global second: the two cards sit on one row and the default lands right.
 const REGION_OPTIONS: Array<{ value: OperatingRegion; title: string; description: string }> = [
   { value: 'china', title: 'China', description: '리전 정책에 따라 연동 구성이 달라질 수 있어요.' },
   { value: 'global', title: 'Global', description: '일반 리전에서 운영 중인 계정이에요.' },

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { useToast } from '@/app/components/ui/toast';
+import { useModal } from '@/app/hooks/useModal';
 import {
   createTargetSource,
   getCreationCandidates,
@@ -55,7 +56,7 @@ export const ProjectCreateModal = ({
   const [candidatesBusy, setCandidatesBusy] = useState(false);
   const [candidatesError, setCandidatesError] = useState<string | null>(null);
   const [rows, setRows] = useState<RegistrationRow[]>([]);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const closeConfirm = useModal();
 
   // mountedRef gates async setState after unmount — step 5 fans out N createTargetSource
   // calls in parallel and the modal can be torn down mid-batch.
@@ -74,24 +75,26 @@ export const ProjectCreateModal = ({
 
   // Backdrop and Escape both land here. A batch already hitting the BFF cannot be
   // abandoned; once it has finished there is nothing left to lose, so no confirm.
+  const openConfirm = closeConfirm.open;
   const requestClose = useCallback(() => {
     if (step === 5) {
       if (registrationComplete) onClose();
       return;
     }
-    setConfirmOpen(true);
-  }, [step, registrationComplete, onClose]);
+    openConfirm();
+  }, [step, registrationComplete, onClose, openConfirm]);
 
+  const confirmIsOpen = closeConfirm.isOpen;
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       // The confirm dialog owns Escape while it is open (it dismisses itself).
-      if (confirmOpen) return;
+      if (confirmIsOpen) return;
       requestClose();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [confirmOpen, requestClose]);
+  }, [confirmIsOpen, requestClose]);
 
   const handleProviderChange = (key: ProviderChipKey) => {
     if (key === providerKey) return;
@@ -312,8 +315,8 @@ export const ProjectCreateModal = ({
       </div>
 
       <ConfirmStepModal
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
+        open={closeConfirm.isOpen}
+        onClose={closeConfirm.close}
         onConfirm={onClose}
         title="등록을 그만두시겠어요?"
         description="지금 닫으면 입력한 내용이 사라져요."

@@ -1,30 +1,9 @@
 'use client';
 
-import type { FC } from 'react';
 import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
+import { QuestionCircleIcon } from '@/app/components/ui/icons';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
 import { bgColors, cn, providerColors, statusColors, textColors } from '@/lib/theme';
-
-/**
- * 기타 환경 — a question mark, because the whole point of the chip is that we do not
- * know what runs there. No brand mark exists to borrow.
- */
-export const OtherGlyph: FC<{ className?: string }> = ({ className }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="12" r="9" />
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-    <line x1="12" y1="17" x2="12.01" y2="17" />
-  </svg>
-);
 
 /** Tinted tile per provider. IDC/기타 have no brand color, so they sit on neutrals. */
 const TILE_TONE: Record<ProviderChipKey, string> = {
@@ -62,7 +41,9 @@ export const ProviderGlyphTile = ({
     {isSdu ? (
       <ProviderGlyph provider="sdu" isSdu className={glyphClassName} />
     ) : providerKey === 'other' ? (
-      <OtherGlyph className={glyphClassName} />
+      // 기타 has no brand mark to borrow — a question mark says exactly what the chip
+      // means: we do not know what runs there.
+      <QuestionCircleIcon className={glyphClassName} />
     ) : (
       <ProviderGlyph provider={providerKey} className={glyphClassName} />
     )}

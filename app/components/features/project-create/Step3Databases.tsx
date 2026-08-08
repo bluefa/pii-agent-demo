@@ -4,6 +4,7 @@ import {
   DB_TYPES_BY_PROVIDER,
   type DbType,
 } from '@/lib/constants/db-types';
+import { CheckIcon } from '@/app/components/ui/icons';
 import { PROVIDER_CHIP_BY_KEY, type ProviderChipKey } from '@/lib/constants/provider-mapping';
 import {
   bgColors,
@@ -14,21 +15,6 @@ import {
   statusColors,
   textColors,
 } from '@/lib/theme';
-
-const CheckMark = () => (
-  <svg
-    className="h-2.5 w-2.5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
 
 interface Step3DatabasesProps {
   providerKey: ProviderChipKey;
@@ -97,7 +83,7 @@ export const Step3Databases = ({
                     : borderColors.strong,
                 )}
               >
-                {isSelected && <CheckMark />}
+                {isSelected && <CheckIcon className="h-3 w-3" />}
               </span>
               {db.label}
             </button>

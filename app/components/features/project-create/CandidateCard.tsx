@@ -9,7 +9,7 @@ import {
   KindWord,
   MetaPair,
 } from '@/app/components/features/admin/v7/RowIdentityText';
-import { OtherGlyph } from '@/app/components/features/project-create/ProviderGlyphTile';
+import { QuestionCircleIcon } from '@/app/components/ui/icons';
 import {
   candidateDescriptionLine,
   candidateIdentity,
@@ -95,7 +95,7 @@ const CandidateLogo = ({
         {isSdu ? (
           <ProviderGlyph provider="sdu" isSdu className="h-9 w-9" />
         ) : (
-          <OtherGlyph className="h-9 w-9" />
+          <QuestionCircleIcon className="h-9 w-9" />
         )}
       </span>
     );
