@@ -3,21 +3,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppError } from '@/lib/errors';
 import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
-import {
-  ConnProgressStrip,
-  type ConnProgressState,
-} from '@/app/components/features/process-status/ConnProgressStrip';
+import { TcSummaryCard } from '@/app/components/features/process-status/TcSummaryCard';
+import { TcRejectionNotice } from '@/app/components/features/process-status/TcRejectionNotice';
+import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { useModal } from '@/app/hooks/useModal';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
+import {
+  computeTcBuckets,
+  foldAgentStatuses,
+  type TcRunPhase,
+} from '@/lib/test-connection-summary';
 import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
   getSecrets,
-  getTestConnectionCompletionStatus,
   updateResourceCredential,
   updateTestConnectionConfirmation,
-  type TestConnectionStatus,
 } from '@/app/lib/api';
 import {
   CardActionBar,
@@ -87,7 +90,9 @@ export const IdcStep5ConnectionTest = ({
   // DB Credential options from GET .../secrets (not a hardcoded list). 레코드를 그대로
   // 들고 있는다 — 고르는 모달이 이름 말고 User ID·등록일도 같이 보여준다.
   const [credOptions, setCredOptions] = useState<SecretKey[]>([]);
-  const [approvalEnabled, setApprovalEnabled] = useState(false);
+  // Credential 이 바뀌면 다음 Run Test 전까지 완료 승인을 닫는다 — completion-status 는
+  // 서버의 판정이라 로컬 변경을 모르므로, 이 로컬 사실만 따로 든다.
+  const [credsDirty, setCredsDirty] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
   const credModal = useModal<CredModalTarget>();
   const [savingCred, setSavingCred] = useState(false);
@@ -112,7 +117,7 @@ export const IdcStep5ConnectionTest = ({
         setCreds(
           Object.fromEntries(resources.map((r) => [r.resourceId, r.credentialId ?? ''])),
         );
-        setApprovalEnabled(false);
+        setCredsDirty(false);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted || (error instanceof AppError && error.code === 'ABORTED')) return;
@@ -150,19 +155,18 @@ export const IdcStep5ConnectionTest = ({
   // The poll streams results as each pipeline settles, so this map is the live
   // source of truth for the table — no extra "tested" gate (B3: a settled prior
   // run hydrates on mount, so it renders immediately on cold load too).
-  const statusByResource = useMemo(() => {
-    const map: Record<string, TestConnectionStatus> = {};
-    for (const agent of latestJob?.test_connection_agent_results ?? []) {
-      if (agent.resource_id && agent.connection_status) map[agent.resource_id] = agent.connection_status;
-    }
-    return map;
-  }, [latestJob]);
+  // FAIL-first fold shared with the cloud card — several agents may report on one
+  // resource, and last-write-wins could overwrite a FAIL with a later SUCCESS (P4).
+  const statusByResource = useMemo(
+    () => foldAgentStatuses(latestJob?.test_connection_agent_results ?? []),
+    [latestJob],
+  );
 
   // A row counts as connected on the SUCCESS the agent reported, and on nothing else —
   // the same rule the cloud card runs on. Folding "is a credential picked locally" into
   // the verdict made a healthy target read 대기 in the progress strip.
   const rowConnected = useCallback(
-    (resourceId: string): boolean => statusByResource[resourceId] === 'SUCCESS',
+    (resourceId: string): boolean => statusByResource.get(resourceId) === 'SUCCESS',
     [statusByResource],
   );
 
@@ -173,7 +177,7 @@ export const IdcStep5ConnectionTest = ({
     ? state.resources.map((r) => ({
         ...r,
         credentialId: creds[r.resourceId] || undefined,
-        connection: IDC_CONN_STATES.find((s) => s === statusByResource[r.resourceId]) ?? 'PENDING',
+        connection: IDC_CONN_STATES.find((s) => s === statusByResource.get(r.resourceId)) ?? 'PENDING',
       }))
     : [];
 
@@ -194,41 +198,25 @@ export const IdcStep5ConnectionTest = ({
       ? { ...state, resources: state.resources.filter((r) => !creds[r.resourceId]) }
       : state;
 
-  // Progress counts every settled pipeline (SUCCESS or FAIL) as done, not just the
-  // running ones — done / total drives the percentage.
-  const okCount = liveResources.filter((r) => rowConnected(r.resourceId)).length;
-  const failCount = liveResources.filter(
-    (r) => statusByResource[r.resourceId] === 'FAIL',
-  ).length;
-  const doneCount = liveResources.filter((r) => {
-    const s = statusByResource[r.resourceId];
-    return s === 'SUCCESS' || s === 'FAIL';
-  }).length;
-  const pendingCount = liveResources.length - doneCount;
-  const progressPct = liveResources.length > 0 ? Math.round((doneCount / liveResources.length) * 100) : 0;
+  // Phase-aware buckets (shared rule with the cloud card): 미보고 is its own fact,
+  // never folded into 대기, and % counts reported resources only.
+  const buckets = useMemo(
+    () => computeTcBuckets(liveResources.map((r) => r.resourceId), statusByResource),
+    [liveResources, statusByResource],
+  );
 
-  // After the run settles SUCCESS, read completion-status; the CTA only opens on
-  // LATEST_TEST_CONNECTION_SUCCESS (every target connected + logical-DB up to date).
-  // While not-SUCCESS (pre-test / running / fail) the gate stays closed: the async
-  // resolution sets it, and credential changes / a new Run Test reset it to false.
-  useEffect(() => {
-    if (uiState !== 'SUCCESS') return;
-    let active = true;
-    void getTestConnectionCompletionStatus(targetSourceId)
-      .then((status) => {
-        if (active) setApprovalEnabled(status.test_connection_status === 'LATEST_TEST_CONNECTION_SUCCESS');
-      })
-      .catch(() => {
-        if (active) setApprovalEnabled(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [uiState, targetSourceId, latestJob]);
+  // Completion-status gate + 재실행 필요 chip — shared hook with the cloud card. The
+  // CTA only opens on LATEST_TEST_CONNECTION_SUCCESS; a logical-DB save re-reads it.
+  const {
+    approvalEnabled,
+    needsRerun,
+    refresh: refreshCompletion,
+  } = useTcCompletionStatus(targetSourceId, uiState, latestJob?.test_connection_version ?? null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const runTest = useCallback(async () => {
     if (!ready || testing || !allCredsSet) return;
-    setApprovalEnabled(false);
+    setCredsDirty(false);
     await trigger();
   }, [ready, testing, allCredsSet, trigger]);
 
@@ -241,7 +229,7 @@ export const IdcStep5ConnectionTest = ({
       try {
         await updateResourceCredential(targetSourceId, target.resourceId, next);
         setCreds((prev) => ({ ...prev, [target.resourceId]: next }));
-        setApprovalEnabled(false);
+        setCredsDirty(true);
         credModal.close();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
@@ -266,20 +254,14 @@ export const IdcStep5ConnectionTest = ({
     [credModal, creds],
   );
 
-  const progressState: ConnProgressState = testing
+  // Phase from the RUN's own status (latest_version), not re-derived from counts.
+  const phase: TcRunPhase = testing
     ? 'running'
-    : failCount > 0
-      ? 'fail'
-      : liveResources.length > 0 && pendingCount === 0
-        ? 'success'
+    : uiState === 'SUCCESS'
+      ? 'success'
+      : uiState === 'FAIL'
+        ? 'fail'
         : 'idle';
-  const progressLabel = testing
-    ? '연결 테스트 진행 중 — 각 대상의 연결 상태를 확인하고 있어요'
-    : progressState === 'success'
-      ? '연결 테스트 완료 — 모든 대상이 연결되었어요'
-      : progressState === 'fail'
-        ? '연결 테스트 실패 — 실패한 대상의 Credential 또는 네트워크를 점검해 주세요'
-        : '연결 테스트 대기 중 — Run Test를 실행해 주세요';
 
   // Open the per-resource logical-DB modal. IdcLogicalButtonCell gates this to
   // credentialed + SUCCESS rows.
@@ -295,15 +277,23 @@ export const IdcStep5ConnectionTest = ({
   const handleLogicalSaved = useCallback(async () => {
     toast.success('논리 DB 제외 정책을 저장했습니다. 연결 테스트를 다시 실행해야 반영됩니다.');
     logicalModal.close();
+    // completion-status 가 LOGICAL_DATABASE_RECENTLY_UPDATED 로 넘어갔는지 다시 읽는다 —
+    // 토스트가 사라져도 재실행 필요 칩이 화면에 남는다.
+    refreshCompletion();
     const updated = await getProject(targetSourceId);
     onProjectUpdate(updated);
-  }, [logicalModal, toast, onProjectUpdate, targetSourceId]);
+  }, [logicalModal, toast, onProjectUpdate, targetSourceId, refreshCompletion]);
 
   const handleLogicalError = useCallback(() => {
     toast.error('논리 DB 제외 정책 저장에 실패했습니다.');
   }, [toast]);
 
-  const canRequestApproval = liveResources.length > 0 && okCount === liveResources.length && !testing && approvalEnabled;
+  const canRequestApproval =
+    liveResources.length > 0 &&
+    buckets.ok === liveResources.length &&
+    !testing &&
+    approvalEnabled &&
+    !credsDirty;
   // 완료 승인 요청: acknowledge (confirmed:true) → the mock sets passedAt → Step 6,
   // then the refetch advances the screen. (Without the PUT the project never changes.)
   const handleSubmitApproval = useCallback(async () => {
@@ -362,13 +352,29 @@ export const IdcStep5ConnectionTest = ({
         <div className={cn(cardStyles.body, 'space-y-4')}>
           {ready && (
             <>
-              <ConnProgressStrip
-                state={progressState}
-                label={progressLabel}
-                ok={okCount}
-                fail={failCount}
-                pending={pendingCount}
-                pct={progressPct}
+              <TcRejectionNotice targetSourceId={targetSourceId} />
+              <TcSummaryCard
+                phase={phase}
+                buckets={buckets}
+                run={
+                  latestJob
+                    ? {
+                        version: latestJob.test_connection_version ?? null,
+                        requestedAt: latestJob.requested_at ?? null,
+                        completedAt: latestJob.completed_at ?? null,
+                      }
+                    : null
+                }
+                needsRerun={needsRerun}
+                historyAction={
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen(true)}
+                    className={cn(idcStyles.triggerBtn.linkNeutral, 'whitespace-nowrap text-[12px]')}
+                  >
+                    실행 이력
+                  </button>
+                }
               />
               {triggerError && (
                 <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
@@ -444,6 +450,11 @@ export const IdcStep5ConnectionTest = ({
               onSubmit={handleSubmitApproval}
             />
           )}
+          <TcRunHistoryModal
+            open={historyOpen}
+            targetSourceId={targetSourceId}
+            onClose={() => setHistoryOpen(false)}
+          />
           {logicalModal.data && (
             <LogicalDbModalLoader
               open={logicalModal.isOpen}

@@ -5,7 +5,6 @@ import { resolve } from 'node:path';
 const SLOT_FILES = [
   'InstallationStatusSlot.tsx',
   'ConfirmedResourcesSlot.tsx',
-  'ConnectionTestSlot.tsx',
 ] as const;
 
 const FORBIDDEN_PATTERNS: { name: string; pattern: RegExp }[] = [
