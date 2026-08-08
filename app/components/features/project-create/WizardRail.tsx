@@ -51,10 +51,12 @@ export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) =>
       <h2 id={titleId} className={cn('text-lg font-bold', textColors.primary)}>
         인프라 등록
       </h2>
-      {/* `break-keep`: at 14px this wraps in the 224px column, and the default rule
-          breaks mid-word ("등록해 / 요."). Korean wants word-level breaks. */}
-      <p className={cn('mt-1 break-keep text-sm leading-relaxed', textColors.tertiary)}>
-        PII 모니터링을 시작할 인프라를 등록해요.
+      {/* One line, deliberately. At 14px the column gives this text 200px; the longer
+          「PII 모니터링을 시작할 인프라를 등록해요.」 measures 220 and wrapped. This
+          wording lands at 181, so it holds its line with room for a wider fallback
+          font. `nowrap` makes the constraint fail loudly if the copy grows again. */}
+      <p className={cn('mt-1 whitespace-nowrap text-sm', textColors.tertiary)}>
+        PII 모니터링할 인프라를 등록해요.
       </p>
     </div>
 

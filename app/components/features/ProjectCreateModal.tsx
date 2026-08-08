@@ -281,7 +281,7 @@ export const ProjectCreateModal = ({
           // `max-h-[90vh]` is the short-window escape hatch — the pane scrolls instead.
           className={cn(
             modalStyles.container,
-            'flex h-[700px] max-h-[90vh] w-[980px] max-w-[calc(100vw-2rem)] flex-col shadow-2xl',
+            'flex h-[700px] max-h-[90vh] w-[1000px] max-w-[calc(100vw-2rem)] flex-col shadow-2xl',
           )}
           onClick={(e) => e.stopPropagation()}
         >
@@ -289,7 +289,7 @@ export const ProjectCreateModal = ({
               content sits on it as its own white card. The step column sits directly on
               the gray, so the 8px gutter is what separates the two — no rule to draw, and
               nothing left to make a seam. Inner radius steps down from the shell's. */}
-          <div className={cn('flex min-h-0 flex-1 gap-2 overflow-hidden p-2', bgColors.panel)}>
+          <div className={cn('flex min-h-0 flex-1 gap-4 overflow-hidden p-4', bgColors.panel)}>
             <WizardRail
               current={step}
               onNavigate={step < 5 ? setStep : undefined}
