@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import {
   bgColors,
   borderColors,
@@ -473,6 +473,16 @@ export const InstallStatusDetail = ({
 
   const actionViews = useMemo(() => views.filter((v) => v.actionable), [views]);
 
+  // 그룹 레일(v2) — 어댑터가 step.group 을 하나라도 선언하면 켜진다 (AWS 선행).
+  const grouped = useMemo(() => navSteps.some((s) => s.group), [navSteps]);
+  const openTodoCount = useMemo(
+    () =>
+      navSteps.filter(
+        (s) => s.group === 'todo' && aggregates.get(s.id)?.kind !== 'done',
+      ).length,
+    [navSteps, aggregates],
+  );
+
   const rollup = useMemo(() => {
     const kinds = resources.map((r) => kindOfValue(r.rollup.status));
     return {
@@ -484,15 +494,21 @@ export const InstallStatusDetail = ({
   }, [resources]);
 
   // 조치할 항목이 있으면 요약(=할 일 목록)으로 열고, 없으면 진행 중인 단계로
-  // 바로 들어간다. 사용자 클릭은 항상 선택을 고정한다.
+  // 바로 들어간다. 그룹 레일에서는 첫 미완료 todo 가 곧 첫 화면이다(요약 우회).
+  // 사용자 클릭은 항상 선택을 고정한다.
   const hotStepId = useMemo<string>(() => {
-    if (actionViews.length > 0) return SUMMARY_ID;
+    if (grouped) {
+      const todo = navSteps.find(
+        (s) => s.group === 'todo' && aggregates.get(s.id)?.kind !== 'done',
+      );
+      if (todo) return todo.id;
+    } else if (actionViews.length > 0) return SUMMARY_ID;
     for (const kind of ['failed', 'running', 'waiting'] as const) {
       const hit = navSteps.find((s) => s.id !== SUMMARY_ID && aggregates.get(s.id)?.kind === kind);
       if (hit) return hit.id;
     }
     return SUMMARY_ID;
-  }, [actionViews, navSteps, aggregates]);
+  }, [grouped, actionViews, navSteps, aggregates]);
   const [selected, setSelected] = useState<string | null>(null);
   const activeId = selected ?? hotStepId;
   const active = navSteps.find((s) => s.id === activeId) ?? navSteps[0];
@@ -532,9 +548,30 @@ export const InstallStatusDetail = ({
         {navSteps.map((step, index) => {
           const aggregate = aggregates.get(step.id)!;
           const isActive = step.id === activeId;
+          // 그룹 레일 — 각 그룹의 첫 항목 위에만 헤더를 세운다. 주체 구분은 헤더가
+          // 담당하므로 항목의 side 줄과 n/m 카운트는 걷어낸다(오너 요청).
+          const groupHeader =
+            grouped && step.group && navSteps.find((s) => s.group === step.group) === step
+              ? step.group === 'todo'
+                ? `내가 할 일 (${openTodoCount})`
+                : 'BDC 자동 진행'
+              : null;
           return (
+            <Fragment key={step.id}>
+            {groupHeader && (
+              <div
+                className={cn(
+                  'px-2.5 pt-3 pb-1 font-bold tracking-[0.02em]',
+                  textStyles.caption,
+                  step.group === 'todo' && openTodoCount > 0
+                    ? primaryColors.text
+                    : textColors.tertiary,
+                )}
+              >
+                {groupHeader}
+              </div>
+            )}
             <button
-              key={step.id}
               type="button"
               onClick={() => setSelected(step.id)}
               aria-current={isActive}
@@ -576,10 +613,10 @@ export const InstallStatusDetail = ({
                 >
                   {aggregate.label}
                 </span>
-                {aggregate.count && (
+                {!grouped && aggregate.count && (
                   <span className={cn('tabular-nums', textColors.secondary)}>{aggregate.count}</span>
                 )}
-                {step.side && (
+                {!grouped && step.side && (
                   <span className="flex items-center gap-1.5 min-w-0">
                     <span aria-hidden className={textColors.tertiary}>·</span>
                     <SideText side={step.side} />
@@ -587,6 +624,7 @@ export const InstallStatusDetail = ({
                 )}
               </span>
             </button>
+            </Fragment>
           );
         })}
       </nav>
@@ -606,7 +644,8 @@ export const InstallStatusDetail = ({
             {active.action}
             {!isSummary && activeAggregate && (
               <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
-                {activeAggregate.count
+                {/* 그룹 레일에서는 n/m 카운트를 쓰지 않는다 — 상태 단어만. */}
+                {!grouped && activeAggregate.count
                   ? `${activeAggregate.label} ${activeAggregate.count}`
                   : activeAggregate.label}
               </span>
