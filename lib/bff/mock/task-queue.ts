@@ -367,6 +367,11 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
         } },
       { resource_id: 'arn:aws:redshift:ap-northeast-2:558712049371:cluster:pay-redshift-main', resource_name: 'pay-redshift-main', resource_type: 'REDSHIFT', selected: true,
         metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'Redshift' } },
+      // EC2 위에 직접 올린 DB — 스캔이 찾지 못해 서비스 담당자가 Instance ID 로 직접
+      // 담은 대상이다. 이 행만 접속 주소를 사람이 적었다는 사실이 태그로 드러나야 하므로
+      // 큐에도 한 건은 서 있어야 한다.
+      { resource_id: 'i-0f39b7c15ad2e8046', resource_name: 'ip-10-30-2-71.ap-northeast-2.compute.internal', resource_type: 'AWS_EC2_INSTANCE', selected: true,
+        metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'PostgreSQL', host: '10.30.2.71', port: 5432 } },
       { resource_id: 'arn:aws:rds:ap-northeast-2:558712049371:db-proxy:prx-pay', resource_name: 'pay-rds-proxy', resource_type: 'RDS', selected: false,
         exclusion_reason: 'RDS Proxy — 설치 불필요 리소스',
         metadata: { provider: 'AWS', region: 'ap-northeast-2', database_type: 'MySQL' } },
