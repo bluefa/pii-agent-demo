@@ -20,6 +20,7 @@ import {
   RdsClusterTag,
   RdsMemberChip,
   RdsSelectionChip,
+  ResourceKindTag,
 } from '@/app/components/ui/RdsInstanceChips';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import {
@@ -347,6 +348,21 @@ export const CandidateResourceRow = ({
                 </span>
               </span>
             </span>
+          ) : isManualEc2 ? (
+            // 종류 태그는 이름 위 — RDS Cluster 와 같은 자리다. 이 열이 행의 정체성을
+            // 여는 자리이므로, "무엇인가"를 먼저 말하고 이름이 뒤따른다.
+            <span className={ec2Styles.rowStack}>
+              <ResourceKindTag>EC2</ResourceKindTag>
+              <Tooltip
+                content={<IdentifierTip label="Resource Name" value={displayName} />}
+                variant="value"
+                size="md"
+                triggerClassName="min-w-0 max-w-[200px] block"
+                truncatedOnly
+              >
+                <span className="block truncate">{displayName || '—'}</span>
+              </Tooltip>
+            </span>
           ) : (
             <Tooltip
               content={<IdentifierTip label="Resource Name" value={displayName} />}
@@ -365,9 +381,8 @@ export const CandidateResourceRow = ({
             group's identity and then said its name a second time. */}
         <td className={idcStyles.table.approvalCell}>
           {grouped ? null : isManualEc2 ? (
-            // EC2 태그 → instance id → 접속 주소. 이 열이 이 행의 정체성 전부다.
+            // 종류 태그는 이름 열이 가져갔다 — 여기는 instance id → 접속 주소.
             <span className={ec2Styles.rowStack}>
-              <span className={cn(idcStyles.kindBadge.base, idcStyles.kindBadge.ec2)}>EC2</span>
               <span className={cn(ec2Styles.rowId, 'block max-w-[220px] truncate')}>
                 {candidate.resourceId}
               </span>

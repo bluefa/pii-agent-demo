@@ -736,6 +736,9 @@ export const tagStyles = {
   warning: 'bg-orange-100 text-orange-800',
   error: 'bg-red-100 text-red-800',
   neutral: 'bg-gray-100 text-gray-700',
+  /** 리소스 종류 태그(EC2 · RDS Cluster) — 이 행이 '무엇인가'를 말하는 사실.
+   *  판정(파랑·주황·빨강)과 색 가족을 나눠 갖지 않도록 보라 단독. */
+  resourceKind: 'bg-[#F3EEFF] text-[#6D28D9]',
 } as const;
 
 /**
@@ -798,8 +801,8 @@ export const idcStyles = {
     single: 'bg-[#E8F1FF] text-[#1747B5]',
     multi: 'bg-[#FEF0E1] text-[#7A3F0E]',
     domain: 'bg-[#EEF2FF] text-[#4338CA]',
-    /** EC2 instance — the one compute-kind row in a table of managed DB services.
-     *  Violet, so it never reads as one of the blue/orange IDC host kinds. */
+    /** EC2 instance — 리소스 종류 태그라 RDS Cluster 와 같은 보라를 쓴다
+     *  (`tagStyles.resourceKind` 와 같은 값). */
     ec2: 'bg-[#F3EEFF] text-[#6D28D9]',
   },
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
@@ -1105,15 +1108,31 @@ export const idcStyles = {
  */
 export const ec2Styles = {
   /** 검색 입력 — `idcStyles.input` 위에 아이콘·클리어 버튼 자리와 mono 를 얹는다. */
-  searchInput: 'pl-12 pr-12 font-mono',
+  /**
+   * 검색 입력 — idcStyles.input 을 덮어쓰지 않고 독립 토큰으로 둔다(cn 이 단순 join 이라
+   * 같은 속성을 두 번 쓰면 어느 쪽이 이길지 클래스 순서로 정해지지 않는다).
+   * 폼 필드(#F7F8FA)보다 밝은 흰 면 + 실선 — 검색은 값을 담는 칸이 아니라 여는 입구다.
+   * 형식 안내는 placeholder 로 안에 들어가고, 한글이 섞이므로 mono 는 값에만 건다.
+   */
+  searchField:
+    'h-[52px] w-full rounded-xl border border-[#E5E8EB] bg-white pl-12 pr-12 font-mono text-[15px] font-medium text-[#191F28] transition-colors focus:border-[#0064FF] focus:outline-none focus:ring-4 focus:ring-[#0064FF]/12', // design-exempt: mirrors idcStyles.input 15px token
+  /** placeholder 는 값이 아니라 형식 예시 — 값과 같은 무게로 읽히면 안 된다. */
+  searchPlaceholder: 'placeholder:font-sans placeholder:text-[#B0B8C1]', // design-exempt: placeholder hint, not content
   searchIcon:
-    'pointer-events-none absolute left-4 top-1/2 h-[19px] w-[19px] -translate-y-1/2 text-[#6B7280]',
+    'pointer-events-none absolute left-4 top-1/2 h-[19px] w-[19px] -translate-y-1/2 text-[#8B95A1]', // design-exempt: decorative glyph beside its own input
   /** 입력값이 있을 때만 나오는 원형 ✕ — 질의와 결과를 함께 비운다. */
   searchClear:
     'absolute right-3.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-[#EBEEF2] text-[#4E5968] transition-colors hover:bg-[#DDE2E8] hover:text-[#191F28]',
-  /** 입력 아래 상시 안내 — placeholder 가 아니라 항상 보이는 캡션. */
+  /** 입력 아래 남는 한 줄 — 형식은 placeholder 가 말하므로 여기엔 개수 상한만. */
   helper: 'mt-2 text-[12px] leading-[1.6] text-[#6B7280]',
-  helperCode: 'font-mono font-semibold text-[#4E5968]',
+  /**
+   * 두 단계가 함께 서는 고정 높이 틀. 검색 결과 수(0~5건)나 SID 필드 유무로 모달이
+   * 커졌다 작아지면 같은 자리의 버튼이 매번 다른 좌표에 서서 화면이 흔들린다 —
+   * 가장 큰 상태(결과 5건 / Oracle 설정)에 맞춰 높이를 잠근다.
+   * -mt-3: 본문 기본 상단 여백 28px 를 부제와의 16px 로 당긴다.
+   * -mx-2 px-2: 고정 높이가 만드는 클립 박스에 focus ring 이 잘리지 않을 여유.
+   */
+  stepFrame: '-mt-3 -mx-2 h-[452px] overflow-y-auto px-2',
   /** 검색 결과 한 행. */
   resultRow:
     'flex items-center justify-between gap-3 rounded-xl border border-[#EBEEF2] bg-white px-3.5 py-2.5 transition-colors hover:border-[#D6E7FF] hover:bg-[#F8FAFF]',

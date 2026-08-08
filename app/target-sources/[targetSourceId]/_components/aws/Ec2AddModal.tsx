@@ -188,6 +188,7 @@ export const Ec2AddModal = ({
         )
       }
     >
+      <div className={ec2Styles.stepFrame}>
       {onConfigStep && picked ? (
         <div className="space-y-5">
           <section>
@@ -268,8 +269,9 @@ export const Ec2AddModal = ({
               autoFocus
               value={query}
               aria-label="Instance ID 검색"
+              placeholder="i-0a1b2c3d4e5f67890 형식의 Instance ID로 검색"
               onChange={(event) => handleQueryChange(event.target.value)}
-              className={cn(idcStyles.input, ec2Styles.searchInput)}
+              className={cn(ec2Styles.searchField, ec2Styles.searchPlaceholder)}
             />
             {query !== '' && (
               <button
@@ -282,10 +284,7 @@ export const Ec2AddModal = ({
               </button>
             )}
           </div>
-          <p className={ec2Styles.helper}>
-            <span className={ec2Styles.helperCode}>i-0a1b2c3d4e5f67890</span> 형식의 Instance ID로
-            검색해요 · 입력을 멈추면 0.5초 후 자동 검색 · 최대 {EC2_SEARCH_LIMIT}건 표시
-          </p>
+          <p className={ec2Styles.helper}>최대 {EC2_SEARCH_LIMIT}건 표시</p>
 
           <div className="mt-4">
             <Ec2SearchResults
@@ -297,6 +296,7 @@ export const Ec2AddModal = ({
           </div>
         </div>
       )}
+      </div>
     </Modal>
   );
 };

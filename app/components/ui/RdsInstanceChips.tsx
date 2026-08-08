@@ -7,14 +7,16 @@ const CHIP_BASE = 'shrink-0 rounded-full px-2 py-0.5 text-xs';
  * Marks the row as an RDS cluster rather than a single instance — the distinction that explains
  * why this one row has instances hanging under it.
  *
- * A FACT tag, not a status: it rides the neutral `tagStyles` tier the resource tables already
- * use for repeating attributes, so it cannot be read as a verdict beside the row's real one.
- * Sits before the name in the identity cell and stays `shrink-0` + `text-xs` so it never eats
- * the name's width. Same component in steps 1·2·3 so the three read identically.
+ * A FACT tag, not a status: it rides the violet `resourceKind` tier shared with the EC2 tag,
+ * so "what this row IS" is one colour family and can never be read as a verdict beside the
+ * row's real one. Sits before the name in the identity cell and stays `shrink-0` + `text-xs`
+ * so it never eats the name's width. Same component in steps 1·2·3 so the three read identically.
  */
-export const RdsClusterTag = () => (
-  <span className={cn(CHIP_BASE, 'font-sans font-medium', tagStyles.neutral)}>RDS Cluster</span>
+export const ResourceKindTag = ({ children }: { children: string }) => (
+  <span className={cn(CHIP_BASE, 'font-sans font-medium', tagStyles.resourceKind)}>{children}</span>
 );
+
+export const RdsClusterTag = () => <ResourceKindTag>RDS Cluster</ResourceKindTag>;
 
 /**
  * An RDS cluster instance's Reader/Writer role.
