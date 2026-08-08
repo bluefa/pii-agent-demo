@@ -45,10 +45,12 @@ export interface Ec2AddModalProps {
  * EC2 인스턴스 추가 — 2단계 한 모달.
  *
  * ① Instance ID 앞부분으로 검색해 한 건을 고르고, ② 그 인스턴스의 접속 정보를 입력한다.
- * 추가 후에는 다시 ①로 돌아온다(질의·결과 유지) — 여러 대를 이어서 담는 흐름이라
- * 매번 모달을 다시 여는 것이 아니라 검색 화면이 기본 자리다.
+ * 추가를 마치면 모달이 닫힌다 — 담은 결과가 표에 어떻게 들어갔는지 바로 보이지 않으면
+ * 추가됐다는 사실을 확인할 길이 없다. 여러 대를 담는 경우 다시 열어서 이어 담는다.
  *
- * 접속 주소는 스캔이 확인한 Private IP 고정 — 사용자가 고치는 값이 아니다.
+ * 접속 주소는 스캔이 확인한 Private IP 고정 — 사용자가 고치는 값이 아니다. 그래서 그 값이
+ * 없는 인스턴스는 애초에 고를 수 없다(아래 Ec2ResultRow): 설정 단계까지 보내면 채울 수도
+ * 없는 빈 칸을 앞에 두고 추가를 누르게 되고, host 없는 대상이 승인 요청에 실린다.
  */
 export const Ec2AddModal = ({
   targetSourceId,
@@ -94,10 +96,11 @@ export const Ec2AddModal = ({
   const handleQueryChange = useCallback((value: string) => {
     setQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    // 타이핑이 이전 질의를 무효로 만든 순간 끊는다. runSearch 안의 abort 는 *다음*
+    // 디바운스가 끝나야 도는데, 그 사이에 도착한 이전 응답은 'ready' 로 그려진다 —
+    // 계속 치고 있는 동안 지난 질의의 결과가 스피너도 없이 확정된 답처럼 남는다.
+    abortRef.current?.abort();
     if (!value.trim()) {
-      // Nothing to search for — drop the in-flight request so a late answer to the
-      // previous query cannot repaint the emptied field's results.
-      abortRef.current?.abort();
       setSearch(IDLE);
       return;
     }
@@ -408,6 +411,11 @@ const Ec2ResultRow = ({
   const matchLength = instance.instanceId.toLowerCase().startsWith(query.toLowerCase())
     ? query.length
     : 0;
+  // 접속 주소가 곧 Private IP 다. 그 값이 없으면 담을 수 있는 대상이 아니다 — 설정
+  // 단계는 이 값을 읽기 전용으로 보여줄 뿐이라 사용자가 채울 방법이 없고, 그대로
+  // 진행하면 host 가 빠진 채로 승인 요청에 실린다. 목 데이터는 전부 IP 를 갖고 있어
+  // 로컬에서는 재현되지 않는다.
+  const addressable = instance.privateIpAddress !== '';
 
   return (
     <div className={ec2Styles.resultRow}>
@@ -430,6 +438,10 @@ const Ec2ResultRow = ({
       <div className="flex shrink-0 items-center gap-2">
         {added ? (
           <span className={ec2Styles.addedBtn}>✓ 추가됨</span>
+        ) : !addressable ? (
+          <span className={ec2Styles.addedBtn} title="Private IP가 없어 접속 주소를 만들 수 없어요">
+            주소 없음
+          </span>
         ) : (
           <button type="button" onClick={onPick} className={idcStyles.triggerBtn.ghostSm}>
             <PlusIcon className="h-3 w-3" />

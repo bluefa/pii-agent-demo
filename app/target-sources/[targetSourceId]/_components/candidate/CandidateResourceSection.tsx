@@ -149,6 +149,10 @@ export const CandidateResourceSection = ({
     () => new Set(allCandidates.map((candidate) => candidate.resourceId)),
     [allCandidates],
   );
+  const manualEc2Ids = useMemo(
+    () => new Set(manualEc2.map((entry) => entry.instance.instanceId)),
+    [manualEc2],
+  );
   const editingEc2 = ec2EditingId === null
     ? undefined
     : manualEc2.find((entry) => entry.instance.instanceId === ec2EditingId);
@@ -240,7 +244,7 @@ export const CandidateResourceSection = ({
   }, [setSelectedIds, setExclusions]);
 
   const picker = useExclusionPicker({ onSelect: select, onExclude: exclude });
-  const { popover, reasonModal, closeAll: closePicker } = picker;
+  const { popover, reasonModal, closeAll: closePicker, handleToggleSelected: pickerToggleSelected } = picker;
 
   // 검색·필터·페이지가 바뀌면 행에 앵커된 UI(확장 패널·제외 팝오버)의 대상 행이
   // 화면에서 사라진다 — 죽은 앵커를 남기지 않게 모든 뷰 변경 핸들러가 함께 닫는다.
@@ -335,12 +339,22 @@ export const CandidateResourceSection = ({
       next[index] = { instance, config };
       return next;
     });
+    setEc2EditingId(null);
+    // 수정 저장에는 마커도, 선택도 건드리지 않는다 — 수정은 접속 정보를 고치는 일이지
+    // 다시 담는 일이 아니고, "방금 추가"는 그때 틀린 말이 된다.
+    if (!added) return;
     // Adding an instance IS choosing it — the user came to this modal to integrate it.
     setSelectedIds((previous) => new Set(previous).add(instance.instanceId));
-    setEc2EditingId(null);
-    // 수정 저장에는 마커를 붙이지 않는다 — "방금 추가"는 그때 틀린 말이 된다.
-    if (added) setJustAddedEc2Id(instance.instanceId);
-  }, [setSelectedIds]);
+    setJustAddedEc2Id(instance.instanceId);
+    // 담은 행이 현재 뷰에 안 걸리면 아무 일도 일어나지 않은 화면이 된다 — 수동 행에는
+    // region 이 없어 리전 필터에서 곧바로 탈락하고, 검색어·제외 필터·2페이지 이후도
+    // 같은 결과다. 재스캔과 같은 이유로 같은 초기화를 한다.
+    tableSearchChange('');
+    tableFilterChange('all');
+    tableDbTypeChange('');
+    tableRegionChange('');
+    tablePageChange(0);
+  }, [setSelectedIds, tableSearchChange, tableFilterChange, tableDbTypeChange, tableRegionChange, tablePageChange]);
 
   // 마커의 수명. 배지 애니메이션(4s)이 끝나면 상태에서도 걷어내, 이후의 정렬·필터
   // 변경이 다 끝난 신호를 다시 그리지 않게 한다.
@@ -364,17 +378,44 @@ export const CandidateResourceSection = ({
       next.delete(instanceId);
       return next;
     });
-  }, [setSelectedIds]);
+    // 제외 사유도 함께 지운다 — 인스턴스 id 가 키라서, 지운 인스턴스를 다시 담으면
+    // 예전 사유가 그대로 붙어 살아난다.
+    setExclusions((previous) => {
+      if (!(instanceId in previous)) return previous;
+      const next = { ...previous };
+      delete next[instanceId];
+      return next;
+    });
+  }, [setSelectedIds, setExclusions]);
+
+  // 수동으로 담은 행의 체크를 푸는 건 "제외"가 아니라 되돌리기다 — 스캔이 제안한 것을
+  // 안 쓰겠다고 말하는 게 아니라, 내가 넣은 것을 도로 빼는 것이라 사유가 없다(승인
+  // payload 도 NO_INSTALL_NEEDED 를 사유 검사에서 빼 둔다). 사유 팝오버를 거치면
+  // 닫는 순간 아무 일도 일어나지 않아 체크가 그대로 남는 막다른 길이 된다.
+  const handleToggleSelected = useCallback(
+    (resourceId: string, checked: boolean, anchor: HTMLElement) => {
+      if (checked || !manualEc2Ids.has(resourceId)) {
+        pickerToggleSelected(resourceId, checked, anchor);
+        return;
+      }
+      setSelectedIds((previous) => {
+        const next = new Set(previous);
+        next.delete(resourceId);
+        return next;
+      });
+    },
+    [manualEc2Ids, pickerToggleSelected, setSelectedIds],
+  );
 
   const rowActions = useMemo<CandidateRowActions>(() => ({
-    toggleSelected: picker.handleToggleSelected,
+    toggleSelected: handleToggleSelected,
     reasonChipClick: picker.handleReasonChipClick,
     expandToggle: handleExpandToggle,
     endpointSave: handleEndpointSave,
     selectRdsInstance: handleSelectRdsInstance,
     editManualEc2: setEc2EditingId,
     deleteManualEc2: handleEc2Delete,
-  }), [picker.handleToggleSelected, picker.handleReasonChipClick, handleExpandToggle, handleEndpointSave, handleSelectRdsInstance, handleEc2Delete]);
+  }), [handleToggleSelected, picker.handleReasonChipClick, handleExpandToggle, handleEndpointSave, handleSelectRdsInstance, handleEc2Delete]);
 
   const handleRequestApproval = useCallback(() => {
     if (selectedIds.size === 0) return;
@@ -636,12 +677,17 @@ export const CandidateResourceSection = ({
                 {/* 스캔이 못 찾는 것을 먼저 말하고 그다음 어디를 누르는지 말한다 —
                     버튼 이름만 알려주면 왜 눌러야 하는지는 여전히 모른다. 버튼이
                     실제로 서 있는 목록 화면에서만 띄운다(가리킬 대상이 없으면 안내가
-                    아니라 오답이다). */}
+                    아니라 오답이다).
+                    위 문단과 같은 층이다 — 둘 다 "이 화면에서 무엇을 하는가"이므로
+                    토큰과 강조 문법을 공유한다. 한쪽만 작아지면 EC2 경로가 본문이
+                    아니라 각주로 읽힌다. 강조는 여기서도 파랑 하나.
+                    간격만 제목→문단(10px)보다 좁은 4px — 같은 층의 두 문단은 한
+                    덩어리로 읽혀야 하고, 같은 간격을 주면 별개의 블록으로 갈라진다. */}
                 {ec2AddVisible && (
-                  <p className={cn('mt-2 break-keep', cardStyles.subtitle)}>
+                  <p className={cn('mt-1 break-keep', cardStyles.guidance)}>
                     EC2에 직접 설치해 쓰는 데이터베이스는 스캔이 찾지 못해요. 아래 표 오른쪽 위{' '}
-                    <span className={cn(primaryColors.text, 'font-semibold')}>EC2 추가</span>에서
-                    Instance ID로 검색해 연동 대상에 넣을 수 있어요.
+                    <span className={primaryColors.text}>EC2 추가</span>에서 Instance ID로 검색해
+                    연동 대상에 넣을 수 있어요.
                   </p>
                 )}
               </header>

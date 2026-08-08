@@ -451,7 +451,7 @@ export const CandidateResourceRow = ({
         >
           {grouped ? (
             GROUPED_CHILD_KIND_LABEL
-          ) : isManualEc2 ? null : (
+          ) : (
             <span className="flex items-center gap-1.5 whitespace-nowrap">
               {effectiveDbType ? getDatabaseShortLabel(effectiveDbType) : '—'}
               {showConfigNeeded && (

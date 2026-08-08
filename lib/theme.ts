@@ -817,9 +817,6 @@ export const idcStyles = {
     single: 'bg-[#E8F1FF] text-[#1747B5]',
     multi: 'bg-[#FEF0E1] text-[#7A3F0E]',
     domain: 'bg-[#EEF2FF] text-[#4338CA]',
-    /** EC2 instance — 리소스 종류 태그라 RDS Cluster 와 같은 보라를 쓴다
-     *  (`tagStyles.resourceKind` 와 같은 값). */
-    ec2: 'bg-[#F3EEFF] text-[#6D28D9]',
   },
   /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
   tag: {
