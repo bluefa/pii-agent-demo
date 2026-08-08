@@ -19,6 +19,13 @@ export const ResourceKindTag = ({ children }: { children: string }) => (
 export const RdsClusterTag = () => <ResourceKindTag>RDS Cluster</ResourceKindTag>;
 
 /**
+ * EC2 인스턴스. RDS Cluster 와 같은 층의 사실 태그 — 그 행이 관리형 DB가 아니라 사용자가
+ * 직접 DB를 올려 쓰는 인스턴스임을 말한다. 판정은 `isEc2Instance(resourceType)` 으로,
+ * 1~7단계와 Admin 어디서든 같은 행에 같은 태그가 붙는다.
+ */
+export const Ec2InstanceTag = () => <ResourceKindTag>EC2</ResourceKindTag>;
+
+/**
  * An RDS cluster instance's Reader/Writer role.
  *
  * Warm = Writer (the instance the service writes through — pointing the agent at it puts scan

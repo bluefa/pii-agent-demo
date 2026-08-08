@@ -22,11 +22,12 @@ import {
   type RdsInstanceCandidate,
 } from '@/lib/rds-instances';
 import {
+  Ec2InstanceTag,
   RdsClusterTag,
   RdsMemberChip,
   RdsSelectionChip,
 } from '@/app/components/ui/RdsInstanceChips';
-import { hasLogicalDatabases } from '@/lib/types';
+import { hasLogicalDatabases, isEc2Instance } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
   type InstallStepCell,
@@ -404,6 +405,7 @@ export const WaitingApprovalTable = memo(
       const instancesOpen = hasInstances && instanceFold.open;
       // Keyed on the declared top-level type, never on `resourceType` — see the field's note.
       const isCluster = isRdsCluster(resource.declaredResourceType ?? '');
+      const isEc2 = isEc2Instance(resource.declaredResourceType);
       // Every row of one rail shares a key: a group's children take the group's (passed in by
       // the caller), a cluster or a folded region and its members take the row's own. Rows that
       // draw NO rail get no handlers: this table is memo()'d and paginated, and lighting nothing
@@ -528,12 +530,14 @@ export const WaitingApprovalTable = memo(
                     chevron with nothing beside it. */}
                 <span className="whitespace-nowrap">{foldLabel}</span>
               </span>
-            ) : isCluster ? (
+            ) : isCluster || isEc2 ? (
               // Steps 4·6·7: the tag alone. Those steps list what is being installed and
               // connected, not what is being chosen, so the member instances stay a steps 1–3
               // concern — but the row still has to say it is a cluster, in the same stack.
+              // EC2 rides the same branch: it has no members to fold, so the tag is all it needs,
+              // and steps 2·3 reach it here too (the branch above is cluster-with-instances only).
               <span className="flex min-w-0 flex-col items-start gap-1">
-                <RdsClusterTag />
+                {isCluster ? <RdsClusterTag /> : <Ec2InstanceTag />}
                 <Tooltip
                   content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
                   variant="value"

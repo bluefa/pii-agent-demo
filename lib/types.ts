@@ -161,6 +161,17 @@ export const normalizeResourceType = (value: unknown): string | null => {
   return RESOURCE_TYPE_ALIASES[normalized as keyof typeof RESOURCE_TYPE_ALIASES] ?? normalized;
 };
 
+/**
+ * EC2 인스턴스인가 — 종류 태그를 다는 판정.
+ *
+ * 리소스 *종류* 로 묻는다(수동으로 담았는지가 아니라). 수동 추가 여부는 Step 1 컴포넌트
+ * state 에만 있는 사실이라, 그걸로 태그를 달면 새로고침 한 번에 사라지고 Step 2~7·Admin
+ * 에는 애초에 도달하지 못한다. 스캔이 스스로 찾아낸 EC2 도 같은 태그를 받아야 한다.
+ * 별칭 정규화를 타므로 `AWS_EC2_INSTANCE` 와 `EC2` 두 철자 모두 참이다 — `isRdsCluster`
+ * 와 같은 문법.
+ */
+export const isEc2Instance = (type: unknown): boolean => normalizeResourceType(type) === 'EC2';
+
 export const normalizeAzureResourceType = (value: unknown): AzureResourceType | null => {
   const normalized = normalizeResourceType(value);
 

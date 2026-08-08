@@ -18,12 +18,13 @@ import {
   type RdsInstanceCandidate,
 } from '@/lib/rds-instances';
 import {
+  Ec2InstanceTag,
   RdsClusterTag,
   RdsMemberChip,
   RdsSelectionChip,
-  ResourceKindTag,
 } from '@/app/components/ui/RdsInstanceChips';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
+import { isEc2Instance } from '@/lib/types';
 import {
   cn,
   ec2Styles,
@@ -232,6 +233,10 @@ export const CandidateResourceRow = ({
   // identity it was added by and NOT the config — Database Type / Region / the expandable
   // config panel all belong to rows the scan proposed.
   const isManualEc2 = isManualEc2Candidate(candidate);
+  // 태그는 종류로 묻고, 아래의 접속 주소 표기·hover 액션은 수동 추가로 묻는다 — 스캔이
+  // 스스로 찾은 EC2 도 같은 태그를 받아야 하지만, 그 행에는 사용자가 입력한 접속 정보도
+  // 지울 대상도 없다.
+  const isEc2 = isEc2Instance(candidate.type);
   const isIneligible = candidate.integrationCategory === 'INSTALL_INELIGIBLE';
   const hasEndpointConfig = behavior.isConfigured(candidate, drafts);
   const showConfigNeeded = requiresEndpointConfig && isSelected && !hasEndpointConfig;
@@ -375,14 +380,14 @@ export const CandidateResourceRow = ({
                 </Tooltip>
               </span>
             </span>
-          ) : isManualEc2 ? (
+          ) : isEc2 ? (
             // 종류 태그는 이름 위 — RDS Cluster 와 같은 자리다. 이 열이 행의 정체성을
             // 여는 자리이므로, "무엇인가"를 먼저 말하고 이름이 뒤따른다.
             <span className={ec2Styles.rowStack}>
               {/* 배지는 종류 태그 옆 — 모션을 못 본 사람도 읽어서 알 수 있는 층이고,
                   이름은 잘릴 수 있으므로 배지를 밀어내지 않는 자리에 둔다. */}
               <span className="flex items-center">
-                <ResourceKindTag>EC2</ResourceKindTag>
+                <Ec2InstanceTag />
                 {justAdded && <span className={ec2Styles.newBadge}>방금 추가</span>}
               </span>
               <Tooltip

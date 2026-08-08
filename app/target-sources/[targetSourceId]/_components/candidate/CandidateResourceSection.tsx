@@ -326,15 +326,16 @@ export const CandidateResourceSection = ({
   // instance that is already in the list REPLACES its connection info rather than duplicating
   // the row — which is also how the edit path saves.
   const handleEc2Save = useCallback((instance: Ec2Instance, config: Ec2ConnectionConfig) => {
-    let added = false;
+    // 현재 목록에서 판정한다 — updater 안에서 플래그를 세우면 React 가 그 함수를 언제
+    // 실행할지 보장하지 않아(큐가 비었을 때만 즉시 계산한다), 바로 아래에서 읽는 값이
+    // 배치 상황에 따라 달라진다. 이 핸들러는 이벤트에서 불리므로 렌더 시점의 목록이
+    // 곧 현재 목록이다.
+    const added = !manualEc2Ids.has(instance.instanceId);
     setManualEc2((previous) => {
       const index = previous.findIndex((entry) => entry.instance.instanceId === instance.instanceId);
       // 새로 담은 것이 맨 위 — 이어서 여러 대를 담는 흐름이라, 방금 담은 행이
       // 앞서 담은 행 아래로 밀리면 추가됐다는 사실이 눈에서 사라진다.
-      if (index < 0) {
-        added = true;
-        return [{ instance, config }, ...previous];
-      }
+      if (index < 0) return [{ instance, config }, ...previous];
       const next = [...previous];
       next[index] = { instance, config };
       return next;
@@ -354,7 +355,7 @@ export const CandidateResourceSection = ({
     tableDbTypeChange('');
     tableRegionChange('');
     tablePageChange(0);
-  }, [setSelectedIds, tableSearchChange, tableFilterChange, tableDbTypeChange, tableRegionChange, tablePageChange]);
+  }, [manualEc2Ids, setSelectedIds, tableSearchChange, tableFilterChange, tableDbTypeChange, tableRegionChange, tablePageChange]);
 
   // 마커의 수명. 배지 애니메이션(4s)이 끝나면 상태에서도 걷어내, 이후의 정렬·필터
   // 변경이 다 끝난 신호를 다시 그리지 않게 한다.

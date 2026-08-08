@@ -30,11 +30,13 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import {
+  Ec2InstanceTag,
   RdsClusterTag,
   RdsMemberChip,
   RdsSelectionChip,
 } from '@/app/components/ui/RdsInstanceChips';
 import { isRdsCluster, rdsInstanceLabel, sortRdsInstances } from '@/lib/rds-instances';
+import { isEc2Instance } from '@/lib/types';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 export interface CloudResourceTableProps {
@@ -140,6 +142,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     )}
                     <span className="flex min-w-0 flex-col items-start gap-1">
                     {isCluster && <RdsClusterTag />}
+                    {isEc2Instance(row.resourceType) && <Ec2InstanceTag />}
                     <Tooltip
                       content={<IdentifierTip label="Resource Name" value={row.resourceName ?? ''} />}
                       variant="value"
