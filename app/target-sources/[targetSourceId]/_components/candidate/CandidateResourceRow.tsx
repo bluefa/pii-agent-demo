@@ -379,20 +379,21 @@ export const CandidateResourceRow = ({
             // 종류 태그는 이름 위 — RDS Cluster 와 같은 자리다. 이 열이 행의 정체성을
             // 여는 자리이므로, "무엇인가"를 먼저 말하고 이름이 뒤따른다.
             <span className={ec2Styles.rowStack}>
-              <ResourceKindTag>EC2</ResourceKindTag>
-              {/* 배지는 이름 옆 — 모션을 못 본 사람도 읽어서 알 수 있는 층이다. */}
-              <span className="flex min-w-0 items-center">
-                <Tooltip
-                  content={<IdentifierTip label="Resource Name" value={displayName} />}
-                  variant="value"
-                  size="md"
-                  triggerClassName="min-w-0 max-w-[200px] block"
-                  truncatedOnly
-                >
-                  <span className="block truncate">{displayName || '—'}</span>
-                </Tooltip>
+              {/* 배지는 종류 태그 옆 — 모션을 못 본 사람도 읽어서 알 수 있는 층이고,
+                  이름은 잘릴 수 있으므로 배지를 밀어내지 않는 자리에 둔다. */}
+              <span className="flex items-center">
+                <ResourceKindTag>EC2</ResourceKindTag>
                 {justAdded && <span className={ec2Styles.newBadge}>방금 추가</span>}
               </span>
+              <Tooltip
+                content={<IdentifierTip label="Resource Name" value={displayName} />}
+                variant="value"
+                size="md"
+                triggerClassName="min-w-0 max-w-[200px] block"
+                truncatedOnly
+              >
+                <span className="block truncate">{displayName || '—'}</span>
+              </Tooltip>
             </span>
           ) : (
             <Tooltip

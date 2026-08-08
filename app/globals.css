@@ -255,13 +255,26 @@
   to { opacity: 1; transform: none; }
 }
 
-/* EC2 방금 추가 — 두 층의 신호. 틴트는 모달이 닫힌 직후 시선을 표 위쪽으로 데려오고,
-   배지는 몇 초 더 남아 늦게 도착한 시선에게 같은 사실을 글자로 전한다. `to` 를
-   transparent 로 두는 이유: 행은 선택·hover 로 자기 배경을 바꾸므로 흰색을 칠하면
-   애니메이션이 끝나는 순간 그 배경을 덮어버린다. */
+/* EC2 방금 추가 — 두 층의 신호. 틴트 스윕은 모달이 닫힌 직후 시선을 표 위쪽으로
+   데려오고, 배지는 몇 초 더 남아 늦게 도착한 시선에게 같은 사실을 글자로 전한다.
+   background-color 가 아니라 gradient 를 흘리는 이유: 행은 선택·hover 로 자기 배경을
+   바꾸므로 색을 칠하면 애니메이션이 끝나는 순간 그 배경을 덮어버린다. background-image
+   는 fill-mode 없이 끝나면 흔적 없이 사라진다.
+   위치 값: 이미지 폭이 행 폭의 2배라 position% 는 (행폭 − 이미지폭) = −행폭 에 곱해진다.
+   150% → 띠가 왼쪽 바깥, −50% → 오른쪽 바깥. 즉 왼→오 한 번 훑고 끝난다. */
 @keyframes ec2-row-tint {
-  from { background-color: #EDF4FF; }
-  to { background-color: transparent; }
+  from {
+    background-image: linear-gradient(90deg, transparent 30%, #E4EEFF 50%, transparent 70%);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    background-position: 150% 0;
+  }
+  to {
+    background-image: linear-gradient(90deg, transparent 30%, #E4EEFF 50%, transparent 70%);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    background-position: -50% 0;
+  }
 }
 
 @keyframes ec2-new-badge {

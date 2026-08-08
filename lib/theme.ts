@@ -1215,11 +1215,12 @@ export const ec2Styles = {
   /** 방금 드러난 종속 필드 — 왜 갑자기 나타났는지 보라 링으로 표시한다. */
   revealedField: 'ring-2 ring-[#DDD0FF]',
   /**
-   * 방금 담긴 행 — 모션과 글자 두 층. 틴트(0.9s)가 시선을 데려오고, 배지(4s)가 더
-   * 남아 늦게 온 시선에게 같은 사실을 읽게 한다. motion-reduce 에서는 애니메이션만
-   * 끄고 배지는 그대로 서 있으므로, 움직임을 끈 사용자도 정보를 잃지 않는다.
+   * 방금 담긴 행 — 모션과 글자 두 층. 틴트 스윕(1.1s)이 왼→오로 한 번 훑어 시선을
+   * 데려오고, 배지(4s)가 더 남아 늦게 온 시선에게 같은 사실을 읽게 한다. motion-reduce
+   * 에서는 애니메이션만 끄고 배지는 그대로 서 있으므로, 움직임을 끈 사용자도 정보를
+   * 잃지 않는다.
    */
-  rowJustAdded: 'animate-[ec2-row-tint_900ms_ease-out] motion-reduce:animate-none',
+  rowJustAdded: 'animate-[ec2-row-tint_1100ms_ease-in-out] motion-reduce:animate-none',
   newBadge:
     'ml-2 inline-flex shrink-0 items-center rounded-full bg-[#E8F1FF] px-2 py-px text-[11.5px] font-bold text-[#1747B5] animate-[ec2-new-badge_4000ms_ease-out_forwards] motion-reduce:animate-none', // design-exempt: mirrors idcStyles.kindBadge 11.5px token
   /** Step1 행의 정체성 스택 (EC2 태그 → instance id → Private IP). */
