@@ -1144,15 +1144,17 @@ export const idcStyles = {
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**
-     * Resource Name column — 4px more left padding than every other cell, on the header cell
+     * Resource Name column — 8px more left padding than every other cell, on the header cell
      * AND the body cell so the column keeps one edge.
      *
-     * The 4px is the seat for the hanging fold chevron (`group.toggle`): at 18px the chevron
-     * had to start inside the 4px `verdictRail` inset, and the name sat hard against the
-     * column edge. Add it next to `approvalCell`/`approvalHeaderCell` — `pl` beats their `px`,
-     * the same ordering `group.childCell`'s indent already relies on.
+     * The extra 8 is the seat for the hanging fold chevron (`group.toggle`), and it is the
+     * sum of three things that each have to fit: 4px of `verdictRail` inset the chevron may
+     * not cover, the 16px chevron box, and 6px between that box and the first letter. At 18
+     * the chevron started inside the rail; at 22 it cleared the rail but sat on the name.
+     * Add it next to `approvalCell`/`approvalHeaderCell` — `pl` beats their `px`, the same
+     * ordering `group.childCell`'s indent already relies on.
      */
-    nameCell: 'pl-[22px]',
+    nameCell: 'pl-[26px]',
     /**
      * Seam between adjacent `<tbody>`s — belongs on the `<table>`.
      *
@@ -1193,7 +1195,7 @@ export const idcStyles = {
        */
       lead: 'relative flex items-center gap-2',
       /**
-       * Chevron toggle — hangs in the name cell's own 22px left padding (x 4..20) instead
+       * Chevron toggle — hangs in the name cell's own 26px left padding (x 4..20) instead
        * of standing in the flow.
        *
        * In the flow it cost 28px (20 box + 8 gap), so every row that folds started its name
@@ -1201,14 +1203,14 @@ export const idcStyles = {
        * down a mixed list. Out of the flow the name keeps the column's one left edge and the
        * chevron reads as a margin control, which is what it is.
        *
-       * 16px box, not the old 20, and the name column's 18px padding grew to 22 to seat it:
-       * 4px clears the `verdictRail` inset some rows carry, 16px is the box, 2px separates it
-       * from the name. At 18px the box had to start inside the rail. The pressable target
-       * stays 24px via the `after` halo — shrinking the tint must not shrink the thing a
-       * pointer has to hit.
+       * 16px box, not the old 20, and the name column's 18px padding grew to 26 to seat it:
+       * 4px clears the `verdictRail` inset some rows carry, 16px is the box, 6px separates it
+       * from the name. At 18px the box had to start inside the rail; at 22 the arrow read as
+       * stuck to the first letter. The pressable target stays 24px via the `after` halo —
+       * shrinking the tint must not shrink the thing a pointer has to hit.
        */
       toggle:
-        "absolute -left-[18px] top-1/2 grid h-4 w-4 -translate-y-1/2 place-items-center rounded-[5px] transition-[transform,background-color,color] duration-150 after:absolute after:-inset-1 after:content-[''] motion-reduce:transition-none",
+        "absolute -left-[22px] top-1/2 grid h-4 w-4 -translate-y-1/2 place-items-center rounded-[5px] transition-[transform,background-color,color] duration-150 after:absolute after:-inset-1 after:content-[''] motion-reduce:transition-none",
       /**
        * Closed — the one state that has to advertise itself. A collapsed row is otherwise
        * indistinguishable from a plain row, so the chevron carries the primary hue, the app's
@@ -1242,14 +1244,14 @@ export const idcStyles = {
        * under the parent's chevron and an elbow reaches into the name; `childCellLast` cuts
        * the rail at the elbow so the group's end is drawn, not merely implied.
        *
-       * Geometry, all measured off the name cell's own 22px padding (`nameCell`):
+       * Geometry, all measured off the name cell's own 26px padding (`nameCell`):
        *   4..20   parent chevron   → rail x = 12 (its centre), hung in the padding
-       *   22      parent label     (the column's left edge — the same one plain rows use)
-       *   46      child name       (22 + 24 indent — the tier gap, and the elbow's length)
+       *   26      parent label     (the column's left edge — the same one plain rows use)
+       *   50      child name       (26 + 24 indent — the tier gap, and the elbow's length)
        * The 12px the child used to sit from the label was not a tier, it was a nudge.
        */
       childCell:
-        "relative pl-[46px] before:absolute before:bottom-0 before:left-[12px] before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-[''] after:absolute after:left-[12px] after:top-1/2 after:h-px after:w-[18px] after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+        "relative pl-[50px] before:absolute before:bottom-0 before:left-[12px] before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-[''] after:absolute after:left-[12px] after:top-1/2 after:h-px after:w-[22px] after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /** Last child — the rail stops at its elbow, closing the group. */
       childCellLast: 'before:bottom-1/2',
       /**

@@ -29,21 +29,28 @@ export const Ec2InstanceTag = () => <ResourceKindTag>EC2</ResourceKindTag>;
 /**
  * An RDS cluster instance's Reader/Writer role.
  *
- * Warm = Writer (the instance the service writes through — pointing the agent at it puts scan
- * load on the primary), cool = Reader. The neutral tier covers a `cluster_member_role` the
- * contract left blank or sent unrecognised, which must not borrow either signal's colour.
- * Shared by step 1 and steps 2·3 so the same instance is the same colour wherever reviewed.
+ * ONE grey surface, and the role lives in the letters alone: warm = Writer (the instance the
+ * service writes through — pointing the agent at it puts scan load on the primary), cool =
+ * Reader, neutral for a `cluster_member_role` the contract left blank or sent unrecognised.
+ * Two filled tints made every instance row carry a coloured block, and a list of them read as
+ * a column of statuses next to the cluster's real verdict; on grey the distinction is still
+ * there for anyone reading the row, and invisible to anyone scanning past it.
+ * Shared by step 1, steps 2·3 and admin so the same instance reads the same wherever reviewed.
  */
 export const RdsMemberChip = ({ role }: { role?: string }) => {
   const known = memberRole(role);
   const tone =
     known === 'writer'
-      ? cn(statusColors.warning.bg, statusColors.warning.textDark)
+      ? statusColors.warning.textDark
       : known === 'reader'
-        ? cn(statusColors.info.bg, statusColors.info.textDark)
-        : cn(statusColors.pending.bg, statusColors.pending.textDark);
+        ? statusColors.info.textDark
+        : statusColors.pending.textDark;
   // The contract's canonical values are WRITER / READER; a chip does not shout.
-  return <span className={cn(CHIP_BASE, 'font-medium', tone)}>{memberRoleLabel(role)}</span>;
+  return (
+    <span className={cn(CHIP_BASE, 'font-medium', statusColors.pending.bg, tone)}>
+      {memberRoleLabel(role)}
+    </span>
+  );
 };
 
 /**
