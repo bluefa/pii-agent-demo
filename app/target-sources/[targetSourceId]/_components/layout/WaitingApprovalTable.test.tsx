@@ -2,10 +2,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import {
-  DIM_TEXT,
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { textColors, verdictRail } from '@/lib/theme';
 
 const fixture: WaitingApprovalResource[] = [
   {
@@ -77,17 +77,18 @@ describe('WaitingApprovalTable', () => {
     expect(cells[3].className).toContain('font-mono');
   });
 
-  it('dims excluded-row text to the AA tier, leaving selected rows at full contrast', () => {
+  it('marks an excluded row with the left rail and leaves its text at full contrast', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const rows = screen.getAllByRole('row').slice(1);
     const selectedCells = within(rows[0]).getAllByRole('cell');
     const excludedCells = within(rows[2]).getAllByRole('cell');
-    expect(selectedCells[0].className).not.toContain(DIM_TEXT);
-    // Excluded: every text cell rests on the dim tier (4.63:1 on the row tint — AA floor with margin).
-    expect(excludedCells[0].className).toContain(DIM_TEXT);
-    expect(within(excludedCells[1]).getByText('pg-analytics-03').className).toContain(DIM_TEXT);
-    expect(excludedCells[2].className).toContain(DIM_TEXT);
-    expect(excludedCells[3].className).toContain(DIM_TEXT);
+    // 표시는 첫 셀의 레일이 혼자 한다 — 대상 행은 색이 없다.
+    expect(selectedCells[0].className).not.toContain(verdictRail.excluded);
+    expect(excludedCells[0].className).toContain(verdictRail.excluded);
+    // 제외 행이라고 글자를 흐리게 하지 않는다: 승인 화면에서 가장 읽어야 하는 행이다.
+    expect(excludedCells[0].className).not.toContain(textColors.tertiary);
+    expect(excludedCells[2].className).not.toContain(textColors.tertiary);
+    expect(excludedCells[3].className).not.toContain(textColors.tertiary);
   });
 
   it('mounts a single hover-revealed CopyButton on the Resource ID cell only (v15)', () => {
@@ -522,7 +523,7 @@ describe('WaitingApprovalTable', () => {
 
     // The children inherit the parent's tier: full-contrast instances under a dimmed cluster
     // read as a rendering fault, and the queue table already dimmed them.
-    it('dims an excluded cluster’s instance rows to match the parent', () => {
+    it('keeps an excluded cluster’s instance rows at full contrast', () => {
       render(
         <WaitingApprovalTable
           resources={[cluster({ selected: false, selectedRdsInstanceResourceId: undefined })]}
@@ -534,18 +535,10 @@ describe('WaitingApprovalTable', () => {
         .getAllByRole('row')
         .find((r) => r.textContent?.includes('demo-2') && !r.textContent.includes('demo-cluster'));
       const cells = instanceRow!.querySelectorAll('td');
-      // Name, kind and AZ all rest on the dim tier.
-      expect(cells[0].className).toContain(DIM_TEXT);
-      expect(cells[2].className).toContain(DIM_TEXT);
-      expect(cells[3].className).toContain(DIM_TEXT);
-    });
-
-    it('keeps a selected cluster’s instance rows at full contrast', () => {
-      render(<WaitingApprovalTable resources={[cluster()]} />);
-      const instanceRow = screen
-        .getAllByRole('row')
-        .find((r) => r.textContent?.includes('demo-2') && !r.textContent.includes('demo-cluster'));
-      expect(instanceRow!.querySelectorAll('td')[0].className).not.toContain(DIM_TEXT);
+      // 부모가 제외됐다고 멤버 행의 글자를 낮추지 않는다 — 제외는 레일이 말한다.
+      expect(cells[0].className).not.toContain(textColors.tertiary);
+      expect(cells[2].className).not.toContain(textColors.tertiary);
+      expect(cells[3].className).not.toContain(textColors.tertiary);
     });
 
     // An excluded cluster chose nothing, so nothing is marked; the list is still the evidence,

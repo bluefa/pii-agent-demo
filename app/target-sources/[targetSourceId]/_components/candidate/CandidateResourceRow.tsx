@@ -28,7 +28,9 @@ import {
   idcStyles,
   primaryColors,
   statusColors,
+  tableRowLift,
   textColors,
+  verdictRailClass,
 } from '@/lib/theme';
 import type {
   CandidateDraftState,
@@ -50,17 +52,18 @@ export interface CandidateRowActions {
   selectRdsInstance: (resourceId: string, instanceResourceId: string) => void;
 }
 
-// Row/cell state grammar — mirrors WaitingApprovalTable (step 2·3); keep the two
-// in sync so the step-1 selection table and the approval tables read as one family.
-// Unchecked rows REST one tier dimmer (#6B7280, 4.63:1 on the #F9FAFB tint) and the
-// hover/focus lifts restore full contrast; chips (verdict/reason/scan tags) keep
-// full contrast because the "why" must survive the fade.
-const ROW_BASE = 'group transition-colors duration-150 motion-reduce:transition-none';
-const ROW_TARGET = 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]';
-const ROW_EXCLUDED = 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]';
-const CELL_LIFT = 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]';
+// Row/cell state grammar — the SAME tokens the approval tables use, so the step-1
+// selection table and steps 2·3 read as one family.
+//
+// These four used to be copied literals here with a "keep the two in sync" note. Lowering
+// the excluded tint is what made that note fail: one copy moved and the other did not, and
+// nothing outside a screenshot would have caught it. The token is the sync.
+// 미선택 행도 본문은 선택 행과 같은 강도로 읽는다 — 표시는 왼쪽 레일이 맡는다(verdictRail).
+const ROW_BASE = tableRowLift.base;
+const ROW_TARGET = tableRowLift.target;
+const ROW_EXCLUDED = tableRowLift.excluded;
+const CELL_LIFT = tableRowLift.cellText;
 const NAME_LIFT = primaryColors.textGroupHover;
-const DIM_TEXT = 'text-[#6B7280]';
 
 // integration_category(시스템의 사실) → 설치-계열 표기. 선택(사용자의 결정)과
 // 단어 가족을 나눠 갖지 않도록 "설치"로만 말한다 — 승인 요청/상세 모달 라벨과
@@ -165,7 +168,7 @@ const RdsInstanceRow = ({
           <span
             className={cn(
               'truncate font-mono text-[14px]',
-              dimmed ? DIM_TEXT : textColors.primary,
+              textColors.primary,
               CELL_LIFT,
             )}
           >
@@ -180,14 +183,14 @@ const RdsInstanceRow = ({
 
       {/* Resource ID / 설치 구분 / 제외 사유 belong to the cluster, not to its members. */}
       <td className={idcStyles.table.approvalCell} />
-      <td className={cn(idcStyles.table.approvalCell, 'text-[14px]', dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}>
+      <td className={cn(idcStyles.table.approvalCell, 'text-[14px]', textColors.secondary, CELL_LIFT)}>
         Instance
       </td>
       <td
         className={cn(
           idcStyles.table.approvalCell,
           'whitespace-nowrap font-mono text-[14px]',
-          dimmed ? DIM_TEXT : textColors.secondary,
+          textColors.secondary,
           CELL_LIFT,
         )}
       >
@@ -240,8 +243,8 @@ export const CandidateResourceRow = ({
     ? resolveRdsInstanceResourceId(candidate, drafts)
     : undefined;
 
-  // Ineligible rows share the dim tier with excluded ones — the ⚠ 설치 불가 entry
-  // point beside the ID (full contrast) carries the distinction, not a badge column.
+  // 제외·설치 불가 행도 본문은 대상 행과 같은 강도로 읽힌다: 표시는 왼쪽 레일이 맡고,
+  // 흐리게 하는 처리는 "덜 중요하다"는 뜻이라 검토해야 하는 행에는 정반대의 신호였다.
   const dimmed = !isSelected;
 
   // One static background per row: expanded/config-needed functional tints win over
@@ -281,7 +284,14 @@ export const CandidateResourceRow = ({
         onMouseLeave={rowRail?.onMouseLeave}
       >
         {showCheckboxColumn && (
-          <td className={cn(idcStyles.table.approvalCell, 'w-10')} onClick={(event) => event.stopPropagation()}>
+          <td
+            className={cn(
+              idcStyles.table.approvalCell,
+              'w-10',
+              verdictRailClass(dimmed, isIneligible),
+            )}
+            onClick={(event) => event.stopPropagation()}
+          >
             <input
               type="checkbox"
               checked={isSelected}
@@ -297,7 +307,8 @@ export const CandidateResourceRow = ({
           className={cn(
             idcStyles.table.approvalCell,
             'font-mono text-[14px]',
-            dimmed ? DIM_TEXT : textColors.primary,
+            textColors.primary,
+            !showCheckboxColumn && verdictRailClass(dimmed, isIneligible),
             NAME_LIFT,
             grouped && idcStyles.table.group.childCell,
             grouped && lastInGroup && idcStyles.table.group.childCellLast,
@@ -380,7 +391,7 @@ export const CandidateResourceRow = ({
                 // 더 있어 220이면 제외 사유 열이 가로 스크롤 뒤로 밀린다. 전문은 팁·복사에.
                 maxWidthClass="max-w-[160px]"
                 sizeClass="text-[14px]"
-                textClassName={cn(dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
+                textClassName={cn(textColors.secondary, CELL_LIFT)}
               />
             </span>
           )}
@@ -394,7 +405,7 @@ export const CandidateResourceRow = ({
           className={cn(
             idcStyles.table.approvalCell,
             'text-[14px]',
-            dimmed ? DIM_TEXT : textColors.secondary,
+            textColors.secondary,
             CELL_LIFT,
           )}
         >
@@ -414,7 +425,7 @@ export const CandidateResourceRow = ({
           className={cn(
             idcStyles.table.approvalCell,
             'whitespace-nowrap font-mono text-[14px]',
-            dimmed ? DIM_TEXT : textColors.secondary,
+            textColors.secondary,
             CELL_LIFT,
           )}
         >
@@ -438,7 +449,7 @@ export const CandidateResourceRow = ({
               설치 불가
             </button>
           ) : (
-            <span className={cn('whitespace-nowrap', dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}>
+            <span className={cn('whitespace-nowrap', textColors.secondary, CELL_LIFT)}>
               {CATEGORY_LABELS[candidate.integrationCategory]}
             </span>
           )}

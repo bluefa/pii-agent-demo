@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import type { CandidateResource } from '@/lib/types/resources';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
+import { textColors, verdictRail } from '@/lib/theme';
 
 const candidateFixture = (overrides: Partial<CandidateResource> = {}): CandidateResource =>
   ({
@@ -82,9 +83,9 @@ describe('CandidateResourceTable', () => {
     expect(screen.queryByText('대상')).toBeNull();
   });
 
-  // Unchecked rows rest one tier dimmer (#6B7280 on the row tint, AA with margin);
+  // 미선택 행도 본문은 선택 행과 같은 강도로 읽는다 — 표시는 왼쪽 레일이 맡는다.
   // checked rows keep full contrast. Mirrors WaitingApprovalTable's excluded-row rule.
-  it('dims unselected-row text and keeps selected rows at full contrast', () => {
+  it('marks an unselected row with the left rail and keeps all row text at full contrast', () => {
     render(
       <CandidateResourceTable
         {...defaultProps}
@@ -98,13 +99,13 @@ describe('CandidateResourceTable', () => {
     const rows = screen.getAllByRole('row').slice(1);
     const selectedCells = rows[0].querySelectorAll('td');
     const excludedCells = rows[1].querySelectorAll('td');
-    // Name cell is index 1 (after the checkbox cell).
-    expect(selectedCells[1].className).not.toContain('text-[#6B7280]');
-    expect(excludedCells[1].className).toContain('text-[#6B7280]');
-    expect(excludedCells[3].className).toContain('text-[#6B7280]');
-    expect(excludedCells[4].className).toContain('text-[#6B7280]');
-    // 설치 구분 (index 5) rides the same fact tier — the text inside dims too.
-    expect(excludedCells[5].querySelector('span')?.className).toContain('text-[#6B7280]');
+    // 표시는 체크박스 셀(index 0)의 레일이 혼자 한다 — 선택 행에는 없다.
+    expect(selectedCells[0].className).not.toContain(verdictRail.excluded);
+    expect(excludedCells[0].className).toContain(verdictRail.excluded);
+    // 미선택이라고 글자를 흐리게 하지 않는다: 검토해야 하는 행이다.
+    expect(excludedCells[1].className).not.toContain(textColors.tertiary);
+    expect(excludedCells[3].className).not.toContain(textColors.tertiary);
+    expect(excludedCells[4].className).not.toContain(textColors.tertiary);
   });
 
   // integration_category is a SYSTEM fact, spoken only in the 설치- word family so

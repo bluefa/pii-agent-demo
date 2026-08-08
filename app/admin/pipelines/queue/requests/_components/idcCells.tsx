@@ -94,19 +94,11 @@ function HostCell({
 export function IdcEndpointCell({
   hosts,
   kind,
-  dimmed = false,
   tone,
 }: {
   hosts: readonly string[];
   /** null for non-IDC rows — the badge is simply omitted. */
   kind?: IdcKind | null;
-  /**
-   * Excluded row. Stated by the caller rather than inferred from `tone` being set:
-   * a filled badge is the loudest thing in a muted row, and the row's own dimming is
-   * a text colour that a background-coloured badge does not inherit. opacity-50 is
-   * step 1's own value for the same excluded cell.
-   */
-  dimmed?: boolean;
   tone?: string;
 }): ReactElement | null {
   const [expanded, setExpanded] = useState(false);
@@ -115,11 +107,9 @@ export function IdcEndpointCell({
   const shown = collapsible && !expanded ? hosts.slice(0, 1) : hosts;
   return (
     <span className="flex flex-col items-start gap-1">
-      {kind && (
-        <span className={cn(dimmed && 'opacity-50')}>
-          <IdcKindBadge kind={kind} />
-        </span>
-      )}
+      {/* 제외 행이라고 배지를 흐리게 하지 않는다 — 제외는 행 왼쪽 레일이 말하고,
+          opacity-50 은 그 배지 위 글자의 대비를 AA 아래로 떨어뜨렸다. */}
+      {kind && <IdcKindBadge kind={kind} />}
       {/* The addresses keep their own tighter rhythm; gap-1 above separates the caption
           from the block it captions. */}
       <span className="flex flex-col items-start gap-0.5">

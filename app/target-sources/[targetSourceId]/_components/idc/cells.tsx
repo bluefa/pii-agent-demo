@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
-import { cn, idcStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, textColors, verdictText } from '@/lib/theme';
+import { ExcludedIcon } from '@/app/components/ui/icons';
 import { CELL_LIFT } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type {
   IdcHealth,
@@ -187,15 +188,19 @@ export const IdcHealthBadge = ({ health }: { health: IdcHealth | null }) => {
   );
 };
 
-export const IdcTargetPill = ({ excluded }: { excluded: boolean }) => {
-  const variant = excluded ? idcStyles.targetPill.no : idcStyles.targetPill.yes;
-  return (
-    <span className={cn(idcStyles.targetPill.base, variant.box)}>
-      <span className={cn(idcStyles.targetPill.dot, variant.dot)} />
-      {excluded ? '비대상' : '대상'}
+/**
+ * 이전 요청 불러오기 모달 전용 판정 — 공유 `TargetPill` 과 같은 형태(아이콘 + 글자, verdictText)를
+ * 쓰되 어휘는 이 화면의 것(비대상)을 유지한다. 어휘 통일은 별건이다.
+ */
+export const IdcTargetPill = ({ excluded }: { excluded: boolean }) =>
+  excluded ? (
+    <span className={cn(verdictText.base, verdictText.excluded)}>
+      <ExcludedIcon className={verdictText.icon} />
+      비대상
     </span>
+  ) : (
+    <span className={cn(verdictText.base, verdictText.target)}>대상</span>
   );
-};
 
 /** Credential-aware connection status — reflects the live test-connection result:
  *  no cred -> credential-required; SUCCESS -> green; FAIL -> red; RUNNING -> orange;
