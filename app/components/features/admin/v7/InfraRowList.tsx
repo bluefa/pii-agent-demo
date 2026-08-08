@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
+import { useState } from 'react';
 import {
   bgColors,
   borderColors,
@@ -26,11 +26,6 @@ interface InfraRowListProps {
   onOpenDetail: (targetSourceId: number) => void;
   onManageAction: (action: InfraRowAction, targetSourceId: number) => void;
 }
-
-/** Never changes, so the store never notifies — this is a constant, not a subscription. */
-const subscribeNever = () => () => {};
-const onClient = () => true;
-const onServer = () => false;
 
 /**
  * Five cards a page, not ten. Each card carries the account id, its identifying
@@ -116,23 +111,23 @@ export const InfraRowList = ({
   onManageAction,
 }: InfraRowListProps) => {
   const [page, setPage] = useState(0);
-  // "We are loading" is client state — the server has no idea whether a request it
-  // never made is in flight, so it must not render a loading frame. Rendering the
-  // skeleton during SSR left this subtree's hydration stalled: the server HTML
-  // painted, the effects never ran, and the list sat in skeleton forever.
-  //
-  // `useSyncExternalStore` rather than setState-in-an-effect: it is the one hook
-  // that is allowed to answer differently on the server and on the client, so the
-  // hydrating render already agrees with the server instead of correcting it.
-  const mounted = useSyncExternalStore(subscribeNever, onClient, onServer);
+
+  if (error !== null) return <InfraRowListError message={error} onRetry={onRetry} />;
 
   // Nothing has resolved yet — draw the page's shape rather than an answer about it.
   // Gated on the data, not on `loading`: `loading` is set from an effect, so it is
   // still false on the first painted frame and this list would flash 등록된 계정이
   // 없어요 before the request was even in flight.
-  if (error !== null) return <InfraRowListError message={error} onRetry={onRetry} />;
-
-  if (projects === null) return mounted ? <InfraRowListSkeleton /> : null;
+  //
+  // Server-rendered, deliberately. This used to hide behind a client-mount gate so the
+  // server drew nothing, on the theory that an SSR skeleton stalled hydration — that
+  // was misdiagnosed against a corrupted Turbopack cache. The cost was the whole point
+  // of the skeleton: on entry the server painted a header over an empty column, and the
+  // fetch beat hydration, so nobody ever saw the loading frame this component exists to
+  // be. `projects === null` is true on the server for the same reason it is true on the
+  // client's first render — nothing has been fetched — so both agree and there is no
+  // mismatch to correct.
+  if (projects === null) return <InfraRowListSkeleton />;
 
   const totalPages = Math.max(1, Math.ceil(projects.length / PAGE_SIZE));
   // Clamp at render rather than resetting in an effect, which would paint one
@@ -143,7 +138,7 @@ export const InfraRowList = ({
   // A refresh that emptied the list, or one starting from empty — same frame as the
   // first load, so it draws the same thing. A centred spinner on a page-sized column
   // said "wait" without saying what for.
-  if (loading && projects.length === 0) return mounted ? <InfraRowListSkeleton /> : null;
+  if (loading && projects.length === 0) return <InfraRowListSkeleton />;
 
   if (projects.length === 0) {
     return <InfrastructureEmptyState onAddInfra={onAddInfra} />;
