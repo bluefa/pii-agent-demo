@@ -264,16 +264,24 @@ export const RECOMMEND_FAIL_REASON_LABEL: Record<RecommendFailReason, string> = 
  *
  * 계약에 없는 코드는 라벨을 지어내지 않고 원문 그대로 세운다 — 이 단계가 없으면 enum 이
  * 늘어나는 순간 그 행의 사유 칸이 통째로 비어 "왜 빠졌는지 아무도 말해주지 않는" 상태가 된다.
+ *
+ * 우선순위: **사람이 쓴 문장이 라벨을 이긴다.** 두 필드가 서로 다른 값으로 함께 오면
+ * (`exclusion_reason` 에 사람의 사유, `recommend_fail_reason` 에 스캔 코드) 칩에는 사람의
+ * 문장이 서고 코드는 팁에만 남는다 — 기계가 붙인 라벨이 사람이 남긴 근거를 덮으면,
+ * 그 행을 왜 뺐는지 아는 유일한 기록이 화면에서 사라진다.
  */
 export const resolveExclusionReason = (
   reason?: string | null,
   recommendFailReason?: string | null,
 ): { text: string; code?: RecommendFailReason } | null => {
+  // 코드는 두 필드 어디에 실려 왔든 찾는다 — 요청 어댑터가 `exclusion_reason` 에 그대로
+  // 써 넣는 경로가 있다.
   const code =
     normalizeRecommendFailReason(recommendFailReason) ?? normalizeRecommendFailReason(reason);
-  if (code) return { text: RECOMMEND_FAIL_REASON_LABEL[code], code };
-  const text = reason || recommendFailReason;
-  return text ? { text } : null;
+  // `reason` 이 코드 그 자체이면 사람이 쓴 문장이 아니다 — 그 경우만 라벨에 자리를 내준다.
+  const prose = normalizeRecommendFailReason(reason) ? null : reason;
+  const text = prose || (code ? RECOMMEND_FAIL_REASON_LABEL[code] : recommendFailReason);
+  return text ? { text, code: code ?? undefined } : null;
 };
 
 export interface MockResource {
