@@ -23,17 +23,34 @@ vi.mock('@/app/lib/api/pipeline-target', () => ({
 
 // 게이트 뒤편(탭)이 부수적으로 쏘는 요청들 — 게이트가 열렸을 때만 도는지 보기 위해
 // 전부 잡아 둔다. SDU 경로에서는 하나도 불리면 안 된다.
-const getProcessStatus = vi.fn(async (_targetSourceId: number) => null);
+const getProcessStatus = vi.fn(async (): Promise<null> => null);
 vi.mock('@/app/lib/api', () => ({
-  getProcessStatus: (targetSourceId: number) => getProcessStatus(targetSourceId),
+  getProcessStatus: () => getProcessStatus(),
 }));
+const getCollaborationChannel = vi.fn(async (): Promise<null> => null);
+const getAwsRoleVerification = vi.fn(async (): Promise<null> => null);
+const getTestConnectionDetail = vi.fn(async (): Promise<null> => null);
+
 vi.mock('@/app/hooks/useTestConnectionPolling', () => ({ fetchLatestTest: vi.fn(async () => null) }));
-vi.mock('@/app/lib/api/aws', () => ({ getAwsRoleVerification: vi.fn(async () => null) }));
-vi.mock('@/app/lib/api/ops', () => ({ getCollaborationChannel: vi.fn(async () => null) }));
+vi.mock('@/app/lib/api/aws', () => ({
+  getAwsRoleVerification: () => getAwsRoleVerification(),
+}));
+vi.mock('@/app/lib/api/ops', () => ({
+  getCollaborationChannel: () => getCollaborationChannel(),
+}));
 vi.mock('@/app/lib/api/task-queue-tc', () => ({
-  getTestConnectionDetail: vi.fn(async () => null),
+  getTestConnectionDetail: () => getTestConnectionDetail(),
   getTestConnectionResults: vi.fn(async () => []),
 }));
+
+/** effect 가 SDU 에서 멈췄는지 — 네 갈래를 모두 본다. 하나만 검사하면 그 하나가
+ *  블록 첫 줄이라서 통과하는 것이고, 순서가 바뀌면 가드가 조용히 사라진다. */
+const expectNoSecondaryLoads = (): void => {
+  expect(getProcessStatus).not.toHaveBeenCalled();
+  expect(getCollaborationChannel).not.toHaveBeenCalled();
+  expect(getAwsRoleVerification).not.toHaveBeenCalled();
+  expect(getTestConnectionDetail).not.toHaveBeenCalled();
+};
 
 const detail = (over: Record<string, unknown> = {}) => ({
   target_source_id: 1099,
@@ -63,6 +80,8 @@ describe('OpsTargetView — SDU 게이트', () => {
     );
     render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" />);
     expect(await screen.findByText(NOTICE)).toBeTruthy();
+    // 렌더 게이트만으로도 안내는 뜬다 — effect 게이트가 이 갈래에서도 도는지 함께 본다.
+    expectNoSecondaryLoads();
   });
 
   it('SDU 가 아니면 안내가 아니라 탭 화면이다', async () => {
@@ -85,6 +104,6 @@ describe('OpsTargetView — SDU 게이트', () => {
     getRawTargetSourceDetail.mockResolvedValue(detail());
     render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" />);
     await screen.findByText(NOTICE);
-    expect(getProcessStatus).not.toHaveBeenCalled();
+    expectNoSecondaryLoads();
   });
 });

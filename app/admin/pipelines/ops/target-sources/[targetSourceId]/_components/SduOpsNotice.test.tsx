@@ -76,6 +76,15 @@ describe('SduOpsNotice', () => {
     expect(link.getAttribute('href')).toContain('a%20b%2Fc');
   });
 
+  it('serviceCode 가 없으면 없는 서비스가 아니라 서비스 목록으로 보낸다', () => {
+    // 계약에서 optional 이다. `?? '-'` 로 메우면 이 화면의 유일한 탈출구가
+    // /services/- 라는 두 번째 막다른 길로 간다.
+    renderNotice({ serviceCode: null, serviceName: 'SDU' });
+    const link = screen.getByRole('link', { name: /서비스 목록으로 돌아가기/ });
+    expect(link.getAttribute('href')).toBe(passRoutes.pipelines.ops.services);
+    expect(link.getAttribute('href')).not.toContain('/-');
+  });
+
   it('서비스 이름과 코드가 다르면 둘 다 적는다', () => {
     renderNotice({ serviceName: '주문서비스', serviceCode: 'ORD' });
     const chip = screen.getByText(/주문서비스/);

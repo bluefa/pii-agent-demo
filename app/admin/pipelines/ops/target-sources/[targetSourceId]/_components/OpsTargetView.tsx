@@ -36,6 +36,7 @@ import { RoleVerifyModal } from '@/app/admin/pipelines/ops/target-sources/[targe
 import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleEditModal';
 import { ChannelModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ChannelModal';
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
+import { isSduTarget } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { SduOpsNotice } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduOpsNotice';
 import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
@@ -152,10 +153,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
       // 것인데, SDU 는 그 탭들이 통째로 안내 한 장으로 대체되므로 받아도 그릴 곳이
       // 없다. 진행 상태·협업 채널·연결 테스트·AWS role 네 갈래가 대상마다 헛돈다.
       // 판정은 렌더 게이트와 같은 규칙이다 (계약이 SDU 를 말하는 두 자리).
-      if (
-        loaded.metadata?.is_sdu_type === true
-        || loaded.cloud_provider?.toUpperCase() === 'SDU'
-      ) {
+      if (isSduTarget({ is_sdu_type: loaded.metadata?.is_sdu_type, cloud_provider: loaded.cloud_provider })) {
         return;
       }
 
@@ -213,12 +211,12 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
    * 계약이 SDU 를 말하는 두 자리를 모두 본다 — metadata.is_sdu_type 과 cloudProvider
    * enum 의 SDU. 플래그만 보면 provider 로 SDU 가 오는 대상이 이 게이트를 통과한다.
    */
-  if (meta.is_sdu_type === true || detail.cloud_provider?.toUpperCase() === 'SDU') {
+  if (isSduTarget({ is_sdu_type: meta.is_sdu_type, cloud_provider: detail.cloud_provider })) {
     return (
       <SduOpsNotice
         targetSourceId={targetSourceId}
         serviceName={detail.service_name ?? '-'}
-        serviceCode={detail.service_code ?? '-'}
+        serviceCode={detail.service_code ?? null}
         isChinaRegion={meta.is_china_region === true}
       />
     );

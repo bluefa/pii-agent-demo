@@ -96,6 +96,28 @@ export interface OpsTargetSourceAccount {
   is_china_region: boolean;
 }
 
+/**
+ * 운영 **목록**(`/admin/ops/target-sources`)이 싣는 계정 식별자 — 위
+ * `OpsTargetSourceAccount` 와 일부러 다른 타입이다.
+ *
+ * 그쪽은 실계약(`/target-sources/page`)을 라우트가 매핑해서 만드는 값이라 tsc 가 생성
+ * 지점을 본다. 이 목록은 assumed 계약(§5)이고 라우트가 업스트림 응답을 그대로
+ * 흘려보내므로(`route.ts` 의 `NextResponse.json(data)`) 생성 지점이 없다 — 타입은
+ * `fetchInfraJson<…>` 의 무검증 단언으로만 붙는다.
+ *
+ * 그래서 한 타입을 공유하면 위험하다. `is_china_region` / `tenant_id` 는 이 경로의 wire
+ * (`OpsTargetSourceAccountWire`)에 없으므로 런타임에 `undefined` 인데, 공유 타입이
+ * `boolean` 이라고 말하면 컴파일러도 테스트도 잡지 못한다. 다음 사람이 이 목록에 중국
+ * 칩을 달면서 `metadata.is_china_region &&` 을 쓰면 실제 중국 대상에서 조용히 안 뜬다 —
+ * 이 브랜치가 고친 그 버그가 옆 화면에 그대로 재현된다. 필드 수를 wire 에 맞춰 둔다.
+ */
+export interface OpsTargetSourceListAccount {
+  aws_account_id: string | null;
+  aws_region_type: 'global' | 'china' | null;
+  subscription_id: string | null;
+  gcp_project_id: string | null;
+}
+
 export interface OpsTargetSourceListItem {
   target_source_id: number;
   service_code: string;
@@ -107,7 +129,7 @@ export interface OpsTargetSourceListItem {
   database_type: string | null;
   process_status: BffProcessStatus;
   last_changed_at: string;
-  metadata: OpsTargetSourceAccount;
+  metadata: OpsTargetSourceListAccount;
 }
 
 export interface OpsTargetSourceListPage {

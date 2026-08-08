@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { borderColors, cn, pipelineStyles, tableRowLift } from '@/lib/theme';
+import { isSduTarget } from '@/lib/types';
 import { holdFor, SKELETON_MIN_MS } from '@/lib/min-duration';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
@@ -211,13 +212,13 @@ const PageArrow = ({
 /** metadata → 그 provider 가 실제로 갖는 계정 식별자 1건. 없으면 null. */
 function accountOf(
   target: OpsServiceTargetRow,
-): { label: string; value: string; china: boolean } | null {
-  const { aws_account_id, aws_region_type, subscription_id, gcp_project_id } = target.metadata;
+): { label: string; value: string } | null {
+  const { aws_account_id, subscription_id, gcp_project_id } = target.metadata;
   if (aws_account_id) {
-    return { label: 'AWS Account', value: aws_account_id, china: aws_region_type === 'china' };
+    return { label: 'AWS Account', value: aws_account_id };
   }
-  if (gcp_project_id) return { label: 'GCP Project', value: gcp_project_id, china: false };
-  if (subscription_id) return { label: 'Azure Subscription', value: subscription_id, china: false };
+  if (gcp_project_id) return { label: 'GCP Project', value: gcp_project_id };
+  if (subscription_id) return { label: 'Azure Subscription', value: subscription_id };
   return null;
 }
 
@@ -230,21 +231,11 @@ function accountOf(
  * metadata 가 비어서 생긴 문제를 화면이 사실인 것처럼 덮는다.
  */
 function glossOf(target: OpsServiceTargetRow): string {
-  if (isSdu(target)) return '서비스 담당자가 데이터를 직접 업로드';
+  if (isSduTarget(target)) return '서비스 담당자가 데이터를 직접 업로드';
   if (target.cloud_provider.toUpperCase() === 'IDC') return '사내망';
   return '계정 식별자 없음';
 }
 
-/**
- * SDU 판정 — 계약이 두 자리에서 말한다.
- *
- * `TargetSourceMetadata.is_sdu_type` (boolean) 과 `TargetSourceInfo.cloudProvider` enum
- * 의 `SDU` 값이다. 플래그만 보면 provider 로 `SDU` 가 온 행을 놓쳐, 그 카드만 다른
- * 규칙으로 그려진다. 둘 중 하나면 SDU 다.
- */
-function isSdu(target: OpsServiceTargetRow): boolean {
-  return target.is_sdu_type || target.cloud_provider.toUpperCase() === 'SDU';
-}
 
 /** 스켈레톤 바 하나 — 실제 요소의 자리를 폭·높이로만 잡는다. */
 const bar = (className: string) => (
@@ -486,9 +477,9 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
             // SDU 행은 밑에 깔린 CSP 를 숨긴다 — /pass/services 와 같은 규칙이다.
             // 1층이 "SDU"라고 말하는데 2층이 "AWS Account …"를 내보이면 한 카드가 서로
             // 다른 말을 한다. metadata 에 계정이 실려 와도 여기서는 gloss 로 간다.
-            const account = isSdu(target) ? null : accountOf(target);
+            const account = isSduTarget(target) ? null : accountOf(target);
             // 같은 규칙 — SDU 는 하부 CSP 의 Tenant 도 내보이지 않는다.
-            const tenantId = isSdu(target) ? null : target.metadata.tenant_id;
+            const tenantId = isSduTarget(target) ? null : target.metadata.tenant_id;
             // 중국은 계정과 무관하게 계약 필드로 판단한다. account 에 매달아 두면 SDU
             // 행에서(account 를 비우므로) 중국이라는 사실이 통째로 사라진다.
             const china = target.metadata.is_china_region;
@@ -505,7 +496,7 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
               >
                 <ProviderLogo
                   provider={target.cloud_provider as CloudProvider}
-                  isSdu={target.is_sdu_type}
+                  isSdu={isSduTarget(target)}
                   variant="bare"
                   // 마크는 64px 한 덩어리고 글자는 3층이다 — 위로 맞추면 마크가 높이 뜨고
                   // 카드가 아래로 무거워진다. 위에서 시작해야 하는 건 글자뿐.
@@ -520,7 +511,7 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                     </span>
                     {/* SDU 는 provider 가 아니라 분류라 칩으로, 나머지는 평문으로.
                         왼쪽 마크가 이미 provider 를 말하므로 ProvTag 를 또 쓰지 않는다. */}
-                    {isSdu(target) ? (
+                    {isSduTarget(target) ? (
                       <span className={tsTable.sduChip}>SDU</span>
                     ) : (
                       <span className="text-[14px] font-medium text-[var(--pl-text-medium)]">

@@ -24,7 +24,11 @@ import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 export interface SduOpsNoticeProps {
   targetSourceId: number;
   serviceName: string;
-  serviceCode: string;
+  /**
+   * 계약에서 optional 이라 없을 수 있다. 없으면 이 화면의 유일한 컨트롤이
+   * `/services/-` 라는 없는 서비스를 가리키게 되므로, 그때는 서비스 목록으로 보낸다.
+   */
+  serviceCode: string | null;
   /** metadata.is_china_region — 중국 대상이면 화면이 없어도 그 사실은 말한다. */
   isChinaRegion: boolean;
 }
@@ -36,24 +40,32 @@ export function SduOpsNotice({
   isChinaRegion,
 }: SduOpsNoticeProps): ReactElement {
   return (
-    // 카드 면 위에 놓는다. layout.content 계열은 배경을 갖지 않아, 면 없이 두면 셸의
-    // 어두운 바닥이 그대로 비친다 — 이 화면의 다른 블록이 전부 카드인 것과 같은 이유다.
+    // 카드 면 위에 놓는다 — 이 화면의 다른 블록이 전부 카드이기 때문이다. (레이아웃
+    // 바닥은 --pl-bg-page = #F9FAFB 로 이미 밝다. 면이 없으면 어두워진다고 적었던 것은
+    // 틀렸다: 그때 본 어두운 화면은 .next 가 깨져 CSS 가 안 붙은 상태였다.)
+    //
+    // 세로 여백은 min-h 가 갖는다. `py-*` 를 얹으면 card.base 의 pt-5/pb-6 과 겹치는데
+    // cn 은 단순 join 이라(tailwind-merge 없음) 뒤에 오는 longhand 가 이겨 무효가 된다.
     <div
       className={cn(
         pipelineStyles.card.base,
-        'flex min-h-[520px] items-center justify-center px-6 py-16',
+        'flex min-h-[520px] items-center justify-center px-6',
       )}
     >
       <div className="flex max-w-[560px] flex-col items-center text-center">
+        {/* `provider` 값은 여기서 쓰이지 않는다 — `isSdu` 가 참이면 색·글리프·aria 라벨이
+            모두 SDU 로 결정된다(ProviderLogo 의 providerColors/ProviderGlyph/aria-label).
+            'AWS' 인 것은 prop 타입 CloudProvider 가 'SDU' 를 포함하지 않기 때문이지,
+            이 대상이 AWS 라는 뜻이 아니다. */}
         <ProviderLogo provider="AWS" isSdu variant="bare" className="flex-none" />
 
         <p className="mt-8 text-[16px] font-medium text-[var(--pl-text-weak)]">
           SDU · Self Data Upload
         </p>
 
-        <h2 className="mt-3 text-[26px] font-bold tracking-[-0.02em] text-[var(--pl-text-strong)]">
+        <h1 className="mt-3 text-[26px] font-bold tracking-[-0.02em] text-[var(--pl-text-strong)]">
           운영 화면을 준비하고 있습니다
-        </h2>
+        </h1>
 
         <p className="mt-4 text-[16px] leading-[1.6] text-[var(--pl-text-medium)]">
           SDU 는 서비스 담당자가 데이터를 직접 업로드하는 대상이라, 설치 진행을 전제로 만든
@@ -67,7 +79,9 @@ export function SduOpsNotice({
         <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
           <span className={opsStyles.tag}>Target #{targetSourceId}</span>
           <span className={opsStyles.tag}>
-            {serviceName === serviceCode ? serviceName : `${serviceName} · ${serviceCode}`}
+            {!serviceCode || serviceName === serviceCode
+              ? serviceName
+              : `${serviceName} · ${serviceCode}`}
           </span>
           {isChinaRegion && <span className={opsStyles.regionTag}>중국</span>}
         </div>
@@ -78,8 +92,12 @@ export function SduOpsNotice({
             버튼 테두리를 두지 않는 이유는 이것이 이 화면의 유일한 컨트롤이라 경쟁할
             상대가 없기 때문이다. */}
         <Link
-          href={passRoutes.pipelines.ops.service(serviceCode)}
-          className="mt-8 text-[14px] font-semibold text-[var(--pl-primary)] underline-offset-[3px] hover:underline"
+          href={
+            serviceCode
+              ? passRoutes.pipelines.ops.service(serviceCode)
+              : passRoutes.pipelines.ops.services
+          }
+          className={cn('mt-8 text-[14px] underline-offset-[3px]', pipelineStyles.text.link)}
         >
           ← 서비스 목록으로 돌아가기
         </Link>
