@@ -7,7 +7,6 @@ import {
   borderColors,
   chipStyles,
   cn,
-  numericFeatures,
   primaryColors,
   rowLabelColor,
   rowMenuStyles,
@@ -17,6 +16,11 @@ import {
 } from '@/lib/theme';
 import type { ProjectSummary } from '@/lib/types';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
+import {
+  IdValue,
+  KindWord,
+  MetaPair,
+} from '@/app/components/features/admin/v7/RowIdentityText';
 
 export type InfraRowAction = 'view' | 'copyId' | 'delete';
 
@@ -73,7 +77,10 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
   // 붙어 있으면 그 규칙이 이 한 줄에서만 깨진다.
   const showTenant =
     project.cloudProvider === 'Azure' && !project.isSduType && Boolean(project.tenantId);
-  const showChinaRegion = project.isChinaRegion && !project.isSduType;
+  // 중국 리전 is AWS-only too: no other CSP treats the China partition as a separate
+  // account, so tagging their rows would show a distinction that does not exist.
+  const showChinaRegion =
+    project.cloudProvider === 'AWS' && project.isChinaRegion && !project.isSduType;
   const hasSecondLayer =
     showTenant || showInstallMode || Boolean(identity.gloss) || Boolean(identity.secondValue);
   // Both controls repeat once per card, so their labels have to carry which card they
@@ -226,37 +233,6 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
     </div>
   );
 };
-
-/** The word naming the kind of id that follows it — "Account", "Subscription", "Project". */
-const KindWord = ({ children }: { children: React.ReactNode }) => (
-  <span className={cn('text-[12px]', rowLabelColor)}>{children}</span>
-);
-
-/**
- * An account id or GUID — shown whole; a truncated id is not an id.
- *
- * `medium`, not `semibold`: the provider name is the row's subject and the id is
- * what qualifies it. At the same weight the two competed, and a 20-character GUID
- * won on sheer length.
- */
-const IdValue = ({ children }: { children: React.ReactNode }) => (
-  <span
-    className={cn(
-      'text-[14px] font-medium tracking-[-0.01em]',
-      textColors.primary,
-      numericFeatures.tabular,
-    )}
-  >
-    {children}
-  </span>
-);
-
-const MetaPair = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <span className="flex items-center gap-1.5">
-    <span className={cn('text-[12px]', rowLabelColor)}>{label}</span>
-    {children}
-  </span>
-);
 
 /** 24px, filled dots — the Figma ⋮ is a 32px glyph, and a 16px icon read as a speck. */
 const KEBAB_ICON = (
