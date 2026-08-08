@@ -10,10 +10,11 @@ import { schemas } from '@/lib/generated/install-v1';
  * POST maps an existing issueKey, DELETE unmaps it and reports which key it was.
  */
 
-// POST /services/{serviceCode}/jira-tickets/{cloudProvider} { issueKey } → 204.
+// POST /services/{serviceCode}/jira-tickets/{cloudProvider} { issueKey, validate } → 204.
 export const POST = withV1(async (request, { requestId, params }) => {
   const body: unknown = await request.json().catch(() => null);
-  const issueKey = (body as { issueKey?: unknown } | null)?.issueKey;
+  const { issueKey, validate } =
+    (body as { issueKey?: unknown; validate?: unknown } | null) ?? {};
   // issueKey 형식은 검증하지 않는다 — 존재 여부 판정은 Jira 를 아는 BFF 몫.
   if (typeof issueKey !== 'string' || issueKey.trim().length === 0) {
     return problemResponse(
@@ -24,6 +25,8 @@ export const POST = withV1(async (request, { requestId, params }) => {
     String(params.serviceCode),
     String(params.cloudProvider),
     issueKey.trim(),
+    // 계약상 optional — boolean 이 아니면 싣지 않고 업스트림 기본값에 맡긴다.
+    typeof validate === 'boolean' ? validate : undefined,
   );
   return new NextResponse(null, { status: 204 });
 });

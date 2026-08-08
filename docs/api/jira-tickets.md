@@ -24,9 +24,9 @@ Jira ticket 을 **최대 1개** 연결한다(경로에 provider 가 들어가므
 | `DELETE` | `/install/v1/services/{serviceCode}/jira-tickets/{cloudProvider}` | `detachJiraTicket` | `JiraTicketDetachResponse` |
 
 ```yaml
-JiraTicketResponse:       { id, targetSourceId, serviceCode, issueKey, cloudProvider }
-JiraTicketAttachRequest:  { issueKey }        # required
-JiraTicketDetachResponse: { issueKey }        # 해제된 티켓 키를 되돌려준다
+JiraTicketResponse:       { id, targetSourceId, serviceCode, issueKey, cloudProvider, browseUrl }
+JiraTicketAttachRequest:  { issueKey, validate? }   # issueKey required; validate=true 면 Jira 에서 존재 확인 후 연결
+JiraTicketDetachResponse: { issueKey }              # 해제된 티켓 키를 되돌려준다
 ```
 
 ### ⚠️ `DELETE` 는 Jira 티켓을 삭제하지 않는다
@@ -42,19 +42,20 @@ JiraTicketDetachResponse: { issueKey }        # 해제된 티켓 키를 되돌�
 있으므로, 같은 `issueKey` 를 다시 `POST` 하면 원상복구된다 — 되돌릴 수 없는 작업이 아니다.
 (EOS 처리와 톤을 구분해야 하는 이유. EOS 는 진짜로 되돌릴 수 없다.)
 
-#### `issueKey` 는 넣는 값과 나오는 값의 형태가 다르다
+#### 열 주소는 `browseUrl` 이 싣는다 — 프론트는 파싱·조립하지 않는다
 
-`POST` 로 **넣는** 값은 티켓 키 문자열(`BDCDIP-12312`)이고, `GET` 응답에 **실려 오는** 값은
-티켓 주소(`https://{domain}/some/path/BDCDIP-12312`)다. 계약은 양쪽 다 `string` 하나로만
-선언하므로 이 비대칭은 스키마에 드러나지 않는다.
+(v5 이전에는 `issueKey` 가 넣을 땐 키, 나올 땐 주소인 비대칭이 있어 프론트가 마지막
+`/` 뒤 조각을 파싱해 보여줬다. `browseUrl` 이 계약에 실리면서 그 파싱은 삭제됐다.)
 
-화면은 주소의 마지막 `/` 뒤 조각만 보여주고 링크는 받은 값을 그대로 쓴다
-(`lib/jira-ticket.ts`). 프론트가 도메인·경로를 조립하지 않는 이유는, 조립하는 순간
-프로젝트 키 체계나 Jira 도메인이 바뀔 때마다 프론트가 같이 깨지기 때문이다.
-값이 주소가 아니라 키로 오면 링크가 아니라 글자로 보여준다 — 없는 주소를 지어내지 않는다.
+`issueKey` 는 양쪽 다 티켓 키 문자열(`BDCDIP-12312`)이고, 티켓을 여는 실제 주소는
+`browseUrl` 로 BFF 가 조립해 준다. 화면은 라벨에 `issueKey` 를, 링크에 `browseUrl` 을
+그대로 쓴다 — 프론트가 도메인·경로를 조립하면 Jira 도메인이 바뀔 때마다 같이 깨진다.
+`browseUrl` 이 없거나 http(s) 가 아니면 링크가 아니라 글자로 보여준다
+(`lib/jira-ticket.ts` `safeBrowseUrl` — 스킴 가드만 남았다).
 
-`issueKey` 는 프론트가 검증하지 않는다. 존재하지 않는 키의 판정은 Jira 를 아는
-BFF 몫이고, 프론트가 형식을 넘겨짚으면 프로젝트 키 체계가 바뀔 때마다 깨진다.
+`issueKey` 존재 여부의 판정은 Jira 를 아는 BFF 몫이다 — `validate: true` 로 연결 전에
+존재를 확인할 수 있고(없으면 실패), `false` 면 확인 없이 매핑한다. UI 는 이 옵션을
+체크박스(기본 켬)로 노출한다. 프론트는 키 형식을 넘겨짚지 않는다.
 
 ---
 

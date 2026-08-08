@@ -41,19 +41,23 @@ body     { grant_service_terraform_execution_permission: boolean }
 → 200   { target_source_id: number, grant_service_terraform_execution_permission: boolean }
 ```
 
-## 3. AWS role registration / update
+## 3. AWS role registration / update — GRADUATED to the real contract
 
-`verify-scan-role` / `verify-execution-role` (GET) return `role_arn` but nothing can set
-it. The UI collects the role *name* only; the server composes the ARN from the account id
-and partition (`aws` / `aws-cn` for China accounts).
+The real endpoints landed in install-v1.yaml (2026-08-08 swagger v5), replacing this
+section's assumed shape. This entry stays as a tombstone so old references resolve:
 
 ```
 PUT /install/v1/target-sources/{targetSourceId}/aws/scan-role
-PUT /install/v1/target-sources/{targetSourceId}/aws/execution-role
-body     { role_name: string }            // /^[\w+=,.@-]{1,64}$/
-→ 200   { role_arn: string }              // e.g. arn:aws:iam::123456789012:role/{role_name}
-→ 400   ErrorMessage                      // name fails the IAM pattern
+PUT /install/v1/target-sources/{targetSourceId}/aws/terraform-execution-role   // NOT …/aws/execution-role
+body     AwsAssumeRoleUpsertRequest  { roleArn }                    // FULL ARN, camel wire
+→ 200   AwsAssumeRoleUpsertResponse { targetSourceId, roleArn, readOnly }
 ```
+
+Differences from the assumed shape: the client sends the full ARN (the edit modal still
+collects the name only and composes account + partition + name), the wire is camelCase,
+and the execution-role path segment is `terraform-execution-role`. The current role
+values are also readable from `TargetSourceMetadata.aws_scan_role_arn` /
+`aws_terraform_execution_role_arn`.
 
 Saving a role resets its verification verdict (next verify GET starts from IN_PROGRESS);
 a stale "verified" state must not survive an ARN change.
