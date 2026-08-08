@@ -45,7 +45,7 @@ describe('ServiceMoveConfirmModal — open state', () => {
     expect(html).toContain('서비스 인프라 목록으로 이동할까요?');
     expect(html).toContain('SVC-001');
     expect(html).toContain('Sample Service');
-    expect(html).toContain('인프라 목록으로 이동해요');
+    expect(html).toContain('아래 서비스의 인프라 목록으로 이동합니다.');
     expect(html).toContain('머무르기');
     expect(html).toContain('이동하기');
   });
