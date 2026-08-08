@@ -59,9 +59,9 @@ export const RejectionVerdict = ({
           >
             반려 사유
           </p>
-          {/* The payload is now the largest text in the block and, after the title, the darkest
-              tone on the card — it stops being the smallest thing on the screen. */}
-          <p className={cn('mt-1.5 text-[17px] font-semibold leading-[1.5]', textColors.primary)}>
+          {/* Body scale — the tag above stays smaller than its payload, and the primary tone
+              (darkest on the card) carries the emphasis instead of size. */}
+          <p className={cn('mt-1.5 text-[14px] font-medium leading-[1.5]', textColors.primary)}>
             {reason}
           </p>
           {signature}
