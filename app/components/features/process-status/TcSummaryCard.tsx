@@ -1,8 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { cn, idcStyles, statusColors } from '@/lib/theme';
-import { CheckIcon, ClockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
+import { cn, idcStyles, scanTransition, statusColors } from '@/lib/theme';
+import { ClockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { fmtDateTime, fmtRelativeTime } from '@/lib/pipeline/format';
 import {
   tcElapsedLabel,
@@ -26,6 +26,11 @@ interface TcSummaryCardProps {
   needsRerun?: boolean;
   /** Right-side slot of the counts row — the 이력 보기 link. */
   historyAction?: ReactNode;
+  /**
+   * 이 화면에서 정착을 라이브로 지켜봤을 때만 true (useTcSettleHold). 성공 체크
+   * 드로우의 유일한 트리거 — 마운트 시 발견한 예전 SUCCESS 에는 연출이 없다.
+   */
+  drawCheck?: boolean;
 }
 
 /**
@@ -34,7 +39,7 @@ interface TcSummaryCardProps {
  * timestamps ("이 성공이 언제 것인지"), phase-aware buckets that never fold 미보고
  * into 대기, and the completion-status rerun chip.
  */
-export const TcSummaryCard = ({ phase, buckets, run, needsRerun, historyAction }: TcSummaryCardProps) => {
+export const TcSummaryCard = ({ phase, buckets, run, needsRerun, historyAction, drawCheck }: TcSummaryCardProps) => {
   const s = idcStyles.connProgress;
   const sentence = tcSummarySentence(phase, buckets);
   const elapsed = tcElapsedLabel(run?.requestedAt, run?.completedAt);
@@ -69,9 +74,32 @@ export const TcSummaryCard = ({ phase, buckets, run, needsRerun, historyAction }
         <div className={cn(s.title, s.titleColor[phase])}>
           <span className={cn(s.icon, s.accent[phase])}>
             {phase === 'success' ? (
-              <CheckIcon className="h-[15px] w-[15px]" />
+              <svg
+                className="h-[15px] w-[15px]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                {/* dasharray 만 선언하고 offset 은 기본값(0) — 드로우 클래스가 없거나
+                    motion-reduce 로 애니메이션이 꺼져도 체크는 그려진 상태로 남는다
+                    (ScanRunningState 와 같은 규칙). */}
+                <path
+                  d="M5 13l4 4L19 7"
+                  strokeDasharray={30}
+                  className={drawCheck ? scanTransition.checkDraw : undefined}
+                />
+              </svg>
             ) : (
-              <ClockIcon className={cn('h-[15px] w-[15px]', phase === 'running' && 'animate-spin')} />
+              <ClockIcon
+                className={cn(
+                  'h-[15px] w-[15px]',
+                  phase === 'running' && 'animate-spin motion-reduce:animate-none',
+                )}
+              />
             )}
           </span>
           {sentence}
@@ -82,9 +110,17 @@ export const TcSummaryCard = ({ phase, buckets, run, needsRerun, historyAction }
       </div>
       <div className={s.track}>
         {/* Segmented, not single-color: the bar carries the verdict split itself. */}
+        {/* 250ms — settle 홀드(400ms, useTcSettleHold)보다 짧아야 한다. 폴 사이의 값
+            점프를 굴리는 것도 이 transition 이다 (ScanRunningState 의 진행바와 동일). */}
         <div className="absolute inset-y-0 left-0 flex w-full">
-          <div className={cn('h-full', s.fillColor.success)} style={{ width: `${okPct}%` }} />
-          <div className={cn('h-full', s.fillColor.fail)} style={{ width: `${failPct}%` }} />
+          <div
+            className={cn('h-full transition-[width] duration-[250ms] ease-out', s.fillColor.success)}
+            style={{ width: `${okPct}%` }}
+          />
+          <div
+            className={cn('h-full transition-[width] duration-[250ms] ease-out', s.fillColor.fail)}
+            style={{ width: `${failPct}%` }}
+          />
         </div>
       </div>
       <div className={cn('mt-[9px] flex items-center justify-between gap-3')}>

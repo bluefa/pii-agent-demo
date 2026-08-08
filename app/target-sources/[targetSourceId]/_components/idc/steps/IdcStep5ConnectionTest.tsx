@@ -11,6 +11,7 @@ import { useToast } from '@/app/components/ui/toast';
 import { useModal } from '@/app/hooks/useModal';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
+import { useTcSettleHold } from '@/app/hooks/useTcSettleHold';
 import {
   computeTcBuckets,
   foldAgentStatuses,
@@ -255,7 +256,10 @@ export const IdcStep5ConnectionTest = ({
   );
 
   // Phase from the RUN's own status (latest_version), not re-derived from counts.
-  const phase: TcRunPhase = testing
+  // `holding` 은 표시 국면만 붙잡는다(정착 400ms 박자, 클라우드 카드와 동일) —
+  // Run Test 버튼·승인 게이트는 실 상태(testing/uiState)를 그대로 쓴다.
+  const { holding, settledLive } = useTcSettleHold(latestJob);
+  const phase: TcRunPhase = testing || holding
     ? 'running'
     : uiState === 'SUCCESS'
       ? 'success'
@@ -366,6 +370,7 @@ export const IdcStep5ConnectionTest = ({
                     : null
                 }
                 needsRerun={needsRerun}
+                drawCheck={settledLive}
                 historyAction={
                   <button
                     type="button"

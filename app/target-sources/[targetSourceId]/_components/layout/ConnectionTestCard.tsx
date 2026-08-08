@@ -17,6 +17,7 @@ import { TcRejectionNotice } from '@/app/components/features/process-status/TcRe
 import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
+import { useTcSettleHold } from '@/app/hooks/useTcSettleHold';
 import {
   computeTcBuckets,
   foldAgentStatuses,
@@ -328,7 +329,11 @@ export const ConnectionTestCard = ({
   const buckets = useMemo(() => computeTcBuckets(unitIds, statusByResource), [unitIds, statusByResource]);
   // Phase from the RUN's own status, not re-derived from counts — the summary must say
   // what latest_version says, and the counts sit beside it as the evidence.
-  const phase: TcRunPhase = testing
+  // `holding` 은 표시 국면만 붙잡는다: 정착 직후 400ms 동안 최종 버킷을 든 running
+  // 프레임이 서서 바가 끝까지 차는 걸 보여준 뒤 판정 프레임으로 넘어간다. Run Test
+  // 버튼·승인 게이트는 실 상태(testing/uiState)를 그대로 쓴다.
+  const { holding, settledLive } = useTcSettleHold(latestJob);
+  const phase: TcRunPhase = testing || holding
     ? 'running'
     : uiState === 'SUCCESS'
       ? 'success'
@@ -391,6 +396,7 @@ export const ConnectionTestCard = ({
               : null
           }
           needsRerun={needsRerun}
+          drawCheck={settledLive}
           historyAction={
             <button
               type="button"

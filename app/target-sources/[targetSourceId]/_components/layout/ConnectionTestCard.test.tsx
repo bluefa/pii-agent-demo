@@ -37,6 +37,8 @@ const pollingState: {
 } = { uiState: 'IDLE', latestJob: null };
 
 vi.mock('@/app/hooks/useTestConnectionPolling', () => ({
+  // useTcSettleHold (실제 구현이 돈다) 가 정착 판정에 쓴다.
+  isInProgress: (status: string) => status === 'PENDING' || status === 'RUNNING',
   useTestConnectionPolling: (): UseTestConnectionPollingReturn => ({
     latestJob: pollingState.latestJob,
     uiState: pollingState.uiState,
