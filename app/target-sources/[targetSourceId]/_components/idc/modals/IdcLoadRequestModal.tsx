@@ -23,6 +23,25 @@ import {
   IdcKindBadge,
   IdcTargetPill,
 } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
+import {
+  clampReason,
+  ROW_BASE,
+  ROW_EXCLUDED,
+  ROW_TARGET,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+
+// Same column grammar as the step-1 list (IdcTargetListTable): 구분 → 접속 주소 → Port →
+// Database Type → 판정. Widths are the step-1 ones for every shared column; only the last is
+// narrower, because this preview has no checkbox column and lives inside a modal. The 판정
+// column carries the 대상/비대상 pill the checkbox carries on step 1, so its header names that
+// rather than 제외 사유 — the reason chip rides along inside it.
+const HEADERS: ReadonlyArray<{ label: string; className?: string }> = [
+  { label: '구분', className: 'w-[110px]' },
+  { label: '접속 주소' },
+  { label: 'Port', className: 'w-[80px]' },
+  { label: 'Database Type', className: 'w-[140px]' },
+  { label: '연동 여부', className: 'w-[170px]' },
+];
 
 interface IdcLoadRequestModalProps {
   isOpen: boolean;
@@ -119,31 +138,56 @@ export const IdcLoadRequestModal = ({
 
           <div className={cn('overflow-hidden rounded-xl border', borderColors.default)}>
             <table className="w-full">
+              <thead className={idcStyles.table.approvalHeader}>
+                <tr className="whitespace-nowrap">
+                  {HEADERS.map((h, i) => (
+                    <th key={i} className={cn(idcStyles.table.approvalHeaderCell, h.className)}>
+                      {h.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
               <tbody className={idcStyles.table.body}>
                 {pageRows.map((r) => {
                   // 제외 행을 흐리게 하지 않는다 — 표시는 왼쪽 레일이 맡는다(verdictRail).
                   return (
-                    <tr key={r.resourceId} className={cn(r.excluded && bgColors.muted)}>
-                      <td className={cn('w-[104px] px-4 py-3', verdictRailClass(r.excluded))}>
+                    <tr
+                      key={r.resourceId}
+                      className={cn(ROW_BASE, r.excluded ? ROW_EXCLUDED : ROW_TARGET)}
+                    >
+                      <td
+                        className={cn(idcStyles.table.approvalCell, verdictRailClass(r.excluded))}
+                      >
                         <IdcKindBadge kind={r.kind} />
                       </td>
-                      <td className={'px-4 py-3'}>
+                      <td className={idcStyles.table.approvalCell}>
                         <IdcEndpointCell resource={r} />
                       </td>
-                      <td className={cn('w-[64px] px-4 py-3 font-mono text-[12px]', textColors.secondary)}>
-                        {r.port}
+                      <td
+                        className={cn(
+                          idcStyles.table.approvalCell,
+                          'font-mono text-[12px]',
+                          textColors.secondary,
+                        )}
+                      >
+                        {r.port || <span className={textColors.tertiary}>—</span>}
                       </td>
-                      <td className={'w-[140px] px-4 py-3'}>
+                      <td className={idcStyles.table.approvalCell}>
                         <IdcDbTypeCell resource={r} />
                       </td>
-                      <td className="w-[180px] px-4 py-3">
+                      <td className={idcStyles.table.approvalCell}>
                         {r.excluded ? (
                           // flex + min-w-0 bounds the reason chip to the column so a long
                           // 제외 사유 truncates (with ellipsis) instead of spilling past the
                           // row; the full text stays in the chip's hover tip.
                           <span className="flex min-w-0 items-center gap-2">
                             <IdcTargetPill excluded />
-                            {r.exclusionReason ? <ReasonChipInline reason={r.exclusionReason} /> : null}
+                            {r.exclusionReason ? (
+                              <ReasonChipInline
+                                reason={r.exclusionReason}
+                                summary={clampReason(r.exclusionReason)}
+                              />
+                            ) : null}
                           </span>
                         ) : (
                           <IdcTargetPill excluded={false} />
@@ -186,18 +230,41 @@ export const IdcLoadRequestModal = ({
 const LoadPreviewSkeleton = () => (
   <div className="space-y-3" aria-busy="true" aria-live="polite">
     <div className={cn(idcStyles.skeletonBar, 'h-3.5 w-64 rounded')} />
+    {/* Real table markup, not a stand-in stack of divs: the header band and the column widths
+        are chrome the rows arrive into, so the frame must not shift when they do. */}
     <div className={cn('overflow-hidden rounded-xl border', borderColors.default)}>
-      {Array.from({ length: IDC_LOAD_PER }).map((_, i) => (
-        <div
-          key={i}
-          className={cn('flex items-center gap-3 px-4 py-3.5', i > 0 && cn('border-t', borderColors.light))}
-        >
-          <div className={cn(idcStyles.skeletonBar, 'h-5 w-16 rounded-md')} />
-          <div className={cn(idcStyles.skeletonBar, 'h-4 flex-1 rounded')} />
-          <div className={cn(idcStyles.skeletonBar, 'h-4 w-12 rounded')} />
-          <div className={cn(idcStyles.skeletonBar, 'h-5 w-24 rounded-full')} />
-        </div>
-      ))}
+      <table className="w-full">
+        <thead className={idcStyles.table.approvalHeader}>
+          <tr className="whitespace-nowrap">
+            {HEADERS.map((h, i) => (
+              <th key={i} className={cn(idcStyles.table.approvalHeaderCell, h.className)}>
+                {h.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className={idcStyles.table.body}>
+          {Array.from({ length: IDC_LOAD_PER }).map((_, i) => (
+            <tr key={i}>
+              <td className={idcStyles.table.approvalCell}>
+                <div className={cn(idcStyles.skeletonBar, 'h-5 w-16 rounded-md')} />
+              </td>
+              <td className={idcStyles.table.approvalCell}>
+                <div className={cn(idcStyles.skeletonBar, 'h-4 w-full rounded')} />
+              </td>
+              <td className={idcStyles.table.approvalCell}>
+                <div className={cn(idcStyles.skeletonBar, 'h-4 w-10 rounded')} />
+              </td>
+              <td className={idcStyles.table.approvalCell}>
+                <div className={cn(idcStyles.skeletonBar, 'h-4 w-20 rounded')} />
+              </td>
+              <td className={idcStyles.table.approvalCell}>
+                <div className={cn(idcStyles.skeletonBar, 'h-5 w-24 rounded-full')} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   </div>
 );
