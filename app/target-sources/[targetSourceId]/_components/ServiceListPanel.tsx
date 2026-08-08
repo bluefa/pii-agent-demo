@@ -62,7 +62,6 @@ const panelReducer = (state: PanelState, action: PanelAction): PanelState => {
 
 interface ConfirmModalData {
   code: string;
-  name: string;
 }
 
 // Page size belongs to the rail, not to this page — see SERVICE_RAIL_PAGE_SIZE.
@@ -157,12 +156,8 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
   }, []);
 
   const handleSelectService = useCallback((code: string) => {
-    // The pinned current service is not necessarily on the loaded page, so fall
-    // back to its own name rather than swallowing the click.
-    const name = services.find((s) => s.service_code === code)?.service_name
-      ?? (code === currentService.code ? currentService.name : undefined);
-    confirmModal.open({ code, name: name ?? '' });
-  }, [services, currentService, confirmModal]);
+    confirmModal.open({ code });
+  }, [confirmModal]);
 
   const handleSearchChange = useCallback((newQuery: string) => {
     dispatch({ type: 'SET_QUERY', query: newQuery });
@@ -246,8 +241,6 @@ export const ServiceListPanel = ({ currentService }: ServiceListPanelProps) => {
           isOpen={confirmModal.isOpen}
           onClose={confirmModal.close}
           onConfirm={handleConfirm}
-          serviceCode={confirmModal.data.code}
-          serviceName={confirmModal.data.name}
         />
       )}
     </>
