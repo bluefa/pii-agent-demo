@@ -41,7 +41,7 @@ export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
           aria-current={isActive ? 'step' : undefined}
           onClick={canNavigate ? () => onNavigate(step) : undefined}
           className={cn(
-            'flex w-full items-start gap-2.5 rounded-[10px] px-2.5 py-2.5 text-left transition-colors',
+            'flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2.5 text-left transition-colors',
             isActive && cn(bgColors.surface, tossShadow.sm),
             canNavigate && cn(bgColors.surfaceHover, 'cursor-pointer'),
             !canNavigate && !isActive && 'cursor-default',
@@ -50,7 +50,7 @@ export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
           <span
             aria-hidden="true"
             className={cn(
-              'mt-px inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold',
+              'inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold',
               isActive && cn(primaryColors.bg, primaryColors.border, textColors.inverse),
               isDone && cn(primaryColors.bgLight, 'border-transparent', primaryColors.textOnLight),
               !isActive && !isDone && cn(borderColors.strong, bgColors.surface, textColors.tertiary),
@@ -75,14 +75,5 @@ export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
       );
     })}
 
-    <p
-      className={cn(
-        'mt-auto border-t border-dashed px-2.5 pt-2.5 text-xs',
-        borderColors.strong,
-        textColors.tertiary,
-      )}
-    >
-      등록은 최대 2건이에요. 마지막 단계에서 확인할 수 있어요.
-    </p>
   </nav>
 );

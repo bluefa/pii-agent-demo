@@ -24,7 +24,6 @@ import {
 } from '@/app/components/features/project-create/Step5Result';
 import { WizardRail } from '@/app/components/features/project-create/WizardRail';
 import {
-  WIZARD_STEPS,
   buildCandidatesInput,
   isStepComplete,
   type AwsInstallMode,
@@ -33,7 +32,7 @@ import {
 } from '@/app/components/features/project-create/wizard-model';
 import type { DbType } from '@/lib/constants/db-types';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
-import { bgColors, borderColors, cn, modalStyles, textColors } from '@/lib/theme';
+import { borderColors, cn, modalStyles, textColors } from '@/lib/theme';
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;
@@ -288,31 +287,23 @@ export const ProjectCreateModal = ({
                   failedCount={failedCount}
                 />
               )}
-            </div>
-          </div>
 
-          <div
-            className={cn(
-              'flex items-center gap-2 border-t px-7 py-4',
-              borderColors.light,
-              bgColors.muted,
-            )}
-          >
-            <span className={cn('mr-auto text-xs', textColors.tertiary)}>
-              {step} / {WIZARD_STEPS.length} 단계
-            </span>
-            {step > 1 && step < 5 && (
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => setStep((prev) => (prev - 1) as WizardStep)}
-              >
-                이전
-              </Button>
-            )}
-            <Button type="button" onClick={handleNext} disabled={primaryDisabled}>
-              {primaryLabel}
-            </Button>
+              {/* Action row lives with the inputs it advances — no separated footer bar. */}
+              <div className="mt-8 flex max-w-[640px] justify-end gap-2">
+                {step > 1 && step < 5 && (
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => setStep((prev) => (prev - 1) as WizardStep)}
+                  >
+                    이전
+                  </Button>
+                )}
+                <Button type="button" onClick={handleNext} disabled={primaryDisabled}>
+                  {primaryLabel}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
