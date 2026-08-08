@@ -35,7 +35,7 @@ import { cn, navStyles } from '@/lib/theme';
  * width (24px tall → 80px wide). A target box of another ratio has to give.
  */
 export const PassLogo = () => (
-  <span className="inline-flex flex-col items-start gap-1 my-2">
+  <span className="inline-flex flex-col items-start gap-1">
     <svg
       viewBox="8.29 -1.69 345.64 103.38"
       role="img"
