@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "@/app/globals.css";
 import { ToastProvider } from "@/app/components/ui/toast";
@@ -22,11 +21,6 @@ const pretendard = localFont({
   ],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "PII Agent",
   description: "Cloud Provider PII Agent 연동 관리 시스템",
@@ -40,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body
-        className={cn(pretendard.variable, geistMono.variable, 'antialiased')}
+        className={cn(pretendard.variable, 'antialiased')}
       >
         <ToastProvider>{children}</ToastProvider>
       </body>
