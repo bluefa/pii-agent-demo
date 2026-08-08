@@ -28,7 +28,7 @@ import {
 } from '@/app/components/features/project-create/wizard-model';
 import type { DbType } from '@/lib/constants/db-types';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
-import { borderColors, cn, modalStyles, textColors } from '@/lib/theme';
+import { cn, modalStyles } from '@/lib/theme';
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;
@@ -285,20 +285,17 @@ export const ProjectCreateModal = ({
           )}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className={cn('border-b px-7 pb-4.5 pt-6', borderColors.light)}>
-            <h2 id="infra-register-modal-title" className={cn('text-xl font-bold', textColors.primary)}>
-              인프라 등록
-            </h2>
-            <p className={cn('mt-1 text-sm', textColors.tertiary)}>
-              PII 모니터링을 시작할 인프라를 등록해요. 입력하신 내용에 맞는 연동 구성을 안내해 드려요.
-            </p>
-          </div>
-
           <div className="flex min-h-0 flex-1 overflow-hidden">
-            <WizardRail current={step} onNavigate={step < 5 ? setStep : undefined} />
+            <WizardRail
+              current={step}
+              onNavigate={step < 5 ? setStep : undefined}
+              titleId="infra-register-modal-title"
+            />
 
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto px-[30px] pt-[26px] pb-4">
+              {/* pt-6 matches the rail's, so the step heading and the dialog title
+                  start on the same line instead of stepping down from it. */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-[30px] pt-6 pb-4">
                 {step === 1 && (
                   <Step1CloudAccount
                     providerKey={providerKey}

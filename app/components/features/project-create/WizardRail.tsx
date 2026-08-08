@@ -10,6 +10,8 @@ interface WizardRailProps {
   current: WizardStep;
   /** Undefined once the rail is frozen (step 5) — completed steps stop being links. */
   onNavigate?: (step: WizardStep) => void;
+  /** The dialog's `aria-labelledby` target — the rail carries the modal's title. */
+  titleId: string;
 }
 
 /**
@@ -35,19 +37,32 @@ const SpineSegment = ({ half, traversed }: { half: 'top' | 'bottom'; traversed: 
   />
 );
 
-export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
-  <nav
-    aria-label="등록 단계"
+export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) => (
+  // Full height, top to bottom. The title used to sit in a banner above both columns,
+  // which put a hairline straight across the dialog and started the gray under it at a
+  // T-junction. With the column running the whole way, the only division left is its
+  // own edge — and the dialog's title stops competing with the step's heading opposite.
+  <div
     className={cn(
       // 256, not 216: at 216 the text column was 148px and 「사용하는 Database 확인」
       // wrapped onto a second line with the rail's own right margin still empty.
       // The modal grew by the same 40px so the content pane keeps its width.
-      'flex w-[256px] flex-shrink-0 flex-col border-r px-[18px] py-[22px]',
+      'flex w-[256px] flex-shrink-0 flex-col border-r px-[18px] pb-[22px] pt-6',
       borderColors.light,
       bgColors.muted,
     )}
   >
-    {WIZARD_STEPS.map(({ step, title, sublabel }) => {
+    <div className="px-2.5 pb-5">
+      <h2 id={titleId} className={cn('text-lg font-bold', textColors.primary)}>
+        인프라 등록
+      </h2>
+      <p className={cn('mt-1 text-xs leading-relaxed', textColors.tertiary)}>
+        PII 모니터링을 시작할 인프라를 등록해요.
+      </p>
+    </div>
+
+    <nav aria-label="등록 단계" className="flex flex-1 flex-col">
+      {WIZARD_STEPS.map(({ step, title, sublabel }) => {
       const isActive = step === current;
       const isDone = step < current;
       const canNavigate = isDone && onNavigate !== undefined;
@@ -106,7 +121,8 @@ export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
             {isActive && <span className={cn('text-xs', textColors.tertiary)}>{sublabel}</span>}
           </span>
         </button>
-      );
-    })}
-  </nav>
+        );
+      })}
+    </nav>
+  </div>
 );
