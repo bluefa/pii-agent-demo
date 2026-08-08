@@ -16,16 +16,26 @@ import { cn, navStyles } from '@/lib/theme';
  * Ink follows the verdict reading: PA is ink, SS carries the brand blue, so the
  * result lands at the end of the name.
  *
- * The viewBox is normalised to a cap height of 100 units — `h-[14px]` therefore
- * renders a 14px cap, the same cap the outgoing 20px wordmark measured.
+ * The viewBox is the glyphs' real ink box, not the cap-height square they were
+ * measured in. Two things depend on that: the S overshoots cap and baseline by
+ * 1.7 units each way and would be clipped flat by the SVG root's default
+ * overflow, and the P carries an 8.3-unit left side bearing that pushed the
+ * wordmark 2px right of the descriptor's own left edge. Trimming to the ink box
+ * fixes the clip and makes the two rows flush.
+ *
+ * `h-[32px]` is therefore the DRAWN height: 32 + 4 gap + 12 descriptor = a 48px
+ * lockup, which is the 56px bar less the 4px above and below.
+ *
+ * The width is not a free parameter: the drawn mark is 3.34:1, so height picks
+ * width (32px tall → 107px wide). A target box of another ratio has to give.
  */
 export const PassLogo = () => (
-  <span className="inline-flex flex-col items-start gap-1">
+  <span className="inline-flex flex-col items-start gap-1 my-1">
     <svg
-      viewBox="0 0 357.2 100"
+      viewBox="8.29 -1.69 345.64 103.38"
       role="img"
       aria-label="PASS"
-      className="h-[14px] w-auto"
+      className="h-[32px] w-auto"
     >
       <path className={navStyles.brand.wordmarkInk} d="M31.04 64.89V44.66H49.16Q52.39 44.66 55.13 43.33Q57.87 41.99 59.55 39.26Q61.24 36.52 61.24 32.44Q61.24 28.37 59.55 25.63Q57.87 22.89 55.13 21.56Q52.39 20.22 49.16 20.22H31.04V0H54.63Q64.33 0 72.12 3.86Q79.92 7.72 84.48 14.96Q89.04 22.19 89.04 32.44Q89.04 42.56 84.48 49.86Q79.92 57.16 72.12 61.03Q64.33 64.89 54.63 64.89ZM8.29 100V0H36.38V100Z" />
       <path className={navStyles.brand.wordmarkInk} d="M85.96 100 124.02 0H152.67L190.31 100H161.1L133.15 15.03H143.26L114.61 100ZM110.67 83.15V61.24H166.57V83.15Z" />

@@ -138,7 +138,15 @@ export const TopNav = () => {
           navStyles.bg,
         )}
       >
-        <div className="px-1 whitespace-nowrap">
+        {/* The logo owns a fixed column so the nav starts where the ServiceSidebar
+            rail ends, instead of crowding the mark: 24px (the bar's px-6) + 240
+            + 32px (xl:gap-8) = 296px, the rail's own width. Change either the
+            bar padding or that gap and this number has to move with it.
+
+            Only from xl: below that the bar is already shedding gaps to keep its
+            intrinsic width off the page's minimum, and a fixed 240px column
+            would put ~125px straight back. */}
+        <div className="px-1 whitespace-nowrap xl:w-[240px]">
           <PassLogo />
         </div>
 
