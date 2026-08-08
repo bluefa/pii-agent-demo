@@ -11,7 +11,7 @@
  * (docs/api/jira-tickets.md §1). 해제가 되돌릴 수 있는 작업이라는 사실이 문구와
  * 버튼 톤 양쪽에 드러나야 한다 — EOS 처럼 dangerSolid 로 겁주지 않는다.
  */
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { providerLabel } from '@/lib/pipeline/format';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -19,8 +19,8 @@ import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { userErrorText } from '@/app/admin/pipelines/ops/services/_components/errorText';
-import { jiraTicketLink } from '@/lib/jira-ticket';
 import {
+  addJiraTicketWatcher,
   attachJiraTicket,
   detachJiraTicket,
   type JiraCloudProvider,
@@ -40,7 +40,7 @@ const emphasis = 'font-semibold text-[var(--pl-text-strong)]';
 const noteStyle =
   'flex items-start gap-2 rounded-lg border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-3.5 py-3 text-[14px] leading-[1.6] text-[var(--pl-text-medium)]';
 
-export type JiraTicketAction = 'attach' | 'detach';
+export type JiraTicketAction = 'attach' | 'detach' | 'watcher';
 
 export interface JiraTicketModalProps {
   onClose: () => void;
@@ -62,23 +62,51 @@ export function JiraTicketModal({
   issueKey,
   onDone,
 }: JiraTicketModalProps): ReactElement {
-  // 입력창의 초기값은 티켓 키다 — 조회 응답이 주소로 오더라도 사람이 넣는 값은 키다.
-  const initialValue = action === 'attach' && issueKey ? jiraTicketLink(issueKey).label : '';
+  // v5 계약 — issueKey 는 티켓 키 그대로다 (주소는 browseUrl 별도 필드).
+  // watcher 모드에서 입력값은 사용자 ID 라 티켓 키를 시드하지 않는다.
+  const initialValue = action === 'attach' && issueKey ? issueKey : '';
   const [value, setValue] = useState(initialValue);
+  // JiraTicketAttachRequest.validate — 기본은 검증(존재하지 않는 키가 조용히 연결되지 않게).
+  const [validate, setValidate] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // watcher 성공 상태 — toast 를 쓰지 않고 모달 안에서 상태전이로 알린 뒤 스스로 닫는다.
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     setValue(initialValue);
+    setValidate(true);
     setError(null);
+    setDone(false);
   }, [action, provider, initialValue]);
+
+  // 성공 화면을 잠깐 보여주고 1초 안에 닫는다. 데이터 갱신(onDone)은 성공 즉시 이미
+  // 일어났으므로, 배경 클릭/ESC 로 먼저 닫아도 잃는 것이 없다.
+  // onClose 는 ref 로 든다 — 부모가 인라인 함수를 넘기면 렌더마다 identity 가 바뀌는데,
+  // 그때마다 타이머가 리셋되면 부모가 주기 렌더를 도는 동안 성공 화면이 안 닫힌다.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    if (!done) return;
+    const timer = setTimeout(() => onCloseRef.current(), 900);
+    return () => clearTimeout(timer);
+  }, [done]);
 
   // 앞뒤 공백은 조용히 잘라내지 않는다 — 붙여넣기 사고(줄바꿈·탭)를 그대로 저장하면
   // Jira 에 없는 키로 연결되고, 화면에는 멀쩡한 키로 보여 원인을 못 찾는다. 경고를 띄우고
   // 저장을 막아 사용자가 무엇이 들어갔는지 알게 한다.
   const trimmed = value.trim();
-  const hasEdgeSpace = action === 'attach' && value !== trimmed;
+  // allowlist — 입력창을 갖는 동작을 양성으로 나열한다. 새 action 이 생기면 여기에
+  // 명시적으로 넣어야 입력 폼이 열린다 (`!== 'detach'` 는 조용히 opt-in 시킨다).
+  const isInputAction = action === 'attach' || action === 'watcher';
+  const hasEdgeSpace = isInputAction && value !== trimmed;
   const canSubmit = action === 'detach' || (trimmed !== '' && !hasEdgeSpace);
+
+  const ACTION_LABEL: Record<JiraTicketAction, string> = {
+    attach: '연결',
+    detach: '연결 해제',
+    watcher: 'Watcher 추가',
+  };
 
   const submit = async (): Promise<void> => {
     if (!canSubmit) return;
@@ -86,16 +114,21 @@ export function JiraTicketModal({
     setError(null);
     try {
       if (action === 'detach') await detachJiraTicket(serviceCode, provider);
-      else await attachJiraTicket(serviceCode, provider, value);
+      else if (action === 'watcher') await addJiraTicketWatcher(serviceCode, provider, value);
+      else await attachJiraTicket(serviceCode, provider, value, validate);
+      if (action === 'watcher') {
+        // 성공은 모달 안 상태전이로 보여준다 — 목록 갱신은 즉시, 닫기는 effect 가 잠깐 뒤에.
+        setDone(true);
+        onDone();
+        return;
+      }
       onDone();
       onClose();
     } catch (err) {
       // 실패해도 모달은 닫지 않는다 — 입력값을 그대로 두고 원인을 이 자리에서 보여준다.
+      // (watchers 계약은 에러 코드 enum 이 없다 — 서버 message 를 그대로 싣는 게 전부다.)
       setError(
-        userErrorText(
-          err,
-          `${action === 'detach' ? '연결 해제' : '연결'}에 실패했습니다. 잠시 후 다시 시도해 주세요.`,
-        ),
+        userErrorText(err, `${ACTION_LABEL[action]}에 실패했습니다. 잠시 후 다시 시도해 주세요.`),
       );
     } finally {
       setSubmitting(false);
@@ -103,32 +136,59 @@ export function JiraTicketModal({
   };
 
   const label = providerLabel(provider);
-  const ticketLabel = issueKey ? jiraTicketLink(issueKey).label : null;
+  const ticketLabel = issueKey;
 
   return (
     <ModalShell open onClose={onClose} labelledBy={TITLE_ID}>
       <h3 id={TITLE_ID} className={titleStyle}>
         {action === 'detach'
           ? 'Jira Ticket 연결 해제'
-          : issueKey
-            ? 'Jira Ticket 변경'
-            : 'Jira Ticket 연결'}
+          : action === 'watcher'
+            ? 'Jira Watcher 추가'
+            : issueKey
+              ? 'Jira Ticket 변경'
+              : 'Jira Ticket 연결'}
       </h3>
 
-      {action === 'attach' ? (
+      {done ? (
+        /* 성공 상태 — toast 대신 모달 안 상태전이. 1초 안에 스스로 닫힌다. */
+        <div className="flex flex-col items-center gap-1.5 py-8" role="status">
+          <span className="text-[var(--pl-primary)]">
+            <Icon name="check-circle" size="xl" strokeWidth={2.2} />
+          </span>
+          <p className="mt-1 text-[16px] font-bold text-[var(--pl-text-strong)]">
+            Watcher 등록 완료
+          </p>
+          <p className={pipelineStyles.text.meta}>
+            <span className={cn(pipelineStyles.text.mono, emphasis)}>{value.trim()}</span> 님이 이
+            티켓의 Jira 알림을 받습니다.
+          </p>
+        </div>
+      ) : isInputAction ? (
         <>
           <p className={pipelineStyles.modal.desc}>
-            {serviceCode} 서비스의 <span className={emphasis}>{label}</span> 에 이미 만들어져 있는
-            Jira 티켓을 연결합니다. 티켓을 새로 만들지는 않습니다.
-            {ticketLabel && (
+            {action === 'watcher' ? (
               <>
-                {' '}
-                현재 연결: <span className={cn(pipelineStyles.text.mono, emphasis)}>{ticketLabel}</span>
+                <span className={emphasis}>{label}</span> 의 티켓{' '}
+                <span className={cn(pipelineStyles.text.mono, emphasis)}>{ticketLabel}</span> 에
+                watcher 를 추가합니다. 등록된 사용자는 이 티켓의 Jira 알림을 받습니다.
+              </>
+            ) : (
+              <>
+                {serviceCode} 서비스의 <span className={emphasis}>{label}</span> 에 이미 만들어져
+                있는 Jira 티켓을 연결합니다. 티켓을 새로 만들지는 않습니다.
+                {ticketLabel && (
+                  <>
+                    {' '}
+                    현재 연결:{' '}
+                    <span className={cn(pipelineStyles.text.mono, emphasis)}>{ticketLabel}</span>
+                  </>
+                )}
               </>
             )}
           </p>
           <label htmlFor={INPUT_ID} className={cn(pipelineStyles.text.subsectionTitle, 'block')}>
-            Jira 티켓 키
+            {action === 'watcher' ? '사용자 ID' : 'Jira 티켓 키'}
           </label>
           {/* SearchBox 가 아니라 맨 input — 티켓 키는 입력하는 값이지 검색하는 값이 아니고,
               돋보기 아이콘은 자동완성이 붙어 있다고 읽힌다. */}
@@ -136,8 +196,8 @@ export function JiraTicketModal({
             id={INPUT_ID}
             type="text"
             className={opsStyles.credModal.search}
-            // 입력하는 값은 티켓 키 문자열이다 — 주소는 넣지 않는다(조회 응답에만 실린다).
-            placeholder="예: BDCDIP-12312"
+            // 입력하는 값은 티켓 키/사용자 ID 문자열이다 — 주소는 넣지 않는다.
+            placeholder={action === 'watcher' ? '예: knox.id' : '예: BDCDIP-12312'}
             autoComplete="off"
             autoFocus
             value={value}
@@ -147,8 +207,25 @@ export function JiraTicketModal({
           />
           {hasEdgeSpace && (
             <p id={EDGE_SPACE_ID} role="alert" className={warnStyle}>
-              앞뒤에 공백이 있습니다. 공백을 지운 뒤 연결할 수 있습니다.
+              앞뒤에 공백이 있습니다. 공백을 지운 뒤 저장할 수 있습니다.
             </p>
+          )}
+          {/* JiraTicketAttachRequest.validate — 계약이 제공하는 옵션을 그대로 노출한다. */}
+          {action === 'attach' && (
+            <label className="mt-3 flex items-start gap-2 text-[14px] text-[var(--pl-text-medium)]">
+              <input
+                type="checkbox"
+                checked={validate}
+                onChange={(event) => setValidate(event.target.checked)}
+                className="mt-0.5 accent-[var(--pl-primary)]"
+              />
+              <span>
+                연결 전에 Jira 에서 티켓 존재를 확인
+                <span className="block text-[12px] text-[var(--pl-text-weak)]">
+                  끄면 존재 확인 없이 입력한 키를 그대로 연결합니다.
+                </span>
+              </span>
+            </label>
           )}
         </>
       ) : (
@@ -179,18 +256,20 @@ export function JiraTicketModal({
         </p>
       )}
 
-      <div className={pipelineStyles.modal.foot}>
-        <PlButton variant="secondary" onClick={onClose} disabled={submitting}>
-          취소
-        </PlButton>
-        <PlButton
-          variant={action === 'detach' ? 'danger' : 'primary'}
-          onClick={() => void submit()}
-          disabled={submitting || !canSubmit}
-        >
-          {submitting ? '처리 중…' : action === 'detach' ? '연결 해제' : '연결'}
-        </PlButton>
-      </div>
+      {!done && (
+        <div className={pipelineStyles.modal.foot}>
+          <PlButton variant="secondary" onClick={onClose} disabled={submitting}>
+            취소
+          </PlButton>
+          <PlButton
+            variant={action === 'detach' ? 'danger' : 'primary'}
+            onClick={() => void submit()}
+            disabled={submitting || !canSubmit}
+          >
+            {submitting ? '처리 중…' : ACTION_LABEL[action]}
+          </PlButton>
+        </div>
+      )}
     </ModalShell>
   );
 }

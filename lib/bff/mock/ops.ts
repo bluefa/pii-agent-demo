@@ -117,6 +117,8 @@ export const opsInstallModeOverride = (targetSourceId: number): boolean | null =
 interface OpsServiceState {
   /** cloudProvider → issueKey. Provider 가 키이므로 provider 당 최대 1건 (실계약). */
   jira: Partial<Record<string, string>>;
+  /** cloudProvider → watcher userId 목록 (실계약 watchers POST 의 누적분). */
+  watchers: Partial<Record<string, string[]>>;
 }
 
 const serviceGlobal = globalThis as typeof globalThis & {
@@ -125,16 +127,12 @@ const serviceGlobal = globalThis as typeof globalThis & {
 
 /**
  * 앞 두 서비스만 일부 provider 를 연결된 상태로 둔다 — 연결/미연결 두 타일 모양이 한
- * 화면에 같이 보여야 한다. 값은 실 BFF 처럼 티켓 주소를 싣는다(계약은 issueKey 문자열
- * 하나뿐이고 형식을 정하지 않는다): 키만 주면 화면의 "주소 뒤 조각만 표시" 경로가
- * 데모에서 한 번도 돌지 않는다.
+ * 화면에 같이 보여야 한다. store 는 티켓 키만 담는다 — 주소는 응답의 browseUrl 로
+ * BFF(여기서는 목)가 조립해 준다(v5 계약: issueKey 는 키, browseUrl 이 열 주소).
  */
 const SEED_JIRA: ReadonlyArray<Record<string, string>> = [
-  {
-    AWS: 'https://jira.example.com/some/path/BDCDIP-2211',
-    IDC: 'https://jira.example.com/some/path/BDCDIP-2103',
-  },
-  { AZURE: 'https://jira.example.com/some/path/BDCDIP-1799' },
+  { AWS: 'BDCDIP-2211', IDC: 'BDCDIP-2103' },
+  { AZURE: 'BDCDIP-1799' },
 ];
 
 const serviceCodes = (): string[] =>
@@ -145,7 +143,7 @@ const serviceState = (code: string): OpsServiceState => {
   let state = store.get(code);
   if (!state) {
     const index = serviceCodes().indexOf(code);
-    state = { jira: { ...(SEED_JIRA[index] ?? {}) } };
+    state = { jira: { ...(SEED_JIRA[index] ?? {}) }, watchers: {} };
     store.set(code, state);
   }
   return state;
@@ -214,17 +212,15 @@ export const mockOps = {
     });
   },
 
-  // PUT …/aws/scan-role | execution-role (assumed §3) — server composes the ARN.
-  putRole: async (targetSourceId: number, kind: 'scan' | 'execution', roleName: string) => {
+  // PUT …/aws/{scan-role|terraform-execution-role} — REAL upsert contract:
+  // AwsAssumeRoleUpsertRequest { roleArn } → AwsAssumeRoleUpsertResponse (camel).
+  putRole: async (targetSourceId: number, kind: 'scan' | 'execution', roleArn: string) => {
     const project = mockData.getProjectByTargetSourceId(targetSourceId);
     if (!project) return notFound();
     const state = getState(targetSourceId, project.processStatus);
-    const isChina = project.isChinaRegion ?? project.awsRegionType === 'china';
-    const partition = isChina ? 'aws-cn' : 'aws';
-    const roleArn = `arn:${partition}:iam::${accountId(project)}:role/${roleName}`;
     state.roleArns[kind] = roleArn;
     state.pendingVerify[kind] = true;
-    return NextResponse.json({ role_arn: roleArn });
+    return NextResponse.json({ targetSourceId, roleArn, readOnly: false });
   },
 
   // GET …/collaboration-channel (assumed §4) — 200 body is the channel or null.
@@ -280,7 +276,12 @@ const toJiraTicketResponse = (code: string, provider: string, issueKey: string) 
   serviceCode: code,
   issueKey,
   cloudProvider: provider,
+  // v5 계약 — 열 주소는 BFF 가 조립해 싣는다. 프론트는 이 값을 그대로 연다.
+  browseUrl: `https://jira.example.com/browse/${issueKey}`,
 });
+
+/** validate=true 로 흉내내는 Jira 존재 검증 — 키 형태가 아니면 없는 티켓으로 친다. */
+const JIRA_ISSUE_KEY_RE = /^[A-Z][A-Z0-9]*-\d+$/i;
 
 export const mockServiceJiraTickets = {
   // GET /services/{code}/jira-tickets → JiraTicketResponse[].
@@ -294,16 +295,15 @@ export const mockServiceJiraTickets = {
     );
   },
 
-  // POST /services/{code}/jira-tickets/{provider} { issueKey } → 204.
+  // POST /services/{code}/jira-tickets/{provider} { issueKey, validate } → 204.
   // 티켓을 만들지 않는다 — 이미 있는 issueKey 를 이 서비스·provider 에 매핑할 뿐.
-  attach: async (code: string, provider: string, issueKey: string) => {
+  attach: async (code: string, provider: string, issueKey: string, validate?: boolean) => {
     if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
-    // 넣는 값은 티켓 키지만 조회 응답에는 티켓 주소가 실려 온다 — 목도 같은 변환을 해야
-    // 연결 직후 화면이 실제(파란 링크)와 같아진다. 주소를 그대로 붙여넣은 경우는
-    // 두 번 감싸지 않는다(계약이 형태를 강제하지 않아 어느 쪽도 들어올 수 있다).
-    serviceState(code).jira[provider] = /^https?:\/\//i.test(issueKey)
-      ? issueKey
-      : `https://jira.example.com/browse/${issueKey}`;
+    // validate=true 면 실 BFF 가 Jira 에서 존재를 확인한다 — 목은 키 형태로 흉내낸다.
+    if (validate === true && !JIRA_ISSUE_KEY_RE.test(issueKey)) {
+      return notFound('Jira에서 티켓을 찾을 수 없습니다.');
+    }
+    serviceState(code).jira[provider] = issueKey;
     return new NextResponse(null, { status: 204 });
   },
 
@@ -316,5 +316,35 @@ export const mockServiceJiraTickets = {
     if (!issueKey) return notFound('연결된 Jira 티켓이 없습니다.');
     delete state.jira[provider];
     return NextResponse.json({ issueKey });
+  },
+
+  // POST /services/{code}/jira-tickets/{provider}/watchers { userId } → 204.
+  // 티켓이 연결돼 있어야 watcher 를 붙일 곳이 있다; 중복 등록은 409 로 거른다.
+  addWatcher: async (code: string, provider: string, userId: string) => {
+    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    const state = serviceState(code);
+    if (!state.jira[provider]) return notFound('연결된 Jira 티켓이 없습니다.');
+    // 실 BFF 는 Jira 를 왕복하느라 느리다 — 데모도 ~2초 기다려 submitting 상태가 보이게 한다.
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // 데모용 확률 실패(30%) — 실 BFF 의 Jira 연동 오류를 흉내낸다. 모달의 인라인 에러
+    // (fallback 문구) 경로가 데모에서 실제로 돌게 하기 위한 것으로, 판정 오류(404/409)와
+    // 달리 재시도하면 성공할 수 있다.
+    if (Math.random() < 0.3) {
+      return NextResponse.json(
+        { error: 'BAD_GATEWAY', message: 'Jira 연동 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.' },
+        { status: 502 },
+      );
+    }
+    // 핫리로드로 살아남은 구세대 store 엔 watchers 필드가 없다 — 여기서 붙인다.
+    state.watchers ??= {};
+    const list = (state.watchers[provider] ??= []);
+    if (list.includes(userId)) {
+      return NextResponse.json(
+        { error: 'CONFLICT', message: '이미 watcher로 등록된 사용자입니다.' },
+        { status: 409 },
+      );
+    }
+    list.push(userId);
+    return new NextResponse(null, { status: 204 });
   },
 };

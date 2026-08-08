@@ -21,6 +21,9 @@ const SkipLogicalDatabaseItem = z
 const UpdateSkipLogicalDatabaseRequest = z
   .object({ skip_logical_database_list: z.array(SkipLogicalDatabaseItem).nullable() })
   .partial().passthrough();
+const AwsAssumeRoleUpsertRequest = z
+  .object({ roleArn: Str })
+  .partial().passthrough();
 const NlbIndexAssignmentDto = z
   .object({ resource_id: Str, nlb_index: Num })
   .partial().passthrough();
@@ -51,9 +54,6 @@ const CustomTaskRequest = z
 const CustomPipelineRequest = z
   .object({ tasks: z.array(CustomTaskRequest).nullable() })
   .partial().passthrough();
-const PiiAgentInstallationConfirmRequest = z
-  .object({ confirm: Bool })
-  .partial().passthrough();
 const ApprovalRejectRequestDto = z
   .object({ reason: Str })
   .partial().passthrough();
@@ -61,6 +61,16 @@ const NetworkInterfaceDto = z
   .object({
     networkInterfaceId: Str,
     ipConfigurationName: z.array(Str).nullable(),
+  })
+  .partial().passthrough();
+const RdsClusterInstanceCandidateDto = z
+  .object({
+    host: Str,
+    port: Num,
+    resource_id: Str,
+    resource_name: Str,
+    availability_zone: Str,
+    cluster_member_role: Str,
   })
   .partial().passthrough();
 const TargetSourceResourceMetadataDto = z
@@ -89,6 +99,9 @@ const TargetSourceResourceMetadataDto = z
     idc_host: Str,
     idc_source_ips: z.array(Str).nullable(),
     nlb_index: Num,
+    rds_instance_candidates: z.array(RdsClusterInstanceCandidateDto).nullable(),
+    selected_rds_instance_resource_id: Str,
+    selected_rds_instance_role: Str,
   })
   .partial().passthrough();
 const TargetSourceResourceItemDto = z
@@ -142,42 +155,11 @@ const TargetSourceCreationCandidateRequest = z
   })
   .partial().passthrough();
 const JiraTicketAttachRequest = z
-  .object({ issueKey: Str })
+  .object({ issueKey: Str, validate: Bool.optional() })
   .partial().passthrough();
+const JiraTicketWatcherRequest = z.object({ userId: Str }).partial().passthrough();
 const Link = z
   .object({ href: Str, templated: Bool })
-  .partial().passthrough();
-const JiraTicketResponse = z
-  .object({
-    id: Num,
-    targetSourceId: Num,
-    serviceCode: Str,
-    issueKey: Str,
-    cloudProvider: Str,
-  })
-  .partial().passthrough();
-const TerraformTaskStatusResponse = z
-  .object({
-    terraform_target: Str,
-    terraform_execution_side: Str,
-    terraform_task_name: Str,
-    state: Str,
-    destroy_required: Bool,
-    completed_at: Str,
-  })
-  .partial().passthrough();
-const TerraformStatusResponse = z
-  .object({
-    target_source_id: Num,
-    cloud_provider: Str,
-    is_sdu_type: Bool,
-    has_confirmed_infra: Bool,
-    latest_confirmed_at: Str,
-    checked_at: Str,
-    overall_state: Str,
-    destroy_required: Bool,
-    tasks: z.array(TerraformTaskStatusResponse).nullable(),
-  })
   .partial().passthrough();
 const ErrorMessage = z
   .object({
@@ -200,6 +182,13 @@ const UpdateCredentialResponse = z
   .partial().passthrough();
 const SkipLogicalDatabaseResponse = z
   .object({ skip_logical_database_list: z.array(SkipLogicalDatabaseItem).nullable() })
+  .partial().passthrough();
+const AwsAssumeRoleUpsertResponse = z
+  .object({
+    targetSourceId: Num,
+    roleArn: Str,
+    readOnly: Bool,
+  })
   .partial().passthrough();
 const ActorDto = z.object({ user_id: Str }).partial().passthrough();
 const ApprovalActionResponseDto = z
@@ -340,6 +329,7 @@ const TargetSourceResponse = z
     updatedAt: Str,
     confirmStatus: Str,
     piiAgentInstalledAt: Str,
+    piiAgentFirstInstalledAt: Str,
     isSduType: Bool,
   })
   .partial().passthrough();
@@ -380,6 +370,11 @@ const TargetSourceMetadata = z
     is_sdu_type: Bool,
     is_china_region: Bool,
     grant_service_terraform_execution_permission: Bool,
+    aws_scan_role_arn: Str,
+    aws_terraform_execution_role_arn: Str,
+    azure_scan_app_id: Str,
+    gcp_scan_service_account: Str,
+    gcp_terraform_service_account: Str,
   })
   .partial().passthrough();
 const TestConnectionRejectStatusResponse = z
@@ -420,6 +415,7 @@ const TargetSourceInfo = z
     serviceName: Str,
     updatedAt: Str,
     confirmStatus: Str,
+    piiAgentFirstInstalledAt: Str,
     metadata: TargetSourceMetadata.nullable(),
     latest_approval_request: LatestApprovalRequestSummaryDto.nullable(),
   })
@@ -429,6 +425,9 @@ const UserInfo = z
   .partial().passthrough();
 const UserSearchResponse = z
   .object({ users: z.array(UserInfo).nullable() })
+  .partial().passthrough();
+const ServiceItem = z
+  .object({ service_code: Str, service_name: Str })
   .partial().passthrough();
 const SortObject = z
   .object({
@@ -441,22 +440,18 @@ const SortObject = z
   .partial().passthrough();
 const PageableObject = z
   .object({
+    offset: Num,
+    sort: z.array(SortObject).nullable(),
     paged: Bool,
     pageNumber: Num,
     pageSize: Num,
     unpaged: Bool,
-    offset: Num,
-    sort: z.array(SortObject).nullable(),
   })
-  .partial().passthrough();
-const ServiceItem = z
-  .object({ service_code: Str, service_name: Str })
   .partial().passthrough();
 const PageServiceItem = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -464,6 +459,7 @@ const PageServiceItem = z
     number: Num,
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
+    pageable: PageableObject.nullable(),
     empty: Bool,
   })
   .partial().passthrough();
@@ -473,6 +469,9 @@ const UserMeResponse = z
     name: Str,
     email: Str,
     source: Str,
+    knoxId: Str,
+    role: Str,
+    services: z.array(Str).nullable(),
   })
   .partial().passthrough();
 const TaskCatalogEntry = z
@@ -506,6 +505,7 @@ const TargetSourceDetail = z
     service_name: Str,
     cloud_provider: Str,
     created_at: Str,
+    pii_agent_first_installed_at: Str,
     metadata: TargetSourceMetadata.nullable(),
   })
   .partial().passthrough();
@@ -558,7 +558,6 @@ const PageTestConnectionHistoryItemResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -566,6 +565,7 @@ const PageTestConnectionHistoryItemResponse = z
     number: Num,
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
+    pageable: PageableObject.nullable(),
     empty: Bool,
   })
   .partial().passthrough();
@@ -576,13 +576,13 @@ const TestConnectionExecutionHistoryResponse = z
     status: Str,
     requested_at: Str,
     completed_at: Str,
+    pod_names: z.array(Str).nullable(),
   })
   .partial().passthrough();
 const PageTestConnectionExecutionHistoryResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -590,6 +590,7 @@ const PageTestConnectionExecutionHistoryResponse = z
     number: Num,
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
+    pageable: PageableObject.nullable(),
     empty: Bool,
   })
   .partial().passthrough();
@@ -601,6 +602,25 @@ const TestConnectionCompletionStatusResponse = z
     latest_test_connection_success: Bool,
     test_connection_status: Str,
     test_connection_confirmed: Bool,
+  })
+  .partial().passthrough();
+const TerraformTaskStatusResponse = z
+  .object({
+    terraform_execution_side: Str,
+    terraform_task_name: Str,
+    state: Str,
+  })
+  .partial().passthrough();
+const TerraformStatusResponse = z
+  .object({
+    target_source_id: Num,
+    cloud_provider: Str,
+    is_sdu_type: Bool,
+    has_confirmed_infra: Bool,
+    latest_confirmed_at: Str,
+    checked_at: Str,
+    overall_state: Str,
+    tasks: z.array(TerraformTaskStatusResponse).nullable(),
   })
   .partial().passthrough();
 const SecretResponse = z
@@ -615,7 +635,6 @@ const PageScanJobResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -623,6 +642,7 @@ const PageScanJobResponse = z
     number: Num,
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
+    pageable: PageableObject.nullable(),
     empty: Bool,
   })
   .partial().passthrough();
@@ -662,7 +682,6 @@ const PagePipelineSummary = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -670,6 +689,7 @@ const PagePipelineSummary = z
     number: Num,
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
+    pageable: PageableObject.nullable(),
     empty: Bool,
   })
   .partial().passthrough();
@@ -743,6 +763,40 @@ const RecipePreview = z
     display_name: Str,
     description: Str,
     steps: z.array(RecipePreviewStep).nullable(),
+  })
+  .partial().passthrough();
+const JiraTicketResponse = z
+  .object({
+    id: Num,
+    targetSourceId: Num,
+    serviceCode: Str,
+    issueKey: Str,
+    cloudProvider: Str,
+    browseUrl: Str,
+  })
+  .partial().passthrough();
+const TargetSourceIntegrationEventHistoryItemResponse = z
+  .object({
+    id: Num,
+    target_source_id: Num,
+    event_type: Str,
+    actor_id: Str,
+    occurred_at: Str,
+  })
+  .partial().passthrough();
+const PageTargetSourceIntegrationEventHistoryItemResponse = z
+  .object({
+    totalElements: Num,
+    totalPages: Num,
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(TargetSourceIntegrationEventHistoryItemResponse).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    pageable: PageableObject.nullable(),
+    empty: Bool,
   })
   .partial().passthrough();
 const IdcResourceInput = z
@@ -840,6 +894,8 @@ const ResourceConfigDto = z
     idc_host: Str,
     idc_source_ips: z.array(Str).nullable(),
     nlb_index: Num,
+    selected_rds_instance_resource_id: Str,
+    selected_rds_instance_role: Str,
   })
   .partial().passthrough();
 const ConfirmedIntegrationResponse = z
@@ -932,7 +988,6 @@ const Page = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -940,6 +995,7 @@ const Page = z
     number: Num,
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
+    pageable: PageableObject.nullable(),
     empty: Bool,
   })
   .partial().passthrough();
@@ -947,7 +1003,6 @@ const PageTestConnectionRejectStatusResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -955,6 +1010,7 @@ const PageTestConnectionRejectStatusResponse = z
     number: Num,
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
+    pageable: PageableObject.nullable(),
     empty: Bool,
   })
   .partial().passthrough();
@@ -962,7 +1018,6 @@ const PageTargetSourceInfo = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -970,6 +1025,7 @@ const PageTargetSourceInfo = z
     number: Num,
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
+    pageable: PageableObject.nullable(),
     empty: Bool,
   })
   .partial().passthrough();
@@ -996,6 +1052,7 @@ const TargetSourceMetadataResponse = z
     createdAt: Str,
     updatedAt: Str,
     confirmStatus: Str,
+    piiAgentFirstInstalledAt: Str,
     service_info: TargetSourceServiceInfoResponse.nullable(),
   })
   .partial().passthrough();
@@ -1014,7 +1071,6 @@ const PageProcessStatusCurrentResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -1022,6 +1078,7 @@ const PageProcessStatusCurrentResponse = z
     number: Num,
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
+    pageable: PageableObject.nullable(),
     empty: Bool,
   })
   .partial().passthrough();
@@ -1038,7 +1095,6 @@ const PageProcessStatusHistoryResponse = z
   .object({
     totalElements: Num,
     totalPages: Num,
-    pageable: PageableObject.nullable(),
     first: Bool,
     last: Bool,
     size: Num,
@@ -1046,6 +1102,7 @@ const PageProcessStatusHistoryResponse = z
     number: Num,
     sort: z.array(SortObject).nullable(),
     numberOfElements: Num,
+    pageable: PageableObject.nullable(),
     empty: Bool,
   })
   .partial().passthrough();
@@ -1272,6 +1329,7 @@ export const schemas = {
   UpdateCredentialRequest,
   SkipLogicalDatabaseItem,
   UpdateSkipLogicalDatabaseRequest,
+  AwsAssumeRoleUpsertRequest,
   NlbIndexAssignmentDto,
   GuideContentRequest,
   GuideUpdateRequest,
@@ -1281,9 +1339,9 @@ export const schemas = {
   RestartPipelineRequest,
   CustomTaskRequest,
   CustomPipelineRequest,
-  PiiAgentInstallationConfirmRequest,
   ApprovalRejectRequestDto,
   NetworkInterfaceDto,
+  RdsClusterInstanceCandidateDto,
   TargetSourceResourceMetadataDto,
   TargetSourceResourceItemDto,
   ApprovalRequestInputDto,
@@ -1292,14 +1350,13 @@ export const schemas = {
   TargetSourceCreationCandidateResponse,
   TargetSourceCreationCandidateRequest,
   JiraTicketAttachRequest,
+  JiraTicketWatcherRequest,
   Link,
-  JiraTicketResponse,
-  TerraformTaskStatusResponse,
-  TerraformStatusResponse,
   ErrorMessage,
   TestConnectionConfirmationResponse,
   UpdateCredentialResponse,
   SkipLogicalDatabaseResponse,
+  AwsAssumeRoleUpsertResponse,
   ActorDto,
   ApprovalActionResponseDto,
   ApprovalRequestDetailDto,
@@ -1323,9 +1380,9 @@ export const schemas = {
   TargetSourceInfo,
   UserInfo,
   UserSearchResponse,
+  ServiceItem,
   SortObject,
   PageableObject,
-  ServiceItem,
   PageServiceItem,
   UserMeResponse,
   TaskCatalogEntry,
@@ -1342,6 +1399,8 @@ export const schemas = {
   TestConnectionExecutionHistoryResponse,
   PageTestConnectionExecutionHistoryResponse,
   TestConnectionCompletionStatusResponse,
+  TerraformTaskStatusResponse,
+  TerraformStatusResponse,
   SecretResponse,
   PageScanJobResponse,
   CloudResourceResponse,
@@ -1355,6 +1414,9 @@ export const schemas = {
   TaskDefinitionView,
   RecipePreviewStep,
   RecipePreview,
+  JiraTicketResponse,
+  TargetSourceIntegrationEventHistoryItemResponse,
+  PageTargetSourceIntegrationEventHistoryItemResponse,
   IdcResourceInput,
   IdcPreviousRequestResponse,
   CloudInstallationStepStatusDto,

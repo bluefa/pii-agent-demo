@@ -1,9 +1,13 @@
 'use client';
 
 /**
- * Role 수정 modal (Figma 2:2). Name-only entry: the ARN is composed from the
- * account id + partition (China → aws-cn), so a whole class of ARN typos can't
- * happen. Saving resets the verification verdict (assumed contract §3).
+ * Role 등록/수정 modal — the upsert surface for the AWS role contract.
+ * Name-only entry: the ARN is composed from the account id + partition
+ * (China → aws-cn), so a whole class of ARN typos can't happen; the composed
+ * FULL ARN is what gets sent (AwsAssumeRoleUpsertRequest). Frequently-used
+ * names render as vertically stacked chips (ROLE_META.recommended) that fill
+ * the input — still editable afterwards. Saving resets the verification
+ * verdict until the next verify.
  */
 import { useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -58,6 +62,12 @@ export function RoleEditModal({
   const trimmed = name.trim();
 
   const save = async (): Promise<void> => {
+    // 계정 ID 없이 조립한 ARN(arn:aws:iam:::role/…)은 라우트 검증에서 반드시 떨어진다 —
+    // "잠시 후 다시 시도" 로 오도하지 말고 진짜 원인을 여기서 말한다.
+    if (!accountId) {
+      setError('AWS 계정 ID가 없어 ARN을 만들 수 없습니다. 대상의 계정 정보를 먼저 등록해 주세요.');
+      return;
+    }
     if (!AWS_ROLE_NAME_RE.test(trimmed)) {
       setError(
         trimmed.length > 64
@@ -69,8 +79,10 @@ export function RoleEditModal({
     setSaving(true);
     setError(null);
     try {
-      const { role_arn: roleArn } = await updateAwsRole(targetSourceId, kind, trimmed);
-      onSaved(kind, roleArn);
+      const composedArn = `${prefix}${trimmed}`;
+      const saved = await updateAwsRole(targetSourceId, kind, composedArn);
+      // Loose schema — a null roleArn on the wire falls back to what we sent.
+      onSaved(kind, saved.roleArn ?? composedArn);
       onClose();
     } catch {
       setError('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
@@ -79,15 +91,15 @@ export function RoleEditModal({
     }
   };
 
-  const isRegister = !currentArn;
-
   return (
     <ModalShell open={open} onClose={onClose} labelledBy={TITLE_ID}>
       <h3 id={TITLE_ID} className={pipelineStyles.modal.title}>
-        {meta.title} {isRegister ? '등록' : '수정'}
+        {meta.title} 등록/수정
       </h3>
       <p className={pipelineStyles.modal.desc}>
-        Role 이름만 입력하면 아래 계정 정보로 ARN을 만듭니다.
+        Role 이름만 입력하면 아래 계정 정보로 ARN을 만듭니다. 등록된 Role이 없으면 새로
+        만들고, 이미 있으면 갱신합니다{' '}
+        <span className="font-semibold text-[var(--pl-primary)]">(Upsert)</span>.
       </p>
       <div className="mb-3 flex items-center gap-2 text-[12px]">
         <span className="text-[var(--pl-text-faint)]">AWS 계정</span>
@@ -115,6 +127,32 @@ export function RoleEditModal({
         aria-describedby="ops-role-helper"
         className={cn(pipelineStyles.input, 'mt-2 w-full [font-family:var(--pl-font-mono)]')}
       />
+      {/* 자주 쓰는 이름 — 한 줄에 늘어놓지 않고 세로로 쌓는다 (추가돼도 행이 안 깨진다). */}
+      {meta.recommended.length > 0 && (
+        <div className="mt-2 flex flex-col items-start gap-1.5">
+          {meta.recommended.map((rec) => (
+            <button
+              key={rec}
+              type="button"
+              onClick={() => {
+                setName(rec);
+                setError(null);
+              }}
+              className={cn(
+                'rounded-full border px-3 py-1 text-[12px] font-semibold [font-family:var(--pl-font-mono)]',
+                trimmed === rec
+                  ? 'border-[var(--pl-primary)] bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]'
+                  : 'border-[var(--pl-border-strong)] bg-[var(--pl-gray-50)] text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-100)]',
+              )}
+            >
+              {rec}
+            </button>
+          ))}
+          <p className={pipelineStyles.text.meta}>
+            자주 쓰는 이름 — 누르면 채워지고, 이어서 고칠 수 있습니다.
+          </p>
+        </div>
+      )}
       <p className={cn(pipelineStyles.text.mono, 'mt-2 break-all text-[var(--pl-text-faint)]')}>
         {prefix}
         {trimmed || meta.sample}

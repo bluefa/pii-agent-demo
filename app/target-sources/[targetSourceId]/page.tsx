@@ -18,7 +18,8 @@ const fetchJiraTicket = async (targetSourceId: number): Promise<JiraTicketState>
     const raw = schemas.JiraTicketResponse.parse(
       await bff.targetSources.getJiraTicket(targetSourceId),
     );
-    return raw.issueKey ? { issueKey: raw.issueKey } : null;
+    // v5 — 열 주소는 browseUrl 이 싣는다 (loose schema: 없으면 null 로 흡수).
+    return raw.issueKey ? { issueKey: raw.issueKey, browseUrl: raw.browseUrl ?? null } : null;
   } catch (err) {
     return err instanceof BffError && err.status === 404 ? null : 'error';
   }

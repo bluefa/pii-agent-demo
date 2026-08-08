@@ -88,13 +88,18 @@ export const mockBff: BffClient = {
     },
     jiraTickets: {
       list: async (serviceCode) => unwrap(await mockServiceJiraTickets.list(serviceCode)),
-      attach: async (serviceCode, cloudProvider, issueKey) => {
+      attach: async (serviceCode, cloudProvider, issueKey, validate) => {
         // 204 — unwrap() would choke on the empty body, so only surface errors.
-        const response = await mockServiceJiraTickets.attach(serviceCode, cloudProvider, issueKey);
+        const response = await mockServiceJiraTickets.attach(serviceCode, cloudProvider, issueKey, validate);
         if (!response.ok) await unwrap(response);
       },
       detach: async (serviceCode, cloudProvider) =>
         unwrap(await mockServiceJiraTickets.detach(serviceCode, cloudProvider)),
+      addWatcher: async (serviceCode, cloudProvider, userId) => {
+        // 204 — unwrap() would choke on the empty body, so only surface errors.
+        const response = await mockServiceJiraTickets.addWatcher(serviceCode, cloudProvider, userId);
+        if (!response.ok) await unwrap(response);
+      },
     },
   },
 
@@ -126,7 +131,7 @@ export const mockBff: BffClient = {
   ops: {
     getStatusHistory: async (id, page, size) => unwrap(await mockOps.getStatusHistory(id, page, size)),
     putInstallationMode: async (id, grant) => unwrap(await mockOps.putInstallationMode(id, grant)),
-    putRole: async (id, kind, roleName) => unwrap(await mockOps.putRole(id, kind, roleName)),
+    putRole: async (id, kind, roleArn) => unwrap(await mockOps.putRole(id, kind, roleArn)),
     getCollabChannel: async (id) => unwrap(await mockOps.getCollabChannel(id)),
     putCollabChannel: async (id, channel) => unwrap(await mockOps.putCollabChannel(id, channel)),
     getTargetSourceList: async (query, page, size) =>

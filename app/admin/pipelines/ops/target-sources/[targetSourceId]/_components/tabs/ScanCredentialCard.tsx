@@ -55,8 +55,8 @@ type LoadState =
 /**
  * Only GCP enumerates the status contract (VALID/INVALID/UNVERIFIED) — AWS and
  * Azure send free strings, so map as an open set. Vocabulary and tone align
- * with RoleVerifyModal verdictMeta (검증 완료/검증 중/검증 실패); UNVERIFIED is
- * "not verified yet" (off), not an error.
+ * with the role verification verdicts (검증 완료/검증 중/검증 실패); UNVERIFIED
+ * is "not verified yet" (off), not an error.
  */
 const pillSpec = (status: string | null | undefined): { cls: string; label: string } => {
   switch (status) {

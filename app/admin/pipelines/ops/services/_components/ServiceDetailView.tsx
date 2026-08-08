@@ -30,7 +30,7 @@ import { ProviderLogo } from '@/app/components/features/admin/v7';
 import type { CloudProvider } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { serviceListStyles as s } from '@/app/admin/pipelines/_services/styles';
-import { jiraTicketLink } from '@/lib/jira-ticket';
+import { safeBrowseUrl } from '@/lib/jira-ticket';
 import { JiraTicketMenu } from '@/app/admin/pipelines/ops/services/_components/JiraTicketMenu';
 import {
   JiraTicketModal,
@@ -643,28 +643,29 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
         <div className={tileStyles.grid}>
         {JIRA_CLOUD_PROVIDERS.map((provider) => {
           const ticket = ticketOf(provider);
-          const link = ticket ? jiraTicketLink(ticket.issueKey) : null;
+          // v5 계약 — 라벨은 issueKey, 열 주소는 browseUrl 을 그대로 쓴다 (파싱 없음).
+          const href = ticket ? safeBrowseUrl(ticket.browseUrl) : null;
           return (
             <div key={provider} className={tileStyles.base}>
               <div className="min-w-0 flex-1">
                 {/* 타일에서는 provider 가 라벨이 아니라 제목이다 — 16/600. */}
                 <ProvTag provider={provider} size="lg" />
-                {link ? (
-                  link.href ? (
+                {ticket ? (
+                  href ? (
                     <a
-                      href={link.href}
+                      href={href}
                       target="_blank"
                       rel="noreferrer"
                       className={tileStyles.value}
-                      title={`${link.label} — Jira 에서 열기`}
+                      title={`${ticket.issueKey} — Jira 에서 열기`}
                     >
-                      {link.label} ↗
+                      {ticket.issueKey} ↗
                     </a>
                   ) : (
-                    // 열 곳이 없는 티켓 키도 truncate 된다 — 5열에서는 타일이 좁아져
-                    // 실제로 잘리므로, 링크 쪽과 같이 전문을 title 로 남긴다.
-                    <span className={tileStyles.key} title={link.label}>
-                      {link.label}
+                    // browseUrl 이 없는(또는 http 가 아닌) 티켓 키도 truncate 된다 —
+                    // 5열에서는 타일이 좁아져 실제로 잘리므로 전문을 title 로 남긴다.
+                    <span className={tileStyles.key} title={ticket.issueKey}>
+                      {ticket.issueKey}
                     </span>
                   )
                 ) : (
@@ -694,6 +695,12 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                       },
                       ...(ticket
                         ? [
+                            {
+                              icon: 'plus' as const,
+                              label: 'Watcher 추가',
+                              onSelect: () =>
+                                setJiraAction({ provider, action: 'watcher' }),
+                            },
                             {
                               icon: 'ban' as const,
                               label: '연결 해제',

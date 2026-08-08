@@ -124,6 +124,20 @@ const getBffMetadata = (project: Project) => {
     ...(grant !== undefined
       ? { grant_service_terraform_execution_permission: grant }
       : {}),
+    // v5 — provider 별 scan/terraform 주체. GCP·Azure 만 시드한다: AWS 는 운영 콘솔이
+    // verify 응답을 우선하고, 그 값은 ops mock store 에서 갱신되므로 여기 정적 시드가
+    // 있으면 수정 직후 두 값이 어긋나 보인다.
+    ...(project.gcpProjectId
+      ? {
+          gcp_scan_service_account: `pii-agent-scan@${project.gcpProjectId}.iam.gserviceaccount.com`,
+          gcp_terraform_service_account: `pii-agent-terraform@${project.gcpProjectId}.iam.gserviceaccount.com`,
+        }
+      : {}),
+    ...(project.subscriptionId
+      ? {
+          azure_scan_app_id: `1b6e0e0c-9f21-4c7e-8a4d-${String(project.targetSourceId).padStart(12, '0')}`,
+        }
+      : {}),
   };
 };
 
@@ -436,10 +450,10 @@ export const mockTargetSources = {
       id: project.targetSourceId,
       targetSourceId: project.targetSourceId,
       serviceCode: project.serviceCode,
-      // 실 BFF 는 issueKey 에 티켓 주소를 싣는다 — 화면이 마지막 조각만 보여주는 경로가
-      // 데모에서도 돌아야 한다 (서비스 운영의 jira-tickets 목과 같은 형태).
-      issueKey: `https://jira.example.com/browse/BDCDIP-${project.targetSourceId}`,
+      // v5 계약 — issueKey 는 티켓 키, 열 주소는 browseUrl 이 싣는다 (파싱 금지).
+      issueKey: `BDCDIP-${project.targetSourceId}`,
       cloudProvider: project.cloudProvider.toUpperCase(),
+      browseUrl: `https://jira.example.com/browse/BDCDIP-${project.targetSourceId}`,
     });
   },
 

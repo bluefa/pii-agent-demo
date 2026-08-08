@@ -32,7 +32,6 @@ import { ProcessCard } from '@/app/admin/pipelines/ops/target-sources/[targetSou
 import { ApprovalHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ApprovalHistoryCard';
 import { StatusHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StatusHistoryCard';
 import { InstallModeModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallModeModal';
-import { RoleVerifyModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleVerifyModal';
 import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleEditModal';
 import { ChannelModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ChannelModal';
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
@@ -50,7 +49,6 @@ type TabLabel = OpsTargetTabLabel;
 
 type ModalState =
   | { type: 'mode' }
-  | { type: 'verify'; kind: RoleKind }
   | { type: 'edit'; kind: RoleKind }
   | { type: 'channel' }
   | null;
@@ -226,7 +224,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const accountId = meta.aws_account_id ?? '';
   const isChina = meta.is_china_region === true;
   const regionLabel = isChina ? 'China' : 'Global';
-  const activeRole = modal && (modal.type === 'verify' || modal.type === 'edit') ? modal.kind : null;
+  const activeRole = modal?.type === 'edit' ? modal.kind : null;
 
   return (
     <div>
@@ -240,7 +238,6 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           grantTfExecution={grantTfExecution}
           channel={channel}
           onOpenMode={() => setModal({ type: 'mode' })}
-          onOpenVerify={(kind) => setModal({ type: 'verify', kind })}
           onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
           onOpenChannel={() => setModal({ type: 'channel' })}
         />
@@ -318,29 +315,19 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         currentGrant={grantTfExecution}
         onSaved={setGrantTfExecution}
       />
-      {activeRole && modal?.type === 'verify' && (
-        <RoleVerifyModal
-          open
-          onClose={() => setModal(null)}
-          targetSourceId={targetSourceId}
-          kind={activeRole}
-          verification={roles[activeRole] ?? null}
-          serviceName={detail.service_name ?? '-'}
-          serviceCode={detail.service_code ?? '-'}
-          regionLabel={regionLabel}
-          onRefreshed={(kind, verification) =>
-            setRoles((prev) => ({ ...prev, [kind]: verification }))
-          }
-          onEdit={(kind) => setModal({ type: 'edit', kind })}
-        />
-      )}
       {activeRole && modal?.type === 'edit' && (
         <RoleEditModal
           open
           onClose={() => setModal(null)}
           targetSourceId={targetSourceId}
           kind={activeRole}
-          currentArn={roles[activeRole]?.role_arn ?? undefined}
+          // OpsHeader 의 표시 폴백과 같은 순서 — verify 응답이 없어도(실패 포함) v5
+          // metadata 의 등록값을 초기값으로 준다. 빈 입력으로 열리면 덮어쓰기 사고가 된다.
+          currentArn={
+            roles[activeRole]?.role_arn
+            ?? (activeRole === 'scan' ? meta.aws_scan_role_arn : meta.aws_terraform_execution_role_arn)
+            ?? undefined
+          }
           accountId={accountId}
           isChinaRegion={isChina}
           regionLabel={regionLabel}

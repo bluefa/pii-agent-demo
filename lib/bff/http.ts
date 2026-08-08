@@ -269,10 +269,15 @@ export const httpBff: BffClient = {
     // passthrough, route parses. detach unmaps only; the Jira issue survives.
     jiraTickets: {
       list: (serviceCode) => getSnakeRaw(`/services/${enc(serviceCode)}/jira-tickets`),
-      attach: (serviceCode, cloudProvider, issueKey) =>
-        post(`/services/${enc(serviceCode)}/jira-tickets/${enc(cloudProvider)}`, { issueKey }),
+      attach: (serviceCode, cloudProvider, issueKey, validate) =>
+        post(`/services/${enc(serviceCode)}/jira-tickets/${enc(cloudProvider)}`, {
+          issueKey,
+          ...(validate === undefined ? {} : { validate }),
+        }),
       detach: (serviceCode, cloudProvider) =>
         send('DELETE', `/services/${enc(serviceCode)}/jira-tickets/${enc(cloudProvider)}`),
+      addWatcher: (serviceCode, cloudProvider, userId) =>
+        post(`/services/${enc(serviceCode)}/jira-tickets/${enc(cloudProvider)}/watchers`, { userId }),
     },
   },
 
@@ -307,9 +312,10 @@ export const httpBff: BffClient = {
       put(`/target-sources/${id}/installation-mode`, {
         grant_service_terraform_execution_permission: grant,
       }),
-    putRole: (id, kind, roleName) =>
-      put(`/target-sources/${id}/aws/${kind === 'scan' ? 'scan-role' : 'execution-role'}`, {
-        role_name: roleName,
+    // REAL contract (install-v1 upsert) — full ARN in, camel wire both ways.
+    putRole: (id, kind, roleArn) =>
+      put(`/target-sources/${id}/aws/${kind === 'scan' ? 'scan-role' : 'terraform-execution-role'}`, {
+        roleArn,
       }),
     getCollabChannel: (id) => getSnakeRaw(`/target-sources/${id}/collaboration-channel`),
     putCollabChannel: (id, channel) => put(`/target-sources/${id}/collaboration-channel`, channel),

@@ -7,6 +7,8 @@
  */
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { BffProcessStatus } from '@/app/lib/api';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 
 export interface StatusHistoryItem {
   changed_at: string;
@@ -46,14 +48,19 @@ export const updateInstallationMode = (
     body: { grant_service_terraform_execution_permission: grant },
   });
 
+/**
+ * REAL contract (install-v1 upsert) — the client sends the FULL role ARN
+ * (the edit modal composes it from account + partition + name); the response
+ * is camel wire (AwsAssumeRoleUpsertResponse).
+ */
 export const updateAwsRole = (
   targetSourceId: number,
   kind: 'scan' | 'execution',
-  roleName: string,
-): Promise<{ role_arn: string }> =>
+  roleArn: string,
+): Promise<z.infer<typeof schemas.AwsAssumeRoleUpsertResponse>> =>
   fetchInfraJson(`/aws/target-sources/${targetSourceId}/${kind === 'scan' ? 'scan-role' : 'execution-role'}`, {
     method: 'PUT',
-    body: { role_name: roleName },
+    body: { roleArn },
   });
 
 export const getCollaborationChannel = (
@@ -199,20 +206,37 @@ export interface JiraTicket {
   serviceCode: string;
   issueKey: string;
   cloudProvider: string;
+  /** 티켓을 여는 실제 주소 — BFF 가 조립해 준다(프론트는 파싱·조립하지 않는다). */
+  browseUrl?: string | null;
 }
 
 export const getServiceJiraTickets = (serviceCode: string): Promise<JiraTicket[]> =>
   fetchInfraJson<JiraTicket[]>(`/services/${encodeURIComponent(serviceCode)}/jira-tickets`);
 
-/** 이미 존재하는 Jira 티켓을 이 서비스·provider 에 매핑한다. 티켓을 만들지 않는다. */
+/**
+ * 이미 존재하는 Jira 티켓을 이 서비스·provider 에 매핑한다. 티켓을 만들지 않는다.
+ * `validate` — true 면 BFF 가 Jira 에서 티켓 존재를 확인한 뒤 연결한다.
+ */
 export const attachJiraTicket = (
   serviceCode: string,
   cloudProvider: JiraCloudProvider,
   issueKey: string,
+  validate: boolean,
 ): Promise<void> =>
   fetchInfraJson(
     `/services/${encodeURIComponent(serviceCode)}/jira-tickets/${cloudProvider}`,
-    { method: 'POST', body: { issueKey } },
+    { method: 'POST', body: { issueKey, validate } },
+  );
+
+/** 연결된 티켓의 watcher 로 사용자를 등록한다 — Jira 알림을 받게 된다. 204. */
+export const addJiraTicketWatcher = (
+  serviceCode: string,
+  cloudProvider: JiraCloudProvider,
+  userId: string,
+): Promise<void> =>
+  fetchInfraJson(
+    `/services/${encodeURIComponent(serviceCode)}/jira-tickets/${cloudProvider}/watchers`,
+    { method: 'POST', body: { userId } },
   );
 
 /** 매핑만 끊는다 — Jira 의 티켓은 삭제되지 않는다. 응답은 끊긴 issueKey. */

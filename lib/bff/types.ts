@@ -119,11 +119,19 @@ export interface BffClient {
      */
     jiraTickets: {
       list: (serviceCode: string) => Promise<z.infer<typeof schemas.JiraTicketResponse>[]>;
-      attach: (serviceCode: string, cloudProvider: string, issueKey: string) => Promise<void>;
+      attach: (
+        serviceCode: string,
+        cloudProvider: string,
+        issueKey: string,
+        /** JiraTicketAttachRequest.validate (optional) — undefined = upstream default. */
+        validate?: boolean,
+      ) => Promise<void>;
       detach: (
         serviceCode: string,
         cloudProvider: string,
       ) => Promise<z.infer<typeof schemas.JiraTicketDetachResponse>>;
+      /** POST …/watchers (JiraTicketWatcherRequest { userId }) → 204 — Jira 티켓 watcher 등록. */
+      addWatcher: (serviceCode: string, cloudProvider: string, userId: string) => Promise<void>;
     };
   };
 
@@ -298,14 +306,20 @@ export interface BffClient {
   /**
    * Ops console — ASSUMED contracts (docs/api/ops-assumed-contracts.md).
    * Deliberate exception to the "swagger is the sole authority" rule above
-   * (owner decision 2026-07-26): the Target Source ops page needs these four
+   * (owner decision 2026-07-26): the Target Source ops page needs these
    * capabilities before the BFF ships them. httpBff targets the assumed paths;
    * delete the doc section when the real endpoint lands in install-v1.yaml.
+   * `putRole` graduated to the REAL contract (install-v1 aws scan-role /
+   * terraform-execution-role upsert, camel wire both ways).
    */
   ops: {
     getStatusHistory: (id: number, page: number, size: number) => Promise<OpsStatusHistoryPageWire>;
     putInstallationMode: (id: number, grant: boolean) => Promise<OpsInstallationModeWire>;
-    putRole: (id: number, kind: 'scan' | 'execution', roleName: string) => Promise<OpsRoleUpdateWire>;
+    putRole: (
+      id: number,
+      kind: 'scan' | 'execution',
+      roleArn: string,
+    ) => Promise<z.infer<typeof schemas.AwsAssumeRoleUpsertResponse>>;
     getCollabChannel: (id: number) => Promise<OpsCollabChannelWire | null>;
     putCollabChannel: (id: number, channel: OpsCollabChannelWire) => Promise<OpsCollabChannelWire>;
     getTargetSourceList: (query: string | undefined, page: number, size: number) => Promise<OpsTargetSourceListPageWire>;
@@ -335,10 +349,6 @@ export interface OpsStatusHistoryPageWire {
 export interface OpsInstallationModeWire {
   target_source_id: number;
   grant_service_terraform_execution_permission: boolean;
-}
-
-export interface OpsRoleUpdateWire {
-  role_arn: string;
 }
 
 export interface OpsCollabChannelWire {
