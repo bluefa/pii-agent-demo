@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
-import { CloseIcon, LockIcon, PlusIcon, SearchIcon } from '@/app/components/ui/icons';
+import { ChevronDownIcon, CloseIcon, LockIcon, PlusIcon, SearchIcon } from '@/app/components/ui/icons';
 import { EC2_SEARCH_LIMIT, searchEc2Instances, type Ec2Instance } from '@/app/lib/api/ec2';
 import { VM_DATABASE_TYPES, vmDatabaseTypeByValue } from '@/lib/constants/vm-database';
 import { cn, ec2Styles, idcStyles, primaryColors, statusColors } from '@/lib/theme';
@@ -14,6 +14,9 @@ const SEARCH_DEBOUNCE_MS = 500;
 
 /** 검색어 길이 상한. */
 const EC2_QUERY_MAXLEN = 50;
+
+/** Oracle SID 길이 상한 — 실제 SID 는 훨씬 짧고, 이 값은 사고 방지용 상한이다. */
+const ORACLE_SID_MAXLEN = 100;
 
 type SearchStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -219,19 +222,22 @@ export const Ec2AddModal = ({
 
           <section>
             <SectionLabel num={2}>Database Type</SectionLabel>
-            <select
-              value={dbType}
-              onChange={(event) => handleDbTypeChange(event.target.value)}
-              aria-label="Database Type"
-              className={idcStyles.input}
-            >
-              <option value="">Database Type 선택…</option>
-              {VM_DATABASE_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={dbType}
+                onChange={(event) => handleDbTypeChange(event.target.value)}
+                aria-label="Database Type"
+                className={cn(idcStyles.input, ec2Styles.selectField)}
+              >
+                <option value="">Database Type 선택…</option>
+                {VM_DATABASE_TYPES.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDownIcon className={ec2Styles.selectChevron} aria-hidden="true" />
+            </div>
 
             {/* The SID sits under the select that summoned it, inside the same section —
                 a field that appears elsewhere on the form reads as unrelated to its cause. */}
@@ -244,6 +250,7 @@ export const Ec2AddModal = ({
                   id="ec2-oracle-sid"
                   value={oracleServiceId}
                   placeholder="예: ORCL"
+                  maxLength={ORACLE_SID_MAXLEN}
                   onChange={(event) => setOracleServiceId(event.target.value)}
                   className={cn(idcStyles.input, ec2Styles.revealedField)}
                 />

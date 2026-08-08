@@ -1164,6 +1164,14 @@ export const ec2Styles = {
     'ec2-search-field h-[52px] w-full rounded-xl border border-[#E5E8EB] bg-white pl-12 pr-12 font-mono text-[15px] font-medium text-[#191F28] transition-colors focus:border-[#0064FF]', // design-exempt: mirrors idcStyles.input 15px token
   /** placeholder 는 값이 아니라 형식 예시 — 값과 같은 무게로 읽히면 안 된다. */
   searchPlaceholder: 'placeholder:font-sans placeholder:text-[#B0B8C1]', // design-exempt: placeholder hint, not content
+  /**
+   * 셀렉트 — OS 기본 화살표는 크기를 지정할 수 없어 11~13px 로 그려지고, 52px 필드
+   * 안에서는 눌러서 여는 컨트롤로 읽히지 않는다. 기본 화살표를 끄고 20px 글리프를
+   * 직접 세운다. pr-12 는 그 글리프가 값과 겹치지 않을 자리.
+   */
+  selectField: 'appearance-none pr-12',
+  selectChevron:
+    'pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#4E5968]',
   searchIcon:
     'pointer-events-none absolute left-4 top-1/2 h-[19px] w-[19px] -translate-y-1/2 text-[#8B95A1]', // design-exempt: decorative glyph beside its own input
   /** 입력값이 있을 때만 나오는 원형 ✕ — 질의와 결과를 함께 비운다. */
@@ -1177,8 +1185,11 @@ export const ec2Styles = {
    * 가장 큰 상태(결과 5건 / Oracle 설정)에 맞춰 높이를 잠근다.
    * -mt-3.5: 본문 기본 상단 여백 28px 를 14px 로 당겨, 헤더 아래 여백 6px 과 합쳐
    * 부제→검색창 20px 을 만든다.
+   * -mx-2 px-2: 고정 높이는 세로만 자르는 것이 아니다 — overflow-y 를 걸면 가로도
+   * 함께 클립되어 입력창의 focus ring 과 아웃라인이 잘려 나간다. 본문 좌우 여백
+   * 40px 안쪽으로 8px 을 빌려 링이 설 자리를 만든다(내용 위치는 그대로).
    */
-  stepFrame: '-mt-3.5 h-[452px] overflow-y-auto',
+  stepFrame: '-mt-3.5 -mx-2 h-[452px] overflow-y-auto px-2',
   /** 검색 결과 한 행. */
   resultRow:
     'flex items-center justify-between gap-3 rounded-xl border border-[#EBEEF2] bg-white px-3.5 py-2.5 transition-colors hover:border-[#D6E7FF] hover:bg-[#F8FAFF]',
