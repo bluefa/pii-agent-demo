@@ -12,6 +12,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 
+import { passRoutes } from '@/lib/routes';
 import { SduOpsNotice } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduOpsNotice';
 
 const renderNotice = (over: Partial<Parameters<typeof SduOpsNotice>[0]> = {}) =>
@@ -57,6 +58,22 @@ describe('SduOpsNotice', () => {
       (s) => s.textContent === 'SDU',
     );
     expect(chips).toHaveLength(1);
+  });
+
+  it('나가는 길이 있다 — 그 서비스의 목록 화면으로', () => {
+    // 이 화면에는 할 수 있는 일이 없으므로, 나가는 길이 없으면 운영자는 브라우저
+    // 뒤로가기 말고는 방법이 없다.
+    renderNotice({ serviceCode: 'SDU' });
+    const link = screen.getByRole('link', { name: /서비스 목록으로 돌아가기/ });
+    expect(link.getAttribute('href')).toBe(passRoutes.pipelines.ops.service('SDU'));
+  });
+
+  it('서비스 코드를 URL 로 안전하게 넣는다', () => {
+    renderNotice({ serviceCode: 'a b/c' });
+    const link = screen.getByRole('link', { name: /서비스 목록으로 돌아가기/ });
+    // encodeURIComponent 경유 — 코드에 공백/슬래시가 있어도 경로가 갈라지지 않는다.
+    expect(link.getAttribute('href')).toBe(passRoutes.pipelines.ops.service('a b/c'));
+    expect(link.getAttribute('href')).toContain('a%20b%2Fc');
   });
 
   it('서비스 이름과 코드가 다르면 둘 다 적는다', () => {

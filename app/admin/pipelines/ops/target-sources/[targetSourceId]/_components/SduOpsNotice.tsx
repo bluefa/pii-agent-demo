@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import type { ReactElement } from 'react';
 
+import { passRoutes } from '@/lib/routes';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { ProviderLogo } from '@/app/components/features/admin/v7';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -69,6 +71,18 @@ export function SduOpsNotice({
           </span>
           {isChinaRegion && <span className={opsStyles.regionTag}>중국</span>}
         </div>
+
+        {/* 이 화면에는 할 수 있는 일이 없다 — 그래서 나가는 길이 유일한 동작이고, 그것만
+            파랑을 쓴다. 목록이 아니라 이 대상이 속한 서비스로 돌아간다: 왔던 자리가
+            그 서비스의 Target Source 목록이고, 그 화면의 좌측 레일이 곧 서비스 목록이다.
+            버튼 테두리를 두지 않는 이유는 이것이 이 화면의 유일한 컨트롤이라 경쟁할
+            상대가 없기 때문이다. */}
+        <Link
+          href={passRoutes.pipelines.ops.service(serviceCode)}
+          className="mt-8 text-[14px] font-semibold text-[var(--pl-primary)] underline-offset-[3px] hover:underline"
+        >
+          ← 서비스 목록으로 돌아가기
+        </Link>
       </div>
     </div>
   );
