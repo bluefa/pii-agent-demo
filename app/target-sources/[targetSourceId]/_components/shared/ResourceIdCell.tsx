@@ -13,6 +13,10 @@ interface ResourceIdCellProps {
    *  (`cn` is a plain join, so stacking two text colors would leave the winner to CSS order) —
    *  the approval table passes its own resting tier plus the row-hover contrast lift. */
   textClassName?: string;
+  /** Id text size. Defaults to 12px; the 연동 대상 tables pass 14px so every string in a
+   *  resource row reads at one size. Kept out of `textClassName` because `cn` is a plain
+   *  join — a size stacked on the default would leave the winner to CSS order. */
+  sizeClass?: string;
 }
 
 /**
@@ -25,6 +29,7 @@ export const ResourceIdCell = ({
   label,
   maxWidthClass = 'max-w-[260px]',
   textClassName,
+  sizeClass = 'text-[12px]',
 }: ResourceIdCellProps) => (
   <span className={cn('group/resid inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
     {/* Long ids are the norm here, but short ones exist — no tooltip when the value already fits. */}
@@ -44,7 +49,8 @@ export const ResourceIdCell = ({
           wrapper gets an inherited grey `…` detached from the mono id. */}
       <span
         className={cn(
-          'block min-w-0 truncate text-left font-mono text-[12px]',
+          'block min-w-0 truncate text-left font-mono',
+          sizeClass,
           textClassName ?? textColors.secondary,
         )}
       >
