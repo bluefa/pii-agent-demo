@@ -19,6 +19,7 @@ import type { RecommendFailReason } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { parseRdsInstanceCandidates, type RdsInstanceCandidate } from '@/lib/rds-instances';
 import { fetchInfraJson } from '@/app/lib/api/infra';
+import type { TargetSourceRequestCloudType } from '@/lib/constants/provider-mapping';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
 // Re-export TargetSourceCloudType so consumers keep importing from one place.
 export type { TargetSourceCloudType };
@@ -125,24 +126,10 @@ export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]
     .filter((project): project is ProjectSummary => project !== null);
 };
 
-// Lowercase request `cloud_type` enum (35 request — distinct from the UPPERCASE
-// response enum). `others` is unused by the UI (only the 4 real providers).
-const toRequestCloudType = (cloudProvider: CloudProvider): 'aws' | 'azure' | 'gcp' | 'idc' => {
-  switch (cloudProvider) {
-    case 'AWS':
-      return 'aws';
-    case 'Azure':
-      return 'azure';
-    case 'GCP':
-      return 'gcp';
-    case 'IDC':
-      return 'idc';
-  }
-};
-
 /** UI-facing form input for the creation-candidates request (35). */
 export interface CreationCandidatesInput {
-  cloudProvider: CloudProvider;
+  /** Lowercase request `cloud_type` (aws|azure|gcp|idc|others) — the UI owns it verbatim. */
+  cloudType: TargetSourceRequestCloudType;
   awsAccountId?: string;
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;
@@ -164,7 +151,7 @@ export const getCreationCandidates = async (
 ): Promise<TargetSourceCreationCandidateResponse[]> => {
   const description = input.description?.trim();
   const body = {
-    cloud_type: toRequestCloudType(input.cloudProvider),
+    cloud_type: input.cloudType,
     is_china_region: input.isChinaRegion === true,
     database_types: input.dbTypes,
     ...(typeof input.isTerraformExecutionGranted === 'boolean'

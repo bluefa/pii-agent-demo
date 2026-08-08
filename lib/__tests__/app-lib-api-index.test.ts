@@ -467,7 +467,7 @@ describe('app/lib/api/index', () => {
     );
 
     await getCreationCandidates('SERVICE-A', {
-      cloudProvider: 'AWS',
+      cloudType: 'aws',
       awsAccountId: '123456789012',
       isChinaRegion: true,
       isTerraformExecutionGranted: true,
@@ -495,7 +495,7 @@ describe('app/lib/api/index', () => {
     );
 
     await getCreationCandidates('SERVICE-A', {
-      cloudProvider: 'GCP',
+      cloudType: 'gcp',
       gcpProjectId: 'gcp-proj-12345',
       dbTypes: ['BIGQUERY'],
     });

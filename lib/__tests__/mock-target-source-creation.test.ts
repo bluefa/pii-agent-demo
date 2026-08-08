@@ -17,11 +17,11 @@ beforeEach(() => {
 const readJson = async (res: Response): Promise<unknown> => res.json();
 
 describe('mockTargetSources.previewRegistration (35) — creation candidates', () => {
-  it('returns a BARE ARRAY of snake candidates, one per database_types[i]', async () => {
+  it('returns a BARE ARRAY with ONE candidate per account, not per database_type', async () => {
     const res = await mockTargetSources.previewRegistration('aws', {
       cloud_type: 'aws',
       is_china_region: false,
-      database_types: ['MYSQL', 'OTHERS'],
+      database_types: ['mysql', 'postgresql', 'oracle'],
       grant_service_terraform_execution_permission: true,
       metadata: { aws_account_id: '999888777666' },
     });
@@ -29,7 +29,7 @@ describe('mockTargetSources.previewRegistration (35) — creation candidates', (
 
     const body = (await readJson(res)) as TargetSourceCreationCandidateResponseWire[];
     expect(Array.isArray(body)).toBe(true);
-    expect(body).toHaveLength(2);
+    expect(body).toHaveLength(1);
 
     const [first] = body;
     expect(first.status).toBe('ADD');
@@ -43,6 +43,72 @@ describe('mockTargetSources.previewRegistration (35) — creation candidates', (
     expect(() =>
       z.array(schemas.TargetSourceCreationCandidateResponse).parse(body),
     ).not.toThrow();
+  });
+
+  it('adds an SDU sibling when the account runs an unlisted database (others)', async () => {
+    const res = await mockTargetSources.previewRegistration('aws', {
+      cloud_type: 'aws',
+      is_china_region: false,
+      database_types: ['mysql', 'others'],
+      metadata: { aws_account_id: '999888777666' },
+    });
+
+    const body = (await readJson(res)) as TargetSourceCreationCandidateResponseWire[];
+    expect(body).toHaveLength(2);
+    expect(body[0].is_sdu_type).toBe(false);
+    expect(body[1].is_sdu_type).toBe(true);
+    expect(body[1].status).toBe('ADD');
+    // The SDU sibling keeps the underlying CSP cloud_type so create (36) can place it.
+    expect(body[1].cloud_type).toBe('AWS');
+    expect(() =>
+      z.array(schemas.TargetSourceCreationCandidateResponse).parse(body),
+    ).not.toThrow();
+  });
+
+  it('adds an SDU sibling for a China-region account', async () => {
+    const res = await mockTargetSources.previewRegistration('aws', {
+      cloud_type: 'azure',
+      is_china_region: true,
+      database_types: ['mysql'],
+      metadata: { tenant_id: 'tenant-1', subscription_id: 'sub-1' },
+    });
+
+    const body = (await readJson(res)) as TargetSourceCreationCandidateResponseWire[];
+    expect(body).toHaveLength(2);
+    expect(body[0].cloud_type).toBe('AZURE');
+    expect(body[0].is_china_region).toBe(true);
+    expect(body[1].is_sdu_type).toBe(true);
+  });
+
+  it('accepts cloud_type "others" and answers with the UNKNOWN response enum', async () => {
+    const res = await mockTargetSources.previewRegistration('aws', {
+      cloud_type: 'others',
+      is_china_region: false,
+      database_types: ['mysql'],
+      metadata: { description: '온프레미스 Kubernetes 클러스터' },
+    });
+    expect(res.status).toBe(200);
+
+    const body = (await readJson(res)) as TargetSourceCreationCandidateResponseWire[];
+    expect(body).toHaveLength(1);
+    // The request enum carries `others`; the RESPONSE enum does not, so it comes
+    // back as the enum's catch-all rather than as an invented value.
+    expect(body[0].cloud_type).toBe('UNKNOWN');
+    expect(body[0].is_china_region).toBe(false);
+    expect(body[0].metadata).toEqual({ description: '온프레미스 Kubernetes 클러스터' });
+    expect(() =>
+      z.array(schemas.TargetSourceCreationCandidateResponse).parse(body),
+    ).not.toThrow();
+  });
+
+  it('rejects an others request with no description (400)', async () => {
+    const res = await mockTargetSources.previewRegistration('aws', {
+      cloud_type: 'others',
+      is_china_region: false,
+      database_types: ['mysql'],
+      metadata: {},
+    });
+    expect(res.status).toBe(400);
   });
 
   it('rejects a request missing the required is_china_region (400)', async () => {
@@ -110,20 +176,20 @@ describe('mockTargetSources.create (36) — round-trip → TargetSourceInfo', ()
       targetSourceId: number;
     };
 
-    // The created project has no dbType (the contract dropped it), so it does
-    // not participate in duplicate matching — re-preview stays ADD. This guards
-    // against an accidental duplicate-key regression for dbType-less targets.
+    // Duplicate identity is the account, so naming the same payer again is a
+    // duplicate even though a different database was selected the second time.
     const rePreview = (await readJson(
       await mockTargetSources.previewRegistration('aws', {
         cloud_type: 'aws',
         is_china_region: false,
-        database_types: ['MYSQL'],
+        database_types: ['postgresql'],
         metadata: { aws_account_id: '111122223333' },
       }),
     )) as TargetSourceCreationCandidateResponseWire[];
 
     expect(typeof created.targetSourceId).toBe('number');
-    expect(rePreview[0].status).toBe('ADD');
+    expect(rePreview[0].status).toBe('DUPLICATE');
+    expect(rePreview[0].existing_target_source_id).toBe(created.targetSourceId);
   });
 
   it('forbids non-admin users (403)', async () => {

@@ -29,7 +29,7 @@ type BffApprovalProcessStatus =
   | 'CONNECTED'
   | 'COMPLETED';
 
-type CanonicalProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
+type CanonicalProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU' | 'Others';
 
 const toBffCloudProvider = (cloudProvider: CloudProvider): BffCloudProvider => {
   switch (cloudProvider) {
@@ -159,7 +159,6 @@ const toBffTargetSourceCreatedInfo = (project: Project) => {
 };
 
 const trim = (value?: string): string => (value ?? '').trim();
-const normalizeDbType = (value?: string): string => trim(value).toUpperCase();
 
 interface DuplicateKeyInput {
   awsAccountId?: string;
@@ -167,50 +166,46 @@ interface DuplicateKeyInput {
   subscriptionId?: string;
   gcpProjectId?: string;
   description?: string;
-  dbType?: string;
 }
 
-// Duplicate identity tuple per spec §I-3. Returns null when the identity is
-// incomplete — including when an existing project lacks dbType (the field is
-// new in SIT v7, so legacy seed projects never participate in duplicate
-// matching until they are recreated).
+// Duplicate identity is the ACCOUNT, not the account×database pair: one request
+// registers one account (the selected databases only steer the recommendation),
+// so a second request naming the same account is the duplicate. Returns null when
+// the identity is incomplete.
 const duplicateIdentity = (
   provider: CanonicalProvider,
   fields: DuplicateKeyInput,
 ): string | null => {
-  const dbType = normalizeDbType(fields.dbType);
-  if (!dbType) return null;
-
   switch (provider) {
     case 'AWS': {
       const accountId = trim(fields.awsAccountId);
       if (!accountId) return null;
-      return `AWS|${accountId}|${fields.isChinaRegion === true}|${dbType}`;
+      return `AWS|${accountId}|${fields.isChinaRegion === true}`;
     }
     case 'Azure': {
       const subscriptionId = trim(fields.subscriptionId);
       if (!subscriptionId) return null;
-      return `Azure|${subscriptionId}|${dbType}`;
+      return `Azure|${subscriptionId}`;
     }
     case 'GCP': {
       const projectId = trim(fields.gcpProjectId);
       if (!projectId) return null;
-      return `GCP|${projectId}|${dbType}`;
+      return `GCP|${projectId}`;
     }
-    case 'IDC': {
+    case 'IDC':
+    case 'Others': {
       const description = trim(fields.description);
       if (!description) return null;
-      return `IDC|${description}|${dbType}`;
+      return `${provider}|${description}`;
     }
     case 'SDU':
       return null;
   }
 };
 
-const projectIdentity = (project: Project, dbType: string): string | null => {
+const projectIdentity = (project: Project): string | null => {
   const provider = toCanonicalProvider(project.cloudProvider);
   if (!provider) return null;
-  if (normalizeDbType(project.dbType) !== normalizeDbType(dbType)) return null;
 
   const isChinaRegion = project.isChinaRegion ?? project.awsRegionType === 'china';
   return duplicateIdentity(provider, {
@@ -219,7 +214,6 @@ const projectIdentity = (project: Project, dbType: string): string | null => {
     subscriptionId: project.subscriptionId,
     gcpProjectId: project.gcpProjectId,
     description: project.description,
-    dbType: project.dbType,
   });
 };
 
@@ -244,12 +238,16 @@ const cloudTypeToCanonical = (cloudType?: string): CanonicalProvider | null => {
       return 'GCP';
     case 'idc':
       return 'IDC';
+    case 'others':
+      return 'Others';
     default:
       return null;
   }
 };
 
-// Maps canonical provider → UPPERCASE response `cloud_type` (35 response enum).
+// Maps canonical provider → UPPERCASE response `cloud_type` (35 response enum:
+// AWS|GCP|AZURE|IDC|SDU|UNKNOWN). The request enum's `others` has no counterpart
+// there, so a 기타 request comes back as UNKNOWN — the enum's catch-all.
 const canonicalToResponseCloudType = (provider: CanonicalProvider): BffCloudProvider => {
   switch (provider) {
     case 'Azure':
@@ -261,9 +259,13 @@ const canonicalToResponseCloudType = (provider: CanonicalProvider): BffCloudProv
     case 'IDC':
       return 'IDC';
     case 'SDU':
+    case 'Others':
       return 'UNKNOWN';
   }
 };
+
+const isCspProvider = (provider: CanonicalProvider): boolean =>
+  provider === 'AWS' || provider === 'Azure' || provider === 'GCP';
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
@@ -327,8 +329,12 @@ const validatePreviewRequest = (
       }
       break;
     case 'IDC':
+    case 'Others':
       if (!isNonEmptyString(metadata.description) || !trim(metadata.description)) {
-        return { ok: false, response: validationError('IDC 는 metadata.description 이 필수입니다.') };
+        return {
+          ok: false,
+          response: validationError(`${provider} 는 metadata.description 이 필수입니다.`),
+        };
       }
       break;
     case 'SDU':
@@ -540,42 +546,52 @@ export const mockTargetSources = {
     const existing = getProjectsByServiceCode(serviceCode);
     const metadata = buildCandidateMetadata(request, provider);
     const cloudType = canonicalToResponseCloudType(provider);
-    const isChinaRegion = provider === 'AWS' && request.is_china_region === true;
+    const isChinaRegion = isCspProvider(provider) && request.is_china_region === true;
     const grantTf = request.grant_service_terraform_execution_permission === true;
+    const databaseTypes = request.database_types ?? [];
 
-    // 35 response: a BARE ARRAY of TargetSourceCreationCandidateResponse (snake),
-    // one element per database_types[i] (index-matched to the request).
-    const candidates: TargetSourceCreationCandidateResponseWire[] = (request.database_types ?? []).map(
-      (dbType) => {
-        const requestedKey = duplicateIdentity(provider, {
-          awsAccountId: request.metadata?.aws_account_id ?? undefined,
-          isChinaRegion: request.is_china_region ?? undefined,
-          subscriptionId: request.metadata?.subscription_id ?? undefined,
-          gcpProjectId: request.metadata?.project_id ?? undefined,
-          description: request.metadata?.description ?? undefined,
-          dbType: dbType ?? undefined,
-        });
+    const requestedKey = duplicateIdentity(provider, {
+      awsAccountId: request.metadata?.aws_account_id ?? undefined,
+      isChinaRegion: request.is_china_region ?? undefined,
+      subscriptionId: request.metadata?.subscription_id ?? undefined,
+      gcpProjectId: request.metadata?.project_id ?? undefined,
+      description: request.metadata?.description ?? undefined,
+    });
+    const match =
+      requestedKey === null
+        ? undefined
+        : existing.find((project) => projectIdentity(project) === requestedKey);
 
-        const match =
-          requestedKey === null
-            ? undefined
-            : existing.find((project) => projectIdentity(project, dbType ?? '') === requestedKey);
+    // 35 response: a BARE ARRAY of TargetSourceCreationCandidateResponse (snake).
+    // One request describes ONE account, so the CSP candidate is one element —
+    // the selected database_types steer the recommendation, they do not multiply it.
+    const cspCandidate: TargetSourceCreationCandidateResponseWire = {
+      status: match ? 'DUPLICATE' : 'ADD',
+      cloud_type: cloudType,
+      is_sdu_type: false,
+      is_china_region: isChinaRegion,
+      metadata,
+      ...(grantTf ? { grant_service_terraform_execution_permission: true } : {}),
+    };
+    if (match) {
+      cspCandidate.existing_target_source_id = match.targetSourceId;
+    }
 
-        const base: TargetSourceCreationCandidateResponseWire = {
-          status: match ? 'DUPLICATE' : 'ADD',
-          cloud_type: cloudType,
-          is_sdu_type: false,
-          is_china_region: isChinaRegion,
-          metadata,
-          ...(grantTf ? { grant_service_terraform_execution_permission: true } : {}),
-        };
-        if (match) {
-          base.existing_target_source_id = match.targetSourceId;
-        }
-        return base;
-      },
+    // Demo-only stand-in for the recommendation verdict: the real BFF decides
+    // whether an account needs a Self Data Upload sibling. Here a China region or
+    // an unlisted database ("others") is what makes the agent install unsupported.
+    const needsSduSibling =
+      isChinaRegion || databaseTypes.some((dbType) => trim(dbType ?? undefined).toLowerCase() === 'others');
+    const sduCandidate: TargetSourceCreationCandidateResponseWire = {
+      status: 'ADD',
+      cloud_type: cloudType,
+      is_sdu_type: true,
+      is_china_region: isChinaRegion,
+      metadata,
+    };
+
+    return NextResponse.json(
+      needsSduSibling ? [cspCandidate, sduCandidate] : [cspCandidate],
     );
-
-    return NextResponse.json(candidates);
   },
 };

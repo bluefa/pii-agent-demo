@@ -1,49 +1,39 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/app/components/ui/Button';
-import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { useToast } from '@/app/components/ui/toast';
 import {
   createTargetSource,
   getCreationCandidates,
-  type CreationCandidatesInput,
   type TargetSourceCreationCandidateResponse,
 } from '@/app/lib/api';
 import {
-  cn,
-  modalStyles,
-  textColors,
-  bgColors,
-  borderColors,
-  statusColors,
-  interactiveColors,
-  numericFeatures,
-} from '@/lib/theme';
-import type { DbType } from '@/lib/constants/db-types';
+  candidateIdentifier,
+  candidateTitle,
+} from '@/app/components/features/project-create/candidate-display';
+import { Step1CloudAccount } from '@/app/components/features/project-create/Step1CloudAccount';
+import { Step2AccountInfo } from '@/app/components/features/project-create/Step2AccountInfo';
+import { Step3Databases } from '@/app/components/features/project-create/Step3Databases';
+import { Step4Review } from '@/app/components/features/project-create/Step4Review';
 import {
-  PROVIDER_CHIP_BY_KEY,
-  type ApiProvider,
-  type ProviderChipKey,
-} from '@/lib/constants/provider-mapping';
-import type { CloudProvider } from '@/lib/types';
+  Step5Result,
+  type RegistrationRow,
+  type RegistrationRowStatus,
+} from '@/app/components/features/project-create/Step5Result';
+import { WizardRail } from '@/app/components/features/project-create/WizardRail';
 import {
-  DbTypeMultiSelect,
-  ProviderChipGrid,
-  ProviderCredentialForm,
-  validateCredentials,
-} from '@/app/components/features/project-create';
-import {
-  AwsRegionToggle,
-  AwsInstallModeToggle,
-  RegistrationPreviewCardList,
-  RegistrationProgressList,
-  type AwsRegion,
+  WIZARD_STEPS,
+  buildCandidatesInput,
+  isStepComplete,
   type AwsInstallMode,
-  type PreviewRow,
-  type ProgressRow,
-  type ProgressRowStatus,
-} from '@/app/components/features/admin/v7';
+  type OperatingRegion,
+  type WizardStep,
+} from '@/app/components/features/project-create/wizard-model';
+import { DB_TYPE_LABEL, type DbType } from '@/lib/constants/db-types';
+import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
+import { bgColors, borderColors, cn, modalStyles, textColors } from '@/lib/theme';
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;
@@ -51,99 +41,29 @@ interface ProjectCreateModalProps {
   onCreated: () => void;
 }
 
-type Phase = 'input' | 'preview' | 'progress';
-
-interface FormState {
-  chipKey: ProviderChipKey;
-  apiProvider: ApiProvider;
-  awsRegion: AwsRegion;
-  installMode: AwsInstallMode | null;
-  fields: Record<string, string>;
-}
-
-const buildCandidatesInput = (form: FormState, dbTypes: DbType[]): CreationCandidatesInput => {
-  const { fields } = form;
-  const description = fields.description?.trim();
-  switch (form.apiProvider) {
-    case 'AWS':
-      return {
-        cloudProvider: 'AWS',
-        awsAccountId: fields.payerAccount,
-        isChinaRegion: form.awsRegion === 'china',
-        // AWS 필수: 자동(권한 위임) / 수동(스크립트 직접 실행). handleNext 검증이 non-null 보장.
-        isTerraformExecutionGranted: form.installMode === 'auto',
-        ...(description ? { description } : {}),
-        dbTypes,
-      };
-    case 'Azure':
-      return {
-        cloudProvider: 'Azure',
-        tenantId: fields.tenantId,
-        subscriptionId: fields.subscriptionId,
-        ...(description ? { description } : {}),
-        dbTypes,
-      };
-    case 'GCP':
-      return {
-        cloudProvider: 'GCP',
-        gcpProjectId: fields.projectId,
-        ...(description ? { description } : {}),
-        dbTypes,
-      };
-    case 'IDC':
-      return {
-        cloudProvider: 'IDC',
-        description: description ?? '',
-        dbTypes,
-      };
-  }
-};
-
-const PROVIDER_FROM_RAW: Record<string, CloudProvider> = {
-  AWS: 'AWS',
-  AZURE: 'Azure',
-  GCP: 'GCP',
-  IDC: 'IDC',
-};
-
-// candidate.cloud_type casing is not guaranteed (loose wire); normalize uppercase.
-const toCloudProvider = (raw?: string | null): CloudProvider =>
-  PROVIDER_FROM_RAW[(raw ?? '').toUpperCase()] ?? 'AWS';
-
-const identifierLabel = (candidate: TargetSourceCreationCandidateResponse): string => {
-  const meta = candidate.metadata ?? {};
-  switch (toCloudProvider(candidate.cloud_type)) {
-    case 'AWS':
-      return meta.aws_account_id ? `Payer ${meta.aws_account_id}` : '—';
-    case 'Azure':
-      return meta.subscription_id ? `Sub ${meta.subscription_id}` : '—';
-    case 'GCP':
-      return meta.project_id ? `Project ${meta.project_id}` : '—';
-    case 'IDC':
-      return meta.description || '—';
-    default:
-      return '—';
-  }
-};
-
 export const ProjectCreateModal = ({
   selectedServiceCode,
   onClose,
   onCreated,
 }: ProjectCreateModalProps) => {
   const toast = useToast();
-  const [phase, setPhase] = useState<Phase>('input');
-  const [chipKey, setChipKey] = useState<ProviderChipKey>('aws');
-  const [awsRegion, setAwsRegion] = useState<AwsRegion>('global');
-  const [installMode, setInstallMode] = useState<AwsInstallMode | null>(null);
+  const [step, setStep] = useState<WizardStep>(1);
+  const [providerKey, setProviderKey] = useState<ProviderChipKey>('aws');
+  const [region, setRegion] = useState<OperatingRegion>('global');
+  const [installMode, setInstallMode] = useState<AwsInstallMode>('auto');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [dbTypes, setDbTypes] = useState<DbType[]>([]);
-  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
-  const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  // mountedRef gates async setState after unmount — handleRegister fans out N
-  // createProject calls in parallel, and the modal can close mid-batch.
+  const [othersDb, setOthersDb] = useState(false);
+  const [showCredErrors, setShowCredErrors] = useState(false);
+  const [showDbError, setShowDbError] = useState(false);
+  const [candidates, setCandidates] = useState<TargetSourceCreationCandidateResponse[]>([]);
+  const [candidatesBusy, setCandidatesBusy] = useState(false);
+  const [candidatesError, setCandidatesError] = useState<string | null>(null);
+  const [rows, setRows] = useState<RegistrationRow[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // mountedRef gates async setState after unmount — step 5 fans out N createTargetSource
+  // calls in parallel and the modal can be torn down mid-batch.
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -152,112 +72,94 @@ export const ProjectCreateModal = ({
     };
   }, []);
 
-  // Escape closes the modal — but not during Phase 3 in-flight register, so
-  // users cannot cancel a batch that is still hitting the BFF.
+  const formState = { providerKey, region, installMode, fields, dbTypes, othersDb };
+  const registrationComplete = rows.length > 0 && rows.every((row) => row.status !== 'in-progress');
+  const failedCount = rows.filter((row) => row.status === 'failed').length;
+  const addCount = candidates.filter((candidate) => candidate.status === 'ADD').length;
+
+  // Backdrop and Escape both land here. A batch already hitting the BFF cannot be
+  // abandoned; once it has finished there is nothing left to lose, so no confirm.
+  const requestClose = useCallback(() => {
+    if (step === 5) {
+      if (registrationComplete) onClose();
+      return;
+    }
+    setConfirmOpen(true);
+  }, [step, registrationComplete, onClose]);
+
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (phase === 'progress' && busy) return;
-      onClose();
+      // The confirm dialog owns Escape while it is open (it dismisses itself).
+      if (confirmOpen) return;
+      requestClose();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [phase, busy, onClose]);
+  }, [confirmOpen, requestClose]);
 
-  const chipDef = PROVIDER_CHIP_BY_KEY[chipKey];
-  const isAws = chipDef.apiProvider === 'AWS';
-
-  const handleChipChange = (key: ProviderChipKey) => {
-    setChipKey(key);
+  const handleProviderChange = (key: ProviderChipKey) => {
+    if (key === providerKey) return;
+    setProviderKey(key);
     setFields({});
-    setInstallMode(null);
-    setSubmitError(null);
+    setInstallMode('auto');
+    setDbTypes([]);
+    setOthersDb(false);
+    setShowCredErrors(false);
+    setShowDbError(false);
   };
 
-  const buildForm = (): FormState => ({
-    chipKey,
-    apiProvider: chipDef.apiProvider,
-    awsRegion,
-    installMode,
-    fields,
-  });
-
-  const handleNext = async () => {
-    if (busy) return;
-    const validationError = validateCredentials(chipKey, fields);
-    if (validationError) {
-      setSubmitError(validationError);
-      return;
-    }
-    if (dbTypes.length === 0) {
-      setSubmitError('DB Type을 1개 이상 선택하세요');
-      return;
-    }
-    if (isAws && installMode === null) {
-      setSubmitError('설치 방식(자동/수동)을 선택하세요');
-      return;
-    }
-
-    setSubmitError(null);
-    setBusy(true);
+  // Monotonic token: going back and re-entering step 4 restarts the fetch, and a
+  // slow earlier response must not overwrite the newer form's candidates.
+  const candidateSeqRef = useRef(0);
+  const loadCandidates = async () => {
+    const seq = ++candidateSeqRef.current;
+    setCandidatesBusy(true);
+    setCandidatesError(null);
+    setCandidates([]);
     try {
-      const candidates = await getCreationCandidates(
+      const next = await getCreationCandidates(
         selectedServiceCode,
-        buildCandidatesInput(buildForm(), dbTypes),
+        buildCandidatesInput(formState),
       );
-      if (!mountedRef.current) return;
-      const rows: PreviewRow[] = candidates.map((candidate, idx) => ({
-        candidate,
-        dbType: dbTypes[idx],
-      }));
-      setPreviewRows(rows);
-      setPhase('preview');
+      if (!mountedRef.current || seq !== candidateSeqRef.current) return;
+      setCandidates(next);
     } catch (err) {
-      if (mountedRef.current) {
-        toast.error(err instanceof Error ? err.message : '등록 미리보기 실패');
-      }
+      if (!mountedRef.current || seq !== candidateSeqRef.current) return;
+      const message = err instanceof Error ? err.message : '연동 구성을 확인하지 못했어요.';
+      setCandidatesError(message);
+      toast.error(message);
     } finally {
-      if (mountedRef.current) setBusy(false);
+      if (mountedRef.current && seq === candidateSeqRef.current) setCandidatesBusy(false);
     }
   };
 
-  const handleBackToInput = () => {
-    setPhase('input');
-    setPreviewRows([]);
-  };
+  const startRegistration = async () => {
+    const addCandidates = candidates.filter((candidate) => candidate.status === 'ADD');
+    if (addCandidates.length === 0) return;
 
-  const handleRegister = async () => {
-    if (busy) return;
-    const addRows = previewRows.filter((row) => row.candidate.status === 'ADD');
-    if (addRows.length === 0) {
-      toast.info('신규 등록 대상이 없습니다.');
-      return;
-    }
+    setRows(
+      addCandidates.map((candidate, idx) => ({
+        key: `row-${idx}`,
+        label: candidateTitle(candidate),
+        meta: candidateIdentifier(candidate),
+        status: 'in-progress',
+      })),
+    );
+    setStep(5);
 
-    const initial: ProgressRow[] = addRows.map((row, idx) => ({
-      key: `row-${idx}`,
-      cloudProvider: toCloudProvider(row.candidate.cloud_type),
-      isSdu: row.candidate.is_sdu_type === true,
-      primaryLabel: `${toCloudProvider(row.candidate.cloud_type)} · ${row.dbType}`,
-      secondaryLabel: identifierLabel(row.candidate),
-      status: 'in-progress',
-    }));
-    setProgressRows(initial);
-    setPhase('progress');
-    setBusy(true);
-
-    const updateRow = (key: string, status: ProgressRowStatus, error?: string) => {
+    const updateRow = (key: string, status: RegistrationRowStatus, error?: string) => {
       if (!mountedRef.current) return;
-      setProgressRows((prev) =>
-        prev.map((r) => (r.key === key ? { ...r, status, ...(error ? { error } : {}) } : r)),
+      setRows((prev) =>
+        prev.map((row) => (row.key === key ? { ...row, status, ...(error ? { error } : {}) } : row)),
       );
     };
 
     await Promise.allSettled(
-      addRows.map(async (row, idx) => {
+      addCandidates.map(async (candidate, idx) => {
         const key = `row-${idx}`;
         try {
-          await createTargetSource(selectedServiceCode, row.candidate);
+          await createTargetSource(selectedServiceCode, candidate);
           updateRow(key, 'done');
         } catch (err) {
           updateRow(key, 'failed', err instanceof Error ? err.message : '등록 실패');
@@ -266,209 +168,168 @@ export const ProjectCreateModal = ({
     );
 
     if (!mountedRef.current) return;
-    setBusy(false);
     onCreated();
   };
 
-  const phase1Valid =
-    dbTypes.length > 0 &&
-    validateCredentials(chipKey, fields) === null &&
-    (!isAws || installMode !== null);
-  const addRowCount = previewRows.filter((row) => row.candidate.status === 'ADD').length;
-  const duplicateCount = previewRows.length - addRowCount;
-  const progressDone = progressRows.filter((r) => r.status === 'done').length;
-  const progressFailed = progressRows.filter((r) => r.status === 'failed').length;
-  const progressComplete =
-    progressRows.length > 0 && progressDone + progressFailed === progressRows.length;
-  const progressTone: 'running' | 'success' | 'error' = !progressComplete
-    ? 'running'
-    : progressFailed === 0
-      ? 'success'
-      : 'error';
-  const progressTitle = !progressComplete
-    ? '인프라를 등록하고 있어요'
-    : progressFailed === 0
-      ? `${progressDone}건 등록 완료`
-      : `${progressDone}건 완료 · ${progressFailed}건 실패`;
-  const progressSubtitle = !progressComplete
-    ? '각 인프라에 대해 Agent/SDU 할당과 자격증명 검증을 진행해요.'
-    : progressFailed === 0
-      ? '모든 인프라가 등록됐어요.'
-      : '일부 인프라 등록에 실패했어요. 닫고 다시 시도해주세요.';
+  const handleNext = () => {
+    if (step === 1) {
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
+      if (!isStepComplete(2, formState)) {
+        setShowCredErrors(true);
+        return;
+      }
+      setStep(3);
+      return;
+    }
+    if (step === 3) {
+      if (!isStepComplete(3, formState)) {
+        setShowDbError(true);
+        return;
+      }
+      setStep(4);
+      void loadCandidates();
+      return;
+    }
+    if (step === 4) {
+      void startRegistration();
+      return;
+    }
+    onClose();
+  };
+
+  const primaryLabel =
+    step === 4 ? '등록하기' : step === 5 ? (registrationComplete ? '닫기' : '등록 중…') : '다음';
+  const primaryDisabled =
+    step === 4
+      ? candidatesBusy || candidatesError !== null || addCount === 0
+      : step === 5
+        ? !registrationComplete
+        : false;
+
+  const dbSummary =
+    [...dbTypes.map((value) => DB_TYPE_LABEL[value]), ...(othersDb ? ['Others'] : [])].join(', ') ||
+    '—';
 
   return (
-    <div className={modalStyles.overlay} onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="project-create-modal-title"
-        className={cn(modalStyles.container, 'w-[840px] max-h-[90vh] flex flex-col shadow-2xl')}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={modalStyles.header}>
-          <div>
-            <h2 id="project-create-modal-title" className={cn('text-lg font-bold', textColors.primary)}>
-              {phase === 'input' && '인프라 등록'}
-              {phase === 'preview' && '등록 내용 확인'}
-              {phase === 'progress' && (progressComplete ? '등록 결과' : '인프라 등록 진행 중')}
+    <>
+      <div className={modalStyles.overlay} onClick={requestClose}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="infra-register-modal-title"
+          className={cn(
+            modalStyles.container,
+            'flex max-h-[90vh] w-[920px] max-w-[calc(100vw-2rem)] flex-col shadow-2xl',
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={cn('border-b px-7 pb-4.5 pt-6', borderColors.light)}>
+            <h2 id="infra-register-modal-title" className={cn('text-xl font-bold', textColors.primary)}>
+              인프라 등록
             </h2>
-            <p className={cn('mt-0.5 text-sm', textColors.tertiary)}>
-              {phase === 'input' &&
-                'PII 모니터링 모듈 연동이 필요한 운영계 인프라 정보를 입력해주세요. 각 인프라 Provider/DB Type을 기준으로 Agent/SDU를 자동 할당합니다.'}
-              {phase === 'preview' &&
-                '입력한 정보를 기준으로 아래 인프라가 등록됩니다. 내용을 확인하고 등록을 진행해주세요.'}
-              {phase === 'progress' && progressSubtitle}
+            <p className={cn('mt-1 text-sm', textColors.tertiary)}>
+              PII 모니터링을 시작할 인프라를 등록해요. 입력하신 내용에 맞는 연동 구성을 안내해 드려요.
             </p>
           </div>
-          <button
-            onClick={onClose}
-            disabled={phase === 'progress' && !progressComplete}
-            className={cn(
-              'p-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
-              interactiveColors.closeButton,
-            )}
-            aria-label="닫기"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
 
-        <div className="p-6 space-y-5 overflow-y-auto">
-          {phase === 'input' && (
-            <>
-              <section>
-                <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-                  <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>1</span>
-                  인프라 (Provider) 유형 선택
-                </h3>
-                <ProviderChipGrid value={chipKey} onChange={handleChipChange} />
-                {isAws && (
-                  <div className="mt-3 space-y-3">
-                    <AwsRegionToggle value={awsRegion} onChange={setAwsRegion} />
-                    <div>
-                      <p className={cn('mb-1.5 text-xs font-medium', textColors.tertiary)}>
-                        설치 방식 <span className={statusColors.error.text}>*</span>
-                      </p>
-                      <AwsInstallModeToggle value={installMode} onChange={setInstallMode} />
-                    </div>
-                  </div>
-                )}
-              </section>
+          <div className="flex min-h-[460px] flex-1 overflow-hidden">
+            <WizardRail current={step} onNavigate={step < 5 ? setStep : undefined} />
 
-              <div className="grid grid-cols-2 gap-5">
-                <section>
-                  <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-                    <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>2</span>
-                    인프라 정보
-                  </h3>
-                  <ProviderCredentialForm
-                    chipKey={chipKey}
-                    values={fields}
-                    onChange={setFields}
-                  />
-                </section>
-                <section>
-                  <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-                    <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>3</span>
-                    DB Type 선택
-                  </h3>
-                  <DbTypeMultiSelect values={dbTypes} onChange={setDbTypes} />
-                </section>
-              </div>
-
-              {submitError && (
-                <p className={cn('text-sm', statusColors.error.text)}>{submitError}</p>
+            <div className="flex-1 overflow-y-auto px-[30px] py-[26px]">
+              {step === 1 && (
+                <Step1CloudAccount
+                  providerKey={providerKey}
+                  onProviderChange={handleProviderChange}
+                  region={region}
+                  onRegionChange={setRegion}
+                />
               )}
-            </>
-          )}
+              {step === 2 && (
+                <Step2AccountInfo
+                  providerKey={providerKey}
+                  values={fields}
+                  onChange={setFields}
+                  showRequiredErrors={showCredErrors}
+                  installMode={installMode}
+                  onInstallModeChange={setInstallMode}
+                />
+              )}
+              {step === 3 && (
+                <Step3Databases
+                  providerKey={providerKey}
+                  selected={dbTypes}
+                  onToggle={(value) => {
+                    setShowDbError(false);
+                    setDbTypes((prev) =>
+                      prev.includes(value)
+                        ? prev.filter((item) => item !== value)
+                        : [...prev, value],
+                    );
+                  }}
+                  othersSelected={othersDb}
+                  onOthersToggle={() => {
+                    setShowDbError(false);
+                    setOthersDb((prev) => !prev);
+                  }}
+                  showError={showDbError}
+                />
+              )}
+              {step === 4 && (
+                <Step4Review
+                  candidates={candidates}
+                  dbSummary={dbSummary}
+                  busy={candidatesBusy}
+                  error={candidatesError}
+                />
+              )}
+              {step === 5 && (
+                <Step5Result
+                  rows={rows}
+                  complete={registrationComplete}
+                  failedCount={failedCount}
+                />
+              )}
+            </div>
+          </div>
 
-          {phase === 'preview' && (
-            <>
-              <div
-                className={cn(
-                  'flex items-center gap-2 text-sm px-4 py-3 rounded-lg border',
-                  borderColors.default,
-                  bgColors.muted,
-                )}
-              >
-                <span className={cn('font-bold text-base', textColors.primary, numericFeatures.tabular)}>
-                  {previewRows.length}
-                </span>
-                <span className={textColors.secondary}>개 인프라 후보가 생성됐어요.</span>
-                {duplicateCount > 0 && (
-                  <span className={cn('ml-auto text-xs', statusColors.warning.text)}>
-                    중복 {duplicateCount}건은 등록에서 제외됩니다.
-                  </span>
-                )}
-              </div>
-              <RegistrationPreviewCardList rows={previewRows} />
-            </>
-          )}
-
-          {phase === 'progress' && (
-            <RegistrationProgressList
-              rows={progressRows}
-              title={progressTitle}
-              subtitle={progressSubtitle}
-              tone={progressTone}
-            />
-          )}
-        </div>
-
-        <div className={modalStyles.footer}>
-          {phase === 'input' && (
-            <>
-              <Button variant="secondary" onClick={onClose} type="button">
-                취소
-              </Button>
-              <Button
-                type="button"
-                onClick={handleNext}
-                disabled={busy || !phase1Valid}
-              >
-                {busy ? (
-                  <span className="flex items-center gap-2">
-                    <LoadingSpinner />
-                    확인 중...
-                  </span>
-                ) : (
-                  '다음'
-                )}
-              </Button>
-            </>
-          )}
-          {phase === 'preview' && (
-            <>
+          <div
+            className={cn(
+              'flex items-center gap-2 border-t px-7 py-4',
+              borderColors.light,
+              bgColors.muted,
+            )}
+          >
+            <span className={cn('mr-auto text-xs', textColors.tertiary)}>
+              {step} / {WIZARD_STEPS.length} 단계
+            </span>
+            {step > 1 && step < 5 && (
               <Button
                 variant="secondary"
-                onClick={handleBackToInput}
                 type="button"
-                disabled={busy}
+                onClick={() => setStep((prev) => (prev - 1) as WizardStep)}
               >
                 이전
               </Button>
-              <Button
-                type="button"
-                onClick={handleRegister}
-                disabled={busy || addRowCount === 0}
-              >
-                {`등록하기${addRowCount > 0 ? ` (${addRowCount})` : ''}`}
-              </Button>
-            </>
-          )}
-          {phase === 'progress' && (
-            <Button
-              type="button"
-              onClick={onClose}
-              disabled={!progressComplete}
-            >
-              {progressComplete ? '닫기' : '진행 중...'}
+            )}
+            <Button type="button" onClick={handleNext} disabled={primaryDisabled}>
+              {primaryLabel}
             </Button>
-          )}
+          </div>
         </div>
       </div>
-    </div>
+
+      <ConfirmStepModal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={onClose}
+        title="등록을 그만두시겠어요?"
+        description="지금 닫으면 입력한 내용이 사라져요."
+        cancelLabel="계속 작성"
+        confirmLabel="닫기"
+      />
+    </>
   );
 };
