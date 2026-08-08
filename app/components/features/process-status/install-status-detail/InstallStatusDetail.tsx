@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   bgColors,
   borderColors,
@@ -417,9 +417,16 @@ export const InstallStatusDetail = ({
   panelSteps = [],
   meta,
 }: InstallStatusDetailProps) => {
-  const navSteps: InstallTableStep[] = useMemo(
-    () => [SUMMARY_STEP, ...panelSteps, ...steps],
+  // 그룹 레일(v2) — 어댑터가 step.group 을 하나라도 선언하면 켜진다 (AWS 선행).
+  const grouped = useMemo(
+    () => [...panelSteps, ...steps].some((s) => s.group),
     [panelSteps, steps],
+  );
+
+  // 그룹 레일에는 요약 스텝이 없다 — 전체 집계는 레일 푸터가 담당한다(v3.5).
+  const navSteps: InstallTableStep[] = useMemo(
+    () => (grouped ? [...panelSteps, ...steps] : [SUMMARY_STEP, ...panelSteps, ...steps]),
+    [grouped, panelSteps, steps],
   );
 
   const cellOf = useMemo(() => {
@@ -473,8 +480,6 @@ export const InstallStatusDetail = ({
 
   const actionViews = useMemo(() => views.filter((v) => v.actionable), [views]);
 
-  // 그룹 레일(v2) — 어댑터가 step.group 을 하나라도 선언하면 켜진다 (AWS 선행).
-  const grouped = useMemo(() => navSteps.some((s) => s.group), [navSteps]);
   const openTodoCount = useMemo(
     () =>
       navSteps.filter(
@@ -507,7 +512,8 @@ export const InstallStatusDetail = ({
       const hit = navSteps.find((s) => s.id !== SUMMARY_ID && aggregates.get(s.id)?.kind === kind);
       if (hit) return hit.id;
     }
-    return SUMMARY_ID;
+    // 그룹 레일에는 요약 스텝이 없다 — 전부 완료면 첫 항목을 연다.
+    return grouped ? navSteps[0]?.id ?? SUMMARY_ID : SUMMARY_ID;
   }, [grouped, actionViews, navSteps, aggregates]);
   const [selected, setSelected] = useState<string | null>(null);
   const activeId = selected ?? hotStepId;
@@ -531,6 +537,173 @@ export const InstallStatusDetail = ({
     });
   }, [activePanel, active.id, resources, meta, cellOf]);
 
+  // 우측 패널 헤더/본문 — 두 레이아웃(그룹/레거시)이 공유한다.
+  const paneHead = (
+    <div className="flex items-start justify-between gap-3">
+      {/* 제목↔부제 = tight 4px */}
+      <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
+        <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
+        <p className={cn(textStyles.caption, 'max-w-[60ch]', textColors.secondary)}>
+          {active.desc}
+        </p>
+      </div>
+      <span className="flex items-center gap-2 flex-shrink-0">
+        {active.side && <SideTag side={active.side} />}
+        {active.action}
+        {!isSummary && activeAggregate && (
+          <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
+            {/* 그룹 레일에서는 n/m 카운트를 쓰지 않는다 — 상태 단어만. */}
+            {!grouped && activeAggregate.count
+              ? `${activeAggregate.label} ${activeAggregate.count}`
+              : activeAggregate.label}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+
+  const paneBody = activePanel ? (
+    activePanel.panel
+  ) : isSummary ? (
+    <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
+  ) : (
+    // key resets pagination when switching steps
+    <StepResourceTable key={active.id} rows={rows} />
+  );
+
+  // ---------------------------------------------------------------------------
+  // 그룹 레일 레이아웃 (v3.6, AWS 선행) — 회색 래퍼가 레일과 흰 콘텐츠 카드를 감싼다.
+  // ---------------------------------------------------------------------------
+  if (grouped) {
+    const todoSteps = navSteps.filter((s) => s.group === 'todo');
+    const autoSteps = navSteps.filter((s) => s.group === 'auto');
+    const pct = (n: number) => (rollup.total ? Math.round((n / rollup.total) * 100) : 0);
+
+    // 레일 항목 — 한 줄: [미완료 점 | 순번] 제목 · 상태 글자.
+    const railItem = (step: InstallTableStep, ord: number | null) => {
+      const aggregate = aggregates.get(step.id)!;
+      const isActive = step.id === activeId;
+      const openTodo = step.group === 'todo' && aggregate.kind !== 'done';
+      return (
+        <button
+          key={step.id}
+          type="button"
+          onClick={() => setSelected(step.id)}
+          aria-current={isActive}
+          className={cn(
+            'relative flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0',
+            // Primer 문법 — 선택 항목은 inset 헤어라인 링 + 1px 오프셋 그림자로 얹힌다.
+            isActive ? cn('bg-white', shadows.hairRing) : 'hover:bg-white/60',
+          )}
+        >
+          {openTodo && (
+            <span
+              aria-hidden
+              className={cn(
+                'absolute left-1 top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full',
+                statusColors.info.dot,
+              )}
+            />
+          )}
+          {ord !== null && (
+            // 수행 순서 — 약한 회색 숫자(오너: 숫자는 약하게).
+            <span className={cn('flex-shrink-0 w-3.5 tabular-nums', textStyles.caption, textColors.tertiary)}>
+              {ord}
+            </span>
+          )}
+          <span className={cn('flex-1 min-w-0 truncate', textStyles.bodyStrong, textColors.primary)}>
+            {step.title}
+          </span>
+          <span
+            className={cn(
+              'flex-shrink-0',
+              textStyles.caption,
+              NAV_STATUS_TEXT[aggregate.kind],
+              aggregate.kind === 'done' || aggregate.kind === 'waiting' ? 'font-normal' : 'font-semibold',
+            )}
+          >
+            {aggregate.label}
+          </span>
+        </button>
+      );
+    };
+
+    const groupLabel = (text: string, hot: boolean) => (
+      <div
+        className={cn(
+          'px-2.5 pt-3 pb-1 font-bold tracking-[0.02em] flex-shrink-0',
+          textStyles.caption,
+          hot ? primaryColors.text : textColors.tertiary,
+        )}
+      >
+        {text}
+      </div>
+    );
+
+    return (
+      <div className={cn('rounded-2xl p-2', bgColors.panel)}>
+        {/* 메타바 — 제목 좌 / 확인 시각 우, 같은 베이스라인 한 줄(v3.4). 수동 새로고침·
+            자동주기 컨트롤은 노출하지 않는다(오너 결정) — 갱신은 폴링이 조용히 담당. */}
+        <div className="flex items-baseline gap-3 flex-wrap px-2.5 pt-1.5 pb-2.5">
+          <h3 className={cn(textStyles.cardTitle, textColors.primary)}>설치 진행 상황</h3>
+          <span className={cn('ml-auto', textStyles.caption, textColors.tertiary)}>
+            {/* checked_at 은 UTC wire — formatDateTime 이 로컬(KST)로 변환해 표시한다. */}
+            {lastCheck.checkedAt && <>마지막 확인 {formatDateTime(lastCheck.checkedAt)} (KST)</>}
+            {lastCheck.status === 'FAILED' && (
+              <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
+            )}
+          </span>
+        </div>
+
+        {/* 높이 고정(A안) — 스크롤은 우측 카드 본문에서만. 헤더가 클리핑 지점이다. */}
+        <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-2 h-[560px]">
+          <nav className="flex flex-col gap-0.5 overflow-y-auto min-h-0 pb-1" aria-label="설치 단계">
+            {groupLabel(`내가 할 일 (${openTodoCount})`, openTodoCount > 0)}
+            {todoSteps.map((s) => railItem(s, null))}
+            {openTodoCount === 0 && (
+              <p className={cn('px-3.5 pb-1 flex-shrink-0', textStyles.caption, textColors.tertiary)}>
+                지금 하실 일이 없어요 —
+                <br />
+                모든 단계는 자동으로 진행돼요
+              </p>
+            )}
+            {groupLabel('BDC 자동 진행', false)}
+            {autoSteps.map((s, i) => railItem(s, i + 1))}
+
+            {/* 레일 푸터 — 바닥 여백을 전체 진행 요약으로 마감(WinUI PaneFooter, v3.5). */}
+            <div className="mt-auto px-2.5 pt-4 pb-1 flex flex-col gap-1.5 flex-shrink-0">
+              <div
+                role="img"
+                aria-label={`전체 ${rollup.total}개 중 완료 ${rollup.done}, 진행 중 ${rollup.running}, 실패 ${rollup.failed}`}
+                className={cn('flex h-1 rounded-full overflow-hidden', bgColors.divider)}
+              >
+                <span className={statusColors.success.dot} style={{ width: `${pct(rollup.done)}%` }} />
+                <span className={statusColors.info.dot} style={{ width: `${pct(rollup.running)}%` }} />
+                <span className={statusColors.error.dot} style={{ width: `${pct(rollup.failed)}%` }} />
+              </div>
+              <span className={cn(textStyles.caption, textColors.tertiary)}>
+                <span className={cn('font-semibold', textColors.secondary)}>
+                  {rollup.total}개 중 {rollup.done}개 완료
+                </span>
+                {rollup.failed > 0 && ` · 실패 ${rollup.failed}`}
+                {rollup.running > 0 && ` · 진행 중 ${rollup.running}`}
+              </span>
+            </div>
+          </nav>
+
+          {/* Primer 카드(v3.6) — 분리는 헤어라인 테두리, 그림자는 1px 오프셋 힌트만. */}
+          <div className={cn('min-w-0 min-h-0 flex flex-col bg-white rounded-xl border', borderColors.light, shadows.hair)}>
+            <div className={cn('flex-none px-5 py-4 border-b', borderColors.light)}>{paneHead}</div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">{paneBody}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 레거시 레이아웃 — group 을 선언하지 않은 CSP (Azure / GCP / IDC).
+  // ---------------------------------------------------------------------------
   return (
     <div className="flex flex-col gap-3">
       {/* 레일은 목차, 우측은 내용 — 둘을 표면으로 가른다. 레일은 가라앉은 회색 판
@@ -548,30 +721,9 @@ export const InstallStatusDetail = ({
         {navSteps.map((step, index) => {
           const aggregate = aggregates.get(step.id)!;
           const isActive = step.id === activeId;
-          // 그룹 레일 — 각 그룹의 첫 항목 위에만 헤더를 세운다. 주체 구분은 헤더가
-          // 담당하므로 항목의 side 줄과 n/m 카운트는 걷어낸다(오너 요청).
-          const groupHeader =
-            grouped && step.group && navSteps.find((s) => s.group === step.group) === step
-              ? step.group === 'todo'
-                ? `내가 할 일 (${openTodoCount})`
-                : 'BDC 자동 진행'
-              : null;
           return (
-            <Fragment key={step.id}>
-            {groupHeader && (
-              <div
-                className={cn(
-                  'px-2.5 pt-3 pb-1 font-bold tracking-[0.02em]',
-                  textStyles.caption,
-                  step.group === 'todo' && openTodoCount > 0
-                    ? primaryColors.text
-                    : textColors.tertiary,
-                )}
-              >
-                {groupHeader}
-              </div>
-            )}
             <button
+              key={step.id}
               type="button"
               onClick={() => setSelected(step.id)}
               aria-current={isActive}
@@ -613,10 +765,10 @@ export const InstallStatusDetail = ({
                 >
                   {aggregate.label}
                 </span>
-                {!grouped && aggregate.count && (
+                {aggregate.count && (
                   <span className={cn('tabular-nums', textColors.secondary)}>{aggregate.count}</span>
                 )}
-                {!grouped && step.side && (
+                {step.side && (
                   <span className="flex items-center gap-1.5 min-w-0">
                     <span aria-hidden className={textColors.tertiary}>·</span>
                     <SideText side={step.side} />
@@ -624,45 +776,15 @@ export const InstallStatusDetail = ({
                 )}
               </span>
             </button>
-            </Fragment>
           );
         })}
       </nav>
 
       {/* 컨테이너에 갇힌 뒤로는 내용이 테두리에 닿으므로 안쪽 여백이 gap-6 을 대신한다. */}
       <div className="min-w-0 px-5 py-4">
-        <div className="flex items-start justify-between gap-3">
-          {/* 제목↔부제 = tight 4px */}
-          <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
-            <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
-            <p className={cn(textStyles.caption, 'max-w-[60ch]', textColors.secondary)}>
-              {active.desc}
-            </p>
-          </div>
-          <span className="flex items-center gap-2 flex-shrink-0">
-            {active.side && <SideTag side={active.side} />}
-            {active.action}
-            {!isSummary && activeAggregate && (
-              <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
-                {/* 그룹 레일에서는 n/m 카운트를 쓰지 않는다 — 상태 단어만. */}
-                {!grouped && activeAggregate.count
-                  ? `${activeAggregate.label} ${activeAggregate.count}`
-                  : activeAggregate.label}
-              </span>
-            )}
-          </span>
-        </div>
+        {paneHead}
 
-        <div className="mt-4">
-          {activePanel ? (
-            activePanel.panel
-          ) : isSummary ? (
-            <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
-          ) : (
-            // key resets pagination when switching steps
-            <StepResourceTable key={active.id} rows={rows} />
-          )}
-        </div>
+        <div className="mt-4">{paneBody}</div>
 
         {/* 표 아래 조회 시각 — 요약에서는 지표 카드가 이미 갖고 있으므로 여기서는 뺀다. */}
         {!activePanel && !isSummary && (

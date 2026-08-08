@@ -57,10 +57,11 @@ const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
   </div>
 );
 
+// 수행 순서 = 서비스 측 TF → BDC 공통 → BDC 서비스 (공통이 서비스보다 먼저, 오너 확정).
 const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
   {
     id: 'service',
-    title: manualInstall ? 'Terraform 직접 적용' : 'Terraform 자동 적용',
+    title: manualInstall ? 'Terraform 직접 적용' : '서비스 측 Terraform 자동 적용',
     side: '서비스측 리소스 생성',
     // 수동 모드만 담당자가 직접 수행한다 — 자동 모드는 BDC가 배포하므로
     // 조치 문구 없이 '자동 진행' 그룹으로 내려간다.
@@ -73,15 +74,15 @@ const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
       : '리소스별 Private Endpoint / IAM Role / Glue Policy 설정을 Terraform으로 자동 배포합니다.',
   },
   {
-    id: 'bdcService',
-    title: 'BDC 서비스 영역',
+    id: 'bdcCommon',
+    title: 'BDC 공통 영역',
     side: 'BDC측 리소스 생성',
     group: 'auto',
     desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
   },
   {
-    id: 'bdcCommon',
-    title: 'BDC 공통 영역',
+    id: 'bdcService',
+    title: 'BDC 서비스 영역',
     side: 'BDC측 리소스 생성',
     group: 'auto',
     desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',

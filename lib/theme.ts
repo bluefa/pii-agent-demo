@@ -1609,6 +1609,12 @@ export const shadows = {
   button: 'shadow-sm hover:shadow',
   /** Soft pill shadow for active toolbar button / segmented control item */
   pill: 'shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
+  /** Primer-style hairline lift — 1px offset, no blur. 분리는 테두리가 담당하고
+   *  그림자는 "얹힘" 힌트만 준다 (Step 4 v3.6, GitHub Actions 패널 문법). */
+  hair: 'shadow-[0_1px_0_rgba(25,31,40,0.04)]',
+  /** 선택된 레일 항목 — inset 헤어라인 링 + hair. outline 은 focus-visible 링과
+   *  충돌하므로 inset box-shadow 로 두른다. ring 색 = gray-200(#E5E8EB). */
+  hairRing: 'shadow-[inset_0_0_0_1px_rgba(229,232,235,1),0_1px_0_rgba(25,31,40,0.04)]',
 } as const;
 
 // =============================================================================
