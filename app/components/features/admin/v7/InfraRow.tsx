@@ -92,8 +92,8 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         // short window instead of scrolling, and the text crushes together.
         'group flex shrink-0 items-start gap-3.5 px-[21px] py-[19px] cursor-pointer rounded-[12px] border transition-colors',
         bgColors.surface,
-        borderColors.default,
-        bgColors.mutedHover,
+        borderColors.card,
+        tableRowLift.card,
       )}
     >
       {/* `self-center`, like the ⋮ opposite it. The card is `items-start` so the text
@@ -150,7 +150,11 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
         {hasSecondLayer && (
           <div className="flex flex-wrap items-center gap-y-1 gap-x-5 pl-0.5">
             {identity.gloss && (
-              <span className={cn('text-[14px] font-medium', textColors.tertiary)}>
+              // `cellText`: tertiary is 4.83:1 on the white card but 4.26:1 on the
+              // hover tint — the promotion is what keeps this line AA under the cursor.
+              <span
+                className={cn('text-[14px] font-medium', textColors.tertiary, tableRowLift.cellText)}
+              >
                 {identity.gloss}
               </span>
             )}

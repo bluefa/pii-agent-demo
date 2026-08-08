@@ -277,6 +277,14 @@ export const borderColors = {
    * border *is* the state indicator, not when it merely separates.
    */
   emphasis: 'border-gray-500',
+  /**
+   * Outline for a card that repeats down a list on the tinted canvas. `default`
+   * measures 1.13:1 against #F4F4FB — the eye separates those cards on their 4.1
+   * ΔE00 of fill alone, and the line contributes nothing. This one reads 1.27:1
+   * on the canvas and 1.39:1 on the card, roughly doubling the line's share of
+   * the edge without darkening it into a table rule.
+   */
+  card: 'border-[#D6DBE6]',
 } as const;
 
 /**
@@ -366,6 +374,20 @@ export const tableRowLift = {
   excluded: 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]',
   /** hover 행의 셀 텍스트 승격 — #4E5968 → #191F28 (6.12:1 → 14.25:1 on the hover tint). */
   cellText: 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]',
+  /**
+   * Card-row hover on the tinted canvas — violet, borrowed from the EC2 tag pair
+   * (`#F3EEFF`/`#6D28D9`), so the two land in one family.
+   *
+   * `bg-gray-50` measured ΔE00 1.20 from the white card: under the ~2.3 threshold
+   * at which two colours are seen as different at all, so the whole card was a
+   * click target announcing nothing. Violet buys the separation on CHROMA rather
+   * than on level (ΔE00 8.92 from the card, 5.21 from the canvas, and only 5 L*
+   * of darkening), which is what keeps the text on the card legible.
+   *
+   * Pair it with `cellText` on anything at `textColors.tertiary`: gray-500 reads
+   * 4.26:1 on this tint, under AA.
+   */
+  card: 'hover:bg-[#F3EEFF] focus-within:bg-[#F3EEFF]',
 } as const;
 
 export const cardStyles = {
@@ -1201,20 +1223,25 @@ export const serviceSidebarStyles = {
    * The rail separates from the ground by CHROMA as much as by luminance.
    * Near-neutral #F2F4F6 on the old #F9FAFB ground measured ΔE00 1.39 — barely
    * past the just-noticeable threshold, so the 1px border was doing all the
-   * work. Buying separation with luminance alone was not available either:
-   * sectionLabel had 0.2 of headroom over AA, so a darker rail fails text.
+   * work. The ground is now `canvas` (#F4F4FB, the app's own blue-leaning
+   * surface) on both pages that mount this rail, so the rail goes the other way
+   * — toward neutral — and the pair reads on hue as well as level.
    *
-   * The ground is now `canvas` (#F4F4FB, the app's own blue-leaning surface) on
-   * both pages that mount this rail, so the rail goes the other way — toward
-   * neutral — and the pair reads on hue as well as level.
+   * At #EFF2F3 the three planes of the page (rail 95.3, ground 96.4, card 100)
+   * sat inside 4.7 L* of each other, so none of them read as raised; this drops
+   * the BACK plane far enough for the stack to read as a stack.
    *
-   *   rail vs ground   ΔE00 1.39 → 3.79
-   *   rail vs white    ΔE00 2.59 → 3.10
-   *   L* 96.1 → 95.3, under the ground's 96.4 — the ladder holds
-   *   worst text pair (#666D7B) 4.72 → 4.62, still AA
-   *   worst plate (#F7F8FA tile) ΔE00 0.99 → 1.82 — it was invisible before
+   *   rail vs ground   ΔE00 3.79 → 4.71
+   *   rail vs white    ΔE00 3.10 → 5.71   (rowActive lifts twice as far)
+   *   L* 95.3 → 91.4, under the ground's 96.4 — the ladder holds
+   *
+   * Everything printed ON the rail moves with it, or it disappears into the new
+   * surface — that is why `count`/`rowCode`/`divider`/`skeletonBar` carry their
+   * own numbers below, and why `sectionLabel` and `footerPage` had to leave
+   * #666D7B (4.17:1 here) for #4E5968 (5.71:1). `text-gray-500` is not usable on
+   * this surface at all (4.07:1).
    */
-  surface: 'bg-[#EFF2F3]',
+  surface: 'bg-[#E2E7EA]',
   /**
    * The ground this rail sits beside — the app canvas, not gray-50.
    *
@@ -1226,19 +1253,27 @@ export const serviceSidebarStyles = {
    * borders — and read at 4.12 on the canvas.
    */
   canvas: 'bg-[#F4F4FB]',
-  /** Full-bleed hairline between rail zones — darker than the rail, or it inverts. */
-  divider: 'border-[#E1E5EA]',
+  /** Full-bleed hairline between rail zones — darker than the rail, or it inverts. ΔE00 3.45. */
+  divider: 'border-[#D2D8DC]',
   /** Rail heading — nav-chrome tier, deliberately under the content column's page title. */
   title: 'text-[14px] font-semibold tracking-[-0.01em] text-[#191F28]',
   /**
    * Total beside the rail title — a pill, so it reads as a count attached to the
    * heading rather than as a second word in it. Round, unlike the square code
    * tags: one is a quantity, the other an identifier.
+   *
+   * The plate is LIGHTER than the rail, not darker. It used to be #E7EAEE, a step
+   * down from a near-white surface; on the deeper rail that same value lands ΔE00
+   * 1.44 away and vanishes. Going up instead is also the truer reading — a plate
+   * with something printed on it sits on the rail, it is not a hole in it.
    */
   count:
-    'inline-flex items-center rounded-full bg-[#E7EAEE] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[#4E5968]',
-  /** Section label above the rows — desktop nav section header, not a table column head. */
-  sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#666D7B]',
+    'inline-flex items-center rounded-full bg-[#F1F4F5] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[#4E5968]',
+  /**
+   * Section label above the rows — desktop nav section header, not a table column
+   * head. #4E5968, not #666D7B: the latter reads 4.17:1 on this rail, under AA.
+   */
+  sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#4E5968]',
   /** Row name — wraps rather than riding off the rail's edge; service names run to ~30 characters. */
   rowName: 'text-[14px] font-medium leading-5 text-[#191F28]',
   /**
@@ -1249,7 +1284,7 @@ export const serviceSidebarStyles = {
    * every row, and a 30-character name would push it out of the row.
    */
   rowCode:
-    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[#E7EAEE] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[#F1F4F5] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
   /**
    * Row fill under pointer hover or keyboard focus — full-bleed and square, the
    * way a web list row highlights. White, not a deeper grey: on a tinted rail
@@ -1267,9 +1302,9 @@ export const serviceSidebarStyles = {
   rowCodeCurrent:
     'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#0050D6]',
   /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
-  rowDivide: 'divide-y divide-[#E1E5EA]',
-  /** Skeleton bar for the rail — one step darker than idcStyles' #F3F4F6, which vanishes on the tinted surface. */
-  skeletonBar: 'animate-pulse bg-[#E3E7EC]',
+  rowDivide: 'divide-y divide-[#D2D8DC]',
+  /** Skeleton bar for the rail — a step darker than the surface, or it vanishes into it. */
+  skeletonBar: 'animate-pulse bg-[#D6DCE0]',
   /** 28px square icon tile — the row's scan anchor, sized up for the taller row. */
   tile: 'flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[12px] font-semibold leading-none',
   /** Tinted tile pairs, picked by a stable code hash so a service keeps its color across pages. */
@@ -1290,7 +1325,7 @@ export const serviceSidebarStyles = {
    */
   footer: 'mt-auto flex shrink-0 items-center justify-center gap-1 px-3 py-2.5',
   /** "1 / 2 페이지" — tabular so the digits do not jitter as pages change. */
-  footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#666D7B]',
+  footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#4E5968]',
   /** Borderless ghost pager — a bordered button pair floats like a card control on a flush rail. */
   pagerBtn:
     'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#B0B8C1] disabled:hover:bg-transparent',
