@@ -321,7 +321,13 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           onClose={() => setModal(null)}
           targetSourceId={targetSourceId}
           kind={activeRole}
-          currentArn={roles[activeRole]?.role_arn ?? undefined}
+          // OpsHeader 의 표시 폴백과 같은 순서 — verify 응답이 없어도(실패 포함) v5
+          // metadata 의 등록값을 초기값으로 준다. 빈 입력으로 열리면 덮어쓰기 사고가 된다.
+          currentArn={
+            roles[activeRole]?.role_arn
+            ?? (activeRole === 'scan' ? meta.aws_scan_role_arn : meta.aws_terraform_execution_role_arn)
+            ?? undefined
+          }
           accountId={accountId}
           isChinaRegion={isChina}
           regionLabel={regionLabel}

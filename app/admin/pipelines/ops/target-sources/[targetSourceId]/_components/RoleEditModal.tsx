@@ -62,6 +62,12 @@ export function RoleEditModal({
   const trimmed = name.trim();
 
   const save = async (): Promise<void> => {
+    // 계정 ID 없이 조립한 ARN(arn:aws:iam:::role/…)은 라우트 검증에서 반드시 떨어진다 —
+    // "잠시 후 다시 시도" 로 오도하지 말고 진짜 원인을 여기서 말한다.
+    if (!accountId) {
+      setError('AWS 계정 ID가 없어 ARN을 만들 수 없습니다. 대상의 계정 정보를 먼저 등록해 주세요.');
+      return;
+    }
     if (!AWS_ROLE_NAME_RE.test(trimmed)) {
       setError(
         trimmed.length > 64

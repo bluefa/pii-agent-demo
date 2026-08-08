@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Ops page header (Figma 4:78) — breadcrumb · 현재 단계 pill · title group ·
+ * Ops page header (Figma 4:78) — 현재 단계 pill · title group ·
  * cloud inline row (Global/설치모드 tags) · role ARN sub-rows · 협업 채널 bubble.
  * Role rows and the 설치모드 tag are AWS-only; the TF Role row shows in AUTO mode.
  */

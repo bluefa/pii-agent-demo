@@ -11,7 +11,7 @@
  * (docs/api/jira-tickets.md §1). 해제가 되돌릴 수 있는 작업이라는 사실이 문구와
  * 버튼 톤 양쪽에 드러나야 한다 — EOS 처럼 dangerSolid 로 겁주지 않는다.
  */
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { providerLabel } from '@/lib/pipeline/format';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -82,17 +82,24 @@ export function JiraTicketModal({
 
   // 성공 화면을 잠깐 보여주고 1초 안에 닫는다. 데이터 갱신(onDone)은 성공 즉시 이미
   // 일어났으므로, 배경 클릭/ESC 로 먼저 닫아도 잃는 것이 없다.
+  // onClose 는 ref 로 든다 — 부모가 인라인 함수를 넘기면 렌더마다 identity 가 바뀌는데,
+  // 그때마다 타이머가 리셋되면 부모가 주기 렌더를 도는 동안 성공 화면이 안 닫힌다.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     if (!done) return;
-    const timer = setTimeout(onClose, 900);
+    const timer = setTimeout(() => onCloseRef.current(), 900);
     return () => clearTimeout(timer);
-  }, [done, onClose]);
+  }, [done]);
 
   // 앞뒤 공백은 조용히 잘라내지 않는다 — 붙여넣기 사고(줄바꿈·탭)를 그대로 저장하면
   // Jira 에 없는 키로 연결되고, 화면에는 멀쩡한 키로 보여 원인을 못 찾는다. 경고를 띄우고
   // 저장을 막아 사용자가 무엇이 들어갔는지 알게 한다.
   const trimmed = value.trim();
-  const hasEdgeSpace = action !== 'detach' && value !== trimmed;
+  // allowlist — 입력창을 갖는 동작을 양성으로 나열한다. 새 action 이 생기면 여기에
+  // 명시적으로 넣어야 입력 폼이 열린다 (`!== 'detach'` 는 조용히 opt-in 시킨다).
+  const isInputAction = action === 'attach' || action === 'watcher';
+  const hasEdgeSpace = isInputAction && value !== trimmed;
   const canSubmit = action === 'detach' || (trimmed !== '' && !hasEdgeSpace);
 
   const ACTION_LABEL: Record<JiraTicketAction, string> = {
@@ -157,7 +164,7 @@ export function JiraTicketModal({
             티켓의 Jira 알림을 받습니다.
           </p>
         </div>
-      ) : action !== 'detach' ? (
+      ) : isInputAction ? (
         <>
           <p className={pipelineStyles.modal.desc}>
             {action === 'watcher' ? (

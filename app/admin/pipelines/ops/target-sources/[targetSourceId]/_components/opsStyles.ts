@@ -8,7 +8,7 @@ export const opsStyles = {
   headCard: '-mt-6 -mx-8',
   header: 'relative bg-[var(--pl-bg-card)] px-8 pt-5 pb-[18px] border-b border-[var(--pl-border)]',
 
-  /** 현재 단계 row under the breadcrumb. */
+  /** 현재 단계 row — first row of the masthead. */
   stageRow: 'flex items-center gap-2 mt-1',
   stageLabel: 'text-[12px] text-[var(--pl-text-weak)]',
 
