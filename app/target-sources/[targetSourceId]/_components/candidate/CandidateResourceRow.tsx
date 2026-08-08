@@ -87,6 +87,8 @@ interface CandidateResourceRowProps {
   readonly: boolean;
   drafts: CandidateDraftState;
   actions: CandidateRowActions;
+  /** Just added by hand — tint sweep + a "방금 추가" badge that fades on its own. */
+  justAdded?: boolean;
   /** True when the row hangs under a group parent — draws the tree rail on the identity cell (LIN-85). */
   grouped?: boolean;
   /** Last child of its group — the rail stops at this row's elbow, closing the group. */
@@ -213,6 +215,7 @@ export const CandidateResourceRow = ({
   readonly,
   drafts,
   actions,
+  justAdded = false,
   grouped = false,
   lastInGroup = false,
   rail,
@@ -285,7 +288,15 @@ export const CandidateResourceRow = ({
   return (
     <>
       <tr
-        className={cn(ROW_BASE, rowStateClass, canExpand && 'cursor-pointer', rowRail?.className)}
+        // data-just-added: 섹션이 이 행을 찾아 화면 안으로 스크롤하는 표식.
+        data-just-added={justAdded ? 'true' : undefined}
+        className={cn(
+          ROW_BASE,
+          rowStateClass,
+          justAdded && ec2Styles.rowJustAdded,
+          canExpand && 'cursor-pointer',
+          rowRail?.className,
+        )}
         onClick={handleRowClick}
         onMouseEnter={rowRail?.onMouseEnter}
         onMouseLeave={rowRail?.onMouseLeave}
@@ -369,15 +380,19 @@ export const CandidateResourceRow = ({
             // 여는 자리이므로, "무엇인가"를 먼저 말하고 이름이 뒤따른다.
             <span className={ec2Styles.rowStack}>
               <ResourceKindTag>EC2</ResourceKindTag>
-              <Tooltip
-                content={<IdentifierTip label="Resource Name" value={displayName} />}
-                variant="value"
-                size="md"
-                triggerClassName="min-w-0 max-w-[200px] block"
-                truncatedOnly
-              >
-                <span className="block truncate">{displayName || '—'}</span>
-              </Tooltip>
+              {/* 배지는 이름 옆 — 모션을 못 본 사람도 읽어서 알 수 있는 층이다. */}
+              <span className="flex min-w-0 items-center">
+                <Tooltip
+                  content={<IdentifierTip label="Resource Name" value={displayName} />}
+                  variant="value"
+                  size="md"
+                  triggerClassName="min-w-0 max-w-[200px] block"
+                  truncatedOnly
+                >
+                  <span className="block truncate">{displayName || '—'}</span>
+                </Tooltip>
+                {justAdded && <span className={ec2Styles.newBadge}>방금 추가</span>}
+              </span>
             </span>
           ) : (
             <Tooltip

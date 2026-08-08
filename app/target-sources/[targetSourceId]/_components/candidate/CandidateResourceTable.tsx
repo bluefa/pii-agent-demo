@@ -71,6 +71,8 @@ interface CandidateResourceTableProps {
   expandedResourceId: string | null;
   readonly: boolean;
   actions: CandidateRowActions;
+  /** The instance just added by hand — that one row wears the "방금 추가" marker. */
+  justAddedResourceId?: string | null;
   /** Shown when the (filtered) list is empty — the section passes the filter-empty copy. */
   emptyMessage?: string;
 }
@@ -83,6 +85,7 @@ export const CandidateResourceTable = ({
   expandedResourceId,
   readonly,
   actions,
+  justAddedResourceId,
   emptyMessage,
 }: CandidateResourceTableProps) => {
   const totalCount = candidates.length;
@@ -179,6 +182,7 @@ export const CandidateResourceTable = ({
                   readonly={readonly}
                   drafts={drafts}
                   actions={actions}
+                  justAdded={justAddedResourceId === candidate.id}
                   grouped={grouped}
                   lastInGroup={lastInGroup}
                   rail={rail}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createApprovalRequest } from '@/app/lib/api';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
@@ -128,6 +128,9 @@ export const CandidateResourceSection = ({
   const [manualEc2, setManualEc2] = useState<ManualEc2Entry[]>([]);
   const [ec2AddOpen, setEc2AddOpen] = useState(false);
   const [ec2EditingId, setEc2EditingId] = useState<string | null>(null);
+  // 방금 담긴 한 건. 여러 대를 이어 담으면 마커는 언제나 마지막 하나에만 붙는다 —
+  // 신호가 둘이면 어느 쪽이 방금인지 말해주지 못한다.
+  const [justAddedEc2Id, setJustAddedEc2Id] = useState<string | null>(null);
 
   // Manually added instances join the scanned candidates as ordinary rows, so the table,
   // the counts, the filters and the approval payload need no second code path. They lead the
@@ -319,11 +322,15 @@ export const CandidateResourceSection = ({
   // instance that is already in the list REPLACES its connection info rather than duplicating
   // the row — which is also how the edit path saves.
   const handleEc2Save = useCallback((instance: Ec2Instance, config: Ec2ConnectionConfig) => {
+    let added = false;
     setManualEc2((previous) => {
       const index = previous.findIndex((entry) => entry.instance.instanceId === instance.instanceId);
       // 새로 담은 것이 맨 위 — 이어서 여러 대를 담는 흐름이라, 방금 담은 행이
       // 앞서 담은 행 아래로 밀리면 추가됐다는 사실이 눈에서 사라진다.
-      if (index < 0) return [{ instance, config }, ...previous];
+      if (index < 0) {
+        added = true;
+        return [{ instance, config }, ...previous];
+      }
       const next = [...previous];
       next[index] = { instance, config };
       return next;
@@ -331,7 +338,24 @@ export const CandidateResourceSection = ({
     // Adding an instance IS choosing it — the user came to this modal to integrate it.
     setSelectedIds((previous) => new Set(previous).add(instance.instanceId));
     setEc2EditingId(null);
+    // 수정 저장에는 마커를 붙이지 않는다 — "방금 추가"는 그때 틀린 말이 된다.
+    if (added) setJustAddedEc2Id(instance.instanceId);
   }, [setSelectedIds]);
+
+  // 마커의 수명. 배지 애니메이션(4s)이 끝나면 상태에서도 걷어내, 이후의 정렬·필터
+  // 변경이 다 끝난 신호를 다시 그리지 않게 한다.
+  useEffect(() => {
+    if (justAddedEc2Id === null) return undefined;
+    const timer = setTimeout(() => setJustAddedEc2Id(null), 4200);
+    return () => clearTimeout(timer);
+  }, [justAddedEc2Id]);
+
+  // 화면 밖 행에 거는 신호는 아무 일도 하지 않는다 — 먼저 눈에 들어오게 한다.
+  // block:'nearest' 라 이미 보이는 행은 스크롤하지 않는다.
+  useEffect(() => {
+    if (justAddedEc2Id === null) return;
+    document.querySelector('[data-just-added="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [justAddedEc2Id]);
 
   const handleEc2Delete = useCallback((instanceId: string) => {
     setManualEc2((previous) => previous.filter((entry) => entry.instance.instanceId !== instanceId));
@@ -551,6 +575,7 @@ export const CandidateResourceSection = ({
                       expandedResourceId={expandedResourceId}
                       readonly={readonly}
                       actions={rowActions}
+                      justAddedResourceId={justAddedEc2Id}
                       emptyMessage="조건에 맞는 결과가 없어요."
                     />
                     {table.filteredCount > 0 && (
@@ -720,6 +745,12 @@ export const CandidateResourceSection = ({
           onClose={reasonModal.close}
         />
       )}
+
+      {/* 틴트도 배지도 보지 못하는 사용자에게 같은 사실을 말한다 — 시각 신호와
+          같은 자리에서 한 번만. */}
+      <p aria-live="polite" className="sr-only">
+        {justAddedEc2Id === null ? '' : `EC2 인스턴스 ${justAddedEc2Id}을(를) 연동 대상 목록에 추가했어요.`}
+      </p>
 
       {/* Mounted per open so the search query, the results and the form start fresh; the
           edit path passes the row's own pair, which selects the config step. */}
