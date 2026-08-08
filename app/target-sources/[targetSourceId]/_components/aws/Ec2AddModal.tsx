@@ -135,12 +135,9 @@ export const Ec2AddModal = ({
       port: portNum,
       ...(needsServiceId ? { oracleServiceId: oracleServiceId.trim() } : {}),
     });
-    if (editing) {
-      onClose();
-      return;
-    }
-    // Continuous adding: back to the search step with the query and results still up.
-    setPicked(null);
+    // 담는 일은 여기서 끝난다 — 추가하고 검색 화면으로 되돌아오면 방금 담은 결과가
+    // 그대로 남아, 끝난 것인지 더 해야 하는 것인지 화면이 말해주지 못한다.
+    onClose();
   };
 
   const onConfigStep = picked !== null;
@@ -151,6 +148,11 @@ export const Ec2AddModal = ({
       onClose={onClose}
       size="2xl"
       chrome="toss"
+      // 닫는 길은 푸터 버튼(닫기·이전·취소)이 이미 갖고 있다 — 헤더 ✕ 는 같은 말을 두 번.
+      closeButton={false}
+      // 결과가 5건으로 묶여 있어 본문이 푸터 아래로 흐르지 않는다 — 구분선이 표시할
+      // 경계 자체가 없다.
+      footerDivider={false}
       title={
         onConfigStep ? (editing ? '접속 정보 수정' : '접속 정보 설정') : 'EC2 인스턴스 추가'
       }
@@ -383,8 +385,10 @@ const Ec2ResultRow = ({
   return (
     <div className={ec2Styles.resultRow}>
       <div className="min-w-0">
-        <span className={cn(idcStyles.kindBadge.base, idcStyles.kindBadge.ec2)}>EC2</span>
-        <p className={cn(ec2Styles.resultId, 'mt-1 truncate')}>
+        {/* EC2 태그는 여기 없다 — 검색 결과는 전부 EC2라 다섯 줄에 같은 배지를 붙여도
+            구분되는 것이 없고, 줄만 한 칸씩 늘어난다. 태그가 일하는 자리는 다른 리소스와
+            섞이는 Step1 표다. */}
+        <p className={cn(ec2Styles.resultId, 'truncate')}>
           {matchLength > 0 && (
             <span className={ec2Styles.resultMatch}>{instance.instanceId.slice(0, matchLength)}</span>
           )}

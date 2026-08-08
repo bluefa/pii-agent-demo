@@ -48,6 +48,12 @@ export interface ModalProps {
   closeButton?: boolean;
   /** 푸터 영역 (버튼 등) */
   footer?: ReactNode;
+  /**
+   * Hairline above the footer. Set false when the body does not scroll under it —
+   * the rule exists to mark where scrolling content ends, so on a short modal it is
+   * just a line. Default keeps every existing caller unchanged.
+   */
+  footerDivider?: boolean;
   /** 배경 클릭으로 닫기 허용 여부 */
   closeOnBackdropClick?: boolean;
   /** ESC 키로 닫기 허용 여부 */
@@ -102,6 +108,7 @@ export const Modal = ({
   children,
   closeButton = true,
   footer,
+  footerDivider = true,
   closeOnBackdropClick = true,
   closeOnEscape = true,
 }: ModalProps) => {
@@ -226,7 +233,9 @@ export const Modal = ({
         <div className={cn(bodyCls, 'min-h-0 overflow-y-auto')}>{children}</div>
 
         {/* Footer */}
-        {footer && <div className={cn(footerCls, 'flex-none')}>{footer}</div>}
+        {footer && (
+          <div className={cn(footerCls, !footerDivider && 'border-t-0', 'flex-none')}>{footer}</div>
+        )}
       </div>
     </div>
   );

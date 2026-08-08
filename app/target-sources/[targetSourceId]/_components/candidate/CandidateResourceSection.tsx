@@ -128,11 +128,12 @@ export const CandidateResourceSection = ({
   const [ec2EditingId, setEc2EditingId] = useState<string | null>(null);
 
   // Manually added instances join the scanned candidates as ordinary rows, so the table,
-  // the counts, the filters and the approval payload need no second code path.
+  // the counts, the filters and the approval payload need no second code path. They lead the
+  // list: the user just added them, and a row appended behind ten scanned ones reads as lost.
   const allCandidates = useMemo(
     () => [
-      ...candidates,
       ...manualEc2.map((entry) => toManualEc2Candidate(entry.instance, entry.config)),
+      ...candidates,
     ],
     [candidates, manualEc2],
   );
@@ -314,7 +315,9 @@ export const CandidateResourceSection = ({
   const handleEc2Save = useCallback((instance: Ec2Instance, config: Ec2ConnectionConfig) => {
     setManualEc2((previous) => {
       const index = previous.findIndex((entry) => entry.instance.instanceId === instance.instanceId);
-      if (index < 0) return [...previous, { instance, config }];
+      // 새로 담은 것이 맨 위 — 이어서 여러 대를 담는 흐름이라, 방금 담은 행이
+      // 앞서 담은 행 아래로 밀리면 추가됐다는 사실이 눈에서 사라진다.
+      if (index < 0) return [{ instance, config }, ...previous];
       const next = [...previous];
       next[index] = { instance, config };
       return next;

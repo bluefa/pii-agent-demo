@@ -1116,7 +1116,7 @@ export const ec2Styles = {
   helperCode: 'font-mono font-semibold text-[#4E5968]',
   /** 검색 결과 한 행. */
   resultRow:
-    'flex items-center justify-between gap-3 rounded-xl border border-[#EBEEF2] bg-white px-3.5 py-3 transition-colors hover:border-[#D6E7FF] hover:bg-[#F8FAFF]',
+    'flex items-center justify-between gap-3 rounded-xl border border-[#EBEEF2] bg-white px-3.5 py-2.5 transition-colors hover:border-[#D6E7FF] hover:bg-[#F8FAFF]',
   resultId: 'font-mono text-[14px] font-semibold text-[#191F28]',
   /** 질의와 일치한 앞부분 — 어디까지 입력해서 걸린 결과인지 보여준다. */
   resultMatch: 'text-[#0064FF]',

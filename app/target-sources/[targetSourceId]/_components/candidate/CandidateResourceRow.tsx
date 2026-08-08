@@ -442,6 +442,13 @@ export const CandidateResourceRow = ({
               <StatusWarningIcon className="h-3.5 w-3.5" />
               설치 불가
             </button>
+          ) : candidate.integrationCategory === 'NO_INSTALL_NEEDED' ? (
+            // 설치가 선택인 행(VM·EC2)은 사용자의 판단이 필요한 예외라 태그로 세운다.
+            // 기본값인 설치 대상은 평문으로 남겨야 이 강조가 산다. 제외된 행에서도
+            // 흐리지 않는다 — 판단이 필요한 이유는 페이드를 견뎌야 한다.
+            <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>
+              {CATEGORY_LABELS.NO_INSTALL_NEEDED}
+            </span>
           ) : (
             <span className={cn('whitespace-nowrap', dimmed ? DIM_TEXT : textColors.secondary, CELL_LIFT)}>
               {CATEGORY_LABELS[candidate.integrationCategory]}
