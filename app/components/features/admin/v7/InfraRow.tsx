@@ -77,7 +77,10 @@ export const InfraRow = ({ project, onOpenDetail, onManageAction }: InfraRowProp
   // 붙어 있으면 그 규칙이 이 한 줄에서만 깨진다.
   const showTenant =
     project.cloudProvider === 'Azure' && !project.isSduType && Boolean(project.tenantId);
-  const showChinaRegion = project.isChinaRegion && !project.isSduType;
+  // 중국 리전 태그도 AWS 전용이다 — Azure·GCP·IDC 는 중국 파티션을 별도 계정 개념으로
+  // 갖지 않으므로, 그쪽 행에 태그를 달면 없는 구분을 있는 것처럼 보이게 한다.
+  const showChinaRegion =
+    project.cloudProvider === 'AWS' && project.isChinaRegion && !project.isSduType;
   const hasSecondLayer =
     showTenant || showInstallMode || Boolean(identity.gloss) || Boolean(identity.secondValue);
   // Both controls repeat once per card, so their labels have to carry which card they

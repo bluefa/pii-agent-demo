@@ -17,9 +17,10 @@ import {
   textColors,
 } from '@/lib/theme';
 
+// China 먼저, Global 뒤 — 두 장이 한 줄에 서고 기본값(Global)이 오른쪽에 온다.
 const REGION_OPTIONS: Array<{ value: OperatingRegion; title: string; description: string }> = [
-  { value: 'global', title: 'Global', description: '일반 리전에서 운영 중인 계정이에요.' },
   { value: 'china', title: 'China', description: '리전 정책에 따라 연동 구성이 달라질 수 있어요.' },
+  { value: 'global', title: 'Global', description: '일반 리전에서 운영 중인 계정이에요.' },
 ];
 
 interface Step1CloudAccountProps {
@@ -94,7 +95,11 @@ export const Step1CloudAccount = ({
         <legend className={cn('mb-2 block text-sm font-semibold', textColors.secondary)}>
           운영 리전 <span className={statusColors.error.text}>*</span>
         </legend>
-        <div role="radiogroup" aria-label="운영 리전" className="flex max-w-[520px] flex-col gap-2">
+        <div
+          role="radiogroup"
+          aria-label="운영 리전"
+          className="grid max-w-[520px] grid-cols-2 gap-2"
+        >
           {REGION_OPTIONS.map((option) => {
             const isSelected = region === option.value;
             return (

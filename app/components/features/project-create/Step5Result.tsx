@@ -1,13 +1,16 @@
 'use client';
 
-import { cn, borderColors, statusColors, textColors } from '@/lib/theme';
+import { CandidateCard } from '@/app/components/features/project-create/CandidateCard';
+import { candidateTitle } from '@/app/components/features/project-create/candidate-display';
+import type { AwsInstallMode } from '@/app/components/features/project-create/wizard-model';
+import type { TargetSourceCreationCandidateResponse } from '@/app/lib/api';
+import { cn, statusColors, textColors } from '@/lib/theme';
 
 export type RegistrationRowStatus = 'in-progress' | 'done' | 'failed';
 
 export interface RegistrationRow {
   key: string;
-  label: string;
-  meta: string;
+  candidate: TargetSourceCreationCandidateResponse;
   status: RegistrationRowStatus;
   error?: string;
 }
@@ -15,21 +18,17 @@ export interface RegistrationRow {
 const RowStatus = ({ status }: { status: RegistrationRowStatus }) => {
   if (status === 'done') {
     return (
-      <span className={cn('ml-auto text-xs font-bold', statusColors.success.textDark)}>
-        등록 완료
-      </span>
+      <span className={cn('text-xs font-bold', statusColors.success.textDark)}>등록 완료</span>
     );
   }
   if (status === 'failed') {
-    return (
-      <span className={cn('ml-auto text-xs font-bold', statusColors.error.textDark)}>등록 실패</span>
-    );
+    return <span className={cn('text-xs font-bold', statusColors.error.textDark)}>등록 실패</span>;
   }
   return (
     <span
       aria-label="등록 중"
       className={cn(
-        'ml-auto h-3.5 w-3.5 flex-shrink-0 rounded-full border-2 border-t-transparent motion-safe:animate-spin',
+        'block h-3.5 w-3.5 rounded-full border-2 border-t-transparent motion-safe:animate-spin',
         statusColors.info.border,
       )}
     />
@@ -38,11 +37,12 @@ const RowStatus = ({ status }: { status: RegistrationRowStatus }) => {
 
 interface Step5ResultProps {
   rows: RegistrationRow[];
+  installMode: AwsInstallMode;
   complete: boolean;
   failedCount: number;
 }
 
-export const Step5Result = ({ rows, complete, failedCount }: Step5ResultProps) => (
+export const Step5Result = ({ rows, installMode, complete, failedCount }: Step5ResultProps) => (
   <div>
     <h2 className={cn('text-lg font-bold', textColors.primary)}>
       {complete ? '등록을 완료했어요' : '인프라를 등록하고 있어요'}
@@ -53,16 +53,17 @@ export const Step5Result = ({ rows, complete, failedCount }: Step5ResultProps) =
         : '계정 연결과 자격증명 검증을 진행해요. 잠시만 기다려 주세요.'}
     </p>
 
-    <div className="flex max-w-[640px] flex-col gap-2">
+    {/* Same cards as 등록 내용 확인 — the user is watching the very rows they just
+        approved, so re-rendering them in a different anatomy would read as a
+        different set. Only the status on the right is new. */}
+    <div className="flex max-w-[640px] flex-col gap-2.5">
       {rows.map((row) => (
-        <div
+        <CandidateCard
           key={row.key}
-          className={cn('flex items-center gap-2.5 rounded-xl border px-4 py-3', borderColors.default)}
-        >
-          <span className={cn('text-sm font-bold', textColors.primary)}>{row.label}</span>
-          <span className={cn('min-w-0 truncate text-xs', textColors.tertiary)}>{row.meta}</span>
-          <RowStatus status={row.status} />
-        </div>
+          candidate={row.candidate}
+          installMode={installMode}
+          trailing={<RowStatus status={row.status} />}
+        />
       ))}
     </div>
 
@@ -72,7 +73,7 @@ export const Step5Result = ({ rows, complete, failedCount }: Step5ResultProps) =
           .filter((row) => row.error)
           .map((row) => (
             <li key={`${row.key}-error`} className={cn('text-xs', statusColors.error.textDark)}>
-              {row.label} — {row.error}
+              {candidateTitle(row.candidate)} — {row.error}
             </li>
           ))}
       </ul>

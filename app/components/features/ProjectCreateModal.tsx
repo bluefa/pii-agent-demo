@@ -9,10 +9,6 @@ import {
   getCreationCandidates,
   type TargetSourceCreationCandidateResponse,
 } from '@/app/lib/api';
-import {
-  candidateIdentifier,
-  candidateTitle,
-} from '@/app/components/features/project-create/candidate-display';
 import { Step1CloudAccount } from '@/app/components/features/project-create/Step1CloudAccount';
 import { Step2AccountInfo } from '@/app/components/features/project-create/Step2AccountInfo';
 import { Step3Databases } from '@/app/components/features/project-create/Step3Databases';
@@ -140,9 +136,8 @@ export const ProjectCreateModal = ({
     setRows(
       addCandidates.map((candidate, idx) => ({
         key: `row-${idx}`,
-        label: candidateTitle(candidate),
-        meta: candidateIdentifier(candidate),
-        status: 'in-progress',
+        candidate,
+        status: 'in-progress' as const,
       })),
     );
     setStep(5);
@@ -283,6 +278,7 @@ export const ProjectCreateModal = ({
               {step === 5 && (
                 <Step5Result
                   rows={rows}
+                  installMode={installMode}
                   complete={registrationComplete}
                   failedCount={failedCount}
                 />
