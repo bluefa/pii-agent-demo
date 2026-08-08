@@ -49,7 +49,7 @@ function HostCell({
         <span
           className={cn(
             'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-left [direction:ltr]',
-            textClassName ?? 'text-[12.5px]',
+            textClassName ?? 'text-[14px]',
             tone ?? textColors.primary,
           )}
         >
@@ -80,9 +80,9 @@ function HostCell({
  * Only MULTIPLE_IP collapses. A DOMAIN row has one hostname and a SINGLE row one IP, so
  * there is nothing to hide and no toggle is drawn.
  *
- * 14px + the hover lift, the two things WaitingApprovalTable gives its Resource Name —
- * this is the same thing, the row's identity, and at 12.5px it was rendering SMALLER
- * than the attributes beside it. Weight is deliberately left at 400: the sibling table
+ * The hover lift is what WaitingApprovalTable gives its Resource Name, and this is the
+ * same thing — the row's identity. Size no longer separates it: every string in the row
+ * reads at 14px. Weight is deliberately left at 400: the sibling table
  * tried 600 on its identity column and removed it, because colour plus weight on one
  * cell reads as shouting. One axis per column, and the hover lift is it.
  *
@@ -165,7 +165,7 @@ export function IdcDbTypeCell({
 }): ReactElement {
   return (
     <span className="flex flex-col items-start gap-1">
-      <span className={cn('text-[12px]', tone ?? textColors.secondary)}>{label}</span>
+      <span className={cn('text-[14px]', tone ?? textColors.secondary)}>{label}</span>
       {oracleSid && (
         <span className="inline-flex min-w-0 items-center gap-1">
           <span className={idcStyles.sidKey}>SID</span>
@@ -174,9 +174,9 @@ export function IdcDbTypeCell({
             label="Oracle SID"
             tone={tone ?? textColors.tertiary}
             // 500, one step over the 400 the other mono values rest at: the SID is an
-            // identifier the admin matches against, and at 11.5px tertiary it was the
-            // faintest text in the row.
-            textClassName="text-[11.5px] font-medium"
+            // identifier the admin matches against, and tertiary at the row's size would
+            // leave it the faintest text there.
+            textClassName="text-[14px] font-medium"
             maxWidthClass="max-w-[150px]"
           />
         </span>

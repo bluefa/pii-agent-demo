@@ -57,7 +57,7 @@ export interface IdcResourceTableProps {
 // until the pointer was already on it. It rests at 40% and fills in on hover, so the
 // affordance is legible without competing with the row's own values.
 const NLB_BTN =
-  'text-[13px] font-medium text-[var(--pl-primary)] tabular-nums cursor-pointer underline underline-offset-[3px] decoration-[var(--pl-primary)]/40 hover:decoration-[var(--pl-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)] rounded-sm';
+  'text-[14px] font-medium text-[var(--pl-primary)] tabular-nums cursor-pointer underline underline-offset-[3px] decoration-[var(--pl-primary)]/40 hover:decoration-[var(--pl-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)] rounded-sm';
 
 export function IdcResourceTable({
   rows,
@@ -72,7 +72,7 @@ export function IdcResourceTable({
     // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
     <div className={CONNECTED_FRAME}>
       <div className="overflow-x-auto">
-      <table className="w-full text-[13px]">
+      <table className="w-full text-[14px]">
         <thead className={table.approvalHeaderChrome}>
           {/* Identity first, then its attributes, then the decision — the same reading
               order as the cloud table and step 1. An IDC row's identity is its host/IP,
@@ -147,7 +147,7 @@ export function IdcResourceTable({
                   </td>
                   {/* 0 is the adapter's "no port in the payload" value, not a port — step
                       1's own guard, so the two tables answer a missing port the same way. */}
-                  <td className={cn(table.approvalCell, 'font-mono text-[12px]', DIM_TEXT, CELL_LIFT)}>
+                  <td className={cn(table.approvalCell, 'font-mono text-[14px]', DIM_TEXT, CELL_LIFT)}>
                     {row.port || <span className={textColors.tertiary}>—</span>}
                   </td>
                   {/* The pill step 1 uses, not a text label: the verdict is the same fact
@@ -189,7 +189,7 @@ export function IdcResourceTable({
                 <td
                   className={cn(
                     table.approvalCell,
-                    'font-mono text-[12px]',
+                    'font-mono text-[14px]',
                     textColors.secondary,
                     CELL_LIFT,
                   )}
@@ -205,7 +205,7 @@ export function IdcResourceTable({
                       reads its assignment, as plain text. */}
                   {disabled || row.resourceId == null ? (
                     row.nlbIndex != null && (
-                      <span className={cn('text-[13px] tabular-nums', textColors.secondary, CELL_LIFT)}>
+                      <span className={cn('text-[14px] tabular-nums', textColors.secondary, CELL_LIFT)}>
                         NLB #{row.nlbIndex}
                       </span>
                     )

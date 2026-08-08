@@ -53,7 +53,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
     // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
     <div className={CONNECTED_FRAME}>
       <div className="overflow-x-auto">
-      <table className="w-full text-[13px]">
+      <table className="w-full text-[14px]">
         <thead className={table.approvalHeaderChrome}>
           <tr>
             {/* Resource ID's text caps at 300px (resId.text), so its column was sitting
@@ -158,11 +158,12 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                       value={row.resourceId}
                       label="Resource ID"
                       maxWidthClass="max-w-[300px]"
+                      sizeClass="text-[14px]"
                       textClassName={cn(tone, CELL_LIFT)}
                     />
                   )}
                 </td>
-                <td className={cn(table.approvalCell, 'text-[12px]', tone, CELL_LIFT)}>
+                <td className={cn(table.approvalCell, 'text-[14px]', tone, CELL_LIFT)}>
                   {/* wire 는 소문자 원문(mysql·athena)이라 사용자 화면과 같은 표기로 맞춘다. */}
                   {row.databaseType ? getDatabaseShortLabel(row.databaseType) : ''}
                 </td>
@@ -171,7 +172,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     table.approvalCell,
                     // A region is one token — wrapping it to "ap-northeast-" / "2" reads
                     // as two values.
-                    'whitespace-nowrap font-mono text-[12px]',
+                    'whitespace-nowrap font-mono text-[14px]',
                     tone,
                     CELL_LIFT,
                   )}
@@ -226,13 +227,13 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     </span>
                   </td>
                   <td className={table.approvalCell} />
-                  <td className={cn(table.approvalCell, 'text-[12px]', tone, CELL_LIFT)}>
+                  <td className={cn(table.approvalCell, 'text-[14px]', tone, CELL_LIFT)}>
                     Instance
                   </td>
                   <td
                     className={cn(
                       table.approvalCell,
-                      'whitespace-nowrap font-mono text-[12px]',
+                      'whitespace-nowrap font-mono text-[14px]',
                       tone,
                       CELL_LIFT,
                     )}
