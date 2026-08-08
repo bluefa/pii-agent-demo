@@ -114,7 +114,8 @@ describe('CloudResourceTable', () => {
 
     it('lists instances Reader-first then by resource_id, regardless of request order', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
-      expect(instanceNames().map((text) => text.slice(0, 6))).toEqual([
+      // The cell reads "<role chip><name>", so pull the name out rather than slicing the head.
+      expect(instanceNames().map((text) => text.match(/demo-\d/)?.[0])).toEqual([
         'demo-2',
         'demo-3',
         'demo-1',

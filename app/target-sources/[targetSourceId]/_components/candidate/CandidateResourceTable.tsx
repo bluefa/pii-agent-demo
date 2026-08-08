@@ -143,7 +143,7 @@ export const CandidateResourceTable = ({
                 the selection verdict, so there is no 대상/비대상 badge column. */}
             <tr className="whitespace-nowrap">
               {showCheckboxColumn && <th className={cn(idcStyles.table.approvalHeaderCell, 'w-10')} />}
-              <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
+              <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
               <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
               <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
               <th className={idcStyles.table.approvalHeaderCell}>Region</th>

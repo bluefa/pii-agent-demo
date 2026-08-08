@@ -20,8 +20,7 @@ import {
 import {
   Ec2InstanceTag,
   RdsClusterTag,
-  RdsMemberChip,
-  RdsSelectionChip,
+  RdsInstanceIdentity,
 } from '@/app/components/ui/RdsInstanceChips';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { isEc2Instance } from '@/lib/types';
@@ -174,19 +173,14 @@ const RdsInstanceRow = ({
               className={cn('h-4 w-4', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
             />
           )}
-          <span
-            className={cn(
-              'truncate font-mono text-[14px]',
-              textColors.primary,
-              CELL_LIFT,
-            )}
-          >
-            {identifier}
-          </span>
-          <RdsMemberChip role={instance.cluster_member_role} />
           {/* Editable: the checked radio already says which member is chosen, so no chip.
               Read-only has no radio, so 선택됨 is the only thing left to say it. */}
-          {readonly && isChosen && <RdsSelectionChip />}
+          <RdsInstanceIdentity
+            identifier={identifier}
+            role={instance.cluster_member_role}
+            selected={readonly && isChosen}
+            nameClassName={cn('font-mono text-[14px]', textColors.primary, CELL_LIFT)}
+          />
         </span>
       </td>
 
@@ -336,6 +330,9 @@ export const CandidateResourceRow = ({
             textColors.primary,
             !showCheckboxColumn && verdictRailClass(dimmed, isIneligible),
             NAME_LIFT,
+            // A grouped child's indent already carries the column's 26px — the two padding
+            // tokens must never both land on one cell.
+            !grouped && idcStyles.table.nameCell,
             grouped && idcStyles.table.group.childCell,
             grouped && lastInGroup && idcStyles.table.group.childCellLast,
             // Cluster parent: carry the rail's first segment down to its first instance row.
@@ -346,7 +343,7 @@ export const CandidateResourceRow = ({
             // Two-line identity (owner request): the tag sits ABOVE the name, not beside it.
             // The chevron centres on the pair — pinned to the tag line it read as misaligned
             // against every other control in the row, which all sit on the row's middle.
-            <span className="flex items-center gap-2">
+            <span className={idcStyles.table.group.lead}>
               <button
                 type="button"
                 // No aria-controls: the instance rows are `<tr>` siblings with no single

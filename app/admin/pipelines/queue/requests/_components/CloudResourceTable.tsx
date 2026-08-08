@@ -31,8 +31,7 @@ import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_component
 import {
   Ec2InstanceTag,
   RdsClusterTag,
-  RdsMemberChip,
-  RdsSelectionChip,
+  RdsInstanceIdentity,
 } from '@/app/components/ui/RdsInstanceChips';
 import { isRdsCluster, rdsInstanceLabel, sortRdsInstances } from '@/lib/rds-instances';
 import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
@@ -76,7 +75,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             {/* Resource ID's text caps at 300px (resId.text), so its column was sitting
                 on ~150px it could not use. Spent here: names differ in their TAIL
                 (…-cluster-001 / -002), which is exactly what truncation eats first. */}
-            <th className={cn(table.approvalHeaderCell, 'w-[360px]')}>Resource Name</th>
+            <th className={cn(table.approvalHeaderCell, table.nameCell, 'w-[360px]')}>Resource Name</th>
             <th className={table.approvalHeaderCell}>Resource ID</th>
             <th className={cn(table.approvalHeaderCell, 'w-[120px] whitespace-nowrap')}>Database Type</th>
             <th className={cn(table.approvalHeaderCell, 'w-[130px]')}>Region</th>
@@ -122,6 +121,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                 <td
                   className={cn(
                     table.approvalCell,
+                    table.nameCell,
                     // 14, the size WaitingApprovalTable and the IDC table give their own
                     // identity column — it was rendering at the attribute tier.
                     'font-mono text-[14px]',
@@ -137,7 +137,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                   {/* One line, always — wrapping left row heights ragged. The full value
                       opens in the same tip card the rest of the app uses, and only when
                       the name is actually clipped (`truncatedOnly`). */}
-                  <span className="flex items-center gap-2">
+                  <span className={table.group.lead}>
                     {hasInstances && (
                       <button
                         type="button"
@@ -234,13 +234,11 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                       instanceIndex === instances.length - 1 && table.group.childCellLast,
                     )}
                   >
-                    <span className="flex items-center gap-2">
-                      <span className="truncate">{rdsInstanceLabel(instance)}</span>
-                      <RdsMemberChip role={instance.cluster_member_role} />
-                      {instance.resource_id === row.selectedRdsInstanceResourceId && (
-                        <RdsSelectionChip />
-                      )}
-                    </span>
+                    <RdsInstanceIdentity
+                      identifier={rdsInstanceLabel(instance)}
+                      role={instance.cluster_member_role}
+                      selected={instance.resource_id === row.selectedRdsInstanceResourceId}
+                    />
                   </td>
                   <td className={table.approvalCell} />
                   <td className={cn(table.approvalCell, 'text-[14px]', tone, CELL_LIFT)}>

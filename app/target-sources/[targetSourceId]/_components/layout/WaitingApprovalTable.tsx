@@ -24,8 +24,7 @@ import {
 import {
   Ec2InstanceTag,
   RdsClusterTag,
-  RdsMemberChip,
-  RdsSelectionChip,
+  RdsInstanceIdentity,
 } from '@/app/components/ui/RdsInstanceChips';
 import { hasLogicalDatabases, isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
@@ -439,6 +438,9 @@ export const WaitingApprovalTable = memo(
                   excluded,
                   resource.integrationCategory === 'INSTALL_INELIGIBLE',
                 ),
+              // A grouped child's indent already carries the column's 26px — the two padding
+              // tokens must never both land on one cell.
+              !grouped && idcStyles.table.nameCell,
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
               (instancesOpen || (folded && open)) && idcStyles.table.group.parentCell,
@@ -448,7 +450,7 @@ export const WaitingApprovalTable = memo(
               // A cluster keeps its own name — two-line identity (owner request): the tag sits
               // ABOVE the name, and the chevron centres on the pair.
               // Same stack as the step-1 cluster row so the three steps read identically.
-              <span className="flex items-center gap-2">
+              <span className={idcStyles.table.group.lead}>
                 <button
                   type="button"
                   // No aria-controls: the instance rows are `<tr>` siblings with no single
@@ -713,13 +715,11 @@ export const WaitingApprovalTable = memo(
                       index === instances.length - 1 && idcStyles.table.group.childCellLast,
                     )}
                   >
-                    <span className="flex items-center gap-2">
-                      <span className="truncate">{rdsInstanceLabel(instance)}</span>
-                      <RdsMemberChip role={instance.cluster_member_role} />
-                      {instance.resource_id === resource.selectedRdsInstanceResourceId && (
-                        <RdsSelectionChip />
-                      )}
-                    </span>
+                    <RdsInstanceIdentity
+                      identifier={rdsInstanceLabel(instance)}
+                      role={instance.cluster_member_role}
+                      selected={instance.resource_id === resource.selectedRdsInstanceResourceId}
+                    />
                   </td>
                   <td className={idcStyles.table.approvalCell} />
                   <td
@@ -806,7 +806,7 @@ export const WaitingApprovalTable = memo(
               {/* Identity (name → id) → attributes (type · region) → decision (verdict → reason).
                   The scan anchor is the human-readable name, not a 3-value category column. */}
               <tr className="whitespace-nowrap">
-                <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
+                <th className={cn(idcStyles.table.approvalHeaderCell, idcStyles.table.nameCell)}>Resource Name</th>
                 <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
                 {/* Step 4 drops the two attribute columns: the engine was settled back on
                     steps 1·2 and the install runs the same either way, and the region is a
