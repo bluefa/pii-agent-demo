@@ -31,6 +31,17 @@ type BffApprovalProcessStatus =
 
 type CanonicalProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU' | 'Others';
 
+// The registration wizard's two slow calls answer instantly in mock mode, which hides
+// the step-4 skeleton and the step-5 spinner entirely. 3s is the demo stand-in for the
+// real recommendation/provisioning round trip. Mock module only.
+// Skipped under vitest: it is a demo affordance, and paying it per case put the
+// round-trip test (create + re-preview = 6s) over the 5s default timeout.
+const REGISTRATION_LATENCY_MS = 3000;
+const registrationLatency = () =>
+  process.env.VITEST
+    ? Promise.resolve()
+    : new Promise((resolve) => setTimeout(resolve, REGISTRATION_LATENCY_MS));
+
 const toBffCloudProvider = (cloudProvider: CloudProvider): BffCloudProvider => {
   switch (cloudProvider) {
     case 'Azure':
@@ -436,6 +447,7 @@ export const mockTargetSources = {
   // (snake) posted back verbatim; serviceCode is the path param. Returns 201
   // TargetSourceInfo (camel top + snake metadata).
   create: async (serviceCode: string, body: unknown) => {
+    await registrationLatency();
     const user = getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
@@ -519,6 +531,7 @@ export const mockTargetSources = {
   },
 
   previewRegistration: async (serviceCode: string, body: unknown) => {
+    await registrationLatency();
     const user = getCurrentUser();
     if (!user) {
       return NextResponse.json(

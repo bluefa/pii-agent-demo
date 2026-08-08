@@ -23,7 +23,10 @@ export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
   <nav
     aria-label="등록 단계"
     className={cn(
-      'flex w-[216px] flex-shrink-0 flex-col gap-0.5 border-r px-[18px] py-[22px]',
+      // 256, not 216: at 216 the text column was 148px and 「사용하는 Database 확인」
+      // wrapped onto a second line with the rail's own right margin still empty.
+      // The modal grew by the same 40px so the content pane keeps its width.
+      'flex w-[256px] flex-shrink-0 flex-col gap-1 border-r px-[18px] py-[22px]',
       borderColors.light,
       bgColors.muted,
     )}
@@ -41,7 +44,9 @@ export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
           aria-current={isActive ? 'step' : undefined}
           onClick={canNavigate ? () => onNavigate(step) : undefined}
           className={cn(
-            'flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2.5 text-left transition-colors',
+            // `flex-1`: the five rows split the rail's full height instead of stacking
+            // at the top over 300px of empty gray.
+            'flex w-full flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-2.5 text-left transition-colors',
             isActive && cn(bgColors.surface, tossShadow.sm),
             canNavigate && cn(bgColors.surfaceHover, 'cursor-pointer'),
             !canNavigate && !isActive && 'cursor-default',

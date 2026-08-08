@@ -25,7 +25,7 @@ export const PROVIDER_CHIPS: ProviderChipDef[] = [
   { key: 'aws', label: 'AWS', description: 'Amazon Web Services', cloudType: 'aws' },
   { key: 'azure', label: 'Azure', description: 'Microsoft Azure', cloudType: 'azure' },
   { key: 'gcp', label: 'GCP', description: 'Google Cloud', cloudType: 'gcp' },
-  { key: 'idc', label: 'IDC', description: '자체 데이터센터', cloudType: 'idc' },
+  { key: 'idc', label: 'IDC', description: '사내 데이터 센터', cloudType: 'idc' },
   { key: 'other', label: '기타', description: '그 외 환경', cloudType: 'others' },
 ];
 

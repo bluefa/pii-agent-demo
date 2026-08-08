@@ -215,7 +215,7 @@ export const ProjectCreateModal = ({
           // `max-h-[90vh]` is the short-window escape hatch — the pane scrolls instead.
           className={cn(
             modalStyles.container,
-            'flex h-[700px] max-h-[90vh] w-[920px] max-w-[calc(100vw-2rem)] flex-col shadow-2xl',
+            'flex h-[700px] max-h-[90vh] w-[960px] max-w-[calc(100vw-2rem)] flex-col shadow-2xl',
           )}
           onClick={(e) => e.stopPropagation()}
         >
