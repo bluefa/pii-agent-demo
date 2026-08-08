@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
-import { useToast } from '@/app/components/ui/toast';
 import { useModal } from '@/app/hooks/useModal';
 import {
   createTargetSource,
@@ -42,7 +41,6 @@ export const ProjectCreateModal = ({
   onClose,
   onCreated,
 }: ProjectCreateModalProps) => {
-  const toast = useToast();
   const [step, setStep] = useState<WizardStep>(1);
   const [providerKey, setProviderKey] = useState<ProviderChipKey>('aws');
   const [region, setRegion] = useState<OperatingRegion>('global');
@@ -84,13 +82,60 @@ export const ProjectCreateModal = ({
     openConfirm();
   }, [step, registrationComplete, onClose, openConfirm]);
 
+  // WCAG dialog pattern, same shape as ConfirmStepModal: focus enters the dialog,
+  // the body stops scrolling, and focus goes back to the trigger on close. Without
+  // it Tab walks into the /services list behind the overlay, where Enter routes to
+  // another service — and this modal is not keyed by service, so it would keep the
+  // whole wizard while `selectedServiceCode` swapped underneath it.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      trigger?.focus();
+    };
+  }, []);
+
   const confirmIsOpen = closeConfirm.isOpen;
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      // The confirm dialog owns Escape while it is open (it dismisses itself).
+      // The confirm dialog owns both keys while it is open — it runs its own trap
+      // and dismisses itself on Escape.
       if (confirmIsOpen) return;
-      requestClose();
+      if (event.key === 'Escape') {
+        requestClose();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusables = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), textarea, input, select, a[href]',
+        ) ?? [],
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      // Covers the first Tab after mount, when focus is on the dialog container
+      // itself and would otherwise step out to whatever sits behind the overlay.
+      const inside =
+        active !== null && active !== dialogRef.current && dialogRef.current?.contains(active);
+      if (!inside) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+      }
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -124,9 +169,9 @@ export const ProjectCreateModal = ({
       setCandidates(next);
     } catch (err) {
       if (!mountedRef.current || seq !== candidateSeqRef.current) return;
-      const message = err instanceof Error ? err.message : '연동 구성을 확인하지 못했어요.';
-      setCandidatesError(message);
-      toast.error(message);
+      // The inline card on step 4 is the error surface; a toast on top of it says
+      // the same sentence twice and leaves as the card stays.
+      setCandidatesError(err instanceof Error ? err.message : '연동 구성을 확인하지 못했어요.');
     } finally {
       if (mountedRef.current && seq === candidateSeqRef.current) setCandidatesBusy(false);
     }
@@ -191,6 +236,12 @@ export const ProjectCreateModal = ({
       return;
     }
     if (step === 4) {
+      // A failed fetch left step 4 with a disabled button and no way forward — the
+      // primary becomes the retry rather than adding a second control.
+      if (candidatesError !== null) {
+        void loadCandidates();
+        return;
+      }
       void startRegistration();
       return;
     }
@@ -198,10 +249,18 @@ export const ProjectCreateModal = ({
   };
 
   const primaryLabel =
-    step === 4 ? '등록하기' : step === 5 ? (registrationComplete ? '닫기' : '등록 중…') : '다음';
+    step === 4
+      ? candidatesError !== null
+        ? '다시 시도'
+        : '등록하기'
+      : step === 5
+        ? registrationComplete
+          ? '닫기'
+          : '등록 중…'
+        : '다음';
   const primaryDisabled =
     step === 4
-      ? candidatesBusy || candidatesError !== null || addCount === 0
+      ? candidatesBusy || (candidatesError === null && addCount === 0)
       : step === 5
         ? !registrationComplete
         : false;
@@ -210,6 +269,10 @@ export const ProjectCreateModal = ({
     <>
       <div className={modalStyles.overlay} onClick={requestClose}>
         <div
+          ref={dialogRef}
+          // -1: not in the Tab order, but focusable so the dialog can take the
+          // initial focus and be announced by its title.
+          tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-labelledby="infra-register-modal-title"

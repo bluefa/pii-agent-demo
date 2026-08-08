@@ -109,8 +109,3 @@ export const DB_TYPES_BY_PROVIDER: Record<ProviderChipKey, readonly DbTypeDef[]>
   idc: IDC_ONLY_DB_TYPES,
   other: OTHER_DB_TYPES,
 };
-
-export const DB_TYPE_LABEL: Record<DbType, string> = OTHER_DB_TYPES.reduce(
-  (acc, { value, label }) => ({ ...acc, [value]: label }),
-  {} as Record<DbType, string>,
-);

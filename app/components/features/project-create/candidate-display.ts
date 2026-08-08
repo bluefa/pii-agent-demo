@@ -35,24 +35,6 @@ export const candidateTitle = (candidate: TargetSourceCreationCandidateResponse)
     ? 'Self Data Upload 계정'
     : `${PROVIDER_CHIP_BY_KEY[candidateProviderKey(candidate.cloud_type)].label} 계정`;
 
-/** The account this card is about — whichever identifier its provider is keyed by. */
-export const candidateIdentifier = (
-  candidate: TargetSourceCreationCandidateResponse,
-): string => {
-  const meta = candidate.metadata ?? {};
-  switch (candidateProviderKey(candidate.cloud_type)) {
-    case 'aws':
-      return meta.aws_account_id ? `Payer ${meta.aws_account_id}` : '—';
-    case 'azure':
-      return meta.subscription_id ? `Sub ${meta.subscription_id}` : '—';
-    case 'gcp':
-      return meta.project_id ? `Project ${meta.project_id}` : '—';
-    case 'idc':
-    case 'other':
-      return meta.description || '—';
-  }
-};
-
 /**
  * The step-4 card's identity block, in the anatomy the /services list uses
  * (app/components/features/admin/v7/InfraRow.tsx `identityOf`): the provider name

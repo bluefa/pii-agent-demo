@@ -34,7 +34,11 @@ export interface WizardFormState {
 
 export const buildCandidatesInput = (state: WizardFormState): CreationCandidatesInput => {
   const { providerKey, fields } = state;
-  const description = fields.description?.trim();
+  // Trimmed here because that is what validation judged: `credentialFieldError`
+  // trims before it validates, so a pasted " 249f9b54-… " passes the GUID check —
+  // sending it untrimmed would put whitespace the user never approved on the wire.
+  const field = (name: string) => fields[name]?.trim() ?? '';
+  const description = field('description');
   return {
     cloudType: PROVIDER_CHIP_BY_KEY[providerKey].cloudType,
     // Common required field. IDC/기타 are not asked for a region, so they are never China.
@@ -42,15 +46,15 @@ export const buildCandidatesInput = (state: WizardFormState): CreationCandidates
     dbTypes: [...state.dbTypes, ...(state.othersDb ? [OTHERS_DB_TYPE] : [])],
     ...(providerKey === 'aws'
       ? {
-          awsAccountId: fields.payerAccount,
+          awsAccountId: field('payerAccount'),
           // AWS only: 자동 delegates Terraform execution, 수동 keeps the script with the admin.
           isTerraformExecutionGranted: state.installMode === 'auto',
         }
       : {}),
     ...(providerKey === 'azure'
-      ? { tenantId: fields.tenantId, subscriptionId: fields.subscriptionId }
+      ? { tenantId: field('tenantId'), subscriptionId: field('subscriptionId') }
       : {}),
-    ...(providerKey === 'gcp' ? { gcpProjectId: fields.projectId } : {}),
+    ...(providerKey === 'gcp' ? { gcpProjectId: field('projectId') } : {}),
     ...(description ? { description } : {}),
   };
 };

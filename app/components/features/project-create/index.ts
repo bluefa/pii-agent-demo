@@ -15,7 +15,6 @@ export {
 } from '@/app/components/features/project-create/wizard-model';
 export {
   candidateDescriptionLine,
-  candidateIdentifier,
   candidateIdentity,
   candidateInstallModeIsAuto,
   candidateProviderKey,

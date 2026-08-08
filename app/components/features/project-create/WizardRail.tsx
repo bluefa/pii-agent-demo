@@ -87,6 +87,9 @@ export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
             {isDone ? '✓' : step}
           </span>
           <span className="relative flex flex-col gap-px">
+            {/* The dot is aria-hidden, so without this a completed row announces as
+                bare title text with no sign it is done or that it can be revisited. */}
+            <span className="sr-only">{isDone ? '완료' : isActive ? '진행 중' : '대기'}</span>
             <span
               className={cn(
                 'text-sm transition-colors',
