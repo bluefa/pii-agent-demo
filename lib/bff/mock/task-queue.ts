@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import * as mockData from '@/lib/mock-data';
+import { cloudProviderToWireProvider } from '@/lib/types';
 import type { AlertTargetKind } from '@/lib/types/task-queue';
 
 /**
@@ -711,6 +713,50 @@ function toMetadataWire(r: RequestRow) {
   };
 }
 
+/**
+ * 대상 카탈로그 한 건 → TargetSourceInfo wire.
+ *
+ * `/target-sources/page` 는 계약상 **전체 대상**을 주는 엔드포인트고, confirmStatus 는
+ * 그걸 좁히는 필터일 뿐이다. 그런데 이 목은 오래도록 연동 요청 큐 픽스처(REQUESTS_ALL)를
+ * 기반으로 삼고 있었다. 그 명단에는 ORD·PAY·MBR·ADS·CHT·STL·DLV·SRC 여덟 서비스뿐이라,
+ * 카탈로그에 aws 7건 / azure 11건 / gcp 10건이 있어도 서비스 운영 상세는 0건을 그렸다 —
+ * 목이 실제 BFF 보다 좁아서 화면이 비어 보이던 것이지 화면 버그가 아니었다.
+ *
+ * 그래서 serviceCode 로 물어보면 큐가 아니라 카탈로그(mockProjects)를 건넨다. 카탈로그는
+ * 사용자 화면들이 이미 쓰는 같은 픽스처라, 두 화면이 한 서비스를 두고 다른 말을 하지 않는다.
+ */
+function projectToTargetSourceInfoWire(project: (typeof mockData.mockProjects)[number]) {
+  const isSdu = project.isSduType === true;
+  // IDC·SDU 는 CSP 계정이 없는 것이 정상 — 전 필드 null 이어야 카드가 gloss 로 간다.
+  const accountless = isSdu || project.cloudProvider === 'IDC';
+  return {
+    targetSourceId: project.targetSourceId,
+    serviceName:
+      mockData.mockServiceCodes.find((s) => s.code === project.serviceCode)?.name
+        ?? project.serviceCode,
+    description: project.description ?? null,
+    serviceCode: project.serviceCode,
+    // 내부 표기('Azure')가 아니라 wire 표기('AZURE')로 — lib/types.ts 가 "내부 casing 을
+    // 보내지 마라"고 못박은 값이고, 이 목이 대체한 예전 경로도 'AZURE' 를 보냈다. 지금
+    // 소비자는 전부 대소문자를 접어 읽어 티가 안 나지만, 목이 wire 를 안 흉내내는 순간
+    // 미래의 `=== 'AZURE'` 가 목에서는 통과하고 운영에서 깨진다.
+    cloudProvider: cloudProviderToWireProvider(project.cloudProvider),
+    metadata: {
+      tenant_id: accountless ? null : project.tenantId ?? null,
+      subscription_id: accountless ? null : project.subscriptionId ?? null,
+      gcp_project_id: accountless ? null : project.gcpProjectId ?? null,
+      aws_account_id:
+        accountless || project.cloudProvider !== 'AWS' ? null : project.awsAccountId ?? null,
+      is_sdu_type: isSdu,
+      is_china_region:
+        project.cloudProvider === 'AWS'
+        && (project.isChinaRegion ?? project.awsRegionType === 'china'),
+    },
+    updatedAt: project.updatedAt,
+    createdAt: project.createdAt,
+  };
+}
+
 function toTargetSourceInfoWire(r: RequestRow) {
   const isRejected = r.cs === 'REJECTED';
   const rejected = tq().reasonByTs.get(r.ts) ?? r;
@@ -809,10 +855,38 @@ export const mockTaskQueue = {
           : tq().requestsAll;
     // serviceCode 는 계약이 선언한 필터다 (install-v1.yaml /target-sources/page).
     // 서비스 운영 상세가 이걸로 한 서비스의 대상만 받아 간다.
-    const source = query.serviceCode
-      ? byStatus.filter((r) => r.code === query.serviceCode)
-      : byStatus;
-    return NextResponse.json(wirePage(source.map(toTargetSourceInfoWire), query.page, query.size));
+    //
+    // 두 픽스처를 합친다. 목에는 대상이 두 곳에 나뉘어 있다 — 카탈로그(store.projects)와
+    // 연동 요청 큐(REQUESTS_ALL) — 그리고 두 명단이 겹치지 않는다. 카탈로그에만 있는
+    // 서비스(aws·azure·gcp·idc·SDU…)는 큐만 보면 0건이 되고, 큐에만 있는 서비스
+    // (ORD·PAY·MBR·ADS·SRC)는 카탈로그만 보면 0건이 된다. 한쪽만 고르면 blind spot 을
+    // 옮길 뿐이라, 실제 BFF 가 그렇듯 "이 서비스의 모든 대상"을 낸다.
+    //
+    // 카탈로그는 seed(mockProjects)가 아니라 store 에서 읽는다 — 사용자 흐름으로 만든
+    // 대상이나 고친 설명이 이 화면에만 안 비치면, 이 변경이 없애려던 화면 간 불일치가
+    // 그대로 남는다.
+    if (query.serviceCode) {
+      const fromCatalogue = mockData
+        .getProjectsByServiceCode(query.serviceCode)
+        .map(projectToTargetSourceInfoWire);
+      const seen = new Set(fromCatalogue.map((r) => r.targetSourceId));
+      // confirmStatus 가 함께 오면 큐 쪽은 그 상태로 좁힌다 — 계약상 둘은 독립 필터다.
+      //
+      // `updatedAt` 을 여기서 붙이는 이유: toTargetSourceInfoWire 는 그 필드를 싣지 않아
+      // 정렬 키가 빈 문자열이 되고, 큐에서 온 행이 언제나 목록 맨 뒤로 밀린다. 함수 자체를
+      // 고치지 않는 것은 다른 호출부(연동 요청 큐)의 응답 모양을 건드리지 않기 위해서다.
+      const fromQueue = byStatus
+        .filter((r) => r.code === query.serviceCode && !seen.has(r.ts))
+        .map((r) => ({
+          ...toTargetSourceInfoWire(r),
+          updatedAt: TS_INDEX.get(r.ts)?.at ?? null,
+        }));
+      const rows = [...fromCatalogue, ...fromQueue].sort((a, b) =>
+        (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''),
+      );
+      return NextResponse.json(wirePage(rows, query.page, query.size));
+    }
+    return NextResponse.json(wirePage(byStatus.map(toTargetSourceInfoWire), query.page, query.size));
   },
 
   // PUT …/approval-requests/nlb-indices — single { resource_id, nlb_index }.

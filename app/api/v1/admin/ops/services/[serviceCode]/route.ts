@@ -60,6 +60,8 @@ function toAccount(meta: TargetSourceInfoWire['metadata']): OpsTargetSourceAccou
     aws_account_id: awsAccountId,
     aws_region_type: awsAccountId ? (meta?.is_china_region ? 'china' : 'global') : null,
     subscription_id: meta?.subscription_id ?? null,
+    // Azure 의 두 번째 식별자. 계약에 선언돼 있는데 여기서 추리며 빠져 있었다.
+    tenant_id: meta?.tenant_id ?? null,
     gcp_project_id: meta?.gcp_project_id ?? null,
   };
 }
