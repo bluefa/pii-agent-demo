@@ -14,6 +14,7 @@ import {
   providerAccentDefault,
 } from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
+import { TcHeaderTag } from '@/app/target-sources/[targetSourceId]/_components/common/TcHeaderTag';
 
 interface ProjectPageMetaProps {
   project: TargetSource;
@@ -96,6 +97,11 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
               <>
                 {serviceTitle}{' '}
                 <span className={pageHeaderTitleMutedStyle}>({project.serviceCode})</span>
+                {/* P5: TC 요약(latest_version)이 헤더 태그를 만든다 — Step 5 에 들어가기
+                    전에 마지막 실행의 판정·시점이 보인다. 실행 기록이 없으면 무표시. */}
+                <span className="ml-3 align-middle">
+                  <TcHeaderTag targetSourceId={project.targetSourceId} />
+                </span>
               </>
             }
             action={action}

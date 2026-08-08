@@ -12,17 +12,21 @@ import { useModal } from '@/app/hooks/useModal';
 import { usePagination } from '@/app/hooks/usePagination';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { useToast } from '@/app/components/ui/toast';
-import {
-  ConnProgressStrip,
-  type ConnProgressState,
-} from '@/app/components/features/process-status/ConnProgressStrip';
+import { TcSummaryCard } from '@/app/components/features/process-status/TcSummaryCard';
+import { TcRejectionNotice } from '@/app/components/features/process-status/TcRejectionNotice';
+import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
+import {
+  computeTcBuckets,
+  foldAgentStatuses,
+  type TcRunPhase,
+} from '@/lib/test-connection-summary';
 import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
   getSecrets,
   updateResourceCredential,
 } from '@/app/lib/api';
-import type { TestConnectionStatus } from '@/app/lib/api';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { CredentialPickModal } from '@/app/target-sources/[targetSourceId]/_components/layout/CredentialPickModal';
 import { LogicalDbModalLoader } from '@/app/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
@@ -139,9 +143,12 @@ interface ConnectionTestCardProps {
  * connection status + logical-DB-check) + a gated completion-approval request → CloudReqApprovalModal.
  *
  * Live wiring (ADR-019): Run Test persists changed credentials then triggers the async
- * connection test (`useTestConnectionPolling`); per-resource connection status is read from
- * the latest poll's agent results. Once the run settles SUCCESS the completion-status is
- * fetched and the 완료 승인 요청 CTA opens only when it reads LATEST_TEST_CONNECTION_SUCCESS.
+ * connection test (`useTestConnectionPolling`); per-unit status is the FAIL-first fold of
+ * the latest poll's agent results (lib/test-connection-summary). Once the run settles
+ * SUCCESS the completion-status is fetched (useTcCompletionStatus) and the 완료 승인 요청
+ * CTA opens only when it reads LATEST_TEST_CONNECTION_SUCCESS; the summary card carries
+ * the run's #version/timestamps, the 재실행 필요 chip and the 실행 이력 modal, and the
+ * rejection notice surfaces the admin's re-run reason.
  */
 export const ConnectionTestCard = ({
   targetSourceId,
@@ -202,16 +209,18 @@ export const ConnectionTestCard = ({
 
   const testing = uiState === 'PENDING';
 
-  // Per-resource connection status from the latest poll, keyed by resource_id. The
-  // poll streams results as each pipeline settles (and hydrates on mount, B3), so
-  // this map is the live source of truth for the table.
-  const statusByResource = useMemo(() => {
-    const map: Record<string, TestConnectionStatus> = {};
-    for (const agent of latestJob?.test_connection_agent_results ?? []) {
-      if (agent.resource_id && agent.connection_status) map[agent.resource_id] = agent.connection_status;
-    }
-    return map;
-  }, [latestJob]);
+  // Per-unit verdict from the latest poll (hydrates on mount, B3). FAIL-first fold —
+  // several agents may report on one unit, and the previous last-write-wins map could
+  // overwrite a FAIL with a later SUCCESS (P4).
+  const unitIds = useMemo(() => units.map((u) => u.unitId), [units]);
+  const statusByResource = useMemo(
+    () =>
+      foldAgentStatuses(
+        latestJob?.test_connection_agent_results ?? [],
+        new Set(unitIds),
+      ),
+    [latestJob, unitIds],
+  );
 
   // A row is connected when the latest poll returned SUCCESS for this unit. The credential
   // is NOT part of this: the test result is what the agent actually reported, and folding a
@@ -220,7 +229,7 @@ export const ConnectionTestCard = ({
   // shown where it is fixed (the DB Credential column) and gates Run Test, nothing else.
   const unitCred = useCallback((unit: TestUnit) => creds[unit.members[0].resourceId] ?? '', [creds]);
   const rowConnected = useCallback(
-    (unit: TestUnit): boolean => statusByResource[unit.unitId] === 'SUCCESS',
+    (unit: TestUnit): boolean => statusByResource.get(unit.unitId) === 'SUCCESS',
     [statusByResource],
   );
 
@@ -257,9 +266,15 @@ export const ConnectionTestCard = ({
     setPage(0);
   }
 
-  // Gate the 완료 승인 요청 CTA directly on the latest_version poll result:
-  // only open it when latest_version.connectionStatus === 'SUCCESS' (B2).
-  const approvalEnabled = uiState === 'SUCCESS';
+  // Gate the 완료 승인 요청 CTA on completion-status (the contract's verdict), not on
+  // the poll alone: LOGICAL_DATABASE_RECENTLY_UPDATED keeps it closed until a re-run,
+  // exactly as the IDC step already does. The docstring promised this; now it's true.
+  const { approvalEnabled, needsRerun, refresh: refreshCompletion } = useTcCompletionStatus(
+    targetSourceId,
+    uiState,
+    latestJob?.test_connection_version ?? null,
+  );
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Run Test gate (v16 updateConnRunBtn): every row that needs a credential has one.
   const total = units.length;
@@ -290,12 +305,14 @@ export const ConnectionTestCard = ({
 
   // On save the skip policy persists, which flips completion-status
   // (LATEST_TEST_CONNECTION_SUCCESS → LOGICAL_DATABASE_RECENTLY_UPDATED, spec §7);
-  // refreshProject re-reads so the badge updates.
+  // re-reading it closes the CTA and raises the 재실행 필요 chip — the toast is no
+  // longer the only trace of "you must re-run".
   const handleSaved = useCallback(() => {
     toast.success('논리 DB 제외 정책을 저장했습니다. 연결 테스트를 다시 실행해야 반영됩니다.');
     logicalModal.close();
+    refreshCompletion();
     refreshProject();
-  }, [logicalModal, toast, refreshProject]);
+  }, [logicalModal, toast, refreshCompletion, refreshProject]);
 
   const handleSaveError = useCallback(() => {
     toast.error('논리 DB 제외 정책 저장에 실패했습니다.');
@@ -306,30 +323,21 @@ export const ConnectionTestCard = ({
     refreshProject();
   }, [refreshProject]);
 
-  // Progress counts a row as done when it is connected or failed — the reported result,
-  // nothing else. 대기 must mean "the agent has not answered for this unit yet".
-  const okCount = units.filter((u) => rowConnected(u)).length;
-  const failCount = units.filter((u) => statusByResource[u.unitId] === 'FAIL').length;
-  const doneCount = okCount + failCount;
-  const pendingCount = total - doneCount;
-  const progressPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
-  // Completion-approval gate: every target connected, latest_version settled SUCCESS, no test in flight.
-  const canRequestApproval = total > 0 && okCount === total && !testing && approvalEnabled;
-
-  const progressState: ConnProgressState = testing
+  // Phase-aware buckets (shared rule): 미보고 is its own fact, never folded into 대기,
+  // and % counts reported units only — an unfinished run can no longer read "100%".
+  const buckets = useMemo(() => computeTcBuckets(unitIds, statusByResource), [unitIds, statusByResource]);
+  // Phase from the RUN's own status, not re-derived from counts — the summary must say
+  // what latest_version says, and the counts sit beside it as the evidence.
+  const phase: TcRunPhase = testing
     ? 'running'
-    : failCount > 0
-      ? 'fail'
-      : total > 0 && pendingCount === 0
-        ? 'success'
+    : uiState === 'SUCCESS'
+      ? 'success'
+      : uiState === 'FAIL'
+        ? 'fail'
         : 'idle';
-  const progressLabel = testing
-    ? '연결 테스트 진행 중 — 각 대상의 연결 상태를 확인하고 있어요'
-    : progressState === 'success'
-      ? '연결 테스트 완료 — 모든 대상이 연결되었어요'
-      : progressState === 'fail'
-        ? '연결 테스트 실패 — 실패한 대상의 Credential 또는 네트워크를 점검해 주세요'
-        : '연결 테스트 대기 중 — Run Test를 실행해 주세요';
+  // Completion-approval gate: every target connected, no test in flight, and
+  // completion-status reads LATEST_TEST_CONNECTION_SUCCESS.
+  const canRequestApproval = total > 0 && buckets.ok === total && !testing && approvalEnabled;
 
   return (
     // No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar.
@@ -369,13 +377,29 @@ export const ConnectionTestCard = ({
         </button>
       </header>
       <div className={cn(cardStyles.body, 'space-y-4')}>
-        <ConnProgressStrip
-          state={progressState}
-          label={progressLabel}
-          ok={okCount}
-          fail={failCount}
-          pending={pendingCount}
-          pct={progressPct}
+        <TcRejectionNotice targetSourceId={targetSourceId} />
+        <TcSummaryCard
+          phase={phase}
+          buckets={buckets}
+          run={
+            latestJob
+              ? {
+                  version: latestJob.test_connection_version ?? null,
+                  requestedAt: latestJob.requested_at ?? null,
+                  completedAt: latestJob.completed_at ?? null,
+                }
+              : null
+          }
+          needsRerun={needsRerun}
+          historyAction={
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              className={cn(idcStyles.triggerBtn.linkNeutral, 'whitespace-nowrap text-[12px]')}
+            >
+              실행 이력
+            </button>
+          }
         />
         {triggerError && (
           <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
@@ -408,8 +432,9 @@ export const ConnectionTestCard = ({
           >
             {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
             <StatusWarningIcon className="h-4 w-4 shrink-0" />
+            {/* IDC step 5 와 같은 어휘(미설정) — 같은 스텝이 CSP 마다 다른 말을 쓰지 않는다. */}
             <span className="break-keep">
-              Credential 미등록 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결
+              Credential 미설정 <strong className="font-bold">{missingCount}건</strong> — 지정해야 연결
               테스트를 실행할 수 있어요
             </span>
             <button
@@ -421,7 +446,7 @@ export const ConnectionTestCard = ({
                 primaryColors.focusRing,
               )}
             >
-              {credFilter === 'missing' ? '전체 보기' : '미등록만 보기'}
+              {credFilter === 'missing' ? '전체 보기' : '미설정만 보기'}
             </button>
           </div>
         )}
@@ -478,7 +503,7 @@ export const ConnectionTestCard = ({
               <tbody className={idcStyles.table.body}>
                 {pageRows.map((unit) => {
                   const cred = unitCred(unit);
-                  const status = statusByResource[unit.unitId];
+                  const status = statusByResource.get(unit.unitId);
                   const connected = rowConnected(unit);
                   const credRequired = requiresCredential(unit.databaseType);
                   const [first] = unit.members;
@@ -610,6 +635,9 @@ export const ConnectionTestCard = ({
                       {/* 이 칸은 에이전트가 보고한 결과만 말한다. Credential 미설정을 여기에
                           겹쳐 쓰면 실제로 연결된 대상이 "자격 증명 필요"로 가려졌다 — 그 사실은
                           바로 왼쪽 DB Credential 칸이 이미 말하고 있고, Run Test 가 막는다. */}
+                      {/* 어휘는 접기 유틸의 판정을 그대로 쓴다 — '대기'는 agent 가 PENDING 을
+                          보고한 행만이고, 보고 자체가 없는 행은 '—', 계약 밖 값은 '미확인'이다.
+                          세 사실을 전부 '대기'로 접던 것이 P4 였다. */}
                       <td className={idcStyles.table.approvalCell}>
                         {status === 'SUCCESS' ? (
                           <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>성공</span>
@@ -617,8 +645,12 @@ export const ConnectionTestCard = ({
                           <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>실패</span>
                         ) : status === 'RUNNING' ? (
                           <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>진행 중</span>
-                        ) : (
+                        ) : status === 'PENDING' ? (
                           <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>대기</span>
+                        ) : status === 'UNKNOWN' ? (
+                          <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>미확인</span>
+                        ) : (
+                          <span className={cn('text-[12px]', textColors.tertiary)}>{PLACEHOLDER}</span>
                         )}
                       </td>
                       {/* Athena·DynamoDB are IAM-based and have no logical-DB management at all,
@@ -741,6 +773,11 @@ export const ConnectionTestCard = ({
             onSubmit={handleCredSubmit}
           />
         )}
+        <TcRunHistoryModal
+          open={historyOpen}
+          targetSourceId={targetSourceId}
+          onClose={() => setHistoryOpen(false)}
+        />
         {logicalModal.data && (
           <LogicalDbModalLoader
             open={logicalModal.isOpen}
