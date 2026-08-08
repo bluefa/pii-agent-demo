@@ -21,7 +21,7 @@ export interface ModalProps {
   /** 헤더 아이콘 (선택) */
   icon?: ReactNode;
   /** 모달 크기 */
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'logical' | 'logical-tree';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'logical' | 'logical-tree' | 'wide';
   /**
    * Modal chrome. 'default' keeps the shared app styling — byte-identical for
    * existing callers (AWS/Azure/GCP). 'toss' opts into the IDC-only prototype
@@ -79,6 +79,10 @@ const SIZE_CLASSES: Record<string, string> = {
   // 논리 DB 목록 (tree redesign) — 720px: one tree column instead of two panels,
   // so the v16 1040 width would just stretch the name column. Additive.
   'logical-tree': 'max-w-[720px]',
+  // 이전 연동 요청 불러오기 — the step-1 table's five fixed columns are 616px, and the
+  // toss chrome spends 80 on its own padding, so 920 leaves the 접속 주소 column the
+  // ~220px it needs to print a host without truncating. Additive.
+  wide: 'max-w-[920px]',
 };
 
 /**
