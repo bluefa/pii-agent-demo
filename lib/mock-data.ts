@@ -733,13 +733,13 @@ export const mockProjects: Project[] = [
     targetSourceId: 1010,
     projectCode: 'DATA-005',
     name: 'PII Agent 설치 - 데이터 마트',
-    description: 'Step 5. 연결 테스트 — 설치 완료 후 연결 테스트 수행을 검증합니다. 확정 정보가 실 BFF 응답 캡처라 Credential 불필요 엔진(Athena)과 필요 엔진(MySQL)이 섞여 있고, SDU 표기(AWS 대신 SDU)도 함께 확인할 수 있습니다.',
+    description: 'Step 5. 연결 테스트 — 설치 완료 후 연결 테스트 수행을 검증합니다. 확정 정보가 실 BFF 응답 캡처라 Credential 불필요 엔진(Athena)과 필요 엔진(MySQL)이 섞여 있습니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: AWS_WIRE_CONFIRMED_ACCOUNT_ID,
     awsRegionType: 'global',
-    // 데모: SDU 계정 — identity bar가 "SDU"로 노출
-    isSduType: true,
+    // SDU 아님 — 이 행은 Step 5 연결 테스트를 보기 위한 것이고, SDU 로 두면 상세가
+    // 미지원 안내로 대체돼 그 단계를 아예 볼 수 없다. SDU 표기·미지원 안내는 1099/1100.
     processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_CONNECTION_TEST, { selectedCount: 2, excludedCount: 1 }),
     resources: awsWireSampleResources,

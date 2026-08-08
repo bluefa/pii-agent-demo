@@ -15,6 +15,7 @@ import {
   numericFeatures,
   statusColors,
   textColors,
+  verdictRailClass,
 } from '@/lib/theme';
 import {
   IdcDbTypeCell,
@@ -120,19 +121,19 @@ export const IdcLoadRequestModal = ({
             <table className="w-full">
               <tbody className={idcStyles.table.body}>
                 {pageRows.map((r) => {
-                  const dim = r.excluded ? 'opacity-50' : '';
+                  // 제외 행을 흐리게 하지 않는다 — 표시는 왼쪽 레일이 맡는다(verdictRail).
                   return (
                     <tr key={r.resourceId} className={cn(r.excluded && bgColors.muted)}>
-                      <td className={cn('w-[104px] px-4 py-3', dim)}>
+                      <td className={cn('w-[104px] px-4 py-3', verdictRailClass(r.excluded))}>
                         <IdcKindBadge kind={r.kind} />
                       </td>
-                      <td className={cn('px-4 py-3', dim)}>
+                      <td className={'px-4 py-3'}>
                         <IdcEndpointCell resource={r} />
                       </td>
-                      <td className={cn('w-[64px] px-4 py-3 font-mono text-[12px]', textColors.secondary, dim)}>
+                      <td className={cn('w-[64px] px-4 py-3 font-mono text-[12px]', textColors.secondary)}>
                         {r.port}
                       </td>
-                      <td className={cn('w-[140px] px-4 py-3', dim)}>
+                      <td className={'w-[140px] px-4 py-3'}>
                         <IdcDbTypeCell resource={r} />
                       </td>
                       <td className="w-[180px] px-4 py-3">

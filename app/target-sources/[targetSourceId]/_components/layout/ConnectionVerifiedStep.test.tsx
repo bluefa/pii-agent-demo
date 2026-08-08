@@ -50,6 +50,7 @@ vi.mock('@/app/components/ui/toast', () => ({
 import { ConnectionVerifiedStep } from '@/app/target-sources/[targetSourceId]/_components/layout/ConnectionVerifiedStep';
 
 const projectFixture: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'proj-1',
   targetSourceId: 2001,
   projectCode: 'TEST-001',

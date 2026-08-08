@@ -24,6 +24,7 @@ const providerNameSelector = identityBarStyles.providerName
   .join('');
 
 const projectFixture: TargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'proj-1',
   targetSourceId: 1008,
   projectCode: 'AWS-001',

@@ -277,6 +277,14 @@ export const borderColors = {
    * border *is* the state indicator, not when it merely separates.
    */
   emphasis: 'border-gray-500',
+  /**
+   * Outline for a card that repeats down a list on the tinted canvas. `default`
+   * measures 1.13:1 against #F4F4FB — the eye separates those cards on their 4.1
+   * ΔE00 of fill alone, and the line contributes nothing. This one reads 1.27:1
+   * on the canvas and 1.39:1 on the card, roughly doubling the line's share of
+   * the edge without darkening it into a table rule.
+   */
+  card: 'border-[#D6DBE6]',
 } as const;
 
 /**
@@ -349,6 +357,56 @@ export const sideTextColors = {
 } as const;
 
 /**
+ * 리소스 행의 판정(대상 / 제외 / 연동 불가) — sideTextColors 와 같은 규칙으로, 태그가 아니라 글자다.
+ * 행마다 반복되는 값이라 채운 배지를 두면 색 덩어리가 내용보다 먼저 읽힌다.
+ *
+ * 세 값이 대등할 필요는 없다:
+ * - `target` 은 기본값이라 목록의 대부분을 차지한다. 아이콘도 색도 주지 않고 본문 2차 색(7.1:1)에
+ *   무게만 500 으로 둔다 — 여기에 색을 쓰면 정상을 강조하느라 예외가 묻힌다.
+ * - 찾아내야 하는 두 값만 왼쪽 아이콘 + 색을 갖는다. **아이콘의 유무가 첫 번째 신호**이고,
+ *   두 값은 서로 다른 도형(원-사선 / 삼각)이라 색을 빼도 갈린다(WCAG 1.4.1).
+ *
+ * 색 선택 (제외 = 마젠타 #C11574, 5.8:1):
+ *   회색은 원래 문제였고(제외가 안 보인다), 남은 의미 축은 대부분 차 있다 —
+ *   초록=정상 / 앰버=연동 불가 / 빨강=실패 / #0064FF=누를 수 있는 것.
+ *   제외는 실패가 아니라 사람이 내린 결정이라 그 어느 칸에도 안 맞아, 앱에서 비어 있는 축을 쓴다.
+ *   `ineligible` 은 기존 statusColors.warning.textDark(#B45309, 5.0:1)를 그대로 잇는다.
+ */
+export const verdictText = {
+  base: 'inline-flex items-center gap-1.5 whitespace-nowrap text-[14px] font-semibold',
+  /** 기본값 — 아이콘 없음, 한 단 낮은 무게. */
+  target: 'text-[#4E5968] font-medium',
+  excluded: 'text-[#C11574]',
+  ineligible: 'text-[#B45309]',
+  icon: 'h-3.5 w-3.5 flex-shrink-0',
+} as const;
+
+/**
+ * 제외 행 왼쪽 끝 4px 상태 레일 — 배경 틴트가 못 하는 일을 대신한다.
+ *
+ * 틴트(#F9FAFB)는 흰 바탕과 1.05:1 이라 WCAG 1.4.11 의 3:1 근처에도 못 간다. 배경은 면적이 넓어서
+ * 신호로 쓸 만큼 진하게 하면 그 위 본문 글자의 대비를 갉아먹는다 — 4px 막대는 면적이 좁아
+ * 고채도 색을 대비 손실 없이 실을 수 있고, 스캔 시작점인 왼쪽 끝에 있어 눈이 행을 횡단하지 않아도 된다.
+ *
+ * `target` 은 색이 없다: 침묵이 곧 정상이다.
+ * 레일 색은 판정 글자색과 같은 축이되 채도를 낮춘 값 — 행 단위 신호는 훑기용이라 글자만큼 셀 필요가 없다.
+ *
+ * 열이 아니라 첫 셀의 inset box-shadow 다. 전용 <td> 를 하나 세우면 여섯 개 테이블의 헤더·
+ * 그룹 부모행·인스턴스행·접힌 멤버행이 전부 colSpan 을 다시 세어야 하고, 한 군데만 놓쳐도 열이
+ * 어긋난다. inset 그림자는 레이아웃을 전혀 건드리지 않아 기존 셀 padding(18px) 안쪽에 그려지고,
+ * 그룹 트리 레일(::before/::after, x=28)과도 겹치지 않는다.
+ */
+export const verdictRail = {
+  target: '',
+  excluded: 'shadow-[inset_4px_0_0_0_#D6409F]',
+  ineligible: 'shadow-[inset_4px_0_0_0_#D97706]',
+} as const;
+
+/** 행의 첫 셀에 얹을 레일 클래스. 대상 행은 빈 문자열 — 침묵이 곧 정상이다. */
+export const verdictRailClass = (excluded: boolean, ineligible = false): string =>
+  ineligible ? verdictRail.ineligible : excluded ? verdictRail.excluded : verdictRail.target;
+
+/**
  * 리소스 테이블 행 상태(hover/제외) — WaitingApprovalTable 이 재수출해 여러 테이블이 공유.
  * 값의 근거 (PR #593):
  * - 틴트는 중립 회색이 아니라 옅은 파랑. hover 시 Resource Name 이 브랜드 블루로 바뀌는데,
@@ -363,9 +421,31 @@ export const sideTextColors = {
 export const tableRowLift = {
   base: 'group transition-colors duration-150 motion-reduce:transition-none',
   target: 'hover:bg-[#EAEEF7] focus-within:bg-[#EAEEF7]',
-  excluded: 'bg-[#F9FAFB] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]',
+  // 틴트가 아니라 `verdictRail` 이 제외를 표시한다 — #F9FAFB 는 흰 바탕과 1.05:1 이라
+  // WCAG 1.4.11 의 3:1 근처에도 못 가서, 행 단위 신호로는 처음부터 작동한 적이 없다.
+  // 진하게 올리는 대신 오히려 낮췄다: 배경은 면적이 넓어 신호가 될 만큼 진해지면 그 위
+  // 본문 글자의 대비를 갉아먹고, 좁은 레일은 같은 일을 대비 손실 없이 한다.
+  // 남긴 이유는 행 묶기 — 연속된 제외 행이 하나의 덩어리로 읽힌다.
+  excluded: 'bg-[#FBFCFD] hover:bg-[#E3E8F2] focus-within:bg-[#E3E8F2]',
   /** hover 행의 셀 텍스트 승격 — #4E5968 → #191F28 (6.12:1 → 14.25:1 on the hover tint). */
   cellText: 'group-hover:text-[#191F28] group-focus-within:text-[#191F28]',
+  /**
+   * Card-row hover on the tinted canvas — violet, borrowed from the EC2 tag's
+   * SURFACE (`tagStyles.resourceKind`, `#F3EEFF`), so the two land in one family.
+   * Only the fill is shared: the tag's own letters are grey (#4E5968), because a
+   * tag sits inside a row and must not out-shout the name beside it, while this
+   * tint covers a whole card and carries the row's normal text.
+   *
+   * `bg-gray-50` measured ΔE00 1.20 from the white card: under the ~2.3 threshold
+   * at which two colours are seen as different at all, so the whole card was a
+   * click target announcing nothing. Violet buys the separation on CHROMA rather
+   * than on level (ΔE00 8.92 from the card, 5.21 from the canvas, and only 5 L*
+   * of darkening), which is what keeps the text on the card legible.
+   *
+   * Pair it with `cellText` on anything at `textColors.tertiary`: gray-500 reads
+   * 4.26:1 on this tint, under AA.
+   */
+  card: 'hover:bg-[#F3EEFF] focus-within:bg-[#F3EEFF]',
 } as const;
 
 export const cardStyles = {
@@ -439,7 +519,12 @@ export const cardStyles = {
  * Variant chip — small label inline with row text (AUTO / MANUAL / 준비 중).
  */
 export const chipStyles = {
-  base: 'inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-semibold',
+  /**
+   * 12px, not 11: 이 칩(설치 모드·중국 리전)은 옆의 12px 라벨과 한 줄에 서는데
+   * 11px 이면 라벨보다 한 눈금 작아 값이 이름보다 작아 보였다. 11 은 홀수라
+   * 디자인 규칙에도 어긋난다.
+   */
+  base: 'inline-flex items-center px-1.5 py-0.5 rounded-md text-[12px] font-semibold',
   variant: {
     auto: 'bg-blue-50 text-blue-700 border border-blue-200',
     manual: 'bg-amber-50 text-amber-800 border border-amber-200',
@@ -843,18 +928,27 @@ export const idcStyles = {
     /** `.status.partial` — orange pending-approval inline label (03-status-tag-pill §2). */
     partial: { text: 'text-[#9A3412]', dot: 'bg-[#F97316]' },
   },
-  /** Target yes/no pill — `.target-pill` (3px 9px / radius 999 / 11.5px / 600 / dot 6px). */
-  targetPill: {
-    base: 'inline-flex items-center gap-1.5 rounded-full border px-[9px] py-[3px] text-[11.5px] font-semibold whitespace-nowrap',
-    dot: 'w-1.5 h-1.5 rounded-full',
-    yes: { box: 'bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0]', dot: 'bg-[#10B981]' },
-    no: { box: 'bg-white text-[#6B7280] border-[#E5E7EB]', dot: 'bg-[#9CA3AF]' },
-  },
-  /** Exclusion-reason chip — `.reason-chip-inline` (3px 9px / radius 6 / 11.5px / 500 / cursor help). */
+  /* targetPill 은 `verdictText` 로 대체됐다 — 판정은 태그가 아니라 글자다. 근거는 그 토큰의 주석. */
+  /**
+   * Exclusion-reason chip — `.reason-chip-inline` (3px 9px / radius 6 / 11.5px / 500 / cursor help).
+   *
+   * 중립이다. 원래 주황(#FFF7ED / #9A3412)이었는데, 그 계열은 `statusColors.warning` 이 이미
+   * 쓰고 있고 판정 열의 <연동 불가>(#B45309)가 바로 그 색이다. 그래서 사람이 뺀 행이
+   * 스캔이 막은 행처럼 읽혔다 — 한 행에서 색을 갖는 것은 판정 하나로 족하고, 사유는 내용만 나른다.
+   * 행 단위 표시는 `verdictRail` 이 이미 맡고 있어 칩이 존재감을 내려놓아도 잃는 것이 없다.
+   *
+   * #4E5968 on #F7F8FA = 6.9:1. 아이콘은 #6B7280 (4.5:1) — #98A2B3 는 2.5:1 로 1.4.11 미달이다.
+   */
   reasonChip: {
-    base: 'inline-flex min-w-0 max-w-full items-center gap-[5px] rounded-[6px] border border-[#FED7AA] bg-[#FFF7ED] px-[9px] py-[3px] text-[11.5px] font-medium text-[#9A3412] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#FFEDD5] hover:border-[#FDBA74]',
+    base: 'inline-flex min-w-0 max-w-full items-center gap-[5px] rounded-[6px] border border-[#E1E5EB] bg-[#F7F8FA] px-[9px] py-[3px] text-[11.5px] font-medium text-[#4E5968] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#EFF1F5] hover:border-[#C9CFD8]', // design-exempt: 11.5px 는 v16 `.reason-chip-inline` 원문 값 — 이번 변경은 색만 건드린다
     text: 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]',
-    icon: 'flex-shrink-0 text-[#C2410C] opacity-80',
+    icon: 'flex-shrink-0 text-[#6B7280]',
+    /** 팁 헤딩(제외 사유 / 안내) + 그 앞 4px 점. 칩과 같은 중립 — 칩만 내리면 같은 정보의
+     *  두 표현이 서로 다른 색을 갖는다. */
+    tipLabel: 'text-[#4E5968]',
+    tipLabelDot: 'bg-[#4E5968]',
+    /** 팁 안의 원문 판정 코드 — 본문 문장보다 한 단 아래. #6B7280 on white = 4.8:1. */
+    tipCode: 'text-[#6B7280]',
   },
   /** Header status pill (mirrors cloud sibling pill; combine with statusColors.{warning,success}). */
   statusPill: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
@@ -1239,6 +1333,25 @@ export const ec2Styles = {
 } as const;
 
 /**
+ * 목록 행의 12px 라벨 — `Account` · `Subscription` · `Project` · `Tenant` ·
+ * `설치 모드` · `설명`. 한 색이다.
+ *
+ * 처음엔 id 를 **이름 짓는** 라벨과 산문을 **여는** 라벨을 두 색으로 갈랐는데,
+ * 그 구분은 읽는 사람에게 아무 일도 해 주지 않았다. 라벨은 전부 "옆에 오는 것이
+ * 무엇인지" 한 마디로 말하는 같은 종류의 물건이고, 계층은 이미 크기(12 vs 14/16)와
+ * 굵기가 세우고 있다. 색까지 나누면 없는 구분을 있는 것처럼 만든다.
+ *
+ * 브랜드 파랑(#0064FF)이 아니라 한 단 죽인 파랑인 이유: 12px 에서 브랜드 파랑은
+ * 링크로 읽히고, 카드 hover 시 제목이 파래지는 것과 충돌한다.
+ *
+ * 대비는 흰 카드와 카드 hover 틴트 양쪽에서 잰다 — 행은 커서 아래에서 배경이 바뀌므로
+ * 흰색만 통과하는 값은 hover 에서 AA 를 잃는다. 흰 카드 5.31:1, hover 틴트(#F3EEFF)
+ * 4.67:1 로 양쪽 AA. 12px 본문이고 hover 쪽 여유가 0.17 뿐이라, 이 값도 hover 틴트도
+ * 더 내릴 수 없다 — 둘 중 하나를 바꾸면 다른 하나를 다시 재야 한다.
+ */
+export const rowLabelColor = 'text-[#3B6BB5]';
+
+/**
  * 행 우측 ⋮ 드롭다운 — 버튼 크롬 없이 흩뿌린 kebab 이 여는 패널.
  * 행마다 반복되는 보조 동작이라 chrome 은 패널에만 있고 트리거에는 없다.
  */
@@ -1281,20 +1394,27 @@ export const serviceSidebarStyles = {
    * The rail separates from the ground by CHROMA as much as by luminance.
    * Near-neutral #F2F4F6 on the old #F9FAFB ground measured ΔE00 1.39 — barely
    * past the just-noticeable threshold, so the 1px border was doing all the
-   * work. Buying separation with luminance alone was not available either:
-   * sectionLabel had 0.2 of headroom over AA, so a darker rail fails text.
+   * work. The ground is now `canvas` (#F4F4FB, the app's own blue-leaning
+   * surface) on both pages that mount this rail, so the rail goes the other way
+   * — toward neutral — and the pair reads on hue as well as level.
    *
-   * The ground is now `canvas` (#F4F4FB, the app's own blue-leaning surface) on
-   * both pages that mount this rail, so the rail goes the other way — toward
-   * neutral — and the pair reads on hue as well as level.
+   * At #EFF2F3 the three planes of the page (rail 95.3, ground 96.4, card 100)
+   * sat inside 4.7 L* of each other, so none of them read as raised; this drops
+   * the BACK plane far enough for the stack to read as a stack.
    *
-   *   rail vs ground   ΔE00 1.39 → 3.79
-   *   rail vs white    ΔE00 2.59 → 3.10
-   *   L* 96.1 → 95.3, under the ground's 96.4 — the ladder holds
-   *   worst text pair (#666D7B) 4.72 → 4.62, still AA
-   *   worst plate (#F7F8FA tile) ΔE00 0.99 → 1.82 — it was invisible before
+   *   rail vs ground   ΔE00 3.79 → 4.71
+   *   rail vs white    ΔE00 3.10 → 5.71   (rowActive lifts twice as far)
+   *   L* 95.3 → 91.4, under the ground's 96.4 — the ladder holds
+   *
+   * Everything printed ON the rail moves with it, or it disappears into the new
+   * surface — that is why `count`/`rowCode`/`divider`/`skeletonBar` carry their
+   * own numbers below, and why `sectionLabel` and `footerPage` had to leave
+   * #666D7B (4.17:1 here) for #4E5968 (5.71:1). `text-gray-500` is not usable on
+   * this surface at all (3.88:1), and neither is `primaryColors.text` (3.95:1) —
+   * see `emptyText`/`emptyAction`, which exist so those two pairs are declared
+   * next to the surface instead of being discovered on a consumer.
    */
-  surface: 'bg-[#EFF2F3]',
+  surface: 'bg-[#E2E7EA]',
   /**
    * The ground this rail sits beside — the app canvas, not gray-50.
    *
@@ -1306,19 +1426,27 @@ export const serviceSidebarStyles = {
    * borders — and read at 4.12 on the canvas.
    */
   canvas: 'bg-[#F4F4FB]',
-  /** Full-bleed hairline between rail zones — darker than the rail, or it inverts. */
-  divider: 'border-[#E1E5EA]',
+  /** Full-bleed hairline between rail zones — darker than the rail, or it inverts. ΔE00 3.45. */
+  divider: 'border-[#D2D8DC]',
   /** Rail heading — nav-chrome tier, deliberately under the content column's page title. */
   title: 'text-[14px] font-semibold tracking-[-0.01em] text-[#191F28]',
   /**
    * Total beside the rail title — a pill, so it reads as a count attached to the
    * heading rather than as a second word in it. Round, unlike the square code
    * tags: one is a quantity, the other an identifier.
+   *
+   * The plate is LIGHTER than the rail, not darker. It used to be #E7EAEE, a step
+   * down from a near-white surface; on the deeper rail that same value lands ΔE00
+   * 1.44 away and vanishes. Going up instead is also the truer reading — a plate
+   * with something printed on it sits on the rail, it is not a hole in it.
    */
   count:
-    'inline-flex items-center rounded-full bg-[#E7EAEE] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[#4E5968]',
-  /** Section label above the rows — desktop nav section header, not a table column head. */
-  sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#666D7B]',
+    'inline-flex items-center rounded-full bg-[#F1F4F5] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[#4E5968]',
+  /**
+   * Section label above the rows — desktop nav section header, not a table column
+   * head. #4E5968, not #666D7B: the latter reads 4.17:1 on this rail, under AA.
+   */
+  sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#4E5968]',
   /** Row name — wraps rather than riding off the rail's edge; service names run to ~30 characters. */
   rowName: 'text-[14px] font-medium leading-5 text-[#191F28]',
   /**
@@ -1329,7 +1457,7 @@ export const serviceSidebarStyles = {
    * every row, and a 30-character name would push it out of the row.
    */
   rowCode:
-    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[#E7EAEE] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
+    'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-[#F1F4F5] px-1.5 py-0.5 font-mono text-[12px] font-medium leading-5 text-[#4E5968]',
   /**
    * Row fill under pointer hover or keyboard focus — full-bleed and square, the
    * way a web list row highlights. White, not a deeper grey: on a tinted rail
@@ -1347,9 +1475,9 @@ export const serviceSidebarStyles = {
   rowCodeCurrent:
     'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#0050D6]',
   /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
-  rowDivide: 'divide-y divide-[#E1E5EA]',
-  /** Skeleton bar for the rail — one step darker than idcStyles' #F3F4F6, which vanishes on the tinted surface. */
-  skeletonBar: 'animate-pulse bg-[#E3E7EC]',
+  rowDivide: 'divide-y divide-[#D2D8DC]',
+  /** Skeleton bar for the rail — a step darker than the surface, or it vanishes into it. */
+  skeletonBar: 'animate-pulse bg-[#D6DCE0]',
   /** 28px square icon tile — the row's scan anchor, sized up for the taller row. */
   tile: 'flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[12px] font-semibold leading-none',
   /** Tinted tile pairs, picked by a stable code hash so a service keeps its color across pages. */
@@ -1369,11 +1497,27 @@ export const serviceSidebarStyles = {
    * pill, so nothing here counts rows.
    */
   footer: 'mt-auto flex shrink-0 items-center justify-center gap-1 px-3 py-2.5',
+  /**
+   * The rail's empty result. `textColors.tertiary` reads 3.88:1 here — and this is
+   * the one state where the message IS the rail's only content, so it cannot be the
+   * quietest tier available.
+   */
+  emptyText: 'text-[14px] text-[#4E5968]',
+  /**
+   * Its recovery control. `primaryColors.text` (#0064FF) is 3.95:1 on this surface;
+   * #0050D6 is 5.40:1 — the same substitution `rowCodeCurrent` already makes.
+   */
+  emptyAction: 'text-[12px] cursor-pointer text-[#0050D6] hover:text-[#003FA8]',
   /** "1 / 2 페이지" — tabular so the digits do not jitter as pages change. */
-  footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#666D7B]',
-  /** Borderless ghost pager — a bordered button pair floats like a card control on a flush rail. */
+  footerPage: 'px-1 text-[12px] font-medium tabular-nums text-[#4E5968]',
+  /**
+   * Borderless ghost pager — a bordered button pair floats like a card control on a
+   * flush rail. The disabled glyph is #8B95A1, not #B0B8C1: 1.4.11 exempts inactive
+   * controls, but at 1.61:1 on this surface the arrow was a smudge rather than a
+   * greyed-out arrow. 2.44:1 still reads as unavailable next to the live one at 5.71.
+   */
   pagerBtn:
-    'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#B0B8C1] disabled:hover:bg-transparent',
+    'flex h-6 w-6 items-center justify-center rounded-[4px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent',
 } as const;
 
 // =============================================================================

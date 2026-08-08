@@ -11,7 +11,7 @@
  * Database Type carries no chip: it is a repeating attribute, not a status.
  */
 import { Fragment, type ReactElement } from 'react';
-import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
+import { cn, idcStyles, primaryColors, textColors, verdictRailClass } from '@/lib/theme';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
@@ -21,7 +21,6 @@ import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import {
   CELL_LIFT,
   CONNECTED_FRAME,
-  DIM_TEXT,
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
@@ -36,12 +35,28 @@ import {
   RdsSelectionChip,
 } from '@/app/components/ui/RdsInstanceChips';
 import { isRdsCluster, rdsInstanceLabel, sortRdsInstances } from '@/lib/rds-instances';
-import { isEc2Instance } from '@/lib/types';
+import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 
 export interface CloudResourceTableProps {
   rows: RequestResourceRow[];
 }
+
+/**
+ * 두 admin 표가 같은 행 타입을 쓰므로 사유 셀도 한 군데서 푼다 — 스캔 판정 코드는 한국어
+ * 한 줄로 서고 원문은 팁에만 남는다(`resolveExclusionReason`).
+ */
+export const ReasonChip = ({ row }: { row: RequestResourceRow }) => {
+  const resolved = resolveExclusionReason(row.exclusionReason, row.recommendFailReason);
+  if (!resolved) return null;
+  return (
+    <ReasonChipInline
+      reason={resolved.text}
+      summary={clampReason(resolved.text)}
+      code={resolved.code}
+    />
+  );
+};
 
 export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElement {
   const { table } = idcStyles;
@@ -55,7 +70,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
     // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
     <div className={CONNECTED_FRAME}>
       <div className="overflow-x-auto">
-      <table className="w-full text-[13px]">
+      <table className="w-full text-[14px]">
         <thead className={table.approvalHeaderChrome}>
           <tr>
             {/* Resource ID's text caps at 300px (resId.text), so its column was sitting
@@ -80,7 +95,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             const rowKey = row.resourceId || `row-${index}`;
             // Resting tier is per cell, not per row: a row-level override would win over
             // the cells' own hover lifts and freeze excluded rows at the dim tier.
-            const tone = excluded ? DIM_TEXT : textColors.secondary;
+            const tone = textColors.secondary;
             // An RDS cluster connects through ONE member instance. Read-only here: the queue
             // reviews a submitted request, so the list shows what the cluster holds and which
             // instance the requester picked. Reader-first display order; the wire order is
@@ -110,7 +125,8 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     // 14, the size WaitingApprovalTable and the IDC table give their own
                     // identity column — it was rendering at the attribute tier.
                     'font-mono text-[14px]',
-                    excluded ? DIM_TEXT : textColors.primary,
+                    textColors.primary,
+                    verdictRailClass(excluded, excluded && row.integrationCategory === 'INSTALL_INELIGIBLE'),
                     // The row's anchor lifts to brand, marking which cell identifies it.
                     primaryColors.textGroupHover,
                     // The rail's first segment runs from the chevron down to the first
@@ -161,11 +177,12 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                       value={row.resourceId}
                       label="Resource ID"
                       maxWidthClass="max-w-[300px]"
+                      sizeClass="text-[14px]"
                       textClassName={cn(tone, CELL_LIFT)}
                     />
                   )}
                 </td>
-                <td className={cn(table.approvalCell, 'text-[12px]', tone, CELL_LIFT)}>
+                <td className={cn(table.approvalCell, 'text-[14px]', tone, CELL_LIFT)}>
                   {/* wire 는 소문자 원문(mysql·athena)이라 사용자 화면과 같은 표기로 맞춘다. */}
                   {row.databaseType ? getDatabaseShortLabel(row.databaseType) : ''}
                 </td>
@@ -174,7 +191,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     table.approvalCell,
                     // A region is one token — wrapping it to "ap-northeast-" / "2" reads
                     // as two values.
-                    'whitespace-nowrap font-mono text-[12px]',
+                    'whitespace-nowrap font-mono text-[14px]',
                     tone,
                     CELL_LIFT,
                   )}
@@ -194,16 +211,13 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                   {/* A 대상 row has no reason to give — blank, not an em-dash, which
                       would read as "this should have had one and it is missing". The
                       chip clamps and the full sentence lives in its floating tip. */}
-                  {excluded && row.exclusionReason && (
-                    <ReasonChipInline
-                      reason={row.exclusionReason}
-                      summary={clampReason(row.exclusionReason)}
-                    />
-                  )}
+                  {excluded && <ReasonChip row={row} />}
                 </td>
               </tr>
               {/* One row per member instance. Everything the cluster answers for (id, verdict,
-                  reason) stays on the parent; these carry identity, role and their own AZ. */}
+                  reason) stays on the parent; these carry identity, role and their own AZ.
+                  레일도 부모의 것이다 — 멤버마다 세우면 하나의 결정이 행 수만큼 반복돼
+                  제외 건수를 세는 눈을 속인다. */}
               {instancesOpen && instances.map((instance, instanceIndex) => (
                 <tr
                   key={instance.resource_id}
@@ -215,7 +229,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     className={cn(
                       table.approvalCell,
                       'font-mono text-[14px]',
-                      excluded ? DIM_TEXT : textColors.primary,
+                      textColors.primary,
                       table.group.childCell,
                       instanceIndex === instances.length - 1 && table.group.childCellLast,
                     )}
@@ -229,13 +243,13 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     </span>
                   </td>
                   <td className={table.approvalCell} />
-                  <td className={cn(table.approvalCell, 'text-[12px]', tone, CELL_LIFT)}>
+                  <td className={cn(table.approvalCell, 'text-[14px]', tone, CELL_LIFT)}>
                     Instance
                   </td>
                   <td
                     className={cn(
                       table.approvalCell,
-                      'whitespace-nowrap font-mono text-[12px]',
+                      'whitespace-nowrap font-mono text-[14px]',
                       tone,
                       CELL_LIFT,
                     )}

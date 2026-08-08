@@ -28,6 +28,7 @@ vi.mock(
 import { ApplyingApprovedStep } from '@/app/target-sources/[targetSourceId]/_components/layout/ApplyingApprovedStep';
 
 const azureApplyingApprovedFixture: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'azure-proj-1',
   targetSourceId: 1003,
   projectCode: 'AZURE-001',

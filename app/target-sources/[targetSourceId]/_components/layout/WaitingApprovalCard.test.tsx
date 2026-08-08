@@ -370,10 +370,9 @@ describe('WaitingApprovalCard', () => {
     // The title is the step's fixed name — only the badge flips to 반려.
     expect(screen.getByText('연동 대상 승인 대기')).toBeTruthy();
     expect(screen.getByText('반려')).toBeTruthy();
-    // The reason is the payload, so it outsizes the tag that labels it (was 14px under a 16px
-    // label — the inversion that flattened the block).
+    // The reason sits at the body scale, still above the 12px tag that labels it.
     const reason = screen.getByText('RDS_CLUSTER 리소스는 현재 지원되지 않습니다.');
-    expect(reason.className).toContain('text-[17px]');
+    expect(reason.className).toContain('text-[14px]');
     expect(screen.getByText('반려 사유').className).toContain('text-[12px]');
     // The guidance sentence is gone: the badge + tag already name the state, and the CTA names
     // the next move — repeating it in a third place was the copy the reason had to compete with.

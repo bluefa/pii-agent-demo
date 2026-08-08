@@ -9,6 +9,7 @@ import {
   primaryColors,
   statusColors,
   textColors,
+  verdictRailClass,
 } from '@/lib/theme';
 import {
   IdcDbTypeCell,
@@ -63,7 +64,7 @@ const HEADERS: ReadonlyArray<{ label: string; className?: string }> = [
  * Step 1 editable target table. Same skin as the cloud step-1 candidate table: no frame of its
  * own (the toolbar above owns the rounded top, the pager below the rounded bottom), the 12px/600
  * approval header, and the row hover/focus lift that marks the row a user is working in.
- * Excluded rows dim and show a clickable reason chip; row hover reveals 수정 / 삭제.
+ * Excluded rows carry a left rail and a clickable reason; row hover reveals 수정 / 삭제.
  */
 export const IdcTargetListTable = ({
   rows,
@@ -92,13 +93,18 @@ export const IdcTargetListTable = ({
           </thead>
           <tbody className={idcStyles.table.body}>
             {rows.map((row) => {
-              const dim = row.excluded ? 'opacity-50' : '';
+              // 제외 행을 흐리게 하지 않는다 — 표시는 왼쪽 레일이 맡는다(verdictRail).
               return (
                 <tr
                   key={row.resourceId}
                   className={cn(ROW_BASE, row.excluded ? ROW_EXCLUDED : ROW_TARGET)}
                 >
-                  <td className={idcStyles.table.approvalCell}>
+                  <td
+                    className={cn(
+                      idcStyles.table.approvalCell,
+                      verdictRailClass(row.excluded),
+                    )}
+                  >
                     <input
                       type="checkbox"
                       checked={!row.excluded}
@@ -112,10 +118,10 @@ export const IdcTargetListTable = ({
                       )}
                     />
                   </td>
-                  <td className={cn(idcStyles.table.approvalCell, dim)}>
+                  <td className={idcStyles.table.approvalCell}>
                     <IdcKindBadge kind={row.kind} />
                   </td>
-                  <td className={cn(idcStyles.table.approvalCell, dim)}>
+                  <td className={idcStyles.table.approvalCell}>
                     <IdcEndpointCell resource={row} />
                   </td>
                   <td
@@ -123,12 +129,11 @@ export const IdcTargetListTable = ({
                       idcStyles.table.approvalCell,
                       'font-mono text-[12px]',
                       textColors.secondary,
-                      dim,
                     )}
                   >
                     {row.port || <span className={textColors.tertiary}>—</span>}
                   </td>
-                  <td className={cn(idcStyles.table.approvalCell, dim)}>
+                  <td className={idcStyles.table.approvalCell}>
                     <IdcDbTypeCell resource={row} />
                   </td>
                   {/* Blank, not an em-dash: a 대상 row can never carry a reason. */}

@@ -153,6 +153,31 @@ const railBlock = (() => {
   return m[0];
 })();
 const adminSrc = read('app/admin/pipelines/_services/styles.ts');
+const liftBlock = (() => {
+  const m = themeSrc.match(/export const tableRowLift = \{[\s\S]*?\n\} as const/);
+  if (!m) throw new Error('tableRowLift not found');
+  return m[0];
+})();
+
+/**
+ * A hover-only fill. `bgOf` deliberately reads rest state, so it is blind to exactly
+ * the tokens that only exist under the cursor — and a hover fill is a real surface:
+ * it replaces the card while the user is looking at it.
+ */
+const hoverBgOf = (cls: string) => {
+  const m = cls.match(new RegExp(`hover:bg-\\[${COLOR}\\](?!/)`));
+  if (!m) throw new Error(`no hover bg in "${cls}"`);
+  return resolve(m[1]);
+};
+
+/** The `tilePalette` array's `bg-[#...]`/`text-[#...]` pairs, in declaration order. */
+const serviceTiles = (() => {
+  const m = railBlock.match(/tilePalette:\s*\[([\s\S]*?)\]/);
+  if (!m) throw new Error('tilePalette not found');
+  return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+})();
+const serviceTilePalette = serviceTiles.map(bgOf);
+const serviceTileGlyphs = serviceTiles.map((cls) => ({ fg: textOf(cls), on: bgOf(cls) }));
 
 // The surfaces each screen stands on.
 const canvas = bgOf(classOf(railBlock, 'canvas')); // /services · /target-sources ground
@@ -183,6 +208,20 @@ const SURFACES: SurfacePair[] = [
   // The PR #624 P1: tinting --pl-bg-page made it byte-identical to --pl-gray-100 and the
   // borderless ops-alerts summary tiles (bg gray-100 straight on the page ground) vanished.
   { what: 'ops-alerts tile (gray-100) on page ground', top: resolve('var(--pl-gray-100)'), under: resolve('var(--pl-bg-page)') },
+  // The card's hover fill is a surface too — it replaces white under the cursor, so it
+  // has to separate from the canvas the card sits on or the hovered card dissolves into
+  // the page. `bg-gray-50` here measured 1.20 from the card it replaced.
+  { what: 'card hover tint on canvas', top: hoverBgOf(classOf(liftBlock, 'card')), under: canvas },
+  { what: 'card hover tint on the white card', top: hoverBgOf(classOf(liftBlock, 'card')), under: '#FFFFFF' },
+  // The rail's skeleton is reused on the admin ground — a second surface it must clear.
+  { what: 'skeleton bar on admin ground', top: bgOf(classOf(railBlock, 'skeletonBar')), under: plGround },
+  // The tinted service tiles are the rail's most numerous plates and its palest ones —
+  // #F7F8FA was ΔE00 0.99 from the rail before the retint, i.e. invisible.
+  ...serviceTilePalette.map((fill, i) => ({
+    what: `service tile ${i} on rail`,
+    top: fill,
+    under: rail,
+  })),
 ];
 
 type TextPair = { what: string; fg: string; on: string; min?: number };
@@ -191,6 +230,28 @@ const TEXT: TextPair[] = [
   { what: 'rail footer page on rail', fg: textOf(classOf(railBlock, 'footerPage')), on: rail },
   { what: 'rail pager glyph on rail', fg: textOf(classOf(railBlock, 'pagerBtn')), on: rail },
   { what: 'rail row name on rail', fg: textOf(classOf(railBlock, 'rowName')), on: rail },
+  // The rail's empty-search state — the one screen where the rail's only content is
+  // this sentence and its recovery link. Both were left on white-measured page tokens
+  // (`textColors.tertiary` 3.88:1, `primaryColors.text` 3.95:1) through one retint.
+  { what: 'rail empty-state text on rail', fg: textOf(classOf(railBlock, 'emptyText')), on: rail },
+  { what: 'rail empty-state action on rail', fg: textOf(classOf(railBlock, 'emptyAction')), on: rail },
+  { what: 'rail count pill label on its pill', fg: textOf(classOf(railBlock, 'count')), on: bgOf(classOf(railBlock, 'count')) },
+  { what: 'rail row code label on its plate', fg: textOf(classOf(railBlock, 'rowCode')), on: bgOf(classOf(railBlock, 'rowCode')) },
+  // The page subtitle's product name sits on the canvas, not on white — #0064FF is
+  // 4.4951:1 there, which is why this pair uses `textOnLight`.
+  { what: 'primary text on canvas', fg: textOf(classOf(themeSrc, 'textOnLight')), on: canvas },
+  // Row labels survive the card turning violet under the cursor.
+  { what: 'row label on card hover tint', fg: resolve('#3B6BB5'), on: hoverBgOf(classOf(liftBlock, 'card')) },
+  ...serviceTileGlyphs.map((t, i) => ({ what: `service tile ${i} glyph on its fill`, ...t })),
+  // The EC2 / RDS Cluster kind tag. Its letters were desaturated from #6D28D9 to a grey
+  // on the argument that contrast was unchanged (6.25 → 6.26:1) — that argument is only
+  // as good as a measurement, so it gets one. The next grey down (#6B7280) is 4.26:1 on
+  // this fill, i.e. the quiet-er value someone will reach for is already below AA.
+  {
+    what: 'resource kind tag label on its tag',
+    fg: textOf(classOf(themeSrc, 'resourceKind')),
+    on: bgOf(classOf(themeSrc, 'resourceKind')),
+  },
   { what: 'admin section label on ground', fg: textOf(classOf(adminSrc, 'railSection')), on: plGround },
   {
     what: 'service code chip label on its chip',

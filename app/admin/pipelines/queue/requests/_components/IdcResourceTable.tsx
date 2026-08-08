@@ -1,7 +1,7 @@
 /**
  * IdcResourceTable — P3 IDC 연동 대상 리소스 + NLB 배정 (design-spec §3), rendered
  * with the app-side IDC step-1 table itself — `idcStyles.table` chrome, the shared
- * ROW_* hover/lift tokens, ReasonChipInline — so the admin reads the request the
+ * ROW_* hover/lift tokens, ReasonChip — so the admin reads the request the
  * service owner submitted through the same design, plus the admin-only NLB column.
  *
  * Eight columns. Two of the original nine are gone for good, because a column each said
@@ -18,19 +18,17 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { cn, idcStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, textColors, verdictRailClass } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import {
   CELL_LIFT,
   CONNECTED_FRAME,
-  DIM_TEXT,
   ROW_BASE,
   ROW_EXCLUDED,
   ROW_TARGET,
   TargetPill,
-  clampReason,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { ReasonChip } from '@/app/admin/pipelines/queue/requests/_components/CloudResourceTable';
 import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import {
   IdcDbTypeCell,
@@ -57,7 +55,7 @@ export interface IdcResourceTableProps {
 // until the pointer was already on it. It rests at 40% and fills in on hover, so the
 // affordance is legible without competing with the row's own values.
 const NLB_BTN =
-  'text-[13px] font-medium text-[var(--pl-primary)] tabular-nums cursor-pointer underline underline-offset-[3px] decoration-[var(--pl-primary)]/40 hover:decoration-[var(--pl-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)] rounded-sm';
+  'text-[14px] font-medium text-[var(--pl-primary)] tabular-nums cursor-pointer underline underline-offset-[3px] decoration-[var(--pl-primary)]/40 hover:decoration-[var(--pl-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary)] rounded-sm';
 
 export function IdcResourceTable({
   rows,
@@ -72,7 +70,7 @@ export function IdcResourceTable({
     // the bottom, exactly as step 1's list table does (CONNECTED_FRAME).
     <div className={CONNECTED_FRAME}>
       <div className="overflow-x-auto">
-      <table className="w-full text-[13px]">
+      <table className="w-full text-[14px]">
         <thead className={table.approvalHeaderChrome}>
           {/* Identity first, then its attributes, then the decision — the same reading
               order as the cloud table and step 1. An IDC row's identity is its host/IP,
@@ -134,20 +132,35 @@ export function IdcResourceTable({
             if (!row.selected) {
               return (
                 <tr key={rowKey} className={cn(ROW_BASE, ROW_EXCLUDED)}>
-                  <td className={table.approvalCell}>
+                  <td
+                    className={cn(
+                      table.approvalCell,
+                      verdictRailClass(true, row.integrationCategory === 'INSTALL_INELIGIBLE'),
+                    )}
+                  >
                     <IdcEndpointCell
                       hosts={row.connectTargets}
                       kind={idcAddressKind(row)}
-                      dimmed
-                      tone={DIM_TEXT}
+                      tone={textColors.secondary}
                     />
                   </td>
                   <td className={table.approvalCell}>
-                    <IdcDbTypeCell label={dbLabel} oracleSid={row.oracleSid} tone={DIM_TEXT} />
+                    <IdcDbTypeCell
+                      label={dbLabel}
+                      oracleSid={row.oracleSid}
+                      tone={textColors.secondary}
+                    />
                   </td>
                   {/* 0 is the adapter's "no port in the payload" value, not a port — step
                       1's own guard, so the two tables answer a missing port the same way. */}
-                  <td className={cn(table.approvalCell, 'font-mono text-[12px]', DIM_TEXT, CELL_LIFT)}>
+                  <td
+                    className={cn(
+                      table.approvalCell,
+                      'font-mono text-[14px]',
+                      textColors.secondary,
+                      CELL_LIFT,
+                    )}
+                  >
                     {row.port || <span className={textColors.tertiary}>—</span>}
                   </td>
                   {/* The pill step 1 uses, not a text label: the verdict is the same fact
@@ -166,12 +179,7 @@ export function IdcResourceTable({
                   <td className={table.approvalCell} />
                   <td className={table.approvalCell} />
                   <td className={cn(table.approvalCell, 'text-sm')}>
-                    {row.exclusionReason && (
-                      <ReasonChipInline
-                        reason={row.exclusionReason}
-                        summary={clampReason(row.exclusionReason)}
-                      />
-                    )}
+                    <ReasonChip row={row} />
                   </td>
                 </tr>
               );
@@ -189,7 +197,7 @@ export function IdcResourceTable({
                 <td
                   className={cn(
                     table.approvalCell,
-                    'font-mono text-[12px]',
+                    'font-mono text-[14px]',
                     textColors.secondary,
                     CELL_LIFT,
                   )}
@@ -205,7 +213,7 @@ export function IdcResourceTable({
                       reads its assignment, as plain text. */}
                   {disabled || row.resourceId == null ? (
                     row.nlbIndex != null && (
-                      <span className={cn('text-[13px] tabular-nums', textColors.secondary, CELL_LIFT)}>
+                      <span className={cn('text-[14px] tabular-nums', textColors.secondary, CELL_LIFT)}>
                         NLB #{row.nlbIndex}
                       </span>
                     )

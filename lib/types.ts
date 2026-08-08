@@ -34,6 +34,17 @@ export const normalizeCloudProvider = (value: unknown): CloudProvider => {
   return CLOUD_PROVIDER_ALIASES[value.trim().toUpperCase()] ?? 'AWS';
 };
 
+/**
+ * The contract carries SDU in two independent places — `cloud_provider: "SDU"` (the
+ * enum at TargetSourceDto) and `metadata.is_sdu_type`, which is `.partial()` and so
+ * may be absent. SDU is not a `CloudProvider` (it names how data arrives, not where it
+ * lives), so `normalizeCloudProvider` falls back to 'AWS' on it — which means reading
+ * only the metadata flag hands an SDU record the full AWS install screen. Every adapter
+ * must OR the two.
+ */
+export const isSduProvider = (value: unknown): boolean =>
+  typeof value === 'string' && value.trim().toUpperCase() === 'SDU';
+
 // Internal CloudProvider → wire metadata.provider value. The contract
 // (TargetSourceResourceMetadataDto.provider) is uppercase — AWS | GCP | AZURE | IDC |
 // UNKNOWN — while the internal CloudProvider uses 'Azure'. Never send the internal casing.
@@ -249,6 +260,52 @@ export const normalizeRecommendFailReason = (value: unknown): RecommendFailReaso
     ? (value as RecommendFailReason)
     : null;
 
+/**
+ * 표의 제외 사유 칸에 세우는 한 줄. 원문 enum 은 칩의 hover 팁이 따로 싣는다.
+ *
+ * 번역이 아니라 조건의 이름이다 — 왜 그 조건이 문제인지와 조치 방법은
+ * InstallIneligibleGuideModal 의 GUIDES 가 계속 소유한다.
+ *
+ * ⚠ 라벨을 늘릴 때의 유일한 제약: 표의 칩은 앞 15자만 보여준다(`SUMMARY_LIMIT`).
+ * 원문 enum 이 정보를 못 나른 이유가 바로 그것이었다 — 세 값이 `GCP_CLOUD_SQL_HAS_` /
+ * `AZURE_RESOURCE_` 접두어를 공유해, 잘리고 나면 서로 구별되지 않았다.
+ * 그래서 라벨은 **앞 15자만으로 서로 갈리도록** 지었다. 새 값을 추가할 때도 같은 기준으로.
+ */
+export const RECOMMEND_FAIL_REASON_LABEL: Record<RecommendFailReason, string> = {
+  GCP_CLOUD_SQL_HAS_PUBLIC_IP: '공인 IP 사용 중',
+  GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET: '내부 LB 전용 서브넷',
+  AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED: 'Private Endpoint 연결 실패',
+};
+
+/**
+ * 제외 사유 칩이 보여줄 것 — 사람이 읽는 한 줄(`text`)과, 팁에만 붙는 원문 판정 코드(`code`).
+ *
+ * 두 필드를 모두 보는 이유: 요청 어댑터가 판정 코드를 `exclusion_reason` 에 그대로 써 넣기도
+ * 하고, 그 필드가 비어 있는 옛 요청은 `recommend_fail_reason` 만 들고 있다. 어느 쪽으로
+ * 들어오든 사용자에게는 코드가 아니라 한 줄이 보여야 한다.
+ *
+ * 계약에 없는 코드는 라벨을 지어내지 않고 원문 그대로 세운다 — 이 단계가 없으면 enum 이
+ * 늘어나는 순간 그 행의 사유 칸이 통째로 비어 "왜 빠졌는지 아무도 말해주지 않는" 상태가 된다.
+ *
+ * 우선순위: **사람이 쓴 문장이 라벨을 이긴다.** 두 필드가 서로 다른 값으로 함께 오면
+ * (`exclusion_reason` 에 사람의 사유, `recommend_fail_reason` 에 스캔 코드) 칩에는 사람의
+ * 문장이 서고 코드는 팁에만 남는다 — 기계가 붙인 라벨이 사람이 남긴 근거를 덮으면,
+ * 그 행을 왜 뺐는지 아는 유일한 기록이 화면에서 사라진다.
+ */
+export const resolveExclusionReason = (
+  reason?: string | null,
+  recommendFailReason?: string | null,
+): { text: string; code?: RecommendFailReason } | null => {
+  // 코드는 두 필드 어디에 실려 왔든 찾는다 — 요청 어댑터가 `exclusion_reason` 에 그대로
+  // 써 넣는 경로가 있다.
+  const code =
+    normalizeRecommendFailReason(recommendFailReason) ?? normalizeRecommendFailReason(reason);
+  // `reason` 이 코드 그 자체이면 사람이 쓴 문장이 아니다 — 그 경우만 라벨에 자리를 내준다.
+  const prose = normalizeRecommendFailReason(reason) ? null : reason;
+  const text = prose || (code ? RECOMMEND_FAIL_REASON_LABEL[code] : recommendFailReason);
+  return text ? { text, code: code ?? undefined } : null;
+};
+
 export interface MockResource {
   id: string;
   type: string;
@@ -353,7 +410,7 @@ export interface CloudTargetSource extends BaseTargetSource {
   awsLinkedAccountId?: string;
   awsRegionType?: 'global' | 'china';
   isChinaRegion?: boolean;
-  isTerraformExecutionGranted?: boolean;
+  isTerraformExecutionGranted: boolean;
   // swagger TargetSourceDetail.metadata.is_sdu_type — SDU accounts render "SDU"
   // instead of "{Provider} Agent" in the identity bar.
   isSduType?: boolean;
@@ -406,7 +463,7 @@ export interface ProjectSummary {
   gcpProjectId?: string;
   isChinaRegion?: boolean;
   /** AWS only — false means the service installs by hand (수동 설치). */
-  isTerraformExecutionGranted?: boolean;
+  isTerraformExecutionGranted: boolean;
   resourceCount: number;
   hasDisconnected: boolean;
   hasNew: boolean;

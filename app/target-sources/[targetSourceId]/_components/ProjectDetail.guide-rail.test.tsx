@@ -43,6 +43,7 @@ vi.mock(
 import { ProjectDetail } from '@/app/target-sources/[targetSourceId]/_components/ProjectDetail';
 
 const azureFixture: TargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'azure-proj-1',
   targetSourceId: 1003,
   projectCode: 'AZURE-001',

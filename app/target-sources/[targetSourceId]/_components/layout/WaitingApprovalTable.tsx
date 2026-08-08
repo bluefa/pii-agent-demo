@@ -4,7 +4,7 @@ import { Fragment, memo, useMemo, useState } from 'react';
 import { useClusterFold } from '@/app/hooks/useClusterFold';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { ChevronRightIcon, StatusWarningIcon } from '@/app/components/ui/icons';
+import { ChevronRightIcon, ExcludedIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
@@ -27,13 +27,22 @@ import {
   RdsMemberChip,
   RdsSelectionChip,
 } from '@/app/components/ui/RdsInstanceChips';
-import { hasLogicalDatabases, isEc2Instance } from '@/lib/types';
+import { hasLogicalDatabases, isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
   INSTALL_STATUS_LABEL,
   type InstallStepCell,
   type InstallStepValue,
 } from '@/app/components/features/process-status/install-status-detail/model';
-import { idcStyles, primaryColors, statusColors, tableRowLift, textColors, cn } from '@/lib/theme';
+import {
+  idcStyles,
+  primaryColors,
+  statusColors,
+  tableRowLift,
+  textColors,
+  verdictRailClass,
+  verdictText,
+  cn,
+} from '@/lib/theme';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -192,14 +201,11 @@ export const CELL_LIFT = tableRowLift.cellText;
 // under the row's hover background). Lighter is not available: it is already below AA there.
 export const NAME_LIFT = primaryColors.textGroupHover;
 
-// Excluded rows REST one tier dimmer: all four text cells drop to gray-500 — 4.63:1 on the
-// excluded tint, AA with margin, where the full-strength text made 제외 rows read identical to
-// 대상 rows (the 1.05:1 background tint carries nothing). The hover/focus lifts above restore
-// full contrast the moment the row is engaged, so the dim tier is never the reading surface.
-// Chips and the reason chip keep full contrast: the verdict and the why must survive the fade.
-// 3:1-grade dimming (8B95A1, 2.9:1) was considered and rejected — 13px body text is normal-size
-// text under WCAG, and the reason column is content, not an inactive control.
-export const DIM_TEXT = textColors.tertiary;
+// 제외 행을 한 단 흐리게 하던 처리(gray-500)는 없앴다.
+//
+// 흐리게 한다는 것은 "덜 중요하다"는 뜻인데, 승인 화면에서 제외 행은 가장 감사(audit)해야 하는
+// 행이다 — 누락을 잡으라고 만든 화면이 누락을 읽기 어렵게 만들고 있었다. 원래 이 처리가 있었던
+// 이유는 배경 틴트(1.05:1)가 아무것도 말하지 못해서였고, 그 일은 이제 `verdictRail` 이 맡는다.
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
@@ -214,13 +220,15 @@ const NoLogicalDbCell = () => (
 
 const PLACEHOLDER = '—';
 
-// No status dot: the label already says 대상 / 제외, so the dot repeats it in a weaker channel.
+// 판정은 태그가 아니라 글자다 — 근거는 `verdictText`.
 //
 // Ineligible is its own verdict, not a flavour of excluded. The two answer different
 // questions: excluded means a person chose to leave the resource out and can put it back by
 // re-selecting, while ineligible means the scan found it unreachable and no amount of
 // re-selecting changes that. Step 1 already draws that line (the row's checkbox is disabled
 // there); collapsing it back into excluded made a system verdict look revisable.
+//
+// 대상만 아이콘이 없다: 목록의 대부분이 대상이라, 아이콘이 붙은 줄을 세는 것이 곧 예외를 세는 일이다.
 //
 // Exported for the IDC steps 2·3 table, which asks the same question in the same column.
 // `ineligible` is optional so that caller keeps its current two-state behaviour.
@@ -232,27 +240,18 @@ export const TargetPill = ({
   ineligible?: boolean;
 }) => {
   if (ineligible) {
-    // Step 1's grammar for the same fact: warning-dark + a warning glyph, not a pill. A pill
-    // would put it in the same visual class as the two revisable verdicts, when this one is
-    // the scan saying the resource cannot be reached at all. No underline and no button:
-    // step 1 links to the guidance modal because that is where you act, and by this step
-    // there is nothing left to act on.
     return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 whitespace-nowrap text-[14px] font-semibold',
-          statusColors.warning.textDark,
-        )}
-      >
-        <StatusWarningIcon className="h-3.5 w-3.5" />
+      <span className={cn(verdictText.base, verdictText.ineligible)}>
+        <StatusWarningIcon className={verdictText.icon} />
         연동 불가
       </span>
     );
   }
-  const variant = excluded ? idcStyles.targetPill.no : idcStyles.targetPill.yes;
+  if (!excluded) return <span className={cn(verdictText.base, verdictText.target)}>대상</span>;
   return (
-    <span className={cn(idcStyles.targetPill.base, variant.box)}>
-      {excluded ? '제외' : '대상'}
+    <span className={cn(verdictText.base, verdictText.excluded)}>
+      <ExcludedIcon className={verdictText.icon} />
+      제외
     </span>
   );
 };
@@ -287,18 +286,16 @@ export const clampReason = (reason: string): string =>
 //
 // For an install-ineligible row the scan's own verdict stands in: `exclusion_reason` already
 // carries it (the request adapter writes it there), but older requests predate that and only
-// have `recommend_fail_reason`, so read both. The enum is shown verbatim — its three values
-// name specific network conditions (a public IP, an internal-LB subnet, a failed private
-// endpoint) and there is no documented Korean wording for them, so translating would mean
-// inventing guidance about infrastructure the user is expected to go fix.
+// have `recommend_fail_reason`, so read both.
 const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) => {
   if (resource.selected) return null;
-  const reason = resource.exclusionReason || resource.recommendFailReason;
-  if (!reason) return null;
+  const resolved = resolveExclusionReason(resource.exclusionReason, resource.recommendFailReason);
+  if (!resolved) return null;
   return (
     <ReasonChipInline
-      reason={reason}
-      summary={clampReason(reason)}
+      reason={resolved.text}
+      summary={clampReason(resolved.text)}
+      code={resolved.code}
       meta={resource.exclusionMeta}
     />
   );
@@ -433,8 +430,15 @@ export const WaitingApprovalTable = memo(
             className={cn(
               idcStyles.table.approvalCell,
               'font-mono text-[14px]',
-              excluded ? DIM_TEXT : textColors.primary,
+              textColors.primary,
               NAME_LIFT,
+              // 그룹 자식 행은 레일을 그리지 않는다: 첫 셀 왼쪽 0~4px 는 그룹 트리 레일이 이미
+              // 말하는 자리이고, 판정은 부모 행의 집계(대상 N / 제외 M)가 대신 답한다.
+              !grouped &&
+                verdictRailClass(
+                  excluded,
+                  resource.integrationCategory === 'INSTALL_INELIGIBLE',
+                ),
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
               (instancesOpen || (folded && open)) && idcStyles.table.group.parentCell,
@@ -580,7 +584,7 @@ export const WaitingApprovalTable = memo(
                 label="Resource ID"
                 maxWidthClass="max-w-[220px]"
                 sizeClass="text-[14px]"
-                textClassName={cn(excluded ? DIM_TEXT : textColors.secondary, CELL_LIFT)}
+                textClassName={cn(textColors.secondary, CELL_LIFT)}
               />
             )}
           </td>
@@ -594,7 +598,7 @@ export const WaitingApprovalTable = memo(
                 className={cn(
                   idcStyles.table.approvalCell,
                   'text-[14px]',
-                  excluded ? DIM_TEXT : textColors.secondary,
+                  textColors.secondary,
                   CELL_LIFT,
                 )}
               >
@@ -606,7 +610,7 @@ export const WaitingApprovalTable = memo(
                 className={cn(
                   idcStyles.table.approvalCell,
                   monoCell,
-                  excluded ? DIM_TEXT : textColors.secondary,
+                  textColors.secondary,
                   CELL_LIFT,
                 )}
               >
@@ -690,9 +694,10 @@ export const WaitingApprovalTable = memo(
                 cluster answers for (id, verdict, reason) stays on the parent row. */}
             {instancesOpen &&
               instances.map((instance, index) => (
-                // The instances inherit their cluster's tier: an excluded cluster is not
-                // being installed, so its members are not either, and leaving them at full
-                // contrast made a dimmed parent read as a rendering fault.
+                // 인스턴스 행은 클러스터의 틴트만 물려받고 레일은 그리지 않는다. 판정은
+                // 클러스터가 답하는 것이고(id·verdict·reason 이 전부 부모 행에 있다), 멤버마다
+                // 레일을 세우면 하나의 결정이 행 수만큼 반복돼 제외 건수를 세는 눈을 속인다.
+                // 부모의 레일과 트리 레일이 이 행들을 그 결정 아래로 묶는다.
                 <tr
                   key={instance.resource_id}
                   className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
@@ -703,7 +708,7 @@ export const WaitingApprovalTable = memo(
                     className={cn(
                       idcStyles.table.approvalCell,
                       'font-mono text-[14px]',
-                      excluded ? DIM_TEXT : textColors.primary,
+                      textColors.primary,
                       idcStyles.table.group.childCell,
                       index === instances.length - 1 && idcStyles.table.group.childCellLast,
                     )}
@@ -721,7 +726,7 @@ export const WaitingApprovalTable = memo(
                     className={cn(
                       idcStyles.table.approvalCell,
                       'text-[14px]',
-                      excluded ? DIM_TEXT : textColors.secondary,
+                      textColors.secondary,
                     )}
                   >
                     Instance
@@ -730,7 +735,7 @@ export const WaitingApprovalTable = memo(
                     className={cn(
                       idcStyles.table.approvalCell,
                       monoCell,
-                      excluded ? DIM_TEXT : textColors.secondary,
+                      textColors.secondary,
                     )}
                   >
                     {instance.availability_zone ?? ''}

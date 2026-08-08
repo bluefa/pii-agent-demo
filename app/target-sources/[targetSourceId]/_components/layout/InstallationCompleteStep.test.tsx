@@ -67,6 +67,7 @@ const makeResource = (
 });
 
 const projectFixture: CloudTargetSource = {
+  isTerraformExecutionGranted: false,
   id: 'proj-1',
   targetSourceId: 3001,
   projectCode: 'TEST-001',

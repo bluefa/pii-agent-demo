@@ -3,8 +3,8 @@
  *
  * Step 2 의 RejectionVerdict (app/target-sources/[targetSourceId]/_components/
  * layout/RejectionVerdict.tsx) 문법을 그대로 가져온다: 채운 박스가 아니라
- * 3px 좌측 룰에 매단 인용 — 12px 라벨(자기 payload 보다 작게) → 17px 사유
- * (블록에서 가장 큰 글자) → 라벨 붙은 메타 쌍. 서비스 담당자가 Step 2 에서
+ * 3px 좌측 룰에 매단 인용 — 12px 라벨(자기 payload 보다 작게) → 14px medium
+ * 사유 → 라벨 붙은 메타 쌍. 서비스 담당자가 Step 2 에서
  * 읽는 것과 운영자가 여기서 읽는 것이 같은 문장이어야 하므로, 표현도 같게
  * 맞춘다. 색만 admin 토큰(--pl-*)으로 바꿨다.
  *
@@ -71,14 +71,14 @@ export function RequestVerdictNotice({ verdict }: RequestVerdictNoticeProps): Re
       {reason ? (
         <div className={cn('border-l-[3px] pl-4', rule)}>
           <p className={cn('text-[12px] font-bold tracking-[0.02em]', tagTone)}>{label}</p>
-          <p className="mt-1.5 text-[17px] font-semibold leading-[1.5] text-[var(--pl-text-strong)]">
+          <p className="mt-1.5 text-[14px] font-medium leading-[1.5] text-[var(--pl-text-strong)]">
             {reason}
           </p>
           {meta}
         </div>
       ) : (
         <div className={cn('border-l-[3px] pl-4', rule)}>
-          <p className="text-[16px] font-medium leading-[1.55] text-[var(--pl-text-medium)]">
+          <p className="text-[14px] font-medium leading-[1.55] text-[var(--pl-text-medium)]">
             {sentence}
           </p>
           {meta}

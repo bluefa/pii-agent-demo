@@ -59,9 +59,9 @@ export const RejectionVerdict = ({
           >
             반려 사유
           </p>
-          {/* The payload is now the largest text in the block and, after the title, the darkest
-              tone on the card — it stops being the smallest thing on the screen. */}
-          <p className={cn('mt-1.5 text-[17px] font-semibold leading-[1.5]', textColors.primary)}>
+          {/* Body scale — the tag above stays smaller than its payload, and the primary tone
+              (darkest on the card) carries the emphasis instead of size. */}
+          <p className={cn('mt-1.5 text-[14px] font-medium leading-[1.5]', textColors.primary)}>
             {reason}
           </p>
           {signature}
@@ -69,7 +69,7 @@ export const RejectionVerdict = ({
       ) : (
         <>
           {/* No reason → nothing to quote, so the sentence carries the verdict on its own. */}
-          <p className={cn('text-[16px] font-medium leading-[1.55]', textColors.tertiary)}>
+          <p className={cn('text-[14px] font-medium leading-[1.55]', textColors.tertiary)}>
             관리자가 승인 요청을 반려했어요. 연동 대상을 다시 선택한 뒤 승인을 다시 요청해주세요.
           </p>
           {signature}
