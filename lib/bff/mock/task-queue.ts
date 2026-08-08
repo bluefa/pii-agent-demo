@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import * as mockData from '@/lib/mock-data';
 import type { AlertTargetKind } from '@/lib/types/task-queue';
 
 /**
@@ -711,6 +712,46 @@ function toMetadataWire(r: RequestRow) {
   };
 }
 
+/**
+ * 대상 카탈로그 한 건 → TargetSourceInfo wire.
+ *
+ * `/target-sources/page` 는 계약상 **전체 대상**을 주는 엔드포인트고, confirmStatus 는
+ * 그걸 좁히는 필터일 뿐이다. 그런데 이 목은 오래도록 연동 요청 큐 픽스처(REQUESTS_ALL)를
+ * 기반으로 삼고 있었다. 그 명단에는 ORD·PAY·MBR·ADS·CHT·STL·DLV·SRC 여덟 서비스뿐이라,
+ * 카탈로그에 aws 7건 / azure 11건 / gcp 10건이 있어도 서비스 운영 상세는 0건을 그렸다 —
+ * 목이 실제 BFF 보다 좁아서 화면이 비어 보이던 것이지 화면 버그가 아니었다.
+ *
+ * 그래서 serviceCode 로 물어보면 큐가 아니라 카탈로그(mockProjects)를 건넨다. 카탈로그는
+ * 사용자 화면들이 이미 쓰는 같은 픽스처라, 두 화면이 한 서비스를 두고 다른 말을 하지 않는다.
+ */
+function projectToTargetSourceInfoWire(project: (typeof mockData.mockProjects)[number]) {
+  const isSdu = project.isSduType === true;
+  // IDC·SDU 는 CSP 계정이 없는 것이 정상 — 전 필드 null 이어야 카드가 gloss 로 간다.
+  const accountless = isSdu || project.cloudProvider === 'IDC';
+  return {
+    targetSourceId: project.targetSourceId,
+    serviceName:
+      mockData.mockServiceCodes.find((s) => s.code === project.serviceCode)?.name
+        ?? project.serviceCode,
+    description: project.description ?? null,
+    serviceCode: project.serviceCode,
+    cloudProvider: project.cloudProvider,
+    metadata: {
+      tenant_id: accountless ? null : project.tenantId ?? null,
+      subscription_id: accountless ? null : project.subscriptionId ?? null,
+      gcp_project_id: accountless ? null : project.gcpProjectId ?? null,
+      aws_account_id:
+        accountless || project.cloudProvider !== 'AWS' ? null : project.awsAccountId ?? null,
+      is_sdu_type: isSdu,
+      is_china_region:
+        project.cloudProvider === 'AWS'
+        && (project.isChinaRegion ?? project.awsRegionType === 'china'),
+    },
+    updatedAt: project.updatedAt,
+    createdAt: project.createdAt,
+  };
+}
+
 function toTargetSourceInfoWire(r: RequestRow) {
   const isRejected = r.cs === 'REJECTED';
   const rejected = tq().reasonByTs.get(r.ts) ?? r;
@@ -808,11 +849,16 @@ export const mockTaskQueue = {
           ? tq().requestsRejected
           : tq().requestsAll;
     // serviceCode 는 계약이 선언한 필터다 (install-v1.yaml /target-sources/page).
-    // 서비스 운영 상세가 이걸로 한 서비스의 대상만 받아 간다.
-    const source = query.serviceCode
-      ? byStatus.filter((r) => r.code === query.serviceCode)
-      : byStatus;
-    return NextResponse.json(wirePage(source.map(toTargetSourceInfoWire), query.page, query.size));
+    // 서비스 운영 상세가 이걸로 한 서비스의 대상만 받아 간다. 큐가 아니라 카탈로그를
+    // 거르는 이유는 projectToTargetSourceInfoWire 주석 참고.
+    if (query.serviceCode) {
+      const rows = mockData.mockProjects
+        .filter((p) => p.serviceCode === query.serviceCode)
+        .map(projectToTargetSourceInfoWire)
+        .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+      return NextResponse.json(wirePage(rows, query.page, query.size));
+    }
+    return NextResponse.json(wirePage(byStatus.map(toTargetSourceInfoWire), query.page, query.size));
   },
 
   // PUT …/approval-requests/nlb-indices — single { resource_id, nlb_index }.

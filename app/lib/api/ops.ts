@@ -79,6 +79,12 @@ export interface OpsTargetSourceAccount {
   aws_account_id: string | null;
   aws_region_type: 'global' | 'china' | null;
   subscription_id: string | null;
+  /**
+   * Azure 만 갖는 두 번째 식별자 — 그 구독이 어느 디렉터리에 속하는지.
+   * 계약(TargetSourceMetadata.tenant_id)에 선언돼 있는데 라우트가 추리면서 버리고
+   * 있었다. /pass/services 의 Azure 행은 이미 표시한다.
+   */
+  tenant_id: string | null;
   gcp_project_id: string | null;
 }
 

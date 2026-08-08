@@ -457,6 +457,8 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
             // 1층이 "SDU"라고 말하는데 2층이 "AWS Account …"를 내보이면 한 카드가 서로
             // 다른 말을 한다. metadata 에 계정이 실려 와도 여기서는 gloss 로 간다.
             const account = target.is_sdu_type ? null : accountOf(target);
+            // 같은 규칙 — SDU 는 하부 CSP 의 Tenant 도 내보이지 않는다.
+            const tenantId = target.is_sdu_type ? null : target.metadata.tenant_id;
             return (
               <div
                 key={target.target_source_id}
@@ -492,12 +494,26 @@ export function ServiceDetailView({ serviceCode }: ServiceDetailViewProps): Reac
                   </div>
 
                   {/* 2층·3층은 값이 없어도 사라지지 않는다 — 조건부로 두면 대상마다 카드
-                      높이가 달라지고, 그게 이 화면이 흔들리던 원인이었다(LIN-92). */}
-                  <div className="flex items-center gap-1.5 pl-0.5">
+                      높이가 달라지고, 그게 이 화면이 흔들리던 원인이었다(LIN-92).
+                   *
+                   * Tenant 는 Azure 만 갖는 두 번째 식별자라 구독 옆에 붙는다. 여기서
+                   * flex-wrap 을 쓰지 않는 것이 중요하다 — GUID 두 개가 줄바꿈하면 카드가
+                   * 120px 을 넘겨 잘린다. 좁아지면 줄이 늘어나는 대신 값이 잘린다. */}
+                  <div className="flex min-w-0 items-center gap-x-5 pl-0.5">
                     {account ? (
                       <>
-                        <span className={tsTable.metaLabel}>{account.label}</span>
-                        <span className={tsTable.account}>{account.value}</span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className={cn(tsTable.metaLabel, 'flex-none')}>
+                            {account.label}
+                          </span>
+                          <span className={tsTable.account}>{account.value}</span>
+                        </span>
+                        {tenantId && (
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className={cn(tsTable.metaLabel, 'flex-none')}>Tenant</span>
+                            <span className={tsTable.account}>{tenantId}</span>
+                          </span>
+                        )}
                       </>
                     ) : (
                       <span className={tsTable.gloss}>{glossOf(target)}</span>
