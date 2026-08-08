@@ -2069,22 +2069,12 @@ export const mockConfirm = {
       latest_confirmed_at: confirmed ? project.updatedAt : null,
       checked_at: new Date().toISOString(),
       overall_state: applied ? 'APPLIED' : applying ? 'APPLYING' : 'NEVER_APPLIED',
-      destroy_required: false,
-      tasks: tasks.map((task, index) => {
+      tasks: tasks.map((task, index) => ({
+        ...task,
         // Mid-install the earlier tasks are already done — one task is in flight.
-        const state = applied ? 'APPLIED' : !applying ? 'NEVER_APPLIED'
-          : index === 0 ? 'APPLIED' : index === 1 ? 'APPLYING' : 'NEVER_APPLIED';
-        return {
-          ...task,
-          state,
-          destroy_required: false,
-          // Only a finished job has a completion time; stagger them so the tiles
-          // read as a real sequence rather than one batch write.
-          completed_at: state === 'APPLIED'
-            ? new Date(Date.parse(project.updatedAt) + index * 7 * 60_000).toISOString()
-            : null,
-        };
-      }),
+        state: applied ? 'APPLIED' : !applying ? 'NEVER_APPLIED'
+          : index === 0 ? 'APPLIED' : index === 1 ? 'APPLYING' : 'NEVER_APPLIED',
+      })),
     });
   },
 
@@ -2093,27 +2083,26 @@ export const mockConfirm = {
 /** Provider → Terraform task rows (swagger TerraformTaskStatusResponse enums). */
 const TF_TASKS_BY_PROVIDER: Record<
   string,
-  { terraform_task_name: string; terraform_target: string; terraform_execution_side: string }[]
+  { terraform_task_name: string; terraform_execution_side: string }[]
 > = {
   AWS: [
-    { terraform_task_name: 'AWS_SERVICE_LEVEL', terraform_target: 'SERVICE', terraform_execution_side: 'SERVICE' },
-    { terraform_task_name: 'AWS_BDC_SERVICE_COMMON', terraform_target: 'BDC_SERVICE_LEVEL_COMMON', terraform_execution_side: 'BDC' },
-    { terraform_task_name: 'AWS_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'AWS_SERVICE_LEVEL', terraform_execution_side: 'SERVICE' },
+    { terraform_task_name: 'AWS_BDC_SERVICE_COMMON', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'AWS_BDC_SERVICE', terraform_execution_side: 'BDC' },
   ],
   AZURE: [
-    { terraform_task_name: 'AZURE_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'AZURE_BDC_SERVICE', terraform_execution_side: 'BDC' },
   ],
   GCP: [
-    { terraform_task_name: 'GCP_SERVICE_LEVEL', terraform_target: 'SERVICE', terraform_execution_side: 'SERVICE' },
-    { terraform_task_name: 'GCP_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'GCP_SERVICE_LEVEL', terraform_execution_side: 'SERVICE' },
+    { terraform_task_name: 'GCP_BDC_SERVICE', terraform_execution_side: 'BDC' },
   ],
   IDC: [
-    { terraform_task_name: 'IDC_BDC_CX', terraform_target: 'IDC_CX', terraform_execution_side: 'BDC' },
-    { terraform_task_name: 'IDC_BDC_BDP', terraform_target: 'IDC_BDP', terraform_execution_side: 'BDC' },
-    { terraform_task_name: 'IDC_BDC_PUBLIC_URL', terraform_target: 'IDC_PUBLIC_URL', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'IDC_BDC_CX', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'IDC_BDC_BDP', terraform_execution_side: 'BDC' },
   ],
   SDU: [
-    { terraform_task_name: 'SDU_BDC_SERVICE_COMMON', terraform_target: 'BDC_SERVICE_LEVEL_COMMON', terraform_execution_side: 'BDC' },
-    { terraform_task_name: 'SDU_BDC_SERVICE', terraform_target: 'BDC_SERVICE', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'SDU_BDC_SERVICE_COMMON', terraform_execution_side: 'BDC' },
+    { terraform_task_name: 'SDU_BDC_SERVICE', terraform_execution_side: 'BDC' },
   ],
 };

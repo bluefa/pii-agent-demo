@@ -18,33 +18,28 @@ import {
 } from '@/lib/theme';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
-import { jiraTicketLink } from '@/lib/jira-ticket';
+import { safeBrowseUrl } from '@/lib/jira-ticket';
 
 type PanelTab = 'guide' | 'history';
 
 /**
  * Collab-channel ticket state for the rail card, resolved server-side
  * (page.tsx): 'error' on non-404 failures, null = no ticket mapped (API 404).
+ * v5 계약 — 열 주소는 `browseUrl` 이 싣는다. 프론트는 조립·파싱하지 않는다.
  */
-export type JiraTicketState = { issueKey: string } | null | 'error';
-
-/**
- * Jira base URL — 조회 응답의 `issueKey` 가 티켓 주소로 올 때는 쓰지 않는다(그 값을 그대로
- * 연다). 키만 올 때만 이 주소로 링크를 만든다. Deployment 는 NEXT_PUBLIC_JIRA_BROWSE_BASE
- * 로 덮고, 기본값은 mock/demo 에서 키가 눌리게 하기 위한 것이다.
- */
-const JIRA_BROWSE_BASE =
-  process.env.NEXT_PUBLIC_JIRA_BROWSE_BASE ?? 'https://jira.example.com/browse/';
+export type JiraTicketState = { issueKey: string; browseUrl: string | null } | null | 'error';
 
 /**
  * Top-of-rail help card — the collab-channel entry point, mirroring
  * GET /target-sources/{id}/jira-ticket: mapped ticket → Jira link row (or a
- * plain key row when no Jira base URL is configured); 404 → explicit 미연결
+ * plain key row when the response carries no browseUrl); 404 → explicit 미연결
  * row instead of a fake sample key; fetch error → its own row, so an outage
  * is not misread as "no channel".
  */
 const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
   const rowBase = 'mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px]';
+  const href =
+    jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
 
   return (
     <div className={cn('rounded-xl border p-4', primaryColors.bgLight, primaryColors.borderLight)}>
@@ -82,13 +77,10 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           <ChatIcon className="h-3.5 w-3.5 shrink-0" />
           아직 연결된 협업 채널이 없어요
         </div>
-      ) : (
+      ) : href ? (
         <a
-          href={
-            // 응답이 티켓 주소면 그 값으로 연다 — 화면엔 마지막 `/` 뒤 조각만 보여준다.
-            jiraTicketLink(jiraTicket.issueKey).href
-            ?? `${JIRA_BROWSE_BASE}${encodeURIComponent(jiraTicket.issueKey)}`
-          }
+          // v5 계약 — BFF 가 조립한 browseUrl 을 그대로 연다. 프론트 파싱·조립 없음.
+          href={href}
           target="_blank"
           rel="noopener noreferrer"
           title="협업 채널 — Jira에서 논의하기"
@@ -105,10 +97,27 @@ const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
           협업 채널 링크
           {/* Owner ask: the issue key reads as a classic hyperlink — blue + underline. */}
           <span className={cn('ml-auto font-mono text-[12px] underline', primaryColors.text)}>
-            {jiraTicketLink(jiraTicket.issueKey).label}
+            {jiraTicket.issueKey}
           </span>
           <OpenExternalIcon className="h-[11px] w-[11px] shrink-0 opacity-50" />
         </a>
+      ) : (
+        // browseUrl 이 없으면(또는 http 가 아니면) 링크를 지어내지 않고 키만 보여준다.
+        <div
+          className={cn(
+            rowBase,
+            'font-semibold',
+            primaryColors.borderLight,
+            bgColors.surface,
+            textColors.secondary,
+          )}
+        >
+          <ChatIcon className="h-3.5 w-3.5 shrink-0" />
+          협업 채널
+          <span className={cn('ml-auto font-mono text-[12px]', textColors.secondary)}>
+            {jiraTicket.issueKey}
+          </span>
+        </div>
       )}
     </div>
   );

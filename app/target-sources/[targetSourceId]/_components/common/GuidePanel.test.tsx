@@ -16,11 +16,13 @@ vi.mock(
 );
 
 import { GuidePanel } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
+import { providerAccent } from '@/lib/theme';
 
 const baseProps = {
   slotKey: null,
   monitoringLabel: 'AWS Agent',
-  monitoringAccent: '#FF9900',
+  // 실제 호출부(ProjectDetail)와 같은 소스 — 픽스처에 hex 를 직접 적지 않는다.
+  monitoringAccent: providerAccent.aws,
 } as const;
 
 describe('GuidePanel — collab-channel card states', () => {
@@ -38,12 +40,23 @@ describe('GuidePanel — collab-channel card states', () => {
   });
 
   it('links the mapped issue key (owner ask: blue underlined hyperlink)', () => {
-    render(<GuidePanel {...baseProps} jiraTicket={{ issueKey: 'PII-42' }} />);
+    render(
+      <GuidePanel
+        {...baseProps}
+        jiraTicket={{ issueKey: 'PII-42', browseUrl: 'https://jira.example.com/browse/PII-42' }}
+      />,
+    );
     const link = screen.getByTitle('협업 채널 — Jira에서 논의하기') as HTMLAnchorElement;
-    expect(link.getAttribute('href')).toContain('/browse/PII-42');
+    expect(link.getAttribute('href')).toBe('https://jira.example.com/browse/PII-42');
     expect(link.getAttribute('target')).toBe('_blank');
     const key = screen.getByText('PII-42');
     expect(key.className).toContain('underline');
+  });
+
+  it('browseUrl 이 없으면 링크를 지어내지 않고 키만 보여준다', () => {
+    render(<GuidePanel {...baseProps} jiraTicket={{ issueKey: 'PII-42', browseUrl: null }} />);
+    expect(screen.queryByTitle('협업 채널 — Jira에서 논의하기')).toBeNull();
+    expect(screen.getByText('PII-42')).toBeTruthy();
   });
 });
 
