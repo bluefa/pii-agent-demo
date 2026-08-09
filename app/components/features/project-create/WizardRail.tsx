@@ -43,7 +43,7 @@ export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) =>
   // T-junction. With the column running the whole way, the only division left is its
   // own edge — and the dialog's title stops competing with the step's heading opposite.
   // No surface and no border of its own: the column sits straight on the dialog's gray
-  // ground, and the 8px gutter to the content card is the whole separation. 248/px-14
+  // ground, and the 16px gutter to the content card is the whole separation. 248/px-14
   // keeps the same 168px text column the old 256/px-18 had, now that the gutter and the
   // card's own padding do the spacing the border used to.
   <div className="flex w-[248px] flex-shrink-0 flex-col px-[14px] pb-[22px] pt-6">
@@ -55,7 +55,7 @@ export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) =>
           「PII 모니터링을 시작할 인프라를 등록해요.」 measures 220 and wrapped. This
           wording lands at 181, so it holds its line with room for a wider fallback
           font. `nowrap` makes the constraint fail loudly if the copy grows again. */}
-      <p className={cn('mt-1 whitespace-nowrap text-sm', textColors.tertiary)}>
+      <p className={cn('mt-1 whitespace-nowrap text-sm', textColors.secondary)}>
         PII 모니터링할 인프라를 등록해요.
       </p>
     </div>
@@ -107,9 +107,16 @@ export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) =>
             <span
               className={cn(
                 'text-sm transition-colors',
+                // Every tier is secondary or darker: this column sits on gray-100, where
+                // tertiary is 4.37:1 and under AA (see the `bgColors.panel` token). The
+                // three tiers separate by weight instead — the dot and the spine already
+                // carry done-vs-pending, so the text does not have to.
+                textColors.secondary,
                 isActive
                   ? cn('font-bold', textColors.primary)
-                  : cn('font-semibold', isDone ? textColors.secondary : textColors.tertiary),
+                  : isDone
+                    ? 'font-semibold'
+                    : 'font-normal',
                 // The label carries the go-back affordance now that no row background
                 // does — a 110px hover block would bring the card problem back.
                 canNavigate && primaryColors.groupTextOnLight,
@@ -117,7 +124,7 @@ export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) =>
             >
               {title}
             </span>
-            {isActive && <span className={cn('text-xs', textColors.tertiary)}>{sublabel}</span>}
+            {isActive && <span className={cn('text-xs', textColors.secondary)}>{sublabel}</span>}
           </span>
         </button>
         );

@@ -28,7 +28,7 @@ import {
 } from '@/app/components/features/project-create/wizard-model';
 import type { DbType } from '@/lib/constants/db-types';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
-import { bgColors, borderColors, cn, modalStyles } from '@/lib/theme';
+import { bgColors, borderColors, cn, modalStyles, textColors } from '@/lib/theme';
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;
@@ -287,9 +287,17 @@ export const ProjectCreateModal = ({
         >
           {/* Grouping by surface, not by borders: a gray ground fills the dialog and the
               content sits on it as its own white card. The step column sits directly on
-              the gray, so the 8px gutter is what separates the two — no rule to draw, and
-              nothing left to make a seam. Inner radius steps down from the shell's. */}
-          <div className={cn('flex min-h-0 flex-1 gap-4 overflow-hidden p-4', bgColors.panel)}>
+              the gray, so the 16px gutter is what separates the two — no rule to draw, and
+              nothing left to make a seam. Inner radius steps down from the shell's.
+              Both surfaces name their own foreground: an undeclared color inherits the
+              body's, which flips under a dark system preference and vanishes here. */}
+          <div
+            className={cn(
+              'flex min-h-0 flex-1 gap-4 overflow-hidden p-4',
+              bgColors.panel,
+              textColors.primary,
+            )}
+          >
             <WizardRail
               current={step}
               onNavigate={step < 5 ? setStep : undefined}
@@ -301,6 +309,7 @@ export const ProjectCreateModal = ({
                 'flex min-h-0 flex-1 flex-col rounded-lg border',
                 borderColors.card,
                 bgColors.surface,
+                textColors.primary,
               )}
             >
               {/* pt-6 matches the rail's, so the step heading and the dialog title
