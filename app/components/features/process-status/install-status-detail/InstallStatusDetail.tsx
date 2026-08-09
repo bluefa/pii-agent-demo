@@ -598,11 +598,6 @@ export const InstallStatusDetail = ({
   if (grouped) {
     const todoSteps = navSteps.filter((s) => s.group === 'todo');
     const autoSteps = navSteps.filter((s) => s.group === 'auto');
-    // Nonzero buckets get a 1% floor so a single failure among hundreds of
-    // resources still leaves a visible sliver (flex-shrink absorbs any >100% sum).
-    const pct = (n: number) =>
-      rollup.total ? Math.max(n > 0 ? 1 : 0, Math.round((n / rollup.total) * 100)) : 0;
-
     // 레일 항목 껍데기 — 단계와 참고 항목이 같은 히트 영역·선택 표현을 쓴다.
     const railItemClass = (isActive: boolean) =>
       cn(
@@ -736,10 +731,13 @@ export const InstallStatusDetail = ({
                 모든 단계는 자동으로 진행돼요
               </p>
             )}
-            {groupLabel('BDC 자동 진행', textColors.secondary)}
+            {/* BDC 는 인디고 — 새 색이 아니라 이 화면이 이미 'BDC측'에 쓰고 있는 색이다
+                (SideTag 의 tagStyles.indigo, sideTextColors.bdc). 그룹 이름과 행 태그가
+                같은 색을 말해야 "이 묶음이 곧 BDC 측"으로 읽힌다. */}
+            {groupLabel('BDC 자동 진행', sideTextColors.bdc)}
             {autoSteps.map((s, i) => railItem(s, i + 1))}
 
-            {/* 리뷰요청 — 단계가 아니므로 진행 순번 다음, 푸터 요약 앞에 선다.
+            {/* 리뷰요청 — 단계가 아니므로 진행 순번 다음, 레일 끝에 선다.
                 주황은 파랑(내가 할 일)과 겹치지 않는 유일한 강조색이라, 처음 들어온
                 담당자도 찾지 않고 걸린다(오너 요구). */}
             {reference && (
@@ -748,27 +746,8 @@ export const InstallStatusDetail = ({
                 {referenceItem(reference)}
               </>
             )}
-
-            {/* Rail footer — the bottom slack closes with an overall progress
-                summary (WinUI PaneFooter grammar). */}
-            <div className="mt-auto px-2.5 pt-4 pb-1 flex flex-col gap-1.5 flex-shrink-0">
-              <div
-                role="img"
-                aria-label={`전체 ${rollup.total}개 중 완료 ${rollup.done}, 진행 중 ${rollup.running}, 실패 ${rollup.failed}`}
-                className={cn('flex h-1 rounded-full overflow-hidden', bgColors.divider)}
-              >
-                <span className={statusColors.success.dot} style={{ width: `${pct(rollup.done)}%` }} />
-                <span className={statusColors.info.dot} style={{ width: `${pct(rollup.running)}%` }} />
-                <span className={statusColors.error.dot} style={{ width: `${pct(rollup.failed)}%` }} />
-              </div>
-              <span className={cn(textStyles.caption, textColors.secondary)}>
-                <span className="font-semibold">
-                  {rollup.total}개 중 {rollup.done}개 완료
-                </span>
-                {rollup.failed > 0 && ` · 실패 ${rollup.failed}`}
-                {rollup.running > 0 && ` · 진행 중 ${rollup.running}`}
-              </span>
-            </div>
+            {/* 레일 푸터(진행바+요약) 삭제 — 각 단계 행의 상태 글자가 이미 같은 말을
+                하고 있어 레일 하단에서 한 번 더 세지 않는다(오너 결정). */}
           </nav>
 
           {/* Primer card — separation is the hairline border (gray-200, so it

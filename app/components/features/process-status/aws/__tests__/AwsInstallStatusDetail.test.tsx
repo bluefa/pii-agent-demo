@@ -74,8 +74,8 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(nav).getByText('BDC 자동 진행')).toBeTruthy();
     expect(within(nav).queryByText('서비스측')).toBeNull();
     expect(within(nav).queryByText('BDC측')).toBeNull();
-    // Rail footer — overall progress summary (r-1 done, r-2 failed).
-    expect(within(nav).getByText('2개 중 1개 완료')).toBeTruthy();
+    // 레일 푸터(진행바+요약)는 삭제됐다 — 각 단계 행의 상태 글자가 같은 말을 한다.
+    expect(within(nav).queryByText('2개 중 1개 완료')).toBeNull();
 
     // No open todo → the failed step is the default view, and its table's 안내
     // chip is the single place the failure reason is stated.

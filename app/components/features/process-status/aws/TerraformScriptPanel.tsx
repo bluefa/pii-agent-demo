@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { getAwsTerraformScript } from '@/app/lib/api/aws';
-import { cn, getButtonClass, stackGap, statusColors, textColors, textStyles } from '@/lib/theme';
+import { cn, getButtonClass, stackGap, statusColors, textStyles } from '@/lib/theme';
 
 /**
  * Step-4 레일의 '참고 · Terraform Script' 패널.
@@ -46,14 +46,6 @@ export const TerraformScriptPanel = ({ targetSourceId }: { targetSourceId: numbe
       >
         {downloading ? '다운로드 중...' : 'Terraform Script 다운로드'}
       </button>
-
-      {/* 라벨↔보충 설명 = tight 4px */}
-      <div className={cn('flex flex-col', stackGap.tight, textStyles.caption, textColors.tertiary)}>
-        <span>설치 방식(자동·수동)과 관계없이 언제든 받을 수 있습니다.</span>
-        <span>
-          저장 파일 <span className="font-mono">terraform-{targetSourceId}.zip</span>
-        </span>
-      </div>
 
       {error && (
         <div
