@@ -22,7 +22,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
-import { formatDateTime } from '@/lib/utils/date';
+import { formatDateTime, formatDateTimeKst } from '@/lib/utils/date';
 import {
   INSTALL_STATUS_LABEL,
   isSettledInstallStatus,
@@ -417,13 +417,16 @@ export const InstallStatusDetail = ({
   panelSteps = [],
   meta,
 }: InstallStatusDetailProps) => {
-  // 그룹 레일(v2) — 어댑터가 step.group 을 하나라도 선언하면 켜진다 (AWS 선행).
-  const grouped = useMemo(
-    () => [...panelSteps, ...steps].some((s) => s.group),
-    [panelSteps, steps],
-  );
+  // Grouped rail (v2) — on only when EVERY step declares a group (AWS first).
+  // A half-migrated adapter (some steps missing `group`) falls back to the
+  // legacy layout: the grouped rail partitions by group and would silently
+  // drop — and make unreachable — any step that declares none.
+  const grouped = useMemo(() => {
+    const all = [...panelSteps, ...steps];
+    return all.length > 0 && all.every((s) => s.group);
+  }, [panelSteps, steps]);
 
-  // 그룹 레일에는 요약 스텝이 없다 — 전체 집계는 레일 푸터가 담당한다(v3.5).
+  // The grouped rail has no summary step — the metabar and rail footer own the rollup.
   const navSteps: InstallTableStep[] = useMemo(
     () => (grouped ? [...panelSteps, ...steps] : [SUMMARY_STEP, ...panelSteps, ...steps]),
     [grouped, panelSteps, steps],
@@ -498,9 +501,10 @@ export const InstallStatusDetail = ({
     };
   }, [resources]);
 
-  // 조치할 항목이 있으면 요약(=할 일 목록)으로 열고, 없으면 진행 중인 단계로
-  // 바로 들어간다. 그룹 레일에서는 첫 미완료 todo 가 곧 첫 화면이다(요약 우회).
-  // 사용자 클릭은 항상 선택을 고정한다.
+  // Default selection: with actionable items, open the summary (= todo list);
+  // otherwise jump straight to the step in motion. The grouped rail has no
+  // summary, so its first open todo IS the first screen. A user click always
+  // pins the selection.
   const hotStepId = useMemo<string>(() => {
     if (grouped) {
       const todo = navSteps.find(
@@ -512,7 +516,7 @@ export const InstallStatusDetail = ({
       const hit = navSteps.find((s) => s.id !== SUMMARY_ID && aggregates.get(s.id)?.kind === kind);
       if (hit) return hit.id;
     }
-    // 그룹 레일에는 요약 스텝이 없다 — 전부 완료면 첫 항목을 연다.
+    // The grouped rail has no summary step — when everything is done, open the first item.
     return grouped ? navSteps[0]?.id ?? SUMMARY_ID : SUMMARY_ID;
   }, [grouped, actionViews, navSteps, aggregates]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -537,10 +541,10 @@ export const InstallStatusDetail = ({
     });
   }, [activePanel, active.id, resources, meta, cellOf]);
 
-  // 우측 패널 헤더/본문 — 두 레이아웃(그룹/레거시)이 공유한다.
+  // Right-pane header/body — shared by both layouts (grouped / legacy).
   const paneHead = (
     <div className="flex items-start justify-between gap-3">
-      {/* 제목↔부제 = tight 4px */}
+      {/* title↔subtitle = tight 4px */}
       <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
         <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
         <p className={cn(textStyles.caption, 'max-w-[60ch]', textColors.secondary)}>
@@ -552,7 +556,7 @@ export const InstallStatusDetail = ({
         {active.action}
         {!isSummary && activeAggregate && (
           <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
-            {/* 그룹 레일에서는 n/m 카운트를 쓰지 않는다 — 상태 단어만. */}
+            {/* The grouped rail drops n/m counts — status words only. */}
             {!grouped && activeAggregate.count
               ? `${activeAggregate.label} ${activeAggregate.count}`
               : activeAggregate.label}
@@ -572,14 +576,18 @@ export const InstallStatusDetail = ({
   );
 
   // ---------------------------------------------------------------------------
-  // 그룹 레일 레이아웃 (v3.6, AWS 선행) — 회색 래퍼가 레일과 흰 콘텐츠 카드를 감싼다.
+  // Grouped rail layout (v3.6, AWS first) — a gray wrapper encloses the rail
+  // and the white content card.
   // ---------------------------------------------------------------------------
   if (grouped) {
     const todoSteps = navSteps.filter((s) => s.group === 'todo');
     const autoSteps = navSteps.filter((s) => s.group === 'auto');
-    const pct = (n: number) => (rollup.total ? Math.round((n / rollup.total) * 100) : 0);
+    // Nonzero buckets get a 1% floor so a single failure among hundreds of
+    // resources still leaves a visible sliver (flex-shrink absorbs any >100% sum).
+    const pct = (n: number) =>
+      rollup.total ? Math.max(n > 0 ? 1 : 0, Math.round((n / rollup.total) * 100)) : 0;
 
-    // 레일 항목 — 한 줄: [미완료 점 | 순번] 제목 · 상태 글자.
+    // Rail item — one line: [open-todo dot | ordinal] title · status word.
     const railItem = (step: InstallTableStep, ord: number | null) => {
       const aggregate = aggregates.get(step.id)!;
       const isActive = step.id === activeId;
@@ -592,7 +600,8 @@ export const InstallStatusDetail = ({
           aria-current={isActive}
           className={cn(
             'relative flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0',
-            // Primer 문법 — 선택 항목은 inset 헤어라인 링 + 1px 오프셋 그림자로 얹힌다.
+            // Primer grammar — the selected item lifts with an inset hairline
+            // ring + 1px offset shadow.
             isActive ? cn('bg-white', shadows.hairRing) : 'hover:bg-white/60',
           )}
         >
@@ -606,8 +615,9 @@ export const InstallStatusDetail = ({
             />
           )}
           {ord !== null && (
-            // 수행 순서 — 약한 회색 숫자(오너: 숫자는 약하게).
-            <span className={cn('flex-shrink-0 w-3.5 tabular-nums', textStyles.caption, textColors.tertiary)}>
+            // Execution order — quiet gray digits. secondary, not tertiary:
+            // gray-500 on the panel surface (gray-100) is 4.37:1, under AA.
+            <span className={cn('flex-shrink-0 w-3.5 tabular-nums', textStyles.caption, textColors.secondary)}>
               {ord}
             </span>
           )}
@@ -633,7 +643,9 @@ export const InstallStatusDetail = ({
         className={cn(
           'px-2.5 pt-3 pb-1 font-bold tracking-[0.02em] flex-shrink-0',
           textStyles.caption,
-          hot ? primaryColors.text : textColors.tertiary,
+          // On the gray-100 panel: #0064FF is 4.47:1 and gray-500 is 4.37:1,
+          // both under AA — use the darker pair the theme keeps for tints.
+          hot ? primaryColors.textOnLight : textColors.secondary,
         )}
       >
         {text}
@@ -642,26 +654,28 @@ export const InstallStatusDetail = ({
 
     return (
       <div className={cn('rounded-2xl p-2', bgColors.panel)}>
-        {/* 메타바 — 제목 좌 / 확인 시각 우, 같은 베이스라인 한 줄(v3.4). 수동 새로고침·
-            자동주기 컨트롤은 노출하지 않는다(오너 결정) — 갱신은 폴링이 조용히 담당. */}
+        {/* Metabar — title left / last-check right, one baseline row. No manual
+            refresh or interval control (owner decision) — polling refreshes quietly. */}
         <div className="flex items-baseline gap-3 flex-wrap px-2.5 pt-1.5 pb-2.5">
           <h3 className={cn(textStyles.cardTitle, textColors.primary)}>설치 진행 상황</h3>
-          <span className={cn('ml-auto', textStyles.caption, textColors.tertiary)}>
-            {/* checked_at 은 UTC wire — formatDateTime 이 로컬(KST)로 변환해 표시한다. */}
-            {lastCheck.checkedAt && <>마지막 확인 {formatDateTime(lastCheck.checkedAt)} (KST)</>}
+          <span className={cn('ml-auto', textStyles.caption, textColors.secondary)}>
+            {/* checked_at is UTC wire — the label asserts KST, so the formatter
+                pins Asia/Seoul instead of trusting the browser timezone. */}
+            {lastCheck.checkedAt && <>마지막 확인 {formatDateTimeKst(lastCheck.checkedAt)} (KST)</>}
             {lastCheck.status === 'FAILED' && (
               <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
             )}
           </span>
         </div>
 
-        {/* 높이 고정(A안) — 스크롤은 우측 카드 본문에서만. 헤더가 클리핑 지점이다. */}
+        {/* Fixed height — scrolling lives in the card body on the right; the
+            card header is the clipping point. */}
         <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-2 h-[560px]">
           <nav className="flex flex-col gap-0.5 overflow-y-auto min-h-0 pb-1" aria-label="설치 단계">
             {groupLabel(`내가 할 일 (${openTodoCount})`, openTodoCount > 0)}
             {todoSteps.map((s) => railItem(s, null))}
             {openTodoCount === 0 && (
-              <p className={cn('px-3.5 pb-1 flex-shrink-0', textStyles.caption, textColors.tertiary)}>
+              <p className={cn('px-3.5 pb-1 flex-shrink-0', textStyles.caption, textColors.secondary)}>
                 지금 하실 일이 없어요 —
                 <br />
                 모든 단계는 자동으로 진행돼요
@@ -670,7 +684,8 @@ export const InstallStatusDetail = ({
             {groupLabel('BDC 자동 진행', false)}
             {autoSteps.map((s, i) => railItem(s, i + 1))}
 
-            {/* 레일 푸터 — 바닥 여백을 전체 진행 요약으로 마감(WinUI PaneFooter, v3.5). */}
+            {/* Rail footer — the bottom slack closes with an overall progress
+                summary (WinUI PaneFooter grammar). */}
             <div className="mt-auto px-2.5 pt-4 pb-1 flex flex-col gap-1.5 flex-shrink-0">
               <div
                 role="img"
@@ -681,8 +696,8 @@ export const InstallStatusDetail = ({
                 <span className={statusColors.info.dot} style={{ width: `${pct(rollup.running)}%` }} />
                 <span className={statusColors.error.dot} style={{ width: `${pct(rollup.failed)}%` }} />
               </div>
-              <span className={cn(textStyles.caption, textColors.tertiary)}>
-                <span className={cn('font-semibold', textColors.secondary)}>
+              <span className={cn(textStyles.caption, textColors.secondary)}>
+                <span className="font-semibold">
                   {rollup.total}개 중 {rollup.done}개 완료
                 </span>
                 {rollup.failed > 0 && ` · 실패 ${rollup.failed}`}
@@ -691,8 +706,9 @@ export const InstallStatusDetail = ({
             </div>
           </nav>
 
-          {/* Primer 카드(v3.6) — 분리는 헤어라인 테두리, 그림자는 1px 오프셋 힌트만. */}
-          <div className={cn('min-w-0 min-h-0 flex flex-col bg-white rounded-xl border', borderColors.light, shadows.hair)}>
+          {/* Primer card — separation is the hairline border (gray-200, so it
+              reads against the gray-100 panel), the shadow is only a 1px lift hint. */}
+          <div className={cn('min-w-0 min-h-0 flex flex-col bg-white rounded-xl border', borderColors.default, shadows.hair)}>
             <div className={cn('flex-none px-5 py-4 border-b', borderColors.light)}>{paneHead}</div>
             <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">{paneBody}</div>
           </div>
@@ -702,7 +718,7 @@ export const InstallStatusDetail = ({
   }
 
   // ---------------------------------------------------------------------------
-  // 레거시 레이아웃 — group 을 선언하지 않은 CSP (Azure / GCP / IDC).
+  // Legacy layout — CSPs whose steps declare no groups (Azure / GCP / IDC).
   // ---------------------------------------------------------------------------
   return (
     <div className="flex flex-col gap-3">

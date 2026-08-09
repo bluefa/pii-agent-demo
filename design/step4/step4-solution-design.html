@@ -1,0 +1,646 @@
+<title>Step 4 설치 단계 — 해결 설계 v2 (레일+패널 목업)</title>
+<style>
+/* Single-theme light design — product mockup fidelity. All colors explicit. */
+:root{
+  --bg:#FFFFFF; --panel:#F8F9FC; --panel2:#F2F4F6; --ink:#191F28; --body:#4E5968; --mute:#8B95A1;
+  --line:#E5E8EB; --blue:#0064FF; --blue-ink:#0050CC; --blue-soft:#EBF2FF; --blue-deep:#1E40AF;
+  --red:#D22030; --red-soft:#FDEBED; --amber:#B54708; --amber-soft:#FDF3E3; --green:#0A7D45; --green-soft:#E8F6EE;
+  --gray-chip:#EEF1F4; --gray-chip-ink:#556170; --code:#EFF2F6;
+  --shadow:0 1px 2px rgba(25,31,40,.05),0 10px 30px rgba(25,31,40,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI","Malgun Gothic",sans-serif;
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--blue-ink);text-decoration:none}
+a:hover{text-decoration:underline}
+button{font:inherit;cursor:pointer}
+a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;background:var(--code);padding:1px 5px;border-radius:4px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 28px 96px}
+h2{font-size:24px;font-weight:700;margin:0 0 6px}
+.hero{padding:60px 0 30px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--blue-ink);text-transform:uppercase;margin-bottom:12px}
+.hero h1{font-size:32px;font-weight:800;margin:0 0 12px;letter-spacing:-.02em;text-wrap:balance}
+.hero p{max-width:68ch;color:var(--body);margin:0}
+.meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;font-size:14px;color:var(--mute)}
+.meta b{color:var(--body);font-weight:600}
+.nav{position:sticky;top:0;z-index:40;background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:6px;overflow-x:auto;margin:0 -28px;padding:10px 28px}
+.nav a{flex:0 0 auto;font-size:14px;font-weight:600;color:var(--body);padding:6px 12px;border-radius:999px;border:1px solid var(--line)}
+.nav a:hover{background:var(--panel);text-decoration:none}
+section{padding-top:52px}
+.sec-eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--mute);text-transform:uppercase}
+.sec-sub{color:var(--body);max-width:72ch;margin:4px 0 20px}
+
+/* ---------- layout rationale ---------- */
+.why{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:16px}
+@media(max-width:900px){.why{grid-template-columns:1fr}}
+.wcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.wcard h4{margin:0 0 6px;font-size:16px}
+.wcard p{margin:0;font-size:14px;color:var(--body)}
+.wcard .from{margin-top:8px;font-size:12px;color:var(--mute)}
+.decision{margin-top:16px;background:var(--blue-soft);border-radius:12px;padding:14px 18px;font-size:14px;color:var(--ink)}
+.decision b{color:var(--blue-ink)}
+
+/* ---------- principle cards ---------- */
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:900px){.pgrid{grid-template-columns:1fr}}
+.pcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.pcard .no{font-size:12px;font-weight:800;color:var(--blue-ink);letter-spacing:.08em}
+.pcard h4{margin:6px 0 6px;font-size:16px}
+.pcard p{margin:0;font-size:14px;color:var(--body)}
+.pcard .from{margin-top:9px;font-size:12px;color:var(--mute)}
+
+/* ---------- mock frame ---------- */
+.mockbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:18px 0 0}
+.cspTab{border:1px solid var(--line);background:var(--bg);color:var(--body);font-size:14px;font-weight:600;padding:7px 14px;border-radius:999px}
+.cspTab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#FFFFFF}
+.mocknote{margin:12px 0 0;font-size:14px;color:var(--body);background:var(--blue-soft);border-radius:10px;padding:10px 14px}
+.mocknote b{color:var(--blue-ink)}
+.frame{margin-top:14px;border:1px solid var(--line);border-radius:16px;background:#FFFFFF;box-shadow:var(--shadow);overflow:hidden;position:relative}
+.frame-head{background:#F8F9FC;border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.frame-head .stepno{font-size:12px;font-weight:700;color:var(--blue-ink);background:var(--blue-soft);border-radius:6px;padding:2px 8px}
+.frame-head h5{margin:0;font-size:18px;font-weight:600}
+.mode-chip{font-size:12px;font-weight:600;color:var(--gray-chip-ink);background:var(--gray-chip);border-radius:999px;padding:2px 10px}
+.head-side{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.statline{display:flex;gap:6px;align-items:center;font-size:12px;font-weight:600}
+.stat{border-radius:999px;padding:2px 10px;background:#FFFFFF;border:1px solid var(--line);color:var(--body);font-variant-numeric:tabular-nums}
+.stat.todo{background:var(--blue-soft);border-color:transparent;color:var(--blue-ink)}
+.stat.fail{background:var(--red-soft);border-color:transparent;color:var(--red)}
+.refresh{border:1px solid var(--line);background:#FFFFFF;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--body)}
+.refresh:hover{background:var(--panel)}
+.lastchk{font-size:12px;color:var(--mute)}
+
+/* master-detail */
+.mdgrid{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:520px}
+@media(max-width:820px){.mdgrid{grid-template-columns:1fr}.rail{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line)}.rgroup{display:none}.ritem{flex:0 0 auto}}
+.rail{background:var(--panel2);border-right:1px solid var(--line);padding:12px 10px}
+.rgroup{font-size:12px;color:var(--mute);font-weight:700;padding:10px 10px 4px;letter-spacing:.04em}
+.rgroup.first{padding-top:2px}
+.rgroup .cnt{color:var(--blue-ink)}
+.ritem{position:relative;display:flex;gap:8px;width:100%;text-align:left;border:none;background:none;padding:9px 10px 9px 14px;border-radius:8px;font-size:14px;color:var(--body);align-items:baseline}
+.ritem:hover{background:rgba(255,255,255,.7)}
+.ritem[aria-current="true"]{background:#FFFFFF;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(25,31,40,.06)}
+.ritem[aria-current="true"]::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--blue)}
+.ritem .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ritem .st{font-size:12px;font-weight:600;white-space:nowrap}
+.st.c-run{color:var(--blue-ink)} .st.c-done{color:var(--green)} .st.c-fail{color:var(--red)} .st.c-na{color:var(--mute)} .st.c-part{color:var(--amber)}
+.ritem .dot{position:absolute;left:5px;top:50%;width:5px;height:5px;border-radius:50%;background:var(--blue);transform:translateY(-50%)}
+
+/* panel */
+.pane{padding:20px 24px 26px;background:#FFFFFF;min-width:0}
+.pane-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.pane-h .t{font-size:18px;font-weight:700;margin-right:2px}
+.pane-desc{font-size:14px;color:var(--body);margin:0 0 14px;max-width:70ch}
+.pane-desc b{color:var(--ink)}
+
+/* summary tiles (compact, summary pane only) */
+.band{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.tile{flex:1 1 110px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 14px;min-width:100px}
+.tile .k{font-size:12px;color:var(--mute);font-weight:600}
+.tile .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.3}
+.tile.todo{border-color:#BBD4FF;background:#F7FAFF}.tile.todo .v{color:var(--blue-ink)} .tile.fail .v{color:var(--red)}
+.acts{border:1px solid #BBD4FF;background:#F7FAFF;border-radius:12px;padding:12px 16px;margin-bottom:16px}
+.acts .h{font-size:12px;font-weight:700;color:var(--blue-ink);letter-spacing:.04em;margin-bottom:6px}
+.acts a{display:flex;gap:8px;align-items:baseline;font-size:14px;color:var(--ink);padding:4px 0}
+.acts a .st{margin-left:auto;font-size:12px;font-weight:600}
+.acts .none{font-size:14px;color:var(--body)}
+
+/* kv / cmd / buttons */
+.kv{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#FFFFFF;margin:10px 0}
+.kv table{border-collapse:collapse;width:100%;font-size:14px}
+.kv th{background:var(--panel);font-size:12px;color:var(--mute);text-align:left;font-weight:700;padding:7px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.kv td{padding:7px 12px;border-bottom:1px solid var(--line);color:var(--ink);font-variant-numeric:tabular-nums}
+.kv tr:last-child td{border-bottom:none}
+.kv td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--body)}
+.cmd{background:#20262E;color:#DDE3EA;border-radius:10px;padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.8;overflow-x:auto;margin:10px 0}
+.cmd .c{color:#8B95A1}
+.wait{font-size:12px;color:var(--mute);margin-top:8px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{border-radius:8px;padding:7px 14px;font-size:14px;font-weight:600;border:1px solid var(--line);background:#FFFFFF;color:var(--body)}
+.btn:hover{background:var(--panel)}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:#FFFFFF}
+.btn.pri:hover{background:var(--blue-ink)}
+.btn.sm{padding:3px 10px;font-size:12px;border-radius:6px}
+.note-empty{border:1px dashed var(--line);border-radius:12px;padding:18px;color:var(--body);font-size:14px;background:var(--panel)}
+.note-empty b{display:block;font-size:16px;color:var(--ink);margin-bottom:4px}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.chip.wait{background:var(--gray-chip);color:var(--gray-chip-ink)}
+.chip.run{background:var(--blue-soft);color:var(--blue-ink)}
+.chip.watch{background:var(--blue-soft);color:var(--blue-ink)}
+.chip.watch::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--blue);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.chip.done{background:var(--green-soft);color:var(--green)}
+.chip.fail{background:var(--red-soft);color:var(--red)}
+.chip.part{background:var(--amber-soft);color:var(--amber)}
+.chip.na{background:var(--gray-chip);color:var(--gray-chip-ink)}
+.chip.req{background:var(--red-soft);color:var(--red)}
+.actor{display:inline-flex;font-size:12px;font-weight:600;padding:1px 8px;border-radius:6px;white-space:nowrap}
+.actor.user{background:var(--blue-deep);color:#FFFFFF}
+.actor.svc-auto{background:var(--blue-soft);color:var(--blue-deep)}
+.actor.bdc{background:var(--gray-chip);color:var(--gray-chip-ink)}
+
+/* resource table */
+.res-sec{margin-top:18px}
+.res-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.res-head .t{font-size:14px;font-weight:700;margin-right:auto}
+.fchip{border:1px solid var(--line);background:#FFFFFF;border-radius:999px;font-size:12px;font-weight:600;color:var(--body);padding:3px 11px}
+.fchip[aria-pressed="true"]{background:var(--ink);color:#FFFFFF;border-color:var(--ink)}
+.sortnote{flex-basis:100%;font-size:12px;color:var(--mute)}
+.rtbl{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#FFFFFF}
+.rrow{border-top:1px solid var(--line)}
+.rrow:first-child{border-top:none}
+.rmain{display:grid;grid-template-columns:20px minmax(150px,1.3fr) minmax(90px,.9fr) minmax(110px,1fr) 100px;gap:12px;align-items:center;padding:10px 14px;cursor:pointer;font-size:14px;background:#FFFFFF}
+.rmain:hover{background:#FAFBFD}
+.rmain .caret{color:var(--mute);font-size:12px;transition:transform .15s}
+.rrow.open .rmain .caret{transform:rotate(90deg)}
+.rmain .nm{font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rmain .ty{color:var(--body);font-size:12px}
+.rmain .pg{color:var(--body);font-size:12px;font-variant-numeric:tabular-nums}
+.rmain .pg .bar{display:inline-block;width:56px;height:4px;border-radius:2px;background:var(--panel2);vertical-align:2px;margin-right:6px;overflow:hidden}
+.rmain .pg .bar i{display:block;height:100%;background:var(--blue);border-radius:2px}
+.rdetail{display:none;background:var(--panel);border-top:1px dashed var(--line);padding:13px 16px 15px 46px;font-size:14px;color:var(--body)}
+.rrow.open .rdetail{display:block}
+.rdetail .steps{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.rdetail .srow{display:flex;gap:10px;align-items:baseline}
+.rdetail .srow .sn{color:var(--ink);font-weight:600;min-width:160px}
+.failbox{background:var(--red-soft);border-radius:10px;padding:11px 14px;color:var(--ink);margin:8px 0}
+.failbox .fh{font-size:12px;font-weight:700;color:var(--red);margin-bottom:3px}
+.guidebox{background:#FFFFFF;border:1px solid var(--line);border-radius:10px;padding:11px 14px;margin:8px 0}
+.guidebox .gh{font-size:12px;font-weight:700;color:var(--mute);margin-bottom:3px}
+.rempty{padding:24px;text-align:center;color:var(--mute);font-size:14px}
+
+/* flyout */
+.scrim{position:absolute;inset:0;background:rgba(25,31,40,.4);opacity:0;pointer-events:none;transition:opacity .15s;z-index:5}
+.frame.fly-open .scrim{opacity:1;pointer-events:auto}
+.fly{position:absolute;top:0;right:0;bottom:0;width:min(480px,92%);background:#FFFFFF;border-left:1px solid var(--line);box-shadow:-12px 0 32px rgba(25,31,40,.12);transform:translateX(102%);transition:transform .2s;z-index:6;display:flex;flex-direction:column}
+.frame.fly-open .fly{transform:none}
+.fly-h{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.fly-h .t{font-size:16px;font-weight:700;flex:1}
+.fly-x{border:none;background:none;font-size:18px;color:var(--mute);padding:2px 8px}
+.fly-b{padding:16px 20px;overflow-y:auto;flex:1;font-size:14px;color:var(--body)}
+.fly-step{display:flex;gap:10px;margin-bottom:16px}
+.fly-no{flex:0 0 22px;height:22px;border-radius:50%;background:var(--blue-soft);color:var(--blue-ink);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.fly-no.lock{background:var(--gray-chip);color:var(--mute)}
+.fly-step .c{flex:1;min-width:0}
+.fly-step .c .t{font-weight:700;color:var(--ink);margin-bottom:4px}
+.gate{background:var(--blue-soft);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--blue-ink);font-weight:600}
+
+/* mapping + plan */
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:14px 0}
+table.map{border-collapse:collapse;width:100%;font-size:14px;min-width:720px}
+table.map th{background:var(--panel);text-align:left;font-size:12px;letter-spacing:.04em;color:var(--mute);font-weight:700;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.map td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--body)}
+table.map tr:last-child td{border-bottom:none}
+table.map td b{color:var(--ink);font-weight:600}
+.sev{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:1px 9px}
+.sev.p0{background:var(--red-soft);color:var(--red)} .sev.p1{background:var(--amber-soft);color:var(--amber)}
+.phase{border:1px solid var(--line);border-radius:14px;margin:14px 0;overflow:hidden}
+.phase .ph{display:flex;gap:10px;align-items:baseline;padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+.phase .ph .k{font-size:12px;font-weight:800;color:var(--blue-ink);background:var(--blue-soft);border-radius:6px;padding:2px 8px}
+.phase .ph h4{margin:0;font-size:16px;flex:1}
+.phase .ph .e{font-size:12px;color:var(--mute)}
+.phase ul{margin:12px 0;padding:0 20px 4px 38px;font-size:14px;color:var(--body)}
+.phase li{margin:6px 0}
+.callout{border-radius:12px;padding:14px 18px;margin:16px 0;font-size:14px;background:var(--red-soft)}
+.callout .lbl{display:block;font-weight:700;color:var(--red);font-size:12px;letter-spacing:.04em;margin-bottom:5px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:10px 0 0;font-size:12px;color:var(--mute)}
+footer{margin-top:64px;border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:var(--mute)}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(8px);background:var(--ink);color:#FFFFFF;font-size:14px;padding:8px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:all .2s;z-index:50}
+.toast.on{opacity:1;transform:translateX(-50%)}
+h3{font-size:18px;font-weight:700;margin:30px 0 10px}
+</style>
+
+<div class="wrap">
+
+<div class="hero">
+  <div class="eyebrow">PII Agent · Solution Design · v2</div>
+  <h1>Step 4 설치 단계 — 해결 설계 (레일 + 패널)</h1>
+  <p>v1의 카드 적층 구조를 폐기하고, <b>좌측 레일(내가 할 일 / 자동 진행 2그룹) + 우측 단일 패널</b>의 마스터-디테일로 다시 그렸습니다. 화면에는 항상 선택된 하나의 작업만 펼쳐지므로 세로 공간이 리소스 표에 돌아갑니다. 목업은 클릭해서 조작할 수 있습니다 — 레일 선택, CSP 전환, 행 확장, 필터, 플라이아웃.</p>
+  <div class="meta"><span><b>선행 문서</b> Step 4 UX 리서치 · 해결 설계 v1</span><span><b>작성</b> 2026-08-08</span></div>
+</div>
+
+<nav class="nav">
+  <a href="#space">공간 구조 결정</a>
+  <a href="#principles">설계 원칙</a>
+  <a href="#mock">인터랙티브 목업</a>
+  <a href="#mapping">문제 → 해결 매핑</a>
+  <a href="#plan">구현 계획</a>
+</nav>
+
+<!-- ================= SPACE ================= -->
+<section id="space">
+  <div class="sec-eyebrow">Layout Decision</div>
+  <h2>공간 구조 — 카드 적층 대신 레일 + 패널</h2>
+  <p class="sec-sub">v1은 요약 밴드·할 일 카드·타임라인·표를 세로로 쌓아 첫 화면에서 표가 밀려났습니다. 레퍼런스 13곳 중 공간 효율을 해결한 곳은 셋 다 같은 답을 씁니다 — <b>목록은 한 축에 고정하고, 내용은 패널 하나에서 갈아끼운다.</b></p>
+  <div class="why">
+    <div class="wcard"><h4>Elastic Fleet — 패널 하나에서 다단계</h4><p>정책 선택 → 토큰 → OS별 명령 → 등록 확인까지 플라이아웃 한 장 안에서 진행. 화면 전환·카드 증식이 없다.</p><div class="from">레퍼런스 05</div></div>
+    <div class="wcard"><h4>Defender — 목록 + 사이드 패널 탭</h4><p>권장사항 목록은 표 하나로 유지하고, 상세(개요/조치 방법/영향 자산)는 선택 시 열리는 패널의 탭으로. 목록이 화면을 항상 지배한다.</p><div class="from">레퍼런스 08</div></div>
+    <div class="wcard"><h4>Azure Advisor — 깔때기</h4><p>타일(요약) → 목록 → 상세로 내려가는 3단. 모든 층위를 동시에 펼치지 않고 한 번에 한 층만 보여준다.</p><div class="from">레퍼런스 10</div></div>
+  </div>
+  <div class="decision"><b>결정:</b> Step 4에는 이미 PR #587의 <b>224px 레일 + 우측 패널</b> 마스터-디테일이 있다. 새 프레임을 발명하지 않고 이 레일을 재사용하되, 레일의 어휘를 <b>"내가 할 일" 그룹(상단) + "BDC 자동 진행" 그룹(하단)</b>으로 재편한다. 우측 패널은 선택된 항목 하나만 렌더 — 할 일이면 값 표·CTA·감지 상태, 자동 단계면 그 단계의 리소스 표. Defender의 그룹핑 토글(작업별↔리소스별)은 별도 토글 없이 <b>레일(작업별) ↔ 전체 요약(리소스별)</b> 선택으로 자연 해소된다. 기존 수치 재사용 원칙(레일 폭·패널 배경)에도 부합.</div>
+</section>
+
+<!-- ================= PRINCIPLES ================= -->
+<section id="principles">
+  <div class="sec-eyebrow">Design Decisions</div>
+  <h2>화면을 지배하는 6가지 설계 결정</h2>
+  <p class="sec-sub">레퍼런스에서 추출한 반복 패턴을 이 화면의 언어로 번역한 것입니다. v2에서 D1이 "카드 승격"에서 "레일 그룹 분리"로 바뀌었습니다.</p>
+  <div class="pgrid">
+    <div class="pcard"><div class="no">D1 · v2</div><h4>레일이 할 일과 자동을 가른다</h4><p>레일 상단 그룹 "내가 할 일"에 사용자 액션만, 하단 그룹 "BDC 자동 진행"에 시스템 단계. 진입 시 첫 할 일이 자동 선택되어 첫 화면이 곧 해야 할 일이다. 할 일이 0이면 그룹 자체가 "없음"을 말한다.</p><div class="from">← Vercel · SES (패턴 1) + #587 레일 재사용</div></div>
+    <div class="pcard"><div class="no">D2</div><h4>주체 라벨은 3값</h4><p>"서비스측" 2값 어휘를 폐기하고 <b>담당자 직접 수행 / 서비스 계정에서 자동 / BDC 자동 수행</b>으로 분리. GCP·Azure의 자기모순이 어휘 수준에서 사라진다.</p><div class="from">← 감사 구조 문제 ① (side ≠ 실행 주체)</div></div>
+    <div class="pcard"><div class="no">D3</div><h4>완료 선언의 주어는 제품</h4><p>할 일에 "완료했습니다" 버튼이 없다. 상태는 감지로 바뀌고, 감지까지의 예상 시간과 "화면을 떠나 있어도 됩니다"를 명시한다.</p><div class="from">← Vercel · SES · GitHub Runner (패턴 2·4)</div></div>
+    <div class="pcard"><div class="no">D4</div><h4>값은 손으로 옮겨 적지 않는다</h4><p>Source IP 매핑 표·정책 JSON·명령 순서를 표/코드블록 + 복사·다운로드로 제공. 로컬 성공 신호("apply 완료 시 이 출력")까지 알려준다.</p><div class="from">← SES · GitHub Runner · Datadog (패턴 3)</div></div>
+    <div class="pcard"><div class="no">D5</div><h4>표는 작업대다</h4><p>패널 안 리소스 표에 상태 필터 칩과 설명된 정렬을 붙이고, 상세(단계별 상태·실패 사유 전문·조치)는 행 확장 드로어에. 열은 늘리지 않는다.</p><div class="from">← Defender · Dependabot (패턴 5·6)</div></div>
+    <div class="pcard"><div class="no">D6</div><h4>실수 비용이 큰 액션만 플라이아웃</h4><p>IDC 방화벽 신청과 AWS Role 부여 두 개만 다단계 플라이아웃(안내 → 값 → 감지 대기 게이트)으로 손잡고 통과시킨다. 나머지는 패널 인라인으로 충분.</p><div class="from">← Elastic Fleet · Cloudflare Tunnel</div></div>
+  </div>
+</section>
+
+<!-- ================= MOCKUP ================= -->
+<section id="mock">
+  <div class="sec-eyebrow">Interactive Mockup</div>
+  <h2>인터랙티브 목업 — CSP 5변형</h2>
+  <p class="sec-sub">좌측 레일에서 항목을 선택해 보세요. 데이터는 계약(install-v1.yaml) 필드에서만 가져온 형태이며, 계약에 없는 값은 <b>협의 중</b>으로 정직하게 표기합니다.</p>
+
+  <div class="mockbar" role="tablist" aria-label="CSP 선택">
+    <button class="cspTab" role="tab" data-csp="awsAuto" aria-selected="true">AWS · 자동</button>
+    <button class="cspTab" role="tab" data-csp="awsManual" aria-selected="false">AWS · 수동</button>
+    <button class="cspTab" role="tab" data-csp="azure" aria-selected="false">Azure</button>
+    <button class="cspTab" role="tab" data-csp="gcp" aria-selected="false">GCP</button>
+    <button class="cspTab" role="tab" data-csp="idc" aria-selected="false">IDC</button>
+  </div>
+  <div class="mocknote" id="cspNote"></div>
+
+  <div class="frame" id="frame">
+    <div class="frame-head">
+      <span class="stepno">4번째 단계</span><h5>Agent 설치</h5>
+      <span class="mode-chip" id="modeChip"></span>
+      <div class="head-side">
+        <span class="statline" id="statline"></span>
+        <button class="refresh" id="rf">↻ 새로고침</button>
+        <span class="lastchk">마지막 확인 10:42 · 30초마다 자동 갱신</span>
+      </div>
+    </div>
+    <div class="mdgrid">
+      <nav class="rail" id="rail" aria-label="설치 작업 목록"></nav>
+      <div class="pane" id="pane"></div>
+    </div>
+
+    <!-- flyout -->
+    <div class="scrim" id="scrim"></div>
+    <aside class="fly" id="fly" role="dialog" aria-modal="true" aria-labelledby="flyTitle">
+      <div class="fly-h"><span class="t" id="flyTitle"></span><button class="fly-x" id="flyX" aria-label="닫기">✕</button></div>
+      <div class="fly-b" id="flyBody"></div>
+    </aside>
+  </div>
+
+  <div class="legend">
+    <span>주체 라벨(D2):</span>
+    <span class="actor user">담당자 직접 수행</span>
+    <span class="actor svc-auto">서비스 계정에서 자동</span>
+    <span class="actor bdc">BDC 자동 수행</span>
+    <span style="margin-left:10px">상태:</span>
+    <span class="chip watch">감지 대기</span><span class="chip run">진행 중</span><span class="chip done">완료</span><span class="chip fail">실패</span><span class="chip part">일부 성립</span><span class="chip na">해당 없음</span>
+  </div>
+</section>
+
+<!-- ================= MAPPING ================= -->
+<section id="mapping">
+  <div class="sec-eyebrow">Traceability</div>
+  <h2>문제 → 해결 매핑</h2>
+  <p class="sec-sub">리서치의 P0/P1 각각이 목업의 어느 요소로 해소되는지, 데이터는 어디서 오는지의 추적표입니다.</p>
+  <div class="tblwrap"><table class="map">
+    <thead><tr><th>진단 (리서치 §1)</th><th>해소하는 설계 요소</th><th>데이터 출처</th></tr></thead>
+    <tbody>
+      <tr><td><span class="sev p0">P0</span> 화면이 스스로 갱신되지 않음</td><td>헤더의 <b>새로고침 + 30초 자동 갱신 + "떠나 있어도 됩니다"</b> 문구 (D3)</td><td>훅이 이미 반환하는 <code>refresh</code> — 소비만 하면 됨</td></tr>
+      <tr><td><span class="sev p0">P0</span> 우측 가이드 패널이 5개 CSP 동일·무관</td><td>Phase 0 배선 — CSP별 가이드 연결</td><td><code>guides-seed.ts</code>의 <b>IDC_STEP_*_HTML 죽은 코드 부활</b></td></tr>
+      <tr><td><span class="sev p0">P0</span> GCP·Azure "서비스측" 자기모순</td><td><b>주체 3값 라벨</b>(D2) + "내가 할 일 (0)" 레일 그룹의 빈 상태(D1)</td><td><code>model.ts</code>의 side/serviceAction 재설계 (프론트 단독)</td></tr>
+      <tr><td><span class="sev p0">P0</span> AWS Role 부여에 "어떻게"가 없음</td><td>할 일 패널 + <b>정책 JSON 플라이아웃</b>(D6) — AWS·자동 변형</td><td>죽은 코드 <code>TfRoleGuideModal.tsx</code> 부활 · 재검증은 계약 협의 ②</td></tr>
+      <tr><td><span class="sev p0">P0</span> Azure PE — 무엇을 승인할지 안 알려줌</td><td>할 일 패널에 <b>PE 이름/ID 표 + Portal 딥링크</b> — Azure 변형</td><td>계약 <code>:9874-9876</code>·목이 이미 보냄, <b>어댑터 3줄</b></td></tr>
+      <tr><td><span class="sev p0">P0</span> Azure 로딩·실패 시 카드 소멸</td><td>카드 내 로딩/재시도 통일 (AWS·GCP 방식)</td><td><code>AzureInstallationStatus.tsx:16</code> 조기 반환 제거</td></tr>
+      <tr><td><span class="sev p0">P0</span> IDC 방화벽 매핑이 모달 2클릭 뒤</td><td>할 일 패널에 <b>매핑 표 인라인 복원</b>(진입 시 자동 선택) + 신청 절차 플라이아웃(D6)</td><td>계약 <code>idc_source_ips/idc_ips/idc_host/port</code> — 이미 있음</td></tr>
+      <tr><td><span class="sev p1">P1</span> guide 15자 절단</td><td>절단 제거 — 안내 전문은 <b>행 드로어</b>로(D5)</td><td><code>SUMMARY_LIMIT</code> 폐기, 드로어 슬롯</td></tr>
+      <tr><td><span class="sev p1">P1</span> 실패·진행 필터 부재 / 숨긴 열 필터</td><td><b>상태 필터 칩 + 설명된 정렬</b>(D5) · 작업별↔리소스별은 <b>레일↔전체 요약</b>으로</td><td>이미 내려오는 리소스별 status 집계</td></tr>
+      <tr><td><span class="sev p1">P1</span> 전부 SKIP 단계가 "완료"로 집계</td><td>별도 상태 <b>"해당 없음"</b> — Azure 변형의 VM 단계</td><td><code>model.ts</code> settled 판정에서 SKIP 분리</td></tr>
+      <tr><td><span class="sev p1">P1</span> <code>installation_status_unavailable</code> 미소비</td><td>헤더 아래 경고 배너 "상태를 확인할 수 없어요"</td><td>계약 <code>:9736</code> — 소비 코드만 추가</td></tr>
+      <tr><td><span class="sev p1">P1</span> IDC 내부 resource_id 노출</td><td>표 식별자를 <b>host:port</b>로, ID 열·복사 버튼 제거 — IDC 변형</td><td>기존 IDC 규칙(<code>rowKey</code> 우회)과 정합</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ================= PLAN ================= -->
+<section id="plan">
+  <div class="sec-eyebrow">Implementation</div>
+  <h2>구현 계획 — 4개 페이즈</h2>
+  <p class="sec-sub">각 페이즈는 독립적으로 머지 가능한 단위입니다. Phase 0은 계약 협의 없이 지금 바로 가능합니다. v2 구조는 기존 레일을 재사용하므로 Phase 1의 공수가 v1 대비 줄어듭니다.</p>
+
+  <div class="phase">
+    <div class="ph"><span class="k">Phase 0</span><h4>배선 수리 (A안) — 죽은 데이터·코드 잇기</h4><span class="e">공수 小 · 계약 협의 불필요</span></div>
+    <ul>
+      <li><code>guides-seed.ts</code> — IDC_STEP_1~7_HTML 배선, STEP_4 공용 HTML을 CSP별로 분리</li>
+      <li><code>azure/install-detail-adapter.ts</code> — PE <code>id</code>/<code>name</code> 전달 (3줄)</li>
+      <li><code>AzureInstallationStatus.tsx</code> — 조기 <code>return null</code> → 카드 내 로딩/재시도</li>
+      <li><code>IdcStep4Installing.tsx</code> — 방화벽 매핑 인라인 복원 (#587 회귀 되돌림), docstring 정리</li>
+      <li>소비자 4곳 — <code>refresh</code> 소비 + 새로고침 버튼, "마지막 확인" 갱신</li>
+      <li><code>model.ts</code> — SKIP을 settled에서 분리해 "해당 없음" 상태 신설</li>
+    </ul>
+  </div>
+
+  <div class="phase">
+    <div class="ph"><span class="k">Phase 1</span><h4>레일 재편 (B안·v2) — 2그룹 레일 + 할 일 패널</h4><span class="e">공수 中(v1보다 감소) · CSP별 콘텐츠 작성 동반</span></div>
+    <ul>
+      <li><code>install-status-detail/model.ts</code> — <code>InstallTableStep</code>에 <code>kind: 'todo' | 'auto'</code>와 3값 <code>actor</code> 추가, todo용 본문 슬롯(kv표·명령·매핑·cta·waitNote). <b>레일·패널 렌더 골격은 기존 것 유지</b></li>
+      <li><code>InstallStatusDetail.tsx</code> — 레일을 "내가 할 일 / BDC 자동 진행" 2그룹으로 렌더, 진입 시 첫 todo 자동 선택. 헤더에 컴팩트 통계 칩(내 할 일·진행·실패·완료)과 새로고침</li>
+      <li>CSP 어댑터 4개 — todo 정의: AWS(Role 부여 / TF 직접 적용), Azure(PE 승인), GCP(없음 — 그룹 빈 상태), IDC(방화벽 신청)</li>
+      <li>Guide CMS — 스텝 단위 슬롯 키(<code>process.{provider}.4.{step}</code>) 도입, todo 본문을 콘텐츠로 이관</li>
+    </ul>
+  </div>
+
+  <div class="phase">
+    <div class="ph"><span class="k">Phase 2</span><h4>리소스 작업대 (C안) — 전용 표 + 행 드로어</h4><span class="e">공수 中 · 계약 협의 ①과 병행 시 완성</span></div>
+    <ul>
+      <li><code>WaitingApprovalTable</code>의 install 변형을 <b>전용 <code>InstallResourceTable</code>로 분리</b> — 검토 표 파생 구조 청산. Toolbar·Pagination은 재사용</li>
+      <li>행 확장 드로어 — 단계별 상태 타임라인, 안내 전문(절단 없음), 실패 사유 + 조치 + [다시 확인], IDC는 경로별 성립 상태</li>
+      <li>상태 필터 칩(전체/진행 중/실패/완료) + 설명된 정렬(실패·조치 필요 우선). 표는 선택된 레일 항목의 컨텍스트를 따른다(그 단계의 상태 열)</li>
+      <li>IDC 식별자를 host:port로 교체, Resource ID 열은 IDC에서 제거</li>
+    </ul>
+  </div>
+
+  <div class="phase">
+    <div class="ph"><span class="k">Phase 3</span><h4>선별 플라이아웃 (D안) — 두 액션만</h4><span class="e">공수 中 · 감지 API는 계약 협의 ② 이후 완성형</span></div>
+    <ul>
+      <li><code>IdcFirewallFlyout</code> — 기존 <code>IdcFirewallModal</code>을 3단계 플라이아웃으로 개편: 규칙 표(복사) → 등록 확인 → 감지 대기 게이트</li>
+      <li><code>AwsRoleFlyout</code> — 죽은 <code>TfRoleGuideModal</code> 부활·개편: 정책 JSON 복사 → 부여 절차 → 확인 요청(재검증 API 생기면 게이트로 승격)</li>
+      <li>공통 Flyout 셸 — ConfirmStepModal 기준 스펙의 chrome 준수 (모달 통일 부채와 정합)</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <span class="lbl">병행 — 계약(백엔드) 협의 4건이 완성도를 결정</span>
+    ① step <code>guide</code> 실데이터 공백(드로어 안내·실패 사유의 원천) ② TF Role 재검증 엔드포인트(플라이아웃 게이트의 전제) ③ GCP PSC 서브넷 대역·프로젝트 필드(GCP 안내문의 전제 — 그 전까지 화면은 "협의 중" 표기) ④ <code>installation_status_unavailable</code> 처리 정책(경고 배너 문구).
+  </div>
+</section>
+
+<footer>PII Agent · Step 4 해결 설계 v2 — 레일+패널 마스터-디테일 · 인터랙티브 목업 + 추적 매핑 + 4페이즈 구현 계획 · 2026-08-08</footer>
+</div>
+
+<div class="toast" id="toast">복사되었습니다</div>
+
+<script>
+/* ---------- data ---------- */
+const A=(k,t)=>`<span class="actor ${k}">${t}</span>`;
+const USER=A('user','담당자 직접 수행'), SVC=A('svc-auto','서비스 계정에서 자동'), BDC=A('bdc','BDC 자동 수행');
+const CHIP={done:['done','완료'],run:['run','진행 중'],fail:['fail','실패'],na:['na','해당 없음'],watch:['watch','감지 대기'],part:['part','일부 성립'],wait:['wait','대기']};
+const chip=(st,txt)=>{const c=CHIP[st]||['wait',st];return `<span class="chip ${c[0]}">${txt||c[1]}</span>`};
+const stC={done:'c-done',run:'c-run',fail:'c-fail',na:'c-na',watch:'c-run',part:'c-part',wait:'c-na'};
+
+/* items: kind 'todo'|'auto' ; stepIdx = index into resource.steps for the per-step table (null = no table) */
+const DATA = {
+awsAuto: {
+  mode:'설치 모드 · 자동 (Terraform 자동 적용)',
+  note:'<b>AWS 자동:</b> 진입하면 유일한 사용자 액션(IAM Role 부여)이 자동 선택됩니다. 정책 JSON은 플라이아웃 — 죽은 코드였던 TfRoleGuideModal의 부활.',
+  items:[
+    {id:'role',kind:'todo',title:'Terraform 실행 권한 부여',actor:USER,st:'watch',stT:'감지 대기',stepIdx:null,
+     body:`<p>BDC가 대상 계정에서 Terraform을 실행할 수 있도록 실행 Role을 만들고 신뢰 정책을 부여해 주세요. <b>계정 단위 작업</b>이라 리소스 목록은 없어요.</p>
+      <div class="kv"><table><thead><tr><th>항목</th><th>값</th><th></th></tr></thead><tbody>
+      <tr><td>대상 AWS 계정</td><td class="mono">123456789012</td><td><button class="btn sm" data-copy="123456789012">복사</button></td></tr>
+      <tr><td>Role 이름</td><td class="mono">bdc-terraform-exec</td><td><button class="btn sm" data-copy="bdc-terraform-exec">복사</button></td></tr>
+      <tr><td>확인된 Role ARN</td><td class="mono" style="color:#8B95A1">아직 감지되지 않았어요</td><td></td></tr>
+      </tbody></table></div>
+      <div class="btnrow"><button class="btn pri" data-fly="awsRole">정책 JSON과 부여 절차 보기</button></div>
+      <div class="wait">권한 부여 후 자동 확인까지 <b>최대 5분</b> — 이 화면을 떠나 있어도 됩니다.</div>`},
+    {id:'tf',kind:'auto',title:'Terraform 자동 적용',actor:SVC,st:'run',stT:'3/5',stepIdx:0,
+     desc:'Role이 확인되면 BDC가 대상 계정 안에서 스캔 리소스를 생성합니다. 담당자가 할 일은 없어요.'},
+    {id:'svc',kind:'auto',title:'BDC 서비스 영역 구성',actor:BDC,st:'wait',stT:'대기',stepIdx:1,desc:'스캔 파이프라인을 연결합니다.'},
+    {id:'com',kind:'auto',title:'BDC 공통 영역 구성',actor:BDC,st:'wait',stT:'대기',stepIdx:2,desc:'공통 네트워크·모니터링을 구성합니다.'}
+  ],
+  resources:[
+    {n:'payment-db',ty:'RDS · MySQL',st:'done',pg:[3,3],steps:[['Terraform 자동 적용','done','완료'],['BDC 서비스 영역','done','완료'],['BDC 공통 영역','done','완료']]},
+    {n:'user-db',ty:'RDS · Aurora',st:'run',pg:[2,3],steps:[['Terraform 자동 적용','done','완료'],['BDC 서비스 영역','run','진행 중'],['BDC 공통 영역','wait','대기']]},
+    {n:'log-athena',ty:'Athena',st:'fail',pg:[1,3],fail:'서브넷 가용 IP 부족으로 ENI를 생성하지 못했습니다.',act:'해당 리전 서브넷 대역을 확장하거나 다른 서브넷을 지정한 뒤 다시 확인을 눌러 주세요.',steps:[['Terraform 자동 적용','fail','실패'],['BDC 서비스 영역','wait','대기'],['BDC 공통 영역','wait','대기']]},
+    {n:'archive-redshift',ty:'Redshift',st:'run',pg:[1,3],steps:[['Terraform 자동 적용','run','진행 중'],['BDC 서비스 영역','wait','대기'],['BDC 공통 영역','wait','대기']]},
+    {n:'session-ddb',ty:'DynamoDB',st:'done',pg:[3,3],steps:[['Terraform 자동 적용','done','완료'],['BDC 서비스 영역','done','완료'],['BDC 공통 영역','done','완료']]}
+  ]
+},
+awsManual: {
+  mode:'설치 모드 · 수동 (Terraform 직접 적용)',
+  note:'<b>AWS 수동:</b> "미리 리뷰할 수 있습니다"였던 다운로드가 <b>필수 실행 절차</b>로 재작성 — 순서 명령 + 로컬 성공 신호(GitHub Runner 문법).',
+  items:[
+    {id:'apply',kind:'todo',title:'Terraform 직접 적용',actor:USER,st:'watch',stT:'감지 대기',stepIdx:0,req:true,
+     body:`<p>수동 모드에서는 이 스크립트 실행이 <b>설치를 진행시키는 유일한 방법</b>이에요. 아래 순서대로 실행해 주세요.</p>
+      <div class="cmd"><span class="c"># 1. 다운로드한 압축을 풀고 실행 권한을 확인한 뒤</span><br>./install.sh init<br>./install.sh plan &nbsp;<span class="c"># 생성될 리소스 검토</span><br>./install.sh apply</div>
+      <p style="font-size:12px;color:#8B95A1">apply가 성공하면 터미널에 <code>Apply complete! Resources: 12 added</code>가 출력됩니다 — 그 뒤에는 이 화면이 자동으로 감지해요.</p>
+      <div class="btnrow"><button class="btn pri" data-toast="Terraform Script 다운로드를 시작합니다 (목업)">Terraform Script 다운로드</button><button class="btn" data-toast="AWS CLI 인증·실행 권한 전제조건 안내 (목업)">실행 전 준비사항</button></div>
+      <div class="wait">적용 결과는 리소스 생성 감지로 자동 확인됩니다 — <b>최대 10분</b>.</div>`},
+    {id:'svc',kind:'auto',title:'BDC 서비스 영역 구성',actor:BDC,st:'wait',stT:'대기',stepIdx:1,desc:'스캔 파이프라인을 연결합니다.'},
+    {id:'com',kind:'auto',title:'BDC 공통 영역 구성',actor:BDC,st:'wait',stT:'대기',stepIdx:2,desc:'공통 네트워크·모니터링을 구성합니다.'}
+  ],
+  resources:[
+    {n:'payment-db',ty:'RDS · MySQL',st:'run',pg:[1,3],steps:[['리소스 생성 감지','run','감지 중'],['BDC 서비스 영역','wait','대기'],['BDC 공통 영역','wait','대기']]},
+    {n:'user-db',ty:'RDS · Aurora',st:'run',pg:[1,3],steps:[['리소스 생성 감지','run','감지 중'],['BDC 서비스 영역','wait','대기'],['BDC 공통 영역','wait','대기']]},
+    {n:'session-ddb',ty:'DynamoDB',st:'done',pg:[3,3],steps:[['리소스 생성 감지','done','완료'],['BDC 서비스 영역','done','완료'],['BDC 공통 영역','done','완료']]}
+  ]
+},
+azure: {
+  mode:'Azure',
+  note:'<b>Azure:</b> 어댑터가 버리던 PE <code>id</code>/<code>name</code>이 할 일 패널의 표로 살아나고(3줄 수정), VM 미사용 단계는 "완료"가 아니라 <b>"해당 없음"</b>으로 표기됩니다.',
+  items:[
+    {id:'pe',kind:'todo',title:'Private Endpoint 승인',actor:USER,st:'part',stT:'1/2',stepIdx:1,
+     body:`<p>Azure Portal에 BDC가 요청한 Private Endpoint 연결이 도착해 있어요. 아래 <b>이름과 정확히 일치하는 요청</b>만 승인해 주세요.</p>
+      <div class="kv"><table><thead><tr><th>Private Endpoint 이름</th><th>ID</th><th>상태</th></tr></thead><tbody>
+      <tr><td class="mono">pe-bdc-privatelink-001</td><td class="mono">…/privateEndpoints/pe-bdc-privatelink-001</td><td><span class="chip done">승인됨</span></td></tr>
+      <tr><td class="mono">pe-bdc-privatelink-002</td><td class="mono">…/privateEndpoints/pe-bdc-privatelink-002</td><td><span class="chip watch">승인 대기</span></td></tr>
+      </tbody></table></div>
+      <div class="btnrow"><button class="btn pri" data-toast="Azure Portal 새 탭으로 이동 (목업)">Azure Portal에서 승인하기</button></div>
+      <div class="wait">승인 후 자동 확인까지 <b>최대 5분</b> — 이 화면을 떠나 있어도 됩니다.</div>`},
+    {id:'vmsub',kind:'auto',title:'VM Subnet 생성',actor:SVC,st:'na',stT:'해당 없음',stepIdx:null,desc:'VM을 사용하는 리소스가 없어 이 단계는 실행되지 않았습니다. "완료"가 아니라 해당 없음으로 표기해요.'},
+    {id:'vmtf',kind:'auto',title:'VM Terraform 적용',actor:SVC,st:'na',stT:'해당 없음',stepIdx:null,desc:'VM을 사용하는 리소스가 없어 이 단계는 실행되지 않았습니다.'},
+    {id:'bdctf',kind:'auto',title:'BDC측 Terraform 적용',actor:BDC,st:'run',stT:'진행 중',stepIdx:0,desc:'스캔 파이프라인을 연결합니다.'}
+  ],
+  resources:[
+    {n:'billing-sqlmi',ty:'SQL Managed Instance',st:'run',pg:[1,2],steps:[['BDC측 Terraform','run','진행 중'],['PE 승인','run','승인 대기']]},
+    {n:'product-cosmos',ty:'Cosmos DB',st:'done',pg:[2,2],steps:[['BDC측 Terraform','done','완료'],['PE 승인','done','승인됨']]},
+    {n:'ledger-pg',ty:'PostgreSQL Flexible',st:'run',pg:[1,2],steps:[['BDC측 Terraform','done','완료'],['PE 승인','run','승인 대기']]}
+  ]
+},
+gcp: {
+  mode:'GCP',
+  note:'<b>GCP:</b> "서비스측 색칠 vs 확인할 항목 없어요" 모순이 <b>주체 3값 라벨 + "내가 할 일 (0)" 빈 그룹</b>으로 해소. 계약에 없는 PSC 서브넷 정보는 발명하지 않고 "협의 중" 표기.',
+  items:[
+    {id:'psc',kind:'auto',title:'PSC용 Subnet 생성',actor:SVC,st:'done',stT:'완료',stepIdx:0,desc:'Private Service Connect 연결용 서브넷 — Region마다 1개. BDC가 서비스 계정 안에서 자동으로 생성했어요. 서브넷을 미리 만들어야 하는 환경의 안내(프로젝트·리전·대역)는 계약 확장 협의 중 — 확정 전까지 임의 값을 안내하지 않습니다.'},
+    {id:'svctf',kind:'auto',title:'서비스측 Terraform 적용',actor:SVC,st:'run',stT:'4/6',stepIdx:1,desc:'대상 프로젝트 안에 스캔 리소스를 생성합니다.'},
+    {id:'bdctf',kind:'auto',title:'BDC측 Terraform 적용',actor:BDC,st:'wait',stT:'대기',stepIdx:2,desc:'스캔 파이프라인을 연결합니다.'}
+  ],
+  resources:[
+    {n:'orders-cloudsql',ty:'Cloud SQL · MySQL',st:'done',pg:[3,3],steps:[['PSC Subnet','done','완료'],['서비스측 TF','done','완료'],['BDC측 TF','done','완료']]},
+    {n:'analytics-bq',ty:'BigQuery',st:'run',pg:[2,3],steps:[['PSC Subnet','done','완료'],['서비스측 TF','run','진행 중'],['BDC측 TF','wait','대기']]},
+    {n:'stock-spanner',ty:'Spanner',st:'run',pg:[1,3],steps:[['PSC Subnet','done','완료'],['서비스측 TF','run','진행 중'],['BDC측 TF','wait','대기']]}
+  ]
+},
+idc: {
+  mode:'IDC',
+  note:'<b>IDC:</b> 진입하면 방화벽 할 일이 자동 선택되어 <b>Source IP → 대상 매핑이 첫 화면</b>입니다 (#587 회귀 복원 + 모달 2클릭 제거). 식별자는 내부 ID 대신 host:port.',
+  items:[
+    {id:'fw',kind:'todo',title:'방화벽 오픈 신청',actor:USER,st:'part',stT:'1/3 경로',stepIdx:0,
+     body:`<p>서비스 측 방화벽에 아래 허용 규칙을 등록해 주세요. <b>경로가 여러 개인 대상은 모든 경로가 열려야</b> 오픈으로 표시됩니다.</p>
+      <div class="kv"><table><thead><tr><th>Source IP (BDC)</th><th>→ 연동 대상</th><th>Port</th><th>상태</th></tr></thead><tbody>
+      <tr><td class="mono">10.20.1.11</td><td class="mono">172.16.10.5</td><td class="mono">1521</td><td><span class="chip done">성립</span></td></tr>
+      <tr><td class="mono">10.20.1.11</td><td class="mono">172.16.10.6</td><td class="mono">1521</td><td><span class="chip watch">대기</span></td></tr>
+      <tr><td class="mono">10.20.1.12</td><td class="mono">db.internal.corp</td><td class="mono">3306</td><td><span class="chip watch">대기</span></td></tr>
+      </tbody></table></div>
+      <div class="btnrow"><button class="btn pri" data-fly="idcFw">신청 절차 안내</button><button class="btn" data-copy="10.20.1.11 -> 172.16.10.5:1521&#10;10.20.1.11 -> 172.16.10.6:1521&#10;10.20.1.12 -> db.internal.corp:3306">규칙 전체 복사</button></div>
+      <div class="wait">방화벽 반영 후 자동 확인까지 <b>최대 10분</b> — 이 화면을 떠나 있어도 됩니다.</div>`},
+    {id:'cx',kind:'auto',title:'BDC CX 영역 구성',actor:BDC,st:'done',stT:'완료',stepIdx:1,desc:'수집 게이트웨이를 구성합니다.'},
+    {id:'bdp',kind:'auto',title:'BDC BDP 영역 구성',actor:BDC,st:'run',stT:'진행 중',stepIdx:1,desc:'스캔 파이프라인을 연결합니다.'}
+  ],
+  resources:[
+    {n:'172.16.10.5:1521',ty:'Oracle',st:'run',pg:[1,2],steps:[['방화벽 오픈','done','성립'],['BDC 구성','run','진행 중']]},
+    {n:'172.16.10.6:1521',ty:'Oracle',st:'run',pg:[0,2],steps:[['방화벽 오픈','run','대기'],['BDC 구성','wait','대기']]},
+    {n:'db.internal.corp:3306',ty:'MySQL',st:'run',pg:[0,2],steps:[['방화벽 오픈','run','대기'],['BDC 구성','wait','대기']]}
+  ]
+}
+};
+
+const FLY = {
+awsRole:{t:'Terraform 실행 권한 부여',b:`
+  <div class="fly-step"><span class="fly-no">1</span><div class="c"><div class="t">아래 신뢰 정책으로 Role을 생성해 주세요</div>
+  <div class="cmd">{<br>&nbsp;&nbsp;"Version": "2012-10-17",<br>&nbsp;&nbsp;"Statement": [{<br>&nbsp;&nbsp;&nbsp;&nbsp;"Effect": "Allow",<br>&nbsp;&nbsp;&nbsp;&nbsp;"Principal": { "AWS": "arn:aws:iam::555566667777:root" },<br>&nbsp;&nbsp;&nbsp;&nbsp;"Action": "sts:AssumeRole"<br>&nbsp;&nbsp;}]<br>}</div>
+  <button class="btn sm" data-copy='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::555566667777:root"},"Action":"sts:AssumeRole"}]}'>JSON 복사</button></div></div>
+  <div class="fly-step"><span class="fly-no">2</span><div class="c"><div class="t">실행 정책을 연결해 주세요</div><p>Role 이름은 <code>bdc-terraform-exec</code>, 정책은 첨부된 최소 권한 정책 문서를 사용합니다.</p><button class="btn sm" data-toast="정책 문서 다운로드 (목업)">정책 문서 다운로드</button></div></div>
+  <div class="fly-step"><span class="fly-no lock">3</span><div class="c"><div class="t">부여 확인</div>
+  <div class="gate">권한이 감지되면 이 단계가 자동으로 열려요 — 확인까지 최대 5분.<br>지금은 재검증 요청 API가 계약에 없어 자동 감지만 지원합니다 (협의 ②).</div></div></div>`},
+idcFw:{t:'방화벽 오픈 신청 절차',b:`
+  <div class="fly-step"><span class="fly-no">1</span><div class="c"><div class="t">허용 규칙을 방화벽에 등록</div>
+  <p>화면의 규칙 표(Source IP → 대상 IP/Domain : Port)를 사내 방화벽 신청 시스템에 등록해 주세요. 프로토콜은 TCP입니다.</p>
+  <button class="btn sm" data-copy="10.20.1.11 -> 172.16.10.5:1521&#10;10.20.1.11 -> 172.16.10.6:1521&#10;10.20.1.12 -> db.internal.corp:3306">규칙 전체 복사</button></div></div>
+  <div class="fly-step"><span class="fly-no">2</span><div class="c"><div class="t">등록을 마치셨나요?</div><p>방화벽 반영이 완료되면 별도 버튼 없이 BDC가 연결을 확인합니다.</p><button class="btn sm pri" data-toast="확인을 시작했어요 — 결과는 자동 반영됩니다 (목업)">지금 바로 확인 요청</button></div></div>
+  <div class="fly-step"><span class="fly-no lock">3</span><div class="c"><div class="t">연결 성립 대기</div>
+  <div class="gate">경로 3개 중 1개 성립 — 모든 경로가 성립해야 다음 단계가 열려요.<br>확인 주기 10분 · 마지막 확인 10:42.</div></div></div>`}
+};
+
+/* ---------- state & render ---------- */
+const $=s=>document.querySelector(s);
+let cur='awsAuto', sel='sum', filt='all';
+
+function render(){
+  const d=DATA[cur];
+  $('#modeChip').textContent=d.mode;
+  $('#cspNote').innerHTML=d.note;
+  const todos=d.items.filter(i=>i.kind==='todo');
+  const openTodos=todos.filter(t=>t.st!=='done');
+  const cnt={run:0,fail:0,done:0};
+  d.resources.forEach(r=>cnt[r.st]++);
+  $('#statline').innerHTML=`<span class="stat todo">내 할 일 ${openTodos.length}</span><span class="stat">진행 ${cnt.run}</span><span class="stat fail">실패 ${cnt.fail}</span><span class="stat">완료 ${cnt.done}</span>`;
+  renderRail(); renderPane();
+}
+function renderRail(){
+  const d=DATA[cur];
+  const todos=d.items.filter(i=>i.kind==='todo');
+  const autos=d.items.filter(i=>i.kind==='auto');
+  let h=`<div class="rgroup first">전체</div>`+railBtn({id:'sum',title:'요약 · 리소스별 보기',st:null,stT:''},'sum');
+  h+=`<div class="rgroup">내가 할 일 <span class="cnt">(${todos.filter(t=>t.st!=='done').length})</span></div>`;
+  h+= todos.length? todos.map(i=>railBtn(i,i.id)).join('') : `<div style="padding:4px 12px;font-size:12px;color:#8B95A1">지금 하실 일이 없어요</div>`;
+  h+=`<div class="rgroup">BDC 자동 진행</div>`+autos.map(i=>railBtn(i,i.id)).join('');
+  $('#rail').innerHTML=h;
+  document.querySelectorAll('.ritem').forEach(b=>b.addEventListener('click',()=>{sel=b.dataset.id;filt='all';renderRail();renderPane()}));
+}
+function railBtn(i,id){
+  const curSel = sel===id;
+  const st = i.st? `<span class="st ${stC[i.st]||''}">${i.stT||''}</span>`:'';
+  const dot = (i.kind==='todo'&&i.st!=='done')?`<span class="dot"></span>`:'';
+  return `<button class="ritem" data-id="${id}" aria-current="${curSel}">${dot}<span class="nm">${i.title}</span>${st}</button>`;
+}
+function renderPane(){
+  const d=DATA[cur];
+  if(sel!=='sum' && !d.items.find(i=>i.id===sel)) sel = firstSel(d);
+  if(sel==='sum'){ renderSummary(d); return }
+  const it=d.items.find(i=>i.id===sel);
+  let h=`<div class="pane-h"><span class="t">${it.title}</span>${it.req?'<span class="chip req">필수</span>':''}${it.actor}${chip(it.st,it.stT&&it.stT.includes('/')?it.stT+' · '+(CHIP[it.st]?CHIP[it.st][1]:''):it.stT)}</div>`;
+  if(it.kind==='todo'){ h+=`<div class="pane-desc"></div>`+it.body; }
+  else { h+=`<p class="pane-desc">${it.desc||''}</p>`; }
+  if(it.stepIdx!=null){ h+=tableHtml(d,it.stepIdx,`이 단계의 리소스별 상태`); }
+  $('#pane').innerHTML=h; bindDyn(); bindTable();
+}
+function renderSummary(d){
+  const todos=d.items.filter(i=>i.kind==='todo'&&i.st!=='done');
+  const cnt={run:0,fail:0,done:0};
+  d.resources.forEach(r=>cnt[r.st]++);
+  let h=`<div class="pane-h"><span class="t">전체 요약</span></div>
+  <div class="band">
+    <div class="tile todo"><div class="k">내가 할 일</div><div class="v">${todos.length}</div></div>
+    <div class="tile"><div class="k">진행 중</div><div class="v">${cnt.run}</div></div>
+    <div class="tile fail"><div class="k">실패</div><div class="v">${cnt.fail}</div></div>
+    <div class="tile"><div class="k">완료</div><div class="v">${cnt.done}</div></div>
+  </div>
+  <div class="acts"><div class="h">지금 확인이 필요한 항목</div>${
+    todos.length? todos.map(t=>`<a href="#mock" data-go="${t.id}"><span>→ ${t.title}</span><span class="st ${stC[t.st]||''}">${t.stT||''}</span></a>`).join('')
+    : `<div class="none">지금 서비스 측에서 하실 일이 없어요 — 진행 상황은 아래 표에서 확인할 수 있어요.</div>`
+  }</div>`;
+  h+=tableHtml(d,null,'리소스별 설치 상태 · 전체 단계');
+  $('#pane').innerHTML=h;
+  document.querySelectorAll('[data-go]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();sel=a.dataset.go;renderRail();renderPane()}));
+  bindDyn(); bindTable();
+}
+function firstSel(d){
+  const t=d.items.find(i=>i.kind==='todo'&&i.st!=='done');
+  return t? t.id : 'sum';
+}
+/* table: stepIdx null → overall status; else that step's status */
+function rStat(r,stepIdx){ if(stepIdx==null) return r.st; const s=r.steps[stepIdx]; return s? (s[1]||'wait') : 'na'; }
+function tableHtml(d,stepIdx,title){
+  const order={fail:0,watch:1,run:2,wait:3,part:1,na:4,done:5};
+  let rows=d.resources.slice().sort((a,b)=>order[rStat(a,stepIdx)]-order[rStat(b,stepIdx)]);
+  const c={all:rows.length,run:0,fail:0,done:0};
+  rows.forEach(r=>{const s=rStat(r,stepIdx); if(s==='fail')c.fail++; else if(s==='done')c.done++; else c.run++;});
+  const grpOf=s=> s==='fail'?'fail': s==='done'?'done':'run';
+  if(filt!=='all') rows=rows.filter(r=>grpOf(rStat(r,stepIdx))===filt);
+  const chips=[['all','전체'],['run','진행 중'],['fail','실패'],['done','완료']]
+    .map(([k,t])=>`<button class="fchip" data-f="${k}" aria-pressed="${filt===k}">${t} ${c[k]}</button>`).join(' ');
+  const body=rows.length? rows.map(r=>rowHtml(r,stepIdx)).join('') : `<div class="rempty">이 상태의 리소스가 없어요</div>`;
+  return `<div class="res-sec"><div class="res-head"><span class="t">${title}</span>${chips}<span class="sortnote">정렬: 실패 → 조치 필요 → 진행 중 → 완료 순으로 보여드려요</span></div><div class="rtbl">${body}</div></div>`;
+}
+function rowHtml(r,stepIdx){
+  const st=rStat(r,stepIdx);
+  const stT = stepIdx!=null && r.steps[stepIdx]? r.steps[stepIdx][2] : null;
+  return `<div class="rrow">
+    <div class="rmain" role="button" tabindex="0" aria-expanded="false">
+      <span class="caret">▶</span><span class="nm">${r.n}</span><span class="ty">${r.ty}</span>
+      <span class="pg"><span class="bar"><i style="width:${r.pg[1]?Math.round(r.pg[0]/r.pg[1]*100):0}%"></i></span>${r.pg[0]}/${r.pg[1]} 단계</span>
+      ${chip(st,stT)}</div>
+    <div class="rdetail">
+      <div class="steps">${r.steps.map(s=>`<div class="srow"><span class="sn">${s[0]}</span>${chip(s[1]||'wait',s[2])}</div>`).join('')}</div>
+      ${r.fail?`<div class="failbox"><div class="fh">실패 사유</div>${r.fail}</div><div class="guidebox"><div class="gh">조치 방법</div>${r.act}</div><div class="btnrow"><button class="btn sm pri" data-toast="이 리소스만 다시 확인합니다 (목업)">다시 확인</button></div>`
+      :`<div class="guidebox"><div class="gh">안내</div>리소스별 상세 안내가 이 자리에 전문으로 표시됩니다 — 15자 절단 없음. <span style="color:#8B95A1">(실데이터 guide 공백은 계약 협의 ①)</span></div>`}
+    </div></div>`;
+}
+function bindTable(){
+  document.querySelectorAll('.rmain').forEach(el=>{
+    const open=()=>{const row=el.parentElement;row.classList.toggle('open');el.setAttribute('aria-expanded',row.classList.contains('open'))};
+    el.addEventListener('click',e=>{if(e.target.closest('button'))return;open()});
+    el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
+  });
+  document.querySelectorAll('.fchip').forEach(f=>f.addEventListener('click',()=>{filt=f.dataset.f;renderPane()}));
+}
+function bindDyn(){
+  document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(b.dataset.copy).catch(()=>{});toast('복사되었습니다')});
+  document.querySelectorAll('[data-toast]').forEach(b=>b.onclick=()=>toast(b.dataset.toast));
+  document.querySelectorAll('[data-fly]').forEach(b=>b.onclick=()=>openFly(b.dataset.fly));
+}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),1800)}
+function openFly(k){$('#flyTitle').textContent=FLY[k].t;$('#flyBody').innerHTML=FLY[k].b;$('#frame').classList.add('fly-open');bindDyn();$('#flyX').focus()}
+function closeFly(){$('#frame').classList.remove('fly-open')}
+$('#flyX').addEventListener('click',closeFly);
+$('#scrim').addEventListener('click',closeFly);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeFly()});
+$('#rf').addEventListener('click',()=>toast('상태를 다시 확인했어요 (목업)'));
+document.querySelectorAll('.cspTab').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.cspTab').forEach(x=>x.setAttribute('aria-selected','false'));
+  b.setAttribute('aria-selected','true');cur=b.dataset.csp;filt='all';closeFly();sel=firstSel(DATA[cur]);render();
+}));
+sel=firstSel(DATA[cur]);
+render();
+</script>

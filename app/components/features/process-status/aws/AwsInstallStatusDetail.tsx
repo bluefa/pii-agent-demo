@@ -57,14 +57,15 @@ const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
   </div>
 );
 
-// 수행 순서 = 서비스 측 TF → BDC 공통 → BDC 서비스 (공통이 서비스보다 먼저, 오너 확정).
+// Execution order = service-side TF → BDC common → BDC service (common before
+// service — confirmed step order).
 const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
   {
     id: 'service',
     title: manualInstall ? 'Terraform 직접 적용' : '서비스 측 Terraform 자동 적용',
     side: '서비스측 리소스 생성',
-    // 수동 모드만 담당자가 직접 수행한다 — 자동 모드는 BDC가 배포하므로
-    // 조치 문구 없이 '자동 진행' 그룹으로 내려간다.
+    // Only manual mode is executed by the service owner — in auto mode BDC
+    // deploys, so the step joins the 'auto' group with no action copy.
     group: manualInstall ? 'todo' : 'auto',
     serviceAction: manualInstall
       ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용해 주세요.'

@@ -60,20 +60,20 @@ describe('AwsInstallStatusDetail', () => {
     );
 
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
-    // v3.6 — 그룹 레일에는 요약 스텝이 없다. 전체 집계는 메타바 + 레일 푸터가 담당.
+    // The grouped rail has no summary step — the metabar + rail footer own the rollup.
     expect(within(nav).queryByText('설치 현황 요약')).toBeNull();
     expect(screen.getByText('설치 진행 상황')).toBeTruthy();
     expect(within(nav).getByText('Terraform 권한 부여 확인')).toBeTruthy();
     expect(within(nav).getByText('서비스 측 Terraform 자동 적용')).toBeTruthy();
     expect(within(nav).getByText('BDC 서비스 영역')).toBeTruthy();
     expect(within(nav).getByText('BDC 공통 영역')).toBeTruthy();
-    // 그룹 레일 — 주체 구분은 헤더가 담당하고, 항목별 side 줄은 걷어냈다.
-    // 권한 부여(todo)가 COMPLETED 라 남은 할 일은 0.
+    // Grouped rail — the group headers carry ownership; per-item side lines are gone.
+    // The role-verify todo is COMPLETED, so the open-todo count is 0.
     expect(within(nav).getByText('내가 할 일 (0)')).toBeTruthy();
     expect(within(nav).getByText('BDC 자동 진행')).toBeTruthy();
     expect(within(nav).queryByText('서비스측')).toBeNull();
     expect(within(nav).queryByText('BDC측')).toBeNull();
-    // 레일 푸터 — 전체 진행 요약 (r-1 완료, r-2 실패).
+    // Rail footer — overall progress summary (r-1 done, r-2 failed).
     expect(within(nav).getByText('2개 중 1개 완료')).toBeTruthy();
 
     // No open todo → the failed step is the default view, and its table's 안내
@@ -164,7 +164,7 @@ describe('AwsInstallStatusDetail', () => {
     // 안내 is the steps-2·3 reason chip, which clamps its summary — the full guide is in the tip.
     expect(screen.getByText(/설치 대상이 아닌/)).toBeTruthy();
 
-    // 그룹 레일은 n/m 카운트를 쓰지 않는다 — 상태 단어만 남는다(오너 요청).
+    // The grouped rail drops n/m counts — only the status words remain.
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
     expect(within(nav).queryByText('1/2')).toBeNull();
     expect(within(nav).getAllByText('진행중').length).toBeGreaterThanOrEqual(1);

@@ -94,9 +94,10 @@ export interface InstallTableStep {
   /** Optional control rendered in the step's panel head (e.g. IDC 방화벽 확인). */
   action?: ReactNode;
   /**
-   * 레일 그룹 — 'todo'(담당자 직접 수행) / 'auto'(BDC 자동 진행).
-   * 어댑터가 하나라도 지정하면 레일이 2그룹으로 렌더되고, 첫 미완료 todo 가
-   * 기본 선택된다. 지정하지 않은 CSP 는 기존 단일 목록 그대로다.
+   * Rail group — 'todo' (the service owner acts) / 'auto' (BDC proceeds
+   * automatically). When EVERY step of an adapter declares one, the rail
+   * renders in two groups and the first open todo is the default selection.
+   * Any step left undeclared keeps the whole CSP on the legacy single list.
    */
   group?: 'todo' | 'auto';
 }

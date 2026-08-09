@@ -305,6 +305,17 @@ const TEXT: TextPair[] = [
     on: bgOf(classOf(themeSrc, 'iconOnGround')),
     min: 3.0,
   },
+  // Step 4 grouped rail: quiet text (ordinals, group labels, metabar caption,
+  // rail footer) sits DIRECTLY on the gray-100 wrapper, where gray-500 is
+  // 4.37:1 and #0064FF is 4.47:1 — both under AA, which is why the rail uses
+  // gray-700 and `textOnLight`. Tailwind named-class hexes are framework
+  // constants, carried literally.
+  { what: 'step4 grouped-rail quiet text (gray-700) on its gray-100 wrapper', fg: '#374151', on: '#F3F4F6' },
+  {
+    what: 'step4 grouped-rail hot group label on its gray-100 wrapper',
+    fg: textOf(classOf(themeSrc, 'textOnLight')),
+    on: '#F3F4F6',
+  },
 ];
 
 // ---------------------------------------------------------------------------
