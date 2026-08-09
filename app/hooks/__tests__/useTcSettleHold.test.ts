@@ -7,8 +7,10 @@ import type { TestConnectionVersionResult } from '@/app/lib/api';
 const job = (
   version: number,
   status: TestConnectionVersionResult['connection_status'],
+  targetSourceId = 1010,
 ): TestConnectionVersionResult =>
   ({
+    target_source_id: targetSourceId,
     test_connection_version: version,
     connection_status: status,
     requested_at: '2026-08-09T00:00:00Z',
@@ -57,6 +59,15 @@ describe('useTcSettleHold', () => {
     });
     rerender({ j: job(5, 'FAIL') });
     expect(result.current.holding).toBe(true);
+  });
+
+  it('a target switch is never a settle edge — A#2 RUNNING → B#2 SUCCESS plays nothing', () => {
+    const { result, rerender } = renderHook(({ j }) => useTcSettleHold(j), {
+      initialProps: { j: job(2, 'RUNNING', 1010) as TestConnectionVersionResult | null },
+    });
+    rerender({ j: job(2, 'SUCCESS', 1583) });
+    expect(result.current.holding).toBe(false);
+    expect(result.current.settledLive).toBe(false);
   });
 
   it('a new run starting resets the reveal (check draw never replays on a stale run)', () => {

@@ -30,24 +30,22 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/layout/CloudReqApprov
   },
 }));
 
-const triggerMock = vi.fn();
+// 폴링은 이제 step 이 소유하고 카드는 prop 으로 받는다 — 모듈 mock 대신 renderCard 가
+// pollingState 로 번들을 만들어 넘긴다.
+const triggerMock = vi.fn(async () => true);
 const pollingState: {
   uiState: TestConnectionUIState;
   latestJob: TestConnectionVersionResult | null;
 } = { uiState: 'IDLE', latestJob: null };
 
-vi.mock('@/app/hooks/useTestConnectionPolling', () => ({
-  // useTcSettleHold (실제 구현이 돈다) 가 정착 판정에 쓴다.
-  isInProgress: (status: string) => status === 'PENDING' || status === 'RUNNING',
-  useTestConnectionPolling: (): UseTestConnectionPollingReturn => ({
-    latestJob: pollingState.latestJob,
-    uiState: pollingState.uiState,
-    loading: false,
-    fetchError: null,
-    triggerError: null,
-    trigger: triggerMock,
-  }),
-}));
+const makePolling = (): UseTestConnectionPollingReturn => ({
+  latestJob: pollingState.latestJob,
+  uiState: pollingState.uiState,
+  loading: false,
+  fetchError: null,
+  triggerError: null,
+  trigger: triggerMock,
+});
 
 const updateResourceCredentialMock = vi.fn();
 const getSecretsMock = vi.fn(async (..._args: unknown[]) => [{ name: 'Key1' }, { name: 'Key2' }, { name: 'Key3' }]);
@@ -115,6 +113,7 @@ const renderCard = (confirmed: ConfirmedResource[]) =>
       confirmed={confirmed}
       providerLabel="Azure Infrastructure"
       refreshProject={() => {}}
+      polling={makePolling()}
     />,
   );
 
@@ -123,7 +122,7 @@ describe('ConnectionTestCard', () => {
     pollingState.uiState = 'IDLE';
     pollingState.latestJob = null;
     triggerMock.mockReset();
-    triggerMock.mockResolvedValue(undefined);
+    triggerMock.mockResolvedValue(true);
     updateResourceCredentialMock.mockReset();
     updateResourceCredentialMock.mockResolvedValue({ success: true });
     approvalModalProps.mockClear();
@@ -306,12 +305,15 @@ describe('ConnectionTestCard', () => {
   // element is built each rerender (an identical element instance makes React
   // bail out) while the array reference stays stable.
   const renderStable = (confirmed: ConfirmedResource[]) => {
+    // makePolling() runs per element build, so a rerender picks up the mutated
+    // pollingState — the same observation semantics the step's live hook has.
     const element = () => (
       <ConnectionTestCard
         targetSourceId={1}
         confirmed={confirmed}
         providerLabel="Azure Infrastructure"
         refreshProject={() => {}}
+        polling={makePolling()}
       />
     );
     const { rerender } = render(element());

@@ -1,8 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { cn, idcStyles, scanTransition, statusColors } from '@/lib/theme';
-import { ClockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
+import { cn, idcStyles, statusColors } from '@/lib/theme';
+import { CheckIcon, ClockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { fmtDateTime, fmtRelativeTime } from '@/lib/pipeline/format';
 import {
   tcElapsedLabel,
@@ -76,25 +76,7 @@ export const TcSummaryCard = ({ phase, buckets, run, needsRerun, historyAction, 
         <div className={cn(s.title, s.titleColor[phase], 'break-keep')}>
           <span className={cn(s.icon, s.accent[phase])}>
             {phase === 'success' ? (
-              <svg
-                className="h-[15px] w-[15px]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                {/* dasharray 만 선언하고 offset 은 기본값(0) — 드로우 클래스가 없거나
-                    motion-reduce 로 애니메이션이 꺼져도 체크는 그려진 상태로 남는다
-                    (ScanRunningState 와 같은 규칙). */}
-                <path
-                  d="M5 13l4 4L19 7"
-                  strokeDasharray={30}
-                  className={drawCheck ? scanTransition.checkDraw : undefined}
-                />
-              </svg>
+              <CheckIcon className="h-[15px] w-[15px]" draw={drawCheck} />
             ) : (
               <ClockIcon
                 className={cn(

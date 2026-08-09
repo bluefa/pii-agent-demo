@@ -15,7 +15,7 @@ import { useToast } from '@/app/components/ui/toast';
 import { TcSummaryCard } from '@/app/components/features/process-status/TcSummaryCard';
 import { TcRejectionNotice } from '@/app/components/features/process-status/TcRejectionNotice';
 import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
-import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import type { UseTestConnectionPollingReturn } from '@/app/hooks/useTestConnectionPolling';
 import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
 import { useTcSettleHold } from '@/app/hooks/useTcSettleHold';
 import {
@@ -135,6 +135,8 @@ interface ConnectionTestCardProps {
   providerLabel: string;
   /** Refetch the project — advances to step 6 when the process status flips. */
   refreshProject: () => void;
+  /** Step 이 소유한 폴링 — 헤더 태그(ProjectPageMeta)와 같은 관찰을 나눠 받는다. */
+  polling: UseTestConnectionPollingReturn;
 }
 
 /**
@@ -156,8 +158,9 @@ export const ConnectionTestCard = ({
   confirmed,
   providerLabel,
   refreshProject,
+  polling,
 }: ConnectionTestCardProps) => {
-  const { latestJob, uiState, trigger, triggerError, fetchError } = useTestConnectionPolling(targetSourceId);
+  const { latestJob, uiState, trigger, triggerError, fetchError } = polling;
   const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
   const [approvalOpen, setApprovalOpen] = useState(false);
   // The table, the progress strip and the Run Test gate all run on units — one row per thing
@@ -382,7 +385,10 @@ export const ConnectionTestCard = ({
         </button>
       </header>
       <div className={cn(cardStyles.body, 'space-y-4')}>
-        <TcRejectionNotice targetSourceId={targetSourceId} />
+        <TcRejectionNotice
+          targetSourceId={targetSourceId}
+          runVersion={latestJob?.test_connection_version ?? null}
+        />
         <TcSummaryCard
           phase={phase}
           buckets={buckets}

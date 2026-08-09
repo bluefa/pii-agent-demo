@@ -4,21 +4,31 @@ import { useEffect, useState } from 'react';
 import { cn, idcStyles, textColors } from '@/lib/theme';
 import { fmtRelativeTime } from '@/lib/pipeline/format';
 import { fetchLatestTest } from '@/app/hooks/useTestConnectionPolling';
-import { useLiveTcJob } from '@/app/hooks/useLiveTcJob';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
 import { foldAgentStatuses } from '@/lib/test-connection-summary';
 
+interface TcHeaderTagProps {
+  targetSourceId: number;
+  /**
+   * Step 5 가 폴링 중인 최신 실행. `undefined` = 폴링 없는 화면(스텝 1~4·6·7) —
+   * 이 태그가 latest_version 을 1회 조회한다. 값이 오면(null 포함) 그것이 진실의
+   * 전부다: null 은 "실행 없음(NOT_FOUND)"이므로 무표시. 모듈 스토어로 잇지 않는
+   * 이유는 DR1/DR7(모듈 레벨 fetch 결과 보관 금지) — prop 이 곧 최신 관찰이다.
+   */
+  liveJob?: TestConnectionVersionResult | null;
+}
+
 /**
- * 대상 상세 헤더의 연결 테스트 상태 태그 (P5) — latest_version 한 번 읽기.
- * 실행 기록이 없으면(NOT_FOUND) 아무것도 그리지 않는다. 스스로 폴링하지 않는다 —
- * 라이브 진행은 Step 5 카드의 몫이고, 대신 그 폴링이 발행하는 관찰(useLiveTcJob)을
- * 구독해 같은 화면에서 새 실행이 돌면 헤더도 같은 사실을 말한다.
+ * 대상 상세 헤더의 연결 테스트 상태 태그 (P5). 실행 기록이 없으면 아무것도 그리지
+ * 않는다. 스스로 폴링하지 않는다 — Step 5 화면에서는 카드의 폴링이 liveJob 으로
+ * 같은 사실을 내려 주고, 그 외 스텝에서는 마지막 실행을 1회 조회해 보여준다.
  */
-export const TcHeaderTag = ({ targetSourceId }: { targetSourceId: number }) => {
+export const TcHeaderTag = ({ targetSourceId, liveJob }: TcHeaderTagProps) => {
   const [fetched, setFetched] = useState<TestConnectionVersionResult | null>(null);
-  const live = useLiveTcJob(targetSourceId);
+  const controlled = liveJob !== undefined;
 
   useEffect(() => {
+    if (controlled) return;
     let active = true;
     void fetchLatestTest(targetSourceId)
       .then((latest) => {
@@ -30,15 +40,9 @@ export const TcHeaderTag = ({ targetSourceId }: { targetSourceId: number }) => {
     return () => {
       active = false;
     };
-  }, [targetSourceId]);
+  }, [controlled, targetSourceId]);
 
-  // 라이브 관찰은 이 세션의 폴링이 마지막으로 본 값이라 마운트 조회보다 뒤설 수
-  // 없다 — 버전이 앞서거나 같으면(같은 실행의 진행→정착 갱신 포함) 라이브가 이긴다.
-  const job =
-    live &&
-    (!fetched || (live.test_connection_version ?? 0) >= (fetched.test_connection_version ?? 0))
-      ? live
-      : fetched;
+  const job = controlled ? liveJob : fetched;
 
   if (!job) return null;
 

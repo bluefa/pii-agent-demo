@@ -6,7 +6,15 @@ import {
   tcSummarySentence,
 } from '@/lib/test-connection-summary';
 
-const agent = (id: string, status: string) => ({ resource_id: id, connection_status: status } as never);
+// foldAgentStatuses 의 실제 파라미터 타입(Pick)으로 그대로 만든다 — wire 타입이 바뀌면
+// 이 픽스처가 같이 깨져야 한다 (`as never` 캐스트는 그 신호를 삼켰다).
+const agent = (
+  id: string,
+  status: string,
+): { resource_id: string; connection_status: string } => ({
+  resource_id: id,
+  connection_status: status,
+});
 
 describe('foldAgentStatuses', () => {
   it('folds FAIL-first: a later SUCCESS cannot overwrite a FAIL', () => {
@@ -57,6 +65,21 @@ describe('tcSummarySentence', () => {
 
   it('states the fail count on a failed run', () => {
     expect(tcSummarySentence('fail', settled)).toBe('리소스 3개 중 2개 연결 성공 — 실패 1건을 점검해 주세요');
+  });
+
+  it('a SUCCESS run never claims 모두 when the counts disagree (unit missing from results)', () => {
+    const diverged = computeTcBuckets(
+      ['a', 'b', 'c'],
+      foldAgentStatuses([agent('a', 'SUCCESS'), agent('b', 'SUCCESS')], new Set(['a', 'b', 'c'])),
+    );
+    expect(tcSummarySentence('success', diverged)).toBe(
+      '리소스 3개 중 2개 연결 성공 — 나머지 1건은 결과가 확인되지 않았어요',
+    );
+    const clean = computeTcBuckets(
+      ['a', 'b'],
+      foldAgentStatuses([agent('a', 'SUCCESS'), agent('b', 'SUCCESS')], new Set(['a', 'b'])),
+    );
+    expect(tcSummarySentence('success', clean)).toBe('리소스 2개 모두 연결에 성공했어요');
   });
 
   it('reports progress as reported/total while running', () => {

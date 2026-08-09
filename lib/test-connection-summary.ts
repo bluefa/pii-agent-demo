@@ -114,7 +114,11 @@ export function tcSummarySentence(phase: TcRunPhase, buckets: TcBuckets): string
     case 'running':
       return `연결 테스트 진행 중 — ${reported}/${total} 대상 보고됨`;
     case 'success':
-      return `리소스 ${total}개 모두 연결에 성공했어요`;
+      // 실행 판정(SUCCESS)과 유닛 접기가 어긋날 수 있다 — 마지막 실행 뒤 확정된
+      // 리소스, 결과에 없는 유닛 id. "모두"는 카운트가 실제로 그럴 때만 말한다.
+      return ok === total
+        ? `리소스 ${total}개 모두 연결에 성공했어요`
+        : `리소스 ${total}개 중 ${ok}개 연결 성공 — 나머지 ${total - ok}건은 결과가 확인되지 않았어요`;
     case 'fail':
       return fail > 0
         ? `리소스 ${total}개 중 ${ok}개 연결 성공 — 실패 ${fail}건을 점검해 주세요`

@@ -21,8 +21,13 @@ const HOLD_MS = 400;
 
 type Stage = 'idle' | 'holding' | 'revealed';
 
-/** 관찰의 정체성 — 버전과 진행 여부만이 전이를 가른다. */
+/**
+ * 관찰의 정체성. targetId 를 함께 드는 이유: 상위가 targetSourceId 로 서브트리를
+ * key(DR2)해 주지 않아도, A#2 RUNNING → B#2 SUCCESS 같은 대상 전환이 "라이브
+ * 정착"으로 읽히지 않아야 한다 — 에지는 같은 대상 안에서만 성립한다.
+ */
 interface Seen {
+  targetId: number | null;
   version: number | null;
   inProgress: boolean;
 }
@@ -43,6 +48,7 @@ export const useTcSettleHold = (
 
   const current: Seen | null = job
     ? {
+        targetId: job.target_source_id ?? null,
         version: job.test_connection_version ?? null,
         inProgress: isInProgress(job.connection_status),
       }
@@ -56,16 +62,23 @@ export const useTcSettleHold = (
     (current === null) !== (seen === null) ||
     (current !== null &&
       seen !== null &&
-      (current.version !== seen.version || current.inProgress !== seen.inProgress));
+      (current.targetId !== seen.targetId ||
+        current.version !== seen.version ||
+        current.inProgress !== seen.inProgress));
   if (changed) {
     setSeen(current);
     if (seen === undefined) {
       // 첫 관찰은 입양 — 보기 전에 끝나 있던 실행에 연출을 재생하지 않는다.
-    } else if (current && !current.inProgress && seen?.inProgress) {
-      // 라이브 정착 에지: 지켜보던 실행(또는 그 후속 버전)이 방금 끝났다.
+    } else if (
+      current &&
+      !current.inProgress &&
+      seen?.inProgress &&
+      seen.targetId === current.targetId
+    ) {
+      // 라이브 정착 에지: 지켜보던 실행(또는 같은 대상의 후속 버전)이 방금 끝났다.
       setStage('holding');
-    } else if (!current || current.inProgress) {
-      // 새 실행 시작(또는 대상 전환으로 잡이 사라짐) — 연출 상태를 처음으로 되돌린다.
+    } else if (!current || current.inProgress || seen?.targetId !== current.targetId) {
+      // 새 실행 시작·대상 전환 — 연출 상태를 처음으로 되돌린다.
       setStage('idle');
     }
   }

@@ -163,14 +163,6 @@ export const IdcStep5ConnectionTest = ({
     [latestJob],
   );
 
-  // A row counts as connected on the SUCCESS the agent reported, and on nothing else —
-  // the same rule the cloud card runs on. Folding "is a credential picked locally" into
-  // the verdict made a healthy target read 대기 in the progress strip.
-  const rowConnected = useCallback(
-    (resourceId: string): boolean => statusByResource.get(resourceId) === 'SUCCESS',
-    [statusByResource],
-  );
-
   // Project the live poll status onto the rows the table renders. The status flows
   // straight through (SUCCESS / FAIL / RUNNING / PENDING) so the table updates
   // automatically as each pipeline settles.
@@ -217,8 +209,11 @@ export const IdcStep5ConnectionTest = ({
 
   const runTest = useCallback(async () => {
     if (!ready || testing || !allCredsSet) return;
-    setCredsDirty(false);
-    await trigger();
+    // 의도가 아니라 증거로 푼다: trigger 가 실패하면(409 포함) 실행은 시작되지 않았고,
+    // 수정된 Credential 은 여전히 검증 전이다 — 게이트를 미리 풀면 옛 실행의
+    // completion-status 로 완료 승인이 열린다.
+    const started = await trigger();
+    if (started) setCredsDirty(false);
   }, [ready, testing, allCredsSet, trigger]);
 
   // 모달의 저장이 PUT 을 쏘고, 성공했을 때만 로컬 값이 바뀐다 — 클라우드 step 5 와 같다.
@@ -314,6 +309,7 @@ export const IdcStep5ConnectionTest = ({
         providerLabel={providerLabel}
         identity={identity}
         action={action}
+        tcJob={latestJob}
       />
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
       <section className={cardStyles.base}>
@@ -356,7 +352,10 @@ export const IdcStep5ConnectionTest = ({
         <div className={cn(cardStyles.body, 'space-y-4')}>
           {ready && (
             <>
-              <TcRejectionNotice targetSourceId={targetSourceId} />
+              <TcRejectionNotice
+                targetSourceId={targetSourceId}
+                runVersion={latestJob?.test_connection_version ?? null}
+              />
               <TcSummaryCard
                 phase={phase}
                 buckets={buckets}
