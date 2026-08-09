@@ -41,14 +41,20 @@ import {
   taskDisplayName,
   retrySuffix,
 } from '@/app/admin/pipelines/_detail/statusModel';
+import { PlBreadcrumb } from '@/app/admin/pipelines/_components/PlBreadcrumb';
+import { pipelineCrumbs } from '@/app/admin/pipelines/_detail/pipelineBreadcrumb';
 import {
   canCancel,
   displayProvider,
   fmtDateTime,
+  fmtElapsedMs,
   isLivePipeline,
   progressCount,
+  progressPhrase,
   providerLabel,
   recipeLabel,
+  runWindow,
+  statusKo,
   taskMetaLine,
 } from '@/lib/pipeline/format';
 import {
@@ -111,7 +117,15 @@ export function PipelineDetailView(): ReactElement {
         const deepLinked = taskParam
           ? d.tasks.find((t) => String(t.task_id) === taskParam)
           : undefined;
-        if (deepLinked) setSelected(deepLinked);
+        if (deepLinked) {
+          setSelected(deepLinked);
+        } else if (d.status === 'FAILED') {
+          // 실패 우선 랜딩 (시안 1) — the operator's first question on a FAILED
+          // run is "why"; open the failed task's drawer for them. Load-time
+          // only: closing it stays closed (no re-open on poll).
+          const failed = d.tasks.find((t) => t.status === 'FAILED');
+          if (failed) setSelected(failed);
+        }
         getTaskDefinitions(d.cloud_provider)
           .then((res) => {
             if (cancelled) return;
@@ -199,6 +213,32 @@ export function PipelineDetailView(): ReactElement {
       window.clearInterval(id);
     };
   }, [status, detail, selected, pipelineId]);
+
+  // Render-pure clock for the live 경과 readout (the compiler forbids Date.now()
+  // in render; the first tick runs as a timeout so the effect body sets no
+  // state). 30s granularity — the readout is minutes-scale.
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const tick = (): void => setNow(Date.now());
+    const first = window.setTimeout(tick, 0);
+    const id = window.setInterval(tick, 30_000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
+  }, []);
+
+  // Every run's tab used to read the layout's static title — indistinguishable
+  // in browser history/tabs (시안 5). Restored on unmount.
+  useEffect(() => {
+    if (!detail) return;
+    const svc = latest?.service_name || latest?.service_code || `Target ${detail.target_source_id}`;
+    const prev = document.title;
+    document.title = `작업 #${detail.pipeline_id} · ${svc}`;
+    return () => {
+      document.title = prev;
+    };
+  }, [detail, latest]);
 
   const resolveName = useCallback(
     (t: TaskSummary): string => taskDisplayName(t, detailMap.get(t.task_id), catalog),
@@ -315,6 +355,21 @@ export function PipelineDetailView(): ReactElement {
     latest?.pipeline_id === detail.pipeline_id &&
     detail.restarted_by_pipeline_id == null;
   const origin = detail.origin ?? null;
+  // 실행 구간 (시안 2·5) — 태스크 타임스탬프에서 유도; 시작 전이면 둘 다 null.
+  const win = runWindow(detail.status, detail.tasks, detail.last_activity_at);
+  const winEndMs = win.end != null ? Date.parse(win.end) : now;
+  const elapsedMs =
+    win.start != null && winEndMs != null ? winEndMs - Date.parse(win.start) : null;
+  // 실패 스트립 (시안 1) — FAILED 런의 원인 요약. 재시작이 최신 런(supersededBy)
+  // 소관이라 이 화면에 CTA가 없을 때, 그 사유도 이 스트립이 말한다 (침묵 금지).
+  const failedTask =
+    detail.status === 'FAILED' ? detail.tasks.find((t) => t.status === 'FAILED') ?? null : null;
+  const supersededBy =
+    (detail.status === 'FAILED' || detail.status === 'CANCELLED') &&
+    latest != null &&
+    latest.pipeline_id !== detail.pipeline_id
+      ? latest.pipeline_id
+      : null;
 
   return (
     <div className={improvedStyles.bleed}>
@@ -322,9 +377,12 @@ export function PipelineDetailView(): ReactElement {
       <header className={h.root}>
         <div className={h.topRow}>
           <div className={h.titleWrap}>
+            {/* 대시보드 › {target} › 작업 #N — 딥링크 진입자의 목록 복귀 경로 (시안 5). */}
+            <PlBreadcrumb crumbs={pipelineCrumbs(detail.pipeline_id, detail.target_source_id)} />
             <div className={h.titleRow}>
               <h1 className={h.title}>작업 현황</h1>
               <span className={h.id}>#{detail.pipeline_id}</span>
+              <span className={h.svc}>{svcName}</span>
               {/* The restart identity belongs next to the run's own id — an operator
                   must not have to read the meta grid to learn this is a re-run. */}
               {detail.origin_pipeline_id != null && (
@@ -424,17 +482,47 @@ export function PipelineDetailView(): ReactElement {
           <div className={improvedStyles.band.cell}>
             <span className={improvedStyles.band.curName}>{cur.name}</span>
             <span className={cn(improvedStyles.band.pill, improvedStyles.band.pillTone[detail.status])}>
-              {detail.status}
+              {statusKo(detail.status)}
             </span>
           </div>
           <span className={improvedStyles.band.label}>진행 단계</span>
           <div className={improvedStyles.band.cell}>
-            <span className={improvedStyles.band.track}>
-              <span className={improvedStyles.band.fill} style={{ width: `${pct}%` }} />
+            {/* 태스크당 세그먼트 (시안 2, GitLab mini-graph 문법) — 어느 단계가
+                어떤 상태인지 색으로 직독. 12노드 초과 커스텀 체인은 연속 바 폴백. */}
+            {total > 0 && total <= 12 ? (
+              <span className={improvedStyles.band.segTrack} aria-hidden="true">
+                {detail.tasks.map((t) => (
+                  <span
+                    key={t.task_id}
+                    className={cn(
+                      improvedStyles.band.seg,
+                      t.status === 'READY' && t.fail_count > 0
+                        ? improvedStyles.band.segRetry
+                        : improvedStyles.band.segTone[t.status],
+                    )}
+                  />
+                ))}
+              </span>
+            ) : (
+              <span className={improvedStyles.band.track}>
+                <span className={improvedStyles.band.fill} style={{ width: `${pct}%` }} />
+              </span>
+            )}
+            <span
+              className={improvedStyles.band.count}
+              title={
+                win.start
+                  ? `${fmtDateTime(win.start)} 시작${win.end ? ` → ${fmtDateTime(win.end)} 종료` : ''}`
+                  : undefined
+              }
+            >
+              {progressPhrase(detail.status, detail.tasks)}
             </span>
-            <span className={improvedStyles.band.count}>
-              {done} / {total}
-            </span>
+            {elapsedMs != null && (
+              <span className={improvedStyles.band.elapsed}>
+                · {live ? '경과' : '소요'} {fmtElapsedMs(elapsedMs)}
+              </span>
+            )}
           </div>
         </div>
         {live ? (
@@ -457,6 +545,36 @@ export function PipelineDetailView(): ReactElement {
           </PlButton>
         ) : null}
       </div>
+
+      {/* 실패 스트립 (시안 1 — Step Functions error-banner 문법): 원인 요약과, CTA가
+          없을 때 그 사유(최신 실행이 따로 있음)를 한 줄로. 상세 드로어는 로드 시
+          자동으로 열린다. */}
+      {failedTask && (
+        <div className={improvedStyles.failStrip}>
+          <span aria-hidden="true">⚠</span>
+          <span>
+            <b className="font-semibold">{resolveName(failedTask)}</b> 태스크가{' '}
+            {failedTask.fail_count}회 실패했습니다
+            {failedTask.error_code && (
+              <>
+                {' · 원인 '}
+                <b className="font-semibold">{failedTask.error_code}</b>
+              </>
+            )}
+          </span>
+          {supersededBy != null && (
+            <span className={improvedStyles.failStripRight}>
+              재시작은 최신 실행에서만 가능합니다
+              <Link
+                href={passRoutes.pipelines.pipeline(supersededBy)}
+                className={improvedStyles.failStripLink}
+              >
+                #{supersededBy} 열기
+              </Link>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* §8.4 — restart context strip. Progress (0/N) stays on this run's own suffix;
           this one line explains where it sits in the origin chain (no ghost nodes). */}

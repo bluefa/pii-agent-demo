@@ -15,9 +15,10 @@ describe('targetCrumbs', () => {
 });
 
 describe('pipelineCrumbs — R20: no query-param nav-context', () => {
-  it('서비스 검색 › {targetId}(→target, bare path) › 작업 #{id}(cur)', () => {
+  it('대시보드 › {targetId}(→target, bare path) › 작업 #{id}(cur)', () => {
     const crumbs = pipelineCrumbs(128, '1006');
-    expect(crumbs.map((c) => c.label)).toEqual(['서비스 검색', '1006', '작업 #128']);
+    expect(crumbs.map((c) => c.label)).toEqual(['대시보드', '1006', '작업 #128']);
+    expect(crumbs[0].href).toBe('/admin/pipelines');
     expect(crumbs[1].href).toBe('/admin/pipelines/ops/target-sources/1006?tab=infra');
     expect(crumbs[2].href).toBeUndefined(); // current is inert
   });
