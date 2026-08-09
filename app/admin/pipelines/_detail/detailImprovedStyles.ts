@@ -47,8 +47,8 @@ export const improvedStyles = {
     body: 'flex min-w-0 flex-1 flex-col gap-1',
     /** Tier 1 — provider first, then target id: "GCP #1002" (owner order). */
     idRow: 'flex items-center gap-2 flex-wrap',
-    id: 'text-[16px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] tabular-nums whitespace-nowrap',
-    idHash: 'mr-0.5 font-normal text-[var(--pl-text-weak)]',
+    id: 'text-[12px] font-medium [font-family:var(--pl-font-mono)] text-[var(--pl-primary)] tabular-nums whitespace-nowrap',
+    idHash: 'mr-0.5 font-normal',
     sduChip:
       'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
     prov: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
@@ -57,8 +57,9 @@ export const improvedStyles = {
      *  Labels stay visible during load — the value slot is what skeletons. */
     nameRow: 'flex items-baseline gap-x-2 gap-y-1 min-w-0 min-h-[20px] flex-wrap',
     klabel: 'text-[12px] text-[var(--pl-text-weak)] whitespace-nowrap',
-    name: 'text-[14px] font-semibold text-[var(--pl-text-strong)] truncate',
-    code: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] whitespace-nowrap',
+    name: 'text-[14px] font-medium text-[var(--pl-text-strong)] truncate',
+    /** 서비스 코드 — 값이 아니라 분류표라 SDU 칩과 같은 문법(파랑 태그). */
+    code: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-medium [font-family:var(--pl-font-mono)] bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
     /** Tier 3 — run context: lineage badge · type tag(ⓘ) · created. The run #
      *  line was cut on owner feedback — document.title/URL carry it. */
     subRow: 'mt-0.5 flex items-center gap-x-3 gap-y-1 flex-wrap text-[12px] text-[var(--pl-text-weak)]',
