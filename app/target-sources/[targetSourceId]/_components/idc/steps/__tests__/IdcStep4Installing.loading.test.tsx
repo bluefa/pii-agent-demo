@@ -43,7 +43,7 @@ const project: CloudTargetSource = {
   cloudProvider: 'IDC',
 };
 
-const identity: ProjectIdentity = { cloudProvider: 'IDC', jiraLink: null, identifiers: [] };
+const identity: ProjectIdentity = { cloudProvider: 'IDC', identifiers: [] };
 
 const renderStep = () =>
   render(

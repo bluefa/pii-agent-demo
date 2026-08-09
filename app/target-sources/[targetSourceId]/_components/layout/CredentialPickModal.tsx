@@ -289,11 +289,19 @@ export const CredentialPickModal = ({
             </table>
           </div>
 
-          {/* 검색이 현재 값을 걸러내도 무엇이 걸려 있는지는 계속 보인다. */}
-          <span className={cn('mt-2 block truncate text-[12px]', textColors.tertiary)}>
+          {/* 검색이 현재 값을 걸러내도 무엇이 걸려 있는지는 계속 보인다. 라벨을 값보다 눈에
+              띄게 해 "지금 뭐가 걸려 있는지"가 표 스크롤 아래로 묻히지 않게 한다. 이름이 길면
+              한 줄을 넘기지 않도록 말줄임하고, 전체 이름은 title 로 남긴다. */}
+          <span className={cn('mt-2 flex items-baseline gap-1.5 text-[12px]', textColors.tertiary)}>
             {picked ? (
               <>
-                선택 <strong className={cn('font-semibold', textColors.secondary)}>{picked}</strong>
+                <span className={cn('shrink-0 font-semibold', textColors.primary)}>현재 선택</span>
+                <strong
+                  title={picked}
+                  className={cn('min-w-0 truncate font-mono font-semibold', textColors.secondary)}
+                >
+                  {picked}
+                </strong>
               </>
             ) : (
               '선택된 Credential이 없어요'
