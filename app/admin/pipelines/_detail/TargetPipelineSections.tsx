@@ -21,6 +21,7 @@ import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
 import { cn, pipelineStyles } from '@/lib/theme';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
@@ -252,10 +253,20 @@ export function TargetPipelineSections({
             className={cn(pipelineStyles.card.flush, detailStyles.sectionCard.fill)}
           >
             <div className={detailStyles.sectionCard.head}>
-              <h3 className={detailStyles.sectionCard.title}>작업 이력</h3>
-              {history && (
-                <span className={detailStyles.sectionCard.meta}>총 {history.totalElements}건</span>
-              )}
+              <div className={detailStyles.sectionCard.titleRow}>
+                <h3 className={detailStyles.sectionCard.title}>
+                  <Icon name="clock" size="sm" strokeWidth={2.2} />
+                  작업 이력
+                </h3>
+                {history && (
+                  <span className={detailStyles.sectionCard.meta}>
+                    총 {history.totalElements}건
+                  </span>
+                )}
+              </div>
+              <p className={detailStyles.sectionCard.desc}>
+                이 대상에서 실행된 작업을 최신순으로 보여줍니다.
+              </p>
             </div>
             <div className="min-h-[266px] flex-1 px-6 pt-4">
               {rows.length === 0 ? (

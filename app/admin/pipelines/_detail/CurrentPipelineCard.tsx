@@ -10,9 +10,9 @@
  * horizontally-scrolling row. Detailed progress lives on the 현황 page the link
  * points to. Idle: the same shell with a centered empty state and the start CTA.
  *
- * The section NAME (현재 작업 / 최근 작업) is the card's own first line, over a
- * rule — owner call, so the pair of cards in the 2:1 row each carry their title
- * inside instead of above. `sectionCard.fill` keeps both columns one height.
+ * The section NAME (현재 작업 / 최근 작업) is the card's own first line — owner
+ * call, so the pair of cards in the 2:1 row each carry their title inside
+ * instead of above. `sectionCard.fill` keeps both columns one height.
  *
  * Data (detail polling, catalog map, cancel flow) stays in the caller — this
  * file is presentation only.
@@ -112,11 +112,22 @@ const CARD_SHELL =
 const STOP_TAG =
   'inline-flex items-center rounded-[6px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-[7px] py-[3px] align-[1px] text-[13px] font-semibold text-[var(--pl-text-strong)]';
 
+/** What the 현재 작업 card is for — constant; only its title tracks state. */
+const RUN_SECTION_DESC =
+  'Terraform을 실행해 인프라를 생성하거나 삭제합니다. 작업 시작·중단과 진행 상황을 여기서 확인합니다.';
+
 /** The card's own first line — see detailStyles.sectionCard. */
 function SectionHead({ title }: { title: string }): ReactElement {
+  const { sectionCard } = detailStyles;
   return (
-    <div className={detailStyles.sectionCard.head}>
-      <h3 className={detailStyles.sectionCard.title}>{title}</h3>
+    <div className={sectionCard.head}>
+      <div className={sectionCard.titleRow}>
+        <h3 className={sectionCard.title}>
+          <Icon name="flow" size="sm" strokeWidth={2.2} />
+          {title}
+        </h3>
+      </div>
+      <p className={sectionCard.desc}>{RUN_SECTION_DESC}</p>
     </div>
   );
 }
