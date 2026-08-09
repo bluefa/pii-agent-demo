@@ -395,18 +395,15 @@ function BlockedReason({
   );
 }
 
-export interface EmptyPipelineCardProps {
-  onStart: () => void;
-  /** Disables the CTA and states why — see TargetPipelineSections. */
-  blockedReason?: string | null;
-}
-
-/** Idle state — the same card shell with a centered empty state + start CTA. */
-export function EmptyPipelineCard({
-  onStart,
-  blockedReason = null,
-}: EmptyPipelineCardProps): ReactElement {
-  const blocked = blockedReason != null;
+/**
+ * Idle state — the same card shell with a centered empty state.
+ *
+ * It carries no start CTA: 작업 시작 lives in the tab head, where it is on screen
+ * in every state instead of only this one, and one primary button per screen is
+ * the rule. Nothing about the gate is repeated here either — when 확정 정보 is
+ * missing the head shows the amber banner instead of the button.
+ */
+export function EmptyPipelineCard(): ReactElement {
   return (
     <div className={CARD_SHELL}>
       <div className="flex flex-col items-center px-6 pb-10 pt-9 text-center">
@@ -417,23 +414,15 @@ export function EmptyPipelineCard({
           실행 중인 작업이 없습니다.
         </div>
         <p className="mt-2 max-w-[468px] text-[15px] leading-[1.6] text-[var(--pl-text-weak)]">
-          작업을 시작해 보세요. 설치·삭제·Custom 흐름이 여러 단계로 실행되고, 진행 상황을 여기서
-          바로 볼 수 있어요.
+          위의 작업 시작으로 실행해 보세요. 설치·삭제·Custom 흐름이 여러 단계로 실행되고, 진행
+          상황을 여기서 바로 볼 수 있어요.
         </p>
         {/* Pre-warning, in info blue: nothing is wrong yet — this states what the
-            button will do. Amber belongs to the 확정 정보 gate, red to real
-            failures, so neither is borrowed here. Suppressed when the CTA is
-            already blocked; the reason line below says the operative thing. */}
-        {!blocked && (
-          <p className="mt-2.5 max-w-[468px] text-[14px] font-semibold leading-[1.6] text-[var(--pl-info-text)]">
-            작업을 시작하면 Terraform이 실행되어 실제 인프라가 생성되거나 삭제됩니다.
-          </p>
-        )}
-        <PlButton variant="primary" className="mt-5" onClick={onStart} disabled={blocked}>
-          <Icon name="play" size="sm" />
-          작업 시작
-        </PlButton>
-        {blockedReason && <BlockedReason reason={blockedReason} className="mt-2.5" />}
+            head's button will do. Amber belongs to the 확정 정보 gate, red to real
+            failures, so neither is borrowed here. */}
+        <p className="mt-2.5 max-w-[468px] text-[14px] font-semibold leading-[1.6] text-[var(--pl-info-text)]">
+          작업을 시작하면 Terraform이 실행되어 실제 인프라가 생성되거나 삭제됩니다.
+        </p>
       </div>
     </div>
   );
