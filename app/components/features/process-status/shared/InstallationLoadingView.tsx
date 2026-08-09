@@ -2,32 +2,53 @@
 
 import { bgColors, borderColors, cn, idcStyles, shadows, stackGap } from '@/lib/theme';
 
-interface InstallationLoadingViewProps {
-  provider: string;
-  /** Mirror the grouped rail frame (gray wrapper + 224px rail + fixed 560px card). */
-  grouped?: boolean;
-}
+type InstallationLoadingViewProps = { provider: string } & (
+  | {
+      /** Mirror the grouped rail frame (gray wrapper + 224px rail + fixed 560px card). */
+      grouped: true;
+      railRows?: never;
+    }
+  | {
+      grouped?: false;
+      /**
+       * Rail rows to draw = 설치 현황 요약 + the provider's steps. A hardcoded count
+       * reflows the card on data arrival — exactly what the skeleton exists to stop.
+       */
+      railRows: number;
+    }
+);
 
-const Bar = ({ className }: { className: string }) => (
-  <div className={cn(idcStyles.skeletonBar, className)} />
+// 레일은 panel(gray-100) 위에 앉는데 기본 스켈레톤 바도 gray-100 이라 그 위에서는
+// 보이지 않는다 — 레일 안에서만 divider(gray-200)로 한 단 올린다.
+const RAIL_BAR = cn('animate-pulse', bgColors.divider);
+
+const Bar = ({ className, tone }: { className: string; tone?: string }) => (
+  <div className={cn(tone ?? idcStyles.skeletonBar, className)} />
 );
 
 /**
- * Skeleton frame for the Agent 설치 step while the installation status loads —
- * mirrors InstallStatusDetail's frame so the card keeps its shape instead of
- * reflowing when the data lands. `grouped` mirrors the grouped-rail frame
- * (AWS); the default mirrors the legacy master-detail frame.
+ * Skeleton frame for the Agent 설치 step while the installation status loads.
  *
- * The action banner is deliberately NOT drawn: it only appears when the service
- * side has something to do, and a skeleton must not promise an alert that may
- * never materialize.
+ * Every frame value here is copied from InstallStatusDetail's own markup —
+ * `grouped` mirrors the grouped-rail frame (AWS); the default mirrors the
+ * legacy frame: 224px rail on bgColors.panel, borderColors.light container,
+ * px-5 py-4 right pane, one bordered stats card, bar heights = the real
+ * tokens' line-heights — so nothing shifts horizontally and the stats card
+ * keeps its y. A skeleton that only approximates the frame reintroduces the
+ * reflow it exists to prevent.
+ *
+ * The card's total HEIGHT still changes on arrival, deliberately: the action
+ * banner is not drawn, because it only appears when the service side has
+ * something to do, and a skeleton must not promise an alert that may never
+ * materialize. Nor is the step description's second line, which wraps or not
+ * depending on the provider's copy.
  */
-export const InstallationLoadingView = ({ provider, grouped = false }: InstallationLoadingViewProps) =>
-  grouped ? (
+export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
+  props.grouped ? (
     <div
       aria-busy="true"
       aria-live="polite"
-      aria-label={`${provider} 설치 상태 확인 중`}
+      aria-label={`${props.provider} 설치 상태 확인 중`}
       className={cn('rounded-2xl p-2', bgColors.panel)}
     >
       {/* metabar — title left, last-check caption right */}
@@ -61,42 +82,43 @@ export const InstallationLoadingView = ({ provider, grouped = false }: Installat
       </div>
     </div>
   ) : (
-  <div aria-busy="true" aria-live="polite" aria-label={`${provider} 설치 상태 확인 중`}>
-    <div className={cn('grid grid-cols-[320px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.default)}>
-      {/* step rail — index circle + title + side tag, status pill on the second line */}
-      <div className={cn('border-r p-2.5 flex flex-col gap-1 bg-white', borderColors.default)}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-1.5 px-2.5 py-2.5">
-            <div className="flex items-start gap-2.5">
-              <Bar className="h-6 w-6 flex-shrink-0 rounded-full" />
-              <Bar className="mt-1 h-3.5 flex-1 rounded" />
-              <Bar className="h-6 w-[88px] flex-shrink-0 rounded-md" />
+    <div aria-busy="true" aria-live="polite" aria-label={`${props.provider} 설치 상태 확인 중`}>
+      <div className={cn('grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden', borderColors.light)}>
+        {/* 레일 — 24px 인덱스 원 + 제목, 두 번째 줄은 상태·주체(pl-[34px] 정렬) */}
+        <div className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.panel, borderColors.light)}>
+          {Array.from({ length: props.railRows }).map((_, i) => (
+            <div key={i} className="flex flex-col gap-1 px-2.5 py-2">
+              <div className="flex items-start gap-2.5">
+                <Bar tone={RAIL_BAR} className="h-6 w-6 flex-shrink-0 rounded-full" />
+                <Bar tone={RAIL_BAR} className="mt-1 h-3.5 flex-1 rounded" />
+              </div>
+              {/* 상태·주체 한 줄 = caption 16px */}
+              <Bar tone={RAIL_BAR} className="ml-[34px] h-4 w-24 rounded" />
             </div>
-            <div className="flex items-center gap-1.5 pl-[34px]">
-              <Bar className="h-6 w-12 rounded-md" />
-              <Bar className="h-3 w-7 rounded" />
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {/* summary panel — title / desc / rollup line, then two action cards */}
-      <div className={cn('flex flex-col bg-white p-5', stackGap.group)}>
-        <Bar className="h-4 w-40 rounded" />
-        <Bar className="h-3.5 w-[68%] rounded" />
-        <Bar className="h-3 w-52 rounded" />
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className={cn('flex flex-col rounded-xl border p-4', stackGap.related, borderColors.light)}>
-            <div className="flex items-center gap-2">
-              <Bar className="h-4 w-36 rounded" />
-              <Bar className="h-6 w-16 rounded-md" />
-              <Bar className="h-6 w-[88px] rounded-md" />
-            </div>
-            <Bar className="h-3.5 w-[78%] rounded" />
-            <Bar className="h-8 w-28 rounded-lg" />
+        {/* 우측 — 제목/부제(tight 4px) 뒤 mt-4 지표 카드 하나 */}
+        <div className="min-w-0 px-5 py-4">
+          {/* 바 높이는 자리 채우는 값이 아니라 실제 토큰의 line-height다 —
+              cardTitle 24px, caption 16px. 어긋나면 아래 지표 카드가 위아래로 뛴다. */}
+          <div className={cn('flex flex-col', stackGap.tight)}>
+            <Bar className="h-6 w-40 rounded" />
+            <Bar className="h-4 w-[68%] rounded" />
           </div>
-        ))}
+          <div className={cn('mt-4 rounded-xl border px-5 py-4 flex flex-col', stackGap.related, borderColors.light)}>
+            <div className="flex items-start gap-8">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-1.5">
+                  <Bar className="h-6 w-8 rounded" />
+                  <Bar className="h-3 w-12 rounded" />
+                </div>
+              ))}
+            </div>
+            {/* 마지막 확인 시각 = caption 16px */}
+            <Bar className="h-4 w-52 rounded" />
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );

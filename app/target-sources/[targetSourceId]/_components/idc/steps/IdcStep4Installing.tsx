@@ -10,6 +10,8 @@ import {
 } from '@/app/lib/api/idc';
 import { useIdcInstallationStatus } from '@/app/hooks/useIdcInstallationStatus';
 import { InstallStatusDetail } from '@/app/components/features/process-status/install-status-detail/InstallStatusDetail';
+import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
+import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import {
   normalizeInstallStepValue,
   type InstallDetailResource,
@@ -24,10 +26,10 @@ import {
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
-import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
-import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
+
+const EMPTY_RESOURCES: IdcResourceView[] = [];
 
 // IDC lastCheck status is the shared install enum; the generic detail wants the
 // 3-value LastCheckInfo bucket.
@@ -65,10 +67,15 @@ export const IdcStep4Installing = ({
   action,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
-  const { status, loading, error, refresh } = useIdcInstallationStatus(targetSourceId);
+  const { status, error, refresh } = useIdcInstallationStatus(targetSourceId);
 
-  const [resources, setResources] = useState<IdcResourceView[]>([]);
+  // Rows carry the id they were fetched for, so "loading" is `id mismatch` —
+  // no separate flag to reset on switch (a setState in the effect would cascade).
+  const [loaded, setLoaded] = useState<{ id: number; rows: IdcResourceView[] } | null>(null);
   const [firewallOpen, setFirewallOpen] = useState(false);
+
+  const resourcesLoading = loaded?.id !== targetSourceId;
+  const resources = loaded?.id === targetSourceId ? loaded.rows : EMPTY_RESOURCES;
 
   // §DR3/DR5 — abort on switch/unmount, discard stale responses, scope by id.
   useEffect(() => {
@@ -77,11 +84,11 @@ export const IdcStep4Installing = ({
 
     void getIdcConfirmedResources(targetSourceId, { signal: controller.signal })
       .then((data) => {
-        if (active) setResources(data);
+        if (active) setLoaded({ id: targetSourceId, rows: data });
       })
       .catch((err) => {
         if (isAbort(err) || !active) return;
-        if (active) setResources([]);
+        setLoaded({ id: targetSourceId, rows: [] });
       });
 
     return () => {
@@ -175,23 +182,36 @@ export const IdcStep4Installing = ({
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <InstallCardHeader />
         <div className={cardStyles.body}>
-          {status?.lastCheck?.status === 'FAIL' && status.lastCheck.failReason && (
-            <div className={cn('mb-3 px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
-              상태 확인 실패: {status.lastCheck.failReason}
-            </div>
+          {/* 두 조회(설치 상태 + 확정 연동)가 모두 도착할 때까지 스켈레톤을 유지한다.
+              빈 배열을 그대로 그리면 "전체 리소스 0 · 대기 0/0"에 방화벽 조치 배너까지
+              붙어, 아직 모르는 것을 확정된 사실로 말하게 된다.
+
+              게이트는 훅의 loading 이 아니라 `status` 유무로 판정한다 — 재시도는
+              loading 이 아니라 refreshing 을 세우므로(useIdcInstallationStatus.refresh),
+              loading 으로 재면 재시도하는 동안 바로 그 거짓 화면으로 되돌아간다.
+              status 는 대상 전환 시 훅이 비우므로(DR4) "그릴 데이터 없음"과 동치다.
+
+              에러가 먼저다 — 실패한 조회를 아직 안 온 다른 조회 뒤에 숨기면
+              스켈레톤이 영영 돌아간다. */}
+          {error ? (
+            <InstallationErrorView message={error} onRetry={refresh} />
+          ) : !status || resourcesLoading ? (
+            <InstallationLoadingView provider="IDC" railRows={steps.length + 1} />
+          ) : (
+            <>
+              {status?.lastCheck?.status === 'FAIL' && status.lastCheck.failReason && (
+                <div className={cn('mb-3 px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
+                  상태 확인 실패: {status.lastCheck.failReason}
+                </div>
+              )}
+              <InstallStatusDetail
+                lastCheck={toInstallLastCheck(status?.lastCheck)}
+                resources={detailResources}
+                steps={steps}
+                meta={detailMeta}
+              />
+            </>
           )}
-          {loading ? (
-            <InstallationLoadingView provider="IDC" />
-          ) : error ? (
-            <InstallationErrorView message={error} onRetry={() => void refresh()} />
-          ) : status ? (
-            <InstallStatusDetail
-              lastCheck={toInstallLastCheck(status.lastCheck)}
-              resources={detailResources}
-              steps={steps}
-              meta={detailMeta}
-            />
-          ) : null}
         </div>
       </section>
 

@@ -35,6 +35,19 @@ export function useInstallationStatus<T>({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Reset during render on id change, not in the effect: the effect's reset
+  // lands after paint, so the first render for the new target still carries the
+  // PREVIOUS target's status/error with loading stale-false — i.e. "settled,
+  // and here is someone else's failure". The install cards are not remounted by
+  // key. Same idiom as ConfirmedIntegrationDataProvider.
+  const [activeId, setActiveId] = useState(targetSourceId);
+  if (targetSourceId !== activeId) {
+    setActiveId(targetSourceId);
+    setStatus(null);
+    setError(null);
+    setLoading(true);
+  }
+
   const onCompleteRef = useRef(onComplete);
   const isCompleteRef = useRef(isComplete);
   onCompleteRef.current = onComplete;

@@ -22,6 +22,8 @@ import { InstallCardHeader } from '@/app/components/features/process-status/inst
 interface AzureInstallationInlineProps {
   targetSourceId: number;
   confirmed: readonly ConfirmedResource[];
+  /** 확정 연동 목록이 아직 로딩 중 — 스켈레톤을 유지한다. */
+  confirmedLoading?: boolean;
   onInstallComplete?: () => void;
 }
 
@@ -66,6 +68,7 @@ const AZURE_STEPS: InstallTableStep[] = [
 export const AzureInstallationInline = ({
   targetSourceId,
   confirmed,
+  confirmedLoading = false,
   onInstallComplete,
 }: AzureInstallationInlineProps) => {
   // Must be stable: useInstallationStatus re-runs its fetch effect whenever
@@ -116,10 +119,14 @@ export const AzureInstallationInline = ({
             상태 확인 실패: {status.lastCheck.failReason ?? '최근 설치 상태 확인에 실패했습니다.'}
           </div>
         )}
-        {loading ? (
-          <InstallationLoadingView provider="Azure" />
-        ) : error ? (
+        {/* 에러가 먼저다 — confirmedLoading 이 OR 로 붙은 뒤로는 순서가 의미를 갖는다.
+            설치 상태가 실패했는데 확정 연동이 아직이면, 로딩을 먼저 재는 순간 에러와
+            재시도 버튼이 확정 연동 뒤에 숨는다(그 확정 연동마저 실패하면 카드가
+            통째로 사라져 사용자는 이유도 재시도도 못 본다). */}
+        {error ? (
           <InstallationErrorView message={error} onRetry={fetchStatus} />
+        ) : loading || confirmedLoading ? (
+          <InstallationLoadingView provider="Azure" railRows={AZURE_STEPS.length + 1} />
         ) : status ? (
           <InstallStatusDetail
             lastCheck={status.lastCheck}
