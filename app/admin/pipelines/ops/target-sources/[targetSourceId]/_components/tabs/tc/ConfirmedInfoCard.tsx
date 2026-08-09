@@ -22,19 +22,23 @@
  * fetch failure adds a 다시 시도 affordance to that same empty state so the two are
  * never confused with "확정된 리소스가 0건".
  */
-import { useState, type ReactElement } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { useMemo, useState, type ReactElement } from 'react';
+import { cn, idcStyles, pipelineStyles } from '@/lib/theme';
 import {
   updateResourceCredential,
   type ConfirmedIntegrationResourceItem,
 } from '@/app/lib/api';
-import type { SecretKey } from '@/lib/types';
+import { isEc2Instance, type SecretKey } from '@/lib/types';
+import { isRdsCluster } from '@/lib/rds-instances';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
+import { Ec2InstanceTag, RdsClusterTag } from '@/app/components/ui/RdsInstanceChips';
 import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
@@ -47,9 +51,36 @@ import { TcCredentialModal } from '@/app/admin/pipelines/ops/target-sources/[tar
 import { CredentialAssignModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/CredentialAssignModal';
 import {
   credentialEntries,
+  filterConfirmedRows,
   ldbCount,
   type TcVerdict,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
+
+/** Step 6·7 확정 표와 같은 한 페이지 분량. */
+const PAGE_SIZE = 10;
+
+const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
+
+/** 빈 값은 옵션이 될 수 없다 — 고를 수 없는 조건은 목록에 두지 않는다. */
+const uniqueSorted = (values: readonly string[]): string[] =>
+  Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+/**
+ * Step 6·7 확정 표의 골격을 관리자 토큰으로 옮긴 값들 — 여백·정렬은 그 표(18/16, 옅은 헤더
+ * 면, 헤어라인 행)에서 그대로 가져오고, 색·글자는 이 콘솔의 `--pl-*` 를 쓴다. 두 화면이 같은
+ * 리소스를 같은 순서로 읽되, 이 카드가 옆 카드들과 다른 톤으로 튀지는 않게 하기 위함이다.
+ */
+const TABLE_FRAME =
+  'overflow-x-auto rounded-b-[10px] border border-t-0 border-[var(--pl-border)]';
+/** 툴바는 표에 붙는다 — 사이에 간격을 두면 검색창이 어느 표를 거르는지 말하지 못한다. */
+const TOOLBAR =
+  'mt-3 flex flex-wrap items-center gap-2 rounded-t-[10px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-4 py-3';
+const SEARCH_INPUT =
+  'h-8 w-[260px] flex-none rounded-lg border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] px-3 text-[14px] text-[var(--pl-text-strong)] focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)] focus:outline-none';
+const HEAD_CELL =
+  'whitespace-nowrap px-[18px] py-3 text-left text-[12px] font-medium text-[var(--pl-text-weak)]';
+const CELL =
+  'border-b border-[var(--pl-gray-100)] px-[18px] py-4 align-middle text-[14px] text-[var(--pl-text-strong)]';
 
 /**
  * 연결 상태 cell — the run's own verdict for this resource, or — if it had none.
@@ -99,14 +130,20 @@ function CountCell({
 }
 
 /**
- * Resource Name — the Step 1·2·3 resource-table grammar (CandidateResourceRow):
- * one line always, mono, and the full value in the tip, which only appears when
- * the text is actually cut. A native `title` was not it — no delay control, no
- * styling, and it fires on values that already fit.
+ * Resource Name — Step 6·7 확정 표의 정체성 스택: 클러스터·EC2 는 무엇인지를 이름 위
+ * 태그로 먼저 말하고, 이름은 한 줄로 자른 뒤 전체 값을 팁에 둔다(잘렸을 때만 뜬다).
+ * 태그가 붙은 행만 두 줄이므로, 그 행만 위로 당겨 이름이 이웃 열의 정렬선에 남는다.
  */
-function ResourceNameCell({ value }: { value: string | null }): ReactElement {
-  if (!value) return <Dash />;
-  return (
+function ResourceNameCell({
+  value,
+  resourceType,
+}: {
+  value: string | null;
+  resourceType: string;
+}): ReactElement {
+  const cluster = isRdsCluster(resourceType);
+  const ec2 = isEc2Instance(resourceType);
+  const name = value ? (
     <Tooltip
       content={<IdentifierTip label="Resource Name" value={value} />}
       variant="value"
@@ -116,6 +153,20 @@ function ResourceNameCell({ value }: { value: string | null }): ReactElement {
     >
       <span className="block truncate font-mono text-[14px]">{value}</span>
     </Tooltip>
+  ) : (
+    <Dash />
+  );
+  if (!cluster && !ec2) return name;
+  return (
+    <span
+      className={cn(
+        'flex min-w-0 flex-col items-start gap-1',
+        idcStyles.table.stackedIdentityLift,
+      )}
+    >
+      {cluster ? <RdsClusterTag /> : <Ec2InstanceTag />}
+      {name}
+    </span>
   );
 }
 
@@ -154,8 +205,36 @@ export function ConfirmedInfoCard({
   const [ldbRow, setLdbRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
   const [credRow, setCredRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
+  // 검색·필터·페이지 — Step 6·7 확정 표가 가진 것과 같은 세 가지. 확정 리소스는 수십 건이라
+  // 한 화면에 다 펴 두면 Credential 배정을 하러 온 사람이 자기 행을 눈으로 찾아야 했다.
+  const [query, setQuery] = useState('');
+  const [dbTypeFilter, setDbTypeFilter] = useState('');
+  const [regionFilter, setRegionFilter] = useState('');
+  const [page, setPage] = useState(0);
 
   const tcByResourceId = new Map(tcResults.map((row) => [row.resourceId, row]));
+
+  // 옵션은 셀이 실제로 찍는 문자열이어야 한다 — wire 원문(mysql)을 옵션에 두면 셀의
+  // MySQL 과 달라 아무 행도 걸리지 않는다.
+  const dbTypeOf = (row: ConfirmedIntegrationResourceItem): string =>
+    row.database_type ? getDatabaseShortLabel(row.database_type) : '';
+  const dbTypeOptions = useMemo(() => uniqueSorted(rows.map(dbTypeOf)), [rows]);
+  const regionOptions = useMemo(
+    () => uniqueSorted(rows.map((row) => row.database_region ?? '')),
+    [rows],
+  );
+
+  const filtered = useMemo(
+    () =>
+      filterConfirmedRows(rows, { query, dbType: dbTypeFilter, region: regionFilter }, dbTypeOf),
+    [rows, query, dbTypeFilter, regionFilter],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // 필터를 좁히면 지금 페이지가 범위 밖으로 나갈 수 있다 — 그대로 쓰면 빈 표가 된다.
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const firstIndex = filtered.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
 
   // 생성 시각 + 배정 건수 ride along in the assign modal: with 20+ credentials the
   // name alone rarely settles "which one is this", and those are the only other
@@ -234,31 +313,90 @@ export function ConfirmedInfoCard({
         </div>
       ) : (
         <>
-          <div className={cn(pipelineStyles.card.tableWrap, 'mt-3')}>
+          {/* 검색 + 두 필터는 표에 붙은 툴바다 — Step 6·7 과 같은 실루엣(옅은 면, 위쪽만
+              라운드, 아래 간격 없음). 떠 있는 입력창은 자기가 무엇을 거르는지 말하지 못한다. */}
+          <div className={TOOLBAR}>
+            <input
+              type="text"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(0);
+              }}
+              placeholder="Resource ID 또는 Resource Name 검색"
+              aria-label="확정 리소스 검색"
+              className={SEARCH_INPUT}
+            />
+            <PlSelect
+              aria-label="Database Type 필터"
+              value={dbTypeFilter}
+              onChange={(event) => {
+                setDbTypeFilter(event.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="">Database Type 전체</option>
+              {dbTypeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </PlSelect>
+            <PlSelect
+              aria-label="Region 필터"
+              value={regionFilter}
+              onChange={(event) => {
+                setRegionFilter(event.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="">Region 전체</option>
+              {regionOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </PlSelect>
+          </div>
+          <div className={TABLE_FRAME}>
             <table className={table.base}>
-              <thead>
+              {/* Step 2·3·6·7 의 열 순서: 정체성(이름 → id) → 속성(타입 · 리전) → 판정.
+                  관리자 전용 두 열(연결 상태 · Credential)은 그 뒤에 붙는다. */}
+              <thead className="bg-[var(--pl-gray-50)]">
                 <tr>
-                  <th className={table.headCell}>Database Type</th>
-                  <th className={table.headCell}>Resource ID</th>
-                  <th className={table.headCell}>Resource Name</th>
-                  <th className={table.headCell}>연동 대상 논리 DB</th>
-                  <th className={table.headCell}>연동 제외 논리 DB</th>
-                  <th className={table.headCell}>연결 상태</th>
-                  <th className={table.headCell}>Credential</th>
+                  <th className={HEAD_CELL}>Resource Name</th>
+                  <th className={HEAD_CELL}>Resource ID</th>
+                  <th className={HEAD_CELL}>Database Type</th>
+                  <th className={HEAD_CELL}>Region</th>
+                  <th className={HEAD_CELL}>연동 대상 논리 DB</th>
+                  <th className={HEAD_CELL}>연동 제외 논리 DB</th>
+                  <th className={HEAD_CELL}>연결 상태</th>
+                  <th className={HEAD_CELL}>Credential</th>
                 </tr>
               </thead>
               <tbody className="[&>tr:last-child>td]:border-b-0">
-                {rows.map((row, index) => {
+                {pageRows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className={cn(CELL, 'py-10 text-center text-[var(--pl-text-weak)]')}
+                    >
+                      {FILTER_EMPTY_MESSAGE}
+                    </td>
+                  </tr>
+                )}
+                {pageRows.map((row, index) => {
                   const tc = tcByResourceId.get(row.resource_id);
                   const verdict = verdicts.get(row.resource_id);
                   return (
                     <tr key={`${row.resource_id}-${index}`} className={table.rowHover}>
-                      <td className={cn(table.cell, 'whitespace-nowrap')}>
-                        {/* wire 는 소문자 원문(mysql·athena) — 사용자 화면과 같은 표기.
-                            타입은 상태가 아니라 분류라 칩(색면)을 쓰지 않는다. */}
-                        {row.database_type ? getDatabaseShortLabel(row.database_type) : <Dash />}
+                      <td className={CELL}>
+                        <ResourceNameCell
+                          value={row.resource_name || null}
+                          resourceType={row.resource_type}
+                        />
                       </td>
-                      <td className={table.cell}>
+                      <td className={CELL}>
                         {/* Step 1·2·3 grammar: truncated to `Prefix…` like the name
                             column, tip on hover, copy button on row hover. */}
                         {row.resource_id ? (
@@ -271,19 +409,25 @@ export function ConfirmedInfoCard({
                           <Dash />
                         )}
                       </td>
-                      <td className={table.cell}>
-                        <ResourceNameCell value={row.resource_name || null} />
+                      <td className={cn(CELL, 'whitespace-nowrap')}>
+                        {/* wire 는 소문자 원문(mysql·athena) — 사용자 화면과 같은 표기.
+                            타입은 상태가 아니라 분류라 칩(색면)을 쓰지 않는다. */}
+                        {row.database_type ? getDatabaseShortLabel(row.database_type) : <Dash />}
                       </td>
-                      <td className={table.cell}>
+                      <td className={cn(CELL, 'whitespace-nowrap font-mono')}>
+                        {/* 리전은 한 덩어리다 — 접히면 'ap-northeast-' / '2' 두 값처럼 읽힌다. */}
+                        {row.database_region || <Dash />}
+                      </td>
+                      <td className={CELL}>
                         <CountCell row={tc} tab="inc" verdict={verdict} onOpen={() => setLdbRow(row)} />
                       </td>
-                      <td className={table.cell}>
+                      <td className={CELL}>
                         <CountCell row={tc} tab="exc" verdict={verdict} onOpen={() => setLdbRow(row)} />
                       </td>
-                      <td className={table.cell}>
+                      <td className={CELL}>
                         <ConnCell verdict={verdict} />
                       </td>
-                      <td className={table.cell}>
+                      <td className={CELL}>
                         {/* Credential is addressed by resource id — no id, no assignment. */}
                         {row.resource_id ? (
                           <div className="w-[190px]">
@@ -328,6 +472,14 @@ export function ConfirmedInfoCard({
                 })}
               </tbody>
             </table>
+          </div>
+          {/* 범위와 페이저는 같은 줄에 — Agent별 결과 목록이 쓰는 문법 그대로다. */}
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+              {firstIndex}–{safePage * PAGE_SIZE + pageRows.length} / {filtered.length}
+              {filtered.length !== rows.length && ` (전체 ${rows.length})`}
+            </p>
+            <OpsPagination page={safePage} totalPages={totalPages} onChange={setPage} />
           </div>
           <p className={cn(pipelineStyles.text.meta, 'mt-3.5')}>
             연결 상태는 최근 연결 테스트가 리소스별로 보고한 판정이고, 논리 DB 건수는 그중

@@ -302,6 +302,37 @@ export function filterCredentials(
   return entries.filter((entry) => entry.name.toLowerCase().includes(q));
 }
 
+/** 확정 표의 세 조건. 빈 문자열 = 그 축으로는 거르지 않는다. */
+export interface ConfirmedRowFilter {
+  query: string;
+  dbType: string;
+  region: string;
+}
+
+/**
+ * 확정 리소스 검색·필터 — Step 6·7 확정 표와 같은 세 축(검색 · Database Type · Region).
+ * 검색은 Resource ID 와 Resource Name 둘 다 걸린다: 관리자는 둘 중 아는 쪽으로 찾는다.
+ *
+ * `labelOfDbType` 는 표가 실제로 찍는 문자열을 돌려줘야 한다 — wire 원문(mysql)으로 비교하면
+ * 셀의 MySQL 과 달라 아무 행도 걸리지 않는다.
+ */
+export function filterConfirmedRows(
+  rows: readonly ConfirmedIntegrationResourceItem[],
+  filter: ConfirmedRowFilter,
+  labelOfDbType: (row: ConfirmedIntegrationResourceItem) => string,
+): ConfirmedIntegrationResourceItem[] {
+  const needle = filter.query.trim().toLowerCase();
+  return rows.filter((row) => {
+    if (filter.dbType && labelOfDbType(row) !== filter.dbType) return false;
+    if (filter.region && (row.database_region ?? '') !== filter.region) return false;
+    if (!needle) return true;
+    return (
+      row.resource_id.toLowerCase().includes(needle)
+      || (row.resource_name ?? '').toLowerCase().includes(needle)
+    );
+  });
+}
+
 export type LdbTab = 'inc' | 'exc';
 
 /**
