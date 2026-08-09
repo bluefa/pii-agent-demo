@@ -218,6 +218,19 @@ export const detailStyles = {
     tag: 'inline-flex items-center rounded-[5px] bg-[var(--pl-gray-100)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--pl-text-medium)]',
   },
 
+  /**
+   * 인프라 작업 tab's 2:1 row — 현재 작업 and 작업 이력. The section name lives
+   * INSIDE the card (owner call) above a rule, so it never competes with the run
+   * title directly below it, and `fill` lets both columns stretch to one shared
+   * height whichever card happens to be taller.
+   */
+  sectionCard: {
+    fill: 'flex h-full flex-col',
+    head: 'flex items-baseline justify-between gap-3 border-b border-[var(--pl-border)] px-6 py-3.5',
+    title: 'text-[16px] font-bold tracking-[-0.01em] text-[var(--pl-text-strong)]',
+    meta: 'text-[12px] tabular-nums text-[var(--pl-text-weak)]',
+  },
+
   /** Loading / layout-stable skeleton block. */
   skeleton: 'animate-pulse rounded-[10px] bg-[var(--pl-gray-100)]',
 } as const;

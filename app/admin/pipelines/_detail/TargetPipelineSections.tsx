@@ -17,7 +17,7 @@
  *
  * Section captions are gone: the tab states what it is once, in InfraStatusHead.
  */
-import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -57,24 +57,6 @@ import type {
 
 const HISTORY_SIZE = 5;
 const LIVE_POLL_MS = 8_000;
-
-/**
- * Section head — a 16px name, nothing else. Both sections use the same one so
- * neither reads as the larger of the two; the optional meta is the archive's own
- * count, which is the one fact the narrowed table can no longer show per row.
- */
-function SectionTitle({ title, meta }: { title: string; meta?: ReactNode }): ReactElement {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <h3 className="text-[16px] font-bold tracking-[-0.01em] text-[var(--pl-text-strong)]">
-        {title}
-      </h3>
-      {meta != null && (
-        <span className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">{meta}</span>
-      )}
-    </div>
-  );
-}
 
 export interface TargetPipelineSectionsProps {
   targetSourceId: string;
@@ -217,55 +199,65 @@ export function TargetPipelineSections({
 
   return (
     <div>
-      {/* min-w-0 on both tracks: an `fr` track floors at min-content, and the run
-          card's Task 실행 흐름 strip is wider than that — without it the left column
-          grows past 2fr and squeezes the archive off the row entirely. */}
-      <div className="mt-6 grid grid-cols-[2fr_1fr] items-start gap-4">
+      {/* The row stretches (grid default), and every card is `h-full flex-col`,
+          so 현재 작업 and 작업 이력 always end on the same line whichever one is
+          taller. min-w-0 on both tracks: an `fr` track floors at min-content, and
+          the run card's Task 실행 흐름 strip is wider than that — without it the
+          left column grows past 2fr and squeezes the archive off the row. */}
+      <div className="mt-6 grid grid-cols-[2fr_1fr] gap-4">
         {/* R24 — 현재 작업: run-card while live, empty card otherwise. The cards
-            are unchanged; they wrap rather than break at two thirds of the width. */}
-        <section aria-label="현재 작업" className="min-w-0">
-          <SectionTitle title={focusDetail && !live ? '최근 작업' : '현재 작업'} />
-          <div className="mt-3.5">
-            {focusDetail && live ? (
-              <CurrentPipelineCard
-                detail={focusDetail}
-                defs={defs}
-                onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
-                onOpenOrigin={goPipeline}
-                onCancel={() => cancelModal.open()}
-              />
-            ) : focusDetail ? (
-              /* §8.1 — latest ended FAILED/CANCELLED: keep the failure on screen
-                 together with the action that answers it. */
-              <LastRunFailedCard
-                detail={focusDetail}
-                defs={defs}
-                onRestart={() => restartModal.open()}
-                onStartNew={onStart}
-                onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
-                onOpenOrigin={goPipeline}
-                blockedReason={startBlockedReason}
-              />
-            ) : !latestLoaded || focusId != null ? (
-              <div className={cn(detailStyles.skeleton, 'h-52')} aria-hidden="true" />
-            ) : (
-              <EmptyPipelineCard />
-            )}
-          </div>
-        </section>
+            are unchanged apart from carrying their own section title; they wrap
+            rather than break at two thirds of the width. */}
+        <div className="min-w-0">
+          {focusDetail && live ? (
+            <CurrentPipelineCard
+              detail={focusDetail}
+              sectionTitle="현재 작업"
+              defs={defs}
+              onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
+              onOpenOrigin={goPipeline}
+              onCancel={() => cancelModal.open()}
+            />
+          ) : focusDetail ? (
+            /* §8.1 — latest ended FAILED/CANCELLED: keep the failure on screen
+               together with the action that answers it. */
+            <LastRunFailedCard
+              detail={focusDetail}
+              sectionTitle="최근 작업"
+              defs={defs}
+              onRestart={() => restartModal.open()}
+              onStartNew={onStart}
+              onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
+              onOpenOrigin={goPipeline}
+              blockedReason={startBlockedReason}
+            />
+          ) : !latestLoaded || focusId != null ? (
+            <div className={cn(detailStyles.skeleton, 'h-full min-h-[320px]')} aria-hidden="true" />
+          ) : (
+            <EmptyPipelineCard
+              sectionTitle="현재 작업"
+              onStart={onStart}
+              blockedReason={startBlockedReason}
+            />
+          )}
+        </div>
 
-        <section aria-label="작업 이력" className="min-w-0">
-          <SectionTitle
-            title="작업 이력"
-            meta={history ? `총 ${history.totalElements}건` : undefined}
-          />
-          {/* pagedCard skeleton (StatusHistoryCard·ApprovalHistoryCard): a fixed
-              body slot so a card holding one run is not shorter than one holding
-              five, and the pager always sits at the bottom. The body's height is
-              opsStyles.pagedCardBody minus its top margin — the title is outside
-              the card here, so the card starts with the table. */}
-          <div className={cn(pipelineStyles.card.base, opsStyles.pagedCard, 'mt-3.5')}>
-            <div className="min-h-[266px] flex-1">
+        <div className="min-w-0">
+          {/* pagedCard skeleton (StatusHistoryCard·ApprovalHistoryCard): a floor
+              under the body so a card holding one run is not shorter than one
+              holding five, `flex-1` to absorb whatever height the taller sibling
+              sets, and the pager pinned to the bottom. */}
+          <section
+            aria-label="작업 이력"
+            className={cn(pipelineStyles.card.flush, detailStyles.sectionCard.fill)}
+          >
+            <div className={detailStyles.sectionCard.head}>
+              <h3 className={detailStyles.sectionCard.title}>작업 이력</h3>
+              {history && (
+                <span className={detailStyles.sectionCard.meta}>총 {history.totalElements}건</span>
+              )}
+            </div>
+            <div className="min-h-[266px] flex-1 px-6 pt-4">
               {rows.length === 0 ? (
                 <PlEmptyState icon="inbox" message="작업 이력이 없습니다." />
               ) : (
@@ -354,14 +346,11 @@ export function TargetPipelineSections({
             {/* always: a disappearing pager would change the card's height with
                 the data, and this card has no 전체 보기 — ops has no list route,
                 so the pager IS the whole history UI. */}
-            <OpsPagination
-              page={page}
-              totalPages={totalPages}
-              onChange={setPage}
-              always
-            />
-          </div>
-        </section>
+            <div className="px-6 pb-5">
+              <OpsPagination page={page} totalPages={totalPages} onChange={setPage} always />
+            </div>
+          </section>
+        </div>
       </div>
 
       {/* Two-phase cancel (contract gap ⑤): the response may still be RUNNING

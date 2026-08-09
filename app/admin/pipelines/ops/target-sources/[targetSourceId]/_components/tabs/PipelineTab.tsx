@@ -89,7 +89,6 @@ export function PipelineTab({
         loading={loading}
         failed={failed}
         onOpenRequest={onOpenRequest}
-        onStart={previewModal.open}
       />
       <TargetPipelineSections
         targetSourceId={String(targetSourceId)}
