@@ -1145,6 +1145,19 @@ export const idcStyles = {
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**
+     * Row whose identity cell is TWO lines — kind tag above, resource name below
+     * (RDS Cluster · EC2 · an instance's Reader/Writer chip). Aligns every cell of that row
+     * to the BOTTOM, so the one-line cells beside it (Resource ID, DB Type, Region, 설치 구분)
+     * sit on the **name**'s line.
+     *
+     * The default `middle` centres the stack in the row, which puts the name ~12px below every
+     * other cell: an eye reading the row across steps down at the name and back up at the id.
+     * The tag is a line that INTRODUCES the name, not a peer of it, so the row's alignment line
+     * is the name — the same line a one-line row would have. Bottom alignment says exactly that
+     * and needs no measured offset; the identity block itself does not move.
+     */
+    stackedIdentityRow: '[&>td]:align-bottom',
+    /**
      * Resource Name column — 8px more left padding than every other cell, on the header cell
      * AND the body cell so the column keeps one edge.
      *

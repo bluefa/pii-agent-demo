@@ -417,6 +417,8 @@ export const WaitingApprovalTable = memo(
             ROW_BASE,
             excluded ? ROW_EXCLUDED : ROW_TARGET,
             foldToggleable && 'cursor-pointer',
+            // Kind tag above the name — the rest of the row lines up on the name.
+            (hasInstances || isCluster || isEc2) && idcStyles.table.stackedIdentityRow,
             rail?.className,
           )}
           onClick={foldToggleable ? () => toggleFold(rowKey) : undefined}
@@ -702,7 +704,13 @@ export const WaitingApprovalTable = memo(
                 // 부모의 레일과 트리 레일이 이 행들을 그 결정 아래로 묶는다.
                 <tr
                   key={instance.resource_id}
-                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
+                  className={cn(
+                    ROW_BASE,
+                    excluded ? ROW_EXCLUDED : ROW_TARGET,
+                    // Role chip above the identifier — Instance / AZ line up on the identifier.
+                    idcStyles.table.stackedIdentityRow,
+                    rail?.className,
+                  )}
                   onMouseEnter={rail?.onMouseEnter}
                   onMouseLeave={rail?.onMouseLeave}
                 >

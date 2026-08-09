@@ -523,10 +523,19 @@ export const ConnectionTestCard = ({
                   // Only a folded region draws a rail; a flat unit gets no handlers so a
                   // pointer move down the list does not re-render the table for nothing.
                   const rail = unit.folded ? railRow(unit.unitId) : undefined;
+                  // Kind tag above the name — the rest of the row lines up on the name.
+                  const stackedIdentity = !unit.folded
+                    && (isRdsCluster(unit.resourceType ?? '') || isEc2Instance(unit.resourceType));
                   return (
                     <Fragment key={unit.unitId}>
                     <tr
-                      className={cn(ROW_BASE, ROW_TARGET, unit.folded && 'cursor-pointer', rail?.className)}
+                      className={cn(
+                        ROW_BASE,
+                        ROW_TARGET,
+                        unit.folded && 'cursor-pointer',
+                        stackedIdentity && idcStyles.table.stackedIdentityRow,
+                        rail?.className,
+                      )}
                       onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
                       onMouseEnter={rail?.onMouseEnter}
                       onMouseLeave={rail?.onMouseLeave}

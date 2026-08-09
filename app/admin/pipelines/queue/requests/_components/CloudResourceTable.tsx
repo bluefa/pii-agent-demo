@@ -104,6 +104,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             // whose request predates the candidates field is still a cluster and must say so.
             // The LIST keys on candidates, because there is nothing to list without them.
             const isCluster = isRdsCluster(row.resourceType ?? '');
+            const isEc2 = isEc2Instance(row.resourceType);
             const instances = sortRdsInstances(row.rdsInstanceCandidates);
             const hasInstances = instances.length > 0;
             const fold = clusterFold(rowKey, row.selected);
@@ -114,7 +115,13 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             return (
               <Fragment key={rowKey}>
               <tr
-                className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
+                className={cn(
+                  ROW_BASE,
+                  excluded ? ROW_EXCLUDED : ROW_TARGET,
+                  // Kind tag above the name — the rest of the row lines up on the name.
+                  (isCluster || isEc2) && table.stackedIdentityRow,
+                  rail?.className,
+                )}
                 onMouseEnter={rail?.onMouseEnter}
                 onMouseLeave={rail?.onMouseLeave}
               >
@@ -221,7 +228,13 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
               {instancesOpen && instances.map((instance, instanceIndex) => (
                 <tr
                   key={instance.resource_id}
-                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
+                  className={cn(
+                    ROW_BASE,
+                    excluded ? ROW_EXCLUDED : ROW_TARGET,
+                    // Role chip above the identifier — Instance / AZ line up on the identifier.
+                    table.stackedIdentityRow,
+                    rail?.className,
+                  )}
                   onMouseEnter={rail?.onMouseEnter}
                   onMouseLeave={rail?.onMouseLeave}
                 >

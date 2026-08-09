@@ -147,7 +147,13 @@ const RdsInstanceRow = ({
 
   return (
     <tr
-      className={cn(ROW_BASE, dimmed ? ROW_EXCLUDED : ROW_TARGET, rail.className)}
+      className={cn(
+        ROW_BASE,
+        dimmed ? ROW_EXCLUDED : ROW_TARGET,
+        // Role chip above the identifier — Instance / AZ line up on the identifier.
+        idcStyles.table.stackedIdentityRow,
+        rail.className,
+      )}
       onMouseEnter={rail.onMouseEnter}
       onMouseLeave={rail.onMouseLeave}
     >
@@ -297,6 +303,8 @@ export const CandidateResourceRow = ({
           rowStateClass,
           justAdded && ec2Styles.rowJustAdded,
           canExpand && 'cursor-pointer',
+          // Kind tag above the name — the rest of the row lines up on the name.
+          (isRdsClusterRow || isEc2) && idcStyles.table.stackedIdentityRow,
           rowRail?.className,
         )}
         onClick={handleRowClick}
@@ -342,7 +350,8 @@ export const CandidateResourceRow = ({
           {isRdsClusterRow ? (
             // Two-line identity (owner request): the tag sits ABOVE the name, not beside it.
             // The chevron centres on the pair — pinned to the tag line it read as misaligned
-            // against every other control in the row, which all sit on the row's middle.
+            // against the name it opens. (`stackedIdentityRow` puts the row's other cells on
+            // the name's line, so the chevron now sits just above them, on its own pair.)
             <span className={idcStyles.table.group.lead}>
               <button
                 type="button"
