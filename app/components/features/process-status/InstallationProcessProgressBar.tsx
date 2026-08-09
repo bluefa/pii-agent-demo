@@ -17,8 +17,8 @@ interface InstallationProcessProgressBarProps {
 
 /**
  * 설치 진행 — the flat page header's quiet stepper. Every step stays visible by
- * name (a first-time reader must see the whole road), but nothing shouts: 8px
- * dots, tinted-not-primary walked segments, labels separated by color only.
+ * name (a first-time reader must see the whole road), and state is carried by
+ * the dots + the walked road; labels only separate "here" from "not here".
  */
 export const InstallationProcessProgressBar = ({
   currentStep,
@@ -70,10 +70,7 @@ export const InstallationProcessProgressBar = ({
                 />
               </span>
               <span
-                className={cn(
-                  s.labelBase,
-                  isCurrent ? s.labelCurrent : isCompleted ? s.labelDone : s.labelPending,
-                )}
+                className={cn(s.labelBase, isCurrent ? s.labelCurrent : s.labelRest)}
                 style={{ wordBreak: 'keep-all' }}
               >
                 {it.label}

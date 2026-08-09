@@ -212,6 +212,13 @@ const blockOf = (name: string) => {
 const bgTokens = blockOf('bgColors');
 const textTokens = blockOf('textColors');
 
+// The target-source detail header went backgroundless (C3): it paints no plane of
+// its own, so every run of text and every chip in it stands on the canvas wash.
+// That move silently dropped four tiers under AA — the per-line hook cannot see it,
+// because the surface is declared by an ancestor route layout, not on the line.
+const headerBlock = blockOf('projectHeaderStyles');
+const stepperBlock = blockOf('installStepperStyles');
+
 // The 인프라 등록 wizard's ground: a gray panel filling the dialog, with the content as
 // a white card on it and the step column standing straight on the gray.
 const wizardPanel = twGray(classOf(bgTokens, 'panel'), 'bg');
@@ -222,7 +229,7 @@ const wizardPanel = twGray(classOf(bgTokens, 'panel'), 'bg');
 
 const SURFACE_MIN = 1.0; // JND; PR #624 regressions were all <= 0.66, current pairs >= 1.61
 
-type SurfacePair = { what: string; top: string; under: string };
+type SurfacePair = { what: string; top: string; under: string; min?: number };
 const SURFACES: SurfacePair[] = [
   { what: 'rail on canvas', top: rail, under: canvas },
   { what: 'white card on canvas (/services)', top: '#FFFFFF', under: canvas },
@@ -250,6 +257,16 @@ const SURFACES: SurfacePair[] = [
   // pair IS the separation — re-tint `panel` toward white and the card dissolves with
   // nothing else left to mark where it starts.
   { what: 'wizard content card on the dialog panel', top: '#FFFFFF', under: wizardPanel },
+  // The backgroundless header's chips and plates have only the wash behind them.
+  { what: 'header service-code chip on the page wash', top: bgOf(classOf(headerBlock, 'codeChip')), under: canvas },
+  { what: 'header provider icon plate on the page wash', top: bgOf(classOf(headerBlock, 'providerIcon')), under: canvas },
+  { what: 'header 설치 모드 chip on the page wash', top: bgOf(classOf(headerBlock, 'modeChipAuto')), under: canvas },
+  { what: 'header kv divider on the page wash', top: bgOf(classOf(headerBlock, 'divider')), under: canvas },
+  // The road ahead is decoration — the labels and dots already name every remaining
+  // step — so it answers to the JND and nothing more. The road WALKED carries progress,
+  // so it is measured as a non-text mark in TEXT below instead.
+  { what: 'stepper road-ahead on the page wash', top: bgOf(classOf(stepperBlock, 'line')), under: canvas },
+  { what: 'stepper road-walked against road-ahead', top: bgOf(classOf(stepperBlock, 'lineDone')), under: bgOf(classOf(stepperBlock, 'line')) },
   // The tinted service tiles are the rail's most numerous plates and its palest ones —
   // #F7F8FA was ΔE00 0.99 from the rail before the retint, i.e. invisible.
   ...serviceTilePalette.map((fill, i) => ({
@@ -287,6 +304,30 @@ const TEXT: TextPair[] = [
     fg: textOf(classOf(themeSrc, 'resourceKind')),
     on: bgOf(classOf(themeSrc, 'resourceKind')),
   },
+  // Every tier of the backgroundless header, measured on the wash it actually sits on.
+  // #6B7684 clears AA on white (4.62:1) and fails here (4.22:1), which is precisely the
+  // trap C3 set: the same token, one surface later, is a different decision.
+  { what: 'header block eyebrow on the page wash', fg: textOf(classOf(headerBlock, 'blockLabel')), on: canvas },
+  { what: 'header kv label on the page wash', fg: textOf(classOf(headerBlock, 'kvLabel')), on: canvas },
+  { what: 'header kv value on the page wash', fg: textOf(classOf(headerBlock, 'kvValue')), on: canvas },
+  { what: 'header description on the page wash', fg: textOf(classOf(headerBlock, 'descText')), on: canvas },
+  { what: 'header provider name on the page wash', fg: textOf(classOf(headerBlock, 'providerName')), on: canvas },
+  { what: 'header provider gloss on the page wash', fg: textOf(classOf(headerBlock, 'providerGloss')), on: canvas },
+  { what: 'header install-mode note on the page wash', fg: textOf(classOf(headerBlock, 'modeNote')), on: canvas },
+  { what: 'header code-chip label on its chip', fg: textOf(classOf(headerBlock, 'codeChipLabel')), on: bgOf(classOf(headerBlock, 'codeChip')) },
+  { what: 'header code-chip value on its chip', fg: textOf(classOf(headerBlock, 'codeChipValue')), on: bgOf(classOf(headerBlock, 'codeChip')) },
+  { what: 'header 설치 모드 chip label on its chip', fg: textOf(classOf(headerBlock, 'modeChipAuto')), on: bgOf(classOf(headerBlock, 'modeChipAuto')) },
+  { what: 'header provider glyph on its plate', fg: textOf(classOf(headerBlock, 'providerIcon')), on: bgOf(classOf(headerBlock, 'providerIcon')), min: 3.0 },
+  // Stepper labels are text; the dots are the state markers, i.e. non-text per 1.4.11.
+  { what: 'stepper rest label on the page wash', fg: textOf(classOf(stepperBlock, 'labelRest')), on: canvas },
+  { what: 'stepper current label on the page wash', fg: textOf(classOf(stepperBlock, 'labelCurrent')), on: canvas },
+  { what: 'stepper pending dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotPending')), on: canvas, min: 3.0 },
+  { what: 'stepper done dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotDone')), on: canvas, min: 3.0 },
+  { what: 'stepper current dot on the page wash', fg: bgOf(classOf(stepperBlock, 'dotCurrent')), on: canvas, min: 3.0 },
+  // The walked road says how far you got, so it is a non-text mark, not decoration.
+  // Its predecessor #CFE0FF scored ΔE00 10.72 against the wash and 1.22:1 — hue distance
+  // is not visibility for a 2px line, which is why this pair uses the contrast rule.
+  { what: 'stepper walked road on the page wash', fg: bgOf(classOf(stepperBlock, 'lineDone')), on: canvas, min: 3.0 },
   { what: 'admin section label on ground', fg: textOf(classOf(adminSrc, 'railSection')), on: plGround },
   // The wizard's step column has no surface of its own, so every run of text in it is
   // measured against the dialog's gray panel. `tertiary` is 4.39:1 there and shipped
@@ -323,8 +364,8 @@ const TEXT: TextPair[] = [
 // ---------------------------------------------------------------------------
 
 describe('surface separation (CIEDE2000 >= JND)', () => {
-  it.each(SURFACES)('$what', ({ top, under }) => {
-    expect(deltaE00(top, under)).toBeGreaterThanOrEqual(SURFACE_MIN);
+  it.each(SURFACES)('$what', ({ top, under, min }) => {
+    expect(deltaE00(top, under)).toBeGreaterThanOrEqual(min ?? SURFACE_MIN);
   });
 });
 
@@ -363,6 +404,28 @@ describe('detects the PR #624 regressions the hook missed', () => {
 
   it('H6 empty-state plate gray-100 on gray-100 ground (dE00 0)', () => {
     expect(deltaE00(resolve('var(--pl-gray-100)'), resolve('var(--pl-gray-100)'))).toBeLessThan(SURFACE_MIN);
+  });
+
+  // The header's own escape: going backgroundless (C3) moved a card's worth of text
+  // onto the wash without re-measuring it. Every value below shipped and was caught by
+  // eye, not by a check — these pin what the pairs above now measure.
+  it('H8 stepper pending label #8B95A1 on the wash (2.78:1)', () => {
+    expect(contrast('#8B95A1', canvas)).toBeLessThan(4.5);
+  });
+
+  it('H9 header quiet tier #6B7684 on the wash (4.22:1 — it clears AA on white)', () => {
+    expect(contrast('#6B7684', canvas)).toBeLessThan(4.5);
+    expect(contrast('#6B7684', '#FFFFFF')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('H10 walked road #CFE0FF passed every ΔE00 check and still vanished (1.22:1)', () => {
+    // ΔE00 10.72 from the wash and 8.87 from the road ahead: by the surface rule the old
+    // road was fine. It was not — a light blue can sit far from a lavender in hue while
+    // carrying almost no luminance difference, and a 2px line is read by luminance.
+    // The lesson is metric selection, not a stricter threshold.
+    expect(deltaE00('#CFE0FF', canvas)).toBeGreaterThanOrEqual(SURFACE_MIN);
+    expect(deltaE00('#CFE0FF', '#E4E5EE')).toBeGreaterThanOrEqual(SURFACE_MIN);
+    expect(contrast('#CFE0FF', canvas)).toBeLessThan(3.0);
   });
 
   it('H7 --pl-bg-page tinted to #F2F4F7 collides with the ops-alerts tiles', () => {
