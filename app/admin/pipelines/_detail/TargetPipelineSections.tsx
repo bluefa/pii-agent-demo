@@ -1,37 +1,44 @@
 'use client';
 
 /**
- * 현재 작업 + 작업 이력 sections for one target source (R24, extracted from
- * TargetDetailView so the targets page and the ops console 인프라 작업 tab render
- * the SAME experience: live run-card polled every 8s, start CTA in the empty
- * card, paged history table with the live row tinted).
+ * 현재 작업 + 작업 이력 sections for one target source (R24).
+ *
+ * The two sections sit side by side at 2:1. 현재 작업 is the tab's hero and keeps
+ * its full run-card unchanged; 작업 이력 is an archive, so it is demoted by width
+ * rather than deleted. Equal columns would have said the opposite — same width
+ * reads as same weight.
+ *
+ * The history table was 8 columns wide (min-w-[920px], horizontally scrolling)
+ * and two of them rendered the same field twice: 유형 was TypePill(p.type) one
+ * column after TypeTile(p.type), and 상세 was a chevron on a row that is already
+ * role="button". 진행도 is a full bar on every succeeded row — information only
+ * on a failed one, where it now trails the status pill as `5/7`. What the narrow
+ * column actually costs is 완료 시각, which moves to the run's own page.
+ *
+ * Section captions are gone: the tab states what it is once, in InfraStatusHead.
  */
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
-import { cn } from '@/lib/theme';
-import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { cn, pipelineStyles } from '@/lib/theme';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
-import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
-import { PipelineProgressBar } from '@/app/admin/pipelines/_components/PipelineProgressBar';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { CancelModal } from '@/app/admin/pipelines/_detail/CancelModal';
-import { PreviewModal } from '@/app/admin/pipelines/_detail/PreviewModal';
 import { RestartModal } from '@/app/admin/pipelines/_detail/RestartModal';
-import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
-import { RestartBadge, TypePill, TypeTile } from '@/app/admin/pipelines/_detail/r24Task';
+import { RestartBadge, TypeTile } from '@/app/admin/pipelines/_detail/r24Task';
 import {
   CurrentPipelineCard,
   EmptyPipelineCard,
   LastRunFailedCard,
 } from '@/app/admin/pipelines/_detail/CurrentPipelineCard';
+import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { passRoutes } from '@/lib/routes';
 import {
   fmtDateTime,
   isLivePipeline,
-  providerKey,
   recipeDisplayName,
 } from '@/lib/pipeline/format';
 import {
@@ -40,8 +47,8 @@ import {
   getTaskDefinitions,
   listPipelinesByTarget,
 } from '@/app/lib/api/pipeline';
-import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type {
+  CloudProvider,
   PipelineDetail,
   PipelineSummary,
   SpringPage,
@@ -52,60 +59,32 @@ const HISTORY_SIZE = 5;
 const LIVE_POLL_MS = 8_000;
 
 /**
- * 완료 시각 cell. The two timestamps used to share one cell as
- * `created → finished`, with the end truncated to a bare time on same-day runs —
- * so a row read as one span whose halves were formatted differently and could
- * not be scanned down the column. They are two columns now; a live run has no
- * completion time yet and says so.
+ * Section head — a 16px name, nothing else. Both sections use the same one so
+ * neither reads as the larger of the two; the optional meta is the archive's own
+ * count, which is the one fact the narrowed table can no longer show per row.
  */
-function finishedAt(p: PipelineSummary): string {
-  return isLivePipeline(p.status) ? '진행 중' : fmtDateTime(p.last_activity_at);
-}
-
-/**
- * Section head — 16px name over a 12px caption, the same two-size hierarchy the
- * 인프라 작업 tab's Terraform head uses, so every section on the page starts the
- * same way. The caption exists to say what the section is FOR: 현재 작업 used to
- * be a bare blue eyebrow inside the card, which named the section but never told
- * an operator that this is where Terraform actually runs.
- */
-function R24Section({
-  title,
-  desc,
-  className,
-}: {
-  title: string;
-  desc: string;
-  className?: string;
-}): ReactElement {
+function SectionTitle({ title, meta }: { title: string; meta?: ReactNode }): ReactElement {
   return (
-    <div className={className ?? 'mt-11'}>
-      <h2 className="text-[16px] font-bold tracking-[-0.01em] text-[var(--pl-text-strong)]">{title}</h2>
-      <p className="mt-1 max-w-[68ch] break-keep text-[12px] leading-[1.55] text-[var(--pl-text-faint)]">
-        {desc}
-      </p>
+    <div className="flex items-baseline justify-between gap-3">
+      <h3 className="text-[16px] font-bold tracking-[-0.01em] text-[var(--pl-text-strong)]">
+        {title}
+      </h3>
+      {meta != null && (
+        <span className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">{meta}</span>
+      )}
     </div>
   );
 }
 
-/** What the 현재 작업 section is for — constant; only its title tracks state. */
-const RUN_SECTION_DESC =
-  'Terraform을 실행해 인프라를 생성하거나 삭제하는 작업입니다. 작업 시작·중단과 진행 상황을 여기서 확인합니다.';
-
-const HISTORY_TH =
-  'bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)] px-4 py-[9px] text-left text-[11px] font-medium text-[var(--pl-text-faint)] whitespace-nowrap';
-const HISTORY_TD =
-  'border-b border-[var(--pl-gray-100)] px-4 py-[13px] align-middle tabular-nums text-[13px] text-[var(--pl-text-strong)]';
-
 export interface TargetPipelineSectionsProps {
   targetSourceId: string;
-  raw: RawTargetSourceDetail;
-  /** First section's top margin — the standalone page uses the default mt-11. */
-  firstSectionClassName?: string;
+  /** Orchestrator wire provider; null = custom execution unsupported (e.g. SDU). */
+  provider: CloudProvider | null;
+  /** Opens the start-pipeline modal, which the tab owns (its head has the CTA). */
+  onStart: () => void;
   /**
-   * Disables the start CTAs and states why, in the operator's words. Null (the
-   * default) allows starting, so the standalone targets page is unaffected —
-   * only the 인프라 작업 tab, which knows about 확정 정보, passes a reason.
+   * Disables the restart card's CTAs and states why, in the operator's words.
+   * Null allows starting.
    */
   startBlockedReason?: string | null;
   /** Fired when a run reaches a terminal state, so the caller can refetch
@@ -115,8 +94,8 @@ export interface TargetPipelineSectionsProps {
 
 export function TargetPipelineSections({
   targetSourceId,
-  raw,
-  firstSectionClassName,
+  provider,
+  onStart,
   startBlockedReason = null,
   onRunsChanged,
 }: TargetPipelineSectionsProps): ReactElement {
@@ -124,7 +103,8 @@ export function TargetPipelineSections({
   const toast = usePlToast();
 
   const [history, setHistory] = useState<SpringPage<PipelineSummary> | null>(null);
-  const [page, setPage] = useState(1);
+  /** 0-based, as OpsPagination and the endpoint both count. */
+  const [page, setPage] = useState(0);
   // R24 — the current-run pair: the latest summary decides live/idle, the
   // polled detail feeds the run-card. `runsKey` refetches both + the history
   // (start / cancel / terminal transition).
@@ -133,16 +113,14 @@ export function TargetPipelineSections({
   const [liveDetail, setLiveDetail] = useState<PipelineDetail | null>(null);
   const [defs, setDefs] = useState<ReadonlyMap<string, TaskCatalogEntry>>(new Map());
   const [runsKey, setRunsKey] = useState(0);
-  // Repo rule: modal open/close flows go through useModal. R21 §A1 — the type
-  // choice happens INSIDE the modal, so there is no payload to ride.
-  const previewModal = useModal();
+  // Repo rule: modal open/close flows go through useModal.
   const restartModal = useModal();
   const cancelModal = useModal();
 
   // History page (server pagination; 5/page).
   useEffect(() => {
     let cancelled = false;
-    listPipelinesByTarget(targetSourceId, { page: page - 1, size: HISTORY_SIZE })
+    listPipelinesByTarget(targetSourceId, { page, size: HISTORY_SIZE })
       .then((p) => !cancelled && setHistory(p))
       .catch(() => !cancelled && setHistory(null));
     return () => {
@@ -150,7 +128,7 @@ export function TargetPipelineSections({
     };
   }, [targetSourceId, page, runsKey]);
 
-  // Latest run — live/idle switch for the 현재 작업 section + CTA gating.
+  // Latest run — live/idle switch for the 현재 작업 section.
   useEffect(() => {
     let cancelled = false;
     getLatestPipelineByTarget(targetSourceId)
@@ -212,14 +190,10 @@ export function TargetPipelineSections({
   }, [focusId, live, onRunsChanged]);
 
   // Task-definition catalog — display names/descriptions for the task strip.
-  // An SDU account is surfaced as SDU regardless of its underlying CSP
-  // (metadata.is_sdu_type wins over cloud_provider — owner call).
-  const provider = raw.metadata?.is_sdu_type ? 'sdu' : providerKey(raw.cloud_provider ?? '');
-  const orchProvider = wireProvider(provider);
   useEffect(() => {
-    if (!orchProvider || focusId == null) return;
+    if (!provider || focusId == null) return;
     let cancelled = false;
-    getTaskDefinitions(orchProvider)
+    getTaskDefinitions(provider)
       .then((res) => {
         if (!cancelled) setDefs(new Map(res.task_definitions.map((e) => [e.name, e])));
       })
@@ -229,174 +203,166 @@ export function TargetPipelineSections({
     return () => {
       cancelled = true;
     };
-  }, [orchProvider, focusId]);
+  }, [provider, focusId]);
 
   const goPipeline = useCallback(
     (id: number) => router.push(passRoutes.pipelines.pipeline(id)),
     [router],
   );
 
-  const totalPages = history?.totalPages ?? 1;
+  const totalPages = Math.max(1, history?.totalPages ?? 1);
   const rows = history?.content ?? [];
   const focusDetail = liveDetail && liveDetail.pipeline_id === focusId ? liveDetail : null;
+  const { table } = opsStyles;
 
   return (
     <div>
-      {/* R24 — 현재 작업: run-card while live, empty card otherwise. */}
-      <R24Section
-        title={focusDetail && !live ? '최근 작업' : '현재 작업'}
-        desc={RUN_SECTION_DESC}
-        className={firstSectionClassName ?? 'mt-11'}
-      />
-      <div className="mt-3.5">
-        {focusDetail && live ? (
-          <CurrentPipelineCard
-            detail={focusDetail}
-            defs={defs}
-            onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
-            onOpenOrigin={goPipeline}
-            onCancel={() => cancelModal.open()}
-          />
-        ) : focusDetail ? (
-          /* §8.1 — latest ended FAILED/CANCELLED: keep the failure on screen
-             together with the action that answers it. */
-          <LastRunFailedCard
-            detail={focusDetail}
-            defs={defs}
-            onRestart={() => restartModal.open()}
-            onStartNew={() => previewModal.open()}
-            onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
-            onOpenOrigin={goPipeline}
-            blockedReason={startBlockedReason}
-          />
-        ) : !latestLoaded || focusId != null ? (
-          <div className={cn(detailStyles.skeleton, 'h-52')} aria-hidden="true" />
-        ) : (
-          <EmptyPipelineCard
-            onStart={() => previewModal.open()}
-            blockedReason={startBlockedReason}
-          />
-        )}
-      </div>
-
-      <R24Section title="작업 이력" desc="이 대상에서 실행된 작업을 최신순으로 보여줍니다." />
-      <div className="mt-3.5 overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]">
-        {rows.length ? (
-          <>
-            <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] border-collapse text-[13px]">
-              <colgroup>
-                <col className="w-[72px]" />
-                <col />
-                <col className="w-[112px]" />
-                <col className="w-[132px]" />
-                <col className="w-[190px]" />
-                <col className="w-[150px]" />
-                <col className="w-[150px]" />
-                <col className="w-[64px]" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th className={HISTORY_TH}>#</th>
-                  <th className={HISTORY_TH}>작업</th>
-                  <th className={HISTORY_TH}>유형</th>
-                  <th className={HISTORY_TH}>상태</th>
-                  <th className={HISTORY_TH}>진행도</th>
-                  <th className={HISTORY_TH}>실행 시각</th>
-                  <th className={HISTORY_TH}>완료 시각</th>
-                  <th className={cn(HISTORY_TH, 'text-center')}>상세</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((p) => (
-                  <tr
-                    key={p.pipeline_id}
-                    className={cn(
-                      'cursor-pointer hover:bg-[var(--pl-gray-50)] [&:last-child>td]:border-b-0 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pl-primary)]',
-                      p.pipeline_id === liveId &&
-                        'bg-[color-mix(in_srgb,var(--pl-primary)_4%,transparent)]',
-                    )}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`작업 #${p.pipeline_id} 상세 열기`}
-                    onClick={() => goPipeline(p.pipeline_id)}
-                    onKeyDown={(e) => {
-                      // Only the row itself activates: a keypress on the nested
-                      // origin chip must reach its own button, not be swallowed
-                      // here (preventDefault would suppress the chip's click and
-                      // navigate to the WRONG pipeline).
-                      if (e.target !== e.currentTarget) return;
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        goPipeline(p.pipeline_id);
-                      }
-                    }}
-                  >
-                    <td className={cn(HISTORY_TD, 'font-semibold [font-family:var(--pl-font-mono)]')}>
-                      #{p.pipeline_id}
-                    </td>
-                    <td className={HISTORY_TD}>
-                      <span className="flex items-center gap-2.5 text-[13.5px] font-semibold text-[var(--pl-text-strong)]">
-                        <TypeTile type={p.type} size="xs" />
-                        {p.type === 'CUSTOM' ? 'Custom 작업' : recipeDisplayName(p.recipe_definition)}
-                        {/* §8.3 — answers only "is this row a restart" (origin rows carry no chip). */}
-                        {p.origin_pipeline_id != null && (
-                          <span onClick={(e) => e.stopPropagation()}>
-                            <RestartBadge
-                              originPipelineId={p.origin_pipeline_id}
-                              onClick={() => goPipeline(p.origin_pipeline_id as number)}
-                            />
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td className={HISTORY_TD}>
-                      <TypePill type={p.type} />
-                    </td>
-                    <td className={HISTORY_TD}>
-                      <StatusPill status={p.status} />
-                    </td>
-                    <td className={HISTORY_TD}>
-                      <PipelineProgressBar n={p.done_task_count} m={p.total_task_count} status={p.status} />
-                    </td>
-                    <td className={cn(HISTORY_TD, 'text-[12.5px] text-[var(--pl-text-weak)]')}>
-                      {fmtDateTime(p.created_at)}
-                    </td>
-                    <td className={cn(HISTORY_TD, 'text-[12.5px] text-[var(--pl-text-weak)]')}>
-                      {finishedAt(p)}
-                    </td>
-                    <td className={cn(HISTORY_TD, 'text-center')}>
-                      <span className="inline-flex text-[var(--pl-primary)]" title="작업 상세로 이동">
-                        <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </div>
-            {/* R20 — always visible so the history reads as a paged list. */}
-            <div className="flex items-center justify-end border-t border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)] px-4 py-1 text-[12px] text-[var(--pl-text-faint)]">
-              <PlPagination
-                page={page}
-                pages={totalPages}
-                onPrev={() => setPage((n) => Math.max(1, n - 1))}
-                onNext={() => setPage((n) => Math.min(totalPages, n + 1))}
+      {/* min-w-0 on both tracks: an `fr` track floors at min-content, and the run
+          card's Task 실행 흐름 strip is wider than that — without it the left column
+          grows past 2fr and squeezes the archive off the row entirely. */}
+      <div className="mt-6 grid grid-cols-[2fr_1fr] items-start gap-4">
+        {/* R24 — 현재 작업: run-card while live, empty card otherwise. The cards
+            are unchanged; they wrap rather than break at two thirds of the width. */}
+        <section aria-label="현재 작업" className="min-w-0">
+          <SectionTitle title={focusDetail && !live ? '최근 작업' : '현재 작업'} />
+          <div className="mt-3.5">
+            {focusDetail && live ? (
+              <CurrentPipelineCard
+                detail={focusDetail}
+                defs={defs}
+                onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
+                onOpenOrigin={goPipeline}
+                onCancel={() => cancelModal.open()}
               />
-            </div>
-          </>
-        ) : (
-          <PlEmptyState icon="inbox" message="작업 이력이 없습니다." />
-        )}
-      </div>
+            ) : focusDetail ? (
+              /* §8.1 — latest ended FAILED/CANCELLED: keep the failure on screen
+                 together with the action that answers it. */
+              <LastRunFailedCard
+                detail={focusDetail}
+                defs={defs}
+                onRestart={() => restartModal.open()}
+                onStartNew={onStart}
+                onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
+                onOpenOrigin={goPipeline}
+                blockedReason={startBlockedReason}
+              />
+            ) : !latestLoaded || focusId != null ? (
+              <div className={cn(detailStyles.skeleton, 'h-52')} aria-hidden="true" />
+            ) : (
+              <EmptyPipelineCard />
+            )}
+          </div>
+        </section>
 
-      <PreviewModal
-        open={previewModal.isOpen}
-        onClose={previewModal.close}
-        targetSourceId={targetSourceId}
-        provider={orchProvider}
-        showToast={toast.show}
-      />
+        <section aria-label="작업 이력" className="min-w-0">
+          <SectionTitle
+            title="작업 이력"
+            meta={history ? `총 ${history.totalElements}건` : undefined}
+          />
+          {/* pagedCard skeleton (StatusHistoryCard·ApprovalHistoryCard): a fixed
+              body slot so a card holding one run is not shorter than one holding
+              five, and the pager always sits at the bottom. The body's height is
+              opsStyles.pagedCardBody minus its top margin — the title is outside
+              the card here, so the card starts with the table. */}
+          <div className={cn(pipelineStyles.card.base, opsStyles.pagedCard, 'mt-3.5')}>
+            <div className="min-h-[266px] flex-1">
+              {rows.length === 0 ? (
+                <PlEmptyState icon="inbox" message="작업 이력이 없습니다." />
+              ) : (
+                <table className={table.base}>
+                  <colgroup>
+                    <col />
+                    <col className="w-[104px]" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th className={table.headCell}>작업</th>
+                      <th className={cn(table.headCell, 'text-right')}>상태</th>
+                    </tr>
+                  </thead>
+                  <tbody className="[&>tr:last-child>td]:border-b-0">
+                    {rows.map((p) => {
+                      // 진행도 only where it carries information: a succeeded run
+                      // is always n/n, a stopped one is where it stopped.
+                      const stopped = p.status === 'FAILED' || p.status === 'CANCELLED';
+                      return (
+                        <tr
+                          key={p.pipeline_id}
+                          className={cn(
+                            'cursor-pointer hover:bg-[var(--pl-gray-50)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--pl-primary)]',
+                            p.pipeline_id === liveId &&
+                              'bg-[color-mix(in_srgb,var(--pl-primary)_4%,transparent)]',
+                          )}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`작업 #${p.pipeline_id} 상세 열기`}
+                          onClick={() => goPipeline(p.pipeline_id)}
+                          onKeyDown={(e) => {
+                            // Only the row itself activates: a keypress on the nested
+                            // origin chip must reach its own button, not be swallowed
+                            // here (preventDefault would suppress the chip's click and
+                            // navigate to the WRONG pipeline).
+                            if (e.target !== e.currentTarget) return;
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              goPipeline(p.pipeline_id);
+                            }
+                          }}
+                        >
+                          <td className={cn(table.cell, 'min-w-0')}>
+                            <span className="flex items-center gap-2 text-[14px] font-semibold text-[var(--pl-text-strong)]">
+                              <TypeTile type={p.type} size="xs" />
+                              <span className="truncate">
+                                {p.type === 'CUSTOM'
+                                  ? 'Custom 작업'
+                                  : recipeDisplayName(p.recipe_definition)}
+                              </span>
+                              {/* §8.3 — answers only "is this row a restart" (origin rows carry no chip). */}
+                              {p.origin_pipeline_id != null && (
+                                <span onClick={(e) => e.stopPropagation()}>
+                                  <RestartBadge
+                                    originPipelineId={p.origin_pipeline_id}
+                                    onClick={() => goPipeline(p.origin_pipeline_id as number)}
+                                  />
+                                </span>
+                              )}
+                            </span>
+                            <span className="mt-1 flex items-center gap-1.5 text-[12px] text-[var(--pl-text-weak)]">
+                              <span className="font-semibold tabular-nums [font-family:var(--pl-font-mono)]">
+                                #{p.pipeline_id}
+                              </span>
+                              <span aria-hidden>·</span>
+                              <span className="tabular-nums">{fmtDateTime(p.created_at)}</span>
+                            </span>
+                          </td>
+                          <td className={cn(table.cell, 'text-right')}>
+                            <StatusPill status={p.status} />
+                            {stopped && p.total_task_count > 0 && (
+                              <span className="mt-1 block text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+                                {p.done_task_count}/{p.total_task_count} 단계
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* always: a disappearing pager would change the card's height with
+                the data, and this card has no 전체 보기 — ops has no list route,
+                so the pager IS the whole history UI. */}
+            <OpsPagination
+              page={page}
+              totalPages={totalPages}
+              onChange={setPage}
+              always
+            />
+          </div>
+        </section>
+      </div>
 
       {/* Two-phase cancel (contract gap ⑤): the response may still be RUNNING
           with cancel_requested set, so the returned detail is rendered verbatim
@@ -422,7 +388,7 @@ export function TargetPipelineSections({
           onClose={restartModal.close}
           targetSourceId={targetSourceId}
           pipelineId={focusId}
-          provider={orchProvider}
+          provider={provider}
           showToast={toast.show}
           onStale={() => setRunsKey((k) => k + 1)}
         />

@@ -2,8 +2,8 @@
 /**
  * Two behaviours the 인프라 작업 tab depends on:
  *
- *   1. The start CTA obeys `blockedReason` (확정 정보 gate). A dead button that
- *      still looks alive is the failure mode worth pinning.
+ *   1. The idle card pre-warns but owns no start CTA — the head does, so a second
+ *      copy here would put two primary buttons on the tab.
  *   2. TerraformImpactNote is DERIVED, not fixed — it must count this run's
  *      terraform_action values, escalate on DESTROY, and stay silent for a run
  *      that touches no infrastructure at all.
@@ -69,24 +69,14 @@ const renderRun = (actions: Array<TerraformAction | null>) =>
     />,
   );
 
-const startButton = (): HTMLButtonElement =>
-  screen.getByRole('button', { name: /작업 시작/ }) as HTMLButtonElement;
+describe('EmptyPipelineCard', () => {
+  it('pre-warns what starting a run does, and leaves the CTA to the tab head', () => {
+    render(<EmptyPipelineCard />);
 
-describe('EmptyPipelineCard — 확정 정보 gate', () => {
-  it('allows the start CTA and pre-warns when no reason is given', () => {
-    render(<EmptyPipelineCard onStart={vi.fn()} />);
-
-    expect(startButton().disabled).toBe(false);
     expect(screen.getByText(PRE_WARNING)).toBeTruthy();
-  });
-
-  it('disables the start CTA and states the reason when blocked', () => {
-    render(<EmptyPipelineCard onStart={vi.fn()} blockedReason="확정된 연동 정보가 없어 시작할 수 없습니다." />);
-
-    expect(startButton().disabled).toBe(true);
-    expect(screen.getByText('확정된 연동 정보가 없어 시작할 수 없습니다.')).toBeTruthy();
-    // The pre-warning describes what the button would do — pointless once it can't.
-    expect(screen.queryByText(PRE_WARNING)).toBeNull();
+    // 작업 시작 lives in InfraStatusHead — on screen in every state, not only this
+    // one. A second copy here would put two primary buttons on the same tab.
+    expect(screen.queryByRole('button', { name: /작업 시작/ })).toBeNull();
   });
 });
 
