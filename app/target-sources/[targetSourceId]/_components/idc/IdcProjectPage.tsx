@@ -14,7 +14,6 @@ export const IdcProjectPage = ({ project, onProjectUpdate }: IdcProjectPageProps
   // Datacenter ID / cloud-account identifiers.
   const identity: ProjectIdentity = {
     cloudProvider: 'IDC',
-    jiraLink: null,
     identifiers: [],
   };
 

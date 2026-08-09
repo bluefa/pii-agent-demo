@@ -584,35 +584,18 @@ export const providerAccent: Record<string, string> = {
 export const providerAccentDefault = providerAccent.azure;
 
 /**
- * v15 `.identity-bar` provider/ID/agent strip (01-chrome.md 752–855). Structural
- * + accent classes only; the per-provider accent is injected as the `--ib-accent`
- * CSS var via inline `style` on the bar (see IdentityBar.tsx). All `color-mix`
- * backgrounds + stripe reference that var, so no raw provider hex lives here.
+ * What survives of the v15 `.identity-bar` (01-chrome.md 752–855): the copy
+ * affordance, now on the flat page header's mono identifiers, and the agent
+ * pill, now in the guide rail. The bar itself is gone — the target-source
+ * detail header replaced it. The per-provider accent is still injected as the
+ * `--ib-accent` CSS var via inline `style` on the pill (GuidePanel), so no raw
+ * provider hex lives here.
  */
 export const identityBarStyles = {
-  bar: 'relative flex items-center gap-8 flex-wrap overflow-hidden rounded-[14px] bg-white py-4 pr-[22px] pl-7 mt-4 mb-5 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_1px_3px_rgba(17,24,39,0.04)] before:content-[""] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--ib-accent)]',
-  /** `bare` variant — identity row nested inside a host surface (unified project header card): no chrome/margins of its own. */
-  barBare: 'flex items-center gap-8 flex-wrap px-[28px] pb-[18px]',
-  /** Provider accent stripe for the host card that absorbs the bare identity row. */
-  hostStripe:
-    'before:content-[""] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--ib-accent)]',
-  provider: 'flex items-center gap-3 flex-shrink-0',
-  providerIcon:
-    'grid place-items-center w-[38px] h-[38px] rounded-[10px] flex-shrink-0 bg-[color-mix(in_srgb,var(--ib-accent)_12%,transparent)] text-[var(--ib-accent)]',
-  providerName: 'text-[17px] font-bold tracking-[-0.025em] leading-[1.2] text-[#191F28]',
-  providerSub: 'mt-[3px] text-[12px] font-semibold tracking-normal text-[#6B7684]',
-  divider: 'self-stretch w-px my-1 flex-shrink-0 bg-[#EBEEF2]',
-  field: 'flex flex-col gap-1 min-w-0',
-  key: 'text-[12px] font-semibold tracking-normal text-[#6B7684]',
-  idRow: 'inline-flex items-center gap-1.5',
-  mono: 'font-mono text-[13px] font-semibold tracking-normal leading-[1.3] text-[#191F28]',
-  /** Non-mono field value — same weight/color as `mono` so plain values (e.g. TF 실행 권한) don't render in the inherited faint gray. */
-  value: 'min-w-0 truncate text-[13px] font-semibold tracking-[-0.005em] leading-[1.3] text-[#191F28]',
   copyBase:
     'inline-grid place-items-center w-6 h-6 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,color] duration-[120ms]',
   copyIdle: 'text-[#6B7684] hover:bg-[#F7F8FA] hover:text-[#191F28]',
   copyCopied: 'text-[#2A7D52]',
-  spacer: 'flex-1',
   agent:
     'inline-flex items-center gap-[7px] flex-shrink-0 px-[13px] py-[7px] rounded-full leading-none text-[13px] font-bold tracking-[-0.005em] bg-[color-mix(in_srgb,var(--ib-accent)_10%,transparent)] text-[var(--ib-accent)]',
   agentIcon: 'w-[13px] h-[13px]',
@@ -623,6 +606,105 @@ export const identityBarStyles = {
  */
 export const numericFeatures = {
   tabular: 'tabular-nums',
+} as const;
+
+/**
+ * Target-source detail flat page header — chrome, not a card. Replaces the v16
+ * meta card (rounded-20 + shadow) so only step content keeps card chrome.
+ *
+ * Rules this group encodes:
+ * - Backgroundless (C3, owner pick 2026-08-09): the header paints NO surface of
+ *   its own — it sits directly on the route layout's #F4F4FB wash, the boundary
+ *   to the body is distance only, and white + shadow stay exclusive to cards.
+ * - Grouping is distance-only (no rules inside the header): labels bind to
+ *   their content at 6px, blocks separate at 18px — the 1:3 ratio reads as
+ *   grouping without lines.
+ * - Weight ceiling is 600. The 24px page title is the header's only 800; a
+ *   provider name and its sibling values share one weight (500) — hierarchy
+ *   comes from size (12→14px) and color (#4E5968→#191F28) only.
+ * - The wash costs one ramp step. Every quiet tier here is measured against
+ *   #F4F4FB, not white: #6B7684 holds 4.62:1 on white but drops to 4.22:1 on
+ *   the wash, so a label that would be grey600 inside a card is grey700 here.
+ *   Going backgroundless (C3) is what made this a header-wide rule, and
+ *   lib/design-guard.test.ts pins every pair so the next re-tint re-measures.
+ */
+export const projectHeaderStyles = {
+  /** Kept as a named seam for future re-tints — C3 renders no plane at all. */
+  surface: '',
+  /** Horizontal padding tracks the step-card column (px-10) so edges align. */
+  inner: 'px-10 pt-[18px]',
+  titleRow: 'flex items-start justify-between gap-4',
+  titleGroup: 'flex min-w-0 flex-wrap items-baseline gap-2.5',
+  /** 시안 2 (P2): task-first H1 — the service identity demotes to this line. */
+  targetRow: 'mt-2 flex flex-wrap items-center gap-2',
+  /**
+   * Service-code chip — slate, not primary: in this palette blue means
+   * "clickable" and amber/green mean state; an identifier gets the neutral
+   * that still reads as chosen (blue-leaning, hue-matched to the surface).
+   */
+  codeChip: 'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] bg-[#E9EEF9] px-2 py-[3px]',
+  codeChipLabel: 'text-[12px] font-medium text-[#55617A]',
+  codeChipValue: 'font-mono text-[12px] font-semibold text-[#2C3A55]',
+  /** Block eyebrow (설명 / 클라우드 정보 / 설치 진행) — small but darker than kv labels. */
+  blockLabel: 'text-[12px] font-semibold tracking-[0.02em] text-[#333D4B]',
+  block: 'mt-[18px]',
+  /** Description body — 2-line clamp; the whole block is skipped when empty. */
+  descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
+  groupRow: 'mt-1.5 flex flex-wrap items-stretch gap-x-5 gap-y-2',
+  provider: 'flex flex-none items-center gap-2 pr-1',
+  providerIcon: 'grid h-[30px] w-[30px] flex-none place-items-center rounded-[8px] bg-[#ECEDF4] text-[#4E5968]',
+  providerName: 'text-[14px] font-medium tracking-[-0.01em] text-[#191F28]',
+  /** Plain-language gloss after a bare token (IDC → 사내망). */
+  providerGloss: 'text-[#4E5968]',
+  providerGlossBar: 'mx-1.5 text-[#C6CCD6]', // design-exempt: decorative separator glyph, not text
+  divider: 'w-px flex-none self-stretch bg-[#E4E5EE]',
+  kv: 'group/kv flex min-w-0 flex-col justify-center gap-0.5',
+  kvLabel: 'whitespace-nowrap text-[12px] font-medium text-[#4E5968]',
+  kvValue: 'flex items-center text-[14px] font-medium leading-[1.35] text-[#191F28]',
+  kvValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
+  /** Copy affordance — hover/focus reveal, so idle rows show only the value. */
+  copyReveal: 'opacity-0 transition-opacity duration-[120ms] group-hover/kv:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none',
+  /** 설치 모드 값 칩 — auto is the quiet default (no action needed)… */
+  modeChipAuto: 'inline-flex items-center rounded-[6px] bg-[#EAEEF7] px-2 py-0.5 text-[12px] font-semibold text-[#4B6284]',
+  /** …manual keeps the amber outline: the customer must run the script themselves. */
+  modeChipManual: 'inline-flex items-center rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[12px] font-semibold text-amber-800',
+  modeNote: 'ml-2 whitespace-nowrap text-[12px] font-medium text-[#4E5968]',
+} as const;
+
+/**
+ * Quiet install stepper inside the flat header — every step named, none loud.
+ * The dots ring in the page wash color (#F4F4FB — the header is backgroundless,
+ * so the wash IS its surface) so the connector reads as passing behind them.
+ *
+ * State lives in the DOTS, not in three shades of grey label. The first cut
+ * spread it across six tints and four of them were invisible on the wash
+ * (pending label 2.78:1, done label 4.22:1, both dots and both connectors under
+ * 1.6:1) — the owner read the whole row as washed out, which is exactly what
+ * those numbers say. So: two label tiers (current vs the rest), three dots
+ * (grey ahead / primary behind / primary + a size step for here), one road.
+ */
+export const installStepperStyles = {
+  wrap: 'mt-[18px] pb-[18px]',
+  /** Left-anchored, capped width — 7 steps don't need the full column; ~120px
+      per step keeps the road compact while the longest label still fits. */
+  list: 'mt-1.5 grid w-full max-w-[860px] list-none p-0',
+  item: 'flex min-w-0 flex-col items-center gap-1.5',
+  track: 'relative flex h-[10px] w-full items-center justify-center',
+  lineBase: 'absolute top-1/2 -mt-px h-[2px]',
+  /** Road ahead — a 2px surface, so it answers to ΔE00 (14.9 from the wash), not 4.5:1. */
+  line: 'bg-[#B0B8C1]',
+  /** Road walked — the primary itself; the dots' wash ring punches it into beads. */
+  lineDone: 'bg-[#0050D6]',
+  dotBase: 'relative z-[1] flex-none rounded-full ring-[3px] ring-[#F4F4FB]',
+  /** Exactly one of the three applies — `cn` has no tailwind-merge, so each carries its own size. */
+  dotPending: 'h-2 w-2 bg-[#6B7684]',
+  dotDone: 'h-2 w-2 bg-[#0050D6]',
+  /** 10px, not 8: "you are here" should read before color does. */
+  dotCurrent: 'h-2.5 w-2.5 bg-[#0050D6]',
+  labelBase: 'px-1 text-center text-[12px] leading-[1.35]',
+  /** Walked and unwalked steps share one label color — the dots already say which is which. */
+  labelRest: 'font-medium text-[#4E5968]',
+  labelCurrent: 'font-semibold text-[#0050D6]',
 } as const;
 
 /**

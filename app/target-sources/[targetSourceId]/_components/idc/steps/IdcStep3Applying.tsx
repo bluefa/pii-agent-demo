@@ -7,7 +7,6 @@ import { Pagination } from '@/app/components/ui/Pagination';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import {
-  ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalStats } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
@@ -37,9 +36,6 @@ const EMPTY_VIEW: IdcApprovedIntegrationView = { resources: [], approvedAt: null
  */
 export const IdcStep3Applying = ({
   project,
-  identity,
-  providerLabel,
-  action,
 }: IdcStepProps) => {
   // Step 3 source: the approved list + its approval signature (approved-integration).
   const { state } = useIdcRead(project.targetSourceId, getIdcApprovedIntegration);
@@ -49,12 +45,6 @@ export const IdcStep3Applying = ({
 
   return (
     <>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cardStyles.header}>
           <span className={cardStyles.stepTag}>3번째 단계</span>

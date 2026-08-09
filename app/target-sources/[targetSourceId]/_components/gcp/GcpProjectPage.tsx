@@ -15,7 +15,6 @@ export const GcpProjectPage = ({
 }: GcpProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'GCP',
-    jiraLink: null,
     identifiers: [
       // v16 id label is the bare 'Project ID' (gcp.idLabel, HTML 9427) — no provider prefix.
       { label: 'Project ID', value: project.gcpProjectId ?? null, mono: true },

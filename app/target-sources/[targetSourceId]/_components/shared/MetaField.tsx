@@ -3,8 +3,8 @@ import { cn, textColors } from '@/lib/theme';
 /**
  * One card-header meta pair (요청일시 / 승인자 …) — label over value, both 12px.
  * Only weight and color separate the tiers, so the pair still clears 4.5:1.
- * Deliberately not `identityBarStyles` (13px, near-black): that tier belongs to the
- * page-level identity bar, and this one sits below the 16px guidance copy.
+ * Deliberately not the page header's kv tier (14px, near-black): that one names
+ * the target source itself, and this one sits below the 16px guidance copy.
  */
 export const MetaField = ({
   label,

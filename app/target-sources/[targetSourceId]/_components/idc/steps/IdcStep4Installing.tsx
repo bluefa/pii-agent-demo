@@ -20,7 +20,6 @@ import {
   type InstallTableStep,
 } from '@/app/components/features/process-status/install-status-detail/model';
 import {
-  ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
@@ -62,9 +61,6 @@ const toInstallLastCheck = (
  */
 export const IdcStep4Installing = ({
   project,
-  identity,
-  providerLabel,
-  action,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
   const { status, error, refresh } = useIdcInstallationStatus(targetSourceId);
@@ -172,13 +168,6 @@ export const IdcStep4Installing = ({
 
   return (
     <>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
-
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <InstallCardHeader />
         <div className={cardStyles.body}>

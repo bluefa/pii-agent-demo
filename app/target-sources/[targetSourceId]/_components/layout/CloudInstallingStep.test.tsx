@@ -2,7 +2,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
-import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
 
 vi.mock('@/app/components/features/process-status/azure/AzureInstallationInline', () => ({
   AzureInstallationInline: () => <div data-testid="azure-install-stub" />,
@@ -31,9 +30,6 @@ vi.mock(
     >();
     return {
       ...mod,
-      ProjectPageMeta: ({ action }: { action?: React.ReactNode }) => (
-        <div data-testid="page-meta-action">{action}</div>
-      ),
       RejectionAlert: () => null,
     };
   },
@@ -59,21 +55,12 @@ const azureInstallingFixture: CloudTargetSource = {
   subscriptionId: '12345678-abcd-ef01-2345-6789abcdef01',
 };
 
-const identityFixture: ProjectIdentity = {
-  cloudProvider: 'Azure',
-  jiraLink: null,
-  identifiers: [],
-};
-
 const renderStep = (
   overrides: Partial<Parameters<typeof CloudInstallingStep>[0]> = {},
 ) =>
   render(
     <CloudInstallingStep
       project={azureInstallingFixture}
-      identity={identityFixture}
-      providerLabel="Azure Infrastructure"
-      action={null}
       onProjectUpdate={() => {}}
       {...overrides}
     />,
@@ -89,18 +76,6 @@ describe('CloudInstallingStep DOM order', () => {
   });
 });
 
-
-describe('CloudInstallingStep identity action slot', () => {
-  it('forwards the action without injecting a "Provider:" badge (not in v16 HTML 5765-5793)', () => {
-    renderStep({
-      providerLabel: 'Azure Infrastructure',
-      action: <button type="button">인프라 삭제</button>,
-    });
-    const action = screen.getByTestId('page-meta-action');
-    expect(action.textContent).toContain('인프라 삭제');
-    expect(action.textContent).not.toContain('Provider:');
-  });
-});
 
 describe('CloudInstallingStep GCP fork', () => {
   it('omits the redundant confirmed-resources card for GCP too', () => {

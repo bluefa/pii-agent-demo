@@ -2,8 +2,10 @@
 
 import type { ReactNode } from 'react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
-import { cn } from '@/lib/theme';
-import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common';
+import {
+  ProjectPageMeta,
+  type ProjectIdentity,
+} from '@/app/target-sources/[targetSourceId]/_components/common';
 import { InstallingStep } from '@/app/target-sources/[targetSourceId]/_components/layout/InstallingStep';
 import { WaitingConnectionTestStep } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingConnectionTestStep';
 import { ConnectionVerifiedStep } from '@/app/target-sources/[targetSourceId]/_components/layout/ConnectionVerifiedStep';
@@ -46,13 +48,16 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
   const step = renderStep(props);
   if (!step) return null;
   return (
-    // `min-h-full`, not `min-h-screen`: this fills ProjectDetail's fixed
-    // `100vh - 76px` column, so a full 100vh here left 76px of empty scroll
-    // under every page — the same stack ServiceManagementView already unwound.
-    <main className={cn('bg-[#F4F4FB]', 'min-h-full')}>
+    // `min-h-full`, not `min-h-screen` (#665): this fills ProjectDetail's fixed
+    // `100vh - 76px` column — a full 100vh here left 76px of dead scroll under
+    // every page.
+    <main className="min-h-full">
+      {/* Flat page header (chrome) spans the column edge-to-edge ABOVE the padded
+          body, so the lavender wash starts where content cards do. The layout owns
+          it — steps render cards only, matching IdcTargetSourceLayout. */}
+      <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
       {/* v16 `.main`: full-width, padding 32/40/80 (top/x/bottom), flush to the 296px
-          sidebar so content begins at 336px — matches IdcTargetSourceLayout. (Was
-          max-w-[1200px] mx-auto p-7 — centered + 28px, which diverged from IDC/v16.)
+          sidebar so content begins at 336px — matches IdcTargetSourceLayout.
           The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
       <div className="px-10 pt-8 pb-20 space-y-6">{step}</div>
     </main>

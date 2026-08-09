@@ -294,8 +294,8 @@ export const WaitingApprovalCard = ({
         )}
         {requestSummary && !rejected && (
           // Label over value, one row. This tier sits well below the guidance copy, so it
-          // declares 12px + muted color instead of identityBarStyles (13px, near-black), which the
-          // page-level identity bar keeps. 24px above it — the widest gap in the header, marking
+          // declares 12px + muted color instead of the page header's kv tier (14px, near-black),
+          // which names the target source. 24px above it — the widest gap in the header, marking
           // the boundary between "what happened / what to do" and reference facts.
           // Rejected does not repeat it here: the submission meta moves into the record block's
           // summary line below, where it belongs to the list it describes.

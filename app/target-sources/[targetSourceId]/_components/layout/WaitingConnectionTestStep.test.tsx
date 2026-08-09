@@ -71,7 +71,6 @@ const azureWaitingConnectionTestFixture: CloudTargetSource = {
 
 const identityFixture: ProjectIdentity = {
   cloudProvider: 'Azure',
-  jiraLink: null,
   identifiers: [],
 };
 
@@ -81,9 +80,7 @@ describe('WaitingConnectionTestStep', () => {
     render(
       <WaitingConnectionTestStep
         project={azureWaitingConnectionTestFixture}
-        identity={identityFixture}
         providerLabel="Azure Infrastructure"
-        action={null}
         onProjectUpdate={() => {}}
       />,
     );

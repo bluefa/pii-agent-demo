@@ -47,7 +47,6 @@ const azureApplyingApprovedFixture: CloudTargetSource = {
 
 const identityFixture: ProjectIdentity = {
   cloudProvider: 'Azure',
-  jiraLink: null,
   identifiers: [],
 };
 
@@ -56,9 +55,6 @@ describe('ApplyingApprovedStep', () => {
     render(
       <ApplyingApprovedStep
         project={azureApplyingApprovedFixture}
-        identity={identityFixture}
-        providerLabel="Azure Infrastructure"
-        action={null}
         onProjectUpdate={() => {}}
       />,
     );
