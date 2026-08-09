@@ -8,6 +8,7 @@ import { DeleteInfrastructureButton } from '@/app/target-sources/[targetSourceId
 import {
   bgColors,
   borderColors,
+  cardStyles,
   cn,
   identityBarStyles,
   interactiveColors,
@@ -37,7 +38,7 @@ export type JiraTicketState = { issueKey: string; browseUrl: string | null } | n
  * is not misread as "no channel".
  */
 const CollabChannelCard = ({ jiraTicket }: { jiraTicket: JiraTicketState }) => {
-  const rowBase = 'mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px]';
+  const rowBase = 'mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px]';
   const href =
     jiraTicket && jiraTicket !== 'error' ? safeBrowseUrl(jiraTicket.browseUrl) : null;
 
@@ -161,13 +162,13 @@ const HistoryTimeline = ({ items }: { items: typeof MOCK_HISTORY }) => (
           className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', statusColors[item.tone].dot)}
         />
         <div className="min-w-0">
-          <p className={cn('text-[12.5px] font-semibold leading-[1.4]', textColors.secondary)}>
+          <p className={cn('text-[12px] font-semibold leading-[1.4]', textColors.secondary)}>
             {item.title}
           </p>
           <p className={cn('mt-0.5 text-[12px] leading-[1.5]', textColors.tertiary)}>
             {item.detail}
           </p>
-          <p className={cn('mt-1 text-[11px]', textColors.tertiary)}>{item.at}</p>
+          <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>{item.at}</p>
         </div>
       </li>
     ))}
@@ -184,11 +185,10 @@ interface GuidePanelProps {
 }
 
 /**
- * Full-height right rail for the step screens — mirrors the left ServiceListPanel:
- * flat surface, left border, [가이드 | 진행 내역] tab header, scrollable body,
- * bottom pager on the history tab. Deliberately quiet (auxiliary) chrome so the
- * working column keeps the visual weight. Replaces the inline amber guide card
- * (UX report P2/P3).
+ * Right-hand guide panel — a 320px vertical CARD standing beside the step
+ * cards inside the body (under the flat header), not a band welded to the
+ * header chrome. Reading order mirrors the original rail: 모니터링 →
+ * 협업 채널 → [가이드 | 진행 내역] tabs → panel → pager → 인프라 삭제.
  */
 export const GuidePanel = ({
   slotKey,
@@ -226,17 +226,13 @@ export const GuidePanel = ({
   return (
     <aside
       aria-label="단계 가이드 및 진행 내역"
-      className={cn(
-        'hidden w-[320px] shrink-0 flex-col border-l min-[1360px]:flex',
-        borderColors.light,
-        bgColors.surface,
-      )}
+      className={cn(cardStyles.base, 'w-[320px] shrink-0 overflow-hidden')}
     >
-      {/* Monitoring method leads the rail (owner ask) — identity-level fact,
-          read before any step work. */}
+      {/* Monitoring method leads the panel — identity-level fact, read before
+          any step work. */}
       <div
         className={cn(
-          'flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3',
+          'flex items-center justify-between gap-2 border-b px-4 py-3',
           borderColors.light,
         )}
       >
@@ -250,13 +246,12 @@ export const GuidePanel = ({
         </span>
       </div>
 
-      {/* Jira ticket next — the collab channel is the escape hatch for every
-          step, so it stays above the fold. */}
-      <div className={cn('shrink-0 border-b p-4', borderColors.light)}>
+      {/* Collab channel next — the escape hatch for every step. */}
+      <div className={cn('border-b p-4', borderColors.light)}>
         <CollabChannelCard jiraTicket={jiraTicket} />
       </div>
 
-      <div className={cn('shrink-0 border-b p-3', borderColors.light)}>
+      <div className={cn('border-b p-3', borderColors.light)}>
         <div role="tablist" className={cn(segmentedControlStyles.container, 'w-full')}>
           <button
             type="button"
@@ -279,12 +274,12 @@ export const GuidePanel = ({
         </div>
       </div>
 
-      <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto p-5">
+      <div role="tabpanel" className="p-5">
         {tab === 'guide' ? (
           slotKey ? (
             <GuideCardContainer slotKey={slotKey} bare />
           ) : (
-            <p className={cn('py-4 text-center text-[12.5px]', textColors.tertiary)}>
+            <p className={cn('py-4 text-center text-[12px]', textColors.tertiary)}>
               이 단계에는 표시할 가이드가 없습니다.
             </p>
           )
@@ -296,7 +291,7 @@ export const GuidePanel = ({
       {tab === 'history' && pageCount > 1 && (
         <div
           className={cn(
-            'flex shrink-0 items-center justify-between border-t px-4 py-2.5',
+            'flex items-center justify-between border-t px-4 py-2.5',
             borderColors.light,
           )}
         >
@@ -308,7 +303,7 @@ export const GuidePanel = ({
           >
             ‹ 이전
           </button>
-          <span className={cn('text-[11.5px] tabular-nums', textColors.tertiary)}>
+          <span className={cn('text-[12px] tabular-nums', textColors.tertiary)}>
             {page + 1} / {pageCount}
           </span>
           <button
@@ -322,10 +317,9 @@ export const GuidePanel = ({
         </div>
       )}
 
-      {/* Danger zone — the destructive infra action stays pinned to the rail's
-          bottom edge across both tabs: one predictable, visually isolated spot
-          instead of competing with the page header's primary CTA. */}
-      <div className={cn('shrink-0 border-t p-4', borderColors.light)}>
+      {/* Danger zone — the destructive infra action stays at the panel's
+          bottom edge across both tabs: one predictable, visually isolated spot. */}
+      <div className={cn('border-t p-4', borderColors.light)}>
         <DeleteInfrastructureButton className="w-full justify-center" />
       </div>
     </aside>

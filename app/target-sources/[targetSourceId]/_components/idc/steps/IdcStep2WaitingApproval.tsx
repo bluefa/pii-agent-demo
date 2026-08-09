@@ -7,7 +7,6 @@ import { formatDate } from '@/lib/utils/date';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import {
-  ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalCancelButton } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCancelButton';
@@ -48,9 +47,6 @@ const EMPTY_VIEW: IdcApprovalRequestView = {
  */
 export const IdcStep2WaitingApproval = ({
   project,
-  identity,
-  providerLabel,
-  action,
   onProjectUpdate,
 }: IdcStepProps) => {
   const { targetSourceId } = project;
@@ -67,12 +63,6 @@ export const IdcStep2WaitingApproval = ({
 
   return (
     <>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
       {view.unavailableReason != null ? (
         <ApprovalUnavailableCard
           targetSourceId={targetSourceId}

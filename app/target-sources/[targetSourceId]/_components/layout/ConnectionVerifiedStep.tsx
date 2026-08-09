@@ -1,15 +1,13 @@
 'use client';
 
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useState } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { getProject, updateTestConnectionConfirmation } from '@/app/lib/api';
 import { ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import {
-  ProjectPageMeta,
   RejectionAlert,
-  type ProjectIdentity,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import {
   ConfirmRewindModal,
@@ -20,9 +18,6 @@ import { ConfirmedResourcesSlot } from '@/app/target-sources/[targetSourceId]/_c
 
 interface ConnectionVerifiedStepProps {
   project: CloudTargetSource;
-  identity: ProjectIdentity;
-  providerLabel: string;
-  action?: ReactNode;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
@@ -75,9 +70,6 @@ const ConnectionVerifiedRetestButton = ({
 
 export const ConnectionVerifiedStep = ({
   project,
-  identity,
-  providerLabel,
-  action,
   onProjectUpdate,
 }: ConnectionVerifiedStepProps) => {
 
@@ -88,12 +80,6 @@ export const ConnectionVerifiedStep = ({
 
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         {/* Same left-aligned stack as steps 2·3: step tag, title + status, guidance copy. */}
         <header className={cardStyles.header}>

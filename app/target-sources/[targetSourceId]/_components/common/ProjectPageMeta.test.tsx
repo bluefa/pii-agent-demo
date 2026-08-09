@@ -3,8 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type TargetSource } from '@/lib/types';
 
-// The unified header card mounts the stepper footer; stub the animated bar and
-// surface the step it receives.
+// The flat header mounts the quiet stepper; stub it and surface the step it receives.
 vi.mock('@/app/components/features/process-status', () => ({
   InstallationProcessProgressBar: ({ currentStep }: { currentStep: unknown }) => (
     <div data-testid="process-progress-bar" data-step={String(currentStep)} />
@@ -13,15 +12,6 @@ vi.mock('@/app/components/features/process-status', () => ({
 
 import { ProjectPageMeta } from '@/app/target-sources/[targetSourceId]/_components/common/ProjectPageMeta';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
-import { identityBarStyles } from '@/lib/theme';
-
-// Selector for the identity-bar provider name, derived from the theme token so
-// the test tracks the token instead of hardcoding its classes. (jsdom has no
-// CSS.escape, so escape selector metacharacters by hand.)
-const providerNameSelector = identityBarStyles.providerName
-  .split(' ')
-  .map((c) => `.${c.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`)}`)
-  .join('');
 
 const projectFixture: TargetSource = {
   isTerraformExecutionGranted: false,
@@ -41,29 +31,27 @@ const projectFixture: TargetSource = {
 
 const awsIdentity: ProjectIdentity = {
   cloudProvider: 'AWS',
-  jiraLink: null,
   identifiers: [{ label: 'Account ID', value: '482915736204', mono: true }],
+  installMode: 'auto',
 };
 
 const idcIdentity: ProjectIdentity = {
   cloudProvider: 'IDC',
-  jiraLink: null,
   identifiers: [],
 };
 
-describe('ProjectPageMeta — header action slot', () => {
-  // The collab-channel entry moved to the GuidePanel rail footer (see
-  // GuidePanel.test.tsx); the header action slot now carries only the page action.
-  it('does not render the collab chip in the header anymore', () => {
-    render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />);
-    expect(screen.queryByTitle('협업 채널 — Jira에서 논의하기')).toBeNull();
+describe('ProjectPageMeta — title row', () => {
+  it('labels the service code explicitly instead of bare parens', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    expect(screen.getByRole('heading', { name: 'Service A' })).toBeTruthy();
+    expect(screen.getByText('서비스 코드')).toBeTruthy();
+    expect(screen.getByText('SERVICE-A')).toBeTruthy();
   });
 
   it('renders the page action', () => {
     render(
       <ProjectPageMeta
         project={projectFixture}
-        providerLabel="AWS Infrastructure"
         identity={awsIdentity}
         action={<button type="button">인프라 삭제</button>}
       />,
@@ -72,50 +60,94 @@ describe('ProjectPageMeta — header action slot', () => {
   });
 });
 
-describe('ProjectPageMeta — identity-bar provider name', () => {
-  it('shows the bare provider token in the identity bar, not the "{Provider} Infrastructure" label', () => {
-    const { container } = render(
-      <ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />,
-    );
-    // identity-bar provider name (.ib-provider-name) carries the bare token only (HTML 9428).
-    const providerName = container.querySelector(providerNameSelector);
-    expect(providerName?.textContent).toBe('AWS');
+describe('ProjectPageMeta — description block', () => {
+  it('renders the 설명 block when the target source has a description', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    expect(screen.getByText('설명')).toBeTruthy();
+    expect(screen.getByText('desc')).toBeTruthy();
   });
 
-  it('renders no breadcrumb', () => {
-    render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />);
-    expect(screen.queryByText('AWS Infrastructure')).toBeNull();
-    expect(screen.queryByText('서비스 목록')).toBeNull();
-  });
-
-  it('shows the bare "IDC" token in the identity bar for IDC', () => {
-    const { container } = render(
-      <ProjectPageMeta project={projectFixture} providerLabel="IDC Infrastructure" identity={idcIdentity} />,
+  it('skips the block entirely (label included) when the description is empty', () => {
+    render(
+      <ProjectPageMeta project={{ ...projectFixture, description: '  ' }} identity={awsIdentity} />,
     );
-    const providerName = container.querySelector(providerNameSelector);
-    expect(providerName?.textContent).toBe('IDC');
+    expect(screen.queryByText('설명')).toBeNull();
   });
 });
 
-describe('ProjectPageMeta — unified header card', () => {
-  // Lifted from the removed ProcessStatusCard: the stepper now mounts once as the
-  // header card's footer, fed by the project's processStatus.
-  it('mounts the stepper footer with the project processStatus', () => {
-    render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />);
-    expect(screen.getByTestId('process-progress-bar').getAttribute('data-step')).toBe(
-      String(projectFixture.processStatus),
-    );
+describe('ProjectPageMeta — provider group', () => {
+  it('shows "AWS Cloud" with its account id and install mode under 클라우드 정보', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    expect(screen.getByText('클라우드 정보')).toBeTruthy();
+    expect(screen.getByText('AWS Cloud')).toBeTruthy();
+    expect(screen.getByText('482915736204')).toBeTruthy();
+    expect(screen.getByText('자동 설치')).toBeTruthy();
+    // The mode's meaning stays on-screen, not behind a tooltip.
+    expect(screen.getByText('Terraform 권한 위임')).toBeTruthy();
   });
-});
 
-describe('ProjectPageMeta — IDC sub-label suppression', () => {
-  it('hides the "Cloud Provider" sub-label for IDC', () => {
-    render(<ProjectPageMeta project={projectFixture} providerLabel="IDC Infrastructure" identity={idcIdentity} />);
+  it('renders manual mode with its own explanation', () => {
+    render(
+      <ProjectPageMeta
+        project={projectFixture}
+        identity={{ ...awsIdentity, installMode: 'manual' }}
+      />,
+    );
+    expect(screen.getByText('수동 설치')).toBeTruthy();
+    expect(screen.getByText('설치 스크립트 직접 실행')).toBeTruthy();
+  });
+
+  it('hides the install-mode row when the identity carries none', () => {
+    render(
+      <ProjectPageMeta
+        project={projectFixture}
+        identity={{ ...awsIdentity, installMode: undefined }}
+      />,
+    );
+    expect(screen.queryByText('설치 모드')).toBeNull();
+  });
+
+  it('drops identifier rows whose value is absent instead of rendering "-"', () => {
+    render(
+      <ProjectPageMeta
+        project={projectFixture}
+        identity={{
+          cloudProvider: 'AWS',
+          identifiers: [{ label: 'Account ID', value: null, mono: true }],
+        }}
+      />,
+    );
+    expect(screen.queryByText('Account ID')).toBeNull();
+    expect(screen.queryByText('-')).toBeNull();
+  });
+
+  it('IDC reads 인프라 정보 with the 사내망 gloss and no identifiers', () => {
+    render(
+      <ProjectPageMeta project={{ ...projectFixture, cloudProvider: 'IDC' }} identity={idcIdentity} />,
+    );
+    expect(screen.getByText('인프라 정보')).toBeTruthy();
+    expect(screen.getByText('IDC')).toBeTruthy();
+    expect(screen.getByText('사내망')).toBeTruthy();
     expect(screen.queryByText('Cloud Provider')).toBeNull();
   });
 
-  it('shows the "Cloud Provider" sub-label for cloud providers', () => {
-    render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />);
-    expect(screen.getByText('Cloud Provider')).toBeTruthy();
+  it('an SDU account reads 데이터 제공 · direct upload, over its underlying CSP', () => {
+    render(
+      <ProjectPageMeta project={{ ...projectFixture, isSduType: true }} identity={awsIdentity} />,
+    );
+    expect(screen.getByText('데이터 제공')).toBeTruthy();
+    expect(screen.getByText('SDU')).toBeTruthy();
+    expect(screen.getByText('연동 방식')).toBeTruthy();
+    expect(screen.getByText('고객사가 데이터를 직접 업로드')).toBeTruthy();
+    expect(screen.queryByText('AWS Cloud')).toBeNull();
+  });
+});
+
+describe('ProjectPageMeta — install progress', () => {
+  it('mounts the stepper with the project processStatus', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    expect(screen.getByTestId('process-progress-bar').getAttribute('data-step')).toBe(
+      String(projectFixture.processStatus),
+    );
   });
 });

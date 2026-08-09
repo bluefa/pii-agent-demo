@@ -73,7 +73,6 @@ const baseFixture: CloudTargetSource = {
 
 const identityFixture: ProjectIdentity = {
   cloudProvider: 'Azure',
-  jiraLink: null,
   identifiers: [],
 };
 

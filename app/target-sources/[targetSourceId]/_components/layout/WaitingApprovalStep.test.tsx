@@ -72,7 +72,6 @@ const azureWaitingApprovalFixture: CloudTargetSource = {
 
 const identityFixture: ProjectIdentity = {
   cloudProvider: 'Azure',
-  jiraLink: null,
   identifiers: [],
 };
 
@@ -81,9 +80,6 @@ describe('WaitingApprovalStep', () => {
     render(
       <WaitingApprovalStep
         project={azureWaitingApprovalFixture}
-        identity={identityFixture}
-        providerLabel="Azure Infrastructure"
-        action={null}
         onProjectUpdate={() => {}}
       />,
     );
@@ -99,9 +95,6 @@ describe('WaitingApprovalStep', () => {
     render(
       <WaitingApprovalStep
         project={{ ...azureWaitingApprovalFixture, isRejected: true }}
-        identity={identityFixture}
-        providerLabel="Azure Infrastructure"
-        action={null}
         onProjectUpdate={() => {}}
       />,
     );

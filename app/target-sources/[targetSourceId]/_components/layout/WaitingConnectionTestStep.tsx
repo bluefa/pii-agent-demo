@@ -1,12 +1,10 @@
 'use client';
 
-import { useCallback, type ReactNode } from 'react';
+import { useCallback } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import {
-  ProjectPageMeta,
   RejectionAlert,
-  type ProjectIdentity,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import {
   ConfirmedIntegrationDataProvider,
@@ -21,9 +19,7 @@ import {
 
 interface WaitingConnectionTestStepProps {
   project: CloudTargetSource;
-  identity: ProjectIdentity;
   providerLabel: string;
-  action?: ReactNode;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
@@ -59,9 +55,7 @@ const ConnectionTestSection = ({
  */
 export const WaitingConnectionTestStep = ({
   project,
-  identity,
   providerLabel,
-  action,
   onProjectUpdate,
 }: WaitingConnectionTestStepProps) => {
 
@@ -70,19 +64,14 @@ export const WaitingConnectionTestStep = ({
     onProjectUpdate(updated);
   }, [onProjectUpdate, project.targetSourceId]);
 
-  // 폴링은 스텝이 소유한다: 카드와 헤더 태그(ProjectPageMeta)가 같은 관찰을 prop 으로
-  // 나눠 받는다 — 모듈 스토어로 잇는 것은 DR1/DR7 위반이라 선택지가 아니다.
+  // The step still owns the polling for its card. The header's TcHeaderTag is
+  // rendered by the layout now and self-fetches latest_version instead — the
+  // live feed no longer reaches the header tag while a run is in flight
+  // (known downgrade, recorded in docs/ux/benchmark/target-source-header.md).
   const polling = useTestConnectionPolling(project.targetSourceId);
 
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-        tcJob={polling.latestJob}
-      />
       <ConnectionTestSection
         providerLabel={providerLabel}
         refreshProject={refreshProject}

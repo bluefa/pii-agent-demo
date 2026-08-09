@@ -6,7 +6,6 @@ import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import {
   CardActionBar,
-  ProjectPageMeta,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import {
@@ -75,9 +74,6 @@ const CompleteActionBar = () => {
  */
 export const IdcStep7Complete = ({
   project,
-  identity,
-  providerLabel,
-  action,
 }: IdcStepProps) => {
 
   // Step 7 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
@@ -85,12 +81,6 @@ export const IdcStep7Complete = ({
 
   return (
     <>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
       <section className={cardStyles.base}>
         <header className={cardStyles.header}>

@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
 import {
   CardActionBar,
-  ProjectPageMeta,
   RejectionAlert,
-  type ProjectIdentity,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WARNING_OUTLINE_BUTTON_CLASS } from '@/app/target-sources/[targetSourceId]/_components/common/warning-outline-button';
 import {
@@ -21,9 +19,6 @@ import { ConfirmedResourcesSlot } from '@/app/target-sources/[targetSourceId]/_c
 
 interface InstallationCompleteStepProps {
   project: CloudTargetSource;
-  identity: ProjectIdentity;
-  providerLabel: string;
-  action?: ReactNode;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
@@ -83,19 +78,10 @@ const InstallationCompleteActionBar = () => {
  */
 export const InstallationCompleteStep = ({
   project,
-  identity,
-  providerLabel,
-  action,
 }: InstallationCompleteStepProps) => {
 
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
-      <ProjectPageMeta
-        project={project}
-        providerLabel={providerLabel}
-        identity={identity}
-        action={action}
-      />
       {/* No overflow-hidden: it would establish a clip box and kill the sticky CardActionBar. */}
       <section className={cardStyles.base}>
         <header className={cardStyles.header}>

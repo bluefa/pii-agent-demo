@@ -1,11 +1,4 @@
 export { InstallationProcessProgressBar } from '@/app/components/features/process-status/InstallationProcessProgressBar';
-export {
-  ProcessProgressBar,
-  type ProgressBarStep,
-} from '@/app/components/features/process-status/ProcessProgressBar';
-export type { StepState } from '@/app/components/features/process-status/motion/stepperMotionEngine';
-/** @deprecated Use `InstallationProcessProgressBar`. */
-export { StepProgressBar } from '@/app/components/features/process-status/StepProgressBar';
 export { StepGuide } from '@/app/components/features/process-status/StepGuide';
 export {
   ApproveModal,
