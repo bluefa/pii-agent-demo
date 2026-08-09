@@ -725,7 +725,7 @@ export const InstallStatusDetail = ({
             {/* BDC 는 인디고 — 새 색이 아니라 이 화면이 이미 'BDC측'에 쓰고 있는 색이다
                 (SideTag 의 tagStyles.indigo, sideTextColors.bdc). 그룹 이름과 행 태그가
                 같은 색을 말해야 "이 묶음이 곧 BDC 측"으로 읽힌다. */}
-            {groupLabel('BDC 자동 진행', sideTextColors.bdc)}
+            {groupLabel('BDC 진행', sideTextColors.bdc)}
             {autoSteps.map((s, i) => railItem(s, i + 1))}
 
             {/* 리뷰요청 — 단계가 아니므로 진행 순번 다음, 레일 끝에 선다.

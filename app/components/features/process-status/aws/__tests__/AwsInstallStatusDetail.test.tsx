@@ -48,7 +48,7 @@ const buildStatus = (
 });
 
 describe('AwsInstallStatusDetail', () => {
-  it('renders the grouped rail (내가 할 일 / BDC 자동 진행) and auto-selects the failed step', () => {
+  it('renders the grouped rail (내가 할 일 / BDC 진행) and auto-selects the failed step', () => {
     render(
       <AwsInstallStatusDetail
         status={buildStatus([resource('r-1', 'COMPLETED'), resource('r-2', 'FAIL', {
@@ -71,7 +71,7 @@ describe('AwsInstallStatusDetail', () => {
     // Grouped rail — the group headers carry ownership; per-item side lines are gone.
     // The role-verify todo is COMPLETED, so the open-todo count is 0.
     expect(within(nav).getByText('내가 할 일 (0)')).toBeTruthy();
-    expect(within(nav).getByText('BDC 자동 진행')).toBeTruthy();
+    expect(within(nav).getByText('BDC 진행')).toBeTruthy();
     expect(within(nav).queryByText('서비스측')).toBeNull();
     expect(within(nav).queryByText('BDC측')).toBeNull();
     // 레일 푸터(진행바+요약)는 삭제됐다 — 각 단계 행의 상태 글자가 같은 말을 한다.
