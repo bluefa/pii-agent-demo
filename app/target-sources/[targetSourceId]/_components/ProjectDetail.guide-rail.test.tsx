@@ -71,3 +71,19 @@ describe('ProjectDetail guide rail', () => {
     expect(panel.getAttribute('data-slot-key')).toBe('stub-slot-key');
   });
 });
+
+// The rails only stay put if the middle column contains its own absolutes. Drop
+// `relative` and an `sr-only` live region deep in a step table resolves against
+// the initial containing block instead, stretching the ROOT scroll area until the
+// whole page — rails, top nav — scrolls off screen.
+describe('ProjectDetail scroll containment', () => {
+  it('positions the scrolling column so absolute descendants cannot escape it', () => {
+    const { container } = render(
+      <ProjectDetail initialProject={azureFixture} jiraTicket={null} />,
+    );
+
+    const column = container.querySelector('div.overflow-auto');
+    expect(column).toBeTruthy();
+    expect(column?.className.split(/\s+/)).toContain('relative');
+  });
+});

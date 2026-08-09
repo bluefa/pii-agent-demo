@@ -16,6 +16,16 @@ import { GcpProjectPage } from '@/app/target-sources/[targetSourceId]/_component
 import { IdcProjectPage } from '@/app/target-sources/[targetSourceId]/_components/idc';
 import { ServiceListPanel } from '@/app/target-sources/[targetSourceId]/_components/ServiceListPanel';
 
+// The middle column is the page's only scroller — the row above it is height-fixed
+// so the rails stay put. `relative` is what holds that promise: without a positioned
+// ancestor, an `absolute` descendant resolves against the initial containing block
+// instead of this box, and `overflow-auto` does not clip what it does not contain.
+// Tailwind's `sr-only` is exactly that (position: absolute), so every aria-live
+// region inside a long step table sat at its static y — 1897px on a 900px viewport —
+// and stretched the ROOT scroll area: the whole page scrolled, rails and top nav
+// included, until nothing was left on screen.
+const SCROLL_COLUMN = 'relative flex-1 min-w-0 overflow-auto';
+
 interface ProjectDetailProps {
   initialProject: TargetSource;
   /** SSR-resolved collab ticket (page.tsx): null = none mapped (404), 'error' = fetch failed. */
@@ -68,7 +78,7 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
         <ServiceListPanel
           currentService={{ code: project.serviceCode, name: project.serviceName }}
         />
-        <div className="flex-1 min-w-0 overflow-auto">
+        <div className={SCROLL_COLUMN}>
           <SduUnsupportedNotice />
         </div>
       </div>
@@ -80,7 +90,7 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
       <ServiceListPanel
         currentService={{ code: project.serviceCode, name: project.serviceName }}
       />
-      <div className="flex-1 min-w-0 overflow-auto">
+      <div className={SCROLL_COLUMN}>
         {renderProvider()}
       </div>
       {/* Full-height right rail (가이드/진행 내역) — mirrors the left ServiceListPanel. */}

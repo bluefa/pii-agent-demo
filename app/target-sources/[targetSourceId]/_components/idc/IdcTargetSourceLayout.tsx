@@ -37,7 +37,9 @@ export const IdcTargetSourceLayout = (props: IdcStepProps) => {
   const step = renderStep(props);
   if (!step) return null;
   return (
-    <main className={cn('bg-[#F4F4FB]', 'min-h-screen')}>
+    // `min-h-full`, not `min-h-screen` — see CloudTargetSourceLayout: a full
+    // 100vh inside ProjectDetail's `100vh - 76px` column is 76px of dead scroll.
+    <main className={cn('bg-[#F4F4FB]', 'min-h-full')}>
       {/* v16 `.main` — full-width flex column, padding 32px 40px 80px (top/x/bottom). The 40px
           left padding sits flush against the 296px sidebar so content begins at 336px, matching v16.
           The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
