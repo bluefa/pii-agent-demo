@@ -19,9 +19,13 @@ interface TcHeaderTagProps {
 }
 
 /**
- * 대상 상세 헤더의 연결 테스트 상태 태그 (P5). 실행 기록이 없으면 아무것도 그리지
- * 않는다. 스스로 폴링하지 않는다 — Step 5 화면에서는 카드의 폴링이 liveJob 으로
- * 같은 사실을 내려 주고, 그 외 스텝에서는 마지막 실행을 1회 조회해 보여준다.
+ * 스텝퍼의 '연결 테스트' 단계 아래 붙는 최근 실행 판정 태그 (P5). 실행 기록이 없으면
+ * 아무것도 그리지 않는다. 스스로 폴링하지 않는다 — Step 5 화면에서는 카드의 폴링이
+ * liveJob 으로 같은 사실을 내려 주고, 그 외 스텝에서는 마지막 실행을 1회 조회한다.
+ *
+ * 문구에서 '연결'과 회차(#N)를 뺀 건 자리 때문이다: 바로 위에 '연결 테스트'라는 단계
+ * 이름이 있어 태그가 그 말을 되풀이할 이유가 없고, 회차는 Step 5 카드와 진행 내역이
+ * 이미 들고 있다. 이 자리에 남을 이유가 있는 건 "어떻게 됐나 · 언제" 둘뿐이다.
  */
 export const TcHeaderTag = ({ targetSourceId, liveJob }: TcHeaderTagProps) => {
   const [fetched, setFetched] = useState<TestConnectionVersionResult | null>(null);
@@ -56,24 +60,21 @@ export const TcHeaderTag = ({ targetSourceId, liveJob }: TcHeaderTagProps) => {
 
   let label: string;
   if (status === 'SUCCESS') {
-    label = '연결 테스트 성공';
+    label = '최근 테스트 성공';
   } else if (status === 'FAIL') {
     const folded = foldAgentStatuses(job.test_connection_agent_results ?? []);
     const failCount = [...folded.values()].filter((s) => s === 'FAIL').length;
-    label = failCount > 0 ? `연결 테스트 실패 ${failCount}건` : '연결 테스트 실패';
+    label = failCount > 0 ? `최근 테스트 실패 ${failCount}건` : '최근 테스트 실패';
   } else {
-    label = '연결 테스트 진행 중';
+    // 진행 중인 실행에 '최근'은 붙지 않는다 — 지금 돌고 있는 것이다.
+    label = '테스트 진행 중';
   }
 
-  const version = job.test_connection_version;
   const timestamp = job.completed_at ?? job.requested_at;
 
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
-      <span className={cn(idcStyles.tag.base, tagClass)}>
-        {version !== null && version !== undefined ? `#${version} ` : ''}
-        {label}
-      </span>
+      <span className={cn(idcStyles.tag.base, tagClass)}>{label}</span>
       {timestamp && (
         <span className={cn('text-[12px] font-medium', textColors.tertiary)}>
           {fmtRelativeTime(timestamp)}

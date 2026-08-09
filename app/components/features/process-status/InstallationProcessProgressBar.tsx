@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { cn, installStepperStyles as s, projectHeaderStyles } from '@/lib/theme';
 
@@ -13,6 +14,12 @@ const INSTALL_STEPS = [
 
 interface InstallationProcessProgressBarProps {
   currentStep: ProcessStatus;
+  /**
+   * 연결 테스트 단계 아래에 붙는 최근 실행 판정(TcHeaderTag). 판정은 그 단계에
+   * 속한 사실이라 그 단계 밑에 둔다 — 페이지 제목 옆에 있을 때는 무엇에 대한
+   * 판정인지 스텝퍼를 훑어야 알 수 있었다. 없으면 그 자리는 그려지지 않는다.
+   */
+  tcTag?: ReactNode;
 }
 
 /**
@@ -22,6 +29,7 @@ interface InstallationProcessProgressBarProps {
  */
 export const InstallationProcessProgressBar = ({
   currentStep,
+  tcTag,
 }: InstallationProcessProgressBarProps) => {
   const currentIndex = INSTALL_STEPS.findIndex((it) => it.step === currentStep);
 
@@ -75,6 +83,10 @@ export const InstallationProcessProgressBar = ({
               >
                 {it.label}
               </span>
+              {/* No wrapper: `tcTag` is an element, so it is truthy even when it
+                  renders nothing, and a wrapper would collect the flex gap on
+                  every target that never ran a test. The tag styles itself. */}
+              {it.step === ProcessStatus.WAITING_CONNECTION_TEST && tcTag}
             </li>
           );
         })}
