@@ -1105,9 +1105,10 @@ const resolveProvider = (targetSourceId: string): CloudProvider | null => {
   return INTERNAL_PROVIDER[project.cloudProvider] ?? null;
 };
 
-/** 서비스 코드는 항상 3글자다(오너 도메인 규칙, 2026-08-09). 목 시드에는 실코드
- *  필드가 없어 projectCode('N-IRP-001')의 가장 긴 알파벳 토큰에서 유도한다 —
- *  'IRP'/'GCP'/'AZU'. 실계약 샘플이 오면 시드 필드로 교체한다. */
+/** A service code is always 3 letters (owner domain rule, 2026-08-09). The mock
+ *  seed carries no real code field, so it is derived from the longest alpha
+ *  token of projectCode ('N-IRP-001' → 'IRP'). Swap in a seed field once a real
+ *  contract sample lands. */
 const deriveServiceCode = (projectCode: string): string => {
   const tokens = projectCode.split('-').filter((t) => /^[A-Za-z]+$/.test(t));
   const longest = tokens.sort((a, b) => b.length - a.length)[0] ?? projectCode;

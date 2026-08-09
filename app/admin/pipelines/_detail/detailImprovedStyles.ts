@@ -32,12 +32,12 @@ export const improvedStyles = {
    *  can grow to the bottom. */
   bleed: '-mx-8 -mt-6 -mb-12 flex flex-col flex-1 min-h-0',
 
-  /** Header (design-benchmark round 2, 시안 E) — the ops target-card grammar
+  /** Header (design-benchmark round 2, proposal E) — the ops target-card grammar
    *  (ServiceDetailView `tsTable`) transplanted: 64px bare provider mark +
    *  3-tier identity (#target · SDU/provider → service name·code → run-context
    *  row) with the promoted Target 상세 확인 CTA at right. The subject leads;
    *  the static page label (h1) and run # are demoted into the context row;
-   *  the recipe description lives in the ⓘ tooltip (owner: hover 대체).
+   *  the recipe description lives in the ⓘ tooltip (owner: replace with hover).
    *  All tier metrics are copied from the ops card — no new values. */
   header: {
     root: 'bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)] px-10 pt-6 pb-6 flex flex-col gap-3',
@@ -53,12 +53,13 @@ export const improvedStyles = {
       'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
     prov: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
     /** Tier 2 — labelled service name + code; a fixed-width skeleton until #8
-     *  lands so the header's anchor text never swaps mid-load (텍스트 점프 제거).
+     *  lands so the header's anchor text never swaps mid-load (no text jump).
      *  Labels stay visible during load — the value slot is what skeletons. */
     nameRow: 'flex items-baseline gap-x-2 gap-y-1 min-w-0 min-h-[20px] flex-wrap',
     klabel: 'text-[12px] text-[var(--pl-text-weak)] whitespace-nowrap',
     name: 'text-[14px] font-medium text-[var(--pl-text-strong)] truncate',
-    /** 서비스 코드 — 값이 아니라 분류표라 SDU 칩과 같은 문법(파랑 태그). */
+    /** Service code — a classifier, not a value, so it takes the SDU chip's
+     *  grammar (primary-tinted tag) rather than plain text. */
     code: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-medium [font-family:var(--pl-font-mono)] bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
     /** Tier 3 — run context: lineage badge · type tag(ⓘ) · created. The run #
      *  line was cut on owner feedback — document.title/URL carry it. */
@@ -97,8 +98,8 @@ export const improvedStyles = {
     label: 'text-[13px] text-[var(--pl-chrome-item)] whitespace-nowrap',
     cell: 'flex items-center gap-3 min-w-0',
     curName: 'text-[16px] font-bold text-[var(--pl-white)] truncate',
-    /** PENDING 전용 — 시작 예정 시각은 태스크 이름이 아니라 부가 정보라
-     *  경과 시간(elapsed)과 같은 톤으로 한 계단 낮춘다. */
+    /** PENDING only — the scheduled start is context, not a task name, so it
+     *  drops one tier and takes the `elapsed` tone. */
     curSched: 'text-[14px] font-normal text-[var(--pl-chrome-item)] tabular-nums whitespace-nowrap', // design-exempt: chrome-item on the dark gray-800 exec band (8.0:1), not on white
     pill: 'inline-flex items-center rounded-full px-3 py-1 text-[12px] font-bold text-[var(--pl-white)] leading-none',
     pillTone: {
