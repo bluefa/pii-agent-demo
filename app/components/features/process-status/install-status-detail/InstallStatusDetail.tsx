@@ -667,20 +667,30 @@ export const InstallStatusDetail = ({
         aria-current={ref.id === activeId}
         className={railItemClass(ref.id === activeId)}
       >
+        {/* 할 일의 파란 점과 같은 문법 — "여기 눈길을 달라"는 표시. 색만 주황이라
+            '해야 하는 일'과 '봐 두면 좋은 일'이 같은 어휘 안에서 갈린다. */}
+        <span
+          aria-hidden
+          className={cn(
+            'absolute left-1 top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full',
+            statusColors.warning.dot,
+          )}
+        />
         <span className={cn('flex-1 min-w-0 truncate', textStyles.bodyStrong, textColors.primary)}>
           {ref.title}
         </span>
       </button>
     );
 
-    const groupLabel = (text: string, hot: boolean) => (
+    // 16/500 — 그룹 이름이 항목(14/600)보다 한 단 크다. 레일을 훑을 때 먼저 걸리는 것이
+    // 개별 단계가 아니라 "무엇의 묶음인가"여야 한다는 오너 결정.
+    const groupLabel = (text: string, tone: string) => (
       <div
         className={cn(
-          'px-2.5 pt-3 pb-1 font-bold tracking-[0.02em] flex-shrink-0',
-          textStyles.caption,
+          'px-2.5 pt-3 pb-1 text-[16px] font-medium leading-[24px] tracking-[-0.01em] flex-shrink-0',
           // On the gray-100 panel: #0064FF is 4.47:1 and gray-500 is 4.37:1,
-          // both under AA — use the darker pair the theme keeps for tints.
-          hot ? primaryColors.textOnLight : textColors.secondary,
+          // both under AA — use the darker tiers the theme keeps for tints.
+          tone,
         )}
       >
         {text}
@@ -692,7 +702,14 @@ export const InstallStatusDetail = ({
         {/* Metabar — title left / last-check right, one baseline row. No manual
             refresh or interval control (owner decision) — polling refreshes quietly. */}
         <div className="flex items-baseline gap-3 flex-wrap px-2.5 pt-1.5 pb-2.5">
-          <h3 className={cn(textStyles.cardTitle, textColors.primary)}>설치 진행 상황</h3>
+          <h3
+            className={cn(
+              'text-[20px] font-semibold leading-[28px] tracking-[-0.01em]',
+              textColors.primary,
+            )}
+          >
+            설치 진행 상황
+          </h3>
           <span className={cn('ml-auto', textStyles.caption, textColors.secondary)}>
             {/* checked_at is UTC wire — the label asserts KST, so the formatter
                 pins Asia/Seoul instead of trusting the browser timezone. */}
@@ -707,7 +724,10 @@ export const InstallStatusDetail = ({
             card header is the clipping point. */}
         <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-2 h-[560px]">
           <nav className="flex flex-col gap-0.5 overflow-y-auto min-h-0 pb-1" aria-label="설치 단계">
-            {groupLabel(`내가 할 일 (${openTodoCount})`, openTodoCount > 0)}
+            {groupLabel(
+              `내가 할 일 (${openTodoCount})`,
+              openTodoCount > 0 ? primaryColors.textOnLight : textColors.secondary,
+            )}
             {todoSteps.map((s) => railItem(s, null))}
             {openTodoCount === 0 && (
               <p className={cn('px-3.5 pb-1 flex-shrink-0', textStyles.caption, textColors.secondary)}>
@@ -716,13 +736,15 @@ export const InstallStatusDetail = ({
                 모든 단계는 자동으로 진행돼요
               </p>
             )}
-            {groupLabel('BDC 자동 진행', false)}
+            {groupLabel('BDC 자동 진행', textColors.secondary)}
             {autoSteps.map((s, i) => railItem(s, i + 1))}
 
-            {/* 참고 — 단계가 아니므로 진행 순번 다음, 푸터 요약 앞에 선다. */}
+            {/* 리뷰요청 — 단계가 아니므로 진행 순번 다음, 푸터 요약 앞에 선다.
+                주황은 파랑(내가 할 일)과 겹치지 않는 유일한 강조색이라, 처음 들어온
+                담당자도 찾지 않고 걸린다(오너 요구). */}
             {reference && (
               <>
-                {groupLabel('참고', false)}
+                {groupLabel('리뷰요청', statusColors.warning.textDark)}
                 {referenceItem(reference)}
               </>
             )}

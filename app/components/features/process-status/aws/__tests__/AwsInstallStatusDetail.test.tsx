@@ -256,7 +256,7 @@ describe('AwsInstallStatusDetail', () => {
     );
 
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
-    expect(within(nav).getByText('참고')).toBeTruthy();
+    expect(within(nav).getByText('리뷰요청')).toBeTruthy();
 
     // 상태 글자를 갖지 않는다 — 제목 한 줄이 전부다.
     const item = within(nav).getByText('Terraform Script');
