@@ -254,8 +254,8 @@ export function orderByRequest<T extends { resource_id?: string | null }>(
 /** One credential list row: a contract credential, or an assignment the list lost. */
 export interface CredentialEntry {
   name: string;
-  /** create_time_str — absent for an entry reconstructed from an assignment. */
-  createdAt: string | null;
+  /** last_updated_time — absent for an entry reconstructed from an assignment. */
+  updatedAt: string | null;
   /** 확정 리소스 중 이 credential 을 쓰는 건수. */
   assignedCount: number;
   /** GET …/secrets 응답에 없는 이름 (배정에서만 발견). */
@@ -277,12 +277,12 @@ export function credentialEntries(
   const known = new Set(secrets.map((secret) => secret.name));
   const entries: CredentialEntry[] = secrets.map((secret) => ({
     name: secret.name,
-    createdAt: secret.createTimeStr || null,
+    updatedAt: secret.lastUpdatedTime || null,
     assignedCount: assigned.get(secret.name) ?? 0,
     missing: false,
   }));
   for (const [name, count] of assigned) {
-    if (!known.has(name)) entries.push({ name, createdAt: null, assignedCount: count, missing: true });
+    if (!known.has(name)) entries.push({ name, updatedAt: null, assignedCount: count, missing: true });
   }
   return entries.sort(
     (a, b) =>

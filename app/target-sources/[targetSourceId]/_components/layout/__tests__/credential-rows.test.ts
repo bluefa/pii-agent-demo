@@ -5,7 +5,10 @@ import {
   toCredentialRow,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/credential-rows';
 
-const secret = (name: string, createTimeStr = '2024-01-10T09:00:00Z') => ({ name, createTimeStr });
+const secret = (name: string, lastUpdatedTime = '2024-01-10T09:00:00Z') => ({
+  name,
+  lastUpdatedTime,
+});
 
 describe('toCredentialRow — {userId}-{name} split', () => {
   it('splits on the FIRST hyphen only (later hyphens belong to the name)', () => {
@@ -43,8 +46,8 @@ describe('sortCredentialRows', () => {
     toCredentialRow(secret('a-alpha', '2024-02-01T00:00:00Z')),
   ];
 
-  it('sorts by createdAt desc (the default view: newest first)', () => {
-    expect(sortCredentialRows(rows, 'createdAt', 'desc').map((r) => r.name)).toEqual([
+  it('sorts by updatedAt desc (the default view: most recently changed first)', () => {
+    expect(sortCredentialRows(rows, 'updatedAt', 'desc').map((r) => r.name)).toEqual([
       'b-alpha',
       'a-alpha',
       'a-beta',

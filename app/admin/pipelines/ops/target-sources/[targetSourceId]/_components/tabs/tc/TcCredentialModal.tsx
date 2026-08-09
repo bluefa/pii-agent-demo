@@ -75,7 +75,7 @@ export function TcCredentialModal({
               <thead>
                 <tr>
                   <th className={table.headCell}>이름</th>
-                  <th className={cn(table.headCell, 'w-[150px]')}>생성</th>
+                  <th className={cn(table.headCell, 'w-[150px]')}>최종 수정</th>
                   <th className={cn(table.headCell, 'w-[90px] text-right')}>배정</th>
                 </tr>
               </thead>
@@ -91,7 +91,7 @@ export function TcCredentialModal({
                       )}
                     </td>
                     <td className={cn(table.cell, 'whitespace-nowrap tabular-nums text-[14px]')}>
-                      {entry.createdAt ? fmtDateTime(entry.createdAt) : <Dash />}
+                      {entry.updatedAt ? fmtDateTime(entry.updatedAt) : <Dash />}
                     </td>
                     {/* 배정 0 은 "쓰이지 않는 자격 증명" — 지워지지 않게 faint 로 남긴다. */}
                     <td
