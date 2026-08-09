@@ -11,7 +11,6 @@ import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
-import type { AwsRoleVerification } from '@/app/lib/api/aws';
 import type { CollaborationChannel } from '@/app/lib/api/ops';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
@@ -37,12 +36,8 @@ export interface OpsHeaderProps {
   detail: RawTargetSourceDetail;
   processStatus: ProcessStatus | null;
   isAws: boolean;
-  /**
-   * key 부재 = verify 응답 대기, null = 실패, 객체 = 도착.
-   * 대기 중에는 미등록을 그리지 않는다 — 미등록은 사실 주장이라, 값이 오면
-   * ARN 으로 뒤집히는 거짓말이 된다 (skeleton 으로 자리만 잡는다).
-   */
-  roles: Partial<Record<RoleKind, AwsRoleVerification | null>>;
+  /** 이 화면에서 방금 저장한 ARN만 — 그 외에는 detail.metadata 가 표시의 유일한 출처. */
+  savedRoleArns: Partial<Record<RoleKind, string>>;
   grantTfExecution: boolean;
   channel: CollaborationChannel | null;
   onOpenMode: () => void;
@@ -55,7 +50,7 @@ export function OpsHeader({
   detail,
   processStatus,
   isAws,
-  roles,
+  savedRoleArns,
   grantTfExecution,
   channel,
   onOpenMode,
@@ -67,22 +62,15 @@ export function OpsHeader({
   const provider = providerLabel(displayProvider(detail.cloud_provider, meta.is_sdu_type));
 
   const roleRow = (kind: RoleKind): ReactElement => {
-    const verification = roles[kind];
-    // Verify 응답이 우선(판정까지 담는다); 없으면 v5 metadata 의 등록값으로 표시한다.
+    // 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 별도 조회가 없으니
+    // 첫 페인트가 곧 최종값이고, 미등록이 ARN 으로 뒤집히는 깜빡임이 없다.
     const arn =
-      verification?.role_arn
+      savedRoleArns[kind]
       ?? (kind === 'scan' ? meta.aws_scan_role_arn : meta.aws_terraform_execution_role_arn);
-    // metadata 가 값을 갖고 있으면 기다릴 것이 없다 — 대기는 보여 줄 값이 아예 없을 때만.
-    const pending = !arn && !(kind in roles);
     return (
       <div className={opsStyles.roleRow}>
         <span className={opsStyles.roleLabel}>{ROLE_META[kind].short}</span>
-        {pending ? (
-          <span
-            className={cn(pipelineStyles.skeletonBar, 'h-[12px] w-[300px] rounded')}
-            aria-hidden
-          />
-        ) : arn ? (
+        {arn ? (
           <>
             {/* ARN 은 값이지 동작이 아니다 — 링크로 그리지 않고, 동작(수정)은 옆 버튼이 맡는다. */}
             <span className={opsStyles.roleValue}>{arn}</span>

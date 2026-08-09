@@ -16,7 +16,6 @@ import {
 import { getRawTargetSourceDetail, type RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { getProcessStatus, type TestConnectionVersionResult } from '@/app/lib/api';
 import { fetchLatestTest } from '@/app/hooks/useTestConnectionPolling';
-import { getAwsRoleVerification, type AwsRoleVerification } from '@/app/lib/api/aws';
 import { getCollaborationChannel, type CollaborationChannel } from '@/app/lib/api/ops';
 import {
   getTestConnectionDetail,
@@ -63,7 +62,9 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const [detail, setDetail] = useState<RawTargetSourceDetail | null>(null);
   const [detailFailed, setDetailFailed] = useState(false);
   const [processStatus, setProcessStatus] = useState<ProcessStatus | null>(null);
-  const [roles, setRoles] = useState<Partial<Record<RoleKind, AwsRoleVerification | null>>>({});
+  // 방금 저장한 ARN만 담는다 — 표시값의 출처는 detail.metadata 이고, 저장 직후에는
+  // 그 detail 이 아직 옛 값이라 이 한 칸이 덮어쓴다 (다음 로드에서 metadata 가 따라온다).
+  const [savedRoleArns, setSavedRoleArns] = useState<Partial<Record<RoleKind, string>>>({});
   const [grantTfExecution, setGrantTfExecution] = useState(false);
   const [channel, setChannel] = useState<CollaborationChannel | null>(null);
   // Test Connection state lives here, not in TcTab: 관리자 승인 탭도 같은 상태·판정
@@ -164,13 +165,6 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         .then((loadedChannel) => !cancelled && setChannel(loadedChannel))
         .catch(() => !cancelled && setChannel(null));
       void loadTc();
-      if (loaded.cloud_provider === 'AWS') {
-        (['scan', 'execution'] as const).forEach((kind) => {
-          void getAwsRoleVerification(targetSourceId, kind)
-            .then((verification) => !cancelled && setRoles((prev) => ({ ...prev, [kind]: verification })))
-            .catch(() => !cancelled && setRoles((prev) => ({ ...prev, [kind]: null })));
-        });
-      }
     })();
     return () => {
       cancelled = true;
@@ -234,7 +228,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           detail={detail}
           processStatus={processStatus}
           isAws={isAws}
-          roles={roles}
+          savedRoleArns={savedRoleArns}
           grantTfExecution={grantTfExecution}
           channel={channel}
           onOpenMode={() => setModal({ type: 'mode' })}
@@ -321,23 +315,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           onClose={() => setModal(null)}
           targetSourceId={targetSourceId}
           kind={activeRole}
-          // OpsHeader 의 표시 폴백과 같은 순서 — verify 응답이 없어도(실패 포함) v5
-          // metadata 의 등록값을 초기값으로 준다. 빈 입력으로 열리면 덮어쓰기 사고가 된다.
+          // OpsHeader 의 표시 폴백과 같은 순서 — 빈 입력으로 열리면 덮어쓰기 사고가 된다.
           currentArn={
-            roles[activeRole]?.role_arn
+            savedRoleArns[activeRole]
             ?? (activeRole === 'scan' ? meta.aws_scan_role_arn : meta.aws_terraform_execution_role_arn)
             ?? undefined
           }
           accountId={accountId}
           isChinaRegion={isChina}
           regionLabel={regionLabel}
-          onSaved={(kind, roleArn) =>
-            // A fresh ARN starts unverified — surface IN_PROGRESS until the next verify.
-            setRoles((prev) => ({
-              ...prev,
-              [kind]: { status: 'IN_PROGRESS', role_arn: roleArn },
-            }))
-          }
+          onSaved={(kind, roleArn) => setSavedRoleArns((prev) => ({ ...prev, [kind]: roleArn }))}
         />
       )}
       <ChannelModal
