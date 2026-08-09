@@ -22,10 +22,11 @@ import { useModal } from '@/app/hooks/useModal';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
+import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
+import { normalizeCloudProvider } from '@/lib/types';
 import { Card } from '@/app/admin/pipelines/_components/Card';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
-import { PipelineTypeTag } from '@/app/admin/pipelines/_components/PipelineTypeTag';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { TaskFlow } from '@/app/admin/pipelines/_detail/TaskFlow';
@@ -68,6 +69,10 @@ import type { PipelineDetail, PipelineSummary, TaskDetail, TaskSummary } from '@
 /** R23 (C안) — live-run poll cadence. */
 const POLL_INTERVAL_MS = 10_000;
 
+/** Type label for the combined "AWS 설치" tag — glued to the provider so the
+ *  pair reads as a single concept. */
+const TYPE_KO = { INSTALL: '설치', DELETE: '삭제', CUSTOM: '커스텀' } as const;
+
 type LoadStatus = 'loading' | 'ready' | 'notfound' | 'error';
 
 export function PipelineDetailView(): ReactElement {
@@ -91,6 +96,9 @@ export function PipelineDetailView(): ReactElement {
   // shares it), and the restart gate — only the latest run is restartable
   // (decision 5), so the band CTA needs to know whether THIS run is it.
   const [latest, setLatest] = useState<PipelineSummary | null>(null);
+  // Service-name text is drawn only after #8 settles (success OR failure);
+  // until then the slot is a skeleton.
+  const [latestSettled, setLatestSettled] = useState(false);
   const [selected, setSelected] = useState<TaskSummary | null>(null);
   const cancelModal = useModal();
   const restartModal = useModal();
@@ -106,6 +114,10 @@ export function PipelineDetailView(): ReactElement {
       setDetail(null);
       setDetailMap(new Map());
       setSelected(null);
+      // Skeleton first, so the previous target's service identity never bleeds
+      // into the new run's header.
+      setLatest(null);
+      setLatestSettled(false);
       try {
         const d = await getPipeline(pipelineId);
         if (cancelled) return;
@@ -136,7 +148,8 @@ export function PipelineDetailView(): ReactElement {
         // Degrades silently: no latest ⇒ no restart CTA (server is the authority).
         getLatestPipelineByTarget(d.target_source_id)
           .then((p) => !cancelled && setLatest(p))
-          .catch(() => {});
+          .catch(() => {})
+          .finally(() => !cancelled && setLatestSettled(true));
       } catch (err) {
         if (cancelled) return;
         setStatus(err instanceof OrchestratorApiError && err.status === 404 ? 'notfound' : 'error');
@@ -378,16 +391,70 @@ export function PipelineDetailView(): ReactElement {
 
   return (
     <div className={improvedStyles.bleed}>
-      {/* Header (node 70:35) */}
+      {/* Header (design-benchmark round 2, proposal E) — ops target-card grammar:
+          bare provider mark + 3-tier identity, CTA at right. The subject
+          (target + service) leads; run # and the static page label are the
+          context row; the recipe description is the ⓘ tooltip. */}
       <header className={h.root}>
-        <div className={h.topRow}>
-          <div className={h.titleWrap}>
-            <div className={h.titleRow}>
-              <h1 className={h.title}>작업 현황</h1>
-              <span className={h.id}>#{detail.pipeline_id}</span>
-              <span className={h.svc}>{svcName}</span>
-              {/* The restart identity belongs next to the run's own id — an operator
-                  must not have to read the meta grid to learn this is a re-run. */}
+        <div className={h.titleRow}>
+          <h1 className={text.pageTitle}>Infra 작업 현황</h1>
+          {/* Promoted CTA (owner: "Target 상세 확인 이게 더 중요") — lands on the
+              ops console's 인프라 작업 tab. The header's only blue. */}
+          <Link
+            href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
+            className={cn(
+              pipelineStyles.button.base,
+              pipelineStyles.button.md,
+              pipelineStyles.button.primary,
+              h.cta,
+            )}
+          >
+            Target 상세 확인 <Icon name="arrow-ur" size="sm" />
+          </Link>
+        </div>
+        <div className={h.main}>
+          <ProviderLogo
+            provider={normalizeCloudProvider(detail.cloud_provider)}
+            isSdu={detail.is_sdu_type}
+            variant="bare"
+            className="flex-none self-center"
+          />
+          <div className={h.body}>
+            <div className={h.idRow}>
+              {/* Same rule as the ops card: SDU is a classification so it gets a
+                  chip, every other provider stays plain — the mark on the left
+                  already says the provider, so no tag doubles it. Order is the
+                  owner's: "GCP #1002" — provider first. */}
+              {detail.is_sdu_type ? (
+                <span className={h.sduChip}>SDU</span>
+              ) : (
+                <span className={h.prov}>{providerLabel(provider)}</span>
+              )}
+              <span className={h.id}>
+                <span className={h.idHash}>#</span>
+                {detail.target_source_id}
+              </span>
+            </div>
+            <div className={h.nameRow}>
+              <span className={h.klabel}>서비스 이름</span>
+              {latest || latestSettled ? (
+                <span className={h.name} title={svcName}>
+                  {svcName}
+                </span>
+              ) : (
+                /* Before #8 lands — fixed-width skeleton. Drawing the "Target N"
+                   fallback first and then swapping it is the text jump this
+                   removes; the fallback is for a failed fetch only. */
+                <span className={cn(detailStyles.skeleton, 'h-4 w-[220px]')} aria-hidden="true" />
+              )}
+              {latest?.service_code && (
+                <>
+                  <span className={h.klabel}>코드</span>
+                  <span className={h.code}>{latest.service_code}</span>
+                </>
+              )}
+            </div>
+            <div className={h.subRow}>
               {detail.origin_pipeline_id != null && (
                 <Link
                   href={passRoutes.pipelines.pipeline(detail.origin_pipeline_id)}
@@ -395,84 +462,43 @@ export function PipelineDetailView(): ReactElement {
                 >
                   <RestartBadge
                     originPipelineId={detail.origin_pipeline_id}
-                    className="!text-[12.5px] !px-3 !py-[4px] hover:brightness-95"
+                    className="!text-[12px] !px-2 !py-[3px] hover:brightness-95"
                   />
                 </Link>
               )}
-              {/* Status is shown in the exec band (below) for every state. */}
               {detail.cancel_requested && (
-                <span className={detailStyles.ftag.ext} title="cancel_requested=true 입니다. 다음 실행 사이클에 취소가 반영됩니다.">
+                <span
+                  className={detailStyles.ftag.ext}
+                  title="cancel_requested=true 입니다. 다음 실행 사이클에 취소가 반영됩니다."
+                >
                   취소 요청됨
                 </span>
               )}
-            </div>
-            {recipeDesc && <p className={h.desc}>{recipeDesc}</p>}
-          </div>
-        </div>
-
-        <div className={h.metaGrid}>
-          <span className={h.groupLabel}>작업</span>
-          <div className={h.pair}>
-            <span className={h.k}>유형</span>
-            <PipelineTypeTag type={detail.type} />
-          </div>
-          <div className={h.pair}>
-            <span className={h.k}>서비스 이름</span>
-            <span className={h.vStrong}>{svcName}</span>
-            {detail.recipe_definition && <span className={h.vMono}>{detail.recipe_definition}</span>}
-          </div>
-          <div className={h.pair}>
-            <span className={h.k}>생성 시간</span>
-            <span className={h.v}>{fmtDateTime(detail.created_at)}</span>
-          </div>
-
-          <span className={h.groupLabel}>Target Source</span>
-          <div className={h.pair}>
-            <span className={h.k}>Cloud</span>
-            <span className={h.v}>{providerLabel(provider)}</span>
-          </div>
-          <div className={h.pair}>
-            <span className={h.k}>TargetSourceId</span>
-            <span className={cn(h.v, 'tabular-nums')}>{detail.target_source_id}</span>
-          </div>
-          {/* Lands on the ops console's 인프라 작업 tab: the operator came from a
-              pipeline, so the tab that continues that thread is the one to open. */}
-          <Link
-            href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
-            className={h.link}
-          >
-            Target 상세 확인 <Icon name="arrow-ur" size="sm" />
-          </Link>
-
-          {/* §8.4 — bidirectional provenance. Walking to the origin and to the restart from
-              one place is what tells an operator "this was already handled". */}
-          {(detail.origin_pipeline_id != null || detail.restarted_by_pipeline_id != null) && (
-            <>
-              <span className={h.groupLabel}>계보</span>
-              {detail.origin_pipeline_id != null && (
-                <div className={h.pair}>
-                  <span className={h.k}>원본 작업</span>
-                  <Link
-                    href={passRoutes.pipelines.pipeline(detail.origin_pipeline_id)}
-                    className={h.link}
-                  >
-                    #{detail.origin_pipeline_id} <Icon name="arrow-ur" size="sm" />
-                  </Link>
-                </div>
-              )}
+              <span className={cn(h.typeTag, detail.type === 'DELETE' && h.typeTagDelete)}>
+                {providerLabel(provider)} {TYPE_KO[detail.type]}
+                {recipeDesc && (
+                  <span className={h.tipWrap} tabIndex={0} aria-label="레시피 설명 보기">
+                    <Icon name="info" size="sm" />
+                    <span role="tooltip" className={h.tip}>
+                      <span className={h.tipName}>{detail.recipe_definition}</span>
+                      <span className={h.tipDesc}>{recipeDesc}</span>
+                    </span>
+                  </span>
+                )}
+              </span>
+              <span className="whitespace-nowrap tabular-nums">
+                작업 등록 {fmtDateTime(detail.created_at)}
+              </span>
               {detail.restarted_by_pipeline_id != null && (
-                <div className={h.pair}>
-                  <span className={h.k}>재시작됨</span>
-                  <Link
-                    href={passRoutes.pipelines.pipeline(detail.restarted_by_pipeline_id)}
-                    className={h.link}
-                  >
-                    ↻ #{detail.restarted_by_pipeline_id} <Icon name="arrow-ur" size="sm" />
-                  </Link>
-                </div>
+                <Link
+                  href={passRoutes.pipelines.pipeline(detail.restarted_by_pipeline_id)}
+                  className={h.link}
+                >
+                  재시작됨 ↻ #{detail.restarted_by_pipeline_id} <Icon name="arrow-ur" size="sm" />
+                </Link>
               )}
-            </>
-          )}
+            </div>
+          </div>
         </div>
       </header>
 
@@ -483,7 +509,16 @@ export function PipelineDetailView(): ReactElement {
         <div className={improvedStyles.band.main}>
           <span className={improvedStyles.band.label}>{running ? '현재 실행 중' : cur.label}</span>
           <div className={improvedStyles.band.cell}>
-            <span className={improvedStyles.band.curName}>{cur.name}</span>
+            {/* The 16/bold slot belongs to a task name. A PENDING run's
+                scheduled start is context, not a task, so it drops one tier
+                (owner). */}
+            <span
+              className={
+                detail.status === 'PENDING' ? improvedStyles.band.curSched : improvedStyles.band.curName
+              }
+            >
+              {cur.name}
+            </span>
             <span className={cn(improvedStyles.band.pill, improvedStyles.band.pillTone[detail.status])}>
               {statusKo(detail.status)}
             </span>

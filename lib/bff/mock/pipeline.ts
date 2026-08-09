@@ -1105,13 +1105,25 @@ const resolveProvider = (targetSourceId: string): CloudProvider | null => {
   return INTERNAL_PROVIDER[project.cloudProvider] ?? null;
 };
 
-/** Resolve a target-source's owning service (projectCode/name) from the app's
- *  mock seed — assumed addition to PipelineSummary (#3). Falls back to the
- *  target_source_id itself when the target isn't in the app's project seed. */
+/** A service code is always 3 letters (owner domain rule, 2026-08-09). The mock
+ *  seed carries no real code field, so it is derived from the longest alpha
+ *  token of projectCode ('N-IRP-001' → 'IRP'). Swap in a seed field once a real
+ *  contract sample lands. */
+const deriveServiceCode = (projectCode: string): string => {
+  const tokens = projectCode.split('-').filter((t) => /^[A-Za-z]+$/.test(t));
+  const longest = tokens.sort((a, b) => b.length - a.length)[0] ?? projectCode;
+  return longest.slice(0, 3).toUpperCase();
+};
+
+/** Resolve a target-source's owning service (code/name) from the app's mock
+ *  seed — assumed addition to PipelineSummary (#3). The code is the 3-letter
+ *  service code (deriveServiceCode), NOT the projectCode — the raw
+ *  'N-IRP-001' leaked into the header and read as an unknown identifier.
+ *  Falls back to the target_source_id when the target isn't in the seed. */
 const resolveService = (targetSourceId: string): { service_code: string; service_name: string } => {
   const project = getProjectByTargetSourceId(Number(targetSourceId));
   return project
-    ? { service_code: project.projectCode, service_name: project.name }
+    ? { service_code: deriveServiceCode(project.projectCode), service_name: project.name }
     : { service_code: targetSourceId, service_name: targetSourceId };
 };
 
