@@ -36,6 +36,21 @@ export function useIdcInstallationStatus(targetSourceId: number): UseIdcInstalla
   const currentIdRef = useRef(targetSourceId);
   currentIdRef.current = targetSourceId;
 
+  // DR4 during render, not only in the effect: the effect's reset lands after
+  // paint, so a consumer that branches on `error` first would show the PREVIOUS
+  // target's failure against the new one for one frame (the IDC steps are not
+  // remounted by key). Same idiom as ConfirmedIntegrationDataProvider.
+  const [activeId, setActiveId] = useState(targetSourceId);
+  if (targetSourceId !== activeId) {
+    setActiveId(targetSourceId);
+    setStatus(null);
+    setError(null);
+    // `loading` too — leaving it stale-false reports "settled with nothing",
+    // which is the very shape this reset exists to remove. IdcStep4Installing
+    // gates on `status` and would not notice; the next consumer would.
+    setLoading(true);
+  }
+
   useEffect(() => {
     const controller = new AbortController();
     const requestedId = targetSourceId;
