@@ -517,7 +517,7 @@ export const mockProjects = {
     }
 
     // ADR-019 E6: swagger getTargetSourceSecrets returns a bare array of
-    // SecretResponse { name, create_time, create_time_str } (snake wire).
+    // SecretResponse { name, create_time, create_time_str, last_updated_time } (snake wire).
     const credentials = await mockData.getCredentials();
     const secrets = credentials.map((c) => {
       const createdMs = Date.parse(c.createdAt);
@@ -525,6 +525,10 @@ export const mockProjects = {
         name: c.name,
         create_time: Number.isFinite(createdMs) ? createdMs : 0,
         create_time_str: c.createdAt,
+        // Mock credentials have no rotation history — for a credential that was never
+        // changed, the last update IS the creation. Inventing a plausible gap would have
+        // the screens verify a difference that does not exist.
+        last_updated_time: c.createdAt,
       };
     });
 

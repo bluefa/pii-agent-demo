@@ -626,15 +626,14 @@ export const getTerraformStatus = async (
 
 // ===== Connection Test API (Async) =====
 
-// ADR-019: route emits snake SecretResponse[]; adapter reshapes create_time_str → createTimeStr.
+// ADR-019: route emits snake SecretResponse[]; adapter reshapes last_updated_time → lastUpdatedTime.
 export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> => {
   const raw = await fetchInfraJson<z.infer<typeof schemas.SecretResponse>[]>(
     `${CONFIRM_BASE}/${targetSourceId}/secrets`,
   );
   return raw.map((s) => ({
     name: s.name ?? '',
-    createTime: s.create_time ?? '',
-    createTimeStr: s.create_time_str ?? '',
+    lastUpdatedTime: s.last_updated_time ?? '',
   }));
 };
 

@@ -30,7 +30,7 @@ import {
 const TITLE_ID = 'ops-tc-cred-assign-title';
 const NONE = '';
 
-type SortKey = 'userId' | 'label' | 'createdAt' | 'assignedCount';
+type SortKey = 'userId' | 'label' | 'updatedAt' | 'assignedCount';
 type SortState = { key: SortKey; dir: 'asc' | 'desc' } | null;
 
 /** 표에 그릴 한 행 — 원본 이름은 저장·비교용으로 그대로 들고 간다. */
@@ -49,8 +49,8 @@ const sortRows = (rows: readonly Row[], sort: SortState): Row[] => {
     const primary =
       sort.key === 'assignedCount'
         ? a.assignedCount - b.assignedCount
-        : sort.key === 'createdAt'
-          ? (a.createdAt ?? '').localeCompare(b.createdAt ?? '')
+        : sort.key === 'updatedAt'
+          ? (a.updatedAt ?? '').localeCompare(b.updatedAt ?? '')
           : a[sort.key].localeCompare(b[sort.key]);
     return (primary || a.name.localeCompare(b.name)) * sign;
   });
@@ -161,7 +161,7 @@ export function CredentialAssignModal({
       />
 
       {/* 라디오를 세로로 쌓지 않고 표로 두는 이유: 이름이 `{userId}-{name}` 이라 사실이 네
-          개(누구의 것인지, 무엇인지, 언제 만들었는지, 어디에 이미 쓰이는지)고, 비슷한 이름을
+          개(누구의 것인지, 무엇인지, 마지막으로 언제 바뀌었는지, 어디에 이미 쓰이는지)고, 비슷한 이름을
           가르는 것은 그 넷의 비교다. 열이 있으니 정렬도 열이 한다. */}
       <div className={cn(opsStyles.credModal.list, 'mt-3')}>
         <table className="w-full table-fixed border-separate border-spacing-0" role="radiogroup" aria-label="Credential">
@@ -172,7 +172,7 @@ export function CredentialAssignModal({
               </th>
               <SortHead label="User ID" columnKey="userId" sort={sort} onSort={sortBy} width="w-[104px]" />
               <SortHead label="Credential 이름" columnKey="label" sort={sort} onSort={sortBy} />
-              <SortHead label="생성 시각" columnKey="createdAt" sort={sort} onSort={sortBy} width="w-[136px]" />
+              <SortHead label="최종 수정 시각" columnKey="updatedAt" sort={sort} onSort={sortBy} width="w-[148px]" />
               <SortHead label="배정" columnKey="assignedCount" sort={sort} onSort={sortBy} width="w-[72px]" align="right" />
             </tr>
           </thead>
@@ -232,7 +232,7 @@ export function CredentialAssignModal({
                   )}
                 </td>
                 <td className={cn(opsStyles.credModal.cell, 'tabular-nums')}>
-                  {entry.createdAt ? fmtDateTime(entry.createdAt) : '—'}
+                  {entry.updatedAt ? fmtDateTime(entry.updatedAt) : '—'}
                 </td>
                 {/* 다른 리소스에서 이미 쓰이는지 — 이름이 비슷할 때 가장 잘 구분되는 단서. */}
                 <td

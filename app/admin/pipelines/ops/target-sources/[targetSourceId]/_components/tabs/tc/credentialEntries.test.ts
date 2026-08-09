@@ -7,7 +7,7 @@ import {
   orderByRequest,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
-const secret = (name: string, createTimeStr = ''): SecretKey => ({ name, createTimeStr });
+const secret = (name: string, lastUpdatedTime = ''): SecretKey => ({ name, lastUpdatedTime });
 
 const resource = (
   resourceId: string,
@@ -30,7 +30,7 @@ describe('credentialEntries', () => {
   it('keeps an unassigned credential in the list at 0 — it is the answer to "무엇이 안 쓰이나"', () => {
     const entries = credentialEntries([secret('unused')], []);
     expect(entries).toEqual([
-      { name: 'unused', createdAt: null, assignedCount: 0, missing: false },
+      { name: 'unused', updatedAt: null, assignedCount: 0, missing: false },
     ]);
   });
 
@@ -41,7 +41,7 @@ describe('credentialEntries', () => {
     );
     expect(entries[0]).toEqual({
       name: 'ghost',
-      createdAt: null,
+      updatedAt: null,
       assignedCount: 1,
       missing: true,
     });
@@ -49,9 +49,9 @@ describe('credentialEntries', () => {
     expect(entries[1]?.name).toBe('cred-a');
   });
 
-  it('carries create_time_str through as the entry timestamp', () => {
+  it('carries last_updated_time through as the entry timestamp', () => {
     const [entry] = credentialEntries([secret('cred-a', '2026-03-01T00:00:00Z')], []);
-    expect(entry?.createdAt).toBe('2026-03-01T00:00:00Z');
+    expect(entry?.updatedAt).toBe('2026-03-01T00:00:00Z');
   });
 
   it('ignores resources with no credential assigned', () => {

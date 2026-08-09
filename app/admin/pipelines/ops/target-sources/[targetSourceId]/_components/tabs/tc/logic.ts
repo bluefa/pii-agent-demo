@@ -254,8 +254,8 @@ export function orderByRequest<T extends { resource_id?: string | null }>(
 /** One credential list row: a contract credential, or an assignment the list lost. */
 export interface CredentialEntry {
   name: string;
-  /** create_time_str — absent for an entry reconstructed from an assignment. */
-  createdAt: string | null;
+  /** last_updated_time — absent for an entry reconstructed from an assignment. */
+  updatedAt: string | null;
   /** 확정 리소스 중 이 credential 을 쓰는 건수. */
   assignedCount: number;
   /** GET …/secrets 응답에 없는 이름 (배정에서만 발견). */
@@ -277,12 +277,12 @@ export function credentialEntries(
   const known = new Set(secrets.map((secret) => secret.name));
   const entries: CredentialEntry[] = secrets.map((secret) => ({
     name: secret.name,
-    createdAt: secret.createTimeStr || null,
+    updatedAt: secret.lastUpdatedTime || null,
     assignedCount: assigned.get(secret.name) ?? 0,
     missing: false,
   }));
   for (const [name, count] of assigned) {
-    if (!known.has(name)) entries.push({ name, createdAt: null, assignedCount: count, missing: true });
+    if (!known.has(name)) entries.push({ name, updatedAt: null, assignedCount: count, missing: true });
   }
   return entries.sort(
     (a, b) =>
@@ -300,6 +300,38 @@ export function filterCredentials(
   const q = query.trim().toLowerCase();
   if (!q) return [...entries];
   return entries.filter((entry) => entry.name.toLowerCase().includes(q));
+}
+
+/** The confirmed table's three conditions. An empty string = do not filter on that axis. */
+export interface ConfirmedRowFilter {
+  query: string;
+  dbType: string;
+  region: string;
+}
+
+/**
+ * Search and filter over confirmed resources — the same three axes as the Step 6·7
+ * confirmed table (search · Database Type · Region). The search matches Resource ID AND
+ * Resource Name: an operator looks up whichever of the two they happen to know.
+ *
+ * `labelOfDbType` must return the string the table actually prints — comparing against
+ * the wire value (mysql) never equals the cell's MySQL, so no row would ever pass.
+ */
+export function filterConfirmedRows(
+  rows: readonly ConfirmedIntegrationResourceItem[],
+  filter: ConfirmedRowFilter,
+  labelOfDbType: (row: ConfirmedIntegrationResourceItem) => string,
+): ConfirmedIntegrationResourceItem[] {
+  const needle = filter.query.trim().toLowerCase();
+  return rows.filter((row) => {
+    if (filter.dbType && labelOfDbType(row) !== filter.dbType) return false;
+    if (filter.region && (row.database_region ?? '') !== filter.region) return false;
+    if (!needle) return true;
+    return (
+      row.resource_id.toLowerCase().includes(needle)
+      || (row.resource_name ?? '').toLowerCase().includes(needle)
+    );
+  });
 }
 
 export type LdbTab = 'inc' | 'exc';

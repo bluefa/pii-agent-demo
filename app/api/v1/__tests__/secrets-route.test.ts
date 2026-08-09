@@ -27,15 +27,27 @@ describe('GET /pass/api/v1/target-sources/[targetSourceId]/secrets', () => {
     // ADR-019: getSnakeRaw bypasses camelCaseKeys; route validates with
     // z.array(schemas.SecretResponse).parse and returns snake wire to CSR.
     // CSR getSecrets (app/lib/api/index.ts) does the snake→camel mapping.
+    // last_updated_time is the field every credential screen renders — it must survive
+    // the schema parse, not be stripped as an unknown key.
     mockedGetSecrets.mockResolvedValue([
-      { name: 'cred-a', create_time: 1700000000000, create_time_str: '2026-03-01T00:00:00Z' },
+      {
+        name: 'cred-a',
+        create_time: 1700000000000,
+        create_time_str: '2026-03-01T00:00:00Z',
+        last_updated_time: '2026-03-05T11:20:00Z',
+      },
     ] as never);
 
     const response = await call();
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual([
-      { name: 'cred-a', create_time: 1700000000000, create_time_str: '2026-03-01T00:00:00Z' },
+      {
+        name: 'cred-a',
+        create_time: 1700000000000,
+        create_time_str: '2026-03-01T00:00:00Z',
+        last_updated_time: '2026-03-05T11:20:00Z',
+      },
     ]);
   });
 

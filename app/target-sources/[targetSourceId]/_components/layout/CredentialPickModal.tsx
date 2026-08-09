@@ -5,7 +5,7 @@ import { Modal } from '@/app/components/ui/Modal';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { SearchIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { EmptyState } from '@/app/components/ui/state';
-import { formatDate } from '@/lib/utils/date';
+import { fmtDateTime } from '@/lib/pipeline/format';
 import type { SecretKey } from '@/lib/types';
 import {
   bgColors,
@@ -47,7 +47,7 @@ interface CredentialPickModalProps {
   target: { label: string; value: string };
   /** 현재 배정값 ('' = 미설정). */
   value: string;
-  /** GET …/secrets 레코드 — 이름과 생성 시각. */
+  /** GET …/secrets 레코드 — 이름과 최종 수정 시각. */
   options: readonly SecretKey[];
   saving: boolean;
   onSubmit: (next: string) => void;
@@ -58,7 +58,7 @@ interface CredentialPickModalProps {
  * (값은 표에서 밑줄 텍스트로 읽고, 수정은 여기서 한 번에 커밋).
  *
  * 라디오 목록이 아니라 표인 이유: 이름이 `{userId}-{name}` 이라 사실이 세 개(누구의 것인지,
- * 무엇인지, 언제 등록됐는지)고, 비슷한 이름을 가르는 것은 그 셋의 비교다. 열이 있으니 정렬도
+ * 무엇인지, 마지막으로 언제 바뀌었는지)고, 비슷한 이름을 가르는 것은 그 셋의 비교다. 열이 있으니 정렬도
  * 열이 한다. 목록은 고정 높이 스크롤이라 후보가 몇 개든 모달은 같은 크기로 열린다.
  *
  * 저장 전에는 아무것도 쓰지 않으므로 열어서 보기만 하는 것은 공짜다.
@@ -74,8 +74,9 @@ export const CredentialPickModal = ({
 }: CredentialPickModalProps) => {
   const [picked, setPicked] = useState(value);
   const [query, setQuery] = useState('');
-  // 기본 정렬은 등록 시각 최신순 — 방금 만든 Credential 을 쓰러 오는 경우가 가장 흔하다.
-  const [sortKey, setSortKey] = useState<CredentialSortKey>('createdAt');
+  // 기본 정렬은 최종 수정 시각 최신순 — 방금 만들었거나 방금 고친 Credential 을 쓰러 오는
+  // 경우가 가장 흔하다.
+  const [sortKey, setSortKey] = useState<CredentialSortKey>('updatedAt');
   const [sortDir, setSortDir] = useState<SortDirection>('desc');
 
   const rows = options.map(toCredentialRow);
@@ -88,7 +89,7 @@ export const CredentialPickModal = ({
     setSeededFrom({ isOpen, value });
     setPicked(value);
     setQuery('');
-    setSortKey('createdAt');
+    setSortKey('updatedAt');
     setSortDir('desc');
   }
 
@@ -98,7 +99,7 @@ export const CredentialPickModal = ({
     } else {
       setSortKey(key);
       // 시각은 최신순, 글자는 가나다순이 각자의 기본값이다.
-      setSortDir(key === 'createdAt' ? 'desc' : 'asc');
+      setSortDir(key === 'updatedAt' ? 'desc' : 'asc');
     }
   };
 
@@ -212,15 +213,17 @@ export const CredentialPickModal = ({
                     sortDir={sortDir}
                     onSort={sortBy}
                   />
-                  {/* 날짜만 — 비슷한 이름을 가르는 데 분·초까지는 필요 없었고, 시각을 다 적으면
-                      두 줄로 접혀 행 높이가 열마다 달라졌다. */}
+                  {/* 분까지 — 같은 날 여러 번 고친 Credential 은 날짜만으로는 갈라지지 않는다.
+                      초는 뺀다. 관리자 Credential 배정 표와 같은 24시간 KST 표기를 쓴다 — 같은
+                      값을 두 화면이 다른 문법으로 적으면 비교가 되지 않는다. 폭은 그 한 줄이
+                      접히지 않는 값. */}
                   <SortHeader
-                    label="등록일"
-                    columnKey="createdAt"
+                    label="최종 수정일"
+                    columnKey="updatedAt"
                     sortKey={sortKey}
                     sortDir={sortDir}
                     onSort={sortBy}
-                    className="w-[128px]"
+                    className="w-[152px]"
                   />
                 </tr>
               </thead>
@@ -269,8 +272,15 @@ export const CredentialPickModal = ({
                       <td className={cn(idcStyles.table.cell, cellClass, 'truncate font-mono')}>
                         {row.label}
                       </td>
-                      <td className={cn(idcStyles.table.cell, cellClass, numericFeatures.tabular)}>
-                        {row.createdAt ? formatDate(row.createdAt, 'date') : '—'}
+                      <td
+                        className={cn(
+                          idcStyles.table.cell,
+                          cellClass,
+                          numericFeatures.tabular,
+                          'whitespace-nowrap',
+                        )}
+                      >
+                        {row.updatedAt ? fmtDateTime(row.updatedAt) : '—'}
                       </td>
                     </tr>
                   );

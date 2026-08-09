@@ -511,7 +511,8 @@ export interface DBCredential {
 // v1 API Secret Key (credential의 v1 표현)
 export interface SecretKey {
   name: string;
-  createTimeStr: string;
+  /** last_updated_time — the time the screens show is the last update, not the creation. */
+  lastUpdatedTime: string;
 }
 
 // 연결 에러 타입
