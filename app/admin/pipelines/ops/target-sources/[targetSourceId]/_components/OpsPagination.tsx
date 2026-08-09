@@ -7,9 +7,16 @@
  */
 import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 
+/**
+ * 32×32 / 14px — the median of MUI, Ant Design and Primer pagination, and the
+ * desktop-density control height the design guide allows. The prior 24×24 / 12px
+ * sat exactly on the WCAG 2.5.8 (AA) 24px target floor with the smallest type in
+ * the set, which is what made it hard to hit and hard to read.
+ */
 const PAGE_BTN =
-  'inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1 text-[12px] font-medium transition-colors';
+  'inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-1.5 text-[14px] font-medium transition-colors';
 
 export interface OpsPaginationProps {
   /** 0-based current page. */
@@ -44,9 +51,12 @@ export function OpsPagination({
         aria-label="이전 페이지"
         disabled={page === 0}
         onClick={() => onChange(page - 1)}
-        className={cn(PAGE_BTN, 'text-[var(--pl-text-weak)] disabled:opacity-40')}
+        className={cn(
+          PAGE_BTN,
+          'text-[var(--pl-text-weak)] enabled:hover:bg-[var(--pl-gray-100)] disabled:opacity-40',
+        )}
       >
-        ‹
+        <Icon name="chev-l" />
       </button>
       {windowPages(page, totalPages).map((p) => (
         <button
@@ -69,9 +79,12 @@ export function OpsPagination({
         aria-label="다음 페이지"
         disabled={page >= totalPages - 1}
         onClick={() => onChange(page + 1)}
-        className={cn(PAGE_BTN, 'text-[var(--pl-text-weak)] disabled:opacity-40')}
+        className={cn(
+          PAGE_BTN,
+          'text-[var(--pl-text-weak)] enabled:hover:bg-[var(--pl-gray-100)] disabled:opacity-40',
+        )}
       >
-        ›
+        <Icon name="chev-r" />
       </button>
     </nav>
   );
