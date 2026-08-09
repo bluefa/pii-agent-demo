@@ -48,13 +48,17 @@ export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) =>
   // card's own padding do the spacing the border used to.
   <div className="flex w-[248px] flex-shrink-0 flex-col px-[14px] pb-[22px] pt-6">
     <div className="px-2.5 pb-5">
-      <h2 id={titleId} className={cn('text-lg font-bold', textColors.primary)}>
+      {/* 16px against the step heading's 18px: this names the whole flow and the heading
+          opposite names the current step, so they must not read as the same rank. */}
+      <h2 id={titleId} className={cn('text-base font-bold', textColors.primary)}>
         인프라 등록
       </h2>
       {/* One line, deliberately. At 14px the column gives this text 200px; the longer
           「PII 모니터링을 시작할 인프라를 등록해요.」 measures 220 and wrapped. This
-          wording lands at 181, so it holds its line with room for a wider fallback
-          font. `nowrap` makes the constraint fail loudly if the copy grows again. */}
+          wording lands at ~181, leaving 18px for a wider fallback face. Note the
+          overflow is silent — the rail has no clipping box, so text that outgrew this
+          would run into the 30px of padding and gutter beside it before touching the
+          card. The margin is the guarantee here, not the box. */}
       <p className={cn('mt-1 whitespace-nowrap text-sm', textColors.secondary)}>
         PII 모니터링할 인프라를 등록해요.
       </p>
