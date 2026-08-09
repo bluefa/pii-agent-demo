@@ -15,7 +15,7 @@ const row = (
     database_region: region,
   }) as ConfirmedIntegrationResourceItem;
 
-// 표가 찍는 라벨 — wire 원문(mysql)이 아니라 이 값으로 걸러야 한다.
+// The label the table prints — filtering compares against this, not the wire value (mysql).
 const label = (item: ConfirmedIntegrationResourceItem): string =>
   item.database_type === 'mysql' ? 'MySQL' : 'DynamoDB';
 
@@ -54,7 +54,7 @@ describe('filterConfirmedRows', () => {
       'orders-prod',
       'arn:aws:rds:us-east-1:1:cluster:payments',
     ]);
-    // wire 원문으로는 아무 행도 걸리지 않는다 — 옵션은 셀의 문자열이어야 한다.
+    // The wire value matches nothing — the option must be the cell's own string.
     expect(filterConfirmedRows(rows, { ...none, dbType: 'mysql' }, label)).toEqual([]);
   });
 

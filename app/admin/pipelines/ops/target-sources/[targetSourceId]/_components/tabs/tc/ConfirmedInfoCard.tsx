@@ -56,23 +56,24 @@ import {
   type TcVerdict,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 
-/** Step 6·7 확정 표와 같은 한 페이지 분량. */
+/** One page's worth, same as the Step 6·7 confirmed table. */
 const PAGE_SIZE = 10;
 
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 
-/** 빈 값은 옵션이 될 수 없다 — 고를 수 없는 조건은 목록에 두지 않는다. */
+/** A blank cannot be an option — a condition nobody can pick stays out of the list. */
 const uniqueSorted = (values: readonly string[]): string[] =>
   Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
 /**
- * Step 6·7 확정 표의 골격을 관리자 토큰으로 옮긴 값들 — 여백·정렬은 그 표(18/16, 옅은 헤더
- * 면, 헤어라인 행)에서 그대로 가져오고, 색·글자는 이 콘솔의 `--pl-*` 를 쓴다. 두 화면이 같은
- * 리소스를 같은 순서로 읽되, 이 카드가 옆 카드들과 다른 톤으로 튀지는 않게 하기 위함이다.
+ * The Step 6·7 confirmed table's skeleton, translated to admin tokens — spacing and
+ * alignment come straight from that table (18/16, pale header band, hairline rows),
+ * while colour and type stay on this console's `--pl-*`. Both screens then read the
+ * same resources in the same order without this card breaking tone with its neighbours.
  */
 const TABLE_FRAME =
   'overflow-x-auto rounded-b-[10px] border border-t-0 border-[var(--pl-border)]';
-/** 툴바는 표에 붙는다 — 사이에 간격을 두면 검색창이 어느 표를 거르는지 말하지 못한다. */
+/** The toolbar is attached to the table — a gap between them leaves the search box unable to say which table it filters. */
 const TOOLBAR =
   'mt-3 flex flex-wrap items-center gap-2 rounded-t-[10px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-4 py-3';
 const SEARCH_INPUT =
@@ -130,9 +131,11 @@ function CountCell({
 }
 
 /**
- * Resource Name — Step 6·7 확정 표의 정체성 스택: 클러스터·EC2 는 무엇인지를 이름 위
- * 태그로 먼저 말하고, 이름은 한 줄로 자른 뒤 전체 값을 팁에 둔다(잘렸을 때만 뜬다).
- * 태그가 붙은 행만 두 줄이므로, 그 행만 위로 당겨 이름이 이웃 열의 정렬선에 남는다.
+ * Resource Name — the Step 6·7 confirmed table's identity stack: a cluster or EC2 row
+ * says WHAT it is in a tag above the name, and the name itself is truncated to one line
+ * with the full value in a tip (which only appears once it is actually cut). Only tagged
+ * rows run two lines, so only those are lifted, keeping the name on the row's alignment
+ * line with its neighbouring columns.
  */
 function ResourceNameCell({
   value,
@@ -205,8 +208,9 @@ export function ConfirmedInfoCard({
   const [ldbRow, setLdbRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
   const [credRow, setCredRow] = useState<ConfirmedIntegrationResourceItem | null>(null);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
-  // 검색·필터·페이지 — Step 6·7 확정 표가 가진 것과 같은 세 가지. 확정 리소스는 수십 건이라
-  // 한 화면에 다 펴 두면 Credential 배정을 하러 온 사람이 자기 행을 눈으로 찾아야 했다.
+  // Search · filter · page — the same three the Step 6·7 confirmed table carries. Confirmed
+  // resources run to dozens, and laying them all out at once made whoever came here to assign
+  // a Credential hunt for their own row by eye.
   const [query, setQuery] = useState('');
   const [dbTypeFilter, setDbTypeFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
@@ -214,8 +218,8 @@ export function ConfirmedInfoCard({
 
   const tcByResourceId = new Map(tcResults.map((row) => [row.resourceId, row]));
 
-  // 옵션은 셀이 실제로 찍는 문자열이어야 한다 — wire 원문(mysql)을 옵션에 두면 셀의
-  // MySQL 과 달라 아무 행도 걸리지 않는다.
+  // An option has to be the string the cell actually prints — put the wire value (mysql)
+  // in the list and it never equals the cell's MySQL, so no row would ever pass.
   const dbTypeOf = (row: ConfirmedIntegrationResourceItem): string =>
     row.database_type ? getDatabaseShortLabel(row.database_type) : '';
   const dbTypeOptions = useMemo(() => uniqueSorted(rows.map(dbTypeOf)), [rows]);
@@ -231,7 +235,7 @@ export function ConfirmedInfoCard({
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  // 필터를 좁히면 지금 페이지가 범위 밖으로 나갈 수 있다 — 그대로 쓰면 빈 표가 된다.
+  // Narrowing the filter can push the current page past the end — used as-is it renders empty.
   const safePage = Math.min(page, totalPages - 1);
   const pageRows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
   const firstIndex = filtered.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
@@ -313,8 +317,9 @@ export function ConfirmedInfoCard({
         </div>
       ) : (
         <>
-          {/* 검색 + 두 필터는 표에 붙은 툴바다 — Step 6·7 과 같은 실루엣(옅은 면, 위쪽만
-              라운드, 아래 간격 없음). 떠 있는 입력창은 자기가 무엇을 거르는지 말하지 못한다. */}
+          {/* Search + the two filters are a toolbar attached to the table — the same
+              silhouette as Step 6·7 (pale band, rounded on top only, no gap below).
+              A floating input cannot say what it is filtering. */}
           <div className={TOOLBAR}>
             <input
               type="text"
@@ -360,8 +365,9 @@ export function ConfirmedInfoCard({
           </div>
           <div className={TABLE_FRAME}>
             <table className={table.base}>
-              {/* Step 2·3·6·7 의 열 순서: 정체성(이름 → id) → 속성(타입 · 리전) → 판정.
-                  관리자 전용 두 열(연결 상태 · Credential)은 그 뒤에 붙는다. */}
+              {/* The column order of steps 2·3·6·7: identity (name → id) → attributes
+                  (type · region) → verdict. The two admin-only columns (연결 상태 ·
+                  Credential) trail behind them. */}
               <thead className="bg-[var(--pl-gray-50)]">
                 <tr>
                   <th className={HEAD_CELL}>Resource Name</th>
@@ -410,12 +416,13 @@ export function ConfirmedInfoCard({
                         )}
                       </td>
                       <td className={cn(CELL, 'whitespace-nowrap')}>
-                        {/* wire 는 소문자 원문(mysql·athena) — 사용자 화면과 같은 표기.
-                            타입은 상태가 아니라 분류라 칩(색면)을 쓰지 않는다. */}
+                        {/* The wire is lowercase (mysql·athena) — labelled the way the
+                            user screens label it. A type is a classification, not a
+                            status, so it gets no chip. */}
                         {row.database_type ? getDatabaseShortLabel(row.database_type) : <Dash />}
                       </td>
                       <td className={cn(CELL, 'whitespace-nowrap font-mono')}>
-                        {/* 리전은 한 덩어리다 — 접히면 'ap-northeast-' / '2' 두 값처럼 읽힌다. */}
+                        {/* A region is one token — wrapped, 'ap-northeast-' / '2' reads as two. */}
                         {row.database_region || <Dash />}
                       </td>
                       <td className={CELL}>
@@ -473,7 +480,7 @@ export function ConfirmedInfoCard({
               </tbody>
             </table>
           </div>
-          {/* 범위와 페이저는 같은 줄에 — Agent별 결과 목록이 쓰는 문법 그대로다. */}
+          {/* Range and pager share a line — the grammar the Agent별 결과 list above uses. */}
           <div className="mt-3 flex items-center justify-between gap-3">
             <p className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">
               {firstIndex}–{safePage * PAGE_SIZE + pageRows.length} / {filtered.length}

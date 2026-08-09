@@ -525,8 +525,9 @@ export const mockProjects = {
         name: c.name,
         create_time: Number.isFinite(createdMs) ? createdMs : 0,
         create_time_str: c.createdAt,
-        // 목 credential 은 갱신 이력이 없다 — 한 번도 바뀌지 않은 자격 증명의 마지막
-        // 갱신 시각은 생성 시각이다. 그럴듯한 차이를 지어내면 화면이 그 차이를 검증한다.
+        // Mock credentials have no rotation history — for a credential that was never
+        // changed, the last update IS the creation. Inventing a plausible gap would have
+        // the screens verify a difference that does not exist.
         last_updated_time: c.createdAt,
       };
     });

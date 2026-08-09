@@ -511,7 +511,7 @@ export interface DBCredential {
 // v1 API Secret Key (credential의 v1 표현)
 export interface SecretKey {
   name: string;
-  /** last_updated_time — 화면이 쓰는 시각은 생성이 아니라 마지막 갱신이다. */
+  /** last_updated_time — the time the screens show is the last update, not the creation. */
   lastUpdatedTime: string;
 }
 
