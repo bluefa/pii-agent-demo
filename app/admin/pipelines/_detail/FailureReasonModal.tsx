@@ -26,7 +26,14 @@ export function FailureReasonModal({
 }): ReactElement {
   const text = formatJson(detail); // verbatim unless the whole string is valid JSON
   return (
-    <ModalShell open onClose={onClose} labelledBy="pl-fail-reason-title" className={j.viewer} closeOnEsc={false}>
+    <ModalShell
+      open
+      onClose={onClose}
+      labelledBy="pl-fail-reason-title"
+      className={j.viewer}
+      style={j.viewerBaseSize}
+      closeOnEsc={false}
+    >
       <div className={j.vHead}>
         <div className="min-w-0">
           <div className={j.vTitle} id="pl-fail-reason-title">

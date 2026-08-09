@@ -79,9 +79,22 @@ export const jobStyles = {
 
   // ── Viewer (rendered inside ModalShell — scrim/Esc/backdrop are the shell's) ─
   /** Overrides ModalShell's default dialog padding/width for a full-bleed viewer.
-   *  Fixed height (not just max) so the dark log panel fills all the way to the
-   *  bottom even when the log is short (owner Figma node 121-659). */
-  viewer: '!w-[720px] !max-w-[90vw] !p-0 !h-[572px] !max-h-[85vh] flex flex-col overflow-hidden',
+   *  Width/height come from JobViewer as an inline style (user-resizable) — the
+   *  max-* here are the viewport backstop, so no `!w`/`!h` importance that would
+   *  outrank the inline size. Explicit height (not just max) keeps the dark log
+   *  panel filling to the bottom even when the log is short (owner Figma node 121-659). */
+  viewer: 'relative !max-w-[95vw] !p-0 !max-h-[90vh] flex flex-col overflow-hidden',
+  /** Default viewer size, applied inline by each consumer (owner Figma node 121-659). */
+  viewerBaseSize: { width: 720, height: 572 },
+  /** Bottom-right drag grip — logs are long lines, so the operator sizes the
+   *  viewer to the log instead of the other way round. The tone is picked, never
+   *  layered: two text-[…] classes would both apply and stylesheet order, not
+   *  argument order, would decide the winner. */
+  grip: 'absolute bottom-0 right-0 z-10 h-4 w-4 cursor-nwse-resize touch-none',
+  gripTone: {
+    light: 'text-[var(--pl-gray-500)]',
+    dark: 'text-[var(--pl-gray-400)]', // design-exempt: grip glyph on the dark log panel
+  },
   vHead: 'flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-[var(--pl-border)]',
   vTitle: 'flex items-center gap-2.5 text-[16px] font-bold leading-snug text-[var(--pl-text-strong)]',
   vJid: 'tabular-nums',
