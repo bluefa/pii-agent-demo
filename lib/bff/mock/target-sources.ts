@@ -8,7 +8,7 @@ import {
   mockServiceCodes,
 } from '@/lib/mock-data';
 import { mockProjects } from '@/lib/bff/mock/projects';
-import { opsInstallModeOverride } from '@/lib/bff/mock/ops';
+import { opsInstallModeOverride, opsRoleArnOverride } from '@/lib/bff/mock/ops';
 import { createInitialProjectStatus } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
 import type { CloudProvider, Project } from '@/lib/types';
@@ -124,9 +124,18 @@ const getBffMetadata = (project: Project) => {
     ...(grant !== undefined
       ? { grant_service_terraform_execution_permission: grant }
       : {}),
-    // v5 — provider 별 scan/terraform 주체. GCP·Azure 만 시드한다: AWS 는 운영 콘솔이
-    // verify 응답을 우선하고, 그 값은 ops mock store 에서 갱신되므로 여기 정적 시드가
-    // 있으면 수정 직후 두 값이 어긋나 보인다.
+    // v5 — provider 별 scan/terraform 주체. AWS 는 ops PUT 으로 갱신되므로 store 의
+    // 저장값이 시드를 덮는다 (그래야 수정 직후 detail 과 화면이 어긋나지 않는다).
+    ...(project.awsAccountId
+      ? {
+          aws_scan_role_arn:
+            opsRoleArnOverride(project.targetSourceId, 'scan')
+            ?? `arn:aws:iam::${project.awsAccountId}:role/BDCPIIInfraScanRole`,
+          aws_terraform_execution_role_arn:
+            opsRoleArnOverride(project.targetSourceId, 'execution')
+            ?? `arn:aws:iam::${project.awsAccountId}:role/bdc-infra-terraform-worker-service-role`,
+        }
+      : {}),
     ...(project.gcpProjectId
       ? {
           gcp_scan_service_account: `pii-agent-scan@${project.gcpProjectId}.iam.gserviceaccount.com`,

@@ -108,6 +108,18 @@ export const consumeOpsRoleOverride = (
   return { roleArn, pending };
 };
 
+/**
+ * Cross-module hook for lib/bff/mock/target-sources.ts: the ARN saved through
+ * the assumed PUT shows up in the detail metadata, which is what the ops header
+ * reads. Unlike consumeOpsRoleOverride this does not touch pendingVerify —
+ * 조회는 검증 상태를 소비하지 않는다.
+ */
+export const opsRoleArnOverride = (
+  targetSourceId: number,
+  kind: 'scan' | 'execution',
+): string | null =>
+  globalStore.__opsConsoleMockStore?.get(targetSourceId)?.roleArns[kind] ?? null;
+
 /** Cross-module hook for lib/bff/mock/target-sources.ts: install-mode override. */
 export const opsInstallModeOverride = (targetSourceId: number): boolean | null =>
   globalStore.__opsConsoleMockStore?.get(targetSourceId)?.grantTfExecution ?? null;

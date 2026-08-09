@@ -11,7 +11,6 @@ import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
-import type { AwsRoleVerification } from '@/app/lib/api/aws';
 import type { CollaborationChannel } from '@/app/lib/api/ops';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
@@ -37,8 +36,8 @@ export interface OpsHeaderProps {
   detail: RawTargetSourceDetail;
   processStatus: ProcessStatus | null;
   isAws: boolean;
-  /** null while loading / on error; role rows render 미등록 when role_arn is absent. */
-  roles: Partial<Record<RoleKind, AwsRoleVerification | null>>;
+  /** 이 화면에서 방금 저장한 ARN만 — 그 외에는 detail.metadata 가 표시의 유일한 출처. */
+  savedRoleArns: Partial<Record<RoleKind, string>>;
   grantTfExecution: boolean;
   channel: CollaborationChannel | null;
   onOpenMode: () => void;
@@ -51,7 +50,7 @@ export function OpsHeader({
   detail,
   processStatus,
   isAws,
-  roles,
+  savedRoleArns,
   grantTfExecution,
   channel,
   onOpenMode,
@@ -63,10 +62,10 @@ export function OpsHeader({
   const provider = providerLabel(displayProvider(detail.cloud_provider, meta.is_sdu_type));
 
   const roleRow = (kind: RoleKind): ReactElement => {
-    const verification = roles[kind];
-    // Verify 응답이 우선(판정까지 담는다); 없으면 v5 metadata 의 등록값으로 표시한다.
+    // 표시값은 detail 과 같이 온다 (v5 metadata 의 등록값) — 별도 조회가 없으니
+    // 첫 페인트가 곧 최종값이고, 미등록이 ARN 으로 뒤집히는 깜빡임이 없다.
     const arn =
-      verification?.role_arn
+      savedRoleArns[kind]
       ?? (kind === 'scan' ? meta.aws_scan_role_arn : meta.aws_terraform_execution_role_arn);
     return (
       <div className={opsStyles.roleRow}>

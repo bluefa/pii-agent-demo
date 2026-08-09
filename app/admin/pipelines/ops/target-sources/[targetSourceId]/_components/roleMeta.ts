@@ -8,15 +8,14 @@ export const ROLE_META: Record<
   scan: {
     title: 'Scan Role',
     short: 'Scan Role',
-    sample: 'PIIAgentScanRole',
+    sample: 'BDCPIIInfraScanRole',
     // 자주 쓰는 이름 — 모달이 세로로 쌓이는 칩으로 그린다 (추가되면 여기만 늘린다).
-    recommended: ['PIIAgentScanRole'],
+    recommended: ['BDCPIIInfraScanRole', 'bdc-pii-infra-scan-role'],
   },
   execution: {
     title: 'Terraform Execution Role',
     short: 'TF Role',
-    sample: 'PIIAgentTerraformExecRole',
-    // 확정된 공용 이름이 아직 없다 — 정해지면 채운다 (빈 배열 = 칩 미노출).
-    recommended: [],
+    sample: 'bdc-infra-terraform-worker-service-role',
+    recommended: ['bdc-infra-terraform-worker-service-role'],
   },
 };
