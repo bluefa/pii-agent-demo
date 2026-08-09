@@ -3,7 +3,7 @@
 - **일자**: 2026-08-09
 - **대상**: `/pass/admin/pipelines/{pipelineId}` (PipelineDetailView · TaskFlow · TaskDrawer)
 - **아티팩트**: https://claude.ai/code/artifact/c645e31f-ba37-4cbc-91ae-b4ac149e8f08
-- **구현 PR**: #TBD (이 문서가 포함된 PR)
+- **구현 PR**: [#662](https://github.com/bluefa/pii-agent-demo/pull/662)
 
 ## 문제 요약 (근거 등급)
 
