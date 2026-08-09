@@ -38,11 +38,10 @@ import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyl
 import {
   changedTaskIds,
   currentTaskInfo,
+  findFailedTask,
   taskDisplayName,
   retrySuffix,
 } from '@/app/admin/pipelines/_detail/statusModel';
-import { PlBreadcrumb } from '@/app/admin/pipelines/_components/PlBreadcrumb';
-import { pipelineCrumbs } from '@/app/admin/pipelines/_detail/pipelineBreadcrumb';
 import {
   canCancel,
   displayProvider,
@@ -123,7 +122,7 @@ export function PipelineDetailView(): ReactElement {
           // 실패 우선 랜딩 (시안 1) — the operator's first question on a FAILED
           // run is "why"; open the failed task's drawer for them. Load-time
           // only: closing it stays closed (no re-open on poll).
-          const failed = d.tasks.find((t) => t.status === 'FAILED');
+          const failed = findFailedTask(d.tasks);
           if (failed) setSelected(failed);
         }
         getTaskDefinitions(d.cloud_provider)
@@ -228,17 +227,23 @@ export function PipelineDetailView(): ReactElement {
     };
   }, []);
 
+  // Owning-service identity (#8, async) — read by the title effect and header.
+  const svcName =
+    latest?.service_name ||
+    latest?.service_code ||
+    (detail ? `Target ${detail.target_source_id}` : '');
+
   // Every run's tab used to read the layout's static title — indistinguishable
-  // in browser history/tabs (시안 5). Restored on unmount.
+  // in browser history/tabs (시안 5). Imperative on purpose: the identity is
+  // client-fetched, out of generateMetadata's reach. Restored on unmount.
   useEffect(() => {
     if (!detail) return;
-    const svc = latest?.service_name || latest?.service_code || `Target ${detail.target_source_id}`;
     const prev = document.title;
-    document.title = `작업 #${detail.pipeline_id} · ${svc}`;
+    document.title = `작업 #${detail.pipeline_id} · ${svcName}`;
     return () => {
       document.title = prev;
     };
-  }, [detail, latest]);
+  }, [detail, svcName]);
 
   const resolveName = useCallback(
     (t: TaskSummary): string => taskDisplayName(t, detailMap.get(t.task_id), catalog),
@@ -345,7 +350,6 @@ export function PipelineDetailView(): ReactElement {
   // terminal (DONE/FAILED/CANCELLED) → a plain status badge in the header.
   const live = isLivePipeline(detail.status);
   const cur = currentTaskInfo(detail.status, detail.next_due_at, detail.tasks, resolveName, retryFor);
-  const svcName = latest?.service_name || latest?.service_code || `Target ${detail.target_source_id}`;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
   // §8.4 — the band's right slot is "what you can do in this state": live → cancel,
   // restartable failure → restart, DONE → nothing (decision 5). An already-restarted run
@@ -358,12 +362,13 @@ export function PipelineDetailView(): ReactElement {
   // 실행 구간 (시안 2·5) — 태스크 타임스탬프에서 유도; 시작 전이면 둘 다 null.
   const win = runWindow(detail.status, detail.tasks, detail.last_activity_at);
   const winEndMs = win.end != null ? Date.parse(win.end) : now;
+  // Clamped: on a live run winEndMs is the BROWSER clock against a server
+  // start — server-ahead skew must read as 0초, not the '-' NaN fallback.
   const elapsedMs =
-    win.start != null && winEndMs != null ? winEndMs - Date.parse(win.start) : null;
+    win.start != null && winEndMs != null ? Math.max(0, winEndMs - Date.parse(win.start)) : null;
   // 실패 스트립 (시안 1) — FAILED 런의 원인 요약. 재시작이 최신 런(supersededBy)
   // 소관이라 이 화면에 CTA가 없을 때, 그 사유도 이 스트립이 말한다 (침묵 금지).
-  const failedTask =
-    detail.status === 'FAILED' ? detail.tasks.find((t) => t.status === 'FAILED') ?? null : null;
+  const failedTask = detail.status === 'FAILED' ? findFailedTask(detail.tasks) : null;
   const supersededBy =
     (detail.status === 'FAILED' || detail.status === 'CANCELLED') &&
     latest != null &&
@@ -377,8 +382,6 @@ export function PipelineDetailView(): ReactElement {
       <header className={h.root}>
         <div className={h.topRow}>
           <div className={h.titleWrap}>
-            {/* 대시보드 › {target} › 작업 #N — 딥링크 진입자의 목록 복귀 경로 (시안 5). */}
-            <PlBreadcrumb crumbs={pipelineCrumbs(detail.pipeline_id, detail.target_source_id)} />
             <div className={h.titleRow}>
               <h1 className={h.title}>작업 현황</h1>
               <span className={h.id}>#{detail.pipeline_id}</span>

@@ -384,8 +384,9 @@ describe('exec-band helpers (design-benchmark 시안 1·2·5)', () => {
       '2/4단계에서 실패',
     );
     expect(progressPhrase('DONE', chain(['DONE', 'DONE']))).toBe('2단계 완료');
+    // CANCELLED 접미사 없음 — 옆의 상태 pill이 이미 '중단'을 말한다.
     expect(progressPhrase('CANCELLED', chain(['DONE', 'CANCELLED', 'CANCELLED']))).toBe(
-      '1/3단계 완료 · 중단',
+      '1/3단계 완료',
     );
     expect(progressPhrase('PENDING', chain(['BLOCKED', 'BLOCKED']))).toBe('0/2단계 완료');
   });
@@ -402,9 +403,20 @@ describe('exec-band helpers (design-benchmark 시안 1·2·5)', () => {
       start: '2026-08-09T01:09:00Z',
       end: null,
     });
+    // 실패 태스크의 finished_at이 비어도 종료가 터미널 전이 시각(last_activity_at)
+    // 밑으로 내려가지 않는다 — max(finished_at)=01:20 < last_activity=01:25.
     expect(runWindow('FAILED', t, '2026-08-09T01:25:00Z')).toEqual({
       start: '2026-08-09T01:09:00Z',
-      end: '2026-08-09T01:20:00Z',
+      end: '2026-08-09T01:25:00Z',
+    });
+    // finished_at이 last_activity_at보다 늦으면 finished_at이 이긴다.
+    const lateFinish = chain(
+      ['DONE'],
+      [{ started_at: '2026-08-09T01:09:00Z', finished_at: '2026-08-09T01:30:00Z' }],
+    );
+    expect(runWindow('DONE', lateFinish, '2026-08-09T01:25:00Z')).toEqual({
+      start: '2026-08-09T01:09:00Z',
+      end: '2026-08-09T01:30:00Z',
     });
     // 시작 전 취소 — started_at이 하나도 없으면 구간 자체가 없다.
     expect(runWindow('CANCELLED', chain(['CANCELLED']), '2026-08-09T01:25:00Z')).toEqual({

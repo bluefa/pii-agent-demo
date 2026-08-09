@@ -22,15 +22,13 @@ export function targetCrumbs(svcName: string, targetId: string | number): Breadc
   ];
 }
 
-/** Pipeline-detail breadcrumb: 대시보드 › {targetId}(→target) › 작업 #{id}.
- *  The parent list is the pipeline dashboard (the sidebar's 대시보드), not the
- *  services search this helper pointed at before it went unused. */
+/** Pipeline-detail breadcrumb: 서비스 검색 › {targetId}(→target) › 작업 #{id}. */
 export function pipelineCrumbs(
   pipelineId: string | number,
   targetSourceId: string,
 ): BreadcrumbCrumb[] {
   return [
-    { label: '대시보드', href: passRoutes.pipelines.dashboard },
+    { label: '서비스 검색', href: passRoutes.pipelines.services },
     { label: targetSourceId, href: passRoutes.pipelines.ops.targetSource(targetSourceId, 'infra') },
     { label: `작업 #${pipelineId}` },
   ];

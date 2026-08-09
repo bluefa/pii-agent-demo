@@ -370,7 +370,7 @@ export function progressPhrase(status: PipelineStatus, tasks: readonly TaskSumma
   if (status === 'RUNNING' && ordinal != null) return `${ordinal}/${total}단계 실행 중`;
   if (status === 'FAILED' && ordinal != null) return `${ordinal}/${total}단계에서 실패`;
   if (status === 'DONE') return `${total}단계 완료`;
-  if (status === 'CANCELLED') return `${done}/${total}단계 완료 · 중단`;
+  // CANCELLED gets no suffix — the adjacent status pill already says 중단.
   return `${done}/${total}단계 완료`;
 }
 
@@ -397,7 +397,12 @@ export function runWindow(
   }
   if (start === null) return { start: null, end: null };
   if (isLivePipeline(status)) return { start, end: null };
-  return { start, end: end ?? lastActivityAt };
+  // 종료 시각 = max(finished_at)과 last_activity_at 중 늦은 쪽. 실패로 끝난
+  // 태스크는 finished_at이 비어 올 수 있어 max(finished_at)만으로는 마지막
+  // 성공 태스크에서 멈춘다(과소 보고) — 종료 상태의 last_activity_at은
+  // 터미널 전이 시각이라 그 하한을 보장한다.
+  const endsBeforeLastActivity = end === null || Date.parse(end) < Date.parse(lastActivityAt);
+  return { start, end: endsBeforeLastActivity ? lastActivityAt : end };
 }
 
 /** 경과/소요 표시: 60초 미만 'N초', 60분 미만 'N분', 이후 'H시간 M분'. 음수/NaN → '-'. */
