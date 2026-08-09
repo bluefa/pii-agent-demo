@@ -3,7 +3,7 @@
 - **일자**: 2026-08-09
 - **대상**: `/pass/admin/pipelines/{pipelineId}` 헤더 (PipelineDetailView)
 - **아티팩트**: https://claude.ai/code/artifact/1f10470a-f43f-464e-b225-62fdca5628ba
-- **구현 PR**: (이 문서가 포함된 PR)
+- **구현 PR**: [#667](https://github.com/bluefa/pii-agent-demo/pull/667)
 - **선행**: Round 1(화면 전체) → PR #662, `pipeline-detail.md`
 
 ## 오너 공리 (2026-08-09 구두 — 진단의 기준)
