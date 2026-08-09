@@ -115,13 +115,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             return (
               <Fragment key={rowKey}>
               <tr
-                className={cn(
-                  ROW_BASE,
-                  excluded ? ROW_EXCLUDED : ROW_TARGET,
-                  // Kind tag above the name — the rest of the row lines up on the name.
-                  (isCluster || isEc2) && table.stackedIdentityRow,
-                  rail?.className,
-                )}
+                className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
                 onMouseEnter={rail?.onMouseEnter}
                 onMouseLeave={rail?.onMouseLeave}
               >
@@ -163,9 +157,13 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                         <ChevronRightIcon className="h-3.5 w-3.5" />
                       </button>
                     )}
-                    <span className="flex min-w-0 flex-col items-start gap-1">
+                    <span className={cn(
+                      'flex min-w-0 flex-col items-start gap-1',
+                      // Only a tagged row is two lines — an untagged one is already on the middle.
+                      (isCluster || isEc2) && table.stackedIdentityLift,
+                    )}>
                     {isCluster && <RdsClusterTag />}
-                    {isEc2Instance(row.resourceType) && <Ec2InstanceTag />}
+                    {isEc2 && <Ec2InstanceTag />}
                     <Tooltip
                       content={<IdentifierTip label="Resource Name" value={row.resourceName ?? ''} />}
                       variant="value"
@@ -228,13 +226,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
               {instancesOpen && instances.map((instance, instanceIndex) => (
                 <tr
                   key={instance.resource_id}
-                  className={cn(
-                    ROW_BASE,
-                    excluded ? ROW_EXCLUDED : ROW_TARGET,
-                    // Role chip above the identifier — Instance / AZ line up on the identifier.
-                    table.stackedIdentityRow,
-                    rail?.className,
-                  )}
+                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
                   onMouseEnter={rail?.onMouseEnter}
                   onMouseLeave={rail?.onMouseLeave}
                 >

@@ -523,19 +523,13 @@ export const ConnectionTestCard = ({
                   // Only a folded region draws a rail; a flat unit gets no handlers so a
                   // pointer move down the list does not re-render the table for nothing.
                   const rail = unit.folded ? railRow(unit.unitId) : undefined;
-                  // Kind tag above the name — the rest of the row lines up on the name.
-                  const stackedIdentity = !unit.folded
-                    && (isRdsCluster(unit.resourceType ?? '') || isEc2Instance(unit.resourceType));
+                  // Only a tagged row is two lines — an untagged one is already on the middle.
+                  const stackedIdentity =
+                    isRdsCluster(unit.resourceType ?? '') || isEc2Instance(unit.resourceType);
                   return (
                     <Fragment key={unit.unitId}>
                     <tr
-                      className={cn(
-                        ROW_BASE,
-                        ROW_TARGET,
-                        unit.folded && 'cursor-pointer',
-                        stackedIdentity && idcStyles.table.stackedIdentityRow,
-                        rail?.className,
-                      )}
+                      className={cn(ROW_BASE, ROW_TARGET, unit.folded && 'cursor-pointer', rail?.className)}
                       onClick={unit.folded ? () => toggleUnit(unit.unitId) : undefined}
                       onMouseEnter={rail?.onMouseEnter}
                       onMouseLeave={rail?.onMouseLeave}
@@ -586,7 +580,10 @@ export const ConnectionTestCard = ({
                           // row heights ragged. Full value in the tip, as on steps 1·2·3.
                           // A cluster stacks the RDS Cluster tag above the name, the same
                           // two-line identity steps 1·2·3·4·6·7 use.
-                          <span className="flex min-w-0 flex-col items-start gap-1">
+                          <span className={cn(
+                            'flex min-w-0 flex-col items-start gap-1',
+                            stackedIdentity && idcStyles.table.stackedIdentityLift,
+                          )}>
                             {isRdsCluster(unit.resourceType ?? '') && <RdsClusterTag />}
                             {isEc2Instance(unit.resourceType) && <Ec2InstanceTag />}
                             <Tooltip

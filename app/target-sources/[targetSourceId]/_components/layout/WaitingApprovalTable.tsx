@@ -417,8 +417,6 @@ export const WaitingApprovalTable = memo(
             ROW_BASE,
             excluded ? ROW_EXCLUDED : ROW_TARGET,
             foldToggleable && 'cursor-pointer',
-            // Kind tag above the name — the rest of the row lines up on the name.
-            (hasInstances || isCluster || isEc2) && idcStyles.table.stackedIdentityRow,
             rail?.className,
           )}
           onClick={foldToggleable ? () => toggleFold(rowKey) : undefined}
@@ -473,7 +471,7 @@ export const WaitingApprovalTable = memo(
                 >
                   <ChevronRightIcon className="h-3.5 w-3.5" />
                 </button>
-                <span className="flex min-w-0 flex-col items-start gap-1">
+                <span className={cn('flex min-w-0 flex-col items-start gap-1', idcStyles.table.stackedIdentityLift)}>
                   {/* Count only, on the tag line — same stack as the step-1 cluster row. The
                       선택됨 chip on the instance row is the single place the choice is stated,
                       so the parent can never contradict it. */}
@@ -544,7 +542,7 @@ export const WaitingApprovalTable = memo(
               // concern — but the row still has to say it is a cluster, in the same stack.
               // EC2 rides the same branch: it has no members to fold, so the tag is all it needs,
               // and steps 2·3 reach it here too (the branch above is cluster-with-instances only).
-              <span className="flex min-w-0 flex-col items-start gap-1">
+              <span className={cn('flex min-w-0 flex-col items-start gap-1', idcStyles.table.stackedIdentityLift)}>
                 {isCluster ? <RdsClusterTag /> : <Ec2InstanceTag />}
                 <Tooltip
                   content={<IdentifierTip label="Resource Name" value={resource.resourceName} />}
@@ -704,13 +702,7 @@ export const WaitingApprovalTable = memo(
                 // 부모의 레일과 트리 레일이 이 행들을 그 결정 아래로 묶는다.
                 <tr
                   key={instance.resource_id}
-                  className={cn(
-                    ROW_BASE,
-                    excluded ? ROW_EXCLUDED : ROW_TARGET,
-                    // Role chip above the identifier — Instance / AZ line up on the identifier.
-                    idcStyles.table.stackedIdentityRow,
-                    rail?.className,
-                  )}
+                  className={cn(ROW_BASE, excluded ? ROW_EXCLUDED : ROW_TARGET, rail?.className)}
                   onMouseEnter={rail?.onMouseEnter}
                   onMouseLeave={rail?.onMouseLeave}
                 >

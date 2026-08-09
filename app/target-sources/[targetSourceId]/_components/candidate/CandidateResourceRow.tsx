@@ -147,13 +147,7 @@ const RdsInstanceRow = ({
 
   return (
     <tr
-      className={cn(
-        ROW_BASE,
-        dimmed ? ROW_EXCLUDED : ROW_TARGET,
-        // Role chip above the identifier — Instance / AZ line up on the identifier.
-        idcStyles.table.stackedIdentityRow,
-        rail.className,
-      )}
+      className={cn(ROW_BASE, dimmed ? ROW_EXCLUDED : ROW_TARGET, rail.className)}
       onMouseEnter={rail.onMouseEnter}
       onMouseLeave={rail.onMouseLeave}
     >
@@ -303,8 +297,6 @@ export const CandidateResourceRow = ({
           rowStateClass,
           justAdded && ec2Styles.rowJustAdded,
           canExpand && 'cursor-pointer',
-          // Kind tag above the name — the rest of the row lines up on the name.
-          (isRdsClusterRow || isEc2) && idcStyles.table.stackedIdentityRow,
           rowRail?.className,
         )}
         onClick={handleRowClick}
@@ -350,8 +342,9 @@ export const CandidateResourceRow = ({
           {isRdsClusterRow ? (
             // Two-line identity (owner request): the tag sits ABOVE the name, not beside it.
             // The chevron centres on the pair — pinned to the tag line it read as misaligned
-            // against the name it opens. (`stackedIdentityRow` puts the row's other cells on
-            // the name's line, so the chevron now sits just above them, on its own pair.)
+            // against every other control in the row, which all sit on the row's middle.
+            // It hangs off `lead`, whose box `stackedIdentityLift` does NOT move, so the
+            // chevron stays on that middle line — where the lift puts the name.
             <span className={idcStyles.table.group.lead}>
               <button
                 type="button"
@@ -374,7 +367,7 @@ export const CandidateResourceRow = ({
               >
                 <ChevronRightIcon className="h-3.5 w-3.5" />
               </button>
-              <span className="flex min-w-0 flex-col items-start gap-1">
+              <span className={cn('flex min-w-0 flex-col items-start gap-1', idcStyles.table.stackedIdentityLift)}>
                 {/* Count only, and it rides the tag line rather than the name: it is the
                     quietest thing here, so it stays out of the name's line and out of chip
                     chrome. WHICH instance is chosen is said once, by the radio on the member
@@ -400,7 +393,7 @@ export const CandidateResourceRow = ({
           ) : isEc2 ? (
             // 종류 태그는 이름 위 — RDS Cluster 와 같은 자리다. 이 열이 행의 정체성을
             // 여는 자리이므로, "무엇인가"를 먼저 말하고 이름이 뒤따른다.
-            <span className={ec2Styles.rowStack}>
+            <span className={cn(ec2Styles.rowStack, idcStyles.table.stackedIdentityLift)}>
               {/* 배지는 종류 태그 옆 — 모션을 못 본 사람도 읽어서 알 수 있는 층이고,
                   이름은 잘릴 수 있으므로 배지를 밀어내지 않는 자리에 둔다. */}
               <span className="flex items-center">
@@ -436,7 +429,10 @@ export const CandidateResourceRow = ({
         <td className={idcStyles.table.approvalCell}>
           {grouped ? null : isManualEc2 ? (
             // 종류 태그는 이름 열이 가져갔다 — 여기는 instance id → 접속 주소.
-            <span className={ec2Styles.rowStack}>
+            // 여기는 값이 위·보조 줄이 아래라 스택을 반대로 내린다: 이름 열이 `stackedIdentityLift`
+            // 로 이름을 행의 가운데 선에 올려놓았고, id 도 같은 선에 서야 둘이 짝을 이룬다.
+            // 10 = 보조 줄(16px) + 4px gap 의 절반.
+            <span className={cn(ec2Styles.rowStack, 'relative top-[10px]')}>
               <span className={cn(ec2Styles.rowId, 'block max-w-[220px] truncate')}>
                 {candidate.resourceId}
               </span>
