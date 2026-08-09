@@ -304,17 +304,23 @@ export const ProjectCreateModal = ({
               titleId="infra-register-modal-title"
             />
 
-            <div
-              className={cn(
-                'flex min-h-0 flex-1 flex-col rounded-lg border',
-                borderColors.card,
-                bgColors.surface,
-                textColors.primary,
-              )}
-            >
-              {/* pt-6 matches the rail's, so the step heading and the dialog title
+            <div className="flex min-h-0 flex-1 flex-col">
+              {/* The white card hugs its step's content instead of filling the pane:
+                  the five steps differ by ~200px, and inside a full-height card that
+                  difference read as a void in the form. Below the card's edge it is
+                  the dialog's gray ground — intentional space, not an unfinished form.
+                  min-h-0 without flex-1 is what lets the card end at its content while
+                  still shrinking (and scrolling) when a step outgrows the pane.
+                  pt-6 matches the rail's, so the step heading and the dialog title
                   start on the same line instead of stepping down from it. */}
-              <div className="min-h-0 flex-1 overflow-y-auto px-[30px] pt-6 pb-4">
+              <div
+                className={cn(
+                  'min-h-0 overflow-y-auto rounded-lg border px-[30px] pt-6 pb-6',
+                  borderColors.card,
+                  bgColors.surface,
+                  textColors.primary,
+                )}
+              >
                 {step === 1 && (
                   <Step1CloudAccount
                     providerKey={providerKey}
@@ -371,10 +377,13 @@ export const ProjectCreateModal = ({
                 )}
               </div>
 
-              {/* Pinned to the pane's bottom-right, outside the scroller — no divider,
-                  no footer bar. 700 = the 640px content column plus the pane's own
-                  30px gutters, so the buttons land on that column's right edge. */}
-              <div className="flex max-w-[700px] flex-none justify-end gap-2 px-[30px] pb-[26px]">
+              {/* Pinned to the pane's bottom-right, on the gray ground below the card —
+                  mt-auto keeps the buttons at one fixed position across steps while the
+                  card above ends wherever its content does; pt-3 is the floor between
+                  them when a tall step brings the card all the way down. 700 = the
+                  640px content column plus the card's own 30px gutters, so the buttons
+                  land on that column's right edge. */}
+              <div className="mt-auto flex max-w-[700px] flex-none justify-end gap-2 px-[30px] pt-3 pb-[26px]">
                 {step > 1 && step < 5 && (
                   <Button
                     variant="secondary"
