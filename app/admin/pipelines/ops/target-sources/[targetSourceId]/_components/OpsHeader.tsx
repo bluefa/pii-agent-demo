@@ -37,7 +37,11 @@ export interface OpsHeaderProps {
   detail: RawTargetSourceDetail;
   processStatus: ProcessStatus | null;
   isAws: boolean;
-  /** null while loading / on error; role rows render 미등록 when role_arn is absent. */
+  /**
+   * key 부재 = verify 응답 대기, null = 실패, 객체 = 도착.
+   * 대기 중에는 미등록을 그리지 않는다 — 미등록은 사실 주장이라, 값이 오면
+   * ARN 으로 뒤집히는 거짓말이 된다 (skeleton 으로 자리만 잡는다).
+   */
   roles: Partial<Record<RoleKind, AwsRoleVerification | null>>;
   grantTfExecution: boolean;
   channel: CollaborationChannel | null;
@@ -68,10 +72,17 @@ export function OpsHeader({
     const arn =
       verification?.role_arn
       ?? (kind === 'scan' ? meta.aws_scan_role_arn : meta.aws_terraform_execution_role_arn);
+    // metadata 가 값을 갖고 있으면 기다릴 것이 없다 — 대기는 보여 줄 값이 아예 없을 때만.
+    const pending = !arn && !(kind in roles);
     return (
       <div className={opsStyles.roleRow}>
         <span className={opsStyles.roleLabel}>{ROLE_META[kind].short}</span>
-        {arn ? (
+        {pending ? (
+          <span
+            className={cn(pipelineStyles.skeletonBar, 'h-[12px] w-[300px] rounded')}
+            aria-hidden
+          />
+        ) : arn ? (
           <>
             {/* ARN 은 값이지 동작이 아니다 — 링크로 그리지 않고, 동작(수정)은 옆 버튼이 맡는다. */}
             <span className={opsStyles.roleValue}>{arn}</span>
