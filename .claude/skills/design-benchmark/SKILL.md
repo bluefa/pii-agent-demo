@@ -31,7 +31,12 @@ weekly (logo, service panel, headers). Ground findings in:
 - `/design-guide` values (font/spacing sets, hierarchy rules) for objective violations
 - Information-hierarchy and flow problems a first-time user would hit
 
-Output: a numbered problem list, each with the concrete evidence (file/screen location).
+Output: a numbered problem list, each with the concrete evidence (file/screen location)
+**and an evidence grade** so a non-designer can tell what to trust:
+
+- `수치 위반` — violates a design-guide set value (objective; cite the value)
+- `UX 원칙` — breaks a general heuristic (name it: scan speed, hierarchy levers, etc.)
+- `제안` — subjective judgment; explicitly marked as opinion
 
 ### 2. Collect external references
 
@@ -44,6 +49,11 @@ Order by relevance — most related first, and say why each was picked.
 - For each reference capture: **what problem it solves, how (the concrete mechanism),
   and which elements are worth benchmarking** (at least 5 benchmarkable elements
   across the whole set; per-reference strengths written out).
+- **Every reference must carry a real, clickable URL** to the page or doc it came
+  from, plus a verification badge: `확인함` (actually fetched/viewed this session)
+  or `기억 기반` (from training knowledge, not re-verified). Never present a
+  memory-based reference as verified — the user checks references by following
+  the links, so a dead or wrong URL destroys trust in the whole set.
 
 ### 3. Reconstruct references visually (artifact constraint)
 
@@ -61,8 +71,14 @@ Default 5 proposals/시안. Each proposal must:
 - State the tradeoff (what it costs: space, clicks, implementation effort)
 - Respect domain constraints already established (check memory/docs before inventing
   behavior — e.g. SDU is decided server-side post-submission, TC runs per TargetSource)
+- **Reuse existing metrics**: px/spacing/icon sizes come from an existing screen with
+  the same role in this app, never from component defaults. Name the source screen
+  per value so the implementation step can't drift.
 
-End with a recommendation: which proposal to take and why.
+End with a **comparison table** scoring all proposals on the same axes —
+problem coverage (which diagnosed problems each one fixes), implementation cost,
+and consistency with existing screens — and a recommendation that follows from
+the table, not from taste.
 
 ### 5. Publish as a design artifact
 
@@ -73,6 +89,22 @@ End with a recommendation: which proposal to take and why.
 - Artifact body text is Korean (user-facing); keep it desktop-width friendly.
 - Reply with the artifact link plus a 3–5 line summary of the diagnosis and the
   recommended proposal.
+
+### 6. Leave a decision record (when a proposal is adopted)
+
+The artifact lives on claude.ai, outside repo history. When the user adopts a
+proposal and implementation follows, write `docs/ux/benchmark/<slug>.md`
+(Korean allowed in this path) containing:
+
+- Date, target screen, problem summary (with evidence grades)
+- References actually used: name + URL + which element was borrowed
+- Chosen proposal and why (the comparison-table rationale)
+- Artifact URL and the implementation PR number
+
+Commit this file **inside the implementation PR** so the design decision and the
+code change share one history entry. Optionally also copy the artifact HTML to
+`design/benchmark/` when the visual record itself is worth preserving.
+Research that ends without adoption needs no record — the artifact URL is enough.
 
 ## Rules
 
