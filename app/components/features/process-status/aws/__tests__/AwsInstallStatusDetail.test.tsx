@@ -56,6 +56,7 @@ describe('AwsInstallStatusDetail', () => {
         })])}
         confirmed={[confirmedResource('r-1'), confirmedResource('r-2')]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -87,6 +88,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
         confirmed={[confirmedResource('r-1')]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -108,6 +110,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-cluster', 'IN_PROGRESS')])}
         confirmed={[{ ...confirmedResource('r-cluster'), type: 'AWS_DB_CLUSTER' }]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -121,6 +124,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
         confirmed={[confirmedResource('r-1')]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -135,6 +139,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-unjoined', 'IN_PROGRESS')])}
         confirmed={[]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -156,6 +161,7 @@ describe('AwsInstallStatusDetail', () => {
         ])}
         confirmed={[]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -195,6 +201,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource(regionId, 'IN_PROGRESS', { resourceName: 'us-east-1' })])}
         confirmed={[athenaDb]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -213,6 +220,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
         confirmed={[]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -228,12 +236,37 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
         confirmed={[]}
         manualInstall
+        targetSourceId={1008}
       />,
     );
 
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
     expect(within(nav).queryByText('Terraform 권한 부여 확인')).toBeNull();
     expect(within(nav).getByText('Terraform 직접 적용')).toBeTruthy();
+  });
+
+  it('참고 · Terraform Script 는 단계가 아니다 — 상태도 기본 선택도 없고, 눌러야 열린다', () => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-1', 'COMPLETED')])}
+        confirmed={[]}
+        manualInstall={false}
+        targetSourceId={1008}
+      />,
+    );
+
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    expect(within(nav).getByText('참고')).toBeTruthy();
+
+    // 상태 글자를 갖지 않는다 — 제목 한 줄이 전부다.
+    const item = within(nav).getByText('Terraform Script');
+    expect(item.closest('button')?.textContent).toBe('Terraform Script');
+
+    // 기본 선택은 진행 중인 단계지 참고 항목이 아니다.
+    expect(screen.queryByRole('button', { name: 'Terraform Script 다운로드' })).toBeNull();
+
+    fireEvent.click(item);
+    expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
   });
 
   it('paginates the resource table past 10 rows and has no 새로고침 control', () => {
@@ -243,6 +276,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus(many)}
         confirmed={[]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 

@@ -102,6 +102,20 @@ export interface InstallTableStep {
   group?: 'todo' | 'auto';
 }
 
+/**
+ * 참고 항목 — 설치 단계가 **아닌** 것을 레일에 세운다 (Terraform Script 등).
+ *
+ * 단계가 아니므로 상태도 집계도 없다: 진행률에 끼지 않고, 기본 선택 대상도 되지 않으며,
+ * 레일에서 상태 글자를 갖지 않는다. CloudFormation 이 Template 을 Events·Resources 와
+ * 나란한 탭으로 두는 문법과 같다 — 상태 위에 얹는 배너가 아니라 별도의 뷰다.
+ */
+export interface InstallReferenceStep {
+  id: string;
+  title: string;
+  desc: string;
+  panel: ReactNode;
+}
+
 /** Shared LastCheckInfoDto UI shape (SUCCESS/IN_PROGRESS/FAILED). */
 export interface InstallLastCheck {
   status: 'SUCCESS' | 'IN_PROGRESS' | 'FAILED';

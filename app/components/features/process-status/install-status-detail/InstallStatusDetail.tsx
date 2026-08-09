@@ -28,6 +28,7 @@ import {
   isSettledInstallStatus,
   type InstallDetailResource,
   type InstallLastCheck,
+  type InstallReferenceStep,
   type InstallResourceMeta,
   type InstallStepCell,
   type InstallStepValue,
@@ -408,6 +409,11 @@ export interface InstallStatusDetailProps {
   panelSteps?: readonly InstallPanelStep[];
   /** resourceId → region/DB-type/name enrichment (confirmed integration 등). */
   meta: ReadonlyMap<string, InstallResourceMeta>;
+  /**
+   * 단계가 아닌 참고 항목 — 그룹 레일에서만 '참고' 묶음으로 렌더한다.
+   * 레거시 레일(Azure/GCP/IDC)은 그리지 않으므로 넘겨도 도달할 수 없다.
+   */
+  reference?: InstallReferenceStep;
 }
 
 export const InstallStatusDetail = ({
@@ -416,6 +422,7 @@ export const InstallStatusDetail = ({
   steps,
   panelSteps = [],
   meta,
+  reference,
 }: InstallStatusDetailProps) => {
   // Grouped rail (v2) — on only when EVERY step declares a group (AWS first).
   // A half-migrated adapter (some steps missing `group`) falls back to the
@@ -521,13 +528,16 @@ export const InstallStatusDetail = ({
   }, [grouped, actionViews, navSteps, aggregates]);
   const [selected, setSelected] = useState<string | null>(null);
   const activeId = selected ?? hotStepId;
+  // 참고 항목은 단계 배열(navSteps) 밖에 산다 — 그래서 집계·기본 선택·진행률 어디에도
+  // 끼지 않고, 선택됐을 때만 우측 패널을 통째로 차지한다.
+  const activeReference = reference && reference.id === activeId ? reference : null;
   const active = navSteps.find((s) => s.id === activeId) ?? navSteps[0];
   const activePanel = panelSteps.find((p) => p.id === active.id);
-  const isSummary = active.id === SUMMARY_ID;
-  const activeAggregate = aggregates.get(active.id);
+  const isSummary = !activeReference && active.id === SUMMARY_ID;
+  const activeAggregate = activeReference ? undefined : aggregates.get(active.id);
 
   const rows = useMemo<ResourceRow[]>(() => {
-    if (activePanel || active.id === SUMMARY_ID) return [];
+    if (activeReference || activePanel || active.id === SUMMARY_ID) return [];
     return resources.map((r) => {
       const m = meta.get(r.resourceId);
       return {
@@ -539,34 +549,40 @@ export const InstallStatusDetail = ({
         cell: cellOf(r, active.id),
       };
     });
-  }, [activePanel, active.id, resources, meta, cellOf]);
+  }, [activeReference, activePanel, active.id, resources, meta, cellOf]);
 
   // Right-pane header/body — shared by both layouts (grouped / legacy).
+  const head = activeReference ?? active;
   const paneHead = (
     <div className="flex items-start justify-between gap-3">
       {/* title↔subtitle = tight 4px */}
       <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
-        <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
+        <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{head.title}</h3>
         <p className={cn(textStyles.caption, 'max-w-[60ch]', textColors.secondary)}>
-          {active.desc}
+          {head.desc}
         </p>
       </div>
-      <span className="flex items-center gap-2 flex-shrink-0">
-        {active.side && <SideTag side={active.side} />}
-        {active.action}
-        {!isSummary && activeAggregate && (
-          <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
-            {/* The grouped rail drops n/m counts — status words only. */}
-            {!grouped && activeAggregate.count
-              ? `${activeAggregate.label} ${activeAggregate.count}`
-              : activeAggregate.label}
-          </span>
-        )}
-      </span>
+      {/* 참고 항목은 주체도 상태도 없다 — 우측 슬롯 자체를 그리지 않는다. */}
+      {!activeReference && (
+        <span className="flex items-center gap-2 flex-shrink-0">
+          {active.side && <SideTag side={active.side} />}
+          {active.action}
+          {!isSummary && activeAggregate && (
+            <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
+              {/* The grouped rail drops n/m counts — status words only. */}
+              {!grouped && activeAggregate.count
+                ? `${activeAggregate.label} ${activeAggregate.count}`
+                : activeAggregate.label}
+            </span>
+          )}
+        </span>
+      )}
     </div>
   );
 
-  const paneBody = activePanel ? (
+  const paneBody = activeReference ? (
+    activeReference.panel
+  ) : activePanel ? (
     activePanel.panel
   ) : isSummary ? (
     <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
@@ -587,6 +603,15 @@ export const InstallStatusDetail = ({
     const pct = (n: number) =>
       rollup.total ? Math.max(n > 0 ? 1 : 0, Math.round((n / rollup.total) * 100)) : 0;
 
+    // 레일 항목 껍데기 — 단계와 참고 항목이 같은 히트 영역·선택 표현을 쓴다.
+    const railItemClass = (isActive: boolean) =>
+      cn(
+        'relative flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0',
+        // Primer grammar — the selected item lifts with an inset hairline
+        // ring + 1px offset shadow.
+        isActive ? cn('bg-white', shadows.hairRing) : 'hover:bg-white/60',
+      );
+
     // Rail item — one line: [open-todo dot | ordinal] title · status word.
     const railItem = (step: InstallTableStep, ord: number | null) => {
       const aggregate = aggregates.get(step.id)!;
@@ -598,12 +623,7 @@ export const InstallStatusDetail = ({
           type="button"
           onClick={() => setSelected(step.id)}
           aria-current={isActive}
-          className={cn(
-            'relative flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0',
-            // Primer grammar — the selected item lifts with an inset hairline
-            // ring + 1px offset shadow.
-            isActive ? cn('bg-white', shadows.hairRing) : 'hover:bg-white/60',
-          )}
+          className={railItemClass(isActive)}
         >
           {openTodo && (
             <span
@@ -637,6 +657,21 @@ export const InstallStatusDetail = ({
         </button>
       );
     };
+
+    // 참고 항목 — 상태도 순번도 없다. 제목 한 줄이 전부다.
+    const referenceItem = (ref: InstallReferenceStep) => (
+      <button
+        key={ref.id}
+        type="button"
+        onClick={() => setSelected(ref.id)}
+        aria-current={ref.id === activeId}
+        className={railItemClass(ref.id === activeId)}
+      >
+        <span className={cn('flex-1 min-w-0 truncate', textStyles.bodyStrong, textColors.primary)}>
+          {ref.title}
+        </span>
+      </button>
+    );
 
     const groupLabel = (text: string, hot: boolean) => (
       <div
@@ -683,6 +718,14 @@ export const InstallStatusDetail = ({
             )}
             {groupLabel('BDC 자동 진행', false)}
             {autoSteps.map((s, i) => railItem(s, i + 1))}
+
+            {/* 참고 — 단계가 아니므로 진행 순번 다음, 푸터 요약 앞에 선다. */}
+            {reference && (
+              <>
+                {groupLabel('참고', false)}
+                {referenceItem(reference)}
+              </>
+            )}
 
             {/* Rail footer — the bottom slack closes with an overall progress
                 summary (WinUI PaneFooter grammar). */}

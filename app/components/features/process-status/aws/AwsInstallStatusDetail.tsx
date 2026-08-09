@@ -11,9 +11,11 @@ import {
 import {
   INSTALL_STATUS_LABEL,
   type InstallDetailResource,
+  type InstallReferenceStep,
   type InstallResourceMeta,
   type InstallTableStep,
 } from '@/app/components/features/process-status/install-status-detail/model';
+import { TerraformScriptPanel } from '@/app/components/features/process-status/aws/TerraformScriptPanel';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type { AwsInstallationStatus } from '@/lib/types';
 
@@ -94,14 +96,26 @@ interface AwsInstallStatusDetailProps {
   status: AwsInstallationStatus;
   confirmed: readonly ConfirmedResource[];
   manualInstall: boolean;
+  targetSourceId: number;
 }
 
 export const AwsInstallStatusDetail = ({
   status,
   confirmed,
   manualInstall,
+  targetSourceId,
 }: AwsInstallStatusDetailProps) => {
   const steps = useMemo(() => buildSteps(manualInstall), [manualInstall]);
+
+  const reference = useMemo<InstallReferenceStep>(
+    () => ({
+      id: 'tfScript',
+      title: 'Terraform Script',
+      desc: 'Terraform Script를 다운로드 받아 어떤 리소스가 생성되는지 미리 리뷰할 수 있습니다.',
+      panel: <TerraformScriptPanel targetSourceId={targetSourceId} />,
+    }),
+    [targetSourceId],
+  );
 
   const panelSteps = useMemo<InstallPanelStep[]>(
     () =>
@@ -169,6 +183,7 @@ export const AwsInstallStatusDetail = ({
       steps={steps}
       panelSteps={panelSteps}
       meta={meta}
+      reference={reference}
     />
   );
 };

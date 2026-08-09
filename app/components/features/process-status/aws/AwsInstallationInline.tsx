@@ -1,14 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { getAwsInstallationStatus, getAwsTerraformScript } from '@/app/lib/api/aws';
+import { useCallback, useEffect, useRef } from 'react';
+import { getAwsInstallationStatus } from '@/app/lib/api/aws';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { AwsInstallStatusDetail } from '@/app/components/features/process-status/aws/AwsInstallStatusDetail';
 import { isAwsInstallationComplete } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
-import { bgColors, borderColors, cardStyles, cn, getButtonClass, stackGap, statusColors, textColors, textStyles } from '@/lib/theme';
+import { borderColors, cardStyles, cn, stackGap, statusColors, textColors, textStyles } from '@/lib/theme';
 import type { AwsInstallationStatus } from '@/lib/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 
@@ -31,28 +31,6 @@ export const AwsInstallationInline = ({
   const isManualInstall = terraformExecutionGranted !== true;
   const completionNotifiedRef = useRef(false);
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
-
-  // TF script download is available in BOTH install modes (owner requirement):
-  // manual installs apply it directly; auto installs keep it for inspection.
-  const handleDownloadScript = useCallback(async () => {
-    setDownloading(true);
-    setDownloadError(null);
-    try {
-      const blob = await getAwsTerraformScript(targetSourceId);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `terraform-${targetSourceId}.zip`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      setDownloadError('Terraform Script 다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.');
-    } finally {
-      setDownloading(false);
-    }
-  }, [targetSourceId]);
 
   useEffect(() => {
     completionNotifiedRef.current = false;
@@ -77,8 +55,8 @@ export const AwsInstallationInline = ({
     },
   });
 
-  // 로딩/에러는 카드 안에서 교체한다 — 카드 자체를 조기 반환하면 헤더와 TF
-  // 스크립트 박스까지 사라졌다 나타나 스켈레톤의 목적(레이아웃 유지)이 깨진다.
+  // 로딩/에러는 카드 안에서 교체한다 — 카드 자체를 조기 반환하면 헤더까지
+  // 사라졌다 나타나 스켈레톤의 목적(레이아웃 유지)이 깨진다.
   const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
 
   return (
@@ -86,29 +64,8 @@ export const AwsInstallationInline = ({
       <InstallCardHeader />
       {/* 카드 내 블록 경계 = group 16px */}
       <div className={cn(cardStyles.body, 'flex flex-col', stackGap.group)}>
-        {/* TF script download is available in BOTH install modes (owner requirement). */}
-        <div className={cn('rounded-[14px] border px-5 py-4 flex items-center justify-between gap-4', borderColors.default, bgColors.muted)}>
-          {/* 제목↔부제 = tight 4px */}
-          <div className={cn('flex flex-col', stackGap.tight)}>
-            <h3 className={cn(textStyles.cardTitle, textColors.primary)}>Terraform Script</h3>
-            <p className={cn(textStyles.body, textColors.secondary)}>
-              Terraform Script를 다운로드 받아 어떤 리소스가 생성되는지 미리 리뷰할 수 있습니다.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleDownloadScript}
-            disabled={downloading}
-            className={cn(getButtonClass('soft', 'sm'), 'shrink-0 whitespace-nowrap')}
-          >
-            {downloading ? '다운로드 중...' : 'Terraform Script 다운로드'}
-          </button>
-        </div>
-        {downloadError && (
-          <div className={cn('px-4 py-2 rounded-lg border', textStyles.body, statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
-            {downloadError}
-          </div>
-        )}
+        {/* TF 스크립트 다운로드는 레일의 '참고' 항목이 갖는다 — 자동/수동 양쪽 모두
+            제공하되(오너 요구) 단계 위에 얹지 않는다. */}
         {status?.lastCheck.status === 'FAILED' && status.lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border', textStyles.body, statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
             상태 확인 실패: {status.lastCheck.failReason}
@@ -155,6 +112,7 @@ export const AwsInstallationInline = ({
             status={status}
             confirmed={confirmedResources}
             manualInstall={isManualInstall}
+            targetSourceId={targetSourceId}
           />
         ) : null}
       </div>
