@@ -32,33 +32,47 @@ export const improvedStyles = {
    *  can grow to the bottom. */
   bleed: '-mx-8 -mt-6 -mb-12 flex flex-col flex-1 min-h-0',
 
-  /** Header area (node 70:35) — white, hairline below: title + #id (+ status /
-   *  중단 only when NOT running), a recipe description line, then two
-   *  column-aligned meta rows led by an accent group label. */
+  /** Header (design-benchmark round 2, 시안 E) — the ops target-card grammar
+   *  (ServiceDetailView `tsTable`) transplanted: 64px bare provider mark +
+   *  3-tier identity (#target · SDU/provider → service name·code → run-context
+   *  row) with the promoted Target 상세 확인 CTA at right. The subject leads;
+   *  the static page label (h1) and run # are demoted into the context row;
+   *  the recipe description lives in the ⓘ tooltip (owner: hover 대체).
+   *  All tier metrics are copied from the ops card — no new values. */
   header: {
-    root: 'bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)] px-10 pt-7 pb-6 flex flex-col gap-5',
-    topRow: 'flex items-start justify-between gap-6',
-    titleWrap: 'flex flex-col gap-3 min-w-0',
-    titleRow: 'flex items-center gap-3 flex-wrap',
-    title: 'text-[28px] font-bold leading-none text-[var(--pl-text-strong)]',
-    id: 'text-[18px] font-medium text-[var(--pl-text-faint)] tabular-nums',
-    /** Service-name subtitle next to the #id — every run's h1 read the same
-     *  "작업 현황" (browser tab / history indistinguishable). */
-    svc: 'text-[16px] font-semibold text-[var(--pl-text-medium)] truncate max-w-[420px]',
-    desc: 'text-[14px] leading-[1.55] text-[var(--pl-text-weak)] max-w-[880px] whitespace-pre-line',
-    /** Two rows × [group label | pair | pair | pair], columns auto-aligned. */
-    metaGrid: 'grid grid-cols-[auto_auto_auto_auto] items-center gap-x-10 gap-y-3 w-fit',
-    /** Group labels — text-weak (4.97:1), the muted --pl-flow-meta-label slate
-     *  measured 2.6:1 on the white header (design-guide floor is 4.5:1). */
-    groupLabel: 'text-[14px] font-medium text-[var(--pl-text-weak)] whitespace-nowrap',
-    pair: 'flex items-baseline gap-2 whitespace-nowrap',
-    k: 'text-[13px] text-[var(--pl-text-weak)]',
-    /** Secondary values — regular weight so the strip isn't a wall of bold. */
-    v: 'text-[15px] font-normal text-[var(--pl-text-strong)]',
-    /** Primary value (서비스 이름) — kept semibold as the row's anchor. */
-    vStrong: 'text-[15px] font-semibold text-[var(--pl-text-strong)]',
-    vMono: 'text-[13px] font-semibold text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
-    link: 'text-[14px] font-semibold text-[var(--pl-primary)] hover:underline inline-flex items-center gap-1 whitespace-nowrap',
+    root: 'bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)] px-10 pt-6 pb-6 flex items-center gap-4',
+    body: 'flex min-w-0 flex-1 flex-col gap-1',
+    /** Tier 1 — target id (ops tsTable.id metrics) + SDU chip / provider gloss. */
+    idRow: 'flex items-center gap-2 flex-wrap',
+    id: 'text-[16px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] tabular-nums whitespace-nowrap',
+    idHash: 'mr-0.5 font-normal text-[var(--pl-text-weak)]',
+    sduChip:
+      'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
+    prov: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
+    /** Tier 2 — service name + code; a fixed-width skeleton until #8 lands so
+     *  the header's anchor text never swaps mid-load (텍스트 점프 제거). */
+    nameRow: 'flex items-baseline gap-2 min-w-0 min-h-[20px]',
+    name: 'text-[14px] font-semibold text-[var(--pl-text-strong)] truncate',
+    code: 'text-[12px] font-medium [font-family:var(--pl-font-mono)] text-[var(--pl-text-weak)] whitespace-nowrap',
+    /** Tier 3 — run context: page label(h1) · run # · type tag · created · lineage. */
+    subRow: 'mt-0.5 flex items-center gap-x-3 gap-y-1 flex-wrap text-[12px] text-[var(--pl-text-weak)]',
+    pageLabel: 'text-[12px] font-semibold text-[var(--pl-text-weak)]',
+    runId: 'text-[12px] [font-family:var(--pl-font-mono)] text-[var(--pl-text-weak)] tabular-nums whitespace-nowrap',
+    /** Combined "AWS 설치" tag — neutral: the header's only hue is the CTA.
+     *  DELETE keeps the err tone (a destructive run must not read neutral). */
+    typeTag:
+      'inline-flex items-center gap-1 rounded-[5px] bg-[var(--pl-gray-100)] px-2 py-0.5 text-[12px] font-semibold text-[var(--pl-text-medium)]',
+    typeTagDelete: 'text-[var(--pl-err-text)]',
+    /** ⓘ recipe-tooltip trigger — opens on hover AND keyboard focus. */
+    tipWrap:
+      'group relative inline-flex items-center outline-none cursor-help text-[var(--pl-text-weak)] hover:text-[var(--pl-text-strong)] focus-visible:text-[var(--pl-text-strong)]',
+    tip: 'hidden group-hover:block group-focus-within:block absolute left-1/2 top-full z-20 mt-1.5 w-[360px] -translate-x-1/2 rounded-lg border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3 text-left font-normal shadow-[var(--pl-shadow-md)]',
+    tipName:
+      'block text-[12px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-medium)] break-all',
+    tipDesc: 'block mt-1.5 text-[12px] leading-[1.6] text-[var(--pl-text-medium)] whitespace-pre-line',
+    link: 'text-[12px] font-semibold text-[var(--pl-primary)] hover:underline inline-flex items-center gap-1 whitespace-nowrap',
+    /** CTA — Target 상세 확인, PlButton-primary geometry on a Link. */
+    cta: 'flex-none',
   },
 
   /** Text-only status badge (header + progress band). */
