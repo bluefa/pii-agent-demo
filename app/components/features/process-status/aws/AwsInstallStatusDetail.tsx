@@ -15,7 +15,7 @@ import {
   type InstallResourceMeta,
   type InstallTableStep,
 } from '@/app/components/features/process-status/install-status-detail/model';
-import { TerraformScriptPanel } from '@/app/components/features/process-status/aws/TerraformScriptPanel';
+import { TerraformScriptDownload } from '@/app/components/features/process-status/aws/TerraformScriptDownload';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type { AwsInstallationStatus } from '@/lib/types';
 
@@ -59,12 +59,16 @@ const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
   </div>
 );
 
+/** 서비스 측 TF 단계 이름 — 단계 배열과 참고 항목의 링크 라벨이 같은 출처를 쓴다. */
+const serviceStepTitle = (manualInstall: boolean) =>
+  manualInstall ? 'Terraform 직접 적용' : '서비스 측 Terraform 자동 적용';
+
 // Execution order = service-side TF → BDC common → BDC service (common before
 // service — confirmed step order).
-const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
+const buildSteps = (manualInstall: boolean, targetSourceId: number): InstallTableStep[] => [
   {
     id: 'service',
-    title: manualInstall ? 'Terraform 직접 적용' : '서비스 측 Terraform 자동 적용',
+    title: serviceStepTitle(manualInstall),
     side: '서비스측 리소스 생성',
     // Only manual mode is executed by the service owner — in auto mode BDC
     // deploys, so the step joins the 'auto' group with no action copy.
@@ -72,6 +76,10 @@ const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
     serviceAction: manualInstall
       ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용해 주세요.'
       : undefined,
+    // 수동에서는 이 단계가 곧 다운로드다 — 참고 항목에만 두면 반드시 해야 할 액션이
+    // 별도 탭 뒤로 숨는다(docs/cloud-provider-states.md 수동 INSTALLING 요구).
+    // 자동에서는 BDC 가 적용하므로 단계에 액션을 얹지 않는다.
+    action: manualInstall ? <TerraformScriptDownload targetSourceId={targetSourceId} /> : undefined,
     desc: manualInstall
       ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용합니다.'
       : '리소스별 Private Endpoint / IAM Role / Glue Policy 설정을 Terraform으로 자동 배포합니다.',
@@ -105,21 +113,24 @@ export const AwsInstallStatusDetail = ({
   manualInstall,
   targetSourceId,
 }: AwsInstallStatusDetailProps) => {
-  const steps = useMemo(() => buildSteps(manualInstall), [manualInstall]);
+  const steps = useMemo(
+    () => buildSteps(manualInstall, targetSourceId),
+    [manualInstall, targetSourceId],
+  );
 
-  const reference = useMemo<InstallReferenceStep>(() => {
-    // 설명은 실제 단계 이름을 인용한다 — 수동 설치에서는 그 단계가 'Terraform 직접 적용'
-    // 이라, 자동 설치 문구를 박아두면 화면이 절반의 경우에 거짓말을 한다.
-    // 단계 이름은 그 단계로 점프하는 링크다(오너 요구).
-    const serviceStepTitle = steps.find((s) => s.id === 'service')!.title;
-    return {
+  // 설명은 실제 단계 이름을 인용한다 — 수동 설치에서는 그 단계가 'Terraform 직접 적용'
+  // 이라, 자동 설치 문구를 박아두면 화면이 절반의 경우에 거짓말을 한다.
+  // 단계 이름은 그 단계로 점프하는 링크다(오너 요구).
+  const reference = useMemo<InstallReferenceStep>(
+    () => ({
       id: 'tfScript',
       title: 'Terraform Script',
       desc: '단계에서 수행하는 Terraform 작업 내역을 미리 확인할 수 있습니다.',
-      descLink: { label: serviceStepTitle, stepId: 'service' },
-      panel: <TerraformScriptPanel targetSourceId={targetSourceId} />,
-    };
-  }, [steps, targetSourceId]);
+      descLink: { label: serviceStepTitle(manualInstall), stepId: 'service' },
+      panel: <TerraformScriptDownload targetSourceId={targetSourceId} />,
+    }),
+    [manualInstall, targetSourceId],
+  );
 
   const panelSteps = useMemo<InstallPanelStep[]>(
     () =>

@@ -16,6 +16,7 @@ import {
   textStyles,
 } from '@/lib/theme';
 import { TABLE_TAG_PILL } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
+import { DownloadIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
 import {
   WaitingApprovalTable,
@@ -532,6 +533,9 @@ export const InstallStatusDetail = ({
   // 참고 항목은 단계 배열(navSteps) 밖에 산다 — 그래서 집계·기본 선택·진행률 어디에도
   // 끼지 않고, 선택됐을 때만 우측 패널을 통째로 차지한다.
   const activeReference = reference && reference.id === activeId ? reference : null;
+  // 점프 링크는 미리 묶어둔다 — JSX 안에서 좁힌 타입은 onClick 클로저까지 따라오지 않아
+  // 단언(!)을 부르게 된다.
+  const referenceLink = activeReference?.descLink ?? null;
   const active = navSteps.find((s) => s.id === activeId) ?? navSteps[0];
   const activePanel = panelSteps.find((p) => p.id === active.id);
   const isSummary = active.id === SUMMARY_ID;
@@ -755,36 +759,25 @@ export const InstallStatusDetail = ({
                       primaryColors.textOnLight,
                     )}
                   >
-                    <svg
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 3v12" />
-                      <path d="m7 10 5 5 5-5" />
-                      <path d="M5 21h14" />
-                    </svg>
+                    {/* 공용 아이콘 — 칩 안에서만 24px 로 키운다(CSS 가 svg 의 width/height
+                        속성을 이긴다). 같은 글리프를 손으로 다시 그리지 않는다. */}
+                    <DownloadIcon className="h-6 w-6" />
                   </div>
                   <h3 className={cn('text-[18px] font-bold leading-[1.3] tracking-[-0.01em]', textColors.primary)}>
                     {activeReference.title}
                   </h3>
                   <p className={cn(textStyles.body, 'max-w-[46ch] break-keep', textColors.secondary)}>
-                    {activeReference.descLink && (
+                    {referenceLink && (
                       <>
                         <button
                           type="button"
-                          onClick={() => setSelected(activeReference.descLink!.stepId)}
+                          onClick={() => setSelected(referenceLink.stepId)}
                           className={cn(
                             'underline underline-offset-2 decoration-1 font-semibold',
                             primaryColors.text,
                           )}
                         >
-                          {activeReference.descLink.label}
+                          {referenceLink.label}
                         </button>{' '}
                       </>
                     )}

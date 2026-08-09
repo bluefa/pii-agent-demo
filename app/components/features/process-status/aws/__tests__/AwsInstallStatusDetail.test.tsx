@@ -243,6 +243,23 @@ describe('AwsInstallStatusDetail', () => {
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
     expect(within(nav).queryByText('Terraform 권한 부여 확인')).toBeNull();
     expect(within(nav).getByText('Terraform 직접 적용')).toBeTruthy();
+
+    // 수동에서는 그 단계가 곧 다운로드다 — 기본 선택된 단계 안에 CTA 가 있어야 한다
+    // (docs/cloud-provider-states.md: 수동 INSTALLING = 안내 문구 + [TF Script 다운로드]).
+    expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
+  });
+
+  it('자동 설치의 단계 헤더에는 다운로드 CTA 가 없다 — 적용 주체가 BDC다', () => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
+        confirmed={[]}
+        manualInstall={false}
+        targetSourceId={1008}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Terraform Script 다운로드' })).toBeNull();
   });
 
   it('참고 · Terraform Script 는 단계가 아니다 — 상태도 기본 선택도 없고, 눌러야 열린다', () => {
@@ -269,9 +286,9 @@ describe('AwsInstallStatusDetail', () => {
     expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
 
     // 설명 앞머리의 단계 이름은 점프 링크다 — 누르면 그 단계가 열린다.
-    const jump = screen
+    const [jump] = screen
       .getAllByRole('button', { name: '서비스 측 Terraform 자동 적용' })
-      .find((b) => !nav.contains(b))!;
+      .filter((b) => !nav.contains(b));
     fireEvent.click(jump);
     expect(screen.queryByRole('button', { name: 'Terraform Script 다운로드' })).toBeNull();
     expect(screen.getByText(/리소스별 Private Endpoint/)).toBeTruthy();
