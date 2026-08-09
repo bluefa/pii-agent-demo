@@ -312,8 +312,9 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(wire.connection_status).toBe('RUNNING');
       expect(wire.test_connection_version).toBe(1);
       expect(wire.requested_at).toBe(FIXED_ISO);
-      // incomplete job → deterministic date-time placeholder (valid format:date-time, not '')
-      expect(wire.completed_at).toBe('1970-01-01T00:00:00.000Z');
+      // incomplete job → null (contract is nullable; an epoch placeholder read as
+      // "20673일 전" in the header tag's relative timestamp)
+      expect(wire.completed_at).toBeNull();
       // 결과가 없는 agent 도 싣는다 — 다음 차례 하나가 RUNNING, 그 뒤는 전부 PENDING.
       // 끝난 것만 실으면 진행 중인 실행에서 "대기 중"과 "정보 없음"이 구분되지 않는다.
       const statuses = wire.test_connection_agent_results.map((r) => r.connection_status);

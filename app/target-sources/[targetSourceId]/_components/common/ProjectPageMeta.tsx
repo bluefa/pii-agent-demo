@@ -14,6 +14,8 @@ import {
   providerAccentDefault,
 } from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/target-sources/[targetSourceId]/_components/common/project-identity';
+import { TcHeaderTag } from '@/app/target-sources/[targetSourceId]/_components/common/TcHeaderTag';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
 
 interface ProjectPageMetaProps {
   project: TargetSource;
@@ -25,6 +27,11 @@ interface ProjectPageMetaProps {
   providerLabel: string;
   identity: ProjectIdentity;
   action?: React.ReactNode;
+  /**
+   * Step 5 폴링이 관찰 중인 최신 실행 — 주면 헤더 태그가 이것만 믿는다(null=실행
+   * 없음, 무표시). 안 주면(폴링 없는 스텝) 태그가 latest_version 을 1회 조회한다.
+   */
+  tcJob?: TestConnectionVersionResult | null;
 }
 
 const JIRA_KEY_PATTERN = /\/browse\/([A-Z][A-Z0-9]+-\d+)/;
@@ -68,7 +75,7 @@ const buildIdentityFields = (identity: ProjectIdentity): IdentityBarField[] => {
   return fields;
 };
 
-export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaProps) => {
+export const ProjectPageMeta = ({ project, identity, action, tcJob }: ProjectPageMetaProps) => {
   const provider = String(identity.cloudProvider).toLowerCase();
   const accent = providerAccent[provider] ?? providerAccentDefault;
   // v16 hides the "Cloud Provider" sub-line for IDC — it has no cloud account (HTML 9439).
@@ -98,6 +105,9 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                 <span className={pageHeaderTitleMutedStyle}>({project.serviceCode})</span>
               </>
             }
+            // P5: 마지막(또는 진행 중인) 실행의 판정·시점이 제목 옆에 선다. h1 안이
+            // 아니라 titleAside — 접근성 heading 이름에 판정·상대시각이 섞이지 않는다.
+            titleAside={<TcHeaderTag targetSourceId={project.targetSourceId} liveJob={tcJob} />}
             action={action}
           />
         </div>

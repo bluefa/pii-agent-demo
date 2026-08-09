@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type {
@@ -30,28 +30,39 @@ vi.mock('@/app/target-sources/[targetSourceId]/_components/layout/CloudReqApprov
   },
 }));
 
-const triggerMock = vi.fn();
+// 폴링은 이제 step 이 소유하고 카드는 prop 으로 받는다 — 모듈 mock 대신 renderCard 가
+// pollingState 로 번들을 만들어 넘긴다.
+const triggerMock = vi.fn(async () => true);
 const pollingState: {
   uiState: TestConnectionUIState;
   latestJob: TestConnectionVersionResult | null;
 } = { uiState: 'IDLE', latestJob: null };
 
-vi.mock('@/app/hooks/useTestConnectionPolling', () => ({
-  useTestConnectionPolling: (): UseTestConnectionPollingReturn => ({
-    latestJob: pollingState.latestJob,
-    uiState: pollingState.uiState,
-    loading: false,
-    fetchError: null,
-    triggerError: null,
-    trigger: triggerMock,
-  }),
-}));
+const makePolling = (): UseTestConnectionPollingReturn => ({
+  latestJob: pollingState.latestJob,
+  uiState: pollingState.uiState,
+  loading: false,
+  fetchError: null,
+  triggerError: null,
+  trigger: triggerMock,
+});
 
 const updateResourceCredentialMock = vi.fn();
 const getSecretsMock = vi.fn(async (..._args: unknown[]) => [{ name: 'Key1' }, { name: 'Key2' }, { name: 'Key3' }]);
+// completion-status now gates 완료 승인 요청 (useTcCompletionStatus) — default to the
+// open verdict so the B2/B3 gate tests keep exercising the poll transition itself.
+const getCompletionStatusMock = vi.fn(async (..._args: unknown[]) => ({
+  test_connection_status: 'LATEST_TEST_CONNECTION_SUCCESS',
+}));
 vi.mock('@/app/lib/api', () => ({
   updateResourceCredential: (...args: unknown[]) => updateResourceCredentialMock(...args),
   getSecrets: (...args: unknown[]) => getSecretsMock(...args),
+  getTestConnectionCompletionStatus: (...args: unknown[]) => getCompletionStatusMock(...args),
+}));
+// The rejection notice + run-history modal fetch on their own — quiet, empty defaults.
+vi.mock('@/app/lib/api/task-queue-tc', () => ({
+  getTestConnectionDetail: vi.fn(async () => ({ status: 'TEST_CONNECTION_COMPLETED', rejectReason: null, rejectedAt: null })),
+  getTestConnectionExecutionHistory: vi.fn(async () => ({ totalElements: 0, totalPages: 1, content: [] })),
 }));
 
 import { ConnectionTestCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ConnectionTestCard';
@@ -102,6 +113,7 @@ const renderCard = (confirmed: ConfirmedResource[]) =>
       confirmed={confirmed}
       providerLabel="Azure Infrastructure"
       refreshProject={() => {}}
+      polling={makePolling()}
     />,
   );
 
@@ -110,7 +122,7 @@ describe('ConnectionTestCard', () => {
     pollingState.uiState = 'IDLE';
     pollingState.latestJob = null;
     triggerMock.mockReset();
-    triggerMock.mockResolvedValue(undefined);
+    triggerMock.mockResolvedValue(true);
     updateResourceCredentialMock.mockReset();
     updateResourceCredentialMock.mockResolvedValue({ success: true });
     approvalModalProps.mockClear();
@@ -133,16 +145,20 @@ describe('ConnectionTestCard', () => {
     ]);
   });
 
-  it('opens every credentialed row as Pending (step5 is pre-test)', () => {
+  it('opens every credentialed row unreported (—), not a claimed 대기 (step5 is pre-test)', () => {
     renderCard([makeResource({ credentialId: 'Key1' })]);
-    expect(screen.getByText('대기')).toBeTruthy();
-    expect(screen.queryByText('성공')).toBeNull();
+    // No agent has reported: the cell says nothing ('—') instead of folding the
+    // absence into 대기 — 대기 is reserved for an agent-reported PENDING. (The summary
+    // count labels also read 성공/대기, so the row assertion scopes to the table.)
+    const table = within(screen.getByRole('table'));
+    expect(table.queryByText('대기')).toBeNull();
+    expect(table.queryByText('성공')).toBeNull();
   });
 
   it('disables Run Test when a row has no credential, without touching Connection Status', () => {
     renderCard([makeResource({ credentialId: null })]);
-    // Connection Status only ever says what the agent reported — nothing ran, so Pending.
-    expect(screen.getByText('대기')).toBeTruthy();
+    // Connection Status only ever says what the agent reported — nothing ran, so no verdict.
+    expect(within(screen.getByRole('table')).queryByText('성공')).toBeNull();
     expect(screen.queryByText('자격 증명 필요')).toBeNull();
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', true);
     expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', true);
@@ -181,9 +197,9 @@ describe('ConnectionTestCard', () => {
       }),
     ]);
     // Athena / DynamoDB are not counted — only the credential-requiring res-2 is missing one.
-    expect(screen.getByText(/Credential 미등록/).textContent).toContain('1건');
+    expect(screen.getByText(/Credential 미설정/).textContent).toContain('1건');
 
-    fireEvent.click(screen.getByRole('button', { name: '미등록만 보기' }));
+    fireEvent.click(screen.getByRole('button', { name: '미설정만 보기' }));
     expect(screen.getByText('named-missing')).toBeTruthy();
     expect(screen.queryByText('named-athena')).toBeNull();
     expect(screen.queryByText('named-cred')).toBeNull();
@@ -203,19 +219,20 @@ describe('ConnectionTestCard', () => {
         credentialId: null,
       }),
     ]);
-    expect(screen.queryByText(/Credential 미등록/)).toBeNull();
-    expect(screen.queryByRole('button', { name: '미등록만 보기' })).toBeNull();
+    expect(screen.queryByText(/Credential 미설정/)).toBeNull();
+    expect(screen.queryByRole('button', { name: '미설정만 보기' })).toBeNull();
   });
 
   // Regression: a healthy target used to read 대기 / 0% purely because no credential was
   // picked locally, so a fully passed run showed "성공 0 · 대기 1 · 0%". The strip counts
   // the reported result; the credential gates Run Test, not the verdict.
   it('reports a SUCCESS unit as connected even with no credential selected', () => {
+    pollingState.uiState = 'SUCCESS';
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     renderCard([makeResource({ resourceId: 'res-1', credentialId: null })]);
-    expect(screen.getByText('성공')).toBeTruthy();
-    expect(screen.getByText(/연결 테스트 완료/)).toBeTruthy();
-    expect(screen.getByText('100%')).toBeTruthy();
+    // Row tag and the summary count both say 성공; the sentence states the fact.
+    expect(screen.getAllByText('성공').length).toBeGreaterThan(0);
+    expect(screen.getByText(/리소스 1개 모두 연결에 성공했어요/)).toBeTruthy();
   });
 
   it('Run Test triggers the async test (no local credential change → no credential PUT)', async () => {
@@ -288,12 +305,15 @@ describe('ConnectionTestCard', () => {
   // element is built each rerender (an identical element instance makes React
   // bail out) while the array reference stays stable.
   const renderStable = (confirmed: ConfirmedResource[]) => {
+    // makePolling() runs per element build, so a rerender picks up the mutated
+    // pollingState — the same observation semantics the step's live hook has.
     const element = () => (
       <ConnectionTestCard
         targetSourceId={1}
         confirmed={confirmed}
         providerLabel="Azure Infrastructure"
         refreshProject={() => {}}
+        polling={makePolling()}
       />
     );
     const { rerender } = render(element());
@@ -307,7 +327,7 @@ describe('ConnectionTestCard', () => {
     const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
     renderCard(confirmed);
     // Row must show Success and CTA must be enabled — no Run Test click.
-    expect(await screen.findByText('성공')).toBeTruthy();
+    expect((await screen.findAllByText('성공')).length).toBeGreaterThan(0);
     await waitFor(() =>
       expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
     );
@@ -326,7 +346,7 @@ describe('ConnectionTestCard', () => {
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     act(() => rerender());
 
-    expect(await screen.findByText('성공')).toBeTruthy();
+    expect((await screen.findAllByText('성공')).length).toBeGreaterThan(0);
     await waitFor(() =>
       expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
     );

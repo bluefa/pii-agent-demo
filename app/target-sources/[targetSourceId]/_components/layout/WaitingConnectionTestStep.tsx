@@ -14,6 +14,10 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { ConnectionTestCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ConnectionTestCard';
 import { ErrorRow, ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
+import {
+  useTestConnectionPolling,
+  type UseTestConnectionPollingReturn,
+} from '@/app/hooks/useTestConnectionPolling';
 
 interface WaitingConnectionTestStepProps {
   project: CloudTargetSource;
@@ -27,9 +31,11 @@ interface WaitingConnectionTestStepProps {
 const ConnectionTestSection = ({
   providerLabel,
   refreshProject,
+  polling,
 }: {
   providerLabel: string;
   refreshProject: () => void;
+  polling: UseTestConnectionPollingReturn;
 }) => {
   const { targetSourceId, state, retry } = useConfirmedIntegration();
   if (state.status === 'loading') return <ResourceTableSkeleton />;
@@ -40,6 +46,7 @@ const ConnectionTestSection = ({
       confirmed={state.data}
       providerLabel={providerLabel}
       refreshProject={refreshProject}
+      polling={polling}
     />
   );
 };
@@ -63,6 +70,10 @@ export const WaitingConnectionTestStep = ({
     onProjectUpdate(updated);
   }, [onProjectUpdate, project.targetSourceId]);
 
+  // 폴링은 스텝이 소유한다: 카드와 헤더 태그(ProjectPageMeta)가 같은 관찰을 prop 으로
+  // 나눠 받는다 — 모듈 스토어로 잇는 것은 DR1/DR7 위반이라 선택지가 아니다.
+  const polling = useTestConnectionPolling(project.targetSourceId);
+
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
       <ProjectPageMeta
@@ -70,8 +81,13 @@ export const WaitingConnectionTestStep = ({
         providerLabel={providerLabel}
         identity={identity}
         action={action}
+        tcJob={polling.latestJob}
       />
-      <ConnectionTestSection providerLabel={providerLabel} refreshProject={refreshProject} />
+      <ConnectionTestSection
+        providerLabel={providerLabel}
+        refreshProject={refreshProject}
+        polling={polling}
+      />
       <RejectionAlert project={project} />
     </ConfirmedIntegrationDataProvider>
   );

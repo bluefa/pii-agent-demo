@@ -16,7 +16,12 @@ export interface UseTestConnectionPollingReturn {
   /** Latest-result fetch failure. NOT_FOUND is excluded — that is the legitimate "no test yet" state. */
   fetchError: AppError | null;
   triggerError: string | null;
-  trigger: () => Promise<void>;
+  /**
+   * 새 실행 시작을 요청한다. 반환값 = 이번 요청으로 실행이 실제로 시작됐는가 —
+   * 409(이미 진행 중)와 그 외 실패는 false. IDC 의 credsDirty 게이트가 "실행이
+   * 시작된 뒤에만" 풀리도록 이 사실을 쓴다.
+   */
+  trigger: () => Promise<boolean>;
 }
 
 // ADR-019: connection_status gains RUNNING — both PENDING and RUNNING are
@@ -91,21 +96,24 @@ export const useTestConnectionPolling = (
     onUpdate: handleUpdate,
   });
 
-  const trigger = useCallback(async () => {
+  const trigger = useCallback(async (): Promise<boolean> => {
     setTriggerError(null);
+    let started = true;
     try {
       await triggerTestConnection(targetSourceId);
     } catch (err) {
       const appErr = err as AppError;
+      started = false;
       if (appErr.status === 409) {
         setTriggerError('이미 진행 중인 테스트가 있습니다');
       } else {
         setTriggerError(appErr.message || '연결 테스트 실행에 실패했습니다');
-        return;
+        return false;
       }
     }
     await baseRefresh();
     start();
+    return started;
   }, [targetSourceId, baseRefresh, start]);
 
   const uiState = computeUIState(latestJob);
