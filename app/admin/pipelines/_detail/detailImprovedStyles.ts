@@ -49,11 +49,13 @@ export const improvedStyles = {
     sduChip:
       'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
     prov: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
-    /** Tier 2 — service name + code; a fixed-width skeleton until #8 lands so
-     *  the header's anchor text never swaps mid-load (텍스트 점프 제거). */
-    nameRow: 'flex items-baseline gap-2 min-w-0 min-h-[20px]',
+    /** Tier 2 — labelled service name + code; a fixed-width skeleton until #8
+     *  lands so the header's anchor text never swaps mid-load (텍스트 점프 제거).
+     *  Labels stay visible during load — the value slot is what skeletons. */
+    nameRow: 'flex items-baseline gap-x-2 gap-y-1 min-w-0 min-h-[20px] flex-wrap',
+    klabel: 'text-[12px] text-[var(--pl-text-weak)] whitespace-nowrap',
     name: 'text-[14px] font-semibold text-[var(--pl-text-strong)] truncate',
-    code: 'text-[12px] font-medium [font-family:var(--pl-font-mono)] text-[var(--pl-text-weak)] whitespace-nowrap',
+    code: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] whitespace-nowrap',
     /** Tier 3 — run context: page label(h1) · run # · type tag · created · lineage. */
     subRow: 'mt-0.5 flex items-center gap-x-3 gap-y-1 flex-wrap text-[12px] text-[var(--pl-text-weak)]',
     pageLabel: 'text-[12px] font-semibold text-[var(--pl-text-weak)]',

@@ -414,17 +414,21 @@ export function PipelineDetailView(): ReactElement {
             )}
           </div>
           <div className={h.nameRow}>
+            <span className={h.klabel}>서비스 이름</span>
             {latest || latestSettled ? (
-              <>
-                <span className={h.name} title={svcName}>
-                  {svcName}
-                </span>
-                {latest?.service_code && <span className={h.code}>{latest.service_code}</span>}
-              </>
+              <span className={h.name} title={svcName}>
+                {svcName}
+              </span>
             ) : (
               /* #8 도착 전 — 폭 고정 스켈레톤. "Target N" 폴백을 먼저 그렸다
                  바꾸는 텍스트 점프를 없앤다. 폴백은 도착 실패 시에만. */
               <span className={cn(detailStyles.skeleton, 'h-4 w-[220px]')} aria-hidden="true" />
+            )}
+            {latest?.service_code && (
+              <>
+                <span className={h.klabel}>코드</span>
+                <span className={h.code}>{latest.service_code}</span>
+              </>
             )}
           </div>
           <div className={h.subRow}>

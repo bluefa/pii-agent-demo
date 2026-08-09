@@ -42,6 +42,12 @@ ops 서비스 운영 화면(ServiceDetailView)의 target 카드 3층 문법을 �
 
 ## 구현 노트
 
+- **2층 라벨(2026-08-09 오너 피드백)**: 값만 나열하니 "N-IRP-001이 뭐냐"는 질문이 바로 나왔다 →
+  `서비스 이름`·`코드` 12px 라벨을 값 앞에 상시 표기. 스켈레톤 중에도 라벨은 남는다.
+- **서비스 코드는 무조건 3글자**(오너 도메인 규칙): 목이 projectCode('N-IRP-001')를
+  service_code로 흘려 위장하고 있었음 → 목의 resolveService가 알파 토큰에서 3글자('IRP')를
+  유도하도록 수정. 실계약 샘플 확보 시 시드 필드로 교체.
+
 - provider 캐스팅: `normalizeCloudProvider`(lib/types)로 wire 'AZURE'→'Azure' 정규화 (ops의 `as CloudProvider` 캐스트보다 안전)
 - 계보 중 '원본 작업' 별도 링크는 제거 — RestartBadge(3층, 클릭=원본 이동)와 originStrip이 이미 담당(중복 제거)
 - `document.title`·경과 시간·실패 스트립 등 Round 1 산물은 그대로

@@ -1105,13 +1105,24 @@ const resolveProvider = (targetSourceId: string): CloudProvider | null => {
   return INTERNAL_PROVIDER[project.cloudProvider] ?? null;
 };
 
-/** Resolve a target-source's owning service (projectCode/name) from the app's
- *  mock seed — assumed addition to PipelineSummary (#3). Falls back to the
- *  target_source_id itself when the target isn't in the app's project seed. */
+/** 서비스 코드는 항상 3글자다(오너 도메인 규칙, 2026-08-09). 목 시드에는 실코드
+ *  필드가 없어 projectCode('N-IRP-001')의 가장 긴 알파벳 토큰에서 유도한다 —
+ *  'IRP'/'GCP'/'AZU'. 실계약 샘플이 오면 시드 필드로 교체한다. */
+const deriveServiceCode = (projectCode: string): string => {
+  const tokens = projectCode.split('-').filter((t) => /^[A-Za-z]+$/.test(t));
+  const longest = tokens.sort((a, b) => b.length - a.length)[0] ?? projectCode;
+  return longest.slice(0, 3).toUpperCase();
+};
+
+/** Resolve a target-source's owning service (code/name) from the app's mock
+ *  seed — assumed addition to PipelineSummary (#3). The code is the 3-letter
+ *  service code (deriveServiceCode), NOT the projectCode — the raw
+ *  'N-IRP-001' leaked into the header and read as an unknown identifier.
+ *  Falls back to the target_source_id when the target isn't in the seed. */
 const resolveService = (targetSourceId: string): { service_code: string; service_name: string } => {
   const project = getProjectByTargetSourceId(Number(targetSourceId));
   return project
-    ? { service_code: project.projectCode, service_name: project.name }
+    ? { service_code: deriveServiceCode(project.projectCode), service_name: project.name }
     : { service_code: targetSourceId, service_name: targetSourceId };
 };
 
