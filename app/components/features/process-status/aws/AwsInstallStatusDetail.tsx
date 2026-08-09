@@ -68,7 +68,7 @@ const serviceStepTitle = (manualInstall: boolean) =>
 
 // Execution order = service-side TF → BDC common → BDC service (common before
 // service — confirmed step order).
-const buildSteps = (manualInstall: boolean, targetSourceId: number): InstallTableStep[] => [
+const buildSteps = (manualInstall: boolean): InstallTableStep[] => [
   {
     id: 'service',
     title: serviceStepTitle(manualInstall),
@@ -79,22 +79,18 @@ const buildSteps = (manualInstall: boolean, targetSourceId: number): InstallTabl
     serviceAction: manualInstall
       ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용해 주세요.'
       : undefined,
-    // 수동에서는 이 단계가 곧 다운로드다 — 참고 항목에만 두면 반드시 해야 할 액션이
-    // 별도 탭 뒤로 숨는다(docs/cloud-provider-states.md 수동 INSTALLING 요구).
-    // 자동에서는 BDC 가 적용하므로 단계에 액션을 얹지 않는다.
-    action: manualInstall ? <TerraformScriptDownload targetSourceId={targetSourceId} /> : undefined,
     desc: manualInstall
       ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용합니다.'
       : '리소스별 Private Endpoint / IAM Role / Glue Policy 설정을 Terraform으로 자동 배포합니다.',
-    // 자동 설치에서는 이 단계를 BDC 가 대신 수행하므로, 담당자가 무엇이 적용되는지
-    // 볼 수 있는 곳을 알려준다. 수동에는 붙이지 않는다 — 그 단계 헤더에 이미
-    // 다운로드 CTA 가 있어 참고 항목을 다시 가리키면 순환이 된다.
-    note: manualInstall
-      ? undefined
-      : {
-          link: { label: 'Terraform Script', stepId: TF_SCRIPT_ID },
-          text: '에서 자세한 설치 사항을 확인할 수 있습니다.',
-        },
+    // 두 모드 모두 참고 항목을 가리킨다. 무게는 텍스트 링크까지다(오너 지시) —
+    // h40 버튼을 단계 헤더에 얹으면 12px 태그 두 개 사이에서 혼자 커진다.
+    // 수동은 거기서 받고, 자동은 BDC 가 무엇을 적용하는지 본다.
+    note: {
+      link: { label: 'Terraform Script', stepId: TF_SCRIPT_ID },
+      text: manualInstall
+        ? '에서 스크립트를 내려받을 수 있습니다.'
+        : '에서 자세한 설치 사항을 확인할 수 있습니다.',
+    },
   },
   {
     id: 'bdcCommon',
@@ -125,10 +121,7 @@ export const AwsInstallStatusDetail = ({
   manualInstall,
   targetSourceId,
 }: AwsInstallStatusDetailProps) => {
-  const steps = useMemo(
-    () => buildSteps(manualInstall, targetSourceId),
-    [manualInstall, targetSourceId],
-  );
+  const steps = useMemo(() => buildSteps(manualInstall), [manualInstall]);
 
   // 설명은 실제 단계 이름을 인용한다 — 수동 설치에서는 그 단계가 'Terraform 직접 적용'
   // 이라, 자동 설치 문구를 박아두면 화면이 절반의 경우에 거짓말을 한다.

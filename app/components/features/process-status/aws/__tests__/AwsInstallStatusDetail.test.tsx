@@ -244,12 +244,19 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(nav).queryByText('Terraform 권한 부여 확인')).toBeNull();
     expect(within(nav).getByText('Terraform 직접 적용')).toBeTruthy();
 
-    // 수동에서는 그 단계가 곧 다운로드다 — 기본 선택된 단계 안에 CTA 가 있어야 한다
-    // (docs/cloud-provider-states.md: 수동 INSTALLING = 안내 문구 + [TF Script 다운로드]).
+    // 무게는 텍스트 링크까지다(오너 지시) — 단계 헤더에 h40 다운로드 버튼을 얹지 않고
+    // 참고 항목으로 보낸다. 다만 안내는 단계 안에 남아야 한다.
+    expect(screen.queryByRole('button', { name: 'Terraform Script 다운로드' })).toBeNull();
+    expect(screen.getByText(/에서 스크립트를 내려받을 수 있습니다/)).toBeTruthy();
+
+    const [toScript] = screen
+      .getAllByRole('button', { name: 'Terraform Script' })
+      .filter((b) => !nav.contains(b));
+    fireEvent.click(toScript);
     expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
   });
 
-  it('자동 설치의 단계 헤더에는 다운로드 CTA 가 없다 — 적용 주체가 BDC다', () => {
+  it('자동 설치의 단계 헤더에도 다운로드 CTA 가 없다 — 적용 주체가 BDC다', () => {
     render(
       <AwsInstallStatusDetail
         status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
