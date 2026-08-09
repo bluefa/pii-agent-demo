@@ -46,7 +46,10 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
   const step = renderStep(props);
   if (!step) return null;
   return (
-    <main className={cn('bg-[#F4F4FB]', 'min-h-screen')}>
+    // `min-h-full`, not `min-h-screen`: this fills ProjectDetail's fixed
+    // `100vh - 76px` column, so a full 100vh here left 76px of empty scroll
+    // under every page — the same stack ServiceManagementView already unwound.
+    <main className={cn('bg-[#F4F4FB]', 'min-h-full')}>
       {/* v16 `.main`: full-width, padding 32/40/80 (top/x/bottom), flush to the 296px
           sidebar so content begins at 336px — matches IdcTargetSourceLayout. (Was
           max-w-[1200px] mx-auto p-7 — centered + 28px, which diverged from IDC/v16.)
