@@ -2,8 +2,9 @@
  * Full-screen log/state viewer for a single Terraform job. Rendered inside
  * ModalShell (scrim/Esc/backdrop are the shell's). Lazily fetches the job's log
  * (#5a) and last state observation (#5b) and renders the log tail-first.
+ * The dialog is drag-resizable from its bottom-right grip.
  */
-import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
@@ -16,6 +17,29 @@ import { formatJson } from '@/app/admin/pipelines/_detail/jsonFormat';
 import type { TerraformJobResultDetail, TerraformJobStateDetail } from '@/lib/pipeline/types';
 
 type ViewerTab = 'log' | 'raw';
+
+/** Owner Figma default — the operator drags from there. */
+const DEFAULT_SIZE: ViewerSize = { w: j.viewerBaseSize.width, h: j.viewerBaseSize.height };
+const MIN_SIZE = { w: 480, h: 360 };
+/** Viewport ceiling — mirrors the `!max-w`/`!max-h` backstop on `j.viewer`. */
+const MAX_RATIO = { w: 0.95, h: 0.9 };
+/** Last dragged size. Logs are read job after job, so the size sticks for the
+ *  rest of the session (module scope — no storage, resets on reload). */
+let lastSize = DEFAULT_SIZE;
+
+const clamp = (v: number, lo: number, hi: number): number => Math.min(Math.max(v, lo), hi);
+
+export type ViewerSize = { w: number; h: number };
+
+/** Size after dragging the grip by (dx, dy) from `base`. The pointer delta is
+ *  DOUBLED: the overlay centers the dialog, so each edge only moves half of the
+ *  size delta — without it the grip drifts away from the cursor. */
+export function resizeFromDrag(base: ViewerSize, dx: number, dy: number, vw: number, vh: number): ViewerSize {
+  return {
+    w: clamp(base.w + dx * 2, MIN_SIZE.w, vw * MAX_RATIO.w),
+    h: clamp(base.h + dy * 2, MIN_SIZE.h, vh * MAX_RATIO.h),
+  };
+}
 
 const VIEWER_TABS: ReadonlyArray<{ key: ViewerTab; label: string }> = [
   { key: 'log', label: 'Terraform 로그' },
@@ -71,7 +95,32 @@ export function JobViewer({
 }): ReactElement {
   const { attemptNumber, jobId } = target;
   const [tab, setTab] = useState<ViewerTab>('log');
+  const [size, setSize] = useState(lastSize);
   const logRef = useRef<HTMLDivElement>(null);
+
+  // Drag-resize from the corner grip. Listeners go on window: the pointer leaves
+  // the 16px grip immediately, and pointer capture is lost when React re-renders it.
+  const startResize = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    event.preventDefault();
+    const from = { x: event.clientX, y: event.clientY, ...size };
+    const onMove = (move: PointerEvent): void => {
+      const next = resizeFromDrag(
+        from,
+        move.clientX - from.x,
+        move.clientY - from.y,
+        window.innerWidth,
+        window.innerHeight,
+      );
+      lastSize = next;
+      setSize(next);
+    };
+    const onUp = (): void => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
 
   const result = useLoadable<TerraformJobResultDetail>(
     () => getJobResult(pipelineId, taskId, attemptNumber, jobId),
@@ -186,7 +235,13 @@ export function JobViewer({
   }
 
   return (
-    <ModalShell open onClose={onClose} labelledBy="pl-job-viewer-title" className={j.viewer}>
+    <ModalShell
+      open
+      onClose={onClose}
+      labelledBy="pl-job-viewer-title"
+      className={j.viewer}
+      style={{ width: size.w, height: size.h }}
+    >
       <div className={j.vHead}>
         <div className="min-w-0">
           <div className={j.vTitle} id="pl-job-viewer-title">
@@ -236,6 +291,21 @@ export function JobViewer({
           </PlButton>
         </div>
         {body}
+      </div>
+
+      <div
+        className={cn(j.grip, dark ? j.gripTone.dark : j.gripTone.light)}
+        onPointerDown={startResize}
+        onDoubleClick={() => {
+          lastSize = DEFAULT_SIZE;
+          setSize(DEFAULT_SIZE);
+        }}
+        title="드래그해서 크기 조절 (더블클릭: 기본 크기)"
+        aria-hidden
+      >
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden>
+          <path d="M14 6 6 14M14 11l-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
       </div>
     </ModalShell>
   );

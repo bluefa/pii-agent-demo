@@ -12,7 +12,7 @@
  * className, see TqModal). Pair with the app's useModal() hook for open/close
  * state (self-contained cleanup here).
  */
-import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useRef, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
 
@@ -24,6 +24,8 @@ export interface ModalShellProps {
   /** id of the heading element that labels the dialog. */
   labelledBy?: string;
   className?: string;
+  /** Inline dialog style — for a size the user drives at runtime (JobViewer's drag-resize). */
+  style?: CSSProperties;
   /** When false, the Escape key does NOT close the dialog (mouse-only: overlay click / close button). Default true. */
   closeOnEsc?: boolean;
 }
@@ -35,11 +37,16 @@ export function ModalShell({
   children,
   labelledBy,
   className,
+  style,
   closeOnEsc = true,
 }: ModalShellProps): ReactElement | null {
   const dialogRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const openedAt = useRef(pathname);
+  // Overlay click closes only when the press STARTED on the overlay. A drag that
+  // began inside the dialog (JobViewer's resize grip, or selecting log text) and
+  // ended on the scrim otherwise fires a click whose target is the overlay.
+  const pressedOverlay = useRef(false);
 
   // ESC closes, unless the caller opted out (mouse-only modal).
   useEffect(() => {
@@ -99,8 +106,11 @@ export function ModalShell({
   return (
     <div
       className={modal.overlay}
+      onMouseDown={(event) => {
+        pressedOverlay.current = event.target === event.currentTarget;
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget && pressedOverlay.current) onClose();
       }}
     >
       <div
@@ -109,6 +119,7 @@ export function ModalShell({
         aria-modal="true"
         aria-labelledby={labelledBy}
         tabIndex={-1}
+        style={style}
         className={
           // 'app' swaps the whole dialog chrome (r20/p0/scroll) — the others
           // layer a width onto the shared `dialog` base.
