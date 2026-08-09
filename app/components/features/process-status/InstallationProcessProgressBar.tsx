@@ -83,10 +83,16 @@ export const InstallationProcessProgressBar = ({
               >
                 {it.label}
               </span>
-              {/* No wrapper: `tcTag` is an element, so it is truthy even when it
-                  renders nothing, and a wrapper would collect the flex gap on
-                  every target that never ran a test. The tag styles itself. */}
-              {it.step === ProcessStatus.WAITING_CONNECTION_TEST && tcTag}
+              {/* Absolute, anchored to the BOTTOM of the grid row. In flow the
+                  tag is a nowrap box in a ~100px cell, so it spilled sideways
+                  into whatever sat beside it: at 960px the neighbouring label
+                  wraps to two lines and the two overlapped (codex, 30x10px).
+                  Out of flow at `top-full` it clears every label — the row
+                  stretches to the tallest one — and it costs no height, so a
+                  target that never ran a test gets no dead space either. */}
+              {it.step === ProcessStatus.WAITING_CONNECTION_TEST && (
+                <span className={s.tagSlot}>{tcTag}</span>
+              )}
             </li>
           );
         })}
