@@ -642,9 +642,7 @@ export const ConnectionTestCard = ({
                             className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-[160px]')}
                           >
                             {cred ? (
-                              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono">
-                                {cred}
-                              </span>
+                              <span className="min-w-0 truncate font-mono">{cred}</span>
                             ) : (
                               <span className="font-sans">미설정</span>
                             )}

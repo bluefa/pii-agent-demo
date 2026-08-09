@@ -244,12 +244,10 @@ export const IdcResourceTable = ({
                       onClick={() => onCredentialOpen?.(r)}
                       aria-label={`${r.hosts[0] ?? r.resourceId} Credential 수정 — 현재 ${credentials?.[r.resourceId] || '미설정'}`}
                       title={credentials?.[r.resourceId] || undefined}
-                      className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-[160px]')}
+                      className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-[144px]')}
                     >
                       {credentials?.[r.resourceId] ? (
-                        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono">
-                          {credentials[r.resourceId]}
-                        </span>
+                        <span className="min-w-0 truncate font-mono">{credentials[r.resourceId]}</span>
                       ) : (
                         <span className="font-sans">미설정</span>
                       )}
