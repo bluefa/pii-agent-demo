@@ -393,6 +393,23 @@ export function PipelineDetailView(): ReactElement {
           (target + service) leads; run # and the static page label are the
           context row; the recipe description is the ⓘ tooltip. */}
       <header className={h.root}>
+        <div className={h.titleRow}>
+          <h1 className={text.pageTitle}>Infra 작업 현황</h1>
+          {/* 승격된 CTA (오너: "Target 상세 확인 이게 더 중요") — ops 콘솔의 인프라
+              작업 탭으로. 헤더의 유일한 파랑. */}
+          <Link
+            href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
+            className={cn(
+              pipelineStyles.button.base,
+              pipelineStyles.button.md,
+              pipelineStyles.button.primary,
+              h.cta,
+            )}
+          >
+            Target 상세 확인 <Icon name="arrow-ur" size="sm" />
+          </Link>
+        </div>
+        <div className={h.main}>
         <ProviderLogo
           provider={normalizeCloudProvider(detail.cloud_provider)}
           isSdu={detail.is_sdu_type}
@@ -401,17 +418,18 @@ export function PipelineDetailView(): ReactElement {
         />
         <div className={h.body}>
           <div className={h.idRow}>
-            <span className={h.id}>
-              <span className={h.idHash}>#</span>
-              {detail.target_source_id}
-            </span>
             {/* ops 카드와 같은 규칙: SDU는 분류라 칩, 나머지는 평문 — 왼쪽 마크가
-                이미 provider를 말하므로 태그를 겹치지 않는다. */}
+                이미 provider를 말하므로 태그를 겹치지 않는다. 순서는 오너 지정
+                "GCP #1002" — provider가 먼저. */}
             {detail.is_sdu_type ? (
               <span className={h.sduChip}>SDU</span>
             ) : (
               <span className={h.prov}>{providerLabel(provider)}</span>
             )}
+            <span className={h.id}>
+              <span className={h.idHash}>#</span>
+              {detail.target_source_id}
+            </span>
           </div>
           <div className={h.nameRow}>
             <span className={h.klabel}>서비스 이름</span>
@@ -432,8 +450,6 @@ export function PipelineDetailView(): ReactElement {
             )}
           </div>
           <div className={h.subRow}>
-            <h1 className={h.pageLabel}>Infra 작업 현황</h1>
-            <span className={h.runId}>run #{detail.pipeline_id}</span>
             {detail.origin_pipeline_id != null && (
               <Link
                 href={passRoutes.pipelines.pipeline(detail.origin_pipeline_id)}
@@ -478,19 +494,7 @@ export function PipelineDetailView(): ReactElement {
             )}
           </div>
         </div>
-        {/* 승격된 CTA (오너: "Target 상세 확인 이게 더 중요") — ops 콘솔의 인프라
-            작업 탭으로. 헤더의 유일한 파랑. */}
-        <Link
-          href={passRoutes.pipelines.ops.targetSource(detail.target_source_id, 'infra')}
-          className={cn(
-            pipelineStyles.button.base,
-            pipelineStyles.button.md,
-            pipelineStyles.button.primary,
-            h.cta,
-          )}
-        >
-          Target 상세 확인 <Icon name="arrow-ur" size="sm" />
-        </Link>
+        </div>
       </header>
 
       {/* Exec band (node 70:35) — dark, two rows + (live) 중단 at right. Shown for

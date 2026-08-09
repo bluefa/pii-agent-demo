@@ -40,9 +40,12 @@ export const improvedStyles = {
    *  the recipe description lives in the ⓘ tooltip (owner: hover 대체).
    *  All tier metrics are copied from the ops card — no new values. */
   header: {
-    root: 'bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)] px-10 pt-6 pb-6 flex items-center gap-4',
+    root: 'bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)] px-10 pt-6 pb-6 flex flex-col gap-3',
+    /** Page title row — "Infra 작업 현황"(h1, text.pageTitle) + CTA at right. */
+    titleRow: 'flex items-center justify-between gap-6',
+    main: 'flex items-center gap-4',
     body: 'flex min-w-0 flex-1 flex-col gap-1',
-    /** Tier 1 — target id (ops tsTable.id metrics) + SDU chip / provider gloss. */
+    /** Tier 1 — provider first, then target id: "GCP #1002" (owner order). */
     idRow: 'flex items-center gap-2 flex-wrap',
     id: 'text-[16px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] tabular-nums whitespace-nowrap',
     idHash: 'mr-0.5 font-normal text-[var(--pl-text-weak)]',
@@ -56,10 +59,9 @@ export const improvedStyles = {
     klabel: 'text-[12px] text-[var(--pl-text-weak)] whitespace-nowrap',
     name: 'text-[14px] font-semibold text-[var(--pl-text-strong)] truncate',
     code: 'text-[14px] font-semibold [font-family:var(--pl-font-mono)] text-[var(--pl-text-strong)] whitespace-nowrap',
-    /** Tier 3 — run context: page label(h1) · run # · type tag · created · lineage. */
+    /** Tier 3 — run context: lineage badge · type tag(ⓘ) · created. The run #
+     *  line was cut on owner feedback — document.title/URL carry it. */
     subRow: 'mt-0.5 flex items-center gap-x-3 gap-y-1 flex-wrap text-[12px] text-[var(--pl-text-weak)]',
-    pageLabel: 'text-[12px] font-semibold text-[var(--pl-text-weak)]',
-    runId: 'text-[12px] [font-family:var(--pl-font-mono)] text-[var(--pl-text-weak)] tabular-nums whitespace-nowrap',
     /** Combined "AWS 설치" tag — neutral: the header's only hue is the CTA.
      *  DELETE keeps the err tone (a destructive run must not read neutral). */
     typeTag:
