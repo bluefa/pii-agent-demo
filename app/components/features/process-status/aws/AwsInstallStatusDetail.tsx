@@ -59,6 +59,9 @@ const RoleVerifyPanel = ({ status }: { status: AwsInstallationStatus }) => (
   </div>
 );
 
+/** 참고 항목 id — 단계의 역참조 링크가 같은 값을 가리켜야 한다. */
+const TF_SCRIPT_ID = 'tfScript';
+
 /** 서비스 측 TF 단계 이름 — 단계 배열과 참고 항목의 링크 라벨이 같은 출처를 쓴다. */
 const serviceStepTitle = (manualInstall: boolean) =>
   manualInstall ? 'Terraform 직접 적용' : '서비스 측 Terraform 자동 적용';
@@ -83,6 +86,15 @@ const buildSteps = (manualInstall: boolean, targetSourceId: number): InstallTabl
     desc: manualInstall
       ? '다운로드한 Terraform 스크립트를 서비스 AWS 계정에 직접 적용합니다.'
       : '리소스별 Private Endpoint / IAM Role / Glue Policy 설정을 Terraform으로 자동 배포합니다.',
+    // 자동 설치에서는 이 단계를 BDC 가 대신 수행하므로, 담당자가 무엇이 적용되는지
+    // 볼 수 있는 곳을 알려준다. 수동에는 붙이지 않는다 — 그 단계 헤더에 이미
+    // 다운로드 CTA 가 있어 참고 항목을 다시 가리키면 순환이 된다.
+    note: manualInstall
+      ? undefined
+      : {
+          link: { label: 'Terraform Script', stepId: TF_SCRIPT_ID },
+          text: '에서 자세한 설치 사항을 확인할 수 있습니다.',
+        },
   },
   {
     id: 'bdcCommon',
@@ -123,7 +135,7 @@ export const AwsInstallStatusDetail = ({
   // 단계 이름은 그 단계로 점프하는 링크다(오너 요구).
   const reference = useMemo<InstallReferenceStep>(
     () => ({
-      id: 'tfScript',
+      id: TF_SCRIPT_ID,
       title: 'Terraform Script',
       desc: '단계에서 수행하는 Terraform 작업 내역을 미리 확인할 수 있습니다.',
       descLink: { label: serviceStepTitle(manualInstall), stepId: 'service' },

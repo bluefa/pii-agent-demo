@@ -262,6 +262,27 @@ describe('AwsInstallStatusDetail', () => {
     expect(screen.queryByRole('button', { name: 'Terraform Script 다운로드' })).toBeNull();
   });
 
+  it('자동 설치의 서비스 단계는 참고 항목을 역참조한다 — 링크로 참고 패널이 열린다', () => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
+        confirmed={[]}
+        manualInstall={false}
+        targetSourceId={1008}
+      />,
+    );
+
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    fireEvent.click(within(nav).getByText('서비스 측 Terraform 자동 적용'));
+    expect(screen.getByText(/에서 자세한 설치 사항을 확인할 수 있습니다/)).toBeTruthy();
+
+    const [back] = screen
+      .getAllByRole('button', { name: 'Terraform Script' })
+      .filter((b) => !nav.contains(b));
+    fireEvent.click(back);
+    expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
+  });
+
   it('참고 · Terraform Script 는 단계가 아니다 — 상태도 기본 선택도 없고, 눌러야 열린다', () => {
     render(
       <AwsInstallStatusDetail

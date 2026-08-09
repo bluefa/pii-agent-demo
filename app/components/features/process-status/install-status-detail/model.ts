@@ -78,6 +78,12 @@ export interface InstallResourceMeta {
   resourceType: string | null;
 }
 
+/** 같은 화면 안의 다른 레일 항목으로 보내는 점프 링크 — 라벨을 파란 밑줄로 그린다. */
+export interface InstallJumpLink {
+  label: string;
+  stepId: string;
+}
+
 /** A step rendered as a per-resource table. */
 export interface InstallTableStep {
   id: string;
@@ -93,6 +99,12 @@ export interface InstallTableStep {
   serviceAction?: string;
   /** Optional control rendered in the step's panel head (e.g. IDC 방화벽 확인). */
   action?: ReactNode;
+  /**
+   * 설명 아래 보조 한 줄 — 참고 항목으로 보내는 역참조.
+   * `link.label` 을 파란 밑줄로 그리고 누르면 그 항목을 연다.
+   * `text` 는 라벨 뒤에 **공백 없이** 이어 붙는다 (조사가 라벨에 붙으므로).
+   */
+  note?: { link: InstallJumpLink; text: string };
   /**
    * Rail group — 'todo' (the service owner acts) / 'auto' (BDC proceeds
    * automatically). When EVERY step of an adapter declares one, the rail
@@ -117,8 +129,9 @@ export interface InstallReferenceStep {
   /**
    * 설명 앞머리의 단계 점프 링크 — label 을 파란 밑줄로 그리고, 누르면 해당
    * 단계를 연다 (요약 패널 "N단계로 이동" 링크와 같은 문법).
+   * 반대 방향(단계 → 참고 항목)은 `InstallTableStep.note`.
    */
-  descLink?: { label: string; stepId: string };
+  descLink?: InstallJumpLink;
   panel: ReactNode;
 }
 

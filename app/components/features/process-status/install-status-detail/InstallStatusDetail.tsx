@@ -54,6 +54,20 @@ const STATUS_TAG: Record<InstallStepValue, string> = {
   UNKNOWN: tagStyles.neutral,
 };
 
+/**
+ * 레일 항목끼리 서로를 가리키는 링크 — 요약 패널 "N단계로 이동" 과 같은 문법.
+ * 단계 → 참고 항목, 참고 항목 → 단계 양방향에서 같은 모양이어야 한다.
+ */
+const JumpLink = ({ label, onJump }: { label: string; onJump: () => void }) => (
+  <button
+    type="button"
+    onClick={onJump}
+    className={cn('underline underline-offset-2 decoration-1 font-semibold', primaryColors.text)}
+  >
+    {label}
+  </button>
+);
+
 /** A nav step whose right panel is custom content (e.g. AWS role verify). */
 export interface InstallPanelStep extends InstallTableStep {
   status: InstallStepValue;
@@ -556,6 +570,9 @@ export const InstallStatusDetail = ({
     });
   }, [activeReference, activePanel, active.id, resources, meta, cellOf]);
 
+  // 단계 ↔ 참고 항목을 서로 가리키는 링크는 문법이 하나다.
+  const activeNote = active.note ?? null;
+
   // Right-pane header/body — shared by both layouts (grouped / legacy).
   const paneHead = (
     <div className="flex items-start justify-between gap-3">
@@ -567,6 +584,14 @@ export const InstallStatusDetail = ({
         <p className={cn(textStyles.caption, textColors.secondary)}>
           {active.desc}
         </p>
+        {/* 역참조 한 줄 — 참고 항목이 이 단계를 가리키는 만큼, 이 단계도 참고 항목을
+            가리킨다. 조사가 라벨에 붙으므로 사이에 공백을 넣지 않는다. */}
+        {activeNote && (
+          <p className={cn(textStyles.caption, textColors.secondary)}>
+            <JumpLink label={activeNote.link.label} onJump={() => setSelected(activeNote.link.stepId)} />
+            {activeNote.text}
+          </p>
+        )}
       </div>
       <span className="flex items-center gap-2 flex-shrink-0">
         {active.side && <SideTag side={active.side} />}
@@ -769,16 +794,10 @@ export const InstallStatusDetail = ({
                   <p className={cn(textStyles.body, 'max-w-[46ch] break-keep', textColors.secondary)}>
                     {referenceLink && (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => setSelected(referenceLink.stepId)}
-                          className={cn(
-                            'underline underline-offset-2 decoration-1 font-semibold',
-                            primaryColors.text,
-                          )}
-                        >
-                          {referenceLink.label}
-                        </button>{' '}
+                        <JumpLink
+                          label={referenceLink.label}
+                          onJump={() => setSelected(referenceLink.stepId)}
+                        />{' '}
                       </>
                     )}
                     {activeReference.desc}
