@@ -426,7 +426,7 @@ export interface InstallStatusDetailProps {
   /** resourceId → region/DB-type/name enrichment (confirmed integration 등). */
   meta: ReadonlyMap<string, InstallResourceMeta>;
   /**
-   * 단계가 아닌 참고 항목 — 그룹 레일에서만 '참고' 묶음으로 렌더한다.
+   * 단계가 아닌 참고 항목 — 그룹 레일에서만 '리뷰요청' 묶음으로 렌더한다.
    * 레거시 레일(Azure/GCP/IDC)은 그리지 않으므로 넘겨도 도달할 수 없다.
    */
   reference?: InstallReferenceStep;
@@ -449,7 +449,8 @@ export const InstallStatusDetail = ({
     return all.length > 0 && all.every((s) => s.group);
   }, [panelSteps, steps]);
 
-  // The grouped rail has no summary step — the metabar and rail footer own the rollup.
+  // The grouped rail has no summary step — its rail lists the steps directly, so
+  // `rollup` stays unrendered there (owner removed the footer that used to show it).
   const navSteps: InstallTableStep[] = useMemo(
     () => (grouped ? [...panelSteps, ...steps] : [SUMMARY_STEP, ...panelSteps, ...steps]),
     [grouped, panelSteps, steps],
@@ -543,7 +544,11 @@ export const InstallStatusDetail = ({
     return grouped ? navSteps[0]?.id ?? SUMMARY_ID : SUMMARY_ID;
   }, [grouped, actionViews, navSteps, aggregates]);
   const [selected, setSelected] = useState<string | null>(null);
-  const activeId = selected ?? hotStepId;
+  // 존재하지 않는 id 로 선택이 굳는 것을 막는다. 죽은 점프 링크를 누르면 어떤 레일 행도
+  // aria-current 를 갖지 못하고(선택 표시가 통째로 사라진다) 패널은 조용히 첫 단계로 튄다.
+  // 둘 다 에러 없이 일어나므로 여기서 걸러 hot step 으로 되돌린다.
+  const isKnownId = (id: string) => navSteps.some((s) => s.id === id) || reference?.id === id;
+  const activeId = selected && isKnownId(selected) ? selected : hotStepId;
   // 참고 항목은 단계 배열(navSteps) 밖에 산다 — 그래서 집계·기본 선택·진행률 어디에도
   // 끼지 않고, 선택됐을 때만 우측 패널을 통째로 차지한다.
   const activeReference = reference && reference.id === activeId ? reference : null;
@@ -762,8 +767,9 @@ export const InstallStatusDetail = ({
                 {referenceItem(reference)}
               </>
             )}
-            {/* 레일 푸터(진행바+요약) 삭제 — 각 단계 행의 상태 글자가 이미 같은 말을
-                하고 있어 레일 하단에서 한 번 더 세지 않는다(오너 결정). */}
+            {/* 레일 푸터(진행바 + "N개 중 M개 완료") 삭제 — 오너 결정. 단계 행의 상태
+                글자는 최악값 한 단어라 리소스 개수를 대신하지 못하므로, 그룹 레일에는
+                수치 진행률이 남아 있지 않다. 필요해지면 메타바 우측이 자리다. */}
           </nav>
 
           {/* Primer card — separation is the hairline border (gray-200, so it

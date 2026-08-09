@@ -61,7 +61,7 @@ describe('AwsInstallStatusDetail', () => {
     );
 
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
-    // The grouped rail has no summary step — the metabar + rail footer own the rollup.
+    // The grouped rail has no summary step — the rail lists the steps directly.
     expect(within(nav).queryByText('설치 현황 요약')).toBeNull();
     expect(screen.getByText('설치 진행 상황')).toBeTruthy();
     expect(within(nav).getByText('Terraform 권한 부여 확인')).toBeTruthy();
@@ -74,7 +74,7 @@ describe('AwsInstallStatusDetail', () => {
     expect(within(nav).getByText('BDC 진행')).toBeTruthy();
     expect(within(nav).queryByText('서비스측')).toBeNull();
     expect(within(nav).queryByText('BDC측')).toBeNull();
-    // 레일 푸터(진행바+요약)는 삭제됐다 — 각 단계 행의 상태 글자가 같은 말을 한다.
+    // 레일 푸터(진행바+요약)는 오너 결정으로 삭제됐다.
     expect(within(nav).queryByText('2개 중 1개 완료')).toBeNull();
 
     // No open todo → the failed step is the default view, and its table's 안내
@@ -283,7 +283,7 @@ describe('AwsInstallStatusDetail', () => {
     expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
   });
 
-  it('참고 · Terraform Script 는 단계가 아니다 — 상태도 기본 선택도 없고, 눌러야 열린다', () => {
+  it('리뷰요청 · Terraform Script 는 단계가 아니다 — 상태도 기본 선택도 없고, 눌러야 열린다', () => {
     render(
       <AwsInstallStatusDetail
         status={buildStatus([resource('r-1', 'COMPLETED')])}
