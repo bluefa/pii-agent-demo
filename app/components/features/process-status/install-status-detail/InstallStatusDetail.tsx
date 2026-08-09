@@ -6,6 +6,7 @@ import {
   borderColors,
   cn,
   primaryColors,
+  serviceSidebarStyles,
   sideTextColors,
   stackGap,
   shadows,
@@ -599,19 +600,28 @@ export const InstallStatusDetail = ({
     const todoSteps = navSteps.filter((s) => s.group === 'todo');
     const autoSteps = navSteps.filter((s) => s.group === 'auto');
     // 레일 항목 껍데기 — 단계와 참고 항목이 같은 히트 영역·선택 표현을 쓴다.
+    // 선택은 서비스 목록 rail 의 "현재 위치" 문법(rowCurrent: 파란 틴트 + 좌측 2px 바)
+    // 그대로다 — 흰 pill + 헤어라인은 회색 판 위에서 눌린 티가 나지 않았다(오너 지적).
+    // 바가 라운드를 뚫지 않도록 overflow-hidden.
     const railItemClass = (isActive: boolean) =>
       cn(
-        'relative flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0',
-        // Primer grammar — the selected item lifts with an inset hairline
-        // ring + 1px offset shadow.
-        isActive ? cn('bg-white', shadows.hairRing) : 'hover:bg-white/60',
+        'flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0 overflow-hidden',
+        isActive ? serviceSidebarStyles.rowCurrent : 'hover:bg-white/60',
       );
 
-    // Rail item — one line: [open-todo dot | ordinal] title · status word.
+    // 레일 항목 제목 — 평시 14/400, 선택 시 14/600. 항목이 조용해진 만큼(A안)
+    // 선택된 것 하나만 무게를 갖는다.
+    const railTitleClass = (isActive: boolean) =>
+      cn(
+        'flex-1 min-w-0 truncate',
+        isActive ? textStyles.bodyStrong : textStyles.body,
+        textColors.primary,
+      );
+
+    // Rail item — one line: [ordinal] title · status word.
     const railItem = (step: InstallTableStep, ord: number | null) => {
       const aggregate = aggregates.get(step.id)!;
       const isActive = step.id === activeId;
-      const openTodo = step.group === 'todo' && aggregate.kind !== 'done';
       return (
         <button
           key={step.id}
@@ -620,15 +630,6 @@ export const InstallStatusDetail = ({
           aria-current={isActive}
           className={railItemClass(isActive)}
         >
-          {openTodo && (
-            <span
-              aria-hidden
-              className={cn(
-                'absolute left-1 top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full',
-                statusColors.info.dot,
-              )}
-            />
-          )}
           {ord !== null && (
             // Execution order — quiet gray digits. secondary, not tertiary:
             // gray-500 on the panel surface (gray-100) is 4.37:1, under AA.
@@ -636,7 +637,7 @@ export const InstallStatusDetail = ({
               {ord}
             </span>
           )}
-          <span className={cn('flex-1 min-w-0 truncate', textStyles.bodyStrong, textColors.primary)}>
+          <span className={railTitleClass(isActive)}>
             {step.title}
           </span>
           <span
@@ -662,27 +663,17 @@ export const InstallStatusDetail = ({
         aria-current={ref.id === activeId}
         className={railItemClass(ref.id === activeId)}
       >
-        {/* 할 일의 파란 점과 같은 문법 — "여기 눈길을 달라"는 표시. 색만 주황이라
-            '해야 하는 일'과 '봐 두면 좋은 일'이 같은 어휘 안에서 갈린다. */}
-        <span
-          aria-hidden
-          className={cn(
-            'absolute left-1 top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full',
-            statusColors.warning.dot,
-          )}
-        />
-        <span className={cn('flex-1 min-w-0 truncate', textStyles.bodyStrong, textColors.primary)}>
-          {ref.title}
-        </span>
+        <span className={railTitleClass(ref.id === activeId)}>{ref.title}</span>
       </button>
     );
 
-    // 16/500 — 그룹 이름이 항목(14/600)보다 한 단 크다. 레일을 훑을 때 먼저 걸리는 것이
-    // 개별 단계가 아니라 "무엇의 묶음인가"여야 한다는 오너 결정.
+    // 16/600 — 그룹 이름이 항목(14/400)보다 크고 굵다. 계층 레버(크기·굵기)가 전부
+    // 라벨 편을 가리켜야 한다 — 16/500 은 크기로는 상위, 굵기·잉크로는 하위라
+    // 부모가 오락가락했다(레일 타이포 벤치마크 진단 1).
     const groupLabel = (text: string, tone: string) => (
       <div
         className={cn(
-          'px-2.5 pt-3 pb-1 text-[16px] font-medium leading-[24px] tracking-[-0.01em] flex-shrink-0',
+          'px-2.5 pt-3 pb-1 text-[16px] font-semibold leading-[24px] tracking-[-0.01em] flex-shrink-0',
           // On the gray-100 panel: #0064FF is 4.47:1 and gray-500 is 4.37:1,
           // both under AA — use the darker tiers the theme keeps for tints.
           tone,
