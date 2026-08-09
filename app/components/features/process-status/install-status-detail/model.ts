@@ -112,7 +112,13 @@ export interface InstallTableStep {
 export interface InstallReferenceStep {
   id: string;
   title: string;
+  /** 설명 문장 — `descLink` 가 있으면 링크 라벨 뒤에 이어 붙는 나머지 문장. */
   desc: string;
+  /**
+   * 설명 앞머리의 단계 점프 링크 — label 을 파란 밑줄로 그리고, 누르면 해당
+   * 단계를 연다 (요약 패널 "N단계로 이동" 링크와 같은 문법).
+   */
+  descLink?: { label: string; stepId: string };
   panel: ReactNode;
 }
 

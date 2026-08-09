@@ -8,7 +8,7 @@ import { AwsInstallStatusDetail } from '@/app/components/features/process-status
 import { isAwsInstallationComplete } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
-import { borderColors, cardStyles, cn, stackGap, statusColors, textColors, textStyles } from '@/lib/theme';
+import { borderColors, cardStyles, cn, idcStyles, stackGap, statusColors, textStyles } from '@/lib/theme';
 import type { AwsInstallationStatus } from '@/lib/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 
@@ -71,16 +71,16 @@ export const AwsInstallationInline = ({
             상태 확인 실패: {status.lastCheck.failReason}
           </div>
         )}
-        {confirmedState.status === 'loading' && (
+        {/* 설치 상태 스켈레톤이 떠 있는 동안에는 안 그린다 — 프레임 위에 또 프레임을
+            얹으면 스켈레톤이 두 겹으로 읽힌다. 텍스트 배너 대신 같은 박스 골격에
+            펄스 바(스켈레톤 프레임)를 채운다(오너 요구). */}
+        {confirmedState.status === 'loading' && !loading && (
           <div
-            className={cn(
-              'px-4 py-2 rounded-lg border',
-              textStyles.body,
-              borderColors.default,
-              textColors.tertiary,
-            )}
+            aria-busy="true"
+            aria-label="리소스 정보 불러오는 중"
+            className={cn('px-4 py-2 rounded-lg border', borderColors.default)}
           >
-            리소스 정보 불러오는 중...
+            <div className={cn(idcStyles.skeletonBar, 'h-4 w-48 rounded')} />
           </div>
         )}
         {confirmedState.status === 'error' && (

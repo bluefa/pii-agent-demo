@@ -110,11 +110,13 @@ export const AwsInstallStatusDetail = ({
   const reference = useMemo<InstallReferenceStep>(() => {
     // 설명은 실제 단계 이름을 인용한다 — 수동 설치에서는 그 단계가 'Terraform 직접 적용'
     // 이라, 자동 설치 문구를 박아두면 화면이 절반의 경우에 거짓말을 한다.
+    // 단계 이름은 그 단계로 점프하는 링크다(오너 요구).
     const serviceStepTitle = steps.find((s) => s.id === 'service')!.title;
     return {
       id: 'tfScript',
       title: 'Terraform Script',
-      desc: `${serviceStepTitle} 단계에서 수행하는 Terraform 작업 내역을 미리 확인할 수 있습니다.`,
+      desc: '단계에서 수행하는 Terraform 작업 내역을 미리 확인할 수 있습니다.',
+      descLink: { label: serviceStepTitle, stepId: 'service' },
       panel: <TerraformScriptPanel targetSourceId={targetSourceId} />,
     };
   }, [steps, targetSourceId]);

@@ -267,6 +267,14 @@ describe('AwsInstallStatusDetail', () => {
 
     fireEvent.click(item);
     expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
+
+    // 설명 앞머리의 단계 이름은 점프 링크다 — 누르면 그 단계가 열린다.
+    const jump = screen
+      .getAllByRole('button', { name: '서비스 측 Terraform 자동 적용' })
+      .find((b) => !nav.contains(b))!;
+    fireEvent.click(jump);
+    expect(screen.queryByRole('button', { name: 'Terraform Script 다운로드' })).toBeNull();
+    expect(screen.getByText(/리소스별 Private Endpoint/)).toBeTruthy();
   });
 
   it('paginates the resource table past 10 rows and has no 새로고침 control', () => {

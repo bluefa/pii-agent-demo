@@ -558,7 +558,9 @@ export const InstallStatusDetail = ({
       {/* title↔subtitle = tight 4px */}
       <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
         <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
-        <p className={cn(textStyles.caption, 'max-w-[60ch]', textColors.secondary)}>
+        {/* 폭 캡 없음 — 단계 설명은 전부 한 문장이라, 판이 허용하는 만큼 한 줄로
+            선다(오너 요구: "리소스별 Private Endpoint …" 줄바꿈 금지). */}
+        <p className={cn(textStyles.caption, textColors.secondary)}>
           {active.desc}
         </p>
       </div>
@@ -772,6 +774,20 @@ export const InstallStatusDetail = ({
                     {activeReference.title}
                   </h3>
                   <p className={cn(textStyles.body, 'max-w-[46ch] break-keep', textColors.secondary)}>
+                    {activeReference.descLink && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setSelected(activeReference.descLink!.stepId)}
+                          className={cn(
+                            'underline underline-offset-2 decoration-1 font-semibold',
+                            primaryColors.text,
+                          )}
+                        >
+                          {activeReference.descLink.label}
+                        </button>{' '}
+                      </>
+                    )}
                     {activeReference.desc}
                   </p>
                   <div className="mt-2">{activeReference.panel}</div>
