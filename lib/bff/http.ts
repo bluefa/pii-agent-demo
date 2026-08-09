@@ -496,8 +496,8 @@ export const httpBff: BffClient = {
     confirmApprovalUnavailable: (id) =>
       post<unknown>(`/target-sources/${id}/approval-unavailable/confirm`, {}),
 
-    confirmInstallation: (id, body) =>
-      post<unknown>(`/target-sources/${id}/pii-agent-installation/confirm`, body),
+    confirmInstallation: (id) =>
+      post<unknown>(`/target-sources/${id}/pii-agent-installation/confirm`),
 
     updateResourceCredential: (id, body) =>
       put<unknown>(`/target-sources/${id}/resources/credential`, body),

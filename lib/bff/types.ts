@@ -281,7 +281,7 @@ export interface BffClient {
     cancelApprovalRequest: (id: number) => Promise<unknown>;
     markApprovalRequestUnavailable: (id: number, body: unknown) => Promise<unknown>;
     confirmApprovalUnavailable: (id: number) => Promise<unknown>;
-    confirmInstallation: (id: number, body: unknown) => Promise<unknown>;
+    confirmInstallation: (id: number) => Promise<unknown>;
     updateResourceCredential: (id: number, body: unknown) => Promise<unknown>;
     testConnection: (id: number, collectorImageTag?: string) => Promise<z.infer<typeof schemas.TestConnectionTriggerResponse>>;
     getTestConnectionLatest: (id: number) => Promise<z.infer<typeof schemas.TestConnectionVersionResult>>;
