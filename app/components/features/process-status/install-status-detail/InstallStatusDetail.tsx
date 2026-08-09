@@ -534,8 +534,8 @@ export const InstallStatusDetail = ({
   const activeReference = reference && reference.id === activeId ? reference : null;
   const active = navSteps.find((s) => s.id === activeId) ?? navSteps[0];
   const activePanel = panelSteps.find((p) => p.id === active.id);
-  const isSummary = !activeReference && active.id === SUMMARY_ID;
-  const activeAggregate = activeReference ? undefined : aggregates.get(active.id);
+  const isSummary = active.id === SUMMARY_ID;
+  const activeAggregate = aggregates.get(active.id);
 
   const rows = useMemo<ResourceRow[]>(() => {
     if (activeReference || activePanel || active.id === SUMMARY_ID) return [];
@@ -553,37 +553,31 @@ export const InstallStatusDetail = ({
   }, [activeReference, activePanel, active.id, resources, meta, cellOf]);
 
   // Right-pane header/body — shared by both layouts (grouped / legacy).
-  const head = activeReference ?? active;
   const paneHead = (
     <div className="flex items-start justify-between gap-3">
       {/* title↔subtitle = tight 4px */}
       <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
-        <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{head.title}</h3>
+        <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
         <p className={cn(textStyles.caption, 'max-w-[60ch]', textColors.secondary)}>
-          {head.desc}
+          {active.desc}
         </p>
       </div>
-      {/* 참고 항목은 주체도 상태도 없다 — 우측 슬롯 자체를 그리지 않는다. */}
-      {!activeReference && (
-        <span className="flex items-center gap-2 flex-shrink-0">
-          {active.side && <SideTag side={active.side} />}
-          {active.action}
-          {!isSummary && activeAggregate && (
-            <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
-              {/* The grouped rail drops n/m counts — status words only. */}
-              {!grouped && activeAggregate.count
-                ? `${activeAggregate.label} ${activeAggregate.count}`
-                : activeAggregate.label}
-            </span>
-          )}
-        </span>
-      )}
+      <span className="flex items-center gap-2 flex-shrink-0">
+        {active.side && <SideTag side={active.side} />}
+        {active.action}
+        {!isSummary && activeAggregate && (
+          <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
+            {/* The grouped rail drops n/m counts — status words only. */}
+            {!grouped && activeAggregate.count
+              ? `${activeAggregate.label} ${activeAggregate.count}`
+              : activeAggregate.label}
+          </span>
+        )}
+      </span>
     </div>
   );
 
-  const paneBody = activeReference ? (
-    activeReference.panel
-  ) : activePanel ? (
+  const paneBody = activePanel ? (
     activePanel.panel
   ) : isSummary ? (
     <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
@@ -744,8 +738,51 @@ export const InstallStatusDetail = ({
           {/* Primer card — separation is the hairline border (gray-200, so it
               reads against the gray-100 panel), the shadow is only a 1px lift hint. */}
           <div className={cn('min-w-0 min-h-0 flex flex-col bg-white rounded-xl border', borderColors.default, shadows.hair)}>
-            <div className={cn('flex-none px-5 py-4 border-b', borderColors.light)}>{paneHead}</div>
-            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">{paneBody}</div>
+            {activeReference ? (
+              /* 참고 패널은 표가 아니라 액션 하나다 — 헤더+본문으로 쪼개면 16px 제목,
+                 12px 설명, 떠 있는 버튼 세 조각이 큰 빈 면 위에 남는다(오너 지적).
+                 EmptyState(block)의 히어로 문법을 한 단계 키워 카드 전체가 한 구도가
+                 되게 한다: 아이콘 칩 → 제목 → 설명 → 액션, 수직 중앙. */
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+                <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
+                  <div
+                    aria-hidden
+                    className={cn(
+                      'mb-1 grid h-14 w-14 place-items-center rounded-2xl',
+                      primaryColors.bgLight,
+                      primaryColors.textOnLight,
+                    )}
+                  >
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 3v12" />
+                      <path d="m7 10 5 5 5-5" />
+                      <path d="M5 21h14" />
+                    </svg>
+                  </div>
+                  <h3 className={cn('text-[18px] font-bold leading-[1.3] tracking-[-0.01em]', textColors.primary)}>
+                    {activeReference.title}
+                  </h3>
+                  <p className={cn(textStyles.body, 'max-w-[46ch] break-keep', textColors.secondary)}>
+                    {activeReference.desc}
+                  </p>
+                  <div className="mt-2">{activeReference.panel}</div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className={cn('flex-none px-5 py-4 border-b', borderColors.light)}>{paneHead}</div>
+                <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">{paneBody}</div>
+              </>
+            )}
           </div>
         </div>
       </div>

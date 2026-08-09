@@ -36,8 +36,8 @@ export const TerraformScriptPanel = ({ targetSourceId }: { targetSourceId: numbe
   }, [targetSourceId]);
 
   return (
-    // 블록 경계 = group 16px
-    <div className={cn('flex flex-col items-start', stackGap.group)}>
+    // 히어로(아이콘→제목→설명→액션, 수직 중앙)의 액션 영역 — 부모가 중앙 정렬한다.
+    <div className={cn('flex flex-col items-center', stackGap.group)}>
       <button
         type="button"
         onClick={handleDownload}
