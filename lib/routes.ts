@@ -68,8 +68,10 @@ export const passRoutes = {
       services: '/admin/pipelines/ops/services',
       service: (serviceCode: string) =>
         `/admin/pipelines/ops/services/${encodeURIComponent(serviceCode)}`,
-      targetSources: '/admin/pipelines/ops/target-sources',
-      /** `tab` deep-links one tab open (OPS_TAB_SLUGS); omit for 진행 상태. */
+      /**
+       * 단건 운영 화면만 라우팅한다 — 목록 화면은 없다(진입은 서비스 운영의 인프라 행과
+       * 파이프라인 상세 breadcrumb). `tab` 은 한 탭을 열어둔다(OPS_TAB_SLUGS); 생략하면 진행 상태.
+       */
       targetSource: (targetSourceId: number | string, tab?: OpsTargetTab) =>
         `/admin/pipelines/ops/target-sources/${encodeURIComponent(String(targetSourceId))}`
         + (tab ? `?tab=${tab}` : ''),
