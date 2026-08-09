@@ -22,7 +22,7 @@ import {
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
-import { formatDateTime } from '@/lib/utils/date';
+import { formatDateTime, formatDateTimeKst } from '@/lib/utils/date';
 import {
   INSTALL_STATUS_LABEL,
   isSettledInstallStatus,
@@ -417,9 +417,19 @@ export const InstallStatusDetail = ({
   panelSteps = [],
   meta,
 }: InstallStatusDetailProps) => {
+  // Grouped rail (v2) — on only when EVERY step declares a group (AWS first).
+  // A half-migrated adapter (some steps missing `group`) falls back to the
+  // legacy layout: the grouped rail partitions by group and would silently
+  // drop — and make unreachable — any step that declares none.
+  const grouped = useMemo(() => {
+    const all = [...panelSteps, ...steps];
+    return all.length > 0 && all.every((s) => s.group);
+  }, [panelSteps, steps]);
+
+  // The grouped rail has no summary step — the metabar and rail footer own the rollup.
   const navSteps: InstallTableStep[] = useMemo(
-    () => [SUMMARY_STEP, ...panelSteps, ...steps],
-    [panelSteps, steps],
+    () => (grouped ? [...panelSteps, ...steps] : [SUMMARY_STEP, ...panelSteps, ...steps]),
+    [grouped, panelSteps, steps],
   );
 
   const cellOf = useMemo(() => {
@@ -473,6 +483,14 @@ export const InstallStatusDetail = ({
 
   const actionViews = useMemo(() => views.filter((v) => v.actionable), [views]);
 
+  const openTodoCount = useMemo(
+    () =>
+      navSteps.filter(
+        (s) => s.group === 'todo' && aggregates.get(s.id)?.kind !== 'done',
+      ).length,
+    [navSteps, aggregates],
+  );
+
   const rollup = useMemo(() => {
     const kinds = resources.map((r) => kindOfValue(r.rollup.status));
     return {
@@ -483,16 +501,24 @@ export const InstallStatusDetail = ({
     };
   }, [resources]);
 
-  // 조치할 항목이 있으면 요약(=할 일 목록)으로 열고, 없으면 진행 중인 단계로
-  // 바로 들어간다. 사용자 클릭은 항상 선택을 고정한다.
+  // Default selection: with actionable items, open the summary (= todo list);
+  // otherwise jump straight to the step in motion. The grouped rail has no
+  // summary, so its first open todo IS the first screen. A user click always
+  // pins the selection.
   const hotStepId = useMemo<string>(() => {
-    if (actionViews.length > 0) return SUMMARY_ID;
+    if (grouped) {
+      const todo = navSteps.find(
+        (s) => s.group === 'todo' && aggregates.get(s.id)?.kind !== 'done',
+      );
+      if (todo) return todo.id;
+    } else if (actionViews.length > 0) return SUMMARY_ID;
     for (const kind of ['failed', 'running', 'waiting'] as const) {
       const hit = navSteps.find((s) => s.id !== SUMMARY_ID && aggregates.get(s.id)?.kind === kind);
       if (hit) return hit.id;
     }
-    return SUMMARY_ID;
-  }, [actionViews, navSteps, aggregates]);
+    // The grouped rail has no summary step — when everything is done, open the first item.
+    return grouped ? navSteps[0]?.id ?? SUMMARY_ID : SUMMARY_ID;
+  }, [grouped, actionViews, navSteps, aggregates]);
   const [selected, setSelected] = useState<string | null>(null);
   const activeId = selected ?? hotStepId;
   const active = navSteps.find((s) => s.id === activeId) ?? navSteps[0];
@@ -515,6 +541,185 @@ export const InstallStatusDetail = ({
     });
   }, [activePanel, active.id, resources, meta, cellOf]);
 
+  // Right-pane header/body — shared by both layouts (grouped / legacy).
+  const paneHead = (
+    <div className="flex items-start justify-between gap-3">
+      {/* title↔subtitle = tight 4px */}
+      <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
+        <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
+        <p className={cn(textStyles.caption, 'max-w-[60ch]', textColors.secondary)}>
+          {active.desc}
+        </p>
+      </div>
+      <span className="flex items-center gap-2 flex-shrink-0">
+        {active.side && <SideTag side={active.side} />}
+        {active.action}
+        {!isSummary && activeAggregate && (
+          <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
+            {/* The grouped rail drops n/m counts — status words only. */}
+            {!grouped && activeAggregate.count
+              ? `${activeAggregate.label} ${activeAggregate.count}`
+              : activeAggregate.label}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+
+  const paneBody = activePanel ? (
+    activePanel.panel
+  ) : isSummary ? (
+    <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
+  ) : (
+    // key resets pagination when switching steps
+    <StepResourceTable key={active.id} rows={rows} />
+  );
+
+  // ---------------------------------------------------------------------------
+  // Grouped rail layout (v3.6, AWS first) — a gray wrapper encloses the rail
+  // and the white content card.
+  // ---------------------------------------------------------------------------
+  if (grouped) {
+    const todoSteps = navSteps.filter((s) => s.group === 'todo');
+    const autoSteps = navSteps.filter((s) => s.group === 'auto');
+    // Nonzero buckets get a 1% floor so a single failure among hundreds of
+    // resources still leaves a visible sliver (flex-shrink absorbs any >100% sum).
+    const pct = (n: number) =>
+      rollup.total ? Math.max(n > 0 ? 1 : 0, Math.round((n / rollup.total) * 100)) : 0;
+
+    // Rail item — one line: [open-todo dot | ordinal] title · status word.
+    const railItem = (step: InstallTableStep, ord: number | null) => {
+      const aggregate = aggregates.get(step.id)!;
+      const isActive = step.id === activeId;
+      const openTodo = step.group === 'todo' && aggregate.kind !== 'done';
+      return (
+        <button
+          key={step.id}
+          type="button"
+          onClick={() => setSelected(step.id)}
+          aria-current={isActive}
+          className={cn(
+            'relative flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0',
+            // Primer grammar — the selected item lifts with an inset hairline
+            // ring + 1px offset shadow.
+            isActive ? cn('bg-white', shadows.hairRing) : 'hover:bg-white/60',
+          )}
+        >
+          {openTodo && (
+            <span
+              aria-hidden
+              className={cn(
+                'absolute left-1 top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full',
+                statusColors.info.dot,
+              )}
+            />
+          )}
+          {ord !== null && (
+            // Execution order — quiet gray digits. secondary, not tertiary:
+            // gray-500 on the panel surface (gray-100) is 4.37:1, under AA.
+            <span className={cn('flex-shrink-0 w-3.5 tabular-nums', textStyles.caption, textColors.secondary)}>
+              {ord}
+            </span>
+          )}
+          <span className={cn('flex-1 min-w-0 truncate', textStyles.bodyStrong, textColors.primary)}>
+            {step.title}
+          </span>
+          <span
+            className={cn(
+              'flex-shrink-0',
+              textStyles.caption,
+              NAV_STATUS_TEXT[aggregate.kind],
+              aggregate.kind === 'done' || aggregate.kind === 'waiting' ? 'font-normal' : 'font-semibold',
+            )}
+          >
+            {aggregate.label}
+          </span>
+        </button>
+      );
+    };
+
+    const groupLabel = (text: string, hot: boolean) => (
+      <div
+        className={cn(
+          'px-2.5 pt-3 pb-1 font-bold tracking-[0.02em] flex-shrink-0',
+          textStyles.caption,
+          // On the gray-100 panel: #0064FF is 4.47:1 and gray-500 is 4.37:1,
+          // both under AA — use the darker pair the theme keeps for tints.
+          hot ? primaryColors.textOnLight : textColors.secondary,
+        )}
+      >
+        {text}
+      </div>
+    );
+
+    return (
+      <div className={cn('rounded-2xl p-2', bgColors.panel)}>
+        {/* Metabar — title left / last-check right, one baseline row. No manual
+            refresh or interval control (owner decision) — polling refreshes quietly. */}
+        <div className="flex items-baseline gap-3 flex-wrap px-2.5 pt-1.5 pb-2.5">
+          <h3 className={cn(textStyles.cardTitle, textColors.primary)}>설치 진행 상황</h3>
+          <span className={cn('ml-auto', textStyles.caption, textColors.secondary)}>
+            {/* checked_at is UTC wire — the label asserts KST, so the formatter
+                pins Asia/Seoul instead of trusting the browser timezone. */}
+            {lastCheck.checkedAt && <>마지막 확인 {formatDateTimeKst(lastCheck.checkedAt)} (KST)</>}
+            {lastCheck.status === 'FAILED' && (
+              <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
+            )}
+          </span>
+        </div>
+
+        {/* Fixed height — scrolling lives in the card body on the right; the
+            card header is the clipping point. */}
+        <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-2 h-[560px]">
+          <nav className="flex flex-col gap-0.5 overflow-y-auto min-h-0 pb-1" aria-label="설치 단계">
+            {groupLabel(`내가 할 일 (${openTodoCount})`, openTodoCount > 0)}
+            {todoSteps.map((s) => railItem(s, null))}
+            {openTodoCount === 0 && (
+              <p className={cn('px-3.5 pb-1 flex-shrink-0', textStyles.caption, textColors.secondary)}>
+                지금 하실 일이 없어요 —
+                <br />
+                모든 단계는 자동으로 진행돼요
+              </p>
+            )}
+            {groupLabel('BDC 자동 진행', false)}
+            {autoSteps.map((s, i) => railItem(s, i + 1))}
+
+            {/* Rail footer — the bottom slack closes with an overall progress
+                summary (WinUI PaneFooter grammar). */}
+            <div className="mt-auto px-2.5 pt-4 pb-1 flex flex-col gap-1.5 flex-shrink-0">
+              <div
+                role="img"
+                aria-label={`전체 ${rollup.total}개 중 완료 ${rollup.done}, 진행 중 ${rollup.running}, 실패 ${rollup.failed}`}
+                className={cn('flex h-1 rounded-full overflow-hidden', bgColors.divider)}
+              >
+                <span className={statusColors.success.dot} style={{ width: `${pct(rollup.done)}%` }} />
+                <span className={statusColors.info.dot} style={{ width: `${pct(rollup.running)}%` }} />
+                <span className={statusColors.error.dot} style={{ width: `${pct(rollup.failed)}%` }} />
+              </div>
+              <span className={cn(textStyles.caption, textColors.secondary)}>
+                <span className="font-semibold">
+                  {rollup.total}개 중 {rollup.done}개 완료
+                </span>
+                {rollup.failed > 0 && ` · 실패 ${rollup.failed}`}
+                {rollup.running > 0 && ` · 진행 중 ${rollup.running}`}
+              </span>
+            </div>
+          </nav>
+
+          {/* Primer card — separation is the hairline border (gray-200, so it
+              reads against the gray-100 panel), the shadow is only a 1px lift hint. */}
+          <div className={cn('min-w-0 min-h-0 flex flex-col bg-white rounded-xl border', borderColors.default, shadows.hair)}>
+            <div className={cn('flex-none px-5 py-4 border-b', borderColors.light)}>{paneHead}</div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">{paneBody}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Legacy layout — CSPs whose steps declare no groups (Azure / GCP / IDC).
+  // ---------------------------------------------------------------------------
   return (
     <div className="flex flex-col gap-3">
       {/* 레일은 목차, 우측은 내용 — 둘을 표면으로 가른다. 레일은 가라앉은 회색 판
@@ -593,37 +798,9 @@ export const InstallStatusDetail = ({
 
       {/* 컨테이너에 갇힌 뒤로는 내용이 테두리에 닿으므로 안쪽 여백이 gap-6 을 대신한다. */}
       <div className="min-w-0 px-5 py-4">
-        <div className="flex items-start justify-between gap-3">
-          {/* 제목↔부제 = tight 4px */}
-          <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
-            <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
-            <p className={cn(textStyles.caption, 'max-w-[60ch]', textColors.secondary)}>
-              {active.desc}
-            </p>
-          </div>
-          <span className="flex items-center gap-2 flex-shrink-0">
-            {active.side && <SideTag side={active.side} />}
-            {active.action}
-            {!isSummary && activeAggregate && (
-              <span className={cn(TABLE_TAG_PILL, activeAggregate.tag, 'whitespace-nowrap')}>
-                {activeAggregate.count
-                  ? `${activeAggregate.label} ${activeAggregate.count}`
-                  : activeAggregate.label}
-              </span>
-            )}
-          </span>
-        </div>
+        {paneHead}
 
-        <div className="mt-4">
-          {activePanel ? (
-            activePanel.panel
-          ) : isSummary ? (
-            <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
-          ) : (
-            // key resets pagination when switching steps
-            <StepResourceTable key={active.id} rows={rows} />
-          )}
-        </div>
+        <div className="mt-4">{paneBody}</div>
 
         {/* 표 아래 조회 시각 — 요약에서는 지표 카드가 이미 갖고 있으므로 여기서는 뺀다. */}
         {!activePanel && !isSummary && (

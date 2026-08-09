@@ -93,6 +93,13 @@ export interface InstallTableStep {
   serviceAction?: string;
   /** Optional control rendered in the step's panel head (e.g. IDC 방화벽 확인). */
   action?: ReactNode;
+  /**
+   * Rail group — 'todo' (the service owner acts) / 'auto' (BDC proceeds
+   * automatically). When EVERY step of an adapter declares one, the rail
+   * renders in two groups and the first open todo is the default selection.
+   * Any step left undeclared keeps the whole CSP on the legacy single list.
+   */
+  group?: 'todo' | 'auto';
 }
 
 /** Shared LastCheckInfoDto UI shape (SUCCESS/IN_PROGRESS/FAILED). */

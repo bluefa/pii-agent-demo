@@ -79,6 +79,18 @@ export const formatDateTimeSeconds = (dateString: string): string => {
 };
 
 /**
+ * `formatDateTime` pinned to Asia/Seoul. `formatDate` renders in the browser's
+ * local timezone; use this whenever the UI labels the value as KST, so the
+ * label stays true on non-KST machines.
+ */
+export const formatDateTimeKst = (dateString: string): string => {
+  return new Date(dateString).toLocaleString('ko-KR', {
+    ...FORMAT_OPTIONS.datetime,
+    timeZone: 'Asia/Seoul',
+  });
+};
+
+/**
  * 밀리초를 사람이 읽을 수 있는 한국어 소요시간으로 변환합니다.
  *
  * @example

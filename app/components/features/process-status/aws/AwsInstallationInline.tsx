@@ -147,7 +147,7 @@ export const AwsInstallationInline = ({
           </div>
         )}
         {loading ? (
-          <InstallationLoadingView provider="AWS" />
+          <InstallationLoadingView provider="AWS" grouped />
         ) : error ? (
           <InstallationErrorView message={error} onRetry={fetchStatus} />
         ) : status ? (

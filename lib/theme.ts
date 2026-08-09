@@ -1609,6 +1609,14 @@ export const shadows = {
   button: 'shadow-sm hover:shadow',
   /** Soft pill shadow for active toolbar button / segmented control item */
   pill: 'shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
+  /** Primer-style hairline lift — 1px offset, no blur. The border does the
+   *  separating; the shadow only hints "resting on top" (GitHub Actions panel
+   *  grammar, Step 4 grouped card). */
+  hair: 'shadow-[0_1px_0_rgba(25,31,40,0.04)]',
+  /** Selected rail item — inset hairline ring + hair. An outline would collide
+   *  with the focus-visible ring, so the ring is an inset box-shadow.
+   *  Ring color = gray-200 (#E5E8EB). */
+  hairRing: 'shadow-[inset_0_0_0_1px_rgba(229,232,235,1),0_1px_0_rgba(25,31,40,0.04)]',
 } as const;
 
 // =============================================================================
