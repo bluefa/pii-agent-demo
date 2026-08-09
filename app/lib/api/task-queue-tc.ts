@@ -136,11 +136,11 @@ export const rejectTestConnection = (
     body: { reason },
   });
 
-/** POST …/{id}/pii-agent-installation/confirm — approve the integration. */
+/** POST …/{id}/pii-agent-installation/confirm — approve the integration. No body. */
 export const confirmInstallation = (targetSourceId: number): Promise<unknown> =>
   fetchInfraJson<unknown>(
     `/target-sources/${targetSourceId}/pii-agent-installation/confirm`,
-    { method: 'POST', body: { confirm: true } },
+    { method: 'POST' },
   );
 
 // ---------------------------------------------------------------------------

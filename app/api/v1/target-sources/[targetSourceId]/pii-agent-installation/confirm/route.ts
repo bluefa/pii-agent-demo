@@ -8,7 +8,6 @@ export const POST = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  // swagger PiiAgentInstallationConfirmRequest requires { confirm: boolean }.
-  const data = await bff.confirm.confirmInstallation(parsed.value, { confirm: true });
+  const data = await bff.confirm.confirmInstallation(parsed.value);
   return NextResponse.json(data);
 });
