@@ -185,6 +185,37 @@ const rail = bgOf(classOf(railBlock, 'surface')); // user-facing rail
 const plGround = bgOf(classOf(adminSrc, 'split')); // admin split ground (--pl-gray-100)
 const sheet = bgOf(classOf(adminSrc, 'sheet')); // admin content sheet (white)
 
+/**
+ * `bgOf`/`textOf` read arbitrary-value classes (`bg-[#…]`). The base `bgColors` and
+ * `textColors` tokens are palette classes instead (`bg-gray-100`), so they need the
+ * palette itself. Only the steps the pairs below use are listed — a step that stops
+ * matching Tailwind's palette throws here rather than measuring a stale color.
+ */
+const TW_GRAY: Record<string, string> = {
+  '100': '#F3F4F6',
+  '500': '#6B7280',
+  '700': '#374151',
+  '900': '#111827',
+};
+const twGray = (cls: string, prop: 'bg' | 'text') => {
+  const m = cls.match(new RegExp(`${REST}${prop}-gray-(\\d+)\\b`));
+  if (!m) throw new Error(`no rest ${prop}-gray-* in "${cls}"`);
+  const hex = TW_GRAY[m[1]];
+  if (!hex) throw new Error(`gray-${m[1]} not in TW_GRAY — add it with its palette value`);
+  return hex;
+};
+const blockOf = (name: string) => {
+  const m = themeSrc.match(new RegExp(`export const ${name} = \\{[\\s\\S]*?\\n\\} as const`));
+  if (!m) throw new Error(`${name} not found`);
+  return m[0];
+};
+const bgTokens = blockOf('bgColors');
+const textTokens = blockOf('textColors');
+
+// The 인프라 등록 wizard's ground: a gray panel filling the dialog, with the content as
+// a white card on it and the step column standing straight on the gray.
+const wizardPanel = twGray(classOf(bgTokens, 'panel'), 'bg');
+
 // ---------------------------------------------------------------------------
 // the adjacency map — the one piece of knowledge static analysis cannot infer
 // ---------------------------------------------------------------------------
@@ -215,6 +246,10 @@ const SURFACES: SurfacePair[] = [
   { what: 'card hover tint on the white card', top: hoverBgOf(classOf(liftBlock, 'card')), under: '#FFFFFF' },
   // The rail's skeleton is reused on the admin ground — a second surface it must clear.
   { what: 'skeleton bar on admin ground', top: bgOf(classOf(railBlock, 'skeletonBar')), under: plGround },
+  // The wizard groups by surface and draws no rule between its two columns, so this
+  // pair IS the separation — re-tint `panel` toward white and the card dissolves with
+  // nothing else left to mark where it starts.
+  { what: 'wizard content card on the dialog panel', top: '#FFFFFF', under: wizardPanel },
   // The tinted service tiles are the rail's most numerous plates and its palest ones —
   // #F7F8FA was ΔE00 0.99 from the rail before the retint, i.e. invisible.
   ...serviceTilePalette.map((fill, i) => ({
@@ -253,6 +288,11 @@ const TEXT: TextPair[] = [
     on: bgOf(classOf(themeSrc, 'resourceKind')),
   },
   { what: 'admin section label on ground', fg: textOf(classOf(adminSrc, 'railSection')), on: plGround },
+  // The wizard's step column has no surface of its own, so every run of text in it is
+  // measured against the dialog's gray panel. `tertiary` is 4.39:1 there and shipped
+  // broken for three commits — these two pin the tiers that are allowed to replace it.
+  { what: 'wizard rail body text on the dialog panel', fg: twGray(classOf(textTokens, 'secondary'), 'text'), on: wizardPanel },
+  { what: 'wizard rail title on the dialog panel', fg: twGray(classOf(textTokens, 'primary'), 'text'), on: wizardPanel },
   {
     what: 'service code chip label on its chip',
     fg: textOf(classOf(adminSrc, 'svcCodeChipLabel')),

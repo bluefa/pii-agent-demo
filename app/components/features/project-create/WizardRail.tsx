@@ -10,6 +10,8 @@ interface WizardRailProps {
   current: WizardStep;
   /** Undefined once the rail is frozen (step 5) — completed steps stop being links. */
   onNavigate?: (step: WizardStep) => void;
+  /** The dialog's `aria-labelledby` target — the rail carries the modal's title. */
+  titleId: string;
 }
 
 /**
@@ -35,19 +37,35 @@ const SpineSegment = ({ half, traversed }: { half: 'top' | 'bottom'; traversed: 
   />
 );
 
-export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
-  <nav
-    aria-label="등록 단계"
-    className={cn(
-      // 256, not 216: at 216 the text column was 148px and 「사용하는 Database 확인」
-      // wrapped onto a second line with the rail's own right margin still empty.
-      // The modal grew by the same 40px so the content pane keeps its width.
-      'flex w-[256px] flex-shrink-0 flex-col border-r px-[18px] py-[22px]',
-      borderColors.light,
-      bgColors.muted,
-    )}
-  >
-    {WIZARD_STEPS.map(({ step, title, sublabel }) => {
+export const WizardRail = ({ current, onNavigate, titleId }: WizardRailProps) => (
+  // Full height, top to bottom. The title used to sit in a banner above both columns,
+  // which put a hairline straight across the dialog and started the gray under it at a
+  // T-junction. With the column running the whole way, the only division left is its
+  // own edge — and the dialog's title stops competing with the step's heading opposite.
+  // No surface and no border of its own: the column sits straight on the dialog's gray
+  // ground, and the 16px gutter to the content card is the whole separation. 248/px-14
+  // keeps the same 168px text column the old 256/px-18 had, now that the gutter and the
+  // card's own padding do the spacing the border used to.
+  <div className="flex w-[248px] flex-shrink-0 flex-col px-[14px] pb-[22px] pt-6">
+    <div className="px-2.5 pb-5">
+      {/* 16px against the step heading's 18px: this names the whole flow and the heading
+          opposite names the current step, so they must not read as the same rank. */}
+      <h2 id={titleId} className={cn('text-base font-bold', textColors.primary)}>
+        인프라 등록
+      </h2>
+      {/* One line, deliberately. At 14px the column gives this text 200px; the longer
+          「PII 모니터링을 시작할 인프라를 등록해요.」 measures 220 and wrapped. This
+          wording lands at ~181, leaving 18px for a wider fallback face. Note the
+          overflow is silent — the rail has no clipping box, so text that outgrew this
+          would run into the 30px of padding and gutter beside it before touching the
+          card. The margin is the guarantee here, not the box. */}
+      <p className={cn('mt-1 whitespace-nowrap text-sm', textColors.secondary)}>
+        PII 모니터링할 인프라를 등록해요.
+      </p>
+    </div>
+
+    <nav aria-label="등록 단계" className="flex flex-1 flex-col">
+      {WIZARD_STEPS.map(({ step, title, sublabel }) => {
       const isActive = step === current;
       const isDone = step < current;
       const canNavigate = isDone && onNavigate !== undefined;
@@ -93,9 +111,16 @@ export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
             <span
               className={cn(
                 'text-sm transition-colors',
+                // Every tier is secondary or darker: this column sits on gray-100, where
+                // tertiary is 4.37:1 and under AA (see the `bgColors.panel` token). The
+                // three tiers separate by weight instead — the dot and the spine already
+                // carry done-vs-pending, so the text does not have to.
+                textColors.secondary,
                 isActive
                   ? cn('font-bold', textColors.primary)
-                  : cn('font-semibold', isDone ? textColors.secondary : textColors.tertiary),
+                  : isDone
+                    ? 'font-semibold'
+                    : 'font-normal',
                 // The label carries the go-back affordance now that no row background
                 // does — a 110px hover block would bring the card problem back.
                 canNavigate && primaryColors.groupTextOnLight,
@@ -103,10 +128,11 @@ export const WizardRail = ({ current, onNavigate }: WizardRailProps) => (
             >
               {title}
             </span>
-            {isActive && <span className={cn('text-xs', textColors.tertiary)}>{sublabel}</span>}
+            {isActive && <span className={cn('text-xs', textColors.secondary)}>{sublabel}</span>}
           </span>
         </button>
-      );
-    })}
-  </nav>
+        );
+      })}
+    </nav>
+  </div>
 );
