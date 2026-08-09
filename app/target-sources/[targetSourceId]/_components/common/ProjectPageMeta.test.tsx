@@ -41,9 +41,11 @@ const idcIdentity: ProjectIdentity = {
 };
 
 describe('ProjectPageMeta — title row', () => {
-  it('labels the service code explicitly instead of bare parens', () => {
+  it('titles the page by its job and demotes the service to the 설치 대상 line', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
-    expect(screen.getByRole('heading', { name: 'Service A' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'PII Agent 설치' })).toBeTruthy();
+    expect(screen.getByText('설치 대상')).toBeTruthy();
+    expect(screen.getByText('Service A')).toBeTruthy();
     expect(screen.getByText('서비스 코드')).toBeTruthy();
     expect(screen.getByText('SERVICE-A')).toBeTruthy();
   });

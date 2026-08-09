@@ -647,6 +647,8 @@ export const projectHeaderStyles = {
   inner: 'px-10 pt-[18px]',
   titleRow: 'flex items-start justify-between gap-4',
   titleGroup: 'flex min-w-0 flex-wrap items-baseline gap-2.5',
+  /** 시안 2 (P2): task-first H1 — the service identity demotes to this line. */
+  targetRow: 'mt-2 flex flex-wrap items-center gap-2',
   /**
    * Service-code chip — slate, not primary: in this palette blue means
    * "clickable" and amber/green mean state; an identifier gets the neutral

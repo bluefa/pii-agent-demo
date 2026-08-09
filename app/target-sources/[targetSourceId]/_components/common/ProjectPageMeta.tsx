@@ -109,7 +109,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
   const display = project.isSduType ? SDU_DISPLAY : PROVIDER_DISPLAY[identity.cloudProvider];
   const { Icon } = display;
 
-  // The normalizer falls serviceName back to the code, so the title is never empty.
+  // The normalizer falls serviceName back to the code, so the line is never empty.
   const serviceTitle = project.serviceName || project.serviceCode;
   const description = project.description.trim();
 
@@ -123,19 +123,26 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
     <header className={cn(h.surface, h.inner)}>
       <div className={h.titleRow}>
         <div className={h.titleGroup}>
-          <h1 className={pageHeaderTitleStyle}>{serviceTitle}</h1>
-          {/* The chip names both facts the old "(BDP)" parens left unsaid: that
-              the big text is the service and that BDP is its code. */}
-          <span className={h.codeChip}>
-            <span className={h.codeChipLabel}>서비스 코드</span>
-            <span className={h.codeChipValue}>{project.serviceCode}</span>
-          </span>
+          {/* 시안 2 (P2): the H1 states the page's JOB, not the object — the
+              left service rail already answers "which service". */}
+          <h1 className={pageHeaderTitleStyle}>PII Agent 설치</h1>
           {/* #661 P5: latest connection-test verdict beside the title — an h1
               SIBLING so the heading's accessible name stays clean. Rendered
               without liveJob, so the tag self-fetches latest_version once. */}
           <TcHeaderTag targetSourceId={project.targetSourceId} />
         </div>
         {action && <div className="flex flex-wrap items-center justify-end gap-2">{action}</div>}
+      </div>
+
+      {/* Demoted service identity — 12px eyebrow + 14px name + the code chip,
+          the same facts the old title carried, one hierarchy level down. */}
+      <div className={h.targetRow}>
+        <span className={h.kvLabel}>설치 대상</span>
+        <span className={h.providerName}>{serviceTitle}</span>
+        <span className={h.codeChip}>
+          <span className={h.codeChipLabel}>서비스 코드</span>
+          <span className={h.codeChipValue}>{project.serviceCode}</span>
+        </span>
       </div>
 
       {description !== '' && (
