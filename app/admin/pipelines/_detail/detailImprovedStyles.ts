@@ -42,10 +42,15 @@ export const improvedStyles = {
     titleRow: 'flex items-center gap-3 flex-wrap',
     title: 'text-[28px] font-bold leading-none text-[var(--pl-text-strong)]',
     id: 'text-[18px] font-medium text-[var(--pl-text-faint)] tabular-nums',
+    /** Service-name subtitle next to the #id — every run's h1 read the same
+     *  "작업 현황" (browser tab / history indistinguishable). */
+    svc: 'text-[16px] font-semibold text-[var(--pl-text-medium)] truncate max-w-[420px]',
     desc: 'text-[14px] leading-[1.55] text-[var(--pl-text-weak)] max-w-[880px] whitespace-pre-line',
     /** Two rows × [group label | pair | pair | pair], columns auto-aligned. */
     metaGrid: 'grid grid-cols-[auto_auto_auto_auto] items-center gap-x-10 gap-y-3 w-fit',
-    groupLabel: 'text-[14px] font-medium text-[var(--pl-flow-meta-label)] whitespace-nowrap',
+    /** Group labels — text-weak (4.97:1), the muted --pl-flow-meta-label slate
+     *  measured 2.6:1 on the white header (design-guide floor is 4.5:1). */
+    groupLabel: 'text-[14px] font-medium text-[var(--pl-text-weak)] whitespace-nowrap',
     pair: 'flex items-baseline gap-2 whitespace-nowrap',
     k: 'text-[13px] text-[var(--pl-text-weak)]',
     /** Secondary values — regular weight so the strip isn't a wall of bold. */
@@ -84,12 +89,37 @@ export const improvedStyles = {
     track: 'w-[300px] max-w-[40vw] h-2.5 rounded-full bg-white/30 overflow-hidden',
     fill: 'block h-full rounded-full bg-[var(--pl-info)] transition-[width] duration-500',
     count: 'text-[14px] font-semibold text-[var(--pl-white)] tabular-nums whitespace-nowrap',
+    /** Per-task segment bar (GitLab mini-graph grammar) — same 300px footprint
+     *  as `track`; falls back to track/fill when the chain has >12 tasks. */
+    segTrack: 'flex items-center gap-1 w-[300px] max-w-[40vw]',
+    seg: 'h-2.5 flex-1 min-w-[8px] rounded-[3px] transition-colors duration-500',
+    segTone: {
+      DONE: 'bg-[var(--pl-ok)]',
+      IN_PROGRESS: 'bg-[var(--pl-info)]',
+      FAILED: 'bg-[var(--pl-err)]',
+      CANCELLED: 'bg-[var(--pl-gray-400)]',
+      READY: 'bg-white/30',
+      BLOCKED: 'bg-white/30',
+    } as Record<TaskStatus, string>,
+    /** READY with fail_count>0 = waiting between retry attempts (Databricks'
+     *  yellow "waiting for retry" — neither running nor failed). */
+    segRetry: 'bg-[var(--pl-warn)]',
+    /** Faint elapsed suffix after the count phrase. */
+    elapsed: 'text-[14px] font-normal text-[var(--pl-chrome-item)] whitespace-nowrap', // design-exempt: chrome-item on the dark gray-800 exec band (8.0:1), not on white
   },
 
   /** Restart context strip between the exec band and the flow (§8.4) — where
    *  this run sits inside the ORIGIN chain, without faking its own progress. */
   originStrip:
-    'flex items-center gap-2 border-b border-[var(--pl-border)] bg-[var(--pl-primary-bg)] px-10 py-2.5 text-[13px] text-[var(--pl-primary)]',
+    'flex items-center gap-2 border-b border-[var(--pl-border)] bg-[var(--pl-primary-bg)] px-10 py-2.5 text-[14px] text-[var(--pl-primary)]',
+
+  /** Failure strip (시안 1 — Step Functions error-banner grammar, originStrip
+   *  metrics): failed task + cause on the left, the restart-unavailable reason
+   *  (superseded by a newer run) on the right. */
+  failStrip:
+    'flex items-center gap-2 border-b border-[var(--pl-border)] bg-[var(--pl-err-bg)] px-10 py-2.5 text-[14px] text-[var(--pl-err-text)]',
+  failStripRight: 'ml-auto flex items-center gap-1.5 whitespace-nowrap',
+  failStripLink: 'font-semibold underline hover:no-underline',
 
   /** Content region below the band: flow canvas (flex-1) + docked drawer. */
   contentRow: 'flex items-stretch',
@@ -117,7 +147,8 @@ export const improvedStyles = {
     navTab: 'flex-1 flex flex-col items-center justify-center gap-1.5 h-11 text-[14px]',
     // Active tab: blue text + blue underline (owner Figma node 121-406).
     navActive: 'text-[var(--pl-primary)] font-semibold',
-    navIdle: 'text-[var(--pl-text-faint)] font-normal',
+    // Idle tabs at text-weak — faint(#98A2B3) measured 2.6:1 on the panel.
+    navIdle: 'text-[var(--pl-text-weak)] font-normal',
     navUnderline: 'h-0.5 w-14 rounded-full bg-[var(--pl-primary)]',
     navUnderlineHidden: 'h-0.5 w-14',
     body: 'flex-1 overflow-y-auto overscroll-contain px-6 py-7 flex flex-col gap-7',

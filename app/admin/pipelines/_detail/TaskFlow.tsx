@@ -16,7 +16,15 @@
  * <style> block keyed under `.pl-flow`. Every color is a `--pl-*` token from
  * app/globals.css; only the rule grammar lives here.
  */
-import { Fragment, useCallback, type KeyboardEvent, type ReactElement, type ReactNode } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useRef,
+  type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo, providerLogo } from '@/app/admin/pipelines/_components/brandMarks';
@@ -109,8 +117,10 @@ const DETAIL_CSS = `
 .pl-flow.pl-detail .nd-mark svg{width:56px;height:56px}
 .pl-flow.pl-detail .nd-body{flex:1;min-width:0;display:flex;flex-direction:column}
 .pl-flow.pl-detail .nd-name{font-size:16px;line-height:1.35;font-weight:700}
-.pl-flow.pl-detail .nd-meta{font-size:13px;line-height:1.5;margin-top:10px;color:var(--pl-text-faint)}
+.pl-flow.pl-detail .nd-meta{font-size:14px;line-height:1.5;margin-top:10px;color:var(--pl-text-weak)}
 `;
+/* nd-meta at text-weak/14px — faint(#98A2B3) measured 2.6:1 on the white node
+ * card; this line is the failure-cause reader (design-guide floor 4.5:1). */
 
 /** Provider mark tile — logo when known, text chip for IDC/SDU (owner: 글자만). */
 export function ProviderMark({ provider }: { provider: CloudProvider }): ReactElement {
@@ -212,8 +222,16 @@ export function TaskFlow({
     [onOpen],
   );
 
+  // A selection present at mount (deep-link ?task= / 실패 우선 랜딩) gets the
+  // same centering a click gets — clicks handle their own reveal after this.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = rootRef.current?.querySelector<HTMLElement>('.pl-tnode.s-selected');
+    if (el) revealNode(el);
+  }, []);
+
   return (
-    <div className={cn('pl-flow', 'pl-detail', className)}>
+    <div ref={rootRef} className={cn('pl-flow', 'pl-detail', className)}>
       <style>{FLOW_CSS + DETAIL_CSS}</style>
       <div className="pl-scroll">
         <div className="pl-track">

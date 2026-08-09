@@ -6,15 +6,19 @@ import {
   fmtDateTime,
   fmtDateTimeSec,
   fmtDuration,
+  fmtElapsedMs,
   fmtRelativeTime,
   KIND_POLICY,
   progressCount,
+  progressPhrase,
   providerAccentVar,
   providerKey,
   providerLabel,
   RECIPE_LABELS,
   recipeDisplayName,
   recipeLabel,
+  runWindow,
+  statusKo,
   taskInfraSide,
   taskMetaLine,
 } from '@/lib/pipeline/format';
@@ -352,5 +356,86 @@ describe('taskInfraSide — 서비스측/BDC측 derivation', () => {
     expect(taskInfraSide(undefined)).toBeNull();
     // Substring must not match across token boundaries (SERVICES ≠ SERVICE).
     expect(taskInfraSide('AWS_SERVICES_PLAN_V1')).toBeNull();
+  });
+});
+
+describe('exec-band helpers (design-benchmark 시안 1·2·5)', () => {
+  const chain = (statuses: TaskStatus[], over: Partial<TaskSummary>[] = []): TaskSummary[] =>
+    statuses.map((status, i) =>
+      summary({ task_id: i + 1, sequence: i + 1, status, ...(over[i] ?? {}) }),
+    );
+
+  it('statusKo — 한글 한 벌; PENDING/READY/BLOCKED는 대기로 접힌다', () => {
+    expect(statusKo('RUNNING')).toBe('실행 중');
+    expect(statusKo('IN_PROGRESS')).toBe('실행 중');
+    expect(statusKo('PENDING')).toBe('대기');
+    expect(statusKo('READY')).toBe('대기');
+    expect(statusKo('BLOCKED')).toBe('대기');
+    expect(statusKo('DONE')).toBe('완료');
+    expect(statusKo('FAILED')).toBe('실패');
+    expect(statusKo('CANCELLED')).toBe('중단');
+  });
+
+  it('progressPhrase — 완료 수가 아니라 현재 단계 서수 (2번째 실행 중 = 2/4)', () => {
+    expect(progressPhrase('RUNNING', chain(['DONE', 'IN_PROGRESS', 'BLOCKED', 'BLOCKED']))).toBe(
+      '2/4단계 실행 중',
+    );
+    expect(progressPhrase('FAILED', chain(['DONE', 'FAILED', 'BLOCKED', 'BLOCKED']))).toBe(
+      '2/4단계에서 실패',
+    );
+    expect(progressPhrase('DONE', chain(['DONE', 'DONE']))).toBe('2단계 완료');
+    // CANCELLED 접미사 없음 — 옆의 상태 pill이 이미 '중단'을 말한다.
+    expect(progressPhrase('CANCELLED', chain(['DONE', 'CANCELLED', 'CANCELLED']))).toBe(
+      '1/3단계 완료',
+    );
+    expect(progressPhrase('PENDING', chain(['BLOCKED', 'BLOCKED']))).toBe('0/2단계 완료');
+  });
+
+  it('runWindow — 태스크 타임스탬프에서 유도; 라이브는 end=null', () => {
+    const t = chain(
+      ['DONE', 'IN_PROGRESS'],
+      [
+        { started_at: '2026-08-09T01:09:00Z', finished_at: '2026-08-09T01:20:00Z' },
+        { started_at: '2026-08-09T01:21:00Z', finished_at: null },
+      ],
+    );
+    expect(runWindow('RUNNING', t, '2026-08-09T01:25:00Z')).toEqual({
+      start: '2026-08-09T01:09:00Z',
+      end: null,
+    });
+    // 실패 태스크의 finished_at이 비어도 종료가 터미널 전이 시각(last_activity_at)
+    // 밑으로 내려가지 않는다 — max(finished_at)=01:20 < last_activity=01:25.
+    expect(runWindow('FAILED', t, '2026-08-09T01:25:00Z')).toEqual({
+      start: '2026-08-09T01:09:00Z',
+      end: '2026-08-09T01:25:00Z',
+    });
+    // finished_at이 last_activity_at보다 늦으면 finished_at이 이긴다.
+    const lateFinish = chain(
+      ['DONE'],
+      [{ started_at: '2026-08-09T01:09:00Z', finished_at: '2026-08-09T01:30:00Z' }],
+    );
+    expect(runWindow('DONE', lateFinish, '2026-08-09T01:25:00Z')).toEqual({
+      start: '2026-08-09T01:09:00Z',
+      end: '2026-08-09T01:30:00Z',
+    });
+    // 시작 전 취소 — started_at이 하나도 없으면 구간 자체가 없다.
+    expect(runWindow('CANCELLED', chain(['CANCELLED']), '2026-08-09T01:25:00Z')).toEqual({
+      start: null,
+      end: null,
+    });
+    // 종료 상태인데 finished_at이 비면 last_activity_at이 종료 시각 대리.
+    const noFinish = chain(['CANCELLED'], [{ started_at: '2026-08-09T01:09:00Z' }]);
+    expect(runWindow('CANCELLED', noFinish, '2026-08-09T01:25:00Z')).toEqual({
+      start: '2026-08-09T01:09:00Z',
+      end: '2026-08-09T01:25:00Z',
+    });
+  });
+
+  it('fmtElapsedMs — 초/분/시간 3단', () => {
+    expect(fmtElapsedMs(42_000)).toBe('42초');
+    expect(fmtElapsedMs(31 * 60_000 + 40_000)).toBe('31분');
+    expect(fmtElapsedMs(2 * 3_600_000 + 5 * 60_000)).toBe('2시간 5분');
+    expect(fmtElapsedMs(-1)).toBe('-');
+    expect(fmtElapsedMs(Number.NaN)).toBe('-');
   });
 });

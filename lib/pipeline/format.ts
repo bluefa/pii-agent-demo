@@ -336,3 +336,81 @@ export function progressCount(tasks: readonly TaskSummary[]): { done: number; to
     total: tasks.length,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Detail exec band (design-benchmark 2026-08-09 — 시안 1·2·5)
+// ---------------------------------------------------------------------------
+
+/** 한글 상태 라벨 한 벌 — 파이프라인·태스크 공용. PENDING/READY/BLOCKED는 모두
+ *  '대기'로 접힌다(구분은 노드 위치·설명 라인이 이미 나른다). enum 원문은 데이터
+ *  표기(정의·계약 탭, 오류 코드)에만 남긴다. */
+const STATUS_KO: Record<PipelineStatus | TaskStatus, string> = {
+  PENDING: '대기',
+  READY: '대기',
+  BLOCKED: '대기',
+  RUNNING: '실행 중',
+  IN_PROGRESS: '실행 중',
+  DONE: '완료',
+  FAILED: '실패',
+  CANCELLED: '중단',
+};
+
+export function statusKo(status: PipelineStatus | TaskStatus): string {
+  return STATUS_KO[status];
+}
+
+/**
+ * 진행 문구 — 완료 개수("1 / 4")가 아니라 현재 단계의 서수로 말한다. 2번째
+ * 태스크가 도는 동안 "1 / 4"로 읽히던 라벨-값 불일치의 교정.
+ */
+export function progressPhrase(status: PipelineStatus, tasks: readonly TaskSummary[]): string {
+  const { done, total } = progressCount(tasks);
+  const cur = currentTask(tasks);
+  const ordinal = cur ? tasks.filter((t) => t.sequence <= cur.sequence).length : null;
+  if (status === 'RUNNING' && ordinal != null) return `${ordinal}/${total}단계 실행 중`;
+  if (status === 'FAILED' && ordinal != null) return `${ordinal}/${total}단계에서 실패`;
+  if (status === 'DONE') return `${total}단계 완료`;
+  // CANCELLED gets no suffix — the adjacent status pill already says 중단.
+  return `${done}/${total}단계 완료`;
+}
+
+/**
+ * 실행 구간 — 파이프라인 계약에는 시작/종료 필드가 없어 태스크 타임스탬프에서
+ * 유도한다. start = 가장 이른 started_at(없으면 아직 미시작 → 둘 다 null);
+ * end = 라이브면 null(호출측이 now로 경과 계산), 종료 상태면 가장 늦은
+ * finished_at, 그것도 없으면 last_activity_at(시작 전 취소 등).
+ */
+export function runWindow(
+  status: PipelineStatus,
+  tasks: readonly TaskSummary[],
+  lastActivityAt: string,
+): { start: string | null; end: string | null } {
+  let start: string | null = null;
+  let end: string | null = null;
+  for (const t of tasks) {
+    if (t.started_at && (start === null || Date.parse(t.started_at) < Date.parse(start))) {
+      start = t.started_at;
+    }
+    if (t.finished_at && (end === null || Date.parse(t.finished_at) > Date.parse(end))) {
+      end = t.finished_at;
+    }
+  }
+  if (start === null) return { start: null, end: null };
+  if (isLivePipeline(status)) return { start, end: null };
+  // 종료 시각 = max(finished_at)과 last_activity_at 중 늦은 쪽. 실패로 끝난
+  // 태스크는 finished_at이 비어 올 수 있어 max(finished_at)만으로는 마지막
+  // 성공 태스크에서 멈춘다(과소 보고) — 종료 상태의 last_activity_at은
+  // 터미널 전이 시각이라 그 하한을 보장한다.
+  const endsBeforeLastActivity = end === null || Date.parse(end) < Date.parse(lastActivityAt);
+  return { start, end: endsBeforeLastActivity ? lastActivityAt : end };
+}
+
+/** 경과/소요 표시: 60초 미만 'N초', 60분 미만 'N분', 이후 'H시간 M분'. 음수/NaN → '-'. */
+export function fmtElapsedMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '-';
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}초`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}분`;
+  return `${Math.floor(min / 60)}시간 ${min % 60}분`;
+}
