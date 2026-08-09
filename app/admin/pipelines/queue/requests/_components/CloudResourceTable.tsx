@@ -104,6 +104,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             // whose request predates the candidates field is still a cluster and must say so.
             // The LIST keys on candidates, because there is nothing to list without them.
             const isCluster = isRdsCluster(row.resourceType ?? '');
+            const isEc2 = isEc2Instance(row.resourceType);
             const instances = sortRdsInstances(row.rdsInstanceCandidates);
             const hasInstances = instances.length > 0;
             const fold = clusterFold(rowKey, row.selected);
@@ -156,9 +157,13 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                         <ChevronRightIcon className="h-3.5 w-3.5" />
                       </button>
                     )}
-                    <span className="flex min-w-0 flex-col items-start gap-1">
+                    <span className={cn(
+                      'flex min-w-0 flex-col items-start gap-1',
+                      // Only a tagged row is two lines — an untagged one is already on the middle.
+                      (isCluster || isEc2) && table.stackedIdentityLift,
+                    )}>
                     {isCluster && <RdsClusterTag />}
-                    {isEc2Instance(row.resourceType) && <Ec2InstanceTag />}
+                    {isEc2 && <Ec2InstanceTag />}
                     <Tooltip
                       content={<IdentifierTip label="Resource Name" value={row.resourceName ?? ''} />}
                       variant="value"

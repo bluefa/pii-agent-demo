@@ -1,5 +1,5 @@
 import { memberRole, memberRoleLabel } from '@/lib/rds-instances';
-import { cn, primaryColors, statusColors, tagStyles } from '@/lib/theme';
+import { cn, idcStyles, primaryColors, statusColors, tagStyles } from '@/lib/theme';
 
 const CHIP_BASE = 'shrink-0 rounded-full px-2 py-0.5 text-xs';
 
@@ -81,7 +81,7 @@ export const RdsInstanceIdentity = ({
   selected?: boolean;
   nameClassName?: string;
 }) => (
-  <span className="flex min-w-0 flex-col items-start gap-1">
+  <span className={cn('flex min-w-0 flex-col items-start gap-1', idcStyles.table.stackedIdentityLift)}>
     <span className="flex items-center gap-2">
       <RdsMemberChip role={role} />
       {selected && <RdsSelectionChip />}

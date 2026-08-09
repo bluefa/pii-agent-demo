@@ -1145,6 +1145,21 @@ export const idcStyles = {
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**
+     * Two-line identity stack — kind tag ABOVE, resource name below (RDS Cluster · EC2 · a
+     * member instance's Reader/Writer chip). Lifts the stack by half its tag line so the
+     * **name** lands on the row's middle, the line the one-line cells beside it already sit on
+     * (Resource ID, DB Type, Region, 설치 구분).
+     *
+     * Without it the stack centres as a block and the name reads ~12px below every other cell:
+     * an eye crossing the row steps down at the name and back up at the id. The tag is a line
+     * that INTRODUCES the name, not a peer of it, so the row's alignment line is the name.
+     *
+     * 12 = half of the tag line (20px chip) + its 4px gap. `relative` only, never a margin:
+     * the row keeps its height, so the tag rises into the cell's own 20px top padding instead
+     * of shrinking the row and dragging the whole stack back down with it.
+     */
+    stackedIdentityLift: 'relative -top-[12px]',
+    /**
      * Resource Name column — 8px more left padding than every other cell, on the header cell
      * AND the body cell so the column keeps one edge.
      *
