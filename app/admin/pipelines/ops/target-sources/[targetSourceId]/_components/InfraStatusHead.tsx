@@ -15,23 +15,22 @@
  * date, always visible. Per-task evidence moved into TerraformStatusModal, so
  * detail costs a click instead of pushing 현재 작업 off the fold.
  *
- * 작업 시작 lives here rather than inside the empty run-card, so the tab's main
- * job has an entrance even while a run is in flight (the empty card is not on
- * screen then). It is the only primary button on the tab.
+ * The head carries no 작업 시작 (owner call): starting a run belongs to the
+ * 현재 작업 card, so the head reads as state only and the tab keeps one place to
+ * act from.
  *
  * Two renders, one decision:
  *   - has_confirmed_infra === false → GATE banner. Terraform has nothing to
  *     build from until the integration is confirmed, so the tab leads with why
- *     and what to do next instead of a status nobody can act on. No start CTA
- *     is rendered in that branch — the gate IS the blocked reason.
- *   - otherwise → the state strip + 작업 시작.
+ *     and what to do next instead of a status nobody can act on.
+ *   - otherwise → the state strip.
  *
  * Data comes from GET …/terraform-status via the parent (PipelineTab owns the
  * fetch because the start-CTA gate reads the same response). InfraManager's own
  * job records; no Cloud SDK call is made, so this can legitimately disagree
  * with the real infrastructure — the modal says so.
  */
-import { type ReactElement } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -80,6 +79,30 @@ function GateBanner({ onOpenRequest }: { onOpenRequest: () => void }): ReactElem
   );
 }
 
+/** 16px/700 — one step under the tab statement, one over the 12px label. */
+const SLOT_VALUE = 'text-[16px] font-bold leading-[1.3] text-[var(--pl-text-strong)]';
+
+/** One fact: name, value, and the line that qualifies it. */
+function Slot({
+  label,
+  children,
+  sub,
+}: {
+  label: string;
+  children: ReactNode;
+  sub?: ReactNode;
+}): ReactElement {
+  return (
+    <div className="min-w-0 px-5 py-3.5">
+      <dt className="text-[12px] font-medium text-[var(--pl-text-weak)]">{label}</dt>
+      <dd className="mt-1.5 flex min-h-[26px] items-center">{children}</dd>
+      {sub != null && (
+        <p className="mt-1.5 truncate text-[12px] text-[var(--pl-text-faint)]">{sub}</p>
+      )}
+    </div>
+  );
+}
+
 export interface InfraStatusHeadProps {
   status: TerraformStatusResponse | null;
   loading: boolean;
@@ -87,8 +110,6 @@ export interface InfraStatusHeadProps {
   failed: boolean;
   /** Moves to the 연동 요청 정보 tab (the gate's only next step). */
   onOpenRequest: () => void;
-  /** Opens the start-pipeline modal (owned by the tab, shared with the run cards). */
-  onStart: () => void;
 }
 
 export function InfraStatusHead({
@@ -96,7 +117,6 @@ export function InfraStatusHead({
   loading,
   failed,
   onOpenRequest,
-  onStart,
 }: InfraStatusHeadProps): ReactElement {
   const detailModal = useModal();
   const confirmed = status != null && !failed && status.has_confirmed_infra === true;
@@ -116,7 +136,7 @@ export function InfraStatusHead({
       </p>
 
       {loading ? (
-        <div className="mt-4 h-[54px]" aria-busy />
+        <div className="mt-4 h-[92px]" aria-busy />
       ) : failed || !status ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-4 py-3 text-left')}>
           Terraform 상태를 불러오지 못했습니다.
@@ -124,21 +144,16 @@ export function InfraStatusHead({
       ) : !confirmed ? (
         <GateBanner onOpenRequest={onOpenRequest} />
       ) : (
-        /* One strip, both rules: the top rule separates it from the statement,
-           the bottom one from the sections. Nothing here collapses. */
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2.5 border-y border-[var(--pl-border)] py-3 text-[12px]">
-          {/* The precondition, stated before the thing it gates. Its false case is
-              the GateBanner above, so this branch only ever reads 있음. */}
-          <span className="inline-flex items-center rounded-[5px] border border-[var(--pl-border-strong)] bg-[var(--pl-gray-100)] px-2 py-[3px] text-[12px] font-semibold text-[var(--pl-text-medium)]">
-            확정 정보 있음
-          </span>
-
-          <span className="flex items-center gap-1.5">
-            <span className="text-[var(--pl-text-weak)]">적용 상태</span>
+        /* Three slots, one per fact the tab is asked about. A single 12px line of
+           tag·pill·date read as one grey run at a glance; giving each fact a name,
+           a value and its own cell is what makes them scannable. Nothing here
+           collapses. */
+        <dl className="mt-4 grid grid-cols-3 divide-x divide-[var(--pl-border)] overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)]">
+          <Slot label="적용 상태">
             <span
               className={cn(
                 pipelineStyles.pill.base,
-                pipelineStyles.pill.md,
+                pipelineStyles.pill.lg,
                 TONE[overall.tone].pill,
               )}
             >
@@ -149,34 +164,39 @@ export function InfraStatusHead({
               />
               {overall.label}
             </span>
-          </span>
+          </Slot>
 
-          {status.latest_confirmed_at && (
-            <span>
-              <span className="text-[var(--pl-text-weak)]">최근 확정</span>
-              <span className="ml-1.5 font-semibold tabular-nums text-[var(--pl-text-strong)]">
-                {fmtDateTime(status.latest_confirmed_at)}
-              </span>
-            </span>
-          )}
-
-          {/* Text button, not a bordered chip: the strip already carries a tag and
-              a pill, and a third boxed thing would read as one more static value
-              rather than the way into the detail. */}
-          <button
-            type="button"
-            onClick={() => detailModal.open()}
-            className={opsStyles.detailLink}
+          {/* The precondition, stated next to the thing it gates. Its false case is
+              the GateBanner above, so this branch only ever reads 확정됨. */}
+          <Slot
+            label="연동 정보"
+            sub={
+              status.latest_confirmed_at
+                ? `최근 확정 ${fmtDateTime(status.latest_confirmed_at)}`
+                : undefined
+            }
           >
-            Terraform 설치 현황 (작업 {taskCount}개)
-            <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
-          </button>
+            <span className={SLOT_VALUE}>확정됨</span>
+          </Slot>
 
-          <PlButton variant="primary" className="ml-auto" onClick={onStart}>
-            <Icon name="play" size="sm" />
-            작업 시작
-          </PlButton>
-        </div>
+          <Slot
+            label="Terraform 작업"
+            sub={
+              /* Text button, not a bordered one: the slot's own box is already the
+                 frame, and a button inside it would read as a second card. */
+              <button
+                type="button"
+                onClick={() => detailModal.open()}
+                className={cn(opsStyles.detailLink, 'text-[12px]')}
+              >
+                설치 현황 보기
+                <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
+              </button>
+            }
+          >
+            <span className={cn(SLOT_VALUE, 'tabular-nums')}>{taskCount}개</span>
+          </Slot>
+        </dl>
       )}
 
       {detailModal.isOpen && status && (

@@ -10,9 +10,9 @@
  * horizontally-scrolling row. Detailed progress lives on the 현황 page the link
  * points to. Idle: the same shell with a centered empty state and the start CTA.
  *
- * The section NAME and its explanation are not here — they belong to the page's
- * R24Section header (TargetPipelineSections), so 현재 작업 reads with the same
- * 16px/12px grammar as every other section on the tab.
+ * The section NAME (현재 작업 / 최근 작업) is the card's own first line, over a
+ * rule — owner call, so the pair of cards in the 2:1 row each carry their title
+ * inside instead of above. `sectionCard.fill` keeps both columns one height.
  *
  * Data (detail polling, catalog map, cancel flow) stays in the caller — this
  * file is presentation only.
@@ -21,6 +21,7 @@ import { Fragment, useEffect, useRef, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { canCancel, recipeDisplayName, recipeLabel, taskInfraSide } from '@/lib/pipeline/format';
 import {
   FlowArrow,
@@ -111,8 +112,19 @@ const CARD_SHELL =
 const STOP_TAG =
   'inline-flex items-center rounded-[6px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-[7px] py-[3px] align-[1px] text-[13px] font-semibold text-[var(--pl-text-strong)]';
 
+/** The card's own first line — see detailStyles.sectionCard. */
+function SectionHead({ title }: { title: string }): ReactElement {
+  return (
+    <div className={detailStyles.sectionCard.head}>
+      <h3 className={detailStyles.sectionCard.title}>{title}</h3>
+    </div>
+  );
+}
+
 export interface CurrentPipelineCardProps {
   detail: PipelineDetail;
+  /** 현재 작업 — the section name, rendered inside the card. */
+  sectionTitle: string;
   /** task_definition name → catalog entry (display name + description). */
   defs: ReadonlyMap<string, TaskCatalogEntry>;
   onOpenPipeline: () => void;
@@ -125,6 +137,7 @@ export interface CurrentPipelineCardProps {
 
 export function CurrentPipelineCard({
   detail,
+  sectionTitle,
   defs,
   onOpenPipeline,
   onOpenOrigin,
@@ -162,8 +175,9 @@ export function CurrentPipelineCard({
   }, [currentSeq, detail.pipeline_id]);
 
   return (
-    <div className={CARD_SHELL}>
+    <div className={cn(CARD_SHELL, detailStyles.sectionCard.fill)}>
       <style>{R24_CSS + R24_RUN_CSS}</style>
+      <SectionHead title={sectionTitle} />
 
       {/* header — eyebrow, title row + status, description, actions, flow label */}
       <div className="px-6 pt-5 pb-1">
@@ -256,6 +270,8 @@ export function CurrentPipelineCard({
 
 export interface LastRunFailedCardProps {
   detail: PipelineDetail;
+  /** 최근 작업 — the section name, rendered inside the card. */
+  sectionTitle: string;
   /** task_definition name → catalog entry (display name + description). */
   defs: ReadonlyMap<string, TaskCatalogEntry>;
   onRestart: () => void;
@@ -276,6 +292,7 @@ export interface LastRunFailedCardProps {
  */
 export function LastRunFailedCard({
   detail,
+  sectionTitle,
   defs,
   onRestart,
   onStartNew,
@@ -294,7 +311,8 @@ export function LastRunFailedCard({
     : null;
 
   return (
-    <div className={CARD_SHELL}>
+    <div className={cn(CARD_SHELL, detailStyles.sectionCard.fill)}>
+      <SectionHead title={sectionTitle} />
       <div className="px-6 pt-5 pb-5">
         <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
@@ -395,18 +413,27 @@ function BlockedReason({
   );
 }
 
-/**
- * Idle state — the same card shell with a centered empty state.
- *
- * It carries no start CTA: 작업 시작 lives in the tab head, where it is on screen
- * in every state instead of only this one, and one primary button per screen is
- * the rule. Nothing about the gate is repeated here either — when 확정 정보 is
- * missing the head shows the amber banner instead of the button.
- */
-export function EmptyPipelineCard(): ReactElement {
+export interface EmptyPipelineCardProps {
+  /** 현재 작업 — the section name, rendered inside the card. */
+  sectionTitle: string;
+  onStart: () => void;
+  /** Disables the CTA and states why — see TargetPipelineSections. */
+  blockedReason?: string | null;
+}
+
+/** Idle state — the same card shell with a centered empty state + start CTA. */
+export function EmptyPipelineCard({
+  sectionTitle,
+  onStart,
+  blockedReason = null,
+}: EmptyPipelineCardProps): ReactElement {
+  const blocked = blockedReason != null;
   return (
-    <div className={CARD_SHELL}>
-      <div className="flex flex-col items-center px-6 pb-10 pt-9 text-center">
+    <div className={cn(CARD_SHELL, detailStyles.sectionCard.fill)}>
+      <SectionHead title={sectionTitle} />
+      {/* justify-center: the row's height is set by whichever card is taller, so
+          the empty state centres in whatever space it is given. */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10 pt-9 text-center">
         <span className="mb-3 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[var(--pl-gray-50)] text-[var(--pl-text-faint)]">
           <Icon name="inbox" size="lg" strokeWidth={1.8} />
         </span>
@@ -414,15 +441,23 @@ export function EmptyPipelineCard(): ReactElement {
           실행 중인 작업이 없습니다.
         </div>
         <p className="mt-2 max-w-[468px] text-[15px] leading-[1.6] text-[var(--pl-text-weak)]">
-          위의 작업 시작으로 실행해 보세요. 설치·삭제·Custom 흐름이 여러 단계로 실행되고, 진행
-          상황을 여기서 바로 볼 수 있어요.
+          작업을 시작해 보세요. 설치·삭제·Custom 흐름이 여러 단계로 실행되고, 진행 상황을 여기서
+          바로 볼 수 있어요.
         </p>
         {/* Pre-warning, in info blue: nothing is wrong yet — this states what the
-            head's button will do. Amber belongs to the 확정 정보 gate, red to real
-            failures, so neither is borrowed here. */}
-        <p className="mt-2.5 max-w-[468px] text-[14px] font-semibold leading-[1.6] text-[var(--pl-info-text)]">
-          작업을 시작하면 Terraform이 실행되어 실제 인프라가 생성되거나 삭제됩니다.
-        </p>
+            button will do. Amber belongs to the 확정 정보 gate, red to real
+            failures, so neither is borrowed here. Suppressed when the CTA is
+            already blocked; the reason line below says the operative thing. */}
+        {!blocked && (
+          <p className="mt-2.5 max-w-[468px] text-[14px] font-semibold leading-[1.6] text-[var(--pl-info-text)]">
+            작업을 시작하면 Terraform이 실행되어 실제 인프라가 생성되거나 삭제됩니다.
+          </p>
+        )}
+        <PlButton variant="primary" className="mt-5" onClick={onStart} disabled={blocked}>
+          <Icon name="play" size="sm" />
+          작업 시작
+        </PlButton>
+        {blockedReason && <BlockedReason reason={blockedReason} className="mt-2.5" />}
       </div>
     </div>
   );
