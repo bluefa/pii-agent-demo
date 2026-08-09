@@ -79,7 +79,10 @@ function GateBanner({ onOpenRequest }: { onOpenRequest: () => void }): ReactElem
   );
 }
 
-/** 16px/700 — one step under the tab statement, one over the 12px label. */
+/** The three jobs, named by weight inside the intro sentence. */
+const JOB = 'font-semibold text-[var(--pl-text-strong)]';
+
+/** 16px/700 — one step over the slot's 12px label. */
 const SLOT_VALUE = 'text-[16px] font-bold leading-[1.3] text-[var(--pl-text-strong)]';
 
 /** One fact: name, value, and the line that qualifies it. */
@@ -125,15 +128,25 @@ export function InfraStatusHead({
 
   return (
     <div>
-      {/* The tab, in its own words. 18px/600 sits one step above the 16px section
-          names below and one below the page title, so the order of the page reads
-          title → tab statement → section. */}
-      <h2 className="text-[18px] font-semibold leading-[1.4] tracking-[-0.015em] text-[var(--pl-text-strong)]">
-        Terraform으로 이 대상의 인프라를 설치·삭제합니다.
-      </h2>
-      <p className="mt-1 break-keep text-[14px] leading-[1.55] text-[var(--pl-text-weak)]">
-        현재 적용 상태와 지금까지 실행한 작업 이력도 여기에서 확인합니다.
-      </p>
+      {/* The tab in its own words, as an info card. As bare 18px/14px text it had
+          no container while everything under it did, so it floated instead of
+          reading as a level. Contained and quieted, it sits UNDER the sections it
+          introduces — reference material, not the page's loudest line. The three
+          jobs are named by weight inside one sentence rather than as a list; the
+          slot strip and the two cards below already carry them as structure. */}
+      <div className="flex items-start gap-3 rounded-[10px] border border-[var(--pl-info-border)] bg-[var(--pl-info-bg)] px-5 py-4">
+        <span className="mt-px flex-none text-[var(--pl-info-text)]">
+          <Icon name="info" size="md" strokeWidth={2} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[12px] font-semibold text-[var(--pl-info-text)]">이 탭에서 하는 일</p>
+          <h2 className="mt-1 break-keep text-[14px] font-normal leading-[1.6] text-[var(--pl-text-medium)]">
+            Terraform으로 이 대상의 인프라를 <b className={JOB}>설치·삭제</b>하고, 현재{' '}
+            <b className={JOB}>Terraform 적용 상태</b>와 지금까지 실행한{' '}
+            <b className={JOB}>작업 이력</b>을 확인합니다.
+          </h2>
+        </div>
+      </div>
 
       {loading ? (
         <div className="mt-4 h-[92px]" aria-busy />
