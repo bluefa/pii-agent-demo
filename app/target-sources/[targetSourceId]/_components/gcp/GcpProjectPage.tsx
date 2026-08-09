@@ -7,14 +7,11 @@ import { CloudTargetSourceLayout } from '@/app/target-sources/[targetSourceId]/_
 interface GcpProjectPageProps {
   project: CloudTargetSource;
   onProjectUpdate: (project: CloudTargetSource) => void;
-  /** Guide band (가이드/진행 내역) rendered under the page header (ProjectDetail). */
-  guideSlot?: React.ReactNode;
 }
 
 export const GcpProjectPage = ({
   project,
   onProjectUpdate,
-  guideSlot,
 }: GcpProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'GCP',
@@ -30,7 +27,6 @@ export const GcpProjectPage = ({
       identity={identity}
       providerLabel="GCP Infrastructure"
       onProjectUpdate={onProjectUpdate}
-      guideSlot={guideSlot}
     />
   );
 };

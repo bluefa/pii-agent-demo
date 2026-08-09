@@ -7,14 +7,11 @@ import { CloudTargetSourceLayout } from '@/app/target-sources/[targetSourceId]/_
 interface AwsProjectPageProps {
   project: CloudTargetSource;
   onProjectUpdate: (project: CloudTargetSource) => void;
-  /** Guide band (가이드/진행 내역) rendered under the page header (ProjectDetail). */
-  guideSlot?: React.ReactNode;
 }
 
 export const AwsProjectPage = ({
   project,
   onProjectUpdate,
-  guideSlot,
 }: AwsProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'AWS',
@@ -35,7 +32,6 @@ export const AwsProjectPage = ({
       identity={identity}
       providerLabel="AWS Infrastructure"
       onProjectUpdate={onProjectUpdate}
-      guideSlot={guideSlot}
     />
   );
 };

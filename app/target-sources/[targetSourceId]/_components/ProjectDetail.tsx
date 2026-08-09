@@ -41,28 +41,16 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
   const monitoringAccent =
     providerAccent[project.cloudProvider.toLowerCase()] ?? providerAccentDefault;
 
-  // Guide band (was the full-height right rail) — built here because its data
-  // is page-level (SSR jiraTicket, monitoring identity), then handed to the
-  // provider layout, which slots it directly under the flat page header.
-  const guideSlot = (
-    <GuidePanel
-      slotKey={resolveProjectStepSlot(project)}
-      jiraTicket={jiraTicket}
-      monitoringLabel={monitoringLabel}
-      monitoringAccent={monitoringAccent}
-    />
-  );
-
   // Right column wrapper is a <div> (not <main>) — provider pages already
   // render their own <main>, and nesting two <main> elements is invalid.
   const renderProvider = () => {
     switch (project.cloudProvider) {
       case 'AWS':
-        return <AwsProjectPage project={project} onProjectUpdate={setProject} guideSlot={guideSlot} />;
+        return <AwsProjectPage project={project} onProjectUpdate={setProject} />;
       case 'Azure':
-        return <AzureProjectPage project={project} onProjectUpdate={setProject} guideSlot={guideSlot} />;
+        return <AzureProjectPage project={project} onProjectUpdate={setProject} />;
       case 'GCP':
-        return <GcpProjectPage project={project} onProjectUpdate={setProject} guideSlot={guideSlot} />;
+        return <GcpProjectPage project={project} onProjectUpdate={setProject} />;
       case 'IDC':
         // key by targetSourceId so switching IDC target sources fully remounts
         // the subtree — no stale per-target state leaks across (DR2).
@@ -71,7 +59,6 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
             key={project.targetSourceId}
             project={project}
             onProjectUpdate={setProject}
-            guideSlot={guideSlot}
           />
         );
       default:
@@ -106,6 +93,13 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
       <div className={SCROLL_COLUMN}>
         {renderProvider()}
       </div>
+      {/* Full-height right rail (가이드/진행 내역) — mirrors the left ServiceListPanel. */}
+      <GuidePanel
+        slotKey={resolveProjectStepSlot(project)}
+        jiraTicket={jiraTicket}
+        monitoringLabel={monitoringLabel}
+        monitoringAccent={monitoringAccent}
+      />
     </div>
   );
 };

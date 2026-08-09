@@ -7,14 +7,11 @@ import { CloudTargetSourceLayout } from '@/app/target-sources/[targetSourceId]/_
 interface AzureProjectPageProps {
   project: CloudTargetSource;
   onProjectUpdate: (project: CloudTargetSource) => void;
-  /** Guide band (가이드/진행 내역) rendered under the page header (ProjectDetail). */
-  guideSlot?: React.ReactNode;
 }
 
 export const AzureProjectPage = ({
   project,
   onProjectUpdate,
-  guideSlot,
 }: AzureProjectPageProps) => {
   const identity: ProjectIdentity = {
     cloudProvider: 'Azure',
@@ -33,7 +30,6 @@ export const AzureProjectPage = ({
       identity={identity}
       providerLabel="Azure Infrastructure"
       onProjectUpdate={onProjectUpdate}
-      guideSlot={guideSlot}
     />
   );
 };

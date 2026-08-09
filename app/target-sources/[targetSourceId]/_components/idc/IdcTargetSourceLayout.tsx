@@ -45,12 +45,8 @@ export const IdcTargetSourceLayout = (props: IdcStepProps) => {
       <ProjectPageMeta project={props.project} identity={props.identity} action={props.action} />
       {/* v16 `.main` — full-width flex column, padding 32px 40px 80px (top/x/bottom). The 40px
           left padding sits flush against the 296px sidebar so content begins at 336px, matching v16.
-          Body is a two-column row: step cards left, the 320px guide panel CARD
-          standing beside them — clearly a panel, not header chrome. */}
-      <div className="flex items-start gap-6 px-10 pt-8 pb-20">
-        <div className="min-w-0 flex-1 space-y-6">{step}</div>
-        {props.guideSlot}
-      </div>
+          The step guide lives in the full-height right rail (GuidePanel, ProjectDetail). */}
+      <div className="px-10 pt-8 pb-20 space-y-6">{step}</div>
     </main>
   );
 };
