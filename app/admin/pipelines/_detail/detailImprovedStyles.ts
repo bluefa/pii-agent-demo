@@ -97,6 +97,9 @@ export const improvedStyles = {
     label: 'text-[13px] text-[var(--pl-chrome-item)] whitespace-nowrap',
     cell: 'flex items-center gap-3 min-w-0',
     curName: 'text-[16px] font-bold text-[var(--pl-white)] truncate',
+    /** PENDING 전용 — 시작 예정 시각은 태스크 이름이 아니라 부가 정보라
+     *  경과 시간(elapsed)과 같은 톤으로 한 계단 낮춘다. */
+    curSched: 'text-[14px] font-normal text-[var(--pl-chrome-item)] tabular-nums whitespace-nowrap', // design-exempt: chrome-item on the dark gray-800 exec band (8.0:1), not on white
     pill: 'inline-flex items-center rounded-full px-3 py-1 text-[12px] font-bold text-[var(--pl-white)] leading-none',
     pillTone: {
       PENDING: 'bg-[var(--pl-warn)]',

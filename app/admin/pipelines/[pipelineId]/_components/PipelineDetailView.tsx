@@ -482,7 +482,7 @@ export function PipelineDetailView(): ReactElement {
               )}
             </span>
             <span className="whitespace-nowrap tabular-nums">
-              생성 {fmtDateTime(detail.created_at)}
+              작업 등록 {fmtDateTime(detail.created_at)}
             </span>
             {detail.restarted_by_pipeline_id != null && (
               <Link
@@ -504,7 +504,15 @@ export function PipelineDetailView(): ReactElement {
         <div className={improvedStyles.band.main}>
           <span className={improvedStyles.band.label}>{running ? '현재 실행 중' : cur.label}</span>
           <div className={improvedStyles.band.cell}>
-            <span className={improvedStyles.band.curName}>{cur.name}</span>
+            {/* 16/bold 슬롯은 "태스크 이름"의 자리다. PENDING의 시작 예정 시각은
+                태스크가 아니라 부가 정보라 한 계단 낮춰 쓴다(오너). */}
+            <span
+              className={
+                detail.status === 'PENDING' ? improvedStyles.band.curSched : improvedStyles.band.curName
+              }
+            >
+              {cur.name}
+            </span>
             <span className={cn(improvedStyles.band.pill, improvedStyles.band.pillTone[detail.status])}>
               {statusKo(detail.status)}
             </span>
