@@ -6,6 +6,7 @@ import type { schemas } from '@/lib/generated/install-v1';
 import { toWireDatabaseType } from '@/lib/types';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
 import { useConfirmSubmit } from '@/app/hooks/useConfirmSubmit';
+import { useToast } from '@/app/components/ui/toast';
 import {
   idcDbTypeWireFromLabel,
   type IdcResourceView,
@@ -131,6 +132,7 @@ export const IdcStep1TargetInput = ({
   const [reasonFor, setReasonFor] = useState<string | null>(null);
   const [popover, setPopover] = useState<PopoverState | null>(null);
 
+  const toast = useToast();
   const tmpIdRef = useRef(0);
 
   const refreshProject = useCallback(async () => {
@@ -151,10 +153,13 @@ export const IdcStep1TargetInput = ({
     // 이 컴포넌트가 Step 2 로 교체되므로, 순서가 반대면 프레임이 그려지지 않는다.
     // 닫기는 finally 에 둔다. 확인 프레임은 닫기 경로가 전부 잠겨 있고(누를 것이 없는
     // 1초다) 버튼도 없으므로, 갱신이 던지면 사용자는 새로고침 말고는 빠져나갈 수 없다.
-    // 요청은 이미 접수된 뒤라 갱신 실패로 되돌릴 것도 없다.
+    // 그리고 갱신 실패를 삼키면 안 된다: 요청은 접수됐는데 화면은 1단계 그대로라, 아무
+    // 말도 없으면 사용자는 승인 요청을 한 번 더 누른다(submit 에는 중복 가드가 없다).
     settle: async () => {
       try {
         await refreshProject();
+      } catch {
+        toast.warning('승인 요청은 접수됐어요. 화면을 새로고침해 최신 상태를 확인해 주세요.');
       } finally {
         setSubmitOpen(false);
       }

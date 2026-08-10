@@ -102,8 +102,9 @@ const resultTitle = 'text-[20px] font-bold tracking-[-0.02em] leading-[1.3] text
 const resultDesc = 'mt-2 text-[13.5px] font-medium leading-[1.6] text-[#6B7280]';
 /** Reason line — plain text, not a tinted box. A box would be the third bordered surface in a
  *  frame whose whole job is one sentence, and the red tile above already says which kind of
- *  result this is; the colour alone carries the rest. */
-const resultReason = 'mt-2.5 max-w-[420px] text-[13px] leading-[1.5] text-[#B42318]';
+ *  result this is; the colour alone carries the rest. Same token tier as that tile: two
+ *  adjacent reds a shade apart read as a mistake, not a hierarchy. */
+const resultReason = cn('mt-2.5 max-w-[420px] text-[13px] leading-[1.5]', statusColors.error.textDark);
 
 export const ConfirmStepModal = ({
   open,

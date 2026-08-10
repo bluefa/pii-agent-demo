@@ -98,6 +98,30 @@ describe('IdcSubmitModal', () => {
     expect(screen.getByText('알 수 없는 오류가 발생했어요.')).toBeTruthy();
   });
 
+  // 같은 손으로 다시 눌러도 같은 실패인 것에 다시 요청하기를 주면 지키지 못할 약속이다.
+  // 401 의 사유는 "새로고침한 뒤 다시 요청해 주세요" 인데 그 옆의 재요청 버튼은 또 401 이다.
+  it('offers 다시 요청하기 only for failures a second press can clear', () => {
+    const { rerender } = render(<IdcSubmitModal {...baseProps} phase="error" errorCode="UNAUTHORIZED" />);
+    expect(screen.queryByRole('button', { name: '다시 요청하기' })).toBeNull();
+    expect(screen.getByRole('button', { name: '닫기' })).toBeTruthy();
+
+    for (const code of ['FORBIDDEN', 'BAD_REQUEST', 'NOT_FOUND'] as const) {
+      rerender(<IdcSubmitModal {...baseProps} phase="error" errorCode={code} />);
+      expect(screen.queryByRole('button', { name: '다시 요청하기' })).toBeNull();
+    }
+
+    // 409 는 재요청이 가장 잘 듣는 경우다 — useConfirmSubmit 이 재요청 전에 진행 상태를
+    // 다시 읽어, 이미 접수된 요청을 찾으면 그대로 다음 단계로 넘긴다.
+    for (const code of ['CONFLICT', 'INTERNAL_ERROR', 'NETWORK', 'TIMEOUT', 'RATE_LIMITED'] as const) {
+      rerender(<IdcSubmitModal {...baseProps} phase="error" errorCode={code} />);
+      expect(screen.getByRole('button', { name: '다시 요청하기' })).toBeTruthy();
+    }
+
+    // 분류할 수 없는 실패는 일시적일 수 있다 — 눌러볼 값어치는 있다.
+    rerender(<IdcSubmitModal {...baseProps} phase="error" />);
+    expect(screen.getByRole('button', { name: '다시 요청하기' })).toBeTruthy();
+  });
+
   it('phase=error offers 다시 요청하기 and 닫기', () => {
     const onRetry = vi.fn();
     const onClose = vi.fn();

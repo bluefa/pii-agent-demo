@@ -522,6 +522,19 @@ export const mockConfirm = {
   },
 
   createApprovalRequest: async (targetSourceId: string, body: unknown) => {
+    // Demo dial for Step 1's failure frame — this adapter otherwise always succeeds, so the
+    // frame is unreachable in a running app. Put `MOCK_APPROVAL_FAIL_RATE=0.5` in
+    // `.env.local` and one request in two comes back 500. It lives here rather than in the
+    // route because the mock adapter is only reachable when `isMock()` is true: a stray rate
+    // in a deploy config then cannot drop a real approval request, and the Server Component
+    // path — which bypasses the route entirely — is covered too.
+    if (Math.random() < Number(process.env.MOCK_APPROVAL_FAIL_RATE ?? 0)) {
+      return NextResponse.json(
+        { error: 'INTERNAL_ERROR', message: 'mock: MOCK_APPROVAL_FAIL_RATE injected failure' },
+        { status: 500 },
+      );
+    }
+
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
