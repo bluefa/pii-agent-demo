@@ -38,24 +38,32 @@ interface GcpInstallationInlineProps {
  * 특히 CIDR 은 실제와 다르면 사용자가 잘못된 대역으로 방화벽을 여는 값이라 빼둔다.
  *
  * subnet 단계만은 오너 확인으로 무엇을 만드는지 알고 있다 — PSC 용 Subnet, 리전당 하나.
+ *
+ * group 은 side 가 아니라 **누가 실행하는가**다. GCP 는 계약에 실행 주체 근거가 없어
+ * 오너 판단으로 정했다: Subnet 생성만 서비스 측이 하고, 'service_side_terraform_apply'
+ * 는 AWS 자동 설치와 같이 BDC 가 서비스 프로젝트에 대신 적용한다. 그래서 side 는
+ * '서비스측'인데 group 은 'auto' 다 — AWS 의 service 단계와 같은 형태의 어긋남이다.
  */
 const GCP_STEPS: InstallTableStep[] = [
   {
     id: 'subnet',
     title: 'PSC용 Subnet 생성',
     side: '서비스측 리소스 생성',
+    group: 'todo',
     desc: 'PSC(Private Service Connect) 연결에 사용할 Subnet을 생성합니다. Region마다 하나가 필요합니다.',
   },
   {
     id: 'service',
     title: '서비스측 Terraform 적용',
     side: '서비스측 리소스 생성',
+    group: 'auto',
     desc: '서비스 프로젝트 측 리소스를 Terraform으로 적용합니다.',
   },
   {
     id: 'bdc',
     title: 'BDC측 Terraform 적용',
     side: 'BDC측 리소스 생성',
+    group: 'auto',
     desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
   },
 ];
@@ -141,7 +149,7 @@ export const GcpInstallationInline = ({
           </div>
         )}
         {loading ? (
-          <InstallationLoadingView provider="GCP" railRows={GCP_STEPS.length + 1} />
+          <InstallationLoadingView provider="GCP" grouped />
         ) : error ? (
           <InstallationErrorView message={error} onRetry={fetchStatus} />
         ) : status ? (
