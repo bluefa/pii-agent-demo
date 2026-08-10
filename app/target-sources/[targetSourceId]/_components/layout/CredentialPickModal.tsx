@@ -158,9 +158,9 @@ export const CredentialPickModal = ({
         />
       ) : (
         <div className="flex flex-col">
-          {/* 표 위에 둔다 — 스크롤하거나 검색으로 걸러내도 지금 뭐가 배정돼 있는지 항상 먼저
-              보인다. "현재 선택"은 파란색(primaryColors.text)으로 눈에 띄게 한다. 이름이 길면
-              한 줄을 넘기지 않도록 말줄임하고, 전체 이름은 title 로 남긴다. */}
+          {/* Placed above the table so it stays visible regardless of scroll or search
+              filtering. "현재 선택" uses primaryColors.text (blue) for prominence. Long
+              names truncate to one line; the full value is kept in title. */}
           <span className={cn('mb-2 flex items-baseline gap-1.5 text-[12px]', textColors.tertiary)}>
             {picked ? (
               <>
