@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getProcessStatus, normalizeTargetSourceProcessStatus } from '@/app/lib/api';
-import { AppError } from '@/lib/errors';
+import { AppError, type AppErrorCode } from '@/lib/errors';
 import { ProcessStatus } from '@/lib/types';
 
 /**
@@ -34,8 +34,8 @@ export interface UseConfirmSubmitReturn {
   phase: ConfirmSubmitPhase;
   /** 요청이 날아가 있는 동안. 프레임은 그대로 두고 버튼만 잠근다. */
   pending: boolean;
-  /** 실패 사유 한 줄. 서버가 준 사용자용 메시지일 때만 값이 있다. */
-  errorReason?: string;
+  /** 실패의 종류. 문구가 아니라 코드다 — 사용자가 읽을 문장은 모달이 고른다. */
+  errorCode?: AppErrorCode;
   submit: () => void;
   retry: () => void;
   /** 실패 프레임의 닫기 — 확인 프레임으로 되돌린다. */
@@ -59,7 +59,7 @@ export const useConfirmSubmit = ({
 }: UseConfirmSubmitOptions): UseConfirmSubmitReturn => {
   const [phase, setPhase] = useState<ConfirmSubmitPhase>('form');
   const [pending, setPending] = useState(false);
-  const [errorReason, setErrorReason] = useState<string>();
+  const [errorCode, setErrorCode] = useState<AppErrorCode>();
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   // 두 콜백 모두 렌더마다 새로 만들어지는 클로저다 — ref 로 최신 것을 들고 있으면
   // 훅이 돌려주는 핸들러들이 매 렌더 새 identity 를 갖지 않고, 홀드 타이머가 붙잡은
@@ -83,15 +83,13 @@ export const useConfirmSubmit = ({
   const send = useCallback(async () => {
     try {
       await requestRef.current();
-      setErrorReason(undefined);
+      setErrorCode(undefined);
       succeed();
     } catch (error) {
-      // 서버가 준 detail 만 그대로 보여준다(AppError.isUserFacing) — 네트워크 스택이
-      // 던진 원문("Failed to fetch")은 사용자에게 아무 말도 하지 않으므로, 모달의
-      // 기본 문구로 떨어뜨린다.
-      setErrorReason(
-        error instanceof AppError && error.isUserFacing ? error.message : undefined,
-      );
+      // 코드만 올린다. 서버 detail 과 AppError.message 는 진단용이고, 사용자용 문장은
+      // 코드로 고른다(ADR-008 개정 2026-04-27 / ADR-013 §D2) — 그러지 않으면 BFF 가
+      // 쓴 문구가 그대로 UI 카피가 된다.
+      setErrorCode(error instanceof AppError ? error.code : 'UNKNOWN');
       setPhase('error');
     }
   }, [succeed]);
@@ -131,11 +129,11 @@ export const useConfirmSubmit = ({
 
   const reset = useCallback(() => {
     clearTimeout(timerRef.current);
-    setErrorReason(undefined);
+    setErrorCode(undefined);
     setPhase('form');
   }, []);
 
-  return { phase, pending, errorReason, submit, retry, reset };
+  return { phase, pending, errorCode, submit, retry, reset };
 };
 
 export default useConfirmSubmit;

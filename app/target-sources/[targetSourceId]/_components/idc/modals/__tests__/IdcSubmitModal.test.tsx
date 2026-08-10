@@ -80,14 +80,19 @@ describe('IdcSubmitModal', () => {
     expect(screen.queryByText('연동 대상을 승인 요청할까요?')).toBeNull();
   });
 
-  // 서버가 준 사용자용 메시지가 있으면 그것을 그대로, 없을 때만 기본 문구로 떨어진다.
-  it('phase=error shows the server reason when there is one, the fallback when there is not', () => {
-    const { rerender } = render(
-      <IdcSubmitModal {...baseProps} phase="error" errorReason="이미 승인 요청이 진행 중이에요." />,
-    );
+  // 사유는 코드로 고른다 — 매핑에 없는 코드와 코드 부재는 같은 기본 문구로 떨어진다.
+  it('phase=error picks the reason from the error code, falling back when it has none', () => {
+    const { rerender } = render(<IdcSubmitModal {...baseProps} phase="error" errorCode="CONFLICT" />);
     expect(screen.getByText('승인 요청을 보내지 못했어요')).toBeTruthy();
-    expect(screen.getByText('이미 승인 요청이 진행 중이에요.')).toBeTruthy();
+    expect(screen.getByText('이미 진행 중인 승인 요청이 있어요.')).toBeTruthy();
     expect(screen.queryByText('알 수 없는 오류가 발생했어요.')).toBeNull();
+
+    rerender(<IdcSubmitModal {...baseProps} phase="error" errorCode="NETWORK" />);
+    expect(screen.getByText('네트워크 연결을 확인해 주세요.')).toBeTruthy();
+
+    // 매핑에 없는 코드
+    rerender(<IdcSubmitModal {...baseProps} phase="error" errorCode="PARSE_ERROR" />);
+    expect(screen.getByText('알 수 없는 오류가 발생했어요.')).toBeTruthy();
 
     rerender(<IdcSubmitModal {...baseProps} phase="error" />);
     expect(screen.getByText('알 수 없는 오류가 발생했어요.')).toBeTruthy();

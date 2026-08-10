@@ -90,30 +90,25 @@ describe('useConfirmSubmit', () => {
     expect(result.current.pending).toBe(false);
   });
 
-  // 서버가 준 detail 만 사용자에게 보여준다. 네트워크 스택이 던진 원문은 사용자에게
-  // 아무 말도 하지 않으므로 모달의 기본 문구로 떨어뜨린다.
-  it('surfaces only a user-facing failure message', async () => {
+  // 코드만 올린다. 서버 detail 은 진단용이고, 사용자가 읽을 문장은 모달이 코드로 고른다
+  // (ADR-008 개정 / ADR-013 §D2) — 여기서 detail 이 새면 BFF 문구가 UI 카피가 된다.
+  it('reports the failure as a code, never the server detail', async () => {
     const conflict = new AppError({
-      message: '이미 승인 요청이 진행 중이에요.',
+      message: 'approval request already pending for target_source 7',
       status: 409,
       code: 'CONFLICT',
       retriable: false,
     });
-    const { result: withDetail } = setup(() => Promise.reject(conflict));
-    await act(async () => { withDetail.current.submit(); });
-    expect(withDetail.current.phase).toBe('error');
-    expect(withDetail.current.errorReason).toBe('이미 승인 요청이 진행 중이에요.');
+    const { result: appError } = setup(() => Promise.reject(conflict));
+    await act(async () => { appError.current.submit(); });
+    expect(appError.current.phase).toBe('error');
+    expect(appError.current.errorCode).toBe('CONFLICT');
 
-    const offline = new AppError({
-      message: 'Failed to fetch',
-      status: 0,
-      code: 'UNKNOWN',
-      retriable: true,
-    });
-    const { result: bare } = setup(() => Promise.reject(offline));
+    // AppError 가 아닌 것이 올라오면 분류할 근거가 없다 — UNKNOWN 으로 접는다.
+    const { result: bare } = setup(() => Promise.reject(new TypeError('Failed to fetch')));
     await act(async () => { bare.current.submit(); });
     expect(bare.current.phase).toBe('error');
-    expect(bare.current.errorReason).toBeUndefined();
+    expect(bare.current.errorCode).toBe('UNKNOWN');
   });
 
   // 응답만 실패하고 요청은 접수됐던 경우 — 그대로 다시 보내면 승인 요청이 두 건 생긴다.
