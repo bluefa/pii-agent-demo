@@ -12,9 +12,11 @@
  * state — previously the status card only loaded on mount, so a pipeline could
  * finish below a card still showing its pre-run snapshot.
  *
- * The start-pipeline modal is owned here too: its entrance is the head's 작업 시작
- * (always on screen, including mid-run), and LastRunFailedCard's 새 작업 시작 opens
- * the same one.
+ * The start-pipeline modal is owned here too, though nothing in the head opens it
+ * (owner call: 작업 시작 belongs to the 현재 작업 card, never to the head — see
+ * docs/ux/benchmark/ops-infra-tab.md). Both entrances live in the run cards —
+ * EmptyPipelineCard's 작업 시작 and LastRunFailedCard's 새 작업 시작 — and this is
+ * simply the one place that owns their shared modal.
  */
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { useModal } from '@/app/hooks/useModal';

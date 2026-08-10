@@ -66,8 +66,8 @@ export interface TargetPipelineSectionsProps {
   /** Opens the start-pipeline modal, which the tab owns (its head has the CTA). */
   onStart: () => void;
   /**
-   * Disables the restart card's CTAs and states why, in the operator's words.
-   * Null allows starting.
+   * Disables the start/restart CTAs in both run cards and states why, in the
+   * operator's words. Null (the default) allows starting.
    */
   startBlockedReason?: string | null;
   /** Fired when a run reaches a terminal state, so the caller can refetch
@@ -272,7 +272,11 @@ export function TargetPipelineSections({
               {rows.length === 0 ? (
                 <PlEmptyState icon="inbox" message="작업 이력이 없습니다." />
               ) : (
-                <table className={table.base}>
+                /* table-fixed: auto layout resolves to min-content, and a long
+                   recipe name plus a restart badge is wider than a third of the
+                   row — the card's overflow-hidden would then clip the 상태
+                   column away instead of letting the name ellipsis. */
+                <table className={cn(table.base, 'table-fixed')}>
                   <colgroup>
                     <col />
                     <col className="w-[104px]" />
@@ -313,13 +317,27 @@ export function TargetPipelineSections({
                           }}
                         >
                           <td className={cn(table.cell, 'min-w-0')}>
-                            <span className="flex items-center gap-2 text-[14px] font-semibold text-[var(--pl-text-strong)]">
+                            {/* min-w-0 twice: the flex container has to be able to
+                                shrink inside the cell, and the name — a flex item
+                                at min-width:auto — has to be allowed to go below
+                                its min-content before `truncate` can ellipsis. */}
+                            <span className="flex min-w-0 items-center gap-2 text-[14px] font-semibold text-[var(--pl-text-strong)]">
                               <TypeTile type={p.type} size="xs" />
-                              <span className="truncate">
+                              <span className="min-w-0 truncate">
                                 {p.type === 'CUSTOM'
                                   ? 'Custom 작업'
                                   : recipeDisplayName(p.recipe_definition)}
                               </span>
+                            </span>
+                            {/* The restart chip rides the metadata line, not the
+                                name line: it is unshrinkable, so on the name line
+                                it ate a 1/3-width column's whole title. */}
+                            <span className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-[var(--pl-text-weak)]">
+                              <span className="font-semibold tabular-nums [font-family:var(--pl-font-mono)]">
+                                #{p.pipeline_id}
+                              </span>
+                              <span aria-hidden>·</span>
+                              <span className="tabular-nums">{fmtDateTime(p.created_at)}</span>
                               {/* §8.3 — answers only "is this row a restart" (origin rows carry no chip). */}
                               {p.origin_pipeline_id != null && (
                                 <span onClick={(e) => e.stopPropagation()}>
@@ -329,13 +347,6 @@ export function TargetPipelineSections({
                                   />
                                 </span>
                               )}
-                            </span>
-                            <span className="mt-1 flex items-center gap-1.5 text-[12px] text-[var(--pl-text-weak)]">
-                              <span className="font-semibold tabular-nums [font-family:var(--pl-font-mono)]">
-                                #{p.pipeline_id}
-                              </span>
-                              <span aria-hidden>·</span>
-                              <span className="tabular-nums">{fmtDateTime(p.created_at)}</span>
                             </span>
                           </td>
                           <td className={cn(table.cell, 'text-right')}>

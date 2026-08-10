@@ -16,6 +16,7 @@ import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import { normalizeCloudProvider } from '@/lib/types';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyles';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { CollaborationChannel } from '@/app/lib/api/ops';
@@ -117,10 +118,21 @@ export function OpsHeader({
     <div className={opsStyles.header}>
       <div className={opsStyles.titleRow}>
         <div className={opsStyles.titleCol}>
-          {/* Fixed page label. The subject (#id + service) is the identity stack
-              below — a service name as h1 said "which service" three times over
-              and never said which target you had opened. */}
-          <h1 className={pipelineStyles.text.pageTitle}>Target Source 운영</h1>
+          <div className={opsStyles.titleLine}>
+            {/* Fixed page label. The subject (#id + service) is the identity stack
+                below — a service name as h1 said "which service" three times over
+                and never said which target you had opened. */}
+            <h1 className={pipelineStyles.text.pageTitle}>Target Source 운영</h1>
+            {/* 같은 대상의 서비스측 화면. 운영자가 "담당자한테는 지금 뭐가 보이나"를
+                묻는 자리가 여기뿐이라, 목적지를 이름으로 부르는 조용한 링크로 둔다. */}
+            <Link
+              href={passRoutes.targetSource(targetSourceId)}
+              className={h.link}
+              title="PII Agent 설치 화면 — 서비스 담당자가 보는 진행 화면"
+            >
+              서비스가 보는 화면 <Icon name="arrow-ur" size="sm" />
+            </Link>
+          </div>
 
           <div className={opsStyles.identityRow}>
             <ProviderLogo

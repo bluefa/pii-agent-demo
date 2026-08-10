@@ -70,6 +70,16 @@ h1은 **`Target Source 운영` 고정 라벨**. 주어는 그 아래 3층 정체
 **남은 것**: 표가 있는 탭은 넓은 화면에서 열이 늘어진다(인프라 작업 탭의 2:1 그리드가 가장 눈에
 띈다). 표 컨테이너 자체 `max-w`가 짝인데 이번 범위 밖이다.
 
+### 서비스측 화면 링크 (오너 지시, 2026-08-10)
+
+h1 옆에 같은 baseline 으로 **`서비스가 보는 화면 ↗`** (12px primary, `improvedStyles.header.link`)
+— `passRoutes.targetSource(id)` = `/target-sources/{id}`, 담당자가 보는 `PII Agent 설치` 화면.
+
+용어: `서비스측`은 이 저장소에서 이미 **인프라 소유 주체**(서비스측 리소스 / BDC측 리소스,
+`InfraSideTag`)를 뜻하므로 화면 이름에 재사용하지 않았다. 오너의 표현("서비스측이 보고 있는
+상세 화면")을 그대로 옮긴 **`서비스가 보는 화면`**이 충돌이 없고 가장 짧다. 목적지 정식 이름은
+`title` 툴팁이 싣는다. GitHub 저장소 헤더 문법 — 조용한 링크가 타이틀에 매달린다.
+
 ### J1 — 협업 채널 3층 블록 (P5, 오너 지시 5)
 
 말풍선(꼬리·그림자·`absolute`)을 버리고 **흐름 안에 도킹된 216px 고정폭 블록**으로. 왼쪽 정체성
@@ -94,13 +104,26 @@ h1은 **`Target Source 운영` 고정 라벨**. 주어는 그 아래 3층 정체
 
 - **P8 — 헤더가 어느 티켓을 읽는가.** 이번 구현은 출처를 **바꾸지 않았다**(`collaboration-channel`
   유지, `ChannelModal` 유지). 블록은 `channel` prop 하나만 보므로 결정이 나면 배선만 갈아끼우면 된다.
-  1. **실계약 이전** — `GET /services/{code}/jira-tickets`에서 이 대상의 CloudProvider 행을 골라
-     `issueKey`·`browseUrl` 사용. 그러면 3층 문구가 **사실**이 된다. `collaboration-channel` GET/PUT과
-     `ChannelModal`은 사라진다.
-     - 선행 확인: 티켓 단위가 (서비스 × provider)인지 (대상)인지. 서비스 화면 타일은 provider
-       단위인데 `JiraTicketResponse`에는 `targetSourceId`가 있다.
-  2. **현행 유지** — 그렇다면 3층 문구가 "관리"가 아니라 **다른 티켓임을 드러내야** 한다.
-  3. 둘 다 표시.
+
+  **2026-08-10 추가 조사로 단위 질문은 해소됐다.** 계약에 축이 둘 다 있고, 역할이 갈린다.
+
+  | 축 | 엔드포인트 | 성격 |
+  |---|---|---|
+  | 대상 1건 | `GET /install/v1/target-sources/{id}/jira-ticket` (swagger L4957) | **read-only** — "이 대상의 티켓" |
+  | 서비스 × provider | `GET/POST/DELETE /install/v1/services/{code}/jira-tickets/{provider}` + watchers | **관리(write) 표면** |
+
+  즉 J1 블록의 **구조는 이미 맞다** — 2층 = 어느 티켓인가(read), 3층 = 어디서 관리하는가(write).
+  틀린 것은 2층이 읽는 엔드포인트뿐이다. 서비스측 `/target-sources/{id}` 화면은 **이미** 대상 축
+  계약을 쓴다(목 `target-sources.ts` `getJiraTicket`).
+
+  같은 대상 #1010 이 지금 화면마다 다른 티켓을 보인다:
+  `BDCDIP-1010`(서비스측, 대상 축 실계약) / `INFRA-2211`(ops 헤더, 목 전용) /
+  "연결된 티켓 없음"(서비스 운영, 서비스×provider 축).
+
+  1. **권장 — 대상 축 실계약으로 이전.** 2층을 `/target-sources/{id}/jira-ticket` 으로 바꾼다.
+     서비스측 화면과 같은 티켓을 보이게 되고, `collaboration-channel` GET/PUT 과 `ChannelModal`
+     (계약에 없는 write) 이 사라진다. 3층은 그대로 서비스×provider 관리 표면을 가리킨다.
+  2. 현행 유지 — 그렇다면 2층이 계약 밖 값임을 감수해야 한다.
 - **P6** — Role ARN의 거처(헤더 / 요약 카드 / 인프라 작업 탭). A3 미채택으로 보류.
 - 현재 단계 pill이 헤더와 `ProcessCard`에 이중으로 있다 — 강등 여부 미결.
 - fluid 전환에 따른 탭별 표 `max-w`.

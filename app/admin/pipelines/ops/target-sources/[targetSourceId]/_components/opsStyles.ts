@@ -15,6 +15,10 @@ export const opsStyles = {
   titleRow: 'flex items-start justify-between gap-7',
   /** Left column: h1 + the provider mark and identity stack under it. */
   titleCol: 'min-w-0 flex-1',
+  /** h1 + the service-side link on one baseline (GitHub repo-header grammar):
+      the quiet 12px link reads as a destination hanging off the title, not as a
+      second title. */
+  titleLine: 'flex items-baseline gap-3 flex-wrap',
   identityRow: 'flex items-center gap-4 mt-3.5',
 
   /** Neutral tag / region tag — shared with SduOpsNotice·ServiceDetailView·
