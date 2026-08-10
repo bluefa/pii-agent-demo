@@ -5,6 +5,8 @@ import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import { toWireDatabaseType } from '@/lib/types';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
+import { useConfirmSubmit } from '@/app/hooks/useConfirmSubmit';
+import { useToast } from '@/app/components/ui/toast';
 import {
   idcDbTypeWireFromLabel,
   type IdcResourceView,
@@ -127,16 +129,42 @@ export const IdcStep1TargetInput = ({
   const [editId, setEditId] = useState<string | null>(null);
   const [loadOpen, setLoadOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [reasonFor, setReasonFor] = useState<string | null>(null);
   const [popover, setPopover] = useState<PopoverState | null>(null);
 
+  const toast = useToast();
   const tmpIdRef = useRef(0);
 
   const refreshProject = useCallback(async () => {
     const updated = await getProject(targetSourceId);
     onProjectUpdate(updated);
   }, [onProjectUpdate, targetSourceId]);
+
+  const submit = useConfirmSubmit({
+    targetSourceId,
+    request: async () => {
+      // Step 1 is manual input held in UI state — there is no IDC `/resources`
+      // PUT in the contract; submission rides createApprovalRequest, which routes
+      // every submission to WAITING_APPROVAL (Step 2, 승인 대기) for manual admin
+      // approval — same as cloud providers (auto-approval is disabled in the demo).
+      await createApprovalRequest(targetSourceId, toIdcApprovalRequestInput(rows));
+    },
+    // 확인 프레임이 물러난 뒤에 갱신한다 — 상태가 WAITING_APPROVAL 로 바뀌는 순간
+    // 이 컴포넌트가 Step 2 로 교체되므로, 순서가 반대면 프레임이 그려지지 않는다.
+    // 닫기는 finally 에 둔다. 확인 프레임은 닫기 경로가 전부 잠겨 있고(누를 것이 없는
+    // 1초다) 버튼도 없으므로, 갱신이 던지면 사용자는 새로고침 말고는 빠져나갈 수 없다.
+    // 그리고 갱신 실패를 삼키면 안 된다: 요청은 접수됐는데 화면은 1단계 그대로라, 아무
+    // 말도 없으면 사용자는 승인 요청을 한 번 더 누른다(submit 에는 중복 가드가 없다).
+    settle: async () => {
+      try {
+        await refreshProject();
+      } catch {
+        toast.warning('승인 요청은 접수됐어요. 화면을 새로고침해 최신 상태를 확인해 주세요.');
+      } finally {
+        setSubmitOpen(false);
+      }
+    },
+  });
 
   const editingRow = editId ? rows.find((r) => r.resourceId === editId) ?? null : null;
   const popoverRow = popover ? rows.find((r) => r.resourceId === popover.resourceId) ?? null : null;
@@ -225,21 +253,10 @@ export const IdcStep1TargetInput = ({
     setReasonFor(null);
   };
 
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try {
-      // Step 1 is manual input held in UI state — there is no IDC `/resources`
-      // PUT in the contract; submission rides createApprovalRequest, which routes
-      // every submission to WAITING_APPROVAL (Step 2, 승인 대기) for manual admin
-      // approval — same as cloud providers (auto-approval is disabled in the demo).
-      await createApprovalRequest(targetSourceId, toIdcApprovalRequestInput(rows));
-      await refreshProject();
-      setSubmitOpen(false);
-    } catch {
-      // surfaced by the mutation layer; keep the modal open
-    } finally {
-      setSubmitting(false);
-    }
+  const handleOpenSubmit = () => {
+    // 지난 실패 프레임을 들고 다시 열지 않는다.
+    submit.reset();
+    setSubmitOpen(true);
   };
 
   return (
@@ -363,7 +380,7 @@ export const IdcStep1TargetInput = ({
                 <button
                   type="button"
                   disabled={liveCount === 0}
-                  onClick={() => setSubmitOpen(true)}
+                  onClick={handleOpenSubmit}
                   className={cn(idcStyles.triggerBtn.primary, 'disabled:pointer-events-none')}
                 >
                   연동 대상 승인 요청
@@ -435,8 +452,11 @@ export const IdcStep1TargetInput = ({
         total={total}
         live={liveCount}
         excluded={excludedCount}
-        submitting={submitting}
-        onSubmit={handleSubmit}
+        phase={submit.phase}
+        pending={submit.pending}
+        errorCode={submit.errorCode}
+        onSubmit={submit.submit}
+        onRetry={submit.retry}
         onClose={() => setSubmitOpen(false)}
       />
 
