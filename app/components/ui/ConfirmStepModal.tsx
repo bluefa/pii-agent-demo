@@ -97,10 +97,10 @@ const resultTile = 'mb-5 grid h-16 w-16 place-items-center rounded-2xl';
 const resultTitle = 'text-[20px] font-bold tracking-[-0.02em] leading-[1.3] text-[#191F28]';
 /** Same quiet tier as `modalStyles.toss.subtitle`, one step down in size — the frame is short. */
 const resultDesc = 'mt-2 text-[13.5px] font-medium leading-[1.6] text-[#6B7280]';
-/** Reason line — the `.req-modal` warn box's exact values (idcStyles.reqModal.warn), copied
- *  rather than imported so a shared dialog carries no provider-namespaced token. */
-const resultReason =
-  'mt-3.5 max-w-[420px] rounded-[10px] border border-[#F8D2D0] bg-[#FEF1F1] px-3.5 py-[11px] text-[12.5px] leading-[1.5] text-[#B42318]';
+/** Reason line — plain text, not a tinted box. A box would be the third bordered surface in a
+ *  frame whose whole job is one sentence, and the red tile above already says which kind of
+ *  result this is; the colour alone carries the rest. */
+const resultReason = 'mt-2.5 max-w-[420px] text-[13px] leading-[1.5] text-[#B42318]';
 
 export const ConfirmStepModal = ({
   open,

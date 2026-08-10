@@ -21,7 +21,7 @@ export const POST = withV1(async (request, { requestId, params }) => {
 
   if (Math.random() < FAIL_RATE) {
     return problemResponse(
-      createProblem('INTERNAL_ERROR', '승인 요청 처리 중 오류가 발생했어요. (mock)', requestId),
+      createProblem('INTERNAL_ERROR', '승인 요청 처리 중 오류가 발생했어요.', requestId),
     );
   }
 
