@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AppError } from '@/lib/errors';
-import { bgColors, borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { bgColors, cardStyles, cn, primaryColors, statusColors } from '@/lib/theme';
 import {
   getIdcConfirmedResources,
   type IdcInstallStatus,
@@ -160,8 +160,11 @@ export const IdcStep4Installing = ({
           onClick={() => setFirewallOpen(true)}
           className={cn(
             'text-xs font-bold px-3 py-1.5 rounded-lg border',
-            borderColors.default,
-            textColors.secondary,
+            // 면은 비우고 테두리·글자만 브랜드색 — 이 단계에서 사용자가 직접 하는
+            // 유일한 동작이고, 요청 모달의 다운로드 버튼과 같은 문법이다.
+            // #0064FF 는 흰 바탕 4.92:1, hover 의 gray-50 위 4.66:1 로 12px 텍스트 AA 를 넘는다.
+            primaryColors.border,
+            primaryColors.text,
             bgColors.mutedHover,
           )}
         >
