@@ -61,10 +61,12 @@ export const IdcFirewallRequestModal = ({
          두 자리를 갖는다. 배경 클릭과 ESC 도 그대로 닫는다. */
       closeButton={false}
       footer={
-        <div className="flex w-full items-center justify-between">
+        /* 두 버튼은 우측에 모인다 — 이 앱의 모달 푸터 여섯 개가 모두 그렇고, 양 끝으로
+           가르면 홀로 선 다운로드 버튼이 실제보다 커 보였다(오너 지적). */
+        <>
           <button
             type="button"
-            className={idcStyles.modalBtn.green}
+            className={idcStyles.modalBtn.outlinePrimary}
             disabled={rows.length === 0}
             onClick={() =>
               downloadFirewallRequestCsv(rows, firewallRequestFileName(targetSourceId))
@@ -76,7 +78,7 @@ export const IdcFirewallRequestModal = ({
           <button type="button" className={idcStyles.modalBtn.primary} onClick={onClose}>
             확인
           </button>
-        </div>
+        </>
       }
     >
       {rows.length === 0 ? (

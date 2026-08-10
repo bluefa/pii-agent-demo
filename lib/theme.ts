@@ -1103,18 +1103,17 @@ export const idcStyles = {
     /** Filled gray modal button — v16 `.modal-footer .btn.gray` (cancel). */
     gray: 'inline-flex h-[52px] items-center justify-center rounded-[14px] border-0 bg-[#F7F8FA] px-[22px] text-[15px] font-semibold tracking-[-0.01em] text-[#191F28] transition-colors hover:bg-[#EBEEF2]',
     /**
-     * Soft-green modal button — 스프레드시트를 내려주는 동작 전용.
+     * Blue-outline modal button — 채운 primary 옆에 서는 두 번째 동작.
      *
-     * 초록은 이 앱에서 성공(`statusColors.success`)이 쓰는 색이라 아무 버튼에나 주면
-     * 판정으로 읽힌다. 여기서만 예외인 이유는 초록이 상태가 아니라 **파일 종류**를
-     * 가리키기 때문이다 — 사람들이 스프레드시트에서 기대하는 색이고, 같은 푸터의
-     * 파란 primary(확인)와 역할이 갈린다.
+     * 면을 칠하지 않는다: 같은 푸터의 「확인」이 이미 채워진 파랑이라, 두 번째 버튼까지
+     * 면을 가지면 무엇이 주 동작인지 화면이 답하지 못한다. 테두리와 글자만 브랜드색을
+     * 갖고 무게는 primary 보다 한 단 낮다(600 vs 700).
      *
-     * 색 짝은 `tag.green` 과 같은 값(#E5F8EE / #197A3F)을 쓴다: 이미 선언된 짝이라
-     * 초록을 하나 더 만들지 않고, #197A3F on #E5F8EE 는 7.0:1 로 15px 텍스트에 충분하다.
-     * hover 는 틴트만 한 단 내린다 — 글자색을 건드리면 대비가 같이 움직인다.
+     * #0064FF on white = 4.92:1 로 15px 텍스트 AA 를 넘고, 테두리는 1.4.11 의 3:1 을
+     * 여유 있게 넘는다. hover 틴트 위에서는 #0064FF 가 4.33:1 로 떨어지므로 테두리·글자를
+     * 함께 #0050D6 으로 내린다 — 틴트만 깔면 그 순간 대비가 AA 아래로 간다.
      */
-    green: 'inline-flex h-[52px] items-center justify-center gap-2 rounded-[14px] border-0 bg-[#E5F8EE] px-[22px] text-[15px] font-semibold tracking-[-0.01em] text-[#197A3F] transition-colors hover:bg-[#D3F1E1] disabled:cursor-not-allowed disabled:bg-[#F7F8FA] disabled:text-[#8B95A1]',
+    outlinePrimary: 'inline-flex h-[52px] items-center justify-center gap-2 rounded-[14px] border border-[#0064FF] bg-transparent px-[22px] text-[15px] font-semibold tracking-[-0.01em] text-[#0064FF] transition-colors hover:bg-[#E8F1FF] hover:border-[#0050D6] hover:text-[#0050D6] disabled:cursor-not-allowed disabled:border-[#EBEEF2] disabled:bg-transparent disabled:text-[#8B95A1]',
   },
   /** In-card / step CTA buttons — `.btn` base (h40 / radius12 / 14px / 700) + variants. */
   triggerBtn: {
