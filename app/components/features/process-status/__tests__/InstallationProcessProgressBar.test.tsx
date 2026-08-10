@@ -73,9 +73,10 @@ describe('InstallationProcessProgressBar', () => {
 
   /**
    * The 연결 테스트 verdict tag is absolutely positioned, so it hangs into space the
-   * step LAYOUTS own, not this component. Today: the stepper's own `pb-[18px]` plus
-   * the body column's `pt-8` give 50px, and the tag needs 32px (`mt-1.5` + ~26px
-   * tall), leaving 18px of clearance to the first card.
+   * step LAYOUTS own, not this component. Measured live at 1010: the stepper's own
+   * `pb-[18px]` plus the body column's `pt-8` give 50px below the last label, the tag
+   * takes 34px of it (`mt-1.5` + a 28px-tall chip), and 16px of clearance is left to
+   * the first card.
    *
    * Nothing else catches a change here. Tighten `pt-8` to `pt-2` and the tag OVERLAPS
    * the card instead of pushing it — out-of-flow boxes reflow nothing — so the page
