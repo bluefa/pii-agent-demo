@@ -115,6 +115,11 @@ export const mockAws = {
     }
 
     const completed = project.terraformState?.serviceTf === 'COMPLETED';
+    // 권한 검증은 TF 적용보다 앞선 단계 — roleVerify 를 명시한 프로젝트는 설치가
+    // 진행 중이어도 이 단계만 먼저 끝난 상태("내가 할 일 0")를 만든다. 명시하면 그 값이
+    // 곧 답이고(serviceTf 가 덮지 않는다), 미지정이면 종전대로 serviceTf 를 따른다.
+    const roleVerify = project.terraformState?.roleVerify;
+    const roleVerified = roleVerify ? roleVerify === 'COMPLETED' : completed;
 
     // Derive per-resource step states from the project's selected resources so
     // resource_id joins against the confirmed integration (region/DB type in the
@@ -173,7 +178,7 @@ export const mockAws = {
       },
       resources,
       terraform_execution_role_verify: {
-        status: completed ? 'COMPLETED' : 'IN_PROGRESS',
+        status: roleVerified ? 'COMPLETED' : 'IN_PROGRESS',
         role_arn: `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`,
       },
     });
