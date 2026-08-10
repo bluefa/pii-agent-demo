@@ -61,13 +61,18 @@ export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
           borderColors.light,
         )}
       >
-        {/* rail — group label + single-line items */}
+        {/* rail — 그룹 머리글은 항상 둘이다(내가 할 일 / BDC 진행). 항목 수는
+            프로바이더마다 다르지만 프레임 높이가 고정이라 카드를 밀지 않는다. */}
         <div className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.panel, borderColors.light)}>
-          <Bar tone={RAIL_BAR} className="mx-2.5 mt-3 mb-1 h-3 w-24 rounded" />
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-2 px-3.5 py-2">
-              <Bar tone={RAIL_BAR} className="h-3.5 flex-1 rounded" />
-              <Bar tone={RAIL_BAR} className="h-3 w-8 flex-shrink-0 rounded" />
+          {[1, 3].map((rows, group) => (
+            <div key={group} className="flex flex-col gap-0.5">
+              <Bar tone={RAIL_BAR} className="mx-2.5 mt-3 mb-1 h-3 w-24 rounded" />
+              {Array.from({ length: rows }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2 px-3.5 py-2">
+                  <Bar tone={RAIL_BAR} className="h-3.5 flex-1 rounded" />
+                  <Bar tone={RAIL_BAR} className="h-3 w-8 flex-shrink-0 rounded" />
+                </div>
+              ))}
             </div>
           ))}
         </div>

@@ -130,23 +130,28 @@ export const IdcStep4Installing = ({
     ]),
   );
 
+  // group 은 **누가 실행하는가**다(AWS/Azure/GCP 와 같은 규칙). IDC 는 두 Terraform
+  // 구간을 BDC 가 돌리고, 서비스 측이 하는 일은 방화벽 오픈·확인 하나뿐이다.
   const steps: InstallTableStep[] = [
     {
       id: 'cx',
       title: 'BDC CX 영역',
       side: 'BDC측 리소스 생성',
+      group: 'auto',
       desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
     },
     {
       id: 'bdp',
       title: 'BDC BDP 영역',
       side: 'BDC측 리소스 생성',
+      group: 'auto',
       desc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
     },
     {
       id: 'firewall',
       title: '방화벽',
       side: '서비스측 확인',
+      group: 'todo',
       serviceAction: 'Source IP에서 연동 대상으로의 방화벽을 오픈한 뒤 확인해 주세요.',
       desc: 'Source IP → 연동 대상 방화벽 오픈 여부를 점검하는 단계입니다.',
       action: (
@@ -185,7 +190,7 @@ export const IdcStep4Installing = ({
           {error ? (
             <InstallationErrorView message={error} onRetry={refresh} />
           ) : !status || resourcesLoading ? (
-            <InstallationLoadingView provider="IDC" railRows={steps.length + 1} />
+            <InstallationLoadingView provider="IDC" grouped />
           ) : (
             <>
               {status?.lastCheck?.status === 'FAIL' && status.lastCheck.failReason && (

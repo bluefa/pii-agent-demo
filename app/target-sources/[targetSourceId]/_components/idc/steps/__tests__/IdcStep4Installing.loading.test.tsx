@@ -65,11 +65,15 @@ const settled: UseIdcInstallationStatusResult = {
 
 /**
  * The empty install list is indistinguishable from "not loaded yet" once it
- * reaches InstallStatusDetail: it aggregates to 전체 0 / 대기 0-0 and — because
- * the 방화벽 step carries a static serviceAction — raises the "지금 서비스 측에서
- * 확인이 필요합니다" banner. Neither may appear before both fetches settle.
+ * reaches InstallStatusDetail: the grouped rail then states 내가 할 일 (0) and
+ * hangs a 완료/해당 없음 word on every step. Both are claims about data that has
+ * not arrived, so neither may appear before both fetches settle. (The skeleton
+ * draws bars only — it says nothing.)
+ *
+ * 괄호까지 매칭한다 — 카드 헤더의 안내문("아래 내가 할 일에서…")은 로딩 중에도 서 있고,
+ * 데이터를 주장하는 건 개수를 단 그룹 머리글 쪽이다.
  */
-const FALSE_CLAIMS = ['전체 리소스', '지금 서비스 측에서 확인이 필요합니다'];
+const FALSE_CLAIMS = [/내가 할 일 \(\d+\)/, 'BDC CX 영역'];
 
 const installed: IdcResourceInstallView = {
   resourceId: 'idc-res-1',
@@ -91,7 +95,7 @@ describe('IdcStep4Installing loading gate', () => {
 
     // The gate is three conditions deep; without this the whole component could
     // regress to a permanent skeleton and every other case here would still pass.
-    expect(await screen.findByText('전체 리소스')).toBeTruthy();
+    expect(await screen.findByRole('navigation', { name: '설치 단계' })).toBeTruthy();
     expect(container.querySelector('[aria-busy="true"]')).toBeNull();
   });
 

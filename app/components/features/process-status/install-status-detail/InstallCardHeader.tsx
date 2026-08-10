@@ -24,8 +24,10 @@ export const InstallCardHeader = ({ action }: { action?: ReactNode }) => (
       승인된 연동 대상에 PII Agent 를 설치하는 단계예요. 리소스 생성은 BDC 가 자동으로
       진행하고, 서비스 측 계정에서만 할 수 있는 작업은 따로 모아 안내해요.
     </p>
+    {/* 가리키는 대상은 레일의 '내가 할 일' 그룹이다 — 그룹 레일에는 '설치 현황 요약'
+        단계가 없으므로, 예전 문구는 화면에 없는 것을 찾으라고 시키고 있었다. */}
     <p className={cn('break-keep', cardStyles.guidance)}>
-      아래 설치 현황 요약에서{' '}
+      아래 내가 할 일에서{' '}
       <span className={primaryColors.text}>확인이 필요한 항목을 처리</span>해 주시면, 나머지
       설치는 자동으로 이어지고 완료되면 다음 단계로 넘어가요.
     </p>

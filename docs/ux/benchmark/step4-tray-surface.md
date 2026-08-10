@@ -66,3 +66,27 @@ GitHub Actions, Cloudscape details/secondary panel/empty state 등)와 각각의
 - `InstallationLoadingView.tsx` grouped 스켈레톤: 같은 프레임으로 동기화(안 하면 데이터 도착 시 프레임이 튄다).
   레일 바 톤을 `RAIL_BAR`(gray-200)로 교정 — 레일이 gray-100 이라 기본 톤(gray-100)은 보이지 않았다.
 - `fix/step4-flush-tray` 브랜치는 미머지 상태로 폐기.
+
+## 후속 — Azure/GCP/IDC 도 같은 카드로 (같은 PR)
+
+프레임을 되돌리고 나니 네 CSP 가 같은 그릇을 쓰게 됐지만, 레일 **내용**은 AWS 만
+그룹 레일(v3.6)이고 나머지 셋은 그 이전 형태였다. 셋도 `group` 을 선언해 같은 카드로 맞췄다.
+
+`group` 은 `side`(리소스가 어느 쪽에 생기는가)가 아니라 **누가 실행하는가**다.
+AWS 자동 설치에서 `side: '서비스측 리소스 생성'` 인 단계가 `group: 'auto'` 인 것과 같은 규칙.
+
+| CSP | 내가 할 일 | BDC 진행 | 근거 |
+|---|---|---|---|
+| Azure | VM Subnet 생성 · VM Terraform 적용 · Private Endpoint 승인 | BDC측 Terraform 적용 | `AZURE_STEPS` 주석의 흐름 설명("서비스 측이 VM Subnet 을 만들고…") |
+| GCP | PSC용 Subnet 생성 | 서비스측 Terraform 적용 · BDC측 Terraform 적용 | 계약에 실행 주체 근거 없음 → **오너 판단**. Terraform 적용은 AWS 자동 설치처럼 BDC 가 대신 수행 |
+| IDC | 방화벽 | BDC CX 영역 · BDC BDP 영역 | 두 Terraform 구간은 BDC, 서비스 측 일은 방화벽 오픈·확인뿐 |
+
+부수 효과 — 그룹 레일에는 `설치 현황 요약` 단계가 없다:
+
+- 카드 헤더 안내문이 가리키던 "아래 설치 현황 요약에서"가 화면에 없는 것을 찾으라고
+  시키고 있었다 → "아래 내가 할 일에서"로 정정.
+- `serviceAction`(조치 문구)은 요약 패널의 ActionItem 에서만 그려지므로 네 CSP 모두
+  화면에서 사라진다. 같은 내용을 단계 `desc` 가 서술형으로 말하고 있어 그대로 두었다 —
+  **남은 갭**이며, 필요해지면 우측 패널 헤더 아래가 자리다.
+- `InstallationLoadingView` 의 legacy(`railRows`) 분기는 호출자가 사라졌지만 남겨둔다 —
+  `group` 을 선언하지 않은 단계가 하나라도 생기면 상세가 legacy 로 떨어지는데, 그 짝이다.
