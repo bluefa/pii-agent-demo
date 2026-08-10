@@ -875,6 +875,29 @@ const IDC_DEMO_RESOURCES: MockResource[] = [
   },
 ];
 
+/**
+ * Step 별 설명 — 라벨은 상단 스텝퍼의 것을 그대로 쓴다.
+ *
+ * 여덟 개의 IDC 목 대상이 같은 한 문장을 설명으로 갖고 있어, 목록에서도 상세에서도
+ * 어느 단계를 보고 있는지 구분되지 않았다. 이름은 이미 다르므로 설명은 단계를 말한다.
+ */
+const IDC_STEP_DESCRIPTION: Record<ProcessStatus, string> = {
+  [ProcessStatus.WAITING_TARGET_CONFIRMATION]:
+    'Step 1 · 연동 대상 DB 선택 — 온프레미스 DB를 직접 입력해 연동을 요청하는 단계',
+  [ProcessStatus.WAITING_APPROVAL]:
+    'Step 2 · 연동 대상 승인 대기 — 요청한 대상을 관리자가 검토하는 단계',
+  [ProcessStatus.APPLYING_APPROVED]:
+    'Step 3 · 연동 대상 반영중 — 승인된 대상을 설치 준비에 반영하는 단계',
+  [ProcessStatus.INSTALLING]:
+    'Step 4 · Agent 설치 — BDC 리소스 생성과 서비스측 방화벽 확인이 함께 진행되는 단계',
+  [ProcessStatus.WAITING_CONNECTION_TEST]:
+    'Step 5 · 연결 테스트 — 자격 증명으로 실제 접속과 논리 DB를 확인하는 단계',
+  [ProcessStatus.CONNECTION_VERIFIED]:
+    'Step 6 · 관리자 승인 대기 — 연결 확인 결과를 관리자가 최종 승인하는 단계',
+  [ProcessStatus.INSTALLATION_COMPLETE]:
+    'Step 7 · 완료 — 연동이 끝나 수집이 시작된 상태',
+};
+
 const makeIdcProject = (
   targetSourceId: number,
   step: ProcessStatus,
@@ -886,7 +909,10 @@ const makeIdcProject = (
   targetSourceId,
   projectCode: `IDC-${String(targetSourceId).slice(-3)}`,
   name,
-  description: 'IDC 온프레미스 DB에 PII Agent 연동',
+  // 연동 불가 대상도 Step 2 라 설명이 겹친다 — 하위 상태를 덧붙여 갈라 준다.
+  description: unavailableReason
+    ? 'Step 2 · 연동 불가 — 관리자가 연동할 수 없다고 판정한 하위 상태'
+    : IDC_STEP_DESCRIPTION[step],
   serviceCode: 'idc',
   cloudProvider: 'IDC',
   processStatus: step,
