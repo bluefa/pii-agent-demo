@@ -236,4 +236,21 @@ describe('InstallStatusDetail 그룹 레일 — 손댈 수 없는 할 일', () =
     expect(screen.getByText('내가 할 일 (0)')).toBeTruthy();
     expect(screen.getByText('모두 완료')).toBeTruthy();
   });
+
+  it('해당 없음 단계만 제목에 취소선을 긋는다', () => {
+    // 상태 글자로는 '해당 없음'과 '완료'가 같은 회색 한 단어라, 레일을 훑을 때
+    // "끝난 단계"와 "애초에 없는 단계"가 구분되지 않았다(오너 지적).
+    renderGrouped('SKIP');
+
+    const titleClassOf = (name: RegExp) => {
+      const nav = screen.getByRole('navigation', { name: '설치 단계' });
+      const item = within(nav).getByRole('button', { name });
+      // 제목만 집는다 — 상태 글자('해당 없음')는 설명이므로 긋지 않는다.
+      return within(item).getByText(name).className;
+    };
+
+    expect(titleClassOf(/서비스 측 Terraform 적용/)).toContain('line-through');
+    // 진행 중인 단계에는 걸리지 않는다 — 'na' 에만 붙는 표시다.
+    expect(titleClassOf(/BDC 공통 영역/)).not.toContain('line-through');
+  });
 });

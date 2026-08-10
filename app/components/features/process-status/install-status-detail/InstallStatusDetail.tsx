@@ -709,11 +709,17 @@ export const InstallStatusDetail = ({
 
     // 레일 항목 제목 — 평시 14/400, 선택 시 14/600. 항목이 조용해진 만큼(A안)
     // 선택된 것 하나만 무게를 갖는다.
-    const railTitleClass = (isActive: boolean) =>
+    //
+    // 'na'(전부 SKIP)는 제목에 취소선을 긋는다. 상태 글자만으로는 '완료'와 똑같은
+    // 회색 한 단어라, 레일을 훑을 때 "끝난 단계"와 "애초에 없는 단계"가 구분되지
+    // 않았다(오너 지적). 취소선은 글자 모양 자체로 그 둘을 가른다. 색도 secondary 로
+    // 함께 내린다 — 취소선은 "없다"를 말하고, 톤은 "볼 것 없다"를 말한다.
+    // tertiary 가 아니라 secondary 인 이유는 레일 표면이 gray-100 이기 때문이다.
+    const railTitleClass = (isActive: boolean, na: boolean) =>
       cn(
         'flex-1 min-w-0 truncate',
         isActive ? textStyles.bodyStrong : textStyles.body,
-        textColors.primary,
+        na ? cn('line-through', textColors.secondary) : textColors.primary,
       );
 
     // Rail item — one line: [ordinal] title · status word.
@@ -735,7 +741,7 @@ export const InstallStatusDetail = ({
               {ord}
             </span>
           )}
-          <span className={railTitleClass(isActive)}>
+          <span className={railTitleClass(isActive, aggregate.kind === 'na')}>
             {step.title}
           </span>
           <span
@@ -761,7 +767,8 @@ export const InstallStatusDetail = ({
         aria-current={ref.id === activeId}
         className={railItemClass(ref.id === activeId)}
       >
-        <span className={railTitleClass(ref.id === activeId)}>{ref.title}</span>
+        {/* 참고 항목은 단계가 아니라 집계도 없다 — 취소선이 걸릴 일이 없다. */}
+        <span className={railTitleClass(ref.id === activeId, false)}>{ref.title}</span>
       </button>
     );
 
