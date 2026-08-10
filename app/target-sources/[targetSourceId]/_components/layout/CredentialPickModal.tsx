@@ -120,8 +120,8 @@ export const CredentialPickModal = ({
           >
             {target.value}
           </span>
-          {/* 파랑은 누를 수 있는 것에만 쓴다 — 지시문에 칠하면 링크로 읽히고, 이 모달에서 파랑은
-              이미 선택된 행과 저장 CTA 의 뜻이다. */}
+          {/* 파랑은 지시문에는 쓰지 않는다 — 지시문에 칠하면 링크로 읽힌다. 이 모달에서 파랑은
+              이미 선택된 행·저장 CTA·상단 "현재 선택" 상태 라벨의 뜻이다. */}
           <span className={cn('mt-2 block text-[14px] font-normal', textColors.secondary)}>
             사용할 DB 접속 자격 증명을 선택하세요.
           </span>
@@ -158,6 +158,25 @@ export const CredentialPickModal = ({
         />
       ) : (
         <div className="flex flex-col">
+          {/* Placed above the table so it stays visible regardless of scroll or search
+              filtering. "현재 선택" uses primaryColors.text (blue) for prominence. Long
+              names truncate to one line; the full value is kept in title. */}
+          <span className={cn('mb-2 flex items-baseline gap-1.5 text-[12px]', textColors.tertiary)}>
+            {picked ? (
+              <>
+                <span className={cn('shrink-0 font-semibold', primaryColors.text)}>현재 선택</span>
+                <strong
+                  title={picked}
+                  className={cn('min-w-0 truncate font-mono font-semibold', textColors.secondary)}
+                >
+                  {picked}
+                </strong>
+              </>
+            ) : (
+              '선택된 Credential이 없어요'
+            )}
+          </span>
+
           {/* 검색은 표에 붙은 툴바다 — 리소스 표(step 2·3)와 같은 문법: 옅은 면, 위쪽만
               라운드, 아래 간격 없음. 떠 있는 입력창은 자기가 무엇을 거르는지 말하지 못한다. */}
           <div
@@ -288,17 +307,6 @@ export const CredentialPickModal = ({
               </tbody>
             </table>
           </div>
-
-          {/* 검색이 현재 값을 걸러내도 무엇이 걸려 있는지는 계속 보인다. */}
-          <span className={cn('mt-2 block truncate text-[12px]', textColors.tertiary)}>
-            {picked ? (
-              <>
-                선택 <strong className={cn('font-semibold', textColors.secondary)}>{picked}</strong>
-              </>
-            ) : (
-              '선택된 Credential이 없어요'
-            )}
-          </span>
         </div>
       )}
     </Modal>

@@ -638,9 +638,14 @@ export const ConnectionTestCard = ({
                               })
                             }
                             aria-label={`${first.resourceName ?? first.resourceId} Credential 수정 — 현재 ${cred || '미설정'}`}
-                            className={cn(idcStyles.triggerBtn.linkNeutral, 'font-mono')}
+                            title={cred || undefined}
+                            className={cn(idcStyles.triggerBtn.linkNeutral, 'max-w-[160px]')}
                           >
-                            {cred || <span className="font-sans">미설정</span>}
+                            {cred ? (
+                              <span className="min-w-0 truncate font-mono">{cred}</span>
+                            ) : (
+                              <span className="font-sans">미설정</span>
+                            )}
                           </button>
                         ) : (
                           <span
