@@ -6,13 +6,14 @@
  * Data strategy (docs/api/pipeline-orchestrator-bff.md §2.1): period/status/
  * provider/type filter server-side; the search-box substring search and the
  * pagination run CLIENT-side over the fetched window (size=200). That window is
- * a real ceiling, so the pager carries both the tally and — only when rows were
- * actually left behind — the fact that they were.
- * Row ORDER always follows the API response verbatim — no client re-sort. Stats come
- * from statistics/live (동작 중 · 현재) + statistics?period (실패/성공 · 기간).
- * Visual language: Figma Make redesign (dashboard-local `dashboard.*` tokens +
- * `_dashboard/cells`; the shared pill/table/progress components stay on the
- * detail pages untouched).
+ * a real ceiling, so the pager says so — but only when rows were actually left
+ * behind.
+ * Row ORDER always follows the API response verbatim — no client re-sort. Every
+ * count on the page reads the SAME period as the list, which is what lets a
+ * summary tile double as its own filter.
+ * Visual language: docs/ux/benchmark/pipelines-dashboard.md. The row wears the
+ * section's shared parts (ProvTag / PipelineTypeTag / step strip); what is local
+ * is what the owner asked to differ, and it is written down in that file.
  */
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -78,9 +79,9 @@ function BucketTile({
   label: string;
   value: ReactNode;
   icon: IconName;
-  /** `alert` = 확인 필요 (bad news), `running` = 진행 중 (blue mark only),
-   *  `muted` = 전체 (not a bucket, no filter). */
-  tone?: 'alert' | 'running' | 'muted';
+  /** `alert` = 확인 필요 (bad news), `running` / `done` = 진행 중 · 종료 (mark
+   *  colour only), `muted` = 전체 (not a bucket, no filter). */
+  tone?: 'alert' | 'running' | 'done' | 'muted';
   active: boolean;
   onSelect: () => void;
 }): ReactElement {
@@ -89,16 +90,18 @@ function BucketTile({
     tone === 'alert' ? d.bucketToneAlert : tone === 'muted' ? d.bucketToneMuted : d.bucketToneDefault;
   const valueTone =
     tone === 'alert' ? d.bucketToneAlert : tone === 'muted' ? d.bucketToneDefault : d.bucketValueDefault;
-  // 진행 중 colours the MARK only — a blue label and a blue value would make the
-  // bucket read as urgent next to 확인 필요, which is the one that is.
+  // 진행 중 · 종료 colour the MARK only — a blue or green label and value would
+  // make those buckets read as loud as 확인 필요, which is the one that is.
   const markTone =
     tone === 'alert'
       ? d.bucketToneAlert
       : tone === 'running'
         ? d.bucketMarkActive
-        : tone === 'muted'
-          ? d.bucketMarkMuted
-          : d.bucketToneDefault;
+        : tone === 'done'
+          ? d.bucketMarkOk
+          : tone === 'muted'
+            ? d.bucketMarkMuted
+            : d.bucketToneDefault;
   return (
     <button
       type="button"
@@ -114,7 +117,7 @@ function BucketTile({
         <span className={cn(d.bucketLabel, textTone)}>{label}</span>
         <b className={cn(d.bucketValue, valueTone)}>{value}</b>
       </span>
-      <Icon name={icon} size={20} className={cn(d.bucketMark, markTone)} />
+      <Icon name={icon} size={24} className={cn(d.bucketMark, markTone)} />
     </button>
   );
 }
@@ -129,11 +132,11 @@ const BUCKETS: ReadonlyArray<{
   key: DashBucket;
   label: string;
   icon: IconName;
-  tone?: 'alert' | 'running' | 'muted';
+  tone?: 'alert' | 'running' | 'done' | 'muted';
 }> = [
   { key: 'attention', label: '확인 필요', icon: 'warn-tri', tone: 'alert' },
   { key: 'active', label: '진행 중', icon: 'loader', tone: 'running' },
-  { key: 'closed', label: '종료', icon: 'check-circle' },
+  { key: 'closed', label: '종료', icon: 'check-circle', tone: 'done' },
   { key: 'all', label: '전체', icon: 'table', tone: 'muted' },
 ];
 
@@ -452,7 +455,7 @@ export default function DashboardPage(): ReactElement {
                 onClick={() => setPage(current - 1)}
                 aria-label="이전 페이지"
               >
-                <Icon name="chev-l" size="sm" />
+                <Icon name="chev-l" size={18} />
               </button>
               <span className={d.pagerCount}>
                 <b className={d.pagerCurrent}>{current}</b> / {pages}
@@ -464,7 +467,7 @@ export default function DashboardPage(): ReactElement {
                 onClick={() => setPage(current + 1)}
                 aria-label="다음 페이지"
               >
-                <Icon name="chev-r" size="sm" />
+                <Icon name="chev-r" size={18} />
               </button>
             </div>
           </>

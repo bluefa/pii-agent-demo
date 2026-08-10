@@ -72,7 +72,7 @@ export function RelativeTime({ iso }: { iso: string }): ReactElement {
 export function RowAction(): ReactElement {
   return (
     <span className={d.action} aria-hidden="true">
-      <Icon name="arrow-ur" size="sm" />
+      <Icon name="arrow-ur" size={18} />
     </span>
   );
 }

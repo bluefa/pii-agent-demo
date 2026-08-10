@@ -2333,9 +2333,10 @@ export const pipelineStyles = {
     bucketToneAlert: 'text-[var(--pl-err-text)]',
     bucketToneMuted: 'text-[var(--pl-text-weak)]',
     bucketMarkMuted: 'text-[var(--pl-text-faint)]',
-    /** 진행 중 mark, in the same blue the RUNNING rows under it use — NOT
-     *  `--pl-primary`, which on these tiles already means "this one is selected". */
+    /** 진행 중 / 종료 marks, in the same blue and green the rows under them use —
+     *  NOT `--pl-primary`, which on these tiles already means "this one is selected". */
     bucketMarkActive: 'text-[var(--pl-info-text)]',
+    bucketMarkOk: 'text-[var(--pl-ok-text)]',
     /** Page header row (title + period selector). */
     headerRow: 'flex items-center justify-between mb-6',
 
@@ -2385,11 +2386,18 @@ export const pipelineStyles = {
     identityMeta: 'flex items-center gap-2',
     identityCode:
       'inline-flex items-center rounded-md px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
-    /** Target Source 번호 · Provider 는 이 행을 여는 식별자라 링크색으로 (오너).
-     *  `--pl-info-text` 는 흰 배경 5.98:1, hover 의 gray-100 위 5.43:1 — 둘 다 4.5:1 위.
-     *  원색 `--pl-info` 는 3.0:1 대라 12px 텍스트로는 못 쓴다. */
+    /**
+     * Target Source 번호 · Provider 는 이 행을 여는 식별자라 링크색으로 (오너).
+     * `--pl-info-text` 는 흰 배경 5.99:1, hover 의 gray-100 위 5.43:1 — 둘 다 4.5:1 위.
+     * 원색 `--pl-info` 는 3:1 대라 12px 텍스트로는 못 쓴다.
+     *
+     * hover 는 **번호에만** 붙는다(오너). 밑줄이지 색 변화가 아니다 — 색을 더 진하게
+     * 하면 대비만 올라가고 "무슨 일이 일어난다"는 말은 못 하는데, 밑줄은 링크의 관례라
+     * 그 자체로 클릭 가능을 뜻한다. 열리는 건 행 전체지만 그 행이 무엇인지는 이 번호가
+     * 말하므로, 커서가 여기 있을 때 응답이 오는 게 맞다.
+     */
     identityTarget:
-      'whitespace-nowrap text-[12px] font-medium text-[var(--pl-info-text)] [font-family:var(--pl-font-mono)]',
+      'whitespace-nowrap text-[12px] font-medium text-[var(--pl-info-text)] [font-family:var(--pl-font-mono)] underline decoration-transparent underline-offset-[3px] decoration-from-font transition-colors hover:decoration-[var(--pl-info-text)]',
 
     /**
      * Status as bare text, no chip (owner: "상태는 그냥 태그없이 텍스트로만 표현하고
@@ -2430,8 +2438,10 @@ export const pipelineStyles = {
 
     /** Row action — hover-reveal dark button (row hover via the unnamed group). */
     actionCell: 'px-5 py-3.5 text-right',
+    /** w-8 not w-7: the glyph inside went 14 → 18px (오너), and a 28px button around
+     *  it left 5px of padding — the mark stopped reading as sitting IN a button. */
     action:
-      'inline-flex items-center justify-center w-7 h-7 rounded-lg text-[var(--pl-gray-300)] transition-all group-hover:bg-[var(--pl-gray-900)] group-hover:text-[var(--pl-white)] group-hover:shadow-[var(--pl-shadow-xs)]',
+      'inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--pl-gray-300)] transition-all group-hover:bg-[var(--pl-gray-900)] group-hover:text-[var(--pl-white)] group-hover:shadow-[var(--pl-shadow-xs)]',
 
     /**
      * Pagination — centred, and nothing but the pager. The row tally and the
@@ -2446,7 +2456,7 @@ export const pipelineStyles = {
     pagerTruncated:
       'absolute left-5 top-1/2 -translate-y-1/2 text-[14px] text-[var(--pl-text-faint)]',
     pagerBtn:
-      'inline-flex items-center justify-center w-7 h-7 rounded-lg text-[var(--pl-text-faint)] transition-colors hover:text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-100)] disabled:opacity-40 disabled:pointer-events-none',
+      'inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--pl-text-faint)] transition-colors hover:text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-100)] disabled:opacity-40 disabled:pointer-events-none',
     pagerCount: 'text-[14px] text-[var(--pl-text-weak)] tabular-nums',
     /** The page you are on, in brand — the only moving number in the row. */
     pagerCurrent: 'font-semibold text-[var(--pl-primary)]',
