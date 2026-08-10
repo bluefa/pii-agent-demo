@@ -92,36 +92,32 @@ export function bucketCounts(stats: PipelineStatistics | null): Record<DashBucke
   };
 }
 
-/** Status filter options — '' = 전체; values are wire PipelineStatus. */
-export const STATUS_OPTIONS: ReadonlyArray<{ value: '' | PipelineStatus; label: string }> = [
-  { value: '', label: '상태 전체' },
-  { value: 'PENDING', label: 'PENDING' },
-  { value: 'RUNNING', label: 'RUNNING' },
-  { value: 'DONE', label: 'DONE' },
-  { value: 'FAILED', label: 'FAILED' },
-  { value: 'CANCELLED', label: 'CANCELLED' },
+/*
+ * Filter-menu options. Each list is the CHOICES only — the "전체" entry is drawn
+ * by the menu itself (`FilterMenu` renders it above every group), so carrying a
+ * '' row here would put two of them in the popover. The old {value,label} pairs
+ * existed to fill a native <select>; the labels were identical to the values
+ * except for Azure, which now comes from the shared `providerLabel`.
+ */
+
+/** Wire PipelineStatus, in run order rather than alphabetical. */
+export const STATUS_FILTERS: ReadonlyArray<PipelineStatus> = [
+  'PENDING',
+  'RUNNING',
+  'DONE',
+  'FAILED',
+  'CANCELLED',
 ];
 
 /**
- * CSP filter options — '' = 전체; values are the WIRE CloudProvider (UPPERCASE),
- * which is what the list endpoint's `provider` param expects. The prototype's
- * lowercase option values were an in-memory-fixture artifact.
+ * WIRE CloudProvider (UPPERCASE), which is what the list endpoint's `provider`
+ * param expects. The prototype's lowercase values were an in-memory-fixture
+ * artifact.
  */
-export const PROVIDER_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: '', label: 'Cloud 전체' },
-  { value: 'AWS', label: 'AWS' },
-  { value: 'AZURE', label: 'Azure' },
-  { value: 'GCP', label: 'GCP' },
-  { value: 'IDC', label: 'IDC' },
-];
+export const PROVIDER_FILTERS: ReadonlyArray<string> = ['AWS', 'AZURE', 'GCP', 'IDC'];
 
-/** Pipeline-type filter options — '' = 전체; values are wire PipelineType. */
-export const TYPE_OPTIONS: ReadonlyArray<{ value: '' | PipelineType; label: string }> = [
-  { value: '', label: '유형 전체' },
-  { value: 'INSTALL', label: 'INSTALL' },
-  { value: 'DELETE', label: 'DELETE' },
-  { value: 'CUSTOM', label: 'CUSTOM' },
-];
+/** Wire PipelineType. */
+export const TYPE_FILTERS: ReadonlyArray<PipelineType> = ['INSTALL', 'DELETE', 'CUSTOM'];
 
 /**
  * Client substring search across service_code / target_source_id / service_name

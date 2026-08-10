@@ -124,8 +124,13 @@ export function ResourceToolbar({
 }
 
 /** Filter trigger + popover. The trigger stays tinted while any condition is set, so
- *  the state survives the popover being closed. */
-function FilterMenu({ groups: allGroups }: { groups: readonly FilterGroup[] }) {
+ *  the state survives the popover being closed.
+ *
+ *  Exported so other admin lists wear the same trigger + card rather than a row of
+ *  always-open selects. This is the --pl-* twin of step 1's filter menu
+ *  (`WaitingApprovalToolbar`), which cannot be reused here because it hard-codes
+ *  the app palette — see this file's header. */
+export function FilterMenu({ groups: allGroups }: { groups: readonly FilterGroup[] }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   // A group with one value is not a choice — dropped, unless its value IS set (else

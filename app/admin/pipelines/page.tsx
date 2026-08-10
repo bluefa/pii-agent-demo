@@ -21,6 +21,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
+import { providerLabel } from '@/lib/pipeline/format';
 import { OrchestratorApiError, getPipelineStatistics, listPipelines } from '@/app/lib/api/pipeline';
 import type {
   CloudProvider,
@@ -36,8 +37,10 @@ import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
 import { Card } from '@/app/admin/pipelines/_components/Card';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
-import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+// The list's three conditions live behind one trigger, as in step 1's resource
+// table. This is the section's own --pl-* copy of that menu (see its comment).
+import { FilterMenu } from '@/app/admin/pipelines/queue/requests/_components/ResourceFilterBar';
 import {
   DashRow,
   RelativeTime,
@@ -49,15 +52,15 @@ import {
 // use — this list had local copies that read quieter than the facts they carry.
 import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
 import { PipelineTypeTag } from '@/app/admin/pipelines/_components/PipelineTypeTag';
-import { PipelineProgressBar } from '@/app/admin/pipelines/_components/PipelineProgressBar';
+import { PipelineStepStrip } from '@/app/admin/pipelines/_components/PipelineStepStrip';
 
 import {
   DASH_FETCH_SIZE,
   PERIOD_LABELS,
   PERIOD_OPTIONS,
-  PROVIDER_OPTIONS,
-  STATUS_OPTIONS,
-  TYPE_OPTIONS,
+  PROVIDER_FILTERS,
+  STATUS_FILTERS,
+  TYPE_FILTERS,
   bucketCounts,
   paginate,
   projectRows,
@@ -227,18 +230,26 @@ export default function DashboardPage(): ReactElement {
     }
   };
 
-  const clearStatus = () => {
-    setStatus('');
+  // One setter per server-side filter, shared by the filter menu and the chip ×
+  // ('' is just another value there). The same-value guard matters for the menu:
+  // it fires on every option click, and re-picking the current one would flip
+  // listLoading true while the effect (keyed on the value) never reruns.
+  const applyStatus = (next: string) => {
+    if (next === status) return;
+    setStatus(next as '' | PipelineStatus);
+    if (next) setBucket('all'); // same axis as the tiles — see selectBucket
     resetPage();
     setListLoading(true);
   };
-  const clearProvider = () => {
-    setProvider('');
+  const applyProvider = (next: string) => {
+    if (next === provider) return;
+    setProvider(next);
     resetPage();
     setListLoading(true);
   };
-  const clearType = () => {
-    setType('');
+  const applyType = (next: string) => {
+    if (next === type) return;
+    setType(next as '' | PipelineType);
     resetPage();
     setListLoading(true);
   };
@@ -259,6 +270,22 @@ export default function DashboardPage(): ReactElement {
 
   const counts = useMemo(() => bucketCounts(periodStats), [periodStats]);
   const plabel = PERIOD_LABELS[period];
+
+  // Three conditions behind one trigger — step 1's list grammar. Open, they are
+  // the same three choices; closed, the bar is a search box, and what is actually
+  // set is said once, by the chip row, instead of by three selects reading 전체.
+  const filterGroups = [
+    { key: 'status', label: '상태', value: status, onChange: applyStatus, options: STATUS_FILTERS },
+    {
+      key: 'provider',
+      label: 'Cloud',
+      value: provider,
+      onChange: applyProvider,
+      options: PROVIDER_FILTERS,
+      formatOption: providerLabel,
+    },
+    { key: 'type', label: '작업 유형', value: type, onChange: applyType, options: TYPE_FILTERS },
+  ];
   const hasFilter = Boolean(status) || Boolean(provider) || Boolean(type) || Boolean(q.trim());
 
   // The list is ONE fetch of at most DASH_FETCH_SIZE rows, so search and paging
@@ -322,61 +349,9 @@ export default function DashboardPage(): ReactElement {
             }}
             aria-label="서비스 코드 / Target Source / 서비스 이름 검색"
           />
-          <PlSelect
-            lg
-            value={status}
-            aria-label="상태 필터"
-            onChange={(event) => {
-              const next = event.target.value as '' | PipelineStatus;
-              if (next === status) return; // same-value guard (see period seg)
-              setStatus(next);
-              if (next) setBucket('all'); // same axis as the tiles — see selectBucket
-              resetPage();
-              setListLoading(true);
-            }}
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.value || 'all'} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </PlSelect>
-          <PlSelect
-            lg
-            value={provider}
-            aria-label="Cloud 필터"
-            onChange={(event) => {
-              const next = event.target.value;
-              if (next === provider) return; // same-value guard (see period seg)
-              setProvider(next);
-              resetPage();
-              setListLoading(true);
-            }}
-          >
-            {PROVIDER_OPTIONS.map((option) => (
-              <option key={option.value || 'all'} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </PlSelect>
-          <PlSelect
-            lg
-            value={type}
-            aria-label="작업 유형 필터"
-            onChange={(event) => {
-              const next = event.target.value as '' | PipelineType;
-              if (next === type) return; // same-value guard (see period seg)
-              setType(next);
-              resetPage();
-              setListLoading(true);
-            }}
-          >
-            {TYPE_OPTIONS.map((option) => (
-              <option key={option.value || 'all'} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </PlSelect>
+          <span className={d.filterTrigger}>
+            <FilterMenu groups={filterGroups} />
+          </span>
         </div>
 
         {hasFilter && (
@@ -386,9 +361,9 @@ export default function DashboardPage(): ReactElement {
               provider={provider}
               type={type}
               q={q}
-              onClearStatus={clearStatus}
-              onClearProvider={clearProvider}
-              onClearType={clearType}
+              onClearStatus={() => applyStatus('')}
+              onClearProvider={() => applyProvider('')}
+              onClearType={() => applyType('')}
               onClearSearch={clearSearch}
               onResetFilters={resetFilters}
             />
@@ -447,7 +422,7 @@ export default function DashboardPage(): ReactElement {
                       <StatusPill status={row.status} />
                     </td>
                     <td className={d.cell}>
-                      <PipelineProgressBar
+                      <PipelineStepStrip
                         n={row.done_task_count}
                         m={row.total_task_count}
                         status={row.status}

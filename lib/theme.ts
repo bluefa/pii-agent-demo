@@ -2103,6 +2103,15 @@ export const pipelineStyles = {
     fillErr: 'bg-[var(--pl-err)]',
     fillOff: 'bg-[var(--pl-gray-400)]',
     label: 'text-[12px] font-semibold text-[var(--pl-text-weak)] tabular-nums',
+
+    /* Segmented variant (PipelineStepStrip) — same 110px width and the same four
+       fill tokens above, cut into one span per task. Nothing new joins the ramp:
+       a segment is finished ink, current mid-grey, failed red, or bare track. */
+    stripWrap: 'inline-block',
+    strip: 'flex gap-[2px] w-[110px]',
+    stripSeg: 'h-1.5 flex-1 rounded-[2px]',
+    stripRest: 'bg-[var(--pl-gray-200)]',
+    stripCaption: 'mt-1 block text-[11px] text-[var(--pl-text-faint)] tabular-nums',
   },
 
   /** KindChip — mono 12/600 h20 pad 0 6, NO base border; cond = dashed gray-300.
@@ -2316,6 +2325,8 @@ export const pipelineStyles = {
     filterBar: 'flex items-center gap-2 px-5 py-3 border-b border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)]',
     /** Search wrapper — flex-1 up to a max width (SearchBox adds `relative`). */
     searchWrap: 'flex-1 max-w-xs',
+    /** The filter trigger rides the bar's right edge — `ResourceToolbar` grammar. */
+    filterTrigger: 'ml-auto flex items-center',
     /** Removable-filter chips row inside the card (only rendered when a filter is on). */
     chipsWrap: 'px-5',
 
