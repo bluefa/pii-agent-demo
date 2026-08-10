@@ -1,6 +1,6 @@
 'use client';
 
-import { bgColors, borderColors, cn, idcStyles, shadows, stackGap } from '@/lib/theme';
+import { bgColors, borderColors, cardStyles, cn, idcStyles, shadows, stackGap } from '@/lib/theme';
 
 type InstallationLoadingViewProps = { provider: string } & (
   | {
@@ -49,7 +49,7 @@ export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
       aria-busy="true"
       aria-live="polite"
       aria-label={`${props.provider} 설치 상태 확인 중`}
-      className={cn('rounded-2xl p-2', bgColors.panel)}
+      className={cn(cardStyles.bodyBleed, bgColors.tray)}
     >
       {/* metabar — title left, last-check caption right */}
       <div className="flex items-baseline gap-3 px-2.5 pt-1.5 pb-2.5">

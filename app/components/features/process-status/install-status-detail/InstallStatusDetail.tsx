@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import {
   bgColors,
   borderColors,
+  cardStyles,
   cn,
   primaryColors,
   serviceSidebarStyles,
@@ -714,7 +715,10 @@ export const InstallStatusDetail = ({
     );
 
     return (
-      <div className={cn('rounded-2xl p-2', bgColors.panel)}>
+      // 트레이는 카드의 마지막 블록이자 카드 폭 그대로다 — 좌/우/아래로 떠 있던
+      // 20px 여백을 걷어내면 "카드 안에 얹힌 상자"가 아니라 "카드의 아래쪽 면"으로
+      // 읽힌다. 대신 세 면이 페이지 바닥과 맞닿으므로 색은 tray 로 내린다.
+      <div className={cn(cardStyles.bodyBleed, bgColors.tray)}>
         {/* Metabar — title left / last-check right, one baseline row. No manual
             refresh or interval control (owner decision) — polling refreshes quietly. */}
         <div className="flex items-baseline gap-3 flex-wrap px-2.5 pt-1.5 pb-2.5">

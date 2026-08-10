@@ -223,6 +223,16 @@ const stepperBlock = blockOf('installStepperStyles');
 // a white card on it and the step column standing straight on the gray.
 const wizardPanel = twGray(classOf(bgTokens, 'panel'), 'bg');
 
+// Step 4's install tray bleeds through the card gutter to the card's own edge
+// (`cardStyles.bodyBleed`), so three of its four sides stand on the page canvas
+// rather than on the card's white. It answers to BOTH grounds — that is the whole
+// reason it is not `panel`.
+const step4Tray = bgOf(classOf(bgTokens, 'tray'));
+// What a card edge is worth on this canvas when nothing but fill draws it. Every
+// ordinary card gets this much for free by being white; a bleeding surface has to
+// earn it. Derived, not a constant — retint the canvas and the bar moves with it.
+const whiteCardEdge = deltaE00('#FFFFFF', canvas);
+
 // ---------------------------------------------------------------------------
 // the adjacency map — the one piece of knowledge static analysis cannot infer
 // ---------------------------------------------------------------------------
@@ -257,6 +267,14 @@ const SURFACES: SurfacePair[] = [
   { what: 'card hover tint on the white card', top: hoverBgOf(classOf(liftBlock, 'card')), under: '#FFFFFF' },
   // The rail's skeleton is reused on the admin ground — a second surface it must clear.
   { what: 'skeleton bar on admin ground', top: bgOf(classOf(railBlock, 'skeletonBar')), under: plGround },
+  // Step 4's tray runs to the card edge, so on three sides it IS the card's
+  // outline — a 20px radius and a 0.04-alpha shadow draw no edge on their own.
+  // The floor is therefore not the JND but the edge an ordinary white card gets
+  // for free on this canvas: bleed a fill that reads weaker than that and the
+  // card's bottom two thirds look torn off. `panel` (gray-100) is 2.67 here.
+  { what: 'step4 install tray on the page canvas', top: step4Tray, under: canvas, min: whiteCardEdge },
+  { what: 'step4 resource pane (white) on the install tray', top: '#FFFFFF', under: step4Tray },
+  { what: 'step4 selected rail row on the install tray', top: bgOf(classOf(railBlock, 'rowCurrent')), under: step4Tray },
   // The wizard groups by surface and draws no rule between its two columns, so this
   // pair IS the separation — re-tint `panel` toward white and the card dissolves with
   // nothing else left to mark where it starts.
@@ -350,16 +368,15 @@ const TEXT: TextPair[] = [
     on: bgOf(classOf(themeSrc, 'iconOnGround')),
     min: 3.0,
   },
-  // Step 4 grouped rail: quiet text (ordinals, group labels, metabar caption,
-  // rail footer) sits DIRECTLY on the gray-100 wrapper, where gray-500 is
-  // 4.37:1 and #0064FF is 4.47:1 — both under AA, which is why the rail uses
-  // gray-700 and `textOnLight`. Tailwind named-class hexes are framework
-  // constants, carried literally.
-  { what: 'step4 grouped-rail quiet text (gray-700) on its gray-100 wrapper', fg: '#374151', on: '#F3F4F6' },
+  // Step 4 grouped rail: quiet text (ordinals, group labels, metabar caption)
+  // sits DIRECTLY on the tray, where gray-500 is 4.09:1 and #0064FF is 4.18:1 —
+  // both under AA, which is why the rail uses gray-700 and `textOnLight`. The
+  // gray-700 hex is a Tailwind framework constant, carried literally.
+  { what: 'step4 grouped-rail quiet text (gray-700) on the install tray', fg: '#374151', on: step4Tray },
   {
-    what: 'step4 grouped-rail hot group label on its gray-100 wrapper',
+    what: 'step4 grouped-rail hot group label on the install tray',
     fg: textOf(classOf(themeSrc, 'textOnLight')),
-    on: '#F3F4F6',
+    on: step4Tray,
   },
 ];
 

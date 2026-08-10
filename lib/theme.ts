@@ -256,6 +256,16 @@ export const bgColors = {
    * 텍스트는 secondary(gray-700) 이상을 쓴다.
    */
   panel: 'bg-gray-100',
+  /**
+   * `panel` for a tray that bleeds to the card's own edge (`cardStyles.bodyBleed`).
+   * Three of its sides then stop being an inner boundary and BECOME the card's
+   * outline against the page canvas — so this fill has to carry an edge a plain
+   * white card carries for free (white is ΔE00 4.12 from the canvas; gray-100 is
+   * 2.67, which is why `panel` cannot bleed). This one is 4.23 from the canvas
+   * and 7.33 from white, so the tray reads as a tray AND the card keeps its
+   * silhouette. Text rule is `panel`'s: secondary or above.
+   */
+  tray: 'bg-[#DFE3EC]',
   mutedHover: 'hover:bg-gray-50',
   primary: 'bg-[#0064FF]',
   surface: 'bg-white',
@@ -468,6 +478,16 @@ export const cardStyles = {
   header: 'pt-[28px] px-[28px] pb-[12px]',
   /** v15 card body — 16/28/28 padding. */
   body: 'pt-[16px] px-[28px] pb-[28px]',
+  /**
+   * A block that cancels `body`'s left/right/bottom gutter and runs to the card's
+   * own edge. Only the LAST child of `body` may use it, and the card must carry
+   * `overflow-hidden` so the bottom corners take the card's 20px radius — hence
+   * no radius of its own. Its 18px inset puts a child's 10px label indent
+   * (`px-2.5`) back on the card's 28px gutter, so the bleed moves the surface,
+   * not the text. Pair with a fill that separates from the page canvas
+   * (`bgColors.tray`), because three of its four sides now touch the page.
+   */
+  bodyBleed: '-mx-[28px] -mb-[28px] px-[18px] pt-2 pb-[18px]',
   /** @deprecated Use cardStyles.eyebrow for the small uppercase header role. */
   title: 'text-sm font-semibold text-gray-500 uppercase tracking-wide',
   /** Small uppercase header above a card display title (ADR-014 card-eyebrow). */

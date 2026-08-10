@@ -35,7 +35,12 @@ vi.mock('@/app/lib/api/scan', () => ({
 vi.mock('@/app/lib/api', () => ({ getProcessStatus: vi.fn(async () => null) }));
 vi.mock('@/app/hooks/useTestConnectionPolling', () => ({ fetchLatestTest: vi.fn(async () => null) }));
 vi.mock('@/app/lib/api/aws', () => ({ getAwsRoleVerification: vi.fn(async () => null) }));
-vi.mock('@/app/lib/api/ops', () => ({ getCollaborationChannel: vi.fn(async () => null) }));
+// 두 export 모두 둔다 — 뷰의 로드 effect 는 둘을 나란히 호출하고, 빠진 쪽은
+// 테스트 실패가 아니라 unhandled rejection 으로 새서 러너 종료 코드만 더럽힌다.
+vi.mock('@/app/lib/api/ops', () => ({
+  getCollaborationChannel: vi.fn(async () => null),
+  getTargetJiraTicket: vi.fn(async () => null),
+}));
 vi.mock('@/app/lib/api/task-queue-tc', () => ({
   getTestConnectionDetail: vi.fn(async () => null),
   getTestConnectionResults: vi.fn(async () => []),
