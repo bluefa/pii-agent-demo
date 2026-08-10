@@ -59,9 +59,12 @@ export interface ConfirmStepModalProps {
 /** Tighter chrome than modalStyles.toss.* (px-10/pt-9, no footer hairline change): a two-button
  *  confirm is a compact dialog, and the full approval-modal padding left its short content
  *  floating in air. The footer also drops the top hairline — short enough that a divider reads
- *  as cutting the dialog in half. The taller approval modals keep the shared tokens. */
+ *  as cutting the dialog in half. The taller approval modals keep the shared tokens.
+ *  It carries no background either: the card is already white, and an opaque footer painted
+ *  over the shadow of whatever the body ends with (the approval stat tiles), chopping it into
+ *  a hard full-width edge — the very divider this footer set out not to draw. */
 const confirmHeader = 'px-6 pt-6 pb-1.5 flex items-start justify-between';
-const confirmFooter = 'px-6 pt-5 pb-6 bg-white flex justify-end gap-2.5';
+const confirmFooter = 'px-6 pt-5 pb-6 flex justify-end gap-2.5';
 
 /** Footer pair on the in-card `.btn` scale (h40 / radius12 / 14px) — the 52px modalBtn tier
  *  belongs to the tall approval modals and overwhelmed a two-line dialog.
