@@ -1,105 +1,48 @@
 'use client';
 
 /**
- * 인프라 작업 tab head — what the infrastructure IS, above the run that changes it.
+ * 인프라 작업 tab head — the tab said in one sentence, then the three facts and
+ * the one control that sentence promises.
  *
- * Replaces the former TerraformStatusCard, which carried the same data as a
- * full card with its own tinted hero band. Two heroes on one screen (that band
- * and the 현재 작업 card) competed for the same attention while saying nothing
- * about how they relate, so the status side is demoted to a single-line strip
- * and the per-task evidence moves behind a disclosure. The run card below is
- * now the tab's only hero.
+ * The tab does three jobs: run install/delete, read what Terraform has applied,
+ * and look up past runs. None of them were stated anywhere. Each section carried
+ * its own 12px caption instead, which put three explanations on screen while the
+ * tab itself stayed unnamed. The captions are gone; this states it once, above
+ * everything, and the sections below are left as plain 16px names.
+ *
+ * Order is fixed: statement → state → sections. The state strip is never
+ * collapsible — one pill (`overall_state`), the 확정 정보 precondition, and the
+ * date, always visible. Per-task evidence moved into TerraformStatusModal, so
+ * detail costs a click instead of pushing 현재 작업 off the fold.
+ *
+ * The head carries no 작업 시작 (owner call): starting a run belongs to the
+ * 현재 작업 card, so the head reads as state only and the tab keeps one place to
+ * act from.
  *
  * Two renders, one decision:
  *   - has_confirmed_infra === false → GATE banner. Terraform has nothing to
  *     build from until the integration is confirmed, so the tab leads with why
  *     and what to do next instead of a status nobody can act on.
- *   - otherwise → the strip (+ optional task lines).
+ *   - otherwise → the state strip.
  *
  * Data comes from GET …/terraform-status via the parent (PipelineTab owns the
  * fetch because the start-CTA gate reads the same response). InfraManager's own
  * job records; no Cloud SDK call is made, so this can legitimately disagree
- * with the real infrastructure — the strip's caption says so.
- *
- * The published TerraformTaskStatusResponse carries only execution side, task
- * name, and state — the formerly ASSUMED fields (terraform_target,
- * destroy_required, completed_at) did not land in the real spec.
+ * with the real infrastructure — the modal says so.
  */
-import { useState, type ReactElement } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { useModal } from '@/app/hooks/useModal';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import type { TerraformStatusResponse, TerraformTaskStatus } from '@/app/lib/api';
-
-/* Monochrome status ladder — the same rule as theme.ts PILL_* : all states share
-   one neutral family and separate by weight, with red kept only for failure.
-   Classes are written out in full because Tailwind only sees literal strings, so
-   a `bg-[var(--pl-${tone}-bg)]` template would never be generated. */
-const TONE = {
-  off: {
-    dot: 'bg-[var(--pl-gray-400)]',
-    text: 'text-[var(--pl-text-weak)]',
-    pill: 'bg-[var(--pl-gray-50)] text-[var(--pl-text-weak)] border border-[var(--pl-border)]',
-  },
-  info: {
-    dot: 'bg-[var(--pl-text-strong)]',
-    text: 'text-[var(--pl-text-strong)]',
-    pill: 'bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] border border-[var(--pl-text-strong)]',
-  },
-  ok: {
-    dot: 'bg-[var(--pl-text-medium)]',
-    text: 'text-[var(--pl-text-strong)]',
-    pill: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] border border-[var(--pl-border-strong)]',
-  },
-  err: {
-    dot: 'bg-[var(--pl-err)]',
-    text: 'text-[var(--pl-err-text)]',
-    pill: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)] border border-[var(--pl-err-border)]',
-  },
-} as const;
-
-/** Wire state → tone + icon + 한국어 label. UNKNOWN covers unseen values. */
-const STATE_META: Record<string, { tone: keyof typeof TONE; icon: IconName; label: string }> = {
-  NEVER_APPLIED: { tone: 'off', icon: 'clock', label: '미적용' },
-  APPLYING: { tone: 'info', icon: 'loader', label: '적용 중' },
-  APPLIED: { tone: 'ok', icon: 'check', label: '적용 완료' },
-  APPLY_FAILED: { tone: 'err', icon: 'x-circle', label: '적용 실패' },
-  DESTROYING: { tone: 'info', icon: 'loader', label: '삭제 중' },
-  DESTROYED: { tone: 'off', icon: 'ban', label: '삭제됨' },
-  DESTROY_FAILED: { tone: 'err', icon: 'x-circle', label: '삭제 실패' },
-  UNKNOWN: { tone: 'off', icon: 'ban', label: '알 수 없음' },
-};
-
-const metaOf = (state: string | null | undefined) => STATE_META[state ?? ''] ?? STATE_META.UNKNOWN;
-
-/** BDC/SERVICE 실행 주체 — neutral tag, never competing with the state. */
-const SIDE_LABEL: Record<string, string> = { SERVICE: '서비스', BDC: 'BDC' };
-
-/** One Terraform task, one line (was a tile in a 3-column grid). */
-function TaskLine({ task }: { task: TerraformTaskStatus }): ReactElement {
-  const { tone, icon, label } = metaOf(task.state);
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-dashed border-[var(--pl-gray-200)] px-1 py-2.5 text-[12px]">
-      <span className={cn('flex-none', TONE[tone].text)}>
-        <Icon name={icon} size="sm" className={icon === 'loader' ? 'animate-spin' : undefined} />
-      </span>
-      {/* Colors are stated, never inherited — an unstyled cell picks up whatever
-          the surrounding container sets and the task name renders fainter than
-          its own target. */}
-      <span className="min-w-[178px] font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]">
-        {task.terraform_task_name ?? '-'}
-      </span>
-      <span className={opsStyles.regionTag}>
-        {SIDE_LABEL[task.terraform_execution_side ?? ''] ?? task.terraform_execution_side ?? '-'}
-      </span>
-      <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, TONE[tone].pill)}>
-        {label}
-      </span>
-    </div>
-  );
-}
+import { TerraformStatusModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/TerraformStatusModal';
+import {
+  TONE,
+  metaOf,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
+import type { TerraformStatusResponse } from '@/app/lib/api';
 
 /**
  * 확정 정보 없음 — the tab's blocking state.
@@ -111,16 +54,16 @@ function TaskLine({ task }: { task: TerraformTaskStatus }): ReactElement {
 function GateBanner({ onOpenRequest }: { onOpenRequest: () => void }): ReactElement {
   return (
     <div
-      className="flex items-start gap-5 rounded-[12px] border-[1.5px] border-l-[5px] border-[var(--pl-warn-border)] border-l-[var(--pl-warn)] bg-[var(--pl-warn-bg)] px-[26px] py-6"
+      className="mt-4 flex items-start gap-5 rounded-[12px] border-[1.5px] border-l-[5px] border-[var(--pl-warn-border)] border-l-[var(--pl-warn)] bg-[var(--pl-warn-bg)] px-[26px] py-6"
       role="status"
     >
       <span className="flex h-14 w-14 flex-none items-center justify-center rounded-full border-[1.5px] border-[var(--pl-warn-border)] bg-[var(--pl-bg-card)] text-[var(--pl-warn-text)]">
         <Icon name="warn-tri" size="xl" strokeWidth={2.2} />
       </span>
       <div className="min-w-0 flex-1">
-        <h2 className="mt-0.5 text-[22px] font-bold leading-[1.25] tracking-[-0.018em] text-[var(--pl-warn-text)]">
+        <h3 className="mt-0.5 text-[22px] font-bold leading-[1.25] tracking-[-0.018em] text-[var(--pl-warn-text)]">
           확정된 연동 정보가 없습니다
-        </h2>
+        </h3>
         <p className="mt-2 max-w-[62ch] text-[14px] leading-[1.6] text-[var(--pl-text-medium)]">
           연동 요청이 승인되고 확정되어야 인프라 작업을 시작할 수 있습니다. 확정 정보가 없으면
           Terraform이 무엇을 만들어야 하는지 알 수 없습니다.
@@ -132,6 +75,38 @@ function GateBanner({ onOpenRequest }: { onOpenRequest: () => void }): ReactElem
           </PlButton>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** The three jobs, named by weight inside the intro sentence. */
+const JOB = 'font-semibold text-[var(--pl-text-strong)]';
+
+/** 16px/700 — one step over the slot's 12px label. */
+const SLOT_VALUE = 'text-[16px] font-bold leading-[1.3] text-[var(--pl-text-strong)]';
+
+/** One fact: name, value, and the line that qualifies it. */
+function Slot({
+  label,
+  children,
+  sub,
+}: {
+  label: string;
+  children: ReactNode;
+  sub?: ReactNode;
+}): ReactElement {
+  return (
+    <div className="min-w-0 px-5 py-3.5">
+      <dt className="text-[12px] font-medium text-[var(--pl-text-weak)]">{label}</dt>
+      {/* The qualifying line lives INSIDE the <dd>: a <dl>'s div wrapper may hold
+          only <dt>/<dd>, and a sibling <p> would also drop out of the term's
+          description in the a11y tree. */}
+      <dd className="mt-1.5 min-w-0">
+        <span className="flex min-h-[26px] items-center">{children}</span>
+        {sub != null && (
+          <span className="mt-1.5 block text-[12px] text-[var(--pl-text-faint)]">{sub}</span>
+        )}
+      </dd>
     </div>
   );
 }
@@ -151,84 +126,100 @@ export function InfraStatusHead({
   failed,
   onOpenRequest,
 }: InfraStatusHeadProps): ReactElement {
-  const [open, setOpen] = useState(false);
-
-  if (loading) return <div className="h-[42px]" aria-busy />;
-
-  if (failed || !status) {
-    return (
-      <p className={cn(pipelineStyles.empty.base, 'py-3 text-left')}>
-        Terraform 상태를 불러오지 못했습니다.
-      </p>
-    );
-  }
-
-  if (!status.has_confirmed_infra) return <GateBanner onOpenRequest={onOpenRequest} />;
-
-  const tasks = status.tasks ?? [];
+  const detailModal = useModal();
+  const confirmed = status != null && !failed && status.has_confirmed_infra === true;
+  const overall = metaOf(status?.overall_state);
+  const taskCount = status?.tasks?.length ?? 0;
 
   return (
     <div>
-      {/* One left edge, two type sizes. Everything hangs off the same margin and
-          reads top-down: precondition tag → 16px section name → 12px supporting
-          detail. The earlier version spread three groups across the full width,
-          which gave the eye three competing starting points and no hierarchy at
-          all. Color does the same work as size here: the tag and the caption sit
-          back, the name and the date come forward. */}
-      <div className="border-b border-[var(--pl-border)] px-1 pb-4 pt-1">
-        {/* The precondition, stated before the thing it gates. Its false case is
-            the GateBanner above, so this branch only ever reads 있음. */}
-        <span className="inline-flex items-center rounded-[5px] border border-[var(--pl-border-strong)] bg-[var(--pl-gray-100)] px-2 py-[3px] text-[12px] font-semibold text-[var(--pl-text-medium)]">
-          확정 정보 있음
+      {/* The tab in its own words, as an info card. As bare 18px/14px text it had
+          no container while everything under it did, so it floated instead of
+          reading as a level. Contained and quieted, it sits UNDER the sections it
+          introduces — reference material, not the page's loudest line. The three
+          jobs are named by weight inside one sentence rather than as a list; the
+          slot strip and the two cards below already carry them as structure. */}
+      <div className="flex items-start gap-3 rounded-[10px] border border-[var(--pl-info-border)] bg-[var(--pl-info-bg)] px-5 py-4">
+        <span className="mt-px flex-none text-[var(--pl-info-text)]">
+          <Icon name="info" size="md" strokeWidth={2} />
         </span>
-
-        <h2 className="mt-2 text-[16px] font-bold tracking-[-0.015em] text-[var(--pl-text-strong)]">
-          Terraform 설치 현황
-        </h2>
-
-        {/* break-keep: Korean must wrap between words, not mid-word (…설치 상/태와). */}
-        <p className="mt-1 max-w-[68ch] break-keep text-[12px] leading-[1.55] text-[var(--pl-text-faint)]">
-          InfraManager에서 조회한 Terraform Job 결과값입니다. Cloud SDK를 조회하지 않아서 실제 인프라
-          설치 상태와 다를 수 있습니다.
-        </p>
-
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px]">
-          {status.latest_confirmed_at && (
-            <span>
-              <span className="text-[var(--pl-text-weak)]">최근 확정</span>
-              <span className="ml-1.5 font-semibold tabular-nums text-[var(--pl-text-strong)]">
-                {fmtDateTime(status.latest_confirmed_at)}
-              </span>
-            </span>
-          )}
-          {/* The only control in the head, so it has to read as one. A neutral
-              border left it looking like another static chip in a row of them —
-              and a 1px primary hairline alone still read grey at 100% zoom, so
-              the label carries the hue too and the stroke goes to 1.5px. */}
-          <button
-            type="button"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-            className="inline-flex items-center gap-1 rounded-[6px] border-[1.5px] border-[var(--pl-primary)] px-2.5 py-1 text-[12px] font-semibold text-[var(--pl-primary)] hover:bg-[var(--pl-primary-bg)]"
-          >
-            Terraform 작업 {tasks.length}개 상세
-            <span aria-hidden>{open ? '▴' : '▾'}</span>
-          </button>
+        <div className="min-w-0">
+          <p className="text-[12px] font-semibold text-[var(--pl-info-text)]">이 탭에서 하는 일</p>
+          <h2 className="mt-1 break-keep text-[14px] font-normal leading-[1.6] text-[var(--pl-text-medium)]">
+            Terraform으로 이 대상의 인프라를 <b className={JOB}>설치·삭제</b>하고, 현재{' '}
+            <b className={JOB}>Terraform 적용 상태</b>와 지금까지 실행한{' '}
+            <b className={JOB}>작업 이력</b>을 확인합니다.
+          </h2>
         </div>
       </div>
 
-      {open && (
-        <div className="border-b border-[var(--pl-border)]">
-          {tasks.length === 0 ? (
-            <p className="border-t border-dashed border-[var(--pl-gray-200)] px-1 py-3 text-[12px] text-[var(--pl-text-faint)]">
-              Terraform 작업 기록이 없습니다.
-            </p>
-          ) : (
-            tasks.map((task, index) => (
-              <TaskLine key={task.terraform_task_name ?? index} task={task} />
-            ))
-          )}
-        </div>
+      {loading ? (
+        /* Measured against the loaded strip, so nothing jumps when it arrives. */
+        <div className="mt-4 h-[104px]" aria-busy />
+      ) : failed || !status ? (
+        <p className={cn(pipelineStyles.empty.base, 'mt-4 py-3 text-left')}>
+          Terraform 상태를 불러오지 못했습니다.
+        </p>
+      ) : !confirmed ? (
+        <GateBanner onOpenRequest={onOpenRequest} />
+      ) : (
+        /* Three slots, one per fact the tab is asked about. A single 12px line of
+           tag·pill·date read as one grey run at a glance; giving each fact a name,
+           a value and its own cell is what makes them scannable. Nothing here
+           collapses. */
+        <dl className="mt-4 grid grid-cols-3 divide-x divide-[var(--pl-border)] overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)]">
+          <Slot label="적용 상태">
+            <span
+              className={cn(
+                pipelineStyles.pill.base,
+                pipelineStyles.pill.lg,
+                TONE[overall.tone].pill,
+              )}
+            >
+              <Icon
+                name={overall.icon}
+                size="sm"
+                className={overall.icon === 'loader' ? 'animate-spin' : undefined}
+              />
+              {overall.label}
+            </span>
+          </Slot>
+
+          {/* The precondition, stated next to the thing it gates. Its false case is
+              the GateBanner above, so this branch only ever reads 확정됨. */}
+          <Slot
+            label="연동 정보"
+            sub={
+              status.latest_confirmed_at
+                ? `최근 확정 ${fmtDateTime(status.latest_confirmed_at)}`
+                : undefined
+            }
+          >
+            <span className={SLOT_VALUE}>확정됨</span>
+          </Slot>
+
+          <Slot
+            label="Terraform 작업"
+            sub={
+              /* Text button, not a bordered one: the slot's own box is already the
+                 frame, and a button inside it would read as a second card. */
+              <button
+                type="button"
+                onClick={() => detailModal.open()}
+                className={cn(opsStyles.detailLink, 'text-[12px]')}
+              >
+                설치 현황 보기
+                <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
+              </button>
+            }
+          >
+            <span className={cn(SLOT_VALUE, 'tabular-nums')}>{taskCount}개</span>
+          </Slot>
+        </dl>
+      )}
+
+      {detailModal.isOpen && status && (
+        <TerraformStatusModal status={status} onClose={detailModal.close} />
       )}
     </div>
   );

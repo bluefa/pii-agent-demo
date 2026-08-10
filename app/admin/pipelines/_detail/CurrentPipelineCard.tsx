@@ -10,9 +10,9 @@
  * horizontally-scrolling row. Detailed progress lives on the 현황 page the link
  * points to. Idle: the same shell with a centered empty state and the start CTA.
  *
- * The section NAME and its explanation are not here — they belong to the page's
- * R24Section header (TargetPipelineSections), so 현재 작업 reads with the same
- * 16px/12px grammar as every other section on the tab.
+ * The section NAME (현재 작업 / 최근 작업) is the card's own first line — owner
+ * call, so the pair of cards in the 2:1 row each carry their title inside
+ * instead of above. `sectionCard.fill` keeps both columns one height.
  *
  * Data (detail polling, catalog map, cancel flow) stays in the caller — this
  * file is presentation only.
@@ -21,6 +21,7 @@ import { Fragment, useEffect, useRef, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { canCancel, recipeDisplayName, recipeLabel, taskInfraSide } from '@/lib/pipeline/format';
 import {
   FlowArrow,
@@ -111,8 +112,30 @@ const CARD_SHELL =
 const STOP_TAG =
   'inline-flex items-center rounded-[6px] border border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-[7px] py-[3px] align-[1px] text-[13px] font-semibold text-[var(--pl-text-strong)]';
 
+/** What the 현재 작업 card is for — constant; only its title tracks state. */
+const RUN_SECTION_DESC =
+  'Terraform을 실행해 인프라를 생성하거나 삭제합니다. 작업 시작·중단과 진행 상황을 여기서 확인합니다.';
+
+/** The card's own first line — see detailStyles.sectionCard. */
+function SectionHead({ title }: { title: string }): ReactElement {
+  const { sectionCard } = detailStyles;
+  return (
+    <div className={sectionCard.head}>
+      <div className={sectionCard.titleRow}>
+        <h3 className={sectionCard.title}>
+          <Icon name="flow" size="sm" strokeWidth={2.2} />
+          {title}
+        </h3>
+      </div>
+      <p className={sectionCard.desc}>{RUN_SECTION_DESC}</p>
+    </div>
+  );
+}
+
 export interface CurrentPipelineCardProps {
   detail: PipelineDetail;
+  /** 현재 작업 — the section name, rendered inside the card. */
+  sectionTitle: string;
   /** task_definition name → catalog entry (display name + description). */
   defs: ReadonlyMap<string, TaskCatalogEntry>;
   onOpenPipeline: () => void;
@@ -125,6 +148,7 @@ export interface CurrentPipelineCardProps {
 
 export function CurrentPipelineCard({
   detail,
+  sectionTitle,
   defs,
   onOpenPipeline,
   onOpenOrigin,
@@ -162,8 +186,9 @@ export function CurrentPipelineCard({
   }, [currentSeq, detail.pipeline_id]);
 
   return (
-    <div className={CARD_SHELL}>
+    <div className={cn(CARD_SHELL, detailStyles.sectionCard.fill)}>
       <style>{R24_CSS + R24_RUN_CSS}</style>
+      <SectionHead title={sectionTitle} />
 
       {/* header — eyebrow, title row + status, description, actions, flow label */}
       <div className="px-6 pt-5 pb-1">
@@ -256,6 +281,8 @@ export function CurrentPipelineCard({
 
 export interface LastRunFailedCardProps {
   detail: PipelineDetail;
+  /** 최근 작업 — the section name, rendered inside the card. */
+  sectionTitle: string;
   /** task_definition name → catalog entry (display name + description). */
   defs: ReadonlyMap<string, TaskCatalogEntry>;
   onRestart: () => void;
@@ -276,6 +303,7 @@ export interface LastRunFailedCardProps {
  */
 export function LastRunFailedCard({
   detail,
+  sectionTitle,
   defs,
   onRestart,
   onStartNew,
@@ -294,7 +322,8 @@ export function LastRunFailedCard({
     : null;
 
   return (
-    <div className={CARD_SHELL}>
+    <div className={cn(CARD_SHELL, detailStyles.sectionCard.fill)}>
+      <SectionHead title={sectionTitle} />
       <div className="px-6 pt-5 pb-5">
         <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
           <div className="min-w-0 flex-1">
@@ -396,6 +425,8 @@ function BlockedReason({
 }
 
 export interface EmptyPipelineCardProps {
+  /** 현재 작업 — the section name, rendered inside the card. */
+  sectionTitle: string;
   onStart: () => void;
   /** Disables the CTA and states why — see TargetPipelineSections. */
   blockedReason?: string | null;
@@ -403,13 +434,17 @@ export interface EmptyPipelineCardProps {
 
 /** Idle state — the same card shell with a centered empty state + start CTA. */
 export function EmptyPipelineCard({
+  sectionTitle,
   onStart,
   blockedReason = null,
 }: EmptyPipelineCardProps): ReactElement {
   const blocked = blockedReason != null;
   return (
-    <div className={CARD_SHELL}>
-      <div className="flex flex-col items-center px-6 pb-10 pt-9 text-center">
+    <div className={cn(CARD_SHELL, detailStyles.sectionCard.fill)}>
+      <SectionHead title={sectionTitle} />
+      {/* justify-center: the row's height is set by whichever card is taller, so
+          the empty state centres in whatever space it is given. */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10 pt-9 text-center">
         <span className="mb-3 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[var(--pl-gray-50)] text-[var(--pl-text-faint)]">
           <Icon name="inbox" size="lg" strokeWidth={1.8} />
         </span>

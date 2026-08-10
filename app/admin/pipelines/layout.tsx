@@ -110,8 +110,12 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   // treatment exists to remove.
   const isSplit =
     rest === 'services' || rest.startsWith('services/') || rest.startsWith('ops/services');
+  // Target Source 운영 is fluid for the same reason: its masthead and tab rail are
+  // full-bleed (opsStyles.headCard), so under the cap they stop at 1440px while the
+  // page ground continues — the seam described above, on the busiest ops screen.
+  const isOpsTarget = rest.startsWith('ops/target-sources');
   const mainClass =
-    isDashboard || isQueue || isSplit
+    isDashboard || isQueue || isSplit || isOpsTarget
       ? layout.contentFluid
       : isDetail
         ? layout.contentDetail

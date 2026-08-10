@@ -63,6 +63,7 @@ const renderRun = (actions: Array<TerraformAction | null>) =>
   render(
     <CurrentPipelineCard
       detail={makeDetail(actions)}
+      sectionTitle="현재 작업"
       defs={new Map()}
       onOpenPipeline={vi.fn()}
       onCancel={vi.fn()}
@@ -74,14 +75,20 @@ const startButton = (): HTMLButtonElement =>
 
 describe('EmptyPipelineCard — 확정 정보 gate', () => {
   it('allows the start CTA and pre-warns when no reason is given', () => {
-    render(<EmptyPipelineCard onStart={vi.fn()} />);
+    render(<EmptyPipelineCard sectionTitle="현재 작업" onStart={vi.fn()} />);
 
     expect(startButton().disabled).toBe(false);
     expect(screen.getByText(PRE_WARNING)).toBeTruthy();
   });
 
   it('disables the start CTA and states the reason when blocked', () => {
-    render(<EmptyPipelineCard onStart={vi.fn()} blockedReason="확정된 연동 정보가 없어 시작할 수 없습니다." />);
+    render(
+      <EmptyPipelineCard
+        sectionTitle="현재 작업"
+        onStart={vi.fn()}
+        blockedReason="확정된 연동 정보가 없어 시작할 수 없습니다."
+      />,
+    );
 
     expect(startButton().disabled).toBe(true);
     expect(screen.getByText('확정된 연동 정보가 없어 시작할 수 없습니다.')).toBeTruthy();
@@ -99,6 +106,7 @@ describe('CurrentPipelineCard — 작업 중단', () => {
     render(
       <CurrentPipelineCard
         detail={makeDetail(['DESTROY'])}
+        sectionTitle="현재 작업"
         defs={new Map()}
         onOpenPipeline={vi.fn()}
         onCancel={onCancel}
@@ -117,6 +125,7 @@ describe('CurrentPipelineCard — 작업 중단', () => {
     render(
       <CurrentPipelineCard
         detail={{ ...makeDetail(['APPLY']), cancel_requested: true }}
+        sectionTitle="현재 작업"
         defs={new Map()}
         onOpenPipeline={vi.fn()}
         onCancel={vi.fn()}

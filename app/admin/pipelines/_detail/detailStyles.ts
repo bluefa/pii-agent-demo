@@ -218,6 +218,25 @@ export const detailStyles = {
     tag: 'inline-flex items-center rounded-[5px] bg-[var(--pl-gray-100)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--pl-text-medium)]',
   },
 
+  /**
+   * 인프라 작업 tab's 2:1 row — 현재 작업 and 작업 이력. The section name lives
+   * INSIDE the card (owner call), with no rule under it — separation is the type
+   * hierarchy plus the body's own top padding. The name is the only primary-blue
+   * text in the card and carries an icon, so it never reads as one more 16px line
+   * next to the run title below it; the 12px caption under it says what the card
+   * is FOR. `fill` lets both columns stretch to one shared height whichever card
+   * happens to be taller.
+   */
+  sectionCard: {
+    fill: 'flex h-full flex-col',
+    head: 'px-6 pt-5',
+    titleRow: 'flex items-baseline justify-between gap-3',
+    title:
+      'flex items-center gap-1.5 text-[16px] font-bold tracking-[-0.01em] text-[var(--pl-primary)]',
+    desc: 'mt-1.5 break-keep text-[12px] leading-[1.5] text-[var(--pl-text-faint)]',
+    meta: 'flex-none text-[12px] tabular-nums text-[var(--pl-text-weak)]',
+  },
+
   /** Loading / layout-stable skeleton block. */
   skeleton: 'animate-pulse rounded-[10px] bg-[var(--pl-gray-100)]',
 } as const;
