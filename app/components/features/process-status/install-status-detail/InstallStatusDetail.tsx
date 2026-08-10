@@ -18,6 +18,7 @@ import {
 import { TABLE_TAG_PILL } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
 import { DownloadIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { EmptyState } from '@/app/components/ui/state';
 import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
@@ -74,7 +75,22 @@ export interface InstallPanelStep extends InstallTableStep {
   panel: ReactNode;
 }
 
-type AggregateKind = 'failed' | 'running' | 'waiting' | 'done';
+/**
+ * 단계 집계값. 계약(InstallStepValue)이 이미 구분하는 두 가지를 UI 가 접지 않는다:
+ *   - 'na'      — 셀이 전부 SKIP. "다 했다"(done)가 아니라 "할 게 없었다"다.
+ *   - 'blocked' — 미완료 셀이 전부 BDC_INSTALL_REQUIRED. 서비스 측 차례가 아니다.
+ * 둘을 done/waiting 으로 접으면 레일이 "완료 12/12"라 말하고, 요약이 지금 할 수 없는
+ * 일을 "확인이 필요합니다"로 띄운다.
+ */
+type AggregateKind = 'failed' | 'running' | 'waiting' | 'done' | 'na' | 'blocked';
+
+/**
+ * 서비스 측이 지금 손댈 수 있는 상태 — 나머지(done/na/blocked)는 끝났거나 남의 차례다.
+ * 부정형("!== 'done'")으로 재면 새로 생긴 kind 가 조용히 "할 일"에 편입된다.
+ */
+const OPEN_KINDS: readonly AggregateKind[] = ['failed', 'running', 'waiting'];
+const isOpenKind = (kind: AggregateKind | undefined): boolean =>
+  kind !== undefined && OPEN_KINDS.includes(kind);
 
 interface StepAggregate {
   label: string;
@@ -95,6 +111,18 @@ const NAV_STATUS_TEXT: Record<AggregateKind, string> = {
   running: statusColors.info.textDark,
   done: textColors.secondary,
   waiting: textColors.secondary,
+  na: textColors.secondary,
+  blocked: textColors.secondary,
+};
+
+/** 레일 상태 글자 굵기 — 색과 같은 규칙이다. 손댈 단계만 무게를 갖는다. */
+const NAV_STATUS_WEIGHT: Record<AggregateKind, string> = {
+  failed: 'font-semibold',
+  running: 'font-semibold',
+  done: 'font-normal',
+  waiting: 'font-normal',
+  na: 'font-normal',
+  blocked: 'font-normal',
 };
 
 const kindOfValue = (value: InstallStepValue): AggregateKind =>
@@ -112,8 +140,24 @@ const aggregateCells = (cells: InstallStepValue[]): StepAggregate => {
   if (cells.includes('IN_PROGRESS')) {
     return { label: '진행중', tag: tagStyles.info, count, kind: 'running' };
   }
+  // done 보다 먼저다 — SKIP 은 settled 로 세므로, 순서를 뒤집으면 전부-SKIP 이 '완료'로 샌다.
+  // 개수를 달지 않는다: 세는 대상이 없는데 "해당 없음 12/12"는 진척으로 읽힌다.
+  if (cells.length > 0 && cells.every((c) => c === 'SKIP')) {
+    return { label: INSTALL_STATUS_LABEL.SKIP, tag: tagStyles.neutral, count: null, kind: 'na' };
+  }
   if (cells.length > 0 && settled === cells.length) {
     return { label: '완료', tag: tagStyles.success, count, kind: 'done' };
+  }
+  // 여기까지 왔으면 미완료 셀은 BDC_INSTALL_REQUIRED 아니면 UNKNOWN 이다.
+  // 전부 전자면 서비스 측이 할 수 있는 일이 없다 — 개수는 남긴다(진행을 기다리는 건수).
+  const unsettled = cells.filter((c) => !isSettledInstallStatus(c));
+  if (unsettled.length > 0 && unsettled.every((c) => c === 'BDC_INSTALL_REQUIRED')) {
+    return {
+      label: INSTALL_STATUS_LABEL.BDC_INSTALL_REQUIRED,
+      tag: tagStyles.neutral,
+      count,
+      kind: 'blocked',
+    };
   }
   return { label: '대기', tag: tagStyles.neutral, count, kind: 'waiting' };
 };
@@ -500,7 +544,10 @@ export const InstallStatusDetail = ({
         navIndex,
         aggregate,
         reasons,
-        actionable: aggregate.kind !== 'done' && (Boolean(step.serviceAction) || aggregate.kind === 'failed'),
+        // serviceAction 은 단계의 **정적 선언**이라 셀이 무엇이든 항상 참이다. 그래서
+        // 지금 손댈 수 있는 상태인지를 kind 로 먼저 잰다 — 전부 SKIP(na)이거나 전부 BDC
+        // 대기(blocked)인 단계는 조치 문구를 18px 로 띄울 자리가 아니다.
+        actionable: isOpenKind(aggregate.kind) && (Boolean(step.serviceAction) || aggregate.kind === 'failed'),
       }];
     });
   }, [navSteps, aggregates, resources, cellOf]);
@@ -510,7 +557,7 @@ export const InstallStatusDetail = ({
   const openTodoCount = useMemo(
     () =>
       navSteps.filter(
-        (s) => s.group === 'todo' && aggregates.get(s.id)?.kind !== 'done',
+        (s) => s.group === 'todo' && isOpenKind(aggregates.get(s.id)?.kind),
       ).length,
     [navSteps, aggregates],
   );
@@ -532,7 +579,7 @@ export const InstallStatusDetail = ({
   const hotStepId = useMemo<string>(() => {
     if (grouped) {
       const todo = navSteps.find(
-        (s) => s.group === 'todo' && aggregates.get(s.id)?.kind !== 'done',
+        (s) => s.group === 'todo' && isOpenKind(aggregates.get(s.id)?.kind),
       );
       if (todo) return todo.id;
     } else if (actionViews.length > 0) return SUMMARY_ID;
@@ -617,6 +664,15 @@ export const InstallStatusDetail = ({
     activePanel.panel
   ) : isSummary ? (
     <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
+  ) : activeAggregate?.kind === 'na' ? (
+    // 전부 '해당 없음'인 단계에 표를 그리면, 같은 한 단어를 N행으로 반복한 뒤
+    // 검색·필터·페이지네이션까지 붙여 "훑을 것이 있다"고 말한다. 없다고 말한다.
+    // 이유는 쓰지 않는다 — SKIP 셀의 guide 는 비어 있고, 없는 근거를 지어내지 않는다.
+    <EmptyState
+      variant="card"
+      title="이 단계에 해당하는 리소스가 없어요"
+      description={`연동 대상 ${resources.length}건 모두 이 단계에 해당하지 않아, 수행할 작업이 없습니다.`}
+    />
   ) : (
     // key resets pagination when switching steps
     <StepResourceTable key={active.id} rows={rows} />
@@ -675,7 +731,7 @@ export const InstallStatusDetail = ({
               'flex-shrink-0',
               textStyles.caption,
               NAV_STATUS_TEXT[aggregate.kind],
-              aggregate.kind === 'done' || aggregate.kind === 'waiting' ? 'font-normal' : 'font-semibold',
+              NAV_STATUS_WEIGHT[aggregate.kind],
             )}
           >
             {aggregate.label}
@@ -883,9 +939,7 @@ export const InstallStatusDetail = ({
                   className={cn(
                     NAV_STATUS_TEXT[aggregate.kind],
                     // 끝난 단계는 굵기까지 내려놓는다 — 남은 일만 눈에 걸리게.
-                    aggregate.kind === 'done' || aggregate.kind === 'waiting'
-                      ? 'font-normal'
-                      : 'font-semibold',
+                    NAV_STATUS_WEIGHT[aggregate.kind],
                   )}
                 >
                   {aggregate.label}
