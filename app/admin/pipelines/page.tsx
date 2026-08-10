@@ -4,9 +4,11 @@
  * Admin Pipeline dashboard (LIN-25 Phase C1-a) — /pass/admin/pipelines.
  *
  * Data strategy (docs/api/pipeline-orchestrator-bff.md §2.1): period/status/
- * provider/type filter server-side; the search-box substring search and 5/page
- * pagination run CLIENT-side over the fetched window (size=200). Row ORDER
- * always follows the API response verbatim — no client re-sort. Stats come
+ * provider/type filter server-side; the search-box substring search and the
+ * pagination run CLIENT-side over the fetched window (size=200). That window is
+ * a real ceiling, so the pager carries both the tally and — only when rows were
+ * actually left behind — the fact that they were.
+ * Row ORDER always follows the API response verbatim — no client re-sort. Stats come
  * from statistics/live (동작 중 · 현재) + statistics?period (실패/성공 · 기간).
  * Visual language: Figma Make redesign (dashboard-local `dashboard.*` tokens +
  * `_dashboard/cells`; the shared pill/table/progress components stay on the
@@ -102,7 +104,10 @@ export default function DashboardPage(): ReactElement {
   const router = useRouter();
   const d = pipelineStyles.dashboard;
 
-  const [period, setPeriod] = useState<StatisticsPeriodToken>('1d');
+  // 7일 default: 24시간 answered "what happened today", but the page is opened to
+  // find work that is still waiting, and a job stalled since yesterday fell out
+  // of a 24-hour window while still being the thing worth looking at.
+  const [period, setPeriod] = useState<StatisticsPeriodToken>('7d');
   const [status, setStatus] = useState<'' | PipelineStatus>('');
   const [provider, setProvider] = useState<string>('');
   const [type, setType] = useState<'' | PipelineType>('');
@@ -212,10 +217,16 @@ export default function DashboardPage(): ReactElement {
   const plabel = PERIOD_LABELS[period];
   const hasFilter = Boolean(status) || Boolean(provider) || Boolean(type) || Boolean(q.trim());
 
+  // The list is ONE fetch of at most DASH_FETCH_SIZE rows, so search and paging
+  // only ever see that window. Compare against what actually arrived rather than
+  // against the constant: if the server ever returns fewer, nothing was cut.
+  const fetchedTotal = pageData?.totalElements ?? 0;
+  const truncated = pageData != null && pageData.content.length < fetchedTotal;
+
   return (
     <div>
       <div className={d.headerRow}>
-        <h1 className={pipelineStyles.text.dashboardPageTitle}>Dashboard</h1>
+        <h1 className={pipelineStyles.text.dashboardPageTitle}>인프라 작업 대시보드</h1>
         <SegControl
           options={PERIOD_OPTIONS}
           value={period}
@@ -352,7 +363,7 @@ export default function DashboardPage(): ReactElement {
           <>
             <table className={d.table}>
               <thead>
-                <tr className={d.headRow}>
+                <tr>
                   <th className={cn(d.th, 'w-[28ch]')}>서비스 이름</th>
                   <th className={d.th}>서비스 코드</th>
                   <th className={d.th}>Target Source</th>
@@ -403,27 +414,38 @@ export default function DashboardPage(): ReactElement {
             </table>
 
             <div className={d.pager}>
-              <button
-                type="button"
-                className={d.pagerBtn}
-                disabled={current <= 1}
-                onClick={() => setPage(current - 1)}
-                aria-label="이전 페이지"
-              >
-                <Icon name="chev-l" size="sm" />
-              </button>
-              <span className={d.pagerCount}>
-                {current} / {pages}
+              <span className={d.pagerTally}>
+                {projected.length}건
+                {truncated && (
+                  <span className={d.pagerTruncated}>
+                    {' '}
+                    · 최근 {DASH_FETCH_SIZE}건만 불러왔어요 (전체 {fetchedTotal}건)
+                  </span>
+                )}
               </span>
-              <button
-                type="button"
-                className={d.pagerBtn}
-                disabled={current >= pages}
-                onClick={() => setPage(current + 1)}
-                aria-label="다음 페이지"
-              >
-                <Icon name="chev-r" size="sm" />
-              </button>
+              <span className={d.pagerNav}>
+                <button
+                  type="button"
+                  className={d.pagerBtn}
+                  disabled={current <= 1}
+                  onClick={() => setPage(current - 1)}
+                  aria-label="이전 페이지"
+                >
+                  <Icon name="chev-l" size="sm" />
+                </button>
+                <span className={d.pagerCount}>
+                  {current} / {pages}
+                </span>
+                <button
+                  type="button"
+                  className={d.pagerBtn}
+                  disabled={current >= pages}
+                  onClick={() => setPage(current + 1)}
+                  aria-label="다음 페이지"
+                >
+                  <Icon name="chev-r" size="sm" />
+                </button>
+              </span>
             </div>
           </>
         )}

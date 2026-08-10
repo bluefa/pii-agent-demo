@@ -3,7 +3,7 @@
  *
  * The upstream `GET /pipelines` (#3) supports only status/provider/type/period
  * filtering + property sort — so the search-box substring search and the
- * 5/page pagination are applied CLIENT-side over the fetched window (size=200).
+ * pagination are applied CLIENT-side over the fetched window (size=200).
  * Row ORDER always follows the API response verbatim — no client re-sort.
  * These functions hold that client pipeline; the page component wires them
  * to state.
@@ -17,8 +17,12 @@ import type {
   StatisticsPeriodToken,
 } from '@/lib/pipeline/types';
 
-/** Design PAGE_SIZE — 5 rows per client page. */
-export const DASH_PAGE_SIZE = 5;
+/**
+ * Rows per client page. 5 left roughly 400px of the list card empty at
+ * 1600×1100 while turning a 200-row window into 40 pages; 12 fills the card
+ * that the 5-row table only reached a third of the way down.
+ */
+export const DASH_PAGE_SIZE = 12;
 
 /** The upstream fetch window (size=200); rows beyond it are not shown (§3 gap #6). */
 export const DASH_FETCH_SIZE = 200;
@@ -30,7 +34,7 @@ export const PERIOD_LABELS: Record<StatisticsPeriodToken, string> = {
   '7d': '최근 7일',
 };
 
-/** Segmented control options (default 1d) — Figma Make labels (24시간, not 1일). */
+/** Segmented control options (default 7d) — Figma Make labels (24시간, not 1일). */
 export const PERIOD_OPTIONS: ReadonlyArray<{ value: StatisticsPeriodToken; label: string }> = [
   { value: '1h', label: '1시간' },
   { value: '1d', label: '24시간' },
@@ -97,7 +101,7 @@ export interface PageSlice<T> {
   slice: T[];
 }
 
-/** Clamp `page` into range and slice the rows for that page (5/page). */
+/** Clamp `page` into range and slice the rows for that page (DASH_PAGE_SIZE/page). */
 export function paginate<T>(rows: readonly T[], page: number, size = DASH_PAGE_SIZE): PageSlice<T> {
   const total = rows.length;
   const pages = Math.max(1, Math.ceil(total / size));

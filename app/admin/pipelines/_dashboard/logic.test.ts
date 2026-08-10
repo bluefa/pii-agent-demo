@@ -65,13 +65,15 @@ describe('projectRows', () => {
 });
 
 describe('paginate', () => {
-  const rows = Array.from({ length: 12 }, (_, i) => row(i, 'DONE', 't'));
+  // Two full pages plus a partial one, expressed via the constant so the shape
+  // under test (3 pages, last one short) survives a page-size change.
+  const rows = Array.from({ length: DASH_PAGE_SIZE * 2 + 2 }, (_, i) => row(i, 'DONE', 't'));
 
-  it('slices 5/page and reports pages', () => {
+  it('slices DASH_PAGE_SIZE per page and reports pages', () => {
     const p1 = paginate(rows, 1);
     expect(p1.slice).toHaveLength(DASH_PAGE_SIZE);
     expect(p1.pages).toBe(3);
-    expect(p1.total).toBe(12);
+    expect(p1.total).toBe(rows.length);
   });
 
   it('clamps an out-of-range page into [1,pages]', () => {

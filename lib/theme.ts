@@ -2302,8 +2302,15 @@ export const pipelineStyles = {
 
     /** Table chrome. */
     table: 'w-full',
-    headRow: 'border-b border-[var(--pl-gray-100)]',
-    th: 'px-5 py-3 text-left whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.05em] text-[var(--pl-text-faint)]',
+    /**
+     * Column labels — the section's shared header grammar (`pipelineStyles.table.th`:
+     * h34, 12/600 uppercase, tracking .03em, text-weak on gray-50 with a border-b).
+     * Only the horizontal padding differs: px-5, because this table's cells are px-5
+     * and a th on the shared px-3 would sit a column off from the values it labels.
+     * The tinted band carries the header's own bottom border, so the row-level
+     * `headRow` border it used to need is gone.
+     */
+    th: 'h-[34px] px-5 text-left whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.03em] text-[var(--pl-text-weak)] bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)]',
     body: 'divide-y divide-[var(--pl-gray-100)]',
     row: 'group cursor-pointer transition-colors hover:bg-[var(--pl-gray-50)]',
     cell: 'px-5 py-3.5 align-middle',
@@ -2339,8 +2346,17 @@ export const pipelineStyles = {
     action:
       'inline-flex items-center justify-center w-7 h-7 rounded-lg text-[var(--pl-gray-300)] transition-all group-hover:bg-[var(--pl-gray-900)] group-hover:text-[var(--pl-white)] group-hover:shadow-[var(--pl-shadow-xs)]',
 
-    /** Pagination — centered icon buttons + count. */
-    pager: 'flex items-center justify-center gap-2 px-5 py-3.5 border-t border-[var(--pl-gray-100)]',
+    /**
+     * Pagination — how many rows you are looking at (left), the pager (right).
+     * `1 / 3` on its own never said how many rows that was, nor that the list
+     * stops at the fetch window; both facts live on the left now.
+     */
+    pager:
+      'flex items-center justify-between gap-4 px-5 py-3.5 border-t border-[var(--pl-gray-100)]',
+    pagerNav: 'flex items-center gap-2',
+    pagerTally: 'text-[14px] text-[var(--pl-text-weak)] tabular-nums',
+    /** Fetch-window notice — only rendered when rows were actually left behind. */
+    pagerTruncated: 'text-[14px] text-[var(--pl-text-faint)]',
     pagerBtn:
       'inline-flex items-center justify-center w-7 h-7 rounded-lg text-[var(--pl-text-faint)] transition-colors hover:text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-100)] disabled:opacity-40 disabled:pointer-events-none',
     pagerCount: 'text-[14px] text-[var(--pl-text-weak)] tabular-nums',
