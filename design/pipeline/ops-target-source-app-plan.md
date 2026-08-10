@@ -50,7 +50,7 @@
 | 상태 변경 이력 | `GET /target-sources/{id}/status-history?page&size` | Next 라우트 + in-memory mock |
 | 설치 모드 변경 | `PUT /target-sources/{id}/installation-mode` | 〃 |
 | Scan/TF Role 등록·수정 | `PUT /target-sources/{id}/aws/scan-role` · `/aws/execution-role` | 〃 (body `{ role_name }`, 서버가 ARN 조립) |
-| 협업 채널 조회·관리 | `GET/PUT /target-sources/{id}/collaboration-channel` | 〃 |
+| 협업 채널(Jira 티켓) 조회 | `GET /target-sources/{id}/jira-ticket` (실계약, read-only) | 연결·해제는 `/services/{code}/jira-tickets/{provider}` — 서비스 운영 화면 소관 |
 
 가정 라우트는 `app/api/v1/ops/_lib/store.ts` (globalThis 가드 in-memory store, admin queue 패턴)로 상태를 유지한다.
 
@@ -70,7 +70,6 @@ app/admin/pipelines/ops/target-sources/
         ├── InstallModeModal.tsx      # 51:5
         ├── RoleVerifyModal.tsx       # 1:2 (검증 GET 재호출 버튼 포함)
         ├── RoleEditModal.tsx         # 2:2 (이름 검증 /^[\w+=,.@-]{1,64}$/, ARN 미리보기)
-        └── ChannelModal.tsx          # 협업 채널 관리 (이슈 키 + URL)
 ```
 
 재사용: `pipelineStyles`(card/pill/table/pager/button/modal), `InstallationProcessProgressBar`,

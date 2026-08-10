@@ -27,7 +27,7 @@
 | P5 | 협업 채널이 아무 데도 anchor하지 않는 45° 꼬리 popover, 1440 경계에 고정 | 넓은 화면에서 화면 한가운데 뜬다 | UX 원칙 |
 | P6 | 헤더가 50자 mono ARN을 진다 | Cloudscape는 이것을 details 요약 컨테이너에 배정 | 레퍼런스 |
 | P7 | 형제 `/admin/pipelines/{id}`가 같은 대상 #1010을 완전히 다른 헤더 문법으로 그린다 — 두 화면은 서로 링크한다 | | 자체 판례 |
-| P8 | 헤더 티켓과 `관리` 목적지가 **다른 데이터 출처** | 헤더=`collaboration-channel`(swagger 부재, 목이 스스로 `assumed §4`라 주석) / 서비스 운영=`GET /install/v1/services/{code}/jira-tickets`(실계약). 화면 증거: 헤더 `INFRA-2211` vs 같은 서비스 Jira 타일 5개 전부 "연결된 티켓 없음" | 계약 |
+| P8 | 헤더가 계약에 없는 티켓을 읽는다 | 헤더=`collaboration-channel`(swagger 부재, 목이 스스로 `assumed §4`라 주석). 화면 증거: 같은 대상 #1010 이 헤더에선 `INFRA-2211`, 서비스측 화면에선 `BDCDIP-1010` | 계약 |
 
 ## 채택안 — A1 · T1 · W1 · J1
 
@@ -97,41 +97,39 @@ h1 옆에 같은 baseline 으로 **`서비스가 보는 화면 ↗`** (12px prim
   가진 것은 Jira 마크뿐이다.
 - 2층 세 상태(링크 · `연결된 티켓 없음` · 스켈레톤)를 `leading-[20px]`로 묶어 **채널이 도착해도
   헤더 높이가 변하지 않는다**. 조회 중에는 "없음"이라고 단정하지 않는다(`channelLoaded`).
-- 서비스 코드가 없으면 갈 운영 화면도 없다 → 3층이 `ChannelModal`을 여는 버튼으로 바뀐다
-  (기존 폴백 유지).
+- 서비스 코드가 없으면 갈 운영 화면도 없다 → 3층이 비링크 문구가 된다. 티켓 연결·해제 계약이
+  서비스 × provider 축에만 있으므로 그런 대상에는 관리 경로 자체가 없다 — 없는 동작을 그리지 않는다.
+- `browseUrl` 이 없으면 2층은 링크가 아니라 값이다 (issueKey 로 URL 을 조립하지 않는다, v5 계약).
+
+## P8 해소 (2026-08-10)
+
+계약에 축이 둘 다 있고, **역할로 갈린다**:
+
+| 축 | 엔드포인트 | 성격 |
+|---|---|---|
+| 대상 1건 | `GET /install/v1/target-sources/{id}/jira-ticket` (swagger L4957) | **read-only** — "이 대상의 티켓" |
+| 서비스 × provider | `POST/DELETE /install/v1/services/{code}/jira-tickets/{provider}` (+watchers) | **write** — 연결·해제 |
+
+즉 J1 블록의 구조는 처음부터 맞았다 — 2층 = 어느 티켓인가(read), 3층 = 어디서 관리하는가(write).
+틀린 것은 2층이 읽던 엔드포인트 하나였다. 서비스측 `/target-sources/{id}` 화면은 **이미** 대상 축
+실계약을 쓰고 있었고, 그래서 같은 대상이 헤더에선 `INFRA-2211`, 서비스측에선 `BDCDIP-1010` 이었다.
+
+**조치**: 2층을 대상 축 실계약으로 이전. 신규 CSR 라우트
+`app/api/v1/target-sources/[id]/jira-ticket/route.ts` (404 → 200 null 정규화, 서비스측 page 와 같은
+독법). 삭제 — `ChannelModal` · `collaboration-channel` 라우트 · `bff.ops.get/putCollabChannel` ·
+`OpsCollabChannelWire` · 목 store 필드 · `getCollaborationChannel`/`saveCollaborationChannel`.
+`docs/api/ops-assumed-contracts.md` §4 는 WITHDRAWN 처리.
 
 ## 미해소 / 결정 대기
 
-- **P8 — 헤더가 어느 티켓을 읽는가.** 이번 구현은 출처를 **바꾸지 않았다**(`collaboration-channel`
-  유지, `ChannelModal` 유지). 블록은 `channel` prop 하나만 보므로 결정이 나면 배선만 갈아끼우면 된다.
-
-  **2026-08-10 추가 조사로 단위 질문은 해소됐다.** 계약에 축이 둘 다 있고, 역할이 갈린다.
-
-  | 축 | 엔드포인트 | 성격 |
-  |---|---|---|
-  | 대상 1건 | `GET /install/v1/target-sources/{id}/jira-ticket` (swagger L4957) | **read-only** — "이 대상의 티켓" |
-  | 서비스 × provider | `GET/POST/DELETE /install/v1/services/{code}/jira-tickets/{provider}` + watchers | **관리(write) 표면** |
-
-  즉 J1 블록의 **구조는 이미 맞다** — 2층 = 어느 티켓인가(read), 3층 = 어디서 관리하는가(write).
-  틀린 것은 2층이 읽는 엔드포인트뿐이다. 서비스측 `/target-sources/{id}` 화면은 **이미** 대상 축
-  계약을 쓴다(목 `target-sources.ts` `getJiraTicket`).
-
-  같은 대상 #1010 이 지금 화면마다 다른 티켓을 보인다:
-  `BDCDIP-1010`(서비스측, 대상 축 실계약) / `INFRA-2211`(ops 헤더, 목 전용) /
-  "연결된 티켓 없음"(서비스 운영, 서비스×provider 축).
-
-  1. **권장 — 대상 축 실계약으로 이전.** 2층을 `/target-sources/{id}/jira-ticket` 으로 바꾼다.
-     서비스측 화면과 같은 티켓을 보이게 되고, `collaboration-channel` GET/PUT 과 `ChannelModal`
-     (계약에 없는 write) 이 사라진다. 3층은 그대로 서비스×provider 관리 표면을 가리킨다.
-  2. 현행 유지 — 그렇다면 2층이 계약 밖 값임을 감수해야 한다.
 - **P6** — Role ARN의 거처(헤더 / 요약 카드 / 인프라 작업 탭). A3 미채택으로 보류.
 - 현재 단계 pill이 헤더와 `ProcessCard`에 이중으로 있다 — 강등 여부 미결.
 - fluid 전환에 따른 탭별 표 `max-w`.
 
 ## 구현
 
-- 브랜치 `feat/ops-target-header` (`feat/ops-infra-tab` 위 스택)
-- `OpsHeader.tsx` 재구성 + `improvedStyles.header` import, `opsStyles` 헤더/탭/채널 토큰 교체
-- `layout.tsx` `isOpsTarget` fluid 분기
-- `OpsTargetView` 가 `channelLoaded` 를 내려보낸다
-- 검증: `tsc` 0 · `lint` 0 error · `vitest` 1749 passed · 실화면 AWS(1010)/GCP(1002·1017) 전 탭
+- PR #675 (A1·T1·W1·J1 + 서비스측 링크) — `OpsHeader.tsx` 재구성 + `improvedStyles.header` import,
+  `opsStyles` 헤더/탭/채널 토큰 교체, `layout.tsx` `isOpsTarget` fluid 분기
+- 후속 (P8) — 신규 `jira-ticket` 라우트 + `getTargetJiraTicket`, assumed 채널 계열 전면 삭제
+- 검증: `tsc` 0 · `lint` 0 error · `vitest` 208 files / 1749 passed · 실화면 AWS(1010·티켓 있음)·
+  Azure(1003·티켓 없음)·GCP(1002·1017) 전 탭

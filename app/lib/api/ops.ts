@@ -25,9 +25,15 @@ export interface StatusHistoryPage {
   content: StatusHistoryItem[];
 }
 
-export interface CollaborationChannel {
-  issue_key: string;
-  url: string;
+/**
+ * 이 대상에 매핑된 Jira 티켓 (실계약 `GET /target-sources/{id}/jira-ticket`, read-only).
+ * 연결이 없으면 null — 계약의 404 를 라우트가 200 null 로 정규화한다. 티켓의 연결·해제는
+ * 서비스 × provider 축(`/services/{code}/jira-tickets/{provider}`)에만 있고, 그 관리
+ * 표면은 서비스 운영 화면이 갖는다.
+ */
+export interface TargetJiraTicket {
+  issueKey: string;
+  browseUrl: string | null;
 }
 
 export const getStatusHistory = (
@@ -63,21 +69,15 @@ export const updateAwsRole = (
     body: { roleArn },
   });
 
-export const getCollaborationChannel = (
+/** 열 주소는 browseUrl 이 싣는다 — issueKey 로 URL 을 조립하지 않는다 (v5 계약). */
+export const getTargetJiraTicket = async (
   targetSourceId: number,
-): Promise<CollaborationChannel | null> =>
-  fetchInfraJson<CollaborationChannel | null>(
-    `/target-sources/${targetSourceId}/collaboration-channel`,
+): Promise<TargetJiraTicket | null> => {
+  const raw = await fetchInfraJson<z.infer<typeof schemas.JiraTicketResponse> | null>(
+    `/target-sources/${targetSourceId}/jira-ticket`,
   );
-
-export const saveCollaborationChannel = (
-  targetSourceId: number,
-  channel: CollaborationChannel,
-): Promise<CollaborationChannel> =>
-  fetchInfraJson(`/target-sources/${targetSourceId}/collaboration-channel`, {
-    method: 'PUT',
-    body: channel,
-  });
+  return raw?.issueKey ? { issueKey: raw.issueKey, browseUrl: raw.browseUrl ?? null } : null;
+};
 
 /* ── 운영 콘솔 목록 (assumed §5) / 서비스 상세 (실계약 조합) ── */
 

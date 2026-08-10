@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
 import type {
-  OpsCollabChannelWire,
   OpsProcessStatusWire,
   OpsStatusHistoryItemWire,
   OpsTargetSourceListItemWire,
@@ -23,7 +22,6 @@ interface OpsTargetState {
   roleArns: { scan?: string; execution?: string };
   /** One verify GET after a role save reports IN_PROGRESS (fresh ARN, unverified). */
   pendingVerify: { scan?: boolean; execution?: boolean };
-  channel: OpsCollabChannelWire | null;
 }
 
 const globalStore = globalThis as typeof globalThis & {
@@ -78,7 +76,6 @@ const getState = (targetSourceId: number, processStatus: ProcessStatus): OpsTarg
       grantTfExecution: null,
       roleArns: {},
       pendingVerify: {},
-      channel: { issue_key: 'INFRA-2211', url: 'https://jira.example.com/browse/INFRA-2211' },
     };
     store.set(targetSourceId, state);
   }
@@ -233,21 +230,6 @@ export const mockOps = {
     state.roleArns[kind] = roleArn;
     state.pendingVerify[kind] = true;
     return NextResponse.json({ targetSourceId, roleArn, readOnly: false });
-  },
-
-  // GET …/collaboration-channel (assumed §4) — 200 body is the channel or null.
-  getCollabChannel: async (targetSourceId: number) => {
-    const project = mockData.getProjectByTargetSourceId(targetSourceId);
-    if (!project) return notFound();
-    return NextResponse.json(getState(targetSourceId, project.processStatus).channel);
-  },
-
-  // PUT …/collaboration-channel (assumed §4).
-  putCollabChannel: async (targetSourceId: number, channel: OpsCollabChannelWire) => {
-    const project = mockData.getProjectByTargetSourceId(targetSourceId);
-    if (!project) return notFound();
-    getState(targetSourceId, project.processStatus).channel = channel;
-    return NextResponse.json(channel);
   },
 
   // GET /admin/ops/target-sources?query&page&size (assumed §5).

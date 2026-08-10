@@ -132,8 +132,6 @@ export const mockBff: BffClient = {
     getStatusHistory: async (id, page, size) => unwrap(await mockOps.getStatusHistory(id, page, size)),
     putInstallationMode: async (id, grant) => unwrap(await mockOps.putInstallationMode(id, grant)),
     putRole: async (id, kind, roleArn) => unwrap(await mockOps.putRole(id, kind, roleArn)),
-    getCollabChannel: async (id) => unwrap(await mockOps.getCollabChannel(id)),
-    putCollabChannel: async (id, channel) => unwrap(await mockOps.putCollabChannel(id, channel)),
     getTargetSourceList: async (query, page, size) =>
       unwrap(await mockOps.getTargetSourceList(query, page, size)),
   },
