@@ -37,9 +37,9 @@ describe('targetSourceId — seed 데이터', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('seed 데이터는 44개 프로젝트를 포함한다 (cloud 16 + step-coverage 13 + IDC 데모 8 + SDU 데모 2 + TC 큐 5)', () => {
-    // cloud 16 = 기존 15 + 중국 리전 AWS 대상 1018.
-    expect(mockProjects).toHaveLength(44);
+  it('seed 데이터는 45개 프로젝트를 포함한다 (cloud 17 + step-coverage 13 + IDC 데모 8 + SDU 데모 2 + TC 큐 5)', () => {
+    // cloud 17 = 기존 15 + 중국 리전 AWS 대상 1018 + 권한 확인만 끝난 Step 4 AWS 대상 1009.
+    expect(mockProjects).toHaveLength(45);
   });
 });
 

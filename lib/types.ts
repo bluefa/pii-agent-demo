@@ -386,6 +386,9 @@ export interface TerraformState {
   serviceTf?: TerraformStatus;
   // 공통: BDC 측 Terraform
   bdcTf: TerraformStatus;
+  // AWS 전용: TF 실행 권한 검증. serviceTf 보다 앞선 별개 단계라 따로 둔다 — 묶어두면
+  // "권한 확인은 끝났고 BDC 단계만 남은" Step 4 상태를 만들 수 없다. 미지정이면 serviceTf 를 따른다.
+  roleVerify?: TerraformStatus;
 }
 
 export interface BaseTargetSource {
