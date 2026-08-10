@@ -31,11 +31,6 @@ export interface CredentialVerification {
   gcp_project_id?: string | null;
 }
 
-export type CredentialLoad =
-  | { phase: 'loading' }
-  | { phase: 'error' }
-  | { phase: 'done'; data: CredentialVerification };
-
 /**
  * Fetch a verification. Only AWS has an execution-role contract — GCP/Azure
  * expose the scan credential alone, and callers never ask them for execution.
