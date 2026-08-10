@@ -71,6 +71,9 @@ describe('AwsInstallStatusDetail', () => {
     // Grouped rail — the group headers carry ownership; per-item side lines are gone.
     // The role-verify todo is COMPLETED, so the open-todo count is 0.
     expect(within(nav).getByText('내가 할 일 (0)')).toBeTruthy();
+    // 할 일 0 은 그룹 라벨이 한 마디로 닫는다 — 항목 자리에 문단을 뿌리지 않는다.
+    expect(within(nav).getByText('모두 완료')).toBeTruthy();
+    expect(within(nav).queryByText(/지금 하실 일이 없어요/)).toBeNull();
     expect(within(nav).getByText('BDC 진행')).toBeTruthy();
     expect(within(nav).queryByText('서비스측')).toBeNull();
     expect(within(nav).queryByText('BDC측')).toBeNull();
@@ -80,6 +83,23 @@ describe('AwsInstallStatusDetail', () => {
     // No open todo → the failed step is the default view, and its table's 안내
     // chip is the single place the failure reason is stated.
     expect(screen.getAllByText('서브넷 IP 부족')).toHaveLength(1);
+  });
+
+  it('할 일이 남아 있으면 "모두 완료"를 달지 않는다', () => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-1', 'IN_PROGRESS')], {
+          roleVerify: { status: 'IN_PROGRESS', roleArn: null },
+        })}
+        confirmed={[]}
+        manualInstall={false}
+        targetSourceId={1008}
+      />,
+    );
+
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    expect(within(nav).getByText('내가 할 일 (1)')).toBeTruthy();
+    expect(within(nav).queryByText('모두 완료')).toBeNull();
   });
 
   it('joins region / DB type / name from the confirmed integration', () => {

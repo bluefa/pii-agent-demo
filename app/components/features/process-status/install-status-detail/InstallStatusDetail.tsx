@@ -749,13 +749,7 @@ export const InstallStatusDetail = ({
               // "하실 일이 없어요"는 라벨의 (0)이, "자동으로 진행돼요"는 바로 아래
               // 'BDC 진행' 라벨이 이미 말한다.
               openTodoCount === 0 && (
-                <span
-                  className={cn(
-                    'ml-auto flex-shrink-0 font-medium',
-                    textStyles.caption,
-                    statusColors.success.textDark,
-                  )}
-                >
+                <span className={cn('ml-auto flex-shrink-0', textStyles.caption, statusColors.success.textDark)}>
                   모두 완료
                 </span>
               ),
