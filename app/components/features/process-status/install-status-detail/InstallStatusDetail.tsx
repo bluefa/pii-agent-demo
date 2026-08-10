@@ -704,7 +704,7 @@ export const InstallStatusDetail = ({
       <div
         className={cn(
           'flex items-baseline gap-2 px-2.5 pt-3 pb-1 text-[16px] font-semibold leading-[24px] tracking-[-0.01em] flex-shrink-0',
-          // On the gray-100 panel: #0064FF is 4.47:1 and gray-500 is 4.37:1,
+          // On the gray-100 panel: raw Primary is 4.47:1 and gray-500 is 4.37:1,
           // both under AA — use the darker tiers the theme keeps for tints.
           tone,
         )}
