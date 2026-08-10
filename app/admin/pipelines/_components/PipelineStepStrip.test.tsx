@@ -17,17 +17,17 @@ describe('PipelineStepStrip', () => {
   // WHICH one broke.
   it('FAILED paints the step after the done ones red, and names it', () => {
     const html = render({ n: 1, m: 4, status: 'FAILED' });
-    expect(count(html, 'bg-[var(--pl-text-strong)]')).toBe(1); // step 1 finished
+    expect(count(html, 'bg-[var(--pl-ok)]')).toBe(1); // step 1 finished
     expect(count(html, 'bg-[var(--pl-err)]')).toBe(1); // step 2 failed
     expect(count(html, 'bg-[var(--pl-gray-200)]')).toBe(2); // steps 3-4 untouched
     expect(html).toContain('2단계에서 실패 · 1/4');
   });
 
-  it('RUNNING marks the current step in the mid neutral, not a new hue', () => {
+  it('RUNNING marks the current step blue and the finished ones green', () => {
     const html = render({ n: 1, m: 4, status: 'RUNNING' });
-    expect(count(html, 'bg-[var(--pl-text-medium)]')).toBe(1);
-    expect(html).not.toContain('bg-[var(--pl-info)]');
-    expect(html).not.toContain('bg-[var(--pl-ok)]');
+    expect(count(html, 'bg-[var(--pl-ok)]')).toBe(1);
+    expect(count(html, 'bg-[var(--pl-info)]')).toBe(1);
+    expect(count(html, 'bg-[var(--pl-gray-200)]')).toBe(2);
     expect(html).toContain('2단계 진행 중 · 1/4');
   });
 
@@ -37,10 +37,12 @@ describe('PipelineStepStrip', () => {
     expect(html).toContain('시작 대기 · 0/4');
   });
 
+  // Its steps ran, but the run did not succeed — green would say it did.
   it('CANCELLED greys the steps it did finish and claims no current one', () => {
     const html = render({ n: 2, m: 4, status: 'CANCELLED' });
     expect(count(html, 'bg-[var(--pl-gray-400)]')).toBe(2);
     expect(count(html, 'bg-[var(--pl-gray-200)]')).toBe(2);
+    expect(html).not.toContain('bg-[var(--pl-ok)]');
     expect(html).toContain('2/4');
   });
 

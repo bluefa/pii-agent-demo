@@ -46,11 +46,9 @@ import {
   RelativeTime,
   RowAction,
   StatusRail,
+  StatusText,
   TargetCell,
 } from '@/app/admin/pipelines/_dashboard/cells';
-// The row's status, type and progress are the SAME components the detail pages
-// use — this list had local copies that read quieter than the facts they carry.
-import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
 import { PipelineTypeTag } from '@/app/admin/pipelines/_components/PipelineTypeTag';
 import { PipelineStepStrip } from '@/app/admin/pipelines/_components/PipelineStepStrip';
 
@@ -419,7 +417,7 @@ export default function DashboardPage(): ReactElement {
                       <PipelineTypeTag type={row.type} />
                     </td>
                     <td className={d.cell}>
-                      <StatusPill status={row.status} />
+                      <StatusText status={row.status} />
                     </td>
                     <td className={d.cell}>
                       <PipelineStepStrip

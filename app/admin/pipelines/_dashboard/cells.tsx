@@ -53,6 +53,11 @@ export function StatusRail({ status }: { status: PipelineStatus }): ReactElement
   return <td className={cn(d.railCell, status === 'FAILED' && d.railErr)} />;
 }
 
+/** Status with the chip taken off — colour is all that is left of the pill. */
+export function StatusText({ status }: { status: PipelineStatus }): ReactElement {
+  return <span className={cn(d.statusText, d.statusTextTone[status])}>{status}</span>;
+}
+
 /** Relative time ("3시간 전") with an absolute-time hover tooltip. */
 export function RelativeTime({ iso }: { iso: string }): ReactElement {
   return (

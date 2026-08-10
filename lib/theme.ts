@@ -2104,12 +2104,21 @@ export const pipelineStyles = {
     fillOff: 'bg-[var(--pl-gray-400)]',
     label: 'text-[12px] font-semibold text-[var(--pl-text-weak)] tabular-nums',
 
-    /* Segmented variant (PipelineStepStrip) — same 110px width and the same four
-       fill tokens above, cut into one span per task. Nothing new joins the ramp:
-       a segment is finished ink, current mid-grey, failed red, or bare track. */
+    /* Segmented variant (PipelineStepStrip) — same 110px width, cut into one span
+       per task.
+
+       This strip is the ONE place the monochrome ramp above does not apply
+       (owner: "완료된건 초록색, 현재 진행중인건 파란색"). The ramp works because a row
+       carries exactly ONE status, so weight can separate it from its neighbours
+       in other rows. A segment strip carries several statuses at once — finished,
+       running and untouched steps sit side by side inside 110px — and three
+       neighbouring 12px blocks cannot be told apart by weight alone. Hue is doing
+       work here that it was not doing on the pills. */
     stripWrap: 'inline-block',
     strip: 'flex gap-[2px] w-[110px]',
     stripSeg: 'h-1.5 flex-1 rounded-[2px]',
+    stripOk: 'bg-[var(--pl-ok)]',
+    stripActive: 'bg-[var(--pl-info)]',
     stripRest: 'bg-[var(--pl-gray-200)]',
     stripCaption: 'mt-1 block text-[11px] text-[var(--pl-text-faint)] tabular-nums',
   },
@@ -2368,12 +2377,32 @@ export const pipelineStyles = {
       'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
 
     /**
-     * Status rail — 3px at the row's leading edge. ONLY FAILED paints it. The
-     * section already decided that hue separates finished from failed and nothing
-     * else (`pipelineStyles.progress` fill comment), so a five-colour rail would
-     * invent a severity language the pills deliberately do not have. A failed row's
-     * red used to be one 68px pill in the middle of a 1400px row; now the row's own
-     * edge carries it.
+     * Status as bare text, no chip (owner: "상태는 그냥 태그없이 텍스트로만 표현하고
+     * 텍스트 색상만 남겨"). The pill's fill, border and icon all existed to make one
+     * word legible inside a busy row; here the word sits alone in its own column,
+     * so that chrome was carrying nothing the column did not already say.
+     *
+     * Hues match the step strip beside it — DONE green, RUNNING blue — but on the
+     * `-text` ramp: the raw signal colours are mixed for fills and drop under
+     * 4.5:1 as 13px text on white.
+     */
+    statusText: 'text-[13px] font-semibold tracking-[0.02em]',
+    statusTextTone: {
+      PENDING: 'text-[var(--pl-text-weak)]',
+      RUNNING: 'text-[var(--pl-info-text)]',
+      IN_PROGRESS: 'text-[var(--pl-info-text)]',
+      READY: 'text-[var(--pl-text-weak)]',
+      DONE: 'text-[var(--pl-ok-text)]',
+      FAILED: 'text-[var(--pl-err-text)]',
+      CANCELLED: 'text-[var(--pl-off-text)]',
+      BLOCKED: 'text-[var(--pl-off-text)]',
+    } as Record<PipelineStatusToneKey, string>,
+
+    /**
+     * Status rail — 3px at the row's leading edge. ONLY FAILED paints it. Failure
+     * is the one state worth finding without reading, and the row's own edge is
+     * where a scan hits first — its red used to be one 68px pill stranded in the
+     * middle of a 1400px row.
      */
     railCell: 'w-[3px] p-0',
     railErr: 'bg-[var(--pl-err)]',

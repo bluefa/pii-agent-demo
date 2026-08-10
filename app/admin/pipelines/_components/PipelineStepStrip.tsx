@@ -5,10 +5,11 @@
  * on, which is the only way a list row can say "step 2 of 4 is where it failed"
  * without opening the run.
  *
- * It introduces no colour: the segments wear the bar's own four fill tokens. The
- * section's status ladder is monochrome by owner ruling (theme.ts, above
- * PIPELINE_PILL_TONE), so steps separate by weight — finished ink, current
- * mid-grey, untouched track — and red stays the single accent for failure.
+ * Steps are coloured — green finished, blue current, red failed, grey untouched
+ * (owner: "완료된건 초록색, 현재 진행중인건 파란색"). That is a deliberate exception to
+ * the section's monochrome status ramp, and the exception is what makes the strip
+ * work: a pill carries one status, but three neighbouring 12px blocks carrying
+ * three different ones cannot be told apart by weight. See the token comment.
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -30,12 +31,14 @@ export interface PipelineStepStripProps {
 
 function segTone(index: number, n: number, status?: PipelineStatus | TaskStatus): string {
   const { progress } = pipelineStyles;
-  if (index < n) return status === 'CANCELLED' ? progress.fillOff : progress.fillOk;
+  // A cancelled run's finished steps stay grey: they ran, but the run did not
+  // succeed, and green here would read as one that did.
+  if (index < n) return status === 'CANCELLED' ? progress.fillOff : progress.stripOk;
   if (index > n) return progress.stripRest;
   // The step the run is sitting on. PENDING has not entered it and CANCELLED
   // stopped before it, so for those it is still bare track.
   if (status === 'FAILED') return progress.fillErr;
-  if (status === 'RUNNING' || status === 'IN_PROGRESS') return progress.fillPrimary;
+  if (status === 'RUNNING' || status === 'IN_PROGRESS') return progress.stripActive;
   return progress.stripRest;
 }
 
