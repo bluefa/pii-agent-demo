@@ -1,81 +1,56 @@
 /**
- * Dashboard list cell presenters (Figma Make redesign) — page.tsx-exclusive.
+ * Dashboard list cell presenters — page.tsx-exclusive.
  *
- * These deliberately do NOT reuse the shared PipelineProgressBar / ProvTag /
- * PlTable (those keep their colored look on the detail pages). The dashboard row
- * is a quieter visual language: gray progress, plain cloud text, relative time
- * with a hover tooltip, and a hover-reveal dark action button. All classes route
- * through `dashboard.*` tokens (no raw colors).
- *
- * Status is the ONE exception (owner call): the row renders the shared
- * StatusPill so the status tag reads identically here and on the target detail
- * page. A dashboard-local dot+text variant used to live here and was removed.
+ * These used to be deliberate LOCAL copies of the shared row parts: a gray
+ * progress bar instead of PipelineProgressBar, plain cloud text instead of
+ * ProvTag, a private type cell instead of PipelineTypeTag. The result was that
+ * a FAILED row here looked like a running one, and a provider looked like
+ * nothing at all — while every sibling table in this section said both at a
+ * glance. The copies are gone; what is left is what only this list needs
+ * (a two-line identity, a relative time with a tooltip, a hover-reveal action).
  */
 import type { ReactElement, ReactNode } from 'react';
 
-import { pipelineStyles } from '@/lib/theme';
-import { displayProvider, fmtDateTime, fmtRelativeTime, providerLabel } from '@/lib/pipeline/format';
-import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
-import type { CloudProvider, PipelineType } from '@/lib/pipeline/types';
+import { cn, pipelineStyles } from '@/lib/theme';
+import { fmtDateTime, fmtRelativeTime } from '@/lib/pipeline/format';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
+import type { CloudProvider, PipelineStatus } from '@/lib/pipeline/types';
 
 const { dashboard: d } = pipelineStyles;
 
-const TYPE_ICON: Record<PipelineType, IconName> = {
-  INSTALL: 'install',
-  DELETE: 'trash',
-  CUSTOM: 'sliders',
-};
-
-/** 서비스 이름 — ≤20자, overflow는 말줄임. */
-export function ServiceNameCell({ name }: { name: string }): ReactElement {
-  return <span className={d.serviceName}>{name}</span>;
-}
-
-/** 서비스 코드 — 3자, 모노스페이스. */
-export function ServiceCodeCell({ code }: { code: string }): ReactElement {
-  return <span className={d.serviceCode}>{code}</span>;
-}
-
-/** 대상(Target Source) 번호. */
-export function TargetIdCell({ targetId }: { targetId: string }): ReactElement {
-  return <span className={d.targetId}>#{targetId}</span>;
-}
-
-/** Cloud provider — plain medium text (no brand dot). An SDU target reads as
- *  "SDU" over its underlying CSP. */
-export function CloudText({
+/**
+ * Which target this row is, in one column and two lines: the service name, then
+ * the code chip, the Target Source number, and the provider mark.
+ */
+export function TargetCell({
+  name,
+  code,
+  targetId,
   provider,
   isSdu,
 }: {
+  name: string;
+  code: string;
+  targetId: string;
   provider: CloudProvider | string;
   isSdu?: boolean;
 }): ReactElement {
-  return <span className={d.cloudText}>{providerLabel(displayProvider(provider, isSdu))}</span>;
-}
-
-/** Pipeline type — icon + enum text. */
-export function TypeCell({ type }: { type: PipelineType }): ReactElement {
   return (
-    <span className={d.typeCell}>
-      <Icon name={TYPE_ICON[type]} size="sm" />
-      {type}
-    </span>
-  );
-}
-
-/** Progress — gray track + gray fill + N/M count. */
-export function GrayProgress({ n, m }: { n: number; m: number }): ReactElement {
-  const pct = m === 0 ? 0 : Math.round((n / m) * 100);
-  return (
-    <span className={d.progressWrap}>
-      <span className={d.progressTrack}>
-        <span className={d.progressFill} style={{ width: `${pct}%` }} />
-      </span>
-      <span className={d.progressCount}>
-        {n}/{m}
+    <span className={d.identity}>
+      <span className={d.identityName}>{name}</span>
+      <span className={d.identityMeta}>
+        <span className={d.identityCode}>{code}</span>
+        <span className={d.identityTarget}>#{targetId}</span>
+        <ProvTag provider={provider} isSdu={isSdu} />
       </span>
     </span>
   );
+}
+
+/** The row's leading 3px. Painted for FAILED only — see the token comment. */
+export function StatusRail({ status }: { status: PipelineStatus }): ReactElement {
+  return <td className={cn(d.railCell, status === 'FAILED' && d.railErr)} />;
 }
 
 /** Relative time ("3시간 전") with an absolute-time hover tooltip. */

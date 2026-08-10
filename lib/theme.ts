@@ -2330,29 +2330,42 @@ export const pipelineStyles = {
      * `headRow` border it used to need is gone.
      */
     th: 'h-[34px] px-5 text-left whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.03em] text-[var(--pl-text-weak)] bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)]',
+    /** The header band alone, for a column that carries no label (the rail). */
+    thBand: 'bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)]',
     body: 'divide-y divide-[var(--pl-gray-100)]',
     row: 'group cursor-pointer transition-colors hover:bg-[var(--pl-gray-50)]',
     cell: 'px-5 py-3.5 align-middle',
 
-    /** 서비스 이름/코드/대상 — separate columns (이름 ≤20자, 코드 3자). */
-    serviceName: 'block max-w-[28ch] truncate text-[14px] font-semibold text-[var(--pl-text-strong)]',
-    serviceCode:
-      'whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
-    /** Same weight/colour as 서비스 코드 — it is a row value, not a footnote. */
-    targetId:
-      'whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
-    /** Cloud — plain medium text (no brand dot). */
-    cloudText: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
-    /** Pipeline type — icon + text. */
-    typeCell: 'inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--pl-text-medium)]',
+    /**
+     * Row identity — ONE column, two lines: the service name, then the chips that
+     * say which target it is. As four columns (이름 · 코드 · Target · Cloud) the
+     * three answers to "which one is this" sat more than 300px apart at 1600px,
+     * so reading one row meant reassembling it from three places.
+     *
+     * Line geometry is the section's 2-line stack (`tqStyles.stepStack`): gap 3px,
+     * the second line a 12/600 r6 chip on gray-100. No baseline lift here — every
+     * row in this column is two lines, so there is no single-line sibling to align
+     * against (that is what `stackedIdentityLift` exists for, in a table that mixes
+     * both).
+     */
+    identity: 'flex flex-col items-start gap-[3px]',
+    identityName: 'block max-w-[34ch] truncate text-[14px] font-semibold text-[var(--pl-text-strong)]',
+    identityMeta: 'flex items-center gap-2',
+    identityCode:
+      'inline-flex items-center rounded-md px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
+    identityTarget:
+      'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
 
-
-    /** Progress — gray track + gray fill + N/M count. The fill is `block` so its
-     *  `h-full` resolves against the track height (an inline span would collapse). */
-    progressWrap: 'flex items-center gap-2 min-w-[120px]',
-    progressTrack: 'block flex-1 h-1 rounded-full bg-[var(--pl-gray-100)] overflow-hidden',
-    progressFill: 'block h-full rounded-full bg-[var(--pl-gray-400)] transition-all duration-500',
-    progressCount: 'text-[12px] text-[var(--pl-text-faint)] tabular-nums whitespace-nowrap',
+    /**
+     * Status rail — 3px at the row's leading edge. ONLY FAILED paints it. The
+     * section already decided that hue separates finished from failed and nothing
+     * else (`pipelineStyles.progress` fill comment), so a five-colour rail would
+     * invent a severity language the pills deliberately do not have. A failed row's
+     * red used to be one 68px pill in the middle of a 1400px row; now the row's own
+     * edge carries it.
+     */
+    railCell: 'w-[3px] p-0',
+    railErr: 'bg-[var(--pl-err)]',
 
     /** Relative-time cell + hover tooltip (named group so only the cell triggers it). */
     timeWrap: 'group/time relative inline-block',

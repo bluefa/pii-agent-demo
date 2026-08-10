@@ -39,19 +39,17 @@ import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import {
-  CloudText,
   DashRow,
-  GrayProgress,
   RelativeTime,
   RowAction,
-  ServiceCodeCell,
-  ServiceNameCell,
-  TargetIdCell,
-  TypeCell,
+  StatusRail,
+  TargetCell,
 } from '@/app/admin/pipelines/_dashboard/cells';
-// Owner call: the dashboard status uses the SAME tag as the target detail page,
-// not a dashboard-local dot+text variant.
+// The row's status, type and progress are the SAME components the detail pages
+// use — this list had local copies that read quieter than the facts they carry.
 import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
+import { PipelineTypeTag } from '@/app/admin/pipelines/_components/PipelineTypeTag';
+import { PipelineProgressBar } from '@/app/admin/pipelines/_components/PipelineProgressBar';
 
 import {
   DASH_FETCH_SIZE,
@@ -413,10 +411,12 @@ export default function DashboardPage(): ReactElement {
             <table className={d.table}>
               <thead>
                 <tr>
-                  <th className={cn(d.th, 'w-[28ch]')}>서비스 이름</th>
-                  <th className={d.th}>서비스 코드</th>
-                  <th className={d.th}>Target Source</th>
-                  <th className={d.th}>Cloud</th>
+                  {/* The rail column has no label — it is the row's own edge, so it
+                      takes railCell ALONE. Merging d.th in would hand the column
+                      that token's px-5 (cn is a plain join; Tailwind's output order
+                      picks the winner, and padding beat p-0 at 40px wide). */}
+                  <th className={cn(d.railCell, d.thBand)} />
+                  <th className={cn(d.th, 'w-[38ch]')}>대상</th>
                   <th className={d.th}>작업 유형</th>
                   <th className={d.th}>상태</th>
                   <th className={d.th}>진행도</th>
@@ -430,26 +430,28 @@ export default function DashboardPage(): ReactElement {
                     key={row.pipeline_id}
                     onActivate={() => router.push(passRoutes.pipelines.pipeline(row.pipeline_id))}
                   >
+                    <StatusRail status={row.status} />
                     <td className={d.cell}>
-                      <ServiceNameCell name={row.service_name} />
+                      <TargetCell
+                        name={row.service_name}
+                        code={row.service_code}
+                        targetId={String(row.target_source_id)}
+                        provider={row.cloud_provider}
+                        isSdu={row.is_sdu_type}
+                      />
                     </td>
                     <td className={d.cell}>
-                      <ServiceCodeCell code={row.service_code} />
-                    </td>
-                    <td className={d.cell}>
-                      <TargetIdCell targetId={String(row.target_source_id)} />
-                    </td>
-                    <td className={d.cell}>
-                      <CloudText provider={row.cloud_provider} isSdu={row.is_sdu_type} />
-                    </td>
-                    <td className={d.cell}>
-                      <TypeCell type={row.type} />
+                      <PipelineTypeTag type={row.type} />
                     </td>
                     <td className={d.cell}>
                       <StatusPill status={row.status} />
                     </td>
                     <td className={d.cell}>
-                      <GrayProgress n={row.done_task_count} m={row.total_task_count} />
+                      <PipelineProgressBar
+                        n={row.done_task_count}
+                        m={row.total_task_count}
+                        status={row.status}
+                      />
                     </td>
                     <td className={d.cell}>
                       <RelativeTime iso={row.created_at} />

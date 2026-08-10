@@ -19,7 +19,7 @@
 | P3 | 페이저가 `1 / 2` 만 표시 — 총 건수 없음, `size=200` 창 잘림이 무고지 | `page.tsx` pager | UX 원칙 |
 | P4 | StatTile 에 `onClick` 없음 — 요약과 목록이 한 화면에 있으나 연결되지 않음 | `page.tsx` StatTile | UX 원칙 |
 | P5 | FAILED 행의 유일한 빨강이 68px 필 하나 — 행·진행바·시간 모두 중립 | `_dashboard/cells.tsx` | UX 원칙 |
-| P6 | 진행바 트랙 `h-1`(1px), FAILED 에서도 회색 채움 | `theme.ts` `dashboard.progressTrack/Fill` | 수치 위반 |
+| P6 | 진행바가 FAILED 에서도 회색 채움 (`bg-gray-400` 고정) — 트랙도 공용 6px 이 아닌 4px | `theme.ts` `dashboard.progressTrack/Fill` ↔ `pipelineStyles.progress` | 수치 위반 |
 | P7 | 정체성이 이름/코드/#Target 3개 열로 분산 — 1600px 에서 300px 이상 벌어짐 | `page.tsx` 표 헤더 | UX 원칙 |
 | P8 | Cloud 가 평문 텍스트 — 같은 섹션 다른 표는 전부 공용 `ProvTag` | `cells.tsx` `CloudText` ↔ `_components/ProvTag.tsx` | 수치 위반 |
 | P9 | 한 섹션에 표 헤더 문법 2종 | `pipelineStyles.table.th` ↔ `pipelineStyles.dashboard.th` | 수치 위반 |
@@ -51,12 +51,11 @@
 
 | PR | 내용 | 해결 |
 |----|------|------|
-| 1 | 밀도 정렬 + 기간 기본 7일 + 총 건수/창 고지 + **KPI 카드 = 필터** | P1·P2·P3·P4·P9·P10·P11 |
-| 2 | 행 문법 재설계 (2줄 스택·`ProvTag`·세그먼트 진행·경과) | P5·P6·P7·P8 |
+| 1 | 밀도 정렬 + 기간 기본 7일 + 총 건수/창 고지 + KPI 카드 = 필터 + 행 문법 | P1~P11 (P12 제외) |
 
-> 처음에는 밀도 정렬과 카드=필터를 다른 PR 로 나눴는데, **밀도 PR 만으로는 화면이 사실상
-> 그대로였다** — 손댈 예정이던 KPI 타일을 다음 PR 로 미뤄 뒀기 때문이다. 어차피 교체될 타일에
-> 밀도만 입히는 것도 버리는 작업이라, 둘을 한 PR 로 합쳤다.
+> 원래는 3개 PR 로 나눴다. 실제로 해 보니 **앞의 두 PR 은 각각 화면이 안 바뀐 것처럼 보였다** —
+> 밀도 PR 은 다음 PR 에서 교체될 KPI 타일을 손대지 않았고, 카드 PR 은 표를 그대로 뒀다.
+> 쪼갠 단위가 "리뷰하기 좋은 단위"였지 "화면이 완성되는 단위"가 아니었다. 한 PR 로 합쳤다.
 
 ### 오너 결정 이력
 
@@ -85,6 +84,16 @@
 | 카드 마크 글리프 20px | 운영 알림 카드 `AlertStageCard.tsx` |
 | 마크 4종 | `_components/icons.tsx` — `warn-tri` / `loader`(StatusPill 의 RUNNING) / `check-circle` / `table`(목록 마커) |
 
+### 진단 정정 (구현 중 발견)
+
+- **P6 의 "트랙 1px" 은 틀렸다.** `h-1` 은 Tailwind 에서 4px 이고, 공용 바는 `h-1.5`(6px)다. 2px
+  차이라 문제의 본질이 아니었다 — 진짜 문제는 **채움색이 상태와 무관하게 항상 회색**이라
+  FAILED 가 진행 중처럼 보였던 것이다. 위 표를 그렇게 고쳤다.
+- **P5·P6·P8 은 하나의 원인이었다.** `_dashboard/cells.tsx` 머리에 "공용 `PipelineProgressBar` /
+  `ProvTag` / `PlTable` 을 일부러 안 쓴다"고 적혀 있었다. 세 개의 별도 문제가 아니라 **한 번의
+  결정이 만든 세 증상**이었고, 그 결정을 되돌리는 것이 곧 셋의 수정이다. `TypeCell` 도 공용
+  `PipelineTypeTag` 의 사본이었다(색만 빠진).
+
 ## 4. 결정된 것 / 남은 것
 
 **취소(CANCELLED) → "종료" 카드에 합쳤다 (선택지 a).** 상태는 5종이고 카드는 4장이라 어딘가는
@@ -107,4 +116,5 @@
 | PR | 브랜치 | 상태 |
 |----|--------|------|
 | 1 | `feat/pipelines-dash-density` | [#684](https://github.com/bluefa/pii-agent-demo/pull/684) |
-| 2 | 미착수 | — |
+
+P12(항상 켜져 있는 select 3개 → 저장된 뷰·연산자 칩)만 시안 D 로 백로그에 남는다.
