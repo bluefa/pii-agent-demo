@@ -120,8 +120,8 @@ export const CredentialPickModal = ({
           >
             {target.value}
           </span>
-          {/* 파랑은 누를 수 있는 것에만 쓴다 — 지시문에 칠하면 링크로 읽히고, 이 모달에서 파랑은
-              이미 선택된 행과 저장 CTA 의 뜻이다. */}
+          {/* 파랑은 지시문에는 쓰지 않는다 — 지시문에 칠하면 링크로 읽힌다. 이 모달에서 파랑은
+              이미 선택된 행·저장 CTA·상단 "현재 선택" 상태 라벨의 뜻이다. */}
           <span className={cn('mt-2 block text-[14px] font-normal', textColors.secondary)}>
             사용할 DB 접속 자격 증명을 선택하세요.
           </span>
