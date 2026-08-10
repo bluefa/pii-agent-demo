@@ -113,7 +113,7 @@ export const Pagination = ({
           entry === '…' ? (
             <span
               key={`ellipsis-${index}`}
-              className="inline-flex min-w-[20px] items-center justify-center self-center text-center text-[12px] text-[#6B7280]"
+              className="inline-flex min-w-[22px] items-center justify-center self-center text-center text-[14px] text-[#6B7280]"
               aria-hidden="true"
             >
               …
@@ -151,9 +151,14 @@ interface PageBtnProps {
 }
 
 /**
- * v15 `.pg-pages button` (05-tables.md §7g–7h): 28×28, radius 6, 0/8 padding,
+ * v15 `.pg-pages button` (05-tables.md §7g–7h): radius 6, 0/8 padding,
  * transparent border + bg, #374151 text. Hover → #F9FAFB / #111827. Active
  * (`.current`) → #0064FF / #fff / 600. Disabled → opacity 0.35.
+ *
+ * 30×30 / 14px — v15 의 28×28 / 12px 에서 두 축 모두 2px 올렸다(오너 지적). 상자만
+ * 키우면 글리프가 그대로라 커진 것으로 읽히지 않는다: 작았던 것은 ‹ › 자체다.
+ * 같은 줄의 "표시 N건씩 / 전체 N건"은 12px 로 남는다 — 크기가 누르는 것과 읽는 것을
+ * 가르는 축이 된다.
  */
 const PageBtn = ({ active, onClick, ariaLabel, children, disabled }: PageBtnProps) => (
   <button
@@ -163,7 +168,7 @@ const PageBtn = ({ active, onClick, ariaLabel, children, disabled }: PageBtnProp
     disabled={disabled}
     onClick={onClick}
     className={cn(
-      'inline-grid min-w-[28px] h-[28px] place-items-center rounded-[6px] border px-[8px] text-[12px] transition-colors disabled:opacity-35 disabled:cursor-not-allowed',
+      'inline-grid min-w-[30px] h-[30px] place-items-center rounded-[6px] border px-[8px] text-[14px] transition-colors disabled:opacity-35 disabled:cursor-not-allowed',
       numericFeatures.tabular,
       active
         ? 'border-transparent bg-[#0064FF] text-white font-semibold'

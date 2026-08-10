@@ -54,6 +54,9 @@ export const IdcFirewallRequestModal = ({
          승인 요청 상세와 같은 폭을 쓴다. */
       size="3xl"
       chrome="toss"
+      /* 표가 이미 자기 테두리로 끝나고 그 아래 페이저까지 한 덩어리라, 푸터 위 실선은
+         같은 경계를 두 번 긋는다 — 버튼이 별개 판처럼 떨어져 보였다. */
+      footerDivider={false}
       footer={
         <div className="flex w-full items-center justify-between">
           <button
