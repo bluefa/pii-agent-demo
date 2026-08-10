@@ -71,7 +71,6 @@ describe('InstallStatusDetail — legacy (ungrouped) layout', () => {
     // Settled/total count next to the status word (r-1 settled of 2, per step).
     expect(within(nav).getAllByText('1/2').length).toBeGreaterThanOrEqual(1);
     // No grouped-mode chrome.
-    expect(screen.queryByText('설치 진행 상황')).toBeNull();
     expect(screen.queryByText(/내가 할 일/)).toBeNull();
   });
 

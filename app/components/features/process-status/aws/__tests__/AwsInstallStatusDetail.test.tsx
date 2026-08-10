@@ -63,7 +63,10 @@ describe('AwsInstallStatusDetail', () => {
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
     // The grouped rail has no summary step — the rail lists the steps directly.
     expect(within(nav).queryByText('설치 현황 요약')).toBeNull();
-    expect(screen.getByText('설치 진행 상황')).toBeTruthy();
+    // 트레이 제목은 없다 — 카드 헤더('Agent 설치')가 이미 한 말이라 두 제목이 겹쳤다.
+    // 다만 제목과 한 줄에 있던 조회 시각은 제목을 지울 때 같이 사라지면 안 된다.
+    expect(screen.queryByText('설치 진행 상황')).toBeNull();
+    expect(screen.getByText(/^마지막 확인 .+ \(KST\)$/)).toBeTruthy();
     expect(within(nav).getByText('Terraform 권한 부여 확인')).toBeTruthy();
     expect(within(nav).getByText('서비스 측 Terraform 자동 적용')).toBeTruthy();
     expect(within(nav).getByText('BDC 서비스 영역')).toBeTruthy();

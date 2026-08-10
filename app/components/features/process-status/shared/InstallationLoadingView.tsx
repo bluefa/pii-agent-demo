@@ -1,10 +1,10 @@
 'use client';
 
-import { bgColors, borderColors, cn, idcStyles, shadows, stackGap } from '@/lib/theme';
+import { bgColors, borderColors, cn, idcStyles, stackGap } from '@/lib/theme';
 
 type InstallationLoadingViewProps = { provider: string } & (
   | {
-      /** Mirror the grouped rail frame (gray wrapper + 224px rail + fixed 560px card). */
+      /** Mirror the grouped rail frame (bordered container + 224px rail + fixed 560px). */
       grouped: true;
       railRows?: never;
     }
@@ -49,26 +49,30 @@ export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
       aria-busy="true"
       aria-live="polite"
       aria-label={`${props.provider} 설치 상태 확인 중`}
-      className={cn('rounded-2xl p-2', bgColors.panel)}
+      className="flex flex-col gap-3"
     >
-      {/* metabar — title left, last-check caption right */}
-      <div className="flex items-baseline gap-3 px-2.5 pt-1.5 pb-2.5">
-        <Bar className="h-4 w-32 rounded" />
-        <Bar className="ml-auto h-3 w-44 rounded" />
+      {/* last-check caption — right aligned, no title (the card header carries it) */}
+      <div className="flex justify-end">
+        <Bar className="h-4 w-44 rounded" />
       </div>
-      <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-2 h-[560px]">
+      <div
+        className={cn(
+          'grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden h-[560px]',
+          borderColors.light,
+        )}
+      >
         {/* rail — group label + single-line items */}
-        <div className="flex flex-col gap-0.5 pb-1">
-          <Bar className="mx-2.5 mt-3 mb-1 h-3 w-24 rounded" />
+        <div className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.panel, borderColors.light)}>
+          <Bar tone={RAIL_BAR} className="mx-2.5 mt-3 mb-1 h-3 w-24 rounded" />
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex items-center gap-2 px-3.5 py-2">
-              <Bar className="h-3.5 flex-1 rounded" />
-              <Bar className="h-3 w-8 flex-shrink-0 rounded" />
+              <Bar tone={RAIL_BAR} className="h-3.5 flex-1 rounded" />
+              <Bar tone={RAIL_BAR} className="h-3 w-8 flex-shrink-0 rounded" />
             </div>
           ))}
         </div>
-        {/* white content card — fixed header, table-row body */}
-        <div className={cn('min-w-0 flex flex-col bg-white rounded-xl border', borderColors.default, shadows.hair)}>
+        {/* content cell — fixed header, table-row body, on the card's own white */}
+        <div className="min-w-0 flex flex-col">
           <div className={cn('flex flex-col gap-1.5 px-5 py-4 border-b', borderColors.light)}>
             <Bar className="h-4 w-40 rounded" />
             <Bar className="h-3 w-[60%] rounded" />

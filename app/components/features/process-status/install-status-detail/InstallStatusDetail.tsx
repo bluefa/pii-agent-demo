@@ -623,8 +623,8 @@ export const InstallStatusDetail = ({
   );
 
   // ---------------------------------------------------------------------------
-  // Grouped rail layout (v3.6, AWS first) — a gray wrapper encloses the rail
-  // and the white content card.
+  // Grouped rail layout (v3.6, AWS first) — the legacy hairline frame holds the
+  // rail and the content cell; only the grouping of the rail items differs.
   // ---------------------------------------------------------------------------
   if (grouped) {
     const todoSteps = navSteps.filter((s) => s.group === 'todo');
@@ -715,32 +715,41 @@ export const InstallStatusDetail = ({
     );
 
     return (
-      <div className={cn('rounded-2xl p-2', bgColors.panel)}>
-        {/* Metabar — title left / last-check right, one baseline row. No manual
-            refresh or interval control (owner decision) — polling refreshes quietly. */}
-        <div className="flex items-baseline gap-3 flex-wrap px-2.5 pt-1.5 pb-2.5">
-          <h3
-            className={cn(
-              'text-[20px] font-semibold leading-[28px] tracking-[-0.01em]',
-              textColors.primary,
-            )}
-          >
-            설치 진행 상황
-          </h3>
-          <span className={cn('ml-auto', textStyles.caption, textColors.secondary)}>
+      <div className="flex flex-col gap-3">
+        {/* 조회 시각만 남는다 — 카드 헤더가 이미 'Agent 설치'라고 말하는데 트레이가
+            제목을 한 번 더 걸면 두 제목이 170px 간격으로 겹치고, 크기·굵기 어느
+            레버도 둘 중 누가 상위인지 답하지 못한다. No manual refresh or interval
+            control (owner decision) — polling refreshes quietly. */}
+        {(lastCheck.checkedAt || lastCheck.status === 'FAILED') && (
+          <div className={cn('flex justify-end', textStyles.caption, textColors.secondary)}>
             {/* checked_at is UTC wire — the label asserts KST, so the formatter
                 pins Asia/Seoul instead of trusting the browser timezone. */}
             {lastCheck.checkedAt && <>마지막 확인 {formatDateTimeKst(lastCheck.checkedAt)} (KST)</>}
             {lastCheck.status === 'FAILED' && (
               <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
             )}
-          </span>
-        </div>
+          </div>
+        )}
 
-        {/* Fixed height — scrolling lives in the card body on the right; the
-            card header is the clipping point. */}
-        <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-2 h-[560px]">
-          <nav className="flex flex-col gap-0.5 overflow-y-auto min-h-0 pb-1" aria-label="설치 단계">
+        {/* 레거시(Azure/GCP/IDC) 분기와 같은 그릇이다 — 헤어라인 컨테이너 하나가 레일과
+            내용을 담고, 회색은 카드 위에 얹은 판이 아니라 레일 셀의 채움이다. 카드
+            자체가 캔버스 위에 떠 있는 raised 표면이라 그 안에 가라앉은 면을 또 깔 수
+            없다(Atlassian elevation: sunken 은 default 위에만).
+            높이 고정은 유지 — 스크롤은 좌우 셀 안에서 일어나고 프레임이 자르는 점이다. */}
+        <div
+          className={cn(
+            'grid grid-cols-[224px_minmax(0,1fr)] rounded-xl border overflow-hidden h-[560px]',
+            borderColors.light,
+          )}
+        >
+          <nav
+            className={cn(
+              'flex flex-col gap-0.5 p-2 border-r overflow-y-auto min-h-0',
+              bgColors.panel,
+              borderColors.light,
+            )}
+            aria-label="설치 단계"
+          >
             {groupLabel(
               `내가 할 일 (${openTodoCount})`,
               openTodoCount > 0 ? primaryColors.textOnLight : textColors.secondary,
@@ -775,9 +784,10 @@ export const InstallStatusDetail = ({
                 수치 진행률이 남아 있지 않다. 필요해지면 메타바 우측이 자리다. */}
           </nav>
 
-          {/* Primer card — separation is the hairline border (gray-200, so it
-              reads against the gray-100 panel), the shadow is only a 1px lift hint. */}
-          <div className={cn('min-w-0 min-h-0 flex flex-col bg-white rounded-xl border', borderColors.default, shadows.hair)}>
+          {/* 프레임의 오른쪽 셀 — 카드의 흰 바닥을 그대로 쓴다. 가르는 일은 레일의
+              회색 채움과 컨테이너 세로 경계선이 이미 하므로, 여기에 카드를 한 겹 더
+              두르면 카드 속 카드가 된다. */}
+          <div className="min-w-0 min-h-0 flex flex-col">
             {activeReference ? (
               /* 참고 패널은 표가 아니라 액션 하나다 — 헤더+본문으로 쪼개면 16px 제목,
                  12px 설명, 떠 있는 버튼 세 조각이 큰 빈 면 위에 남는다(오너 지적).
