@@ -57,6 +57,9 @@ export const IdcFirewallRequestModal = ({
       /* 표가 이미 자기 테두리로 끝나고 그 아래 페이저까지 한 덩어리라, 푸터 위 실선은
          같은 경계를 두 번 긋는다 — 버튼이 별개 판처럼 떨어져 보였다. */
       footerDivider={false}
+      /* 푸터의 「확인」이 이미 나가는 길이다 — 머리에 ✕ 를 하나 더 두면 같은 동작이
+         두 자리를 갖는다. 배경 클릭과 ESC 도 그대로 닫는다. */
+      closeButton={false}
       footer={
         <div className="flex w-full items-center justify-between">
           <button
