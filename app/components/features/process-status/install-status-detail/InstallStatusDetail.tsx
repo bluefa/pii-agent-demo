@@ -700,16 +700,17 @@ export const InstallStatusDetail = ({
     // 16/600 — 그룹 이름이 항목(14/400)보다 크고 굵다. 계층 레버(크기·굵기)가 전부
     // 라벨 편을 가리켜야 한다 — 16/500 은 크기로는 상위, 굵기·잉크로는 하위라
     // 부모가 오락가락했다(레일 타이포 벤치마크 진단 1).
-    const groupLabel = (text: string, tone: string) => (
+    const groupLabel = (text: string, tone: string, trailing?: ReactNode) => (
       <div
         className={cn(
-          'px-2.5 pt-3 pb-1 text-[16px] font-semibold leading-[24px] tracking-[-0.01em] flex-shrink-0',
+          'flex items-baseline gap-2 px-2.5 pt-3 pb-1 text-[16px] font-semibold leading-[24px] tracking-[-0.01em] flex-shrink-0',
           // On the gray-100 panel: #0064FF is 4.47:1 and gray-500 is 4.37:1,
           // both under AA — use the darker tiers the theme keeps for tints.
           tone,
         )}
       >
-        {text}
+        <span className="min-w-0 truncate">{text}</span>
+        {trailing}
       </div>
     );
 
@@ -743,15 +744,23 @@ export const InstallStatusDetail = ({
             {groupLabel(
               `내가 할 일 (${openTodoCount})`,
               openTodoCount > 0 ? primaryColors.textOnLight : textColors.secondary,
+              // 0 은 "비어 있다"가 아니라 "다 끝났다" — 남는 자리에 문단을 뿌리는 대신
+              // 그룹 이름 옆에서 한 마디로 닫는다. 지웠던 두 줄은 둘 다 중복이었다:
+              // "하실 일이 없어요"는 라벨의 (0)이, "자동으로 진행돼요"는 바로 아래
+              // 'BDC 진행' 라벨이 이미 말한다.
+              openTodoCount === 0 && (
+                <span
+                  className={cn(
+                    'ml-auto flex-shrink-0 font-medium',
+                    textStyles.caption,
+                    statusColors.success.textDark,
+                  )}
+                >
+                  모두 완료
+                </span>
+              ),
             )}
             {todoSteps.map((s) => railItem(s, null))}
-            {openTodoCount === 0 && (
-              <p className={cn('px-3.5 pb-1 flex-shrink-0', textStyles.caption, textColors.secondary)}>
-                지금 하실 일이 없어요 —
-                <br />
-                모든 단계는 자동으로 진행돼요
-              </p>
-            )}
             {/* BDC 는 인디고 — 새 색이 아니라 이 화면이 이미 'BDC측'에 쓰고 있는 색이다
                 (SideTag 의 tagStyles.indigo, sideTextColors.bdc). 그룹 이름과 행 태그가
                 같은 색을 말해야 "이 묶음이 곧 BDC 측"으로 읽힌다. */}
