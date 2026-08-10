@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { ProcessStatus } from '@/lib/types';
+import { installStepperStyles } from '@/lib/theme';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status/InstallationProcessProgressBar';
 
 vi.stubGlobal('matchMedia', () => ({
@@ -66,6 +69,42 @@ describe('InstallationProcessProgressBar', () => {
     );
     expect(getByText('연동 대상 DB 선택')).toBeTruthy();
     expect(getByText('완료')).toBeTruthy();
+  });
+
+  /**
+   * The 연결 테스트 verdict tag is absolutely positioned, so it hangs into space the
+   * step LAYOUTS own, not this component. Measured live at 1010: the stepper's own
+   * `pb-[18px]` plus the body column's `pt-8` give 50px below the last label, the tag
+   * takes 34px of it (`mt-1.5` + a 28px-tall chip), and 16px of clearance is left to
+   * the first card.
+   *
+   * Nothing else catches a change here. Tighten `pt-8` to `pt-2` and the tag OVERLAPS
+   * the card instead of pushing it — out-of-flow boxes reflow nothing — so the page
+   * still renders, every test still passes, and only a human looking at the screen
+   * would notice.
+   *
+   * This is a source-string pin, not a layout measurement: jsdom computes no
+   * geometry, so it fails when one of the four inputs is EDITED, and equally when
+   * one is merely reordered or moved into a token. That false-positive is the price
+   * of the tripwire — it fires, you re-derive the 50px, you update the string. What
+   * it cannot catch is the tag growing taller from a longer label or a bigger font.
+   */
+  it('pins the four values the absolute tag slot clearance is made of', () => {
+    expect(installStepperStyles.tagSlot).toContain('absolute');
+    expect(installStepperStyles.tagSlot).toContain('top-full');
+    expect(installStepperStyles.tagSlot).toContain('mt-1.5');
+    expect(installStepperStyles.wrap).toContain('pb-[18px]');
+
+    const root = path.resolve(__dirname, '../../../../..');
+    for (const layout of [
+      'app/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout.tsx',
+      'app/target-sources/[targetSourceId]/_components/idc/IdcTargetSourceLayout.tsx',
+    ]) {
+      const src = readFileSync(path.join(root, layout), 'utf8');
+      expect(src, `${layout}: body top padding feeds the tag's clearance`).toContain(
+        'px-10 pt-8 pb-20',
+      );
+    }
   });
 
   it('exposes the install ariaLabel on nav', () => {

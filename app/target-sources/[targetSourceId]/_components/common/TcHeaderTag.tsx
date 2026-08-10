@@ -9,40 +9,42 @@ import { foldAgentStatuses } from '@/lib/test-connection-summary';
 
 interface TcHeaderTagProps {
   targetSourceId: number;
-  /**
-   * Step 5 가 폴링 중인 최신 실행. `undefined` = 폴링 없는 화면(스텝 1~4·6·7) —
-   * 이 태그가 latest_version 을 1회 조회한다. 값이 오면(null 포함) 그것이 진실의
-   * 전부다: null 은 "실행 없음(NOT_FOUND)"이므로 무표시. 모듈 스토어로 잇지 않는
-   * 이유는 DR1/DR7(모듈 레벨 fetch 결과 보관 금지) — prop 이 곧 최신 관찰이다.
-   */
-  liveJob?: TestConnectionVersionResult | null;
 }
 
 /**
- * 대상 상세 헤더의 연결 테스트 상태 태그 (P5). 실행 기록이 없으면 아무것도 그리지
- * 않는다. 스스로 폴링하지 않는다 — Step 5 화면에서는 카드의 폴링이 liveJob 으로
- * 같은 사실을 내려 주고, 그 외 스텝에서는 마지막 실행을 1회 조회해 보여준다.
+ * The latest connection-test verdict, hung under the stepper's 연결 테스트 step (P5).
+ * Draws nothing when the target has never run a test.
+ *
+ * It reads latest_version once on mount and does not poll. Step 5's card owns its own
+ * polling, but #661 severed that feed from this tag (see WaitingConnectionTestStep,
+ * where the downgrade is recorded), so a verdict that flips while you sit on Step 5
+ * reaches the card and not this tag until the next mount.
+ *
+ * The copy drops the word 연결 because the step name sits directly above it, and drops
+ * the run number at the owner's request. That second cost is known: on this page 실행 #N
+ * is drawn only by the Step 5 card and the 실행 이력 modal, both mounted only under Step 5,
+ * so on the other six steps the number is now unreachable. The guide rail's 진행 내역 tab
+ * is hardcoded mock data holding no connection-test runs, so it is not an alternative
+ * path. (The admin ops console draws 회차 too, but that is a different surface and not
+ * something this page's user can reach.) If the number turns out to be needed across
+ * steps, here is where it goes back.
  */
-export const TcHeaderTag = ({ targetSourceId, liveJob }: TcHeaderTagProps) => {
-  const [fetched, setFetched] = useState<TestConnectionVersionResult | null>(null);
-  const controlled = liveJob !== undefined;
+export const TcHeaderTag = ({ targetSourceId }: TcHeaderTagProps) => {
+  const [job, setJob] = useState<TestConnectionVersionResult | null>(null);
 
   useEffect(() => {
-    if (controlled) return;
     let active = true;
     void fetchLatestTest(targetSourceId)
       .then((latest) => {
-        if (active) setFetched(latest);
+        if (active) setJob(latest);
       })
       .catch(() => {
-        if (active) setFetched(null);
+        if (active) setJob(null);
       });
     return () => {
       active = false;
     };
-  }, [controlled, targetSourceId]);
-
-  const job = controlled ? liveJob : fetched;
+  }, [targetSourceId]);
 
   if (!job) return null;
 
@@ -56,24 +58,21 @@ export const TcHeaderTag = ({ targetSourceId, liveJob }: TcHeaderTagProps) => {
 
   let label: string;
   if (status === 'SUCCESS') {
-    label = '연결 테스트 성공';
+    label = '최근 테스트 성공';
   } else if (status === 'FAIL') {
     const folded = foldAgentStatuses(job.test_connection_agent_results ?? []);
     const failCount = [...folded.values()].filter((s) => s === 'FAIL').length;
-    label = failCount > 0 ? `연결 테스트 실패 ${failCount}건` : '연결 테스트 실패';
+    label = failCount > 0 ? `최근 테스트 실패 ${failCount}건` : '최근 테스트 실패';
   } else {
-    label = '연결 테스트 진행 중';
+    // No 최근 on a run that is still going — it is happening now, not recently.
+    label = '테스트 진행 중';
   }
 
-  const version = job.test_connection_version;
   const timestamp = job.completed_at ?? job.requested_at;
 
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
-      <span className={cn(idcStyles.tag.base, tagClass)}>
-        {version !== null && version !== undefined ? `#${version} ` : ''}
-        {label}
-      </span>
+      <span className={cn(idcStyles.tag.base, tagClass)}>{label}</span>
       {timestamp && (
         <span className={cn('text-[12px] font-medium', textColors.tertiary)}>
           {fmtRelativeTime(timestamp)}

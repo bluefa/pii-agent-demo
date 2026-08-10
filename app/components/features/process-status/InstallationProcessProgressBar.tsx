@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { cn, installStepperStyles as s, projectHeaderStyles } from '@/lib/theme';
 
@@ -13,6 +14,12 @@ const INSTALL_STEPS = [
 
 interface InstallationProcessProgressBarProps {
   currentStep: ProcessStatus;
+  /**
+   * The latest connection-test verdict, hung under the 연결 테스트 step. The verdict
+   * belongs to that step, so it sits under that step — beside the page title you had
+   * to scan the stepper to learn what it was about. Renders nothing when absent.
+   */
+  tcTag?: ReactNode;
 }
 
 /**
@@ -22,6 +29,7 @@ interface InstallationProcessProgressBarProps {
  */
 export const InstallationProcessProgressBar = ({
   currentStep,
+  tcTag,
 }: InstallationProcessProgressBarProps) => {
   const currentIndex = INSTALL_STEPS.findIndex((it) => it.step === currentStep);
 
@@ -75,6 +83,16 @@ export const InstallationProcessProgressBar = ({
               >
                 {it.label}
               </span>
+              {/* Absolute, anchored to the BOTTOM of the grid row. In flow the
+                  tag is a nowrap box in a ~100px cell, so it spilled sideways
+                  into whatever sat beside it: at 960px the neighbouring label
+                  wraps to two lines and the two overlapped (codex, 30x10px).
+                  Out of flow at `top-full` it clears every label — the row
+                  stretches to the tallest one — and it costs no height, so a
+                  target that never ran a test gets no dead space either. */}
+              {it.step === ProcessStatus.WAITING_CONNECTION_TEST && (
+                <span className={s.tagSlot}>{tcTag}</span>
+              )}
             </li>
           );
         })}

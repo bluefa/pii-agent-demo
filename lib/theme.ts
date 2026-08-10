@@ -688,7 +688,7 @@ export const installStepperStyles = {
   /** Left-anchored, capped width — 7 steps don't need the full column; ~120px
       per step keeps the road compact while the longest label still fits. */
   list: 'mt-1.5 grid w-full max-w-[860px] list-none p-0',
-  item: 'flex min-w-0 flex-col items-center gap-1.5',
+  item: 'relative flex min-w-0 flex-col items-center gap-1.5',
   track: 'relative flex h-[10px] w-full items-center justify-center',
   lineBase: 'absolute top-1/2 -mt-px h-[2px]',
   /** Road ahead — a 2px surface, so it answers to ΔE00 (14.9 from the wash), not 4.5:1. */
@@ -705,6 +705,13 @@ export const installStepperStyles = {
   /** Walked and unwalked steps share one label color — the dots already say which is which. */
   labelRest: 'font-medium text-[#4E5968]',
   labelCurrent: 'font-semibold text-[#0050D6]',
+  /**
+   * Verdict slot under 연결 테스트 — out of flow, hung from the bottom of the grid
+   * row so it clears labels that wrap at narrow widths and adds no height when the
+   * target never ran a test. It lands in the 18+32px gap the header already leaves
+   * above the first card, so nothing below moves either.
+   */
+  tagSlot: 'absolute top-full left-1/2 mt-1.5 -translate-x-1/2 whitespace-nowrap',
 } as const;
 
 /**

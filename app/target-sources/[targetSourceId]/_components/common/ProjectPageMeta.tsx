@@ -126,10 +126,6 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
           {/* 시안 2 (P2): the H1 states the page's JOB, not the object — the
               left service rail already answers "which service". */}
           <h1 className={pageHeaderTitleStyle}>PII Agent 설치</h1>
-          {/* #661 P5: latest connection-test verdict beside the title — an h1
-              SIBLING so the heading's accessible name stays clean. Rendered
-              without liveJob, so the tag self-fetches latest_version once. */}
-          <TcHeaderTag targetSourceId={project.targetSourceId} />
         </div>
         {action && <div className="flex flex-wrap items-center justify-end gap-2">{action}</div>}
       </div>
@@ -222,7 +218,12 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
         </div>
       </div>
 
-      <InstallationProcessProgressBar currentStep={project.processStatus} />
+      {/* #661 P5: the latest connection-test verdict rides its own step, not the
+          page title. */}
+      <InstallationProcessProgressBar
+        currentStep={project.processStatus}
+        tcTag={<TcHeaderTag targetSourceId={project.targetSourceId} />}
+      />
     </header>
   );
 };
