@@ -31,6 +31,7 @@ export { QuestionCircleIcon } from '@/app/components/ui/icons/QuestionCircleIcon
 export { ReloadIcon } from '@/app/components/ui/icons/ReloadIcon';
 export { SearchIcon } from '@/app/components/ui/icons/SearchIcon';
 export { ShieldCheckIcon } from '@/app/components/ui/icons/ShieldCheckIcon';
+export { SpreadsheetIcon } from '@/app/components/ui/icons/SpreadsheetIcon';
 export { StatusErrorIcon } from '@/app/components/ui/icons/StatusErrorIcon';
 export { StatusInfoIcon } from '@/app/components/ui/icons/StatusInfoIcon';
 export { StatusSuccessIcon } from '@/app/components/ui/icons/StatusSuccessIcon';

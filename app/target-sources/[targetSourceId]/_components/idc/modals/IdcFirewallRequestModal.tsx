@@ -3,6 +3,7 @@
 import { Modal } from '@/app/components/ui/Modal';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
+import { SpreadsheetIcon } from '@/app/components/ui/icons';
 import { bgColors, borderColors, cn, idcStyles, textColors } from '@/lib/theme';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
@@ -57,12 +58,13 @@ export const IdcFirewallRequestModal = ({
         <div className="flex w-full items-center justify-between">
           <button
             type="button"
-            className={idcStyles.modalBtn.outline}
+            className={idcStyles.modalBtn.green}
             disabled={rows.length === 0}
             onClick={() =>
               downloadFirewallRequestCsv(rows, firewallRequestFileName(targetSourceId))
             }
           >
+            <SpreadsheetIcon className="h-4 w-4" />
             Excel 다운로드
           </button>
           <button type="button" className={idcStyles.modalBtn.primary} onClick={onClose}>
