@@ -67,6 +67,9 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const [savedRoleArns, setSavedRoleArns] = useState<Partial<Record<RoleKind, string>>>({});
   const [grantTfExecution, setGrantTfExecution] = useState(false);
   const [channel, setChannel] = useState<CollaborationChannel | null>(null);
+  // 채널은 detail 과 따로 도착한다 — 도착 전에 "연결된 티켓 없음" 을 그리면 곧바로
+  // 티켓으로 뒤집히므로, 그 사이는 없다고 말하지 않고 자리만 비워 둔다.
+  const [channelLoaded, setChannelLoaded] = useState(false);
   // Test Connection state lives here, not in TcTab: 관리자 승인 탭도 같은 상태·판정
   // 위에서 결정을 내리므로, 한 번 받아 두 탭에 내려보낸다.
   //   status   서비스의 완료 확인 (승인 게이트)
@@ -163,7 +166,8 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
         .catch(() => !cancelled && setProcessStatus(null));
       void getCollaborationChannel(targetSourceId)
         .then((loadedChannel) => !cancelled && setChannel(loadedChannel))
-        .catch(() => !cancelled && setChannel(null));
+        .catch(() => !cancelled && setChannel(null))
+        .finally(() => !cancelled && setChannelLoaded(true));
       void loadTc();
     })();
     return () => {
@@ -231,6 +235,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           savedRoleArns={savedRoleArns}
           grantTfExecution={grantTfExecution}
           channel={channel}
+          channelLoaded={channelLoaded}
           onOpenMode={() => setModal({ type: 'mode' })}
           onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
           onOpenChannel={() => setModal({ type: 'channel' })}
