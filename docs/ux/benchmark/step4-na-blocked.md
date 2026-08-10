@@ -55,10 +55,18 @@
 5. **`actionable` 게이트를 허용 목록으로.** `OPEN_KINDS = ['failed','running','waiting']`.
    `kind !== 'done'` 부정형이던 자리 — 새로 생긴 kind 가 자동으로 "할 일"에 편입되는 형태였다.
    같은 이유로 그룹 레일의 `openTodoCount` 와 기본 선택(`hotStepId`)도 `isOpenKind` 로 바꿨다.
-6. **패널: `na` 단계는 표 대신 `EmptyState variant="card"`.**
+6. **패널: `na` 단계는 표 대신 `EmptyState variant="card"` — 단, 사유가 없을 때만.**
    `이 단계에 해당하는 리소스가 없어요` / `연동 대상 N건 모두 이 단계에 해당하지 않아, 수행할
-   작업이 없습니다.` **이유는 쓰지 않는다** — `SKIP` 셀의 `guide` 는 비어 있고, 없는 근거를
-   지어내지 않는다. `blocked` 단계는 표를 유지한다: 행마다 계약이 준 `guide` 가 실제 내용이다.
+   작업이 없습니다.` 표를 지우는 근거는 "같은 한 단어를 N행으로 반복한다"는 것이므로, 계약이
+   `SKIP` 셀에 `guide` 를 실어 보내면 그 표는 반복이 아니라 내용이다 — 남긴다.
+   AWS 가 그렇게 말한다(`설치 대상이 아닌 리소스입니다 (Read Replica).`, `lib/bff/mock/aws.ts`),
+   Azure 의 VM 없는 SKIP 만 `guide: null` 이다. 그 사유가 사는 곳은 이 표뿐이다 —
+   `views` 의 `reasons` 는 settled 셀을 건너뛰므로 요약으로도 새지 않는다.
+   `blocked` 단계는 언제나 표를 유지한다: 행마다 계약이 준 `guide` 가 실제 내용이다.
+7. **그룹 레일의 `모두 완료` 배지는 `openTodoCount === 0` 이 아니라 전부 `done` 일 때만.**
+   `na`·`blocked` 도 카운트를 0 으로 만드는데, 그것까지 완료로 부르면 초록 배지 바로 아래
+   행이 `BDC 설치 대기`라 적힌다 — 이 변경이 없애려던 거짓 문장이 행에서 그룹 헤더로
+   자리만 옮긴 꼴이다. `(0)` 자체는 사실이므로 라벨과 색은 그대로 둔다.
 
 ## 미채택
 
@@ -85,7 +93,27 @@ SKIP 인 대상**도 설치 완료로 판정되어 Step 5 로 자동 진행한�
 
 ## 가드
 
-`InstallStatusDetail.na-blocked.test.tsx` (4 케이스). 세 트립와이어를 뮤테이션으로 확인했다:
-`actionable` 게이트를 `!== 'done'` 로 되돌리면 1건, `na` 분기를 죽이면 2건, `blocked` 분기를
-죽이면 1건 실패한다. 네 번째 케이스는 **경계**를 잡는다 — 일부만 SKIP 이면 여전히 `완료 2/2`,
-미완료 셀에 `UNKNOWN` 이 섞이면 `blocked` 가 아니라 기존 `대기`.
+`InstallStatusDetail.na-blocked.test.tsx` (8 케이스: 레거시 레일 5 + 그룹 레일 3).
+다섯 트립와이어를 각각 뮤테이션으로 확인했다 — 베이스라인 12/12 green 에서 아래 하나를
+되돌릴 때마다 정확히 1건이 깨진다:
+
+| 되돌리는 것 | 무너지는 문장 |
+|---|---|
+| `actionable` → `kind !== 'done'` | 전부-BDC 단계가 다시 "확인이 필요합니다"로 올라온다 |
+| `naWithoutGuides` → `kind === 'na'` | SKIP 사유(Read Replica)를 빈 상태가 덮는다 |
+| `todoAllDone` → `openTodoCount === 0` | `BDC 설치 대기` 행 위에 초록 `모두 완료` |
+| `openTodoCount` → `kind !== 'done'` | 손댈 수 없는 단계가 `내가 할 일 (N)` 에 편입 |
+| `hotStepId` → `kind !== 'done'` | 기본 선택이 손댈 수 없는 단계로 열린다 |
+
+레거시 레일만으로는 뒤 세 줄에 닿지 못한다(그룹이 없으면 `todoSteps` 가 비어 inert). 그래서
+그룹을 선언한 별도 픽스처를 둔다. 경계 케이스도 함께 잡는다 — 일부만 SKIP 이면 여전히
+`완료 2/2`, 미완료 셀에 `UNKNOWN` 이 섞이면 `blocked` 가 아니라 기존 `대기`.
+
+## 남긴 것 (리뷰에서 확인, 이번 범위 밖)
+
+- **`blocked` 알약 색**: 단계 알약은 `tagStyles.neutral`(회색)인데 그 아래 행은 같은 단어를
+  앰버로 쓴다(`WaitingApprovalTable` 의 선존 규칙). 레일에서 `blocked` 를 조용히 두는 것이
+  이번 결정이므로 회색을 유지했다 — 행 색을 바꾸는 것은 별개 판단이다.
+- **패널 단계(`perm`)**: `kindOfValue` 를 그대로 쓰므로 `BDC_INSTALL_REQUIRED` 가 오면
+  여전히 `waiting`·`actionable` 이다. role 검증 단계에 그 값이 올 계약상 이유는 없지만
+  타입으로는 도달 가능하다.

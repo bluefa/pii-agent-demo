@@ -625,6 +625,13 @@ export const InstallStatusDetail = ({
   // 단계 ↔ 참고 항목을 서로 가리키는 링크는 문법이 하나다.
   const activeNote = active.note ?? null;
 
+  // 표를 지우는 근거는 "같은 한 단어를 N행으로 반복한다"는 것이다. 계약이 SKIP 셀에
+  // 사유를 실어 보내면(AWS 는 Read Replica 를 그렇게 말한다) 그 표는 반복이 아니라
+  // 내용이고, 그 사유가 사는 곳은 여기뿐이다 — views 의 reasons 는 settled 셀을
+  // 건너뛰므로 요약으로도 새지 않는다. 사유가 하나라도 있으면 표를 남긴다.
+  const naWithoutGuides =
+    activeAggregate?.kind === 'na' && rows.every((row) => !row.cell.guide);
+
   // Right-pane header/body — shared by both layouts (grouped / legacy).
   const paneHead = (
     <div className="flex items-start justify-between gap-3">
@@ -664,10 +671,10 @@ export const InstallStatusDetail = ({
     activePanel.panel
   ) : isSummary ? (
     <InstallSummaryPanel views={views} rollup={rollup} lastCheck={lastCheck} onOpen={setSelected} />
-  ) : activeAggregate?.kind === 'na' ? (
-    // 전부 '해당 없음'인 단계에 표를 그리면, 같은 한 단어를 N행으로 반복한 뒤
-    // 검색·필터·페이지네이션까지 붙여 "훑을 것이 있다"고 말한다. 없다고 말한다.
-    // 이유는 쓰지 않는다 — SKIP 셀의 guide 는 비어 있고, 없는 근거를 지어내지 않는다.
+  ) : naWithoutGuides ? (
+    // 전부 '해당 없음'이고 사유도 없는 단계에 표를 그리면, 같은 한 단어를 N행으로
+    // 반복한 뒤 검색·필터·페이지네이션까지 붙여 "훑을 것이 있다"고 말한다. 없다고 말한다.
+    // 이유는 쓰지 않는다 — 여기 오는 셀은 guide 가 비어 있고, 없는 근거를 지어내지 않는다.
     <EmptyState
       variant="card"
       title="이 단계에 해당하는 리소스가 없어요"
@@ -685,6 +692,11 @@ export const InstallStatusDetail = ({
   if (grouped) {
     const todoSteps = navSteps.filter((s) => s.group === 'todo');
     const autoSteps = navSteps.filter((s) => s.group === 'auto');
+    // "모두 완료"는 openTodoCount === 0 이 아니라 실제로 전부 done 일 때만이다.
+    // 손댈 수 없는 단계(na/blocked)도 카운트를 0 으로 만드는데, 그것까지 완료로 부르면
+    // 초록 배지 바로 아래 행이 'BDC 설치 대기'라 적힌다 — 이 화면이 없애려던 그 거짓말이
+    // 행에서 그룹 헤더로 자리만 옮긴 꼴이다. (0)은 사실이므로 라벨은 그대로 둔다.
+    const todoAllDone = todoSteps.every((s) => aggregates.get(s.id)?.kind === 'done');
     // 레일 항목 껍데기 — 단계와 참고 항목이 같은 히트 영역·선택 표현을 쓴다.
     // 선택은 서비스 목록 rail 의 "현재 위치" 문법(rowCurrent: 파란 틴트 + 좌측 2px 바)
     // 그대로다 — 흰 pill + 헤어라인은 회색 판 위에서 눌린 티가 나지 않았다(오너 지적).
@@ -800,11 +812,10 @@ export const InstallStatusDetail = ({
             {groupLabel(
               `내가 할 일 (${openTodoCount})`,
               openTodoCount > 0 ? primaryColors.textOnLight : textColors.secondary,
-              // 0 은 "비어 있다"가 아니라 "다 끝났다" — 남는 자리에 문단을 뿌리는 대신
-              // 그룹 이름 옆에서 한 마디로 닫는다. 지웠던 두 줄은 둘 다 중복이었다:
-              // "하실 일이 없어요"는 라벨의 (0)이, "자동으로 진행돼요"는 바로 아래
-              // 'BDC 진행' 라벨이 이미 말한다.
-              openTodoCount === 0 && (
+              // 다 끝났을 때는 남는 자리에 문단을 뿌리는 대신 그룹 이름 옆에서 한 마디로
+              // 닫는다. 지웠던 두 줄은 둘 다 중복이었다: "하실 일이 없어요"는 라벨의 (0)이,
+              // "자동으로 진행돼요"는 바로 아래 'BDC 진행' 라벨이 이미 말한다.
+              todoAllDone && (
                 <span className={cn('ml-auto flex-shrink-0', textStyles.caption, statusColors.success.textDark)}>
                   모두 완료
                 </span>
