@@ -34,9 +34,10 @@
 이관된 어댑터는 레거시 레이아웃으로 안전하게 떨어진다.
 `feedback_allowlist_over_negative_predicate` 규칙의 적용 사례.
 
-레거시 렌더는 `InstallStatusDetail.legacy.test.tsx`가 고정한다 — Azure/GCP/IDC는
-자체 컴포넌트 테스트가 없고 AWS 스위트는 이제 그룹 분기만 지나므로, 이 파일이
-공유 코드 리팩터에서 레거시 경로를 지키는 유일한 가드다.
+레거시 렌더는 `InstallStatusDetail.legacy.test.tsx`가 고정한다 — 네 CSP가 모두
+그룹 레일로 이관된 뒤(§5)로는 레거시 분기를 지나는 제품 코드가 없으므로, 이 파일이
+공유 코드 리팩터에서 레거시 경로를 지키는 유일한 가드다. Azure 자체 컴포넌트
+테스트는 이관과 함께 그룹 레일 기준으로 다시 쓰였다.
 
 ## 3. 리뷰에서 잡힌 것 (codex sol + opus 교차)
 
@@ -66,9 +67,16 @@
 
 ## 5. 남긴 것 (후속)
 
-- `InstallStatusDetail` 분리(그룹/레거시 이중 분기 ~800줄) — 타 CSP 이관이 끝나
-  레거시 분기를 지울 때 함께. 지금 쪼개면 이관 기간 내내 두 벌 수정.
-- Azure/GCP/IDC 그룹 레일 이관 — 각 어댑터가 `group` 전부 선언하면 켜진다.
+- ~~Azure/GCP/IDC 그룹 레일 이관~~ — **완료**. 세 어댑터가 `group` 을 전부 선언한다
+  (실행 주체 기준, 근거표는 `docs/ux/benchmark/step4-tray-surface.md`).
+- `InstallStatusDetail` 분리(그룹/레거시 이중 분기 ~800줄) — 이관이 끝나 **트리거가
+  당겨졌다**. 이제 레거시 분기(`InstallSummaryPanel`·`SUMMARY_STEP`·`rollup`/`views`/
+  `actionViews` 메모 포함)를 지나는 제품 코드가 없고, `InstallStatusDetail.legacy.test.tsx`
+  하나가 붙들고 있다. 삭제 여부는 별건으로 판단한다 — 미선언 스텝이 하나라도 생기면
+  거기로 떨어지는 안전망이기도 하다.
+- 그룹 레일에서 `serviceAction` 미노출 — 조치 문구는 요약 패널의 `ActionItem` 에서만
+  그려지는데 그룹 레일에는 요약이 없다. 네 CSP 모두 단계 `desc` 가 같은 내용을
+  서술형으로 대신하고 있다. 명령형 문구를 되살린다면 자리는 우측 패널 헤더 아래.
 - 수동 모드 순번 — manual에서는 서비스 TF가 todo 그룹으로 올라가 auto 순번이
   1(BDC 공통)부터 시작. 순번은 "자동 그룹 내 순서"로 정의했지만 INSTALLING 수동
   목 대상이 없어 육안 미검증.

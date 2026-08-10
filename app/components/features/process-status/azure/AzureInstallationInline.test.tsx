@@ -98,6 +98,10 @@ describe('AzureInstallationInline — 그룹 레일', () => {
     // PE 문구, 완료된 DB 행은 승인 완료.
     expect(screen.getByText('Azure Portal에서 승인 필요')).toBeTruthy();
     expect(screen.getByText('승인 완료')).toBeTruthy();
+    // 그룹 레일에는 요약 패널이 없어 serviceAction("…승인해 주세요")이 그려지지
+    // 않는다. 무엇을 해야 하는지는 이제 이 desc 한 줄이 전부이므로, 지운 단언
+    // 대신 이 줄을 고정한다 — 이것까지 사라지면 화면이 아무 말도 하지 않는다.
+    expect(screen.getByText('BDC가 요청한 Private Endpoint 연결을 Azure Portal에서 승인하는 단계입니다.')).toBeTruthy();
   });
 
   it('VM 전용 단계를 열면 VM 아닌 리소스는 해당 없음으로 선다 (SKIP)', () => {

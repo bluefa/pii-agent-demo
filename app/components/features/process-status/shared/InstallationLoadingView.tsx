@@ -61,8 +61,11 @@ export const InstallationLoadingView = (props: InstallationLoadingViewProps) =>
           borderColors.light,
         )}
       >
-        {/* rail — 그룹 머리글은 항상 둘이다(내가 할 일 / BDC 진행). 항목 수는
-            프로바이더마다 다르지만 프레임 높이가 고정이라 카드를 밀지 않는다. */}
+        {/* rail — 그룹 머리글은 항상 둘이다(내가 할 일 / BDC 진행).
+            항목 수 1/3 은 AWS 자동 설치의 모양이고 나머지는 다르다(Azure 3/1,
+            GCP·IDC 1/2, AWS 수동 1/2). 프로바이더별로 맞추지 않는 이유는 프레임
+            높이가 h-[560px] 로 고정이라 레일 안에서 바가 움직여도 카드를 밀지
+            못하기 때문이다 — 이 근사는 reflow 를 만들지 않는다. */}
         <div className={cn('flex flex-col gap-0.5 p-2 border-r', bgColors.panel, borderColors.light)}>
           {[1, 3].map((rows, group) => (
             <div key={group} className="flex flex-col gap-0.5">

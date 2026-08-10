@@ -794,17 +794,22 @@ export const InstallStatusDetail = ({
         {/* 조회 시각만 남는다 — 카드 헤더가 이미 'Agent 설치'라고 말하는데 트레이가
             제목을 한 번 더 걸면 두 제목이 170px 간격으로 겹치고, 크기·굵기 어느
             레버도 둘 중 누가 상위인지 답하지 못한다. No manual refresh or interval
-            control (owner decision) — polling refreshes quietly. */}
-        {(lastCheck.checkedAt || lastCheck.status === 'FAILED') && (
-          <div className={cn('flex justify-end', textStyles.caption, textColors.secondary)}>
-            {/* checked_at is UTC wire — the label asserts KST, so the formatter
-                pins Asia/Seoul instead of trusting the browser timezone. */}
-            {lastCheck.checkedAt && <>마지막 확인 {formatDateTimeKst(lastCheck.checkedAt)} (KST)</>}
-            {lastCheck.status === 'FAILED' && (
-              <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
-            )}
-          </div>
-        )}
+            control (owner decision) — polling refreshes quietly.
+
+            줄은 비어 있어도 선다. checked_at 은 선택 필드라(아직 한 번도 확인 안 한
+            상태) 내용 유무로 접으면 프레임의 y 가 데이터에 따라 달라지고, 스켈레톤은
+            그 분기를 미리 알 수 없어 도착 순간 카드가 28px 튄다. 예전 메타바가 제목
+            덕에 늘 자리를 차지했던 것과 같은 안정성이다. */}
+        {/* min-h-4 = caption line-height. 빈 div 는 line box 가 없어 높이 0 이라,
+            줄을 남겨두는 것만으로는 같은 튐이 방향만 바꿔 그대로 남는다. */}
+        <div className={cn('flex justify-end min-h-4', textStyles.caption, textColors.secondary)}>
+          {/* checked_at is UTC wire — the label asserts KST, so the formatter
+              pins Asia/Seoul instead of trusting the browser timezone. */}
+          {lastCheck.checkedAt && <>마지막 확인 {formatDateTimeKst(lastCheck.checkedAt)} (KST)</>}
+          {lastCheck.status === 'FAILED' && (
+            <span className={cn('font-semibold', statusColors.error.textDark)}> · 상태 확인 실패</span>
+          )}
+        </div>
 
         {/* 레거시(Azure/GCP/IDC) 분기와 같은 그릇이다 — 헤어라인 컨테이너 하나가 레일과
             내용을 담고, 회색은 카드 위에 얹은 판이 아니라 레일 셀의 채움이다. 카드
