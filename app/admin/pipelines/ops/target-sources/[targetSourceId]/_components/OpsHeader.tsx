@@ -19,7 +19,7 @@ import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyles';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
-import type { CollaborationChannel } from '@/app/lib/api/ops';
+import type { TargetJiraTicket } from '@/app/lib/api/ops';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { StepPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StepPill';
 import { ROLE_META, type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
@@ -47,12 +47,11 @@ export interface OpsHeaderProps {
   /** 이 화면에서 방금 저장한 ARN만 — 그 외에는 detail.metadata 가 표시의 유일한 출처. */
   savedRoleArns: Partial<Record<RoleKind, string>>;
   grantTfExecution: boolean;
-  channel: CollaborationChannel | null;
+  jiraTicket: TargetJiraTicket | null;
   /** false = 아직 조회 중 — null 을 "티켓 없음" 으로 단정하지 않는다. */
-  channelLoaded: boolean;
+  ticketLoaded: boolean;
   onOpenMode: () => void;
   onOpenEdit: (kind: RoleKind) => void;
-  onOpenChannel: () => void;
 }
 
 export function OpsHeader({
@@ -62,11 +61,10 @@ export function OpsHeader({
   isAws,
   savedRoleArns,
   grantTfExecution,
-  channel,
-  channelLoaded,
+  jiraTicket,
+  ticketLoaded,
   onOpenMode,
   onOpenEdit,
-  onOpenChannel,
 }: OpsHeaderProps): ReactElement {
   const h = improvedStyles.header;
   const meta = detail.metadata ?? {};
@@ -202,20 +200,33 @@ export function OpsHeader({
         </div>
 
         {/* 협업 채널 — 티켓(외부) 위에 관리 위치(내부)를 함께 세운다. 목적지를
-            "관리" 두 글자가 아니라 이름으로 부르므로 누르기 전에 어디로 가는지 안다. */}
+            "관리" 두 글자가 아니라 이름으로 부르므로 누르기 전에 어디로 가는지 안다.
+            두 층의 출처가 계약상 갈린다: 2층은 대상 축(read-only), 3층이 가리키는
+            서비스 운영 화면이 서비스 × provider 축의 연결·해제를 갖는다. */}
         <div className={opsStyles.chan}>
           <span className={opsStyles.chanLabel}>협업 채널</span>
-          {!channelLoaded ? (
+          {!ticketLoaded ? (
             <span className={cn(opsStyles.skeleton, 'h-5 w-[118px]')} aria-hidden />
-          ) : channel ? (
-            <a href={channel.url} target="_blank" rel="noreferrer" className={opsStyles.chanRow}>
+          ) : !jiraTicket ? (
+            <span className={opsStyles.chanNone}>연결된 티켓 없음</span>
+          ) : jiraTicket.browseUrl ? (
+            <a
+              href={jiraTicket.browseUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={opsStyles.chanRow}
+            >
               <JiraMark />
               <span className={opsStyles.chanKey}>
-                {channel.issue_key} <span className={opsStyles.chanArrow}>↗</span>
+                {jiraTicket.issueKey} <span className={opsStyles.chanArrow}>↗</span>
               </span>
             </a>
           ) : (
-            <span className={opsStyles.chanNone}>연결된 티켓 없음</span>
+            /* 열 주소가 없으면 키는 값일 뿐이다 — 링크로 그리지 않는다 (URL 조립 금지). */
+            <span className={opsStyles.chanRow}>
+              <JiraMark />
+              <span className={opsStyles.chanKeyPlain}>{jiraTicket.issueKey}</span>
+            </span>
           )}
           {detail.service_code ? (
             <Link
@@ -226,10 +237,9 @@ export function OpsHeader({
               관리 <span className={opsStyles.chanArrow}>↗</span>
             </Link>
           ) : (
-            /* 서비스가 없으면 갈 운영 화면도 없다 — 채널 자체 편집이 유일한 관리 경로. */
-            <button type="button" className={opsStyles.chanGo} onClick={onOpenChannel}>
-              <span className={opsStyles.chanGoName}>채널 연결 정보</span> 수정
-            </button>
+            /* 서비스가 없으면 갈 운영 화면도 없다. 티켓 연결·해제 계약이 서비스 × provider
+               축에만 있으므로 이 대상에는 관리 경로 자체가 없다 — 없는 동작을 그리지 않는다. */
+            <span className={opsStyles.chanGoOff}>이동할 서비스 운영 화면 없음</span>
           )}
         </div>
       </div>

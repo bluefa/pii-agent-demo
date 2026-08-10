@@ -59,13 +59,15 @@ export const opsStyles = {
   chanRow: 'group self-start inline-flex items-center gap-1.5',
   chanKey:
     'text-[14px] leading-[20px] font-semibold text-[var(--pl-text-strong)] underline underline-offset-[3px] decoration-[var(--pl-border-strong)] group-hover:decoration-[var(--pl-text-strong)] cursor-pointer',
+  /** No browseUrl — the key is a value, not a door. Same slot, no affordance. */
+  chanKeyPlain: 'text-[14px] leading-[20px] font-semibold text-[var(--pl-text-medium)]',
   chanNone: 'text-[13px] leading-[20px] text-[var(--pl-text-faint)]',
   /** Tier 3 — sits under a hairline so "어디서 관리하는가" reads as a separate fact
       from the ticket itself, not as a second line of it. */
   chanGo:
-    'mt-0.5 pt-[7px] border-t border-[var(--pl-gray-100)] text-left text-[12px] text-[var(--pl-text-weak)]',
+    'group mt-0.5 pt-[7px] border-t border-[var(--pl-gray-100)] text-[12px] text-[var(--pl-text-weak)] hover:text-[var(--pl-text-medium)]',
   chanGoName:
-    'font-semibold text-[var(--pl-text-medium)] underline underline-offset-2 decoration-[var(--pl-border-strong)]',
+    'font-semibold text-[var(--pl-text-medium)] underline underline-offset-2 decoration-[var(--pl-border-strong)] group-hover:decoration-[var(--pl-text-strong)]',
   chanGoOff: 'mt-0.5 pt-[7px] border-t border-[var(--pl-gray-100)] text-[12px] text-[var(--pl-text-faint)]',
   chanArrow: 'text-[var(--pl-text-faint)]',
 

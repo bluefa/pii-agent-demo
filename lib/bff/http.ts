@@ -317,8 +317,6 @@ export const httpBff: BffClient = {
       put(`/target-sources/${id}/aws/${kind === 'scan' ? 'scan-role' : 'terraform-execution-role'}`, {
         roleArn,
       }),
-    getCollabChannel: (id) => getSnakeRaw(`/target-sources/${id}/collaboration-channel`),
-    putCollabChannel: (id, channel) => put(`/target-sources/${id}/collaboration-channel`, channel),
     getTargetSourceList: (query, page, size) =>
       getSnakeRaw(`/admin/ops/target-sources${buildQuery({ query, page, size })}`),
   },

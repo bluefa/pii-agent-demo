@@ -16,7 +16,7 @@ import {
 import { getRawTargetSourceDetail, type RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { getProcessStatus, type TestConnectionVersionResult } from '@/app/lib/api';
 import { fetchLatestTest } from '@/app/hooks/useTestConnectionPolling';
-import { getCollaborationChannel, type CollaborationChannel } from '@/app/lib/api/ops';
+import { getTargetJiraTicket, type TargetJiraTicket } from '@/app/lib/api/ops';
 import {
   getTestConnectionDetail,
   getTestConnectionResults,
@@ -32,7 +32,6 @@ import { ApprovalHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[t
 import { StatusHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/StatusHistoryCard';
 import { InstallModeModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallModeModal';
 import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleEditModal';
-import { ChannelModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ChannelModal';
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { isSduTarget } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -49,7 +48,6 @@ type TabLabel = OpsTargetTabLabel;
 type ModalState =
   | { type: 'mode' }
   | { type: 'edit'; kind: RoleKind }
-  | { type: 'channel' }
   | null;
 
 export interface OpsTargetViewProps {
@@ -66,10 +64,10 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   // 그 detail 이 아직 옛 값이라 이 한 칸이 덮어쓴다 (다음 로드에서 metadata 가 따라온다).
   const [savedRoleArns, setSavedRoleArns] = useState<Partial<Record<RoleKind, string>>>({});
   const [grantTfExecution, setGrantTfExecution] = useState(false);
-  const [channel, setChannel] = useState<CollaborationChannel | null>(null);
-  // 채널은 detail 과 따로 도착한다 — 도착 전에 "연결된 티켓 없음" 을 그리면 곧바로
+  const [jiraTicket, setJiraTicket] = useState<TargetJiraTicket | null>(null);
+  // 티켓은 detail 과 따로 도착한다 — 도착 전에 "연결된 티켓 없음" 을 그리면 곧바로
   // 티켓으로 뒤집히므로, 그 사이는 없다고 말하지 않고 자리만 비워 둔다.
-  const [channelLoaded, setChannelLoaded] = useState(false);
+  const [ticketLoaded, setTicketLoaded] = useState(false);
   // Test Connection state lives here, not in TcTab: 관리자 승인 탭도 같은 상태·판정
   // 위에서 결정을 내리므로, 한 번 받아 두 탭에 내려보낸다.
   //   status   서비스의 완료 확인 (승인 게이트)
@@ -153,7 +151,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
 
       // SDU 는 여기서 멈춘다. 아래 부수 로드는 전부 탭이 그릴 것을 미리 받아 두는
       // 것인데, SDU 는 그 탭들이 통째로 안내 한 장으로 대체되므로 받아도 그릴 곳이
-      // 없다. 진행 상태·협업 채널·연결 테스트·AWS role 네 갈래가 대상마다 헛돈다.
+      // 없다. 진행 상태·Jira 티켓·연결 테스트·AWS role 네 갈래가 대상마다 헛돈다.
       // 판정은 렌더 게이트와 같은 규칙이다 (계약이 SDU 를 말하는 두 자리).
       if (isSduTarget({ is_sdu_type: loaded.metadata?.is_sdu_type, cloud_provider: loaded.cloud_provider })) {
         return;
@@ -164,10 +162,10 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
       void getProcessStatus(targetSourceId)
         .then((status) => !cancelled && setProcessStatus(status.process_status as ProcessStatus))
         .catch(() => !cancelled && setProcessStatus(null));
-      void getCollaborationChannel(targetSourceId)
-        .then((loadedChannel) => !cancelled && setChannel(loadedChannel))
-        .catch(() => !cancelled && setChannel(null))
-        .finally(() => !cancelled && setChannelLoaded(true));
+      void getTargetJiraTicket(targetSourceId)
+        .then((loaded) => !cancelled && setJiraTicket(loaded))
+        .catch(() => !cancelled && setJiraTicket(null))
+        .finally(() => !cancelled && setTicketLoaded(true));
       void loadTc();
     })();
     return () => {
@@ -234,11 +232,10 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           isAws={isAws}
           savedRoleArns={savedRoleArns}
           grantTfExecution={grantTfExecution}
-          channel={channel}
-          channelLoaded={channelLoaded}
+          jiraTicket={jiraTicket}
+          ticketLoaded={ticketLoaded}
           onOpenMode={() => setModal({ type: 'mode' })}
           onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
-          onOpenChannel={() => setModal({ type: 'channel' })}
         />
         <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
           {TABS.map((tab) => {
@@ -332,13 +329,6 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           onSaved={(kind, roleArn) => setSavedRoleArns((prev) => ({ ...prev, [kind]: roleArn }))}
         />
       )}
-      <ChannelModal
-        open={modal?.type === 'channel'}
-        onClose={() => setModal(null)}
-        targetSourceId={targetSourceId}
-        channel={channel}
-        onSaved={setChannel}
-      />
     </div>
   );
 }

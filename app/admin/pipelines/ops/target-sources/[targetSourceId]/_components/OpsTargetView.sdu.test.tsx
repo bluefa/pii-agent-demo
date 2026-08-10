@@ -27,7 +27,7 @@ const getProcessStatus = vi.fn(async (): Promise<null> => null);
 vi.mock('@/app/lib/api', () => ({
   getProcessStatus: () => getProcessStatus(),
 }));
-const getCollaborationChannel = vi.fn(async (): Promise<null> => null);
+const getTargetJiraTicket = vi.fn(async (): Promise<null> => null);
 const getAwsRoleVerification = vi.fn(async (): Promise<null> => null);
 const getTestConnectionDetail = vi.fn(async (): Promise<null> => null);
 
@@ -36,7 +36,7 @@ vi.mock('@/app/lib/api/aws', () => ({
   getAwsRoleVerification: () => getAwsRoleVerification(),
 }));
 vi.mock('@/app/lib/api/ops', () => ({
-  getCollaborationChannel: () => getCollaborationChannel(),
+  getTargetJiraTicket: () => getTargetJiraTicket(),
 }));
 vi.mock('@/app/lib/api/task-queue-tc', () => ({
   getTestConnectionDetail: () => getTestConnectionDetail(),
@@ -47,7 +47,7 @@ vi.mock('@/app/lib/api/task-queue-tc', () => ({
  *  블록 첫 줄이라서 통과하는 것이고, 순서가 바뀌면 가드가 조용히 사라진다. */
 const expectNoSecondaryLoads = (): void => {
   expect(getProcessStatus).not.toHaveBeenCalled();
-  expect(getCollaborationChannel).not.toHaveBeenCalled();
+  expect(getTargetJiraTicket).not.toHaveBeenCalled();
   expect(getAwsRoleVerification).not.toHaveBeenCalled();
   expect(getTestConnectionDetail).not.toHaveBeenCalled();
 };

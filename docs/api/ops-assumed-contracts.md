@@ -62,18 +62,30 @@ values are also readable from `TargetSourceMetadata.aws_scan_role_arn` /
 Saving a role resets its verification verdict (next verify GET starts from IN_PROGRESS);
 a stale "verified" state must not survive an ARN change.
 
-## 4. Collaboration channel
+## 4. Collaboration channel — WITHDRAWN, the real contract already covered it
 
-The 협업 채널 bubble (Jira issue link) in the page header.
+This section invented `GET/PUT …/collaboration-channel` for the 협업 채널 block in the ops
+header. It never existed upstream, and it did not need to: install-v1 already carries both
+halves of what it was doing, split by role.
 
 ```
-GET /install/v1/target-sources/{targetSourceId}/collaboration-channel
-→ 200   { issue_key: string, url: string } | 204 (none)
+GET  /install/v1/target-sources/{targetSourceId}/jira-ticket          // read — "이 대상의 티켓"
+→ 200 JiraTicketResponse { id, targetSourceId, serviceCode, issueKey, cloudProvider, browseUrl }
+→ 404 no ticket mapped to this target (an answer, not an outage)
 
-PUT /install/v1/target-sources/{targetSourceId}/collaboration-channel
-body     { issue_key: string, url: string }
-→ 200   same shape
+POST/DELETE /install/v1/services/{serviceCode}/jira-tickets/{cloudProvider}   // write — 연결·해제
+POST        /install/v1/services/{serviceCode}/jira-tickets/{cloudProvider}/watchers
 ```
+
+The assumed shape had a PUT because it assumed the ops header owned the mapping. It does
+not — the writes live on the service × provider axis and the 서비스 운영 화면 owns that
+surface. So the header reads the target axis and links to the service screen for the
+writes; nothing is left for an assumed endpoint to do.
+
+Keeping the assumed pair had a visible cost: the same target read `INFRA-2211` in the ops
+header and `BDCDIP-1010` on the 서비스측 screen, which had been using the real target-axis
+endpoint all along. Withdrawn 2026-08-10 — `ChannelModal`, the Next route, the BFF methods
+and the mock store field are all deleted.
 
 ## 5. Ops target-source list
 

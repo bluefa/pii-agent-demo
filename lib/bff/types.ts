@@ -320,8 +320,6 @@ export interface BffClient {
       kind: 'scan' | 'execution',
       roleArn: string,
     ) => Promise<z.infer<typeof schemas.AwsAssumeRoleUpsertResponse>>;
-    getCollabChannel: (id: number) => Promise<OpsCollabChannelWire | null>;
-    putCollabChannel: (id: number, channel: OpsCollabChannelWire) => Promise<OpsCollabChannelWire>;
     getTargetSourceList: (query: string | undefined, page: number, size: number) => Promise<OpsTargetSourceListPageWire>;
   };
 }
@@ -349,11 +347,6 @@ export interface OpsStatusHistoryPageWire {
 export interface OpsInstallationModeWire {
   target_source_id: number;
   grant_service_terraform_execution_permission: boolean;
-}
-
-export interface OpsCollabChannelWire {
-  issue_key: string;
-  url: string;
 }
 
 /**
