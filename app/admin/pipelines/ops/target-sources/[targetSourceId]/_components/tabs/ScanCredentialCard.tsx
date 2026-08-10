@@ -2,78 +2,34 @@
 
 /**
  * Scan credential (permission) card — invalid credentials are the most common
- * cause of scan failures, so the verification verdict and its cause
- * (fail_reason/fail_message) render inside the scan tab, in place (read-only).
- * The three providers share one response shape: { status, fail_reason,
- * fail_message, last_verified_at } + a provider identity
+ * cause of scan failures, so the verification verdict and its cause render
+ * inside the scan tab, in place. The three providers share one response shape:
+ * { status, fail_reason, fail_message, last_verified_at } + a provider identity
  * (role_arn/app_id/gcp_project_id).
+ *
+ * Since the contract froze `fail_reason` as a stable enum, the client owns the
+ * per-cause sentence and the follow-up action (roleVerification.ts), which
+ * reordered the card: [verdict] → [guidance + action] → [raw response] →
+ * [last verified]. The raw box does not collapse — cross-checking the backend
+ * is standing work, and anything that costs a click stops happening.
  */
-import { useEffect, useState, type ReactElement } from 'react';
-import { getAwsRoleVerification } from '@/app/lib/api/aws';
-import { getAzureScanApp } from '@/app/lib/api/azure';
-import { getGcpScanServiceAccount } from '@/app/lib/api/gcp';
+import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { SCAN_CREDENTIAL_LABELS } from '@/app/components/features/scan/scan-labels';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTimeSec } from '@/lib/pipeline/format';
 import type { CloudProvider } from '@/lib/types';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-
-/** Structural union of the three providers' verification responses — every schema is partial, so all fields are optional. */
-interface CredentialVerification {
-  status?: string | null;
-  fail_reason?: string | null;
-  fail_message?: string | null;
-  last_verified_at?: string | null;
-  role_arn?: string | null;
-  app_id?: string | null;
-  gcp_project_id?: string | null;
-}
-
-const fetchByProvider = (
-  provider: CloudProvider,
-  targetSourceId: number,
-): Promise<CredentialVerification> => {
-  switch (provider) {
-    case 'AWS':
-      return getAwsRoleVerification(targetSourceId, 'scan');
-    case 'Azure':
-      return getAzureScanApp(targetSourceId);
-    case 'GCP':
-      return getGcpScanServiceAccount(targetSourceId);
-    case 'IDC':
-      // IDC has no cloud scan — the caller (ScanTab) never renders this card.
-      return Promise.resolve({});
-  }
-};
-
-type LoadState =
-  | { phase: 'loading' }
-  | { phase: 'error' }
-  | { phase: 'done'; data: CredentialVerification };
-
-/**
- * Only GCP enumerates the status contract (VALID/INVALID/UNVERIFIED) — AWS and
- * Azure send free strings, so map as an open set. Vocabulary and tone align
- * with the role verification verdicts (검증 완료/검증 중/검증 실패); UNVERIFIED
- * is "not verified yet" (off), not an error.
- */
-const pillSpec = (status: string | null | undefined): { cls: string; label: string } => {
-  switch (status) {
-    case 'VALID':
-    case 'COMPLETED':
-      return { cls: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]', label: '검증 완료' };
-    case 'IN_PROGRESS':
-      return { cls: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]', label: '검증 중' };
-    case 'UNVERIFIED':
-      return { cls: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]', label: '미검증' };
-    case 'FAIL':
-    case 'INVALID':
-      return { cls: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]', label: '검증 실패' };
-    default:
-      return { cls: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]', label: status ?? '미확인' };
-  }
-};
+import type { RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
+import {
+  fetchCredential,
+  roleVerdict,
+  VERDICT_BOX,
+  VERDICT_PILL,
+  type CredentialVerification,
+  type RoleVerdict,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleVerification';
 
 type JsonTokenKind = 'key' | 'string' | 'number' | 'bool' | 'null';
 
@@ -118,20 +74,45 @@ const JSON_TOKEN_CLASS: Record<JsonTokenKind, string> = {
   null: 'italic text-[var(--pl-text-weak)]',
 };
 
+type LoadState =
+  | { phase: 'loading' }
+  | { phase: 'error' }
+  | { phase: 'done'; data: CredentialVerification };
+
 export interface ScanCredentialCardProps {
   provider: CloudProvider;
   targetSourceId: number;
+  /**
+   * Opens RoleEditModal — OpsTargetView owns that modal. Only AWS has a
+   * register/edit contract, so other providers get no callback, and without one
+   * the card draws no CTA.
+   */
+  onEditRole?: (role: RoleKind) => void;
+  /** Changes when a role is saved — re-verifies so a fixed credential never sits under a stale verdict. */
+  reloadKey?: string;
 }
 
-export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialCardProps): ReactElement {
-  // Read-only — the "re-verify" button was dropped (ops feedback: refreshing the screen is enough).
+export function ScanCredentialCard({
+  provider,
+  targetSourceId,
+  onEditRole,
+  reloadKey,
+}: ScanCredentialCardProps): ReactElement {
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
+  // Re-fetch, offered only on an undeterminable verdict — not a standing button
+  // (that one was removed earlier). The skeleton flip happens here, in the event
+  // handler: setting state straight from the effect cascades renders.
+  const [retryKey, setRetryKey] = useState(0);
+  const retry = useCallback(() => {
+    setState({ phase: 'loading' });
+    setRetryKey((key) => key + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const data = await fetchByProvider(provider, targetSourceId);
+        const data = await fetchCredential(provider, targetSourceId, 'scan');
         if (!cancelled) setState({ phase: 'done', data });
       } catch {
         if (!cancelled) setState({ phase: 'error' });
@@ -140,11 +121,12 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
     return () => {
       cancelled = true;
     };
-  }, [provider, targetSourceId]);
+  }, [provider, targetSourceId, reloadKey, retryKey]);
 
   const credentialLabel = SCAN_CREDENTIAL_LABELS[provider];
   // Verdict beside the title — same slot as the recent-scan card's status pill (ops feedback).
-  const pill = state.phase === 'done' ? pillSpec(state.data.status) : null;
+  const data = state.phase === 'done' ? state.data : null;
+  const verdict = data && roleVerdict('scan', data);
 
   return (
     // flex-col — mt-auto pins the bottom time row (last verified) so the floor lines up with the sibling card.
@@ -152,9 +134,11 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
       <h2 className={cn(opsStyles.cardTitle, 'flex items-center gap-2')}>
         <Icon name="shield" size={18} className="text-[var(--pl-primary)]" />
         스캔 권한
-        {pill && (
-          <span className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, pill.cls)}>
-            {pill.label}
+        {verdict && (
+          <span
+            className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, VERDICT_PILL[verdict.tone])}
+          >
+            {verdict.label}
           </span>
         )}
       </h2>
@@ -167,25 +151,66 @@ export function ScanCredentialCard({ provider, targetSourceId }: ScanCredentialC
           <div className={cn(opsStyles.skeleton, 'min-h-[176px] flex-1')} aria-hidden="true" />
           <div className={cn(opsStyles.skeleton, 'mt-4 h-4 w-44 flex-none')} aria-hidden="true" />
         </div>
-      ) : state.phase === 'error' ? (
-        <p className={cn(pipelineStyles.text.meta, 'mt-4')}>자격 정보를 불러오지 못했습니다.</p>
+      ) : data && verdict ? (
+        <CredentialResult data={data} verdict={verdict} onEditRole={onEditRole} onRetry={retry} />
       ) : (
-        <CredentialResult data={state.data} />
+        <p className={cn(pipelineStyles.text.meta, 'mt-4')}>자격 정보를 불러오지 못했습니다.</p>
       )}
     </section>
   );
 }
 
-function CredentialResult({ data }: { data: CredentialVerification }): ReactElement {
-  // Error box only for failure (FAIL/INVALID) or when the server sent a cause — unverified is not an error.
-  const failed =
-    data.status === 'FAIL'
-    || data.status === 'INVALID'
-    || data.fail_reason != null
-    || data.fail_message != null;
+function CredentialResult({
+  data,
+  verdict,
+  onEditRole,
+  onRetry,
+}: {
+  data: CredentialVerification;
+  verdict: RoleVerdict;
+  onEditRole?: (role: RoleKind) => void;
+  onRetry: () => void;
+}): ReactElement {
+  const { action } = verdict;
+  // An action is drawn only when it can actually run — on a provider with no
+  // register/edit contract the button would be there and do nothing.
+  const editTarget = action?.kind === 'edit' ? action.role : undefined;
+  const runAction =
+    action?.kind === 'retry'
+      ? onRetry
+      : editTarget != null && onEditRole != null
+        ? () => onEditRole?.(editTarget)
+        : null;
 
   return (
     <>
+      {/* Guidance goes first — now that fail_reason is a stable code, the
+          per-cause sentence and the next action are what the operator reads
+          first. Valid and in-progress carry no message, so nothing is drawn. */}
+      {verdict.message && (
+        <div className={cn('mt-4 rounded-lg px-3.5 py-3', VERDICT_BOX[verdict.tone])}>
+          <p className="text-[14px] leading-[1.5]">{verdict.message}</p>
+          {(runAction || verdict.note || verdict.rawCode) && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+              {runAction && action && (
+                <PlButton variant="secondary" size="sm" onClick={runAction}>
+                  {action.label}
+                </PlButton>
+              )}
+              {/* An unmapped code is shown as-is — flattened, it never gets reported. */}
+              {verdict.rawCode && (
+                <span className="text-[12px] font-semibold text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]">
+                  {verdict.rawCode}
+                </span>
+              )}
+              {verdict.note && (
+                <span className="text-[12px] text-[var(--pl-text-weak)]">{verdict.note}</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Raw verification response — the full payload, identity included. The
           label is an in-box header; the body gets token highlighting (real
           JSON-viewer grammar) for diagnosis and backend cross-checks.
@@ -211,20 +236,9 @@ function CredentialResult({ data }: { data: CredentialVerification }): ReactElem
         </pre>
       </div>
 
-      {/* On failure the cause (code + message) shows right here — free strings by contract, passed through as-is. */}
-      {failed && (
-        <p className="mt-4 rounded-lg bg-[var(--pl-err-bg)] px-3 py-2.5 text-[14px] text-[var(--pl-err-text)]">
-          {data.fail_reason && (
-            <span className="[font-family:var(--pl-font-mono)] font-semibold">{data.fail_reason}</span>
-          )}
-          <span className={data.fail_reason ? 'ml-2' : undefined}>
-            {data.fail_message ?? '자격 검증에 실패했습니다. 권한 설정을 확인해 주세요.'}
-          </span>
-        </p>
-      )}
-
       {/* Bottom time row — same grammar as the recent-scan card (label over value),
-          mt-auto pins it to the floor. Omitted when there is no value. */}
+          mt-auto pins it to the floor. Omitted when there is no value: a verdict
+          we cannot date reads like a guarantee. */}
       {data.last_verified_at && (
         <div className="mt-auto">
           <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-[var(--pl-gray-100)] pt-3.5">

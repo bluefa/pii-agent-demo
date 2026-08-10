@@ -312,7 +312,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             </div>
           </>
         )}
-        {currentTab === '스캔' && <ScanTab targetSourceId={targetSourceId} detail={detail} />}
+        {currentTab === '스캔' && (
+          <ScanTab
+            targetSourceId={targetSourceId}
+            detail={detail}
+            // This screen owns the modal the permission card's CTA opens. The
+            // register/edit contract is AWS-only, so no other provider gets it.
+            onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
+            credentialReloadKey={savedRoleArns.scan}
+          />
+        )}
         {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
         {currentTab === '인프라 작업' && (
           <PipelineTab

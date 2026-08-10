@@ -26,6 +26,59 @@ const notAws = () =>
   );
 
 /**
+ * Summoning a failure scenario from the mock — the saved role **name** picks it.
+ *
+ * A mock that only ever answers VALID shows one of the four verdicts, leaving no
+ * way to check that the screen really distinguishes the six causes. This table
+ * summons any code from any target (ops screen [edit] → keyword in the name →
+ * save, which also exercises the save-then-re-verify path); DEMO_FAIL_BY_TARGET
+ * holds the per-target defaults.
+ *
+ * e.g. save a scan role named `bdc-scan-not-found` → it verifies as ROLE_NOT_FOUND.
+ * Full list: docs/redesign/ops-role-verification.md
+ */
+const DEMO_FAIL_BY_ROLE_NAME: ReadonlyArray<readonly [RegExp, string]> = [
+  ['not-configured', 'ROLE_NOT_CONFIGURED'],
+  ['bad-arn', 'INVALID_ROLE_ARN'],
+  ['not-found', 'ROLE_NOT_FOUND'],
+  ['scan-missing', 'SCAN_ROLE_NOT_CONFIGURED'],
+  ['scan-denied', 'SCAN_ROLE_NOT_ASSUMABLE'],
+  ['unavailable', 'ROLE_VERIFICATION_UNAVAILABLE'],
+  // Save with this to confirm the screen does not swallow an unmapped code.
+  ['unknown-code', 'ROLE_SESSION_POLICY_DENIED'],
+].map(([needle, reason]) => [new RegExp(needle, 'i'), reason] as const);
+
+/**
+ * Per-target default scenario — pinned so all four verdicts are reachable from a
+ * link alone. Every other AWS target (1006, 1007, 1018 …) stays VALID, so the
+ * happy path survives. The name rules above override this table, so one target
+ * can still be cycled through several codes.
+ */
+const DEMO_FAIL_BY_TARGET: Readonly<Record<number, string>> = {
+  1008: 'ROLE_NOT_CONFIGURED',
+  1010: 'INVALID_ROLE_ARN',
+  1011: 'ROLE_VERIFICATION_UNAVAILABLE',
+  // Unmapped code — checks that the screen falls back to status and still shows the code.
+  1012: 'ROLE_SESSION_POLICY_DENIED',
+};
+
+/** Only the undeterminable one is UNVERIFIED — the rest are definitive config errors, so INVALID. */
+const demoFailure = (
+  roleArn: string | undefined,
+  targetSourceId: number,
+): { status: string; fail_reason: string } | null => {
+  const byName = roleArn
+    ? DEMO_FAIL_BY_ROLE_NAME.find(([pattern]) => pattern.test(roleArn))?.[1]
+    : undefined;
+  const reason = byName ?? DEMO_FAIL_BY_TARGET[targetSourceId];
+  if (!reason) return null;
+  return {
+    status: reason === 'ROLE_VERIFICATION_UNAVAILABLE' ? 'UNVERIFIED' : 'INVALID',
+    fail_reason: reason,
+  };
+};
+
+/**
  * EC2 instances the scan "found" — the search-add flow's only source. Fixed rather than
  * derived from the project's resources: those are the DB services the scan proposes as
  * candidates, while this flow exists precisely for hosts the candidate list does NOT carry.
@@ -135,13 +188,17 @@ export const mockAws = {
     if (project.cloudProvider !== 'AWS') return notAws();
 
     const override = consumeOpsRoleOverride(Number(targetSourceId), 'scan');
+    const roleArn = override?.roleArn
+      ?? `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/scan`;
+    const failure = demoFailure(override?.roleArn, Number(targetSourceId));
     return NextResponse.json({
-      status: override?.pending ? 'IN_PROGRESS' : 'VALID',
-      role_arn: override?.roleArn
-        ?? `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/scan`,
-      fail_reason: null,
+      status: failure?.status ?? (override?.pending ? 'IN_PROGRESS' : 'VALID'),
+      // Not configured means there is no ARN at all — every other failure keeps the registered value.
+      role_arn: failure?.fail_reason === 'ROLE_NOT_CONFIGURED' ? null : roleArn,
+      fail_reason: failure?.fail_reason ?? null,
+      // deprecated — never sent for the new codes, so the screen has to speak from fail_reason alone.
       fail_message: null,
-      last_verified_at: override?.pending ? null : '2026-06-23T10:00:00Z',
+      last_verified_at: override?.pending && !failure ? null : '2026-06-23T10:00:00Z',
     });
   },
 
@@ -152,13 +209,18 @@ export const mockAws = {
     if (project.cloudProvider !== 'AWS') return notAws();
 
     const override = consumeOpsRoleOverride(Number(targetSourceId), 'execution');
+    const roleArn = override?.roleArn
+      ?? `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`;
+    const failure = demoFailure(override?.roleArn, Number(targetSourceId));
     return NextResponse.json({
-      status: override?.pending ? 'IN_PROGRESS' : 'VALID',
-      role_arn: override?.roleArn
-        ?? `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`,
-      fail_reason: null,
+      status: failure?.status ?? (override?.pending ? 'IN_PROGRESS' : 'VALID'),
+      // For SCAN_ROLE_* the cause is the scan role, so the contract pins the
+      // Terraform role ARN to stay — the mock must answer that way for the
+      // screen's "this ARN is not the cause" line to be verifiable.
+      role_arn: failure?.fail_reason === 'ROLE_NOT_CONFIGURED' ? null : roleArn,
+      fail_reason: failure?.fail_reason ?? null,
       fail_message: null,
-      last_verified_at: override?.pending ? null : '2026-06-23T10:00:00Z',
+      last_verified_at: override?.pending && !failure ? null : '2026-06-23T10:00:00Z',
     });
   },
 

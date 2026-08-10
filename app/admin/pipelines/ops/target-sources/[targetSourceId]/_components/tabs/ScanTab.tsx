@@ -19,6 +19,7 @@ import { normalizeCloudProvider } from '@/lib/types';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { ScanCredentialCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanCredentialCard';
+import type { RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { RecentScanCard, type TypeEntry } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RecentScanCard';
 import { ScanHistoryCard, SCAN_HISTORY_PAGE_SIZE } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanHistoryCard';
 import { ScanDetailModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanDetailModal';
@@ -27,9 +28,19 @@ import { sortResourceCounts, totalOf, type ScanJob } from '@/app/admin/pipelines
 export interface ScanTabProps {
   targetSourceId: number;
   detail: RawTargetSourceDetail;
+  /** Action CTA of the permission card — passed down because OpsTargetView owns
+      RoleEditModal. Only AWS, the one provider with a register/edit contract, sends it. */
+  onEditRole?: (role: RoleKind) => void;
+  /** Changes when a role is saved — makes the permission card re-verify. */
+  credentialReloadKey?: string;
 }
 
-export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement {
+export function ScanTab({
+  targetSourceId,
+  detail,
+  onEditRole,
+  credentialReloadKey,
+}: ScanTabProps): ReactElement {
   const provider = normalizeCloudProvider(detail.cloud_provider);
   // 카드는 결과를 이미 손에 쥐고 있으므로(같은 잡의 건수 맵) 대기할 데이터가 없다
   // — dataPending 없이, settling 이 바를 100%로 정착시키고 남은 dwell 은 아래
@@ -180,7 +191,12 @@ export function ScanTab({ targetSourceId, detail }: ScanTabProps): ReactElement 
         recentScanCard
       ) : (
         <div className={opsStyles.cardsRow}>
-          <ScanCredentialCard provider={provider} targetSourceId={targetSourceId} />
+          <ScanCredentialCard
+            provider={provider}
+            targetSourceId={targetSourceId}
+            onEditRole={onEditRole}
+            reloadKey={credentialReloadKey}
+          />
           {recentScanCard}
         </div>
       )}

@@ -28,7 +28,8 @@ vi.mock('@/app/lib/api', () => ({
   getProcessStatus: () => getProcessStatus(),
 }));
 const getTargetJiraTicket = vi.fn(async (): Promise<null> => null);
-const getAwsRoleVerification = vi.fn(async (): Promise<null> => null);
+// Now that a verdict is derived, this response is the screen — the route zod-parses it, so {} is the minimal shape.
+const getAwsRoleVerification = vi.fn(async (): Promise<Record<string, never>> => ({}));
 const getTestConnectionDetail = vi.fn(async (): Promise<null> => null);
 
 vi.mock('@/app/hooks/useTestConnectionPolling', () => ({ fetchLatestTest: vi.fn(async () => null) }));
