@@ -664,7 +664,7 @@ export const mockProjects: Project[] = [
     targetSourceId: 1006,
     projectCode: 'N-IRP-001',
     name: 'PII Agent 설치 - 고객 DB',
-    description: 'Step 1. 연동 대상 확정 — 실 BFF 응답 캡처의 스캔 후보 9건(엔진 6종)에서 1건만 선택된 상태입니다. TF 실행 권한 미허용이라 이후 설치는 직접 적용 모드로 이어집니다.',
+    description: 'Step 1. 연동 대상 확정 — 실 BFF 응답 캡처의 스캔 후보 9건(엔진 6종)이 모두 선택된 상태입니다. TF 실행 권한 미허용이라 이후 설치는 직접 적용 모드로 이어집니다.',
     serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: AWS_WIRE_APPROVAL_ACCOUNT_ID,
@@ -673,7 +673,14 @@ export const mockProjects: Project[] = [
     isTerraformExecutionGranted: false,
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
-    resources: [...awsWireApprovalResources, rdsClusterDemoResource],
+    // 전 건 선택. 미선택 행은 제외 사유가 없으면 승인 요청 버튼을 막으므로, 이 시드에서
+    // 승인 요청까지 가려면 매번 아홉 개를 손으로 체크해야 했다. 캡처(awsWireApprovalResources)
+    // 자체는 손대지 않는다 — 반려 시드(N-IRP-002)가 같은 배열을 쓰고 그 selectedCount 는
+    // 캡처의 선택 상태에서 나온다.
+    resources: [...awsWireApprovalResources, rdsClusterDemoResource].map((resource) => ({
+      ...resource,
+      isSelected: true,
+    })),
     terraformState: {
       serviceTf: 'PENDING',
       bdcTf: 'PENDING',
