@@ -23,6 +23,10 @@ import {
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { IdcFirewallModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
+import {
+  IdcFirewallRequestButton,
+  IdcFirewallRequestModal,
+} from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallRequestModal';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { InstallCardHeader } from '@/app/components/features/process-status/install-status-detail/InstallCardHeader';
 
@@ -69,6 +73,7 @@ export const IdcStep4Installing = ({
   // no separate flag to reset on switch (a setState in the effect would cascade).
   const [loaded, setLoaded] = useState<{ id: number; rows: IdcResourceView[] } | null>(null);
   const [firewallOpen, setFirewallOpen] = useState(false);
+  const [firewallRequestOpen, setFirewallRequestOpen] = useState(false);
 
   const resourcesLoading = loaded?.id !== targetSourceId;
   const resources = loaded?.id === targetSourceId ? loaded.rows : EMPTY_RESOURCES;
@@ -169,7 +174,9 @@ export const IdcStep4Installing = ({
   return (
     <>
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
-        <InstallCardHeader />
+        <InstallCardHeader
+          action={<IdcFirewallRequestButton onClick={() => setFirewallRequestOpen(true)} />}
+        />
         <div className={cardStyles.body}>
           {/* 두 조회(설치 상태 + 확정 연동)가 모두 도착할 때까지 스켈레톤을 유지한다.
               빈 배열을 그대로 그리면 "전체 리소스 0 · 대기 0/0"에 방화벽 조치 배너까지
@@ -211,6 +218,15 @@ export const IdcStep4Installing = ({
         onClose={() => setFirewallOpen(false)}
         resources={resources}
         firewallStatusByResource={firewallStatusByResource}
+      />
+
+      {/* 판정(위)과 요청(아래)은 행의 단위가 다르다 — 위는 리소스별 오픈 여부,
+          아래는 Source IP × 접속 주소로 전개한 방화벽 정책 목록이다. */}
+      <IdcFirewallRequestModal
+        isOpen={firewallRequestOpen}
+        onClose={() => setFirewallRequestOpen(false)}
+        resources={resources}
+        targetSourceId={targetSourceId}
       />
     </>
   );

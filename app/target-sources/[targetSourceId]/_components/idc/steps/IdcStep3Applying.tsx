@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { formatDate } from '@/lib/utils/date';
 import { cardStyles, cn, primaryColors, statusColors } from '@/lib/theme';
 import { ErrorState } from '@/app/components/ui/state';
@@ -12,6 +13,10 @@ import {
 import { WaitingApprovalStats } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
+import {
+  IdcFirewallRequestButton,
+  IdcFirewallRequestModal,
+} from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallRequestModal';
 import { useIdcApprovalTable } from '@/app/target-sources/[targetSourceId]/_components/idc/approval-table';
 import {
   IDC_FILTER_EMPTY_MESSAGE,
@@ -42,29 +47,43 @@ export const IdcStep3Applying = ({
 
   const view = state.status === 'ready' ? state.data : EMPTY_VIEW;
   const { table, visibleResources } = useIdcApprovalTable(view.resources);
+  const [firewallRequestOpen, setFirewallRequestOpen] = useState(false);
 
   return (
     <>
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cardStyles.header}>
           <span className={cardStyles.stepTag}>3번째 단계</span>
-          <div className="flex items-center gap-2">
-            <h2 className={cardStyles.cardTitle}>연동 대상 반영중</h2>
-            <span
-              className={cn(
-                cardStyles.stepBadge,
-                statusColors.warning.bg,
-                statusColors.warning.textDark,
-              )}
-            >
-              반영중
-            </span>
+          {/* CTA 는 제목 우측 — Step 4 가 같은 버튼을 같은 자리에 둔다. */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <h2 className={cardStyles.cardTitle}>연동 대상 반영중</h2>
+              <span
+                className={cn(
+                  cardStyles.stepBadge,
+                  statusColors.warning.bg,
+                  statusColors.warning.textDark,
+                )}
+              >
+                반영중
+              </span>
+            </div>
+            <div className="shrink-0">
+              <IdcFirewallRequestButton onClick={() => setFirewallRequestOpen(true)} />
+            </div>
           </div>
           {/* Was said twice — this sentence and a green StepBanner right below it. The banner is
               gone; blue marks the status clause only. */}
           <p className={cn('mt-3', cardStyles.guidance)}>
             <strong className={cn('font-semibold', primaryColors.text)}>승인이 완료됐어요.</strong>{' '}
             Agent 설치에 필요한 준비를 최대한 빠르게 진행하고 있어요.
+          </p>
+          {/* 이 단계에서 방화벽 상태는 아직 판정될 수 없다(설치 전). 그래서 상태가 아니라
+              지금 할 수 있는 일을 말한다 — 미리 열어두면 다음 단계가 바로 통과한다. */}
+          <p className={cn('break-keep', cardStyles.guidance)}>
+            지금 <span className={primaryColors.text}>방화벽을 미리 오픈</span>해 두시면 다음
+            단계에서 바로 통과돼요. 요청에 필요한 Source IP → 접속 주소 목록은 「방화벽 오픈 요청
+            정보」에서 확인하고 내려받을 수 있어요.
           </p>
           {/* Both come from the approved-integration response the rows came from. They used to be
               a hardcoded name and a hardcoded date fallback — the project payload has no approver,
@@ -122,6 +141,14 @@ export const IdcStep3Applying = ({
         </div>
       </section>
       <RejectionAlert project={project} />
+
+      {/* 필터/페이지가 아니라 승인된 목록 전체가 요청 대상이다 — visibleResources 가 아니라 view. */}
+      <IdcFirewallRequestModal
+        isOpen={firewallRequestOpen}
+        onClose={() => setFirewallRequestOpen(false)}
+        resources={view.resources}
+        targetSourceId={project.targetSourceId}
+      />
     </>
   );
 };
