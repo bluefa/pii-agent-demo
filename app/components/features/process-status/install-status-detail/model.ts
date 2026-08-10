@@ -78,6 +78,12 @@ export interface InstallResourceMeta {
   resourceType: string | null;
 }
 
+/** 같은 화면 안의 다른 레일 항목으로 보내는 점프 링크 — 라벨을 파란 밑줄로 그린다. */
+export interface InstallJumpLink {
+  label: string;
+  stepId: string;
+}
+
 /** A step rendered as a per-resource table. */
 export interface InstallTableStep {
   id: string;
@@ -94,12 +100,39 @@ export interface InstallTableStep {
   /** Optional control rendered in the step's panel head (e.g. IDC 방화벽 확인). */
   action?: ReactNode;
   /**
+   * 설명 아래 보조 한 줄 — 참고 항목으로 보내는 역참조.
+   * `link.label` 을 파란 밑줄로 그리고 누르면 그 항목을 연다.
+   * `text` 는 라벨 뒤에 **공백 없이** 이어 붙는다 (조사가 라벨에 붙으므로).
+   */
+  note?: { link: InstallJumpLink; text: string };
+  /**
    * Rail group — 'todo' (the service owner acts) / 'auto' (BDC proceeds
    * automatically). When EVERY step of an adapter declares one, the rail
    * renders in two groups and the first open todo is the default selection.
    * Any step left undeclared keeps the whole CSP on the legacy single list.
    */
   group?: 'todo' | 'auto';
+}
+
+/**
+ * 참고 항목 — 설치 단계가 **아닌** 것을 레일에 세운다 (Terraform Script 등).
+ *
+ * 단계가 아니므로 상태도 집계도 없다: 진행률에 끼지 않고, 기본 선택 대상도 되지 않으며,
+ * 레일에서 상태 글자를 갖지 않는다. CloudFormation 이 Template 을 Events·Resources 와
+ * 나란한 탭으로 두는 문법과 같다 — 상태 위에 얹는 배너가 아니라 별도의 뷰다.
+ */
+export interface InstallReferenceStep {
+  id: string;
+  title: string;
+  /** 설명 문장 — `descLink` 가 있으면 링크 라벨 뒤에 이어 붙는 나머지 문장. */
+  desc: string;
+  /**
+   * 설명 앞머리의 단계 점프 링크 — label 을 파란 밑줄로 그리고, 누르면 해당
+   * 단계를 연다 (요약 패널 "N단계로 이동" 링크와 같은 문법).
+   * 반대 방향(단계 → 참고 항목)은 `InstallTableStep.note`.
+   */
+  descLink?: InstallJumpLink;
+  panel: ReactNode;
 }
 
 /** Shared LastCheckInfoDto UI shape (SUCCESS/IN_PROGRESS/FAILED). */

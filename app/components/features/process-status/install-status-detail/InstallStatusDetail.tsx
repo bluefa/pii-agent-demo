@@ -6,6 +6,7 @@ import {
   borderColors,
   cn,
   primaryColors,
+  serviceSidebarStyles,
   sideTextColors,
   stackGap,
   shadows,
@@ -15,6 +16,7 @@ import {
   textStyles,
 } from '@/lib/theme';
 import { TABLE_TAG_PILL } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
+import { DownloadIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
 import {
   WaitingApprovalTable,
@@ -28,6 +30,7 @@ import {
   isSettledInstallStatus,
   type InstallDetailResource,
   type InstallLastCheck,
+  type InstallReferenceStep,
   type InstallResourceMeta,
   type InstallStepCell,
   type InstallStepValue,
@@ -50,6 +53,20 @@ const STATUS_TAG: Record<InstallStepValue, string> = {
   BDC_INSTALL_REQUIRED: tagStyles.amber,
   UNKNOWN: tagStyles.neutral,
 };
+
+/**
+ * 레일 항목끼리 서로를 가리키는 링크 — 요약 패널 "N단계로 이동" 과 같은 문법.
+ * 단계 → 참고 항목, 참고 항목 → 단계 양방향에서 같은 모양이어야 한다.
+ */
+const JumpLink = ({ label, onJump }: { label: string; onJump: () => void }) => (
+  <button
+    type="button"
+    onClick={onJump}
+    className={cn('underline underline-offset-2 decoration-1 font-semibold', primaryColors.text)}
+  >
+    {label}
+  </button>
+);
 
 /** A nav step whose right panel is custom content (e.g. AWS role verify). */
 export interface InstallPanelStep extends InstallTableStep {
@@ -408,6 +425,11 @@ export interface InstallStatusDetailProps {
   panelSteps?: readonly InstallPanelStep[];
   /** resourceId → region/DB-type/name enrichment (confirmed integration 등). */
   meta: ReadonlyMap<string, InstallResourceMeta>;
+  /**
+   * 단계가 아닌 참고 항목 — 그룹 레일에서만 '설치 스크립트' 묶음으로 렌더한다.
+   * 레거시 레일(Azure/GCP/IDC)은 그리지 않으므로 넘겨도 도달할 수 없다.
+   */
+  reference?: InstallReferenceStep;
 }
 
 export const InstallStatusDetail = ({
@@ -416,6 +438,7 @@ export const InstallStatusDetail = ({
   steps,
   panelSteps = [],
   meta,
+  reference,
 }: InstallStatusDetailProps) => {
   // Grouped rail (v2) — on only when EVERY step declares a group (AWS first).
   // A half-migrated adapter (some steps missing `group`) falls back to the
@@ -426,7 +449,8 @@ export const InstallStatusDetail = ({
     return all.length > 0 && all.every((s) => s.group);
   }, [panelSteps, steps]);
 
-  // The grouped rail has no summary step — the metabar and rail footer own the rollup.
+  // The grouped rail has no summary step — its rail lists the steps directly, so
+  // `rollup` stays unrendered there (owner removed the footer that used to show it).
   const navSteps: InstallTableStep[] = useMemo(
     () => (grouped ? [...panelSteps, ...steps] : [SUMMARY_STEP, ...panelSteps, ...steps]),
     [grouped, panelSteps, steps],
@@ -520,14 +544,24 @@ export const InstallStatusDetail = ({
     return grouped ? navSteps[0]?.id ?? SUMMARY_ID : SUMMARY_ID;
   }, [grouped, actionViews, navSteps, aggregates]);
   const [selected, setSelected] = useState<string | null>(null);
-  const activeId = selected ?? hotStepId;
+  // 존재하지 않는 id 로 선택이 굳는 것을 막는다. 죽은 점프 링크를 누르면 어떤 레일 행도
+  // aria-current 를 갖지 못하고(선택 표시가 통째로 사라진다) 패널은 조용히 첫 단계로 튄다.
+  // 둘 다 에러 없이 일어나므로 여기서 걸러 hot step 으로 되돌린다.
+  const isKnownId = (id: string) => navSteps.some((s) => s.id === id) || reference?.id === id;
+  const activeId = selected && isKnownId(selected) ? selected : hotStepId;
+  // 참고 항목은 단계 배열(navSteps) 밖에 산다 — 그래서 집계·기본 선택·진행률 어디에도
+  // 끼지 않고, 선택됐을 때만 우측 패널을 통째로 차지한다.
+  const activeReference = reference && reference.id === activeId ? reference : null;
+  // 점프 링크는 미리 묶어둔다 — JSX 안에서 좁힌 타입은 onClick 클로저까지 따라오지 않아
+  // 단언(!)을 부르게 된다.
+  const referenceLink = activeReference?.descLink ?? null;
   const active = navSteps.find((s) => s.id === activeId) ?? navSteps[0];
   const activePanel = panelSteps.find((p) => p.id === active.id);
   const isSummary = active.id === SUMMARY_ID;
   const activeAggregate = aggregates.get(active.id);
 
   const rows = useMemo<ResourceRow[]>(() => {
-    if (activePanel || active.id === SUMMARY_ID) return [];
+    if (activeReference || activePanel || active.id === SUMMARY_ID) return [];
     return resources.map((r) => {
       const m = meta.get(r.resourceId);
       return {
@@ -539,7 +573,10 @@ export const InstallStatusDetail = ({
         cell: cellOf(r, active.id),
       };
     });
-  }, [activePanel, active.id, resources, meta, cellOf]);
+  }, [activeReference, activePanel, active.id, resources, meta, cellOf]);
+
+  // 단계 ↔ 참고 항목을 서로 가리키는 링크는 문법이 하나다.
+  const activeNote = active.note ?? null;
 
   // Right-pane header/body — shared by both layouts (grouped / legacy).
   const paneHead = (
@@ -547,9 +584,19 @@ export const InstallStatusDetail = ({
       {/* title↔subtitle = tight 4px */}
       <div className={cn('min-w-0 flex flex-col', stackGap.tight)}>
         <h3 className={cn(textStyles.cardTitle, textColors.primary)}>{active.title}</h3>
-        <p className={cn(textStyles.caption, 'max-w-[60ch]', textColors.secondary)}>
+        {/* 폭 캡 없음 — 단계 설명은 전부 한 문장이라, 판이 허용하는 만큼 한 줄로
+            선다(오너 요구: "리소스별 Private Endpoint …" 줄바꿈 금지). */}
+        <p className={cn(textStyles.caption, textColors.secondary)}>
           {active.desc}
         </p>
+        {/* 역참조 한 줄 — 참고 항목이 이 단계를 가리키는 만큼, 이 단계도 참고 항목을
+            가리킨다. 조사가 라벨에 붙으므로 사이에 공백을 넣지 않는다. */}
+        {activeNote && (
+          <p className={cn(textStyles.caption, textColors.secondary)}>
+            <JumpLink label={activeNote.link.label} onJump={() => setSelected(activeNote.link.stepId)} />
+            {activeNote.text}
+          </p>
+        )}
       </div>
       <span className="flex items-center gap-2 flex-shrink-0">
         {active.side && <SideTag side={active.side} />}
@@ -582,38 +629,37 @@ export const InstallStatusDetail = ({
   if (grouped) {
     const todoSteps = navSteps.filter((s) => s.group === 'todo');
     const autoSteps = navSteps.filter((s) => s.group === 'auto');
-    // Nonzero buckets get a 1% floor so a single failure among hundreds of
-    // resources still leaves a visible sliver (flex-shrink absorbs any >100% sum).
-    const pct = (n: number) =>
-      rollup.total ? Math.max(n > 0 ? 1 : 0, Math.round((n / rollup.total) * 100)) : 0;
+    // 레일 항목 껍데기 — 단계와 참고 항목이 같은 히트 영역·선택 표현을 쓴다.
+    // 선택은 서비스 목록 rail 의 "현재 위치" 문법(rowCurrent: 파란 틴트 + 좌측 2px 바)
+    // 그대로다 — 흰 pill + 헤어라인은 회색 판 위에서 눌린 티가 나지 않았다(오너 지적).
+    // 바가 라운드를 뚫지 않도록 overflow-hidden.
+    const railItemClass = (isActive: boolean) =>
+      cn(
+        'flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0 overflow-hidden',
+        isActive ? serviceSidebarStyles.rowCurrent : 'hover:bg-white/60',
+      );
 
-    // Rail item — one line: [open-todo dot | ordinal] title · status word.
+    // 레일 항목 제목 — 평시 14/400, 선택 시 14/600. 항목이 조용해진 만큼(A안)
+    // 선택된 것 하나만 무게를 갖는다.
+    const railTitleClass = (isActive: boolean) =>
+      cn(
+        'flex-1 min-w-0 truncate',
+        isActive ? textStyles.bodyStrong : textStyles.body,
+        textColors.primary,
+      );
+
+    // Rail item — one line: [ordinal] title · status word.
     const railItem = (step: InstallTableStep, ord: number | null) => {
       const aggregate = aggregates.get(step.id)!;
       const isActive = step.id === activeId;
-      const openTodo = step.group === 'todo' && aggregate.kind !== 'done';
       return (
         <button
           key={step.id}
           type="button"
           onClick={() => setSelected(step.id)}
           aria-current={isActive}
-          className={cn(
-            'relative flex items-baseline gap-2 w-full text-left pl-3.5 pr-2.5 py-2 rounded-lg transition-colors flex-shrink-0',
-            // Primer grammar — the selected item lifts with an inset hairline
-            // ring + 1px offset shadow.
-            isActive ? cn('bg-white', shadows.hairRing) : 'hover:bg-white/60',
-          )}
+          className={railItemClass(isActive)}
         >
-          {openTodo && (
-            <span
-              aria-hidden
-              className={cn(
-                'absolute left-1 top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full',
-                statusColors.info.dot,
-              )}
-            />
-          )}
           {ord !== null && (
             // Execution order — quiet gray digits. secondary, not tertiary:
             // gray-500 on the panel surface (gray-100) is 4.37:1, under AA.
@@ -621,7 +667,7 @@ export const InstallStatusDetail = ({
               {ord}
             </span>
           )}
-          <span className={cn('flex-1 min-w-0 truncate', textStyles.bodyStrong, textColors.primary)}>
+          <span className={railTitleClass(isActive)}>
             {step.title}
           </span>
           <span
@@ -638,14 +684,29 @@ export const InstallStatusDetail = ({
       );
     };
 
-    const groupLabel = (text: string, hot: boolean) => (
+    // 참고 항목 — 상태도 순번도 없다. 제목 한 줄이 전부다.
+    const referenceItem = (ref: InstallReferenceStep) => (
+      <button
+        key={ref.id}
+        type="button"
+        onClick={() => setSelected(ref.id)}
+        aria-current={ref.id === activeId}
+        className={railItemClass(ref.id === activeId)}
+      >
+        <span className={railTitleClass(ref.id === activeId)}>{ref.title}</span>
+      </button>
+    );
+
+    // 16/600 — 그룹 이름이 항목(14/400)보다 크고 굵다. 계층 레버(크기·굵기)가 전부
+    // 라벨 편을 가리켜야 한다 — 16/500 은 크기로는 상위, 굵기·잉크로는 하위라
+    // 부모가 오락가락했다(레일 타이포 벤치마크 진단 1).
+    const groupLabel = (text: string, tone: string) => (
       <div
         className={cn(
-          'px-2.5 pt-3 pb-1 font-bold tracking-[0.02em] flex-shrink-0',
-          textStyles.caption,
+          'px-2.5 pt-3 pb-1 text-[16px] font-semibold leading-[24px] tracking-[-0.01em] flex-shrink-0',
           // On the gray-100 panel: #0064FF is 4.47:1 and gray-500 is 4.37:1,
-          // both under AA — use the darker pair the theme keeps for tints.
-          hot ? primaryColors.textOnLight : textColors.secondary,
+          // both under AA — use the darker tiers the theme keeps for tints.
+          tone,
         )}
       >
         {text}
@@ -657,7 +718,14 @@ export const InstallStatusDetail = ({
         {/* Metabar — title left / last-check right, one baseline row. No manual
             refresh or interval control (owner decision) — polling refreshes quietly. */}
         <div className="flex items-baseline gap-3 flex-wrap px-2.5 pt-1.5 pb-2.5">
-          <h3 className={cn(textStyles.cardTitle, textColors.primary)}>설치 진행 상황</h3>
+          <h3
+            className={cn(
+              'text-[20px] font-semibold leading-[28px] tracking-[-0.01em]',
+              textColors.primary,
+            )}
+          >
+            설치 진행 상황
+          </h3>
           <span className={cn('ml-auto', textStyles.caption, textColors.secondary)}>
             {/* checked_at is UTC wire — the label asserts KST, so the formatter
                 pins Asia/Seoul instead of trusting the browser timezone. */}
@@ -672,7 +740,10 @@ export const InstallStatusDetail = ({
             card header is the clipping point. */}
         <div className="grid grid-cols-[224px_minmax(0,1fr)] gap-2 h-[560px]">
           <nav className="flex flex-col gap-0.5 overflow-y-auto min-h-0 pb-1" aria-label="설치 단계">
-            {groupLabel(`내가 할 일 (${openTodoCount})`, openTodoCount > 0)}
+            {groupLabel(
+              `내가 할 일 (${openTodoCount})`,
+              openTodoCount > 0 ? primaryColors.textOnLight : textColors.secondary,
+            )}
             {todoSteps.map((s) => railItem(s, null))}
             {openTodoCount === 0 && (
               <p className={cn('px-3.5 pb-1 flex-shrink-0', textStyles.caption, textColors.secondary)}>
@@ -681,36 +752,71 @@ export const InstallStatusDetail = ({
                 모든 단계는 자동으로 진행돼요
               </p>
             )}
-            {groupLabel('BDC 자동 진행', false)}
+            {/* BDC 는 인디고 — 새 색이 아니라 이 화면이 이미 'BDC측'에 쓰고 있는 색이다
+                (SideTag 의 tagStyles.indigo, sideTextColors.bdc). 그룹 이름과 행 태그가
+                같은 색을 말해야 "이 묶음이 곧 BDC 측"으로 읽힌다. */}
+            {groupLabel('BDC 진행', sideTextColors.bdc)}
             {autoSteps.map((s, i) => railItem(s, i + 1))}
 
-            {/* Rail footer — the bottom slack closes with an overall progress
-                summary (WinUI PaneFooter grammar). */}
-            <div className="mt-auto px-2.5 pt-4 pb-1 flex flex-col gap-1.5 flex-shrink-0">
-              <div
-                role="img"
-                aria-label={`전체 ${rollup.total}개 중 완료 ${rollup.done}, 진행 중 ${rollup.running}, 실패 ${rollup.failed}`}
-                className={cn('flex h-1 rounded-full overflow-hidden', bgColors.divider)}
-              >
-                <span className={statusColors.success.dot} style={{ width: `${pct(rollup.done)}%` }} />
-                <span className={statusColors.info.dot} style={{ width: `${pct(rollup.running)}%` }} />
-                <span className={statusColors.error.dot} style={{ width: `${pct(rollup.failed)}%` }} />
-              </div>
-              <span className={cn(textStyles.caption, textColors.secondary)}>
-                <span className="font-semibold">
-                  {rollup.total}개 중 {rollup.done}개 완료
-                </span>
-                {rollup.failed > 0 && ` · 실패 ${rollup.failed}`}
-                {rollup.running > 0 && ` · 진행 중 ${rollup.running}`}
-              </span>
-            </div>
+            {/* 설치 스크립트 — 단계가 아니므로 진행 순번 다음, 레일 끝에 선다.
+                주황은 파랑(내가 할 일)과 겹치지 않는 유일한 강조색이라, 처음 들어온
+                담당자도 찾지 않고 걸린다(오너 요구). */}
+            {reference && (
+              <>
+                {groupLabel('설치 스크립트', statusColors.warning.textDark)}
+                {referenceItem(reference)}
+              </>
+            )}
+            {/* 레일 푸터(진행바 + "N개 중 M개 완료") 삭제 — 오너 결정. 단계 행의 상태
+                글자는 최악값 한 단어라 리소스 개수를 대신하지 못하므로, 그룹 레일에는
+                수치 진행률이 남아 있지 않다. 필요해지면 메타바 우측이 자리다. */}
           </nav>
 
           {/* Primer card — separation is the hairline border (gray-200, so it
               reads against the gray-100 panel), the shadow is only a 1px lift hint. */}
           <div className={cn('min-w-0 min-h-0 flex flex-col bg-white rounded-xl border', borderColors.default, shadows.hair)}>
-            <div className={cn('flex-none px-5 py-4 border-b', borderColors.light)}>{paneHead}</div>
-            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">{paneBody}</div>
+            {activeReference ? (
+              /* 참고 패널은 표가 아니라 액션 하나다 — 헤더+본문으로 쪼개면 16px 제목,
+                 12px 설명, 떠 있는 버튼 세 조각이 큰 빈 면 위에 남는다(오너 지적).
+                 EmptyState(block)의 히어로 문법을 한 단계 키워 카드 전체가 한 구도가
+                 되게 한다: 아이콘 칩 → 제목 → 설명 → 액션, 수직 중앙. */
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+                <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
+                  <div
+                    aria-hidden
+                    className={cn(
+                      'mb-1 grid h-14 w-14 place-items-center rounded-2xl',
+                      primaryColors.bgLight,
+                      primaryColors.textOnLight,
+                    )}
+                  >
+                    {/* 공용 아이콘 — 칩 안에서만 24px 로 키운다(CSS 가 svg 의 width/height
+                        속성을 이긴다). 같은 글리프를 손으로 다시 그리지 않는다. */}
+                    <DownloadIcon className="h-6 w-6" />
+                  </div>
+                  <h3 className={cn('text-[18px] font-bold leading-[1.3] tracking-[-0.01em]', textColors.primary)}>
+                    {activeReference.title}
+                  </h3>
+                  <p className={cn(textStyles.body, 'max-w-[46ch] break-keep', textColors.secondary)}>
+                    {referenceLink && (
+                      <>
+                        <JumpLink
+                          label={referenceLink.label}
+                          onJump={() => setSelected(referenceLink.stepId)}
+                        />{' '}
+                      </>
+                    )}
+                    {activeReference.desc}
+                  </p>
+                  <div className="mt-2">{activeReference.panel}</div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className={cn('flex-none px-5 py-4 border-b', borderColors.light)}>{paneHead}</div>
+                <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">{paneBody}</div>
+              </>
+            )}
           </div>
         </div>
       </div>

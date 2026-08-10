@@ -236,6 +236,10 @@ const SURFACES: SurfacePair[] = [
   { what: 'count pill on rail', top: bgOf(classOf(railBlock, 'count')), under: rail },
   { what: 'row code tag on rail', top: bgOf(classOf(railBlock, 'rowCode')), under: rail },
   { what: 'current row tint on rail', top: bgOf(classOf(railBlock, 'rowCurrent')), under: rail },
+  // Step 4 의 그룹 레일이 같은 rowCurrent 를 재사용한다 — 다만 바닥이 services 레일이
+  // 아니라 gray-100 판이다. 한 토큰이 두 바닥 위에 서므로 둘 다 걸어둬야, /services 를
+  // 위해 이 색을 다시 틴트할 때 Step 4 가 조용히 무너지지 않는다.
+  { what: 'current row tint on gray-100 panel (Step 4 rail)', top: bgOf(classOf(railBlock, 'rowCurrent')), under: wizardPanel },
   { what: 'skeleton bar on rail', top: bgOf(classOf(railBlock, 'skeletonBar')), under: rail },
   { what: 'admin sheet on ground', top: sheet, under: plGround },
   { what: 'admin rail count pill on ground', top: bgOf(classOf(adminSrc, 'railCount')), under: plGround },

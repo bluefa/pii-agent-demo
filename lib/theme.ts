@@ -317,6 +317,12 @@ export const buttonStyles = {
     ghost: 'bg-transparent text-gray-600 hover:bg-gray-100',
     /** Soft Primary — light blue fill + primary text (결정 #58, secondary CTA). */
     soft: 'bg-blue-50 text-[#0050D6] hover:bg-blue-100',
+    /**
+     * Outline primary — brand stroke + brand text on white, no fill. Reads as a CTA
+     * without spending the one filled button a card is allowed (Primer: primary is
+     * rarely more than one per page). Same role the admin console calls `pl.button.outline`.
+     */
+    outline: 'bg-white text-[#0064FF] border border-[#0064FF] hover:bg-[#EFF6FF]',
     /** Warn outline — amber outline for overwrite/reload actions (결정 #42). */
     warnOutline: 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100',
     /** v15 danger-outline — soft red fill, no border (#FEF2F2 / #991B1B / 600). */

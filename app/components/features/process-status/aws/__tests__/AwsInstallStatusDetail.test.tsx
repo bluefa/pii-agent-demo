@@ -48,7 +48,7 @@ const buildStatus = (
 });
 
 describe('AwsInstallStatusDetail', () => {
-  it('renders the grouped rail (내가 할 일 / BDC 자동 진행) and auto-selects the failed step', () => {
+  it('renders the grouped rail (내가 할 일 / BDC 진행) and auto-selects the failed step', () => {
     render(
       <AwsInstallStatusDetail
         status={buildStatus([resource('r-1', 'COMPLETED'), resource('r-2', 'FAIL', {
@@ -56,11 +56,12 @@ describe('AwsInstallStatusDetail', () => {
         })])}
         confirmed={[confirmedResource('r-1'), confirmedResource('r-2')]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
-    // The grouped rail has no summary step — the metabar + rail footer own the rollup.
+    // The grouped rail has no summary step — the rail lists the steps directly.
     expect(within(nav).queryByText('설치 현황 요약')).toBeNull();
     expect(screen.getByText('설치 진행 상황')).toBeTruthy();
     expect(within(nav).getByText('Terraform 권한 부여 확인')).toBeTruthy();
@@ -70,11 +71,11 @@ describe('AwsInstallStatusDetail', () => {
     // Grouped rail — the group headers carry ownership; per-item side lines are gone.
     // The role-verify todo is COMPLETED, so the open-todo count is 0.
     expect(within(nav).getByText('내가 할 일 (0)')).toBeTruthy();
-    expect(within(nav).getByText('BDC 자동 진행')).toBeTruthy();
+    expect(within(nav).getByText('BDC 진행')).toBeTruthy();
     expect(within(nav).queryByText('서비스측')).toBeNull();
     expect(within(nav).queryByText('BDC측')).toBeNull();
-    // Rail footer — overall progress summary (r-1 done, r-2 failed).
-    expect(within(nav).getByText('2개 중 1개 완료')).toBeTruthy();
+    // 레일 푸터(진행바+요약)는 오너 결정으로 삭제됐다.
+    expect(within(nav).queryByText('2개 중 1개 완료')).toBeNull();
 
     // No open todo → the failed step is the default view, and its table's 안내
     // chip is the single place the failure reason is stated.
@@ -87,6 +88,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
         confirmed={[confirmedResource('r-1')]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -108,6 +110,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-cluster', 'IN_PROGRESS')])}
         confirmed={[{ ...confirmedResource('r-cluster'), type: 'AWS_DB_CLUSTER' }]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -121,6 +124,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
         confirmed={[confirmedResource('r-1')]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -135,6 +139,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-unjoined', 'IN_PROGRESS')])}
         confirmed={[]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -156,6 +161,7 @@ describe('AwsInstallStatusDetail', () => {
         ])}
         confirmed={[]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -195,6 +201,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource(regionId, 'IN_PROGRESS', { resourceName: 'us-east-1' })])}
         confirmed={[athenaDb]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -213,6 +220,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
         confirmed={[]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
@@ -228,12 +236,90 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
         confirmed={[]}
         manualInstall
+        targetSourceId={1008}
       />,
     );
 
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
     expect(within(nav).queryByText('Terraform 권한 부여 확인')).toBeNull();
     expect(within(nav).getByText('Terraform 직접 적용')).toBeTruthy();
+
+    // 무게는 텍스트 링크까지다(오너 지시) — 단계 헤더에 h40 다운로드 버튼을 얹지 않고
+    // 참고 항목으로 보낸다. 다만 안내는 단계 안에 남아야 한다.
+    expect(screen.queryByRole('button', { name: 'Terraform Script 다운로드' })).toBeNull();
+    expect(screen.getByText(/에서 스크립트를 내려받을 수 있습니다/)).toBeTruthy();
+
+    const [toScript] = screen
+      .getAllByRole('button', { name: 'Terraform Script' })
+      .filter((b) => !nav.contains(b));
+    fireEvent.click(toScript);
+    expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
+  });
+
+  it('자동 설치의 단계 헤더에도 다운로드 CTA 가 없다 — 적용 주체가 BDC다', () => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
+        confirmed={[]}
+        manualInstall={false}
+        targetSourceId={1008}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Terraform Script 다운로드' })).toBeNull();
+  });
+
+  it('자동 설치의 서비스 단계는 참고 항목을 역참조한다 — 링크로 참고 패널이 열린다', () => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-1', 'IN_PROGRESS')])}
+        confirmed={[]}
+        manualInstall={false}
+        targetSourceId={1008}
+      />,
+    );
+
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    fireEvent.click(within(nav).getByText('서비스 측 Terraform 자동 적용'));
+    expect(screen.getByText(/에서 자세한 설치 사항을 확인할 수 있습니다/)).toBeTruthy();
+
+    const [back] = screen
+      .getAllByRole('button', { name: 'Terraform Script' })
+      .filter((b) => !nav.contains(b));
+    fireEvent.click(back);
+    expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
+  });
+
+  it('설치 스크립트 · Terraform Script 는 단계가 아니다 — 상태도 기본 선택도 없고, 눌러야 열린다', () => {
+    render(
+      <AwsInstallStatusDetail
+        status={buildStatus([resource('r-1', 'COMPLETED')])}
+        confirmed={[]}
+        manualInstall={false}
+        targetSourceId={1008}
+      />,
+    );
+
+    const nav = screen.getByRole('navigation', { name: '설치 단계' });
+    expect(within(nav).getByText('설치 스크립트')).toBeTruthy();
+
+    // 상태 글자를 갖지 않는다 — 제목 한 줄이 전부다.
+    const item = within(nav).getByText('Terraform Script');
+    expect(item.closest('button')?.textContent).toBe('Terraform Script');
+
+    // 기본 선택은 진행 중인 단계지 참고 항목이 아니다.
+    expect(screen.queryByRole('button', { name: 'Terraform Script 다운로드' })).toBeNull();
+
+    fireEvent.click(item);
+    expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
+
+    // 설명 앞머리의 단계 이름은 점프 링크다 — 누르면 그 단계가 열린다.
+    const [jump] = screen
+      .getAllByRole('button', { name: '서비스 측 Terraform 자동 적용' })
+      .filter((b) => !nav.contains(b));
+    fireEvent.click(jump);
+    expect(screen.queryByRole('button', { name: 'Terraform Script 다운로드' })).toBeNull();
+    expect(screen.getByText(/리소스별 Private Endpoint/)).toBeTruthy();
   });
 
   it('paginates the resource table past 10 rows and has no 새로고침 control', () => {
@@ -243,6 +329,7 @@ describe('AwsInstallStatusDetail', () => {
         status={buildStatus(many)}
         confirmed={[]}
         manualInstall={false}
+        targetSourceId={1008}
       />,
     );
 
