@@ -9,49 +9,40 @@ import { foldAgentStatuses } from '@/lib/test-connection-summary';
 
 interface TcHeaderTagProps {
   targetSourceId: number;
-  /**
-   * Step 5 가 폴링 중인 최신 실행. `undefined` = 폴링 없는 화면(스텝 1~4·6·7) —
-   * 이 태그가 latest_version 을 1회 조회한다. 값이 오면(null 포함) 그것이 진실의
-   * 전부다: null 은 "실행 없음(NOT_FOUND)"이므로 무표시. 모듈 스토어로 잇지 않는
-   * 이유는 DR1/DR7(모듈 레벨 fetch 결과 보관 금지) — prop 이 곧 최신 관찰이다.
-   */
-  liveJob?: TestConnectionVersionResult | null;
 }
 
 /**
- * 스텝퍼의 '연결 테스트' 단계 아래 붙는 최근 실행 판정 태그 (P5). 실행 기록이 없으면
- * 아무것도 그리지 않는다. 스스로 폴링하지 않는다 — Step 5 화면에서는 카드의 폴링이
- * liveJob 으로 같은 사실을 내려 주고, 그 외 스텝에서는 마지막 실행을 1회 조회한다.
+ * The latest connection-test verdict, hung under the stepper's 연결 테스트 step (P5).
+ * Draws nothing when the target has never run a test.
  *
- * 문구에서 '연결'을 뺀 건 자리 때문이다 — 바로 위에 '연결 테스트'라는 단계 이름이
- * 있어 태그가 그 말을 되풀이할 이유가 없다.
+ * It reads latest_version once on mount and does not poll. Step 5's card owns its own
+ * polling, but #661 severed that feed from this tag (see WaitingConnectionTestStep,
+ * where the downgrade is recorded), so a verdict that flips while you sit on Step 5
+ * reaches the card and not this tag until the next mount.
  *
- * 회차(#N)는 짧게 써 달라는 오너 요청으로 뺐고, 그 대가는 정확히 알고 간다: 회차를
- * 그리는 곳은 Step 5 카드(TcSummaryCard)와 실행 이력 모달뿐이고 둘 다 Step 5 전용이라,
- * 이 태그에서 빠지면 나머지 6개 스텝에서는 회차를 볼 방법이 없다. 가이드 레일의
- * 진행 내역 탭은 하드코딩 목이라 연결 테스트 실행을 아예 담지 않는다 — 대체 경로가
- * 아니다. 회차가 스텝 전반에서 필요해지면 여기 되살리는 게 맞다.
+ * The copy drops the word 연결 because the step name sits directly above it, and drops
+ * the run number at the owner's request. That second cost is known: 실행 #N is drawn
+ * only by the Step 5 card and the 실행 이력 modal, both Step 5-only, so on the other six
+ * steps the number is now unreachable. The guide rail's 진행 내역 tab is hardcoded mock
+ * data holding no connection-test runs, so it is not an alternative path. If the number
+ * turns out to be needed across steps, here is where it goes back.
  */
-export const TcHeaderTag = ({ targetSourceId, liveJob }: TcHeaderTagProps) => {
-  const [fetched, setFetched] = useState<TestConnectionVersionResult | null>(null);
-  const controlled = liveJob !== undefined;
+export const TcHeaderTag = ({ targetSourceId }: TcHeaderTagProps) => {
+  const [job, setJob] = useState<TestConnectionVersionResult | null>(null);
 
   useEffect(() => {
-    if (controlled) return;
     let active = true;
     void fetchLatestTest(targetSourceId)
       .then((latest) => {
-        if (active) setFetched(latest);
+        if (active) setJob(latest);
       })
       .catch(() => {
-        if (active) setFetched(null);
+        if (active) setJob(null);
       });
     return () => {
       active = false;
     };
-  }, [controlled, targetSourceId]);
-
-  const job = controlled ? liveJob : fetched;
+  }, [targetSourceId]);
 
   if (!job) return null;
 
@@ -71,7 +62,7 @@ export const TcHeaderTag = ({ targetSourceId, liveJob }: TcHeaderTagProps) => {
     const failCount = [...folded.values()].filter((s) => s === 'FAIL').length;
     label = failCount > 0 ? `최근 테스트 실패 ${failCount}건` : '최근 테스트 실패';
   } else {
-    // 진행 중인 실행에 '최근'은 붙지 않는다 — 지금 돌고 있는 것이다.
+    // No 최근 on a run that is still going — it is happening now, not recently.
     label = '테스트 진행 중';
   }
 

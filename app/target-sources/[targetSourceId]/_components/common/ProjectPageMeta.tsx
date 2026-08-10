@@ -219,8 +219,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
       </div>
 
       {/* #661 P5: the latest connection-test verdict rides its own step, not the
-          page title. Rendered without liveJob, so the tag self-fetches
-          latest_version once. */}
+          page title. */}
       <InstallationProcessProgressBar
         currentStep={project.processStatus}
         tcTag={<TcHeaderTag targetSourceId={project.targetSourceId} />}

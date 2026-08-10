@@ -74,17 +74,24 @@ describe('InstallationProcessProgressBar', () => {
   /**
    * The 연결 테스트 verdict tag is absolutely positioned, so it hangs into space the
    * step LAYOUTS own, not this component. Today: the stepper's own `pb-[18px]` plus
-   * the body column's `pt-8` give 50px, and the tag needs 32px (6px offset + ~26px
+   * the body column's `pt-8` give 50px, and the tag needs 32px (`mt-1.5` + ~26px
    * tall), leaving 18px of clearance to the first card.
    *
-   * Nothing else catches this. Tighten `pt-8` to `pt-2` and the tag OVERLAPS the card
-   * instead of pushing it — out-of-flow boxes do not reflow anything — so the page
+   * Nothing else catches a change here. Tighten `pt-8` to `pt-2` and the tag OVERLAPS
+   * the card instead of pushing it — out-of-flow boxes reflow nothing — so the page
    * still renders, every test still passes, and only a human looking at the screen
-   * would notice. Hence a tripwire on the three values the clearance is made of.
+   * would notice.
+   *
+   * This is a source-string pin, not a layout measurement: jsdom computes no
+   * geometry, so it fails when one of the four inputs is EDITED, and equally when
+   * one is merely reordered or moved into a token. That false-positive is the price
+   * of the tripwire — it fires, you re-derive the 50px, you update the string. What
+   * it cannot catch is the tag growing taller from a longer label or a bigger font.
    */
-  it('keeps the absolute tag slot clear of the first body card', () => {
+  it('pins the four values the absolute tag slot clearance is made of', () => {
     expect(installStepperStyles.tagSlot).toContain('absolute');
     expect(installStepperStyles.tagSlot).toContain('top-full');
+    expect(installStepperStyles.tagSlot).toContain('mt-1.5');
     expect(installStepperStyles.wrap).toContain('pb-[18px]');
 
     const root = path.resolve(__dirname, '../../../../..');
