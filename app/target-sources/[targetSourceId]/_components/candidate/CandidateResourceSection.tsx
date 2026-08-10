@@ -293,10 +293,16 @@ export const CandidateResourceSection = ({
     },
     // 확인 프레임이 물러난 뒤에 갱신한다 — 상태가 WAITING_APPROVAL 로 바뀌는 순간
     // 이 섹션이 Step 2 로 교체되므로, 순서가 반대면 프레임이 그려지지 않는다.
+    // 닫기는 finally 에 둔다. 확인 프레임은 닫기 경로가 전부 잠겨 있고(누를 것이 없는
+    // 1초다) 버튼도 없으므로, 갱신이 던지면 사용자는 새로고침 말고는 빠져나갈 수 없다.
+    // 요청은 이미 접수된 뒤라 갱신 실패로 되돌릴 것도 없다.
     settle: async () => {
-      await refreshProject();
-      approvalModal.close();
-      setExpandedResourceId(null);
+      try {
+        await refreshProject();
+      } finally {
+        approvalModal.close();
+        setExpandedResourceId(null);
+      }
     },
   });
 

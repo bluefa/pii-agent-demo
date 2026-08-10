@@ -210,6 +210,26 @@ describe('ConfirmStepModal', () => {
     expect(screen.getByText('요청이 만료됐어요.')).toBeTruthy();
   });
 
+  // 성공 프레임에는 누를 것이 없다 — 포커스를 쥔 확인 버튼이 본문과 함께 사라지므로,
+  // 프레임 자신이 받지 않으면 포커스가 body 로 떨어지고 Tab 이 모달 뒤 페이지를 걷는다.
+  it('keeps focus inside the dialog on the success frame', () => {
+    const { rerender } = render(<ConfirmStepModal {...baseProps} open />);
+    rerender(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        result={{ kind: 'success', title: '보냈어요', description: '곧 이동해요.' }}
+      />,
+    );
+    const frame = screen.getByRole('status');
+    expect(document.activeElement).toBe(frame);
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+
+    // 누를 것이 없다고 Tab 이 밖으로 새어나가서는 안 된다 — preventDefault 로 삼킨다.
+    const notPrevented = fireEvent.keyDown(document, { key: 'Tab' });
+    expect(notPrevented).toBe(false);
+  });
+
   // 실패는 기다리던 사용자를 끊어야 하고, 성공은 끊을 것이 없다.
   it('announces the result — assertive on error, polite on success', () => {
     const { rerender } = render(

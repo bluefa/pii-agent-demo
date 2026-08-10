@@ -91,8 +91,11 @@ const confirmWarningBtn = cn(
   confirmFocusRing,
 );
 
-/** Result frame — one centred column in the space the body and footer had. */
-const resultFrame = 'flex flex-1 flex-col items-center justify-center px-10 py-10 text-center';
+/** Result frame — one centred column in the space the body and footer had. It takes focus
+ *  itself on the success frame (nothing inside it is focusable), so `outline-none`: the
+ *  focus is programmatic containment, not keyboard navigation. */
+const resultFrame =
+  'flex flex-1 flex-col items-center justify-center px-10 py-10 text-center outline-none';
 const resultTile = 'mb-5 grid h-16 w-16 place-items-center rounded-2xl';
 const resultTitle = 'text-[20px] font-bold tracking-[-0.02em] leading-[1.3] text-[#191F28]';
 /** Same quiet tier as `modalStyles.toss.subtitle`, one step down in size — the frame is short. */
@@ -122,6 +125,7 @@ export const ConfirmStepModal = ({
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const resultKind = result?.kind ?? null;
@@ -144,6 +148,10 @@ export const ConfirmStepModal = ({
     // request was out, and a disabled element cannot hold focus, so without this the Tab
     // trap would resume from outside the dialog.
     if (resultKind === 'error' && !isPending) retryRef.current?.focus();
+    // The success frame has nothing focusable, and the confirm button that held focus was
+    // unmounted with the body — focus would fall to <body> and Tab would walk the page
+    // behind an aria-modal dialog. The frame holds it instead.
+    if (resultKind === 'success') resultRef.current?.focus();
   }, [resultKind, isPending]);
 
   useEffect(() => {
@@ -162,7 +170,12 @@ export const ConfirmStepModal = ({
             'button:not([disabled]), textarea, input, select, a[href]',
           ) ?? [],
         );
-        if (focusables.length === 0) return;
+        // Nothing focusable = the success frame. Swallow Tab rather than letting the
+        // browser hand focus to the page behind the dialog.
+        if (focusables.length === 0) {
+          event.preventDefault();
+          return;
+        }
         const first = focusables[0];
         const last = focusables[focusables.length - 1];
         const active = document.activeElement;
@@ -225,6 +238,8 @@ export const ConfirmStepModal = ({
       >
         {result ? (
           <div
+            ref={resultRef}
+            tabIndex={-1}
             className={resultFrame}
             // The frame IS the announcement — it replaces the dialog that was read on open,
             // and a failure has to interrupt (assertive) or the user keeps waiting on a
@@ -235,9 +250,13 @@ export const ConfirmStepModal = ({
             <div
               className={cn(
                 resultTile,
+                // Both tiles take the dark text tier. `statusColors.error.text` (red-500)
+                // measures ~3.3:1 on its own red-100 — at the WCAG 1.4.11 floor for a mark
+                // that is carrying the result, while the success side's #2A7D52 has room to
+                // spare. textDark (red-800) restores the symmetry.
                 result.kind === 'success'
-                  ? cn(statusColors.success.bg, statusColors.success.text)
-                  : cn(statusColors.error.bg, statusColors.error.text),
+                  ? cn(statusColors.success.bg, statusColors.success.textDark)
+                  : cn(statusColors.error.bg, statusColors.error.textDark),
               )}
             >
               {result.kind === 'success' ? (
