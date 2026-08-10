@@ -312,7 +312,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             </div>
           </>
         )}
-        {currentTab === '스캔' && <ScanTab targetSourceId={targetSourceId} detail={detail} />}
+        {currentTab === '스캔' && (
+          <ScanTab
+            targetSourceId={targetSourceId}
+            detail={detail}
+            // 권한 카드의 조치 CTA 가 여는 모달은 이 화면이 갖고 있다. 등록·수정
+            // 계약은 AWS 에만 있어 다른 프로바이더에는 내려보내지 않는다.
+            onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
+            credentialReloadKey={savedRoleArns.scan}
+          />
+        )}
         {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
         {currentTab === '인프라 작업' && (
           <PipelineTab

@@ -28,7 +28,8 @@ vi.mock('@/app/lib/api', () => ({
   getProcessStatus: () => getProcessStatus(),
 }));
 const getTargetJiraTicket = vi.fn(async (): Promise<null> => null);
-const getAwsRoleVerification = vi.fn(async (): Promise<null> => null);
+// 판정이 붙은 뒤로는 이 응답이 곧 화면이다 — 라우트가 zod 로 파싱하므로 빈 객체가 최소 형태다.
+const getAwsRoleVerification = vi.fn(async (): Promise<Record<string, never>> => ({}));
 const getTestConnectionDetail = vi.fn(async (): Promise<null> => null);
 
 vi.mock('@/app/hooks/useTestConnectionPolling', () => ({ fetchLatestTest: vi.fn(async () => null) }));

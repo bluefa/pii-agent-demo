@@ -26,6 +26,40 @@ const notAws = () =>
   );
 
 /**
+ * 검증 실패 시나리오를 목에서 불러내는 방법 — 저장한 Role **이름**이 고른다.
+ *
+ * 목이 늘 VALID 만 돌려주면 판정 넷 중 하나만 볼 수 있어, 화면이 실제로 여섯 원인을
+ * 구분하는지 확인할 길이 없다. 그렇다고 특정 대상을 상시 실패로 박아 두면 그 대상을
+ * 쓰는 다른 데모가 같이 깨진다. 그래서 기본은 전부 VALID 로 두고, 운영 화면의
+ * [수정] → 이름에 아래 키워드 → 저장 흐름으로만 불러낸다 (저장 직후 재검증까지 같이 탄다).
+ *
+ * 예) Scan Role 이름을 `bdc-scan-not-found` 로 저장 → ROLE_NOT_FOUND 로 검증된다.
+ * 목록은 docs/redesign/ops-role-verification.md 참조.
+ */
+const DEMO_FAIL_BY_ROLE_NAME: ReadonlyArray<readonly [RegExp, string]> = [
+  ['not-configured', 'ROLE_NOT_CONFIGURED'],
+  ['bad-arn', 'INVALID_ROLE_ARN'],
+  ['not-found', 'ROLE_NOT_FOUND'],
+  ['scan-missing', 'SCAN_ROLE_NOT_CONFIGURED'],
+  ['scan-denied', 'SCAN_ROLE_NOT_ASSUMABLE'],
+  ['unavailable', 'ROLE_VERIFICATION_UNAVAILABLE'],
+  // 매핑에 없는 코드도 화면이 삼키지 않는지 보려면 이것으로 저장한다.
+  ['unknown-code', 'ROLE_SESSION_POLICY_DENIED'],
+].map(([needle, reason]) => [new RegExp(needle, 'i'), reason] as const);
+
+/** 판정 불가만 UNVERIFIED — 나머지는 확정적 구성 오류라 INVALID (계약 §상태와의 관계). */
+const demoFailure = (roleArn: string | undefined): { status: string; fail_reason: string } | null => {
+  if (!roleArn) return null;
+  const found = DEMO_FAIL_BY_ROLE_NAME.find(([pattern]) => pattern.test(roleArn));
+  if (!found) return null;
+  const reason = found[1];
+  return {
+    status: reason === 'ROLE_VERIFICATION_UNAVAILABLE' ? 'UNVERIFIED' : 'INVALID',
+    fail_reason: reason,
+  };
+};
+
+/**
  * EC2 instances the scan "found" — the search-add flow's only source. Fixed rather than
  * derived from the project's resources: those are the DB services the scan proposes as
  * candidates, while this flow exists precisely for hosts the candidate list does NOT carry.
@@ -135,13 +169,17 @@ export const mockAws = {
     if (project.cloudProvider !== 'AWS') return notAws();
 
     const override = consumeOpsRoleOverride(Number(targetSourceId), 'scan');
+    const roleArn = override?.roleArn
+      ?? `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/scan`;
+    const failure = demoFailure(override?.roleArn);
     return NextResponse.json({
-      status: override?.pending ? 'IN_PROGRESS' : 'VALID',
-      role_arn: override?.roleArn
-        ?? `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/scan`,
-      fail_reason: null,
+      status: failure?.status ?? (override?.pending ? 'IN_PROGRESS' : 'VALID'),
+      // 미등록은 ARN 자체가 없다 — 그 외 실패는 등록값을 그대로 유지한다.
+      role_arn: failure?.fail_reason === 'ROLE_NOT_CONFIGURED' ? null : roleArn,
+      fail_reason: failure?.fail_reason ?? null,
+      // deprecated — 신규 코드에는 싣지 않는다 (화면이 fail_reason 으로만 말하는지 본다).
       fail_message: null,
-      last_verified_at: override?.pending ? null : '2026-06-23T10:00:00Z',
+      last_verified_at: override?.pending && !failure ? null : '2026-06-23T10:00:00Z',
     });
   },
 
@@ -152,13 +190,17 @@ export const mockAws = {
     if (project.cloudProvider !== 'AWS') return notAws();
 
     const override = consumeOpsRoleOverride(Number(targetSourceId), 'execution');
+    const roleArn = override?.roleArn
+      ?? `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`;
+    const failure = demoFailure(override?.roleArn);
     return NextResponse.json({
-      status: override?.pending ? 'IN_PROGRESS' : 'VALID',
-      role_arn: override?.roleArn
-        ?? `arn:aws:iam::${project.awsAccountId ?? project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12)}:role/exec`,
-      fail_reason: null,
+      status: failure?.status ?? (override?.pending ? 'IN_PROGRESS' : 'VALID'),
+      // SCAN_ROLE_* 는 원인이 Scan Role 이므로 계약이 Terraform Role ARN 을 유지하라고
+      // 못박았다 — 목도 그렇게 답해야 화면의 "이 ARN 은 원인이 아니다"가 검증된다.
+      role_arn: failure?.fail_reason === 'ROLE_NOT_CONFIGURED' ? null : roleArn,
+      fail_reason: failure?.fail_reason ?? null,
       fail_message: null,
-      last_verified_at: override?.pending ? null : '2026-06-23T10:00:00Z',
+      last_verified_at: override?.pending && !failure ? null : '2026-06-23T10:00:00Z',
     });
   },
 
