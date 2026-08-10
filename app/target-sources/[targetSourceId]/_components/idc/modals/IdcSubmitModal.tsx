@@ -1,6 +1,7 @@
 'use client';
 
-import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
+import { ConfirmStepModal, type ConfirmStepResult } from '@/app/components/ui/ConfirmStepModal';
+import type { ConfirmSubmitPhase } from '@/app/hooks/useConfirmSubmit';
 import {
   borderColors,
   cn,
@@ -15,13 +16,39 @@ interface IdcSubmitModalProps {
   total: number;
   live: number;
   excluded: number;
-  /** Disable the buttons while the mutation is in flight. */
-  submitting: boolean;
+  /** 요청의 진행 프레임 (useConfirmSubmit). */
+  phase: ConfirmSubmitPhase;
+  /** 실패 사유 한 줄. 서버가 준 사용자용 메시지일 때만 값이 있다. */
+  errorReason?: string;
   /** 요청하기 — parent runs createApprovalRequest + refreshProject. */
   onSubmit: () => void;
-  /** 머무르기 / close. */
+  /** 다시 요청하기 — 재요청 전에 진행 상태를 다시 읽는다(useConfirmSubmit). */
+  onRetry: () => void;
+  /** 머무르기 / 실패 프레임의 닫기. */
   onClose: () => void;
 }
+
+/**
+ * 프레임별 결과 문구. 확인 프레임은 건수를 다시 말하지 않는다 — 방금 그 숫자를
+ * 보고 누른 사용자에게 같은 수를 되돌려주는 대신, 다음에 무슨 일이 일어나는지만
+ * 말한다(스캔 완료 프레임이 발견 건수를 말하지 않는 것과 같은 이유).
+ */
+const RESULTS: Record<'success' | 'error', ConfirmStepResult> = {
+  success: {
+    kind: 'success',
+    title: '승인 요청을 보냈어요',
+    description: '잠시 후 승인 대기 단계로 이동해요.',
+  },
+  error: {
+    kind: 'error',
+    title: '승인 요청을 보내지 못했어요',
+    // 실패가 지운 것이 없다는 말이 먼저다 — 입력·선택·제외 사유가 그대로라는 것을
+    // 모르면 사용자는 다시 요청하기보다 화면을 처음부터 확인하려 든다.
+    description: '연동 대상은 그대로 남아 있어요. 다시 요청해 주세요.',
+  },
+};
+
+const UNKNOWN_REASON = '알 수 없는 오류가 발생했어요.';
 
 interface StatProps {
   label: string;
@@ -57,15 +84,25 @@ export const IdcSubmitModal = ({
   total,
   live,
   excluded,
-  submitting,
+  phase,
+  errorReason,
   onSubmit,
+  onRetry,
   onClose,
 }: IdcSubmitModalProps) => (
   <ConfirmStepModal
     open={isOpen}
     onClose={onClose}
     onConfirm={onSubmit}
-    isPending={submitting}
+    isPending={phase === 'pending'}
+    result={
+      phase === 'success'
+        ? RESULTS.success
+        : phase === 'error'
+          ? { ...RESULTS.error, reason: errorReason ?? UNKNOWN_REASON }
+          : null
+    }
+    onRetry={onRetry}
     title="연동 대상을 승인 요청할까요?"
     // 꼭 알아야 하는 정보만 파란색으로, 굵기는 본문과 동일하게 — 강조는 행동
     // 문구("N건을 연동 대상으로 요청해요") 하나뿐이다. 취소 경로 문장은 평문.

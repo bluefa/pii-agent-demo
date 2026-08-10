@@ -5,6 +5,7 @@ import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import { toWireDatabaseType } from '@/lib/types';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
+import { useConfirmSubmit } from '@/app/hooks/useConfirmSubmit';
 import {
   idcDbTypeWireFromLabel,
   type IdcResourceView,
@@ -127,7 +128,6 @@ export const IdcStep1TargetInput = ({
   const [editId, setEditId] = useState<string | null>(null);
   const [loadOpen, setLoadOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [reasonFor, setReasonFor] = useState<string | null>(null);
   const [popover, setPopover] = useState<PopoverState | null>(null);
 
@@ -137,6 +137,23 @@ export const IdcStep1TargetInput = ({
     const updated = await getProject(targetSourceId);
     onProjectUpdate(updated);
   }, [onProjectUpdate, targetSourceId]);
+
+  const submit = useConfirmSubmit({
+    targetSourceId,
+    request: async () => {
+      // Step 1 is manual input held in UI state — there is no IDC `/resources`
+      // PUT in the contract; submission rides createApprovalRequest, which routes
+      // every submission to WAITING_APPROVAL (Step 2, 승인 대기) for manual admin
+      // approval — same as cloud providers (auto-approval is disabled in the demo).
+      await createApprovalRequest(targetSourceId, toIdcApprovalRequestInput(rows));
+    },
+    // 확인 프레임이 물러난 뒤에 갱신한다 — 상태가 WAITING_APPROVAL 로 바뀌는 순간
+    // 이 컴포넌트가 Step 2 로 교체되므로, 순서가 반대면 프레임이 그려지지 않는다.
+    settle: async () => {
+      await refreshProject();
+      setSubmitOpen(false);
+    },
+  });
 
   const editingRow = editId ? rows.find((r) => r.resourceId === editId) ?? null : null;
   const popoverRow = popover ? rows.find((r) => r.resourceId === popover.resourceId) ?? null : null;
@@ -225,21 +242,10 @@ export const IdcStep1TargetInput = ({
     setReasonFor(null);
   };
 
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try {
-      // Step 1 is manual input held in UI state — there is no IDC `/resources`
-      // PUT in the contract; submission rides createApprovalRequest, which routes
-      // every submission to WAITING_APPROVAL (Step 2, 승인 대기) for manual admin
-      // approval — same as cloud providers (auto-approval is disabled in the demo).
-      await createApprovalRequest(targetSourceId, toIdcApprovalRequestInput(rows));
-      await refreshProject();
-      setSubmitOpen(false);
-    } catch {
-      // surfaced by the mutation layer; keep the modal open
-    } finally {
-      setSubmitting(false);
-    }
+  const handleOpenSubmit = () => {
+    // 지난 실패 프레임을 들고 다시 열지 않는다.
+    submit.reset();
+    setSubmitOpen(true);
   };
 
   return (
@@ -363,7 +369,7 @@ export const IdcStep1TargetInput = ({
                 <button
                   type="button"
                   disabled={liveCount === 0}
-                  onClick={() => setSubmitOpen(true)}
+                  onClick={handleOpenSubmit}
                   className={cn(idcStyles.triggerBtn.primary, 'disabled:pointer-events-none')}
                 >
                   연동 대상 승인 요청
@@ -435,8 +441,10 @@ export const IdcStep1TargetInput = ({
         total={total}
         live={liveCount}
         excluded={excludedCount}
-        submitting={submitting}
-        onSubmit={handleSubmit}
+        phase={submit.phase}
+        errorReason={submit.errorReason}
+        onSubmit={submit.submit}
+        onRetry={submit.retry}
         onClose={() => setSubmitOpen(false)}
       />
 

@@ -141,4 +141,93 @@ describe('ConfirmStepModal', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog.className).toContain('w-[560px]');
   });
+
+  // The result frame takes over the body AND the footer — nothing from the question
+  // survives into the answer.
+  it('result replaces the confirm body and footer', () => {
+    render(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        result={{ kind: 'success', title: '보냈어요', description: '곧 이동해요.' }}
+      >
+        <div data-testid="confirm-body">stats</div>
+      </ConfirmStepModal>,
+    );
+    expect(screen.getByText('보냈어요')).toBeTruthy();
+    expect(screen.queryByText('취소할까요?')).toBeNull();
+    expect(screen.queryByTestId('confirm-body')).toBeNull();
+    expect(screen.queryByRole('button', { name: '확인' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '머무르기' })).toBeNull();
+  });
+
+  // The transition is already committed while the success frame stands — a close path
+  // that "works" would dismiss the dialog and still land on the next step.
+  it('locks Escape and the backdrop on the success frame, releases them on the error frame', () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        onClose={onClose}
+        result={{ kind: 'success', title: '보냈어요', description: '곧 이동해요.' }}
+      />,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('confirm-step-modal-backdrop'));
+    expect(onClose).not.toHaveBeenCalled();
+
+    rerender(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        onClose={onClose}
+        result={{ kind: 'error', title: '못 보냈어요', description: '다시 시도해 주세요.' }}
+      />,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // The elements that held focus are unmounted with the confirm body, so the error
+  // frame's own commit button has to take it.
+  it('moves focus to 다시 요청하기 when the error frame appears', () => {
+    const { rerender } = render(<ConfirmStepModal {...baseProps} open />);
+    rerender(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        onRetry={vi.fn()}
+        result={{
+          kind: 'error',
+          title: '못 보냈어요',
+          description: '다시 시도해 주세요.',
+          reason: '요청이 만료됐어요.',
+        }}
+      />,
+    );
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '다시 요청하기' }));
+    expect(screen.getByText('요청이 만료됐어요.')).toBeTruthy();
+  });
+
+  // 실패는 기다리던 사용자를 끊어야 하고, 성공은 끊을 것이 없다.
+  it('announces the result — assertive on error, polite on success', () => {
+    const { rerender } = render(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        result={{ kind: 'success', title: '보냈어요', description: '곧 이동해요.' }}
+      />,
+    );
+    expect(screen.getByRole('status').getAttribute('aria-live')).toBe('polite');
+
+    rerender(
+      <ConfirmStepModal
+        {...baseProps}
+        open
+        result={{ kind: 'error', title: '못 보냈어요', description: '다시 시도해 주세요.' }}
+      />,
+    );
+    expect(screen.getByRole('alert').getAttribute('aria-live')).toBe('assertive');
+  });
 });

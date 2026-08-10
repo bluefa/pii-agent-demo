@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { IdcSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 
@@ -8,8 +8,9 @@ const baseProps = {
   total: 4,
   live: 4,
   excluded: 0,
-  submitting: false,
+  phase: 'form' as const,
   onSubmit: vi.fn(),
+  onRetry: vi.fn(),
   onClose: vi.fn(),
 };
 
@@ -53,8 +54,42 @@ describe('IdcSubmitModal', () => {
   });
 
   it('disables both buttons while submitting', () => {
-    render(<IdcSubmitModal {...baseProps} submitting />);
+    render(<IdcSubmitModal {...baseProps} phase="pending" />);
     expect((screen.getByRole('button', { name: '요청하기' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: '머무르기' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  // 확인 프레임: 체크와 다음 행선지만. 누를 것이 없어야 한다 — 이 1초는 이미 확정된
+  // 전환이고, 그 사이에 누를 수 있는 버튼은 지킬 수 없는 약속이다.
+  it('phase=success shows the check frame with no buttons and no counts', () => {
+    render(<IdcSubmitModal {...baseProps} phase="success" />);
+    expect(screen.getByText('승인 요청을 보냈어요')).toBeTruthy();
+    expect(screen.getByText('잠시 후 승인 대기 단계로 이동해요.')).toBeTruthy();
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.queryByText('전체 요청')).toBeNull();
+    expect(screen.queryByText('연동 대상을 승인 요청할까요?')).toBeNull();
+  });
+
+  // 서버가 준 사용자용 메시지가 있으면 그것을 그대로, 없을 때만 기본 문구로 떨어진다.
+  it('phase=error shows the server reason when there is one, the fallback when there is not', () => {
+    const { rerender } = render(
+      <IdcSubmitModal {...baseProps} phase="error" errorReason="이미 승인 요청이 진행 중이에요." />,
+    );
+    expect(screen.getByText('승인 요청을 보내지 못했어요')).toBeTruthy();
+    expect(screen.getByText('이미 승인 요청이 진행 중이에요.')).toBeTruthy();
+    expect(screen.queryByText('알 수 없는 오류가 발생했어요.')).toBeNull();
+
+    rerender(<IdcSubmitModal {...baseProps} phase="error" />);
+    expect(screen.getByText('알 수 없는 오류가 발생했어요.')).toBeTruthy();
+  });
+
+  it('phase=error offers 다시 요청하기 and 닫기', () => {
+    const onRetry = vi.fn();
+    const onClose = vi.fn();
+    render(<IdcSubmitModal {...baseProps} phase="error" onRetry={onRetry} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('button', { name: '다시 요청하기' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

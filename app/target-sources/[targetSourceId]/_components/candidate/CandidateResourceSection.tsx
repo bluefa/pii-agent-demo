@@ -6,7 +6,7 @@ import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { Tooltip } from '@/app/components/ui/Tooltip';
-import { useApiAction } from '@/app/hooks/useApiMutation';
+import { useConfirmSubmit } from '@/app/hooks/useConfirmSubmit';
 import { useModal } from '@/app/hooks/useModal';
 import { useScanCompletionTransition } from '@/app/hooks/useScanCompletionTransition';
 import { useToast } from '@/app/components/ui/toast';
@@ -285,21 +285,20 @@ export const CandidateResourceSection = ({
     closeRowUi();
   }, [tablePageSizeChange, closeRowUi]);
 
-  const approval = useApiAction(
-    async () => {
+  const approval = useConfirmSubmit({
+    targetSourceId,
+    request: async () => {
       const input = toApprovalRequestInput(allCandidates, selectedIds, drafts, exclusionReasons);
       await createApprovalRequest(targetSourceId, input);
+    },
+    // 확인 프레임이 물러난 뒤에 갱신한다 — 상태가 WAITING_APPROVAL 로 바뀌는 순간
+    // 이 섹션이 Step 2 로 교체되므로, 순서가 반대면 프레임이 그려지지 않는다.
+    settle: async () => {
       await refreshProject();
+      approvalModal.close();
+      setExpandedResourceId(null);
     },
-    {
-      onSuccess: () => {
-        approvalModal.close();
-        setExpandedResourceId(null);
-      },
-      suppressAlert: true,
-      errorMessage: '승인 요청에 실패했습니다.',
-    },
-  );
+  });
 
   const handleExpandToggle = useCallback((resourceId: string | null) => {
     setExpandedResourceId(resourceId);
@@ -465,10 +464,6 @@ export const CandidateResourceSection = ({
     refetchAfterScan();
     await refreshProject();
   }, [beginCompletion, tableSearchChange, tableFilterChange, tableDbTypeChange, tableRegionChange, tablePageChange, closePicker, refetchAfterScan, refreshProject]);
-
-  const handleApprovalConfirm = useCallback(() => {
-    void approval.execute();
-  }, [approval]);
 
   const handleCheckPermission = useCallback(() => {
     void checkPermission();
@@ -736,10 +731,10 @@ export const CandidateResourceSection = ({
                       <Button
                         variant="primary"
                         onClick={handleRequestApproval}
-                        disabled={approval.loading || approvalBlockReason != null}
+                        disabled={approval.phase === 'pending' || approvalBlockReason != null}
                         className="flex items-center gap-2 disabled:pointer-events-none"
                       >
-                        {approval.loading && <LoadingSpinner />}
+                        {approval.phase === 'pending' && <LoadingSpinner />}
                         연동 대상 승인 요청
                       </Button>
                     );
@@ -780,8 +775,10 @@ export const CandidateResourceSection = ({
           total={allCandidates.length}
           live={selectedIds.size}
           excluded={Math.max(0, allCandidates.length - selectedIds.size)}
-          submitting={approval.loading}
-          onSubmit={handleApprovalConfirm}
+          phase={approval.phase}
+          errorReason={approval.errorReason}
+          onSubmit={approval.submit}
+          onRetry={approval.retry}
           onClose={approvalModal.close}
         />
       )}
