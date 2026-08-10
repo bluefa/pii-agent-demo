@@ -99,7 +99,7 @@ const CopyButton = ({ value, label }: { value: string; label: string }) => {
 
 /**
  * Flat page header for the target-source detail — chrome, not a card. One
- * label grammar throughout (12px eyebrow above 14px content), grouping by
+ * label grammar throughout (14px violet section label above 14px content), grouping by
  * distance instead of rules, and the quiet install stepper as the single
  * statement of step position. Body cards below keep the only card chrome.
  */
@@ -130,10 +130,10 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
         {action && <div className="flex flex-wrap items-center justify-end gap-2">{action}</div>}
       </div>
 
-      {/* Demoted service identity — 12px eyebrow + 14px name + the code chip,
+      {/* Demoted service identity — block label + 14px name + the code chip,
           the same facts the old title carried, one hierarchy level down. */}
       <div className={h.targetRow}>
-        <span className={h.kvLabel}>설치 대상</span>
+        <span className={h.blockLabel}>설치 대상</span>
         <span className={h.providerName}>{serviceTitle}</span>
         <span className={h.codeChip}>
           <span className={h.codeChipLabel}>서비스 코드</span>

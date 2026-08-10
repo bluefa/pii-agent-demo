@@ -653,8 +653,13 @@ export const projectHeaderStyles = {
   codeChip: 'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] bg-[#E9EEF9] px-2 py-[3px]',
   codeChipLabel: 'text-[12px] font-medium text-[#55617A]',
   codeChipValue: 'font-mono text-[12px] font-semibold text-[#2C3A55]',
-  /** Block eyebrow (설명 / 클라우드 정보 / 설치 진행) — small but darker than kv labels. */
-  blockLabel: 'text-[12px] font-semibold tracking-[0.02em] text-[#333D4B]',
+  /**
+   * Block label (설치 대상 / 설명 / 클라우드 정보 / 설치 진행) — the header's four
+   * section names, one tier up from the kv labels that live inside a block.
+   * Violet is the EC2 kind tag's #6D28D9, which holds 6.49:1 on the page wash
+   * (#F4F4FB) — the tag's own fill is too pale to carry text at this size.
+   */
+  blockLabel: 'text-[14px] font-semibold tracking-[0.02em] text-[#6D28D9]',
   block: 'mt-[18px]',
   /** Description body — 2-line clamp; the whole block is skipped when empty. */
   descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
