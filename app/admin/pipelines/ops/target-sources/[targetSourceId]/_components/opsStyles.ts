@@ -81,8 +81,14 @@ export const opsStyles = {
   tabIdle: 'font-medium text-[var(--pl-text-weak)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
   tabDisabled: 'font-medium text-[var(--pl-text-faint)] cursor-not-allowed',
 
-  /** 진행 상태 tab content — 24px below the tab rail (prototype). */
-  content: 'mt-6 flex flex-col gap-4',
+  /** Tab content — 24px below the tab rail (prototype), capped even though the
+      route is fluid. The masthead and rail SHOULD reach the viewport edge (they
+      are chrome, and their content is anchored to both ends), but the body is
+      tables and cards: past ~1440px a 2:1 grid spreads its label and value a
+      hand's width apart and the eye loses the row. Same 1440 as `layout.content`
+      so a capped tab body lines up with every other admin screen; left-aligned,
+      not centered, so the first card's edge sits under the h1. */
+  content: 'mt-6 flex flex-col gap-4 max-w-[1440px]',
   /** Side-by-side cards — grid rows stretch so the pair is always equal height. */
   cardsRow: 'grid grid-cols-2 gap-4',
   /** 20px — at 16px the card title reads the same tier as in-card block headers (ops feedback, scan tab). */

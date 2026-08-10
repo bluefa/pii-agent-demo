@@ -15,6 +15,7 @@ import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import { normalizeCloudProvider } from '@/lib/types';
+import { awsRoleArnDisplay } from '@/lib/constants/aws-role';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { improvedStyles } from '@/app/admin/pipelines/_detail/detailImprovedStyles';
@@ -82,8 +83,12 @@ export function OpsHeader({
         <span className={opsStyles.roleLabel}>{ROLE_META[kind].short}</span>
         {arn ? (
           <>
-            {/* ARN 은 값이지 동작이 아니다 — 링크로 그리지 않고, 동작(수정)은 옆 버튼이 맡는다. */}
-            <span className={opsStyles.roleValue}>{arn}</span>
+            {/* ARN 은 값이지 동작이 아니다 — 링크로 그리지 않고, 동작(수정)은 옆 버튼이 맡는다.
+                표시는 role 이름까지만 줄인다 (편집 단위와 같은 단위, 계정은 윗 줄이 말한다).
+                이 계정·파티션이 조립할 ARN 이 아니면 통째로 남으므로, 어긋남은 안 가려진다. */}
+            <span className={opsStyles.roleValue} title={arn}>
+              {awsRoleArnDisplay(arn, meta.aws_account_id, isChina)}
+            </span>
             <button type="button" className={opsStyles.roleRegister} onClick={() => onOpenEdit(kind)}>
               수정
             </button>
