@@ -189,7 +189,10 @@ export const getPermissions = (serviceCode: string): Promise<AuthorizedUsersResp
   fetchInfraJson<AuthorizedUsersResponse>(`/services/${serviceCode}/authorized-users`);
 
 // Maps BFF process_status strings to internal ProcessStatus enum.
-const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatus => {
+// Exported so a caller that re-reads `/process-status` on its own (useConfirmSubmit's
+// duplicate-request guard) judges through the SAME rule the page was rendered under —
+// a raw `=== 'WAITING_APPROVAL'` on the wire string flips on one casing difference.
+export const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatus => {
   switch (String(value).trim().toUpperCase()) {
     case 'WAITING_APPROVAL':
     case 'PENDING':

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { IdcSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 
@@ -8,8 +8,10 @@ const baseProps = {
   total: 4,
   live: 4,
   excluded: 0,
-  submitting: false,
+  phase: 'form' as const,
+  pending: false,
   onSubmit: vi.fn(),
+  onRetry: vi.fn(),
   onClose: vi.fn(),
 };
 
@@ -53,8 +55,80 @@ describe('IdcSubmitModal', () => {
   });
 
   it('disables both buttons while submitting', () => {
-    render(<IdcSubmitModal {...baseProps} submitting />);
+    render(<IdcSubmitModal {...baseProps} pending />);
     expect((screen.getByRole('button', { name: '요청하기' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: '머무르기' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  // 재요청 중에도 화면은 실패 프레임이다 — 확인 화면으로 되돌아갔다 오면 깜빡인다.
+  it('pending on the failure frame locks its buttons without leaving the frame', () => {
+    render(<IdcSubmitModal {...baseProps} phase="error" pending />);
+    expect(screen.getByText('승인 요청을 보내지 못했어요')).toBeTruthy();
+    expect(screen.queryByText('연동 대상을 승인 요청할까요?')).toBeNull();
+    expect((screen.getByRole('button', { name: '다시 요청하기' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '닫기' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  // 확인 프레임: 체크와 다음 행선지만. 누를 것이 없어야 한다 — 이 1초는 이미 확정된
+  // 전환이고, 그 사이에 누를 수 있는 버튼은 지킬 수 없는 약속이다.
+  it('phase=success shows the check frame with no buttons and no counts', () => {
+    render(<IdcSubmitModal {...baseProps} phase="success" />);
+    expect(screen.getByText('승인 요청을 보냈어요')).toBeTruthy();
+    expect(screen.getByText('잠시 후 승인 대기 단계로 이동해요.')).toBeTruthy();
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.queryByText('전체 요청')).toBeNull();
+    expect(screen.queryByText('연동 대상을 승인 요청할까요?')).toBeNull();
+  });
+
+  // 사유는 코드로 고른다 — 매핑에 없는 코드와 코드 부재는 같은 기본 문구로 떨어진다.
+  it('phase=error picks the reason from the error code, falling back when it has none', () => {
+    const { rerender } = render(<IdcSubmitModal {...baseProps} phase="error" errorCode="CONFLICT" />);
+    expect(screen.getByText('승인 요청을 보내지 못했어요')).toBeTruthy();
+    expect(screen.getByText('이미 진행 중인 승인 요청이 있어요.')).toBeTruthy();
+    expect(screen.queryByText('알 수 없는 오류가 발생했어요.')).toBeNull();
+
+    rerender(<IdcSubmitModal {...baseProps} phase="error" errorCode="NETWORK" />);
+    expect(screen.getByText('네트워크 연결을 확인해 주세요.')).toBeTruthy();
+
+    // 매핑에 없는 코드
+    rerender(<IdcSubmitModal {...baseProps} phase="error" errorCode="PARSE_ERROR" />);
+    expect(screen.getByText('알 수 없는 오류가 발생했어요.')).toBeTruthy();
+
+    rerender(<IdcSubmitModal {...baseProps} phase="error" />);
+    expect(screen.getByText('알 수 없는 오류가 발생했어요.')).toBeTruthy();
+  });
+
+  // 같은 손으로 다시 눌러도 같은 실패인 것에 다시 요청하기를 주면 지키지 못할 약속이다.
+  // 401 의 사유는 "새로고침한 뒤 다시 요청해 주세요" 인데 그 옆의 재요청 버튼은 또 401 이다.
+  it('offers 다시 요청하기 only for failures a second press can clear', () => {
+    const { rerender } = render(<IdcSubmitModal {...baseProps} phase="error" errorCode="UNAUTHORIZED" />);
+    expect(screen.queryByRole('button', { name: '다시 요청하기' })).toBeNull();
+    expect(screen.getByRole('button', { name: '닫기' })).toBeTruthy();
+
+    for (const code of ['FORBIDDEN', 'BAD_REQUEST', 'NOT_FOUND'] as const) {
+      rerender(<IdcSubmitModal {...baseProps} phase="error" errorCode={code} />);
+      expect(screen.queryByRole('button', { name: '다시 요청하기' })).toBeNull();
+    }
+
+    // 409 는 재요청이 가장 잘 듣는 경우다 — useConfirmSubmit 이 재요청 전에 진행 상태를
+    // 다시 읽어, 이미 접수된 요청을 찾으면 그대로 다음 단계로 넘긴다.
+    for (const code of ['CONFLICT', 'INTERNAL_ERROR', 'NETWORK', 'TIMEOUT', 'RATE_LIMITED'] as const) {
+      rerender(<IdcSubmitModal {...baseProps} phase="error" errorCode={code} />);
+      expect(screen.getByRole('button', { name: '다시 요청하기' })).toBeTruthy();
+    }
+
+    // 분류할 수 없는 실패는 일시적일 수 있다 — 눌러볼 값어치는 있다.
+    rerender(<IdcSubmitModal {...baseProps} phase="error" />);
+    expect(screen.getByRole('button', { name: '다시 요청하기' })).toBeTruthy();
+  });
+
+  it('phase=error offers 다시 요청하기 and 닫기', () => {
+    const onRetry = vi.fn();
+    const onClose = vi.fn();
+    render(<IdcSubmitModal {...baseProps} phase="error" onRetry={onRetry} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('button', { name: '다시 요청하기' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
