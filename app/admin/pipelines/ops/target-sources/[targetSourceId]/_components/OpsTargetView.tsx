@@ -33,7 +33,7 @@ import { StatusHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[tar
 import { InstallModeModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallModeModal';
 import { RoleEditModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/RoleEditModal';
 import { type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
-import { isSduTarget } from '@/lib/types';
+import { isSduTarget, normalizeCloudProvider } from '@/lib/types';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { SduOpsNotice } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduOpsNotice';
 import { ScanTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanTab';
@@ -79,14 +79,18 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
   const [tcLoaded, setTcLoaded] = useState(false);
   const [tcLatestFailed, setTcLatestFailed] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
-  const [activeTab, setActiveTab] = useState<TabLabel>(initialTab);
+  /**
+   * The tab the URL asks for — not necessarily the one on screen. A target whose tab
+   * list is short a tab (IDC, below) renders `currentTab` instead, so read that one
+   * for anything that means "what the operator is looking at".
+   */
+  const [requestedTab, setRequestedTab] = useState<TabLabel>(initialTab);
 
   // The URL is kept in sync so a tab is linkable/shareable and survives reload.
   // history.replaceState (not router.replace) because switching a tab is not a
   // navigation: no server round trip, no history entry, no scroll reset. Next
   // supports this and useSearchParams stays consistent.
-  const selectTab = useCallback((tab: TabLabel) => {
-    setActiveTab(tab);
+  const writeTabUrl = useCallback((tab: TabLabel) => {
     const slug = opsTabSlug(tab);
     window.history.replaceState(
       null,
@@ -95,13 +99,48 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
     );
   }, []);
 
+  const selectTab = useCallback(
+    (tab: TabLabel) => {
+      setRequestedTab(tab);
+      writeTabUrl(tab);
+    },
+    [writeTabUrl],
+  );
+
   // Back/forward restores the tab the URL points at.
   useEffect(() => {
     const onPop = (): void =>
-      setActiveTab(opsTabLabel(new URLSearchParams(window.location.search).get('tab') ?? undefined));
+      setRequestedTab(opsTabLabel(new URLSearchParams(window.location.search).get('tab') ?? undefined));
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+
+  /**
+   * IDC targets have no 스캔 tab — scanning walks a CSP account for candidates, and an
+   * IDC target is registered by hand, so there is no account to walk. Unlike SDU this
+   * drops one tab rather than the whole screen; every other tab still applies.
+   *
+   * Normalized, not compared raw: the contract types cloud_provider as a plain string
+   * (install-v1 `Str`), so casing is not guaranteed, and the ScanTab this hides reads
+   * the same field the same way. An unknown value normalizes to AWS and keeps the tab.
+   *
+   * Sits above the loading / SDU early returns so the effect below can join the other
+   * hooks; `detail` is null on the first render, which just leaves every tab in place.
+   */
+  const tabs =
+    detail != null && normalizeCloudProvider(detail.cloud_provider) === 'IDC'
+      ? TABS.filter((tab) => tab !== OPS_TAB_SLUGS.scan)
+      : TABS;
+  const currentTab = tabs.includes(requestedTab) ? requestedTab : tabs[0];
+
+  // A `?tab=scan` link to an IDC target — a bookmark from before the tab was dropped,
+  // or an AWS link with the id swapped — renders 진행 상태. Rewrite the URL to match,
+  // or reload and re-share keep pointing at a tab that is not on the screen. Only the
+  // URL moves: `currentTab` already renders the right panel, so correcting the state
+  // too would just be a second render for the same result.
+  useEffect(() => {
+    if (currentTab !== requestedTab) writeTabUrl(currentTab);
+  }, [currentTab, requestedTab, writeTabUrl]);
 
   const [reloadKey, setReloadKey] = useState(0);
   const retry = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -238,8 +277,8 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
         />
         <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
-          {TABS.map((tab) => {
-            const active = tab === activeTab;
+          {tabs.map((tab) => {
+            const active = tab === currentTab;
             return (
               <button
                 key={tab}
@@ -257,7 +296,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
       </div>
 
       <div className={opsStyles.content}>
-        {activeTab === '진행 상태' && (
+        {currentTab === '진행 상태' && (
           <>
             {processStatus ? (
               <ProcessCard status={processStatus} />
@@ -273,16 +312,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             </div>
           </>
         )}
-        {activeTab === '스캔' && <ScanTab targetSourceId={targetSourceId} detail={detail} />}
-        {activeTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
-        {activeTab === '인프라 작업' && (
+        {currentTab === '스캔' && <ScanTab targetSourceId={targetSourceId} detail={detail} />}
+        {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
+        {currentTab === '인프라 작업' && (
           <PipelineTab
             targetSourceId={targetSourceId}
             detail={detail}
             onOpenRequest={() => selectTab('연동 요청 정보')}
           />
         )}
-        {activeTab === 'Test Connection' && (
+        {currentTab === 'Test Connection' && (
           <TcTab
             targetSourceId={targetSourceId}
             status={tcStatus}
@@ -293,7 +332,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             onStatusReload={reloadTc}
           />
         )}
-        {activeTab === '관리자 승인' && (
+        {currentTab === '관리자 승인' && (
           <ApprovalTab
             targetSourceId={targetSourceId}
             detail={detail}
