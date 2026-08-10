@@ -23,28 +23,15 @@ export interface ProvTagProps {
    * second text-[..] class would collide with the base and let CSS order decide.
    */
   size?: 'md' | 'lg';
-  /**
-   * `link` = the row this sits in IS a link and the provider is one of the
-   * identifiers you click it by (dashboard 대상 열). A prop for the same reason
-   * `size` is one — the colour cannot come in through `className`.
-   */
-  tone?: 'default' | 'link';
   className?: string;
 }
 
-export function ProvTag({ provider, isSdu, size, tone, className }: ProvTagProps): ReactElement {
+export function ProvTag({ provider, isSdu, size, className }: ProvTagProps): ReactElement {
   const { provTag } = pipelineStyles;
   const shown = displayProvider(provider, isSdu);
   const lg = size === 'lg';
   return (
-    <span
-      className={cn(
-        lg ? provTag.baseLg : provTag.base,
-        // Exactly ONE colour class ever lands here — see the token comment.
-        tone === 'link' ? provTag.toneLink : lg ? provTag.toneLg : provTag.tone,
-        className,
-      )}
-    >
+    <span className={cn(lg ? provTag.baseLg : provTag.base, className)}>
       {/* Nothing renders for UNKNOWN — the flex gap would otherwise indent the label
           on exactly the rows that have the least to say. */}
       <ProviderGlyph provider={shown} className={lg ? provTag.glyphLg : provTag.glyph} />

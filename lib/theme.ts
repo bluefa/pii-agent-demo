@@ -2080,16 +2080,9 @@ export const pipelineStyles = {
 
   /** ProvTag — provider glyph + neutral text; 12/500 medium. */
   provTag: {
-    /** 색은 base 가 아니라 tone* 에 있다 — cn 은 단순 join 이라 text-[..] 두 개가 붙으면
-     *  Tailwind 출력 순서가 승자를 정한다. 항상 tone 하나만 골라 붙인다. */
-    base: 'inline-flex items-center gap-1.5 text-[12px] font-medium',
+    base: 'inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--pl-text-medium)]',
     /** provider 가 라벨이 아니라 그 블록의 제목일 때 (Jira 타일) — 16/600. */
-    baseLg: 'inline-flex items-center gap-1.5 text-[16px] font-semibold',
-    tone: 'text-[var(--pl-text-medium)]',
-    toneLg: 'text-[var(--pl-text-strong)]',
-    /** 행 전체가 링크인 목록에서 식별자를 링크색으로 (대시보드 대상 열). 흰 배경 5.98:1,
-     *  hover 의 gray-100 위에서 5.43:1 — 둘 다 4.5:1 위. */
-    toneLink: 'text-[var(--pl-info-text)]',
+    baseLg: 'inline-flex items-center gap-1.5 text-[16px] font-semibold text-[var(--pl-text-strong)]',
     /** 글리프는 라벨의 대문자 높이에 맞춘다 — 더 키우면 표에서 글자보다 아이콘이 먼저 읽힌다. */
     glyph: 'w-3.5 h-3.5 flex-none',
     glyphLg: 'w-[18px] h-[18px] flex-none',
@@ -2387,17 +2380,16 @@ export const pipelineStyles = {
     identityCode:
       'inline-flex items-center rounded-md px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
     /**
-     * Target Source 번호 · Provider 는 이 행을 여는 식별자라 링크색으로 (오너).
-     * `--pl-info-text` 는 흰 배경 5.99:1, hover 의 gray-100 위 5.43:1 — 둘 다 4.5:1 위.
-     * 원색 `--pl-info` 는 3:1 대라 12px 텍스트로는 못 쓴다.
+     * Target Source 번호 — 평소엔 중립, **행에 커서가 올라갔을 때만** 링크색으로 (오너).
+     * `group-hover` 이지 `hover` 가 아니다: 열리는 건 행 전체이므로 행 어디에 커서가
+     * 있든 이 번호가 반응해야 "지금 열리는 게 이것"이라고 말한다. 12px 번호 위에서만
+     * 반응하면 그 좁은 폭에 커서를 올린 사람만 응답을 본다.
      *
-     * hover 는 **번호에만** 붙는다(오너). 밑줄이지 색 변화가 아니다 — 색을 더 진하게
-     * 하면 대비만 올라가고 "무슨 일이 일어난다"는 말은 못 하는데, 밑줄은 링크의 관례라
-     * 그 자체로 클릭 가능을 뜻한다. 열리는 건 행 전체지만 그 행이 무엇인지는 이 번호가
-     * 말하므로, 커서가 여기 있을 때 응답이 오는 게 맞다.
+     * `--pl-info-text` 는 hover 표면(gray-100) 위 5.43:1, 평소의 weak 는 흰 배경
+     * 4.97:1 — 두 상태 다 4.5:1 위. 원색 `--pl-info` 는 3:1 대라 12px 로는 못 쓴다.
      */
     identityTarget:
-      'whitespace-nowrap text-[12px] font-medium text-[var(--pl-info-text)] [font-family:var(--pl-font-mono)] underline decoration-transparent underline-offset-[3px] decoration-from-font transition-colors hover:decoration-[var(--pl-info-text)]',
+      'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)] transition-colors group-hover:text-[var(--pl-info-text)]',
 
     /**
      * Status as bare text, no chip (owner: "상태는 그냥 태그없이 텍스트로만 표현하고

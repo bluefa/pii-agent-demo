@@ -42,7 +42,7 @@ export function TargetCell({
       <span className={d.identityMeta}>
         <span className={d.identityCode}>{code}</span>
         <span className={d.identityTarget}>#{targetId}</span>
-        <ProvTag provider={provider} isSdu={isSdu} tone="link" />
+        <ProvTag provider={provider} isSdu={isSdu} />
       </span>
     </span>
   );
