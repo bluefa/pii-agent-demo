@@ -290,7 +290,7 @@ describe('AwsInstallStatusDetail', () => {
     expect(screen.getByRole('button', { name: 'Terraform Script 다운로드' })).toBeTruthy();
   });
 
-  it('리뷰요청 · Terraform Script 는 단계가 아니다 — 상태도 기본 선택도 없고, 눌러야 열린다', () => {
+  it('설치 스크립트 · Terraform Script 는 단계가 아니다 — 상태도 기본 선택도 없고, 눌러야 열린다', () => {
     render(
       <AwsInstallStatusDetail
         status={buildStatus([resource('r-1', 'COMPLETED')])}
@@ -301,7 +301,7 @@ describe('AwsInstallStatusDetail', () => {
     );
 
     const nav = screen.getByRole('navigation', { name: '설치 단계' });
-    expect(within(nav).getByText('리뷰요청')).toBeTruthy();
+    expect(within(nav).getByText('설치 스크립트')).toBeTruthy();
 
     // 상태 글자를 갖지 않는다 — 제목 한 줄이 전부다.
     const item = within(nav).getByText('Terraform Script');

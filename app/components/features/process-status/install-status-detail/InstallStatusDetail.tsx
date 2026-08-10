@@ -426,7 +426,7 @@ export interface InstallStatusDetailProps {
   /** resourceId → region/DB-type/name enrichment (confirmed integration 등). */
   meta: ReadonlyMap<string, InstallResourceMeta>;
   /**
-   * 단계가 아닌 참고 항목 — 그룹 레일에서만 '리뷰요청' 묶음으로 렌더한다.
+   * 단계가 아닌 참고 항목 — 그룹 레일에서만 '설치 스크립트' 묶음으로 렌더한다.
    * 레거시 레일(Azure/GCP/IDC)은 그리지 않으므로 넘겨도 도달할 수 없다.
    */
   reference?: InstallReferenceStep;
@@ -758,12 +758,12 @@ export const InstallStatusDetail = ({
             {groupLabel('BDC 진행', sideTextColors.bdc)}
             {autoSteps.map((s, i) => railItem(s, i + 1))}
 
-            {/* 리뷰요청 — 단계가 아니므로 진행 순번 다음, 레일 끝에 선다.
+            {/* 설치 스크립트 — 단계가 아니므로 진행 순번 다음, 레일 끝에 선다.
                 주황은 파랑(내가 할 일)과 겹치지 않는 유일한 강조색이라, 처음 들어온
                 담당자도 찾지 않고 걸린다(오너 요구). */}
             {reference && (
               <>
-                {groupLabel('리뷰요청', statusColors.warning.textDark)}
+                {groupLabel('설치 스크립트', statusColors.warning.textDark)}
                 {referenceItem(reference)}
               </>
             )}
