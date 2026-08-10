@@ -54,7 +54,6 @@ import { PipelineStepStrip } from '@/app/admin/pipelines/_components/PipelineSte
 
 import {
   DASH_FETCH_SIZE,
-  PERIOD_LABELS,
   PERIOD_OPTIONS,
   PROVIDER_FILTERS,
   STATUS_FILTERS,
@@ -79,8 +78,9 @@ function BucketTile({
   label: string;
   value: ReactNode;
   icon: IconName;
-  /** `alert` = 확인 필요 (bad news), `muted` = 전체 (not a bucket, no filter). */
-  tone?: 'alert' | 'muted';
+  /** `alert` = 확인 필요 (bad news), `running` = 진행 중 (blue mark only),
+   *  `muted` = 전체 (not a bucket, no filter). */
+  tone?: 'alert' | 'running' | 'muted';
   active: boolean;
   onSelect: () => void;
 }): ReactElement {
@@ -89,8 +89,16 @@ function BucketTile({
     tone === 'alert' ? d.bucketToneAlert : tone === 'muted' ? d.bucketToneMuted : d.bucketToneDefault;
   const valueTone =
     tone === 'alert' ? d.bucketToneAlert : tone === 'muted' ? d.bucketToneDefault : d.bucketValueDefault;
+  // 진행 중 colours the MARK only — a blue label and a blue value would make the
+  // bucket read as urgent next to 확인 필요, which is the one that is.
   const markTone =
-    tone === 'alert' ? d.bucketToneAlert : tone === 'muted' ? d.bucketMarkMuted : d.bucketToneDefault;
+    tone === 'alert'
+      ? d.bucketToneAlert
+      : tone === 'running'
+        ? d.bucketMarkActive
+        : tone === 'muted'
+          ? d.bucketMarkMuted
+          : d.bucketToneDefault;
   return (
     <button
       type="button"
@@ -121,10 +129,10 @@ const BUCKETS: ReadonlyArray<{
   key: DashBucket;
   label: string;
   icon: IconName;
-  tone?: 'alert' | 'muted';
+  tone?: 'alert' | 'running' | 'muted';
 }> = [
   { key: 'attention', label: '확인 필요', icon: 'warn-tri', tone: 'alert' },
-  { key: 'active', label: '진행 중', icon: 'loader' },
+  { key: 'active', label: '진행 중', icon: 'loader', tone: 'running' },
   { key: 'closed', label: '종료', icon: 'check-circle' },
   { key: 'all', label: '전체', icon: 'table', tone: 'muted' },
 ];
@@ -267,7 +275,6 @@ export default function DashboardPage(): ReactElement {
   };
 
   const counts = useMemo(() => bucketCounts(periodStats), [periodStats]);
-  const plabel = PERIOD_LABELS[period];
 
   // Three conditions behind one trigger — step 1's list grammar. Open, they are
   // the same three choices; closed, the bar is a search box, and what is actually
@@ -327,14 +334,6 @@ export default function DashboardPage(): ReactElement {
       </div>
 
       <Card variant="flush">
-        <div className={d.listBar}>
-          <h2 className={pipelineStyles.text.dashboardListTitle}>작업 목록</h2>
-          <span className={d.listStamp}>
-            <Icon name="clock" size="sm" />
-            {plabel}
-          </span>
-        </div>
-
         <div className={d.filterBar}>
           <SearchBox
             lg
@@ -438,38 +437,35 @@ export default function DashboardPage(): ReactElement {
             </table>
 
             <div className={d.pager}>
-              <span className={d.pagerTally}>
-                {projected.length}건
-                {truncated && (
-                  <span className={d.pagerTruncated}>
-                    {' '}
-                    · 최근 {DASH_FETCH_SIZE}건만 불러왔어요 (전체 {fetchedTotal}건)
-                  </span>
-                )}
-              </span>
-              <span className={d.pagerNav}>
-                <button
-                  type="button"
-                  className={d.pagerBtn}
-                  disabled={current <= 1}
-                  onClick={() => setPage(current - 1)}
-                  aria-label="이전 페이지"
-                >
-                  <Icon name="chev-l" size="sm" />
-                </button>
-                <span className={d.pagerCount}>
-                  {current} / {pages}
+              {/* The row count is gone (오너), but the fetch window is not a
+                  preference — without this the truncated list reads as the whole
+                  one. It stays, and only when rows were actually left behind. */}
+              {truncated && (
+                <span className={d.pagerTruncated}>
+                  최근 {DASH_FETCH_SIZE}건만 불러왔어요 (전체 {fetchedTotal}건)
                 </span>
-                <button
-                  type="button"
-                  className={d.pagerBtn}
-                  disabled={current >= pages}
-                  onClick={() => setPage(current + 1)}
-                  aria-label="다음 페이지"
-                >
-                  <Icon name="chev-r" size="sm" />
-                </button>
+              )}
+              <button
+                type="button"
+                className={d.pagerBtn}
+                disabled={current <= 1}
+                onClick={() => setPage(current - 1)}
+                aria-label="이전 페이지"
+              >
+                <Icon name="chev-l" size="sm" />
+              </button>
+              <span className={d.pagerCount}>
+                <b className={d.pagerCurrent}>{current}</b> / {pages}
               </span>
+              <button
+                type="button"
+                className={d.pagerBtn}
+                disabled={current >= pages}
+                onClick={() => setPage(current + 1)}
+                aria-label="다음 페이지"
+              >
+                <Icon name="chev-r" size="sm" />
+              </button>
             </div>
           </>
         )}

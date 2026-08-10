@@ -2080,9 +2080,16 @@ export const pipelineStyles = {
 
   /** ProvTag — provider glyph + neutral text; 12/500 medium. */
   provTag: {
-    base: 'inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--pl-text-medium)]',
+    /** 색은 base 가 아니라 tone* 에 있다 — cn 은 단순 join 이라 text-[..] 두 개가 붙으면
+     *  Tailwind 출력 순서가 승자를 정한다. 항상 tone 하나만 골라 붙인다. */
+    base: 'inline-flex items-center gap-1.5 text-[12px] font-medium',
     /** provider 가 라벨이 아니라 그 블록의 제목일 때 (Jira 타일) — 16/600. */
-    baseLg: 'inline-flex items-center gap-1.5 text-[16px] font-semibold text-[var(--pl-text-strong)]',
+    baseLg: 'inline-flex items-center gap-1.5 text-[16px] font-semibold',
+    tone: 'text-[var(--pl-text-medium)]',
+    toneLg: 'text-[var(--pl-text-strong)]',
+    /** 행 전체가 링크인 목록에서 식별자를 링크색으로 (대시보드 대상 열). 흰 배경 5.98:1,
+     *  hover 의 gray-100 위에서 5.43:1 — 둘 다 4.5:1 위. */
+    toneLink: 'text-[var(--pl-info-text)]',
     /** 글리프는 라벨의 대문자 높이에 맞춘다 — 더 키우면 표에서 글자보다 아이콘이 먼저 읽힌다. */
     glyph: 'w-3.5 h-3.5 flex-none',
     glyphLg: 'w-[18px] h-[18px] flex-none',
@@ -2282,11 +2289,14 @@ export const pipelineStyles = {
   },
 
   /**
-   * Dashboard list (Figma Make redesign, page.tsx-exclusive). A self-contained
-   * token set so the shared StatusPill / PipelineProgressBar / ProvTag / PlTable
-   * (used by the detail pages) stay untouched. Cells: #id chip, dot+text status,
-   * gray progress, plain cloud text, relative-time cell with hover tooltip, and
-   * a hover-reveal dark action button.
+   * Dashboard list (page.tsx-exclusive) — the summary tiles, the list card and
+   * the parts of a row this screen draws differently from the detail pages.
+   *
+   * This used to be a self-contained set that avoided the shared components on
+   * purpose, which is how a FAILED row here came to look like a running one.
+   * The row now wears the section's ProvTag / PipelineTypeTag / step strip; what
+   * is still local is what the owner asked to differ — status as bare coloured
+   * text rather than a pill — plus the chrome only this screen has.
    */
   dashboard: {
     /**
@@ -2301,7 +2311,7 @@ export const pipelineStyles = {
      * counts (3 · 4 · 128 · 137), and centring makes them start at four different
      * x positions, so the row of numbers cannot be read as a column.
      */
-    bucketGrid: 'grid grid-cols-[repeat(4,minmax(0,260px))] gap-3 mb-6',
+    bucketGrid: 'grid grid-cols-4 gap-3 mb-6',
     bucketTile:
       'flex items-center justify-between gap-3 rounded-[8px] border px-4 py-3.5 text-left transition-colors',
     bucketTileIdle:
@@ -2323,12 +2333,11 @@ export const pipelineStyles = {
     bucketToneAlert: 'text-[var(--pl-err-text)]',
     bucketToneMuted: 'text-[var(--pl-text-weak)]',
     bucketMarkMuted: 'text-[var(--pl-text-faint)]',
+    /** 진행 중 mark, in the same blue the RUNNING rows under it use — NOT
+     *  `--pl-primary`, which on these tiles already means "this one is selected". */
+    bucketMarkActive: 'text-[var(--pl-info-text)]',
     /** Page header row (title + period selector). */
     headerRow: 'flex items-center justify-between mb-6',
-
-    /** List-card header (title + timestamp), first row inside the flush card. */
-    listBar: 'flex items-center justify-between px-5 py-4 border-b border-[var(--pl-gray-100)]',
-    listStamp: 'inline-flex items-center gap-1 text-[12px] text-[var(--pl-text-faint)]',
 
     /** Filter bar inside the card — tinted, bordered, h9 controls. */
     filterBar: 'flex items-center gap-2 px-5 py-3 border-b border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)]',
@@ -2353,7 +2362,10 @@ export const pipelineStyles = {
     /** The header band alone, for a column that carries no label (the rail). */
     thBand: 'bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)]',
     body: 'divide-y divide-[var(--pl-gray-100)]',
-    row: 'group cursor-pointer transition-colors hover:bg-[var(--pl-gray-50)]',
+    /** Hover on gray-100, not gray-50: the card is white and gray-50 (#F9FAFB) sits
+     *  1.03:1 from it, so the row highlight was there in the DOM and invisible on
+     *  screen. gray-100 (#F2F4F7) is the same surface the filter bar already uses. */
+    row: 'group cursor-pointer transition-colors hover:bg-[var(--pl-gray-100)]',
     cell: 'px-5 py-3.5 align-middle',
 
     /**
@@ -2373,8 +2385,11 @@ export const pipelineStyles = {
     identityMeta: 'flex items-center gap-2',
     identityCode:
       'inline-flex items-center rounded-md px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
+    /** Target Source 번호 · Provider 는 이 행을 여는 식별자라 링크색으로 (오너).
+     *  `--pl-info-text` 는 흰 배경 5.98:1, hover 의 gray-100 위 5.43:1 — 둘 다 4.5:1 위.
+     *  원색 `--pl-info` 는 3.0:1 대라 12px 텍스트로는 못 쓴다. */
     identityTarget:
-      'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
+      'whitespace-nowrap text-[12px] font-medium text-[var(--pl-info-text)] [font-family:var(--pl-font-mono)]',
 
     /**
      * Status as bare text, no chip (owner: "상태는 그냥 태그없이 텍스트로만 표현하고
@@ -2419,19 +2434,22 @@ export const pipelineStyles = {
       'inline-flex items-center justify-center w-7 h-7 rounded-lg text-[var(--pl-gray-300)] transition-all group-hover:bg-[var(--pl-gray-900)] group-hover:text-[var(--pl-white)] group-hover:shadow-[var(--pl-shadow-xs)]',
 
     /**
-     * Pagination — how many rows you are looking at (left), the pager (right).
-     * `1 / 3` on its own never said how many rows that was, nor that the list
-     * stops at the fetch window; both facts live on the left now.
+     * Pagination — centred, and nothing but the pager. The row tally and the
+     * rule above it are gone (오너); the last row's own bottom border is already
+     * the edge the rule was drawing a second time.
+     *
+     * `relative` is load-bearing: the fetch-window notice is absolutely placed
+     * so that the pager stays centred on the CARD, not on what is left beside it.
      */
-    pager:
-      'flex items-center justify-between gap-4 px-5 py-3.5 border-t border-[var(--pl-gray-100)]',
-    pagerNav: 'flex items-center gap-2',
-    pagerTally: 'text-[14px] text-[var(--pl-text-weak)] tabular-nums',
+    pager: 'relative flex items-center justify-center gap-2 px-5 py-3.5',
     /** Fetch-window notice — only rendered when rows were actually left behind. */
-    pagerTruncated: 'text-[14px] text-[var(--pl-text-faint)]',
+    pagerTruncated:
+      'absolute left-5 top-1/2 -translate-y-1/2 text-[14px] text-[var(--pl-text-faint)]',
     pagerBtn:
       'inline-flex items-center justify-center w-7 h-7 rounded-lg text-[var(--pl-text-faint)] transition-colors hover:text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-100)] disabled:opacity-40 disabled:pointer-events-none',
     pagerCount: 'text-[14px] text-[var(--pl-text-weak)] tabular-nums',
+    /** The page you are on, in brand — the only moving number in the row. */
+    pagerCurrent: 'font-semibold text-[var(--pl-primary)]',
 
     /** No-results empty state inside the card. */
     empty: 'px-5 py-12 text-center text-[14px] text-[var(--pl-text-faint)]',
