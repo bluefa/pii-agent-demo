@@ -399,9 +399,11 @@ export const verdictText = {
  *
  * 열이 아니라 첫 셀의 inset box-shadow 다. 전용 <td> 를 하나 세우면 여섯 개 테이블의 헤더·
  * 그룹 부모행·인스턴스행·접힌 멤버행이 전부 colSpan 을 다시 세어야 하고, 한 군데만 놓쳐도 열이
- * 어긋난다. inset 그림자는 레이아웃을 전혀 건드리지 않아 기존 셀 padding(18px, 이름 열은 26px)
- * 안쪽에 그려지고, x 0..4 를 쓴다 — 이름 열에 걸린 셰브론(x 4..20)과도, 그룹 트리 레일
- * (::before/::after, x=12)과도 겹치지 않는다.
+ * 어긋난다. inset 그림자는 레이아웃을 전혀 건드리지 않아 기존 셀 padding(18px, 이름 열은 30px)
+ * 안쪽에 그려지고, x 0..4 를 쓴다 — 이름 열에 걸린 셰브론(박스 x 8..24, hit halo x 4..28)과도,
+ * 그룹 트리 레일(::before/::after, x=16)과도 겹치지 않는다. 셰브론이 x 4 에서 시작하던 동안에는
+ * 레일과 맞붙어(제외된 RDS 클러스터에서 파란 컨트롤이 자홍 막대에 붙은 것으로) 읽혔다 —
+ * "닿지 않는다"가 아니라 "떨어져 있다"가 이 주석의 불변식이다.
  */
 export const verdictRail = {
   target: '',
@@ -1255,17 +1257,22 @@ export const idcStyles = {
      */
     stackedIdentityLift: 'relative -top-[12px]',
     /**
-     * Resource Name column — 8px more left padding than every other cell, on the header cell
+     * Resource Name column — 12px more left padding than every other cell, on the header cell
      * AND the body cell so the column keeps one edge.
      *
-     * The extra 8 is the seat for the hanging fold chevron (`group.toggle`), and it is the
-     * sum of three things that each have to fit: 4px of `verdictRail` inset the chevron may
-     * not cover, the 16px chevron box, and 6px between that box and the first letter. At 18
-     * the chevron started inside the rail; at 22 it cleared the rail but sat on the name.
+     * The extra 12 is the seat for the hanging fold chevron (`group.toggle`), and it is the
+     * sum of four things that each have to fit: the 4px `verdictRail` inset the chevron may
+     * not cover, 4px of clearance from it, the 16px chevron box, and 6px between that box and
+     * the first letter. At 18 the chevron started inside the rail; at 22 it cleared the rail
+     * but sat on the name.
+     *
+     * The clearance is the fourth term because 26 (rail + box, no gap) put the chevron's box —
+     * and the tint it grows on hover — flush against the rail: an excluded RDS cluster read as
+     * a blue control stuck to a magenta bar. Touching is not clearing.
      * Add it next to `approvalCell`/`approvalHeaderCell` — `pl` beats their `px`, the same
      * ordering `group.childCell`'s indent already relies on.
      */
-    nameCell: 'pl-[26px]',
+    nameCell: 'pl-[30px]',
     /**
      * Seam between adjacent `<tbody>`s — belongs on the `<table>`.
      *
@@ -1302,11 +1309,11 @@ export const idcStyles = {
       row: 'hover:bg-[#F7F8FA] focus-within:bg-[#F7F8FA] transition-colors duration-150 motion-reduce:transition-none',
       /**
        * Identity cluster inside the parent's first cell — the anchor the chevron hangs off,
-       * so it must stay the cell's first content (x = `nameCell`'s 26px padding).
+       * so it must stay the cell's first content (x = `nameCell`'s 30px padding).
        */
       lead: 'relative flex items-center gap-2',
       /**
-       * Chevron toggle — hangs in the name cell's own 26px left padding (x 4..20) instead
+       * Chevron toggle — hangs in the name cell's own 30px left padding (x 8..24) instead
        * of standing in the flow.
        *
        * In the flow it cost 28px (20 box + 8 gap), so every row that folds started its name
@@ -1314,13 +1321,14 @@ export const idcStyles = {
        * down a mixed list. Out of the flow the name keeps the column's one left edge and the
        * chevron reads as a margin control, which is what it is.
        *
-       * 16px box, not the old 20, and the name column's 18px padding grew to 26 to seat it:
-       * 4px clears the `verdictRail` inset some rows carry, 16px is the box, 6px separates it
-       * from the name. At 18px the box had to start inside the rail; at 22 the arrow read as
-       * stuck to the first letter. The pressable target stays 24px via the `after` halo —
-       * shrinking the tint must not shrink the thing a pointer has to hit.
+       * 16px box, not the old 20, and the name column's 18px padding grew to 30 to seat it:
+       * 4px is the `verdictRail` inset some rows carry, 4px clears it, 16px is the box, 6px
+       * separates it from the name. At 18px the box had to start inside the rail; at 22 the
+       * arrow read as stuck to the first letter. The pressable target stays 24px via the
+       * `after` halo (x 4..28) — shrinking the tint must not shrink the thing a pointer has
+       * to hit, and at 26 that halo overlapped the rail it was supposed to clear.
        *
-       * ⚠️ PRECONDITION: the host cell carries `nameCell` (26px). `-left-[22px]` is 26 − 4,
+       * ⚠️ PRECONDITION: the host cell carries `nameCell` (30px). `-left-[22px]` is 30 − 8,
        * measured from a `lead` anchor sitting on that padding — in a `childCell` (50px) host
        * the same offset lands the chevron at x 28..44, on top of that cell's own tree elbow
        * (x 12..34). In the flow the old token was indent-independent; this one is not. No row
@@ -1362,10 +1370,10 @@ export const idcStyles = {
        * under the parent's chevron and an elbow reaches into the name; `childCellLast` cuts
        * the rail at the elbow so the group's end is drawn, not merely implied.
        *
-       * Geometry, all measured off the name cell's own 26px padding (`nameCell`):
-       *   4..20   parent chevron   → rail x = 12 (its centre), hung in the padding
-       *   26      parent label     (the column's left edge — the same one plain rows use)
-       *   50      child name       (26 + 24 indent — the tier gap, and the elbow's length)
+       * Geometry, all measured off the name cell's own 30px padding (`nameCell`):
+       *   8..24   parent chevron   → rail x = 16 (its centre), hung in the padding
+       *   30      parent label     (the column's left edge — the same one plain rows use)
+       *   54      child name       (30 + 24 indent — the tier gap, and the elbow's length)
        * The 12px the child used to sit from the label was not a tier, it was a nudge.
        *
        * The elbow stays on `top-1/2` even though an RDS instance child is now a two-line stack
@@ -1376,7 +1384,7 @@ export const idcStyles = {
        * middle is the only point both share, and it is what the elbow connects to.
        */
       childCell:
-        "relative pl-[50px] before:absolute before:bottom-0 before:left-[12px] before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-[''] after:absolute after:left-[12px] after:top-1/2 after:h-px after:w-[22px] after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+        "relative pl-[54px] before:absolute before:bottom-0 before:left-[16px] before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-[''] after:absolute after:left-[16px] after:top-1/2 after:h-px after:w-[22px] after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /** Last child — the rail stops at its elbow, closing the group. */
       childCellLast: 'before:bottom-1/2',
       /**
@@ -1393,7 +1401,7 @@ export const idcStyles = {
        * `50% + 8px` is the one offset all of them need.
        */
       parentCell:
-        "relative after:absolute after:-bottom-px after:left-[12px] after:top-[calc(50%_+_8px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+        "relative after:absolute after:-bottom-px after:left-[16px] after:top-[calc(50%_+_8px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /**
        * Rail lit — put on every `<tr>` of ONE group while its parent row is hovered, so the
        * trunk and each elbow answer together and the group says which rows it owns. The rail
