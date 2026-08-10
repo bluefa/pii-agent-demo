@@ -98,10 +98,15 @@ function Slot({
   return (
     <div className="min-w-0 px-5 py-3.5">
       <dt className="text-[12px] font-medium text-[var(--pl-text-weak)]">{label}</dt>
-      <dd className="mt-1.5 flex min-h-[26px] items-center">{children}</dd>
-      {sub != null && (
-        <p className="mt-1.5 truncate text-[12px] text-[var(--pl-text-faint)]">{sub}</p>
-      )}
+      {/* The qualifying line lives INSIDE the <dd>: a <dl>'s div wrapper may hold
+          only <dt>/<dd>, and a sibling <p> would also drop out of the term's
+          description in the a11y tree. */}
+      <dd className="mt-1.5 min-w-0">
+        <span className="flex min-h-[26px] items-center">{children}</span>
+        {sub != null && (
+          <span className="mt-1.5 block text-[12px] text-[var(--pl-text-faint)]">{sub}</span>
+        )}
+      </dd>
     </div>
   );
 }
@@ -149,7 +154,8 @@ export function InfraStatusHead({
       </div>
 
       {loading ? (
-        <div className="mt-4 h-[92px]" aria-busy />
+        /* Measured against the loaded strip, so nothing jumps when it arrives. */
+        <div className="mt-4 h-[104px]" aria-busy />
       ) : failed || !status ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-4 py-3 text-left')}>
           Terraform 상태를 불러오지 못했습니다.
