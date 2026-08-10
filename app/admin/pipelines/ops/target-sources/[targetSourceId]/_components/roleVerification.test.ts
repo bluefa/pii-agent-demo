@@ -1,13 +1,15 @@
 /**
- * 판정 접기 표 — 계약 (status × fail_reason) 이 화면 상태 넷 중 어디로 가는지.
+ * The fold table — which of the four screen states each contract pair
+ * (status × fail_reason) lands on.
  *
- * 여기서 재는 것 하나: **톤과 조치 대상**. 문구가 아니라 그 둘이 운영자의 다음
- * 행동을 바꾸고, 특히 SCAN_ROLE_* 는 검증 대상(execution)과 조치 대상(scan)이
- * 갈리므로 조용히 뒤집히면 잘못된 Role 을 고치게 만든다.
+ * One thing is measured here: **tone and action target**. Not the wording —
+ * those two are what change the operator's next move, and SCAN_ROLE_* in
+ * particular splits what was verified (execution) from what must be fixed
+ * (scan), so a silent flip sends someone to edit the wrong role.
  */
 import { describe, it, expect, vi } from 'vitest';
 
-// 이 파일이 재는 것은 순수 매핑이다 — 조회 계층은 모듈 로드만 통과시키면 된다.
+// This file measures the pure mapping — the fetch layer only has to let the module load.
 vi.mock('@/app/lib/api/aws', () => ({ getAwsRoleVerification: vi.fn() }));
 vi.mock('@/app/lib/api/azure', () => ({ getAzureScanApp: vi.fn() }));
 vi.mock('@/app/lib/api/gcp', () => ({ getGcpScanServiceAccount: vi.fn() }));
@@ -19,7 +21,7 @@ describe('roleVerdict — 계약 여섯 코드', () => {
     const v = roleVerdict('scan', { status: 'INVALID', fail_reason: 'ROLE_NOT_CONFIGURED' });
     expect(v.tone).toBe('off');
     expect(v.action).toEqual({ kind: 'edit', role: 'scan', label: '등록하기' });
-    // 문장이 검증 대상을 이름으로 부른다.
+    // The sentence names the role that was verified.
     expect(v.message).toContain('Scan Role');
   });
 
@@ -44,7 +46,7 @@ describe('roleVerdict — 계약 여섯 코드', () => {
       const v = roleVerdict('execution', { status: 'INVALID', fail_reason: reason });
       expect(v.action?.kind).toBe('edit');
       expect(v.action?.role).toBe('scan');
-      // 보조 한 줄이 대상 전환을 말해 준다 — 버튼만 바뀌면 왜 바뀌었는지 알 수 없다.
+      // The supporting line explains the target switch — a button that just changes says nothing.
       expect(v.note).not.toBeNull();
     },
   );
@@ -69,7 +71,7 @@ describe('roleVerdict — 계약 여섯 코드', () => {
 describe('roleVerdict — 맵에 없는 코드', () => {
   it('status 로 판정하고 코드는 그대로 남긴다 (판정 불가로 뭉개지 않는다)', () => {
     const v = roleVerdict('scan', { status: 'INVALID', fail_reason: 'ROLE_SESSION_POLICY_DENIED' });
-    // 서버가 INVALID 로 확정했으므로 "판정 못 했다"고 말하면 거짓말이 된다.
+    // The server already settled on INVALID, so saying "could not determine" would be a lie.
     expect(v.tone).toBe('err');
     expect(v.rawCode).toBe('ROLE_SESSION_POLICY_DENIED');
   });

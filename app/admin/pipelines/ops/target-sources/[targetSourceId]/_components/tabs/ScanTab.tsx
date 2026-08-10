@@ -28,10 +28,10 @@ import { sortResourceCounts, totalOf, type ScanJob } from '@/app/admin/pipelines
 export interface ScanTabProps {
   targetSourceId: number;
   detail: RawTargetSourceDetail;
-  /** 권한 카드의 조치 CTA — RoleEditModal 의 주인이 OpsTargetView 라서 내려온다.
-      등록·수정 계약이 있는 AWS 에서만 온다. */
+  /** Action CTA of the permission card — passed down because OpsTargetView owns
+      RoleEditModal. Only AWS, the one provider with a register/edit contract, sends it. */
   onEditRole?: (role: RoleKind) => void;
-  /** Role 저장 후 바뀌는 값 — 권한 카드가 재검증을 건다. */
+  /** Changes when a role is saved — makes the permission card re-verify. */
   credentialReloadKey?: string;
 }
 

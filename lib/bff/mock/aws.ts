@@ -26,15 +26,16 @@ const notAws = () =>
   );
 
 /**
- * 검증 실패 시나리오를 목에서 불러내는 방법 — 저장한 Role **이름**이 고른다.
+ * Summoning a failure scenario from the mock — the saved role **name** picks it.
  *
- * 목이 늘 VALID 만 돌려주면 판정 넷 중 하나만 볼 수 있어, 화면이 실제로 여섯 원인을
- * 구분하는지 확인할 길이 없다. 아래 표는 아무 대상에서나 원하는 코드를 불러내는 쪽이고
- * (운영 화면 [수정] → 이름에 키워드 → 저장; 저장 직후 재검증까지 같이 탄다),
- * 대상별 기본값은 DEMO_FAIL_BY_TARGET 이 정한다.
+ * A mock that only ever answers VALID shows one of the four verdicts, leaving no
+ * way to check that the screen really distinguishes the six causes. This table
+ * summons any code from any target (ops screen [edit] → keyword in the name →
+ * save, which also exercises the save-then-re-verify path); DEMO_FAIL_BY_TARGET
+ * holds the per-target defaults.
  *
- * 예) Scan Role 이름을 `bdc-scan-not-found` 로 저장 → ROLE_NOT_FOUND 로 검증된다.
- * 목록은 docs/redesign/ops-role-verification.md 참조.
+ * e.g. save a scan role named `bdc-scan-not-found` → it verifies as ROLE_NOT_FOUND.
+ * Full list: docs/redesign/ops-role-verification.md
  */
 const DEMO_FAIL_BY_ROLE_NAME: ReadonlyArray<readonly [RegExp, string]> = [
   ['not-configured', 'ROLE_NOT_CONFIGURED'],
@@ -43,24 +44,25 @@ const DEMO_FAIL_BY_ROLE_NAME: ReadonlyArray<readonly [RegExp, string]> = [
   ['scan-missing', 'SCAN_ROLE_NOT_CONFIGURED'],
   ['scan-denied', 'SCAN_ROLE_NOT_ASSUMABLE'],
   ['unavailable', 'ROLE_VERIFICATION_UNAVAILABLE'],
-  // 매핑에 없는 코드도 화면이 삼키지 않는지 보려면 이것으로 저장한다.
+  // Save with this to confirm the screen does not swallow an unmapped code.
   ['unknown-code', 'ROLE_SESSION_POLICY_DENIED'],
 ].map(([needle, reason]) => [new RegExp(needle, 'i'), reason] as const);
 
 /**
- * 대상별 기본 시나리오 — 링크만으로 네 판정을 다 볼 수 있게 고정해 둔다. 나머지 AWS
- * 대상(1006·1007·1018 …)은 VALID 그대로라 행복 경로도 남는다. 이름 규칙(위)은 이
- * 표를 덮어쓰므로, 한 대상에서 여러 코드를 돌려 보는 것도 된다.
+ * Per-target default scenario — pinned so all four verdicts are reachable from a
+ * link alone. Every other AWS target (1006, 1007, 1018 …) stays VALID, so the
+ * happy path survives. The name rules above override this table, so one target
+ * can still be cycled through several codes.
  */
 const DEMO_FAIL_BY_TARGET: Readonly<Record<number, string>> = {
   1008: 'ROLE_NOT_CONFIGURED',
   1010: 'INVALID_ROLE_ARN',
   1011: 'ROLE_VERIFICATION_UNAVAILABLE',
-  // 매핑에 없는 코드 — 화면이 status 로 판정하고 코드를 그대로 노출하는지 확인용.
+  // Unmapped code — checks that the screen falls back to status and still shows the code.
   1012: 'ROLE_SESSION_POLICY_DENIED',
 };
 
-/** 판정 불가만 UNVERIFIED — 나머지는 확정적 구성 오류라 INVALID (계약 §상태와의 관계). */
+/** Only the undeterminable one is UNVERIFIED — the rest are definitive config errors, so INVALID. */
 const demoFailure = (
   roleArn: string | undefined,
   targetSourceId: number,
@@ -191,10 +193,10 @@ export const mockAws = {
     const failure = demoFailure(override?.roleArn, Number(targetSourceId));
     return NextResponse.json({
       status: failure?.status ?? (override?.pending ? 'IN_PROGRESS' : 'VALID'),
-      // 미등록은 ARN 자체가 없다 — 그 외 실패는 등록값을 그대로 유지한다.
+      // Not configured means there is no ARN at all — every other failure keeps the registered value.
       role_arn: failure?.fail_reason === 'ROLE_NOT_CONFIGURED' ? null : roleArn,
       fail_reason: failure?.fail_reason ?? null,
-      // deprecated — 신규 코드에는 싣지 않는다 (화면이 fail_reason 으로만 말하는지 본다).
+      // deprecated — never sent for the new codes, so the screen has to speak from fail_reason alone.
       fail_message: null,
       last_verified_at: override?.pending && !failure ? null : '2026-06-23T10:00:00Z',
     });
@@ -212,8 +214,9 @@ export const mockAws = {
     const failure = demoFailure(override?.roleArn, Number(targetSourceId));
     return NextResponse.json({
       status: failure?.status ?? (override?.pending ? 'IN_PROGRESS' : 'VALID'),
-      // SCAN_ROLE_* 는 원인이 Scan Role 이므로 계약이 Terraform Role ARN 을 유지하라고
-      // 못박았다 — 목도 그렇게 답해야 화면의 "이 ARN 은 원인이 아니다"가 검증된다.
+      // For SCAN_ROLE_* the cause is the scan role, so the contract pins the
+      // Terraform role ARN to stay — the mock must answer that way for the
+      // screen's "this ARN is not the cause" line to be verifiable.
       role_arn: failure?.fail_reason === 'ROLE_NOT_CONFIGURED' ? null : roleArn,
       fail_reason: failure?.fail_reason ?? null,
       fail_message: null,

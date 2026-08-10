@@ -316,8 +316,8 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           <ScanTab
             targetSourceId={targetSourceId}
             detail={detail}
-            // 권한 카드의 조치 CTA 가 여는 모달은 이 화면이 갖고 있다. 등록·수정
-            // 계약은 AWS 에만 있어 다른 프로바이더에는 내려보내지 않는다.
+            // This screen owns the modal the permission card's CTA opens. The
+            // register/edit contract is AWS-only, so no other provider gets it.
             onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
             credentialReloadKey={savedRoleArns.scan}
           />

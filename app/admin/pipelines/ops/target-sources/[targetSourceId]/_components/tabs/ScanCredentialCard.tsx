@@ -7,10 +7,11 @@
  * { status, fail_reason, fail_message, last_verified_at } + a provider identity
  * (role_arn/app_id/gcp_project_id).
  *
- * 계약이 `fail_reason` 을 안정 enum 으로 확정한 뒤로, 원인별 문장과 다음 행동의
- * 주인은 클라이언트다 (roleVerification.ts). 그래서 순서가 바뀌었다:
- * [판정] → [안내 + 조치] → [응답 원문] → [마지막 검증]. 원문 박스는 접지 않는다 —
- * 백엔드 대조는 운영자의 상시 작업이고, 클릭 한 번을 요구하면 대조를 안 하게 된다.
+ * Since the contract froze `fail_reason` as a stable enum, the client owns the
+ * per-cause sentence and the follow-up action (roleVerification.ts), which
+ * reordered the card: [verdict] → [guidance + action] → [raw response] →
+ * [last verified]. The raw box does not collapse — cross-checking the backend
+ * is standing work, and anything that costs a click stops happening.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { SCAN_CREDENTIAL_LABELS } from '@/app/components/features/scan/scan-labels';
@@ -82,11 +83,12 @@ export interface ScanCredentialCardProps {
   provider: CloudProvider;
   targetSourceId: number;
   /**
-   * RoleEditModal 을 여는 콜백 — 모달의 주인은 OpsTargetView 다. 등록·수정 계약이
-   * AWS 에만 있어 다른 프로바이더에서는 내려오지 않고, 그때는 CTA 를 그리지 않는다.
+   * Opens RoleEditModal — OpsTargetView owns that modal. Only AWS has a
+   * register/edit contract, so other providers get no callback, and without one
+   * the card draws no CTA.
    */
   onEditRole?: (role: RoleKind) => void;
-  /** Role 저장 후 바뀌는 값 — 고친 자격을 옛 판정 위에 두지 않도록 재검증을 건다. */
+  /** Changes when a role is saved — re-verifies so a fixed credential never sits under a stale verdict. */
   reloadKey?: string;
 }
 
@@ -97,9 +99,9 @@ export function ScanCredentialCard({
   reloadKey,
 }: ScanCredentialCardProps): ReactElement {
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
-  // 판정 불가에서만 쓰는 재조회 — 상시 버튼이 아니다 (그건 이전에 걷어냈다).
-  // 스켈레톤 전환은 여기(이벤트 핸들러)에서 한다: 이펙트 안에서 곧바로 setState 하면
-  // 연쇄 렌더가 된다.
+  // Re-fetch, offered only on an undeterminable verdict — not a standing button
+  // (that one was removed earlier). The skeleton flip happens here, in the event
+  // handler: setting state straight from the effect cascades renders.
   const [retryKey, setRetryKey] = useState(0);
   const retry = useCallback(() => {
     setState({ phase: 'loading' });
@@ -123,7 +125,8 @@ export function ScanCredentialCard({
 
   const credentialLabel = SCAN_CREDENTIAL_LABELS[provider];
   // Verdict beside the title — same slot as the recent-scan card's status pill (ops feedback).
-  const verdict = state.phase === 'done' ? roleVerdict('scan', state.data) : null;
+  const data = state.phase === 'done' ? state.data : null;
+  const verdict = data && roleVerdict('scan', data);
 
   return (
     // flex-col — mt-auto pins the bottom time row (last verified) so the floor lines up with the sibling card.
@@ -148,15 +151,10 @@ export function ScanCredentialCard({
           <div className={cn(opsStyles.skeleton, 'min-h-[176px] flex-1')} aria-hidden="true" />
           <div className={cn(opsStyles.skeleton, 'mt-4 h-4 w-44 flex-none')} aria-hidden="true" />
         </div>
-      ) : state.phase === 'error' ? (
-        <p className={cn(pipelineStyles.text.meta, 'mt-4')}>자격 정보를 불러오지 못했습니다.</p>
+      ) : data && verdict ? (
+        <CredentialResult data={data} verdict={verdict} onEditRole={onEditRole} onRetry={retry} />
       ) : (
-        <CredentialResult
-          data={state.data}
-          verdict={verdict as RoleVerdict}
-          onEditRole={onEditRole}
-          onRetry={retry}
-        />
+        <p className={cn(pipelineStyles.text.meta, 'mt-4')}>자격 정보를 불러오지 못했습니다.</p>
       )}
     </section>
   );
@@ -174,32 +172,32 @@ function CredentialResult({
   onRetry: () => void;
 }): ReactElement {
   const { action } = verdict;
-  // 조치는 실제로 수행할 수 있을 때만 그린다 — 등록·수정 계약이 없는 프로바이더에서
-  // 버튼만 남으면 눌러도 아무 일이 없다.
-  const actionable =
-    action !== null && (action.kind === 'retry' || (onEditRole != null && action.role != null));
+  // An action is drawn only when it can actually run — on a provider with no
+  // register/edit contract the button would be there and do nothing.
+  const editTarget = action?.kind === 'edit' ? action.role : undefined;
+  const runAction =
+    action?.kind === 'retry'
+      ? onRetry
+      : editTarget != null && onEditRole != null
+        ? () => onEditRole?.(editTarget)
+        : null;
 
   return (
     <>
-      {/* 안내가 첫 자리 — fail_reason 이 안정 코드가 된 이상, 원인별 문장과 다음 행동이
-          운영자가 먼저 읽어야 할 것이다. 정상·검증 중에는 message 가 없어 그리지 않는다. */}
+      {/* Guidance goes first — now that fail_reason is a stable code, the
+          per-cause sentence and the next action are what the operator reads
+          first. Valid and in-progress carry no message, so nothing is drawn. */}
       {verdict.message && (
         <div className={cn('mt-4 rounded-lg px-3.5 py-3', VERDICT_BOX[verdict.tone])}>
           <p className="text-[14px] leading-[1.5]">{verdict.message}</p>
-          {(actionable || verdict.note || verdict.rawCode) && (
+          {(runAction || verdict.note || verdict.rawCode) && (
             <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
-              {actionable && action && (
-                <PlButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() =>
-                    action.kind === 'retry' ? onRetry() : onEditRole?.(action.role as RoleKind)
-                  }
-                >
+              {runAction && action && (
+                <PlButton variant="secondary" size="sm" onClick={runAction}>
                   {action.label}
                 </PlButton>
               )}
-              {/* 맵에 없는 코드는 뭉개지 않는다 — 그대로 보여야 제보가 올라온다. */}
+              {/* An unmapped code is shown as-is — flattened, it never gets reported. */}
               {verdict.rawCode && (
                 <span className="text-[12px] font-semibold text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]">
                   {verdict.rawCode}

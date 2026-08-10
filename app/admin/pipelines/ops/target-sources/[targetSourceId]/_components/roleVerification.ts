@@ -1,16 +1,18 @@
 /**
- * 자격(Role) 검증 판정 — wire (status × fail_reason) 를 "운영자가 다음에 할 일"
- * 단위로 접는다. 넷이다: 정상 / 설정 필요 / 잘못됨 / 판정 불가.
+ * Role verification verdict — folds the wire pair (status × fail_reason) into
+ * what the operator does next. Four outcomes: valid / not configured / wrong /
+ * undeterminable.
  *
- * 톤을 정하는 것은 status 가 아니라 fail_reason 이다. 계약이 fail_reason 을 안정
- * enum 으로 확정했으므로 문장과 조치의 주인은 클라이언트다 — fail_message 는
- * deprecated 라, 매핑이 없는 코드(GCP·Azure 및 아직 모르는 신규 코드)에서만
- * 폴백으로 쓴다.
+ * The tone comes from fail_reason, not status. The contract froze fail_reason
+ * as a stable enum, so the client owns the sentence and the follow-up action;
+ * fail_message is deprecated and survives only as the fallback for unmapped
+ * codes (GCP/Azure, plus codes we do not know yet).
  *
- * codegen 이 enum 을 strip 하므로 생성 타입은 그냥 string 이다: 이 파일의 맵이
- * 계약의 유일한 표현이고, 맵에 없는 코드는 뭉개지 않고 그대로 노출한다.
+ * codegen strips enums, so the generated type is a bare string: the map in this
+ * file is the only expression of the contract, and an unmapped code is surfaced
+ * verbatim rather than flattened into "unknown error".
  *
- * 설계 근거: docs/redesign/ops-role-verification.md
+ * Rationale: docs/redesign/ops-role-verification.md
  */
 import { getAwsRoleVerification } from '@/app/lib/api/aws';
 import { getAzureScanApp } from '@/app/lib/api/azure';
@@ -18,7 +20,7 @@ import { getGcpScanServiceAccount } from '@/app/lib/api/gcp';
 import type { CloudProvider } from '@/lib/types';
 import { ROLE_META, type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 
-/** 세 프로바이더 검증 응답의 구조적 합집합 — 모든 스키마가 partial 이라 전부 optional. */
+/** Structural union of the three providers' responses — every schema is partial, so all optional. */
 export interface CredentialVerification {
   status?: string | null;
   fail_reason?: string | null;
@@ -35,8 +37,8 @@ export type CredentialLoad =
   | { phase: 'done'; data: CredentialVerification };
 
 /**
- * 검증 조회. execution 은 AWS 에만 계약이 있다 — GCP·Azure 는 scan 자격만 부르고,
- * 호출부(OpsTargetView)가 그 둘에는 execution 을 요청하지 않는다.
+ * Fetch a verification. Only AWS has an execution-role contract — GCP/Azure
+ * expose the scan credential alone, and callers never ask them for execution.
  */
 export const fetchCredential = (
   provider: CloudProvider,
@@ -51,7 +53,7 @@ export const fetchCredential = (
     case 'GCP':
       return getGcpScanServiceAccount(targetSourceId);
     case 'IDC':
-      // IDC 는 클라우드 스캔이 없다 — 호출부가 이 카드를 렌더하지 않는다.
+      // IDC has no cloud scan — callers do not render this card for it.
       return Promise.resolve({});
   }
 };
@@ -60,22 +62,22 @@ export type VerdictTone = 'ok' | 'off' | 'err' | 'warn';
 
 export interface VerdictAction {
   label: string;
-  /** edit = RoleEditModal 열기, retry = 재조회. */
+  /** edit = open RoleEditModal, retry = re-fetch. */
   kind: 'edit' | 'retry';
-  /** edit 의 대상 — 검증 대상과 다를 수 있다 (SCAN_ROLE_* 는 Scan Role 을 가리킨다). */
+  /** Target of an edit — may differ from what was verified (SCAN_ROLE_* points at the Scan Role). */
   role?: RoleKind;
 }
 
 export interface RoleVerdict {
   tone: VerdictTone;
-  /** 판정 pill 문구. */
+  /** Text of the verdict pill. */
   label: string;
-  /** 실패 안내 — 정상·검증 중에는 null (이때 안내 박스를 그리지 않는다). */
+  /** Failure guidance — null while valid or in progress, and then no box is drawn. */
   message: string | null;
   action: VerdictAction | null;
-  /** 문장에 담기지 않는 보조 한 줄 (조치 대상 전환·전파 지연). */
+  /** A supporting line the sentence cannot carry (target switch, propagation delay). */
   note: string | null;
-  /** 맵에 없는 코드 — 그대로 노출한다. 매핑된 코드에서는 null. */
+  /** An unmapped code, surfaced verbatim. Null for mapped codes. */
   rawCode: string | null;
 }
 
@@ -85,12 +87,13 @@ const FALLBACK_MESSAGE = '자격 검증에 실패했습니다. 권한 설정을 
 const UNDETERMINED_MESSAGE = '지금은 검증 결과를 확정할 수 없습니다. 설정 문제가 아닐 수 있습니다.';
 
 /**
- * 계약이 확정한 여섯 코드. ROLE_NOT_CONFIGURED 만 검증 대상에 따라 문구가 달라지므로
- * 맵의 값은 kind 를 받는 함수다.
+ * The six codes the contract froze. Only ROLE_NOT_CONFIGURED words itself after
+ * the role that was verified, so map values take `kind` as an argument.
  *
- * ROLE_NOT_CONFIGURED 는 계약상 INVALID(확정적 구성 오류)로 오지만 화면은 중립으로
- * 그린다 — 아직 아무것도 등록하지 않은 대상을 빨갛게 칠하면, 같은 순간 헤더가 말하는
- * "미등록"과 어긋난다. fail_reason 이 안정 키라서 status 와 무관하게 결정할 수 있다.
+ * ROLE_NOT_CONFIGURED arrives as INVALID (a definitive configuration error) but
+ * the screen paints it neutral: painting a target that has registered nothing
+ * yet in red contradicts the header, which calls the same target "unregistered".
+ * fail_reason is a stable key, so this is decidable without consulting status.
  */
 const REASONS: Record<string, (kind: RoleKind) => ReasonSpec> = {
   ROLE_NOT_CONFIGURED: (kind) => ({
@@ -124,8 +127,8 @@ const REASONS: Record<string, (kind: RoleKind) => ReasonSpec> = {
   SCAN_ROLE_NOT_ASSUMABLE: () => ({
     tone: 'err',
     label: '검증 실패',
-    // 계약이 원인(ARN 오류 / trust policy / 호출자 권한)을 세분화하지 않으므로
-    // 화면도 아는 척하지 않는다.
+    // The contract does not split the cause apart (bad ARN / trust policy /
+    // caller permissions), so the screen does not pretend to know either.
     message: 'Scan Role을 넘겨받지 못했습니다. ARN 또는 신뢰 정책을 확인해 주세요.',
     action: { kind: 'edit', role: 'scan', label: 'Scan Role 수정하기' },
     note: '등록된 Terraform Role ARN은 원인이 아닙니다.',
@@ -140,9 +143,10 @@ const REASONS: Record<string, (kind: RoleKind) => ReasonSpec> = {
 };
 
 /**
- * 매핑이 없을 때의 폴백 — status 로 판정한다. 미지의 코드를 무조건 "판정 불가"로
- * 보내지 않는 이유: INVALID 는 서버가 이미 확정했다는 뜻이고, GCP·Azure 는 자기
- * 코드 체계(SA_NOT_CONFIGURED 등)를 쓰면서 status 는 같은 어휘를 공유한다.
+ * Fallback when the code is unmapped — decide from status. Unknown codes are
+ * deliberately NOT all routed to "undeterminable": INVALID means the server has
+ * already decided, and GCP/Azure use their own code vocabulary (SA_NOT_CONFIGURED
+ * and friends) while sharing this status vocabulary.
  */
 const byStatus = (status: string | null, failMessage: string | null): ReasonSpec => {
   switch (status) {
@@ -169,7 +173,7 @@ const byStatus = (status: string | null, failMessage: string | null): ReasonSpec
         note: null,
       };
     default:
-      // 열린 집합 — 모르는 status 는 값을 그대로 라벨로 쓴다.
+      // Open set — an unknown status becomes its own label.
       return { tone: 'off', label: status ?? '미확인', message: failMessage, action: null, note: null };
   }
 };
@@ -180,12 +184,13 @@ export const roleVerdict = (kind: RoleKind, data: CredentialVerification): RoleV
   if (spec) return { ...spec(kind), rawCode: null };
 
   const base = byStatus(data.status ?? null, data.fail_message ?? null);
-  // 코드는 왔는데 담을 문장이 없으면 박스 자체가 안 그려져 코드가 사라진다.
+  // A code with no sentence to carry it would leave the box undrawn, and the
+  // code would disappear from the screen with it.
   const message = base.message ?? (reason !== null ? FALLBACK_MESSAGE : null);
   return { ...base, message, rawCode: reason };
 };
 
-/** 판정 pill (카드 제목 옆). */
+/** Verdict pill, beside the card title. */
 export const VERDICT_PILL: Record<VerdictTone, string> = {
   ok: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
   off: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
@@ -193,25 +198,10 @@ export const VERDICT_PILL: Record<VerdictTone, string> = {
   warn: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
 };
 
-/** 안내 박스 — 설정 필요(off)만 본문을 중립 먹으로 둔다(회색 위 회색은 안 읽힌다). */
+/** Guidance box — only "not configured" (off) keeps neutral body ink; gray on gray does not read. */
 export const VERDICT_BOX: Record<VerdictTone, string> = {
   ok: '',
   off: 'bg-[var(--pl-off-bg)] text-[var(--pl-text-medium)]',
   err: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
   warn: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
-};
-
-/** 헤더 role 행의 점 + 글자 — 판정만 말하고 이유는 카드에 맡긴다. */
-export const VERDICT_DOT: Record<VerdictTone, string> = {
-  ok: 'bg-[var(--pl-ok)]',
-  off: 'bg-[var(--pl-off)]',
-  err: 'bg-[var(--pl-err)]',
-  warn: 'bg-[var(--pl-warn)]',
-};
-
-export const VERDICT_TEXT: Record<VerdictTone, string> = {
-  ok: 'text-[var(--pl-ok-text)]',
-  off: 'text-[var(--pl-text-faint)]',
-  err: 'text-[var(--pl-err-text)]',
-  warn: 'text-[var(--pl-warn-text)]',
 };

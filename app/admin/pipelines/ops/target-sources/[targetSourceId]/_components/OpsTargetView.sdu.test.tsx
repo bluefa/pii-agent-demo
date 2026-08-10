@@ -28,7 +28,7 @@ vi.mock('@/app/lib/api', () => ({
   getProcessStatus: () => getProcessStatus(),
 }));
 const getTargetJiraTicket = vi.fn(async (): Promise<null> => null);
-// 판정이 붙은 뒤로는 이 응답이 곧 화면이다 — 라우트가 zod 로 파싱하므로 빈 객체가 최소 형태다.
+// Now that a verdict is derived, this response is the screen — the route zod-parses it, so {} is the minimal shape.
 const getAwsRoleVerification = vi.fn(async (): Promise<Record<string, never>> => ({}));
 const getTestConnectionDetail = vi.fn(async (): Promise<null> => null);
 
