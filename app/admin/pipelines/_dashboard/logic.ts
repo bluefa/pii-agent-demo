@@ -11,6 +11,7 @@
  * Verbatim from design/pipeline/admin-pipeline.html renderList()/renderStats().
  */
 import type {
+  PipelineStatistics,
   PipelineStatus,
   PipelineSummary,
   PipelineType,
@@ -40,6 +41,56 @@ export const PERIOD_OPTIONS: ReadonlyArray<{ value: StatisticsPeriodToken; label
   { value: '1d', label: '24시간' },
   { value: '7d', label: '7일' },
 ];
+
+/**
+ * The summary buckets. These are what the top tiles count AND what clicking one
+ * filters to — the same four names, so a number and the list under it can never
+ * disagree about what they mean.
+ *
+ * `attention` deliberately holds FAILED only. A stalled PENDING/RUNNING belongs
+ * here too, but "stalled" is a threshold nobody has set yet, and a bucket that
+ * guesses is worse than one that under-reports. See
+ * docs/ux/benchmark/pipelines-dashboard.md §4.
+ */
+export type DashBucket = 'attention' | 'active' | 'closed' | 'all';
+
+/**
+ * Bucket → the statuses it holds. The three named buckets PARTITION
+ * PipelineStatus: every one of the five lands in exactly one, which is what lets
+ * 확인 필요 + 진행 중 + 종료 add up to 전체. Adding a status without placing it
+ * here would silently break that sum.
+ */
+export const BUCKET_STATUSES: Record<Exclude<DashBucket, 'all'>, readonly PipelineStatus[]> = {
+  attention: ['FAILED'],
+  active: ['PENDING', 'RUNNING'],
+  closed: ['DONE', 'CANCELLED'],
+};
+
+/** Rows in one bucket; 'all' passes through. */
+export function filterByBucket(
+  rows: readonly PipelineSummary[],
+  bucket: DashBucket,
+): PipelineSummary[] {
+  if (bucket === 'all') return [...rows];
+  const wanted = BUCKET_STATUSES[bucket];
+  return rows.filter((p) => wanted.includes(p.status));
+}
+
+/**
+ * Bucket counts for the period. These come from the statistics endpoint, not
+ * from the fetched rows: the list stops at DASH_FETCH_SIZE, and a tile that
+ * counted only what fit would under-report the very backlog it exists to show.
+ * When the two disagree the pager is the place that says why.
+ */
+export function bucketCounts(stats: PipelineStatistics | null): Record<DashBucket, number | null> {
+  if (!stats) return { attention: null, active: null, closed: null, all: null };
+  return {
+    attention: stats.failed_count,
+    active: stats.pending_count + stats.running_count,
+    closed: stats.done_count + stats.cancelled_count,
+    all: stats.total_count,
+  };
+}
 
 /** Status filter options — '' = 전체; values are wire PipelineStatus. */
 export const STATUS_OPTIONS: ReadonlyArray<{ value: '' | PipelineStatus; label: string }> = [
@@ -88,9 +139,16 @@ export function filterBySearch(rows: readonly PipelineSummary[], q: string): Pip
   );
 }
 
-/** Full client projection: substring search only — order always follows the API response. */
-export function projectRows(rows: readonly PipelineSummary[], q: string): PipelineSummary[] {
-  return filterBySearch(rows, q);
+/**
+ * Full client projection: bucket, then substring search — order always follows
+ * the API response.
+ */
+export function projectRows(
+  rows: readonly PipelineSummary[],
+  q: string,
+  bucket: DashBucket = 'all',
+): PipelineSummary[] {
+  return filterBySearch(filterByBucket(rows, bucket), q);
 }
 
 export interface PageSlice<T> {

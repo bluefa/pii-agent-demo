@@ -21,15 +21,9 @@ import type { ReactElement, ReactNode } from 'react';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
-import {
-  OrchestratorApiError,
-  getLiveStatistics,
-  getPipelineStatistics,
-  listPipelines,
-} from '@/app/lib/api/pipeline';
+import { OrchestratorApiError, getPipelineStatistics, listPipelines } from '@/app/lib/api/pipeline';
 import type {
   CloudProvider,
-  LivePipelineStatistics,
   PipelineStatistics,
   PipelineStatus,
   PipelineSummary,
@@ -38,7 +32,7 @@ import type {
   StatisticsPeriodToken,
 } from '@/lib/pipeline/types';
 
-import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
 import { Card } from '@/app/admin/pipelines/_components/Card';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
@@ -66,36 +60,75 @@ import {
   PROVIDER_OPTIONS,
   STATUS_OPTIONS,
   TYPE_OPTIONS,
+  bucketCounts,
   paginate,
   projectRows,
+  type DashBucket,
 } from '@/app/admin/pipelines/_dashboard/logic';
 import { FilterChips } from '@/app/admin/pipelines/_dashboard/FilterChips';
 
-/** KPI stat tile (Figma Make redesign) — centered badge → label → value.
- *  The badge is always neutral; its text ("현재" / "최근 24시간") carries the
- *  period meaning. */
-function StatTile({
-  labelMain,
-  labelPeriod,
+/** One summary bucket. The whole tile is the hit area — it is a filter, not a
+ *  read-out — which is why the mark inside carries no container of its own. */
+function BucketTile({
+  label,
   value,
-  error,
+  icon,
+  tone,
+  active,
+  onSelect,
 }: {
-  labelMain: string;
-  labelPeriod: string;
+  label: string;
   value: ReactNode;
-  error?: boolean;
+  icon: IconName;
+  /** `alert` = 확인 필요 (bad news), `muted` = 전체 (not a bucket, no filter). */
+  tone?: 'alert' | 'muted';
+  active: boolean;
+  onSelect: () => void;
 }): ReactElement {
-  const { card, dashboard, text, statBadge } = pipelineStyles;
+  const d = pipelineStyles.dashboard;
+  const textTone =
+    tone === 'alert' ? d.bucketToneAlert : tone === 'muted' ? d.bucketToneMuted : d.bucketToneDefault;
+  const valueTone =
+    tone === 'alert' ? d.bucketToneAlert : tone === 'muted' ? d.bucketToneDefault : d.bucketValueDefault;
+  const markTone =
+    tone === 'alert' ? d.bucketToneAlert : tone === 'muted' ? d.bucketMarkMuted : d.bucketToneDefault;
   return (
-    <div className={cn(card.stat, dashboard.kpiCard)}>
-      <span className={statBadge.base}>{labelPeriod}</span>
-      <div className={text.statLabelMain}>{labelMain}</div>
-      <div className={cn(text.statValue, error ? text.statValueError : text.statValueDefault)}>
-        {value}
-      </div>
-    </div>
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onSelect}
+      className={cn(
+        d.bucketTile,
+        // Exclusive, never merged — see the token comment.
+        active ? d.bucketTileActive : tone === 'muted' ? d.bucketTileAllIdle : d.bucketTileIdle,
+      )}
+    >
+      <span>
+        <span className={cn(d.bucketLabel, textTone)}>{label}</span>
+        <b className={cn(d.bucketValue, valueTone)}>{value}</b>
+      </span>
+      <Icon name={icon} size={20} className={cn(d.bucketMark, markTone)} />
+    </button>
   );
 }
+
+/**
+ * The four tiles, in scan order: what needs you, what is moving, what is over,
+ * and the way back out. Marks come from the section's own icon set in the role
+ * each glyph already plays there — `loader` is the arc StatusPill spins on
+ * RUNNING, so a tile and the rows under it say "진행 중" with the same shape.
+ */
+const BUCKETS: ReadonlyArray<{
+  key: DashBucket;
+  label: string;
+  icon: IconName;
+  tone?: 'alert' | 'muted';
+}> = [
+  { key: 'attention', label: '확인 필요', icon: 'warn-tri', tone: 'alert' },
+  { key: 'active', label: '진행 중', icon: 'loader' },
+  { key: 'closed', label: '종료', icon: 'check-circle' },
+  { key: 'all', label: '전체', icon: 'table', tone: 'muted' },
+];
 
 const errorMessage = (err: unknown): string =>
   err instanceof OrchestratorApiError || err instanceof Error ? err.message : String(err);
@@ -108,13 +141,13 @@ export default function DashboardPage(): ReactElement {
   // find work that is still waiting, and a job stalled since yesterday fell out
   // of a 24-hour window while still being the thing worth looking at.
   const [period, setPeriod] = useState<StatisticsPeriodToken>('7d');
+  const [bucket, setBucket] = useState<DashBucket>('all');
   const [status, setStatus] = useState<'' | PipelineStatus>('');
   const [provider, setProvider] = useState<string>('');
   const [type, setType] = useState<'' | PipelineType>('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
 
-  const [live, setLive] = useState<LivePipelineStatistics | null>(null);
   const [periodStats, setPeriodStats] = useState<PipelineStatistics | null>(null);
 
   const [pageData, setPageData] = useState<SpringPage<PipelineSummary> | null>(null);
@@ -122,20 +155,20 @@ export default function DashboardPage(): ReactElement {
   const [listError, setListError] = useState<unknown>(null);
   const [retryNonce, setRetryNonce] = useState(0);
 
-  // Stats effect — refetch live + period statistics whenever the period changes.
+  // Stats effect — the bucket counts, refetched whenever the period changes.
   // `signal.aborted` guards against out-of-order resolution on rapid toggles.
+  // The live (현재 순간값) endpoint is gone: every tile now counts the SAME
+  // period as the list under it, which is what lets a tile double as its filter.
   useAbortableEffect(
     (signal) => {
-      setLive(null);
       setPeriodStats(null);
-      return Promise.all([getLiveStatistics(), getPipelineStatistics(period)])
-        .then(([liveStats, stats]) => {
+      return getPipelineStatistics(period)
+        .then((stats) => {
           if (signal.aborted) return;
-          setLive(liveStats);
           setPeriodStats(stats);
         })
         .catch(() => {
-          // Stats degrade to '—'; the list region owns the visible error surface.
+          // Counts degrade to '—'; the list region owns the visible error surface.
         });
     },
     [period],
@@ -171,7 +204,10 @@ export default function DashboardPage(): ReactElement {
     [period, status, provider, type, retryNonce],
   );
 
-  const projected = useMemo(() => projectRows(pageData?.content ?? [], q), [pageData, q]);
+  const projected = useMemo(
+    () => projectRows(pageData?.content ?? [], q, bucket),
+    [pageData, q, bucket],
+  );
   const { pages, current, slice } = useMemo(() => paginate(projected, page), [projected, page]);
 
   // Any filter change resets to page 1 (design: filter change → page 1).
@@ -181,6 +217,18 @@ export default function DashboardPage(): ReactElement {
   // reruns and clears listLoading, so setting it true here matches the seg/
   // select pattern. q is a pure client derivation (NOT a dep) → never touch
   // listLoading for it, or the loading state would stick with no refetch.
+  // Bucket and the 상태 select are the SAME axis, so only one may be on: picking
+  // 확인 필요 while the select says DONE would ask for rows that cannot exist.
+  // Whichever the operator touched last wins, and the other resets.
+  const selectBucket = (next: DashBucket) => {
+    setBucket((prev) => (prev === next ? 'all' : next));
+    resetPage();
+    if (status) {
+      setStatus('');
+      setListLoading(true); // status is a fetch dep — clearing it refetches
+    }
+  };
+
   const clearStatus = () => {
     setStatus('');
     resetPage();
@@ -206,14 +254,12 @@ export default function DashboardPage(): ReactElement {
     setProvider('');
     setType('');
     setQ('');
+    setBucket('all');
     resetPage();
     if (serverFilterActive) setListLoading(true); // only refetch-triggering changes show loading
   };
 
-  const runningValue = live ? live.running_pipeline_count : '—';
-  const pendingValue = live ? live.pending_pipeline_count : '—';
-  const failedCount = periodStats?.failed_count;
-  const doneValue = periodStats ? periodStats.done_count : '—';
+  const counts = useMemo(() => bucketCounts(periodStats), [periodStats]);
   const plabel = PERIOD_LABELS[period];
   const hasFilter = Boolean(status) || Boolean(provider) || Boolean(type) || Boolean(q.trim());
 
@@ -243,16 +289,18 @@ export default function DashboardPage(): ReactElement {
         />
       </div>
 
-      <div className={d.kpiGrid}>
-        <StatTile labelMain="동작 중 작업" labelPeriod="현재" value={runningValue} />
-        <StatTile labelMain="대기 중 작업" labelPeriod="현재" value={pendingValue} />
-        <StatTile
-          labelMain="실패"
-          labelPeriod={plabel}
-          value={failedCount ?? '—'}
-          error={(failedCount ?? 0) > 0}
-        />
-        <StatTile labelMain="성공" labelPeriod={plabel} value={doneValue} />
+      <div className={d.bucketGrid}>
+        {BUCKETS.map((b) => (
+          <BucketTile
+            key={b.key}
+            label={b.label}
+            value={counts[b.key] ?? '—'}
+            icon={b.icon}
+            tone={b.tone}
+            active={bucket === b.key}
+            onSelect={() => selectBucket(b.key)}
+          />
+        ))}
       </div>
 
       <Card variant="flush">
@@ -284,6 +332,7 @@ export default function DashboardPage(): ReactElement {
               const next = event.target.value as '' | PipelineStatus;
               if (next === status) return; // same-value guard (see period seg)
               setStatus(next);
+              if (next) setBucket('all'); // same axis as the tiles — see selectBucket
               resetPage();
               setListLoading(true);
             }}

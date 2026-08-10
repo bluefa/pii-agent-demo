@@ -1865,13 +1865,6 @@ const pipelineText = {
   metaGroupLabel: 'text-[12px] font-semibold text-[var(--pl-text-faint)]',
   /** stat tile label — 12 / 400 / weak. */
   statLabel: 'text-[12px] font-normal text-[var(--pl-text-weak)]',
-  /** stat tile main label (Figma Make) — 16 / 600 / medium, below the badge. */
-  statLabelMain: 'text-[16px] font-semibold leading-[1.2] text-[var(--pl-text-medium)]',
-  /** stat tile value (Figma Make) — 48 / 700 / tabular. */
-  statValue: 'text-[48px] font-bold leading-[1.1] tabular-nums',
-  statValueDefault: 'text-[var(--pl-text-strong)]',
-  /** stat value error tint (failed count > 0) — Figma Make red-500. */
-  statValueError: 'text-[var(--pl-err)]',
   /** stat value denominator — 20 / 500 / faint. */
   statDen: 'text-[20px] font-medium text-[var(--pl-text-faint)]',
   /** status-bar current label — 14 / 600 / medium. */
@@ -2003,10 +1996,6 @@ export const pipelineStyles = {
 
   /** KPI card period badge (Figma Make redesign) — neutral rounded-md chip with
    *  a hairline border, above the label ("현재" / "최근 24시간"). */
-  statBadge: {
-    base: 'inline-flex items-center rounded-md border border-[var(--pl-border)] bg-[var(--pl-gray-100)] px-2 py-0.5 text-[11px] font-medium text-[var(--pl-text-weak)]',
-  },
-
   /** Section header (title 64/0/12 margins; desc R22.5: 16 below title — the
    *  R18 8px read cramped to the owner — 16 above content). mt-4 vs the
    *  title's mb-3 collapses to 16px (block siblings). */
@@ -2282,10 +2271,40 @@ export const pipelineStyles = {
    * a hover-reveal dark action button.
    */
   dashboard: {
-    /** KPI grid — 4 equal columns, then a gap before the list card. */
-    kpiGrid: 'grid grid-cols-4 gap-4 mb-8',
-    /** KPI card inner column — centered badge → label → value. */
-    kpiCard: 'flex flex-col items-center text-center gap-3',
+    /**
+     * Summary buckets — the tiles ARE the filter, so they wear the section's
+     * selectable-tile grammar from 운영 알림 (`AlertsView` summary*): the border
+     * is present even when idle so selecting one never resizes it, and idle vs
+     * active colours are chosen EXCLUSIVELY (cn is a plain join — put both on and
+     * Tailwind's output order decides the winner, which is how a hover once ate
+     * the brand stroke on that screen).
+     *
+     * Left-aligned rather than centred: the four values have different digit
+     * counts (3 · 4 · 128 · 137), and centring makes them start at four different
+     * x positions, so the row of numbers cannot be read as a column.
+     */
+    bucketGrid: 'grid grid-cols-[repeat(4,minmax(0,260px))] gap-3 mb-6',
+    bucketTile:
+      'flex items-center justify-between gap-3 rounded-[8px] border px-4 py-3.5 text-left transition-colors',
+    bucketTileIdle:
+      'border-transparent bg-[var(--pl-gray-100)] hover:border-[var(--pl-gray-300)] hover:bg-[var(--pl-gray-200)]',
+    /** Selection is a brand stroke; severity is the value's colour. Two signals, two channels. */
+    bucketTileActive: 'border-[var(--pl-primary)] bg-[var(--pl-bg-card)]',
+    /** 전체 is not a bucket, it is "no filter" — an outline rather than a fill. */
+    bucketTileAllIdle:
+      'border-dashed border-[var(--pl-gray-300)] bg-transparent hover:bg-[var(--pl-gray-100)]',
+    bucketLabel: 'text-[14px] font-semibold leading-[1.3]',
+    bucketValue:
+      'mt-1 block text-[32px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums',
+    /** The mark wears no container — 운영 알림 카드 grammar (`AlertStageCard` bare 20px Icon).
+     *  A tile behind it would read as a second, smaller button inside the tile. */
+    bucketMark: 'flex-none',
+    /** Tones: 확인 필요 is the one bucket that is bad news; 전체 is the quiet one. */
+    bucketToneDefault: 'text-[var(--pl-text-medium)]',
+    bucketValueDefault: 'text-[var(--pl-text-strong)]',
+    bucketToneAlert: 'text-[var(--pl-err-text)]',
+    bucketToneMuted: 'text-[var(--pl-text-weak)]',
+    bucketMarkMuted: 'text-[var(--pl-text-faint)]',
     /** Page header row (title + period selector). */
     headerRow: 'flex items-center justify-between mb-6',
 
