@@ -140,8 +140,11 @@ export const ConfirmStepModal = ({
 
   useEffect(() => {
     // The error frame's own commit button takes focus — the elements that had it are gone.
-    if (resultKind === 'error') retryRef.current?.focus();
-  }, [resultKind]);
+    // Also after a retry settles back onto this frame: the button was disabled while the
+    // request was out, and a disabled element cannot hold focus, so without this the Tab
+    // trap would resume from outside the dialog.
+    if (resultKind === 'error' && !isPending) retryRef.current?.focus();
+  }, [resultKind, isPending]);
 
   useEffect(() => {
     if (!open) return;
@@ -278,12 +281,25 @@ export const ConfirmStepModal = ({
             {result.reason && <p className={resultReason}>{result.reason}</p>}
             {result.kind === 'error' && (
               <div className="mt-6 flex gap-2.5">
-                <button type="button" className={confirmCancelBtn} onClick={onClose}>
+                <button
+                  type="button"
+                  className={confirmCancelBtn}
+                  onClick={onClose}
+                  disabled={isPending}
+                >
                   닫기
                 </button>
                 {onRetry && (
-                  <button ref={retryRef} type="button" className={confirmPrimaryBtn} onClick={onRetry}>
-                    <ReloadIcon className="h-[15px] w-[15px]" />
+                  <button
+                    ref={retryRef}
+                    type="button"
+                    className={confirmPrimaryBtn}
+                    onClick={onRetry}
+                    disabled={isPending}
+                  >
+                    {/* The retry stays on this frame while it runs — the spinner replaces the
+                        reload mark rather than the frame, so nothing under it moves. */}
+                    {isPending ? <LoadingSpinner size="sm" /> : <ReloadIcon className="h-[15px] w-[15px]" />}
                     다시 요청하기
                   </button>
                 )}

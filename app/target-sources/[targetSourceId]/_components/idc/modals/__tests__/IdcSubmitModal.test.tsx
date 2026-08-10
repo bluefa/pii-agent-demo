@@ -9,6 +9,7 @@ const baseProps = {
   live: 4,
   excluded: 0,
   phase: 'form' as const,
+  pending: false,
   onSubmit: vi.fn(),
   onRetry: vi.fn(),
   onClose: vi.fn(),
@@ -54,9 +55,18 @@ describe('IdcSubmitModal', () => {
   });
 
   it('disables both buttons while submitting', () => {
-    render(<IdcSubmitModal {...baseProps} phase="pending" />);
+    render(<IdcSubmitModal {...baseProps} pending />);
     expect((screen.getByRole('button', { name: '요청하기' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: '머무르기' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  // 재요청 중에도 화면은 실패 프레임이다 — 확인 화면으로 되돌아갔다 오면 깜빡인다.
+  it('pending on the failure frame locks its buttons without leaving the frame', () => {
+    render(<IdcSubmitModal {...baseProps} phase="error" pending />);
+    expect(screen.getByText('승인 요청을 보내지 못했어요')).toBeTruthy();
+    expect(screen.queryByText('연동 대상을 승인 요청할까요?')).toBeNull();
+    expect((screen.getByRole('button', { name: '다시 요청하기' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '닫기' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   // 확인 프레임: 체크와 다음 행선지만. 누를 것이 없어야 한다 — 이 1초는 이미 확정된

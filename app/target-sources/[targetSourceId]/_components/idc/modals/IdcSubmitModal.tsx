@@ -16,8 +16,10 @@ interface IdcSubmitModalProps {
   total: number;
   live: number;
   excluded: number;
-  /** 요청의 진행 프레임 (useConfirmSubmit). */
+  /** 지금 그릴 프레임 (useConfirmSubmit). */
   phase: ConfirmSubmitPhase;
+  /** 요청이 날아가 있는 동안 — 프레임은 그대로, 버튼만 잠긴다. */
+  pending: boolean;
   /** 실패 사유 한 줄. 서버가 준 사용자용 메시지일 때만 값이 있다. */
   errorReason?: string;
   /** 요청하기 — parent runs createApprovalRequest + refreshProject. */
@@ -85,6 +87,7 @@ export const IdcSubmitModal = ({
   live,
   excluded,
   phase,
+  pending,
   errorReason,
   onSubmit,
   onRetry,
@@ -94,7 +97,7 @@ export const IdcSubmitModal = ({
     open={isOpen}
     onClose={onClose}
     onConfirm={onSubmit}
-    isPending={phase === 'pending'}
+    isPending={pending}
     result={
       phase === 'success'
         ? RESULTS.success

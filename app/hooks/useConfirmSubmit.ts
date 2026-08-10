@@ -6,13 +6,14 @@ import { AppError } from '@/lib/errors';
 import { ProcessStatus } from '@/lib/types';
 
 /**
- * 단계를 넘기는 요청 모달의 네 프레임.
- * - `form`: 확인 화면. 아직 아무것도 보내지 않았다.
- * - `pending`: 요청이 날아간 뒤 응답을 기다리는 중.
+ * 모달이 지금 그리는 프레임. **요청 중인지는 여기 없다** — 그건 `pending` 이 따로
+ * 들고 있다. 둘을 한 값에 넣으면 "요청 중"이 곧 "확인 화면"이 되어, 실패 프레임에서
+ * 다시 요청하는 순간 화면이 확인 화면으로 되돌아갔다가 실패 프레임으로 돌아온다.
+ * - `form`: 확인 화면. 아직 아무 결과도 없다.
  * - `success`: 확인 프레임. 체크가 서 있는 동안 화면은 아직 이 단계다.
  * - `error`: 실패 프레임. 모달은 닫히지 않고 재요청 경로를 준다.
  */
-export type ConfirmSubmitPhase = 'form' | 'pending' | 'success' | 'error';
+export type ConfirmSubmitPhase = 'form' | 'success' | 'error';
 
 /**
  * 확인 프레임이 서 있는 시간. 스캔 완료 프레임(useScanCompletionTransition 의
@@ -31,6 +32,8 @@ interface UseConfirmSubmitOptions {
 
 export interface UseConfirmSubmitReturn {
   phase: ConfirmSubmitPhase;
+  /** 요청이 날아가 있는 동안. 프레임은 그대로 두고 버튼만 잠근다. */
+  pending: boolean;
   /** 실패 사유 한 줄. 서버가 준 사용자용 메시지일 때만 값이 있다. */
   errorReason?: string;
   submit: () => void;
@@ -55,6 +58,7 @@ export const useConfirmSubmit = ({
   settle,
 }: UseConfirmSubmitOptions): UseConfirmSubmitReturn => {
   const [phase, setPhase] = useState<ConfirmSubmitPhase>('form');
+  const [pending, setPending] = useState(false);
   const [errorReason, setErrorReason] = useState<string>();
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   // 두 콜백 모두 렌더마다 새로 만들어지는 클로저다 — ref 로 최신 것을 들고 있으면
@@ -77,10 +81,9 @@ export const useConfirmSubmit = ({
   }, []);
 
   const send = useCallback(async () => {
-    setPhase('pending');
-    setErrorReason(undefined);
     try {
       await requestRef.current();
+      setErrorReason(undefined);
       succeed();
     } catch (error) {
       // 서버가 준 detail 만 그대로 보여준다(AppError.isUserFacing) — 네트워크 스택이
@@ -93,33 +96,38 @@ export const useConfirmSubmit = ({
     }
   }, [succeed]);
 
-  const submit = useCallback(() => {
-    void send();
-  }, [send]);
+  /** 프레임은 건드리지 않고 요청 구간만 표시한다 — 이 훅의 두 진입점이 공유하는 껍데기. */
+  const run = useCallback((task: () => Promise<void>) => {
+    setPending(true);
+    void task().finally(() => setPending(false));
+  }, []);
 
-  const retry = useCallback(() => {
-    void (async () => {
-      setPhase('pending');
-      // 응답만 실패하고 요청은 이미 접수됐을 수 있다(타임아웃·게이트웨이). 그대로 다시
-      // 보내면 승인 요청이 두 건 생기므로, 진행 상태를 먼저 다시 읽는다. 이미 1단계를
-      // 벗어나 있으면 재요청 없이 확인 프레임 → 화면 갱신으로 넘긴다.
-      try {
-        const status = await getProcessStatus(targetSourceId);
-        if (
-          normalizeTargetSourceProcessStatus(status.process_status)
-          !== ProcessStatus.WAITING_TARGET_CONFIRMATION
-        ) {
-          succeed();
-          return;
+  const submit = useCallback(() => run(send), [run, send]);
+
+  const retry = useCallback(
+    () =>
+      run(async () => {
+        // 응답만 실패하고 요청은 이미 접수됐을 수 있다(타임아웃·게이트웨이). 그대로 다시
+        // 보내면 승인 요청이 두 건 생기므로, 진행 상태를 먼저 다시 읽는다. 이미 1단계를
+        // 벗어나 있으면 재요청 없이 확인 프레임 → 화면 갱신으로 넘긴다.
+        try {
+          const status = await getProcessStatus(targetSourceId);
+          if (
+            normalizeTargetSourceProcessStatus(status.process_status)
+            !== ProcessStatus.WAITING_TARGET_CONFIRMATION
+          ) {
+            succeed();
+            return;
+          }
+        } catch {
+          // 상태 조회조차 실패하면 판정할 근거가 없다. 조회 실패를 요청 실패로 보고할
+          // 수는 없으므로(사용자가 누른 것은 재요청이다) 그대로 재요청으로 진행한다 —
+          // 미확정 상태에서 중복을 피하는 유일한 근거가 이 조회였고, 그 근거가 없다.
         }
-      } catch {
-        // 상태 조회조차 실패하면 판정할 근거가 없다. 조회 실패를 요청 실패로 보고할
-        // 수는 없으므로(사용자가 누른 것은 재요청이다) 그대로 재요청으로 진행한다 —
-        // 미확정 상태에서 중복을 피하는 유일한 근거가 이 조회였고, 그 근거가 없다.
-      }
-      await send();
-    })();
-  }, [targetSourceId, send, succeed]);
+        await send();
+      }),
+    [run, targetSourceId, send, succeed],
+  );
 
   const reset = useCallback(() => {
     clearTimeout(timerRef.current);
@@ -127,7 +135,7 @@ export const useConfirmSubmit = ({
     setPhase('form');
   }, []);
 
-  return { phase, errorReason, submit, retry, reset };
+  return { phase, pending, errorReason, submit, retry, reset };
 };
 
 export default useConfirmSubmit;

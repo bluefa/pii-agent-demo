@@ -40,6 +40,7 @@ describe('useConfirmSubmit', () => {
   it('holds the confirm frame before refreshing the screen', async () => {
     const { result, settle } = setup(() => Promise.resolve());
     expect(result.current.phase).toBe('form');
+    expect(result.current.pending).toBe(false);
 
     await act(async () => { result.current.submit(); });
     expect(result.current.phase).toBe('success');
@@ -54,15 +55,39 @@ describe('useConfirmSubmit', () => {
     expect(result.current.phase).toBe('success');
   });
 
-  it('stays pending while the request is in flight', async () => {
+  it('stays on the confirm frame while the first request is in flight', async () => {
     let release = () => {};
     const { result } = setup(() => new Promise<void>((resolve) => { release = resolve; }));
 
     act(() => { result.current.submit(); });
-    expect(result.current.phase).toBe('pending');
+    expect(result.current.pending).toBe(true);
+    expect(result.current.phase).toBe('form');
+
+    await act(async () => { release(); });
+    expect(result.current.pending).toBe(false);
+    expect(result.current.phase).toBe('success');
+  });
+
+  // 재요청 중에 프레임이 'form' 으로 돌아가면 실패 프레임 → 확인 화면 → 실패 프레임으로
+  // 왕복하며 화면이 깜빡인다. 요청 중임은 pending 만 말한다.
+  it('keeps the failure frame while a retry is in flight', async () => {
+    let release: (value: void) => void = () => {};
+    const request = vi.fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve; }));
+    const { result } = setup(request);
+
+    await act(async () => { result.current.submit(); });
+    expect(result.current.phase).toBe('error');
+
+    vi.mocked(getProcessStatus).mockResolvedValue(statusOf('REQUEST_REQUIRED'));
+    await act(async () => { result.current.retry(); });
+    expect(result.current.pending).toBe(true);
+    expect(result.current.phase).toBe('error');
 
     await act(async () => { release(); });
     expect(result.current.phase).toBe('success');
+    expect(result.current.pending).toBe(false);
   });
 
   // 서버가 준 detail 만 사용자에게 보여준다. 네트워크 스택이 던진 원문은 사용자에게

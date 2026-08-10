@@ -731,10 +731,10 @@ export const CandidateResourceSection = ({
                       <Button
                         variant="primary"
                         onClick={handleRequestApproval}
-                        disabled={approval.phase === 'pending' || approvalBlockReason != null}
+                        disabled={approval.pending || approvalBlockReason != null}
                         className="flex items-center gap-2 disabled:pointer-events-none"
                       >
-                        {approval.phase === 'pending' && <LoadingSpinner />}
+                        {approval.pending && <LoadingSpinner />}
                         연동 대상 승인 요청
                       </Button>
                     );
@@ -776,6 +776,7 @@ export const CandidateResourceSection = ({
           live={selectedIds.size}
           excluded={Math.max(0, allCandidates.length - selectedIds.size)}
           phase={approval.phase}
+          pending={approval.pending}
           errorReason={approval.errorReason}
           onSubmit={approval.submit}
           onRetry={approval.retry}

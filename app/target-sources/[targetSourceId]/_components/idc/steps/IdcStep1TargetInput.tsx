@@ -442,6 +442,7 @@ export const IdcStep1TargetInput = ({
         live={liveCount}
         excluded={excludedCount}
         phase={submit.phase}
+        pending={submit.pending}
         errorReason={submit.errorReason}
         onSubmit={submit.submit}
         onRetry={submit.retry}
