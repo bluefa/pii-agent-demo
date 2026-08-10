@@ -216,6 +216,21 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
     );
   }
 
+  /**
+   * IDC 는 스캔 탭을 갖지 않는다.
+   *
+   * 스캔은 CSP 계정을 훑어 대상 후보를 찾아내는 절차인데, IDC 는 담당자가 접속 정보를
+   * 직접 적어 등록하는 대상이라 훑을 계정 자체가 없다. SDU 처럼 화면 전체를 끊지는
+   * 않는다 — 나머지 탭은 IDC 에서도 전부 의미가 있다.
+   *
+   * 링크로 `?tab=scan` 이 들어와도 첫 탭으로 떨어진다. 알 수 없는 slug 를 status 로
+   * 되돌리는 opsTabLabel 과 같은 규칙이다.
+   */
+  const tabs = detail.cloud_provider === 'IDC'
+    ? TABS.filter((tab) => tab !== OPS_TAB_SLUGS.scan)
+    : TABS;
+  const currentTab = tabs.includes(activeTab) ? activeTab : tabs[0];
+
   const isAws = detail.cloud_provider === 'AWS';
   const accountId = meta.aws_account_id ?? '';
   const isChina = meta.is_china_region === true;
@@ -238,8 +253,8 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
           onOpenEdit={(kind) => setModal({ type: 'edit', kind })}
         />
         <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
-          {TABS.map((tab) => {
-            const active = tab === activeTab;
+          {tabs.map((tab) => {
+            const active = tab === currentTab;
             return (
               <button
                 key={tab}
@@ -257,7 +272,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
       </div>
 
       <div className={opsStyles.content}>
-        {activeTab === '진행 상태' && (
+        {currentTab === '진행 상태' && (
           <>
             {processStatus ? (
               <ProcessCard status={processStatus} />
@@ -273,16 +288,16 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             </div>
           </>
         )}
-        {activeTab === '스캔' && <ScanTab targetSourceId={targetSourceId} detail={detail} />}
-        {activeTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
-        {activeTab === '인프라 작업' && (
+        {currentTab === '스캔' && <ScanTab targetSourceId={targetSourceId} detail={detail} />}
+        {currentTab === '연동 요청 정보' && <RequestTab targetSourceId={targetSourceId} detail={detail} />}
+        {currentTab === '인프라 작업' && (
           <PipelineTab
             targetSourceId={targetSourceId}
             detail={detail}
             onOpenRequest={() => selectTab('연동 요청 정보')}
           />
         )}
-        {activeTab === 'Test Connection' && (
+        {currentTab === 'Test Connection' && (
           <TcTab
             targetSourceId={targetSourceId}
             status={tcStatus}
@@ -293,7 +308,7 @@ export function OpsTargetView({ targetSourceId, initialTab }: OpsTargetViewProps
             onStatusReload={reloadTc}
           />
         )}
-        {activeTab === '관리자 승인' && (
+        {currentTab === '관리자 승인' && (
           <ApprovalTab
             targetSourceId={targetSourceId}
             detail={detail}
