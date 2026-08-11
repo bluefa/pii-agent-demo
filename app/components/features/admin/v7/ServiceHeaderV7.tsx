@@ -80,16 +80,18 @@ export const ServiceHeaderV7 = ({
               {serviceCode}
             </span>
           )}
-          {/* EOS 는 초록을 쓰지 않는다 — 종료된 서비스가 운영 중과 같은 색을 입으면
-              색이 상태를 말하지 못한다. 회색(중립)은 "끝난 것"의 자리다. */}
+          {/* 뜻을 먼저, 약어를 뒤에 — `EOS` 세 글자만 두면 그 말을 이미 아는 사람에게만
+              읽힌다. 한 태그 안에 같이 두면 모르는 사람은 앞을 읽고 아는 사람은 뒤를
+              확인한다. 약어를 따로 감싸 흐리게 두는 안은 버렸다: 텍스트 노드가 갈라져
+              화면에 없는 이음매가 생기고, 얻는 것은 장식뿐이었다. */}
           <span
             className={cn(
               'inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-semibold',
-              isEosService === true ? tagStyles.gray : statusColors.success.bg,
-              isEosService === true ? textColors.secondary : statusColors.success.textDark,
+              isEosService === true ? statusColors.error.bg : statusColors.success.bg,
+              isEosService === true ? statusColors.error.textDark : statusColors.success.textDark,
             )}
           >
-            {isEosService === true ? 'EOS' : '운영 중'}
+            {isEosService === true ? '서비스 미운영 EOS' : '운영 중'}
           </span>
         </div>
         {/* 이 화면의 CTA. 페이지에 채워진 버튼은 이것 하나뿐이라 primary 를 써도 다투는

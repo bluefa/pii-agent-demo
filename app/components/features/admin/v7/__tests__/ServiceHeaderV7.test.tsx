@@ -84,13 +84,14 @@ describe('ServiceHeaderV7', () => {
       const view = header('고객센터 상담 이력', isEos);
       const text = [...view.container.querySelectorAll('span')]
         .map((s) => s.textContent?.trim())
-        .find((t) => t === 'EOS' || t === '운영 중');
+        .find((t) => t === '서비스 미운영 EOS' || t === '운영 중');
       view.unmount();
       return text;
     };
 
-    it('true 일 때만 EOS 를 그린다', () => {
-      expect(badgeText(true)).toBe('EOS');
+    it('true 면 뜻과 약어를 한 태그로 묶어 그린다', () => {
+      // `EOS` 만으로는 세 글자를 아는 사람에게만 읽힌다.
+      expect(badgeText(true)).toBe('서비스 미운영 EOS');
     });
 
     it('false 는 운영 중이다', () => {
@@ -101,18 +102,21 @@ describe('ServiceHeaderV7', () => {
       expect(badgeText(undefined)).toBe('운영 중');
     });
 
-    it('EOS 는 운영 중의 초록을 쓰지 않는다', () => {
+    it('미운영은 빨강, 운영 중은 초록', () => {
       // 색 문자열을 추측하지 않고 토큰으로 비교한다 — success 는 'green' 이라는 낱말을
       // 쓰지 않는다(bg-[#45CB85]/10).
       const eos = header('x', true);
       const eosPill = [...eos.container.querySelectorAll('span')].find(
-        (s) => s.textContent?.trim() === 'EOS',
+        (s) => s.textContent?.trim() === '서비스 미운영 EOS',
       );
+      expect(eosPill?.className).toContain(statusColors.error.bg);
+      expect(eosPill?.className).toContain(statusColors.error.textDark);
       expect(eosPill?.className).not.toContain(statusColors.success.bg);
       eos.unmount();
 
       const live = header('x', false);
       expect(statusPill(live.container)?.className).toContain(statusColors.success.bg);
+      expect(statusPill(live.container)?.className).not.toContain(statusColors.error.bg);
       live.unmount();
     });
   });
