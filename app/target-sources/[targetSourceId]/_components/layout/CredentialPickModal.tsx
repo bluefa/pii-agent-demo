@@ -5,6 +5,7 @@ import { Modal } from '@/app/components/ui/Modal';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { SearchIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import { EmptyState } from '@/app/components/ui/state';
+import { useColumnResize, type ColumnResize } from '@/app/components/ui/useColumnResize';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import type { SecretKey } from '@/lib/types';
 import {
@@ -78,6 +79,9 @@ export const CredentialPickModal = ({
   // 경우가 가장 흔하다.
   const [sortKey, setSortKey] = useState<CredentialSortKey>('updatedAt');
   const [sortDir, setSortDir] = useState<SortDirection>('desc');
+  // 고정폭 두 열은 사용자가 직접 넓힐 수 있다 — 아래 w-[…] 는 기본값일 뿐이고, User ID 처럼
+  // 조직마다 길이가 다른 값은 기본값 하나로 맞출 수 없다.
+  const columns = useColumnResize();
 
   const rows = options.map(toCredentialRow);
   const filtered = rows.filter((row) => matchesQuery(row, query));
@@ -217,13 +221,16 @@ export const CredentialPickModal = ({
                   <th className={cn(idcStyles.table.headerCell, 'w-[40px]')}>
                     <span className="sr-only">선택</span>
                   </th>
+                  {/* 112px 는 8글자에서 끊겼다 — 사내 User ID 는 그보다 길다. 같은 값을 mono 로
+                      끊어 보여주는 Step 5 표의 Credential 칸(max-w-[160px])과 폭을 맞춘다. */}
                   <SortHeader
                     label="User ID"
                     columnKey="userId"
                     sortKey={sortKey}
                     sortDir={sortDir}
                     onSort={sortBy}
-                    className="w-[112px]"
+                    className="w-[160px]"
+                    columns={columns}
                   />
                   <SortHeader
                     label="Credential 이름"
@@ -243,6 +250,7 @@ export const CredentialPickModal = ({
                     sortDir={sortDir}
                     onSort={sortBy}
                     className="w-[152px]"
+                    columns={columns}
                   />
                 </tr>
               </thead>
@@ -320,14 +328,28 @@ interface SortHeaderProps {
   sortDir: SortDirection;
   onSort: (key: CredentialSortKey) => void;
   className?: string;
+  /** 넘기면 이 열은 오른쪽 경계를 끌어 폭을 바꿀 수 있다 — 고정폭 열에만 준다. */
+  columns?: ColumnResize;
 }
 
 /** 정렬은 열이 한다 — 헤더 자체가 버튼이고, 현재 정렬은 aria-sort 와 화살표 둘 다로 말한다. */
-const SortHeader = ({ label, columnKey, sortKey, sortDir, onSort, className }: SortHeaderProps) => {
+const SortHeader = ({
+  label,
+  columnKey,
+  sortKey,
+  sortDir,
+  onSort,
+  className,
+  columns,
+}: SortHeaderProps) => {
   const active = sortKey === columnKey;
   return (
     <th
-      className={cn(idcStyles.table.headerCell, className)}
+      // relative: 폭 손잡이가 이 칸의 오른쪽 끝에 자리를 잡는다.
+      // whitespace-nowrap: 폭을 줄이는 동안 열 이름이 두 줄로 접히면 머리 줄 높이가 같이
+      // 뛰어, 끌고 있는 손 아래에서 표 전체가 흔들린다.
+      className={cn(idcStyles.table.headerCell, 'relative whitespace-nowrap', className)}
+      style={columns?.widthOf(columnKey)}
       aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
       <button
@@ -344,6 +366,7 @@ const SortHeader = ({ label, columnKey, sortKey, sortDir, onSort, className }: S
           {active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
         </span>
       </button>
+      {columns && <span {...columns.handleProps(columnKey, label)} />}
     </th>
   );
 };

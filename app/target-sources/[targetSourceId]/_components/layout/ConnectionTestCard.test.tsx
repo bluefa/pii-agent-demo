@@ -36,12 +36,14 @@ const triggerMock = vi.fn(async () => true);
 const pollingState: {
   uiState: TestConnectionUIState;
   latestJob: TestConnectionVersionResult | null;
-} = { uiState: 'IDLE', latestJob: null };
+  /** 첫 latest_version 응답 전 — 그 동안 연결 상태 칸은 판정을 말하지 않는다. */
+  loading: boolean;
+} = { uiState: 'IDLE', latestJob: null, loading: false };
 
 const makePolling = (): UseTestConnectionPollingReturn => ({
   latestJob: pollingState.latestJob,
   uiState: pollingState.uiState,
-  loading: false,
+  loading: pollingState.loading,
   fetchError: null,
   triggerError: null,
   trigger: triggerMock,
@@ -121,6 +123,7 @@ describe('ConnectionTestCard', () => {
   beforeEach(() => {
     pollingState.uiState = 'IDLE';
     pollingState.latestJob = null;
+    pollingState.loading = false;
     triggerMock.mockReset();
     triggerMock.mockResolvedValue(true);
     updateResourceCredentialMock.mockReset();
@@ -153,6 +156,34 @@ describe('ConnectionTestCard', () => {
     const table = within(screen.getByRole('table'));
     expect(table.queryByText('대기')).toBeNull();
     expect(table.queryByText('성공')).toBeNull();
+  });
+
+  // 확정 목록(confirmed-integration)이 latest_version 보다 먼저 도착하면 표는 폴링 결과 없이
+  // 한 번 그려진다 — 그 사이 찍히던 '—'/'대기'는 판정처럼 읽혔고, 응답이 오면 곧바로 성공으로
+  // 뒤집혀 같은 칸을 두 번 읽게 만들었다. 모르는 동안에는 스켈레톤만 있어야 한다.
+  it('draws a skeleton in 연결 상태 while the first latest_version is still in flight', () => {
+    pollingState.loading = true;
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    const table = screen.getByRole('table');
+    expect(table.getAttribute('aria-busy')).toBe('true');
+    // 결과가 이미 손에 있어도 로딩 중이면 말하지 않는다 — 게이트는 latestJob 이 아니라 loading.
+    expect(within(table).queryByText('성공')).toBeNull();
+    expect(within(table).queryByText('대기')).toBeNull();
+    expect(within(table).queryByText('—')).toBeNull();
+    expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(1);
+  });
+
+  it('replaces the skeleton with the verdict once the poll lands', () => {
+    pollingState.loading = false;
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    const table = screen.getByRole('table');
+    expect(table.getAttribute('aria-busy')).toBe('false');
+    expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(0);
+    expect(within(table).getByText('성공')).toBeTruthy();
   });
 
   it('disables Run Test when a row has no credential, without touching Connection Status', () => {

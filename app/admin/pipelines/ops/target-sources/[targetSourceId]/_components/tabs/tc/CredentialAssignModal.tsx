@@ -18,6 +18,7 @@ import { useMemo, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { splitCredentialName } from '@/lib/credentials';
+import { useColumnResize, type ColumnResize } from '@/app/components/ui/useColumnResize';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
@@ -64,6 +65,7 @@ function SortHead({
   onSort,
   width,
   align,
+  columns,
 }: {
   label: string;
   columnKey: SortKey;
@@ -71,11 +73,16 @@ function SortHead({
   onSort: (key: SortKey) => void;
   width?: string;
   align?: 'right';
+  /** 넘기면 이 열은 오른쪽 경계를 끌어 폭을 바꿀 수 있다 — 고정폭 열에만 준다. */
+  columns?: ColumnResize;
 }): ReactElement {
   const active = sort?.key === columnKey;
   return (
     <th
+      // headCell 이 이미 sticky 라 절대 위치 자식(폭 손잡이)의 기준이 된다 — relative 를 덧대면
+      // 두 position 유틸이 겹쳐 sticky 헤더가 스크롤을 따라 사라진다.
       className={cn(opsStyles.credModal.headCell, width, align === 'right' && 'text-right')}
+      style={columns?.widthOf(columnKey)}
       aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
       <button
@@ -86,6 +93,7 @@ function SortHead({
         {label}
         <span aria-hidden="true">{active ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span>
       </button>
+      {columns && <span {...columns.handleProps(columnKey, label)} />}
     </th>
   );
 }
@@ -115,6 +123,10 @@ export function CredentialAssignModal({
   // 기본 정렬은 `credentialEntries` 가 이미 매긴 순서(목록에 없음 → 배정 많은 순 → 이름)다.
   // 열을 누르기 전까지는 그 순서를 흐트러뜨리지 않는다.
   const [sort, setSort] = useState<SortState>(null);
+  // 고정폭 열은 사용자가 직접 넓힐 수 있다 — 아래 w-[…] 는 기본값일 뿐이고, User ID 처럼
+  // 조직마다 길이가 다른 값은 기본값 하나로 맞출 수 없다. 사용자 화면 Step 5 의 Credential
+  // 모달과 같은 장치다.
+  const columns = useColumnResize();
 
   const hits = useMemo(() => filterCredentials(entries, query), [entries, query]);
   // The current value must stay visible even when it does not match the query —
@@ -170,10 +182,15 @@ export function CredentialAssignModal({
               <th className={cn(opsStyles.credModal.headCell, 'w-[36px]')}>
                 <span className="sr-only">선택</span>
               </th>
-              <SortHead label="User ID" columnKey="userId" sort={sort} onSort={sortBy} width="w-[104px]" />
+              {/* 104px 는 8글자에서 끊겼다 — 사내 User ID 는 그보다 길다. 셀 여백(px-2)을 빼고
+                  mono 13글자가 들어가는 폭이다. 사용자 화면 모달(160px)보다 좁게 잡는 이유는
+                  이 다이얼로그가 600px 이라, 더 가져오면 남는 폭을 흡수하는 이름 열이 눈에 띄게
+                  줄기 때문. 더 긴 값은 경계를 끌어 늘린다. */}
+              <SortHead label="User ID" columnKey="userId" sort={sort} onSort={sortBy} width="w-[132px]" columns={columns} />
+              {/* 이름 열에는 손잡이를 달지 않는다 — 폭이 없어야 남는 공간을 흡수한다. */}
               <SortHead label="Credential 이름" columnKey="label" sort={sort} onSort={sortBy} />
-              <SortHead label="최종 수정 시각" columnKey="updatedAt" sort={sort} onSort={sortBy} width="w-[148px]" />
-              <SortHead label="배정" columnKey="assignedCount" sort={sort} onSort={sortBy} width="w-[72px]" align="right" />
+              <SortHead label="최종 수정 시각" columnKey="updatedAt" sort={sort} onSort={sortBy} width="w-[148px]" columns={columns} />
+              <SortHead label="배정" columnKey="assignedCount" sort={sort} onSort={sortBy} width="w-[72px]" align="right" columns={columns} />
             </tr>
           </thead>
           <tbody>

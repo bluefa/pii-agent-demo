@@ -582,6 +582,22 @@ export const cancelApprovalRequest = async (
   return { success: true };
 };
 
+/**
+ * 연동 상태 초기화 (swagger POST …/reset) — Step 7 의 "인프라 변경"이 부르는 길.
+ * 승인·설치·연결 테스트 확인을 모두 버리고 1단계로 되돌린다. `reason` 은 계약상 필수이고
+ * 감사 로그에 남으므로 화면이 받아 그대로 넘긴다 (maxLength 1000).
+ */
+export const resetTargetSource = async (
+  targetSourceId: number,
+  reason: string,
+): Promise<{ success: boolean }> => {
+  await fetchInfraJson<ApprovalActionResponseDto>(`${CONFIRM_BASE}/${targetSourceId}/reset`, {
+    method: 'POST',
+    body: { reason },
+  });
+  return { success: true };
+};
+
 // 연동 불가 판정 (swagger approval-unavailable, #7) — body { reason } required.
 export const markApprovalRequestUnavailable = async (
   targetSourceId: number,

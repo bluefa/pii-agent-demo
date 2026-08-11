@@ -554,13 +554,12 @@ export const setConfirmation = (targetSourceId: number, confirmed: boolean) => {
         ? { ...ct, passedAt: now }
         : { ...ct, operationConfirmed: true };
     } else {
-      // 되돌아가기 — roll back ONE step. Step 7→6 clears operationConfirmed;
-      // Step 6→5 clears passedAt (passedAt is the WAITING_CONNECTION_TEST gate,
-      // so clearing it is what actually returns the project to Step 5 — clearing
-      // operationConfirmed alone leaves it stuck at Step 6).
-      project.status.connectionTest = ct.operationConfirmed
-        ? { ...ct, operationConfirmed: false }
-        : { ...ct, passedAt: undefined };
+      // 되돌아가기 — 확인 자체를 지운다. 계약의 `confirmed` 는 불리언 하나라 "한 계단만
+      // 뒤로"를 담을 수 없고, false 로 되돌린다는 것은 완료 확인이 없던 상태라는 뜻이다.
+      // passedAt 이 WAITING_CONNECTION_TEST 게이트이므로 둘을 함께 비워야 5단계로 간다 —
+      // Step 6 은 operationConfirmed 가 애초에 false 라 결과가 같고, Step 7 의 "연결 테스트
+      // 재실행"이 대화상자가 약속한 5단계에 내린다(한 계단씩이면 6단계에 멈췄다).
+      project.status.connectionTest = { ...ct, passedAt: undefined, operationConfirmed: false };
     }
     project.processStatus = getCurrentStep(project.status);
   }

@@ -1,17 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import type { CloudTargetSource } from '@/lib/types';
 import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
-import { useToast } from '@/app/components/ui/toast';
 import {
   CardActionBar,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
-import {
-  ConfirmRewindModal,
-  type ConfirmRewindKind,
-} from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
+import { ConfirmRewindModal } from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
+import { useRewindStep } from '@/app/target-sources/[targetSourceId]/_components/layout/useRewindStep';
 import { IdcConfirmedResourcesPanel } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcConfirmedResourcesPanel';
 import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_components/idc/types';
 import { getIdcConfirmedResources } from '@/app/lib/api/idc';
@@ -21,28 +18,24 @@ import { useIdcResources } from '@/app/hooks/useIdcResources';
  * 인프라 변경 / 연결 테스트 재실행 — the C-2 action zone at the card bottom
  * (CardActionBar, same grammar as the step-5 완료 승인 요청 bar), with the
  * rewind consequences spelled out in the hint.
+ *
+ * 두 되돌리기는 실제 API 를 쏜다 (useRewindStep) — 클라우드 Step 7 과 같은 두 호출이다.
  */
-const CompleteActionBar = () => {
-  const toast = useToast();
-  const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
-
-  // v16 confirmStepProceed rewinds the stepper; the rewind endpoint is not in the
-  // contract yet, so confirming surfaces a placeholder until the BFF wires it.
-  const handleConfirm = (kind: ConfirmRewindKind) => {
-    setConfirmKind(null);
-    toast.info(
-      kind === 'infra'
-        ? '인프라 변경(1단계로 되돌아가기)은 BFF 연동 후 활성화됩니다.'
-        : '연결 테스트 재실행(5단계로 되돌아가기)은 BFF 연동 후 활성화됩니다.',
-    );
-  };
+const CompleteActionBar = ({
+  targetSourceId,
+  onProjectUpdate,
+}: {
+  targetSourceId: number;
+  onProjectUpdate: (project: CloudTargetSource) => void;
+}) => {
+  const rewind = useRewindStep(targetSourceId, onProjectUpdate);
 
   return (
     <CardActionBar hint="※ 인프라 변경은 1단계, 연결 테스트 재실행은 5단계로 되돌아가 프로세스를 다시 진행해요.">
       <button
         type="button"
         className={idcStyles.triggerBtn.warnOutline}
-        onClick={() => setConfirmKind('infra')}
+        onClick={() => rewind.open('infra')}
       >
         <EditIcon className="w-3.5 h-3.5" />
         인프라 변경
@@ -50,15 +43,16 @@ const CompleteActionBar = () => {
       <button
         type="button"
         className={idcStyles.triggerBtn.warnOutline}
-        onClick={() => setConfirmKind('retest')}
+        onClick={() => rewind.open('retest')}
       >
         <ReloadIcon className="w-3.5 h-3.5" />
         연결 테스트 재실행
       </button>
       <ConfirmRewindModal
-        kind={confirmKind}
-        onClose={() => setConfirmKind(null)}
-        onConfirm={handleConfirm}
+        kind={rewind.confirmKind}
+        onClose={rewind.close}
+        onConfirm={rewind.confirm}
+        isPending={rewind.pending}
       />
     </CardActionBar>
   );
@@ -74,6 +68,7 @@ const CompleteActionBar = () => {
  */
 export const IdcStep7Complete = ({
   project,
+  onProjectUpdate,
 }: IdcStepProps) => {
 
   // Step 7 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
@@ -117,7 +112,10 @@ export const IdcStep7Complete = ({
           <IdcConfirmedResourcesPanel targetSourceId={project.targetSourceId} state={state} />
         </div>
         {/* C-2 action zone: the rewind CTAs dock (sticky) at the card bottom. */}
-        <CompleteActionBar />
+        <CompleteActionBar
+          targetSourceId={project.targetSourceId}
+          onProjectUpdate={onProjectUpdate}
+        />
       </section>
       <RejectionAlert project={project} />
     </>

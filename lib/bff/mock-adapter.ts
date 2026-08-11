@@ -262,6 +262,11 @@ export const mockBff: BffClient = {
     cancelApprovalRequest: async (id) =>
       unwrap<unknown>(await mockConfirm.cancelApprovalRequest(String(id))),
 
+    resetTargetSource: async (id, body) =>
+      unwrap<z.infer<typeof schemas.ApprovalActionResponseDto>>(
+        await mockConfirm.resetTargetSource(String(id), body),
+      ),
+
     markApprovalRequestUnavailable: async (id, body) =>
       unwrap<unknown>(await mockConfirm.markApprovalRequestUnavailable(String(id), body)),
 
