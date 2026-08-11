@@ -199,6 +199,21 @@ describe('ConnectionTestCard', () => {
    * `testing` 은 latest_version 이 새 실행을 되돌려준 뒤에야 켜진다. 그 왕복 동안 버튼이
    * 살아 있으면 두 번째 클릭이 409 를 받아, 사용자가 부른 적 없는 오류 줄이 뜬다.
    */
+  /**
+   * 첫 latest_version 전에는 `testing` 이 false 지만, 그것은 "돌고 있지 않다"가 아니라
+   * "아직 모른다"이다. 이미 서버에서 도는 실행을 모른 채 버튼을 열어 두면 누르는 순간
+   * 409 를 받는다 — 클릭 이후 창만 막고 이 창을 두면 같은 오류가 그대로 남는다.
+   */
+  it('locks Run Test until the first latest_version answers, without claiming a run is under way', () => {
+    pollingState.loading = true;
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    const button = screen.getByRole('button', { name: /Run Test/ });
+    expect(button).toHaveProperty('disabled', true);
+    // 라벨은 여전히 Run Test — "진행 중"이라고 적는 것 역시 하지 않은 판단이다.
+    expect(screen.queryByRole('button', { name: /연결 테스트 진행 중/ })).toBeNull();
+  });
+
   it('locks Run Test while the trigger request is still in flight', () => {
     pollingState.triggering = true;
     renderCard([makeResource({ credentialId: 'Key1' })]);

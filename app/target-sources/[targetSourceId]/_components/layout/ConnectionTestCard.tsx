@@ -289,10 +289,15 @@ export const ConnectionTestCard = ({
   // 되돌려준 뒤에야 켜지므로, 그 왕복 시간만큼 버튼이 "Run Test" 인 채로 살아 있었다 —
   // 그 사이 한 번 더 누르면 두 번째 요청이 409 를 받아, 사용자가 부른 적 없는 오류 줄이 뜬다.
   const busy = testing || triggering;
+  // 첫 latest_version 이 오기 전에도 잠근다. 그 사이 `testing` 은 false 지만 그것은 "돌고 있지
+  // 않다"가 아니라 "아직 모른다"이고 — 이미 서버에서 돌고 있는 실행을 모른 채 버튼을 열어 두면,
+  // 누르는 순간 409 를 받아 사용자가 부른 적 없는 오류가 뜬다. 라벨은 `busy` 가 따로 쥔다:
+  // 모르는 동안 "진행 중"이라고 적는 것 역시 하지 않은 판단이다.
+  const runDisabled = loading || busy || !allCredsSet;
   const runTest = useCallback(async () => {
-    if (busy || !allCredsSet) return;
+    if (runDisabled) return;
     await trigger();
-  }, [busy, allCredsSet, trigger]);
+  }, [runDisabled, trigger]);
 
   // 모달의 저장이 PUT 을 쏘고, 성공했을 때만 로컬 값이 바뀐다.
   const handleCredSubmit = useCallback(async (next: string) => {
@@ -367,7 +372,7 @@ export const ConnectionTestCard = ({
         <button
           type="button"
           onClick={runTest}
-          disabled={busy || !allCredsSet}
+          disabled={runDisabled}
           className={cn(idcStyles.triggerBtn.soft, 'disabled:cursor-not-allowed disabled:opacity-45')}
         >
           {busy ? (

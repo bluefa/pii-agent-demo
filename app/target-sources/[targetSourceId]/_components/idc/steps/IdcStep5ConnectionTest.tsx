@@ -182,6 +182,10 @@ export const IdcStep5ConnectionTest = ({
   // 아니다 — 경고 줄(미설정 ≥ 1 일 때만 뜬다)로는 설명되지 않으므로 따로 말한다.
   const noTargets = liveResources.length === 0;
   const allCredsSet = !noTargets && missingCount === 0;
+  // 첫 latest_version 이 오기 전에도 잠근다 — 그 사이 `testing` 은 false 지만 그것은 "돌고 있지
+  // 않다"가 아니라 "아직 모른다"이고, 이미 도는 실행을 모른 채 누르면 409 가 뜬다. 라벨은
+  // `busy` 가 따로 쥔다: 모르는 동안 "진행 중"이라고 적는 것도 하지 않은 판단이다.
+  const runDisabled = !ready || loading || busy || !allCredsSet;
   // 마지막 하나를 지정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 비고, 그것을 되돌릴
   // 컨트롤도 같이 사라진 뒤다.
   if (credFilterOn && missingCount === 0) setCredFilterOn(false);
@@ -209,13 +213,13 @@ export const IdcStep5ConnectionTest = ({
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const runTest = useCallback(async () => {
-    if (!ready || busy || !allCredsSet) return;
+    if (runDisabled) return;
     // 의도가 아니라 증거로 푼다: trigger 가 실패하면(409 포함) 실행은 시작되지 않았고,
     // 수정된 Credential 은 여전히 검증 전이다 — 게이트를 미리 풀면 옛 실행의
     // completion-status 로 완료 승인이 열린다.
     const started = await trigger();
     if (started) setCredsDirty(false);
-  }, [ready, busy, allCredsSet, trigger]);
+  }, [runDisabled, trigger]);
 
   // 모달의 저장이 PUT 을 쏘고, 성공했을 때만 로컬 값이 바뀐다 — 클라우드 step 5 와 같다.
   const handleCredSubmit = useCallback(
@@ -321,7 +325,7 @@ export const IdcStep5ConnectionTest = ({
             <button
               type="button"
               onClick={runTest}
-              disabled={!ready || busy || !allCredsSet}
+              disabled={runDisabled}
               className={cn(idcStyles.triggerBtn.soft, 'disabled:cursor-not-allowed disabled:opacity-45')}
             >
               {busy ? (
