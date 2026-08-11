@@ -32,10 +32,10 @@ const list = (projects: ProjectSummary[] | null, loading = false) =>
     />,
   );
 
-describe('InfraRowList — 연동 대상이 0건일 때', () => {
+describe('InfraRowList — 인프라가 0건일 때', () => {
   it('says so in place of the first card', () => {
     const { container } = list([]);
-    expect(container.textContent).toContain('등록된 연동 대상이 없습니다');
+    expect(container.textContent).toContain('등록된 인프라가 없습니다.');
   });
 
   /**
@@ -56,23 +56,42 @@ describe('InfraRowList — 연동 대상이 0건일 때', () => {
     // findLast, not find: the scrolling band is the slot's only parent, so it carries
     // the same textContent and comes first in document order.
     const slot = [...container.querySelectorAll('div')].findLast(
-      (el) => el.textContent?.trim() === '등록된 연동 대상이 없습니다',
+      (el) => el.textContent?.trim() === '등록된 인프라가 없습니다.',
     );
     expect(slot?.className).toContain('border-dashed');
     // 카드가 아니라 카드가 놓일 자리 — 흰 표면을 깔면 빈 카드 한 장으로 읽힌다.
     expect(slot?.className).not.toContain('bg-white');
   });
 
+  /** 오너가 지정한 수치 — 24px / medium / 글자 위 아이콘. */
+  it('renders the copy at the specified size and weight, under a glyph', () => {
+    const { container } = list([]);
+    const copy = [...container.querySelectorAll('p')].find(
+      (el) => el.textContent?.trim() === '등록된 인프라가 없습니다.',
+    );
+    expect(copy?.className).toContain('text-[24px]');
+    expect(copy?.className).toContain('font-medium');
+
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+    expect(copy).not.toBeUndefined();
+    // 글자 위 — DOM 순서가 곧 세로 순서다(flex-col).
+    const copyFollowsGlyph =
+      (svg as SVGElement).compareDocumentPosition(copy as HTMLElement)
+      & Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(copyFollowsGlyph).toBeTruthy();
+  });
+
   it('does not claim emptiness before the answer arrives', () => {
     // null = 아직 모름 → 스켈레톤. 0건이라고 먼저 말해버리면 그게 답이 된다.
-    expect(list(null).container.textContent).not.toContain('등록된 연동 대상이 없습니다');
+    expect(list(null).container.textContent).not.toContain('등록된 인프라가 없습니다.');
     // 갱신 중 비어 있는 것도 같다 — 확정된 0건이 아니다.
-    expect(list([], true).container.textContent).not.toContain('등록된 연동 대상이 없습니다');
+    expect(list([], true).container.textContent).not.toContain('등록된 인프라가 없습니다.');
   });
 
   it('shows rows instead of the slot once there are any', () => {
     const { container } = list([project(1)]);
-    expect(container.textContent).not.toContain('등록된 연동 대상이 없습니다');
+    expect(container.textContent).not.toContain('등록된 인프라가 없습니다.');
     expect(container.textContent).toContain('1건');
   });
 });

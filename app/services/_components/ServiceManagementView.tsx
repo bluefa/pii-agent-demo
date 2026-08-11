@@ -63,7 +63,7 @@ export const ServiceManagementView = () => {
   // Three states, and the value carries the code it belongs to — the same shape as
   // `resolvedName` below, for the same reason. `null` is "not resolved yet", distinct
   // from `{ items: [] }` = "resolved, and there are none"; a `[]` start made the first
-  // paint of every service claim 등록된 연동 대상이 없습니다 before the request had even
+  // paint of every service claim 등록된 인프라가 없습니다. before the request had even
   // been made. `error` is the third: a failed fetch must not render as "this service has
   // no accounts", which is a claim we cannot make.
   //

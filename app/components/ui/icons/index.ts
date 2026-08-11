@@ -18,6 +18,7 @@ export { DatabaseIcon } from '@/app/components/ui/icons/DatabaseIcon';
 export { DeleteIcon } from '@/app/components/ui/icons/DeleteIcon';
 export { DownloadIcon } from '@/app/components/ui/icons/DownloadIcon';
 export { EditIcon } from '@/app/components/ui/icons/EditIcon';
+export { EmptyBoxIcon } from '@/app/components/ui/icons/EmptyBoxIcon';
 export { ExcludedIcon } from '@/app/components/ui/icons/ExcludedIcon';
 export { ExpandIcon } from '@/app/components/ui/icons/ExpandIcon';
 export { FilterIcon } from '@/app/components/ui/icons/FilterIcon';

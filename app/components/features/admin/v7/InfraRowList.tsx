@@ -12,6 +12,7 @@ import {
 } from '@/lib/theme';
 import type { ProjectSummary } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
+import { EmptyBoxIcon } from '@/app/components/ui/icons';
 import { InfraRow, type InfraRowAction } from '@/app/components/features/admin/v7/InfraRow';
 
 interface InfraRowListProps {
@@ -113,8 +114,8 @@ export const InfraRowList = ({
 
   // Nothing has resolved yet — draw the page's shape rather than an answer about it.
   // Gated on the data, not on `loading`: `loading` is set from an effect, so it is
-  // still false on the first painted frame and this list would flash 등록된 연동
-  // 대상이 없습니다 before the request was even in flight.
+  // still false on the first painted frame and this list would flash
+  // 등록된 인프라가 없습니다. before the request was even in flight.
   //
   // Server-rendered, deliberately. This used to hide behind a client-mount gate so the
   // server drew nothing, on the theory that an SSR skeleton stalled hydration — that
@@ -189,12 +190,15 @@ export const InfraRowList = ({
         {visible.length === 0 ? (
           <div
             className={cn(
-              'flex flex-1 items-center justify-center rounded-[12px] border border-dashed px-6 text-center text-[14px]',
+              'flex flex-1 flex-col items-center justify-center gap-3 rounded-[12px] border border-dashed px-6 text-center',
               borderColors.strong,
-              textColors.tertiary,
             )}
           >
-            등록된 연동 대상이 없습니다
+            {/* 글자보다 한 단 조용하게 — 아이콘은 상태를 되풀이할 뿐 새 정보가 아니다. */}
+            <EmptyBoxIcon className={cn('h-10 w-10', textColors.quaternary)} />
+            <p className={cn('text-[24px] font-medium', textColors.tertiary)}>
+              등록된 인프라가 없습니다.
+            </p>
           </div>
         ) : (
           visible.map((project) => (
