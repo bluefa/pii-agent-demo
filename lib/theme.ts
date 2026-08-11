@@ -695,9 +695,12 @@ export const projectHeaderStyles = {
   divider: 'w-px flex-none self-stretch bg-[#E4E5EE]',
   /** 6px label→content binding, the same gap the 설명/설치 진행 blocks use. */
   kv: 'group/kv flex min-w-0 flex-col gap-1.5',
-  /** Field name (설치 대상 / Account ID / 설치 모드 / 연동 방식) — the quieter of the
-      two label tiers at 5.26:1 on the wash. See blockLabel for why it is muted. */
-  kvLabel: 'whitespace-nowrap text-[12px] font-medium text-[#6B5E93]',
+  /** Field name — every CSP's identifier row runs through here: 설치 대상, AWS
+      Account ID, GCP Project ID, Azure Subscription/Tenant ID, 설치 모드, 연동 방식.
+      The quieter of the two label tiers at 5.26:1 on the wash; see blockLabel for
+      why it is muted. Semibold like blockLabel, so the two tiers now separate on
+      color and tracking alone — weight is no longer part of that signal. */
+  kvLabel: 'whitespace-nowrap text-[12px] font-semibold text-[#6B5E93]',
   /**
    * Two invariants keep this line and the provider's on one line:
    * `min-h-[30px]` (the icon badge's height) makes the two boxes share a centre,
