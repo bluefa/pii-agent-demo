@@ -70,14 +70,17 @@ export const ServiceHeaderV7 = ({
               {serviceCode}
             </span>
           )}
+          {/* ⚠️ 이 뱃지는 계산되지 않는다 — 어떤 서비스든 항상 초록으로 뜬다.
+              이 화면이 서비스에 대해 받는 값은 `/user/services/page` 의 ServiceItem
+              (service_code · service_name) 뿐이고, 운영 여부를 가를 `is_eos_service`
+              는 대상(target)의 service_info 에만 실린다. 배선하려면 계약이 먼저다. */}
           <span
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold',
+              'inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-semibold',
               statusColors.success.bg,
               statusColors.success.textDark,
             )}
           >
-            <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.success.dot)} />
             운영 중
           </span>
         </div>

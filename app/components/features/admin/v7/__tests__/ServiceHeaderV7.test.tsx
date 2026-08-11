@@ -52,4 +52,11 @@ describe('ServiceHeaderV7', () => {
     const { container } = header();
     expect(cta(container)?.textContent).toContain('인프라 등록');
   });
+
+  it('renders the 운영 중 badge without a status dot', () => {
+    const { container } = header();
+    const pill = statusPill(container);
+    expect(pill?.querySelector('span'), '뱃지 안에 점이 남아 있다').toBeNull();
+    expect(pill?.className).not.toContain('gap-1.5');
+  });
 });
