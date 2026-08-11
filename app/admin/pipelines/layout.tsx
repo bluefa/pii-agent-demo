@@ -15,8 +15,6 @@ import { passRoutes } from '@/lib/routes';
 import { PlToastProvider } from '@/app/admin/pipelines/_components/PlToastProvider';
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
 
-const NAV_ALARM_POLL_MS = 30_000;
-
 const SIDEBAR_GROUPS = [
   {
     title: '인프라 작업',
@@ -65,31 +63,26 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
 
   // Nav count badges: 연동 요청 = 승인 대기 requests, 운영 알림 = the four Step 3~6
   // action buckets. Hidden at 0, clamped to "9+".
+  // Read once per mount — the operator refreshes to re-read. A background
+  // interval here ran on EVERY admin screen, including hidden tabs.
   // Best-effort (errors ignored): the nav badge must never break the shell.
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    const load = (): void => {
-      getDashboardSummary({ signal: controller.signal })
-        .then((summary) => {
-          if (controller.signal.aborted) return;
-          setPendingApprovals(summary.pendingApprovalCount ?? 0);
-          setAlertCount(
-            (summary.confirmingCount ?? 0) +
-              (summary.needInstallCount ?? 0) +
-              (summary.needTestConnectionCount ?? 0) +
-              (summary.needPiiAgentConfirmCount ?? 0),
-          );
-        })
-        .catch(() => undefined);
-    };
-    load();
-    const timer = setInterval(load, NAV_ALARM_POLL_MS);
-    return () => {
-      clearInterval(timer);
-      controller.abort();
-    };
+    getDashboardSummary({ signal: controller.signal })
+      .then((summary) => {
+        if (controller.signal.aborted) return;
+        setPendingApprovals(summary.pendingApprovalCount ?? 0);
+        setAlertCount(
+          (summary.confirmingCount ?? 0) +
+            (summary.needInstallCount ?? 0) +
+            (summary.needTestConnectionCount ?? 0) +
+            (summary.needPiiAgentConfirmCount ?? 0),
+        );
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
   }, []);
   const isDashboard = pathname === passRoutes.pipelines.dashboard;
   // Pipeline detail = a single dynamic segment under the base (not `services`,

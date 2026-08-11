@@ -12,15 +12,15 @@
  *  - The 지연 (delay) filter is CLIENT-side over the fetched page — contract gap
  *    G1 (no server query). Its tier counts + row filtering live in `_p1/logic`.
  *  - `delay_seconds` is server-computed; the client never recomputes elapsed time.
- *  - Both endpoints re-poll every 30s in the background (no loading skeleton), so
- *    the server-fresh `delay_seconds` stays current without client math.
+ *  - Both endpoints are read once per filter change — the operator refreshes to
+ *    re-read. No background poll (it duplicated the shell's own summary fetch).
  *
  * Visual language: tqStyles (prototype pixel SSOT) + shared pipeline primitives.
  * The monitor table is composed from `pipelineStyles.table` tokens rather than
  * PlTable/PlTd: PlTd's fixed color roles can't express the 600-strong 서비스 이름
  * cell, and PlTable's tbody applies a zebra tint the flat prototype does not.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
@@ -46,7 +46,6 @@ import { getDashboardSummary, getProcessStatuses } from '@/app/lib/api/task-queu
 import type { DashboardSummary, Paged, ProcessStatusRow } from '@/lib/types/task-queue';
 import type { DelayFilter } from '@/app/admin/pipelines/queue/_p1/logic';
 
-const POLL_INTERVAL_MS = 30_000;
 const SIZE_OPTIONS = [10, 20, 50] as const;
 const DEFAULT_SIZE = 20;
 
@@ -95,7 +94,7 @@ export default function QueueDashboardPage(): ReactElement {
   const [error, setError] = useState<unknown>(null);
   const [retryNonce, setRetryNonce] = useState(0);
 
-  // Summary fetch — silent degrade; refetched by the poll below.
+  // Summary fetch — silent degrade; refetched by the monitor's 다시 시도.
   useAbortableEffect(
     (signal) =>
       getDashboardSummary({ signal })
@@ -130,31 +129,6 @@ export default function QueueDashboardPage(): ReactElement {
     },
     [procStatus, delayFilter, page, size, retryNonce],
   );
-
-  // 30s background poll — refresh both endpoints without the loading skeleton so
-  // the server-computed delay stays current. Errors are swallowed (keep last-good).
-  useEffect(() => {
-    const controller = new AbortController();
-    const timer = setInterval(() => {
-      getDashboardSummary({ signal: controller.signal })
-        .then((data) => {
-          if (!controller.signal.aborted) setSummary(data);
-        })
-        .catch(() => {});
-      getProcessStatuses(
-        { processStatus: procStatus || undefined, delay: delayFilter, page, size },
-        { signal: controller.signal },
-      )
-        .then((data) => {
-          if (!controller.signal.aborted) setProcPage(data);
-        })
-        .catch(() => {});
-    }, POLL_INTERVAL_MS);
-    return () => {
-      controller.abort();
-      clearInterval(timer);
-    };
-  }, [procStatus, delayFilter, page, size]);
 
   const visibleRows = useMemo(() => procPage?.content ?? [], [procPage]);
 
