@@ -12,6 +12,7 @@ import {
 import { AppError } from '@/lib/errors';
 import type { ProjectSummary } from '@/lib/types';
 import { passRoutes } from '@/lib/routes';
+import { holdFor, SKELETON_MIN_MS } from '@/lib/min-duration';
 import { bgColors, cn, serviceSidebarStyles, textColors } from '@/lib/theme';
 import {
   ServiceSidebar,
@@ -77,6 +78,9 @@ export const ServiceManagementView = () => {
   // Only the first page counts: later searches keep the rows on screen rather than
   // blinking the whole rail to skeleton on every keystroke.
   const [servicesLoaded, setServicesLoaded] = useState(false);
+  // 같은 사실을 ref 로도 든다 — 위 상태는 `fetchServicesPage` 가 닫아 놓은 값이라
+  // 두 번째 호출에서도 첫 렌더의 false 를 본다.
+  const servicesLoadedRef = useRef(false);
   const [createOpen, setCreateOpen] = useState(false);
   // Keyed to the code it belongs to. Clearing it in an effect instead would still let
   // one render pair the new code with the previous service's name — the effect runs
@@ -94,6 +98,9 @@ export const ServiceManagementView = () => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    // 스켈레톤이 떴으면 최소 시간을 채운다 — 목이 20ms 만에 답하는 화면에서 한 프레임
+    // 번쩍이고 사라지면 읽히지도 않고 레일만 불안해 보인다(운영 콘솔 레일과 같은 규칙).
+    const startedAt = Date.now();
     try {
       const data = await getServicesPage(page, SERVICE_PAGE_SIZE, searchQuery || undefined, {
         signal: controller.signal,
@@ -114,9 +121,21 @@ export const ServiceManagementView = () => {
       if (err instanceof AppError && err.code === 'ABORTED') return;
       toast.error(err instanceof Error ? err.message : '서비스 목록 조회 실패');
     } finally {
+      // 붙잡는 것은 **스켈레톤을 걷는 시점**이지 데이터가 아니다. 레일은 `loading` 하나로
+      // 그릴 것을 정하므로(`ServiceSidebar`), 행은 먼저 도착해 뒤에서 기다리면 된다.
+      //
+      // 첫 로드에만 건다. 이후 검색은 행을 화면에 둔 채 갱신하도록 `servicesLoaded` 를
+      // 다시 내리지 않으므로, 늦출 화면 변화 자체가 없다 — 그런데도 기다리면 키를 칠
+      // 때마다 아무도 보지 않는 타이머만 하나씩 생긴다.
+      if (!servicesLoadedRef.current) {
+        await holdFor(startedAt, SKELETON_MIN_MS, controller.signal);
+      }
       // Also on failure: a rail stuck in skeleton forever tells the user less than
       // the empty state does, and the toast already carried the error.
-      if (!controller.signal.aborted) setServicesLoaded(true);
+      if (!controller.signal.aborted) {
+        servicesLoadedRef.current = true;
+        setServicesLoaded(true);
+      }
     }
   }, [toast]);
 
