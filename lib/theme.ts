@@ -1893,30 +1893,27 @@ type PipelineStatusToneKey =
   | 'BLOCKED';
 
 /**
- * Monochrome status ladder (owner: "색상이 너무 알록달록하다 — 상태는 모두 단일
- * 색상으로").
+ * Status hue map (owner: "Running -> 파란색, FAILED -> 빨간색, DONE -> 초록색,
+ * PENDING -> 회색. 채도비만 맞춰. 아이콘은 빼").
  *
- * Status used to span five hues (warn PENDING / info RUNNING / primary READY /
- * ok DONE / err FAILED), which turned every dense screen into a color chart and
- * left no hue meaning anything in particular. All states now sit on ONE neutral
- * ramp and separate by WEIGHT instead: quiet tint → settled tint → outlined ink
- * → red.
+ * This replaces a monochrome weight ladder (quiet tint → settled tint →
+ * outlined ink → red) that leaned on the status ICON to say what the hues used
+ * to. The icon is gone — an outlined white RUNNING chip with a spinner read as
+ * a button on the ops 현재 작업 card — so hue carries the state again.
  *
- * Red survives as the single accent because a failed run reading the same as a
- * finished one is a safety regression, not a simplification. Everything a
- * palette used to say is still said by the status icon (PIPELINE_PILL_ICON),
- * which is why dropping the hues costs no information.
+ * 채도비: all four sit on the SAME rung of their ramp (50 fill / 300 stroke /
+ * 700 ink), so they match on saturation and contrast by construction rather
+ * than by eye. Measured 5.1:1 (ok) .. 7.0:1 (off), all AA.
  */
 const PILL_QUIET =
-  'bg-[var(--pl-gray-50)] text-[var(--pl-text-weak)] border border-[var(--pl-border)]';
-/** Reached a terminal, non-failed outcome — heavier than queued, still neutral. */
+  'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)] border border-[var(--pl-off-border)]';
+/** Reached a terminal, non-failed outcome. */
 const PILL_SETTLED =
-  'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)] border border-[var(--pl-border-strong)]';
-/** Happening now — the only outlined-on-white chip; its icon is the loader
- *  (animated on the flow-node surfaces, static in StatusPill). */
+  'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)] border border-[var(--pl-ok-border)]';
+/** Happening now. */
 const PILL_ACTIVE =
-  'bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] border border-[var(--pl-text-strong)]';
-/** The one accent left on the ramp. */
+  'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)] border border-[var(--pl-info-border)]';
+/** Failed — the one state where reading like its neighbours is a safety bug. */
 const PILL_ALERT =
   'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)] border border-[var(--pl-err-border)]';
 
@@ -1931,19 +1928,6 @@ const PIPELINE_PILL_TONE: Record<PipelineStatusToneKey, string> = {
   BLOCKED: PILL_QUIET,
 };
 
-/** Status icon name per wire status (RUNNING/IN_PROGRESS spin via
- *  `animate-spin`) — plain string, not `IconName`: theme.ts stays
- *  dependency-free of app/ components; the consumer casts on read. */
-const PIPELINE_PILL_ICON: Record<PipelineStatusToneKey, string> = {
-  PENDING: 'clock',
-  RUNNING: 'loader',
-  IN_PROGRESS: 'loader',
-  READY: 'check',
-  DONE: 'check',
-  FAILED: 'x-circle',
-  CANCELLED: 'ban',
-  BLOCKED: 'ban',
-};
 
 /** Shared input/select chrome WITHOUT horizontal padding (callers add px so the
  *  search variant's pl-30 never collides with a base px in the join). */
@@ -2017,13 +2001,15 @@ export const pipelineStyles = {
   },
 
   /** StatusPill — h20 pad 0 9 0 8 (lg h28 pad 0 12 0 10), icon 12/14. Size lives
-   *  entirely in md/lg (never in base) so the two never collide in a join. */
+   *  entirely in md/lg (never in base) so the two never collide in a join.
+   *  `tone` is icon-less now (see PILL_*), but base/md/lg still carry the gap
+   *  and icon-side padding for the other pills built on this grammar
+   *  (scanShared, StepPill, TerraformStatusModal, tc/bits …), which do have one. */
   pill: {
     base: 'inline-flex items-center gap-1.5 rounded-full font-semibold tracking-[0.02em]',
     md: 'h-5 pr-[9px] pl-2 text-[12px]',
     lg: 'h-7 pr-3 pl-2.5 text-[14px]',
     tone: PIPELINE_PILL_TONE,
-    icon: PIPELINE_PILL_ICON,
   },
 
   /** PipelineTypeTag (R18 §1) — icon+color+enum triple encoding; bg-less inline

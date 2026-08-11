@@ -287,14 +287,15 @@ const STATUS_VIEW: Record<PipelineStatus | TaskStatus, { key: FlowKey; label: st
   CANCELLED: { key: 'cancelled', label: 'CANCELLED' },
 };
 
-/** Same monochrome ladder as the status pills (theme.ts PILL_*): weight, not
- *  hue, separates the states — red is kept only for FAILED. */
+/** Same hue map as the status pills (theme.ts PILL_*) — blue running, green
+ *  done, red failed, grey waiting — on the same 50-fill / 700-ink rung so the
+ *  saturation matches. Borderless: these sit inside cards, not on white. */
 const PILL_TONE: Record<FlowKey, string> = {
-  done: 'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
-  running: 'bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)] border border-[var(--pl-text-strong)]',
-  pending: 'bg-[var(--pl-gray-50)] text-[var(--pl-text-weak)]',
+  done: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
+  running: 'bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]',
+  pending: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
   failed: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
-  cancelled: 'bg-[var(--pl-gray-50)] text-[var(--pl-text-weak)]',
+  cancelled: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
 };
 
 /** Status capsule for the run flow. Friendly labels, not the raw wire enum. */
@@ -309,14 +310,11 @@ export function FlowStatusPill({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-[5px] rounded-full px-2 py-[3px] text-[10.5px] font-semibold whitespace-nowrap',
+        'inline-flex items-center rounded-full px-2 py-[3px] text-[10.5px] font-semibold whitespace-nowrap',
         PILL_TONE[view.key],
         className,
       )}
     >
-      {view.key === 'running' && (
-        <span className="h-2 w-2 flex-none rounded-full border-[1.4px] border-current" aria-hidden="true" />
-      )}
       {view.label}
     </span>
   );

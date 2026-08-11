@@ -6,69 +6,60 @@ const render = (status: PillStatus, size?: 'md' | 'lg'): string =>
   renderToStaticMarkup(<StatusPill status={status} size={size} />);
 
 /**
- * Status is monochrome (owner: 상태는 모두 단일 색상으로). Every state sits on the
- * neutral ramp and separates by WEIGHT — quiet tint, settled tint, outlined ink —
- * with red surviving as the single accent so a failed run cannot read as a
- * finished one. These cases pin the ramp position, not a specific hex.
+ * Status is hue-coded (owner: Running 파랑 / FAILED 빨강 / DONE 초록 / PENDING
+ * 회색, 채도비만 맞춰, 아이콘 없이). Hue is the ONLY channel left once the glyph is
+ * gone, so these cases pin the ramp family per state — not a specific hex — and
+ * pin that no two differently-meaning states land on the same family.
  */
-const QUIET = '--pl-gray-50';
-const SETTLED = '--pl-gray-100';
-const ACTIVE = '--pl-bg-card';
-const ALERT = '--pl-err-bg';
+const RUNNING_HUE = 'info';
+const DONE_HUE = 'ok';
+const FAILED_HUE = 'err';
+const WAITING_HUE = 'off';
 
 const CASES: Array<[PillStatus, string]> = [
-  ['PENDING', QUIET],
-  ['READY', QUIET],
-  ['CANCELLED', QUIET],
-  ['BLOCKED', QUIET],
-  ['DONE', SETTLED],
-  ['RUNNING', ACTIVE],
-  ['IN_PROGRESS', ACTIVE],
-  ['FAILED', ALERT],
+  ['PENDING', WAITING_HUE],
+  ['READY', WAITING_HUE],
+  ['CANCELLED', WAITING_HUE],
+  ['BLOCKED', WAITING_HUE],
+  ['DONE', DONE_HUE],
+  ['RUNNING', RUNNING_HUE],
+  ['IN_PROGRESS', RUNNING_HUE],
+  ['FAILED', FAILED_HUE],
 ];
 
-/** Every hue the status palette used to reach for. */
-const RETIRED_HUES = ['--pl-warn', '--pl-info', '--pl-ok', '--pl-primary'];
-
 describe('StatusPill', () => {
-  it.each(CASES)('renders %s verbatim at its ramp position', (status, toneVar) => {
+  it.each(CASES)('renders %s verbatim in its hue family', (status, hue) => {
     const html = render(status);
     expect(html).toContain(`>${status}`);
-    expect(html).toContain(toneVar);
+    expect(html).toContain(`bg-[var(--pl-${hue}-bg)]`);
+    expect(html).toContain(`text-[var(--pl-${hue}-text)]`);
   });
 
-  it('gives FAILED the only hue on the ramp', () => {
-    for (const [status] of CASES) {
+  it('keeps 채도비 by taking all three roles from the SAME ramp', () => {
+    // The whole point of the hue map: fill/ink/stroke are the same rung of one
+    // ramp per state, so saturation matches across the four by construction. A
+    // tone that borrows an ink from another family would break that silently.
+    for (const [status, hue] of CASES) {
       const html = render(status);
-      for (const hue of RETIRED_HUES) {
-        expect(html).not.toContain(hue);
+      expect(html).toContain(`border-[var(--pl-${hue}-border)]`);
+      for (const other of [RUNNING_HUE, DONE_HUE, FAILED_HUE, WAITING_HUE]) {
+        if (other !== hue) expect(html).not.toContain(`--pl-${other}-`);
       }
-      // Red belongs to FAILED alone.
-      expect(html.includes('--pl-err')).toBe(status === 'FAILED');
     }
   });
 
-  it('separates RUNNING from DONE without color', () => {
-    // Both are neutral now, so the distinction has to survive in the border and
-    // in the glyph itself (Icon inlines the SVG, so compare the path geometry).
-    expect(render('RUNNING')).toContain('border-[var(--pl-text-strong)]');
-
-    const glyph = (status: PillStatus): string =>
-      render(status).match(/<path d="([^"]+)"/)?.[1] ?? '';
-    expect(glyph('RUNNING')).not.toBe('');
-    expect(glyph('RUNNING')).not.toBe(glyph('DONE'));
+  it('gives each meaning its own hue — nothing reads like FAILED but is not', () => {
+    const tone = (status: PillStatus): string =>
+      render(status).match(/bg-\[var\(--pl-[a-z]+-bg\)\]/)?.[0] ?? '';
+    const [running, done, failed, pending] = (
+      ['RUNNING', 'DONE', 'FAILED', 'PENDING'] as PillStatus[]
+    ).map(tone);
+    expect(new Set([running, done, failed, pending]).size).toBe(4);
   });
 
-  it('also renders the task-only aliases (all 11 states covered)', () => {
-    // The three overlapping states re-asserted from the task enum perspective.
-    for (const status of ['DONE', 'FAILED', 'CANCELLED'] as PillStatus[]) {
-      expect(render(status)).toContain(`>${status}`);
-    }
-  });
-
-  it('never spins the status icon (static, matching the Figma dashboard mock)', () => {
-    for (const status of ['RUNNING', 'IN_PROGRESS', 'DONE', 'BLOCKED'] as const) {
-      expect(render(status)).not.toContain('animate-spin');
+  it('is text only — the glyph that made RUNNING read as a button is gone', () => {
+    for (const [status] of CASES) {
+      expect(render(status)).not.toContain('<svg');
     }
   });
 
