@@ -1665,6 +1665,11 @@ export const mockConfirm = {
     // 2·3단계 화면에서 옛 확정 내용을 다시 들고 나온다.
     approvedIntegrationStore.delete(project.id);
     confirmedIntegrationSnapshotStore.delete(project.id);
+    // 연결 테스트 이력도 같이 버린다. completion-status 의 성공 여부는 프로젝트 상태가 아니라
+    // 이 저장소의 최근 job 에서 읽으므로(getCompletionStatus 의 `job?.status === 'SUCCESS'`),
+    // 남겨 두면 초기화 뒤 다시 올라온 5단계가 옛 설치에서 성공한 실행을 근거로 완료 승인
+    // 버튼을 열어 준다 — 새 인프라에서는 아직 한 번도 테스트하지 않았는데도.
+    tcFns.clearJobHistory(Number(targetSourceId));
 
     // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({

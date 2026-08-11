@@ -1384,7 +1384,7 @@ components:
           enum:
           - GCP_CLOUD_SQL_HAS_PUBLIC_IP
           - GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET
-          - AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED
+          - AZURE_RESOURCE_VNET_INTEGRATED_MODE
         exclusion_reason:
           type: string
         scan_status:
