@@ -160,7 +160,7 @@ export const ConnectionTestCard = ({
   refreshProject,
   polling,
 }: ConnectionTestCardProps) => {
-  const { latestJob, uiState, loading, triggering, trigger, triggerError, fetchError } = polling;
+  const { latestJob, uiState, loading, triggering, canRunTest, retry, trigger, triggerError, fetchError } = polling;
   const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
   const [approvalOpen, setApprovalOpen] = useState(false);
   // The table, the progress strip and the Run Test gate all run on units — one row per thing
@@ -288,12 +288,12 @@ export const ConnectionTestCard = ({
   // 실행 요청이 떠 있는 동안(`triggering`)도 잠근다. `testing` 은 latest_version 이 새 실행을
   // 되돌려준 뒤에야 켜지므로, 그 왕복 시간만큼 버튼이 "Run Test" 인 채로 살아 있었다 —
   // 그 사이 한 번 더 누르면 두 번째 요청이 409 를 받아, 사용자가 부른 적 없는 오류 줄이 뜬다.
+  // 라벨만 이 값이 쥔다 — 실제로 도는 중일 때만 "진행 중"이라고 적는다. 모르는 동안 그렇게
+  // 적는 것 역시 하지 않은 판단이라, 그 구간의 버튼은 "Run Test" 인 채로 비활성만 된다.
   const busy = testing || triggering;
-  // 첫 latest_version 이 오기 전에도 잠근다. 그 사이 `testing` 은 false 지만 그것은 "돌고 있지
-  // 않다"가 아니라 "아직 모른다"이고 — 이미 서버에서 돌고 있는 실행을 모른 채 버튼을 열어 두면,
-  // 누르는 순간 409 를 받아 사용자가 부른 적 없는 오류가 뜬다. 라벨은 `busy` 가 따로 쥔다:
-  // 모르는 동안 "진행 중"이라고 적는 것 역시 하지 않은 판단이다.
-  const runDisabled = loading || busy || !allCredsSet;
+  // 누를 수 있는지는 훅이 한 사실로 답한다(canRunTest). 여기서 조건을 다시 조립하지 않는다 —
+  // 항을 하나 빠뜨리면 그 자리가 곧 "아직 모르는데 누를 수 있는" 창이 된다.
+  const runDisabled = !canRunTest || !allCredsSet;
   const runTest = useCallback(async () => {
     if (runDisabled) return;
     await trigger();
@@ -429,9 +429,18 @@ export const ConnectionTestCard = ({
         {triggerError && (
           <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
         )}
+        {/* 조회가 실패하면 Run Test 는 잠긴 채로 남는다(무엇이 도는지 모르므로). 그 잠금을 푸는
+            길은 조회 성공뿐이라, 폴링이 포기한 뒤에는 이 버튼이 유일한 출구다. */}
         {fetchError && (
-          <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+          <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
             {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
+            <button
+              type="button"
+              onClick={() => void retry()}
+              className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
+            >
+              다시 시도
+            </button>
           </p>
         )}
         {/* Table + pagination are ONE stack, exactly as steps 2·3 and 6·7 compose them: the

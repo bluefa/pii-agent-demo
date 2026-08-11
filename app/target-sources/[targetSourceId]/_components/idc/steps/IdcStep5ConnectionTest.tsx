@@ -96,7 +96,7 @@ export const IdcStep5ConnectionTest = ({
   // 미설정만 보는 필터. 경고 줄의 링크가 곧 이 값이고, 0건이 되면 함께 풀린다.
   const [credFilterOn, setCredFilterOn] = useState(false);
 
-  const { latestJob, uiState, loading, triggering, trigger, triggerError, fetchError } =
+  const { latestJob, uiState, loading, triggering, canRunTest, retry, trigger, triggerError, fetchError } =
     useTestConnectionPolling(targetSourceId);
   const toast = useToast();
   const logicalModal = useModal<LogicalModalTarget>();
@@ -182,10 +182,8 @@ export const IdcStep5ConnectionTest = ({
   // 아니다 — 경고 줄(미설정 ≥ 1 일 때만 뜬다)로는 설명되지 않으므로 따로 말한다.
   const noTargets = liveResources.length === 0;
   const allCredsSet = !noTargets && missingCount === 0;
-  // 첫 latest_version 이 오기 전에도 잠근다 — 그 사이 `testing` 은 false 지만 그것은 "돌고 있지
-  // 않다"가 아니라 "아직 모른다"이고, 이미 도는 실행을 모른 채 누르면 409 가 뜬다. 라벨은
-  // `busy` 가 따로 쥔다: 모르는 동안 "진행 중"이라고 적는 것도 하지 않은 판단이다.
-  const runDisabled = !ready || loading || busy || !allCredsSet;
+  // 누를 수 있는지는 훅이 한 사실로 답한다(canRunTest) — 클라우드 step 5 와 같은 처리.
+  const runDisabled = !ready || !canRunTest || !allCredsSet;
   // 마지막 하나를 지정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 비고, 그것을 되돌릴
   // 컨트롤도 같이 사라진 뒤다.
   if (credFilterOn && missingCount === 0) setCredFilterOn(false);
@@ -385,9 +383,17 @@ export const IdcStep5ConnectionTest = ({
               {triggerError && (
                 <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
               )}
+              {/* 클라우드 step 5 와 같은 출구 — 조회 실패로 잠긴 Run Test 를 되살리는 유일한 길. */}
               {fetchError && (
-                <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+                <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
                   {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
+                  <button
+                    type="button"
+                    onClick={() => void retry()}
+                    className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
+                  >
+                    다시 시도
+                  </button>
                 </p>
               )}
             </>

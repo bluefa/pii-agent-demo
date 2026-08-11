@@ -38,15 +38,19 @@ const pollingState: {
   latestJob: TestConnectionVersionResult | null;
   /** 첫 latest_version 응답 전 — 그 동안 연결 상태 칸도 요약 스트립도 판정을 말하지 않는다. */
   loading: boolean;
-  /** 실행 시작 요청이 떠 있는 동안 — Run Test 버튼은 이 값으로도 잠긴다. */
+  /** 실행 시작 요청이 떠 있는 동안 — 버튼 라벨이 '진행 중'으로 바뀌는 근거. */
   triggering: boolean;
-} = { uiState: 'IDLE', latestJob: null, loading: false, triggering: false };
+  /** 실행을 시작해도 되는가 — 화면이 보는 단일 사실. */
+  canRunTest: boolean;
+} = { uiState: 'IDLE', latestJob: null, loading: false, triggering: false, canRunTest: true };
 
 const makePolling = (): UseTestConnectionPollingReturn => ({
   latestJob: pollingState.latestJob,
   uiState: pollingState.uiState,
   loading: pollingState.loading,
   triggering: pollingState.triggering,
+  canRunTest: pollingState.canRunTest,
+  retry: async () => {},
   fetchError: null,
   triggerError: null,
   trigger: triggerMock,
@@ -128,6 +132,7 @@ describe('ConnectionTestCard', () => {
     pollingState.latestJob = null;
     pollingState.loading = false;
     pollingState.triggering = false;
+    pollingState.canRunTest = true;
     triggerMock.mockReset();
     triggerMock.mockResolvedValue(true);
     updateResourceCredentialMock.mockReset();
@@ -206,6 +211,7 @@ describe('ConnectionTestCard', () => {
    */
   it('locks Run Test until the first latest_version answers, without claiming a run is under way', () => {
     pollingState.loading = true;
+    pollingState.canRunTest = false;
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
     const button = screen.getByRole('button', { name: /Run Test/ });
@@ -216,6 +222,7 @@ describe('ConnectionTestCard', () => {
 
   it('locks Run Test while the trigger request is still in flight', () => {
     pollingState.triggering = true;
+    pollingState.canRunTest = false;
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
     const button = screen.getByRole('button', { name: /연결 테스트 진행 중/ });
@@ -226,6 +233,7 @@ describe('ConnectionTestCard', () => {
   it('replaces the skeleton with the verdict once the poll lands', () => {
     pollingState.loading = false;
     pollingState.triggering = false;
+    pollingState.canRunTest = true;
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
