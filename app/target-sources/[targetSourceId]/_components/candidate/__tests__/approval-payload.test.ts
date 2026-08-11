@@ -100,13 +100,13 @@ describe('approval-payload', () => {
       id: 'res-inel',
       integrationCategory: 'INSTALL_INELIGIBLE',
       selected: false,
-      recommendFailReason: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
+      recommendFailReason: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
     };
     const [item] = toApprovalRequestInput([ineligible], new Set<string>(), drafts, {}).resources!;
     expect(item.selected).toBe(false);
     expect(item.integration_category).toBe('INSTALL_INELIGIBLE');
-    expect(item.recommend_fail_reason).toBe('AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED');
-    expect(item.exclusion_reason).toBe('AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED');
+    expect(item.recommend_fail_reason).toBe('AZURE_RESOURCE_VNET_INTEGRATED_MODE');
+    expect(item.exclusion_reason).toBe('AZURE_RESOURCE_VNET_INTEGRATED_MODE');
     expect(() => schemas.ApprovalRequestInputDto.parse({ resources: [item] })).not.toThrow();
   });
 

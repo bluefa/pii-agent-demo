@@ -154,7 +154,7 @@ export const ReasonChipInline = ({
               {label}
             </span>
             {/* break-words, because a reason is not always prose. `recommend_fail_reason`
-                arrives as one unbroken token (AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED)
+                arrives as one unbroken token (AZURE_RESOURCE_VNET_INTEGRATED_MODE)
                 and browsers do not wrap at underscores, so with the default `normal` the
                 glyphs painted 50px past this span's box — outside the 340px card, since the
                 tip does not clip. Breaking the token keeps it inside the card. */}

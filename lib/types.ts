@@ -253,13 +253,24 @@ export type IntegrationCategory = 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INEL
 export type RecommendFailReason =
   | 'GCP_CLOUD_SQL_HAS_PUBLIC_IP'
   | 'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET'
-  | 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED';
+  | 'AZURE_RESOURCE_VNET_INTEGRATED_MODE';
 
 const RECOMMEND_FAIL_REASONS: readonly string[] = [
   'GCP_CLOUD_SQL_HAS_PUBLIC_IP',
   'GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET',
-  'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
+  'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
 ];
+
+/**
+ * 이름만 바뀐 옛 토큰 → 새 토큰. 프런트와 BFF 는 같은 순간에 배포되지 않으므로, 이름이
+ * 바뀌는 사이 옛 값을 그대로 떨어뜨리면 그 창 동안 "왜 설치가 안 되는지"가 화면에서
+ * 사라진다 — 판정 자체는 달라지지 않았는데도.
+ *
+ * ponytail: BFF 가 새 이름으로 넘어온 것이 확인되면 이 표와 아래 분기를 지운다.
+ */
+const RECOMMEND_FAIL_REASON_ALIASES: Readonly<Record<string, RecommendFailReason>> = {
+  AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
+};
 
 /**
  * Wire → domain guard. The generated zod schema types this as a plain string (codegen
@@ -268,10 +279,11 @@ const RECOMMEND_FAIL_REASONS: readonly string[] = [
  * as the reason their resource cannot be installed, and echoed back on the approval
  * request — a value neither side agrees on is worse than none.
  */
-export const normalizeRecommendFailReason = (value: unknown): RecommendFailReason | null =>
-  typeof value === 'string' && RECOMMEND_FAIL_REASONS.includes(value)
-    ? (value as RecommendFailReason)
-    : null;
+export const normalizeRecommendFailReason = (value: unknown): RecommendFailReason | null => {
+  if (typeof value !== 'string') return null;
+  if (RECOMMEND_FAIL_REASONS.includes(value)) return value as RecommendFailReason;
+  return RECOMMEND_FAIL_REASON_ALIASES[value] ?? null;
+};
 
 /**
  * 표의 제외 사유 칸에 세우는 한 줄. 원문 enum 은 칩의 hover 팁이 따로 싣는다.
@@ -287,7 +299,10 @@ export const normalizeRecommendFailReason = (value: unknown): RecommendFailReaso
 export const RECOMMEND_FAIL_REASON_LABEL: Record<RecommendFailReason, string> = {
   GCP_CLOUD_SQL_HAS_PUBLIC_IP: '공인 IP 사용 중',
   GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET: '내부 LB 전용 서브넷',
-  AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED: 'Private Endpoint 연결 실패',
+  // 판정의 주어는 실패한 연결이 아니라 서버가 배포된 방식이다 — Private Endpoint 를 붙일 수
+  // 없다는 것은 그 방식의 귀결이고, 그래서 다시 시도해도 결과가 같다. 앞 15자 안에서
+  // 다른 두 값과 갈린다.
+  AZURE_RESOURCE_VNET_INTEGRATED_MODE: 'VNet 통합 모드',
 };
 
 /**

@@ -27,9 +27,11 @@ interface Guide {
 // 제약이거나 그 제약의 직접적인 귀결이어야 한다 — 운영 인프라를 잘못 건드리게 만드는
 // 조치 안내는 안내가 없는 것보다 나쁘다.
 const GUIDES: Record<RecommendFailReason, Guide> = {
-  AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED: {
-    cause: 'Private Endpoint 연결에 실패해 Agent를 설치할 수 없어요.',
-    detail: `Azure MySQL·PostgreSQL Flexible Server는 ${AZURE_NETWORKING_MODE_LABELS.VNET_INTEGRATION} 모드로 만들어진 경우 Private Endpoint를 연결할 수 없어요. 네트워킹 모드는 서버를 만들 때 정해지고 이후에는 바꿀 수 없어요.`,
+  // 주어가 바뀌었다: "연결에 실패했다"는 한 번 더 해보면 될 것처럼 읽혔지만, 실제 사실은
+  // 서버가 배포된 방식이라 몇 번을 시도해도 결과가 같다. 원인 문장이 그 사실을 직접 말한다.
+  AZURE_RESOURCE_VNET_INTEGRATED_MODE: {
+    cause: `${AZURE_NETWORKING_MODE_LABELS.VNET_INTEGRATION} 방식으로 배포된 리소스에는 Private Endpoint를 설치할 수 없어요.`,
+    detail: 'PII Agent는 Private Endpoint로 Azure MySQL·PostgreSQL Flexible Server에 연결해요. 네트워킹 모드는 서버를 만들 때 정해지고 이후에는 바꿀 수 없어요.',
     remedy: `${AZURE_NETWORKING_MODE_LABELS.PUBLIC_ACCESS} 모드로 새 서버를 만든 뒤 데이터를 옮기면 연동할 수 있어요.`,
     doc: { href: AZURE_GUIDE_URLS.VNET_NETWORKING, label: 'Azure VNet 네트워킹 문서' },
   },

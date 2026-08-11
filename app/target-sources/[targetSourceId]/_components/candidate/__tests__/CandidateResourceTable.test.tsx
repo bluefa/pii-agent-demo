@@ -181,6 +181,47 @@ describe('CandidateResourceTable', () => {
     expect(screen.queryByRole('button', { name: '제외 사유 입력' })).toBeNull();
   });
 
+  // 설치 불가는 스캔의 판정이지 사용자의 제외가 아니다. 체크박스가 잠긴 행의 사유만 고쳐
+  // 쓸 수 있으면, 판정을 사람 말로 덮은 채 승인 요청이 나간다.
+  it('shows an ineligible verdict as a read-only chip — never a 제외 사유 수정 button', () => {
+    const reasonChipClick = vi.fn();
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        actions={{ ...defaultProps.actions, reasonChipClick }}
+        candidates={[
+          candidateFixture({
+            id: 'c-inel',
+            resourceId: 'res-inel',
+            integrationCategory: 'INSTALL_INELIGIBLE',
+            recommendFailReason: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
+          }),
+        ]}
+        // 서버가 되돌려준 값이 판정 코드 그대로인 경로 — 이 값이 있어도 편집구가 생기면 안 된다.
+        exclusionReasons={{ 'c-inel': 'AZURE_RESOURCE_VNET_INTEGRATED_MODE' }}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: '제외 사유 수정' })).toBeNull();
+    // 원문 enum 이 아니라 steps 2·3 과 같은 한 줄이 선다.
+    expect(screen.getByText('VNet 통합 모드')).toBeTruthy();
+    expect(screen.queryByText('AZURE_RESOURCE_VNET_INTEGRATED_MODE')).toBeNull();
+    expect(reasonChipClick).not.toHaveBeenCalled();
+  });
+
+  // 사용자가 직접 뺀 행은 그대로 고칠 수 있어야 한다 — 위 규칙이 제외 편집 전체를 막으면 안 된다.
+  it('keeps the 제외 사유 수정 button for a user-excluded TARGET row', () => {
+    const reasonChipClick = vi.fn();
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        actions={{ ...defaultProps.actions, reasonChipClick }}
+        exclusionReasons={{ 'c-1': '스테이징 DB라 제외합니다' }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '제외 사유 수정' }));
+    expect(reasonChipClick).toHaveBeenCalledWith('c-1', expect.any(HTMLElement));
+  });
+
   it('does not render a pagination row, and shows every candidate (v16 cloud step-1 has no pager)', () => {
     const many = Array.from({ length: 12 }, (_, i) =>
       candidateFixture({ id: `c-${i}`, resourceId: `res-${i}` }),

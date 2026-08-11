@@ -23,7 +23,7 @@ import {
   RdsInstanceIdentity,
 } from '@/app/components/ui/RdsInstanceChips';
 import { ChevronRightIcon } from '@/app/components/ui/icons';
-import { isEc2Instance } from '@/lib/types';
+import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
   cn,
   ec2Styles,
@@ -235,6 +235,12 @@ export const CandidateResourceRow = ({
   // 지울 대상도 없다.
   const isEc2 = isEc2Instance(candidate.type);
   const isIneligible = candidate.integrationCategory === 'INSTALL_INELIGIBLE';
+  // 설치 불가 행이 사유 칸에 세우는 것 — 두 필드 어디에 실려 왔든(서버가 되돌려준
+  // exclusion_reason / 스캔의 recommend_fail_reason) 한 줄로 풀고, 원문 코드는 팁에만 둔다.
+  // 코드가 없는 설치 불가(AWS·IDC)는 null 이라 칸이 비고, 그것이 steps 2·3 과 같은 표기다.
+  const ineligibleReason = isIneligible
+    ? resolveExclusionReason(exclusionReason, candidate.recommendFailReason)
+    : null;
   const hasEndpointConfig = behavior.isConfigured(candidate, drafts);
   const showConfigNeeded = requiresEndpointConfig && isSelected && !hasEndpointConfig;
   const canExpand = requiresEndpointConfig && isSelected && !readonly;
@@ -546,6 +552,15 @@ export const CandidateResourceRow = ({
                   <DeleteIcon className="h-4 w-4" />
                 </button>
               </span>
+            ) : isIneligible ? (
+              // 스캔의 판정이지 사용자의 제외가 아니다 — 고쳐 쓸 수 있으면 체크박스는 잠겨
+              // 있는데 사유만 사람 말로 덮인 채 승인 요청이 나간다. 읽기 전용 칩으로 세우고,
+              // 표기는 steps 2·3·관리자 표와 같은 resolveExclusionReason 을 쓴다: 서버가
+              // exclusion_reason 에 판정 코드를 그대로 실어 보내는 경로가 있어, 그대로 찍으면
+              // 이 칸에 원문 enum 이 나왔다.
+              ineligibleReason && (
+                <ReasonChipInline reason={ineligibleReason.text} code={ineligibleReason.code} />
+              )
             ) : !isSelected && exclusionReason ? (
               <button
                 type="button"

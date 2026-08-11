@@ -19,9 +19,20 @@ describe('resolveExclusionReason', () => {
   // 요청 어댑터는 설치 불가 행의 판정 코드를 `exclusion_reason` 에 그대로 써 넣는다
   // (approval-payload.ts) — 그 경로로 들어와도 코드가 아니라 라벨이 보여야 한다.
   it('labels a verdict that arrived through exclusion_reason', () => {
-    expect(resolveExclusionReason('AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED')).toEqual({
-      text: 'Private Endpoint 연결 실패',
-      code: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
+    expect(resolveExclusionReason('AZURE_RESOURCE_VNET_INTEGRATED_MODE')).toEqual({
+      text: 'VNet 통합 모드',
+      code: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
+    });
+  });
+
+  // 프런트와 BFF 는 같은 순간에 배포되지 않는다 — 이름이 바뀌는 사이 옛 토큰이 그대로 와도
+  // 새 이름으로 접어 읽는다. 떨어뜨리면 그 창 동안 사유 칸이 통째로 빈다.
+  it('folds the pre-rename Azure token onto the new one', () => {
+    expect(
+      resolveExclusionReason(undefined, 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED'),
+    ).toEqual({
+      text: 'VNet 통합 모드',
+      code: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
     });
   });
 

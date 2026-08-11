@@ -14,8 +14,11 @@ const open = (recommendFailReason: RecommendFailReason | null) =>
 // own copy, and only Azure's names Private Endpoint.
 describe('InstallIneligibleGuideModal', () => {
   it('keeps the Azure background and remedy, not just the one-line cause', () => {
-    open('AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED');
-    expect(screen.getByText(/Private Endpoint 연결에 실패/)).toBeTruthy();
+    open('AZURE_RESOURCE_VNET_INTEGRATED_MODE');
+    // 원인은 배포 방식으로 말한다 — "연결에 실패했다"는 다시 시도하면 될 것처럼 읽혔다.
+    expect(
+      screen.getByText(/VNet Integration.*방식으로 배포된 리소스에는 Private Endpoint를 설치할 수 없어요/),
+    ).toBeTruthy();
     expect(screen.getByText(/네트워킹 모드는 서버를 만들 때 정해지고/)).toBeTruthy();
     expect(screen.getByText(/새 서버를 만든 뒤 데이터를 옮기면/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Azure VNet 네트워킹 문서' })).toBeTruthy();
