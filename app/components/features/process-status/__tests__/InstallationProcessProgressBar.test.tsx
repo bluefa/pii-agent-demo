@@ -107,6 +107,65 @@ describe('InstallationProcessProgressBar', () => {
     }
   });
 
+  /**
+   * The verdict tag only appears once the target has REACHED 연결 테스트 (step 5).
+   * Before that the agent is not installed, so any surviving verdict describes a
+   * previous cycle — drawing it tells the user the connection is fine about a
+   * configuration that has never been tested.
+   */
+  describe('연결 테스트 verdict tag', () => {
+    const TAG = <span data-testid="tc-tag">최근 테스트 성공</span>;
+
+    it.each([
+      ['WAITING_TARGET_CONFIRMATION', ProcessStatus.WAITING_TARGET_CONFIRMATION],
+      ['WAITING_APPROVAL', ProcessStatus.WAITING_APPROVAL],
+      ['APPLYING_APPROVED', ProcessStatus.APPLYING_APPROVED],
+      ['INSTALLING', ProcessStatus.INSTALLING],
+    ])('hides the tag at %s (step 5 not reached)', (_name, step) => {
+      const { queryByTestId } = render(
+        <InstallationProcessProgressBar currentStep={step} tcTag={TAG} />,
+      );
+      expect(queryByTestId('tc-tag')).toBeNull();
+    });
+
+    it.each([
+      ['WAITING_CONNECTION_TEST', ProcessStatus.WAITING_CONNECTION_TEST],
+      ['CONNECTION_VERIFIED', ProcessStatus.CONNECTION_VERIFIED],
+      ['INSTALLATION_COMPLETE', ProcessStatus.INSTALLATION_COMPLETE],
+    ])('shows the tag at %s', (_name, step) => {
+      const { queryByTestId } = render(
+        <InstallationProcessProgressBar currentStep={step} tcTag={TAG} />,
+      );
+      expect(queryByTestId('tc-tag')).not.toBeNull();
+    });
+
+    /**
+     * The gate must not render the tag's element on the hidden steps — the tag
+     * fetches latest_version on mount, so a slot that merely hides it visually
+     * would keep the request. Asserting on the SLOT (not the tag) pins that:
+     * `tagSlot` is what the guard wraps.
+     */
+    it('renders no tag slot at all before the step is reached', () => {
+      const slotCount = (step: ProcessStatus) => {
+        const { container } = render(
+          <InstallationProcessProgressBar currentStep={step} tcTag={TAG} />,
+        );
+        return [...container.querySelectorAll('span')].filter(
+          (el) => el.className === installStepperStyles.tagSlot,
+        ).length;
+      };
+      expect(slotCount(ProcessStatus.INSTALLING)).toBe(0);
+      expect(slotCount(ProcessStatus.WAITING_CONNECTION_TEST)).toBe(1);
+    });
+
+    it('still draws nothing at step 5 when no test has run', () => {
+      const { container } = render(
+        <InstallationProcessProgressBar currentStep={ProcessStatus.WAITING_CONNECTION_TEST} />,
+      );
+      expect(container.querySelector('[data-testid="tc-tag"]')).toBeNull();
+    });
+  });
+
   it('exposes the install ariaLabel on nav', () => {
     const { container } = render(
       <InstallationProcessProgressBar
