@@ -13,13 +13,38 @@ import { BffError } from '@/lib/bff/errors';
 export const TARGET_SOURCE_LOAD_FALLBACK =
   '연동 대상 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
 
-export const targetSourceLoadMessage = (error: unknown): string => {
-  if (!(error instanceof BffError)) return TARGET_SOURCE_LOAD_FALLBACK;
-  if (error.status === 404) {
-    return '요청하신 연동 대상을 찾을 수 없어요. 삭제되었거나 주소가 잘못되었을 수 있어요.';
+/**
+ * 분류된 실패인지 — 이 화면이 처리하도록 설계된 결과인지.
+ *
+ * 로그 레벨이 여기 붙어 있는 건, 어느 상태 코드에 문구가 있는지와 어느 것이 "예상된
+ * 실패"인지가 **같은 판단**이기 때문이다. 둘을 각각의 함수로 두면 한쪽에만 상태 코드를
+ * 추가하는 순간 조용히 어긋난다.
+ */
+export interface TargetSourceLoadFailure {
+  /** 사용자가 읽을 한 줄. */
+  message: string;
+  /**
+   * `false` 면 이 화면이 아는 실패다. 서버 콘솔에 `console.error` 로 남기지 않는다 —
+   * Next dev 오버레이가 `console.error` 를 빨간 에러 카드로 띄우기 때문에, 정상 처리된
+   * 404 가 개발자에게는 터진 화면으로 보인다. 진짜로 예상 못 한 실패만 그 자리를 쓴다.
+   */
+  unexpected: boolean;
+}
+
+export const classifyTargetSourceLoad = (error: unknown): TargetSourceLoadFailure => {
+  if (error instanceof BffError) {
+    if (error.status === 404) {
+      return {
+        message: '요청하신 연동 대상을 찾을 수 없어요. 삭제되었거나 주소가 잘못되었을 수 있어요.',
+        unexpected: false,
+      };
+    }
+    if (error.status === 401 || error.status === 403) {
+      return {
+        message: '이 연동 대상을 볼 수 있는 권한이 없어요. 서비스 담당자에게 문의해 주세요.',
+        unexpected: false,
+      };
+    }
   }
-  if (error.status === 401 || error.status === 403) {
-    return '이 연동 대상을 볼 수 있는 권한이 없어요. 서비스 담당자에게 문의해 주세요.';
-  }
-  return TARGET_SOURCE_LOAD_FALLBACK;
+  return { message: TARGET_SOURCE_LOAD_FALLBACK, unexpected: true };
 };

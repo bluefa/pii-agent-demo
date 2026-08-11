@@ -4,7 +4,7 @@ import { schemas } from '@/lib/generated/install-v1';
 import { extractTargetSourceFromSnake } from '@/lib/target-source-response';
 import { ProjectDetail } from '@/app/target-sources/[targetSourceId]/_components/ProjectDetail';
 import { ErrorState } from '@/app/target-sources/[targetSourceId]/_components/common';
-import { targetSourceLoadMessage } from '@/app/target-sources/[targetSourceId]/load-error';
+import { classifyTargetSourceLoad } from '@/app/target-sources/[targetSourceId]/load-error';
 import type { JiraTicketState } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
 
 interface PageProps {
@@ -49,8 +49,16 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     jiraTicket = ticket;
   } catch (err) {
     // 진단은 서버 로그로. 사용자에게는 상태 코드로 고른 문구만 간다.
-    console.error(`[target-sources/${targetSourceId}] 상세 조회 실패`, err);
-    return <ErrorState message={targetSourceLoadMessage(err)} />;
+    const failure = classifyTargetSourceLoad(err);
+    if (failure.unexpected) {
+      console.error(`[target-sources/${targetSourceId}] 상세 조회 실패`, err);
+    } else {
+      // 한 줄만, 에러 객체는 빼고. Next dev 오버레이는 서버 console.error 를 빨간 카드로
+      // 띄우므로, 정상 처리한 404 를 거기 올리면 개발자에게는 터진 화면으로 보인다.
+      const status = err instanceof BffError ? err.status : '?';
+      console.warn(`[target-sources/${targetSourceId}] 상세 조회 ${status} — 안내 화면으로 대체`);
+    }
+    return <ErrorState message={failure.message} />;
   }
 
   return <ProjectDetail initialProject={project} jiraTicket={jiraTicket} />;

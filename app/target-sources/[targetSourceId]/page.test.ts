@@ -94,11 +94,32 @@ describe('GET /pass/target-sources/[targetSourceId]', () => {
         evaluated_at: '2026-04-01T00:00:00Z',
       });
       vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     });
 
     it('404 는 대상을 못 찾았다고 말한다', async () => {
       getTargetSourceMock.mockRejectedValue(new BffError(404, 'NOT_FOUND', 'no such row'));
       expect((await load()).props.message).toContain('찾을 수 없어요');
+    });
+
+    /**
+     * Next's dev overlay turns a server-side console.error into a red error card. A
+     * 404 this page renders a proper screen for is not a fault, and logging it there
+     * makes a working screen look broken to whoever is developing against it.
+     */
+    it('처리한 404 는 console.error 를 쓰지 않는다', async () => {
+      getTargetSourceMock.mockRejectedValue(new BffError(404, 'NOT_FOUND', 'no such row'));
+      await load();
+      expect(console.error).not.toHaveBeenCalled();
+      expect(console.warn).toHaveBeenCalled();
+      // 그리고 에러 객체를 넘기지 않는다 — 오버레이가 되살릴 스택이 없어야 한다.
+      expect(vi.mocked(console.warn).mock.calls[0].some((a) => a instanceof Error)).toBe(false);
+    });
+
+    it('분류 못 한 실패는 console.error 로 남긴다', async () => {
+      getTargetSourceMock.mockRejectedValue(new BffError(500, 'UPSTREAM', 'boom'));
+      await load();
+      expect(console.error).toHaveBeenCalled();
     });
 
     it('403 은 권한 문제라고 말한다', async () => {

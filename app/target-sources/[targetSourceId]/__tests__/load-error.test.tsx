@@ -5,15 +5,18 @@ import { render } from '@testing-library/react';
 import { BffError } from '@/lib/bff/errors';
 import { passRoutes } from '@/lib/routes';
 import {
+  classifyTargetSourceLoad,
   TARGET_SOURCE_LOAD_FALLBACK,
-  targetSourceLoadMessage,
 } from '@/app/target-sources/[targetSourceId]/load-error';
+
 import { ErrorState } from '@/app/target-sources/[targetSourceId]/_components/common/ErrorState';
+
+const targetSourceLoadMessage = (e: unknown) => classifyTargetSourceLoad(e).message;
 
 const bffError = (status: number) =>
   new BffError(status, 'UPSTREAM', 'Internal upstream detail — never user-facing');
 
-describe('targetSourceLoadMessage', () => {
+describe('classifyTargetSourceLoad', () => {
   it('names the failure the user can act on', () => {
     expect(targetSourceLoadMessage(bffError(404))).toContain('찾을 수 없어요');
     expect(targetSourceLoadMessage(bffError(403))).toContain('권한이 없어요');
@@ -37,6 +40,32 @@ describe('targetSourceLoadMessage', () => {
   it('never returns the upstream message', () => {
     for (const status of [400, 401, 403, 404, 409, 500, 503]) {
       expect(targetSourceLoadMessage(bffError(status))).not.toContain('upstream detail');
+    }
+  });
+
+  /**
+   * `unexpected` decides the log level, and the level is not cosmetic: Next's dev
+   * overlay promotes a server-side console.error into a red error card, so logging a
+   * 404 this page is built to handle makes a working screen look broken.
+   *
+   * It rides the same function as the copy on purpose — deciding twice which statuses
+   * are known lets the two drift the moment one gains a status the other lacks.
+   */
+  it('marks the statuses it has copy for as expected, and nothing else', () => {
+    for (const status of [401, 403, 404]) {
+      expect(classifyTargetSourceLoad(bffError(status))).toMatchObject({ unexpected: false });
+    }
+    for (const status of [400, 409, 500, 502, 503]) {
+      expect(classifyTargetSourceLoad(bffError(status))).toMatchObject({ unexpected: true });
+    }
+    expect(classifyTargetSourceLoad(new TypeError('fetch failed')).unexpected).toBe(true);
+  });
+
+  it('keeps copy and expectedness in step', () => {
+    // 문구가 fallback 이면 분류하지 못한 것이고, 분류하지 못했으면 예상 못 한 실패다.
+    for (const status of [400, 401, 403, 404, 409, 500, 502, 503]) {
+      const { message, unexpected } = classifyTargetSourceLoad(bffError(status));
+      expect(unexpected).toBe(message === TARGET_SOURCE_LOAD_FALLBACK);
     }
   });
 });
