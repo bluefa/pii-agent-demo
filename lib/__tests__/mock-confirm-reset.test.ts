@@ -121,6 +121,24 @@ describe('mockConfirm.resetTargetSource', () => {
     expect(completion.test_connection_status).toBe('TEST_CONNECTION_REQUIRED');
   });
 
+  /**
+   * 설치 상태 조회(mock/aws.ts)는 project.status 가 아니라 terraformState 를 읽는다. 여기를
+   * 남겨 두면 1단계로 내려간 과제가 4단계 조회에서는 여전히 "설치 완료"라고 답한다.
+   */
+  it('rewinds the terraform progress too, keeping the provider shape', async () => {
+    await mockConfirm.resetTargetSource(String(TARGET_SOURCE_ID), { reason: 'x' });
+    expect(findProject()?.terraformState).toEqual({ serviceTf: 'PENDING', bdcTf: 'PENDING' });
+  });
+
+  // roleVerify 는 없는 것과 PENDING 인 것의 뜻이 다르다 — 없으면 serviceTf 를 따른다.
+  // 초기화가 없던 키를 만들어 내면 4단계가 없던 단계를 하나 더 그린다.
+  it('does not invent terraform keys the project never had', async () => {
+    const project = findProject();
+    project!.terraformState = { bdcTf: 'COMPLETED' };
+    await mockConfirm.resetTargetSource(String(TARGET_SOURCE_ID), { reason: 'x' });
+    expect(findProject()?.terraformState).toEqual({ bdcTf: 'PENDING' });
+  });
+
   it('404s for an unknown target source', async () => {
     const response = await mockConfirm.resetTargetSource('123456', { reason: 'x' });
     expect(response.status).toBe(404);

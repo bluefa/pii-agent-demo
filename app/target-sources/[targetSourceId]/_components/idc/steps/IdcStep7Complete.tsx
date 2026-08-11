@@ -14,6 +14,9 @@ import type { IdcStepProps } from '@/app/target-sources/[targetSourceId]/_compon
 import { getIdcConfirmedResources } from '@/app/lib/api/idc';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
 
+/** 클라우드 Step 7 과 같은 잠금 — 갱신이 도는 동안 되돌리기 버튼을 다시 누르지 못하게 한다. */
+const REWIND_BTN_DISABLED = 'disabled:cursor-not-allowed disabled:opacity-45';
+
 /**
  * 인프라 변경 / 연결 테스트 재실행 — the C-2 action zone at the card bottom
  * (CardActionBar, same grammar as the step-5 완료 승인 요청 bar), with the
@@ -34,7 +37,8 @@ const CompleteActionBar = ({
     <CardActionBar hint="※ 인프라 변경은 1단계, 연결 테스트 재실행은 5단계로 되돌아가 프로세스를 다시 진행해요.">
       <button
         type="button"
-        className={idcStyles.triggerBtn.warnOutline}
+        disabled={rewind.pending}
+        className={cn(idcStyles.triggerBtn.warnOutline, REWIND_BTN_DISABLED)}
         onClick={() => rewind.open('infra')}
       >
         <EditIcon className="w-3.5 h-3.5" />
@@ -42,7 +46,8 @@ const CompleteActionBar = ({
       </button>
       <button
         type="button"
-        className={idcStyles.triggerBtn.warnOutline}
+        disabled={rewind.pending}
+        className={cn(idcStyles.triggerBtn.warnOutline, REWIND_BTN_DISABLED)}
         onClick={() => rewind.open('retest')}
       >
         <ReloadIcon className="w-3.5 h-3.5" />

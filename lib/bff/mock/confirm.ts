@@ -1659,6 +1659,16 @@ export const mockConfirm = {
       resources: project.resources.map((r) => ({ ...r, isSelected: false, exclusion: undefined })),
       piiAgentInstalled: false,
       completionConfirmedAt: undefined,
+      // Terraform 진행도 같이 되돌린다. 설치 상태 조회는 status 가 아니라 이 값을 읽으므로
+      // (mock/aws.ts 의 `terraformState?.serviceTf === 'COMPLETED'`), 남겨 두면 1단계로
+      // 내려간 과제가 4단계 조회에서는 여전히 "설치 완료"라고 답한다. 있던 키만 되돌린다 —
+      // serviceTf·roleVerify 는 AWS 에만 있고, roleVerify 는 없는 것과 PENDING 인 것의 뜻이
+      // 다르다(없으면 serviceTf 를 따른다).
+      terraformState: {
+        bdcTf: 'PENDING',
+        ...(project.terraformState.serviceTf !== undefined ? { serviceTf: 'PENDING' as const } : {}),
+        ...(project.terraformState.roleVerify !== undefined ? { roleVerify: 'PENDING' as const } : {}),
+      },
     });
 
     // 확정/승인 스냅샷은 지워진 상태를 가리키는 참조다 — 남겨 두면 1단계로 돌아간 과제가

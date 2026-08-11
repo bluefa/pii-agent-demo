@@ -13,6 +13,13 @@ import { useRewindStep } from '@/app/target-sources/[targetSourceId]/_components
 import { ConfirmedIntegrationDataProvider } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { ConfirmedResourcesSlot } from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot';
 
+/**
+ * 되돌리기가 도는 동안 두 버튼을 잠근다. 훅이 두 번째 호출을 막고는 있지만, 뮤테이션이
+ * 끝난 뒤 project 를 다시 읽는 구간에는 화면이 아직 되감기 전 단계를 보여준다 — 그때
+ * 살아 있는 버튼은 이미 되돌아간 과제에 한 번 더 누르라고 권하는 셈이다.
+ */
+const REWIND_BTN_DISABLED = 'disabled:cursor-not-allowed disabled:opacity-45';
+
 interface InstallationCompleteStepProps {
   project: CloudTargetSource;
   onProjectUpdate: (project: CloudTargetSource) => void;
@@ -39,7 +46,8 @@ const InstallationCompleteActionBar = ({
     <CardActionBar hint="※ 인프라 변경은 1단계, 연결 테스트 재실행은 5단계로 되돌아가 프로세스를 다시 진행해요.">
       <button
         type="button"
-        className={WARNING_OUTLINE_BUTTON_CLASS}
+        disabled={rewind.pending}
+        className={cn(WARNING_OUTLINE_BUTTON_CLASS, REWIND_BTN_DISABLED)}
         onClick={() => rewind.open('infra')}
       >
         <EditIcon className="w-[13px] h-[13px]" />
@@ -47,7 +55,8 @@ const InstallationCompleteActionBar = ({
       </button>
       <button
         type="button"
-        className={WARNING_OUTLINE_BUTTON_CLASS}
+        disabled={rewind.pending}
+        className={cn(WARNING_OUTLINE_BUTTON_CLASS, REWIND_BTN_DISABLED)}
         onClick={() => rewind.open('retest')}
       >
         <ReloadIcon className="w-[13px] h-[13px]" />
