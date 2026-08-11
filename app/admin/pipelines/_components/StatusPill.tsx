@@ -1,11 +1,12 @@
 /**
  * StatusPill — pipeline + task status badge (design-inventory §3 `.pill.s-*`).
  * Renders the wire status verbatim (uppercase). `lg` = statusbar size (h28).
- * READY is PRIMARY per the prototype CSS.
+ *
+ * Text only: the state is in the hue now (theme.ts PILL_*), and the glyph that
+ * used to carry it made RUNNING read as an outlined button rather than a badge.
  */
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
-import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import type { PipelineStatus, TaskStatus } from '@/lib/pipeline/types';
 
 export type PillStatus = PipelineStatus | TaskStatus;
@@ -21,7 +22,6 @@ export function StatusPill({ status, size = 'md', className }: StatusPillProps):
   const lg = size === 'lg';
   return (
     <span className={cn(pill.base, lg ? pill.lg : pill.md, pill.tone[status], className)}>
-      <Icon name={pill.icon[status] as IconName} size="sm" />
       {status}
     </span>
   );

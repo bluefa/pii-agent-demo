@@ -175,6 +175,14 @@
   --pl-brand-tf: #7B42BC;
   --pl-brand-aws-ink: #232F3E;
   --pl-brand-aws-smile: #FF9900;
+  /* Terraform PLAN tint (JobKindTag). PLAN and APPLY sit as peers on every
+     pipeline, so they have to separate by HUE — stroke weight alone did not.
+     Violet is the Terraform mark's own family (--pl-brand-tf), which is what
+     PLAN is: the step that only asks Terraform what would change. Blue stays
+     with APPLY, the step that commits. */
+  --pl-plan: #7B42BC;
+  --pl-plan-bg: #F9F5FF;
+  --pl-plan-ring: #E9D7FE;
   /* ── Admin Task Queue (design/pipeline/admin-taskqueue.html) ─────────────
      Net-new roles not derivable from the existing --pl-* set; values verbatim
      from the prototype. Delay tiers = the monitor 지연 column text + the seg.lg
