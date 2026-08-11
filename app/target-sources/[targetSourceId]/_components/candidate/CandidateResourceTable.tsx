@@ -4,13 +4,19 @@ import { Fragment, useMemo, useState } from 'react';
 import { cn, idcStyles, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { groupResourceRows } from '@/lib/resource-grouping';
+import { getResourceDisplayName } from '@/lib/resource';
+import { sortRdsInstances } from '@/lib/rds-instances';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import {
   CandidateResourceRow,
   type CandidateRowActions,
 } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceRow';
-import { useClusterFold } from '@/app/hooks/useClusterFold';
+import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/RdsInstancePanel';
+import {
+  getCandidateBehavior,
+  resolveRdsInstanceResourceId,
+} from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 import { useRailHover, type RailRowProps } from '@/app/hooks/useRailHover';
 import { TableEmptyState } from '@/app/target-sources/[targetSourceId]/_components/shared/TableEmptyState';
 import {
@@ -43,6 +49,23 @@ const CATEGORY_TERMS = [
       '네트워크 구성 제약으로 Agent를 설치할 수 없는 리소스예요. 선택할 수 없고, 행의 설치 불가 라벨을 누르면 상세 사유를 확인할 수 있어요.',
   },
 ] as const;
+
+/**
+ * What a COLLAPSED Athena group says it holds.
+ *
+ * In steps 1–3 the decision unit is the database, not the region's Athena — a folded group
+ * that names only the service and the region has folded away the only thing the user is
+ * deciding about. Three names, then a count: past three the line stops being readable and
+ * the panel/expansion is the place to read the rest.
+ */
+const GROUP_NAME_PREVIEW = 3;
+
+const groupChildNames = (rows: readonly CandidateResource[]): string => {
+  const names = rows.map(getResourceDisplayName).filter(Boolean);
+  const head = names.slice(0, GROUP_NAME_PREVIEW).join(', ');
+  const rest = names.length - GROUP_NAME_PREVIEW;
+  return rest > 0 ? `${head} 외 ${rest}개` : head;
+};
 
 const CATEGORY_TOOLTIP_CONTENT = (
   <div className="leading-[1.55]">
@@ -92,8 +115,7 @@ export const CandidateResourceTable = ({
   const showCheckboxColumn = !readonly;
 
   // Athena arrives as many rows of one catalog family per region; grouping restores the parent
-  // they belong to (LIN-85). Groups start OPEN — Step 1 is where each row is individually
-  // selected, so a collapsed group would hide the very checkboxes the step exists for.
+  // they belong to (LIN-85).
   const sections = useMemo(
     () =>
       groupResourceRows(candidates, (candidate) => ({
@@ -103,22 +125,34 @@ export const CandidateResourceTable = ({
       })),
     [candidates, selectedIds],
   );
-  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(() => new Set());
 
-  // RDS cluster instance rows — shared fold policy: open while the cluster is selected, folded
-  // once it is excluded (see `useClusterFold`). The chevron overrides one cluster at a time.
-  const clusterFold = useClusterFold();
+  // Groups start COLLAPSED (owner, 2026-08-11: "항상 펼쳐져 있으면 가독성이 너무 떨어져").
+  // Tracked as the set of OPEN keys rather than closed ones so the default needs no seeding
+  // and a group arriving later (filter change, new scan) still starts folded. What the user
+  // opened stays open for the session — a fold that resets on every re-render is not a
+  // "collapsed by default" table, it is a table that keeps re-collapsing under them.
+  const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(() => new Set());
+
+  // The one cluster whose instance panel is showing. Closed on load; opened from the row.
+  const [panelClusterId, setPanelClusterId] = useState<string | null>(null);
 
   // The group rails: parent and children carry the group's key, so hovering any of them
-  // lights the whole group. A cluster's rail is owned by its own row.
+  // lights the whole group.
   const railRow = useRailHover();
 
   const toggleGroup = (key: string) =>
-    setCollapsedGroups((previous) => {
+    setExpandedGroups((previous) => {
       const next = new Set(previous);
       if (!next.delete(key)) next.add(key);
       return next;
     });
+
+  const panelCluster = candidates.find(
+    (candidate) =>
+      candidate.id === panelClusterId
+      && getCandidateBehavior(candidate).configKind === 'rdsInstance',
+  );
+  const panelSelected = panelCluster ? selectedIds.has(panelCluster.id) : false;
 
   if (totalCount === 0) {
     return <TableEmptyState message={emptyMessage ?? '발견된 리소스가 없습니다'} />;
@@ -128,8 +162,13 @@ export const CandidateResourceTable = ({
     // Step 2's connected grammar, not idcStyles.table.frame: no border/shadow/radius —
     // the toolbar above owns the rounded top, the Pagination footer below owns the
     // rounded bottom, and everything between stays bare (step-2 table silhouette).
-    <div className="overflow-hidden bg-white">
-      <div className="overflow-x-auto">
+    // `relative` anchors the instance panel to the table's own box — it overlays the table
+    // instead of pushing it, so the Resource Name column keeps its full width. It wraps the
+    // clipping box rather than being it: the panel's card is `sticky`, and `overflow-hidden`
+    // on its offset parent would make that box the scrollport and the card would never move.
+    <div className="relative">
+      <div className="overflow-hidden bg-white">
+        <div className="overflow-x-auto">
         {/* Row height raised one step over approvalCell's py-4 (owner request) — table-scoped
             so the shared token keeps every other table family at its current rhythm. The
             :not([colspan]) guard keeps it off spanning cells: VmDatabaseConfigPanel's td is
@@ -171,7 +210,6 @@ export const CandidateResourceTable = ({
               rail?: RailRowProps,
             ) => {
               const isSelected = selectedIds.has(candidate.id);
-              const fold = clusterFold(candidate.id, isSelected);
               return (
                 <CandidateResourceRow
                   key={candidate.id}
@@ -186,8 +224,10 @@ export const CandidateResourceTable = ({
                   grouped={grouped}
                   lastInGroup={lastInGroup}
                   rail={rail}
-                  rdsInstancesExpanded={fold.open}
-                  onRdsInstancesToggle={fold.toggle}
+                  instancePanelOpen={panelClusterId === candidate.id}
+                  onInstancePanelToggle={() =>
+                    setPanelClusterId((previous) => (previous === candidate.id ? null : candidate.id))
+                  }
                 />
               );
             };
@@ -202,7 +242,7 @@ export const CandidateResourceTable = ({
 
             const { group } = section;
             const rowsId = `candidate-group-${group.key.replace('|', '-')}`;
-            const collapsed = collapsedGroups.has(group.key);
+            const collapsed = !expandedGroups.has(group.key);
             const rail = railRow(group.key);
             return (
               <Fragment key={group.key}>
@@ -223,6 +263,16 @@ export const CandidateResourceTable = ({
                           excludedCount={group.excludedCount}
                         />
                       )
+                    }
+                    // Collapsed, the parent names the databases it folded away — they are what
+                    // this step decides about, and a group row that hides them says nothing a
+                    // user can act on (owner, 2026-08-11).
+                    subline={
+                      collapsed ? (
+                        <span className={cn('block w-full truncate text-[12px]', textColors.tertiary)}>
+                          {groupChildNames(group.rows)}
+                        </span>
+                      ) : undefined
                     }
                     leadingCell={
                       showCheckboxColumn ? (
@@ -279,8 +329,32 @@ export const CandidateResourceTable = ({
               </Fragment>
             );
           })}
-        </table>
+          </table>
+        </div>
       </div>
+
+      {panelCluster && (
+        <RdsInstancePanel
+          // Remount per cluster so nothing carries over when the panel switches rows.
+          key={panelCluster.id}
+          clusterName={getResourceDisplayName(panelCluster)}
+          instances={sortRdsInstances(panelCluster.rdsInstanceCandidates ?? [])}
+          // An unchecked cluster submits no instance, so nothing is marked and there are no
+          // radios — the list is the evidence for leaving it out, not a choice being offered.
+          chosenResourceId={
+            panelSelected ? resolveRdsInstanceResourceId(panelCluster, drafts) : undefined
+          }
+          selectable={panelSelected && !readonly}
+          readonly={readonly}
+          engineLabel={
+            panelCluster.databaseType ? getDatabaseShortLabel(panelCluster.databaseType) : null
+          }
+          onSelect={(instanceResourceId) =>
+            actions.selectRdsInstance(panelCluster.id, instanceResourceId)
+          }
+          onClose={() => setPanelClusterId(null)}
+        />
+      )}
     </div>
   );
 };

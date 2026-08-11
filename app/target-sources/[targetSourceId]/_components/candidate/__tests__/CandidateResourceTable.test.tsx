@@ -266,14 +266,16 @@ describe('CandidateResourceTable — EC2 kind tag', () => {
   });
 });
 
-// An RDS cluster connects through ONE of its member instances, so the cluster row grows
-// a child row per instance and a radio to pick between them.
+// An RDS cluster connects through ONE of its member instances. The instances are NOT rows —
+// three of the table's columns say nothing about them and the two things a user compares
+// (endpoint, AZ) have no column at all — so the row states the chosen one and the comparison
+// happens in a split panel the row opens.
 describe('CandidateResourceTable — RDS cluster instances', () => {
   // Uppercase WRITER / READER, as the contract sends them.
   const wireOrder = [
-    { resource_id: 'arn:db:demo-1', resource_name: 'demo-1', availability_zone: 'ap-northeast-2a', cluster_member_role: 'WRITER' },
-    { resource_id: 'arn:db:demo-3', resource_name: 'demo-3', availability_zone: 'ap-northeast-2c', cluster_member_role: 'READER' },
-    { resource_id: 'arn:db:demo-2', resource_name: 'demo-2', availability_zone: 'ap-northeast-2b', cluster_member_role: 'READER' },
+    { resource_id: 'arn:db:demo-1', resource_name: 'demo-1', host: 'demo-1.cluster.rds', port: 3306, availability_zone: 'ap-northeast-2a', cluster_member_role: 'WRITER' },
+    { resource_id: 'arn:db:demo-3', resource_name: 'demo-3', host: 'demo-3.cluster-ro.rds', port: 3306, availability_zone: 'ap-northeast-2c', cluster_member_role: 'READER' },
+    { resource_id: 'arn:db:demo-2', resource_name: 'demo-2', host: 'demo-2.cluster-ro.rds', port: 3306, availability_zone: 'ap-northeast-2b', cluster_member_role: 'READER' },
   ];
 
   const clusterFixture = (overrides: Partial<CandidateResource> = {}): CandidateResource =>
@@ -297,8 +299,41 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
       />,
     );
 
+  const openPanel = () =>
+    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 접속 인스턴스 선택' }));
+
+  const checkedInstanceValue = (): string | undefined =>
+    screen
+      .getAllByRole<HTMLInputElement>('radio')
+      .find((radio) => radio.checked)
+      ?.value;
+
+  // The owner's rule (2026-08-11): folding cuts row COUNT, never information. A cluster row
+  // that folded its instances away and said nothing about them would have deleted the answer
+  // to the only question the row asks.
+  it('states the chosen instance and its role on the collapsed cluster row', () => {
+    renderCluster();
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    const line = screen.getByRole('button', { name: 'demo-cluster 접속 인스턴스 선택' });
+    expect(line.textContent).toContain('demo-2');
+    // 역할은 인스턴스 이름 바로 옆 — 별도 열로 떨어뜨리지 않는다.
+    expect(line.textContent).toContain('Reader');
+  });
+
+  it('opens the instance panel from the cluster row, closed on load', () => {
+    renderCluster();
+    expect(screen.queryByRole('button', { name: '인스턴스 패널 닫기' })).toBeNull();
+
+    openPanel();
+    expect(screen.getByText('연결할 인스턴스 · 3건')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '인스턴스 패널 닫기' }));
+    expect(screen.queryByText('연결할 인스턴스 · 3건')).toBeNull();
+  });
+
   it('lists instances Reader-first then by ARN, regardless of wire order', () => {
     renderCluster();
+    openPanel();
     const radios = screen.getAllByRole('radio');
     expect(radios.map((radio) => radio.getAttribute('value'))).toEqual([
       'arn:db:demo-2',
@@ -307,15 +342,10 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     ]);
   });
 
-  const checkedInstanceValue = (): string | undefined =>
-    screen
-      .getAllByRole<HTMLInputElement>('radio')
-      .find((radio) => radio.checked)
-      ?.value;
-
   // The checked radio is the whole statement — no 기본 chip beside it (owner request).
   it('checks the sorted-top instance by default', () => {
     renderCluster();
+    openPanel();
     expect(checkedInstanceValue()).toBe('arn:db:demo-2');
     expect(screen.queryByText('기본')).toBeNull();
   });
@@ -323,6 +353,7 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   it('reports the picked instance back to the caller', () => {
     const selectRdsInstance = vi.fn();
     renderCluster({ actions: { ...defaultProps.actions, selectRdsInstance } });
+    openPanel();
     fireEvent.click(screen.getByRole('radio', { name: '접속 인스턴스 demo-1 선택' }));
     expect(selectRdsInstance).toHaveBeenCalledWith('cluster-1', 'arn:db:demo-1');
   });
@@ -331,22 +362,32 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     renderCluster({
       drafts: { endpointDrafts: {}, rdsInstanceDrafts: { 'cluster-1': 'arn:db:demo-1' } },
     });
+    // The row states the drafted instance, and the panel opens on it.
+    expect(
+      screen.getByRole('button', { name: 'demo-cluster 접속 인스턴스 선택' }).textContent,
+    ).toContain('demo-1');
+    openPanel();
     expect(checkedInstanceValue()).toBe('arn:db:demo-1');
   });
 
-  // The parent carries the COUNT only. Naming the chosen instance here too gave the row two
-  // places to state one fact, which could disagree; the radio (선택됨 in read-only) owns it.
-  it('counts instances on the cluster row without naming the chosen one', () => {
+  // Endpoint and AZ are exactly what the table has no column for — they are the reason the
+  // panel exists, so it must be the place they finally appear.
+  it('shows the endpoint, AZ and engine the table has no column for', () => {
     renderCluster();
-    expect(screen.getByText('3개 인스턴스')).toBeTruthy();
-    // demo-2 appears once — on its own instance row, not in a parent summary.
-    expect(screen.getAllByText('demo-2')).toHaveLength(1);
+    openPanel();
+    expect(screen.getByText('demo-2.cluster-ro.rds:3306')).toBeTruthy();
+    expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
+    // One per card, from the cluster's own engine — plus the row's own Database Type cell,
+    // which every row keeps (owner: "Database 정보가 노출이 되어야 해요").
+    expect(screen.getAllByText('MySQL')).toHaveLength(4);
   });
 
   // The wire sends WRITER / READER; the chip must not shout them back.
   it('prettifies the member role on each instance chip', () => {
     renderCluster();
-    expect(screen.getAllByText('Reader')).toHaveLength(2);
+    openPanel();
+    // 2 Readers + 1 Writer in the panel, plus the chosen Reader restated on the row.
+    expect(screen.getAllByText('Reader')).toHaveLength(3);
     expect(screen.getAllByText('Writer')).toHaveLength(1);
     expect(screen.queryByText('READER')).toBeNull();
     expect(screen.queryByText('WRITER')).toBeNull();
@@ -359,41 +400,29 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(nameCell?.textContent?.indexOf('RDS Cluster')).toBeLessThan(
       nameCell?.textContent?.indexOf('demo-cluster') ?? -1,
     );
-    // Instance rows are not clusters — exactly one tag for the one cluster.
     expect(screen.getAllByText('RDS Cluster')).toHaveLength(1);
   });
 
   // Radios promise a choice the payload would not carry for an unchecked cluster, so they
-  // are ABSENT rather than disabled. The list itself still shows: it is what the user is
-  // deciding about, and it is the evidence for leaving the cluster out.
-  // Unchecked = left out of the request, so the list opens on demand (useClusterFold).
-  it('lists an unchecked cluster’s instances once opened, with no radios and nothing marked', () => {
+  // are ABSENT rather than disabled. The list itself still opens: it is the evidence for
+  // leaving the cluster out.
+  it('offers an unchecked cluster’s list with no radios and nothing marked', () => {
     renderCluster({ selectedIds: new Set<string>() });
-    expect(screen.queryByText('demo-2')).toBeNull();
+    const line = screen.getByRole('button', { name: 'demo-cluster 접속 인스턴스 선택' });
+    // Nothing is submitted, so nothing is named — the count is what the row can honestly say.
+    expect(line.textContent).toContain('인스턴스 3건');
 
-    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
+    fireEvent.click(line);
     expect(screen.getByText('demo-2')).toBeTruthy();
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
-    expect(screen.queryByText('기본')).toBeNull();
-  });
-
-  it('starts expanded for a checked cluster and collapses from the chevron', () => {
-    renderCluster();
-    expect(screen.getByText('demo-2')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
-    expect(screen.queryByText('demo-2')).toBeNull();
-    // The count and the tag survive the collapse.
-    expect(screen.getByText('3개 인스턴스')).toBeTruthy();
-    expect(screen.getByText('RDS Cluster')).toBeTruthy();
+    expect(screen.queryByText('선택됨')).toBeNull();
   });
 
   it('marks the chosen instance with a 선택됨 chip instead of radios when read-only', () => {
     renderCluster({ readonly: true });
+    openPanel();
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
     expect(screen.getByText('선택됨')).toBeTruthy();
-    // Exactly one chip: 기본 means "we chose this, you can change it", which read-only cannot
-    // offer. The default instance is also the chosen one here, so both would otherwise show.
     expect(screen.queryByText('기본')).toBeNull();
   });
 
@@ -409,15 +438,46 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
     expect(screen.queryByText(/인스턴스 /)).toBeNull();
   });
+});
 
-  it('names each instance row Instance and shows its own region', () => {
-    renderCluster();
-    expect(screen.getAllByText('Instance')).toHaveLength(3);
-    // The Region column carries the cluster's region on the parent and each instance's OWN
-    // availability zone on its child row — same column, one tier finer.
-    expect(screen.getAllByText('ap-northeast-2')).toHaveLength(1);
-    expect(screen.getByText('ap-northeast-2a')).toBeTruthy();
-    expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
-    expect(screen.getByText('ap-northeast-2c')).toBeTruthy();
+// Athena groups start COLLAPSED (owner, 2026-08-11). A fold that also hid WHICH databases the
+// group holds would have folded away the decision unit itself — in steps 1–3 the user selects
+// databases, not regions.
+describe('CandidateResourceTable — Athena groups', () => {
+  const athenaFixture = (id: string, name: string): CandidateResource =>
+    candidateFixture({
+      id,
+      resourceId: `athena:1234:ap-northeast-2/AwsDataCatalog/${name}`,
+      resourceName: name,
+      type: 'ATHENA',
+      databaseType: 'ATHENA',
+      metadata: { provider: 'AWS', resourceType: 'ATHENA', region: 'ap-northeast-2' },
+    });
+
+  const renderGroup = (names: readonly string[]) =>
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={names.map((name, index) => athenaFixture(`a-${index}`, name))}
+      />,
+    );
+
+  it('starts collapsed and names the databases it folded away', () => {
+    renderGroup(['raw_athena_db_prod', 'raw_athena_db_stg']);
+    const toggle = screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByText('raw_athena_db_prod, raw_athena_db_stg')).toBeTruthy();
+  });
+
+  it('caps the preview at three names and counts the rest', () => {
+    renderGroup(['db_a', 'db_b', 'db_c', 'db_d', 'db_e']);
+    expect(screen.getByText('db_a, db_b, db_c 외 2개')).toBeTruthy();
+  });
+
+  it('drops the preview once the group is open — the child rows say it themselves', () => {
+    renderGroup(['raw_athena_db_prod', 'raw_athena_db_stg']);
+    fireEvent.click(screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' }));
+    expect(screen.queryByText('raw_athena_db_prod, raw_athena_db_stg')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 접기' })).toBeTruthy();
   });
 });

@@ -18,6 +18,15 @@ interface ResourceGroupRowProps {
   leadingCell?: ReactNode;
   /** Aggregate rendered beside the identity, for tables with no spare column to put it in. */
   inlineMeta?: ReactNode;
+  /**
+   * Second identity line, for what the fold hides — the caller renders it only while collapsed.
+   *
+   * Folding cuts row COUNT, not information. An Athena group with its databases folded away is
+   * a row naming a service and a region, and in steps 1–3 neither is the thing being decided:
+   * the decision unit is the database. The row only decides where this goes — under the label,
+   * on the column's own left edge, with the chevron still centred on the label line.
+   */
+  subline?: ReactNode;
   /** This row's share of the group's tree rail (`useRailHover`), tagged with the group's key. */
   rail?: RailRowProps;
   /**
@@ -47,10 +56,36 @@ export const ResourceGroupRow = ({
   controls,
   leadingCell,
   inlineMeta,
+  subline,
   rail,
   children,
 }: ResourceGroupRowProps) => {
   const label = getDatabaseShortLabel(type);
+  // The chevron hangs off THIS box (`toggle` is absolute against it), so it stays a single
+  // line: centred on the label rather than floating between the label and the subline.
+  const lead = (
+    <span className={idcStyles.table.group.lead}>
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={controls}
+        aria-label={`${label} ${region} 그룹 ${expanded ? '접기' : '펼치기'}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle();
+        }}
+        className={cn(
+          idcStyles.table.group.toggle,
+          expanded ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
+          primaryColors.focusRing,
+        )}
+      >
+        <ChevronRightIcon className="h-3.5 w-3.5" />
+      </button>
+      <span className={idcStyles.table.group.label}>{label}</span>
+      {inlineMeta}
+    </span>
+  );
 
   return (
     <tr
@@ -67,27 +102,16 @@ export const ResourceGroupRow = ({
           expanded && idcStyles.table.group.parentCell,
         )}
       >
-        <span className={idcStyles.table.group.lead}>
-          <button
-            type="button"
-            aria-expanded={expanded}
-            aria-controls={controls}
-            aria-label={`${label} ${region} 그룹 ${expanded ? '접기' : '펼치기'}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle();
-            }}
-            className={cn(
-              idcStyles.table.group.toggle,
-              expanded ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
-              primaryColors.focusRing,
-            )}
-          >
-            <ChevronRightIcon className="h-3.5 w-3.5" />
-          </button>
-          <span className={idcStyles.table.group.label}>{label}</span>
-          {inlineMeta}
-        </span>
+        {subline ? (
+          // `w-full`, not `items-start`: the subline truncates, and shrink-to-fit children give
+          // it nothing to truncate against — it would push the column instead of clipping.
+          <span className="flex w-full min-w-0 flex-col gap-1">
+            {lead}
+            {subline}
+          </span>
+        ) : (
+          lead
+        )}
       </td>
       {children}
     </tr>
