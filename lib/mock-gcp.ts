@@ -222,6 +222,11 @@ export const checkGcpInstallation = (
   return result;
 };
 
+/** Azure 쪽과 같은 이유 — 캐시가 있으면 조회가 리소스를 다시 보지 않는다. */
+export const clearGcpInstallationCache = (targetSourceId: number): void => {
+  delete gcpStore.installationStatus[targetSourceId];
+};
+
 // ===== 테스트용 유틸리티 =====
 
 export const resetGcpStore = (): void => {

@@ -160,7 +160,7 @@ export const ConnectionTestCard = ({
   refreshProject,
   polling,
 }: ConnectionTestCardProps) => {
-  const { latestJob, uiState, trigger, triggerError, fetchError } = polling;
+  const { latestJob, uiState, loading, trigger, triggerError, fetchError } = polling;
   const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
   const [approvalOpen, setApprovalOpen] = useState(false);
   // The table, the progress strip and the Run Test gate all run on units — one row per thing
@@ -469,7 +469,8 @@ export const ConnectionTestCard = ({
               to the radius, the inner box scrolls. */}
           <div className={cn(CONNECTED_FRAME, 'rounded-t-[12px]')}>
             <div className="overflow-x-auto">
-            <table className="w-full">
+            {/* 연결 상태 칸이 스켈레톤인 동안은 표가 아직 채워지는 중이다 — 보조기술에도 그렇게 말한다. */}
+            <table className="w-full" aria-busy={loading}>
               <thead className={idcStyles.table.approvalHeader}>
                 {/* Steps 1·2·3 order, verbatim: identity (name → id) → attributes (type ·
                     region) → what this step asks of the row. A user arrives here having read
@@ -661,8 +662,17 @@ export const ConnectionTestCard = ({
                       {/* 어휘는 접기 유틸의 판정을 그대로 쓴다 — '대기'는 agent 가 PENDING 을
                           보고한 행만이고, 보고 자체가 없는 행은 '—', 계약 밖 값은 '미확인'이다.
                           세 사실을 전부 '대기'로 접던 것이 P4 였다. */}
+                      {/* 첫 폴링이 끝나기 전에는 이 칸에 대한 사실이 아직 없다 — 그 사이에
+                          찍히던 '—'(무보고)와 '대기'는 판정처럼 읽혔고, 응답이 오면 곧바로
+                          성공/실패로 뒤집혀 한 번 읽은 값을 다시 읽게 만들었다. 모르는 동안은
+                          모른다고 말하는 스켈레톤을, 들어설 칩과 같은 크기로 둔다. */}
                       <td className={idcStyles.table.approvalCell}>
-                        {status === 'SUCCESS' ? (
+                        {loading ? (
+                          <span
+                            className={cn(idcStyles.skeletonBar, 'block h-[26px] w-[52px] rounded-lg')}
+                            aria-hidden="true"
+                          />
+                        ) : status === 'SUCCESS' ? (
                           <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>성공</span>
                         ) : status === 'FAIL' ? (
                           <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>실패</span>

@@ -279,6 +279,11 @@ export interface BffClient {
     approveApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     rejectApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     cancelApprovalRequest: (id: number) => Promise<unknown>;
+    /** 연동 승인 상태를 IDLE 로 강제 초기화 (Step 7 인프라 변경 → 1단계). */
+    resetTargetSource: (
+      id: number,
+      body: z.infer<typeof schemas.TargetSourceResetRequestDto>,
+    ) => Promise<z.infer<typeof schemas.ApprovalActionResponseDto>>;
     markApprovalRequestUnavailable: (id: number, body: unknown) => Promise<unknown>;
     confirmApprovalUnavailable: (id: number) => Promise<unknown>;
     confirmInstallation: (id: number) => Promise<unknown>;

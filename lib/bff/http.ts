@@ -488,6 +488,9 @@ export const httpBff: BffClient = {
     cancelApprovalRequest: (id) =>
       post<unknown>(`/target-sources/${id}/approval-requests/cancel`, {}),
 
+    resetTargetSource: (id, body) =>
+      post<z.infer<typeof schemas.ApprovalActionResponseDto>>(`/target-sources/${id}/reset`, body),
+
     markApprovalRequestUnavailable: (id, body) =>
       post<unknown>(`/target-sources/${id}/approval-unavailable`, body),
 

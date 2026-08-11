@@ -1242,6 +1242,14 @@ export const idcStyles = {
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**
+     * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
+     * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면
+     * 열 구분이 두 문법이 된다. 잡을 수 있다는 사실은 커서가 말하고, 잡는 동안에만 선이 그
+     * 자리를 확인해 준다. 파랑은 primary — 이 앱에서 "누를 수 있는 것"의 색이다.
+     */
+    resizeHandle:
+      'absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none after:absolute after:inset-y-1.5 after:right-[3px] after:w-px after:bg-transparent hover:after:bg-[#0064FF] focus-visible:after:bg-[#0064FF] focus:outline-none',
+    /**
      * Two-line identity stack — kind tag ABOVE, resource name below (RDS Cluster · EC2 · a
      * member instance's Reader/Writer chip). Lifts the stack by half its tag line so the
      * **name** lands on the row's middle, the line the one-line cells beside it already sit on

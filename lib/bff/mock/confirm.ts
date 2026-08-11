@@ -5,7 +5,9 @@ import * as tcFns from '@/lib/mock-test-connection';
 import * as mockInstallation from '@/lib/mock-installation';
 import { getStore } from '@/lib/mock-store';
 import { ProcessStatus, cloudProviderToWireProvider } from '@/lib/types';
-import { getCurrentStep } from '@/lib/process';
+import { createInitialProjectStatus, getCurrentStep } from '@/lib/process';
+import { clearAzureInstallationCache } from '@/lib/mock-azure';
+import { clearGcpInstallationCache } from '@/lib/mock-gcp';
 import { toBffApprovalProcessStatus } from '@/lib/bff/mock/target-sources';
 import {
   applyTqApprovalDecision,
@@ -41,6 +43,18 @@ const MOCK_APPLYING_DELAY_MS = 20_000;
 const MOCK_INSTALLATION_DELAY_MS = 15_000;
 const ENABLE_PROCESS_AUTO_TRANSITION = true;
 const approvalTimestampStore = new Map<string, number>();
+
+/**
+ * latest_version 은 mock 에서 즉시 답해, Step 5 표가 "아직 모른다"로 머무는 구간이 한 프레임도
+ * 없었다 — 연결 상태 칸의 로딩 처리는 그 구간에서만 보이므로, 실제 왕복에 해당하는 시간을 준다.
+ * 폴링 주기(4s)보다 짧아 폴이 겹치지 않는다. Mock 전용이고, vitest 에서는 건너뛴다(케이스마다
+ * 1초를 물면 폴링 테스트가 기본 타임아웃을 넘긴다).
+ */
+const MOCK_TC_LATEST_LATENCY_MS = 1_000;
+const tcLatestLatency = () =>
+  process.env.VITEST
+    ? Promise.resolve()
+    : new Promise((resolve) => setTimeout(resolve, MOCK_TC_LATEST_LATENCY_MS));
 
 /** @internal 테스트 전용: store 초기화 */
 export const _resetApprovedIntegrationStore = () => {
@@ -1606,6 +1620,85 @@ export const mockConfirm = {
     });
   },
 
+  /**
+   * POST …/reset — 연동 승인 상태를 초기(IDLE)로 강제 초기화한다. Step 7 의 "인프라 변경"이
+   * 부르는 길: 끝난 설치·승인·연결 테스트 확인을 모두 버리고 1단계(연동 대상 선택)로 돌린다.
+   *
+   * 스캔 결과는 남긴다 — 그것은 승인 상태가 아니라 인프라의 사실이고, 1단계가 고를 목록이
+   * 바로 그 목록이다. 지우면 사용자는 초기화 직후 아무것도 고를 수 없는 화면을 만난다.
+   */
+  // body.reason 은 LOOSE 계약이라 null 로도 온다 — 응답에 되쓸 때 흡수한다.
+  resetTargetSource: async (targetSourceId: string, body: { reason?: string | null }) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(project.serviceCode)) {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
+        { status: 403 },
+      );
+    }
+
+    const status: ProjectStatus = { ...createInitialProjectStatus(), scan: project.status.scan };
+
+    mockData.updateProject(project.id, {
+      processStatus: getCurrentStep(status),
+      status,
+      // 선택과 제외는 이번 연동에서 내린 판단이다 — 초기화는 그 판단을 되돌리는 일이다.
+      resources: project.resources.map((r) => ({ ...r, isSelected: false, exclusion: undefined })),
+      piiAgentInstalled: false,
+      completionConfirmedAt: undefined,
+      // Terraform 진행도 같이 되돌린다. 설치 상태 조회는 status 가 아니라 이 값을 읽으므로
+      // (mock/aws.ts 의 `terraformState?.serviceTf === 'COMPLETED'`), 남겨 두면 1단계로
+      // 내려간 과제가 4단계 조회에서는 여전히 "설치 완료"라고 답한다. 있던 키만 되돌린다 —
+      // serviceTf·roleVerify 는 AWS 에만 있고, roleVerify 는 없는 것과 PENDING 인 것의 뜻이
+      // 다르다(없으면 serviceTf 를 따른다).
+      terraformState: {
+        bdcTf: 'PENDING',
+        ...(project.terraformState.serviceTf !== undefined ? { serviceTf: 'PENDING' as const } : {}),
+        ...(project.terraformState.roleVerify !== undefined ? { roleVerify: 'PENDING' as const } : {}),
+      },
+    });
+
+    // 확정/승인 스냅샷은 지워진 상태를 가리키는 참조다 — 남겨 두면 1단계로 돌아간 과제가
+    // 2·3단계 화면에서 옛 확정 내용을 다시 들고 나온다.
+    approvedIntegrationStore.delete(project.id);
+    confirmedIntegrationSnapshotStore.delete(project.id);
+    // 연결 테스트 이력도 같이 버린다. completion-status 의 성공 여부는 프로젝트 상태가 아니라
+    // 이 저장소의 최근 job 에서 읽으므로(getCompletionStatus 의 `job?.status === 'SUCCESS'`),
+    // 남겨 두면 초기화 뒤 다시 올라온 5단계가 옛 설치에서 성공한 실행을 근거로 완료 승인
+    // 버튼을 열어 준다 — 새 인프라에서는 아직 한 번도 테스트하지 않았는데도.
+    tcFns.clearJobHistory(Number(targetSourceId));
+    // 프로바이더 설치 상태는 별도 캐시에 산다. 조회가 캐시를 먼저 보고 리소스는 보지 않으므로
+    // (mock-azure/mock-gcp 의 첫 분기), 남겨 두면 초기화 뒤 다시 구성한 대상이 4단계에서
+    // 초기화 전 리소스와 진행도를 그대로 보여준다. 프로바이더로 갈라 부르지 않는다 — 없는
+    // 키를 지우는 것은 무해하고, 갈래를 두면 프로바이더가 늘 때 이 줄이 조용히 빠진다.
+    clearAzureInstallationCache(Number(targetSourceId));
+    clearGcpInstallationCache(Number(targetSourceId));
+
+    // ADR-019: swagger ApprovalActionResponseDto (snake wire).
+    return NextResponse.json({
+      request_id: project.targetSourceId,
+      status: 'RESET',
+      processed_by: { user_id: user.name },
+      processed_at: new Date().toISOString(),
+      reason: body.reason ?? '',
+    });
+  },
+
   // ADR-019 #7: 연동 불가 판정 → ApprovalUnavailableResponseDto (snake wire).
   markApprovalRequestUnavailable: async (targetSourceId: string, body: unknown) => {
     const user = mockData.getCurrentUser();
@@ -1912,6 +2005,7 @@ export const mockConfirm = {
   },
 
   getTestConnectionLatest: async (targetSourceId: string) => {
+    await tcLatestLatency();
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
       return NextResponse.json(

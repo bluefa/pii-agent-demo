@@ -1,21 +1,24 @@
 'use client';
 
-import { useState } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
-import { useToast } from '@/app/components/ui/toast';
 import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
 import {
   CardActionBar,
   RejectionAlert,
 } from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WARNING_OUTLINE_BUTTON_CLASS } from '@/app/target-sources/[targetSourceId]/_components/common/warning-outline-button';
-import {
-  ConfirmRewindModal,
-  type ConfirmRewindKind,
-} from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
+import { ConfirmRewindModal } from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
+import { useRewindStep } from '@/app/target-sources/[targetSourceId]/_components/layout/useRewindStep';
 import { ConfirmedIntegrationDataProvider } from '@/app/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { ConfirmedResourcesSlot } from '@/app/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot';
+
+/**
+ * 되돌리기가 도는 동안 두 버튼을 잠근다. 훅이 두 번째 호출을 막고는 있지만, 뮤테이션이
+ * 끝난 뒤 project 를 다시 읽는 구간에는 화면이 아직 되감기 전 단계를 보여준다 — 그때
+ * 살아 있는 버튼은 이미 되돌아간 과제에 한 번 더 누르라고 권하는 셈이다.
+ */
+const REWIND_BTN_DISABLED = 'disabled:cursor-not-allowed disabled:opacity-45';
 
 interface InstallationCompleteStepProps {
   project: CloudTargetSource;
@@ -26,44 +29,44 @@ interface InstallationCompleteStepProps {
  * 인프라 변경 / 연결 테스트 재실행 — the C-2 action zone at the card bottom
  * (CardActionBar, same grammar as the step-5 완료 승인 요청 bar), with the
  * rewind consequences spelled out in the hint.
+ *
+ * 두 되돌리기는 실제 API 를 쏜다 (useRewindStep): 인프라 변경 → POST …/reset,
+ * 연결 테스트 재실행 → PUT …/test-connection-acknowledgment { confirmed:false }.
  */
-const InstallationCompleteActionBar = () => {
-  const toast = useToast();
-  const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
-
-  // v16 confirmStepProceed rewinds the stepper; the rewind endpoint is not in the
-  // contract yet, so confirming surfaces a placeholder until the BFF wires it.
-  const handleConfirm = (kind: ConfirmRewindKind) => {
-    setConfirmKind(null);
-    toast.info(
-      kind === 'infra'
-        ? '인프라 변경(1단계로 되돌아가기)은 BFF 연동 후 활성화됩니다.'
-        : '연결 테스트 재실행(5단계로 되돌아가기)은 BFF 연동 후 활성화됩니다.',
-    );
-  };
+const InstallationCompleteActionBar = ({
+  targetSourceId,
+  onProjectUpdate,
+}: {
+  targetSourceId: number;
+  onProjectUpdate: (project: CloudTargetSource) => void;
+}) => {
+  const rewind = useRewindStep(targetSourceId, onProjectUpdate);
 
   return (
     <CardActionBar hint="※ 인프라 변경은 1단계, 연결 테스트 재실행은 5단계로 되돌아가 프로세스를 다시 진행해요.">
       <button
         type="button"
-        className={WARNING_OUTLINE_BUTTON_CLASS}
-        onClick={() => setConfirmKind('infra')}
+        disabled={rewind.pending}
+        className={cn(WARNING_OUTLINE_BUTTON_CLASS, REWIND_BTN_DISABLED)}
+        onClick={() => rewind.open('infra')}
       >
         <EditIcon className="w-[13px] h-[13px]" />
         인프라 변경
       </button>
       <button
         type="button"
-        className={WARNING_OUTLINE_BUTTON_CLASS}
-        onClick={() => setConfirmKind('retest')}
+        disabled={rewind.pending}
+        className={cn(WARNING_OUTLINE_BUTTON_CLASS, REWIND_BTN_DISABLED)}
+        onClick={() => rewind.open('retest')}
       >
         <ReloadIcon className="w-[13px] h-[13px]" />
         연결 테스트 재실행
       </button>
       <ConfirmRewindModal
-        kind={confirmKind}
-        onClose={() => setConfirmKind(null)}
-        onConfirm={handleConfirm}
+        kind={rewind.confirmKind}
+        onClose={rewind.close}
+        onConfirm={rewind.confirm}
+        isPending={rewind.pending}
       />
     </CardActionBar>
   );
@@ -78,6 +81,7 @@ const InstallationCompleteActionBar = () => {
  */
 export const InstallationCompleteStep = ({
   project,
+  onProjectUpdate,
 }: InstallationCompleteStepProps) => {
 
   return (
@@ -118,7 +122,10 @@ export const InstallationCompleteStep = ({
           <ConfirmedResourcesSlot bare />
         </div>
         {/* C-2 action zone: the rewind CTAs dock (sticky) at the card bottom. */}
-        <InstallationCompleteActionBar />
+        <InstallationCompleteActionBar
+          targetSourceId={project.targetSourceId}
+          onProjectUpdate={onProjectUpdate}
+        />
       </section>
       <RejectionAlert project={project} />
     </ConfirmedIntegrationDataProvider>

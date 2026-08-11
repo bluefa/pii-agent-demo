@@ -517,7 +517,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
-        recommendFailReason: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
+        recommendFailReason: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
       },
       {
         id: 'azure-res-vnet-2',
@@ -528,7 +528,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
-        recommendFailReason: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
+        recommendFailReason: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
       },
     ],
     terraformState: {
@@ -583,7 +583,7 @@ export const mockProjects: Project[] = [
         databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: false,
         integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
-        recommendFailReason: 'AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED',
+        recommendFailReason: 'AZURE_RESOURCE_VNET_INTEGRATED_MODE',
       },
       {
         id: `azure-inel-${targetSourceId}-5`, type: 'AZURE_POSTGRESQL', resourceId: 'psql-vnet-014',

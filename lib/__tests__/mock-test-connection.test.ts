@@ -396,7 +396,38 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(confirmed.target_source_id).toBe(AWS_TARGET_SOURCE_ID);
       expect(getCompletionStatus(AWS_TARGET_SOURCE_ID).test_connection_status).toBe('CONFIRMED');
 
+      // 되돌리기는 "연결 테스트부터 다시 진행"이라고 말한다 — 그보다 앞선 실행은 더 이상
+      // 근거가 아니므로, 새 실행이 끝나기 전까지 완료 승인은 닫혀 있어야 한다. 이 게이트가
+      // 없으면 재실행을 누른 즉시 5단계에서 승인 버튼이 켜져, 아무것도 다시 돌리지 않고
+      // 6단계로 되돌아갈 수 있다.
+      vi.setSystemTime(new Date(FIXED_DATE.getTime() + selectedCount * 5000 + 60_000));
       setConfirmation(AWS_TARGET_SOURCE_ID, false);
+      expect(getCompletionStatus(AWS_TARGET_SOURCE_ID).test_connection_status)
+        .toBe('TEST_CONNECTION_REQUIRED');
+      expect(getCompletionStatus(AWS_TARGET_SOURCE_ID).latest_test_connection_success).toBe(false);
+    });
+
+    // 되돌린 뒤 실제로 다시 돌린 실행은 근거가 된다 — 게이트가 영구 차단이 되면 재실행
+    // 이후로는 완료 승인이 영영 열리지 않는다.
+    it('re-opens the approval once a NEW run settles after the rollback', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const project = getAwsProjectWithSelectedResources();
+      const selectedCount = project.resources.filter((r) => r.isSelected).length;
+      createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
+      vi.setSystemTime(new Date(FIXED_DATE.getTime() + selectedCount * 5000 + 1000));
+      getLatestJob(AWS_TARGET_SOURCE_ID);
+      setConfirmation(AWS_TARGET_SOURCE_ID, true);
+
+      vi.setSystemTime(new Date(FIXED_DATE.getTime() + selectedCount * 5000 + 60_000));
+      setConfirmation(AWS_TARGET_SOURCE_ID, false);
+      expect(getCompletionStatus(AWS_TARGET_SOURCE_ID).test_connection_status)
+        .toBe('TEST_CONNECTION_REQUIRED');
+
+      const rerunProject = getAwsProjectWithSelectedResources();
+      createTestConnectionJob(rerunProject, AWS_TARGET_SOURCE_ID, 'a@example.com');
+      vi.setSystemTime(new Date(FIXED_DATE.getTime() + selectedCount * 10_000 + 120_000));
+      getLatestJob(AWS_TARGET_SOURCE_ID);
+
       expect(getCompletionStatus(AWS_TARGET_SOURCE_ID).test_connection_status)
         .toBe('LATEST_TEST_CONNECTION_SUCCESS');
     });
