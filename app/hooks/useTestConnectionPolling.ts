@@ -89,6 +89,12 @@ export const useTestConnectionPolling = (
       firstFetchRef.current = false;
       setLoading(false);
     }
+    // 잠금은 "요청이 끝났을 때"가 아니라 "새 데이터를 실제로 봤을 때" 푼다. usePollingBase 의
+    // refresh 는 조회가 실패해도 삼키고 그냥 반환하므로, 요청 종료로 풀면 POST 는 성공했는데
+    // 조회만 실패한 경우 아직 새 실행을 한 번도 못 본 채 버튼이 열린다 — 그 상태로 다시 누르면
+    // 이 브랜치가 없애려던 409 를 그대로 받는다. onUpdate 는 조회가 성공했을 때만 불린다.
+    triggeringRef.current = false;
+    setTriggering(false);
   }, []);
 
   const {
@@ -128,12 +134,12 @@ export const useTestConnectionPolling = (
         return false;
       }
     }
-    // 여기서 새 실행이 latestJob 에 실린다. 그전까지 uiState 는 아직 옛 실행을 말하므로
-    // 잠금을 풀면 안 된다 — 푸는 순간이 곧 버튼이 다시 눌리는 순간이다.
+    // 조회가 성공하면 handleUpdate 가 잠금을 푼다 — 여기서 풀지 않는 이유는 그 콜백의
+    // 주석에 있다(조회 실패를 삼키는 refresh 때문). 실패해도 start() 로 폴링이 계속 돌아
+    // 다음 성공한 폴에서 풀린다. 그때까지 버튼이 잠겨 있는 것은 옳다 — 서버에 실행을
+    // 만들어 놓고도 그것을 아직 못 본 상태이기 때문이다.
     await baseRefresh();
     start();
-    triggeringRef.current = false;
-    setTriggering(false);
     return started;
   }, [targetSourceId, baseRefresh, start]);
 

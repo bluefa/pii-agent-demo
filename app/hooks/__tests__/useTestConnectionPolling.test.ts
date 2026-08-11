@@ -144,3 +144,33 @@ describe('trigger re-entrancy', () => {
     expect(triggerMock).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * POST 는 성공했는데 직후 latest_version 조회만 실패한 경우. usePollingBase 의 refresh 는
+ * 조회 실패를 삼키고 그냥 반환하므로, 요청 종료를 신호로 잠금을 풀면 새 실행을 한 번도 못 본
+ * 채 버튼이 열린다 — 그 상태로 다시 누르면 이 브랜치가 없애려던 409 를 그대로 받는다.
+ */
+describe('trigger lock vs. a failed post-trigger refresh', () => {
+  it('stays locked when the POST succeeded but the follow-up read failed', async () => {
+    const { renderHook, act, waitFor } = await import('@testing-library/react');
+    const { triggerTestConnection } = await import('@/app/lib/api');
+    const { useTestConnectionPolling } = await import('@/app/hooks/useTestConnectionPolling');
+
+    const triggerMock = vi.mocked(triggerTestConnection);
+    const latestMock = vi.mocked(getTestConnectionLatest);
+    triggerMock.mockReset();
+    latestMock.mockReset();
+    triggerMock.mockResolvedValue(undefined as never);
+    latestMock.mockRejectedValue(new AppError({ code: 'INTERNAL_ERROR', message: 'boom', status: 503, retriable: true, timestamp: '2026-08-11T00:00:00.000Z' }));
+
+    const { result } = renderHook(() => useTestConnectionPolling(1));
+    await waitFor(() => expect(latestMock).toHaveBeenCalled());
+
+    await act(async () => {
+      await result.current.trigger();
+    });
+
+    // 실행은 서버에 만들어졌는데 우리는 아직 그것을 못 봤다 — 잠금은 유지된다.
+    expect(result.current.triggering).toBe(true);
+  });
+});
