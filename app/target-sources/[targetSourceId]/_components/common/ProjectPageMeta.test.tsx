@@ -145,6 +145,51 @@ describe('ProjectPageMeta — provider group', () => {
   });
 });
 
+/**
+ * The header shipped with the provider name reading 10px above the identifier
+ * beside it, and nothing in this suite noticed — every other assertion here is a
+ * text-presence query, which passes at any alignment. These are the class
+ * agreements the one-line-per-tier layout rests on; each one, broken alone, puts
+ * the two lines back out of register.
+ */
+const utilityOn = (start: Element | null, prefix: string): string | null => {
+  for (let el: Element | null = start; el; el = el.parentElement) {
+    const hit = String(el.className)
+      .split(/\s+/)
+      .find((c) => c.startsWith(prefix));
+    if (hit) return hit;
+  }
+  return null;
+};
+
+describe('ProjectPageMeta — one line per tier', () => {
+  it('gives the provider name and the identifier value one shared line box', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    const provider = screen.getByText('AWS Cloud');
+    const value = screen.getByText('482915736204');
+
+    // Equal box height → equal centre. The provider's box is sized by its 30px
+    // icon badge; a shorter value box centres higher and the two lines split.
+    expect(utilityOn(provider, 'min-h-')).toBe('min-h-[30px]');
+    expect(utilityOn(value, 'min-h-')).toBe('min-h-[30px]');
+
+    // Equal centre is not equal baseline. Both line boxes must also declare the
+    // same leading, or the glyphs sit ~1px apart inside matching boxes.
+    expect(utilityOn(provider, 'leading-')).toBe(utilityOn(value, 'leading-'));
+    expect(utilityOn(provider, 'leading-')).not.toBeNull();
+  });
+
+  it('binds both label stacks to their value at the same gap', () => {
+    render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+
+    // The group eyebrow rides on the kv label line. It only stays there while the
+    // two stacks push their value down by the same amount.
+    expect(utilityOn(screen.getByText('클라우드 정보'), 'gap-')).toBe(
+      utilityOn(screen.getByText('Account ID'), 'gap-'),
+    );
+  });
+});
+
 describe('ProjectPageMeta — install progress', () => {
   it('mounts the stepper with the project processStatus', () => {
     render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);

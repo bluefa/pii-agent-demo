@@ -153,7 +153,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             row — that keeps 클라우드 정보 level with Project ID, and the provider
             name level with the identifier it names. */}
         <div className={h.groupRow}>
-          <span className={h.kv}>
+          <span className={h.providerStack}>
             <span className={h.blockLabel}>{display.group}</span>
             <span className={h.provider}>
               <span className={h.providerIcon} aria-hidden="true">
