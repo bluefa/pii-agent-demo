@@ -12,8 +12,9 @@
  *  - The 지연 (delay) filter is CLIENT-side over the fetched page — contract gap
  *    G1 (no server query). Its tier counts + row filtering live in `_p1/logic`.
  *  - `delay_seconds` is server-computed; the client never recomputes elapsed time.
- *  - Both endpoints are read once per filter change — the operator refreshes to
- *    re-read. No background poll (it duplicated the shell's own summary fetch).
+ *  - No background poll (it duplicated the shell's own summary fetch every
+ *    tick). The monitor re-reads on filter/page change; 현황 re-reads only on
+ *    다시 시도. Otherwise the operator refreshes.
  *
  * Visual language: tqStyles (prototype pixel SSOT) + shared pipeline primitives.
  * The monitor table is composed from `pipelineStyles.table` tokens rather than
@@ -167,7 +168,7 @@ export default function QueueDashboardPage(): ReactElement {
 
       <SectionHeader
         title="Process Status 모니터"
-        desc="Target Source별 현재 단계와 지연(마지막 상태 변경 이후 경과)을 확인합니다. 30초마다 자동으로 갱신됩니다."
+        desc="Target Source별 현재 단계와 지연(마지막 상태 변경 이후 경과)을 확인합니다. 최신 상태는 새로고침으로 다시 읽습니다."
       />
       <Card>
         <div className="mb-4 flex items-center gap-2">

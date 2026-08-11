@@ -18,7 +18,11 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const me = await bff.users.me().catch(() => null);
-  const isAdmin = me?.role?.trim().toUpperCase() === 'ADMIN';
+  // `users.me()` is a raw upstream passthrough — nothing parses it at this
+  // layer, so `role` can arrive as a non-string JSON value despite the
+  // generated type. Coerce before comparing: a malformed payload must land on
+  // the notice, never on a 500.
+  const isAdmin = String(me?.role ?? '').trim().toUpperCase() === 'ADMIN';
 
   return (
     <>

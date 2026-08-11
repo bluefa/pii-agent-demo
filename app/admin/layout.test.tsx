@@ -32,11 +32,17 @@ describe('AdminLayout role gate', () => {
   });
 
   // Allowlist, not `!== 'ADMIN'`: an unsettled future role must stay locked out.
+  // The malformed rows matter because `users.me()` is an unparsed passthrough —
+  // they must deny, not throw.
   it.each([
     ['USER', { id: 'u1', role: 'USER' }],
     ['SERVICE_MANAGER', { id: 'u1', role: 'SERVICE_MANAGER' }],
     ['role 없음', { id: 'u1' }],
     ['role null', { id: 'u1', role: null }],
+    ['role 공백', { id: 'u1', role: '   ' }],
+    ['role 이 문자열이 아님', { id: 'u1', role: 123 }],
+    ['role 이 객체', { id: 'u1', role: { name: 'ADMIN' } }],
+    ['응답이 null', null],
   ])('%s 이면 안내만 렌더한다', async (_label, me) => {
     meMock.mockResolvedValue(me);
     await renderGate();
