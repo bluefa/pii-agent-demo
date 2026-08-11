@@ -63,9 +63,9 @@ export const ServiceManagementView = () => {
   // Three states, and the value carries the code it belongs to — the same shape as
   // `resolvedName` below, for the same reason. `null` is "not resolved yet", distinct
   // from `{ items: [] }` = "resolved, and there are none"; a `[]` start made the first
-  // paint of every service claim 등록된 계정이 없어요 before the request had even been
-  // made. `error` is the third: a failed fetch must not render as "this service has no
-  // accounts", which is a claim we cannot make and whose only CTA is the wrong one.
+  // paint of every service claim 등록된 연동 대상이 없습니다 before the request had even
+  // been made. `error` is the third: a failed fetch must not render as "this service has
+  // no accounts", which is a claim we cannot make.
   //
   // Keying to `code` is what makes a late response harmless. Both writers stamp their
   // own code, and the render below discards anything that does not match the current
@@ -358,7 +358,6 @@ export const ServiceManagementView = () => {
                 projects={panel?.items ?? null}
                 error={panel?.error ?? null}
                 loading={loading}
-                onAddInfra={openCreateModal}
                 onRetry={refreshProjects}
                 onOpenDetail={handleOpenDetail}
                 onManageAction={handleManageAction}

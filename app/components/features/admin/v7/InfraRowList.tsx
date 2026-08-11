@@ -12,7 +12,6 @@ import {
 } from '@/lib/theme';
 import type { ProjectSummary } from '@/lib/types';
 import { Button } from '@/app/components/ui/Button';
-import { InfrastructureEmptyState } from '@/app/components/features/admin/infrastructure/InfrastructureEmptyState';
 import { InfraRow, type InfraRowAction } from '@/app/components/features/admin/v7/InfraRow';
 
 interface InfraRowListProps {
@@ -21,7 +20,6 @@ interface InfraRowListProps {
   /** Why the request failed, or `null`. Takes precedence: a failure is not an answer. */
   error: string | null;
   loading: boolean;
-  onAddInfra: () => void;
   onRetry: () => void;
   onOpenDetail: (targetSourceId: number) => void;
   onManageAction: (action: InfraRowAction, targetSourceId: number) => void;
@@ -84,10 +82,10 @@ const InfraRowListSkeleton = () => (
 
 /**
  * A fetch that failed, which is NOT the same screen as a service with no accounts.
- * The empty state asserts a fact about the service and offers 계정 등록 — after a 500
- * that claim is unfounded and that action is the wrong one, since accounts we simply
- * could not read may already exist. The toast that announced the failure is gone by
- * the time the user reads this, so the recovery has to live here.
+ * The empty slot asserts a fact about the service — after a 500 that claim is
+ * unfounded, since accounts we simply could not read may already exist. The toast
+ * that announced the failure is gone by the time the user reads this, so the
+ * recovery has to live here.
  */
 const InfraRowListError = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
   <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
@@ -105,7 +103,6 @@ export const InfraRowList = ({
   projects,
   error,
   loading,
-  onAddInfra,
   onRetry,
   onOpenDetail,
   onManageAction,
@@ -116,8 +113,8 @@ export const InfraRowList = ({
 
   // Nothing has resolved yet — draw the page's shape rather than an answer about it.
   // Gated on the data, not on `loading`: `loading` is set from an effect, so it is
-  // still false on the first painted frame and this list would flash 등록된 계정이
-  // 없어요 before the request was even in flight.
+  // still false on the first painted frame and this list would flash 등록된 연동
+  // 대상이 없습니다 before the request was even in flight.
   //
   // Server-rendered, deliberately. This used to hide behind a client-mount gate so the
   // server drew nothing, on the theory that an SSR skeleton stalled hydration — that
@@ -139,10 +136,6 @@ export const InfraRowList = ({
   // first load, so it draws the same thing. A centred spinner on a page-sized column
   // said "wait" without saying what for.
   if (loading && projects.length === 0) return <InfraRowListSkeleton />;
-
-  if (projects.length === 0) {
-    return <InfrastructureEmptyState onAddInfra={onAddInfra} />;
-  }
 
   return (
     // Three bands: a fixed heading, a scrolling middle, a fixed pager. Only the
@@ -185,14 +178,34 @@ export const InfraRowList = ({
           which is the bug this replaced. `px-*`/`-mx-*` so a card's focus ring and
           hover edge are not clipped by the scrollport. */}
       <div className="min-h-0 flex-1 overflow-y-auto -mx-1 flex flex-col gap-3.5 px-1 pb-1">
-        {visible.map((project) => (
-          <InfraRow
-            key={project.id}
-            project={project}
-            onManageAction={onManageAction}
-            onOpenDetail={onOpenDetail}
-          />
-        ))}
+        {/* 0건일 때의 말은 카드가 놓일 자리가 맡는다. 목록 전체를 대체하는 카드로 두면
+            (예전 InfrastructureEmptyState) 머리글도 페이저도 함께 사라져, 계정이 하나
+            생기는 순간 화면 구조가 통째로 바뀐다 — 같은 목록의 두 상태가 아니라 서로
+            다른 두 화면처럼 읽혔다.
+
+            점선 한 겹으로만 말한다: 카드가 아니라 카드가 놓일 자리다. 채움용 슬롯을
+            여러 장 깔지 않는 건 이 밴드가 이미 `flex-1` 로 높이를 잡고 있어서다 —
+            운영 콘솔은 3장 고정 페이지라 나머지 슬롯이 높이를 지탱해야 했다. */}
+        {visible.length === 0 ? (
+          <div
+            className={cn(
+              'flex flex-1 items-center justify-center rounded-[12px] border border-dashed px-6 text-center text-[14px]',
+              borderColors.strong,
+              textColors.tertiary,
+            )}
+          >
+            등록된 연동 대상이 없습니다
+          </div>
+        ) : (
+          visible.map((project) => (
+            <InfraRow
+              key={project.id}
+              project={project}
+              onManageAction={onManageAction}
+              onOpenDetail={onOpenDetail}
+            />
+          ))
+        )}
       </div>
 
       {/* Footer band — outside the scrollport, so it is always on screen and always
