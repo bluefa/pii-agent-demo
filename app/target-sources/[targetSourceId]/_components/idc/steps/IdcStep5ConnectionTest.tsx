@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppError } from '@/lib/errors';
 import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
-import { TcSummaryCard } from '@/app/components/features/process-status/TcSummaryCard';
+import { TcSummaryCard, TcSummaryCardSkeleton } from '@/app/components/features/process-status/TcSummaryCard';
 import { TcRejectionNotice } from '@/app/components/features/process-status/TcRejectionNotice';
 import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
@@ -96,7 +96,8 @@ export const IdcStep5ConnectionTest = ({
   // 미설정만 보는 필터. 경고 줄의 링크가 곧 이 값이고, 0건이 되면 함께 풀린다.
   const [credFilterOn, setCredFilterOn] = useState(false);
 
-  const { latestJob, uiState, trigger, triggerError, fetchError } = useTestConnectionPolling(targetSourceId);
+  const { latestJob, uiState, loading, triggering, canRunTest, retry, trigger, triggerError, fetchError } =
+    useTestConnectionPolling(targetSourceId);
   const toast = useToast();
   const logicalModal = useModal<LogicalModalTarget>();
 
@@ -147,6 +148,10 @@ export const IdcStep5ConnectionTest = ({
     [state],
   );
   const testing = uiState === 'PENDING';
+  // 실행 요청이 떠 있는 동안도 잠근다 — `testing` 은 latest_version 이 새 실행을 되돌려준
+  // 뒤에야 켜지므로, 그 왕복 시간만큼 버튼이 "Run Test" 인 채로 살아 있어 두 번째 요청이
+  // 409 를 받았다(클라우드 step 5 와 같은 처리).
+  const busy = testing || triggering;
 
   // Per-resource connection status from the latest poll, keyed by resource_id.
   // The poll streams results as each pipeline settles, so this map is the live
@@ -177,6 +182,8 @@ export const IdcStep5ConnectionTest = ({
   // 아니다 — 경고 줄(미설정 ≥ 1 일 때만 뜬다)로는 설명되지 않으므로 따로 말한다.
   const noTargets = liveResources.length === 0;
   const allCredsSet = !noTargets && missingCount === 0;
+  // 누를 수 있는지는 훅이 한 사실로 답한다(canRunTest) — 클라우드 step 5 와 같은 처리.
+  const runDisabled = !ready || !canRunTest || !allCredsSet;
   // 마지막 하나를 지정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 비고, 그것을 되돌릴
   // 컨트롤도 같이 사라진 뒤다.
   if (credFilterOn && missingCount === 0) setCredFilterOn(false);
@@ -204,13 +211,13 @@ export const IdcStep5ConnectionTest = ({
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const runTest = useCallback(async () => {
-    if (!ready || testing || !allCredsSet) return;
+    if (runDisabled) return;
     // 의도가 아니라 증거로 푼다: trigger 가 실패하면(409 포함) 실행은 시작되지 않았고,
     // 수정된 Credential 은 여전히 검증 전이다 — 게이트를 미리 풀면 옛 실행의
     // completion-status 로 완료 승인이 열린다.
     const started = await trigger();
     if (started) setCredsDirty(false);
-  }, [ready, testing, allCredsSet, trigger]);
+  }, [runDisabled, trigger]);
 
   // 모달의 저장이 PUT 을 쏘고, 성공했을 때만 로컬 값이 바뀐다 — 클라우드 step 5 와 같다.
   const handleCredSubmit = useCallback(
@@ -316,10 +323,10 @@ export const IdcStep5ConnectionTest = ({
             <button
               type="button"
               onClick={runTest}
-              disabled={!ready || testing || !allCredsSet}
+              disabled={runDisabled}
               className={cn(idcStyles.triggerBtn.soft, 'disabled:cursor-not-allowed disabled:opacity-45')}
             >
-              {testing ? (
+              {busy ? (
               '연결 테스트 진행 중...'
             ) : (
               <>
@@ -345,6 +352,9 @@ export const IdcStep5ConnectionTest = ({
                 targetSourceId={targetSourceId}
                 runVersion={latestJob?.test_connection_version ?? null}
               />
+              {loading ? (
+                <TcSummaryCardSkeleton />
+              ) : (
               <TcSummaryCard
                 phase={phase}
                 buckets={buckets}
@@ -369,12 +379,21 @@ export const IdcStep5ConnectionTest = ({
                   </button>
                 }
               />
+              )}
               {triggerError && (
                 <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
               )}
+              {/* 클라우드 step 5 와 같은 출구 — 조회 실패로 잠긴 Run Test 를 되살리는 유일한 길. */}
               {fetchError && (
-                <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+                <p className={cn('flex items-center gap-2 text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
                   {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
+                  <button
+                    type="button"
+                    onClick={() => void retry()}
+                    className={cn(idcStyles.triggerBtn.linkNeutral, 'text-[12px]')}
+                  >
+                    다시 시도
+                  </button>
                 </p>
               )}
             </>

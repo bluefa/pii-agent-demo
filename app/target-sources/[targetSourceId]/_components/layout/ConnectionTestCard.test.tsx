@@ -36,14 +36,21 @@ const triggerMock = vi.fn(async () => true);
 const pollingState: {
   uiState: TestConnectionUIState;
   latestJob: TestConnectionVersionResult | null;
-  /** 첫 latest_version 응답 전 — 그 동안 연결 상태 칸은 판정을 말하지 않는다. */
+  /** 첫 latest_version 응답 전 — 그 동안 연결 상태 칸도 요약 스트립도 판정을 말하지 않는다. */
   loading: boolean;
-} = { uiState: 'IDLE', latestJob: null, loading: false };
+  /** 실행 시작 요청이 떠 있는 동안 — 버튼 라벨이 '진행 중'으로 바뀌는 근거. */
+  triggering: boolean;
+  /** 실행을 시작해도 되는가 — 화면이 보는 단일 사실. */
+  canRunTest: boolean;
+} = { uiState: 'IDLE', latestJob: null, loading: false, triggering: false, canRunTest: true };
 
 const makePolling = (): UseTestConnectionPollingReturn => ({
   latestJob: pollingState.latestJob,
   uiState: pollingState.uiState,
   loading: pollingState.loading,
+  triggering: pollingState.triggering,
+  canRunTest: pollingState.canRunTest,
+  retry: async () => {},
   fetchError: null,
   triggerError: null,
   trigger: triggerMock,
@@ -124,6 +131,8 @@ describe('ConnectionTestCard', () => {
     pollingState.uiState = 'IDLE';
     pollingState.latestJob = null;
     pollingState.loading = false;
+    pollingState.triggering = false;
+    pollingState.canRunTest = true;
     triggerMock.mockReset();
     triggerMock.mockResolvedValue(true);
     updateResourceCredentialMock.mockReset();
@@ -175,8 +184,56 @@ describe('ConnectionTestCard', () => {
     expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(1);
   });
 
+  /**
+   * 표의 칸만 고치고 그 위 요약 스트립을 두면, 더 먼저 읽히는 표면이 여전히 판정을 말한다:
+   * "연결 테스트 대기 중 — Run Test를 실행해 주세요 / 성공 0 · 미보고 1" 이 떴다가 응답이
+   * 오면 "모두 성공"으로 뒤집힌다. 같은 게이트를 두 표면이 함께 써야 고친 것이 된다.
+   */
+  it('does not let the summary strip claim a phase while the first poll is in flight', () => {
+    pollingState.loading = true;
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    expect(screen.queryByText(/Run Test를 실행해 주세요/)).toBeNull();
+    expect(screen.queryByText(/모두 연결에 성공했어요/)).toBeNull();
+    expect(screen.queryByText('미보고')).toBeNull();
+    expect(document.querySelector('[aria-busy="true"] .animate-pulse')).toBeTruthy();
+  });
+
+  /**
+   * `testing` 은 latest_version 이 새 실행을 되돌려준 뒤에야 켜진다. 그 왕복 동안 버튼이
+   * 살아 있으면 두 번째 클릭이 409 를 받아, 사용자가 부른 적 없는 오류 줄이 뜬다.
+   */
+  /**
+   * 첫 latest_version 전에는 `testing` 이 false 지만, 그것은 "돌고 있지 않다"가 아니라
+   * "아직 모른다"이다. 이미 서버에서 도는 실행을 모른 채 버튼을 열어 두면 누르는 순간
+   * 409 를 받는다 — 클릭 이후 창만 막고 이 창을 두면 같은 오류가 그대로 남는다.
+   */
+  it('locks Run Test until the first latest_version answers, without claiming a run is under way', () => {
+    pollingState.loading = true;
+    pollingState.canRunTest = false;
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    const button = screen.getByRole('button', { name: /Run Test/ });
+    expect(button).toHaveProperty('disabled', true);
+    // 라벨은 여전히 Run Test — "진행 중"이라고 적는 것 역시 하지 않은 판단이다.
+    expect(screen.queryByRole('button', { name: /연결 테스트 진행 중/ })).toBeNull();
+  });
+
+  it('locks Run Test while the trigger request is still in flight', () => {
+    pollingState.triggering = true;
+    pollingState.canRunTest = false;
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+
+    const button = screen.getByRole('button', { name: /연결 테스트 진행 중/ });
+    expect(button).toHaveProperty('disabled', true);
+    expect(screen.queryByRole('button', { name: /Run Test/ })).toBeNull();
+  });
+
   it('replaces the skeleton with the verdict once the poll lands', () => {
     pollingState.loading = false;
+    pollingState.triggering = false;
+    pollingState.canRunTest = true;
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     renderCard([makeResource({ credentialId: 'Key1' })]);
 
