@@ -62,7 +62,7 @@ export const ProjectDetail = ({ initialProject, jiraTicket }: ProjectDetailProps
           />
         );
       default:
-        return <ErrorState error="지원하지 않는 클라우드 프로바이더입니다." />;
+        return <ErrorState message="지원하지 않는 클라우드 프로바이더예요." />;
     }
   };
 
