@@ -17,6 +17,15 @@ import {
 interface ServiceHeaderV7Props {
   serviceCode: string;
   serviceName: string;
+  /**
+   * `ServiceItem.is_eos_service`. **명시적으로 `true` 일 때만** EOS 로 그린다.
+   *
+   * `undefined` 는 "아직 못 읽었다 / BFF 가 안 실어 보냈다"이지 "운영 중"이 아니다.
+   * 다만 두 경우 모두 EOS 라고 말할 근거가 없으므로 같은 쪽(운영 중)으로 접는다 —
+   * 생성 스키마가 LOOSE 라(ADR-019) 필드가 빠져도 파싱은 통과하니, 계약이 나가기
+   * 전까지 이 화면은 지금과 똑같이 보인다.
+   */
+  isEosService?: boolean;
   onAddInfra: () => void;
 }
 
@@ -29,6 +38,7 @@ interface ServiceHeaderV7Props {
 export const ServiceHeaderV7 = ({
   serviceCode,
   serviceName,
+  isEosService,
   onAddInfra,
 }: ServiceHeaderV7Props) => (
   <div className={cn('mb-5 pb-5 border-b', borderColors.default)}>
@@ -70,18 +80,16 @@ export const ServiceHeaderV7 = ({
               {serviceCode}
             </span>
           )}
-          {/* ⚠️ 이 뱃지는 계산되지 않는다 — 어떤 서비스든 항상 초록으로 뜬다.
-              이 화면이 서비스에 대해 받는 값은 `/user/services/page` 의 ServiceItem
-              (service_code · service_name) 뿐이고, 운영 여부를 가를 `is_eos_service`
-              는 대상(target)의 service_info 에만 실린다. 배선하려면 계약이 먼저다. */}
+          {/* EOS 는 초록을 쓰지 않는다 — 종료된 서비스가 운영 중과 같은 색을 입으면
+              색이 상태를 말하지 못한다. 회색(중립)은 "끝난 것"의 자리다. */}
           <span
             className={cn(
               'inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-semibold',
-              statusColors.success.bg,
-              statusColors.success.textDark,
+              isEosService === true ? tagStyles.gray : statusColors.success.bg,
+              isEosService === true ? textColors.secondary : statusColors.success.textDark,
             )}
           >
-            운영 중
+            {isEosService === true ? 'EOS' : '운영 중'}
           </span>
         </div>
         {/* 이 화면의 CTA. 페이지에 채워진 버튼은 이것 하나뿐이라 primary 를 써도 다투는

@@ -2,10 +2,18 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
+import { statusColors } from '@/lib/theme';
 import { ServiceHeaderV7 } from '@/app/components/features/admin/v7/ServiceHeaderV7';
 
-const header = (serviceName = '쿠폰·프로모션 발급 정산') =>
-  render(<ServiceHeaderV7 serviceCode="CPN" serviceName={serviceName} onAddInfra={vi.fn()} />);
+const header = (serviceName = '쿠폰·프로모션 발급 정산', isEosService?: boolean) =>
+  render(
+    <ServiceHeaderV7
+      serviceCode="CPN"
+      serviceName={serviceName}
+      isEosService={isEosService}
+      onAddInfra={vi.fn()}
+    />,
+  );
 
 const cta = (root: HTMLElement) =>
   [...root.querySelectorAll('button')].find((b) => b.textContent?.includes('인프라 등록'));
@@ -58,5 +66,54 @@ describe('ServiceHeaderV7', () => {
     const pill = statusPill(container);
     expect(pill?.querySelector('span'), '뱃지 안에 점이 남아 있다').toBeNull();
     expect(pill?.className).not.toContain('gap-1.5');
+  });
+
+  /**
+   * 오너 결정: `is_eos_service` 가 **명시적으로 true** 일 때만 EOS.
+   *
+   * 솔직히 적어 둔다 — 이 세 케이스는 `=== true` 를 truthy 로 완화해도 전부 통과한다
+   * (뮤테이션으로 확인). 라우트가 `PageServiceItem.parse` 를 거치고 `Bool` 이
+   * `z.boolean().nullable()` 이라, 이 prop 에 닿을 수 있는 값은 true/false/null/
+   * undefined 뿐이고 그 넷에서는 두 표현이 같은 결과를 낸다. `=== true` 는 방어가
+   * 아니라 의도의 표기다.
+   *
+   * 그러니 이 테스트가 지키는 것은 "명시적"이라는 낱말이 아니라 **세 상태의 매핑**이다.
+   */
+  describe('EOS 뱃지', () => {
+    const badgeText = (isEos?: boolean) => {
+      const view = header('고객센터 상담 이력', isEos);
+      const text = [...view.container.querySelectorAll('span')]
+        .map((s) => s.textContent?.trim())
+        .find((t) => t === 'EOS' || t === '운영 중');
+      view.unmount();
+      return text;
+    };
+
+    it('true 일 때만 EOS 를 그린다', () => {
+      expect(badgeText(true)).toBe('EOS');
+    });
+
+    it('false 는 운영 중이다', () => {
+      expect(badgeText(false)).toBe('운영 중');
+    });
+
+    it('필드가 없으면(계약 반영 전) 지금 화면 그대로다', () => {
+      expect(badgeText(undefined)).toBe('운영 중');
+    });
+
+    it('EOS 는 운영 중의 초록을 쓰지 않는다', () => {
+      // 색 문자열을 추측하지 않고 토큰으로 비교한다 — success 는 'green' 이라는 낱말을
+      // 쓰지 않는다(bg-[#45CB85]/10).
+      const eos = header('x', true);
+      const eosPill = [...eos.container.querySelectorAll('span')].find(
+        (s) => s.textContent?.trim() === 'EOS',
+      );
+      expect(eosPill?.className).not.toContain(statusColors.success.bg);
+      eos.unmount();
+
+      const live = header('x', false);
+      expect(statusPill(live.container)?.className).toContain(statusColors.success.bg);
+      live.unmount();
+    });
   });
 });

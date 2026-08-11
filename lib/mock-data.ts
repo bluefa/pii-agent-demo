@@ -181,7 +181,14 @@ export const mockServiceCodes: ServiceCode[] = [
   { code: 'SRC', name: '통합 검색 랭킹', description: '검색 도메인 PII Agent 연동' },
   { code: 'ADS', name: '광고 노출 및 정산 리포팅', description: '광고 도메인 PII Agent 연동' },
   { code: 'NTF', name: '알림 발송 허브', description: '알림 도메인 PII Agent 연동' },
-  { code: 'CSC', name: '고객센터 상담 이력', description: 'CS 도메인 PII Agent 연동' },
+  // EOS 표기를 실제로 볼 수 있는 한 건. 나머지는 필드를 아예 두지 않아 "모름"으로
+  // 남는다 — 목이 전부 false 를 실어 보내면 계약이 나가기 전 상태를 재현하지 못한다.
+  {
+    code: 'CSC',
+    name: '고객센터 상담 이력',
+    description: 'CS 도메인 PII Agent 연동',
+    isEosService: true,
+  },
   { code: 'SEL', name: '셀러 정산 및 입점 심사', description: '셀러 도메인 PII Agent 연동' },
   { code: 'PRD', name: '상품 마스터', description: '상품 도메인 PII Agent 연동' },
   { code: 'ORD', name: '주문 접수 및 취소·반품 처리', description: '주문 도메인 PII Agent 연동' },

@@ -81,8 +81,14 @@ export const ServiceManagementView = () => {
   // Keyed to the code it belongs to. Clearing it in an effect instead would still let
   // one render pair the new code with the previous service's name — the effect runs
   // after that paint. Derived at render, the pair can never come apart.
-  const [resolvedName, setResolvedName] = useState<{ code: string; name: string } | null>(null);
-  const selectedName = resolvedName?.code === selectedService ? resolvedName.name : '';
+  // `isEos` 는 3-상태다: true / false / undefined(아직 못 읽었거나 BFF 가 안 실어 보냄).
+  // 헤더가 EOS 를 그리는 조건이 `=== true` 라 세 번째 상태는 자동으로 "EOS 아님" 쪽으로
+  // 접힌다 — 계약이 나가기 전까지는 지금과 같은 화면이라는 뜻이다.
+  const [resolvedName, setResolvedName] = useState<
+    { code: string; name: string; isEos?: boolean } | null
+  >(null);
+  const resolved = resolvedName?.code === selectedService ? resolvedName : null;
+  const selectedName = resolved?.name ?? '';
   const panel = projects?.code === selectedService ? projects : null;
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -146,7 +152,14 @@ export const ServiceManagementView = () => {
       .then((data) => {
         if (cancelled) return;
         const hit = (data.content ?? []).find((s) => s.service_code === selectedService);
-        setResolvedName({ code: selectedService, name: hit?.service_name ?? '' });
+        setResolvedName({
+          code: selectedService,
+          name: hit?.service_name ?? '',
+          // 못 찾았거나 필드가 안 왔으면 undefined 로 남긴다 — `?? false` 로 접으면
+          // "모른다"가 "운영 중"이라는 단정으로 바뀐다. LOOSE 스키마(ADR-019)는
+          // boolean 을 nullable 로 내므로 null 도 같은 "모른다" 칸으로 보낸다.
+          isEos: hit?.is_eos_service ?? undefined,
+        });
       })
       .catch(() => {
         // Name is decoration — the code alone still identifies the service.
@@ -344,6 +357,7 @@ export const ServiceManagementView = () => {
               <ServiceHeaderV7
                 serviceCode={selectedService}
                 serviceName={selectedName}
+                isEosService={resolved?.isEos}
                 onAddInfra={openCreateModal}
               />
 

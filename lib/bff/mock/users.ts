@@ -82,6 +82,9 @@ export const mockUsers = {
       content: content.map((s) => ({
         service_code: s.code,
         service_name: s.name,
+        // 지정된 서비스에만 싣는다. 전부 false 로 채우면, 필드가 아직 안 나가는
+        // 상태(= 계약 반영 전의 실 BFF)를 목이 재현하지 못한다.
+        ...(s.isEosService === undefined ? {} : { is_eos_service: s.isEosService }),
       })),
       totalElements,
       totalPages,

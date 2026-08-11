@@ -427,7 +427,11 @@ const UserSearchResponse = z
   .object({ users: z.array(UserInfo).nullable() })
   .partial().passthrough();
 const ServiceItem = z
-  .object({ service_code: Str, service_name: Str })
+  .object({
+    service_code: Str,
+    service_name: Str,
+    is_eos_service: Bool,
+  })
   .partial().passthrough();
 const SortObject = z
   .object({
