@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { PipelineStatus, PipelineSummary } from '@/lib/pipeline/types';
 import {
+  BUCKET_STATUSES,
   DASH_PAGE_SIZE,
+  bucketCounts,
   buildStatsDesc,
   filterBySearch,
+  filterByBucket,
   paginate,
   projectRows,
 } from '@/app/admin/pipelines/_dashboard/logic';
@@ -64,14 +67,61 @@ describe('projectRows', () => {
   });
 });
 
-describe('paginate', () => {
-  const rows = Array.from({ length: 12 }, (_, i) => row(i, 'DONE', 't'));
+describe('buckets', () => {
+  const ALL_STATUSES: PipelineStatus[] = ['PENDING', 'RUNNING', 'DONE', 'FAILED', 'CANCELLED'];
 
-  it('slices 5/page and reports pages', () => {
+  it('partitions every PipelineStatus into exactly one bucket', () => {
+    // The tiles only add up to 전체 if this holds — a new status left out here
+    // would vanish from the three named tiles while still counting in the total.
+    for (const status of ALL_STATUSES) {
+      const holders = Object.values(BUCKET_STATUSES).filter((set) => set.includes(status));
+      expect(holders, `${status} must live in exactly one bucket`).toHaveLength(1);
+    }
+  });
+
+  it('filters rows to the clicked bucket, and passes through for 전체', () => {
+    const rows = ALL_STATUSES.map((s, i) => row(i, s, String(i)));
+    expect(filterByBucket(rows, 'attention').map((r) => r.status)).toEqual(['FAILED']);
+    expect(filterByBucket(rows, 'active').map((r) => r.status)).toEqual(['PENDING', 'RUNNING']);
+    expect(filterByBucket(rows, 'closed').map((r) => r.status)).toEqual(['DONE', 'CANCELLED']);
+    expect(filterByBucket(rows, 'all')).toHaveLength(5);
+  });
+
+  it('counts the three named buckets so they sum to 전체', () => {
+    const counts = bucketCounts({
+      period: '7d',
+      since: '2026-08-03T00:00:00Z',
+      pending_count: 1,
+      running_count: 3,
+      failed_count: 2,
+      done_count: 126,
+      cancelled_count: 2,
+      total_count: 134,
+    });
+    expect(counts).toEqual({ attention: 2, active: 4, closed: 128, all: 134 });
+    expect(counts.attention! + counts.active! + counts.closed!).toBe(counts.all);
+  });
+
+  it('reports null (not 0) before the counts arrive — 0 would read as good news', () => {
+    expect(bucketCounts(null)).toEqual({
+      attention: null,
+      active: null,
+      closed: null,
+      all: null,
+    });
+  });
+});
+
+describe('paginate', () => {
+  // Two full pages plus a partial one, expressed via the constant so the shape
+  // under test (3 pages, last one short) survives a page-size change.
+  const rows = Array.from({ length: DASH_PAGE_SIZE * 2 + 2 }, (_, i) => row(i, 'DONE', 't'));
+
+  it('slices DASH_PAGE_SIZE per page and reports pages', () => {
     const p1 = paginate(rows, 1);
     expect(p1.slice).toHaveLength(DASH_PAGE_SIZE);
     expect(p1.pages).toBe(3);
-    expect(p1.total).toBe(12);
+    expect(p1.total).toBe(rows.length);
   });
 
   it('clamps an out-of-range page into [1,pages]', () => {

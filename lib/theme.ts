@@ -1865,13 +1865,6 @@ const pipelineText = {
   metaGroupLabel: 'text-[12px] font-semibold text-[var(--pl-text-faint)]',
   /** stat tile label — 12 / 400 / weak. */
   statLabel: 'text-[12px] font-normal text-[var(--pl-text-weak)]',
-  /** stat tile main label (Figma Make) — 16 / 600 / medium, below the badge. */
-  statLabelMain: 'text-[16px] font-semibold leading-[1.2] text-[var(--pl-text-medium)]',
-  /** stat tile value (Figma Make) — 48 / 700 / tabular. */
-  statValue: 'text-[48px] font-bold leading-[1.1] tabular-nums',
-  statValueDefault: 'text-[var(--pl-text-strong)]',
-  /** stat value error tint (failed count > 0) — Figma Make red-500. */
-  statValueError: 'text-[var(--pl-err)]',
   /** stat value denominator — 20 / 500 / faint. */
   statDen: 'text-[20px] font-medium text-[var(--pl-text-faint)]',
   /** status-bar current label — 14 / 600 / medium. */
@@ -2003,10 +1996,6 @@ export const pipelineStyles = {
 
   /** KPI card period badge (Figma Make redesign) — neutral rounded-md chip with
    *  a hairline border, above the label ("현재" / "최근 24시간"). */
-  statBadge: {
-    base: 'inline-flex items-center rounded-md border border-[var(--pl-border)] bg-[var(--pl-gray-100)] px-2 py-0.5 text-[11px] font-medium text-[var(--pl-text-weak)]',
-  },
-
   /** Section header (title 64/0/12 margins; desc R22.5: 16 below title — the
    *  R18 8px read cramped to the owner — 16 above content). mt-4 vs the
    *  title's mb-3 collapses to 16px (block siblings). */
@@ -2114,6 +2103,24 @@ export const pipelineStyles = {
     fillErr: 'bg-[var(--pl-err)]',
     fillOff: 'bg-[var(--pl-gray-400)]',
     label: 'text-[12px] font-semibold text-[var(--pl-text-weak)] tabular-nums',
+
+    /* Segmented variant (PipelineStepStrip) — same 110px width, cut into one span
+       per task.
+
+       This strip is the ONE place the monochrome ramp above does not apply
+       (owner: "완료된건 초록색, 현재 진행중인건 파란색"). The ramp works because a row
+       carries exactly ONE status, so weight can separate it from its neighbours
+       in other rows. A segment strip carries several statuses at once — finished,
+       running and untouched steps sit side by side inside 110px — and three
+       neighbouring 12px blocks cannot be told apart by weight alone. Hue is doing
+       work here that it was not doing on the pills. */
+    stripWrap: 'inline-block',
+    strip: 'flex gap-[2px] w-[110px]',
+    stripSeg: 'h-1.5 flex-1 rounded-[2px]',
+    stripOk: 'bg-[var(--pl-ok)]',
+    stripActive: 'bg-[var(--pl-info)]',
+    stripRest: 'bg-[var(--pl-gray-200)]',
+    stripCaption: 'mt-1 block text-[11px] text-[var(--pl-text-faint)] tabular-nums',
   },
 
   /** KindChip — mono 12/600 h20 pad 0 6, NO base border; cond = dashed gray-300.
@@ -2275,58 +2282,145 @@ export const pipelineStyles = {
   },
 
   /**
-   * Dashboard list (Figma Make redesign, page.tsx-exclusive). A self-contained
-   * token set so the shared StatusPill / PipelineProgressBar / ProvTag / PlTable
-   * (used by the detail pages) stay untouched. Cells: #id chip, dot+text status,
-   * gray progress, plain cloud text, relative-time cell with hover tooltip, and
-   * a hover-reveal dark action button.
+   * Dashboard list (page.tsx-exclusive) — the summary tiles, the list card and
+   * the parts of a row this screen draws differently from the detail pages.
+   *
+   * This used to be a self-contained set that avoided the shared components on
+   * purpose, which is how a FAILED row here came to look like a running one.
+   * The row now wears the section's ProvTag / PipelineTypeTag / step strip; what
+   * is still local is what the owner asked to differ — status as bare coloured
+   * text rather than a pill — plus the chrome only this screen has.
    */
   dashboard: {
-    /** KPI grid — 4 equal columns, then a gap before the list card. */
-    kpiGrid: 'grid grid-cols-4 gap-4 mb-8',
-    /** KPI card inner column — centered badge → label → value. */
-    kpiCard: 'flex flex-col items-center text-center gap-3',
+    /**
+     * Summary buckets — the tiles ARE the filter, so they wear the section's
+     * selectable-tile grammar from 운영 알림 (`AlertsView` summary*): the border
+     * is present even when idle so selecting one never resizes it, and idle vs
+     * active colours are chosen EXCLUSIVELY (cn is a plain join — put both on and
+     * Tailwind's output order decides the winner, which is how a hover once ate
+     * the brand stroke on that screen).
+     *
+     * Left-aligned rather than centred: the four values have different digit
+     * counts (3 · 4 · 128 · 137), and centring makes them start at four different
+     * x positions, so the row of numbers cannot be read as a column.
+     */
+    bucketGrid: 'grid grid-cols-4 gap-3 mb-6',
+    bucketTile:
+      'flex items-center justify-between gap-3 rounded-[8px] border px-4 py-3.5 text-left transition-colors',
+    bucketTileIdle:
+      'border-transparent bg-[var(--pl-gray-100)] hover:border-[var(--pl-gray-300)] hover:bg-[var(--pl-gray-200)]',
+    /** Selection is a brand stroke; severity is the value's colour. Two signals, two channels. */
+    bucketTileActive: 'border-[var(--pl-primary)] bg-[var(--pl-bg-card)]',
+    /** 전체 is not a bucket, it is "no filter" — an outline rather than a fill. */
+    bucketTileAllIdle:
+      'border-dashed border-[var(--pl-gray-300)] bg-transparent hover:bg-[var(--pl-gray-100)]',
+    bucketLabel: 'text-[14px] font-semibold leading-[1.3]',
+    bucketValue:
+      'mt-1 block text-[32px] font-semibold leading-[1.2] tracking-[-0.02em] tabular-nums',
+    /** The mark wears no container — 운영 알림 카드 grammar (`AlertStageCard` bare 20px Icon).
+     *  A tile behind it would read as a second, smaller button inside the tile. */
+    bucketMark: 'flex-none',
+    /** Tones: 확인 필요 is the one bucket that is bad news; 전체 is the quiet one. */
+    bucketToneDefault: 'text-[var(--pl-text-medium)]',
+    bucketValueDefault: 'text-[var(--pl-text-strong)]',
+    bucketToneAlert: 'text-[var(--pl-err-text)]',
+    bucketToneMuted: 'text-[var(--pl-text-weak)]',
+    bucketMarkMuted: 'text-[var(--pl-text-faint)]',
+    /** 진행 중 / 종료 marks, in the same blue and green the rows under them use —
+     *  NOT `--pl-primary`, which on these tiles already means "this one is selected". */
+    bucketMarkActive: 'text-[var(--pl-info-text)]',
+    bucketMarkOk: 'text-[var(--pl-ok-text)]',
     /** Page header row (title + period selector). */
     headerRow: 'flex items-center justify-between mb-6',
-
-    /** List-card header (title + timestamp), first row inside the flush card. */
-    listBar: 'flex items-center justify-between px-5 py-4 border-b border-[var(--pl-gray-100)]',
-    listStamp: 'inline-flex items-center gap-1 text-[12px] text-[var(--pl-text-faint)]',
 
     /** Filter bar inside the card — tinted, bordered, h9 controls. */
     filterBar: 'flex items-center gap-2 px-5 py-3 border-b border-[var(--pl-gray-100)] bg-[var(--pl-gray-50)]',
     /** Search wrapper — flex-1 up to a max width (SearchBox adds `relative`). */
     searchWrap: 'flex-1 max-w-xs',
+    /** The filter trigger rides the bar's right edge — `ResourceToolbar` grammar. */
+    filterTrigger: 'ml-auto flex items-center',
     /** Removable-filter chips row inside the card (only rendered when a filter is on). */
     chipsWrap: 'px-5',
 
     /** Table chrome. */
     table: 'w-full',
-    headRow: 'border-b border-[var(--pl-gray-100)]',
-    th: 'px-5 py-3 text-left whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.05em] text-[var(--pl-text-faint)]',
+    /**
+     * Column labels — the section's shared header grammar (`pipelineStyles.table.th`:
+     * h34, 12/600 uppercase, tracking .03em, text-weak on gray-50 with a border-b).
+     * Only the horizontal padding differs: px-5, because this table's cells are px-5
+     * and a th on the shared px-3 would sit a column off from the values it labels.
+     * The tinted band carries the header's own bottom border, so the row-level
+     * `headRow` border it used to need is gone.
+     */
+    th: 'h-[34px] px-5 text-left whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.03em] text-[var(--pl-text-weak)] bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)]',
+    /** The header band alone, for a column that carries no label (the rail). */
+    thBand: 'bg-[var(--pl-gray-50)] border-b border-[var(--pl-border)]',
     body: 'divide-y divide-[var(--pl-gray-100)]',
-    row: 'group cursor-pointer transition-colors hover:bg-[var(--pl-gray-50)]',
+    /** Hover on gray-100, not gray-50: the card is white and gray-50 (#F9FAFB) sits
+     *  1.03:1 from it, so the row highlight was there in the DOM and invisible on
+     *  screen. gray-100 (#F2F4F7) is the same surface the filter bar already uses. */
+    row: 'group cursor-pointer transition-colors hover:bg-[var(--pl-gray-100)]',
     cell: 'px-5 py-3.5 align-middle',
 
-    /** 서비스 이름/코드/대상 — separate columns (이름 ≤20자, 코드 3자). */
-    serviceName: 'block max-w-[28ch] truncate text-[14px] font-semibold text-[var(--pl-text-strong)]',
-    serviceCode:
-      'whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
-    /** Same weight/colour as 서비스 코드 — it is a row value, not a footnote. */
-    targetId:
-      'whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
-    /** Cloud — plain medium text (no brand dot). */
-    cloudText: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
-    /** Pipeline type — icon + text. */
-    typeCell: 'inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--pl-text-medium)]',
+    /**
+     * Row identity — ONE column, two lines: the service name, then the chips that
+     * say which target it is. As four columns (이름 · 코드 · Target · Cloud) the
+     * three answers to "which one is this" sat more than 300px apart at 1600px,
+     * so reading one row meant reassembling it from three places.
+     *
+     * Line geometry is the section's 2-line stack (`tqStyles.stepStack`): gap 3px,
+     * the second line a 12/600 r6 chip on gray-100. No baseline lift here — every
+     * row in this column is two lines, so there is no single-line sibling to align
+     * against (that is what `stackedIdentityLift` exists for, in a table that mixes
+     * both).
+     */
+    identity: 'flex flex-col items-start gap-[3px]',
+    identityName: 'block max-w-[34ch] truncate text-[14px] font-semibold text-[var(--pl-text-strong)]',
+    identityMeta: 'flex items-center gap-2',
+    identityCode:
+      'inline-flex items-center rounded-md px-2 py-0.5 text-[12px] font-semibold bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]',
+    /**
+     * Target Source 번호 — 평소엔 중립, **행에 커서가 올라갔을 때만** 링크색으로 (오너).
+     * `group-hover` 이지 `hover` 가 아니다: 열리는 건 행 전체이므로 행 어디에 커서가
+     * 있든 이 번호가 반응해야 "지금 열리는 게 이것"이라고 말한다. 12px 번호 위에서만
+     * 반응하면 그 좁은 폭에 커서를 올린 사람만 응답을 본다.
+     *
+     * `--pl-info-text` 는 hover 표면(gray-100) 위 5.43:1, 평소의 weak 는 흰 배경
+     * 4.97:1 — 두 상태 다 4.5:1 위. 원색 `--pl-info` 는 3:1 대라 12px 로는 못 쓴다.
+     */
+    identityTarget:
+      'whitespace-nowrap text-[12px] font-medium text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)] transition-colors group-hover:text-[var(--pl-info-text)]',
 
+    /**
+     * Status as bare text, no chip (owner: "상태는 그냥 태그없이 텍스트로만 표현하고
+     * 텍스트 색상만 남겨"). The pill's fill, border and icon all existed to make one
+     * word legible inside a busy row; here the word sits alone in its own column,
+     * so that chrome was carrying nothing the column did not already say.
+     *
+     * Hues match the step strip beside it — DONE green, RUNNING blue — but on the
+     * `-text` ramp: the raw signal colours are mixed for fills and drop under
+     * 4.5:1 as 13px text on white.
+     */
+    statusText: 'text-[13px] font-semibold tracking-[0.02em]',
+    statusTextTone: {
+      PENDING: 'text-[var(--pl-text-weak)]',
+      RUNNING: 'text-[var(--pl-info-text)]',
+      IN_PROGRESS: 'text-[var(--pl-info-text)]',
+      READY: 'text-[var(--pl-text-weak)]',
+      DONE: 'text-[var(--pl-ok-text)]',
+      FAILED: 'text-[var(--pl-err-text)]',
+      CANCELLED: 'text-[var(--pl-off-text)]',
+      BLOCKED: 'text-[var(--pl-off-text)]',
+    } as Record<PipelineStatusToneKey, string>,
 
-    /** Progress — gray track + gray fill + N/M count. The fill is `block` so its
-     *  `h-full` resolves against the track height (an inline span would collapse). */
-    progressWrap: 'flex items-center gap-2 min-w-[120px]',
-    progressTrack: 'block flex-1 h-1 rounded-full bg-[var(--pl-gray-100)] overflow-hidden',
-    progressFill: 'block h-full rounded-full bg-[var(--pl-gray-400)] transition-all duration-500',
-    progressCount: 'text-[12px] text-[var(--pl-text-faint)] tabular-nums whitespace-nowrap',
+    /**
+     * Status rail — 3px at the row's leading edge. ONLY FAILED paints it. Failure
+     * is the one state worth finding without reading, and the row's own edge is
+     * where a scan hits first — its red used to be one 68px pill stranded in the
+     * middle of a 1400px row.
+     */
+    railCell: 'w-[3px] p-0',
+    railErr: 'bg-[var(--pl-err)]',
 
     /** Relative-time cell + hover tooltip (named group so only the cell triggers it). */
     timeWrap: 'group/time relative inline-block',
@@ -2336,14 +2430,28 @@ export const pipelineStyles = {
 
     /** Row action — hover-reveal dark button (row hover via the unnamed group). */
     actionCell: 'px-5 py-3.5 text-right',
+    /** w-8 not w-7: the glyph inside went 14 → 18px (오너), and a 28px button around
+     *  it left 5px of padding — the mark stopped reading as sitting IN a button. */
     action:
-      'inline-flex items-center justify-center w-7 h-7 rounded-lg text-[var(--pl-gray-300)] transition-all group-hover:bg-[var(--pl-gray-900)] group-hover:text-[var(--pl-white)] group-hover:shadow-[var(--pl-shadow-xs)]',
+      'inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--pl-gray-300)] transition-all group-hover:bg-[var(--pl-gray-900)] group-hover:text-[var(--pl-white)] group-hover:shadow-[var(--pl-shadow-xs)]',
 
-    /** Pagination — centered icon buttons + count. */
-    pager: 'flex items-center justify-center gap-2 px-5 py-3.5 border-t border-[var(--pl-gray-100)]',
+    /**
+     * Pagination — centred, and nothing but the pager. The row tally and the
+     * rule above it are gone (오너); the last row's own bottom border is already
+     * the edge the rule was drawing a second time.
+     *
+     * `relative` is load-bearing: the fetch-window notice is absolutely placed
+     * so that the pager stays centred on the CARD, not on what is left beside it.
+     */
+    pager: 'relative flex items-center justify-center gap-2 px-5 py-3.5',
+    /** Fetch-window notice — only rendered when rows were actually left behind. */
+    pagerTruncated:
+      'absolute left-5 top-1/2 -translate-y-1/2 text-[14px] text-[var(--pl-text-faint)]',
     pagerBtn:
-      'inline-flex items-center justify-center w-7 h-7 rounded-lg text-[var(--pl-text-faint)] transition-colors hover:text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-100)] disabled:opacity-40 disabled:pointer-events-none',
+      'inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--pl-text-faint)] transition-colors hover:text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-100)] disabled:opacity-40 disabled:pointer-events-none',
     pagerCount: 'text-[14px] text-[var(--pl-text-weak)] tabular-nums',
+    /** The page you are on, in brand — the only moving number in the row. */
+    pagerCurrent: 'font-semibold text-[var(--pl-primary)]',
 
     /** No-results empty state inside the card. */
     empty: 'px-5 py-12 text-center text-[14px] text-[var(--pl-text-faint)]',

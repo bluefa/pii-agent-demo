@@ -4,13 +4,16 @@
  * Admin Pipeline dashboard (LIN-25 Phase C1-a) — /pass/admin/pipelines.
  *
  * Data strategy (docs/api/pipeline-orchestrator-bff.md §2.1): period/status/
- * provider/type filter server-side; the search-box substring search and 5/page
- * pagination run CLIENT-side over the fetched window (size=200). Row ORDER
- * always follows the API response verbatim — no client re-sort. Stats come
- * from statistics/live (동작 중 · 현재) + statistics?period (실패/성공 · 기간).
- * Visual language: Figma Make redesign (dashboard-local `dashboard.*` tokens +
- * `_dashboard/cells`; the shared pill/table/progress components stay on the
- * detail pages untouched).
+ * provider/type filter server-side; the search-box substring search and the
+ * pagination run CLIENT-side over the fetched window (size=200). That window is
+ * a real ceiling, so the pager says so — but only when rows were actually left
+ * behind.
+ * Row ORDER always follows the API response verbatim — no client re-sort. Every
+ * count on the page reads the SAME period as the list, which is what lets a
+ * summary tile double as its own filter.
+ * Visual language: docs/ux/benchmark/pipelines-dashboard.md. The row wears the
+ * section's shared parts (ProvTag / PipelineTypeTag / step strip); what is local
+ * is what the owner asked to differ, and it is written down in that file.
  */
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -19,15 +22,10 @@ import type { ReactElement, ReactNode } from 'react';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
-import {
-  OrchestratorApiError,
-  getLiveStatistics,
-  getPipelineStatistics,
-  listPipelines,
-} from '@/app/lib/api/pipeline';
+import { providerLabel } from '@/lib/pipeline/format';
+import { OrchestratorApiError, getPipelineStatistics, listPipelines } from '@/app/lib/api/pipeline';
 import type {
   CloudProvider,
-  LivePipelineStatistics,
   PipelineStatistics,
   PipelineStatus,
   PipelineSummary,
@@ -36,64 +34,111 @@ import type {
   StatisticsPeriodToken,
 } from '@/lib/pipeline/types';
 
-import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
 import { Card } from '@/app/admin/pipelines/_components/Card';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
-import { PlSelect } from '@/app/admin/pipelines/_components/PlSelect';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+// The list's three conditions live behind one trigger, as in step 1's resource
+// table. This is the section's own --pl-* copy of that menu (see its comment).
+import { FilterMenu } from '@/app/admin/pipelines/queue/requests/_components/ResourceFilterBar';
 import {
-  CloudText,
   DashRow,
-  GrayProgress,
   RelativeTime,
   RowAction,
-  ServiceCodeCell,
-  ServiceNameCell,
-  TargetIdCell,
-  TypeCell,
+  StatusRail,
+  StatusText,
+  TargetCell,
 } from '@/app/admin/pipelines/_dashboard/cells';
-// Owner call: the dashboard status uses the SAME tag as the target detail page,
-// not a dashboard-local dot+text variant.
-import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
+import { PipelineTypeTag } from '@/app/admin/pipelines/_components/PipelineTypeTag';
+import { PipelineStepStrip } from '@/app/admin/pipelines/_components/PipelineStepStrip';
 
 import {
   DASH_FETCH_SIZE,
-  PERIOD_LABELS,
   PERIOD_OPTIONS,
-  PROVIDER_OPTIONS,
-  STATUS_OPTIONS,
-  TYPE_OPTIONS,
+  PROVIDER_FILTERS,
+  STATUS_FILTERS,
+  TYPE_FILTERS,
+  bucketCounts,
   paginate,
   projectRows,
+  type DashBucket,
 } from '@/app/admin/pipelines/_dashboard/logic';
 import { FilterChips } from '@/app/admin/pipelines/_dashboard/FilterChips';
 
-/** KPI stat tile (Figma Make redesign) — centered badge → label → value.
- *  The badge is always neutral; its text ("현재" / "최근 24시간") carries the
- *  period meaning. */
-function StatTile({
-  labelMain,
-  labelPeriod,
+/** One summary bucket. The whole tile is the hit area — it is a filter, not a
+ *  read-out — which is why the mark inside carries no container of its own. */
+function BucketTile({
+  label,
   value,
-  error,
+  icon,
+  tone,
+  active,
+  onSelect,
 }: {
-  labelMain: string;
-  labelPeriod: string;
+  label: string;
   value: ReactNode;
-  error?: boolean;
+  icon: IconName;
+  /** `alert` = 확인 필요 (bad news), `running` / `done` = 진행 중 · 종료 (mark
+   *  colour only), `muted` = 전체 (not a bucket, no filter). */
+  tone?: 'alert' | 'running' | 'done' | 'muted';
+  active: boolean;
+  onSelect: () => void;
 }): ReactElement {
-  const { card, dashboard, text, statBadge } = pipelineStyles;
+  const d = pipelineStyles.dashboard;
+  const textTone =
+    tone === 'alert' ? d.bucketToneAlert : tone === 'muted' ? d.bucketToneMuted : d.bucketToneDefault;
+  const valueTone =
+    tone === 'alert' ? d.bucketToneAlert : tone === 'muted' ? d.bucketToneDefault : d.bucketValueDefault;
+  // 진행 중 · 종료 colour the MARK only — a blue or green label and value would
+  // make those buckets read as loud as 확인 필요, which is the one that is.
+  const markTone =
+    tone === 'alert'
+      ? d.bucketToneAlert
+      : tone === 'running'
+        ? d.bucketMarkActive
+        : tone === 'done'
+          ? d.bucketMarkOk
+          : tone === 'muted'
+            ? d.bucketMarkMuted
+            : d.bucketToneDefault;
   return (
-    <div className={cn(card.stat, dashboard.kpiCard)}>
-      <span className={statBadge.base}>{labelPeriod}</span>
-      <div className={text.statLabelMain}>{labelMain}</div>
-      <div className={cn(text.statValue, error ? text.statValueError : text.statValueDefault)}>
-        {value}
-      </div>
-    </div>
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onSelect}
+      className={cn(
+        d.bucketTile,
+        // Exclusive, never merged — see the token comment.
+        active ? d.bucketTileActive : tone === 'muted' ? d.bucketTileAllIdle : d.bucketTileIdle,
+      )}
+    >
+      <span>
+        <span className={cn(d.bucketLabel, textTone)}>{label}</span>
+        <b className={cn(d.bucketValue, valueTone)}>{value}</b>
+      </span>
+      <Icon name={icon} size={24} className={cn(d.bucketMark, markTone)} />
+    </button>
   );
 }
+
+/**
+ * The four tiles, in scan order: what needs you, what is moving, what is over,
+ * and the way back out. Marks come from the section's own icon set in the role
+ * each glyph already plays there — `loader` is the arc StatusPill spins on
+ * RUNNING, so a tile and the rows under it say "진행 중" with the same shape.
+ */
+const BUCKETS: ReadonlyArray<{
+  key: DashBucket;
+  label: string;
+  icon: IconName;
+  tone?: 'alert' | 'running' | 'done' | 'muted';
+}> = [
+  { key: 'attention', label: '확인 필요', icon: 'warn-tri', tone: 'alert' },
+  { key: 'active', label: '진행 중', icon: 'loader', tone: 'running' },
+  { key: 'closed', label: '종료', icon: 'check-circle', tone: 'done' },
+  { key: 'all', label: '전체', icon: 'table', tone: 'muted' },
+];
 
 const errorMessage = (err: unknown): string =>
   err instanceof OrchestratorApiError || err instanceof Error ? err.message : String(err);
@@ -102,14 +147,17 @@ export default function DashboardPage(): ReactElement {
   const router = useRouter();
   const d = pipelineStyles.dashboard;
 
-  const [period, setPeriod] = useState<StatisticsPeriodToken>('1d');
+  // 7일 default: 24시간 answered "what happened today", but the page is opened to
+  // find work that is still waiting, and a job stalled since yesterday fell out
+  // of a 24-hour window while still being the thing worth looking at.
+  const [period, setPeriod] = useState<StatisticsPeriodToken>('7d');
+  const [bucket, setBucket] = useState<DashBucket>('all');
   const [status, setStatus] = useState<'' | PipelineStatus>('');
   const [provider, setProvider] = useState<string>('');
   const [type, setType] = useState<'' | PipelineType>('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
 
-  const [live, setLive] = useState<LivePipelineStatistics | null>(null);
   const [periodStats, setPeriodStats] = useState<PipelineStatistics | null>(null);
 
   const [pageData, setPageData] = useState<SpringPage<PipelineSummary> | null>(null);
@@ -117,20 +165,20 @@ export default function DashboardPage(): ReactElement {
   const [listError, setListError] = useState<unknown>(null);
   const [retryNonce, setRetryNonce] = useState(0);
 
-  // Stats effect — refetch live + period statistics whenever the period changes.
+  // Stats effect — the bucket counts, refetched whenever the period changes.
   // `signal.aborted` guards against out-of-order resolution on rapid toggles.
+  // The live (현재 순간값) endpoint is gone: every tile now counts the SAME
+  // period as the list under it, which is what lets a tile double as its filter.
   useAbortableEffect(
     (signal) => {
-      setLive(null);
       setPeriodStats(null);
-      return Promise.all([getLiveStatistics(), getPipelineStatistics(period)])
-        .then(([liveStats, stats]) => {
+      return getPipelineStatistics(period)
+        .then((stats) => {
           if (signal.aborted) return;
-          setLive(liveStats);
           setPeriodStats(stats);
         })
         .catch(() => {
-          // Stats degrade to '—'; the list region owns the visible error surface.
+          // Counts degrade to '—'; the list region owns the visible error surface.
         });
     },
     [period],
@@ -166,7 +214,10 @@ export default function DashboardPage(): ReactElement {
     [period, status, provider, type, retryNonce],
   );
 
-  const projected = useMemo(() => projectRows(pageData?.content ?? [], q), [pageData, q]);
+  const projected = useMemo(
+    () => projectRows(pageData?.content ?? [], q, bucket),
+    [pageData, q, bucket],
+  );
   const { pages, current, slice } = useMemo(() => paginate(projected, page), [projected, page]);
 
   // Any filter change resets to page 1 (design: filter change → page 1).
@@ -176,18 +227,38 @@ export default function DashboardPage(): ReactElement {
   // reruns and clears listLoading, so setting it true here matches the seg/
   // select pattern. q is a pure client derivation (NOT a dep) → never touch
   // listLoading for it, or the loading state would stick with no refetch.
-  const clearStatus = () => {
-    setStatus('');
+  // Bucket and the 상태 select are the SAME axis, so only one may be on: picking
+  // 확인 필요 while the select says DONE would ask for rows that cannot exist.
+  // Whichever the operator touched last wins, and the other resets.
+  const selectBucket = (next: DashBucket) => {
+    setBucket((prev) => (prev === next ? 'all' : next));
+    resetPage();
+    if (status) {
+      setStatus('');
+      setListLoading(true); // status is a fetch dep — clearing it refetches
+    }
+  };
+
+  // One setter per server-side filter, shared by the filter menu and the chip ×
+  // ('' is just another value there). The same-value guard matters for the menu:
+  // it fires on every option click, and re-picking the current one would flip
+  // listLoading true while the effect (keyed on the value) never reruns.
+  const applyStatus = (next: string) => {
+    if (next === status) return;
+    setStatus(next as '' | PipelineStatus);
+    if (next) setBucket('all'); // same axis as the tiles — see selectBucket
     resetPage();
     setListLoading(true);
   };
-  const clearProvider = () => {
-    setProvider('');
+  const applyProvider = (next: string) => {
+    if (next === provider) return;
+    setProvider(next);
     resetPage();
     setListLoading(true);
   };
-  const clearType = () => {
-    setType('');
+  const applyType = (next: string) => {
+    if (next === type) return;
+    setType(next as '' | PipelineType);
     resetPage();
     setListLoading(true);
   };
@@ -201,21 +272,40 @@ export default function DashboardPage(): ReactElement {
     setProvider('');
     setType('');
     setQ('');
+    setBucket('all');
     resetPage();
     if (serverFilterActive) setListLoading(true); // only refetch-triggering changes show loading
   };
 
-  const runningValue = live ? live.running_pipeline_count : '—';
-  const pendingValue = live ? live.pending_pipeline_count : '—';
-  const failedCount = periodStats?.failed_count;
-  const doneValue = periodStats ? periodStats.done_count : '—';
-  const plabel = PERIOD_LABELS[period];
+  const counts = useMemo(() => bucketCounts(periodStats), [periodStats]);
+
+  // Three conditions behind one trigger — step 1's list grammar. Open, they are
+  // the same three choices; closed, the bar is a search box, and what is actually
+  // set is said once, by the chip row, instead of by three selects reading 전체.
+  const filterGroups = [
+    { key: 'status', label: '상태', value: status, onChange: applyStatus, options: STATUS_FILTERS },
+    {
+      key: 'provider',
+      label: 'Cloud',
+      value: provider,
+      onChange: applyProvider,
+      options: PROVIDER_FILTERS,
+      formatOption: providerLabel,
+    },
+    { key: 'type', label: '작업 유형', value: type, onChange: applyType, options: TYPE_FILTERS },
+  ];
   const hasFilter = Boolean(status) || Boolean(provider) || Boolean(type) || Boolean(q.trim());
+
+  // The list is ONE fetch of at most DASH_FETCH_SIZE rows, so search and paging
+  // only ever see that window. Compare against what actually arrived rather than
+  // against the constant: if the server ever returns fewer, nothing was cut.
+  const fetchedTotal = pageData?.totalElements ?? 0;
+  const truncated = pageData != null && pageData.content.length < fetchedTotal;
 
   return (
     <div>
       <div className={d.headerRow}>
-        <h1 className={pipelineStyles.text.dashboardPageTitle}>Dashboard</h1>
+        <h1 className={pipelineStyles.text.dashboardPageTitle}>인프라 작업 대시보드</h1>
         <SegControl
           options={PERIOD_OPTIONS}
           value={period}
@@ -232,27 +322,21 @@ export default function DashboardPage(): ReactElement {
         />
       </div>
 
-      <div className={d.kpiGrid}>
-        <StatTile labelMain="동작 중 작업" labelPeriod="현재" value={runningValue} />
-        <StatTile labelMain="대기 중 작업" labelPeriod="현재" value={pendingValue} />
-        <StatTile
-          labelMain="실패"
-          labelPeriod={plabel}
-          value={failedCount ?? '—'}
-          error={(failedCount ?? 0) > 0}
-        />
-        <StatTile labelMain="성공" labelPeriod={plabel} value={doneValue} />
+      <div className={d.bucketGrid}>
+        {BUCKETS.map((b) => (
+          <BucketTile
+            key={b.key}
+            label={b.label}
+            value={counts[b.key] ?? '—'}
+            icon={b.icon}
+            tone={b.tone}
+            active={bucket === b.key}
+            onSelect={() => selectBucket(b.key)}
+          />
+        ))}
       </div>
 
       <Card variant="flush">
-        <div className={d.listBar}>
-          <h2 className={pipelineStyles.text.dashboardListTitle}>작업 목록</h2>
-          <span className={d.listStamp}>
-            <Icon name="clock" size="sm" />
-            {plabel}
-          </span>
-        </div>
-
         <div className={d.filterBar}>
           <SearchBox
             lg
@@ -265,60 +349,9 @@ export default function DashboardPage(): ReactElement {
             }}
             aria-label="서비스 코드 / Target Source / 서비스 이름 검색"
           />
-          <PlSelect
-            lg
-            value={status}
-            aria-label="상태 필터"
-            onChange={(event) => {
-              const next = event.target.value as '' | PipelineStatus;
-              if (next === status) return; // same-value guard (see period seg)
-              setStatus(next);
-              resetPage();
-              setListLoading(true);
-            }}
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.value || 'all'} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </PlSelect>
-          <PlSelect
-            lg
-            value={provider}
-            aria-label="Cloud 필터"
-            onChange={(event) => {
-              const next = event.target.value;
-              if (next === provider) return; // same-value guard (see period seg)
-              setProvider(next);
-              resetPage();
-              setListLoading(true);
-            }}
-          >
-            {PROVIDER_OPTIONS.map((option) => (
-              <option key={option.value || 'all'} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </PlSelect>
-          <PlSelect
-            lg
-            value={type}
-            aria-label="작업 유형 필터"
-            onChange={(event) => {
-              const next = event.target.value as '' | PipelineType;
-              if (next === type) return; // same-value guard (see period seg)
-              setType(next);
-              resetPage();
-              setListLoading(true);
-            }}
-          >
-            {TYPE_OPTIONS.map((option) => (
-              <option key={option.value || 'all'} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </PlSelect>
+          <span className={d.filterTrigger}>
+            <FilterMenu groups={filterGroups} />
+          </span>
         </div>
 
         {hasFilter && (
@@ -328,9 +361,9 @@ export default function DashboardPage(): ReactElement {
               provider={provider}
               type={type}
               q={q}
-              onClearStatus={clearStatus}
-              onClearProvider={clearProvider}
-              onClearType={clearType}
+              onClearStatus={() => applyStatus('')}
+              onClearProvider={() => applyProvider('')}
+              onClearType={() => applyType('')}
               onClearSearch={clearSearch}
               onResetFilters={resetFilters}
             />
@@ -352,11 +385,13 @@ export default function DashboardPage(): ReactElement {
           <>
             <table className={d.table}>
               <thead>
-                <tr className={d.headRow}>
-                  <th className={cn(d.th, 'w-[28ch]')}>서비스 이름</th>
-                  <th className={d.th}>서비스 코드</th>
-                  <th className={d.th}>Target Source</th>
-                  <th className={d.th}>Cloud</th>
+                <tr>
+                  {/* The rail column has no label — it is the row's own edge, so it
+                      takes railCell ALONE. Merging d.th in would hand the column
+                      that token's px-5 (cn is a plain join; Tailwind's output order
+                      picks the winner, and padding beat p-0 at 40px wide). */}
+                  <th className={cn(d.railCell, d.thBand)} />
+                  <th className={cn(d.th, 'w-[38ch]')}>대상</th>
                   <th className={d.th}>작업 유형</th>
                   <th className={d.th}>상태</th>
                   <th className={d.th}>진행도</th>
@@ -370,26 +405,28 @@ export default function DashboardPage(): ReactElement {
                     key={row.pipeline_id}
                     onActivate={() => router.push(passRoutes.pipelines.pipeline(row.pipeline_id))}
                   >
+                    <StatusRail status={row.status} />
                     <td className={d.cell}>
-                      <ServiceNameCell name={row.service_name} />
+                      <TargetCell
+                        name={row.service_name}
+                        code={row.service_code}
+                        targetId={String(row.target_source_id)}
+                        provider={row.cloud_provider}
+                        isSdu={row.is_sdu_type}
+                      />
                     </td>
                     <td className={d.cell}>
-                      <ServiceCodeCell code={row.service_code} />
+                      <PipelineTypeTag type={row.type} />
                     </td>
                     <td className={d.cell}>
-                      <TargetIdCell targetId={String(row.target_source_id)} />
+                      <StatusText status={row.status} />
                     </td>
                     <td className={d.cell}>
-                      <CloudText provider={row.cloud_provider} isSdu={row.is_sdu_type} />
-                    </td>
-                    <td className={d.cell}>
-                      <TypeCell type={row.type} />
-                    </td>
-                    <td className={d.cell}>
-                      <StatusPill status={row.status} />
-                    </td>
-                    <td className={d.cell}>
-                      <GrayProgress n={row.done_task_count} m={row.total_task_count} />
+                      <PipelineStepStrip
+                        n={row.done_task_count}
+                        m={row.total_task_count}
+                        status={row.status}
+                      />
                     </td>
                     <td className={d.cell}>
                       <RelativeTime iso={row.created_at} />
@@ -403,6 +440,14 @@ export default function DashboardPage(): ReactElement {
             </table>
 
             <div className={d.pager}>
+              {/* The row count is gone (오너), but the fetch window is not a
+                  preference — without this the truncated list reads as the whole
+                  one. It stays, and only when rows were actually left behind. */}
+              {truncated && (
+                <span className={d.pagerTruncated}>
+                  최근 {DASH_FETCH_SIZE}건만 불러왔어요 (전체 {fetchedTotal}건)
+                </span>
+              )}
               <button
                 type="button"
                 className={d.pagerBtn}
@@ -410,10 +455,10 @@ export default function DashboardPage(): ReactElement {
                 onClick={() => setPage(current - 1)}
                 aria-label="이전 페이지"
               >
-                <Icon name="chev-l" size="sm" />
+                <Icon name="chev-l" size={18} />
               </button>
               <span className={d.pagerCount}>
-                {current} / {pages}
+                <b className={d.pagerCurrent}>{current}</b> / {pages}
               </span>
               <button
                 type="button"
@@ -422,7 +467,7 @@ export default function DashboardPage(): ReactElement {
                 onClick={() => setPage(current + 1)}
                 aria-label="다음 페이지"
               >
-                <Icon name="chev-r" size="sm" />
+                <Icon name="chev-r" size={18} />
               </button>
             </div>
           </>

@@ -29,11 +29,12 @@ export interface ProvTagProps {
 export function ProvTag({ provider, isSdu, size, className }: ProvTagProps): ReactElement {
   const { provTag } = pipelineStyles;
   const shown = displayProvider(provider, isSdu);
+  const lg = size === 'lg';
   return (
-    <span className={cn(size === 'lg' ? provTag.baseLg : provTag.base, className)}>
+    <span className={cn(lg ? provTag.baseLg : provTag.base, className)}>
       {/* Nothing renders for UNKNOWN — the flex gap would otherwise indent the label
           on exactly the rows that have the least to say. */}
-      <ProviderGlyph provider={shown} className={size === 'lg' ? provTag.glyphLg : provTag.glyph} />
+      <ProviderGlyph provider={shown} className={lg ? provTag.glyphLg : provTag.glyph} />
       {providerLabel(shown)}
     </span>
   );
