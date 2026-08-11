@@ -2042,14 +2042,23 @@ export const pipelineStyles = {
    *
    *  This is the ACTION, not a status, so it is exempt from the monochrome
    *  status ramp: rendering it in grey buried it against the node's own grey
-   *  text. Tinted fill + matching stroke, on two axes — blue for the building
-   *  path (PLAN reads lighter than APPLY, which is the one that actually
-   *  changes infrastructure), red for the one that removes it. Green APPLY was
-   *  dropped along the way: it marked the ordinary case and diluted the red. */
+   *  text. Tinted fill + matching stroke on two axes:
+   *
+   *  - HUE says what the action IS. Violet PLAN (--pl-plan, the Terraform
+   *    mark's family) = ask what would change; blue APPLY = commit it; red
+   *    DESTROY = remove it. PLAN and APPLY used to share the blue and differ
+   *    only by stroke weight, which is the weakest channel on a 10px chip —
+   *    they read as one tag.
+   *  - STROKE says whether infrastructure actually moves: pale ring for PLAN
+   *    (a dry run changes nothing), full-strength for APPLY and DESTROY.
+   *
+   *  Green APPLY was dropped along the way: it marked the ordinary case and
+   *  diluted the red. Grey PLAN is out for the same reason grey was: it buries
+   *  against the node's own grey text. */
   jobKindTag: {
     base: 'inline-flex items-center rounded border px-1 leading-[15px] text-[10px] font-bold tracking-wide [font-family:var(--pl-font-mono)]',
     tone: {
-      PLAN: 'border-[var(--pl-primary-ring)] bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
+      PLAN: 'border-[var(--pl-plan-ring)] bg-[var(--pl-plan-bg)] text-[var(--pl-plan)]',
       APPLY: 'border-[var(--pl-primary)] bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
       DESTROY: 'border-[var(--pl-err)] bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
     } as Record<'PLAN' | 'APPLY' | 'DESTROY', string>,
