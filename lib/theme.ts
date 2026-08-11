@@ -660,8 +660,15 @@ export const projectHeaderStyles = {
    * from reading as one more FIELD name beside Account ID. Re-tinting it touches
    * both roles. `whitespace-nowrap` exists for the second one — it now shares a
    * flex column with `min-w-0`, where its peers already carry it.
+   *
+   * Muted lavender, not a light one. On the #F4F4FB wash a genuinely light purple
+   * cannot clear AA — #9B8FD1 is 2.65:1 and Tailwind purple-500 is 3.61:1; the
+   * lightest purple that passes sits around #7C5CC4 at 4.58:1. So this pair buys
+   * its purple from saturation, not lightness: 8.34:1 here against 5.26:1 on
+   * `kvLabel`. That 1.59x step IS the label hierarchy (group name vs field name)
+   * — keep it on any re-tint, and re-measure on the wash, never on white.
    */
-  blockLabel: 'whitespace-nowrap text-[12px] font-semibold tracking-[0.02em] text-[#333D4B]',
+  blockLabel: 'whitespace-nowrap text-[12px] font-semibold tracking-[0.02em] text-[#4C3F7A]',
   block: 'mt-[18px]',
   /** Description body — 2-line clamp; the whole block is skipped when empty. */
   descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
@@ -688,7 +695,9 @@ export const projectHeaderStyles = {
   divider: 'w-px flex-none self-stretch bg-[#E4E5EE]',
   /** 6px label→content binding, the same gap the 설명/설치 진행 blocks use. */
   kv: 'group/kv flex min-w-0 flex-col gap-1.5',
-  kvLabel: 'whitespace-nowrap text-[12px] font-medium text-[#4E5968]',
+  /** Field name (설치 대상 / Account ID / 설치 모드 / 연동 방식) — the quieter of the
+      two label tiers at 5.26:1 on the wash. See blockLabel for why it is muted. */
+  kvLabel: 'whitespace-nowrap text-[12px] font-medium text-[#6B5E93]',
   /**
    * Two invariants keep this line and the provider's on one line:
    * `min-h-[30px]` (the icon badge's height) makes the two boxes share a centre,
