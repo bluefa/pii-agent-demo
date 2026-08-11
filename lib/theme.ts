@@ -658,17 +658,25 @@ export const projectHeaderStyles = {
   block: 'mt-[18px]',
   /** Description body — 2-line clamp; the whole block is skipped when empty. */
   descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
-  groupRow: 'mt-1.5 flex flex-wrap items-stretch gap-x-5 gap-y-2',
-  provider: 'flex flex-none items-center gap-2 pr-1',
+  /**
+   * The group eyebrow rides INSIDE this row as the provider stack's own label,
+   * so every label in the block sits on one line and every value on the next.
+   * Centering each stack (items-stretch + justify-center) put the provider name
+   * between the neighbour's label and value — 10px off the identifier it names.
+   */
+  groupRow: 'mt-1.5 flex flex-wrap items-start gap-x-5 gap-y-2',
+  provider: 'flex min-h-[30px] flex-none items-center gap-2 pr-1',
   providerIcon: 'grid h-[30px] w-[30px] flex-none place-items-center rounded-[8px] bg-[#ECEDF4] text-[#4E5968]',
   providerName: 'text-[14px] font-medium tracking-[-0.01em] text-[#191F28]',
   /** Plain-language gloss after a bare token (IDC → 사내망). */
   providerGloss: 'text-[#4E5968]',
   providerGlossBar: 'mx-1.5 text-[#C6CCD6]', // design-exempt: decorative separator glyph, not text
   divider: 'w-px flex-none self-stretch bg-[#E4E5EE]',
-  kv: 'group/kv flex min-w-0 flex-col justify-center gap-0.5',
+  /** 6px label→content binding, the same gap the 설명/설치 진행 blocks use. */
+  kv: 'group/kv flex min-w-0 flex-col gap-1.5',
   kvLabel: 'whitespace-nowrap text-[12px] font-medium text-[#4E5968]',
-  kvValue: 'flex items-center text-[14px] font-medium leading-[1.35] text-[#191F28]',
+  /** min-h matches the provider's 30px icon badge so both value lines share a centre. */
+  kvValue: 'flex min-h-[30px] items-center text-[14px] font-medium leading-[21px] text-[#191F28]',
   kvValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
   /** Copy affordance — hover/focus reveal, so idle rows show only the value. */
   copyReveal: 'opacity-0 transition-opacity duration-[120ms] group-hover/kv:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none',
