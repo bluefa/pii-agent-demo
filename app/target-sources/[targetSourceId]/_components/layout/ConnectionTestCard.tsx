@@ -12,7 +12,7 @@ import { useModal } from '@/app/hooks/useModal';
 import { usePagination } from '@/app/hooks/usePagination';
 import { useRailHover } from '@/app/hooks/useRailHover';
 import { useToast } from '@/app/components/ui/toast';
-import { TcSummaryCard } from '@/app/components/features/process-status/TcSummaryCard';
+import { TcSummaryCard, TcSummaryCardSkeleton } from '@/app/components/features/process-status/TcSummaryCard';
 import { TcRejectionNotice } from '@/app/components/features/process-status/TcRejectionNotice';
 import { TcRunHistoryModal } from '@/app/components/features/process-status/TcRunHistoryModal';
 import type { UseTestConnectionPollingReturn } from '@/app/hooks/useTestConnectionPolling';
@@ -160,7 +160,7 @@ export const ConnectionTestCard = ({
   refreshProject,
   polling,
 }: ConnectionTestCardProps) => {
-  const { latestJob, uiState, loading, trigger, triggerError, fetchError } = polling;
+  const { latestJob, uiState, loading, triggering, trigger, triggerError, fetchError } = polling;
   const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
   const [approvalOpen, setApprovalOpen] = useState(false);
   // The table, the progress strip and the Run Test gate all run on units — one row per thing
@@ -285,10 +285,14 @@ export const ConnectionTestCard = ({
   const allCredsSet =
     total > 0 && units.every((u) => !requiresCredential(u.databaseType) || !!unitCred(u));
 
+  // 실행 요청이 떠 있는 동안(`triggering`)도 잠근다. `testing` 은 latest_version 이 새 실행을
+  // 되돌려준 뒤에야 켜지므로, 그 왕복 시간만큼 버튼이 "Run Test" 인 채로 살아 있었다 —
+  // 그 사이 한 번 더 누르면 두 번째 요청이 409 를 받아, 사용자가 부른 적 없는 오류 줄이 뜬다.
+  const busy = testing || triggering;
   const runTest = useCallback(async () => {
-    if (testing || !allCredsSet) return;
+    if (busy || !allCredsSet) return;
     await trigger();
-  }, [testing, allCredsSet, trigger]);
+  }, [busy, allCredsSet, trigger]);
 
   // 모달의 저장이 PUT 을 쏘고, 성공했을 때만 로컬 값이 바뀐다.
   const handleCredSubmit = useCallback(async (next: string) => {
@@ -363,10 +367,10 @@ export const ConnectionTestCard = ({
         <button
           type="button"
           onClick={runTest}
-          disabled={testing || !allCredsSet}
+          disabled={busy || !allCredsSet}
           className={cn(idcStyles.triggerBtn.soft, 'disabled:cursor-not-allowed disabled:opacity-45')}
         >
-          {testing ? (
+          {busy ? (
             '연결 테스트 진행 중...'
           ) : (
             <>
@@ -389,6 +393,9 @@ export const ConnectionTestCard = ({
           targetSourceId={targetSourceId}
           runVersion={latestJob?.test_connection_version ?? null}
         />
+        {loading ? (
+          <TcSummaryCardSkeleton />
+        ) : (
         <TcSummaryCard
           phase={phase}
           buckets={buckets}
@@ -413,6 +420,7 @@ export const ConnectionTestCard = ({
             </button>
           }
         />
+        )}
         {triggerError && (
           <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
         )}

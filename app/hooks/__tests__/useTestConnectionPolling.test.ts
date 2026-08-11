@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
 import { getTestConnectionLatest } from '@/app/lib/api';
@@ -95,3 +96,51 @@ describe('shouldStopPolling', () => {
   });
 });
 
+
+/**
+ * 실행 시작 요청이 떠 있는 동안의 재진입. `uiState === 'PENDING'` 은 latest_version 이 새
+ * 실행을 되돌려준 뒤에야 켜지므로, 그 왕복(mock 1s, 실서버도 수백 ms) 동안 Run Test 는
+ * 여전히 눌리는 상태였다 — 두 번째 클릭이 두 번째 POST 를 쏘고 409 를 받아, 사용자가 부른
+ * 적 없는 "이미 진행 중인 테스트가 있습니다" 가 떴다. 훅이 스스로 막는다.
+ */
+describe('trigger re-entrancy', () => {
+  it('ignores a second trigger while the first is still in flight', async () => {
+    const { renderHook, act } = await import('@testing-library/react');
+    const { triggerTestConnection } = await import('@/app/lib/api');
+    const { useTestConnectionPolling } = await import('@/app/hooks/useTestConnectionPolling');
+
+    const triggerMock = vi.mocked(triggerTestConnection);
+    const latestMock = vi.mocked(getTestConnectionLatest);
+    triggerMock.mockReset();
+    latestMock.mockReset();
+
+    // 첫 trigger 의 latest_version 을 손으로 붙잡아, 요청이 떠 있는 상태를 만든다.
+    let releaseLatest!: () => void;
+    latestMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseLatest = () => resolve(makeJob('PENDING'));
+        }),
+    );
+    triggerMock.mockResolvedValue(undefined as never);
+
+    const { result } = renderHook(() => useTestConnectionPolling(1));
+
+    let first!: Promise<boolean>;
+    let second!: Promise<boolean>;
+    await act(async () => {
+      first = result.current.trigger();
+      second = result.current.trigger();
+    });
+
+    // 두 번째 호출은 POST 를 쏘지 않고 false 로 돌아간다.
+    await expect(second).resolves.toBe(false);
+    expect(triggerMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      releaseLatest();
+      await first;
+    });
+    expect(triggerMock).toHaveBeenCalledTimes(1);
+  });
+});

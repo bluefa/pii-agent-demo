@@ -17,6 +17,31 @@ export interface TcSummaryRun {
   completedAt: string | null;
 }
 
+/**
+ * 첫 latest_version 응답 전의 자리 — 문장도 숫자도 아직 없다.
+ *
+ * 이 자리에 idle 스트립을 그리면 "연결 테스트 대기 중 — Run Test를 실행해 주세요 / 성공 0 ·
+ * 미보고 6" 이 떴다가 응답이 오면 "리소스 6개 모두 연결에 성공했어요 / 성공 6" 으로 뒤집힌다.
+ * 표의 연결 상태 칸이 같은 이유로 스켈레톤을 그리는데, 그보다 먼저 읽히는 이 표면만 판단을
+ * 말하고 있으면 고친 의미가 없다. 상자 크기는 idle 스트립과 같아 응답이 와도 레이아웃이
+ * 뛰지 않는다.
+ */
+export const TcSummaryCardSkeleton = () => {
+  const s = idcStyles.connProgress;
+  return (
+    <div className={cn(s.base, s.state.idle)} aria-busy="true" aria-live="polite">
+      <div className={cn(s.head, 'flex-wrap')}>
+        <span className={cn(idcStyles.skeletonBar, 'block h-[15px] w-[210px] rounded')} />
+        <span className={cn(idcStyles.skeletonBar, 'block h-[13px] w-[130px] rounded')} />
+      </div>
+      <div className={s.track} />
+      <div className="mt-[9px] flex items-center justify-between gap-3">
+        <span className={cn(idcStyles.skeletonBar, 'block h-[13px] w-[150px] rounded')} />
+      </div>
+    </div>
+  );
+};
+
 interface TcSummaryCardProps {
   phase: TcRunPhase;
   buckets: TcBuckets;
