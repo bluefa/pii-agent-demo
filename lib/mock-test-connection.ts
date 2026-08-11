@@ -518,9 +518,14 @@ export const getCompletionStatus = (targetSourceId: number) => {
   // 되돌리기보다 앞선 실행은 근거가 되지 못한다 — "연결 테스트부터 다시 진행"이라고 말한
   // 뒤이므로, 그 뒤에 실제로 끝난 실행만 성공으로 센다. completed_at 이 없는(아직 도는)
   // 실행은 어차피 SUCCESS 가 아니라 여기서 갈릴 일이 없다.
+  // 시각은 파싱해서 비교한다. 문자열 비교는 밀리초 표기가 섞이면 뒤집힌다 — 이 저장소의
+  // completed_at 은 `…00Z`(픽스처)와 `…00.000Z`(toISOString)가 함께 오고, 같은 초에서
+  // `.`(0x2E) < `Z`(0x5A) 라 밀리초 없는 쪽이 더 나중으로 읽힌다.
   const rolledBackAt = project?.status.connectionTest.rolledBackAt;
+  const rolledBackMs = rolledBackAt ? Date.parse(rolledBackAt) : NaN;
+  const completedMs = job?.completed_at ? Date.parse(job.completed_at) : NaN;
   const supersededByRollback =
-    !!rolledBackAt && !!job?.completed_at && job.completed_at < rolledBackAt;
+    Number.isFinite(rolledBackMs) && Number.isFinite(completedMs) && completedMs < rolledBackMs;
   const succeeded = job?.status === 'SUCCESS' && !supersededByRollback;
   // 완료 여부는 완료 승인 요청 PUT(confirmed:true)이 세팅하는 passedAt 으로 판별한다.
   // 테스트 성공만으로는 confirmed 가 아니다(승인 전 = LATEST_TEST_CONNECTION_SUCCESS).
