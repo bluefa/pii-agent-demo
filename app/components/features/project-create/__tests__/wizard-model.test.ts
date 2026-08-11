@@ -5,6 +5,10 @@ import {
   type WizardFormState,
 } from '@/app/components/features/project-create/wizard-model';
 import {
+  CREDENTIAL_FIELDS,
+  getCredentialErrors,
+} from '@/app/components/features/project-create/credential-fields';
+import {
   candidateDescriptionLine,
   candidateIdentity,
   candidateInstallModeIsAuto,
@@ -131,16 +135,27 @@ describe('isStepComplete — step gating', () => {
     expect(
       isStepComplete(
         2,
-        baseState({ fields: { payerAccount: '123456789012', description: '결제 운영계' } }),
+        baseState({
+          fields: {
+            payerAccount: '123456789012',
+            linkedAccount: '210987654321',
+            description: '결제 운영계',
+          },
+        }),
       ),
     ).toBe(true);
   });
 
-  it('treats the optional AWS linked account as optional but still validates its format', () => {
-    const valid = baseState({
+  it('requires the AWS linked account, and still validates its format', () => {
+    const withoutLinked = baseState({
       fields: { payerAccount: '123456789012', description: '결제 운영계' },
     });
-    expect(isStepComplete(2, valid)).toBe(true);
+    expect(isStepComplete(2, withoutLinked)).toBe(false);
+    expect(getCredentialErrors('aws', withoutLinked.fields).linkedAccount).toBe(
+      'Linked Account을(를) 입력해 주세요',
+    );
+
+    // Present but malformed is still refused — required did not replace the format check.
     expect(
       isStepComplete(
         2,
@@ -149,6 +164,27 @@ describe('isStepComplete — step gating', () => {
         }),
       ),
     ).toBe(false);
+
+    // A single-account org repeats the payer id — the helper tells them to, so it must pass.
+    expect(
+      isStepComplete(
+        2,
+        baseState({
+          fields: {
+            payerAccount: '123456789012',
+            linkedAccount: '123456789012',
+            description: '결제 운영계',
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it('marks Linked Account as required in the field definition', () => {
+    const linked = CREDENTIAL_FIELDS.aws.find((field) => field.name === 'linkedAccount');
+    expect(linked?.optional).toBeFalsy();
+    // The label renders (선택) off `optional`, so the helper must not promise optional either.
+    expect(linked?.helper).not.toContain('선택');
   });
 
   it('requires a description for IDC and 기타', () => {
