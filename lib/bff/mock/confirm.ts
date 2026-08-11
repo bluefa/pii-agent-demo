@@ -6,6 +6,8 @@ import * as mockInstallation from '@/lib/mock-installation';
 import { getStore } from '@/lib/mock-store';
 import { ProcessStatus, cloudProviderToWireProvider } from '@/lib/types';
 import { createInitialProjectStatus, getCurrentStep } from '@/lib/process';
+import { clearAzureInstallationCache } from '@/lib/mock-azure';
+import { clearGcpInstallationCache } from '@/lib/mock-gcp';
 import { toBffApprovalProcessStatus } from '@/lib/bff/mock/target-sources';
 import {
   applyTqApprovalDecision,
@@ -1680,6 +1682,12 @@ export const mockConfirm = {
     // 남겨 두면 초기화 뒤 다시 올라온 5단계가 옛 설치에서 성공한 실행을 근거로 완료 승인
     // 버튼을 열어 준다 — 새 인프라에서는 아직 한 번도 테스트하지 않았는데도.
     tcFns.clearJobHistory(Number(targetSourceId));
+    // 프로바이더 설치 상태는 별도 캐시에 산다. 조회가 캐시를 먼저 보고 리소스는 보지 않으므로
+    // (mock-azure/mock-gcp 의 첫 분기), 남겨 두면 초기화 뒤 다시 구성한 대상이 4단계에서
+    // 초기화 전 리소스와 진행도를 그대로 보여준다. 프로바이더로 갈라 부르지 않는다 — 없는
+    // 키를 지우는 것은 무해하고, 갈래를 두면 프로바이더가 늘 때 이 줄이 조용히 빠진다.
+    clearAzureInstallationCache(Number(targetSourceId));
+    clearGcpInstallationCache(Number(targetSourceId));
 
     // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({

@@ -139,6 +139,32 @@ describe('mockConfirm.resetTargetSource', () => {
     expect(findProject()?.terraformState).toEqual({ bdcTf: 'PENDING' });
   });
 
+  /**
+   * 프로바이더 설치 상태 조회는 캐시가 있으면 리소스를 다시 보지 않는다(mock-azure/mock-gcp 의
+   * 첫 분기). 초기화가 캐시를 남기면 다시 구성한 대상이 4단계에서 초기화 전 화면을 그대로
+   * 보여준다.
+   */
+  it('drops the provider installation cache so step 4 re-derives from the new resources', async () => {
+    const { getAzureInstallationStatus, resetAzureStore } = await import('@/lib/mock-azure');
+    resetAzureStore();
+
+    // Azure 대상이어야 조회가 실제로 캐시를 채운다.
+    const project = findProject()!;
+    project.cloudProvider = 'Azure';
+    project.tenantId = 'c3d4e5f6-a7b8-9012-cdef-123456789012';
+    project.subscriptionId = '34567890-cdef-0123-4567-89abcdef0123';
+
+    const before = getAzureInstallationStatus(TARGET_SOURCE_ID);
+    expect(before.data).toBeDefined();
+    // 같은 호출이 두 번째부터는 캐시를 그대로 돌려준다 — 이것이 초기화가 무력화하려는 성질이다.
+    expect(getAzureInstallationStatus(TARGET_SOURCE_ID).data).toBe(before.data);
+
+    await mockConfirm.resetTargetSource(String(TARGET_SOURCE_ID), { reason: 'x' });
+
+    // 초기화 뒤에는 옛 객체가 아니라 지금 리소스에서 새로 만든 값이 나와야 한다.
+    expect(getAzureInstallationStatus(TARGET_SOURCE_ID).data).not.toBe(before.data);
+  });
+
   it('404s for an unknown target source', async () => {
     const response = await mockConfirm.resetTargetSource('123456', { reason: 'x' });
     expect(response.status).toBe(404);

@@ -644,6 +644,12 @@ export interface ProjectConnectionTestStatus {
   lastTestedAt?: string;
   passedAt?: string;
   operationConfirmed?: boolean;
+  /**
+   * 완료 확인을 롤백한 시각 (연결 테스트 재실행). 이보다 먼저 끝난 실행은 "다시 진행"의
+   * 근거가 될 수 없다 — 이 값이 없으면 롤백 직후의 5단계가 되돌리기 전 성공을 그대로 읽고
+   * 완료 승인 버튼을 열어, 테스트를 한 번도 다시 돌리지 않고 6단계로 되돌아갈 수 있다.
+   */
+  rolledBackAt?: string;
 }
 
 /**

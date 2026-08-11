@@ -358,6 +358,16 @@ export const getAzureServiceSettings = (
   return { data: settings };
 };
 
+/**
+ * 이 대상의 설치 상태 캐시를 버린다. 조회는 캐시가 있으면 리소스를 다시 보지 않으므로
+ * (getAzureInstallationStatus 의 첫 분기), 연동 상태 초기화처럼 리소스 구성 자체가 뒤집히는
+ * 조작 뒤에 부르지 않으면 초기화 전 상태가 그대로 다시 나온다.
+ */
+export const clearAzureInstallationCache = (targetSourceId: number): void => {
+  delete azureStore.installationStatus[targetSourceId];
+  delete azureStore.vmInstallationStatus[targetSourceId];
+};
+
 // ===== 테스트용 유틸리티 =====
 
 export const resetAzureStore = (): void => {

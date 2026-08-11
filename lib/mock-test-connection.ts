@@ -515,7 +515,13 @@ const findProject = (targetSourceId: number): Project | undefined =>
 export const getCompletionStatus = (targetSourceId: number) => {
   const project = findProject(targetSourceId);
   const job = getLatestJob(targetSourceId);
-  const succeeded = job?.status === 'SUCCESS';
+  // 되돌리기보다 앞선 실행은 근거가 되지 못한다 — "연결 테스트부터 다시 진행"이라고 말한
+  // 뒤이므로, 그 뒤에 실제로 끝난 실행만 성공으로 센다. completed_at 이 없는(아직 도는)
+  // 실행은 어차피 SUCCESS 가 아니라 여기서 갈릴 일이 없다.
+  const rolledBackAt = project?.status.connectionTest.rolledBackAt;
+  const supersededByRollback =
+    !!rolledBackAt && !!job?.completed_at && job.completed_at < rolledBackAt;
+  const succeeded = job?.status === 'SUCCESS' && !supersededByRollback;
   // 완료 여부는 완료 승인 요청 PUT(confirmed:true)이 세팅하는 passedAt 으로 판별한다.
   // 테스트 성공만으로는 confirmed 가 아니다(승인 전 = LATEST_TEST_CONNECTION_SUCCESS).
   const confirmed = project?.status.connectionTest.passedAt != null;
@@ -559,7 +565,18 @@ export const setConfirmation = (targetSourceId: number, confirmed: boolean) => {
       // passedAt 이 WAITING_CONNECTION_TEST 게이트이므로 둘을 함께 비워야 5단계로 간다 —
       // Step 6 은 operationConfirmed 가 애초에 false 라 결과가 같고, Step 7 의 "연결 테스트
       // 재실행"이 대화상자가 약속한 5단계에 내린다(한 계단씩이면 6단계에 멈췄다).
-      project.status.connectionTest = { ...ct, passedAt: undefined, operationConfirmed: false };
+      //
+      // rolledBackAt 을 함께 찍는다: 이것이 없으면 5단계가 되돌리기 전의 성공한 실행을 그대로
+      // 읽어 완료 승인 버튼을 곧바로 열어 준다 — "연결 테스트부터 다시 진행해요"라고 말해 놓고
+      // 한 번도 다시 돌리지 않은 채 6단계로 돌아갈 수 있었다. 실행 이력은 지우지 않는다:
+      // 무엇을 테스트했는지는 기록으로 남아야 하고, 여기서 필요한 것은 "그 실행이 되돌리기보다
+      // 앞선다"는 사실 하나뿐이다.
+      project.status.connectionTest = {
+        ...ct,
+        passedAt: undefined,
+        operationConfirmed: false,
+        rolledBackAt: now,
+      };
     }
     project.processStatus = getCurrentStep(project.status);
   }

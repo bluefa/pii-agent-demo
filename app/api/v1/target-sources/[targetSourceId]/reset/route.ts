@@ -14,11 +14,20 @@ export const POST = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const body = schemas.TargetSourceResetRequestDto.parse(await request.json().catch(() => ({})));
+  // safeParse: `.parse` 는 타입이 어긋난 몸통(`{"reason": 42}`)에 ZodError 를 던지고, withV1 은
+  // BffError 만 매핑하므로 그대로 500 이 된다 — 잘못 보낸 쪽의 오류를 서버 장애로 답하는 셈이다.
+  const parsedBody = schemas.TargetSourceResetRequestDto.safeParse(
+    await request.json().catch(() => ({})),
+  );
+  if (!parsedBody.success) {
+    return problemResponse(
+      createProblem('VALIDATION_FAILED', 'reason 은 문자열이어야 합니다.', requestId),
+    );
+  }
   // 계약은 reason 을 required 로 두지만 생성된 zod 는 enum·required 를 벗겨 `.partial()` 로
   // 나오므로(ADR-019 LOOSE), 빈 몸통도 그대로 통과한다. 초기화는 끝난 설치와 승인을 버리는
   // 조작이고 사유는 그 감사 기록이다 — 화면이 입력을 강제하는 것과 별개로, 경계가 직접 막는다.
-  const reason = body.reason?.trim();
+  const reason = parsedBody.data.reason?.trim();
   if (!reason) {
     return problemResponse(
       createProblem('VALIDATION_FAILED', 'reason 은 비어 있지 않은 문자열이어야 합니다.', requestId),

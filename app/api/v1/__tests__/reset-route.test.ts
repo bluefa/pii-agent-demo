@@ -52,6 +52,20 @@ describe('POST …/reset', () => {
     expect(mockedReset).not.toHaveBeenCalled();
   });
 
+  /**
+   * `.parse` 는 타입이 어긋난 몸통에 ZodError 를 던지고 withV1 은 BffError 만 매핑한다 —
+   * 그대로 두면 잘못 보낸 쪽의 오류가 500(서버 장애)으로 답해진다.
+   */
+  it.each([
+    ['a non-string reason', JSON.stringify({ reason: 42 })],
+    ['a JSON array body', JSON.stringify([{ reason: '사유' }])],
+    ['a bare JSON string body', JSON.stringify('사유')],
+  ])('answers 400, not 500, for %s', async (_label, body) => {
+    const response = await post(body);
+    expect(response.status).toBe(400);
+    expect(mockedReset).not.toHaveBeenCalled();
+  });
+
   it('rejects a reason past the contract maxLength', async () => {
     const response = await post(JSON.stringify({ reason: 'x'.repeat(1001) }));
     expect(response.status).toBe(400);
