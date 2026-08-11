@@ -45,7 +45,7 @@ export const ServiceHeaderV7 = ({
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {/* `서비스 이름`, not `서비스`: the code tag sits right beside it, so the label
             has to say which of the two it names. */}
-        <span className={cn('text-[14px]', rowLabelColor)}>서비스 이름</span>
+        <span className={cn('text-[12px] font-medium', rowLabelColor)}>서비스 이름</span>
         {/* `medium`: this line identifies context, not the page's subject — the h1
             above already holds that, and at semibold the two competed. */}
         <span className={cn('text-[16px] font-medium tracking-[-0.01em]', textColors.primary)}>
