@@ -424,6 +424,11 @@ paths:
 
         본문에는 이미지 바이트를 넣지 않는다. 목록 API가 본문을 통째로 내려주는 구조이므로
         base64 인라인은 목록 응답을 수 MB 단위로 부풀린다.
+
+        **파일 1개당 5MB 상한이 이 API의 설계 전제다.** 상한이 있으므로 업로드는
+        `multipart/form-data` 요청 **한 번**으로 끝난다. 조각 업로드(S3 Multipart,
+        GCS Resumable)의 initiate / upload-parts / complete 흐름도, 이어올리기 상태 관리도
+        계약에 넣지 않는다. 상한을 올리려면 이 결정부터 다시 봐야 한다.
       requestBody:
         required: true
         content:
@@ -436,7 +441,8 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: png / jpeg / webp. 최대 5MB.
+                  description: >-
+                    png / jpeg / webp. 파일 1개당 최대 5MB. 요청 1회에 파일 1개만 보낸다.
       responses:
         '201':
           description: 업로드 성공
@@ -893,6 +899,9 @@ components:
 ### 본문 이미지
 
 - 이미지는 `POST /install/v1/admin/posts/images`로 먼저 업로드하고, 응답의 `url`을 본문 `img.src`에 넣는다. 본문에 바이트를 인라인(base64)하지 않는다.
+- **파일 1개당 5MB, 요청 1회에 1개.** 이 상한이 있어서 조각 업로드(resumable / chunked) 프로토콜이 필요 없다. `multipart/form-data`는 파일 하나를 담는 표준 content-type일 뿐, 조각 업로드와 다른 이야기다.
+- 상한이 고정이므로 BFF가 바이트를 메모리에 버퍼링해 저장소로 넘겨도 안전하다. 브라우저가 저장소에 직접 올리는 서명 URL 방식은 도입하지 않는다 — 엔드포인트가 늘고 저장소 자격증명이 클라이언트 쪽으로 나간다.
+- 에디터는 업로드 전에 파일 크기·형식을 먼저 검사한다. 5MB짜리를 다 올린 뒤 413을 받는 것보다, 고르는 순간 막는 편이 낫다. 서버 검증은 그대로 유지한다.
 - 관리자가 조절할 수 있는 것은 **본문 안에서의 위치(순서)뿐**이다. 정렬·크기 조절은 이번 범위가 아니다. `img`에 `class`/`style`/`align`을 허용하지 않으므로 계약 수준에서 막힌다.
 - `width`/`height`는 업로드 응답이 준 원본 픽셀 크기를 에디터가 그대로 기록한 값이다. 관리자 입력값이 아니며, 화면 표시 폭은 CSS(`max-width: 100%`)가 통제한다.
 - `img.src`는 **허용된 저장소 호스트 prefix로 시작해야 한다.** 임의 외부 URL은 `POST_CONTENT_INVALID`로 거부한다.
