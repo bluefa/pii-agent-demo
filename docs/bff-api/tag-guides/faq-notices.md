@@ -265,14 +265,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorMessage'
-    patch:
+    put:
       tags:
       - FAQ & Notices
       summary: Update a post
       operationId: updatePost
       x-expected-duration: 100ms
       description: |
-        Title, 본문, Category를 수정한다. 전달된 필드만 반영하는 partial update다.
+        Title, 본문, Category를 **전체 교체 저장**한다. 요청 body가 수정 후의 완성된 상태이며,
+        `categoryId`를 생략하면 기존 Category가 유지되는 것이 아니라 미분류가 된다.
 
         `publishedAt`은 절대 갱신하지 않고 `updatedAt`만 갱신한다. 목록 정렬 기준이 `publishedAt`이므로
         본문 오타 수정이 게시글을 목록 최상단으로 끌어올려서는 안 된다.
@@ -708,17 +709,23 @@ components:
       - NOTICE
     PostUpdateRequest:
       type: object
-      description: 전달된 필드만 반영하는 partial update. 모든 필드를 생략하면 VALIDATION_FAILED다.
+      description: >-
+        수정 후의 완성된 상태를 그대로 보내는 전체 교체 요청. 생략된 필드는 "유지"가 아니라 "비움"이다.
+      required:
+      - title
+      - content
       properties:
         categoryId:
           type: integer
           format: int64
           nullable: true
-          description: null을 명시하면 미분류로 바꾼다. 키 자체를 생략하면 기존 값을 유지한다.
+          description: 생략하거나 null이면 미분류가 된다. 기존 Category는 유지되지 않는다.
         title:
           type: string
+          description: 필수. 공백만으로 이루어질 수 없다.
         content:
           type: string
+          description: 필수. HTML allow-list를 통과해야 하며, 태그 제거 후 텍스트가 남아야 한다.
 ```
 
 ## 3. API 목록
@@ -731,7 +738,7 @@ components:
 | GET | `/install/v1/admin/posts` | Admin 게시글 목록. 숨김 포함, `hidden` 노출 | Draft |
 | POST | `/install/v1/admin/posts` | 게시글 등록 | Draft |
 | GET | `/install/v1/admin/posts/{postId}` | Admin 게시글 단건 조회. 숨김도 조회 가능 | Draft |
-| PATCH | `/install/v1/admin/posts/{postId}` | Title / 본문 / Category 수정 | Draft |
+| PUT | `/install/v1/admin/posts/{postId}` | Title / 본문 / Category 전체 교체 수정 | Draft |
 | PUT | `/install/v1/admin/posts/{postId}/hidden` | 숨김 처리 / 복구 | Draft |
 | PUT | `/install/v1/admin/posts/{postId}/pinned` | 상단 고정 / 고정 해제 | Draft |
 | GET | `/install/v1/admin/post-categories` | Admin Category 목록. 비활성 포함, `postCount` 포함 | Draft |
@@ -781,7 +788,8 @@ components:
 
 ### 수정
 
-- `PATCH`는 `publishedAt`을 갱신하지 않고 `updatedAt`만 갱신한다.
+- `PUT`은 `publishedAt`을 갱신하지 않고 `updatedAt`만 갱신한다.
+- `PUT`은 partial update가 아니다. 수정 화면은 기존 값을 채운 상태로 열고, 사용자가 건드리지 않은 필드도 그대로 다시 보낸다. `categoryId`를 빠뜨리면 게시글이 조용히 미분류가 된다.
 - `type` 변경은 지원하지 않는다.
 - `title`, `content`는 필수값이며 공백만으로 이루어질 수 없다. `content`는 HTML 태그 제거 후 텍스트가 남아야 한다.
 - 폰트 스타일은 관리자가 수정할 수 없다 — HTML allow-list에 `style` / `class` 속성이 없으므로 계약 수준에서 이미 차단된다.
