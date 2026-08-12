@@ -17,7 +17,8 @@ interface InstallationProcessProgressBarProps {
   /**
    * The latest connection-test verdict, hung under the 연결 테스트 step. The verdict
    * belongs to that step, so it sits under that step — beside the page title you had
-   * to scan the stepper to learn what it was about. Renders nothing when absent.
+   * to scan the stepper to learn what it was about. Renders nothing when absent, and
+   * nothing before the target reaches that step (see the render site).
    */
   tcTag?: ReactNode;
 }
@@ -89,8 +90,15 @@ export const InstallationProcessProgressBar = ({
                   wraps to two lines and the two overlapped (codex, 30x10px).
                   Out of flow at `top-full` it clears every label — the row
                   stretches to the tallest one — and it costs no height, so a
-                  target that never ran a test gets no dead space either. */}
-              {it.step === ProcessStatus.WAITING_CONNECTION_TEST && (
+                  target that never ran a test gets no dead space either.
+
+                  Gated on having REACHED the step. A verdict that survives on a
+                  target sitting at step 1–4 belongs to a previous cycle — the
+                  agent is not installed yet, so nothing can have tested this
+                  configuration — and drawing it says the connection is fine
+                  about a setup that has never been tested. Not rendering it also
+                  spares those four steps the tag's latest_version fetch. */}
+              {it.step === ProcessStatus.WAITING_CONNECTION_TEST && (isCurrent || isCompleted) && (
                 <span className={s.tagSlot}>{tcTag}</span>
               )}
             </li>
