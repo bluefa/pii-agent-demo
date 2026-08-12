@@ -144,6 +144,14 @@ export const RdsInstancePanel = ({
               </>
             );
 
+            // The chosen line gets NO fill of its own (owner, 2026-08-12). The radio already
+            // says which one it is — and where there is no radio (read-only), the 선택됨 chip
+            // does. A tint on top of that was a third voice saying the same thing, and it cost
+            // more than it said: the role chip is a grey pill (`statusColors.pending.bg`), which
+            // is the SAME grey as this body's surface, so it flattened into the background on
+            // every line except the tinted one. One line in the list looking like the only one
+            // with a real chip is a difference the eye reads as meaning, and it meant nothing.
+            //
             // The rule rides each line rather than `divide-y` on the list: `divide-*` colours
             // through the children's inherited border-color, which preflight has already set
             // to the default grey — the token on the container would be silently ignored.
@@ -151,7 +159,7 @@ export const RdsInstancePanel = ({
               LINE_GRID,
               'border-t py-3 pr-3',
               borderColors.default,
-              chosen ? primaryColors.bgLight : bgColors.surfaceHover,
+              bgColors.surfaceHover,
             );
 
             // No radio → nothing to label, so the line is a plain block rather than a
