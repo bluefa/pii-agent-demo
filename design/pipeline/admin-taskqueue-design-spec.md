@@ -31,7 +31,9 @@ h1 "운영 대시보드"
       .lbl 14/600 medium   ← 라벨이 위
       .val 32/600 tabular, 위 12    ← 숫자가 아래
       숫자 톤: 연동 요청 대기=warn-text · 반려>0=err-text · 완료=strong · 테스트 반려>0=err-text
-섹션 "Process Status 모니터" + desc "Target Source별 현재 단계와 지연… · 30초마다 자동 갱신돼요"
+섹션 "Process Status 모니터" + desc "Target Source별 현재 단계와 지연… · 최신 상태는 새로고침으로 다시 읽습니다"
+  ※ 2026-08-12 (PR #695): 30초 자동 폴링 제거 — 사이드바 뱃지 조회와 매 틱 중복됐고
+    숨은 탭에서도 돌았다. 이제 필터·페이지 변경과 새로고침으로만 다시 읽는다.
   Card
     filterbar (gap 8, mb 16)
       Step 셀렉트: h46 r10 14/600 — "프로세스 상태 전체" + "Step n · 라벨" 옵션 7

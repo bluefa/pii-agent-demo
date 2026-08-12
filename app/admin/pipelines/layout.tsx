@@ -9,13 +9,12 @@
  */
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { PlToastProvider } from '@/app/admin/pipelines/_components/PlToastProvider';
+import { NavCountsRefreshProvider } from '@/app/admin/pipelines/_components/NavCountsRefresh';
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
-
-const NAV_ALARM_POLL_MS = 30_000;
 
 const SIDEBAR_GROUPS = [
   {
@@ -65,32 +64,34 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
 
   // Nav count badges: 연동 요청 = 승인 대기 requests, 운영 알림 = the four Step 3~6
   // action buckets. Hidden at 0, clamped to "9+".
+  // Re-read on every admin navigation, NOT on an interval (one ran on EVERY
+  // admin screen, hidden tabs included). Mount alone is not enough: this is a
+  // client layout, so React preserves it across in-app navigation and a
+  // `[]` dep would freeze the counts for the whole session — 승인 → router.push
+  // back to the list would leave the badge contradicting the list beside it.
+  // `nonce` covers what navigation cannot: a screen that refreshes in place
+  // (운영 알림's 새로고침) reads the same summary, so it signals us too.
   // Best-effort (errors ignored): the nav badge must never break the shell.
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
+  const [nonce, setNonce] = useState(0);
+  const refreshCounts = useCallback(() => setNonce((n) => n + 1), []);
   useEffect(() => {
     const controller = new AbortController();
-    const load = (): void => {
-      getDashboardSummary({ signal: controller.signal })
-        .then((summary) => {
-          if (controller.signal.aborted) return;
-          setPendingApprovals(summary.pendingApprovalCount ?? 0);
-          setAlertCount(
-            (summary.confirmingCount ?? 0) +
-              (summary.needInstallCount ?? 0) +
-              (summary.needTestConnectionCount ?? 0) +
-              (summary.needPiiAgentConfirmCount ?? 0),
-          );
-        })
-        .catch(() => undefined);
-    };
-    load();
-    const timer = setInterval(load, NAV_ALARM_POLL_MS);
-    return () => {
-      clearInterval(timer);
-      controller.abort();
-    };
-  }, []);
+    getDashboardSummary({ signal: controller.signal })
+      .then((summary) => {
+        if (controller.signal.aborted) return;
+        setPendingApprovals(summary.pendingApprovalCount ?? 0);
+        setAlertCount(
+          (summary.confirmingCount ?? 0) +
+            (summary.needInstallCount ?? 0) +
+            (summary.needTestConnectionCount ?? 0) +
+            (summary.needPiiAgentConfirmCount ?? 0),
+        );
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [pathname, nonce]);
   const isDashboard = pathname === passRoutes.pipelines.dashboard;
   // Pipeline detail = a single dynamic segment under the base (not `services`,
   // not `targets/…`); it gets the fluid full-height column so its flow canvas
@@ -162,7 +163,9 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
         ))}
       </nav>
       <main className={mainClass}>
-        <PlToastProvider>{children}</PlToastProvider>
+        <NavCountsRefreshProvider value={refreshCounts}>
+          <PlToastProvider>{children}</PlToastProvider>
+        </NavCountsRefreshProvider>
       </main>
     </div>
   );

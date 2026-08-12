@@ -40,11 +40,13 @@ export const mockUsers = {
       );
     }
 
-    // Wire: UserMeResponse is FLAT { id, name, email } (50) — no `{ user }` wrapper.
+    // Wire: UserMeResponse is FLAT { id, name, email, role } (50) — no `{ user }`
+    // wrapper. `role` carries the admin gate, so the mock has to ship it too.
     return NextResponse.json({
       id: user.id,
       name: user.name,
       email: user.email,
+      role: user.role,
     });
   },
 

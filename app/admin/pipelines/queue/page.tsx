@@ -12,15 +12,17 @@
  *  - The 지연 (delay) filter is CLIENT-side over the fetched page — contract gap
  *    G1 (no server query). Its tier counts + row filtering live in `_p1/logic`.
  *  - `delay_seconds` is server-computed; the client never recomputes elapsed time.
- *  - Both endpoints re-poll every 30s in the background (no loading skeleton), so
- *    the server-fresh `delay_seconds` stays current without client math.
+ *  - No background poll (it duplicated the shell's own summary fetch every
+ *    tick). The monitor re-reads on filter/page change and on its 재시도; 현황
+ *    rides the same `retryNonce` but has no control of its own. Otherwise the
+ *    operator refreshes.
  *
  * Visual language: tqStyles (prototype pixel SSOT) + shared pipeline primitives.
  * The monitor table is composed from `pipelineStyles.table` tokens rather than
  * PlTable/PlTd: PlTd's fixed color roles can't express the 600-strong 서비스 이름
  * cell, and PlTable's tbody applies a zebra tint the flat prototype does not.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
@@ -46,7 +48,6 @@ import { getDashboardSummary, getProcessStatuses } from '@/app/lib/api/task-queu
 import type { DashboardSummary, Paged, ProcessStatusRow } from '@/lib/types/task-queue';
 import type { DelayFilter } from '@/app/admin/pipelines/queue/_p1/logic';
 
-const POLL_INTERVAL_MS = 30_000;
 const SIZE_OPTIONS = [10, 20, 50] as const;
 const DEFAULT_SIZE = 20;
 
@@ -95,7 +96,11 @@ export default function QueueDashboardPage(): ReactElement {
   const [error, setError] = useState<unknown>(null);
   const [retryNonce, setRetryNonce] = useState(0);
 
-  // Summary fetch — silent degrade; refetched by the poll below.
+  // Summary fetch — degrades to "—" on error. It shares the monitor's
+  // `retryNonce`, but that control only renders inside the monitor's own error
+  // branch: when 현황 fails ALONE the tiles stay "—" until a browser refresh.
+  // Acceptable because refresh is this console's stated refresh model; the tile
+  // showing "—" is the visible signal.
   useAbortableEffect(
     (signal) =>
       getDashboardSummary({ signal })
@@ -130,31 +135,6 @@ export default function QueueDashboardPage(): ReactElement {
     },
     [procStatus, delayFilter, page, size, retryNonce],
   );
-
-  // 30s background poll — refresh both endpoints without the loading skeleton so
-  // the server-computed delay stays current. Errors are swallowed (keep last-good).
-  useEffect(() => {
-    const controller = new AbortController();
-    const timer = setInterval(() => {
-      getDashboardSummary({ signal: controller.signal })
-        .then((data) => {
-          if (!controller.signal.aborted) setSummary(data);
-        })
-        .catch(() => {});
-      getProcessStatuses(
-        { processStatus: procStatus || undefined, delay: delayFilter, page, size },
-        { signal: controller.signal },
-      )
-        .then((data) => {
-          if (!controller.signal.aborted) setProcPage(data);
-        })
-        .catch(() => {});
-    }, POLL_INTERVAL_MS);
-    return () => {
-      controller.abort();
-      clearInterval(timer);
-    };
-  }, [procStatus, delayFilter, page, size]);
 
   const visibleRows = useMemo(() => procPage?.content ?? [], [procPage]);
 
@@ -193,7 +173,7 @@ export default function QueueDashboardPage(): ReactElement {
 
       <SectionHeader
         title="Process Status 모니터"
-        desc="Target Source별 현재 단계와 지연(마지막 상태 변경 이후 경과)을 확인합니다. 30초마다 자동으로 갱신됩니다."
+        desc="Target Source별 현재 단계와 지연(마지막 상태 변경 이후 경과)을 확인합니다. 최신 상태는 새로고침으로 다시 읽습니다."
       />
       <Card>
         <div className="mb-4 flex items-center gap-2">

@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import { useNavCountsRefresh } from '@/app/admin/pipelines/_components/NavCountsRefresh';
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
 import type { AlertTargetKind, DashboardSummary } from '@/lib/types/task-queue';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -113,7 +114,13 @@ export function AlertsView(): ReactElement {
   const [counts, setCounts] = useState(EMPTY_SUMMARY_COUNTS);
   const [selected, setSelected] = useState<AlertTargetKind | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
+  // 사이드바 운영 알림 뱃지는 이 카드들과 같은 summary 를 읽는다. 함께 갱신하지
+  // 않으면 새로고침 직후 한 화면에 서로 다른 두 숫자가 남는다.
+  const refreshNavCounts = useNavCountsRefresh();
+  const reload = useCallback(() => {
+    setReloadKey((key) => key + 1);
+    refreshNavCounts();
+  }, [refreshNavCounts]);
 
   useEffect(() => {
     const controller = new AbortController();
