@@ -17,31 +17,24 @@ interface ResourceGroupRowProps {
   controls: string;
   /** Leading spacer cell — pass the checkbox column's `<td>` when the table has one. */
   leadingCell?: ReactNode;
-  /** Aggregate rendered beside the identity, for tables with no spare column to put it in. */
+  /** Aggregate rendered beside the identity — see `ResourceGroupCount` for why it lives there. */
   inlineMeta?: ReactNode;
-  /**
-   * Second identity line, for what the fold hides — the caller renders it only while collapsed.
-   *
-   * Folding cuts row COUNT, not information. An Athena group with its databases folded away is
-   * a row naming a service and a region, and in steps 1–3 neither is the thing being decided:
-   * the decision unit is the database. The row only decides where this goes — under the label,
-   * on the column's own left edge, with the chevron still centred on the label line.
-   */
-  subline?: ReactNode;
   /** This row's share of the group's tree rail (`useRailHover`), tagged with the group's key. */
   rail?: RailRowProps;
   /**
-   * The parent's remaining `<td>`s, one per column after the identity cell. The parent is a real
-   * row, not a colspan band (시안 §04), so the caller decides which columns carry the aggregate —
-   * Step 1 answers in 설치 구분, the approval table answers in 요청 대상 여부.
+   * How many columns the identity spans — every column after `leadingCell`.
    *
-   * Database Type and Region do NOT belong here any more — the group is keyed on that pair, and
-   * the identity cell now says both (the label IS the type, the chip beside it IS the region).
-   * Filling the two columns as well printed each of them twice on the one row that has them, next
-   * to children that leave both blank. What earns a cell here is what the identity cannot say:
-   * the aggregate, and whichever column the screen uses to answer its own question.
+   * The parent used to be a real row with one `<td>` per column, and every one of them ended up
+   * empty: Database Type and Region are the pair the group is KEYED on, so the identity says
+   * both and filling the columns printed each twice; 설치 구분 is a per-resource verdict a group
+   * never received; and the aggregate moved onto the identity to sit beside the region it counts
+   * within. A row of blanks that also squeezed the identity into one narrow column — the region
+   * chip wrapped to three lines — is not a row, so the identity takes the width instead.
+   *
+   * NOTE: both tables zero `py-5` for spanning cells (`[&_td:not([colspan])]`), so this one
+   * restates its own vertical padding to keep the group row on the list's rhythm.
    */
-  children: ReactNode;
+  colSpan: number;
 }
 
 /**
@@ -59,46 +52,10 @@ export const ResourceGroupRow = ({
   controls,
   leadingCell,
   inlineMeta,
-  subline,
   rail,
-  children,
+  colSpan,
 }: ResourceGroupRowProps) => {
   const label = getDatabaseShortLabel(type);
-  // The chevron hangs off THIS box (`toggle` is absolute against it), so it stays a single
-  // line: centred on the label rather than floating between the label and the subline.
-  const lead = (
-    <span className={idcStyles.table.group.lead}>
-      <button
-        type="button"
-        aria-expanded={expanded}
-        aria-controls={controls}
-        aria-label={`${label} ${region} 그룹 ${expanded ? '접기' : '펼치기'}`}
-        onClick={(event) => {
-          event.stopPropagation();
-          onToggle();
-        }}
-        className={cn(
-          idcStyles.table.group.toggle,
-          expanded ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
-          primaryColors.focusRing,
-        )}
-      >
-        <ChevronRightIcon className="h-3.5 w-3.5" />
-      </button>
-      <span className={idcStyles.table.group.label}>{label}</span>
-      {/* The region rides the label instead of holding a column of its own (owner, 2026-08-12).
-          The group is keyed on the (type, region) PAIR, so the two are one identity — split
-          across the row they read as two independent facts, and the Region column then repeated
-          for the parent what the children below leave blank anyway. A neutral chip, not the
-          violet `resourceKind` tier: that tier answers "what this row IS", and where it runs is
-          a different question. */}
-      <Badge variant="neutral" size="sm" className="font-mono">
-        {region}
-      </Badge>
-      {inlineMeta}
-    </span>
-  );
-
   return (
     <tr
       className={cn(idcStyles.table.group.row, 'cursor-pointer', rail?.className)}
@@ -108,34 +65,61 @@ export const ResourceGroupRow = ({
     >
       {leadingCell}
       <td
+        colSpan={colSpan}
         className={cn(
           idcStyles.table.approvalCell,
+          'py-5',
           idcStyles.table.nameCell,
           expanded && idcStyles.table.group.parentCell,
         )}
       >
-        {subline ? (
-          // `w-full`, not `items-start`: the subline truncates, and shrink-to-fit children give
-          // it nothing to truncate against — it would push the column instead of clipping.
-          <span className="flex w-full min-w-0 flex-col gap-1">
-            {lead}
-            {subline}
-          </span>
-        ) : (
-          lead
-        )}
+        {/* One line: type · region · counts. The chevron hangs off this box (`toggle` is
+            absolute against it), so it stays centred on the line it opens. */}
+        <span className={idcStyles.table.group.lead}>
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-controls={controls}
+            aria-label={`${label} ${region} 그룹 ${expanded ? '접기' : '펼치기'}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle();
+            }}
+            className={cn(
+              idcStyles.table.group.toggle,
+              expanded ? idcStyles.table.group.toggleOpen : idcStyles.table.group.toggleClosed,
+              primaryColors.focusRing,
+            )}
+          >
+            <ChevronRightIcon className="h-3.5 w-3.5" />
+          </button>
+          <span className={idcStyles.table.group.label}>{label}</span>
+          {/* The region rides the label instead of holding a column of its own (owner,
+              2026-08-12). The group is keyed on the (type, region) PAIR, so the two are one
+              identity — split across the row they read as two independent facts, and the Region
+              column then repeated for the parent what the children below leave blank anyway.
+              A neutral chip, not the violet `resourceKind` tier: that tier answers "what this
+              row IS", and where it runs is a different question. */}
+          <Badge variant="neutral" size="sm" className="whitespace-nowrap font-mono">
+            {region}
+          </Badge>
+          {inlineMeta}
+        </span>
       </td>
-      {children}
     </tr>
   );
 };
 
 /**
- * Aggregate summary shown in one of the parent row's own columns.
+ * What the group holds, said beside the identity it counts within (owner, 2026-08-12).
  *
- * Two numbers, not three: the total was the sum of the two beside it, so it never told anyone
- * anything they could not read off the same line, and it made a three-part phrase out of a
- * two-part fact (owner, 2026-08-12).
+ * It names its UNIT first. "1 대상 · 0 제외" left the reader to work out what was being counted
+ * from a row whose own label says Athena — and the answer is neither Athena nor the region, it
+ * is the databases folded underneath. Grouping is Athena-only (`GROUPED_TYPES`), and an Athena
+ * group's children are databases, so the word is a fact about this row rather than a guess.
+ *
+ * Two numbers, not three: the total was the sum of the two printed beside it, so it never said
+ * anything the same line did not.
  */
 export const ResourceGroupCount = ({
   targetCount,
@@ -145,7 +129,7 @@ export const ResourceGroupCount = ({
   excludedCount: number;
 }) => (
   <span className={idcStyles.table.group.meta}>
-    <span className={idcStyles.table.group.metaValue}>{targetCount}</span> 대상 ·{' '}
-    <span className={idcStyles.table.group.metaValue}>{excludedCount}</span> 제외
+    데이터베이스 대상 <span className={idcStyles.table.group.metaValue}>{targetCount}</span> ·
+    제외 <span className={idcStyles.table.group.metaValue}>{excludedCount}</span>
   </span>
 );

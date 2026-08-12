@@ -1,9 +1,8 @@
 'use client';
 
 import { Fragment, useMemo, useState } from 'react';
-import { cn, idcStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles } from '@/lib/theme';
 import { groupResourceRows } from '@/lib/resource-grouping';
-import { getResourceDisplayName } from '@/lib/resource';
 import type { CandidateDraftState, CandidateResource } from '@/lib/types/resources';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import {
@@ -42,23 +41,6 @@ const CATEGORY_TERMS = [
       '네트워크 구성 제약으로 Agent를 설치할 수 없는 리소스예요. 선택할 수 없고, 행의 설치 불가 라벨을 누르면 상세 사유를 확인할 수 있어요.',
   },
 ] as const;
-
-/**
- * What a COLLAPSED Athena group says it holds.
- *
- * In steps 1–3 the decision unit is the database, not the region's Athena — a folded group
- * that names only the service and the region has folded away the only thing the user is
- * deciding about. Three names, then a count: past three the line stops being readable and
- * the panel/expansion is the place to read the rest.
- */
-const GROUP_NAME_PREVIEW = 3;
-
-const groupChildNames = (rows: readonly CandidateResource[]): string => {
-  const names = rows.map(getResourceDisplayName).filter(Boolean);
-  const head = names.slice(0, GROUP_NAME_PREVIEW).join(', ');
-  const rest = names.length - GROUP_NAME_PREVIEW;
-  return rest > 0 ? `${head} 외 ${rest}개` : head;
-};
 
 const CATEGORY_TOOLTIP_CONTENT = (
   <div className="leading-[1.55]">
@@ -232,25 +214,14 @@ export const CandidateResourceTable = ({
                     onToggle={() => toggleExpanded(group.key)}
                     controls={rowsId}
                     rail={rail}
-                    // Read-only drops the 제외 사유 column, so the aggregate has no cell to sit
-                    // in — it rides along with the identity instead of vanishing.
+                    // The aggregate rides the identity, next to the region it counts within
+                    // (owner, 2026-08-12) — a column at the far end of the row put the numbers a
+                    // screen-width away from the group they belong to.
                     inlineMeta={
-                      showCheckboxColumn ? undefined : (
-                        <ResourceGroupCount
-                          targetCount={group.targetCount}
-                          excludedCount={group.excludedCount}
-                        />
-                      )
-                    }
-                    // Collapsed, the parent names the databases it folded away — they are what
-                    // this step decides about, and a group row that hides them says nothing a
-                    // user can act on (owner, 2026-08-11).
-                    subline={
-                      collapsed ? (
-                        <span className={cn('block w-full truncate text-[12px]', textColors.tertiary)}>
-                          {groupChildNames(group.rows)}
-                        </span>
-                      ) : undefined
+                      <ResourceGroupCount
+                        targetCount={group.targetCount}
+                        excludedCount={group.excludedCount}
+                      />
                     }
                     leadingCell={
                       showCheckboxColumn ? (
@@ -259,29 +230,10 @@ export const CandidateResourceTable = ({
                         <td className={cn(idcStyles.table.approvalCell, 'w-10')} />
                       ) : undefined
                     }
-                  >
-                    {/* Resource ID stays blank — the catalog id lives only inside each child's
-                        resource_id string, which we do not parse.
-                        Database Type and Region stay blank too: the group is keyed on that pair,
-                        and the identity cell already says both — the label is the type, the chip
-                        beside it is the region. Filling the columns as well printed "Athena"
-                        twice on one row (owner, 2026-08-12).
-                        설치 구분 stays EMPTY: it is the scan's per-resource verdict, and a group
-                        is not a resource the scan judged — a value there would be invented.
-                        The aggregate goes in the trailing column, the only one with room. */}
-                    <td className={idcStyles.table.approvalCell} />
-                    <td className={idcStyles.table.approvalCell} />
-                    <td className={idcStyles.table.approvalCell} />
-                    <td className={idcStyles.table.approvalCell} />
-                    {showCheckboxColumn && (
-                      <td className={idcStyles.table.approvalCell}>
-                        <ResourceGroupCount
-                          targetCount={group.targetCount}
-                          excludedCount={group.excludedCount}
-                        />
-                      </td>
-                    )}
-                  </ResourceGroupRow>
+                    // Resource Name · Resource ID · Database Type · Region · 설치 구분, plus
+                    // 제외 사유 when the table is editable.
+                    colSpan={showCheckboxColumn ? 6 : 5}
+                  />
                 </tbody>
                 {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
                 <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>

@@ -866,25 +866,17 @@ export const WaitingApprovalTable = memo(
                       onToggle={() => toggleGroup(group.key)}
                       controls={rowsId}
                       rail={railRow(group.key)}
-                    >
-                      {/* Resource ID stays blank: the catalog id lives only inside each child's
-                          resource_id string, which we do not parse. Database Type and Region stay
-                          blank as well — the group is keyed on that pair and the identity cell
-                          says both, so filling the columns printed each of them twice on the one
-                          row that has them (owner, 2026-08-12; same change in step 1). */}
-                      <td className={idcStyles.table.approvalCell} />
-                      <td className={idcStyles.table.approvalCell} />
-                      <td className={idcStyles.table.approvalCell} />
-                      {/* Only the approval variant reaches here, so the aggregate always lands
-                          in the verdict column — the question that column asks. */}
-                      <td className={idcStyles.table.approvalCell}>
+                      inlineMeta={
                         <ResourceGroupCount
                           targetCount={group.targetCount}
                           excludedCount={group.excludedCount}
                         />
-                      </td>
-                      <td className={idcStyles.table.approvalCell} />
-                    </ResourceGroupRow>
+                      }
+                      // Resource Name · Resource ID · Database Type · Region · 요청 대상 여부 ·
+                      // 제외 사유 — the parent had a value for none of them once the identity
+                      // took its type, region and counts (owner, 2026-08-12).
+                      colSpan={6}
+                    />
                   </tbody>
                   {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
                   <tbody id={rowsId} hidden={collapsed} className={idcStyles.table.body}>

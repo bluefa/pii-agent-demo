@@ -126,11 +126,11 @@ describe('WaitingApprovalTable', () => {
       ...(counts ? { logicalDbCount: counts[0], excludedLogicalDbCount: counts[1] } : {}),
     });
 
-    /** The group parent's aggregate cell — 요청 대상 여부(4) in this table's column order. */
+    /** The aggregate rides the identity cell, beside the region it counts within. */
     const aggregateOf = (region: string) => {
       const toggle = screen.getByRole('button', { name: new RegExp(`Athena ${region} 그룹`) });
       const row = toggle.closest('tr') as HTMLElement;
-      return within(row).getAllByRole('cell')[4].textContent;
+      return within(row).getAllByRole('cell')[0].textContent;
     };
 
     it('renders one parent row per region with the target/excluded aggregate', () => {
@@ -149,8 +149,8 @@ describe('WaitingApprovalTable', () => {
       expect(toggles[0].getAttribute('aria-expanded')).toBe('true');
       // The counts are split across spans (the numbers sit a size up), so `getByText` — which
       // matches an element's OWN text nodes — cannot see the phrase. Read the cell instead.
-      expect(aggregateOf('ap-northeast-1')).toBe('1 대상 · 1 제외');
-      expect(aggregateOf('us-east-1')).toBe('1 대상 · 0 제외');
+      expect(aggregateOf('ap-northeast-1')).toContain('데이터베이스 대상 1 · 제외 1');
+      expect(aggregateOf('us-east-1')).toContain('데이터베이스 대상 1 · 제외 0');
     });
 
     // The parent's type and region live in its identity cell, not in the two columns keyed on
@@ -167,11 +167,13 @@ describe('WaitingApprovalTable', () => {
 
       const rows = screen.getAllByRole('row');
       // Column order: Name(0) · ID(1) · DB Type(2) · Region(3) · 요청 대상 여부(4) · 제외 사유(5).
+      // The parent is one spanning cell now — it had a value for none of the columns once its
+      // identity carried the type, the region and the counts.
       const parent = within(rows[1]).getAllByRole('cell');
+      expect(parent).toHaveLength(1);
+      expect(parent[0].getAttribute('colspan')).toBe('6');
       expect(parent[0].textContent).toContain('Athena');
       expect(parent[0].textContent).toContain('ap-northeast-1');
-      expect(parent[2].textContent).toBe('');
-      expect(parent[3].textContent).toBe('');
 
       for (const row of rows.slice(2)) {
         const cells = within(row).getAllByRole('cell');

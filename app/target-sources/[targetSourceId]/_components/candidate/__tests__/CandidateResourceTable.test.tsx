@@ -465,9 +465,10 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   });
 });
 
-// Athena groups start COLLAPSED (owner, 2026-08-11). A fold that also hid WHICH databases the
-// group holds would have folded away the decision unit itself — in steps 1–3 the user selects
-// databases, not regions.
+// Athena groups start COLLAPSED (owner, 2026-08-11). The parent names the group and how many
+// databases it holds on each side of the decision; it does NOT list their names — that line was
+// tried and cut (owner, 2026-08-12), because a folded row that spells out its children is a
+// row-count saving that pays itself back in text.
 describe('CandidateResourceTable — Athena groups', () => {
   const athenaFixture = (id: string, name: string): CandidateResource =>
     candidateFixture({
@@ -487,22 +488,28 @@ describe('CandidateResourceTable — Athena groups', () => {
       />,
     );
 
-  it('starts collapsed and names the databases it folded away', () => {
+  it('starts collapsed, holding the region and the counts but no child names', () => {
     renderGroup(['raw_athena_db_prod', 'raw_athena_db_stg']);
     const toggle = screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.getByText('raw_athena_db_prod, raw_athena_db_stg')).toBeTruthy();
+
+    const identity = toggle.closest('td') as HTMLElement;
+    expect(identity.textContent).toContain('ap-northeast-2');
+    // The fixture's rows are unselected, so both land on the 제외 side.
+    expect(identity.textContent).toContain('데이터베이스 대상 0 · 제외 2');
+    expect(identity.textContent).not.toContain('raw_athena_db_prod');
   });
 
-  it('caps the preview at three names and counts the rest', () => {
-    renderGroup(['db_a', 'db_b', 'db_c', 'db_d', 'db_e']);
-    expect(screen.getByText('db_a, db_b, db_c 외 2개')).toBeTruthy();
-  });
-
-  it('drops the preview once the group is open — the child rows say it themselves', () => {
+  it('opens to the child rows the fold was hiding', () => {
     renderGroup(['raw_athena_db_prod', 'raw_athena_db_stg']);
-    fireEvent.click(screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' }));
-    expect(screen.queryByText('raw_athena_db_prod, raw_athena_db_stg')).toBeNull();
+    const toggle = screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 펼치기' });
+    // The children stay MOUNTED while folded so `aria-controls` always resolves — `hidden` is
+    // what the fold actually flips, and a query for their text would find them either way.
+    const rows = document.getElementById(toggle.getAttribute('aria-controls') as string);
+    expect(rows?.hidden).toBe(true);
+
+    fireEvent.click(toggle);
+    expect(rows?.hidden).toBe(false);
     expect(screen.getByRole('button', { name: 'Athena ap-northeast-2 그룹 접기' })).toBeTruthy();
   });
 });
