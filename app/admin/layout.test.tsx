@@ -16,6 +16,7 @@ const renderGate = async (): Promise<void> => {
 };
 
 const DENIED = '관리자만 접근할 수 있어요';
+const UNAVAILABLE = '권한을 확인하지 못했어요';
 
 describe('AdminLayout role gate', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -55,11 +56,17 @@ describe('AdminLayout role gate', () => {
     expect(screen.getByText(DENIED)).toBeTruthy();
   });
 
-  it('/user/me 실패는 차단으로 흡수한다', async () => {
-    meMock.mockRejectedValue(new Error('401'));
+  // 조회 실패는 닫되, 권한 판정으로 말하지 않는다. 장애 중인 진짜 관리자에게
+  // "당신은 관리자가 아니다"라고 하면 이미 가진 권한을 요청하러 가게 된다.
+  it.each([
+    ['401 (SSO 만료)', new Error('401')],
+    ['5xx (BFF 장애)', new Error('500')],
+  ])('%s 는 차단하되 장애로 안내한다', async (_label, err) => {
+    meMock.mockRejectedValue(err);
     await renderGate();
     expect(screen.queryByText('admin content')).toBeNull();
-    expect(screen.getByText(DENIED)).toBeTruthy();
+    expect(screen.getByText(UNAVAILABLE)).toBeTruthy();
+    expect(screen.queryByText(DENIED)).toBeNull();
   });
 
   // 차단 화면에는 자체 링크가 없다. TopNav 가 유일한 탈출구라서, 차단 분기

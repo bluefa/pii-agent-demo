@@ -9,10 +9,11 @@
  */
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { PlToastProvider } from '@/app/admin/pipelines/_components/PlToastProvider';
+import { NavCountsRefreshProvider } from '@/app/admin/pipelines/_components/NavCountsRefresh';
 import { getDashboardSummary } from '@/app/lib/api/task-queue';
 
 const SIDEBAR_GROUPS = [
@@ -68,9 +69,13 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   // client layout, so React preserves it across in-app navigation and a
   // `[]` dep would freeze the counts for the whole session — 승인 → router.push
   // back to the list would leave the badge contradicting the list beside it.
+  // `nonce` covers what navigation cannot: a screen that refreshes in place
+  // (운영 알림's 새로고침) reads the same summary, so it signals us too.
   // Best-effort (errors ignored): the nav badge must never break the shell.
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
+  const [nonce, setNonce] = useState(0);
+  const refreshCounts = useCallback(() => setNonce((n) => n + 1), []);
   useEffect(() => {
     const controller = new AbortController();
     getDashboardSummary({ signal: controller.signal })
@@ -86,7 +91,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [pathname]);
+  }, [pathname, nonce]);
   const isDashboard = pathname === passRoutes.pipelines.dashboard;
   // Pipeline detail = a single dynamic segment under the base (not `services`,
   // not `targets/…`); it gets the fluid full-height column so its flow canvas
@@ -158,7 +163,9 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
         ))}
       </nav>
       <main className={mainClass}>
-        <PlToastProvider>{children}</PlToastProvider>
+        <NavCountsRefreshProvider value={refreshCounts}>
+          <PlToastProvider>{children}</PlToastProvider>
+        </NavCountsRefreshProvider>
       </main>
     </div>
   );
