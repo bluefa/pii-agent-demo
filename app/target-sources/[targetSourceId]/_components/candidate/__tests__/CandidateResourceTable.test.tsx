@@ -324,13 +324,14 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   // plain row and nobody looks inside it (owner, 2026-08-12).
   it('opens the instance band from the cluster row’s chevron, folded on load', () => {
     renderCluster();
-    expect(screen.queryByText('연결할 인스턴스 · 3건')).toBeNull();
+    expect(screen.queryByText('엔드포인트')).toBeNull();
 
     openBand();
-    expect(screen.getByText('연결할 인스턴스 · 3건')).toBeTruthy();
+    expect(screen.getByText('엔드포인트')).toBeTruthy();
+    expect(screen.getAllByRole('radio')).toHaveLength(3);
 
     fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
-    expect(screen.queryByText('연결할 인스턴스 · 3건')).toBeNull();
+    expect(screen.queryByText('엔드포인트')).toBeNull();
   });
 
   it('lists instances Reader-first then by ARN, regardless of wire order', () => {
@@ -372,14 +373,14 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
 
   // Endpoint and AZ are exactly what the table has no column for — they are the reason the
   // band exists, so it must be the place they finally appear.
-  it('shows the endpoint, AZ and engine the table has no column for', () => {
+  it('shows the endpoint and AZ the table has no column for', () => {
     renderCluster();
     openBand();
     expect(screen.getByText('demo-2.cluster-ro.rds:3306')).toBeTruthy();
     expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
-    // One per card, from the cluster's own engine — plus the row's own Database Type cell,
-    // which every row keeps (owner: "Database 정보가 노출이 되어야 해요").
-    expect(screen.getAllByText('MySQL')).toHaveLength(4);
+    // The engine is NOT repeated per instance — every member runs the cluster's engine, and
+    // the cluster row's own Database Type cell says it once.
+    expect(screen.getAllByText('MySQL')).toHaveLength(1);
   });
 
   // The wire sends WRITER / READER; the chip must not shout them back.
@@ -413,7 +414,6 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
       />,
     );
     openBand();
-    expect(screen.getByText('연결할 인스턴스 · 8건')).toBeTruthy();
     expect(screen.getAllByRole('radio')).toHaveLength(8);
     // Every line fills all three of the band's own columns — no wrapping into a second grid row.
     expect(screen.getAllByText('demo-8.cluster-ro.rds:3306')).toHaveLength(1);

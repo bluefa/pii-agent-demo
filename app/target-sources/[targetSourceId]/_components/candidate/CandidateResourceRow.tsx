@@ -524,7 +524,6 @@ export const CandidateResourceRow = ({
           // instance, so offering the choice would promise something the payload never sends.
           selectable={isSelected && !readonly}
           readonly={readonly}
-          engineLabel={effectiveDbType ? getDatabaseShortLabel(effectiveDbType) : null}
           onSelect={(instanceResourceId) => actions.selectRdsInstance(candidate.id, instanceResourceId)}
         />
       )}

@@ -46,13 +46,15 @@ interface RdsInstancePanelProps {
   /** Radios exist only inside a checked cluster in the editable table (absent, not disabled). */
   selectable: boolean;
   readonly: boolean;
-  /** The cluster's engine — the one thing an instance line cannot say for itself. */
-  engineLabel: string | null;
   onSelect: (instanceResourceId: string) => void;
 }
 
 /**
- * Instance line grid — identity (radio · name · role) | AZ · engine | endpoint.
+ * Instance line grid — identity (radio · name · role) | AZ | endpoint.
+ *
+ * No engine column: every member of a cluster runs the cluster's engine, so repeating it on
+ * each line said the same word N times and the cluster row's own Database Type cell already
+ * says it once (owner, 2026-08-12).
  *
  * The role chip rides the NAME rather than taking a column of its own (owner: "Reader/Writer가
  * Instance와 최대한 가까웠으면 한다"). Everything else is a column, because a column is what
@@ -76,7 +78,6 @@ export const RdsInstancePanel = ({
   chosenResourceId,
   selectable,
   readonly,
-  engineLabel,
   onSelect,
 }: RdsInstancePanelProps) => (
   <tr>
@@ -97,18 +98,10 @@ export const RdsInstancePanel = ({
           showCheckboxColumn ? INDENT_WITH_CHECKBOX : INDENT_WITHOUT_CHECKBOX,
         )}
       >
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className={cn('text-[14px] font-semibold', textColors.primary)}>
-            {`연결할 인스턴스 · ${instances.length}건`}
-          </span>
-          <span className={cn('text-[12px]', textColors.secondary)}>
-            {selectable
-              ? 'Agent가 접속할 인스턴스 1개를 고르세요. 기본값은 부하가 적은 Reader예요.'
-              : '이 클러스터를 연동 대상으로 선택하면 접속할 인스턴스를 고를 수 있어요.'}
-          </span>
-        </div>
-
-        <div className={cn('mt-3 pb-2 text-[12px]', LINE_GRID, textColors.secondary)}>
+        {/* No title strip. The row above already names the cluster and the count, and the
+            guidance repeated what the checked radio and the Reader-first order say by
+            themselves — the body opens straight into the list (owner, 2026-08-12). */}
+        <div className={cn('pb-2 text-[12px]', LINE_GRID, textColors.secondary)}>
           <span>인스턴스</span>
           <span>가용 영역</span>
           <span>엔드포인트</span>
@@ -142,9 +135,8 @@ export const RdsInstancePanel = ({
                   <RdsMemberChip role={instance.cluster_member_role} />
                   {readonly && chosen && <RdsSelectionChip />}
                 </span>
-                <span className={cn('flex min-w-0 items-baseline gap-2 text-[12px]', textColors.secondary)}>
-                  <span className="truncate font-mono">{instance.availability_zone ?? '—'}</span>
-                  {engineLabel && <span className="shrink-0">{engineLabel}</span>}
+                <span className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
+                  {instance.availability_zone ?? '—'}
                 </span>
                 <span className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
                   {endpoint ?? '—'}
