@@ -15,17 +15,14 @@
  */
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useState, type ReactElement } from 'react';
-import { cn, serviceSidebarStyles } from '@/lib/theme';
+import { cn } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { useDebounce } from '@/app/hooks/useDebounce';
 import { holdFor, SKELETON_MIN_MS } from '@/lib/min-duration';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { SERVICE_RAIL_PAGE_SIZE } from '@/app/components/features/admin/ServiceSidebar';
-import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
-import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
-import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
-import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
+import { AdminServiceRail } from '@/app/admin/pipelines/_services/AdminServiceRail';
 import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
 import { serviceItemsFrom, type ServiceItem } from '@/app/admin/pipelines/_services/logic';
 import { ServiceDetailView } from '@/app/admin/pipelines/ops/services/_components/ServiceDetailView';
@@ -36,44 +33,6 @@ const RAIL_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
 
 /** 서비스·대상 검색 레일과 같은 값 — 두 레일의 검색 감각이 갈리지 않게. */
 const SEARCH_DEBOUNCE_MS = 300;
-
-/**
- * Ceiling for one stretched row. A full page divides the rail's height evenly, so
- * without a cap a tall monitor — or a two-row search result — would stretch each
- * row down the whole rail.
- */
-const ROW_MAX_PX = 88;
-
-/**
- * Skeleton frame for the rail's list — mirrors the row shape (타일 · 이름 · 코드) so
- * the layout does not shift when the services land. Row count is the page size for
- * the same reason: a shorter skeleton would reflow the moment a full page arrives.
- *
- * The section label is real text, not a bar. It is local state (검색 중인가), known
- * before the request resolves, so blanking it would hide something we already have.
- */
-function RailSkeleton({ section }: { section: string }): ReactElement {
-  return (
-    <>
-      <div className={serviceListStyles.railSection}>{section}</div>
-      <div
-        className={serviceListStyles.railList}
-        style={{ maxHeight: RAIL_PAGE_SIZE * ROW_MAX_PX }}
-        aria-busy="true"
-        aria-live="polite"
-      >
-        {Array.from({ length: RAIL_PAGE_SIZE }).map((_, i) => (
-          // 진짜 행과 같은 flex-1 + min-h-[48px] — 스켈레톤이 걷힐 때 목록이 튀지 않는다.
-          <div key={i} className="flex flex-1 min-h-[48px] items-center gap-2.5 px-3" aria-hidden="true">
-            <div className={cn(serviceSidebarStyles.skeletonBar, 'h-7 w-7 shrink-0 rounded-[6px]')} />
-            <div className={cn(serviceSidebarStyles.skeletonBar, 'h-3 flex-1 rounded')} />
-            <div className={cn(serviceSidebarStyles.skeletonBar, 'h-5 w-10 shrink-0 rounded-[6px]')} />
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
 
 export function ServicesView(): ReactElement {
   const router = useRouter();
@@ -138,123 +97,41 @@ export function ServicesView(): ReactElement {
 
   return (
     <div className={s.split}>
-      {/* 좌 — 서비스 레일. 우측 상세는 표·타일로 길어지므로 레일이 같이 늘어나면
-          페이지 이동 버튼이 화면 밖으로 밀린다 — 뷰포트 높이에 고정하고 목록만 스크롤. */}
-      <aside
-        // top-[76px] = sticky TopNav 높이. top-0 이면 레일 제목이 TopNav 밑으로 들어간다.
-        className={cn(s.rail, s.railSticky)}
-        aria-label="서비스 목록"
-      >
-        {/* 제목 + 개수. 검색 중에는 걸린 건수라 그대로 둔다. */}
-        <div className={s.railHead}>
-          <h1 className={s.railTitle}>서비스 운영</h1>
-          {services != null && total > 0 && (
-            <span className={s.railCount}>{total}</span>
-          )}
-        </div>
-        <div className={s.railSearch}>
-          <SearchBox
-            // `block` alone leaves SearchBox's `inline-block` shrink-to-fit width.
-            wrapClassName="block w-full"
-            placeholder="ServiceCode·서비스명 검색"
-            aria-label="ServiceCode·서비스명 검색"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(0);
-            }}
-          />
-        </div>
-        <div className={s.railBody}>
-          {failed ? (
-            <div className="flex-1">
-              <PlEmptyState
-                onGround
-                icon="search"
-                message="서비스 목록을 불러오지 못했습니다."
-                meta={
-                  <PlButton
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      // 첫 장으로 되감고 다시 부른다. 범위를 벗어난 페이지가 실패의
-                      // 원인이었다면, 같은 페이지로 재시도해봐야 같은 실패만 반복된다.
-                      setPage(0);
-                      reload();
-                    }}
-                  >
-                    다시 시도
-                  </PlButton>
-                }
-              />
-            </div>
-          ) : !services ? (
-            <RailSkeleton section={query ? '검색 결과' : '전체 서비스'} />
-          ) : pageRows.length === 0 ? (
-            <div className="flex-1">
-              <PlEmptyState onGround icon="search" message="검색 결과가 없습니다." />
-            </div>
-          ) : (
-            <>
-            <div className={s.railSection}>{query ? '검색 결과' : '전체 서비스'}</div>
-            <div
-              className={s.railList}
-              // 행이 남은 높이를 나눠 가지므로 상한이 없으면 한 장이 짧을 때 행이
-              // 레일 끝까지 늘어난다. 상한을 걸면 남는 높이는 마지막 행과 페이지 표시
-              // 사이로 빠진다 — railFoot 의 mt-auto 가 표시를 바닥에 붙여 두기 때문.
-              style={{ maxHeight: pageRows.length * ROW_MAX_PX }}
-            >
-              {/* 계약 스키마가 두 필드 모두 optional 이라(zod 느슨한 codegen) code 가
-                  없는 행은 이동할 곳이 없다 — 그릴 수 없는 행이라 걸러 낸다. */}
-              {pageRows.map((service) => {
-                const code = service.service_code;
-                if (!code) return null;
-                const name = service.service_name ?? code;
-                const active = code === selectedCode;
-                return (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => {
-                      if (active) return;
-                      router.push(passRoutes.pipelines.ops.service(code));
-                    }}
-                    title={`${name} (${code})`}
-                    aria-current={active ? 'true' : undefined}
-                    className={cn(s.item, active ? s.itemActive : s.itemIdle)}
-                  >
-                    <span
-                      className={cn(serviceSidebarStyles.tile, serviceTileClass(code))}
-                      aria-hidden="true"
-                    >
-                      {name.charAt(0).toUpperCase()}
-                    </span>
-                    <span className={cn(s.name, active ? s.nameActive : s.nameIdle)}>
-                      {name}
-                    </span>
-                    {/* EOS 배지는 여기 없다 — ServiceItem 에 그 필드가 없고, EOS 는
-                        대상의 service_info 를 거쳐야 읽히므로 상세에서만 표시한다. */}
-                    <span className={active ? s.codeActive : s.code}>{code}</span>
-                  </button>
-                );
-              })}
-            </div>
-            </>
-          )}
-          {/* 한 장뿐이면 아무것도 그리지 않는다 — 갈 곳 없는 "1 / 1" 은 컨트롤이 아니다. */}
-          <div className={s.railFoot}>
-            <SidebarPagination
-              pageInfo={{
-                totalElements: total,
-                totalPages: pages,
-                number: safePage,
-                size: RAIL_PAGE_SIZE,
-              }}
-              onPageChange={setPage}
-            />
-          </div>
-        </div>
-      </aside>
+      {/* 좌 — 서비스 레일. 서비스·대상 검색 화면과 같은 컴포넌트다. */}
+      <AdminServiceRail
+        title="서비스 운영"
+        total={services != null ? total : null}
+        searchValue={query}
+        onSearchChange={(value) => {
+          setQuery(value);
+          setPage(0);
+        }}
+        searchPlaceholder="ServiceCode·서비스명 검색"
+        services={pageRows}
+        loading={!failed && services == null}
+        error={
+          failed
+            ? {
+                message: '서비스 목록을 불러오지 못했습니다.',
+                // 첫 장으로 되감고 다시 부른다. 범위를 벗어난 페이지가 실패의
+                // 원인이었다면, 같은 페이지로 재시도해봐야 같은 실패만 반복된다.
+                onRetry: () => {
+                  setPage(0);
+                  reload();
+                },
+              }
+            : null
+        }
+        selectedCode={selectedCode}
+        onSelectService={(code) => router.push(passRoutes.pipelines.ops.service(code))}
+        pageInfo={{
+          totalElements: total,
+          totalPages: pages,
+          number: safePage,
+          size: RAIL_PAGE_SIZE,
+        }}
+        onPageChange={setPage}
+      />
 
       {/* 우 — 선택한 서비스의 운영 상세. key 로 갈아끼워 이전 서비스 데이터가 남지 않게 한다. */}
       <section className={s.main}>

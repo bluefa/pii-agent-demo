@@ -96,9 +96,9 @@ describe('ConnectionVerifiedStep', () => {
     expect(screen.getByText('승인 대기')).toBeTruthy();
   });
 
-  it('renders the 6번째 단계 step tag', () => {
+  it('renders the 6단계 step tag', () => {
     renderStep();
-    expect(screen.getByText('6번째 단계')).toBeTruthy();
+    expect(screen.getByText('6단계')).toBeTruthy();
   });
 
   it('renders the merged guidance sentence (header subtitle + banner copy were one message)', () => {

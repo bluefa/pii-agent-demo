@@ -120,46 +120,68 @@ export const TopNav = () => {
           // Sticky chrome — the admin nav must not scroll away with the page.
           //
           // Everything in here is `whitespace-nowrap` and nothing shrinks, so the
-          // bar's intrinsic width — 1228px — was the whole app's minimum width: at
-          // any narrower window the PAGE scrolled sideways, and the list underneath
-          // looked broken for a reason that was never in the list. Below xl the bar
-          // sheds what it can spare (tagline, utility labels, half the gaps) and
-          // keeps the primary items, which puts the floor at ~910px.
-          // py-2 is the bar's own inset, not decoration: the height is fixed, so
-          // the padding declares a 60px content budget rather than letting the
-          // 8px fall out of items-center as a leftover. Anything taller than
-          // that now overflows visibly instead of silently eating its own
-          // breathing room — the 59px logo lockup sits just inside the budget.
+          // bar's intrinsic width is the whole app's minimum width: at any narrower
+          // window the PAGE scrolls sideways, and the list underneath looks broken
+          // for a reason that was never in the list. Below xl the bar sheds what it
+          // can spare (utility labels, half the gaps) and keeps the primary items.
+          // Dropping the logo's fixed 240px column did not raise that floor: the
+          // column was `xl:` only, so below xl it never applied, and at xl the bar
+          // lost width rather than gaining it. Verified at 1710px — the page does
+          // not scroll sideways.
           //
-          // ⚠ 76px is not local. Everything that sits below this bar or fills
+          // Nothing in here stretches to the bar's height, and that is the whole
+          // rule. Measured in-browser on 2026-08-12: the console bars — GitHub,
+          // Google Cloud, Vercel — all float their menu items INSIDE the bar at
+          // 50-75% of its height, and the only one that fills it edge to edge is
+          // Atlassian's MARKETING nav, which is what this bar was copying at 60 of
+          // 64. At h-10 the items sit in 40 of 64 (63%), and the 12px of bar above
+          // and below is what makes the strip read as chrome rather than as a row
+          // of buttons.
+          //
+          // Three heights, in a narrow band on purpose: mark 32, item 40, chip 36.
+          // GitHub runs all three at exactly 32 — the band matters, the number
+          // does not. Before this the bar held four: a 59px lockup (40 + gap-1 +
+          // 15) that filled its whole 60px content box, 36px items, ~30px utility
+          // links and a 32px chip. The mark was not the largest thing by design;
+          // it was the largest thing because nothing set a band.
+          //
+          // ⚠ 64px is not local. Everything that sits below this bar or fills
           // the rest of the viewport hard-codes it, because Tailwind class
           // strings must stay complete literals (동적 조합 금지) and cannot read
           // a shared token. Change it here and all of these move with it:
           //   lib/theme.ts                     (pipelineStyles shell / sidebar)
+          //   app/admin/layout.tsx                          (FullPageNotice)
           //   app/admin/pipelines/_services/styles.ts        (split, railSticky)
           //   app/services/_components/ServiceManagementView.tsx
           //   app/target-sources/[targetSourceId]/_components/ProjectDetail.tsx  (×2)
-          'sticky top-0 z-40 h-[76px] flex items-center gap-4 xl:gap-8 px-6 py-2 text-white',
+          'sticky top-0 z-40 h-[64px] flex items-center gap-4 xl:gap-8 px-6 text-white',
           navStyles.bg,
         )}
       >
-        {/* The logo owns a fixed column so the nav starts where the ServiceSidebar
-            rail ends, instead of crowding the mark: 24px (the bar's px-6) + 240
-            + 32px (xl:gap-8) = 296px, the rail's own width. Change either the
-            bar padding or that gap and this number has to move with it.
-
-            Only from xl: below that the bar is already shedding gaps to keep its
-            intrinsic width off the page's minimum, and a fixed 240px column
-            would put ~125px straight back. */}
-        <div className="px-1 whitespace-nowrap xl:w-[240px]">
+        {/* Natural width — deliberately NOT a fixed column. The logo used to own
+            240px so the first nav item started at x=296, the ServiceSidebar
+            rail's right edge. That alignment sits on a different plane from the
+            bar, and the admin console's rail is a different width, so it never
+            held everywhere it appeared to. What it did hold everywhere was a
+            hole: the column was cut for a 148px-wide lockup, so at 108px it sat
+            55% empty exactly where the eye enters the bar. */}
+        {/* `flex`, so the svg is a flex item rather than an inline box — inline
+            would hang it off the text baseline and add a few px of descender
+            space under it, pushing the mark off the bar's centre. */}
+        <div className="flex px-1">
           <PassLogo />
         </div>
 
-        <nav className="flex gap-1">
+        {/* h-10 on the items, not `h-full`: the hit target is declared here rather
+            than inherited from the bar, so the bar's height and the button's size
+            stop being the same decision. 40 is the smallest step above the 36px
+            chip that still clears the 44px-ish comfortable target once the 4px
+            gaps either side are counted. */}
+        <nav className="flex items-center gap-1">
           {NAV_ITEMS.map((item) => {
             const active = item.isActive(pathname);
             const baseClass = cn(
-              'inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
+              'inline-flex h-10 items-center gap-2 px-3.5 rounded-md text-base font-medium whitespace-nowrap transition-colors',
               active ? navStyles.link.active : navStyles.link.inactive,
               item.disabled && 'opacity-50 cursor-not-allowed',
             );
@@ -193,13 +215,15 @@ export const TopNav = () => {
           })}
         </nav>
 
-        {/* Help/announcement group — sits right after the primary items,
-            separated by a thin divider so it reads as a distinct-but-adjacent
-            cluster. */}
-        {/* The negative margin tightens the rule against its neighbours, so it has to
-            track the header's gap — at -mx-4 on a gap-4 bar the two groups touch. */}
-        <span aria-hidden="true" className={cn(navStyles.divider, '-mx-2 xl:-mx-4')} />
+        {/* All the bar's slack, pooled here on purpose. It used to sit between the
+            utility group and the avatar, which left the bar with two holes — one
+            after the logo, one 517px wide before the avatar — and slack in two
+            places reads as empty, not as roomy. One gap between two clusters
+            reads as structure. */}
+        <div className="flex-1" />
 
+        {/* Help/announcement group — now the head of the RIGHT cluster rather than
+            a tail on the primary items. */}
         <nav aria-label="도움말" className="flex items-center gap-0.5">
           {UTILITY_ITEMS.map((item) => (
             // Below xl these fall back to their icons. The label goes off the screen,
@@ -223,7 +247,11 @@ export const TopNav = () => {
           ))}
         </nav>
 
-        <div className="flex-1" />
+        {/* Help links and the account are both "right cluster", but they are not the
+            same kind of thing — the rule says so without a second gap.
+            The negative margin tightens it against its neighbours, so it tracks the
+            header's gap: at -mx-4 on a gap-4 bar the two groups would touch. */}
+        <span aria-hidden="true" className={cn(navStyles.divider, '-mx-2 xl:-mx-4')} />
 
         <UserChip />
       </header>

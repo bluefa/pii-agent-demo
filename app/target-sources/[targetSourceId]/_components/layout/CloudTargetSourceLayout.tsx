@@ -49,7 +49,7 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
   if (!step) return null;
   return (
     // `min-h-full`, not `min-h-screen` (#665): this fills ProjectDetail's fixed
-    // `100vh - 76px` column — a full 100vh here left 76px of dead scroll under
+    // `100vh - 64px` column — a full 100vh here left 64px of dead scroll under
     // every page.
     <main className="min-h-full">
       {/* Flat page header (chrome) spans the column edge-to-edge ABOVE the padded

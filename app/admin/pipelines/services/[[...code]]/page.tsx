@@ -22,7 +22,7 @@ import { useParams, useRouter } from 'next/navigation';
 import type { ReactElement } from 'react';
 
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
-import { cn, serviceSidebarStyles } from '@/lib/theme';
+import { cn } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { getProjects, getServicesPage } from '@/app/lib/api';
 import {
@@ -32,7 +32,6 @@ import {
 import type { PipelineSummary } from '@/lib/pipeline/types';
 import type { ProjectSummary } from '@/lib/types';
 
-import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
@@ -45,8 +44,7 @@ import {
 } from '@/app/admin/pipelines/_components/PlTable';
 import { LatestCell } from '@/app/admin/pipelines/_services/LatestCell';
 import { SERVICE_RAIL_PAGE_SIZE } from '@/app/components/features/admin/ServiceSidebar';
-import { serviceTileClass } from '@/app/components/features/admin/ServiceSidebar/ServiceRow';
-import { SidebarPagination } from '@/app/components/features/admin/ServiceSidebar/SidebarPagination';
+import { AdminServiceRail } from '@/app/admin/pipelines/_services/AdminServiceRail';
 import {
   type ServiceItem,
   latestCellState,
@@ -57,8 +55,6 @@ import { serviceListStyles } from '@/app/admin/pipelines/_services/styles';
 
 // The rail pages the same everywhere it appears — see SERVICE_RAIL_PAGE_SIZE.
 const SERVICE_PAGE_SIZE = SERVICE_RAIL_PAGE_SIZE;
-/** Ceiling for one stretched rail row — see serviceListStyles.item. */
-const ROW_MAX_PX = 88;
 const SEARCH_DEBOUNCE_MS = 300;
 const LATEST_CONCURRENCY = 6;
 
@@ -210,97 +206,39 @@ export default function ServicesPage(): ReactElement {
   return (
     <div className={s.split}>
       {/* Left — full-height service rail (R20.5: flush at the content edge, not a card) */}
-      <aside className={cn(s.rail, s.railSticky)} aria-label="서비스 목록">
-        <div className={s.railHead}>
-          <h1 className={s.railTitle}>서비스·대상 검색</h1>
-          {!servicesLoading && svcTotal > 0 && <span className={s.railCount}>{svcTotal}</span>}
-        </div>
-        <div className={s.railSearch}>
-          <SearchBox
-            // `block` alone leaves SearchBox's `inline-block` shrink-to-fit width.
-            wrapClassName="block w-full"
-            placeholder="서비스 코드/이름 검색"
-            value={svcQuery}
-            onChange={(event) => setSvcQuery(event.target.value)}
-            aria-label="서비스 코드/이름 검색"
-          />
-        </div>
-        <div className={s.railBody}>
-          {servicesLoading ? (
-            <div className="min-h-[240px] flex-1" aria-busy="true" />
-          ) : servicesError != null ? (
-            <div className="flex-1">
-              <PlEmptyState
-                onGround
-                icon="search"
-                message={errorMessage(servicesError)}
-                meta={
-                  <PlButton
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setServicesRetry((n) => n + 1)}
-                  >
-                    재시도
-                  </PlButton>
-                }
-              />
-            </div>
-          ) : services.length === 0 ? (
-            <div className="flex-1">
-              <PlEmptyState onGround icon="search" message="검색 결과가 없습니다." />
-            </div>
-          ) : (
-            <>
-            <div className={s.railSection}>{svcQuery ? '검색 결과' : '전체 서비스'}</div>
-            <div className={s.railList} style={{ maxHeight: services.length * ROW_MAX_PX }}>
-              {services.map((service) => {
-                const code = service.service_code ?? '';
-                const name = service.service_name ?? code;
-                const active = code === selectedCode;
-                return (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => {
-                      if (code === selectedCode) return;
-                      // Clear the previous service's rows synchronously so the
-                      // next render shows the loading placeholder — never the
-                      // prior table or a false "없음" before the fetch starts.
-                      setTargets(null);
-                      setLatest({});
-                      router.push(passRoutes.pipelines.service(code));
-                    }}
-                    title={`${name} (${code})`}
-                    aria-current={active ? 'true' : undefined}
-                    className={cn(s.item, active ? s.itemActive : s.itemIdle)}
-                  >
-                    <span
-                      className={cn(serviceSidebarStyles.tile, serviceTileClass(code))}
-                      aria-hidden="true"
-                    >
-                      {name.charAt(0).toUpperCase()}
-                    </span>
-                    <span className={cn(s.name, active ? s.nameActive : s.nameIdle)}>{name}</span>
-                    <span className={active ? s.codeActive : s.code}>{code}</span>
-                  </button>
-                );
-              })}
-            </div>
-            </>
-          )}
-          <div className={s.railFoot}>
-            <SidebarPagination
-              pageInfo={{
-                totalElements: svcTotal,
-                totalPages: svcPages,
-                number: svcPage - 1,
-                size: SERVICE_PAGE_SIZE,
-              }}
-              onPageChange={(next) => setSvcPage(next + 1)}
-            />
-          </div>
-        </div>
-      </aside>
+      <AdminServiceRail
+        title="서비스·대상 검색"
+        total={servicesLoading ? null : svcTotal}
+        searchValue={svcQuery}
+        onSearchChange={setSvcQuery}
+        searchPlaceholder="서비스 코드/이름 검색"
+        services={services}
+        loading={servicesLoading}
+        error={
+          servicesError != null
+            ? {
+                message: errorMessage(servicesError),
+                onRetry: () => setServicesRetry((n) => n + 1),
+              }
+            : null
+        }
+        selectedCode={selectedCode}
+        onSelectService={(code) => {
+          // Clear the previous service's rows synchronously so the next render
+          // shows the loading placeholder — never the prior table or a false
+          // "없음" before the fetch starts.
+          setTargets(null);
+          setLatest({});
+          router.push(passRoutes.pipelines.service(code));
+        }}
+        pageInfo={{
+          totalElements: svcTotal,
+          totalPages: svcPages,
+          number: svcPage - 1,
+          size: SERVICE_PAGE_SIZE,
+        }}
+        onPageChange={(next) => setSvcPage(next + 1)}
+      />
 
       {/* Right — target sources for the selected service */}
       <section className={s.main}>

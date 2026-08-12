@@ -267,7 +267,7 @@ export const IdcStep1TargetInput = ({
             points stay pinned to the header right — IDC has no scan strip to carry them. */}
         <header className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>
           <div>
-            <span className={cardStyles.stepTag}>1번째 단계</span>
+            <span className={cardStyles.stepTag}>1단계</span>
             <h2 className={cardStyles.cardTitle}>연동 대상 DB 입력</h2>
             {/* Blue marks only what the user has to do by hand (입력·사유) — 승인 is the system's
                 part, so it stays plain. break-keep wraps by word, not by syllable. */}

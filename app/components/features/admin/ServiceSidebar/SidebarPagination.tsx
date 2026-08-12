@@ -1,6 +1,7 @@
 'use client';
 
 import { cn, serviceSidebarStyles } from '@/lib/theme';
+import { ChevronLeftIcon, ChevronRightIcon } from '@/app/components/ui/icons';
 
 interface SidebarPaginationProps {
   pageInfo: {
@@ -36,9 +37,7 @@ export const SidebarPagination = ({ pageInfo, onPageChange }: SidebarPaginationP
         className={cn('cursor-pointer', serviceSidebarStyles.pagerBtn)}
         aria-label="이전 페이지"
       >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M8.75 3.5L5.25 7L8.75 10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <ChevronLeftIcon />
       </button>
       <span className={serviceSidebarStyles.footerPage}>
         {currentPage + 1} / {totalPages} 페이지
@@ -50,9 +49,7 @@ export const SidebarPagination = ({ pageInfo, onPageChange }: SidebarPaginationP
         className={cn('cursor-pointer', serviceSidebarStyles.pagerBtn)}
         aria-label="다음 페이지"
       >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M5.25 3.5L8.75 7L5.25 10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <ChevronRightIcon />
       </button>
     </div>
   );

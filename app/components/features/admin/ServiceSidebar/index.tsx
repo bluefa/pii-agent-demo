@@ -87,9 +87,6 @@ export const ServiceSidebar = ({
   // Rows the ul will actually lay out — drives the height cap below.
   const rowCount = loading ? SKELETON_ROWS : listed.length;
 
-  // One label per list mode, so the list always says what its rows are.
-  const sectionLabel = searchQuery ? '검색 결과' : '전체 서비스';
-
   return (
     // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
     //
@@ -170,9 +167,13 @@ export const ServiceSidebar = ({
           space. On a short viewport the rows hold their min-height and the ul
           scrolls instead. */}
       <div className="flex-1 min-h-0 flex flex-col">
-        {(loading || listed.length > 0) && (
+        {/* Only a FILTERED list gets a heading. Unfiltered it read "전체 서비스"
+            directly under an h2 that already says "서비스 목록" with the total
+            beside it — the same fact twice, costing a line of the rail. A search
+            result is a different list, so that one still says so. */}
+        {searchQuery && (loading || listed.length > 0) && (
           <div className={cn('px-3 pt-3 pb-1.5 shrink-0', serviceSidebarStyles.sectionLabel)}>
-            {sectionLabel}
+            검색 결과
           </div>
         )}
 

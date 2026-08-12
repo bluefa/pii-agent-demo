@@ -5,15 +5,15 @@
  * that row is marked in place (`aria-current`) rather than lifted into a pinned band
  * above the list, so nothing is filtered out and nothing is shown twice. The empty state
  * therefore has two reasons, not three: a search that matched nothing, and no services
- * at all. The section heading ('전체 서비스' / '검색 결과') replaced the
- * '서비스 이름 / 서비스 코드' column header when the rail moved off table grammar; it must
- * never render over a blank body.
+ * at all. The section heading ('검색 결과') marks a FILTERED list only — unfiltered it
+ * duplicated the rail's own h2 — and it must never render over a blank body.
  */
 
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { ServiceSidebar } from '@/app/components/features/admin/ServiceSidebar';
+import { serviceSidebarStyles } from '@/lib/theme';
 
 const noop = (): void => undefined;
 
@@ -79,7 +79,10 @@ describe('ServiceSidebar — populated list', () => {
       ],
       currentService: { code: 'AWS', name: 'AWS' },
     });
-    expect(html).toContain('전체 서비스');
+    // No heading at all on an unfiltered list — the rail's h2 + count already say
+    // it. Keyed on the label's own token, not on a word: asserting the absence of
+    // '검색 결과' would still pass if the slot came back saying '전체 서비스'.
+    expect(html).not.toContain(serviceSidebarStyles.sectionLabel);
     // Both rows render; only the current one carries the marker.
     const rows = html.split('<li').slice(1);
     expect(rows).toHaveLength(2);

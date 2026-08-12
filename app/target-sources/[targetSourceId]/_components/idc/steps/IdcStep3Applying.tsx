@@ -47,7 +47,7 @@ export const IdcStep3Applying = ({
     <>
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
         <header className={cardStyles.header}>
-          <span className={cardStyles.stepTag}>3번째 단계</span>
+          <span className={cardStyles.stepTag}>3단계</span>
           <div className="flex items-center gap-2">
             <h2 className={cardStyles.cardTitle}>연동 대상 반영중</h2>
             <span

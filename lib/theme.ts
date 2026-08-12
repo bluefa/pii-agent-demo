@@ -484,7 +484,7 @@ export const cardStyles = {
   // so tighter tracking reads as cramped instead of as a tightened headline.
   cardTitle: 'text-[22px] font-extrabold tracking-[-0.01em] leading-[1.2] text-[#191F28]',
   /**
-   * "N번째 단계" tag above a step-card title, matching INSTALL_STEPS order in
+   * "N단계" tag above a step-card title, matching INSTALL_STEPS order in
    * InstallationProcessProgressBar. Was copy-pasted into every step card with a "keep the two in
    * sync" note; six cards (cloud 1·2·3, IDC 1·2·3 + 6) is where that stops being a note.
    */
@@ -862,14 +862,12 @@ export const badgeStyles = {
  * brand 의 raw hex 는 로고 색으로 예외 허용.
  * 소비 측에서 이 상수만 참조하고 문자열을 중복 정의하지 말 것 — 유일한 소비자는 PassLogo.
  *
- * The previous pair (#C5C6C7 wordmark / #66FCF1 tagline) is gone: neither hex
- * existed anywhere else in the product, and the tagline (14.3:1) outshone the
- * wordmark (10.4:1), so the descriptor read louder than the brand name.
+ * The brand blue needs a DARK-SURFACE FORM here: the ink value #0064FF scores
+ * only 3.63:1 on slate-900, so the wordmark uses the lifted form below. Keep the
+ * two in sync — they are the same colour, not different ones.
  *
- * Both brand hues need a DARK-SURFACE FORM here. The ink values fail on
- * slate-900 — #0064FF scores 3.63:1 and #6D28D9 only 2.51:1 — so the logo uses
- * the lifted pair below. Keep the two in sync: these are the same colours, not
- * different ones.
+ * The descriptor row ("PII Agent Self Service") and its three fills are gone with
+ * the second lockup line; see PassLogo.
  */
 export const navStyles = {
   bg: 'bg-slate-900',
@@ -880,11 +878,6 @@ export const navStyles = {
     wordmarkInk: 'fill-white', // design-exempt: brand logotype on navStyles.bg (slate-900)
     /** SS — the verdict half. Dark-surface form of the CTA blue #0064FF (3.63:1 → 5.41:1). */
     wordmarkAccent: 'fill-[#4D94FF]', // design-exempt: brand logotype on navStyles.bg (slate-900)
-    /** "PII" — dark-surface form of the EC2 tag purple #6D28D9 (2.51:1 → 6.56:1). */
-    descriptorSubject: 'fill-[#A78BFA]', // design-exempt: brand logotype on navStyles.bg (slate-900)
-    descriptorInk: 'fill-white',
-    /** The rest of the descriptor — 6.97:1 on slate-900. */
-    descriptorMuted: 'fill-slate-400',
   },
   link: {
     inactive: 'text-slate-300 hover:bg-white/5 hover:text-white',
@@ -893,8 +886,14 @@ export const navStyles = {
   user: {
     avatar: 'bg-slate-600 text-white',
     email: 'text-slate-300',
-    /** Google account-chip pattern: 32px initial circle, click opens account card. */
-    chip: 'w-8 h-8 rounded-full inline-flex items-center justify-center text-xs font-semibold hover:ring-2 hover:ring-white/25 transition-shadow',
+    /** Google account-chip pattern: initial circle, click opens account card.
+     *  36, up from 32: GitHub and the Google Cloud console both run the account
+     *  disc at 32, but they also run their marks and menu items at 32-36. This
+     *  bar's band is mark 32 / item 40, and the chip sits inside it rather than
+     *  under it. Going further — 48 was tried — puts the initials at the same
+     *  visual weight as the brand mark in the same bar.
+     *  The initial scales with the disc, so the two sizes move together. */
+    chip: 'w-9 h-9 rounded-full inline-flex items-center justify-center text-sm font-semibold hover:ring-2 hover:ring-white/25 transition-shadow',
     menu: {
       container:
         'absolute right-0 top-full mt-2 z-50 min-w-[240px] max-w-[320px] rounded-xl border border-gray-200 bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,0.14)] flex flex-col text-left',
@@ -1141,7 +1140,7 @@ export const idcStyles = {
     title: 'px-2.5 pb-2 pt-2 text-[14px] font-semibold text-[#191F28]',
     // 프리셋 값은 칩(태그 피커) — 맨텍스트 행은 휴지 상태에서 선택지로 읽히지
     // 않는다. 표면은 승인 요청 모달 타일과 같은 흰 카드+스트로크+lg 섀도 패턴,
-    // 라운드는 "N번째 단계" 태그의 6px. 휴지 gray-200 보더 < hover 브랜드 프리뷰
+    // 라운드는 "N단계" 태그의 6px. 휴지 gray-200 보더 < hover 브랜드 프리뷰
     // < 선택 브랜드+틴트로, Step1·2 필터 타일과 같은 상호작용 사다리. 색 충돌
     // 방지를 위해 border-color는 rest/selected 어느 한쪽만 소유한다(cn은 단순
     // join — 순서가 승자를 못 정한다).
@@ -1675,8 +1674,12 @@ export const serviceSidebarStyles = {
    * head. #4E5968, not #666D7B: the latter reads 4.17:1 on this rail, under AA.
    */
   sectionLabel: 'text-[12px] font-medium tracking-[0.02em] text-[#4E5968]',
-  /** Row name — wraps rather than riding off the rail's edge; service names run to ~30 characters. */
-  rowName: 'text-[14px] font-medium leading-5 text-[#191F28]',
+  /**
+   * Row name — wraps rather than riding off the rail's edge; service names run to ~30 characters.
+   * `leading-6` moves with the 16px size: at the old `leading-5` the ratio would drop to 1.25, and
+   * this is the one label in the rail that routinely runs to the `line-clamp-3` limit.
+   */
+  rowName: 'text-[16px] font-medium leading-6 text-[#191F28]',
   /**
    * Row code — a Toss tag in its own right-hand column. Service codes are always
    * three characters, so `min-w` sizes the column to exactly that and every code
@@ -1746,9 +1749,18 @@ export const serviceSidebarStyles = {
    * flush rail. The disabled glyph is #8B95A1, not #B0B8C1: 1.4.11 exempts inactive
    * controls, but at 1.61:1 on this surface the arrow was a smudge rather than a
    * greyed-out arrow. 2.44:1 still reads as unavailable next to the live one at 5.71.
+   *
+   * Hover turns the arrow brand-blue. #0064FF is only 3.95:1 on the rail itself —
+   * unusable — but it never lands there: `hover:bg-white` fires on the same event,
+   * so the blue is always read against white (4.92:1). The two hover rules are one
+   * effect; splitting them puts the blue back on the rail.
+   *
+   * `disabled:hover:text-*` restates the disabled ink instead of trusting variant
+   * order to resolve it — an arrow that turns blue under the cursor advertises a
+   * page that is not there.
    */
   pagerBtn:
-    'flex h-[26px] w-[26px] items-center justify-center rounded-[6px] text-[#4E5968] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent',
+    'flex h-[26px] w-[26px] items-center justify-center rounded-[6px] text-[#4E5968] transition-colors hover:bg-white hover:text-[#0064FF] disabled:cursor-not-allowed disabled:text-[#8B95A1] disabled:hover:bg-transparent disabled:hover:text-[#8B95A1]',
 } as const;
 
 // =============================================================================
@@ -1997,10 +2009,10 @@ export const pipelineStyles = {
     // REAL app chrome, TopNav (app/components/layout/TopNav.tsx, `h-14` = 56px).
     // 56 here is a deliberate deviation from the prototype's 52 so the shell's
     // min-height matches the actual viewport remainder under the app's TopNav.
-    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_76px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
+    shell: 'flex min-w-[1080px] min-h-[calc(100vh_-_64px)] bg-[var(--pl-bg-page)] tracking-[-0.014em] leading-[1.4] [font-family:var(--pl-font-sans)]',
     sidebar:
       // Sticky under the 56px TopNav so the section nav never scrolls away.
-      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-[76px] self-start h-[calc(100vh_-_76px)] overflow-y-auto',
+      'w-[216px] flex-none bg-[var(--pl-gray-900)] px-3 py-4 sticky top-[64px] self-start h-[calc(100vh_-_64px)] overflow-y-auto',
     sidebarTitle: cn(pipelineText.sidebarTitle, 'block px-2.5 pt-2 pb-2.5'),
     // Item base carries no text color/weight — idle/active own it (plain `cn` join
     // has no tailwind-merge, so overlapping utilities must never co-occur).
