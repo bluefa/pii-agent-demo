@@ -1,6 +1,7 @@
 import { TopNav } from '@/app/components/layout/TopNav';
 import { LockIcon } from '@/app/components/ui/icons';
 import { bff } from '@/lib/bff/client';
+import { isAdminRole } from '@/lib/roles';
 import { cn, textColors } from '@/lib/theme';
 
 /**
@@ -19,11 +20,9 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const me = await bff.users.me().catch(() => null);
-  // `users.me()` is a raw upstream passthrough — nothing parses it at this
-  // layer, so `role` can arrive as a non-string JSON value despite the
-  // generated type. Coerce before comparing: a malformed payload must land on
-  // the notice, never on a 500.
-  const isAdmin = String(me?.role ?? '').trim().toUpperCase() === 'ADMIN';
+  // Shared with UserChip, which hides/shows the 관리자 entry — one rule, so the
+  // menu can never offer a destination this gate denies.
+  const isAdmin = isAdminRole(me?.role);
 
   return (
     <>

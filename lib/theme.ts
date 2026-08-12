@@ -897,11 +897,18 @@ export const navStyles = {
     chip: 'w-8 h-8 rounded-full inline-flex items-center justify-center text-xs font-semibold hover:ring-2 hover:ring-white/25 transition-shadow',
     menu: {
       container:
-        'absolute right-0 top-full mt-2 z-50 min-w-[240px] max-w-[320px] rounded-xl border border-gray-200 bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,0.14)] flex items-center gap-3 text-left',
+        'absolute right-0 top-full mt-2 z-50 min-w-[240px] max-w-[320px] rounded-xl border border-gray-200 bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,0.14)] flex flex-col text-left',
+      /** 신원 행 — 카드가 이 한 줄뿐이던 시절의 원래 레이아웃. */
+      identity: 'flex items-center gap-3',
       avatar:
         'w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold bg-slate-600 text-white shrink-0',
       name: 'text-sm font-semibold text-gray-900 truncate',
       email: 'text-xs text-gray-500 truncate',
+      /** 신원과 이동 항목 사이. p-4 를 가로로 되먹어 카드 폭 전체를 긋는다. */
+      divider: '-mx-4 my-3 h-px bg-gray-200',
+      /** 관리자 전용 이동 항목. 링크라서 hover 와 키보드 focus 를 모두 갖는다. */
+      item: 'flex items-center gap-2 -mx-2 px-2 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none transition-colors',
+      itemIcon: 'text-gray-500 shrink-0',
     },
   },
 } as const;

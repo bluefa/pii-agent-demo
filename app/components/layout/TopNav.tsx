@@ -55,19 +55,10 @@ const NAV_ITEMS: NavItem[] = [
       </svg>
     ),
   },
-  {
-    label: '관리자',
-    href: passRoutes.pipelines.dashboard,
-    isActive: (pathname) => pathname.startsWith('/admin/pipelines'),
-    icon: (
-      <svg {...iconProps} aria-hidden="true">
-        <circle cx="4.5" cy="12" r="2.3" />
-        <circle cx="12" cy="12" r="2.3" />
-        <circle cx="19.5" cy="12" r="2.3" />
-        <path d="M6.8 12h2.9m4.6 0h2.9" />
-      </svg>
-    ),
-  },
+  // 관리자 is deliberately absent from the bar: it is admin-only, and as a bar
+  // item it offered every non-admin a destination that only ever denied them.
+  // It now lives in the account card (UserChip), gated on the same `isAdminRole`
+  // the server gate in app/admin/layout.tsx uses.
   {
     label: 'Credentials',
     href: passRoutes.credentials,
