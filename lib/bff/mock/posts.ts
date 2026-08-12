@@ -12,6 +12,8 @@
  * `lib/bff/client.ts` does in every mode) must not build state.
  */
 
+import { createHash } from 'crypto';
+
 import { BffError } from '@/lib/bff/errors';
 import {
   POST_IMAGE_MAX_BYTES,
@@ -53,6 +55,8 @@ const posts = new Map<number, StoredPost>();
 const categories = new Map<number, StoredCategory>();
 /** Uploaded image bytes, keyed by the filename in the returned URL. */
 const images = new Map<string, { bytes: Uint8Array<ArrayBuffer>; contentType: string }>();
+/** sha256 → imageId, so re-uploading identical bytes returns the first URL. */
+const imageIdByDigest = new Map<string, string>();
 
 let nextPostId = 1;
 let nextCategoryId = 1;
@@ -292,9 +296,18 @@ export const mockPosts = {
       throw new BffError(413, 'IMAGE_TOO_LARGE', '파일 1개당 최대 5MB 입니다');
     }
 
+    // Upload is idempotent by content. Writing a bilingual post means inserting
+    // the same screenshot into ko and en, and without this that one picture
+    // spends two of the ten slots and twice its bytes — a 5MB screenshot would
+    // reach the 10MB post cap on its own.
+    const digest = createHash('sha256').update(file.bytes).digest('hex');
+    const existing = imageIdByDigest.get(digest);
+    if (existing) return { url: imageUrl(existing), width: 800, height: 450 };
+
     const extension = file.contentType.split('/')[1];
     const imageId = `mock-${nextImageId++}.${extension}`;
     images.set(imageId, { bytes: file.bytes, contentType: file.contentType });
+    imageIdByDigest.set(digest, imageId);
 
     // The real BFF reads the pixel size off the decoded image. There is no
     // decoder here, so the mock reports a fixed size — the value only feeds

@@ -19,6 +19,17 @@ const freshStore = async (): Promise<MockPosts> => {
 const pngBytes = (size = 64): Uint8Array<ArrayBuffer> => new Uint8Array(new ArrayBuffer(size));
 
 /**
+ * A buffer no other `distinctBytes` call produces. Upload dedupes on content,
+ * so tests that need N separate files must not hand it N identical buffers.
+ */
+const distinctBytes = (seed: number, size = 64): Uint8Array<ArrayBuffer> => {
+  const bytes = pngBytes(size);
+  bytes[0] = seed % 256;
+  bytes[1] = Math.floor(seed / 256) % 256;
+  return bytes;
+};
+
+/**
  * Asserts the thrown value is a BffError by shape, not by `instanceof`:
  * `vi.resetModules()` re-imports `lib/bff/errors` for the store under test, so
  * the class the store throws is not the class this file imported.
@@ -185,7 +196,9 @@ describe('body images', () => {
 
     const uploads = [];
     for (let index = 0; index < 11; index += 1) {
-      uploads.push(await posts.uploadImage({ bytes: pngBytes(), contentType: 'image/png' }));
+      uploads.push(
+        await posts.uploadImage({ bytes: distinctBytes(index), contentType: 'image/png' }),
+      );
     }
     const tag = (url: string) => `<p><img src="${url}" alt="i" /></p>`;
 
@@ -202,6 +215,26 @@ describe('body images', () => {
         .catch((cause: unknown) => cause),
     );
     expect(error.code).toBe('POST_IMAGE_LIMIT_EXCEEDED');
+  });
+
+  it('returns the same URL for identical bytes — ko and en share one screenshot', async () => {
+    const posts = await freshStore();
+
+    const first = await posts.uploadImage({ bytes: pngBytes(2048), contentType: 'image/png' });
+    const second = await posts.uploadImage({ bytes: pngBytes(2048), contentType: 'image/png' });
+
+    // Without this the natural bilingual flow — insert into ko, switch tab,
+    // insert into en — spends two slots and twice the bytes on one picture.
+    expect(second.url).toBe(first.url);
+  });
+
+  it('still separates genuinely different files', async () => {
+    const posts = await freshStore();
+
+    const first = await posts.uploadImage({ bytes: distinctBytes(1, 2048), contentType: 'image/png' });
+    const second = await posts.uploadImage({ bytes: distinctBytes(2, 2048), contentType: 'image/png' });
+
+    expect(second.url).not.toBe(first.url);
   });
 
   it('counts a URL used in both languages once — storage holds one file', async () => {
@@ -225,7 +258,10 @@ describe('body images', () => {
     const uploads = [];
     for (let index = 0; index < 3; index += 1) {
       uploads.push(
-        await posts.uploadImage({ bytes: pngBytes(4 * 1024 * 1024), contentType: 'image/png' }),
+        await posts.uploadImage({
+          bytes: distinctBytes(index, 4 * 1024 * 1024),
+          contentType: 'image/png',
+        }),
       );
     }
 
