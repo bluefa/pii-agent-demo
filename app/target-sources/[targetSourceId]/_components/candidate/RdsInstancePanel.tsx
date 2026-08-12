@@ -162,13 +162,15 @@ export const RdsInstancePanel = ({
               </>
             );
 
-            // The chosen line gets NO fill of its own (owner, 2026-08-12). The radio already
-            // says which one it is — and where there is no radio (read-only), the 선택됨 chip
-            // does. A tint on top of that was a third voice saying the same thing, and it cost
-            // more than it said: the role chip is a grey pill (`statusColors.pending.bg`), which
-            // is the SAME grey as this body's surface, so it flattened into the background on
-            // every line except the tinted one. One line in the list looking like the only one
-            // with a real chip is a difference the eye reads as meaning, and it meant nothing.
+            // A line carries NO fill of its own — not for the chosen one, and not on hover
+            // (owner, 2026-08-12). The radio already says which instance is chosen, and where
+            // there is no radio (read-only) the 선택됨 chip does; a fill on top of that was a
+            // third voice saying the same thing. It also cost more than it said: the role chip
+            // is a grey pill (`statusColors.pending.bg`), the SAME grey as this body's surface,
+            // so any line that lifted off that surface was the only one whose chip looked like
+            // a chip. One line in a list differing from its neighbours is a difference the eye
+            // reads as meaning, and here it meant nothing. The band is a flat list; the rail
+            // says what belongs to what, and the radio says what is selected.
             //
             // The rule rides each line rather than `divide-y` on the list: `divide-*` colours
             // through the children's inherited border-color, which preflight has already set
@@ -177,7 +179,6 @@ export const RdsInstancePanel = ({
               LINE_GRID,
               'border-t py-3 pr-3',
               borderColors.default,
-              bgColors.surfaceHover,
               idcStyles.table.instanceBand.line,
               index === instances.length - 1 && idcStyles.table.instanceBand.lineLast,
             );
