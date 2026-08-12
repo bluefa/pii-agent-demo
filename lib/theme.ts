@@ -862,14 +862,12 @@ export const badgeStyles = {
  * brand 의 raw hex 는 로고 색으로 예외 허용.
  * 소비 측에서 이 상수만 참조하고 문자열을 중복 정의하지 말 것 — 유일한 소비자는 PassLogo.
  *
- * The previous pair (#C5C6C7 wordmark / #66FCF1 tagline) is gone: neither hex
- * existed anywhere else in the product, and the tagline (14.3:1) outshone the
- * wordmark (10.4:1), so the descriptor read louder than the brand name.
+ * The brand blue needs a DARK-SURFACE FORM here: the ink value #0064FF scores
+ * only 3.63:1 on slate-900, so the wordmark uses the lifted form below. Keep the
+ * two in sync — they are the same colour, not different ones.
  *
- * Both brand hues need a DARK-SURFACE FORM here. The ink values fail on
- * slate-900 — #0064FF scores 3.63:1 and #6D28D9 only 2.51:1 — so the logo uses
- * the lifted pair below. Keep the two in sync: these are the same colours, not
- * different ones.
+ * The descriptor row ("PII Agent Self Service") and its three fills are gone with
+ * the second lockup line; see PassLogo.
  */
 export const navStyles = {
   bg: 'bg-slate-900',
@@ -880,11 +878,6 @@ export const navStyles = {
     wordmarkInk: 'fill-white', // design-exempt: brand logotype on navStyles.bg (slate-900)
     /** SS — the verdict half. Dark-surface form of the CTA blue #0064FF (3.63:1 → 5.41:1). */
     wordmarkAccent: 'fill-[#4D94FF]', // design-exempt: brand logotype on navStyles.bg (slate-900)
-    /** "PII" — dark-surface form of the EC2 tag purple #6D28D9 (2.51:1 → 6.56:1). */
-    descriptorSubject: 'fill-[#A78BFA]', // design-exempt: brand logotype on navStyles.bg (slate-900)
-    descriptorInk: 'fill-white',
-    /** The rest of the descriptor — 6.97:1 on slate-900. */
-    descriptorMuted: 'fill-slate-400',
   },
   link: {
     inactive: 'text-slate-300 hover:bg-white/5 hover:text-white',
@@ -893,8 +886,12 @@ export const navStyles = {
   user: {
     avatar: 'bg-slate-600 text-white',
     email: 'text-slate-300',
-    /** Google account-chip pattern: 32px initial circle, click opens account card. */
-    chip: 'w-8 h-8 rounded-full inline-flex items-center justify-center text-xs font-semibold hover:ring-2 hover:ring-white/25 transition-shadow',
+    /** Google account-chip pattern: initial circle, click opens account card.
+     *  36px, not 48: GitHub and the Google Cloud console both put the account disc
+     *  at 32, and at 48 it carried the same visual weight as the 32px wordmark —
+     *  the initials competing with the brand mark in the same bar.
+     *  The initial scales with the disc, so the two sizes move together. */
+    chip: 'w-9 h-9 rounded-full inline-flex items-center justify-center text-sm font-semibold hover:ring-2 hover:ring-white/25 transition-shadow',
     menu: {
       container:
         'absolute right-0 top-full mt-2 z-50 min-w-[240px] max-w-[320px] rounded-xl border border-gray-200 bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,0.14)] flex flex-col text-left',

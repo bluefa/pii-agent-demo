@@ -123,18 +123,22 @@ export const TopNav = () => {
           // bar's intrinsic width is the whole app's minimum width: at any narrower
           // window the PAGE scrolls sideways, and the list underneath looks broken
           // for a reason that was never in the list. Below xl the bar sheds what it
-          // can spare (tagline, utility labels, half the gaps) and keeps the primary
-          // items. Dropping the logo's fixed 240px column took ~124px off both
-          // figures.
+          // can spare (utility labels, half the gaps) and keeps the primary items.
+          // Dropping the logo's fixed 240px column took ~124px off both figures.
           //
-          // py-2 is the bar's own inset, not decoration: the height is fixed, so
-          // the padding declares a 48px content budget rather than letting the
-          // 8px fall out of items-center as a leftover. Anything taller than
-          // that now overflows visibly instead of silently eating its own
-          // breathing room — the 41px logo lockup is the tallest thing in it,
-          // which is what sets the floor under this height. 76px left 35px of
-          // air around a 41px lockup and read as an empty band rather than a
-          // roomy one.
+          // Nothing in here stretches to the bar's height, and that is the whole
+          // rule. Measured in-browser on 2026-08-12: the console bars — GitHub,
+          // Google Cloud, Vercel — all float their menu items INSIDE the bar at
+          // 50-75% of its height, and the only one that fills it edge to edge is
+          // Atlassian's MARKETING nav, which is what this bar was copying at 60 of
+          // 64. At h-10 the items sit in 40 of 64 (63%), and the 12px of bar above
+          // and below is what makes the strip read as chrome rather than as a row
+          // of buttons.
+          //
+          // Three heights, in a narrow band on purpose: mark 32, item 40, chip 36.
+          // GitHub runs all three at exactly 32 — the band matters, the number
+          // does not. Before this, the bar held 49 / 60 / 32 / 48 at once and
+          // nothing in it was clearly the largest thing.
           //
           // ⚠ 64px is not local. Everything that sits below this bar or fills
           // the rest of the viewport hard-codes it, because Tailwind class
@@ -144,7 +148,7 @@ export const TopNav = () => {
           //   app/admin/pipelines/_services/styles.ts        (split, railSticky)
           //   app/services/_components/ServiceManagementView.tsx
           //   app/target-sources/[targetSourceId]/_components/ProjectDetail.tsx  (×2)
-          'sticky top-0 z-40 h-[64px] flex items-center gap-4 xl:gap-8 px-6 py-2 text-white',
+          'sticky top-0 z-40 h-[64px] flex items-center gap-4 xl:gap-8 px-6 text-white',
           navStyles.bg,
         )}
       >
@@ -155,15 +159,23 @@ export const TopNav = () => {
             held everywhere it appeared to. What it did hold everywhere was a
             hole: the column was cut for a 148px-wide lockup, so at 108px it sat
             55% empty exactly where the eye enters the bar. */}
-        <div className="px-1 whitespace-nowrap">
+        {/* `flex`, so the svg is a flex item rather than an inline box — inline
+            would hang it off the text baseline and add a few px of descender
+            space under it, pushing the mark off the bar's centre. */}
+        <div className="flex px-1">
           <PassLogo />
         </div>
 
-        <nav className="flex gap-1">
+        {/* h-10 on the items, not `h-full`: the hit target is declared here rather
+            than inherited from the bar, so the bar's height and the button's size
+            stop being the same decision. 40 is the smallest step above the 36px
+            chip that still clears the 44px-ish comfortable target once the 4px
+            gaps either side are counted. */}
+        <nav className="flex items-center gap-1">
           {NAV_ITEMS.map((item) => {
             const active = item.isActive(pathname);
             const baseClass = cn(
-              'inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
+              'inline-flex h-10 items-center gap-2 px-3.5 rounded-md text-base font-medium whitespace-nowrap transition-colors',
               active ? navStyles.link.active : navStyles.link.inactive,
               item.disabled && 'opacity-50 cursor-not-allowed',
             );
