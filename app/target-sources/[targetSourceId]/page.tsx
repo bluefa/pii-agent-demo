@@ -4,6 +4,7 @@ import { schemas } from '@/lib/generated/install-v1';
 import { extractTargetSourceFromSnake } from '@/lib/target-source-response';
 import { ProjectDetail } from '@/app/target-sources/[targetSourceId]/_components/ProjectDetail';
 import { ErrorState } from '@/app/target-sources/[targetSourceId]/_components/common';
+import { classifyTargetSourceLoad } from '@/app/target-sources/[targetSourceId]/load-error';
 import type { JiraTicketState } from '@/app/target-sources/[targetSourceId]/_components/common/GuidePanel';
 
 interface PageProps {
@@ -29,15 +30,36 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const targetSourceId = Number((await params).targetSourceId);
 
   if (!Number.isInteger(targetSourceId) || targetSourceId <= 0) {
-    return <ErrorState error="유효하지 않은 과제 식별자입니다." />;
+    return <ErrorState message="주소의 연동 대상 번호가 올바르지 않아요." />;
   }
 
-  const [data, status, jiraTicket] = await Promise.all([
-    bff.targetSources.get(targetSourceId),
-    bff.confirm.getProcessStatus(targetSourceId),
-    fetchJiraTicket(targetSourceId),
-  ]);
-  const project = extractTargetSourceFromSnake(data, status.process_status);
+  // Caught HERE, not in error.tsx. This is the last place the failure still has a
+  // status: a Server Component throw reaches the boundary with its message stripped
+  // in production builds, so error.tsx cannot tell 404 from 500 and could only ever
+  // show the fallback — while rendering Next's own English notice as the copy.
+  let project;
+  let jiraTicket;
+  try {
+    const [data, status, ticket] = await Promise.all([
+      bff.targetSources.get(targetSourceId),
+      bff.confirm.getProcessStatus(targetSourceId),
+      fetchJiraTicket(targetSourceId),
+    ]);
+    project = extractTargetSourceFromSnake(data, status.process_status);
+    jiraTicket = ticket;
+  } catch (err) {
+    // 진단은 서버 로그로. 사용자에게는 상태 코드로 고른 문구만 간다.
+    const failure = classifyTargetSourceLoad(err);
+    if (failure.unexpected) {
+      console.error(`[target-sources/${targetSourceId}] 상세 조회 실패`, err);
+    } else {
+      // 한 줄만, 에러 객체는 빼고. Next dev 오버레이는 서버 console.error 를 빨간 카드로
+      // 띄우므로, 정상 처리한 404 를 거기 올리면 개발자에게는 터진 화면으로 보인다.
+      const status = err instanceof BffError ? err.status : '?';
+      console.warn(`[target-sources/${targetSourceId}] 상세 조회 ${status} — 안내 화면으로 대체`);
+    }
+    return <ErrorState message={failure.message} />;
+  }
 
   return <ProjectDetail initialProject={project} jiraTicket={jiraTicket} />;
 }
