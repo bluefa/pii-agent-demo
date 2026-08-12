@@ -135,7 +135,14 @@ describe('GET /pass/target-sources/[targetSourceId]', () => {
       expect((await load()).props.message).toBe(TARGET_SOURCE_LOAD_FALLBACK);
     });
 
-    it('상태 조회만 실패해도 화면을 세운다', async () => {
+    /**
+     * 상세는 왔는데 상태 조회가 죽으면 화면 전체가 안내로 대체된다. `Promise.all` 이라
+     * 한쪽 거절이 곧 전체 거절이고, process_status 없이는 어느 단계를 그릴지 알 수 없다.
+     *
+     * 지금은 이게 의도된 동작이다. 다만 jira 티켓은 같은 자리에서 일부러 'error' 로
+     * 강등해 화면을 세우므로, 상태 조회도 같은 대우를 받을 수 있는지는 열린 질문이다.
+     */
+    it('상태 조회가 실패하면 화면 전체가 안내로 대체된다', async () => {
       getTargetSourceMock.mockResolvedValue({ target_source_id: 321, cloud_provider: 'AWS' });
       getProcessStatusMock.mockRejectedValue(new BffError(503, 'UNAVAILABLE', 'down'));
       expect((await load()).props.message).toBe(TARGET_SOURCE_LOAD_FALLBACK);

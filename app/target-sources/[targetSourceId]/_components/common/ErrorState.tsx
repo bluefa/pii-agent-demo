@@ -3,6 +3,17 @@ import { passRoutes } from '@/lib/routes';
 import { bgColors, cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 import { StatusErrorIcon } from '@/app/components/ui/icons';
 
+/**
+ * 이유를 특정하지 못했을 때의 한 줄. 이 컴포넌트가 자기 기본값으로 쓰고,
+ * `load-error.ts` 가 분류 실패 시 같은 문구를 돌려주려고 가져다 쓴다.
+ *
+ * 여기 사는 이유는 경계 때문이다 — `error.tsx` 는 `'use client'` 라서
+ * (`docs/api/boundaries.md`) `load-error.ts` 를 거쳐 `@/lib/bff/*` 를 끌어오면 안 된다.
+ * 이 파일은 훅도 bff 의존도 없어 서버·클라이언트 양쪽이 안전하게 읽는다.
+ */
+export const TARGET_SOURCE_LOAD_FALLBACK =
+  '연동 대상 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
+
 interface ErrorStateProps {
   /**
    * 사용자가 읽을 한 줄 — **카피지 진단 문자열이 아니다**. `Error.message` 를 그대로
@@ -37,7 +48,7 @@ export const ErrorState = ({ message }: ErrorStateProps) => (
       </div>
       <p className={cn('mb-2 font-medium', textColors.primary)}>오류가 발생했어요</p>
       <p className={cn('mb-4 text-sm', textColors.tertiary)}>
-        {message || '연동 대상 정보를 불러오지 못했어요.'}
+        {message || TARGET_SOURCE_LOAD_FALLBACK}
       </p>
       <Link href={passRoutes.services} className={cn('inline-block', getButtonClass('secondary'))}>
         Service 목록으로 돌아가기
