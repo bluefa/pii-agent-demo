@@ -23,6 +23,7 @@ export type GuideNode =
   | { type: 'li'; children: GuideNode[] }
   | { type: 'strong' | 'em' | 'code'; children: GuideNode[] }
   | { type: 'a'; href: string; target?: string; rel?: string; children: GuideNode[] }
+  | { type: 'img'; src: string; alt: string; width?: number; height?: number }
   | { type: 'text'; value: string };
 
 export interface ValidationError {
@@ -30,6 +31,7 @@ export interface ValidationError {
     | 'DISALLOWED_TAG'
     | 'DISALLOWED_ATTRIBUTE'
     | 'INVALID_URL_SCHEME'
+    | 'INVALID_IMAGE_SRC'
     | 'INVALID_NESTING'
     | 'PARSE_ERROR'
     | 'EMPTY_CONTENT';
@@ -41,6 +43,24 @@ export interface ValidationError {
 export type ValidationResult =
   | { valid: true; ast: GuideNode[] }
   | { valid: false; errors: ValidationError[] };
+
+/**
+ * Per-caller allow-list widening.
+ *
+ * Guides stay text-only; posts opt into `<img>`. Keeping this a parameter
+ * rather than a global switch means adding images to posts cannot silently
+ * widen what an Admin Guide is allowed to store.
+ */
+export interface ValidateGuideHtmlOptions {
+  /** Permit `<img>`. Off by default. */
+  allowImages?: boolean;
+  /**
+   * URL prefixes an `<img src>` may start with — the upload storage host.
+   * Required when `allowImages` is on; an empty list rejects every image,
+   * which is the safe failure when the host is misconfigured.
+   */
+  imageSrcPrefixes?: readonly string[];
+}
 
 // ---------------------------------------------------------------------------
 // Allow-list
@@ -61,6 +81,11 @@ const ALLOWED_TAGS = new Set([
 
 const ALLOWED_ATTRS: Record<string, Set<string>> = {
   a: new Set(['href', 'target', 'rel']),
+  // No class/style/align: image placement is ordering within the body, and
+  // letting an author style an image would reopen the styling rule the
+  // allow-list exists to enforce. width/height carry the upload's intrinsic
+  // pixel size so the panel does not reflow as the image arrives.
+  img: new Set(['src', 'alt', 'width', 'height']),
 };
 
 /**
@@ -144,7 +169,10 @@ const wrapBodyShell = (html: string): string =>
 // Validator
 // ---------------------------------------------------------------------------
 
-export function validateGuideHtml(html: string): ValidationResult {
+export function validateGuideHtml(
+  html: string,
+  options: ValidateGuideHtmlOptions = {},
+): ValidationResult {
   const errors: ValidationError[] = [];
 
   // Fast path: entirely empty or whitespace-only input never produces
@@ -167,11 +195,15 @@ export function validateGuideHtml(html: string): ValidationResult {
     };
   }
 
-  const ast = visitChildren(body.childNodes, { parent: null, anchorDepth: 0, path: '' }, errors);
+  const ast = visitChildren(
+    body.childNodes,
+    { parent: null, anchorDepth: 0, path: '', options },
+    errors,
+  );
 
-  // Visible-text emptiness: strip all markup and verify the remaining
-  // characters contain something other than whitespace.
-  if (!hasVisibleText(ast)) {
+  // Emptiness: strip all markup and verify something renderable remains.
+  // An image counts — a post whose body is a single screenshot is legitimate.
+  if (!hasRenderableContent(ast)) {
     errors.push({ code: 'EMPTY_CONTENT', message: '빈 콘텐츠' });
   }
 
@@ -189,6 +221,8 @@ interface VisitContext {
   anchorDepth: number;
   /** Path expression for error messages, e.g. `ul[0] > li[2]`. */
   path: string;
+  /** Caller allow-list widening, carried down the walk unchanged. */
+  options: ValidateGuideHtmlOptions;
 }
 
 const visitChildren = (
@@ -233,7 +267,9 @@ const visitChildren = (
     const segment = `${tag}[${tagIndex}]`;
     const childPath = ctx.path ? `${ctx.path} > ${segment}` : segment;
 
-    if (!ALLOWED_TAGS.has(tag)) {
+    const tagAllowed =
+      ALLOWED_TAGS.has(tag) || (tag === 'img' && ctx.options.allowImages === true);
+    if (!tagAllowed) {
       errors.push({
         code: 'DISALLOWED_TAG',
         message: `허용되지 않은 태그: <${tag}>`,
@@ -289,11 +325,12 @@ const visitChildren = (
       parent: tag,
       anchorDepth: tag === 'a' ? ctx.anchorDepth + 1 : ctx.anchorDepth,
       path: childPath,
+      options: ctx.options,
     };
     const children = visitChildren(node.childNodes, childCtx, errors);
 
     // Assemble AST node ------------------------------------------------
-    const astNode = toAstNode(tag, node, children, childPath, errors);
+    const astNode = toAstNode(tag, node, children, childPath, errors, ctx.options);
     if (astNode) out.push(astNode);
   }
 
@@ -306,6 +343,7 @@ const toAstNode = (
   children: GuideNode[],
   path: string,
   errors: ValidationError[],
+  options: ValidateGuideHtmlOptions,
 ): GuideNode | null => {
   switch (tag) {
     case 'br':
@@ -343,6 +381,27 @@ const toAstNode = (
       };
       return anchor;
     }
+    case 'img': {
+      const src = node.getAttribute?.('src') ?? '';
+      const prefixes = options.imageSrcPrefixes ?? [];
+      if (!prefixes.some((prefix) => src.startsWith(prefix))) {
+        errors.push({
+          code: 'INVALID_IMAGE_SRC',
+          message: `허용되지 않은 이미지 주소: ${src || '(empty)'}`,
+          tagName: 'img',
+          path,
+        });
+      }
+      const width = toPositiveInt(node.getAttribute?.('width'));
+      const height = toPositiveInt(node.getAttribute?.('height'));
+      return {
+        type: 'img',
+        src,
+        alt: node.getAttribute?.('alt') ?? '',
+        ...(width === undefined ? {} : { width }),
+        ...(height === undefined ? {} : { height }),
+      };
+    }
     default:
       // Unreachable: DISALLOWED_TAG is caught before reaching here.
       return null;
@@ -350,17 +409,27 @@ const toAstNode = (
 };
 
 // ---------------------------------------------------------------------------
-// Visible-text probe
+// Renderable-content probe
 // ---------------------------------------------------------------------------
 
-const hasVisibleText = (ast: GuideNode[]): boolean => {
+/** `width`/`height` are intrinsic pixel sizes; anything else is dropped. */
+const toPositiveInt = (raw: string | null | undefined): number | undefined => {
+  if (raw === null || raw === undefined || !/^\d+$/.test(raw)) return undefined;
+  const value = Number(raw);
+  return value > 0 ? value : undefined;
+};
+
+const hasRenderableContent = (ast: GuideNode[]): boolean => {
   for (const node of ast) {
     if (node.type === 'text') {
       if (node.value.trim().length > 0) return true;
       continue;
     }
     if (node.type === 'br') continue;
-    if (hasVisibleText(node.children)) return true;
+    // An image is content on its own — requiring text beside it would reject
+    // a screenshot-only notice, which the requirements allow.
+    if (node.type === 'img') return true;
+    if (hasRenderableContent(node.children)) return true;
   }
   return false;
 };

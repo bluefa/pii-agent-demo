@@ -219,7 +219,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminPost'
         '400':
-          description: 요청 구조 검증 실패(VALIDATION_FAILED) 또는 본문 HTML 검증 실패(POST_CONTENT_INVALID)
+          description: >-
+            요청 구조 검증 실패(VALIDATION_FAILED), 본문 HTML 검증 실패(POST_CONTENT_INVALID),
+            이미지 개수 초과(POST_IMAGE_LIMIT_EXCEEDED), 게시글 총 용량 초과(POST_SIZE_LIMIT_EXCEEDED)
           content:
             application/json:
               schema:
@@ -298,7 +300,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminPost'
         '400':
-          description: 요청 구조 검증 실패(VALIDATION_FAILED) 또는 본문 HTML 검증 실패(POST_CONTENT_INVALID)
+          description: >-
+            요청 구조 검증 실패(VALIDATION_FAILED), 본문 HTML 검증 실패(POST_CONTENT_INVALID),
+            이미지 개수 초과(POST_IMAGE_LIMIT_EXCEEDED), 게시글 총 용량 초과(POST_SIZE_LIMIT_EXCEEDED)
           content:
             application/json:
               schema:
@@ -681,6 +685,8 @@ components:
           - CATEGORY_NAME_DUPLICATED
           - UNSUPPORTED_IMAGE_TYPE
           - IMAGE_TOO_LARGE
+          - POST_IMAGE_LIMIT_EXCEEDED
+          - POST_SIZE_LIMIT_EXCEEDED
         message:
           type: string
         path:
@@ -938,6 +944,10 @@ components:
 - `width`/`height`는 업로드 응답이 준 원본 픽셀 크기를 에디터가 그대로 기록한 값이다. 관리자 입력값이 아니며, 화면 표시 폭은 CSS(`max-width: 100%`)가 통제한다.
 - `img.src`는 **허용된 저장소 호스트 prefix로 시작해야 한다.** 임의 외부 URL은 `POST_CONTENT_INVALID`로 거부한다.
 - 업로드만으로는 어떤 게시글에도 연결되지 않는다. 업로드 후 저장하지 않고 이탈하면 고아 파일이 남는다 — 정리 정책이 필요하다(§5 범위 밖).
+- **게시글 하나에 이미지는 최대 10개**다. `titles`가 아니라 `contents.ko`와 `contents.en`을 합쳐서 센다. 같은 URL이 두 번 들어가면 1개로 센다 — 저장소에 파일이 하나이기 때문이다.
+- **게시글 하나의 총 용량은 최대 10MB**다. 본문이 참조하는 이미지들의 바이트 합이며, ko/en을 합쳐 계산하고 중복 URL은 한 번만 더한다. 파일 1개 상한(5MB)과 별개로 동작하며, 둘 중 먼저 걸리는 쪽이 저장을 막는다.
+- 두 상한은 업로드가 아니라 **저장 시점**에 검사한다. 업로드는 파일 단위라 그 시점에는 어느 게시글에 들어갈지 알 수 없다. 초과하면 `POST_IMAGE_LIMIT_EXCEEDED` 또는 `POST_SIZE_LIMIT_EXCEEDED`로 거부한다.
+- 에디터는 저장 전에 같은 계산을 미리 수행해 남은 개수와 용량을 보여준다. 서버 검증은 그대로 유지한다.
 - 아코디언은 접힌 상태에서도 이미지 노드가 렌더 트리에 존재하므로, 렌더러는 `loading="lazy"`를 붙인다. 붙이지 않으면 메인 화면 진입만으로 모든 게시글의 이미지가 내려받아진다.
 
 ### Category
