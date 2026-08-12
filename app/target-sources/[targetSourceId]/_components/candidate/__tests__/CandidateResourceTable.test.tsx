@@ -393,6 +393,32 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(screen.queryByText('WRITER')).toBeNull();
   });
 
+  // An Aurora cluster carries a writer and up to fifteen readers. A fixed tile grid turns that
+  // into ragged rows of cards — a layout that assumes the count is small (owner, 2026-08-12:
+  // "instance가 8개면 어떻게 하려고 그러냐"). One line each, and the band is however long that is.
+  it('grows one line per instance — eight instances, eight lines', () => {
+    const eight = Array.from({ length: 8 }, (_, i) => ({
+      resource_id: `arn:db:demo-${i + 1}`,
+      resource_name: `demo-${i + 1}`,
+      host: `demo-${i + 1}.cluster-ro.rds`,
+      port: 3306,
+      availability_zone: 'ap-northeast-2a',
+      cluster_member_role: i === 0 ? 'WRITER' : 'READER',
+    }));
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[clusterFixture({ rdsInstanceCandidates: eight })]}
+        selectedIds={new Set(['cluster-1'])}
+      />,
+    );
+    openBand();
+    expect(screen.getByText('연결할 인스턴스 · 8건')).toBeTruthy();
+    expect(screen.getAllByRole('radio')).toHaveLength(8);
+    // Every line fills all three of the band's own columns — no wrapping into a second grid row.
+    expect(screen.getAllByText('demo-8.cluster-ro.rds:3306')).toHaveLength(1);
+  });
+
   it('tags the cluster row RDS Cluster, before the name', () => {
     renderCluster();
     const tag = screen.getByText('RDS Cluster');
