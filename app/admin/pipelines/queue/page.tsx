@@ -46,6 +46,7 @@ import { TqEmptyState } from '@/app/admin/pipelines/queue/_components/bits';
 
 import { getDashboardSummary, getProcessStatuses } from '@/app/lib/api/task-queue';
 import type { DashboardSummary, Paged, ProcessStatusRow } from '@/lib/types/task-queue';
+import { pageRange } from '@/app/admin/pipelines/queue/_p1/logic';
 import type { DelayFilter } from '@/app/admin/pipelines/queue/_p1/logic';
 
 const SIZE_OPTIONS = [10, 20, 50] as const;
@@ -140,8 +141,10 @@ export default function QueueDashboardPage(): ReactElement {
 
   const totalElements = procPage?.totalElements ?? 0;
   const totalPages = Math.max(1, procPage?.totalPages ?? 1);
-  const currentPage = (procPage?.number ?? page) + 1; // 1-indexed for the pager
+  const pageIndex = procPage?.number ?? page; // 0-indexed (contract)
+  const currentPage = pageIndex + 1; // 1-indexed for the pager
   const hasServerRows = totalElements > 0;
+  const [firstOnPage, lastOnPage] = pageRange(pageIndex, size, totalElements);
 
   return (
     <div>
@@ -311,8 +314,7 @@ export default function QueueDashboardPage(): ReactElement {
                     ))}
                   </PlSelect>
                   <span className={pipelineStyles.pager.count}>
-                    {currentPage * size + 1}–{Math.min(totalElements, (currentPage + 1) * size)} /
-                    전체 {totalElements}건
+                    {firstOnPage}–{lastOnPage} / 전체 {totalElements}건
                   </span>
                 </div>
                 <PlPagination

@@ -6,3 +6,19 @@
  */
 export { DELAY_THRESHOLDS, filterByDelay } from '@/lib/types/task-queue';
 export type { DelayFilter } from '@/lib/types/task-queue';
+
+/**
+ * [first, last] ordinals behind the `21–40 / 전체 …` range label.
+ *
+ * `pageIndex` is 0-based, as the contract sends it. Feeding it the 1-based
+ * value the pager takes shifts every page by one `size`, and on the last page
+ * the end is clamped to `totalElements` while the start keeps climbing — a
+ * reversed range like `41–23`.
+ */
+export function pageRange(
+  pageIndex: number,
+  size: number,
+  totalElements: number,
+): [first: number, last: number] {
+  return [pageIndex * size + 1, Math.min(totalElements, (pageIndex + 1) * size)];
+}

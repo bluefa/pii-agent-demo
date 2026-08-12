@@ -16,7 +16,7 @@
 |---|---|---|---|
 | P0-1 | 서비스 인프라 목록에 진행 상태·반려 여부가 전무 (전부 하드코딩) | 사용자 | ✅ |
 | P0-2 | 대기 단계(승인 대기·설치 중)에 auto-poll이 없어 "새로고침하세요"가 공식 안내 | 사용자 | 권장 |
-| P0-3 | Admin 큐 목록 범위 라벨 계산 버그 ("21–40"부터 시작) | Admin·버그 | ❌ |
+| P0-3 | ~~Admin 큐 목록 범위 라벨 계산 버그 ("21–40"부터 시작)~~ → 2026-08-12 해결 | Admin·버그 | ❌ |
 | P0-4 | 진행 내역 탭이 전 사용자 공통 가짜 데이터 (MOCK_HISTORY) | 사용자 | ✅ |
 | P0-5 | `scan_status`/`integration_status` 계약 부재 — 실 BFF 전환 시 Step1 태그·Step3 카운트 즉시 파손 (LIN-51) | API | ✅ |
 | P1 | 죽은 컨트롤 정리(필터·삭제×2)·200건 하드캡 3곳·Step1 테이블 도구 부재·에러의 빈상태 위장·error_code 조치 안내·로그뷰어 | 혼합 | 일부 |
@@ -99,10 +99,11 @@
 
 ## B. Admin 콘솔 (파이프라인 · 큐 · 운영)
 
-### B-1. [P0·버그] 큐 목록 범위 라벨 off-by-one-page
+### B-1. [P0·버그] 큐 목록 범위 라벨 off-by-one-page — **해결 (2026-08-12)**
 
 - **현상**: `app/admin/pipelines/queue/page.tsx:333-336` — `currentPage`가 이미 1-based인데 `currentPage * size + 1`–`(currentPage + 1) * size`로 계산(코드로 재검증). 첫 페이지에서 실제 1–20행을 보여주며 라벨은 "21–40 / 전체 N건".
 - **제안**: 0-based 원본(`procPage.number`)으로 `page * size + 1`–`min(total, (page+1) * size)`. API 불필요, 즉시 수정 가능.
+- **해결**: 제안대로. 첫 페이지만이 아니라 모든 페이지가 한 페이지(`size`)씩 밀려 있었고, 마지막 페이지에서는 끝값이 `totalElements`에 잘려 "41–23" 같은 뒤집힌 범위까지 나왔다. 인덱스 규약을 이름으로 갈라 두고(`pageIndex` 0-based / `currentPage` 1-based) 계산은 `_p1/logic.ts`의 순수 함수 `pageRange`로 빼서 테스트를 걸었다.
 
 ### B-2. [P1] 에러가 빈 상태로 위장한다 — 정직성 3곳
 
