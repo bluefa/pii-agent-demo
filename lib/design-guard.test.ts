@@ -737,3 +737,49 @@ describe('detects the PR #624 regressions the hook missed', () => {
     expect(deltaE00(resolve('var(--pl-gray-100)'), '#F2F4F7')).toBeLessThan(SURFACE_MIN);
   });
 });
+
+/**
+ * The RDS instance band draws the same tree rail as an Athena group, from a different anchor:
+ * the group's offsets are measured inside a name cell, the band's inside a colspan cell that
+ * starts one whole column to the left. Two numbers in two tokens have to agree for the rail to
+ * come out as ONE line, and nothing in the type system says so — hence a guard.
+ */
+describe('instance band rail shares the group rail axis', () => {
+  /**
+   * `classOf` reads single-quoted values, and a rail token is double-quoted because it carries
+   * `content-['']` — whose apostrophes end that helper's match halfway through the string.
+   */
+  const railClassOf = (src: string, key: string) => {
+    const m = src.match(new RegExp(`(?<![\\w])${key}:\\s*\\n?\\s*"([^"]*)"`));
+    return m ? m[1] : classOf(src, key);
+  };
+  const px = (cls: string, pattern: RegExp) => {
+    const m = cls.match(pattern);
+    if (!m) throw new Error(`no ${pattern} in "${cls}"`);
+    return Number(m[1]);
+  };
+  const bandSrc = themeSrc.match(/instanceBand: \{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+  const groupSrc = themeSrc.match(/group: \{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+
+  it('the trunk lands on the group chevron, and the name on the child tier', () => {
+    // Athena: rail x = 16 inside a name cell; a child name at 54 in the same cell.
+    const groupRail = px(railClassOf(groupSrc, 'childCell'), /before:left-\[(\d+)px\]/);
+    const groupChild = px(railClassOf(groupSrc, 'childCell'), /pl-\[(\d+)px\]/);
+    // The band: content at 106 (= 52 checkbox column + 54), rail pulled back from it.
+    const bandRail = px(railClassOf(bandSrc, 'line'), /before:-left-\[(\d+)px\]/);
+    // Both cells sit on the same left edge once the checkbox column is accounted for, so the
+    // pull-back must equal the gap the group leaves between its own rail and its child name.
+    expect(bandRail).toBe(groupChild - groupRail);
+  });
+
+  it('the radio hangs clear of the elbow rather than touching it', () => {
+    const axis = px(railClassOf(bandSrc, 'line'), /before:-left-\[(\d+)px\]/);
+    // Every rail pseudo-element in the band hangs off that one axis.
+    const offsets = [...bandSrc.matchAll(/-left-\[(\d+)px\]/g)].map((m) => Number(m[1]));
+    expect(new Set(offsets)).toEqual(new Set([axis]));
+    // The radio is the exception — it hangs in the tier gap, on Tailwind's 4px scale.
+    const radio = px(railClassOf(bandSrc, 'radio'), /-left-(\d+)\b/) * 4;
+    const elbow = px(railClassOf(bandSrc, 'line'), /after:w-\[(\d+)px\]/);
+    expect(axis - radio).toBeGreaterThan(elbow);
+  });
+});

@@ -6,6 +6,7 @@ import {
   bgColors,
   borderColors,
   cn,
+  idcStyles,
   primaryColors,
   statusColors,
   textColors,
@@ -66,7 +67,9 @@ const LINE_GRID = 'grid grid-cols-[minmax(0,5fr)_minmax(0,3fr)_minmax(0,6fr)] it
  * Where the body's content starts, measured off the table's own tier geometry (`idcStyles.
  * table.group`): the leading checkbox column is 52px (18 + 16 + 18), the name column's own left
  * edge is +30, and a child hangs one 24px tier below that. 52 + 54 = 106; read-only tables drop
- * the checkbox column, leaving 54.
+ * the checkbox column, leaving 54. This is the x an Athena database name lands on, and the
+ * instance names land on it too — the radio hangs to its left rather than pushing it right
+ * (`idcStyles.table.instanceBand.radio`).
  */
 const INDENT_WITH_CHECKBOX = 'pl-[106px]';
 const INDENT_WITHOUT_CHECKBOX = 'pl-[54px]';
@@ -84,10 +87,13 @@ export const RdsInstancePanel = ({
     <td colSpan={showCheckboxColumn ? 7 : 5} className="px-0 py-0">
       {/* Bottom padding is deliberately larger than the top one (owner, 2026-08-12): the body
           belongs to the cluster ABOVE it, so sitting tight under that row and leaving room
-          before the next resource is what says so. 16 → 24, both on the spacing set. */}
+          before the next resource is what says so. 16 → 24, both on the spacing set. The top
+          16 rides the header strip rather than this box, so the rail can be drawn through it —
+          on the container the trunk would start below the padding and leave a gap under the
+          cluster's own segment. */}
       <div
         className={cn(
-          'border-b pr-[18px] pt-4 pb-6',
+          'border-b pr-[18px] pb-6',
           borderColors.default,
           // gray-100, not gray-50: the open state has to be SEEN, and gray-50 measures ΔE00 1.20
           // from white — under the ~2.3 at which two colours read as different at all, so the
@@ -101,14 +107,21 @@ export const RdsInstancePanel = ({
         {/* No title strip. The row above already names the cluster and the count, and the
             guidance repeated what the checked radio and the Reader-first order say by
             themselves — the body opens straight into the list (owner, 2026-08-12). */}
-        <div className={cn('pb-2 text-[12px]', LINE_GRID, textColors.secondary)}>
+        <div
+          className={cn(
+            'pt-4 pb-2 text-[12px]',
+            LINE_GRID,
+            idcStyles.table.instanceBand.headerStrip,
+            textColors.secondary,
+          )}
+        >
           <span>인스턴스</span>
           <span>가용 영역</span>
           <span>엔드포인트</span>
         </div>
 
         <div>
-          {instances.map((instance) => {
+          {instances.map((instance, index) => {
             const identifier = rdsInstanceLabel(instance);
             const chosen = instance.resource_id === chosenResourceId;
             const endpoint = typeof instance.host === 'string' && instance.host
@@ -117,7 +130,7 @@ export const RdsInstancePanel = ({
 
             const body = (
               <>
-                <span className="flex min-w-0 items-center gap-2">
+                <span className="relative flex min-w-0 items-center gap-2">
                   {selectable && (
                     <input
                       type="radio"
@@ -126,7 +139,12 @@ export const RdsInstancePanel = ({
                       checked={chosen}
                       onChange={() => onSelect(instance.resource_id)}
                       aria-label={`접속 인스턴스 ${identifier} 선택`}
-                      className={cn('h-4 w-4 shrink-0', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
+                      className={cn(
+                        idcStyles.table.instanceBand.radio,
+                        statusColors.pending.border,
+                        primaryColors.text,
+                        primaryColors.focusRing,
+                      )}
                     />
                   )}
                   <span className={cn('min-w-0 truncate font-mono text-[14px]', textColors.primary)}>
@@ -160,6 +178,8 @@ export const RdsInstancePanel = ({
               'border-t py-3 pr-3',
               borderColors.default,
               bgColors.surfaceHover,
+              idcStyles.table.instanceBand.line,
+              index === instances.length - 1 && idcStyles.table.instanceBand.lineLast,
             );
 
             // No radio → nothing to label, so the line is a plain block rather than a
