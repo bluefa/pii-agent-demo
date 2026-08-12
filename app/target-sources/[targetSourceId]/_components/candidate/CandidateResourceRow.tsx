@@ -22,6 +22,7 @@ import { ChevronRightIcon } from '@/app/components/ui/icons';
 import { RdsInstancePanel } from '@/app/target-sources/[targetSourceId]/_components/candidate/RdsInstancePanel';
 import { isEc2Instance, resolveExclusionReason } from '@/lib/types';
 import {
+  bgColors,
   cn,
   ec2Styles,
   idcStyles,
@@ -167,13 +168,19 @@ export const CandidateResourceRow = ({
   // One static background per row: expanded/config-needed functional tints win over
   // the dim tint, and each branch owns its hover pair (`cn` is a plain join — two
   // static bg classes on one element would leave the winner to CSS order).
+  // An open cluster row is an accordion HEADER, so it carries the body's own surface: the two
+  // sharing one tint, with nothing between them, is what makes the pair read as one block that
+  // opened rather than as a row with a panel underneath it. (The Athena parent stays untinted —
+  // its children are real rows and the tree rail draws that connection. There is no rail here.)
   const rowStateClass = isExpanded
     ? statusColors.info.bg
-    : showConfigNeeded
-      ? statusColors.warning.bg
-      : dimmed
-        ? ROW_EXCLUDED
-        : ROW_TARGET;
+    : isRdsClusterRow && instancesExpanded
+      ? bgColors.panel
+      : showConfigNeeded
+        ? statusColors.warning.bg
+        : dimmed
+          ? ROW_EXCLUDED
+          : ROW_TARGET;
 
   const handleRowClick = () => {
     if (canExpand) actions.expandToggle(isExpanded ? null : candidate.id);
@@ -510,8 +517,7 @@ export const CandidateResourceRow = ({
       {isRdsClusterRow && instancesExpanded && (
         <RdsInstancePanel
           clusterId={candidate.id}
-          // Editable table: checkbox + 5 data columns + exclusion-reason column.
-          colSpan={showCheckboxColumn ? 7 : 5}
+          showCheckboxColumn={showCheckboxColumn}
           instances={sortedInstances}
           chosenResourceId={chosenInstanceResourceId}
           // Radios exist only inside a checked cluster: an unchecked cluster submits no
