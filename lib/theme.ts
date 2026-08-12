@@ -653,22 +653,62 @@ export const projectHeaderStyles = {
   codeChip: 'inline-flex flex-none items-baseline gap-1.5 rounded-[6px] bg-[#E9EEF9] px-2 py-[3px]',
   codeChipLabel: 'text-[12px] font-medium text-[#55617A]',
   codeChipValue: 'font-mono text-[12px] font-semibold text-[#2C3A55]',
-  /** Block eyebrow (설명 / 클라우드 정보 / 설치 진행) — small but darker than kv labels. */
-  blockLabel: 'text-[12px] font-semibold tracking-[0.02em] text-[#333D4B]',
+  /**
+   * Block eyebrow (설명 / 클라우드 정보 / 설치 진행) — small but darker than kv
+   * labels. 설명 and 설치 진행 keep it on a line of its own; the provider group puts
+   * it ON the kv label line, and there the extra weight is what stops a GROUP name
+   * from reading as one more FIELD name beside Account ID. Re-tinting it touches
+   * both roles. `whitespace-nowrap` exists for the second one — it now shares a
+   * flex column with `min-w-0`, where its peers already carry it.
+   *
+   * Muted lavender, not a light one. On the #F4F4FB wash a genuinely light purple
+   * cannot clear AA — #9B8FD1 is 2.65:1 and Tailwind purple-500 is 3.61:1; the
+   * lightest purple that passes sits around #7C5CC4 at 4.58:1. So this pair buys
+   * its purple from saturation, not lightness: 8.34:1 here against 5.26:1 on
+   * `kvLabel`. That 1.59x step IS the label hierarchy (group name vs field name)
+   * — keep it on any re-tint, and re-measure on the wash, never on white.
+   */
+  blockLabel: 'whitespace-nowrap text-[12px] font-semibold tracking-[0.02em] text-[#4C3F7A]',
   block: 'mt-[18px]',
   /** Description body — 2-line clamp; the whole block is skipped when empty. */
   descText: 'mt-1.5 max-w-[82ch] text-[14px] font-medium leading-[1.5] text-[#4E5968] line-clamp-2',
-  groupRow: 'mt-1.5 flex flex-wrap items-stretch gap-x-5 gap-y-2',
-  provider: 'flex flex-none items-center gap-2 pr-1',
+  /**
+   * The group eyebrow rides INSIDE this row as the provider stack's own label,
+   * so every label in the block sits on one line and every value on the next.
+   * Centering each stack (items-stretch + justify-center) put the provider name
+   * between the neighbour's label and value — 10px off the identifier it names.
+   */
+  groupRow: 'mt-1.5 flex flex-wrap items-start gap-x-5 gap-y-2',
+  /**
+   * The provider's own label+value stack. Not `kv`: it must never shrink (the
+   * brand line has nothing to truncate), and it carries no copy button, so the
+   * `group/kv` hover scope would be dead weight.
+   */
+  providerStack: 'flex flex-none flex-col gap-1.5',
+  provider: 'flex min-h-[30px] flex-none items-center gap-2 pr-1',
   providerIcon: 'grid h-[30px] w-[30px] flex-none place-items-center rounded-[8px] bg-[#ECEDF4] text-[#4E5968]',
-  providerName: 'text-[14px] font-medium tracking-[-0.01em] text-[#191F28]',
+  /** leading is explicit on BOTH line boxes — see kvValue. */
+  providerName: 'text-[14px] font-medium leading-[1.5] tracking-[-0.01em] text-[#191F28]',
   /** Plain-language gloss after a bare token (IDC → 사내망). */
   providerGloss: 'text-[#4E5968]',
   providerGlossBar: 'mx-1.5 text-[#C6CCD6]', // design-exempt: decorative separator glyph, not text
   divider: 'w-px flex-none self-stretch bg-[#E4E5EE]',
-  kv: 'group/kv flex min-w-0 flex-col justify-center gap-0.5',
-  kvLabel: 'whitespace-nowrap text-[12px] font-medium text-[#4E5968]',
-  kvValue: 'flex items-center text-[14px] font-medium leading-[1.35] text-[#191F28]',
+  /** 6px label→content binding, the same gap the 설명/설치 진행 blocks use. */
+  kv: 'group/kv flex min-w-0 flex-col gap-1.5',
+  /** Field name — every CSP's identifier row runs through here: 설치 대상, AWS
+      Account ID, GCP Project ID, Azure Subscription/Tenant ID, 설치 모드, 연동 방식.
+      The quieter of the two label tiers at 5.26:1 on the wash; see blockLabel for
+      why it is muted. Semibold like blockLabel, so the two tiers now separate on
+      color and tracking alone — weight is no longer part of that signal. */
+  kvLabel: 'whitespace-nowrap text-[12px] font-semibold text-[#6B5E93]',
+  /**
+   * Two invariants keep this line and the provider's on one line:
+   * `min-h-[30px]` (the icon badge's height) makes the two boxes share a centre,
+   * and the leading must equal `providerName`'s or the baselines sit ~1px apart.
+   * 1.5 is a ratio, not a frozen 21px — providerName inherits 1.5 from Preflight's
+   * `html`, so a font-size change moves both together instead of splitting them.
+   */
+  kvValue: 'flex min-h-[30px] items-center text-[14px] font-medium leading-[1.5] text-[#191F28]',
   kvValueMono: 'font-mono tracking-[-0.02em] tabular-nums',
   /** Copy affordance — hover/focus reveal, so idle rows show only the value. */
   copyReveal: 'opacity-0 transition-opacity duration-[120ms] group-hover/kv:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none',

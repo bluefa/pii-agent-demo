@@ -149,22 +149,27 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
       )}
 
       <div className={h.block}>
-        <div className={h.blockLabel}>{display.group}</div>
+        {/* The group eyebrow is the provider's own label, not a line above the
+            row — that keeps 클라우드 정보 level with Project ID, and the provider
+            name level with the identifier it names. */}
         <div className={h.groupRow}>
-          <span className={h.provider}>
-            <span className={h.providerIcon} aria-hidden="true">
-              <Icon className="h-4 w-4" />
-            </span>
-            <span className={h.providerName}>
-              {display.name}
-              {display.gloss && (
-                <>
-                  <span className={h.providerGlossBar} aria-hidden="true">
-                    |
-                  </span>
-                  <span className={h.providerGloss}>{display.gloss}</span>
-                </>
-              )}
+          <span className={h.providerStack}>
+            <span className={h.blockLabel}>{display.group}</span>
+            <span className={h.provider}>
+              <span className={h.providerIcon} aria-hidden="true">
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className={h.providerName}>
+                {display.name}
+                {display.gloss && (
+                  <>
+                    <span className={h.providerGlossBar} aria-hidden="true">
+                      |
+                    </span>
+                    <span className={h.providerGloss}>{display.gloss}</span>
+                  </>
+                )}
+              </span>
             </span>
           </span>
 
