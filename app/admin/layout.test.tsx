@@ -25,6 +25,9 @@ describe('AdminLayout role gate', () => {
     await renderGate();
     expect(screen.getByText('admin content')).toBeTruthy();
     expect(screen.queryByText(DENIED)).toBeNull();
+    // Pins TopNav placement from this side too — the deny-branch test alone
+    // would stay green if TopNav moved inside the deny branch.
+    expect(screen.getByText('topnav')).toBeTruthy();
   });
 
   it('role 대소문자/공백은 무시한다', async () => {
