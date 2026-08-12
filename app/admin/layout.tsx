@@ -27,7 +27,9 @@ export const dynamic = 'force-dynamic';
 /**
  * Whole-page notice. Not the shared EmptyState: that variant is sized for a
  * slot inside a page and is shared app-wide, so it cannot grow for this screen.
- * 76px = TopNav's sticky bar, which occupies flow.
+ * 64px = TopNav's sticky bar, which occupies flow. That number is not owned
+ * here — see the list in app/components/layout/TopNav.tsx; every site holding
+ * it has to move together.
  */
 const FullPageNotice = ({
   icon,
@@ -38,7 +40,7 @@ const FullPageNotice = ({
   title: string;
   description: string;
 }) => (
-  <div className="flex min-h-[calc(100vh-76px)] flex-col items-center justify-center px-6 text-center">
+  <div className="flex min-h-[calc(100vh-64px)] flex-col items-center justify-center px-6 text-center">
     {/* Decorative: the heading already carries the message, so the glyph stays
         aria-hidden (the icon default) and adds no label. */}
     {icon}

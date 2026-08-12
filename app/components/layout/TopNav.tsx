@@ -124,7 +124,10 @@ export const TopNav = () => {
           // window the PAGE scrolls sideways, and the list underneath looks broken
           // for a reason that was never in the list. Below xl the bar sheds what it
           // can spare (utility labels, half the gaps) and keeps the primary items.
-          // Dropping the logo's fixed 240px column took ~124px off both figures.
+          // Dropping the logo's fixed 240px column did not raise that floor: the
+          // column was `xl:` only, so below xl it never applied, and at xl the bar
+          // lost width rather than gaining it. Verified at 1710px — the page does
+          // not scroll sideways.
           //
           // Nothing in here stretches to the bar's height, and that is the whole
           // rule. Measured in-browser on 2026-08-12: the console bars — GitHub,
@@ -137,14 +140,17 @@ export const TopNav = () => {
           //
           // Three heights, in a narrow band on purpose: mark 32, item 40, chip 36.
           // GitHub runs all three at exactly 32 — the band matters, the number
-          // does not. Before this, the bar held 49 / 60 / 32 / 48 at once and
-          // nothing in it was clearly the largest thing.
+          // does not. Before this the bar held four: a 59px lockup (40 + gap-1 +
+          // 15) that filled its whole 60px content box, 36px items, ~30px utility
+          // links and a 32px chip. The mark was not the largest thing by design;
+          // it was the largest thing because nothing set a band.
           //
           // ⚠ 64px is not local. Everything that sits below this bar or fills
           // the rest of the viewport hard-codes it, because Tailwind class
           // strings must stay complete literals (동적 조합 금지) and cannot read
           // a shared token. Change it here and all of these move with it:
           //   lib/theme.ts                     (pipelineStyles shell / sidebar)
+          //   app/admin/layout.tsx                          (FullPageNotice)
           //   app/admin/pipelines/_services/styles.ts        (split, railSticky)
           //   app/services/_components/ServiceManagementView.tsx
           //   app/target-sources/[targetSourceId]/_components/ProjectDetail.tsx  (×2)

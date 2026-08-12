@@ -887,9 +887,11 @@ export const navStyles = {
     avatar: 'bg-slate-600 text-white',
     email: 'text-slate-300',
     /** Google account-chip pattern: initial circle, click opens account card.
-     *  36px, not 48: GitHub and the Google Cloud console both put the account disc
-     *  at 32, and at 48 it carried the same visual weight as the 32px wordmark —
-     *  the initials competing with the brand mark in the same bar.
+     *  36, up from 32: GitHub and the Google Cloud console both run the account
+     *  disc at 32, but they also run their marks and menu items at 32-36. This
+     *  bar's band is mark 32 / item 40, and the chip sits inside it rather than
+     *  under it. Going further — 48 was tried — puts the initials at the same
+     *  visual weight as the brand mark in the same bar.
      *  The initial scales with the disc, so the two sizes move together. */
     chip: 'w-9 h-9 rounded-full inline-flex items-center justify-center text-sm font-semibold hover:ring-2 hover:ring-white/25 transition-shadow',
     menu: {
@@ -1750,7 +1752,7 @@ export const serviceSidebarStyles = {
    *
    * Hover turns the arrow brand-blue. #0064FF is only 3.95:1 on the rail itself —
    * unusable — but it never lands there: `hover:bg-white` fires on the same event,
-   * so the blue is always read against white (4.58:1). The two hover rules are one
+   * so the blue is always read against white (4.92:1). The two hover rules are one
    * effect; splitting them puts the blue back on the rail.
    *
    * `disabled:hover:text-*` restates the disabled ink instead of trusting variant

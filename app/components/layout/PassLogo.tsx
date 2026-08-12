@@ -21,12 +21,12 @@ import { navStyles } from '@/lib/theme';
  * console put its mark at 28-50% of the bar. 32 of 64 is 50%, the same figure
  * GitHub uses for its mark, its menu items and its avatar alike.
  *
- * A "PII Agent Self Service" descriptor row used to sit under this at 11px,
- * making a 49px lockup — 77% of the bar, and above every benchmark. None of the
- * five put a two-line lockup in the bar at all, and the row was already
- * `hidden xl:block`, so it was absent under 1280px anyway. It is deleted rather
- * than hidden; the paths are one `git revert` away if a login or landing screen
- * ever wants the full lockup.
+ * A "PII Agent Self Service" descriptor row used to sit under this — 15px under
+ * a 40px wordmark, a 59px lockup filling the whole content box of what was then
+ * a 76px bar. None of the five benchmarks put a two-line lockup in the bar at
+ * all, and the row was already `hidden xl:block`, so it was absent under 1280px
+ * anyway. It is deleted rather than hidden; the paths are in git history if a
+ * login or landing screen ever wants the full lockup.
  */
 export const PassLogo = () => (
   <svg
