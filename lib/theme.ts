@@ -1453,10 +1453,13 @@ export const idcStyles = {
        */
       toggleStatic: 'rotate-90 text-[#6B7684]',
       /**
-       * Service label — one tier BELOW the child rows' name, not above it. The parent is
-       * context, not the headline: the rows a user acts on are the databases. Same 14px mono
-       * as the Resource Name column so it stays in that column's voice, weight 600 vs the
-       * children's 500, and no second line.
+       * The group's NAME line — its region. One Athena catalog per region is exactly what a
+       * group is, so the region is what tells two of them apart; the service rides above it as
+       * the kind tag (`tagStyles.resourceKind`), the tier `RDS Cluster` and `EC2` already wear.
+       *
+       * One tier BELOW the child rows' name, not above it. The parent is context, not the
+       * headline: the rows a user acts on are the databases. Same 14px mono as the Resource
+       * Name column so it stays in that column's voice, weight 600 vs the children's 500.
        */
       label: 'whitespace-nowrap font-mono text-[14px] font-semibold text-[#4E5968]',
       /** Aggregate cells — tabular so counts stay aligned down the column. */

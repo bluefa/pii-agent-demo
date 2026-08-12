@@ -496,7 +496,7 @@ describe('CandidateResourceTable — Athena groups', () => {
     const identity = toggle.closest('td') as HTMLElement;
     expect(identity.textContent).toContain('ap-northeast-2');
     // The fixture's rows are unselected, so both land on the 제외 side.
-    expect(identity.textContent).toContain('데이터베이스 대상 0 · 제외 2');
+    expect(identity.textContent).toContain('데이터베이스 · 대상 0 · 제외 2');
     expect(identity.textContent).not.toContain('raw_athena_db_prod');
   });
 

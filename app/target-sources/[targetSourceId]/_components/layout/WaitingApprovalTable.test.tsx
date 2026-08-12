@@ -149,8 +149,8 @@ describe('WaitingApprovalTable', () => {
       expect(toggles[0].getAttribute('aria-expanded')).toBe('true');
       // The counts are split across spans (the numbers sit a size up), so `getByText` — which
       // matches an element's OWN text nodes — cannot see the phrase. Read the cell instead.
-      expect(aggregateOf('ap-northeast-1')).toContain('데이터베이스 대상 1 · 제외 1');
-      expect(aggregateOf('us-east-1')).toContain('데이터베이스 대상 1 · 제외 0');
+      expect(aggregateOf('ap-northeast-1')).toContain('데이터베이스 · 대상 1 · 제외 1');
+      expect(aggregateOf('us-east-1')).toContain('데이터베이스 · 대상 1 · 제외 0');
     });
 
     // The parent's type and region live in its identity cell, not in the two columns keyed on
